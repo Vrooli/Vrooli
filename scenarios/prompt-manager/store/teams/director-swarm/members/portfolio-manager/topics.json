@@ -1,0 +1,18 @@
+{
+  "required_read": [
+    {
+      "prefix": "goal-portfolio-record/YYYY-MM-DD"
+    }
+  ],
+  "output": [
+    {
+      "prefix": "goal-portfolio-record/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
+}

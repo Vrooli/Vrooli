@@ -1,0 +1,10 @@
+[project]
+name = "{{SCENARIO_ID_SNAKE}}"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_untyped_defs = true
+python_version = "3.11"

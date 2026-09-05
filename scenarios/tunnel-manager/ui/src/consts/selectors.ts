@@ -4,22 +4,20 @@
  * This file is the single source of truth for every selector used by the UI and
  * by Vrooli Ascension workflows. We deliberately model selectors as two
  * declarative maps (one literal, one dynamic) and rely on a small helper to
- * produce the typed `selectors` export plus the manifest consumed by workflow
- * linting. Do not hand-roll selector helpers or change this structure—update the
- * maps below so UI code, automation flows, and the manifest builder all stay in
- * sync across every scenario.
+ * produce the typed `selectors` export plus the in-memory `selectorsManifest`
+ * export consumed by workflow tooling. Do not hand-roll selector helpers or
+ * change this structure—update the maps below so UI code, automation flows, and
+ * the manifest builder all stay in sync across every scenario.
  *
- * ## Auto-Generated Manifest
+ * ## Manifest Export
  *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
+ * If you need to add or modify selectors:
  *
  * 1. Update the `literalSelectors` object below for static selectors
  * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
+ * 3. `selectorsManifest` updates from the same source maps automatically
  */
+import { LOCALE_CODES } from "../i18n/locales";
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
@@ -52,7 +50,9 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]:
+    | DynamicSelectorBranch
+    | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,12 +79,12 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,23 +93,32 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isDynamicDefinition = (
+  value: unknown,
+): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as { kind?: unknown }).kind === "dynamic-selector",
+  );
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
-) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+): Record<string, string | number> => {
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
-  for (const key of Object.keys(schema)) {
+  for (const [key, definitionEntry] of Object.entries(schema)) {
     if (!(key in raw)) {
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
-    const definitionEntry = schema[key];
     const value = raw[key];
+    // Defensive: `key in raw` doesn't narrow `raw[key]` under noUncheckedIndexedAccess.
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' is undefined`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -171,7 +180,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -213,8 +222,8 @@ const mergeLiteralAndDynamicNodes = (
 
     if (literalValue && typeof literalValue === "object") {
       merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
+        literalValue,
+        isDynamicDefinition(dynamicValue) ? undefined : dynamicValue,
         nextPath,
       );
       return;
@@ -225,7 +234,7 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue, nextPath);
     }
   });
 
@@ -233,7 +242,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -246,14 +255,25 @@ const createDynamicSelectorFn = (
   };
 };
 
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
+/**
+ * Build a dynamic-selector definition. Exported so unit tests and downstream
+ * tooling can construct registries; scenario authors should still edit the
+ * `dynamicSelectorDefinitions` map at the bottom of this file rather than
+ * calling this from elsewhere in the codebase.
+ */
+export const defineDynamicSelector = <P extends ParamSchema | undefined>(
   definition: Omit<DynamicSelectorDefinition<P>, "kind">,
 ): DynamicSelectorDefinition<P> => ({
   ...definition,
   kind: "dynamic-selector",
 });
 
-const createSelectorRegistry = <
+/**
+ * Compose a typed selectors object plus a manifest from literal + dynamic
+ * trees. Exported for unit tests; production registries are built from the
+ * private `literalSelectors` and `dynamicSelectorDefinitions` maps below.
+ */
+export const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
 >(literalTree: L, dynamicTree: D) => {
@@ -265,103 +285,364 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
+// Use `satisfies` rather than `: LiteralSelectorTree` so TypeScript preserves
+// the narrow literal shape. Without this the index signature widens every
+// branch to `T | undefined` under `noUncheckedIndexedAccess` and breaks the
+// `selectors.app.title` ergonomics this registry exists to provide.
 const literalSelectors = {
   app: {
-    header: "app-header",
     title: "app-title",
-    skipLink: "skip-link",
-    desktopNav: "desktop-nav",
-    mobileMenuToggle: "mobile-menu-toggle",
-    mobileNav: "mobile-nav",
-    mainContent: "main-content",
-  },
-  dashboard: {
-    tunnelHealth: "tunnel-health-panel",
-    routeManifest: "route-manifest-panel",
-    livenessProbes: "liveness-probes-panel",
-    portAudit: "port-audit-panel",
-    recoveryEvents: "recovery-events-panel",
-  },
-  tunnelStatus: {
-    statusIndicator: "tunnel-status-indicator",
-    scoreValue: "tunnel-score-value",
-    refreshButton: "tunnel-health-refresh",
-    retryButton: "tunnel-health-retry",
-  },
-  routes: {
-    table: "route-table",
-    search: "routes-search",
-    addButton: "route-add-button",
-    form: "route-form",
-    formSubmit: "route-form-submit",
-    formClose: "route-form-close",
-    formDelete: "route-form-delete",
-    emptyState: "routes-empty-state",
-    emptyCta: "routes-empty-cta",
-  },
-  confirmDialog: {
-    root: "confirm-dialog",
-    confirm: "confirm-dialog-confirm",
-    cancel: "confirm-dialog-cancel",
-  },
-  probes: {
-    runButton: "probes-run-button",
-    summaryUp: "probes-summary-up",
-    summaryDown: "probes-summary-down",
-    resultsTable: "probes-results-table",
-    historyTable: "probes-history-table",
-    emptyState: "probes-empty-state",
-  },
-  metrics: {
-    currentPanel: "metrics-current-panel",
-    historyPanel: "metrics-history-panel",
-    historyTable: "metrics-history-table",
-    refreshButton: "metrics-refresh",
+    eyebrow: "app-eyebrow",
+    description: "app-description",
   },
   health: {
-    overviewPanel: "health-overview-panel",
-    routeHealthTable: "health-route-table",
-    refreshButton: "health-refresh",
+    card: "health-card",
     statusBadge: "health-status-badge",
+    loading: "health-loading",
+    error: "health-error",
+    statusValue: "health-status-value",
+    serviceValue: "health-service-value",
+    timestampValue: "health-timestamp-value",
+    refreshButton: "health-refresh-button",
+    refreshCount: "health-refresh-count",
+  },
+  notifications: {
+    summary: "notifications-summary",
+  },
+  // Shared query-state primitive (loading / error / empty) — reused by every surface.
+  queryState: {
+    loading: "query-state-loading",
+    error: "query-state-error",
+    empty: "query-state-empty",
+  },
+  overview: {
+    page: "overview-page",
+    readinessCard: "overview-readiness-card",
+    readinessStatus: "overview-readiness-status",
+    modeBadge: "overview-mode-badge",
+    missingFields: "overview-missing-fields",
+    tunnelCard: "overview-tunnel-card",
+    tunnelStatus: "overview-tunnel-status",
+    tunnelScore: "overview-tunnel-score",
+    exposureCard: "overview-exposure-card",
+    coreCount: "overview-core-count",
+    leasedCount: "overview-leased-count",
+    recoveryCard: "overview-recovery-card",
+    recoveryStatus: "overview-recovery-status",
+    circuitWarning: "overview-circuit-warning",
+    modeCallout: "overview-mode-callout",
+    driftCard: "overview-drift-card",
+    driftManaged: "overview-drift-managed",
+    driftExternal: "overview-drift-external",
+    driftUnmanaged: "overview-drift-unmanaged",
+    constellation: "overview-exposure-constellation",
+    constellationError: "overview-constellation-error",
+    constellationRetry: "overview-constellation-retry",
+    mobileTopology: "overview-mobile-topology",
+    mobileRoute: "overview-mobile-route",
+    mobileTopologyError: "overview-mobile-topology-error",
+    finding: "overview-actionable-finding",
+  },
+  drift: {
+    panel: "drift-panel",
+    summary: "drift-summary",
+    modeHint: "drift-mode-hint",
+    refreshButton: "drift-refresh-button",
+    table: "drift-table",
+    row: "drift-row",
+    hostname: "drift-hostname",
+    target: "drift-target",
+    stateBadge: "drift-state-badge",
+    sourceBadge: "drift-source-badge",
+    actionError: "drift-action-error",
+    confirmDialog: "drift-confirm-dialog",
+    confirmButton: "drift-confirm-button",
+    cancelButton: "drift-cancel-button",
+  },
+  routes: {
+    panel: "routes-panel",
+    addForm: "routes-add-form",
+    subdomainInput: "routes-subdomain-input",
+    targetInput: "routes-target-input",
+    domainInput: "routes-domain-input",
+    publicExposureSelect: "routes-public-exposure-select",
+    addButton: "routes-add-button",
+    addError: "routes-add-error",
+    table: "routes-table",
+    row: "routes-row",
+    sourceBadge: "routes-source-badge",
+    publicExposureBadge: "routes-public-exposure-badge",
+    publicExposureError: "routes-public-exposure-error",
+    url: "routes-url",
+    deleteButton: "routes-delete-button",
+    deleteError: "routes-delete-error",
+  },
+  access: {
+    panel: "access-panel",
+    summary: "access-summary",
+    globalBadge: "access-global-badge",
+    configuredBadge: "access-configured-badge",
+    note: "access-note",
+    refreshButton: "access-refresh-button",
+    planCreate: "access-plan-create",
+    planRemove: "access-plan-remove",
+    table: "access-table",
+    row: "access-row",
+    hostName: "access-host-name",
+    overrideBadge: "access-override-badge",
+    bypassBadge: "access-bypass-badge",
+    managedBadge: "access-managed-badge",
+    appId: "access-app-id",
+  },
+  exposure: {
+    panel: "exposure-panel",
+    summary: "exposure-summary",
+    coreCount: "exposure-core-count",
+    leasedCount: "exposure-leased-count",
+    unhealthyCount: "exposure-unhealthy-count",
+    searchInput: "exposure-search-input",
+    tierFilter: "exposure-tier-filter",
+    reconcileButton: "exposure-reconcile-button",
+    reconcileResult: "exposure-reconcile-result",
+    table: "exposure-table",
+    row: "exposure-row",
+    tierBadge: "exposure-tier-badge",
+    healthBadge: "exposure-health-badge",
+    url: "exposure-url",
+    leaseExpiry: "exposure-lease-expiry",
+    exposeForm: "exposure-expose-form",
+    exposeInput: "exposure-expose-input",
+    exposeButton: "exposure-expose-button",
+    exposeError: "exposure-expose-error",
+    extendButton: "exposure-extend-button",
+    revokeButton: "exposure-revoke-button",
+    actionError: "exposure-action-error",
+    refreshButton: "exposure-refresh-button",
+    reviewDialog: "exposure-review-dialog",
+    durationSelect: "exposure-duration-select",
+    customDurationInput: "exposure-custom-duration-input",
+    confirmExposeButton: "exposure-confirm-expose-button",
+    cancelExposeButton: "exposure-cancel-expose-button",
+    healthFilter: "exposure-health-filter",
+    leaseFilter: "exposure-lease-filter",
+    policyFilter: "exposure-policy-filter",
+    readinessFilter: "exposure-readiness-filter",
+    detailDialog: "exposure-detail-dialog",
+    detailCloseButton: "exposure-detail-close-button",
+    detailProbeButton: "exposure-detail-probe-button",
+    detailCopyButton: "exposure-detail-copy-button",
+    detailExtendButton: "exposure-detail-extend-button",
+    detailRevokeButton: "exposure-detail-revoke-button",
+    policyAcknowledgement: "exposure-policy-acknowledgement",
+    revokeConfirmButton: "exposure-revoke-confirm-button",
+    expiredPanel: "exposure-expired-panel",
+    reExposeButton: "exposure-re-expose-button",
+    verifyResultButton: "exposure-verify-result-button",
   },
   recovery: {
     statePanel: "recovery-state-panel",
-    triggerButton: "recovery-trigger-button",
-    resetCircuitButton: "recovery-reset-circuit",
-    eventsTimeline: "recovery-events-timeline",
+    summary: "recovery-summary",
     statusValue: "recovery-status-value",
     circuitValue: "recovery-circuit-value",
+    nextAction: "recovery-next-action",
+    policyNote: "recovery-policy-note",
+    timeline: "recovery-timeline",
+    timelineRow: "recovery-timeline-row",
+    eventDetails: "recovery-event-details",
+    recoverButton: "recovery-recover-button",
+    forceToggle: "recovery-force-toggle",
+    forceWarning: "recovery-force-warning",
+    confirmDialog: "recovery-confirm-dialog",
+    confirmButton: "recovery-confirm-button",
+    cancelButton: "recovery-cancel-button",
+    actionError: "recovery-action-error",
+    refreshButton: "recovery-refresh-button",
+  },
+  metrics: {
+    panel: "metrics-panel",
+    summary: "metrics-summary",
+    table: "metrics-table",
+    row: "metrics-row",
+    latest: "metrics-latest",
+    scrapeButton: "metrics-scrape-button",
+    scrapeActionFeedback: "metrics-scrape-action-feedback",
+    probesActionFeedback: "metrics-probes-action-feedback",
+    probesPanel: "metrics-probes-panel",
+    probesTable: "metrics-probes-table",
+    probesRow: "metrics-probes-row",
+    runProbesButton: "metrics-run-probes-button",
+    classifiedCount: "metrics-classified-count",
+    classification: "metrics-classification",
+    classCount: "metrics-class-count",
+    limitation: "metrics-limitation",
   },
   audit: {
     panel: "audit-panel",
-    refreshButton: "audit-refresh",
-    summaryCompliant: "audit-summary-compliant",
-    summaryViolations: "audit-summary-violations",
-    resultsTable: "audit-results-table",
+    summary: "audit-summary",
+    table: "audit-table",
+    row: "audit-row",
+    statusBadge: "audit-status-badge",
+    violationCount: "audit-violation-count",
+    statusFilter: "audit-status-filter",
+    remediation: "audit-remediation",
+    runButton: "audit-run-button",
   },
-  pagination: {
-    root: "pagination",
-    prev: "pagination-prev",
-    next: "pagination-next",
+  locale: {
+    switcher: "locale-switcher",
   },
-} as const satisfies LiteralSelectorTree;
+  layout: {
+    shell: "layout-shell",
+    topBar: "layout-top-bar",
+    sidebar: "layout-sidebar",
+    bottomNav: "layout-bottom-nav",
+    main: "layout-main",
+  },
+  theme: {
+    switcher: "theme-switcher",
+    select: "theme-select",
+  },
+  pages: {
+    overview: "page-overview",
+    exposure: "page-exposure",
+    recovery: "page-recovery",
+    metrics: "page-metrics",
+    audit: "page-audit",
+    drift: "page-drift",
+    settings: "page-settings",
+  },
+  settingsPage: {
+    configPanel: "settings-config-panel",
+    currentMode: "settings-current-mode",
+    remoteAvailable: "settings-remote-available",
+    credentialSource: "settings-credential-source",
+    syncReady: "settings-sync-ready",
+    missingFields: "settings-missing-fields",
+    credentialsForm: "settings-credentials-form",
+    accountIdInput: "settings-account-id-input",
+    tunnelIdInput: "settings-tunnel-id-input",
+    apiTokenInput: "settings-api-token-input",
+    credentialsSaveButton: "settings-credentials-save-button",
+    credentialsClearButton: "settings-credentials-clear-button",
+    credentialPolicy: "settings-credential-policy",
+    credentialNextAction: "settings-credential-next-action",
+    credentialShadowWarning: "settings-credential-shadow-warning",
+    credentialFields: "settings-credential-fields",
+    credentialVerification: "settings-credential-verification",
+    credentialVerificationButton: "settings-credential-verification-button",
+    credentialVerificationResult: "settings-credential-verification-result",
+    credentialVerificationCheck: "settings-credential-verification-check",
+    localModeButton: "settings-local-mode-button",
+    remoteModeButton: "settings-remote-mode-button",
+    syncDryRunButton: "settings-sync-dry-run-button",
+    syncApplyButton: "settings-sync-apply-button",
+    syncResult: "settings-sync-result",
+    actionError: "settings-action-error",
+    switchModeNote: "settings-switch-mode-note",
+    reconcileNowButton: "settings-reconcile-now-button",
+    reconcileResult: "settings-reconcile-result",
+    reviewDriftLink: "settings-review-drift-link",
+    publicExposurePanel: "settings-public-exposure-panel",
+    publicExposureState: "settings-public-exposure-state",
+    publicExposureToggle: "settings-public-exposure-toggle",
+    publicExposureStatusLink: "settings-public-exposure-status-link",
+  },
+  errorBoundary: {
+    root: "error-boundary-root",
+    retryButton: "error-boundary-retry",
+  },
+} satisfies LiteralSelectorTree;
 
+// Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
+// We deliberately do NOT also declare static `toggleEn` / `toggleJa` literals —
+// the dynamic form is the single source of truth, and duplicating it here would
+// drift the moment a new locale is added to LOCALE_CODES.
+//
+// `code` is constrained to `LOCALE_CODES` so `selectors.locale.toggle({ code: "fr" })`
+// is a TypeScript error when "fr" isn't a supported locale. The runtime enum
+// validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  locale: {
+    toggle: defineDynamicSelector({
+      description: "Locale toggle button by language code",
+      testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  layout: {
+    sidebarLink: defineDynamicSelector({
+      description: "Sidebar navigation link by canonical nav key",
+      testIdPattern: "layout-sidebar-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "overview",
+            "exposure",
+            "recovery",
+            "metrics",
+            "audit",
+            "drift",
+            "settings",
+          ] as const,
+        },
+      },
+    }),
+    bottomNavLink: defineDynamicSelector({
+      description: "Bottom-nav link by canonical nav key",
+      testIdPattern: "layout-bottom-nav-link-${key}",
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "overview",
+            "exposure",
+            "recovery",
+            "metrics",
+            "audit",
+            "drift",
+            "settings",
+          ] as const,
+        },
+      },
+    }),
+  },
+  settingsPage: {
+    themeOption: defineDynamicSelector({
+      description: "Theme choice radio button on the settings page",
+      testIdPattern: "page-settings-theme-${choice}",
+      params: { choice: { type: "enum", values: ["light", "dark", "system"] as const } },
+    }),
+    localeOption: defineDynamicSelector({
+      description: "Locale choice radio button on the settings page",
+      testIdPattern: "page-settings-locale-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
   routes: {
-    rowBySubdomain: defineDynamicSelector({
-      description: "Route table row by subdomain",
-      testIdPattern: "route-row-${subdomain}",
-      params: { subdomain: { type: "string" } },
+    publicExposureRowSelect: defineDynamicSelector({
+      description: "Per-route public-exposure override select, by route id",
+      testIdPattern: "routes-public-exposure-row-select-${id}",
+      params: { id: { type: "string" } },
     }),
   },
-  recovery: {
-    eventById: defineDynamicSelector({
-      description: "Recovery event by ID",
-      testIdPattern: "recovery-event-${id}",
-      params: { id: { type: "number" } },
+  drift: {
+    adoptButton: defineDynamicSelector({
+      description: "Adopt action button for a drift row, by hostname",
+      testIdPattern: "drift-adopt-${hostname}",
+      params: { hostname: { type: "string" } },
+    }),
+    ignoreButton: defineDynamicSelector({
+      description: "Ignore action button for a drift row, by hostname",
+      testIdPattern: "drift-ignore-${hostname}",
+      params: { hostname: { type: "string" } },
+    }),
+    pruneButton: defineDynamicSelector({
+      description: "Prune action button for a drift row, by hostname",
+      testIdPattern: "drift-prune-${hostname}",
+      params: { hostname: { type: "string" } },
     }),
   },
-} as const satisfies DynamicSelectorTree;
+} satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

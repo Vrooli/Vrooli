@@ -1,3 +1,23 @@
+---
+name: "audit-scope"
+description: "Investigate and document, no code changes"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["scope"]
+  tags: ["scope","audit","constraints"]
+  icon: "search"
+  status: "active"
+  revision: 33
+  createdAt: "2026-02-03T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Audit Scope
 
 Session constraints for audits and investigations. These boundaries ensure thorough analysis without unintended changes.

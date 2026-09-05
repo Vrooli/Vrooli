@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "text",
+        "kind": "text",
+        "label": "Type",
+        "path": "type"
+      },
+      {
+        "default": "Component name",
+        "kind": "text",
+        "label": "Placeholder",
+        "path": "placeholder"
+      },
+      {
+        "default": "Button",
+        "kind": "text",
+        "label": "Default Value",
+        "path": "defaultValue"
+      },
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "aria-label": "Component name",
+        "defaultValue": "Button",
+        "placeholder": "Component name",
+        "type": "text"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Component name",
+          "role": "textbox"
+        },
+        {
+          "kind": "attribute",
+          "name": "placeholder",
+          "selector": "input",
+          "value": "Component name"
+        }
+      ],
+      "id": "text",
+      "mode": "pinned",
+      "name": "Text",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "defaultValue": "status",
+        "aria-label": "Filter components",
+        "placeholder": "Filter components",
+        "type": "search"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Filter components",
+          "role": "searchbox"
+        }
+      ],
+      "id": "search",
+      "mode": "pinned",
+      "name": "Search",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "defaultValue": "Read only",
+        "disabled": true,
+        "type": "text"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "name": "disabled",
+          "selector": "input",
+          "value": ""
+        }
+      ],
+      "id": "disabled",
+      "mode": "pinned",
+      "name": "Disabled",
+      "role": "boundary"
+    }
+  ],
+  "title": "Input"
+}

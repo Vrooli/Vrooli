@@ -1,11 +1,86 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "run_artifacts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "test_runs",
+        "regenerable": true,
+        "rationale": "Scenario validation output is reproducible by rerunning the suite; 762777637 bytes were observed for test-genie on 2026-08-27.",
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "20GiB",
+          "rationale": "The repository-wide coverage tree measured 17317434773 bytes on 2026-08-27; 30 days and 20 GiB preserve the existing runtime-home policy."
+        }
+      },
+      "phase_cache": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Content-addressed phase results are reproducible on a cache miss; 69927878 bytes were observed for test-genie on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "2GiB",
+          "rationale": "The repository-wide phase cache measured 4613930066 bytes on 2026-08-27; 7 days and 2 GiB match the owner-side eviction policy."
+        }
+      },
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "test-genie-run-retention",
+        "name": "Test Genie retained runs",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
+    "rationale": "Storage surfaces include durable API data plus governed, regenerable test-run and phase-cache artifacts."
+  },
+  "retention": {
+    "budgets": {
+      "run_artifacts": {
+        "target": {
+          "kind": "directory",
+          "class": "test_runs",
+          "path": "."
+        },
+        "max_age": "30d",
+        "max_bytes": "20GiB",
+        "pruner": "builtin",
+        "rationale": "The repository-wide coverage tree measured 17317434773 bytes on 2026-08-27; the existing runtime-home policy bounds regenerable run evidence at 30 days and 20 GiB while preserving active runs."
+      },
+      "phase_cache": {
+        "target": {
+          "kind": "directory",
+          "class": "cache",
+          "path": "."
+        },
+        "max_age": "7d",
+        "max_bytes": "2GiB",
+        "pruner": "builtin",
+        "rationale": "The repository-wide phase cache measured 4613930066 bytes on 2026-08-27; a 7-day, 2 GiB ceiling matches the owner-side eviction policy and keeps recomputation bounded."
+      }
+    }
+  },
   "service": {
     "parent": "vrooli",
     "name": "test-genie",
     "displayName": "Test Genie",
-    "description": "AI test-orchestration scenario that generates and executes coverage suites",
+    "description": "Descriptor-backed test orchestration and execution-evidence remediation",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -41,15 +116,27 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999",
-      "port": 36223
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "range": "20000-24999",
+      "port": 21223
     }
   },
+  "environment": {
+    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
+  },
+  "hostTools": [
+    {
+      "name": "bats",
+      "required": false,
+      "reason": "Execute discovered BATS suites during integration-test orchestration",
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Test Genie degrades with a clear missing-dependency error when bats is unavailable"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -77,111 +164,108 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/test-genie-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "test-genie"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-genie-api .",
-          "description": "Build the Go API binary at api/test-genie-api so lifecycle setup checks and start-api reuse the same executable"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 SQLite DB: data/test-genie.db (override with TEST_GENIE_SQLITE_PATH)'",
-          "description": "Display service entrypoints after setup completes"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./test-genie-api",
-          "background": true,
-          "condition": {
-            "file_exists": "api/test-genie-api"
-          },
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Test Genie running:\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83e\uddea Execute suites via: curl -X POST http://localhost:${API_PORT}/api/v1/executions'",
-          "description": "Display scenario URLs for operators"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute test-genie --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'test-genie-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
-  "environment": {
-    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional isolated database fixture provider",
+        "startup_policy": "try_start"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional isolated cache fixture provider",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "agent-inbox": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional external tool-discovery consumer. Test Genie publishes tool registry proto contracts that agent-inbox can consume.",
+        "degraded_behavior": "Core test execution continues when agent-inbox is unavailable; external tool invocation/discovery integrations may be unavailable.",
+        "startup_policy": "try_start"
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional evidence-bound remediation executor using Test Genie's declared role-only profile.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/generation.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "test-genie",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-genie"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json",
+        ".vrooli/testing.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

@@ -1,0 +1,36 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "react-component-library",
+    "display_name": "@vrooli/react-component-library",
+    "description": "Governed version-keyed React component, primitive, hook, and foundation assets.",
+    "kind": "js_runtime",
+    "language": "typescript",
+    "module_identifiers": ["@vrooli/react-component-library"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_ui", "template_ui"],
+      "adoption_modes": ["file_dependency"]
+    },
+    "lifecycle": {
+      "build": [
+        {
+          "name": "install",
+          "run": ["pnpm", "install", "--frozen-lockfile", "--ignore-workspace"],
+          "outputs": ["node_modules/.modules.yaml"]
+        },
+        {
+          "name": "build",
+          "run": ["pnpm", "build"],
+          "outputs": ["dist/**"]
+        }
+      ]
+    },
+    "refresh": {
+      "strategy": "scenario_setup",
+      "restart_running_consumers": true
+    },
+    "docs": ["packages/react-component-library/README.md", "docs/package-governance.md"]
+  }
+}

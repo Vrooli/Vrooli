@@ -29,7 +29,7 @@ export function ToastProvider({ children, defaultDuration = 4000, maxToasts = 5 
 
   const addToast = useCallback(
     (toast: Omit<ToastItem, 'id'>): string => {
-      const id = `toast-${++toastIdCounter}-${Date.now()}`;
+      const id = `toast-${String(++toastIdCounter)}-${String(Date.now())}`;
       const newToast: ToastItem = { id, duration: defaultDuration, ...toast };
 
       setToasts((prev) => {
@@ -151,8 +151,8 @@ function ToastNotification({ toast, onRemove }: ToastNotificationProps) {
   // Auto-dismiss timer
   useEffect(() => {
     if (toast.duration && toast.duration > 0) {
-      const timer = setTimeout(() => onRemove(toast.id), toast.duration);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(() => { onRemove(toast.id); }, toast.duration);
+      return () => { clearTimeout(timer); };
     }
   }, [toast.id, toast.duration, onRemove]);
 
@@ -180,7 +180,7 @@ function ToastNotification({ toast, onRemove }: ToastNotificationProps) {
 
       <button
         type="button"
-        onClick={() => onRemove(toast.id)}
+        onClick={() => { onRemove(toast.id); }}
         className={cn(
           'p-1 rounded hover:bg-white/10 transition-colors flex-shrink-0',
           config.text

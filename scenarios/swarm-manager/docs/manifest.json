@@ -1,8 +1,32 @@
 {
-  "version": "1.3.1",
+  "version": "2.0.0",
   "title": "Swarm Manager Documentation",
   "description": "Documentation for backlog-first scenario governance and execution control",
   "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "historical",
+      "validated",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Every durable scenario document should be registered here. Use docs/concepts/ for product and system concepts, docs/guides/ for task procedures, docs/reference/ for stable lookup material, docs/internal/ for developer and agent memory, and docs/perf/ for headless performance-audit history."
+  },
   "sections": [
     {
       "id": "getting-started",
@@ -10,10 +34,35 @@
       "icon": "rocket",
       "documents": [
         {
+          "path": "../README.md",
+          "docType": "readme",
+          "title": "README",
+          "description": "Top-level scenario summary and primary human entrypoint",
+          "audience": [
+            "users",
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "QUICKSTART.md",
+          "docType": "quickstart",
           "title": "Quick Start",
           "description": "Run swarm-manager and understand the backlog-execution model",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -23,16 +72,51 @@
       "icon": "lightbulb",
       "documents": [
         {
+          "path": "concepts/TARGET-OPERATING-MODEL.md",
+          "docType": "target-operating-model",
+          "title": "Target Operating Model",
+          "description": "Future-state project-management model: intake, concepts, integrations, transitions, and the Run-versus-Workflow boundary",
+          "audience": [
+            "users",
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "concepts/ARCHITECTURE.md",
+          "docType": "architecture",
           "title": "Architecture",
           "description": "Mental model, boundaries, and backlog-to-execution flow",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "concepts/GLOSSARY.md",
+          "docType": "glossary",
           "title": "Glossary",
           "description": "Core terminology and lifecycle vocabulary",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -43,15 +127,33 @@
       "documents": [
         {
           "path": "guides/workshop-workflow.md",
-          "title": "Workshop Refinement Workflow",
-          "description": "Universal iterative workshop loop with readiness scoring for all backlog kinds",
-          "audience": ["developers", "operators"]
+          "docType": "guide-workshop-workflow",
+          "title": "Plan Workshop",
+          "description": "Explicit unified review, reconciliation, candidate, and acceptance loop for backlog items and initiatives",
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "guides/research-notes.md",
+          "docType": "guide-research-notes",
           "title": "Research Notes",
           "description": "Rationale and scenario relationship mapping",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -61,28 +163,284 @@
       "icon": "book",
       "documents": [
         {
+          "path": "reference/transition-catalog.md",
+          "docType": "transition-catalog",
+          "title": "Active Transition Catalog",
+          "description": "Operator projection of the machine-readable Session, Workflow, and deterministic transition registry",
+          "audience": ["users", "developers", "operators"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required"
+        },
+        {
           "path": "reference/configuration.md",
+          "docType": "configuration-reference",
           "title": "Configuration",
           "description": "Tunable levers and environment variables",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated",
+            "deployable"
+          ],
+          "completion": "required"
         },
         {
           "path": "reference/api-endpoints.md",
+          "docType": "api-reference",
           "title": "API Endpoints",
           "description": "Canonical backlog, initiative, and preview request/response contracts",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "reference/cli-commands.md",
+          "docType": "cli-reference",
           "title": "CLI Commands",
           "description": "Canonical preview/create flows for backlog imports and initiatives",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated",
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "reference/operational-targets.md",
+          "docType": "reference",
           "title": "Operational Target Coverage",
           "description": "Traceability map from PRD targets to docs and code",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "gauge",
+      "documents": [
+        {
+          "path": "perf/INDEX.md",
+          "docType": "performance-index",
+          "title": "Perf Audits",
+          "description": "Index of headless perf audits run against the swarm-manager UI",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "perf/2026-07-24-perf-audit-ui.md",
+          "docType": "performance-audit",
+          "title": "2026-07-24 — Plan board and drawer render path",
+          "description": "UI render-path audit: invalidation coalescing fixed, render timings blocked by a capture-race defect (status: in-progress)",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "perf/2026-07-24-perf-audit-api.md",
+          "docType": "performance-audit",
+          "title": "2026-07-24 — API read-path audit",
+          "description": "API route sweep and CPU profile after the next-action hot-path fixes (status: fixed)",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "perf/2026-05-03-sidebar-resize-and-backlog-scroll.md",
+          "docType": "performance-audit",
+          "title": "2026-05-03 \u2014 Sidebar resize + Backlog scroll",
+          "description": "Initial perf audit: sidebar drag lag and BacklogTab scroll cost (status: fixed)",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "perf/2026-07-06-graph-large-topology-baseline.md",
+          "docType": "performance-audit",
+          "title": "2026-07-06 \u2014 Graph large-topology baseline",
+          "description": "Graph large-topology baseline, retained grouped-layout result, and Phase 5 interaction workload split",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "wrench",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "operations/migration/WORKFLOW-CUTOVER-INVENTORY.md",
+          "docType": "workflow-cutover-inventory",
+          "title": "Workflow Cutover Inventory",
+          "description": "Ordered transition, state, and retirement inventory for the Agent Manager workflow migration",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "operations/qdrant-namespace-migration-prep.md",
+          "docType": "runbook-qdrant-migration-prep",
+          "title": "Qdrant Namespace Migration Prep",
+          "description": "Preparation notes for the qdrant namespace migration",
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "operations/migration/RUNBOOK.md",
+          "docType": "runbook-workflow-cutover-history",
+          "title": "Workflow Cutover History",
+          "description": "Historical operator notes for the retired agent-operations migration",
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "maturity": "historical",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "operations/migration/MIGRATOR-DESIGN.md",
+          "docType": "migrator-design",
+          "title": "Migrator Design",
+          "description": "Design of the one-shot staged idempotent state migrator (tooling since removed)",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "operations/migration/LEGACY-MAPPING.md",
+          "docType": "migration-legacy-mapping",
+          "title": "Legacy Mapping",
+          "description": "Each Phase-1 legacy identity's destination in the declarative agent-operations model",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "operations/migration/P8C-MIGRATION-EVIDENCE.md",
+          "docType": "migration-evidence",
+          "title": "P8C Migration Evidence",
+          "description": "Preserved evidence of the completed epoch-1 migration (125/125 promoted, 0 quarantined)",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "operations/migration/inventory/inventory-phase1-summary.md",
+          "docType": "inventory-phase1-summary",
+          "title": "Inventory \u2014 Phase 1 Summary",
+          "description": "Phase-1 state inventory summary (migration anchor)",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "operations/migration/inventory/inventory-phase8-preflight-summary.md",
+          "docType": "inventory-phase8-preflight-summary",
+          "title": "Inventory \u2014 Phase 8 Preflight Summary",
+          "description": "Phase-8 preflight inventory delta vs the Phase-1 anchor",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -94,105 +452,296 @@
       "documents": [
         {
           "path": "internal/INTENT.md",
+          "docType": "intent",
           "title": "Intent",
           "description": "Scenario purpose and modification guidance",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/CAPTURE-INTAKE-DESIGN-RECORD.md",
+          "docType": "design-record",
+          "title": "Capture Intake Design Record",
+          "description": "Evidence, settled decisions, and corrections governing capture grounding and research intake",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "validated",
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/SEAMS.md",
+          "docType": "seams",
           "title": "Seams",
           "description": "Boundaries, adapters, and architecture seams",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/EVIDENCE.md",
+          "docType": "evidence-model",
+          "title": "Canonical Evidence",
+          "description": "Owner-neutral evidence ledger, provenance trust levels, completeness watermarks, and operating-mode gates",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/PROGRESS.md",
+          "docType": "progress",
           "title": "Progress",
           "description": "Development history and implementation milestones",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/PROBLEMS.md",
+          "docType": "problems",
           "title": "Known Problems",
           "description": "Known issues, deferred work, and technical debt",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/ASSUMPTIONS.md",
+          "docType": "assumptions",
           "title": "Assumptions",
           "description": "Documented assumptions that guide behavior",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         },
         {
           "path": "internal/INVARIANTS.md",
+          "docType": "invariants",
           "title": "Invariants",
           "description": "Contracts that must hold across flows",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/AGENT-SESSIONS.md",
+          "docType": "agent-sessions",
+          "title": "Agent Sessions",
+          "description": "Server-owned agent-session ownership, provenance enrichment, and artifact links",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "docType": "storage-audit",
+          "title": "Storage Audit",
+          "description": "Authoritative map of where swarm-manager runtime/domain data lives by storage class",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/ERROR-SEMANTICS.md",
+          "docType": "error-semantics",
           "title": "Error Semantics",
           "description": "Error classes and recovery paths",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/SECURITY-POSTURE.md",
+          "docType": "security",
           "title": "Security Posture",
           "description": "Current controls, risks, and mitigations",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/TEMPORAL-FLOWS.md",
+          "docType": "temporal-flows",
           "title": "Temporal Flows",
           "description": "Async timing and state transitions",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/INTEROP_AUDIT.md",
+          "docType": "interop-audit",
           "title": "Interop Audit",
           "description": "Proto and integration contract audit",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "internal/COHERENCE-NOTES.md",
+          "docType": "coherence-notes",
           "title": "Coherence Notes",
           "description": "React coherence audit history",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "internal/EXPERIENCE-AUDIT.md",
+          "docType": "experience-audit",
           "title": "Experience Audit",
           "description": "UX flow/friction audit history",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "docType": "refactor-notes",
           "title": "Utils Unification Notes",
           "description": "Utility consolidation notes",
-          "internal": true
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         },
         {
-          "path": "internal/GREENFIELD_EXECUTION_CONTROL_PLAN.md",
-          "title": "Greenfield Execution Plan",
-          "description": "Backlog-first execution-control migration plan",
-          "internal": true
-        },
-        {
-          "path": "internal/EXECUTION_FINALIZATION_PLAN.md",
-          "title": "Execution Finalization Plan",
-          "description": "Multi-scenario restart, health, and review orchestration plan",
-          "internal": true
-        },
-        {
-          "path": "internal/AGENT_MANAGER_PLAN.md",
-          "title": "Agent Manager Plan (Superseded)",
-          "description": "Legacy recommendation-era integration plan",
-          "internal": true
+          "path": "internal/VOICE-LATENCY.md",
+          "docType": "performance",
+          "title": "Voice Latency Optimizations",
+          "description": "Canonical explanation of the voice-input latency optimizations referenced by the audio-integration hooks",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "guides", "reference"],
-    "secondary": ["internal"]
+    "primary": [
+      "getting-started",
+      "concepts",
+      "guides",
+      "reference"
+    ],
+    "secondary": [
+      "perf",
+      "operations",
+      "internal"
+    ]
   }
 }

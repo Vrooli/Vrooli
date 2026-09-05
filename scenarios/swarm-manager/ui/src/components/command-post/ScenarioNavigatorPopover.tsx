@@ -2,14 +2,16 @@
  * ScenarioNavigatorPopover — Shows parent items in the decision stream
  * as a popover, allowing quick navigation and per-parent snooze.
  */
-import { useEffect, useRef } from "react";
-import { Clock } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import { Clock, X } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { BACKLOG_KIND_ICONS } from "../../types";
 import type { BacklogKind } from "../../types";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
 import type { QuestionAnswer } from "../backlog/question-renderers";
+import { useIsMobile } from "../../hooks/useMediaQuery";
+import { BottomSheet } from "../ui/bottom-sheet";
 
 export interface ScenarioNavigatorPopoverProps {
   isOpen: boolean;
@@ -41,6 +43,30 @@ export function ScenarioNavigatorPopover({
   onSnoozeParent,
 }: ScenarioNavigatorPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+
+  const clampToViewport = useCallback(() => {
+    const el = popoverRef.current;
+    if (!el) return;
+    el.style.transform = "";
+    el.style.top = "";
+    el.style.bottom = "";
+    el.style.marginTop = "";
+    el.style.marginBottom = "";
+
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    let shiftX = 0;
+    if (rect.left < margin) shiftX = margin - rect.left;
+    else if (rect.right > window.innerWidth - margin) shiftX = window.innerWidth - margin - rect.right;
+    if (shiftX !== 0) el.style.transform = `translateX(${shiftX}px)`;
+    if (rect.bottom > window.innerHeight - margin) {
+      el.style.top = "auto";
+      el.style.bottom = "100%";
+      el.style.marginTop = "0";
+      el.style.marginBottom = "4px";
+    }
+  }, []);
 
   // Click-outside handler
   useEffect(() => {
@@ -60,16 +86,24 @@ export function ScenarioNavigatorPopover({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   const entries = Array.from(parentGroups.entries());
 
-  return (
-    <div
-      ref={popoverRef}
-      className="absolute right-0 top-full z-50 mt-1 max-h-64 min-w-[220px] overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 shadow-lg"
-      data-testid={selectors.commandPost.decisionStream.navigatorPopover}
-    >
+  useEffect(() => {
+    if (!isOpen || isMobile) return;
+    clampToViewport();
+    const handle = () => clampToViewport();
+    window.addEventListener("resize", handle);
+    window.addEventListener("scroll", handle, true);
+    return () => {
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("scroll", handle, true);
+    };
+  }, [isOpen, isMobile, clampToViewport, entries.length]);
+
+  if (!isOpen) return null;
+
+  const content = (
+    <>
       {entries.length === 0 ? (
         <p className="px-3 py-2 text-xs text-slate-500">No items</p>
       ) : (
@@ -79,12 +113,10 @@ export function ScenarioNavigatorPopover({
           const title = questions[0]?.parentTitle ?? name;
           const isCurrent = parentKey === currentParentKey;
 
-          // Count answered questions for this parent
           const answeredCount = questions.filter((ciq) => {
             if (skippedIds.has(ciq.question.id)) return false;
             const a = localAnswers.get(ciq.question.id);
             if (!a) return false;
-            if (ciq.question.source === "workshop") return !!a.selected?.trim();
             return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
           }).length;
 
@@ -92,8 +124,8 @@ export function ScenarioNavigatorPopover({
             <div
               key={parentKey}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors hover:bg-slate-700/60",
-                isCurrent && "bg-cyan-500/10 border-l-2 border-cyan-500/30",
+                "flex cursor-pointer items-center gap-2 px-3 py-2 transition-colors hover:bg-slate-700/60",
+                isCurrent && "border-l-2 border-cyan-500/30 bg-cyan-500/10",
                 !isCurrent && "border-l-2 border-transparent",
               )}
               data-testid={selectors.commandPost.decisionStream.navigatorRow}
@@ -125,6 +157,45 @@ export function ScenarioNavigatorPopover({
           );
         })
       )}
-    </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <BottomSheet
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Decision navigator"
+        description={`${entries.length} active item${entries.length === 1 ? "" : "s"}`}
+        containerClassName="z-[90]"
+        data-testid={selectors.commandPost.decisionStream.navigatorPopover}
+      >
+        <div className="-mx-4">{content}</div>
+      </BottomSheet>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="fixed inset-0 z-[80] cursor-default bg-transparent"
+        aria-label="Close decision navigator"
+        onClick={onClose}
+      />
+      <div
+        ref={popoverRef}
+        className="absolute right-0 top-full z-[90] mt-1 w-[280px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border border-slate-700 bg-slate-800 shadow-lg"
+        data-testid={selectors.commandPost.decisionStream.navigatorPopover}
+      >
+        <div className="flex items-center justify-between border-b border-slate-700/70 px-3 py-2">
+          <p className="text-sm font-semibold text-slate-100">Decision navigator</p>
+          <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-slate-200" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-72 overflow-y-auto">{content}</div>
+      </div>
+    </>
   );
 }

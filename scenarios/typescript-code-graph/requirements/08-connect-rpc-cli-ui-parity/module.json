@@ -1,0 +1,94 @@
+{
+  "description": "Every capability is exposed through proto + Connect-RPC. The CLI (`typescript-code-graph graph extract`, `typescript-code-graph rewrite plan`, `typescript-code-graph rewrite apply`) is a translation layer over Connect clients; the UI is the same. No REST/JSON workarounds.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-004",
+        "REQ-P0-009"
+      ],
+      "description": "Every capability exposed by typescript-code-graph must be available through all three surfaces with full parity: (1) Connect-RPC proto service definitions, (2) CLI commands (typescript-code-graph graph extract, typescript-code-graph rewrite plan, typescript-code-graph rewrite apply), and (3) UI. The CLI must be implemented as a thin translation layer over Connect-RPC clients — no business logic in the CLI layer. The UI must use the same Connect-RPC clients. REST/JSON workarounds, direct function calls bypassing Connect-RPC, and capability gaps between surfaces are prohibited.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Connect-RPC, CLI, and UI Capability Parity",
+      "validation": [
+        {
+          "notes": "Test that the CLI extract command constructs a valid ExtractRequest proto and delegates to the Connect client",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the CLI rewrite plan command constructs a valid RewriteRequest without plan_id and delegates to Connect client",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the CLI rewrite apply command requires --apply flag and constructs a RewriteRequest with plan_id",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that CLI error output maps typed proto errors to human-readable stderr messages",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-CLI-RPC-PARITY: Run extract via CLI and via direct Connect-RPC call on the same fixture; assert identical graph output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-UI-RPC-PARITY: UI extraction request produces the same graph as an equivalent CLI invocation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify no HTTP REST endpoints exist that bypass Connect-RPC; all routes are Connect-RPC handlers",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI human-default output is stable across 10 consecutive runs on the same fixture (no timestamps or runtime-dependent output)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All documented capabilities are accessible from each of the three surfaces without workarounds",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI --help output accurately describes all available commands and flags",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Connect-RPC + CLI + UI Parity"
+}

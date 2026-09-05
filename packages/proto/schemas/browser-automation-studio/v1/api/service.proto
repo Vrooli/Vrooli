@@ -4,10 +4,12 @@ package browser_automation_studio.v1;
 
 import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/evidence/evidence.proto";
 import "browser-automation-studio/v1/execution/execution.proto";
+import "browser-automation-studio/v1/timeline/container.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
 import "buf/validate/validate.proto";
-import "google/api/annotations.proto";
+import "common/v1/types.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api;api";
@@ -16,10 +18,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // WORKFLOW API SERVICE
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports base, actions, workflows, execution
-// @stability stable
+// @stability beta
 //
 // gRPC service definition for Browser Automation Studio workflow operations.
 // Defines CRUD operations for workflows and execution lifecycle.
@@ -35,56 +34,69 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 //
 // =============================================================================
 
-// WorkflowService declares the core BAS workflow lifecycle operations.
-service WorkflowService {
+// WorkflowsService declares the core BAS workflow lifecycle operations.
+service WorkflowsService {
   // Lists workflows, optionally filtered by project.
-  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse) {
-    option (google.api.http) = {get: "/api/v1/workflows"};
-  }
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
   // Gets a workflow by ID.
-  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse) {
-    option (google.api.http) = {get: "/api/v1/workflows/{workflow_id}"};
-  }
+  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse);
   // Creates a new workflow in a project.
-  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/workflows/create"
-      body: "*"
-    };
-  }
+  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse);
   // Updates a workflow definition and metadata.
-  rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {
-    option (google.api.http) = {
-      put: "/api/v1/workflows/{workflow_id}"
-      body: "*"
-    };
-  }
+  rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse);
   // Deletes a workflow by ID.
-  rpc DeleteWorkflow(DeleteWorkflowRequest) returns (DeleteWorkflowResponse) {
-    option (google.api.http) = {delete: "/api/v1/workflows/{workflow_id}"};
-  }
-  // Executes a workflow by ID/version with optional parameters.
-  rpc ExecuteWorkflow(ExecuteWorkflowRequest) returns (ExecuteWorkflowResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/workflows/{workflow_id}/execute"
-      body: "*"
-    };
-  }
+  rpc DeleteWorkflow(DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+  // Executes a persisted workflow by ID/version with optional parameters.
+  rpc ExecuteWorkflow(ExecuteWorkflowRequest) returns (ExecuteWorkflowResponse);
+  // Executes a workflow definition without persisting it.
+  rpc ExecuteAdhocWorkflow(ExecuteAdhocRequest) returns (ExecuteAdhocResponse);
   // Validates a workflow definition and returns warnings/errors.
-  rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/workflows/validate"
-      body: "*"
-    };
-  }
-  // Lists executions, optionally filtered by workflow.
-  rpc ListExecutions(ListExecutionsRequest) returns (ListExecutionsResponse) {
-    option (google.api.http) = {get: "/api/v1/executions"};
-  }
-  // Gets an execution by ID.
-  rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse) {
-    option (google.api.http) = {get: "/api/v1/executions/{execution_id}"};
-  }
+  rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse);
+  // Validates a workflow definition that has already had its tokens resolved.
+  rpc ValidateResolvedWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse);
+  // Applies an AI modification prompt to a workflow definition and persists it.
+  rpc ModifyWorkflow(ModifyWorkflowRequest) returns (UpdateWorkflowResponse);
+  // Lists all stored versions of a workflow, ordered newest-first.
+  rpc ListWorkflowVersions(ListWorkflowVersionsRequest) returns (WorkflowVersionList);
+  // Gets a single stored version of a workflow.
+  rpc GetWorkflowVersion(GetWorkflowVersionRequest) returns (WorkflowVersion);
+  // Restores a previous version as the current head of the workflow.
+  rpc RestoreWorkflowVersion(RestoreWorkflowVersionRequest) returns (RestoreWorkflowVersionResponse);
+}
+
+// ExecutionsService declares execution-state queries and lifecycle controls.
+// All execution-artifact metadata listings (screenshots, videos, traces, HAR)
+// are JSON RPCs here; binary artifact downloads and replay-export streaming
+// remain REST under explicit RESTException markers.
+service ExecutionsService {
+  // Lists executions, optionally filtered by workflow or project.
+  rpc ListExecutions(ListExecutionsRequest) returns (ListExecutionsResponse);
+  // Gets a single execution by ID, hydrated from the on-disk snapshot.
+  rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse);
+  // Gets the proto timeline (preferred) or the legacy timeline of an execution.
+  rpc GetExecutionTimeline(GetExecutionTimelineRequest) returns (ExecutionTimeline);
+  // Gets the versioned storage-independent replay package for an execution.
+  rpc GetExecutionReplayPackage(GetExecutionArtifactsRequest) returns (browser_automation_studio.v1.evidence.ReplayPackage);
+  // Stops a running execution.
+  rpc StopExecution(StopExecutionRequest) returns (StopExecutionResponse);
+  // Resumes an interrupted execution from its last checkpoint.
+  rpc ResumeExecution(ResumeExecutionRequest) returns (ResumeExecutionResponse);
+  // Lists screenshots captured during an execution.
+  rpc GetExecutionScreenshots(GetExecutionScreenshotsRequest) returns (GetScreenshotsResponse);
+  // Lists recorded video artifacts for an execution.
+  rpc GetExecutionRecordedVideos(GetExecutionArtifactsRequest) returns (GetExecutionVideosResponse);
+  // Lists recorded Playwright trace artifacts for an execution.
+  rpc GetExecutionRecordedTraces(GetExecutionArtifactsRequest) returns (GetExecutionTracesResponse);
+  // Lists recorded HAR artifacts for an execution.
+  rpc GetExecutionRecordedHar(GetExecutionArtifactsRequest) returns (GetExecutionHarResponse);
+  // Schedules deferred seed cleanup for a previously executed seed scenario.
+  rpc ScheduleExecutionSeedCleanup(ScheduleSeedCleanupRequest) returns (ScheduleSeedCleanupResponse);
+  // Previews (dry-run) which terminal executions and artifact directories a
+  // retention sweep would remove. Read-only: performs no deletion.
+  rpc PreviewExecutionArtifactRetention(ExecutionArtifactRetentionRequest) returns (ExecutionArtifactRetentionResponse);
+  // Runs a retention sweep, deleting matched terminal execution rows and their
+  // artifact directories together. Requires confirm=true to mutate.
+  rpc RunExecutionArtifactRetention(ExecutionArtifactRetentionRequest) returns (ExecutionArtifactRetentionResponse);
 }
 
 // =============================================================================
@@ -281,11 +293,13 @@ message ExecuteWorkflowRequest {
   bool wait_for_completion = 2;
   // Workflow ID to execute.
   // @format uuid
-  string workflow_id = 4;
+  string workflow_id = 4 [(buf.validate.field).string.uuid = true];
   // Optional workflow version to execute.
   optional int32 workflow_version = 5;
   // Typed runtime parameters for the execution.
   ExecutionParameters parameters = 6;
+  // Optional execution-mode toggles (artifacts, frame streaming, seed apply).
+  ExecuteWorkflowOptions options = 7;
 }
 
 // ExecuteWorkflowResponse returns the execution status.
@@ -315,6 +329,11 @@ message ListExecutionsRequest {
   ];
   // Pagination: offset for results (default: 0).
   optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
+  // Filter by project ID.
+  // @format uuid
+  optional string project_id = 5 [(buf.validate.field).string.uuid = true];
+  // Include exportability information for each execution.
+  bool include_exportability = 6;
 }
 
 // ListExecutionsResponse returns a list of executions with pagination.
@@ -325,6 +344,23 @@ message ListExecutionsResponse {
   int32 total = 2;
   // Whether more results are available.
   bool has_more = 3;
+  // Optional exportability info keyed by execution ID. Populated only when
+  // ListExecutionsRequest.include_exportability is true.
+  map<string, ExecutionExportability> exportability = 4;
+}
+
+// ExecutionExportability summarizes which export render-sources are available
+// for a single execution. Returned as a sidecar map on ListExecutionsResponse
+// when the caller requests it.
+message ExecutionExportability {
+  // True when a proto timeline file is present.
+  bool has_timeline = 1;
+  // True when at least one screenshot was captured.
+  bool has_screenshots = 2;
+  // True when a recorded video artifact is available.
+  bool has_recorded_video = 3;
+  // True when this execution has enough material to render an export.
+  bool is_exportable = 4;
 }
 
 // GetExecutionRequest identifies an execution to retrieve.
@@ -419,4 +455,246 @@ message RestoreWorkflowVersionResponse {
   WorkflowSummary workflow = 1;
   // The version that was restored.
   WorkflowVersion restored_version = 2;
+}
+
+// =============================================================================
+// WORKFLOW VERSIONING REQUEST MESSAGES
+// =============================================================================
+
+// ListWorkflowVersionsRequest identifies the workflow whose versions to list.
+message ListWorkflowVersionsRequest {
+  // Workflow ID whose version history to list.
+  // @format uuid
+  string workflow_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetWorkflowVersionRequest identifies a specific stored version.
+message GetWorkflowVersionRequest {
+  // Workflow ID.
+  // @format uuid
+  string workflow_id = 1 [(buf.validate.field).string.uuid = true];
+  // Version number (1-based; must be > 0).
+  int32 version = 2 [(buf.validate.field).int32.gte = 1];
+}
+
+// RestoreWorkflowVersionRequest restores a prior version as the current head.
+message RestoreWorkflowVersionRequest {
+  // Workflow ID.
+  // @format uuid
+  string workflow_id = 1 [(buf.validate.field).string.uuid = true];
+  // Version number to restore.
+  int32 version = 2 [(buf.validate.field).int32.gte = 1];
+  // Optional human description of why the restore is happening.
+  string change_description = 3;
+}
+
+// =============================================================================
+// AI MODIFY WORKFLOW
+// =============================================================================
+
+// ModifyWorkflowRequest applies an AI-driven modification prompt to an existing
+// workflow definition and persists the result as a new version.
+message ModifyWorkflowRequest {
+  // Workflow ID to modify.
+  // @format uuid
+  string workflow_id = 1 [(buf.validate.field).string.uuid = true];
+  // Natural-language modification prompt.
+  string modification_prompt = 2 [(buf.validate.field).string.min_len = 1];
+  // Current workflow definition the prompt is being applied to.
+  WorkflowDefinitionV2 current_flow = 3;
+}
+
+// =============================================================================
+// EXECUTIONS SERVICE MESSAGES
+// =============================================================================
+
+// GetExecutionTimelineRequest identifies the execution whose timeline should
+// be returned.
+message GetExecutionTimelineRequest {
+  // Execution ID.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// StopExecutionRequest requests cancellation of a running execution.
+message StopExecutionRequest {
+  // Execution ID to stop.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// StopExecutionResponse acknowledges a stop request.
+message StopExecutionResponse {
+  // Lifecycle status after the stop request was accepted ("stopped").
+  string status = 1;
+}
+
+// ResumeExecutionRequest resumes an interrupted execution.
+message ResumeExecutionRequest {
+  // Execution ID to resume.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // Optional override parameters merged with the original execution params.
+  common.v1.JsonObject parameters = 2;
+  // Optional URL to navigate the browser to before resuming. Useful when the
+  // browser state needs to be re-established after session loss.
+  string resume_url = 3;
+}
+
+// ResumeExecutionResponse returns the new execution record created by the
+// resume operation.
+message ResumeExecutionResponse {
+  // The resumed execution.
+  Execution execution = 1;
+}
+
+// GetExecutionScreenshotsRequest identifies the execution whose screenshots
+// should be listed.
+message GetExecutionScreenshotsRequest {
+  // Execution ID.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetExecutionArtifactsRequest is shared by all artifact-listing RPCs.
+message GetExecutionArtifactsRequest {
+  // Execution ID whose artifacts should be listed.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// ExecutionFileArtifact mirrors the JSON shape returned by the legacy REST
+// endpoints for recorded HAR, traces, and videos.
+message ExecutionFileArtifact {
+  // Filename / identifier within the execution-artifacts folder.
+  string artifact_id = 1;
+  // Optional storage URL when the artifact is served via the asset proxy.
+  string storage_url = 2;
+  // Resolved content type (e.g. "application/zip", "video/webm").
+  string content_type = 3;
+  // Human-readable label (filename without extension).
+  string label = 4;
+  // Size in bytes when known.
+  optional int64 size_bytes = 5;
+  // Free-form payload metadata (path, size, etc.).
+  common.v1.JsonObject payload = 6;
+}
+
+// GetExecutionVideosResponse returns recorded video artifacts.
+message GetExecutionVideosResponse {
+  // Execution ID the artifacts belong to.
+  // @format uuid
+  string execution_id = 1;
+  // Recorded video artifacts.
+  repeated ExecutionFileArtifact videos = 2;
+}
+
+// GetExecutionTracesResponse returns recorded trace.zip artifacts.
+message GetExecutionTracesResponse {
+  // Execution ID the artifacts belong to.
+  // @format uuid
+  string execution_id = 1;
+  // Recorded Playwright trace artifacts.
+  repeated ExecutionFileArtifact traces = 2;
+}
+
+// GetExecutionHarResponse returns recorded HAR archives.
+message GetExecutionHarResponse {
+  // Execution ID the artifacts belong to.
+  // @format uuid
+  string execution_id = 1;
+  // Recorded HAR artifacts.
+  repeated ExecutionFileArtifact har_files = 2;
+}
+
+// ScheduleSeedCleanupRequest schedules a deferred seed cleanup for a previous
+// execution that ran with seed-apply.
+message ScheduleSeedCleanupRequest {
+  // Execution ID whose seed should be cleaned up.
+  // @format uuid
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // Opaque cleanup token returned when the seed was applied.
+  string cleanup_token = 2 [(buf.validate.field).string.min_len = 1];
+  // Seed scenario identifier. Defaults to "browser-automation-studio".
+  string seed_scenario = 3;
+}
+
+// ScheduleSeedCleanupResponse acknowledges that the cleanup has been
+// scheduled with the seed-cleanup manager.
+message ScheduleSeedCleanupResponse {
+  // Always "scheduled" on success.
+  string status = 1;
+}
+
+// =============================================================================
+// EXECUTION ARTIFACT RETENTION
+// =============================================================================
+
+// ExecutionArtifactRetentionRequest selects terminal executions for an artifact
+// retention sweep. The same message drives both the read-only preview and the
+// confirmed run; only terminal executions (completed, failed) are ever eligible.
+message ExecutionArtifactRetentionRequest {
+  // Select executions older than this many days, measured from completed_at when
+  // present, otherwise started_at. 0 disables the age filter.
+  int32 max_age_days = 1 [(buf.validate.field).int32.gte = 0];
+  // Keep this many most-recent terminal executions per workflow, exempt from
+  // removal. 0 keeps none beyond what the age filter spares.
+  int32 keep_latest = 2 [(buf.validate.field).int32.gte = 0];
+  // Optional workflow filter.
+  // @format uuid
+  optional string workflow_id = 3 [(buf.validate.field).string.uuid = true];
+  // Optional project filter.
+  // @format uuid
+  optional string project_id = 4 [(buf.validate.field).string.uuid = true];
+  // Optional terminal-status filter. When set, only that status is considered
+  // (must be completed or failed); when unset, both terminal statuses apply.
+  optional ExecutionStatus status = 5;
+  // Required confirmation for RunExecutionArtifactRetention. Ignored by the
+  // preview RPC. The run RPC refuses to delete anything unless confirm=true.
+  bool confirm = 6;
+}
+
+// ExecutionRetentionItem describes one execution considered by a retention sweep.
+message ExecutionRetentionItem {
+  // Execution ID.
+  // @format uuid
+  string execution_id = 1;
+  // Execution status (completed, failed, running, pending).
+  ExecutionStatus status = 2;
+  // Workflow ID the execution belongs to.
+  // @format uuid
+  string workflow_id = 3;
+  // When the execution started.
+  optional google.protobuf.Timestamp started_at = 4;
+  // When the execution completed, if terminal.
+  optional google.protobuf.Timestamp completed_at = 5;
+  // Result file path recorded for the execution.
+  string result_path = 6;
+  // Artifact directory that holds this execution's recordings.
+  string artifact_dir = 7;
+  // Estimated bytes occupied by the artifact directory.
+  int64 estimated_bytes = 8;
+  // Reason this item was skipped or errored. Empty for cleanly removed items.
+  string reason = 9;
+}
+
+// ExecutionArtifactRetentionResponse is the structured report returned by both
+// the preview and run RPCs.
+message ExecutionArtifactRetentionResponse {
+  // True when this report came from a dry-run (no mutation performed).
+  bool dry_run = 1;
+  // Executions removed by this sweep (or that would be removed in dry-run).
+  repeated ExecutionRetentionItem removed = 2;
+  // Executions considered but skipped, each carrying a reason.
+  repeated ExecutionRetentionItem skipped = 3;
+  // Total estimated bytes reclaimed (or reclaimable) across removed items.
+  int64 estimated_bytes = 4;
+  // Count of removed executions.
+  int32 removed_count = 5;
+  // Count of skipped executions.
+  int32 skipped_count = 6;
+  // Count of executions that errored during deletion (run mode only).
+  int32 error_count = 7;
+  // Per-status counts of removed executions, keyed by lowercase status string.
+  map<string, int32> removed_by_status = 8;
 }

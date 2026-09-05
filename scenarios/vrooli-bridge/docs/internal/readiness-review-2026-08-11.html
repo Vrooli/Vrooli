@@ -1,0 +1,1373 @@
+<title>Vrooli Bridge — State of the System</title>
+<style>
+  :root {
+    --ground: #F2F5F6;
+    --surface: #FFFFFF;
+    --surface-2: #E9EEF0;
+    --ink: #0F1A1E;
+    --ink-2: #4A5D66;
+    --ink-3: #71858F;
+    --line: #D2DCE0;
+    --line-2: #BCCACF;
+    --signal: #0B6E78;
+    --signal-soft: #DFEFF1;
+    --good: #2C6E4F;
+    --good-soft: #DFEDE5;
+    --warn: #90650F;
+    --warn-soft: #F4EAD4;
+    --crit: #A8382A;
+    --crit-soft: #F6E2DE;
+
+    --display: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --col: 74ch;
+    --wide: 1120px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0B1114;
+      --surface: #131C21;
+      --surface-2: #1A252B;
+      --ink: #E0EAEE;
+      --ink-2: #92A6B0;
+      --ink-3: #6E838E;
+      --line: #25333A;
+      --line-2: #33454E;
+      --signal: #3FC6D4;
+      --signal-soft: #10303A;
+      --good: #5DBE89;
+      --good-soft: #142C21;
+      --warn: #D8A845;
+      --warn-soft: #2E2513;
+      --crit: #EA7C6E;
+      --crit-soft: #331A17;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0B1114;
+    --surface: #131C21;
+    --surface-2: #1A252B;
+    --ink: #E0EAEE;
+    --ink-2: #92A6B0;
+    --ink-3: #6E838E;
+    --line: #25333A;
+    --line-2: #33454E;
+    --signal: #3FC6D4;
+    --signal-soft: #10303A;
+    --good: #5DBE89;
+    --good-soft: #142C21;
+    --warn: #D8A845;
+    --warn-soft: #2E2513;
+    --crit: #EA7C6E;
+    --crit-soft: #331A17;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 24px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .col { max-width: var(--col); margin-inline: auto; }
+  .wide { max-width: var(--wide); margin-inline: auto; }
+
+  /* ---------- masthead ---------- */
+
+  header.masthead {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 72px 0 34px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .kicker {
+    font-family: var(--display);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(30px, 5.2vw, 52px);
+    line-height: 1.06;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 20px;
+  }
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0 0 30px;
+  }
+  .provenance {
+    font-family: var(--display);
+    font-size: 11.5px;
+    line-height: 1.9;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 26px;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .provenance b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- section rhythm ---------- */
+
+  section { padding-top: 68px; }
+
+  .eyebrow {
+    font-family: var(--display);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 0 14px;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-size: clamp(21px, 3vw, 27px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 18px;
+  }
+  h3 {
+    font-family: var(--display);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0;
+    margin: 34px 0 10px;
+  }
+  p { margin: 0 0 17px; }
+  p.lede { font-size: 18px; color: var(--ink-2); }
+
+  a { color: var(--signal); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  code, .mono { font-family: var(--display); font-size: 0.875em; }
+  code {
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+
+  ul, ol { margin: 0 0 17px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  li::marker { color: var(--ink-3); }
+
+  /* ---------- verdict ---------- */
+
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--signal);
+    padding: 26px 28px;
+    margin-top: 44px;
+  }
+  .verdict p:last-child { margin-bottom: 0; }
+  .verdict strong { color: var(--ink); }
+
+  /* ---------- metric grid ---------- */
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+    gap: 2px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin: 28px 0 34px;
+  }
+  .metric {
+    background: var(--surface);
+    padding: 20px 20px 22px;
+    border-top: 3px solid transparent;
+  }
+  .metric.is-crit { border-top-color: var(--crit); }
+  .metric.is-warn { border-top-color: var(--warn); }
+  .metric.is-good { border-top-color: var(--good); }
+  .metric .n {
+    font-family: var(--display);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-bottom: 9px;
+  }
+  .metric.is-crit .n { color: var(--crit); }
+  .metric.is-warn .n { color: var(--warn); }
+  .metric.is-good .n { color: var(--good); }
+  .metric .lbl {
+    font-family: var(--display);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    display: block;
+    margin-bottom: 7px;
+  }
+  .metric .note {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--ink-3);
+  }
+
+  /* ---------- stacked bar ---------- */
+
+  figure { margin: 34px 0; }
+  figcaption {
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink-3);
+    margin-top: 14px;
+    max-width: 78ch;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 600; }
+
+  .bar {
+    display: flex;
+    height: 46px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .bar > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--surface);
+    min-width: 0;
+  }
+  .seg-good { background: var(--good); }
+  .seg-fail { background: var(--warn); }
+  .seg-ghost { background: var(--crit); }
+  .seg-abort { background: var(--ink-3); }
+
+  .barkey {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 12px;
+    font-family: var(--display);
+    font-size: 11.5px;
+    color: var(--ink-2);
+  }
+  .barkey span { display: flex; align-items: center; gap: 7px; }
+  .barkey i { width: 11px; height: 11px; display: inline-block; flex: none; }
+
+  /* ---------- svg figures ---------- */
+
+  .figwrap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 26px 22px;
+    overflow-x: auto;
+  }
+  .figwrap svg { display: block; max-width: 100%; height: auto; margin-inline: auto; color: var(--ink); }
+
+  /* ---------- tables ---------- */
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+  th, td {
+    text-align: left;
+    padding: 11px 15px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--display);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--display); font-size: 13px; }
+  .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+  .mark { font-family: var(--display); font-weight: 600; white-space: nowrap; }
+  .m-yes { color: var(--good); }
+  .m-part { color: var(--warn); }
+  .m-no { color: var(--crit); }
+
+  /* ---------- pills ---------- */
+
+  .pill {
+    font-family: var(--display);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .p-good { background: var(--good-soft); color: var(--good); }
+  .p-warn { background: var(--warn-soft); color: var(--warn); }
+  .p-crit { background: var(--crit-soft); color: var(--crit); }
+  .p-flat { background: var(--surface-2); color: var(--ink-2); }
+
+  /* ---------- phase blocks ---------- */
+
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line-2);
+    padding: 24px 26px;
+    margin-bottom: 18px;
+  }
+  .phase.tier-1 { border-left-color: var(--crit); }
+  .phase.tier-2 { border-left-color: var(--warn); }
+  .phase.tier-3 { border-left-color: var(--signal); }
+
+  .phase-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px 14px;
+    margin-bottom: 14px;
+  }
+  .phase-id {
+    font-family: var(--display);
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  .phase-head h3 {
+    margin: 0;
+    font-size: 18px;
+    flex: 1 1 auto;
+    min-width: 240px;
+  }
+  .phase p { margin-bottom: 13px; font-size: 15.5px; }
+  .phase ul { font-size: 15.5px; margin-bottom: 14px; }
+  .phase li { margin-bottom: 6px; }
+
+  .donewhen {
+    border-top: 1px solid var(--line);
+    padding-top: 13px;
+    margin-top: 4px;
+    font-size: 14.5px;
+    color: var(--ink-2);
+  }
+  .donewhen b {
+    font-family: var(--display);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  /* ---------- callout ---------- */
+
+  .note-box {
+    background: var(--surface-2);
+    border-left: 3px solid var(--ink-3);
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-size: 15px;
+  }
+  .note-box p:last-child { margin-bottom: 0; }
+  .note-box.warn { border-left-color: var(--warn); }
+
+  hr.rule {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  @media (max-width: 640px) {
+    body { padding: 0 16px 80px; font-size: 16px; }
+    header.masthead { padding-top: 48px; }
+    .phase { padding: 20px 18px; }
+  }
+</style>
+
+<div class="historical">Historical readiness snapshot. Session-scope references below describe the pre-2026-08-29 contract.</div>
+
+<header class="masthead">
+  <p class="kicker">Fleet control plane · readiness review</p>
+  <h1>Vrooli Bridge:<br>what's built, what's broken,<br>and what "near-perfect" costs</h1>
+  <p class="standfirst">
+    The control plane is architecturally sound and about 80% built. Its reliability
+    problem is not a bug — it is a missing contract. Nothing in the wire protocol
+    ever confirms that a job arrived.
+  </p>
+  <div class="provenance">
+    <span><b>Reviewed</b> 2026-08-11</span>
+    <span><b>Branch</b> agi</span>
+    <span><b>Code</b> 55,308 Go LOC · 426 files · 3 modules</span>
+    <span><b>Evidence</b> live <code>vrooli-bridge.db</code> (read-only copy) + suite run <span class="mono">20260810-145547</span></span>
+  </div>
+</header>
+
+<div class="col">
+  <div class="verdict">
+    <p><strong>The short version.</strong> Bridge has 17 API domains, a signed
+    bidirectional-auth channel, durable runs, provisioning, cross-OS gates, and a
+    real cross-compiled node agent. That is a lot of correct work. But three
+    things are structurally missing, and each one is currently costing you real
+    time:</p>
+    <p>1. <strong>Delivery is never acknowledged.</strong> A dispatched job is
+    reported delivered when it is placed in an in-process Go channel. One third of
+    every real job ever run on this bridge never produced a single event and had
+    to be killed by hand.</p>
+    <p>2. <strong>Machine identity is not idempotent.</strong> One Mac has minted
+    17 distinct machine records, and two nodes are each claimed as <em>current</em>
+    by two machines at once.</p>
+    <p>3. <strong>Interactive sessions don't exist.</strong> There is no PTY, no
+    stdin, no session frame anywhere in Bridge — while two other scenarios each
+    implement their own rival version of the same thing.</p>
+  </div>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">Evidence · from the running database, not the docs</p>
+  <h2>What the last three days actually look like</h2>
+</section>
+
+<div class="col">
+  <p class="lede">Every number below comes from Bridge's own SQLite store as it
+  stands right now. This is not a projection of what could go wrong; it is the
+  record of what did.</p>
+</div>
+
+<div class="wide">
+  <div class="metrics">
+    <div class="metric is-crit">
+      <span class="n">11 / 33</span>
+      <span class="lbl">Jobs that vanished</span>
+      <span class="note">Runs whose only event is a human's abort. The node never
+      reported anything — not even a start.</span>
+    </div>
+    <div class="metric is-crit">
+      <span class="n">17</span>
+      <span class="lbl">Identities, one Mac</span>
+      <span class="note">Distinct <code>machines</code> rows all pointing at the
+      hostname <span class="mono">minimouse.local</span>. 15 were bulk-archived by hand
+      on 08-10.</span>
+    </div>
+    <div class="metric is-warn">
+      <span class="n">29%</span>
+      <span class="lbl">Enrollment success</span>
+      <span class="note">12 succeeded of 41 attempts. Six more attempts were made
+      today alone.</span>
+    </div>
+    <div class="metric is-warn">
+      <span class="n">14 / 20</span>
+      <span class="lbl">Suite phases green</span>
+      <span class="note">contracts, dependencies, unit, workflow, security and
+      proto are red — all mechanical, none deep.</span>
+    </div>
+    <div class="metric is-crit">
+      <span class="n">0</span>
+      <span class="lbl">Product journeys</span>
+      <span class="note">No BAS case covers any Bridge flow. The one case present
+      tests database routing.</span>
+    </div>
+    <div class="metric is-warn">
+      <span class="n">3 / 17</span>
+      <span class="lbl">Domains with a UI</span>
+      <span class="note">Fleet, health and runs. Audit, queue, gates, rollouts,
+      artifacts and readiness have none.</span>
+    </div>
+  </div>
+</div>
+
+<div class="wide">
+  <figure>
+    <div class="bar" role="img" aria-label="Of 33 dispatched runs: 4 passed, 17 failed with a real exit code, 11 were aborted by hand after producing no events at all, and 1 was aborted after starting.">
+      <span class="seg-good" style="flex: 4">4</span>
+      <span class="seg-fail" style="flex: 17">17</span>
+      <span class="seg-ghost" style="flex: 11">11</span>
+      <span class="seg-abort" style="flex: 1">1</span>
+    </div>
+    <div class="barkey">
+      <span><i class="seg-good"></i> 4 passed</span>
+      <span><i class="seg-fail"></i> 17 failed — real exit code, the system worked</span>
+      <span><i class="seg-ghost"></i> 11 never reported anything — killed by hand</span>
+      <span><i class="seg-abort"></i> 1 aborted after starting</span>
+    </div>
+    <figcaption>
+      Every run Bridge has ever dispatched, by outcome. The failures are fine —
+      a job that runs and exits non-zero is the system working. The <b>11 red
+      runs are the problem</b>: each sat between 2½ and 90 minutes with zero
+      events before a human noticed and aborted it. One abort reason, typed by an
+      operator, is the whole diagnosis: <span class="mono">"stale pre-reprovision Mac agent
+      produced no terminal event; discard failed evidence run."</span>
+    </figcaption>
+  </figure>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">Mechanism · why jobs disappear</p>
+  <h2>The delivery path has no receipt at any hop</h2>
+</section>
+
+<div class="col">
+  <p>Dispatch does eight things in order, and every one of them is individually
+  correct. The failure is in what the sequence <em>reports</em>. Three separate
+  layers each return "delivered" for something weaker than delivery, and no layer
+  ever hears back from the node.</p>
+</div>
+
+<div class="wide">
+  <figure>
+    <div class="figwrap">
+      <svg viewBox="0 0 790 690" role="img" aria-label="A vertical eight-stage dispatch pipeline. Three stages are marked as gaps: the scheduler returns delivered equals one for a job it only queued; the hub counts in-memory channel enqueues rather than socket writes; and no acknowledgement frame exists in the node-to-control-plane protocol. A bar across the bottom notes that none of this state survives a control-plane restart.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#A8382A"/>
+          </marker>
+        </defs>
+
+        <!-- stage 1 -->
+        <rect x="40" y="24" width="230" height="48" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="56" y="46" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">operator dispatches job</text>
+        <text x="56" y="62" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.6">CLI / Connect RPC</text>
+        <line x1="155" y1="72" x2="155" y2="92" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 2 -->
+        <rect x="40" y="96" width="230" height="48" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="56" y="118" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">allowlist + scopes + audit</text>
+        <text x="56" y="134" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.6">fail-closed · correct</text>
+        <line x1="155" y1="144" x2="155" y2="164" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 3 -->
+        <rect x="40" y="168" width="230" height="48" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="56" y="190" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">durable run written: QUEUED</text>
+        <text x="56" y="206" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.6">no lease · no deadline column</text>
+        <line x1="155" y1="216" x2="155" y2="236" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 4 GAP -->
+        <rect x="40" y="240" width="230" height="48" fill="none" stroke="#A8382A" stroke-width="2"/>
+        <text x="56" y="262" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">scheduler.Submit()</text>
+        <text x="56" y="278" font-family="ui-monospace, monospace" font-size="11" fill="#A8382A">in-memory only</text>
+        <line x1="272" y1="264" x2="306" y2="264" stroke="#A8382A" stroke-width="1.25" stroke-dasharray="3 3"/>
+        <text x="314" y="258" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#A8382A">delivered = 1 for a job it only QUEUED</text>
+        <text x="314" y="276" font-size="12.5" fill="currentColor" opacity="0.78">Dispatch returns a run ID and reports success.</text>
+        <line x1="155" y1="288" x2="155" y2="308" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 5 GAP -->
+        <rect x="40" y="312" width="230" height="48" fill="none" stroke="#A8382A" stroke-width="2"/>
+        <text x="56" y="334" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">Hub.Push → conn.out chan</text>
+        <text x="56" y="350" font-family="ui-monospace, monospace" font-size="11" fill="#A8382A">buffer of 16</text>
+        <line x1="272" y1="336" x2="306" y2="336" stroke="#A8382A" stroke-width="1.25" stroke-dasharray="3 3"/>
+        <text x="314" y="330" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#A8382A">counts enqueues, not socket writes</text>
+        <text x="314" y="348" font-size="12.5" fill="currentColor" opacity="0.78">If the SSE goroutine has exited, the frame is dropped.</text>
+        <line x1="155" y1="360" x2="155" y2="380" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 6 GAP -->
+        <rect x="40" y="384" width="230" height="48" fill="none" stroke="#A8382A" stroke-width="2"/>
+        <text x="56" y="406" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">SSE handler writes frame</text>
+        <text x="56" y="422" font-family="ui-monospace, monospace" font-size="11" fill="#A8382A">one-way stream</text>
+        <line x1="272" y1="408" x2="306" y2="408" stroke="#A8382A" stroke-width="1.25" stroke-dasharray="3 3"/>
+        <text x="314" y="402" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#A8382A">no acknowledgement frame exists</text>
+        <text x="314" y="420" font-size="12.5" fill="currentColor" opacity="0.78">NodeFrame carries only Handshake, Heartbeat, RunEvent.</text>
+        <line x1="155" y1="432" x2="155" y2="452" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 7 -->
+        <rect x="40" y="456" width="230" height="48" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="56" y="478" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">agent executes the job</text>
+        <text x="56" y="494" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.6">…or never receives it</text>
+        <line x1="155" y1="504" x2="155" y2="524" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)"/>
+
+        <!-- stage 8 -->
+        <rect x="40" y="528" width="230" height="48" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="56" y="550" font-family="ui-monospace, monospace" font-size="12.5" fill="currentColor">RunEvent EXIT → terminal</text>
+        <text x="56" y="566" font-family="ui-monospace, monospace" font-size="11" fill="currentColor" opacity="0.6">the only proof of life</text>
+
+        <!-- the silent-forever path -->
+        <path d="M 300 552 L 340 552 L 340 500" fill="none" stroke="#A8382A" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <text x="352" y="548" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#A8382A">if this never arrives,</text>
+        <text x="352" y="566" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#A8382A">the run stays non-terminal forever</text>
+
+        <!-- bottom bar -->
+        <rect x="40" y="606" width="710" height="52" fill="none" stroke="#A8382A" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="58" y="630" font-family="ui-monospace, monospace" font-size="12.5" font-weight="600" fill="#A8382A">And none of stages 3–7 survive a control-plane restart.</text>
+        <text x="58" y="648" font-size="12.5" fill="currentColor" opacity="0.78">There is no queue table, no reconciliation sweep at boot, and no watchdog anywhere in the codebase.</text>
+      </svg>
+    </div>
+    <figcaption>
+      The dispatch path, stage by stage. The three outlined stages each report a
+      weaker fact than the caller assumes, and stage 6 is where the chain
+      genuinely breaks: <b>the wire protocol has no way for the node to say
+      "got it."</b> A grep for <span class="mono">lease</span>, <span class="mono">watchdog</span>,
+      <span class="mono">reaper</span> and <span class="mono">sweep</span> across
+      <span class="mono">api/internal/</span> returns nothing.
+    </figcaption>
+  </figure>
+</div>
+
+<div class="col">
+  <div class="note-box warn">
+    <p><b>The agent's diagnosis was right, and it under-called one thing.</b> The
+    report you were given identified the queue and the check-then-push race
+    correctly. It framed the fix as making the queue durable. That is necessary
+    but not sufficient — <em>a durable queue still cannot tell whether a frame
+    reached the node</em>, because the acknowledgement does not exist in the
+    protocol. The protocol change is the load-bearing one; the durable queue is
+    what makes the acknowledgement actionable.</p>
+  </div>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">Mechanism · why re-pairing keeps failing</p>
+  <h2>One host, seventeen identities</h2>
+</section>
+
+<div class="col">
+  <p>The <code>machines</code> domain is well designed. It has a proper read-time
+  projection that joins machine, trust, policy, registry and presence facts
+  without copying live state into durable storage, and a readiness evaluator that
+  names each missing fact separately. That design is right and worth keeping.</p>
+  <p>What is missing is an <em>invariant</em>. Nothing in the schema or the
+  service prevents the same physical host from being enrolled twice, and the data
+  shows exactly that happening — repeatedly, because each failed enrollment
+  attempt encourages another one.</p>
+</div>
+
+<div class="wide">
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Observed in the live database</th>
+          <th class="num">Count</th>
+          <th>What it means</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">machines rows for <b>minimouse.local</b></td>
+          <td class="num">17</td>
+          <td>Hostname-based enrollment mints a new UUID each time instead of resolving to the existing machine.</td>
+        </tr>
+        <tr>
+          <td class="mono">…of which archived by hand on 08-10</td>
+          <td class="num">15</td>
+          <td>Cleanup is manual. There is no merge or repair verb.</td>
+        </tr>
+        <tr>
+          <td class="mono">nodes marked <b>is_current</b> by two machines</td>
+          <td class="num">2</td>
+          <td>A broken invariant that is currently expressible in the schema. One node genuinely belongs to one machine.</td>
+        </tr>
+        <tr>
+          <td class="mono">enrollment_attempts, state = failed</td>
+          <td class="num">28</td>
+          <td>Against 12 succeeded. Failures are recorded but not classified, so the same cause recurs.</td>
+        </tr>
+        <tr>
+          <td class="mono">active machines right now</td>
+          <td class="num">3</td>
+          <td>For two real hosts. One is a duplicate.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption style="max-width: var(--wide);">
+    Two failure causes are also visible verbatim in the stored attempt
+    diagnostics: <b>macOS service install fails over SSH</b>
+    (<span class="mono">launchctl enable gui/501/… : Domain does not support specified action</span>)
+    and <b>the privilege broker is Linux-only</b>
+    (<span class="mono">"privilege broker is currently supported only on Linux with systemd"</span>).
+    Both are real portability gaps, not transient errors.
+  </figcaption>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">Absence · the remote terminal you asked for</p>
+  <h2>Three teams solved the same problem; none of them connected</h2>
+</section>
+
+<div class="col">
+  <p>You want a web-console terminal that runs remotely through Bridge and feels
+  local. Today there is no path at all — and the reason is more interesting than
+  "not built yet."</p>
+  <p><strong>web-console</strong> has a complete local terminal: a PTY package,
+  a WebSocket handler, a CLI domain, and four requirement modules covering pane
+  layout, fidelity, launcher and mobile toolbar. <strong>scenario-to-cloud</strong>
+  has an independent WebSocket-over-SSH terminal with resize handling. Both work.
+  <strong>Bridge has nothing</strong> — no PTY, no stdin, no session frame. Its
+  own work ladder explicitly reserves <code>vrooli-bridge:session</code> for "a later
+  Mode-B protocol" and rules PTY out of scope.</p>
+  <p>Underneath that, the same duplication exists one layer down: Bridge carries
+  3,754 lines of SSH connection and trust code, scenario-to-cloud carries about
+  4,000 more, and two files share a filename and a purpose while having diverged
+  by 237 lines.</p>
+</div>
+
+<div class="wide">
+  <figure>
+    <div class="figwrap">
+      <svg viewBox="0 0 900 360" role="img" aria-label="Left: today, three scenarios each own a separate stack. Web-console has a local PTY only, vrooli-bridge has SSH onboarding but no terminal, and scenario-to-cloud has a WebSocket SSH terminal. No path connects the console to a bridge node. Right: the target, a single session wire contract beneath the console, served by three interchangeable backends — local PTY, node-agent PTY, and SSH host.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="20" y="22" font-family="ui-monospace, monospace" font-size="11.5" letter-spacing="1.4" fill="currentColor" opacity="0.55">TODAY</text>
+        <text x="490" y="22" font-family="ui-monospace, monospace" font-size="11.5" letter-spacing="1.4" fill="#0B6E78">TARGET</text>
+        <line x1="455" y1="8" x2="455" y2="352" stroke="currentColor" stroke-width="1" opacity="0.25"/>
+
+        <!-- TODAY: three columns -->
+        <rect x="20" y="46" width="128" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="34" y="66" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor">web-console</text>
+        <text x="34" y="80" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">terminal UI</text>
+
+        <rect x="164" y="46" width="128" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="178" y="66" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor">vrooli-bridge</text>
+        <text x="178" y="80" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">fleet UI</text>
+
+        <rect x="308" y="46" width="128" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="322" y="66" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor">scenario-to-cloud</text>
+        <text x="322" y="80" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">deploy UI</text>
+
+        <line x1="84" y1="88" x2="84" y2="112" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+        <line x1="228" y1="88" x2="228" y2="112" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+        <line x1="372" y1="88" x2="372" y2="112" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+
+        <rect x="20" y="116" width="128" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="34" y="136" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">internal/pty</text>
+        <text x="34" y="150" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">local only</text>
+
+        <rect x="164" y="116" width="128" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="178" y="136" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">onboard/ssh</text>
+        <text x="178" y="150" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">3,754 LOC</text>
+
+        <rect x="308" y="116" width="128" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="322" y="136" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">api/ssh</text>
+        <text x="322" y="150" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">~4,000 LOC</text>
+
+        <!-- the missing link -->
+        <path d="M 148 200 L 292 200" fill="none" stroke="#A8382A" stroke-width="1.75" stroke-dasharray="5 4"/>
+        <line x1="200" y1="186" x2="240" y2="214" stroke="#A8382A" stroke-width="1.75"/>
+        <line x1="240" y1="186" x2="200" y2="214" stroke="#A8382A" stroke-width="1.75"/>
+        <text x="20" y="240" font-family="ui-monospace, monospace" font-size="11.5" font-weight="600" fill="#A8382A">no path: the console cannot reach a node</text>
+        <text x="20" y="262" font-size="12" fill="currentColor" opacity="0.75">Bridge has no PTY, no stdin, and no session</text>
+        <text x="20" y="280" font-size="12" fill="currentColor" opacity="0.75">frame. Its SSE channel is one-directional.</text>
+        <text x="20" y="308" font-size="12" fill="currentColor" opacity="0.75">Two near-duplicate SSH stacks; hostkey.go</text>
+        <text x="20" y="326" font-size="12" fill="currentColor" opacity="0.75">has diverged by 237 lines between them.</text>
+
+        <!-- TARGET -->
+        <rect x="490" y="46" width="386" height="42" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="506" y="66" font-family="ui-monospace, monospace" font-size="11.5" fill="currentColor">web-console terminal · CLI · Bridge UI</text>
+        <text x="506" y="80" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">one keystroke path, one renderer</text>
+        <line x1="683" y1="88" x2="683" y2="112" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+
+        <rect x="490" y="116" width="386" height="48" fill="none" stroke="#0B6E78" stroke-width="2"/>
+        <text x="506" y="138" font-family="ui-monospace, monospace" font-size="12" font-weight="600" fill="#0B6E78">session wire contract</text>
+        <text x="506" y="154" font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor" opacity="0.7">Open · Data · Resize · Close — bidirectional, scoped, recorded</text>
+
+        <line x1="551" y1="164" x2="551" y2="200" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+        <line x1="683" y1="164" x2="683" y2="200" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+        <line x1="815" y1="164" x2="815" y2="200" stroke="currentColor" stroke-width="1.25" marker-end="url(#ar2)"/>
+
+        <rect x="490" y="204" width="122" height="46" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="504" y="224" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">local pty</text>
+        <text x="504" y="239" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">tier 1 host</text>
+
+        <rect x="622" y="204" width="122" height="46" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="636" y="224" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">node-agent pty</text>
+        <text x="636" y="239" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">paired machine</text>
+
+        <rect x="754" y="204" width="122" height="46" fill="none" stroke="currentColor" stroke-width="1.25"/>
+        <text x="768" y="224" font-family="ui-monospace, monospace" font-size="11" fill="currentColor">ssh backend</text>
+        <text x="768" y="239" font-family="ui-monospace, monospace" font-size="10" fill="currentColor" opacity="0.6">VPS · test device</text>
+
+        <text x="490" y="284" font-size="12" fill="currentColor" opacity="0.75">One protocol, three backends. The console picks a</text>
+        <text x="490" y="302" font-size="12" fill="currentColor" opacity="0.75">target; everything downstream is identical — same</text>
+        <text x="490" y="320" font-size="12" fill="currentColor" opacity="0.75">scrollback, same resize, same audit, same kill switch.</text>
+      </svg>
+    </div>
+    <figcaption>
+      The difference the work makes. Today the terminal capability is trapped in
+      whichever scenario built it. The target is one session contract with
+      interchangeable backends, so <b>"open a terminal on that machine" is the
+      same operation whether the machine is this laptop, a paired Mac, or a
+      VPS</b>.
+    </figcaption>
+  </figure>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">Coverage · reach vs. requirement</p>
+  <h2>What Bridge can actually talk to</h2>
+</section>
+
+<div class="col">
+  <p>Your requirement for Bridge is that it connects to local machines, VPSes,
+  and testing devices, and drives onboarding on anything that can run Vrooli.
+  Bridge currently models exactly one kind of target: a host that has successfully
+  installed the Vrooli node agent and dials out. Everything else is either
+  unsupported or lives in another scenario.</p>
+</div>
+
+<div class="wide">
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Target</th>
+          <th>Enroll</th>
+          <th>Run allowlisted job</th>
+          <th>Interactive terminal</th>
+          <th>Provision / update</th>
+          <th>Where it lives today</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">Local machine w/ agent</td>
+          <td><span class="mark m-part">partial</span></td>
+          <td><span class="mark m-part">unreliable</span></td>
+          <td><span class="mark m-no">none</span></td>
+          <td><span class="mark m-yes">yes</span></td>
+          <td>vrooli-bridge</td>
+        </tr>
+        <tr>
+          <td class="mono">macOS machine w/ agent</td>
+          <td><span class="mark m-no">broken</span></td>
+          <td><span class="mark m-part">unreliable</span></td>
+          <td><span class="mark m-no">none</span></td>
+          <td><span class="mark m-part">partial</span></td>
+          <td>launchd install fails over SSH</td>
+        </tr>
+        <tr>
+          <td class="mono">VPS (Vrooli-capable)</td>
+          <td><span class="mark m-no">no</span></td>
+          <td><span class="mark m-no">no</span></td>
+          <td><span class="mark m-part">separate</span></td>
+          <td><span class="mark m-part">separate</span></td>
+          <td>scenario-to-cloud, own SSH stack</td>
+        </tr>
+        <tr>
+          <td class="mono">Test device (no agent)</td>
+          <td><span class="mark m-no">no</span></td>
+          <td><span class="mark m-no">no</span></td>
+          <td><span class="mark m-no">no</span></td>
+          <td><span class="mark m-no">n/a</span></td>
+          <td>the <code>attached</code> domain is a stub</td>
+        </tr>
+        <tr>
+          <td class="mono">Windows machine</td>
+          <td><span class="mark m-no">untested</span></td>
+          <td><span class="mark m-no">untested</span></td>
+          <td><span class="mark m-no">none</span></td>
+          <td><span class="mark m-no">untested</span></td>
+          <td>agent cross-compiles; never run</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption style="max-width: var(--wide);">
+    The <code>attached</code> domain deserves a specific note: it is the only
+    domain in the codebase that breaks the established shape. It is a single file
+    with an inline <span class="mono">CREATE TABLE</span>, no repository seam, no
+    <span class="mono">schema.sql</span>, and no proto-free service boundary — where
+    every other domain has all four. <b>It is scaffolding that got committed,</b>
+    and it happens to sit exactly where "testing device" support needs to go.
+  </figcaption>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">Proof · what the suite says</p>
+  <h2>Six red phases, none of them deep</h2>
+</section>
+
+<div class="col">
+  <p>The most recent recorded run is <span class="mono">20260810-145547-6739a422</span>:
+  14 of 20 phases green. Encouragingly, every red is mechanical — there is no
+  architectural failure in the set. Discouragingly, several have been carried
+  forward since June.</p>
+</div>
+
+<div class="wide">
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Phase</th>
+          <th>Root cause</th>
+          <th>Age</th>
+          <th>Effort</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono"><span class="pill p-crit">contracts</span></td>
+          <td>Five <code>readiness firewall-*</code> commands exist in the binary but not in the CLI manifest, which is the declared SSOT.</td>
+          <td>new</td>
+          <td>hours</td>
+        </tr>
+        <tr>
+          <td class="mono"><span class="pill p-crit">dependencies</span></td>
+          <td>Four missing in-repo <code>replace</code> directives — <code>platform-go</code> and <code>scenario-to-desktop/runtime</code> in both the api and cli modules.</td>
+          <td>new</td>
+          <td>hours</td>
+        </tr>
+        <tr>
+          <td class="mono"><span class="pill p-crit">unit</span></td>
+          <td><code>pnpm test:coverage</code> fails in the ui workspace. 63 warnings behind it.</td>
+          <td>recurring</td>
+          <td>hours</td>
+        </tr>
+        <tr>
+          <td class="mono"><span class="pill p-crit">workflow</span></td>
+          <td>The BAS registry is empty and the one case present is a routed-database proof missing <code>routed_isolation=true</code>.</td>
+          <td>since gen</td>
+          <td>days</td>
+        </tr>
+        <tr>
+          <td class="mono"><span class="pill p-crit">security</span></td>
+          <td>6 gitleaks hits, 4 gosec G101, 36 G115 integer-overflow, 16 G304, 8 G204. Most are triage-and-annotate, some are real.</td>
+          <td>accumulating</td>
+          <td>days</td>
+        </tr>
+        <tr>
+          <td class="mono"><span class="pill p-crit">proto</span></td>
+          <td><code>channel.Heartbeat</code> and <code>channel.RunEvent</code> are reused across domains and belong in <code>v1/shared/</code>. Deliberately deferred until the reuse set was final — it has been final since June.</td>
+          <td>since June</td>
+          <td>1 day</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption style="max-width: var(--wide);">
+    Worth knowing: <b>all 22 requirement records still read <span class="mono">in_progress</span>,
+    <span class="mono">planned</span> or <span class="mono">not_implemented</span> — none is
+    complete</b>, because requirements-sync only flips on a fully green run. The
+    proto move is the keystone: it is a one-day job that has blocked the green
+    run for two months, and the green run is what makes every other requirement
+    record truthful.
+  </figcaption>
+</div>
+
+<section class="wide">
+  <p class="eyebrow">The program</p>
+  <h2>Nine tracks to a Bridge you'd bet a launch on</h2>
+</section>
+
+<div class="col">
+  <p class="lede">Ordered by dependency, not by size. Tracks 1–3 are what make
+  Bridge trustworthy; 4–6 are what make it capable enough for the deployment
+  program you described; 7–9 are what make it professional.</p>
+</div>
+
+<div class="wide">
+
+  <div class="phase tier-1">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 1</span>
+      <h3>Delivery becomes a contract</h3>
+      <span class="pill p-crit">blocking</span>
+    </div>
+    <p>Add the acknowledgement the protocol never had, then make every layer
+    report the fact it actually knows.</p>
+    <ul>
+      <li>Add <code>DeliveryAck</code> to the <code>NodeFrame</code> oneof: the agent
+      confirms each <code>JobPush</code>, <code>ProvisionCommand</code> and
+      <code>AbortJob</code> by id. Bump <code>CHANNEL_PROTOCOL_VERSION</code> to 2 —
+      the compatibility band classifier already exists to gate older agents, so
+      this is a supported change, not a breaking one.</li>
+      <li>Split the run lifecycle into <span class="mono">accepted → queued → pushed →
+      acked → running → terminal</span>. Today <code>QUEUED</code> conflates four of
+      those.</li>
+      <li>Add <code>queued_since</code>, <code>delivery_attempts</code>,
+      <code>last_delivery_error</code> and <code>delivery_lease_expires_at</code> to the
+      <code>runs</code> table.</li>
+      <li>Persist the queue, or rebuild it at boot from durable runs. Make the
+      in-memory scheduler a projection of durable state rather than the state
+      itself.</li>
+      <li>Reconcile on startup: sweep every non-terminal run, re-drive it if the
+      node is dispatchable, otherwise terminate it with a typed reason.</li>
+      <li>Run a delivery watchdog. Past the lease with no ack and no
+      <code>RUNNING</code>: requeue up to N times, then terminate
+      <span class="mono">node_channel_lost</span>.</li>
+      <li>Enforce <code>timeout_seconds</code> server-side. It is currently enforced
+      only by the agent, which is the one party that may not have received the
+      job.</li>
+      <li>Redeliver on reconnect: a presence-online event promotes that node's
+      undelivered runs.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      A soak test kills the agent at each of the seven pipeline stages and, in
+      every case, the run reaches a terminal state with a correct typed reason
+      inside its deadline plus grace. No run is ever non-terminal past that
+      bound — that single invariant is the definition of "reliable" here, and it
+      is currently unmeasured.
+    </div>
+  </div>
+
+  <div class="phase tier-1">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 2</span>
+      <h3>One machine, one identity, forever</h3>
+      <span class="pill p-crit">blocking</span>
+    </div>
+    <ul>
+      <li>Add a partial unique index enforcing <em>a node is current for at most
+      one machine</em>. This is violated twice right now, so ship the migration
+      with a reconciliation step.</li>
+      <li>Fix the identity resolution order: machine UUID, then node UUID, then
+      SSH host-key fingerprint, then hostname. Hostname must be the last resort
+      and must never mint a new machine when a host key already matches.</li>
+      <li>Add <code>machines repair &lt;id&gt;</code>: reuse the existing UUID and
+      Bridge-managed key, revalidate host-key trust, restart the agent, reconnect.
+      Idempotent, and structurally incapable of creating a second machine.</li>
+      <li>Add <code>machines merge</code> for the duplicates that already exist, fully
+      audited.</li>
+      <li>Make <code>machines list</code>, <code>get</code>, <code>trust</code> and
+      onboarding all read the <em>same</em> projection function. Three readers
+      disagreeing is what produced the incident you were told about.</li>
+      <li>Classify enrollment failures. 28 failures with free-text diagnostics
+      should become five named causes with five named remediations.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      Onboarding the same host ten times consecutively — including mid-run
+      network drops and an agent restart — yields exactly one machine, one
+      current node, and ten attempt records. And <code>list</code>, <code>get</code>,
+      <code>trust</code> and <code>onboard</code> never disagree under a fuzz test.
+    </div>
+  </div>
+
+  <div class="phase tier-1">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 3</span>
+      <h3>Readiness that cannot lie</h3>
+      <span class="pill p-crit">blocking</span>
+    </div>
+    <p>"Online" currently means one thing — a live SSE connection — and operators
+    reasonably read it as "will run my job." Those are different claims and both
+    were true-then-false in the incident.</p>
+    <ul>
+      <li>Report five independent facts, never collapsed: durable registry record,
+      heartbeat age, live channel, protocol compatibility, and dispatchable.</li>
+      <li>Expire presence on heartbeat staleness, not only on socket close. A
+      half-open TCP connection currently reads as online until the kernel gives
+      up.</li>
+      <li>Add <code>nodes doctor &lt;id&gt;</code>: walk the ladder, stop at the first
+      failing rung, print the remediation. This is the single highest-value
+      operator command you can add.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      A node whose machine is suspended, whose laptop lid is shut, or whose agent
+      is a version behind each render as a visibly different state in the UI, the
+      CLI and the API — and dispatch refuses each with the matching typed error.
+    </div>
+  </div>
+
+  <div class="phase tier-2">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 4</span>
+      <h3>Interactive sessions — the remote terminal</h3>
+      <span class="pill p-warn">largest net-new</span>
+    </div>
+    <p>The biggest piece of new work, and the one with the most existing material
+    to reuse.</p>
+    <ul>
+      <li><strong>Upgrade the channel to bidirectional.</strong> SSE cannot carry
+      stdin. Add a WebSocket channel alongside it (gorilla/websocket is already in
+      the repo) and keep SSE as the constrained-network fallback for jobs. Version
+      negotiation already exists to make this safe.</li>
+      <li><strong>Define one session contract</strong> in a new
+      <code>v1/session</code> proto: Open, Data, Resize, Close, with backpressure
+      and a sequence number. Bridge is a relay — it multiplexes console to node,
+      it does not interpret the stream.</li>
+      <li><strong>Extract web-console's PTY into a shared package</strong> and have
+      three backends implement the same contract: local PTY, node-agent PTY, and
+      SSH. This is what makes "terminal on a VPS" and "terminal on a paired Mac"
+      the same feature.</li>
+      <li><strong>Give web-console a target selector</strong> on its existing
+      launcher. The pane, scrollback, resize and mobile toolbar work is already
+      done and should not be rebuilt.</li>
+      <li><strong>Treat sessions as the highest-privilege verb Bridge has.</strong>
+      Its own scope (<code>vrooli-bridge:session</code>, already reserved), owner
+      re-authentication, idle timeout, full recording into the audit sink, and a
+      visible kill switch. An allowlist is meaningless once someone has a shell,
+      so the compensating control has to be recording plus revocation.</li>
+      <li>Fix <code>CheckOrigin: return true</code> in scenario-to-cloud's terminal
+      before any of that code is reused — it accepts WebSocket upgrades from any
+      origin.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      A recorded journey opens a terminal on a remote node from web-console,
+      runs an interactive program, resizes the window, survives a 30-second
+      network drop with scrollback intact, and is killed from the Bridge UI —
+      with the full session retrievable from the audit trail afterwards.
+    </div>
+  </div>
+
+  <div class="phase tier-2">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 5</span>
+      <h3>Reach beyond agent-capable hosts</h3>
+      <span class="pill p-warn">unblocks VPS + devices</span>
+    </div>
+    <ul>
+      <li>Introduce a typed <code>NodeKind</code>: <span class="mono">agent</span>
+      (dial-out, full capability), <span class="mono">ssh</span> (agentless,
+      Bridge-initiated, sessions and commands only), and
+      <span class="mono">attached</span> (a device hanging off a host node).</li>
+      <li>Rebuild the <code>attached</code> domain to the shape every other domain
+      uses — repository seam, <code>schema.sql</code>, proto-free service, adapter.
+      Then it can actually carry test-device support.</li>
+      <li><strong>Consolidate the SSH stacks.</strong> One package. Bridge owns
+      connection, trust and session; scenario-to-cloud owns provider lifecycle and
+      provisioning recipes. That matches the split you already lean toward, and it
+      retires roughly 4,000 duplicated lines.</li>
+      <li>Fix macOS: the launchd install fails over SSH because a GUI domain
+      isn't available. Either use a <code>LaunchDaemon</code>, or detect the
+      SSH-only session and report a typed, actionable failure instead of raw
+      <span class="mono">exit status 125</span>.</li>
+      <li>Give Windows a first real run. The agent cross-compiles for it and has
+      never executed on it.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      A fresh VPS goes from bare IP to enrolled, provisioned, dispatchable and
+      terminal-accessible in one command, and a device with no agent appears in
+      the fleet with correctly reduced capabilities rather than as an error.
+    </div>
+  </div>
+
+  <div class="phase tier-2">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 6</span>
+      <h3>Wire Bridge to vrooli-onboarding</h3>
+      <span class="pill p-warn">integration</span>
+    </div>
+    <p>There is currently <em>zero</em> code referencing vrooli-onboarding from
+    Bridge, or Bridge from vrooli-onboarding, in either direction. The two
+    scenarios are strangers.</p>
+    <ul>
+      <li>Bridge onboarding should hand off to vrooli-onboarding once a host is
+      reachable, rather than running a fixed twelve-step script.</li>
+      <li>Selection of which scenarios and resources to run — and which are
+      "important" versus "core" for vrooli-autoheal — belongs to
+      vrooli-onboarding, with Bridge supplying the transport and the machine
+      identity.</li>
+      <li>The subset computation you described — the union of every scenario,
+      resource, tool and safeguard needed by the selection — should be one
+      function with one owner, callable from CLI, API and UI. Deciding <em>where</em>
+      it lives is a real design question worth settling before either scenario
+      builds it.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      Onboarding a new machine through Bridge presents the same configuration
+      experience as onboarding locally, and the resulting node runs exactly the
+      selected set — verified by comparing the requested union against what
+      autoheal actually supervises.
+    </div>
+  </div>
+
+  <div class="phase tier-3">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 7</span>
+      <h3>The surface people actually touch</h3>
+      <span class="pill p-flat">UX</span>
+    </div>
+    <p>Seventeen API domains, fourteen CLI groups, three product UI features. The
+    UI is a dashboard with a fleet panel, a run list, and settings.</p>
+    <ul>
+      <li>An information architecture that matches the domains: <strong>Fleet</strong>
+      (machines and nodes with the five-fact readiness), <strong>Sessions</strong>
+      (terminals), <strong>Work</strong> (dispatch, runs, queue),
+      <strong>Rollouts</strong> (provisioning, fleet roll, gates),
+      <strong>Trust</strong> (pairing, credentials, audit), <strong>Setup</strong>
+      (the onboarding wizard).</li>
+      <li><strong>The onboarding wizard is the highest-leverage UI you can build.</strong>
+      Today a failure surfaces as a raw log tail ending in a Homebrew banner and a
+      launchctl error. It should be a resumable wizard with per-step status, a
+      plain-language cause, and a repair button wired to Track 2's repair verb.</li>
+      <li>Mirror it exactly in the CLI — same step names, same states, same
+      remediation strings — so an agent driving Bridge headlessly sees what a
+      human sees.</li>
+      <li>Live run output, queue depth per node, and the delivery state from
+      Track 1 all need to be visible. An operator should never have to open
+      SQLite to learn that a job is stuck; that is how the current incident was
+      diagnosed.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      Every domain with an operator verb has a surface, and a new user can enroll
+      a machine and run their first job without reading documentation.
+    </div>
+  </div>
+
+  <div class="phase tier-3">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 8</span>
+      <h3>Security to a payments-grade bar</h3>
+      <span class="pill p-flat">hardening</span>
+    </div>
+    <ul>
+      <li><strong>Close G8.</strong> The two-principal privilege separation is
+      proven structurally in-process by an AST import-graph test, and the service
+      renderer supports <code>--service-user</code>, but the live install path
+      installs only the single unprivileged runner. Provisioning currently runs in
+      the user agent's context — the designed second principal does not exist at
+      runtime.</li>
+      <li>Triage the 6 gitleaks findings and 4 gosec G101 hits to zero-or-annotated.
+      Carrying secret-scanner hits forward is exactly the habit you cannot have
+      when Stripe keys enter the picture.</li>
+      <li>Route the audit sink to the tamper-evident substrate. The seam exists
+      and is proven swappable; only the implementation is missing.</li>
+      <li>Session recording, owner re-auth and revocation for Track 4 — treated as
+      part of that track's definition of done, not as follow-up.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      The security phase is green with no suppressions that lack a written
+      justification, and a privileged provisioning action is demonstrably running
+      as a different OS principal than the job runner.
+    </div>
+  </div>
+
+  <div class="phase tier-3">
+    <div class="phase-head">
+      <span class="phase-id">TRACK 9</span>
+      <h3>Proof: green suite, real journeys, continuous soak</h3>
+      <span class="pill p-flat">validation</span>
+    </div>
+    <ul>
+      <li>Clear the six red phases. Five are hours-to-days; the proto
+      <code>v1/shared</code> move is the one-day keystone that has blocked green
+      since June and is what makes all 22 requirement records truthful.</li>
+      <li>Write the regression suite this incident earned: disconnect between the
+      online check and the push; queued job followed by reconnect; control-plane
+      restart with in-flight runs; missing <code>RUNNING</code> event; lease
+      expiry; list/get/trust/onboard consistency; agent restart followed by
+      successful dispatch.</li>
+      <li>Build the BAS journeys. There are zero product journeys today. Enroll,
+      repair, dispatch, follow, abort, open a session, roll the fleet — each
+      recorded as video evidence, which is also what feeds deployment-manager's
+      review.</li>
+      <li>Run a continuous multi-node soak with injected disconnects, asserting
+      the one invariant from Track 1. Reliability that isn't measured continuously
+      regresses silently.</li>
+    </ul>
+    <div class="donewhen">
+      <b>Done when</b>
+      20/20 phases green, all 22 requirements complete, and a 24-hour soak across
+      Linux and macOS nodes with random agent kills produces zero non-terminal
+      runs past deadline.
+    </div>
+  </div>
+
+</div>
+
+<section class="col">
+  <p class="eyebrow">Sequencing</p>
+  <h2>What I'd do first</h2>
+  <p><strong>Track 1, then Track 9's regression tests, in the same pass.</strong>
+  The acknowledgement frame is a small protocol change with a large blast radius
+  of benefit, and it is the prerequisite for trusting anything else you build on
+  Bridge. Writing the seven regression tests alongside it — rather than after —
+  is what keeps the fix honest.</p>
+  <p><strong>Track 2 immediately after,</strong> because every hour spent
+  re-onboarding is an hour of duplicate machines, and because Track 4 needs a
+  stable machine identity to attach sessions to.</p>
+  <p><strong>Then the proto <code>v1/shared</code> move</strong> — out of order
+  relative to its track, because it is one day of work that unblocks a green suite,
+  and a green suite is what turns 22 <span class="mono">in_progress</span> records
+  into evidence you can point at.</p>
+  <p>Track 4 is the largest and most interesting piece, but it should follow
+  1–3. Building an interactive session layer on top of a channel that cannot
+  confirm delivery and a registry that duplicates identities would inherit both
+  problems at a much higher cost to fix.</p>
+</section>
+
+<section class="col">
+  <p class="eyebrow">Decisions I need from you</p>
+  <h2>Four questions worth settling before code</h2>
+  <ol>
+    <li><strong>SSH ownership.</strong> You lean toward scenario-to-cloud owning
+    VPS lifecycle with Bridge owning connection and onboarding. I agree — with
+    one amendment: the <em>SSH transport and host-key trust</em> should be a
+    shared package that both consume, not owned by either. Provider lifecycle
+    stays in scenario-to-cloud; connection, trust, identity and session go to
+    Bridge.</li>
+    <li><strong>Channel transport.</strong> Adding WebSocket alongside SSE is the
+    conservative path and keeps the constrained-network fallback. Replacing SSE
+    entirely is simpler to reason about but loses that fallback. I'd add
+    alongside.</li>
+    <li><strong>Where the "union of everything needed" computation lives.</strong>
+    Bridge, vrooli-onboarding, or the control plane. It affects both Track 5 and
+    Track 6 and should not be decided by whichever gets built first.</li>
+    <li><strong>Session recording retention.</strong> Full-fidelity terminal
+    recording is the compensating control that makes remote shells acceptable,
+    but it captures whatever is typed — including secrets. Retention window and
+    redaction policy should be decided before the feature ships, not after.</li>
+  </ol>
+</section>
+
+<section class="col">
+  <p class="eyebrow">Honest framing</p>
+  <h2>What this is and isn't</h2>
+  <p>Everything above is drawn from reading the code, the requirement records,
+  the last recorded suite run (2026-08-10), and a read-only copy of the live
+  database taken today. <strong>I did not run the suite or start the scenario</strong>
+  — so the suite state is as-of that run, not as-of this minute.</p>
+  <p>The overall picture is better than the incident report implies. Bridge is not
+  a shaky prototype: the security model is genuinely well-built, the domain
+  boundaries are consistent, and the failure modes are narrow and nameable rather
+  than diffuse. What it lacks is the last mile of every distributed system —
+  acknowledgement, idempotency, and reconciliation — plus the surface area that
+  makes it pleasant to operate. Those are known problems with known shapes, which
+  is the best kind to have three tracks before a launch.</p>
+</section>

@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.agent-status",
+    "name": "AgentStatus",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The compact agent presence component showing identity, current activity, availability, progress, interruption, error, and completion in one glanceable unit.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "primitives.avatar",
+        "reason": "Agent identity uses the shared identity visual."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Timestamps render and update through the shared component."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion",
+    "non-color-status",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "stale",
+    "request-error",
+    "offline"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.undoable-destructive-action",
+    "name": "UndoableDestructiveAction",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The destructive-action pattern preferring reversible removal with visible undo, escalating to explicit confirmation only where reversal is genuinely impossible, and handling undo that itself fails.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.undo-banner",
+        "reason": "The reversal affordance and its expiry are shared."
+      },
+      {
+        "asset": "services.undo-manager",
+        "reason": "Reversal, grouping, and expiry belong to the shared history service."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.alert-dialog",
+        "reason": "Only genuinely irreversible actions should escalate to a modal confirmation."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "destructive-confirmation",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "A destructive action completes immediately and offers a visible, time-bounded way back, so the product feels forgiving instead of interrogative."
+    }
+  },
+  "rationale": "Inverts the usual reflex. Confirmation dialogs train users to click through them; reversible deletion with visible undo is both safer and faster, and confirmation should be reserved for the rare truly irreversible case."
+}

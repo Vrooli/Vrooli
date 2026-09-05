@@ -3,17 +3,25 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"
 
-	runtimeapi "scenario-to-desktop-runtime/api"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 )
 
 // BundleabilityChecker checks if a scenario can run in bundled mode.
 type BundleabilityChecker interface {
 	CheckBundleability(scenarioName string) (*generation.BundleabilityResult, error)
+}
+
+// TargetBundleabilityChecker is implemented by analyzers that can evaluate
+// every requested desktop OS instead of silently using the packager host.
+type TargetBundleabilityChecker interface {
+	CheckBundleabilityForPlatforms(scenarioName string, platforms []string, arch string) (*generation.BundleabilityResult, error)
 }
 
 // PreflightStage implements the preflight validation stage of the pipeline.
@@ -95,6 +103,7 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	if failed := s.checkBundleability(input, result); failed {
 		return result
 	}
+	s.appendResourceEligibilityWarnings(input, result)
 
 	if s.service == nil {
 		failStage(result, s.timeProvider, errors.ErrPreflightServiceNotConfigured())
@@ -111,6 +120,14 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	if err != nil {
 		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(err, nil))
 		return result
+	}
+	// Pipeline preflight is an evidence gate, not a long-lived runtime session.
+	// Always release the temporary runtime so a subsequent bundle can replace
+	// its staged executables without colliding with a running service.
+	if response != nil && response.SessionID != "" {
+		if _, stopErr := s.service.RunBundlePreflight(preflight.Request{BundleManifestPath: input.BundleResult.ManifestPath, SessionID: response.SessionID, SessionStop: true}); stopErr != nil {
+			appendWarn(result, "Could not stop temporary preflight runtime: %v", stopErr)
+		}
 	}
 
 	// Validate response status and contents
@@ -131,6 +148,46 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	return result
 }
 
+// appendResourceEligibilityWarnings exposes the resource-level contract that
+// was resolved before packaging. It intentionally warns instead of rejecting
+// an artifact: a target-specific limitation must be inspectable in the plan
+// and artifact even when its runtime will correctly refuse an unavailable
+// required service.
+func (s *PreflightStage) appendResourceEligibilityWarnings(input *StageInput, result *StageResult) {
+	if input.ResourceDeploymentPlan == nil {
+		return
+	}
+	for _, item := range input.ResourceDeploymentPlan.Resources {
+		if item.Eligibility == "ineligible" || item.Support == "unsupported" {
+			reason := item.EligibilityReason
+			if reason == "" {
+				reason = strings.Join(item.Limitations, "; ")
+			}
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s is ineligible for %s-%s; %s", item.Resource, item.OS, item.Architecture, reason))
+			continue
+		}
+		switch item.Bundling {
+		case "prohibited":
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s is prohibited from desktop bundles; %s", item.Resource, strings.Join(item.Limitations, "; ")))
+		case "host-required":
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s requires target-host provisioning (%s)", item.Resource, strings.Join(item.Requires, ", ")))
+		}
+	}
+	for _, item := range input.ResourceDeploymentPlan.HostRequirements {
+		if item.Verdict == "ineligible" || item.Verdict == "degraded" {
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: %s %s is %s for %s; %s", item.Kind, item.Name, item.Verdict, item.OS, item.Reason))
+		}
+	}
+	for _, deferred := range input.ResourceDeploymentPlan.DeferredTargets {
+		facts := make([]string, 0, len(deferred.When))
+		for name := range deferred.When {
+			facts = append(facts, name)
+		}
+		sort.Strings(facts)
+		result.Logs = append(result.Logs, fmt.Sprintf("Deferred resource target: %s for %s-%s (runtime facts: %s)", deferred.Resource, deferred.OS, deferred.Architecture, strings.Join(facts, ", ")))
+	}
+}
+
 // checkBundleability checks if the scenario can run in bundled mode.
 // Returns true if the stage should exit early (failure).
 func (s *PreflightStage) checkBundleability(input *StageInput, result *StageResult) bool {
@@ -138,12 +195,20 @@ func (s *PreflightStage) checkBundleability(input *StageInput, result *StageResu
 		return false
 	}
 
-	bundleability, err := s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
+	var bundleability *generation.BundleabilityResult
+	var err error
+	if targetChecker, ok := s.bundleabilityChecker.(TargetBundleabilityChecker); ok {
+		bundleability, err = targetChecker.CheckBundleabilityForPlatforms(input.Config.ScenarioName, input.Config.Platforms, "")
+	} else {
+		bundleability, err = s.bundleabilityChecker.CheckBundleability(input.Config.ScenarioName)
+	}
 	switch {
 	case err != nil:
-		result.Logs = append(result.Logs,
-			fmt.Sprintf("Warning: bundleability check failed: %v", err))
-		// Continue anyway - the check is best-effort
+		// Resolution is already a required earlier stage. Keep this independent
+		// analyzer as defense in depth, but never downgrade an admission error to
+		// a warning after a bundle has been created.
+		failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(input.Config.ScenarioName, "deployment-resolution", err.Error(), nil))
+		return true
 	case !bundleability.Bundleable:
 		failStage(result, s.timeProvider, errors.ErrScenarioUnbundleable(
 			input.Config.ScenarioName,

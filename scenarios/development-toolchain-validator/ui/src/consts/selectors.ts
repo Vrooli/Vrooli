@@ -4,22 +4,20 @@
  * This file is the single source of truth for every selector used by the UI and
  * by Vrooli Ascension workflows. We deliberately model selectors as two
  * declarative maps (one literal, one dynamic) and rely on a small helper to
- * produce the typed `selectors` export plus the manifest consumed by workflow
- * linting. Do not hand-roll selector helpers or change this structure—update the
- * maps below so UI code, automation flows, and the manifest builder all stay in
- * sync across every scenario.
+ * produce the typed `selectors` export plus the in-memory `selectorsManifest`
+ * export consumed by workflow tooling. Do not hand-roll selector helpers or
+ * change this structure—update the maps below so UI code, automation flows, and
+ * the manifest builder all stay in sync across every scenario.
  *
- * ## Auto-Generated Manifest
+ * ## Manifest Export
  *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
+ * If you need to add or modify selectors:
  *
  * 1. Update the `literalSelectors` object below for static selectors
  * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
+ * 3. `selectorsManifest` updates from the same source maps automatically
  */
+import { LOCALE_CODES } from "../i18n/locales";
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
@@ -52,7 +50,9 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
+  readonly [key: string]:
+    | DynamicSelectorBranch
+    | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -84,7 +84,7 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,26 +93,31 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition<ParamSchema | undefined>).kind === "dynamic-selector");
+const isDynamicDefinition = (
+  value: unknown,
+): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as { kind?: unknown }).kind === "dynamic-selector",
+  );
 
 const normalizeParams = (
   definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
-) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+): Record<string, string | number> => {
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
-  for (const key of Object.keys(schema)) {
+  for (const [key, definitionEntry] of Object.entries(schema)) {
     if (!(key in raw)) {
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
-    const definitionEntry = schema[key];
     const value = raw[key];
-    // Guard against undefined (noUncheckedIndexedAccess compliance)
-    if (!definitionEntry || value === undefined) {
-      continue;
+    // Defensive: `key in raw` doesn't narrow `raw[key]` under noUncheckedIndexedAccess.
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' is undefined`);
     }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
@@ -121,7 +126,7 @@ const normalizeParams = (
       normalized[key] = value;
       continue;
     }
-    if (definitionEntry.type === "enum" && "values" in definitionEntry) {
+    if (definitionEntry.type === "enum") {
       if (!definitionEntry.values.includes(value)) {
         throw new Error(
           `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
@@ -175,7 +180,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -217,8 +222,8 @@ const mergeLiteralAndDynamicNodes = (
 
     if (literalValue && typeof literalValue === "object") {
       merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
+        literalValue,
+        isDynamicDefinition(dynamicValue) ? undefined : dynamicValue,
         nextPath,
       );
       return;
@@ -229,7 +234,7 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue, nextPath);
     }
   });
 
@@ -250,7 +255,12 @@ const createDynamicSelectorFn = (
   };
 };
 
-/** Helper to define a dynamic selector with type-safe params */
+/**
+ * Build a dynamic-selector definition. Exported so unit tests and downstream
+ * tooling can construct registries; scenario authors should still edit the
+ * `dynamicSelectorDefinitions` map at the bottom of this file rather than
+ * calling this from elsewhere in the codebase.
+ */
 export const defineDynamicSelector = <P extends ParamSchema | undefined>(
   definition: Omit<DynamicSelectorDefinition<P>, "kind">,
 ): DynamicSelectorDefinition<P> => ({
@@ -258,7 +268,12 @@ export const defineDynamicSelector = <P extends ParamSchema | undefined>(
   kind: "dynamic-selector",
 });
 
-const createSelectorRegistry = <
+/**
+ * Compose a typed selectors object plus a manifest from literal + dynamic
+ * trees. Exported for unit tests; production registries are built from the
+ * private `literalSelectors` and `dynamicSelectorDefinitions` maps below.
+ */
+export const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
 >(literalTree: L, dynamicTree: D) => {
@@ -270,109 +285,181 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
-  // Dashboard page selectors
-  dashboard: {
-    title: "dashboard-title",
-    healthStatus: "dashboard-health-status",
-    refreshButton: "dashboard-refresh-button",
-    backButton: "dashboard-back-button",
-    referenceCount: "dashboard-reference-count",
-    emptyState: "dashboard-empty-state",
-    emptyCommand: "dashboard-empty-command",
-    loadingState: "dashboard-loading-state",
-    errorState: "dashboard-error-state",
-    errorCommand: "dashboard-error-command"
+// Use `satisfies` rather than `: LiteralSelectorTree` so TypeScript preserves
+// the narrow literal shape. Without this the index signature widens every
+// branch to `T | undefined` under `noUncheckedIndexedAccess` and breaks the
+// `selectors.app.title` ergonomics this registry exists to provide.
+const literalSelectors = {
+  app: {
+    title: "app-title",
+    eyebrow: "app-eyebrow",
+    description: "app-description",
   },
-  // Reference list selectors
-  references: {
-    list: "references-list",
-    createButton: "references-create-button",
-    filterSelect: "references-filter-select"
+  health: {
+    card: "health-card",
+    loading: "health-loading",
+    error: "health-error",
+    statusValue: "health-status-value",
+    serviceValue: "health-service-value",
+    timestampValue: "health-timestamp-value",
+    refreshButton: "health-refresh-button",
+    refreshCount: "health-refresh-count",
   },
-  // Reference detail page selectors
-  referenceDetail: {
-    backButton: "reference-detail-back-button",
-    title: "reference-detail-title",
-    refreshButton: "reference-detail-refresh-button",
-    healthStatus: "reference-detail-health-status",
-    loading: "reference-detail-loading",
-    error: "reference-detail-error",
-    connectCommand: "reference-connect-command"
+  notifications: {
+    summary: "notifications-summary",
   },
-  // CLI commands selectors
-  cliCommands: {
-    update: "cli-update-command",
-    connect: "cli-connect-command",
-    validate: "cli-validate-command"
+  goldens: {
+    card: "goldens-card",
+    list: "goldens-list",
+    loading: "goldens-loading",
+    empty: "goldens-empty",
+    error: "goldens-error",
+    row: "goldens-row",
+    indexHeading: "goldens-index-heading",
+    detailHeading: "goldens-detail-heading",
+    detailBack: "goldens-detail-back",
+    registerOpen: "goldens-register-open",
+    registerSheet: "goldens-register-sheet",
+    registerForm: "goldens-register-form",
+    registerSlug: "goldens-register-slug",
+    registerTemplate: "goldens-register-template",
+    registerVersion: "goldens-register-version",
+    registerPath: "goldens-register-path",
+    registerSubmit: "goldens-register-submit",
+    registerError: "goldens-register-error",
+    detail: "goldens-detail",
+    detailRegenerate: "goldens-detail-regenerate",
+    detailDelete: "goldens-detail-delete",
+    detailClose: "goldens-detail-close",
+    detailStatus: "goldens-detail-status",
+    skillsGrid: "goldens-skills-grid",
+    toolsGrid: "goldens-tools-grid",
+    rowVerdictSummary: "goldens-row-verdict-summary",
+    tupleDetail: "goldens-tuple-detail",
+    tupleDetailBack: "goldens-tuple-back",
+    tupleDetailHeading: "goldens-tuple-detail-heading",
+    tupleDetailRunSummary: "goldens-tuple-run-summary",
+    tupleDetailTabs: "goldens-tuple-tabs",
+    tupleDetailDiff: "goldens-tuple-diff",
+    tupleDetailManifest: "goldens-tuple-manifest",
+    tupleDetailHistory: "goldens-tuple-history",
+    tupleRow: "goldens-tuple-row",
   },
-  // Connection list selectors
-  connections: {
-    // Connection cards use dynamic selectors below
-  }
-};
+  skills: {
+    surface: "skills-surface",
+    list: "skills-list",
+    loading: "skills-loading",
+    empty: "skills-empty",
+    error: "skills-error",
+    row: "skills-row",
+    detail: "skills-detail",
+    detailBack: "skills-detail-back",
+    detailHeading: "skills-detail-heading",
+  },
+  manifests: {
+    surface: "manifests-surface",
+    list: "manifests-list",
+    loading: "manifests-loading",
+    empty: "manifests-empty",
+    error: "manifests-error",
+    row: "manifests-row",
+    editor: "manifests-editor",
+    editorBack: "manifests-editor-back",
+    editorHeading: "manifests-editor-heading",
+    editorAllowedPaths: "manifests-editor-allowed-paths",
+    editorWildcardAllowed: "manifests-editor-wildcard-allowed",
+    editorConvergence: "manifests-editor-convergence",
+    editorContentRules: "manifests-editor-content-rules",
+    editorSave: "manifests-editor-save",
+    editorClearStale: "manifests-editor-clear-stale",
+    editorStatus: "manifests-editor-status",
+  },
+  runs: {
+    surface: "runs-surface",
+    list: "runs-list",
+    loading: "runs-loading",
+    empty: "runs-empty",
+    error: "runs-error",
+    row: "runs-row",
+    startCard: "runs-start-card",
+    startForm: "runs-start-form",
+    startKind: "runs-start-kind",
+    startSubject: "runs-start-subject",
+    startGolden: "runs-start-golden",
+    startForce: "runs-start-force",
+    startSubmit: "runs-start-submit",
+    startError: "runs-start-error",
+    detail: "runs-detail",
+    detailBack: "runs-detail-back",
+    detailHeading: "runs-detail-heading",
+    detailStatus: "runs-detail-status",
+    detailVerdict: "runs-detail-verdict",
+    detailError: "runs-detail-error",
+    runValidation: "runs-run-validation",
+  },
+  nav: {
+    sidebar: "nav-sidebar",
+    sidebarLogo: "nav-sidebar-logo",
+    sidebarCollapseToggle: "nav-sidebar-collapse",
+    sidebarItemGoldens: "nav-sidebar-goldens",
+    sidebarItemSkills: "nav-sidebar-skills",
+    sidebarItemManifests: "nav-sidebar-manifests",
+    sidebarItemRuns: "nav-sidebar-runs",
+    sidebarItemSettings: "nav-sidebar-settings",
+    topHeader: "nav-top-header",
+    topHeaderConvergence: "nav-top-header-convergence",
+    topHeaderStale: "nav-top-header-stale",
+    topHeaderHealth: "nav-top-header-health",
+    topHeaderMenu: "nav-top-header-menu",
+    mobileBottomNav: "nav-mobile-bottom",
+    mobileBottomItemGoldens: "nav-mobile-goldens",
+    mobileBottomItemSkills: "nav-mobile-skills",
+    mobileBottomItemManifests: "nav-mobile-manifests",
+    mobileBottomItemRuns: "nav-mobile-runs",
+    mobileBottomItemSettings: "nav-mobile-settings",
+    appShell: "app-shell",
+  },
+  settings: {
+    surface: "settings-surface",
+    themeDark: "settings-theme-dark",
+    themeLight: "settings-theme-light",
+    densityComfortable: "settings-density-comfortable",
+    densityCompact: "settings-density-compact",
+    sidebarCollapsed: "settings-sidebar-collapsed",
+    catalogSyncCard: "settings-catalog-sync-card",
+    catalogSyncButton: "settings-catalog-sync-button",
+    catalogSyncSummary: "settings-catalog-sync-summary",
+    catalogSyncError: "settings-catalog-sync-error",
+    watcherCard: "settings-watcher-card",
+    watcherSummary: "settings-watcher-summary",
+    watcherError: "settings-watcher-error",
+  },
+  locale: {
+    switcher: "locale-switcher",
+  },
+  errorBoundary: {
+    root: "error-boundary-root",
+    retryButton: "error-boundary-retry",
+  },
+} satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  // Dynamic reference card selectors (dashboard)
-  references: {
-    cardBySlug: defineDynamicSelector({
-      description: "Reference card filtered by slug",
-      testIdPattern: "reference-card-${slug}",
-      params: { slug: { type: "string" } }
+// Per-locale toggle test IDs are emitted by `locale.toggle({ code })` below.
+// We deliberately do NOT also declare static `toggleEn` / `toggleJa` literals —
+// the dynamic form is the single source of truth, and duplicating it here would
+// drift the moment a new locale is added to LOCALE_CODES.
+//
+// `code` is constrained to `LOCALE_CODES` so `selectors.locale.toggle({ code: "fr" })`
+// is a TypeScript error when "fr" isn't a supported locale. The runtime enum
+// validation in `normalizeParams` provides the same guarantee at call time.
+const dynamicSelectorDefinitions = {
+  locale: {
+    toggle: defineDynamicSelector({
+      description: "Locale toggle button by language code",
+      testIdPattern: "locale-toggle-${code}",
+      params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
-    cardLink: defineDynamicSelector({
-      description: "Reference card link to detail page",
-      testIdPattern: "reference-card-link-${slug}",
-      params: { slug: { type: "string" } }
-    }),
-    cardTemplate: defineDynamicSelector({
-      description: "Template badge on reference card",
-      testIdPattern: "reference-template-${slug}",
-      params: { slug: { type: "string" } }
-    }),
-    cardPath: defineDynamicSelector({
-      description: "Path display on reference card",
-      testIdPattern: "reference-path-${slug}",
-      params: { slug: { type: "string" } }
-    }),
-    connectionCount: defineDynamicSelector({
-      description: "Connection count badge on reference card",
-      testIdPattern: "reference-connection-count-${slug}",
-      params: { slug: { type: "string" } }
-    })
   },
-  // Dynamic reference detail page selectors
-  referenceDetail: {
-    info: defineDynamicSelector({
-      description: "Reference info section on detail page",
-      testIdPattern: "reference-detail-info-${slug}",
-      params: { slug: { type: "string" } }
-    }),
-    connections: defineDynamicSelector({
-      description: "Connections section on detail page",
-      testIdPattern: "reference-detail-connections-${slug}",
-      params: { slug: { type: "string" } }
-    }),
-    connectionsLoading: defineDynamicSelector({
-      description: "Loading state for connections on detail page",
-      testIdPattern: "reference-connections-loading-${slug}",
-      params: { slug: { type: "string" } }
-    }),
-    noConnections: defineDynamicSelector({
-      description: "Empty state for no connections on detail page",
-      testIdPattern: "reference-no-connections-${slug}",
-      params: { slug: { type: "string" } }
-    })
-  },
-  // Dynamic connection card selectors
-  connections: {
-    cardBySkillId: defineDynamicSelector({
-      description: "Connection card filtered by skill ID",
-      testIdPattern: "connection-card-${skillId}",
-      params: { skillId: { type: "string" } }
-    })
-  }
-};
+} satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

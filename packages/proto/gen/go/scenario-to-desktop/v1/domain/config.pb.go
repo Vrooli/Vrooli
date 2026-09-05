@@ -4,11 +4,15 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/config.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -25,13 +29,10 @@ const (
 //
 // These values are used in package manifests, installer metadata, and
 // application window titles.
-//
-// @usage DesktopConfig.app
 type AppIdentity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Internal application name (lowercase, no spaces).
 	// Used for directory names and process identification.
-	// @constraint lowercase alphanumeric with hyphens
 	// @example "my-desktop-app"
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Display name shown to users.
@@ -188,8 +189,6 @@ func (x *AppIdentity) GetAppUrl() string {
 // Supports two modes:
 //   - Proxy: App is a thin wrapper connecting to remote server
 //   - Bundled: Backend services run locally within the app
-//
-// @usage DesktopConfig.server
 type ServerConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Server type identifier.
@@ -197,7 +196,6 @@ type ServerConfig struct {
 	ServerType *string `protobuf:"bytes,1,opt,name=server_type,json=serverType,proto3,oneof" json:"server_type,omitempty"`
 	// Port number for the local server.
 	// @default 3000
-	// @constraint 1-65535
 	Port *int32 `protobuf:"varint,2,opt,name=port,proto3,oneof" json:"port,omitempty"`
 	// Path to server entry point (for bundled mode).
 	// @format path
@@ -217,7 +215,7 @@ type ServerConfig struct {
 	// @format path
 	VrooliBinaryPath *string `protobuf:"bytes,7,opt,name=vrooli_binary_path,json=vrooliBinaryPath,proto3,oneof" json:"vrooli_binary_path,omitempty"`
 	// Deployment mode determining server behavior.
-	DeploymentMode DeploymentMode `protobuf:"varint,8,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	DeploymentMode shared.DeploymentMode `protobuf:"varint,8,opt,name=deployment_mode,json=deploymentMode,proto3,enum=vrooli.scenario_to_desktop.v1.shared.DeploymentMode" json:"deployment_mode,omitempty"`
 	// URL for proxy mode connections.
 	// Required when deployment_mode is PROXY.
 	// @format uri
@@ -312,11 +310,11 @@ func (x *ServerConfig) GetVrooliBinaryPath() string {
 	return ""
 }
 
-func (x *ServerConfig) GetDeploymentMode() DeploymentMode {
+func (x *ServerConfig) GetDeploymentMode() shared.DeploymentMode {
 	if x != nil {
 		return x.DeploymentMode
 	}
-	return DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED
+	return shared.DeploymentMode(0)
 }
 
 func (x *ServerConfig) GetProxyUrl() string {
@@ -342,10 +340,8 @@ func (x *ServerConfig) GetExternalApiUrl() string {
 
 // BundleIPCConfig configures inter-process communication for bundled runtime.
 //
-// The IPC channel allows the Electron/Tauri wrapper to communicate with
+// The IPC channel allows the Electron wrapper to communicate with
 // the bundled backend process for lifecycle management and telemetry.
-//
-// @usage BundleConfig.ipc
 type BundleIPCConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IPC server host.
@@ -416,8 +412,6 @@ func (x *BundleIPCConfig) GetAuthTokenRelPath() string {
 //
 // In bundled mode, the desktop app packages and manages backend services
 // locally, enabling fully offline operation.
-//
-// @usage DesktopConfig.bundle
 type BundleConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Path to the bundle manifest file.
@@ -511,233 +505,7 @@ func (x *BundleConfig) GetTelemetryUploadUrl() string {
 	return ""
 }
 
-// GitHubUpdateConfig configures GitHub Releases as the update provider.
-//
-// Uses electron-updater's GitHub provider to check for and download
-// updates from GitHub Releases.
-//
-// @usage UpdateConfig.github
-type GitHubUpdateConfig struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// GitHub repository owner (username or organization).
-	// @example "vrooli"
-	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
-	// GitHub repository name.
-	// @example "scenario-to-desktop"
-	Repo string `protobuf:"bytes,2,opt,name=repo,proto3" json:"repo,omitempty"`
-	// Whether the repository is private.
-	// Private repos require authentication token.
-	Private       *bool `protobuf:"varint,3,opt,name=private,proto3,oneof" json:"private,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GitHubUpdateConfig) Reset() {
-	*x = GitHubUpdateConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GitHubUpdateConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GitHubUpdateConfig) ProtoMessage() {}
-
-func (x *GitHubUpdateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GitHubUpdateConfig.ProtoReflect.Descriptor instead.
-func (*GitHubUpdateConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *GitHubUpdateConfig) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *GitHubUpdateConfig) GetRepo() string {
-	if x != nil {
-		return x.Repo
-	}
-	return ""
-}
-
-func (x *GitHubUpdateConfig) GetPrivate() bool {
-	if x != nil && x.Private != nil {
-		return *x.Private
-	}
-	return false
-}
-
-// GenericUpdateConfig configures a self-hosted update server.
-//
-// Uses electron-updater's generic provider to check for updates
-// from a custom URL endpoint.
-//
-// @usage UpdateConfig.generic
-type GenericUpdateConfig struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Base URL for the update server.
-	// @format uri
-	// @example "https://updates.example.com"
-	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	// Path to channel-specific update info.
-	// @example "/stable/latest.yml"
-	ChannelPath   *string `protobuf:"bytes,2,opt,name=channel_path,json=channelPath,proto3,oneof" json:"channel_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GenericUpdateConfig) Reset() {
-	*x = GenericUpdateConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GenericUpdateConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenericUpdateConfig) ProtoMessage() {}
-
-func (x *GenericUpdateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenericUpdateConfig.ProtoReflect.Descriptor instead.
-func (*GenericUpdateConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GenericUpdateConfig) GetUrl() string {
-	if x != nil {
-		return x.Url
-	}
-	return ""
-}
-
-func (x *GenericUpdateConfig) GetChannelPath() string {
-	if x != nil && x.ChannelPath != nil {
-		return *x.ChannelPath
-	}
-	return ""
-}
-
-// UpdateConfig configures automatic updates for the desktop application.
-//
-// Supports multiple update providers. Only one provider should be configured.
-//
-// @usage DesktopConfig.update
-type UpdateConfig struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Update channel (stable, beta, alpha, etc.).
-	// @default "stable"
-	Channel *string `protobuf:"bytes,1,opt,name=channel,proto3,oneof" json:"channel,omitempty"`
-	// Update provider name.
-	// @example "github", "generic", "s3"
-	Provider *string `protobuf:"bytes,2,opt,name=provider,proto3,oneof" json:"provider,omitempty"`
-	// Whether to automatically check for updates on startup.
-	// @default true
-	AutoCheck *bool `protobuf:"varint,3,opt,name=auto_check,json=autoCheck,proto3,oneof" json:"auto_check,omitempty"`
-	// GitHub Releases update configuration.
-	Github *GitHubUpdateConfig `protobuf:"bytes,10,opt,name=github,proto3,oneof" json:"github,omitempty"`
-	// Generic/self-hosted update configuration.
-	Generic       *GenericUpdateConfig `protobuf:"bytes,11,opt,name=generic,proto3,oneof" json:"generic,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateConfig) Reset() {
-	*x = UpdateConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateConfig) ProtoMessage() {}
-
-func (x *UpdateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateConfig.ProtoReflect.Descriptor instead.
-func (*UpdateConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *UpdateConfig) GetChannel() string {
-	if x != nil && x.Channel != nil {
-		return *x.Channel
-	}
-	return ""
-}
-
-func (x *UpdateConfig) GetProvider() string {
-	if x != nil && x.Provider != nil {
-		return *x.Provider
-	}
-	return ""
-}
-
-func (x *UpdateConfig) GetAutoCheck() bool {
-	if x != nil && x.AutoCheck != nil {
-		return *x.AutoCheck
-	}
-	return false
-}
-
-func (x *UpdateConfig) GetGithub() *GitHubUpdateConfig {
-	if x != nil {
-		return x.Github
-	}
-	return nil
-}
-
-func (x *UpdateConfig) GetGeneric() *GenericUpdateConfig {
-	if x != nil {
-		return x.Generic
-	}
-	return nil
-}
-
 // WindowConfig defines the main window appearance and behavior.
-//
-// @usage DesktopConfig.window
 type WindowConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Initial window width in pixels.
@@ -765,7 +533,7 @@ type WindowConfig struct {
 
 func (x *WindowConfig) Reset() {
 	*x = WindowConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -777,7 +545,7 @@ func (x *WindowConfig) String() string {
 func (*WindowConfig) ProtoMessage() {}
 
 func (x *WindowConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -790,7 +558,7 @@ func (x *WindowConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WindowConfig.ProtoReflect.Descriptor instead.
 func (*WindowConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{7}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WindowConfig) GetWidth() int32 {
@@ -846,8 +614,6 @@ func (x *WindowConfig) GetDevTools() bool {
 //
 // This is the top-level configuration that combines all aspects of desktop
 // app creation: identity, server, bundling, updates, and code signing.
-//
-// @usage GenerateRequest.config, PipelineStatus.config
 type DesktopConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Application identity and branding.
@@ -857,16 +623,16 @@ type DesktopConfig struct {
 	// Bundle configuration for offline mode.
 	Bundle *BundleConfig `protobuf:"bytes,3,opt,name=bundle,proto3,oneof" json:"bundle,omitempty"`
 	// Auto-update configuration.
-	Update *UpdateConfig `protobuf:"bytes,4,opt,name=update,proto3,oneof" json:"update,omitempty"`
+	Update *shared.UpdateConfig `protobuf:"bytes,4,opt,name=update,proto3,oneof" json:"update,omitempty"`
 	// Main window configuration.
 	Window *WindowConfig `protobuf:"bytes,5,opt,name=window,proto3,oneof" json:"window,omitempty"`
 	// Target desktop framework.
-	Framework Framework `protobuf:"varint,6,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
+	Framework shared.Framework `protobuf:"varint,6,opt,name=framework,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Framework" json:"framework,omitempty"`
 	// Application template type.
-	TemplateType TemplateType `protobuf:"varint,7,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
+	TemplateType shared.TemplateType `protobuf:"varint,7,opt,name=template_type,json=templateType,proto3,enum=vrooli.scenario_to_desktop.v1.shared.TemplateType" json:"template_type,omitempty"`
 	// Target platforms for building.
 	// Empty means current platform only.
-	Platforms []Platform `protobuf:"varint,8,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []shared.Platform `protobuf:"varint,8,rep,packed,name=platforms,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platforms,omitempty"`
 	// Output directory for generated files.
 	// @format path
 	OutputPath *string `protobuf:"bytes,9,opt,name=output_path,json=outputPath,proto3,oneof" json:"output_path,omitempty"`
@@ -885,7 +651,7 @@ type DesktopConfig struct {
 
 func (x *DesktopConfig) Reset() {
 	*x = DesktopConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -897,7 +663,7 @@ func (x *DesktopConfig) String() string {
 func (*DesktopConfig) ProtoMessage() {}
 
 func (x *DesktopConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -910,7 +676,7 @@ func (x *DesktopConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesktopConfig.ProtoReflect.Descriptor instead.
 func (*DesktopConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{8}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DesktopConfig) GetApp() *AppIdentity {
@@ -934,7 +700,7 @@ func (x *DesktopConfig) GetBundle() *BundleConfig {
 	return nil
 }
 
-func (x *DesktopConfig) GetUpdate() *UpdateConfig {
+func (x *DesktopConfig) GetUpdate() *shared.UpdateConfig {
 	if x != nil {
 		return x.Update
 	}
@@ -948,21 +714,21 @@ func (x *DesktopConfig) GetWindow() *WindowConfig {
 	return nil
 }
 
-func (x *DesktopConfig) GetFramework() Framework {
+func (x *DesktopConfig) GetFramework() shared.Framework {
 	if x != nil {
 		return x.Framework
 	}
-	return Framework_FRAMEWORK_UNSPECIFIED
+	return shared.Framework(0)
 }
 
-func (x *DesktopConfig) GetTemplateType() TemplateType {
+func (x *DesktopConfig) GetTemplateType() shared.TemplateType {
 	if x != nil {
 		return x.TemplateType
 	}
-	return TemplateType_TEMPLATE_TYPE_UNSPECIFIED
+	return shared.TemplateType(0)
 }
 
-func (x *DesktopConfig) GetPlatforms() []Platform {
+func (x *DesktopConfig) GetPlatforms() []shared.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -997,201 +763,9 @@ func (x *DesktopConfig) GetSigningEnabled() bool {
 	return false
 }
 
-// ScenarioMetadata contains extracted information about a scenario.
-//
-// Populated during the generation stage by analyzing the scenario's
-// service.json and package.json files.
-//
-// @usage GenerateResponse.detected_metadata
-type ScenarioMetadata struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Scenario name (directory name).
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Display name from package.json or service.json.
-	DisplayName *string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
-	// Description from package metadata.
-	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// Version from package.json.
-	Version *string `protobuf:"bytes,4,opt,name=version,proto3,oneof" json:"version,omitempty"`
-	// Author from package.json.
-	Author *string `protobuf:"bytes,5,opt,name=author,proto3,oneof" json:"author,omitempty"`
-	// License from package.json.
-	License *string `protobuf:"bytes,6,opt,name=license,proto3,oneof" json:"license,omitempty"`
-	// Generated application ID.
-	AppId *string `protobuf:"bytes,7,opt,name=app_id,json=appId,proto3,oneof" json:"app_id,omitempty"`
-	// Whether the scenario has a UI component.
-	HasUi bool `protobuf:"varint,8,opt,name=has_ui,json=hasUi,proto3" json:"has_ui,omitempty"`
-	// Path to the UI distribution directory.
-	// @format path
-	UiDistPath *string `protobuf:"bytes,9,opt,name=ui_dist_path,json=uiDistPath,proto3,oneof" json:"ui_dist_path,omitempty"`
-	// UI server port.
-	UiPort *int32 `protobuf:"varint,10,opt,name=ui_port,json=uiPort,proto3,oneof" json:"ui_port,omitempty"`
-	// API server port.
-	ApiPort *int32 `protobuf:"varint,11,opt,name=api_port,json=apiPort,proto3,oneof" json:"api_port,omitempty"`
-	// Full path to the scenario directory.
-	// @format path
-	ScenarioPath string `protobuf:"bytes,12,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
-	// Scenario category.
-	Category *string `protobuf:"bytes,13,opt,name=category,proto3,oneof" json:"category,omitempty"`
-	// Scenario tags for categorization.
-	Tags []string `protobuf:"bytes,14,rep,name=tags,proto3" json:"tags,omitempty"`
-	// Path to service.json.
-	// @format path
-	ServiceJsonPath *string `protobuf:"bytes,15,opt,name=service_json_path,json=serviceJsonPath,proto3,oneof" json:"service_json_path,omitempty"`
-	// Path to package.json.
-	// @format path
-	PackageJsonPath *string `protobuf:"bytes,16,opt,name=package_json_path,json=packageJsonPath,proto3,oneof" json:"package_json_path,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *ScenarioMetadata) Reset() {
-	*x = ScenarioMetadata{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ScenarioMetadata) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ScenarioMetadata) ProtoMessage() {}
-
-func (x *ScenarioMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ScenarioMetadata.ProtoReflect.Descriptor instead.
-func (*ScenarioMetadata) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *ScenarioMetadata) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetDisplayName() string {
-	if x != nil && x.DisplayName != nil {
-		return *x.DisplayName
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetVersion() string {
-	if x != nil && x.Version != nil {
-		return *x.Version
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetAuthor() string {
-	if x != nil && x.Author != nil {
-		return *x.Author
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetLicense() string {
-	if x != nil && x.License != nil {
-		return *x.License
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetAppId() string {
-	if x != nil && x.AppId != nil {
-		return *x.AppId
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetHasUi() bool {
-	if x != nil {
-		return x.HasUi
-	}
-	return false
-}
-
-func (x *ScenarioMetadata) GetUiDistPath() string {
-	if x != nil && x.UiDistPath != nil {
-		return *x.UiDistPath
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetUiPort() int32 {
-	if x != nil && x.UiPort != nil {
-		return *x.UiPort
-	}
-	return 0
-}
-
-func (x *ScenarioMetadata) GetApiPort() int32 {
-	if x != nil && x.ApiPort != nil {
-		return *x.ApiPort
-	}
-	return 0
-}
-
-func (x *ScenarioMetadata) GetScenarioPath() string {
-	if x != nil {
-		return x.ScenarioPath
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetCategory() string {
-	if x != nil && x.Category != nil {
-		return *x.Category
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetTags() []string {
-	if x != nil {
-		return x.Tags
-	}
-	return nil
-}
-
-func (x *ScenarioMetadata) GetServiceJsonPath() string {
-	if x != nil && x.ServiceJsonPath != nil {
-		return *x.ServiceJsonPath
-	}
-	return ""
-}
-
-func (x *ScenarioMetadata) GetPackageJsonPath() string {
-	if x != nil && x.PackageJsonPath != nil {
-		return *x.PackageJsonPath
-	}
-	return ""
-}
-
 // ConnectionConfig stores saved connection settings for quick configuration.
 //
 // Used to persist user preferences between sessions.
-//
-// @usage UI state persistence
 type ConnectionConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Proxy URL for proxy mode.
@@ -1205,7 +779,7 @@ type ConnectionConfig struct {
 	// @format path
 	VrooliBinaryPath *string `protobuf:"bytes,4,opt,name=vrooli_binary_path,json=vrooliBinaryPath,proto3,oneof" json:"vrooli_binary_path,omitempty"`
 	// Deployment mode.
-	DeploymentMode DeploymentMode `protobuf:"varint,5,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	DeploymentMode shared.DeploymentMode `protobuf:"varint,5,opt,name=deployment_mode,json=deploymentMode,proto3,enum=vrooli.scenario_to_desktop.v1.shared.DeploymentMode" json:"deployment_mode,omitempty"`
 	// Bundle manifest path.
 	// @format path
 	BundleManifestPath *string `protobuf:"bytes,6,opt,name=bundle_manifest_path,json=bundleManifestPath,proto3,oneof" json:"bundle_manifest_path,omitempty"`
@@ -1222,7 +796,7 @@ type ConnectionConfig struct {
 
 func (x *ConnectionConfig) Reset() {
 	*x = ConnectionConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1234,7 +808,7 @@ func (x *ConnectionConfig) String() string {
 func (*ConnectionConfig) ProtoMessage() {}
 
 func (x *ConnectionConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1247,7 +821,7 @@ func (x *ConnectionConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionConfig.ProtoReflect.Descriptor instead.
 func (*ConnectionConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{10}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ConnectionConfig) GetProxyUrl() string {
@@ -1278,11 +852,11 @@ func (x *ConnectionConfig) GetVrooliBinaryPath() string {
 	return ""
 }
 
-func (x *ConnectionConfig) GetDeploymentMode() DeploymentMode {
+func (x *ConnectionConfig) GetDeploymentMode() shared.DeploymentMode {
 	if x != nil {
 		return x.DeploymentMode
 	}
-	return DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED
+	return shared.DeploymentMode(0)
 }
 
 func (x *ConnectionConfig) GetBundleManifestPath() string {
@@ -1313,13 +887,1085 @@ func (x *ConnectionConfig) GetIcon() string {
 	return ""
 }
 
+type GetScenarioMetadataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScenarioMetadataRequest) Reset() {
+	*x = GetScenarioMetadataRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScenarioMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScenarioMetadataRequest) ProtoMessage() {}
+
+func (x *GetScenarioMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScenarioMetadataRequest.ProtoReflect.Descriptor instead.
+func (*GetScenarioMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetScenarioMetadataRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+type CreateDesktopConfigRequest struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Metadata      *shared.ScenarioMetadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	TemplateType  shared.TemplateType      `protobuf:"varint,2,opt,name=template_type,json=templateType,proto3,enum=vrooli.scenario_to_desktop.v1.shared.TemplateType" json:"template_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDesktopConfigRequest) Reset() {
+	*x = CreateDesktopConfigRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDesktopConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDesktopConfigRequest) ProtoMessage() {}
+
+func (x *CreateDesktopConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDesktopConfigRequest.ProtoReflect.Descriptor instead.
+func (*CreateDesktopConfigRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CreateDesktopConfigRequest) GetMetadata() *shared.ScenarioMetadata {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *CreateDesktopConfigRequest) GetTemplateType() shared.TemplateType {
+	if x != nil {
+		return x.TemplateType
+	}
+	return shared.TemplateType(0)
+}
+
+type GetSystemStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSystemStatusRequest) Reset() {
+	*x = GetSystemStatusRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSystemStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSystemStatusRequest) ProtoMessage() {}
+
+func (x *GetSystemStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSystemStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetSystemStatusRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{9}
+}
+
+type SystemServiceInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemServiceInfo) Reset() {
+	*x = SystemServiceInfo{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemServiceInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemServiceInfo) ProtoMessage() {}
+
+func (x *SystemServiceInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemServiceInfo.ProtoReflect.Descriptor instead.
+func (*SystemServiceInfo) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SystemServiceInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SystemServiceInfo) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *SystemServiceInfo) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SystemServiceInfo) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type SystemBuildStatistics struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TotalBuilds     int64                  `protobuf:"varint,1,opt,name=total_builds,json=totalBuilds,proto3" json:"total_builds,omitempty"`
+	ActiveBuilds    int64                  `protobuf:"varint,2,opt,name=active_builds,json=activeBuilds,proto3" json:"active_builds,omitempty"`
+	CompletedBuilds int64                  `protobuf:"varint,3,opt,name=completed_builds,json=completedBuilds,proto3" json:"completed_builds,omitempty"`
+	FailedBuilds    int64                  `protobuf:"varint,4,opt,name=failed_builds,json=failedBuilds,proto3" json:"failed_builds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SystemBuildStatistics) Reset() {
+	*x = SystemBuildStatistics{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemBuildStatistics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemBuildStatistics) ProtoMessage() {}
+
+func (x *SystemBuildStatistics) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemBuildStatistics.ProtoReflect.Descriptor instead.
+func (*SystemBuildStatistics) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SystemBuildStatistics) GetTotalBuilds() int64 {
+	if x != nil {
+		return x.TotalBuilds
+	}
+	return 0
+}
+
+func (x *SystemBuildStatistics) GetActiveBuilds() int64 {
+	if x != nil {
+		return x.ActiveBuilds
+	}
+	return 0
+}
+
+func (x *SystemBuildStatistics) GetCompletedBuilds() int64 {
+	if x != nil {
+		return x.CompletedBuilds
+	}
+	return 0
+}
+
+func (x *SystemBuildStatistics) GetFailedBuilds() int64 {
+	if x != nil {
+		return x.FailedBuilds
+	}
+	return 0
+}
+
+type SystemStatusResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Service             *SystemServiceInfo     `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Statistics          *SystemBuildStatistics `protobuf:"bytes,2,opt,name=statistics,proto3" json:"statistics,omitempty"`
+	Capabilities        []string               `protobuf:"bytes,3,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	SupportedFrameworks []string               `protobuf:"bytes,4,rep,name=supported_frameworks,json=supportedFrameworks,proto3" json:"supported_frameworks,omitempty"`
+	SupportedTemplates  []string               `protobuf:"bytes,5,rep,name=supported_templates,json=supportedTemplates,proto3" json:"supported_templates,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *SystemStatusResponse) Reset() {
+	*x = SystemStatusResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemStatusResponse) ProtoMessage() {}
+
+func (x *SystemStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemStatusResponse.ProtoReflect.Descriptor instead.
+func (*SystemStatusResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SystemStatusResponse) GetService() *SystemServiceInfo {
+	if x != nil {
+		return x.Service
+	}
+	return nil
+}
+
+func (x *SystemStatusResponse) GetStatistics() *SystemBuildStatistics {
+	if x != nil {
+		return x.Statistics
+	}
+	return nil
+}
+
+func (x *SystemStatusResponse) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *SystemStatusResponse) GetSupportedFrameworks() []string {
+	if x != nil {
+		return x.SupportedFrameworks
+	}
+	return nil
+}
+
+func (x *SystemStatusResponse) GetSupportedTemplates() []string {
+	if x != nil {
+		return x.SupportedTemplates
+	}
+	return nil
+}
+
+type ListTemplatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTemplatesRequest) Reset() {
+	*x = ListTemplatesRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTemplatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTemplatesRequest) ProtoMessage() {}
+
+func (x *ListTemplatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTemplatesRequest.ProtoReflect.Descriptor instead.
+func (*ListTemplatesRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{13}
+}
+
+type TemplateInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Framework     string                 `protobuf:"bytes,4,opt,name=framework,proto3" json:"framework,omitempty"`
+	UseCases      []string               `protobuf:"bytes,5,rep,name=use_cases,json=useCases,proto3" json:"use_cases,omitempty"`
+	Features      []string               `protobuf:"bytes,6,rep,name=features,proto3" json:"features,omitempty"`
+	Complexity    string                 `protobuf:"bytes,7,opt,name=complexity,proto3" json:"complexity,omitempty"`
+	Examples      []string               `protobuf:"bytes,8,rep,name=examples,proto3" json:"examples,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TemplateInfo) Reset() {
+	*x = TemplateInfo{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TemplateInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TemplateInfo) ProtoMessage() {}
+
+func (x *TemplateInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TemplateInfo.ProtoReflect.Descriptor instead.
+func (*TemplateInfo) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *TemplateInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TemplateInfo) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *TemplateInfo) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *TemplateInfo) GetFramework() string {
+	if x != nil {
+		return x.Framework
+	}
+	return ""
+}
+
+func (x *TemplateInfo) GetUseCases() []string {
+	if x != nil {
+		return x.UseCases
+	}
+	return nil
+}
+
+func (x *TemplateInfo) GetFeatures() []string {
+	if x != nil {
+		return x.Features
+	}
+	return nil
+}
+
+func (x *TemplateInfo) GetComplexity() string {
+	if x != nil {
+		return x.Complexity
+	}
+	return ""
+}
+
+func (x *TemplateInfo) GetExamples() []string {
+	if x != nil {
+		return x.Examples
+	}
+	return nil
+}
+
+type ListTemplatesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Templates     []*TemplateInfo        `protobuf:"bytes,1,rep,name=templates,proto3" json:"templates,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTemplatesResponse) Reset() {
+	*x = ListTemplatesResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTemplatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTemplatesResponse) ProtoMessage() {}
+
+func (x *ListTemplatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTemplatesResponse.ProtoReflect.Descriptor instead.
+func (*ListTemplatesResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListTemplatesResponse) GetTemplates() []*TemplateInfo {
+	if x != nil {
+		return x.Templates
+	}
+	return nil
+}
+
+func (x *ListTemplatesResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+type GetTemplateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTemplateRequest) Reset() {
+	*x = GetTemplateRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTemplateRequest) ProtoMessage() {}
+
+func (x *GetTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTemplateRequest.ProtoReflect.Descriptor instead.
+func (*GetTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetTemplateRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+type TemplateConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *structpb.Struct       `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TemplateConfigResponse) Reset() {
+	*x = TemplateConfigResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TemplateConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TemplateConfigResponse) ProtoMessage() {}
+
+func (x *TemplateConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TemplateConfigResponse.ProtoReflect.Descriptor instead.
+func (*TemplateConfigResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TemplateConfigResponse) GetConfig() *structpb.Struct {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type CheckWineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckWineRequest) Reset() {
+	*x = CheckWineRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckWineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckWineRequest) ProtoMessage() {}
+
+func (x *CheckWineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckWineRequest.ProtoReflect.Descriptor instead.
+func (*CheckWineRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{18}
+}
+
+type WineInstallMethod struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	RequiresSudo  bool                   `protobuf:"varint,4,opt,name=requires_sudo,json=requiresSudo,proto3" json:"requires_sudo,omitempty"`
+	Estimated     string                 `protobuf:"bytes,5,opt,name=estimated,proto3" json:"estimated,omitempty"`
+	Steps         []string               `protobuf:"bytes,6,rep,name=steps,proto3" json:"steps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WineInstallMethod) Reset() {
+	*x = WineInstallMethod{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WineInstallMethod) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WineInstallMethod) ProtoMessage() {}
+
+func (x *WineInstallMethod) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WineInstallMethod.ProtoReflect.Descriptor instead.
+func (*WineInstallMethod) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *WineInstallMethod) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *WineInstallMethod) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WineInstallMethod) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *WineInstallMethod) GetRequiresSudo() bool {
+	if x != nil {
+		return x.RequiresSudo
+	}
+	return false
+}
+
+func (x *WineInstallMethod) GetEstimated() string {
+	if x != nil {
+		return x.Estimated
+	}
+	return ""
+}
+
+func (x *WineInstallMethod) GetSteps() []string {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+type WineCheckResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Installed         bool                   `protobuf:"varint,1,opt,name=installed,proto3" json:"installed,omitempty"`
+	Version           *string                `protobuf:"bytes,2,opt,name=version,proto3,oneof" json:"version,omitempty"`
+	Platform          string                 `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform,omitempty"`
+	RequiredFor       []string               `protobuf:"bytes,4,rep,name=required_for,json=requiredFor,proto3" json:"required_for,omitempty"`
+	InstallMethods    []*WineInstallMethod   `protobuf:"bytes,5,rep,name=install_methods,json=installMethods,proto3" json:"install_methods,omitempty"`
+	RecommendedMethod *string                `protobuf:"bytes,6,opt,name=recommended_method,json=recommendedMethod,proto3,oneof" json:"recommended_method,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WineCheckResponse) Reset() {
+	*x = WineCheckResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WineCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WineCheckResponse) ProtoMessage() {}
+
+func (x *WineCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WineCheckResponse.ProtoReflect.Descriptor instead.
+func (*WineCheckResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *WineCheckResponse) GetInstalled() bool {
+	if x != nil {
+		return x.Installed
+	}
+	return false
+}
+
+func (x *WineCheckResponse) GetVersion() string {
+	if x != nil && x.Version != nil {
+		return *x.Version
+	}
+	return ""
+}
+
+func (x *WineCheckResponse) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
+}
+
+func (x *WineCheckResponse) GetRequiredFor() []string {
+	if x != nil {
+		return x.RequiredFor
+	}
+	return nil
+}
+
+func (x *WineCheckResponse) GetInstallMethods() []*WineInstallMethod {
+	if x != nil {
+		return x.InstallMethods
+	}
+	return nil
+}
+
+func (x *WineCheckResponse) GetRecommendedMethod() string {
+	if x != nil && x.RecommendedMethod != nil {
+		return *x.RecommendedMethod
+	}
+	return ""
+}
+
+type InstallWineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Method        string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallWineRequest) Reset() {
+	*x = InstallWineRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallWineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallWineRequest) ProtoMessage() {}
+
+func (x *InstallWineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallWineRequest.ProtoReflect.Descriptor instead.
+func (*InstallWineRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *InstallWineRequest) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+type WineInstallResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InstallId     string                 `protobuf:"bytes,1,opt,name=install_id,json=installId,proto3" json:"install_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Method        string                 `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	StatusUrl     string                 `protobuf:"bytes,4,opt,name=status_url,json=statusUrl,proto3" json:"status_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WineInstallResponse) Reset() {
+	*x = WineInstallResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WineInstallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WineInstallResponse) ProtoMessage() {}
+
+func (x *WineInstallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WineInstallResponse.ProtoReflect.Descriptor instead.
+func (*WineInstallResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *WineInstallResponse) GetInstallId() string {
+	if x != nil {
+		return x.InstallId
+	}
+	return ""
+}
+
+func (x *WineInstallResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WineInstallResponse) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *WineInstallResponse) GetStatusUrl() string {
+	if x != nil {
+		return x.StatusUrl
+	}
+	return ""
+}
+
+type GetWineInstallStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InstallId     string                 `protobuf:"bytes,1,opt,name=install_id,json=installId,proto3" json:"install_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWineInstallStatusRequest) Reset() {
+	*x = GetWineInstallStatusRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWineInstallStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWineInstallStatusRequest) ProtoMessage() {}
+
+func (x *GetWineInstallStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWineInstallStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetWineInstallStatusRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetWineInstallStatusRequest) GetInstallId() string {
+	if x != nil {
+		return x.InstallId
+	}
+	return ""
+}
+
+type WineInstallStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InstallId     string                 `protobuf:"bytes,1,opt,name=install_id,json=installId,proto3" json:"install_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Method        string                 `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	Log           []string               `protobuf:"bytes,6,rep,name=log,proto3" json:"log,omitempty"`
+	ErrorLog      []string               `protobuf:"bytes,7,rep,name=error_log,json=errorLog,proto3" json:"error_log,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WineInstallStatusResponse) Reset() {
+	*x = WineInstallStatusResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WineInstallStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WineInstallStatusResponse) ProtoMessage() {}
+
+func (x *WineInstallStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WineInstallStatusResponse.ProtoReflect.Descriptor instead.
+func (*WineInstallStatusResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *WineInstallStatusResponse) GetInstallId() string {
+	if x != nil {
+		return x.InstallId
+	}
+	return ""
+}
+
+func (x *WineInstallStatusResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WineInstallStatusResponse) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *WineInstallStatusResponse) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *WineInstallStatusResponse) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *WineInstallStatusResponse) GetLog() []string {
+	if x != nil {
+		return x.Log
+	}
+	return nil
+}
+
+func (x *WineInstallStatusResponse) GetErrorLog() []string {
+	if x != nil {
+		return x.ErrorLog
+	}
+	return nil
+}
+
 var File_scenario_to_desktop_v1_domain_config_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\n" +
-	"*scenario-to-desktop/v1/domain/config.proto\x12\x16scenario_to_desktop.v1\x1a(scenario-to-desktop/v1/base/shared.proto\"\xae\x03\n" +
-	"\vAppIdentity\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
+	"*scenario-to-desktop/v1/domain/config.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xd1\x03\n" +
+	"\vAppIdentity\x125\n" +
+	"\x04name\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9]+(?:-[a-z0-9]+)*$R\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1b\n" +
@@ -1340,17 +1986,17 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\b_licenseB\t\n" +
 	"\a_app_idB\n" +
 	"\n" +
-	"\b_app_url\"\xa3\x05\n" +
+	"\b_app_url\"\xbe\x05\n" +
 	"\fServerConfig\x12$\n" +
 	"\vserver_type\x18\x01 \x01(\tH\x00R\n" +
-	"serverType\x88\x01\x01\x12\x17\n" +
-	"\x04port\x18\x02 \x01(\x05H\x01R\x04port\x88\x01\x01\x12\x17\n" +
+	"serverType\x88\x01\x01\x12$\n" +
+	"\x04port\x18\x02 \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01H\x01R\x04port\x88\x01\x01\x12\x17\n" +
 	"\x04path\x18\x03 \x01(\tH\x02R\x04path\x88\x01\x01\x12&\n" +
 	"\fapi_endpoint\x18\x04 \x01(\tH\x03R\vapiEndpoint\x88\x01\x01\x12(\n" +
 	"\rscenario_path\x18\x05 \x01(\tH\x04R\fscenarioPath\x88\x01\x01\x121\n" +
 	"\x12auto_manage_vrooli\x18\x06 \x01(\bH\x05R\x10autoManageVrooli\x88\x01\x01\x121\n" +
-	"\x12vrooli_binary_path\x18\a \x01(\tH\x06R\x10vrooliBinaryPath\x88\x01\x01\x12O\n" +
-	"\x0fdeployment_mode\x18\b \x01(\x0e2&.scenario_to_desktop.v1.DeploymentModeR\x0edeploymentMode\x12 \n" +
+	"\x12vrooli_binary_path\x18\a \x01(\tH\x06R\x10vrooliBinaryPath\x88\x01\x01\x12]\n" +
+	"\x0fdeployment_mode\x18\b \x01(\x0e24.vrooli.scenario_to_desktop.v1.shared.DeploymentModeR\x0edeploymentMode\x12 \n" +
 	"\tproxy_url\x18\t \x01(\tH\aR\bproxyUrl\x88\x01\x01\x123\n" +
 	"\x13external_server_url\x18\n" +
 	" \x01(\tH\bR\x11externalServerUrl\x88\x01\x01\x12-\n" +
@@ -1372,11 +2018,11 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\x13auth_token_rel_path\x18\x03 \x01(\tH\x02R\x10authTokenRelPath\x88\x01\x01B\a\n" +
 	"\x05_hostB\a\n" +
 	"\x05_portB\x16\n" +
-	"\x14_auth_token_rel_path\"\x86\x03\n" +
+	"\x14_auth_token_rel_path\"\x94\x03\n" +
 	"\fBundleConfig\x12(\n" +
 	"\rmanifest_path\x18\x01 \x01(\tH\x00R\fmanifestPath\x88\x01\x01\x12&\n" +
-	"\fruntime_root\x18\x02 \x01(\tH\x01R\vruntimeRoot\x88\x01\x01\x12>\n" +
-	"\x03ipc\x18\x03 \x01(\v2'.scenario_to_desktop.v1.BundleIPCConfigH\x02R\x03ipc\x88\x01\x01\x12'\n" +
+	"\fruntime_root\x18\x02 \x01(\tH\x01R\vruntimeRoot\x88\x01\x01\x12L\n" +
+	"\x03ipc\x18\x03 \x01(\v25.vrooli.scenario_to_desktop.v1.domain.BundleIPCConfigH\x02R\x03ipc\x88\x01\x01\x12'\n" +
 	"\rui_service_id\x18\x04 \x01(\tH\x03R\vuiServiceId\x88\x01\x01\x12 \n" +
 	"\tport_name\x18\x05 \x01(\tH\x04R\bportName\x88\x01\x01\x125\n" +
 	"\x14telemetry_upload_url\x18\x06 \x01(\tH\x05R\x12telemetryUploadUrl\x88\x01\x01B\x10\n" +
@@ -1386,32 +2032,7 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\x0e_ui_service_idB\f\n" +
 	"\n" +
 	"_port_nameB\x17\n" +
-	"\x15_telemetry_upload_url\"i\n" +
-	"\x12GitHubUpdateConfig\x12\x14\n" +
-	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
-	"\x04repo\x18\x02 \x01(\tR\x04repo\x12\x1d\n" +
-	"\aprivate\x18\x03 \x01(\bH\x00R\aprivate\x88\x01\x01B\n" +
-	"\n" +
-	"\b_private\"`\n" +
-	"\x13GenericUpdateConfig\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x12&\n" +
-	"\fchannel_path\x18\x02 \x01(\tH\x00R\vchannelPath\x88\x01\x01B\x0f\n" +
-	"\r_channel_path\"\xc6\x02\n" +
-	"\fUpdateConfig\x12\x1d\n" +
-	"\achannel\x18\x01 \x01(\tH\x00R\achannel\x88\x01\x01\x12\x1f\n" +
-	"\bprovider\x18\x02 \x01(\tH\x01R\bprovider\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"auto_check\x18\x03 \x01(\bH\x02R\tautoCheck\x88\x01\x01\x12G\n" +
-	"\x06github\x18\n" +
-	" \x01(\v2*.scenario_to_desktop.v1.GitHubUpdateConfigH\x03R\x06github\x88\x01\x01\x12J\n" +
-	"\ageneric\x18\v \x01(\v2+.scenario_to_desktop.v1.GenericUpdateConfigH\x04R\ageneric\x88\x01\x01B\n" +
-	"\n" +
-	"\b_channelB\v\n" +
-	"\t_providerB\r\n" +
-	"\v_auto_checkB\t\n" +
-	"\a_githubB\n" +
-	"\n" +
-	"\b_generic\"\xc4\x02\n" +
+	"\x15_telemetry_upload_url\"\xc4\x02\n" +
 	"\fWindowConfig\x12\x19\n" +
 	"\x05width\x18\x01 \x01(\x05H\x00R\x05width\x88\x01\x01\x12\x1b\n" +
 	"\x06height\x18\x02 \x01(\x05H\x01R\x06height\x88\x01\x01\x12 \n" +
@@ -1430,21 +2051,21 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"_resizableB\b\n" +
 	"\x06_frameB\f\n" +
 	"\n" +
-	"_dev_tools\"\xca\a\n" +
-	"\rDesktopConfig\x125\n" +
-	"\x03app\x18\x01 \x01(\v2#.scenario_to_desktop.v1.AppIdentityR\x03app\x12<\n" +
-	"\x06server\x18\x02 \x01(\v2$.scenario_to_desktop.v1.ServerConfigR\x06server\x12A\n" +
-	"\x06bundle\x18\x03 \x01(\v2$.scenario_to_desktop.v1.BundleConfigH\x00R\x06bundle\x88\x01\x01\x12A\n" +
-	"\x06update\x18\x04 \x01(\v2$.scenario_to_desktop.v1.UpdateConfigH\x01R\x06update\x88\x01\x01\x12A\n" +
-	"\x06window\x18\x05 \x01(\v2$.scenario_to_desktop.v1.WindowConfigH\x02R\x06window\x88\x01\x01\x12?\n" +
-	"\tframework\x18\x06 \x01(\x0e2!.scenario_to_desktop.v1.FrameworkR\tframework\x12I\n" +
-	"\rtemplate_type\x18\a \x01(\x0e2$.scenario_to_desktop.v1.TemplateTypeR\ftemplateType\x12>\n" +
-	"\tplatforms\x18\b \x03(\x0e2 .scenario_to_desktop.v1.PlatformR\tplatforms\x12$\n" +
+	"_dev_tools\"\xd6\b\n" +
+	"\rDesktopConfig\x12C\n" +
+	"\x03app\x18\x01 \x01(\v21.vrooli.scenario_to_desktop.v1.domain.AppIdentityR\x03app\x12J\n" +
+	"\x06server\x18\x02 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.ServerConfigR\x06server\x12O\n" +
+	"\x06bundle\x18\x03 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.BundleConfigH\x00R\x06bundle\x88\x01\x01\x12O\n" +
+	"\x06update\x18\x04 \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x01R\x06update\x88\x01\x01\x12O\n" +
+	"\x06window\x18\x05 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.WindowConfigH\x02R\x06window\x88\x01\x01\x12M\n" +
+	"\tframework\x18\x06 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.FrameworkR\tframework\x12W\n" +
+	"\rtemplate_type\x18\a \x01(\x0e22.vrooli.scenario_to_desktop.v1.shared.TemplateTypeR\ftemplateType\x12L\n" +
+	"\tplatforms\x18\b \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12$\n" +
 	"\voutput_path\x18\t \x01(\tH\x03R\n" +
-	"outputPath\x88\x01\x01\x12O\n" +
+	"outputPath\x88\x01\x01\x12]\n" +
 	"\bfeatures\x18\n" +
-	" \x03(\v23.scenario_to_desktop.v1.DesktopConfig.FeaturesEntryR\bfeatures\x12L\n" +
-	"\astyling\x18\v \x03(\v22.scenario_to_desktop.v1.DesktopConfig.StylingEntryR\astyling\x12,\n" +
+	" \x03(\v2A.vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntryR\bfeatures\x12Z\n" +
+	"\astyling\x18\v \x03(\v2@.vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntryR\astyling\x12,\n" +
 	"\x0fsigning_enabled\x18\f \x01(\bH\x04R\x0esigningEnabled\x88\x01\x01\x1a;\n" +
 	"\rFeaturesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -1456,49 +2077,14 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\a_updateB\t\n" +
 	"\a_windowB\x0e\n" +
 	"\f_output_pathB\x12\n" +
-	"\x10_signing_enabled\"\xd6\x05\n" +
-	"\x10ScenarioMetadata\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
-	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
-	"\aversion\x18\x04 \x01(\tH\x02R\aversion\x88\x01\x01\x12\x1b\n" +
-	"\x06author\x18\x05 \x01(\tH\x03R\x06author\x88\x01\x01\x12\x1d\n" +
-	"\alicense\x18\x06 \x01(\tH\x04R\alicense\x88\x01\x01\x12\x1a\n" +
-	"\x06app_id\x18\a \x01(\tH\x05R\x05appId\x88\x01\x01\x12\x15\n" +
-	"\x06has_ui\x18\b \x01(\bR\x05hasUi\x12%\n" +
-	"\fui_dist_path\x18\t \x01(\tH\x06R\n" +
-	"uiDistPath\x88\x01\x01\x12\x1c\n" +
-	"\aui_port\x18\n" +
-	" \x01(\x05H\aR\x06uiPort\x88\x01\x01\x12\x1e\n" +
-	"\bapi_port\x18\v \x01(\x05H\bR\aapiPort\x88\x01\x01\x12#\n" +
-	"\rscenario_path\x18\f \x01(\tR\fscenarioPath\x12\x1f\n" +
-	"\bcategory\x18\r \x01(\tH\tR\bcategory\x88\x01\x01\x12\x12\n" +
-	"\x04tags\x18\x0e \x03(\tR\x04tags\x12/\n" +
-	"\x11service_json_path\x18\x0f \x01(\tH\n" +
-	"R\x0fserviceJsonPath\x88\x01\x01\x12/\n" +
-	"\x11package_json_path\x18\x10 \x01(\tH\vR\x0fpackageJsonPath\x88\x01\x01B\x0f\n" +
-	"\r_display_nameB\x0e\n" +
-	"\f_descriptionB\n" +
-	"\n" +
-	"\b_versionB\t\n" +
-	"\a_authorB\n" +
-	"\n" +
-	"\b_licenseB\t\n" +
-	"\a_app_idB\x0f\n" +
-	"\r_ui_dist_pathB\n" +
-	"\n" +
-	"\b_ui_portB\v\n" +
-	"\t_api_portB\v\n" +
-	"\t_categoryB\x14\n" +
-	"\x12_service_json_pathB\x14\n" +
-	"\x12_package_json_path\"\xd5\x04\n" +
+	"\x10_signing_enabled\"\xe3\x04\n" +
 	"\x10ConnectionConfig\x12 \n" +
 	"\tproxy_url\x18\x01 \x01(\tH\x00R\bproxyUrl\x88\x01\x01\x12$\n" +
 	"\vserver_type\x18\x02 \x01(\tH\x01R\n" +
 	"serverType\x88\x01\x01\x121\n" +
 	"\x12auto_manage_vrooli\x18\x03 \x01(\bH\x02R\x10autoManageVrooli\x88\x01\x01\x121\n" +
-	"\x12vrooli_binary_path\x18\x04 \x01(\tH\x03R\x10vrooliBinaryPath\x88\x01\x01\x12O\n" +
-	"\x0fdeployment_mode\x18\x05 \x01(\x0e2&.scenario_to_desktop.v1.DeploymentModeR\x0edeploymentMode\x125\n" +
+	"\x12vrooli_binary_path\x18\x04 \x01(\tH\x03R\x10vrooliBinaryPath\x88\x01\x01\x12]\n" +
+	"\x0fdeployment_mode\x18\x05 \x01(\x0e24.vrooli.scenario_to_desktop.v1.shared.DeploymentModeR\x0edeploymentMode\x125\n" +
 	"\x14bundle_manifest_path\x18\x06 \x01(\tH\x04R\x12bundleManifestPath\x88\x01\x01\x12-\n" +
 	"\x10app_display_name\x18\a \x01(\tH\x05R\x0eappDisplayName\x88\x01\x01\x12,\n" +
 	"\x0fapp_description\x18\b \x01(\tH\x06R\x0eappDescription\x88\x01\x01\x12\x17\n" +
@@ -1511,7 +2097,101 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\x15_bundle_manifest_pathB\x13\n" +
 	"\x11_app_display_nameB\x12\n" +
 	"\x10_app_descriptionB\a\n" +
-	"\x05_iconB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x05_icon\"J\n" +
+	"\x1aGetScenarioMetadataRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\"\xc9\x01\n" +
+	"\x1aCreateDesktopConfigRequest\x12R\n" +
+	"\bmetadata\x18\x01 \x01(\v26.vrooli.scenario_to_desktop.v1.shared.ScenarioMetadataR\bmetadata\x12W\n" +
+	"\rtemplate_type\x18\x02 \x01(\x0e22.vrooli.scenario_to_desktop.v1.shared.TemplateTypeR\ftemplateType\"\x18\n" +
+	"\x16GetSystemStatusRequest\"{\n" +
+	"\x11SystemServiceInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"\xaf\x01\n" +
+	"\x15SystemBuildStatistics\x12!\n" +
+	"\ftotal_builds\x18\x01 \x01(\x03R\vtotalBuilds\x12#\n" +
+	"\ractive_builds\x18\x02 \x01(\x03R\factiveBuilds\x12)\n" +
+	"\x10completed_builds\x18\x03 \x01(\x03R\x0fcompletedBuilds\x12#\n" +
+	"\rfailed_builds\x18\x04 \x01(\x03R\ffailedBuilds\"\xce\x02\n" +
+	"\x14SystemStatusResponse\x12Q\n" +
+	"\aservice\x18\x01 \x01(\v27.vrooli.scenario_to_desktop.v1.domain.SystemServiceInfoR\aservice\x12[\n" +
+	"\n" +
+	"statistics\x18\x02 \x01(\v2;.vrooli.scenario_to_desktop.v1.domain.SystemBuildStatisticsR\n" +
+	"statistics\x12\"\n" +
+	"\fcapabilities\x18\x03 \x03(\tR\fcapabilities\x121\n" +
+	"\x14supported_frameworks\x18\x04 \x03(\tR\x13supportedFrameworks\x12/\n" +
+	"\x13supported_templates\x18\x05 \x03(\tR\x12supportedTemplates\"\x16\n" +
+	"\x14ListTemplatesRequest\"\xeb\x01\n" +
+	"\fTemplateInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1c\n" +
+	"\tframework\x18\x04 \x01(\tR\tframework\x12\x1b\n" +
+	"\tuse_cases\x18\x05 \x03(\tR\buseCases\x12\x1a\n" +
+	"\bfeatures\x18\x06 \x03(\tR\bfeatures\x12\x1e\n" +
+	"\n" +
+	"complexity\x18\a \x01(\tR\n" +
+	"complexity\x12\x1a\n" +
+	"\bexamples\x18\b \x03(\tR\bexamples\"\x7f\n" +
+	"\x15ListTemplatesResponse\x12P\n" +
+	"\ttemplates\x18\x01 \x03(\v22.vrooli.scenario_to_desktop.v1.domain.TemplateInfoR\ttemplates\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"1\n" +
+	"\x12GetTemplateRequest\x12\x1b\n" +
+	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\"I\n" +
+	"\x16TemplateConfigResponse\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\x12\n" +
+	"\x10CheckWineRequest\"\xb2\x01\n" +
+	"\x11WineInstallMethod\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12#\n" +
+	"\rrequires_sudo\x18\x04 \x01(\bR\frequiresSudo\x12\x1c\n" +
+	"\testimated\x18\x05 \x01(\tR\testimated\x12\x14\n" +
+	"\x05steps\x18\x06 \x03(\tR\x05steps\"\xc8\x02\n" +
+	"\x11WineCheckResponse\x12\x1c\n" +
+	"\tinstalled\x18\x01 \x01(\bR\tinstalled\x12\x1d\n" +
+	"\aversion\x18\x02 \x01(\tH\x00R\aversion\x88\x01\x01\x12\x1a\n" +
+	"\bplatform\x18\x03 \x01(\tR\bplatform\x12!\n" +
+	"\frequired_for\x18\x04 \x03(\tR\vrequiredFor\x12`\n" +
+	"\x0finstall_methods\x18\x05 \x03(\v27.vrooli.scenario_to_desktop.v1.domain.WineInstallMethodR\x0einstallMethods\x122\n" +
+	"\x12recommended_method\x18\x06 \x01(\tH\x01R\x11recommendedMethod\x88\x01\x01B\n" +
+	"\n" +
+	"\b_versionB\x15\n" +
+	"\x13_recommended_method\"Z\n" +
+	"\x12InstallWineRequest\x12D\n" +
+	"\x06method\x18\x01 \x01(\tB,\xbaH)r'R\aflatpakR\fflatpak-autoR\bappimageR\x04skipR\x06method\"\x83\x01\n" +
+	"\x13WineInstallResponse\x12\x1d\n" +
+	"\n" +
+	"install_id\x18\x01 \x01(\tR\tinstallId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x12\x1d\n" +
+	"\n" +
+	"status_url\x18\x04 \x01(\tR\tstatusUrl\"E\n" +
+	"\x1bGetWineInstallStatusRequest\x12&\n" +
+	"\n" +
+	"install_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tinstallId\"\xa9\x02\n" +
+	"\x19WineInstallStatusResponse\x12\x1d\n" +
+	"\n" +
+	"install_id\x18\x01 \x01(\tR\tinstallId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x129\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12B\n" +
+	"\fcompleted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12\x10\n" +
+	"\x03log\x18\x06 \x03(\tR\x03log\x12\x1b\n" +
+	"\terror_log\x18\a \x03(\tR\berrorLogB\x0f\n" +
+	"\r_completed_at2\xb0\x02\n" +
+	"\rConfigService\x12\x8f\x01\n" +
+	"\x13GetScenarioMetadata\x12@.vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest\x1a6.vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata\x12\x8c\x01\n" +
+	"\x13CreateDesktopConfig\x12@.vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest\x1a3.vrooli.scenario_to_desktop.v1.domain.DesktopConfig2\xd0\x06\n" +
+	"\rSystemService\x12\x8b\x01\n" +
+	"\x0fGetSystemStatus\x12<.vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest\x1a:.vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse\x12\x88\x01\n" +
+	"\rListTemplates\x12:.vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest\x1a;.vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse\x12\x85\x01\n" +
+	"\vGetTemplate\x128.vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest\x1a<.vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse\x12|\n" +
+	"\tCheckWine\x126.vrooli.scenario_to_desktop.v1.domain.CheckWineRequest\x1a7.vrooli.scenario_to_desktop.v1.domain.WineCheckResponse\x12\x82\x01\n" +
+	"\vInstallWine\x128.vrooli.scenario_to_desktop.v1.domain.InstallWineRequest\x1a9.vrooli.scenario_to_desktop.v1.domain.WineInstallResponse\x12\x9a\x01\n" +
+	"\x14GetWineInstallStatus\x12A.vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest\x1a?.vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_config_proto_rawDescOnce sync.Once
@@ -1525,47 +2205,88 @@ func file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_domain_config_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_domain_config_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_scenario_to_desktop_v1_domain_config_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_scenario_to_desktop_v1_domain_config_proto_goTypes = []any{
-	(*AppIdentity)(nil),         // 0: scenario_to_desktop.v1.AppIdentity
-	(*ServerConfig)(nil),        // 1: scenario_to_desktop.v1.ServerConfig
-	(*BundleIPCConfig)(nil),     // 2: scenario_to_desktop.v1.BundleIPCConfig
-	(*BundleConfig)(nil),        // 3: scenario_to_desktop.v1.BundleConfig
-	(*GitHubUpdateConfig)(nil),  // 4: scenario_to_desktop.v1.GitHubUpdateConfig
-	(*GenericUpdateConfig)(nil), // 5: scenario_to_desktop.v1.GenericUpdateConfig
-	(*UpdateConfig)(nil),        // 6: scenario_to_desktop.v1.UpdateConfig
-	(*WindowConfig)(nil),        // 7: scenario_to_desktop.v1.WindowConfig
-	(*DesktopConfig)(nil),       // 8: scenario_to_desktop.v1.DesktopConfig
-	(*ScenarioMetadata)(nil),    // 9: scenario_to_desktop.v1.ScenarioMetadata
-	(*ConnectionConfig)(nil),    // 10: scenario_to_desktop.v1.ConnectionConfig
-	nil,                         // 11: scenario_to_desktop.v1.DesktopConfig.FeaturesEntry
-	nil,                         // 12: scenario_to_desktop.v1.DesktopConfig.StylingEntry
-	(DeploymentMode)(0),         // 13: scenario_to_desktop.v1.DeploymentMode
-	(Framework)(0),              // 14: scenario_to_desktop.v1.Framework
-	(TemplateType)(0),           // 15: scenario_to_desktop.v1.TemplateType
-	(Platform)(0),               // 16: scenario_to_desktop.v1.Platform
+	(*AppIdentity)(nil),                 // 0: vrooli.scenario_to_desktop.v1.domain.AppIdentity
+	(*ServerConfig)(nil),                // 1: vrooli.scenario_to_desktop.v1.domain.ServerConfig
+	(*BundleIPCConfig)(nil),             // 2: vrooli.scenario_to_desktop.v1.domain.BundleIPCConfig
+	(*BundleConfig)(nil),                // 3: vrooli.scenario_to_desktop.v1.domain.BundleConfig
+	(*WindowConfig)(nil),                // 4: vrooli.scenario_to_desktop.v1.domain.WindowConfig
+	(*DesktopConfig)(nil),               // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig
+	(*ConnectionConfig)(nil),            // 6: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig
+	(*GetScenarioMetadataRequest)(nil),  // 7: vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
+	(*CreateDesktopConfigRequest)(nil),  // 8: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
+	(*GetSystemStatusRequest)(nil),      // 9: vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
+	(*SystemServiceInfo)(nil),           // 10: vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
+	(*SystemBuildStatistics)(nil),       // 11: vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
+	(*SystemStatusResponse)(nil),        // 12: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
+	(*ListTemplatesRequest)(nil),        // 13: vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
+	(*TemplateInfo)(nil),                // 14: vrooli.scenario_to_desktop.v1.domain.TemplateInfo
+	(*ListTemplatesResponse)(nil),       // 15: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
+	(*GetTemplateRequest)(nil),          // 16: vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
+	(*TemplateConfigResponse)(nil),      // 17: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
+	(*CheckWineRequest)(nil),            // 18: vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
+	(*WineInstallMethod)(nil),           // 19: vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
+	(*WineCheckResponse)(nil),           // 20: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
+	(*InstallWineRequest)(nil),          // 21: vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
+	(*WineInstallResponse)(nil),         // 22: vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
+	(*GetWineInstallStatusRequest)(nil), // 23: vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
+	(*WineInstallStatusResponse)(nil),   // 24: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
+	nil,                                 // 25: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
+	nil,                                 // 26: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
+	(shared.DeploymentMode)(0),          // 27: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	(*shared.UpdateConfig)(nil),         // 28: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	(shared.Framework)(0),               // 29: vrooli.scenario_to_desktop.v1.shared.Framework
+	(shared.TemplateType)(0),            // 30: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(shared.Platform)(0),                // 31: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*shared.ScenarioMetadata)(nil),     // 32: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	(*structpb.Struct)(nil),             // 33: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),       // 34: google.protobuf.Timestamp
 }
 var file_scenario_to_desktop_v1_domain_config_proto_depIdxs = []int32{
-	13, // 0: scenario_to_desktop.v1.ServerConfig.deployment_mode:type_name -> scenario_to_desktop.v1.DeploymentMode
-	2,  // 1: scenario_to_desktop.v1.BundleConfig.ipc:type_name -> scenario_to_desktop.v1.BundleIPCConfig
-	4,  // 2: scenario_to_desktop.v1.UpdateConfig.github:type_name -> scenario_to_desktop.v1.GitHubUpdateConfig
-	5,  // 3: scenario_to_desktop.v1.UpdateConfig.generic:type_name -> scenario_to_desktop.v1.GenericUpdateConfig
-	0,  // 4: scenario_to_desktop.v1.DesktopConfig.app:type_name -> scenario_to_desktop.v1.AppIdentity
-	1,  // 5: scenario_to_desktop.v1.DesktopConfig.server:type_name -> scenario_to_desktop.v1.ServerConfig
-	3,  // 6: scenario_to_desktop.v1.DesktopConfig.bundle:type_name -> scenario_to_desktop.v1.BundleConfig
-	6,  // 7: scenario_to_desktop.v1.DesktopConfig.update:type_name -> scenario_to_desktop.v1.UpdateConfig
-	7,  // 8: scenario_to_desktop.v1.DesktopConfig.window:type_name -> scenario_to_desktop.v1.WindowConfig
-	14, // 9: scenario_to_desktop.v1.DesktopConfig.framework:type_name -> scenario_to_desktop.v1.Framework
-	15, // 10: scenario_to_desktop.v1.DesktopConfig.template_type:type_name -> scenario_to_desktop.v1.TemplateType
-	16, // 11: scenario_to_desktop.v1.DesktopConfig.platforms:type_name -> scenario_to_desktop.v1.Platform
-	11, // 12: scenario_to_desktop.v1.DesktopConfig.features:type_name -> scenario_to_desktop.v1.DesktopConfig.FeaturesEntry
-	12, // 13: scenario_to_desktop.v1.DesktopConfig.styling:type_name -> scenario_to_desktop.v1.DesktopConfig.StylingEntry
-	13, // 14: scenario_to_desktop.v1.ConnectionConfig.deployment_mode:type_name -> scenario_to_desktop.v1.DeploymentMode
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	27, // 0: vrooli.scenario_to_desktop.v1.domain.ServerConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	2,  // 1: vrooli.scenario_to_desktop.v1.domain.BundleConfig.ipc:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleIPCConfig
+	0,  // 2: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.app:type_name -> vrooli.scenario_to_desktop.v1.domain.AppIdentity
+	1,  // 3: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.server:type_name -> vrooli.scenario_to_desktop.v1.domain.ServerConfig
+	3,  // 4: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.bundle:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleConfig
+	28, // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.update:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	4,  // 6: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.window:type_name -> vrooli.scenario_to_desktop.v1.domain.WindowConfig
+	29, // 7: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	30, // 8: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	31, // 9: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	25, // 10: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.features:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
+	26, // 11: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.styling:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
+	27, // 12: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	32, // 13: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	30, // 14: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	10, // 15: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.service:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
+	11, // 16: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.statistics:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
+	14, // 17: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse.templates:type_name -> vrooli.scenario_to_desktop.v1.domain.TemplateInfo
+	33, // 18: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse.config:type_name -> google.protobuf.Struct
+	19, // 19: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse.install_methods:type_name -> vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
+	34, // 20: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	34, // 21: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	7,  // 22: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:input_type -> vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
+	8,  // 23: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
+	9,  // 24: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
+	13, // 25: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:input_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
+	16, // 26: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:input_type -> vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
+	18, // 27: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:input_type -> vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
+	21, // 28: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:input_type -> vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
+	23, // 29: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
+	32, // 30: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:output_type -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	5,  // 31: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig
+	12, // 32: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
+	15, // 33: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:output_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
+	17, // 34: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:output_type -> vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
+	20, // 35: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
+	22, // 36: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
+	24, // 37: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_config_proto_init() }
@@ -1573,7 +2294,6 @@ func file_scenario_to_desktop_v1_domain_config_proto_init() {
 	if File_scenario_to_desktop_v1_domain_config_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[2].OneofWrappers = []any{}
@@ -1581,19 +2301,17 @@ func file_scenario_to_desktop_v1_domain_config_proto_init() {
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_config_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   27,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   2,
 		},
 		GoTypes:           file_scenario_to_desktop_v1_domain_config_proto_goTypes,
 		DependencyIndexes: file_scenario_to_desktop_v1_domain_config_proto_depIdxs,

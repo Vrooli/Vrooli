@@ -1,151 +1,63 @@
-# Kokoro Text-to-Speech Resource
+# Kokoro Resource
 
-Kokoro is a high-quality text-to-speech synthesis service using the Kokoro 82M model, exposed via an OpenAI-compatible API.
+Managed Kokoro text-to-speech runtime for local speech-synthesis workflows.
 
-## Features
+## Intent
 
-- **High-Quality Synthesis**: Natural-sounding speech from the Kokoro 82M model
-- **Multiple Voices**: Built-in voice selection for different use cases
-- **OpenAI-Compatible API**: Drop-in replacement for OpenAI TTS endpoints
-- **Multiple Output Formats**: MP3, WAV, Opus, FLAC
-- **GPU Acceleration**: Optional NVIDIA GPU support for faster synthesis
-- **Lightweight**: Single 82M parameter model, no model selection needed
+- Resource ID: `kokoro`
+- Category: `ai`
+- Driver: `managed-service`
+- Portability tier: `native Linux amd64` (CPU and CUDA targets)
 
-## Quick Start
+## Use Cases
+
+- Generate spoken audio locally for voice and multimodal workflows.
+- Provide a reusable text-to-speech service for scenarios and automation.
+- Pair with speech-to-text resources for end-to-end voice pipelines.
+
+## Architecture
+
+This resource uses the native `managed-service` structure.
+
+- `resource.json` is the declarative authority for lifecycle, native artifact acquisition, ports, exports, health, and freshness metadata.
+- The artifact combines a checksum-pinned CPython runtime, hash-locked CPU or
+  CUDA wheels, and the reviewed Kokoro-FastAPI source tree.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the default home for Kokoro-specific Go logic when the manifest and shared control plane are not enough.
+
+The intended escalation path is:
+
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add Kokoro-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
+
+Current internal package boundaries:
+
+- `cli/internal/topology`: service dependency and readiness semantics
+- `cli/internal/runtime`: runtime shaping helpers
+- `cli/internal/health`: Kokoro-specific readiness helpers
+- `cli/internal/env`: environment export helpers
+
+## Usage
 
 ```bash
-# Install with default settings
-resource-kokoro manage install
+# Install or validate the resource contract
+vrooli resource install kokoro
 
-# Install with GPU support
-resource-kokoro manage install --gpu yes
-
-# Check status
+# Check status through the shared control plane
 resource-kokoro status
-
-# Synthesize text
-resource-kokoro content synthesize --text "Hello, world!"
-
-# List available voices
-resource-kokoro content voices
 ```
 
-## API Usage
+Default endpoint:
 
-### Speech Synthesis (OpenAI-Compatible)
+- API: `http://localhost:8880`
 
-```bash
-# Basic synthesis
-curl -X POST "http://localhost:8880/v1/audio/speech" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "kokoro",
-    "input": "Hello, this is Kokoro text-to-speech.",
-    "voice": "af_heart",
-    "response_format": "mp3"
-  }' \
-  --output speech.mp3
+## Notes
 
-# With different voice and format
-curl -X POST "http://localhost:8880/v1/audio/speech" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "kokoro",
-    "input": "Testing different voices.",
-    "voice": "af_bella",
-    "response_format": "wav"
-  }' \
-  --output speech.wav
-```
+- Keep `cli/main.go` thin. Do not treat it as the implementation surface for synthesis or voice workflows.
+- Keep runtime state rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
+- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/kokoro/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
 
-### List Available Voices
-
-```bash
-curl http://localhost:8880/v1/audio/voices
-```
-
-## Output Formats
-
-| Format | Description | Use Case |
-|--------|-------------|----------|
-| mp3 | Compressed audio | General use, streaming |
-| wav | Uncompressed audio | High quality, post-processing |
-| opus | Efficient compression | Low-bandwidth streaming |
-| flac | Lossless compression | Archival, highest quality |
-
-## GPU vs CPU
-
-| Mode | Image | Performance | Memory |
-|------|-------|-------------|--------|
-| GPU | `ghcr.io/remsky/kokoro-fastapi-gpu:latest` | Fast | 8-16 GB |
-| CPU | `ghcr.io/remsky/kokoro-fastapi-cpu:latest` | Moderate | 4-8 GB |
-
-## Management Commands
-
-```bash
-# Start/stop/restart
-resource-kokoro manage start
-resource-kokoro manage stop
-resource-kokoro manage restart
-
-# View logs
-resource-kokoro logs
-
-# Show detailed status
-resource-kokoro status
-
-# Uninstall
-resource-kokoro manage uninstall
-```
-
-## Configuration
-
-### Environment Variables
-
-- `KOKORO_CUSTOM_PORT`: Override default port (8880)
-- `KOKORO_DEFAULT_VOICE`: Override default voice (af_heart)
-- `KOKORO_IMAGE`: Custom Docker image for GPU
-- `KOKORO_CPU_IMAGE`: Custom Docker image for CPU
-
-### File Locations
-
-- Voice data: `~/.kokoro/voices/`
-- Config: Integrated with Vrooli resource configuration
-
-## Troubleshooting
-
-### Service Takes Long to Start
-
-The Kokoro model takes 20-45 seconds to load on first start. Once loaded, synthesis is fast.
-
-### Out of Memory Errors
-
-Try using the CPU image which has lower memory requirements:
-```bash
-export KOKORO_GPU_ENABLED=no
-resource-kokoro manage install
-```
-
-### GPU Not Detected
-
-Ensure NVIDIA drivers and nvidia-docker are installed:
-```bash
-nvidia-smi  # Should show your GPU
-```
-
-### Port Already in Use
-
-Either stop the conflicting service or use a custom port:
-```bash
-export KOKORO_CUSTOM_PORT=8881
-resource-kokoro manage install
-```
-
-## Integration with Vrooli
-
-Once installed, Kokoro is automatically configured in Vrooli's resource registry and can be used by AI agents for text-to-speech tasks. Pairs well with Whisper for a complete voice pipeline (STT + TTS).
-
-## Links
-
-- [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI)
-- [Kokoro Model](https://huggingface.co/hexgrad/Kokoro-82M)
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

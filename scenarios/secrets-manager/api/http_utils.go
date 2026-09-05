@@ -4,20 +4,54 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// getVrooliRoot returns the Vrooli installation root directory.
-// It checks VROOLI_ROOT environment variable first, then falls back to ~/Vrooli.
+// getVrooliRoot returns the active repo root using only contract resolution.
 func getVrooliRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+				return resolved
+			}
+		}
 	}
-	home, err := os.UserHomeDir()
+	root, err := repocontract.ResolveRepoRoot()
 	if err != nil {
-		return filepath.Join(os.TempDir(), "Vrooli")
+		return ""
 	}
-	return filepath.Join(home, "Vrooli")
+	return root
+}
+
+func resolveScenarioRoot(scenario string) string {
+	repoRoot := getVrooliRoot()
+	scenario = strings.TrimSpace(scenario)
+	if repoRoot == "" || scenario == "" {
+		return ""
+	}
+	resolved, err := repocontract.ResolveScenarioPath(repoRoot, scenario)
+	if err != nil {
+		return ""
+	}
+	return resolved
+}
+
+func resolveTopLevelDir(key string) string {
+	repoRoot := getVrooliRoot()
+	if repoRoot == "" {
+		return ""
+	}
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return ""
+	}
+	resolved, err := contract.TopLevelDir(repoRoot, key)
+	if err != nil {
+		return ""
+	}
+	return resolved
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:AssetDetailShell",
+  "version": "1.1.6",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

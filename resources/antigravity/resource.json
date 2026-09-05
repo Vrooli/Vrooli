@@ -1,0 +1,298 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "antigravity",
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.gemini",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "The Antigravity CLI and desktop app share settings, authentication, conversations, and memory under the documented Gemini home.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "cache": {
+        "rung": "relocatable",
+        "path": "$USER_CACHE_DIR/antigravity",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "ANTIGRAVITY_STATE_DIR",
+          "scope": "process-tree"
+        },
+        "rationale": "Antigravity's local cache/state is rebuildable and may be redirected independently of durable account data.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.gemini/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "ANTIGRAVITY_STATE_DIR",
+          "project_scope": false
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
+  "display_name": "Antigravity CLI",
+  "description": "Google Antigravity coding CLI resource (binary `agy`): a thin Go entrypoint wiring lifecycle, an upstream update-check, and shared command-permission governance. Optional external-cli; sudo-free install; on-disk state backed up.",
+  "execution": {
+    "runner_type": "antigravity",
+    "codec": "antigravity",
+    "detection_signal": "ANTIGRAVITY_AGENT=1",
+    "hook_surface": "native-permissions"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-antigravity",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-antigravity_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-antigravity"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "external-cli",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.22-5711547746615296/linux-x64/cli_linux_x64.tar.gz", "sha256": "1e1a219a86e75d7c6351f96d182ca2105302d5c34d8fa9c31265dc0adf24145f", "archive": "tar.gz", "bin_path": "antigravity"},
+      {"when": {"os": "linux", "arch": "arm64"}, "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.22-5711547746615296/linux-arm/cli_linux_arm64.tar.gz", "sha256": "a68925bc7336eb0b90de1e1aefd44d535f5487b7cf606a76fdb982207aef9a2e", "archive": "tar.gz", "bin_path": "antigravity"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.22-5711547746615296/darwin-x64/cli_mac_x64.tar.gz", "sha256": "d19eb95666b949c76b2dd51c4a7a7202d12e38f348e1512ed35251eac804dcb1", "archive": "tar.gz", "bin_path": "antigravity"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.1.22-5711547746615296/darwin-arm/cli_mac_arm64.tar.gz", "sha256": "ac0e961957f4a6cd67f9170b82edae15e92f107fe333e56d71aa01613ea547bd", "archive": "tar.gz", "bin_path": "antigravity"}
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "agy",
+  "version_args": [
+    "--version"
+  ],
+  "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "agy",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "ANTIGRAVITY_PATH": "agy"
+    }
+  },
+  "orchestration": {
+    "startup_order": 541,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "resource-antigravity",
+        "install-direct"
+      ],
+      "macos": [
+        "resource-antigravity",
+        "install-direct"
+      ]
+    }
+  },
+  "durable_data": {
+    "base": "$HOME/.gemini",
+    "entries": {
+      "settings": {
+        "path": "settings.json",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Shared Gemini/Antigravity global settings (selected auth type, preview toggles) read by the agy CLI and the Antigravity 2.0 desktop app."
+      },
+      "oauth": {
+        "path": "oauth_creds.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Google OAuth credentials (access/refresh tokens) — live secrets; back up only deliberately. Restoring stale tokens can break auth; re-run `agy` sign-in instead."
+      },
+      "accounts": {
+        "path": "google_accounts.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Active/old Google account identifiers bound to the OAuth session — back up deliberately alongside the credentials."
+      },
+      "cli_settings": {
+        "path": "antigravity-cli/settings.json",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Antigravity CLI configuration: model, toolPermission mode, trustedWorkspaces, and the native `permissions` allow/deny/ask grants. Hand-tuned operator state."
+      },
+      "cli_conversations": {
+        "path": "antigravity-cli/conversations",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity CLI conversation transcripts (one SQLite .db per thread) — the primary CLI conversation record for later analysis."
+      },
+      "cli_memory": {
+        "path": "antigravity-cli/brain",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity CLI cross-session memory and per-conversation transcripts/state (brain/<id>/) carried across sessions."
+      },
+      "cli_knowledge": {
+        "path": "antigravity-cli/knowledge",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity CLI knowledge base (user knowledge items the agent retrieves across sessions)."
+      },
+      "desktop_state": {
+        "path": "antigravity",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity 2.0 desktop app agent state under the shared home: conversation transcripts (conversations/*.pb) and memory (brain/). Excludes the sibling antigravity-browser-profile/ (regenerable Chromium cache)."
+      }
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "upstream_cli": {
+    "version_command": [
+      "agy",
+      "--version"
+    ],
+    "version_pinned": "1.0.13",
+    "docs_source": "https://antigravity.google/docs",
+    "docs_pinned_at": "2026-06-29",
+    "schema_version": 1
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "antigravity",
+      "path": "$USER_HOME/.gemini/antigravity/brain/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    },
+    {
+      "runtime": "gemini",
+      "path": "$USER_HOME/.gemini/GEMINI.md",
+      "section": "Gemini Added Memories",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
+}

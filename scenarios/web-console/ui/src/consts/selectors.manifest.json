@@ -1,5 +1,141 @@
 {
   "selectors": {
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.voiceinputbutton.voiceFixtureState": {
+      "testId": "voiceinputbutton.voice-fixture-state",
+      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
+    },
+    "library.foundations.visual-recipes.root": {
+      "testId": "foundations.visual-recipes",
+      "selector": "[data-testid=\"foundations.visual-recipes\"]"
+    },
+    "library.foundations.tokens.root": {
+      "testId": "foundations.tokens",
+      "selector": "[data-testid=\"foundations.tokens\"]"
+    },
+    "library.foundations.tokens.semanticCount": {
+      "testId": "foundations.tokens.semantic-count",
+      "selector": "[data-testid=\"foundations.tokens.semantic-count\"]"
+    },
+    "library.foundations.tokens.spaceCount": {
+      "testId": "foundations.tokens.space-count",
+      "selector": "[data-testid=\"foundations.tokens.space-count\"]"
+    },
+    "library.controls.pressable.root": {
+      "testId": "controls.pressable",
+      "selector": "[data-testid=\"controls.pressable\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.drawershell.root": {
+      "testId": "drawershell",
+      "selector": "[data-testid=\"drawershell\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
+    },
+    "library.forms.color-picker.root": {
+      "testId": "forms.color-picker",
+      "selector": "[data-testid=\"forms.color-picker\"]"
+    },
+    "library.forms.color-picker.formsColorPickerColorPickerCustomInput": {
+      "testId": "forms.color-picker.forms.color-picker-color-picker-custom-input",
+      "selector": "[data-testid=\"forms.color-picker.forms.color-picker-color-picker-custom-input\"]"
+    },
+    "library.forms.color-picker.selectedColor": {
+      "testId": "forms.color-picker.selected-color",
+      "selector": "[data-testid=\"forms.color-picker.selected-color\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.overlays.full-page-drawer.root": {
+      "testId": "overlays.full-page-drawer",
+      "selector": "[data-testid=\"overlays.full-page-drawer\"]"
+    },
+    "library.overlays.full-page-drawer.close": {
+      "testId": "overlays.full-page-drawer.close",
+      "selector": "[data-testid=\"overlays.full-page-drawer.close\"]"
+    },
+    "library.overlays.full-page-drawer.grabber": {
+      "testId": "overlays.full-page-drawer.grabber",
+      "selector": "[data-testid=\"overlays.full-page-drawer.grabber\"]"
+    },
+    "library.overlays.full-page-drawer.subheader": {
+      "testId": "overlays.full-page-drawer.subheader",
+      "selector": "[data-testid=\"overlays.full-page-drawer.subheader\"]"
+    },
+    "library.overlays.responsive-dialog.root": {
+      "testId": "overlays.responsive-dialog",
+      "selector": "[data-testid=\"overlays.responsive-dialog\"]"
+    },
+    "library.overlays.responsive-dialog.subheader": {
+      "testId": "overlays.responsive-dialog.subheader",
+      "selector": "[data-testid=\"overlays.responsive-dialog.subheader\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.navigation.tabs.links": {
+      "testId": "navigation.tabs.Links",
+      "selector": "[data-testid=\"navigation.tabs.Links\"]"
+    },
+    "library.navigation.tabs.settingsTabSessions": {
+      "testId": "navigation.tabs.settings-tab-sessions",
+      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
+    },
+    "library.overlays.bottom-sheet.root": {
+      "testId": "overlays.bottom-sheet",
+      "selector": "[data-testid=\"overlays.bottom-sheet\"]"
+    },
+    "library.overlays.bottom-sheet.close": {
+      "testId": "overlays.bottom-sheet.close",
+      "selector": "[data-testid=\"overlays.bottom-sheet.close\"]"
+    },
+    "library.overlays.bottom-sheet.grabber": {
+      "testId": "overlays.bottom-sheet.grabber",
+      "selector": "[data-testid=\"overlays.bottom-sheet.grabber\"]"
+    },
+    "library.overlays.bottom-sheet.subheader": {
+      "testId": "overlays.bottom-sheet.subheader",
+      "selector": "[data-testid=\"overlays.bottom-sheet.subheader\"]"
+    },
+    "library.useviewportenvironment.root": {
+      "testId": "useviewportenvironment",
+      "selector": "[data-testid=\"useviewportenvironment\"]"
+    },
+    "library.hooks.use-viewport-environment.root": {
+      "testId": "hooks.use-viewport-environment",
+      "selector": "[data-testid=\"hooks.use-viewport-environment\"]"
+    },
+    "workspace.settings": {
+      "testId": "toolbar-settings",
+      "selector": "[data-testid=\"toolbar-settings\"]"
+    },
     "workspace.paneGrid": {
       "testId": "pane-grid",
       "selector": "[data-testid=\"pane-grid\"]"
@@ -11,6 +147,38 @@
     "workspace.paneContainer": {
       "testId": "terminal-pane-container",
       "selector": "[data-testid=\"terminal-pane-container\"]"
+    },
+    "workspace.sidebarShell": {
+      "testId": "workspace-sidebar",
+      "selector": "[data-testid=\"workspace-sidebar\"]"
+    },
+    "workspace.sidebarToggle": {
+      "testId": "workspace-sidebar-toggle",
+      "selector": "[data-testid=\"workspace-sidebar-toggle\"]"
+    },
+    "workspace.sidebarBackdrop": {
+      "testId": "workspace-sidebar-backdrop",
+      "selector": "[data-testid=\"workspace-sidebar-backdrop\"]"
+    },
+    "workspace.sidebarResizeHandle": {
+      "testId": "workspace-sidebar-resize-handle",
+      "selector": "[data-testid=\"workspace-sidebar-resize-handle\"]"
+    },
+    "workspace.sidebarTopbar": {
+      "testId": "workspace-sidebar-topbar",
+      "selector": "[data-testid=\"workspace-sidebar-topbar\"]"
+    },
+    "workspace.sidebarActiveTitle": {
+      "testId": "workspace-sidebar-active-title",
+      "selector": "[data-testid=\"workspace-sidebar-active-title\"]"
+    },
+    "workspace.toggleView": {
+      "testId": "workspace-toggle-view",
+      "selector": "[data-testid=\"workspace-toggle-view\"]"
+    },
+    "workspace.topEdge": {
+      "testId": "workspace-top-edge",
+      "selector": "[data-testid=\"workspace-top-edge\"]"
     },
     "terminal.pane": {
       "testId": "terminal-pane",
@@ -32,6 +200,318 @@
       "testId": "launcher-custom-launch",
       "selector": "[data-testid=\"launcher-custom-launch\"]"
     },
+    "launcher.destination": {
+      "testId": "launcher-destination",
+      "selector": "[data-testid=\"launcher-destination\"]"
+    },
+    "launcher.destinationTrigger": {
+      "testId": "launcher-destination-trigger",
+      "selector": "[data-testid=\"launcher-destination-trigger\"]"
+    },
+    "launcher.appearance": {
+      "testId": "launcher-appearance",
+      "selector": "[data-testid=\"launcher-appearance\"]"
+    },
+    "launcher.machinePicker": {
+      "testId": "launcher-machine-picker",
+      "selector": "[data-testid=\"launcher-machine-picker\"]"
+    },
+    "launcher.machineMenu": {
+      "testId": "launcher-machine-menu",
+      "selector": "[data-testid=\"launcher-machine-menu\"]"
+    },
+    "launcher.machineList": {
+      "testId": "launcher-machine-list",
+      "selector": "[data-testid=\"launcher-machine-list\"]"
+    },
+    "launcher.machineLink": {
+      "testId": "launcher-machine-link",
+      "selector": "[data-testid=\"launcher-machine-link\"]"
+    },
+    "launcher.machineManage": {
+      "testId": "launcher-machine-manage",
+      "selector": "[data-testid=\"launcher-machine-manage\"]"
+    },
+    "launcher.targetUnavailable": {
+      "testId": "launcher-target-unavailable",
+      "selector": "[data-testid=\"launcher-target-unavailable\"]"
+    },
+    "launcher.editShortcuts": {
+      "testId": "launcher-edit-shortcuts",
+      "selector": "[data-testid=\"launcher-edit-shortcuts\"]"
+    },
+    "launcher.editTemplates": {
+      "testId": "launcher-edit-templates",
+      "selector": "[data-testid=\"launcher-edit-templates\"]"
+    },
+    "launcher.appearanceToggle": {
+      "testId": "launcher-appearance-toggle",
+      "selector": "[data-testid=\"launcher-appearance-toggle\"]"
+    },
+    "launcher.templateMenu": {
+      "testId": "launcher-template-menu",
+      "selector": "[data-testid=\"launcher-template-menu\"]"
+    },
+    "launcher.groupRoleEmpty": {
+      "testId": "launcher-group-role-empty",
+      "selector": "[data-testid=\"launcher-group-role-empty\"]"
+    },
+    "launcher.agentGrid": {
+      "testId": "launcher-agent-grid",
+      "selector": "[data-testid=\"launcher-agent-grid\"]"
+    },
+    "launcher.attributedToggle": {
+      "testId": "launcher-attributed-toggle",
+      "selector": "[data-testid=\"launcher-attributed-toggle\"]"
+    },
+    "launcher.modeOneSession": {
+      "testId": "launcher-mode-one-session",
+      "selector": "[data-testid=\"launcher-mode-one-session\"]"
+    },
+    "launcher.modeGroup": {
+      "testId": "launcher-mode-group",
+      "selector": "[data-testid=\"launcher-mode-group\"]"
+    },
+    "launcher.templatePicker": {
+      "testId": "launcher-template-picker",
+      "selector": "[data-testid=\"launcher-template-picker\"]"
+    },
+    "launcher.groupName": {
+      "testId": "launcher-group-name",
+      "selector": "[data-testid=\"launcher-group-name\"]"
+    },
+    "launcher.groupRoleList": {
+      "testId": "launcher-group-role-list",
+      "selector": "[data-testid=\"launcher-group-role-list\"]"
+    },
+    "launcher.groupRoleAdd": {
+      "testId": "launcher-group-role-add",
+      "selector": "[data-testid=\"launcher-group-role-add\"]"
+    },
+    "launcher.createGroup": {
+      "testId": "launcher-create-group",
+      "selector": "[data-testid=\"launcher-create-group\"]"
+    },
+    "groups.drawer": {
+      "testId": "manage-groups-drawer",
+      "selector": "[data-testid=\"manage-groups-drawer\"]"
+    },
+    "groups.filter": {
+      "testId": "manage-groups-filter",
+      "selector": "[data-testid=\"manage-groups-filter\"]"
+    },
+    "groups.sectionActive": {
+      "testId": "manage-groups-section-active",
+      "selector": "[data-testid=\"manage-groups-section-active\"]"
+    },
+    "groups.sectionEmpty": {
+      "testId": "manage-groups-section-empty",
+      "selector": "[data-testid=\"manage-groups-section-empty\"]"
+    },
+    "groups.closeAllEmpty": {
+      "testId": "manage-groups-close-all-empty",
+      "selector": "[data-testid=\"manage-groups-close-all-empty\"]"
+    },
+    "groups.bulkBar": {
+      "testId": "manage-groups-bulk-bar",
+      "selector": "[data-testid=\"manage-groups-bulk-bar\"]"
+    },
+    "groups.autoCloseToggle": {
+      "testId": "manage-groups-auto-close",
+      "selector": "[data-testid=\"manage-groups-auto-close\"]"
+    },
+    "groups.summary": {
+      "testId": "manage-groups-summary",
+      "selector": "[data-testid=\"manage-groups-summary\"]"
+    },
+    "groups.sort": {
+      "testId": "manage-groups-sort",
+      "selector": "[data-testid=\"manage-groups-sort\"]"
+    },
+    "groups.closeMenuItem": {
+      "testId": "group-ctx-close-group",
+      "selector": "[data-testid=\"group-ctx-close-group\"]"
+    },
+    "groups.closeConfirm": {
+      "testId": "close-group-confirm",
+      "selector": "[data-testid=\"close-group-confirm\"]"
+    },
+    "groups.closeCancel": {
+      "testId": "close-group-cancel",
+      "selector": "[data-testid=\"close-group-cancel\"]"
+    },
+    "groups.closeAlsoSessions": {
+      "testId": "close-group-also-sessions",
+      "selector": "[data-testid=\"close-group-also-sessions\"]"
+    },
+    "groups.closeSummary": {
+      "testId": "close-group-summary",
+      "selector": "[data-testid=\"close-group-summary\"]"
+    },
+    "groups.closeConsequence": {
+      "testId": "close-group-consequence",
+      "selector": "[data-testid=\"close-group-consequence\"]"
+    },
+    "groups.assignPicker": {
+      "testId": "group-assign-picker",
+      "selector": "[data-testid=\"group-assign-picker\"]"
+    },
+    "groups.pickerList": {
+      "testId": "group-picker-list",
+      "selector": "[data-testid=\"group-picker-list\"]"
+    },
+    "groups.pickerFilter": {
+      "testId": "group-picker-filter",
+      "selector": "[data-testid=\"group-picker-filter\"]"
+    },
+    "groups.pickerNone": {
+      "testId": "group-picker-option-none",
+      "selector": "[data-testid=\"group-picker-option-none\"]"
+    },
+    "groups.pickerEmpty": {
+      "testId": "group-picker-empty",
+      "selector": "[data-testid=\"group-picker-empty\"]"
+    },
+    "groups.pickerNoMatches": {
+      "testId": "group-picker-no-matches",
+      "selector": "[data-testid=\"group-picker-no-matches\"]"
+    },
+    "groups.pickerEditToggle": {
+      "testId": "group-picker-edit-toggle",
+      "selector": "[data-testid=\"group-picker-edit-toggle\"]"
+    },
+    "groups.pickerSectionActive": {
+      "testId": "group-picker-section-active",
+      "selector": "[data-testid=\"group-picker-section-active\"]"
+    },
+    "groups.pickerSectionEmpty": {
+      "testId": "group-picker-section-empty",
+      "selector": "[data-testid=\"group-picker-section-empty\"]"
+    },
+    "groups.pickerCloseAllEmpty": {
+      "testId": "group-picker-close-all-empty",
+      "selector": "[data-testid=\"group-picker-close-all-empty\"]"
+    },
+    "groups.pickerUngroupNote": {
+      "testId": "group-picker-ungroup-note",
+      "selector": "[data-testid=\"group-picker-ungroup-note\"]"
+    },
+    "groups.pickerCreateSubmit": {
+      "testId": "group-picker-create-submit",
+      "selector": "[data-testid=\"group-picker-create-submit\"]"
+    },
+    "groups.undoBanner": {
+      "testId": "group-undo-banner",
+      "selector": "[data-testid=\"group-undo-banner\"]"
+    },
+    "groups.undoAction": {
+      "testId": "group-undo-action",
+      "selector": "[data-testid=\"group-undo-action\"]"
+    },
+    "groups.undoDismiss": {
+      "testId": "group-undo-dismiss",
+      "selector": "[data-testid=\"group-undo-dismiss\"]"
+    },
+    "roles.addDialog": {
+      "testId": "role-add-dialog",
+      "selector": "[data-testid=\"role-add-dialog\"]"
+    },
+    "roles.addLabel": {
+      "testId": "role-add-label",
+      "selector": "[data-testid=\"role-add-label\"]"
+    },
+    "roles.addCommand": {
+      "testId": "role-add-command",
+      "selector": "[data-testid=\"role-add-command\"]"
+    },
+    "roles.addPrompt": {
+      "testId": "role-add-prompt",
+      "selector": "[data-testid=\"role-add-prompt\"]"
+    },
+    "roles.addSubmit": {
+      "testId": "role-add-submit",
+      "selector": "[data-testid=\"role-add-submit\"]"
+    },
+    "roles.menu": {
+      "testId": "role-menu",
+      "selector": "[data-testid=\"role-menu\"]"
+    },
+    "handoff.composer": {
+      "testId": "handoff-composer",
+      "selector": "[data-testid=\"handoff-composer\"]"
+    },
+    "handoff.trigger": {
+      "testId": "handoff-trigger",
+      "selector": "[data-testid=\"handoff-trigger\"]"
+    },
+    "handoff.targets": {
+      "testId": "handoff-targets",
+      "selector": "[data-testid=\"handoff-targets\"]"
+    },
+    "handoff.message": {
+      "testId": "handoff-message",
+      "selector": "[data-testid=\"handoff-message\"]"
+    },
+    "handoff.send": {
+      "testId": "handoff-send",
+      "selector": "[data-testid=\"handoff-send\"]"
+    },
+    "handoff.results": {
+      "testId": "handoff-results",
+      "selector": "[data-testid=\"handoff-results\"]"
+    },
+    "handoff.suggestion": {
+      "testId": "handoff-suggestion",
+      "selector": "[data-testid=\"handoff-suggestion\"]"
+    },
+    "handoff.suggestionDismiss": {
+      "testId": "handoff-suggestion-dismiss",
+      "selector": "[data-testid=\"handoff-suggestion-dismiss\"]"
+    },
+    "handoff.paneHeaderTrigger": {
+      "testId": "handoff-pane-header",
+      "selector": "[data-testid=\"handoff-pane-header\"]"
+    },
+    "handoff.fileViewerTrigger": {
+      "testId": "handoff-file-viewer",
+      "selector": "[data-testid=\"handoff-file-viewer\"]"
+    },
+    "handoff.pendingStrip": {
+      "testId": "pending-input-strip",
+      "selector": "[data-testid=\"pending-input-strip\"]"
+    },
+    "templates.panel": {
+      "testId": "group-templates-panel",
+      "selector": "[data-testid=\"group-templates-panel\"]"
+    },
+    "templates.create": {
+      "testId": "group-templates-create",
+      "selector": "[data-testid=\"group-templates-create\"]"
+    },
+    "templates.roleList": {
+      "testId": "group-templates-role-list",
+      "selector": "[data-testid=\"group-templates-role-list\"]"
+    },
+    "templates.roleAdd": {
+      "testId": "group-templates-role-add",
+      "selector": "[data-testid=\"group-templates-role-add\"]"
+    },
+    "templates.saveAs": {
+      "testId": "group-templates-save-as",
+      "selector": "[data-testid=\"group-templates-save-as\"]"
+    },
+    "handoffRules.panel": {
+      "testId": "handoff-rules-panel",
+      "selector": "[data-testid=\"handoff-rules-panel\"]"
+    },
+    "handoffRules.create": {
+      "testId": "handoff-rules-create",
+      "selector": "[data-testid=\"handoff-rules-create\"]"
+    },
+    "handoffRules.footer": {
+      "testId": "handoff-rules-footer",
+      "selector": "[data-testid=\"handoff-rules-footer\"]"
+    },
     "nav.settings": {
       "testId": "nav-settings",
       "selector": "[data-testid=\"nav-settings\"]"
@@ -44,9 +524,133 @@
       "testId": "create-profile",
       "selector": "[data-testid=\"create-profile\"]"
     },
+    "settings.account": {
+      "testId": "settings-account",
+      "selector": "[data-testid=\"settings-account\"]"
+    },
+    "settings.accountTab": {
+      "testId": "settings-tab-account",
+      "selector": "[data-testid=\"settings-tab-account\"]"
+    },
+    "settings.integrationsTab": {
+      "testId": "settings-tab-integrations",
+      "selector": "[data-testid=\"settings-tab-integrations\"]"
+    },
+    "settings.accountRefreshToken": {
+      "testId": "account-refresh-token",
+      "selector": "[data-testid=\"account-refresh-token\"]"
+    },
+    "settings.accountPlan": {
+      "testId": "account-plan",
+      "selector": "[data-testid=\"account-plan\"]"
+    },
+    "settings.accountCredits": {
+      "testId": "account-credits",
+      "selector": "[data-testid=\"account-credits\"]"
+    },
+    "settings.accountPendingSync": {
+      "testId": "account-pending-sync",
+      "selector": "[data-testid=\"account-pending-sync\"]"
+    },
+    "settings.openRouterKeyInput": {
+      "testId": "openrouter-key-input",
+      "selector": "[data-testid=\"openrouter-key-input\"]"
+    },
+    "settings.openRouterKeySave": {
+      "testId": "openrouter-key-save",
+      "selector": "[data-testid=\"openrouter-key-save\"]"
+    },
+    "settings.openRouterKeyTest": {
+      "testId": "openrouter-key-test",
+      "selector": "[data-testid=\"openrouter-key-test\"]"
+    },
+    "settings.openRouterKeyRemove": {
+      "testId": "openrouter-key-remove",
+      "selector": "[data-testid=\"openrouter-key-remove\"]"
+    },
+    "settings.accountButton": {
+      "testId": "toolbar-account",
+      "selector": "[data-testid=\"toolbar-account\"]"
+    },
+    "settings.tunnelManagerAwareness": {
+      "testId": "tunnel-manager-awareness",
+      "selector": "[data-testid=\"tunnel-manager-awareness\"]"
+    },
     "toolbar.container": {
       "testId": "mobile-toolbar",
       "selector": "[data-testid=\"mobile-toolbar\"]"
+    },
+    "fleet.drawer": {
+      "testId": "machines-drawer",
+      "selector": "[data-testid=\"machines-drawer\"]"
+    },
+    "fleet.railMachines": {
+      "testId": "fleet-rail-machines",
+      "selector": "[data-testid=\"fleet-rail-machines\"]"
+    },
+    "fleet.railScreens": {
+      "testId": "fleet-rail-screens",
+      "selector": "[data-testid=\"fleet-rail-screens\"]"
+    },
+    "fleet.card": {
+      "testId": "fleet-card",
+      "selector": "[data-testid=\"fleet-card\"]"
+    },
+    "fleet.deviceCard": {
+      "testId": "[data-testid^=\"fleet-card-device-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"]\"]"
+    },
+    "fleet.machineCard": {
+      "testId": "[data-testid^=\"fleet-card-machine-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"]\"]"
+    },
+    "fleet.machineStartSession": {
+      "testId": "[data-testid^=\"machines-start-session-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machines-start-session-\"]\"]"
+    },
+    "fleet.machineDetails": {
+      "testId": "[data-testid^=\"machines-details-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machines-details-\"]\"]"
+    },
+    "fleet.machineIssues": {
+      "testId": "[data-testid^=\"machines-issues-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machines-issues-\"]\"]"
+    },
+    "fleet.machineDetail": {
+      "testId": "[data-testid^=\"machine-detail-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machine-detail-\"]\"]"
+    },
+    "fleet.deviceSilhouette": {
+      "testId": "[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]\"]"
+    },
+    "fleet.machineSilhouette": {
+      "testId": "[data-testid^=\"fleet-card-machine-\"] [data-testid=\"machine-silhouette\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"] [data-testid=\"machine-silhouette\"]\"]"
+    },
+    "fleet.deviceFrame": {
+      "testId": "[data-testid^=\"device-frame-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"device-frame-\"]\"]"
+    },
+    "fleet.deviceCaption": {
+      "testId": "[data-testid^=\"device-caption-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"device-caption-\"]\"]"
+    },
+    "fleet.takeOver": {
+      "testId": "device-frame-take-over",
+      "selector": "[data-testid=\"device-frame-take-over\"]"
+    },
+    "voice.micButton": {
+      "testId": "voice-mic-btn",
+      "selector": "[data-testid=\"voice-mic-btn\"]"
+    },
+    "voice.errorTooltip": {
+      "testId": "voice-error-tooltip",
+      "selector": "[data-testid=\"voice-error-tooltip\"]"
+    },
+    "ai.open": {
+      "testId": "toolbar-ai",
+      "selector": "[data-testid=\"toolbar-ai\"]"
     },
     "ai.input": {
       "testId": "ai-input",
@@ -76,6 +680,22 @@
       "testId": "ai-input-error",
       "selector": "[data-testid=\"ai-input-error\"]"
     },
+    "ai.resolutionStrip": {
+      "testId": "ai-resolution-strip",
+      "selector": "[data-testid=\"ai-resolution-strip\"]"
+    },
+    "ai.providerProvenance": {
+      "testId": "ai-provider-provenance",
+      "selector": "[data-testid=\"ai-provider-provenance\"]"
+    },
+    "commercial.sourceProvenanceAligned": {
+      "testId": "body[data-source-provenance-aligned=\"true\"]",
+      "selector": "[data-testid=\"body[data-source-provenance-aligned=\"true\"]\"]"
+    },
+    "commercial.localVoiceRefusal": {
+      "testId": "body[data-local-voice-refusal=\"false\"]",
+      "selector": "[data-testid=\"body[data-local-voice-refusal=\"false\"]\"]"
+    },
     "provider.refresh": {
       "testId": "provider-refresh",
       "selector": "[data-testid=\"provider-refresh\"]"
@@ -99,6 +719,54 @@
     "policy.error": {
       "testId": "policy-error",
       "selector": "[data-testid=\"policy-error\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "messages.searchTrigger": {
+      "testId": "messages-search-btn",
+      "selector": "[data-testid=\"messages-search-btn\"]"
+    },
+    "messages.navTrigger": {
+      "testId": "msg-jump-trigger",
+      "selector": "[data-testid=\"msg-jump-trigger\"]"
+    },
+    "messages.navPanel": {
+      "testId": "msg-jump-list",
+      "selector": "[data-testid=\"msg-jump-list\"]"
+    },
+    "messages.navScroll": {
+      "testId": "msg-jump-scroll",
+      "selector": "[data-testid=\"msg-jump-scroll\"]"
+    },
+    "messages.searchInput": {
+      "testId": "msg-nav-search",
+      "selector": "[data-testid=\"msg-nav-search\"]"
+    },
+    "messages.clearSearch": {
+      "testId": "msg-nav-clear",
+      "selector": "[data-testid=\"msg-nav-clear\"]"
+    },
+    "messages.resultCount": {
+      "testId": "msg-nav-count",
+      "selector": "[data-testid=\"msg-nav-count\"]"
+    },
+    "messages.moreFilters": {
+      "testId": "msg-nav-more",
+      "selector": "[data-testid=\"msg-nav-more\"]"
+    },
+    "messages.advancedPanel": {
+      "testId": "msg-nav-advanced",
+      "selector": "[data-testid=\"msg-nav-advanced\"]"
+    },
+    "messages.emptyState": {
+      "testId": "msg-nav-empty",
+      "selector": "[data-testid=\"msg-nav-empty\"]"
+    },
+    "messages.chipUser": {
+      "testId": "msg-nav-chip-user",
+      "selector": "[data-testid=\"msg-nav-chip-user\"]"
     }
   },
   "dynamicSelectors": {
@@ -168,6 +836,17 @@
         }
       ]
     },
+    "sidebar.session": {
+      "description": "Session row in workspace sidebar",
+      "selectorPattern": "[data-testid=\"sidebar-session-${sessionId}\"]",
+      "testIdPattern": "sidebar-session-${sessionId}",
+      "params": [
+        {
+          "name": "sessionId",
+          "type": "string"
+        }
+      ]
+    },
     "launcher.shortcut": {
       "description": "Launcher shortcut button",
       "selectorPattern": "[data-testid=\"launcher-shortcut-${label}\"]",
@@ -175,6 +854,237 @@
       "params": [
         {
           "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    "launcher.agentCard": {
+      "description": "Launcher agent card in the two-column grid",
+      "selectorPattern": "[data-testid=\"launcher-agent-${label}\"]",
+      "testIdPattern": "launcher-agent-${label}",
+      "params": [
+        {
+          "name": "label",
+          "type": "string"
+        }
+      ]
+    },
+    "launcher.machineOption": {
+      "description": "Machine row inside the launcher machine picker listbox",
+      "selectorPattern": "[data-testid=\"launcher-machine-option-${targetId}\"]",
+      "testIdPattern": "launcher-machine-option-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarRow": {
+      "description": "Waiting role row in the workspace sidebar",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarStart": {
+      "description": "Start control on a waiting role row",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-start-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-start-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarHandoff": {
+      "description": "Handoff control on a waiting role row",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-handoff-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-handoff-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.sidebarMenu": {
+      "description": "Overflow menu control on a waiting role row",
+      "selectorPattern": "[data-testid=\"sidebar-waiting-role-menu-${roleId}\"]",
+      "testIdPattern": "sidebar-waiting-role-menu-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "roles.tabRow": {
+      "description": "Waiting role chip in the tab strip",
+      "selectorPattern": "[data-testid=\"tab-waiting-role-${roleId}\"]",
+      "testIdPattern": "tab-waiting-role-${roleId}",
+      "params": [
+        {
+          "name": "roleId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoff.target": {
+      "description": "Selectable target row in the handoff composer",
+      "selectorPattern": "[data-testid=\"handoff-target-${targetId}\"]",
+      "testIdPattern": "handoff-target-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoff.result": {
+      "description": "Per-target result line after a handoff is sent",
+      "selectorPattern": "[data-testid=\"handoff-result-${targetId}\"]",
+      "testIdPattern": "handoff-result-${targetId}",
+      "params": [
+        {
+          "name": "targetId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.selectRow": {
+      "description": "Selection checkbox for a group row in the manager",
+      "selectorPattern": "[data-testid=\"manage-groups-select-${groupId}\"]",
+      "testIdPattern": "manage-groups-select-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.closeRow": {
+      "description": "Close control for a group row in the manager",
+      "selectorPattern": "[data-testid=\"manage-groups-close-${groupId}\"]",
+      "testIdPattern": "manage-groups-close-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerOption": {
+      "description": "Group card in the group picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-option-${groupId}\"]",
+      "testIdPattern": "group-picker-option-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerEditRow": {
+      "description": "Group row in the picker overlay while editing",
+      "selectorPattern": "[data-testid=\"group-picker-edit-${groupId}\"]",
+      "testIdPattern": "group-picker-edit-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerRename": {
+      "description": "Rename field for a group in the picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-rename-${groupId}\"]",
+      "testIdPattern": "group-picker-rename-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerRecolor": {
+      "description": "Colour control for a group in the picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-recolor-${groupId}\"]",
+      "testIdPattern": "group-picker-recolor-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "groups.pickerCloseGroup": {
+      "description": "Close control for a group in the picker overlay",
+      "selectorPattern": "[data-testid=\"group-picker-close-${groupId}\"]",
+      "testIdPattern": "group-picker-close-${groupId}",
+      "params": [
+        {
+          "name": "groupId",
+          "type": "string"
+        }
+      ]
+    },
+    "templates.row": {
+      "description": "Template row in the templates panel",
+      "selectorPattern": "[data-testid=\"group-template-${templateId}\"]",
+      "testIdPattern": "group-template-${templateId}",
+      "params": [
+        {
+          "name": "templateId",
+          "type": "string"
+        }
+      ]
+    },
+    "templates.deleteRow": {
+      "description": "Delete control for a template row",
+      "selectorPattern": "[data-testid=\"group-template-delete-${templateId}\"]",
+      "testIdPattern": "group-template-delete-${templateId}",
+      "params": [
+        {
+          "name": "templateId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoffRules.row": {
+      "description": "Rule row in the handoff rules panel",
+      "selectorPattern": "[data-testid=\"handoff-rule-${ruleId}\"]",
+      "testIdPattern": "handoff-rule-${ruleId}",
+      "params": [
+        {
+          "name": "ruleId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoffRules.toggleRow": {
+      "description": "Enable toggle for a rule row",
+      "selectorPattern": "[data-testid=\"handoff-rule-toggle-${ruleId}\"]",
+      "testIdPattern": "handoff-rule-toggle-${ruleId}",
+      "params": [
+        {
+          "name": "ruleId",
+          "type": "string"
+        }
+      ]
+    },
+    "handoffRules.deleteRow": {
+      "description": "Delete control for a rule row",
+      "selectorPattern": "[data-testid=\"handoff-rule-delete-${ruleId}\"]",
+      "testIdPattern": "handoff-rule-delete-${ruleId}",
+      "params": [
+        {
+          "name": "ruleId",
           "type": "string"
         }
       ]
@@ -328,6 +1238,17 @@
         }
       ]
     },
+    "locale.toggle": {
+      "description": "Locale switcher toggle button for a specific locale code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "string"
+        }
+      ]
+    },
     "messages.pane": {
       "description": "Messages pane for a session",
       "selectorPattern": "[data-testid=\"messages-pane-${sessionId}\"]",
@@ -369,6 +1290,119 @@
         {
           "name": "eventId",
           "type": "string"
+        }
+      ]
+    },
+    "messages.navResultRow": {
+      "description": "Message navigator result row by event ID",
+      "selectorPattern": "[data-testid=\"msg-jump-item-${eventId}\"]",
+      "testIdPattern": "msg-jump-item-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.navChip": {
+      "description": "Message navigator primary filter chip",
+      "selectorPattern": "[data-testid=\"msg-nav-chip-${id}\"]",
+      "testIdPattern": "msg-nav-chip-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "enum",
+          "values": [
+            "all",
+            "user",
+            "assistant",
+            "failed",
+            "unheard"
+          ]
+        }
+      ]
+    },
+    "messages.navSourceOption": {
+      "description": "Message navigator source filter option",
+      "selectorPattern": "[data-testid=\"msg-nav-source-${source}\"]",
+      "testIdPattern": "msg-nav-source-${source}",
+      "params": [
+        {
+          "name": "source",
+          "type": "enum",
+          "values": [
+            "claude",
+            "codex",
+            "opencode",
+            "grok"
+          ]
+        }
+      ]
+    },
+    "messages.navStatusOption": {
+      "description": "Message navigator status filter option",
+      "selectorPattern": "[data-testid=\"msg-nav-status-${status}\"]",
+      "testIdPattern": "msg-nav-status-${status}",
+      "params": [
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "all",
+            "unheard",
+            "played",
+            "failed",
+            "summarized"
+          ]
+        }
+      ]
+    },
+    "messages.navContentOption": {
+      "description": "Message navigator content filter option",
+      "selectorPattern": "[data-testid=\"msg-nav-content-${content}\"]",
+      "testIdPattern": "msg-nav-content-${content}",
+      "params": [
+        {
+          "name": "content",
+          "type": "enum",
+          "values": [
+            "all",
+            "code",
+            "fileReference",
+            "long"
+          ]
+        }
+      ]
+    },
+    "messages.navSortOption": {
+      "description": "Message navigator sort option",
+      "selectorPattern": "[data-testid=\"msg-nav-sort-${mode}\"]",
+      "testIdPattern": "msg-nav-sort-${mode}",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "oldest",
+            "newest",
+            "relevance"
+          ]
+        }
+      ]
+    },
+    "messages.navGroupOption": {
+      "description": "Message navigator grouping option",
+      "selectorPattern": "[data-testid=\"msg-nav-group-${mode}\"]",
+      "testIdPattern": "msg-nav-group-${mode}",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "turn",
+            "flat",
+            "role"
+          ]
         }
       ]
     }

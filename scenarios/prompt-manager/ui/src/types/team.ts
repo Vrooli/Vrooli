@@ -6,7 +6,6 @@
 
 // Re-export API types from schemas (these include runtime validation)
 export type {
-  DecisionMode,
   RuntimeMode,
   CoordinationPattern,
   ReportingMode,

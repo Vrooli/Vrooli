@@ -1,22 +1,25 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/sessions"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"golang.org/x/crypto/bcrypt"
+	adminhttp "landing-page-business-suite-api/handlers/administration"
 )
 
 func TestHandleAdminLogin_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 	cleanupAdminSessions(t, db)
 
@@ -40,15 +43,9 @@ func TestHandleAdminLogin_Success(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp LoginResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
+	resp, loginError := adminhttp.LoginSession(req, rr, adminhttp.LoginRequest{Email: "admin@test.com", Password: "validpassword123"}, server.adminSessionDependencies())
+	if loginError != nil {
+		t.Fatalf("login failed: %v", loginError)
 	}
 	if !resp.Authenticated {
 		t.Error("Expected authenticated=true")
@@ -58,29 +55,8 @@ func TestHandleAdminLogin_Success(t *testing.T) {
 	}
 }
 
-func TestHandleAdminLogin_InvalidBody(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	server := &Server{
-		db:             db,
-		sessionManager: NewMockSessionManager(),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/login", strings.NewReader("invalid json"))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	server.handleAdminLogin(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", rr.Code)
-	}
-}
-
 func TestHandleAdminLogin_InvalidCredentials(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 
 	// Create test admin user
@@ -103,16 +79,14 @@ func TestHandleAdminLogin_InvalidCredentials(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
+	_, loginError := adminhttp.LoginSession(req, rr, adminhttp.LoginRequest{Email: "admin@test.com", Password: "wrongpassword"}, server.adminSessionDependencies())
+	if loginError == nil || loginError.Status != http.StatusUnauthorized {
+		t.Fatalf("expected unauthorized login error, got %v", loginError)
 	}
 }
 
 func TestHandleAdminLogin_UserNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 
 	server := &Server{
@@ -125,16 +99,14 @@ func TestHandleAdminLogin_UserNotFound(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogin(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
+	_, loginError := adminhttp.LoginSession(req, rr, adminhttp.LoginRequest{Email: "nonexistent@test.com", Password: "anypassword"}, server.adminSessionDependencies())
+	if loginError == nil || loginError.Status != http.StatusUnauthorized {
+		t.Fatalf("expected unauthorized login error, got %v", loginError)
 	}
 }
 
 func TestHandleAdminLogout_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -160,11 +132,7 @@ func TestHandleAdminLogout_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/logout", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogout(rr, req)
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("Expected status 204, got %d", rr.Code)
-	}
+	adminhttp.LogoutSession(req, rr, server.adminSessionDependencies())
 
 	// Verify session was deleted from database
 	var count int
@@ -178,7 +146,6 @@ func TestHandleAdminLogout_Success(t *testing.T) {
 
 func TestHandleAdminLogout_NoSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -188,17 +155,11 @@ func TestHandleAdminLogout_NoSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/logout", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminLogout(rr, req)
-
-	// Should still return success even without session
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("Expected status 204, got %d", rr.Code)
-	}
+	adminhttp.LogoutSession(req, rr, server.adminSessionDependencies())
 }
 
 func TestHandleAdminSession_ValidSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -224,24 +185,14 @@ func TestHandleAdminSession_ValidSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/session", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminSession(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp LoginResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if !resp.Authenticated {
+	resp, authenticated := adminhttp.ReadSession(req, rr, server.adminSessionDependencies())
+	if !authenticated || !resp.Authenticated {
 		t.Error("Expected authenticated=true")
 	}
 }
 
 func TestHandleAdminSession_NoSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -251,16 +202,14 @@ func TestHandleAdminSession_NoSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/session", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminSession(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
+	_, authenticated := adminhttp.ReadSession(req, rr, server.adminSessionDependencies())
+	if authenticated {
+		t.Fatal("expected no authenticated session")
 	}
 }
 
 func TestHandleAdminSession_ExpiredSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -286,16 +235,14 @@ func TestHandleAdminSession_ExpiredSession(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/session", nil)
 	rr := httptest.NewRecorder()
 
-	server.handleAdminSession(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
+	_, authenticated := adminhttp.ReadSession(req, rr, server.adminSessionDependencies())
+	if authenticated {
+		t.Fatal("expected expired session to be rejected")
 	}
 }
 
 func TestRequireAdmin_ValidSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -338,7 +285,6 @@ func TestRequireAdmin_ValidSession(t *testing.T) {
 
 func TestRequireAdmin_NoSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -363,9 +309,122 @@ func TestRequireAdmin_NoSession(t *testing.T) {
 	}
 }
 
+func TestRequireAdminOrService_RejectsBearerWithoutAdminSession(t *testing.T) {
+	server := &Server{db: setupTestDB(t), sessionManager: NewMockSessionManager()}
+	called := false
+	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil)
+	req.Header.Set("Authorization", "Bearer service-token")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if called || rr.Code != http.StatusUnauthorized {
+		t.Fatalf("shared bearer token must be rejected: called=%v status=%d", called, rr.Code)
+	}
+}
+
+func TestRequireAdminOrService_AllowsConfiguredServiceToken(t *testing.T) {
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "1")
+	t.Setenv("LPBS_SERVICE_SECRET", "service-token")
+	server := &Server{}
+	called := false
+	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+		called = r.Context().Value(servicePrincipalContextKey) == "lpbs-service"
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer service-token")
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	if rr.Code != http.StatusNoContent || !called {
+		t.Fatalf("service request was not accepted and attributed: status=%d called=%v", rr.Code, called)
+	}
+}
+
+func TestRequireAdminOrService_RejectsMalformedAuthorization(t *testing.T) {
+	server := &Server{}
+	handler := server.requireAdminOrService(func(http.ResponseWriter, *http.Request) { t.Fatal("malformed token reached handler") })
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Token service-token")
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d, want %d", rr.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestRequireAdminOrService_AllowsValidAdminSessionFallback(t *testing.T) {
+	mockSession := NewMockSessionManager()
+	mockSession.SetSessionValues("admin_session", map[interface{}]interface{}{
+		"email": "admin@test.com",
+	})
+	server := &Server{sessionManager: mockSession}
+	called := false
+	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil)
+	req.Header.Set("Authorization", "Bearer wrong-token")
+
+	handler.ServeHTTP(rr, req)
+
+	if !called || rr.Code != http.StatusNoContent {
+		t.Errorf("admin-session fallback = called %v, status %d; want true, %d", called, rr.Code, http.StatusNoContent)
+	}
+}
+
+func TestRequireAdmin_RejectsSessionManagerErrors(t *testing.T) {
+	server := &Server{sessionManager: &MockSessionManager{GetError: os.ErrPermission}}
+	handler := server.requireAdmin(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("protected handler must not be called")
+	})
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil))
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestSessionAdminEmail_RejectsInvalidSessions(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	for _, tc := range []struct {
+		name    string
+		manager *MockSessionManager
+		want    string
+		ok      bool
+	}{
+		{name: "session manager error", manager: &MockSessionManager{GetError: os.ErrPermission}},
+		{name: "empty email", manager: NewMockSessionManager()},
+		{name: "whitespace email", manager: NewMockSessionManager()},
+		{name: "valid email", manager: NewMockSessionManager(), want: "admin@example.com", ok: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.name == "whitespace email" {
+				tc.manager.SetSessionValues("admin_session", map[interface{}]interface{}{"email": "  \t"})
+			}
+			if tc.name == "valid email" {
+				tc.manager.SetSessionValues("admin_session", map[interface{}]interface{}{"email": tc.want})
+			}
+			server := &Server{sessionManager: tc.manager}
+
+			email, ok := server.sessionAdminEmail(request)
+
+			if email != tc.want || ok != tc.ok {
+				t.Errorf("sessionAdminEmail() = (%q, %v), want (%q, %v)", email, ok, tc.want, tc.ok)
+			}
+		})
+	}
+}
+
 func TestRequireAdmin_ExpiredSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -408,7 +467,7 @@ func TestRequireAdmin_ExpiredSession(t *testing.T) {
 func TestValidateAdminPasswordUpdate_Valid(t *testing.T) {
 	currentHash, _ := bcrypt.GenerateFromPassword([]byte("oldpassword123"), bcrypt.DefaultCost)
 
-	err := validateAdminPasswordUpdate("newpassword456", string(currentHash))
+	err := adminhttp.ValidateProfilePassword("newpassword456", string(currentHash), "")
 	if err != nil {
 		t.Errorf("Expected no error for valid password, got: %v", err)
 	}
@@ -417,7 +476,7 @@ func TestValidateAdminPasswordUpdate_Valid(t *testing.T) {
 func TestValidateAdminPasswordUpdate_TooShort(t *testing.T) {
 	currentHash, _ := bcrypt.GenerateFromPassword([]byte("oldpassword123"), bcrypt.DefaultCost)
 
-	err := validateAdminPasswordUpdate("short1", string(currentHash))
+	err := adminhttp.ValidateProfilePassword("short1", string(currentHash), "")
 	if err == nil {
 		t.Error("Expected error for short password")
 	}
@@ -429,7 +488,7 @@ func TestValidateAdminPasswordUpdate_TooShort(t *testing.T) {
 func TestValidateAdminPasswordUpdate_NoLetters(t *testing.T) {
 	currentHash, _ := bcrypt.GenerateFromPassword([]byte("oldpassword123"), bcrypt.DefaultCost)
 
-	err := validateAdminPasswordUpdate("123456789012", string(currentHash))
+	err := adminhttp.ValidateProfilePassword("123456789012", string(currentHash), "")
 	if err == nil {
 		t.Error("Expected error for password without letters")
 	}
@@ -441,7 +500,7 @@ func TestValidateAdminPasswordUpdate_NoLetters(t *testing.T) {
 func TestValidateAdminPasswordUpdate_NoDigits(t *testing.T) {
 	currentHash, _ := bcrypt.GenerateFromPassword([]byte("oldpassword123"), bcrypt.DefaultCost)
 
-	err := validateAdminPasswordUpdate("onlylettershere", string(currentHash))
+	err := adminhttp.ValidateProfilePassword("onlylettershere", string(currentHash), "")
 	if err == nil {
 		t.Error("Expected error for password without digits")
 	}
@@ -451,48 +510,15 @@ func TestValidateAdminPasswordUpdate_NoDigits(t *testing.T) {
 }
 
 func TestValidateAdminPasswordUpdate_SameAsOld(t *testing.T) {
-	password := "samepassword123"
-	currentHash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	currentPassphrase := "same-admin-credential-123"
+	currentHash, _ := bcrypt.GenerateFromPassword([]byte(currentPassphrase), bcrypt.DefaultCost)
 
-	err := validateAdminPasswordUpdate(password, string(currentHash))
+	err := adminhttp.ValidateProfilePassword(currentPassphrase, string(currentHash), "")
 	if err == nil {
 		t.Error("Expected error for same password as current")
 	}
 	if !strings.Contains(err.Error(), "different from the current") {
 		t.Errorf("Expected error about same password, got: %v", err)
-	}
-}
-
-func TestBuildLoginResponse(t *testing.T) {
-	tests := []struct {
-		name          string
-		email         string
-		authenticated bool
-		sessionID     string
-		wantEmail     string
-		wantSessionID string
-	}{
-		{"authenticated with email", "test@example.com", true, "session-abc", "test@example.com", "session-abc"},
-		{"authenticated no email", "", true, "session-abc", "", ""},
-		{"not authenticated", "ignored@example.com", false, "session-abc", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp := buildLoginResponse(tt.email, tt.authenticated, tt.sessionID)
-			if resp.Authenticated != tt.authenticated {
-				t.Errorf("Expected authenticated=%v, got %v", tt.authenticated, resp.Authenticated)
-			}
-			if resp.Email != tt.wantEmail {
-				t.Errorf("Expected email='%s', got '%s'", tt.wantEmail, resp.Email)
-			}
-			if resp.SessionID != tt.wantSessionID {
-				t.Errorf("Expected session_id='%s', got '%s'", tt.wantSessionID, resp.SessionID)
-			}
-			if !resp.ResetEnabled {
-				t.Error("Expected ResetEnabled=true")
-			}
-		})
 	}
 }
 
@@ -516,9 +542,15 @@ func TestGenerateSessionID(t *testing.T) {
 }
 
 func TestIsSecureCookiesEnabled(t *testing.T) {
-	// This tests the function based on environment
-	// Result depends on current env, so we just verify it doesn't panic
-	_ = isSecureCookiesEnabled()
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("LPBS_SECURE_COOKIES", "")
+	if !isSecureCookiesEnabled() {
+		t.Fatal("production must default to secure cookies")
+	}
+	t.Setenv("LPBS_SECURE_COOKIES", "false")
+	if isSecureCookiesEnabled() {
+		t.Fatal("explicit false must disable secure cookies for local development")
+	}
 }
 
 func TestResolveSecret(t *testing.T) {
@@ -529,10 +561,141 @@ func TestResolveSecret(t *testing.T) {
 	}
 }
 
+// isolateSecretResolution prevents production-configuration tests from
+// accidentally consulting a developer's user-level ~/.vrooli/secrets.json.
+// Each test controls the complete secret source it is asserting against.
+func isolateSecretResolution(t *testing.T) {
+	t.Helper()
+	root := t.TempDir()
+	path := filepath.Join(root, ".vrooli", "secrets.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir isolated secrets directory: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write isolated secrets file: %v", err)
+	}
+	t.Setenv("VROOLI_ROOT", root)
+}
+
+func TestInitSessionManagerUsesDistinctEphemeralKeys(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("SESSION_SECRET", "")
+
+	firstManager := initSessionManager()
+	firstRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	firstSession, err := firstManager.GetSession(firstRequest, "admin_session")
+	if err != nil {
+		t.Fatalf("first session: %v", err)
+	}
+	firstSession.Values["email"] = "admin@example.test"
+	firstResponse := httptest.NewRecorder()
+	if err := firstManager.SaveSession(firstRequest, firstResponse, firstSession); err != nil {
+		t.Fatalf("save first session: %v", err)
+	}
+
+	secondRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, cookie := range firstResponse.Result().Cookies() {
+		secondRequest.AddCookie(cookie)
+	}
+	secondManager := initSessionManager()
+	if _, err := secondManager.GetSession(secondRequest, "admin_session"); err == nil {
+		t.Fatal("session signed with an ephemeral key was accepted after a fresh initialization")
+	}
+}
+
+func TestValidateProductionCredentialsRejectsMissingSessionSecret(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "SESSION_SECRET") {
+		t.Fatalf("validateProductionCredentials() error = %v, want missing SESSION_SECRET", err)
+	}
+}
+
+func TestValidateProductionCredentialsRejectsMissingAdminPassword(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "ADMIN_DEFAULT_PASSWORD") {
+		t.Fatalf("validateProductionCredentials() error = %v, want missing ADMIN_DEFAULT_PASSWORD", err)
+	}
+}
+
+func TestValidateProductionCredentialsRejectsWeakAdminPassword(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "changeme123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "at least 12 characters") {
+		t.Fatalf("validateProductionCredentials() error = %v, want weak admin password rejection", err)
+	}
+}
+
+func TestNewServerRejectsMissingProductionSessionSecretBeforeDatabaseConnection(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
+
+	if _, err := NewServer(); err == nil || !strings.Contains(err.Error(), "SESSION_SECRET") {
+		t.Fatalf("NewServer() error = %v, want missing SESSION_SECRET rejection", err)
+	}
+}
+
+func TestValidateProductionCredentialsRejectsMissingMagicLinkBaseURL(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "AUTH_MAGIC_LINK_BASE_URL") {
+		t.Fatalf("validateProductionCredentials() error = %v, want missing AUTH_MAGIC_LINK_BASE_URL", err)
+	}
+}
+
+func TestValidateProductionCredentialsRejectsInsecureMagicLinkBaseURL(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "http://localhost:3000/auth/verify")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "absolute https URL") {
+		t.Fatalf("validateProductionCredentials() error = %v, want https URL validation", err)
+	}
+}
+
+func TestValidateProductionCredentialsAcceptsExplicitSecrets(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
+
+	if err := validateProductionCredentials(); err != nil {
+		t.Fatalf("validateProductionCredentials() error = %v", err)
+	}
+}
+
 func TestSessionManager_Interface(t *testing.T) {
-	// Test that MockSessionManager implements SessionManager
-	var _ SessionManager = &MockSessionManager{}
-	var _ SessionManager = &cookieSessionManager{}
+	managers := []SessionManager{&MockSessionManager{}, &cookieSessionManager{}}
+	if len(managers) != 2 {
+		t.Fatalf("session manager implementations = %d, want 2", len(managers))
+	}
 }
 
 func TestMockSessionManager_SetAndGetValues(t *testing.T) {
@@ -563,14 +726,13 @@ func TestMockSessionManager_SaveError(t *testing.T) {
 	session := sessions.NewSession(nil, "test")
 	err := mock.SaveSession(nil, nil, session)
 
-	if err != sql.ErrConnDone {
+	if !errors.Is(err, sql.ErrConnDone) {
 		t.Errorf("Expected SaveError to be returned, got %v", err)
 	}
 }
 
 func TestHandleAdminProfile_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 
 	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("testpassword123"), bcrypt.DefaultCost)
@@ -592,27 +754,18 @@ func TestHandleAdminProfile_Success(t *testing.T) {
 		sessionManager: mockSession,
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil)
-	rr := httptest.NewRecorder()
-
-	server.handleAdminProfile(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).GetAdminProfile(context.Background(), profileGetRequest(req))
+	if err != nil {
+		t.Fatalf("get profile: %v", err)
 	}
-
-	var resp AdminProfileResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if resp.Email != "profile@test.com" {
-		t.Errorf("Expected email 'profile@test.com', got '%s'", resp.Email)
+	if response.Msg.GetProfile().GetEmail() != "profile@test.com" {
+		t.Errorf("Expected email 'profile@test.com', got '%s'", response.Msg.GetProfile().GetEmail())
 	}
 }
 
 func TestHandleAdminProfileUpdate_SessionInvalidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 	cleanupAdminSessions(t, db)
 
@@ -647,18 +800,13 @@ func TestHandleAdminProfileUpdate_SessionInvalidation(t *testing.T) {
 		sessionManager: mockSession,
 	}
 
-	reqBody, _ := json.Marshal(map[string]string{
-		"current_password": "oldpassword123",
-		"new_password":     "newpassword456",
-	})
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewReader(reqBody))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	server.handleAdminProfileUpdate(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "oldpassword123", NewPassword: "newpassword456"}))
+	if err != nil {
+		t.Fatalf("update profile: %v", err)
+	}
+	if response.Msg.GetProfile().GetEmail() != "update@test.com" {
+		t.Errorf("updated profile email = %q", response.Msg.GetProfile().GetEmail())
 	}
 
 	// Verify other sessions were invalidated

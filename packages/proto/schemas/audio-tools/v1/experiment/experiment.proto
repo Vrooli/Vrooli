@@ -1,0 +1,316 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.experiment;
+
+import "audio-tools/v1/eval/eval.proto";
+import "audio-tools/v1/stt/stt.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment;experiment_v1";
+
+// =============================================================================
+// EXPERIMENT DOMAIN — persisted async STT experiment lifecycle.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain experiment
+// @stability stable
+//
+// Long-running operation surface for Dictation Studio's STT experiment lab.
+// StartExperiment persists a reproducible recipe and returns immediately; the
+// server owns execution, so WaitExperiment cancellation never aborts the run.
+// =============================================================================
+
+service ExperimentService {
+  rpc StartExperiment(StartExperimentRequest) returns (StartExperimentResponse);
+  rpc GetExperiment(GetExperimentRequest) returns (GetExperimentResponse);
+  rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse);
+  rpc ListExperiments(ListExperimentsRequest) returns (ListExperimentsResponse);
+  rpc CancelExperiment(CancelExperimentRequest) returns (CancelExperimentResponse);
+  rpc DeleteExperiment(DeleteExperimentRequest) returns (DeleteExperimentResponse);
+  rpc StreamExperimentEvents(StreamExperimentEventsRequest) returns (stream ExperimentEvent);
+  rpc GetExperimentReport(GetExperimentReportRequest) returns (GetExperimentReportResponse);
+  rpc CompareExperiments(CompareExperimentsRequest) returns (CompareExperimentsResponse);
+  rpc RecordQualificationEvidence(RecordQualificationEvidenceRequest) returns (RecordQualificationEvidenceResponse);
+  rpc ListQualificationEvidence(ListQualificationEvidenceRequest) returns (ListQualificationEvidenceResponse);
+}
+
+enum ExperimentStatus {
+  EXPERIMENT_STATUS_UNSPECIFIED = 0;
+  EXPERIMENT_STATUS_QUEUED = 1;
+  EXPERIMENT_STATUS_RUNNING = 2;
+  EXPERIMENT_STATUS_SUCCEEDED = 3;
+  EXPERIMENT_STATUS_FAILED = 4;
+  EXPERIMENT_STATUS_CANCELED = 5;
+}
+
+message ExperimentRecipe {
+  repeated string clip_ids = 1;
+  repeated vrooli.audio_tools.v1.eval.EvalStrategy strategies = 2;
+  int32 realtime_repeats = 3;
+  int32 chunk_ms = 4;
+  int64 seed = 5;
+  LongFormRecipe long_form = 6;
+  repeated string realized_clip_ids = 7;
+  string realized_reference = 8;
+  int64 realized_duration_ms = 9;
+  AugmentationRecipe augmentation = 10;
+  repeated AugmentationCondition realized_augmentation_conditions = 11;
+  SpeakerExperimentRecipe speaker = 12;
+  repeated SpeakerCondition realized_speaker_conditions = 13;
+  int32 dropped_span_threshold_words = 14;
+  // When realtime_repeats > 0, pace only the final N seconds of each clip at
+  // 1x. A value of 0 keeps full real-time pacing.
+  int32 latency_tail_seconds = 15;
+  // cells supersedes strategy-only execution for new experiments. Legacy
+  // strategies remain readable so historic Whisper reports are explicitly
+  // legacy data rather than a parallel runner.
+  repeated EvaluationCell cells = 16;
+}
+
+enum ReplayLane {
+  REPLAY_LANE_UNSPECIFIED = 0;
+  REPLAY_LANE_DETERMINISTIC = 1;
+  REPLAY_LANE_REALTIME = 2;
+  REPLAY_LANE_PRODUCT_PATH = 3;
+}
+
+// EvaluationCell is one reproducible provider/strategy/policy/fault unit.
+// Promotion requires named lane evidence; tail-latency approximation is never
+// equivalent to a realtime lane.
+message EvaluationCell {
+  string engine_id = 1;
+  string strategy = 2;
+  string policy_profile = 3;
+  ReplayLane replay_lane = 4;
+  string fault_profile = 5;
+  bool warm_start = 6;
+  int32 repeat_count = 7;
+  string label = 8;
+}
+
+message LongFormRecipe {
+  bool enabled = 1;
+  int32 target_duration_seconds = 2;
+  int32 gap_ms = 3;
+  string tag_contains = 4;
+  // sweep_durations_seconds turns one experiment into a length sweep: the
+  // server builds one seeded long-form input per listed duration, so the
+  // metric-vs-length curve is populated with multiple points in a single run.
+  // When non-empty it supersedes target_duration_seconds. Each input uses a
+  // seed derived from the base seed and its duration so orderings differ.
+  repeated int32 sweep_durations_seconds = 5;
+}
+
+message AugmentationRecipe {
+  repeated string noise_types = 1;
+  repeated double snr_db = 2;
+  repeated string competing_voice_ids = 3;
+  string competing_text = 4;
+}
+
+message AugmentationCondition {
+  string id = 1;
+  string kind = 2;
+  string source = 3;
+  double snr_db = 4;
+  bool skipped = 5;
+  string note = 6;
+}
+
+message SpeakerExperimentRecipe {
+  string target_profile_id = 1;
+  bool extraction_enabled = 2;
+  bool verification_enabled = 3;
+  vrooli.audio_tools.v1.stt.SpeakerMode verification_mode = 4;
+  double threshold = 5;
+  bool fallback_without_verification = 6;
+  bool ablation_enabled = 7;
+}
+
+message SpeakerCondition {
+  string id = 1;
+  bool extraction_enabled = 2;
+  bool verification_enabled = 3;
+  vrooli.audio_tools.v1.stt.SpeakerMode verification_mode = 4;
+  bool skipped = 5;
+  string note = 6;
+}
+
+message Experiment {
+  string id = 1;
+  string name = 2;
+  ExperimentStatus status = 3;
+  ExperimentRecipe recipe = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp finished_at = 7;
+  string error = 8;
+  string result_ref = 9;
+  string machine_json = 10;
+}
+
+message ExperimentRun {
+  reserved 5;
+  reserved "metrics_json";
+
+  string id = 1;
+  string experiment_id = 2;
+  string strategy = 3;
+  string condition_json = 4;
+  google.protobuf.Timestamp created_at = 6;
+  string engine_id = 7;
+  string policy_profile = 8;
+  ReplayLane replay_lane = 9;
+  string fault_profile = 10;
+}
+
+message ExperimentEvent {
+  string experiment_id = 1;
+  ExperimentStatus status = 2;
+  int32 progress = 3;
+  string message = 4;
+  google.protobuf.Timestamp at = 5;
+}
+
+// QualificationEvidence is the metadata-only, provider-cell-scoped proof for
+// gates that cannot be inferred from an eval replay: faults, recovery,
+// browser product paths, and physical-device validation. artifact_ref names a
+// durable BAS execution, report, or manually attested artifact; it never
+// contains transcript or audio payload.
+enum QualificationEvidenceKind {
+  QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED = 0;
+  QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING = 1;
+  QUALIFICATION_EVIDENCE_KIND_BOUNDED_RECOVERY = 2;
+  QUALIFICATION_EVIDENCE_KIND_FAULT = 3;
+  QUALIFICATION_EVIDENCE_KIND_BROWSER_PRODUCT_PATH = 4;
+  QUALIFICATION_EVIDENCE_KIND_DEVICE = 5;
+}
+
+message QualificationEvidence {
+  string id = 1;
+  string engine_id = 2;
+  string strategy = 3;
+  string policy_profile = 4;
+  QualificationEvidenceKind kind = 5;
+  string fault_profile = 6;
+  bool passed = 7;
+  string artifact_ref = 8;
+  string notes = 9;
+  string machine_json = 10;
+  google.protobuf.Timestamp observed_at = 11;
+  // Exact engine model qualified by the artifact. Required for promotion so a
+  // same-host model upgrade cannot inherit evidence from the prior model.
+  string model_id = 12;
+}
+
+message StartExperimentRequest {
+  string name = 1;
+  ExperimentRecipe recipe = 2;
+  int32 estimated_seconds = 3;
+  // When true the server validates and resolves the recipe (applying the same
+  // checks a real start performs) and returns the resolved preview WITHOUT
+  // enqueuing anything. Lets an agent confirm a recipe before committing to a
+  // run. The response Experiment has no id and status UNSPECIFIED.
+  bool dry_run = 4;
+}
+
+message StartExperimentResponse {
+  Experiment experiment = 1;
+  int32 estimated_seconds = 2;
+  // Echoes the request's dry_run: true means nothing was enqueued and the
+  // Experiment is a validated preview, not a persisted run.
+  bool dry_run = 3;
+}
+
+message GetExperimentRequest {
+  string id = 1;
+}
+
+message GetExperimentResponse {
+  Experiment experiment = 1;
+  repeated ExperimentRun runs = 2;
+}
+
+message WaitExperimentRequest {
+  string id = 1;
+}
+
+message WaitExperimentResponse {
+  Experiment experiment = 1;
+  repeated ExperimentRun runs = 2;
+}
+
+message ListExperimentsRequest {
+  ExperimentStatus status = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message ListExperimentsResponse {
+  repeated Experiment experiments = 1;
+}
+
+message CancelExperimentRequest {
+  string id = 1;
+}
+
+message CancelExperimentResponse {
+  Experiment experiment = 1;
+}
+
+message DeleteExperimentRequest {
+  string id = 1;
+}
+
+message DeleteExperimentResponse {
+  string id = 1;
+  bool deleted_report = 2;
+}
+
+message StreamExperimentEventsRequest {
+  string id = 1;
+}
+
+message GetExperimentReportRequest {
+  string id = 1;
+}
+
+message GetExperimentReportResponse {
+  Experiment experiment = 1;
+  vrooli.audio_tools.v1.eval.EvalReport report = 2;
+  repeated ExperimentRun runs = 3;
+}
+
+message CompareExperimentsRequest {
+  repeated string ids = 1;
+}
+
+message ComparedExperiment {
+  Experiment experiment = 1;
+  vrooli.audio_tools.v1.eval.EvalReport report = 2;
+  repeated ExperimentRun runs = 3;
+}
+
+message CompareExperimentsResponse {
+  repeated ComparedExperiment experiments = 1;
+}
+
+message RecordQualificationEvidenceRequest {
+  QualificationEvidence evidence = 1;
+}
+
+message RecordQualificationEvidenceResponse {
+  QualificationEvidence evidence = 1;
+}
+
+message ListQualificationEvidenceRequest {
+  string engine_id = 1;
+  string strategy = 2;
+  string policy_profile = 3;
+  string model_id = 4;
+}
+
+message ListQualificationEvidenceResponse {
+  repeated QualificationEvidence evidence = 1;
+}

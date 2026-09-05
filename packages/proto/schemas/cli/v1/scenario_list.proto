@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `scenario list` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape of `vrooli scenario list --json`. Marshaled by the root
+// vrooli CLI with protojson (UseProtoNames=true, EmitUnpopulated=true) and
+// decoded by every consumer from the generated type.
+//
+// Note one intentional normalization vs the legacy hand-rolled JSON: an empty
+// tag set serialized as `"tags": null`; the proto contract serializes it as
+// `"tags": []`. Both mean "no tags" — `[]` is safer for non-Go consumers and
+// identical for Go decoders.
+//
+// Bump @stability to `stable` once consumers are migrated and the golden locks.
+// =============================================================================
+
+// ScenarioListResponse is the top-level envelope of `vrooli scenario list --json`.
+message ScenarioListResponse {
+  // True when discovery completed; mirrors the standard CLI success envelope.
+  bool success = 1;
+
+  // Rollup counts over the returned scenarios.
+  ScenarioListSummary summary = 2;
+
+  // All discovered scenarios, ordered as the CLI emits them.
+  repeated Scenario scenarios = 3;
+
+  // Scenarios skipped due to discovery errors; empty on a clean sweep.
+  repeated DiscoveryFailure discovery_failures = 4;
+
+  // Time at which the control plane completed this inventory projection.
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+// ScenarioListSummary is the count rollup in the `summary` envelope key.
+message ScenarioListSummary {
+  // Total scenarios discovered.
+  int32 total_scenarios = 1;
+
+  // How many of those are currently running.
+  int32 running = 2;
+
+  // How many are available but not running (total - running).
+  int32 available = 3;
+}
+
+// Scenario is one entry from the scenario inventory.
+message Scenario {
+  // Scenario slug (directory name).
+  string name = 1;
+
+  // Human-readable description; empty if unset.
+  string description = 2;
+
+  // Scenario version string; empty if unset.
+  string version = 3;
+
+  // Lifecycle status (e.g. "running", "available").
+  string status = 4;
+
+  // Free-form tags; empty list when the scenario declares none.
+  repeated string tags = 5;
+
+  // Absolute path to the scenario directory.
+  string path = 6;
+
+  // Allocated ports for a running scenario; empty when not running.
+  repeated ScenarioPort ports = 7;
+
+  // Current lifecycle health reported by the control plane.
+  string health_status = 8;
+}
+
+// ScenarioPort describes one allocated port for a running scenario.
+message ScenarioPort {
+  // Port role key (e.g. "API_PORT", "UI_PORT").
+  string key = 1;
+
+  // Lifecycle step that owns the port; empty if unset.
+  string step = 2;
+
+  // Allocated port number.
+  int32 port = 3;
+
+  // Listener status for the port; empty if unset.
+  string listener_status = 4;
+}

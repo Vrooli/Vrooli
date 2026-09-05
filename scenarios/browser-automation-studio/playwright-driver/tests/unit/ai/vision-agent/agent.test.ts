@@ -102,16 +102,12 @@ function createMockVisionClient(): VisionModelClientInterface & {
     getModelSpec(): VisionModelSpecInterface {
       return {
         id: 'mock-model',
-        apiModelId: 'mock/model',
         displayName: 'Mock Model',
-        provider: 'openrouter',
-        inputCostPer1MTokens: 0.1,
-        outputCostPer1MTokens: 0.5,
-        maxContextTokens: 100000,
+        provider: 'mock',
         supportsComputerUse: false,
         supportsElementLabels: true,
         recommended: true,
-        tier: 'budget',
+        tier: 'mock',
       };
     },
 
@@ -270,7 +266,6 @@ function createNavConfig(overrides?: Partial<NavigationConfig>): NavigationConfi
     page: createMockPage(),
     maxSteps: 10,
     model: 'mock-model',
-    apiKey: 'test-key',
     navigationId: 'nav-test-123',
     callbackUrl: 'http://localhost/callback',
     onStep: (step): Promise<void> => {

@@ -4,10 +4,10 @@ import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
-export type HealthStatus = "ok" | "warning" | "critical";
+export type HealthStatus = "ok" | "warning" | "critical" | "not-applicable";
 
 // AI_CHECK: REACT_STABILITY_AUTOHEAL=1 | LAST: 2026-02-18
-const HEALTH_STATUSES: ReadonlySet<HealthStatus> = new Set(["ok", "warning", "critical"]);
+const HEALTH_STATUSES: ReadonlySet<HealthStatus> = new Set(["ok", "warning", "critical", "not-applicable"]);
 
 export function isHealthStatus(value: unknown): value is HealthStatus {
   return typeof value === "string" && HEALTH_STATUSES.has(value as HealthStatus);
@@ -21,7 +21,7 @@ export function normalizeHealthStatus(value: unknown, fallback: HealthStatus = "
 }
 
 // Category groups related health checks for UI organization
-export type CheckCategory = "infrastructure" | "resource" | "scenario";
+export type CheckCategory = "infrastructure" | "resource" | "scenario" | "system";
 
 // SubCheck represents a single sub-check within a compound health check
 export interface SubCheck {
@@ -63,14 +63,18 @@ export interface HealthSummary {
   ok: number;
   warning: number;
   critical: number;
+  notApplicable?: number;
 }
 
 export interface StatusResponse {
   status: HealthStatus;
   platform: PlatformCapabilities;
   summary: HealthSummary;
-  checks: HealthResult[];
-  tickRunning?: boolean;
+	checks: HealthResult[];
+	autoHealSkips?: ActionLog[];
+	/** Latest failed or skipped recovery outcome keyed by check id. */
+	autoHealIssues?: Record<string, ActionLog>;
+	tickRunning?: boolean;
   tickStartedAt?: string | null;
   timestamp: string;
 }
@@ -324,11 +328,89 @@ export interface TimelineResponse {
     ok: number;
     warning: number;
     critical: number;
+    notApplicable?: number;
   };
 }
 
 export async function fetchTimeline(): Promise<TimelineResponse> {
   return apiRequest<TimelineResponse>("/timeline");
+}
+
+export type SystemEventSeverity = "info" | "warning" | "critical";
+
+export interface SystemEvent {
+  id: number;
+  fingerprint: string;
+  occurredAt: string;
+  ingestedAt?: string;
+  source: string;
+  platform: string;
+  category: string;
+  severity: SystemEventSeverity;
+  title: string;
+  summary: string;
+  bootId?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface SystemEventSourceStatus {
+  source: string;
+  platform: string;
+  status: "ok" | "unsupported" | "degraded" | "failed";
+  lastIngestedAt?: string;
+  lastError?: string;
+  capabilities?: Record<string, unknown>;
+}
+
+export interface SystemEventCorrelation {
+  title: string;
+  summary: string;
+  rationale: string;
+  eventIds: number[];
+  eventSources: string[];
+  timeDelta?: string;
+  confidence: string;
+}
+
+export interface SystemEventsResponse {
+  events: SystemEvent[];
+  count: number;
+  sources: SystemEventSourceStatus[];
+  correlations?: SystemEventCorrelation[];
+}
+
+export interface SystemEventsRefreshResponse {
+  ingested: number;
+  deduped: number;
+  sources: SystemEventSourceStatus[];
+  durationMs: number;
+}
+
+export interface SystemEventsParams {
+  since?: string;
+  until?: string;
+  category?: string;
+  severity?: string;
+  source?: string;
+  limit?: number;
+  correlate?: boolean;
+}
+
+export async function fetchSystemEvents(params: SystemEventsParams = {}): Promise<SystemEventsResponse> {
+  const query = new URLSearchParams();
+  if (params.since) query.set("since", params.since);
+  if (params.until) query.set("until", params.until);
+  if (params.category) query.set("category", params.category);
+  if (params.severity) query.set("severity", params.severity);
+  if (params.source) query.set("source", params.source);
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.correlate) query.set("correlate", "true");
+  const suffix = query.toString();
+  return apiRequest<SystemEventsResponse>(`/system-events${suffix ? `?${suffix}` : ""}`);
+}
+
+export async function refreshSystemEvents(): Promise<SystemEventsRefreshResponse> {
+  return apiRequest<SystemEventsRefreshResponse>("/system-events/refresh", { method: "POST" });
 }
 
 // Uptime stats API types
@@ -395,10 +477,10 @@ export async function fetchCheckTrends(hours = 24): Promise<CheckTrendsResponse>
 }
 
 // ============================================================================
-// Incidents API - Status transitions
+// Transitions API - Status transitions
 // ============================================================================
 
-export interface Incident {
+export interface Transition {
   timestamp: string;
   checkId: string;
   fromStatus: string;
@@ -406,14 +488,99 @@ export interface Incident {
   message: string;
 }
 
-export interface IncidentsResponse {
-  incidents: Incident[];
+export interface TransitionsResponse {
+  transitions: Transition[];
   windowHours: number;
   total: number;
 }
 
-export async function fetchIncidents(hours = 24, limit = 50): Promise<IncidentsResponse> {
-  return apiRequest<IncidentsResponse>(`/incidents?hours=${hours}&limit=${limit}`);
+export async function fetchTransitions(hours = 24, limit = 50): Promise<TransitionsResponse> {
+  return apiRequest<TransitionsResponse>(`/transitions?hours=${hours}&limit=${limit}`);
+}
+
+// ============================================================================
+// Incidents API - Durable incident workflow
+// ============================================================================
+
+export type IncidentSeverity = "info" | "warning" | "critical";
+export type IncidentStatus = "open" | "acknowledged" | "resolved" | "ignored";
+export type IncidentType =
+  | "host_integrity"
+  | "unclean_boot"
+  | "resource_failure"
+  | "scenario_failure"
+  | "autoheal_failure"
+  | "manual";
+
+export interface Incident {
+  id: string;
+  fingerprint: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  title: string;
+  summary: string;
+  detectedAt: string;
+  lastSeenAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  acknowledgedAt?: string;
+  ignoredAt?: string;
+  bootId?: string;
+  previousBootId?: string;
+  sourceCheckIds?: string[];
+  sourceResultIds?: string[];
+  evidence?: Record<string, unknown>;
+  recommendations?: string[];
+  eventCount: number;
+  observationCount: number;
+  operatorNotes?: string;
+}
+
+export interface IncidentObservation {
+  id: number;
+  incidentId: string;
+  observedAt: string;
+  sourceCheckId?: string;
+  severity: IncidentSeverity;
+  status?: string;
+  message: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface IncidentsResponse {
+  incidents: Incident[];
+  total: number;
+  filters: Record<string, unknown>;
+}
+
+export async function fetchIncidents(params: {
+  status?: IncidentStatus | "";
+  severity?: IncidentSeverity | "";
+  type?: IncidentType | "";
+  limit?: number;
+} = {}): Promise<IncidentsResponse> {
+  const query = new URLSearchParams();
+  if (params.status) query.set("status", params.status);
+  if (params.severity) query.set("severity", params.severity);
+  if (params.type) query.set("type", params.type);
+  query.set("limit", String(params.limit ?? 50));
+  return apiRequest<IncidentsResponse>(`/incidents?${query.toString()}`);
+}
+
+export async function fetchIncident(id: string): Promise<Incident> {
+  return apiRequest<Incident>(`/incidents/${encodeURIComponent(id)}`);
+}
+
+export async function fetchIncidentObservations(id: string): Promise<{ observations: IncidentObservation[]; total: number }> {
+  return apiRequest<{ observations: IncidentObservation[]; total: number }>(`/incidents/${encodeURIComponent(id)}/observations`);
+}
+
+export async function updateIncidentStatus(id: string, action: "acknowledge" | "resolve" | "ignore", note = ""): Promise<Incident> {
+  return apiRequest<Incident>(`/incidents/${encodeURIComponent(id)}/${action}`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
 }
 
 // ============================================================================
@@ -541,6 +708,7 @@ export const STATUS_SEVERITY: Record<HealthStatus, number> = {
   critical: 2,
   warning: 1,
   ok: 0,
+  "not-applicable": -1,
 };
 
 /**
@@ -554,11 +722,13 @@ export function groupChecksByStatus<T extends HealthResult>(checks: T[]): {
   critical: T[];
   warning: T[];
   ok: T[];
+  notApplicable: T[];
 } {
   return {
     critical: checks.filter((c) => c.status === "critical"),
     warning: checks.filter((c) => c.status === "warning"),
     ok: checks.filter((c) => c.status === "ok"),
+    notApplicable: checks.filter((c) => c.status === "not-applicable"),
   };
 }
 

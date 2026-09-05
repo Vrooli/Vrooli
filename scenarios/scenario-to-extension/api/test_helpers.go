@@ -55,11 +55,11 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	// Create test subdirectories
 	templatesDir := filepath.Join(tempDir, "templates", "vanilla")
 	dataDir := filepath.Join(tempDir, "data", "extensions")
-	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create templates dir: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create data dir: %v", err)
 	}
@@ -73,19 +73,18 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
   "permissions": {{PERMISSIONS}},
   "host_permissions": {{HOST_PERMISSIONS}}
 }`
-	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0o644); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create manifest template: %v", err)
 	}
 
 	// Create test config
 	testConfig := &Config{
-		Port:           3201,
-		APIEndpoint:    "http://localhost:3201",
-		TemplatesPath:  filepath.Join(tempDir, "templates"),
-		OutputPath:     dataDir,
-		BrowserlessURL: "http://localhost:3000",
-		Debug:          false,
+		Port:          3201,
+		APIEndpoint:   "http://localhost:3201",
+		TemplatesPath: filepath.Join(tempDir, "templates"),
+		OutputPath:    dataDir,
+		Debug:         false,
 	}
 
 	return &TestEnvironment{

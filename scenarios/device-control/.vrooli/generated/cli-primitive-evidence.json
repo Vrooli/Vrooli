@@ -1,0 +1,231 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "device-control",
+  "generator": "v1.0.0",
+  "manifest_hash": "6878eb2f22fa6a5e4a2a7e047be39f4d963236571c77a7c94dbd6192b5f3d1f8",
+  "commands": [
+    {
+      "path": "agent abort",
+      "group": "agent",
+      "command": "abort",
+      "binding": "."
+    },
+    {
+      "path": "agent promote",
+      "group": "agent",
+      "command": "promote",
+      "binding": "."
+    },
+    {
+      "path": "agent start",
+      "group": "agent",
+      "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "audit list",
+      "group": "audit",
+      "command": "list",
+      "binding": "EvidenceService.ListAudit"
+    },
+    {
+      "path": "auth create",
+      "group": "auth",
+      "command": "create",
+      "binding": "AuthenticationService.CreateProfile"
+    },
+    {
+      "path": "auth delete-credential",
+      "group": "auth",
+      "command": "delete-credential",
+      "binding": "."
+    },
+    {
+      "path": "auth get",
+      "group": "auth",
+      "command": "get",
+      "binding": "AuthenticationService.GetProfile"
+    },
+    {
+      "path": "auth list",
+      "group": "auth",
+      "command": "list",
+      "binding": "AuthenticationService.ListProfiles"
+    },
+    {
+      "path": "auth provision",
+      "group": "auth",
+      "command": "provision",
+      "binding": "."
+    },
+    {
+      "path": "auth revoke",
+      "group": "auth",
+      "command": "revoke",
+      "binding": "AuthenticationService.RevokeProfile"
+    },
+    {
+      "path": "auth test",
+      "group": "auth",
+      "command": "test",
+      "binding": "AuthenticationService.TestProfile"
+    },
+    {
+      "path": "auth unlock",
+      "group": "auth",
+      "command": "unlock",
+      "binding": "AuthenticationService.UnlockDevice"
+    },
+    {
+      "path": "auth update",
+      "group": "auth",
+      "command": "update",
+      "binding": "AuthenticationService.UpdateProfile"
+    },
+    {
+      "path": "conformance plan",
+      "group": "conformance",
+      "command": "plan",
+      "binding": "."
+    },
+    {
+      "path": "conformance run",
+      "group": "conformance",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "device actuate",
+      "group": "device",
+      "command": "actuate",
+      "binding": "."
+    },
+    {
+      "path": "device connect",
+      "group": "device",
+      "command": "connect",
+      "binding": "DeviceService.ConnectDevice"
+    },
+    {
+      "path": "device describe",
+      "group": "device",
+      "command": "describe",
+      "binding": "."
+    },
+    {
+      "path": "device discover",
+      "group": "device",
+      "command": "discover",
+      "binding": "."
+    },
+    {
+      "path": "device forget",
+      "group": "device",
+      "command": "forget",
+      "binding": "."
+    },
+    {
+      "path": "device list",
+      "group": "device",
+      "command": "list",
+      "binding": "DeviceService.ListDevices"
+    },
+    {
+      "path": "device merge",
+      "group": "device",
+      "command": "merge",
+      "binding": "."
+    },
+    {
+      "path": "device pair",
+      "group": "device",
+      "command": "pair",
+      "binding": "."
+    },
+    {
+      "path": "device promote",
+      "group": "device",
+      "command": "promote",
+      "binding": "."
+    },
+    {
+      "path": "device reconnect",
+      "group": "device",
+      "command": "reconnect",
+      "binding": "DeviceService.ReconnectDevice"
+    },
+    {
+      "path": "device split",
+      "group": "device",
+      "command": "split",
+      "binding": "."
+    },
+    {
+      "path": "device state",
+      "group": "device",
+      "command": "state",
+      "binding": "."
+    },
+    {
+      "path": "device watch",
+      "group": "device",
+      "command": "watch"
+    },
+    {
+      "path": "flow export",
+      "group": "flow",
+      "command": "export",
+      "binding": "."
+    },
+    {
+      "path": "flow run",
+      "group": "flow",
+      "command": "run",
+      "binding": "FlowService.RunFlow"
+    },
+    {
+      "path": "flow validate",
+      "group": "flow",
+      "command": "validate",
+      "binding": "FlowService.ValidateFlow"
+    },
+    {
+      "path": "session acquire",
+      "group": "session",
+      "command": "acquire",
+      "binding": "SessionService.AcquireSession"
+    },
+    {
+      "path": "session kill",
+      "group": "session",
+      "command": "kill",
+      "binding": "SessionService.KillSession"
+    },
+    {
+      "path": "session list",
+      "group": "session",
+      "command": "list",
+      "binding": "SessionService.ListSessions"
+    },
+    {
+      "path": "session release",
+      "group": "session",
+      "command": "release",
+      "binding": "SessionService.ReleaseSession"
+    },
+    {
+      "path": "strategy list",
+      "group": "strategy",
+      "command": "list",
+      "binding": "StrategyService.ListStrategies"
+    },
+    {
+      "path": "strategy verify",
+      "group": "strategy",
+      "command": "verify",
+      "binding": "StrategyService.VerifyStrategy"
+    }
+  ]
+}

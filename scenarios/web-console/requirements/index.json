@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "web-console",
     "generated_at": "2026-02-18T22:07:36-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [
@@ -17,7 +17,12 @@
     "09-session-policy-controls/module.json",
     "10-shortcut-profile-management/module.json",
     "11-ai-provider-policy-controls/module.json",
-    "12-operational-observability-coverage/module.json"
+    "12-operational-observability-coverage/module.json",
+    "13-remote-terminal-targets/module.json",
+    "14-session-groups-roles-and-handoffs/module.json",
+    "15-message-snippets-and-actions/module.json",
+    "16-account-and-paid-inference/module.json",
+    "90-uncovered-targets/module.json"
   ],
   "modules": [
     {
@@ -91,6 +96,30 @@
       "path": "12-operational-observability-coverage",
       "priority": "P1",
       "title": "Operational Observability Coverage"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-remote-terminal-targets",
+      "priority": "P1",
+      "title": "Remote Terminal Targets"
+    },
+    {
+      "id": "MOD-P0-014",
+      "path": "14-session-groups-roles-and-handoffs",
+      "priority": "P0",
+      "title": "Session Groups, Roles, And Handoffs"
+    },
+    {
+      "id": "MOD-P0-015",
+      "path": "15-message-snippets-and-actions",
+      "priority": "P0",
+      "title": "Message Snippets And Actions"
+    },
+    {
+      "id": "MOD-P0-016",
+      "path": "16-account-and-paid-inference",
+      "priority": "P0",
+      "title": "Account And Paid Inference"
     }
   ]
 }

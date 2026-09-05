@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
@@ -17,19 +18,18 @@ var (
 	ErrDatabaseUnavailable           = errors.New("database not available")
 	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
 	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
-	ErrIssueTrackerUnavailable       = errors.New("app-issue-tracker unavailable")
+	ErrSwarmManagerUnavailable       = errors.New("swarm-manager unavailable")
 	ErrPresetNotFound                = errors.New("workspace preset not found")
 	ErrPresetNameRequired            = errors.New("preset name is required")
 )
 
 // Cache and timing constants
 const (
-	orchestratorCacheTTL   = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
-	partialCacheTTL        = 45 * time.Second // Increased proportionally
-	enrichmentCacheTTL     = 90 * time.Second // Per-scenario tech stack / dependency insights
-	completenessCacheTTL   = 24 * time.Hour   // Completeness scores change less frequently than runtime status
-	issueTrackerCacheTTL   = 30 * time.Second
-	issueTrackerFetchLimit = 50
+	orchestratorCacheTTL = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
+	partialCacheTTL      = 45 * time.Second // Increased proportionally
+	enrichmentCacheTTL   = 90 * time.Second // Per-scenario tech stack / dependency insights
+	completenessCacheTTL = 24 * time.Hour   // Completeness scores change less frequently than runtime status
+	fixBacklogCacheTTL   = 30 * time.Second
 )
 
 // Issue attachment constants
@@ -40,7 +40,8 @@ const (
 	attachmentScreenshotName = "screenshot.png"
 	attachmentHealthName     = "health.json"
 	attachmentStatusName     = "status.txt"
-	issueTrackerScenarioID   = "app-issue-tracker"
+	attachmentReportName     = "report.json"
+	swarmManagerScenarioID   = "swarm-manager"
 	reportTitleMaxLength     = 120 // Maximum length for issue report titles
 	reportLabelMaxLength     = 100 // Maximum length for capture labels
 )
@@ -146,6 +147,9 @@ type HTTPClient interface {
 // TimeProvider defines the interface for time operations, allowing for testing with controlled time
 type TimeProvider func() time.Time
 
+// ScenarioURLResolver resolves another scenario's API base URL.
+type ScenarioURLResolver func(ctx context.Context, scenarioSlug string) (string, error)
+
 // =============================================================================
 // Cache Types
 // =============================================================================
@@ -175,16 +179,14 @@ type viewStatsEntry struct {
 	HasLast     bool
 }
 
-// issueCacheEntry stores cached issue information
-type issueCacheEntry struct {
-	issues      []AppIssueSummary
-	scenario    string
-	appID       string
-	trackerURL  string
-	fetchedAt   time.Time
-	openCount   int
-	activeCount int
-	totalCount  int
+// fixCacheEntry stores cached Swarm Manager fix backlog information.
+type fixCacheEntry struct {
+	active    []AppFixSummary
+	archived  []AppFixSummary
+	scenario  string
+	appID     string
+	fixesURL  string
+	fetchedAt time.Time
 }
 
 // enrichmentCacheEntry caches per-scenario tech stack and dependency data
@@ -196,86 +198,27 @@ type enrichmentCacheEntry struct {
 
 // AppService handles business logic for application management
 type AppService struct {
-	repo               repository.AppRepository
-	httpClient         HTTPClient
-	timeNow            TimeProvider
-	cache              *orchestratorCache
-	completenessCache  *completenessCache
-	viewStatsMu        sync.RWMutex
-	viewStats          map[string]*viewStatsEntry
-	issueCacheMu       sync.RWMutex
-	issueCache         map[string]*issueCacheEntry
-	issueCacheTTL      time.Duration
-	repoRoot           string
-	browserlessService *BrowserlessService
-	enrichmentMu       sync.RWMutex
-	enrichmentCache    map[string]*enrichmentCacheEntry // key: lowercase scenario name
-	uiServerPort       string
+	repo              repository.AppRepository
+	httpClient        HTTPClient
+	timeNow           TimeProvider
+	cache             *orchestratorCache
+	completenessCache *completenessCache
+	viewStatsMu       sync.RWMutex
+	viewStats         map[string]*viewStatsEntry
+	issueCacheMu      sync.RWMutex
+	issueCache        map[string]*fixCacheEntry
+	issueCacheTTL     time.Duration
+	repoRoot          string
+	scenarioURL       ScenarioURLResolver
+	enrichmentMu      sync.RWMutex
+	enrichmentCache   map[string]*enrichmentCacheEntry // key: lowercase scenario name
+	uiServerPort      string
+	backgroundWg      sync.WaitGroup
 }
 
 // =============================================================================
 // Orchestrator Types
 // =============================================================================
-
-// OrchestratorResponse represents the response from vrooli scenario status --json
-type OrchestratorResponse struct {
-	Success bool `json:"success"`
-	Summary struct {
-		TotalScenarios int `json:"total_scenarios"`
-		Running        int `json:"running"`
-		Stopped        int `json:"stopped"`
-	} `json:"summary"`
-	Scenarios []OrchestratorApp `json:"scenarios"`
-}
-
-// scenarioStatusDetailedResponse represents a detailed single-scenario status response
-type scenarioStatusDetailedResponse struct {
-	Success      bool   `json:"success"`
-	ScenarioName string `json:"scenario_name"`
-	Insights     struct {
-		Stack struct {
-			Components []string `json:"components"`
-			Tags       []string `json:"tags"`
-		} `json:"stack"`
-		Resources struct {
-			Items []scenarioResourceItem `json:"items"`
-		} `json:"resources"`
-	} `json:"insights"`
-}
-
-// scenarioResourceItem represents a single resource dependency
-type scenarioResourceItem struct {
-	Name        string  `json:"name"`
-	Type        string  `json:"type"`
-	Description string  `json:"description"`
-	Required    bool    `json:"required"`
-	Enabled     bool    `json:"enabled"`
-	Status      string  `json:"status"`
-	Running     bool    `json:"running"`
-	Healthy     bool    `json:"healthy"`
-	Installed   bool    `json:"installed"`
-	Note        *string `json:"note"`
-}
-
-// OrchestratorApp represents an app from the orchestrator
-type OrchestratorApp struct {
-	Name         string         `json:"name"`
-	DisplayName  string         `json:"display_name"`
-	Description  string         `json:"description"`
-	Status       string         `json:"status"`
-	HealthStatus *string        `json:"health_status"`
-	Ports        map[string]int `json:"ports"`
-	Processes    int            `json:"processes"`
-	Runtime      string         `json:"runtime"`
-	StartedAt    string         `json:"started_at,omitempty"`
-	Tags         []string       `json:"tags,omitempty"`
-}
-
-// scenarioListResponse represents the output from `vrooli scenario list --json`
-type scenarioListResponse struct {
-	Success   bool               `json:"success"`
-	Scenarios []scenarioMetadata `json:"scenarios"`
-}
 
 // scenarioMetadata captures static scenario details such as description and filesystem path
 type scenarioMetadata struct {
@@ -321,40 +264,66 @@ type backgroundLogCandidate struct {
 }
 
 // =============================================================================
-// Issue Tracking Types
+// Fix Backlog Types
 // =============================================================================
 
-// AppIssueSummary represents a simplified issue entry from app-issue-tracker.
-type AppIssueSummary struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Status    string `json:"status"`
-	Priority  string `json:"priority,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-	Reporter  string `json:"reporter,omitempty"`
-	IssueURL  string `json:"issue_url,omitempty"`
+// AppFixSummary represents a Swarm Manager fix backlog item targeting a scenario.
+type AppFixSummary struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Title      string `json:"title"`
+	Status     string `json:"status"`
+	Priority   int    `json:"priority,omitempty"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
+	ArchivedAt string `json:"archived_at,omitempty"`
+	Initiative string `json:"initiative,omitempty"`
+	Path       string `json:"path,omitempty"`
+	URL        string `json:"url,omitempty"`
 }
 
-// AppIssuesSummary provides aggregated issue information for an app/scenario.
-type AppIssuesSummary struct {
-	Scenario    string            `json:"scenario"`
-	AppID       string            `json:"app_id"`
-	Issues      []AppIssueSummary `json:"issues"`
-	OpenCount   int               `json:"open_count"`
-	ActiveCount int               `json:"active_count"`
-	TotalCount  int               `json:"total_count"`
-	TrackerURL  string            `json:"tracker_url,omitempty"`
-	LastFetched string            `json:"last_fetched"`
-	FromCache   bool              `json:"from_cache"`
-	Stale       bool              `json:"stale"`
+// AppFixesSummary provides aggregated Swarm Manager fix information for an app/scenario.
+type AppFixesSummary struct {
+	Scenario      string          `json:"scenario"`
+	AppID         string          `json:"app_id"`
+	Active        []AppFixSummary `json:"active"`
+	Archived      []AppFixSummary `json:"archived"`
+	Fixes         []AppFixSummary `json:"fixes"`
+	ActiveCount   int             `json:"active_count"`
+	ArchivedCount int             `json:"archived_count"`
+	TotalCount    int             `json:"total_count"`
+	SwarmURL      string          `json:"swarm_url,omitempty"`
+	LastFetched   string          `json:"last_fetched"`
+	FromCache     bool            `json:"from_cache"`
+	Stale         bool            `json:"stale"`
 }
 
-type issueTrackerAPIResponse struct {
-	Success bool                   `json:"success"`
-	Message string                 `json:"message"`
-	Error   string                 `json:"error"`
-	Data    map[string]interface{} `json:"data"`
+type swarmBacklogItemResponse struct {
+	Item struct {
+		Name   string `json:"name"`
+		Title  string `json:"title"`
+		Kind   string `json:"kind"`
+		Status string `json:"status"`
+	} `json:"item"`
+}
+
+type swarmScenarioContextResponse struct {
+	ScenarioName string `json:"scenario_name"`
+	Fixes        struct {
+		Active   []swarmScenarioFix `json:"active"`
+		Archived []swarmScenarioFix `json:"archived"`
+	} `json:"fixes"`
+}
+
+type swarmScenarioFix struct {
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	Initiative string  `json:"initiative,omitempty"`
+	Updated    string  `json:"updated,omitempty"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+	Path       string  `json:"path"`
 }
 
 // =============================================================================
@@ -382,40 +351,6 @@ type AppScenarioStatus struct {
 	Ports           map[string]int         `json:"ports,omitempty"`
 	Recommendations []string               `json:"recommendations,omitempty"`
 	Details         []string               `json:"details"`
-}
-
-// scenarioStatusCLIResponse represents the parsed JSON output from `vrooli scenario status --json`
-type scenarioStatusCLIResponse struct {
-	Success      bool   `json:"success"`
-	ScenarioName string `json:"scenario_name"`
-	ScenarioData struct {
-		Status         string                  `json:"status"`
-		Runtime        string                  `json:"runtime"`
-		StartedAt      string                  `json:"started_at"`
-		AllocatedPorts map[string]int          `json:"allocated_ports"`
-		Processes      []scenarioStatusProcess `json:"processes"`
-	} `json:"scenario_data"`
-	Diagnostics struct {
-		HealthChecks map[string]scenarioStatusHealthCheck `json:"health_checks"`
-	} `json:"diagnostics"`
-	TestInfrastructure scenarioStatusTestInfrastructure `json:"test_infrastructure"`
-	Recommendations    []string                         `json:"recommendations"`
-	Metadata           struct {
-		Timestamp string `json:"timestamp"`
-	} `json:"metadata"`
-	RawResponse struct {
-		Data struct {
-			Status string `json:"status"`
-		} `json:"data"`
-	} `json:"raw_response"`
-}
-
-type scenarioStatusProcess struct {
-	PID      int               `json:"pid"`
-	Status   string            `json:"status"`
-	StepName string            `json:"step_name"`
-	Ports    map[string]int    `json:"ports"`
-	Meta     map[string]string `json:"meta"`
 }
 
 type scenarioStatusConnectivity struct {
@@ -691,25 +626,41 @@ type IssueCaptureBox struct {
 	Height float64 `json:"height"`
 }
 
-// IssueReportResult represents the outcome of forwarding an issue report
+// IssueReportResult represents the outcome of creating a Swarm Manager fix item.
 type IssueReportResult struct {
-	IssueID  string
-	Message  string
-	IssueURL string
+	Kind    string
+	Name    string
+	URL     string
+	Message string
 }
 
 // =============================================================================
 // Completeness Score Types
 // =============================================================================
 
-// CompletenessResponse represents the raw output from `vrooli scenario completeness --json`
+// CompletenessResponse represents the output from
+// `vrooli scenario completeness score get <name> --json`. This data is owned by
+// the scenario-completeness-scoring scenario (which has its own proto contract);
+// app-monitor only needs the composite score + classification, so this maps that
+// subset. Full typing belongs to that scenario's proto, not vrooli.cli.v1.
 type CompletenessResponse struct {
-	Scenario        string   `json:"scenario"`
-	Category        string   `json:"category"`
-	Score           int      `json:"score"`
-	Classification  string   `json:"classification"`
-	Warnings        []string `json:"warnings,omitempty"`
-	Recommendations []string `json:"recommendations,omitempty"`
+	Scenario        string                       `json:"scenario"`
+	Category        string                       `json:"category"`
+	Composite       CompletenessComposite        `json:"composite"`
+	Recommendations []CompletenessRecommendation `json:"recommendations,omitempty"`
+}
+
+// CompletenessComposite is the rolled-up score block.
+type CompletenessComposite struct {
+	Score          int    `json:"score"`
+	Classification string `json:"classification"`
+}
+
+// CompletenessRecommendation is one prioritized improvement suggestion.
+type CompletenessRecommendation struct {
+	Priority     string  `json:"priority"`
+	Description  string  `json:"description"`
+	ImpactPoints float64 `json:"impact_points"`
 }
 
 // CompletenessScore represents human-readable completeness output for display

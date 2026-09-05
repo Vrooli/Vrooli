@@ -1,3 +1,22 @@
+---
+name: "interoperability-steer"
+description: "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture"]
+  tags: ["proto","types","validation","contracts"]
+  status: "active"
+  revision: 46
+  createdAt: "2026-01-30T15:30:00-05:00"
+  updatedAt: "2026-02-05T01:01:21Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Interoperability Steer
 
 Prioritize **hardening end-to-end interoperability** — both UI↔API within `scenarios/{{TARGET}}/` and API↔API across scenario boundaries — across contracts, serialization, discovery, dependency declarations, and runtime recovery.
@@ -27,7 +46,7 @@ Inter-scenario communication is the connective tissue of Vrooli. When `{{TARGET}
 - **Status drift:** `complete` vs `completed`, top-level `status` vs `run.status`.
 - **Lifecycle drift:** code depends on another scenario that service manifest does not declare.
 - **Operational ambiguity:** no clear fail-fast vs graceful-degrade policy.
-- **UI casing mismatch:** UI expects `camelCase`, API sends `snake_case`; parsers silently drop fields without `useProtoNames`.
+- **UI casing mismatch:** UI hand-reads `camelCase` while API sends proto-name JSON (`snake_case`), causing fields to disappear outside the generated parser.
 - **UI type divergence:** hand-written TypeScript interfaces drift from proto definitions, hiding missing/renamed fields until runtime.
 
 Proto-first contracts are necessary but not sufficient. This skill ensures interoperability is robust across **schema + serialization + UI consumption + discovery + lifecycle + runtime behavior**.
@@ -39,7 +58,9 @@ Proto-first contracts are necessary but not sufficient. This skill ensures inter
 **In scope**
 - Proto schema structure, naming, validation annotations.
 - Proto generation and breakage detection workflow.
-- Type-safe contract consumption (`fromJson`, `toJsonString`, `protojson`).
+- Type-safe contract consumption through generated Connect-RPC clients and,
+  for REST exceptions, generated descriptor parsing (`fromJson`,
+  `toJsonString`, `protojson`).
 - UI↔API contract safety: generated type usage, casing options, and validation in frontend code.
 - Runtime boundary validation (protovalidate).
 - Inter-scenario URL resolution and addressing patterns.
@@ -51,7 +72,8 @@ Proto-first contracts are necessary but not sufficient. This skill ensures inter
 **Out of scope**
 - API product design decisions (resource model, endpoint UX) -> `api-steer`.
 - Domain/business logic implementation.
-- gRPC vs REST preference debates.
+- Transport preference debates for proto-owned payloads; Connect-RPC is the
+  baseline substrate.
 - Language-specific build tooling internals beyond interoperability impact.
 
 ---
@@ -75,8 +97,8 @@ INTEROP CONTRACT STACK
 │ L2 Envelope & Status Semantics                         │
 │ run.status path, terminal values, error/result fields  │
 ├─────────────────────────────────────────────────────────┤
-│ L1 Serialization Contract                              │
-│ useProtoNames, casing, protojson/fromJson/toJsonString │
+│ L1 Transport + Serialization Contract                  │
+│ Connect-RPC for proto payloads; proto JSON for REST    │
 ├─────────────────────────────────────────────────────────┤
 │ L0 Schema Contract                                     │
 │ packages/proto/schemas + protovalidate constraints     │
@@ -89,6 +111,33 @@ Applicability:
 - L5 applies to both: inter-scenario (retry/re-resolve) and UI↔API (error states, loading, retry UX).
 
 **Steer:** "Using protos" only addresses L0-L1. Most production interop failures — whether UI↔API or API↔API — happen at L2-L5.
+
+Connect-RPC is now the substrate for proto-owned wire calls. Generated
+transport code moves method paths, request/response typing, and error codes
+out of hand-written UI/API/CLI glue.
+
+**Wire format decision tree:**
+- Inter-scenario API↔API: **Connect-RPC**.
+- UI↔API for proto-typed payloads: **Connect-RPC**.
+- CLI↔API for proto-typed payloads: **Connect-RPC**.
+- File uploads / opaque binary edges: **REST with multipart**
+  (`RESTReason: multipart_upload`); proto describes metadata only.
+- Webhook receivers: **REST/JSON** with the shape the third party
+  dictates (`RESTReason: webhook_receiver`).
+- Third-party API consumption / OAuth callbacks / OpenAPI passthrough:
+  **REST/JSON** with the third-party shape (`RESTReason: third_party_shape`).
+- Operational probes that lifecycle systems, load balancers, and curl must
+  reach without a generated client: **REST/JSON**
+  (`RESTReason: ops_probe`) — e.g. `GET /health`.
+- Non-proto-typed internal endpoints: there should be none. Add a proto.
+
+The four REST exception reasons are the only mechanically-allowed escape
+hatches. They are enumerated as `RESTReason*` constants in
+`path:templates/scenarios/react-vite/api/internal/module/module.go`, and
+enforced by `validateTransport` in
+`path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go`.
+Adding a fifth reason is a deliberate architectural decision; it requires
+editing the template's constants, not a local workaround.
 
 ---
 
@@ -164,7 +213,7 @@ cd packages/proto
 make generate
 make lint
 make breaking
-make check
+make verify-committed-gen
 ```
 
 Breaking-change guidance:
@@ -183,19 +232,40 @@ Do not bypass generated types using `as SomeType`/`any` where schemas are availa
 
 #### 6.2 JSON Casing Compatibility
 
-Use explicit options for casing compatibility:
-- TypeScript: `jsonOptions: { useProtoNames: true }`
-- Go: `protojson.MarshalOptions{UseProtoNames: true}` and `UnmarshalOptions{DiscardUnknown: true}` as appropriate.
+Connect clients handle proto JSON casing for Connect-RPC calls. The manual
+proto JSON rules below apply only to REST exceptions, external APIs, stored
+fixtures, and other places where generated Connect clients are not the
+transport:
+- TypeScript read: `fromJson(MessageSchema, payload, { ignoreUnknownFields: true })`
+- TypeScript write: `toJsonString(MessageSchema, message, { useProtoFieldName: true })`
+- Go write: `protojson.MarshalOptions{UseProtoNames: true}`
+- Go ingress: `protojson.UnmarshalOptions{DiscardUnknown: false}` when rejecting unknown request fields; use `DiscardUnknown: true` only for forward-compatible response reads.
+
+TypeScript `fromJson` accepts both proto field names (`created_at`) and JSON/lowerCamel names (`createdAt`). Do not add manual casing transforms between UI and API.
+
+Multipart/form-data and raw file uploads are transport exceptions. Send file bytes as multipart parts or binary streams, and keep structured metadata in a proto JSON part parsed through the generated descriptor.
 
 #### 6.3 Type Consumption Decision Tree
 
 ```
-Incoming API/WS payload? -> schema parse (fromJson/protojson)
-Outgoing payload? -> schema serialization (toJsonString/protojson)
-Optional field presence check needed? -> explicit presence logic
-UI receiving API response? -> schema parse (fromJson with useProtoNames)
-UI sending to API? -> schema serialization (toJsonString with useProtoNames)
-UI props/types? -> import generated types directly, never hand-written interfaces
+Default: every UI/API/CLI call uses a generated Connect-RPC client.
+         No fromJson, no toJsonString, no casing options needed.
+
+Only branch to a REST path when one of the four RESTReason* constants applies:
+  multipart_upload   -> multipart request; proto JSON for the metadata part
+                         (toJsonString + useProtoFieldName on send; fromJson
+                         + ignoreUnknownFields on the response).
+  webhook_receiver   -> request shape dictated by a third party; accept their
+                         JSON, translate to proto-typed domain events
+                         immediately.
+  third_party_shape  -> third-party OpenAPI/OAuth shape; parse with their
+                         schema, then proto-translate at the boundary.
+  ops_probe          -> plain GET; no payload, no parser.
+
+UI props/types?                       -> import generated types directly,
+                                          never hand-written interfaces.
+Optional field presence check needed? -> explicit presence logic, no truthy
+                                          fallback when 0/"" is valid.
 ```
 
 #### 6.4 Optional Field Handling
@@ -226,22 +296,21 @@ Use a scannable structure to reduce drift.
 | Slot | Canonical Path | Responsibility | Marker |
 |---|---|---|---|
 | [A] | `scenarios/{{TARGET}}/.vrooli/service.json` | scenario dependency declarations | `dependencies.scenarios` |
-| [B] | `scenarios/{{TARGET}}/api/integrations/` | outbound scenario clients | per-dependency adapter files |
+| [B] | `scenarios/{{TARGET}}/api/integrations/` | outbound scenario clients | generated Connect clients behind per-dependency adapters |
 | [C] | `scenarios/{{TARGET}}/api/integrations/contracts/` | envelope/status normalization | centralized extractors/constants |
 | [D] | `scenarios/{{TARGET}}/api/integrations/discovery.go` (or equivalent) | URL resolution | `discovery.ResolveScenarioURLDefault` |
 | [E] | `scenarios/{{TARGET}}/api/integrations/policy.go` | retry/degrade policy | explicit required/optional behavior |
 | [F] | `scenarios/{{TARGET}}/api/integrations/*_test.go` | contract and recovery tests | envelope/status/restart tests |
-| [G] | `scenarios/{{TARGET}}/ui/src/api/` (or equivalent) | UI↔API contract types and fetch wrappers | generated type imports, fromJson/toJsonString usage |
+| [G] | `scenarios/{{TARGET}}/ui/src/api/` | UI↔API contract clients | generated Connect clients, REST-exception helpers |
 
 Flexibility:
-- Existing equivalent layout is acceptable.
-- Keep one canonical location per concern.
+- Keep one canonical location per concern. New React scenarios use `path:ui/src/api/` for UI API clients; `path:ui/src/lib/` remains for pure utilities.
 
 ---
 
 ### 9. Discovery and Addressing Rules
 
-1. Resolve scenario URLs via `api-core/discovery`.
+1. Resolve scenario URLs via `package:api-core/discovery`.
 2. Do not hardcode `localhost:<port>` for scenario-to-scenario calls in production paths.
 3. Do not rely on one-time startup URL capture for long-lived clients.
 4. Re-resolve URL on connection/refused/transport failures (bounded attempts).
@@ -304,15 +373,19 @@ Call fails
 
 - Unsafe type assertions near external payloads.
 - Hand-written duplicate contract types where generated types exist.
-- Missing serialization options causing casing drift.
+- Missing proto JSON serialization options causing casing drift.
 - Stringly status comparisons scattered across files.
 - Hardcoded scenario ports/URLs in integration code.
 - Startup-only client wiring with no reconnect strategy.
 - Undeclared runtime scenario dependencies.
 - Silent degrade behavior with no observable signal.
 - Hand-written TypeScript interfaces duplicating proto message shapes in UI code.
-- UI fetch/axios calls parsing responses without `fromJson` + `useProtoNames`.
-- UI form submissions sending raw objects instead of proto-serialized payloads.
+- UI fetch/axios calls for proto-owned operations instead of generated
+  Connect clients.
+- UI REST-exception helpers parsing responses without `fromJson` in
+  `path:ui/src/api/`.
+- UI REST-exception submissions sending raw metadata objects instead of
+  proto-serialized payloads.
 
 ---
 
@@ -326,6 +399,18 @@ Before changes, assess `{{TARGET}}` posture.
 # Proto usage and unsafe casts
 rg "from '@vrooli/proto-types|@vrooli/proto-types|fromJson|toJsonString|protojson|protovalidate" scenarios/{{TARGET}}/
 rg "as [A-Z][a-zA-Z]+|as any|: any" scenarios/{{TARGET}}/ --glob '!**/*_test.*'
+
+# Anti-pattern: UI hitting proto-owned REST paths directly
+rg "fetch\(.*api/v1|axios\.(get|post|put|delete|patch)\(.*api/v1" packages/ui/ scenarios/{{TARGET}}/ui/
+
+# Anti-pattern: CLI hitting the API via raw APIClient outside REST exceptions
+rg "APIClient\.(Get|Post|Put|Delete|Patch)" scenarios/{{TARGET}}/cli/
+
+# Anti-pattern: literal REST paths inside EndpointDescriptors
+rg "Path:\s*\"/api/v1/" scenarios/{{TARGET}}/api/handlers/ scenarios/{{TARGET}}/api/internal/module/
+
+# REST exception tagging — every REST EndpointDescriptor must set one
+rg "RESTException\s*:\s*&module\.RESTException" scenarios/{{TARGET}}/api/handlers/
 
 # Discovery/addressing and hardcoded ports
 rg "ResolveScenarioURLDefault|ResolveScenarioURL|scenario port|localhost:[0-9]+" scenarios/{{TARGET}}/api --glob '!**/*_test.go'
@@ -345,11 +430,11 @@ rg "interface\s+[A-Z][a-zA-Z]+\s*\{" scenarios/{{TARGET}}/ui/src --type ts
 # UI: unsafe casts near API consumption
 rg "as [A-Z][a-zA-Z]+|as any|: any" scenarios/{{TARGET}}/ui/src --type ts --glob '!**/*.test.*'
 
-# UI: fromJson/fetch usage without useProtoNames
+# UI: fromJson/fetch usage outside the API boundary
 rg "fromJson|fetch|axios|useQuery|useMutation" scenarios/{{TARGET}}/ui/src --type ts
 
 # Proto generation sync
-cd packages/proto && make check
+cd packages/proto && make verify-committed-gen
 ```
 
 #### 14.2 Red Flags Checklist
@@ -364,8 +449,9 @@ cd packages/proto && make check
 - [ ] missing recovery tests for restart/re-resolution.
 - [ ] unsafe casts bypassing schema validation.
 - [ ] hand-written UI interfaces duplicating proto message shapes.
-- [ ] UI parsing API responses without `fromJson` + `useProtoNames`.
-- [ ] UI sending payloads without proto serialization.
+- [ ] UI calling proto-owned operations without generated Connect clients.
+- [ ] UI parsing REST-exception responses without `fromJson` in `path:ui/src/api/`.
+- [ ] UI sending REST-exception metadata without proto serialization.
 
 #### 14.3 Findings Template
 
@@ -432,8 +518,8 @@ A scenario's interop setup is considered proper/complete when:
 | successful run marked cancelled/unknown | envelope parsing mismatch | parser path (`status` vs `run.status`) | parse canonical path in adapter |
 | works only if dependency starts first | startup-only client wiring | startup logs + nil client path | lazy init/retry/recover strategy |
 | feature silently no-ops | optional dependency degrade not surfaced | logs/health/status route | add explicit degrade telemetry and user-visible state |
-| UI shows stale/missing fields after API change | hand-written UI interface not updated | search for duplicated interfaces in `ui/src` | replace with generated proto type imports |
-| API returns data but UI renders blank/wrong values | casing mismatch (snake_case vs camelCase) | check `fromJson` options in UI fetch layer | add `useProtoNames: true` to all `fromJson` calls |
+| UI shows stale/missing fields after API change | hand-written UI interface not updated | search for duplicated interfaces in `path:ui/src` | replace with generated proto type imports |
+| API returns data but UI renders blank/wrong values | manual casing mismatch, bypassed Connect client, or missing proto parse on a REST exception | check `path:ui/src/api/` for generated Connect clients or REST helper parsing | use generated Connect clients for proto-owned calls; centralize REST exceptions in `path:ui/src/api/` |
 
 ---
 
@@ -459,7 +545,7 @@ At session end, update:
 
 ---
 
-### 19. Output Expectations
+### **19. Output Expectations**
 
 You may update in `scenarios/{{TARGET}}/`:
 - proto schemas and generated-type consumers.
@@ -475,7 +561,7 @@ You must:
 - ensure dependency declaration parity.
 - centralize envelope/status normalization.
 - add tests for envelope/status/recovery seams.
-- ensure UI code uses generated proto types with `useProtoNames` at API boundaries.
+- ensure UI code uses generated proto types and proto JSON at API boundaries.
 - document migration paths for breaking changes.
 
 You must NOT:
@@ -487,3 +573,20 @@ You must NOT:
 - make superficial refactors without interoperability impact.
 
 **Avoid superficial changes that rename/restructure code without materially improving interoperability reliability.**
+
+---
+
+### 20. Interop Maturity Model
+
+Use this brief ladder to identify the next concrete move. Each surface (UI↔API, API↔API) can be scored independently.
+
+| Level | Name | What exists |
+|---|---|---|
+| 0 | Untyped JSON | Hand-written interfaces, ad-hoc fetch/axios, no schema parse. |
+| 1 | Proto schemas exist | `packages/proto/schemas/` has the domain; generated types compile. |
+| 2 | Proto JSON at the boundary | `fromJson` / `toJsonString` / `protojson` used at every cross-boundary edge; no manual casing. |
+| 3 | Connect-RPC end to end | UI, CLI, and inter-scenario calls consume generated Connect clients for every proto-owned RPC. REST appears only with a valid `RESTReason*`. |
+| 4 | Validated boundaries + discovery | `protovalidate` enforces request invariants at ingress; URL resolution goes through `api-core/discovery`; bounded retry and re-resolution implemented. |
+| 5 | Codegen drift gate | `validateTransport` (or equivalent) fails the build on hand-authored REST paths without exceptions; parity tests assert UI/CLI ↔ RPC mapping; envelope/status normalization is centralized and tested. |
+
+Last updated: 2026-05-12

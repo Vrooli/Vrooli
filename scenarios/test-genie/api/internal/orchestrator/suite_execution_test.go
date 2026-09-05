@@ -2,30 +2,392 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"test-genie/internal/orchestrator/phasecache"
+	"test-genie/internal/orchestrator/phasecacheidentity"
 	phasespkg "test-genie/internal/orchestrator/phases"
 	reqsync "test-genie/internal/orchestrator/requirements"
+	"test-genie/internal/orchestrator/runnability"
+	"test-genie/internal/orchestrator/targetruntime"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
+	sharedartifacts "test-genie/internal/shared/artifacts"
+	sharedruns "test-genie/internal/shared/runs"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
-type stubRequirementsSyncer struct {
-	calls int
-	last  reqsync.SyncInput
-	err   error
+func TestIsLinkedWorktreeDistinguishesPrimaryAndStrictWorktree(t *testing.T) {
+	primary := t.TempDir()
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", primary}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	runGit("init")
+	runGit("config", "user.email", "tests@example.invalid")
+	runGit("config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(primary, "tracked.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit("add", "tracked.txt")
+	runGit("commit", "-m", "fixture")
+	linked := filepath.Join(t.TempDir(), "linked")
+	runGit("worktree", "add", linked)
+	if isLinkedWorktree(primary) {
+		t.Fatal("primary checkout must not satisfy strict linked-worktree provenance")
+	}
+	if !isLinkedWorktree(linked) {
+		t.Fatal("linked worktree must satisfy strict provenance precondition")
+	}
 }
 
-func (s *stubRequirementsSyncer) Sync(ctx context.Context, input reqsync.SyncInput) error {
+func TestFileDeterminedProviderPhasesAreCacheEligible(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
+	o, err := NewSuiteOrchestrator(filepath.Join(repoRoot, "scenarios"))
+	if err != nil {
+		t.Fatalf("NewSuiteOrchestrator: %v", err)
+	}
+	defs, err := o.discoverPhaseDefinitions(workspacepkg.Environment{})
+	if err != nil {
+		t.Fatalf("discover phase definitions: %v", err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioDir:                  filepath.Join(repoRoot, "scenarios", "meta-optimization-manager"),
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	eligible := 0
+	for _, def := range defs {
+		if strings.TrimSpace(def.Determinism.Default) != "file-determined" {
+			continue
+		}
+		eligible++
+		if digest, digestErr := phasecache.ScopedDigest(env.ScenarioDir, def.Determinism.Inputs); digestErr != nil {
+			t.Errorf("phase %s scoped digest: %v", def.Name, digestErr)
+		} else if _, ok := phasecacheidentity.Identity(env, def, nil); !ok {
+			t.Errorf("file-determined phase %s was not cache eligible (digest %q provider %q)", def.Name, digest, def.ProviderScenario)
+		}
+	}
+	if eligible == 0 {
+		t.Fatal("descriptor catalog exposed no file-determined phases")
+	}
+}
+
+func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName:                 "demo",
+		ScenarioDir:                  scenarioDir,
+		ArtifactRoot:                 scenarioDir,
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	phase := phasespkg.Definition{
+		Name:             "structure",
+		ProviderScenario: "structure-health",
+		Determinism:      phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}},
+	}
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should be cache eligible")
+	}
+	if err := phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), "source-run", phasespkg.ExecutionResult{Name: "structure", Status: "passed", DurationMilliseconds: 250}); err != nil {
+		t.Fatal(err)
+	}
+	runLogDir := filepath.Join(scenarioDir, "coverage", "logs", "current-run")
+	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	result, audit, found, _ := phasecacheidentity.Load("", env, "current-run", filepath.Join(runLogDir, "structure.log"), phase, nil)
+	if !found || audit || !result.CacheHit || result.CacheSourceRunID != "source-run" {
+		t.Fatalf("cache lookup = found=%t audit=%t result=%+v", found, audit, result)
+	}
+	if _, err := os.Stat(filepath.Join(runLogDir, "structure.log")); err != nil {
+		t.Fatalf("cache-hit log not written under current run directory: %v", err)
+	}
+}
+
+func TestRunSelectedPhasesServesCacheBeforeAdmission(t *testing.T) {
+	scenarioDir := t.TempDir()
+	env := workspacepkg.Environment{
+		ScenarioName:                 "demo",
+		ScenarioDir:                  scenarioDir,
+		ArtifactRoot:                 scenarioDir,
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.ProviderScenario = "structure-health"
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
+	phase.Concurrency = phasespkg.Concurrency{Mode: "parallel-safe"}
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should be cache eligible")
+	}
+	if err := phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), "source-run", phasespkg.ExecutionResult{Name: "structure", Status: "passed", DurationMilliseconds: 250}); err != nil {
+		t.Fatal(err)
+	}
+
+	broker := &schedulerBrokerStub{kind: "deny", reason: "cache hit must not be admitted"}
+	o := &SuiteOrchestrator{capacity: broker, costEstimator: schedulerCostStub{}, phaseTimeout: time.Second}
+	results, failed, metrics := o.runSelectedPhasesWithRunID(context.Background(), env, runnability.RunContext{}, "current-run", t.TempDir(), []phasespkg.Definition{phase}, nil, false, nil, nil, nil)
+	if failed || len(results) != 1 || !results[0].CacheHit {
+		t.Fatalf("cached execution = failed:%t results:%+v, want one cache hit", failed, results)
+	}
+	if broker.acquires != 0 || metrics.AdmissionAttempts != 0 || metrics.BatchCount != 0 {
+		t.Fatalf("cache hit entered scheduler: acquires=%d attempts=%d batches=%d", broker.acquires, metrics.AdmissionAttempts, metrics.BatchCount)
+	}
+}
+
+func TestPrunedPhaseCacheEntryRecomputesIdenticalVerdict(t *testing.T) {
+	t.Setenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT", "0")
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName:                 "demo",
+		ScenarioDir:                  scenarioDir,
+		ArtifactRoot:                 scenarioDir,
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.ProviderScenario = "structure-health"
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should be cache eligible")
+	}
+	expected := phasespkg.ExecutionResult{Name: "structure", Status: "failed", Findings: []*architecturev1.ArchitectureFinding{{Code: "stable-finding"}}}
+	store := phasecache.New(env.ArtifactRoot)
+	if err := store.Save(phasecache.Key(identity), "source-run", expected); err != nil {
+		t.Fatal(err)
+	}
+	cached, _, found, _ := phasecacheidentity.Load("", env, "cached-run", filepath.Join(t.TempDir(), "cached.log"), phase, nil)
+	if !found {
+		t.Fatal("expected the seeded cache entry to load")
+	}
+
+	pruned, err := store.Prune(context.Background(), phasecache.PrunePolicy{MaxBytes: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pruned.DeletedEntries) != 1 {
+		t.Fatalf("prune result = %+v", pruned)
+	}
+	if _, _, found, _ := phasecacheidentity.Load("", env, "recompute-run", filepath.Join(t.TempDir(), "recompute.log"), phase, nil); found {
+		t.Fatal("evicted entry must become a cache miss")
+	}
+
+	recomputed := phasespkg.ExecutionResult{Name: "structure", Status: "failed", Findings: []*architecturev1.ArchitectureFinding{{Code: "stable-finding"}}}
+	if !phasecache.Equivalent(cached, recomputed) {
+		t.Fatalf("recomputed verdict differs from cached verdict: cached=%+v recomputed=%+v", cached, recomputed)
+	}
+}
+
+func TestPrepareExecutionRebasesAdmissionIdentityBeforeExecution(t *testing.T) {
+	tests := []struct {
+		name   string
+		queued bool
+	}{
+		{name: "immediate request uses current plan", queued: false},
+		{name: "queued request uses current plan", queued: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			createScenarioLayout(t, root, "demo")
+			o, err := NewSuiteOrchestrator(root)
+			if err != nil {
+				t.Fatalf("NewSuiteOrchestrator: %v", err)
+			}
+
+			const runID = "20260827-queued-rebase"
+			request := SuiteExecutionRequest{
+				ScenarioName:                 "demo",
+				RunID:                        runID,
+				CaptureProfile:               "baseline",
+				DiagnosticsPreset:            "full",
+				Preset:                       "comprehensive",
+				ResolvedPhases:               []string{"structure"},
+				AdmissionTreeDigest:          "stale-tree",
+				AdmissionPhaseSetDigest:      "stale-phase-set",
+				AdmissionDescriptorDigest:    "stale-descriptor",
+				AdmissionConfigurationDigest: "stale-configuration",
+				AdmissionQueued:              tt.queued,
+			}
+			prepared, err := o.prepareExecution(request)
+			if err != nil {
+				t.Fatalf("prepareExecution: %v", err)
+			}
+			if prepared.request.AdmissionTreeDigest == "stale-tree" || prepared.request.AdmissionPhaseSetDigest == "stale-phase-set" || prepared.request.AdmissionDescriptorDigest == "stale-descriptor" || prepared.request.AdmissionConfigurationDigest == "stale-configuration" {
+				t.Fatalf("queued request retained stale admission identity: %+v", prepared.request)
+			}
+			if len(prepared.plan.Selected) <= 1 {
+				t.Fatalf("rebased plan selected %d phases, want current comprehensive selection", len(prepared.plan.Selected))
+			}
+			if prepared.env.RunID != runID || prepared.env.CaptureProfile != "baseline" || prepared.env.DiagnosticsPreset != "full" {
+				t.Fatalf("queued rebase dropped execution environment: %+v", prepared.env)
+			}
+			foundWarning := false
+			for _, warning := range prepared.result.Warnings {
+				if strings.Contains(warning, "admission identity changed before execution") {
+					foundWarning = true
+					break
+				}
+			}
+			if !foundWarning {
+				t.Fatalf("rebased result warnings = %v, want queued rebase warning", prepared.result.Warnings)
+			}
+		})
+	}
+}
+
+func TestAppendPhaseCacheFindingNamesPhaseAndCapability(t *testing.T) {
+	result := PhaseExecutionResult{PhasePresentation: &commonv1.PhasePresentation{FocusCapabilityId: "endpoint_proof"}}
+	appendPhaseCacheFinding(&result, "demo", "proto", "test_genie.phase_cache_audit_mismatch", "cache mismatch")
+	if len(result.Findings) != 1 || result.Findings[0].Code != "test_genie.phase_cache_audit_mismatch" {
+		t.Fatalf("findings = %+v", result.Findings)
+	}
+	if !strings.Contains(result.Findings[0].Message, "phase proto capability endpoint_proof") || result.FindingsSummary.GetWarnings() != 1 {
+		t.Fatalf("finding attribution = %+v summary=%+v", result.Findings[0], result.FindingsSummary)
+	}
+}
+
+type stubRequirementsSyncer struct {
+	calls         int
+	snapshotCalls int
+	last          reqsync.SyncInput
+	err           error
+	outcome       *reqsync.SyncOutcome
+}
+
+func TestCompactTerminalSnapshotDropsDetailedPhasePayloads(t *testing.T) {
+	result := &SuiteExecutionResult{Phases: []PhaseExecutionResult{{
+		Name: "security", Status: "failed", DurationSeconds: 3,
+		Classification: "missing_dependency", ClassificationSource: phasespkg.ClassificationSourceProvider,
+		Observations: []phasespkg.Observation{phasespkg.NewErrorObservation("large observation")},
+		Findings:     []*architecturev1.ArchitectureFinding{{Code: "detailed.finding"}},
+		LogPath:      "coverage/logs/security.log",
+	}}}
+	compact := CompactTerminalSnapshot(result)
+	if compact == result || len(compact.Phases) != 1 {
+		t.Fatalf("compact snapshot = %+v", compact)
+	}
+	phase := compact.Phases[0]
+	if phase.LogPath != "" || len(phase.Observations) != 0 || len(phase.Findings) != 0 || phase.Metrics != nil {
+		t.Fatalf("snapshot retained detailed phase payload: %+v", phase)
+	}
+	if phase.Name != "security" || phase.Status != "failed" || phase.DurationSeconds != 3 || phase.ClassificationSource != phasespkg.ClassificationSourceProvider {
+		t.Fatalf("snapshot lost compact phase summary: %+v", phase)
+	}
+}
+
+func TestFinalizeRunRecordPersistsCanonicalTerminalSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	runID := "20260710-142937-ae6a753e"
+	started := time.Now().UTC().Add(-12 * time.Second).Truncate(time.Second)
+	completed := started.Add(12 * time.Second)
+	idx := sharedruns.NewIndex(dir)
+	if err := idx.Append(sharedruns.RunRecord{
+		RunID: runID, Scenario: "demo", StartedAt: started, Status: sharedruns.StatusInProgress,
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	result := &SuiteExecutionResult{
+		RunID: runID, ScenarioName: "demo", StartedAt: started, CompletedAt: completed,
+		Success: false, Verdict: SuiteVerdictFail, PlannedPhases: []string{"unit"},
+		Phases: []PhaseExecutionResult{{Name: "unit", Status: "failed", DurationSeconds: 12}},
+	}
+	(&SuiteOrchestrator{}).finalizeRunRecord(dir, runID, result, []phaseResultView{{
+		Name: "unit", Status: "failed", DurationSeconds: 12,
+	}})
+
+	rec, err := idx.Find(runID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if rec.Status != sharedruns.StatusFailed || len(rec.Phases) != 1 {
+		t.Fatalf("terminal index = %+v", rec)
+	}
+	snapshot, err := idx.ReadTerminalSnapshot(runID)
+	if err != nil {
+		t.Fatalf("read snapshot: %v", err)
+	}
+	var persisted SuiteExecutionResult
+	if err := json.Unmarshal(snapshot.Result, &persisted); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	if persisted.RunID != runID || len(persisted.Phases) != 1 || persisted.Phases[0].DurationSeconds != 12 {
+		t.Fatalf("persisted terminal result = %+v", persisted)
+	}
+}
+
+func TestWriteArtifactCatalogUsesCapturedDescriptorEvidenceKinds(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
+	dir := t.TempDir()
+	runID := "run-artifacts"
+	snapshot, err := sharedruns.NewDescriptorSnapshot([]sharedruns.PhaseDescriptorSnapshot{{
+		Phase: "future-visual", EvidenceKinds: []string{sharedartifacts.ArtifactKindScreenshot},
+		Applicability: sharedruns.ApplicabilityDecisionSnapshot{Status: "applies", Planned: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sharedruns.WriteDescriptorSnapshot(dir, runID, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(sharedartifacts.RunUISmokePagesDir(dir, runID), "home", "screenshot.png")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeArtifactCatalog(dir, runID, time.Unix(100, 0)); err != nil {
+		t.Fatalf("writeArtifactCatalog: %v", err)
+	}
+	catalog, err := sharedartifacts.ReadArtifactCatalog(dir, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Artifacts) != 1 || catalog.Artifacts[0].ProducingPhase != "future-visual" {
+		t.Fatalf("catalog = %+v", catalog)
+	}
+}
+
+func (s *stubRequirementsSyncer) Sync(ctx context.Context, input reqsync.SyncInput) (*reqsync.SyncOutcome, error) {
 	s.calls++
 	s.last = input
-	return s.err
+	return s.outcome, s.err
+}
+
+func (s *stubRequirementsSyncer) Snapshot(ctx context.Context, input reqsync.SyncInput) (*reqsync.SyncOutcome, error) {
+	s.snapshotCalls++
+	s.last = input
+	return s.outcome, s.err
 }
 
 func createScenarioLayout(t *testing.T, root, name string) string {
@@ -55,7 +417,7 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(goMod, []byte("module "+name+"\n\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed api/go.mod: %v", err)
 	}
-	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name)
+	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"cli":{"enabled":true,"command":"%s","adapter":{"kind":"go_module","module_dir":"cli"},"source_build":{"kind":"go_module"},"invoke":{"kind":"installed_command","command":"%s"},"freshness":{"inputs":["cli/**",".vrooli/service.json"]}},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name, name, name)
 	manifestPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
@@ -83,40 +445,11 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), []byte(module), 0o644); err != nil {
 		t.Fatalf("failed to seed module.json: %v", err)
 	}
-	scenarioCLI := filepath.Join(scenarioDir, "cli", name)
-	cliScript := fmt.Sprintf(`#!/usr/bin/env bash
-# Handle no arguments - print help
-if [ -z "$1" ]; then
-  echo "usage: %s <cmd>"
-  exit 0
-fi
-# Handle known commands
-case "$1" in
-  version|--version|-v)
-    echo "%s version 1.0.0"
-    exit 0
-    ;;
-  help|--help|-h)
-    echo "usage: %s <cmd>"
-    exit 0
-    ;;
-  *)
-    # Unknown command - return error
-    echo "error: unknown command '$1'" >&2
-    exit 1
-    ;;
-esac
-`, name, name, name)
-	if err := os.WriteFile(scenarioCLI, []byte(cliScript), 0o755); err != nil {
-		t.Fatalf("failed to seed scenario cli: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte("module "+name+"/cli\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario CLI module: %v", err)
 	}
-	installScript := filepath.Join(scenarioDir, "cli", "install.sh")
-	if err := os.WriteFile(installScript, []byte("#!/usr/bin/env bash\necho install\n"), 0o755); err != nil {
-		t.Fatalf("failed to seed cli/install.sh: %v", err)
-	}
-	batsFile := filepath.Join(scenarioDir, "cli", name+".bats")
-	if err := os.WriteFile(batsFile, []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed cli bats file: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed scenario CLI source: %v", err)
 	}
 	playbookRegistry := fmt.Sprintf(`{"scenario":"%s","playbooks":[]}`, name)
 	registryPath := filepath.Join(scenarioDir, "bas", "registry.json")
@@ -139,14 +472,43 @@ esac
 	return scenarioDir
 }
 
-func skipPlaybooksForTests(t *testing.T) {
-	t.Helper()
-	t.Setenv("TEST_GENIE_SKIP_PLAYBOOKS", "1")
+func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
+	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
+		return phasespkg.RunReport{}
+	}
+	// Provider-backed phases are covered in the phase package. Orchestration
+	// tests replace every discovered runner and detach its provider transport,
+	// so a future provider phase needs no fixture registration and a minimal
+	// fake scenario never depends on live provider APIs.
+	for _, spec := range orchestrator.catalog.All() {
+		spec.Runner = noOp
+		spec.Delegated = nil
+		orchestrator.catalog.Register(spec)
+	}
+}
+
+func TestDiscoverPhaseDefinitionsIgnoresScenarioLocalScripts(t *testing.T) {
+	testDir := t.TempDir()
+	phaseDir := filepath.Join(testDir, "phases")
+	if err := os.MkdirAll(phaseDir, 0o755); err != nil {
+		t.Fatalf("create phase dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(phaseDir, "test-unit.sh"), []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write script phase: %v", err)
+	}
+
+	orchestrator := &SuiteOrchestrator{phaseTimeout: time.Minute}
+	defs, err := orchestrator.discoverPhaseDefinitions(workspacepkg.Environment{CoverageDir: testDir})
+	if err != nil {
+		t.Fatalf("discover phases: %v", err)
+	}
+	if len(defs) != 0 {
+		t.Fatalf("script phases must be ignored, got %d definitions: %#v", len(defs), defs)
+	}
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
-		skipPlaybooksForTests(t)
+	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs catalog phases", func(t *testing.T) {
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -161,8 +523,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case name == "scenario-auditor":
-				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			case isAPIHealthCommand(name, args):
+				return apiHealthStubOutput(args[2]), nil
+			case isDependencyHealthCommand(name, args):
+				return dependencyHealthStubOutput(args[1]), nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
 				return "demo version 1.0.0", nil
 			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
@@ -176,9 +540,19 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		futurePhase := phasespkg.Name("future-provider-fixture")
+		orchestrator.catalog.Register(phasespkg.Spec{
+			Name: futurePhase,
+			Runner: func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+				return phasespkg.RunReport{}
+			},
+		})
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -186,10 +560,23 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		if len(result.Phases) != 11 {
-			t.Fatalf("expected eleven phases, got %d", len(result.Phases))
+		// Derive expectations from the execution plan so descriptor applicability
+		// changes, such as search applying only to search-enabled scenarios, do
+		// not require a hand-maintained fixture list.
+		expected := append([]string(nil), result.PlannedPhases...)
+		futurePlanned := false
+		for _, name := range expected {
+			if name == futurePhase.String() {
+				futurePlanned = true
+				break
+			}
 		}
-		expected := []string{"structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"}
+		if !futurePlanned {
+			t.Fatalf("synthetic phase %q was not planned; orchestration fixtures must accept catalog extensions without registration", futurePhase)
+		}
+		if len(result.Phases) != len(expected) {
+			t.Fatalf("expected %d phases, got %d", len(expected), len(result.Phases))
+		}
 		for _, phase := range result.Phases {
 			if phase.Status != "passed" {
 				t.Fatalf("phase %s expected passed, got %s", phase.Name, phase.Status)
@@ -198,12 +585,61 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 				t.Fatalf("phase %s missing log path", phase.Name)
 			}
 		}
+		actualNames := make([]string, len(result.Phases))
+		for i, p := range result.Phases {
+			actualNames[i] = p.Name
+		}
 		for i, name := range expected {
 			if result.Phases[i].Name != name {
-				t.Fatalf("expected phase %d to be %s but got %s", i, name, result.Phases[i].Name)
+				t.Fatalf("expected phase %d to be %s but got %s (actual=%v)", i, name, result.Phases[i].Name, actualNames)
 			}
 		}
 	})
+}
+
+func TestBuildWarningSummaryGroupsWarningObservationsByPhase(t *testing.T) {
+	results := []PhaseExecutionResult{
+		{
+			Name:    "structure",
+			LogPath: "coverage/logs/run/structure.log",
+			Observations: []phasespkg.Observation{
+				phasespkg.NewSuccessObservation("structure passed"),
+				phasespkg.NewWarningObservation("starter BAS registry is empty"),
+			},
+		},
+		{
+			Name:    "performance",
+			LogPath: "coverage/logs/run/performance.log",
+			Observations: []phasespkg.Observation{
+				phasespkg.NewWarningObservation("seo: 82% below warning threshold 90%"),
+				phasespkg.NewInfoObservation("lighthouse artifact written"),
+			},
+		},
+	}
+
+	summary := BuildWarningSummary("20251208-151044-warnsum0", results)
+	if summary.Total != 2 {
+		t.Fatalf("expected two warnings, got %#v", summary)
+	}
+	if len(summary.Phases) != 2 {
+		t.Fatalf("expected two phase groups, got %#v", summary.Phases)
+	}
+	if summary.Phases[0].Name != "structure" || summary.Phases[0].Count != 1 {
+		t.Fatalf("unexpected first phase summary: %#v", summary.Phases[0])
+	}
+	warning := summary.Phases[1].Warnings[0]
+	if warning.Message != "seo: 82% below warning threshold 90%" {
+		t.Fatalf("unexpected warning message: %#v", warning)
+	}
+	if warning.Source != "observation" {
+		t.Fatalf("expected observation source, got %q", warning.Source)
+	}
+	if warning.LogPath != "coverage/logs/run/performance.log" {
+		t.Fatalf("expected log path to be copied, got %q", warning.LogPath)
+	}
+	if warning.ArtifactPath != filepath.Join("coverage", "runs", "20251208-151044-warnsum0", "phase-results", "performance.json") {
+		t.Fatalf("expected artifact path, got %q", warning.ArtifactPath)
+	}
 }
 
 func TestSuiteOrchestratorPreviewExecutionUsesConfiguredTimeouts(t *testing.T) {
@@ -250,6 +686,88 @@ func TestSuiteOrchestratorPreviewExecutionUsesConfiguredTimeouts(t *testing.T) {
 	})
 }
 
+func TestSuiteOrchestratorPreviewExecutionAppliesDescriptorApplicability(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-PREVIEW-P0] descriptor phase is omitted when target is not applicable", func(t *testing.T) {
+		repoRoot := t.TempDir()
+		root := filepath.Join(repoRoot, "scenarios")
+		createScenarioLayout(t, root, "demo")
+		writeTestGenieDescriptor(t, root, "unit-health", testPhaseDescriptor("unit-health", "unit", `"applicability":{"default":"applies"}`))
+		writeTestGenieDescriptor(t, root, "search-hub", searchDescriptor("search-hub"))
+
+		orchestrator, err := NewSuiteOrchestrator(root)
+		if err != nil {
+			t.Fatalf("failed to init orchestrator: %v", err)
+		}
+
+		preview, err := orchestrator.PreviewExecution(SuiteExecutionRequest{ScenarioName: "demo"})
+		if err != nil {
+			t.Fatalf("preview failed: %v", err)
+		}
+		if hasPlannedPhase(preview.Phases, "search") {
+			t.Fatalf("search phase should not be selected for non-search target: %#v", preview.Phases)
+		}
+		search, ok := plannedPhase(preview.NotApplicablePhases, "search")
+		if !ok {
+			t.Fatalf("search phase should be reported as not applicable: %#v", preview.NotApplicablePhases)
+		}
+		if search.ApplicabilityStatus != "not_applicable" {
+			t.Fatalf("search applicability = %q, want not_applicable", search.ApplicabilityStatus)
+		}
+	})
+
+	t.Run("[REQ:TESTGENIE-ORCH-PREVIEW-P0] descriptor phase is selected when target applicability matches", func(t *testing.T) {
+		repoRoot := t.TempDir()
+		root := filepath.Join(repoRoot, "scenarios")
+		scenarioDir := createScenarioLayout(t, root, "demo")
+		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "search.json"), []byte(`{"enabled":true}`), 0o644); err != nil {
+			t.Fatalf("failed to seed search config: %v", err)
+		}
+		writeTestGenieDescriptor(t, root, "unit-health", testPhaseDescriptor("unit-health", "unit", `"applicability":{"default":"applies"}`))
+		writeTestGenieDescriptor(t, root, "search-hub", searchDescriptor("search-hub"))
+
+		orchestrator, err := NewSuiteOrchestrator(root)
+		if err != nil {
+			t.Fatalf("failed to init orchestrator: %v", err)
+		}
+
+		preview, err := orchestrator.PreviewExecution(SuiteExecutionRequest{ScenarioName: "demo"})
+		if err != nil {
+			t.Fatalf("preview failed: %v", err)
+		}
+		search, ok := plannedPhase(preview.Phases, "search")
+		if !ok {
+			t.Fatalf("search phase should be selected for search target: %#v", preview.Phases)
+		}
+		if search.ApplicabilityStatus != "applies" {
+			t.Fatalf("search applicability = %q, want applies", search.ApplicabilityStatus)
+		}
+		if search.ProviderReadiness != "required_when_applicable" {
+			t.Fatalf("provider readiness = %q, want required_when_applicable", search.ProviderReadiness)
+		}
+	})
+}
+
+func TestSuiteOrchestratorPhasePlanRequiresDescriptorMetadata(t *testing.T) {
+	catalog := phasespkg.NewCatalogFromSpecs(time.Minute, phasespkg.Spec{
+		Name:        phasespkg.Name("search"),
+		Description: "catalog-only fixture",
+		Source:      "validation-provider",
+		Delegated:   &phasespkg.Delegated{ProviderScenario: "search-hub"},
+	})
+	orchestrator := &SuiteOrchestrator{catalog: catalog}
+
+	_, err := orchestrator.buildPhasePlan(workspacepkg.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  t.TempDir(),
+	}, &workspacepkg.Config{}, SuiteExecutionRequest{})
+	if err == nil {
+		t.Fatal("buildPhasePlan succeeded without descriptor metadata")
+	}
+	if !strings.Contains(err.Error(), "phase_applicability_descriptor_missing") {
+		t.Fatalf("error = %q, want phase_applicability_descriptor_missing", err.Error())
+	}
+}
+
 func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-META-P0] execution results retain requested and planned phase metadata", func(t *testing.T) {
 		root := t.TempDir()
@@ -270,6 +788,9 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 			if strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version" {
 				return "test-genie version 1.0.0", nil
 			}
+			if isDependencyHealthCommand(name, args) {
+				return dependencyHealthStubOutput(args[1]), nil
+			}
 			return "", nil
 		})
 
@@ -277,11 +798,12 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
-			Phases:       []string{"structure", "unit", "integration"},
-			Skip:         []string{"integration"},
+			Phases:       []string{"structure", "unit", "docs"},
+			Skip:         []string{"docs"},
 			FailFast:     true,
 		})
 		if err != nil {
@@ -290,11 +812,11 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 		if !result.FailFast {
 			t.Fatalf("expected failFast to be preserved")
 		}
-		expectedRequested := []string{"structure", "unit", "integration"}
+		expectedRequested := []string{"structure", "unit", "docs"}
 		if strings.Join(result.RequestedPhases, ",") != strings.Join(expectedRequested, ",") {
 			t.Fatalf("unexpected requested phases: %#v", result.RequestedPhases)
 		}
-		if strings.Join(result.RequestedSkipPhases, ",") != "integration" {
+		if strings.Join(result.RequestedSkipPhases, ",") != "docs" {
 			t.Fatalf("unexpected requested skip phases: %#v", result.RequestedSkipPhases)
 		}
 		if strings.Join(result.PlannedPhases, ",") != "structure,unit" {
@@ -306,9 +828,119 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 	})
 }
 
+func writeTestGenieDescriptor(t *testing.T, root, scenario, body string) {
+	t.Helper()
+	dir := filepath.Join(root, scenario, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func searchDescriptor(scenario string) string {
+	return `{
+  "schemaVersion":"1.0.0",
+  "scenario":"` + scenario + `",
+  "phase":"search",
+  "description":"Validates search registration.",
+  "source":"validation-provider",
+  "orderHint":2000,
+  "timeout":"120s",
+  "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  "targets":{"kinds":["scenario"],"selection":"enumerate"},
+  "applicability":{"default":"not_applicable","any":[{"fileExists":".vrooli/search.json"},{"serviceCapability":"search"}]},
+  "policy":{
+    "selection":"default_when_applicable",
+    "providerReadiness":"required_when_applicable",
+    "providerLifecycle":"start_if_needed",
+    "freshness":"require_live_contract",
+    "resultGating":"gating",
+    "unavailable":"fail"
+  },
+  "runnability":{"needsUI":false,"needsAPI":false,"requiredResources":[]},
+  "docs":{"path":"scenarios/test-genie/docs/phases/search/README.md"},
+  "maturity":{
+    "version":"2.0.0",
+    "capabilities":[{"id":"registration","label":"Search registration","levels":[{"id":"L0","name":"Missing","description":"Missing search registration.","entry_criteria":[],"exit_criteria":[]}]}],
+    "findings":{
+      "SEARCH_REGISTRATION_MISSING":{
+        "capability_id":"registration",
+        "local_level_impact":"L0",
+        "global_impact":"capability_gap",
+        "dimension":"operational-targets",
+        "severity_default":"SEVERITY_ERROR",
+        "recommended_skill_ids":["search"],
+        "clean_requirement":"required",
+        "fix_class":"manual",
+        "reason":"Requires provider-specific judgment."
+      }
+    },
+    "fallback":{"capability_id":"registration","local_level_impact":"L0","global_impact":"unknown","dimension":"operational-targets","severity_default":"SEVERITY_WARNING","clean_requirement":"advisory"}
+  }
+}`
+}
+
+func testPhaseDescriptor(scenario, phase, applicability string) string {
+	return `{
+  "schemaVersion":"1.0.0",
+  "scenario":"` + scenario + `",
+  "phase":"` + phase + `",
+  "description":"Validates ` + phase + ` health.",
+  "source":"validation-provider",
+  "orderHint":100,
+  "timeout":"120s",
+  "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  "targets":{"kinds":["scenario"],"selection":"enumerate"},
+  ` + applicability + `,
+  "policy":{
+    "selection":"default_when_applicable",
+    "providerReadiness":"required_when_applicable",
+    "providerLifecycle":"start_if_needed",
+    "freshness":"require_live_contract",
+    "resultGating":"gating",
+    "unavailable":"fail"
+  },
+  "runnability":{"needsUI":false,"needsAPI":false,"requiredResources":[]},
+  "docs":{"path":"scenarios/test-genie/docs/phases/` + phase + `/README.md"},
+  "maturity":{
+    "version":"2.0.0",
+    "capabilities":[{"id":"contract","label":"Contract","levels":[{"id":"L0","name":"Missing","description":"Missing contract.","entry_criteria":[],"exit_criteria":[]}]}],
+    "findings":{
+      "TEST_FINDING":{
+        "capability_id":"contract",
+        "local_level_impact":"L0",
+        "global_impact":"capability_gap",
+        "dimension":"operational-targets",
+        "severity_default":"SEVERITY_ERROR",
+        "recommended_skill_ids":["test"],
+        "clean_requirement":"required",
+        "fix_class":"manual",
+        "reason":"Requires provider-specific judgment."
+      }
+    },
+    "fallback":{"capability_id":"contract","local_level_impact":"L0","global_impact":"unknown","dimension":"operational-targets","severity_default":"SEVERITY_WARNING","clean_requirement":"advisory"}
+  }
+}`
+}
+
+func hasPlannedPhase(phases []PlannedPhase, name string) bool {
+	_, ok := plannedPhase(phases, name)
+	return ok
+}
+
+func plannedPhase(phases []PlannedPhase, name string) (PlannedPhase, bool) {
+	for _, phase := range phases {
+		if phase.Name == name {
+			return phase, true
+		}
+	}
+	return PlannedPhase{}, false
+}
+
 func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -323,8 +955,10 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case name == "scenario-auditor":
-				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			case isAPIHealthCommand(name, args):
+				return apiHealthStubOutput(args[2]), nil
+			case isDependencyHealthCommand(name, args):
+				return dependencyHealthStubOutput(args[1]), nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
 				return "demo version 1.0.0", nil
 			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
@@ -338,11 +972,16 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
-		stubSyncer := &stubRequirementsSyncer{}
+		stubRuntimePhaseRunners(orchestrator)
+		stubSyncer := &stubRequirementsSyncer{
+			outcome: &reqsync.SyncOutcome{Synced: true, OTComplete: 1, OTTotal: 3},
+		}
 		orchestrator.requirements = stubSyncer
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -353,6 +992,17 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		if stubSyncer.calls != 1 {
 			t.Fatalf("expected requirements sync to run once, got %d", stubSyncer.calls)
 		}
+		// A full suite run syncs (not snapshots) and the outcome is attached to
+		// the execution result for the report to render.
+		if stubSyncer.snapshotCalls != 0 {
+			t.Fatalf("expected no snapshot calls on a full suite, got %d", stubSyncer.snapshotCalls)
+		}
+		if result.Requirements == nil {
+			t.Fatalf("expected requirements outcome attached to result")
+		}
+		if result.Requirements.OTTotal != 3 || result.Requirements.OTComplete != 1 {
+			t.Fatalf("unexpected requirements counts on result: %#v", result.Requirements)
+		}
 		if stubSyncer.last.ScenarioName != "demo" {
 			t.Fatalf("unexpected scenario name in sync payload: %#v", stubSyncer.last)
 		}
@@ -362,59 +1012,35 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	})
 }
 
-func TestDetectRuntimeURLsFromServiceConfigAndEnv(t *testing.T) {
-	tmp := t.TempDir()
-	// minimal scenario dir
-	if err := os.MkdirAll(filepath.Join(tmp, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("failed to make .vrooli: %v", err)
-	}
-	service := `{
-  "ports": {
-    "ui": { "env_var": "CUSTOM_UI_PORT" },
-    "api": { "env_var": "CUSTOM_API_PORT" }
-  }
-}`
-	if err := os.WriteFile(filepath.Join(tmp, ".vrooli", "service.json"), []byte(service), 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
-	t.Setenv("CUSTOM_UI_PORT", "12345")
-	t.Setenv("CUSTOM_API_PORT", "22345")
+func TestPrepareTargetRuntimeIgnoresGenericPortEnvironment(t *testing.T) {
+	t.Setenv("UI_PORT", "21223")
+	t.Setenv("API_PORT", "15421")
 
-	ui, api := detectRuntimeURLs(tmp)
-	if ui != "http://localhost:12345" {
-		t.Fatalf("expected ui url http://localhost:12345, got %q", ui)
-	}
-	if api != "http://localhost:22345" {
-		t.Fatalf("expected api url http://localhost:22345, got %q", api)
-	}
-}
-
-func TestDetectRuntimeURLsUsesProcessMetadata(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	scenarioDir := filepath.Join(tmp, "scenarios", "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("failed to make scenario .vrooli: %v", err)
-	}
-	procDir := filepath.Join(tmp, ".vrooli", "processes", "scenarios", "demo")
-	if err := os.MkdirAll(procDir, 0o755); err != nil {
-		t.Fatalf("failed to make process dir: %v", err)
-	}
-	uiMeta := `{"port": 3001}`
-	apiMeta := `{"port": 4001}`
-	if err := os.WriteFile(filepath.Join(procDir, "start-ui.json"), []byte(uiMeta), 0o644); err != nil {
-		t.Fatalf("failed to write ui meta: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(procDir, "start-api.json"), []byte(apiMeta), 0o644); err != nil {
-		t.Fatalf("failed to write api meta: %v", err)
+	var started bool
+	orch := &SuiteOrchestrator{
+		newRuntime: func(name, scenarioDir string) *targetruntime.Manager {
+			return targetruntime.New(name, scenarioDir).
+				WithHome(t.TempDir()).
+				WithProbes(func(context.Context, int) bool { return true }, func(int) bool { return true }).
+				WithCommandRunner(func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, command string, args ...string) error {
+					started = true
+					return fmt.Errorf("expected start because generic env vars are not runtime discovery")
+				})
+		},
 	}
 
-	ui, api := detectRuntimeURLs(scenarioDir)
-	if ui != "http://localhost:3001" {
-		t.Fatalf("expected ui url http://localhost:3001, got %q", ui)
+	env := workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: filepath.Join(t.TempDir(), "demo")}
+	uiPhaseName := phasespkg.Name("performance")
+	uiPhaseDef := phasespkg.Definition{Name: uiPhaseName, Capabilities: runnability.PhaseCapabilities{Phase: uiPhaseName.String(), NeedsUI: true}}
+	_, _, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{uiPhaseDef}, SuiteExecutionRequest{}, io.Discard)
+	if err == nil {
+		t.Fatal("expected runtime start failure")
 	}
-	if api != "http://localhost:4001" {
-		t.Fatalf("expected api url http://localhost:4001, got %q", api)
+	if !started {
+		t.Fatal("expected target runtime start attempt")
+	}
+	if strings.Contains(err.Error(), "21223") || strings.Contains(err.Error(), "15421") {
+		t.Fatalf("generic runtime env leaked into error: %v", err)
 	}
 }
 
@@ -438,26 +1064,30 @@ func TestNewRunIDIsUniqueAndSortable(t *testing.T) {
 
 func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] fail-fast halts remaining phases", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
+		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
 		})
-		// Force the structure phase to fail by removing a required file.
-		requiredFile := filepath.Join(scenarioDir, "README.md")
-		if err := os.Remove(requiredFile); err != nil {
-			t.Fatalf("failed to remove %s: %v", requiredFile, err)
-		}
 
 		orchestrator, err := NewSuiteOrchestrator(root)
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
+		// Force structure to fail so fail-fast halts the rest. Portability is a
+		// descriptor-discovered prerequisite and therefore runs before structure;
+		// the failure is injected via the runner rather than by corrupting the
+		// fake layout.
+		orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Name("structure"), Runner: func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
+			return phasespkg.RunReport{Err: fmt.Errorf("forced structure failure")}
+		}})
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
 			FailFast:     true,
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -465,11 +1095,14 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		if result.Success {
 			t.Fatalf("expected failure when first phase exits non-zero")
 		}
-		if len(result.Phases) != 1 {
-			t.Fatalf("expected a single executed phase due to fail-fast, got %d", len(result.Phases))
+		if len(result.Phases) != 2 {
+			t.Fatalf("expected portability plus the failing structure phase, got %d", len(result.Phases))
 		}
-		if result.Phases[0].Name != "structure" || result.Phases[0].Status != "failed" {
-			t.Fatalf("unexpected phase result: %#v", result.Phases[0])
+		if result.Phases[0].Name != "portability" || result.Phases[0].Status != "passed" {
+			t.Fatalf("unexpected portability phase result: %#v", result.Phases[0])
+		}
+		if result.Phases[1].Name != "structure" || result.Phases[1].Status != "failed" {
+			t.Fatalf("unexpected structure phase result: %#v", result.Phases[1])
 		}
 	})
 }
@@ -477,13 +1110,13 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] custom presets are honored", func(t *testing.T) {
 		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-		testDir := filepath.Join(scenarioDir, "coverage")
-		if err := os.MkdirAll(testDir, 0o755); err != nil {
-			t.Fatalf("failed to create coverage dir: %v", err)
+		createScenarioLayout(t, root, "demo")
+		workspace, err := workspacepkg.New(root, "demo")
+		if err != nil {
+			t.Fatalf("failed to resolve test workspace: %v", err)
 		}
 
-		if err := os.WriteFile(filepath.Join(testDir, "presets.json"), []byte(`{"focused":["unit"]}`), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(workspace.CoverageDir, "presets.json"), []byte(`{"focused":["unit"]}`), 0o644); err != nil {
 			t.Fatalf("failed to write preset: %v", err)
 		}
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -497,8 +1130,11 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			if name == "scenario-auditor" {
-				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			if isAPIHealthCommand(name, args) {
+				return apiHealthStubOutput(args[2]), nil
+			}
+			if isDependencyHealthCommand(name, args) {
+				return dependencyHealthStubOutput(args[1]), nil
 			}
 			return "", nil
 		})
@@ -507,6 +1143,7 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
@@ -523,7 +1160,6 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 
 func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] scenario names are validated", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		orchestrator, err := NewSuiteOrchestrator(root)
 		if err != nil {
@@ -541,11 +1177,10 @@ func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 
 func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] testing config disables phases", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
-		if err := os.WriteFile(configPath, []byte(`{"phases":{"integration":{"enabled":false}}}`), 0o644); err != nil {
+		if err := os.WriteFile(configPath, []byte(`{"phases":{"docs":{"enabled":false}}}`), 0o644); err != nil {
 			t.Fatalf("failed to write testing config: %v", err)
 		}
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -563,27 +1198,33 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
+		stubRuntimePhaseRunners(orchestrator)
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
+			UIURL:        "http://127.0.0.1:1",
+			APIURL:       "http://127.0.0.1:2",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
 		}
 		for _, phase := range result.Phases {
-			if phase.Name == "integration" {
-				t.Fatalf("expected integration phase to be disabled via testing config")
+			if phase.Name == "docs" {
+				t.Fatalf("expected docs phase to be disabled via testing config")
 			}
 		}
-		if len(result.Phases) != 10 {
-			t.Fatalf("expected ten phases after disabling integration, got %d", len(result.Phases))
+		// All applicable planned phases run except the one disabled via testing
+		// config (docs). Descriptor-only non-applicable phases, such as search on
+		// a non-search target, are omitted before execution.
+		expectedPhases := len(result.PlannedPhases)
+		if len(result.Phases) != expectedPhases {
+			t.Fatalf("expected %d phases after disabling docs, got %d", expectedPhases, len(result.Phases))
 		}
 	})
 }
 
 func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] config presets constrain execution order", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -609,6 +1250,7 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
 			Preset:       "focused",
+			UIURL:        "http://127.0.0.1:1",
 		})
 		if err != nil {
 			t.Fatalf("execution failed: %v", err)
@@ -627,7 +1269,6 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 
 func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] per-phase timeouts guard against hangs", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -671,11 +1312,17 @@ func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 		if !strings.Contains(phase.Error, "timed out") {
 			t.Fatalf("expected timeout message, got %s", phase.Error)
 		}
+		if len(phase.Findings) != 1 || phase.Findings[0].GetSeverity().String() != "FINDING_SEVERITY_BLOCKER" {
+			t.Fatalf("expected one blocking timeout finding, got %#v", phase.Findings)
+		}
+		if !strings.Contains(phase.Findings[0].GetMessage(), "1s deadline") {
+			t.Fatalf("timeout finding must name the deadline, got %q", phase.Findings[0].GetMessage())
+		}
 	})
 }
 
 func TestRequirementsSyncDecision(t *testing.T) {
-	defs := []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseUnit}}
+	defs := []phaseDefinition{{Name: phasespkg.Name("structure")}, {Name: phasespkg.Name("unit")}}
 	selected := append([]phaseDefinition(nil), defs...)
 	fullPlan := &phasePlan{
 		Definitions: defs,
@@ -696,7 +1343,7 @@ func TestRequirementsSyncDecision(t *testing.T) {
 
 	t.Run("[REQ:TESTGENIE-ORCH-P0] config flag disables sync", func(t *testing.T) {
 		cfg := &workspacepkg.Config{
-			Requirements: workspacepkg.RequirementSettings{
+			Requirements: workspacepkg.SyncRequirementSettings{
 				Sync: boolPtr(false),
 			},
 		}
@@ -739,7 +1386,7 @@ func TestBuildCommandHistory(t *testing.T) {
 	}
 	plan := &phasePlan{
 		PresetUsed: "quick",
-		Selected:   []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseDependencies}},
+		Selected:   []phaseDefinition{{Name: phasespkg.Name("structure")}, {Name: phasespkg.Name("dependencies")}},
 	}
 
 	history := buildCommandHistory(req, plan)
@@ -753,21 +1400,24 @@ func TestBuildCommandHistory(t *testing.T) {
 
 func TestSelectPhases(t *testing.T) {
 	defs := []phaseDefinition{
-		{Name: PhaseStructure},
-		{Name: PhaseDependencies},
-		{Name: PhaseUnit},
+		{Name: phasespkg.Name("structure")},
+		{Name: phasespkg.Name("dependencies")},
+		{Name: phasespkg.Name("unit")},
 	}
 	presets := map[string][]string{
 		"quick": {"structure", "unit"},
 	}
 
+	// A request with no preset and no explicit phases runs every applicable
+	// phase, which is exactly what "comprehensive" names. Reporting "" for it
+	// made Git Control Tower treat a full run as ineligible for baseline reuse.
 	t.Run("defaults to all phases when no hints provided", func(t *testing.T) {
 		selected, preset, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{}, PhaseToggleConfig{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if preset != "" {
-			t.Fatalf("expected empty preset usage, got %s", preset)
+		if preset != phasespkg.PresetComprehensive.String() {
+			t.Fatalf("expected comprehensive preset usage, got %s", preset)
 		}
 		if len(selected) != len(defs) {
 			t.Fatalf("expected %d phases, got %d", len(defs), len(selected))
@@ -785,7 +1435,7 @@ func TestSelectPhases(t *testing.T) {
 		if preset != "quick" {
 			t.Fatalf("expected preset quick, got %s", preset)
 		}
-		if len(selected) != 2 || selected[0].Name != PhaseStructure || selected[1].Name != PhaseUnit {
+		if len(selected) != 2 || selected[0].Name != phasespkg.Name("structure") || selected[1].Name != phasespkg.Name("unit") {
 			t.Fatalf("unexpected preset selection: %#v", selected)
 		}
 		if len(notices.Skipped) != 0 {
@@ -806,9 +1456,70 @@ func TestSelectPhases(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		for _, def := range selected {
-			if def.Name == PhaseDependencies {
+			if def.Name == phasespkg.Name("dependencies") {
 				t.Fatalf("dependency phase should have been skipped")
 			}
+		}
+	})
+
+	t.Run("records skip list notices", func(t *testing.T) {
+		selected, _, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{Skip: []string{"dependencies"}}, PhaseToggleConfig{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(selected) != 2 {
+			t.Fatalf("expected 2 selected phases, got %d", len(selected))
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].Name != "dependencies" || !notices.Skipped[0].Requested {
+			t.Fatalf("expected requested skip notice for dependencies, got %#v", notices.Skipped)
+		}
+		if warnings := buildPlanWarnings(&phasePlan{DisabledByDefault: notices.Skipped}); len(warnings) != 1 || !strings.Contains(warnings[0], "skipped by request") {
+			t.Fatalf("expected requested skip warning, got %#v", warnings)
+		}
+	})
+
+	t.Run("honors env disabled phases before execution", func(t *testing.T) {
+		t.Setenv("TEST_GENIE_SKIP_UNIT", "1")
+		defsWithEnv := append([]phaseDefinition(nil), defs...)
+		for i := range defsWithEnv {
+			if defsWithEnv[i].Name == phasespkg.Name("unit") {
+				defsWithEnv[i].SkipEnvVar = "TEST_GENIE_SKIP_UNIT"
+			}
+		}
+		selected, _, notices, err := selectPhases(defsWithEnv, presets, SuiteExecutionRequest{}, PhaseToggleConfig{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		for _, def := range selected {
+			if def.Name == phasespkg.Name("unit") {
+				t.Fatalf("unit phase should have been skipped via env before execution")
+			}
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].Name != "unit" || notices.Skipped[0].EnvVar != "TEST_GENIE_SKIP_UNIT" {
+			t.Fatalf("expected env skip notice for unit, got %#v", notices.Skipped)
+		}
+		if warnings := buildPlanWarnings(&phasePlan{DisabledByDefault: notices.Skipped}); len(warnings) != 1 || !strings.Contains(warnings[0], "TEST_GENIE_SKIP_UNIT=1") {
+			t.Fatalf("expected env skip warning, got %#v", warnings)
+		}
+	})
+
+	t.Run("env disabled phase is skipped even when explicit", func(t *testing.T) {
+		t.Setenv("TEST_GENIE_SKIP_UNIT", "1")
+		defsWithEnv := append([]phaseDefinition(nil), defs...)
+		for i := range defsWithEnv {
+			if defsWithEnv[i].Name == phasespkg.Name("unit") {
+				defsWithEnv[i].SkipEnvVar = "TEST_GENIE_SKIP_UNIT"
+			}
+		}
+		selected, _, notices, err := selectPhases(defsWithEnv, presets, SuiteExecutionRequest{Phases: []string{"unit"}}, PhaseToggleConfig{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(selected) != 0 {
+			t.Fatalf("expected explicit env-disabled unit to stay unselected, got %#v", selected)
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].EnvVar != "TEST_GENIE_SKIP_UNIT" {
+			t.Fatalf("expected env skip notice, got %#v", notices.Skipped)
 		}
 	})
 
@@ -822,8 +1533,9 @@ func TestSelectPhases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if preset != "" {
-			t.Fatalf("expected empty preset usage, got %s", preset)
+		// Naming the preset must not change what a toggle does to selection.
+		if preset != phasespkg.PresetComprehensive.String() {
+			t.Fatalf("expected comprehensive preset usage, got %s", preset)
 		}
 		if len(selected) != 2 {
 			t.Fatalf("expected 2 phases after disabling unit, got %d", len(selected))
@@ -846,7 +1558,7 @@ func TestSelectPhases(t *testing.T) {
 		if preset != "" {
 			t.Fatalf("expected empty preset usage, got %s", preset)
 		}
-		if len(selected) != 1 || selected[0].Name != PhaseUnit {
+		if len(selected) != 1 || selected[0].Name != phasespkg.Name("unit") {
 			t.Fatalf("expected only unit to be selected, got %#v", selected)
 		}
 		if len(notices.Explicit) != 1 || notices.Explicit[0].Name != "unit" {
@@ -855,9 +1567,86 @@ func TestSelectPhases(t *testing.T) {
 	})
 }
 
+func TestValidateTestingConfigPhasesReportsUnknownKeys(t *testing.T) {
+	defs := []phaseDefinition{
+		{Name: phasespkg.Name("structure")},
+		{Name: phasespkg.Name("unit")},
+	}
+	cfg := &workspacepkg.Config{Phases: map[string]workspacepkg.PhaseSettings{
+		"strcuture": {},
+	}}
+
+	err := validateTestingConfigPhases(defs, cfg)
+	if err == nil {
+		t.Fatal("expected unknown phase error")
+	}
+	msg := err.Error()
+	for _, needle := range []string{`unknown phase "strcuture"`, "available phases: structure, unit"} {
+		if !strings.Contains(msg, needle) {
+			t.Fatalf("error %q missing %q", msg, needle)
+		}
+	}
+}
+
 func boolPtr(value bool) *bool {
 	v := value
 	return &v
+}
+
+func isDependencyHealthCommand(name string, args []string) bool {
+	return name == "scenario-dependency-analyzer" &&
+		len(args) >= 3 &&
+		args[0] == "health" &&
+		args[1] != "" &&
+		args[2] == "--json"
+}
+
+func isAPIHealthCommand(name string, args []string) bool {
+	return name == "api-health" &&
+		len(args) >= 4 &&
+		args[0] == "validate" &&
+		args[1] == "scenario" &&
+		args[2] != "" &&
+		args[3] == "--json"
+}
+
+func apiHealthStubOutput(scenario string) string {
+	return fmt.Sprintf(`{
+		"scenario": %q,
+		"status": "VALIDATION_STATUS_PASSED",
+		"assessment": {
+			"scenario": %q,
+			"provider": "api-health",
+			"phase": "api",
+			"version": "1.0.0",
+			"local": {"currentLevel": "L5", "nextLevel": ""}
+		},
+		"metrics": {"wallClockMs": "1"}
+	}`, scenario, scenario)
+}
+
+func dependencyHealthStubOutput(scenario string) string {
+	return fmt.Sprintf(`{
+		"scenario": %q,
+		"passed": true,
+		"summary": {"sections": 6, "findings": 0, "errors": 0, "warnings": 0, "infos": 0},
+		"sections": [
+			{"id": "surfaces", "title": "Code surfaces", "status": "pass"},
+			{"id": "readiness", "title": "Dependency readiness", "status": "pass"},
+			{"id": "runtime", "title": "Runtime dependencies", "status": "pass"},
+			{"id": "governance", "title": "Approved dependency governance", "status": "pass"},
+			{"id": "release-age", "title": "Package release-age policy", "status": "pass"},
+			{"id": "graph", "title": "Dependency graph drift", "status": "pass"}
+		],
+		"findings": [],
+		"assessment": {
+			"scenario": %q,
+			"provider": "scenario-dependency-analyzer",
+			"phase": "dependencies",
+			"version": "1.0.0",
+			"local": {"currentLevel": "L5", "nextLevel": ""}
+		}
+	}`, scenario, scenario)
 }
 
 func stubCommandLookup(t *testing.T, fn func(string) (string, error)) {
@@ -876,4 +1665,24 @@ func stubPhaseCommandCapture(t *testing.T, fn func(context.Context, string, io.W
 	t.Helper()
 	restore := phasespkg.OverrideCommandCapture(fn)
 	t.Cleanup(restore)
+}
+
+func TestSafePathGlobRejectsEscapesAndOnlyReturnsContainedFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli", "agent-profiles"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profile := filepath.Join(root, ".vrooli", "agent-profiles", "default.json")
+	if err := os.WriteFile(profile, []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	matches, err := safePathGlob(root, ".vrooli/agent-profiles/*.json")
+	if err != nil || len(matches) != 1 || matches[0] != ".vrooli/agent-profiles/default.json" {
+		t.Fatalf("safePathGlob = %v, %v", matches, err)
+	}
+	for _, pattern := range []string{"/etc/*", "../*.json", "["} {
+		if _, err := safePathGlob(root, pattern); err == nil {
+			t.Fatalf("safePathGlob(%q) succeeded, want rejection", pattern)
+		}
+	}
 }

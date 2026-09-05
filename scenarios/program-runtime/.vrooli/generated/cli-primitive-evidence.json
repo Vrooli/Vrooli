@@ -1,0 +1,281 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "program-runtime",
+  "generator": "v1.0.0",
+  "manifest_hash": "f1d8087f706b3fc1b80a52e1450e1f701747c5368fc561f3d98f0363b64b639e",
+  "commands": [
+    {
+      "path": "authoring eval",
+      "group": "authoring",
+      "command": "eval",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings act",
+      "group": "bindings",
+      "command": "act",
+      "binding": "BindingRegistryService.ResolveActCells",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings condition",
+      "group": "bindings",
+      "command": "condition",
+      "binding": "vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings describe",
+      "group": "bindings",
+      "command": "describe",
+      "binding": "BindingRegistryService.DescribeBinding",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings doctor",
+      "group": "bindings",
+      "command": "doctor",
+      "binding": "BindingRegistryService.DoctorBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings list",
+      "group": "bindings",
+      "command": "list",
+      "binding": "BindingRegistryService.ListBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings resolve-intent",
+      "group": "bindings",
+      "command": "resolve-intent",
+      "binding": "BindingRegistryService.ResolveIntent",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings sweep",
+      "group": "bindings",
+      "command": "sweep",
+      "binding": "BindingRegistryService.SweepBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings unbound",
+      "group": "bindings",
+      "command": "unbound",
+      "binding": "BindingRegistryService.ListUnbound",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "discovery eval",
+      "group": "discovery",
+      "command": "eval",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.RunDiscoveryEval",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library get",
+      "group": "library",
+      "command": "get",
+      "binding": "LibraryService.GetLibrary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library list",
+      "group": "library",
+      "command": "list",
+      "binding": "LibraryService.ListLibrary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library promote",
+      "group": "library",
+      "command": "promote",
+      "binding": "LibraryService.PromoteLibrary",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "library run",
+      "group": "library",
+      "command": "run",
+      "binding": "LibraryService.RunDeclaredProgram",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "library search",
+      "group": "library",
+      "command": "search",
+      "binding": ".",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "library set-current",
+      "group": "library",
+      "command": "set-current",
+      "binding": "LibraryService.SetCurrentLibrary",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "programs get",
+      "group": "programs",
+      "command": "get",
+      "binding": "ProgramService.GetProgram",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs governance-share",
+      "group": "programs",
+      "command": "governance-share",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs list",
+      "group": "programs",
+      "command": "list",
+      "binding": "ProgramService.ListPrograms",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs mine",
+      "group": "programs",
+      "command": "mine",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineFailures",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs mine-refusals",
+      "group": "programs",
+      "command": "mine-refusals",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs mine-unresolved",
+      "group": "programs",
+      "command": "mine-unresolved",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs submit",
+      "group": "programs",
+      "command": "submit",
+      "binding": "ProgramService.SubmitProgram",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "programs wait",
+      "group": "programs",
+      "command": "wait",
+      "binding": "ProgramService.WaitForProgram",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "sessions create",
+      "group": "sessions",
+      "command": "create",
+      "binding": "SessionService.CreateSession",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "sessions delegations",
+      "group": "sessions",
+      "command": "delegations",
+      "binding": "SessionService.ListDelegations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "sessions delete",
+      "group": "sessions",
+      "command": "delete",
+      "binding": "SessionService.DeleteSession",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "sessions get",
+      "group": "sessions",
+      "command": "get",
+      "binding": "SessionService.GetSession",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "sessions grant",
+      "group": "sessions",
+      "command": "grant",
+      "binding": "SessionService.GrantSession",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "sessions list",
+      "group": "sessions",
+      "command": "list",
+      "binding": "vrooli.program_runtime.v1.sessions.SessionService.ListSessions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shapes expire",
+      "group": "shapes",
+      "command": "expire",
+      "binding": "ShapeService.ExpireShapes",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "shapes get",
+      "group": "shapes",
+      "command": "get",
+      "binding": "ShapeService.GetShape",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shapes list",
+      "group": "shapes",
+      "command": "list",
+      "binding": "ShapeService.ListShapes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "telemetry events",
+      "group": "telemetry",
+      "command": "events",
+      "binding": "TelemetryService.ListEvents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

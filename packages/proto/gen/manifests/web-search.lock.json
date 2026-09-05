@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "scenario": "web-search",
+  "input_digest": "sha256:a71c146f1574ff3df8e5b46dcd7ff82a2cabfae597e9b520f73be82b5ffdc0bd",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/web-search/v1/errors/errors.proto",
+    "schemas/web-search/v1/findings/findings.proto",
+    "schemas/web-search/v1/health/health.proto",
+    "schemas/web-search/v1/livesearch/livesearch.proto",
+    "schemas/web-search/v1/research/research.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/web-search/v1/errors/errors.pb.go": "sha256:5c4e763bd3af9ba2a7b1ca78b4bc46f1a1e30a9b27e3671f48a8768ca2cfc74e",
+    "gen/go/web-search/v1/findings/findings.pb.go": "sha256:8cc70d43e20e62bbb6357980217a974365909fc39c797ff273c3a755b7ee1897",
+    "gen/go/web-search/v1/findings/findings_v1connect/findings.connect.go": "sha256:6085d1ebc017a2c8debc03c931dc623d87be723abff62ffa46a1a6572233d2ed",
+    "gen/go/web-search/v1/health/health.pb.go": "sha256:04525680b464ffb80136abb997f50bc94082fbae57fa75d55b50d9497378475a",
+    "gen/go/web-search/v1/livesearch/livesearch.pb.go": "sha256:9781ed22a8e149b75cf38835b4df67cecc9a2f0a7581da2c07865395d1e044dd",
+    "gen/go/web-search/v1/livesearch/livesearch_v1connect/livesearch.connect.go": "sha256:246ef190874ab06c17c0657c1747c2e6510918d03215499e7afecfa21bd0dd21",
+    "gen/go/web-search/v1/research/research.pb.go": "sha256:1f9141ebdf11402571be66392a335e68f890fdb57728cd17849e4783117c5d97",
+    "gen/go/web-search/v1/research/research_v1connect/research.connect.go": "sha256:a85cea52466faf235966130e7dfff503f6e789e7c06cc8300680f68f0b7f1b2e",
+    "gen/python/web_search/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/errors/errors_pb2.py": "sha256:717e589d82a2dbdae0d33b75e98975aa4ef847b9c3b11a37667f69cb337c2da2",
+    "gen/python/web_search/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/web_search/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/findings/findings_pb2.py": "sha256:d0d48456f56d7751963bed08c08df7bcb84347d34d16d014e4956b55643fa6bb",
+    "gen/python/web_search/v1/findings/findings_pb2.pyi": "sha256:7da64f2ec6a4356225d6ee9f9f3c9414811f6d2b4cf6408ff698fc3c143d3508",
+    "gen/python/web_search/v1/findings/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/health/health_pb2.py": "sha256:fbd7804871adc5d766fb94c2c1b1854dc9bed9f21d8678728eb0d6657ce2c1d9",
+    "gen/python/web_search/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/web_search/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/livesearch/livesearch_pb2.py": "sha256:4527e0dc29148f9b8fe0aa1393cee088c53a6beb36f98266b2b432263fc6f8f7",
+    "gen/python/web_search/v1/livesearch/livesearch_pb2.pyi": "sha256:ee9a466deb729a112ac2d9c31b554bcb4a2e455a2e16ca1071af0c4a4742351a",
+    "gen/python/web_search/v1/livesearch/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/research/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/web_search/v1/research/research_pb2.py": "sha256:2547e18c2d272fb8409f40d3261864b5eddac318c0884589b6f7fb9329d253a5",
+    "gen/python/web_search/v1/research/research_pb2.pyi": "sha256:65350c0e1e94a1539934d7fc98a97bf370ddf3e471c147685e085c31965b7351",
+    "gen/typescript/web-search/v1/errors/errors_pb.ts": "sha256:84b2811bdc62ec697b024d7c04706589231acd26dddf974e20780c4ae44c19e4",
+    "gen/typescript/web-search/v1/findings/findings_pb.ts": "sha256:9f8fb3eaa6592174ba5e1f3385ad2e030016f90cd5e82d43db95fd1895a566c0",
+    "gen/typescript/web-search/v1/health/health_pb.ts": "sha256:83c16e4d8a3bb92cba82ca0536a64b6b8ec07942ad90dbbed34f97abe171994d",
+    "gen/typescript/web-search/v1/livesearch/livesearch_pb.ts": "sha256:a7e26888e603404e7e87f4e1cb3acfcca5edc92273d17c80a3c7ac0bd71b0b12",
+    "gen/typescript/web-search/v1/research/research_pb.ts": "sha256:5f8ea8a65e1bf51be567609cfc0374cb4437fc89cc43ab743a4ca56f170564ba"
+  }
+}

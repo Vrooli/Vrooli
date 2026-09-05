@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.icon-geometry",
+  "deprecatedVersions": [],
+  "draft": "",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:IconGeometry"
+}

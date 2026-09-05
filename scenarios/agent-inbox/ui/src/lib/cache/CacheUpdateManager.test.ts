@@ -20,8 +20,9 @@ describe("CacheUpdateManager", () => {
       setQueryData: vi.fn((key, updater) => {
         setQueryDataCalls.push({ key: key as unknown[], updater });
       }),
-      invalidateQueries: vi.fn(async (filters: { queryKey?: unknown[] }) => {
+      invalidateQueries: vi.fn((filters: { queryKey?: unknown[] }) => {
         invalidateQueriesCalls.push(filters);
+        return Promise.resolve();
       }),
     };
 
@@ -72,7 +73,7 @@ describe("CacheUpdateManager", () => {
       manager.startStreaming("chat-123");
       expect(manager.isStreaming("chat-123")).toBe(true);
 
-      manager.endStreaming("chat-123");
+      void manager.endStreaming("chat-123");
       expect(manager.isStreaming("chat-123")).toBe(false);
     });
 
@@ -138,7 +139,6 @@ describe("CacheUpdateManager", () => {
           is_read: true,
           is_starred: false,
           is_archived: false,
-          tools_enabled: true,
           web_search_enabled: false,
           label_ids: [],
           created_at: "2024-01-01",
@@ -183,7 +183,6 @@ describe("CacheUpdateManager", () => {
           is_read: true,
           is_starred: false,
           is_archived: false,
-          tools_enabled: true,
           web_search_enabled: false,
           label_ids: [],
           created_at: "",

@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "producer": "browser-automation-studio",
+  "scenario": "vrooli-onboarding",
+  "generated_at": "2026-08-12T23:24:00Z",
+  "records": [
+    {
+      "requirement_id": "ONB-UX-JOURNEY-EVIDENCE",
+      "validation_ref": "bas/evidence/experience-journeys.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution b739118c-24f6-4a33-bae3-93b2a7ffb721 passed with one non-empty video artifact.",
+      "source_path": "bas/cases/experience/consent-to-a-host-safeguard.json",
+      "run_id": "b739118c-24f6-4a33-bae3-93b2a7ffb721",
+      "metadata": {
+        "artifact_path": "execution-b739118c-24f6-4a33-bae3-93b2a7ffb721-page-1.webm",
+        "artifact_sha256": "07825fe5443d0cfbae19287a1d2ad57066e2c2ae386e077f2178158d56530a1c",
+        "artifact_size_bytes": 490226
+      }
+    },
+    {
+      "requirement_id": "ONB-UX-JOURNEY-EVIDENCE",
+      "validation_ref": "bas/evidence/experience-journeys.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution db58d95d-d7f5-4b06-841d-f8af826ad768 passed with one non-empty video artifact.",
+      "source_path": "bas/cases/experience/continue-with-a-degraded-install.json",
+      "run_id": "db58d95d-d7f5-4b06-841d-f8af826ad768",
+      "metadata": {
+        "artifact_path": "execution-db58d95d-d7f5-4b06-841d-f8af826ad768-page-1.webm",
+        "artifact_sha256": "278a9c0a6df94a7399ca5d5685094d39960425cfd168e238f431998d0ac1dc99",
+        "artifact_size_bytes": 221834
+      }
+    },
+    {
+      "requirement_id": "ONB-UX-JOURNEY-EVIDENCE",
+      "validation_ref": "bas/evidence/experience-journeys.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution 1a364e33-d0ec-4c7d-ad6d-401f3cf86e06 passed with one non-empty video artifact.",
+      "source_path": "bas/cases/experience/first-run-to-applied-install.json",
+      "run_id": "1a364e33-d0ec-4c7d-ad6d-401f3cf86e06",
+      "metadata": {
+        "artifact_path": "execution-1a364e33-d0ec-4c7d-ad6d-401f3cf86e06-page-1.webm",
+        "artifact_sha256": "59d9a0c5ca53f499b7d6a07842261e7bf68622ca7d7db0093b2b4d433404d87b",
+        "artifact_size_bytes": 1416535
+      }
+    },
+    {
+      "requirement_id": "ONB-UX-JOURNEY-EVIDENCE",
+      "validation_ref": "bas/evidence/experience-journeys.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution 2ad278a7-6fd6-474a-b004-8781593602e0 passed with one non-empty video artifact.",
+      "source_path": "bas/cases/experience/headless-parity-with-the-ui.json",
+      "run_id": "2ad278a7-6fd6-474a-b004-8781593602e0",
+      "metadata": {
+        "artifact_path": "execution-2ad278a7-6fd6-474a-b004-8781593602e0-page-1.webm",
+        "artifact_sha256": "408c46461d064f3535e3659ab7bda43022482d78d1bcf9d82a4594debc2bcb1d",
+        "artifact_size_bytes": 792871
+      }
+    },
+    {
+      "requirement_id": "ONB-UX-JOURNEY-EVIDENCE",
+      "validation_ref": "bas/evidence/experience-journeys.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution 7810f88d-cd70-4922-a3bf-aa906793c517 passed with one non-empty video artifact.",
+      "source_path": "bas/cases/experience/provision-credential-on-headless-host.json",
+      "run_id": "7810f88d-cd70-4922-a3bf-aa906793c517",
+      "metadata": {
+        "artifact_path": "execution-7810f88d-cd70-4922-a3bf-aa906793c517-page-1.webm",
+        "artifact_sha256": "7b14595b0b5315e94a830ce8f882c16cc6f47e9127dadd99cf88144c0eea6754",
+        "artifact_size_bytes": 232020
+      }
+    },
+    {
+      "requirement_id": "ONB-UX-JOURNEY-EVIDENCE",
+      "validation_ref": "bas/evidence/experience-journeys.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution e1ba1464-f9fe-4031-a43d-44afd61c3ca5 passed with one non-empty video artifact.",
+      "source_path": "bas/cases/experience/re-entry-revise-and-reapply.json",
+      "run_id": "e1ba1464-f9fe-4031-a43d-44afd61c3ca5",
+      "metadata": {
+        "artifact_path": "execution-e1ba1464-f9fe-4031-a43d-44afd61c3ca5-page-1.webm",
+        "artifact_sha256": "33b10f56791cab8d3200548dde1176341a0941d5908cd3490e2c7015c6698998",
+        "artifact_size_bytes": 825853
+      }
+    },
+    {
+      "requirement_id": "ONB-UX-WCAG-AA",
+      "validation_ref": "bas/cases/accessibility/all-steps.json",
+      "status": "passed",
+      "phase": "integration",
+      "evidence": "BAS execution 837143e8-e343-44d2-af88-1c1c45f27c29 passed the all-steps accessibility case with one non-empty video artifact.",
+      "source_path": "bas/cases/accessibility/all-steps.json",
+      "run_id": "837143e8-e343-44d2-af88-1c1c45f27c29",
+      "metadata": {
+        "artifact_path": "execution-837143e8-e343-44d2-af88-1c1c45f27c29-page-1.webm",
+        "artifact_sha256": "fdcc73dc9ba4b89db1462eb3ebecd132ac947abe95a68aee420cda958f3985bd",
+        "artifact_size_bytes": 1275945
+      }
+    }
+  ]
+}

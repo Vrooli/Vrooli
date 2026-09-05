@@ -19,13 +19,18 @@ import (
 
 // PricingHandler provides HTTP handlers for pricing endpoints.
 type PricingHandler struct {
-	svc       pricing.Service
-	statsRepo repository.StatsRepository
+	svc           pricing.Service
+	statsRepo     repository.StatsRepository
+	subscriptions pricing.SubscriptionRepository
 }
 
 // NewPricingHandler creates a new pricing handler.
-func NewPricingHandler(svc pricing.Service, statsRepo repository.StatsRepository) *PricingHandler {
-	return &PricingHandler{svc: svc, statsRepo: statsRepo}
+func NewPricingHandler(svc pricing.Service, statsRepo repository.StatsRepository, subscriptions ...pricing.SubscriptionRepository) *PricingHandler {
+	var subscriptionStore pricing.SubscriptionRepository
+	if len(subscriptions) > 0 {
+		subscriptionStore = subscriptions[0]
+	}
+	return &PricingHandler{svc: svc, statsRepo: statsRepo, subscriptions: subscriptionStore}
 }
 
 // RegisterRoutes registers pricing API routes on the given router.
@@ -54,6 +59,59 @@ func (h *PricingHandler) RegisterRoutes(r *mux.Router) {
 
 	// Comparison endpoint
 	r.HandleFunc("/api/v1/pricing/compare", h.CompareModels).Methods("POST")
+	r.HandleFunc("/api/v1/pricing/subscription-periods", h.ListSubscriptionPeriods).Methods("GET")
+	r.HandleFunc("/api/v1/pricing/subscription-periods", h.CreateSubscriptionPeriod).Methods("POST")
+	r.HandleFunc("/api/v1/pricing/subscription-periods/{id}", h.DeleteSubscriptionPeriod).Methods("DELETE")
+}
+
+func (h *PricingHandler) ListSubscriptionPeriods(w http.ResponseWriter, r *http.Request) {
+	if h.subscriptions == nil {
+		writeSimpleError(w, r, "subscription", "subscription periods are unavailable")
+		return
+	}
+	periods, err := h.subscriptions.ListSubscriptionPeriods(r.Context(), r.URL.Query().Get("provider"), r.URL.Query().Get("plan_ref"))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, periods)
+}
+
+func (h *PricingHandler) CreateSubscriptionPeriod(w http.ResponseWriter, r *http.Request) {
+	if h.subscriptions == nil {
+		writeSimpleError(w, r, "subscription", "subscription periods are unavailable")
+		return
+	}
+	var request struct {
+		Provider       string    `json:"provider"`
+		PlanRef        string    `json:"plan_ref"`
+		StartsAt       time.Time `json:"starts_at"`
+		EndsAt         time.Time `json:"ends_at"`
+		AmountMicroUSD int64     `json:"amount_micro_usd"`
+		QuotaTokens    int64     `json:"quota_tokens"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
+		writeSimpleError(w, r, "request", err.Error())
+		return
+	}
+	period := &domain.SubscriptionPeriod{Provider: request.Provider, PlanRef: request.PlanRef, StartsAt: request.StartsAt, EndsAt: request.EndsAt, AmountMicroUSD: request.AmountMicroUSD, QuotaTokens: request.QuotaTokens}
+	if err := h.subscriptions.CreateSubscriptionPeriod(r.Context(), period); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, period)
+}
+
+func (h *PricingHandler) DeleteSubscriptionPeriod(w http.ResponseWriter, r *http.Request) {
+	if h.subscriptions == nil {
+		writeSimpleError(w, r, "subscription", "subscription periods are unavailable")
+		return
+	}
+	if err := h.subscriptions.DeleteSubscriptionPeriod(r.Context(), mux.Vars(r)["id"]); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // =============================================================================
@@ -382,9 +440,11 @@ func (h *PricingHandler) DeleteAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Note: The service doesn't have a DeleteAlias method, but the repository does.
-	// For now, return not implemented until the service interface is extended.
-	writeError(w, r, domain.NewValidationError("endpoint", "delete alias not yet implemented"))
+	if err := h.svc.DeleteAlias(r.Context(), model, runnerType); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 // GetSettings handles GET /api/v1/pricing/settings
@@ -577,7 +637,7 @@ func (h *PricingHandler) CompareModels(w http.ResponseWriter, r *http.Request) {
 // Helpers
 // =============================================================================
 
-// decodePathParam URL-decodes a path parameter (for model names with slashes like "anthropic/claude-3-opus").
+// decodePathParam URL-decodes a path parameter, including provider/model IDs.
 func decodePathParam(param string) string {
 	decoded, err := url.PathUnescape(param)
 	if err != nil {

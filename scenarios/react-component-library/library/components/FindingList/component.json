@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.finding-list",
+  "deprecatedVersions": [
+    "1.0.8",
+    "1.0.10",
+    "1.0.9"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.8",
+    "1.0.10",
+    "1.0.9"
+  ],
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:FindingList"
+}

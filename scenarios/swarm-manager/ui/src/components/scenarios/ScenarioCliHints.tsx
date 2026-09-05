@@ -19,7 +19,13 @@ export function ScenarioCliHints({ name, variant = "desktop" }: ScenarioCliHints
   const gridClass = variant === "desktop" ? "grid gap-3 sm:grid-cols-2" : "space-y-2";
 
   return (
-    <DetailSection title="Quick Actions (CLI)" icon={Terminal} data-testid={selectors.scenarioDetails.cliHint}>
+    <DetailSection
+      title="Quick Actions (CLI)"
+      icon={Terminal}
+      storageKey={variant === "mobile" ? "scenario-cli-hints-mobile" : undefined}
+      defaultOpen={variant === "desktop"}
+      data-testid={selectors.scenarioDetails.cliHint}
+    >
       {variant === "desktop" && (
         <p className="mb-4 text-sm text-slate-400">
           Common operations for this scenario are also available via the command line.

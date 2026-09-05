@@ -1,0 +1,112 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Application workspace",
+        "kind": "text",
+        "path": "title"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "title": "Application workspace"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Application navigation",
+          "role": "complementary"
+        },
+        {
+          "kind": "role",
+          "name": "Application workspace",
+          "role": "main"
+        },
+        {
+          "kind": "role",
+          "name": "Skip to content",
+          "role": "link"
+        },
+        {
+          "kind": "layout",
+          "minHeight": 160,
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-app-shell]"
+        },
+        {
+          "kind": "layout",
+          "minHeight": 120,
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-app-shell-main]"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace content"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Workspace",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "title": "Application workspace"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Application workspace",
+          "role": "main"
+        },
+        {
+          "kind": "attribute",
+          "name": "id",
+          "selector": "[data-rcl-app-shell-main]",
+          "value": "app-shell-main"
+        },
+        {
+          "kind": "layout",
+          "minHeight": 160,
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-app-shell]"
+        },
+        {
+          "kind": "layout",
+          "minHeight": 120,
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-app-shell-main]"
+        }
+      ],
+      "id": "long-content",
+      "mode": "pinned",
+      "name": "Long content",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LongContent"
+        }
+      },
+      "role": "boundary"
+    }
+  ],
+  "title": "AppShell"
+}

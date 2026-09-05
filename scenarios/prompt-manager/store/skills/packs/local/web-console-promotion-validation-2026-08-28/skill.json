@@ -1,0 +1,12 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "web-console-promotion-validation-2026-08-28",
+  "name": "Web Console promotion validation 2026-08-28",
+  "description": "Promoted from a Web Console snippet",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-08-28T22:04:37Z",
+  "updatedAt": "2026-08-28T22:04:37Z"
+}

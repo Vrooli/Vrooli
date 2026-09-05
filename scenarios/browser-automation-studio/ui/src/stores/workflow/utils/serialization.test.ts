@@ -112,6 +112,7 @@ describe('serialization utilities', () => {
           type: 'navigate',
           position: { x: 100, y: 200 },
           data: { url: 'https://example.com' },
+          action: { type: 'ACTION_TYPE_NAVIGATE', navigate: { url: 'https://example.com' } },
           selected: true,
           dragging: false,
           width: 200,
@@ -134,18 +135,20 @@ describe('serialization utilities', () => {
           type: 'navigate',
           position: { x: 100, y: 200 },
           data: { url: 'https://example.com' },
+          action: { type: 'ACTION_TYPE_NAVIGATE', navigate: { url: 'https://example.com' } },
         },
       ];
 
       const result = sanitizeNodesForPersistence(nodes);
 
       expect(result[0]).toHaveProperty('id', 'node-1');
-      expect(result[0]).toHaveProperty('type', 'navigate');
+	  expect(result[0]).not.toHaveProperty('type');
       expect(result[0]).toHaveProperty('position', { x: 100, y: 200 });
-      expect(result[0]).toHaveProperty('data', { url: 'https://example.com' });
+	  expect(result[0]).not.toHaveProperty('data');
+	  expect(result[0]).toHaveProperty('action');
     });
 
-    it('deep clones data to prevent mutations', () => {
+    it('does not persist ReactFlow data', () => {
       const originalData = { nested: { value: 'test' } };
       const nodes: Node[] = [
         {
@@ -153,15 +156,15 @@ describe('serialization utilities', () => {
           type: 'test',
           position: { x: 0, y: 0 },
           data: originalData,
+		  action: { type: 'ACTION_TYPE_CLICK', click: { selector: '#target' } },
         },
       ];
 
       const result = sanitizeNodesForPersistence(nodes);
 
-      expect(result[0]).toHaveProperty('data');
+	  expect(result[0]).not.toHaveProperty('data');
       const resultNode = asRecord(result[0]);
-      expect(resultNode.data).not.toBe(originalData);
-      expect(resultNode.data).toEqual(originalData);
+	  expect(resultNode.action).not.toBeUndefined();
     });
 
     it('normalizes position values', () => {
@@ -171,6 +174,7 @@ describe('serialization utilities', () => {
           type: 'test',
           position: { x: '100' as unknown as number, y: undefined as unknown as number },
           data: {},
+		  action: { type: 'ACTION_TYPE_CLICK', click: { selector: '#target' } },
         },
       ];
 
@@ -180,7 +184,7 @@ describe('serialization utilities', () => {
       expect(resultNode.position).toEqual({ x: 100, y: 0 });
     });
 
-    it('adds action field for V2 compatibility', () => {
+    it('rejects a node without a V2 action', () => {
       const nodes: Node[] = [
         {
           id: 'node-1',
@@ -190,9 +194,7 @@ describe('serialization utilities', () => {
         },
       ];
 
-      const result = sanitizeNodesForPersistence(nodes);
-
-      expect(result[0]).toHaveProperty('action');
+	  expect(() => sanitizeNodesForPersistence(nodes)).toThrow('missing a V2 action');
     });
 
     it('removes function properties', () => {
@@ -202,6 +204,7 @@ describe('serialization utilities', () => {
           type: 'test',
           position: { x: 0, y: 0 },
           data: {},
+		  action: { type: 'ACTION_TYPE_CLICK', click: { selector: '#target' } },
           onNodeClick: () => {},
         },
       ];

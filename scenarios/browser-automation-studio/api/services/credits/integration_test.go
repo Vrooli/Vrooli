@@ -12,8 +12,11 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // ============================================================================
@@ -147,13 +150,16 @@ func createTestServiceWithLPBSURL(t *testing.T, lpbsURL, lpbsSecret string) (*Se
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:           db,
-		Logger:       log,
-		Dialect:      "sqlite",
-		LPBSURL:      lpbsURL,
-		LPBSSecret:   lpbsSecret,
-		AppBundleKey: "browser-automation-studio",
+		DB:              db,
+		Logger:          log,
+		LPBSURL:         lpbsURL,
+		EntitlementSvc:  entitlement.NewService(config.EntitlementConfig{ServiceURL: lpbsURL}, log),
+		LPBSAccessToken: func(context.Context) (string, error) { return lpbsSecret, nil },
+		AppBundleKey:    "browser-automation-studio",
 	})
+	drainCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	svc.StartOutboxDrainer(drainCtx, 10*time.Millisecond)
 
 	return svc, db
 }
@@ -218,6 +224,40 @@ func TestIntegration_LPBSUsageReport_FullHTTPFlow(t *testing.T) {
 	}
 	if req.Body.AppBundleKey != "browser-automation-studio" {
 		t.Errorf("Expected AppBundleKey 'browser-automation-studio', got '%s'", req.Body.AppBundleKey)
+	}
+}
+
+func TestIntegration_LPBSUsageOutboxSurvivesServiceRestart(t *testing.T) {
+	mock := mockLPBSHTTPServer(t, mockLPBSOptions{requireAuth: true, expectedToken: "restart-token"})
+	defer mock.Close()
+	db := createTestDB(t)
+	defer db.Close()
+
+	access := func(context.Context) (string, error) { return "restart-token", nil }
+	first := NewService(ServiceOptions{
+		DB: db, Logger: logrus.New(), LPBSURL: mock.URL(),
+		LPBSAccessToken: access, AppBundleKey: "browser-automation-studio",
+	})
+	report := lpbsUsageReport{UserIdentity: "restart@example.com", LimitKey: "workflow_executions", UsageAmount: 1, Amount: 1, OperationID: "restart-operation", AppBundleKey: "browser-automation-studio"}
+	if err := first.monetizationOutbox.Enqueue(context.Background(), usageFromLPBSReport(report)); err != nil {
+		t.Fatalf("enqueue before restart: %v", err)
+	}
+
+	// A fresh service instance represents the process after a crash/restart.
+	second := NewService(ServiceOptions{
+		DB: db, Logger: logrus.New(), LPBSURL: mock.URL(),
+		LPBSAccessToken: access, AppBundleKey: "browser-automation-studio",
+	})
+	delivered, err := second.DrainOutbox(context.Background(), 10)
+	if err != nil || delivered != 1 {
+		t.Fatalf("restart drain delivered=%d err=%v", delivered, err)
+	}
+	var status string
+	if err := db.QueryRow("SELECT status FROM monetization_usage_outbox WHERE operation_id = ?", report.OperationID).Scan(&status); err != nil {
+		t.Fatalf("read durable outbox status: %v", err)
+	}
+	if status != "delivered" {
+		t.Fatalf("outbox status = %q, want delivered", status)
 	}
 }
 
@@ -503,9 +543,8 @@ func TestIntegration_LPBSUsageReport_NoURLConfigured(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:      db,
-		Logger:  log,
-		Dialect: "sqlite",
+		DB:     db,
+		Logger: log,
 		// No LPBSURL configured
 	})
 

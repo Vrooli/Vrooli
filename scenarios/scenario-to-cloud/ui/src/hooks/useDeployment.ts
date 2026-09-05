@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { getInjectedConfig } from "@vrooli/api-base";
 import {
   validateManifest,
   initManifest,
@@ -33,7 +34,7 @@ const MAX_HISTORY_SIZE = 50;
 
 const STORAGE_KEY = "scenario-to-cloud:deployment";
 const REQUIRE_SSH_SUCCESS_FOR_MANIFEST =
-  import.meta.env.VITE_REQUIRE_SSH_SUCCESS_FOR_MANIFEST === "true";
+  getInjectedConfig()?.REQUIRE_SSH_SUCCESS_FOR_MANIFEST === "true";
 
 type SavedDeployment = {
   manifestJson: string;
@@ -138,6 +139,9 @@ export function useDeployment() {
   }, [manifestJson]);
 
   const currentStep = WIZARD_STEPS[currentStepIndex];
+  if (!currentStep) {
+    throw new Error(`Invalid wizard step index: ${currentStepIndex}`);
+  }
 
   // Initialize default manifest from API contract.
   useEffect(() => {
@@ -283,6 +287,7 @@ export function useDeployment() {
     if (historyRef.current.length === 0) return;
 
     const previousState = historyRef.current[historyRef.current.length - 1];
+    if (previousState === undefined) return;
     historyRef.current = historyRef.current.slice(0, -1);
     futureRef.current = [manifestJson, ...futureRef.current];
 
@@ -303,6 +308,7 @@ export function useDeployment() {
     if (futureRef.current.length === 0) return;
 
     const nextState = futureRef.current[0];
+    if (nextState === undefined) return;
     futureRef.current = futureRef.current.slice(1);
     historyRef.current = [...historyRef.current, manifestJson];
 

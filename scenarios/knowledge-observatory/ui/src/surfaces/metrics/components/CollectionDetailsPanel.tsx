@@ -46,7 +46,7 @@ type Props = MetricsPanelProps & {
   onBackToMetrics: () => void;
 };
 
-function scoreDriverHints(diagnostics: NonNullable<Props["diagnostics"]>, failuresLast24h: number): string[] {
+function scoreDriverHints(diagnostics: NonNullable<Props["diagnostics"]>): string[] {
   const hints: string[] = [];
   if ((diagnostics.redundancy?.duplicate_ratio ?? 0) >= 0.15) {
     hints.push("Redundancy is high. Run dedupe preview before applying deletes.");
@@ -56,9 +56,6 @@ function scoreDriverHints(diagnostics: NonNullable<Props["diagnostics"]>, failur
   }
   if ((diagnostics.vector_dimensions?.length ?? 0) > 1) {
     hints.push("Mixed embedding dimensions detected. Reingest with one embedding model.");
-  }
-  if (failuresLast24h > 0) {
-    hints.push("Recent ingest failures found. Validate Ollama and Qdrant reachability.");
   }
   if (hints.length === 0) {
     hints.push("No immediate integrity risks detected in current diagnostics.");
@@ -83,19 +80,14 @@ export function CollectionDetailsPanel({
   maintenanceMaxDeletes,
   getMaintenancePreview,
   getCollectionInventory,
-  documentOptions,
-  selectedDocumentKey,
-  documentDeletePreview,
   collectionRecords,
   recordsLoading,
   recordsError,
   recordsSearch,
   recordsNamespaceFilter,
   recordsDocumentFilter,
-  ingestHealth,
   onBackToMetrics,
   onDrilldownTabChange,
-  onSelectedDocumentKeyChange,
   onUseSampleDiagnostics,
   onUseFullDiagnostics,
   onMaintenanceMaxDeletesChange,
@@ -106,8 +98,6 @@ export function CollectionDetailsPanel({
   onRecordsPreviousPage,
   onPreviewMaintenance,
   onApplyMaintenance,
-  onPreviewDeleteDocument,
-  onApplyDeleteDocument,
   collectionDeleteInFlight,
   onDeleteCollection,
   onRetry,
@@ -163,8 +153,7 @@ export function CollectionDetailsPanel({
   const inventory = getCollectionInventory(selectedCollection);
   const prunePreview = getMaintenancePreview(selectedCollection, "prune-stale-chunks");
   const dedupePreview = getMaintenancePreview(selectedCollection, "dedupe-content");
-  const selectedDocumentOption = documentOptions.find((entry) => entry.key === selectedDocumentKey) ?? null;
-  const hints = diagnostics ? scoreDriverHints(diagnostics, ingestHealth?.failures_last_24h ?? 0) : [];
+  const hints = diagnostics ? scoreDriverHints(diagnostics) : [];
   const ownershipTone =
     inventory?.ownership === "knowledge_observatory"
       ? "ko-tone-good"
@@ -394,52 +383,6 @@ export function CollectionDetailsPanel({
                   )}
                 </div>
               )}
-              <div className="ko-card p-3 ko-stack-xs">
-                <p className="ko-subtle">Document-level delete (for stale document versions)</p>
-                {documentOptions.length === 0 && (
-                  <p className="ko-subtle">No stale documents available from diagnostics to investigate.</p>
-                )}
-                {documentOptions.length > 0 && (
-                  <>
-                    <select
-                      className="ko-input h-9 text-xs"
-                      value={selectedDocumentKey}
-                      onChange={(event) => onSelectedDocumentKeyChange(event.target.value)}
-                    >
-                      {documentOptions.map((option) => (
-                        <option key={option.key} value={option.key}>
-                          {option.label} ({option.count})
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={onPreviewDeleteDocument}
-                        disabled={maintenanceInFlight || !selectedDocumentOption}
-                      >
-                        Preview Doc Delete
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="sm"
-                        onClick={onApplyDeleteDocument}
-                        disabled={maintenanceInFlight || !documentDeletePreview}
-                      >
-                        Apply Doc Delete
-                      </Button>
-                    </div>
-                    {documentDeletePreview && (
-                      <p className="ko-subtle">
-                        {documentDeletePreview.namespace}/{documentDeletePreview.document_id}: {documentDeletePreview.candidate_delete_count} candidates
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
               <p className="ko-subtle">
                 Safety note: preview operations do not delete data. Apply buttons are intentionally blocked until a preview exists.
               </p>

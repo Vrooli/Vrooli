@@ -82,7 +82,10 @@ graph TB
 
 **Vrooli Checks** (`api/internal/checks/vrooli/`)
 - Resource health via `vrooli resource status`
-- Scenario health via `vrooli scenario status`
+- Scenario health via `vrooli scenario status --json`
+- Orphan process state via `vrooli orphans --json`
+- Port lock state via `vrooli locks --json`
+- Port diagnostics via `vrooli diagnose-port --json`
 
 ### Infrastructure Layer
 
@@ -130,16 +133,30 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 
 This centralizes operational configuration.
 
-### 3. CLI-Based Resource Management
+### 3. CLI-Based Core Contract Ownership
 
-Uses `vrooli resource/scenario` CLI commands instead of direct API calls:
+Autoheal consumes the core Vrooli CLI as the source of truth instead of reimplementing lifecycle and maintenance heuristics:
 
 ```go
-// Uses CLI for resource health
-cmd := exec.Command("vrooli", "resource", "status", resourceName)
+cmd := exec.Command("vrooli", "supervision-set", "--json")
+cmd := exec.Command("vrooli", "scenario", "status", scenarioName, "--json")
+cmd := exec.Command("vrooli", "orphans", "--json")
+cmd := exec.Command("vrooli", "locks", "--json")
+cmd := exec.Command("vrooli", "diagnose-port", port, scenarioName, "--json")
 ```
 
-The CLI handles authentication, port discovery, and error handling.
+This keeps maintenance semantics in one place:
+- scenario and resource membership, intent, and attribution are defined by the operator-declared supervision closure
+- lock staleness is defined by core
+- orphan classification is defined by core
+- autoheal only evaluates and presents the returned state
+
+The supervision controller loads that declaration at startup and every 30
+seconds. `must_start` members produce critical target checks; `try_start`
+members produce warning-level target checks. Persisted monitoring targets are
+additive operator overrides. If the source becomes unavailable, the controller
+keeps its in-memory last-known-good set and reports degraded source health; it
+never substitutes an empty set.
 
 ## Data Flow
 

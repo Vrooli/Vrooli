@@ -1,0 +1,57 @@
+{
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "title": "Golden Registry & Regeneration",
+  "description": "Maintain a registry of generated goldens (one per template contract). Each entry pins the template id + version, generation metadata, and stable logical root. Validation runs materialize generated substrates into managed paths outside scenarios/ by default.",
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "title": "Golden registry domain module",
+      "description": "SQLite-backed domain module under api/internal/golden/{model,sqlite,schema}.go,sql storing slug, template_id, template_version_pinned, logical root/materialization metadata, created_at, and last_regenerated_at.",
+      "category": "storage",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/golden/sqlite_test.go::TestSQLiteRepository_CreateAndGetRoundTrip",
+          "status": "passing",
+          "notes": "Golden registry row round-trips through SQLite (slug, template, pinned version, logical root, materialization metadata)."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator goldens register/list",
+          "status": "passing",
+          "notes": "reference-react-vite golden slug registered and listed live 2026-05-29; generated materialization is now the active substrate model."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "title": "Regenerate operation",
+      "description": "Service/materializer path that invokes the template generator into a managed generated path, captures the produced template version, and updates template/materialization metadata without requiring a committed reference tree.",
+      "category": "core",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/golden/sqlite_test.go::TestSQLiteRepository_UpdateChangesFieldsAndPersistsLastRegeneratedAt",
+          "status": "passing",
+          "notes": "Regenerate updates pinned version and persists last_regenerated_at."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/golden/service_test.go::TestService_RegisterHappyPath",
+          "status": "passing",
+          "notes": "Registry service happy-path covering register/update."
+        }
+      ]
+    }
+  ]
+}

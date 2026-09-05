@@ -30,14 +30,16 @@ vrooli scenario start test-genie
 **Via CLI:**
 ```bash
 test-genie execute my-scenario --preset comprehensive
+# Non-scenario repository targets use kind:id.
+test-genie execute package:api-core --preset quick
 ```
 
 **Via API:**
 ```bash
 API_PORT=$(vrooli scenario port test-genie API_PORT)
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
-  -d '{"preset": "comprehensive"}'
+  -d '{"target": "package:api-core", "preset": "quick"}'
 ```
 
 **Via Dashboard:**
@@ -50,39 +52,55 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute
 Results are available via:
 - **Dashboard** - Visual results with phase breakdowns
 - **API** - `GET /api/v1/executions/{id}`
-- **CLI** - `test-genie status --executions`
+- **CLI** - `test-genie runs list --scenario my-scenario`
+- **Measured cost** - `test-genie runs cost --scenario my-scenario --window 168h --json`
 
 ## Test Presets
 
 | Preset | Phases | Time | Use Case |
 |--------|--------|------|----------|
-| **Quick** | Structure, Standards, Docs, Unit | ~1-2 min | Fast sanity check |
-| **Smoke** | Structure, Standards, Lint, Docs, Integration | ~4-5 min | Pre-push validation |
-| **Comprehensive** | All 11 phases | ~10+ min | Full coverage |
+| **Quick** | Structure, Docs, Business, Unit, Proto | Scenario-aware | Fast sanity check |
+| **Smoke** | Structure, API, Quality, Docs, Business, Proto | Scenario-aware | Pre-push validation |
+| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Architecture, Proto | Scenario-aware | Surface and architecture review |
+| **Comprehensive** | All applicable registry phases | Scenario-aware | Full coverage |
 
 See [Presets Reference](reference/presets.md) for details.
 
 ## Test Phases
 
-Test Genie uses a 11-phase testing architecture:
+Test Genie uses a descriptor-backed testing architecture. Provider phase metadata, applicability, policy, runnability capabilities, docs path, and maturity mappings live in provider-owned `.vrooli/test-genie.json` descriptors.
+
+Provider descriptors also declare `concurrency.mode` (`parallel-safe`,
+`provider-serial`, or `exclusive`). Missing declarations default to exclusive
+serialization. Concurrent admission requires reliable persisted cost history
+and a grant from the shared host-capacity broker; unknown or denied work runs
+serially with a warning.
 
 ```
-Structure → Standards → Dependencies → Lint → Docs → Smoke → Unit → Integration → Playbooks → Business → Performance
+Structure → Contracts → UI Health → API → Architecture → Dependencies → Quality → Docs → Performance → Unit → Storage → Workflow → Business → Tidiness → Security → Measures → Proto → Branding → Search
 ```
 
 | Phase | Purpose | Timeout |
 |-------|---------|---------|
 | **Structure** | Validate files and config | 15s |
-| **Standards** | scenario-auditor standards rules | 60s |
+| **Contracts** | Validate CLI manifest bindings | 60s |
+| **UI Health** | Validate UI manifest bindings | 60s |
+| **API** | API readiness via api-health | 120s |
+| **Architecture** | Structural cohesion audit | 120s |
 | **Dependencies** | Check tools and resources | 30s |
-| **Lint** | Type checking and linting | 30s |
+| **Quality** | Static quality contracts via quality-health | 120s |
 | **Docs** | Markdown, mermaid, link validation | 60s |
-| **Smoke** | UI load + iframe-bridge | 90s |
-| **Unit** | Run unit tests (Go, Node, Python) | 60s |
-| **Integration** | Test API/UI connectivity | 120s |
-| **Playbooks** | Execute BAS browser automation workflows | 120s |
-| **Business** | Validate workflows and rules | 180s |
 | **Performance** | Run benchmarks (optional) | 60s |
+| **Unit** | Run unit tests (Go, Node, Python) | 60s |
+| **Storage** | Validate storage and test-isolation seams | 120s |
+| **Workflow** | Execute BAS browser automation workflows | 120s |
+| **Business** | Validate workflows and rules | 180s |
+| **Tidiness** | File/function quality checks | 120s |
+| **Security** | Security posture validation | 180s |
+| **Measures** | Measures coverage validation | 180s |
+| **Proto** | Protocol Buffer contract validation | 120s |
+| **Branding** | Brand identity validation | 120s |
+| **Search** | Search maturity for search-enabled scenarios | 90s |
 
 See [Phased Testing Guide](guides/phased-testing.md) for the complete architecture.
 
@@ -93,36 +111,32 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 
 ### Safety (Read First!)
 - [Safety Guidelines](safety/GUIDELINES.md) - **CRITICAL** - Prevent data loss in test scripts
-- [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
 ### Phase Documentation
-- [Phases Overview](phases/README.md) - 11-phase architecture with mermaid diagrams
+- [Phases Overview](phases/README.md) - phase architecture with mermaid diagrams
 - [Structure Phase](phases/structure/README.md) - File and CLI validation
-- [Standards Phase](phases/standards/README.md) - Standards enforcement via scenario-auditor
+- [API Phase](phases/api/README.md) - API readiness validation via api-health
 - [Dependencies Phase](phases/dependencies/README.md) - Runtime and tool checks
-- [Lint Phase](phases/lint/README.md) - Type checking and linting
+- [Quality Phase](phases/quality/README.md) - Static quality contracts
 - [Docs Phase](phases/docs/README.md) - Markdown, mermaid, and link validation
 - [Unit Phase](phases/unit/README.md) - Test runners and coverage
-- [Integration Phase](phases/integration/README.md) - CLI and API testing
-- [Playbooks Phase](phases/playbooks/README.md) - BAS browser automation
+- [Workflow Phase](phases/workflow/README.md) - BAS workflow validation through workflow-health
 - [Business Phase](phases/business/README.md) - Requirements validation
 - [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
 
 ### Guides (How-To)
-- [Phased Testing](guides/phased-testing.md) - Understanding the 11-phase architecture
-- [Test Generation](guides/test-generation.md) - AI-powered test creation
+- [Phased Testing](guides/phased-testing.md) - Understanding the descriptor-backed phase architecture
+- [Evidence-Driven Remediation](guides/test-generation.md) - Act on completed execution findings
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
-- [CLI Testing](phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
-- [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Vrooli Ascension workflows
-- [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation with Browserless
+- [Workflow Phase](phases/workflow/README.md) - Vrooli Ascension workflow validation
+- [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation on Browser Automation Studio
 - [Lighthouse Integration](phases/performance/lighthouse.md) - Performance and accessibility testing
 - [Performance Testing](phases/performance/performance-testing.md) - Build benchmarks and regression detection
-- [CLI Approaches](phases/structure/cli-approaches.md) - Legacy vs cross-platform CLI patterns
+- [CLI Manifest Contract](phases/structure/cli-approaches.md) - Manifest-driven scenario CLI adapter patterns
 - [Custom Presets](guides/custom-presets.md) - Create tailored test presets for CI/CD
 - [Dashboard Guide](guides/dashboard-guide.md) - Using the web dashboard UI
-- [Vault Testing](guides/vault-testing.md) - Multi-phase lifecycle validation
 - [Sync Execution](guides/sync-execution.md) - Blocking execution for agents
 - [Validation Best Practices](guides/validation-best-practices.md) - Quality validation guidelines
 - [End-to-End Example](guides/end-to-end-example.md) - Complete PRD to coverage walkthrough
@@ -145,13 +159,18 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 
 ## Common Tasks
 
-### Generate Tests for a New Scenario
+### Remediate Findings from a Completed Run
 
 ```bash
-test-genie generate my-scenario --types unit,integration
+test-genie remediate my-scenario \
+  --execution <execution-uuid> \
+  --findings <stable-finding-id> \
+  --role code.default
 ```
 
-See [Test Generation Guide](guides/test-generation.md).
+Test Genie stores the selected run evidence, asks Agent Manager to perform the
+scoped work, then verifies the outcome with a server-owned rerun. See [Test
+Generation Guide](guides/test-generation.md).
 
 ### Track Requirements from Tests
 
@@ -172,17 +191,17 @@ test-genie execute my-scenario --preset comprehensive
 
 See [Requirements Sync Guide](phases/business/requirements-sync.md).
 
-### Use Sync Execution for CI/Agents
+### Wait for a Server-Owned Execution in CI/Agents
 
 ```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
-  -H "Content-Type: application/json" \
-  -d '{"preset": "smoke", "failFast": true}'
+test-genie execute my-scenario --preset smoke
+test-genie runs wait --json --timeout=840 my-scenario <run-id>
 ```
 
-Returns complete results in a single blocking request.
+The durable execution survives a disconnected caller. Wait once using the run ID
+printed by `execute` instead of relying on a blocking HTTP request.
 
-See [Sync Execution Guide](guides/sync-execution.md) and [Cheatsheet](reference/sync-execution-cheatsheet.md).
+See the [Server-Owned Execution Guide](guides/sync-execution.md).
 
 ## Troubleshooting
 
@@ -240,7 +259,7 @@ START: What are you testing?
 |   +-- Database migrations --> Testing Strategy + Integration
 |
 +-- UI Testing?
-|   +-- Browser automation --> UI Automation with BAS
+|   +-- Browser automation --> Workflow Phase
 |   +-- Smoke tests --> UI Smoke Testing
 |   +-- Performance --> Lighthouse Integration
 |   +-- Design for testing --> UI Testability Guide
@@ -257,7 +276,6 @@ START: What are you testing?
 |
 +-- Safety Concerns?
 |   +-- Tests deleting files --> Safety Guidelines (URGENT)
-|   +-- BATS teardown issues --> BATS Teardown Bug
 |   +-- Script safety --> Safety Guidelines + Linter
 |
 +-- Debugging/Issues?
@@ -276,7 +294,7 @@ START: What are you testing?
 
 1. **NEVER** use unguarded `rm` commands in test scripts
 2. **ALWAYS** validate variables before file operations
-3. **SET** critical variables before skip conditions in BATS
+3. **SET** critical variables before any early-exit conditions in shell scripts
 4. **PREFER** Go tests over bash scripts for new development
 5. **RUN** the safety linter before committing any shell test scripts
 

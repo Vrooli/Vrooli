@@ -390,7 +390,7 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 		}
 	}
 
-		return deletedCount, freedBytes, nil
+	return deletedCount, freedBytes, nil
 }
 
 // FormatBytes formats a byte count (in KB) as a human-readable string.

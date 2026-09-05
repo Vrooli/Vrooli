@@ -2,6 +2,8 @@ package ssh
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -148,5 +150,64 @@ func TestDeleteKeyService_PathTraversal(t *testing.T) {
 	}
 	if result.Success {
 		t.Error("DeleteKeyService() success = true, want false for path traversal")
+	}
+}
+
+func TestDeleteKeyService_DeletesPrivateAndPublicKey(t *testing.T) {
+	homeDir := t.TempDir()
+	sshDir := filepath.Join(homeDir, ".ssh")
+	if err := os.Mkdir(sshDir, 0o700); err != nil {
+		t.Fatalf("mkdir ssh dir: %v", err)
+	}
+	keyPath := filepath.Join(sshDir, "id_ed25519")
+	writeFile(t, keyPath, "private")
+	writeFile(t, keyPath+".pub", "public")
+	deps := SSHDeps{Platform: &FakePlatform{
+		SSHDirPath:  sshDir,
+		HomeDirPath: homeDir,
+	}}
+
+	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+		KeyPath: keyPath + ".pub",
+	})
+	if err != nil {
+		t.Fatalf("DeleteKeyService() error = %v, want nil", err)
+	}
+	if !result.Success {
+		t.Fatalf("Success = false, want true: %s", result.Error)
+	}
+	if !result.PrivateDeleted || !result.PublicDeleted {
+		t.Fatalf("deleted private/public = %v/%v, want true/true", result.PrivateDeleted, result.PublicDeleted)
+	}
+	if _, err := os.Stat(keyPath); !os.IsNotExist(err) {
+		t.Fatalf("private key still exists or stat failed unexpectedly: %v", err)
+	}
+	if _, err := os.Stat(keyPath + ".pub"); !os.IsNotExist(err) {
+		t.Fatalf("public key still exists or stat failed unexpectedly: %v", err)
+	}
+}
+
+func TestDeleteKeyService_KeyFilesNotFound(t *testing.T) {
+	homeDir := t.TempDir()
+	sshDir := filepath.Join(homeDir, ".ssh")
+	if err := os.Mkdir(sshDir, 0o700); err != nil {
+		t.Fatalf("mkdir ssh dir: %v", err)
+	}
+	deps := SSHDeps{Platform: &FakePlatform{
+		SSHDirPath:  sshDir,
+		HomeDirPath: homeDir,
+	}}
+
+	result, err := DeleteKeyService(context.Background(), deps, DeleteKeyRequest{
+		KeyPath: filepath.Join(sshDir, "missing"),
+	})
+	if err != nil {
+		t.Fatalf("DeleteKeyService() error = %v, want nil", err)
+	}
+	if result.Success {
+		t.Fatal("Success = true, want false")
+	}
+	if result.Error != "Key files not found" {
+		t.Fatalf("Error = %q, want Key files not found", result.Error)
 	}
 }

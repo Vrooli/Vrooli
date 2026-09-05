@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "simpy",
+  "display_name": "SimPy",
+  "category": "simulation",
+  "summary": "Discrete-event simulation framework for modeling queues, processes, and resource-constrained systems.",
+  "why_it_matters": "SimPy remains useful simulation capability knowledge, but there is no current validated scenario that justifies maintaining it as a project-level resource.",
+  "when_to_use": [
+    "A future scenario needs process or queue simulation.",
+    "Operators want lightweight event simulation rather than a heavier scientific stack.",
+    "The workflow benefits from Python-native discrete-event models."
+  ],
+  "example_scenarios": [
+    "Operations planning models",
+    "Service queue simulations",
+    "Process optimization experiments"
+  ],
+  "integration_kind": "library",
+  "platform_support": {
+    "notes": "The library is portable, and most variability comes from the surrounding Python environment and scenario-specific models.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Python dependency strategy",
+    "Defined model inputs and result capture conventions",
+    "A real simulation workflow that benefits from resource-level support"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should validate a concrete model and output workflow.",
+    "Keep framework support narrower than the broader simulation capability.",
+    "Direct library usage may be better than a wrapper unless the workflow repeats."
+  ],
+  "operational_notes": [
+    "Validation should run a real simulation with expected metrics.",
+    "Result persistence and reproducibility matter more than installation.",
+    "Simulation assumptions belong in scenario logic, not hidden resource code."
+  ],
+  "risks": [
+    "Library wrappers can add little value over direct usage.",
+    "Without active consumers, metadata is a better fit than maintained code."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "simpy"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/simpy"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -1,16 +1,12 @@
+import { renderWithProviders as render } from "../test-utils";
 /**
- * Regression test for the TTS stop-retry-loop bug.
- *
- * Root cause: when the user stops TTS mid-playback, `speakParagraphs`
- * resolves without advancing `lastListenedSequence`. The pending-events
- * effect re-fires (because `isSpeaking` flipped to false) and finds the
- * same "unlistened" event, replaying it in an infinite loop.
- *
- * Fix: `stopTts()` now advances the cursor past all current assistant
- * events so the pending-events effect finds nothing to replay.
+ * Regression tests for stop semantics. Stop is now a playback-intent action
+ * owned by the controller; TerminalPane must stop the provider without marking
+ * assistant messages as listened.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, cleanup } from "@testing-library/react";
+import { createTerminalSessionStub } from "../test-utils";
+import { act, cleanup } from "@testing-library/react";
 import { createRef } from "react";
 import { apiBaseMock } from "../test-utils";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
@@ -27,6 +23,10 @@ vi.stubGlobal("SpeechSynthesisUtterance", class { text: string; rate = 1; pitch 
 // ── TTS mock: speakParagraphs returns a controllable promise ──
 const mockSpeakParagraphs = vi.fn<() => Promise<string | undefined>>();
 const mockStop = vi.fn();
+const mockSetMuted = vi.fn();
+const mockResume = vi.fn();
+const mockGetServerSize = vi.fn(() => null);
+const mockSendResize = vi.fn();
 let mockIsSpeaking = false;
 
 vi.mock("../hooks/useTextToSpeech", () => ({
@@ -41,23 +41,20 @@ vi.mock("../hooks/useTextToSpeech", () => ({
     speakParagraphs: mockSpeakParagraphs,
     stop: mockStop,
     pause: vi.fn(),
-    resume: vi.fn(),
+    resume: mockResume,
     seek: vi.fn(),
     setPlaybackRate: vi.fn(),
     setVolume: vi.fn(),
+    setMuted: mockSetMuted,
     getPlaybackState: vi.fn().mockReturnValue(null),
   }),
 }));
 
-let capturedHandler:
-  | ((event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
-  | undefined;
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: (opts: { onConversationEvent?: typeof capturedHandler }) => {
-    capturedHandler = opts.onConversationEvent;
-    return { sendInput: vi.fn().mockReturnValue(true), sendResize: vi.fn(), totalBytesRef: { current: 0 } };
-  },
-}));
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  // One stable session object: TerminalPane keys effects on these references.
+  const session = createTerminalSessionStub({ sendResize: mockSendResize, getServerSize: mockGetServerSize });
+  return { useTerminalSession: () => session };
+});
 
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({ hasSelection: false, copySelection: vi.fn(), clearSelection: vi.fn() }),
@@ -74,16 +71,14 @@ vi.mock("@xterm/xterm", () => ({
     onData: vi.fn().mockReturnValue({ dispose: vi.fn() }),
     write: vi.fn(), cols: 80, rows: 24, options: {},
     buffer: { active: { viewportY: 0, baseY: 0, length: 0, getLine: () => ({ translateToString: () => "" }) } },
-    loadAddon: vi.fn(), selectAll: vi.fn(), clear: vi.fn(),
+    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(), selectAll: vi.fn(), clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""), getSelectionPosition: vi.fn().mockReturnValue(undefined),
     clearSelection: vi.fn(), select: vi.fn(), scrollLines: vi.fn(), textarea: null, reset: vi.fn(),
   })),
 }));
 
 vi.mock("@xterm/addon-fit", () => ({ FitAddon: vi.fn().mockImplementation(() => ({ fit: vi.fn(), dispose: vi.fn() })) }));
-vi.mock("@xterm/addon-serialize", () => ({ SerializeAddon: vi.fn().mockImplementation(() => ({ serialize: vi.fn(() => ""), dispose: vi.fn() })) }));
 vi.mock("@xterm/addon-web-links", () => ({ WebLinksAddon: vi.fn().mockImplementation(() => ({ dispose: vi.fn() })) }));
-vi.mock("../lib/terminalCache", () => ({ loadTerminalCache: vi.fn(() => null), saveTerminalCache: vi.fn() }));
 
 const SESSION_ID = "stop-test";
 const storeState: Record<string, unknown> = {
@@ -91,23 +86,46 @@ const storeState: Record<string, unknown> = {
   ttsVoice: "", ttsRate: 1.0, ttsPitch: 1.0,
   kokoroVoice: "af_heart", kokoroSpeed: 1.0,
   ttsBackendPreference: "auto", voiceShortcut: "",
+  deviceFontSize: {},
   panes: [{ sessionId: SESSION_ID, name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: SESSION_ID,
   renamePaneById: vi.fn(),
+  setPendingInputBuffer: vi.fn(),
+  consumePendingInputBuffer: vi.fn(() => undefined),
+  setPendingInputDraft: vi.fn(),
+  consumePendingInputDraft: vi.fn(() => undefined),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(storeState) : storeState,
+  useEffectiveFontSize: () => 14,
 }));
 
 const { default: TerminalPane } = await import("../components/TerminalPane");
 const { useConversationStore } = await import("../stores/useConversationStore");
+type StoreConversationEvent = Parameters<ReturnType<typeof useConversationStore.getState>["appendEvent"]>[0];
+
+function makeEvent(id: string, sequence: number, text: string): StoreConversationEvent {
+  return {
+    id,
+    sessionId: SESSION_ID,
+    source: "claude_hook",
+    role: "assistant",
+    text,
+    speechParagraphs: [text],
+    summarized: false,
+    createdAt: new Date().toISOString(),
+    sequence,
+    deliveryState: "received",
+    ttsState: "idle",
+    consumptionState: "unseen",
+  };
+}
 
 describe("TerminalPane TTS stop prevents retry loop", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    capturedHandler = undefined;
     mockIsSpeaking = false;
     storeState.autoTtsEnabled = true;
     // Reset conversation store
@@ -126,85 +144,79 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     cleanup();
   });
 
-  it("stopTts advances lastListenedSequence so the pending-events effect does not retry", async () => {
-    // speakParagraphs returns a promise that never resolves (simulates ongoing playback)
-    let rejectSpeak: ((reason?: unknown) => void) | undefined;
-    mockSpeakParagraphs.mockImplementation(
-      () => new Promise<string | undefined>((_, reject) => { rejectSpeak = reject; }),
-    );
-
+  it("stopTts stops provider playback without advancing lastListenedSequence", async () => {
     const ref = createRef<TerminalPaneHandle>();
     render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
 
-    // Wait for conversation session hydration (catches API error → empty state)
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-    // Fire a conversation event — this starts TTS playback via handleConversationEvent.
-    // Because speakParagraphs never resolves, the cursor won't be advanced by normal flow.
-    const ack = vi.fn();
-    // Don't await — the handler is blocked on speakParagraphs
-    let handlerDone = false;
-    void (async () => {
-      await capturedHandler?.({
-        id: "evt-stop-1", source: "claude_hook", role: "assistant",
-        sequence: 42, text: "Stop me", speechParagraphs: ["Stop me"],
-      }, ack);
-      handlerDone = true;
-    })();
-
-    // Let the handler start executing up to the await speakParagraphs
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(1);
-    expect(handlerDone).toBe(false); // Still awaiting speakParagraphs
-
-    // User clicks Stop — this should advance cursor past sequence 42
-    await act(async () => {
-      ref.current?.stopTts();
+    act(() => {
+      useConversationStore.getState().appendEvent(makeEvent("evt-stop-1", 42, "Stop me"));
     });
 
-    // Verify cursor was advanced
+    await act(async () => {
+      ref.current?.playback.stop();
+    });
+
     const session = useConversationStore.getState().sessions[SESSION_ID];
     expect(session).toBeDefined();
-    expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(42);
-
-    // Reject the pending speakParagraphs to unblock handleConversationEvent
-    rejectSpeak?.(new DOMException("The operation was aborted.", "AbortError"));
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-
-    // speakParagraphs should NOT have been called again (no retry loop)
-    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(1);
+    expect(session?.cursor.lastListenedSequence).toBe(0);
+    expect(mockStop).toHaveBeenCalledTimes(1);
+    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
   });
 
-  it("stopTts skips multiple pending events, not just the current one", async () => {
-    // speakParagraphs resolves immediately for initial events, then blocks
-    let callCount = 0;
-    mockSpeakParagraphs.mockImplementation(() => {
-      callCount++;
-      if (callCount <= 2) return Promise.resolve("browser");
-      return new Promise<string | undefined>(() => {}); // block on 3rd
+  it("stopTts leaves multiple assistant events unlistened instead of skipping them", async () => {
+    const ref = createRef<TerminalPaneHandle>();
+    render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+
+    for (let i = 1; i <= 3; i++) {
+      act(() => {
+        useConversationStore.getState().appendEvent(makeEvent(`evt-multi-${i}`, 100 + i, `Message ${i}`));
+      });
+    }
+
+    await act(async () => {
+      ref.current?.playback.stop();
     });
+
+    const session = useConversationStore.getState().sessions[SESSION_ID];
+    expect(session?.cursor.lastSeenSequence).toBeGreaterThanOrEqual(103);
+    expect(session?.cursor.lastListenedSequence).toBe(0);
+    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
+  });
+
+  it("manual playback paths auto-unmute before speaking or resuming", async () => {
+    mockSpeakParagraphs.mockResolvedValue("browser");
 
     const ref = createRef<TerminalPaneHandle>();
     render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-    // Send 3 events — first 2 resolve, 3rd blocks
-    const ack = vi.fn();
-    for (let i = 1; i <= 3; i++) {
-      void capturedHandler?.({
-        id: `evt-multi-${i}`, source: "claude_hook", role: "assistant",
-        sequence: 100 + i, text: `Message ${i}`, speechParagraphs: [`Message ${i}`],
-      }, ack);
-      await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
-    }
+    act(() => {
+      ref.current?.playback.speak("Manual", ["Manual"], { eventId: "evt-manual", version: "active" });
+    });
+    expect(mockSetMuted).toHaveBeenCalledWith(false);
 
-    // Stop all TTS
-    await act(async () => {
-      ref.current?.stopTts();
+    act(() => {
+      ref.current?.playback.resume();
+    });
+    expect(mockSetMuted).toHaveBeenLastCalledWith(false);
+    expect(mockResume).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto playback preserves the current muted state", async () => {
+    mockSpeakParagraphs.mockResolvedValue("browser");
+
+    const ref = createRef<TerminalPaneHandle>();
+    render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+
+    act(() => {
+      void ref.current?.playback.speak("Auto", ["Auto"], { eventId: "evt-auto", version: "active", initiatedBy: "auto" });
     });
 
-    // Cursor should be at sequence 103 (the highest assistant event)
-    const session = useConversationStore.getState().sessions[SESSION_ID];
-    expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(103);
+    expect(mockSetMuted).not.toHaveBeenCalledWith(false);
+    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Auto"], { eventId: "evt-auto", version: "active", initiatedBy: "auto" });
   });
 });

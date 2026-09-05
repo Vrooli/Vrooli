@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -91,7 +93,7 @@ func TestIsBinaryLargeFile(t *testing.T) {
 func TestDiffNewFile(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("new text file", func(t *testing.T) {
@@ -211,7 +213,7 @@ func TestDiffNewFile(t *testing.T) {
 // TestDiffDeletedFile tests generating diffs for deleted files
 func TestDiffDeletedFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("deleted text file", func(t *testing.T) {
@@ -298,7 +300,7 @@ func TestDiffDeletedFile(t *testing.T) {
 func TestDiffModifiedFile(t *testing.T) {
 	lowerDir := t.TempDir()
 	upperDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("modified text file", func(t *testing.T) {
@@ -353,7 +355,7 @@ func TestDiffModifiedFile(t *testing.T) {
 func TestGenerateDiff(t *testing.T) {
 	lowerDir := t.TempDir()
 	upperDir := t.TempDir()
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	sandboxID := uuid.New()
@@ -377,6 +379,44 @@ func TestGenerateDiff(t *testing.T) {
 		}
 		if result.UnifiedDiff != "" {
 			t.Error("result should have empty diff for no changes")
+		}
+		if result.Stats.FilesChanged != 0 {
+			t.Errorf("Stats.FilesChanged = %d, want 0 for empty diff", result.Stats.FilesChanged)
+		}
+		if result.Stats.LinesAdded != 0 || result.Stats.LinesRemoved != 0 {
+			t.Errorf("empty diff should have zero line counts, got +%d -%d",
+				result.Stats.LinesAdded, result.Stats.LinesRemoved)
+		}
+	})
+
+	t.Run("stats for modified file", func(t *testing.T) {
+		modLower := t.TempDir()
+		modUpper := t.TempDir()
+		modSandbox := &types.Sandbox{ID: uuid.New(), LowerDir: modLower, UpperDir: modUpper}
+
+		if err := os.WriteFile(filepath.Join(modLower, "m.txt"), []byte("one\ntwo\n"), 0o644); err != nil {
+			t.Fatalf("Failed to write lower: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(modUpper, "m.txt"), []byte("one\ntwo\nthree\n"), 0o644); err != nil {
+			t.Fatalf("Failed to write upper: %v", err)
+		}
+
+		changes := []*types.FileChange{
+			{ID: uuid.New(), FilePath: "m.txt", ChangeType: types.ChangeTypeModified, FileSize: 14},
+		}
+		result, err := gen.GenerateDiff(ctx, modSandbox, changes, nil)
+		if err != nil {
+			t.Fatalf("GenerateDiff failed: %v", err)
+		}
+		if result.Stats.FilesChanged != 1 || result.Stats.FilesModified != 1 {
+			t.Errorf("expected FilesChanged=FilesModified=1, got changed=%d modified=%d",
+				result.Stats.FilesChanged, result.Stats.FilesModified)
+		}
+		if result.Stats.LinesAdded < 1 {
+			t.Errorf("expected at least 1 line added, got %d", result.Stats.LinesAdded)
+		}
+		if result.Stats.TotalBytes != 14 {
+			t.Errorf("TotalBytes = %d, want 14", result.Stats.TotalBytes)
 		}
 	})
 
@@ -438,14 +478,27 @@ func TestGenerateDiff(t *testing.T) {
 			t.Fatalf("GenerateDiff failed: %v", err)
 		}
 
-		if result.TotalAdded != 1 {
-			t.Errorf("TotalAdded = %d, want 1", result.TotalAdded)
+		if result.Stats.FilesAdded != 1 {
+			t.Errorf("Stats.FilesAdded = %d, want 1", result.Stats.FilesAdded)
 		}
-		if result.TotalDeleted != 1 {
-			t.Errorf("TotalDeleted = %d, want 1", result.TotalDeleted)
+		if result.Stats.FilesDeleted != 1 {
+			t.Errorf("Stats.FilesDeleted = %d, want 1", result.Stats.FilesDeleted)
 		}
-		if result.Generated.IsZero() {
-			t.Error("Generated timestamp should be set")
+		if result.Stats.FilesChanged != 2 {
+			t.Errorf("Stats.FilesChanged = %d, want 2", result.Stats.FilesChanged)
+		}
+		if result.Stats.LinesAdded == 0 {
+			t.Errorf("Stats.LinesAdded should be > 0 for an added file with content, got %d", result.Stats.LinesAdded)
+		}
+		if result.Stats.LinesRemoved == 0 {
+			t.Errorf("Stats.LinesRemoved should be > 0 for a deleted file with content, got %d", result.Stats.LinesRemoved)
+		}
+		// Round 4 Phase 2: the diff package is clock-free. The caller
+		// (Service, with its injected clock) stamps DiffResult.Generated
+		// before returning to API consumers, so Generated is the zero
+		// value here.
+		if !result.Generated.IsZero() {
+			t.Errorf("expected zero Generated timestamp from diff package, got %v", result.Generated)
 		}
 	})
 
@@ -734,7 +787,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: types.ChangeTypeAdded,
 		}
 
-		diff, err := GenerateFileDiff(ctx, sandbox, change, "")
+		diff, err := GenerateFileDiff(ctx, process.NewOSExecStarter(), sandbox, change, "")
 		if err != nil {
 			t.Fatalf("GenerateFileDiff failed: %v", err)
 		}
@@ -754,7 +807,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: types.ChangeTypeDeleted,
 		}
 
-		diff, err := GenerateFileDiff(ctx, sandbox, change, "")
+		diff, err := GenerateFileDiff(ctx, process.NewOSExecStarter(), sandbox, change, "")
 		if err != nil {
 			t.Fatalf("GenerateFileDiff failed: %v", err)
 		}
@@ -770,7 +823,7 @@ func TestGenerateFileDiff(t *testing.T) {
 			ChangeType: "unknown",
 		}
 
-		_, err := GenerateFileDiff(ctx, sandbox, change, "")
+		_, err := GenerateFileDiff(ctx, process.NewOSExecStarter(), sandbox, change, "")
 		if err == nil {
 			t.Error("should fail for unknown change type")
 		}
@@ -779,7 +832,7 @@ func TestGenerateFileDiff(t *testing.T) {
 
 // TestPatcher tests the patch application
 func TestPatcher(t *testing.T) {
-	patcher := NewPatcher()
+	patcher := NewPatcher(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("apply empty diff", func(t *testing.T) {
@@ -824,11 +877,12 @@ func TestPatcher(t *testing.T) {
 	})
 }
 
-// TestIsGitRepo tests git repository detection
+// TestIsGitRepo tests git repository detection through GitOps.
 func TestIsGitRepo(t *testing.T) {
 	t.Run("non-git directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		if isGitRepo(tmpDir) {
+		gitOps := NewGitOps(process.NewOSExecStarter())
+		if gitOps.IsGitRepo(context.Background(), tmpDir) {
 			t.Error("temp directory should not be a git repo")
 		}
 	})
@@ -839,7 +893,7 @@ func TestIsGitRepo(t *testing.T) {
 
 // TestNewGenerator verifies generator creation
 func TestNewGenerator(t *testing.T) {
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	if gen == nil {
 		t.Error("NewGenerator should return non-nil generator")
 	}
@@ -847,7 +901,7 @@ func TestNewGenerator(t *testing.T) {
 
 // TestNewPatcher verifies patcher creation
 func TestNewPatcher(t *testing.T) {
-	patcher := NewPatcher()
+	patcher := NewPatcher(process.NewOSExecStarter())
 	if patcher == nil {
 		t.Error("NewPatcher should return non-nil patcher")
 	}
@@ -1206,7 +1260,7 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 		t.Fatalf("Failed to git commit: %v", err)
 	}
 
-	gen := NewGenerator()
+	gen := NewGenerator(process.NewOSExecStarter())
 	ctx := context.Background()
 
 	t.Run("new file diff is valid git patch", func(t *testing.T) {

@@ -1,10 +1,21 @@
 # Swarm Coordination Model
 
-This document explains the three-domain architecture that enables coordinated agent swarms in prompt-manager.
+This document explains the current Skills + Agents + Teams architecture that enables coordinated agent swarms in prompt-manager, plus the implemented Action layer for deterministic execution.
 
 ## Overview
 
 Prompt-manager evolved from a simple skill storage system into a comprehensive **Skills + Agents + Teams** platform. This architecture enables agent swarms - coordinated groups of AI agents that work autonomously on complex tasks by composing skills and collaborating through team structures.
+
+The Action layer adds a fourth concept for execution, not judgment:
+
+```text
+Truth lives in the Plan of Record.
+Judgment lives in Skills.
+Execution lives in Actions.
+Implementation lives in CLIs.
+Unbuilt work lives in the Backlog.
+Raw learning starts in typed knowledge topics.
+```
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -13,9 +24,16 @@ Prompt-manager evolved from a simple skill storage system into a comprehensive *
 │   ┌─────────────┐  Text References ┌─────────────┐    Relations         │
 │   │   SKILLS    │◄────────────────►│   AGENTS    │◄──────────────►      │
 │   │             │   (markdown)     │             │   team-member        │
-│   │  behaviors  │                 │  identities │                       │
+│   │  judgment   │                 │  identities │                       │
 │   │  with packs │                 │  + souls   │        ┌─────────────┐│
 │   └─────────────┘                 └─────────────┘        │    TEAMS    ││
+│                                          │               │             ││
+│                                          ▼               │             ││
+│                                  ┌─────────────┐         │             ││
+│                                  │  ACTIONS*   │         │             ││
+│                                  │ execution   │         │             ││
+│                                  │ over CLIs   │         │             ││
+│                                  └─────────────┘         │             ││
 │                                                          │             ││
 │                                                          │ coordination││
 │                                                          │ + roles     ││
@@ -23,11 +41,13 @@ Prompt-manager evolved from a simple skill storage system into a comprehensive *
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## The Three Domains
+`*` Actions are typed command contracts with API/CLI/UI validation, opt-in discovery, graph nodes, and governed execution through the Action runtime. See [Actions](ACTIONS.md).
+
+## The Three Current Domains
 
 ### Skills
 
-Skills are reusable AI behaviors that define what an agent can do. They contain prompts, instructions, and capability declarations.
+Skills are reusable AI guidance documents that define how an agent should reason, decide, or approach a class of work. They contain prompts, instructions, and capability declarations.
 
 **Key Characteristics:**
 - Organized into **packs**: `core` (system skills), `local` (user-created), `drafts` (work-in-progress)
@@ -36,6 +56,7 @@ Skills are reusable AI behaviors that define what an agent can do. They contain 
 - **Version history** via `history.jsonl` for tracking changes
 - **Modes** (agent, human, etc.) to indicate intended usage
 - **Entry point** (`SKILL.md`) containing the actual skill content
+- Best suited for judgment, methodology, synthesis, and safety constraints
 
 **Storage:**
 ```
@@ -151,9 +172,36 @@ store/teams/{team-id}/
 }
 ```
 
+## Proposed Execution Domain: Actions
+
+Actions are typed executable wrappers over exactly one Vrooli-controlled CLI command. They are proposed as a first-class entity so agents can discover deterministic operations without reading long prose skills.
+
+**Key Characteristics:**
+- Declares stable input and output schemas
+- Calls one controlled command such as `vrooli ...`, `prompt-manager ...`, or a lifecycle-managed scenario CLI
+- Declares permissions before execution
+- Provides examples and validation
+- Contains no branching, routing, shell pipelines, or implementation logic
+
+**Intended Storage:**
+```
+store/actions/packs/{pack}/{action-id}/
+├── action.json
+└── history.jsonl
+```
+
+**Boundary:**
+```text
+Skill = how to decide
+Action = what to run
+CLI = how it works
+```
+
+See [Actions](ACTIONS.md) for the full contract.
+
 ## How They Work Together
 
-The three domains connect through **relations** for team membership and **markdown references** for skill usage.
+The current domains connect through **relations** for team membership and **markdown references** for skill usage. The Action layer adds discoverable execution contracts that agents can call after deciding what operation is appropriate.
 
 ### Flow: Agent Gets Assigned to Team
 
@@ -161,6 +209,7 @@ The three domains connect through **relations** for team membership and **markdo
 2. Agent files (SOUL.md, RESPONSIBILITIES.md) reference relevant skills in markdown
 3. Team-member relation adds `alice` to `engineering` team with `developer` role
 4. When `alice` needs guidance, it reads skill references from its files and team shared docs
+5. When `alice` needs deterministic execution, it discovers and runs an exact Action if one exists
 
 ## Use Cases
 
@@ -211,7 +260,7 @@ Team: Review Squad
 
 ## Swarm Manager Integration: The Staging Layer
 
-Teams do not execute their plans directly. Instead, they deposit findings into the `swarm-manager` scenario as backlog items using the `swarm-manager-recommendations` skill. This creates a **staging and review layer** between agent analysis and scenario execution.
+Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
 
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
@@ -232,14 +281,16 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 - Execution governance (manual/scheduled/yolo) controls when approved work runs
 - Plans are git-tracked, human-readable, and editable before committing to execution
 
-**Team-to-backlog mapping** (defined in the `swarm-manager-recommendations` skill):
+Actions do not replace this staging layer. If a missing operation needs new scenario/resource/project behavior, the correct output is still a backlog item or `capability-work`. Once the CLI behavior exists and is stable, an Action can wrap it for future execution.
+
+**Team-to-backlog mapping**:
 
 | Team | Backlog Kind | Purpose |
 |------|-------------|---------|
 | Feature Team | `idea` or `execute` | New capabilities and enhancements |
 | QA Team | `fix` or `execute` | Quality issues and test improvements |
 
-See [swarm-manager-recommendations SKILL.md](../../store/skills/packs/core/swarm-manager-recommendations/SKILL.md) for the full team-to-backlog contract.
+See the [swarm-manager work-authoring skill](../../store/skills/packs/core/swarm-manager-work-authoring/SKILL.md) for the filing contract.
 
 ## Coordination Skills
 
@@ -293,4 +344,4 @@ The coordination skill is a static behavioral layer. Prompt Manager also injects
 - [RELATIONS.md](RELATIONS.md) - Team-member relation details
 - [PERSONA-SYSTEM.md](PERSONA-SYSTEM.md) - Agent SOUL.md configuration
 - [CAPABILITY-MATCHING.md](CAPABILITY-MATCHING.md) - Skill-to-agent matching
-- [3D-WORLD-ARCHITECTURE.md](3D-WORLD-ARCHITECTURE.md) - Visualization details
+- [WORLD-ARCHITECTURE.md](WORLD-ARCHITECTURE.md) - World visualization

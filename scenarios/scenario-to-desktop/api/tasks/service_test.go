@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
+	"scenario-to-desktop-api/tasks/fix"
 	"scenario-to-desktop-api/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // --- Mock implementations ---
@@ -253,7 +254,7 @@ func newTestService() (*Service, *mockInvStore, *mockPipelineStore, *mockAgentEx
 	hub := &mockProgressHub{}
 
 	// Use NewService but we need to override handlers since it imports investigate/fix
-	svc := NewService(invStore, pipeStore, agentExec, hub)
+	svc := NewService(invStore, pipeStore, agentExec, hub, "http://127.0.0.1:19001")
 
 	return svc, invStore, pipeStore, agentExec, hub
 }
@@ -362,6 +363,84 @@ func TestTriggerTask_GetActiveError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to check active") {
 		t.Errorf("error = %q, want 'failed to check active'", err.Error())
+	}
+}
+
+func TestStoreInvestigationResultsPersistsFindingsAndFailureDetails(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		result     *AgentResult
+		wantStatus domain.InvestigationStatus
+		wantEvent  string
+	}{
+		{"findings", &AgentResult{RunID: "run-1", Success: true, Output: "Root cause identified", DurationSeconds: 12, TokensUsed: 34}, domain.InvestigationStatusCompleted, EventInvestigationCompleted},
+		{"empty output", &AgentResult{RunID: "run-2", Success: true}, domain.InvestigationStatusFailed, EventInvestigationFailed},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			svc, store, _, _, hub := newTestService()
+			store.investigations["task"] = &domain.Investigation{ID: "task", PipelineID: "pipe"}
+			status := &pipeline.Status{PipelineID: "pipe", Stages: map[string]*pipeline.StageResult{
+				pipeline.StageBuild: {Status: pipeline.StatusFailed},
+			}}
+			svc.storeInvestigationResults(context.Background(), "task", status, &domain.CreateTaskRequest{
+				TaskType: domain.TaskTypeInvestigate, Effort: domain.EffortLogs,
+			}, test.result)
+			stored := store.investigations["task"]
+			if stored.Status != test.wantStatus || len(hub.events) != 1 || hub.events[0].eventType != test.wantEvent {
+				t.Fatalf("stored=%#v events=%#v", stored, hub.events)
+			}
+			if test.wantStatus == domain.InvestigationStatusCompleted && (stored.Findings == nil || *stored.Findings != "Root cause identified") {
+				t.Fatalf("findings were not stored: %#v", stored)
+			}
+			if test.wantStatus == domain.InvestigationStatusFailed && (stored.ErrorMessage == nil || !strings.Contains(*stored.ErrorMessage, "did not produce")) {
+				t.Fatalf("empty output error was not stored: %#v", stored)
+			}
+		})
+	}
+}
+
+func TestStoreFixResultsReportsSuccessAndTermination(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		final      string
+		wantStatus domain.InvestigationStatus
+		wantEvent  string
+	}{
+		{"success", FixStatusSuccess, domain.InvestigationStatusCompleted, EventFixCompleted},
+		{"max iterations", FixStatusMaxIterations, domain.InvestigationStatusFailed, EventFixFailed},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			svc, store, _, _, hub := newTestService()
+			store.investigations["task"] = &domain.Investigation{ID: "task", PipelineID: "pipe"}
+			findings := "prior investigation"
+			loop := fix.NewLoopState(fix.DefaultLoopConfig(2, "http://pipeline"))
+			loop.StartIteration()
+			loop.RecordIteration(domain.FixIterationRecord{Number: 1, Outcome: "changed", VerifyResult: "passed"})
+			loop.FinalStatus = test.final
+			svc.storeFixResults(context.Background(), "task", &pipeline.Status{PipelineID: "pipe"}, &domain.CreateTaskRequest{
+				TaskType: domain.TaskTypeFix, SourceInvestigationID: "source", Permissions: domain.FixPermissions{Immediate: true},
+			}, loop, &findings)
+			stored := store.investigations["task"]
+			if stored.Status != test.wantStatus || len(hub.events) != 1 || hub.events[0].eventType != test.wantEvent {
+				t.Fatalf("stored=%#v events=%#v", stored, hub.events)
+			}
+			if test.wantStatus == domain.InvestigationStatusCompleted && (stored.Findings == nil || !strings.Contains(*stored.Findings, "Fix Task Summary")) {
+				t.Fatalf("success findings missing: %#v", stored)
+			}
+		})
+	}
+}
+
+func TestUpdateLoopStatePersistsSerializableFixProgress(t *testing.T) {
+	svc, store, _, _, _ := newTestService()
+	store.investigations["task"] = &domain.Investigation{ID: "task", PipelineID: "pipe"}
+	loop := fix.NewLoopState(fix.DefaultLoopConfig(3, "http://pipeline"))
+	loop.StartIteration()
+	loop.RecordIteration(domain.FixIterationRecord{Number: 1, Outcome: "changed", VerifyResult: "passed"})
+
+	svc.updateLoopState(context.Background(), "task", loop)
+	if !strings.Contains(string(store.investigations["task"].Details), "current_iteration") {
+		t.Fatalf("loop state was not persisted: %s", store.investigations["task"].Details)
 	}
 }
 
@@ -500,8 +579,8 @@ func TestTriggerTask_InvestigateSuccess(t *testing.T) {
 	if inv.PipelineID != "pipe-1" {
 		t.Errorf("PipelineID = %q, want pipe-1", inv.PipelineID)
 	}
-	if inv.Status != domain.InvestigationStatusPending {
-		t.Errorf("Status = %q, want pending", inv.Status)
+	if inv.Status != domain.InvestigationStatusPending && inv.Status != domain.InvestigationStatusRunning {
+		t.Errorf("Status = %q, want pending or running", inv.Status)
 	}
 
 	// Verify it was stored
@@ -514,9 +593,13 @@ func TestTriggerTask_InvestigateSuccess(t *testing.T) {
 		t.Error("cancel func should be set for the investigation")
 	}
 
-	// Give goroutine a moment to start (it will fail since agentSvc is a mock,
-	// but the important thing is TriggerTask returned successfully)
-	time.Sleep(50 * time.Millisecond)
+	// The worker intentionally outlives the request. Shut it down explicitly so
+	// this test does not leave an asynchronous poller behind.
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := svc.Shutdown(ctxShutdown); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
 }
 
 func TestTriggerTask_FixSuccess(t *testing.T) {
@@ -540,9 +623,12 @@ func TestTriggerTask_FixSuccess(t *testing.T) {
 	if inv == nil {
 		t.Fatal("expected non-nil investigation")
 	}
-	if inv.Status != domain.InvestigationStatusPending {
-		t.Errorf("Status = %q, want pending", inv.Status)
+	if inv.Status != domain.InvestigationStatusPending && inv.Status != domain.InvestigationStatusRunning {
+		t.Errorf("Status = %q, want pending or running", inv.Status)
 	}
-
-	time.Sleep(50 * time.Millisecond)
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := svc.Shutdown(ctxShutdown); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
 }

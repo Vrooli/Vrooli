@@ -5,7 +5,9 @@
 package backlog
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -25,20 +27,45 @@ type Store interface {
 	LoadItem(kind BacklogKind, name string) (BacklogItem, error)
 	LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem, error)
 	SaveItem(item BacklogItem) error
+	DeleteItem(kind BacklogKind, name string) error
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
 	RemoveDependencyRef(ref string) (int, error)
+	// SetItemMilestone writes the milestone field on the item and returns
+	// the previous value. ErrNotFound if the item does not exist.
+	SetItemMilestone(kind BacklogKind, name, milestone string) (string, error)
+	// ClearItemMilestone clears the item's milestone field only if it
+	// currently equals expected. Returns (prevValue, changed, error).
+	// If the item does not exist or the field does not match, changed=false.
+	ClearItemMilestone(kind BacklogKind, name, expected string) (string, bool, error)
+}
+
+// AIIndexer is the fire-and-forget indexing hook the FileStore invokes after
+// every successful mutation. Implementations must not block the calling
+// goroutine on network I/O; the store always calls them in a new goroutine.
+// Nil indexer disables indexing entirely.
+type AIIndexer interface {
+	IndexBacklogItem(ctx context.Context, item BacklogItem) error
+	DeleteBacklogItem(ctx context.Context, kind BacklogKind, name string) error
 }
 
 // FileStore is the filesystem-backed Store implementation. It reads and writes
 // backlog items as spec.json files in kind-specific directories.
 type FileStore struct {
-	rootDir string
+	rootDir   string
+	aiIndexer AIIndexer
 }
 
 // NewFileStore creates a FileStore rooted at the given directory.
 func NewFileStore(rootDir string) *FileStore {
 	return &FileStore{rootDir: rootDir}
+}
+
+// SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
+// notifications after every successful SaveItem/DeleteItem. Safe to call after
+// construction; pass nil to detach.
+func (s *FileStore) SetAIIndexer(indexer AIIndexer) {
+	s.aiIndexer = indexer
 }
 
 // KindDir returns the absolute path for a given backlog kind directory.
@@ -123,15 +150,14 @@ func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (Backlog
 	if item.Tags == nil {
 		item.Tags = []string{}
 	}
-	// Normalize status to valid proto values. On-disk data may contain
-	// legacy values (e.g. "done") that are not in the proto enum.
+	// Reject unknown status values outright. We used to silently normalize
+	// legacy aliases (done/complete/finished → completed) and fall back to
+	// backlog for anything else — that shim hid corrupted spec.json files
+	// behind a "looks fine" default. Plan is greenfield: surface the bad
+	// value so the owner can fix it.
 	if !validateBacklogStatus(string(item.Status)) {
-		switch string(item.Status) {
-		case "done", "complete", "finished":
-			item.Status = StatusCompleted
-		default:
-			item.Status = StatusBacklog
-		}
+		return BacklogItem{}, fmt.Errorf("%w: %s/%s has status %q (see internal/backlogstatus for the canonical enum)",
+			ErrInvalidStatus, kind, item.Name, item.Status)
 	}
 	// Backfill missing created timestamp from updated or file mtime.
 	if strings.TrimSpace(item.Created) == "" {
@@ -190,10 +216,10 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "depends_on")
 	}
-	if strings.TrimSpace(item.Initiative) != "" {
-		merged["initiative"] = item.Initiative
+	if strings.TrimSpace(item.Milestone) != "" {
+		merged["milestone"] = item.Milestone
 	} else {
-		delete(merged, "initiative")
+		delete(merged, "milestone")
 	}
 	if strings.TrimSpace(item.Effort) != "" {
 		merged["effort"] = item.Effort
@@ -210,10 +236,40 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "acceptance_deny")
 	}
+	if len(item.AcceptanceCriteria) > 0 {
+		merged["acceptance_criteria"] = item.AcceptanceCriteria
+	} else {
+		delete(merged, "acceptance_criteria")
+	}
+	if len(item.Creates) > 0 {
+		merged["creates"] = item.Creates
+	} else {
+		delete(merged, "creates")
+	}
 	if strings.TrimSpace(item.SpawnedFrom) != "" {
 		merged["spawned_from"] = item.SpawnedFrom
 	} else {
 		delete(merged, "spawned_from")
+	}
+	if item.PlanRef != nil {
+		merged["plan_ref"] = item.PlanRef
+	} else {
+		delete(merged, "plan_ref")
+	}
+	if item.PlanAcceptance != nil {
+		merged["plan_acceptance"] = item.PlanAcceptance
+	} else {
+		delete(merged, "plan_acceptance")
+	}
+	if item.PendingFollowUp != nil {
+		merged["pending_follow_up"] = item.PendingFollowUp
+	} else {
+		delete(merged, "pending_follow_up")
+	}
+	if strings.TrimSpace(item.FindingRef) != "" {
+		merged["finding_ref"] = item.FindingRef
+	} else {
+		delete(merged, "finding_ref")
 	}
 	if strings.TrimSpace(item.Note) != "" {
 		merged["note"] = item.Note
@@ -241,7 +297,61 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(specPath, data, 0o644)
+	if err := os.WriteFile(specPath, data, 0o600); err != nil {
+		return err
+	}
+
+	s.notifyIndexUpsert(item)
+	return nil
+}
+
+// DeleteItem removes a backlog item's on-disk folder and notifies the AI
+// indexer. Returns nil if the item does not exist (idempotent).
+func (s *FileStore) DeleteItem(kind BacklogKind, name string) error {
+	itemDir := s.ItemDir(kind, name)
+	if _, err := os.Stat(itemDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if err := os.RemoveAll(itemDir); err != nil {
+		return err
+	}
+	s.notifyIndexDelete(kind, name)
+	return nil
+}
+
+// notifyIndexUpsert dispatches an index upsert in a goroutine if an indexer is
+// configured. Errors are logged; index failures never propagate to callers.
+func (s *FileStore) notifyIndexUpsert(item BacklogItem) {
+	indexer := s.aiIndexer
+	if indexer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := indexer.IndexBacklogItem(ctx, item); err != nil {
+			slog.Debug("ai index upsert failed", "kind", item.Kind, "name", item.Name, "err", err)
+		}
+	}()
+}
+
+// notifyIndexDelete dispatches an index delete in a goroutine if an indexer is
+// configured.
+func (s *FileStore) notifyIndexDelete(kind BacklogKind, name string) {
+	indexer := s.aiIndexer
+	if indexer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := indexer.DeleteBacklogItem(ctx, kind, name); err != nil {
+			slog.Debug("ai index delete failed", "kind", kind, "name", name, "err", err)
+		}
+	}()
 }
 
 // parseDependencyRef splits a "kind/name" dependency reference into its
@@ -294,11 +404,55 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 			// execution — it is valid for completed work to be cleaned up.
 			continue
 		}
+		if IsArchived(item) {
+			continue
+		}
 		if blockingDepStatuses[item.Status] {
 			unmet = append(unmet, ref)
 		}
 	}
 	return unmet, nil
+}
+
+// SetItemMilestone writes the milestone field on the item at the given
+// kind/name, returning the previous value. Returns ErrNotFound if the item
+// does not exist.
+func (s *FileStore) SetItemMilestone(kind BacklogKind, name, milestone string) (string, error) {
+	item, err := s.LoadItem(kind, name)
+	if err != nil {
+		return "", err
+	}
+	prev := item.Milestone
+	item.Milestone = strings.TrimSpace(milestone)
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.SaveItem(item); err != nil {
+		return prev, fmt.Errorf("set milestone for %s/%s: %w", kind, name, err)
+	}
+	return prev, nil
+}
+
+// ClearItemMilestone clears the milestone field on the item only if it
+// currently equals expected. Returns (prevValue, changed, error). If the
+// item does not exist or the field does not match expected, changed=false
+// and no error is returned.
+func (s *FileStore) ClearItemMilestone(kind BacklogKind, name, expected string) (string, bool, error) {
+	item, err := s.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	prev := item.Milestone
+	if prev != expected {
+		return prev, false, nil
+	}
+	item.Milestone = ""
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.SaveItem(item); err != nil {
+		return prev, false, fmt.Errorf("clear milestone for %s/%s: %w", kind, name, err)
+	}
+	return prev, true, nil
 }
 
 // RemoveDependencyRef removes the given "kind/name" reference from the

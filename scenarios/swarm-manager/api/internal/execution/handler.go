@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -32,10 +33,16 @@ func NewHandlerFromService(svc *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution", h.List).Methods("GET")
 	r.HandleFunc("/api/v1/execution", h.Create).Methods("POST")
+	r.HandleFunc("/api/v1/execution/strategies", h.Strategies).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/prompt-trace", h.GetPromptTrace).Methods("GET")
+	r.HandleFunc("/api/v1/execution/{execution_id}/progress", h.GetProgress).Methods("GET")
 	r.HandleFunc("/api/v1/execution/{execution_id}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/cancel", h.Cancel).Methods("POST")
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
+	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/apply", h.ApplyWorkflow).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/rebase", h.RebasePhasedPlanWorkflow).Methods("POST")
+	r.HandleFunc("/api/v1/execution/{execution_id}/workflow/approve", h.ApprovePhasedPlanWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/trigger-review", h.TriggerReview).Methods("POST")
@@ -46,6 +53,12 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 // StartBackgroundWorker launches the background worker for active execution
 // progression.
 func (h *Handler) StartBackgroundWorker(stop <-chan struct{}) {
+	if report, err := h.service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+		slog.Error("execution workflow reconciliation failed at startup", "err", err)
+	} else if len(report.Reconciled) > 0 {
+		slog.Info("execution workflow reconciliation repaired terminal records", "count", len(report.Reconciled))
+	}
+	_ = h.service.ProcessActiveExecutions(context.Background())
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -53,6 +66,11 @@ func (h *Handler) StartBackgroundWorker(stop <-chan struct{}) {
 		case <-stop:
 			return
 		case <-ticker.C:
+			if report, err := h.service.ReconcileWorkflowExecutions(context.Background()); err != nil {
+				slog.Error("execution workflow reconciliation failed", "err", err)
+			} else if len(report.Reconciled) > 0 {
+				slog.Info("execution workflow reconciliation repaired terminal records", "count", len(report.Reconciled))
+			}
 			_ = h.service.ProcessActiveExecutions(context.Background())
 		}
 	}
@@ -112,7 +130,7 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 		pb.ParentExecutionId = &r.ParentExecutionID
 	}
 	pb.FixupAttempt = int32(r.FixupAttempt)
-	if finalization := effectiveFinalization(r); finalization != nil {
+	if finalization := r.Finalization; finalization != nil {
 		pb.Finalization = finalizationToProto(finalization)
 	}
 	return pb

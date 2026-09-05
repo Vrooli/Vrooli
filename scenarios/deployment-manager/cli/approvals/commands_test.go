@@ -294,8 +294,8 @@ func TestGateReadyOutput(t *testing.T) {
 	if !strings.Contains(output, "READY") {
 		t.Fatalf("expected READY status, got %s", output)
 	}
-	if strings.Contains(output, "Next Steps") {
-		t.Fatalf("unexpected next steps for ready gate, got %s", output)
+	if !strings.Contains(output, "Next Steps") || !strings.Contains(output, "deployment-manager deploy prof-1") {
+		t.Fatalf("expected standardized next step for ready gate, got %s", output)
 	}
 }
 

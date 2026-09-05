@@ -1,0 +1,394 @@
+{
+  "$schema": "schemas/repo-contract.schema.json",
+  "version": "1.2.0",
+  "platform": {
+    "mode": "cross_platform_go_native",
+    "legacy_project_bash_supported": false,
+    "platform_conformance_gate": "vrooli capability conformance"
+  },
+  "root": {
+    "markers": {
+      "required_dirs": [
+        ".vrooli",
+        "templates",
+        "scenarios",
+        "resources",
+        "packages",
+        "cmd",
+        "internal"
+      ],
+      "required_files": [
+        "go.mod"
+      ]
+    }
+  },
+  "layout": {
+    "project_config_dir": ".vrooli",
+    "scenario_dir": "scenarios",
+    "resource_dir": "resources",
+    "template_dir": "templates",
+    "package_dir": "packages",
+    "command_dir": "cmd",
+    "internal_dir": "internal",
+    "docs_dir": "docs",
+    "scratch_dir": "scratch",
+    "project_config_allowlist": [
+      "build",
+      "agent-manager",
+      "apply-runs",
+      "audit",
+      "bin",
+      "dependencies",
+      "generated",
+      "capability-vocabulary.json",
+      "operator-state.json",
+      "repo-contract.json",
+      "skip-budgets.json",
+      "resources",
+      "schemas",
+      "service.json",
+      "test-companions.json",
+      "canonical-seams.json",
+      "portability-lint-allowlist.json",
+      "testing.json"
+    ]
+  },
+  "targets": {
+    "kinds": {
+      "scenario": {
+        "roots": [
+          "scenarios/*"
+        ],
+        "marker": ".vrooli/service.json"
+      },
+      "resource": {
+        "roots": [
+          "resources/*"
+        ],
+        "marker": "resource.json"
+      },
+      "tool": {
+        "roots": [
+          "internal/tools/*"
+        ],
+        "marker": "tool.json"
+      },
+      "safeguard": {
+        "roots": [
+          "internal/safeguards/*"
+        ],
+        "marker": "safeguard.json"
+      },
+      "team": {
+        "roots": [
+          "docs/*"
+        ],
+        "marker": "manifest.json"
+      },
+      "package": {
+        "roots": [
+          "packages/*"
+        ]
+      },
+      "control-plane": {
+        "roots": [
+          "cmd",
+          "internal"
+        ],
+        "exclude": [
+          "internal/tools/*",
+          "internal/safeguards/*"
+        ]
+      },
+      "docs": {
+        "roots": [
+          "docs"
+        ],
+        "exclude": [
+          "docs/*/manifest.json"
+        ]
+      },
+      "project": {
+        "roots": [
+          "."
+        ],
+        "marker": ".vrooli/repo-contract.json"
+      }
+    }
+  },
+  "runtime_home": {
+    "dir_name": ".vrooli",
+    "env_overrides": [],
+    "entries": {
+      "artifacts": {
+        "path": "artifacts",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "90d",
+          "max_bytes": "50GiB",
+          "keep_count": 10,
+          "protect_active": true
+        }
+      },
+      "backups": {
+        "path": "backups",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "bin": {
+        "path": "bin",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Shared executable install root for the control plane, every scenario CLI, and every resource CLI. Regenerable in the backup sense -- these are build outputs and are never backed up -- but never a bulk cleanup or retention target: entries here are load-bearing while they exist, arrive from many independent installers, and have no shared age or size semantics. Reclaiming one artifact is scenario-binaries' job, which proves a specific CLI is an orphan and removes it under lease and receipt. `protected` is what stops a declared budget over this path, or over an ancestor such as ~/.vrooli, from becoming a licence to prune it."
+      },
+      "build": {
+        "path": "build",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "14d",
+          "max_bytes": "20GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "cache": {
+        "path": "cache",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "10GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "config": {
+        "path": "config",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "data": {
+        "path": "data",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "logs": {
+        "path": "logs",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "10GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "metrics": {
+        "path": "metrics",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "10GiB",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "plans": {
+        "path": "plans",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "processes": {
+        "path": "processes",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "7d",
+          "keep_count": 3,
+          "protect_active": true
+        }
+      },
+      "runtime_db": {
+        "path": "state/runtime.db",
+        "kind": "file",
+        "regenerable": false,
+        "format": "sqlite",
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "secrets": {
+        "path": "secrets.json",
+        "kind": "file",
+        "regenerable": false,
+        "format": "json",
+        "sensitive": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "secrets_enc": {
+        "path": "secrets.enc.json",
+        "kind": "file",
+        "regenerable": false,
+        "format": "json",
+        "sensitive": true,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "shims": {
+        "path": "shims",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "never",
+        "rationale": "PATH shims that route coding-agent invocations through vrooli-agent-launcher. Deliberately not ~/.vrooli/bin: the shims are five links whose whole content is regenerable from the launcher binary, while bin is a shared install root that is not, and a single declaration cannot be truthful about both. Owning a directory outright is what lets this one be declared regenerable honestly, and it decouples the shims from a directory whose contents other installers churn. Cleanup is `never` because the bytes are negligible and the coding_agent_shims safeguard already re-asserts the set; its own storage budget is the alarm for a runaway install."
+      },
+      "state": {
+        "path": "state",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "control_plane",
+        "protected": true,
+        "cleanup": "never"
+      },
+      "test_runs": {
+        "path": "test-runs",
+        "kind": "dir",
+        "regenerable": true,
+        "owner": "control_plane",
+        "cleanup": "storage_manager",
+        "retention": {
+          "max_age": "30d",
+          "max_bytes": "20GiB",
+          "keep_count": 10,
+          "protect_active": true
+        }
+      }
+    },
+    "scoped": {
+      "scenario_secrets": "scenarios/{scenario}/secrets.json",
+      "project_state": "state/projects/{project_key}",
+      "test_runs_scenario": "test-runs/{scenario}"
+    }
+  },
+  "scenario": {
+    "required_files": [
+      ".vrooli/service.json"
+    ],
+    "well_known_paths": {
+      "service": ".vrooli/service.json",
+      "orientation": ".vrooli/orientation.json",
+      "docs": "docs",
+      "docs_manifest": "docs/manifest.json",
+      "requirements": "requirements",
+      "api": "api",
+      "ui": "ui",
+      "cli": "cli",
+      "cli_manifest": "cli/manifest.json"
+    }
+  },
+  "resource": {
+    "manifest": "resource.json",
+    "well_known_paths": {
+      "manifest": "resource.json",
+      "readme": "README.md",
+      "docs": "docs",
+      "cli": "cli",
+      "config": "config",
+      "test": "test"
+    }
+  },
+  "globs": {
+    "syntax": "doublestar",
+    "root_relative": true,
+    "case_sensitive": true,
+    "allow_absolute": false,
+    "path_format": "slash_normalized"
+  },
+  "environment": {
+    "variables": {
+      "repo_root": "VROOLI_ROOT",
+      "source_root": "VROOLI_SOURCE_ROOT",
+      "sandbox_id": "VROOLI_SANDBOX_ID",
+      "sandbox_merged": "VROOLI_SANDBOX_MERGED",
+      "sandbox_scope": "VROOLI_SANDBOX_SCOPE"
+    }
+  },
+  "sandbox": {
+    "full_repo_scopes": [
+      "",
+      ".",
+      "/"
+    ],
+    "scenario_scope_prefix": "scenarios/"
+  },
+  "profiles": {
+    "mini_vrooli_bundle": {
+      "description": "Repo-aware bundle profile for shipping a target scenario with shared Go-native platform code and selected resources.",
+      "parameters": [
+        "scenario",
+        "resources[*]"
+      ],
+      "include": [
+        ".vrooli",
+        "cmd",
+        "internal",
+        "packages",
+        "scenarios/{scenario}",
+        "resources/{resources[*]}"
+      ],
+      "optional_include": [
+        "docs",
+        "go.mod",
+        "go.sum",
+        "go.work",
+        "go.work.sum",
+        "Makefile",
+        "README.md",
+        "LICENSE"
+      ],
+      "exclude": [
+        ".git/**",
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/coverage/**",
+        "**/data/**",
+        ".vrooli/secrets.json",
+        "**/.vrooli/secrets.json",
+        "cli/**"
+      ]
+    }
+  }
+}

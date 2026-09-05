@@ -1,35 +1,72 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "tunnel-manager",
     "displayName": "Tunnel Manager",
-    "description": "Central scenario for managing, monitoring, and self-healing the Cloudflare secure tunnel that provides remote access to all Vrooli scenarios",
+    "description": "Central management, monitoring, and self-healing for the Cloudflare secure tunnel that provides remote access to all Vrooli scenarios.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
     "tags": [
       "react-ui",
       "go-api"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/tunnel-manager"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-06-18T23:37:26Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "20365b05955bff63caf0fcfc98c7f0e475e4c958a031f27a60934f3d15a6ff9c"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "tunnel-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "tunnel-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "ports": {
@@ -40,13 +77,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "React UI",
-      "port": 36240
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "description": "React UI (FIXED — Tunnel Manager is publicly exposed and must obey the fixed-UI-port contract it enforces on others)",
+      "port": 21240
     }
   },
   "lifecycle": {
@@ -57,138 +89,119 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
           "timeout": 10000,
-          "interval": 30000,
-          "critical": true
+          "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000,
-          "critical": false
+          "interval": 30000
         }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/tunnel-manager-api"]
-          },
-          {
-            "type": "cli",
-            "command": "tunnel-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o tunnel-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tunnel-manager-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/tunnel-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute tunnel-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'tunnel-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      ],
+      "startup_grace_period": 15000
     }
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "cloudflared": {
+        "type": "cloudflared",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
-        "schema": "tunnel-manager"
+        "description": "Vrooli-managed tunnel connector and its exported readiness/metrics endpoint.",
+        "startup_policy": "must_start"
+      }
+    },
+    "scenarios": {
+      "structure-health": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Assigns a free in-band fixed UI port (range→fixed) so a ranged scenario can be exposed as a scenario route, and releases it on revoke. Best-effort: already-fixed scenarios expose without it.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "environment": {
+    "TUNNEL_METRICS_URL": "${CLOUDFLARED_METRICS_URL}",
+    "TUNNEL_READY_URL": "${CLOUDFLARED_METRICS_URL}/ready"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-account-id",
+        "label": "Cloudflare Account ID",
+        "description": "Identifies the Cloudflare account that owns the tunnel. Resolved directly by this scenario through credential-authority-go, so it is never injected into the process environment.",
+        "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
+        "obtain_url": "https://dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-tunnel-id",
+        "label": "Cloudflare Tunnel ID",
+        "description": "Identifies the named tunnel this scenario manages.",
+        "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token",
+        "obtain_url": "https://one.dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-api-token",
+        "label": "Cloudflare API Token",
+        "description": "Authorizes tunnel and DNS changes. Re-resolved per operation so a rotated token takes effect without restarting the scenario.",
+        "required": true,
+        "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-connector-token",
+        "label": "Cloudflare Connector Token",
+        "description": "Derived token used by the managed cloudflared connector; never requested from the operator.",
+        "required": true,
+        "provisioning": "derived",
+        "derived_from": "cloudflare-api-token"
+      }
+    ]
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

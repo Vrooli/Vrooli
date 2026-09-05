@@ -132,31 +132,46 @@ Complete reference of all available health checks.
 
 ### infra-rdp
 
-**Purpose:** Verify remote desktop access is available.
+**Purpose:** Verify a remote client can connect **and authenticate** — serviceability, not liveness.
 
 | Property | Value |
 |----------|-------|
 | ID | `infra-rdp` |
 | Category | Infrastructure |
-| Interval | 300 seconds |
-| Platforms | Linux (xrdp), Windows (TermService) |
+| Interval | 60 seconds |
+| Platforms | Linux (GNOME Remote Desktop, xrdp), Windows (TermService) |
 | Importance | Medium |
 
 **What it checks:**
-- Linux: xrdp service status
-- Windows: TermService status
+- Daemon liveness: GNOME Remote Desktop, xrdp, or TermService is running
+- Credential state, as three distinct states: `present`, `empty`, `unreadable` —
+  absence of credential output is never read as presence of credentials
+- Client denials in the daemon journal over a 15-minute window
+  (`recentDenials`, `recentCredentialDenials`, `journalReadable`)
+- Keyring loadability from gnome-keyring's own boot-scoped journal verdict
+  (`keyringFileRejected`, `keyringFilePath`, `keyringCorrupt`, `keyringRepairPending`) —
+  a rejected file outranks login-session hints
+- Host posture: `autoLoginUser`, `loginKeyringCollectionPresent`, `isUserSession`,
+  `sessionAvailable`
+- Credential model (`system` or `user-session`), which decides whether automated
+  repair is safe
 
 **Status mapping:**
 | Status | Condition |
 |--------|-----------|
-| OK | RDP service running |
-| Warning | RDP not installed/configured |
-| Critical | RDP installed but not running |
+| OK | No RDP service installed, or running with credentials `present` and no denials |
+| Warning | Configured but not running, or credential state `unreadable` |
+| Critical | Credentials `empty`, clients actively denied, or no graphical session |
+
+**Boundary:** `infra-rdp` owns the RDP service layer. `infra-display` owns the
+graphical-session layer and makes no statement about RDP.
 
 **Troubleshooting:**
-- Linux: `systemctl status xrdp`
-- Windows: `Get-Service TermService`
-- Check port 3389 is open
+- `vrooli-autoheal check get infra-rdp --json`
+- Keyring rejected as malformed (`keyringCorrupt=true`): run
+  `vrooli credentials keyring inspect --format json`, then
+  `vrooli credentials keyring repair --format json`; log out and back in when
+  the repair report says the daemon is stale.
 
 [Detailed documentation](checks/infra-rdp.md)
 
@@ -315,24 +330,6 @@ Complete reference of all available health checks.
 
 ---
 
-### resource-browserless
-
-**Purpose:** Verify Browserless headless Chrome resource is healthy.
-
-| Property | Value |
-|----------|-------|
-| ID | `resource-browserless` |
-| Category | Resource |
-| Interval | 60 seconds |
-| Platforms | All |
-| Importance | Medium |
-
-**What it checks:**
-- Runs `vrooli resource status browserless`
-- Parses status output
-
----
-
 ## System Checks
 
 ### system-disk
@@ -361,7 +358,7 @@ Complete reference of all available health checks.
 **Troubleshooting:**
 - Check usage: `df -h`
 - Find large files: `du -sh /* | sort -rh | head`
-- Clean Docker: `docker system prune`
+- Preview reclaim candidates: `storage-manager cleanup plan`
 
 [Detailed documentation](checks/system-disk.md)
 
@@ -594,6 +591,82 @@ Complete reference of all available health checks.
 
 ---
 
+## Host Pressure
+
+| Field | Value |
+|-------|-------|
+| ID | `system-host-pressure` |
+| Interval | 30 seconds |
+| Category | System |
+| Platforms | Linux, macOS, Windows (unread fields are explicit) |
+| Importance | Host pressure can degrade every workload even when service CPU percentages look healthy |
+
+This check joins CPU pressure, memory and swap, process count, fork rate, and
+workload ownership. It offers evidence reporting, one-service reclaim, and
+operator disposal preview actions. It never kills unmanaged work and never
+uses `swapoff`.
+
+## Emergency Watchdog Report
+
+| Field | Value |
+|-------|-------|
+| ID | `system-emergency-watchdog-report` |
+| Interval | 60 seconds |
+| Category | System |
+| Platforms | All (undetermined where the watchdog does not run) |
+| Importance | The watchdog senses host pressure but cannot act; a finding that never reaches autoheal is a finding nobody answers |
+
+This check reads the emergency watchdog's last report
+(`~/.vrooli/state/emergency-watchdog/last-report.json`) and opens one incident
+per sustained finding, titled with the attributed parent of a fork storm. A
+missing or stale report is undetermined, never healthy.
+
+[Detailed documentation](checks/system-emergency-watchdog-report.md)
+
+---
+
+## Boot Recovery Readiness
+
+| Field | Value |
+|-------|-------|
+| ID | `system-boot-recovery-readiness` |
+| Interval | 3600 seconds |
+| Category | System |
+| Platforms | All (lingering is Linux-only) |
+| Importance | Critical: a boot path only tested by rebooting fails at the one moment nobody is watching |
+
+Proves seven preconditions while the host is healthy: the three boot safeguards
+applied (`vrooli setup status --json --phase readiness`), the loop's
+`--self-test` preflight, each core unit active with zero restarts, the loop's
+heartbeat and on-disk binary, lingering under a dedicated boot policy, an
+`accepted` native-validator verdict, and the agent-session containment slice. Any failed precondition is critical and
+names `vrooli setup`; an unprobeable one is undetermined, never ok. It offers
+no recovery actions.
+
+[Detailed documentation](checks/system-boot-recovery-readiness.md)
+
+---
+
+## Emergency Watchdog Report
+
+| Field | Value |
+|-------|-------|
+| ID | `system-emergency-watchdog-report` |
+| Interval | 60 seconds |
+| Category | System |
+| Platforms | All |
+| Importance | The watchdog senses host pressure and unit liveness but cannot act; a finding that never reaches autoheal is a finding nobody answers |
+
+Reads `~/.vrooli/state/emergency-watchdog/last-report.json`, written by the
+`vrooli-watchdog` timer on every run. Any finding is critical with the finding
+copied verbatim (fork-rate and CPU-pressure findings carry the attributed
+parent); a missing or stale report (older than three timer intervals) is
+undetermined.
+
+[Detailed documentation](checks/system-emergency-watchdog-report.md)
+
+---
+
 ## Check Intervals Summary
 
 | Interval | Checks | Use Case |
@@ -601,17 +674,34 @@ Complete reference of all available health checks.
 | 30s | Network | Critical connectivity, fast detection |
 | 60s | DNS, Vrooli API, Resources | Core services |
 | 120s | Docker, Cloudflared | Services that recover slowly |
-| 300s | Disk, Inode, Swap, Zombies, Ports, RDP | Slow-changing metrics |
+| 300s | Disk, Inode, Swap, Zombies, Ports, Display, Stale service binary | Slow-changing metrics |
+| 3600s | Boot recovery readiness | Proof of the boot path; runs `vrooli setup status` |
 
 ## Check Categories Summary
 
 | Category | Count | Description |
 |----------|-------|-------------|
 | Infrastructure | 9 | Network, DNS, Docker, Cloudflared, RDP, NTP, Resolved, Certificate, Display |
-| Resource | 6 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG, Browserless |
-| System | 6 | Disk, Inode, Swap, Zombies, Ports, Claude Cache |
-| **Total** | **21** | |
+| Resource | 5 | PostgreSQL, Redis, Ollama, Qdrant, SearXNG |
+| System | 8 | Disk, Inode, Swap, Zombies, Ports, Claude Cache, Host Pressure, Emergency Watchdog Report |
+| **Total** | **22** | |
 
 ## Adding Custom Checks
 
 See the [Adding Health Checks](../guides/adding-checks.md) guide for instructions on creating your own checks.
+
+## Resource Container GPU Access
+
+| Field | Value |
+|-------|-------|
+| ID | `resource-gpu-access` |
+| Interval | 60 seconds |
+| Category | Resource |
+| Platforms | Linux |
+| Importance | Host GPU health does not prove running resource containers retain device access |
+
+This check applies only when the host inventory reports a Docker-addressable
+NVIDIA GPU. It probes every running GPU resource container by opening
+`/dev/nvidiactl`: `ok` is healthy, `revoked` is critical and offers named/all
+revoked restart actions, and `unknown` is warning. A CPU-only host reports
+`not-applicable`, not a false healthy GPU observation.

@@ -1,6 +1,7 @@
 import * as pageEvents from '../../../src/routes/record-mode/page-events';
 import type { Config } from '../../../src/config';
 import type { SessionManager } from '../../../src/session';
+import { installFetchMock } from '../../helpers';
 
 const { sendPageEvent, setupPageLifecycleListeners, pageEventCircuitBreaker } = pageEvents;
 
@@ -17,13 +18,15 @@ describe('page event routes', () => {
       thumbnailQuality: 60,
     },
   } as Config;
+  let fetchMock: ReturnType<typeof installFetchMock>;
 
   beforeEach(() => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' }) as typeof fetch;
+    fetchMock = installFetchMock();
+    fetchMock.mockResolvedValue({ ok: true, status: 200, statusText: 'OK' } as Response);
     if (!global.crypto) {
-      (global as typeof globalThis).crypto = { randomUUID: jest.fn().mockReturnValue('page-1') } as Crypto;
+      (global as { crypto?: Crypto }).crypto = { randomUUID: jest.fn().mockReturnValue('page-1') } as unknown as Crypto;
     } else if (!('randomUUID' in global.crypto)) {
-      global.crypto.randomUUID = jest.fn().mockReturnValue('page-1');
+      (global.crypto as { randomUUID: () => string }).randomUUID = jest.fn().mockReturnValue('page-1');
     }
   });
 
@@ -45,7 +48,7 @@ describe('page event routes', () => {
 
     await sendPageEvent('session-1', 'http://callback', event);
 
-    expect(global.fetch).toHaveBeenCalledWith('http://callback', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('http://callback', expect.objectContaining({
       method: 'POST',
     }));
   });
@@ -65,7 +68,7 @@ describe('page event routes', () => {
       timestamp: new Date().toISOString(),
     });
 
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('sets up listeners for new pages and emits events', async () => {
@@ -100,16 +103,16 @@ describe('page event routes', () => {
     await contextHandlers.page?.(newPage);
 
     expect(session.pages).toHaveLength(1);
-    const createdPayload = (global.fetch as jest.Mock).mock.calls[0]?.[1]?.body as string;
-    expect(createdPayload).toContain('\"eventType\":\"created\"');
+    const createdPayload = fetchMock.mock.calls[0]?.[1]?.body as string;
+    expect(createdPayload).toContain('"eventType":"created"');
 
     await pageHandlers.framenavigated?.(mainFrame);
-    const navigatedPayload = (global.fetch as jest.Mock).mock.calls[1]?.[1]?.body as string;
-    expect(navigatedPayload).toContain('\"eventType\":\"navigated\"');
+    const navigatedPayload = fetchMock.mock.calls[1]?.[1]?.body as string;
+    expect(navigatedPayload).toContain('"eventType":"navigated"');
 
     await pageHandlers.close?.();
-    const closedPayload = (global.fetch as jest.Mock).mock.calls[2]?.[1]?.body as string;
-    expect(closedPayload).toContain('\"eventType\":\"closed\"');
+    const closedPayload = fetchMock.mock.calls[2]?.[1]?.body as string;
+    expect(closedPayload).toContain('"eventType":"closed"');
 
     cleanup();
     expect(session.context.off).toHaveBeenCalled();

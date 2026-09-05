@@ -70,7 +70,7 @@ export interface UseCustomizationPageReturn {
   operationAlert: ReturnType<typeof useInlineAlert>['alert'];
   clearOperationAlert: () => void;
 
-  // Ref for scroll
+  // Ref for the variant list and its focusable actions.
   variantListRef: React.RefObject<HTMLDivElement>;
 
   // Constants
@@ -137,6 +137,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
   const [appliedFocusSlug, setAppliedFocusSlug] = useState<string | null>(null);
   const [appliedSectionFocusSlug, setAppliedSectionFocusSlug] = useState<string | null>(null);
   const variantListRef = useRef<HTMLDivElement>(null);
+  const sectionFocusRequestRef = useRef(0);
 
   // URL params
   const focusSlug = searchParams.get('focus');
@@ -164,8 +165,8 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
 
   // Initial load
   useEffect(() => {
-    fetchVariants();
-    fetchAnalyticsSnapshot();
+    void fetchVariants();
+    void fetchAnalyticsSnapshot();
   }, [fetchVariants, fetchAnalyticsSnapshot]);
 
   // Derived: active/archived variants
@@ -281,7 +282,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
         setVariants((prev) =>
           prev.map((v) => (v.slug === slug ? { ...v, weight: nextWeight } : v))
         );
-        toast.success(`Traffic weight updated to ${nextWeight}%`, 'Weight saved');
+        toast.success(`Traffic weight updated to ${String(nextWeight)}%`, 'Weight saved');
       } catch (err) {
         showOperationError(err, () => persistWeight(slug, nextWeight));
         setWeightDrafts((prev) => ({
@@ -312,7 +313,10 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
     setAttentionOnly(true);
     setVariantQuery(slug);
     requestAnimationFrame(() => {
-      variantListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const variantAction = Array.from(
+        variantListRef.current?.querySelectorAll<HTMLButtonElement>('button[data-testid]') ?? []
+      ).find((element) => element.dataset.testid === `edit-variant-${slug}`);
+      variantAction?.focus();
     });
   }, []);
 
@@ -348,7 +352,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
     async (slug: string, options?: { sectionId?: number; sectionType?: string }) => {
       try {
         if (options?.sectionId) {
-          navigate(`/admin/customization/variants/${slug}/sections/${options.sectionId}`);
+          navigate(`/admin/customization/variants/${slug}/sections/${String(options.sectionId)}`);
           return true;
         }
 
@@ -359,7 +363,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
           : data.sections[0];
 
         if (target?.id) {
-          navigate(`/admin/customization/variants/${slug}/sections/${target.id}`);
+          navigate(`/admin/customization/variants/${slug}/sections/${String(target.id)}`);
           return true;
         }
 
@@ -397,20 +401,23 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
       return;
     }
 
-    let cancelled = false;
-    (async () => {
+    const requestId = sectionFocusRequestRef.current + 1;
+    sectionFocusRequestRef.current = requestId;
+    void (async () => {
       const success = await navigateToSectionEditor(focusSlug, {
         sectionId: focusSectionId ?? undefined,
         sectionType: focusSectionType ?? undefined,
       });
-      if (!cancelled && success) {
+      if (success && sectionFocusRequestRef.current === requestId) {
         setAppliedSectionFocusSlug(focusSlug);
         clearSectionFocusParams();
       }
     })();
 
     return () => {
-      cancelled = true;
+      if (sectionFocusRequestRef.current === requestId) {
+        sectionFocusRequestRef.current += 1;
+      }
     };
   }, [
     focusSlug,

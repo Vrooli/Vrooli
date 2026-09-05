@@ -1,0 +1,75 @@
+{
+  "_metadata": {
+    "module": "verified-restore",
+    "description": "Restore is first-class: restore to a location and verify by test-restoring to scratch and checksumming.",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-RST-001",
+      "title": "Restore a target from a snapshot",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "restore",
+      "criticality": "P0",
+      "description": "Restore a target's snapshot to a chosen location for each source kind, using the kopia repository plus the source kind's restore step (pg restore, qdrant upload, etc.).",
+      "tags": ["restore"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/restores/service_test.go::TestRestore_PerSourceKind",
+          "notes": "For each source kind, backup then restore to a scratch location and assert equivalence."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-002",
+      "title": "Verify mode (test-restore + checksum)",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "restore.verify",
+      "criticality": "P0",
+      "description": "A verify operation test-restores a snapshot to a scratch location and checksums the result, recording a last-verified timestamp per target. This is the gate before any committed runtime data is removed from git.",
+      "tags": ["restore", "verify", "integrity", "gate"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/restores/verify_test.go::TestVerify_RecordsLastVerified",
+          "notes": "Run verify; assert scratch is cleaned up, checksum matches source manifest, last_verified_at is set."
+        }
+      ]
+    },
+    {
+      "id": "DBM-RST-003",
+      "title": "Generic snapshot audit (inventory compare)",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "restore.audit",
+      "criticality": "P0",
+      "description": "A scenario-agnostic audit restores a snapshot to scratch (proving recoverability), captures the live target to scratch (read-only on live), walks both trees with one generic filesystem walker, and compares them by generic signals only: file/dir/symlink counts, regular bytes, a path-list hash, a tree content hash, and per-SQLite-file integrity/schema/page facts. It distinguishes a true mismatch from explainable drift (live newer than the snapshot), persists each proof, and exposes it across API, CLI, and UI. DBM never encodes any scenario's domain objects; reports store relative paths, counts, and hashes only — never file contents or secrets.",
+      "tags": ["restore", "audit", "integrity", "generic", "api", "cli", "ui", "connect-rpc"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/audits/service_test.go::TestRunAudit_ExactMatch",
+          "notes": "Restore + live-capture identical trees → matches=true, restorable=true; mismatch and drift covered by TestRunAudit_ContentMismatch / TestRunAudit_LiveNewerSetsDrift; scratch cleanup by TestRunAudit_ScratchCleanedUp; walker/sqlite/comparator by inventory_test.go, dbcheck_test.go, comparator_test.go."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/features/audits/AuditReport.test.tsx",
+          "notes": "Audit report renders pass/diff/drift/failed verdicts, mismatches, generic inventory, and SQLite integrity; the restore flow audit action is covered in ui/src/pages/RestoresPage.test.tsx."
+        }
+      ]
+    }
+  ]
+}

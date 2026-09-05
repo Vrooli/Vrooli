@@ -6,7 +6,7 @@ import type {
   VariantAxes,
   LandingHeaderConfig,
   getVariant,
-  getAdminSections,
+  getVariantSections,
   getVariantSpace,
   createVariant,
   updateVariant,
@@ -29,27 +29,27 @@ import {
 
 // Mock the API module
 type GetVariantFn = typeof getVariant;
-type GetAdminSectionsFn = typeof getAdminSections;
+type GetVariantSectionsFn = typeof getVariantSections;
 type GetVariantSpaceFn = typeof getVariantSpace;
 type CreateVariantFn = typeof createVariant;
 type UpdateVariantFn = typeof updateVariant;
 type ExportVariantSnapshotFn = typeof exportVariantSnapshot;
 type ImportVariantSnapshotFn = typeof importVariantSnapshot;
 
-const getVariantMock = vi.fn<Parameters<GetVariantFn>, ReturnType<GetVariantFn>>();
-const getAdminSectionsMock = vi.fn<Parameters<GetAdminSectionsFn>, ReturnType<GetAdminSectionsFn>>();
-const getVariantSpaceMock = vi.fn<Parameters<GetVariantSpaceFn>, ReturnType<GetVariantSpaceFn>>();
-const createVariantMock = vi.fn<Parameters<CreateVariantFn>, ReturnType<CreateVariantFn>>();
-const updateVariantMock = vi.fn<Parameters<UpdateVariantFn>, ReturnType<UpdateVariantFn>>();
-const exportVariantSnapshotMock = vi.fn<Parameters<ExportVariantSnapshotFn>, ReturnType<ExportVariantSnapshotFn>>();
-const importVariantSnapshotMock = vi.fn<Parameters<ImportVariantSnapshotFn>, ReturnType<ImportVariantSnapshotFn>>();
+const getVariantMock = vi.fn<GetVariantFn>();
+const getVariantSectionsMock = vi.fn<GetVariantSectionsFn>();
+const getVariantSpaceMock = vi.fn<GetVariantSpaceFn>();
+const createVariantMock = vi.fn<CreateVariantFn>();
+const updateVariantMock = vi.fn<UpdateVariantFn>();
+const exportVariantSnapshotMock = vi.fn<ExportVariantSnapshotFn>();
+const importVariantSnapshotMock = vi.fn<ImportVariantSnapshotFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
     getVariant: (...args: Parameters<GetVariantFn>) => getVariantMock(...args),
-    getAdminSections: (...args: Parameters<GetAdminSectionsFn>) => getAdminSectionsMock(...args),
+    getVariantSections: (...args: Parameters<GetVariantSectionsFn>) => getVariantSectionsMock(...args),
     getVariantSpace: (...args: Parameters<GetVariantSpaceFn>) => getVariantSpaceMock(...args),
     createVariant: (...args: Parameters<CreateVariantFn>) => createVariantMock(...args),
     updateVariant: (...args: Parameters<UpdateVariantFn>) => updateVariantMock(...args),
@@ -74,6 +74,7 @@ const mockSections: ContentSection[] = [
   {
     id: 1,
     variant_id: 1,
+    key: 'section-1-hero',
     section_type: 'hero',
     content: { title: 'Welcome' },
     order: 1,
@@ -120,20 +121,21 @@ describe('variantEditorController', () => {
   describe('loadVariantEditorData', () => {
     it('fetches variant and sections', async () => {
       getVariantMock.mockResolvedValue(mockVariant);
-      getAdminSectionsMock.mockResolvedValue({ sections: mockSections });
+      getVariantSectionsMock.mockResolvedValue({ sections: mockSections });
 
       const result = await loadVariantEditorData('control');
 
       expect(getVariantMock).toHaveBeenCalledWith('control');
-      expect(getAdminSectionsMock).toHaveBeenCalledWith(1);
+      expect(getVariantSectionsMock).toHaveBeenCalledWith('control');
       expect(result.variant).toEqual(mockVariant);
       expect(result.sections).toEqual(mockSections);
     });
 
-    it('throws error when variant missing ID', async () => {
+    it('supports variants that omit a numeric database ID', async () => {
       getVariantMock.mockResolvedValue({ ...mockVariant, id: undefined });
+      getVariantSectionsMock.mockResolvedValue({ sections: [] });
 
-      await expect(loadVariantEditorData('control')).rejects.toThrow('Variant payload missing ID');
+      await expect(loadVariantEditorData('control')).resolves.toMatchObject({ sections: [] });
     });
 
     it('propagates API errors', async () => {

@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "monetization.subscription-status-card",
+    "name": "SubscriptionStatusCard",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "monetization",
+    "description": "A readable account plan, status, and balance summary.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "text-scale-resilience",
+    "content-reflow"
+  ],
+  "rationale": "Account status and balance remain legible as a composed, reusable surface rather than bespoke scenario markup."
+}

@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "catalog-strategist",
+  "displayName": "Catalog Strategist",
+  "description": "Maintains Vrooli's monetization catalog (SKUs, tiers, scenario-to-SKU mapping). Detects promotion triggers, proposes role changes, and surfaces the single most load-bearing catalog bottleneck each heartbeat.",
+  "status": "active",
+  "appearance": {
+    "body": "#2563EB",
+    "head": "#60A5FA",
+    "accent": "#DBEAFE"
+  },
+  "tags": [
+    "monetization",
+    "catalog",
+    "portfolio",
+    "strategy"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-20T00:00:00Z",
+  "updatedAt": "2026-04-20T00:00:00Z"
+}

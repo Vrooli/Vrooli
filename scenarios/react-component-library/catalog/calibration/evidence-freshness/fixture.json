@@ -1,0 +1,11 @@
+{
+  "gate": "evidence-freshness",
+  "assetId": "calibration.evidence-freshness",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.evidence_freshness",
+  "source": "broken.tsx",
+  "story": "story.json",
+  "catalogAsset": "asset.json",
+  "description": "The fixture has no current component test report."
+}

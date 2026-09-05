@@ -1,0 +1,224 @@
+:root {
+  /* Lume product theme — warm-ivory studio surfaces over a slate/gold
+     identity. Primary commands stay semantic blue; gold is identity only. */
+  --color-background: #faf8f3;
+  --color-shell: #1c1917;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #f1ece1;
+  --color-surface-raised: #fffefb;
+  --color-foreground: #1f1b16;
+  --color-muted-foreground: #78716c;
+  --color-border: #e7e1d4;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0891b2;
+  /* Lume gold — IDENTITY ONLY (mark, accent line, selected glow, generation
+     shimmer). Never a primary command color and never a status color. */
+  --color-brand: #b8860b;
+  --color-brand-strong: #8a6410;
+  --color-brand-foreground: #1f1b16;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #0284c7;
+  --color-focus: #2563eb;
+  /* Modal scrim — a fixed dark veil behind dialogs/drawers, theme-independent
+     (a backdrop should darken the page in both Studio and Console). */
+  --color-overlay: rgba(15, 23, 42, 0.62);
+  /* Transparency checkerboard for the canvas workspace. */
+  --canvas-checker-a: #ffffff;
+  --canvas-checker-b: #ece7dc;
+  --scrollbar-thumb: #c9c0ac;
+  --scrollbar-thumb-hover: #a8a08c;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-sheet: 1rem;
+  --radius-pill: 9999px;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --spacing-unit: 0.25rem;
+  --touch-target: 44px;
+  --sidebar-width: 20rem;
+  --sidebar-min-width: 16.25rem;
+  --sidebar-max-width: 30rem;
+  /* Motion scale. The "develop" reveal is Lume's signature — results ease in
+     like a print coming up in a tray. Reduced-motion collapses these below. */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-develop: 280ms;
+  --ease-develop: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+/* rcl:tokens:begin */
+
+/* rcl:tokens:end */}
+
+/*
+ * Dark = deep-slate "darkroom" mode. `ThemeProvider` sets `data-theme` on
+ * <html>, so the dark primitives MUST key off `data-theme` (the legacy
+ * `data-resolved-theme`/`.dark` selectors are kept for back-compat). Without
+ * the `data-theme` selector the `app-*` Tailwind classes — which resolve to
+ * these `--color-*` vars — never switched on an explicit dark/light choice.
+ */
+:root[data-theme="dark"],
+:root[data-resolved-theme="dark"],
+.dark {
+  --color-background: #020617;
+  --color-shell: #020617;
+  --color-surface: #0f172a;
+  --color-surface-muted: #1e293b;
+  --color-surface-raised: #172033;
+  --color-foreground: #f6f4ee;
+  --color-muted-foreground: #9aa3b8;
+  --color-border: #334155;
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #020617;
+  --color-accent: #22d3ee;
+  --color-brand: #e4c77a;
+  --color-brand-strong: #f0d999;
+  --color-brand-foreground: #1f1b16;
+  --color-success: #22c55e;
+  --color-danger: #f87171;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-focus: #60a5fa;
+  --canvas-checker-a: #131c30;
+  --canvas-checker-b: #0d1424;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-resolved-theme="light"]) {
+    --color-background: #020617;
+    --color-shell: #020617;
+    --color-surface: #0f172a;
+    --color-surface-muted: #1e293b;
+    --color-surface-raised: #172033;
+    --color-foreground: #f6f4ee;
+    --color-muted-foreground: #9aa3b8;
+    --color-border: #334155;
+    --color-primary: #60a5fa;
+    --color-primary-foreground: #020617;
+    --color-accent: #22d3ee;
+    --color-brand: #e4c77a;
+    --color-brand-strong: #f0d999;
+    --color-brand-foreground: #1f1b16;
+    --color-success: #22c55e;
+    --color-danger: #f87171;
+    --color-warning: #f59e0b;
+    --color-info: #38bdf8;
+    --color-focus: #60a5fa;
+    --canvas-checker-a: #131c30;
+    --canvas-checker-b: #0d1424;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+    color-scheme: dark;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+/*
+ * Reduced-motion resolution. Two layers:
+ *
+ *   1. System preference (`prefers-reduced-motion: reduce`) neutralizes motion
+ *      UNLESS the operator explicitly forced motion on (`data-reduced-motion`
+ *      = "never"). The `:not(...)` guard lets the Settings "Never" override win
+ *      over the OS preference.
+ *   2. The Settings "Always" override (`data-reduced-motion="always"`)
+ *      neutralizes motion regardless of the OS preference.
+ *
+ * "System" (the default) sets no attribute, so only layer 1's media query
+ * applies — identical to the pre-override behavior.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion="never"]) *,
+  :root:not([data-reduced-motion="never"]) *::before,
+  :root:not([data-reduced-motion="never"]) *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:root[data-reduced-motion="always"] *,
+:root[data-reduced-motion="always"] *::before,
+:root[data-reduced-motion="always"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
+/*
+ * Font-scale preference (Settings → Display). Scales the root font size so the
+ * whole rem-based UI grows/shrinks together. "default" sets no attribute.
+ */
+:root[data-font-scale="small"] {
+  font-size: 87.5%;
+}
+:root[data-font-scale="large"] {
+  font-size: 112.5%;
+}
+:root[data-font-scale="xlarge"] {
+  font-size: 125%;
+}
+
+/*
+ * Handedness preference (Settings → Display). Right-handed (default) keeps the
+ * natural bottom-nav order so the leading targets sit toward the start edge;
+ * left-handed reverses the row so they fall under a left thumb. Only the mobile
+ * bottom nav honors it — desktop has no single primary-action zone.
+ */
+:root[data-handedness="left"] [data-handedness-flip] {
+  flex-direction: row-reverse;
+}
+
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

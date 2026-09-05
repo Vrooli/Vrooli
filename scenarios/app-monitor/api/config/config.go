@@ -11,9 +11,12 @@ import (
 	"app-monitor-api/logger"
 
 	"github.com/docker/docker/client"
-	"github.com/go-redis/redis/v8"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // register postgres driver with database/sql
+	"github.com/redis/go-redis/v9"
 	"github.com/vrooli/api-core/database"
+	coreRedis "github.com/vrooli/api-core/redis"
+
+	monitorSchema "app-monitor-api/internal/monitor"
 )
 
 // Config holds all application configuration
@@ -133,6 +136,11 @@ func (c *Config) InitializeDatabase() (*sql.DB, error) {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(monitorSchema.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
+	}
+
 	logger.Info("✅ Database connected successfully")
 	return db, nil
 }
@@ -240,39 +248,17 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 }
 
 func buildPostgresURL() string {
-	// First check for complete URL
-	if url := os.Getenv("POSTGRES_URL"); url != "" {
+	url, err := database.ResolvePostgresDSN(os.Getenv)
+	if err == nil {
 		return url
 	}
-
-	// Try to build from individual components
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-	user := os.Getenv("POSTGRES_USER")
-	password := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	if host != "" && port != "" && user != "" && password != "" && dbName != "" {
-		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			user, password, host, port, dbName)
-	}
-
 	return ""
 }
 
 func buildRedisURL() string {
-	// First check for complete URL
-	if url := os.Getenv("REDIS_URL"); url != "" {
-		return url
+	config, err := coreRedis.Resolve(os.Getenv)
+	if err == nil {
+		return "redis://" + config.Addr
 	}
-
-	// Try to build from individual components
-	host := os.Getenv("REDIS_HOST")
-	port := os.Getenv("REDIS_PORT")
-
-	if host != "" && port != "" {
-		return fmt.Sprintf("redis://%s:%s", host, port)
-	}
-
 	return ""
 }

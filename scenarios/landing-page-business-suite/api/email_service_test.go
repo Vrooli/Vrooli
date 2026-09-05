@@ -8,6 +8,9 @@ import (
 	"net/smtp"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/experimentation"
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 // ============================================================================
@@ -365,14 +368,14 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	host := "smtp.test.com"
 	port := 465
 	username := "testuser"
-	password := "testpass"
+	smtpPassphrase := "testpass"
 	from := "custom@example.com"
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPPort:     &port,
 		SMTPUsername: &username,
-		SMTPPassword: &password,
+		SMTPPassword: &smtpPassphrase,
 		SMTPFrom:     &from,
 	}
 
@@ -388,8 +391,8 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	if config.Username != username {
 		t.Errorf("expected username '%s', got '%s'", username, config.Username)
 	}
-	if config.Password != password {
-		t.Errorf("expected password '%s', got '%s'", password, config.Password)
+	if config.Password != smtpPassphrase {
+		t.Errorf("expected password '%s', got '%s'", smtpPassphrase, config.Password)
 	}
 	if config.From != from {
 		t.Errorf("expected from '%s', got '%s'", from, config.From)
@@ -397,7 +400,7 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 }
 
 func TestExtractSMTPConfig_DefaultPort(t *testing.T) {
-	branding := &SiteBranding{}
+	branding := &experimentation.SiteBranding{}
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
 	config := svc.extractSMTPConfig(branding)
@@ -409,7 +412,7 @@ func TestExtractSMTPConfig_DefaultPort(t *testing.T) {
 
 func TestExtractSMTPConfig_FromDefaultsToUsername(t *testing.T) {
 	username := "testuser@example.com"
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPUsername: &username,
 	}
 
@@ -463,8 +466,8 @@ func TestBuildMagicLinkText_ContainsLink(t *testing.T) {
 func TestSendFeedbackNotification_NotConfigured(t *testing.T) {
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
 
-	branding := &SiteBranding{} // SMTP not configured
-	feedback := &FeedbackRequest{
+	branding := &experimentation.SiteBranding{} // SMTP not configured
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "bug",
 		Subject: "Test",
 		Message: "Test message",
@@ -488,14 +491,14 @@ func TestSendFeedbackNotification_NoSupportEmail(t *testing.T) {
 		},
 	})
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
 		SupportEmail: nil, // No support email
 	}
 
-	feedback := &FeedbackRequest{
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "bug",
 		Subject: "Test",
 	}
@@ -522,14 +525,14 @@ func TestSendFeedbackNotification_Success(t *testing.T) {
 		},
 	})
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
 		SupportEmail: &supportEmail,
 	}
 
-	feedback := &FeedbackRequest{
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "bug",
 		Subject: "Bug found",
 		Message: "Something is broken",
@@ -562,14 +565,14 @@ func TestSendFeedbackNotification_WithOrderID(t *testing.T) {
 		},
 	})
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
 		SupportEmail: &supportEmail,
 	}
 
-	feedback := &FeedbackRequest{
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "refund",
 		Subject: "Refund request",
 		Message: "I want a refund",
@@ -611,8 +614,8 @@ type testBrandingHelper struct {
 	support  string
 }
 
-func (h *testBrandingHelper) toBranding() *SiteBranding {
-	b := &SiteBranding{}
+func (h *testBrandingHelper) toBranding() *experimentation.SiteBranding {
+	b := &experimentation.SiteBranding{}
 	if h.host != "" {
 		b.SMTPHost = &h.host
 	}

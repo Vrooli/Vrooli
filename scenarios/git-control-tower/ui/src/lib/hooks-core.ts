@@ -2,6 +2,7 @@
 // Core Git/Repo Hooks — health, status, diff, stage, commit, branches, files
 // ============================================================================
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./hooks-query-keys";
 import {
@@ -16,6 +17,10 @@ import {
   stageFiles,
   unstageFiles,
   createCommit,
+  fetchPrecommitConfig,
+  savePrecommitConfig,
+  runPrecommit,
+  runPrecommitStream,
   discardFiles,
   ignoreFile,
   pushToRemote,
@@ -33,6 +38,9 @@ import {
 } from "./api";
 import type {
   DiffStats,
+  RepoStatus,
+  RepoFilesStatus,
+  RepoStatusSummary,
   RepoHistoryResponse,
   ViewMode,
   StageRequest,
@@ -54,6 +62,9 @@ import type {
   SaveFileContentResponse,
   ContentSearchRequest,
   ContentSearchResponse,
+  PrecommitConfig,
+  PrecommitRunRequest,
+  PrecommitStreamEvent,
 } from "./api";
 
 export function useHealth() {
@@ -73,10 +84,10 @@ export function useRepoStatus(repoId?: string | null) {
   });
 }
 
-export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string) {
+export function useRepoHistory(limit = 30, includeFiles = false, repoId?: string | null, grep?: string, includeChecks = false) {
   return useQuery<RepoHistoryResponse, Error>({
-    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep),
-    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep),
+    queryKey: queryKeys.repoHistory(limit, includeFiles, repoId, grep, includeChecks),
+    queryFn: () => fetchRepoHistory(limit, includeFiles, repoId ?? undefined, grep, includeChecks),
     refetchInterval: grep ? false : 30000,
   });
 }
@@ -116,23 +127,136 @@ export function useDiffStats(
   };
 }
 
+// ----------------------------------------------------------------------------
+// Optimistic status transitions
+//
+// Pure reducers over the cached RepoStatus so stage/unstage/discard move files
+// between sections instantly. They are best-effort: the mutation's onSettled
+// refetch reconciles any drift (e.g. mixed hunk state), so these only need to
+// match the common whole-file case. Kept pure and exported for unit tests.
+// ----------------------------------------------------------------------------
+
+// The server omits empty bucket arrays from the status payload, so the cached
+// RepoFilesStatus can have undefined staged/unstaged/untracked/conflicts at
+// runtime despite the non-optional TS types. Always read buckets through this.
+function bucket(arr: string[] | undefined): string[] {
+  return arr ?? [];
+}
+
+function recomputeSummary(files: RepoFilesStatus, prev: RepoStatusSummary): RepoStatusSummary {
+  return {
+    ...prev,
+    staged: bucket(files.staged).length,
+    unstaged: bucket(files.unstaged).length,
+    untracked: bucket(files.untracked).length,
+    conflicts: bucket(files.conflicts).length,
+  };
+}
+
+function withFiles(status: RepoStatus, files: RepoFilesStatus): RepoStatus {
+  return { ...status, files, summary: recomputeSummary(files, status.summary) };
+}
+
+/** Move paths into the staged bucket, removing them from unstaged/untracked/conflicts. */
+export function applyStageOptimistic(status: RepoStatus, paths: string[]): RepoStatus {
+  const moving = new Set(paths);
+  const files = status.files;
+  const staged = [...bucket(files.staged)];
+  for (const path of paths) {
+    if (!staged.includes(path)) staged.push(path);
+  }
+  return withFiles(status, {
+    ...files,
+    staged,
+    unstaged: bucket(files.unstaged).filter((p) => !moving.has(p)),
+    untracked: bucket(files.untracked).filter((p) => !moving.has(p)),
+    conflicts: bucket(files.conflicts).filter((p) => !moving.has(p)),
+  });
+}
+
+/**
+ * Move paths out of the staged bucket. A staged-new file (index status "A")
+ * returns to untracked; everything else returns to unstaged.
+ */
+export function applyUnstageOptimistic(status: RepoStatus, paths: string[]): RepoStatus {
+  const moving = new Set(paths);
+  const files = status.files;
+  const statuses = files.statuses ?? {};
+  const unstaged = [...bucket(files.unstaged)];
+  const untracked = [...bucket(files.untracked)];
+  for (const path of paths) {
+    const wasAdded = (statuses[path] ?? "").charAt(0) === "A";
+    if (wasAdded) {
+      if (!untracked.includes(path)) untracked.push(path);
+    } else if (!unstaged.includes(path)) {
+      unstaged.push(path);
+    }
+  }
+  return withFiles(status, {
+    ...files,
+    staged: bucket(files.staged).filter((p) => !moving.has(p)),
+    unstaged,
+    untracked,
+  });
+}
+
+/** Remove discarded paths from the worktree buckets (unstaged/untracked/conflicts). */
+export function applyDiscardOptimistic(status: RepoStatus, paths: string[]): RepoStatus {
+  const removing = new Set(paths);
+  const files = status.files;
+  return withFiles(status, {
+    ...files,
+    unstaged: bucket(files.unstaged).filter((p) => !removing.has(p)),
+    untracked: bucket(files.untracked).filter((p) => !removing.has(p)),
+    conflicts: bucket(files.conflicts).filter((p) => !removing.has(p)),
+  });
+}
+
 export function useStageFiles(repoId?: string | null) {
   const queryClient = useQueryClient();
+  const statusKey = queryKeys.repoStatus(repoId);
   return useMutation({
     mutationFn: (request: StageRequest) => stageFiles(request, repoId ?? undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-    }
+    onMutate: async (request: StageRequest) => {
+      await queryClient.cancelQueries({ queryKey: statusKey });
+      const previous = queryClient.getQueryData<RepoStatus>(statusKey);
+      if (previous) {
+        queryClient.setQueryData<RepoStatus>(statusKey, applyStageOptimistic(previous, request.paths));
+      }
+      return { previous };
+    },
+    onError: (_err, _request, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(statusKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: statusKey });
+    },
   });
 }
 
 export function useUnstageFiles(repoId?: string | null) {
   const queryClient = useQueryClient();
+  const statusKey = queryKeys.repoStatus(repoId);
   return useMutation({
     mutationFn: (request: UnstageRequest) => unstageFiles(request, repoId ?? undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-    }
+    onMutate: async (request: UnstageRequest) => {
+      await queryClient.cancelQueries({ queryKey: statusKey });
+      const previous = queryClient.getQueryData<RepoStatus>(statusKey);
+      if (previous) {
+        queryClient.setQueryData<RepoStatus>(statusKey, applyUnstageOptimistic(previous, request.paths));
+      }
+      return { previous };
+    },
+    onError: (_err, _request, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(statusKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: statusKey });
+    },
   });
 }
 
@@ -158,13 +282,136 @@ export function useCommit(repoId?: string | null) {
   });
 }
 
-export function useDiscardFiles(repoId?: string | null) {
+export function usePrecommitConfig(repoId?: string | null) {
+  return useQuery({
+    queryKey: ["repo", "precommit", repoId ?? "default"],
+    queryFn: () => fetchPrecommitConfig(repoId ?? undefined),
+    staleTime: 10_000,
+  });
+}
+
+export function useSavePrecommitConfig(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: DiscardRequest) => discardFiles(request, repoId ?? undefined),
+    mutationFn: (config: PrecommitConfig) => savePrecommitConfig(config, repoId ?? undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-    }
+      queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
+    },
+  });
+}
+
+export function useRunPrecommit(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: PrecommitRunRequest = {}) => runPrecommit(request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
+    },
+  });
+}
+
+export interface PrecommitStreamState {
+  running: boolean;
+  command?: string;
+  elapsedMs: number;
+  tail: string[];
+  finished?: PrecommitStreamEvent;
+  error?: string;
+}
+
+export function useStreamPrecommit(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  const [state, setState] = useState<PrecommitStreamState>({ running: false, elapsedMs: 0, tail: [] });
+  const startedAtRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const tickRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tickRef.current !== null) window.clearInterval(tickRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const reset = useCallback(() => {
+    setState({ running: false, elapsedMs: 0, tail: [] });
+  }, []);
+
+  const run = useCallback(
+    async (request: PrecommitRunRequest = {}): Promise<PrecommitStreamEvent> => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      startedAtRef.current = Date.now();
+      setState({ running: true, elapsedMs: 0, tail: [], command: request.command });
+      if (tickRef.current !== null) window.clearInterval(tickRef.current);
+      tickRef.current = window.setInterval(() => {
+        const startedAt = startedAtRef.current;
+        if (startedAt !== null) {
+          setState((prev) => (prev.running ? { ...prev, elapsedMs: Date.now() - startedAt } : prev));
+        }
+      }, 250);
+
+      try {
+        const final = await runPrecommitStream(request, repoId ?? undefined, {
+          signal: controller.signal,
+          onEvent: (event) => {
+            setState((prev) => {
+              const next: PrecommitStreamState = { ...prev };
+              if (event.command) next.command = event.command;
+              if (event.tail) next.tail = event.tail;
+              next.elapsedMs = event.elapsed_ms;
+              return next;
+            });
+          },
+        });
+        setState((prev) => ({ ...prev, running: false, finished: final, error: final.error }));
+        queryClient.invalidateQueries({ queryKey: ["repo", "precommit", repoId ?? "default"] });
+        return final;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setState((prev) => ({ ...prev, running: false, error: message }));
+        throw err;
+      } finally {
+        if (tickRef.current !== null) {
+          window.clearInterval(tickRef.current);
+          tickRef.current = null;
+        }
+        abortRef.current = null;
+        startedAtRef.current = null;
+      }
+    },
+    [queryClient, repoId]
+  );
+
+  return { state, run, cancel, reset };
+}
+
+export function useDiscardFiles(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  const statusKey = queryKeys.repoStatus(repoId);
+  return useMutation({
+    mutationFn: (request: DiscardRequest) => discardFiles(request, repoId ?? undefined),
+    onMutate: async (request: DiscardRequest) => {
+      await queryClient.cancelQueries({ queryKey: statusKey });
+      const previous = queryClient.getQueryData<RepoStatus>(statusKey);
+      if (previous) {
+        queryClient.setQueryData<RepoStatus>(statusKey, applyDiscardOptimistic(previous, request.paths));
+      }
+      return { previous };
+    },
+    onError: (_err, _request, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(statusKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: statusKey });
+    },
   });
 }
 

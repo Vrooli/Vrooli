@@ -203,7 +203,7 @@ The resource includes MCP configuration templates:
   "mcpServers": {
     "project": {
       "command": "node",
-      "args": ["./scripts/mcp-server.js"],
+      "args": ["./project-mcp-server.js"],
       "env": {
         "PROJECT_ROOT": "."
       }

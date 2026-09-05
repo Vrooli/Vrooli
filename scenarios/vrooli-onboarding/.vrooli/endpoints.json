@@ -1,22 +1,119 @@
 {
-  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
-  "version": "1.0.0",
+  "$schema": "../../test-genie/schemas/endpoints.schema.json",
+  "version": "2.0.0",
+  "service": "vrooli-onboarding",
+  "categories": [
+    "system",
+    "selection",
+    "credentials",
+    "host",
+    "state",
+    "apply",
+    "readiness",
+    "session",
+    "resources",
+    "documentation"
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "wizard",
+      "description": "Interactive nine-step setup",
+      "endpoint_id": "session-get"
+    },
+    {
+      "name": "wizard apply",
+      "description": "Non-interactive setup from a selection document",
+      "endpoint_id": "apply-run"
+    },
+    {
+      "name": "wizard status",
+      "description": "Step pointer and satisfied steps",
+      "endpoint_id": "session-get"
+    },
+    {
+      "name": "scenarios list",
+      "description": "List scenarios with filters",
+      "endpoint_id": "scenarios"
+    },
+    {
+      "name": "closure",
+      "description": "Transitive closure of the selection",
+      "endpoint_id": "closure"
+    },
+    {
+      "name": "resources list",
+      "description": "Required, optional, and standalone resources",
+      "endpoint_id": "resources-derived"
+    },
+    {
+      "name": "union export",
+      "description": "What a target must carry",
+      "endpoint_id": "union"
+    },
+    {
+      "name": "credentials list",
+      "description": "Descriptors and configured status",
+      "endpoint_id": "credentials-read-model"
+    },
+    {
+      "name": "credentials provision",
+      "description": "Provision a value read from stdin",
+      "endpoint_id": "credentials-provision"
+    },
+    {
+      "name": "credentials doctor",
+      "description": "Diagnose the credential backend",
+      "endpoint_id": "credentials-doctor"
+    },
+    {
+      "name": "host list",
+      "description": "Host tools and safeguards with risk and privilege",
+      "endpoint_id": "host-requirements"
+    },
+    {
+      "name": "host set-config",
+      "description": "Set a validated safeguard config value",
+      "endpoint_id": "operator-state-patch"
+    },
+    {
+      "name": "apply",
+      "description": "Apply the committed selection",
+      "endpoint_id": "apply-run"
+    },
+    {
+      "name": "readiness",
+      "description": "Composed readiness; non-zero exit when a required item is not ready",
+      "endpoint_id": "readiness"
+    },
+    {
+      "name": "operator show",
+      "description": "Read committed operator state",
+      "endpoint_id": "operator-state-get"
+    },
+    {
+      "name": "operator patch",
+      "description": "Apply a merge patch to operator state",
+      "endpoint_id": "operator-state-patch"
+    },
+    {
+      "name": "glossary",
+      "description": "Look up a term",
+      "endpoint_id": "glossary"
+    }
+  ],
   "endpoints": [
     {
       "id": "health",
       "path": "/health",
       "method": "GET",
-      "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
       "category": "system",
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "string",
-          "readiness": "boolean",
-          "dependencies": "object"
-        }
-      },
+      "summary": "Service health check",
+      "description": "Returns API readiness for infrastructure probes.",
       "examples": [
         {
           "name": "Check health",
@@ -28,181 +125,368 @@
       }
     },
     {
+      "id": "health-v1",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "category": "system",
+      "summary": "Service health check for clients",
+      "description": "The same health payload on the client-facing prefix."
+    },
+    {
+      "id": "resource-health",
+      "path": "/api/v1/resources/health",
+      "method": "GET",
+      "category": "resources",
+      "summary": "Live resource availability",
+      "requirements": [
+        "ONB-READY-RESOURCE-PROBE"
+      ]
+    },
+    {
       "id": "list-resources",
       "path": "/api/v1/resources",
       "method": "GET",
-      "summary": "List all Vrooli resources",
-      "description": "Returns all available resources with status and category information",
       "category": "resources",
-      "response": {
-        "type": "object",
-        "properties": {
-          "resources": "array",
-          "count": "number",
-          "loaded_at": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "List resources",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/resources"
-        }
+      "summary": "Resource inventory with status and category",
+      "description": "Categories are read from resource manifests, not from a table in code.",
+      "requirements": [
+        "ONB-SELECT-NO-HARDCODED-INVENTORY"
       ]
     },
     {
       "id": "get-resource",
       "path": "/api/v1/resources/{name}",
       "method": "GET",
-      "summary": "Get a single resource by name",
-      "description": "Returns detailed information for a specific resource",
       "category": "resources",
-      "response": {
-        "type": "object",
-        "properties": {
-          "name": "string",
-          "status": "string",
-          "category": "string",
-          "installed": "string",
-          "last_updated": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Get postgres resource",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/resources/postgres"
-        }
-      ]
+      "summary": "One resource by name",
+      "params": {
+        "name": "Resource identifier"
+      }
     },
     {
-      "id": "get-progress",
-      "path": "/api/v1/progress",
+      "id": "operator-state-get",
+      "path": "/api/v1/operator-state",
       "method": "GET",
-      "summary": "Get onboarding progress",
-      "description": "Returns current onboarding progress for a user",
-      "category": "progress",
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "number",
-          "user_id": "string",
-          "current_step": "number",
-          "completed_steps": "array",
-          "config_data": "object",
-          "updated_at": "string"
-        }
-      },
+      "category": "state",
+      "summary": "Read committed operator state",
+      "description": "The committed document with effective values resolved through the configuration resolution order.",
+      "requirements": [
+        "ONB-STATE-AUTHORITY"
+      ]
+    },
+    {
+      "id": "operator-state-patch",
+      "path": "/api/v2/operator-state",
+      "method": "PATCH",
+      "category": "state",
+      "summary": "Apply an RFC 7386 JSON Merge Patch to operator state",
+      "description": "The only write. Named fields change; every other field is preserved, including fields this binary does not model. A null removes a key. The merged document is schema-validated before the write; a rejection names the failing path and leaves the stored document untouched.",
+      "requirements": [
+        "ONB-STATE-MERGE-PATCH",
+        "ONB-STATE-PRESERVES-UNKNOWN",
+        "ONB-STATE-SCHEMA-VALIDATED"
+      ],
       "examples": [
         {
-          "name": "Get default user progress",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/progress"
+          "name": "Enable a scenario",
+          "curl": "curl -X PATCH http://localhost:${API_PORT}/api/v2/operator-state -H 'Content-Type: application/merge-patch+json' -d '{\"scenarios\":{\"swarm-manager\":{\"enabled\":true}}}'"
         }
       ]
     },
     {
-      "id": "update-progress",
-      "path": "/api/v1/progress",
-      "method": "PUT",
-      "summary": "Update onboarding progress",
-      "description": "Save or update onboarding progress for a user",
-      "category": "progress",
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "number",
-          "user_id": "string",
-          "current_step": "number",
-          "completed_steps": "array",
-          "config_data": "object",
-          "updated_at": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Update progress",
-          "curl": "curl -X PUT http://localhost:${API_PORT}/api/v1/progress -H 'Content-Type: application/json' -d '{\"current_step\": 2, \"completed_steps\": [0, 1], \"config_data\": {}}'"
-        }
-      ]
-    },
-    {
-      "id": "generate-config",
-      "path": "/api/v1/config/generate",
-      "method": "POST",
-      "summary": "Generate service configuration",
-      "description": "Generate a service.json snippet from selected resources",
-      "category": "config",
-      "response": {
-        "type": "object",
-        "properties": {
-          "config": "object",
-          "warnings": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Generate config for postgres and redis",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/config/generate -H 'Content-Type: application/json' -d '{\"resources\": [\"postgres\", \"redis\"]}'"
-        }
-      ]
-    },
-    {
-      "id": "validate-config",
-      "path": "/api/v1/config/validate",
-      "method": "POST",
-      "summary": "Validate service configuration",
-      "description": "Validate a configuration against known resource requirements and dependencies",
-      "category": "config",
-      "response": {
-        "type": "object",
-        "properties": {
-          "valid": "boolean",
-          "results": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Validate config",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/config/validate -H 'Content-Type: application/json' -d '{\"resources\": {\"postgres\": {\"enabled\": true, \"name\": \"postgres\"}}}'"
-        }
-      ]
-    },
-    {
-      "id": "export-config",
-      "path": "/api/v1/config/export",
-      "method": "POST",
-      "summary": "Export configuration to filesystem",
-      "description": "Write validated configuration to disk with automatic backup of existing config",
-      "category": "config"
-    },
-    {
-      "id": "resource-health",
-      "path": "/api/v1/resources/health",
+      "id": "scenarios",
+      "path": "/api/v2/scenarios",
       "method": "GET",
-      "summary": "Get resource health status",
-      "description": "Returns real-time health/availability status for all resources",
-      "category": "resources"
+      "category": "selection",
+      "summary": "Manifest-derived scenario read model",
+      "description": "Every scenario with system_required, runtime kind, auto-restart recommendation, effective operator choice, and declared scenario and resource dependencies.",
+      "requirements": [
+        "ONB-SELECT-READ-MODEL",
+        "ONB-SELECT-SYSTEM-LOCKED"
+      ],
+      "examples": [
+        {
+          "name": "List scenarios",
+          "curl": "curl http://localhost:${API_PORT}/api/v2/scenarios"
+        }
+      ]
     },
     {
-      "id": "setup-order",
-      "path": "/api/v1/setup-order",
+      "id": "core-set",
+      "path": "/api/v2/core-set",
       "method": "GET",
-      "summary": "Get recommended setup order",
-      "description": "Returns resources sorted by dependency-aware recommended setup order",
-      "category": "resources"
+      "category": "state",
+      "summary": "Preview the declared supervision authority",
+      "description": "Returns the current or proposed core seed, the immutable trusted base, and the canonical scenario/resource supervision closure. If the catalog is unavailable, the response preserves the visible seed and reports available false.",
+      "requirements": [
+        "ONB-CORE-SUPERVISION-AUTHORITY"
+      ]
+    },
+    {
+      "id": "recommendation",
+      "path": "/api/v2/recommendation",
+      "method": "GET",
+      "category": "selection",
+      "summary": "Manifest-derived starter profile",
+      "description": "Returns the minimal named starter profile, its scenario selection, and required resource closure for browser and terminal parity."
+    },
+    {
+      "id": "resources-derived",
+      "path": "/api/v2/resources",
+      "method": "GET",
+      "category": "selection",
+      "summary": "Required, optional, and standalone resources",
+      "description": "Required resources derived from the closure and locked; optional resources declared through optional_dependencies; standalone resources no selected scenario requires.",
+      "requirements": [
+        "ONB-SELECT-OPTIONAL-RESOURCES"
+      ]
+    },
+    {
+      "id": "closure",
+      "path": "/api/v2/closure",
+      "method": "GET",
+      "category": "selection",
+      "summary": "Transitive closure of the current selection",
+      "description": "Every scenario and resource the selection implies, with the reason each member entered the set. Replaces the retired setup-order endpoint.",
+      "requirements": [
+        "ONB-SELECT-CLOSURE",
+        "ONB-SELECT-CASCADE-DISCLOSURE"
+      ]
+    },
+    {
+      "id": "union",
+      "path": "/api/v2/union",
+      "method": "GET",
+      "category": "selection",
+      "summary": "Deployment union for the current selection",
+      "description": "The union of scenarios, resources, tools, and safeguards a bundle, VPS, or bridged host must carry to run the selection.",
+      "requirements": [
+        "ONB-SELECT-UNION-EXPORT",
+        "ONB-TIER-SUBSET-SHIPPING"
+      ]
+    },
+    {
+      "id": "credentials-read-model",
+      "path": "/api/v2/credentials",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Credential descriptors for the selected stack",
+      "description": "Descriptor label, description, obtain_url, required flag, and configured status. Never returns a credential value.",
+      "requirements": [
+        "ONB-CRED-DESCRIPTOR-COMPLETE"
+      ]
+    },
+    {
+      "id": "handoff",
+      "path": "/api/v2/handoff",
+      "method": "POST",
+      "category": "selection",
+      "summary": "Resolve the effective selection for vrooli-bridge",
+      "description": "Accepts bridge node identity and returns the manifest-derived capability selection owned by onboarding. The request and response contain no operator-state internals or credential values.",
+      "requirements": [
+        "ONB-TIER-REMOTE-ONBOARDING"
+      ]
+    },
+    {
+      "id": "apply-run",
+      "path": "/api/v2/apply",
+      "method": "POST",
+      "category": "apply",
+      "summary": "Apply the committed selection to the host",
+      "description": "Installs opted-in tools, applies opted-in safeguards, enables resources, and starts scenarios by delegating to control-plane handlers. Idempotent. A failing item skips its dependants and the run is recorded as partially applied.",
+      "requirements": [
+        "ONB-APPLY-EXECUTES",
+        "ONB-APPLY-IDEMPOTENT",
+        "ONB-APPLY-PARTIAL-FAILURE"
+      ]
+    },
+    {
+      "id": "apply-plan",
+      "path": "/api/v2/apply/plan",
+      "method": "GET",
+      "category": "apply",
+      "summary": "Preview the exact consent-filtered apply plan",
+      "requirements": [
+        "ONB-HOST-CONSENT"
+      ]
+    },
+    {
+      "id": "apply-report",
+      "path": "/api/v2/apply/{run_id}",
+      "method": "GET",
+      "category": "apply",
+      "summary": "Per-item report for an apply run",
+      "params": {
+        "run_id": "Apply run identifier"
+      },
+      "requirements": [
+        "ONB-APPLY-PER-ITEM-RESULT"
+      ]
+    },
+    {
+      "id": "session-get",
+      "path": "/api/v2/session",
+      "method": "GET",
+      "category": "session",
+      "summary": "Setup session state",
+      "description": "The step pointer, which steps are satisfied, and the first unsatisfied step. Shared state, so another surface resumes at the same step.",
+      "requirements": [
+        "ONB-PARITY-RESUMABLE-SESSION",
+        "ONB-REENTRY-RESUMES"
+      ]
+    },
+    {
+      "id": "session-step",
+      "path": "/api/v2/session/step",
+      "method": "POST",
+      "category": "session",
+      "summary": "Move the session step pointer",
+      "requirements": [
+        "ONB-PARITY-RESUMABLE-SESSION"
+      ]
+    },
+    {
+      "id": "steps",
+      "path": "/api/v2/steps",
+      "method": "GET",
+      "category": "session",
+      "summary": "Generated onboarding step model"
+    },
+    {
+      "id": "operator-inputs",
+      "path": "/api/v2/operator-inputs",
+      "method": "GET",
+      "category": "session",
+      "summary": "Read pending typed operator decisions",
+      "description": "Returns request metadata and recommendations without exposing secret values."
+    },
+    {
+      "id": "operator-inputs-resolve",
+      "path": "/api/v2/operator-inputs/resolve",
+      "method": "POST",
+      "category": "session",
+      "summary": "Resolve pending typed operator decisions",
+      "description": "Accepts answers for the pending request ids and removes the queue after validation. Secret values are not persisted by the queue."
+    },
+    {
+      "id": "capabilities",
+      "path": "/api/v2/capabilities",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Discover provider-defined operator capabilities",
+      "description": "Returns capability descriptors, typed inputs, candidate metadata, current state, remediation, and secret-free evidence."
+    },
+    {
+      "id": "capabilities-status",
+      "path": "/api/v2/capabilities/status",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Read provider-defined capability status",
+      "description": "The status alias exposes the same metadata-only capability catalog."
+    },
+    {
+      "id": "capabilities-preview",
+      "path": "/api/v2/capabilities/preview",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Preview a typed provider capability",
+      "description": "Validates a typed action and returns the exact declared mutations without performing external writes."
+    },
+    {
+      "id": "capabilities-apply",
+      "path": "/api/v2/capabilities/apply",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Apply a confirmed provider capability",
+      "description": "Passes typed inputs to the owning control-plane provider and returns only typed result metadata and secret-free evidence."
+    },
+    {
+      "id": "host-requirements",
+      "path": "/api/v2/host-requirements",
+      "method": "GET",
+      "category": "host",
+      "summary": "Host tools and safeguards for the selection",
+      "description": "Derived from selected manifests with risk, privilege, bundling, supported platforms, and any declared safeguard config schema.",
+      "requirements": [
+        "ONB-HOST-DERIVED",
+        "ONB-HOST-RISK-DISCLOSURE",
+        "ONB-HOST-CONFIG-FORMS"
+      ]
+    },
+    {
+      "id": "readiness",
+      "path": "/api/v2/readiness",
+      "method": "GET",
+      "category": "readiness",
+      "summary": "Composed readiness with remediation",
+      "description": "Probes credentials, host tools, host safeguards, and resource reachability. Every non-ready item names a remediation. Never returns a credential value.",
+      "requirements": [
+        "ONB-READY-COMPOSED",
+        "ONB-READY-RESOURCE-PROBE",
+        "ONB-READY-REMEDIATION"
+      ],
+      "examples": [
+        {
+          "name": "Check readiness",
+          "curl": "curl http://localhost:${API_PORT}/api/v2/readiness"
+        }
+      ]
+    },
+    {
+      "id": "credentials-provision",
+      "path": "/api/v2/credentials/provision",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Relay a credential value to the credential authority",
+      "description": "Accepts the value only in the request body and returns only logical_id and field. The value is never written to operator state, logs, URLs, or any response.",
+      "requirements": [
+        "ONB-CRED-RELAY",
+        "ONB-CRED-NO-DISCLOSURE"
+      ]
+    },
+    {
+      "id": "credentials-doctor",
+      "path": "/api/v2/credentials/doctor",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Diagnose the credential backend",
+      "description": "Distinguishes an unset value, an unreachable secure store, and a host with no backend, and names the fix for each.",
+      "requirements": [
+        "ONB-CRED-DIAGNOSIS",
+        "ONB-CRED-HEADLESS-STORE"
+      ]
+    },
+    {
+      "id": "readiness-degraded-acknowledgement",
+      "path": "/api/v2/readiness/degraded-acknowledgement",
+      "method": "POST",
+      "category": "readiness",
+      "summary": "Record that the operator accepted the current degraded set",
+      "description": "Records a durable acknowledgement of the exact degraded optional items readiness reports now, identified by its digest. Completion stays withheld while any required item is unresolved, and a digest that no longer names the current gap is rejected. Never accepts or returns a credential value.",
+      "requirements": [
+        "ONB-READY-DEGRADED-CONTINUE",
+        "ONB-COMPLETE-REQUIRES-READY"
+      ],
+      "examples": [
+        {
+          "name": "Acknowledge the current degraded set",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v2/readiness/degraded-acknowledgement -H 'Content-Type: application/json' -d '{\"readiness_digest\":\"<digest from GET /api/v2/readiness>\"}'"
+        }
+      ]
     },
     {
       "id": "glossary",
       "path": "/api/v1/glossary",
       "method": "GET",
-      "summary": "Technical term glossary",
-      "description": "Returns glossary entries mapping technical terms to plain language descriptions, with optional search",
-      "category": "documentation"
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "category": "documentation",
+      "summary": "Plain-language term lookup",
+      "description": "Entries are read from manifests, not from a table in code.",
+      "query": {
+        "q": "Optional search term"
+      },
+      "requirements": [
+        "ONB-SELECT-NO-HARDCODED-INVENTORY"
+      ]
     }
   ]
 }

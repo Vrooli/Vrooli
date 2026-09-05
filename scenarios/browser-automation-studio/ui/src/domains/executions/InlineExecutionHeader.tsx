@@ -5,7 +5,8 @@
  * Shows action buttons: Re-run, Export, Close.
  */
 
-import { RotateCw, Download, X, Loader2 } from 'lucide-react';
+import { RotateCw, Download, X, Loader2, Square } from 'lucide-react';
+import { selectors } from '@constants/selectors';
 
 export interface InlineExecutionHeaderProps {
   /** Workflow name to display */
@@ -16,6 +17,8 @@ export interface InlineExecutionHeaderProps {
   onRerun?: () => void;
   /** Callback when export is clicked */
   onExport?: () => void;
+  /** Requests cancellation for an active execution. */
+  onStop?: () => void;
   /** Callback when close is clicked */
   onClose: () => void;
   /** Whether re-run is available */
@@ -26,6 +29,10 @@ export interface InlineExecutionHeaderProps {
   isExporting?: boolean;
   /** Whether a re-run is in progress */
   isRerunning?: boolean;
+  /** Whether a stop request is in flight. */
+  isStopping?: boolean;
+  /** Current execution liveness summary, when timeline activity is available. */
+  heartbeatLabel?: string | null;
 }
 
 function getStatusBadge(status: InlineExecutionHeaderProps['status']) {
@@ -36,31 +43,31 @@ function getStatusBadge(status: InlineExecutionHeaderProps['status']) {
   switch (status) {
     case 'running':
       return (
-        <span className={`${baseClasses} bg-blue-500/20 text-blue-400`}>
+        <span data-testid={selectors.executions.viewer.status} className={`${baseClasses} bg-blue-500/20 text-blue-400`}>
           Running
         </span>
       );
     case 'completed':
       return (
-        <span className={`${baseClasses} bg-green-500/20 text-green-400`}>
+        <span data-testid={selectors.executions.viewer.statusCompleted} className={`${baseClasses} bg-green-500/20 text-green-400`}>
           Completed
         </span>
       );
     case 'failed':
       return (
-        <span className={`${baseClasses} bg-red-500/20 text-red-400`}>
+        <span data-testid={selectors.executions.viewer.statusFailed} className={`${baseClasses} bg-red-500/20 text-red-400`}>
           Failed
         </span>
       );
     case 'cancelled':
       return (
-        <span className={`${baseClasses} bg-yellow-500/20 text-yellow-400`}>
+        <span data-testid={selectors.executions.viewer.statusCancelled} className={`${baseClasses} bg-yellow-500/20 text-yellow-400`}>
           Cancelled
         </span>
       );
     case 'pending':
       return (
-        <span className={`${baseClasses} bg-gray-500/20 text-gray-400`}>
+        <span data-testid={selectors.executions.viewer.status} className={`${baseClasses} bg-gray-500/20 text-gray-400`}>
           Pending
         </span>
       );
@@ -74,12 +81,17 @@ export function InlineExecutionHeader({
   status,
   onRerun,
   onExport,
+  onStop,
   onClose,
   canRerun = true,
   canExport = true,
   isExporting = false,
   isRerunning = false,
+  isStopping = false,
+  heartbeatLabel,
 }: InlineExecutionHeaderProps) {
+  const canStop = Boolean(onStop) && (status === 'pending' || status === 'running');
+
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       {/* Left: Title and status */}
@@ -88,6 +100,15 @@ export function InlineExecutionHeader({
           {workflowName || 'Execution'}
         </h3>
         {getStatusBadge(status)}
+        {heartbeatLabel && (
+          <span
+            data-testid={selectors.heartbeat.indicator}
+            className="text-xs text-gray-500 dark:text-gray-400"
+            title={heartbeatLabel}
+          >
+            {heartbeatLabel}
+          </span>
+        )}
       </div>
 
       {/* Right: Action buttons */}
@@ -100,6 +121,7 @@ export function InlineExecutionHeader({
             disabled={isRerunning || status === 'running'}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Run workflow again"
+            data-testid={selectors.executions.viewer.rerunButton}
           >
             {isRerunning ? (
               <Loader2 size={14} className="animate-spin" />
@@ -107,6 +129,20 @@ export function InlineExecutionHeader({
               <RotateCw size={14} />
             )}
             <span className="hidden sm:inline">Re-run</span>
+          </button>
+        )}
+
+        {canStop && (
+          <button
+            type="button"
+            onClick={onStop}
+            disabled={isStopping}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Stop execution"
+            data-testid={selectors.executions.viewer.stopButton}
+          >
+            {isStopping ? <Loader2 size={14} className="animate-spin" /> : <Square size={14} />}
+            <span className="hidden sm:inline">Stop</span>
           </button>
         )}
 
@@ -118,6 +154,7 @@ export function InlineExecutionHeader({
             disabled={isExporting}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Export execution replay"
+            data-testid={selectors.executions.actions.exportReplayButton}
           >
             {isExporting ? (
               <Loader2 size={14} className="animate-spin" />

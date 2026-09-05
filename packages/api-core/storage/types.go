@@ -15,6 +15,8 @@ const (
 	ClassLogs Class = "logs"
 	// ClassState stores runtime state such as checkpoints and lockfiles.
 	ClassState Class = "state"
+	// ClassTestRuns stores regenerable, scenario-scoped validation evidence.
+	ClassTestRuns Class = "test_runs"
 )
 
 // Profile specifies the deployment/runtime intent used for path defaults.
@@ -43,6 +45,8 @@ type Paths struct {
 	LogsDir string
 	// StateDir is the absolute runtime state directory.
 	StateDir string
+	// TestRunsDir is scoped directly by scenario under runtime_home.test_runs.
+	TestRunsDir string
 }
 
 // ForClass returns the resolved absolute directory for class.
@@ -58,6 +62,8 @@ func (p Paths) ForClass(class Class) (string, error) {
 		return p.LogsDir, nil
 	case ClassState:
 		return p.StateDir, nil
+	case ClassTestRuns:
+		return p.TestRunsDir, nil
 	default:
 		return "", &Error{Kind: ErrInvalidInput, Message: "unknown storage class", Details: string(class)}
 	}
@@ -80,14 +86,19 @@ type ResolverConfig struct {
 	// Profile controls class-root defaults. Defaults to ProfileAuto.
 	Profile Profile
 
-	// RuntimeOS overrides runtime.GOOS (test seam). Expected values are GOOS-style
-	// names such as "linux", "darwin", and "windows".
-	RuntimeOS string
 	// EnvGet reads environment variables. Defaults to os.Getenv.
 	EnvGet func(key string) string
 
-	// OS directory seams for deterministic tests and controlled embedding environments.
-	UserHomeDir   func() (string, error)
+	// UserHomeDir resolves the operator home dir from which the runtime-home
+	// default (~/.vrooli) is derived. Defaults to os.UserHomeDir. Composition
+	// roots that may run under sudo should inject a sudo-aware resolver here.
+	UserHomeDir func() (string, error)
+
+	// RuntimeOS, UserConfigDir, and UserCacheDir are retained accepted seams for
+	// API compatibility. They no longer influence the user-profile default, which
+	// is now the OS-agnostic operator runtime home resolved via the repo-contract
+	// runtime_home authority (see platform.go). Set UserHomeDir to redirect it.
+	RuntimeOS     string
 	UserConfigDir func() (string, error)
 	UserCacheDir  func() (string, error)
 }

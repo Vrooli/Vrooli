@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-01T16:46:06-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-003",
+      "title": "Expose Dense Workflow Operations Views",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The workflow-health UI must provide overview, inventory, search, runs, findings, fixes, and settings views with scenario selection, maturity ladder, asset counts, safety posture, artifact inspection, search filters, and deterministic fix previews.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "ui-health",
+          "status": "implemented",
+          "notes": "UI tests and BAS captures verify dashboard, inventory, search, run detail, and fix preview states across desktop and mobile without overlapping controls."
+        }
+      ]
+    }
+  ]
+}

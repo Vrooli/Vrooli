@@ -3,8 +3,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import { useScenarioState, type UseScenarioStateOptions } from "../useScenarioState";
 import {
   mockFetchScenarioState,
   createWrapper,
@@ -12,6 +10,11 @@ import {
   createLoadStateResponse,
   defaultOptions,
 } from "./useScenarioState.testUtils";
+import { renderHook, waitFor } from "@testing-library/react";
+import {
+  useScenarioState,
+  type UseScenarioStateOptions,
+} from "../useScenarioState";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -25,9 +28,7 @@ describe("useScenarioState", () => {
   describe("initial state and query behavior", () => {
     it("returns loading state while fetching", () => {
       // Don't resolve the promise yet
-      mockFetchScenarioState.mockImplementation(
-        () => new Promise(() => {})
-      );
+      mockFetchScenarioState.mockImplementation(() => new Promise(() => {}));
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
         wrapper: createWrapper(),
@@ -41,7 +42,7 @@ describe("useScenarioState", () => {
 
     it("returns null state when scenario has no saved state", async () => {
       mockFetchScenarioState.mockResolvedValue(
-        createLoadStateResponse(null, { found: false })
+        createLoadStateResponse(null, { found: false }),
       );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
@@ -60,7 +61,7 @@ describe("useScenarioState", () => {
     it("returns state when scenario has saved state", async () => {
       const mockState = createMockScenarioState();
       mockFetchScenarioState.mockResolvedValue(
-        createLoadStateResponse(mockState)
+        createLoadStateResponse(mockState),
       );
 
       const { result } = renderHook(() => useScenarioState(defaultOptions), {
@@ -98,7 +99,7 @@ describe("useScenarioState", () => {
 
       renderHook(
         () => useScenarioState({ ...defaultOptions, enabled: false }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       expect(mockFetchScenarioState).not.toHaveBeenCalled();
@@ -109,7 +110,7 @@ describe("useScenarioState", () => {
 
       renderHook(
         () => useScenarioState({ ...defaultOptions, scenarioName: "" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       expect(mockFetchScenarioState).not.toHaveBeenCalled();
@@ -120,15 +121,14 @@ describe("useScenarioState", () => {
     it("calls onStateLoaded when state is loaded from server", async () => {
       const mockState = createMockScenarioState();
       mockFetchScenarioState.mockResolvedValue(
-        createLoadStateResponse(mockState)
+        createLoadStateResponse(mockState),
       );
 
       const onStateLoaded = vi.fn();
 
-      renderHook(
-        () => useScenarioState({ ...defaultOptions, onStateLoaded }),
-        { wrapper: createWrapper() }
-      );
+      renderHook(() => useScenarioState({ ...defaultOptions, onStateLoaded }), {
+        wrapper: createWrapper(),
+      });
 
       await waitFor(() => {
         expect(onStateLoaded).toHaveBeenCalledWith(mockState);
@@ -137,14 +137,14 @@ describe("useScenarioState", () => {
 
     it("calls onStateCleared when server returns no state", async () => {
       mockFetchScenarioState.mockResolvedValue(
-        createLoadStateResponse(null, { found: false })
+        createLoadStateResponse(null, { found: false }),
       );
 
       const onStateCleared = vi.fn();
 
       renderHook(
         () => useScenarioState({ ...defaultOptions, onStateCleared }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
@@ -159,18 +159,21 @@ describe("useScenarioState", () => {
           manifest_changed: true,
           current_hash: "currenthash",
           stored_hash: "storedhash",
-        })
+        }),
       );
 
       const onManifestChanged = vi.fn();
 
       renderHook(
         () => useScenarioState({ ...defaultOptions, onManifestChanged }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
-        expect(onManifestChanged).toHaveBeenCalledWith("currenthash", "storedhash");
+        expect(onManifestChanged).toHaveBeenCalledWith(
+          "currenthash",
+          "storedhash",
+        );
       });
     });
   });
@@ -195,7 +198,7 @@ describe("useScenarioState", () => {
         {
           wrapper: createWrapper(),
           initialProps: { ...defaultOptions, scenarioName: "scenario-1" },
-        }
+        },
       );
 
       // Wait for first state to load
@@ -217,14 +220,16 @@ describe("useScenarioState", () => {
 
     it("resets all local state flags when scenario changes", async () => {
       const mockState = createMockScenarioState();
-      mockFetchScenarioState.mockResolvedValue(createLoadStateResponse(mockState));
+      mockFetchScenarioState.mockResolvedValue(
+        createLoadStateResponse(mockState),
+      );
 
       const { result, rerender } = renderHook(
         (props: UseScenarioStateOptions) => useScenarioState(props),
         {
           wrapper: createWrapper(),
           initialProps: { ...defaultOptions, scenarioName: "scenario-1" },
-        }
+        },
       );
 
       // Wait for first state to load

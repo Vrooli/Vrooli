@@ -1,0 +1,318 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.routing;
+
+import "common/v1/attestation.proto";
+import "common/v1/confidence.proto";
+import "google/protobuf/timestamp.proto";
+import "search-hub/v1/registry/registry.proto";
+import "search-hub/v1/shared/routing_trace.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
+
+// =============================================================================
+// SEARCH-HUB ROUTING DOMAIN — federated query + status
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain routing
+// @stability beta
+//
+// Wire contract for RoutingService. Query fans out to the matching registered
+// providers (explicit --type tokens, --all, or classifier-routed when neither
+// is given), collects heterogeneous candidates with provenance, and returns
+// them. Until the cross-encoder rerank lands, results are grouped BY PROVIDER
+// (honest grouping, no false cross-provider score interleave); once rerank
+// exists it populates `ranked`. A down/stale provider is skipped with a
+// surfaced warning and never fails the whole query.
+//
+// See docs/plans/unified-search-hub-plan.md Appendix A for the full design.
+// =============================================================================
+
+service RoutingService {
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc Repromote(RepromoteRequest) returns (RepromoteResponse);
+}
+
+message QueryRequest {
+  string query = 1;
+  // Explicit --type tokens; empty + all=false => the classifier routes.
+  repeated string types = 2;
+  // --all: fan out to every active provider.
+  bool all = 3;
+  // Per-provider limit (default 10).
+  int32 limit = 4;
+  // Optional --group <scenario> scoping.
+  string group = 5;
+  // --explain: include routing rationale in the response.
+  bool explain = 6;
+  // Query-time tuning overrides for the sweep's cheap full-factorial tier. A
+  // provider honors these ONLY when control_token matches its minted token AND
+  // its per-environment override flag is enabled; otherwise they are ignored
+  // (with telemetry) and the public, unauthenticated search path is unchanged.
+  SearchOverrides overrides = 7;
+  // The provider's control token (registry.RegisterProviderResponse). Required
+  // for `overrides` to be honored; unused for ordinary public search.
+  string control_token = 8;
+  // Optional query-time corpus facet passed through {{scope_value}} to scoped
+  // providers such as source-ledger's collapsed leaf.
+  string scope = 9;
+  // Evaluation-only strategy override. Ordinary callers leave this unset and
+  // use the active strategy; the eval service supplies a registered strategy
+  // name when running a strategy comparison arm.
+  string strategy_name = 10;
+}
+
+// Per-request override of QUERY-TIME tuning factors only — index-time factors
+// (engine, embed_model, embed_task_prefix) are never per-request because they
+// require a reindex; they are excluded by construction. Every field is
+// optional (proto3 presence): an unset field means "use the provider's
+// registered tuning". This is the wire form the sweep drives full-factorial
+// without a reindex per arm.
+message SearchOverrides {
+  optional bool rerank_enabled = 1;
+  optional bool rerank_blend = 2;
+  optional int32 rerank_shortlist = 3;
+  // 0-or-unset => regime default (mirrors registry.FloorConfig semantics).
+  optional double floor_max_gap = 4;
+  optional double floor_hard_floor = 5;
+  // Optional dense+sparse Qdrant fusion strategy ("rrf" or "dbsf").
+  optional string hybrid_fusion = 6;
+}
+
+message SearchHit {
+  // Provenance: which leaf produced this hit.
+  string provider_id = 1;
+  string provider_group = 2;
+  string type = 3;
+  string id = 4;
+  string title = 5;
+  string snippet = 6;
+  // File / id / command locator.
+  string path = 7;
+  // Normalized [0,1] (pre-rerank) score.
+  double score = 8;
+  // Set when reranked.
+  double rerank_score = 9;
+  // Set ONLY by the measures provider (the federated metrics layer). When this
+  // hit is a matched *measure* — a typed, parameterized analytical query —
+  // rather than a retrieved document, this carries the structured measure
+  // answer/resolution. Greenfield-additive: every retrieval provider leaves it
+  // unset and consumers that do not understand measures ignore it.
+  MeasureHit measure = 10;
+  // Set when this hit carries an attested architectural answer (the
+  // understand-the-codebase contract). Like `measure`, it is an optional carrier
+  // mirroring MeasureHit: the router never interprets it, it transports it; the
+  // provider fills it and the central router maps it via
+  // ResultMapping.attestation_field. Trust rides INSIDE the result (basis +
+  // sufficiency), never folded into `score`. Optional for any provider; the
+  // conformance lint requires architectural providers to populate it.
+  common.v1.AttestedAnswer attestation = 11;
+  // Regime-aware confidence from the producing provider. Scores are not
+  // thresholdable across regimes; consumers render this instead of treating
+  // `score` as a universal confidence value.
+  common.v1.Confidence confidence = 12;
+  // Project-root-relative code locations or other concrete source locations
+  // behind this hit. `path` remains the primary/first locator for back-compat.
+  repeated string locations = 13;
+  // Number of provider passages represented by this document-level hit. A
+  // value greater than one means duplicate chunks were folded into the
+  // highest-scoring representative; one means no folding occurred.
+  int32 merged_count = 14;
+}
+
+// MeasureHit is the structured payload of a measure match: the resolved measure,
+// its extracted parameters, and — for a safe read-only measure resolved at high
+// confidence — the executed answer. It is the wire form of search-hub's answer
+// to an analytical ("how many / what's the rate / what's next") question.
+//
+// The auto-execution contract is encoded in which fields are populated (the
+// router never interprets these — it carries them; the measures provider fills
+// them per the gate keyed on `effect`):
+//   - answer set + executed_query set  ⇒ the measure was auto-executed (only
+//     ever for effect == "read" AND run_eligible AND confidence >= θ).
+//   - needs non-empty                  ⇒ a required parameter could not be
+//     resolved; the measure was NOT executed (the consumer must ask, not guess).
+//   - answer empty + needs empty + effect in {write, destructive} ⇒ params were
+//     fully resolved but execution is withheld pending confirmation (a
+//     write/destructive measure is NEVER auto-run, even at full confidence).
+message MeasureHit {
+  // Stable measure identifier (the measure declaration name, conventionally
+  // "<domain>.<verb>", e.g. "backlog.completed").
+  string measure_id = 1;
+  // Owning scenario — who computes the answer (the execution-proxy target the
+  // central index resolves at execution time).
+  string scenario = 2;
+  // Resolved parameter values (param name → string value: a time-window token,
+  // an enum member, or an extracted scalar). Only successfully-resolved params
+  // appear; an unresolved required param is reported in `needs` instead.
+  map<string, string> params = 3;
+  // The computed answer rendered for presentation (e.g. "42 backlog items
+  // completed (this_week)"). Empty unless the measure was auto-executed.
+  string answer = 4;
+  // Required parameters that could not be resolved. Non-empty ⇒ not executed —
+  // the consumer should ask for these rather than guess.
+  repeated string needs = 5;
+  // Side-effect class of the measure ("read" | "write" | "destructive"). The
+  // auto-exec gate keys on this — only "read" is ever auto-run.
+  string effect = 6;
+  // The concrete query/aggregation that produced `answer` (provenance). Empty
+  // unless executed.
+  string executed_query = 7;
+  // Extraction/match confidence in [0,1]; the gate compares it against θ.
+  double confidence = 8;
+}
+
+// Phase-4 honest grouping (pre-rerank): candidates kept per provider.
+message ProviderResultGroup {
+  string provider_id = 1;
+  repeated SearchHit hits = 2;
+  int32 count = 3;
+  // Stale / timed-out / down.
+  bool degraded = 4;
+  // e.g. "last sync 3h ago" / "unreachable — skipped".
+  string note = 5;
+  // Per-provider fan-out leg latency in milliseconds, including degraded legs.
+  int64 latency_ms = 6;
+}
+
+message QueryResponse {
+  // Unified ranked list — populated once rerank lands (Phase 6).
+  repeated SearchHit ranked = 1;
+  // By-provider grouping — always populated.
+  repeated ProviderResultGroup groups = 2;
+  // Which providers were hit (operator output).
+  repeated string corpora_searched = 3;
+  // Populated when explain=true.
+  repeated string routing_explanation = 4;
+  // false => honest grouping only (no rerank applied).
+  bool reranked = 5;
+  // Any provider degraded.
+  bool degraded = 6;
+  int64 latency_ms = 7;
+  // True when the query deadline expired after at least one provider returned
+  // usable results. The groups already received remain valid partial output.
+  bool partial = 8;
+  // Number of provider groups that did not complete before the deadline.
+  int32 pending_providers = 9;
+  // Active reranker leg that produced the ranked list (or "none").
+  string reranker_leg = 10;
+  // Stable reason for routing-path degradation, e.g. routing_index_unavailable.
+  string routing_degrade_reason = 11;
+  // Ordering contract for ranked: rerank_score when reranking succeeded,
+  // otherwise score. Consumers must use this field rather than guessing from
+  // which score happens to be populated.
+  string ordered_by = 12;
+  // Stable provider-selection leg: "cross_encoder", "llm", or "lexical".
+  // This is separate from reranker_leg because selection and result fusion may
+  // use different stages of the retrieval path.
+  string selector_leg = 13;
+  // Populated for federated routing evaluation; ordinary interactive queries
+  // omit this diagnostic payload.
+  shared.RoutingTrace routing_trace = 14;
+}
+
+message StatusRequest {}
+
+message RepromoteRequest {
+  string provider_id = 1;
+}
+
+message RepromoteResponse {
+  string provider_id = 1;
+  bool reset = 2;
+  string message = 3;
+}
+
+message ProviderHealth {
+  string provider_id = 1;
+  bool reachable = 2;
+  reserved 3;
+  int64 point_count = 4;
+  bool degraded = 5;
+  // True when automatic routing has temporarily excluded this leaf after
+  // sustained zero-yield evidence. Explicit queries can restore it.
+  bool demoted = 6;
+  string demotion_reason = 7;
+  // Durable graded-empty demotion evidence for the current demotion window;
+  // these counters reset on explicit or successful-hit recovery.
+  int64 times_routed = 8;
+  int64 total_hits = 9;
+  // Resolution/reachability is intentionally separate from corpus age.
+  string reachability = 10;
+	// A computed age (for example "17m0s"), not_applicable reason, or
+	// unreported reason. These prefixes distinguish a provider that does not
+	// expose corpus-age telemetry from one whose telemetry could not be read.
+  string index_age = 11;
+  // Whether automatic classifier routing may select this leaf.
+  bool automatic_eligible = 12;
+  // For a non-production lifecycle, explains why explicit selection is needed.
+  string automatic_exclusion_reason = 13;
+  // closed, open, or probe_due. probe_due is distinct from unreachable: the
+  // cooldown elapsed and the next request is allowed to test recovery.
+  string circuit_state = 14;
+  // Fresh, non-degraded evaluation evidence blocks automatic routing because
+  // gibberish scored at least as high as the strongest real case.
+  bool quality_withheld = 15;
+  string quality_withheld_reason = 16;
+  string quality_evidence_run_id = 17;
+  bool quality_gate_opted_out = 18;
+  string quality_gate_opt_out_reason = 19;
+  // Typed source timestamp behind index_age. Providers that declare an
+  // index_timestamp_field must populate this when their status is reachable.
+  google.protobuf.Timestamp last_indexed_at = 20;
+  // True when a demoted provider still holds an elapsed probation slot and
+  // cannot be selected again until the state is reconciled.
+  optional bool stuck = 21;
+  // healthy, demoted, probe_due, probing, or stuck.
+  string recovery_state = 22;
+  string lifecycle = 23;
+  string declared_at = 24;
+  // Index-time embedding model declared by this provider's tuning contract.
+  // Empty means the provider has no declared model (honest, not inferred).
+  string embedding_model = 25;
+  // Effective freshness budget used by the automatic-routing gate.
+  string freshness_budget = 26;
+  // Provider-owned index generation and corpus state. These fields are copied
+  // generically from the declared status endpoint; Search Hub never infers
+  // provider state from scenario identity.
+  string active_generation = 27;
+  int64 source_files = 28;
+  int64 semantic_cards = 29;
+  int64 graph_facts = 30;
+  string index_state = 31;
+  repeated string degraded_stages = 32;
+  bool drifted = 33;
+}
+
+message StatusResponse {
+  repeated ProviderHealth providers = 1;
+  // Durable breaker/accounting rows with no current registry descriptor. They
+  // remain visible for audit without being presented as active providers.
+  repeated ProviderHealth audit_providers = 11;
+  bool classifier_available = 2;
+  // false => degraded ranking mode (by-provider grouping only).
+  bool reranker_available = 3;
+  double circuit_open_share = 4;
+  double circuit_open_quorum = 5;
+  bool federation_degraded = 6;
+	 repeated registry.IncubatingProvider incubating = 8;
+  // Current shared reranker leg (cross-encoder, LLM fallback, or none).
+  string reranker_leg = 7;
+  // Data-defined strategy catalog used by the router and comparison command.
+  string active_strategy = 9;
+  repeated RetrievalStrategyInfo strategies = 10;
+}
+
+message RetrievalStrategyInfo {
+  string name = 1;
+  string description = 2;
+  repeated RetrievalStageInfo stages = 3;
+}
+
+message RetrievalStageInfo {
+  string kind = 1;
+  // Canonical JSON object containing the stage's parameters.
+  string params_json = 2;
+}

@@ -21,8 +21,7 @@
       "documents": [
         { "path": "safety/README.md", "title": "Safety Overview", "description": "Quick safety checklist" },
         { "path": "safety/GUIDELINES.md", "title": "Safety Guidelines", "description": "Complete safety rules and patterns" },
-        { "path": "safety/agent-spawning-security.md", "title": "Agent Spawning Security", "description": "Security constraints for delegated agents" },
-        { "path": "safety/bats-teardown-bug.md", "title": "BATS Teardown Bug", "description": "Real incident case study" }
+        { "path": "safety/agent-spawning-security.md", "title": "Agent Spawning Security", "description": "Security constraints for delegated agents" }
       ]
     },
     {
@@ -31,36 +30,36 @@
       "icon": "sliders",
       "description": "Operator-facing environment variables and tuning levers",
       "documents": [
-        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, queue, CLI, and playbooks controls" }
+        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, CLI, and playbooks controls" }
       ]
     },
     {
       "id": "phases",
       "title": "Phases",
       "icon": "layers",
-      "description": "11-phase testing architecture documentation",
+      "description": "Descriptor-backed phase architecture documentation",
       "documents": [
-        { "path": "phases/README.md", "title": "Phases Overview", "description": "11-phase architecture with execution flow" },
+        { "path": "phases/README.md", "title": "Phases Overview", "description": "Descriptor-backed phase architecture with execution flow" },
         { "path": "phases/structure/README.md", "title": "Structure Phase", "description": "File and configuration validation" },
-        { "path": "phases/structure/cli-approaches.md", "title": "CLI Approaches", "description": "Legacy vs cross-platform CLI patterns" },
-        { "path": "phases/structure/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation with Browserless" },
-        { "path": "phases/standards/README.md", "title": "Standards Phase", "description": "Standards enforcement via scenario-auditor" },
+        { "path": "phases/structure/cli-approaches.md", "title": "CLI Manifest Contract", "description": "Manifest-driven scenario CLI adapter validation" },
+        { "path": "phases/structure/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation on Browser Automation Studio" },
+        { "path": "phases/contracts/README.md", "title": "Contracts Phase", "description": "cli/manifest.json proto-binding validation via cli-health" },
+        { "path": "phases/ui-health/README.md", "title": "UI Health Phase", "description": "All UI validation via ui-health: manifest/slot/overlay rules, static UI-interop, net-new UI standards, UI-bundle freshness, and a BAS-driven runtime render + iframe-bridge handshake group (execution mode)" },
         { "path": "phases/dependencies/README.md", "title": "Dependencies Phase", "description": "Runtime and tool availability checks" },
-        { "path": "phases/lint/README.md", "title": "Lint Phase", "description": "Type checking and linting" },
+        { "path": "phases/quality/README.md", "title": "Quality Phase", "description": "Static quality contracts via quality-health" },
         { "path": "phases/docs/README.md", "title": "Docs Phase", "description": "Markdown, mermaid, and link validation" },
-        { "path": "phases/unit/README.md", "title": "Unit Phase", "description": "Language-specific unit test execution" },
-        { "path": "phases/unit/scenario-unit-testing.md", "title": "Scenario Unit Testing", "description": "Unit testing for Go, Node.js, Python" },
-        { "path": "phases/unit/test-runners.md", "title": "Test Runners", "description": "Language-specific test runner APIs" },
-        { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API and CLI connectivity testing" },
-        { "path": "phases/integration/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
-        { "path": "phases/playbooks/README.md", "title": "Playbooks Phase", "description": "BAS browser automation workflows" },
-        { "path": "phases/playbooks/directory-structure.md", "title": "Playbooks Directory Structure", "description": "Canonical bas/ layout and registry semantics" },
-        { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Vrooli Ascension workflow testing" },
+        { "path": "phases/unit/README.md", "title": "Unit Phase", "description": "Delegates test execution, coverage, and test maturity to unit-health" },
+        { "path": "phases/workflow/README.md", "title": "Workflow Phase", "description": "Delegated BAS workflow validation via workflow-health" },
+        { "path": "phases/playbooks/README.md", "title": "Playbooks Alias", "description": "Deprecated alias for the workflow phase" },
+        { "path": "phases/playbooks/directory-structure.md", "title": "Workflow Asset Layout Alias", "description": "Deprecated redirect to workflow-health BAS asset layout guidance" },
+        { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "BAS Workflow Authoring Alias", "description": "Deprecated redirect to workflow-health BAS authoring guidance" },
         { "path": "phases/business/README.md", "title": "Business Phase", "description": "Requirement coverage validation" },
         { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
         { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },
         { "path": "phases/performance/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
-        { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" }
+        { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" },
+        { "path": "phases/search/README.md", "title": "Search Phase", "description": "Search maturity validation for search-enabled scenarios" },
+        { "path": "phases/agent-conformance/README.md", "title": "Agent Conformance Phase", "description": "Portable Agent Manager dependency and role-profile validation" }
       ]
     },
     {
@@ -68,12 +67,7 @@
       "title": "Implementation Plans",
       "icon": "map",
       "description": "Detailed implementation plans for features",
-      "documents": [
-        { "path": "plans/bidirectional-reference-validation.md", "title": "Bidirectional Reference Validation", "description": "Implementation plan for CODE:/DOC: reference validation" },
-        { "path": "plans/lint-phase-implementation.md", "title": "Lint Phase Implementation", "description": "Implementation plan for lint phase" },
-        { "path": "plans/standards-phase-implementation-plan.md", "title": "Standards Phase Implementation", "description": "Implementation plan for standards phase" },
-        { "path": "plans/ui-smoke-go-implementation.md", "title": "UI Smoke Go Implementation", "description": "Implementation plan for UI smoke testing in Go" }
-      ]
+      "documents": []
     },
     {
       "id": "guides",
@@ -81,12 +75,11 @@
       "icon": "book",
       "description": "In-depth guides for testing workflows",
       "documents": [
-        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the 11-phase testing architecture" },
-        { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
+        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the descriptor-backed phase architecture" },
+        { "path": "guides/test-generation.md", "title": "Evidence-Driven Remediation", "description": "Findings-first remediation with Test Genie" },
         { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
         { "path": "guides/custom-presets.md", "title": "Custom Presets", "description": "Create tailored test presets for CI/CD" },
         { "path": "guides/dashboard-guide.md", "title": "Dashboard Guide", "description": "Using the web dashboard UI" },
-        { "path": "guides/vault-testing.md", "title": "Vault Testing", "description": "Multi-phase lifecycle validation" },
         { "path": "guides/sync-execution.md", "title": "Synchronous Execution", "description": "Blocking test execution for agents" },
         { "path": "guides/validation-best-practices.md", "title": "Validation Best Practices", "description": "Quality validation guidelines" },
         { "path": "guides/end-to-end-example.md", "title": "End-to-End Example", "description": "Complete PRD to coverage walkthrough" },
@@ -106,9 +99,18 @@
         { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
         { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },
         { "path": "reference/examples.md", "title": "Gold Standard Examples", "description": "Exemplary testing implementations" },
-        { "path": "reference/sync-execution-cheatsheet.md", "title": "Sync Execution Cheatsheet", "description": "Quick reference for sync API" },
         { "path": "reference/vitest-requirement-reporter.md", "title": "Vitest Requirement Reporter", "description": "Custom reporter for requirement coverage tracking" },
         { "path": "reference/workflow-runner.md", "title": "Workflow Runner", "description": "Generic BAS workflow execution infrastructure" }
+      ]
+    },
+    {
+      "id": "requirements",
+      "title": "Requirements & Operational Targets",
+      "icon": "target",
+      "description": "How PRD operational-target and requirement status is derived and improved",
+      "documents": [
+        { "path": "requirements/STATUS_MODEL.md", "title": "Status Model", "description": "How requirement/OT status is derived from tests and shown in execute output" },
+        { "path": "requirements/IMPROVING_COVERAGE.md", "title": "Improving Coverage", "description": "Tag tests with [REQ:ID] and raise passing requirements" }
       ]
     },
     {
@@ -132,12 +134,22 @@
         { "path": "PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
         { "path": "PROBLEMS.md", "title": "Known Issues", "description": "Current issues and blockers" },
         { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
+        { "path": "internal/INVARIANTS.md", "title": "Execution Evidence Invariants", "description": "Canonical evidence, live-memory, and lifecycle rules" },
         { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
+      ]
+    },
+    {
+      "id": "spaces",
+      "title": "Coverage Spaces",
+      "icon": "grid",
+      "description": "Coverage-space definitions (denominators) for federated answer projections",
+      "documents": [
+        { "path": "spaces/validate-space.md", "title": "Validate Space — Validation Concern Coverage", "description": "The Validate projection's denominator: validation concerns the project should check, mapped to phases, owning health scenarios, and autofix intent. Live coverage comes from test-genie health." }
       ]
     }
   ],
   "navigation": {
     "primary": ["getting-started", "configuration", "safety", "phases", "guides", "reference"],
-    "secondary": ["concepts", "plans", "standard"]
+    "secondary": ["requirements", "concepts", "plans", "standard", "spaces"]
   }
 }

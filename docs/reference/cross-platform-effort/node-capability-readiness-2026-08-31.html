@@ -1,0 +1,1128 @@
+<!-- Plan node-capability-readiness-probe-what-a-machine-can-run is implemented
+     in the local/runtime surfaces. Final remote after-state evidence is recorded
+     in evidence/node-capability-readiness-after-2026-08-31.md; the reference
+     node's stale resource contract still prevents the live install proof. -->
+<title>Green But Broken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ============================================================
+   Palette — a maintenance status board, not a terminal.
+   The thesis of this page is a missing amber state, so amber is
+   the accent and green/red/grey are semantic, never decorative.
+   ============================================================ */
+:root {
+  --paper:      #eaeef3;
+  --surface:    #f6f8fa;
+  --surface-2:  #dfe5ec;
+  --ink:        #131a23;
+  --ink-2:      #3c4855;
+  --ink-3:      #5f6d7c;
+  --rule:       #c3ccd7;
+  --rule-soft:  #d5dce4;
+
+  --accent:     #a8560c;   /* caution amber, the state that is missing */
+  --accent-2:   #d98324;
+  --accent-wash:#f6e6d2;
+
+  --pass:       #276b4d;
+  --pass-wash:  #dceee5;
+  --fail:       #9c2c26;
+  --fail-wash:  #f5dcda;
+  --unknown:    #6b7684;
+  --unknown-wash:#e2e7ed;
+
+  --shadow: 0 1px 2px rgba(19,26,35,.06), 0 8px 24px -16px rgba(19,26,35,.30);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0e131a;
+    --surface:    #161d26;
+    --surface-2:  #1f2833;
+    --ink:        #e9eef4;
+    --ink-2:      #b5c1cd;
+    --ink-3:      #8593a2;
+    --rule:       #2c3743;
+    --rule-soft:  #232c37;
+
+    --accent:     #efa257;
+    --accent-2:   #f2b877;
+    --accent-wash:#33240f;
+
+    --pass:       #5cc79a;
+    --pass-wash:  #102b21;
+    --fail:       #f08a82;
+    --fail-wash:  #341715;
+    --unknown:    #8b97a5;
+    --unknown-wash:#1d242d;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0e131a;
+  --surface:    #161d26;
+  --surface-2:  #1f2833;
+  --ink:        #e9eef4;
+  --ink-2:      #b5c1cd;
+  --ink-3:      #8593a2;
+  --rule:       #2c3743;
+  --rule-soft:  #232c37;
+
+  --accent:     #efa257;
+  --accent-2:   #f2b877;
+  --accent-wash:#33240f;
+
+  --pass:       #5cc79a;
+  --pass-wash:  #102b21;
+  --fail:       #f08a82;
+  --fail-wash:  #341715;
+  --unknown:    #8b97a5;
+  --unknown-wash:#1d242d;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.8);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.col  { max-width: 41rem; margin-inline: auto; }
+
+/* --- type -------------------------------------------------- */
+h1, h2, h3, h4, .disp {
+  font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  text-wrap: balance;
+  letter-spacing: -0.018em;
+  line-height: 1.1;
+  margin: 0;
+}
+h2 { font-size: clamp(1.55rem, 3.1vw, 2.15rem); font-weight: 700; }
+h3 { font-size: 1.16rem; font-weight: 700; letter-spacing: -0.008em; }
+h4 { font-size: .95rem; font-weight: 700; letter-spacing: -0.004em; }
+p  { margin: 0 0 1em; }
+a  { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+strong { font-weight: 600; color: var(--ink); }
+
+.eyebrow {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-size: .69rem; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent);
+}
+.lede { font-size: 1.22rem; line-height: 1.55; color: var(--ink-2); }
+code, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace; font-size: .84em; }
+code { background: var(--surface-2); padding: .1em .34em; border-radius: 3px; }
+
+/* --- sections ---------------------------------------------- */
+section { padding: 68px 0; border-top: 1px solid var(--rule-soft); }
+section.band { background: var(--surface); }
+.sec-head { display: flex; gap: 18px; align-items: baseline; margin-bottom: 30px; }
+.sec-num {
+  font-family: "JetBrains Mono", monospace; font-size: .72rem; font-weight: 700;
+  color: var(--ink-3); padding-top: .5em; flex: none; letter-spacing: .08em;
+}
+.sec-head p { margin: 8px 0 0; color: var(--ink-2); max-width: 44rem; font-size: 1.03rem; }
+
+/* --- hero -------------------------------------------------- */
+.hero { padding: 72px 0 60px; border-top: none; }
+.hero h1 { font-size: clamp(2.9rem, 8vw, 5.4rem); font-weight: 800; letter-spacing: -0.038em; }
+.hero .sub { margin-top: 22px; max-width: 40rem; }
+.hero-meta {
+  margin-top: 40px; padding-top: 22px; border-top: 2px solid var(--ink);
+  display: grid; gap: 22px 40px; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  font-family: "JetBrains Mono", monospace; font-size: .78rem;
+}
+.hero-meta dt { color: var(--ink-3); text-transform: uppercase; letter-spacing: .1em; font-size: .68rem; margin-bottom: 5px; }
+.hero-meta dd { margin: 0; color: var(--ink); font-weight: 500; }
+
+/* --- state pills ------------------------------------------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: "JetBrains Mono", monospace; font-size: .68rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 3px; white-space: nowrap;
+}
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.pill.ok   { color: var(--pass);    background: var(--pass-wash); }
+.pill.warn { color: var(--accent);  background: var(--accent-wash); }
+.pill.bad  { color: var(--fail);    background: var(--fail-wash); }
+.pill.na   { color: var(--unknown); background: var(--unknown-wash); }
+
+/* --- tables ------------------------------------------------ */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-family: "JetBrains Mono", monospace; font-size: .795rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+thead th {
+  font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 700; background: var(--surface-2);
+  border-bottom: 1px solid var(--rule); position: sticky; top: 0;
+}
+tbody tr:last-child td { border-bottom: none; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.t-note { font-family: "Newsreader", serif; font-size: .92rem; color: var(--ink-2); line-height: 1.45; }
+
+/* --- finding cards ----------------------------------------- */
+.findings { display: grid; gap: 14px; }
+.finding {
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 7px;
+  padding: 18px 20px 18px 20px; position: relative;
+  border-left: 3px solid var(--sev, var(--unknown));
+}
+.finding.sev-critical { --sev: var(--fail); }
+.finding.sev-major    { --sev: var(--accent); }
+.finding.sev-design   { --sev: var(--unknown); }
+.finding-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; margin-bottom: 8px; }
+.finding-id {
+  font-family: "JetBrains Mono", monospace; font-size: .68rem; font-weight: 700;
+  color: var(--sev); letter-spacing: .07em;
+}
+.finding h4 { flex: 1 1 20rem; }
+.finding p { margin: 0 0 .7em; font-size: .98rem; color: var(--ink-2); }
+.finding p:last-child { margin-bottom: 0; }
+.ev {
+  font-family: "JetBrains Mono", monospace; font-size: .74rem; line-height: 1.65;
+  color: var(--ink-3); border-top: 1px dashed var(--rule); margin-top: 12px; padding-top: 10px;
+  overflow-x: auto;
+}
+.ev b { color: var(--ink-2); font-weight: 500; }
+
+/* --- callout ----------------------------------------------- */
+.callout {
+  border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+  background: var(--surface); border-radius: 6px; padding: 18px 22px; margin: 26px 0;
+}
+.callout .eyebrow { display: block; margin-bottom: 8px; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* --- figure ------------------------------------------------ */
+figure { margin: 34px 0; }
+figure .figbox { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); padding: 26px 22px; }
+figcaption {
+  margin-top: 12px; font-size: .88rem; color: var(--ink-3); line-height: 1.5;
+  font-family: "Newsreader", serif;
+}
+svg text { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* --- mockups ----------------------------------------------- */
+.mock-note { font-size: .92rem; color: var(--ink-3); margin: 10px 0 0; }
+.frame {
+  --wc-base: #020617; --wc-raised: #0f172a; --wc-input: #1e293b;
+  --wc-fg: #f8fafc; --wc-fg2: #e2e8f0; --wc-muted: #94a3b8; --wc-faint: #64748b;
+  --wc-line: rgba(255,255,255,.10); --wc-line-2: rgba(255,255,255,.24);
+  --wc-cyan: #22d3ee; --wc-emerald: #34d399; --wc-amber: #fbbf24; --wc-rose: #fda4af; --wc-slate: #64748b;
+  background: var(--wc-raised); color: var(--wc-fg);
+  border: 1px solid var(--rule); border-radius: 12px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 13px; line-height: 1.45;
+  overflow: hidden; box-shadow: var(--shadow);
+}
+.frame .titlebar {
+  background: var(--wc-base); border-bottom: 1px solid var(--wc-line);
+  padding: 9px 14px; display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--wc-muted); letter-spacing: .05em; text-transform: uppercase;
+}
+.frame .dots { display: flex; gap: 5px; }
+.frame .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--wc-input); display: block; }
+.frame .body { padding: 18px; display: grid; gap: 14px; }
+.frame h5 { margin: 0; font-family: "Archivo", sans-serif; font-size: 14px; font-weight: 700; color: var(--wc-fg); letter-spacing: -.01em; }
+.frame .sublabel { font-size: 11px; color: var(--wc-muted); }
+
+.wc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wc-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--wc-input); border: 1px solid var(--wc-line); border-radius: 10px;
+  padding: 8px 12px; font-size: 12px; color: var(--wc-fg2);
+}
+.wc-chip.sel { border-color: rgba(34,211,238,.5); }
+.led { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.led.ready { background: var(--wc-emerald); }
+.led.warn  { background: var(--wc-amber); }
+.led.off   { background: var(--wc-slate); }
+.led.local { background: var(--wc-cyan); }
+
+.wc-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+@media (max-width: 620px) { .wc-grid { grid-template-columns: 1fr; } }
+.wc-card {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--wc-input); border: 1px solid var(--wc-line);
+  border-radius: 11px; padding: 10px 12px; min-height: 58px; text-align: left;
+}
+.wc-card .glyph { font-size: 13px; line-height: 1.3; flex: none; width: 15px; text-align: center; }
+.wc-card .name { font-size: 12.5px; font-weight: 500; color: var(--wc-fg); }
+.wc-card .meta { font-size: 10.5px; color: var(--wc-faint); margin-top: 2px; }
+.wc-card.miss { opacity: .62; border-style: dashed; }
+.wc-card.miss .name { color: var(--wc-muted); }
+.wc-card .act {
+  margin-left: auto; align-self: center; font-size: 10.5px; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--wc-cyan); border: 1px solid rgba(34,211,238,.35);
+  border-radius: 6px; padding: 3px 7px; white-space: nowrap;
+}
+.wc-tag {
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px;
+  border-radius: 4px; white-space: nowrap;
+}
+.wc-tag.ready { color: var(--wc-emerald); background: rgba(52,211,153,.12); }
+.wc-tag.miss  { color: var(--wc-amber);   background: rgba(251,191,36,.12); }
+.wc-tag.na    { color: var(--wc-slate);   background: rgba(100,116,139,.16); }
+.wc-tag.bad   { color: var(--wc-rose);    background: rgba(253,164,175,.12); }
+.wc-summary {
+  display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--wc-muted);
+  border-top: 1px solid var(--wc-line); padding-top: 11px;
+}
+.wc-banner {
+  display: flex; gap: 9px; align-items: flex-start; font-size: 11.5px; line-height: 1.5;
+  border-radius: 9px; padding: 10px 12px;
+}
+.wc-banner.amber { background: rgba(251,191,36,.09); border: 1px solid rgba(251,191,36,.28); color: #fde68a; }
+.wc-banner.slate { background: rgba(100,116,139,.12); border: 1px solid var(--wc-line); color: var(--wc-fg2); }
+.wc-list { display: grid; gap: 6px; }
+.wc-line {
+  display: grid; grid-template-columns: 15px 1fr auto; gap: 9px; align-items: baseline;
+  font-size: 11.5px; padding: 7px 10px; background: var(--wc-input); border-radius: 8px;
+  border: 1px solid var(--wc-line);
+}
+.wc-line .why { color: var(--wc-faint); font-size: 10.5px; margin-top: 2px; }
+.wc-btn {
+  font-family: "Archivo", sans-serif; font-size: 12px; font-weight: 600;
+  background: var(--wc-cyan); color: #0f172a; border: none; border-radius: 8px; padding: 8px 14px;
+}
+.wc-btn.ghost { background: transparent; color: var(--wc-fg2); border: 1px solid var(--wc-line-2); }
+.wc-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 11.5px; }
+.wc-kv dt { color: var(--wc-faint); }
+.wc-kv dd { margin: 0; color: var(--wc-fg2); }
+
+/* --- misc lists -------------------------------------------- */
+ul.tight { margin: 0 0 1em; padding-left: 1.15em; }
+ul.tight li { margin-bottom: .4em; }
+ol.phases { list-style: none; counter-reset: ph; margin: 0; padding: 0; display: grid; gap: 12px; }
+ol.phases li {
+  counter-increment: ph; position: relative; padding: 16px 20px 16px 62px;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 7px;
+}
+ol.phases li::before {
+  content: "P" counter(ph); position: absolute; left: 18px; top: 16px;
+  font-family: "JetBrains Mono", monospace; font-size: .74rem; font-weight: 700;
+  color: var(--accent); letter-spacing: .05em;
+}
+ol.phases h4 { margin-bottom: 5px; }
+ol.phases p { margin: 0; font-size: .96rem; color: var(--ink-2); }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 14px; }
+.mini {
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 7px; padding: 16px 18px;
+}
+.mini h4 { margin-bottom: 6px; }
+.mini p  { margin: 0; font-size: .95rem; color: var(--ink-2); }
+.mini .src { font-family: "JetBrains Mono", monospace; font-size: .7rem; color: var(--ink-3); display: block; margin-top: 9px; word-break: break-all; }
+
+footer { padding: 46px 0 70px; border-top: 1px solid var(--rule-soft); color: var(--ink-3); font-size: .88rem; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="col">
+    <span class="eyebrow">Fleet readiness investigation &nbsp;·&nbsp; 2026-08-31</span>
+    <h1>Green But<br>Broken</h1>
+    <p class="lede sub">Web Console let you start a session on <span class="mono">minimouse</span> with a coding agent that is not installed there. Every readiness light was green, because nothing in the stack has ever been asked whether a coding agent exists on the machine you picked.</p>
+  </div>
+  <div class="col">
+    <dl class="hero-meta">
+      <div><dt>Node</dt><dd>minimouse · darwin/amd64</dd></div>
+      <div><dt>Bridge state</dt><dd>ONLINE · dispatchable</dd></div>
+      <div><dt>Agents present</dt><dd>2 of 5</dd></div>
+      <div><dt>Last setup op</dt><dd>FAILED · exit 2</dd></div>
+      <div><dt>Onboarding runs</dt><dd>161 for this host</dd></div>
+    </dl>
+  </div>
+</header>
+
+<!-- ================= 1. WHAT HAPPENED ================= -->
+<section>
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <div>
+        <h2>What actually happened</h2>
+        <p>Not a hypothesis. Every number below was read from the live control plane and the live node while writing this.</p>
+      </div>
+    </div>
+
+    <p>The Bridge registry says <span class="mono">minimouse</span> is perfect. All five readiness facts pass, the node holds a live channel, its heartbeat is one second old, and it carries <code>*:write</code>. Web Console reads exactly those facts, finds nothing wrong, and offers you the full launcher.</p>
+
+    <p>Meanwhile, on the node itself, three of the five coding agents Vrooli manages are not installed — and two of the three are offered by name in the launcher.</p>
+  </div>
+
+  <div class="col">
+    <figure>
+      <div class="figbox">
+        <div class="tablewrap" style="border:none">
+          <table>
+            <thead>
+              <tr><th>Coding agent</th><th>Enabled</th><th>Wrapper CLI</th><th>On minimouse</th><th>On this host</th><th>In the launcher</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>claude-code</td><td>yes</td><td>installed</td><td><span class="pill ok">available</span></td><td><span class="pill ok">available</span></td><td>yes</td></tr>
+              <tr><td>codex</td><td>yes</td><td>installed</td><td><span class="pill ok">available</span></td><td><span class="pill ok">available</span></td><td>yes</td></tr>
+              <tr><td>opencode</td><td>yes</td><td>installed</td><td><span class="pill bad">missing</span></td><td><span class="pill ok">available</span></td><td>yes</td></tr>
+              <tr><td>grok</td><td>yes</td><td>installed</td><td><span class="pill bad">missing</span></td><td><span class="pill ok">available</span></td><td>yes</td></tr>
+              <tr><td>antigravity</td><td>yes</td><td>installed</td><td><span class="pill bad">missing</span></td><td><span class="pill ok">available</span></td><td><span style="color:var(--accent)">no</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <figcaption><b>Read live.</b> <span class="mono">vrooli resource status --json</span> on both hosts, the remote one relayed through Bridge. Note the fourth column: every agent reports <span class="mono">enabled: true</span> and <span class="mono">cli_installed: true</span> on minimouse. Vrooli's own wrapper CLI is installed for all five. The upstream binary the wrapper wraps is missing for three.</figcaption>
+    </figure>
+  </div>
+
+  <div class="col">
+    <h3 style="margin-bottom:10px">The onboarding record for this one machine</h3>
+    <p>Bridge has run onboarding against <span class="mono">minimouse.local</span> <strong>159 times</strong> (plus one against <span class="mono">swarminator</span> and one against loopback). That number is itself a finding.</p>
+  </div>
+
+  <div class="col">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Outcome</th><th class="num">Ops</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill ok">SUCCEEDED</span></td><td class="num">68</td><td class="t-note">Paired and online. <strong>Setup was skipped and no configuration was applied.</strong></td></tr>
+          <tr><td><span class="pill bad">onboarding_apply_failed</span></td><td class="num">32</td><td class="t-note">Reached the node, then failed applying the config selection.</td></tr>
+          <tr><td><span class="pill bad">bootstrap_failed</span></td><td class="num">31</td><td class="t-note">The node-side bootstrap script failed.</td></tr>
+          <tr><td><span class="pill bad">pairing_failed</span></td><td class="num">11</td><td class="t-note">Pairing code rejected on redeem.</td></tr>
+          <tr><td><span class="pill bad">ssh_setup_failed</span></td><td class="num">8</td><td class="t-note">Could not establish passwordless SSH.</td></tr>
+          <tr><td><span class="pill bad">verify_online_failed</span></td><td class="num">6</td><td class="t-note">Node did not come online inside the budget.</td></tr>
+          <tr><td><span class="pill bad">prebuilt_artifacts_failed</span></td><td class="num">3</td><td class="t-note">Cross-build or transfer failed.</td></tr>
+          <tr><td><span class="pill na">interrupted_by_restart</span></td><td class="num">1</td><td class="t-note">Control plane restarted mid-op.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="callout">
+      <span class="eyebrow">The two step traces that explain everything</span>
+      <p>The most recent <strong>SUCCEEDED</strong> op and the most recent <strong>FAILED</strong> op run the same 50-odd steps. Both contain:</p>
+      <p class="mono" style="font-size:.78rem;color:var(--ink-2);background:var(--surface-2);padding:12px 14px;border-radius:5px">20 setup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SKIPPED&nbsp;&nbsp;--skip-setup (node cannot run jobs until setup is run later)<br>27 setup-finalize&nbsp;&nbsp;SKIPPED&nbsp;&nbsp;--skip-setup (native setup deferred)</p>
+      <p>They diverge only at the end. The SUCCEEDED op has <em>no</em> <span class="mono">apply-selection</span> step at all — it simply stops after <span class="mono">verify-online-confirm</span> and reports success. The FAILED op attempts <span class="mono">apply-selection</span> and dies on five blockers, none of which is about a coding agent.</p>
+      <p style="margin-top:.8em"><strong>So a "successful" onboarding on this machine means the agent dialled home. It does not mean the machine was configured, and nothing distinguishes the two.</strong></p>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3 style="margin-bottom:10px">The five blockers that failed the last four attempts</h3>
+  </div>
+  <div class="col">
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Blocker</th><th>Reported as</th><th>What it actually is</th></tr></thead>
+        <tbody>
+          <tr><td>vrooli/openrouter:api-key</td><td><span class="pill bad">blocking</span></td><td class="t-note">"the credential backend could not answer" — the store is locked or absent, not the credential missing.</td></tr>
+          <tr><td>vrooli/postgres:password</td><td><span class="pill bad">blocking</span></td><td class="t-note">Same. A backend outage categorised as a missing value.</td></tr>
+          <tr><td>autoheal_watchdog</td><td><span class="pill bad">blocking</span></td><td class="t-note">Safeguard missing. Declared <code>required: true</code> with no platform gate.</td></tr>
+          <tr><td>tpm_credential_access</td><td><span class="pill bad">blocking</span></td><td class="t-note">A TPM device grant. Its own manifest says <code>not_applicable</code> on macOS. Still blocks.</td></tr>
+          <tr><td>workspace_sandbox_userns</td><td><span class="pill bad">blocking</span></td><td class="t-note">Linux AppArmor + user namespaces. Manifest says <code>not_applicable</code> on macOS. Still blocks, and reported as "missing" rather than "not applicable".</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:26px">Three of five blockers are Linux host machinery being demanded of a Mac. None of the five has anything to do with the thing that later broke. And the node came out of it ONLINE and fully trusted either way.</p>
+  </div>
+</section>
+
+<!-- ================= 2. THE TRACE ================= -->
+<section class="band">
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <div>
+        <h2>Where the truth is lost</h2>
+        <p>The fact "grok is not installed on minimouse" is knowable at layer 1 and is never carried past it. Eight layers each have a place to put it, and none of them does.</p>
+      </div>
+    </div>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 1080 596" width="100%" style="max-width:1080px;display:block;margin:0 auto" role="img" aria-label="Eight-layer trace showing where node capability truth is dropped">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--unknown)"/>
+          </marker>
+        </defs>
+
+        <!-- column headings -->
+        <text x="34" y="24" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1.4">LAYER</text>
+        <text x="392" y="24" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1.4">COULD KNOW</text>
+        <text x="700" y="24" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1.4">ACTUALLY CARRIES</text>
+        <line x1="34" y1="34" x2="1046" y2="34" stroke="var(--rule)" stroke-width="1"/>
+
+        <!-- spine -->
+        <line x1="358" y1="52" x2="358" y2="106" stroke="var(--accent)" stroke-width="3"/>
+        <line x1="358" y1="106" x2="358" y2="560" stroke="var(--unknown)" stroke-width="1.5" stroke-dasharray="3 5"/>
+
+        <g font-size="12.5">
+          <!-- row template values -->
+          <!-- 1 -->
+          <circle cx="358" cy="64" r="6.5" fill="var(--accent)"/>
+          <text x="34" y="60" fill="var(--ink)" font-weight="700">1 · Node host</text>
+          <text x="34" y="77" fill="var(--ink-3)" font-size="11">the machine itself</text>
+          <text x="392" y="62" fill="var(--ink-2)">grok binary absent from PATH</text>
+          <text x="392" y="79" fill="var(--ink-3)" font-size="11">exec.LookPath answers in microseconds</text>
+          <rect x="700" y="50" width="126" height="19" rx="3" fill="var(--accent-wash)"/>
+          <text x="708" y="64" fill="var(--accent)" font-size="10.5" font-weight="700" letter-spacing="0.8">THE TRUTH</text>
+
+          <!-- 2 -->
+          <circle cx="358" cy="122" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="118" fill="var(--ink)" font-weight="700">2 · Agent heartbeat</text>
+          <text x="34" y="135" fill="var(--ink-3)" font-size="11">HealthSnapshot, every beat</text>
+          <text x="392" y="120" fill="var(--ink-2)">already probes vrooli + docker by LookPath</text>
+          <text x="392" y="137" fill="var(--ink-3)" font-size="11">carries a free-form details map</text>
+          <text x="700" y="122" fill="var(--unknown)">toolchain_present, disk, container only</text>
+
+          <!-- 3 -->
+          <circle cx="358" cy="180" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="176" fill="var(--ink)" font-weight="700">3 · Presence hub</text>
+          <text x="34" y="193" fill="var(--ink-3)" font-size="11">Bridge, in memory</text>
+          <text x="392" y="178" fill="var(--ink-2)">stores the latest snapshot per node</text>
+          <text x="700" y="180" fill="var(--fail)">Hub.Health() has zero callers</text>
+
+          <!-- 4 -->
+          <circle cx="358" cy="238" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="234" fill="var(--ink)" font-weight="700">4 · Node registry</text>
+          <text x="34" y="251" fill="var(--ink-3)" font-size="11">the durable record</text>
+          <text x="392" y="236" fill="var(--ink-2)">23 fields, 6 readiness overlays</text>
+          <text x="700" y="238" fill="var(--unknown)">no inventory, no setup outcome, no config</text>
+
+          <!-- 5 -->
+          <circle cx="358" cy="296" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="292" fill="var(--ink)" font-weight="700">5 · Onboarding op</text>
+          <text x="34" y="309" fill="var(--ink-3)" font-size="11">durable, with step history</text>
+          <text x="392" y="294" fill="var(--ink-2)">gets a full readiness report back from the node</text>
+          <text x="700" y="296" fill="var(--fail)">report discarded on success; op ≠ node</text>
+
+          <!-- 6 -->
+          <circle cx="358" cy="354" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="350" fill="var(--ink)" font-weight="700">6 · Target catalog</text>
+          <text x="34" y="367" fill="var(--ink-3)" font-size="11">Web Console, per target</text>
+          <text x="392" y="352" fill="var(--ink-2)">emits a 7-fact readiness list per node</text>
+          <text x="700" y="354" fill="var(--unknown)">all 7 are transport &amp; trust; none capability</text>
+
+          <!-- 7 -->
+          <circle cx="358" cy="412" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="408" fill="var(--ink)" font-weight="700">7 · Launcher</text>
+          <text x="34" y="425" fill="var(--ink-3)" font-size="11">the dialog you clicked</text>
+          <text x="392" y="410" fill="var(--ink-2)">renders one card per agent</text>
+          <text x="700" y="412" fill="var(--fail)">a static array of 9 shell strings</text>
+
+          <!-- 8 -->
+          <circle cx="358" cy="470" r="5" fill="var(--paper)" stroke="var(--unknown)" stroke-width="1.5"/>
+          <text x="34" y="466" fill="var(--ink)" font-weight="700">8 · Launch</text>
+          <text x="34" y="483" fill="var(--ink-3)" font-size="11">what running it does</text>
+          <text x="392" y="468" fill="var(--ink-2)">pastes the command into a fresh PTY</text>
+          <text x="700" y="470" fill="var(--fail)">exit 127 lands in scrollback, not in an error</text>
+        </g>
+
+        <line x1="34" y1="508" x2="1046" y2="508" stroke="var(--rule)" stroke-width="1"/>
+        <text x="34" y="534" font-size="13" font-weight="700" fill="var(--ink)">Result</text>
+        <text x="392" y="534" font-size="12.5" fill="var(--ink-2)">Session created. Metrics incremented. SessionCreated emitted.</text>
+        <text x="392" y="556" font-size="12.5" fill="var(--accent)">Operator finds out by reading “command not found”.</text>
+        <line x1="358" y1="490" x2="358" y2="512" stroke="var(--unknown)" stroke-width="1.5" stroke-dasharray="3 5" marker-end="url(#ar)"/>
+      </svg>
+    </div>
+    <figcaption><b>The dashed spine is the point.</b> The signal exists only at the top. Layers 2 and 3 already carry the right shape of data and stop short; layers 4 through 7 have no field for it at all; layer 8 converts a hard failure into terminal text.</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 3. ROOT CAUSES ================= -->
+<section>
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <div>
+        <h2>Root causes</h2>
+        <p>Eighteen defects, grouped by the thing they break. Severity is about how much of the failure each one explains, not how hard it is to fix.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3 style="margin:8px 0 14px">A · Coding agents are never actually installed</h3>
+    <div class="findings">
+
+      <div class="finding sev-critical">
+        <div class="finding-head"><span class="finding-id">RC-01</span><h4>The installer is unreachable on every real node</h4><span class="pill bad">critical</span></div>
+        <p><code>runInstallCommand</code> checks for a source build <em>before</em> it reads <code>install.platforms</code>, and returns. Every coding-agent resource declares <code>cli.source_build: go_module</code>, and every Bridge-onboarded node is a source checkout — the bootstrap ships the working tree. So the branch that would run <code>resource-claude-code install-direct</code> is dead code on exactly the machines that need it. What gets installed instead is Vrooli's own wrapper CLI, which is why every agent reports <code>cli_installed: true</code> while three of them have no binary to wrap.</p>
+        <div class="ev"><b>internal/resources/drivers_cli.go:468-486</b> — early <span class="mono">return runSourceBuild(...)</span> precedes <span class="mono">manifest.Install.Platforms[CurrentPlatform()]</span>. Reached from <span class="mono">resource install</span> and <span class="mono">resource start/restart</span> alike (lines 148, 167, 383).</div>
+      </div>
+
+      <div class="finding sev-critical">
+        <div class="finding-head"><span class="finding-id">RC-02</span><h4>Three upstream download URLs 404 on every platform</h4><span class="pill bad">critical</span></div>
+        <p>Even reached, <code>install-direct</code> would fail for the three agents that are missing. The URL templates interpolate Go's <code>GOOS</code>/<code>GOARCH</code> with no per-vendor naming map. OpenCode publishes <code>opencode-darwin-x64.zip</code>; the template asks for <code>opencode-darwin-amd64.tar.gz</code> — wrong architecture token <em>and</em> wrong archive format. All six URL/platform combinations I checked return HTTP 404. The two agents that <em>are</em> present on minimouse are the two installed through npm, which needs no URL at all.</p>
+        <div class="ev">
+          <b>Verified 2026-08-31 by HTTP HEAD:</b><br>
+          opencode 1.17.9 darwin/amd64 → <b>404</b> &nbsp;·&nbsp; linux/amd64 → <b>404</b><br>
+          grok 0.2.72 darwin/amd64 → <b>404</b> &nbsp;·&nbsp; linux/amd64 → <b>404</b><br>
+          antigravity 1.0.13 darwin/amd64 → <b>404</b> &nbsp;·&nbsp; linux/amd64 → <b>404</b><br>
+          Real sst/opencode assets today: <b>opencode-darwin-x64.zip, opencode-darwin-arm64.zip</b>; latest tag <b>v1.18.25</b> vs pinned <b>1.17.9</b>.
+        </div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-03</span><h4><code>vrooli setup</code> is designed never to install a coding agent</h4><span class="pill warn">major</span></div>
+        <p>All five host-tool manifests are <code>manual: true</code>, <code>bundling: host-required</code>, with <code>platform_status: unqualified</code> on all three platforms. Every installer in hostreqkit short-circuits a manual requirement to <code>SupportManualOnly</code> / <code>ExecutionManualActionRequired</code> and returns. This is a deliberate posture, and it may be the right one — but it is currently unstated at every operator surface, so "I ran setup" and "I have a coding agent" have no relationship that anyone is told about.</p>
+        <div class="ev"><b>internal/tools/{claude,codex,opencode,grok,agy}/tool.json</b> · <b>internal/hostreqkit/installers.go:40, 305, 455</b></div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-04</span><h4>Web Console does not declare that it needs a coding agent</h4><span class="pill warn">major</span></div>
+        <p>The scenario whose entire purpose is launching coding agents declares exactly one host tool — <code>tmux</code> — and no coding-agent resource dependency at all. Nothing in its closure asks for an <code>ai-cli</code>, so no resolver, no setup run and no readiness report has any reason to notice one is absent.</p>
+        <div class="ev"><b>scenarios/web-console/.vrooli/service.json</b> — <span class="mono">hostTools: [tmux]</span>; <span class="mono">dependencies.resources</span> lists ollama and openrouter only.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col">
+    <h3 style="margin:34px 0 14px">B · Nothing carries per-node capability state</h3>
+    <div class="findings">
+
+      <div class="finding sev-critical">
+        <div class="finding-head"><span class="finding-id">RC-05</span><h4>The shared readiness vocabulary has no capability rung</h4><span class="pill bad">critical</span></div>
+        <p>Seven readiness identities exist and all seven are transport and trust: registry record, heartbeat, channel, protocol, dispatchable, bridge scope, session support. A node passes all seven while having nothing installed on it. A conformance test asserts every identity has an emitter; nothing asserts the set covers what a session actually needs.</p>
+        <div class="ev"><b>packages/api-core/targetmodel/model.go:59-66</b> · emitted at <b>scenarios/web-console/api/target_catalog.go:99-116</b></div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-06</span><h4>The local target asserts readiness instead of measuring it</h4><span class="pill warn">major</span></div>
+        <p><code>localTerminalTarget()</code> hardcodes a single fact — "Web Console process, passed: true" — so the machine Web Console runs on is exempt from readiness entirely. If <code>claude</code> vanished from this host, the launcher would look identical.</p>
+        <div class="ev"><b>scenarios/web-console/api/target_catalog.go:85-97</b></div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-07</span><h4>The node record has nowhere to put an inventory</h4><span class="pill warn">major</span></div>
+        <p>The registry <code>Node</code> message carries identity, platform, revision, scopes, status and six readiness overlays. It has no field for installed tools, applied configuration, or setup outcome. <code>capabilities</code> is a self-reported verb-namespace list that explicitly grants nothing — and in practice is empty on both registered nodes, as is <code>revision</code>.</p>
+        <div class="ev"><b>packages/proto/schemas/vrooli-bridge/v1/registry/registry.proto:100-166</b><br>Live: both nodes report <span class="mono">revision=null capabilities=null</span>.</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-08</span><h4>The heartbeat already carries a probe channel that nothing reads</h4><span class="pill warn">major</span></div>
+        <p><code>HealthSnapshot</code> ships on every beat with <code>toolchain_present</code>, disk headroom, container runtime and a free-form <code>details</code> map. The agent's sampler fills it with <code>exec.LookPath</code> probes — precisely the mechanism a coding-agent inventory needs. Bridge stores the latest snapshot per node in <code>Hub.health</code>. <code>Hub.Health()</code> has no callers anywhere in the API.</p>
+        <div class="ev"><b>packages/proto/…/shared/shared.proto:27-33</b> · <b>agent/internal/health/health.go:57-82</b> · <b>api/internal/presence/hub.go:31, 356-368</b></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col">
+    <h3 style="margin:34px 0 14px">C · "Operator config" is two different things, neither per-node</h3>
+    <div class="findings">
+
+      <div class="finding sev-critical">
+        <div class="finding-head"><span class="finding-id">RC-09</span><h4>The applied config comes from the control plane's own host</h4><span class="pill bad">critical</span></div>
+        <p>When Bridge asks vrooli-onboarding what to apply to a node, onboarding answers from <em>its own</em> operator state: the scenarios enabled here, the optional resources in this host's closure, the tools and safeguards opted into here. The node's identity is passed in and never used to shape the answer. There is no per-node desired configuration anywhere in the system — every node is asked to become a copy of the control plane.</p>
+        <div class="ev"><b>scenarios/vrooli-onboarding/api/v2_handoff.go:99-124</b> — the returned Selection is derived from <span class="mono">state</span> + <span class="mono">closure</span>, both local; <span class="mono">HandoffRequest.NodeID</span> is unread.</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-10</span><h4>The per-machine profile that does exist carries none of this</h4><span class="pill warn">major</span></div>
+        <p>Bridge machines have a <code>desired_profile_id</code> and version, versioned snapshots, and an audit trail — real machinery. It resolves to one of six hardcoded profiles carrying only a setup environment, suggested scopes, and privileged-op capabilities. No scenarios, no resources, no coding agents. And the profile's <code>setup_environment</code> is never threaded into onboarding's <code>StartInput</code>, so even that one field is decorative.</p>
+        <div class="ev"><b>scenarios/vrooli-bridge/api/internal/machines/policy.go:30-39</b> — six built-ins · no caller passes <span class="mono">snapshot.SetupEnvironment</span> to <span class="mono">onboard.StartInput</span>.</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-11</span><h4>Desired-vs-applied drift is structurally unrepresentable</h4><span class="pill warn">major</span></div>
+        <p>There is a <code>desired_profile_version</code> and no <code>applied_profile_version</code>; a desired selection and no record of what was actually applied. When the control plane's config changes, no node can be described as behind — the question has no field to be answered in.</p>
+        <div class="ev"><b>machines.proto:41-53</b> — Machine holds desired state only. <b>orchestrator.go:352</b> — the readiness report returned by a successful apply is dropped, never persisted.</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-12</span><h4>A whole-fleet setup profile silently applies nothing</h4><span class="pill warn">major</span></div>
+        <p><code>FromSetupProfile</code> filters the tokens <code>all</code>, <code>none</code> and <code>enabled</code> out of the resource and scenario lists. Pass <code>--setup-resources enabled</code> — the natural way to say "everything this install has turned on" — and the Selection comes back empty, <code>requested</code> comes back false, <code>apply-selection</code> never runs, and the op reports SUCCEEDED.</p>
+        <div class="ev"><b>scenarios/vrooli-bridge/api/internal/onboarding/client.go:118-137</b> — <span class="mono">splitNames</span> drops those three tokens; <span class="mono">requested = len(Scenarios) &gt; 0 || len(OptionalResources) &gt; 0</span>.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col">
+    <h3 style="margin:34px 0 14px">D · Failures are miscategorised, then hidden</h3>
+    <div class="findings">
+
+      <div class="finding sev-critical">
+        <div class="finding-head"><span class="finding-id">RC-13</span><h4>"Not applicable on this platform" is treated as failure</h4><span class="pill bad">critical</span></div>
+        <p>The completion gate collapses <code>missing</code> and <code>unsupported</code> into one bucket, and any <code>required</code> item in that bucket is a hard blocker. A TPM device grant and a Linux user-namespace sandbox on a Mac are therefore blockers — permanently, since both are <code>required: true</code> in the root manifest with no platform gate, so they cannot be deselected either. Both safeguards' own manifests already say <code>not_applicable</code> for macOS. Nothing reads that.</p>
+        <div class="ev"><b>scenarios/vrooli-onboarding/api/completion.go:67-82</b> — <span class="mono">if host.Status != "missing" &amp;&amp; host.Status != "unsupported" { continue }</span><br><b>.vrooli/service.json</b> — <span class="mono">workspace_sandbox_userns</span> and <span class="mono">tpm_credential_access</span> are <span class="mono">required: true</span>, unconditionally.</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-14</span><h4>The not-applicable evidence is copy-pasted and wrong</h4><span class="pill warn">major</span></div>
+        <p>Both safeguards' macOS <code>platform_status</code> entries carry the evidence string "<em>Windows does not expose the Linux host interface used by…</em>". The macOS slot is justified by a sentence about Windows. A reviewer reading it would conclude macOS was never assessed — which, given the behaviour above, is the correct conclusion.</p>
+        <div class="ev"><b>internal/safeguards/workspace-sandbox-userns/safeguard.json</b> · <b>internal/safeguards/tpm-credential-access/safeguard.json</b> — <span class="mono">platform_status.macos.evidence</span></div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-15</span><h4>A backend outage is reported as a missing credential</h4><span class="pill warn">major</span></div>
+        <p>"the credential backend could not answer for this address" maps to <code>unsupported</code>, which maps to a blocker whose remediation is "provide this credential on the credentials step". The operator is told to type in a value when the actual fault is that the store is locked. Two of the five blockers on minimouse are this.</p>
+        <div class="ev"><b>scenarios/vrooli-onboarding/api/v2_readiness.go:270-285</b> — a status-probe error becomes <span class="mono">unsupported</span> with detail "native credential authority unavailable".</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-16</span><h4>Onboarding failure lives on the op and never reaches the node</h4><span class="pill warn">major</span></div>
+        <p>Sixteen typed failure reasons exist, with full step histories, diagnostics and durable retry lineage — genuinely good machinery. None of it is projected onto the node. <span class="mono">minimouse</span>'s four most recent onboarding attempts all failed; the node record shows ONLINE, dispatchable, fully scoped, with no trace. Web Console reads the node record.</p>
+        <div class="ev"><b>api/internal/onboard/types.go:188-236</b> — 16 FailureReasons, none for "a declared capability is absent". The <span class="mono">Node</span> message has no failure or last-configured field.</div>
+      </div>
+
+      <div class="finding sev-major">
+        <div class="finding-head"><span class="finding-id">RC-17</span><h4>Launching a missing binary is not an error anywhere</h4><span class="pill warn">major</span></div>
+        <p>A remote launch opens a shell on the node and pastes the command into it as text. A missing binary produces <code>command not found</code> in scrollback. The create call returns success, <code>SessionCreated</code> is emitted with the agent type, the metrics counter increments, and the pane is titled after an agent that never started. <code>vrooli agent launch</code> adds no preflight of its own — it execs the binary and lets exec fail.</p>
+        <div class="ev"><b>api/handlers/sessions/adapter.go:188-193</b> and <b>api/session/session_manager.go:501-505</b> — paste is best-effort by design, "a convenience the user can retype".<br><b>internal/cli/vroolicli/agent.go:66-77</b> — no LookPath, no install hint; supports 4 runners, not <span class="mono">agy</span>.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="col">
+    <h3 style="margin:34px 0 14px">E · The launcher's agent list is fiction</h3>
+    <div class="findings">
+      <div class="finding sev-critical">
+        <div class="finding-head"><span class="finding-id">RC-18</span><h4>Nine hardcoded shell strings, independent of everything</h4><span class="pill bad">critical</span></div>
+        <p>The agent grid is built from a static TypeScript array folded into five cards. It is not derived from the resource catalog, from operator state, from the selected target, or from anything installed. Antigravity has a resource, a host tool, a runner codec and is installed on this host — and does not appear, because nobody added a string. Grok and OpenCode do appear, on a machine where neither exists.</p>
+        <div class="ev"><b>scenarios/web-console/ui/src/consts/shortcuts.ts:21-79</b> — <span class="mono">DEFAULT_SHORTCUTS</span>, 9 entries. <b>components/launcher/agentGrid.ts</b> folds the "(attributed)" duplicates into 4 agent cards + 1 sign-in.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="callout">
+      <span class="eyebrow">Two adjacent defects worth filing separately</span>
+      <p><strong>The <code>--node</code> flag is advertised in every scenario CLI and implemented nowhere.</strong> <code>cliapp.GlobalOptions.Node</code> is parsed, documented as "Target a connected node", and read by no code in the repository. <code>agent-manager --node no-such-node runner list</code> returns this host's runners and exits 0 — a CLI that claims to answer about a remote machine and silently answers about the local one.</p>
+      <p><strong>Relayed human-format output truncates.</strong> <code>vrooli-bridge relay call … "resource status"</code> without <code>--json</code> returned 299 bytes on one call and a different prefix on another; the same command with <code>--json</code> returned a stable 34,463 bytes every time. Only the JSON path is currently trustworthy over the relay.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4. ALREADY BUILT ================= -->
+<section class="band">
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <div>
+        <h2>What is already built</h2>
+        <p>Almost none of the fix is new machinery. Five things already exist, correct and unused, and the target state is mostly a matter of connecting them.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="grid2">
+      <div class="mini">
+        <h4>A per-agent availability model</h4>
+        <p>Every codec resolves its binary on PATH and reports <code>available</code>, a message, an install hint and a runner type — including antigravity. Exposed today as <code>agent-manager runner list --json</code>.</p>
+        <span class="src">scenarios/agent-manager/…/codecs/base.go:184-197</span>
+      </div>
+      <div class="mini">
+        <h4>A live probe channel to every node</h4>
+        <p><code>HealthSnapshot</code> reaches Bridge on every heartbeat, already carries LookPath results, and has a free-form <code>details</code> map with no schema commitments to break.</p>
+        <span class="src">shared.proto:27 · agent/internal/health/health.go</span>
+      </div>
+      <div class="mini">
+        <h4>A readiness fact contract with a UI that renders it</h4>
+        <p><code>ReadinessCheck</code> has identity, label, passed, detail and recovery action; the machine picker already surfaces the first failing fact under each machine's name. Add facts and the UI improves for free.</p>
+        <span class="src">targetmodel/model.go · launcher/MachinePicker.tsx:74-80</span>
+      </div>
+      <div class="mini">
+        <h4>A capability registry with statuses and actions</h4>
+        <p>Web Console already models ollama, openrouter, tmux backends and Bridge as capabilities with available/unavailable/unknown and an operator command. Coding agents are simply absent from the catalogue.</p>
+        <span class="src">web-console/api/internal/capabilities/registry.go:41-66</span>
+      </div>
+      <div class="mini">
+        <h4>A governed remote read path</h4>
+        <p><code>vrooli resource status --json</code> is already allowlisted over the Bridge relay and returns per-resource install/health for a node. That is how the evidence table in section 01 was produced.</p>
+        <span class="src">vrooli-bridge relay call --scenario vrooli --command "resource status"</span>
+      </div>
+      <div class="mini">
+        <h4>A typed unsupported-platform error</h4>
+        <p><code>agentinstall.UnsupportedPlatformError</code> exists and is returned before any download when a route is undeclared. The category the completion gate needs already has a type.</p>
+        <span class="src">internal/resources/agentinstall/install.go:38-46</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5. TARGET STATE ================= -->
+<section>
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <div>
+        <h2>Target state</h2>
+        <p>One rule, applied at four seams: <strong>a machine's capabilities are observed on the machine, carried as typed facts, and rendered at the moment of choice.</strong></p>
+      </div>
+    </div>
+
+    <p>The current model has two states for a target — dispatchable or not — and both are about the wire. The target model needs a second axis: <em>can this machine do the work</em>, expressed in the same <code>ReadinessCheck</code> shape the transport axis already uses, so the existing UI picks it up without new concepts.</p>
+
+    <p>Four states, not two. A capability is <strong>ready</strong> (probed, present), <strong>missing</strong> (probed, absent, installable here), <strong>not applicable</strong> (this platform has no route — a permanent, non-blocking fact), or <strong>unknown</strong> (not probed since the last heartbeat). The fourth state is what stops a stale answer from reading as a good one, and the third is what stops a Mac from failing on a TPM.</p>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg viewBox="0 0 1060 300" width="100%" style="max-width:1060px;display:block;margin:0 auto" role="img" aria-label="Target state: capability facts flowing from node probe to launcher">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+            <path d="M0,1 L9,5 L0,9 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <g font-size="12">
+          <!-- boxes -->
+          <rect x="14" y="86" width="176" height="94" rx="7" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.6"/>
+          <text x="30" y="110" font-size="11" font-weight="700" fill="var(--accent)" letter-spacing="1">1 · PROBE</text>
+          <text x="30" y="132" fill="var(--ink)">Agent samples the</text>
+          <text x="30" y="149" fill="var(--ink)">ai-cli set by LookPath</text>
+          <text x="30" y="169" font-size="10.5" fill="var(--ink-3)">extends the existing sampler</text>
+
+          <rect x="230" y="86" width="176" height="94" rx="7" fill="var(--surface)" stroke="var(--rule)" stroke-width="1.4"/>
+          <text x="246" y="110" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1">2 · CARRY</text>
+          <text x="246" y="132" fill="var(--ink)">HealthSnapshot →</text>
+          <text x="246" y="149" fill="var(--ink)">registry Node inventory</text>
+          <text x="246" y="169" font-size="10.5" fill="var(--ink-3)">persisted, with a probed_at</text>
+
+          <rect x="446" y="86" width="176" height="94" rx="7" fill="var(--surface)" stroke="var(--rule)" stroke-width="1.4"/>
+          <text x="462" y="110" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1">3 · PROJECT</text>
+          <text x="462" y="132" fill="var(--ink)">capability_ready facts</text>
+          <text x="462" y="149" fill="var(--ink)">on every Target</text>
+          <text x="462" y="169" font-size="10.5" fill="var(--ink-3)">local target probes itself</text>
+
+          <rect x="662" y="86" width="176" height="94" rx="7" fill="var(--surface)" stroke="var(--rule)" stroke-width="1.4"/>
+          <text x="678" y="110" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1">4 · RENDER</text>
+          <text x="678" y="132" fill="var(--ink)">Launcher derives its</text>
+          <text x="678" y="149" fill="var(--ink)">cards from the target</text>
+          <text x="678" y="169" font-size="10.5" fill="var(--ink-3)">no static shortcut array</text>
+
+          <rect x="878" y="86" width="168" height="94" rx="7" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.6"/>
+          <text x="894" y="110" font-size="11" font-weight="700" fill="var(--accent)" letter-spacing="1">5 · ACT</text>
+          <text x="894" y="132" fill="var(--ink)">Install it, on that</text>
+          <text x="894" y="149" fill="var(--ink)">machine, from here</text>
+          <text x="894" y="169" font-size="10.5" fill="var(--ink-3)">or say why it cannot be</text>
+
+          <line x1="190" y1="133" x2="226" y2="133" stroke="var(--accent)" stroke-width="2" marker-end="url(#ar2)"/>
+          <line x1="406" y1="133" x2="442" y2="133" stroke="var(--accent)" stroke-width="2" marker-end="url(#ar2)"/>
+          <line x1="622" y1="133" x2="658" y2="133" stroke="var(--accent)" stroke-width="2" marker-end="url(#ar2)"/>
+          <line x1="838" y1="133" x2="874" y2="133" stroke="var(--accent)" stroke-width="2" marker-end="url(#ar2)"/>
+
+          <!-- state legend -->
+          <text x="14" y="228" font-size="11" font-weight="700" fill="var(--ink-3)" letter-spacing="1.3">FOUR STATES, CARRIED END TO END</text>
+          <line x1="14" y1="238" x2="1046" y2="238" stroke="var(--rule)"/>
+
+          <circle cx="22" cy="264" r="6" fill="var(--pass)"/>
+          <text x="38" y="262" font-weight="700" fill="var(--ink)">ready</text>
+          <text x="38" y="280" font-size="11" fill="var(--ink-3)">probed, present, version known</text>
+
+          <circle cx="282" cy="264" r="6" fill="var(--accent)"/>
+          <text x="298" y="262" font-weight="700" fill="var(--ink)">missing</text>
+          <text x="298" y="280" font-size="11" fill="var(--ink-3)">probed, absent, installable here</text>
+
+          <circle cx="560" cy="264" r="6" fill="var(--unknown)"/>
+          <text x="576" y="262" font-weight="700" fill="var(--ink)">not applicable</text>
+          <text x="576" y="280" font-size="11" fill="var(--ink-3)">no route on this platform — never a blocker</text>
+
+          <circle cx="866" cy="264" r="6" fill="var(--paper)" stroke="var(--unknown)" stroke-width="2"/>
+          <text x="882" y="262" font-weight="700" fill="var(--ink)">unknown</text>
+          <text x="882" y="280" font-size="11" fill="var(--ink-3)">not probed recently</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>Everything before step 4 already exists in some form.</b> Step 1 extends a sampler that already runs LookPath. Step 2 adds fields to a message that already flows. Step 3 adds identities to a vocabulary the UI already renders. Step 4 replaces a static array with a derived one. Step 5 is the only genuinely new surface.</figcaption>
+  </figure>
+
+  <div class="col">
+    <h3 style="margin:6px 0 12px">The contracts this implies</h3>
+    <ul class="tight">
+      <li><strong>A node's configuration is a per-machine document, not the control plane's mirror.</strong> The machine profile grows to carry scenarios, resources and required capabilities, and it is what onboarding applies. Today it carries a setup environment that nothing reads.</li>
+      <li><strong>Applied state is recorded next to desired state.</strong> <code>applied_profile_version</code>, <code>applied_at</code>, and the readiness report that a successful apply already returns and currently throws away. Drift becomes a computable difference instead of a question with no field.</li>
+      <li><strong>Onboarding reports a disposition per item, not one exit code.</strong> Applied / already-present / not-applicable / blocked / skipped, each with its own reason. "Exit 2 with five blockers in one string" is not a result an operator can act on, and three of the five were not real.</li>
+      <li><strong>Not-applicable never blocks.</strong> A required item whose platform declaration says <code>not_applicable</code> is satisfied by that declaration. If the declaration is wrong, fix the declaration — do not make every Mac fail forever.</li>
+      <li><strong>Success means configured.</strong> An onboarding op that skipped setup and applied nothing reports <em>paired</em>, not <em>succeeded</em>. Those are different outcomes and the fleet needs to see which one it got.</li>
+      <li><strong>A launch that cannot succeed is refused before the PTY opens.</strong> Same refusal shape the target catalog already uses for scope and protocol failures: <code>failed_precondition</code> with a named missing capability and a recovery action.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 6. MOCKUPS ================= -->
+<section class="band">
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <div>
+        <h2>What it looks like</h2>
+        <p>Five surfaces, drawn in Web Console's own palette and component vocabulary — slate ground, cyan accent, the existing card and pill shapes — so these read as changes to the product rather than a redesign of it.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP 1 -->
+  <div class="col">
+    <h3 style="margin:26px 0 6px">1 · The launcher tells you what this machine can run</h3>
+    <p class="mock-note">The agent grid is derived from the selected target, not from a constant. Missing agents stay visible — hiding them would make the machine look complete — but are unlaunchable and carry the one action that fixes them. Antigravity appears because it is in the catalogue, which is the only reason any card should appear.</p>
+  </div>
+  <div class="col">
+    <div class="frame" style="margin-top:16px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span style="margin-left:6px">New session</span></div>
+      <div class="body">
+        <div class="wc-row">
+          <span class="wc-chip sel"><span class="led warn"></span> minimouse <span class="wc-tag miss">2 of 5 agents</span></span>
+          <span class="wc-chip">No group</span>
+        </div>
+
+        <div class="wc-banner amber">
+          <span>▲</span>
+          <span><b>3 coding agents are not installed on minimouse.</b> They can be installed from here, or you can pick a machine that already has them.</span>
+        </div>
+
+        <div>
+          <div class="wc-row" style="justify-content:space-between;margin-bottom:9px">
+            <h5>Agents</h5>
+            <span class="sublabel">probed 4s ago · attributed ☐</span>
+          </div>
+          <div class="wc-grid">
+            <div class="wc-card">
+              <span class="glyph" style="color:var(--wc-emerald)">⚡</span>
+              <span><span class="name">Claude Code</span><span class="meta">v2.1.185 · ready</span></span>
+            </div>
+            <div class="wc-card">
+              <span class="glyph" style="color:var(--wc-emerald)">⚡</span>
+              <span><span class="name">Codex</span><span class="meta">v0.141.0 · ready</span></span>
+            </div>
+            <div class="wc-card miss">
+              <span class="glyph" style="color:var(--wc-amber)">▲</span>
+              <span><span class="name">OpenCode</span><span class="meta">not installed on minimouse</span></span>
+              <span class="act">Install</span>
+            </div>
+            <div class="wc-card miss">
+              <span class="glyph" style="color:var(--wc-amber)">▲</span>
+              <span><span class="name">Grok</span><span class="meta">not installed on minimouse</span></span>
+              <span class="act">Install</span>
+            </div>
+            <div class="wc-card miss">
+              <span class="glyph" style="color:var(--wc-amber)">▲</span>
+              <span><span class="name">Antigravity</span><span class="meta">not installed on minimouse</span></span>
+              <span class="act">Install</span>
+            </div>
+            <div class="wc-card">
+              <span class="glyph" style="color:var(--wc-cyan)">▮</span>
+              <span><span class="name">Empty shell</span><span class="meta">no agent, just a terminal</span></span>
+            </div>
+          </div>
+          <div class="wc-summary"><span class="led ready"></span> Claude Code and Codex are ready on this machine.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP 2 -->
+  <div class="col">
+    <h3 style="margin:40px 0 6px">2 · The machine list ranks by what each machine can do</h3>
+    <p class="mock-note">The picker already shows the first failing readiness fact under each name; capability facts join that same line. The local machine is probed like every other, so "this machine" stops being exempt. A stale probe reads as unknown rather than as ready.</p>
+  </div>
+  <div class="col">
+    <div class="frame" style="margin-top:16px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span style="margin-left:6px">Where it runs</span></div>
+      <div class="body">
+        <div class="wc-list">
+          <div class="wc-line" style="border-color:rgba(34,211,238,.4)">
+            <span class="led local" style="margin-top:5px"></span>
+            <span><b>This machine</b> <span style="color:var(--wc-faint)">linux/amd64</span><span class="why">5 of 5 agents ready · probed 2s ago</span></span>
+            <span class="wc-tag ready">5 / 5</span>
+          </div>
+          <div class="wc-line">
+            <span class="led warn" style="margin-top:5px"></span>
+            <span><b>minimouse</b> <span style="color:var(--wc-faint)">darwin/amd64</span><span class="why">Claude Code, Codex ready · OpenCode, Grok, Antigravity not installed</span></span>
+            <span class="wc-tag miss">2 / 5</span>
+          </div>
+          <div class="wc-line" style="opacity:.6">
+            <span class="led off" style="margin-top:5px"></span>
+            <span><b>swarminator</b> <span style="color:var(--wc-faint)">linux/amd64</span><span class="why">Offline · last seen 11 days ago · capabilities unknown</span></span>
+            <span class="wc-tag na">—</span>
+          </div>
+        </div>
+        <div class="wc-banner slate"><span>⟳</span><span>Capability probes arrive with each node heartbeat. A machine that has not reported in reads as unknown, never as ready.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP 3 -->
+  <div class="col">
+    <h3 style="margin:40px 0 6px">3 · Choosing a missing agent explains itself and offers the fix</h3>
+    <p class="mock-note">Today this path produces a green session and a <code>command not found</code>. Instead: a refusal with the named missing capability, the reason it is missing, and the one action that changes it — plus the honest alternative when there is no automatic route on that platform.</p>
+  </div>
+  <div class="col">
+    <div class="frame" style="margin-top:16px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span style="margin-left:6px">Install OpenCode on minimouse</span></div>
+      <div class="body">
+        <div>
+          <h5>OpenCode is not installed on minimouse</h5>
+          <p class="sublabel" style="margin-top:5px">The Vrooli wrapper for OpenCode is installed, but the OpenCode binary it runs is absent from this machine.</p>
+        </div>
+        <dl class="wc-kv" style="background:var(--wc-input);border:1px solid var(--wc-line);border-radius:9px;padding:12px 14px">
+          <dt>Machine</dt><dd>minimouse · darwin/amd64</dd>
+          <dt>Probed</dt><dd>4 seconds ago, via node heartbeat</dd>
+          <dt>Route</dt><dd>direct download · pinned v1.17.9</dd>
+          <dt>Last attempt</dt><dd style="color:var(--wc-rose)">upstream returned HTTP 404 — artifact name does not match this release</dd>
+        </dl>
+        <div class="wc-banner amber">
+          <span>▲</span>
+          <span><b>This install route is currently broken upstream.</b> Vrooli asks for <span style="opacity:.85">opencode-darwin-amd64.tar.gz</span>; the release publishes <span style="opacity:.85">opencode-darwin-x64.zip</span>. Installing by hand on the machine will work; the automatic route will not until the artifact mapping is corrected.</span>
+        </div>
+        <div class="wc-row">
+          <button class="wc-btn" type="button">Install anyway</button>
+          <button class="wc-btn ghost" type="button">Pick another agent</button>
+          <button class="wc-btn ghost" type="button">Copy manual steps</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP 4 -->
+  <div class="col">
+    <h3 style="margin:40px 0 6px">4 · A node card that distinguishes reachable from configured</h3>
+    <p class="mock-note">Two independent axes, never collapsed. Bridge already computes the left one perfectly. The right one is what does not exist today — and it is where an operator would have seen, on 30 August, that the machine had never been set up.</p>
+  </div>
+  <div class="col">
+    <div class="frame" style="margin-top:16px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span style="margin-left:6px">minimouse</span></div>
+      <div class="body">
+        <div class="wc-row" style="gap:24px;align-items:flex-start">
+          <div style="flex:1 1 210px">
+            <div class="sublabel" style="letter-spacing:.08em;text-transform:uppercase;font-size:10px;margin-bottom:7px">Reachable</div>
+            <div class="wc-row" style="gap:6px"><span class="led ready"></span><b style="font-size:13px">Online · dispatchable</b></div>
+            <div class="wc-list" style="margin-top:9px;gap:3px">
+              <div style="font-size:11px;color:var(--wc-emerald)">✓ registry record · heartbeat 1s · live channel</div>
+              <div style="font-size:11px;color:var(--wc-emerald)">✓ protocol compatible · session support</div>
+              <div style="font-size:11px;color:var(--wc-emerald)">✓ grants: read, write across all apps</div>
+            </div>
+          </div>
+          <div style="flex:1 1 210px">
+            <div class="sublabel" style="letter-spacing:.08em;text-transform:uppercase;font-size:10px;margin-bottom:7px">Configured</div>
+            <div class="wc-row" style="gap:6px"><span class="led warn"></span><b style="font-size:13px;color:var(--wc-amber)">Never applied</b></div>
+            <div class="wc-list" style="margin-top:9px;gap:3px">
+              <div style="font-size:11px;color:var(--wc-amber)">▲ setup skipped on the last 68 successful runs</div>
+              <div style="font-size:11px;color:var(--wc-rose)">✕ last apply failed 30 Aug 00:17 · 5 blockers</div>
+              <div style="font-size:11px;color:var(--wc-muted)">— desired profile v3 · applied none</div>
+            </div>
+          </div>
+        </div>
+        <div class="wc-banner amber">
+          <span>▲</span>
+          <span><b>This machine is trusted and reachable, but has never been configured.</b> Sessions will start; anything that depends on a resource, tool or coding agent may not be there.</span>
+        </div>
+        <div class="wc-row"><button class="wc-btn" type="button">Apply configuration</button><button class="wc-btn ghost" type="button">See what would change</button><button class="wc-btn ghost" type="button">Onboarding history</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP 5 -->
+  <div class="col">
+    <h3 style="margin:40px 0 6px">5 · An onboarding result you can act on</h3>
+    <p class="mock-note">The same run that today produces "exit 2, five blockers" as one concatenated string. Per-item dispositions separate what applied, what was never going to apply on this platform, and what is genuinely blocked — and the count of real blockers drops from five to two.</p>
+  </div>
+  <div class="col">
+    <div class="frame" style="margin-top:16px">
+      <div class="titlebar"><span class="dots"><i></i><i></i><i></i></span><span style="margin-left:6px">Onboarding · minimouse.local</span></div>
+      <div class="body">
+        <div class="wc-row" style="justify-content:space-between">
+          <h5>Paired and online · configuration partially applied</h5>
+          <span class="wc-tag miss">2 blocked</span>
+        </div>
+        <div class="wc-list">
+          <div class="wc-line"><span style="color:var(--wc-emerald)">✓</span><span><b>14 scenarios, 6 resources</b><span class="why">applied or already present</span></span><span class="wc-tag ready">applied</span></div>
+          <div class="wc-line"><span style="color:var(--wc-muted)">—</span><span><b>tpm_credential_access</b><span class="why">macOS has no TPM device interface — declared not applicable in the safeguard manifest</span></span><span class="wc-tag na">n/a here</span></div>
+          <div class="wc-line"><span style="color:var(--wc-muted)">—</span><span><b>workspace_sandbox_userns</b><span class="why">Linux user namespaces and AppArmor — declared not applicable in the safeguard manifest</span></span><span class="wc-tag na">n/a here</span></div>
+          <div class="wc-line"><span style="color:var(--wc-amber)">▲</span><span><b>autoheal_watchdog</b><span class="why">Safeguard missing · needs elevation on this host</span></span><span class="wc-tag miss">blocked</span></div>
+          <div class="wc-line"><span style="color:var(--wc-amber)">▲</span><span><b>credential store</b><span class="why">Backend did not answer — the store is locked, not the credentials missing. Unlock it and retry; nothing to type in.</span></span><span class="wc-tag miss">blocked</span></div>
+          <div class="wc-line"><span style="color:var(--wc-amber)">▲</span><span><b>3 coding agents</b><span class="why">OpenCode, Grok, Antigravity declared but not installed · automatic route returned 404</span></span><span class="wc-tag miss">blocked</span></div>
+        </div>
+        <div class="wc-row"><button class="wc-btn" type="button">Retry blocked items</button><button class="wc-btn ghost" type="button">Full step log</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7. SEQUENCING ================= -->
+<section>
+  <div class="col">
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <div>
+        <h2>Sequencing</h2>
+        <p>Ordered so each phase is independently useful and none of them is blocked on the one before it landing perfectly. The first two phases are small and stop the bleeding.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <ol class="phases">
+      <li>
+        <h4>Make the truth reachable — RC-01, RC-02</h4>
+        <p>Move the <code>install.platforms</code> branch ahead of the source-build return, or make source-build build the wrapper <em>and</em> continue. Replace the GOOS/GOARCH URL templates with per-vendor artifact maps and add a platform-gate test that resolves every declared route against the real release index. Right now three of five agents cannot be installed on any platform, and no test says so.</p>
+      </li>
+      <li>
+        <h4>Stop reporting an unconfigured node as green — RC-13, RC-14, RC-16, and the success semantics</h4>
+        <p>Not-applicable stops being a blocker; the two mislabelled safeguard evidence strings get rewritten; a credential-backend outage gets its own category with its own remediation. An op that skipped setup and applied nothing reports <em>paired</em>, not <em>succeeded</em>. Cheap, and it turns the last four minimouse failures from five blockers into two real ones.</p>
+      </li>
+      <li>
+        <h4>Probe and carry — RC-08, RC-07</h4>
+        <p>Extend the agent's existing sampler to LookPath the declared <code>ai-cli</code> set, ship it in <code>HealthSnapshot.details</code>, persist it on the node record with a <code>probed_at</code>, and give <code>Hub.Health()</code> its first caller. No new transport, no new schema risk.</p>
+      </li>
+      <li>
+        <h4>Add the capability rung to readiness — RC-05, RC-06</h4>
+        <p>New identities in <code>targetmodel</code> for capability readiness with the four-state vocabulary. Emit them for bridge nodes from the persisted inventory and for the local target from a live probe. The machine picker starts telling the truth with no UI change at all.</p>
+      </li>
+      <li>
+        <h4>Derive the launcher — RC-18, RC-04, RC-17</h4>
+        <p>Build the agent grid from the target's capability facts instead of <code>DEFAULT_SHORTCUTS</code>; declare the <code>ai-cli</code> dependency in web-console's manifest so the closure knows it exists; refuse a launch whose agent is missing with <code>failed_precondition</code> and a named capability, the way scope and protocol failures are already refused.</p>
+      </li>
+      <li>
+        <h4>Make configuration per-machine — RC-09, RC-10, RC-11, RC-12</h4>
+        <p>The largest piece and the one worth designing before building. The machine profile becomes the desired configuration document — scenarios, resources, required capabilities — and is what onboarding applies. Applied state is recorded beside desired state so drift is computable. <code>enabled</code>/<code>all</code> stop being silently dropped.</p>
+      </li>
+      <li>
+        <h4>Install from the console — the new surface</h4>
+        <p>Only worth building once phases 1 and 3 are real: a governed remote install for one named capability on one named machine, reusing the relay path that already carries <code>vrooli resource status</code>. Until then, mockup 3's honest "here is why the automatic route will not work" is the whole feature.</p>
+      </li>
+    </ol>
+  </div>
+
+  <div class="col">
+    <div class="callout" style="margin-top:34px">
+      <span class="eyebrow">Loose ends worth filing separately</span>
+      <p>The dead <code>--node</code> flag across every scenario CLI, and the relay's truncation of human-format output. Neither belongs to this arc, both silently produce wrong answers, and the first one will actively mislead anyone debugging this problem from a terminal.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="col">
+    <p style="margin:0">Read from the live control plane, the live node and the working tree on 31 August 2026. Node <span class="mono">25c7e426-c76c-421a-8351-aaf964589802</span>, machine <span class="mono">451ea636-a80f-4080-82b7-fa65d0e3289a</span>, branch <span class="mono">agi</span>. Remote facts were gathered through <span class="mono">vrooli-bridge relay call</span>; nothing was installed, applied or changed on any machine.</p>
+  </div>
+</footer>
+
+</div>

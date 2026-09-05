@@ -3,12 +3,12 @@
   "schemaVersion": 1,
   "id": "portfolio-manager",
   "displayName": "Portfolio Manager",
-  "description": "Maintains Swarm Manager portfolio flow, applies approved decisions, and proposes bounded corrections when work drifts.",
+  "description": "Maintains Swarm Manager portfolio flow, applies approved work items, and proposes bounded corrections when work drifts.",
   "status": "active",
   "appearance": {
-    "body": "#1E293B",
-    "head": "#475569",
-    "accent": "#CBD5E1"
+    "body": "#64748B",
+    "head": "#94A3B8",
+    "accent": "#F1F5F9"
   },
   "tags": [
     "portfolio",
@@ -17,9 +17,7 @@
     "swarm-manager"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
   "revision": 2,
   "createdAt": "2026-04-09T19:58:09Z",

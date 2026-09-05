@@ -1,0 +1,88 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "last_validated_at": "2026-08-30T16:36:48-04:00",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PS-P2-001",
+      "title": "Configuration bandit",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "description": "The system may learn over durable configurations such as profiles, strategies, threshold values, and style versions using a binary per-round signal of whether anything was committed, never a per-candidate preference, and constrained to configurations whose measured set diversity clears a floor",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-001] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "PS-P2-002",
+      "title": "Outcome-driven scoring",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "The system may score candidates from measured external outcomes once publish or conversion telemetry exists, joined through a reserved outcome reference on the selection event",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-002] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "PS-P2-003",
+      "title": "Semantic diversity metrics",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "description": "The system may add embedding-based semantic diversity alongside the lexical tier once an embedding surface is available through ai-gateway",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Embedding-backed semantic set measurement is resolved through ai-gateway in generateResolved and recorded on the round; document-level semantic repetition is measured at assembly."
+        }
+      ]
+    },
+    {
+      "id": "PS-P2-004",
+      "title": "Whole-document variation",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "criticality": "P2",
+      "description": "The system may offer document-level candidate sets once cost and review burden are understood from real section-level usage",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-004] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "PS-P2-005",
+      "title": "Consumer axis-space migration",
+      "status": "planned",
+      "prd_ref": "OT-P2-005",
+      "criticality": "P2",
+      "description": "The system may accept an existing axis space from another scenario once that scenario chooses to migrate",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-005] tag) once the behavior exists."
+        }
+      ]
+    }
+  ]
+}

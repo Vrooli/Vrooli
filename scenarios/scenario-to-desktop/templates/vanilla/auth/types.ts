@@ -16,6 +16,8 @@ export interface StoredTokens {
     accessToken: string;
     refreshToken: string;
     expiresAt: string;
+    /** Signed LPBS entitlement lease; encrypted with the token record. */
+    entitlementLease?: string;
 }
 
 /**
@@ -120,6 +122,18 @@ export type WindowFocusCallback = () => void;
  */
 export type ProtocolUrlCallback = (url: string) => void;
 
+/** Result delivered by a process-owned loopback authorization listener. */
+export interface LoopbackAuthorizationResult {
+    code: string;
+    state: string;
+    redirectURI: string;
+}
+
+/** Binds a browser authorization request to an ephemeral loopback listener. */
+export type LoopbackAuthorizationCallback = (
+    buildAuthorizationURL: (redirectURI: string) => string,
+) => Promise<LoopbackAuthorizationResult>;
+
 /**
  * Storage operations needed by auth module.
  * Simplified interface compared to full IAppStorage.
@@ -164,6 +178,9 @@ export interface IAuthManager {
      * @returns The access token, or null if not authenticated
      */
     getAccessToken(): Promise<string | null>;
+
+    /** Return the last signed entitlement lease received from LPBS. */
+    getEntitlementLease(): Promise<string | null>;
 
     /**
      * Get the stored user information.
@@ -215,4 +232,14 @@ export interface AuthManagerDependencies {
     onAuthChange: AuthChangeCallback;
     onWindowFocus?: WindowFocusCallback;
     onProtocolUrl?: ProtocolUrlCallback;
+    /** Runs the browser callback on a process-owned loopback listener. */
+    onLoopbackAuthorization?: LoopbackAuthorizationCallback;
+    /** Derives the RFC 7636 S256 challenge from a verifier. */
+    createCodeChallenge?: (verifier: string) => string;
+    /** Store the rotating LPBS refresh token in the platform credential authority. */
+    onRefreshToken?: (refreshToken: string) => Promise<void>;
+    /** Resolve the shared LPBS refresh token after an app restart. */
+    onGetRefreshToken?: () => Promise<string | null>;
+    /** Remove the shared LPBS refresh token during sign-out. */
+    onClearRefreshToken?: () => Promise<void>;
 }

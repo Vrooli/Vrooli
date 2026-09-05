@@ -1,0 +1,1272 @@
+package components
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+)
+
+// Indexer walks a configured filesystem root for registry-backed manifests under
+// components/*/component.json, foundations/*/component.json, and
+// hooks/*/component.json and upserts the manifest plus its version folders
+// into the Repository. Catalog services are intentionally owned by catalog
+// coverage rather than this component registry, so they are skipped during
+// indexing. Renderable primitives are part of the registry even though they
+// live in their own authored root; a final DeleteMissing call
+// removes rows whose manifests no longer exist, so deleted components
+// leave the registry without manual intervention.
+//
+// The header contract (req CR-002, captured in PRD.md):
+//
+//	/**
+//	 * @libraryId   react-component-library:Button
+//	 * @displayName Button
+//	 * @description Primary call-to-action button.
+//	 * @version     1.0.0
+//	 * @tags        ["form", "interactive"]
+//	 * @deps        {"react": "^18"}
+//	 * @warning     DO NOT REMOVE THIS HEADER...
+//	 */
+//
+// component.json is the source of truth. Source-file headers are
+// validation hints for version, status, deps, and readability.
+// UpsertObserver is the post-upsert seam other domains hook into. The
+// indexer calls Observe after a successful repo.UpsertManifest with the
+// parsed manifest input, so cross-domain consumers (currently req 10's deps
+// recorder) can re-sync without parsing files themselves. nil observer means
+// "no hook"; production wires deps.Service via a small adapter in main.go.
+type UpsertObserver interface {
+	Observe(ctx context.Context, c Component, in IndexManifestInput) error
+}
+
+type Indexer struct {
+	repo             Repository
+	root             string
+	fs               fs.FS // injected for tests; nil means use os.DirFS(root)
+	observer         UpsertObserver
+	assetDirectories []string
+	kitVocabularies  map[string][]string
+	kitVocabularyErr error
+}
+
+// SetUpsertObserver installs the post-upsert seam. Designed to be
+// called once at boot before any Run call; not concurrency-safe with
+// in-flight Runs.
+func (idx *Indexer) SetUpsertObserver(o UpsertObserver) { idx.observer = o }
+
+// NewIndexer constructs an Indexer rooted at root. The root is the
+// absolute path on disk; consumers resolve it via api-core/storage
+// before calling. fsys may be nil — production passes nil and the
+// indexer wraps os.DirFS(root); tests pass an in-memory fs.FS so they
+// don't touch disk.
+func NewIndexer(repo Repository, root string, fsys fs.FS) *Indexer {
+	if fsys == nil && root != "" {
+		fsys = os.DirFS(root)
+	}
+	idx := &Indexer{repo: repo, root: root, fs: fsys, assetDirectories: CatalogKindDirectories(root)}
+	if repoRoot := repositoryRootFromLibrary(root); repoRoot != "" {
+		idx.kitVocabularies, idx.kitVocabularyErr = loadKitTokenVocabularies(repoRoot)
+	}
+	return idx
+}
+
+// IndexResult summarizes one Run.
+type IndexResult struct {
+	Scanned    int
+	Indexed    int
+	Skipped    int
+	Deleted    int
+	Errors     []error
+	Findings   []IndexFinding
+	Warnings   []string
+	LibraryIDs []string // upserted IDs in walk order — useful for tests
+}
+
+// IndexManifest validates and upserts one known registry manifest without
+// walking or sweeping the rest of the catalog. Authoring operations use this
+// path so an unrelated component cannot block a draft or publication.
+func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, error) {
+	if idx.kitVocabularyErr != nil {
+		return Component{}, idx.kitVocabularyErr
+	}
+	if idx.fs == nil {
+		return Component{}, fmt.Errorf("indexer has no filesystem configured")
+	}
+	path = filepath.ToSlash(strings.TrimSpace(path))
+	if filepath.Base(path) != "component.json" || !idx.registryAssetPath(path) {
+		return Component{}, fmt.Errorf("index manifest %q: expected a registry component.json path", path)
+	}
+	in, _, err := idx.buildManifestInput(path)
+	if err != nil {
+		return Component{}, err
+	}
+	// Authoring takes this path, so it needs the same attestations the full
+	// walk uses; without them a publish would be refused by a stale index row
+	// that the committed registry already supersedes.
+	if in.ReleaseAttestations, err = loadReleaseAttestations(idx.fs); err != nil {
+		return Component{}, fmt.Errorf("read released version hash registry: %w", err)
+	}
+	component, err := idx.repo.UpsertManifest(ctx, in)
+	if err != nil {
+		return Component{}, fmt.Errorf("upsert %s: %w", path, err)
+	}
+	if idx.observer != nil {
+		if err := idx.observer.Observe(ctx, component, in); err != nil {
+			return Component{}, fmt.Errorf("observe %s: %w", path, err)
+		}
+	}
+	return component, nil
+}
+
+// Run walks the root, upserts every manifest with valid version folders,
+// and returns a result. Malformed manifests are recorded in Errors but
+// do not stop the walk — a single broken component should not hide an
+// otherwise healthy run.
+func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
+	var result IndexResult
+	if idx.kitVocabularyErr != nil {
+		return result, idx.kitVocabularyErr
+	}
+	// A manifest that was discovered but failed validation/upsert is still a
+	// live filesystem asset. Protect its last-known registry row from the
+	// end-of-run stale sweep; immutable-release failures must not look like
+	// deletions to adopters.
+	keepLibraryIDs := map[string]struct{}{}
+	if idx.fs == nil {
+		return result, fmt.Errorf("indexer has no filesystem configured")
+	}
+	if _, err := fs.Stat(idx.fs, "released-version-hashes.json"); err == nil {
+		if err := ValidateVersionDependencyLocks(idx.fs); err != nil {
+			return result, err
+		}
+	}
+	if _, err := idx.repo.RestoreEvictedStories(ctx); err != nil {
+		return result, fmt.Errorf("restore evicted story projections: %w", err)
+	}
+	// Read once per run rather than per manifest: the registry describes the
+	// whole library and the walk visits 236 manifests.
+	releaseAttestations, err := loadReleaseAttestations(idx.fs)
+	if err != nil {
+		return result, fmt.Errorf("read released version hash registry: %w", err)
+	}
+
+	walkErr := fs.WalkDir(idx.fs, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) != "component.json" {
+			return nil
+		}
+		if !idx.registryAssetPath(path) {
+			result.Skipped++
+			return nil
+		}
+		result.Scanned++
+		in, _, perr := idx.buildManifestInput(path)
+		if perr != nil {
+			result.Errors = append(result.Errors, perr)
+			return nil
+		}
+		result.Findings = append(result.Findings, in.Findings...)
+		result.Warnings = append(result.Warnings, in.Warnings...)
+		in.ReleaseAttestations = releaseAttestations
+		keepLibraryIDs[in.Manifest.LibraryID] = struct{}{}
+		comp, err := idx.repo.UpsertManifest(ctx, in)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Errorf("upsert %s: %w", path, err))
+			return nil
+		}
+		if idx.observer != nil {
+			if oerr := idx.observer.Observe(ctx, comp, in); oerr != nil {
+				result.Errors = append(result.Errors, fmt.Errorf("observe %s: %w", path, oerr))
+				// continue — observer failure must not hide the upsert.
+			}
+		}
+		result.Indexed++
+		result.LibraryIDs = append(result.LibraryIDs, in.Manifest.LibraryID)
+		return nil
+	})
+	if walkErr != nil {
+		return result, fmt.Errorf("walk %s: %w", idx.root, walkErr)
+	}
+
+	// Sweep registry-orphaned rows before DeleteMissing runs. At this
+	// point every current component has just been re-upserted and stale
+	// components still hold their registry row, so the only orphans here
+	// are genuine cruft (a prior re-slug or withdrawal that deleted the
+	// registry row without clearing its children). Each swept version
+	// row surfaces a conformance finding so the cleanup is never silent.
+	orphans, oerr := idx.repo.SweepOrphans(ctx)
+	if oerr != nil {
+		result.Errors = append(result.Errors, fmt.Errorf("sweep orphans: %w", oerr))
+	}
+	for _, o := range orphans {
+		result.Findings = append(result.Findings, registryOrphanFinding(o))
+	}
+
+	// DeleteMissing removes stale registry rows (manifests gone from
+	// disk) and cascades their children — expected churn, so it emits no
+	// finding.
+	keep := make([]string, 0, len(keepLibraryIDs))
+	for libraryID := range keepLibraryIDs {
+		keep = append(keep, libraryID)
+	}
+	sort.Strings(keep)
+	deleted, derr := idx.repo.DeleteMissing(ctx, keep)
+	if derr != nil {
+		result.Errors = append(result.Errors, fmt.Errorf("delete missing: %w", derr))
+	}
+	result.Deleted = deleted
+
+	return result, nil
+}
+
+func (idx *Indexer) registryAssetPath(path string) bool {
+	clean := filepath.ToSlash(path)
+	for _, directory := range idx.assetDirectories {
+		if strings.HasPrefix(clean, directory+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// sortedVersions gives the evicted set a stable order so findings and the
+// version list do not vary between runs over the same tree.
+func sortedVersions(evicted map[string]struct{}) []string {
+	out := make([]string, 0, len(evicted))
+	for version := range evicted {
+		out = append(out, version)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func unrecoverableEvictedFinding(sourcePath, libraryID string, versions []string, detail string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingUnrecoverableEvictedVersion,
+		SourcePath: sourcePath,
+		Field:      "evictedVersions",
+		Expected:   "a durable file mirror for every declared evicted version",
+		Actual:     strings.Join(versions, ", "),
+		Detail:     fmt.Sprintf("%s: %s (%s); the version is omitted from the index and the rest of the asset is indexed", libraryID, detail, strings.Join(versions, ", ")),
+	}
+}
+
+func registryOrphanFinding(o OrphanVersion) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingRegistryOrphan,
+		SourcePath: o.SourcePath,
+		Field:      "component_id",
+		Expected:   "component_versions row with an owning components registry row",
+		Actual:     o.ComponentID,
+		Detail: fmt.Sprintf("removed registry-orphaned version %s@%s (component_id %s has no registry parent)",
+			o.LibraryID, o.Version, o.ComponentID),
+	}
+}
+
+func missingDesignAffinityFinding(sourcePath, libraryID string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingMissingDesignAffinity,
+		SourcePath: sourcePath,
+		Field:      "designStyles",
+		Expected:   "at least one declared design-style affinity",
+		Actual:     "none",
+		Detail: fmt.Sprintf("component %q declares no design-style affinities; authored catalog components carry 2-3",
+			libraryID),
+	}
+}
+
+type manifestFile struct {
+	CatalogID   string `json:"catalogId"`
+	LibraryID   string `json:"libraryId"`
+	DisplayName string `json:"displayName"`
+	Description string `json:"description"`
+	Slot        string `json:"slot"`
+	// Category is catalog metadata, not source-header metadata. Keeping it in
+	// the manifest makes it stable across versions and available to list views.
+	Category string `json:"category"`
+	// AssetKind is optional for backwards compatibility: the authored root is
+	// authoritative for legacy manifests. New manifests may state it explicitly
+	// as a guard against moving a manifest into the wrong root.
+	AssetKind string `json:"assetKind"`
+	Entry     string `json:"entry"`
+	// FileSlots pins an explicit placement slot per version-unit basename
+	// (e.g. {"useFocusTrap.ts": "hook"}). Authoritative over the resolver's
+	// extension heuristic. Applies across all versions of the component.
+	FileSlots          map[string]string        `json:"fileSlots"`
+	Tags               []string                 `json:"tags"`
+	DesignStyles       []manifestDesignAffinity `json:"designStyles"`
+	Latest             string                   `json:"latest"`
+	Draft              string                   `json:"draft"`
+	DeprecatedVersions []string                 `json:"deprecatedVersions"`
+	EvictedVersions    []string                 `json:"evictedVersions"`
+}
+
+type manifestDesignAffinity struct {
+	StyleID  string `json:"styleId"`
+	Affinity string `json:"affinity"`
+	Reason   string `json:"reason"`
+}
+
+type catalogAssetMetadata struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Slot        string `json:"slot"`
+	Domain      string `json:"domain"`
+}
+
+func catalogAssetMetadataFor(libraryRoot, catalogID string) (*catalogAssetMetadata, error) {
+	if strings.TrimSpace(catalogID) == "" {
+		return nil, nil
+	}
+	root := repositoryRootFromLibrary(libraryRoot)
+	if root == "" {
+		return nil, nil
+	}
+	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
+		}
+		var doc struct {
+			Asset catalogAssetMetadata `json:"asset"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			return nil, fmt.Errorf("parse catalog asset %s: %w", path, err)
+		}
+		if doc.Asset.ID == catalogID {
+			return &doc.Asset, nil
+		}
+	}
+	return nil, nil
+}
+
+func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[string]string, error) {
+	raw, err := fs.ReadFile(idx.fs, path)
+	if err != nil {
+		return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	var mf manifestFile
+	if err := json.Unmarshal(raw, &mf); err != nil {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "component.json", Reason: err.Error()}
+	}
+	slug := filepath.Base(filepath.Dir(path))
+	assetKind, err := assetKindForManifestPath(path, mf.AssetKind)
+	if err != nil {
+		return IndexManifestInput{}, nil, err
+	}
+	if metadata, metadataErr := catalogAssetMetadataFor(idx.root, mf.CatalogID); metadataErr != nil {
+		return IndexManifestInput{}, nil, metadataErr
+	} else if metadata != nil {
+		if mf.DisplayName == "" {
+			mf.DisplayName = metadata.Name
+		}
+		if mf.Description == "" {
+			mf.Description = metadata.Description
+		}
+		if mf.Slot == "" && assetKind == AssetKindComponent {
+			mf.Slot = catalogComponentSlot(metadata.Slot)
+		}
+		if mf.Category == "" {
+			mf.Category = metadata.Domain
+		}
+	}
+	slot, err := normalizeComponentSlot(mf.Slot)
+	if err != nil && assetKind == AssetKindComponent {
+		return IndexManifestInput{}, nil, errInvalidHeader(path, "slot", err.Error())
+	}
+	if assetKind == AssetKindHook && strings.TrimSpace(mf.Slot) != "" {
+		return IndexManifestInput{}, nil, errInvalidHeader(path, "slot", "hooks are non-renderable and must not declare a UI slot")
+	}
+	manifest := ComponentManifest{
+		CatalogID:          strings.TrimSpace(mf.CatalogID),
+		LibraryID:          strings.TrimSpace(mf.LibraryID),
+		Slug:               slug,
+		DisplayName:        strings.TrimSpace(mf.DisplayName),
+		Description:        strings.TrimSpace(mf.Description),
+		Slot:               string(slot),
+		Category:           strings.TrimSpace(mf.Category),
+		ManifestPath:       filepath.ToSlash(path),
+		LatestVersion:      strings.TrimSpace(mf.Latest),
+		DraftVersion:       strings.TrimSpace(mf.Draft),
+		DeprecatedVersions: append([]string(nil), mf.DeprecatedVersions...),
+		EvictedVersions:    append([]string(nil), mf.EvictedVersions...),
+		Tags:               append([]string(nil), mf.Tags...),
+		AssetKind:          assetKind,
+	}
+	designStyles, err := parseManifestDesignStyles(path, mf.DesignStyles)
+	if err != nil {
+		return IndexManifestInput{}, nil, err
+	}
+	staleFindings, err := staleDesignStyleFindings(path, designStyles)
+	if err != nil {
+		return IndexManifestInput{}, nil, err
+	}
+	manifest.DesignStyles = designStyles
+	if manifest.LibraryID == "" {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "libraryId", Reason: "required"}
+	}
+	if manifest.DisplayName == "" {
+		manifest.DisplayName = slug
+	}
+	if manifest.LatestVersion == "" {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "required"}
+	}
+	versionRoot := filepath.ToSlash(filepath.Join(filepath.Dir(path), "versions"))
+	entries, err := fs.ReadDir(idx.fs, versionRoot)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) && len(manifest.EvictedVersions) > 0 {
+			entries = nil
+		} else {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "versions", Reason: err.Error()}
+		}
+	}
+	evicted := map[string]struct{}{}
+	for _, rawVersion := range manifest.EvictedVersions {
+		version := strings.TrimSpace(rawVersion)
+		if version == "" {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "versions must not be empty"}
+		}
+		if _, exists := evicted[version]; exists {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "duplicate version " + version}
+		}
+		evicted[version] = struct{}{}
+	}
+	deprecated := map[string]bool{}
+	for _, v := range manifest.DeprecatedVersions {
+		deprecated[strings.TrimSpace(v)] = true
+	}
+	var versions []ComponentVersion
+	var stories []ComponentStory
+	findings := append([]IndexFinding(nil), staleFindings...)
+	var warnings []string
+	// A promoted component with no declared affinities is catalog-incomplete:
+	// its detail view reads "No design affinities declared" while authored
+	// peers carry 2-3. Surface it as a soft conformance finding (never a hard
+	// error) so the gap is visible on every reindex without blocking the walk.
+	if len(manifest.DesignStyles) == 0 {
+		findings = append(findings, missingDesignAffinityFinding(path, manifest.LibraryID))
+	}
+	var latestFound bool
+	var draftFound bool
+	latestHeaders := map[string]string{"libraryId": manifest.LibraryID}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		version := strings.TrimSpace(entry.Name())
+		versionPath := filepath.ToSlash(filepath.Join(versionRoot, version))
+		if _, declaredEvicted := evicted[version]; declaredEvicted {
+			// Reconciliation needs a component-version row to repair a stale
+			// presence tier. Rejecting the asset here made the state self-locking:
+			// the reconciler could never observe the materialized bytes that prove
+			// the evicted declaration stale.
+			findings = append(findings, headerDisagreementFinding(
+				versionPath,
+				"evictedVersions",
+				"version absent from the authored tree",
+				version,
+				"materialized source is indexed so presence reconciliation can repair the stale tier",
+			))
+		}
+		files, err := fs.ReadDir(idx.fs, versionPath)
+		if err != nil {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: err.Error()}
+		}
+		var sourceFiles []fs.DirEntry
+		for _, f := range files {
+			if f.IsDir() {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "subdirectories are not supported"}
+			}
+			// story.tsx is a preview-only artifact. It is validated with the
+			// story contract but is never an asset companion or adoption input.
+			if f.Name() == "story.tsx" {
+				continue
+			}
+			if strings.HasSuffix(f.Name(), ".tsx") || strings.HasSuffix(f.Name(), ".ts") || strings.HasSuffix(f.Name(), ".css") {
+				sourceFiles = append(sourceFiles, f)
+			}
+		}
+		// Evicted versions may retain an empty placeholder directory after
+		// their source has moved to cold storage. It is not materialized source
+		// and must not invalidate the live manifest; materialized evicted
+		// versions still proceed through the normal reconciliation path above.
+		if _, declaredEvicted := evicted[version]; declaredEvicted && len(sourceFiles) == 0 {
+			continue
+		}
+		entryName := strings.TrimSpace(mf.Entry)
+		if entryName != "" && (filepath.Base(entryName) != entryName || !validEntryExtension(entryName, assetKind)) {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "entry", Reason: entryFileRequirement(assetKind)}
+		}
+		if entryName == "" {
+			var entries []string
+			for _, f := range sourceFiles {
+				if validEntryExtension(f.Name(), assetKind) && !isTestArtifact(f.Name()) {
+					entries = append(entries, f.Name())
+				}
+			}
+			if len(entries) != 1 {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "version", Reason: "expected exactly one " + entryFileRequirement(assetKind) + " or component.json entry"}
+			}
+			entryName = entries[0]
+		}
+		var entryFound bool
+		var versionFiles []ComponentVersionFile
+		for _, f := range sourceFiles {
+			filePath := filepath.ToSlash(filepath.Join(versionPath, f.Name()))
+			body, err := fs.ReadFile(idx.fs, filePath)
+			if err != nil {
+				return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", filePath, err)
+			}
+			isEntry := f.Name() == entryName
+			if isEntry {
+				entryFound = true
+			}
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: f.Name(), Content: string(body), ContentSHA256: digestBytes(body), IsEntry: isEntry, Slot: strings.TrimSpace(mf.FileSlots[f.Name()])})
+		}
+		if !entryFound {
+			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "entry", Reason: "entry file not found"}
+		}
+		dependencies, lockFile, err := idx.readVersionDependencyLock(versionPath, manifest.LibraryID, version)
+		if err != nil {
+			return IndexManifestInput{}, nil, err
+		}
+		if lockFile != nil {
+			versionFiles = append(versionFiles, *lockFile)
+		}
+		experienceContract := ""
+		contractPath := filepath.ToSlash(filepath.Join(versionPath, "experience-contract.json"))
+		if rawContract, contractErr := fs.ReadFile(idx.fs, contractPath); contractErr == nil {
+			experienceContract = string(rawContract)
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: "experience-contract.json", Content: experienceContract, ContentSHA256: digestBytes([]byte(experienceContract))})
+		} else if !errors.Is(contractErr, fs.ErrNotExist) {
+			return IndexManifestInput{}, nil, fmt.Errorf("read experience contract %s: %w", contractPath, contractErr)
+		}
+		if experienceContract == "" {
+			if repoRoot := repositoryRootFromLibrary(idx.root); repoRoot != "" {
+				canonical := filepath.Join(repoRoot, "scenarios", "react-component-library", "experience", "components", kebabAssetName(slug)+".json")
+				if rawContract, contractErr := os.ReadFile(canonical); contractErr == nil {
+					experienceContract = string(rawContract)
+				}
+			}
+		}
+		// story.json is the declarative preview/story contract. Keep it in the
+		// version file projection so the Files tab can inspect the same artifact
+		// that powers the Preview tab. story.tsx remains preview-harness-only.
+		storyPath := filepath.ToSlash(filepath.Join(versionPath, "story.json"))
+		if rawStory, storyErr := fs.ReadFile(idx.fs, storyPath); storyErr == nil {
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: "story.json", Content: string(rawStory), ContentSHA256: digestBytes(rawStory)})
+		} else if !errors.Is(storyErr, fs.ErrNotExist) {
+			return IndexManifestInput{}, nil, fmt.Errorf("read story contract %s: %w", storyPath, storyErr)
+		}
+		// story.tsx is the executable Preview harness source. Keep it in the
+		// version file projection as a read-only artifact so the Files tab can
+		// explain how each declarative story is rendered.
+		harnessPath := filepath.ToSlash(filepath.Join(versionPath, "story.tsx"))
+		if rawHarness, harnessErr := fs.ReadFile(idx.fs, harnessPath); harnessErr == nil {
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: "story.tsx", Content: string(rawHarness), ContentSHA256: digestBytes(rawHarness)})
+		} else if !errors.Is(harnessErr, fs.ErrNotExist) {
+			return IndexManifestInput{}, nil, fmt.Errorf("read story harness %s: %w", harnessPath, harnessErr)
+		}
+		sourcePath := filepath.ToSlash(filepath.Join(versionPath, entryName))
+		src, err := fs.ReadFile(idx.fs, sourcePath)
+		if err != nil {
+			return IndexManifestInput{}, nil, fmt.Errorf("read %s: %w", sourcePath, err)
+		}
+		headers := map[string]string{}
+		if header, ok := extractHeaderBlock(string(src)); ok {
+			headers, err = parseHeader(sourcePath, header)
+			if err != nil {
+				return IndexManifestInput{}, nil, err
+			}
+			if hv := strings.TrimSpace(headers["version"]); hv != "" && hv != version {
+				findings = append(findings, headerDisagreementFinding(
+					sourcePath,
+					"version",
+					version,
+					hv,
+					"source header @version does not match the version folder",
+				))
+			}
+			if hid := strings.TrimSpace(headers["libraryId"]); hid != "" && hid != manifest.LibraryID {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "libraryId", Reason: "does not match manifest"}
+			}
+			if rawDeps := strings.TrimSpace(headers["deps"]); rawDeps != "" {
+				if err := validateDepsHeaderJSON(rawDeps); err != nil {
+					findings = append(findings, headerDisagreementFinding(
+						sourcePath,
+						"deps",
+						"JSON object or array",
+						rawDeps,
+						err.Error(),
+					))
+				}
+			}
+		}
+		status := VersionStatusReleased
+		if strings.Contains(version, "-") {
+			status = VersionStatusDraft
+		}
+		if deprecated[version] {
+			status = VersionStatusDeprecated
+		}
+		if rawStatus := strings.TrimSpace(headers["status"]); rawStatus != "" {
+			headerStatus := ComponentVersionStatus(strings.ToLower(rawStatus))
+			if !isValidVersionStatus(headerStatus) || headerStatus != status {
+				findings = append(findings, headerDisagreementFinding(
+					sourcePath,
+					"status",
+					string(status),
+					rawStatus,
+					"source header @status does not match manifest-derived version status",
+				))
+			}
+		}
+		if version == manifest.LatestVersion {
+			latestFound = true
+			if status != VersionStatusReleased {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "must point to a released non-deprecated version"}
+			}
+			for k, v := range headers {
+				latestHeaders[k] = v
+			}
+		}
+		if version == manifest.DraftVersion {
+			draftFound = true
+			if status != VersionStatusDraft {
+				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "must point to a draft/pre-release version"}
+			}
+		}
+		parity, err := idx.readParityReport(filepath.ToSlash(filepath.Join(versionPath, "parity.json")))
+		if err != nil {
+			return IndexManifestInput{}, nil, err
+		}
+		requiredTokens := ExtractRequiredTokens(versionFiles)
+		versions = append(versions, ComponentVersion{
+			LibraryID:             manifest.LibraryID,
+			Version:               version,
+			Status:                status,
+			SourcePath:            sourcePath,
+			Content:               string(src),
+			ContentSHA256:         digestBytes(src),
+			Headers:               headers,
+			Files:                 versionFiles,
+			Dependencies:          dependencies,
+			DependencyLockPresent: lockFile != nil,
+			RequiredTokens:        requiredTokens,
+			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
+			KitCompatibility:      DeriveKitCompatibility(requiredTokens, idx.kitVocabularies),
+			ExperienceContract:    experienceContract,
+			ParityReport:          parity,
+			Presence:              "materialized",
+		})
+		story, storyFindings, _ := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
+		if story != nil {
+			stories = append(stories, *story)
+		}
+		findings = append(findings, storyFindings...)
+	}
+	// Evicted versions are represented by their durable database mirror. They
+	// are deliberately not reconstructed from the working tree: their absence
+	// is the storage placement being indexed.
+	// A missing mirror row used to fail the whole manifest. That is a deadlock
+	// on first index: the component has no ledger row precisely because it has
+	// never indexed, and refusing keeps it out forever. Eight assets sat in
+	// that state, and because an unindexed asset cannot appear as a referrer,
+	// retention stopped seeing every dependency they declared.
+	//
+	// An evicted version that has no mirror is unrecoverable either way, so it
+	// is reported and omitted. The versions on disk — the ones composition and
+	// retention actually depend on — index normally.
+	if len(evicted) > 0 {
+		component, err := idx.repo.GetByLibraryID(context.Background(), manifest.LibraryID)
+		if err != nil {
+			findings = append(findings, unrecoverableEvictedFinding(path, manifest.LibraryID, sortedVersions(evicted),
+				"component has no ledger row, so declared evicted versions cannot be restored from a mirror"))
+		} else {
+			for _, version := range sortedVersions(evicted) {
+				// The filesystem walk above is authoritative whenever the version
+				// directory exists, including after cold-source restoration.
+				// Checking the directory explicitly also covers a stale repository
+				// projection whose version metadata is incomplete.
+				if _, statErr := fs.Stat(idx.fs, filepath.ToSlash(filepath.Join(versionRoot, version))); statErr == nil {
+					continue
+				}
+				// A restored cold version is already represented by the authored
+				// directory above. Do not append its durable projection a second
+				// time; doing so reuses the same version ID and duplicates files.
+				materialized := false
+				for _, indexed := range versions {
+					if indexed.Version == version {
+						materialized = true
+						break
+					}
+				}
+				if materialized {
+					continue
+				}
+				stored, err := idx.repo.GetVersion(context.Background(), component.ID, version)
+				if err != nil {
+					findings = append(findings, unrecoverableEvictedFinding(path, manifest.LibraryID, []string{version},
+						"no ledger row for this evicted version, so its mirror cannot be restored"))
+					continue
+				}
+				stored.Presence = "evicted"
+				versions = append(versions, stored)
+			}
+		}
+	}
+	if !latestFound {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "version folder not found"}
+	}
+	for _, indexedVersion := range versions {
+		if indexedVersion.Version == manifest.LatestVersion {
+			manifest.Dependencies = append([]AssetDependency(nil), indexedVersion.Dependencies...)
+			break
+		}
+	}
+	if manifest.DraftVersion != "" && !draftFound {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "version folder not found"}
+	}
+	// Older catalog entries stored this in the entry header. Keep that as an
+	// import-time fallback only; new manifests own the canonical value.
+	if manifest.Category == "" {
+		manifest.Category = strings.TrimSpace(latestHeaders["category"])
+	}
+	if manifest.CatalogID != "" {
+		latestHeaders["catalogId"] = manifest.CatalogID
+		if expects, satisfies, ok := idx.catalogPorts(manifest.CatalogID); ok {
+			if raw, err := json.Marshal(expects); err == nil {
+				latestHeaders["catalogExpects"] = string(raw)
+			}
+			if raw, err := json.Marshal(satisfies); err == nil {
+				latestHeaders["catalogSatisfies"] = string(raw)
+			}
+			manifest.Expects = expects
+			manifest.Satisfies = satisfies
+		}
+	}
+	return IndexManifestInput{Manifest: manifest, Versions: versions, Stories: stories, Headers: latestHeaders, Findings: findings, Warnings: warnings}, latestHeaders, nil
+}
+
+func catalogComponentSlot(slot string) string {
+	switch strings.ToLower(strings.TrimSpace(slot)) {
+	case "ui-primitive", "surface", "control":
+		return string(ComponentSlotUIPrimitive)
+	case "ui-pattern", "pattern", "page-template", "layout-shell":
+		return string(ComponentSlotUIPattern)
+	case "layout-nav", "navigation":
+		return string(ComponentSlotLayoutNav)
+	default:
+		return ""
+	}
+}
+
+type versionDependencyLock struct {
+	SchemaVersion int    `json:"schemaVersion"`
+	LibraryID     string `json:"libraryId"`
+	Version       string `json:"version"`
+	ResolvedAt    string `json:"resolvedAt"`
+	Dependencies  []struct {
+		LibraryID string `json:"libraryId"`
+		Version   string `json:"version"`
+		Major     int    `json:"major"`
+		Observed  string `json:"observed"`
+		Rank      int    `json:"rank"`
+	} `json:"dependencies"`
+}
+
+func (idx *Indexer) readVersionDependencyLock(versionPath, libraryID, version string) ([]AssetDependency, *ComponentVersionFile, error) {
+	lockPath := filepath.ToSlash(filepath.Join(versionPath, "dependencies.json"))
+	raw, err := fs.ReadFile(idx.fs, lockPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("read dependency lock %s: %w", lockPath, err)
+	}
+	var lock versionDependencyLock
+	if err := json.Unmarshal(raw, &lock); err != nil {
+		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies.json", Reason: err.Error()}
+	}
+	if (lock.SchemaVersion != 1 && lock.SchemaVersion != 2) || strings.TrimSpace(lock.LibraryID) != libraryID || strings.TrimSpace(lock.Version) != version || strings.TrimSpace(lock.ResolvedAt) == "" {
+		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "identity", Reason: "schemaVersion, libraryId, version and resolvedAt must match the owning version"}
+	}
+	seen := map[string]struct{}{}
+	dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
+	for _, rawDependency := range lock.Dependencies {
+		observed := strings.TrimSpace(rawDependency.Observed)
+		if observed == "" {
+			observed = strings.TrimSpace(rawDependency.Version)
+		}
+		major := rawDependency.Major
+		if major == 0 && observed != "" {
+			_, _ = fmt.Sscanf(observed, "%d.", &major)
+		}
+		dependency := AssetDependency{LibraryID: strings.TrimSpace(rawDependency.LibraryID), Version: observed}
+		if dependency.LibraryID == "" || dependency.Version == "" || rawDependency.Rank < 1 || rawDependency.Rank > 6 {
+			return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies", Reason: "each dependency requires libraryId, version and rank 1-6"}
+		}
+		key := dependency.LibraryID + "\x00" + dependency.Version
+		if _, exists := seen[key]; exists {
+			return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies", Reason: "duplicate dependency " + dependency.LibraryID + "@" + dependency.Version}
+		}
+		seen[key] = struct{}{}
+		dependencies = append(dependencies, dependency)
+	}
+	file := &ComponentVersionFile{Path: "dependencies.json", Content: string(raw), ContentSHA256: digestBytes(raw)}
+	return dependencies, file, nil
+}
+
+func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {
+	repoRoot := filepath.Clean(filepath.Join(idx.root, "..", "..", ".."))
+	paths, _ := filepath.Glob(filepath.Join(repoRoot, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Asset struct {
+				ID string `json:"id"`
+			} `json:"asset"`
+			Expects []struct {
+				Capability string `json:"capability"`
+			} `json:"expects"`
+			Satisfies []string `json:"satisfies"`
+		}
+		if json.Unmarshal(raw, &doc) != nil || doc.Asset.ID != catalogID {
+			continue
+		}
+		expects := make([]string, 0, len(doc.Expects))
+		for _, expect := range doc.Expects {
+			expects = append(expects, expect.Capability)
+		}
+		return expects, append([]string(nil), doc.Satisfies...), true
+	}
+	return nil, nil, false
+}
+
+func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind) (*ComponentStory, []IndexFinding, []string) {
+	// Foundations are source-only closure members. The story-contract schema
+	// intentionally has no foundation kind, so legacy story-shaped companions
+	// beside them must not be reported as malformed component contracts.
+	if assetKind == AssetKindFoundation {
+		return nil, nil, nil
+	}
+	raw, err := fs.ReadFile(idx.fs, sourcePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		// The complete-catalog conformance audit owns missing-file failures;
+		// indexing remains usable while an author is creating a new version.
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/", "readable story.json", "", err.Error())}, nil
+	}
+	contract, diagnostics := ParseStoryContract(raw)
+	if contract == nil || len(storyErrors(diagnostics)) > 0 {
+		errors := storyErrors(diagnostics)
+		findings := make([]IndexFinding, 0, len(errors))
+		for _, diagnostic := range errors {
+			findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
+		}
+		return nil, findings, nil
+	}
+	if registry := idx.storyFrameRegistry(); registry != nil {
+		diagnostics = append(diagnostics, ValidateStoryFrames(contract, registry)...)
+		if len(storyErrors(diagnostics)) > 0 {
+			errors := storyErrors(diagnostics)
+			findings := make([]IndexFinding, 0, len(errors))
+			for _, diagnostic := range errors {
+				findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
+			}
+			return nil, findings, nil
+		}
+	}
+	if AssetKind(contract.Kind) != assetKind {
+		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/kind", string(assetKind), string(contract.Kind), "story kind must match manifest asset kind")}, nil
+	}
+	storyPath := filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), "story.tsx"))
+	storySource, storyErr := fs.ReadFile(idx.fs, storyPath)
+	harnesses := make(map[string]struct{})
+	for _, definition := range contract.Stories {
+		if definition.Composition != nil && definition.Composition.Specimen != nil {
+			harnesses[definition.Composition.Specimen.Export] = struct{}{}
+		}
+	}
+	var findings []IndexFinding
+	if len(harnesses) > 0 && errors.Is(storyErr, fs.ErrNotExist) {
+		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: "a story references a specimen but story.tsx is missing"}}, nil
+	}
+	if storyErr != nil && !errors.Is(storyErr, fs.ErrNotExist) {
+		return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessMissing, SourcePath: storyPath, Field: "/stories", Detail: storyErr.Error()}}, nil
+	}
+	if storyErr == nil {
+		exports := harnessExports(string(storySource))
+		if len(harnesses) == 0 {
+			// The declarative contract is authoritative. A story.tsx file may
+			// contain typed specimen exports for a future composition without
+			// making the otherwise valid story contract unindexable. Keep the
+			// hygiene finding, but retain the contract projection so component
+			// tests can validate the asset's one story record.
+			findings = append(findings, IndexFinding{Kind: IndexFindingStoryHarnessOrphan, SourcePath: storyPath, Field: "/stories", Detail: "story.tsx exists but no story references a specimen export"})
+		} else {
+			for harness := range harnesses {
+				if _, found := exports[harness]; !found {
+					return nil, []IndexFinding{{Kind: IndexFindingStoryHarnessExport, SourcePath: storyPath, Field: "/stories/composition/specimen/export", Actual: harness, Detail: "referenced specimen export was not found in story.tsx"}}, nil
+				}
+			}
+		}
+	}
+	args, _ := json.Marshal(contract.Args)
+	environment, _ := json.Marshal(contract.Environment)
+	stories, _ := json.Marshal(contract.Stories)
+	normalized, _ := json.Marshal(contract)
+	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, findings, nil
+}
+
+func storyErrors(diagnostics []StoryDiagnostic) []StoryDiagnostic {
+	return StoryContractErrors(diagnostics)
+}
+
+func (idx *Indexer) storyFrameRegistry() CatalogFrameRegistry {
+	if strings.TrimSpace(idx.root) == "" {
+		return nil
+	}
+	catalogDir := filepath.Clean(filepath.Join(idx.root, "..", "catalog"))
+	if _, err := os.Stat(catalogDir); err != nil {
+		return nil
+	}
+	registry, err := CatalogFrameRegistryFromDir(catalogDir)
+	if err != nil {
+		return nil
+	}
+	return registry
+}
+
+var (
+	storyHarnessExportRE   = regexp.MustCompile(`(?m)^\s*export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)`)
+	storyHarnessReexportRE = regexp.MustCompile(`(?m)export\s*\{([^}]*)\}\s*from\s*["'][^"']+["']`)
+)
+
+func harnessExports(source string) map[string]struct{} {
+	exports := make(map[string]struct{})
+	for _, match := range storyHarnessExportRE.FindAllStringSubmatch(source, -1) {
+		if len(match) > 1 {
+			exports[match[1]] = struct{}{}
+		}
+	}
+	for _, match := range storyHarnessReexportRE.FindAllStringSubmatch(source, -1) {
+		for _, item := range strings.Split(match[1], ",") {
+			parts := strings.Fields(strings.TrimSpace(item))
+			if len(parts) == 0 {
+				continue
+			}
+			name := parts[0]
+			if len(parts) >= 3 && parts[1] == "as" {
+				name = parts[2]
+			}
+			if validHarnessExport(name) {
+				exports[name] = struct{}{}
+			}
+		}
+	}
+	return exports
+}
+
+func assetKindForManifestPath(path, declared string) (AssetKind, error) {
+	clean := filepath.ToSlash(path)
+	var inferred AssetKind
+	switch {
+	case strings.HasPrefix(clean, "components/"):
+		inferred = AssetKindComponent
+	case strings.HasPrefix(clean, "primitives/"):
+		// Primitives are renderable React assets. They use the component
+		// contract and wire shape while retaining their authored root so
+		// source files and previews resolve to the real materialized file.
+		inferred = AssetKindComponent
+	case strings.HasPrefix(clean, "foundations/"):
+		inferred = AssetKindFoundation
+	case strings.HasPrefix(clean, "hooks/"):
+		inferred = AssetKindHook
+	case strings.HasPrefix(clean, "services/"):
+		inferred = AssetKindComponent
+	default:
+		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/, primitives/, foundations/, or hooks/"}
+	}
+	if declared == "" {
+		return inferred, nil
+	}
+	kind := AssetKind(strings.ToLower(strings.TrimSpace(declared)))
+	// Catalog manifests use the public vocabulary while the registry keeps a
+	// smaller internal kind set. Normalize aliases before validating the
+	// declared kind so runtime assets are indexed rather than silently omitted.
+	if kind == "runtime-hook" {
+		kind = AssetKindHook
+	}
+	if kind == "runtime-service" {
+		kind = AssetKindComponent
+	}
+	// "primitive" is the authored vocabulary for a renderable asset in the
+	// primitives root; the registry intentionally normalizes it to the stable
+	// component kind used by the API and dependency resolver.
+	if kind == "primitive" && inferred == AssetKindComponent && strings.HasPrefix(clean, "primitives/") {
+		return inferred, nil
+	}
+	if kind == "service" && inferred == AssetKindComponent && strings.HasPrefix(clean, "services/") {
+		return inferred, nil
+	}
+	if !kind.Valid() || kind != inferred {
+		return "", ErrInvalidHeader{SourcePath: path, Field: "assetKind", Reason: "must match authored asset root " + string(inferred)}
+	}
+	return kind, nil
+}
+
+func validEntryExtension(name string, kind AssetKind) bool {
+	if kind == AssetKindHook {
+		return strings.HasSuffix(name, ".ts") && !strings.HasSuffix(name, ".tsx")
+	}
+	if kind == AssetKindFoundation {
+		return strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, ".tsx")
+	}
+	return strings.HasSuffix(name, ".tsx")
+}
+
+func isTestArtifact(name string) bool {
+	base := strings.ToLower(filepath.Base(name))
+	return strings.HasSuffix(base, ".test.tsx") || strings.HasSuffix(base, ".spec.tsx") ||
+		strings.HasSuffix(base, ".test.ts") || strings.HasSuffix(base, ".spec.ts")
+}
+
+func entryFileRequirement(kind AssetKind) string {
+	if kind == AssetKindHook {
+		return "TS file in the version folder"
+	}
+	if kind == AssetKindFoundation {
+		return "TS or TSX file in the version folder"
+	}
+	return "TSX file in the version folder"
+}
+
+func (idx *Indexer) readParityReport(sourcePath string) (*IngestParityReport, error) {
+	raw, err := fs.ReadFile(idx.fs, sourcePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", sourcePath, err)
+	}
+	var report IngestParityReport
+	if err := json.Unmarshal(raw, &report); err != nil {
+		return nil, ErrInvalidHeader{SourcePath: sourcePath, Field: "parity", Reason: err.Error()}
+	}
+	return &report, nil
+}
+
+func invalidStoryFinding(sourcePath, field, expected, actual, detail string) IndexFinding {
+	return IndexFinding{Kind: IndexFindingInvalidStory, SourcePath: sourcePath, Field: field, Expected: expected, Actual: actual, Detail: detail}
+}
+
+func headerDisagreementFinding(sourcePath, field, expected, actual, detail string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingHeaderDisagreement,
+		SourcePath: sourcePath,
+		Field:      field,
+		Expected:   expected,
+		Actual:     actual,
+		Detail:     detail,
+	}
+}
+
+func validateDepsHeaderJSON(raw string) error {
+	if !strings.HasPrefix(raw, "{") && !strings.HasPrefix(raw, "[") {
+		return fmt.Errorf("@deps must be a JSON object or array")
+	}
+	var v any
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		return fmt.Errorf("invalid @deps JSON: %w", err)
+	}
+	return nil
+}
+
+func parseManifestDesignStyles(path string, raw []manifestDesignAffinity) ([]ComponentDesignAffinity, error) {
+	out := make([]ComponentDesignAffinity, 0, len(raw))
+	seen := map[string]struct{}{}
+	for _, entry := range raw {
+		styleID := strings.TrimSpace(entry.StyleID)
+		affinity := DesignAffinity(strings.ToLower(strings.TrimSpace(entry.Affinity)))
+		if styleID == "" {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: "styleId required"}
+		}
+		if affinity == "" {
+			affinity = DesignAffinityCompatible
+		}
+		if !isValidDesignAffinity(affinity) {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: fmt.Sprintf("invalid affinity %q for style %q", affinity, styleID)}
+		}
+		if _, ok := seen[styleID]; ok {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: fmt.Sprintf("duplicate style id %q", styleID)}
+		}
+		seen[styleID] = struct{}{}
+		out = append(out, ComponentDesignAffinity{StyleID: styleID, Affinity: affinity, Reason: strings.TrimSpace(entry.Reason)})
+	}
+	return out, nil
+}
+
+func staleDesignStyleFindings(path string, affinities []ComponentDesignAffinity) ([]IndexFinding, error) {
+	if len(affinities) == 0 {
+		return nil, nil
+	}
+	root, err := defaultDesignRoot()
+	if err != nil {
+		return nil, err
+	}
+	styles, err := LoadDesignStyles(context.Background(), root)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]struct{}, len(styles))
+	for _, style := range styles {
+		known[style.ID] = struct{}{}
+	}
+	var findings []IndexFinding
+	for _, affinity := range affinities {
+		if _, ok := known[affinity.StyleID]; !ok {
+			findings = append(findings, IndexFinding{
+				Kind:       IndexFindingStaleDesignStyle,
+				SourcePath: path,
+				Field:      "designStyles",
+				Expected:   "known design style",
+				Actual:     affinity.StyleID,
+				Detail:     fmt.Sprintf("component design affinity references unknown style id %q", affinity.StyleID),
+			})
+		}
+	}
+	return findings, nil
+}
+
+func isValidDesignAffinity(affinity DesignAffinity) bool {
+	switch affinity {
+	case DesignAffinityNative, DesignAffinityCompatible, DesignAffinityDiscouraged:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeComponentSlot(raw string) (ComponentSlot, error) {
+	slot := ComponentSlot(strings.ToLower(strings.TrimSpace(raw)))
+	if slot == "" {
+		return "", nil
+	}
+	switch slot {
+	case ComponentSlotUIPrimitive, ComponentSlotUIPattern, ComponentSlotLayoutNav:
+		return slot, nil
+	default:
+		return "", fmt.Errorf("invalid slot %q", raw)
+	}
+}
+
+func isValidVersionStatus(status ComponentVersionStatus) bool {
+	switch status {
+	case VersionStatusDraft, VersionStatusReleased, VersionStatusDeprecated, VersionStatusArchived:
+		return true
+	default:
+		return false
+	}
+}
+
+func errInvalidHeader(path, field, reason string) ErrInvalidHeader {
+	return ErrInvalidHeader{SourcePath: path, Field: field, Reason: reason}
+}
+
+// headerBlockRe captures the first /** … */ comment block in a file.
+// (?s) flag makes . match newlines.
+var headerBlockRe = regexp.MustCompile(`(?s)/\*\*(.*?)\*/`)
+
+// headerFieldRe captures @field-name value pairs on each header line.
+// The leading `*` and surrounding whitespace are stripped by the
+// caller before this matches.
+var headerFieldRe = regexp.MustCompile(`^@([A-Za-z][A-Za-z0-9_-]*)\s+(.*)$`)
+
+// extractHeaderBlock returns the inner text of the first JSDoc-style
+// header block, or ok=false if no such block exists. Only blocks that
+// contain `@libraryId` are treated as library headers; otherwise the
+// indexer would claim every JSDoc-commented file.
+func extractHeaderBlock(src string) (string, bool) {
+	matches := headerBlockRe.FindStringSubmatch(src)
+	if len(matches) < 2 {
+		return "", false
+	}
+	body := matches[1]
+	if !strings.Contains(body, "@libraryId") {
+		return "", false
+	}
+	return body, true
+}
+
+// parseHeader extracts field/value pairs from a header block. Multi-
+// line values are folded onto the @field line until the next @field
+// or end-of-block (so JSDoc continuation lines are tolerated).
+func parseHeader(path, body string) (map[string]string, error) {
+	out := map[string]string{}
+	var currentField string
+	var currentValue strings.Builder
+
+	flush := func() {
+		if currentField == "" {
+			return
+		}
+		out[currentField] = strings.TrimSpace(currentValue.String())
+		currentField = ""
+		currentValue.Reset()
+	}
+
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "*")
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if m := headerFieldRe.FindStringSubmatch(line); m != nil {
+			flush()
+			currentField = m[1]
+			currentValue.WriteString(m[2])
+			continue
+		}
+		if currentField != "" {
+			currentValue.WriteByte(' ')
+			currentValue.WriteString(line)
+		}
+	}
+	flush()
+
+	if _, ok := out["libraryId"]; !ok {
+		return nil, ErrInvalidHeader{SourcePath: path, Field: "libraryId", Reason: "required"}
+	}
+	return out, nil
+}
+
+func digestBytes(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}

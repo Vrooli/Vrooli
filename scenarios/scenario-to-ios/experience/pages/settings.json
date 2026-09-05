@@ -1,0 +1,164 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Scenario to iOS safely — signing identity references, default build host preference, and locale.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Signing material is referenced by identity and never displayed.",
+      "notes": "Certificates, provisioning profiles, and App Store Connect keys live in secrets-manager. This surface shows which identity is configured, never its value."
+    },
+    {
+      "statement": "A configured-but-unresolvable secret reference reads as an error, not as configured.",
+      "notes": "A dangling reference that renders as satisfied is how a build fails at signing time with no prior warning."
+    }
+  ],
+  "elements": [
+    {
+      "id": "settings-form",
+      "role": "form",
+      "name": "Settings",
+      "description": "The configuration surface."
+    },
+    {
+      "id": "signing-identity-ref",
+      "role": "note",
+      "name": "Signing identity",
+      "description": "The secrets-manager identity used for signing, shown as a reference only."
+    },
+    {
+      "id": "locale-control",
+      "role": "button",
+      "name": "Language",
+      "description": "Locale selection."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Settings as currently configured.",
+      "setup": {
+        "route": "/settings"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Configuration is being fetched; no values are asserted yet.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "Nothing has been configured yet. Explains what each setting affects rather than showing blank fields.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some settings are configured and others are not; unset values are explicitly unset rather than defaulted silently.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed configuration may not match the running service because a reload is pending.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Configuration could not be loaded or saved. The failure is reported with what is still safe to do.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "dangling-secret-ref",
+      "description": "A signing identity is configured but cannot be resolved in secrets-manager. Reads as an error, not as configured.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "dangling-secret-ref"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "signing-identity-shown-as-reference",
+      "type": "element-present",
+      "elements": [
+        "signing-identity-ref"
+      ],
+      "states": [
+        "default",
+        "partial"
+      ],
+      "tier": "machine",
+      "statement": "The configured signing identity is present as a reference on the settings surface.",
+      "rationale": "S2I-P0-007. An operator must be able to see which identity is in use without the surface ever rendering key material."
+    },
+    {
+      "id": "dangling-reference-is-an-error-state",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "dangling-secret-ref"
+      ],
+      "tier": "machine",
+      "statement": "An unresolvable signing reference renders distinguishably from a resolvable one.",
+      "rationale": "S2I-P0-007. A dangling reference that reads as configured produces a build that fails at signing with no prior warning."
+    },
+    {
+      "id": "no-secret-values-are-rendered",
+      "type": "custom",
+      "statement": "No certificate, private key, provisioning profile body, password, or API key value appears anywhere on this surface in any state.",
+      "tier": "manual",
+      "rationale": "S2I-P0-007. Absence of secret material cannot be proven from the accessibility tree alone — a value could render as ordinary text — so this needs human attestation backed by a source-level check."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "settings-form": {
+        "testid": "settings-form"
+      },
+      "signing-identity-ref": {
+        "testid": "settings-signing-identity-ref"
+      },
+      "locale-control": {
+        "testid": "settings-locale-control"
+      }
+    }
+  }
+}

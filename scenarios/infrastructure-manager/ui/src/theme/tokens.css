@@ -1,0 +1,171 @@
+/*
+ * Annunciator Panel — the scenario's semantic token layer.
+ *
+ * Layering: `design-tokens.css` ships the generated kit primitives and is
+ * imported first; this file is scenario-owned and re-binds those primitives
+ * into the `vrooli-annunciator` language declared in the repository-root
+ * `DESIGN.md` for this scenario. Import order in `styles.css` is
+ * design-tokens -> this file, so every declaration here wins.
+ *
+ * THIS IS A COMMITTED SINGLE-THEME SURFACE. `DESIGN.md` sets
+ * `constraints.supportedModes: ["dark"]`, and the reason is load-bearing
+ * rather than aesthetic: this instrument's subject is *declared blindness*,
+ * rendered as unlit regions of a control-room annunciator panel. On a light
+ * ground an unlit lamp becomes the brightest thing on the page, which inverts
+ * the single relationship the surface exists to communicate. A light variant
+ * would need a different encoding for absence (texture, not darkness) and
+ * would therefore be a second design language, not a mode of this one.
+ *
+ * Two rules follow from that commitment and are enforced here:
+ *
+ *   1. Every colour is defined ONCE, unconditionally, on `:root`. Nothing is
+ *      defined only inside a media query or a `[data-theme]` block, so no
+ *      token can be undefined in any theme state the host may be in.
+ *   2. `[data-theme="light"]`, `[data-theme="dark"]` and the un-stamped
+ *      `prefers-color-scheme` state all resolve to the same palette. The
+ *      blocks at the bottom exist to make that explicit and to defeat a host
+ *      shell that stamps a theme onto this document, not to vary anything.
+ */
+
+:root {
+  /* ---- ground and structure -------------------------------------------
+     Neutrals carry a slight cyan-green bias toward the panel's own hue so
+     they read as machined metal rather than as unconsidered grey. */
+  --color-background: #0e1214;
+  --color-shell: #0b0f10;
+  --color-surface: #151b1e;
+  --color-surface-muted: #131a1d;
+  --color-surface-raised: #1b2327;
+  --color-foreground: #dde5e4;
+  --color-muted-foreground: #93a3a3;
+  --color-subtle-foreground: #637374;
+  --color-border: #263033;
+  --color-border-lit: #3a484d;
+
+  /* ---- the semantic signal system --------------------------------------
+     Four states, and they are a system rather than an accent palette. Colour
+     is supplementary in every one: `theme/instrument.ts` pairs each with a
+     distinct mark and a text label so status survives colour removal. */
+  --signal-covered: #f2a93b;
+  --signal-covered-soft: rgba(242, 169, 59, 0.14);
+  --signal-covered-glow: rgba(242, 169, 59, 0.15);
+  --signal-partial: #4fc7d9;
+  --signal-partial-soft: rgba(79, 199, 217, 0.13);
+  --signal-excursion: #e3543c;
+  --signal-excursion-soft: rgba(227, 84, 60, 0.13);
+  --signal-blind: #202a2e;
+  --signal-blind-edge: #3a484d;
+  --signal-blind-text: #4a5a5c;
+
+  /* ---- kit primitive re-bindings ---------------------------------------
+     The generated kit names stay in use so shared components keep working;
+     only their values change. `--color-primary` is the lit-lamp amber, which
+     makes every stock primary affordance read as an instrument control. */
+  --color-primary: var(--signal-covered);
+  --color-primary-foreground: #0e1214;
+  --color-accent: var(--signal-partial);
+  --color-success: var(--signal-covered);
+  --color-danger: var(--signal-excursion);
+  --color-warning: var(--signal-partial);
+  --color-info: var(--signal-partial);
+  --color-focus: var(--signal-covered);
+  --scrollbar-thumb: #2f3b3f;
+  --scrollbar-thumb-hover: var(--color-border-lit);
+
+  /* Compatibility aliases consumed by standalone catalog components. */
+  --app-background: var(--color-background);
+  --app-shell: var(--color-shell);
+  --app-surface: var(--color-surface);
+  --app-surface-muted: var(--color-surface-muted);
+  --app-surface-raised: var(--color-surface-raised);
+  --app-foreground: var(--color-foreground);
+  --app-muted-foreground: var(--color-muted-foreground);
+  --control-border: 1px solid var(--color-border);
+
+  /* ---- type roles ------------------------------------------------------
+     No web font is loaded: Vrooli scenarios run locally and must render
+     offline, and no font package is approved through
+     scenario-dependency-analyzer. Each stack therefore names its ideal face
+     first and then falls back through faces that genuinely ship by default
+     on at least one supported platform, so the voice survives everywhere:
+     Liberation Sans Narrow / DejaVu Sans Condensed on Linux, Bahnschrift on
+     Windows 10+, Avenir Next Condensed on macOS. Approving the first name in
+     each stack later upgrades the language with no other change. */
+  --font-display: "Barlow Condensed", Bahnschrift, "Avenir Next Condensed",
+    "Liberation Sans Narrow", "DejaVu Sans Condensed", "Arial Narrow",
+    ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, "SF Mono",
+    "DejaVu Sans Mono", Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* ---- geometry --------------------------------------------------------
+     This language has no soft cards. Panels are separated by a 1px gap over a
+     border-coloured ground so the seams read as machined joints. */
+  --radius-control: 0.1875rem;
+  --radius-panel: 0.1875rem;
+  --radius-sheet: 0.25rem;
+  --radius-pill: 9999px;
+  --border-hairline: 1px;
+  --border-strong: 1px;
+
+  /* ---- instrument status vocabulary ------------------------------------
+     Retuned for the dark ground. Hue stays supplementary: `instrument-status`
+     pairs every token with a mark and a label. Verdicts that mean "the
+     instrument could not read" deliberately borrow the muted neutral rather
+     than a signal colour, because an instrument fault is not a plant fault
+     and must never be rendered as one. */
+  --instrument-valid: #f2a93b;
+  --instrument-ghost: #a99bd6;
+  --instrument-saturated: #e3a13c;
+  --instrument-shelved: #93a3a3;
+  --instrument-unit-mismatch: #e07f4a;
+  --instrument-unavailable: #93a3a3;
+  --instrument-untrusted: #c0a3e0;
+  --instrument-in-band: #f2a93b;
+  --instrument-out-of-band: #e3543c;
+  --instrument-pending-sustain: #4fc7d9;
+  --instrument-needs-baseline: #4fc7d9;
+  --instrument-not-evaluated: #93a3a3;
+
+  /* ---- surface aliases used by shared components ----------------------- */
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
+}
+
+/*
+ * The commitment, stated three times so it holds in every theme state the
+ * host can put this document in. These blocks intentionally assert the same
+ * palette rather than varying it: a host shell that stamps `data-theme` onto
+ * this document must not be able to half-invert an instrument panel.
+ */
+[data-theme="dark"],
+[data-theme="light"] {
+  color-scheme: dark;
+  --color-background: #0e1214;
+  --color-surface: #151b1e;
+  --color-surface-muted: #131a1d;
+  --color-surface-raised: #1b2327;
+  --color-foreground: #dde5e4;
+  --color-muted-foreground: #93a3a3;
+  --color-border: #263033;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-background: #0e1214;
+    --color-surface: #151b1e;
+    --color-surface-muted: #131a1d;
+    --color-surface-raised: #1b2327;
+    --color-foreground: #dde5e4;
+    --color-muted-foreground: #93a3a3;
+    --color-border: #263033;
+  }
+}

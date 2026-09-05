@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Project files",
+        "kind": "text",
+        "path": "label"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "items": [
+          {
+            "children": [
+              {
+                "id": "app",
+                "label": "App.tsx"
+              },
+              {
+                "id": "styles",
+                "label": "styles.css"
+              }
+            ],
+            "defaultExpanded": true,
+            "id": "src",
+            "label": "src"
+          },
+          {
+            "id": "package",
+            "label": "package.json"
+          }
+        ],
+        "label": "Project files"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Project files",
+          "role": "tree"
+        },
+        {
+          "kind": "role",
+          "name": "src",
+          "role": "treeitem"
+        },
+        {
+          "kind": "role",
+          "name": "App.tsx",
+          "role": "treeitem"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Expanded project",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "items": [
+          {
+            "children": [
+              {
+                "id": "app",
+                "label": "App.tsx"
+              }
+            ],
+            "id": "src",
+            "label": "src"
+          }
+        ],
+        "label": "Project files"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Project files",
+          "role": "tree"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-expanded",
+          "selector": "[role=treeitem]",
+          "value": "false"
+        }
+      ],
+      "id": "collapsed",
+      "mode": "pinned",
+      "name": "Collapsed folders",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "items": [],
+        "label": "Project files"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Project files",
+          "role": "tree"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "role": "boundary"
+    }
+  ],
+  "title": "TreeView"
+}

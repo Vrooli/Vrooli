@@ -2,16 +2,16 @@
 
 ## Overview
 
-The `detection` package has been refactored from a single 769-line file into a well-organized, maintainable package with clear separation of concerns.
+The `detection` package has been refactored from one oversized file into a well-organized, maintainable package with clear separation of concerns.
 
 ## Before Refactoring
 
-**Original Structure** (detector.go - 769 lines):
+**Original Structure** (`detector.go` before the split):
 - Detector struct with mixed responsibilities
-- 264 lines of static configuration (patterns, ignore lists, heuristics)
-- Resource scanning logic (~150 lines)
-- Scenario scanning logic (~200 lines)
-- Catalog management (~100 lines)
+- Static configuration mixed with patterns, ignore lists, and heuristics
+- Resource scanning logic
+- Scenario scanning logic
+- Catalog management
 - Helper functions scattered throughout
 - Path filtering logic mixed with scanning
 
@@ -24,65 +24,62 @@ The `detection` package has been refactored from a single 769-line file into a w
 
 ## After Refactoring
 
-**New Structure** (7 focused files, 1302 total lines):
+**New Structure** (focused files by responsibility):
 
-### 1. detector.go (92 lines) - **Main Coordinator**
+### 1. detector.go - **Main Coordinator**
 - Public API for dependency detection
 - Delegates to specialized components
 - Clean interface: `ScanResources()`, `ScanScenarioDependencies()`, `ScanSharedWorkflows()`
 - Catalog queries: `KnownScenario()`, `KnownResource()`, `RefreshCatalogs()`
 
-### 2. patterns.go (100 lines) - **Pattern Definitions**
+### 2. patterns.go - **Pattern Definitions**
 - All regex patterns centralized
 - Resource heuristics catalog
 - File extension filters
 - Zero logic, pure data definitions
 - Easy to add new detection patterns
 
-### 3. catalog.go (131 lines) - **Catalog Management**
+### 3. catalog.go - **Catalog Management**
 - Thread-safe catalog loading and caching
 - Lazy loading with double-checked locking
 - Permissive mode when catalogs are empty
 - Clear separation: load once, query many times
 
-### 4. helpers.go (193 lines) - **Utility Functions**
+### 4. helpers.go - **Utility Functions**
 - String utilities: `normalizeName()`, `contains()`
-- Slice utilities: `toStringSlice()`, `mergeInitializationFiles()`
+- Slice utilities: `toStringSlice()`
 - Path utilities: `determineScenariosDir()`
 - Catalog discovery: `discoverAvailableScenarios()`, `discoverAvailableResources()`
 - Dependency builders: `newScenarioDependency()`
-- Service config utilities: `resolvedResourceMap()`, `extractInitializationFiles()`
+- Service config utilities: `resolvedResourceMap()`
 
-### 5. filters.go (208 lines) - **Path Filtering**
+### 5. filters.go - **Path Filtering**
 - Directory filtering: `shouldSkipDirectoryEntry()`
 - File filtering: `shouldIgnoreDetectionFile()`
 - Resource CLI path validation: `isAllowedResourceCLIPath()`
 - All ignore lists centralized
 - Clear documentation for each filter
 
-### 6. resource_scanner.go (254 lines) - **Resource Detection**
+### 6. resource_scanner.go - **Resource Detection**
 - Encapsulated in `resourceScanner` struct
 - `scan()` - main entry point, walks directory tree
 - `scanFile()` - scans individual file for resources
 - `detectResourceCLICommands()` - finds explicit resource-* commands
 - `detectResourceHeuristics()` - pattern-based detection
 - `recordDetection()` - merges duplicate detections
-- `augmentWithInitialization()` - adds resources from service.json
 
-### 7. scenario_scanner.go (324 lines) - **Scenario Detection**
+### 7. scenario_scanner.go - **Scenario Detection**
 - Encapsulated in `scenarioScanner` struct
-- `scanDependencies()` - main entry point for scenario dependencies
+- `scanDependencies()` - main entry point for interim runtime scenario signals
 - `scanWorkflows()` - detects shared workflow references
-- `scanFile()` - scans individual file for scenario refs
-- `detectVrooliCommands()` - finds "vrooli scenario" commands
-- `detectCLIReferences()` - finds CLI script references
-- `detectPortCalls()` - finds port resolution calls
-- `buildAliasCatalog()` - resolves variable aliases
+- `scanFile()` - scans individual file for explicit Vrooli scenario shell-outs
+- `detectVrooliCommands()` - finds "vrooli scenario" commands pending AST-fact replacement
+- Import-level scenario evidence now belongs to `internal/interfacegraph`, fed by proto-health and code-facts batch facts
 
 ## Benefits
 
 ### Maintainability ✅
-- **No file >324 lines** (down from 769)
+- No oversized file owns the detection package
 - Each file has single, clear responsibility
 - Easy to locate and modify specific logic
 - New developers can understand each component independently
@@ -178,9 +175,9 @@ Developers working on detection logic should now:
 
 ## Metrics
 
-- **Lines reduced in main file**: 769 → 92 (88% reduction)
-- **Max file size**: 324 lines (58% below 769)
-- **Number of files**: 1 → 7 (better organization)
+- **Main file scope**: reduced to coordination only
+- **Max file size**: kept below the package's maintainability target
+- **File organization**: split by responsibility instead of mixed concerns
 - **Test failures**: 0
 - **Build errors**: 0
 - **API changes**: 0 (100% backward compatible)

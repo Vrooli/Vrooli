@@ -1,10 +1,31 @@
 import { type Config } from "tailwindcss";
 
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{ts,tsx}",
+    // BRIDGE (remove when the library emits no utility classes — see gate
+    // catalog.utility-class). Some published RCL versions still ship Tailwind class strings; without
+    // this glob their styling is purged from this app's bundle with no error.
+    "./node_modules/@vrooli/react-component-library/dist/**/*.js"
+  ],
   theme: {
     extend: {
       colors: {
+        // Compatibility aliases for adopted Vrooli component-library primitives.
+        // These intentionally resolve to the existing scenario palette so adopting
+        // a primitive does not introduce a second visual language.
+        "app-primary": "rgb(var(--color-accent) / <alpha-value>)",
+        "app-primary-foreground": "rgb(var(--color-text-primary) / <alpha-value>)",
+        "app-surface": "rgb(var(--color-surface-primary) / <alpha-value>)",
+        "app-surface-muted": "rgb(var(--color-surface-muted) / <alpha-value>)",
+        "app-foreground": "rgb(var(--color-text-primary) / <alpha-value>)",
+        "app-muted-foreground": "rgb(var(--color-text-muted) / <alpha-value>)",
+        "app-border": "rgb(var(--color-text-muted) / 0.25)",
+        "app-success": "rgb(var(--color-success) / <alpha-value>)",
+        "app-warning": "rgb(var(--color-warning) / <alpha-value>)",
+        "app-danger": "rgb(239 68 68 / <alpha-value>)",
+        "app-info": "rgb(var(--color-accent-secondary) / <alpha-value>)",
         accent: "rgb(var(--color-accent) / <alpha-value>)",
         "accent-secondary": "rgb(var(--color-accent-secondary) / <alpha-value>)",
         "accent-tertiary": "rgb(var(--color-accent-tertiary) / <alpha-value>)",
@@ -34,6 +55,11 @@ export default {
         "flow-border-light": "rgb(var(--flow-border-light) / <alpha-value>)",
         "flow-surface": "rgb(var(--flow-surface) / <alpha-value>)",
         "flow-surface-hover": "rgb(var(--flow-surface-hover) / <alpha-value>)"
+      },
+      borderRadius: {
+        control: "var(--radius-md)",
+        panel: "var(--radius-lg)",
+        pill: "9999px"
       }
     }
   },

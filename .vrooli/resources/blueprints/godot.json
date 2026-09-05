@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "godot",
+  "display_name": "Godot Engine",
+  "category": "creative",
+  "summary": "Open-source game engine for 2D and 3D application development, tooling, and interactive simulation.",
+  "why_it_matters": "Godot remains useful capability knowledge for interactive app and simulation generation, but the repo does not currently validate any scenario that depends on it enough to justify active maintenance.",
+  "when_to_use": [
+    "A future scenario needs a game-engine-style runtime or editor workflow.",
+    "Operators want interactive simulations or game-like frontends.",
+    "The workflow benefits from Godot's scene and scripting model."
+  ],
+  "example_scenarios": [
+    "Interactive training environments",
+    "Simulation frontends",
+    "Game or XR prototypes"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "Godot is cross-platform, but export targets, desktop runtime behavior, and editor automation vary by host environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Validated editor or headless export workflow",
+    "Asset and project storage conventions",
+    "Clear boundary between engine usage and scenario lifecycle ownership"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should define whether support is editor-driven, export-driven, or both.",
+    "Keep project templates and generated artifacts explicit.",
+    "Avoid broad engine wrapping without a scenario that actually needs it."
+  ],
+  "operational_notes": [
+    "Project layout and asset handling matter as much as binary installation.",
+    "Version drift can break exports and plugins.",
+    "Validation should run a minimal project export or script."
+  ],
+  "risks": [
+    "Game-engine integrations invite over-broad support surfaces.",
+    "Desktop and export portability claims are easy to overstate."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "godot"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/godot"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

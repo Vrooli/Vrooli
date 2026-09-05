@@ -1,0 +1,420 @@
+{
+  "schemaVersion": 6,
+  "flowId": "flow-verifier.verification-run.api",
+  "source": {
+    "contractPath": "internal/runs/flow/flow.json",
+    "contractSha256": "1ff3039447adc574cee48fe1dc596c413e7c228af2d7b12c6c7beb67cfea7039",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "internal/runs/flow/generated/model.qnt",
+    "modelSha256": "11da793c523096d4aa252f440c50f2fba936ece5ce506fbbe2d256c3f1733555",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "internal/runs/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026051201",
+      "--max-samples",
+      "4",
+      "--n-traces",
+      "4",
+      "--max-steps",
+      "4",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "internal/runs/flow/generated/model.qnt",
+      "--seed",
+      "2026051201"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "internal/runs/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "internal/runs/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "4"
+    ]
+  },
+  "states": [
+    "queued",
+    "running",
+    "passed",
+    "failed",
+    "errored"
+  ],
+  "events": [
+    "start",
+    "succeed",
+    "fail",
+    "crash"
+  ],
+  "transitions": [
+    {
+      "from": "queued",
+      "event": "start",
+      "to": "running",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "succeed",
+      "to": "queued",
+      "wantError": true
+    },
+    {
+      "from": "queued",
+      "event": "fail",
+      "to": "queued",
+      "wantError": true
+    },
+    {
+      "from": "queued",
+      "event": "crash",
+      "to": "errored",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "start",
+      "to": "running",
+      "wantError": true
+    },
+    {
+      "from": "running",
+      "event": "succeed",
+      "to": "passed",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "fail",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "running",
+      "event": "crash",
+      "to": "errored",
+      "wantError": false
+    },
+    {
+      "from": "passed",
+      "event": "start",
+      "to": "passed",
+      "wantError": true
+    },
+    {
+      "from": "passed",
+      "event": "succeed",
+      "to": "passed",
+      "wantError": true
+    },
+    {
+      "from": "passed",
+      "event": "fail",
+      "to": "passed",
+      "wantError": true
+    },
+    {
+      "from": "passed",
+      "event": "crash",
+      "to": "passed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "start",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "succeed",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "fail",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "crash",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "errored",
+      "event": "start",
+      "to": "errored",
+      "wantError": true
+    },
+    {
+      "from": "errored",
+      "event": "succeed",
+      "to": "errored",
+      "wantError": true
+    },
+    {
+      "from": "errored",
+      "event": "fail",
+      "to": "errored",
+      "wantError": true
+    },
+    {
+      "from": "errored",
+      "event": "crash",
+      "to": "errored",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "success",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "passed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "verification_failure",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "runner_crash_after_start",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "crash",
+          "want": "errored",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "runner_crash_before_start",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "crash",
+          "want": "errored",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "succeed",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "succeed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "queued",
+          "wantError": true
+        },
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": false
+        },
+        {
+          "event": "start",
+          "want": "running",
+          "wantError": true
+        },
+        {
+          "event": "succeed",
+          "want": "passed",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "queued",
+        "running",
+        "passed",
+        "failed",
+        "errored"
+      ],
+      "coveredEvents": [
+        "start",
+        "succeed",
+        "fail",
+        "crash"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": false,
+      "coveredStates": [
+        "queued",
+        "running",
+        "passed",
+        "failed"
+      ],
+      "coveredEvents": [
+        "start",
+        "succeed",
+        "fail"
+      ],
+      "coveredPairs": [
+        "queued/start",
+        "queued/succeed",
+        "queued/fail",
+        "running/start",
+        "running/succeed",
+        "running/fail",
+        "failed/start",
+        "failed/succeed"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

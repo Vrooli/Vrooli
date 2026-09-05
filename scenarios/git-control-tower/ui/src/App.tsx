@@ -1,9 +1,16 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// App orchestrates the 3-pane git-control-tower UI. See the Architecture
+// doc for component boundaries and the operational targets (OT-P1-002 etc.)
+// driving future work; performance characteristics are tracked in
+// docs/perf/.
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
+import TopSafeArea from "./components/TopSafeArea";
+import { chromeTheme } from "@vrooli/react-component-library/ChromeTheme";
 import { MobileNav } from "./components/MobileNav";
 import { FileList } from "./components/FileList";
 import { HistoryFileList } from "./components/HistoryFileList";
@@ -12,6 +19,7 @@ import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
+import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
@@ -19,13 +27,16 @@ import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
-import { useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
+import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
+import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
+import { GCT_CHROME_COLOR } from "./lib/chrome";
+import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
+import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
 import {
   useHealth,
   useRepoStatus,
@@ -33,10 +44,15 @@ import {
   useDiff,
   useSyncStatus,
   useApprovedChanges,
+  useProvenance,
   useApprovedChangesPreview,
   useStageFiles,
   useUnstageFiles,
   useCommit,
+  usePrecommitConfig,
+  useSavePrecommitConfig,
+  useRunPrecommit,
+  useStreamPrecommit,
   useDiscardFiles,
   useIgnoreFile,
   usePush,
@@ -54,51 +70,28 @@ import {
   useRemoveRepo,
   useRepoSelection,
   useGroupingRules,
+  useRepoGroups,
   useSaveGroupingRules,
-  queryKeys
+  queryKeys,
+  useHealthIssueCount,
 } from "./lib/hooks";
 
-const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
+type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
 
-type SelectionEntry = { path: string; staged: boolean };
+function isLayoutSection(value: string): value is LayoutSection {
+  return value === "changes" || value === "diff" || value === "commit" || value === "history" || value === "review";
+}
 
-/** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */
-function computeNextSelection(
-  nextKey: string,
-  lastKey: string | null,
-  mode: "single" | "toggle" | "range",
-  currentSelection: SelectionEntry[],
-  orderedIndexMap: Map<string, number>,
-  orderedKeys: string[],
-  orderedKeyToEntry: Map<string, SelectionEntry>,
-  selectionKey: (entry: SelectionEntry) => string,
-): SelectionEntry[] {
-  const nextEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
+function isLayoutPreset(value: string): value is LayoutPreset {
+  return value === "classic" || value === "split" || value === "bottom";
+}
 
-  if (mode === "range" && lastKey && orderedIndexMap.has(lastKey) && orderedIndexMap.has(nextKey)) {
-    const start = orderedIndexMap.get(lastKey) ?? 0;
-    const end = orderedIndexMap.get(nextKey) ?? 0;
-    const [from, to] = start < end ? [start, end] : [end, start];
-    return orderedKeys
-      .slice(from, to + 1)
-      .map((key) => orderedKeyToEntry.get(key))
-      .filter((entry): entry is SelectionEntry => Boolean(entry));
-  }
+function isGroupingRuleLike(value: unknown): value is GroupingRuleLike {
+  return typeof value === "object" && value !== null;
+}
 
-  if (mode === "toggle") {
-    const hasEntry = currentSelection.some((entry) => selectionKey(entry) === nextKey);
-    if (hasEntry) {
-      return currentSelection.filter((entry) => selectionKey(entry) !== nextKey);
-    }
-    return [...currentSelection, nextEntry].sort((a, b) => {
-      const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
-      const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
-      return aIndex - bIndex;
-    });
-  }
-
-  // single
-  return [nextEntry];
+function isPresent<T>(value: T | null): value is T {
+  return value !== null;
 }
 
 export default function App() {
@@ -107,6 +100,12 @@ export default function App() {
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
+  // Refs for inner grid containers driven by changesHeight / historyHeight.
+  // During panel drag we write style.gridTemplateRows imperatively on these
+  // refs so App's React state isn't updated on every mousemove. The state is
+  // committed once on mouseup so it still persists to localStorage.
+  const sidebarGridRef = useRef<HTMLDivElement | null>(null);
+  const topStackGridRef = useRef<HTMLDivElement | null>(null);
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return 320;
@@ -147,8 +146,8 @@ export default function App() {
   const diffMinWidth = 320;
   const [fileViewMode, setFileViewMode] = useState<FileViewMode>("flat");
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
+  const [groupingRulesDirty, setGroupingRulesDirty] = useState(false);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
-  const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
   const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
@@ -168,9 +167,8 @@ export default function App() {
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
     const stored = localStorage.getItem("gct.mobileActivePanel");
-    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
-    if (stored && validPanels.includes(stored as LayoutSection)) {
-      return stored as LayoutSection;
+    if (stored && isLayoutSection(stored)) {
+      return stored;
     }
     return "changes";
   });
@@ -205,6 +203,10 @@ export default function App() {
   const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
+	chromeTheme.setBase({ statusColor: GCT_CHROME_COLOR, fillColor: GCT_CHROME_COLOR });
+	}, []);
+
+	useEffect(() => {
     if (fileViewMode !== "grouped" || groupingRules.length === 0) {
       setHistoryScopeFilter(null);
     }
@@ -238,9 +240,18 @@ export default function App() {
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
   const [pendingDiscardFiles, setPendingDiscardFiles] = useState<DiscardFile[] | null>(null);
+  const [pendingStageSameNameFiles, setPendingStageSameNameFiles] = useState<string[] | null>(null);
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [_lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
+  const [precommitFailure, setPrecommitFailure] = useState<PrecommitRunResult | null>(null);
+  const [pendingPrecommitCommit, setPendingPrecommitCommit] = useState<CommitRequest | null>(null);
+  // Set true right before an intentional pre-commit stream abort (Commit Anyway) so
+  // handleCommit does not surface the resulting AbortError as a commit error.
+  const commitAnywayRef = useRef(false);
+  // Survives the mobile Changes-panel unmount so its scroll position is restored
+  // when the operator switches away and back (desktop keeps panels mounted).
+  const changesScrollTopRef = useRef(0);
   const [commitMessage, setCommitMessage] = useState(
     () => localStorage.getItem("gct.commitMessage") ?? ""
   );
@@ -284,9 +295,8 @@ export default function App() {
       // For now, we just store the hash - user can click on the commit in history to fully restore
     }
     if (state.primary) {
-      const validPrimary: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
-      if (validPrimary.includes(state.primary as LayoutSection)) {
-        setPrimaryPanel(state.primary as LayoutSection);
+      if (isLayoutSection(state.primary)) {
+        setPrimaryPanel(state.primary);
       }
     } else {
       setPrimaryPanel("diff");
@@ -415,9 +425,14 @@ export default function App() {
   const historyNeedsDetails = true;
   const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
   const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
-  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern);
+  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus(repoId);
   const approvedChangesQuery = useApprovedChanges(repoId);
+  const provenanceQuery = useProvenance(repoId);
+  const runIndex = useMemo(() => buildRunIndex(approvedChangesQuery.data?.files ?? [], provenanceQuery.data?.runGroups ?? []), [approvedChangesQuery.data?.files, provenanceQuery.data?.runGroups]);
+  // Actionable repository-health findings, surfaced as a badge on the settings
+  // gear so hygiene problems are visible without opening the modal.
+  const healthIssueCount = useHealthIssueCount(repoId);
   const diffQuery = useDiff(
     selectedFile,
     viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
@@ -445,6 +460,10 @@ export default function App() {
   const stageMutation = useStageFiles(repoId);
   const unstageMutation = useUnstageFiles(repoId);
   const commitMutation = useCommit(repoId);
+  const precommitConfigQuery = usePrecommitConfig(repoId);
+  const savePrecommitConfigMutation = useSavePrecommitConfig(repoId);
+  const runPrecommitMutation = useRunPrecommit(repoId);
+  const precommitStream = useStreamPrecommit(repoId);
   const discardMutation = useDiscardFiles(repoId);
   const ignoreMutation = useIgnoreFile(repoId);
   const pushMutation = usePush(repoId);
@@ -462,9 +481,26 @@ export default function App() {
   const setActiveRepoMutation = useSetActiveRepo();
   const removeRepoMutation = useRemoveRepo();
   const groupingRulesQuery = useGroupingRules(repoId);
+  const repoGroupsQuery = useRepoGroups(repoId);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
+  // Per-path in-flight tracking so only touched rows spin (replaces the global
+  // isStaging flag for row-level loading); bulk buttons still use isStaging.
+  const pendingPaths = useMemo(() => {
+    const set = new Set<string>();
+    if (stageMutation.isPending) stageMutation.variables?.paths?.forEach((p) => set.add(p));
+    if (unstageMutation.isPending) unstageMutation.variables?.paths?.forEach((p) => set.add(p));
+    if (discardMutation.isPending) discardMutation.variables?.paths?.forEach((p) => set.add(p));
+    return set;
+  }, [
+    stageMutation.isPending,
+    stageMutation.variables,
+    unstageMutation.isPending,
+    unstageMutation.variables,
+    discardMutation.isPending,
+    discardMutation.variables,
+  ]);
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
@@ -567,9 +603,9 @@ export default function App() {
     [setRepoId]
   );
 
-  const orderedFiles = useMemo(() => {
+  const orderedFiles = useMemo<Array<{ path: string; staged: boolean }>>(() => {
     const files = statusQuery.data?.files;
-    if (!files) return [] as Array<{ path: string; staged: boolean }>;
+    if (!files) return [];
 
     return [
       ...(files.conflicts ?? []).map((path) => ({ path, staged: false })),
@@ -583,9 +619,9 @@ export default function App() {
     [statusQuery.data?.files?.untracked]
   );
 
-  const workingSetPaths = useMemo(() => {
+  const workingSetPaths = useMemo<string[]>(() => {
     const files = statusQuery.data?.files;
-    if (!files) return [] as string[];
+    if (!files) return [];
     return [
       ...(files.staged ?? []),
       ...(files.unstaged ?? []),
@@ -606,19 +642,8 @@ export default function App() {
     [approvedPendingPaths]
   );
 
-  const createGroupingRule = useCallback(
-    (label: string, prefix: string, mode: GroupingRule["mode"] = "prefix"): GroupingRule => {
-      return {
-        id: `group-${prefix}`,
-        label,
-        prefixes: [prefix],
-        mode: mode ?? "prefix"
-      };
-    },
-    []
-  );
   const normalizeGroupingRules = useCallback(
-    (rawRules: GroupingRule[]) => {
+    (rawRules: GroupingRuleLike[]): GroupingRule[] => {
       return rawRules
         .map((rule, index) => {
           const rawPrefixes = Array.isArray(rule?.prefixes)
@@ -631,22 +656,27 @@ export default function App() {
           const label =
             typeof rule?.label === "string" && rule.label.trim()
               ? rule.label.trim()
-              : prefixes[0];
-          const mode = rule?.mode === "segment" ? "segment" : "prefix";
+              : prefixes[0] ?? `Group ${index + 1}`;
+          const mode: GroupingRule["mode"] = rule?.mode === "segment" ? "segment" : "prefix";
           const id =
             typeof rule?.id === "string" && rule.id.trim()
               ? rule.id.trim()
               : `group-${prefixes[0] ?? index}`;
-          return { id, label, prefixes, mode } as GroupingRule;
+          return { id, label, prefixes, mode };
         })
-        .filter((rule): rule is GroupingRule => Boolean(rule));
+        .filter(isPresent);
     },
     []
   );
 
-  // Check if grouping rules are available (have valid prefixes)
+  const handleGroupingRulesChange = useCallback((rules: GroupingRule[]) => {
+    setGroupingRules(rules);
+    setGroupingRulesDirty(true);
+  }, []);
+
+  // Grouped view is available for stored manual rules or server-derived groups.
   const groupingAvailable = useMemo(() => {
-    return groupingRules.some((rule) => {
+    const hasManualRules = groupingRules.some((rule) => {
       const rawPrefixes = Array.isArray(rule?.prefixes)
         ? rule.prefixes
         : typeof rule?.prefix === "string"
@@ -654,7 +684,8 @@ export default function App() {
           : [];
       return rawPrefixes.some((prefix) => prefix.trim());
     });
-  }, [groupingRules]);
+    return hasManualRules || (repoGroupsQuery.data?.groups.length ?? 0) > 0;
+  }, [groupingRules, repoGroupsQuery.data?.groups.length]);
 
   const handleCycleViewMode = useCallback(() => {
     setFileViewMode((prev) => {
@@ -920,27 +951,24 @@ export default function App() {
     [stageMutation]
   );
 
-  const handleStageApproved = useCallback(() => {
-    const suggestedMessage = approvedChangesQuery.data?.suggestedMessage ?? "";
-    if (approvedPendingPaths.length === 0) return;
+  const handleRequestStageFilesWithSameName = useCallback((path: string) => {
+    const files = statusQuery.data?.files;
+    if (!files) return;
+    const basename = path.split("/").pop() || path;
+    const matches = Array.from(new Set([
+      ...(files.staged ?? []),
+      ...(files.unstaged ?? []),
+      ...(files.untracked ?? []),
+      ...(files.conflicts ?? []),
+    ].filter((candidate) => (candidate.split("/").pop() || candidate) === basename))).sort();
+    if (matches.length > 1) setPendingStageSameNameFiles(matches);
+  }, [statusQuery.data?.files]);
 
-    stageMutation.mutate(
-      { paths: approvedPendingPaths },
-      {
-        onSuccess: (data) => {
-          if (suggestedMessage) {
-            setCommitMessage(suggestedMessage);
-          }
-          if (data.warnings && data.warnings.length > 0) {
-            setWarningNotice({
-              message: "Some files were skipped",
-              details: data.warnings.join("\n")
-            });
-          }
-        }
-      }
-    );
-  }, [approvedChangesQuery.data?.suggestedMessage, approvedPendingPaths, stageMutation]);
+  const handleConfirmStageFilesWithSameName = useCallback(() => {
+    if (!pendingStageSameNameFiles) return;
+    handleStagePaths(pendingStageSameNameFiles);
+    setPendingStageSameNameFiles(null);
+  }, [handleStagePaths, pendingStageSameNameFiles]);
 
   const handleUnstageAll = useCallback(() => {
     const files = statusQuery.data?.files;
@@ -1086,31 +1114,77 @@ export default function App() {
   }, []);
 
   const handleCommit = useCallback(
-    (
+    async (
       message: string,
-      options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
+      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string }
     ) => {
+      commitAnywayRef.current = false;
       setCommitError(undefined);
       setLastCommitHash(undefined);
+      const request: CommitRequest = {
+        message,
+        validate_conventional: options.conventional,
+        amend: options.amend,
+        author_name: options.authorName,
+        author_email: options.authorEmail
+      };
+
+      const precommitCfg = precommitConfigQuery.data;
+      const skipHooks = Boolean(options.skipHooks);
+      // Skip-hooks bypasses the streamed pre-commit entirely and commits with --no-verify.
+      const shouldStream = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit) && !skipHooks;
+      if (shouldStream) {
+        // Remember the request so a mid-stream "Commit Anyway" (or a post-pass
+        // lock-failure retry) can reuse it without re-running pre-commit.
+        setPendingPrecommitCommit(request);
+        try {
+          const finished = await precommitStream.run({});
+          if (finished.type === "error") {
+            // An intentional abort (Commit Anyway) is handled by that path; don't surface it.
+            if (commitAnywayRef.current) return;
+            setCommitError(finished.error || "precommit stream failed");
+            return;
+          }
+          const result = finished.result;
+          if (!result || result.status !== "passed") {
+            if (result) {
+              setPrecommitFailure(result);
+              setPendingPrecommitCommit(request);
+            }
+            setCommitError(undefined);
+            return;
+          }
+        } catch (err) {
+          if (commitAnywayRef.current) {
+            commitAnywayRef.current = false;
+            return;
+          }
+          setCommitError(err instanceof Error ? err.message : String(err));
+          return;
+        }
+      }
 
       commitMutation.mutate(
-        {
-          message,
-          validate_conventional: options.conventional,
-          amend: options.amend,
-          author_name: options.authorName,
-          author_email: options.authorEmail
-        },
+        { ...request, skip_precommit_once: shouldStream || skipHooks || undefined },
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
               setLastCommitHash(result.hash);
               setCommitMessage("");
+              setPrecommitFailure(null);
+              setPendingPrecommitCommit(null);
               // Clear selection if viewing staged diff
               if (selectedIsStaged) {
                 setSelectedFile(undefined);
               }
+            } else if (result.precommit) {
+              setPrecommitFailure(result.precommit);
+              setPendingPrecommitCommit(request);
+              setCommitError(undefined);
             } else {
+              // Post-pass failure (e.g. index lock): keep the passed pre-commit reusable
+              // so the retry affordance commits without re-streaming.
+              if (shouldStream) setPendingPrecommitCommit(request);
               setCommitError(
                 result.error ||
                   result.validation_errors?.join("; ") ||
@@ -1119,13 +1193,113 @@ export default function App() {
             }
           },
           onError: (error) => {
+            if (shouldStream) setPendingPrecommitCommit(request);
             setCommitError(error.message);
           }
         }
       );
     },
-    [commitMutation, selectedIsStaged]
+    [commitMutation, precommitConfigQuery.data, precommitStream, selectedIsStaged]
   );
+
+  const handleRunPrecommitAgain = useCallback(async () => {
+    setPrecommitFailure(null);
+    try {
+      const finished = await precommitStream.run({});
+      if (finished.type === "error") {
+        setCommitError(finished.error || "precommit stream failed");
+        return;
+      }
+      const result = finished.result;
+      if (result && result.status !== "passed") {
+        setPrecommitFailure(result);
+      }
+    } catch (err) {
+      setCommitError(err instanceof Error ? err.message : String(err));
+    }
+  }, [precommitStream]);
+
+  const handleCommitSkipPrecommit = useCallback(() => {
+    const request = pendingPrecommitCommit ?? { message: commitMessage.trim() };
+    setPrecommitFailure(null);
+    commitMutation.mutate(
+      {
+        ...request,
+        skip_precommit_once: true,
+      },
+      {
+        onSuccess: (result) => {
+          if (result.success && result.hash) {
+            setLastCommitHash(result.hash);
+            setCommitMessage("");
+            setPendingPrecommitCommit(null);
+            if (selectedIsStaged) {
+              setSelectedFile(undefined);
+            }
+          } else {
+            setCommitError(result.error || result.validation_errors?.join("; ") || "Commit failed");
+          }
+        },
+        onError: (error) => setCommitError(error.message),
+      },
+    );
+  }, [commitMessage, commitMutation, pendingPrecommitCommit, selectedIsStaged]);
+
+  // Commit-anyway trigger reachable both while pre-commit is streaming and from the
+  // failure box: abort any in-flight stream first, then commit with skip_precommit_once.
+  const handleCommitAnyway = useCallback(() => {
+    commitAnywayRef.current = true;
+    precommitStream.cancel();
+    handleCommitSkipPrecommit();
+  }, [precommitStream, handleCommitSkipPrecommit]);
+
+  const handleDisablePrecommit = useCallback(() => {
+    const config = precommitConfigQuery.data;
+    if (!config) return;
+    savePrecommitConfigMutation.mutate(
+      { ...config, enabled: false },
+      {
+        onSuccess: () => {
+          setPrecommitFailure(null);
+        },
+      },
+    );
+  }, [precommitConfigQuery.data, savePrecommitConfigMutation]);
+
+  const dismissPrecommitFailure = useCallback(() => {
+    setPrecommitFailure(null);
+    setPendingPrecommitCommit(null);
+  }, []);
+
+  const precommitProgressProps = useMemo(() => ({
+    running: precommitStream.state.running,
+    command: precommitStream.state.command,
+    elapsedMs: precommitStream.state.elapsedMs,
+    tail: precommitStream.state.tail,
+    onCancel: precommitStream.cancel,
+    failedResult: precommitFailure,
+    onDismissFailure: dismissPrecommitFailure,
+    onCommitAnyway: handleCommitAnyway,
+    onRunAgain: handleRunPrecommitAgain,
+    onDisable: handleDisablePrecommit,
+    isCommittingAnyway: commitMutation.isPending,
+    isRunningAgain: runPrecommitMutation.isPending || precommitStream.state.running,
+    isDisablingChecks: savePrecommitConfigMutation.isPending,
+  }), [
+    precommitStream.state.running,
+    precommitStream.state.command,
+    precommitStream.state.elapsedMs,
+    precommitStream.state.tail,
+    precommitStream.cancel,
+    precommitFailure,
+    dismissPrecommitFailure,
+    handleCommitAnyway,
+    handleRunPrecommitAgain,
+    handleDisablePrecommit,
+    commitMutation.isPending,
+    runPrecommitMutation.isPending,
+    savePrecommitConfigMutation.isPending,
+  ]);
 
   const handleUseApprovedMessage = useCallback(() => {
     if (!canUseApprovedMessage) return;
@@ -1244,7 +1418,8 @@ export default function App() {
         subject: entry.subject,
         files: entry.files,
         author: entry.author,
-        date: entry.date
+        date: entry.date,
+        checks: entry.checks
       });
 
       // Clear current file selection - user will select from commit files
@@ -1399,26 +1574,21 @@ export default function App() {
   }, []);
 
   // Keyboard shortcut for file search (Cmd+K / Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        if (isFileSearchOpen) {
-          emitShortcutIntent({
-            action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
-            outcome: "noop",
-            chord: "mod+k",
-            source: "keyboard",
-          });
-          return;
-        }
+  useGlobalKeydown((event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+      event.preventDefault();
+      if (isFileSearchOpen) {
+        emitShortcutIntent({
+          action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+          outcome: "noop",
+          chord: "mod+k",
+          source: "keyboard",
+        });
+        return;
+      }
         setIsFileSearchOpen(true);
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFileSearchOpen]);
+  });
 
   // View mode fallback: when selectedFile changes, ensure viewMode is valid for the new file
   useEffect(() => {
@@ -1502,7 +1672,7 @@ export default function App() {
         mode: r.mode as "prefix" | "segment",
       }));
       setGroupingRules(normalizeGroupingRules(uiRules));
-      setGroupingDefaultsPending(apiRules.length === 0);
+      setGroupingRulesDirty(false);
       setGroupingLoadedKey(repoKey);
     } else if (!groupingRulesQuery.isLoading) {
       // API returned no data and isn't loading - check localStorage for migration
@@ -1510,10 +1680,12 @@ export default function App() {
       const storedRules = localStorage.getItem(rulesKey);
       if (storedRules) {
         try {
-          const parsed = JSON.parse(storedRules) as GroupingRule[];
-          const normalized = Array.isArray(parsed) ? normalizeGroupingRules(parsed) : [];
+          const parsed: unknown = JSON.parse(storedRules);
+          const normalized = Array.isArray(parsed)
+            ? normalizeGroupingRules(parsed.filter(isGroupingRuleLike))
+            : [];
           setGroupingRules(normalized);
-          setGroupingDefaultsPending(false);
+          setGroupingRulesDirty(false);
           // Migrate to API
           if (normalized.length > 0) {
             const apiConfig: GroupingRulesConfig = {
@@ -1534,11 +1706,11 @@ export default function App() {
           }
         } catch {
           setGroupingRules([]);
-          setGroupingDefaultsPending(true);
+          setGroupingRulesDirty(false);
         }
       } else {
         setGroupingRules([]);
-        setGroupingDefaultsPending(true);
+        setGroupingRulesDirty(false);
       }
       setGroupingLoadedKey(repoKey);
     }
@@ -1555,11 +1727,11 @@ export default function App() {
     const presetKey = `gct.layout.${repoKey}.preset`;
     const primaryKey = `gct.layout.${repoKey}.primary`;
     const stackKey = `gct.layout.${repoKey}.stackHeight`;
-    const storedPreset = localStorage.getItem(presetKey) as LayoutPreset | null;
-    const storedPrimary = localStorage.getItem(primaryKey) as LayoutSection | null;
+    const storedPreset = localStorage.getItem(presetKey);
+    const storedPrimary = localStorage.getItem(primaryKey);
     const storedStackHeight = Number(localStorage.getItem(stackKey));
     setLayoutPreset(
-      storedPreset === "classic" || storedPreset === "split" || storedPreset === "bottom"
+      storedPreset && isLayoutPreset(storedPreset)
         ? storedPreset
         : "classic"
     );
@@ -1586,6 +1758,10 @@ export default function App() {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
     const viewModeKey = `gct.viewMode.${repoKey}`;
     localStorage.setItem(viewModeKey, fileViewMode);
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode]);
+
+  useEffect(() => {
+    if (!repoDir || groupingLoadedKey !== repoKey || !groupingRulesDirty) return;
     // Save grouping rules to API (instead of localStorage)
     saveGroupingRulesMutation.mutate({
       enabled: groupingRules.length > 0,
@@ -1596,8 +1772,9 @@ export default function App() {
         mode: r.mode ?? "prefix",
       })),
     });
+    setGroupingRulesDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode, groupingRules]);
+  }, [repoDir, repoKey, groupingLoadedKey, groupingRulesDirty, groupingRules]);
 
   useEffect(() => {
     if (!repoDir || layoutLoadedKey !== repoKey) return;
@@ -1610,32 +1787,11 @@ export default function App() {
   }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight]);
 
   useEffect(() => {
-    if (!groupingDefaultsPending || !repoDir) return;
-    const files = statusQuery.data?.files;
-    if (!files) return;
-    const allFiles = [
-      ...(files.staged ?? []),
-      ...(files.unstaged ?? []),
-      ...(files.untracked ?? []),
-      ...(files.conflicts ?? [])
-    ];
-    const hasScenarios = allFiles.some((path) => path.startsWith("scenarios/"));
-    const hasResources = allFiles.some((path) => path.startsWith("resources/"));
-    if (hasScenarios || hasResources) {
-      const defaults: GroupingRule[] = [];
-      if (hasScenarios) defaults.push(createGroupingRule("Scenarios", "scenarios/", "segment"));
-      if (hasResources) defaults.push(createGroupingRule("Resources", "resources/", "segment"));
-      setGroupingRules(defaults);
-    }
-    setGroupingDefaultsPending(false);
-  }, [groupingDefaultsPending, repoDir, statusQuery.data?.files, createGroupingRule]);
-
-  useEffect(() => {
-    // If in grouped mode but no rules available, fall back to flat
-    if (groupingRules.length === 0 && fileViewMode === "grouped") {
+    // If in grouped mode but no manual or server-derived groups are available, fall back to flat.
+    if (!groupingAvailable && fileViewMode === "grouped") {
       setFileViewMode("flat");
     }
-  }, [groupingRules, fileViewMode]);
+  }, [fileViewMode, groupingAvailable]);
 
   useEffect(() => {
     // Skip until URL initialization is complete (state batched together)
@@ -1760,6 +1916,12 @@ export default function App() {
   useEffect(() => {
     if (!isResizingStack) return;
 
+    // Track the latest clamped value during drag so handleUp can commit it
+    // to React state once. handleMove writes to the DOM imperatively to
+    // avoid one App re-render per mouse event.
+    let latestHeight: number | null = null;
+    let latestWidth: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!stackResize.current) return;
       if (stackResize.current.mode === "bottom") {
@@ -1769,7 +1931,8 @@ export default function App() {
           stackResize.current.height - (event.clientY - stackResize.current.top);
         const maxHeight = stackResize.current.height - minMain;
         const clampedHeight = Math.max(minStack, Math.min(maxHeight, nextHeight));
-        setStackHeight(clampedHeight);
+        latestHeight = clampedHeight;
+        if (stackRef.current) stackRef.current.style.height = `${clampedHeight}px`;
         return;
       }
 
@@ -1779,10 +1942,13 @@ export default function App() {
           ? event.clientX - stackResize.current.start
           : stackResize.current.start - event.clientX;
       const clampedWidth = Math.max(minWidth, Math.min(stackResize.current.max, nextWidth));
-      setSidebarWidth(clampedWidth);
+      latestWidth = clampedWidth;
+      if (stackRef.current) stackRef.current.style.width = `${clampedWidth}px`;
     };
 
     const handleUp = () => {
+      if (latestHeight !== null) setStackHeight(latestHeight);
+      if (latestWidth !== null) setSidebarWidth(latestWidth);
       setIsResizingStack(false);
       stackResize.current = null;
       document.body.style.cursor = "";
@@ -1805,6 +1971,8 @@ export default function App() {
   useEffect(() => {
     if (!isResizingSplit) return;
 
+    let latestHeight: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!splitResize.current) return;
       const minTop = 200;
@@ -1812,10 +1980,16 @@ export default function App() {
       const nextHeight = event.clientY - splitResize.current.top;
       const maxHeight = splitResize.current.height - minBottom;
       const clampedHeight = Math.max(minTop, Math.min(maxHeight, nextHeight));
-      setChangesHeight(clampedHeight);
+      latestHeight = clampedHeight;
+      // Imperatively rewrite the inner grid's row template; the React render
+      // path computes the same string from sidebarRows on commit (handleUp).
+      if (sidebarGridRef.current) {
+        sidebarGridRef.current.style.gridTemplateRows = `minmax(0, ${clampedHeight}px) 6px minmax(0, 1fr)`;
+      }
     };
 
     const handleUp = () => {
+      if (latestHeight !== null) setChangesHeight(latestHeight);
       setIsResizingSplit(false);
       splitResize.current = null;
       document.body.style.cursor = "";
@@ -1838,6 +2012,8 @@ export default function App() {
   useEffect(() => {
     if (!isResizingHistory) return;
 
+    let latestHeight: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!historyResize.current) return;
       const minHistory = 140;
@@ -1845,10 +2021,14 @@ export default function App() {
       const nextHeight = historyResize.current.bottom - event.clientY;
       const maxHeight = Math.max(minHistory, changesHeight - minChanges);
       const clampedHeight = Math.max(minHistory, Math.min(maxHeight, nextHeight));
-      setHistoryHeight(clampedHeight);
+      latestHeight = clampedHeight;
+      if (topStackGridRef.current) {
+        topStackGridRef.current.style.gridTemplateRows = `minmax(0, 1fr) 6px minmax(0, ${clampedHeight}px)`;
+      }
     };
 
     const handleUp = () => {
+      if (latestHeight !== null) setHistoryHeight(latestHeight);
       setIsResizingHistory(false);
       historyResize.current = null;
       document.body.style.cursor = "";
@@ -1935,22 +2115,15 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            runIndex={runIndex}
+            onRevealInTree={(path) => {
+              setFileViewMode("tree");
+              setScrollToFile(path);
+            }}
             fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            approvedChanges={
-              approvedChangesQuery.data
-                ? {
-                    available: approvedChangesQuery.data.available,
-                    committableFiles: approvedChangesQuery.data.committableFiles,
-                    warning: approvedChangesQuery.data.warning
-                  }
-                : undefined
-            }
-            approvedPaths={approvedPendingSet}
-            onStageApproved={handleStageApproved}
-            isStagingApproved={isStaging}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               if (primaryPanel === "review") setPrimaryPanel("diff");
@@ -1962,6 +2135,7 @@ export default function App() {
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
+            pendingPaths={pendingPaths}
             isDiscarding={isDiscarding}
             isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
@@ -1973,6 +2147,7 @@ export default function App() {
             fillHeight={isMain || !changesCollapsed}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
+            resolvedGroups={repoGroupsQuery.data?.groups}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
 
@@ -1982,6 +2157,7 @@ export default function App() {
             onScrollComplete={handleScrollComplete}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
             onOpenReview={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
@@ -2045,8 +2221,11 @@ export default function App() {
             onUseApprovedMessage={handleUseApprovedMessage}
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
-            isCommitting={commitMutation.isPending}
+            isCommitting={commitMutation.isPending || precommitStream.state.running}
+            precommitProgress={precommitProgressProps}
             commitError={commitError}
+            onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+            canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
             canAmend={canAmend}
@@ -2061,6 +2240,7 @@ export default function App() {
             pushTarget={pushTargetRef}
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
+            historyCommit={viewingCommit}
           />
         );
       case "review":
@@ -2136,9 +2316,9 @@ export default function App() {
       }
       ref={stackRef}
     >
-      <div className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
+      <div ref={sidebarGridRef} className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
         <div className="min-h-0 min-w-0 overflow-hidden">
-          <div className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
+          <div ref={topStackGridRef} className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
             <div className="min-h-0 min-w-0">{renderPanel(topPanel, "top")}</div>
             <div
               className={`${
@@ -2207,22 +2387,15 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            runIndex={runIndex}
+            onRevealInTree={(path) => {
+              setFileViewMode("tree");
+              setScrollToFile(path);
+            }}
             fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            approvedChanges={
-              approvedChangesQuery.data
-                ? {
-                    available: approvedChangesQuery.data.available,
-                    committableFiles: approvedChangesQuery.data.committableFiles,
-                    warning: approvedChangesQuery.data.warning
-                  }
-                : undefined
-            }
-            approvedPaths={approvedPendingSet}
-            onStageApproved={handleStageApproved}
-            isStagingApproved={isStaging}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               // On mobile, switch to diff view after selecting a file
@@ -2235,6 +2408,7 @@ export default function App() {
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
+            pendingPaths={pendingPaths}
             isDiscarding={isDiscarding}
             isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
@@ -2245,6 +2419,7 @@ export default function App() {
             fillHeight={true}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
+            resolvedGroups={repoGroupsQuery.data?.groups}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
 
@@ -2252,8 +2427,10 @@ export default function App() {
             onDiscardPaths={handleDiscardPaths}
             scrollToFile={scrollToFile}
             onScrollComplete={handleScrollComplete}
+            scrollTopStore={changesScrollTopRef}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
             onOpenReview={(slug) => { setReviewScenarioSlug(slug); setMobileActivePanel("review"); }}
             mobileSelectionMode={mobileSelectionMode}
@@ -2306,8 +2483,11 @@ export default function App() {
             onUseApprovedMessage={handleUseApprovedMessage}
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
-            isCommitting={commitMutation.isPending}
+            isCommitting={commitMutation.isPending || precommitStream.state.running}
+            precommitProgress={precommitProgressProps}
             commitError={commitError}
+            onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+            canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
             canAmend={canAmend}
@@ -2321,6 +2501,7 @@ export default function App() {
             pushTarget={pushTargetRef}
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
+            historyCommit={viewingCommit}
           />
         );
       case "history":
@@ -2406,10 +2587,13 @@ export default function App() {
 
     return (
       <div
-        className="h-screen flex flex-col bg-slate-950 text-slate-50"
+        className="gct-mobile-shell text-slate-50"
         data-testid="git-control-tower"
+        data-mobile-shell="true"
+        role="application"
       >
         {/* Mobile Header */}
+        <TopSafeArea testId="mobile-chrome">
         <MobileHeader
           status={statusQuery.data}
           health={healthQuery.data}
@@ -2433,9 +2617,10 @@ export default function App() {
           isPushing={pushMutation.isPending}
           isPulling={pullMutation.isPending}
         />
+        </TopSafeArea>
 
         {/* Main Content - Single Panel at a time */}
-        <div className="flex-1 overflow-hidden pb-16">
+        <div className="gct-mobile-content" data-testid="gct-mobile-content">
           {renderMobilePanel(mobileActivePanel)}
         </div>
 
@@ -2553,7 +2738,8 @@ export default function App() {
           groupingEnabled={fileViewMode === "grouped"}
           onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
           groupingRules={groupingRules}
-          onChangeGroupingRules={setGroupingRules}
+          contractGroups={repoGroupsQuery.data?.groups}
+          onChangeGroupingRules={handleGroupingRulesChange}
           onClose={() => setIsSettingsOpen(false)}
         />
         <UpstreamInfoModal
@@ -2580,6 +2766,13 @@ export default function App() {
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />
+        <StageSameNameConfirmationModal
+          isOpen={pendingStageSameNameFiles !== null}
+          files={pendingStageSameNameFiles ?? []}
+          isLoading={stageMutation.isPending}
+          onConfirm={handleConfirmStageFilesWithSameName}
+          onCancel={() => setPendingStageSameNameFiles(null)}
+        />
         <MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
@@ -2593,8 +2786,9 @@ export default function App() {
   // Desktop Layout (original)
   return (
     <div
-      className="h-screen flex flex-col bg-slate-950 text-slate-50"
+      className="h-full flex flex-col bg-slate-950 text-slate-50"
       data-testid="git-control-tower"
+      role="application"
     >
       {/* Status Header */}
       <StatusHeader
@@ -2607,6 +2801,7 @@ export default function App() {
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        healthIssueCount={healthIssueCount}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
         onOpenReview={() => setPrimaryPanel("review")}
@@ -2767,7 +2962,8 @@ export default function App() {
         groupingEnabled={fileViewMode === "grouped"}
         onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
         groupingRules={groupingRules}
-        onChangeGroupingRules={setGroupingRules}
+        contractGroups={repoGroupsQuery.data?.groups}
+        onChangeGroupingRules={handleGroupingRulesChange}
         onClose={() => setIsSettingsOpen(false)}
       />
       <UpstreamInfoModal
@@ -2793,6 +2989,13 @@ export default function App() {
         isLoading={isDeleting}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+      <StageSameNameConfirmationModal
+        isOpen={pendingStageSameNameFiles !== null}
+        files={pendingStageSameNameFiles ?? []}
+        isLoading={stageMutation.isPending}
+        onConfirm={handleConfirmStageFilesWithSameName}
+        onCancel={() => setPendingStageSameNameFiles(null)}
       />
       <FileSearchModal
         isOpen={isFileSearchOpen}

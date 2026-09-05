@@ -1,22 +1,43 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "screaming-architecture-audit",
-  "name": "Screaming Architecture",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Architecture alignment and refactoring - make the codebase express its purpose",
+  "entry": "SKILL.md",
+  "icon": "building2",
+  "id": "screaming-architecture-audit",
+  "kind": "skill",
   "modes": [
     "steer",
     "architecture",
     "audits"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "building2",
+  "name": "Screaming Architecture",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "test-genie:architecture",
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "test-genie",
+      "test-genie execute"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "test-genie"
+    ]
+  },
+  "revision": 46,
+  "schemaVersion": 1,
   "status": "active",
-  "entry": "SKILL.md",
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
+  "targetDimensions": [
+    "structure",
+    "cycles"
+  ],
   "targetToolId": "run-agent",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "updatedAt": "2026-05-31T00:00:00Z"
 }

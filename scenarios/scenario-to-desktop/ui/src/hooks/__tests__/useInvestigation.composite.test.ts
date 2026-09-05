@@ -3,12 +3,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { usePipelineInvestigation } from "../useInvestigation";
-import type {
-  Investigation,
-  CreateTaskRequest,
-} from "../../types/investigation";
 import {
   mockGetAgentManagerStatus,
   mockCreateTask,
@@ -19,6 +13,13 @@ import {
   createMockInvestigation,
   createMockInvestigationSummary,
 } from "./useInvestigation.testUtils";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { usePipelineInvestigation } from "../useInvestigation";
+import {
+  TaskType,
+  type Investigation,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/tasks_pb";
+import type { CreateTaskInput } from "../../lib/api/tasks";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -40,9 +41,12 @@ describe("usePipelineInvestigation", () => {
         url: "http://localhost:8080",
       });
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isAgentLoading).toBe(false);
@@ -58,9 +62,12 @@ describe("usePipelineInvestigation", () => {
         reason: "Service not running",
       });
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isAgentLoading).toBe(false);
@@ -78,9 +85,12 @@ describe("usePipelineInvestigation", () => {
       ];
       mockListTasks.mockResolvedValue(mockTasks);
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isLoadingTasks).toBe(false);
@@ -110,12 +120,15 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([completedTask, runningTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "running-task", status: "running" })
+        createMockInvestigation({ id: "running-task", status: "running" }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("running-task");
@@ -129,12 +142,15 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([pendingTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "pending-task", status: "pending" })
+        createMockInvestigation({ id: "pending-task", status: "pending" }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("pending-task");
@@ -156,9 +172,12 @@ describe("usePipelineInvestigation", () => {
       mockListTasks.mockResolvedValue([task2, task1]);
       mockGetTask.mockResolvedValue(createMockInvestigation({ id: "task-2" }));
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("task-2");
@@ -175,7 +194,7 @@ describe("usePipelineInvestigation", () => {
         {
           wrapper: createWrapper(),
           initialProps: "pipeline-1",
-        }
+        },
       );
 
       await waitFor(() => {
@@ -200,12 +219,15 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([runningTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "task-1", status: "running" })
+        createMockInvestigation({ id: "task-1", status: "running" }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isRunning).toBe(true);
@@ -219,12 +241,15 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([pendingTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "task-1", status: "pending" })
+        createMockInvestigation({ id: "task-1", status: "pending" }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isRunning).toBe(true);
@@ -238,12 +263,15 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([completedTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "task-1", status: "completed" })
+        createMockInvestigation({ id: "task-1", status: "completed" }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("task-1");
@@ -271,17 +299,20 @@ describe("usePipelineInvestigation", () => {
       mockCreateTask.mockResolvedValue(newTask);
       mockGetTask.mockResolvedValue(newTask);
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isAgentLoading).toBe(false);
         expect(result.current.isLoadingTasks).toBe(false);
       });
 
-      const request: CreateTaskRequest = {
-        task_type: "investigate",
+      const request: CreateTaskInput = {
+        taskType: TaskType.INVESTIGATE,
         focus: { harness: true, subject: false },
       };
 
@@ -305,7 +336,7 @@ describe("usePipelineInvestigation", () => {
 
       await act(async () => {
         const task = await result.current.trigger({
-          task_type: "investigate",
+          taskType: TaskType.INVESTIGATE,
           focus: { harness: true, subject: false },
         });
         expect(task).toBeUndefined();
@@ -320,12 +351,15 @@ describe("usePipelineInvestigation", () => {
         () =>
           new Promise((resolve) => {
             resolveCreate = resolve;
-          })
+          }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isAgentLoading).toBe(false);
@@ -336,7 +370,7 @@ describe("usePipelineInvestigation", () => {
       let triggerPromise: Promise<Investigation | undefined>;
       act(() => {
         triggerPromise = result.current.trigger({
-          task_type: "investigate",
+          taskType: TaskType.INVESTIGATE,
           focus: { harness: true, subject: false },
         });
       });
@@ -376,9 +410,12 @@ describe("usePipelineInvestigation", () => {
       mockCreateTask.mockResolvedValue(newTask);
       mockGetTask.mockResolvedValue(newTask);
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isAgentLoading).toBe(false);
@@ -386,16 +423,23 @@ describe("usePipelineInvestigation", () => {
       });
 
       await act(async () => {
-        const task = await result.current.triggerFix("source-investigation-123", {
-          focus: { harness: true, subject: false },
-          permissions: { immediate: true, permanent: false, prevention: false },
-        });
+        const task = await result.current.triggerFix(
+          "source-investigation-123",
+          {
+            focus: { harness: true, subject: false },
+            permissions: {
+              immediate: true,
+              permanent: false,
+              prevention: false,
+            },
+          },
+        );
         expect(task).toEqual(newTask);
       });
 
       expect(mockCreateTask).toHaveBeenCalledWith("pipeline-456", {
-        task_type: "fix",
-        source_investigation_id: "source-investigation-123",
+        taskType: TaskType.FIX,
+        sourceInvestigationId: "source-investigation-123",
         focus: { harness: true, subject: false },
         permissions: { immediate: true, permanent: false, prevention: false },
       });
@@ -415,13 +459,16 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([runningTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "task-1", status: "running" })
+        createMockInvestigation({ id: "task-1", status: "running" }),
       );
       mockStopTask.mockResolvedValue(undefined);
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("task-1");
@@ -435,9 +482,12 @@ describe("usePipelineInvestigation", () => {
     });
 
     it("does nothing when no active task", async () => {
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isLoadingTasks).toBe(false);
@@ -457,20 +507,25 @@ describe("usePipelineInvestigation", () => {
       });
       mockListTasks.mockResolvedValue([runningTask]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "task-1", status: "running" })
+        createMockInvestigation({ id: "task-1", status: "running" }),
       );
 
       let resolveStop: () => void = () => {};
       mockStopTask.mockImplementation(
         () =>
           new Promise((resolve) => {
-            resolveStop = () => resolve(undefined);
-          })
+            resolveStop = () => {
+              resolve(undefined);
+            };
+          }),
       );
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("task-1");
@@ -505,9 +560,12 @@ describe("usePipelineInvestigation", () => {
       mockListTasks.mockResolvedValue([task1, task2]);
       mockGetTask.mockResolvedValue(createMockInvestigation({ id: "task-1" }));
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isLoadingTasks).toBe(false);
@@ -525,9 +583,12 @@ describe("usePipelineInvestigation", () => {
     });
 
     it("closes report modal", async () => {
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isLoadingTasks).toBe(false);
@@ -552,7 +613,7 @@ describe("usePipelineInvestigation", () => {
         {
           wrapper: createWrapper(),
           initialProps: "pipeline-1",
-        }
+        },
       );
 
       await waitFor(() => {
@@ -577,9 +638,12 @@ describe("usePipelineInvestigation", () => {
       mockListTasks.mockResolvedValue([task]);
       mockGetTask.mockResolvedValue(createMockInvestigation({ id: "task-1" }));
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("task-1");
@@ -604,9 +668,12 @@ describe("usePipelineInvestigation", () => {
     it("exposes trigger error", async () => {
       mockCreateTask.mockRejectedValue(new Error("Creation failed"));
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.isAgentLoading).toBe(false);
@@ -615,7 +682,7 @@ describe("usePipelineInvestigation", () => {
       await act(async () => {
         try {
           await result.current.trigger({
-            task_type: "investigate",
+            taskType: TaskType.INVESTIGATE,
             focus: { harness: true, subject: false },
           });
         } catch {
@@ -625,21 +692,29 @@ describe("usePipelineInvestigation", () => {
 
       // Wait for error to be captured
       await waitFor(() => {
-        expect(result.current.triggerError).toEqual(new Error("Creation failed"));
+        expect(result.current.triggerError).toEqual(
+          new Error("Creation failed"),
+        );
       });
     });
 
     it("exposes stop error", async () => {
-      const task = createMockInvestigationSummary({ id: "task-1", status: "running" });
+      const task = createMockInvestigationSummary({
+        id: "task-1",
+        status: "running",
+      });
       mockListTasks.mockResolvedValue([task]);
       mockGetTask.mockResolvedValue(
-        createMockInvestigation({ id: "task-1", status: "running" })
+        createMockInvestigation({ id: "task-1", status: "running" }),
       );
       mockStopTask.mockRejectedValue(new Error("Stop failed"));
 
-      const { result } = renderHook(() => usePipelineInvestigation("pipeline-456"), {
-        wrapper: createWrapper(),
-      });
+      const { result } = renderHook(
+        () => usePipelineInvestigation("pipeline-456"),
+        {
+          wrapper: createWrapper(),
+        },
+      );
 
       await waitFor(() => {
         expect(result.current.activeTaskId).toBe("task-1");

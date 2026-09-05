@@ -1,7 +1,7 @@
 package execution
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,20 +10,10 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/testutil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
-
-type handlerCreateStubAgentService struct {
-	spawnErr error
-}
-
-func (s *handlerCreateStubAgentService) IsEnabled() bool { return true }
-
-func (s *handlerCreateStubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	if s.spawnErr != nil {
-		return agentmanager.RunResult{}, s.spawnErr
-	}
-	return agentmanager.RunResult{TaskID: "task-test", RunID: "run-test"}, nil
-}
 
 func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	root := t.TempDir()
@@ -38,10 +28,13 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: &handlerCreateStubAgentService{spawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed)},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &testutil.AgentSpawner{Enabled: true},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
+	service.SetPhasedPlanWorkflow(&stubPhasedPlanWorkflow{startErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed)})
 	handler := NewHandlerFromService(service)
 
 	reqBody := `{"backlogKind":"idea","backlogName":"request-fail-idea","mode":"yolo"}`
@@ -55,5 +48,62 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "check agent-manager health/logs and retry") {
 		t.Fatalf("expected remediation message, got %q", rec.Body.String())
+	}
+}
+
+func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
+	root := t.TempDir()
+	agent := &snapshotAgentService{}
+	service := NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		AgentService: agent,
+	})
+	if err := service.store.Save([]Record{{
+		ExecutionID: "exec-1",
+		BacklogKind: "idea",
+		BacklogName: "slow-read",
+		Status:      StatusRunning,
+		RunID:       "run-1",
+		Mode:        ModeYOLO,
+		CreatedAt:   "2026-05-14T00:00:00Z",
+		UpdatedAt:   "2026-05-14T00:00:00Z",
+	}}); err != nil {
+		t.Fatalf("save executions: %v", err)
+	}
+	handler := NewHandlerFromService(service)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/execution", nil)
+	rec := httptest.NewRecorder()
+
+	handler.List(rec, req)
+
+	testutil.AssertStatusOK(t, rec)
+	resp := testutil.DecodeProtoJSON(t, rec, &apipb.ListExecutionResponse{})
+	if len(resp.GetItems()) != 1 {
+		t.Fatalf("expected 1 execution, got %d", len(resp.GetItems()))
+	}
+	if agent.runStateCalls != 0 {
+		t.Fatalf("list handler refreshed run state %d times, want snapshot-only read", agent.runStateCalls)
+	}
+}
+
+// [REQ:SWM-P0-005] declared strategy registry exposed for operator selection
+func TestStrategies_ReturnsDeclaredExecutionChoiceWithCost(t *testing.T) {
+	service := NewService(ServiceConfig{DataRoot: t.TempDir(), StorePath: filepath.Join(t.TempDir(), "executions.json"), PlanRenderer: testPlanRenderer()})
+	recorder := httptest.NewRecorder()
+	NewHandlerFromService(service).Strategies(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/execution/strategies", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Items []StrategySummary `json:"items"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Items) != 1 || response.Items[0].ID != defaultExecutionStrategy || response.Items[0].CostEstimate <= 0 {
+		t.Fatalf("strategies=%+v", response.Items)
 	}
 }

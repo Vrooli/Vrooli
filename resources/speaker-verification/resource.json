@@ -1,0 +1,380 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "speaker-verification",
+  "storage": {
+    "entries": {
+      "profiles": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/profiles",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/profiles",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/profiles"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Enrolled speaker profiles are bind-mounted into the service and are not regenerable without re-enrollment.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "model_cache": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/model-cache-native",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/model-cache-native",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/model-cache-native"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "SPEAKER_VERIFICATION_MODELS_DIR",
+          "scope": "container"
+        },
+        "rationale": "Downloaded SpeechBrain models are re-fetchable and mounted as model-cache.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "Speaker Verification",
+  "description": "Managed SpeechBrain ECAPA-TDNN speaker-embedding service composed from a checksum-pinned Python runtime, locked wheels, and the reviewed server sources.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-speaker-verification",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-speaker-verification_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-speaker-verification"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "server/**",
+        "tests/**",
+        "requirements.lock",
+        "requirements-gpu.lock",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/speaker-verification",
+      "version": "2026.08.26-torch-2.8.0",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "46cae27aef0907cc04b0bcb3e07446775764a8d2a2521e9d96c032606c1a4bef"
+      },
+      "bundle_artifact": "speaker-verification_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "Apache-2.0; CPython PSF-2.0; SpeechBrain, PyTorch, and model dependencies retain their upstream licenses",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "46cae27aef0907cc04b0bcb3e07446775764a8d2a2521e9d96c032606c1a4bef",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements-gpu.lock",
+              "index_url": "https://download.pytorch.org/whl/cu126",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
+            },
+            {
+              "role": "application",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "server/server.py"
+            },
+            {
+              "role": "application-support",
+              "kind": "local",
+              "dest": "source/vad.py",
+              "source": "server/vad.py"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Speaker Verification native arm64 PyTorch and SpeechBrain wheels are not qualified for this release."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Speaker Verification requires the qualified Linux Python and PyTorch runtime; macOS has no supported native target."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Speaker Verification requires the qualified Linux Python and PyTorch runtime; Windows has no supported native target."
+        }
+      ]
+    },
+    "arguments": [
+      "-m",
+      "uvicorn",
+      "server:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_HTTP}"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONNOUSERSITE": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "SPEAKER_VERIFICATION_PROFILE_DIR": "${RESOURCE_DATA_DIR}/profiles",
+      "SPEAKER_VERIFICATION_MODEL_CACHE": "${RESOURCE_DATA_DIR}/model-cache-native",
+      "SPEAKER_VERIFICATION_TEMP_DIR": "${RESOURCE_DATA_DIR}/tmp",
+      "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache/hf"
+    },
+    "attach_health_path": "/ready",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
+          "requires": [],
+          "limitations": ["The native Python and wheel trees are checksum-pinned for Linux amd64."],
+          "evidence": ["manifest-validation", "artifact-checksum"]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "reason": "Speaker Verification requires the qualified Linux Python and PyTorch runtime.",
+          "limitations": ["No native macOS artifact was built or hashed."],
+          "evidence": ["manifest-validation"]
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "reason": "Speaker Verification requires the qualified Linux Python and PyTorch runtime.",
+          "limitations": ["No native Windows artifact was built or hashed."],
+          "evidence": ["manifest-validation"]
+        }
+      }
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cuda",
+      "cpu"
+    ],
+    "require": "preferred",
+    "cuda": {
+      "env": {
+        "SPEAKER_VERIFICATION_DEVICE": "cuda"
+      }
+    },
+    "cpu": {},
+    "claim": {
+      "resource_kind": "vram",
+      "gpu_index": 0,
+      "preferred_bytes": 751619277,
+      "floor_bytes": 0,
+      "priority": "service",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "gpu",
+            "amount_bytes": 751619277
+          },
+          {
+            "label": "cpu",
+            "amount_bytes": 0
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": true
+      }
+    }
+  },
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 4096,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 11452
+    }
+  ],
+  "orchestration": {
+    "startup_order": 565,
+    "startup_timeout_seconds": 300,
+    "startup_time_estimate": "first run 2-5 min model download and warmup; then 20-60s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "SPEAKER_VERIFICATION_HOST": "localhost"
+    },
+    "from_ports": {
+      "SPEAKER_VERIFICATION_PORT": "http"
+    },
+    "derived": {
+      "SPEAKER_VERIFICATION_URL": {
+        "template": "http://${SPEAKER_VERIFICATION_HOST}:${SPEAKER_VERIFICATION_PORT}"
+      },
+      "SPEAKER_VERIFICATION_BASE_URL": {
+        "template": "${SPEAKER_VERIFICATION_URL}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11452/ready",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11452/ready",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable",
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Decode container audio and provide the optional spectral-denoise fallback when torchaudio cannot read the input directly.",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "WAV/PCM inputs do not require ffmpeg; container formats and optional denoise do."
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares an accelerator backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them; without all three the resource starts and silently falls back to the CPU.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because a CPU fallback is a supported, reported state rather than a start-time failure; a resource that must have an accelerator declares acceleration.require = required instead."
+    }
+  ]
+}

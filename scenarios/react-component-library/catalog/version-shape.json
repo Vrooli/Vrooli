@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "enforcement": "full",
+  "cutoff": "2026-08-31T17:58:00Z",
+  "files": {
+    "entry": {"authored": true, "required": true, "pattern": "<Asset>.ts|<Asset>.tsx"},
+    "stylesheet": {"authored": true, "required": false, "pattern": "<Asset>.css"},
+    "strings": {"authored": true, "required": false, "pattern": "<Asset>.strings.ts"},
+    "storySource": {"authored": true, "required": true, "name": "story.tsx"},
+    "storyContract": {"generated": true, "required": true, "name": "story.json"},
+    "dependencyLock": {"generated": true, "required": true, "name": "dependencies.json"}
+  },
+  "forbidden": "every other file name"
+}

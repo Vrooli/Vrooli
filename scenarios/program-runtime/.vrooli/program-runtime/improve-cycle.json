@@ -1,0 +1,228 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.improve-cycle",
+  "version": "1",
+  "purpose": "Read the setpoint envelope and recent shape telemetry, then route the first actionable nomination or coverage miss—or the first out-of-band setpoint row—to one improve-skill instruction deterministically.",
+  "inputs": {
+    "board": {
+      "type": "object",
+      "required": true,
+      "description": "The envelope printed by program-runtime.setpoint-read: signals.rows in table order and signals.failure_shapes."
+    },
+    "events": {
+      "type": "array",
+      "required": false,
+      "description": "Optional typed nomination or coverage-miss events for deterministic fixture replay; live runs read TelemetryService.ListEvents."
+    }
+  },
+  "assumptions": [
+    "the board was produced by program-runtime.setpoint-read in the same cycle",
+    "events are either supplied for fixture replay or read from the durable telemetry store",
+    "route labels are the rows of program-runtime-improve §5; nomination and coverage-miss events produce filing instructions",
+    "rows setpoint-read declines by construction (discovery-floor, authoring-floor, attribution, external-friction, fleet-improve-coverage) are routed by the skill's §5 table from a shell reading or from the program named in the row's reason, never by this program",
+    "ai-gateway is reachable only when two failure shapes tie; otherwise no inference runs"
+  ],
+  "invariants": [
+    "the only scenario binding is the typed telemetry read; ai.classify is called only on a failure-shape tie",
+    "decide is a pure table lookup with no I/O",
+    "a declined row is never routed; declined rows are listed with their reason",
+    "the route for a given board is deterministic except on a declared tie",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/telemetry/events",
+      "effect": "read",
+      "via": "binding",
+      "optional": true,
+      "note": "read nomination and coverage-miss events for the loop's filing instruction"
+    },
+    {
+      "id": "ai-gateway/inference/run",
+      "effect": "read",
+      "via": "ai.classify",
+      "optional": true,
+      "note": "reached only on a tie between two failure shapes"
+    }
+  ],
+  "verbs": [
+    "ai.classify"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "decide",
+        "report"
+      ]
+    },
+    "signals": {
+      "row": "the setpoint row routed this cycle, or null when every routable row is in band",
+      "shape": "the failure shape the route was keyed on: a shape name, duplicate, or *",
+      "route": "one route label: failure-w3-preflight-import, failure-w3-argv-quoting, failure-w2-closed-vocabulary, governance-curation-mine-unresolved, act-w1-or-blocked-note, condition-report-bug, delegation-w3-and-report-bug, shapes-nomination, discovery-coverage-miss, or in-band",
+      "rationale": "why this row and route: table match, top failure shape, or the tie the classifier broke",
+      "declined": "list of {row, reason} for rows the board declined, at most 12; the skill routes these from the reason"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "board_missing",
+        "no_route"
+      ]
+    },
+    "evidence": "the routed row's reading and target, as text"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "no-board",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "one-out-of-band",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "governance-share",
+                "reading": {
+                  "governed_share": 0.99
+                },
+                "target": "1.0",
+                "in_band": false,
+                "unavailable": false,
+                "reason": null
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "row": "governance-share",
+          "route": "governance-curation-mine-unresolved"
+        }
+      }
+    },
+    {
+      "id": "duplicate-binding-sets",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "uncovered-recurring-shapes",
+                "reading": {
+                  "nominated": 0
+                },
+                "target": "0 nominated shapes with no declared contract",
+                "in_band": false,
+                "unavailable": false,
+                "reason": null
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "row": "uncovered-recurring-shapes",
+          "route": "shapes-nomination"
+        }
+      }
+    },
+    {
+      "id": "nomination-event",
+      "inputs": {
+        "board": {"signals": {"rows": [], "failure_shapes": []}},
+        "events": [{"kind": "EVENT_KIND_NOMINATION", "shape_key": "demo/ops/list|demo/ops/read", "dominant_scenario": "demo"}]
+      },
+      "expect": {"status": ["ok"], "signals": {"route": "shapes-nomination", "shape": "demo/ops/list|demo/ops/read"}}
+    },
+    {
+      "id": "coverage-miss-event",
+      "inputs": {
+        "board": {"signals": {"rows": [], "failure_shapes": []}},
+        "events": [{"kind": "EVENT_KIND_COVERAGE_MISS", "shape_key": "prompt-manager/skill/list|prompt-manager/skill/read", "covering_contract_id": "prompt-manager.skill-set-read"}]
+      },
+      "expect": {"status": ["ok"], "signals": {"route": "discovery-coverage-miss", "shape": "prompt-manager/skill/list|prompt-manager/skill/read"}}
+    },
+    {
+      "id": "all-in-band",
+      "inputs": {
+        "board": {
+          "signals": {
+            "rows": [
+              {
+                "row": "governance-share",
+                "reading": {
+                  "governed_share": 1.0
+                },
+                "target": "1.0",
+                "in_band": true,
+                "unavailable": false,
+                "reason": null
+              },
+              {
+                "row": "discovery-floor",
+                "reading": null,
+                "target": "met >= floor",
+                "in_band": null,
+                "unavailable": true,
+                "reason": "no_governed_binding"
+              }
+            ],
+            "failure_shapes": []
+          }
+        }
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "route": "in-band"
+        }
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime-improve"
+}

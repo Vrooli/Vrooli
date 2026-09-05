@@ -1,16 +1,25 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
-// DOC: docs/internal/SEAMS.md#1-entry--presentation
-import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
+// DOC: docs/internal/SEAMS.md#1-entry-presentation
+import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
-import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
+import { CircleUserRound, Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
+import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
+import { strings } from "../consts/strings";
+import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX, TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
+import { chromeTheme } from "../lib/chromeTheme";
 import { useSessionManager } from "../hooks/useSessionManager";
-import { useVoiceInput } from "../hooks/useVoiceInput";
+import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
+import { useConversationHydration } from "../hooks/useConversationHydration";
+import { useScenarioVoiceInput as useVoiceInput } from "../audio-integration";
 import { useAppViewport } from "../hooks/useAppViewport";
+import { useTouchControls } from "../hooks/useTouchControls";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
+import { usePressGesture } from "../hooks/usePressGesture";
 import { useWakeLockStatus } from "../stores/useWakeLockStatus";
-import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import {
   resolveWorkspaceLayout,
   reconcileTrackFractions,
@@ -20,27 +29,85 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
-import { getSession, uploadFile, summarizeEvent, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
+import { uploadFile } from "../api/uploads";
+import { fetchCapabilities, installStatusOf, runCapabilityAction } from "../api/capabilities";
+import type { InstallOutcome } from "../api/capabilities";
+import { getSessionDefaults } from "../api/settings";
+import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type RecoverResult, type SessionOriginName } from "../api/sessions";
+import { listTargetCatalog, type TargetCatalog, type TerminalTarget } from "../api/targets";
+import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
-import ErrorBoundary from "./ErrorBoundary";
-import TerminalPane from "./TerminalPane";
-import TerminalHeader from "./TerminalHeader";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
+import FleetDrawer from "./fleet/FleetDrawer";
 import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
-import AiSuggestBar from "./AiSuggestBar";
 import FloatingToolbar from "./FloatingToolbar";
+import FullScreenComposer from "./FullScreenComposer";
+import VoiceMicButton from "./VoiceMicButton";
+import { useComposerDraft } from "../hooks/useComposerDraft";
+import { useComposerAttachments } from "../hooks/useComposerAttachments";
+import { useComposerHotkey } from "../hooks/useComposerHotkey";
+import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
+import BannerRegion from "./banners/BannerRegion";
+import type { MaybeBanner } from "./banners/types";
+import {
+  createErrorBanner,
+  enableAudioBanner,
+  summarizeErrorBanner,
+  trackingDegradedBanner,
+  ttsSpeakingBanner,
+  voiceErrorBanner,
+  voiceFallbackBanner,
+  voiceRejectionBanner,
+  voiceStaleMicBanner,
+  voiceTranscribingBanner,
+} from "./banners/descriptors";
+import {
+  useCrashRecoveryBanner,
+  useSessionRecoveryBanner,
+} from "./banners/useRecoveryBanners";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
-import ConfirmCloseDialog from "./ConfirmCloseDialog";
+import ManageGroupsDrawer from "./ManageGroupsDrawer";
+import CloseGroupDialog from "./CloseGroupDialog";
+import HandoffComposer from "./handoff/HandoffComposer";
+import type { RoleMeta } from "../stores/useWorkspaceStore";
+import GroupUndoBanner from "./GroupUndoBanner";
+import RoleMenu from "./RoleMenu";
+import { useGroupActions } from "../hooks/useGroupActions";
+import { useRoleActions } from "../hooks/useRoleActions";
+import { handoffTargetSections, sendHandoff, type HandoffTarget } from "../hooks/useHandoff";
+import type { GroupCreationRequest } from "./launcher/GroupModePanel";
+import { listGroupTemplates, upsertGroupTemplate } from "../api/grouptemplates";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
-import MessagesPane from "./MessagesPane";
+import SessionSidebar from "./SessionSidebar";
 import AudioPlayerBar from "./AudioPlayerBar";
-import { useConversationStore } from "../stores/useConversationStore";
-import type { TTSPlaybackState } from "../hooks/tts/types";
+import type { SummarizeErrorState } from "../types/summarize";
+import ArchiveDrawer from "./ArchiveDrawer";
+import TopSafeArea from "./TopSafeArea";
+import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
+import type { TTSPlaybackState } from "../audio-integration";
+
+const FALLBACK_TTS_PLAYBACK: Omit<TTSPlaybackState, "isMuted"> = {
+  currentTime: 0,
+  duration: null,
+  isPaused: false,
+  playbackRate: 1,
+  volume: 1,
+  capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
+};
+import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
+import { setupMediaSession } from "../domains/tts-playback/mediaSession";
+import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
+import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, buildSessionActivity, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
+import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -51,6 +118,19 @@ type ActiveResize = {
 };
 
 type ActiveArrangeDrag = { paneId: string; dropIndex: number };
+
+const SIDEBAR_HEADER_LONG_PRESS_MS = 500;
+const SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD = 8;
+
+interface WorkspaceProps {
+  /**
+   * Notices raised by App (connection health, audio-tools reachability).
+   * They are arbitrated together with Workspace's own in a single
+   * `BannerRegion`, so there is exactly one top-chrome owner and one
+   * safe-area owner.
+   */
+  appBanners?: readonly MaybeBanner[];
+}
 
 /**
  * ── STABLE CORE: Pane layout and control wiring. ──
@@ -64,34 +144,165 @@ type ActiveArrangeDrag = { paneId: string; dropIndex: number };
  * [REQ:P0-001a] Responsive Pane Grid Layout
  * [REQ:P0-001b] Independent Pane Session Lifecycle
  */
-export default function Workspace() {
+export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [targetCatalog, setTargetCatalog] = useState<TargetCatalog>({
+    status: "ready",
+    targets: [],
+  });
+  const [targetsLoading, setTargetsLoading] = useState(true);
+  const refreshTargetCatalog = useCallback(async () => {
+    setTargetsLoading(true);
+    try {
+      setTargetCatalog(await listTargetCatalog());
+    } catch (error) {
+      console.error("target catalog unavailable", error);
+      setTargetCatalog({
+        status: "registry-error",
+        targets: [],
+        message: "The target catalog could not be loaded.",
+        recovery_action: "Check Web Console and Bridge health, then try again.",
+      });
+    } finally {
+      setTargetsLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshTargetCatalog();
+  }, [refreshTargetCatalog]);
+  const availableTargets: TerminalTarget[] = targetCatalog.targets;
+  // Installing a capability reports the machine's verdict, not the installer's.
+  //
+  // This used to swallow every failure and resolve anyway, and then to throw on
+  // success=false — both of which collapse three different answers into two.
+  // The server now distinguishes them: the installer failed, the installer
+  // finished and the machine confirms the agent, or the installer finished and
+  // the machine has not confirmed anything. Only the middle one is a completed
+  // install, and the caller renders all three differently, so the outcome is
+  // returned rather than thrown.
+  const installCapability = useCallback(async (capabilityID: string, target: TerminalTarget): Promise<InstallOutcome> => {
+    const result = await runCapabilityAction(capabilityID, "operator_command", target.id);
+    await refreshTargetCatalog();
+    const outcome: InstallOutcome = { status: installStatusOf(result.status, result.success) };
+    if (result.message) outcome.message = result.message;
+    return outcome;
+  }, [refreshTargetCatalog]);
   const {
     panes: sessionPanes,
     isHydrated,
     isCreating,
     createError,
+    hydrationError,
     clearError,
+    clearHydrationError,
     launchSession,
-    handleTerminalReady,
     removePane: removeSessionPane,
+    undoArchive,
+    deletePanePermanently,
+    mergeExternalSession,
+    endExternalSession,
     handleExit: sessionHandleExit,
-    sendToActiveTerminal,
+    submitToActiveTerminal,
+    subscribeActiveInputSettled,
+    awaitActiveInputOffset,
+    subscribeActivePendingInput,
+    getActivePendingInputSnapshot,
+    discardActivePendingInput,
+    discardAllActivePendingInput,
+    flushActivePendingInputNow,
+    copySelectionOnPane,
+    pasteFromClipboardOnPane,
+    scrollTerminalOnPane,
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,
     speakTextOnPane,
-    speakSequenceOnPane,
     pauseTtsOnPane,
     resumeTtsOnPane,
     seekTtsOnPane,
     setTtsPlaybackRateOnPane,
     setTtsVolumeOnPane,
+    setTtsMutedOnPane,
     getTtsStateOnPane,
   } = useSessionManager();
+  // Keep the exact launch request that produced the current creation error.
+  // Recovery must retry the same destination and command; falling back to an
+  // empty launch silently moved failed remote launches back to this machine.
+  const lastLaunchOptionsRef = useRef<LaunchOptions | undefined>(undefined);
 
-  const store = useWorkspaceStore();
-  const { syncActivePane, syncPaneUpdate } = useWorkspaceSync();
-  const setConversationViewMode = useConversationStore((state) => state.setViewMode);
+  const workspace = useWorkspaceStore(useShallow((state) => ({
+    panes: state.panes,
+    columnFractions: state.columnFractions,
+    rowFractions: state.rowFractions,
+    activePane: state.activePane,
+    appearanceModalPane: state.appearanceModalPane,
+    isMinimapVisible: state.isMinimapVisible,
+    displayMode: state.displayMode,
+    settingsModalOpen: state.settingsModalOpen,
+    aiModalOpen: state.aiModalOpen,
+    aiSuggestActive: state.aiSuggestActive,
+    autoTtsEnabled: state.autoTtsEnabled,
+    startMutedOnLoad: state.startMutedOnLoad,
+    keepScreenAwake: state.keepScreenAwake,
+    vadAutoStop: state.vadAutoStop,
+    persistentMode: state.persistentMode,
+    groups: state.groups,
+    roles: state.roles,
+    sidebarSortMode: state.sidebarSortMode,
+    adaptiveChrome: state.adaptiveChrome,
+    plusButtonBehavior: state.plusButtonBehavior,
+    defaultHeaderColor: state.defaultHeaderColor,
+    defaultThemeId: state.defaultThemeId,
+    defaultFontSize: state.defaultFontSize,
+    addPane: state.addPane,
+    setPaneGroup: state.setPaneGroup,
+    removePane: state.removePane,
+    setActivePane: state.setActivePane,
+    movePaneToIndex: state.movePaneToIndex,
+    setColumnFractions: state.setColumnFractions,
+    setRowFractions: state.setRowFractions,
+    setSettingsModalOpen: state.setSettingsModalOpen,
+    setAiModalOpen: state.setAiModalOpen,
+    setAiSuggestActive: state.setAiSuggestActive,
+    setTabContextMenu: state.setTabContextMenu,
+  })));
+  const workspacePanes = workspace.panes;
+  const workspaceGroups = workspace.groups;
+  const activeWorkspacePane = workspace.activePane;
+  const activeSessionTrackingDegraded = sessionPanes.find((pane) => pane.session.id === workspace.activePane)?.session.tracking_degraded;
+  const addWorkspacePane = workspace.addPane;
+  const setWorkspacePaneGroup = workspace.setPaneGroup;
+  const removeWorkspacePane = workspace.removePane;
+  const setActiveWorkspacePane = workspace.setActivePane;
+  const vadAutoStop = workspace.vadAutoStop;
+  const { syncActivePane, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
+  const { createNamedGroup, closeGroup, closeGroupIfFinished, restoreClosedGroup, dismissClosedGroupUndo } = useGroupActions();
+  const { createRole, updateRole, removeRole, setRoleSession } = useRoleActions();
+  const updateWorkspaceGroup = useWorkspaceStore((s) => s.updateGroup);
+  const { syncUpdateGroup } = useWorkspaceSync();
+
+  // Text waiting for a session that does not have a mounted terminal yet.
+  // Mirrors pendingGroupBySessionRef exactly, and is drained by the same
+  // session-reconcile effect — a second draining mechanism would be a second
+  // place for a handoff to go missing.
+  const pendingHandoffBySessionRef = useRef<Map<string, string>>(new Map());
+  // The role a just-started session belongs to, attached when its pane lands.
+  const pendingRoleBySessionRef = useRef<Map<string, string>>(new Map());
+  const conversationState = useConversationStore(useShallow((state) => ({
+    sessions: state.sessions,
+    viewModes: state.viewModes,
+    setViewMode: state.setViewMode,
+    clearSession: state.clearSession,
+    activeViewMode: workspace.activePane ? (state.viewModes[workspace.activePane] ?? "terminal") : "terminal",
+  })));
+  const {
+    sessions: conversationSessions,
+    viewModes: conversationViewModes,
+    setViewMode: setConversationViewMode,
+    clearSession: clearConversationSession,
+    activeViewMode,
+  } = conversationState;
 
   // Fetch available backends once on mount (they don't change at runtime)
   const [availableBackends, setAvailableBackends] = useState<BackendOption[]>();
@@ -104,19 +315,82 @@ export default function Workspace() {
     return () => { cancelled = true; };
   }, []);
 
-  const clearConversationSession = useConversationStore((state) => state.clearSession);
-  const conversationSessions = useConversationStore((state) => state.sessions);
-  const conversationViewModes = useConversationStore((state) => state.viewModes);
   const gridRef = useRef<HTMLDivElement>(null);
+  const sidebarLayoutRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
-  useAppViewport();
-  const wakeLockStatus = useWakeLock(store.keepScreenAwake);
+  // Publish this device's keyboard state so each pane can declare it to its
+  // session; followers draw the leader's keyboard rather than guessing at it.
+  const setKeyboardOpen = useWorkspaceStore((state) => state.setKeyboardOpen);
+  /**
+   * Latched by every entry point that reaches for audio. It is what
+   * lets the audio-unavailable notice stay quiet until the reader
+   * has actually asked for the feature that is down.
+   */
+  const markAudioIntent = useWorkspaceStore((state) => state.markAudioIntent);
+  useAppViewport({ onKeyboardChange: setKeyboardOpen });
+  const needsTouchControls = useTouchControls();
+  const wakeLockStatus = useWakeLock(workspace.keepScreenAwake);
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
   useEffect(() => { setWakeLockStatus(wakeLockStatus); }, [wakeLockStatus, setWakeLockStatus]);
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
 
+  // Single shared per-session draft: the collapsed toolbar input and the
+  // full-screen composer read/write ONE value that cannot diverge.
+  const composerDraft = useComposerDraft(workspace.activePane);
+  const composerAttachments = useComposerAttachments();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [archiveDrawerOpen, setArchiveDrawerOpen] = useState(false);
+  const [archivePreferOrphans, setArchivePreferOrphans] = useState(false);
+  const [archiveInitialSessionId, setArchiveInitialSessionId] = useState<string | null>(null);
+  const openCrashArchive = useCallback(() => {
+    setArchiveInitialSessionId(null);
+    setArchivePreferOrphans(true);
+    setArchiveDrawerOpen(true);
+  }, []);
+  const closeArchiveDrawer = useCallback(() => {
+    setArchiveDrawerOpen(false);
+    setArchivePreferOrphans(false);
+    setArchiveInitialSessionId(null);
+  }, []);
+  const openComposer = useCallback(() => { setComposerOpen(true); }, []);
+  const closeComposer = useCallback(() => { setComposerOpen(false); }, []);
+  // Desktop keyboard shortcut (Ctrl/Cmd+Shift+K) opens the composer.
+  useComposerHotkey(openComposer);
+  useWindowKeyDown(true, useCallback((event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLocaleLowerCase() === "h") {
+      event.preventDefault();
+      setArchiveDrawerOpen(true);
+    }
+  }, []));
+
+  const stageMessageInComposer = useCallback((text: string) => {
+    const target = composerDraft.getSessionId();
+    if (!target || target !== useWorkspaceStore.getState().activePane) return;
+    composerDraft.appendAtCaret(text);
+    setComposerOpen(true);
+  }, [composerDraft]);
+
+  const sendArchivedMessageToComposer = useCallback((text: string) => {
+    stageMessageInComposer(text);
+    setArchiveDrawerOpen(false);
+  }, [stageMessageInComposer]);
+
+  const handleArchiveReopened = useCallback((result: RecoverResult) => {
+    pendingActivePaneRef.current = result.new_session_id;
+    void getSession(result.new_session_id).then((session) => {
+      mergeExternalSession(session, true);
+    }).catch(() => {
+      // The session.created event is the authoritative fallback. Keeping the
+      // pending target makes that later merge focus the reopened pane.
+    });
+  }, [mergeExternalSession]);
+
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [launcherInitialTarget, setLauncherInitialTarget] = useState<TerminalTarget>();
+  const [machinesOpen, setMachinesOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [lastVisitedBySession, setLastVisitedBySession] = useState<Record<string, string>>({});
 
   // Fetch session defaults on mount AND each time the launcher opens so
   // the dropdown shows the correct server default immediately.
@@ -134,24 +408,66 @@ export default function Workspace() {
   useEffect(() => {
     if (launcherOpen) fetchDefaults();
   }, [launcherOpen, fetchDefaults]);
-  const [mobileInputText, setMobileInputText] = useState("");
   const pendingActivePaneRef = useRef<string | null>(null);
-  const [pendingClose, setPendingClose] = useState<string | null>(null);
+  const pendingGroupBySessionRef = useRef<Map<string, string>>(new Map());
+  // The launcher's destination lives in STATE, not a ref. As a ref it could
+  // never reach the dialog, which is why the dialog could not state where the
+  // session it was about to create would go.
+  const [launcherGroupId, setLauncherGroupId] = useState<string | null>(null);
+  // handleLaunch is a stable callback, so it cannot read launcherGroupId
+  // directly without going stale. The ref mirrors the state for that one read.
+  const launcherGroupRef = useRef<string | null>(null);
+  useEffect(() => { launcherGroupRef.current = launcherGroupId; }, [launcherGroupId]);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [archiveUndo, setArchiveUndo] = useState<{
+    sessionId: string;
+    pane: PaneMetadata;
+    index: number;
+  } | null>(null);
   const exitedSessionsRef = useRef<Set<string>>(new Set());
 
   const activatePane = useCallback((sessionId: string) => {
-    store.setActivePane(sessionId);
-    syncActivePane(store.panes.map((p) => p.sessionId), sessionId);
-  }, [store, syncActivePane]);
+    // Activation clears a manual unread flag — but only on a real transition,
+    // so flagging the session you are looking at survives until you leave and
+    // come back. See the store's setActivePane.
+    const clearedUnread = setActiveWorkspacePane(sessionId);
+    syncActivePane(workspacePanes.map((pane) => pane.sessionId), sessionId);
+    if (clearedUnread) syncPaneUpdate(sessionId, { manually_unread: false });
+  }, [setActiveWorkspacePane, syncActivePane, syncPaneUpdate, workspacePanes]);
+
+  const isTabLikeMode = isTabLikeDisplayMode(workspace.displayMode);
+
+  // Adaptive app-chrome: tell the imperative chrome controller which pane owns
+  // the chrome (the focused pane in single-focus modes), whether tinting is
+  // active, and the owner's configured theme background (the detection
+  // fallback). The per-pane detector feeds detected colors straight to the
+  // controller; this effect only carries the low-frequency config, so it never
+  // re-renders on color changes. See lib/chromeTheme.ts.
+  const activeChromeThemeId = workspace.panes.find(
+    (p) => p.sessionId === workspace.activePane,
+  )?.themeId;
+  useEffect(() => {
+    const enabled = workspace.adaptiveChrome && isTabLikeMode && !!workspace.activePane;
+    const fallbackColor = enabled
+      ? (TERMINAL_THEMES[activeChromeThemeId ?? DEFAULT_THEME_ID]?.colors.background
+        ?? TERMINAL_THEMES[DEFAULT_THEME_ID]?.colors.background
+        ?? null)
+      : null;
+    chromeTheme.setConfig({
+      enabled,
+      ownerSessionId: enabled ? workspace.activePane : null,
+      fallbackColor,
+    });
+  }, [workspace.adaptiveChrome, isTabLikeMode, workspace.activePane, activeChromeThemeId]);
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768,
   );
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    const onResize = () => { setIsMobile(window.innerWidth < 768); };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => { window.removeEventListener("resize", onResize); };
   }, []);
 
   // --- Pane drag-and-drop reordering ---
@@ -160,14 +476,14 @@ export default function Workspace() {
 
   const startArrangeDrag = useCallback(
     (paneId: string, e: ReactPointerEvent) => {
-      const idx = store.panes.findIndex((p) => p.sessionId === paneId);
+      const idx = workspacePanes.findIndex((p) => p.sessionId === paneId);
       if (idx === -1) return;
       e.preventDefault();
       e.stopPropagation();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       setActiveArrangeDrag({ paneId, dropIndex: idx });
     },
-    [store.panes],
+    [workspacePanes],
   );
 
   useEffect(() => {
@@ -188,7 +504,13 @@ export default function Workspace() {
 
     const handleUp = () => {
       setActiveArrangeDrag((prev) => {
-        if (prev) store.movePaneToIndex(prev.paneId, prev.dropIndex);
+        if (prev) {
+          workspace.movePaneToIndex(prev.paneId, prev.dropIndex);
+          // Grid arrange-drag used to mutate the local order and never persist
+          // it, so a rearranged grid reverted on reload while every other
+          // reorder surface stuck.
+          syncPaneMove(prev.paneId);
+        }
         return null;
       });
     };
@@ -201,113 +523,447 @@ export default function Workspace() {
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [activeArrangeDrag, store]);
+  }, [activeArrangeDrag, syncPaneMove, workspace]);
 
   // Reconcile session manager panes with workspace store.
   // Only remove stale store panes after session hydration completes —
   // otherwise the initial empty sessionPanes would nuke persisted metadata.
   useEffect(() => {
     const sessionIds = new Set(sessionPanes.map((p) => p.session.id));
-    const storeIds = new Set(store.panes.map((p) => p.sessionId));
+    const storeIds = new Set(workspacePanes.map((p) => p.sessionId));
 
     // Add new sessions to store (auto-activate if user just created it)
     for (const sp of sessionPanes) {
       if (!storeIds.has(sp.session.id)) {
         const shouldActivate = pendingActivePaneRef.current === sp.session.id;
         if (shouldActivate) pendingActivePaneRef.current = null;
-        store.addPane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
-        // Persist new pane metadata (including supportsMessagesView) to the backend
+        const pendingGroupId = pendingGroupBySessionRef.current.get(sp.session.id) ?? null;
+        if (pendingGroupId) pendingGroupBySessionRef.current.delete(sp.session.id);
+        addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
+        if (pendingGroupId) {
+          setWorkspacePaneGroup(sp.session.id, pendingGroupId);
+        }
+        // Persist new pane metadata (including supportsMessagesView) to the
+        // backend. Read the color and position back out of the store rather
+        // than assuming the defaults: joining a group seeds the color from
+        // the group, and the pane's index is its sort_order.
+        //
+        // sort_order is load-bearing. Omitting it left every new pane at the
+        // server's zero value, so on the next reload it sorted to the TOP of
+        // the list (the query is `ORDER BY sort_order, created_at`) — landing
+        // inside whichever group happened to be up there and splitting it.
+        const { panes: afterAdd, activePane: activeAfterAdd } = useWorkspaceStore.getState();
+        const created = afterAdd.find((pane) => pane.sessionId === sp.session.id);
         syncPaneUpdate(sp.session.id, {
           name: sp.session.shell?.split("/").pop() ?? "terminal",
+          header_color: created?.headerColor ?? workspace.defaultHeaderColor,
+          theme_id: workspace.defaultThemeId,
+          font_size: workspace.defaultFontSize,
+          sort_order: Math.max(0, afterAdd.findIndex((pane) => pane.sessionId === sp.session.id)),
           supports_messages_view: sp.supportsMessagesView,
+          ...(pendingGroupId ? { group_id: pendingGroupId } : {}),
         });
+        if (pendingGroupId) {
+          syncPaneOrder(afterAdd.map((pane) => pane.sessionId), activeAfterAdd);
+        }
+
+        // A role that was just started now has its session. Attaching here
+        // rather than at launch time is what makes the role running only once
+        // the process actually exists.
+        const pendingRoleId = pendingRoleBySessionRef.current.get(sp.session.id);
+        if (pendingRoleId) {
+          pendingRoleBySessionRef.current.delete(sp.session.id);
+          setRoleSession(pendingRoleId, sp.session.id);
+        }
+
+        // Deliver any handoff text held for this session. The terminal is
+        // still mounting, so this goes through the same pending-input queue
+        // the operator can see, discard, and flush — never dropped silently.
+        const pendingText = pendingHandoffBySessionRef.current.get(sp.session.id);
+        if (pendingText) {
+          pendingHandoffBySessionRef.current.delete(sp.session.id);
+          submitToActiveTerminal(pendingText, "bulk_text", sp.session.id);
+        }
       }
     }
     // Remove deleted sessions from store (only after hydration)
     if (isHydrated) {
       for (const sid of storeIds) {
         if (!sessionIds.has(sid)) {
-          store.removePane(sid);
+          // Remember the group BEFORE the pane goes, so the auto-close check
+          // below knows which group to reconsider. Reading it afterwards
+          // would always find nothing.
+          const departingGroupId = workspacePanes.find((p) => p.sessionId === sid)?.groupId ?? null;
+          removeWorkspacePane(sid);
+          // A role pointing at a session that no longer exists would be a
+          // handoff target aimed at nothing, so it returns to waiting.
+          const orphaned = useWorkspaceStore.getState().roles.find((r) => r.sessionId === sid);
+          if (orphaned) setRoleSession(orphaned.id, null);
+          // Scoped to the one group the pane left: a scan across every group
+          // would cost on every session change.
+          closeGroupIfFinished(departingGroupId);
         }
       }
     }
-  }, [sessionPanes, store, isHydrated, syncPaneUpdate]);
+  }, [
+    addWorkspacePane,
+    setWorkspacePaneGroup,
+    isHydrated,
+    removeWorkspacePane,
+    sessionPanes,
+    syncPaneOrder,
+    syncPaneUpdate,
+    setRoleSession,
+    submitToActiveTerminal,
+    closeGroupIfFinished,
+    workspace.defaultFontSize,
+    workspace.defaultHeaderColor,
+    workspace.defaultThemeId,
+    workspacePanes,
+  ]);
 
   // Auto-set active pane if none is set or the persisted value is stale
   useEffect(() => {
-    if (store.panes.length === 0) return;
-    const activePaneExists = store.activePane !== null && store.panes.some((p) => p.sessionId === store.activePane);
+    if (workspacePanes.length === 0) return;
+    const activePaneExists = workspace.activePane !== null && workspacePanes.some((p) => p.sessionId === workspace.activePane);
     if (!activePaneExists) {
-      const lastPane = store.panes[store.panes.length - 1];
+      const lastPane = workspacePanes[workspacePanes.length - 1];
       if (lastPane) activatePane(lastPane.sessionId);
     }
-  }, [store, activatePane]);
+  }, [workspace.activePane, workspacePanes, activatePane]);
 
-  const openLauncher = useCallback(() => setLauncherOpen(true), []);
-  const closeLauncher = useCallback(() => setLauncherOpen(false), []);
+  // ---------------------------------------------------------------------
+  // Roles and handoffs
+  // ---------------------------------------------------------------------
+
+  const [handoffState, setHandoffState] = useState<{
+    sourceSessionId: string;
+    sourceLabel: string;
+    payload: string;
+    initialSelection?: string[];
+  } | null>(null);
+  const [roleMenu, setRoleMenu] = useState<{ role: RoleMeta; position: { x: number; y: number } } | null>(null);
+
+  /** Start a waiting role's command, and remember which role to attach. */
+  const handleStartRole = useCallback(async (role: RoleMeta): Promise<string | null> => {
+    const session = await launchSession({
+      command: role.command || undefined,
+      workingDir: role.workingDir || undefined,
+      backend: role.backend ? (role.backend as BackendID) : undefined,
+      target: role.targetId ? availableTargets.find((candidate) => candidate.id === role.targetId) : undefined,
+    });
+    if (!session) return null;
+    pendingActivePaneRef.current = session.id;
+    // The role's group is the pane's group: a started role stays where it was.
+    pendingGroupBySessionRef.current.set(session.id, role.groupId);
+    pendingRoleBySessionRef.current.set(session.id, role.id);
+    return session.id;
+  }, [availableTargets, launchSession]);
+
+  const openHandoff = useCallback((sourceSessionId: string, payload: string, initialSelection?: string[]) => {
+    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === sourceSessionId);
+    setHandoffState({
+      sourceSessionId,
+      sourceLabel: pane?.name ?? sourceSessionId,
+      payload,
+      initialSelection,
+    });
+  }, []);
+
+  const handoffTargetSectionsForSource = useMemo(() => {
+    if (!handoffState) return [];
+    const pane = workspacePanes.find((p) => p.sessionId === handoffState.sourceSessionId);
+    // Activity is computed here rather than inside the builder because it
+    // lives in THIS component's state, not the workspace store — the builder
+    // reading the store alone is why every target row used to be a bare name.
+    return handoffTargetSections(
+      handoffState.sourceSessionId,
+      pane?.groupId ?? null,
+      buildSessionActivity(workspacePanes, conversationSessions, lastVisitedBySession),
+    );
+  }, [handoffState, workspacePanes, conversationSessions, lastVisitedBySession]);
+
+  /**
+   * Deliver a handoff.
+   *
+   * Every seam this needs already exists: submitToActiveTerminal reaches a
+   * named pane, launchSession creates the process, and the pending map carries
+   * text a not-yet-mounted terminal cannot take. Nothing here polls for
+   * readiness, and nothing here knows what a payload is.
+   */
+  const runHandoff = useCallback(
+    (targets: readonly HandoffTarget[], textFor: (target: HandoffTarget) => string) =>
+      sendHandoff(targets, textFor, {
+        submit: (data, intent, targetId) => submitToActiveTerminal(data, intent, targetId),
+        launch: async (options) => {
+          const session = await launchSession({
+            command: options.command,
+            workingDir: options.workingDir,
+            backend: options.backend ? (options.backend as BackendID) : undefined,
+            target: options.targetId ? availableTargets.find((c) => c.id === options.targetId) : undefined,
+          });
+          if (!session) return null;
+          if (options.groupId) pendingGroupBySessionRef.current.set(session.id, options.groupId);
+          return session.id;
+        },
+        queueForSession: (sessionId, text) => {
+          // If a terminal is already mounted, hand it over now; otherwise the
+          // reconcile effect delivers it the moment the pane appears.
+          const immediate = submitToActiveTerminal(text, "bulk_text", sessionId);
+          if (immediate.status === "rejected") {
+            pendingHandoffBySessionRef.current.set(sessionId, text);
+          }
+        },
+        attachRole: (roleId, sessionId) => {
+          pendingRoleBySessionRef.current.set(sessionId, roleId);
+        },
+      }),
+    [availableTargets, handoffState?.sourceSessionId, launchSession, submitToActiveTerminal],
+  );
+
+  // Creating a group from inside the launcher is server-first, like every
+  // other group creation: the backend mints the id and the dialog adopts it.
+  const createLauncherGroup = useCallback(async (name: string): Promise<string | null> => {
+    try {
+      const group = await createNamedGroup(name);
+      return group.id;
+    } catch (error) {
+      console.error("Failed to create group from launcher:", error);
+      return null;
+    }
+  }, [createNamedGroup]);
+
+  // What a new session will actually look like. The reconcile effect applies
+  // these after the session exists; naming them here is what removes the
+  // surprise.
+  const launcherAppearance = useMemo(() => ({
+    headerColor: workspace.defaultHeaderColor,
+    themeId: workspace.defaultThemeId,
+    fontSize: workspace.defaultFontSize,
+  }), [workspace.defaultFontSize, workspace.defaultHeaderColor, workspace.defaultThemeId]);
+
+  const startRoleFromSurface = useCallback((role: RoleMeta) => {
+    void handleStartRole(role);
+  }, [handleStartRole]);
+
+  const handoffToRole = useCallback((role: RoleMeta) => {
+    // Hand off FROM the group's active session TO this role. Falling back to
+    // any member keeps the control working when the active pane is elsewhere.
+    const { panes, activePane } = useWorkspaceStore.getState();
+    const source = panes.find((p) => p.sessionId === activePane && p.groupId === role.groupId)
+      ?? panes.find((p) => p.groupId === role.groupId);
+    if (!source) return;
+    openHandoff(source.sessionId, "", [role.id]);
+  }, [openHandoff]);
+
+  const openRoleMenu = useCallback((role: RoleMeta, position: { x: number; y: number }) => {
+    setRoleMenu({ role, position });
+  }, []);
+
+  /**
+   * Create a group, its roles, and its eager sessions in one action.
+   *
+   * The launches are SEQUENCED, not fired together. launchSession guards
+   * against concurrent creation with an in-flight flag and returns null on the
+   * second overlapping call, so a template with three eager roles would
+   * silently start one. Awaiting each in turn is the whole fix, and it is why
+   * this cannot be a Promise.all.
+   */
+  const createGroupFromRoles = useCallback(async (request: GroupCreationRequest) => {
+    try {
+      const group = await createNamedGroup(request.name);
+      if (request.color) {
+        updateWorkspaceGroup(group.id, { color: request.color });
+        syncUpdateGroup(group.id, { color: request.color });
+      }
+
+      // Roles are created before anything starts, so a failure part-way
+      // through leaves a group the operator can see and finish by hand
+      // rather than a half-started set of processes with no home.
+      const created: (RoleMeta | null)[] = [];
+      for (const [index, role] of request.roles.entries()) {
+        created.push(await createRole({
+          groupId: group.id,
+          label: role.label || `Role ${String(index + 1)}`,
+          command: role.command,
+          workingDir: role.working_dir,
+          incomingPrompt: role.incoming_prompt,
+          backend: role.backend,
+          targetId: role.target_id,
+        }));
+      }
+
+      // Only eager roles cost a process.
+      for (const [index, role] of request.roles.entries()) {
+        if (role.start_mode !== "eager") continue;
+        const meta = created[index];
+        if (!meta) continue;
+        await handleStartRole(meta);
+      }
+
+      // The counter moves only after the group actually exists, so a failed
+      // create does not inflate how often a template looks used.
+      if (request.templateId) {
+        const template = (await listGroupTemplates()).find((tpl) => tpl.id === request.templateId);
+        if (template) {
+          await upsertGroupTemplate({
+            id: template.id,
+            name: template.name,
+            color: template.color,
+            roles: template.roles,
+            use_count: template.use_count + 1,
+          });
+        }
+      }
+
+      setLauncherOpen(false);
+    } catch (error) {
+      console.error("Failed to create group from roles:", error);
+    }
+  }, [createNamedGroup, createRole, handleStartRole, syncUpdateGroup, updateWorkspaceGroup]);
+
+  const openLauncher = useCallback(() => { setLauncherInitialTarget(undefined); setLauncherOpen(true); }, []);
+  const openLauncherForMachine = useCallback((machine: { target: TerminalTarget }) => {
+    setMachinesOpen(false);
+    setLauncherInitialTarget(machine.target);
+    setLauncherOpen(true);
+  }, []);
+  // Opening machines from the launcher replaces it rather than stacking two
+  // overlays: one surface on screen at a time.
+  const openMachines = useCallback(() => {
+    setLauncherOpen(false);
+    setMachinesOpen(true);
+  }, []);
+  /**
+   * Hand the launcher off to the settings surface that OWNS the list it is
+   * rendering. The launcher shows agents and templates; neither is editable
+   * there, and leaving the operator to find the right settings tab is the
+   * kind of gap that makes a dialog feel unfinished.
+   */
+  const openSettingsTab = useCallback((tab: string) => {
+    setLauncherOpen(false);
+    const state = useWorkspaceStore.getState();
+    state.setSettingsInitialTab(tab);
+    state.setSettingsModalOpen(true);
+  }, []);
+  const openShortcutSettings = useCallback(() => { openSettingsTab("shortcuts"); }, [openSettingsTab]);
+  const openTemplateSettings = useCallback(() => { openSettingsTab("templates"); }, [openSettingsTab]);
+  const closeLauncher = useCallback(() => {
+    setLauncherGroupId(null);
+    setLauncherInitialTarget(undefined);
+    setLauncherOpen(false);
+  }, []);
 
   const handleLaunch = useCallback(
-    async (opts?: { command?: string; backend?: string; policy?: { mode: string; duration?: string } }) => {
-      const session = await launchSession(opts);
-      if (session) {
-        setLauncherOpen(false);
-        // Mark session for auto-activation. The reconciliation effect
-        // will add the pane and activate it atomically in a single
-        // zustand set(), avoiding cross-system state races.
-        pendingActivePaneRef.current = session.id;
+    async (opts?: LaunchOptions) => {
+      lastLaunchOptionsRef.current = opts;
+      try {
+        const session = await launchSession(opts);
+        if (session) {
+          setLauncherOpen(false);
+          // Mark session for auto-activation. The reconciliation effect
+          // will add the pane and activate it atomically in a single
+          // zustand set(), avoiding cross-system state races.
+          pendingActivePaneRef.current = session.id;
+          // Read the destination from the ref mirror rather than the state,
+          // because this callback may be holding a render-old closure and the
+          // operator can change the destination inside the dialog.
+          const pendingGroupId = launcherGroupRef.current;
+          if (pendingGroupId) {
+            pendingGroupBySessionRef.current.set(session.id, pendingGroupId);
+          }
+          setLauncherGroupId(null);
+        } else {
+          setLauncherGroupId(null);
+        }
+      } catch (error) {
+        setLauncherGroupId(null);
+        throw error;
       }
     },
     [launchSession],
   );
 
+  const handleNewSessionInGroup = useCallback((groupId: string) => {
+    setLauncherGroupId(groupId);
+    setMobileSidebarOpen(false);
+    setLauncherOpen(true);
+  }, []);
+
   const handleRetry = useCallback(() => {
     clearError();
-    handleLaunch();
+    void handleLaunch(lastLaunchOptionsRef.current);
   }, [clearError, handleLaunch]);
 
-  const doRemovePane = useCallback(
+  // Stable callback for the (memoized) TabBar so a conversation event landing
+  // in the store doesn't re-render the whole tab strip via an inline arrow.
+  const handleNewTerminal = useCallback(() => { handleLaunch(); }, [handleLaunch]);
+
+  const releaseWorkspacePane = useCallback(
     (sessionId: string) => {
-      removeSessionPane(sessionId);
-      store.removePane(sessionId);
+      removeWorkspacePane(sessionId);
       clearConversationSession(sessionId);
       exitedSessionsRef.current.delete(sessionId);
       try { localStorage.removeItem(`wc-mobile-draft-${sessionId}`); } catch { /* ignore */ }
     },
-    [clearConversationSession, removeSessionPane, store],
+    [clearConversationSession, removeWorkspacePane],
   );
 
   const handleRequestClose = useCallback(
     async (sessionId: string) => {
-      // Skip confirmation for sessions whose process already exited
-      if (exitedSessionsRef.current.has(sessionId)) {
-        doRemovePane(sessionId);
-        return;
+      const index = workspace.panes.findIndex((pane) => pane.sessionId === sessionId);
+      const pane = workspace.panes[index];
+      const outcome = await removeSessionPane(sessionId);
+      if (outcome === "failed") return;
+      releaseWorkspacePane(sessionId);
+      if (outcome === "undoable" && pane) {
+        setArchiveUndo({ sessionId, pane, index });
       }
-      // Ask the server whether the shell has a running child process
-      try {
-        const info = await getSession(sessionId);
-        if (!info.busy) {
-          doRemovePane(sessionId);
-          return;
-        }
-      } catch {
-        // If the fetch fails (e.g. session already gone), close without dialog
-        doRemovePane(sessionId);
-        return;
-      }
-      setPendingClose(sessionId);
     },
-    [doRemovePane],
+    [releaseWorkspacePane, removeSessionPane, workspace.panes],
   );
 
-  const handleConfirmClose = useCallback(() => {
-    if (pendingClose) doRemovePane(pendingClose);
-    setPendingClose(null);
-  }, [pendingClose, doRemovePane]);
+  useEffect(() => {
+    if (!archiveUndo) return;
+    const timer = window.setTimeout(() => { setArchiveUndo(null); }, 8_000);
+    return () => { window.clearTimeout(timer); };
+  }, [archiveUndo]);
 
-  const handleCancelClose = useCallback(() => {
-    setPendingClose(null);
-  }, []);
+  const handleUndoArchive = useCallback(async () => {
+    if (!archiveUndo) return;
+    if (await undoArchive(archiveUndo.sessionId)) {
+      useWorkspaceStore.setState((state) => {
+        if (state.panes.some((pane) => pane.sessionId === archiveUndo.sessionId)) return state;
+        const panes = [...state.panes];
+        panes.splice(Math.min(archiveUndo.index, panes.length), 0, archiveUndo.pane);
+        return { panes, activePane: archiveUndo.sessionId };
+      });
+    }
+    setArchiveUndo(null);
+  }, [archiveUndo, undoArchive]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDelete) return;
+    await deletePanePermanently(pendingDelete);
+    releaseWorkspacePane(pendingDelete);
+    setPendingDelete(null);
+  }, [deletePanePermanently, pendingDelete, releaseWorkspacePane]);
+
+  useTabLikeNavigationShortcuts({
+    enabled: isTabLikeMode,
+    panes: workspacePanes,
+    activePane: workspace.activePane,
+    onActivatePane: activatePane,
+    onClosePane: handleRequestClose,
+  });
+
+  useEffect(() => {
+    if (!workspace.activePane) return;
+    setLastVisitedBySession((prev) => ({
+      ...prev,
+      [workspace.activePane as string]: new Date().toISOString(),
+    }));
+  }, [workspace.activePane]);
 
   const handleExit = useCallback((sessionId: string) => {
     exitedSessionsRef.current.add(sessionId);
@@ -315,23 +971,59 @@ export default function Workspace() {
   }, [sessionHandleExit]);
 
   const handleSendToTerminal = useCallback(
-    (data: string): boolean => {
-      return sendToActiveTerminal(data, store.activePane ?? undefined);
+    (data: string, intent: Exclude<InputIntent, "control">): GateResult => {
+      return submitToActiveTerminal(data, intent, workspace.activePane ?? undefined);
     },
-    [sendToActiveTerminal, store.activePane],
+    [submitToActiveTerminal, workspace.activePane],
+  );
+
+  const handleSubscribeInputSettled = useCallback(
+    (cb: (offset: number, ok: boolean) => void) =>
+      subscribeActiveInputSettled(workspace.activePane ?? undefined, cb),
+    [subscribeActiveInputSettled, workspace.activePane],
+  );
+
+  const handleAwaitInputOffset = useCallback(
+    (offset: number, cb: Parameters<NonNullable<React.ComponentProps<typeof MobileToolbar>["awaitOffset"]>>[1]) =>
+      awaitActiveInputOffset(workspace.activePane ?? undefined, offset, cb),
+    [awaitActiveInputOffset, workspace.activePane],
+  );
+
+  const handleSubscribePendingInput = useCallback(
+    (cb: () => void) =>
+      subscribeActivePendingInput(workspace.activePane ?? undefined, cb),
+    [subscribeActivePendingInput, workspace.activePane],
+  );
+
+  const handleGetPendingInputSnapshot = useCallback(
+    () => getActivePendingInputSnapshot(workspace.activePane ?? undefined),
+    [getActivePendingInputSnapshot, workspace.activePane],
+  );
+
+  const handleDiscardPendingInput = useCallback(
+    (index: number) => { discardActivePendingInput(index, workspace.activePane ?? undefined); },
+    [discardActivePendingInput, workspace.activePane],
+  );
+  const handleDiscardAllPendingInput = useCallback(
+    () => { discardAllActivePendingInput(workspace.activePane ?? undefined); },
+    [discardAllActivePendingInput, workspace.activePane],
+  );
+  const handleFlushPendingInputNow = useCallback(
+    () => { flushActivePendingInputNow(workspace.activePane ?? undefined); },
+    [flushActivePendingInputNow, workspace.activePane],
   );
 
   const handleFocusTerminal = useCallback(() => {
-    focusActiveTerminal(store.activePane ?? undefined);
-  }, [focusActiveTerminal, store.activePane]);
+    focusActiveTerminal(workspace.activePane ?? undefined);
+  }, [focusActiveTerminal, workspace.activePane]);
 
   // Switch the active pane from messages view back to terminal view.
   // Used by MobileToolbar to auto-switch after sending a command.
   const handleSwitchToTerminal = useCallback(() => {
-    if (store.activePane) {
-      setConversationViewMode(store.activePane, "terminal");
+    if (workspace.activePane) {
+      setConversationViewMode(workspace.activePane, "terminal");
     }
-  }, [store.activePane, setConversationViewMode]);
+  }, [setConversationViewMode, workspace.activePane]);
 
   // ── Stop TTS on the previous pane when switching tabs ──
   // Each TerminalPane manages its own TTS playback.  When the user switches
@@ -340,15 +1032,15 @@ export default function Workspace() {
   // pane's TTS first, both audio streams play simultaneously — a jarring
   // experience.  We track the previous active pane and stop its TTS before
   // the new pane's auto-play effect fires.
-  const prevActivePaneRef = useRef<string | null>(store.activePane);
+  const prevActivePaneRef = useRef<string | null>(workspace.activePane);
   useEffect(() => {
     const prev = prevActivePaneRef.current;
-    prevActivePaneRef.current = store.activePane;
+    prevActivePaneRef.current = workspace.activePane;
     // Stop TTS on the pane we just left (if any)
-    if (prev && prev !== store.activePane) {
+    if (prev && prev !== workspace.activePane) {
       stopActiveTts(prev);
     }
-  }, [store.activePane, stopActiveTts]);
+  }, [workspace.activePane, stopActiveTts]);
 
   // ── Desktop auto-focus: focus terminal when active tab changes ──
   // On mobile we MUST NOT do this — focusing xterm's hidden <textarea> opens
@@ -370,37 +1062,41 @@ export default function Workspace() {
   // It has been intentionally added twice before and each time was lost to
   // unrelated refactors. On mobile, terminal focus === keyboard popup.
   useEffect(() => {
-    if (!store.activePane || isMobile) return;
-    // Don't steal focus from open modals
-    if (store.settingsModalOpen || store.aiModalOpen || store.aiSuggestActive || store.appearanceModalPane !== null) return;
-    const paneId = store.activePane;
+    if (!workspace.activePane || isMobile) return;
+    // Don't steal focus from open modals or the full-screen composer (which
+    // owns focus while open and restores it to the opener on close).
+    if (workspace.settingsModalOpen || workspace.aiModalOpen || workspace.aiSuggestActive || workspace.appearanceModalPane !== null || composerOpen) return;
+    const paneId = workspace.activePane;
     const rafId = requestAnimationFrame(() => {
       focusActiveTerminal(paneId);
     });
-    return () => cancelAnimationFrame(rafId);
-  }, [store.activePane, isMobile, store.settingsModalOpen, store.aiModalOpen, store.aiSuggestActive, store.appearanceModalPane, focusActiveTerminal]);
+    return () => { cancelAnimationFrame(rafId); };
+  }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, composerOpen, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
-    if (isMobile) {
+    if (composerOpen) {
+      // Dictating into the full-screen composer — insert at its caret.
+      composerDraft.appendAtCaret(text);
+    } else if (isMobile) {
       // On mobile, inject into the toolbar text box for review before sending
       mobileToolbarRef.current?.appendText(text);
     } else {
-      handleSendToTerminal(text);
+      handleSendToTerminal(text, "bulk_text");
     }
-  }, [isMobile, handleSendToTerminal]);
+  }, [composerOpen, composerDraft, isMobile, handleSendToTerminal]);
 
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
   const handleVoiceStart = useCallback((opts?: { vadEnabled?: boolean }) => {
+    markAudioIntent();
     // Always stop TTS before starting voice recording — the user wants to
     // speak, so any playing audio should yield.  This is unconditional
     // because the isTtsSpeaking flag can lag behind actual playback due to
     // the async propagation chain (useEffect in TerminalPane → Workspace
     // Set state).  Calling stop when nothing is playing is a no-op.
-    stopActiveTts(store.activePane ?? undefined);
-    const vadAutoStop = useWorkspaceStore.getState().vadAutoStop;
+    stopActiveTts(workspace.activePane ?? undefined);
     voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
-  }, [store.activePane, stopActiveTts, voiceInput]);
+  }, [vadAutoStop, workspace.activePane, stopActiveTts, voiceInput, markAudioIntent]);
 
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
@@ -419,18 +1115,21 @@ export default function Workspace() {
       cmd.execute({
         createTab: () => handleLaunch(),
         switchToTab: (index: number) => {
-          const pane = store.panes[index - 1];
-          if (pane) store.setActivePane(pane.sessionId);
+          const pane = workspacePanes[index - 1];
+          if (pane) setActiveWorkspacePane(pane.sessionId);
         },
         closeTab: () => {
-          const active = store.activePane;
-          if (active) doRemovePane(active);
+          const active = activeWorkspacePane;
+          if (active) void handleRequestClose(active);
         },
-        sendToTerminal: (data: string) => handleSendToTerminal(data),
-        exitVoiceMode: () => voiceInput.stopRecording(),
+        sendToTerminal: (data: string) => { handleSendToTerminal(data, "bulk_text"); },
+        copySelection: () => { void copySelectionOnPane(activeWorkspacePane ?? undefined); },
+        pasteFromClipboard: () => { void pasteFromClipboardOnPane(activeWorkspacePane ?? undefined); },
+        scrollTerminal: (lines: number) => { scrollTerminalOnPane(lines, activeWorkspacePane ?? undefined); },
+        exitVoiceMode: () => { voiceInput.stopRecording(); },
       }, suggestion.args);
     });
-  }, [voiceInput, handleSendToTerminal, handleLaunch, doRemovePane, store]);
+  }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, handleRequestClose, setActiveWorkspacePane, workspacePanes, copySelectionOnPane, pasteFromClipboardOnPane, scrollTerminalOnPane]);
 
   const handleVoiceCommandDismiss = useCallback(() => {
     voiceInput.dismissCommandSuggestion();
@@ -454,16 +1153,20 @@ export default function Workspace() {
     requestAnimationFrame(() => {
       if (isMobile) {
         mobileToolbarRef.current?.focusInput();
-      } else if (store.activePane) {
-        focusActiveTerminal(store.activePane);
+      } else if (workspace.activePane) {
+        focusActiveTerminal(workspace.activePane);
       }
     });
-  }, [voiceInput.voiceState, isMobile, store.activePane, focusActiveTerminal]);
+  }, [voiceInput.voiceState, isMobile, workspace.activePane, focusActiveTerminal]);
 
-  // --- TTS speaking indicator ---
-  // Track which panes are currently speaking so we can show a visual indicator
-  // on the mic button. We only care about the active pane's speaking state.
+  // --- TTS speaking state ---
+  // Track which panes are currently speaking so voice input can stop active TTS
+  // before recording. Playback presentation belongs to the audio bar.
   const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
+  const [ttsBarDismissed, setTtsBarDismissed] = useState(false);
+  const [ttsBarExpanded, setTtsBarExpanded] = useState(false);
+  const [ttsBackendReason, setTtsBackendReason] = useState("");
+  const ttsBackendPreference = useWorkspaceStore((state) => state.ttsBackendPreference);
   const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
     setTtsSpeakingPanes(prev => {
       const has = prev.has(sessionId);
@@ -475,10 +1178,10 @@ export default function Workspace() {
       return next;
     });
   }, []);
-  const isTtsSpeaking = store.activePane ? ttsSpeakingPanes.has(store.activePane) : false;
-  const handleTtsStop = useCallback(() => {
-    stopActiveTts(store.activePane ?? undefined);
-  }, [store.activePane, stopActiveTts]);
+  const handleTtsBackendReasonChange = useCallback((sessionId: string, reason: string) => {
+    if (sessionId === workspace.activePane) setTtsBackendReason(reason);
+  }, [workspace.activePane]);
+  const isTtsSpeaking = workspace.activePane ? ttsSpeakingPanes.has(workspace.activePane) : false;
 
   // ── TTS playback state polling for AudioPlayerBar ──
   //
@@ -495,27 +1198,23 @@ export default function Workspace() {
   // For very short TTS messages the audio can finish before the first
   // poll ever fires, meaning the bar never appears at all.
   //
-  // Fix: the AudioPlayerBar now renders whenever `isTtsSpeaking` is
-  // true, using `FALLBACK_TTS_PLAYBACK` when the poll hasn't returned
-  // yet.  The fallback has sensible defaults (not paused, no duration,
-  // playbackRate 1, volume 1) and exposes all capabilities so every
-  // control is visible — the real provider values replace it within the
-  // first poll tick.
-  const FALLBACK_TTS_PLAYBACK: TTSPlaybackState = {
-    currentTime: 0,
-    duration: null,
-    isPaused: false,
-    playbackRate: 1,
-    volume: 1,
-    capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
-  };
+  // Fix: when auto-TTS is enabled, the AudioPlayerBar renders whenever
+  // `isTtsSpeaking` is true, using `FALLBACK_TTS_PLAYBACK` when the poll
+  // hasn't returned yet. The fallback has sensible defaults (not paused,
+  // no duration, playbackRate 1, volume 1) and exposes all capabilities
+  // so every control is visible — the real provider values replace it
+  // within the first poll tick.
+  const fallbackTtsPlayback = useMemo<TTSPlaybackState>(() => ({
+    ...FALLBACK_TTS_PLAYBACK,
+    isMuted: workspace.startMutedOnLoad,
+  }), [workspace.startMutedOnLoad]);
   const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
   useEffect(() => {
-    if (!isTtsSpeaking || !store.activePane) {
+    if (!isTtsSpeaking || !workspace.activePane) {
       setTtsPlayback(null);
       return;
     }
-    const activePane = store.activePane;
+    const activePane = workspace.activePane;
     // Poll immediately on start — don't wait for the first interval tick.
     // This closes the gap where audio is playing but the bar is invisible.
     const poll = () => {
@@ -524,103 +1223,281 @@ export default function Workspace() {
     };
     poll();
     const id = setInterval(poll, 100);
-    return () => clearInterval(id);
-  }, [isTtsSpeaking, store.activePane, getTtsStateOnPane]);
+    return () => { clearInterval(id); };
+  }, [isTtsSpeaking, workspace.activePane, getTtsStateOnPane]);
 
   const handleTtsPause = useCallback(() => {
-    if (store.activePane) pauseTtsOnPane(store.activePane);
-  }, [store.activePane, pauseTtsOnPane]);
+    if (workspace.activePane) pauseTtsOnPane(workspace.activePane);
+  }, [workspace.activePane, pauseTtsOnPane]);
 
   const handleTtsResume = useCallback(() => {
-    if (store.activePane) resumeTtsOnPane(store.activePane);
-  }, [store.activePane, resumeTtsOnPane]);
+    if (workspace.activePane) resumeTtsOnPane(workspace.activePane);
+  }, [workspace.activePane, resumeTtsOnPane]);
 
   const handleTtsSeek = useCallback((seconds: number) => {
-    if (store.activePane) seekTtsOnPane(store.activePane, seconds);
-  }, [store.activePane, seekTtsOnPane]);
+    if (workspace.activePane) seekTtsOnPane(workspace.activePane, seconds);
+  }, [workspace.activePane, seekTtsOnPane]);
 
   const handleTtsSetPlaybackRate = useCallback((rate: number) => {
-    if (store.activePane) setTtsPlaybackRateOnPane(store.activePane, rate);
-  }, [store.activePane, setTtsPlaybackRateOnPane]);
+    if (workspace.activePane) setTtsPlaybackRateOnPane(workspace.activePane, rate);
+  }, [workspace.activePane, setTtsPlaybackRateOnPane]);
 
   const handleTtsSetVolume = useCallback((level: number) => {
-    if (store.activePane) setTtsVolumeOnPane(store.activePane, level);
-  }, [store.activePane, setTtsVolumeOnPane]);
+    if (workspace.activePane) setTtsVolumeOnPane(workspace.activePane, level);
+  }, [workspace.activePane, setTtsVolumeOnPane]);
 
-  // --- Messages View TTS controls ---
-  const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
+  const handleTtsSetMuted = useCallback((next: boolean) => {
+    if (workspace.activePane) setTtsMutedOnPane(workspace.activePane, next);
+  }, [workspace.activePane, setTtsMutedOnPane]);
 
-  // Persistent last-played event for the replay bar.  Unlike
-  // activeSpeakingEventId (which is cleared when TTS stops), these survive
-  // so the AudioPlayerBar can stay visible in a "replay" state when auto-TTS
-  // is enabled.
-  const [lastTtsEventId, setLastTtsEventId] = useState<string | null>(null);
-  const [lastTtsPaneId, setLastTtsPaneId] = useState<string | null>(null);
-
-  // Clear the active speaking indicator when TTS stops
-  const prevTtsSpeaking = useRef(isTtsSpeaking);
-  useEffect(() => {
-    if (prevTtsSpeaking.current && !isTtsSpeaking) {
-      setActiveSpeakingEventId(null);
-    }
-    prevTtsSpeaking.current = isTtsSpeaking;
-  }, [isTtsSpeaking]);
-
-  const handleSpeakFromHere = useCallback((sessionId: string, eventId: string) => {
-    const session = useConversationStore.getState().sessions[sessionId];
+  const applySummarizeResult = useCallback((sessionId: string, eventId: string, speechParagraphs: string[]) => {
+    const convState = useConversationStore.getState();
+    const session = convState.sessions[sessionId];
     if (!session) return;
-    const startIdx = session.events.findIndex((e) => e.id === eventId);
-    if (startIdx === -1) return;
-    const eventsFromHere = session.events.slice(startIdx);
-    // Use speechParagraphs (normalized, no markdown) with raw text as fallback
-    const texts = eventsFromHere.flatMap((e) => e.speechParagraphs?.length ? e.speechParagraphs : [e.text]);
-    const ids = eventsFromHere.map((e) => e.id);
-    setActiveSpeakingEventId(ids[0] ?? null);
-    // Track the last event in the sequence for the persistent replay bar
-    const lastId = ids[ids.length - 1] ?? null;
-    if (lastId) { setLastTtsEventId(lastId); setLastTtsPaneId(sessionId); }
-    void speakSequenceOnPane(sessionId, texts, (i) => {
-      // Map flattened paragraph index back to event index for highlighting.
-      // This is approximate — highlight the event whose paragraphs contain index i.
-      let eventIdx = 0;
-      let consumed = 0;
-      for (let e = 0; e < eventsFromHere.length; e++) {
-        const count = eventsFromHere[e]?.speechParagraphs?.length || 1;
-        if (i < consumed + count) { eventIdx = e; break; }
-        consumed += count;
-      }
-      const currentId = ids[eventIdx] ?? null;
-      setActiveSpeakingEventId(currentId);
-      if (currentId) { setLastTtsEventId(currentId); setLastTtsPaneId(sessionId); }
+    const updatedEvents = session.events.map((event) =>
+      event.id === eventId
+        ? {
+            ...event,
+            summarized: true,
+            originalSpeechParagraphs: event.originalSpeechParagraphs ?? event.speechParagraphs,
+            speechParagraphs,
+          }
+        : event,
+    );
+    useConversationStore.setState({
+      sessions: { ...convState.sessions, [sessionId]: { ...session, events: updatedEvents } },
     });
-  }, [speakSequenceOnPane]);
+  }, []);
 
-  const handleSpeakOne = useCallback((sessionId: string, eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => {
-    setActiveSpeakingEventId(eventId);
-    setLastTtsEventId(eventId);
-    setLastTtsPaneId(sessionId);
-    speakTextOnPane(sessionId, text, paragraphs, { eventId, version: opts?.version });
-  }, [speakTextOnPane]);
+  // --- Messages View / replay-bar TTS controls ---
+  const [summarizeError, setSummarizeError] = useState<SummarizeErrorState | null>(null);
+  // Enable-audio affordance: set by TerminalPane when auto-TTS is rejected by
+  // the browser's autoplay policy. `suppressed` is session-scoped — once the
+  // user dismisses the banner it never reappears until the tab reloads.
+  const [enableAudio, setEnableAudio] = useState<{ sessionId: string; enable: () => Promise<boolean> } | null>(null);
+  const [enableAudioSuppressed, setEnableAudioSuppressed] = useState(false);
+
+  const handleNeedsUnlock = useCallback((payload: { sessionId: string; enable: () => Promise<boolean> } | null) => {
+    setEnableAudio(payload);
+  }, []);
+
+  // In-flight guard for the unlock gesture. It has to live here rather than
+  // inside the banner because the banner is now a descriptor, not a component
+  // — and the button must stay disabled across the await either way.
+  const [enablingAudio, setEnablingAudio] = useState(false);
+
+  const handleEnableAudio = useCallback(async (): Promise<boolean> => {
+    if (!enableAudio || enablingAudio) return false;
+    setEnablingAudio(true);
+    try {
+      const ok = await enableAudio.enable();
+      if (ok) setEnableAudio(null);
+      return ok;
+    } finally {
+      setEnablingAudio(false);
+    }
+  }, [enableAudio, enablingAudio]);
+
+  const handleDismissEnableAudio = useCallback(() => {
+    setEnableAudioSuppressed(true);
+    setEnableAudio(null);
+  }, []);
+
+  const handleSummarizeFailed = useCallback((sessionId: string, eventId: string, message: string, source: "auto" | "on-demand") => {
+    setSummarizeError({ sessionId, eventId, message, source, status: "failed" });
+  }, []);
+
+  const handleDismissSummarizeError = useCallback(() => {
+    setSummarizeError(null);
+  }, []);
+
+  const handleSummarizeSucceeded = useCallback((sessionId: string, eventId: string) => {
+    setSummarizeError((prev) => (
+      prev && prev.sessionId === sessionId && prev.eventId === eventId ? null : prev
+    ));
+  }, []);
+
+  const ttsPlaybackController = useTtsPlaybackController({
+    conversationSessions,
+    activePaneId: workspace.activePane,
+    autoTtsEnabled: workspace.autoTtsEnabled,
+    audioState: { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
+    setViewMode: setConversationViewMode,
+    speakText: (sessionId, text, paragraphs, opts) => {
+      return speakTextOnPane(sessionId, text, paragraphs, opts);
+    },
+    stopPlayback: stopActiveTts,
+    applySummarizeResult,
+    onSummarizeFailed: (sessionId, eventId, message) => { handleSummarizeFailed(sessionId, eventId, message, "on-demand"); },
+    onSummarizeSucceeded: handleSummarizeSucceeded,
+  });
+  const handlePlaybackTransportStopped = ttsPlaybackController.handleTransportStopped;
+  const handlePaneTransportEventStart = ttsPlaybackController.handleTransportEventStart;
+  const getSelectedPlaybackVersion = ttsPlaybackController.getSelectedVersion;
+  const getPlaybackSummarizeError = ttsPlaybackController.getSummarizeError;
+  const clearPlaybackSummarizeError = ttsPlaybackController.clearSummarizeError;
+  // Asking for a message to be spoken is audio intent, same as
+  // pressing the mic — it is the other way a reader finds out the
+  // hard way that the backend is down, so it is the other place
+  // that earns the notice.
+  const ttsPlayEvent = ttsPlaybackController.playEvent;
+  const ttsPlayFromHere = ttsPlaybackController.playFromHere;
+  const playPaneEvent = useCallback((sessionId: string, eventId: string) => {
+    markAudioIntent();
+    ttsPlayEvent(sessionId, eventId);
+  }, [ttsPlayEvent, markAudioIntent]);
+  const playPaneFromHere = useCallback((sessionId: string, eventId: string) => {
+    markAudioIntent();
+    ttsPlayFromHere(sessionId, eventId);
+  }, [ttsPlayFromHere, markAudioIntent]);
+  const togglePanePlaybackVersion = ttsPlaybackController.toggleVersion;
+  const changePaneSummarizeLevel = ttsPlaybackController.changeSummarizeLevel;
+  const playbackFocusRequest = ttsPlaybackController.focusRequest;
+  const handleConversationEventReceived = ttsPlaybackController.handleIncomingEvent;
+  const handleTtsStop = useCallback(() => {
+    ttsPlaybackController.stopPlayback(workspace.activePane);
+  }, [ttsPlaybackController, workspace.activePane]);
+
+  // Expose the active reply to lock-screen/headphone controls when the
+  // browser provides Media Session. All calls are feature-detected because
+  // desktop Safari and several embedded webviews omit this API.
+  useEffect(() => {
+    const mediaSession = typeof navigator !== "undefined" ? navigator.mediaSession : undefined;
+    if (!mediaSession || !isTtsSpeaking || !workspace.activePane) return;
+    const sessionId = workspace.activePane;
+    const eventId = ttsPlaybackController.activeEventId;
+    const event = eventId ? conversationSessions[sessionId]?.events.find((candidate) => candidate.id === eventId) : undefined;
+    return setupMediaSession(mediaSession, {
+      title: event?.text?.slice(0, 120) || "Assistant reply",
+      artist: event?.source || "Vrooli",
+      album: "Vrooli conversation",
+      isPaused: ttsPlayback?.isPaused ?? false,
+      duration: ttsPlayback?.duration ?? null,
+      currentTime: ttsPlayback?.currentTime ?? 0,
+      playbackRate: ttsPlayback?.playbackRate ?? 1,
+      handlers: {
+        play: () => ttsPlaybackController.resumePlayback(sessionId),
+        pause: () => ttsPlaybackController.pausePlayback(sessionId),
+        stop: handleTtsStop,
+        seekbackward: () => handleTtsSeek(Math.max(0, (ttsPlayback?.currentTime ?? 0) - 10)),
+        seekforward: () => handleTtsSeek(Math.min(ttsPlayback?.duration ?? Infinity, (ttsPlayback?.currentTime ?? 0) + 10)),
+        previoustrack: () => ttsPlaybackController.previousTrack(sessionId),
+        nexttrack: () => ttsPlaybackController.nextTrack(sessionId),
+      },
+    });
+  }, [conversationSessions, handleTtsSeek, handleTtsStop, isTtsSpeaking, ttsPlayback, ttsPlaybackController, workspace.activePane]);
+
+  const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
+    setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
+  }, [setConversationViewMode]);
+
+  // Tracks which pane (if any) is mid view-switch so the tabs-mode floating
+  // toggle button can show a loading spinner. Each pane shell reports its own
+  // transition state; we only surface the active pane's.
+  const [viewSwitchPendingPane, setViewSwitchPendingPane] = useState<string | null>(null);
+  const handleViewSwitchPendingChange = useCallback((sessionId: string, pending: boolean) => {
+    setViewSwitchPendingPane((prev) => {
+      if (pending) return sessionId;
+      return prev === sessionId ? null : prev;
+    });
+  }, []);
+
+  const renderViewToggleButton = useCallback(() => (
+    <IconButton
+      data-testid="workspace-toggle-view"
+      data-view-mode={activeViewMode}
+      // This one control is rendered from two different parents — floating
+      // over the terminal in one view, inline in the messages toolbar in the
+      // other — so switching views remounts it. Without a stable identity the
+      // new instance has no memory of the icon it replaced and skips the swap.
+      swapIdentity="workspace-view-toggle"
+      surface="soft"
+      size="xs"
+      denseTapTarget
+      onClick={() => {
+        if (workspace.activePane) {
+          handlePaneToggleView(workspace.activePane, activeViewMode);
+        }
+      }}
+      // Dimmed rather than `pending`: the view flips synchronously on click
+      // while the pending window stays open through hydration, so hiding the
+      // glyph would hide the icon swap that is the whole point of the control.
+      disabled={viewSwitchPendingPane === workspace.activePane}
+      aria-label={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
+    >
+      {activeViewMode === "terminal" ? <MessageSquareText /> : <TerminalSquare />}
+    </IconButton>
+  ), [activeViewMode, handlePaneToggleView, t, viewSwitchPendingPane, workspace.activePane]);
+
+  const handlePaneTransportSpeakingEvent = useCallback((sessionId: string, eventId: string | null) => {
+    if (sessionId === workspace.activePane) {
+      handlePaneTransportEventStart(sessionId, eventId);
+    }
+  }, [handlePaneTransportEventStart, workspace.activePane]);
+
+  const handlePaneSummarizeError = useCallback((sessionId: string, eventId: string, message: string) => {
+    handleSummarizeFailed(sessionId, eventId, message, "auto");
+  }, [handleSummarizeFailed]);
+
+  const handleRetrySummarize = useCallback(() => {
+    setSummarizeError((prev) => {
+      if (!prev) return prev;
+      const { sessionId, eventId } = prev;
+      const session = useConversationStore.getState().sessions[sessionId];
+      const event = session?.events.find((candidate) => candidate.id === eventId);
+      if (event) {
+        ttsPlaybackController.changeSummarizeLevel(sessionId, eventId, ttsPlaybackController.summarizeLevel);
+      }
+      return { ...prev, status: "retrying" };
+    });
+  }, [ttsPlaybackController]);
+
+  useEffect(() => {
+    if (!isTtsSpeaking) {
+      handlePlaybackTransportStopped();
+    }
+  }, [handlePlaybackTransportStopped, isTtsSpeaking]);
 
   // --- Mobile image upload ---
+  // The toolbar image button no longer injects "path\n" immediately. Picking an
+  // image now STAGES it into the composer for review and opens the composer, so
+  // the operator can add text and batch several images into one deliberate send.
   const mobileFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleMobileUploadImage = useCallback(() => {
     mobileFileInputRef.current?.click();
   }, []);
 
-  const handleMobileFileChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleMobileFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file || !store.activePane) return;
+    if (files.length === 0) return;
+    composerAttachments.addFiles(files);
+    openComposer();
+  }, [composerAttachments, openComposer]);
+
+  // Upload every staged file on send, resolving terminal paths in attachment
+  // order. Rejecting keeps the staged attachments + typed text intact so the
+  // operator loses nothing; the composer surfaces a retryable error.
+  const resolveComposerAttachmentPaths = useCallback(async (): Promise<string[]> => {
+    const pane = workspace.activePane;
+    if (!pane) throw new Error("no active pane");
+    const staged = composerAttachments.attachments;
+    const paths: string[] = [];
     try {
-      const path = await uploadFile(store.activePane, file);
-      sendToActiveTerminal(path + "\n", store.activePane);
-    } catch {
-      // Upload errors are transient — user can retry
+      for (const att of staged) {
+        composerAttachments.setStatus(att.id, "uploading");
+        const path = await uploadFile(pane, att.file);
+        paths.push(path);
+        composerAttachments.setStatus(att.id, "staged");
+      }
+    } catch (err) {
+      // Clear the spinners so the user can retry the whole batch.
+      for (const att of staged) composerAttachments.setStatus(att.id, "staged");
+      throw err;
     }
-  }, [store.activePane, sendToActiveTerminal]);
+    return paths;
+  }, [workspace.activePane, composerAttachments]);
 
   // --- Resize logic ---
   const startResize = useCallback(
@@ -636,11 +1513,11 @@ export default function Workspace() {
           containerSize: axis === "column" ? rect.width : rect.height,
           startValues:
             axis === "column"
-              ? store.columnFractions
-              : store.rowFractions,
+              ? workspace.columnFractions
+              : workspace.rowFractions,
         };
       },
-    [store.columnFractions, store.rowFractions],
+    [workspace.columnFractions, workspace.rowFractions],
   );
 
   useEffect(() => {
@@ -662,9 +1539,9 @@ export default function Workspace() {
         splitterSize: SPLITTER_SIZE_PX,
       });
       if (resize.axis === "column") {
-        store.setColumnFractions(updated);
+        workspace.setColumnFractions(updated);
       } else {
-        store.setRowFractions(updated);
+        workspace.setRowFractions(updated);
       }
     };
 
@@ -678,18 +1555,65 @@ export default function Workspace() {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
-  }, [store]);
+  }, [workspace]);
 
   // Compute layout
-  const orderedPanes = store.panes;
+  const orderedPanes = workspacePanes;
+
+  // Single SSE subscription for the whole app: conversation events + unread
+  // updates for ALL sessions flow here, decoupled from any terminal WS. Auto-
+  // summarize failures surface through the active pane's banner handler.
+  // Session lifecycle events (created/deleted/terminated from any origin) merge
+  // into / drop from the pane list live; the store-reconciliation effect above
+  // propagates those to the sidebar without a re-hydration.
+  useGlobalEventStream({
+    onSummarizeError: handlePaneSummarizeError,
+    onSessionCreated: mergeExternalSession,
+    onSessionEnded: endExternalSession,
+    onDeviceStatus: () => {
+      void queryClient.invalidateQueries({ queryKey: ["devices", "roster"] });
+    },
+  });
+  // Keep every session's conversation hydrated for badges even when its
+  // terminal pane is unmounted (offscreen panes no longer hydrate themselves).
+  useConversationHydration(orderedPanes.map((pane) => pane.sessionId));
+
+  // --- Warm set: which sessions stay MOUNTED in tab-like modes ---
+  // The core scaling fix: instead of mounting all N panes (and paying for N
+  // xterms / WebSockets / observers) and hiding the inactive ones with
+  // visibility:hidden, we mount only a small LRU warm set. Cost is flat in N.
+  // K=2 (active + most-recent-previous) keeps the common back-and-forth toggle
+  // instant while still bounding live terminals to a constant. Grid mode is
+  // unchanged (it intentionally shows every visible cell).
+  const WARM_SET_SIZE = 2;
+  const [recentSessions, setRecentSessions] = useState<string[]>([]);
+  useEffect(() => {
+    const active = workspace.activePane;
+    if (!active) return;
+    setRecentSessions((prev) => {
+      if (prev[0] === active) return prev;
+      return [active, ...prev.filter((id) => id !== active)].slice(0, WARM_SET_SIZE);
+    });
+  }, [workspace.activePane]);
+  const mountedTabSessions = useMemo(() => {
+    const existing = new Set(orderedPanes.map((p) => p.sessionId));
+    const ids = new Set<string>();
+    if (workspace.activePane && existing.has(workspace.activePane)) ids.add(workspace.activePane);
+    for (const id of recentSessions) {
+      if (ids.size >= WARM_SET_SIZE) break;
+      if (existing.has(id)) ids.add(id);
+    }
+    return ids;
+  }, [orderedPanes, recentSessions, workspace.activePane]);
+
   const maxColumns = isMobile ? 1 : 2;
   const layout = resolveWorkspaceLayout(orderedPanes.length, maxColumns);
   const colFractions = reconcileTrackFractions(
-    store.columnFractions,
+    workspace.columnFractions,
     layout.columns,
   );
   const rowFractions = reconcileTrackFractions(
-    store.rowFractions,
+    workspace.rowFractions,
     layout.rows,
   );
 
@@ -706,22 +1630,22 @@ export default function Workspace() {
   // depth (error #185).  An epsilon of 1e-12 is far below any user-visible
   // precision while absorbing the ~1 ULP drift that normalization introduces.
   //
-  // Additionally, in "tabs" display mode the grid is never rendered, so
+  // Additionally, in tab-like display modes the grid is never rendered, so
   // fraction reconciliation is skipped entirely to avoid unnecessary store
   // writes.
   useEffect(() => {
-    if (store.displayMode === "tabs") return;
-    if (!fractionsMatch(colFractions, store.columnFractions)) {
-      store.setColumnFractions(colFractions);
+    if (isTabLikeMode) return;
+    if (!fractionsMatch(colFractions, workspace.columnFractions)) {
+      workspace.setColumnFractions(colFractions);
     }
-  }, [colFractions, store]);
+  }, [colFractions, isTabLikeMode, workspace]);
 
   useEffect(() => {
-    if (store.displayMode === "tabs") return;
-    if (!fractionsMatch(rowFractions, store.rowFractions)) {
-      store.setRowFractions(rowFractions);
+    if (isTabLikeMode) return;
+    if (!fractionsMatch(rowFractions, workspace.rowFractions)) {
+      workspace.setRowFractions(rowFractions);
     }
-  }, [rowFractions, store]);
+  }, [isTabLikeMode, rowFractions, workspace]);
 
   const colTemplate = buildGridTrackTemplate(colFractions, SPLITTER_SIZE_PX);
   const rowTemplate = buildGridTrackTemplate(rowFractions, SPLITTER_SIZE_PX);
@@ -734,6 +1658,68 @@ export default function Workspace() {
     : Math.max(MIN_ROW_PX, window.innerHeight);
   const rowSplittersHeight = Math.max(0, layout.rows - 1) * SPLITTER_SIZE_PX;
   const minimumGridHeightPx = (viewportPaneHeight * layout.rows) + rowSplittersHeight;
+  const sidebarHeaderPressGesture = usePressGesture<string>({
+    longPressMs: SIDEBAR_HEADER_LONG_PRESS_MS,
+    moveThresholdPx: SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD,
+    onTap: () => {},
+    onLongPress: (sessionId, point) => {
+      workspace.setTabContextMenu({ sessionId, position: { x: point.x, y: point.y } });
+    },
+  });
+
+  // ── Top-chrome notices ──────────────────────────────────────────────────
+  // Every condition that can raise a banner, declared in one place as data.
+  // Falsy entries are inactive conditions. `BannerRegion` sorts by priority,
+  // shows the top one, and collapses the rest — nothing here decides layout,
+  // and no condition can quietly render a second surface.
+  //
+  // Assembled before the early returns below so the empty and hydrating
+  // states get the same arbitration as the populated workspace.
+  const sessionRecoveryNotice = useSessionRecoveryBanner();
+  const crashRecoveryNotice = useCrashRecoveryBanner(openCrashArchive);
+
+  const banners: MaybeBanner[] = [
+    ...appBanners,
+    sessionRecoveryNotice,
+    crashRecoveryNotice,
+    voiceInput.fallbackNotice &&
+      voiceFallbackBanner(t, voiceInput.fallbackNotice, voiceInput.dismissFallbackNotice),
+    voiceInput.rejectedAudio &&
+      voiceRejectionBanner(t, voiceInput.rejectedAudio, {
+        onRetry: () => { void voiceInput.retryWithoutFilter(); },
+        onDismiss: voiceInput.dismissRejection,
+      }),
+    // What used to be one `VoiceRecoveryBanner` holding five unrelated
+    // conditions and a row of buttons. They are independent states with
+    // independent urgency, so they are independent banners.
+    voiceInput.error && voiceErrorBanner(t, voiceInput.error),
+    voiceInput.isTranscribing && voiceTranscribingBanner(t, handleVoiceCancel),
+    voiceInput.staleLiveMicLease && voiceStaleMicBanner(t, voiceInput.releaseMicrophone),
+    isTtsSpeaking && ttsSpeakingBanner(t, handleTtsStop),
+    summarizeError &&
+      summarizeErrorBanner(t, summarizeError, {
+        onRetry: handleRetrySummarize,
+        onDismiss: handleDismissSummarizeError,
+      }),
+    enableAudio &&
+      !enableAudioSuppressed &&
+      enableAudioBanner(t, {
+        enabling: enablingAudio,
+        onEnable: () => void handleEnableAudio(),
+        onDismiss: handleDismissEnableAudio,
+      }),
+    // Only once there are panes. In the empty state the same failure already
+    // renders as a card directly beneath the "New terminal" button that
+    // produced it, which is the better place for it — a top-chrome copy would
+    // just say the same thing twice.
+    sessionPanes.length > 0 &&
+      createError &&
+      createErrorBanner(t, createError, {
+        onDismiss: clearError,
+        onRetry: createError.retry ? handleRetry : undefined,
+      }),
+    activeSessionTrackingDegraded && activeViewMode === "messages" && trackingDegradedBanner(t),
+  ];
 
   // While session hydration is in flight, show a loading screen to prevent
   // the empty state ("New Terminal" button) from flashing before we know
@@ -749,29 +1735,42 @@ export default function Workspace() {
   // Empty state
   if (sessionPanes.length === 0) {
     return (
-      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-primary">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-4">Web Console</h1>
-          <p className="text-wc-text-muted mb-6">
-            Browser terminal with PTY-backed sessions
-          </p>
-          {createError && (
-            <ErrorBanner
-              error={createError}
-              onDismiss={clearError}
-              onRetry={createError.retry ? handleRetry : undefined}
-              className="mb-4"
-            />
-          )}
-          <Button
-            data-testid="new-terminal-button"
-            onClick={openLauncher}
-            disabled={isCreating}
-            size="lg"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            {isCreating ? "Creating..." : "New Terminal"}
-          </Button>
+      <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
+        <TopSafeArea testId="workspace-top-edge">
+          <BannerRegion banners={banners} />
+        </TopSafeArea>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold mb-4">{t(strings.app.title)}</h1>
+            <p className="text-wc-text-muted mb-6">
+              {t(strings.workspace.tagline)}
+            </p>
+            {hydrationError && (
+              <ErrorBanner
+                error={hydrationError}
+                onDismiss={clearHydrationError}
+                onRetry={hydrationError.retry ? () => { window.location.reload(); } : undefined}
+                className="mb-4"
+              />
+            )}
+            {createError && (
+              <ErrorBanner
+                error={createError}
+                onDismiss={clearError}
+                onRetry={createError.retry ? handleRetry : undefined}
+                className="mb-4"
+              />
+            )}
+            <Button
+              data-testid="new-terminal-button"
+              onClick={openLauncher}
+              disabled={isCreating}
+              size="lg"
+            >
+              <Plus className="me-2 h-5 w-5" />
+              {isCreating ? t(strings.workspace.creating) : t(strings.workspace.newTerminalButton)}
+            </Button>
+          </div>
         </div>
         <TerminalLauncher
           open={launcherOpen}
@@ -781,6 +1780,30 @@ export default function Workspace() {
           defaultBackend={defaultBackend}
           defaultPolicy={defaultPolicy}
           availableBackends={availableBackends}
+          availableTargets={availableTargets}
+          targetCatalog={targetCatalog}
+          targetsLoading={targetsLoading}
+          onRefreshTargets={refreshTargetCatalog}
+          onOpenMachines={openMachines}
+          onInstallCapability={installCapability}
+          groups={workspaceGroups}
+          pendingGroupId={launcherGroupId}
+          onDestinationChange={setLauncherGroupId}
+          onCreateGroup={createLauncherGroup}
+          appearance={launcherAppearance}
+          onCreateGroupFromRoles={createGroupFromRoles}
+          initialTarget={launcherInitialTarget}
+          onEditShortcuts={openShortcutSettings}
+          onEditTemplates={openTemplateSettings}
+        />
+        <ArchiveDrawer
+          open={archiveDrawerOpen}
+          initialSessionId={archiveInitialSessionId}
+          onClose={closeArchiveDrawer}
+          activeSessionId={workspace.activePane}
+          onSendToComposer={sendArchivedMessageToComposer}
+          onReopened={handleArchiveReopened}
+          preferOrphans={archivePreferOrphans}
         />
       </div>
     );
@@ -832,81 +1855,90 @@ export default function Workspace() {
       !isBeingDragged &&
       activeArrangeDrag?.dropIndex === idx;
 
-    const sessionConversation = conversationSessions[paneMeta.sessionId];
-    const supportsMessagesView = paneMeta.supportsMessagesView;
-    const viewMode = supportsMessagesView ? (conversationViewModes[paneMeta.sessionId] ?? "terminal") : "terminal";
-    const unreadCount = supportsMessagesView && sessionConversation
-      ? sessionConversation.events.filter((event) => event.role === "assistant" && event.sequence > sessionConversation.cursor.lastSeenSequence).length
-      : 0;
-
     return (
-      <div
+      <WorkspacePaneShell
         key={paneMeta.sessionId}
-        data-testid="terminal-pane-container"
-        data-session-id={paneMeta.sessionId}
-        data-pane-index={idx}
-        {...(isDropTarget ? { "data-drop-target": "" } : {})}
-        className={cn(
-          "relative flex flex-col rounded border overflow-hidden min-w-0 min-h-0 select-none",
-          store.activePane === paneMeta.sessionId
-            ? "border-wc-accent"
-            : "border-wc-default",
-          isBeingDragged && "opacity-40",
-          isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
-        )}
-        style={{ gridColumn, gridRow }}
-        onClick={() => activatePane(paneMeta.sessionId)}
-      >
-        <TerminalHeader
-          sessionId={paneMeta.sessionId}
-          name={paneMeta.name}
-          headerColor={paneMeta.headerColor}
-          isActive={store.activePane === paneMeta.sessionId}
-          viewMode={viewMode}
-          unreadCount={unreadCount}
-          onClose={() => handleRequestClose(paneMeta.sessionId)}
-          onFocus={() => activatePane(paneMeta.sessionId)}
-          onToggleView={supportsMessagesView ? () => setConversationViewMode(paneMeta.sessionId, viewMode === "terminal" ? "messages" : "terminal") : undefined}
-          onDragStart={startArrangeDrag}
-        />
-        {/* overflow-hidden: same duplicate-scrollbar prevention as in tabs mode.
-         * See the tabs-mode comment for the full explanation. */}
-        <div className="relative flex-1 min-h-0 overflow-hidden">
-          <ErrorBoundary region="terminal">
-            <TerminalPane
-              sessionId={paneMeta.sessionId}
-              onExit={handleExit}
-              onReady={() => handleTerminalReady(paneMeta.sessionId)}
-              onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-              onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
-              onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
-              onSpeakingEventChange={(eventId) => {
-                if (paneMeta.sessionId === store.activePane) {
-                  setActiveSpeakingEventId(eventId);
-                  if (eventId) { setLastTtsEventId(eventId); setLastTtsPaneId(paneMeta.sessionId); }
-                }
-              }}
-              ref={(handle) =>
-                registerTerminalRef(paneMeta.sessionId, handle)
-              }
-            />
-          </ErrorBoundary>
-          {supportsMessagesView && viewMode === "messages" && (
-            <div className="absolute inset-0">
-              <MessagesPane
-                        sessionId={paneMeta.sessionId}
-                        onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
-                        onSpeakOne={(eventId, text, paragraphs, opts) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs, opts)}
-                        activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
-                        isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
-                      />
-            </div>
-          )}
-        </div>
-      </div>
+        paneMeta={paneMeta}
+        layoutMode="grid"
+        gridColumn={gridColumn}
+        gridRow={gridRow}
+        paneIndex={idx}
+        isActive={workspace.activePane === paneMeta.sessionId}
+        isBeingDragged={isBeingDragged}
+        isDropTarget={isDropTarget}
+        isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
+        activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+        loadingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.loadingEventId : null}
+        summarizeLevel={ttsPlaybackController.summarizeLevel}
+        summarizingEventId={ttsPlaybackController.summarizingEventId}
+        getSummarizeError={getPlaybackSummarizeError}
+        onClearSummarizeError={clearPlaybackSummarizeError}
+        onToggleSummarized={togglePanePlaybackVersion}
+        onChangeLevel={changePaneSummarizeLevel}
+        selectedVersionForEvent={getSelectedPlaybackVersion}
+        playbackState={ttsPlayback ?? fallbackTtsPlayback}
+        onSetPlaybackRate={handleTtsSetPlaybackRate}
+        onSetVolume={handleTtsSetVolume}
+        onSetMuted={handleTtsSetMuted}
+        playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
+        onActivate={activatePane}
+        onRequestClose={handleRequestClose}
+        onHandoff={openHandoff}
+        onSendToComposer={stageMessageInComposer}
+        onToggleView={handlePaneToggleView}
+        onViewSwitchPendingChange={handleViewSwitchPendingChange}
+        onStartArrangeDrag={startArrangeDrag}
+        onTerminalExit={handleExit}
+        onTerminalRef={registerTerminalRef}
+        onVoiceStart={voiceInput.startRecording}
+        onVoiceStop={voiceInput.stopRecording}
+        onTtsSpeakingChange={handleTtsSpeakingChange}
+        onTtsBackendReasonChange={handleTtsBackendReasonChange}
+        onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+        onConversationEventReceived={handleConversationEventReceived}
+        onNeedsUnlock={handleNeedsUnlock}
+        onPlayFromHere={playPaneFromHere}
+        onPlayEvent={playPaneEvent}
+      />
     );
   });
 
+  const navigationItems = buildWorkspaceNavigationItems({
+    panes: orderedPanes,
+    groups: workspace.groups ?? [],
+    roles: workspace.roles,
+    activePane: workspace.activePane,
+    conversationSessions,
+    viewModes: conversationViewModes,
+    lastVisitedBySession,
+    sortMode: workspace.sidebarSortMode,
+  });
+  // Provenance per session for the origin-bucketed sidebar. Origin lives on the
+  // session (not the workspace pane metadata), so it comes from the session
+  // manager's pane list rather than the store.
+  const originBySession: Record<string, SessionOriginName> = {};
+  for (const sp of sessionPanes) originBySession[sp.session.id] = sp.session.origin;
+  const sidebarOriginBuckets = buildOriginBucketedNavigation({
+    panes: orderedPanes,
+    groups: workspace.groups ?? [],
+    roles: workspace.roles,
+    activePane: workspace.activePane,
+    conversationSessions,
+    viewModes: conversationViewModes,
+    lastVisitedBySession,
+    sortMode: workspace.sidebarSortMode,
+    originBySession,
+  });
+  const activeNavigationItem = navigationItems.find(
+    (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
+  );
+  const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
+  const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
+  // With the mobile sidebar closed, this button is the only signal there is —
+  // so a manually flagged session has to reach it too, as a dot (it has no
+  // count of its own, and a real unread count outranks it).
+  const sidebarHasFlagged = orderedPanes.some((pane) => pane.manuallyUnread);
+  const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
   // container; all descendants use flex to fill this height.
@@ -918,159 +1950,288 @@ export default function Workspace() {
       {/* Floating toolbar — hidden on mobile tab mode where TabBar
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
-        hidden={isMobile && store.displayMode === "tabs"}
-        onOpenSettings={() => store.setSettingsModalOpen(true)}
-        onOpenAi={() => store.setAiModalOpen(true)}
+        hidden={isMobile && isTabLikeMode}
+        onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
+        onOpenAccount={() => { openSettingsTab("account"); }}
+        onOpenMachines={openMachines}
+        onOpenAi={() => { workspace.setAiModalOpen(true); }}
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
+        onExpandComposer={openComposer}
         isCreating={isCreating}
         voiceSupported={voiceInput.supported}
         voicePreparing={voiceInput.isPreparing}
         voiceRecording={voiceInput.isRecording}
+        voicePersistentMode={workspace.persistentMode}
         voiceListening={voiceInput.isListening}
+        voicePassive={voiceInput.isPassive}
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
-        voicePartialTranscript={voiceInput.partialTranscript}
+        voiceActivity={voiceInput.voiceActivity}
         voiceBackend={voiceInput.backend}
+        voiceCapabilityReason={voiceInput.capabilityReason}
+        voiceOperatorCommand={voiceInput.operatorCommand}
+        onVoicePrepare={voiceInput.prepareRecording}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
-        onVoiceCancel={handleVoiceCancel}
-        isTtsSpeaking={isTtsSpeaking}
-        onTtsStop={handleTtsStop}
+        onVoiceExitPassive={voiceInput.exitPassiveMode}
       />
 
-      {/* Voice fallback notice */}
-      {voiceInput.fallbackNotice && (
-        <div className="px-3 py-1.5 text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
-          {voiceInput.fallbackNotice}
-        </div>
-      )}
-      {voiceInput.speakerNotice && (
-        <div className="px-3 py-1.5 text-xs text-sky-200 bg-sky-500/10 border-b border-sky-500/30">
-          {voiceInput.speakerNotice}
-        </div>
-      )}
+      <TopSafeArea testId="workspace-top-edge">
+        <BannerRegion banners={banners} />
 
-      {/* Error banner */}
-      {createError && (
-        <ErrorBanner
-          error={createError}
-          onDismiss={clearError}
-          onRetry={createError.retry ? handleRetry : undefined}
-          className="border-b border-wc-error"
-        />
-      )}
+        {/* Tab bar (only in tabs mode) */}
+        {workspace.displayMode === "tabs" && (
+          <TabBar
+            panes={orderedPanes}
+            activePane={workspace.activePane}
+            onNewTerminal={handleNewTerminal}
+            onOpenLauncher={openLauncher}
+            onClosePane={handleRequestClose}
+            onDeletePanePermanently={setPendingDelete}
+            isCreating={isCreating}
+            onStartRole={startRoleFromSurface}
+            onOpenRoleMenu={openRoleMenu}
+            trailingActions={isMobile ? (
+              <>
+              <Button
+                data-testid="tabbar-machines"
+                variant="ghost"
+                size="icon"
+                shape="square"
+                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
+                onClick={() => { setMachinesOpen(true); }}
+                aria-label={t(strings.fleet.openAriaLabel)}
+                title={t(strings.fleet.openAriaLabel)}
+              >
+                <MonitorSmartphone className="h-4 w-4" />
+              </Button>
+              <Button
+                data-testid="tabbar-settings"
+                variant="ghost"
+                size="icon"
+                shape="square"
+                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
+                onClick={() => { workspace.setSettingsModalOpen(true); }}
+                title={t(strings.workspace.settingsTitle)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button
+                data-testid="tabbar-account"
+                variant="ghost"
+                size="icon"
+                shape="square"
+                className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
+                onClick={() => { openSettingsTab("account"); }}
+                aria-label={t(strings.settings.tabs.account.label)}
+                title={t(strings.settings.tabs.account.label)}
+              >
+                <CircleUserRound className="h-4 w-4" />
+              </Button>
+              </>
+            ) : undefined}
+          />
+        )}
 
-      {/* Tab bar (only in tabs mode) */}
-      {store.displayMode === "tabs" && (
-        <TabBar
-          panes={orderedPanes}
-          activePane={store.activePane}
-          onNewTerminal={() => handleLaunch()}
-          onOpenLauncher={openLauncher}
-          onClosePane={handleRequestClose}
-          isCreating={isCreating}
-          trailingActions={isMobile ? (
+        {workspace.displayMode === "sidebar" && (
+          <div
+            data-testid="workspace-sidebar-topbar"
+            className="wc-chrome-surface wc-chrome-fg flex h-10 shrink-0 items-center gap-2 border-b border-wc-default ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] md:hidden"
+          >
             <Button
-              data-testid="tabbar-settings"
+              data-testid="workspace-sidebar-toggle"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 mx-1 self-center"
-              onClick={() => store.setSettingsModalOpen(true)}
-              title="Settings"
+              shape="square"
+              className="relative h-8 w-8"
+              onClick={() => { setMobileSidebarOpen(true); }}
+              title={t(strings.sessionSidebar.open)}
+            >
+              <Menu className="h-4 w-4" />
+              {sidebarUnreadCount === 0 && sidebarHasFlagged && (
+                <span
+                  data-testid="workspace-sidebar-toggle-flagged"
+                  className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-wc-accent"
+                />
+              )}
+              {sidebarUnreadCount > 0 && (
+                <span
+                  data-testid="workspace-sidebar-toggle-unread"
+                  className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-wc-accent-fg"
+                >
+                  {sidebarUnreadCount > 99 ? "99+" : sidebarUnreadCount}
+                </span>
+              )}
+            </Button>
+            <div
+              data-testid="workspace-sidebar-active-title"
+              className="min-w-0 flex-1 select-none truncate text-sm font-medium touch-manipulation"
+              title={activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+              {...(activeSidebarPane
+                ? sidebarHeaderPressGesture.getGestureHandlers(activeSidebarPane.pane.sessionId)
+                : {})}
+            >
+              {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+            </div>
+            {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (
+              <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
+                {activeSidebarPane.unreadCount}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              shape="square"
+              className="h-8 w-8"
+              disabled={isCreating}
+              onClick={() => {
+                if (workspace.plusButtonBehavior === "launcher") {
+                  openLauncher();
+                } else {
+                  handleLaunch();
+                }
+              }}
+              title={workspace.plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              data-testid="workspace-machines"
+              variant="ghost"
+              size="icon"
+              shape="square"
+              className="h-8 w-8"
+              onClick={() => { setMachinesOpen(true); }}
+                aria-label={t(strings.fleet.openAriaLabel)}
+                title={t(strings.fleet.openAriaLabel)}
+            >
+              <MonitorSmartphone className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              shape="square"
+              className="h-8 w-8"
+              onClick={() => { workspace.setSettingsModalOpen(true); }}
+              title={t(strings.workspace.settingsTitle)}
             >
               <Settings className="h-4 w-4" />
             </Button>
-          ) : undefined}
-        />
-      )}
+            <Button
+              data-testid="workspace-sidebar-account"
+              variant="ghost"
+              size="icon"
+              shape="square"
+              className="h-8 w-8"
+              onClick={() => { openSettingsTab("account"); }}
+              aria-label={t(strings.settings.tabs.account.label)}
+              title={t(strings.settings.tabs.account.label)}
+            >
+              <CircleUserRound className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </TopSafeArea>
 
       {/* Main content area */}
-      {store.displayMode === "tabs" ? (
-        /* Tab mode: stacked panes with display:none for inactive */
-        <div className="relative flex-1 min-h-0 overflow-hidden">
+      {isTabLikeMode ? (
+        <div
+          ref={workspace.displayMode === "sidebar" ? sidebarLayoutRef : undefined}
+          className="flex flex-1 min-w-0 min-h-0 overflow-hidden"
+        >
+          {workspace.displayMode === "sidebar" && (
+            <SessionSidebar
+              buckets={sidebarOriginBuckets}
+              containerRef={sidebarLayoutRef}
+              isMobile={isMobile}
+              mobileOpen={mobileSidebarOpen}
+              isCreating={isCreating}
+              onCloseMobile={() => { setMobileSidebarOpen(false); }}
+              onOpenMobile={() => { setMobileSidebarOpen(true); }}
+              onActivatePane={activatePane}
+              onClosePane={handleRequestClose}
+              onDeletePanePermanently={setPendingDelete}
+              onNewTerminal={() => handleLaunch()}
+              onOpenLauncher={openLauncher}
+              onNewSessionInGroup={handleNewSessionInGroup}
+          onStartRole={startRoleFromSurface}
+          onHandoffToRole={handoffToRole}
+          onOpenRoleMenu={openRoleMenu}
+              onOpenSettings={() => { workspace.setSettingsModalOpen(true); }}
+              onOpenArchiveDrawer={(sessionId) => {
+                setMobileSidebarOpen(false);
+                setArchiveInitialSessionId(sessionId ?? null);
+                setArchiveDrawerOpen(true);
+              }}
+            />
+          )}
+          {/* Tab-like modes: stacked panes with hidden inactive panes */}
+          <div className="relative flex-1 min-h-0 overflow-hidden">
           {/* Toggle between terminal and messages view.
            * Shows the icon for the view you'll switch TO (not the current view):
            *   • In terminal mode → show chat icon (click to switch to messages)
            *   • In messages mode → show terminal icon (click to switch back)
            * Circular icon button with a translucent background so it doesn't
            * obscure too much terminal content but is still easy to tap. */}
-          {store.activePane && store.panes.find((pane) => pane.sessionId === store.activePane)?.supportsMessagesView && (
-            <div className="absolute right-3 top-3 z-20">
-              <button
-                className="flex items-center justify-center h-8 w-8 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
-                onClick={() => {
-                  const current = conversationViewModes[store.activePane ?? ""] ?? "terminal";
-                  setConversationViewMode(store.activePane ?? "", current === "terminal" ? "messages" : "terminal");
-                }}
-                title={(conversationViewModes[store.activePane] ?? "terminal") === "terminal" ? "Switch to messages view" : "Switch to terminal view"}
-              >
-                {(conversationViewModes[store.activePane] ?? "terminal") === "terminal"
-                  ? <MessageSquareText className="h-3.5 w-3.5" />
-                  : <TerminalSquare className="h-3.5 w-3.5" />}
-              </button>
+          {activeViewMode === "terminal" && workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
+            <div className="absolute end-2 top-2.5 z-wc-chrome-raised">
+              {renderViewToggleButton()}
             </div>
           )}
-          {orderedPanes.map((paneMeta) => {
-            const isActive = paneMeta.sessionId === store.activePane;
-            const supportsMessagesView = paneMeta.supportsMessagesView;
-            const viewMode = supportsMessagesView ? (conversationViewModes[paneMeta.sessionId] ?? "terminal") : "terminal";
-            return (
-              <div
-                key={paneMeta.sessionId}
-                data-testid={`tab-pane-${paneMeta.sessionId}`}
-                className="absolute inset-0 flex flex-col select-none"
-                style={{ visibility: isActive ? "visible" : "hidden" }}
-              >
-                {/* overflow-hidden prevents a duplicate scrollbar from appearing.
-                 * xterm.js has its own internal scrollable viewport (.xterm-viewport).
-                 * Without clipping here, the browser adds a native scrollbar to this
-                 * wrapper once the terminal buffer grows large enough, which on mobile
-                 * captures all touch-scroll events and makes the real terminal
-                 * un-scrollable unless the user carefully avoids the outer scrollbar. */}
-                <div className="relative flex-1 min-h-0 overflow-hidden">
-                  <ErrorBoundary region="terminal">
-                    <TerminalPane
-                      sessionId={paneMeta.sessionId}
-                      onExit={handleExit}
-                      onReady={() => handleTerminalReady(paneMeta.sessionId)}
-                      onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-                      onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
-                      onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
-                      onSpeakingEventChange={(eventId) => {
-                        if (paneMeta.sessionId === store.activePane) {
-                          setActiveSpeakingEventId(eventId);
-                          if (eventId) { setLastTtsEventId(eventId); setLastTtsPaneId(paneMeta.sessionId); }
-                        }
-                      }}
-                      ref={(handle) =>
-                        registerTerminalRef(paneMeta.sessionId, handle)
-                      }
-                    />
-                  </ErrorBoundary>
-                  {supportsMessagesView && viewMode === "messages" && (
-                    <div className="absolute inset-0">
-                      <MessagesPane
-                        sessionId={paneMeta.sessionId}
-                        onSpeakFromHere={(eventId) => handleSpeakFromHere(paneMeta.sessionId, eventId)}
-                        onSpeakOne={(eventId, text, paragraphs, opts) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs, opts)}
-                        activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
-                        isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+            {orderedPanes.filter((paneMeta) => mountedTabSessions.has(paneMeta.sessionId)).map((paneMeta) => {
+              return (
+                <WorkspacePaneShell
+                  key={paneMeta.sessionId}
+                  paneMeta={paneMeta}
+                  layoutMode="tabs"
+                  isActive={paneMeta.sessionId === workspace.activePane}
+                  isVisible={paneMeta.sessionId === workspace.activePane}
+                  isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
+                  activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+                  loadingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.loadingEventId : null}
+                  summarizeLevel={ttsPlaybackController.summarizeLevel}
+                  summarizingEventId={ttsPlaybackController.summarizingEventId}
+                  getSummarizeError={getPlaybackSummarizeError}
+                  onClearSummarizeError={clearPlaybackSummarizeError}
+                  onToggleSummarized={togglePanePlaybackVersion}
+                  onChangeLevel={changePaneSummarizeLevel}
+                  selectedVersionForEvent={getSelectedPlaybackVersion}
+                  playbackState={ttsPlayback ?? fallbackTtsPlayback}
+                  onSetPlaybackRate={handleTtsSetPlaybackRate}
+                  onSetVolume={handleTtsSetVolume}
+                  onSetMuted={handleTtsSetMuted}
+                  playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
+                  onActivate={activatePane}
+                  onRequestClose={handleRequestClose}
+                  onHandoff={openHandoff}
+                  onSendToComposer={stageMessageInComposer}
+                  onToggleView={handlePaneToggleView}
+                  onViewSwitchPendingChange={handleViewSwitchPendingChange}
+                  messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
+                  onTerminalExit={handleExit}
+                  onTerminalRef={registerTerminalRef}
+                  onVoiceStart={voiceInput.startRecording}
+                  onVoiceStop={voiceInput.stopRecording}
+                  onTtsSpeakingChange={handleTtsSpeakingChange}
+                  onTtsBackendReasonChange={handleTtsBackendReasonChange}
+                  onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+                  onConversationEventReceived={handleConversationEventReceived}
+                  onNeedsUnlock={handleNeedsUnlock}
+                  onPlayFromHere={playPaneFromHere}
+                  onPlayEvent={playPaneEvent}
+                />
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* Grid mode: original grid layout with minimap */
-        <div className="relative flex-1 min-h-0 overflow-hidden">
+        <div className="relative flex-1 min-w-0 min-h-0 overflow-hidden">
           <div
             ref={scrollContainerRef}
-            className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", store.isMinimapVisible && "right-[34px]")}
+            className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", workspace.isMinimapVisible && "right-[34px]")}
           >
             <div
               ref={gridRef}
@@ -1098,154 +2259,204 @@ export default function Workspace() {
       )}
 
       {/* Bottom bar */}
-      <div className="relative z-10 shrink-0">
-        {/* TTS player bar — visible when audio is playing OR when auto-TTS
-         * is enabled and there is a previous response available to replay.
+      <div className="relative z-wc-chrome shrink-0">
+        {/* TTS player bar — visible for active manual playback, or when
+         * auto-TTS is enabled and there is playback/replay context.
          *
          * When actively speaking, the bar shows live playback state (polled
          * at 100 ms).  When idle with a replayable event, it shows a
          * "stopped" state where the play button triggers a replay.
          *
-         * Uses isTtsSpeaking as the primary gate so the bar always appears
-         * the instant audio starts.  ttsPlayback is populated by polling;
-         * if the first poll hasn't fired yet we fall back to
-         * FALLBACK_TTS_PLAYBACK (see comment above the polling effect). */}
+         * Uses isTtsSpeaking plus controller context so the bar appears
+         * the instant eligible audio starts. ttsPlayback is
+         * populated by polling; if the first poll hasn't fired yet we
+         * fall back to FALLBACK_TTS_PLAYBACK (see comment above the
+         * polling effect). */}
         {(() => {
-          const isReplayMode = !isTtsSpeaking
-            && store.autoTtsEnabled
-            && lastTtsEventId != null
-            && store.activePane === lastTtsPaneId;
-          if (!isTtsSpeaking && !isReplayMode) return null;
-
           const pb = isTtsSpeaking
-            ? (ttsPlayback ?? FALLBACK_TTS_PLAYBACK)
-            : { ...FALLBACK_TTS_PLAYBACK, isPaused: true };
-
-          // Resolve the event to show context for — prefer the actively
-          // speaking event, fall back to the last-played event for replay.
-          const displayEventId = activeSpeakingEventId ?? lastTtsEventId;
-          const activeEvent = displayEventId && store.activePane
-            ? useConversationStore.getState().sessions[store.activePane]?.events.find((e) => e.id === displayEventId)
-            : undefined;
-          const hasOriginal = (activeEvent?.summarized ?? false) &&
-            (activeEvent?.originalSpeechParagraphs?.length ?? 0) > 0;
-          const canRequestSummarize = !!(activeEvent && !activeEvent.summarized && activeEvent.role === "assistant");
+            ? (ttsPlayback ?? fallbackTtsPlayback)
+            : { ...(ttsPlayback ?? fallbackTtsPlayback), isPaused: true };
+          const context = ttsPlaybackController.buildBarContext(
+            workspace.activePane,
+            workspace.autoTtsEnabled,
+            { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
+          );
+          if (!context?.event || !context.sessionId) return null;
+          const activeEvent = context.event;
+          const isReplayMode = !isTtsSpeaking;
+          const hasOriginal = (activeEvent.originalSpeechParagraphs?.length ?? 0) > 0;
+          const canRequestSummarize = activeEvent.role === "assistant";
+          const isPlayingSummarized = context.version === "active" && hasOriginal;
           return (
-            <AudioPlayerBar
+            ttsBarDismissed ? null : <AudioPlayerBar
               isPaused={pb.isPaused}
               currentTime={pb.currentTime}
               duration={pb.duration}
               playbackRate={pb.playbackRate}
               volume={pb.volume}
+              isMuted={pb.isMuted}
               capabilities={pb.capabilities}
-              isSummarized={activeEvent?.summarized ?? false}
+              backendReason={ttsBackendPreference === "auto" ? ttsBackendReason : undefined}
+              isSummarized={isPlayingSummarized}
               hasOriginalVersion={hasOriginal}
               canSummarize={canRequestSummarize}
-              isSummarizing={isSummarizing}
-              onPause={handleTtsPause}
+              isSummarizing={ttsPlaybackController.summarizingEventId === activeEvent.id}
+              isLoading={ttsPlaybackController.loadingEventId === activeEvent.id}
+              currentLevel={ttsPlaybackController.summarizeLevel}
+              currentMessageLabel={context.queueLabel}
+              currentMessageId={activeEvent.id}
+              messageSelectorEvents={conversationSessions[context.sessionId]?.events ?? []}
+              hasQueuedNext={context.hasQueuedNext}
+              hasQueuedPrevious={context.hasQueuedPrevious}
+              isExpanded={ttsBarExpanded}
+              onExpand={() => setTtsBarExpanded(true)}
+              onPreviousMessage={() => ttsPlaybackController.previousTrack(context.sessionId)}
+              onNextMessage={() => ttsPlaybackController.nextTrack(context.sessionId)}
+              onPause={() => {
+                ttsPlaybackController.pausePlayback(context.sessionId);
+                handleTtsPause();
+              }}
               onResume={isReplayMode ? () => {
-                // Replay the last TTS event
-                if (activeEvent && store.activePane) {
-                  const paragraphs = activeEvent.speechParagraphs?.length
-                    ? activeEvent.speechParagraphs
-                    : [activeEvent.text];
-                  speakTextOnPane(store.activePane, activeEvent.text, paragraphs, { eventId: activeEvent.id });
-                }
-              } : handleTtsResume}
+                ttsPlaybackController.resumePlayback(context.sessionId);
+              } : () => {
+                ttsPlaybackController.resumePlayback(context.sessionId);
+                handleTtsResume();
+              }}
               onSeek={handleTtsSeek}
               onSetPlaybackRate={handleTtsSetPlaybackRate}
               onSetVolume={handleTtsSetVolume}
-              onStop={isTtsSpeaking ? handleTtsStop : () => {
-                // In replay mode, stop dismisses the bar
-                setLastTtsEventId(null);
-                setLastTtsPaneId(null);
+              onSetMuted={handleTtsSetMuted}
+              onSelectMessage={(eventId) => {
+                ttsPlaybackController.playEvent(context.sessionId as string, eventId);
               }}
-              onToggleSummarized={hasOriginal && activeEvent && store.activePane ? (useSummarized) => {
-                const activePaneId = store.activePane;
-                if (!activePaneId) return;
-                const paragraphs = useSummarized
-                  ? activeEvent.speechParagraphs
-                  : (activeEvent.originalSpeechParagraphs ?? activeEvent.speechParagraphs);
-                speakTextOnPane(activePaneId, activeEvent.text, paragraphs, { eventId: activeEvent.id, version: useSummarized ? "active" : "original" });
+              onToggleSummarized={hasOriginal && activeEvent && workspace.activePane ? (useSummarized) => {
+                ttsPlaybackController.toggleVersion(context.sessionId as string, activeEvent.id, useSummarized);
               } : undefined}
-              onRequestSummarize={canRequestSummarize && activeEvent && store.activePane ? () => {
-                const sid = store.activePane;
-                if (!sid) return;
-                const eid = activeEvent.id;
-                setIsSummarizing(true);
-                void summarizeEvent(sid, eid).then((res) => {
-                  if (res.summarized && res.speechParagraphs) {
-                    // Update the conversation store with the summary
-                    const convState = useConversationStore.getState();
-                    const session = convState.sessions[sid];
-                    if (session) {
-                      const updatedEvents = session.events.map((ev) =>
-                        ev.id === eid
-                          ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs }
-                          : ev,
-                      );
-                      useConversationStore.setState({
-                        sessions: { ...convState.sessions, [sid]: { ...session, events: updatedEvents } },
-                      });
-                      // Replay with summarized version
-                      speakTextOnPane(sid, activeEvent.text, res.speechParagraphs, { eventId: eid, version: "active" });
-                    }
-                  }
-                }).finally(() => setIsSummarizing(false));
+              onChangeLevel={canRequestSummarize && activeEvent && workspace.activePane ? (level) => {
+                ttsPlaybackController.changeSummarizeLevel(context.sessionId as string, activeEvent.id, level);
               } : undefined}
+              onDismiss={() => {
+                setTtsBarDismissed(true);
+                setTtsBarExpanded(false);
+                requestAnimationFrame(() => {
+                  document.querySelector<HTMLElement>('[data-testid="tts-restore"]')?.focus();
+                });
+              }}
             />
           );
         })()}
-        {/* AI suggestion bar (mobile only) */}
-        {store.aiSuggestActive && (
-          <AiSuggestBar
-            inputText={mobileInputText}
-            onExecute={(cmd) => {
-              handleSendToTerminal(cmd);
-              mobileToolbarRef.current?.clearInput();
-              store.setAiSuggestActive(false);
-            }}
-            onClose={() => store.setAiSuggestActive(false)}
-          />
-        )}
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}
+          visible={needsTouchControls}
           onInput={handleSendToTerminal}
+          subscribeInputSettled={handleSubscribeInputSettled}
+          awaitOffset={handleAwaitInputOffset}
+          subscribePendingInput={handleSubscribePendingInput}
+          getPendingInputSnapshot={handleGetPendingInputSnapshot}
+          discardPendingInput={handleDiscardPendingInput}
+          discardAllPendingInput={handleDiscardAllPendingInput}
+          flushPendingInputNow={handleFlushPendingInputNow}
           onFocusTerminal={handleFocusTerminal}
-          activeSessionId={store.activePane}
-          voiceSupported={voiceInput.supported}
-          voicePreparing={voiceInput.isPreparing}
-          voiceRecording={voiceInput.isRecording}
-          voiceListening={voiceInput.isListening}
-          voiceTranscribing={voiceInput.isTranscribing}
-          voiceError={voiceInput.error}
-          voiceLevel={voiceInput.audioLevel}
-          voicePartialTranscript={voiceInput.partialTranscript}
-          voiceBackend={voiceInput.backend}
-          onVoiceStart={handleVoiceStart}
-          onVoiceStop={handleVoiceStop}
-          onVoiceCancel={handleVoiceCancel}
-          voiceCommandSuggestion={voiceInput.commandSuggestion}
-          onVoiceCommandConfirm={handleVoiceCommandConfirm}
-          onVoiceCommandDismiss={handleVoiceCommandDismiss}
+          activeSessionId={workspace.activePane}
+          draft={composerDraft}
+          onExpandComposer={openComposer}
+          voice={{
+            supported: voiceInput.supported,
+            preparing: voiceInput.isPreparing,
+            recording: voiceInput.isRecording,
+            persistentMode: workspace.persistentMode,
+            listening: voiceInput.isListening,
+            passive: voiceInput.isPassive,
+            transcribing: voiceInput.isTranscribing,
+            error: voiceInput.error,
+            level: voiceInput.audioLevel,
+            activity: voiceInput.voiceActivity,
+            partialTranscript: voiceInput.partialTranscript,
+            backend: voiceInput.backend,
+            capabilityReason: voiceInput.capabilityReason,
+            operatorCommand: voiceInput.operatorCommand,
+            onPrepare: voiceInput.prepareRecording,
+            onStart: handleVoiceStart,
+            onStop: handleVoiceStop,
+            onExitPassive: voiceInput.exitPassiveMode,
+            commandSuggestion: voiceInput.commandSuggestion,
+            onCommandConfirm: handleVoiceCommandConfirm,
+            onCommandDismiss: handleVoiceCommandDismiss,
+          }}
           onUploadImage={handleMobileUploadImage}
-          onOpenAi={() => store.setAiSuggestActive(!store.aiSuggestActive)}
-          onInputChange={setMobileInputText}
-          aiSuggestActive={store.aiSuggestActive}
+          onOpenAi={() => { workspace.setAiSuggestActive(!workspace.aiSuggestActive); }}
+          onAiSuggestExecute={(cmd) => {
+            handleSendToTerminal(cmd, "bulk_text");
+            mobileToolbarRef.current?.clearInput();
+            workspace.setAiSuggestActive(false);
+          }}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
-          viewMode={store.activePane ? (conversationViewModes[store.activePane] ?? "terminal") : "terminal"}
+          ttsDismissed={ttsBarDismissed}
+          onTtsRestore={() => {
+            setTtsBarDismissed(false);
+            setTtsBarExpanded(false);
+          }}
+          viewMode={activeViewMode}
           onSwitchToTerminal={handleSwitchToTerminal}
         />
         <input
           ref={mobileFileInputRef}
           type="file"
           accept="image/*"
+          multiple
           hidden
           onChange={handleMobileFileChange}
         />
       </div>
+
+      {/* Full-screen composer — a portaled DrawerShell overlay shared by mobile
+          (corner expand) and desktop (toolbar button + shortcut). It overlays
+          the pane, so the xterm terminal stays mounted and never reflows. */}
+      <FullScreenComposer
+        open={composerOpen}
+        onClose={closeComposer}
+        draft={composerDraft}
+        onInput={handleSendToTerminal}
+        subscribeInputSettled={handleSubscribeInputSettled}
+        awaitOffset={handleAwaitInputOffset}
+        onFocusTerminal={handleFocusTerminal}
+        interimTranscript={voiceInput.partialTranscript}
+        attachments={composerAttachments.attachments}
+        onAttachFiles={composerAttachments.addFiles}
+        onRemoveAttachment={composerAttachments.removeFile}
+        resolveAttachmentPaths={resolveComposerAttachmentPaths}
+        onClearAttachments={composerAttachments.clearAll}
+        mic={
+          <VoiceMicButton
+            testId="voice-mic-btn"
+            supported={voiceInput.supported}
+            isPreparing={voiceInput.isPreparing}
+            isRecording={voiceInput.isRecording}
+            persistentMode={workspace.persistentMode}
+            isListening={voiceInput.isListening}
+            isPassive={voiceInput.isPassive}
+            isTranscribing={voiceInput.isTranscribing}
+            error={voiceInput.error}
+            audioLevel={voiceInput.audioLevel}
+            voiceActivity={voiceInput.voiceActivity}
+            backend={voiceInput.backend}
+            onPrepare={voiceInput.prepareRecording}
+            onStart={handleVoiceStart}
+            onStop={handleVoiceStop}
+            onExitPassive={voiceInput.exitPassiveMode}
+            // In the composer the mic is a primary, high-frequency action, so
+            // give it a large tap target: the wrapper is a flex box that
+            // stretches to the row height (= send button height), the button
+            // fills it, min-width keeps it as wide as Send, and the icon is
+            // enlarged to suit the bigger button.
+            className="flex min-w-[5.5rem]"
+            buttonClassName="flex w-full items-center justify-center"
+            iconClassName="h-5 w-5"
+          />
+        }
+      />
 
       {/* Terminal Launcher */}
       <TerminalLauncher
@@ -1256,7 +2467,24 @@ export default function Workspace() {
         defaultBackend={defaultBackend}
         defaultPolicy={defaultPolicy}
         availableBackends={availableBackends}
+        availableTargets={availableTargets}
+        targetCatalog={targetCatalog}
+        targetsLoading={targetsLoading}
+        onRefreshTargets={refreshTargetCatalog}
+        onOpenMachines={openMachines}
+        onInstallCapability={installCapability}
+        groups={workspaceGroups}
+        pendingGroupId={launcherGroupId}
+        onDestinationChange={setLauncherGroupId}
+        onCreateGroup={createLauncherGroup}
+        appearance={launcherAppearance}
+        onCreateGroupFromRoles={createGroupFromRoles}
+        initialTarget={launcherInitialTarget}
+        onEditShortcuts={openShortcutSettings}
+        onEditTemplates={openTemplateSettings}
       />
+
+      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} onStartSession={openLauncherForMachine} onInstallCapability={installCapability} />
 
       {/* Settings Modal */}
       <SettingsModal
@@ -1267,16 +2495,98 @@ export default function Workspace() {
       {/* Appearance Modal */}
       <AppearanceModal />
 
-      {/* AI Modal */}
-      <AiInput onExecute={handleSendToTerminal} />
+      {/* Manage Groups drawer (opened from TabBar / SessionSidebar menus) */}
+      <ManageGroupsDrawer />
 
-      {/* Close confirmation dialog */}
-      <ConfirmCloseDialog
-        open={pendingClose !== null}
-        sessionName={store.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal"}
-        onConfirm={handleConfirmClose}
-        onCancel={handleCancelClose}
+      {/* Rendered once, here: both the sidebar and the tab strip open the
+          group menu, and a dialog owned by whichever one was clicked would
+          be two implementations of the same consequences. Closing a session
+          goes through the SAME handler the tab menu's Close uses, so it
+          archives rather than destroys and the archive drawer can reopen it. */}
+      <CloseGroupDialog onCloseGroup={closeGroup} onCloseSession={(sessionId) => { void handleRequestClose(sessionId); }} />
+
+      {/* Handoff: one generic verb, reachable from every surface that has a
+          payload worth moving. */}
+      <HandoffComposer
+        open={handoffState !== null}
+        onClose={() => { setHandoffState(null); }}
+        sourceLabel={handoffState?.sourceLabel ?? ""}
+        payload={handoffState?.payload ?? ""}
+        targets={handoffTargetSectionsForSource}
+        sourceSessionId={handoffState?.sourceSessionId}
+        initialSelection={handoffState?.initialSelection}
+        onSend={runHandoff}
       />
+
+      <GroupUndoBanner
+        onUndo={restoreClosedGroup}
+        onDismiss={dismissClosedGroupUndo}
+      />
+
+      {roleMenu && (
+        <RoleMenu
+          role={roleMenu.role}
+          position={roleMenu.position}
+          onStart={(role) => { setRoleMenu(null); startRoleFromSurface(role); }}
+          onRename={(role) => {
+            setRoleMenu(null);
+            const next = window.prompt(t(strings.roles.roleLabel), role.label);
+            if (next && next.trim()) updateRole(role.id, { label: next.trim() });
+          }}
+          onEditPrompt={(role) => {
+            setRoleMenu(null);
+            const next = window.prompt(t(strings.roles.roleIncomingPromptHint), role.incomingPrompt);
+            if (next !== null) updateRole(role.id, { incomingPrompt: next });
+          }}
+          onDelete={(role) => { setRoleMenu(null); removeRole(role.id); }}
+          onDismiss={() => { setRoleMenu(null); }}
+        />
+      )}
+
+      <ArchiveDrawer
+        open={archiveDrawerOpen}
+        initialSessionId={archiveInitialSessionId}
+        onClose={closeArchiveDrawer}
+        activeSessionId={workspace.activePane}
+        onSendToComposer={sendArchivedMessageToComposer}
+        onReopened={handleArchiveReopened}
+        preferOrphans={archivePreferOrphans}
+      />
+
+      {/* AI Modal */}
+      <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "bulk_text"); }} />
+
+      {/* Permanent deletion remains explicit and confirmation-backed. */}
+      <AlertDialog
+        open={pendingDelete !== null}
+        title={t(strings.confirmDelete.title)}
+        description={t(strings.confirmDelete.body, {
+          name: workspace.panes.find((p) => p.sessionId === pendingDelete)?.name ?? "terminal",
+        })}
+        cancelLabel={t(strings.confirmDelete.cancel)}
+        confirmLabel={t(strings.confirmDelete.confirm)}
+        destructive
+        onConfirm={handleConfirmDelete}
+        onCancel={() => { setPendingDelete(null); }}
+        testIdPrefix="confirm-delete-session"
+      />
+
+      {archiveUndo && (
+        <div
+          role="status"
+          data-testid="archive-undo-toast"
+          className="fixed bottom-4 start-1/2 z-wc-toast flex -translate-x-1/2 items-center gap-3 rounded-xl border border-wc-default bg-wc-panel px-4 py-3 text-sm text-wc-primary shadow-xl"
+        >
+          <span>{t(strings.archiveToast.archived, { name: archiveUndo.pane.name })}</span>
+          <button
+            type="button"
+            className="font-semibold text-wc-accent hover:underline"
+            onClick={() => void handleUndoArchive()}
+          >
+            {t(strings.archiveToast.undo)}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

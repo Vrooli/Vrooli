@@ -1,12 +1,31 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "landing-page-deploy-setup",
-  "name": "Landing Page Deploy Setup",
+  "createdAt": "2026-02-08T00:00:00Z",
   "description": "Prepare landing-page-business-suite for desktop artifact deployments by validating admin session, storage, app registry, remote profiles, and service auth prerequisites",
+  "entry": "SKILL.md",
+  "icon": "settings",
+  "id": "landing-page-deploy-setup",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Landing Page Deploy Setup",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "landing-page-business-suite",
     "desktop",
@@ -16,10 +35,5 @@
     "scenario-to-desktop",
     "scenario-to-cloud"
   ],
-  "icon": "settings",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 2,
-  "createdAt": "2026-02-08T00:00:00Z",
   "updatedAt": "2026-02-08T00:20:00Z"
 }

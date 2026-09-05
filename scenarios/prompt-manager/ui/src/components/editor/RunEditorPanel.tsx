@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { getRunDetails, type RunDetails } from '@/services/heartbeatService'
 import { selectors } from '@/constants/selectors'
 import { useIsCompactHeader } from '@/hooks/useMediaQuery'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import { DropdownItem, ToolbarDropdown } from './ToolbarDropdown'
 import { RunInfoTab } from './runTabs/RunInfoTab'
 import { RunEventsTab } from './runTabs/RunEventsTab'
@@ -97,15 +98,11 @@ export function RunEditorPanel({
   }, [isRunning, startedAt])
 
   // Keyboard shortcut: Escape to close
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
+  useGlobalKeydown((e) => {
+    if (e.key === 'Escape') {
+      onClose()
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  })
 
   const status = runDetails?.status ?? 'unknown'
   const title = runDetails?.tag || `Run ${runId.slice(0, 8)}`
@@ -237,4 +234,3 @@ export function RunEditorPanel({
     </div>
   )
 }
-

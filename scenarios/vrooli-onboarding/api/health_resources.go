@@ -21,7 +21,7 @@ func (s *Server) handleResourceHealth(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := operatorStateNow().UTC().Format(time.RFC3339)
 	statuses := make([]resourceHealthStatus, 0, len(resources))
 	healthy := 0
 

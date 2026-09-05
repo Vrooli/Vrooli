@@ -1,0 +1,37 @@
+{
+  "_metadata": {
+    "module": "scenario-boundary",
+    "description": "What Unit Health owns and explicitly does not own, and how it resolves a target scenario.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UH-BOUND-001",
+      "title": "Resolve a target scenario for test validation",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "ValidateScenario resolves a scenario by id or path and returns a degraded (non-passing) assessment when the target cannot be resolved or has no discoverable test surface, never a silent pass.",
+      "tags": ["boundary", "discovery", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Tests prove unknown scenario and empty scenario both yield explicit L0 findings, not a clean pass."}
+      ]
+    },
+    {
+      "id": "UH-BOUND-002",
+      "title": "Exclude shell, smoke, playbooks, and global maturity",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Unit Health does not perform shell syntax validation (Quality Health owns it), does not run smoke/playbooks/E2E (BAS owns them), and never reports final global scenario maturity (maturity-go owns it) — it emits only local maturity and semantic global impacts.",
+      "tags": ["boundary", "non-goals"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "No shell planning is produced; assessment exposes local maturity + global impacts but no overall scenario rung."}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:ApprovalPrompt",
+  "version": "1.0.12",
+  "resolvedAt": "2026-09-03T11:38:07.742Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Alert",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "major": 2,
+      "observed": "2.2.9",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ButtonGroup",
+      "major": 1,
+      "observed": "1.1.7",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StatusIndicator",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

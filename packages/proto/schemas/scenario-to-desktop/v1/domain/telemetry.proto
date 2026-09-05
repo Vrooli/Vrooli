@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+message TelemetryScenarioRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message IngestTelemetryRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional string deployment_mode = 2;
+  optional string source = 3;
+  repeated google.protobuf.Struct events = 4 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message IngestTelemetryResponse {
+  string output_path = 1;
+  int32 events_ingested = 2;
+}
+
+// Telemetry payloads contain application-defined event details. Struct keeps
+// the event schema forward-compatible while the service owns the operation,
+// scenario identity, and bounded tail semantics.
+message TelemetryPayloadResponse {
+  google.protobuf.Struct payload = 1;
+}
+
+message TelemetryTailRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional int32 limit = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1000
+  }];
+}
+
+// TelemetryDeleteResponse confirms that the scenario's telemetry stream was
+// removed. A typed acknowledgement keeps Connect parity with the former REST
+// response without making clients infer success from an empty message.
+message TelemetryDeleteResponse {
+  string scenario_name = 1;
+  bool deleted = 2;
+}
+
+service TelemetryService {
+  rpc IngestTelemetry(IngestTelemetryRequest) returns (IngestTelemetryResponse);
+  rpc GetTelemetrySummary(TelemetryScenarioRequest) returns (TelemetryPayloadResponse);
+  rpc GetTelemetryInsights(TelemetryScenarioRequest) returns (TelemetryPayloadResponse);
+  rpc GetTelemetryTail(TelemetryTailRequest) returns (TelemetryPayloadResponse);
+  rpc DeleteTelemetry(TelemetryScenarioRequest) returns (TelemetryDeleteResponse);
+}

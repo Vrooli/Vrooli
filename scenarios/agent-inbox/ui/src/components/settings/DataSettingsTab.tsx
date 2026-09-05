@@ -83,7 +83,7 @@ export function DataSettingsTab({
         <SettingsSection title="Quick Actions">
           <Button
             variant="secondary"
-            onClick={handleMarkAllAsRead}
+            onClick={() => { void handleMarkAllAsRead(); }}
             disabled={isMarkingAllAsRead}
             className="w-full justify-start gap-2"
             data-testid="mark-all-read-button"
@@ -135,7 +135,7 @@ export function DataSettingsTab({
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={handleClearArchived}
+                    onClick={() => { void handleClearArchived(); }}
                     disabled={isClearingArchived}
                     className="flex-1"
                     data-testid="confirm-clear-archived-settings-button"
@@ -203,7 +203,7 @@ export function DataSettingsTab({
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={handleDeleteAll}
+                  onClick={() => { void handleDeleteAll(); }}
                   disabled={deleteConfirmText !== "delete all" || isDeletingAll}
                   className="flex-1"
                   data-testid="confirm-delete-all-button"

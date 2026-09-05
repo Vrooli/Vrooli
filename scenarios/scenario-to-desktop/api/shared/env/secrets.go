@@ -1,10 +1,10 @@
 package env
 
 import (
-	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // SecretResolution describes where a secret value was resolved from.
@@ -14,73 +14,52 @@ type SecretResolution struct {
 	SourcePath string
 }
 
-// ResolveSecret resolves a secret using the standard order:
-// 1) environment variable, 2) nearest .vrooli/secrets.json, 3) empty string.
+// requireCredential is a narrow seam for the authority lookup. Keeping the
+// seam injectable makes the authority-first contract testable without
+// changing the production resolution path or touching the live credential
+// store.
+var requireCredential = func(identity credentialauthority.Identity, field string) (string, error) {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", err
+	}
+	return authority.Require(identity, field)
+}
+
+// processBackedSecrets are the credentials whose final consumer is an
+// external tool. Their descriptors intentionally retain an env field; all
+// other durable credentials must resolve from the authority.
+var processBackedSecrets = map[string]struct{}{
+	"CSC_KEY_PASSWORD":            {},
+	"APPLE_ID":                    {},
+	"APPLE_APP_SPECIFIC_PASSWORD": {},
+	"APPLE_API_KEY_FILE":          {},
+}
+
+// ResolveSecret reads a process-scoped value injected by the deployment host.
+// Durable credentials remain owned by the Vrooli control plane.
 func ResolveSecret(key string) string {
 	return ResolveSecretWithSource(key).Value
 }
 
-// ResolveSecretWithSource resolves a secret and reports where it came from.
 func ResolveSecretWithSource(key string) SecretResolution {
-	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-		return SecretResolution{
-			Value:  value,
-			Source: "env",
+	if key == "LPBS_SERVICE_SECRET" && os.Getenv("S2D_TEST_CREDENTIAL_FALLBACK") != "1" {
+		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
+		if err != nil {
+			return SecretResolution{Source: "invalid-identity"}
 		}
-	}
-
-	if file := findSecretsFile(); file != "" {
-		if value := readSecretFromJSON(file, key); value != "" {
-			return SecretResolution{
-				Value:      value,
-				Source:     "file",
-				SourcePath: file,
-			}
+		value, err := requireCredential(identity, "service-secret")
+		if err != nil {
+			return SecretResolution{Source: "authority-unavailable"}
 		}
+		return SecretResolution{Value: strings.TrimSpace(value), Source: "authority"}
 	}
-	return SecretResolution{
-		Source: "missing",
+	if _, allowed := processBackedSecrets[key]; !allowed && os.Getenv("S2D_TEST_CREDENTIAL_FALLBACK") != "1" {
+		return SecretResolution{Source: "missing"}
 	}
-}
-
-func findSecretsFile() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		candidate := filepath.Join(root, ".vrooli", "secrets.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return SecretResolution{Source: "missing"}
 	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	dir := cwd
-	for {
-		candidate := filepath.Join(dir, ".vrooli", "secrets.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
-
-func readSecretFromJSON(path, key string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return ""
-	}
-	if value, ok := raw[key].(string); ok {
-		return strings.TrimSpace(value)
-	}
-	return ""
+	return SecretResolution{Value: value, Source: "process"}
 }

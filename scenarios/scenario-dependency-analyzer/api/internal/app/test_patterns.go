@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestScenarioBuilder provides a fluent interface for building test scenarios
@@ -156,7 +156,8 @@ func (s *HandlerTestSuite) TestEdgeCases(cases map[string]struct {
 	Body           interface{}
 	ExpectedStatus int
 	Description    string
-}) {
+},
+) {
 	for name, tc := range cases {
 		s.T.Run(name, func(t *testing.T) {
 			recorder := makeHTTPRequest(t, s.Router, tc.Method, tc.Path, tc.Body)

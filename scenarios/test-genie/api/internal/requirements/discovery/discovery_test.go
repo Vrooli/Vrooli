@@ -60,7 +60,7 @@ type memFileInfo struct {
 
 func (f *memFileInfo) Name() string       { return f.name }
 func (f *memFileInfo) Size() int64        { return 0 }
-func (f *memFileInfo) Mode() fs.FileMode  { return 0644 }
+func (f *memFileInfo) Mode() fs.FileMode  { return 0o644 }
 func (f *memFileInfo) ModTime() time.Time { return time.Time{} }
 func (f *memFileInfo) IsDir() bool        { return f.isDir }
 func (f *memFileInfo) Sys() any           { return nil }
@@ -98,7 +98,6 @@ func TestDiscoverer_Discover_EmptyRequirementsDir(t *testing.T) {
 	discoverer := New(reader)
 
 	files, err := discoverer.Discover(context.Background(), "/test/scenario")
-
 	// No index.json, so it falls back to scanning - should find no files
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -126,7 +125,6 @@ func TestDiscoverer_Discover_WithIndex(t *testing.T) {
 
 	discoverer := New(reader)
 	files, err := discoverer.Discover(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -162,7 +160,6 @@ func TestDiscoverer_Discover_NestedImports(t *testing.T) {
 
 	discoverer := New(reader)
 	files, err := discoverer.Discover(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -181,7 +178,6 @@ func TestDiscoverer_Discover_MissingImport(t *testing.T) {
 
 	discoverer := New(reader)
 	files, err := discoverer.Discover(context.Background(), "/test/scenario")
-
 	// Missing imports are logged but don't fail
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -236,25 +232,24 @@ func TestDiscoverer_Integration(t *testing.T) {
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 	moduleDir := filepath.Join(requirementsDir, "01-core")
 
-	if err := os.MkdirAll(moduleDir, 0755); err != nil {
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
 		t.Fatalf("create dirs: %v", err)
 	}
 
 	// Write index.json
 	indexData := []byte(`{"imports": ["01-core/module.json"]}`)
-	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0o644); err != nil {
 		t.Fatalf("write index: %v", err)
 	}
 
 	// Write module.json
 	moduleData := []byte(`{"_metadata": {"module": "core"}, "requirements": [{"id": "REQ-001"}]}`)
-	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0o644); err != nil {
 		t.Fatalf("write module: %v", err)
 	}
 
 	discoverer := NewDefault()
 	files, err := discoverer.Discover(context.Background(), scenarioDir)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -322,7 +317,6 @@ func TestScanner_ScanRecursive(t *testing.T) {
 
 	scanner := NewScanner(reader)
 	files, err := scanner.ScanRecursive(context.Background(), "/requirements")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -353,7 +347,6 @@ func TestScanner_ScanRecursive_SkipsHiddenAndSpecialDirs(t *testing.T) {
 
 	scanner := NewScanner(reader)
 	files, err := scanner.ScanRecursive(context.Background(), "/requirements")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -391,7 +384,6 @@ func TestScanner_ScanImmediate(t *testing.T) {
 
 	scanner := NewScanner(reader)
 	files, err := scanner.ScanImmediate(context.Background(), "/requirements")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -430,7 +422,6 @@ func TestScanner_FindModules(t *testing.T) {
 
 	scanner := NewScanner(reader)
 	modules, err := scanner.FindModules(context.Background(), "/requirements")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -662,7 +653,6 @@ func TestDiscoverWithScanner(t *testing.T) {
 	reader.files["/requirements/module.json"] = []byte(`{}`)
 
 	files, err := DiscoverWithScanner(context.Background(), reader, "/requirements")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -699,7 +689,6 @@ func TestDiscoverer_Discover_CircularImports(t *testing.T) {
 
 	discoverer := New(reader)
 	files, err := discoverer.Discover(context.Background(), "/test/scenario")
-
 	// Should not error - circular imports are handled via visited map
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -722,7 +711,6 @@ func TestDiscoverer_Discover_FallbackScanWithSubdirs(t *testing.T) {
 
 	discoverer := New(reader)
 	files, err := discoverer.Discover(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

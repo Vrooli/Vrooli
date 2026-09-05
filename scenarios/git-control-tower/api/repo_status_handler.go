@@ -21,6 +21,7 @@ func (s *Server) handleRepoStatus(w http.ResponseWriter, r *http.Request) {
 		Git:             hctx.Git,
 		RepoDir:         hctx.RepoDir,
 		ConfigCache:     s.configCache,
+		StatusCache:     s.statusCache,
 		IncludeHotspots: includeHotspots,
 	})
 	if err != nil {
@@ -45,11 +46,13 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	history, err := GetRepoHistory(hctx.Ctx, RepoHistoryDeps{
-		Git:          hctx.Git,
-		RepoDir:      hctx.RepoDir,
-		Limit:        params.limit,
-		IncludeFiles: params.includeFiles,
-		GrepPattern:  params.grepPattern,
+		Git:           hctx.Git,
+		RepoDir:       hctx.RepoDir,
+		Limit:         params.limit,
+		IncludeFiles:  params.includeFiles,
+		IncludeChecks: params.includeChecks,
+		CommitChecks:  s.commitChecks,
+		GrepPattern:   params.grepPattern,
 	})
 	if err != nil {
 		hctx.Resp.InternalError(err.Error())
@@ -61,16 +64,24 @@ func (s *Server) handleRepoHistory(w http.ResponseWriter, r *http.Request) {
 
 // historyParams holds parsed and validated query parameters for the history endpoint.
 type historyParams struct {
-	limit        int
-	includeFiles bool
-	grepPattern  string
+	limit         int
+	includeFiles  bool
+	includeChecks bool
+	grepPattern   string
 }
 
 // parseHistoryParams extracts and validates query parameters for handleRepoHistory.
 func parseHistoryParams(r *http.Request) (historyParams, error) {
 	p := historyParams{limit: 30}
 	includeParam := strings.TrimSpace(r.URL.Query().Get("include"))
-	p.includeFiles = includeParam == "files" || includeParam == "details"
+	for _, token := range strings.Split(includeParam, ",") {
+		switch strings.TrimSpace(token) {
+		case "files", "details":
+			p.includeFiles = true
+		case "checks":
+			p.includeChecks = true
+		}
+	}
 	p.grepPattern = strings.TrimSpace(r.URL.Query().Get("grep"))
 
 	if strings.ContainsAny(p.grepPattern, "\x00\n\r") {

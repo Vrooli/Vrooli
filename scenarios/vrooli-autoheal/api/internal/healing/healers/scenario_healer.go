@@ -6,8 +6,8 @@ import (
 	"context"
 	"strings"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/healing/strategies"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
 )
 
 // ScenarioHealer provides healing actions for Vrooli scenarios.
@@ -38,18 +38,12 @@ func (h *ScenarioHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 	isStopped := false
 
 	if lastResult != nil {
-		output, ok := lastResult.Details["output"].(string)
-		if ok {
-			lowerOutput := strings.ToLower(output)
-			// Check negative patterns first
-			if strings.Contains(lowerOutput, "not running") ||
-				strings.Contains(lowerOutput, "stopped") ||
-				strings.Contains(lowerOutput, "exited") {
-				isStopped = true
-			} else if strings.Contains(lowerOutput, "running") ||
-				strings.Contains(lowerOutput, "healthy") ||
-				strings.Contains(lowerOutput, "started") {
+		if scenarioStatus, ok := lastResult.Details["scenarioStatus"].(string); ok {
+			switch strings.ToLower(strings.TrimSpace(scenarioStatus)) {
+			case "running":
 				isRunning = true
+			case "stopped", "exited":
+				isStopped = true
 			}
 		}
 		if lastResult.Status == checks.StatusOK {

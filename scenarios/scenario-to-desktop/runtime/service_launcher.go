@@ -14,10 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/strutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )
 
 // =============================================================================
@@ -220,6 +222,14 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 	if err != nil {
 		return nil, err
 	}
+	if s.resourceServer != nil {
+		for key, value := range s.resourceServer.Environment() {
+			if existing, exists := envMap[key]; exists && existing != value {
+				return nil, fmt.Errorf("shared managed resource environment conflicts with service %s variable %s", svc.ID, key)
+			}
+			envMap[key] = value
+		}
+	}
 
 	if err := s.applySecrets(envMap, svc); err != nil {
 		return nil, err
@@ -320,7 +330,10 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}
 
 	handler := s.buildUIHandler(svc, serveRoot)
-	server := &http.Server{Handler: handler}
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	serverCtx, cancel := context.WithCancel(ctx)
 
 	svcProc := &serviceProcess{
@@ -338,7 +351,7 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}()
 	go func() {
 		<-serverCtx.Done()
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(serverCtx), 3*time.Second)
 		defer shutdownCancel()
 		_ = server.Shutdown(shutdownCtx)
 	}()
@@ -501,7 +514,7 @@ func (s *Supervisor) stopServices(ctx context.Context) {
 
 // gracefulStop attempts graceful shutdown, then forceful kill.
 func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
-	_ = proc.proc.Signal(Interrupt)
+	_ = infra.StopProcess(proc.proc)
 
 	waitCh := make(chan error, 1)
 	go func() { waitCh <- proc.proc.Wait() }()
@@ -579,8 +592,41 @@ func (s *Supervisor) startServicesAsync() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		// Every service that needed a secret materialized on disk has been
+		// launched by the time this returns, success or failure, so the files
+		// have no purpose left. They are removed on the failure path too: a
+		// half-started bundle is exactly when a stray credential would sit
+		// around unnoticed.
+		defer func() {
+			if err := s.discardMaterializedSecrets(); err != nil {
+				_ = s.recordTelemetry("secret_cleanup_failed", map[string]interface{}{"error": err.Error()})
+			}
+		}()
 		if err := s.launchServices(ctx); err != nil {
 			_ = s.recordTelemetry("runtime_error", map[string]interface{}{"error": err.Error()})
 		}
 	}()
+}
+
+// startBundledResources launches only the app-private server artifacts that
+// were selected and verified by the immutable resource deployment plan. These
+// processes are intentionally separate from manifest services: they have no
+// user-facing launcher entry and cannot be replaced by host discovery.
+func (s *Supervisor) startBundledResources(ctx context.Context) error {
+	if s.resourcePlan == nil || s.opts.DryRun {
+		return nil
+	}
+	supervisor := resourceplan.NewServiceSupervisor(s.opts.BundlePath, s.appData, s.opts.SharedResourceResolver)
+	if err := supervisor.Start(ctx, s.resourcePlan); err != nil {
+		return fmt.Errorf("start bundled managed resources: %w", err)
+	}
+	s.resourceServer = supervisor
+	for resource, status := range supervisor.Statuses() {
+		_ = s.recordTelemetry("managed_resource_start", map[string]interface{}{
+			"resource": resource,
+			"pid":      status.PID,
+			"log_path": status.LogPath,
+		})
+	}
+	return nil
 }

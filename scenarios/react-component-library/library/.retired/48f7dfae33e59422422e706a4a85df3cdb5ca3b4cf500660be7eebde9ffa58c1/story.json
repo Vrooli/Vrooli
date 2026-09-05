@@ -1,0 +1,80 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ToggleMorphingIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Sent",
+          "role": "img"
+        }
+      ],
+      "id": "toggle",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Send message",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Sent"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive state change",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CopyMorphingIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Copied",
+          "role": "button"
+        }
+      ],
+      "id": "copy-button",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Copy value",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "Copied"
+        }
+      ],
+      "mode": "live",
+      "name": "Copy to success",
+      "role": "boundary"
+    }
+  ],
+  "title": "MorphingIcon"
+}

@@ -1,0 +1,514 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "landing-page-business-suite",
+  "generator": "v1.0.0",
+  "manifest_hash": "6bdf18a9f5c74cee1b3ba38a650f897101b329a9008caa1aeee4708698da104b",
+  "commands": [
+    {
+      "path": "legacy admin-bundle-price-update",
+      "group": "legacy",
+      "command": "admin-bundle-price-update",
+      "binding": "BundleAdminService.UpdateBundlePrice",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-bundles",
+      "group": "legacy",
+      "command": "admin-bundles",
+      "binding": "BundleAdminService.ListBundleCatalog",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupon-mappings",
+      "group": "legacy",
+      "command": "admin-coupon-mappings",
+      "binding": "CouponAdminService.GetCouponMappings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupons-create",
+      "group": "legacy",
+      "command": "admin-coupons-create",
+      "binding": "CouponAdminService.CreateCoupon",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-coupons-delete",
+      "group": "legacy",
+      "command": "admin-coupons-delete",
+      "binding": "CouponAdminService.DeleteCoupon",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-coupons-get",
+      "group": "legacy",
+      "command": "admin-coupons-get",
+      "binding": "CouponAdminService.GetCoupon",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupons-list",
+      "group": "legacy",
+      "command": "admin-coupons-list",
+      "binding": "CouponAdminService.ListCoupons",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupons-update",
+      "group": "legacy",
+      "command": "admin-coupons-update",
+      "binding": "CouponAdminService.UpdateCoupon",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-coupons-usage",
+      "group": "legacy",
+      "command": "admin-coupons-usage",
+      "binding": "CouponAdminService.ListCouponUsage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-download-apps-delete",
+      "group": "legacy",
+      "command": "admin-download-apps-delete",
+      "binding": "DownloadService.DeleteDownloadApp",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-feedback-bulk-delete",
+      "group": "legacy",
+      "command": "admin-feedback-bulk-delete",
+      "binding": "FeedbackService.DeleteFeedbackBulk",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-delete",
+      "group": "legacy",
+      "command": "admin-feedback-delete",
+      "binding": "FeedbackService.DeleteFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-get",
+      "group": "legacy",
+      "command": "admin-feedback-get",
+      "binding": "FeedbackService.GetFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-list",
+      "group": "legacy",
+      "command": "admin-feedback-list",
+      "binding": "FeedbackService.ListFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-status-update",
+      "group": "legacy",
+      "command": "admin-feedback-status-update",
+      "binding": "FeedbackService.UpdateFeedbackStatus",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-plan-coupon-remove",
+      "group": "legacy",
+      "command": "admin-plan-coupon-remove",
+      "binding": "CouponAdminService.RemoveCouponFromPlan",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-plan-coupon-set",
+      "group": "legacy",
+      "command": "admin-plan-coupon-set",
+      "binding": "CouponAdminService.SetCouponForPlan",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-stripe-coupons-preview",
+      "group": "legacy",
+      "command": "admin-stripe-coupons-preview",
+      "binding": "CouponAdminService.GetCouponImportPreview",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-stripe-secret",
+      "group": "legacy",
+      "command": "admin-stripe-secret",
+      "binding": "StripeSettingsService.RevealStripeSecret",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "legacy admin-stripe-settings",
+      "group": "legacy",
+      "command": "admin-stripe-settings",
+      "binding": "StripeSettingsService.GetStripeSettings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-stripe-settings-update",
+      "group": "legacy",
+      "command": "admin-stripe-settings-update",
+      "binding": "StripeSettingsService.UpdateStripeSettings",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-variant-seo-update",
+      "group": "legacy",
+      "command": "admin-variant-seo-update",
+      "binding": "SeoService.UpdateVariantSEO",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-waitlist-delete",
+      "group": "legacy",
+      "command": "admin-waitlist-delete",
+      "binding": "WaitlistService.DeleteWaitlistEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-waitlist-export",
+      "group": "legacy",
+      "command": "admin-waitlist-export",
+      "binding": "WaitlistService.ExportWaitlistEntries",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-waitlist-list",
+      "group": "legacy",
+      "command": "admin-waitlist-list",
+      "binding": "WaitlistService.ListWaitlistEntries",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy ai-chat",
+      "group": "legacy",
+      "command": "ai-chat",
+      "binding": "IntelligenceService.Chat",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy ai-health",
+      "group": "legacy",
+      "command": "ai-health",
+      "binding": "IntelligenceService.Health",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy ai-models",
+      "group": "legacy",
+      "command": "ai-models",
+      "binding": "IntelligenceService.ListModels",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy ai-usage",
+      "group": "legacy",
+      "command": "ai-usage",
+      "binding": "IntelligenceService.GetUsage",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy feedback-create",
+      "group": "legacy",
+      "command": "feedback-create",
+      "binding": "FeedbackService.CreateFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy landing-config",
+      "group": "legacy",
+      "command": "landing-config",
+      "binding": "LandingConfigService.GetLandingConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy metrics-summary",
+      "group": "legacy",
+      "command": "metrics-summary",
+      "binding": "MetricsService.GetAnalyticsSummary",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy metrics-track",
+      "group": "legacy",
+      "command": "metrics-track",
+      "binding": "MetricsService.TrackEvent",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy metrics-variants",
+      "group": "legacy",
+      "command": "metrics-variants",
+      "binding": "MetricsService.GetVariantStats",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy seo",
+      "group": "legacy",
+      "command": "seo",
+      "binding": "SeoService.GetVariantSEO",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy variant-space",
+      "group": "legacy",
+      "command": "variant-space",
+      "binding": "VariantSpaceService.GetVariantSpace",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy waitlist-create",
+      "group": "legacy",
+      "command": "waitlist-create",
+      "binding": "WaitlistService.CreateWaitlistEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "measures measures-admin-sessions-created",
+      "group": "measures",
+      "command": "measures-admin-sessions-created",
+      "binding": "MeasuresService.CountAdminSessionsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-admin-users-created",
+      "group": "measures",
+      "command": "measures-admin-users-created",
+      "binding": "MeasuresService.CountAdminUsersCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-api-keys-created",
+      "group": "measures",
+      "command": "measures-api-keys-created",
+      "binding": "MeasuresService.CountAPIKeysCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-assets-created",
+      "group": "measures",
+      "command": "measures-assets-created",
+      "binding": "MeasuresService.CountAssetsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-auth-tokens-created",
+      "group": "measures",
+      "command": "measures-auth-tokens-created",
+      "binding": "MeasuresService.CountAuthTokensCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-bundle-prices-created",
+      "group": "measures",
+      "command": "measures-bundle-prices-created",
+      "binding": "MeasuresService.CountBundlePricesCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-bundle-products-created",
+      "group": "measures",
+      "command": "measures-bundle-products-created",
+      "binding": "MeasuresService.CountBundleProductsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-checkout-sessions-created",
+      "group": "measures",
+      "command": "measures-checkout-sessions-created",
+      "binding": "MeasuresService.CountCheckoutSessionsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-credit-reservations-created",
+      "group": "measures",
+      "command": "measures-credit-reservations-created",
+      "binding": "MeasuresService.CountCreditReservationsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-credit-transactions-created",
+      "group": "measures",
+      "command": "measures-credit-transactions-created",
+      "binding": "MeasuresService.CountCreditTransactionsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-download-apps-created",
+      "group": "measures",
+      "command": "measures-download-apps-created",
+      "binding": "MeasuresService.CountDownloadAppsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-download-artifacts-created",
+      "group": "measures",
+      "command": "measures-download-artifacts-created",
+      "binding": "MeasuresService.CountDownloadArtifactsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-download-assets-created",
+      "group": "measures",
+      "command": "measures-download-assets-created",
+      "binding": "MeasuresService.CountDownloadAssetsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-download-storage-settings-created",
+      "group": "measures",
+      "command": "measures-download-storage-settings-created",
+      "binding": "MeasuresService.CountDownloadStorageSettingsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-feedback-requests-created",
+      "group": "measures",
+      "command": "measures-feedback-requests-created",
+      "binding": "MeasuresService.CountFeedbackRequestsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-intro-coupon-usage-created",
+      "group": "measures",
+      "command": "measures-intro-coupon-usage-created",
+      "binding": "MeasuresService.CountIntroCouponUsageCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-metrics-events-created",
+      "group": "measures",
+      "command": "measures-metrics-events-created",
+      "binding": "MeasuresService.CountMetricsEventsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-payment-anomalies-created",
+      "group": "measures",
+      "command": "measures-payment-anomalies-created",
+      "binding": "MeasuresService.CountPaymentAnomaliesCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-remote-profiles-created",
+      "group": "measures",
+      "command": "measures-remote-profiles-created",
+      "binding": "MeasuresService.CountRemoteProfilesCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-subscription-schedules-created",
+      "group": "measures",
+      "command": "measures-subscription-schedules-created",
+      "binding": "MeasuresService.CountSubscriptionSchedulesCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-subscription-tier-limits-created",
+      "group": "measures",
+      "command": "measures-subscription-tier-limits-created",
+      "binding": "MeasuresService.CountSubscriptionTierLimitsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-subscriptions-created",
+      "group": "measures",
+      "command": "measures-subscriptions-created",
+      "binding": "MeasuresService.CountSubscriptionsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-usage-records-created",
+      "group": "measures",
+      "command": "measures-usage-records-created",
+      "binding": "MeasuresService.CountUsageRecordsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-user-sessions-created",
+      "group": "measures",
+      "command": "measures-user-sessions-created",
+      "binding": "MeasuresService.CountUserSessionsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-users-created",
+      "group": "measures",
+      "command": "measures-users-created",
+      "binding": "MeasuresService.CountUsersCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures measures-waitlist-emails-created",
+      "group": "measures",
+      "command": "measures-waitlist-emails-created",
+      "binding": "MeasuresService.CountWaitlistEmailsCreated",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

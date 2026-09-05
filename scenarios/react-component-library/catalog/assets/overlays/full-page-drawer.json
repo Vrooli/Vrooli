@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.full-page-drawer",
+    "name": "FullPageDrawer",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.drawer",
+        "reason": "Lifecycle, focus, and dismissal are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "safe-area-respected",
+    "viewport-fill"
+  ]
+}

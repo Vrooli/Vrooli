@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "experience-metrics",
+    "description": "Navigate to the metrics experience page so its active experience specification has a browser automation evidence seam.",
+    "requirement": "UX-EXPERIENCE-METRICS",
+    "version": "1",
+    "labels": {"spec_entry_id": "metrics", "reset": "none", "purpose": "experience-contract"},
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {
+      "id": "navigate-metrics",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tunnel-manager",
+          "scenario_path": "/metrics",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Navigate to metrics"}
+      }
+    },
+    {
+      "id": "wait-metrics-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.metrics",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Wait for the metrics surface"}
+      }
+    },
+    {
+      "id": "assert-metrics-page",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.metrics",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Metrics did not render its bound page surface"
+        },
+        "metadata": {"label": "Assert metrics surface is visible"}
+      }
+    },
+    {
+      "id": "assert-metrics-results-lifecycle",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface=\"metrics-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"metrics-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"metrics-results\"][data-experience-state=\"partial\"]",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Metrics results did not expose its async lifecycle surface"
+        },
+        "metadata": {"label": "Assert metrics results lifecycle"}
+      }
+    }
+  ]
+}

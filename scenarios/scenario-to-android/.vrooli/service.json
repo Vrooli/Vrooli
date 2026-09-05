@@ -1,48 +1,74 @@
 {
-  "service": {
-    "name": "scenario-to-android",
-    "displayName": "Scenario To Android",
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "deployment",
-    "tags": [],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-to-android"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    },
-    "description": "Transform Vrooli scenarios into native Android applications with full device capabilities",
-    "version": "1.0.0"
-  },
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "scenario-to-android",
+    "displayName": "Scenario to Android",
+    "description": "Turn any Vrooli scenario into a distributable Android application with evidence-backed validation on emulators and physical devices.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-11T02:42:44Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "bc3fa68a1c296246e175f9617f42f2f19794b7638c8767eb83c57fc5f0d0eef2"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-android",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-android"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "range": "15000-19999",
-      "description": "Android build API server port"
+      "description": "Go API server",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999",
-      "description": "Android build UI server port"
+      "description": "React UI",
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
+    "version": "2.0.0",
     "health": {
-      "description": "Scenario to Android health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -53,170 +79,134 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
-          "timeout": 5000,
+          "timeout": 10000,
           "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize scenario-to-android",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-android-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-android",
-            "targets": [
-              "scenario-to-android"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o scenario-to-android-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start scenario-to-android services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-android-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-android-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-to-android-api\" || true; sleep 1; pkill -9 -f \"scenario-to-android-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/scenario-to-android/ui\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-android/ui\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-to-android",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-to-android --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
+      "startup_grace_period": 15000
     }
   },
   "dependencies": {
     "resources": {
-      "required": [
-        {
-          "name": "ollama",
-          "purpose": "AI-powered code generation for Android app templates and build scripts",
-          "models": [
-            "llama3.2"
-          ]
-        }
-      ],
-      "optional": [
-        {
-          "name": "minio",
-          "purpose": "Store generated APKs and build artifacts",
-          "fallback": "Local filesystem storage"
-        },
-        {
-          "name": "redis",
-          "purpose": "Cache build configurations and templates",
-          "fallback": "Rebuild from scratch each time"
-        },
-        {
-          "name": "postgres",
-          "purpose": "Track build history and app metadata",
-          "fallback": "JSON file storage"
-        }
-      ]
+      "android-sdk": {
+        "required": true,
+        "purpose": "Governed Android SDK, platform-tools, emulator, system images, and AVD lifecycle for mobile validation.",
+        "startup_policy": "must_start"
+      }
+    },
+    "scenarios": {
+      "device-control": {
+        "purpose": "Every device verb — install, launch, input, permission control, screenshot, screen recording — under a held lease. This ramp implements no device driving of its own.",
+        "required": true,
+        "degraded_behavior": "Journey cells report unavailable naming device-control as the missing capability. The ramp never falls back to driving adb directly, because that would bypass leases and audit.",
+        "startup_policy": "must_start"
+      },
+      "vrooli-bridge": {
+        "purpose": "Device and node reach plane: fleet registry, per-node scopes, allowlisted dispatch, and durable runs for remote Android targets.",
+        "required": true,
+        "degraded_behavior": "Remote targets report unavailable carrying the reach reason and are never silently omitted from inventory. The local emulator target remains usable.",
+        "startup_policy": "must_start"
+      },
+      "deployment-manager": {
+        "purpose": "Consumes this ramp's reference-only common.v1.TargetVerdict and owns the cross-ramp release gate.",
+        "required": true,
+        "degraded_behavior": "The local gate still computes and evidence is retained; verdict emission retries. Evidence is never discarded because the consumer is down.",
+        "startup_policy": "must_start"
+      },
+      "browser-automation-studio": {
+        "purpose": "Executes a scenario's own named web-content flows against the generated app's WebView, so an author writes a flow once and it replays on Android unchanged.",
+        "required": true,
+        "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing.",
+        "startup_policy": "must_start"
+      },
+      "backdrop-studio": {
+        "purpose": "Provides the typed backdrop composition contract used by the Android journey adapter for scenario-owned web-content flows.",
+        "required": true,
+        "degraded_behavior": "Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client.",
+        "startup_policy": "must_start"
+      },
+      "secrets-manager": {
+        "purpose": "Holds the upload signing key by reference so no key material exists in this repository, in a generated project, or in evidence.",
+        "required": true,
+        "degraded_behavior": "Builds requiring a signed artifact report unavailable naming the signing rung. The ramp never generates an ad-hoc local key as a fallback.",
+        "startup_policy": "must_start"
+      },
+      "hello-mobile": {
+        "purpose": "Conformance fixture. The ramp must be provable end to end without depending on any product scenario's correctness.",
+        "required": false,
+        "degraded_behavior": "The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected.",
+        "startup_policy": "try_start"
+      },
+      "scenario-to-desktop": {
+        "purpose": "Compile-time shared target-verdict domain contract used by the release matrix; the Android ramp does not call the desktop scenario at runtime.",
+        "required": false,
+        "degraded_behavior": "The local release matrix cannot compile until the shared desktop-domain package is available; no desktop process is required at runtime.",
+        "startup_policy": "try_start"
+      }
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+  "environment": {},
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "keystore-base64",
+        "label": "Android upload keystore",
+        "description": "Base64 PKCS12 upload keystore held by the credential authority; resolved only in memory during signing.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "password",
+        "label": "Android upload keystore password",
+        "description": "Upload keystore password held by the credential authority.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "alias",
+        "label": "Android upload key alias",
+        "description": "Alias of the upload key inside the credential-authority-held keystore.",
+        "required": false
+      }
+    ]
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
 }

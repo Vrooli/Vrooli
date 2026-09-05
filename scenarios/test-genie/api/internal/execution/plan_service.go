@@ -4,18 +4,17 @@ import (
 	"context"
 	"math"
 	"sort"
-	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/applicability"
+	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/profileplanner"
 )
 
 const (
-	planHistoryWindow         = 90 * 24 * time.Hour
-	maxHistoryRows            = 2000
-	maxScenarioSamplesPerPhase = 20
-	maxGlobalSamplesPerPhase   = 50
-	primaryScenarioSamples     = 5
+	planHistoryWindow = 90 * 24 * time.Hour
+	maxHistoryRows    = 2000
 )
 
 // ExecutionPlanner exposes scenario-aware plan previews for API/UI/CLI surfaces.
@@ -28,7 +27,8 @@ type executionPlanBuilder interface {
 }
 
 type phaseSampleReader interface {
-	ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error)
+	ListPhaseSamples(ctx context.Context, scenario string, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error)
+	ListPlanSamples(ctx context.Context, scenario string, since time.Time, limit int) ([]PlanDurationSample, error)
 }
 
 // ExecutionPlanService builds scenario-aware phase plans enriched with historical estimates.
@@ -48,20 +48,22 @@ func NewExecutionPlanService(builder executionPlanBuilder, samples phaseSampleRe
 
 // Preview returns the actual selected phase plan plus timing guidance.
 func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*ExecutionPlanPreview, error) {
-	basePlan, err := s.builder.PreviewExecution(req)
+	basePlan, err := s.previewBasePlan(req)
 	if err != nil {
 		return nil, err
 	}
 
 	preview := &ExecutionPlanPreview{
-		ScenarioName: basePlan.ScenarioName,
-		PresetUsed:   basePlan.PresetUsed,
-		Warnings:     append([]string(nil), basePlan.Warnings...),
-		Phases:       make([]PlannedPhase, 0, len(basePlan.Phases)),
-	}
-
-	if len(basePlan.Phases) == 0 {
-		return preview, nil
+		ScenarioName:             basePlan.ScenarioName,
+		TargetKind:               basePlan.TargetKind,
+		TargetID:                 basePlan.TargetID,
+		PresetUsed:               basePlan.PresetUsed,
+		Warnings:                 append([]string(nil), basePlan.Warnings...),
+		PhaseSetDigest:           basePlan.PhaseSetDigest,
+		DescriptorSnapshotDigest: basePlan.DescriptorSnapshotDigest,
+		ConfigurationFingerprint: basePlan.ConfigurationFingerprint,
+		Phases:                   make([]PlannedPhase, 0, len(basePlan.Phases)),
+		NotApplicablePhases:      make([]PlannedPhase, 0, len(basePlan.NotApplicablePhases)),
 	}
 
 	phaseNames := make([]string, 0, len(basePlan.Phases))
@@ -70,176 +72,296 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 	}
 
 	since := s.now().UTC().Add(-planHistoryWindow)
-	phaseSamples, err := s.samples.ListPhaseSamples(ctx, phaseNames, since, maxHistoryRows)
-	if err != nil {
-		return nil, err
+	var phaseSamples []PhaseDurationSample
+	if len(phaseNames) > 0 {
+		var err error
+		phaseSamples, err = s.samples.ListPhaseSamples(ctx, basePlan.ScenarioName, phaseNames, since, maxHistoryRows)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	scenarioBuckets, globalBuckets := bucketPhaseSamples(basePlan.ScenarioName, phaseSamples)
+	estimator := profileplanner.NewEstimator(basePlan.ScenarioName, plannerSamples(phaseSamples))
+
+	if profile, ok := adaptiveProfileForRequest(req, basePlan.PresetUsed); ok {
+		profilePlan := profileplanner.PlanProfile(profile, plannerCandidates(basePlan.Phases), estimator)
+		preview.PresetUsed = profilePlan.Profile.Name
+		preview.Profile = &ProfilePlan{
+			Name:          profilePlan.Profile.Name,
+			Strategy:      string(profilePlan.Profile.Strategy),
+			BudgetSeconds: profilePlan.Profile.BudgetSeconds,
+		}
+		preview.Summary.BudgetSeconds = profilePlan.Profile.BudgetSeconds
+		preview.Summary.UnknownEstimateCount = profilePlan.UnknownEstimateCount
+		preview.Summary.RequiredEstimatedDurationSeconds = profilePlan.RequiredEstimatedTotalSeconds
+		preview.Summary.BudgetOverflowSeconds = profilePlan.BudgetOverflowSeconds
+		preview.Summary.BudgetExceededByRequired = profilePlan.BudgetExceededByRequired
+		preview.Summary.BudgetFitMode = profilePlan.FitMode
+		if profilePlan.BudgetExceededByRequired {
+			preview.Summary.BudgetConditions = []string{profileplanner.ReasonBudgetExceededByRequired}
+		}
+
+		for _, decision := range profilePlan.Selected {
+			phase, ok := findBasePlannedPhase(basePlan.Phases, decision.Candidate.Name)
+			if !ok {
+				continue
+			}
+			previewPhase := plannedPhaseWithEstimate(phase, decision.Estimate)
+			previewPhase.SelectionReasons = append([]string(nil), decision.Reasons...)
+			preview.Phases = append(preview.Phases, previewPhase)
+			addSelectedPhaseSummary(&preview.Summary, previewPhase)
+		}
+		for _, decision := range profilePlan.Omitted {
+			phase, ok := findBasePlannedPhase(basePlan.Phases, decision.Candidate.Name)
+			if !ok {
+				continue
+			}
+			previewPhase := plannedPhaseWithEstimate(phase, decision.Estimate)
+			previewPhase.SelectionStatus = "omitted"
+			previewPhase.OmissionReasons = append([]string(nil), decision.Reasons...)
+			preview.OmittedPhases = append(preview.OmittedPhases, previewPhase)
+		}
+		appendNotApplicablePhases(preview, basePlan.NotApplicablePhases)
+		return s.applyRunLevelEstimate(ctx, req, basePlan, preview, since)
+	}
 
 	for _, phase := range basePlan.Phases {
 		timeoutSeconds := clampNonNegative(phase.TimeoutSeconds)
-		scenarioDurations := scenarioBuckets[normalizePhaseKey(phase.Name)]
-		globalDurations := globalBuckets[normalizePhaseKey(phase.Name)]
-		estimate := estimatePhase(timeoutSeconds, scenarioDurations, globalDurations)
-
-		previewPhase := PlannedPhase{
-			Name:                     phase.Name,
-			Description:              phase.Description,
-			Optional:                 phase.Optional,
-			EstimatedDurationSeconds: estimate.durationSeconds,
-			TimeoutSeconds:           timeoutSeconds,
-			EstimateSource:           estimate.source,
-			EstimateConfidence:       estimate.confidence,
-			EstimateSampleSize:       estimate.sampleSize,
-		}
+		estimate := estimator.Estimate(phase.Name, timeoutSeconds)
+		previewPhase := plannedPhaseWithEstimate(phase, estimate)
 		preview.Phases = append(preview.Phases, previewPhase)
-		preview.Summary.PhaseCount++
-		preview.Summary.EstimatedDurationSeconds += previewPhase.EstimatedDurationSeconds
-		preview.Summary.TimeoutSeconds += previewPhase.TimeoutSeconds
+		addSelectedPhaseSummary(&preview.Summary, previewPhase)
 	}
+	appendNotApplicablePhases(preview, basePlan.NotApplicablePhases)
+	return s.applyRunLevelEstimate(ctx, req, basePlan, preview, since)
+}
 
+// applyRunLevelEstimate first looks for an exact, same-scenario full-run key.
+// It deliberately refuses legacy or mismatched descriptor/config rows: a phase
+// set digest existed to make this comparison fail closed, not merely to appear
+// in the durable run index. When no exact history exists, phase estimates remain
+// useful but are truthfully labeled additive and include fixed overhead.
+func (s *ExecutionPlanService) applyRunLevelEstimate(ctx context.Context, req orchestrator.SuiteExecutionRequest, base *orchestrator.ExecutionPlanPreview, preview *ExecutionPlanPreview, since time.Time) (*ExecutionPlanPreview, error) {
+	if preview == nil || base == nil {
+		return preview, nil
+	}
+	planSamples, err := s.samples.ListPlanSamples(ctx, base.ScenarioName, since, maxHistoryRows)
+	if err != nil {
+		return nil, err
+	}
+	comparable := comparableRunSamples(planSamples, base.PhaseSetDigest, base.DescriptorSnapshotDigest, base.ConfigurationFingerprint)
+	if len(comparable) > 0 {
+		estimate := profileplanner.EstimateComparableRun(comparable)
+		preview.Summary.EstimatedDurationSeconds = estimate.DurationSeconds
+		preview.Summary.EstimateSource = estimate.Source
+		preview.Summary.EstimateConfidence = estimate.Confidence
+		preview.Summary.EstimateSampleSize = estimate.SampleSize
+		preview.Summary.EstimateMode = "comparable_full_run"
+		return preview, nil
+	}
+	// A custom phase selection and a preset use the same fallback: selected
+	// phases are real, but their historical total is absent or non-comparable.
+	_ = req
+	overheadSeconds := measuredOrchestrationOverheadSeconds(planSamples)
+	preview.Summary.EstimatedDurationSeconds += overheadSeconds
+	preview.Summary.OrchestrationOverheadSeconds = overheadSeconds
+	preview.Summary.EstimateSource = EstimateSourceBlendedHistory
+	preview.Summary.EstimateConfidence = EstimateConfidenceLow
+	preview.Summary.EstimateMode = "additive_phase_history"
 	return preview, nil
 }
 
-type phaseEstimate struct {
-	durationSeconds int
-	source          EstimateSource
-	confidence      EstimateConfidence
-	sampleSize      int
-}
-
-func bucketPhaseSamples(scenarioName string, samples []PhaseDurationSample) (map[string][]int, map[string][]int) {
-	scenarioBuckets := make(map[string][]int)
-	globalBuckets := make(map[string][]int)
-
+// measuredOrchestrationOverheadSeconds estimates startup, readiness, cleanup,
+// and persistence time from completed runs. A phase sum can exceed wall time
+// when phases overlap, so only non-negative residuals are admitted; this keeps
+// parallel execution from turning overlap into negative orchestration cost.
+func measuredOrchestrationOverheadSeconds(samples []PlanDurationSample) int {
+	residuals := make([]int, 0, len(samples))
 	for _, sample := range samples {
-		key := normalizePhaseKey(sample.PhaseName)
-		if key == "" {
+		if sample.StartedAt.IsZero() || sample.CompletedAt.IsZero() || sample.CompletedAt.Before(sample.StartedAt) {
 			continue
 		}
-		duration := clampNonNegative(sample.DurationSeconds)
-
-		if len(globalBuckets[key]) < maxGlobalSamplesPerPhase {
-			globalBuckets[key] = append(globalBuckets[key], duration)
-		}
-		if strings.EqualFold(sample.ScenarioName, scenarioName) && len(scenarioBuckets[key]) < maxScenarioSamplesPerPhase {
-			scenarioBuckets[key] = append(scenarioBuckets[key], duration)
+		wallSeconds := int(math.Ceil(sample.CompletedAt.Sub(sample.StartedAt).Seconds()))
+		phaseSeconds := int(math.Ceil(float64(maxInt64(0, sample.PhaseDurationMilliseconds)) / 1000))
+		if residual := wallSeconds - phaseSeconds; residual >= 0 {
+			residuals = append(residuals, residual)
 		}
 	}
-
-	return scenarioBuckets, globalBuckets
-}
-
-func estimatePhase(timeoutSeconds int, scenarioDurations, globalDurations []int) phaseEstimate {
-	scenarioCount := len(scenarioDurations)
-	globalCount := len(globalDurations)
-
-	switch {
-	case scenarioCount >= primaryScenarioSamples:
-		return phaseEstimate{
-			durationSeconds: percentileSeconds(scenarioDurations, 0.5),
-			source:          EstimateSourceScenarioHistory,
-			confidence:      confidenceFor(EstimateSourceScenarioHistory, scenarioCount, globalCount),
-			sampleSize:      scenarioCount,
-		}
-	case scenarioCount > 0 && globalCount > 0:
-		globalWeight := minInt(globalCount, primaryScenarioSamples)
-		blended := weightedBlend(
-			percentileSeconds(scenarioDurations, 0.5), scenarioCount,
-			percentileSeconds(globalDurations, 0.5), globalWeight,
-		)
-		return phaseEstimate{
-			durationSeconds: blended,
-			source:          EstimateSourceBlendedHistory,
-			confidence:      confidenceFor(EstimateSourceBlendedHistory, scenarioCount, globalCount),
-			sampleSize:      scenarioCount + globalWeight,
-		}
-	case scenarioCount > 0:
-		return phaseEstimate{
-			durationSeconds: percentileSeconds(scenarioDurations, 0.5),
-			source:          EstimateSourceScenarioHistory,
-			confidence:      confidenceFor(EstimateSourceScenarioHistory, scenarioCount, globalCount),
-			sampleSize:      scenarioCount,
-		}
-	case globalCount > 0:
-		return phaseEstimate{
-			durationSeconds: percentileSeconds(globalDurations, 0.5),
-			source:          EstimateSourceGlobalHistory,
-			confidence:      confidenceFor(EstimateSourceGlobalHistory, scenarioCount, globalCount),
-			sampleSize:      globalCount,
-		}
-	default:
-		return phaseEstimate{
-			durationSeconds: timeoutSeconds,
-			source:          EstimateSourceTimeoutFallback,
-			confidence:      EstimateConfidenceLow,
-			sampleSize:      0,
-		}
-	}
-}
-
-func confidenceFor(source EstimateSource, scenarioCount, globalCount int) EstimateConfidence {
-	switch source {
-	case EstimateSourceScenarioHistory:
-		switch {
-		case scenarioCount >= 10:
-			return EstimateConfidenceHigh
-		case scenarioCount >= 3:
-			return EstimateConfidenceMedium
-		default:
-			return EstimateConfidenceLow
-		}
-	case EstimateSourceBlendedHistory:
-		if scenarioCount >= 2 && globalCount >= 5 {
-			return EstimateConfidenceMedium
-		}
-		return EstimateConfidenceLow
-	case EstimateSourceGlobalHistory:
-		if globalCount >= 12 {
-			return EstimateConfidenceMedium
-		}
-		return EstimateConfidenceLow
-	default:
-		return EstimateConfidenceLow
-	}
-}
-
-func percentileSeconds(values []int, percentile float64) int {
-	if len(values) == 0 {
+	if len(residuals) == 0 {
 		return 0
 	}
-	sorted := append([]int(nil), values...)
-	sort.Ints(sorted)
-	if len(sorted) == 1 {
-		return sorted[0]
-	}
-	if percentile <= 0 {
-		return sorted[0]
-	}
-	if percentile >= 1 {
-		return sorted[len(sorted)-1]
-	}
-	index := int(math.Round(percentile * float64(len(sorted)-1)))
-	if index < 0 {
-		index = 0
-	}
-	if index >= len(sorted) {
-		index = len(sorted) - 1
-	}
-	return sorted[index]
+	sort.Ints(residuals)
+	return residuals[(len(residuals)-1)/2]
 }
 
-func weightedBlend(left, leftWeight, right, rightWeight int) int {
-	totalWeight := leftWeight + rightWeight
-	if totalWeight <= 0 {
-		return 0
+func comparableRunSamples(samples []PlanDurationSample, phaseSetDigest, descriptorDigest, configurationFingerprint string) []profileplanner.RunSample {
+	if phaseSetDigest == "" || descriptorDigest == "" || configurationFingerprint == "" {
+		return nil
 	}
-	return int(math.Round(float64(left*leftWeight+right*rightWeight) / float64(totalWeight)))
+	out := make([]profileplanner.RunSample, 0, len(samples))
+	for _, sample := range samples {
+		if sample.PhaseSetDigest != phaseSetDigest || sample.DescriptorSnapshotDigest != descriptorDigest || sample.ConfigurationFingerprint != configurationFingerprint {
+			continue
+		}
+		out = append(out, profileplanner.RunSample{DurationSeconds: sample.DurationSeconds, TerminalOutcome: sample.TerminalOutcome, CompletedAt: sample.CompletedAt})
+	}
+	return out
 }
 
-func normalizePhaseKey(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
+func (s *ExecutionPlanService) previewBasePlan(req orchestrator.SuiteExecutionRequest) (*orchestrator.ExecutionPlanPreview, error) {
+	if _, ok := adaptiveProfileForRequest(req, ""); !ok {
+		return s.builder.PreviewExecution(req)
+	}
+	candidateReq := req
+	candidateReq.Preset = phases.PresetComprehensive.String()
+	return s.builder.PreviewExecution(candidateReq)
+}
+
+func adaptiveProfileForRequest(req orchestrator.SuiteExecutionRequest, presetUsed string) (profileplanner.Profile, bool) {
+	if len(req.Phases) > 0 {
+		return profileplanner.Profile{}, false
+	}
+	name := phases.NormalizeKey(req.Preset)
+	if name == "" {
+		name = phases.NormalizeKey(presetUsed)
+	}
+	switch name {
+	case phases.PresetQuick.String():
+		profile, _ := phases.AdaptiveProfile(name)
+		return profileplanner.Profile{
+			Name:          profile.Name.String(),
+			BudgetSeconds: profile.BudgetSeconds,
+			Strategy:      profileplanner.ProfileStrategy(profile.Strategy),
+		}, true
+	case phases.PresetSmoke.String():
+		profile, _ := phases.AdaptiveProfile(name)
+		return profileplanner.Profile{
+			Name:          profile.Name.String(),
+			BudgetSeconds: profile.BudgetSeconds,
+			Strategy:      profileplanner.ProfileStrategy(profile.Strategy),
+		}, true
+	default:
+		return profileplanner.Profile{}, false
+	}
+}
+
+func plannerSamples(samples []PhaseDurationSample) []profileplanner.Sample {
+	out := make([]profileplanner.Sample, 0, len(samples))
+	for _, sample := range samples {
+		out = append(out, profileplanner.Sample{
+			ScenarioName:         sample.ScenarioName,
+			PhaseName:            sample.PhaseName,
+			Status:               sample.Status,
+			DurationMilliseconds: sample.DurationMilliseconds,
+			DurationSeconds:      sample.DurationSeconds,
+			CompletedAt:          sample.CompletedAt,
+			CPUReliability:       sample.CPUReliability,
+			MemoryReliability:    sample.MemoryReliability,
+		})
+	}
+	return out
+}
+
+func plannerCandidates(phases []orchestrator.PlannedPhase) []profileplanner.Candidate {
+	out := make([]profileplanner.Candidate, 0, len(phases))
+	for index, phase := range phases {
+		out = append(out, profileplanner.Candidate{
+			Name:             phase.Name,
+			DisplayName:      phase.DisplayName,
+			TimeoutSeconds:   clampNonNegative(phase.TimeoutSeconds),
+			Policy:           phase.Policy,
+			Order:            index,
+			ConcurrencyMode:  phase.ConcurrencyMode,
+			ConcurrencyGroup: phase.ConcurrencyGroup,
+		})
+	}
+	return out
+}
+
+func plannedPhaseWithEstimate(phase orchestrator.PlannedPhase, estimate profileplanner.Estimate) PlannedPhase {
+	return PlannedPhase{
+		Name:                           phase.Name,
+		DisplayName:                    phase.DisplayName,
+		Description:                    phase.Description,
+		Provider:                       phase.Provider,
+		Source:                         phase.Source,
+		Optional:                       phase.Optional,
+		EstimatedDurationSeconds:       estimate.DurationSeconds,
+		TimeoutSeconds:                 clampNonNegative(phase.TimeoutSeconds),
+		EstimateSource:                 estimate.Source,
+		EstimateConfidence:             estimate.Confidence,
+		EstimateSampleSize:             estimate.SampleSize,
+		EstimatePointSampleCount:       estimate.PointSampleCount,
+		EstimateCensoredSampleCount:    estimate.CensoredSampleCount,
+		EstimateExcludedSampleCount:    estimate.ExcludedSampleCount,
+		EstimateReliabilityComposition: estimate.ReliabilityComposition,
+		EstimateLowConfidenceReason:    estimate.LowConfidenceReason,
+		EstimateUnknown:                estimate.Unknown,
+		SelectionStatus:                phase.SelectionStatus,
+		ApplicabilityStatus:            phase.ApplicabilityStatus,
+		ApplicabilityReasons:           append([]applicability.Reason(nil), phase.ApplicabilityReasons...),
+		ProviderReadiness:              phase.ProviderReadiness,
+		Freshness:                      phase.Freshness,
+		Policy:                         phase.Policy,
+		DocPath:                        phase.DocPath,
+		DescriptorPath:                 phase.DescriptorPath,
+		FindingSource:                  phase.FindingSource,
+		ProfileMembership:              append([]string(nil), phase.ProfileMembership...),
+		FreshnessRequirement:           phase.FreshnessRequirement,
+		PhaseClass:                     phase.PhaseClass,
+		RuntimeClass:                   phase.RuntimeClass,
+		ConcurrencyMode:                phase.ConcurrencyMode,
+		ConcurrencyGroup:               phase.ConcurrencyGroup,
+		Dimensions:                     append([]string(nil), phase.Dimensions...),
+		RequiredResources:              append([]string(nil), phase.RequiredResources...),
+	}
+}
+
+func appendNotApplicablePhases(preview *ExecutionPlanPreview, phases []orchestrator.PlannedPhase) {
+	for _, phase := range phases {
+		preview.NotApplicablePhases = append(preview.NotApplicablePhases, PlannedPhase{
+			Name:                 phase.Name,
+			DisplayName:          phase.DisplayName,
+			Description:          phase.Description,
+			Provider:             phase.Provider,
+			Source:               phase.Source,
+			Optional:             phase.Optional,
+			TimeoutSeconds:       clampNonNegative(phase.TimeoutSeconds),
+			SelectionStatus:      phase.SelectionStatus,
+			ApplicabilityStatus:  phase.ApplicabilityStatus,
+			ApplicabilityReasons: append([]applicability.Reason(nil), phase.ApplicabilityReasons...),
+			ProviderReadiness:    phase.ProviderReadiness,
+			Freshness:            phase.Freshness,
+			Policy:               phase.Policy,
+			DocPath:              phase.DocPath,
+			DescriptorPath:       phase.DescriptorPath,
+			FindingSource:        phase.FindingSource,
+			ProfileMembership:    append([]string(nil), phase.ProfileMembership...),
+			FreshnessRequirement: phase.FreshnessRequirement,
+			PhaseClass:           phase.PhaseClass,
+			RuntimeClass:         phase.RuntimeClass,
+			ConcurrencyMode:      phase.ConcurrencyMode,
+			ConcurrencyGroup:     phase.ConcurrencyGroup,
+			Dimensions:           append([]string(nil), phase.Dimensions...),
+			RequiredResources:    append([]string(nil), phase.RequiredResources...),
+		})
+	}
+}
+
+func addSelectedPhaseSummary(summary *ExecutionPlanSummary, phase PlannedPhase) {
+	summary.PhaseCount++
+	summary.EstimatedDurationSeconds += phase.EstimatedDurationSeconds
+	summary.TimeoutSeconds += phase.TimeoutSeconds
+}
+
+func findBasePlannedPhase(items []orchestrator.PlannedPhase, name string) (orchestrator.PlannedPhase, bool) {
+	key := phases.NormalizeKey(name)
+	for _, item := range items {
+		if phases.NormalizeKey(item.Name) == key {
+			return item, true
+		}
+	}
+	return orchestrator.PlannedPhase{}, false
 }
 
 func clampNonNegative(value int) int {
@@ -247,13 +369,6 @@ func clampNonNegative(value int) int {
 		return 0
 	}
 	return value
-}
-
-func minInt(left, right int) int {
-	if left < right {
-		return left
-	}
-	return right
 }
 
 var _ ExecutionPlanner = (*ExecutionPlanService)(nil)

@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "hive-panel-beat",
+    "description": "Uses a short cycle to reach the Hive release-ladder beat and verifies that a panel reading renders ranked rows in the hero surface.",
+    "labels": {"reset": "none", "requirements_json": "[\"CC-UI-PANEL\"]"},
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id": "navigate", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "command-center", "scenario_path": "/hive?cycle=5", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000}}},
+    {"id": "wait-beat", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-composition'][data-beat='4']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000}}},
+    {"id": "wait-panel", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-hero'] [data-kind='panel']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}}},
+    {"id": "assert-row", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='room-hero'] [data-kind='panel'] > div", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Expected the panel beat to render ranked row content"}}},
+    {"id": "capture", "action": {"type": "ACTION_TYPE_SCREENSHOT", "screenshot": {"full_page": false}}}
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate", "target": "wait-beat", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e2", "source": "wait-beat", "target": "wait-panel", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e3", "source": "wait-panel", "target": "assert-row", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e4", "source": "assert-row", "target": "capture", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "hooks.use-icon-morph", "name": "Use Icon Morph", "kind": "runtime-hook", "domain": "hooks", "description": "Coordinates icon transition timing and technique without coupling the caller to a renderer.", "targets": ["react-vite"], "slot": "non-renderable", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

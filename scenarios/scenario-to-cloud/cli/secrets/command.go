@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+	"scenario-to-cloud/cli/deployment"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"scenario-to-cloud/cli/deployment"
 )
 
 func Run(client *Client, deploymentClient *deployment.Client, args []string) error {
@@ -446,8 +447,13 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 	if !verified {
 		status = "FAIL"
 	}
-	fmt.Printf("Verification: %s\n", status)
-	fmt.Printf("Key: %s\n", key)
+	report := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Verification: %s", status),
+			fmt.Sprintf("Key: %s", key),
+		},
+	}
+	targetItems := make([]string, 0, len(results))
 	for _, result := range results {
 		label := result.Target
 		if result.DeploymentID != "" {
@@ -461,19 +467,26 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 		if result.Fingerprint != "" {
 			fp = " fingerprint=" + result.Fingerprint
 		}
-		fmt.Printf("  - %s: %s%s\n", label, state, fp)
+		targetItems = append(targetItems, fmt.Sprintf("%s: %s%s", label, state, fp))
+	}
+	if len(targetItems) > 0 {
+		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Targets", Items: targetItems})
 	}
 	if len(missing) > 0 {
-		fmt.Printf("Missing targets: %s\n", strings.Join(missing, ", "))
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Missing targets",
+			Items:   []string{strings.Join(missing, ", ")},
+		})
 	}
 	if !consistent {
-		fmt.Println("Fingerprint mismatch detected across targets.")
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Consistency",
+			Items:   []string{"Fingerprint mismatch detected across targets."},
+		})
 	}
-	if len(nextSteps) > 0 {
-		fmt.Println("Next steps:")
-		for i, step := range nextSteps {
-			fmt.Printf("  %d) %s\n", i+1, step)
-		}
+	report.NextSteps = nextSteps
+	if err := cliapp.RenderOperationalReport(os.Stdout, report); err != nil {
+		return err
 	}
 	if !verified {
 		return fmt.Errorf("secret verification failed for key %s", key)

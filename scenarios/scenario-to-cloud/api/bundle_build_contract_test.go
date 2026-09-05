@@ -21,6 +21,7 @@ import (
 func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	// [REQ:STC-P0-002] API can build a mini-Vrooli tarball from a manifest
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 
 	mkdirAll(t, repoRoot, ".vrooli")
 	mkdirAll(t, repoRoot, "scripts")
@@ -111,9 +112,9 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
 	// [REQ:STC-P0-002] bundle output name and bytes should be deterministic for the same inputs
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	outDir := filepath.Join(repoRoot, "out")
 
-	mkdirAll(t, repoRoot, ".vrooli")
 	writeFileBytes(t, repoRoot, ".vrooli/service.json", []byte(`{"version":"2.0.0","resources":{"postgres":{"enabled":true},"redis":{"enabled":true}}}`))
 	writeFileBytes(t, repoRoot, "packages/pkg-a/README.md", []byte("pkg-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/app-a/README.md", []byte("app-a\n"))
@@ -165,6 +166,49 @@ func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
 	}
 	if !bytes.Equal(b1, b2) {
 		t.Fatalf("expected deterministic bundle bytes")
+	}
+}
+
+func TestBundleHelpersResolveScenarioPathsFromContract(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
+	writeFileBytes(t, repoRoot, "scenarios/demo/.vrooli/service.json", []byte(`{"service":{"name":"demo"}}`))
+	writeFileBytes(t, repoRoot, "scenarios/scenario-to-cloud/.vrooli/service.json", []byte(`{"service":{"name":"scenario-to-cloud"}}`))
+	mkdirAll(t, repoRoot, "scenarios/scenario-to-cloud/coverage/bundles")
+
+	scenariosDir, err := bundle.ResolveScenariosDir(repoRoot)
+	if err != nil {
+		t.Fatalf("ResolveScenariosDir: %v", err)
+	}
+	if got, want := scenariosDir, filepath.Join(repoRoot, "scenarios"); got != want {
+		t.Fatalf("ResolveScenariosDir = %q, want %q", got, want)
+	}
+
+	scenarioPath, err := bundle.ResolveScenarioPathRelative(repoRoot, "demo")
+	if err != nil {
+		t.Fatalf("ResolveScenarioPathRelative: %v", err)
+	}
+	if scenarioPath != "scenarios/demo" {
+		t.Fatalf("ResolveScenarioPathRelative = %q, want %q", scenarioPath, "scenarios/demo")
+	}
+
+	servicePath, err := bundle.ResolveScenarioFileRelative(repoRoot, "demo", "service")
+	if err != nil {
+		t.Fatalf("ResolveScenarioFileRelative: %v", err)
+	}
+	if servicePath != "scenarios/demo/.vrooli/service.json" {
+		t.Fatalf("ResolveScenarioFileRelative = %q, want %q", servicePath, "scenarios/demo/.vrooli/service.json")
+	}
+
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", repoRoot)
+	storageRoot := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
+	bundlesDir, err := bundle.GetLocalBundlesDir()
+	if err != nil {
+		t.Fatalf("GetLocalBundlesDir: %v", err)
+	}
+	if got, want := bundlesDir, filepath.Join(storageRoot, "cache", "vrooli", "scenario-to-cloud", "bundles"); got != want {
+		t.Fatalf("GetLocalBundlesDir = %q, want %q", got, want)
 	}
 }
 

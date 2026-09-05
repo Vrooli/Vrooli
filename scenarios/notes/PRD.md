@@ -59,7 +59,7 @@ Future scenarios enabled by SmartNotes:
 **Required:**
 - **PostgreSQL**: Primary storage for notes, folders, tags, metadata (Direct SQL connection)
 - **Qdrant**: Vector database for semantic search (Direct API + Ollama embeddings)
-- **Ollama**: AI embeddings via nomic-embed-text model (Orchestrated by the scenario's automation modules)
+- **Ollama**: AI embeddings via the `embedding.default` role (orchestrated by the scenario's automation modules)
 
 Automation orchestration is implemented inside the SmartNotes API, so no external workflow engine is required.
 
@@ -176,7 +176,7 @@ These automation modules execute inside the SmartNotes API, so no external workf
 
 ### Improvements Made (2025-01-24)
 - ✅ Implemented semantic search with Qdrant vector database
-- ✅ Added vector embeddings using Ollama's nomic-embed-text model
+- ✅ Added vector embeddings using Ollama's `embedding.default` role
 - ✅ Created indexing pipeline for automatic note vectorization
 - ✅ Verified all API endpoints (notes, folders, tags, templates)
 - ✅ Added comprehensive test infrastructure (smoke, integration tests)
@@ -210,8 +210,8 @@ These automation modules execute inside the SmartNotes API, so no external workf
 - ✅ Health checks now pass validation (API: ✅ healthy with DB connected, UI: ✅ healthy with API connected)
 - ✅ All tests passing with no regressions
 
-**Session 5 (Test Lifecycle Standardization - 2025-10-27):**
-- ✅ Resolved service_test_steps HIGH-severity violation (lifecycle.test now uses test/run-tests.sh)
+**Session 5 (Historical Test Runner Standardization - 2025-10-27):**
+- ✅ Routed the then-current manifest test entrypoint through `test/run-tests.sh` (this mechanism was later replaced by server-owned Test Genie runs)
 - ✅ Enhanced test runner with automatic port detection (API_PORT and UI_PORT via lsof)
 - ✅ Configured comprehensive test execution: smoke, structure, dependencies, integration, business, performance
 - ✅ Reduced standards violations from 35 to 34 (2.9% reduction)
@@ -496,14 +496,14 @@ vrooli scenario test notes
 
 ### External Documentation
 - [Qdrant Vector Database](https://qdrant.tech/documentation/)
-- [Ollama Embeddings API](https://ollama.ai/library/nomic-embed-text)
+- Ollama embeddings are accessed through `resource-ollama gateway embed --role embedding.default`
 - [PostgreSQL Full-Text Search](https://www.postgresql.org/docs/current/textsearch.html)
 
 ### Internal References
 - `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
-- `/scripts/resources/contracts/v2.0/universal.yaml` - Service contract spec
-- `initialization/postgres/schema.sql` - Database schema definition
-- `initialization/qdrant/collections.json` - Vector collection config
+- `/.vrooli/schemas/resource.schema.json` - Resource contract schema
+- `api/internal/<domain>/schema.sql` - Database schema definition
+- `api/internal/<domain>/qdrant/collections.json` - Vector collection config
 
 ### Related Scenarios
 - **research-assistant**: Uses SmartNotes API for storing research findings
@@ -538,15 +538,15 @@ vrooli scenario test notes
   - Make test command now works correctly - was completely broken before
   - Zero regressions, all P0 requirements remain fully functional
   - **Impact**: Tests went from 100% failure rate (due to infrastructure bugs) to 100% pass rate
-- 2025-10-27 Session 12: Test lifecycle standardization
-  - Updated service.json lifecycle.test to use test/run-tests.sh for comprehensive testing
+- 2025-10-27 Session 12: Historical test runner standardization
+  - Routed the then-current manifest test entrypoint through `test/run-tests.sh`; current testing uses `vrooli scenario test notes`
   - Enhanced test/run-tests.sh to detect both API_PORT and UI_PORT automatically via lsof
   - Configured test runner to execute all test phases: smoke, structure, dependencies, integration, business, performance
   - Aligned with v2.0 contract requirement for standardized test execution
   - Reduced standards violations by 1 (service_test_steps violation resolved)
   - All P0 requirements remain fully functional, zero regressions
 - 2025-10-27 Session 11: UX improvements and data cleanup
-  - Fixed service.json show-urls display issue - now properly shows actual port numbers instead of ${UI_PORT}/${API_PORT} literals
+  - Fixed lifecycle URL output to show actual runtime port numbers instead of ${UI_PORT}/${API_PORT} literals
   - Cleaned up 23 legacy test notes from database (pre-cleanup implementation duplicates)
   - Database now contains only meaningful test data: "Semantic Search Test", "Test Note", and current BATS test notes
   - Verified all tests pass: integration (6/6), business (11/11), lifecycle (2/2)

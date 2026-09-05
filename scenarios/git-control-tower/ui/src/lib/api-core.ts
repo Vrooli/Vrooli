@@ -2,7 +2,7 @@
 // Core Git/Repo API Functions
 // ============================================================================
 
-import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl, extractErrorMessage } from "./api-internals";
 import type { HealthResponse, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest } from "./api-types-repo";
 import {
   FileContentConflictError,
@@ -14,6 +14,10 @@ import {
   type UnstageResponse,
   type CommitRequest,
   type CommitResponse,
+  type PrecommitConfig,
+  type PrecommitRunRequest,
+  type PrecommitRunResponse,
+  type PrecommitStreamEvent,
   type DiscardRequest,
   type DiscardResponse,
   type IgnoreRequest,
@@ -63,11 +67,15 @@ export async function fetchRepoHistory(
   limit = 30,
   includeFiles = false,
   repoId?: string,
-  grep?: string
+  grep?: string,
+  includeChecks = false
 ): Promise<RepoHistoryResponse> {
   const params = new URLSearchParams();
   if (limit > 0) params.set("limit", String(limit));
-  if (includeFiles) params.set("include", "files");
+  const includes = [];
+  if (includeFiles) includes.push("files");
+  if (includeChecks) includes.push("checks");
+  if (includes.length > 0) params.set("include", includes.join(","));
   if (grep) params.set("grep", grep);
 
   const url = buildApiUrl(`/repo/history?${params.toString()}`, { baseUrl: API_BASE });
@@ -130,7 +138,118 @@ export async function createCommit(request: CommitRequest, repoId?: string): Pro
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify(request)
   });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null) as CommitResponse | null;
+    if (payload?.precommit) {
+      return payload;
+    }
+    if (payload) {
+      return payload;
+    }
+  }
   return handleResponse<CommitResponse>(res);
+}
+
+export async function fetchPrecommitConfig(repoId?: string): Promise<PrecommitConfig> {
+  const url = buildApiUrl("/repo/precommit", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store"
+  });
+  return handleResponse<PrecommitConfig>(res);
+}
+
+export async function savePrecommitConfig(config: PrecommitConfig, repoId?: string): Promise<PrecommitConfig> {
+  const url = buildApiUrl("/repo/precommit", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(config)
+  });
+  return handleResponse<PrecommitConfig>(res);
+}
+
+export async function runPrecommit(request: PrecommitRunRequest = {}, repoId?: string): Promise<PrecommitRunResponse> {
+  const url = buildApiUrl("/repo/precommit/run", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: buildRepoHeaders(repoId),
+    body: JSON.stringify(request)
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null) as PrecommitRunResponse | null;
+    if (payload?.result) {
+      return payload;
+    }
+  }
+  return handleResponse<PrecommitRunResponse>(res);
+}
+
+export interface PrecommitStreamHandlers {
+  onEvent?: (event: PrecommitStreamEvent) => void;
+  signal?: AbortSignal;
+}
+
+export async function runPrecommitStream(
+  request: PrecommitRunRequest = {},
+  repoId: string | undefined,
+  handlers: PrecommitStreamHandlers = {}
+): Promise<PrecommitStreamEvent> {
+  const url = buildApiUrl("/repo/precommit/run/stream", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { ...buildRepoHeaders(repoId), Accept: "text/event-stream" },
+    body: JSON.stringify(request),
+    signal: handlers.signal,
+  });
+  if (!res.ok || !res.body) {
+    // The API reports the real cause in the JSON body (e.g. {"error":"streaming
+    // unsupported by response writer"}). Reporting only status/statusText turns
+    // every failure into an undiagnosable "500 Internal Server Error", so read
+    // the body through the same extractor the non-streaming calls use.
+    throw new Error(`precommit stream failed: ${await extractErrorMessage(res)}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let last: PrecommitStreamEvent | null = null;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep = buffer.indexOf("\n\n");
+    while (sep !== -1) {
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const event = parseSSEEvent(block);
+      if (event) {
+        last = event;
+        handlers.onEvent?.(event);
+        if (event.type === "finished" || event.type === "error") {
+          return event;
+        }
+      }
+      sep = buffer.indexOf("\n\n");
+    }
+  }
+  if (last) return last;
+  throw new Error("precommit stream closed without finished event");
+}
+
+function parseSSEEvent(block: string): PrecommitStreamEvent | null {
+  let data = "";
+  for (const rawLine of block.split("\n")) {
+    const line = rawLine.replace(/\r$/, "");
+    if (line.startsWith("data:")) {
+      data += line.slice(5).replace(/^ /, "");
+    }
+  }
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as PrecommitStreamEvent;
+  } catch {
+    return null;
+  }
 }
 
 export async function discardFiles(request: DiscardRequest, repoId?: string): Promise<DiscardResponse> {

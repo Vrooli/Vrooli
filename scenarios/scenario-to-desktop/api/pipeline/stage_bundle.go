@@ -8,6 +8,8 @@ import (
 
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/shared/errors"
+
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 // BundleStage implements the bundle packaging stage of the pipeline.
@@ -59,8 +61,10 @@ func NewBundleStage(opts ...BundleStageOption) *BundleStage {
 	}
 	// Default scenario root
 	if s.scenarioRoot == "" {
-		home, _ := os.UserHomeDir()
-		s.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
+		s.scenarioRoot = sharedpath.DetectScenariosRoot()
+		if s.scenarioRoot == "" {
+			s.scenarioRoot = filepath.Clean("scenarios")
+		}
 	}
 	return s
 }
@@ -72,7 +76,7 @@ func (s *BundleStage) Name() string {
 
 // Dependencies returns stages that must complete before this one.
 func (s *BundleStage) Dependencies() []string {
-	return nil // Bundle is the first stage
+	return []string{StageResolveDeployment}
 }
 
 // CanSkip returns whether this stage can be skipped.
@@ -141,6 +145,18 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 		return result
 	}
+	resourceArtifacts, err := stageBundledResourceArtifacts(packageResult.BundleDir, input.Config.ResourceArtifactRoot, input.ResourceDeploymentPlan)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
+		return result
+	}
+	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, resourceArtifacts...)
+	toolArtifacts, err := stageBundledToolArtifacts(packageResult.BundleDir, input.Config.ToolArtifactRoot, input.ResourceDeploymentPlan)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
+		return result
+	}
+	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, toolArtifacts...)
 
 	// Update input for next stage
 	input.BundleResult = packageResult
@@ -162,6 +178,19 @@ func (s *BundleStage) resolveManifest(ctx context.Context, result *StageResult, 
 	manifestPath := config.BundleManifestPath
 	if manifestPath == "" {
 		manifestPath = filepath.Join(scenarioPath, "platforms", framework, "bundle", "bundle.json")
+	}
+
+	// An explicit manifest path is an operator-owned deployment contract. Use
+	// it directly when it exists instead of asking deployment-manager to export
+	// another manifest. This is important for proto-first callers: the legacy
+	// REST bundle exporter is intentionally not part of deployment-manager's
+	// public surface, while a caller-provided manifest is already the exact
+	// contract that preflight, packaging, and smoke testing must validate.
+	if config.BundleManifestPath != "" {
+		if _, err := os.Stat(manifestPath); err != nil {
+			return "", errors.ErrBundleManifestNotFound(manifestPath)
+		}
+		return manifestPath, nil
 	}
 
 	if s.manifestGenerator != nil {

@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "description": "Expansion targets. Every requirement here is deliberately deferred: delivery_scope is roadmap and status stays planned until the named upstream unlock lands.",
+    "last_validated_at": "2026-09-03T19:38:19-04:00",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "COMPUTEM-P2-001",
+      "title": "Customer purchase through the subscription",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "monetization",
+      "criticality": "P2",
+      "description": "The scenario may sell provisioned compute to a subscriber through the existing entitlement and credit rails rather than a separate payment path",
+      "tags": [
+        "roadmap",
+        "subscription"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/business/MONETIZATION.md#selling-provisioned-capacity",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Deferred. Requires the meter declared, the offer promoted by an operator, and the reservation window made longer than one hour upstream."
+        }
+      ]
+    },
+    {
+      "id": "COMPUTEM-P2-002",
+      "title": "Ephemeral capacity for validation",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "The scenario may supply short-lived nodes so the cross-operating-system gate can burst beyond the standing fleet",
+      "tags": [
+        "roadmap",
+        "validation-capacity"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/concepts/INTEGRATIONS.md#ephemeral-capacity-for-validation",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Deferred. Requires the cross-operating-system gate to accept a node that did not exist when the gate started."
+        }
+      ]
+    },
+    {
+      "id": "COMPUTEM-P2-003",
+      "title": "Warm pooling against hourly rounding",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "core",
+      "criticality": "P2",
+      "description": "The scenario may reuse warm instances so provider hour rounding does not dominate the cost of short workloads",
+      "tags": [
+        "roadmap",
+        "cost"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/concepts/DOMAINS.md#pooling",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Deferred. Only worth building once measured churn shows hourly rounding dominating the bill."
+        }
+      ]
+    }
+  ]
+}

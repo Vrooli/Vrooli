@@ -1,0 +1,364 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: uppercase-snake-case placeholders are replaced by `template-manager generate` before the scenario is built. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Switchboard"
+  },
+  "layout": {
+    "sidebarLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل على الهاتف",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "agents": "الوكلاء",
+      "conversations": "المحادثات",
+      "contacts": "جهات الاتصال",
+      "channels": "القنوات",
+      "settings": "الإعدادات"
+    },
+    "navShort": {
+      "dashboard": "نظرة عامة",
+      "conversations": "محادثات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "health": {
+    "title": "حالة API",
+    "loading": "جارٍ التحقق من حالة API…",
+    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا توجد إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  },
+  "console": {
+    "mainContent": "المحتوى الرئيسي",
+    "common": {
+      "back": "رجوع",
+      "cancel": "إلغاء",
+      "close": "إغلاق"
+    },
+    "shell": {
+      "apiConnected": "واجهة API متصلة",
+      "apiUnreachable": "لا يمكن الوصول إلى API"
+    },
+    "attention": {
+      "pendingCount": "{{count}} بانتظارك",
+      "pendingCount_one": "واحد بانتظارك",
+      "pendingCount_two": "اثنان بانتظارك",
+      "pendingCount_few": "{{count}} بانتظارك",
+      "pendingCount_many": "{{count}} بانتظارك",
+      "pendingCount_zero": "لا شيء بانتظارك"
+    },
+    "region": {
+      "loading": "جارٍ التحميل…",
+      "errorTitle": "تعذّر تحميل هذا القسم.",
+      "retry": "أعد المحاولة"
+    },
+    "tiers": {
+      "stranger": "غريب",
+      "known": "معروف",
+      "trusted": "موثوق",
+      "owner": "المالك",
+      "effect": {
+        "stranger": "لا صلاحيات إطلاقًا. يسجّل الوكيل الرسالة ويرفض صراحةً. كل مرسل غير معروف يبدأ هنا.",
+        "known": "نطاقات القراءة فقط. يمكن للوكيل الإجابة عن الأسئلة لكن لا يمكنه تنفيذ أي شيء.",
+        "trusted": "كل النطاقات الممنوحة للوكيل عدا نطاقات المالك. لا شيء هنا يصل إلى الطرفية أو ينفق نيابةً عنك.",
+        "owner": "المنحة الكاملة بما فيها نطاقات المالك. هذا أنت. منحها لشخص آخر يجعله أنت في كل مكان يستمع فيه هذا الوكيل."
+      }
+    },
+    "budget": {
+      "turnsThisHour": "الأدوار هذه الساعة",
+      "remaining": "{{remaining}} من {{total}} متبقية",
+      "unlimited": "لا حد للأدوار",
+      "spend": "أُنفق {{spent}} من {{cap}}",
+      "noSpendCap": "لا حد إنفاق لهذه المحادثة",
+      "exhausted": "استُنفدت الميزانية",
+      "nearLimit": "قرب الحد"
+    },
+    "capabilityGate": {
+      "title": "مطلوب اعتماد صلاحية",
+      "withheld": "محجوب:",
+      "unblock": "ما الذي يفتحه:",
+      "expiresIn": "تنتهي {{when}}",
+      "grantOnce": "امنح مرة واحدة",
+      "notNow": "ليس الآن",
+      "ownerOnly": "لا يمكن الرد على هذا الطلب إلا لمالك الوكيل.",
+      "status": {
+        "granted": "مُنح",
+        "denied": "رُفض",
+        "expired": "انتهى دون رد"
+      }
+    },
+    "overview": {
+      "refresh": "تحديث",
+      "updated": "حُدّث {{when}}",
+      "waitingOnYou": "بانتظارك",
+      "allClear": "لا شيء يحتاج انتباهك",
+      "allClearDetail": "لا توجد بوابة صلاحية بانتظار رد.",
+      "openThread": "افتح المحادثة",
+      "channelHealth": "حالة القنوات",
+      "manageChannels": "إدارة القنوات",
+      "channelCounts": "{{bindings}} ارتباطات · {{threads}} محادثات",
+      "budgetPressure": "ضغط الميزانية",
+      "noBudgetPressure": "لا محادثة قريبة من حدّها",
+      "noBudgetPressureDetail": "تظهر المحادثات هنا عند استخدام 70% من أدوار الساعة أو حد الإنفاق.",
+      "recentRefusals": "آخر حالات الرفض",
+      "noRefusals": "لا أدوار مرفوضة",
+      "noRefusalsDetail": "يظهر الرفض هنا عندما لا تترك درجة المرسل أي نطاق مسموح.",
+      "stats": {
+        "liveChannels": "قنوات فعّالة",
+        "ofTotal": "من {{total}} معلنة",
+        "threads": "محادثات",
+        "agents": "وكلاء",
+        "contacts": "جهات اتصال"
+      }
+    },
+    "conversations": {
+      "title": "المحادثات",
+      "description": "كل محادثة عبر كل قناة، محكومة قبل بدء أي دور.",
+      "threads": "المحادثات",
+      "search": "ابحث في المحادثات",
+      "filterByChannel": "تصفية حسب القناة",
+      "allChannels": "كل القنوات",
+      "noMatches": "لا محادثات مطابقة.",
+      "noMessagesYet": "لا رسائل بعد",
+      "attachmentOnly": "مرفق",
+      "groupRoom": "غرفة جماعية",
+      "gateWaiting": "بوابة بانتظار رد",
+      "emptyTitle": "لا محادثات بعد",
+      "emptyDescription": "ابدأ واحدة هنا، أو اربط وكيلًا بقناة وراسله من هاتفك.",
+      "startCta": "ابدأ محادثة",
+      "startTitle": "ابدأ محادثة",
+      "startDescription": "اختر الوكيل الذي تريد التحدث إليه. تُفتح محادثة جديدة داخل التطبيق بدرجة المالك.",
+      "startConfirm": "افتح المحادثة",
+      "pickThread": "اختر محادثة لقراءتها هنا.",
+      "you": "أنت",
+      "agentMarker": "وكيل",
+      "sending": "جارٍ الإرسال…",
+      "message": "رسالة",
+      "writePlaceholder": "اكتب إلى وكيلك",
+      "send": "إرسال",
+      "sendLabel": "أرسل رسالة",
+      "attachFile": "أرفق ملفًا",
+      "removeAttachment": "أزل المرفق",
+      "sendFailed": "لم تُرسل الرسالة. مسودتك ما زالت هنا.",
+      "enterHint": "Enter للإرسال · Shift+Enter لسطر جديد",
+      "connecting": "جارٍ الاتصال بقناة التطبيق…",
+      "repliesLiveOn": "هذه المحادثة تعيش على {{channel}}. الردود تحدث هناك لا هنا.",
+      "speaksWhenAddressed": "يتحدث فقط عند مخاطبته",
+      "roster": "الأشخاص في هذه المحادثة",
+      "roomCeiling": "سقف الغرفة",
+      "agentPermitted": "يُسمح للوكيل بالرد",
+      "agentRefusing": "الوكيل يرفض هنا",
+      "agentSilenced": "الوكيل صامت بسبب الميزانية",
+      "strangerCeiling": "في هذه الغرفة شخص غريب، لذا لا يترك سقف الغرفة أي صلاحية للوكيل. يسجّل الرسائل ويرفض صراحةً.",
+      "reviewContacts": "راجع جهات الاتصال",
+      "sayHello": "قل مرحبًا. تصل رسالتك إلى الوكيل بدرجة المالك.",
+      "threadNotFound": "لا محادثة بهذا المعرّف",
+      "threadNotFoundDetail": "ربما أُزيلت أو أن الرابط قديم. اختر محادثة من القائمة."
+    },
+    "agents": {
+      "title": "الوكلاء",
+      "description": "كل وكيل يشغّله هذا التثبيت: أين يمكن الوصول إليه وما يُسمح له به.",
+      "newAgent": "وكيل جديد",
+      "emptyTitle": "لا وكلاء بعد",
+      "empty": "الوكلاء ملفات يملكها Prompt Manager. أنشئ واحدًا لإعطائه عنوانًا هنا.",
+      "createFirst": "أنشئ أول وكيل",
+      "live": "فعّال",
+      "paused": "متوقف",
+      "unbound": "غير مرتبط",
+      "brokenReference": "مرجع معطوب",
+      "reachableAt": "يمكن الوصول عبر",
+      "notReachable": "لا يمكن الوصول إليه عبر أي قناة بعد",
+      "reachesTerminal": "يصل إلى الطرفية",
+      "defaultGrantShort": "المنحة الافتراضية",
+      "activity24h": "{{turns}} أدوار · {{refusals}} رفض · 24 ساعة",
+      "sourceUnavailable": "لا يمكن الوصول إلى Prompt Manager، لذا تعرض هذه القائمة الوكلاء الذين لديهم ارتباط هنا فقط.",
+      "sourceUnavailableShort": "مصدر القائمة متعطل",
+      "draftDescription": "صف المهمة أولًا. لا يُكتب شيء حتى تؤكد المسودة.",
+      "descriptionLabel": "ماذا ينبغي أن يفعل هذا الوكيل؟",
+      "descriptionPlaceholder": "مساعد تخطيط منزلي يدير تقويم العائلة ويجيب عن الأسئلة حوله",
+      "draftHint": "تقترح المسودة اسمًا ومنحة للقراءة فقط. لا تُقترح صلاحيات المالك أبدًا.",
+      "prepareDraft": "أعدّ المسودة",
+      "reviewHeading": "راجع قبل الكتابة",
+      "reviewPlaceholder": "تظهر المسودة هنا بعد إعدادها.",
+      "displayName": "اسم العرض",
+      "proposedGrant": "المنحة المقترحة:",
+      "defaultGrant": "المنحة الافتراضية: read. لا تُقترح صلاحيات المالك تلقائيًا.",
+      "confirmWrite": "أكّد واكتب إلى Prompt Manager",
+      "notWritable": "لا يوفر Prompt Manager على هذا المضيف نقطة نهاية قابلة للكتابة، لذا لم تُكتب المسودة. أنشئ الملف عبر prompt-manager CLI بدلًا من ذلك."
+    },
+    "agentDetail": {
+      "editInPromptManager": "حرّر الملف في Prompt Manager",
+      "profileOwnedElsewhere": "الملف يملكه Prompt Manager ويُحتفظ به هنا كمرجع. لا يخزّن Switchboard نسخة أبدًا.",
+      "whatItMayDo": "ما يُسمح لهذا الوكيل به",
+      "scopeGranted": "ممنوح",
+      "programBinding": "ارتباط برنامج",
+      "defaultGrant": "لا يعلن واصف هذا الوكيل أي منحة، لذا تُطبَّق منحة القراءة الافتراضية.",
+      "descriptorGrant": "مقروءة من كتلة grant في واصف الوكيل.",
+      "ownerOnlyNote": "نطاقات المالك لا يمكن الوصول إليها من أي درجة أخرى بحكم البناء. ليست إعدادًا يمكن تشغيله لشخص آخر.",
+      "attachToChannel": "اربط بقناة",
+      "notReachableDetail": "اربطه بقناة ليتمكن الناس من مراسلته.",
+      "budgets": "الميزانيات والحدود",
+      "noThreads": "لا محادثات لهذا الوكيل بعد.",
+      "recentActivity": "النشاط الأخير",
+      "noActivity": "لم تُسجَّل أدوار بعد.",
+      "activityKind": {
+        "turn": "أجاب عن دور",
+        "refusal": "رفض دورًا",
+        "suppressed": "بقي صامتًا",
+        "gate": "رفع بوابة صلاحية"
+      },
+      "notFound": "لا وكيل بهذا المعرّف",
+      "notFoundDetail": "لا يملك Prompt Manager ملفًا بهذا الاسم ولا شيء مرتبط به هنا."
+    },
+    "channels": {
+      "title": "القنوات",
+      "description": "كل قناة يمكن لهذا التثبيت استخدامها، مرتبة حسب جهد الإعداد.",
+      "emptyTitle": "لم تُحمَّل واصفات قنوات",
+      "emptyDetail": "أضف واصفًا تحت data/channels لتسجيل قناة.",
+      "availability": {
+        "available": "متاحة",
+        "unavailable": "تحتاج إعدادًا",
+        "unimplemented": "غير منفَّذة",
+        "unknown": "غير معروف"
+      },
+      "friction": {
+        "none": "بلا إعداد",
+        "low": "إعداد بسيط",
+        "medium": "بعض الإعداد",
+        "high": "إعداد مطوَّل"
+      },
+      "setupEffort": "جهد الإعداد: {{level}}",
+      "supports": {
+        "images": "صور",
+        "files": "ملفات",
+        "groups": "مجموعات",
+        "threads": "محادثات"
+      },
+      "textLimit": "{{kb}} ك.ب لكل رسالة",
+      "cost": {
+        "byok": "مفاتيحك الخاصة",
+        "metered": "مشمولة بالاشتراك"
+      },
+      "toEnable": "للتفعيل:",
+      "satisfyRequirement": "استوفِ المتطلب",
+      "showAll": "أظهر {{count}} قنوات تحتاج إعدادًا",
+      "attachAgent": "اربط وكيلًا",
+      "attachTo": "اربط وكيلًا بـ {{channel}}",
+      "attachFormLabel": "اربط وكيلًا",
+      "bindingDescription": "يربط الارتباط عنوانًا واحدًا على هذه القناة بوكيل واحد. الرسائل من ذلك العنوان تبدأ أدوارًا لذلك الوكيل.",
+      "agent": "الوكيل",
+      "address": "العنوان",
+      "addressPlaceholder": "معرّف المحادثة أو الاسم أو رقم الهاتف",
+      "addressHint": "عنوان المرسل كما تبلّغ عنه القناة.",
+      "threadKey": "مفتاح المحادثة (اختياري)",
+      "threadKeyHint": "اتركه فارغًا لربط كل غرفة من هذا العنوان.",
+      "confirmAttachment": "اربط",
+      "attached": "تم ربط الوكيل بـ {{channel}}.",
+      "goToConversations": "إلى المحادثات",
+      "descriptorLoaded": "تُحمَّل واصفات القنوات من data/channels عند الإقلاع. الملف هو المصدر الموثوق وقاعدة البيانات مجرد ذاكرة مؤقتة."
+    },
+    "contacts": {
+      "title": "جهات الاتصال",
+      "description": "كل من وصل إلى وكيل هنا، والدرجة التي يحملها كل منهم.",
+      "emptyTitle": "لم يصل أحد إلى وكيل بعد",
+      "empty": "تظهر جهات الاتصال أول مرة يراسل فيها شخص وكيلًا. يبدأ المرسلون غير المعروفين كغرباء ولا يحتاجون إجراءً.",
+      "search": "ابحث في جهات الاتصال",
+      "noMatches": "لا جهات اتصال مطابقة.",
+      "pickContact": "اختر جهة اتصال لمراجعة درجتها وغرفها.",
+      "lastSeen": "شوهد {{when}}",
+      "firstSeen": "أول ظهور",
+      "messages": "الرسائل",
+      "rooms": "الغرف",
+      "roomCount": "{{count}} غرف",
+      "people": "{{count}} أشخاص",
+      "trustTier": "درجة الثقة",
+      "changeTier": "غيّر الدرجة",
+      "ceilingWarning": "هذه الجهة هي الأدنى درجة في {{count}} غرف جماعية. تخفيضها إلى {{tier}} يضيّق ما يمكن للوكيل فعله للجميع في تلك الغرف.",
+      "ownerWarning": "المالك ليس مستوى صلاحية. يجعل هذا الشخص غير قابل للتمييز عنك لدى كل وكيل يمكنه الوصول إليه.",
+      "tierChanged": "غُيّرت الدرجة إلى {{tier}}. حُدّثت أسقف {{rooms}} غرف.",
+      "roomsTitle": "الغرف التي تضم هذه الجهة",
+      "noRooms": "ليست في أي غرفة بعد."
+    },
+    "session": {
+      "title": "سجّل الدخول كمالك",
+      "description": "تغيير درجة أو ربط وكيل أو الرد على بوابة أو كتابة ملف وكيل يحتاج بيانات اعتماد المالك. تُرسل إلى مصادق هذا المضيف ولا تُخزَّن هنا أبدًا؛ يُحتفظ فقط بالرمز الصادر لهذا التبويب.",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "signIn": "تسجيل الدخول",
+      "signOut": "تسجيل الخروج",
+      "badCredentials": "لم تُقبل بيانات الاعتماد هذه."
+    },
+    "call": {
+      "title": "مكالمة",
+      "description": "نص المكالمة الحية وعناصر التحكم.",
+      "unavailableTitle": "وضع المكالمات غير متاح في هذا الإصدار",
+      "unavailableDetail": "المكالمات الصوتية والمرئية هدف لاحق. المحادثة نفسها ما زالت هنا.",
+      "backToThread": "عُد إلى المحادثة"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "نظرة عامة",
+      "description": "هل هناك ما ينتظرك؟ البوابات، الرفض، حالة القنوات، ضغط الميزانية، بهذا الترتيب."
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "description": "تفضيلات هذا المتصفح، وحقائق عن هذا التثبيت.",
+      "themeHeading": "المظهر",
+      "themeDescription": "فاتح أو داكن أو حسب النظام.",
+      "localeHeading": "اللغة",
+      "localeDescription": "تنطبق على هذه اللوحة فقط.",
+      "descriptorHeading": "واصفات القنوات",
+      "descriptorStatus": "حُمّل {{count}} واصفات من سجل الإقلاع.",
+      "trustHeading": "قواعد الثقة",
+      "trustDescription": "كيف يُقبل كل دور. لا يمكن تهيئتها لكل وكيل.",
+      "trustRule1": "النطاق الفعلي هو الأضيق بين درجة المرسل وسقف الغرفة ومنحة الوكيل، ويُحسم قبل أن يقرأ الوكيل الرسالة.",
+      "trustRule2": "سقف الغرفة هو أدنى درجة فيها. إضافة غريب تضيّق الغرفة ولا توسّع الغريب أبدًا.",
+      "trustRule3": "لكل محادثة ميزانية أدوار في الساعة وحد إنفاق. كلاهما يُغلق عند الفشل ويخبرك مرة واحدة لا كل مرة.",
+      "meteringHeading": "العمل المُقاس",
+      "meteringDescription": "يعمل الاستدلال عبر agent-manager بمفاتيح المزوّد المهيأة على هذا المضيف.",
+      "byokNote": "لا تُحاسب مفاتيح مزوّدك الخاصة أبدًا. الاستدلال المُقاس عبر حزمة الأعمال إضافة فوق هذا المسار وغير مهيأ على هذا المضيف.",
+      "aboutHeading": "عن هذا التثبيت"
+    }
+  }
+}

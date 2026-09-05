@@ -172,7 +172,7 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 			// Also check if any parent directory matches the pattern
 			pathParts := strings.Split(absPath, string(filepath.Separator))
 			for _, part := range pathParts {
-				if matched, _ := filepath.Match(strings.Trim(excludePattern, "**/"), part); matched {
+				if matched, _ := filepath.Match(strings.Trim(excludePattern, "*/"), part); matched {
 					excluded = true
 					logger.Printf("⏭️ Excluded by directory pattern '%s': %s", excludePattern, file)
 					break

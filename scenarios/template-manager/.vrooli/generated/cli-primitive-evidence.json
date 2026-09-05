@@ -1,0 +1,201 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "template-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "34865fb424812c7f5492775a045332673f24dca9743eff5594d4e34443a4cad0",
+  "commands": [
+    {
+      "path": "debt list",
+      "group": "debt",
+      "command": "list",
+      "binding": "DebtService.ListDebt",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "debt show",
+      "group": "debt",
+      "command": "show",
+      "binding": "DebtService.GetDebt",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "design list",
+      "group": "design",
+      "command": "list",
+      "binding": "DesignKitService.ListDesignKits",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "design show",
+      "group": "design",
+      "command": "show",
+      "binding": "DesignKitService.GetDesignKit",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "design validate",
+      "group": "design",
+      "command": "validate",
+      "binding": "DesignKitService.ValidateDesignKits",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "guidance next",
+      "group": "guidance",
+      "command": "next",
+      "binding": "GuidanceService.NextGate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "lifecycle detemplate",
+      "group": "lifecycle",
+      "command": "detemplate",
+      "binding": "TemplateLifecycleService.DetemplateScenario",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "lifecycle generate",
+      "group": "lifecycle",
+      "command": "generate",
+      "binding": "TemplateLifecycleService.GenerateScenario",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "lifecycle orient",
+      "group": "lifecycle",
+      "command": "orient",
+      "binding": "TemplateLifecycleService.OrientScenario",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures list",
+      "group": "measures",
+      "command": "list",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measures run",
+      "group": "measures",
+      "command": "run",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "monitor status",
+      "group": "monitor",
+      "command": "status",
+      "binding": "MonitorService.GetMonitorStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "registry list",
+      "group": "registry",
+      "command": "list",
+      "binding": "RegistryService.ListTemplates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "registry show",
+      "group": "registry",
+      "command": "show",
+      "binding": "RegistryService.GetTemplate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resource-template generate",
+      "group": "resource-template",
+      "command": "generate",
+      "binding": "ResourceTemplateService.GenerateResourceTemplate",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "resource-template list",
+      "group": "resource-template",
+      "command": "list",
+      "binding": "ResourceTemplateService.ListResourceTemplates",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resource-template show",
+      "group": "resource-template",
+      "command": "show",
+      "binding": "ResourceTemplateService.GetResourceTemplate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resource-template validate",
+      "group": "resource-template",
+      "command": "validate",
+      "binding": "ResourceTemplateService.ValidateResourceTemplates",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs drift",
+      "group": "runs",
+      "command": "drift",
+      "binding": "ValidationRunService.ListDriftSnapshots",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs drift-record",
+      "group": "runs",
+      "command": "drift-record",
+      "binding": "ValidationRunService.RecordFleetDrift",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs list",
+      "group": "runs",
+      "command": "list",
+      "binding": "ValidationRunService.ListValidationRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs run",
+      "group": "runs",
+      "command": "run",
+      "binding": "ValidationRunService.RunTemplateValidation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs show",
+      "group": "runs",
+      "command": "show",
+      "binding": "ValidationRunService.GetValidationRun",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "template cleanup",
+      "group": "template",
+      "command": "cleanup",
+      "binding": "TemplateLifecycleService.CleanupRuns",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "template drift",
+      "group": "template",
+      "command": "drift",
+      "binding": "TemplateLifecycleService.DriftReport",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "template validate",
+      "group": "template",
+      "command": "validate",
+      "binding": "TemplateLifecycleService.ValidateTemplate",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

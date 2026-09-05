@@ -1,0 +1,629 @@
+<title>The Security Phase Ratchet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f7f8fa; --surface:#ffffff; --sunk:#eef1f5;
+  --ink:#12161d; --ink2:#3c4553; --muted:#5a6472; --faint:#8d97a5;
+  --rule:#dfe3e9; --rule2:#eaedf2;
+  --amber:#c2611f; --teal:#00968a; --indigo:#4c5fb8; --crimson:#9e2a3c;
+  --amber-w:#c2611f1a; --teal-w:#00968a14; --crimson-w:#9e2a3c14;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1218; --surface:#171b22; --sunk:#12161c;
+  --ink:#e6e9ee; --ink2:#c3cad4; --muted:#98a2b0; --faint:#6d7787;
+  --rule:#272d37; --rule2:#1e232b;
+  --amber:#d9752f; --teal:#12a08f; --indigo:#7386e0; --crimson:#d6516a;
+  --amber-w:#d9752f22; --teal-w:#12a08f1c; --crimson-w:#d6516a1c;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b22; --sunk:#12161c;
+  --ink:#e6e9ee; --ink2:#c3cad4; --muted:#98a2b0; --faint:#6d7787;
+  --rule:#272d37; --rule2:#1e232b;
+  --amber:#d9752f; --teal:#12a08f; --indigo:#7386e0; --crimson:#d6516a;
+  --amber-w:#d9752f22; --teal-w:#12a08f1c; --crimson-w:#d6516a1c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16.5px;line-height:1.62;margin:0;
+  -webkit-font-smoothing:antialiased;}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px 120px;}
+.col{max-width:660px;}
+h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif;text-wrap:balance;margin:0;letter-spacing:-.012em;}
+h1{font-size:clamp(2.1rem,5.2vw,3.15rem);line-height:1.08;font-weight:600;}
+h2{font-size:1.62rem;font-weight:600;line-height:1.22;}
+h3{font-size:1.1rem;font-weight:600;line-height:1.3;}
+p{margin:0;}
+.col>p+p{margin-top:1em}
+a{color:var(--indigo);text-decoration-thickness:1px;text-underline-offset:2.5px}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;}
+code{font-size:.87em;background:var(--sunk);padding:.1em .34em;border-radius:3px;
+  border:1px solid var(--rule2);}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);font-weight:500;}
+/* --- header --- */
+header{padding:76px 0 40px;border-bottom:1px solid var(--rule);}
+header .col{display:flex;flex-direction:column;gap:20px;}
+.lede{font-size:1.14rem;color:var(--ink2);line-height:1.56;}
+.meta{display:flex;flex-wrap:wrap;gap:8px 22px;font-family:"IBM Plex Mono",monospace;
+  font-size:.74rem;color:var(--faint);padding-top:6px;}
+/* --- headline stats --- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:8px;
+  overflow:hidden;margin:44px 0 8px;}
+.stat{background:var(--surface);padding:20px 22px 22px;display:flex;flex-direction:column;gap:5px;}
+.stat .n{font-family:"IBM Plex Mono",monospace;font-size:1.86rem;font-weight:500;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.05;}
+.stat .k{font-size:.78rem;color:var(--muted);line-height:1.42;}
+.stat.a .n{color:var(--amber)} .stat.t .n{color:var(--teal)}
+.stat.c .n{color:var(--crimson)} .stat.i .n{color:var(--indigo)}
+/* --- sections --- */
+section{padding-top:62px;}
+section>.col>h2{margin-bottom:6px;}
+section>.col>.eyebrow{margin-bottom:9px;display:block;}
+.sub{color:var(--muted);font-size:.95rem;margin-bottom:22px;}
+/* --- finding cards --- */
+.find{background:var(--surface);border:1px solid var(--rule);border-radius:9px;
+  padding:22px 24px;margin-top:18px;max-width:900px;}
+.find>h3{display:flex;gap:11px;align-items:baseline;margin-bottom:9px;}
+.tag{font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-weight:500;
+  padding:2px 7px;border-radius:4px;letter-spacing:.05em;flex:none;
+  border:1px solid;position:relative;top:-1px;}
+.tag.a{color:var(--amber);border-color:var(--amber);background:var(--amber-w)}
+.tag.t{color:var(--teal);border-color:var(--teal);background:var(--teal-w)}
+.tag.c{color:var(--crimson);border-color:var(--crimson);background:var(--crimson-w)}
+.find p{font-size:.96rem;color:var(--ink2);}
+.find p+p{margin-top:.8em}
+/* --- evidence rail --- */
+.ev{margin-top:14px;border-top:1px dashed var(--rule);padding-top:11px;
+  font-family:"IBM Plex Mono",monospace;font-size:.73rem;color:var(--faint);
+  line-height:1.62;overflow-x:auto;}
+.ev b{color:var(--muted);font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+  font-size:.68rem;display:block;margin-bottom:3px;}
+.ev span{white-space:pre;display:block;}
+/* --- code --- */
+pre{background:var(--sunk);border:1px solid var(--rule);border-radius:7px;
+  padding:15px 17px;overflow-x:auto;margin:16px 0 0;font-size:.8rem;line-height:1.6;
+  max-width:900px;}
+pre code{background:none;border:none;padding:0;font-size:1em}
+.hl{color:var(--crimson);font-weight:500}
+.cm{color:var(--faint)}
+/* --- tables --- */
+.tw{overflow-x:auto;margin-top:20px;max-width:960px;
+  border:1px solid var(--rule);border-radius:8px;background:var(--surface);}
+table{border-collapse:collapse;width:100%;font-size:.86rem;}
+th,td{text-align:left;padding:10px 15px;border-bottom:1px solid var(--rule2);vertical-align:top;}
+th{font-family:"IBM Plex Mono",monospace;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--muted);font-weight:500;background:var(--sunk);
+  border-bottom:1px solid var(--rule);white-space:nowrap;}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace;
+  font-variant-numeric:tabular-nums;white-space:nowrap;}
+td.mono{font-family:"IBM Plex Mono",monospace;font-size:.8rem;}
+.up{color:var(--crimson);font-weight:500}
+.dn{color:var(--teal);font-weight:500}
+/* --- figures --- */
+figure{margin:26px 0 0;max-width:900px;}
+figure svg{display:block;width:100%;height:auto;background:var(--surface);
+  border:1px solid var(--rule);border-radius:8px;padding:14px 12px;}
+figcaption{font-size:.83rem;color:var(--muted);margin-top:10px;line-height:1.55;max-width:660px;}
+.fig text{font-family:"IBM Plex Mono",monospace;}
+.fig .ax{font-size:10.5px;fill:var(--faint)}
+.fig .ax.dim{fill:var(--faint);opacity:.75}
+.fig .rowlbl{font-family:"IBM Plex Sans",sans-serif;font-size:12.5px;fill:var(--ink2)}
+.fig .val{font-size:11.5px;fill:var(--ink2);font-weight:500}
+.fig .lbl{font-size:11px;fill:var(--muted)}
+.fig .lbl.work{fill:var(--amber)}
+.fig .grid{stroke:var(--rule2);stroke-width:1}
+.fig .axis{stroke:var(--rule);stroke-width:1}
+.fig .stepline{fill:none;stroke:var(--amber);stroke-width:2;stroke-linejoin:round}
+.fig .dot-idle{fill:var(--surface);stroke:var(--faint);stroke-width:1.5}
+.fig .dot-work{fill:var(--teal);stroke:var(--surface);stroke-width:2}
+.fig .bar-amber{fill:var(--amber)}
+.fig .bar-teal{fill:var(--teal)}
+.fig .box{fill:var(--surface);stroke:var(--rule);stroke-width:1.4}
+.fig .box.hot{stroke:var(--amber);stroke-width:1.8}
+.fig .box.cool{stroke:var(--teal);stroke-width:1.8}
+.fig .bt{font-family:"IBM Plex Sans",sans-serif;font-size:12px;fill:var(--ink);font-weight:500}
+.fig .bs{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--faint)}
+.fig .flow{stroke:var(--muted);stroke-width:1.4;fill:none}
+.fig .flow.hot{stroke:var(--amber);stroke-width:1.8}
+.fig .el{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--muted)}
+.fig .zone{fill:none;stroke:var(--rule);stroke-width:1;stroke-dasharray:4 3}
+.fig .zlbl{font-family:"IBM Plex Mono",monospace;font-size:9.5px;fill:var(--faint);
+  letter-spacing:.08em;text-transform:uppercase}
+/* --- legend --- */
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;
+  font-size:.79rem;color:var(--muted);font-family:"IBM Plex Mono",monospace;}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;
+  vertical-align:baseline;}
+/* --- callout --- */
+.call{border-left:3px solid var(--amber);background:var(--amber-w);
+  padding:16px 20px;border-radius:0 7px 7px 0;margin-top:24px;max-width:900px;}
+.call.t{border-color:var(--teal);background:var(--teal-w)}
+.call p{font-size:.93rem;color:var(--ink2)}
+.call .eyebrow{color:var(--amber);margin-bottom:6px;display:block}
+.call.t .eyebrow{color:var(--teal)}
+/* --- option list --- */
+.opts{margin-top:22px;max-width:900px;display:flex;flex-direction:column;gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.opt{background:var(--surface);padding:19px 22px;display:grid;
+  grid-template-columns:56px 1fr;gap:0 16px;align-items:start}
+.opt .id{font-family:"IBM Plex Mono",monospace;font-size:.82rem;font-weight:500;
+  color:var(--indigo);padding-top:1px}
+.opt h3{font-size:1rem;margin-bottom:5px}
+.opt p{font-size:.92rem;color:var(--ink2)}
+.opt .why{font-size:.85rem;color:var(--muted);margin-top:7px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:.68rem;padding:2px 8px;
+  border-radius:11px;border:1px solid var(--rule);color:var(--muted);background:var(--sunk)}
+.chip.win{color:var(--teal);border-color:var(--teal);background:var(--teal-w)}
+.chip.cost{color:var(--crimson);border-color:var(--crimson);background:var(--crimson-w)}
+footer{margin-top:78px;padding-top:30px;border-top:1px solid var(--rule);}
+footer .col{font-size:.86rem;color:var(--muted)}
+footer h3{margin-bottom:10px;font-size:1rem}
+footer ul{margin:0;padding-left:19px} footer li{margin-bottom:7px}
+@media (max-width:700px){
+  .wrap{padding:0 18px 80px} header{padding-top:48px}
+  .opt{grid-template-columns:1fr;gap:8px} .opt .id{padding-top:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div class="wrap">
+<header><div class="col">
+  <span class="eyebrow">Test Genie · phase forensics · 2026-08-28</span>
+  <h1>The Security Phase Ratchet</h1>
+  <p class="lede">Capacity admission reserves <b>17,974&nbsp;MB</b> for Test Genie's <code>security</code> phase — 29% of this host's RAM. The heaviest thing the phase actually runs, measured directly, is <b>2.5&nbsp;GiB</b>. The gap is not a modelling error. The number is not a measurement of the phase at all.</p>
+  <div class="meta">
+    <span>2,055 security executions</span><span>57,954 phase rows</span>
+    <span>host: 32 cores / 60 GiB</span><span>all figures measured, not modelled</span>
+  </div>
+</div></header>
+
+<div class="stats">
+  <div class="stat a"><span class="n">17,974</span><span class="k">MB — estimator p90, the reservation</span></div>
+  <div class="stat i"><span class="n">93</span><span class="k">MB — estimator p50, same 2,055 samples</span></div>
+  <div class="stat t"><span class="n">2,563</span><span class="k">MB — largest scanner, measured directly</span></div>
+  <div class="stat c"><span class="n">2,338</span><span class="k">phase rows reporting RAM for 0&nbsp;ms of work</span></div>
+</div>
+
+<section><div class="col">
+  <span class="eyebrow">01 · what it is</span>
+  <h2>What the phase actually does</h2>
+  <p class="sub">A delegated security scan, not a test suite.</p>
+  <p>The <code>security</code> phase runs no code of its own. Test Genie resolves the provider <code>security-health</code>, opens a Connect RPC to that scenario's <em>already-running</em> API server, and asks it to validate one target. Everything after that happens inside a different, long-lived process.</p>
+  <p>That server detects which substrates the target contains, then runs five scanners in a fixed sequence — <code>gitleaks</code> for secrets, <code>gosec</code> for Go SAST, <code>govulncheck</code> for reachable Go vulnerabilities, <code>pnpm audit</code> and <code>osv-scanner</code> for dependency advisories. Each is a forked subprocess. <code>gosec</code> and <code>govulncheck</code> fork <em>once per Go module</em>, and 111 of 123 scenarios carry two modules (<code>api/</code> and <code>cli/</code>), so a routine run is seven forks, not five.</p>
+  <p>The design is careful in the ways that matter: a scanner whose binary is missing degrades to an advisory finding rather than failing the phase, results are content-fingerprinted and cached, and a shared admission gate bounds how many scanner subprocesses run at once. None of that is the problem.</p>
+</div>
+
+<figure>
+<svg viewBox="0 0 780 428" role="img" aria-label="The security phase is a Connect RPC from test-genie into a long-lived security-health server process. The metrics collector reads getrusage inside that server, so it observes the whole process lifetime, including a five-minute fleet reconcile that forks about 123 osv-scanner children unrelated to the phase." class="fig">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/></marker></defs>
+<rect class="zone" x="8" y="46" width="184" height="120" rx="6"/>
+<text class="zlbl" x="14" y="40">test-genie process</text>
+<rect class="zone" x="236" y="46" width="212" height="352" rx="6"/>
+<text class="zlbl" x="242" y="40">security-health process — long-lived</text>
+<rect class="zone" x="530" y="46" width="242" height="352" rx="6"/>
+<text class="zlbl" x="536" y="40">forked children</text>
+<rect class="box" x="22" y="74" width="156" height="64" rx="5"/>
+<text class="bt" x="100.0" y="103.0" text-anchor="middle">security phase</text>
+<text class="bs" x="100.0" y="119.0" text-anchor="middle">RunTarget → RPC</text>
+<path class="flow" d="M178 106 L236 106" marker-end="url(#ar)"/>
+<text class="el" x="207" y="99" text-anchor="middle">RPC</text>
+<rect class="box" x="250" y="74" width="184" height="44" rx="5"/>
+<text class="bt" x="342.0" y="100.0" text-anchor="middle">Connect handler</text>
+<rect class="box hot" x="250" y="132" width="184" height="56" rx="5"/>
+<text class="bt" x="342.0" y="157.0" text-anchor="middle">metrics.Collector</text>
+<text class="bs" x="342.0" y="173.0" text-anchor="middle">getrusage SELF + CHILDREN</text>
+<rect class="box" x="250" y="202" width="184" height="56" rx="5"/>
+<text class="bt" x="342.0" y="227.0" text-anchor="middle">validation.Service</text>
+<text class="bs" x="342.0" y="243.0" text-anchor="middle">5 scanners, sequential</text>
+<rect class="box" x="250" y="320" width="184" height="58" rx="5"/>
+<text class="bt" x="342.0" y="346.0" text-anchor="middle">fleet reconcile timer</text>
+<text class="bs" x="342.0" y="362.0" text-anchor="middle">every 5 min, conc. 4</text>
+<path class="flow" d="M342 118 L342 132" marker-end="url(#ar)"/>
+<path class="flow" d="M342 188 L342 202" marker-end="url(#ar)"/>
+<rect class="box" x="556" y="70" width="196" height="34" rx="5"/>
+<text class="bs" x="740" y="91" text-anchor="end">x1</text>
+<text class="bt" x="568" y="91" text-anchor="start">gitleaks</text>
+<rect class="box" x="556" y="112" width="196" height="34" rx="5"/>
+<text class="bs" x="740" y="133" text-anchor="end">x2 — 21 cores each</text>
+<text class="bt" x="568" y="133" text-anchor="start">gosec</text>
+<rect class="box" x="556" y="154" width="196" height="34" rx="5"/>
+<text class="bs" x="740" y="175" text-anchor="end">x2 — 2.5 GiB each</text>
+<text class="bt" x="568" y="175" text-anchor="start">govulncheck</text>
+<rect class="box" x="556" y="196" width="196" height="34" rx="5"/>
+<text class="bs" x="740" y="217" text-anchor="end">x1</text>
+<text class="bt" x="568" y="217" text-anchor="start">pnpm-audit</text>
+<rect class="box" x="556" y="238" width="196" height="34" rx="5"/>
+<text class="bs" x="740" y="259" text-anchor="end">x1 — 2.0 GiB</text>
+<text class="bt" x="568" y="259" text-anchor="start">osv-scanner</text>
+<path class="flow" d="M434 230 C500 230 500 87 556 87" marker-end="url(#ar)"/>
+<path class="flow" d="M434 230 C500 230 500 129 556 129" marker-end="url(#ar)"/>
+<path class="flow" d="M434 230 C500 230 500 171 556 171" marker-end="url(#ar)"/>
+<path class="flow" d="M434 230 C500 230 500 213 556 213" marker-end="url(#ar)"/>
+<path class="flow" d="M434 230 C500 230 500 255 556 255" marker-end="url(#ar)"/>
+<rect class="box hot" x="556" y="320" width="196" height="58" rx="5"/>
+<text class="bt" x="654.0" y="346.0" text-anchor="middle">osv-scanner</text>
+<text class="bs" x="654.0" y="362.0" text-anchor="middle">x123 on the daily advisory rollover</text>
+<path class="flow hot" d="M434 349 L556 349" marker-end="url(#ar)"/>
+<path class="flow hot" d="M556 337 C500 300 470 250 448 172" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+<text class="el" x="500" y="300" text-anchor="middle" fill="var(--amber)">peak lands here</text>
+</svg><figcaption>The phase crosses a process boundary. <code>metrics.Collector</code> — the thing that produces the number capacity admission trusts — lives inside the <code>security-health</code> server, not inside the phase. So does a five-minute fleet reconcile that has nothing to do with the phase and forks far more children than it does.</figcaption>
+</figure>
+</section>
+<section><div class="col">
+  <span class="eyebrow">02 · the defect</span>
+  <h2>Why the number is so large</h2>
+  <p class="sub">Because it is a high-water mark of a process, read absolutely, and reported as if it were a measurement of one phase.</p>
+  <p>Every other resource number in this pipeline is a delta: sample at the start, sample at the end, subtract. Peak RSS is the one field that is not.</p>
+</div>
+
+<pre><code><span class="cm">// packages/api-core/metrics/metrics.go:238</span>
+func (c *Collector) resourceUsage(start, end rusageSample) *commonv1.ResourceUsage {
+	usage := &commonv1.ResourceUsage{}
+	rel := c.cpuMemReliability(start, end)
+	if rel != commonv1.Reliability_RELIABILITY_UNAVAILABLE {
+		usage.CpuUserMs = end.cpuUserMs - start.cpuUserMs   <span class="cm">// delta</span>
+		usage.CpuSysMs  = end.cpuSysMs  - start.cpuSysMs    <span class="cm">// delta</span>
+		<span class="hl">usage.PeakRssBytes = end.maxRSSBytes                // absolute</span>
+	}</code></pre>
+
+<div class="find">
+  <h3><span class="tag a">M1</span> <code>ru_maxrss</code> only goes up, so an absolute read is a lifetime figure</h3>
+  <p>The kernel's <code>ru_maxrss</code> is a monotonic high-water mark for the life of a process. Subtracting two samples of it would be meaningless, which is presumably why the code does not — but taking the endpoint absolutely means every phase inherits the largest moment in the provider's entire history, including work done for other phases, other runs, and background timers.</p>
+  <p>The sampler takes <code>max(RUSAGE_SELF, RUSAGE_CHILDREN)</code>. Both terms ratchet. Neither resets between requests. The provider server is started once and serves for days.</p>
+  <div class="ev"><b>evidence</b><span>packages/api-core/metrics/metrics.go:244 · metrics_unix.go:41</span></div>
+</div>
+
+<div class="find">
+  <h3><span class="tag a">M2</span> 2,338 phase rows report memory for zero work</h3>
+  <p>If the field measured the phase, a phase that did nothing would report nothing. Across the corpus, 2,338 rows record <b>0&nbsp;ms wall clock and 0&nbsp;ms CPU</b> — cache hits and skips that forked no process at all — and those same rows carry a mean peak RSS of <b>811&nbsp;MB</b>, with a maximum of <b>3,608&nbsp;MB</b>.</p>
+  <p>That is the whole argument in one query. There is no phase-level work those numbers could be describing.</p>
+  <div class="ev"><b>evidence</b><span>sqlite3 test-genie.db "SELECT count(*), avg(peak_rss_bytes), max(peak_rss_bytes)
+  FROM suite_execution_phases
+  WHERE peak_rss_bytes &gt; 0 AND wall_clock_ms = 0 AND cpu_user_ms = 0 AND cpu_sys_ms = 0;"
+→ 2338 | 811 MB | 3608 MB</span></div>
+</div>
+
+<div class="find">
+  <h3><span class="tag a">M3</span> Consecutive executions form a staircase that never descends</h3>
+  <p>Plotting the last 46 <code>security</code> executions in order shows a step function with three plateaus. Within a plateau every execution reports a byte-identical figure — the run that burned 89 CPU-seconds and the run that returned from cache in under a second are indistinguishable.</p>
+  <p>The steps are the moments the provider process reached a new high. The plateaus are everything after.</p>
+</div>
+
+<figure>
+<svg viewBox="0 0 760 300" role="img" aria-label="Reported peak RSS for 46 consecutive security phase executions, forming a rising staircase from 2592 to 3416 megabytes; executions that did real work and executions that did none sit at identical heights." class="fig">
+<line class="grid" x1="54" y1="256.0" x2="746" y2="256.0"/>
+<text class="ax" x="46" y="260.0" text-anchor="end">0</text>
+<line class="grid" x1="54" y1="193.4" x2="746" y2="193.4"/>
+<text class="ax" x="46" y="197.4" text-anchor="end">1000</text>
+<line class="grid" x1="54" y1="130.7" x2="746" y2="130.7"/>
+<text class="ax" x="46" y="134.7" text-anchor="end">2000</text>
+<line class="grid" x1="54" y1="68.1" x2="746" y2="68.1"/>
+<text class="ax" x="46" y="72.1" text-anchor="end">3000</text>
+<text class="ax" x="46" y="12" text-anchor="end">MB</text>
+<path class="stepline" d="M54.0 93.7 L69.4 93.7 L69.4 93.7 L84.8 93.7 L84.8 93.7 L100.1 93.7 L100.1 93.7 L115.5 93.7 L115.5 93.7 L130.9 93.7 L130.9 93.7 L146.3 93.7 L146.3 93.7 L161.6 93.7 L161.6 93.7 L177.0 93.7 L177.0 93.7 L192.4 93.7 L192.4 93.7 L207.8 93.7 L207.8 93.7 L223.2 93.7 L223.2 93.7 L238.5 93.7 L238.5 93.7 L253.9 93.7 L253.9 93.7 L269.3 93.7 L269.3 93.7 L284.7 93.7 L284.7 93.7 L300.0 93.7 L300.0 93.7 L315.4 93.7 L315.4 93.7 L330.8 93.7 L330.8 93.7 L346.2 93.7 L346.2 93.7 L361.6 93.7 L361.6 93.7 L376.9 93.7 L376.9 93.7 L392.3 93.7 L392.3 93.7 L407.7 93.7 L407.7 93.7 L423.1 93.7 L423.1 93.7 L438.4 93.7 L438.4 83.6 L453.8 83.6 L453.8 83.6 L469.2 83.6 L469.2 83.6 L484.6 83.6 L484.6 83.6 L500.0 83.6 L500.0 83.6 L515.3 83.6 L515.3 42.1 L530.7 42.1 L530.7 42.1 L546.1 42.1 L546.1 42.1 L561.5 42.1 L561.5 42.1 L576.8 42.1 L576.8 42.1 L592.2 42.1 L592.2 42.1 L607.6 42.1 L607.6 42.1 L623.0 42.1 L623.0 42.1 L638.4 42.1 L638.4 42.1 L653.7 42.1 L653.7 42.1 L669.1 42.1 L669.1 42.1 L684.5 42.1 L684.5 42.1 L699.9 42.1 L699.9 42.1 L715.2 42.1 L715.2 42.1 L730.6 42.1 L730.6 42.1 L746.0 42.1 L746.0 42.1"/>
+<circle class="dot-idle" cx="54.0" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="69.4" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="84.8" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="100.1" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="115.5" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="146.3" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="161.6" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="177.0" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="192.4" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="207.8" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="223.2" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="238.5" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="253.9" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="269.3" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="284.7" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="300.0" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="315.4" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="330.8" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="346.2" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="361.6" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="376.9" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="392.3" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="407.7" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="423.1" cy="93.7" r="4"/>
+<circle class="dot-idle" cx="500.0" cy="83.6" r="4"/>
+<circle class="dot-idle" cx="515.3" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="530.7" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="546.1" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="561.5" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="576.8" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="592.2" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="607.6" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="623.0" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="638.4" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="653.7" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="669.1" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="730.6" cy="42.1" r="4"/>
+<circle class="dot-idle" cx="746.0" cy="42.1" r="4"/>
+<circle class="dot-work" cx="130.9" cy="93.7" r="4.5"/>
+<circle class="dot-work" cx="438.4" cy="83.6" r="4.5"/>
+<circle class="dot-work" cx="453.8" cy="83.6" r="4.5"/>
+<circle class="dot-work" cx="469.2" cy="83.6" r="4.5"/>
+<circle class="dot-work" cx="484.6" cy="83.6" r="4.5"/>
+<circle class="dot-work" cx="684.5" cy="42.1" r="4.5"/>
+<circle class="dot-work" cx="699.9" cy="42.1" r="4.5"/>
+<circle class="dot-work" cx="715.2" cy="42.1" r="4.5"/>
+<line class="axis" x1="54" y1="256" x2="746" y2="256"/>
+<text class="ax" x="54" y="276">oldest</text><text class="ax" x="746" y="276" text-anchor="end">newest</text>
+<text class="ax dim" x="400" y="276" text-anchor="middle">46 consecutive security executions</text>
+<text class="lbl work" x="746" y="28.1" text-anchor="end">3,416 MB plateau</text>
+<text class="lbl" x="60" y="79.7">2,592 MB plateau</text>
+</svg><div class="legend">
+  <span><i style="background:var(--teal)"></i>did real work (&ge;1&nbsp;s)</span>
+  <span><i style="background:var(--surface);border:1.5px solid var(--faint)"></i>cache hit or skip (&lt;1&nbsp;s)</span>
+  <span><i style="background:var(--amber)"></i>reported peak RSS</span>
+</div>
+<figcaption>46 consecutive <code>security</code> executions, oldest to newest. Eight did real work; thirty-eight did none. Both classes sit at exactly the same height, because the height is a property of the server process, not of the execution. The plateau steps up when the provider reaches a new high and resets only when it restarts — which is why the corpus minimum is 74&nbsp;MB and the maximum is 18,950&nbsp;MB.</figcaption>
+</figure>
+
+<div class="find">
+  <h3><span class="tag c">M4</span> The p90 lands inside the plateau by a 7.9-point margin</h3>
+  <p>368 of 2,055 samples — <b>17.9%</b> — sit above 8&nbsp;GB, all of them from one long-lived provider process that once reached ~17.9&nbsp;GB. Because 17.9% exceeds 10%, the 90th percentile falls inside that band and returns <b>17,974&nbsp;MB</b>. The median of the same 2,055 samples is <b>93&nbsp;MB</b>.</p>
+  <p>A 193&times; gap between p50 and p90 is not a heavy tail. It is two different quantities in one column. And the reservation is decided by how many stale rows one process happened to leave behind: had that provider been restarted a little more often, the same p90 would read double digits.</p>
+  <div class="ev"><b>evidence</b><span>n=2055 · p50 93 MB · p90 17,974 MB · max 18,950 MB · rows &gt;8 GB = 368 (17.9%)
+p90 = 29.3% of a 60 GiB host, reserved for every admission of this phase</span></div>
+</div>
+
+<div class="call">
+  <span class="eyebrow">Why this matters beyond one phase</span>
+  <p>This is the number the capacity ledger reserves RAM from. The adaptive-admission plan re-derives the fallback reservation from measured p90s precisely because the current 512&nbsp;MB default is too low. Feeding that same machinery a 17,974&nbsp;MB figure for <code>security</code> does not make admission safer — it makes one phase's claim large enough to serialize the scheduler against a cost that was never incurred.</p>
+</div>
+</section>
+<section><div class="col">
+  <span class="eyebrow">03 · the real cost</span>
+  <h2>What the phase actually costs</h2>
+  <p class="sub">Every scanner, run by hand on this host, under <code>/usr/bin/time -v</code>.</p>
+  <p>With the instrument discredited, the only way to size the phase is to run its parts directly. The result is a phase that is genuinely expensive — just not in the dimension the ledger is watching.</p>
+</div>
+
+<div class="tw"><table>
+  <thead><tr>
+    <th>Scanner</th><th>Target</th><th class="num">Peak RSS</th><th class="num">Wall</th>
+    <th class="num">CPU</th><th class="num">Cores</th>
+  </tr></thead>
+  <tbody>
+    <tr><td class="mono">govulncheck</td><td>one scenario <code>api/</code> module</td><td class="num up">2,563 MB</td><td class="num">5.4 s</td><td class="num">15.4 s</td><td class="num">3.1</td></tr>
+    <tr><td class="mono">govulncheck</td><td>whole control plane</td><td class="num up">2,471 MB</td><td class="num">8.8 s</td><td class="num">18.3 s</td><td class="num">2.4</td></tr>
+    <tr><td class="mono">osv-scanner</td><td>one scenario, 3 lockfiles</td><td class="num up">1,996 MB</td><td class="num">8.3 s</td><td class="num">19.3 s</td><td class="num">2.5</td></tr>
+    <tr><td class="mono">gosec</td><td>whole control plane</td><td class="num">261 MB</td><td class="num">3.2 s</td><td class="num">73.9 s</td><td class="num up">22.8</td></tr>
+    <tr><td class="mono">gosec</td><td>one scenario <code>api/</code> module</td><td class="num">300 MB</td><td class="num">0.8 s</td><td class="num">11.4 s</td><td class="num up">21.2</td></tr>
+  </tbody>
+</table></div>
+
+<figure>
+<svg viewBox="0 0 760 312" role="img" aria-label="Horizontal bars comparing the 17974 megabyte figure capacity reserves for the security phase against the largest directly measured scanner cost of 2563 megabytes." class="fig">
+<text class="ax dim" x="372" y="16">megabytes, linear scale</text>
+<text class="rowlbl" x="8" y="51">Estimator p90 — what capacity reserves</text>
+<rect class="bar-amber" x="372" y="35" width="303.6" height="22" rx="3"/>
+<text class="val" x="683.6" y="51">17,974</text>
+<text class="rowlbl" x="8" y="93">govulncheck, one scenario api module</text>
+<rect class="bar-teal" x="372" y="77" width="43.3" height="22" rx="3"/>
+<text class="val" x="423.3" y="93">2,563</text>
+<text class="rowlbl" x="8" y="135">govulncheck, whole control plane</text>
+<rect class="bar-teal" x="372" y="119" width="41.7" height="22" rx="3"/>
+<text class="val" x="421.7" y="135">2,471</text>
+<text class="rowlbl" x="8" y="177">osv-scanner, one scenario</text>
+<rect class="bar-teal" x="372" y="161" width="33.7" height="22" rx="3"/>
+<text class="val" x="413.7" y="177">1,996</text>
+<text class="rowlbl" x="8" y="219">gosec, one scenario api module</text>
+<rect class="bar-teal" x="372" y="203" width="5.1" height="22" rx="3"/>
+<text class="val" x="385.1" y="219">300</text>
+<text class="rowlbl" x="8" y="261">Estimator p50 — median observation</text>
+<rect class="bar-amber" x="372" y="245" width="2.0" height="22" rx="3"/>
+<text class="val" x="382.0" y="261">93</text>
+<line class="axis" x1="372" y1="26" x2="372" y2="278"/>
+</svg><div class="legend">
+  <span><i style="background:var(--amber)"></i>derived from the ratcheted field</span>
+  <span><i style="background:var(--teal)"></i>measured directly on this host</span>
+</div>
+<figcaption>The reservation against the evidence. The largest single scanner measured is 2,563&nbsp;MB — and because <code>validation.Service</code> runs scanners sequentially, that is close to the phase's true resident peak, not a component of a larger sum.</figcaption>
+</figure>
+
+<div class="find">
+  <h3><span class="tag c">C1</span> The dimension that is actually over-committed is CPU, not RAM</h3>
+  <p>A single <code>gosec</code> fork drove <b>2,115% CPU — 21 of 32 cores</b> — for its whole 0.8-second run. A routine phase forks two of them. Meanwhile the batch reservation the scheduler falls back to is <code>DefaultReservationCPUMilli = 500</code>: half of one core.</p>
+  <p>So the ledger reserves ~7&times; more RAM than the phase can possibly use and ~42&times; less CPU than one of its seven children demonstrably takes. Both errors point the same way — toward a scheduler that admits work whose real contention it cannot see.</p>
+  <div class="ev"><b>evidence</b><span>/usr/bin/time -f "%M %e %U %P" gosec -fmt=json -no-fail ./...
+→ 307816 KB · 0.80 s · 11.44 s user · 2115%
+phasebatch.go:118 DefaultReservationRAMBytes 512 MiB · DefaultReservationCPUMilli 500</span></div>
+</div>
+
+<div class="find">
+  <h3><span class="tag t">C2</span> Sequential scanners are the reason RAM is fine</h3>
+  <p>Worth stating plainly, because it is the one place the current design is doing exactly the right thing: <code>ValidateTarget</code> iterates scanners in a <code>for</code> loop, so the two multi-gigabyte scanners never overlap <em>within</em> a phase. Parallelising them for speed would turn a 2.5&nbsp;GiB phase into a 4.5&nbsp;GiB one. That trade is available but it is not free, and it should be made deliberately rather than as a side effect of a refactor.</p>
+</div>
+</section>
+<section><div class="col">
+  <span class="eyebrow">04 · the work nobody asked for</span>
+  <h2>The provider does more than the phase</h2>
+  <p class="sub">Two background behaviours dominate the process the phase is measured inside.</p>
+  <p>The <code>security-health</code> scenario is two products in one server: the per-target validator the phase calls, and a fleet-wide dependency intelligence corpus. The second one runs on a timer, and it is much larger than the first.</p>
+</div>
+
+<div class="find">
+  <h3><span class="tag c">C3</span> A full-fleet walk every five minutes</h3>
+  <p><code>DiscoverFleet</code> walks all 123 scenario trees, parsing every <code>go.mod</code> and <code>pnpm-lock.yaml</code> it finds, then <code>Annotate</code> fans out over the scenarios at concurrency 4. The loop fires every five minutes for the life of the process.</p>
+  <p>Warm, this is cheaper than it looks — the lockfile fingerprint pass is 0.27&nbsp;s across 17,246 directories, and I want to be accurate about that rather than inflate it. The durable cost is the YAML: <b>19.4&nbsp;MiB of <code>pnpm-lock.yaml</code> re-parsed every five minutes</b>, about 5.6&nbsp;GiB/day of allocation churn through <code>yaml.v3</code>, in the same heap whose high-water mark becomes the phase's reservation.</p>
+  <div class="ev"><b>evidence</b><span>api/main.go:145 defaultReconcileInterval = 5 * time.Minute
+124 pnpm-lock.yaml · 19.4 MiB · 651 lockfiles fingerprinted per pass · 123 scenarios</span></div>
+</div>
+
+<div class="find">
+  <h3><span class="tag c">C4</span> The advisory epoch makes the whole fleet go cold at midnight UTC</h3>
+  <p>Cache identity for <code>osv-scanner</code>, <code>govulncheck</code> and <code>pnpm-audit</code> folds in <code>now.UTC().Format("2006-01-02")</code>, so that advisory-backed evidence cannot be reused across a database refresh. Correct in intent — but it means every key for every scenario changes simultaneously at the day boundary, and the five-minute timer walks straight into it.</p>
+  <p>The cache table shows the result without ambiguity: <b>118 of 190 rows were written today</b>, against one yesterday and one the day before. That is ~118 <code>osv-scanner</code> forks at ~2.0&nbsp;GiB and ~8.3&nbsp;s each, four at a time — roughly <b>4 minutes of wall clock at ~8&nbsp;GiB resident and ~10 cores</b>, arriving as a step function once a day.</p>
+</div>
+
+<figure>
+<svg viewBox="0 0 760 240" role="img" aria-label="Bar chart of OSV scan cache rows written per day. One day shows 118 rows while every other day shows six or fewer, marking a fleet-wide cold re-scan at the UTC day rollover." class="fig">
+<line class="grid" x1="44" y1="190.0" x2="746" y2="190.0"/>
+<text class="ax" x="36" y="194.0" text-anchor="end">0</text>
+<line class="grid" x1="44" y1="138.5" x2="746" y2="138.5"/>
+<text class="ax" x="36" y="142.5" text-anchor="end">40</text>
+<line class="grid" x1="44" y1="87.1" x2="746" y2="87.1"/>
+<text class="ax" x="36" y="91.1" text-anchor="end">80</text>
+<line class="grid" x1="44" y1="35.6" x2="746" y2="35.6"/>
+<text class="ax" x="36" y="39.6" text-anchor="end">120</text>
+<rect class="bar-teal" x="53.4" y="184.9" width="39.8" height="5.1" rx="2.5"/>
+<text class="val" x="73.2" y="178.9" text-anchor="middle">4</text>
+<text class="ax" x="73.2" y="206" text-anchor="middle" transform="rotate(-38 73.2 206)">08-16</text>
+<rect class="bar-teal" x="111.9" y="179.7" width="39.8" height="10.3" rx="2.5"/>
+<text class="val" x="131.8" y="173.7" text-anchor="middle">8</text>
+<text class="ax" x="131.8" y="206" text-anchor="middle" transform="rotate(-38 131.8 206)">08-17</text>
+<rect class="bar-teal" x="170.4" y="186.1" width="39.8" height="3.9" rx="2.5"/>
+<text class="val" x="190.2" y="180.1" text-anchor="middle">3</text>
+<text class="ax" x="190.2" y="206" text-anchor="middle" transform="rotate(-38 190.2 206)">08-18</text>
+<rect class="bar-teal" x="228.9" y="183.6" width="39.8" height="6.4" rx="2.5"/>
+<text class="val" x="248.8" y="177.6" text-anchor="middle">5</text>
+<text class="ax" x="248.8" y="206" text-anchor="middle" transform="rotate(-38 248.8 206)">08-19</text>
+<rect class="bar-teal" x="287.4" y="187.4" width="39.8" height="2.6" rx="2.5"/>
+<text class="val" x="307.2" y="181.4" text-anchor="middle">2</text>
+<text class="ax" x="307.2" y="206" text-anchor="middle" transform="rotate(-38 307.2 206)">08-20</text>
+<rect class="bar-teal" x="345.9" y="188.7" width="39.8" height="1.5" rx="2.5"/>
+<text class="val" x="365.8" y="182.7" text-anchor="middle">1</text>
+<text class="ax" x="365.8" y="206" text-anchor="middle" transform="rotate(-38 365.8 206)">08-21</text>
+<rect class="bar-teal" x="404.4" y="188.7" width="39.8" height="1.5" rx="2.5"/>
+<text class="val" x="424.2" y="182.7" text-anchor="middle">1</text>
+<text class="ax" x="424.2" y="206" text-anchor="middle" transform="rotate(-38 424.2 206)">08-22</text>
+<rect class="bar-teal" x="462.9" y="182.3" width="39.8" height="7.7" rx="2.5"/>
+<text class="val" x="482.8" y="176.3" text-anchor="middle">6</text>
+<text class="ax" x="482.8" y="206" text-anchor="middle" transform="rotate(-38 482.8 206)">08-24</text>
+<rect class="bar-teal" x="521.4" y="186.1" width="39.8" height="3.9" rx="2.5"/>
+<text class="val" x="541.2" y="180.1" text-anchor="middle">3</text>
+<text class="ax" x="541.2" y="206" text-anchor="middle" transform="rotate(-38 541.2 206)">08-25</text>
+<rect class="bar-teal" x="579.9" y="188.7" width="39.8" height="1.5" rx="2.5"/>
+<text class="val" x="599.8" y="182.7" text-anchor="middle">1</text>
+<text class="ax" x="599.8" y="206" text-anchor="middle" transform="rotate(-38 599.8 206)">08-26</text>
+<rect class="bar-teal" x="638.4" y="188.7" width="39.8" height="1.5" rx="2.5"/>
+<text class="val" x="658.2" y="182.7" text-anchor="middle">1</text>
+<text class="ax" x="658.2" y="206" text-anchor="middle" transform="rotate(-38 658.2 206)">08-27</text>
+<rect class="bar-amber" x="696.9" y="38.2" width="39.8" height="151.8" rx="2.5"/>
+<text class="val" x="716.8" y="32.2" text-anchor="middle">118</text>
+<text class="ax" x="716.8" y="206" text-anchor="middle" transform="rotate(-38 716.8 206)">08-28</text>
+<line class="axis" x1="44" y1="190" x2="746" y2="190"/>
+<text class="ax dim" x="44" y="14">OSV cache rows written</text>
+</svg><figcaption>OSV scan cache rows written per day. Steady-state churn is one to eight rows as scenarios change. The 118 on 08-28 is not activity — it is the entire fleet's cache identity expiring at once because the date changed.</figcaption>
+</figure>
+
+<div class="find">
+  <h3><span class="tag t">C5</span> Duplicate work exists, and it is smaller than it looks</h3>
+  <p><code>gosec</code> and <code>govulncheck</code> each call <code>walkModuleEvidenceFiles</code> over the same module set, so the identical walk-and-hash of every Go source file runs twice per validation. It is real duplication and worth collapsing.</p>
+  <p>It is not, however, a performance finding: measured across three scenarios the doubled pass costs <b>3–11&nbsp;ms</b>. I had expected this to be significant before measuring it and it is not. Fix it for the sake of one fingerprint definition, not for the milliseconds.</p>
+  <div class="ev"><b>evidence</b><span>test-genie 489 files / 3.3 MiB → 6 ms · web-console 467 files / 2.3 MiB → 5 ms
+security-health 119 files / 0.6 MiB → 1 ms   (doubled: 11 / 10 / 3 ms)</span></div>
+</div>
+</section>
+<section><div class="col">
+  <span class="eyebrow">05 · options</span>
+  <h2>How to mature it</h2>
+  <p class="sub">Ordered by evidence, not by appeal. The first one is worth more than the rest combined.</p>
+  <p>Fixing the instrument comes first, because every other decision here — reservations, concurrency, whether the phase is even expensive — is currently being made against a number that does not mean what it says.</p>
+</div>
+
+<div class="opts">
+  <div class="opt"><span class="id">O1</span><div>
+    <h3>Measure each fork, not the process</h3>
+    <p><code>execCommander.Run</code> already waits on every scanner subprocess. <code>cmd.ProcessState.SysUsage().(*syscall.Rusage).Maxrss</code> is the exact peak RSS of that one child, available for free at the point it exits. Return it alongside the exit code, take the max across the scanners a phase ran, and the phase reports what the phase cost.</p>
+    <p class="why">This replaces a lifetime high-water mark with a per-operation measurement without adding a sampler, a goroutine, or a dependency. It is a smaller change than the workaround the current comment in <code>metrics_unix.go</code> describes.</p>
+    <div class="chips"><span class="chip win">fixes M1–M4</span><span class="chip">~1 file + call sites</span><span class="chip">no new deps</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O2</span><div>
+    <h3>Make an unattributable measurement say so</h3>
+    <p>The schema already carries <code>memory_reliability</code>. Where a collector cannot isolate an operation's memory — a long-lived server with no per-fork attribution — it should report <code>UNAVAILABLE</code> rather than a confident wrong number, exactly as it already does when <code>getrusage</code> fails.</p>
+    <p class="why">Capacity admission then falls back to a declared reservation, which is a known-approximate value, instead of trusting a precise-looking one. Wrong-and-confident is the failure mode that produced the 17,974&nbsp;MB reservation.</p>
+    <div class="chips"><span class="chip win">fail-honest</span><span class="chip">pairs with O1</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O3</span><div>
+    <h3>Quarantine the poisoned samples</h3>
+    <p>368 rows above 8&nbsp;GB will keep steering the estimator after the collector is fixed. Bump a metrics-schema version on the row and have <code>PhaseCostEstimate</code> ignore samples written by the old collector, rather than deleting history.</p>
+    <p class="why">Without this, O1 changes nothing for weeks — the p90 is computed over a 30-day window and the plateau rows outnumber the corrected ones for most of it.</p>
+    <div class="chips"><span class="chip cost">required for O1 to take effect</span><span class="chip">migration + one query</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O4</span><div>
+    <h3>Bound scanner CPU instead of guessing it</h3>
+    <p>One <code>gosec</code> fork takes 21 of 32 cores. Two suites each forking two of them oversubscribe the host by a wide margin, and the ledger books 500 millicores for the batch. Set <code>GOMAXPROCS</code> on the scanner children to a value the broker chose, and reserve CPU from the measured figure.</p>
+    <p class="why">This is the dimension where over-admission actually bites: RAM is over-reserved by ~7&times; and CPU is under-reserved by ~42&times;, so the scheduler is simultaneously too timid and too reckless.</p>
+    <div class="chips"><span class="chip win">real contention win</span><span class="chip">env on exec.Cmd</span><span class="chip cost">needs a broker input</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O5</span><div>
+    <h3>Stagger the advisory epoch per scenario</h3>
+    <p>Replace the shared <code>YYYY-MM-DD</code> in the fingerprint with a per-scenario offset — hash the scenario id into a bucket and roll that scenario's epoch at its own hour. Freshness stays bounded by 24 hours; the cliff becomes a slope.</p>
+    <p class="why">The cheapest large win available. It converts a once-daily ~4-minute, ~8&nbsp;GiB, ~10-core stampede into roughly five scenarios rescanned per hour, and it changes no correctness property — every scenario is still rescanned within a day.</p>
+    <div class="chips"><span class="chip win">removes the daily cliff</span><span class="chip">~10 lines</span><span class="chip">no contract change</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O6</span><div>
+    <h3>Key advisory freshness to the database, not the calendar</h3>
+    <p>The stronger version of O5: the reason to invalidate is that the advisory data changed, and both <code>osv-scanner</code> and <code>govulncheck</code> can report the database version they used. Fold that identity into the fingerprint instead of the date, and evidence survives until there is a real reason to discard it.</p>
+    <p class="why">Correct rather than merely smoother. It costs a probe per scanner per pass and needs a fallback for tools that will not report a version — the date is that fallback, so O5 and O6 compose.</p>
+    <div class="chips"><span class="chip win">strictly better invalidation</span><span class="chip cost">per-tool probe</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O7</span><div>
+    <h3>Move the fleet reconcile out of the serving process</h3>
+    <p>The five-minute fleet walk shares a heap, a CPU budget and — until O1 — a resource metric with the RPC the phase calls. Splitting it into its own process or a scheduled job separates the two failure domains.</p>
+    <p class="why">Deliberately listed below O1: once per-fork attribution exists, co-location stops corrupting the measurement, and this becomes an ordinary isolation argument rather than an urgent one. Worth doing, not worth doing first.</p>
+    <div class="chips"><span class="chip">isolation</span><span class="chip cost">lifecycle + ownership change</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O8</span><div>
+    <h3>Back the reconcile off when nothing changed</h3>
+    <p>The interval is a flat five minutes regardless of outcome. Track consecutive no-change passes and widen the interval up to a ceiling, resetting on any observed change. The 19.4&nbsp;MiB of YAML re-parsed on every idle pass is pure churn.</p>
+    <p class="why">Straightforward, but measure before and after — the fingerprint pass is only 0.27&nbsp;s warm, so the saving is the YAML parse and allocation, not the walk.</p>
+    <div class="chips"><span class="chip">~5.6 GiB/day of parse churn</span><span class="chip">verify the win</span></div>
+  </div></div>
+
+  <div class="opt"><span class="id">O9</span><div>
+    <h3>Collapse the duplicated evidence walk</h3>
+    <p>Compute the module evidence fingerprint once per <code>(target, module set)</code> and let both <code>gosec</code> and <code>govulncheck</code> read it.</p>
+    <p class="why">Tidiness, honestly priced: the measured saving is 3–11&nbsp;ms. Do it so there is one definition of what a Go module's evidence is, not for the time.</p>
+    <div class="chips"><span class="chip">one definition, not two</span><span class="chip cost">negligible perf win</span></div>
+  </div></div>
+</div>
+
+<div class="call t">
+  <span class="eyebrow">If only three things get done</span>
+  <p><b>O1 + O3</b> together, then <b>O5</b>. The first pair makes the phase's cost knowable and stops the estimator being steered by 368 stale rows; the third removes the largest recurring load on the host. O4 follows once there is a trustworthy CPU figure to reserve from.</p>
+</div>
+</section>
+
+<section><div class="col">
+  <span class="eyebrow">06 · leave alone</span>
+  <h2>What not to change</h2>
+  <p class="sub">Each of these looks like a defect and is not.</p>
+</div>
+<div class="tw"><table>
+  <thead><tr><th>Looks wrong</th><th>Why it is right</th></tr></thead>
+  <tbody>
+    <tr><td>Scanners run sequentially, not in parallel</td><td>It is the only reason the phase's resident peak is ~2.5&nbsp;GiB rather than ~4.5&nbsp;GiB. Parallelising is a real option, but it is a RAM-for-latency trade to be taken deliberately.</td></tr>
+    <tr><td><code>ru_maxrss</code> takes <code>max</code>, not <code>sum</code>, of self and children</td><td>Correct and well argued in the source comment: <code>RUSAGE_CHILDREN</code> is already a peak over all reaped children, and summing would invent a concurrent peak that never existed. The bug is the absolute read, not the max.</td></tr>
+    <tr><td>A missing scanner binary does not fail the phase</td><td>Deliberate degradation. It keeps a host without <code>osv-scanner</code> installed from turning every scenario red, and the gap is still surfaced as a finding.</td></tr>
+    <tr><td>Advisory evidence expires on a 25-hour TTL</td><td>The TTL is right; the shared epoch is what needs staggering (O5). Do not lengthen the TTL to hide the cliff.</td></tr>
+    <tr><td>Full scanner stdout is buffered in memory</td><td>Measured at 250–706&nbsp;KB per scanner. Streaming would add complexity for no measurable gain.</td></tr>
+  </tbody>
+</table></div>
+</section>
+<footer><div class="col">
+  <h3>Method, and what this does not establish</h3>
+  <p>Every figure above came from one of three places: the live Test Genie database at <code>scenarios/test-genie/data/test-genie.db</code> (2,055 <code>security</code> rows of 57,954 phase rows), the <code>security-health</code> database at <code>scenarios/security-health/data/security-health.db</code>, or a scanner run by hand on this host under <code>/usr/bin/time -v</code>. No number here is modelled or extrapolated.</p>
+  <ul style="margin-top:14px">
+    <li><b>The ~17.9&nbsp;GB event itself is not explained.</b> I can show the field is a ratchet, that 368 rows share one plateau, and that no scanner I measured comes within 7&times; of it. I cannot say what the <code>security-health</code> process was doing when it reached that height — the logs do not cover it and the process has since restarted. O1 would make the next such event attributable; until then, treat the plateau's origin as unknown rather than assuming a leak.</li>
+    <li><b>Scanner costs are single measurements on a warm host</b>, not distributions. <code>gosec</code>'s 21-core figure in particular will vary with the module and the build cache; the order of magnitude is the claim, not the digits.</li>
+    <li><b>I expected the duplicated fingerprint walk to matter and it does not.</b> It measured 3–11&nbsp;ms. It is listed as tidiness (O9) rather than performance because that is what the measurement supports.</li>
+    <li><b>The 5.6&nbsp;GiB/day YAML figure is bytes parsed, not bytes resident.</b> It is an allocation-churn argument for O8, not evidence that the reconcile holds gigabytes.</li>
+    <li><b>Concurrency interactions were not measured end to end.</b> Two suites plus the fleet reconcile can plausibly put ~10&nbsp;GiB of scanner processes on the host at once; that is arithmetic over measured parts, not an observation.</li>
+  </ul>
+  <p style="margin-top:16px">Commands, table and column names appear inline beside each finding so any number here can be re-derived rather than taken on trust. Companion page: <a href="https://claude.ai/code/artifact/b9e7b625-a696-4783-a7c4-fef98b0b7c22">Test Genie's Two Schedulers</a>, whose phase-cost chart raised this question.</p>
+</div></footer>
+</div>

@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // ScenarioLookup provides the ability to get scenario name from profile ID.
@@ -63,20 +64,14 @@ func NewProxyRepository(scenarioLookup ScenarioLookup, opts ...ProxyRepositoryOp
 	return r
 }
 
-// getDefaultSigningAPIURL returns the default URL for the scenario-to-desktop signing API.
+// getDefaultSigningAPIURL resolves the scenario-to-desktop signing API through
+// the standard Vrooli discovery contract.
 func getDefaultSigningAPIURL() string {
-	// Check for explicit environment variable first
-	if url := os.Getenv("SCENARIO_TO_DESKTOP_URL"); url != "" {
-		return url
+	validated, err := shared.NewEnvConfigResolver().ResolveDesktopPackagerURL()
+	if err != nil {
+		return ""
 	}
-
-	// Default to localhost with standard port
-	port := os.Getenv("SCENARIO_TO_DESKTOP_PORT")
-	if port == "" {
-		port = "7800" // Default scenario-to-desktop API port
-	}
-
-	return fmt.Sprintf("http://localhost:%s", port)
+	return validated
 }
 
 // getScenarioName looks up the scenario name for a profile ID.
@@ -107,12 +102,12 @@ func (r *ProxyRepository) Get(ctx context.Context, profileID string) (*SigningCo
 	}
 
 	url := fmt.Sprintf("%s/api/v1/signing/%s", r.baseURL, scenario)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // baseURL is validated at discovery/override boundaries
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.httpClient.Do(req) //nolint:gosec // request target was built from the validated service base URL
 	if err != nil {
 		return nil, fmt.Errorf("call signing API: %w", err)
 	}
@@ -153,13 +148,13 @@ func (r *ProxyRepository) Save(ctx context.Context, profileID string, config *Si
 	}
 
 	url := fmt.Sprintf("%s/api/v1/signing/%s", r.baseURL, scenario)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(configJSON))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(configJSON)) //nolint:gosec // baseURL is validated at discovery/override boundaries
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.httpClient.Do(req) //nolint:gosec // request target was built from the validated service base URL
 	if err != nil {
 		return fmt.Errorf("call signing API: %w", err)
 	}
@@ -185,12 +180,12 @@ func (r *ProxyRepository) Delete(ctx context.Context, profileID string) error {
 	}
 
 	url := fmt.Sprintf("%s/api/v1/signing/%s", r.baseURL, scenario)
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil) //nolint:gosec // baseURL is validated at discovery/override boundaries
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.httpClient.Do(req) //nolint:gosec // request target was built from the validated service base URL
 	if err != nil {
 		return fmt.Errorf("call signing API: %w", err)
 	}
@@ -239,13 +234,13 @@ func (r *ProxyRepository) SaveForPlatform(ctx context.Context, profileID string,
 	}
 
 	url := fmt.Sprintf("%s/api/v1/signing/%s/%s", r.baseURL, scenario, platform)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(configJSON))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(configJSON)) //nolint:gosec // baseURL is validated at discovery/override boundaries
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.httpClient.Do(req) //nolint:gosec // request target was built from the validated service base URL
 	if err != nil {
 		return fmt.Errorf("call signing API: %w", err)
 	}
@@ -271,12 +266,12 @@ func (r *ProxyRepository) DeleteForPlatform(ctx context.Context, profileID strin
 	}
 
 	url := fmt.Sprintf("%s/api/v1/signing/%s/%s", r.baseURL, scenario, platform)
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil) //nolint:gosec // baseURL is validated at discovery/override boundaries
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 
-	resp, err := r.httpClient.Do(req)
+	resp, err := r.httpClient.Do(req) //nolint:gosec // request target was built from the validated service base URL
 	if err != nil {
 		return fmt.Errorf("call signing API: %w", err)
 	}

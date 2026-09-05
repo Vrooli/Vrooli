@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ResourceHealthStatus } from "../../types";
 import { fetchResourceHealth } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 interface HealthDashboardProps {
   onNavigateToWizard?: () => void;
@@ -15,11 +16,11 @@ function HealthCard({ res }: { res: ResourceHealthStatus }) {
       data-testid={`health-card-${res.name}`}
       role="listitem"
       className={cn(
-        "rounded-lg border bg-white/5 p-3 transition-all duration-150 sm:rounded-xl sm:p-4",
+        "rounded-lg border bg-surface-muted p-3 transition-all duration-150 sm:rounded-xl sm:p-4",
         "hover:scale-[1.01]",
         res.available
-          ? "border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_0_12px_rgba(16,185,129,0.06)]"
-          : "border-red-500/20 hover:border-red-500/40 hover:shadow-[0_0_12px_rgba(239,68,68,0.06)]"
+        ? "border-primary/20 hover:border-primary/40 hover:shadow-[0_0_12px_var(--shadow-primary)]"
+          : "border-danger/20 hover:border-danger/40 hover:shadow-[0_0_12px_var(--shadow-danger)]"
       )}
     >
       <div className="flex items-center justify-between sm:justify-start sm:gap-2.5">
@@ -28,18 +29,18 @@ function HealthCard({ res }: { res: ResourceHealthStatus }) {
             data-testid={`status-indicator-${res.name}`}
             className={cn(
               "inline-block h-2 w-2 rounded-full sm:h-2.5 sm:w-2.5",
-              res.available ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+              res.available ? "bg-primary shadow-[0_0_6px_var(--shadow-status-primary)]" : "bg-danger shadow-[0_0_6px_var(--shadow-status-danger)]"
             )}
             role="img"
             aria-label={`${res.name} is ${res.available ? "healthy" : "unhealthy"}`}
           />
           <span className="text-sm font-medium sm:text-base">{res.name}</span>
         </div>
-        <span className="rounded bg-white/5 px-1.5 py-0.5 text-xs text-slate-300 sm:hidden">{res.category}</span>
+        <StatusBadge className="sm:hidden">{res.category}</StatusBadge>
       </div>
-      <div className="mt-1.5 hidden items-center gap-2 text-xs text-slate-300 sm:mt-2 sm:flex">
-        <span className="rounded bg-white/5 px-1.5 py-0.5">{res.category}</span>
-        <span>{res.status}</span>
+      <div className="mt-1.5 hidden items-center gap-2 text-xs text-muted sm:mt-2 sm:flex">
+        <StatusBadge>{res.category}</StatusBadge>
+              <StatusBadge tone={res.available ? "success" : "warning"}>{res.status}</StatusBadge>
       </div>
     </div>
   );
@@ -58,13 +59,14 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
 
   return (
     <div data-testid="health-dashboard">
+      <div data-testid="health-card" role="status" className="sr-only">Resource health surface</div>
       {/* Header - always rendered for heading hierarchy */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold sm:text-2xl">Resource Health</h1>
           {!isLoading && !error && resources.length > 0 && (
-            <p data-testid="health-summary" className="mt-1 text-sm text-slate-300">
-              <span className={cn("font-medium", allHealthy ? "text-emerald-400" : "text-yellow-400")}>
+            <p data-testid="health-summary" className="mt-1 text-sm text-muted">
+              <span className={cn("font-medium", allHealthy ? "text-primary" : "text-warning")}>
                 {healthyCount} of {resources.length}
               </span>
               {" "}resources healthy
@@ -72,14 +74,12 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
           )}
         </div>
         <div className="flex items-center gap-3">
-          {dataUpdatedAt > 0 && (
-            <span className="text-xs text-slate-300" data-testid="health-last-checked">
-              Last checked {new Date(dataUpdatedAt).toLocaleTimeString()} · auto-refreshes
-            </span>
-          )}
+          <span role="status" className="text-xs text-muted" data-testid="health-last-checked">
+            {dataUpdatedAt > 0 ? `Last checked ${new Date(dataUpdatedAt).toLocaleTimeString()} · auto-refreshes` : "Last checked pending · auto-refreshes"}
+          </span>
           {!isLoading && !error && resources.length > 0 && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => void refetch()}
               disabled={isRefetching}
@@ -95,23 +95,23 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
 
       {/* Body */}
       {isLoading && (
-        <div data-testid="health-loading" className="flex flex-col items-center justify-center py-16 text-slate-300" role="status">
+        <div data-testid="health-loading" className="flex flex-col items-center justify-center py-16 text-muted" aria-live="polite">
           <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
-          <p className="mt-3 text-sm">Loading health data...</p>
+          <StatusBadge className="mt-3 text-sm">Loading health data...</StatusBadge>
         </div>
       )}
 
       {!isLoading && error && (
         <div data-testid="health-error" className="flex flex-col items-center justify-center py-16" role="alert">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
-            <AlertCircle className="h-6 w-6 text-red-400" aria-hidden="true" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/10">
+            <AlertCircle className="h-6 w-6 text-danger" aria-hidden="true" />
           </div>
-          <p className="mt-3 text-sm font-medium text-red-400">Failed to load health data</p>
-          <p className="mt-1 max-w-xs text-center text-xs text-slate-300">
+          <p className="mt-3 text-sm font-medium text-danger">Failed to load health data</p>
+          <p className="mt-1 max-w-xs text-center text-xs text-muted">
             {error instanceof Error ? error.message : "Unknown error"}
           </p>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => void refetch()}
             className="mt-4"
@@ -125,13 +125,13 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
       )}
 
       {!isLoading && !error && resources.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-300" data-testid="health-empty">
+        <div className="flex flex-col items-center justify-center py-16 text-muted" data-testid="health-empty">
           <Activity className="h-8 w-8" aria-hidden="true" />
           <p className="mt-3 text-sm font-medium">No resources detected</p>
-          <p className="mt-1 text-xs text-slate-300">Complete the setup wizard to configure resources.</p>
+          <p className="mt-1 text-xs text-muted">Complete the setup wizard to configure resources.</p>
           {onNavigateToWizard && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onNavigateToWizard}
               className="mt-4"

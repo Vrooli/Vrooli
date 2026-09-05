@@ -3,7 +3,7 @@
  *
  * PURPOSE:
  * Allows users to configure UI preferences, execution defaults,
- * workshop behavior, agent settings, review thresholds, and UI behavior.
+ * Plan Workshop guidance, agent settings, review thresholds, and UI behavior.
  *
  * CURRENT STATUS: Persistent via filesystem-backed unified settings API.
  *
@@ -11,7 +11,8 @@
  */
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../hooks/useActionMutation";
 import { Info } from "lucide-react";
 import { UNSAFE_NavigationContext } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -22,10 +23,14 @@ import { GeneralTab } from "../components/settings/GeneralTab";
 import { ExecutionTab } from "../components/settings/ExecutionTab";
 import { WorkshopTab } from "../components/settings/WorkshopTab";
 import { ReviewTab } from "../components/settings/ReviewTab";
+import { AudioTab } from "../components/settings/AudioTab";
+import { AutonomyTab } from "../components/settings/AutonomyTab";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
-import { settingsService } from "../services";
-import type { Settings } from "../types";
+import { integrationStatusService, settingsService, statsService, transitionService } from "../services";
+import type { StatsResponse } from "../types/stats";
+import type { IntegrationStatusResponse } from "../services";
+import type { Settings, SettingsPolicyProjection } from "../types";
 
 type NavigationContextValue = React.ContextType<typeof UNSAFE_NavigationContext>;
 type NavigationBlockerTransaction = { retry: () => void };
@@ -82,9 +87,40 @@ export function SettingsPage() {
     isFetching,
     error,
     refetch,
-  } = useQuery<Settings, Error>({
+  } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
+
+  // Policy-controls projection: which settings are policy-level (consumed by
+  // the operation runner's transition policies) and their effective values.
+  // Advisory metadata only — failures degrade to static labeling.
+  const { data: policyProjection } = useQuery<SettingsPolicyProjection | null>({
+    queryKey: ["settings", "policy-projection"],
+    queryFn: () => settingsService.getPolicyProjection(),
+    ...defaultQueryOptions,
+  });
+
+  const { data: transitionCatalog } = useQuery({
+    queryKey: ["transition-catalog"],
+    queryFn: () => transitionService.list(),
+    ...defaultQueryOptions,
+  });
+
+  const { data: stats } = useQuery<StatsResponse>({
+    queryKey: ["stats", "autonomy-gates"],
+    queryFn: () => statsService.getStats(),
+    ...defaultQueryOptions,
+  });
+
+  const {
+    data: integrationStatus,
+    isLoading: integrationsLoading,
+    error: integrationsError,
+  } = useQuery<IntegrationStatusResponse>({
+    queryKey: ["integrations"],
+    queryFn: () => integrationStatusService.get(),
     ...defaultQueryOptions,
   });
 
@@ -100,8 +136,12 @@ export function SettingsPage() {
     }
   }, [settings]);
 
-  const updateMutation = useMutation({
+  const updateMutation = useActionMutation({
     mutationFn: settingsService.update,
+    errorMessage: "Couldn't save settings",
+    // The page prints its own "Settings saved." line; a toast on top of it
+    // would say the same thing twice. Failures still toast.
+    source: "SettingsPage.update",
     onSuccess: (updated) => {
       queryClient.setQueryData(["settings"], updated);
       setForm(updated);
@@ -209,12 +249,64 @@ export function SettingsPage() {
         ) : null}
       </div>
 
+      <section
+        className="rounded-lg border border-slate-700 bg-slate-900/50 p-4"
+        data-testid={selectors.settings.integrations}
+        aria-labelledby="integration-status-heading"
+      >
+        <div className="flex items-baseline justify-between gap-4">
+          <div>
+            <h3 id="integration-status-heading" className="font-medium text-slate-100">
+              Integration status
+            </h3>
+            <p className="mt-1 text-sm text-slate-400">
+              Dependencies used to start and observe Swarm Manager workflows.
+            </p>
+          </div>
+          {integrationsLoading && <span className="text-sm text-slate-400">Checking…</span>}
+        </div>
+
+        {integrationsError ? (
+          <p className="mt-3 text-sm text-amber-300">
+            Integration status is currently unavailable. Workflow starts will still perform their
+            required preflight checks.
+          </p>
+        ) : integrationStatus ? (
+          <ul className="mt-3 divide-y divide-slate-800">
+            {integrationStatus.integrations.map((integration) => (
+              <li key={integration.id} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <div>
+                  <p className="font-medium text-slate-200">{integration.id}</p>
+                  <p className="mt-1 text-sm text-slate-400">{integration.degradedBehavior}</p>
+                  {integration.affectedTransitions.length > 0 && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Affects: {integration.affectedTransitions.join(", ")}
+                    </p>
+                  )}
+                </div>
+                <span
+                  className={
+                    integration.availability === "available"
+                      ? "rounded-full bg-emerald-950 px-2 py-1 text-xs font-medium text-emerald-300"
+                      : "rounded-full bg-amber-950 px-2 py-1 text-xs font-medium text-amber-300"
+                  }
+                >
+                  {integration.availability}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
       <Tabs defaultValue="general" data-testid={selectors.settings.settingsTabs}>
         <TabsList className="w-full">
           <TabsTrigger value="general" data-testid={selectors.settings.tabGeneral}>General</TabsTrigger>
           <TabsTrigger value="execution" data-testid={selectors.settings.tabExecution}>Execution</TabsTrigger>
-          <TabsTrigger value="workshop" data-testid={selectors.settings.tabWorkshop}>Workshop</TabsTrigger>
+          <TabsTrigger value="workshop" data-testid={selectors.settings.tabWorkshop}>Plan Workshop</TabsTrigger>
           <TabsTrigger value="review" data-testid={selectors.settings.tabReview}>Review</TabsTrigger>
+          <TabsTrigger value="audio" data-testid={selectors.settings.tabAudio}>Audio</TabsTrigger>
+          <TabsTrigger value="autonomy" data-testid="settings-tab-autonomy">Autonomy</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -222,15 +314,23 @@ export function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="execution">
-          <ExecutionTab form={form} patch={patch} />
+          <ExecutionTab form={form} patch={patch} policyProjection={policyProjection} />
         </TabsContent>
 
         <TabsContent value="workshop">
-          <WorkshopTab form={form} patch={patch} />
+          <WorkshopTab />
         </TabsContent>
 
         <TabsContent value="review">
-          <ReviewTab form={form} patch={patch} />
+          <ReviewTab form={form} patch={patch} policyProjection={policyProjection} />
+        </TabsContent>
+
+        <TabsContent value="audio">
+          <AudioTab />
+        </TabsContent>
+
+        <TabsContent value="autonomy">
+          <AutonomyTab form={form} patch={patch} transitions={transitionCatalog} stats={stats} />
         </TabsContent>
       </Tabs>
 
@@ -247,7 +347,7 @@ export function SettingsPage() {
 
       {updateMutation.isError && (
         <ErrorState
-          error={updateMutation.error as Error}
+          error={updateMutation.error}
           title="Failed to save settings"
         />
       )}

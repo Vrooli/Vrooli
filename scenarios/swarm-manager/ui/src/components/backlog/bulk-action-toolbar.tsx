@@ -1,14 +1,13 @@
 /**
  * Sticky toolbar that appears when items are selected, offering batch actions.
  */
-import { CheckCircle2, AlertTriangle, Sparkles, X } from "lucide-react";
+import { CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { cn } from "../../lib";
 
 interface BulkActionToolbarProps {
   selectedCount: number;
   onApproveSelected: () => void;
   onFlagSelected: () => void;
-  onSendToAgent: () => void;
   onClearSelection: () => void;
   disabled?: boolean;
 }
@@ -17,7 +16,6 @@ export function BulkActionToolbar({
   selectedCount,
   onApproveSelected,
   onFlagSelected,
-  onSendToAgent,
   onClearSelection,
   disabled,
 }: BulkActionToolbarProps) {
@@ -43,15 +41,7 @@ export function BulkActionToolbar({
           </button>
         </div>
 
-        {/* Action buttons
-         *
-         * Approve/Flag always show labels — their checkmark/triangle icons are
-         * generic enough to be ambiguous without text (approve what? flag how?).
-         *
-         * Agent uses only the sparkle icon on mobile — the ✨ sparkle is now
-         * universally associated with AI actions, so the label adds no clarity
-         * but would cause wrapping on narrow screens (the original "Send to
-         * Agent" text broke across 3 lines on mobile, which prompted this). */}
+        {/* Review actions remain explicit: Plan Workshop owns agent-assisted review. */}
         <button
           type="button"
           disabled={disabled}
@@ -77,20 +67,6 @@ export function BulkActionToolbar({
         >
           <AlertTriangle className="h-3.5 w-3.5" />
           Flag
-        </button>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onSendToAgent}
-          className={cn(
-            btnBase,
-            "border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20",
-            disabled && "opacity-50 cursor-not-allowed",
-          )}
-          title="Send to Agent"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Agent</span>
         </button>
       </div>
     </div>

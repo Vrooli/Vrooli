@@ -25,6 +25,7 @@ import { CodeBlock } from "./markdown/components/CodeBlock";
 import { MarkdownRenderer } from "./markdown";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { useAttachments } from "../hooks/useAttachments";
+import { useDocumentEscape } from "../hooks/useDocumentEscape";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { getPopoverPosition, type PopoverPlacement } from "../lib/popoverPosition";
@@ -59,6 +60,8 @@ interface RunTimelineProps {
   run: Run;
   events: RunEvent[];
   eventsLoading: boolean;
+  focusEventId?: string;
+  focusSequence?: string;
   onContinue: (message: string, attachmentIds?: string[]) => Promise<void>;
   onDeleteMessage: (eventId: string) => Promise<void>;
 }
@@ -97,6 +100,8 @@ export function RunTimeline({
   run,
   events,
   eventsLoading,
+  focusEventId,
+  focusSequence,
   onContinue,
   onDeleteMessage,
 }: RunTimelineProps) {
@@ -110,6 +115,7 @@ export function RunTimeline({
   const [revealedMessages, setRevealedMessages] = useState<Record<string, boolean>>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<TimelineFilterState>(() => loadPersistedFilters());
+  const [linkedEventState, setLinkedEventState] = useState<"idle" | "focused" | "missing">("idle");
   const [filterPanelPosition, setFilterPanelPosition] = useState<FilterPanelPosition | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
@@ -143,19 +149,13 @@ export function RunTimeline({
       }
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFiltersOpen(false);
-      }
-    };
-
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
     };
   }, [filtersOpen]);
+
+  useDocumentEscape(filtersOpen, () => setFiltersOpen(false));
 
   useEffect(() => {
     if (!filtersOpen) {
@@ -203,6 +203,29 @@ export function RunTimeline({
     timelineEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [visibleEntries.length]);
 
+  useEffect(() => {
+    if (!focusEventId && !focusSequence) {
+      setLinkedEventState("idle");
+      return;
+    }
+    if (eventsLoading) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    if (!focusLinkedEvent(container, focusEventId, focusSequence)) {
+      const existsButFiltered = events.some((event) =>
+        (focusEventId && event.id === focusEventId) ||
+        (focusSequence && event.sequence.toString() === focusSequence)
+      );
+      if (existsButFiltered) {
+        setFilters(createShowAllTimelineFilterState());
+        return;
+      }
+      setLinkedEventState("missing");
+      return;
+    }
+    setLinkedEventState("focused");
+  }, [events, eventsLoading, focusEventId, focusSequence, visibleEntries]);
+
   const isGenerating = useMemo(() => {
     return run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING || run.status === RunStatus.PENDING;
   }, [run.status]);
@@ -210,6 +233,7 @@ export function RunTimeline({
   const canContinue = useMemo(() => {
     return run.actions?.canContinue ?? false;
   }, [run.actions?.canContinue]);
+  const finalizationWarning = run.actions?.finalizationWarning ?? "";
 
   // Show the input area when we can continue OR when the run is still in progress
   // (so users can type their follow-up while waiting). Send is disabled until the run completes.
@@ -343,6 +367,9 @@ export function RunTimeline({
           </Button>
         </div>
         <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4">
+          <div className="sr-only" role="status" aria-live="polite">
+            {linkedEventState === "focused" ? "Focused the matched conversation event." : linkedEventState === "missing" ? "The linked event is missing, deleted, or hidden by the current timeline filters." : ""}
+          </div>
           {eventsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -368,7 +395,13 @@ export function RunTimeline({
                 const spacingClass = getVisibleItemSpacing(previousEntry, entry);
 
                 return (
-                  <div key={entry.id} className={spacingClass}>
+                  <div
+                    key={entry.id}
+                    className={cn(spacingClass, linkedEventState === "focused" && entryContainsTarget(entry, focusEventId, focusSequence) && "rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background")}
+                    data-event-ids={entryEventIds(entry).join(" ")}
+                    data-event-sequences={entryEventSequences(entry).join(" ")}
+                    tabIndex={-1}
+                  >
                     {entry.kind === "message" ? (
                       <MessageBubble
                         entry={entry}
@@ -405,6 +438,13 @@ export function RunTimeline({
 
         {showInputArea ? (
           <div className="border-t border-border px-3 py-4 sm:px-4">
+            {finalizationWarning ? (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <p>{finalizationWarning}</p>
+              </div>
+            ) : null}
+
             {attachments.length > 0 ? (
               <AttachmentPreview
                 attachments={attachments}
@@ -451,6 +491,7 @@ export function RunTimeline({
                 onClick={() => void handleSend()}
                 disabled={(!inputMessage.trim() && attachments.length === 0) || sending || isUploading || isGenerating}
                 className="self-end"
+                aria-label="Send message"
                 title={isGenerating ? "Send is available after the run completes" : undefined}
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -855,6 +896,38 @@ function getVisibleItemSpacing(
     return "pt-1.5";
   }
   return "pt-3";
+}
+
+function entryEvents(entry: VisibleTimelineItem): RunEvent[] {
+  if (entry.kind !== "tool-group") return [entry.event];
+  return entry.items.flatMap((item) => item.kind === "reasoning"
+    ? [item.entry.event]
+    : [item.pair.call.event, ...(item.pair.result ? [item.pair.result.event] : [])]);
+}
+
+function entryEventIds(entry: VisibleTimelineItem): string[] {
+  return entryEvents(entry).map((event) => event.id).filter(Boolean);
+}
+
+function entryEventSequences(entry: VisibleTimelineItem): string[] {
+  return entryEvents(entry).map((event) => event.sequence.toString());
+}
+
+function entryContainsTarget(entry: VisibleTimelineItem, eventId?: string, sequence?: string): boolean {
+  return entryEvents(entry).some((event) => (eventId && event.id === eventId) || (sequence && event.sequence.toString() === sequence));
+}
+
+export function focusLinkedEvent(container: HTMLElement, eventId?: string, sequence?: string): boolean {
+  const candidates = [...container.querySelectorAll<HTMLElement>("[data-event-ids]")];
+  const target = candidates.find((element) => {
+    const ids = (element.dataset.eventIds ?? "").split(" ");
+    const sequences = (element.dataset.eventSequences ?? "").split(" ");
+    return (eventId && ids.includes(eventId)) || (sequence && sequences.includes(sequence));
+  });
+  if (!target) return false;
+  target.scrollIntoView({ block: "center", behavior: "smooth" });
+  target.focus({ preventScroll: true });
+  return true;
 }
 
 function ToolGroupRow({ group }: { group: TimelineToolGroup }) {

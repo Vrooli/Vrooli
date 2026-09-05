@@ -1,198 +1,30 @@
 package types
 
-import "time"
+import (
+	"time"
 
-// ServiceConfig represents the full .vrooli/service.json structure for a scenario.
-// Supports both v1.x (service block) and v2.0 (flat structure) formats.
-type ServiceConfig struct {
-	Schema  string `json:"$schema"`
-	Version string `json:"version"`
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+)
 
-	// v1.x format uses a nested "service" block
-	Service struct {
-		Name        string   `json:"name"`
-		DisplayName string   `json:"display_name"`
-		Description string   `json:"description"`
-		Version     string   `json:"version"`
-		Tags        []string `json:"tags"`
-	} `json:"service"`
-
-	// v2.0 format uses flat fields
-	Name        string                 `json:"name"`
-	DisplayName string                 `json:"display_name"`
-	Description string                 `json:"description"`
-	Category    string                 `json:"category"`
-	Tags        []string               `json:"tags"`
-	Ports       map[string]interface{} `json:"ports"`
-	Resources   map[string]Resource    `json:"resources"`
-	Scenarios   map[string]interface{} `json:"scenarios"`
-	Lifecycle   *ServiceLifecycle      `json:"lifecycle"`
-
-	// Common fields
-	Dependencies struct {
-		Resources map[string]Resource               `json:"resources"`
-		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
-	} `json:"dependencies"`
-	Deployment *ServiceDeployment `json:"deployment"`
-}
-
-// ServiceLifecycle represents the lifecycle configuration in service.json v2.0.
-type ServiceLifecycle struct {
-	Version string               `json:"version"`
-	Health  *ServiceHealthConfig `json:"health"`
-}
-
-// ServiceHealthConfig represents health check configuration in service.json.
-type ServiceHealthConfig struct {
-	Description        string            `json:"description"`
-	Endpoints          map[string]string `json:"endpoints"` // e.g., {"api": "/health", "ui": "/health"}
-	StartupGracePeriod int               `json:"startup_grace_period"`
-}
-
-// Resource describes a single resource dependency declaration.
-type Resource struct {
-	Type           string                   `json:"type"`
-	Enabled        bool                     `json:"enabled"`
-	Required       bool                     `json:"required"`
-	Purpose        string                   `json:"purpose"`
-	Initialization []map[string]interface{} `json:"initialization,omitempty"`
-	Models         []string                 `json:"models,omitempty"`
-}
-
-// ScenarioDependencySpec captures declared scenario dependencies.
-type ScenarioDependencySpec struct {
-	Enabled      bool   `json:"enabled"`
-	Required     bool   `json:"required"`
-	Version      string `json:"version"`
-	VersionRange string `json:"versionRange"`
-	Description  string `json:"description"`
-}
-
-// ServiceDeployment stores deployment metadata and tier readiness.
-// Supports both v1.x (analyzer-generated) and v2.0 (user-defined) formats.
-type ServiceDeployment struct {
-	// v1.x analyzer-generated fields
-	MetadataVersion       int                         `json:"metadata_version"`
-	LastAnalyzedAt        string                      `json:"last_analyzed_at"`
-	Analyzer              *DeploymentAnalyzerInfo     `json:"analyzer"`
-	AggregateRequirements *DeploymentRequirements     `json:"aggregate_requirements"`
-	Tiers                 map[string]DeploymentTier   `json:"tiers"`
-	Dependencies          DeploymentDependencyCatalog `json:"dependencies"`
-	Overrides             []DeploymentOverride        `json:"overrides"`
-
-	// v2.0 user-defined fields
-	SupportedTiers   []int                         `json:"supported_tiers"`
-	Platforms        []string                      `json:"platforms"`
-	DesktopReady     bool                          `json:"desktop_ready"`
-	MinimalResources []string                      `json:"minimal_resources"`
-	BuildConfigs     map[string]ServiceBuildConfig `json:"build_configs"`
-}
-
-// ServiceBuildConfig specifies how to build a service component.
-type ServiceBuildConfig struct {
-	Type          string `json:"type"`           // "go", "rust", "npm", "python", "custom"
-	SourceDir     string `json:"source_dir"`     // relative path to source directory
-	EntryPoint    string `json:"entry_point"`    // main file or package (e.g., "." for Go)
-	OutputPattern string `json:"output_pattern"` // output path with {{platform}} and {{ext}} placeholders
-}
-
-// DeploymentAnalyzerInfo identifies the analyzer that produced the deployment block.
-type DeploymentAnalyzerInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-
-// DeploymentDependencyCatalog captures curated metadata for dependencies.
-type DeploymentDependencyCatalog struct {
-	Resources map[string]DeploymentDependency `json:"resources"`
-	Scenarios map[string]DeploymentDependency `json:"scenarios"`
-}
-
-// DeploymentDependency describes a single dependency's fitness metadata.
-type DeploymentDependency struct {
-	ResourceType    string                           `json:"resource_type"`
-	Footprint       *DeploymentRequirements          `json:"footprint"`
-	PlatformSupport map[string]DependencyTierSupport `json:"platform_support"`
-	SwappableWith   []DependencySwap                 `json:"swappable_with"`
-	PackagingHints  []string                         `json:"packaging_hints"`
-}
-
-// DeploymentRequirements defines the estimated requirement footprint.
-type DeploymentRequirements struct {
-	RAMMB            *float64 `json:"ram_mb,omitempty"`
-	DiskMB           *float64 `json:"disk_mb,omitempty"`
-	CPUCores         *float64 `json:"cpu_cores,omitempty"`
-	GPU              *bool    `json:"gpu,omitempty"`
-	Network          string   `json:"network,omitempty"`
-	StorageMBPerUser *float64 `json:"storage_mb_per_user,omitempty"`
-	StartupTimeMS    *float64 `json:"startup_time_ms,omitempty"`
-	Bucket           string   `json:"bucket,omitempty"`
-	Source           string   `json:"source,omitempty"`
-	Confidence       string   `json:"confidence,omitempty"`
-}
-
-// DependencyTierSupport stores per-tier info for a dependency.
-type DependencyTierSupport struct {
-	Supported    *bool                   `json:"supported,omitempty"`
-	FitnessScore *float64                `json:"fitness_score,omitempty"`
-	Reason       string                  `json:"reason,omitempty"`
-	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
-	Alternatives []string                `json:"alternatives,omitempty"`
-	Notes        string                  `json:"notes,omitempty"`
-}
-
-// DependencySwap captures an alternative dependency option.
-type DependencySwap struct {
-	ID           string `json:"id"`
-	Relationship string `json:"relationship"`
-	Notes        string `json:"notes"`
-}
-
-// DeploymentTier holds tier readiness metadata.
-type DeploymentTier struct {
-	Status       string                  `json:"status"`
-	FitnessScore *float64                `json:"fitness_score,omitempty"`
-	Constraints  []string                `json:"constraints,omitempty"`
-	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
-	Adaptations  []DeploymentAdaptation  `json:"adaptations,omitempty"`
-	Secrets      []DeploymentTierSecret  `json:"secrets,omitempty"`
-	Artifacts    []DeploymentArtifact    `json:"artifacts,omitempty"`
-	Notes        string                  `json:"notes,omitempty"`
-}
-
-// DeploymentAdaptation describes a recommended swap for a tier.
-type DeploymentAdaptation struct {
-	Dependency string  `json:"dependency"`
-	Swap       string  `json:"swap"`
-	Impact     string  `json:"impact"`
-	EffortDays float64 `json:"effort_days"`
-	Notes      string  `json:"notes"`
-}
-
-// DeploymentTierSecret encodes secret requirements for a tier.
-type DeploymentTierSecret struct {
-	SecretID       string `json:"secret_id"`
-	Classification string `json:"classification"`
-	StrategyRef    string `json:"strategy_ref"`
-	Notes          string `json:"notes"`
-}
-
-// DeploymentArtifact represents packaging artifacts per tier.
-type DeploymentArtifact struct {
-	Type     string `json:"type"`
-	Producer string `json:"producer"`
-	Status   string `json:"status"`
-	Notes    string `json:"notes"`
-}
-
-// DeploymentOverride stores explicit overrides for deployment metadata.
-type DeploymentOverride struct {
-	Tier      string      `json:"tier"`
-	Field     string      `json:"field"`
-	Value     interface{} `json:"value"`
-	Reason    string      `json:"reason"`
-	ExpiresAt string      `json:"expires_at"`
-}
+// Manifest and its nested declarations are aliases of the control plane's
+// canonical service-manifest model. The analyzer must never maintain a parser
+// or a second structural interpretation of .vrooli/service.json.
+type (
+	Manifest                    = scenariomodel.ServiceManifest
+	Resource                    = scenariomodel.Dependency
+	ScenarioDependencySpec      = scenariomodel.Dependency
+	TierFeasibility             = scenariomodel.TierFeasibility
+	ServiceBuildConfig          = scenariomodel.ServiceBuildConfig
+	DeploymentDependencyCatalog = scenariomodel.DeploymentDependencyCatalog
+	DeploymentDependency        = scenariomodel.DeploymentDependency
+	DeploymentRequirements      = scenariomodel.DeploymentRequirements
+	DependencyTierSupport       = scenariomodel.DependencyTierSupport
+	DependencySwap              = scenariomodel.DependencySwap
+	DeploymentTier              = scenariomodel.DeploymentTier
+	DeploymentAdaptation        = scenariomodel.DeploymentAdaptation
+	DeploymentArtifact          = scenariomodel.DeploymentArtifact
+	DeploymentOverride          = scenariomodel.DeploymentOverride
+)
 
 // ScenarioDependency represents a stored dependency edge.
 type ScenarioDependency struct {
@@ -260,6 +92,54 @@ type GraphEdge struct {
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
+// GraphCentralityReport summarizes scenario centrality over the combined graph.
+type GraphCentralityReport struct {
+	GraphType string                  `json:"graph_type"`
+	Scenario  string                  `json:"scenario,omitempty"`
+	Nodes     []GraphCentralityMetric `json:"nodes"`
+	Metadata  map[string]interface{}  `json:"metadata,omitempty"`
+}
+
+// GraphCentralityMetric captures one scenario's centrality and core proximity.
+type GraphCentralityMetric struct {
+	Scenario                         string   `json:"scenario"`
+	DirectReverseDependencyCount     int      `json:"direct_reverse_dependency_count"`
+	TransitiveReverseDependencyCount int      `json:"transitive_reverse_dependency_count"`
+	RequiredReverseDependencyCount   int      `json:"required_reverse_dependency_count"`
+	RequiredEdgeWeightedScore        float64  `json:"required_edge_weighted_score"`
+	DistanceToCoreSeed               int      `json:"distance_to_core_seed"`
+	NearestCoreSeed                  string   `json:"nearest_core_seed,omitempty"`
+	DirectDependents                 []string `json:"direct_dependents,omitempty"`
+	TransitiveDependents             []string `json:"transitive_dependents,omitempty"`
+}
+
+// UnifiedGraphEdge is one merged, evidence-tagged edge in the persisted
+// cross-scenario dependency graph. It is the single source of truth that powers
+// `/graph/*` and centrality. A single (From,To) pair carries the union of every
+// source that attests it, the highest-confidence source, and OR-ed required-ness.
+type UnifiedGraphEdge struct {
+	From         string                `json:"from"`
+	To           string                `json:"to"`
+	Kind         string                `json:"kind"`            // "scenario" | "resource"
+	Source       string                `json:"evidence_source"` // highest-confidence attesting source
+	Confidence   float64               `json:"confidence"`      // max confidence across sources, [0,1]
+	Required     bool                  `json:"required"`
+	Evidence     []UnifiedEdgeEvidence `json:"evidence"`
+	Stale        bool                  `json:"stale"`         // last-good retained edge (source was unavailable)
+	LastVerified time.Time             `json:"last_verified"` // last time a live source re-attested this edge
+}
+
+// UnifiedEdgeEvidence is one piece of provenance behind a UnifiedGraphEdge.
+type UnifiedEdgeEvidence struct {
+	Source     string `json:"source"`
+	ImportPath string `json:"import_path,omitempty"`
+	FromFile   string `json:"from_file,omitempty"`
+	ToFile     string `json:"to_file,omitempty"`
+	Path       string `json:"path,omitempty"`
+	Analyzer   string `json:"analyzer,omitempty"`
+	Detail     string `json:"detail,omitempty"`
+}
+
 // AnalysisRequest wraps a request for dependency analysis.
 type AnalysisRequest struct {
 	ScenarioName      string `json:"scenario_name"`
@@ -302,13 +182,27 @@ type DependencyDrift struct {
 
 // DeploymentAnalysisReport encapsulates deployment readiness output.
 type DeploymentAnalysisReport struct {
-	Scenario       string                             `json:"scenario"`
-	ReportVersion  int                                `json:"report_version"`
-	GeneratedAt    time.Time                          `json:"generated_at"`
+	Scenario      string    `json:"scenario"`
+	ReportVersion int       `json:"report_version"`
+	GeneratedAt   time.Time `json:"generated_at"`
+	// Stale is derived when a persisted report's input digest no longer
+	// matches the manifests currently on disk. A stale report is evidence of
+	// an older computation, never a current deployment answer.
+	Stale          bool                               `json:"stale,omitempty"`
+	Provenance     DeploymentVerdictProvenance        `json:"provenance"`
 	Dependencies   []DeploymentDependencyNode         `json:"dependencies"`
 	Aggregates     map[string]DeploymentTierAggregate `json:"aggregates"`
 	BundleManifest BundleManifest                     `json:"bundle_manifest"`
 	MetadataGaps   *DeploymentMetadataGaps            `json:"metadata_gaps,omitempty"`
+}
+
+// DeploymentVerdictProvenance identifies the computation and the authored
+// manifests it consumed. The digest lets readers reject stale cached answers.
+type DeploymentVerdictProvenance struct {
+	Analyzer        string    `json:"analyzer"`
+	AnalyzerVersion string    `json:"analyzer_version"`
+	ComputedAt      time.Time `json:"computed_at"`
+	InputDigest     string    `json:"input_digest"`
 }
 
 // DeploymentDependencyNode is a node in the recursive dependency DAG.
@@ -326,6 +220,18 @@ type DeploymentDependencyNode struct {
 	Source       string                        `json:"source,omitempty"`
 	Children     []DeploymentDependencyNode    `json:"children,omitempty"`
 	Metadata     map[string]interface{}        `json:"metadata,omitempty"`
+}
+
+// TargetDAGResponse is the target-aware dependency export. TargetKind is
+// explicit so consumers cannot mistake package/resource graphs for scenario
+// graphs.
+type TargetDAGResponse struct {
+	TargetKind  string                     `json:"target_kind"`
+	TargetID    string                     `json:"target_id"`
+	TargetRoot  string                     `json:"target_root"`
+	Recursive   bool                       `json:"recursive"`
+	GeneratedAt time.Time                  `json:"generated_at"`
+	DAG         []DeploymentDependencyNode `json:"dag"`
 }
 
 // TierSupportSummary summarizes tier fitness info.
@@ -390,6 +296,7 @@ type DesktopBundleSkeleton struct {
 	Telemetry     BundleSkeletonTelemetry `json:"telemetry"`
 	Ports         BundleSkeletonPorts     `json:"ports"`
 	Swaps         []BundleSkeletonSwap    `json:"swaps,omitempty"`
+	Peers         []BundleSkeletonPeer    `json:"peers,omitempty"`
 	Secrets       []BundleSkeletonSecret  `json:"secrets,omitempty"`
 	Services      []BundleSkeletonService `json:"services"`
 }
@@ -398,6 +305,14 @@ type BundleSkeletonApp struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
 	Description string `json:"description,omitempty"`
+	Scenario    string `json:"scenario,omitempty"`
+}
+
+type BundleSkeletonPeer struct {
+	Scenario         string `json:"scenario"`
+	BundlePolicy     string `json:"bundle_policy"`
+	StartupPolicy    string `json:"startup_policy,omitempty"`
+	DegradedBehavior string `json:"degraded_behavior,omitempty"`
 }
 
 type BundleSkeletonIPC struct {
@@ -466,6 +381,7 @@ type BundleSkeletonService struct {
 	Dependencies []string                               `json:"dependencies,omitempty"`
 	Migrations   []BundleSkeletonMigration              `json:"migrations,omitempty"`
 	Assets       []BundleSkeletonAsset                  `json:"assets,omitempty"`
+	DistRoot     string                                 `json:"dist_root,omitempty"`
 	GPU          *BundleSkeletonGPU                     `json:"gpu,omitempty"`
 	Critical     *bool                                  `json:"critical,omitempty"`
 }
@@ -555,7 +471,7 @@ type DeploymentMetadataGaps struct {
 type ScenarioGapInfo struct {
 	ScenarioName             string   `json:"scenario_name"`
 	ScenarioPath             string   `json:"scenario_path,omitempty"`
-	HasDeploymentBlock       bool     `json:"has_deployment_block"`
+	HasTierFeasibility       bool     `json:"has_tier_feasibility"`
 	MissingDependencyCatalog bool     `json:"missing_dependency_catalog"`
 	MissingTierDefinitions   []string `json:"missing_tier_definitions,omitempty"`
 	MissingResourceMetadata  []string `json:"missing_resource_metadata,omitempty"`

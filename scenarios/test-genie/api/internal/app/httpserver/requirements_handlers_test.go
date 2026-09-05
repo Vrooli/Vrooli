@@ -1,12 +1,16 @@
 package httpserver
 
 import (
+	"encoding/json"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"io"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestServerResolveScenarioDirUsesScenarioRoot(t *testing.T) {
@@ -23,6 +27,54 @@ func TestServerResolveScenarioDirUsesScenarioRoot(t *testing.T) {
 
 	if got := server.resolveScenarioDir("demo"); got != scenarioDir {
 		t.Fatalf("resolveScenarioDir() = %q, want %q", got, scenarioDir)
+	}
+}
+
+func TestServerResolveScenarioDirUsesRepoContractRoot(t *testing.T) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "test-genie")
+	chdirHTTPTest(t, filepath.Join(repoRoot, "scenarios", "test-genie", "api"))
+
+	server := &Server{logger: log.New(io.Discard, "", 0)}
+
+	if got := server.resolveScenarioDir("test-genie"); got != scenarioDir {
+		t.Fatalf("resolveScenarioDir() = %q, want %q", got, scenarioDir)
+	}
+}
+
+func TestHandleGetConfigUsesRepoContractPaths(t *testing.T) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
+	chdirHTTPTest(t, filepath.Join(repoRoot, "scenarios", "test-genie", "api"))
+
+	server := &Server{logger: log.New(io.Discard, "", 0)}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
+	rec := httptest.NewRecorder()
+
+	server.handleGetConfig(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if got := payload["repoRoot"]; got != repoRoot {
+		t.Fatalf("repoRoot = %#v, want %q", got, repoRoot)
+	}
+	if got := payload["scenariosPath"]; got != filepath.Join(repoRoot, "scenarios") {
+		t.Fatalf("scenariosPath = %#v", got)
+	}
+	if got := payload["testGeniePath"]; got != filepath.Join(repoRoot, "scenarios", "test-genie") {
+		t.Fatalf("testGeniePath = %#v", got)
 	}
 }
 
@@ -88,4 +140,16 @@ func TestServerLoadRequirementsFromFilesBuildsSnapshot(t *testing.T) {
 	if snapshot.Summary.ByLiveStatus["not_run"] != 1 {
 		t.Fatalf("not_run count = %d, want 1", snapshot.Summary.ByLiveStatus["not_run"])
 	}
+}
+
+func chdirHTTPTest(t *testing.T, dir string) {
+	t.Helper()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 }

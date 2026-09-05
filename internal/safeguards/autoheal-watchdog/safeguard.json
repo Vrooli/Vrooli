@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "autoheal_watchdog",
+  "description": "Install and verify the Vrooli autoheal supervisor in the invoking user's native boot scheduler.",
+  "handler": "autoheal_watchdog",
+  "platforms": ["linux", "macos", "windows"],
+  "risk": "low",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "boot_policy": {
+        "type": "string",
+        "enum": [
+          "dedicated",
+          "shared"
+        ],
+        "default": "dedicated",
+        "description": "Dedicated hosts enable Linux user lingering for pre-login startup; shared hosts remain login-scoped."
+      }
+    }
+  },
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard owns only the invoking user's native scheduler entry; it never writes a root-owned autoheal service."
+  },
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.config/systemd/user/vrooli-autoheal.service"
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "risk_class": "restore_absent"
+}

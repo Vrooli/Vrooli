@@ -1,0 +1,151 @@
+{
+  "_metadata": {
+    "description": "Post-launch requirements. Each mirrors one P1 operational target one-to-one and carries at least two automated validation layers.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Given reachable access to an existing host, the scenario should enroll it as a node without creating or billing anything",
+      "id": "COMPUTEM-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "tags": [
+        "adoption",
+        "bridge"
+      ],
+      "title": "Adopt a machine the operator already owns",
+      "validation": [
+        {
+          "notes": "Adoption is covered by the instance handler test and creates no provider resource or reservation.",
+          "ref": "api/handlers/instance/retry_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "A live bridge adoption integration remains open.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P1",
+      "description": "The scenario should refuse a request that would take a tenant past its ceiling, rather than rely on a provider spend alert that only sends mail",
+      "id": "COMPUTEM-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "tags": [
+        "metering",
+        "quota"
+      ],
+      "title": "Per-tenant ceiling computed from our own meter",
+      "validation": [
+        {
+          "notes": "Unit evidence covers held-reservation usage joined to the requesting tenant, and an atomic expiring database hold is covered by concurrent SQLite tests; live multi-process deployment evidence remains open.",
+          "ref": "api/internal/meter/service_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent local ceiling enforcement is implemented by the atomic tenant_ceiling_holds path; live deployment evidence remains open.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "reporting",
+      "criticality": "P1",
+      "description": "The scenario should compare metered usage against the provider's own billing daily and raise an alarm when they diverge beyond a threshold",
+      "id": "COMPUTEM-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "tags": [
+        "reconciliation",
+        "cost"
+      ],
+      "title": "Daily cost reconciliation against the provider",
+      "validation": [
+        {
+          "notes": "DigitalOcean invoice-item ingestion normalizes resource duration into provider statements, and the API schedules a daily report-only comparison for the prior UTC day; credentialed live billing evidence remains open.",
+          "ref": "api/internal/reconcile/service_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Provider-statement cost reconciliation remains open.",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "criticality": "P1",
+      "description": "The scenario should support a second provider behind the same interface with no change to any consumer",
+      "id": "COMPUTEM-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "tags": [
+        "provider",
+        "portability"
+      ],
+      "title": "A second provider changes no caller",
+      "validation": [
+        {
+          "notes": "Registry selection and lifecycle wiring are covered with Hetzner and DigitalOcean adapters; caller-independence is guarded by an AST test in this file's referenced provider test. Live credentialed lifecycle coverage remains open.",
+          "ref": "api/internal/provider/provider_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Caller-independence structural coverage is implemented by api/internal/provider/provider_test.go; live provider lifecycle evidence remains open.",
+          "phase": "structure",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The scenario should render live inventory, elapsed cost and remaining lifetime for every instance it owns",
+      "id": "COMPUTEM-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "tags": [
+        "operator",
+        "inventory"
+      ],
+      "title": "Operator inventory surface",
+      "validation": [
+        {
+          "notes": "The inventory component renders loading, error, empty and populated states with semantic state content.",
+          "ref": "ui/src/features/inventory/InventoryTable.test.tsx",
+          "phase": "unit",
+          "status": "not_implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Route accessibility and component states are covered, and api/compute.test.ts verifies generated InstanceService and ReconcileService inventory responses flow unchanged to the UI boundary.",
+          "ref": "ui/src/pages/routes.a11y.test.tsx",
+          "phase": "integration",
+          "status": "not_implemented",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

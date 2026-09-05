@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "landing-page-desktop-upload",
-  "name": "Landing Page Desktop Upload",
+  "createdAt": "2026-02-04T23:30:00Z",
   "description": "Orchestrate desktop release delivery by sequencing scenario-to-cloud, landing-page-deploy-setup, and scenario-to-desktop with explicit gate checks",
+  "entry": "SKILL.md",
+  "icon": "upload",
+  "id": "landing-page-desktop-upload",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "Landing Page Desktop Upload",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 6,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "landing-page-business-suite",
     "desktop",
@@ -16,10 +33,5 @@
     "scenario-to-desktop",
     "scenario-to-cloud"
   ],
-  "icon": "upload",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 6,
-  "createdAt": "2026-02-04T23:30:00Z",
   "updatedAt": "2026-02-08T00:20:00Z"
 }

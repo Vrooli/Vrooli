@@ -34,6 +34,30 @@ This document defines the **architectural boundaries** (seams) within the playwr
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Test Helper Boundary
+
+**Location**: `tests/helpers/`
+
+**Responsibility**: Test-only fakes and builders for deterministic unit tests.
+
+The helper boundary is enforced by `tests/unit/boundaries/no-prod-testutil-imports.test.ts`; production files under `src/` must not import from `tests/helpers`.
+
+| File | Seam | Use For |
+|------|------|---------|
+| `playwright-mocks.ts` | Browser object fakes | `Page`, `Browser`, `BrowserContext`, `Frame`, request/response, recording initializer mocks |
+| `http-mocks.ts` | HTTP route harness | Incoming request body streams, response body capture, route assertions |
+| `fetch-mocks.ts` | Fetch/API harness | Global fetch installation, JSON/text responses, request body/header inspection |
+| `instruction-factory.ts` | Action/proto builders | Typed `HandlerInstruction` setup for handler tests |
+| `test-config.ts` | Config fixture | Deterministic driver config with deep partial overrides |
+| `index.ts` | Compatibility barrel | Existing test imports while helpers remain file-scoped by responsibility |
+
+New helpers should be added only for recurring seams. One-off fakes stay local to the test file.
+
+Current route-contract coverage uses this helper boundary for deterministic HTTP tests:
+
+- `tests/unit/routes/recording-validation.test.ts` covers selector validation and replay-preview request/response mapping.
+- `tests/unit/routes/recording-lifecycle.test.ts` covers recording status, idempotent stop, cleanup, and session phase reset behavior.
+
 ## Seam 1: Infrastructure Module (NEW)
 
 **Location**: `src/infra/`
@@ -533,6 +557,12 @@ telemetry/ ◄── recording/ ────────────────
 | `outcome/` | Result transformation | Telemetry collection |
 
 ## Testing Boundaries
+
+Driver test-only infrastructure lives under `tests/` and must not be imported
+by production modules under `src/`; `tests/unit/boundaries/no-prod-testutil-imports.test.ts`
+enforces that boundary. Jest also loads `tests/setup/silent-logger.ts`, which
+installs the no-op driver logger and suppresses routine console output unless
+`BAS_JEST_VERBOSE_LOGS=1` is set for a debugging run.
 
 | Module | Test Type | Location |
 |--------|-----------|----------|

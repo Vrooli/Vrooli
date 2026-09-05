@@ -1,0 +1,39 @@
+{
+  "_metadata": {
+    "description": "Stub requirements scaffolded for operational targets that had no coverage (intent.ot_orphan fixer).",
+    "module": "uncovered-targets",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Where collaborative session modes are enabled, the system may let multiple viewers share one terminal session without allowing a follower to steal the leader's input or resize authority.",
+      "id": "WEBCONSO-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Collaborative Session Modes",
+      "validation": [
+        {
+          "notes": "Planned capability; validation will cover leader/follower authority and shared output when implementation begins.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Where workspace presets are enabled, the system may persist and restore named pane layouts, commands, and appearance settings across browser sessions.",
+      "id": "WEBCONSO-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Persisted Workspace Presets",
+      "validation": [
+        {
+          "notes": "Planned capability; validation will cover named preset persistence and faithful layout restoration when implementation begins.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.rail;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/rail;rail_v1";
+
+message Rail {
+  string id = 1;
+  string adapter = 2;
+  bool enabled = 3;
+  map<string, string> configuration = 4;
+}

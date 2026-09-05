@@ -1,3 +1,5 @@
+// DOC: docs/internal/ERROR-SEMANTICS.md
+// DOC: docs/internal/COHERENCE-NOTES.md
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";

@@ -1,0 +1,94 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-007",
+      "title": "Dispute Review Queue UI Surface",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "ui",
+      "description": "Provide a dedicated UI panel listing all findings flagged as contradictory/disputed. Each entry displays: finding claim, status, conflicting source URLs and their claims, age, confidence, and action controls. Resolution controls available per entry: (1) Resolve — mark as resolved, selecting which source wins (transitions finding to active or superseded); (2) Re-research — spawn a targeted L3 run to gather more evidence; (3) Dismiss — remove from dispute queue without resolving (finding remains disputed). Queue must reflect live database state and update without page reload.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Dispute queue panel renders an entry for each finding with status=disputed in the fixture dataset"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputeCard.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Each dispute queue entry displays both conflicting source URLs and their associated claim text"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputeCard.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Resolve action button is disabled when no winning source is selected"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Dismiss action transitions the queue entry to dismissed state without changing the finding status in the rendered state [dismiss is modeled as resolution=keep (dispute cleared, finding returns to active) — the server has no separate dismissed status by design]"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputeCard.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Re-research action button is present and invokable for each dispute entry"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Flag a finding as disputed via CLI; verify the dispute review queue UI panel shows the new entry without page reload"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Resolve a dispute via the UI Resolve control; verify the finding status updates in the database to the resolved state and the queue entry disappears from the open disputes list"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Trigger Re-research from the UI dispute panel; verify an L3 agent run is spawned with the disputed finding's topic as the query [UI test asserts the ResearchService.RunL3 RPC is invoked with the disputed claim as the query and the returned run id is surfaced; the live agent-manager half of the spawn is out of UI test scope]"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Dispute queue panel with up to 50 open disputes renders within 500ms"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "An operator can review, triage, and resolve all flagged knowledge contradictions from a single UI surface without CLI access"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/disputes/DisputesPanel.test.tsx",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The dispute queue provides full visibility into the health of the findings knowledge base"
+        }
+      ]
+    }
+  ]
+}

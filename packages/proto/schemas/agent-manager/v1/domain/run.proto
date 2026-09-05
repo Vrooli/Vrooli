@@ -6,6 +6,7 @@ import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/types.proto";
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
@@ -126,6 +127,9 @@ message Run {
   // Total size of changes in bytes.
   int64 total_size_bytes = 25;
 
+  // Commit created when the sandbox applied this run's accepted changes.
+  string commit_hash = 47;
+
   // Runner-specific session identifier for conversation resumption.
   // Populated from runner stream events:
   //   - Claude Code: session_id
@@ -146,6 +150,207 @@ message Run {
   // First ~120 characters of the associated task description.
   // Populated on list/get responses for display purposes.
   string prompt_preview = 30;
+
+  // Model requested when the run was created (may differ from actual).
+  string requested_model = 31;
+
+  // Model actually used for execution (populated at dispatch).
+  string actual_model = 32;
+
+  // Post-run sandbox finalization status.
+  // Tracks apply/checkpoint effects separately from runner turn status.
+  RunFinalizationStatus finalization_status = 33;
+
+  // Error from post-run sandbox finalization, when finalization failed.
+  string finalization_error = 34;
+
+  // When post-run sandbox finalization reached a terminal state.
+  optional google.protobuf.Timestamp finalized_at = 35;
+
+  // Externally-owned async work this run is parked on (set only while
+  // status == RUN_STATUS_PARKED; nil otherwise). Surfaced so operators see
+  // what a parked run is waiting on and its ETA — a parked run is suspended,
+  // not hung.
+  optional AwaitHandle await_handle = 36;
+
+  // Substrate agent-manager uses to drive the agent CLI (codec-pipe vs
+  // interactive web-console session). Orthogonal to run_mode. Unset/UNSPECIFIED
+  // is treated as EXECUTION_MODE_CODEC_PIPE. Surfaced so operators see the mode
+  // on run records everywhere runs are listed.
+  ExecutionMode execution_mode = 37;
+
+  // Id of the web-console session hosting the interactive agent CLI. Set only
+  // for interactive runs; backs the run-detail deep link to the live session.
+  string web_console_session_id = 38;
+
+  // Resolved deep link to the live web-console session (computed, not
+  // persisted). Set only for interactive runs when the web-console UI base is
+  // resolvable server-side; empty otherwise so the client can fall back to
+  // showing web_console_session_id alone.
+  string web_console_session_url = 39;
+
+  // Canonical, provenance-bearing terminal result. Historical rows created
+  // before RunResult adoption leave this absent; clients must not synthesize
+  // provenance from summary or transcript tail position.
+  optional RunResult result = 40;
+
+  // Historical transcript provenance. These fields are present on every
+  // imported-run read so operators can distinguish source evidence from a
+  // native Agent Manager execution.
+  string import_source_harness = 41;
+  string import_source_session_id = 42;
+  optional google.protobuf.Timestamp imported_at = 43;
+  string goal_id = 44;
+  reserved 45;
+
+  // Human-readable label for this concrete run, independent of its task.
+  string label = 48;
+
+  // Origin of label: harness, derived, generated, or manual.
+  string label_source = 49;
+
+  // Bounded subjects derived from recorded tool-call evidence.
+  repeated string subject = 50;
+
+  // Harness identity supplied when an operator-started session is attached.
+  string harness_kind = 51;
+  string harness_session_id = 52;
+}
+
+// FinalOutputSelectionStatus describes whether provider evidence identifies a
+// unique final assistant handoff.
+enum FinalOutputSelectionStatus {
+  FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED = 0;
+  FINAL_OUTPUT_SELECTION_STATUS_SELECTED = 1;
+  FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS = 2;
+  FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE = 3;
+}
+
+// FinalOutputCandidate is one assistant message considered by the resolver.
+message FinalOutputCandidate {
+  string id = 1;
+  string event_id = 2;
+  int64 sequence = 3;
+  string content = 4;
+  string message_id = 5;
+  string conversation_id = 6;
+  string turn_id = 7;
+  string provider_origin = 8;
+  string completion_reason = 9;
+  bool terminal = 10;
+  string parent_message_id = 11;
+  string provider_event_type = 12;
+  string raw_evidence_ref = 13;
+  int32 evidence_tier = 14;
+}
+
+// FinalOutputSelection explains the deterministic resolver decision.
+message FinalOutputSelection {
+  FinalOutputSelectionStatus status = 1;
+  string selected_candidate_id = 2;
+  string rule = 3;
+  string algorithm_version = 4;
+  repeated string evidence = 5;
+}
+
+// StructuredResultStatus separates every honest typed-output terminal state.
+enum StructuredResultStatus {
+  STRUCTURED_RESULT_STATUS_UNSPECIFIED = 0;
+  STRUCTURED_RESULT_STATUS_SUCCESS = 1;
+  STRUCTURED_RESULT_STATUS_UNAVAILABLE = 2;
+  STRUCTURED_RESULT_STATUS_INVALID = 3;
+  STRUCTURED_RESULT_STATUS_AMBIGUOUS = 4;
+  STRUCTURED_RESULT_STATUS_ABSTAINED = 5;
+}
+
+message StructuredDiagnostic {
+  string code = 1;
+  string path = 2;
+  string message = 3;
+}
+
+message StructuredExtractionProvenance {
+  string role_ref = 1;
+  string provider = 2;
+  string model = 3;
+  ExecutionPolicySnapshot policy_snapshot = 4;
+}
+
+// StructuredResult contains a value only after local schema validation.
+message StructuredResult {
+  StructuredResultStatus status = 1;
+  ResultSpecKind spec_kind = 2;
+  string schema_digest = 3;
+  bytes value = 4;
+  string method = 5;
+  string source_candidate_id = 6;
+  StructuredExtractionProvenance extractor = 7;
+  repeated StructuredDiagnostic diagnostics = 8;
+}
+
+// RunResult is the canonical terminal result for one execute or continue turn.
+message RunResult {
+  string final_output = 1;
+  FinalOutputSelection selection = 2;
+  repeated FinalOutputCandidate candidates = 3;
+  bool success = 4;
+  int32 exit_code = 5;
+  string terminal_reason = 6;
+  StructuredResult structured = 7;
+  ReceiptObservations observations = 8;
+}
+
+enum ReceiptObservationState {
+  RECEIPT_OBSERVATION_STATE_UNSPECIFIED = 0;
+  RECEIPT_OBSERVATION_STATE_AVAILABLE = 1;
+  RECEIPT_OBSERVATION_STATE_UNOBSERVED = 2;
+  RECEIPT_OBSERVATION_STATE_DEGRADED = 3;
+  RECEIPT_OBSERVATION_STATE_UNAVAILABLE = 4;
+}
+
+// ReceiptObservations are platform-owned observations, never agent output.
+message ReceiptObservations {
+  ReceiptObservationState state = 1;
+  repeated ObservedReceipt receipts = 2;
+  string reason = 3;
+}
+
+message ObservedReceipt {
+  string event_id = 1;
+  string target_scenario = 2;
+  string operation = 3;
+  string agent_run_id = 4;
+  string workflow_execution_id = 5;
+  string workflow_node_id = 6;
+  uint32 attempt = 7;
+  bool attribution_verified = 8;
+  string outcome = 9;
+  uint32 status_code = 10;
+  google.protobuf.Struct projection = 11;
+}
+
+// AwaitHandle identifies the externally-owned async work a parked run is
+// blocked on. agent-manager (which owns the agent process) performs the
+// blocking wait on the agent's behalf via a per-producer Waiter and wakes the
+// run when the handle resolves (or its deadline elapses). Present only on a
+// parked run; observability for "parked != hung".
+//
+// @usage Run.await_handle
+message AwaitHandle {
+  // Producer that resolves this handle (e.g. "test-genie", "git-control-tower").
+  string producer = 1;
+
+  // Producer-scoped identifier of the awaited work (e.g. "<scenario>/<run-id>").
+  string key = 2;
+
+  // Wait deadline. When it elapses agent-manager wakes the run with a typed
+  // timeout result rather than hanging. Always populated on a persisted handle
+  // (the orchestrator default ParkTTL is applied at park time when no explicit
+  // deadline is supplied).
+  optional google.protobuf.Timestamp deadline = 3;
+
+  // When the run was parked (for observability / ETA display).
+  google.protobuf.Timestamp registered_at = 4;
 }
 
 // RunActions captures which operations are currently allowed for a run.
@@ -161,12 +366,25 @@ message RunActions {
   bool can_approve = 7;
   bool can_reject = 8;
   bool can_review = 9;
-  bool can_extract_recommendations = 10;
-  bool can_regenerate_recommendations = 11;
+  reserved 10, 11;
+  reserved "can_extract_recommendations", "can_regenerate_recommendations";
 
   // Human-readable reason why continuation is unavailable.
   // Empty when can_continue is true.
   string can_continue_reason = 12;
+
+  // Whether the run can be resumed from a prior failure.
+  bool can_resume_from_failure = 13;
+
+  // Human-readable reason why resume-from-failure is unavailable.
+  // Empty when can_resume_from_failure is true.
+  string can_resume_from_failure_reason = 14;
+
+  // Human-readable warning when post-run sandbox finalization failed.
+  string finalization_warning = 15;
+
+  // Whether the run has failed finalization that can be retried or repaired.
+  bool can_retry_finalization = 16;
 }
 
 // =============================================================================
@@ -379,6 +597,42 @@ message RunnerCapabilities {
 
   // Extra CLI flags this runner allows (e.g., "--verbose").
   repeated string allowed_extra_flags = 9;
+
+  // Whether this runner can enforce a per-launch canonical allowed_tools list.
+  bool supports_tool_restriction = 10;
+
+  // Canonical tool name to runner-native name. Empty when unsupported.
+  map<string, string> tool_restriction_mappings = 11;
+
+  // Supports an engine-owned completion test across continuations.
+  bool supports_warm_iteration = 12;
+
+  // Supports image file attachments.
+  bool supports_image_attachments = 13;
+
+  // Supports canonical reasoning-effort controls.
+  bool supports_effort = 14;
+
+  // Canonical effort name to runner-native value.
+  map<string, string> effort_mappings = 15;
+
+  // Effort support depends on the selected provider/model.
+  bool effort_model_specific = 16;
+
+  // Omitting the model is a valid runner choice.
+  bool supports_runner_default = 17;
+
+  // Runtime-discovered model namespace prefixes.
+  repeated string dynamic_model_prefixes = 18;
+
+  // Verified execution-mode and sandbox-mode combinations.
+  repeated SpawnCapability spawn_capabilities = 19;
+}
+
+message SpawnCapability {
+  string execution_mode = 1;
+  repeated string sandbox_modes = 2;
+  bool native_objective = 3;
 }
 
 // =============================================================================
@@ -549,6 +803,9 @@ message ContinueRunRequest {
 
   // IDs of uploaded attachments to include with this message.
   repeated string attachment_ids = 3;
+
+  // Optional replay-safe key for programmatic continuation callers.
+  string idempotency_key = 4;
 }
 
 // ContinueRunResponse contains the result of continuing a run.
@@ -594,4 +851,117 @@ message DeleteRunMessageRequest {
 message DeleteRunMessageResponse {
   // Whether the delete event was created.
   bool success = 1;
+}
+
+// =============================================================================
+// PARK / WAKE REQUEST/RESPONSE (durable park/resume)
+// =============================================================================
+
+// ParkRunRequest suspends a running run on externally-owned async work.
+//
+// Called from inside an agent-manager-controlled run (the in-run CLI carries
+// VROOLI_AGENT_IDENTITY_TOKEN) when the agent issues an async request whose
+// result agent-manager can wait for on its behalf — e.g. a test-genie run or a
+// git-control-tower baseline diff. The run transitions running→parked (process
+// exits, zero tokens) and is woken with the resolved result injected as the next
+// turn once the producer completes (or the park deadline elapses). The caller
+// must be the owning, live run: the identity token's run_id must match the path.
+//
+// @usage POST /api/v1/runs/{id}/park
+message ParkRunRequest {
+  // Run ID to park.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Producer that will resolve the await-handle (e.g. "test-genie",
+  // "git-control-tower"). Identifies the Waiter agent-manager drives.
+  string producer = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Producer-scoped identifier of the awaited work (e.g. "<scenario>/<run-id>").
+  string key = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Optional wait deadline as a Unix timestamp (seconds). 0 ⇒ now + default
+  // park TTL. A handle that never resolves is woken with a typed timeout result
+  // at this deadline rather than hanging forever.
+  int64 deadline_unix = 4;
+
+  // The owning run's VROOLI_AGENT_IDENTITY_TOKEN. Authenticates the caller as
+  // the run being parked; the server rejects a token whose run_id differs from
+  // the path or that fails verification.
+  string identity_token = 5;
+}
+
+// ParkRunResponse confirms a park and carries the clean turn-ending message.
+//
+// @usage POST /api/v1/runs/{id}/park response
+message ParkRunResponse {
+  // Whether the run was parked.
+  bool success = 1;
+
+  // The parked run.
+  Run run = 2;
+
+  // Tool-result text the in-run command prints. On a successful park it is the
+  // clean "parked, resuming later" message; on a refusal it is the steer message
+  // (which embeds the cached result) so the agent stops re-running the work.
+  string message = 3;
+
+  // Whether agent-manager REFUSED to park because this is a no-progress re-park
+  // on the same await key (the degenerate wake→re-run loop). When true the run is
+  // NOT parked and the turn is NOT ended — the agent keeps running and should use
+  // the cached result rather than re-running the blocking producer.
+  bool refused = 4;
+
+  // The cached awaited result, echoed back on a refusal so the agent has the data
+  // inline even if it never saw the original wake injection.
+  string result = 5;
+}
+
+// GetAwaitResultResponse returns a run's most recently resolved await result —
+// the durable re-fetch path that lets a woken agent re-read what it parked on
+// without re-running the blocking producer. Pure read; never parks or blocks.
+//
+// @usage GET /api/v1/runs/{id}/await-result response
+message GetAwaitResultResponse {
+  // Whether a resolved await result is recorded for the run.
+  bool found = 1;
+
+  // The "producer:key" identity of the resolved await.
+  string key = 2;
+
+  // The full result string that was injected into the woken turn.
+  string result = 3;
+
+  // When the await resolved (RFC3339). Empty when none recorded.
+  string resolved_at = 4;
+}
+
+// WakeRunRequest resumes a parked run with the awaited result injected as the
+// next user turn. Primarily orchestrator-internal (the waiter goroutine drives
+// wake on resolve/timeout); the endpoint exists for manual/ops recovery.
+//
+// @usage POST /api/v1/runs/{id}/wake
+message WakeRunRequest {
+  // Run ID to wake.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // The resolved awaited result, injected as the next user turn.
+  string result = 2;
+
+  // Whether the park deadline elapsed without resolution. When true the injected
+  // message is framed as a typed timeout so the agent stays in control.
+  bool timed_out = 3;
+}
+
+// WakeRunResponse confirms a wake.
+//
+// @usage POST /api/v1/runs/{id}/wake response
+message WakeRunResponse {
+  // Whether the wake started (false when the run was no longer parked — wake is
+  // idempotent, so a no-op is reported as success=false without an error).
+  bool success = 1;
+
+  // The woken (or unchanged) run.
+  Run run = 2;
 }

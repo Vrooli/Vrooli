@@ -1,0 +1,433 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.catalog;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1";
+
+service CatalogService {
+	rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+	rpc ListNextWork(ListNextWorkRequest) returns (ListNextWorkResponse);
+	rpc RunGate(RunGateRequest) returns (RunGateResponse);
+	rpc CheckAsset(CheckAssetRequest) returns (CheckAssetResponse);
+	rpc GetAssetRelationships(GetAssetRelationshipsRequest) returns (GetAssetRelationshipsResponse);
+	rpc GetCatalogStructure(GetCatalogStructureRequest) returns (GetCatalogStructureResponse);
+	rpc ReconcileGraph(ReconcileGraphRequest) returns (ReconcileGraphResponse);
+	rpc GetAssetPortContract(GetAssetPortContractRequest) returns (GetAssetPortContractResponse);
+	rpc GetScoreHistory(GetScoreHistoryRequest) returns (GetScoreHistoryResponse);
+	rpc GetHealthOverview(GetHealthOverviewRequest) returns (GetHealthOverviewResponse);
+	rpc GetReadiness(GetReadinessRequest) returns (GetReadinessResponse);
+	rpc CaptureEvidence(CaptureEvidenceRequest) returns (CaptureEvidenceResponse);
+	rpc SearchAssets(SearchAssetsRequest) returns (SearchAssetsResponse);
+	rpc SearchStatus(SearchStatusRequest) returns (SearchStatusResponse);
+	rpc ReindexSearch(ReindexSearchRequest) returns (ReindexSearchResponse);
+}
+
+message SearchAssetsRequest { string query = 1; int32 limit = 2; string kind = 3; string domain = 4; string accepts = 5; }
+message SearchAssetResult {
+	string catalog_id = 1; string name = 2; string description = 3; string declaration_path = 4;
+	double score = 5; int32 layer = 6; bool implemented = 7; string kind = 8; string domain = 9;
+}
+message SearchAssetsResponse { repeated SearchAssetResult results = 1; int32 total = 2; }
+message SearchStatusRequest {}
+message SearchStatusResponse { int32 indexed_count = 1; string indexed_at = 2; bool available = 3; }
+message ReindexSearchRequest {}
+message ReindexSearchResponse { int32 indexed_count = 1; string indexed_at = 2; }
+
+message AssetNode {
+	string asset_id = 1;
+	string name = 2;
+	string kind = 3;
+	int32 rung = 4;
+	string rung_name = 5;
+	string domain = 6;
+	int32 domain_order = 7;
+}
+
+message RungBand {
+	int32 rung = 1;
+	string rung_name = 2;
+	repeated AssetNode assets = 3;
+	int32 count = 4;
+}
+
+message AssetRelationships {
+	AssetNode root = 1;
+	repeated AssetNode direct_dependencies = 2;
+	repeated AssetNode closure = 3;
+	repeated RungBand closure_bands = 4;
+	repeated AssetNode direct_dependents = 5;
+	repeated AssetNode transitive_dependents = 6;
+	int32 transitive_dependent_count = 7;
+}
+
+message GetAssetRelationshipsRequest { string asset_id = 1; }
+message GetAssetRelationshipsResponse { AssetRelationships relationships = 1; }
+
+message GetCatalogStructureRequest {}
+message RungPopulation { int32 rung = 1; string rung_name = 2; int32 count = 3; }
+message StructureInvariant { string id = 1; string label = 2; string status = 3; string detail = 4; }
+message BlastRadiusRow { AssetNode asset = 1; int32 transitive_dependent_count = 2; }
+message CatalogStructure {
+	repeated RungPopulation population = 1;
+	repeated StructureInvariant invariants = 2;
+	repeated BlastRadiusRow blast_radius = 3;
+}
+message GetCatalogStructureResponse { CatalogStructure structure = 1; }
+
+message ReconcileGraphRequest {}
+message ReconciliationAsset {
+	string asset_id = 1;
+	string verdict = 2;
+	string cause = 3;
+	repeated string catalog_edges = 4;
+	repeated string manifest_edges = 5;
+	repeated string import_edges = 6;
+}
+message ReconciliationDistribution { map<string, int32> counts = 1; }
+message ReconcileGraphResponse {
+	repeated ReconciliationAsset assets = 1;
+	ReconciliationDistribution distribution = 2;
+}
+
+message GetAssetPortContractRequest { string asset_id = 1; }
+message UnmetPort {
+	string capability_id = 1;
+	repeated AssetNode demanding_assets = 2;
+	repeated AssetNode candidate_satisfiers = 3;
+}
+message AssetPortContract {
+	string asset_id = 1;
+	int32 closure_count = 2;
+	bool self_contained = 3;
+	repeated UnmetPort unmet_ports = 4;
+}
+message GetAssetPortContractResponse { AssetPortContract contract = 1; }
+
+message GetCoverageRequest {}
+
+message CoverageRow {
+  string asset_id = 1;
+  string name = 2;
+  string domain = 3;
+  string kind = 4;
+  string priority = 5;
+  string bucket = 6;
+  string platform = 7;
+  string target = 8;
+  string achieved = 9;
+  string implementation = 10;
+  int32 blocks_downstream = 11;
+  int32 rung = 12;
+  string rung_name = 13;
+  int32 domain_order = 14;
+  double asset_score = 15;
+  double weight = 16;
+  repeated string passed_gates = 17;
+  repeated string failed_gates = 18;
+  string nearest_blocking_gate = 19;
+  string newest_evidence = 20;
+  bool visual_evidence = 21;
+}
+
+message Rollup {
+  string key = 1;
+  int32 planned = 2;
+  int32 built = 3;
+}
+
+message MaturitySummary {
+  int32 total = 1;
+  int32 at_or_above_target = 2;
+  map<string, int32> by_rung = 3;
+  CoverageMetric catalog_completion = 4;
+  CoverageMetric mandatory_gate_coverage = 5;
+  CoverageMetric weighted_quality = 6;
+  CoverageMetric production_ready_coverage = 7;
+  double weighted_asset_score = 8;
+  double score_weight_numerator = 9;
+  double score_weight_denominator = 10;
+	repeated ScoreBreakdown by_gate = 11;
+	repeated ScoreBreakdown by_rung_score = 12;
+	repeated CorpusStatus corpus = 13;
+	int32 pass_evidence = 14;
+	int32 fail_evidence = 15;
+	int32 unmeasured_evidence = 16;
+	int32 kind_mismatch_count = 17;
+	int32 instrument_moved_count = 18;
+}
+
+message ScoreBreakdown {
+  string key = 1;
+  int32 passed = 2;
+  int32 applicable = 3;
+  double score = 4;
+}
+
+message CorpusStatus {
+  string gate = 1;
+  string result = 2;
+  int32 finding_count = 3;
+  int32 runner_error_count = 4;
+}
+
+message CoverageMetric {
+  int32 numerator = 1;
+  int32 denominator = 2;
+  double ratio = 3;
+}
+
+message DeclaredCapabilityCoverage {
+  string capability = 1;
+  string title = 2;
+  string status = 3;
+  bool checkable = 4;
+  bool unmeasured = 5;
+  int32 declared_asset_count = 6;
+  repeated string asset_ids = 7;
+  repeated string blockers = 8;
+}
+
+message CoverageReport {
+  repeated CoverageRow rows = 1;
+  map<string, int32> totals = 2;
+  repeated Rollup by_domain = 3;
+  repeated Rollup by_priority = 4;
+  MaturitySummary maturity = 5;
+	map<string, double> composition_scores = 6;
+	double composition_median = 7;
+	int32 bespoke_escape_count = 8;
+	int32 declared_capability_asset_count = 9;
+	int32 declared_uncheckable_asset_count = 10;
+	int32 unmeasured_capability_asset_count = 11;
+	int32 capability_declaration_count = 12;
+	repeated DeclaredCapabilityCoverage capability_coverage = 13;
+	int32 composition_blocked_asset_count = 14;
+}
+
+message GetCoverageResponse {
+  CoverageReport report = 1;
+}
+
+message ListNextWorkRequest {
+  int32 limit = 1;
+  string lane = 2;
+}
+message ListNextWorkResponse {
+  repeated CoverageRow rows = 1;
+  MaturitySummary maturity = 2;
+  string lane = 3;
+  repeated CoverageRow promote = 4;
+  repeated CoverageRow build = 5;
+}
+
+message RunGateRequest {
+  string gate = 1;
+  bool all = 2;
+	bool calibration_only = 3;
+	string asset_id = 4;
+	bool include_advisory = 5;
+}
+message GateFinding {
+  string code = 1;
+  // What is wrong.
+  string message = 2;
+  string asset_id = 3;
+  // "error" when the gate is declared blocking in catalog/config.json,
+  // "warning" otherwise. Never inferred from the finding itself.
+  string severity = 4;
+  // Repository-relative path of the defect, empty when the gate inspects a
+  // declaration rather than a file.
+  string file = 5;
+  // 1-indexed line within file; 0 when the gate cannot resolve one.
+  int32 line = 6;
+  // What to do about it, and why it matters. Carried separately from message
+  // so a consumer can act without re-deriving the fix.
+  string remediation = 7;
+  // Repository-relative doc path giving the fuller rule context.
+	string docs_ref = 8;
+	string rule_source = 9;
+	string rule_declared_in = 10;
+	// Stable dotted catalog identity. asset_id remains as a deprecated alias
+	// for older clients during the migration to typed finding attribution.
+	string catalog_id = 11;
+	string library_id = 12;
+	FindingScope scope = 13;
+	bool blocking = 14;
+	// Repository-relative authored file that owns the fix.
+	string owner = 15;
+	FindingSeverity severity_class = 16;
+}
+
+enum FindingScope {
+	FINDING_SCOPE_UNSPECIFIED = 0;
+	FINDING_SCOPE_ASSET = 1;
+	FINDING_SCOPE_CORPUS = 2;
+}
+
+enum FindingSeverity {
+	FINDING_SEVERITY_UNSPECIFIED = 0;
+	FINDING_SEVERITY_BLOCKING = 1;
+	FINDING_SEVERITY_WARNING = 2;
+	FINDING_SEVERITY_INFO = 3;
+}
+message RunGateResponse {
+  string gate = 1;
+  repeated GateFinding findings = 2;
+  int32 inspected_files = 3;
+  repeated GateFinding runner_errors = 4;
+  int32 evidence_rows_written = 5;
+	repeated CalibrationResult calibration = 6;
+	bool non_discriminating = 7;
+	map<string, int32> surface_verdict_counts = 8;
+	map<string, double> composition_scores = 9;
+	double composition_median = 10;
+	int32 bespoke_escape_count = 11;
+	repeated CompositionEscape composition_escapes = 12;
+}
+
+message AssetCheckStage {
+	string name = 1;
+	string status = 2;
+	double seconds = 3;
+	string detail = 4;
+}
+message CheckAssetRequest {
+	string asset_id = 1;
+	string version = 2;
+	bool run_tests = 3;
+}
+message CheckAssetResponse {
+	string asset_id = 1;
+	string verdict = 2;
+	repeated AssetCheckStage stages = 3;
+	repeated GateFinding findings = 4;
+	string reused_report_id = 5;
+	string source_revision = 6;
+}
+
+message CompositionEscape {
+	string asset_id = 1;
+	string reason = 2;
+}
+
+message CalibrationResult {
+	string gate = 1;
+	string fixture = 2;
+	string required_failure_code = 3;
+	string observed_failure_code = 4;
+	string status = 5;
+	string message = 6;
+}
+
+message ScoreHistoryPoint {
+  string recorded_at = 1;
+  double score = 2;
+  int32 assets_at_100 = 3;
+  int32 assets_below_50 = 4;
+	bool weight_vector_regenerated = 5;
+	int32 scoring_model_version = 6;
+	string source_revision = 7;
+	int32 instrument_moved_count = 8;
+	int32 kind_mismatch_count = 9;
+	repeated ScoreHistoryEvent events = 10;
+}
+message ScoreHistoryEvent {
+	string type = 1;
+	string asset_id = 2;
+	string source_revision = 3;
+	string declared_kind = 4;
+	string derived_kind = 5;
+}
+message GetScoreHistoryRequest { string since = 1; }
+message GetScoreHistoryResponse { repeated ScoreHistoryPoint points = 1; }
+
+message HealthNode {
+  AssetNode asset = 1;
+  double score = 2;
+  double weight = 3;
+  string health = 4;
+  double staleness_days = 5;
+  bool visual_current = 6;
+}
+message HealthEdge { string from_asset_id = 1; string to_asset_id = 2; string relation = 3; }
+message GetHealthOverviewRequest {}
+message GetHealthOverviewResponse {
+  CoverageReport coverage = 1;
+  repeated ScoreHistoryPoint history = 2;
+  repeated HealthNode nodes = 3;
+  repeated HealthEdge edges = 4;
+	repeated CoverageRow promote = 5;
+	repeated string quarantined_gates = 6;
+	int32 kind_mismatch_count = 7;
+	int32 instrument_moved_count = 8;
+	repeated KindMismatch kind_mismatches = 9;
+	ReadinessRun run = 10;
+	ReadinessConfig config = 11;
+}
+
+message ReadinessRun {
+	string run_id = 1;
+	string started_at = 2;
+	string completed_at = 3;
+	bool completed = 4;
+	string evidence_age = 5;
+}
+
+message ReadinessConfig {
+	string declared_floor = 1;
+	string achieved_rung = 2;
+	int32 rung_gap = 3;
+	int32 blocking_gates = 4;
+	int32 advisory_gates = 5;
+	int32 quarantined_gates = 6;
+	int32 attributable_gates = 7;
+	int32 corpus_gates = 8;
+}
+
+message ReadinessTriageRow {
+	string gate = 1;
+	string asset_id = 2;
+	string message = 3;
+	string nearest_blocking_gate = 4;
+	int32 blocks_downstream = 5;
+	double weight = 6;
+}
+
+message GetReadinessRequest {
+	string floor = 1;
+}
+
+message GetReadinessResponse {
+	CoverageReport coverage = 1;
+	ReadinessRun run = 2;
+	ReadinessConfig config = 3;
+	repeated ReadinessTriageRow triage = 4;
+	repeated string next_steps = 5;
+	string verdict = 6;
+	int32 triage_omitted_count = 7;
+}
+
+message KindMismatch {
+	string asset_id = 1;
+	string declared_kind = 2;
+	string derived_kind = 3;
+	string message = 4;
+}
+
+message CaptureEvidenceRequest {
+	string asset_id = 1;
+	bool all = 2;
+	bool changed_only = 3;
+	// Bounded catalog migration controls. A zero limit means all requested assets.
+	int32 limit = 4;
+	int32 offset = 5;
+}
+message CaptureEvidenceResponse {
+  string asset_id = 1;
+  string capture_directory = 2;
+  string workbench_url = 3;
+  int32 rows_written = 4;
+  repeated string missing_contract_assets = 5;
+	int32 next_offset = 6;
+	bool complete = 7;
+}

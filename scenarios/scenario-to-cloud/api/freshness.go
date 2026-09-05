@@ -108,12 +108,17 @@ func resolveScenarioVersion(repoRoot, scenarioID string) (string, string, error)
 		return "", "", fmt.Errorf("scenario id is required")
 	}
 
-	servicePath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
-	if version, err := readServiceVersion(servicePath); err == nil && version != "" {
-		return version, versionSourceService, nil
+	servicePath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err == nil {
+		if version, err := readServiceVersion(servicePath); err == nil && version != "" {
+			return version, versionSourceService, nil
+		}
 	}
-
-	uiPackagePath := filepath.Join(repoRoot, "scenarios", scenarioID, "ui", "package.json")
+	scenarioRoot, err := bundle.ResolveScenarioPath(repoRoot, scenarioID)
+	if err != nil {
+		return defaultScenarioVersion, versionSourceDefault, nil
+	}
+	uiPackagePath := filepath.Join(scenarioRoot, "ui", "package.json")
 	if version, err := readUIPackageVersion(uiPackagePath); err == nil && version != "" {
 		return version, versionSourceUI, nil
 	}

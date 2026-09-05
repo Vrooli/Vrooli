@@ -567,7 +567,7 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildSecurityScanTargets(scenarioName string) ([]securityScanTarget, error) {
-	standardsTargets, err := buildStandardsScanTargets(scenarioName, "" /* no sandbox path override */)
+	standardsTargets, err := buildStandardsScanTargets(scenarioName, standardsScanRequestContext{})
 	if err != nil {
 		return nil, err
 	}

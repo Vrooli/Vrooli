@@ -1,4 +1,7 @@
-import { apiCall, apiPost, apiGet } from './common';
+import { createClient } from '@connectrpc/connect';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
+import { AdminAuthService, AdminProfileService } from '@vrooli/proto-types/landing-page-business-suite/v1/admin_pb';
+import { apiPost, apiGet, CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import {
   AdminSessionResponseSchema,
@@ -8,7 +11,9 @@ import {
   UserAuthTokensSchema,
   UserAuthMeResponseSchema,
 } from './schemas/auth.schema';
-import { SuccessResponseSchema } from './schemas/common.schema';
+
+const adminAuthClient = createClient(AdminAuthService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
+const adminProfileClient = createClient(AdminProfileService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 // ===== Admin Auth Types =====
 
@@ -31,11 +36,12 @@ export interface AdminProfileUpdatePayload {
 }
 
 export async function adminLogin(email: string, password: string) {
-  return apiCall<AdminSessionResponse>('/admin/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  }).then((resp) => {
-    const validated = parseOrNull(AdminSessionResponseSchema, resp, 'AdminSessionResponse');
+  return adminAuthClient.login({ email, password }).then((resp) => {
+    const validated = parseOrNull(AdminSessionResponseSchema, {
+      authenticated: resp.authenticated,
+      ...(resp.email ? { email: resp.email } : {}),
+      reset_enabled: resp.resetEnabled,
+    }, 'AdminSessionResponse');
     if (!validated) {
       throw new Error('Invalid admin login response from API');
     }
@@ -44,20 +50,21 @@ export async function adminLogin(email: string, password: string) {
 }
 
 export async function adminLogout() {
-  return apiCall<{ success: boolean }>('/admin/logout', {
-    method: 'POST',
-  }).then((resp) => {
-    const validated = parseOrNull(SuccessResponseSchema, resp, 'AdminLogoutResponse');
-    if (!validated) {
+  return adminAuthClient.logout({}).then((resp) => {
+    if (!resp.success) {
       throw new Error('Invalid admin logout response from API');
     }
-    return validated;
+    return { success: true };
   });
 }
 
 export async function checkAdminSession() {
-  return apiCall<AdminSessionResponse>('/admin/session').then((resp) => {
-    const validated = parseOrNull(AdminSessionResponseSchema, resp, 'AdminSessionResponse');
+  return adminAuthClient.session({}).then((resp) => {
+    const validated = parseOrNull(AdminSessionResponseSchema, {
+      authenticated: resp.authenticated,
+      ...(resp.email ? { email: resp.email } : {}),
+      reset_enabled: resp.resetEnabled,
+    }, 'AdminSessionResponse');
     if (!validated) {
       return { authenticated: false };
     }
@@ -66,8 +73,13 @@ export async function checkAdminSession() {
 }
 
 export async function getAdminProfile() {
-  return apiCall<AdminProfile>('/admin/profile').then((resp) => {
-    const validated = parseOrNull(AdminProfileSchema, resp, 'AdminProfile');
+  return adminProfileClient.getAdminProfile({}).then((resp) => {
+    const profile = resp.profile;
+    const validated = parseOrNull(AdminProfileSchema, profile && {
+      email: profile.email,
+      is_default_email: profile.isDefaultEmail,
+      is_default_password: profile.isDefaultPassword,
+    }, 'AdminProfile');
     if (!validated) {
       throw new Error('Invalid admin profile response from API');
     }
@@ -76,11 +88,17 @@ export async function getAdminProfile() {
 }
 
 export async function updateAdminProfile(payload: AdminProfileUpdatePayload) {
-  return apiCall<AdminProfile>('/admin/profile', {
-    method: 'PUT',
-    body: JSON.stringify(payload),
+  return adminProfileClient.updateAdminProfile({
+    currentPassword: payload.current_password,
+    newEmail: payload.new_email ?? '',
+    newPassword: payload.new_password ?? '',
   }).then((resp) => {
-    const validated = parseOrNull(AdminProfileSchema, resp, 'AdminProfile');
+    const profile = resp.profile;
+    const validated = parseOrNull(AdminProfileSchema, profile && {
+      email: profile.email,
+      is_default_email: profile.isDefaultEmail,
+      is_default_password: profile.isDefaultPassword,
+    }, 'AdminProfile');
     if (!validated) {
       throw new Error('Invalid update admin profile response from API');
     }
@@ -165,8 +183,7 @@ export async function refreshUserTokens(refreshToken: string): Promise<UserAuthT
  * Log out the current user session.
  */
 export async function userLogout(): Promise<void> {
-  // No response validation needed for void return
-  return apiPost<void>('/auth/logout', undefined);
+  await apiPost<undefined>('/auth/logout', undefined);
 }
 
 /**

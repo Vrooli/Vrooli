@@ -2,33 +2,38 @@ package deployment
 
 import (
 	"fmt"
+	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // BuildBundleManifest generates a manifest of all files and dependencies needed
 // to package the scenario for deployment.
-func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []types.DeploymentDependencyNode, cfg *types.ServiceConfig) types.BundleManifest {
+func BuildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []types.DeploymentDependencyNode, cfg *types.Manifest) types.BundleManifest {
+	skeleton := buildDesktopBundleSkeleton(scenarioName, scenarioPath, cfg, nodes)
 	manifest := types.BundleManifest{
 		Scenario:     scenarioName,
 		GeneratedAt:  generatedAt,
-		Files:        discoverBundleFiles(scenarioName, scenarioPath),
+		Files:        discoverBundleFiles(scenarioName, scenarioPath, cfg),
 		Dependencies: flattenBundleDependencies(nodes),
-		Skeleton:     buildDesktopBundleSkeleton(scenarioName, scenarioPath, cfg, nodes),
+		Skeleton:     skeleton,
 	}
 	manifest.Dependencies = includeDeclaredResources(manifest.Dependencies, cfg)
 	return manifest
 }
 
-// discoverBundleFiles scans scenario folders and builds a list of files needed for deployment.
-// Uses marker-based detection instead of hardcoded folder names.
-func discoverBundleFiles(scenarioName, scenarioPath string) []types.BundleFileEntry {
+// discoverBundleFiles derives package inputs from the declared component graph.
+func discoverBundleFiles(scenarioName, scenarioPath string, cfg *types.Manifest) []types.BundleFileEntry {
 	entries := make([]types.BundleFileEntry, 0)
 
 	// Always include service config
@@ -41,95 +46,46 @@ func discoverBundleFiles(scenarioName, scenarioPath string) []types.BundleFileEn
 		Exists: configErr == nil,
 	})
 
-	// Scan for buildable folders using marker-based detection
-	folders, err := ScanScenarioFolders(scenarioPath)
-	if err != nil {
+	if cfg == nil {
 		return entries
 	}
-
-	for _, folder := range folders {
-		switch folder.Role {
-		case RoleAPI:
-			// Add API source directory
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(folder.Path),
-				Type:   fmt.Sprintf("%s-source", folder.Name),
-				Exists: true, // We know it exists because scanner found it
-			})
-			// Add API binary path (may not exist yet - to be compiled)
-			binaryName := fmt.Sprintf("%s-%s", scenarioName, folder.Name)
-			binaryPath := filepath.Join(folder.Path, binaryName)
-			binaryAbsolute := filepath.Join(scenarioPath, binaryPath)
-			_, binErr := os.Stat(binaryAbsolute)
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(binaryPath),
-				Type:   fmt.Sprintf("%s-binary", folder.Name),
-				Exists: binErr == nil,
-				Notes:  fmt.Sprintf("Detected %s component (%s)", folder.Role, folder.Language),
-			})
-
-		case RoleCLI:
-			// Add CLI source directory
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(folder.Path),
-				Type:   fmt.Sprintf("%s-source", folder.Name),
-				Exists: true,
-			})
-			// Add CLI binary path
-			binaryName := scenarioName
-			if folder.Name != "cli" {
-				binaryName = fmt.Sprintf("%s-%s", scenarioName, folder.Name)
+	names := make([]string, 0, len(cfg.Components))
+	for name := range cfg.Components {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	seenSources := map[string]struct{}{}
+	for _, name := range names {
+		component := cfg.Components[name]
+		if dir := filepath.ToSlash(strings.TrimSpace(component.Build.Dir)); dir != "" {
+			if _, seen := seenSources[dir]; !seen {
+				_, statErr := os.Stat(filepath.Join(scenarioPath, filepath.FromSlash(dir)))
+				entries = append(entries, types.BundleFileEntry{Path: dir, Type: name + "-source", Exists: statErr == nil})
+				seenSources[dir] = struct{}{}
 			}
-			binaryPath := filepath.Join(folder.Path, binaryName)
-			binaryAbsolute := filepath.Join(scenarioPath, binaryPath)
-			_, binErr := os.Stat(binaryAbsolute)
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(binaryPath),
-				Type:   fmt.Sprintf("%s-binary", folder.Name),
-				Exists: binErr == nil,
-				Notes:  fmt.Sprintf("Detected %s component (%s)", folder.Role, folder.Language),
-			})
-
-		case RoleUI:
-			// Add UI dist bundle
-			distPath := filepath.Join(folder.Path, "dist")
-			distAbsolute := filepath.Join(scenarioPath, distPath)
-			_, distErr := os.Stat(distAbsolute)
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(distPath),
-				Type:   "ui-bundle",
-				Exists: distErr == nil,
-			})
-			// Add UI entry point
-			entryPath := filepath.Join(folder.Path, "dist", "index.html")
-			entryAbsolute := filepath.Join(scenarioPath, entryPath)
-			_, entryErr := os.Stat(entryAbsolute)
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(entryPath),
-				Type:   "ui-entry",
-				Exists: entryErr == nil,
-				Notes:  fmt.Sprintf("Detected UI component (%s)", folder.Language),
-			})
-
-		case RoleWorker:
-			// Add worker source directory
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(folder.Path),
-				Type:   fmt.Sprintf("%s-source", folder.Name),
-				Exists: true,
-			})
-			// Add worker binary path
-			binaryName := fmt.Sprintf("%s-%s", scenarioName, folder.Name)
-			binaryPath := filepath.Join(folder.Path, binaryName)
-			binaryAbsolute := filepath.Join(scenarioPath, binaryPath)
-			_, binErr := os.Stat(binaryAbsolute)
-			entries = append(entries, types.BundleFileEntry{
-				Path:   filepath.ToSlash(binaryPath),
-				Type:   fmt.Sprintf("%s-binary", folder.Name),
-				Exists: binErr == nil,
-				Notes:  fmt.Sprintf("Detected %s component (%s)", folder.Role, folder.Language),
-			})
 		}
+		if component.Build.Reuse != "" {
+			continue
+		}
+		output := strings.TrimSpace(component.Build.Output)
+		if output == "" {
+			switch component.Build.Kind {
+			case "go_module":
+				output = filepath.Join(component.Build.Dir, scenarioName+"-api")
+			case "pnpm_vite":
+				output = filepath.Join(component.Build.Dir, "dist", "index.html")
+			}
+		}
+		if output == "" {
+			continue
+		}
+		output = filepath.ToSlash(output)
+		_, statErr := os.Stat(filepath.Join(scenarioPath, filepath.FromSlash(output)))
+		entryType := name + "-artifact"
+		if component.Role == "ui" {
+			entryType = "ui-bundle"
+		}
+		entries = append(entries, types.BundleFileEntry{Path: output, Type: entryType, Exists: statErr == nil, Notes: "Declared component output"})
 	}
 
 	return entries
@@ -171,7 +127,7 @@ func flattenBundleDependencies(nodes []types.DeploymentDependencyNode) []types.B
 	return entries
 }
 
-func includeDeclaredResources(entries []types.BundleDependencyEntry, cfg *types.ServiceConfig) []types.BundleDependencyEntry {
+func includeDeclaredResources(entries []types.BundleDependencyEntry, cfg *types.Manifest) []types.BundleDependencyEntry {
 	if cfg == nil {
 		return entries
 	}
@@ -208,19 +164,12 @@ func includeDeclaredResources(entries []types.BundleDependencyEntry, cfg *types.
 	return entries
 }
 
-func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.ServiceConfig, nodes []types.DeploymentDependencyNode) *types.DesktopBundleSkeleton {
+func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Manifest, nodes []types.DeploymentDependencyNode) *types.DesktopBundleSkeleton {
 	if cfg == nil {
 		return nil
 	}
 
-	// Resolve app name from v2.0 flat fields first, then v1.x nested fields
-	appName := cfg.DisplayName
-	if appName == "" {
-		appName = cfg.Name
-	}
-	if appName == "" {
-		appName = cfg.Service.DisplayName
-	}
+	appName := cfg.Service.DisplayName
 	if appName == "" {
 		appName = cfg.Service.Name
 	}
@@ -234,11 +183,7 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Se
 		version = "0.1.0"
 	}
 
-	// Resolve description
-	description := cfg.Description
-	if description == "" {
-		description = cfg.Service.Description
-	}
+	description := cfg.Service.Description
 
 	skeleton := &types.DesktopBundleSkeleton{
 		SchemaVersion: "v0.1",
@@ -247,11 +192,12 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Se
 			Name:        appName,
 			Version:     version,
 			Description: description,
+			Scenario:    scenarioName,
 		},
 		IPC: types.BundleSkeletonIPC{
 			Mode:          "loopback-http",
 			Host:          "127.0.0.1",
-			Port:          39200,
+			Port:          0,
 			AuthTokenPath: filepath.ToSlash(filepath.Join("runtime", "auth_token")),
 		},
 		Telemetry: types.BundleSkeletonTelemetry{
@@ -263,9 +209,96 @@ func buildDesktopBundleSkeleton(scenarioName, scenarioPath string, cfg *types.Se
 	}
 
 	skeleton.Swaps = deriveSwaps(nodes)
-	skeleton.Services = buildSkeletonServices(scenarioName, scenarioPath, cfg)
+	skeleton.Peers = derivePeers(cfg)
+	skeleton.Services = buildSkeletonServices(cfg)
+	skeleton.Services = embedPeerServices(skeleton.Services, cfg, nodes)
 
 	return skeleton
+}
+
+func embedPeerServices(root []types.BundleSkeletonService, cfg *types.Manifest, nodes []types.DeploymentDependencyNode) []types.BundleSkeletonService {
+	peerNames := make([]string, 0)
+	for name, dependency := range cfg.Dependencies.Scenarios {
+		if dependency.BundlePolicy == "embed" {
+			peerNames = append(peerNames, name)
+		}
+	}
+	sort.Strings(peerNames)
+	for _, peerName := range peerNames {
+		node, ok := findScenarioNode(nodes, peerName)
+		if !ok || node.Path == "" {
+			log.Printf("cannot embed declared peer %s: dependency DAG has no scenario path", peerName)
+			continue
+		}
+		peerConfig, err := config.LoadServiceConfig(node.Path)
+		if err != nil {
+			log.Printf("cannot embed declared peer %s from %s: %v", peerName, node.Path, err)
+			continue
+		}
+		peerServices := buildSkeletonServices(peerConfig)
+		prefix := peerName + "--"
+		prefixedIDs := map[string]string{}
+		for _, service := range peerServices {
+			prefixedIDs[service.ID] = prefix + service.ID
+		}
+		for index := range peerServices {
+			originalID := peerServices[index].ID
+			peerServices[index].ID = prefixedIDs[originalID]
+			for dependencyIndex, dependency := range peerServices[index].Dependencies {
+				peerServices[index].Dependencies[dependencyIndex] = prefixedIDs[dependency]
+			}
+			for key, value := range peerServices[index].Env {
+				for source, target := range prefixedIDs {
+					value = strings.ReplaceAll(value, "${"+source+".", "${"+target+".")
+				}
+				peerServices[index].Env[key] = value
+			}
+			if peerServices[index].Build != nil {
+				peerServices[index].Build.SourceDir = filepath.ToSlash(filepath.Join("peers", peerName, peerServices[index].Build.SourceDir))
+				peerServices[index].Build.OutputPattern = strings.ReplaceAll(peerServices[index].Build.OutputPattern, "/"+originalID+"{{ext}}", "/"+prefix+originalID+"{{ext}}")
+			}
+			for platform, binary := range peerServices[index].Binaries {
+				binary.Path = strings.ReplaceAll(binary.Path, "/"+originalID, "/"+prefix+originalID)
+				peerServices[index].Binaries[platform] = binary
+			}
+		}
+		root = append(root, peerServices...)
+	}
+	return root
+}
+
+func findScenarioNode(nodes []types.DeploymentDependencyNode, name string) (types.DeploymentDependencyNode, bool) {
+	for _, node := range nodes {
+		if node.Type == "scenario" && node.Name == name {
+			return node, true
+		}
+		if found, ok := findScenarioNode(node.Children, name); ok {
+			return found, true
+		}
+	}
+	return types.DeploymentDependencyNode{}, false
+}
+
+func derivePeers(cfg *types.Manifest) []types.BundleSkeletonPeer {
+	names := make([]string, 0, len(cfg.Dependencies.Scenarios))
+	for name, dependency := range cfg.Dependencies.Scenarios {
+		if dependency.BundlePolicy != "" {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	peers := make([]types.BundleSkeletonPeer, 0, len(names))
+	for _, name := range names {
+		dependency := cfg.Dependencies.Scenarios[name]
+		peer := types.BundleSkeletonPeer{
+			Scenario:         name,
+			BundlePolicy:     dependency.BundlePolicy,
+			StartupPolicy:    dependency.StartupPolicy,
+			DegradedBehavior: dependency.DegradedBehavior,
+		}
+		peers = append(peers, peer)
+	}
+	return peers
 }
 
 func deriveSwaps(nodes []types.DeploymentDependencyNode) []types.BundleSkeletonSwap {
@@ -296,385 +329,264 @@ func deriveSwaps(nodes []types.DeploymentDependencyNode) []types.BundleSkeletonS
 	return swaps
 }
 
-func buildSkeletonServices(scenarioName, scenarioPath string, cfg *types.ServiceConfig) []types.BundleSkeletonService {
-	// Use marker-based folder scanning to detect buildable components
-	folders, err := ScanScenarioFolders(scenarioPath)
-	if err != nil {
-		// If scanning fails, return empty slice - don't fall back to hardcoded paths
+func buildSkeletonServices(cfg *types.Manifest) []types.BundleSkeletonService {
+	if cfg == nil {
 		return []types.BundleSkeletonService{}
 	}
+	return buildDeclaredComponentServices(cfg)
+}
 
-	var services []types.BundleSkeletonService
-	for _, folder := range folders {
-		svc := buildServiceForFolder(scenarioName, scenarioPath, folder, cfg)
-		if svc != nil {
-			services = append(services, *svc)
+var desktopPlatforms = []string{"darwin-x64", "linux-x64", "win-x64"}
+
+func buildDeclaredComponentServices(cfg *types.Manifest) []types.BundleSkeletonService {
+	names := make([]string, 0, len(cfg.Components))
+	for name := range cfg.Components {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	portOwners := map[string]string{}
+	for componentName, component := range cfg.Components {
+		if component.Run.Port != "" {
+			portOwners[component.Run.Port] = componentName
 		}
 	}
 
+	services := make([]types.BundleSkeletonService, 0, len(names))
+	for _, name := range names {
+		component := cfg.Components[name]
+		service := types.BundleSkeletonService{
+			ID:          name,
+			Type:        desktopServiceType(component.Role),
+			Description: fmt.Sprintf("Declared %s component", component.Role),
+			Binaries:    declaredComponentBinaries(name, component, cfg.Components),
+			Build:       declaredComponentBuild(name, component),
+			Env:         projectedComponentEnv(component.Run.Env, cfg.Ports, portOwners),
+			DataDirs:    append([]string(nil), component.Run.DataDirs...),
+			LogDir:      component.Run.LogDir,
+			Critical:    ptrBool(true),
+		}
+
+		if component.Run.Port != "" {
+			service.Ports = &types.BundleSkeletonServicePorts{Requested: []types.BundleSkeletonRequestedPort{{
+				Name:  component.Run.Port,
+				Range: desktopPortRange(cfg.Ports[component.Run.Port]),
+			}}}
+		}
+		if component.Role == "ui" {
+			service.DistRoot = filepath.ToSlash(filepath.Join(component.Build.Dir, "dist"))
+			index := filepath.ToSlash(filepath.Join(service.DistRoot, "index.html"))
+			service.Assets = []types.BundleSkeletonAsset{{Path: index, SHA256: "pending"}}
+		}
+		service.Env["VROOLI_LIFECYCLE_MANAGED"] = "true"
+		service.Health = declaredComponentHealth(name, component, cfg)
+		service.Readiness = declaredComponentReadiness(component)
+		for _, dependency := range component.Run.DependsOn {
+			service.Dependencies = append(service.Dependencies, dependency.Component)
+		}
+		if component.Run.SupervisedBy != "" {
+			service.Dependencies = append(service.Dependencies, component.Run.SupervisedBy)
+		}
+		service.Dependencies = dedupeStrings(service.Dependencies)
+		services = append(services, service)
+	}
 	return services
 }
 
-// buildServiceForFolder creates a skeleton service based on the detected folder role and language.
-func buildServiceForFolder(scenarioName, scenarioPath string, folder DetectedFolder, cfg *types.ServiceConfig) *types.BundleSkeletonService {
-	switch folder.Role {
-	case RoleAPI:
-		return buildAPIServiceFromFolder(scenarioName, scenarioPath, folder, cfg)
-	case RoleCLI:
-		return buildCLIServiceFromFolder(scenarioName, folder, cfg)
-	case RoleUI:
-		return buildUIServiceFromFolder(scenarioName, scenarioPath, folder, cfg)
-	case RoleWorker:
-		return buildWorkerServiceFromFolder(scenarioName, folder, cfg)
+func desktopServiceType(role string) string {
+	switch role {
+	case "api":
+		return "api-binary"
+	case "ui":
+		return "ui-bundle"
+	case "worker", "sidecar":
+		return "worker"
 	default:
-		// Skip libraries and unknown roles - they don't produce standalone services
+		return "resource"
+	}
+}
+
+func declaredComponentBuild(name string, component scenariomodel.Component) *types.BundleSkeletonBuildConfig {
+	if component.Build.Reuse != "" {
 		return nil
 	}
-}
-
-// getHealthEndpoint returns the health endpoint path for a service from the
-// service.json lifecycle config. Falls back to "/health" if not specified.
-func getHealthEndpoint(cfg *types.ServiceConfig, serviceName string) string {
-	if cfg != nil && cfg.Lifecycle != nil && cfg.Lifecycle.Health != nil {
-		if endpoint, ok := cfg.Lifecycle.Health.Endpoints[serviceName]; ok && endpoint != "" {
-			return endpoint
-		}
-	}
-	return "/health"
-}
-
-// buildAPIServiceFromFolder creates an API service skeleton from a detected folder.
-func buildAPIServiceFromFolder(scenarioName, scenarioPath string, folder DetectedFolder, cfg *types.ServiceConfig) *types.BundleSkeletonService {
-	binaryBase := fmt.Sprintf("%s-%s", scenarioName, folder.Name)
-
-	service := &types.BundleSkeletonService{
-		ID:          fmt.Sprintf("%s-%s", scenarioName, folder.Name),
-		Type:        "api-binary",
-		Description: fmt.Sprintf("Bundled %s process for %s", folder.Name, scenarioName),
-		Binaries: map[string]types.BundleSkeletonServiceBinary{
-			"darwin-x64": {Path: platformBinaryPath(folder.Name, "darwin-x64", binaryBase)},
-			"linux-x64":  {Path: platformBinaryPath(folder.Name, "linux-x64", binaryBase)},
-			"win-x64":    {Path: platformBinaryPath(folder.Name, "win-x64", binaryBase)},
-		},
-		Env: map[string]string{},
-		DataDirs: []string{
-			filepath.ToSlash(filepath.Join("data", folder.Name)),
-		},
-		LogDir: filepath.ToSlash(filepath.Join("logs", folder.Name)),
-		Ports: &types.BundleSkeletonServicePorts{
-			Requested: []types.BundleSkeletonRequestedPort{
-				{Name: folder.Name, Range: types.BundleSkeletonPortRange{Min: 23100, Max: 23200}},
-			},
-		},
-		Health: types.BundleSkeletonHealth{
-			Type:     "http",
-			Path:     getHealthEndpoint(cfg, folder.Name),
-			PortName: folder.Name,
-			Interval: 2000,
-			Timeout:  15000,
-			Retries:  5,
-		},
-		Readiness: types.BundleSkeletonReadiness{
-			Type:     "health_success",
-			PortName: folder.Name,
-			Timeout:  30000,
-		},
-		Migrations: []types.BundleSkeletonMigration{},
-		Assets:     []types.BundleSkeletonAsset{},
-	}
-
-	// Use build config from service.json if available
-	if cfg != nil && cfg.Deployment != nil && cfg.Deployment.BuildConfigs != nil {
-		if buildCfg, ok := cfg.Deployment.BuildConfigs[folder.Name]; ok {
-			service.Build = &types.BundleSkeletonBuildConfig{
-				Type:          buildCfg.Type,
-				SourceDir:     buildCfg.SourceDir,
-				EntryPoint:    buildCfg.EntryPoint,
-				OutputPattern: buildCfg.OutputPattern,
-			}
-		}
-	}
-
-	// Generate build config from detected language if not provided
-	if service.Build == nil {
-		service.Build = buildConfigForLanguage(scenarioName, folder)
-	}
-
-	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, scenarioName, service.Env)
-
-	return service
-}
-
-// buildCLIServiceFromFolder creates a CLI service skeleton from a detected folder.
-func buildCLIServiceFromFolder(scenarioName string, folder DetectedFolder, cfg *types.ServiceConfig) *types.BundleSkeletonService {
-	binaryBase := scenarioName
-	// For CLI folders not named "cli", append folder name
-	if folder.Name != "cli" {
-		binaryBase = fmt.Sprintf("%s-%s", scenarioName, folder.Name)
-	}
-
-	service := &types.BundleSkeletonService{
-		ID:          fmt.Sprintf("%s-%s", scenarioName, folder.Name),
-		Type:        "resource",
-		Description: fmt.Sprintf("%s component for %s", folder.Name, scenarioName),
-		Binaries: map[string]types.BundleSkeletonServiceBinary{
-			"darwin-x64": {Path: platformBinaryPath(folder.Name, "darwin-x64", binaryBase)},
-			"linux-x64":  {Path: platformBinaryPath(folder.Name, "linux-x64", binaryBase)},
-			"win-x64":    {Path: platformBinaryPath(folder.Name, "win-x64", binaryBase)},
-		},
-		Health: types.BundleSkeletonHealth{
-			Type:     "command",
-			Command:  []string{"echo", "healthy"},
-			Interval: 10000,
-			Timeout:  5000,
-			Retries:  1,
-		},
-		Readiness: types.BundleSkeletonReadiness{
-			Type:     "health_success",
-			PortName: "http",
-			Timeout:  5000,
-		},
-	}
-
-	// Use build config from service.json if available
-	if cfg != nil && cfg.Deployment != nil && cfg.Deployment.BuildConfigs != nil {
-		if buildCfg, ok := cfg.Deployment.BuildConfigs[folder.Name]; ok {
-			service.Build = &types.BundleSkeletonBuildConfig{
-				Type:          buildCfg.Type,
-				SourceDir:     buildCfg.SourceDir,
-				EntryPoint:    buildCfg.EntryPoint,
-				OutputPattern: buildCfg.OutputPattern,
-			}
-		}
-	}
-
-	// Generate build config from detected language if not provided
-	if service.Build == nil {
-		service.Build = buildConfigForLanguage(scenarioName, folder)
-	}
-
-	service.Env = map[string]string{
-		"VROOLI_LIFECYCLE_MANAGED": "true",
-	}
-
-	return service
-}
-
-// buildUIServiceFromFolder creates a UI service skeleton from a detected folder.
-func buildUIServiceFromFolder(scenarioName, scenarioPath string, folder DetectedFolder, cfg *types.ServiceConfig) *types.BundleSkeletonService {
-	// UI services serve pre-built static assets from dist/
-	entry := filepath.ToSlash(filepath.Join(folder.Name, "dist", "index.html"))
-
-	// Check if the dist folder actually exists
-	distPath := filepath.Join(scenarioPath, folder.Name, "dist")
-	if _, err := os.Stat(distPath); err != nil {
-		// UI dist doesn't exist - skip this folder
-		return nil
-	}
-
-	service := &types.BundleSkeletonService{
-		ID:          "ui",
-		Type:        "ui-bundle",
-		Description: fmt.Sprintf("Production UI bundle for %s", scenarioName),
-		Binaries: map[string]types.BundleSkeletonServiceBinary{
-			"darwin-x64": {Path: entry},
-			"linux-x64":  {Path: entry},
-			"win-x64":    {Path: entry},
-		},
-		LogDir: filepath.ToSlash(filepath.Join("logs", "ui")),
-		Ports: &types.BundleSkeletonServicePorts{
-			Requested: []types.BundleSkeletonRequestedPort{
-				{Name: "ui", Range: types.BundleSkeletonPortRange{Min: 24100, Max: 24200}},
-			},
-		},
-		Health: types.BundleSkeletonHealth{
-			Type:     "http",
-			Path:     getHealthEndpoint(cfg, "ui"),
-			PortName: "ui",
-			Interval: 2000,
-			Timeout:  10000,
-			Retries:  3,
-		},
-		Readiness: types.BundleSkeletonReadiness{
-			Type:     "health_success",
-			PortName: "ui",
-			Timeout:  20000,
-		},
-		Assets: []types.BundleSkeletonAsset{
-			{Path: entry, SHA256: "pending"},
-		},
-		Critical: ptrBool(true),
-	}
-
-	service.Env = deriveServiceEnv(cfg, service.ID, service.Ports, scenarioName, service.Env)
-
-	return service
-}
-
-// buildWorkerServiceFromFolder creates a worker service skeleton from a detected folder.
-func buildWorkerServiceFromFolder(scenarioName string, folder DetectedFolder, cfg *types.ServiceConfig) *types.BundleSkeletonService {
-	binaryBase := fmt.Sprintf("%s-%s", scenarioName, folder.Name)
-
-	service := &types.BundleSkeletonService{
-		ID:          fmt.Sprintf("%s-%s", scenarioName, folder.Name),
-		Type:        "worker",
-		Description: fmt.Sprintf("Worker process for %s", scenarioName),
-		Binaries: map[string]types.BundleSkeletonServiceBinary{
-			"darwin-x64": {Path: platformBinaryPath(folder.Name, "darwin-x64", binaryBase)},
-			"linux-x64":  {Path: platformBinaryPath(folder.Name, "linux-x64", binaryBase)},
-			"win-x64":    {Path: platformBinaryPath(folder.Name, "win-x64", binaryBase)},
-		},
-		Health: types.BundleSkeletonHealth{
-			Type:     "command",
-			Command:  []string{"echo", "healthy"},
-			Interval: 10000,
-			Timeout:  5000,
-			Retries:  1,
-		},
-		Readiness: types.BundleSkeletonReadiness{
-			Type:    "health_success",
-			Timeout: 10000,
-		},
-	}
-
-	// Use build config from service.json if available
-	if cfg != nil && cfg.Deployment != nil && cfg.Deployment.BuildConfigs != nil {
-		if buildCfg, ok := cfg.Deployment.BuildConfigs[folder.Name]; ok {
-			service.Build = &types.BundleSkeletonBuildConfig{
-				Type:          buildCfg.Type,
-				SourceDir:     buildCfg.SourceDir,
-				EntryPoint:    buildCfg.EntryPoint,
-				OutputPattern: buildCfg.OutputPattern,
-			}
-		}
-	}
-
-	// Generate build config from detected language if not provided
-	if service.Build == nil {
-		service.Build = buildConfigForLanguage(scenarioName, folder)
-	}
-
-	service.Env = map[string]string{
-		"VROOLI_LIFECYCLE_MANAGED": "true",
-	}
-
-	return service
-}
-
-// buildConfigForLanguage generates a build config based on the detected language.
-func buildConfigForLanguage(scenarioName string, folder DetectedFolder) *types.BundleSkeletonBuildConfig {
-	switch folder.Language {
-	case LangGo:
-		binaryBase := scenarioName
-		if folder.Name != "cli" {
-			binaryBase = fmt.Sprintf("%s-%s", scenarioName, folder.Name)
-		}
-		return &types.BundleSkeletonBuildConfig{
-			Type:          "go",
-			SourceDir:     folder.Path,
-			EntryPoint:    ".",
-			OutputPattern: filepath.ToSlash(filepath.Join("bin", folder.Name, "{{platform}}", binaryBase+"{{ext}}")),
-			Env: map[string]string{
-				"CGO_ENABLED": "0",
-			},
-		}
-	case LangRust:
-		return &types.BundleSkeletonBuildConfig{
-			Type:          "rust",
-			SourceDir:     folder.Path,
-			EntryPoint:    "src/main.rs",
-			OutputPattern: filepath.ToSlash(filepath.Join("bin", folder.Name, "{{platform}}", fmt.Sprintf("%s-%s{{ext}}", scenarioName, folder.Name))),
-		}
-	case LangTypeScript, LangJavaScript:
-		return &types.BundleSkeletonBuildConfig{
-			Type:          "npm",
-			SourceDir:     folder.Path,
-			EntryPoint:    ".",
-			OutputPattern: filepath.ToSlash(filepath.Join("bin", folder.Name, "{{platform}}", fmt.Sprintf("%s-%s{{ext}}", scenarioName, folder.Name))),
-		}
-	case LangPython:
-		return &types.BundleSkeletonBuildConfig{
-			Type:      "custom",
-			SourceDir: folder.Path,
-			// Python bundling to be defined by scenario-specific config
-		}
+	kind := ""
+	switch component.Build.Kind {
+	case "go_module":
+		kind = "go"
+	case "pnpm_vite", "node_bundle":
+		kind = "npm"
 	default:
+		kind = component.Build.Kind
+	}
+	if kind == "" {
 		return nil
 	}
-}
-
-func platformBinaryPath(folder, platform, base string) string {
-	ext := ""
-	if strings.HasPrefix(platform, "win") {
-		ext = ".exe"
-	}
-	return filepath.ToSlash(filepath.Join("bin", folder, platform, base+ext))
-}
-
-// deriveServiceEnv injects lifecycle protection, port bindings, and swap-aware overrides.
-func deriveServiceEnv(cfg *types.ServiceConfig, serviceID string, ports *types.BundleSkeletonServicePorts, scenarioName string, existing map[string]string) map[string]string {
-	env := map[string]string{}
-	for k, v := range existing {
-		env[k] = v
-	}
-
-	// Lifecycle protection is required by all APIs we bundle.
-	env["VROOLI_LIFECYCLE_MANAGED"] = "true"
-
-	// Wire port env vars from service.json where present.
-	if cfg != nil {
-		portEnv := extractPortEnv(cfg)
-		if ports != nil {
-			for _, p := range ports.Requested {
-				if envVar, ok := portEnv[p.Name]; ok && envVar != "" {
-					env[envVar] = fmt.Sprintf("${%s.%s}", serviceID, p.Name)
-				}
-			}
+	output := filepath.ToSlash(filepath.Join("bin", component.Role, "{{platform}}", name+"{{ext}}"))
+	if component.Role == "ui" {
+		output = strings.TrimSpace(component.Build.Output)
+		if output == "" {
+			output = filepath.ToSlash(filepath.Join(component.Build.Dir, "dist", "index.html"))
 		}
 	}
-
-	// Swap-aware defaults: if Postgres -> SQLite is suggested, prefer SQLite backend for the API service.
-	if serviceID == fmt.Sprintf("%s-api", scenarioName) && prefersSQLite(cfg) {
-		env["BAS_DB_BACKEND"] = "sqlite"
-		if _, ok := env["BAS_SQLITE_PATH"]; !ok {
-			env["BAS_SQLITE_PATH"] = filepath.ToSlash(filepath.Join("${data}", "data", "api", fmt.Sprintf("%s.sqlite", scenarioName)))
-		}
+	return &types.BundleSkeletonBuildConfig{
+		Type:          kind,
+		SourceDir:     component.Build.Dir,
+		EntryPoint:    component.Build.Entry,
+		OutputPattern: output,
 	}
-
-	return env
 }
 
-// extractPortEnv maps port names to their env_var from service.json.
-func extractPortEnv(cfg *types.ServiceConfig) map[string]string {
-	result := map[string]string{}
-	if cfg == nil || cfg.Ports == nil {
-		return result
-	}
-	for name, raw := range cfg.Ports {
-		if rawMap, ok := raw.(map[string]interface{}); ok {
-			if envVar, ok := rawMap["env_var"].(string); ok && envVar != "" {
-				result[name] = envVar
-			}
+func projectedComponentEnv(input map[string]string, ports map[string]scenariomodel.Port, owners map[string]string) map[string]string {
+	result := copyStringMap(input)
+	for portName, port := range ports {
+		owner, ok := owners[portName]
+		if !ok || port.EnvVar == "" {
+			continue
+		}
+		placeholder := fmt.Sprintf("${%s.%s}", owner, portName)
+		result[port.EnvVar] = placeholder
+		for key, value := range result {
+			result[key] = strings.ReplaceAll(value, "${"+port.EnvVar+"}", placeholder)
 		}
 	}
 	return result
 }
 
-// prefersSQLite checks deployment metadata for a Postgres->SQLite swap hint.
-func prefersSQLite(cfg *types.ServiceConfig) bool {
-	if cfg == nil || cfg.Deployment == nil || cfg.Deployment.Dependencies.Resources == nil {
-		return false
-	}
-	res, ok := cfg.Deployment.Dependencies.Resources["postgres"]
-	if !ok {
-		return false
-	}
-	for _, sw := range res.SwappableWith {
-		if strings.EqualFold(sw.ID, "sqlite") {
-			return true
+func declaredComponentBinaries(name string, component scenariomodel.Component, components map[string]scenariomodel.Component) map[string]types.BundleSkeletonServiceBinary {
+	result := make(map[string]types.BundleSkeletonServiceBinary, len(desktopPlatforms))
+	for _, platform := range desktopPlatforms {
+		argv := expandDesktopArgv(component.Run.Argv, platform, components)
+		path := desktopComponentBinaryPath(name, component.Role, platform)
+		args := []string(nil)
+		if len(argv) > 0 {
+			path = argv[0]
+			args = append(args, argv[1:]...)
+		}
+		result[platform] = types.BundleSkeletonServiceBinary{
+			Path: path,
+			Args: args,
+			Cwd:  component.Run.CWD,
 		}
 	}
-	return false
+	return result
+}
+
+func expandDesktopArgv(argv []string, platform string, components map[string]scenariomodel.Component) []string {
+	ext := ""
+	if strings.HasPrefix(platform, "win-") {
+		ext = ".exe"
+	}
+	result := make([]string, len(argv))
+	for index, value := range argv {
+		value = strings.ReplaceAll(value, "{{ext}}", ext)
+		for {
+			start := strings.Index(value, "{{bin.")
+			if start < 0 {
+				break
+			}
+			end := strings.Index(value[start:], "}}")
+			if end < 0 {
+				break
+			}
+			componentName := value[start+len("{{bin.") : start+end]
+			target, ok := components[componentName]
+			if !ok {
+				break
+			}
+			replacement := desktopComponentBinaryPath(componentName, target.Role, platform)
+			value = value[:start] + replacement + value[start+end+2:]
+		}
+		result[index] = value
+	}
+	return result
+}
+
+func desktopComponentBinaryPath(name, role, platform string) string {
+	ext := ""
+	if strings.HasPrefix(platform, "win-") {
+		ext = ".exe"
+	}
+	return filepath.ToSlash(filepath.Join("bin", role, platform, name+ext))
+}
+
+func desktopPortRange(port scenariomodel.Port) types.BundleSkeletonPortRange {
+	if port.Port != nil && *port.Port > 0 {
+		return types.BundleSkeletonPortRange{Min: *port.Port, Max: *port.Port}
+	}
+	parts := strings.SplitN(strings.TrimSpace(port.Range), "-", 2)
+	if len(parts) == 2 {
+		minimum, minimumErr := strconv.Atoi(strings.TrimSpace(parts[0]))
+		maximum, maximumErr := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if minimumErr == nil && maximumErr == nil && minimum > 0 && maximum >= minimum {
+			return types.BundleSkeletonPortRange{Min: minimum, Max: maximum}
+		}
+	}
+	return types.BundleSkeletonPortRange{Min: 20000, Max: 24000}
+}
+
+func declaredComponentHealth(_ string, component scenariomodel.Component, cfg *types.Manifest) types.BundleSkeletonHealth {
+	health := types.BundleSkeletonHealth{Type: "command", Command: []string{"true"}, Interval: 2000, Timeout: 2000, Retries: 5}
+	if component.Run.Port == "" {
+		return health
+	}
+	health = types.BundleSkeletonHealth{Type: "tcp", PortName: component.Run.Port, Interval: 2000, Timeout: 2000, Retries: 5}
+	if cfg.Lifecycle.Health == nil {
+		return health
+	}
+	envVar := cfg.Ports[component.Run.Port].EnvVar
+	for _, check := range cfg.Lifecycle.Health.Checks {
+		if check.Type != "http" || (envVar != "" && !strings.Contains(check.Target, "${"+envVar+"}")) {
+			continue
+		}
+		path := desktopHealthPath(check.Target)
+		health = types.BundleSkeletonHealth{Type: "http", Path: path, PortName: component.Run.Port, Interval: check.Interval, Timeout: check.Timeout, Retries: 5}
+		if health.Interval == 0 {
+			health.Interval = 2000
+		}
+		if health.Timeout == 0 {
+			health.Timeout = 2000
+		}
+		return health
+	}
+	return health
+}
+
+func desktopHealthPath(target string) string {
+	if parsed, err := url.Parse(target); err == nil && parsed.Path != "" {
+		return parsed.Path
+	}
+	if marker := strings.Index(target, "}"); marker >= 0 {
+		if suffix := target[marker+1:]; strings.HasPrefix(suffix, "/") {
+			return suffix
+		}
+	}
+	return "/"
+}
+
+func declaredComponentReadiness(component scenariomodel.Component) types.BundleSkeletonReadiness {
+	readiness := types.BundleSkeletonReadiness{Type: "health_success", Timeout: 30000}
+	if component.Run.Readiness != nil {
+		readiness.Timeout = component.Run.Readiness.TimeoutMS
+		if readiness.Timeout == 0 {
+			readiness.Timeout = 30000
+		}
+		switch component.Run.Readiness.Type {
+		case "port_open":
+			readiness.Type = "port_open"
+		case "http":
+			readiness.Type = "health_success"
+		}
+	}
+	readiness.PortName = component.Run.Port
+	return readiness
+}
+
+func copyStringMap(input map[string]string) map[string]string {
+	result := make(map[string]string, len(input)+1)
+	for key, value := range input {
+		result[key] = value
+	}
+	return result
 }
 
 func ptrBool(v bool) *bool {

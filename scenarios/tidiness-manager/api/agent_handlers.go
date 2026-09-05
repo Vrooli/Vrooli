@@ -493,12 +493,16 @@ func (s *Server) handleGetStalenessInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Resolve scenario path
-	vrooli_root := os.Getenv("VROOLI_ROOT")
-	if vrooli_root == "" {
-		vrooli_root = os.Getenv("HOME") + "/Vrooli"
+	if s.scenarioLocator == nil {
+		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
+		return
 	}
-	scenarioPath := vrooli_root + "/scenarios/" + scenario
+
+	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenario)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	// Check if scenario directory exists
 	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
@@ -523,7 +527,11 @@ func (s *Server) handleGetStalenessInfo(w http.ResponseWriter, r *http.Request) 
 // getAllScenarios fetches all scenarios from the vrooli CLI with caching
 func (s *Server) getAllScenarios(parentCtx context.Context) ([]string, error) {
 	if s.scenarioLocator == nil {
-		s.scenarioLocator = NewScenarioLocator(5 * time.Minute)
+		locator, err := NewScenarioLocator(5 * time.Minute)
+		if err != nil {
+			return nil, err
+		}
+		s.scenarioLocator = locator
 	}
 
 	return s.scenarioLocator.List(parentCtx)

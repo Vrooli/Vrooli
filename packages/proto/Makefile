@@ -1,61 +1,33 @@
-BUF_BASE_BRANCH ?= master
+.PHONY: generate gen-code descriptor gen-manifests lint format breaking verify-committed-gen clean refresh-vendor
 
-.PHONY: generate lint format breaking check clean
+SCENARIO_ARGS := $(foreach scenario,$(SCENARIO),--scenario $(scenario))
 
 generate:
-	buf generate
-	touch gen/python/py.typed \
-	      gen/python/agent_manager/py.typed \
-	      gen/python/agent_manager/v1/py.typed \
-	      gen/python/agent_manager/v1/api/py.typed \
-	      gen/python/agent_manager/v1/domain/py.typed \
-	      gen/python/browser_automation_studio/py.typed \
-	      gen/python/browser_automation_studio/v1/py.typed \
-	      gen/python/browser_automation_studio/v1/api/py.typed \
-	      gen/python/browser_automation_studio/v1/base/py.typed \
-	      gen/python/browser_automation_studio/v1/domain/py.typed \
-	      gen/python/browser_automation_studio/v1/actions/py.typed \
-	      gen/python/browser_automation_studio/v1/workflows/py.typed \
-	      gen/python/browser_automation_studio/v1/timeline/py.typed \
-	      gen/python/browser_automation_studio/v1/execution/py.typed \
-	      gen/python/browser_automation_studio/v1/recording/py.typed \
-	      gen/python/browser_automation_studio/v1/projects/py.typed \
-	      gen/python/common/py.typed \
-	      gen/python/landing_page_react_vite/py.typed \
-	      gen/python/swarm_manager/py.typed \
-	      gen/python/swarm_manager/v1/py.typed \
-	      gen/python/swarm_manager/v1/api/py.typed \
-	      gen/python/swarm_manager/v1/domain/py.typed \
-	      gen/python/scenario_to_desktop/py.typed \
-	      gen/python/scenario_to_desktop/v1/py.typed \
-	      gen/python/scenario_to_desktop/v1/base/py.typed \
-	      gen/python/scenario_to_desktop/v1/domain/py.typed \
-	      gen/python/scenario_to_desktop/v1/pipeline/py.typed \
-	      gen/python/scenario_to_desktop/v1/distribution/py.typed \
-	      gen/python/system_monitor/py.typed \
-	      gen/python/system_monitor/v1/py.typed \
-	      gen/python/system_monitor/v1/api/py.typed \
-	      gen/python/system_monitor/v1/domain/py.typed
+	GOFLAGS=-mod=mod go run ./cmd/protogen generate $(SCENARIO_ARGS)
+
+gen-code:
+	GOFLAGS=-mod=mod go run ./cmd/protogen gen-code $(SCENARIO_ARGS)
+
+descriptor:
+	GOFLAGS=-mod=mod go run ./cmd/protogen descriptor
+
+gen-manifests:
+	GOFLAGS=-mod=mod go run ./cmd/protogen gen-manifests $(SCENARIO_ARGS)
 
 lint:
-	buf lint
+	GOFLAGS=-mod=mod go run ./cmd/protogen lint
 
 format:
-	buf format -w
+	GOFLAGS=-mod=mod go run ./cmd/protogen format
 
 breaking:
-	@if ! git show-ref --quiet refs/heads/$(BUF_BASE_BRANCH); then \
-		echo "buf breaking baseline branch '$(BUF_BASE_BRANCH)' not found" >&2; exit 1; \
-	fi
-	buf breaking --against ".git#branch=$(BUF_BASE_BRANCH),subdir=packages/proto"
+	GOFLAGS=-mod=mod go run ./cmd/protogen breaking --scenario $(SCENARIO)
 
-check: lint
-	buf generate
-	@if ! git diff --quiet gen/; then \
-		echo "ERROR: Generated code is out of date. Run 'make generate' and commit.'"; \
-		git diff --stat gen/; \
-		exit 1; \
-	fi
+verify-committed-gen:
+	GOFLAGS=-mod=mod go run ./cmd/protogen verify
 
 clean:
-	rm -rf gen/*
+	GOFLAGS=-mod=mod go run ./cmd/protogen clean
+
+refresh-vendor:
+	GOFLAGS=-mod=mod go run ./cmd/protogen refresh-vendor

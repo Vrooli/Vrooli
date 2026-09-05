@@ -8,9 +8,9 @@ import { useResiliencePanelProps } from '@hooks/useResiliencePanel';
 import useUpstreamScreenshot from '@hooks/useUpstreamScreenshot';
 import { useUrlInheritance } from '@hooks/useUrlInheritance';
 import { useSyncedString, textInputHandler } from '@hooks/useSyncedField';
-import type { ElementInfo, BoundingBox, ElementHierarchyEntry, ElementCoordinateResponse } from '@/types/elements';
+import type { ElementInfo, BoundingBox, ElementHierarchyEntry } from '@/types/elements';
 import type { ClickParams } from '@utils/actionBuilder';
-import { getConfig } from '@/config';
+import { aiClient, mapProtoSelectionResult } from '@/api/ai';
 import { logger } from '@utils/logger';
 import { useWorkflowStore, type ExecutionViewportSettings } from '@stores/workflowStore';
 import { normalizeHierarchy, deriveSelector } from './utils/elementHierarchy';
@@ -211,19 +211,8 @@ const ClickNode: FC<NodeProps> = ({ selected, id }) => {
       setIsSelecting(true);
 
       try {
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/element-at-coordinate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: effectiveUrl, x, y }),
-        });
-
-        if (!response.ok) {
-          const message = await response.text();
-          throw new Error(message || 'Failed to locate element');
-        }
-
-        const payload = (await response.json()) as ElementCoordinateResponse;
+        const resp = await aiClient.getElementAtCoordinate({ url: effectiveUrl, x, y });
+        const payload = mapProtoSelectionResult(resp.selection);
         const candidates = normalizeHierarchy(payload?.candidates ?? []);
 
         if (candidates.length === 0) {

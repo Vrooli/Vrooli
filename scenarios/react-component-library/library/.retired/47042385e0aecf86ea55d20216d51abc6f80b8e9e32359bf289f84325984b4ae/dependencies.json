@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:AuthSection",
+  "version": "1.0.3",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:MonetizationAccount",
+      "version": "1.0.0",
+      "rank": 4
+    }
+  ]
+}

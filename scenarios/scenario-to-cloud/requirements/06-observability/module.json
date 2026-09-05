@@ -1,16 +1,15 @@
 {
-  "module_id": "observability",
-  "title": "Inspect + Logs",
-  "priority": "P0",
-  "description": "Standard ways to retrieve remote status and logs.",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T15:00:19-04:00"
+  },
   "requirements": [
     {
       "id": "STC-P0-006",
-      "category": "observability",
-      "prd_ref": "OT-P0-006",
       "title": "Remote status and logs retrieval",
-      "description": "Provide commands and/or API methods to fetch 'vrooli scenario status' and 'vrooli scenario logs' output from the VPS over SSH.",
       "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "observability",
+      "description": "Provide commands and/or API methods to fetch 'vrooli scenario status' and 'vrooli scenario logs' output from the VPS over SSH.",
       "tags": [
         "logs",
         "status",
@@ -19,24 +18,17 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "api/vps_inspect_test.go",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Tag tests with [REQ:STC-P0-006]."
         },
         {
           "type": "test",
+          "ref": "cli/main_test.go",
           "phase": "integration",
           "status": "implemented",
-          "ref": "cli/main_test.go",
           "notes": "CLI can post to /api/v1/vps/inspect/{plan,apply}."
-        },
-        {
-          "type": "playbook",
-          "phase": "e2e",
-          "status": "planned",
-          "ref": "bas/cases/06-observability/vps-fetch-logs.json",
-          "notes": "E2E planned. Tag with [REQ:STC-P0-006]."
         }
       ]
     }

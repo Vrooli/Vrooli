@@ -28,7 +28,7 @@ func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 			Resources: []string{"postgres"},
 		},
 		Bundle: domain.ManifestBundle{IncludePackages: true, IncludeAutoheal: true},
-		Ports:  domain.ManifestPorts{"ui": 3000, "api": 3001, "ws": 3002},
+		Ports:  domain.ManifestPorts{"ui": 3000, "api": 3001, "metrics": 3002},
 		Edge:   domain.ManifestEdge{Domain: "example.com", Caddy: domain.ManifestCaddy{Enabled: true}},
 	}
 
@@ -44,7 +44,7 @@ func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 		}
 		if step.ID == "scenario_start_target" {
 			// Check that ports are properly exported (not just set inline)
-			if strings.Contains(step.Command, "export API_PORT=3001 UI_PORT=3000 WS_PORT=3002") {
+			if strings.Contains(step.Command, "export API_PORT=3001 METRICS_PORT=3002 UI_PORT=3000") {
 				hasExportedPorts = true
 			}
 			// Implementation now uses "restart" to ensure code is rebuilt
@@ -88,8 +88,8 @@ func TestBuildPortEnvVars(t *testing.T) {
 		},
 		{
 			name:     "multiple ports sorted",
-			ports:    domain.ManifestPorts{"ui": 3000, "api": 8080, "ws": 9000},
-			expected: "export API_PORT=8080 UI_PORT=3000 WS_PORT=9000 &&",
+			ports:    domain.ManifestPorts{"ui": 3000, "api": 8080, "metrics": 9000},
+			expected: "export API_PORT=8080 METRICS_PORT=9000 UI_PORT=3000 &&",
 		},
 	}
 

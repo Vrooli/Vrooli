@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "description": "OT-P0-003 — guided execution where status/next act as a just-in-time context server.",
+    "last_validated_at": "2026-07-02T21:19:14-04:00",
+    "module": "execution-context",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-EXEC-001",
+      "title": "status/next inject phase-scoped context just-in-time",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "execution",
+      "description": "The start/status/context/resume/next commands return the current phase, what is next, structured relevant-context setup items, reminders, the last validation results, and current staleness — so the agent does not carry that procedural knowledge in context.",
+      "tags": [
+        "execution",
+        "context",
+        "reminders"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestGetStatusInjectsPhaseScopedContext",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Status injects current phase, relevant context, reminders, next phase, staleness, and resume point."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestGetNextAdvancesPastCurrentUnfinishedPhase",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Next advances to a later actionable phase while preserving the resume point."
+        }
+      ]
+    },
+    {
+      "id": "PM-EXEC-002",
+      "title": "Full vs partial completion and resume point are computed",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "execution",
+      "description": "Whether a run completed the whole plan or part of it, and where to resume, are derived from phase status — not narrated by the agent. A partial run yields a deterministic resume point.",
+      "tags": [
+        "execution",
+        "resume",
+        "phases"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompletenessFullVsPartial",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Full versus partial completion is derived from phase status."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Complete computes full handoff state with no resume point when every phase is done."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestAbandonExecutionIsTerminalIdempotentAndAllowsReplacement",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Abandonment is terminal and replay-safe, excludes velocity accounting, blocks resume, and permits a replacement execution."
+        }
+      ]
+    }
+  ]
+}

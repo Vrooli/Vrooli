@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "id": "payment-required",
+      "mode": "live",
+      "name": "Payment required",
+      "role": "anatomy"
+    }
+  ],
+  "title": "EntitlementErrorCard"
+}

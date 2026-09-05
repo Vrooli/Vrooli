@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-resize-observer",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:useResizeObserver"
+}

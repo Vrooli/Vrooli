@@ -1,0 +1,840 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.treasury.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.treasury.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The capability descriptor is a plain operational JSON probe used by the control plane.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "agentspend_propose_charge",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/ProposeCharge",
+      "method": "POST",
+      "summary": "Evaluate and reserve a proposed charge",
+      "description": "",
+      "category": "authorization",
+      "request": {
+        "type": "ProposeChargeRequest"
+      },
+      "response": {
+        "type": "ProposeChargeResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed proposal"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Fail-closed dependency or persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_get_authorization",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/GetAuthorization",
+      "method": "POST",
+      "summary": "Read an authorization decision",
+      "description": "",
+      "category": "authorization",
+      "request": {
+        "type": "GetAuthorizationRequest"
+      },
+      "response": {
+        "type": "GetAuthorizationResponse"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Authorization does not exist"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_get_budget_headroom",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/GetBudgetHeadroom",
+      "method": "POST",
+      "summary": "Compute spend headroom from Treasury authorization records",
+      "description": "",
+      "category": "budget",
+      "request": {
+        "type": "GetBudgetHeadroomRequest"
+      },
+      "response": {
+        "type": "GetBudgetHeadroomResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Verified agent identity is required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Budget does not exist"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_list_mandates",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/ListMandates",
+      "method": "POST",
+      "summary": "List mandates visible to the verified agent",
+      "description": "",
+      "category": "mandate",
+      "request": {
+        "type": "ListMandatesRequest"
+      },
+      "response": {
+        "type": "ListMandatesResponse"
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Introduced with the governed agent CLI surface"
+        }
+      ]
+    },
+    {
+      "id": "agentspend_report_outcome",
+      "path": "/vrooli.treasury.v1.authorization.AgentSpend/ReportOutcome",
+      "method": "POST",
+      "summary": "Execute an approved charge once and return its durable rail outcome",
+      "description": "",
+      "category": "settlement",
+      "request": {
+        "type": "ReportOutcomeRequest"
+      },
+      "response": {
+        "type": "ReportOutcomeResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid, unauthorized, expired, or idempotency-aliased settlement"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Settlement dependency not found"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Settlement execution or durable outcome recording failed"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_create_book",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateBook",
+      "method": "POST",
+      "summary": "Create an operator custody book",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "CreateBookRequest"
+      },
+      "response": {
+        "type": "CreateBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_get_book",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetBook",
+      "method": "POST",
+      "summary": "Read an operator custody book",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "GetBookRequest"
+      },
+      "response": {
+        "type": "GetBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_create_mandate",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateMandate",
+      "method": "POST",
+      "summary": "Create a signed mandate",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "CreateMandateRequest"
+      },
+      "response": {
+        "type": "CreateMandateResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_revoke_mandate",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RevokeMandate",
+      "method": "POST",
+      "summary": "Revoke a mandate",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "RevokeMandateRequest"
+      },
+      "response": {
+        "type": "RevokeMandateResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_cancel_standing_mandate",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/CancelStandingMandate",
+      "method": "POST",
+      "summary": "Cancel a standing mandate before its next recurrence",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "CancelStandingMandateRequest"
+      },
+      "response": {
+        "type": "CancelStandingMandateResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_list_mandates",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListMandates",
+      "method": "POST",
+      "summary": "List operator mandates across books",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ListMandatesRequest"
+      },
+      "response": {
+        "type": "ListMandatesResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_set_budget_caps",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetBudgetCaps",
+      "method": "POST",
+      "summary": "Set budget caps",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "SetBudgetCapsRequest"
+      },
+      "response": {
+        "type": "SetBudgetCapsResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_set_gating",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetGating",
+      "method": "POST",
+      "summary": "Set budget approval gating",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "SetGatingRequest"
+      },
+      "response": {
+        "type": "SetGatingResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_list_approvals",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListApprovals",
+      "method": "POST",
+      "summary": "List approval requests",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ListApprovalsRequest"
+      },
+      "response": {
+        "type": "ListApprovalsResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_resolve_approval",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ResolveApproval",
+      "method": "POST",
+      "summary": "Resolve a pending approval",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ResolveApprovalRequest"
+      },
+      "response": {
+        "type": "ResolveApprovalResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_freeze_budget",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeBudget",
+      "method": "POST",
+      "summary": "Freeze a budget",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "FreezeBudgetRequest"
+      },
+      "response": {
+        "type": "FreezeBudgetResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_unfreeze_budget",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeBudget",
+      "method": "POST",
+      "summary": "Unfreeze a budget",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "UnfreezeBudgetRequest"
+      },
+      "response": {
+        "type": "UnfreezeBudgetResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_freeze_book",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeBook",
+      "method": "POST",
+      "summary": "Freeze every authorization and unsettled charge in a book",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "FreezeBookRequest"
+      },
+      "response": {
+        "type": "FreezeBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_unfreeze_book",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeBook",
+      "method": "POST",
+      "summary": "Release a book freeze",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "UnfreezeBookRequest"
+      },
+      "response": {
+        "type": "UnfreezeBookResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_freeze_all",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeAll",
+      "method": "POST",
+      "summary": "Engage the scenario-wide kill switch",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "FreezeAllRequest"
+      },
+      "response": {
+        "type": "FreezeAllResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_get_freeze_status",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetFreezeStatus",
+      "method": "POST",
+      "summary": "Read the scenario-wide kill-switch state",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "GetFreezeStatusRequest"
+      },
+      "response": {
+        "type": "GetFreezeStatusResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_unfreeze_all",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeAll",
+      "method": "POST",
+      "summary": "Release the scenario-wide kill switch",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "UnfreezeAllRequest"
+      },
+      "response": {
+        "type": "UnfreezeAllResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_register_instrument",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/RegisterInstrument",
+      "method": "POST",
+      "summary": "Register an instrument reference",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "RegisterInstrumentRequest"
+      },
+      "response": {
+        "type": "RegisterInstrumentResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "treasuryadmin_report_manual_outcome",
+      "path": "/vrooli.treasury.v1.authorization.TreasuryAdmin/ReportManualOutcome",
+      "method": "POST",
+      "summary": "Record an operator-attested manual settlement",
+      "description": "",
+      "category": "admin",
+      "request": {
+        "type": "ReportManualOutcomeRequest"
+      },
+      "response": {
+        "type": "ReportManualOutcomeResponse"
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator identity is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Agent-realm or invalid operator credential"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Operator realm is not configured"
+        }
+      ]
+    },
+    {
+      "id": "x402_price_declare",
+      "path": "/api/v1/x402/prices",
+      "method": "POST",
+      "summary": "Declare operator-owned x402 price terms",
+      "description": "",
+      "category": "x402",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "x402_payment_admit",
+      "path": "/api/v1/x402/prices/{price_id}/admit",
+      "method": "POST",
+      "summary": "Verify and settle an x402 payment before admitting a priced request",
+      "description": "",
+      "category": "x402",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "x402 is standardized as HTTP 402 plus Payment-Required, Payment-Signature, and Payment-Response headers; its request, success, challenge, and error bodies intentionally retain that external JSON shape.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.campaigns;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1";
+
+// CampaignsService owns campaign work context and the enforced artifact budget.
+service CampaignsService {
+  rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+  rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+  rpc ActivateCampaign(ActivateCampaignRequest) returns (ActivateCampaignResponse);
+  rpc GetLaunchAssets(GetLaunchAssetsRequest) returns (GetLaunchAssetsResponse);
+}
+
+message Campaign {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  repeated string scenario_names = 4;
+}
+
+message ListCampaignsRequest {}
+
+message ListCampaignsResponse {
+  repeated Campaign campaigns = 1;
+}
+
+message CampaignSlot {
+  string channel = 1;
+  string format = 2;
+  int32 capacity = 3;
+}
+
+message CreateCampaignRequest {
+  string name = 1;
+  repeated string evidence_refs = 2;
+  repeated CampaignSlot slots = 3;
+  repeated string scenario_names = 4;
+}
+message CreateCampaignResponse {
+  Campaign campaign = 1;
+}
+message ActivateCampaignRequest {
+  string id = 1;
+}
+message ActivateCampaignResponse {
+  Campaign campaign = 1;
+}
+
+message GetLaunchAssetsRequest { string scenario_name = 1; }
+message LaunchAssetSlot {
+  string campaign_id = 1;
+  string campaign_name = 2;
+  string channel = 3;
+  string format = 4;
+  int32 capacity = 5;
+  int32 reserved = 6;
+  int32 draft_count = 7;
+}
+message GetLaunchAssetsResponse {
+  string scenario_name = 1;
+  repeated LaunchAssetSlot slots = 2;
+}

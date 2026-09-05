@@ -1,0 +1,1767 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/resource.schema.json",
+  "title": "Vrooli Resource Manifest",
+  "description": "Manifest schema for manifest-driven resource control plane resources.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "cli",
+    "driver",
+    "requirements",
+    "privilege",
+    "bundling",
+    "deployment"
+  ],
+  "properties": {
+    "storage": {
+      "$ref": "common.schema.json#/definitions/storageSurface",
+      "description": "Portable declaration of the resource's on-disk storage surface."
+    },
+    "retention": {
+      "$ref": "common.schema.json#/definitions/retention",
+      "description": "Declared storage ceilings for the runtime data this resource accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
+    },
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "execution": {
+      "type": "object",
+      "description": "The execution-plane contract for a coding-agent resource. install_only resources are intentionally provisioned but not runnable by agent-manager.",
+      "additionalProperties": false,
+      "properties": {
+        "runner_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detection_signal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hook_surface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "install_only": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "cli": {
+      "$ref": "service.schema.json#/definitions/cliConfig",
+      "description": "Installed artifact contract for the resource CLI, including build/install/invoke/freshness semantics."
+    },
+    "legacy_repo_data_allowed": {
+      "type": "boolean",
+      "description": "Temporary escape hatch for retained resources that still rely on repo-local data paths."
+    },
+    "durable_data": {
+      "type": "object",
+      "description": "Durable host-filesystem state this resource accumulates that is worth backing up (e.g. an external-cli coding agent's conversation history). HOST-FILESYSTEM ONLY: container/compose resources store volume data captured separately by data-backup-manager's live connectors and MUST NOT declare it here. Consumed by data-backup-manager discovery to surface one-click backup target suggestions; entry contents are never read.",
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "base": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Host directory the entries are relative to. Supports a leading $HOME, ~, or %USERPROFILE% token (resolved to the operator's home directory). Defaults to $HOME when omitted. Slash-normalized."
+        },
+        "host_only": {
+          "type": "boolean",
+          "default": true,
+          "description": "Always true today: durable_data describes host-filesystem state only. Reserved for a future non-host declaration kind."
+        },
+        "entries": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "common.schema.json#/definitions/durableDataEntry"
+          },
+          "description": "Durable entries under base, keyed by stable logical name (the key becomes the suggested target name)."
+        }
+      }
+    },
+    "driver": {
+      "type": "string",
+      "enum": [
+        "external-cli",
+        "cloud-api",
+        "native-cli",
+        "managed-service"
+      ]
+    },
+    "compose_service_override": {
+      "type": "object",
+      "description": "Temporary operator-owned exception for a resource migration. The declaration gate requires both fields.",
+      "additionalProperties": false,
+      "required": [
+        "reason",
+        "review_by"
+      ],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_by": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        }
+      }
+    },
+    "managed_service": {
+      "$ref": "#/definitions/managedService",
+      "description": "Authority and provider-selection contract for a Vrooli-owned local service. This declaration never grants lifecycle authority over an external endpoint."
+    },
+    "acquisition": {
+      "$ref": "acquisition.schema.json#",
+      "description": "Declared source, verification, and platform selection contract for an externally installed CLI."
+    },
+    "provider_policy": {
+      "type": "object",
+      "description": "Verified reuse policy for a non-service host tool. It never grants process lifecycle authority.",
+      "required": [
+        "default_mode",
+        "allowed_modes"
+      ],
+      "properties": {
+        "default_mode": {
+          "$ref": "#/definitions/managedServiceProviderMode"
+        },
+        "allowed_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/managedServiceProviderMode"
+          }
+        },
+        "shared_reuse_requires_consent": {
+          "type": "boolean"
+        },
+        "external_management": {
+          "type": "string",
+          "enum": [
+            "forbidden"
+          ]
+        },
+        "external_access_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "read-only",
+              "read-write"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "compose_file": {
+      "type": "string"
+    },
+    "acceleration": {
+      "type": "object",
+      "description": "The single accelerator declaration. Replaces the deprecated gpu block, requirements.gpu, and the top-level capacity block.",
+      "properties": {
+        "backends": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "cuda",
+              "metal",
+              "rocm",
+              "vulkan",
+              "cpu"
+            ]
+          },
+          "description": "Ordered backend preference. The last entry is the floor the resource can always fall back to."
+        },
+        "require": {
+          "type": "string",
+          "enum": [
+            "required",
+            "preferred",
+            "none"
+          ],
+          "default": "preferred",
+          "description": "required fails install and start when no declared non-CPU backend is ready; preferred falls through and records mode drift; none makes the accelerator opportunistic."
+        },
+        "cuda": {
+          "type": "object",
+          "description": "Configuration used when the cuda backend is selected.",
+          "properties": {
+            "min_compute": {
+              "type": "string",
+              "pattern": "^[0-9]+(\\.[0-9]+)?$",
+              "description": "Minimum vendor compute capability as a decimal string. Replaces requirements.gpu.min_cuda_compute."
+            },
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "metal": {
+          "type": "object",
+          "description": "Configuration used when the metal backend is selected.",
+          "properties": {
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "rocm": {
+          "type": "object",
+          "description": "Configuration used when the rocm backend is selected.",
+          "properties": {
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "vulkan": {
+          "type": "object",
+          "description": "Configuration used when the vulkan backend is selected.",
+          "properties": {
+            "compose_overlay": {
+              "type": "string",
+              "description": "Compose overlay layered on when this backend is selected, relative to the resource root or absolute."
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "cpu": {
+          "type": "object",
+          "description": "Configuration used when the cpu backend is selected.",
+          "properties": {
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Environment applied to the resource process when this backend is selected."
+            },
+            "verify": {
+              "type": "object",
+              "description": "Overrides how the control plane reads observed placement for this backend.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "process-device",
+                    "container-device",
+                    "none"
+                  ],
+                  "description": "Evidence source. Absent selects the default for this backend and placement target."
+                },
+                "device": {
+                  "type": "string",
+                  "description": "Narrows a device check to one device-node family."
+                }
+              },
+              "additionalProperties": false
+            },
+            "library_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Directories the dynamic loader must search for this backend's shared libraries, relative to the staged artifact or absolute. Acquisition verifies the artifact's runtime closure against them."
+            }
+          },
+          "additionalProperties": false
+        },
+        "claim": {
+          "$ref": "#/definitions/capacityClaim"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "backends"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "claim": {
+                "required": ["resource_kind"],
+                "properties": {
+                  "resource_kind": { "const": "vram" }
+                }
+              }
+            },
+            "required": ["claim"]
+          },
+          "then": {
+            "properties": {
+              "backends": {
+                "contains": { "enum": ["cuda", "metal", "rocm", "vulkan"] }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "cuda"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "cuda"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "metal"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "metal"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "rocm"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "rocm"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "vulkan"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "vulkan"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "const": "cpu"
+                }
+              }
+            },
+            "required": [
+              "backends"
+            ]
+          },
+          "then": {
+            "required": [
+              "cpu"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "require": {
+                "const": "required"
+              }
+            },
+            "required": [
+              "require"
+            ]
+          },
+          "then": {
+            "properties": {
+              "backends": {
+                "contains": {
+                  "not": {
+                    "const": "cpu"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "binary": {
+      "type": "string"
+    },
+    "version_args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "endpoint": {
+      "type": "string"
+    },
+    "credentials": {
+      "$ref": "common.schema.json#/definitions/credentials"
+    },
+    "requirements": {
+      "$ref": "service.schema.json#/definitions/deploymentRequirements",
+      "description": "Declared resource footprint used by deployability resolution. Values are authored inputs, not computed verdicts."
+    },
+    "privilege": {
+      "type": "string",
+      "enum": [
+        "none",
+        "user",
+        "elevated"
+      ],
+      "description": "Host privilege needed to operate this resource outside a desktop bundle."
+    },
+    "bundling": {
+      "type": "string",
+      "enum": [
+        "vendorable",
+        "host-required",
+        "prohibited"
+      ],
+      "description": "Whether the resource may be supplied by a desktop application bundle."
+    },
+    "category": {
+      "type": "string"
+    },
+    "platforms": {
+      "type": "object",
+      "properties": {
+        "linux": {
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
+        },
+        "macos": {
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
+        },
+        "windows": {
+          "$ref": "common.schema.json#/definitions/platformStatusToken"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hostTools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hostRequirement"
+      }
+    },
+    "hostSafeguards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hostRequirement"
+      }
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "host_ip": {
+            "type": "string",
+            "description": "Optional host interface address for Docker port publishing, rendered as host_ip:host:container. Leave empty to bind all interfaces."
+          },
+          "container": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "host": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "protocol": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "health_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "http",
+              "tcp",
+              "command"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "description": "Semantics of the check. readiness (the default interpretation) must fail until the resource can serve its primary capability, including model/data load; liveness means process-alive only.",
+            "enum": [
+              "readiness",
+              "liveness"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected_status": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "interval_seconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "install": {
+      "type": "object"
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string"
+        },
+        "container_name": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "source",
+              "target"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "working_dir": {
+          "type": "string"
+        },
+        "memory_limit": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[bBkKmMgG]?$",
+          "description": "Optional cap passed verbatim as `docker run --memory <value>`. Format: positive integer optionally suffixed b/k/m/g (case-insensitive), e.g. \"12g\", \"8192m\", \"536870912\"."
+        }
+      }
+    },
+    "dependency_schema": {
+      "type": "object",
+      "description": "Resource-specific schema fragment for scenario dependency declarations under dependencies.resources.<name>.",
+      "additionalProperties": true
+    },
+    "environment_exports": {
+      "type": "object",
+      "properties": {
+        "static": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "from_ports": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "from_runtime_env": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derived": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "template": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "orchestration": {
+      "type": "object",
+      "properties": {
+        "startup_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startup_timeout_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startup_time_estimate": {
+          "type": "string"
+        },
+        "startup_budget": {
+          "type": "object",
+          "description": "Optional driver-owned readiness budget that grows from an observed unit count; the declared lifecycle timeout remains the floor.",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "qdrant_collection_count"
+              ]
+            },
+            "base_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "per_unit_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max_seconds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional_dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recovery_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recovery_strategy": {
+          "type": "string"
+        },
+        "recovery_wait_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recovery_delay_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "health_check_retries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "health_check_delay_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "priority": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "lifecycle": {
+      "type": "object"
+    },
+    "capabilities": {
+      "type": "object"
+    },
+    "template_version": {
+      "type": "string"
+    },
+    "vrooli_memory_targets": {
+      "type": "array",
+      "description": "Bounded projection targets for Vrooli Memory-managed instruction and memory files.",
+      "items": {
+        "type": "object",
+        "required": [
+          "runtime",
+          "path",
+          "byte_cap",
+          "line_cap"
+        ],
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "section": {
+            "type": "string"
+          },
+          "byte_cap": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "line_cap": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "description": "Resource-owned deployment profiles. A supported claim requires declared target evidence and, for bundled modes, a prebuilt CLI artifact contract.",
+      "required": [
+        "profiles"
+      ],
+      "properties": {
+        "profiles": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/deploymentProfile"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "upstream_cli": {
+      "type": "object",
+      "description": "External CLI (e.g. claude, codex, opencode) this resource wraps. Records the pinned version and docs source so config adapters can detect upstream schema drift via `permissions doctor` / equivalent surfaces.",
+      "additionalProperties": false,
+      "required": [
+        "version_command",
+        "version_pinned",
+        "docs_source",
+        "docs_pinned_at",
+        "schema_version"
+      ],
+      "properties": {
+        "version_command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "argv used to report the upstream CLI's version (e.g. [\"claude\", \"--version\"])."
+        },
+        "version_pinned": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Upstream CLI version the adapter was authored against. doctor warns when the installed version diverges."
+        },
+        "docs_source": {
+          "type": "string",
+          "format": "uri",
+          "description": "Canonical upstream docs URL the adapter's config schema was derived from."
+        },
+        "docs_pinned_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Date the docs URL was last reviewed (ISO 8601 date)."
+        },
+        "schema_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Bumps when the adapter's on-disk state schema changes incompatibly."
+        }
+      }
+    },
+    "companions": {
+      "type": "array",
+      "description": "Host-side companion processes a managed service supervises alongside its primary process.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "name",
+          "command"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "operator_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Operator capability references this resource satisfies."
+    },
+    "portability_tier": {
+      "type": "string",
+      "description": "Declared portability tier for this resource."
+    },
+    "runtime_env_command": {
+      "type": "object",
+      "description": "CLI invocation whose KEY=VALUE stdout is appended to the compose process environment.",
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "deploymentProfile": {
+      "type": "object",
+      "required": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "properties": {
+        "linux": {
+          "$ref": "#/definitions/deploymentTarget"
+        },
+        "macos": {
+          "$ref": "#/definitions/deploymentTarget"
+        },
+        "windows": {
+          "$ref": "#/definitions/deploymentTarget"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deploymentTarget": {
+      "type": "object",
+      "required": [
+        "support",
+        "mode"
+      ],
+      "properties": {
+        "support": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "conditional",
+            "degraded",
+            "unsupported"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "bundled-client",
+            "bundled-service",
+            "native-host-tool",
+            "docker-desktop",
+            "remote-service",
+            "manual"
+          ]
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "amd64",
+              "arm64"
+            ]
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fallbacks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "support": {
+                "const": "unsupported"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "support": {
+                  "const": "unsupported"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "architectures",
+              "limitations",
+              "evidence"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "managedService": {
+      "type": "object",
+      "required": [
+        "provider_policy",
+        "artifact"
+      ],
+      "properties": {
+        "artifact_role": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Release manifest role for the staged service artifact."
+        },
+        "provenance_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Release manifest provenance label declared by the resource."
+        },
+        "provider_policy": {
+          "type": "object",
+          "required": [
+            "allowed_modes",
+            "target_defaults"
+          ],
+          "properties": {
+            "allowed_modes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/managedServiceProviderMode"
+              }
+            },
+            "target_defaults": {
+              "type": "object",
+              "description": "Runtime-specific defaults. Control-plane hosting uses a Vrooli-owned shared service; desktop bundles start private unless shared reuse is explicitly selected and consented.",
+              "required": [
+                "control-plane",
+                "desktop-bundle"
+              ],
+              "properties": {
+                "control-plane": {
+                  "$ref": "#/definitions/managedServiceProviderMode"
+                },
+                "desktop-bundle": {
+                  "$ref": "#/definitions/managedServiceProviderMode"
+                }
+              },
+              "additionalProperties": false
+            },
+            "shared_reuse_requires_consent": {
+              "type": "boolean",
+              "default": true,
+              "description": "A desktop app must obtain explicit consent before it joins a user-level shared instance."
+            },
+            "external_management": {
+              "type": "string",
+              "enum": [
+                "forbidden"
+              ],
+              "default": "forbidden",
+              "description": "External endpoints are attach-only: Vrooli may validate and use them but never initializes, unseals, stops, or rewrites them."
+            },
+            "external_access_capabilities": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "read-only",
+                  "read-write"
+                ]
+              },
+              "description": "The only application access that an attach-only external provider may request. This never grants lifecycle authority."
+            }
+          },
+          "additionalProperties": false
+        },
+        "artifact": {
+          "type": "object",
+          "description": "An immutable executable staged beneath the resource or bundle root. The release pipeline verifies its signed checksum set; the lifecycle driver verifies this SHA-256 before launch.",
+          "required": [
+            "path",
+            "version"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "layout": {
+              "type": "string",
+              "enum": [
+                "file",
+                "dir"
+              ],
+              "description": "Artifact verification/launch layout; directory artifacts use the declared entry_path and tree digest."
+            },
+            "entry_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Executable path relative to a directory artifact root."
+            },
+            "bundle_artifact": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Target template for the separately signed server asset included in a bundled-service release (for example vault_${os}_${arch})."
+            },
+            "verification": {
+              "type": "string",
+              "enum": [
+                "checksum",
+                "host-tool"
+              ],
+              "description": "Use host-tool only when acquisition.kind=none explicitly adopts a separately governed PATH tool; staged artifacts remain checksum-verified."
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
+            "sha256_by_platform": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[A-Fa-f0-9]{64}$"
+              }
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "sha256"
+              ]
+            },
+            {
+              "required": [
+                "sha256_by_platform"
+              ]
+            },
+            {
+              "required": [
+                "verification"
+              ],
+              "properties": {
+                "verification": {
+                  "const": "host-tool"
+                }
+              }
+            }
+          ],
+          "additionalProperties": false
+        },
+        "acquisition": {
+          "$ref": "acquisition.schema.json#",
+          "description": "Declared source, verification, and host-fact selection contract for the managed-service artifact."
+        },
+        "data_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "path",
+              "acquisition"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "acquisition": {
+                "$ref": "acquisition.schema.json#"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "attach_health_path": {
+          "type": "string",
+          "pattern": "^/[^?#]*$",
+          "description": "Health request path used only when an operator explicitly selects attach-only provider mode."
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Literal argv passed directly to the verified executable. Shell interpolation is never performed."
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
+        },
+        "credential_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "logical_id",
+              "path"
+            ],
+            "properties": {
+              "logical_id": {
+                "type": "string",
+                "minLength": 3
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Authority fields materialized as owner-restricted, short-lived files below RESOURCE_STATE_DIR; never environment or argv values."
+        },
+        "bootstrap": {
+          "type": "object",
+          "required": [
+            "marker",
+            "executable"
+          ],
+          "properties": {
+            "marker": {
+              "type": "string",
+              "minLength": 1
+            },
+            "executable": {
+              "type": "string",
+              "minLength": 1
+            },
+            "arguments": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "password_env": {
+              "type": "string"
+            },
+            "password_file": {
+              "type": "string"
+            },
+            "executable_by_platform": {
+              "type": "object",
+              "description": "Per-target bootstrap executable, relative to the staged tree, for platforms whose archive layout or executable suffix differs.",
+              "patternProperties": {
+                "^(linux|macos|windows)(-(amd64|arm64))?$": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            "arguments_by_platform": {
+              "type": "object",
+              "description": "Per-target bootstrap argv that replaces arguments entirely for the named platforms.",
+              "patternProperties": {
+                "^(linux|macos|windows)(-(amd64|arm64))?$": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "description": "One idempotent initialization command run from the verified directory artifact when the marker is absent."
+        },
+        "process_limits": {
+          "type": "object",
+          "properties": {
+            "memory_high_percent": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "memory_max_percent": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "oom_score_adjust": {
+              "type": "integer",
+              "minimum": -1000,
+              "maximum": 1000
+            }
+          },
+          "additionalProperties": false,
+          "description": "Limits applied by the managed-service supervisor to the launched process."
+        },
+        "shutdown": {
+          "type": "object",
+          "required": [
+            "signal"
+          ],
+          "properties": {
+            "signal": {
+              "type": "string",
+              "enum": [
+                "terminate",
+                "interrupt"
+              ],
+              "description": "Platform-neutral first shutdown request. terminate is SIGTERM on Unix; interrupt is SIGINT on Unix and the native console-control request on Windows."
+            }
+          },
+          "additionalProperties": false,
+          "description": "First shutdown request for the supervised process. The resource lifecycle stop timeout bounds graceful waiting and triggers forced escalation if needed."
+        },
+        "config": {
+          "type": "object",
+          "required": [
+            "path",
+            "content"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "arguments_by_platform": {
+          "type": "object",
+          "description": "Per-target argv that replaces arguments entirely for the named platforms. Keys are \"os\" or \"os-arch\"; the exact os-arch key wins. A platform difference belongs here rather than in a runtime.GOOS branch in the driver.",
+          "patternProperties": {
+            "^(linux|macos|windows)(-(amd64|arm64))?$": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "managedServiceProviderMode": {
+      "type": "string",
+      "enum": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ]
+    },
+    "hostRequirement": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "when": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "manual": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "capacityClaim": {
+      "type": "object",
+      "description": "Capacity broker claim. A vram claim must declare a degrade profile and yield_when_idle, otherwise the broker can never step the resource down.",
+      "properties": {
+        "resource_kind": {
+          "type": "string",
+          "enum": [
+            "vram"
+          ]
+        },
+        "preferred_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "floor_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "priority": {
+          "type": "string"
+        },
+        "gpu_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "protected": {
+          "type": "boolean"
+        },
+        "yield_when_idle": {
+          "type": "boolean"
+        },
+        "idle_unload_ttl_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idle_grace_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "profile": {
+          "type": "object",
+          "description": "The adopter-declared degradation ladder, ordered preferred to floor.",
+          "properties": {
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "amount_bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "label",
+                  "amount_bytes"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "apply": {
+              "type": "object",
+              "properties": {
+                "verb": {
+                  "type": "string",
+                  "description": "Resource CLI verb the broker invokes to ask for a step down."
+                },
+                "argv": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Argument vector; may contain the {label} placeholder."
+                }
+              },
+              "required": [
+                "verb"
+              ],
+              "additionalProperties": false
+            },
+            "upshift": {
+              "type": "boolean",
+              "description": "Whether the broker may raise the resource back up when capacity frees."
+            }
+          },
+          "required": [
+            "steps",
+            "apply"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "resource_kind",
+        "preferred_bytes"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resource_kind": {
+                "const": "vram"
+              }
+            },
+            "required": [
+              "resource_kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "profile",
+              "yield_when_idle"
+            ],
+            "properties": {
+              "yield_when_idle": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

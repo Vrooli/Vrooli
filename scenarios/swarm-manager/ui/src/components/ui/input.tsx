@@ -18,8 +18,9 @@ const inputVariants = cva(
         error: "border-red-500/50 focus:border-red-500 focus:ring-red-500",
       },
       size: {
-        default: "h-10 px-4 text-sm",
-        sm: "h-8 px-3 text-sm",
+        // text-base on mobile (16px) prevents iOS Safari auto-zoom on input focus; md:text-sm restores desktop density.
+        default: "h-10 px-4 text-base md:text-sm",
+        sm: "h-8 px-3 text-base md:text-sm",
         lg: "h-12 px-5 text-base",
       },
     },

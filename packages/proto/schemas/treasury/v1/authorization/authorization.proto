@@ -1,0 +1,278 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.authorization;
+
+import "google/protobuf/timestamp.proto";
+import "treasury/v1/approval/approval.proto";
+import "treasury/v1/book/book.proto";
+import "treasury/v1/budget/budget.proto";
+import "treasury/v1/instrument/instrument.proto";
+import "treasury/v1/mandate/mandate.proto";
+import "treasury/v1/settlement/settlement.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization;authorization_v1";
+
+enum AuthorizationVerdict {
+  AUTHORIZATION_VERDICT_UNSPECIFIED = 0;
+  AUTHORIZATION_VERDICT_REFUSED = 1;
+  AUTHORIZATION_VERDICT_PENDING = 2;
+  AUTHORIZATION_VERDICT_APPROVED = 3;
+  AUTHORIZATION_VERDICT_RELEASED = 4;
+  AUTHORIZATION_VERDICT_SETTLED = 5;
+}
+
+message AuthorizationRecord {
+  string id = 1;
+  string mandate_id = 2;
+  string requesting_agent = 3;
+  int64 amount_minor = 4;
+  string currency = 5;
+  string counterparty = 6;
+  AuthorizationVerdict verdict = 7;
+  string violated_constraint = 8;
+  string remediation = 9;
+  int64 hold_minor = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp expires_at = 12;
+  string idempotency_key = 13;
+  string budget_id = 14;
+  string book_id = 15;
+}
+
+message ProposeChargeRequest {
+  string id = 1;
+  string idempotency_key = 2;
+  string mandate_id = 3;
+  int64 amount_minor = 4;
+  string currency = 5;
+  string counterparty = 6;
+}
+
+message ProposeChargeResponse {
+  AuthorizationRecord authorization = 1;
+}
+
+message GetAuthorizationRequest {
+  string id = 1;
+}
+
+message GetAuthorizationResponse {
+  AuthorizationRecord authorization = 1;
+}
+
+message GetBudgetHeadroomRequest {
+  string budget_id = 1;
+}
+
+message GetBudgetHeadroomResponse {
+  vrooli.treasury.v1.budget.Headroom headroom = 1;
+}
+
+message ListMandatesRequest {}
+
+message ListMandatesResponse {
+  repeated vrooli.treasury.v1.mandate.Mandate mandates = 1;
+}
+
+message ReportOutcomeRequest {
+  string authorization_id = 1;
+  // Deprecated caller-asserted fields. Treasury rejects them; outcome and
+  // external references are accepted only from the registered rail adapter.
+  string outcome = 2 [deprecated = true];
+  string rail_reference = 3 [deprecated = true];
+  string settlement_id = 4;
+  string instrument_id = 5;
+  string idempotency_key = 6;
+}
+
+message ReportOutcomeResponse {
+  AuthorizationRecord authorization = 1;
+  vrooli.treasury.v1.settlement.Charge settlement = 2;
+}
+
+message ReportManualOutcomeRequest {
+  string authorization_id = 1;
+  string settlement_id = 2;
+  string instrument_id = 3;
+  string idempotency_key = 4;
+  vrooli.treasury.v1.settlement.ManualAttestation attestation = 5;
+}
+
+message ReportManualOutcomeResponse {
+  AuthorizationRecord authorization = 1;
+  vrooli.treasury.v1.settlement.Charge settlement = 2;
+}
+
+message CreateBookRequest {
+  vrooli.treasury.v1.book.Book book = 1;
+}
+
+message CreateBookResponse {
+  vrooli.treasury.v1.book.Book book = 1;
+}
+
+message GetBookRequest {
+  string book_id = 1;
+}
+
+message GetBookResponse {
+  vrooli.treasury.v1.book.Book book = 1;
+}
+
+message CreateMandateRequest {
+  vrooli.treasury.v1.mandate.Mandate mandate = 1;
+}
+
+message CreateMandateResponse {
+  vrooli.treasury.v1.mandate.Mandate mandate = 1;
+}
+
+message RevokeMandateRequest {
+  string mandate_id = 1;
+}
+
+message RevokeMandateResponse {
+  vrooli.treasury.v1.mandate.Mandate mandate = 1;
+}
+
+message CancelStandingMandateRequest {
+  string mandate_id = 1;
+}
+
+message CancelStandingMandateResponse {
+  vrooli.treasury.v1.mandate.Mandate mandate = 1;
+}
+
+message SetBudgetCapsRequest {
+  vrooli.treasury.v1.budget.Budget budget = 1;
+}
+
+message SetBudgetCapsResponse {
+  vrooli.treasury.v1.budget.Budget budget = 1;
+}
+
+message SetGatingRequest {
+  string budget_id = 1;
+  bool requires_approval = 2;
+}
+
+message SetGatingResponse {
+  vrooli.treasury.v1.budget.Budget budget = 1;
+}
+
+message ResolveApprovalRequest {
+  string approval_id = 1;
+  vrooli.treasury.v1.approval.ApprovalStatus resolution = 2;
+}
+
+message ResolveApprovalResponse {
+  vrooli.treasury.v1.approval.ApprovalRequest approval = 1;
+}
+
+message ListApprovalsRequest {
+  vrooli.treasury.v1.approval.ApprovalStatus status = 1;
+  string book_id = 2;
+}
+
+message ListApprovalsResponse {
+  repeated vrooli.treasury.v1.approval.ApprovalRequest approvals = 1;
+}
+
+message FreezeBudgetRequest {
+  string budget_id = 1;
+}
+
+message FreezeBudgetResponse {
+  vrooli.treasury.v1.budget.Budget budget = 1;
+}
+
+message UnfreezeBudgetRequest {
+  string budget_id = 1;
+}
+
+message UnfreezeBudgetResponse {
+  vrooli.treasury.v1.budget.Budget budget = 1;
+}
+
+message FreezeBookRequest {
+  string book_id = 1;
+}
+
+message FreezeBookResponse {
+  string book_id = 1;
+  bool frozen = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message UnfreezeBookRequest {
+  string book_id = 1;
+}
+
+message UnfreezeBookResponse {
+  string book_id = 1;
+  bool frozen = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message FreezeAllRequest {}
+
+message GetFreezeStatusRequest {}
+
+message GetFreezeStatusResponse {
+  bool frozen = 1;
+  google.protobuf.Timestamp updated_at = 2;
+}
+
+message FreezeAllResponse {
+  bool frozen = 1;
+  google.protobuf.Timestamp updated_at = 2;
+}
+
+message UnfreezeAllRequest {}
+
+message UnfreezeAllResponse {
+  bool frozen = 1;
+  google.protobuf.Timestamp updated_at = 2;
+}
+
+message RegisterInstrumentRequest {
+  vrooli.treasury.v1.instrument.Instrument instrument = 1;
+}
+
+message RegisterInstrumentResponse {
+  vrooli.treasury.v1.instrument.Instrument instrument = 1;
+}
+
+// AgentSpend intentionally contains no policy-mutating RPC. Decision D-004
+// relies on the structural absence of those methods, not a runtime permission.
+service AgentSpend {
+  rpc ProposeCharge(ProposeChargeRequest) returns (ProposeChargeResponse);
+  rpc GetAuthorization(GetAuthorizationRequest) returns (GetAuthorizationResponse);
+  rpc GetBudgetHeadroom(GetBudgetHeadroomRequest) returns (GetBudgetHeadroomResponse);
+  rpc ListMandates(ListMandatesRequest) returns (ListMandatesResponse);
+  rpc ReportOutcome(ReportOutcomeRequest) returns (ReportOutcomeResponse);
+}
+
+// TreasuryAdmin is the operator-realm surface. Its methods are introduced with
+// their domain implementations so the descriptor never gets ahead of behavior.
+service TreasuryAdmin {
+  rpc CreateBook(CreateBookRequest) returns (CreateBookResponse);
+  rpc GetBook(GetBookRequest) returns (GetBookResponse);
+  rpc CreateMandate(CreateMandateRequest) returns (CreateMandateResponse);
+  rpc RevokeMandate(RevokeMandateRequest) returns (RevokeMandateResponse);
+  rpc CancelStandingMandate(CancelStandingMandateRequest) returns (CancelStandingMandateResponse);
+  rpc ListMandates(ListMandatesRequest) returns (ListMandatesResponse);
+  rpc SetBudgetCaps(SetBudgetCapsRequest) returns (SetBudgetCapsResponse);
+  rpc SetGating(SetGatingRequest) returns (SetGatingResponse);
+  rpc ListApprovals(ListApprovalsRequest) returns (ListApprovalsResponse);
+  rpc ResolveApproval(ResolveApprovalRequest) returns (ResolveApprovalResponse);
+  rpc FreezeBudget(FreezeBudgetRequest) returns (FreezeBudgetResponse);
+  rpc UnfreezeBudget(UnfreezeBudgetRequest) returns (UnfreezeBudgetResponse);
+  rpc FreezeBook(FreezeBookRequest) returns (FreezeBookResponse);
+  rpc UnfreezeBook(UnfreezeBookRequest) returns (UnfreezeBookResponse);
+  rpc FreezeAll(FreezeAllRequest) returns (FreezeAllResponse);
+  rpc GetFreezeStatus(GetFreezeStatusRequest) returns (GetFreezeStatusResponse);
+  rpc UnfreezeAll(UnfreezeAllRequest) returns (UnfreezeAllResponse);
+  rpc RegisterInstrument(RegisterInstrumentRequest) returns (RegisterInstrumentResponse);
+  rpc ReportManualOutcome(ReportManualOutcomeRequest) returns (ReportManualOutcomeResponse);
+}

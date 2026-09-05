@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:StatCard",
+  "version": "1.0.8",
+  "resolvedAt": "2026-08-29T05:53:27Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.0",
+      "rank": 2
+    }
+  ]
+}

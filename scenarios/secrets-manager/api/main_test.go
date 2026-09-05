@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +16,39 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+type credentialAuthorityStub struct {
+	status         *CredentialCoverageStatus
+	secret         string
+	secretResource string
+	secretKey      string
+	err            error
+	putErr         error
+}
+
+func (s credentialAuthorityStub) GetSecretsStatus(context.Context, string) (*CredentialCoverageStatus, error) {
+	return s.status, s.err
+}
+
+func setCredentialAuthorityClientForTest(t *testing.T, cli CredentialAuthorityClient) {
+	t.Helper()
+	original := defaultCredentialAuthorityClient
+	SetCredentialAuthorityClient(cli)
+	t.Cleanup(func() { SetCredentialAuthorityClient(original) })
+}
+
+func TestResolveCredentialMappingUsesCanonicalDescriptor(t *testing.T) {
+	mapping, ok := resolveCredentialMapping("openrouter", "OPENROUTER_API_KEY")
+	if !ok {
+		t.Fatal("expected canonical resource descriptor mapping")
+	}
+	if mapping.LogicalID != "vrooli/openrouter" {
+		t.Fatalf("logical identifier = %q", mapping.LogicalID)
+	}
+	if mapping.Field != "api-key" {
+		t.Fatalf("credential field = %q", mapping.Field)
+	}
+}
 
 // TestHealthHandler tests the health check endpoint
 func TestHealthHandler(t *testing.T) {
@@ -47,7 +83,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		// [REQ:SEC-API-001] Health endpoint returns valid status
-		// Accept healthy, degraded, or unhealthy since unit tests don't have DB/Vault
+		// Accept healthy, degraded, or unhealthy since unit tests don't have DB/credential-authority
 		status, ok := response["status"].(string)
 		if !ok {
 			t.Fatal("status field is not a string")
@@ -85,15 +121,16 @@ func TestHealthHandler(t *testing.T) {
 	})
 }
 
-// TestVaultSecretsStatusHandler tests the vault secrets status endpoint
-func TestVaultSecretsStatusHandler(t *testing.T) {
+// TestCredentialCoverageStatusHandler tests the credential coverage status endpoint
+func TestCredentialCoverageStatusHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
 	router := server.routes()
 
 	t.Run("Success_NoFilter", func(t *testing.T) {
-		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
+		req, err := http.NewRequest("GET", "/api/v1/credentials/secrets/status", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +142,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 		}
 
-		var response VaultSecretsStatus
+		var response CredentialCoverageStatus
 		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -116,7 +153,8 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("Success_WithFilter", func(t *testing.T) {
-		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status?resource=postgres", nil)
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
+		req, err := http.NewRequest("GET", "/api/v1/credentials/secrets/status?resource=postgres", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -129,13 +167,27 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("CredentialAuthorityUnavailable", func(t *testing.T) {
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{err: errors.New("credential authority unavailable")})
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/credentials/secrets/status", nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusServiceUnavailable {
+			t.Fatalf("handler returned %d, want %d", rr.Code, http.StatusServiceUnavailable)
+		}
+		if strings.Contains(rr.Body.String(), "credential authority unavailable") {
+			t.Fatalf("status response exposed internal credential-authority error: %s", rr.Body.String())
+		}
+	})
+
 	t.Run("POST_Success", func(t *testing.T) {
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 		scanReq := ScanRequest{
 			Resources: []string{"postgres", "vault"},
 		}
 		body, _ := json.Marshal(scanReq)
 
-		req, err := http.NewRequest("POST", "/api/v1/vault/secrets/status", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/status", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -150,7 +202,8 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("POST_InvalidJSON", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "/api/v1/vault/secrets/status", bytes.NewReader([]byte("invalid json")))
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/status", bytes.NewReader([]byte("invalid json")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -190,7 +243,7 @@ func TestValidateHandler(t *testing.T) {
 	})
 
 	t.Run("POST_InvalidJSON", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "/api/v1/secrets/validate", bytes.NewReader([]byte("{invalid}")))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/validate", bytes.NewReader([]byte("{invalid}")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -205,6 +258,7 @@ func TestValidateHandler(t *testing.T) {
 	})
 }
 
+// [REQ:SEC-VLT-005] Guided secret provisioning
 // TestProvisionHandler tests the provision endpoint
 func TestProvisionHandler(t *testing.T) {
 	cleanup := setupTestLogger()
@@ -213,14 +267,26 @@ func TestProvisionHandler(t *testing.T) {
 	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
-		provReq := ProvisionRequest{
+		original := provisionCredential
+		provisionCredential = func(_ context.Context, descriptor credentialDescriptor, value string) error {
+			if descriptor.LogicalID != "vrooli/openrouter" || descriptor.Field != "api-key" || value != "test-value-123" {
+				t.Fatalf("unexpected credential provision: %#v", descriptor)
+			}
+			return nil
+		}
+		t.Cleanup(func() { provisionCredential = original })
+		provReq := struct {
+			ResourceName string            `json:"resource_name"`
+			Secrets      map[string]string `json:"secrets"`
+		}{
+			ResourceName: "openrouter",
 			Secrets: map[string]string{
-				"TEST_API_KEY": "test-value-123",
+				"OPENROUTER_API_KEY": "test-value-123",
 			},
 		}
 		body, _ := json.Marshal(provReq)
 
-		req, err := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -234,13 +300,28 @@ func TestProvisionHandler(t *testing.T) {
 		}
 	})
 
+	t.Run("MissingResource", func(t *testing.T) {
+		provReq := struct {
+			ResourceName string            `json:"resource_name"`
+			Secrets      map[string]string `json:"secrets"`
+		}{Secrets: map[string]string{"TEST_API_KEY": "test-value-123"}}
+		body, _ := json.Marshal(provReq)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusBadRequest)
+		}
+	})
+
 	t.Run("MissingFields", func(t *testing.T) {
 		provReq := ProvisionRequest{
 			// Missing secret payloads
 		}
 		body, _ := json.Marshal(provReq)
 
-		req, err := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -255,7 +336,7 @@ func TestProvisionHandler(t *testing.T) {
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader([]byte("not json")))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader([]byte("not json")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -270,28 +351,11 @@ func TestProvisionHandler(t *testing.T) {
 	})
 }
 
-// TestSecurityScanHandler tests the security scan endpoint
-func TestSecurityScanHandler(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// [REQ:SEC-SCAN-001] Security scanner detects vulnerabilities
-	// Note: Full scan times out in test, skipping to avoid 30s timeout
-	t.Run("Success_NoFilter", func(t *testing.T) {
-		t.Skip("Security scan walks entire filesystem and times out - needs scoped test fixtures")
-		// TODO: Create api/testdata/ with minimal test files for faster scanning
-	})
-
-	t.Run("Success_WithFilters", func(t *testing.T) {
-		t.Skip("Security scan walks entire filesystem and times out - needs scoped test fixtures")
-		// TODO: Create api/testdata/ with minimal test files for faster scanning
-	})
-}
-
 // TestComplianceHandler tests the compliance endpoint
 func TestComplianceHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
+	setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 	server := newAPIServer(nil, logger)
 	router := server.routes()
 
@@ -478,31 +542,44 @@ func TestIsLikelyRequired(t *testing.T) {
 	}
 }
 
-// TestGetLocalSecretsPath tests local secrets path resolution
-// [REQ:SEC-DATA-001] Secret storage and retrieval
-func TestGetLocalSecretsPath(t *testing.T) {
-	// Save and restore VROOLI_ROOT
-	oldRoot := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if oldRoot != "" {
-			os.Setenv("VROOLI_ROOT", oldRoot)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
+func TestGetVrooliRootCanonicalizesContractRoots(t *testing.T) {
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
 
-	t.Run("WithVROOLI_ROOT", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		os.Setenv("VROOLI_ROOT", tmpDir)
-		path, err := getLocalSecretsPath()
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		expected := filepath.Join(tmpDir, ".vrooli", "secrets.json")
-		if path != expected {
-			t.Errorf("getLocalSecretsPath() = %q, want %q", path, expected)
-		}
-	})
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
+
+	if got := getVrooliRoot(); got != root {
+		t.Fatalf("getVrooliRoot() = %q, want %q", got, root)
+	}
+}
+
+func TestGetVrooliPathsCanonicalizesContractRoots(t *testing.T) {
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
+
+	paths, err := getVrooliPaths()
+	if err != nil {
+		t.Fatalf("getVrooliPaths() error = %v", err)
+	}
+	if paths.root != root {
+		t.Fatalf("paths.root = %q, want %q", paths.root, root)
+	}
+	if paths.scenarios != filepath.Join(root, "scenarios") {
+		t.Fatalf("paths.scenarios = %q", paths.scenarios)
+	}
+	if paths.resources != filepath.Join(root, "resources") {
+		t.Fatalf("paths.resources = %q", paths.resources)
+	}
 }
 
 // TestScanResourceDirectory is tested in scanner_test.go
@@ -811,7 +888,7 @@ func TestFileContentHandler(t *testing.T) {
 		// Create a test file
 		testFile := filepath.Join(env.TempDir, "test.txt")
 		content := []byte("test content")
-		if err := os.WriteFile(testFile, content, 0644); err != nil {
+		if err := os.WriteFile(testFile, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -826,6 +903,34 @@ func TestFileContentHandler(t *testing.T) {
 		// May succeed or fail depending on security checks, both are valid
 		if status := rr.Code; status != http.StatusOK && status != http.StatusForbidden && status != http.StatusInternalServerError {
 			t.Logf("File content handler returned status: %v", status)
+		}
+	})
+
+	t.Run("RelativePathUsesCanonicalizedRoot", func(t *testing.T) {
+		root := newContractFixtureRepo(t)
+		nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+		if err := os.MkdirAll(nested, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		targetPath := filepath.Join(root, "notes.txt")
+		if err := os.WriteFile(targetPath, []byte("from repo root"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("VROOLI_SOURCE_ROOT", nested)
+		t.Setenv("VROOLI_ROOT", "")
+
+		req, err := http.NewRequest("GET", "/api/v1/files/content?path=notes.txt", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("handler returned %d, want 200; body=%s", rr.Code, rr.Body.String())
+		}
+		if !strings.Contains(rr.Body.String(), "from repo root") {
+			t.Fatalf("response body did not include file content: %s", rr.Body.String())
 		}
 	})
 }
@@ -909,12 +1014,12 @@ func TestHelperFunctions(t *testing.T) {
 
 		// Create test files
 		textFile := filepath.Join(env.TempDir, "test.txt")
-		if err := os.WriteFile(textFile, []byte("text content"), 0644); err != nil {
+		if err := os.WriteFile(textFile, []byte("text content"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		binaryFile := filepath.Join(env.TempDir, "test.bin")
-		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0644); err != nil {
+		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -982,9 +1087,26 @@ func TestRouterSetup(t *testing.T) {
 		t.Logf("Route: %s Methods: %v", path, methods)
 		return nil
 	})
-
 	if err != nil {
 		t.Errorf("Error walking routes: %v", err)
+	}
+}
+
+func TestSecurityManagementRoutesAreRegistered(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	router := newAPIServer(nil, logger).routes()
+	for _, path := range []string{
+		"/api/v1/security/allowlist-rules",
+		"/api/v1/security/watchlist",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code == http.StatusNotFound {
+			t.Errorf("expected security management route %q to be registered", path)
+		}
 	}
 }
 
@@ -1013,61 +1135,6 @@ func TestGetLanguageFromPath(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestLoadLocalSecretsFile tests local secrets file loading
-func TestLoadLocalSecretsFile(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// Test with non-existent file (should return error or empty secrets gracefully)
-	secrets, err := loadLocalSecretsFile()
-	if err != nil {
-		t.Logf("loadLocalSecretsFile returned error (acceptable): %v", err)
-	}
-	// Accept nil or empty secrets map
-	if secrets != nil && len(secrets) > 0 {
-		t.Logf("Found %d secrets in local file", len(secrets))
-	}
-}
-
-// TestStoreScanRecord tests scan record storage
-func TestStoreScanRecord(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// Should not crash with nil DB
-	storeScanRecord(SecretScan{
-		ID:       "test-id",
-		ScanType: "quick",
-	})
-}
-
-// TestSaveSecretsToLocalStore tests saving secrets to local store
-func TestSaveSecretsToLocalStore(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("NilSecrets", func(t *testing.T) {
-		// Should not crash with nil secrets map
-		count, err := saveSecretsToLocalStore(nil)
-		if err != nil {
-			t.Errorf("Expected no error with nil secrets, got %v", err)
-		}
-		if count != 0 {
-			t.Errorf("Expected count 0, got %d", count)
-		}
-	})
-
-	t.Run("EmptySecrets", func(t *testing.T) {
-		count, err := saveSecretsToLocalStore(map[string]string{})
-		if err != nil {
-			t.Errorf("Expected no error with empty secrets, got %v", err)
-		}
-		if count != 0 {
-			t.Errorf("Expected count 0, got %d", count)
-		}
-	})
 }
 
 // Validation boundaries are owned by SecretValidator; these tests keep the single pipeline exercised even without DB wiring.
@@ -1102,29 +1169,28 @@ func TestValidateSecretsFunction(t *testing.T) {
 	}
 }
 
-func TestValidateSecretFromEnv(t *testing.T) {
+func TestValidateSecretFromAuthority(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-
-	const envKey = "TEST_SECRET_KEY"
-	os.Setenv(envKey, "valid-secret-value-1234")
-	defer os.Unsetenv(envKey)
+	prior := credentialStatusCommand
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) { return []byte(`{"configured":true}`), nil }
+	t.Cleanup(func() { credentialStatusCommand = prior })
 
 	validator := NewSecretValidator(nil)
 	secret := ResourceSecret{
 		ID:           "test-id",
-		ResourceName: "test-resource",
-		SecretKey:    envKey,
+		ResourceName: "openrouter",
+		SecretKey:    "OPENROUTER_API_KEY",
 		SecretType:   "api_key",
 		Required:     true,
 	}
 
 	result := validator.validateSecret(secret)
 	if result.ValidationStatus != "valid" {
-		t.Fatalf("Expected secret to be valid from env, got %s", result.ValidationStatus)
+		t.Fatalf("Expected secret to be valid from credential authority, got %s", result.ValidationStatus)
 	}
-	if result.ValidationMethod != string(ValidationMethodEnv) {
-		t.Fatalf("Expected validation method %s, got %s", ValidationMethodEnv, result.ValidationMethod)
+	if result.ValidationMethod != string(ValidationMethodAuthority) {
+		t.Fatalf("Expected validation method %s, got %s", ValidationMethodAuthority, result.ValidationMethod)
 	}
 	if result.ResourceSecretID != secret.ID {
 		t.Fatalf("Expected ResourceSecretID %s, got %s", secret.ID, result.ResourceSecretID)
@@ -1199,6 +1265,31 @@ func TestDeriveBundleSecretPlans(t *testing.T) {
 	}
 	if generated.Generator == nil || generated.Generator["type"] != "random" {
 		t.Fatalf("generator hints should be preserved")
+	}
+}
+
+func TestBundlePlanUsesDeclarationIdentityAndWarnsOnFallback(t *testing.T) {
+	previous := bundlePlanWarning
+	var warnings []string
+	bundlePlanWarning = func(format string, args ...interface{}) { warnings = append(warnings, fmt.Sprintf(format, args...)) }
+	t.Cleanup(func() { bundlePlanWarning = previous })
+
+	builder := NewBundlePlanBuilder()
+	declared := findBundleSecret(t, builder.DeriveBundlePlans([]DeploymentSecretEntry{{
+		ID: "declared", ResourceName: "wrong-owner", SecretKey: "WRONG_KEY", LogicalID: "vrooli/declared-owner", Field: "api-key", HandlingStrategy: "prompt",
+	}}), "declared")
+	if declared.LogicalID != "vrooli/declared-owner" || declared.Field != "api-key" {
+		t.Fatalf("declaration identity was not preserved: %+v", declared)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("declaration-backed secret emitted fallback warning: %v", warnings)
+	}
+
+	_ = findBundleSecret(t, builder.DeriveBundlePlans([]DeploymentSecretEntry{{
+		ID: "fallback", ResourceName: "resource", SecretKey: "API_KEY", HandlingStrategy: "prompt",
+	}}), "fallback")
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "fallback") {
+		t.Fatalf("fallback warning = %v, want one named warning", warnings)
 	}
 }
 

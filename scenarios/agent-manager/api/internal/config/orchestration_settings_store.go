@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"agent-manager/internal/domain"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // OrchestrationSettingsStore provides thread-safe access to orchestration
@@ -27,7 +27,7 @@ func NewOrchestrationSettingsStore(path string) (*OrchestrationSettingsStore, er
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return nil, domain.NewConfigInvalidError("orchestrationSettings", "failed to read orchestration settings", err)
+			return nil, NewInvalid("orchestrationSettings", "failed to read orchestration settings", err)
 		}
 		// File missing — seed with defaults.
 		s.settings = DefaultOrchestrationSettings()
@@ -39,7 +39,7 @@ func NewOrchestrationSettingsStore(path string) (*OrchestrationSettingsStore, er
 
 	var settings OrchestrationSettings
 	if err := json.Unmarshal(data, &settings); err != nil {
-		return nil, domain.NewConfigInvalidError("orchestrationSettings", "failed to parse orchestration settings", err)
+		return nil, NewInvalid("orchestrationSettings", "failed to parse orchestration settings", err)
 	}
 	if err := settings.Validate(); err != nil {
 		return nil, err
@@ -86,19 +86,19 @@ func (s *OrchestrationSettingsStore) Reset() error {
 func (s *OrchestrationSettingsStore) writeToDisk(settings OrchestrationSettings) error {
 	dir := filepath.Dir(s.path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to create directory", err)
+		return NewInvalid("orchestrationSettings", "failed to create directory", err)
 	}
 	payload, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to marshal settings", err)
+		return NewInvalid("orchestrationSettings", "failed to marshal settings", err)
 	}
 	payload = append(payload, '\n')
 	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, payload, 0o644); err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to write temp file", err)
+		return NewInvalid("orchestrationSettings", "failed to write temp file", err)
 	}
 	if err := os.Rename(tmp, s.path); err != nil {
-		return domain.NewConfigInvalidError("orchestrationSettings", "failed to rename temp file", err)
+		return NewInvalid("orchestrationSettings", "failed to rename temp file", err)
 	}
 	return nil
 }
@@ -107,16 +107,24 @@ func (s *OrchestrationSettingsStore) writeToDisk(settings OrchestrationSettings)
 // Checks ORCHESTRATION_SETTINGS_PATH env var first, then falls back to
 // VROOLI_ROOT/scenarios/agent-manager/config/orchestration.json.
 func ResolveOrchestrationSettingsPath() string {
-	if path := strings.TrimSpace(os.Getenv("ORCHESTRATION_SETTINGS_PATH")); path != "" {
+	path, _ := os.LookupEnv("ORCHESTRATION_SETTINGS_PATH")
+	if path = strings.TrimSpace(path); path != "" {
 		return path
 	}
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	root := resolveRepoRoot()
 	if root == "" {
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			home = "."
-		}
-		root = filepath.Join(home, "Vrooli")
+		root = "."
+	}
+	if resolved, err := repocontract.ResolveScenarioPath(root, "agent-manager"); err == nil {
+		return filepath.Join(resolved, "config", "orchestration.json")
 	}
 	return filepath.Join(root, "scenarios", "agent-manager", "config", "orchestration.json")
+}
+
+func resolveRepoRoot() string {
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
+	}
+	return root
 }

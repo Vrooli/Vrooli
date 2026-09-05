@@ -6,19 +6,18 @@ import (
 	"strings"
 )
 
-var inheritedEnvDenylist = map[string]struct{}{
-	"API_PORT":          {},
-	"VROOLI_SCENARIO":   {},
-	"VROOLI_PROCESS_ID": {},
-	"VROOLI_STEP":       {},
-	// Prevent nested Claude CLI sessions when agent-manager itself runs inside Claude Code.
-	"CLAUDECODE": {},
-	// Prevent parent agent tag from leaking into child agent processes.
-	// buildEnv sets this explicitly per-request.
-	"CLAUDE_CODE_AGENT_TAG": {},
+var inheritedEnvAllowlist = map[string]struct{}{
+	"PATH": {}, "HOME": {}, "USER": {}, "LOGNAME": {}, "SHELL": {},
+	"LANG": {}, "LC_ALL": {}, "LC_CTYPE": {}, "TERM": {}, "TMPDIR": {},
+	"HTTP_PROXY": {}, "HTTPS_PROXY": {}, "NO_PROXY": {}, "http_proxy": {}, "https_proxy": {}, "no_proxy": {},
+	"ANTHROPIC_API_KEY": {}, "OPENAI_API_KEY": {}, "XAI_API_KEY": {},
 }
 
-func sanitizedBaseEnv() []string {
+// SanitizedBaseEnv returns only explicitly allowlisted inherited variables.
+// Used by every codec's BuildEnv implementation as the base for the agent
+// process's environment so parent-process tags and per-scenario state never
+// leak into nested agent runs.
+func SanitizedBaseEnv() []string {
 	base := os.Environ()
 	out := make([]string, 0, len(base))
 	for _, entry := range base {
@@ -29,7 +28,7 @@ func sanitizedBaseEnv() []string {
 		if !found || key == "" {
 			continue
 		}
-		if _, blocked := inheritedEnvDenylist[key]; blocked {
+		if _, allowed := inheritedEnvAllowlist[key]; !allowed {
 			continue
 		}
 		out = append(out, entry)
@@ -37,7 +36,10 @@ func sanitizedBaseEnv() []string {
 	return out
 }
 
-func appendEnvMap(env []string, extras map[string]string) []string {
+// AppendEnvMap appends a map of extra KEY=VALUE entries onto an env slice,
+// skipping entries with empty keys. Used by codec BuildEnv implementations
+// to merge per-request environment overrides on top of SanitizedBaseEnv.
+func AppendEnvMap(env []string, extras map[string]string) []string {
 	if len(extras) == 0 {
 		return env
 	}

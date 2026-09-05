@@ -1,0 +1,151 @@
+{
+  "_metadata": {
+    "description": "Host tools and safeguards: manifest-derived requirements, risk disclosure before consent, and schema-driven safeguard configuration.",
+    "last_validated_at": "2026-08-24T18:20:16-04:00",
+    "module": "onboarding.host",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ONB-HOST-CONSENT",
+      "title": "The wizard shall obtain explicit operator consent for every host change, with the declared risk visible before the choice.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "host",
+      "description": "Compositional claim for the host domain. Derivation and risk disclosure hold today; schema-driven configuration is CLI-only, so the UI cannot express choices the operator can already make.",
+      "children": [
+        "ONB-HOST-DERIVED",
+        "ONB-HOST-RISK-DISCLOSURE",
+        "ONB-HOST-CONFIG-FORMS"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_host_requirements_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Derivation and disclosure proven; configuration forms covered by companion evidence."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-DERIVED",
+      "title": "The wizard shall derive host tools and safeguards from the selected scenario and resource manifests.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "host",
+      "description": "Requirements merge across every selected manifest, with a required declaration winning over an optional one. No tool or safeguard inventory is held in code.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_host_requirements_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts merge precedence and that an unknown fixture tool resolves from its manifest."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-RISK-DISCLOSURE",
+      "title": "Before an operator opts into a safeguard, the wizard shall present its declared risk, privilege, bundling, and supported platforms.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "host",
+      "description": "A safeguard modifies host state, so consent is explicit and informed. The risk value comes from the safeguard manifest and is rendered as a column, not a separate step.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts risk renders and that a required tool cannot be deselected."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-CONFIG-FORMS",
+      "title": "Where a safeguard declares a configuration schema, the wizard shall render its fields and shall persist validated values.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "host",
+      "description": "Safeguard configuration is expressible from the CLI but not from the UI, so the two surfaces disagree about what an operator may decide. Rendering generically from the declared schema reaches parity without a hand-written form per safeguard, and keeps a newly declared field working with no code change.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence target: `ui/src/components/wizard/HostRequirementStep.test.tsx`; this requirement remains planned until that evidence is added. a fixture safeguard with a novel config schema renders its fields and emits a validated patch."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-CONFIG-VALIDATED",
+      "title": "If a safeguard configuration value fails its manifest schema, then the API shall reject the write and shall name the failing field.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "host",
+      "description": "Safeguard manifests own their configuration schemas. Validation happens at the write boundary so an invalid value never reaches durable state.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/operator_state_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts a bad safeguard config yields a bad-request response and no write."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-UNSUPPORTED-PLATFORM",
+      "title": "While the host platform is not declared by a requirement, the readiness report shall mark that requirement unsupported rather than missing.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "host",
+      "description": "'Missing' invites an install attempt that cannot succeed. 'Unsupported' tells the operator to change target or deselect the capability.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_readiness_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts a platform-scoped requirement reports unsupported on a non-declared host."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-SCOPE-PARITY",
+      "title": "On a repository install the host population shall include the project scope and shall equal the control-plane resolver's population for the same selection; in a desktop bundle it shall exclude the project scope.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "host",
+      "description": "The consent step exists to obtain consent for the host changes setup performs. While onboarding read only scenario and resource manifests it showed a fraction of them, so consent was obtained for the wrong list. A desktop bundle stages no repository-root manifest by design and must not inherit a development machine's setup requirements, which is the same intent internal/hostreq states through ResolveOptions.ExcludeRoot.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/host_requirements_conformance_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Asserts the derived tool and safeguard name sets equal hostreq.Resolve output with ExcludeRoot false, and equal its ExcludeRoot true output for the bundle case."
+        }
+      ]
+    },
+    {
+      "id": "ONB-HOST-PROBE-TRUTH",
+      "title": "The readiness probe shall not report a host item as missing or unsupported when it cannot verify the item, and shall resolve a declared verification path through the portable path vocabulary.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "host",
+      "description": "A verification path declared as $USER_HOME/... was read literally, so every user-scoped safeguard reported missing while its file existed. A handler-owned safeguard with no declarative probe reported unsupported, claiming a host fault that did not exist. Both are false negatives on required items, and a completion gate built on a false negative would block a host that is correctly configured.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/host_requirements_conformance_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Covers portable-token expansion in both directions and the handler-owned deferral, including the genuine unsupported case where a safeguard declares neither a probe nor a handler."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useHandedness",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='hooks.use-handedness']"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness']",
+          "attribute": "data-handedness",
+          "value": "inline-start"
+        }
+      ]
+    },
+    {
+      "id": "without-provider",
+      "name": "Without a provider",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithoutProvider"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.default']",
+          "attribute": "data-anchor-edge",
+          "value": "left"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.default']",
+          "attribute": "data-reveal",
+          "value": "right"
+        }
+      ]
+    },
+    {
+      "id": "end-anchored",
+      "name": "Anchored to the inline end",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "EndAnchored"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.end']",
+          "attribute": "data-anchor-edge",
+          "value": "right"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.end']",
+          "attribute": "data-dismiss",
+          "value": "right"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.end']",
+          "attribute": "data-reveal",
+          "value": "left"
+        }
+      ]
+    },
+    {
+      "id": "right-to-left",
+      "name": "Right to left",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "states": [
+        "rtl"
+      ],
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "RightToLeft"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.rtl']",
+          "attribute": "data-handedness",
+          "value": "inline-start"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.rtl']",
+          "attribute": "data-anchor-edge",
+          "value": "right"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-handedness.rtl']",
+          "attribute": "data-reveal",
+          "value": "left"
+        }
+      ]
+    }
+  ]
+}

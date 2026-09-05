@@ -1,3 +1,23 @@
+---
+name: "refactor-scope"
+description: "Preserve behavior, no new features"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["scope"]
+  tags: ["scope","refactor","constraints"]
+  icon: "shield"
+  status: "active"
+  revision: 29
+  createdAt: "2026-02-03T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Refactor Scope
 
 Session constraints for refactoring work. These boundaries ensure changes improve code quality without altering functionality.

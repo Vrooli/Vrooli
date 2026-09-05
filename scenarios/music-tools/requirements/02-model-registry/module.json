@@ -1,0 +1,51 @@
+{
+  "_metadata": {
+    "module": "model-registry",
+    "description": "Declarative, hardware-aware, licence-aware model registry with checksum-verified installs and a disk floor.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-003",
+      "title": "Declarative registry with hardware gates",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Every model is declared with operations, architecture, backend, approximate disk size, and hardware gates (min_vram_gb, min_ram_gb, cpu_capable); selection refuses a model whose gates the host cannot meet rather than failing at inference time.",
+      "tags": ["registry", "hardware"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/models/registry_test.go", "phase": "unit", "status": "planned", "notes": "Seed registry parses and every entry carries hardware gates" },
+        { "type": "test", "ref": "api/internal/models/selector_test.go", "phase": "unit", "status": "planned", "notes": "Selection rejects models the host cannot hold and explains why" }
+      ]
+    },
+    {
+      "id": "MUS-P0-004",
+      "title": "Capability labels carry licence and lineage",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Every registry entry declares license, commercial_use, commercial_use_notes, base_model_lineage, and known_risks; an entry missing any of these fails registry conformance.",
+      "tags": ["registry", "licensing", "provenance"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/models/families_conformance_test.go", "phase": "unit", "status": "planned", "notes": "Every seed entry carries complete capability labels" }
+      ]
+    },
+    {
+      "id": "MUS-P0-005",
+      "title": "Installs are checksum-verified and disk-gated",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Model installation verifies a recorded checksum and refuses to begin when free disk would fall below the declared floor after download, reporting the shortfall rather than filling the volume.",
+      "tags": ["registry", "install", "disk"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/models/install_test.go", "phase": "unit", "status": "planned", "notes": "Install verifies checksum and refuses below the free-disk floor" }
+      ]
+    }
+  ]
+}

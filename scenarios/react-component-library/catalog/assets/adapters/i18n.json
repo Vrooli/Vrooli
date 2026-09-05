@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.i18n",
+    "name": "I18nAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects messages, pluralization, number and date formatting, writing direction, and locale switching to the scenario's internationalization system.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "i18n-adapter"
+  ],
+  "rationale": "Direction reporting is the load-bearing part for the rest of the catalog: without it the right-to-left half of the locale capture axis cannot be satisfied even once the axis is wired."
+}

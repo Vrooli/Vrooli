@@ -1,0 +1,113 @@
+{
+  "version": "1.0.0",
+  "title": "Meta-Optimization Plan of Record",
+  "description": "Plan-of-record manifest for the meta-optimization team canon",
+  "contract": {
+    "kind": "team-plan-of-record",
+    "schema": "team-plan-of-record/v1",
+    "base": "docs/agent-system/team-plan-of-record.manifest.json",
+    "team": "meta-optimization"
+  },
+  "sections": [
+    {
+      "id": "entrypoint",
+      "path": ".",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "por-readme",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Start here for agents",
+              "Why cross-team",
+              "Cross-team flow",
+              "Folder map",
+              "Editing rules",
+              "Cross-references",
+              "Future PoR work"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "operating",
+      "path": "operating/",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "operating-hub",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Operating Documents",
+              "Validation"
+            ]
+          }
+        },
+        {
+          "path": "OPERATING_MODEL.md",
+          "docType": "operating-model",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "taxonomies",
+      "path": "taxonomies/",
+      "packages": [
+        {
+          "id": "friction-report",
+          "path": "friction-report/",
+          "packageType": "taxonomy",
+          "requiredFiles": [
+            "README.md",
+            "taxonomy.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "governance",
+      "path": "governance/",
+      "documents": [
+        {
+          "path": "editing.md",
+          "docType": "editing-rules",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Authority",
+              "Change Flow",
+              "Direct Edits"
+            ]
+          }
+        },
+        {
+          "path": "adoption-validation.md",
+          "docType": "validation-runbook",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Validation Commands",
+              "Expected Clean State",
+              "Enforcement Scope"
+            ]
+          }
+        },
+        {
+          "path": "changelog.md",
+          "docType": "por-changelog",
+          "required": true,
+          "validation": {
+            "requiredHeadings": [
+              "Changelog"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "extensionRule": "Meta-optimization durable canon must live under operating/, taxonomies/, governance/, or a declared extensions/<extension-id>/ package. Do not add top-level canon files without updating this manifest."
+}

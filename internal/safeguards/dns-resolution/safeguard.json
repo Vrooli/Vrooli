@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "dns_resolution",
+  "storage": {
+    "entries": {
+      "resolved_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/resolved.conf.d/99-vrooli-dns.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes a Linux systemd-resolved drop-in."
+      }
+    },
+    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+  },
+  "description": "Configure reliable DNS servers via systemd-resolved for resilient name resolution",
+  "handler": "dns_resolution",
+  "risk": "medium",
+  "verificationCheck": {
+    "files": [
+      "/etc/systemd/resolved.conf.d/99-vrooli-dns.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "network-host-config",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_implemented",
+      "evidence": "The macOS DNS provider is not wired into this safeguard yet; the host mechanism is the scutil DNS configuration surface.",
+      "mechanism": "scutil_dns_configuration",
+      "since": "2026-08-26"
+    },
+    "windows": {
+      "status": "not_implemented",
+      "evidence": "The Windows DNS provider is not wired into this safeguard yet; the host mechanism is GetAdaptersAddresses.",
+      "mechanism": "GetAdaptersAddresses",
+      "since": "2026-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

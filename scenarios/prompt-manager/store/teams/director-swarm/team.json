@@ -3,8 +3,29 @@
   "schemaVersion": 1,
   "id": "director-swarm",
   "displayName": "Director Swarm",
-  "mission": "Keep Vrooli's initiative portfolio flowing through Swarm Manager and surface outcome-driven strategy as Command Center comes online.",
-  "enabled": false,
+  "mission": "Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.",
+  "objectivesServed": [
+    {
+      "id": "I1",
+      "acknowledgedRevision": "0ad42308ee4f"
+    },
+    {
+      "id": "I3",
+      "role": "primary",
+      "note": "Ranking authority only; detection of missing instruments stays distributed across teams.",
+      "acknowledgedRevision": "d19b30f48e11"
+    }
+  ],
+  "instrument": {
+    "status": "partial",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "swarm-manager",
+      "command-center"
+    ],
+    "gapMarker": "2026-08-13 — two addresses. swarm-manager holds the portfolio state, so the never-own-your-own-denominator rule disqualifies it from grading that portfolio; command-center is the only candidate that owns none of what it would observe. Blocked on deciding whether the objective join moves out of `prompt-manager graph objectives` or is read from there as a transmitter."
+  },
+  "enabled": true,
   "runtime": {
     "mode": "multi-process"
   },
@@ -17,7 +38,6 @@
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": false,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -26,12 +46,302 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 2
   },
-  "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 12,
+  "revision": 16,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-09T20:25:28Z"
+  "updatedAt": "2026-08-09T00:00:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "contrarian-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Record the director-swarm shape-sensor scan and its evidence-backed deviation or clean result."
+    },
+    {
+      "prefix": "goal-portfolio-record/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot portfolio interpretation against the ranking criteria."
+    },
+    {
+      "prefix": "outcome-target-record/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists."
+    },
+    {
+      "prefix": "vision-walk-record/<date>/<slug>",
+      "status": "live",
+      "purpose": "Read-only morning vision-walk briefing material."
+    },
+    {
+      "prefix": "research-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk research signal into the marketing research queue for that team's drainer to classify."
+    },
+    {
+      "prefix": "opportunity-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify."
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "status": "live",
+      "purpose": "Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify."
+    }
+  ],
+  "operatingContract": {
+    "schemaVersion": 1,
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "director-swarm-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/director-swarm/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/operating/OPERATING_MODEL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/strategy/ROADMAP.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/director-swarm/evidence/OUTCOMES_CHARTER.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "director-swarm"
+          ],
+          "rationale": "Canonical director-swarm portfolio philosophy, roadmap, and outcome discipline.",
+          "useFor": "portfolio ranking criteria, goal roadmap interpretation, outcome categories, and morning-walk work type"
+        },
+        {
+          "id": "project-vision",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "VISION.md"
+            }
+          ],
+          "writePolicy": "read-only",
+          "consumers": [
+            "director-swarm",
+            "marketing-crew",
+            "monetization"
+          ],
+          "rationale": "Operator-authored project manifesto; agents flag drift only.",
+          "useFor": "operator-authored north-star vision; agents may flag drift but do not author it"
+        },
+        {
+          "id": "architecture-reference",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/concepts/ARCHITECTURE.md"
+            }
+          ],
+          "writePolicy": "read-only",
+          "consumers": [
+            "director-swarm",
+            "marketing-crew",
+            "monetization",
+            "meta-optimization"
+          ],
+          "rationale": "Canonical technical reference; currently sketch-level; agents flag drift only.",
+          "useFor": "canonical technical reference for how Vrooli works, currently sketch-level rather than exhaustive"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        },
+        {
+          "id": "tasks-json",
+          "path": {
+            "base": "team-shared",
+            "path": "tasks.json"
+          },
+          "kind": "task-board",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "contrarian-scan/YYYY-MM-DD": {
+        "ownerMemberId": "director-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "goal-portfolio-record/YYYY-MM-DD": {
+        "ownerMemberId": "portfolio-manager",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "outcome-target-record/YYYY-MM-DD": {
+        "ownerMemberId": "outcome-strategist",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "vision-walk-record/<date>/<slug>": {
+        "ownerMemberId": "vision-walk-prep",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "portfolio-manager": {
+        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio work items and propose bounded corrections. Hold ranking authority for objective I3 (Enablement): apply the instrument rule so a goal producing a sensor, measurement surface, or actuator borrows the band of the highest-ranked goal it unblocks rather than competing with it.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          },
+          {
+            "kind": "task"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/director-swarm/"
+          },
+          {
+            "base": "repo-root",
+            "path": "VISION.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Human disposition is required before agents execute consequential Swarm Manager work items.",
+          "Do not deploy teams, trigger external execution, or make code changes."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "requiredScenarioCoverageCheck": "Run swarm-manager goals context before proposing scenario-scoped goals.",
+          "workDispositionLookup": "swarm-manager backlog get <item-id> --json",
+          "staleAfterDays": 14,
+          "stalenessItemLimit": 6,
+          "stalenessGoalLimit": 3
+        }
+      },
+      "outcome-strategist": {
+        "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "task"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/director-swarm/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Stay blocked until Command Center exposes stable outcome surfaces.",
+          "Recommend; do not authorize portfolio changes."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "director-contrarian": {
+        "lane": "Hold director-swarm against the target operating model's deviation catalogue and report the first deviation with evidence; never restructure.",
+        "allowedWrites": [
+          {"kind": "knowledge"},
+          {"kind": "handoff"}
+        ],
+        "forbiddenWrites": [
+          {"kind": "task"},
+          {"base": "repo-root", "path": "docs/director-swarm/"},
+          {"base": "repo-root", "path": "docs/concepts/ARCHITECTURE.md"}
+        ],
+        "safetyCriticalRules": [
+          "Report only; do not restructure the team or authorize work.",
+          "A clean pass is a result worth recording once, not every heartbeat."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "vision-walk-prep": {
+        "lane": "Compile a read-only morning briefing across portfolio, monetization, marketing, meta-optimization, infra-health, and life-audit signals.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "kind": "task"
+          },
+          {
+            "base": "repo-root",
+            "path": "VISION.md"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/concepts/ARCHITECTURE.md"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Strictly read-only: do not file work items, modify backlog items, trigger side effects, or choose answers for the operator."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "maxSummariesPerPhase": 3,
+          "preserveWalkCheckpoint": true,
+          "capabilityGapConsumer": "director-swarm",
+          "portfolioStalenessInput": "goal-portfolio-record/YYYY-MM-DD"
+        }
+      }
+    }
+  },
+  "attributionValidFrom": "2026-05-04"
 }

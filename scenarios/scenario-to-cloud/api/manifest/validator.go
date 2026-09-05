@@ -153,15 +153,12 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 	if out.Ports == nil {
 		out.Ports = make(domain.ManifestPorts)
 	}
-	// Set defaults for standard ports if not specified
+	// Set defaults for standard listener ports if not specified.
 	if out.Ports["ui"] == 0 {
 		out.Ports["ui"] = 3000
 	}
 	if out.Ports["api"] == 0 {
 		out.Ports["api"] = 3001
-	}
-	if out.Ports["ws"] == 0 {
-		out.Ports["ws"] = 3002
 	}
 	if invalid := findInvalidPorts(out.Ports); len(invalid) > 0 {
 		for _, p := range invalid {

@@ -1,0 +1,205 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.skills;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills;skills_v1";
+
+service SkillsService {
+  rpc ListSkills(ListSkillsRequest) returns (ListSkillsResponse);
+  rpc GetSkill(GetSkillRequest) returns (GetSkillResponse);
+  rpc ReadSkills(ReadSkillsRequest) returns (ReadSkillsResponse);
+  rpc CreateSkill(CreateSkillRequest) returns (CreateSkillResponse);
+  rpc UpdateSkill(UpdateSkillRequest) returns (UpdateSkillResponse);
+  rpc DeleteSkill(DeleteSkillRequest) returns (DeleteSkillResponse);
+  rpc SyncSkills(SyncSkillsRequest) returns (SyncSkillsResponse);
+  rpc RateSkill(RateSkillRequest) returns (RateSkillResponse);
+  rpc RecordSkillUsage(RecordSkillUsageRequest) returns (RecordSkillUsageResponse);
+  rpc ListSkillVersions(ListSkillVersionsRequest) returns (ListSkillVersionsResponse);
+  rpc RevertSkill(RevertSkillRequest) returns (RevertSkillResponse);
+  rpc ListSkillVariants(ListSkillVariantsRequest) returns (ListSkillVariantsResponse);
+  rpc GetSkillVariant(GetSkillVariantRequest) returns (GetSkillVariantResponse);
+  rpc CreateSkillVariant(CreateSkillVariantRequest) returns (CreateSkillVariantResponse);
+  rpc UpdateSkillVariant(UpdateSkillVariantRequest) returns (UpdateSkillVariantResponse);
+  rpc DeleteSkillVariant(DeleteSkillVariantRequest) returns (DeleteSkillVariantResponse);
+  rpc ImportSkill(ImportSkillRequest) returns (ImportSkillResponse);
+  rpc ReviewImportedSkill(ReviewImportedSkillRequest) returns (ReviewImportedSkillResponse);
+  rpc ReportImportedSkillStaleness(ReportImportedSkillStalenessRequest) returns (ReportImportedSkillStalenessResponse);
+}
+
+message Variable {
+  string name = 1;
+  string placeholder = 2;
+  int32 occurrences = 3;
+}
+
+message Skill {
+  string id = 1;
+  string file = 2;
+  string name = 3;
+  string description = 4;
+  string content = 5;
+  repeated string modes = 6;
+  repeated string tags = 7;
+  string icon = 8;
+  optional string target_tool_id = 9;
+  string default_scope = 10;
+  repeated string target_dimensions = 11;
+  optional string programmatic_home = 12;
+  bool draft = 13;
+  string folder = 14;
+  string skill_dir = 15;
+  string content_path = 16;
+  string created_at = 17;
+  string updated_at = 18;
+  int32 revision = 19;
+  string content_hash = 20;
+  int32 usage_count = 21;
+  optional string last_used = 22;
+  optional int32 effectiveness_rating = 23;
+  repeated Variable variables = 24;
+}
+
+message ListSkillsRequest {
+  string folder = 1;
+  string tag = 2;
+  repeated string modes = 3;
+  bool without_programmatic_home = 4;
+}
+message ListSkillsResponse { repeated Skill skills = 1; }
+
+message GetSkillRequest { string id = 1; }
+message GetSkillResponse { Skill skill = 1; }
+
+message ReadSkillsRequest {
+  repeated string identifiers = 1;
+  string resolve = 2;
+  optional bool allow_missing = 3;
+  string output = 4;
+  string format = 5;
+  map<string, string> variables = 6;
+  bool with_scope = 7;
+  string scope = 8;
+  string experiment_id = 9;
+  string variant_id = 10;
+  string variant_policy = 11;
+  string source = 12;
+}
+message ReadIssue { string identifier = 1; string reason = 2; }
+message ReadCandidate { string id = 1; string name = 2; string file = 3; string folder = 4; }
+message ReadAmbiguous { string identifier = 1; repeated ReadCandidate candidates = 2; }
+message ReadSkillsResponse {
+  repeated Skill skills = 1;
+  string combined = 2;
+  string combined_hash = 3;
+  int32 skill_count = 4;
+  int32 total_tokens = 5;
+  string format = 6;
+  repeated ReadIssue missing = 7;
+  repeated ReadAmbiguous ambiguous = 8;
+  string resolve = 9;
+  string output = 10;
+  Skill scope_skill = 11;
+  string selected_variant_id = 12;
+  string experiment_id = 13;
+}
+
+message CreateSkillRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string content = 4;
+  repeated string modes = 5;
+  repeated string tags = 6;
+  string icon = 7;
+  optional string target_tool_id = 8;
+  string default_scope = 9;
+  repeated string target_dimensions = 10;
+  optional string programmatic_home = 11;
+  bool draft = 12;
+  string folder = 13;
+}
+message CreateSkillResponse { Skill skill = 1; }
+
+message UpdateSkillRequest {
+  string id = 1;
+  optional string file = 2;
+  optional string name = 3;
+  optional string description = 4;
+  optional string content = 5;
+  repeated string modes = 6;
+  bool replace_modes = 7;
+  repeated string tags = 8;
+  bool replace_tags = 9;
+  optional string icon = 10;
+  optional string target_tool_id = 11;
+  optional string default_scope = 12;
+  repeated string target_dimensions = 13;
+  bool replace_target_dimensions = 14;
+  optional string programmatic_home = 15;
+  bool clear_programmatic_home = 16;
+  optional bool draft = 17;
+  optional string folder = 18;
+}
+message UpdateSkillResponse { Skill skill = 1; }
+
+message DeleteSkillRequest { string id = 1; }
+message DeleteSkillResponse { string id = 1; bool deleted = 2; }
+
+message SyncSkillsRequest {}
+message SyncSkillsResponse {
+  repeated Skill skills = 1;
+  string last_updated = 2;
+  string hash = 3;
+}
+
+message RateSkillRequest { string id = 1; int32 rating = 2; optional string notes = 3; }
+message RateSkillResponse { string id = 1; int32 rating = 2; string status = 3; }
+message RecordSkillUsageRequest { string id = 1; }
+message RecordSkillUsageResponse { string id = 1; string status = 2; int32 usage_count = 3; string last_used = 4; }
+
+message SkillVersion { int32 version = 1; string content = 2; string name = 3; string updated_at = 4; string created_by = 5; }
+message ListSkillVersionsRequest { string id = 1; }
+message ListSkillVersionsResponse { string skill_id = 1; int32 current = 2; repeated SkillVersion versions = 3; }
+message RevertSkillRequest { string id = 1; int32 version = 2; }
+message RevertSkillResponse { string skill_id = 1; int32 reverted_to = 2; int32 new_version = 3; string restored_at = 4; }
+
+message SkillVariant { string id = 1; string skill_id = 2; string name = 3; string description = 4; string content = 5; string created_at = 6; string updated_at = 7; int32 revision = 8; }
+message ListSkillVariantsRequest { string skill_id = 1; }
+message ListSkillVariantsResponse { repeated SkillVariant variants = 1; }
+message GetSkillVariantRequest { string skill_id = 1; string variant_id = 2; }
+message GetSkillVariantResponse { SkillVariant variant = 1; }
+message CreateSkillVariantRequest { string skill_id = 1; string id = 2; string name = 3; string description = 4; string content = 5; }
+message CreateSkillVariantResponse { SkillVariant variant = 1; }
+message UpdateSkillVariantRequest {
+  string skill_id = 1;
+  string variant_id = 2;
+  optional string name = 3;
+  optional string description = 4;
+  optional string content = 5;
+}
+message UpdateSkillVariantResponse { SkillVariant variant = 1; }
+message DeleteSkillVariantRequest { string skill_id = 1; string variant_id = 2; }
+message DeleteSkillVariantResponse { string skill_id = 1; string variant_id = 2; bool deleted = 3; }
+
+message ImportSkillRequest {
+  string source_dir = 1;
+  string source_url = 2;
+  string commit = 3;
+  string license = 4;
+  string checksum = 5;
+  string imported_by = 6;
+  string upstream_version = 7;
+  string id = 8;
+}
+message ImportSkillResponse {
+  string id = 1;
+  string pack = 2;
+  string status = 3;
+  string checksum = 4;
+  string review_verdict = 5;
+  string imported_at = 6;
+}
+message ReviewImportedSkillRequest { string id = 1; string reviewer = 2; string verdict = 3; }
+message ReviewImportedSkillResponse { string id = 1; string status = 2; string verdict = 3; string reviewer = 4; string reviewed_at = 5; }
+message ReportImportedSkillStalenessRequest { string id = 1; string upstream_version = 2; }
+message ReportImportedSkillStalenessResponse { string id = 1; string recorded_version = 2; string current_version = 3; bool stale = 4; }

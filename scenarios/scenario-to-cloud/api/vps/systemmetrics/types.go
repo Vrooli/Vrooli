@@ -2,20 +2,20 @@ package systemmetrics
 
 import "scenario-to-cloud/domain"
 
-// CommandSpec describes a remote command needed by a system metrics collector.
+// CommandSpec describes a command executed on the remote VPS by the SSH runner.
 type CommandSpec struct {
 	ID      string
 	Command string
 }
 
-// CommandResult is the normalized command output used by collectors.
+// CommandResult is normalized output from a command already run on the remote VPS.
 type CommandResult struct {
 	Stdout   string
 	Stderr   string
 	ExitCode int
 }
 
-// Collector is an OS-specific parser for system-level metrics.
+// Collector is an OS-specific remote-snapshot parser for system-level metrics.
 //
 // Implementations should only parse command output; they should not perform I/O.
 type Collector interface {

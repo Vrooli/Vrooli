@@ -205,5 +205,5 @@ Problems with these characteristics trigger immediate action:
 ## See Also
 
 - [Swarm-Manager README](/scenarios/swarm-manager/README.md)
-- [V2.0 Resource Contract](/scripts/resources/contracts/v2.0/universal.yaml)
+- [Resource Schema](/.vrooli/schemas/resource.schema.json)
 - [Troubleshooting Guide](./TROUBLESHOOTING.md)

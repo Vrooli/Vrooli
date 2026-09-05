@@ -6,41 +6,63 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"test-genie/agentmanager"
+	appelig "test-genie/internal/app/eligibility"
+	apprun "test-genie/internal/app/runs"
+	appvalidation "test-genie/internal/app/validation"
+	"test-genie/internal/dbexec"
+	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
-	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/queue"
+	"test-genie/internal/playbooksclaims"
+	"test-genie/internal/remediation"
 	"test-genie/internal/requirements"
-	"test-genie/internal/requirementsimprove"
+	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
-	"test-genie/internal/toolexecution"
-	"test-genie/internal/toolregistry"
+	"test-genie/internal/selfhealthsnapshots"
+	sharedruns "test-genie/internal/shared/runs"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/maturity-go/assessment"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
+
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 )
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
 type Bootstrapped struct {
-	DB                         *sql.DB
-	SuiteRequests              *queue.SuiteRequestService
-	ExecutionRepo              *execution.SuiteExecutionRepository
-	ExecutionHistory           execution.ExecutionHistory
-	ExecutionService           *execution.SuiteExecutionService
-	ExecutionPlanner           execution.ExecutionPlanner
-	ScenarioService            *scenarios.ScenarioDirectoryService
-	PhaseCatalog               phaseCatalogProvider
-	AgentService               *agentmanager.AgentService
-	FixService                 *fix.Service
-	RequirementsImproveService *requirementsimprove.Service
-	RequirementsSyncer         *RequirementsSyncerAdapter
-	// Tool Discovery Protocol support
-	ToolRegistry *toolregistry.Registry
-	ToolHandler  *toolexecution.Handler
+	DB *database.RoutedDB
+	// HealthDB is a dedicated, read-only lifecycle probe connection. It is
+	// intentionally separate from the single runtime SQLite pool so background
+	// analytics cannot make lifecycle health queue behind ordinary work.
+	HealthDB            dbexec.HealthProbe
+	ExecutionRepo       *execution.SuiteExecutionRepository
+	ExecutionHistory    execution.ExecutionHistory
+	ExecutionService    *execution.SuiteExecutionService
+	ExecutionPlanner    execution.ExecutionPlanner
+	RunManager          *runmanager.Manager
+	ScenarioService     *scenarios.ScenarioDirectoryService
+	PhaseCatalog        phaseCatalogProvider
+	AgentService        *agentmanager.AgentService
+	RemediationService  *remediation.Service
+	RemediationLauncher remediation.Launcher
+	RequirementsSyncer  *RequirementsSyncerAdapter
+	PlaybooksClaims     *playbooksclaims.Service
+	EligibilityService  *appelig.Service
+	RunsService         *apprun.Service
+	ValidationService   *appvalidation.Service
+	// StartBackground is invoked by the HTTP transport only after its listener is
+	// accepting requests. Expensive advisory work must never begin while the
+	// lifecycle health endpoint is still competing for the one SQLite connection.
+	StartBackground func(context.Context)
+	SweepStatus     *selfhealthsnapshots.StatusStore
 }
 
 // RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
@@ -48,11 +70,14 @@ type RequirementsSyncerAdapter struct {
 	svc *requirements.Service
 }
 
-// Sync performs requirements synchronization for a scenario directory.
+// Sync performs requirements synchronization for a scenario directory. The
+// structured sync report is discarded here; callers of this adapter only need
+// success/failure.
 func (a *RequirementsSyncerAdapter) Sync(ctx context.Context, scenarioDir string) error {
-	return a.svc.Sync(ctx, requirements.SyncInput{
+	_, err := a.svc.Sync(ctx, requirements.SyncInput{
 		ScenarioDir: scenarioDir,
 	})
+	return err
 }
 
 type phaseCatalogProvider interface {
@@ -66,7 +91,11 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
-	db, err := database.Connect(context.Background(), database.Config{
+	// database.Open returns a *RoutedDB: at startup (no test mode) every query
+	// goes to the primary pool, but the handle can route per-request to a test
+	// pool installed via RoutingService — the in-place routed e2e path test-genie
+	// uses to test scenarios (and itself) without a restart.
+	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          cfg.DatabaseDSN,
 		MaxOpenConns: 1,
@@ -78,99 +107,180 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	if err := ensureDatabaseSchema(db); err != nil {
 		return nil, fmt.Errorf("failed to apply database schema: %w", err)
 	}
+	healthDB, err := openHealthDatabase(cfg.DatabaseDSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open dedicated health database: %w", err)
+	}
 
 	runner, err := orchestrator.NewSuiteOrchestrator(cfg.ScenariosRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
 
-	suiteRequestRepo := queue.NewSQLiteSuiteRequestRepository(db)
-	suiteRequestService := queue.NewSuiteRequestService(suiteRequestRepo)
 	executionRepo := execution.NewSuiteExecutionRepository(db)
+	runner.SetPhaseCostEstimator(executionRepo)
+	capacityBroker, capacityErr := sharedcapacity.NewBroker(context.Background(), "")
+	if capacityErr != nil {
+		log.Printf("[test-genie] phase capacity broker unavailable; scheduler will serialize: %v", capacityErr)
+	} else {
+		runner.SetCapacityBroker(capacityBroker)
+	}
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
 	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
 
-	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
+	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo)
+	executionSvc.SetRetentionCollector(func(ctx context.Context, scenario string) {
+		artifactRoot, resolveErr := artifactpaths.ScenarioRoot(scenario)
+		if resolveErr != nil {
+			log.Printf("run retention path resolution failed for %s: %v", scenario, resolveErr)
+			return
+		}
+		report, err := sharedruns.NewRetentionService(artifactRoot, sharedruns.DefaultRetentionPolicy()).WithDetailStore(executionRepo).Collect(ctx)
+		if err != nil {
+			log.Printf("run retention failed for %s: %v", scenario, err)
+		} else if len(report.Deleted) > 0 {
+			log.Printf("run retention reclaimed %d run(s) for %s; triggered_bounds=%s", len(report.Deleted), scenario, strings.Join(report.TriggeredBounds, ","))
+		}
+	})
+
+	// The run manager owns durable run execution decoupled from any client
+	// request: it is the single engine every door (blocking REST, SSE gateway,
+	// Connect run surface) funnels through, so a run survives client cancellation.
+	runManager := runmanager.New(executionSvc, cfg.ScenariosRoot).WithArtifactRootResolver(artifactpaths.ScenarioRoot).WithRunClaimReleaser(capacityBroker).WithSuiteEnvelopeProvider(executionRepo.SuiteEnvelopeEstimates).SetCapacityBroker(capacityBroker).EnableAdaptiveConcurrency()
+	if swept, err := runManager.Sweep(); err != nil {
+		log.Printf("[test-genie] run-index startup sweep failed: %v", err)
+	} else if swept > 0 {
+		log.Printf("[test-genie] startup sweep: marked %d orphaned in-progress run(s) aborted", swept)
+	}
+
+	claimsRepo := playbooksclaims.NewSqliteRepository(db)
+	if err := playbooksclaims.Migrate(context.Background(), db); err != nil {
+		return nil, fmt.Errorf("migrate playbooks claims storage: %w", err)
+	}
+	claimsService := playbooksclaims.NewService(playbooksclaims.Config{Repo: claimsRepo})
+	runner.SetClaims(claimsService)
+
+	// Construct the routed-test-db eligibility checker once at process startup
+	// for the Connect EligibilityService handler.
+	routingEligibility := eligibility.NewCheckerWithRepoRoot(repoRootFromScenariosRoot(cfg.ScenariosRoot))
+	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
+
+	// RunsService exposes the append-only run index AND the durable run
+	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
+	// execution to the run manager.
+	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
+	runsService.SetCostSource(executionRepo)
+	runsService.SetStoredMetricsProbe(func(ctx context.Context, phase string) bool {
+		present, err := executionRepo.HasPersistedMetrics(ctx, phase)
+		return err == nil && present
+	})
+	runsService.SetRetentionStore(executionRepo)
+
+	// Provider-conformance ScenarioValidationService: Test Genie's own
+	// descriptor-backed phase. The maturity spec comes from Test Genie's own
+	// .vrooli/test-genie.json; a load failure disables the handler with a log
+	// line rather than blocking startup.
+	repoRoot := repoRootFromScenariosRoot(cfg.ScenariosRoot)
+	conformanceSpec, specErr := assessment.LoadSpecFromScenario(filepath.Join(cfg.ScenariosRoot, "test-genie"))
+	if specErr != nil {
+		log.Printf("[test-genie] provider-conformance maturity spec unavailable: %v", specErr)
+	}
+	validationService := appvalidation.NewService(log.Default(), repoRoot, conformanceSpec)
+
+	// Persisted self-health trend store. Its advisory sweeper is deliberately
+	// constructed here but started by the serving transport after it owns a
+	// listening socket; dependency construction must remain foreground-only.
+	// The read path (GetSelfHealth trend delta/series) composes the repo; the
+	// sweeper is the sole writer, digest-deduped + env-disableable.
+	selfHealthSnapshots := selfhealthsnapshots.NewSqliteRepository(db)
+	sweepStatus := &selfhealthsnapshots.StatusStore{}
+	runsService.SetSnapshotReader(selfHealthSnapshots)
+	selfHealthJob := func(ctx context.Context) {
+		runSelfHealthSweeper(ctx, selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)), sweepStatus, poolSweepObserver(db.Primary(), sweepStatus))
+	}
+
+	// GetFleetHealth aggregates stored runs across the fleet (Stage 3 fleet
+	// backbone, read side). The roster lists on-disk scenario directories so the
+	// ledger can surface never-tested-in-window coverage gaps honestly.
+	runsService.SetFleetSource(executionRepo, fleetRosterFromScenariosRoot(cfg.ScenariosRoot))
+
+	// Priority-weighted background fleet scheduler (Stage 3 fleet backbone).
+	// DEFAULT-OFF: it cycles real full suites across the fleet only when
+	// explicitly enabled via TEST_GENIE_FLEET_SCHEDULER_ENABLED, bounded by
+	// concurrency + per-cycle + wall-clock budgets, and respects the run
+	// manager's one-in-progress-per-scenario invariant.
+	fleetSchedulerJob := func(ctx context.Context) { runFleetScheduler(ctx, runManager) }
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
 	profileKey := os.Getenv("AGENT_MANAGER_PROFILE_KEY")
 	if profileKey == "" {
-		profileKey = "test-genie"
+		profileKey = "test-genie/generation"
 	}
 
 	agentService := agentmanager.NewAgentService(agentmanager.Config{
-		ProfileName: "Test Genie Agent",
-		ProfileKey:  profileKey,
-		Timeout:     30 * time.Second,
-		Enabled:     agentEnabled,
+		ProfileKey: profileKey,
+		Timeout:    30 * time.Second,
+		Enabled:    agentEnabled,
 	})
 
-	// Initialize profile at startup (non-blocking)
+	// Agent initialization is advisory and must share the serving lifetime with
+	// every other background job; it cannot compete with listener startup.
+	var agentInitializationJob func(context.Context)
 	if agentEnabled {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		agentInitializationJob = func(parent context.Context) {
+			ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 			defer cancel()
-			if err := agentService.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+			if err := agentService.Initialize(ctx); err != nil {
 				log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
 			}
-		}()
+		}
 	}
+	background := NewBackgroundCoordinator(selfHealthJob, fleetSchedulerJob, agentInitializationJob)
 
-	// Create fix service (for agent-based test fixing)
-	fixService := fix.NewService(agentService)
-
-	// Create requirements improve service (for agent-based requirements improvement)
-	reqImproveService := requirementsimprove.NewService(agentService)
+	remediationService := remediation.NewService(remediation.NewSQLiteRepository(db), nil)
+	if err := remediation.Migrate(context.Background(), db); err != nil {
+		return nil, fmt.Errorf("migrate remediation storage: %w", err)
+	}
+	remediationLauncher := remediation.NewAgentManagerAdapter(agentService)
 
 	// Create requirements syncer
 	reqSyncer := &RequirementsSyncerAdapter{
 		svc: requirements.NewService(),
 	}
 
-	// Create tool registry for Tool Discovery Protocol
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "test-genie",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Automated testing and quality assurance for Vrooli scenarios",
-	})
-
-	// Register all tool providers
-	toolReg.RegisterProvider(toolregistry.NewTestingToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewFixToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewRequirementsToolProvider())
-
-	// Create tool executor with all required dependencies
-	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		ExecutionHistory:    executionHistory,
-		SuiteExecutor:       executionSvc,
-		ScenarioDirectory:   scenarioService,
-		PhaseCatalog:        runner,
-		FixService:          fixService,
-		RequirementsImprove: reqImproveService,
-		RequirementsSyncer:  reqSyncer,
-	})
-	toolHandler := toolexecution.NewHandler(toolExec)
-
-	log.Printf("[test-genie] Tool Discovery Protocol enabled with %d tools", len(toolReg.ListToolNames(context.Background())))
-
 	return &Bootstrapped{
-		DB:                         db,
-		SuiteRequests:              suiteRequestService,
-		ExecutionRepo:              executionRepo,
-		ExecutionHistory:           executionHistory,
-		ExecutionService:           executionSvc,
-		ExecutionPlanner:           executionPlanner,
-		ScenarioService:            scenarioService,
-		PhaseCatalog:               runner,
-		AgentService:               agentService,
-		FixService:                 fixService,
-		RequirementsImproveService: reqImproveService,
-		RequirementsSyncer:         reqSyncer,
-		ToolRegistry:               toolReg,
-		ToolHandler:                toolHandler,
+		DB:                  db,
+		HealthDB:            healthDB,
+		ExecutionRepo:       executionRepo,
+		ExecutionHistory:    executionHistory,
+		ExecutionService:    executionSvc,
+		ExecutionPlanner:    executionPlanner,
+		RunManager:          runManager,
+		ScenarioService:     scenarioService,
+		PhaseCatalog:        runner,
+		AgentService:        agentService,
+		RemediationService:  remediationService,
+		RemediationLauncher: remediationLauncher,
+		RequirementsSyncer:  reqSyncer,
+		PlaybooksClaims:     claimsService,
+		EligibilityService:  eligibilityService,
+		RunsService:         runsService,
+		ValidationService:   validationService,
+		StartBackground:     background.Start,
+		SweepStatus:         sweepStatus,
 	}, nil
+}
+
+func openHealthDatabase(dsn string) (dbexec.HealthProbe, error) {
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	return db, nil
 }

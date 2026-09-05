@@ -1,164 +1,261 @@
+---
+name: "navigation-integrity-audit"
+description: "Audit navigation flows and routing consistency"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","ux","audits"]
+  tags: ["skill"]
+  icon: "navigation"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Navigation Integrity Audit
 
-Prioritize **navigation integrity**: every control that changes location, view, or mode should take the user where they reasonably expect to go, with honest labels and clear feedback.
+Prioritize **making navigation in `scenarios/{{TARGET}}/` a verifiable contract**: every URL, container, affordance, return path, shortcut, and reachability/deep-link policy is declared once in `ui/flow/navigation.json` and checked by `flow-verifier`. Move qualifying surfaces up the maturity ladder until label↔destination drift, hidden auth/role gaps, and viewport-keyed reachability surprises fail statically rather than ship.
 
-Do **not** break functionality, regress tests, or alter core workflows. All changes must maintain or improve completeness and reliability.
+Required reading (verification substrate — set the stage before this skill applies):
+- `prompt-manager skill read temporal-flow-audit` — the exemplar audit-shaped skill with the same maturity-ladder pattern; navigation mirrors its shape.
+- `prompt-manager skill read experience-architecture-audit` — parent UX audit; structural navigation problems (the wrong places, the wrong groupings) belong there, not here.
+- `prompt-manager skill read screaming-architecture-audit` — when navigation logic is buried outside the domain that owns the destination.
+- `prompt-manager skill read ui-health` §4.4 — owns gamepad / spatial-nav. This skill declares `reachable_via` in spec; ui-health owns the runtime mechanics.
+- `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
 
-Focus on **correctness, coherence, and honesty** in navigation and interaction contracts.
+Required reading (programmatic enforcement substrate):
+- `flow-verifier flows --help` and `flow-verifier verify --help` — the scenario that loads, validates, reconciles, verifies, and renders navigation specs. This is the primary destination as this skill becomes more programmatic over time.
 
----
-
-### 1. Establish the Navigation Mental Model
-
-* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read the Navigation section first to understand what navigation issues have been identified.
-
-* Use the scenario's **PRD, operational targets, and key user journeys** to infer:
-  * the main “places” or modes in the scenario (pages, panels, major views)
-  * how users are expected to move between them
-  * what “back”, “home”, and “next” are supposed to mean in this context
-* Treat this as the **intended navigation graph**: the conceptual map you are aligning the implementation to.
-
-Keep this mental model in mind when evaluating every navigation control and shortcut.
-
----
-
-### 2. Verify Label → Destination Truthfulness
-
-* Identify all navigation affordances:
-  * links, buttons, menus, list items
-  * tabs, breadcrumbs, “view more” areas
-  * calls-to-action that open specific states (e.g. “Open with template”, “Start from example”)
-* For each:
-  * Verify that the **actual destination and state** matches the label, icon, and context.
-  * If something claims to open examples/templates/demo data, ensure it does so (and not a blank/default state).
-  * If an action suggests a mode change (edit vs view vs create), ensure the resulting state is consistent with that promise.
-* When mismatches exist, adjust:
-  * the **behavior** to match the label, or
-  * the **label** to match the behavior, choosing whichever best aligns with the PRD and user expectations.
-
-Do not introduce misleading or vague labels to avoid fixing behavior; prioritize honest, predictable navigation.
+Read first when present:
+- `scenarios/{{TARGET}}/ui/flow/navigation.json` — the navigation spec, if one exists.
+- `scenarios/{{TARGET}}/ui/src/routes.generated.ts` — generated from the spec; nothing else should declare route paths.
+- `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md` — Navigation section: prior findings and maturity status.
+- `scenarios/{{TARGET}}/docs/internal/SEAMS.md` — overlay/disclosure boundaries that should match container declarations.
+- `scenarios/{{TARGET}}/docs/internal/INVARIANTS.md` — auth/role/context invariants the spec encodes.
+- `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — accepted navigation debt and known unreachable/over-reachable surfaces.
 
 ---
 
-### 3. Back, Forward & Return Path Coherence
+### 1. Scope Boundaries
 
-* Examine how **back/close/cancel** controls behave across the scenario:
-  * in-page back buttons
-  * “X” close icons on dialogs/panels
-  * “return” links or breadcrumbs
-* Ensure that:
-  * “Back” means “**return to where I just was**”, not “go to some fixed canonical page” the user may never have seen in this session.
-  * Multi-entry pages (reachable from multiple places) either:
-    * send the user back to their actual prior context, or
-    * clearly communicate where they will go and why (e.g. breadcrumb to a canonical parent).
-* Avoid surprising jumps that:
-  * take the user to a page they never visited
-  * lose important context or in-progress work without warning.
+This skill owns the **verifiable contract** layer of navigation. Structural problems (wrong groupings, missing feature surfaces, broken information architecture) belong to `experience-architecture-audit`; gamepad/spatial mechanics belong to `ui-health` (§4.4).
 
-When multiple return paths are possible, prefer behavior that **preserves the user’s sense of continuity**.
+**In scope:**
+- declaring/maintaining `ui/flow/navigation.json` (routes, containers, affordances, presentations, overlays, return paths, shortcuts, reachability invariants, deep-link policy)
+- enforcing label↔destination truthfulness via Vitest+RTL tests that consume the spec
+- enforcing code↔spec coherence via `flow-verifier flows reconcile`
+- enforcing reachability invariants and deep-link policy via `flow-verifier verify run`
+- routing findings to existing docs (`EXPERIENCE-AUDIT.md`, `SEAMS.md`, `INVARIANTS.md`, `PROBLEMS.md`) by lens
+- proposing flow-verifier schema/checker enhancements when a recurring manual finding could become declarative
 
----
+**Out of scope (hand off):**
+- the structural question of "are these the right places, grouped the right way?" → `experience-architecture-audit`
+- gamepad reachability, focus rings, spatial-nav focus groups → `ui-health` §4.4 (declare `reachable_via: ["gamepad"]` in spec; mechanics live there)
+- temporal/lifecycle behavior inside a page (loading, retries, polling) → `temporal-flow-audit`
+- folder/file shape under `ui/src/` → `screaming-architecture-audit`
+- comment discipline, function shape inside route components → `cognitive-load-reduction`
+- new product features, behavior changes, performance refactors
+- creating standalone `*_AUDIT.md` or dedicated `NAVIGATION.md` files — findings route to existing docs
 
-### 4. Interaction Feedback for Navigation Actions
-
-* Identify navigation actions that:
-  * do nothing
-  * sometimes fail silently
-  * appear to work but leave the user in the same confusing state.
-* For each, ensure:
-  * the action **always does something observable** (route change, visible state change, or a clear message).
-  * failures produce **timely, visible feedback** (e.g. non-intrusive error or toast) instead of silent no-ops.
-  * long-running navigations (e.g. loading a heavy view) provide **loading indicators** or progress cues.
-* Remove or fix “dead” controls that cannot work in the current context, or make them visibly disabled/inactive with clear affordances.
-
-Avoid adding noisy alerts; feedback should be **proportionate and informative**, not disruptive.
+If `experience-architecture-audit` has not yet been run on this scenario, note that as a prerequisite gap rather than fixing it inside this skill.
 
 ---
 
-### 5. Shortcut & Accelerator Consistency
+### 2. Navigation Integrity Maturity Model
 
-* Identify all keyboard shortcuts and accelerators related to navigation:
-  * global shortcuts (e.g. go to dashboard, open search, open command palette)
-  * local shortcuts (e.g. next/previous, open details, switch panel)
-* Ensure that:
-  * shortcuts **work reliably** wherever they’re advertised.
-  * they do not unexpectedly override essential browser shortcuts or conflict with each other in common contexts.
-  * the same shortcut has the **same meaning** across similar views.
-* If a shortcut cannot be supported in certain views, make sure:
-  * it fails gracefully, or
-  * it is scoped appropriately so it is not advertised or bound in those contexts.
+Assess each surface (each declared `flowId` in `ui/flow/`) independently. A scenario may be Level 4 in the main app navigation and Level 1 in a recently-added feature surface.
 
-Prefer small, targeted fixes over introducing a complex shortcut system in this phase.
+| Level | Name | What exists | Where it's verified |
+|---|---|---|---|
+| 0 | Unmodeled | Routes live in `App.tsx` as string literals; labels/links/destinations only knowable by reading code; reachability and deep-link behavior are implicit. | — |
+| 1 | Inventory | The Navigation section of `EXPERIENCE-AUDIT.md` lists every URL surface, container, and known reachability/deep-link gap, with `path:` links. | `grep` `EXPERIENCE-AUDIT.md` for entries dated this pass. |
+| 2 | Declared spec | A schema-valid `ui/flow/navigation.json` declares every route, container, affordance (with per-container presentations), overlay, return path, shortcut, reachability invariant, and deep-link policy. | `flow-verifier flows validate --kind navigation` passes. |
+| 3 | Code↔spec coherence | `routes.generated.ts` is generated from the spec and is the only place route paths are declared in `ui/src/`. Every `<Route path=>`, `<Link to=>`, and `useNavigate(...)` resolves to a registered route id. No orphans either direction. | `flow-verifier flows reconcile --flow <id>` returns zero discrepancies; `grep -rE "(to=\"/|navigate\\(\"/)" ui/src/` returns only `ROUTES.*` / `ROUTE_PATTERNS.*` consumers. |
+| 4 | Behavioral conformance | Reachability invariants and deep-link policy pass on the static graph. Vitest+RTL asserts every spec affordance renders with declared label and resolves to the declared destination. At least one BAS flow walks the spec end-to-end (click each affordance, assert URL change, back-path preserves history, deep-link + refresh recovers state, overlays trap focus). | `flow-verifier verify run --flow <id>` passes; `pnpm test` covers each affordance + overlay; BAS flow green. |
+| 5 | Programmatic drift gate | The Flow Studio descriptor for this surface is part of the scenario's Studio inventory. CI runs `flows validate` + `reconcile` + `verify run` and fails on drift. New routes/affordances cannot be added without spec changes (lint or pre-commit rejects raw path strings). | `make test` (or CI equivalent) includes the three flow-verifier checks; raw-path-string lint rule active in `eslint.config.js`. |
 
----
-
-### 6. Edge Cases: Deep Links, Refresh & Multi-Path Navigation
-
-* Consider how navigation behaves in edge cases:
-  * direct links into deeper views
-  * browser refresh on non-root pages
-  * using back/forward via browser controls
-* Where possible, ensure:
-  * the scenario can **recover a sensible state** when revisited or refreshed.
-  * critical navigation state is not lost in trivial, avoidable ways.
-* For multi-path flows (e.g. reaching the same view from several funnels), verify that:
-  * follow-up navigation (back/next/close) still respects **the user’s actual path**, not just an assumed canonical funnel.
-
-Avoid major routing overhauls in this phase; focus on making current flows **predictable and non-deceptive**.
+Do not treat the level as a score to inflate. Use it to identify the next concrete move: declare what's missing in the spec, then close the next reconcile diff, then add the next invariant.
 
 ---
 
-### 7. Output Expectations
+### 3. Finding-Routing Table (No New Docs)
 
-You may update:
+Every navigation finding belongs to one of the existing audit docs. Never create a standalone navigation report or a new file for these findings.
 
-* navigation handlers and routing targets
-* button/link/menu behavior and labels
-* back/close/cancel and breadcrumb logic
-* shortcut bindings and their scopes
-* microcopy related to navigation and destinations
-* tests that exercise navigation flows and edge cases
+| Finding | Routes to | Lens that ultimately owns it |
+|---|---|---|
+| URL surface or feature page missing from the inventory | `EXPERIENCE-AUDIT.md` Navigation section | Navigation (this skill) |
+| Label↔destination mismatch (`<Link to="/old">New Label</Link>`) | Fix in code; spec or code wrong — pick the truthful one. No doc entry unless deferred. | Navigation (this skill) |
+| Affordance renders but spec declares it hidden under current context | Fix in code (or spec); record in `PROBLEMS.md` if the gap is accepted-for-now | Navigation (this skill) |
+| Reachability invariant fails (`must_reach` over budget, or `must_not_reach` reachable) | Fix in code/spec; record counter-example in `PROBLEMS.md` if accepted-for-now | Navigation (this skill) |
+| Deep-link policy gap (auth-required route renders without redirect) | Fix `RouteGate`/equivalent; ensure spec entry exists | Navigation (this skill) |
+| Container's disclosure model (drawer, popover) lacks focus trap or `esc` dismiss | `SEAMS.md` (overlay scope boundary) + fix in code | Navigation (this skill) |
+| Back/close behavior doesn't match declared `return_paths` rule | Fix in code or update spec to match honest behavior | Navigation (this skill) |
+| Routes live in different domain than the feature that owns them | `ARCHITECTURE.md` | `screaming-architecture-audit` (hand off) |
+| Information architecture itself is wrong (right routes, wrong groupings) | `EXPERIENCE-AUDIT.md` structural section | `experience-architecture-audit` (hand off) |
+| Gamepad/spatial-nav focus-group or focus-ring issue | `EXPERIENCE-AUDIT.md` Navigation section, cross-reference `ui-health` §4.4 | `ui-health` (hand off) |
+| Auth/role context model itself is wrong (not just spec wording) | `INVARIANTS.md` | Domain owner / `invariant-discovery-and-enforcement` |
+| Recurring manual finding that could be a declarative schema field or checker rule | Open a flow-verifier backlog entry | Flow-verifier (capability promotion) |
 
-You **must**:
-
-* keep the scenario fully functional and non-regressed
-* avoid introducing misleading or ambiguous navigation behaviors
-* ensure navigation controls do what they promise, consistently
-* improve the user’s ability to **predict where actions will take them**
-
-Focus this loop on **practical, targeted navigation fixes** that make movement through the scenario honest, stable, and easy to understand.
-
-Avoid superficial changes (e.g. renaming buttons without fixing their behavior, or shuffling links without clarifying flows) that do not materially improve navigation integrity.
-
----
-
-### 8. Gamepad Traversal Coherence
-
-When a scenario has spatial navigation enabled (`initSpatialNav()` in `main.tsx`), verify gamepad-driven navigation is coherent:
-
-* **Reachability:** All interactive elements (buttons, links, inputs, tabs) must be reachable via D-pad directional navigation. Walk through every major view with only D-pad + A/B buttons.
-* **No focus traps:** Every focus group must have an escape path. Bumper buttons (LB/RB) should cycle between top-level groups.
-* **Passthrough zone identification:** Components that handle arrow keys internally (graph canvases, map views, rich text editors, video players) should be registered as `passthrough` focus groups. Verify D-pad input within these zones goes to the component, not the spatial nav engine.
-* **Focus order matches visual layout:** Spatial navigation should move focus to the visually nearest element in the pressed direction. If focus jumps to an unexpected element, the layout or focus group boundaries need adjustment.
-* **Modal scope trapping (critical):** Every overlay — dialogs, drawers, floating panels, command overlays, help panels — must trap D-pad focus inside it while open. Verify by opening each overlay type and pressing D-pad: focus must stay within the overlay, never leak to elements behind it. Check that closing the overlay restores navigation to the previous scope. Nested overlays (dialog within dialog) must also work correctly.
-* **B-button / back behavior:** B button calls `history.back()` — it navigates the browser back one step. This is the only reliable escape on console browsers. Verify it works from any state.
-* **Focus ring visibility:** The focus ring (default blue or scenario-custom) must be clearly visible on all backgrounds. Check both light and dark mode if applicable.
-* **No dual selection:** Only one element should show the focus ring at a time. After navigating, verify the previous element's ring disappears before the new one appears. Stale `data-spatial-focus` attributes indicate a bug in the spatial nav engine.
-
-This check complements Section 5 (Shortcut & Accelerator Consistency) — keyboard shortcuts and gamepad navigation should be coherent with each other.
+Rule: if the finding is structural or about runtime mechanics owned by another skill, **stop here and hand off**. Do not paper over an experience-architecture or gamepad-mechanics problem with a navigation spec patch.
 
 ---
 
-### **9. Documentation**
+### 4. Canonical Spec Shape
 
-Update the **Navigation** section of `docs/internal/EXPERIENCE-AUDIT.md` to record your findings:
+When a scenario has more than a handful of routes, declare them in a spec rather than implicit handler code.
 
-* The code is the source of truth. Verify existing claims against actual code before extending.
-* Correct any inaccuracies and extend with your new discoveries.
-* Create the `docs/internal/` directory if needed.
+```text
+scenarios/{{TARGET}}/
+  ui/flow/
+    navigation.json                # single source of truth
+  ui/src/
+    routes.generated.ts            # emitted by `flow-verifier flows codegen`
+    App.tsx                        # consumes ROUTE_PATTERNS.*; no raw path strings
+    components/
+      RouteGate.tsx                # enforces deep_link_policy from spec
+      Navigation.tsx               # renders affordances filtered by context
+```
 
-Include:
-* Intended navigation mental model/graph
-* Label→destination mismatches found (fixed and deferred)
-* Back/forward coherence issues and their status
-* Edge cases: deep links, refresh behavior, multi-path navigation
+The spec owns:
+- **contexts** — declared conditional dimensions (`auth`, `role`, `viewport`, feature flags). `requires` (routes) and `show_when` (containers, affordances, presentations) are predicates over contexts. Predicate DSL: `AND`/`OR`/`NOT`/`=`/`!=`/`IN`/`CONTAINS`.
+- **routes** — URL targets with `requires`, `redirect_if_unmet`, `deep_link` recoverability, `parents` for back-path inference.
+- **containers** — layout-bearing elements (`persistent`/`drawer`/`popover`) with their own visibility rules, disclosure model (`always_visible`/`click_to_open`/`hover_to_open`), and focus-trap/dismiss semantics.
+- **affordances** — logical intents with one `to` destination and one or more **presentations** describing how they appear in each container. The same `nav_settings` affordance can present in `top_nav_bar`, `bottom_nav`, and `hamburger_menu` — the verifier knows they're the same intent and the disclosure cost is added to reachability automatically.
+- **overlays** — modals/drawers/dialogs that aren't navigation targets (confirm-logout, delete-confirmation).
+- **return_paths** — per-route back-rule (`history_back`/`canonical_parent`/`prompt`) with fallback for missing history.
+- **shortcuts** — keyboard bindings, scope (global/local), `excluded_routes`, optional `show_when`.
+- **reachability_invariants** — policy assertions: under a given context, certain routes must (or must not) be reachable from a start route, within a viewport-keyed click budget (`max_clicks: { "desktop": 1, "mobile": 2 }`).
+- **deep_link_policy** — direct-entry resolution rules (auth-required → redirect to login with preserved target; admin-only → redirect non-admins; etc.).
+
+The spec does **not** own: animation/transition/CSS, real auth machinery, gamepad runtime mechanics. Container declarations include `reachable_via: ["mouse", "keyboard", "gamepad"]` per presentation; gamepad behavior is implemented in `ui-health` substrate.
+
+Canonical reference fixture: `scenarios/flow-verifier/api/internal/flows/schemas/examples/navigation-full.json` (embedded). It exercises every schema field — read it before authoring a new spec.
+
+---
+
+### 5. Reachability, Deep-Link, and Spec Conformance
+
+For Level 4+ surfaces, prove navigation completeness with checks that fail on drift:
+
+**Reachability invariants.** Every gated destination has both a positive and a negative invariant:
+- positive: `must_reach: ["settings_index"]` from `home` given `auth=logged_in` within `max_clicks: { desktop: 1, mobile: 2 }`
+- negative: `must_not_reach: ["admin_users"]` from `home` given `auth=logged_in AND role!=admin`
+- coverage rule of thumb: every route with a non-trivial `requires` predicate has at least one negative invariant proving it's unreachable when the predicate fails.
+
+**Deep-link policy.** Every route whose `requires` references a gated context has a matching `deep_link_policy` entry declaring the redirect target. Spec validation should fail without it.
+
+**Code↔spec reconciliation.** Every `<Route path=>` in `App.tsx` matches a spec route. Every `<Link to=>` and `useNavigate(...)` argument resolves to a registered route id (consumed via `ROUTE_PATTERNS.*`). Every spec affordance renders in its declared container with its declared label and resolves to its declared destination.
+
+**Behavioral conformance (component tier — Vitest+RTL).** For each affordance: render the host container under the declared context, assert the element exists with the declared label and `test_id`, click it, assert the route changed. For each overlay: render at host route, trigger, assert focus trap, dismiss via each declared `dismiss` mechanism.
+
+**Behavioral conformance (E2E tier — BAS).** Walk the spec end-to-end. Click each affordance, assert URL change. Verify back-path preserves history. Deep-link + refresh recovers state for `deep_link: "recoverable"` routes. Modal overlays trap focus; nested overlays restore prior scope on close.
+
+Coverage percentages are not proof of navigation completeness. A suite can render every component while never asserting that an admin link is hidden from a non-admin.
+
+---
+
+### 6. CLI Commands (programmatic substrate)
+
+| Command | Purpose | When to run |
+|---|---|---|
+| `flow-verifier flows list --kind navigation --root <scenario>` | Inventory navigation specs in this scenario | Start of every audit |
+| `flow-verifier flows validate --kind navigation --root <scenario>` | Schema + structural validation (no orphan refs, predicates parse) | After every spec edit |
+| `flow-verifier flows codegen --flow <id> --root <scenario> --write` | Emit `routes.generated.ts` | After adding/renaming routes |
+| `flow-verifier flows reconcile --flow <id> --root <scenario>` | Walk `ui/src/`; assert every `<Route path=>`/`<Link to=>`/`useNavigate` resolves; flag orphans either direction | After every code or spec edit touching routes |
+| `flow-verifier verify run --flow <id> --root <scenario>` | Reachability invariants + deep-link policy on the static graph | After every spec edit or context-model change |
+| `flow-verifier flows studio --flow <id> --root <scenario>` | Print Studio descriptor for visual review (routes, affordances, containers, context toggles, invariant pass/fail) | When eyeballing a graph change |
+| `flow-verifier flows new <ui-dir> --flow-id <id> --kind navigation --root <scenario>` | Scaffold a minimal valid `navigation.json` for a new surface | When introducing a new feature surface |
+
+If a recurring manual check has no CLI surface, **add it to flow-verifier rather than working around it in this skill** — that's how the skill becomes more programmatic over time.
+
+---
+
+### 7. Audit Checklist
+
+Map every URL surface:
+- routes, sub-routes, parameter-bearing pages
+- containers and their disclosure models
+- overlays (modals, drawers, dialogs) and their dismiss semantics
+- shortcuts and their scopes
+- gated destinations (auth, role, feature flag, viewport)
+
+For each, identify:
+- declared in spec? (or just in code)
+- reconcile clean against `ui/src/`?
+- reachability invariants present (positive + negative for gated routes)?
+- deep-link policy covers it?
+- component-tier test asserts label + destination?
+- E2E flow walks it?
+- current maturity level
+- next maturity step
+
+Then improve the highest-risk gaps first:
+- introduce a spec where none exists; codegen `routes.generated.ts`; replace raw path strings
+- close reconcile diffs (orphan routes, orphan links, label drift)
+- add negative reachability invariants for every gated route
+- add deep-link policy entries for every auth/role/flag-gated route
+- ensure overlays have focus traps and matching dismiss declarations
+- record accepted exceptions in `PROBLEMS.md` with rationale
+
+Avoid large risky rewrites in one loop. If the correct redesign is too broad (e.g., the IA itself is wrong), hand off to `experience-architecture-audit` and document the candidate.
+
+---
+
+### 8. Documentation
+
+Use `knowledge-observatory-tools` to read and update the **Navigation** section of `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md`.
+
+This section is an index and memory layer, not the detailed spec source of truth. Detailed routes/containers/affordances/invariants belong in `ui/flow/navigation.json` and pass through `flow-verifier`.
+
+Recommended shape for the EXPERIENCE-AUDIT.md Navigation section:
+
+```markdown
+## Navigation
+
+### Surfaces
+
+| Flow ID | Surface | Spec | Maturity | Reconcile | Verify | Last audited |
+|---|---|---|---|---|---|---|
+
+### Unmodeled Surfaces
+
+| Surface | Why it should be modeled | Current risk | Recommended next step |
+|---|---|---|---|
+
+### Accepted Exceptions
+
+| Finding | Why accepted | Cleanup trigger |
+|---|---|---|
+
+### Audit Notes
+
+- [Date] [Agent/author]: [Short note with evidence and links.]
+```
+
+When updating:
+- verify existing claims against `ui/flow/navigation.json` and `flow-verifier` output before extending them
+- link to source files with `path:` references
+- record unmodeled surfaces rather than leaving discoveries in chat
+- keep long route/affordance tables out of this doc once the spec exists — the spec is the source of truth
+- create `path:docs/internal/` if needed
+
+---
+
+### **9. Output Expectations**
+
+By the end of this loop, the scenario should:
+- have a clearer inventory of URL surfaces in `EXPERIENCE-AUDIT.md`
+- move at least one surface up the maturity ladder
+- have fewer hidden label↔destination drifts and unreachable/over-reachable gaps
+- keep navigation rules in `ui/flow/navigation.json` rather than scattered across `App.tsx`, link components, and gate components
+- have executable validation (`validate` + `reconcile` + `verify run`) for important navigation surfaces
+- leave future agents with a lower-drift `EXPERIENCE-AUDIT.md` Navigation section
+
+Avoid superficial edits that rename or reshuffle navigation code without improving spec coverage or moving up the maturity ladder.

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:AppShell",
+  "version": "2.0.2",
+  "resolvedAt": "2026-09-03T18:19:07.403Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:BottomNav",
+      "major": 1,
+      "observed": "1.5.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:IconButton",
+      "major": 3,
+      "observed": "3.1.5",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:NotificationBadge",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:SidebarShell",
+      "major": 2,
+      "observed": "2.7.2",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useMediaQuery",
+      "major": 1,
+      "observed": "1.1.0",
+      "rank": 2
+    }
+  ]
+}

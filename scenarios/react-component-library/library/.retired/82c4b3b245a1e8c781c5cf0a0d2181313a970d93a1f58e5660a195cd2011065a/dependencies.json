@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:SubscriptionStatusCard",
+  "version": "1.0.4",
+  "resolvedAt": "2026-08-31T05:06:49Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:MonetizationAccount",
+      "version": "1.0.5",
+      "rank": 4
+    }
+  ]
+}

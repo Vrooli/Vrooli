@@ -1,0 +1,208 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/package.schema.json",
+  "title": "Vrooli Package Governance Schema",
+  "description": "Manifest-driven governance for shared packages that scenarios may adopt.",
+  "type": "object",
+  "required": ["$schema", "version", "package"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "schemas/package.schema.json"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver"
+    },
+    "package": {
+      "type": "object",
+      "required": ["name", "display_name", "kind", "module_identifiers", "adoption", "lifecycle", "refresh"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "js_runtime",
+            "generated_typescript",
+            "go_runtime",
+            "go_cli",
+            "go_testkit",
+            "internal_platform",
+            "schema_or_contract"
+          ]
+        },
+        "language": {
+          "type": "string"
+        },
+        "module_identifiers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "generated_outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "identifiers": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "consumers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/consumerClass"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "adoption": {
+          "type": "object",
+          "required": ["scenario_adoptable", "allowed_consumers", "adoption_modes"],
+          "properties": {
+            "scenario_adoptable": {
+              "type": "boolean"
+            },
+            "allowed_consumers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/consumerClass"
+              }
+            },
+            "adoption_modes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/adoptionMode"
+              }
+            },
+            "owns_resource_environment": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]*$"
+              },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "lifecycle": {
+          "type": "object",
+          "properties": {
+            "generate": {
+              "$ref": "#/definitions/commandList"
+            },
+            "build": {
+              "$ref": "#/definitions/commandList"
+            },
+            "test": {
+              "$ref": "#/definitions/commandList"
+            }
+          },
+          "additionalProperties": false
+        },
+        "module_boundary": {
+          "type": "object",
+          "description": "Explicit temporary ownership record for a Go package that remains covered by the repository module.",
+          "required": ["status", "reason"],
+          "properties": {
+            "status": { "const": "intentional_exception" },
+            "reason": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "refresh": {
+          "type": "object",
+          "required": ["strategy", "restart_running_consumers"],
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "scenario_setup",
+                "generate_then_setup",
+                "restart_running_consumers",
+                "rebuild_cli_consumers",
+                "none"
+              ]
+            },
+            "restart_running_consumers": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "docs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "consumerClass": {
+      "type": "string",
+      "enum": [
+        "scenario_ui",
+        "scenario_api",
+        "scenario_cli",
+        "scenario_test",
+        "template_ui",
+        "template_api",
+        "template_cli",
+        "resource_runtime",
+        "internal_platform"
+      ]
+    },
+    "adoptionMode": {
+      "type": "string",
+      "enum": [
+        "file_dependency",
+        "go_module_replace",
+        "generated_artifact",
+        "published_semver"
+      ]
+    },
+    "commandList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "run"],
+        "properties": {
+          "name": { "type": "string" },
+          "run": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "outputs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

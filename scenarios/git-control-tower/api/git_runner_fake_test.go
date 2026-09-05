@@ -67,7 +67,13 @@ type FakeGitRunner struct {
 	// History tracking
 	HistoryLines   []string
 	HistoryDetails []RepoHistoryEntry
-	NumstatLines   []string
+
+	// NumstatLines holds one `git diff --numstat` record per entry, written in
+	// the tab-separated form ("<add>\t<del>\t<path>"). DiffNumstat joins them
+	// into the NUL-delimited -z framing the real runner produces. A rename is
+	// expressed as an empty path field followed by its two paths, e.g.
+	// {"1\t0\t", "old.go", "new.go"}.
+	NumstatLines []string
 
 	// Config values
 	ConfigValues map[string]string
@@ -295,7 +301,7 @@ func (f *FakeGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 
 // Commit simulates creating a commit.
 func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
-	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail)
+	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail, fmt.Sprintf("no_verify=%v", options.NoVerify))
 
 	if f.CommitError != nil {
 		return "", f.CommitError
@@ -615,11 +621,14 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 }
 
 func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
-	f.recordCall("DiffNumstat", repoDir, fmt.Sprintf("staged=%v", staged))
+	f.recordCall("DiffNumstat", append([]string{repoDir, fmt.Sprintf("staged=%v", staged)}, paths...)...)
 	if f.DiffError != nil {
 		return nil, f.DiffError
 	}
-	return []byte(strings.Join(f.NumstatLines, "\n")), nil
+	if len(f.NumstatLines) == 0 {
+		return nil, nil
+	}
+	return []byte(strings.Join(f.NumstatLines, "\x00") + "\x00"), nil
 }
 
 func (f *FakeGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {

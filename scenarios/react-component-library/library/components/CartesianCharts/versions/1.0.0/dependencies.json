@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:CartesianCharts",
+  "version": "1.0.0",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Chart",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 4
+    }
+  ]
+}

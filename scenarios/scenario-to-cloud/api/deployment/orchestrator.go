@@ -257,7 +257,7 @@ func (o *Orchestrator) RunPipeline(
 				DurationMs: time.Since(preflightStart).Milliseconds(),
 				Success:    boolPtr(false),
 			})
-			setDeploymentError(o.repo, ctx, id, "preflight", errMsg)
+			setDeploymentError(ctx, o.repo, id, "preflight", errMsg)
 			emitError("preflight", "Running preflight checks", errMsg)
 			return
 		}
@@ -307,7 +307,7 @@ func (o *Orchestrator) RunPipeline(
 			Success:    boolPtr(false),
 			StepName:   failedStep,
 		})
-		setDeploymentError(o.repo, ctx, id, failedStep, setupResult.Error)
+		setDeploymentError(ctx, o.repo, id, failedStep, setupResult.Error)
 		return
 	}
 
@@ -352,7 +352,7 @@ func (o *Orchestrator) RunPipeline(
 			Success:    boolPtr(false),
 			StepName:   failedStep,
 		})
-		setDeploymentError(o.repo, ctx, id, failedStep, deployResult.Error)
+		setDeploymentError(ctx, o.repo, id, failedStep, deployResult.Error)
 		return
 	}
 
@@ -452,7 +452,7 @@ func (o *Orchestrator) RunStartPipeline(
 			Success:    boolPtr(false),
 			StepName:   failedStep,
 		})
-		setDeploymentError(o.repo, ctx, id, failedStep, deployResult.Error)
+		setDeploymentError(ctx, o.repo, id, failedStep, deployResult.Error)
 		return
 	}
 
@@ -506,7 +506,7 @@ func (o *Orchestrator) ensureSecretsAvailable(
 				"error":       err.Error(),
 			})
 			errMsg := fmt.Sprintf("secrets-manager unavailable: %v", err)
-			setDeploymentError(o.repo, ctx, deploymentID, "secrets_fetch", errMsg)
+			setDeploymentError(ctx, o.repo, deploymentID, "secrets_fetch", errMsg)
 			emitError("secrets_fetch", "Fetching secrets", err.Error())
 			o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
 				Type:      domain.EventDeployFailed,
@@ -535,7 +535,7 @@ func (o *Orchestrator) ensureSecretsAvailable(
 			"scenario_id": manifest.Scenario.ID,
 			"missing":     missing,
 		})
-		setDeploymentError(o.repo, ctx, deploymentID, "secrets_validate", err.Error())
+		setDeploymentError(ctx, o.repo, deploymentID, "secrets_validate", err.Error())
 		emitError("secrets_validate", "Validating secrets", err.Error())
 		o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
 			Type:      domain.EventDeployFailed,
@@ -569,14 +569,14 @@ func (o *Orchestrator) ensureBundleBuilt(
 	// Get bundle output directory
 	repoRoot, err := bundle.FindRepoRootFromCWD()
 	if err != nil {
-		setDeploymentError(o.repo, ctx, deploymentID, "bundle_build", err.Error())
+		setDeploymentError(ctx, o.repo, deploymentID, "bundle_build", err.Error())
 		emitError("bundle_build", "Building bundle", err.Error())
 		return "", err
 	}
 
 	outDir, err := bundle.GetLocalBundlesDir()
 	if err != nil {
-		setDeploymentError(o.repo, ctx, deploymentID, "bundle_build", err.Error())
+		setDeploymentError(ctx, o.repo, deploymentID, "bundle_build", err.Error())
 		emitError("bundle_build", "Building bundle", err.Error())
 		return "", err
 	}
@@ -588,7 +588,7 @@ func (o *Orchestrator) ensureBundleBuilt(
 	buildStart := time.Now()
 	artifact, err := bundle.BuildMiniVrooliBundle(repoRoot, outDir, manifest)
 	if err != nil {
-		setDeploymentError(o.repo, ctx, deploymentID, "bundle_build", err.Error())
+		setDeploymentError(ctx, o.repo, deploymentID, "bundle_build", err.Error())
 		emitError("bundle_build", "Building bundle", err.Error())
 		o.appendHistoryEvent(ctx, deploymentID, domain.HistoryEvent{
 			Type:       domain.EventBundleBuilt,
@@ -742,9 +742,9 @@ type HistoryRecorder interface {
 }
 
 // setDeploymentError is a helper to set error status on a deployment.
-func setDeploymentError(repo interface {
+func setDeploymentError(ctx context.Context, repo interface {
 	UpdateDeploymentStatus(ctx context.Context, id string, status domain.DeploymentStatus, errorMsg, errorStep *string) error
-}, ctx context.Context, id, step, errMsg string,
+}, id, step, errMsg string,
 ) {
 	_ = repo.UpdateDeploymentStatus(ctx, id, domain.StatusFailed, &errMsg, &step)
 }
@@ -815,10 +815,10 @@ func (o *Orchestrator) tryAutoVPSBundleGC(ctx context.Context, deploymentID stri
 
 	cfg := ssh.ConfigFromManifest(manifest)
 	req := domain.VPSBundleGCRequest{
-		ScenarioID:     manifest.Scenario.ID,
-		KeepLatest:     bundle.DefaultVPSBundleKeepLatest,
-		ProtectSHA256:  protect,
-		DryRun:         false,
+		ScenarioID:    manifest.Scenario.ID,
+		KeepLatest:    bundle.DefaultVPSBundleKeepLatest,
+		ProtectSHA256: protect,
+		DryRun:        false,
 	}
 
 	gcStart := time.Now()

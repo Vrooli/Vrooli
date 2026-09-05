@@ -3,9 +3,9 @@ package testgenie
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"

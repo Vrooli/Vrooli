@@ -25,7 +25,7 @@ type AsyncOperationRecord struct {
 	Phase         string
 	Result        json.RawMessage
 	Error         string
-	AsyncBehavior json.RawMessage // Serialized proto as JSON
+	AsyncBehavior json.RawMessage // Serialized async tracking config as JSON
 	StartedAt     time.Time
 	UpdatedAt     time.Time
 	CompletedAt   *time.Time

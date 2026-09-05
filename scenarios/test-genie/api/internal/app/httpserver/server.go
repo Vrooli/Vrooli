@@ -2,32 +2,39 @@ package httpserver
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"google.golang.org/protobuf/encoding/protojson"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	apiserver "github.com/vrooli/api-core/server"
 
 	"test-genie/agentmanager"
+	appelig "test-genie/internal/app/eligibility"
+	apprun "test-genie/internal/app/runs"
+	appvalidation "test-genie/internal/app/validation"
+	"test-genie/internal/dbexec"
 	"test-genie/internal/execution"
-	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/queue"
-	"test-genie/internal/requirementsimprove"
+	"test-genie/internal/playbooksclaims"
+	"test-genie/internal/remediation"
+	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
-	"test-genie/internal/toolexecution"
-	"test-genie/internal/toolregistry"
+	"test-genie/internal/selfhealthsnapshots"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/packages/artifactledger"
+
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
 // Config controls the HTTP transport settings.
@@ -44,33 +51,27 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
-	DB                         *sql.DB
-	SuiteQueue                 suiteRequestQueue
-	Executions                 execution.ExecutionHistory
-	ExecutionSvc               suiteExecutor
-	ExecutionPlanner           executionPlanner
-	Scenarios                  scenarioDirectory
-	PhaseCatalog               phaseCatalog
-	AgentService               *agentmanager.AgentService
-	FixService                 fixService
-	RequirementsImproveService requirementsImproveService
-	RequirementsSyncer         requirementsSyncer
-	Logger                     Logger
-	// Tool Discovery Protocol support
-	ToolRegistry *toolregistry.Registry
-	ToolHandler  *toolexecution.Handler
-}
-
-type suiteRequestQueue interface {
-	Queue(ctx context.Context, payload queue.QueueSuiteRequestInput) (*queue.SuiteRequest, error)
-	List(ctx context.Context, limit int) ([]queue.SuiteRequest, error)
-	Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error)
-	StatusSnapshot(ctx context.Context) (queue.SuiteRequestSnapshot, error)
-}
-
-type suiteExecutor interface {
-	Execute(ctx context.Context, input execution.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error)
-	ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
+	RepoRoot            string
+	DB                  *database.RoutedDB
+	HealthDB            dbexec.HealthProbe
+	Executions          execution.ExecutionHistory
+	ExecutionPlanner    executionPlanner
+	RunManager          *runmanager.Manager
+	Scenarios           scenarioDirectory
+	PhaseCatalog        phaseCatalog
+	AgentService        *agentmanager.AgentService
+	RemediationService  remediationService
+	RemediationLauncher remediation.Launcher
+	RequirementsSyncer  requirementsSyncer
+	PlaybooksClaims     *playbooksclaims.Service
+	EligibilityService  *appelig.Service
+	RunsService         *apprun.Service
+	ValidationService   *appvalidation.Service
+	// StartBackground receives a process-owned context after the HTTP listener
+	// is live. It is for advisory work only; serving must not depend on it.
+	StartBackground func(context.Context)
+	SweepStatus     *selfhealthsnapshots.StatusStore
+	Logger          Logger
 }
 
 type executionPlanner interface {
@@ -81,8 +82,6 @@ type scenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
 	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
-	RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error)
 	ScenarioRoot() string
@@ -94,50 +93,57 @@ type phaseCatalog interface {
 	SaveGlobalPhaseToggles(orchestrator.PhaseToggleConfig) (orchestrator.PhaseToggleConfig, error)
 }
 
-type fixService interface {
-	Spawn(ctx context.Context, req fix.SpawnRequest) (*fix.SpawnResult, error)
-	Get(id string) (*fix.Record, bool)
-	ListByScenario(scenarioName string, limit int) []*fix.Record
-	GetActiveForScenario(scenarioName string) *fix.Record
-	Stop(ctx context.Context, id string) error
-	IsAgentAvailable(ctx context.Context) bool
-}
-
-type requirementsImproveService interface {
-	Spawn(ctx context.Context, req requirementsimprove.SpawnRequest) (*requirementsimprove.SpawnResult, error)
-	Get(id string) (*requirementsimprove.Record, bool)
-	ListByScenario(scenarioName string, limit int) []*requirementsimprove.Record
-	GetActiveForScenario(scenarioName string) *requirementsimprove.Record
-	Stop(ctx context.Context, id string) error
-	IsAgentAvailable(ctx context.Context) bool
-}
-
 type requirementsSyncer interface {
 	Sync(ctx context.Context, scenarioDir string) error
 }
 
+type remediationService interface {
+	Create(context.Context, remediation.Plan, []string, []string, string) (remediation.Job, error)
+	Get(context.Context, string) (remediation.Job, error)
+	List(context.Context, string, int) ([]remediation.Job, error)
+	Cancel(context.Context, string) (remediation.Job, error)
+	PrepareLaunch(context.Context, string, string) (remediation.Job, error)
+	RetryLaunch(context.Context, string) (remediation.Job, error)
+	RecordLaunchFailure(context.Context, string, string) (remediation.Job, error)
+	MarkRunning(context.Context, string, remediation.Attribution) (remediation.Job, error)
+	MarkAgentCompleted(context.Context, string, string) (remediation.Job, error)
+	StartVerification(context.Context, string, remediation.Verification) (remediation.Job, error)
+	ReserveVerification(context.Context, string) (remediation.Job, error)
+	SetVerificationRun(context.Context, string, remediation.Verification) (remediation.Job, error)
+	ReleaseVerificationReservation(context.Context, string) (remediation.Job, error)
+	CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, remediation.RequirementDelta, string) (remediation.Job, error)
+	Fail(context.Context, string, string) (remediation.Job, error)
+}
+
 // Server wires the HTTP router, configuration, and service dependencies behind intentional seams.
 type Server struct {
-	config                     Config
-	db                         *sql.DB
-	router                     *mux.Router
-	suiteRequests              suiteRequestQueue
-	executionHistory           execution.ExecutionHistory
-	executionSvc               suiteExecutor
-	executionPlanner           executionPlanner
-	scenarios                  scenarioDirectory
-	phaseCatalog               phaseCatalog
-	logger                     Logger
-	agentService               *agentmanager.AgentService
-	fixService                 fixService
-	requirementsImproveService requirementsImproveService
-	requirementsSyncer         requirementsSyncer
-	seedSessions               map[string]*seedSession
-	seedSessionsByScenario     map[string]string
-	seedSessionsMu             sync.Mutex
-	// Tool Discovery Protocol support
-	toolRegistry *toolregistry.Registry
-	toolHandler  *toolexecution.Handler
+	config                 Config
+	db                     *database.RoutedDB
+	healthDB               dbexec.HealthProbe
+	router                 *mux.Router
+	executionHistory       execution.ExecutionHistory
+	executionPlanner       executionPlanner
+	runManager             *runmanager.Manager
+	scenarios              scenarioDirectory
+	phaseCatalog           phaseCatalog
+	logger                 Logger
+	agentService           *agentmanager.AgentService
+	remediationService     remediationService
+	remediationLauncher    remediation.Launcher
+	requirementsSyncer     requirementsSyncer
+	playbooksClaims        *playbooksclaims.Service
+	eligibilityService     *appelig.Service
+	runsService            *apprun.Service
+	validationService      *appvalidation.Service
+	startBackground        func(context.Context)
+	sweepStatus            *selfhealthsnapshots.StatusStore
+	repoRoot               string
+	seedSessions           map[string]*seedSession
+	seedSessionsByScenario map[string]string
+	seedSessionsMu         sync.Mutex
+	cleanupMu              sync.Mutex
+	cleanupResults         map[string]ownerCleanupApplyResponse
+	removalLedger          *artifactledger.Ledger
 }
 
 // New creates a configured HTTP server instance.
@@ -148,17 +154,14 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	if deps.DB == nil {
 		return nil, fmt.Errorf("database dependency is required")
 	}
-	if deps.SuiteQueue == nil {
-		return nil, fmt.Errorf("suite request service is required")
-	}
 	if deps.Executions == nil {
 		return nil, fmt.Errorf("execution history service is required")
 	}
-	if deps.ExecutionSvc == nil {
-		return nil, fmt.Errorf("execution service is required")
-	}
 	if deps.ExecutionPlanner == nil {
 		return nil, fmt.Errorf("execution planner is required")
+	}
+	if deps.RunManager == nil {
+		return nil, fmt.Errorf("run manager is required")
 	}
 	if deps.Scenarios == nil {
 		return nil, fmt.Errorf("scenario directory service is required")
@@ -176,24 +179,30 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	}
 
 	srv := &Server{
-		config:                     config,
-		db:                         deps.DB,
-		router:                     mux.NewRouter(),
-		suiteRequests:              deps.SuiteQueue,
-		executionHistory:           deps.Executions,
-		executionSvc:               deps.ExecutionSvc,
-		executionPlanner:           deps.ExecutionPlanner,
-		scenarios:                  deps.Scenarios,
-		phaseCatalog:               deps.PhaseCatalog,
-		logger:                     logger,
-		agentService:               deps.AgentService,
-		fixService:                 deps.FixService,
-		requirementsImproveService: deps.RequirementsImproveService,
-		requirementsSyncer:         deps.RequirementsSyncer,
-		seedSessions:               make(map[string]*seedSession),
-		seedSessionsByScenario:     make(map[string]string),
-		toolRegistry:               deps.ToolRegistry,
-		toolHandler:                deps.ToolHandler,
+		config:                 config,
+		db:                     deps.DB,
+		healthDB:               deps.HealthDB,
+		router:                 mux.NewRouter(),
+		executionHistory:       deps.Executions,
+		executionPlanner:       deps.ExecutionPlanner,
+		runManager:             deps.RunManager,
+		scenarios:              deps.Scenarios,
+		phaseCatalog:           deps.PhaseCatalog,
+		logger:                 logger,
+		agentService:           deps.AgentService,
+		remediationService:     deps.RemediationService,
+		remediationLauncher:    deps.RemediationLauncher,
+		requirementsSyncer:     deps.RequirementsSyncer,
+		playbooksClaims:        deps.PlaybooksClaims,
+		eligibilityService:     deps.EligibilityService,
+		runsService:            deps.RunsService,
+		validationService:      deps.ValidationService,
+		startBackground:        deps.StartBackground,
+		sweepStatus:            deps.SweepStatus,
+		repoRoot:               deps.RepoRoot,
+		seedSessions:           make(map[string]*seedSession),
+		seedSessionsByScenario: make(map[string]string),
+		cleanupResults:         make(map[string]ownerCleanupApplyResponse),
 	}
 
 	srv.setupRoutes()
@@ -201,50 +210,50 @@ func New(config Config, deps Dependencies) (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
+	s.router.Use(s.securityHeadersMiddleware)
 	s.router.Use(s.loggingMiddleware)
 	// Health endpoint at root for infrastructure agents
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 
 	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/health", s.handleHealth).Methods("GET")
+	apiRouter.HandleFunc("/cleanup/estimate", s.handleCleanupEstimate).Methods("GET")
+	apiRouter.HandleFunc("/cleanup/preview", s.handleCleanupPreview).Methods("POST")
+	apiRouter.HandleFunc("/cleanup/apply", s.handleCleanupApply).Methods("POST")
+	apiRouter.HandleFunc("/admission", s.handleAdmissionStatus).Methods("GET")
+	apiRouter.HandleFunc("/admission/profile", s.handleAdmissionProfile).Methods("POST")
 	apiRouter.HandleFunc("/config", s.handleGetConfig).Methods("GET")
-	apiRouter.HandleFunc("/suite-requests", s.handleCreateSuiteRequest).Methods("POST")
-	apiRouter.HandleFunc("/suite-requests", s.handleListSuiteRequests).Methods("GET")
-	apiRouter.HandleFunc("/suite-requests/{id}", s.handleGetSuiteRequest).Methods("GET")
 	apiRouter.HandleFunc("/phases", s.handleListPhases).Methods("GET")
+	apiRouter.HandleFunc("/phases/applicability", s.handlePreviewPhaseApplicability).Methods("GET")
 	apiRouter.HandleFunc("/phases/settings", s.handleGetPhaseSettings).Methods("GET")
 	apiRouter.HandleFunc("/phases/settings", s.handleUpdatePhaseSettings).Methods("PUT")
+	apiRouter.HandleFunc("/phases/{phase}", s.handleInspectPhase).Methods("GET")
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
 	apiRouter.HandleFunc("/executions/plan", s.handlePreviewExecutionPlan).Methods("POST")
 	apiRouter.HandleFunc("/executions/stream", s.handleExecuteSuiteStream).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
 	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
+	apiRouter.HandleFunc("/targets", s.handleListTargets).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/run-tests", s.handleRunScenarioTests).Methods("POST")
-	apiRouter.HandleFunc("/scenarios/{name}/ui-smoke", s.handleUISmoke).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/apply", s.handlePlaybooksSeedApply).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup", s.handlePlaybooksSeedCleanup).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup-force", s.handlePlaybooksSeedCleanupForce).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/files", s.handleListScenarioFiles).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/plans/{executionID}", s.handleGetRemediationPlan).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs", s.handleCreateRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs", s.handleListRemediationJobs).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}", s.handleGetRemediationJob).Methods("GET")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/cancel", s.handleCancelRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/recover", s.handleRecoverRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/retry", s.handleRetryRemediationJob).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/agent-status", s.handleRefreshRemediationAgent).Methods("POST")
+	apiRouter.HandleFunc("/scenarios/{name}/remediation/jobs/{id}/verify", s.handleVerifyRemediationJob).Methods("POST")
 
-	// Agent routes (via agent-manager)
-	apiRouter.HandleFunc("/agents/models", s.handleListAgentModels).Methods("GET")
-	apiRouter.HandleFunc("/agents/spawn", s.handleSpawnAgents).Methods("POST")
-	apiRouter.HandleFunc("/agents/active", s.handleListActiveAgents).Methods("GET")
-	apiRouter.HandleFunc("/agents/blocked-commands", s.handleGetBlockedCommands).Methods("GET")
-	apiRouter.HandleFunc("/agents/status", s.handleGetAgentManagerStatus).Methods("GET")
-	apiRouter.HandleFunc("/agents/ws-url", s.handleGetAgentManagerWSUrl).Methods("GET")
-	apiRouter.HandleFunc("/agents/{id}", s.handleGetAgent).Methods("GET")
-	apiRouter.HandleFunc("/agents/{id}/stop", s.handleStopAgent).Methods("POST")
-	apiRouter.HandleFunc("/agents/stop-all", s.handleStopAllAgents).Methods("POST")
-
-	// Fix routes (agent-based test fixing)
-	apiRouter.HandleFunc("/scenarios/{name}/fix", s.handleSpawnFix).Methods("POST")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes", s.handleListFixes).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes/active", s.handleGetActiveFix).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}", s.handleGetFix).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}/stop", s.handleStopFix).Methods("POST")
+	// Agent Manager exposes portable role choices. Remediation jobs are the only
+	// supported Test Genie surface that creates or controls agent runs.
+	apiRouter.HandleFunc("/agents/roles", s.handleListAgentRoles).Methods("GET")
 
 	// Docs endpoints for in-app documentation browser
 	apiRouter.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
@@ -254,65 +263,86 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/requirements", s.handleGetScenarioRequirements).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/sync", s.handleSyncScenarioRequirements).Methods("POST")
 
-	// Requirements improve routes (agent-based requirements improvement)
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve", s.handleSpawnRequirementsImprove).Methods("POST")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve", s.handleListRequirementsImproves).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/active", s.handleGetActiveRequirementsImprove).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
-	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
+	// Workflow seed claim routes (legacy playbooks URL retained for clients)
+	apiRouter.HandleFunc("/playbooks/claims", s.handleListPlaybooksClaims).Methods("GET")
+	apiRouter.HandleFunc("/playbooks/claims/{scenario}", s.handleGetPlaybooksClaim).Methods("GET")
+	apiRouter.HandleFunc("/playbooks/claims/{scenario}/release", s.handleReleasePlaybooksClaim).Methods("POST")
 
-	// Tool Discovery Protocol routes
-	if s.toolRegistry != nil {
-		apiRouter.HandleFunc("/tools", s.handleGetToolManifest).Methods("GET", "OPTIONS")
-		apiRouter.HandleFunc("/tools/{name}", s.handleGetTool).Methods("GET", "OPTIONS")
+	// Eligibility Connect-RPC service. The handler resolves a per-scenario
+	// auditor scan and reports whether the scenario qualifies for the
+	// routed-test-db path. gorilla/mux matches the full path prefix the
+	// Connect handler emits; the {rest:.*} suffix forwards every method
+	// under that prefix to the generated handler.
+	if s.eligibilityService != nil {
+		path, handler := eligibility_v1connect.NewEligibilityServiceHandler(s.eligibilityService)
+		s.router.PathPrefix(path).Handler(handler)
 	}
-	if s.toolHandler != nil {
-		apiRouter.HandleFunc("/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
+
+	// Provider-conformance ScenarioValidationService: Test Genie's own
+	// descriptor-backed phase. Validates target scenarios that declare
+	// .vrooli/test-genie.json phase descriptors (descriptor, embedded maturity,
+	// policy, stale-file, and live provider-contract conformance).
+	if s.validationService != nil {
+		path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(s.validationService.Served())
+		s.router.PathPrefix(path).Handler(handler)
+	}
+
+	// Runs Connect-RPC service: enumerates/compares/pins the append-only run
+	// index. Consumed by the test-genie CLI and GCT baseline adapters.
+	if s.runsService != nil {
+		path, handler := runs_v1connect.NewRunsServiceHandler(s.runsService)
+		s.router.PathPrefix(path).Handler(handler)
+
+		// Opaque binary artifact route: metadata is enumerated through the typed
+		// RunsService catalog while bytes use REST so media range requests work
+		// without buffering entire recordings through protobuf.
+		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifacts/{artifactId}", s.handleGetRunArtifactByID).Methods("GET")
 	}
 }
 
-// Start launches the HTTP server with graceful shutdown.
+// Handler preserves Test Genie's router, development routing, test-mode
+// isolation, and recovery middleware while delegating lifecycle and receipt
+// observation to api-core/server.
+func (s *Server) Handler() http.Handler {
+	rootMux := http.NewServeMux()
+	if s.db != nil {
+		devrouting.Register(rootMux, s.db)
+	}
+	rootMux.Handle("/", s.router)
+	return handlers.RecoveryHandler()(apihttp.TestModeMiddleware(rootMux))
+}
+
+// Start launches through the standard API Core server so receipt observation,
+// verified provenance, streaming-safe wrappers, and graceful shutdown are
+// shared with the rest of the fleet.
 func (s *Server) Start() error {
 	s.log("starting server", map[string]interface{}{
 		"service": s.serviceName(),
 		"port":    s.config.Port,
 	})
 
-	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%s", s.config.Port),
-		Handler: handlers.RecoveryHandler()(s.router),
-		// Extended timeouts to support long-running SSE streams for test execution
-		// Test suites can run for up to 15 minutes
+	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
+	defer cancelBackground()
+	if s.startBackground != nil {
+		s.startBackground(backgroundCtx)
+	}
+	return apiserver.Run(apiserver.Config{
+		Handler:      s.Handler(),
+		Port:         s.config.Port,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 20 * time.Minute, // Extended for SSE streaming
+		WriteTimeout: 20 * time.Minute,
 		IdleTimeout:  120 * time.Second,
-	}
-
-	errCh := make(chan error, 1)
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-	case err := <-errCh:
-		return fmt.Errorf("server startup failed: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	s.log("server stopped", nil)
-	return nil
+		Cleanup: func(context.Context) error {
+			cancelBackground()
+			if s.runManager != nil {
+				s.runManager.Shutdown()
+			}
+			if s.healthDB != nil {
+				return s.healthDB.Close()
+			}
+			return nil
+		},
+	})
 }
 
 // loggingMiddleware prints simple request logs.
@@ -321,6 +351,22 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		s.logger.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+	})
+}
+
+// securityHeadersMiddleware sets baseline OWASP security headers and the
+// permissive CORS policy used across the API on every response. Origin is a
+// wildcard without credentials, so no credentialed-wildcard exposure exists.
+func (s *Server) securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Vrooli-Actor, X-Update-Key")
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -341,61 +387,4 @@ func (s *Server) serviceName() string {
 		return "Test Genie API"
 	}
 	return name
-}
-
-// -----------------------------------------------------------------------------
-// Tool Discovery Protocol Handlers
-// -----------------------------------------------------------------------------
-
-// handleGetToolManifest returns the complete tool manifest for test-genie.
-func (s *Server) handleGetToolManifest(w http.ResponseWriter, r *http.Request) {
-	if s.toolRegistry == nil {
-		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	manifest := s.toolRegistry.GetManifest(r.Context())
-
-	w.Header().Set("Content-Type", "application/json")
-	marshaler := protojson.MarshalOptions{
-		EmitUnpopulated: true,
-		UseProtoNames:   false,
-	}
-	data, err := marshaler.Marshal(manifest)
-	if err != nil {
-		http.Error(w, "failed to marshal manifest", http.StatusInternalServerError)
-		return
-	}
-	if _, err := w.Write(data); err != nil {
-		s.log("failed to write tool manifest response", map[string]interface{}{"error": err.Error()})
-	}
-}
-
-// handleGetTool returns a specific tool by name.
-func (s *Server) handleGetTool(w http.ResponseWriter, r *http.Request) {
-	if s.toolRegistry == nil {
-		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	name := mux.Vars(r)["name"]
-	tool := s.toolRegistry.GetTool(r.Context(), name)
-	if tool == nil {
-		http.Error(w, "tool not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	marshaler := protojson.MarshalOptions{
-		EmitUnpopulated: true,
-		UseProtoNames:   false,
-	}
-	data, err := marshaler.Marshal(tool)
-	if err != nil {
-		http.Error(w, "failed to marshal tool", http.StatusInternalServerError)
-		return
-	}
-	if _, err := w.Write(data); err != nil {
-		s.log("failed to write tool response", map[string]interface{}{"error": err.Error()})
-	}
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import { TabNav } from "../components/ui/TabNav";
 import { TabTip } from "../components/ui/TabTip";
 import { ResourceTable } from "../sections/ResourceTable";
@@ -9,7 +9,7 @@ import { TutorialOverlay } from "../components/ui/TutorialOverlay";
 describe("TabNav", () => {
   it("renders badges and invokes onChange", () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <TabNav
         tabs={[
           { id: "dashboard", label: "Dashboard", badgeCount: 2 },
@@ -30,7 +30,7 @@ describe("TabNav", () => {
 describe("TabTip", () => {
   it("shows CTA and fires action", () => {
     const onAction = vi.fn();
-    render(
+    renderWithProviders(
       <TabTip
         title="3 tiers need strategies"
         description="Click through to fix them."
@@ -68,7 +68,7 @@ describe("ResourceTable", () => {
 
   it("filters by search and actionable toggle", async () => {
     const onOpenResource = vi.fn();
-    render(<ResourceTable resourceStatuses={sample} isLoading={false} onOpenResource={onOpenResource} />);
+    renderWithProviders(<ResourceTable resourceStatuses={sample} isLoading={false} onOpenResource={onOpenResource} />);
 
     fireEvent.change(screen.getByPlaceholderText("Search resources"), { target: { value: "post" } });
     expect(screen.getByText("postgres")).toBeInTheDocument();
@@ -79,16 +79,26 @@ describe("ResourceTable", () => {
     expect(screen.getByText("postgres")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("redis")).not.toBeInTheDocument());
   });
+
+  it("documents the canonical descriptor and provisioning flow", () => {
+    const { container } = renderWithProviders(<ResourceTable resourceStatuses={sample} isLoading={false} onOpenResource={() => {}} />);
+
+    fireEvent.click(within(container).getByLabelText("Help"));
+
+    expect(screen.getByText("resources/<resource>/resource.json")).toBeInTheDocument();
+    expect(screen.getByText("vrooli credentials provision")).toBeInTheDocument();
+    expect(screen.queryByText(/config\/secrets\.yaml/)).not.toBeInTheDocument();
+  });
 });
 
 describe("TutorialOverlay", () => {
-  it("scrolls to anchor when provided", () => {
+  it("focuses its anchor without scrolling the embedding host", () => {
     const anchor = document.createElement("div");
     anchor.id = "anchor-test";
-    anchor.scrollIntoView = vi.fn();
+    anchor.focus = vi.fn();
     document.body.appendChild(anchor);
 
-    render(
+    renderWithProviders(
       <TutorialOverlay
         title="Test"
         stepLabel="Step 1"
@@ -98,6 +108,6 @@ describe("TutorialOverlay", () => {
       />
     );
 
-    expect(anchor.scrollIntoView).toHaveBeenCalled();
+    expect(anchor.focus).toHaveBeenCalledWith({ preventScroll: false });
   });
 });

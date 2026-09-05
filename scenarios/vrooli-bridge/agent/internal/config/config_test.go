@@ -1,0 +1,154 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestLoad_DefaultsAndStateDir(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BRIDGE_AGENT_STATE_DIR", dir)
+
+	cfg, err := Load(nil)
+	require.NoError(t, err)
+
+	require.Equal(t, dir, cfg.StateDir)
+	require.Equal(t, filepath.Join(dir, credentialFileName), cfg.CredentialPath)
+	require.Equal(t, filepath.Join(dir, controlPlaneKeyFileName), cfg.ControlPlaneKeyPath)
+	require.Equal(t, defaultHeartbeatInterval, cfg.HeartbeatInterval)
+	require.False(t, cfg.Paired(), "no URL/node id yet")
+	require.Empty(t, cfg.Capabilities)
+	require.True(t, cfg.PresenceOnly, "new agents must not accept control frames by default")
+}
+
+func TestLoad_PresenceOnlyCanBeExplicitlyDisabled(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := Load([]string{"--state-dir", dir, "--presence-only=false"})
+	require.NoError(t, err)
+	require.False(t, cfg.PresenceOnly)
+	t.Setenv("BRIDGE_PRESENCE_ONLY", "false")
+	cfg, err = Load([]string{"--state-dir", dir})
+	require.NoError(t, err)
+	require.False(t, cfg.PresenceOnly)
+}
+
+func TestLoad_FlagsOverrideEnv(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BRIDGE_CONTROL_PLANE_URL", "https://env.example")
+	t.Setenv("BRIDGE_NODE_ID", "env-node")
+
+	cfg, err := Load([]string{
+		"--control-plane-url", "https://flag.example",
+		"--node-id", "flag-node",
+		"--state-dir", dir,
+		"--heartbeat-interval", "5s",
+		"--capabilities", "scenario test*, registry list ,",
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "https://flag.example", cfg.ControlPlaneURL)
+	require.Equal(t, "flag-node", cfg.NodeID)
+	require.Equal(t, 5*time.Second, cfg.HeartbeatInterval)
+	require.Equal(t, []string{"scenario test*", "registry list"}, cfg.Capabilities)
+	require.True(t, cfg.Paired())
+}
+
+func TestLoad_EnvFallback(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BRIDGE_AGENT_STATE_DIR", dir)
+	t.Setenv("BRIDGE_CONTROL_PLANE_URL", "https://env.example")
+	t.Setenv("BRIDGE_NODE_ID", "env-node")
+	t.Setenv("BRIDGE_HEARTBEAT_INTERVAL", "30s")
+
+	cfg, err := Load(nil)
+	require.NoError(t, err)
+
+	require.Equal(t, "https://env.example", cfg.ControlPlaneURL)
+	require.Equal(t, "env-node", cfg.NodeID)
+	require.Equal(t, 30*time.Second, cfg.HeartbeatInterval)
+	require.True(t, cfg.Paired())
+}
+
+func TestLoad_DiscoverFlagAndEnv(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg, err := Load([]string{"--state-dir", dir})
+	require.NoError(t, err)
+	require.True(t, cfg.Discover, "installed agents discover the control plane by default")
+
+	cfg, err = Load([]string{"--state-dir", dir, "--discover"})
+	require.NoError(t, err)
+	require.True(t, cfg.Discover, "the flag enables mDNS discovery")
+
+	t.Setenv("BRIDGE_DISCOVER", "true")
+	cfg, err = Load([]string{"--state-dir", dir})
+	require.NoError(t, err)
+	require.True(t, cfg.Discover, "BRIDGE_DISCOVER enables discovery")
+}
+
+func TestLoad_RejectsNonPositiveHeartbeat(t *testing.T) {
+	dir := t.TempDir()
+	_, err := Load([]string{"--state-dir", dir, "--heartbeat-interval", "0s"})
+	require.Error(t, err)
+}
+
+func TestLoad_InvalidEnvDurationFallsBackToDefault(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BRIDGE_AGENT_STATE_DIR", dir)
+	t.Setenv("BRIDGE_HEARTBEAT_INTERVAL", "not-a-duration")
+
+	cfg, err := Load(nil)
+	require.NoError(t, err)
+	require.Equal(t, defaultHeartbeatInterval, cfg.HeartbeatInterval)
+}
+
+func TestLoad_ProvisionHelperDoesNotRequireRunnerStatePermissions(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "runner-owned-state")
+	cfg, err := Load([]string{
+		"--state-dir", dir,
+		"--provision-helper",
+		"--provision-socket", "/run/vrooli-bridge/provision.sock",
+		"--provision-client-uid", "1000",
+		"--provision-helper-uid", "1001",
+		"--provision-client-home", "/home/tester",
+		"--system-service",
+	})
+	require.NoError(t, err)
+	require.True(t, cfg.ProvisionHelper)
+	require.Equal(t, "/run/vrooli-bridge/provision.sock", cfg.ProvisionSocket)
+	require.Equal(t, 1000, cfg.ProvisionClientUID)
+	require.Equal(t, 1001, cfg.ProvisionHelperUID)
+	require.Equal(t, "/home/tester", cfg.ProvisionClientHome)
+	require.True(t, cfg.SystemService)
+	_, err = os.Stat(dir)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestLoad_ProvisionHelperRequiresRunnerUID(t *testing.T) {
+	_, err := Load([]string{
+		"--state-dir", filepath.Join(t.TempDir(), "state"),
+		"--provision-helper",
+		"--provision-socket", filepath.Join(t.TempDir(), "provision.sock"),
+	})
+	require.EqualError(t, err, "provision helper requires --provision-client-uid")
+}
+
+func TestLoad_OrdinaryAgentCannotRequestSystemService(t *testing.T) {
+	_, err := Load([]string{
+		"--state-dir", filepath.Join(t.TempDir(), "state"),
+		"--system-service",
+	})
+	require.EqualError(t, err, "--system-service is reserved for --provision-helper")
+}
+
+func TestLoad_CleanupStdinIsExplicitTransportMode(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "state")
+	cfg, err := Load([]string{"--state-dir", dir, "--cleanup-stdin"})
+	require.NoError(t, err)
+	require.True(t, cfg.CleanupStdin)
+	require.False(t, cfg.Paired(), "typed cleanup transport does not need channel identity")
+}

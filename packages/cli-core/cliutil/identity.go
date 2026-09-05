@@ -1,18 +1,42 @@
 package cliutil
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
 // Environment variable names for agent identity detection.
 const (
-	EnvIdentityToken   = "VROOLI_AGENT_IDENTITY_TOKEN"
-	EnvAgentManagerBase = "VROOLI_AGENT_MANAGER_API_BASE"
+	// HeaderCaller identifies the bounded caller attribution used by scenario
+	// APIs. Keep this shared because producers and consumers span modules.
+	HeaderCaller     = "X-Vrooli-Caller"
+	EnvIdentityToken = "VROOLI_AGENT_IDENTITY_TOKEN"
+
+	// These harness signals identify an execution channel only. They are
+	// observations and must never be used as agent identity proof.
+	EnvClaudeCodeSessionID = "CLAUDE_CODE_SESSION_ID"
+	EnvCodexThreadID       = "CODEX_THREAD_ID"
+
+	// HeaderAgentIdentityToken carries the opaque Agent Manager token. APIs must
+	// verify it server-side before treating any request as agent-attributed.
+	HeaderAgentIdentityToken = "X-Agent-Identity-Token"
+	// HeaderInvocationScenario, HeaderInvocationCommand, and
+	// HeaderInvocationID are channel observations. They identify what the CLI
+	// says it invoked; unlike HeaderAgentIdentityToken, they are not proof that
+	// a particular binary performed the mutation.
+	HeaderInvocationScenario = "X-Vrooli-Invocation-Scenario"
+	HeaderInvocationCommand  = "X-Vrooli-Invocation-Command"
+	HeaderInvocationID       = "X-Vrooli-Invocation-Id"
+	HeaderHarnessSessionID   = "X-Vrooli-Harness-Session-Id"
+	HeaderHarnessKind        = "X-Vrooli-Harness-Kind"
 )
+
+var detectAgentManagerPort = DetectPortFromVrooli("agent-manager", "API_PORT")
 
 // IdentityEnv holds the raw agent identity token extracted from the environment.
 // A zero-value IdentityEnv (empty Token) means no identity token is present.
@@ -25,6 +49,8 @@ type IdentityEnv struct {
 type VerifiedClaims struct {
 	RunID      string            `json:"run_id"`
 	TaskID     string            `json:"task_id"`
+	Subject    string            `json:"subject"`
+	Scopes     []string          `json:"scopes"`
 	ProfileKey string            `json:"profile_key"`
 	ScopePath  string            `json:"scope_path"`
 	IssuedAt   int64             `json:"iat"`
@@ -53,6 +79,45 @@ func (env IdentityEnv) IsIdentityPresent() bool {
 	return env.Token != ""
 }
 
+// InvocationHeaders returns the common agent-provenance transport headers for
+// one CLI command invocation. The identity token is read when a request is
+// sent so a caller that establishes an agent environment after startup still
+// gets correct forwarding. Invocation fields are deliberately bounded channel
+// observations, not cryptographic attestations.
+func InvocationHeaders(scenario, command string) func() map[string]string {
+	scenario = strings.TrimSpace(scenario)
+	command = strings.TrimSpace(command)
+	invocationID := newInvocationID()
+	return func() map[string]string {
+		headers := map[string]string{
+			HeaderInvocationScenario: scenario,
+			HeaderInvocationCommand:  command,
+			HeaderInvocationID:       invocationID,
+		}
+		if token := strings.TrimSpace(os.Getenv(EnvIdentityToken)); token != "" {
+			headers[HeaderAgentIdentityToken] = token
+		}
+		if sessionID := strings.TrimSpace(os.Getenv(EnvClaudeCodeSessionID)); sessionID != "" {
+			headers[HeaderHarnessSessionID] = sessionID
+			headers[HeaderHarnessKind] = "claude-code"
+		} else if threadID := strings.TrimSpace(os.Getenv(EnvCodexThreadID)); threadID != "" {
+			headers[HeaderHarnessSessionID] = threadID
+			headers[HeaderHarnessKind] = "codex"
+		}
+		return headers
+	}
+}
+
+func newInvocationID() string {
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err == nil {
+		return fmt.Sprintf("cli-%x", raw[:])
+	}
+	// The random source should never fail on supported platforms. Keep request
+	// transport available if it does, while retaining process-local uniqueness.
+	return fmt.Sprintf("cli-%d", time.Now().UTC().UnixNano())
+}
+
 // VerifyIdentity calls the agent-manager's identity verification endpoint
 // to validate the token and retrieve claims.
 //
@@ -65,10 +130,14 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 	}
 
 	baseURL := DetermineAPIBase(APIBaseOptions{
-		EnvVars: []string{EnvAgentManagerBase},
+		EnvVars: []string{
+			"AGENT_MANAGER_API_BASE",
+			"AGENT_MANAGER_API_URL",
+		},
+		PortDetector: detectAgentManagerPort,
 	})
 	if baseURL == "" {
-		return nil, fmt.Errorf("agent-manager base URL not configured (set %s)", EnvAgentManagerBase)
+		return nil, fmt.Errorf("agent-manager base URL not discoverable (run `vrooli scenario status agent-manager` or set --api-base/config for the calling CLI)")
 	}
 
 	client := NewHTTPClient(HTTPClientOptions{

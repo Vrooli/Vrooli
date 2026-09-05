@@ -1,0 +1,106 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "scenario-to-android",
+  "generator": "v1.0.0",
+  "manifest_hash": "4057fcc3dbfb17ece5b0ff0c86ec63777a62f2aaf4e11a07ce54b3948f2f7863",
+  "commands": [
+    {
+      "path": "android build",
+      "group": "android",
+      "command": "build",
+      "binding": "."
+    },
+    {
+      "path": "android compare",
+      "group": "android",
+      "command": "compare",
+      "binding": "."
+    },
+    {
+      "path": "android conformance-plan",
+      "group": "android",
+      "command": "conformance-plan",
+      "binding": "."
+    },
+    {
+      "path": "android distribution",
+      "group": "android",
+      "command": "distribution",
+      "binding": "."
+    },
+    {
+      "path": "android evidence-paths",
+      "group": "android",
+      "command": "evidence-paths",
+      "binding": "."
+    },
+    {
+      "path": "android generate",
+      "group": "android",
+      "command": "generate",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-catalog",
+      "group": "android",
+      "command": "matrix-catalog",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-create",
+      "group": "android",
+      "command": "matrix-create",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-list",
+      "group": "android",
+      "command": "matrix-list",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-rerun-failed",
+      "group": "android",
+      "command": "matrix-rerun-failed",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-start",
+      "group": "android",
+      "command": "matrix-start",
+      "binding": "."
+    },
+    {
+      "path": "android matrix-wait",
+      "group": "android",
+      "command": "matrix-wait",
+      "binding": "."
+    },
+    {
+      "path": "android readiness",
+      "group": "android",
+      "command": "readiness",
+      "binding": "."
+    },
+    {
+      "path": "android run",
+      "group": "android",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "android signing-provision",
+      "group": "android",
+      "command": "signing-provision",
+      "binding": "."
+    },
+    {
+      "path": "android targets",
+      "group": "android",
+      "command": "targets",
+      "binding": "."
+    }
+  ]
+}

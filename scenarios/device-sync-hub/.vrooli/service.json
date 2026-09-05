@@ -1,61 +1,90 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
+    "parent": "vrooli",
     "name": "device-sync-hub",
     "displayName": "Device Sync Hub",
-    "description": "Cross-device file and clipboard synchronization with real-time sync capabilities",
-    "version": "1.0.0",
+    "description": "Polished, secure cross-device file and text transfer hub: push files or text from any trusted device and pull them on your other devices, relayed through your always-on server.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "sync",
-      "cross-device",
-      "real-time",
-      "mobile-first",
-      "file-sharing",
-      "clipboard-sync",
-      "websocket",
-      "go-api",
-      "postgres-storage",
-      "scenario-authenticator-integration"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/device-sync-hub"
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-06-17T03:31:48Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "device-sync-hub",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "device-sync-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Device Sync Hub API port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Device Sync Hub UI port",
-      "range": "35000-39999"
+      "description": "React UI",
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Device Sync Hub health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -73,151 +102,95 @@
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
       ],
-      "timeout": 10000,
-      "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Device Sync Hub",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/device-sync-hub-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "device-sync-hub",
-            "targets": [
-              "device-sync-hub"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "directory",
-            "path": "data/files"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "create-data-dirs",
-          "run": "mkdir -p data/files data/files/thumbnails",
-          "description": "Create data directories for file storage"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o device-sync-hub-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "initialize-database",
-          "run": "if command -v psql >/dev/null 2>&1 && [ -n \"${POSTGRES_URL:-}\" ]; then psql \"$POSTGRES_URL\" -f initialization/postgres/schema.sql 2>/dev/null || echo 'Database initialization skipped (will be handled at runtime)'; else echo 'PostgreSQL not available for initialization, will be handled at runtime'; fi",
-          "description": "Initialize database schema if possible"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Access from mobile: Replace localhost with your computers IP address'",
-          "description": "Display service access URLs and mobile setup instructions"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Device Sync Hub with API and UI servers",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && API_PORT=${API_PORT:-17865} UI_PORT=${UI_PORT:-37865} AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://localhost:15785} AUTH_PORT=${AUTH_PORT:-15785} AUTH_UI_URL=${AUTH_UI_URL:-http://localhost:15785} STORAGE_PATH=${STORAGE_PATH:-$(pwd)/../data/files} POSTGRES_URL=${POSTGRES_URL:-postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable} REDIS_URL=${REDIS_URL:-redis://localhost:6379} MAX_FILE_SIZE=${MAX_FILE_SIZE:-10485760} DEFAULT_EXPIRY_HOURS=${DEFAULT_EXPIRY_HOURS:-24} THUMBNAIL_SIZE=${THUMBNAIL_SIZE:-200} ./device-sync-hub-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/device-sync-hub-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} AUTH_SERVICE_URL=${AUTH_SERVICE_URL} AUTH_UI_URL=${AUTH_UI_URL} NODE_ENV=production node server.js",
-          "description": "Start UI static server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Device Sync Hub running\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Mobile Access: Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT:-37865}'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for device-sync-hub",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute device-sync-hub --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop Device Sync Hub services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"device-sync-hub-api\" || true; sleep 1; pkill -9 -f \"device-sync-hub-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/device-sync-hub.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/device-sync-hub.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "required": true,
-        "description": "PostgreSQL database for sync items and device sessions"
-      },
+    "scenarios": {
       "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
         "required": true,
-        "description": "Authentication service for user validation"
-      },
+        "startup_policy": "try_start",
+        "degraded_behavior": "If scenario-authenticator is unavailable, device-sync-hub fails closed in production: no pairing, no token validation, no access to items. Its own test lifecycle is not gated on the sibling's health.",
+        "description": "Owner identity, JWT (access + refresh), token validation, session list, and immediate revocation. Consumed over HTTP; device-sync-hub owns the device/pairing/trust/presence/per-item-ACL layer on top of it and does not extend the authenticator.",
+        "supervision_precedence": "required"
+      }
+    },
+    "resources": {
       "redis": {
+        "type": "redis",
+        "enabled": true,
         "required": false,
-        "description": "Optional Redis for auth caching and performance"
+        "startup_policy": "try_start",
+        "purpose": "Optional: brief caching of auth-token validations and cross-instance device presence. Single-server deployments degrade gracefully to in-memory presence; metadata persists in SQLite via api-core/storage, not Redis."
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
       }
     }
   }

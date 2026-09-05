@@ -1,0 +1,1469 @@
+{
+  "$schema": "./outcome-registry.schema.json",
+  "schemaVersion": "2.0.0",
+  "origins": {
+    "local": {
+      "mode": "discovery",
+      "environment": "local",
+      "display": "Local instance"
+    },
+    "production": {
+      "mode": "static",
+      "environment": "production",
+      "display": "Production instance"
+    }
+  },
+  "rooms": [
+    {
+      "id": "mission-control",
+      "title": "Mission Control",
+      "category": "mission-control",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "orbital-field",
+      "theme": "ground-control",
+      "metricIds": [
+        "active_scenarios",
+        "scenario_health",
+        "scenario_health_detail",
+        "swarm_throughput",
+        "swarm_active_agents",
+        "timing_stats",
+        "revenue_mrr",
+        "revenue_today"
+      ],
+      "beats": [
+        {"hero": "active_scenarios", "dwellSeconds": 12},
+        {"hero": "swarm_active_agents", "dwellSeconds": 12},
+        {"hero": "scenario_health_detail", "dwellSeconds": 12},
+        {"hero": "timing_stats", "dwellSeconds": 12}
+      ]
+    },
+    {
+      "id": "hive",
+      "title": "The Hive",
+      "category": "hive",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "hive-lattice",
+      "theme": "bioluminescent",
+      "metricIds": [
+        "total_scenarios",
+        "scenario_completeness",
+        "scenario_health_detail",
+        "scenario_ports",
+        "scenario_usage_frequency",
+        "goal_progress",
+        "release_ladder"
+      ],
+      "beats": [
+        {"hero": "total_scenarios", "dwellSeconds": 12},
+        {"hero": "scenario_completeness", "dwellSeconds": 12},
+        {"hero": "scenario_usage_frequency", "dwellSeconds": 12},
+        {"hero": "scenario_health_detail", "dwellSeconds": 12},
+        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 16}
+      ]
+    },
+    {
+      "id": "forge",
+      "title": "The Forge",
+      "category": "forge",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "flow-current",
+      "theme": "foundry",
+      "metricIds": [
+        "throughput_stats",
+        "timing_stats",
+        "scope_stats",
+        "blocking_stats",
+        "agent_stats",
+        "dashboard_stats",
+        "review_stats",
+        "goal_progress",
+        "release_ladder",
+        "deployment_readiness"
+      ],
+      "beats": [
+        {"hero": "throughput_stats", "dwellSeconds": 10},
+        {"hero": "timing_stats", "dwellSeconds": 10},
+        {"hero": "review_stats", "dwellSeconds": 10},
+        {"hero": "goal_progress", "dwellSeconds": 16},
+        {"hero": "release_ladder", "composition": "funnel-cascade", "dwellSeconds": 10},
+        {"hero": "deployment_readiness", "dwellSeconds": 10}
+      ]
+    },
+    {
+      "id": "ledger",
+      "title": "Ledger",
+      "category": "ledger",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "ledger-river",
+      "theme": "vault",
+      "metricIds": [
+        "subscriber_counts",
+        "revenue_rollup",
+        "churn",
+        "credit_balances",
+        "credit_consumption",
+        "usage_records"
+      ],
+      "beats": [
+        {"hero": "subscriber_counts", "dwellSeconds": 12},
+        {"hero": "revenue_rollup", "dwellSeconds": 12},
+        {"hero": "churn", "dwellSeconds": 12},
+        {"hero": "credit_balances", "dwellSeconds": 12},
+        {"hero": "credit_consumption", "dwellSeconds": 12}
+      ]
+    },
+    {
+      "id": "broadcast",
+      "title": "Broadcast",
+      "category": "broadcast",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "signal-constellation",
+      "theme": "signal-tower",
+      "metricIds": [
+        "visitors",
+        "conversions",
+        "cta_clicks",
+        "scroll_depth",
+        "variant_ab",
+        "traffic_countries",
+        "traffic_referrers",
+        "traffic_campaigns",
+        "traffic_devices",
+        "traffic_landing_paths",
+        "traffic_variants",
+        "social_reach",
+        "seo_rankings",
+        "campaign_metrics"
+      ],
+      "beats": [
+        {"hero": "traffic_countries", "composition": "meridian-arc", "dwellSeconds": 10},
+        {"hero": "visitors", "dwellSeconds": 10},
+        {"hero": "traffic_referrers", "dwellSeconds": 16},
+        {"hero": "traffic_campaigns", "dwellSeconds": 16},
+        {"hero": "conversions", "dwellSeconds": 10},
+        {"hero": "variant_ab", "dwellSeconds": 10}
+      ]
+    },
+    {
+      "id": "panorama",
+      "title": "Panorama",
+      "category": "panorama",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "panorama-constellation",
+      "theme": "cosmos",
+      "metricIds": [
+        "composite_system_health",
+        "composite_throughput",
+        "composite_revenue",
+        "composite_reach",
+        "composite_portfolio"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "active_scenarios",
+      "label": "Apps running",
+      "description": "Apps the control plane reports as running.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "active_scenarios",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "active_scenarios",
+        "contractVersion": "legacy.v1",
+        "selector": "active_scenarios",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_health",
+      "label": "Healthy apps",
+      "description": "Running apps whose health probe reports healthy.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_health",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "scenario_health",
+        "contractVersion": "legacy.v1",
+        "selector": "scenario_health",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "swarm_throughput",
+      "label": "Items shipped \u00b7 7 days",
+      "description": "Backlog items Swarm Manager completed in the trailing seven days.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "swarm_throughput",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "swarm_throughput",
+        "contractVersion": "legacy.v1",
+        "selector": "swarm_throughput",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "swarm_active_agents",
+      "label": "Agent executions",
+      "description": "Agent executions recorded by Swarm Manager.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "swarm_active_agents",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "swarm_active_agents",
+        "contractVersion": "legacy.v1",
+        "selector": "swarm_active_agents",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "revenue_mrr",
+      "label": "Monthly recurring revenue",
+      "description": "Rolling MRR computed from Stripe subscriptions.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+      "read": "/api/v1/admin/dashboard/revenue",
+        "select": "revenue_mrr",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "revenue_mrr",
+        "contractVersion": "legacy.v1",
+        "selector": "revenue_mrr",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup from Stripe subscriptions.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 12400,
+        "series": [
+          8100,
+          8800,
+          9600,
+          10200,
+          11300,
+          12400
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "revenue_today",
+      "label": "Revenue today",
+      "description": "Sum of successful checkout sessions in the current day.",
+      "unit": "currency",
+      "format": "currency",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+      "read": "/api/v1/admin/dashboard/revenue",
+        "select": "revenue_today",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "revenue_today",
+        "contractVersion": "legacy.v1",
+        "selector": "revenue_today",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a daily-rollup query.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 410,
+        "series": [
+          220,
+          310,
+          180,
+          390,
+          275,
+          410
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "total_scenarios",
+      "label": "Apps in the portfolio",
+      "description": "Every app the control plane knows about, running or not.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "total_scenarios",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "total_scenarios",
+        "contractVersion": "legacy.v1",
+        "selector": "total_scenarios",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_completeness",
+      "label": "Running and healthy",
+      "description": "Apps that are both running and passing their health probe.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_completeness",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "scenario_completeness",
+        "contractVersion": "legacy.v1",
+        "selector": "scenario_completeness",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_health_detail",
+      "label": "Degraded apps",
+      "description": "Running apps whose health probe reports degraded or unhealthy.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_health_detail",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "scenario_health_detail",
+        "contractVersion": "legacy.v1",
+        "selector": "scenario_health_detail",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_ports",
+      "label": "Apps with ports",
+      "description": "Apps currently holding at least one assigned port.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_ports",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "scenario_ports",
+        "contractVersion": "legacy.v1",
+        "selector": "scenario_ports",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_usage_frequency",
+      "label": "App opens \u00b7 7 days",
+      "description": "How often apps are opened or invoked.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "none",
+        "read": "",
+        "select": "scenario_usage_frequency",
+        "ttlSeconds": 30,
+        "integrationId": "none",
+        "featureId": "scenario_usage_frequency",
+        "contractVersion": "legacy.v1",
+        "selector": "scenario_usage_frequency",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "MISSING",
+      "owner": "meta-optimization",
+      "whatIsNeeded": "Usage tracking is not collected anywhere. Needs client instrumentation posting to an analytics endpoint, or lifecycle-manager invocation counters.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 1840,
+        "series": [
+          1200,
+          1320,
+          1510,
+          1490,
+          1700,
+          1840
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "throughput_stats",
+      "label": "Items created \u00b7 7 days",
+      "description": "Backlog items created in the trailing seven days.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "throughput_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "throughput_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "throughput_stats",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "timing_stats",
+      "label": "Mean execution",
+      "description": "Average wall-clock minutes per agent execution.",
+      "unit": "minutes",
+      "format": "minutes",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "timing_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "timing_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "timing_stats",
+        "expectedUnit": "minutes",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scope_stats",
+      "label": "Goals in scope",
+      "description": "Goals Swarm Manager is tracking scope against.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "scope_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "scope_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "scope_stats",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "blocking_stats",
+      "label": "Blocked now",
+      "description": "Backlog items currently blocked.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "blocking_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "blocking_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "blocking_stats",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "agent_stats",
+      "label": "Agent success rate",
+      "description": "Share of agent executions that completed successfully.",
+      "unit": "percent",
+      "format": "percent",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "agent_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "agent_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "agent_stats",
+        "expectedUnit": "percent",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "dashboard_stats",
+      "label": "Backlog size",
+      "description": "Open backlog items across every lane.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "dashboard_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "dashboard_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "dashboard_stats",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "review_stats",
+      "label": "Review rounds",
+      "description": "Review rounds completed.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "review_stats",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "review_stats",
+        "contractVersion": "legacy.v1",
+        "selector": "review_stats",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "subscriber_counts",
+      "label": "Active subscribers",
+      "description": "Active subscriptions across free, solo, pro, studio and business tiers.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+      "read": "/api/v1/admin/dashboard/summary",
+        "select": "subscriber_counts",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "subscriber_counts",
+        "contractVersion": "legacy.v1",
+        "selector": "subscriber_counts",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "MISSING",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/subscriptions endpoint with plan_tier grouping.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 412,
+        "series": [
+          300,
+          330,
+          352,
+          371,
+          390,
+          412
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "revenue_rollup",
+      "label": "Revenue \u00b7 30 days",
+      "description": "Revenue from successful checkout sessions in the trailing thirty days.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+      "read": "/api/v1/admin/dashboard/revenue",
+        "select": "revenue_rollup",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "revenue_rollup",
+        "contractVersion": "legacy.v1",
+        "selector": "revenue_rollup",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a configurable window.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 9800,
+        "series": [
+          6100,
+          6900,
+          7500,
+          8200,
+          9100,
+          9800
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "churn",
+      "label": "Churned \u00b7 30 days",
+      "description": "Subscriptions cancelled inside the thirty-day window.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "churn",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "churn",
+        "contractVersion": "legacy.v1",
+        "selector": "churn",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "MISSING",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/churn endpoint filtering canceled_at.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 7,
+        "series": [
+          4,
+          6,
+          5,
+          8,
+          6,
+          7
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "credit_balances",
+      "label": "Credits outstanding",
+      "description": "Total credit balance held across every wallet.",
+      "unit": "count",
+      "format": "compact",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "credit_balances",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "credit_balances",
+        "contractVersion": "legacy.v1",
+        "selector": "credit_balances",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "An aggregation endpoint over credit_wallets; the rows exist and are not summed anywhere.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 128400,
+        "series": [
+          92000,
+          99000,
+          108000,
+          114000,
+          121000,
+          128400
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "credit_consumption",
+      "label": "Credits burned per day",
+      "description": "Credits consumed per day, derived from credit transactions.",
+      "unit": "count",
+      "format": "compact",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "credit_consumption",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "credit_consumption",
+        "contractVersion": "legacy.v1",
+        "selector": "credit_consumption",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "A pre-aggregated daily-burn endpoint over credit_transactions; the table exists.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 3120,
+        "series": [
+          2100,
+          2400,
+          2650,
+          2800,
+          2950,
+          3120
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "usage_records",
+      "label": "Metered requests \u00b7 30 days",
+      "description": "Metered usage records in the trailing thirty days.",
+      "unit": "count",
+      "format": "compact",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "usage_records",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "usage_records",
+        "contractVersion": "legacy.v1",
+        "selector": "usage_records",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "An aggregation endpoint over usage_records; the rows exist.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 48200,
+        "series": [
+          31000,
+          35000,
+          38500,
+          41000,
+          44800,
+          48200
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "traffic_countries",
+      "label": "Traffic by country",
+      "description": "Ranked country breakdown of measured landing-page visitors.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=country&limit=6",
+        "select": "traffic_countries",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "traffic_countries",
+        "contractVersion": "legacy.v1",
+        "selector": "traffic_countries",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "trust": "UNAVAILABLE",
+      "empirical": "NONE",
+      "sample": {
+        "value": 840,
+        "series": [840],
+        "rows": [
+          {"key": "US", "label": "United States", "value": 420, "share": 0.50},
+          {"key": "GB", "label": "United Kingdom", "value": 210, "share": 0.25},
+          {"key": "DE", "label": "Germany", "value": 126, "share": 0.15},
+          {"key": "CA", "label": "Canada", "value": 84, "share": 0.10}
+        ],
+        "basis": "hand-authored, illustrative country mix, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "traffic_referrers",
+      "label": "Traffic by referrer",
+      "description": "Ranked referrer-kind breakdown of landing-page visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=referrer_kind&limit=6", "select": "traffic_referrers", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_referrers", "contractVersion": "legacy.v1", "selector": "traffic_referrers", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "search", "label": "Search", "value": 45, "share": 0.45}, {"key": "referral", "label": "Referral", "value": 30, "share": 0.30}, {"key": "direct", "label": "Direct", "value": 25, "share": 0.25}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_campaigns",
+      "label": "Traffic by campaign",
+      "description": "Ranked UTM campaign breakdown of landing-page visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=utm_campaign&limit=6", "select": "traffic_campaigns", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_campaigns", "contractVersion": "legacy.v1", "selector": "traffic_campaigns", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "spring", "label": "Spring launch", "value": 55, "share": 0.55}, {"key": "founder", "label": "Founder note", "value": 30, "share": 0.30}, {"key": "none", "label": "Unattributed", "value": 15, "share": 0.15}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_devices",
+      "label": "Traffic by device",
+      "description": "Ranked device-class breakdown of landing-page visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=device_class&limit=6", "select": "traffic_devices", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_devices", "contractVersion": "legacy.v1", "selector": "traffic_devices", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "desktop", "label": "Desktop", "value": 60, "share": 0.60}, {"key": "mobile", "label": "Mobile", "value": 35, "share": 0.35}, {"key": "tablet", "label": "Tablet", "value": 5, "share": 0.05}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_landing_paths",
+      "label": "Traffic by landing path",
+      "description": "Ranked landing-path breakdown of visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=landing_path&limit=6", "select": "traffic_landing_paths", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_landing_paths", "contractVersion": "legacy.v1", "selector": "traffic_landing_paths", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "/", "label": "Home", "value": 70, "share": 0.70}, {"key": "/pricing", "label": "Pricing", "value": 20, "share": 0.20}, {"key": "/docs", "label": "Docs", "value": 10, "share": 0.10}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "traffic_variants",
+      "label": "Traffic by variant",
+      "description": "Ranked experiment-variant breakdown of visitors.",
+      "unit": "count", "format": "integer", "kind": "panel",
+      "source": {"team": "marketing-crew", "binding": "scenario:landing-page-business-suite", "read": "/api/v1/admin/dashboard/traffic-breakdown?dimension=variant_slug&limit=6", "select": "traffic_variants", "ttlSeconds": 300, "integrationId": "landing-page-business-suite", "featureId": "traffic_variants", "contractVersion": "legacy.v1", "selector": "traffic_variants", "expectedUnit": "count", "sourceTimePolicy": "producer_required"},
+      "coverage": "IN-REACH", "sample": {"value": 100, "series": [100], "rows": [{"key": "control", "label": "Control", "value": 52, "share": 0.52}, {"key": "variant-a", "label": "Variant A", "value": 48, "share": 0.48}], "basis": "hand-authored structural sample, reviewed 2026-09-03"}
+    },
+    {
+      "id": "release_ladder",
+      "label": "Release ladder",
+      "description": "Ranked deliverables reported by Offer Desk.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:offer-desk",
+        "read": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder",
+        "select": "release_ladder",
+        "ttlSeconds": 300,
+        "integrationId": "offer-desk",
+        "featureId": "release_ladder",
+        "contractVersion": "legacy.v1",
+        "selector": "release_ladder",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "sample": {
+        "value": 3,
+        "series": [3],
+        "rows": [
+          {"key": "release-1", "label": "Foundation", "value": 1, "share": 0.3333, "detail": "ready"},
+          {"key": "release-2", "label": "Capability", "value": 2, "share": 0.3333, "detail": "active"},
+          {"key": "release-3", "label": "Polish", "value": 3, "share": 0.3334, "detail": "planned"}
+        ],
+        "basis": "hand-authored structural sample, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "goal_progress",
+      "label": "Goal progress",
+      "description": "Progress rows and ETA bands reported by Swarm Manager.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/goals",
+        "select": "goal_progress",
+        "ttlSeconds": 300,
+        "integrationId": "swarm-manager",
+        "featureId": "goal_progress",
+        "contractVersion": "legacy.v1",
+        "selector": "goal_progress",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "sample": {
+        "value": 6,
+        "series": [6],
+        "rows": [
+          {"key": "scenario-readiness", "label": "Scenario readiness", "value": 6, "share": 0.6, "detail": "4.0h–9.0h ETA"},
+          {"key": "traffic-instrument", "label": "Traffic instrument", "value": 3, "share": 0.3, "detail": "8.0h–16.0h ETA"},
+          {"key": "release-proof", "label": "Release proof", "value": 1, "share": 0.1, "detail": "2.0h–4.0h ETA"}
+        ],
+        "basis": "hand-authored structural sample, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "deployment_readiness",
+      "label": "Deployment readiness",
+      "description": "Whether Deployment Manager has opened and anchored the readiness goal.",
+      "unit": "count",
+      "format": "integer",
+      "kind": "panel",
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:deployment-manager",
+        "read": "/api/v1/readiness/state",
+        "select": "deployment_readiness",
+        "ttlSeconds": 300,
+        "integrationId": "deployment-manager",
+        "featureId": "deployment_readiness",
+        "contractVersion": "legacy.v1",
+        "selector": "deployment_readiness",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "sample": {
+        "value": 1,
+        "series": [1],
+        "rows": [{"key": "readiness", "label": "Readiness goal present", "value": 1, "share": 1, "detail": "closed=false"}],
+        "basis": "hand-authored structural sample, reviewed 2026-09-03"
+      }
+    },
+    {
+      "id": "visitors",
+      "label": "Visitors \u00b7 30 days",
+      "description": "Unique visitors recorded in LPBS metrics events.",
+      "unit": "count",
+      "format": "compact",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "visitors",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "visitors",
+        "contractVersion": "legacy.v1",
+        "selector": "visitors",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "trendPolicy": {
+        "enabled": true,
+        "windowSeconds": 604800,
+        "comparison": "previous_window",
+        "aggregation": "latest",
+        "direction": "higher_is_better",
+        "minimumObservations": 2,
+        "neutralPercent": 1
+      },
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with visitor rollups; metrics_events holds the rows and no endpoint reads them.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 2840,
+        "series": [
+          1900,
+          2100,
+          2350,
+          2500,
+          2620,
+          2840
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "conversions",
+      "label": "Conversions \u00b7 30 days",
+      "description": "Landing-page conversions derived from metrics events.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "conversions",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "conversions",
+        "contractVersion": "legacy.v1",
+        "selector": "conversions",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "trendPolicy": {
+        "enabled": true,
+        "windowSeconds": 604800,
+        "comparison": "previous_window",
+        "aggregation": "latest",
+        "direction": "higher_is_better",
+        "minimumObservations": 2,
+        "neutralPercent": 2
+      },
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with a conversion rollup from metrics_events.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 61,
+        "series": [
+          38,
+          42,
+          47,
+          50,
+          55,
+          61
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "cta_clicks",
+      "label": "CTA clicks \u00b7 30 days",
+      "description": "Call-to-action clicks summarised from metrics events.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "cta_clicks",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "cta_clicks",
+        "contractVersion": "legacy.v1",
+        "selector": "cta_clicks",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with CTA clicks summarised by variant.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 412,
+        "series": [
+          260,
+          290,
+          330,
+          350,
+          380,
+          412
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "scroll_depth",
+      "label": "Median scroll depth",
+      "description": "Median scroll depth across landing-page sessions.",
+      "unit": "percent",
+      "format": "percent",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "scroll_depth",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "scroll_depth",
+        "contractVersion": "legacy.v1",
+        "selector": "scroll_depth",
+        "expectedUnit": "percent",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with scroll-depth percentiles.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 0.58,
+        "series": [
+          0.51,
+          0.53,
+          0.55,
+          0.54,
+          0.57,
+          0.58
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "variant_ab",
+      "label": "A/B variant lift",
+      "description": "Conversion lift of the leading variant over control.",
+      "unit": "percent",
+      "format": "percent.signed",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "variant_ab",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "variant_ab",
+        "contractVersion": "legacy.v1",
+        "selector": "variant_ab",
+        "expectedUnit": "percent",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with a per-variant comparison.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 0.07,
+        "series": [
+          0.02,
+          0.03,
+          0.05,
+          0.04,
+          0.06,
+          0.07
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "social_reach",
+      "label": "Social reach",
+      "description": "Cross-platform follower and engagement counts.",
+      "unit": "count",
+      "format": "compact",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "none",
+        "read": "",
+        "select": "social_reach",
+        "ttlSeconds": 30,
+        "integrationId": "none",
+        "featureId": "social_reach",
+        "contractVersion": "legacy.v1",
+        "selector": "social_reach",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "MISSING",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "Social-platform API integrations (X, LinkedIn, YouTube) are not wired in anywhere, and no scenario owns social scheduling.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 5400,
+        "series": [
+          3200,
+          3600,
+          4100,
+          4500,
+          4900,
+          5400
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "seo_rankings",
+      "label": "Keywords in the top ten",
+      "description": "Tracked keywords ranking in the top ten results.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "none",
+        "read": "",
+        "select": "seo_rankings",
+        "ttlSeconds": 30,
+        "integrationId": "none",
+        "featureId": "seo_rankings",
+        "contractVersion": "legacy.v1",
+        "selector": "seo_rankings",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "MISSING",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "A search-console integration; no scenario collects rankings.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 14,
+        "series": [
+          6,
+          8,
+          9,
+          11,
+          12,
+          14
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "campaign_metrics",
+      "label": "Campaign sends \u00b7 30 days",
+      "description": "Outbound campaigns sent in the trailing thirty days.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "none",
+        "read": "",
+        "select": "campaign_metrics",
+        "ttlSeconds": 30,
+        "integrationId": "none",
+        "featureId": "campaign_metrics",
+        "contractVersion": "legacy.v1",
+        "selector": "campaign_metrics",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "MISSING",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "A campaign ledger; marketing-crew names no aggregator for it.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 6,
+        "series": [
+          2,
+          3,
+          3,
+          4,
+          5,
+          6
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_system_health",
+      "label": "Healthy apps",
+      "description": "Running apps passing their health probe, fleet-wide.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "composite_system_health",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "composite_system_health",
+        "contractVersion": "legacy.v1",
+        "selector": "composite_system_health",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "composite_throughput",
+      "label": "Items completed all time",
+      "description": "Backlog items Swarm Manager has completed since records began.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "composite_throughput",
+        "ttlSeconds": 30,
+        "integrationId": "swarm-manager",
+        "featureId": "composite_throughput",
+        "contractVersion": "legacy.v1",
+        "selector": "composite_throughput",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "composite_revenue",
+      "label": "Monthly recurring revenue",
+      "description": "Rolling MRR, the Ledger room's headline.",
+      "unit": "currency",
+      "format": "currency.compact",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+      "read": "/api/v1/admin/dashboard/revenue",
+        "select": "composite_revenue",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "composite_revenue",
+        "contractVersion": "legacy.v1",
+        "selector": "composite_revenue",
+        "expectedUnit": "currency",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 12400,
+        "series": [
+          8100,
+          8800,
+          9600,
+          10200,
+          11300,
+          12400
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_reach",
+      "label": "Visitors \u00b7 30 days",
+      "description": "Unique visitors, the Broadcast room's headline.",
+      "unit": "count",
+      "format": "compact",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "composite_reach",
+        "ttlSeconds": 300,
+        "integrationId": "landing-page-business-suite",
+        "featureId": "composite_reach",
+        "contractVersion": "legacy.v1",
+        "selector": "composite_reach",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with visitor rollups from metrics_events.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 2840,
+        "series": [
+          1900,
+          2100,
+          2350,
+          2500,
+          2620,
+          2840
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_portfolio",
+      "label": "Apps running",
+      "description": "Apps the control plane reports as running, the Hive room's headline.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "composite_portfolio",
+        "ttlSeconds": 60,
+        "integrationId": "vrooli-core",
+        "featureId": "composite_portfolio",
+        "contractVersion": "legacy.v1",
+        "selector": "composite_portfolio",
+        "expectedUnit": "count",
+        "sourceTimePolicy": "producer_required"
+      },
+      "coverage": "NOW"
+    }
+  ],
+  "tombstones": []
+}

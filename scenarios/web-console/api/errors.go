@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"strings"
 
+	"web-console/session"
+
 	"github.com/gorilla/mux"
 )
 
-// DOC: docs/internal/ERROR-SEMANTICS.md
-// DOC: docs/internal/SEAMS.md#axis-3-error-codes--recovery-api--ui
+// DOC: docs/internal/ERROR_SEMANTICS.md
+// DOC: docs/internal/SEAMS.md#axis-3-error-codes-recovery-api-ui
 
 /**
  * ╔════════════════════════════════════════════════════════════════╗
@@ -28,7 +30,7 @@ import (
  * ║  To add a new error code:                                      ║
  * ║  1. Assign it to exactly one category above                    ║
  * ║  2. Define its recovery action in the handler                  ║
- * ║  3. Update docs/internal/ERROR-SEMANTICS.md                    ║
+ * ║  3. Update docs/internal/ERROR_SEMANTICS.md                    ║
  * ║  4. Add a test in session_handlers_test.go                     ║
  * ╚════════════════════════════════════════════════════════════════╝
  */
@@ -211,6 +213,48 @@ var errorCatalog = map[string]appError{
 		Message:  "Unsupported file type",
 		Recovery: "Upload an image file (PNG, JPEG, GIF, WebP, or SVG)",
 	},
+	"file_reference_invalid": {
+		Status:   http.StatusBadRequest,
+		Code:     "file_reference_invalid",
+		Category: "validation",
+		Message:  "Invalid file reference",
+		Recovery: "Use a valid file path and try again",
+	},
+	"file_reference_not_found": {
+		Status:   http.StatusNotFound,
+		Code:     "file_reference_not_found",
+		Category: "validation",
+		Message:  "Referenced file not found",
+		Recovery: "Confirm the file path is correct relative to the project or current session directory",
+	},
+	"file_reference_not_allowed": {
+		Status:   http.StatusForbidden,
+		Code:     "file_reference_not_allowed",
+		Category: "validation",
+		Message:  "Referenced path is outside allowed roots",
+		Recovery: "Open files from the active project workspace only",
+	},
+	"file_reference_too_large": {
+		Status:   http.StatusRequestEntityTooLarge,
+		Code:     "file_reference_too_large",
+		Category: "validation",
+		Message:  "Referenced file is too large to preview",
+		Recovery: "Open a smaller file or inspect it directly in the terminal",
+	},
+	"file_reference_unresolvable": {
+		Status:   http.StatusUnprocessableEntity,
+		Code:     "file_reference_unresolvable",
+		Category: "validation",
+		Message:  "Referenced file could not be resolved",
+		Recovery: "Use an absolute path or a path relative to the active session directory",
+	},
+	"file_reference_not_previewable": {
+		Status:   http.StatusUnsupportedMediaType,
+		Code:     "file_reference_not_previewable",
+		Category: "validation",
+		Message:  "Referenced file cannot be previewed",
+		Recovery: "Open a markdown or text/code file instead",
+	},
 	"unauthorized": {
 		Status:   http.StatusUnauthorized,
 		Code:     "unauthorized",
@@ -306,6 +350,28 @@ var errorCatalog = map[string]appError{
 		Message:  "A fallback TTS backend was used",
 		Recovery: "Review backend status to restore the preferred backend if needed",
 	},
+	"recovery_not_eligible": {
+		Status:   http.StatusConflict,
+		Code:     "recovery_not_eligible",
+		Category: "validation",
+		Message:  "Session is not eligible for recovery (only awaiting_recovery rows can be recovered)",
+		Recovery: "List recoverable sessions with 'web-console session list-recoverable'",
+	},
+	"recovery_claude_session_id_required": {
+		Status:   http.StatusUnprocessableEntity,
+		Code:     "recovery_claude_session_id_required",
+		Category: "validation",
+		Message:  "Cannot recover a Claude session without a known agent_session_id (resuming the wrong project is unsafe)",
+		Recovery: "Use the manual fallback in docs/guides/SESSION_RECOVERY.md to map the right Claude session",
+	},
+	"recovery_failed": {
+		Status:   http.StatusInternalServerError,
+		Code:     "recovery_failed",
+		Category: "internal",
+		Message:  "Recovery failed",
+		Recovery: "Check server logs and try again, or fall back to the manual procedure",
+		Retry:    true,
+	},
 }
 
 // writeJSON encodes data as a JSON response with the given HTTP status code.
@@ -364,7 +430,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 // lookupSession extracts the {id} path variable, looks up the session, and
 // writes a "session_not_found" error if it doesn't exist. Returns nil when
 // the session was not found (callers should return immediately).
-func (s *Server) lookupSession(w http.ResponseWriter, r *http.Request) *Session {
+func (s *Server) lookupSession(w http.ResponseWriter, r *http.Request) *session.Session {
 	id := mux.Vars(r)["id"]
 	sess, ok := s.sessions.Get(id)
 	if !ok {

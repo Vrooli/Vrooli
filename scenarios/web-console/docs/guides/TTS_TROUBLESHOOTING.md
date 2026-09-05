@@ -26,11 +26,11 @@ During `make start`, you should see:
 tts-hook: registered Stop hook -> localhost:<port>
 ```
 
-The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. `tts-hooks.sh` no longer writes the file directly; it delegates to the resource-owned reconciliation seam.
+The hook is now reconciled by the `claude-code` resource and written to the project-level Claude file at `.claude/settings.json` in the repository root. The portable `web-console hooks register` command delegates to the resource-owned reconciliation seam.
 
 If Settings shows `Claude hook: Not registered`, `hook_missing`, or `hook_stale`, or you saw `hook token not available after 5 attempts`, fix:
 ```bash
-source lib/tts-hooks.sh && wc::register_tts_hook
+web-console hooks register
 ```
 
 To inspect the project-level Claude settings file directly:
@@ -80,6 +80,17 @@ Browsers require a user interaction (click, keypress) before audio can play. Set
 ### Check 6: Backend fallback
 
 If `backend=auto` and Kokoro fails at runtime, the frontend attempts a browser fallback and updates the backend reason accordingly. If both fail, a transient amber error banner appears in the terminal pane for 5 seconds.
+
+When browser speech is active, the playback surface also shows a visible notice:
+`Kokoro is unavailable, so browser speech synthesis is active`. This is an
+intentional fallback, not a claim that Kokoro is healthy. To restore Kokoro,
+check the capability message and run the displayed operator command (usually
+`vrooli resource start kokoro`).
+
+If audio-tools reports a degraded scenario, the microphone remains in the
+toolbar as a disabled control. Its accessible label and tooltip identify the
+provider that failed and the command that repairs it; the control is not
+removed and voice input is not silently replaced by browser speech.
 
 ### Check 7: Use the built-in Test button
 

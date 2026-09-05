@@ -1,36 +1,57 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
-import App from './App';
-import './styles.css';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import "./styles.css";
 
-const initializeIframeBridge = (): void => {
-  if (typeof window === 'undefined') {
-    return;
-  }
+// INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
+// the parent shell can route iframe bridge events to this scenario.
+if (window.parent !== window) {
+  initIframeBridgeChild({ appId: "scenario-authenticator" });
+}
 
-  const isIframe = window.parent && window.parent !== window;
-  if (!isIframe || (window as any).__scenarioAuthenticatorBridgeInitialized) {
-    return;
-  }
+// INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
+// keyboard/gamepad control flows.
+initSpatialNav();
 
-  let parentOrigin: string | undefined;
-  try {
-    if (document.referrer) {
-      parentOrigin = new URL(document.referrer).origin;
-    }
-  } catch (error) {
-    console.warn('[ScenarioAuthenticator] Unable to determine parent origin for iframe bridge', error);
-  }
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  throw new Error("Missing #root element in index.html");
+}
+const appRoot = rootEl;
 
-  initIframeBridgeChild({ appId: 'scenario-authenticator', parentOrigin });
-  (window as any).__scenarioAuthenticatorBridgeInitialized = true;
-};
+const queryClient = new QueryClient();
 
-initializeIframeBridge();
+async function bootstrap() {
+  const [{ default: App }, { ErrorBoundary }, { onProfilerRender }] = await Promise.all([
+    import("./App"),
+    import("./components/ErrorBoundary"),
+    import("./lib/profiler"),
+    import("./i18n"),
+  ]);
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+  ReactDOM.createRoot(appRoot).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
+            ./i18n side-effect init above) so the localised fallback can
+            call useTranslation. A render-time crash inside QueryClient
+            itself would escape this boundary, but that failure mode is
+            covered by react-query's own tests, not application logic. */}
+        <ErrorBoundary>
+          {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+              the profiling hook); emits user_timing entries via onProfilerRender
+              when the perf-build channel is active. See lib/profiler.ts. Add
+              inner <Profiler> boundaries around heavy subtrees as needed; do
+              not remove this one. */}
+          <React.Profiler id="App" onRender={onProfilerRender}>
+            <App />
+          </React.Profiler>
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </React.StrictMode>
+  );
+}
+
+void bootstrap();

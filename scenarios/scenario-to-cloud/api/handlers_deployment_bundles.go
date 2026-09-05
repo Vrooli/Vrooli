@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/ssh"
+
+	"github.com/gorilla/mux"
 )
 
 // handleListDeploymentVPSBundles lists VPS bundle cache entries for a deployment's target.
@@ -77,7 +77,7 @@ func (s *Server) handleListDeploymentVPSBundles(w http.ResponseWriter, r *http.R
 
 	bundles, totalSize, err := bundle.ListVPSBundles(ctx, s.sshRunner, cfg, manifest.Target.VPS.Workdir)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleListResponse{
+		httputil.WriteJSON(w, http.StatusBadGateway, domain.VPSBundleListResponse{
 			OK:        false,
 			Bundles:   []domain.VPSBundleInfo{},
 			Error:     err.Error(),

@@ -1,0 +1,96 @@
+package main
+
+import (
+	"net/http"
+	"time"
+)
+
+func (s *Server) handlePrecommitGet(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+	cfg, err := s.precommit.Get(hctx.Ctx, hctx.RepoDir)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+	hctx.Resp.OK(cfg)
+}
+
+func (s *Server) handlePrecommitSave(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+	var req PrecommitConfig
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+	cfg, err := s.precommit.Save(hctx.Ctx, hctx.RepoDir, req)
+	if err != nil {
+		hctx.Resp.BadRequest(err.Error())
+		return
+	}
+	hctx.Resp.OK(cfg)
+}
+
+// handlePrecommitRunStream runs precommit checks and streams progress as SSE.
+//
+// It uses RepoRead (no per-repo write lock) intentionally: precommit runs
+// external checks and does not modify .git/index, so holding the write lock for
+// the full run would needlessly block a concurrent commit. In particular, the
+// "Commit Anyway" flow aborts this stream and immediately fires a
+// skip-precommit commit; if this handler held the write lock, that commit would
+// stall until the (now-cancelled) checks released it — defeating the point.
+func (s *Server) handlePrecommitRunStream(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoRead(w, r, s.git, s.repos, maxPrecommitTimeoutSeconds*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+	var req PrecommitRunRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if !ParseJSONBody(w, r, &req) {
+			return
+		}
+	}
+	emitter, err := newSSEEmitter(w)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+	if _, err := s.precommit.RunStream(hctx.Ctx, hctx.RepoDir, req, emitter); err != nil {
+		emitter.Emit(PrecommitStreamEvent{Type: "error", Error: err.Error()})
+	}
+}
+
+// handlePrecommitRun runs precommit checks synchronously. Like the streaming
+// variant it uses RepoRead: the checks do not touch .git/index, so they must
+// not hold the write lock that commits contend for.
+func (s *Server) handlePrecommitRun(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoRead(w, r, s.git, s.repos, maxPrecommitTimeoutSeconds*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+	var req PrecommitRunRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if !ParseJSONBody(w, r, &req) {
+			return
+		}
+	}
+	result, err := s.precommit.Run(hctx.Ctx, hctx.RepoDir, req)
+	if err != nil {
+		hctx.Resp.BadRequest(err.Error())
+		return
+	}
+	resp := PrecommitRunResponse{Success: result.Status == "passed", Result: result}
+	if !resp.Success {
+		hctx.Resp.UnprocessableEntity(resp)
+		return
+	}
+	hctx.Resp.OK(resp)
+}

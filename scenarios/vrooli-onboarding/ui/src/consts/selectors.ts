@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Vrooli Ascension selector registry
  *
@@ -52,7 +54,7 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,12 +81,12 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,20 +95,18 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-// Type guard uses 'any' to match DynamicSelectorDefinition's generic parameter
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- required for type guard compatibility
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
   Boolean(value && typeof value === "object" && "kind" in value && value.kind === "dynamic-selector");
 
 const isLiteralBranch = (value: LiteralNode): value is LiteralSelectorTree =>
-  typeof value === "object" && value !== null;
+  typeof value === "object";
 
 const isDynamicBranch = (
   value: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>,
 ): value is DynamicSelectorBranch => !isDynamicDefinition(value);
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
 ) => {
@@ -117,8 +117,11 @@ const normalizeParams = (
     if (!(key in raw)) {
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
-    const definitionEntry = schema[key]!;
-    const value = raw[key]!;
+    const definitionEntry = schema[key];
+    const value = raw[key];
+    if (!definitionEntry || value === undefined) {
+      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -180,13 +183,20 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries: Array<[string, ParamDefinition]> = Object.entries(value.params ?? {});
+      const paramEntries = value.params
+        ? Object.keys(value.params)
+            .map((name) => {
+              const config = value.params?.[name];
+              return config ? { name, config } : undefined;
+            })
+            .filter((entry): entry is { name: string; config: ParamDefinition } => entry !== undefined)
+        : [];
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
           value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
         testIdPattern: value.testIdPattern,
-        params: paramEntries.map(([name, config]) => ({
+        params: paramEntries.map(({ name, config }) => ({
           name,
           type: config.type,
           values: config.type === "enum" ? config.values : undefined,
@@ -244,7 +254,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -268,7 +278,6 @@ const defineDynamicSelector = <P extends ParamSchema | undefined>(
 // but TypeScript can't prove it statically. Isolated here so the single assertion is auditable.
 const toSelectorResult = <L extends LiteralSelectorTree, D extends DynamicSelectorTree>(
   raw: ReturnType<typeof mergeLiteralAndDynamicNodes>,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- anchors generic params
   _literalTree: L, _dynamicTree: D,
 ): SelectorTreeResult<L, D> => raw as
   // structurally verified: merge walks both trees and produces the correct shape
@@ -304,6 +313,14 @@ const literalSelectors = {
     prev: "wizard-prev",
     next: "wizard-next",
     welcome: "step-welcome",
+    scenarios: "step-select-scenarios",
+    integrations: "step-integrations-deferred",
+    operatingMode: "step-operating-mode",
+    resources: "step-derived-resources",
+    scenarioSearch: "scenario-search",
+    scenarioFilter: "scenario-filter",
+    host: "step-host-requirements",
+    readiness: "step-readiness",
     selectResources: "step-select-resources",
     review: "step-review",
     complete: "step-complete",
@@ -332,6 +349,48 @@ const literalSelectors = {
     reviewGoBack: "review-go-back",
     stepAnnouncement: "step-announcement",
   },
+  apply: {
+    plan: "apply-plan",
+    privilegeWarning: "privilege-warning",
+    confirm: "apply-confirm",
+    progress: "apply-progress",
+    report: "apply-report",
+    skippedNote: "skipped-note",
+    retry: "retry",
+  },
+  readiness: {
+    summary: "readiness-summary",
+    item: "readiness-item",
+    remediation: "remediation",
+    recheck: "recheck",
+    continueDegraded: "readiness-continue-degraded",
+  },
+  host: {
+    tools: "host-tools",
+    safeguards: "host-safeguards",
+    requirementEntry: "requirement-entry",
+    riskIndicator: "risk-indicator",
+    privilegeIndicator: "privilege-indicator",
+    changeSummary: "change-summary",
+  },
+  credentials: {
+    card: "credential-card",
+    purpose: "credential-purpose",
+    status: "credential-status",
+    input: "credential-input",
+    save: "credential-save",
+    obtainLink: "credential-obtain-link",
+  },
+  capabilities: {
+    actions: "capability-actions",
+  },
+  scenario: {
+    list: "scenario-list",
+    cascadeNote: "cascade-note",
+    resourceRollup: "resource-rollup",
+    catalogError: "catalog-error",
+    lockedBadge: "locked-badge",
+  },
   dashboard: {
     root: "health-dashboard",
     summary: "health-summary",
@@ -359,6 +418,11 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       description: "Step indicator circle by index",
       testIdPattern: "step-indicator-${index}",
       params: { index: { type: "number" } },
+    }),
+    scenarioCard: defineDynamicSelector({
+      description: "Scenario card by scenario name",
+      testIdPattern: "scenario-card-${name}",
+      params: { name: { type: "string" } },
     }),
     resourceCard: defineDynamicSelector({
       description: "Resource card by name",
@@ -397,7 +461,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
   },
 };
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

@@ -11,11 +11,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -25,8 +28,19 @@ import (
 
 // WorkspaceSandboxProvider implements the Provider interface using workspace-sandbox.
 type WorkspaceSandboxProvider struct {
-	baseURL    string
+	baseURL string
+	// httpClient is used for short, request/response endpoints (sandbox
+	// CRUD, process spawn, apply-at-run-end). Has a 30s overall timeout
+	// because those endpoints should be fast.
 	httpClient *http.Client
+	// streamClient is used for long-lived SSE log streams. The default
+	// http.Client.Timeout is a *total* deadline including body read, so
+	// the same 30s limit would kill any agent run that exceeds 30 wall-
+	// clock seconds — exactly the silent failure observed 2026-04-28
+	// after the home-overlay refactor surfaced runs that actually run.
+	// We use Transport-level header/handshake timeouts instead so the
+	// request must connect quickly but can stream indefinitely.
+	streamClient *http.Client
 }
 
 // NewWorkspaceSandboxProvider creates a new workspace-sandbox provider.
@@ -36,17 +50,35 @@ func NewWorkspaceSandboxProvider(baseURL string) *WorkspaceSandboxProvider {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		streamClient: &http.Client{
+			// No total Timeout — the body is the SSE stream. Connection
+			// and TLS handshake have explicit short timeouts; the
+			// per-request context (passed by callers) controls overall
+			// cancellation.
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   10 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+				MaxIdleConns:          10,
+				IdleConnTimeout:       90 * time.Second,
+			},
+		},
 	}
 }
 
 // Create creates a new sandbox for the given scope.
 func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest) (*Sandbox, error) {
 	body := map[string]interface{}{
-		"scopePath":   req.ScopePath,
-		"projectRoot": req.ProjectRoot,
-		"owner":       req.Owner,
-		"ownerType":   req.OwnerType,
-		"metadata":    req.Metadata,
+		"scopePath":      req.ScopePath,
+		"projectRoot":    req.ProjectRoot,
+		"auxiliaryRoots": req.AuxiliaryRoots,
+		"owner":          req.Owner,
+		"ownerType":      req.OwnerType,
+		"metadata":       req.Metadata,
 	}
 	if req.Name != "" {
 		body["name"] = req.Name
@@ -55,7 +87,7 @@ func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest
 		body["noLock"] = *req.NoLock
 	}
 	if req.Behavior != nil {
-		body["behavior"] = req.Behavior
+		body["behavior"] = encodeBehaviorForWire(req.Behavior)
 	}
 	if req.IdempotencyKey != "" {
 		body["idempotencyKey"] = req.IdempotencyKey
@@ -141,13 +173,35 @@ func (p *WorkspaceSandboxProvider) Delete(ctx context.Context, id uuid.UUID) err
 	return nil
 }
 
-// GetWorkspacePath returns the path where agents should execute.
+// GetWorkspacePath returns the host-side overlay merged dir for the
+// sandbox. This is the working-dir base the orchestration layer records
+// and feeds to BOTH launch paths: host-routed (tracking-mode) launches
+// chdir into it directly, while the SandboxLauncher translates it onto the
+// server-reported in-namespace WorkspacePath. It therefore returns the
+// host path (WorkDir), never the "/workspace" illusion — a host launch
+// that chdir'd into "/workspace" would fail. Sandbox-routed callers that
+// need the agent-visible path read Sandbox.WorkspacePath instead (see the
+// launcher's resolveReportedLayout).
 func (p *WorkspaceSandboxProvider) GetWorkspacePath(ctx context.Context, id uuid.UUID) (string, error) {
 	sandbox, err := p.Get(ctx, id)
 	if err != nil {
 		return "", err
 	}
 	return sandbox.WorkDir, nil
+}
+
+// ContainmentFor reports the containment a sandbox actually enforces,
+// satisfying runner.SandboxContainmentReporter so the launcher selector can
+// surface degraded protected-mode runs. Returns ok=false when the sandbox
+// cannot be fetched or the server did not report containment (older
+// workspace-sandbox), so the caller degrades to silence rather than a false
+// "fully contained" claim.
+func (p *WorkspaceSandboxProvider) ContainmentFor(ctx context.Context, sandboxID uuid.UUID) (*runner.Containment, bool) {
+	sb, err := p.Get(ctx, sandboxID)
+	if err != nil || sb == nil || sb.Containment == nil {
+		return nil, false
+	}
+	return sb.Containment, true
 }
 
 // GetDiff generates a diff of changes made in the sandbox.
@@ -283,6 +337,141 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 	return result.toApproveResult(), nil
 }
 
+// ApplyAtRunEnd invokes the workspace-sandbox final run-end apply path. The
+// continuable-turn path is TurnCheckpoint; callers choose explicitly from
+// lifecycle policy instead of this adapter hiding the transition.
+func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error) {
+	actor := req.Actor
+	if actor == "" {
+		actor = "applyAtRunEnd"
+	}
+
+	body := map[string]interface{}{
+		"sandboxId":         req.SandboxID.String(),
+		"agentManagerRunId": req.RunID,
+		"source":            "agent-manager-auto-apply",
+		"actor":             actor,
+		"createCommit":      req.CreateCommit,
+		"force":             req.Force,
+	}
+	if req.ConversationID != "" {
+		body["conversationId"] = req.ConversationID
+	}
+	if req.Cost != 0 {
+		body["cost"] = req.Cost
+	}
+	if req.RunOutcome != "" {
+		body["runOutcome"] = req.RunOutcome
+	}
+	if req.CommitMsg != "" {
+		body["commitMessage"] = req.CommitMsg
+	}
+
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/apply-at-run-end", req.SandboxID), body)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "apply_at_run_end",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, domain.NewNotFoundErrorWithID("Sandbox", req.SandboxID.String())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("apply_at_run_end", &req.SandboxID, resp)
+	}
+
+	var result wsApproveResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "apply_at_run_end",
+			Cause:     err,
+		}
+	}
+
+	return &ApplyAtRunEndResult{
+		Success:        result.Success,
+		Applied:        result.Applied,
+		Remaining:      result.Remaining,
+		IsPartial:      result.IsPartial,
+		CommitHash:     result.CommitHash,
+		AppliedAt:      result.AppliedAt,
+		ErrorMsg:       result.ErrorMsg,
+		TotalSizeBytes: result.TotalSizeBytes,
+		DiffPath:       result.DiffPath,
+	}, nil
+}
+
+func (p *WorkspaceSandboxProvider) TurnCheckpoint(ctx context.Context, req TurnCheckpointRequest) (*TurnCheckpointResult, error) {
+	actor := req.Actor
+	if actor == "" {
+		actor = "applyAtRunEnd"
+	}
+
+	body := map[string]interface{}{
+		"sandboxId":         req.SandboxID.String(),
+		"agentManagerRunId": req.RunID,
+		"source":            "agent-manager-auto-apply",
+		"actor":             actor,
+		"createCommit":      req.CreateCommit,
+		"force":             req.Force,
+	}
+	if req.TurnID != "" {
+		body["turnId"] = req.TurnID
+	}
+	if req.TurnSequence != 0 {
+		body["turnSequence"] = req.TurnSequence
+	}
+	if req.ConversationID != "" {
+		body["conversationId"] = req.ConversationID
+	}
+	if req.Cost != 0 {
+		body["cost"] = req.Cost
+	}
+	if req.RunOutcome != "" {
+		body["runOutcome"] = req.RunOutcome
+	}
+	if req.CommitMsg != "" {
+		body["commitMessage"] = req.CommitMsg
+	}
+
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/turn-checkpoint", req.SandboxID), body)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "turn_checkpoint",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, domain.NewNotFoundErrorWithID("Sandbox", req.SandboxID.String())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("turn_checkpoint", &req.SandboxID, resp)
+	}
+
+	var result wsTurnCheckpointResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "turn_checkpoint",
+			Cause:     err,
+		}
+	}
+
+	return result.toTurnCheckpointResult(), nil
+}
+
 // Stop suspends a sandbox (keeps data but releases mount).
 func (p *WorkspaceSandboxProvider) Stop(ctx context.Context, id uuid.UUID) error {
 	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/stop", id), nil)
@@ -325,8 +514,40 @@ func (p *WorkspaceSandboxProvider) Start(ctx context.Context, id uuid.UUID) erro
 	return nil
 }
 
+// Resume remounts a checkpointed sandbox for the next turn.
+func (p *WorkspaceSandboxProvider) Resume(ctx context.Context, id uuid.UUID) (*Sandbox, error) {
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/resume", id), nil)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &id,
+			Operation:   "resume",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("resume", &id, resp)
+	}
+
+	var result wsSandboxResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &id,
+			Operation: "resume",
+			Cause:     err,
+		}
+	}
+	return result.toSandbox(), nil
+}
+
 // IsAvailable checks if the sandbox provider is operational.
 func (p *WorkspaceSandboxProvider) IsAvailable(ctx context.Context) (bool, string) {
+	if p == nil || strings.TrimSpace(p.baseURL) == "" {
+		return false, "workspace-sandbox provider unavailable: endpoint is not configured"
+	}
 	resp, err := p.doRequest(ctx, "GET", "/health", nil)
 	if err != nil {
 		return false, fmt.Sprintf("workspace-sandbox unreachable: %v", err)
@@ -398,6 +619,35 @@ func (p *WorkspaceSandboxProvider) doRequest(ctx context.Context, method, path s
 	}
 
 	return p.httpClient.Do(req)
+}
+
+// doRawRequest sends a request with a caller-supplied body reader and
+// content-type. Used by the SandboxLauncher to stream raw stdin bytes
+// to /processes/{pid}/stdin. Uses the short-deadline httpClient because
+// stdin uploads are bounded and should fail fast on transport hiccups.
+// For long-lived SSE responses use doStreamRequest instead.
+func (p *WorkspaceSandboxProvider) doRawRequest(ctx context.Context, method, path, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	return p.httpClient.Do(req)
+}
+
+// doStreamRequest opens a long-lived response (typically SSE) using the
+// streamClient. Unlike doRawRequest's 30s total-deadline client, this
+// uses Transport-level connect/handshake/header timeouts so the body
+// can stream for the lifetime of the underlying agent process. Cancel
+// via the supplied ctx to terminate the stream cleanly.
+func (p *WorkspaceSandboxProvider) doStreamRequest(ctx context.Context, method, path string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return p.streamClient.Do(req)
 }
 
 // SandboxAPIError represents a structured error response from the workspace-sandbox API.
@@ -496,32 +746,72 @@ func (p *WorkspaceSandboxProvider) parseError(operation string, sandboxID *uuid.
 // =============================================================================
 
 type wsSandboxResponse struct {
-	ID          string            `json:"id"`
-	ScopePath   string            `json:"scopePath"`
-	ProjectRoot string            `json:"projectRoot"`
-	Status      string            `json:"status"`
-	MergedDir   string            `json:"mergedDir"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID               string            `json:"id"`
+	ScopePath        string            `json:"scopePath"`
+	ProjectRoot      string            `json:"projectRoot"`
+	Status           string            `json:"status"`
+	MergedDir        string            `json:"mergedDir"`
+	WorkspacePath    string            `json:"workspacePath"`
+	PathIllusion     bool              `json:"pathIllusion"`
+	Containment      *wsContainment    `json:"containment,omitempty"`
+	HomeOverlayState string            `json:"homeOverlayState"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
+}
+
+// wsContainment decodes the workspace-sandbox containment report
+// (SandboxContainment on the server). Mapped onto runner.Containment so the
+// launcher selector reads it without importing this package.
+type wsContainment struct {
+	Level        string   `json:"level"`
+	Backend      string   `json:"backend"`
+	Enforcements []string `json:"enforcements"`
 }
 
 func (r *wsSandboxResponse) toSandbox() *Sandbox {
 	id, _ := uuid.Parse(r.ID)
+	state := HomeOverlayState(r.HomeOverlayState)
+	if state == "" {
+		// Older workspace-sandbox versions (pre-2026-04-29) may not set
+		// the field. Default to Absent so the launcher's command-translation
+		// guard fails fast rather than silently exec'ing into a missing path.
+		state = HomeOverlayAbsent
+	}
+	// Older workspace-sandbox versions do not report workspacePath; fall
+	// back to the host merged dir (identity layout) so path handling stays
+	// well-defined rather than empty.
+	workspacePath := r.WorkspacePath
+	if workspacePath == "" {
+		workspacePath = r.MergedDir
+	}
+	var containment *runner.Containment
+	if r.Containment != nil {
+		containment = &runner.Containment{
+			Level:        r.Containment.Level,
+			Backend:      r.Containment.Backend,
+			Enforcements: r.Containment.Enforcements,
+		}
+	}
 	return &Sandbox{
-		ID:          id,
-		ScopePath:   r.ScopePath,
-		ProjectRoot: r.ProjectRoot,
-		Status:      SandboxStatus(r.Status),
-		WorkDir:     r.MergedDir,
-		CreatedAt:   r.CreatedAt,
-		Metadata:    r.Metadata,
+		ID:               id,
+		ScopePath:        r.ScopePath,
+		ProjectRoot:      r.ProjectRoot,
+		Status:           SandboxStatus(r.Status),
+		WorkDir:          r.MergedDir,
+		WorkspacePath:    workspacePath,
+		PathIllusion:     r.PathIllusion,
+		Containment:      containment,
+		CreatedAt:        r.CreatedAt,
+		Metadata:         r.Metadata,
+		HomeOverlayState: state,
 	}
 }
 
 type wsDiffResponse struct {
-	Files       []wsFileChange `json:"files"`
-	UnifiedDiff string         `json:"unifiedDiff"`
-	Stats       wsDiffStats    `json:"stats"`
+	Files        []wsFileChange `json:"files"`
+	UnifiedDiff  string         `json:"unifiedDiff"`
+	Stats        wsDiffStats    `json:"stats"`
+	ArchiveState string         `json:"archiveState,omitempty"`
 }
 
 type wsFileChange struct {
@@ -573,6 +863,7 @@ func (r *wsDiffResponse) toDiffResult(sandboxID uuid.UUID) *DiffResult {
 			LinesRemoved:  r.Stats.LinesRemoved,
 			TotalBytes:    r.Stats.TotalBytes,
 		},
+		ArchiveState: ArchiveState(r.ArchiveState),
 	}
 }
 
@@ -628,24 +919,65 @@ func isDirectoryDiff(lines []string) bool {
 }
 
 type wsApproveResponse struct {
-	Success    bool      `json:"success"`
-	Applied    int       `json:"applied"`
-	Remaining  int       `json:"remaining"`
-	IsPartial  bool      `json:"isPartial"`
-	CommitHash string    `json:"commitHash"`
-	AppliedAt  time.Time `json:"appliedAt"`
-	ErrorMsg   string    `json:"errorMsg"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash"`
+	AppliedAt      time.Time `json:"appliedAt"`
+	ErrorMsg       string    `json:"errorMsg"`
+	TotalSizeBytes int64     `json:"appliedSizeBytes"`
+	DiffPath       string    `json:"diffPath"`
+}
+
+type wsTurnCheckpointResponse struct {
+	SandboxID      string    `json:"sandboxId"`
+	Status         string    `json:"status"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Failed         int       `json:"failed"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash"`
+	BaseCommitHash string    `json:"baseCommitHash"`
+	CheckpointID   string    `json:"checkpointId"`
+	AppliedAt      time.Time `json:"appliedAt"`
+	ErrorMsg       string    `json:"error"`
+	TotalSizeBytes int64     `json:"appliedSizeBytes"`
+	DiffPath       string    `json:"diffPath"`
+}
+
+func (r *wsTurnCheckpointResponse) toTurnCheckpointResult() *TurnCheckpointResult {
+	id, _ := uuid.Parse(r.SandboxID)
+	return &TurnCheckpointResult{
+		SandboxID:      id,
+		Status:         SandboxStatus(r.Status),
+		Success:        r.Success,
+		Applied:        r.Applied,
+		Failed:         r.Failed,
+		Remaining:      r.Remaining,
+		IsPartial:      r.IsPartial,
+		CommitHash:     r.CommitHash,
+		BaseCommitHash: r.BaseCommitHash,
+		CheckpointID:   r.CheckpointID,
+		AppliedAt:      r.AppliedAt,
+		ErrorMsg:       r.ErrorMsg,
+		TotalSizeBytes: r.TotalSizeBytes,
+		DiffPath:       r.DiffPath,
+	}
 }
 
 func (r *wsApproveResponse) toApproveResult() *ApproveResult {
 	return &ApproveResult{
-		Success:    r.Success,
-		Applied:    r.Applied,
-		Remaining:  r.Remaining,
-		IsPartial:  r.IsPartial,
-		CommitHash: r.CommitHash,
-		AppliedAt:  r.AppliedAt,
-		ErrorMsg:   r.ErrorMsg,
+		Success:        r.Success,
+		Applied:        r.Applied,
+		Remaining:      r.Remaining,
+		IsPartial:      r.IsPartial,
+		CommitHash:     r.CommitHash,
+		AppliedAt:      r.AppliedAt,
+		ErrorMsg:       r.ErrorMsg,
+		TotalSizeBytes: r.TotalSizeBytes,
+		DiffPath:       r.DiffPath,
 	}
 }
 
@@ -806,3 +1138,148 @@ func (p *WorkspaceSandboxProvider) CleanupStaleSandboxes(ctx context.Context, ol
 
 // Verify interface compliance
 var _ Provider = (*WorkspaceSandboxProvider)(nil)
+
+// encodeBehaviorForWire converts the agent-manager domain SandboxConfig into
+// the JSON payload workspace-sandbox expects on /api/v1/sandboxes. The two
+// types share most field names (lifecycle, acceptance, manualReview), but
+// the domain side carries levers (mode, autoApply, applyOnFailure,
+// networkMode, noLock) that workspace-sandbox interprets at higher layers
+// (apply-at-run-end, sandbox creation flags). The protected-mode git
+// allowlist is materialized here so workspace-sandbox can enforce it on
+// /exec when the run is protected.
+func encodeBehaviorForWire(cfg *domain.SandboxConfig) map[string]interface{} {
+	if cfg == nil {
+		return nil
+	}
+	wire := map[string]interface{}{
+		"manualReview": cfg.ManualReview,
+		"lifecycle":    cfg.Lifecycle,
+		"acceptance":   cfg.Acceptance,
+	}
+	if cfg.Mode.Effective() == domain.SandboxModeProtected {
+		// Per the protected-agent-sandboxing contract, agent-manager owns
+		// the policy decision (which verbs are allowed) and workspace-sandbox
+		// enforces it. Default to the locked read-only set; future operator
+		// overrides flow through SandboxConfig once the contract grows a
+		// per-profile override knob.
+		wire["protected"] = map[string]interface{}{
+			"gitAllowlist": defaultProtectedGitAllowlist(),
+		}
+	}
+	return wire
+}
+
+// defaultProtectedGitAllowlist mirrors workspace-sandbox's
+// types.DefaultProtectedGitAllowlist so the agent-manager adapter does not
+// have to import workspace-sandbox just to know the contract default.
+func defaultProtectedGitAllowlist() []string {
+	return []string{"status", "diff", "log", "show", "rev-parse"}
+}
+
+// ExecProcess runs a command synchronously inside a sandbox via
+// workspace-sandbox /exec. The sandbox enforces protected-mode guardrails
+// (git allowlist, network mode, resource limits) configured via
+// Behavior.Protected and the bwrap profile.
+func (p *WorkspaceSandboxProvider) ExecProcess(ctx context.Context, req ExecProcessRequest) (*ExecProcessResult, error) {
+	body := map[string]interface{}{
+		"command": req.Command,
+	}
+	if len(req.Args) > 0 {
+		body["args"] = req.Args
+	}
+	if len(req.Env) > 0 {
+		body["env"] = req.Env
+	}
+	if req.WorkingDir != "" {
+		body["workingDir"] = req.WorkingDir
+	}
+	if len(req.WritableMounts) > 0 {
+		body["writableMounts"] = req.WritableMounts
+	}
+	switch req.NetworkMode {
+	case "full":
+		body["allowNetwork"] = true
+		body["isolationLevel"] = "full"
+	case "localhost":
+		body["isolationLevel"] = "vrooli-aware"
+	case "none", "":
+		// default: full isolation, no network
+	}
+	if req.MemoryLimitMB > 0 {
+		body["memoryLimitMB"] = req.MemoryLimitMB
+	}
+	if req.CPUTimeSec > 0 {
+		body["cpuTimeSec"] = req.CPUTimeSec
+	}
+	if req.TimeoutSec > 0 {
+		body["timeoutSec"] = req.TimeoutSec
+	}
+	if req.MaxProcesses > 0 {
+		body["maxProcesses"] = req.MaxProcesses
+	}
+	if req.MaxOpenFiles > 0 {
+		body["maxOpenFiles"] = req.MaxOpenFiles
+	}
+
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/exec", req.SandboxID), body)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "exec",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	// Structured guardrail denial — agent-manager surfaces this as a typed
+	// tool.blocked event in the run timeline.
+	if resp.StatusCode == http.StatusForbidden {
+		var denial struct {
+			Error   string `json:"error"`
+			Verb    string `json:"verb"`
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&denial); err != nil {
+			return nil, &domain.SandboxError{
+				SandboxID: &req.SandboxID,
+				Operation: "exec",
+				Cause:     fmt.Errorf("decode 403 body: %w", err),
+			}
+		}
+		return &ExecProcessResult{
+			Blocked: &ExecBlocked{
+				Error:   denial.Error,
+				Verb:    denial.Verb,
+				Message: denial.Message,
+			},
+		}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("exec", &req.SandboxID, resp)
+	}
+
+	var wire struct {
+		ExitCode int    `json:"exitCode"`
+		Stdout   string `json:"stdout"`
+		Stderr   string `json:"stderr"`
+		PID      int    `json:"pid,omitempty"`
+		TimedOut bool   `json:"timedOut,omitempty"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&wire); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "exec",
+			Cause:     err,
+		}
+	}
+	return &ExecProcessResult{
+		ExitCode: wire.ExitCode,
+		Stdout:   wire.Stdout,
+		Stderr:   wire.Stderr,
+		PID:      wire.PID,
+		TimedOut: wire.TimedOut,
+	}, nil
+}

@@ -197,7 +197,7 @@ const PAYLOAD_VERSION = '1';
 // BUILD PARAMS TYPE
 // =============================================================================
 
-import type { HandlerInstruction } from '../proto';
+import { getActionType, type HandlerInstruction } from '../proto';
 
 /**
  * Parameters for building a step outcome
@@ -250,7 +250,7 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
     stepIndex: validatedIndex,
     attempt: 1, // TODO: Track actual attempt number when retry logic is implemented
     nodeId: instruction.nodeId,
-    stepType: instruction.type,
+		stepType: getActionType(instruction),
     success: result.success,
     startedAt: timestampFromDate(startedAt),
     completedAt: timestampFromDate(completedAt),

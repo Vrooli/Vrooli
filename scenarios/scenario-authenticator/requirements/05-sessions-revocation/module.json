@@ -1,0 +1,59 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-005",
+      "title": "Server-Tracked Sessions with List, Per-Session Revoke, and Log-Out-Everywhere",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "description": "Every sign-in creates a server-tracked session record (SQLite + Redis hot state). Authenticated users can list their active sessions. Any session can be individually revoked via the preserved /api/v1/sessions/{id} contract or its Connect equivalent. 'Log out everywhere' revokes all sessions for a user atomically. Session revocation must propagate to Redis immediately so in-flight token checks reject revoked sessions without waiting for token expiry. The revoke contract that device-sync-hub calls must be preserved or delivered as a Connect equivalent in lockstep.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/session/session_test.go: create session, list sessions for user → session appears; revoke session → session absent from list"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/session/session_test.go: log-out-everywhere revokes all sessions atomically; assert Redis reflects all revocations"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/session/session_test.go: revoked session ID lookup in Redis returns revoked state within the same process tick"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/session/session_e2e_test.go: login twice (two sessions), list sessions → two entries; revoke one → one remains; verify access token from revoked session is rejected on next use"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/session/session_e2e_test.go: log-out-everywhere — all sessions revoked; all corresponding access tokens rejected"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/session/session_e2e_test.go: simulate device-sync-hub calling the revoke endpoint (REST path or Connect equivalent) → 200 and session invalidated; assert backward-compatible contract"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "bas/session/session_management_test: authenticated user views session list, revokes a specific session, and confirms it disappears from the list without page reload errors"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { Profiler, useState, useRef, useEffect } from "react";
 import {
   Box,
   Clock,
@@ -11,6 +11,7 @@ import {
   XCircle,
   Square,
   Play,
+  PauseCircle,
   Loader2,
   Copy,
   Check,
@@ -26,6 +27,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { DiffViewer, type HunkSelection } from "./DiffViewer";
+import { onProfilerRender } from "../lib/profiler";
 import type { Sandbox, DiffResult, Status, ViewMode } from "../lib/api";
 import { formatBytes, formatRelativeTime } from "../lib/api";
 import { cn, truncatePath, formatOwner, sandboxDisplayName } from "../lib/utils";
@@ -82,6 +84,16 @@ const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; vari
     icon: <Square className="h-4 w-4" />,
     label: "Stopped",
     variant: "stopped",
+  },
+  checkpointing: {
+    icon: <PauseCircle className="h-4 w-4" />,
+    label: "Checkpointing",
+    variant: "checkpointed",
+  },
+  checkpointed: {
+    icon: <PauseCircle className="h-4 w-4" />,
+    label: "Checkpointed",
+    variant: "checkpointed",
   },
   approved: {
     icon: <CheckCircle className="h-4 w-4" />,
@@ -176,7 +188,15 @@ function reservedPathValue(sandbox: Sandbox): { display: string; copyable: boole
   return { display: reserved.join(", "), copyable: true };
 }
 
-export function SandboxDetail({
+export function SandboxDetail(props: SandboxDetailProps) {
+  return (
+    <Profiler id="SandboxDetail" onRender={onProfilerRender}>
+      <SandboxDetailImpl {...props} />
+    </Profiler>
+  );
+}
+
+function SandboxDetailImpl({
   sandbox,
   diff,
   isDiffLoading,
@@ -229,7 +249,9 @@ export function SandboxDetail({
     localStorage.setItem("wsb.detailsCollapsed", String(isDetailsCollapsed));
   }, [isDetailsCollapsed]);
 
-  // Header resize state
+  // Header resize state. During a drag we write the height directly to the
+  // header element via RAF; React state and localStorage update only on
+  // mouseup. See docs/perf/2026-05-03-history-fileviewer-resize.md F1/F2/F8.
   const HEADER_MIN_HEIGHT = 200;
   const DIFF_MIN_HEIGHT = 200;
   const [headerHeight, setHeaderHeight] = useState(() => {
@@ -237,62 +259,73 @@ export function SandboxDetail({
     const stored = Number(localStorage.getItem("wsb.detailsHeight"));
     return Number.isFinite(stored) && stored > 0 ? stored : 400;
   });
-  const [isResizingHeader, setIsResizingHeader] = useState(false);
+  const headerHeightRef = useRef(headerHeight);
+  headerHeightRef.current = headerHeight;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const headerResize = useRef<{ top: number; height: number } | null>(null);
+  const headerPaneRef = useRef<HTMLDivElement | null>(null);
+  const headerResize = useRef<
+    | { top: number; height: number; current: number }
+    | null
+  >(null);
 
-  // Header resize handler
   const handleHeaderResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
-    if (!containerRef.current) return;
+    if (!containerRef.current || !headerPaneRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
+    const startHeight = headerPaneRef.current.getBoundingClientRect().height;
     headerResize.current = {
       top: rect.top,
       height: rect.height,
+      current: startHeight,
     };
-    setIsResizingHeader(true);
-  };
 
-  // Header resize mouse events
-  useEffect(() => {
-    if (!isResizingHeader) return;
+    let rafId = 0;
+    let pendingHeight = startHeight;
 
-    const handleMove = (event: MouseEvent) => {
+    const applyHeight = () => {
+      rafId = 0;
+      if (!headerPaneRef.current || !headerResize.current) return;
+      headerPaneRef.current.style.height = `${pendingHeight}px`;
+      headerResize.current.current = pendingHeight;
+    };
+
+    const handleMove = (e: MouseEvent) => {
       if (!headerResize.current) return;
-      const nextHeight = event.clientY - headerResize.current.top;
+      const nextHeight = e.clientY - headerResize.current.top;
       const maxHeight = headerResize.current.height - DIFF_MIN_HEIGHT;
-      const clampedHeight = Math.max(HEADER_MIN_HEIGHT, Math.min(maxHeight, nextHeight));
-      setHeaderHeight(clampedHeight);
+      pendingHeight = Math.max(HEADER_MIN_HEIGHT, Math.min(maxHeight, nextHeight));
+      if (rafId === 0) rafId = requestAnimationFrame(applyHeight);
     };
 
     const handleUp = () => {
-      setIsResizingHeader(false);
+      if (rafId !== 0) {
+        cancelAnimationFrame(rafId);
+        applyHeight();
+      }
+      const settled = headerResize.current?.current ?? startHeight;
       headerResize.current = null;
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      setHeaderHeight(settled);
+      try {
+        localStorage.setItem("wsb.detailsHeight", String(settled));
+      } catch {
+        // see App.tsx — silently skip persistence if localStorage is unusable
+      }
     };
 
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
+  };
 
-    return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizingHeader]);
-
-  // Persist header height to localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("wsb.detailsHeight", String(headerHeight));
-  }, [headerHeight]);
-
-  // Constrain header height when container shrinks
+  // Constrain header height when container shrinks. Observer attaches once;
+  // latest height is read via ref so we don't tear down/rebuild on each drag
+  // step (F8).
   useEffect(() => {
     if (!containerRef.current || typeof ResizeObserver === "undefined") return;
 
@@ -300,7 +333,7 @@ export function SandboxDetail({
       if (!containerRef.current) return;
       const height = containerRef.current.clientHeight;
       const maxHeader = Math.max(HEADER_MIN_HEIGHT, height - DIFF_MIN_HEIGHT);
-      if (headerHeight > maxHeader) {
+      if (headerHeightRef.current > maxHeader) {
         setHeaderHeight(maxHeader);
       }
     };
@@ -309,7 +342,7 @@ export function SandboxDetail({
     const observer = new ResizeObserver(clamp);
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [headerHeight]);
+  }, []);
 
   // Empty state
   if (!sandbox) {
@@ -329,7 +362,7 @@ export function SandboxDetail({
 
   const statusConfig = STATUS_CONFIG[sandbox.status];
   const canStop = sandbox.status === "active";
-  const canStart = sandbox.status === "stopped";
+  const canStart = sandbox.status === "stopped" || sandbox.status === "checkpointed";
   const canApproveReject = sandbox.status === "active" || sandbox.status === "stopped";
   // When noLock is true, acceptance rules don't apply - show simplified "Approve All" button
   const isNoLock = sandbox.noLock === true;
@@ -344,6 +377,7 @@ export function SandboxDetail({
     <div className="h-full flex flex-col" data-testid={SELECTORS.detailPanel} ref={containerRef}>
       {/* Details Panel */}
       <div
+        ref={headerPaneRef}
         className={hideDiffViewer ? "flex-1 min-h-0" : "flex-shrink-0"}
         style={hideDiffViewer || isDetailsCollapsed ? undefined : { height: headerHeight }}
       >
@@ -464,7 +498,7 @@ export function SandboxDetail({
                   <MetadataRow
                     icon={<Server className="h-3.5 w-3.5" />}
                     label="Driver"
-                    value={`${sandbox.driver} v${sandbox.driverVersion}`}
+                    value={`${sandbox.driverId} v${sandbox.driverVersion}`}
                   />
                   {sandbox.mergedDir && sandbox.status === "active" && (
                     <MetadataRow
@@ -547,7 +581,7 @@ export function SandboxDetail({
                   ) : (
                     <Play className="h-3.5 w-3.5 mr-1.5" />
                   )}
-                  Start
+                  {sandbox.status === "checkpointed" ? "Resume" : "Start"}
                 </Button>
               )}
 
@@ -848,6 +882,7 @@ export function SandboxDetail({
       {/* Header/Diff Resize Handle - only show when details expanded and diff visible */}
       {!hideDiffViewer && !isDetailsCollapsed && (
         <div
+          data-testid="header-resize-handle"
           className="h-1.5 bg-slate-900 hover:bg-slate-700 cursor-row-resize flex-shrink-0"
           onMouseDown={handleHeaderResizeStart}
         />

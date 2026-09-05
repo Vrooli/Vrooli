@@ -7,7 +7,7 @@ import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { useToast } from '../../../shared/ui/useToast';
 import { HeaderConfigurator } from '../components/HeaderConfigurator';
 import { useVariantForm } from '../hooks/useVariantForm';
@@ -45,7 +45,10 @@ const editorModelPath = 'inmemory://model/landing-variant.json';
  */
 export function VariantEditor() {
   const navigate = useNavigate();
-  const { slug } = useParams<{ slug: string }>();
+  const routeParams = useParams();
+  const slug = typeof routeParams.slug === 'string' ? routeParams.slug : undefined;
+  const routeSlug = slug ?? '';
+  const encodedRouteSlug = encodeURIComponent(routeSlug);
   const isNew = slug === 'new';
   const toast = useToast();
 
@@ -100,6 +103,8 @@ export function VariantEditor() {
     onError: (message) => toast.error(message),
   });
 
+  const variantName: string = typeof variant?.name === 'string' ? variant.name : routeSlug || 'variant';
+
   const handleSaveClick = async () => {
     if (isJsonTab) {
       await handleSaveJson();
@@ -127,9 +132,8 @@ export function VariantEditor() {
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
-          variant="icon-title"
           title={isNew ? 'New Variant' : 'Edit Variant'}
-          description={isNew ? 'Create a new A/B test variant' : `Editing ${variant?.name ?? slug}`}
+          description={isNew ? 'Create a new A/B test variant' : `Editing ${variantName}`}
           icon={Edit}
           iconBgClass="bg-indigo-500/10"
           iconColorClass="text-indigo-400"
@@ -139,14 +143,14 @@ export function VariantEditor() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/admin/customization')}
+                onClick={() => { navigate('/admin/customization'); }}
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
               <Button
-                onClick={handleSaveClick}
+                onClick={() => { void handleSaveClick(); }}
                 disabled={currentSaving || (isJsonTab && (snapshotLoading || isNew))}
                 className="gap-2"
                 data-testid="save-variant"
@@ -163,14 +167,14 @@ export function VariantEditor() {
           <Button
             variant={!isJsonTab ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveTab('form')}
+            onClick={() => { setActiveTab('form'); }}
           >
             Form Editor
           </Button>
           <Button
             variant={isJsonTab ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveTab('json')}
+            onClick={() => { setActiveTab('json'); }}
             disabled={isNew}
             title={isNew ? 'Save the variant before using JSON editor' : 'Edit the raw variant JSON'}
           >
@@ -216,7 +220,7 @@ export function VariantEditor() {
                       height="520px"
                       path={editorModelPath}
                       value={snapshotDraft}
-                      onChange={(value) => setSnapshotDraft(value ?? '')}
+                      onChange={(value) => { setSnapshotDraft(value ?? ''); }}
                       onMount={handleEditorMount}
                       options={{
                         minimap: { enabled: false },
@@ -236,7 +240,7 @@ export function VariantEditor() {
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={() => handleCopySchema(variantSchema)}
+                      onClick={() => { void handleCopySchema(variantSchema); }}
                     >
                       <Clipboard className="h-4 w-4" />
                       Copy variant schema
@@ -248,7 +252,7 @@ export function VariantEditor() {
                       <div className="flex items-center justify-between">
                         <div className="font-semibold text-amber-200">Schema validation issues</div>
                         <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={handleCopyIssues}>
+                          <Button size="sm" variant="outline" onClick={() => { void handleCopyIssues(); }}>
                             Copy issues
                           </Button>
                           {copyStatus && <span className="text-[11px] text-slate-200">{copyStatus}</span>}
@@ -289,7 +293,7 @@ export function VariantEditor() {
                     id="name"
                     type="text"
                     value={form.name}
-                    onChange={(e) => updateFormField('name', e.target.value)}
+                    onChange={(e) => { updateFormField('name', e.target.value); }}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-0"
                     placeholder="e.g., Variant A"
                     data-testid="variant-name-input"
@@ -304,7 +308,7 @@ export function VariantEditor() {
                     id="slug"
                     type="text"
                     value={form.slug}
-                    onChange={(e) => updateFormField('slug', sanitizeSlugInput(e.target.value))}
+                    onChange={(e) => { updateFormField('slug', sanitizeSlugInput(e.target.value)); }}
                     disabled={!isNew}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="e.g., variant-a"
@@ -322,7 +326,7 @@ export function VariantEditor() {
                   <Textarea
                     id="description"
                     value={form.description}
-                    onChange={(e) => updateFormField('description', e.target.value)}
+                    onChange={(e) => { updateFormField('description', e.target.value); }}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                     rows={3}
                     placeholder="Brief description of this variant's purpose"
@@ -348,7 +352,7 @@ export function VariantEditor() {
                             <select
                               className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                               value={selectedValue}
-                              onChange={(e) => updateAxesSelection(axisId, e.target.value)}
+                              onChange={(e) => { updateAxesSelection(axisId, e.target.value); }}
                             >
                               {axisDef.variants.map((axisVariant) => (
                                 <option key={axisVariant.id} value={axisVariant.id}>
@@ -378,7 +382,7 @@ export function VariantEditor() {
                     min="0"
                     max="100"
                     value={form.weight}
-                    onChange={(e) => updateFormField('weight', parseInt(e.target.value, 10))}
+                    onChange={(e) => { updateFormField('weight', parseInt(e.target.value, 10)); }}
                     className="w-full"
                     data-testid="variant-weight-input"
                   />
@@ -398,7 +402,7 @@ export function VariantEditor() {
 
             {/* Content Sections */}
             {!isNew && variant && (
-              <Card className="${LAYOUT.card.base}">
+              <Card className={LAYOUT.card.base}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -408,7 +412,7 @@ export function VariantEditor() {
                       </CardDescription>
                     </div>
                     <Button
-                      onClick={() => navigate(`/admin/customization/variants/${slug}/sections/new`)}
+                      onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/new`); }}
                       variant="outline"
                       size="sm"
                       className="gap-2"
@@ -424,7 +428,7 @@ export function VariantEditor() {
                     <div className="text-center py-12 text-slate-400">
                       <p className="mb-4">No sections yet</p>
                       <Button
-                        onClick={() => navigate(`/admin/customization/variants/${slug}/sections/new`)}
+                        onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/new`); }}
                         variant="outline"
                       >
                         Add Your First Section
@@ -433,12 +437,12 @@ export function VariantEditor() {
                   ) : (
                     <div className="space-y-3">
                       {[...sections]
-                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                        .sort((a, b) => a.order - b.order)
                         .map((section) => (
                           <div
                             key={section.id}
                             className="flex items-center justify-between p-4 bg-slate-900/50 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
-                            data-testid={`section-${section.id}`}
+                            data-testid={`section-${String(section.id)}`}
                           >
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-2">
@@ -459,8 +463,8 @@ export function VariantEditor() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/admin/customization/variants/${slug}/sections/${section.id}`)}
-                              data-testid={`edit-section-${section.id}`}
+                              onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/${String(section.id)}`); }}
+                              data-testid={`edit-section-${String(section.id)}`}
                             >
                               Edit
                             </Button>

@@ -1,22 +1,36 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "interoperability-steer",
-  "name": "Interoperability Steer",
+  "createdAt": "2026-01-30T15:30:00-05:00",
   "description": "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries",
+  "entry": "SKILL.md",
+  "id": "interoperability-steer",
+  "kind": "skill",
   "modes": [
     "steer",
     "architecture"
   ],
+  "name": "Interoperability Steer",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 46,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "proto",
     "types",
     "validation",
     "contracts"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 46,
-  "createdAt": "2026-01-30T15:30:00-05:00",
   "updatedAt": "2026-02-05T01:01:21Z"
 }

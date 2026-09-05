@@ -1,0 +1,8 @@
+[
+  {"role":"assistant","content":"I cannot find the expected command."},
+  {"role":"assistant","content":"This keeps failing; I need permission."},
+  {"role":"assistant","content":"Instead I will try the documented path."},
+  {"role":"assistant","content":"I am blocked by the unavailable service."},
+  {"role":"tool","content":"I am blocked and need permission."},
+  {"role":"assistant","content":"I can find the documented command."}
+]

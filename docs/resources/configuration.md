@@ -1,136 +1,68 @@
-# Vrooli Resource Configuration
+# Resource Configuration
 
-## Overview
+This page describes the current configuration model for resources at the platform level.
 
-Vrooli resources use a multi-layered configuration system to manage settings, credentials, and operational parameters.
+## Core Rule
 
-## Configuration Files
+Treat manifests and current CLI behavior as authoritative. Do not treat old registry-era or shell-era configuration patterns as current truth unless they are explicitly retained.
 
-### Primary Configuration
+## Current Configuration Layers
 
-**`~/.vrooli/service.json`**
-- Main service configuration file
-- Contains resource enablement, basic settings, and service definitions
-- Managed by the main CLI and resource management system
+### Project-Level
 
-**`~/.vrooli/resource-registry/`**
-- Directory containing resource-specific registry files
-- Each resource has a JSON file defining its CLI interface and capabilities
-- Used by the main CLI for command routing and discovery
+- `.vrooli/service.json` contains project-level configuration, lifecycle setup, and enabled dependency intent
 
-**`~/.vrooli/scenarios.json`**
-- Scenario-specific configuration
-- Defines which scenarios are available and their resource requirements
-- Used by the scenario system for resource orchestration
+### Scenario-Level
 
-## Resource-Specific Configuration
+- `scenarios/<name>/.vrooli/service.json` contains scenario-level dependency declarations and lifecycle metadata
 
-### Environment Variables
+### Resource-Level
 
-Resources can be configured through environment variables:
+- implemented resources commonly expose `resources/<name>/resource.json` as manifest authority
 
-```bash
-# Ollama configuration
-export OLLAMA_HOST="localhost"
-export OLLAMA_PORT="11434"
-export OLLAMA_MODELS_PATH="/opt/ollama/models"
+## Dependency Guidance
 
-# PostgreSQL configuration
-export POSTGRES_HOST="localhost"
-export POSTGRES_PORT="5432"
-export POSTGRES_DB="vrooli"
-export POSTGRES_USER="vrooli"
-export POSTGRES_PASSWORD="secret"
+At the scenario level:
 
-# Redis configuration
-export REDIS_HOST="localhost"
-export REDIS_PORT="6379"
-export REDIS_DB="0"
-```
+- `dependencies.resources` is keyed by canonical resource name
+- `enabled` controls whether the dependency participates at all
+- `required` describes semantic importance
+- `startup_policy` describes orchestration behavior
+- `degraded_behavior` explains the fallback mode when intentional degradation is allowed
 
-### Configuration Files
+Useful values:
 
-Resources may have their own configuration files:
+- `must_start`
+- `try_start`
+- `ignore`
 
-- **Ollama**: `~/.ollama/config.json`
-- **PostgreSQL**: `~/.vrooli/postgres/postgresql.conf`
-- **Redis**: `data/resources/redis/config/redis.conf`
-- **n8n**: `~/.vrooli/n8n/.n8n/config.json`
+Current defaults:
 
-## Configuration Management
+- if `enabled` is omitted, declared dependencies are treated as enabled
+- if `startup_policy` is omitted and `required=true`, it normalizes to `must_start`
+- if `startup_policy` is omitted and `required=false`, it normalizes to `ignore`
 
-### CLI Commands
+Current guidance:
+
+- use `required=true` plus `startup_policy=must_start` for hard dependencies
+- use `required=false` plus `startup_policy=try_start` for optional-but-useful dependencies
+- avoid `required=true` plus `startup_policy=ignore`
+- if you intentionally use `required=true` plus `startup_policy=try_start`, also declare `degraded_behavior`
+
+The normalization work described by older audit docs has been folded into the current resource configuration and migration guidance.
+
+## Validate Configuration
 
 ```bash
-# View configuration
-vrooli resource status
-
-# Check specific resource configuration
-vrooli resource <name> status
-
-# Update configuration (resource-specific)
-resource-<name> config set <key> <value>
+vrooli resource validate
+vrooli resource validate "<name>"
+vrooli resource schema validate
 ```
 
-### Configuration Validation
+## Guidance
 
-```bash
-# Validate all resource configurations
-./tools/validate-interfaces.sh
-
-# Fix configuration issues
-./tools/fix-interface-compliance.sh
-```
-
-## Security Considerations
-
-### Credential Management
-
-- **Vault Integration**: Use Vault for secure credential storage
-- **Environment Variables**: Use environment variables for sensitive data
-- **File Permissions**: Ensure configuration files have appropriate permissions
-- **Secret Rotation**: Implement regular secret rotation
-
-### Access Control
-
-- **User Permissions**: Limit access to configuration files
-- **Network Security**: Use appropriate network security measures
-- **Audit Logging**: Log configuration changes and access
-
-## Troubleshooting
-
-### Common Configuration Issues
-
-1. **Missing Configuration**: Ensure all required configuration is present
-2. **Permission Errors**: Check file and directory permissions
-3. **Network Issues**: Verify network connectivity and firewall settings
-4. **Resource Conflicts**: Check for port conflicts and resource limits
-
-### Debugging Configuration
-
-```bash
-# Check configuration status
-vrooli resource status --verbose
-
-# View resource logs
-vrooli resource <name> logs
-
-# Test resource connectivity
-resource-<name> test
-```
-
-## Best Practices
-
-### Configuration Design
-
-- **Default Values**: Provide sensible defaults for all settings
-- **Validation**: Validate configuration values on startup
-- **Documentation**: Document all configuration options
-- **Migration**: Provide migration paths for configuration changes
-
-### Operational Practices
-
-- **Backup**: Regularly backup configuration files
-- **Version Control**: Use version control for configuration templates
-- **Testing**: Test configuration changes in non-production environments
-- **Monitoring**: Monitor configuration-related errors and issues 
+- prefer canonical resource names
+- keep dependency declarations honest
+- avoid inventing old `resource-*` alias conventions in config
+- treat scenario manifests and resource manifests as living operational truth
+- keep project, scenario, and resource configuration roles distinct even when they interact

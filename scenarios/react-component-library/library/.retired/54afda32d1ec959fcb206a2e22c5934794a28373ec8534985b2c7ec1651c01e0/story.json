@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useSwipeGesture",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='hooks.use-swipe-gesture']"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-swipe-gesture']",
+          "attribute": "data-stage",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "id": "auto-commit",
+      "name": "Auto-commit release",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "AutoCommit" }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='hooks.use-swipe-gesture.commit'] [data-rcl-pan-x]"
+        }
+      ]
+    }
+  ]
+}

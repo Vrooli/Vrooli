@@ -14,7 +14,7 @@
 |----------|--------------|-------|
 | `test-genie` | Partial overlap | Has containment package with Docker/bubblewrap providers for **process isolation**, but not file-system overlay sandboxing with diff/approval workflow |
 | `agent-inbox` | Potential consumer | Could use workspace-sandbox for safe agent task execution |
-| `ecosystem-manager` | Potential consumer | Could orchestrate sandboxed scenario runs |
+| `swarm-manager` | Potential consumer | Could orchestrate sandboxed scenario runs |
 
 ### Key Differentiation from test-genie
 
@@ -106,7 +106,7 @@ canCreateSandbox(newPath, activeSandboxes):
 
 1. **fuse-overlayfs vs privileged overlayfs**: Should we support both? fuse-overlayfs is slower but doesn't need root.
 
-2. **Database vs filesystem for metadata**: PostgreSQL gives us querying/transactions but adds dependency. SQLite would be simpler for single-server use.
+2. **Database vs filesystem for metadata**: Resolved — embedded SQLite (modernc.org/sqlite, pure Go, CGO-free) gives us full SQL queries and ACID transactions without a separate server process or per-host configuration. The DB file is resolved through `api-core/storage` so it lives outside the disposable scenario deploy directory.
 
 3. **Process tracking granularity**: Track all child processes via cgroups, or just direct children via process groups?
 
@@ -117,9 +117,9 @@ canCreateSandbox(newPath, activeSandboxes):
 ## Resources in Vrooli Ecosystem
 
 Potentially useful resources for workspace-sandbox:
-- `postgres` - Metadata storage
+- (storage is embedded SQLite — no shared resource needed)
 - `redis` - Optional caching for sandbox lookup
-- `browserless` - UI testing for diff viewer
+- `browser-automation-studio` - UI testing for diff viewer
 
 ## Conclusion
 

@@ -100,7 +100,7 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
   CONSOLE_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Console log collection', dataType: 'boolean', editable: true },
   NETWORK_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Network event collection', dataType: 'boolean', editable: true },
   SESSION_POOL_SIZE: { tier: ConfigTier.ADVANCED, defaultValue: 5, description: 'Pre-warmed session pool', dataType: 'integer', min: 1, max: 50, editable: false },
-  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL (5 min default)', dataType: 'integer', min: 10000, max: 3600000, editable: true },
+  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL (5 min default)', dataType: 'integer', min: 10000, max: 7200000, editable: true },
 
   // === Tier 2: AI Navigation (Advanced) ===
   AI_MAX_STEPS: { tier: ConfigTier.ADVANCED, defaultValue: 20, description: 'Vision agent max steps per navigation', dataType: 'integer', min: 1, max: 100, editable: true },
@@ -109,11 +109,13 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
 
   // === Tier 3: Internal ===
   PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host', dataType: 'string', editable: false },
-  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 600000, editable: true },
+  PLAYWRIGHT_DRIVER_ADMIN_SECRET: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Shared secret required for loopback administrative session recovery', dataType: 'string', editable: false },
+  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 7200000, editable: true },
   MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size (bytes)', dataType: 'integer', min: 1024, max: 52428800, editable: false },
   HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = regular Chromium with --headless=new)', dataType: 'boolean', editable: false },
   BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path', dataType: 'string', editable: false },
   BROWSER_ARGS: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Extra browser arguments (comma-separated)', dataType: 'string', editable: false },
+  BAS_FAKE_MICROPHONE_FILE: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Absolute WAV path for Chromium fake microphone capture during deterministic media qualification', dataType: 'string', editable: false },
   IGNORE_HTTPS_ERRORS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Ignore HTTPS certificate errors', dataType: 'boolean', editable: false },
   RECORDING_MAX_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 10000, description: 'Recording buffer size (actions)', dataType: 'integer', min: 100, max: 100000, editable: true },
   RECORDING_MIN_SELECTOR_CONFIDENCE: { tier: ConfigTier.INTERNAL, defaultValue: 0.3, description: 'Selector confidence threshold (0-1)', dataType: 'float', min: 0, max: 1, editable: true },
@@ -165,8 +167,13 @@ const ConfigSchema = z.object({
   server: z.object({
     port: z.number().min(1).max(65535).default(39400),
     host: z.string().default('127.0.0.1'),
-    requestTimeout: z.number().min(1000).max(600000).default(300000), // 5 minutes - playwright operations can be slow
+    requestTimeout: z.number().min(1000).max(7200000).default(300000), // 5 minutes by default; long-form qualification may opt into 2 hours
     maxRequestSize: z.number().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
+    adminSecret: z.string().default(''),
+  }),
+  faultControl: z.object({
+    // Test controls are available only in an explicitly non-production driver.
+    enabled: z.boolean().default(false),
   }),
   browser: z.object({
     /**
@@ -188,10 +195,15 @@ const ConfigSchema = z.object({
      */
     args: z.array(z.string()).default(['--headless=new']),
     ignoreHTTPSErrors: z.boolean().default(false),
+    /**
+     * Opt-in deterministic microphone source. BrowserManager converts this to
+     * Chromium's real fake-media flags; it is never enabled for normal runs.
+     */
+    fakeMicrophoneFile: z.string().min(1).optional(),
   }),
   session: z.object({
     maxConcurrent: z.number().min(1).max(100).default(10),
-    idleTimeoutMs: z.number().min(10000).max(3600000).default(300000),
+    idleTimeoutMs: z.number().min(10000).max(7200000).default(300000),
     poolSize: z.number().min(1).max(50).default(5),
     cleanupIntervalMs: z.number().min(5000).max(600000).default(60000),
   }),
@@ -321,6 +333,16 @@ const ConfigSchema = z.object({
     useScreencast: z.boolean().default(true),
     /** Fall back to polling if screencast fails */
     fallbackToPolling: z.boolean().default(true),
+    /**
+     * Port for the direct frame WebSocket, which lets UI clients stream frames
+     * from the driver without relaying through the API hub.
+     *
+     * Allocated from the scenario port range like every other listener. It used
+     * to be derived as `server.port + 1`, which silently left the declared
+     * range when the driver drew the last port in it, and made two driver
+     * instances collide on startup.
+     */
+    directPort: z.number().min(1).max(65535),
     /**
      * CDP-specific tuning options.
      * These control the behavior of the CDP screencast strategy.
@@ -488,6 +510,10 @@ export function loadConfig(): Config {
       host: process.env.PLAYWRIGHT_DRIVER_HOST || '127.0.0.1',
       requestTimeout: parseEnvInt(process.env.REQUEST_TIMEOUT_MS, 300000), // 5 minutes
       maxRequestSize: parseEnvInt(process.env.MAX_REQUEST_SIZE, 5242880),
+      adminSecret: process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET?.trim() || '',
+    },
+    faultControl: {
+      enabled: process.env.NODE_ENV !== 'production' && process.env.PLAYWRIGHT_DRIVER_FAULT_CONTROL !== 'false',
     },
     browser: {
       // Default to false to use regular Chromium with --headless=new (not headless_shell)
@@ -513,6 +539,7 @@ export function loadConfig(): Config {
           : []),
       ],
       ignoreHTTPSErrors: process.env.IGNORE_HTTPS_ERRORS === 'true',
+      fakeMicrophoneFile: process.env.BAS_FAKE_MICROPHONE_FILE?.trim() || undefined,
     },
     session: {
       maxConcurrent: parseEnvInt(process.env.MAX_SESSIONS, 10),
@@ -582,6 +609,13 @@ export function loadConfig(): Config {
     frameStreaming: {
       useScreencast: process.env.FRAME_STREAMING_USE_SCREENCAST !== 'false', // Default true
       fallbackToPolling: process.env.FRAME_STREAMING_FALLBACK !== 'false', // Default true
+      // Fall back to the historical server.port + 1 only when the scenario did
+      // not allocate a port, so a bundle running the driver standalone still
+      // comes up.
+      directPort: parseEnvInt(
+        process.env.FRAME_STREAM_DIRECT_PORT,
+        parseEnvInt(process.env.PLAYWRIGHT_DRIVER_PORT, 24400) + 1
+      ),
       cdp: {
         ackTimeoutMs: parseEnvInt(process.env.FRAME_STREAMING_CDP_ACK_TIMEOUT_MS, 1000),
         maxAckFailures: parseEnvInt(process.env.FRAME_STREAMING_CDP_MAX_ACK_FAILURES, 5),

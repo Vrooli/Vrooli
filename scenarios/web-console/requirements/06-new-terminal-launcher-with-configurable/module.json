@@ -1,97 +1,99 @@
 {
-  "description": "New-terminal flow offers empty shell and configurable shortcut entries; default entries include `claude --dangerously-skip-permissions` and `codex --yolo`",
-  "module_id": "MOD-P0-006",
-  "prd_ref": "OT-P0-006",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
+  },
   "requirements": [
     {
-      "category": "ui",
-      "children": ["REQ-P0-006b"],
-      "description": "Terminal launcher dialog presents empty shell option and configurable shortcut entries. Opens on new-pane action.",
       "id": "REQ-P0-006a",
-      "prd_ref": "OT-P0-006",
-      "status": "passed",
       "title": "Terminal Launch Flow UI",
-      "validation": [
-        {
-          "notes": "Launcher component exports and renders",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/launcher.test.ts",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Launcher dialog selector registered",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/selectors.test.ts:exposes launcher dialog selector",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Launcher modal open/close, empty shell, shortcut selection, custom command, isCreating states",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "BAS case executes custom-command launcher path to create terminal session and run command",
-          "phase": "integration",
-          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
-          "status": "implemented",
-          "type": "automation"
-        }
-      ]
-    },
-    {
-      "category": "core",
-      "children": ["REQ-P0-006b-i"],
-      "description": "Shortcut entries configurable via API. Default shortcuts include `claude --dangerously-skip-permissions` and `codex --yolo`. Shortcut selection creates session with specified command.",
-      "id": "REQ-P0-006b",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
-      "status": "passed",
-      "title": "Configurable Shortcut Entries",
+      "category": "ui",
+      "description": "Terminal launcher dialog presents empty shell option and configurable shortcut entries. Opens on new-pane action.",
+      "children": [
+        "REQ-P0-006b"
+      ],
       "validation": [
         {
-          "notes": "Default shortcuts include claude and codex per PRD",
-          "phase": "unit",
-          "ref": "ui/src/__tests__/shortcuts.test.ts",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "ShortcutEntry interface supports label, command, description",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/launcher.test.ts",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Launcher component exports and renders"
         },
         {
-          "notes": "API-driven shortcut loading, fallback to defaults on API failure, prop override",
+          "type": "test",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes launcher dialog selector",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Launcher dialog selector registered"
+        },
+        {
+          "type": "test",
           "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Launcher modal open/close, empty shell, shortcut selection, custom command, isCreating states"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BAS case executes custom-command launcher path to create terminal session and run command"
         }
       ]
     },
     {
+      "id": "REQ-P0-006b",
+      "title": "Configurable Shortcut Entries",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "description": "Shortcut entries configurable via API. The default Claude shortcut uses `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`, and the Codex shortcut uses `codex --yolo`. Shortcut selection creates a session with the specified command.",
+      "children": [
+        "REQ-P0-006b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/shortcuts.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Default shortcuts include claude and codex per PRD"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/launcher.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ShortcutEntry interface supports label, command, description"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API-driven shortcut loading, fallback to defaults on API failure, prop override"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-006b-i",
+      "title": "Shortcut Session Creation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "Selecting a shortcut entry creates a new session with the shortcut's command pre-populated. Session creation uses the same API as empty shell.",
-      "id": "REQ-P0-006b-i",
-      "prd_ref": "OT-P0-006",
-      "status": "passed",
-      "title": "Shortcut Session Creation",
       "validation": [
         {
-          "notes": "Create session API accepts optional shell command parameter",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/session_handlers_test.go:TestHandleCreateSession",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Create session API accepts optional shell command parameter"
         }
       ]
     }
-  ],
-  "title": "New Terminal Launcher with Configurable Shortcuts"
+  ]
 }

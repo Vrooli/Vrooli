@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "complete-a-blocked-enrolment",
+    "title": "Finish what the agent could not",
+    "purpose": "The defining journey. An agent gets as far as a wall it must not cross, and the operator completes only the irreducibly human step. Success is measured by how little the person has to reconstruct."
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "Learn within seconds that something is blocked, and which one is oldest.",
+      "via": "Arrive at the console after a notification or out of habit."
+    },
+    {
+      "page": "handoffs",
+      "state": "default",
+      "intent": "Scan the queue and pick the handoff that is actually blocking work.",
+      "via": "Follow the dashboard's primary action."
+    },
+    {
+      "page": "handoffs",
+      "state": "detail",
+      "intent": "Understand exactly which wall was hit and what only a human can do, with everything the agent already completed visible.",
+      "via": "Open the handoff."
+    },
+    {
+      "page": "handoffs",
+      "state": "submitting",
+      "intent": "Confirm the step is done and hand control back to the waiting flow.",
+      "via": "Complete the handoff."
+    },
+    {
+      "page": "handoffs",
+      "state": "success",
+      "intent": "See that the originating flow resumed from its checkpoint rather than starting over.",
+      "via": "Completion resolves."
+    }
+  ]
+}

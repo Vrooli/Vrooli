@@ -10,8 +10,7 @@
  * REQUEST:
  * {
  *   prompt: string;           // User's goal (e.g., "Order chicken from the menu")
- *   model: string;            // Model ID (e.g., "qwen3-vl-30b")
- *   api_key: string;          // API key for the model provider
+ *   model: string;            // AI Gateway route profile
  *   max_steps?: number;       // Maximum steps (default: 20)
  *   callback_url: string;     // URL to POST step events to
  * }
@@ -56,7 +55,6 @@ import type { BehaviorSettings } from '../types/browser-profile';
 interface AINavigateRequest {
   prompt: string;
   model: string;
-  api_key: string;
   max_steps?: number;
   callback_url: string;
 }
@@ -75,6 +73,7 @@ interface AINavigateResponse {
  * Track active navigations per session (to support abort).
  */
 const activeNavigations = new Map<string, { agent: ReturnType<typeof createVisionAgent>; navigationId: string }>();
+const AI_GATEWAY_TIMEOUT_MS = 120000;
 
 /**
  * Handle POST /session/:id/ai-navigate
@@ -135,10 +134,6 @@ export async function handleSessionAINavigate(
     sendJson(res, 400, { error: 'bad_request', message: 'model is required and must be a string' });
     return;
   }
-  if (!body.api_key || typeof body.api_key !== 'string') {
-    sendJson(res, 400, { error: 'bad_request', message: 'api_key is required and must be a string' });
-    return;
-  }
   if (!body.callback_url || typeof body.callback_url !== 'string') {
     sendJson(res, 400, { error: 'bad_request', message: 'callback_url is required and must be a string' });
     return;
@@ -178,8 +173,10 @@ export async function handleSessionAINavigate(
   try {
     visionClient = createVisionClient({
       modelId: body.model,
-      apiKey: body.api_key,
-      timeoutMs: 60000, // 60s timeout for vision API calls
+      gatewayUrl: process.env.AI_GATEWAY_URL,
+      // Match the gateway's extract.structured role budget. Local vision
+      // models may need the full role window while loading a multimodal rung.
+      timeoutMs: AI_GATEWAY_TIMEOUT_MS,
       maxRetries: 2,
     });
   } catch (err) {
@@ -225,7 +222,6 @@ export async function handleSessionAINavigate(
     page: session.page,
     maxSteps,
     model: body.model,
-    apiKey: body.api_key,
     callbackUrl: body.callback_url,
     navigationId,
     onStep: (step: NavigationStep) => {

@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// DeviceKind describes the device that produced deployment evidence.
+enum DeviceKind {
+  DEVICE_KIND_UNSPECIFIED = 0;
+  DEVICE_KIND_HOST = 1;
+  DEVICE_KIND_EMULATOR = 2;
+  DEVICE_KIND_PHYSICAL = 3;
+}
+
+// Disposition is the terminal or in-progress outcome of a target evidence run.
+enum Disposition {
+  DISPOSITION_UNSPECIFIED = 0;
+  DISPOSITION_PENDING = 1;
+  DISPOSITION_PASSED = 2;
+  DISPOSITION_FAILED = 3;
+  DISPOSITION_SKIPPED = 4;
+}
+
+// EvidenceTarget identifies one ramp, platform, and device combination.
+// bridge_* are optional because local host and emulator runs need no reach-plane
+// identity. A consumer may store this target, but it never stores producer bytes.
+message EvidenceTarget {
+  string ramp = 1;
+  string platform = 2;
+  string os = 3;
+  DeviceKind device_kind = 4;
+  optional string bridge_node_id = 5;
+  optional string bridge_job_id = 6;
+}
+
+// EvidenceRef points to bytes held by the producer. Consumers store this
+// reference and never the artifact bytes or a local filesystem path.
+message EvidenceRef {
+  string producer = 1;
+  string artifact_id = 2;
+  string kind = 3;
+  string checksum = 4;
+  int64 size_bytes = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// TargetVerdict is the producer's evidence-backed result for one target.
+message TargetVerdict {
+  EvidenceTarget target = 1;
+  Disposition disposition = 2;
+  repeated EvidenceRef refs = 3;
+  string run_id = 4;
+  string detail = 5;
+  // Structural provenance used by release gates. This must not be inferred
+  // from free-form detail text because advisory strategies are not
+  // promotable to release evidence.
+  string evidence_class = 6;
+}

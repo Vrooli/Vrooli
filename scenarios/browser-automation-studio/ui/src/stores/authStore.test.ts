@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { useAuthStore, type AuthUser } from './authStore';
+import { useAuthStore, setupAuthListener, type AuthUser } from './authStore';
 
 // Mock the desktop API
 const mockDesktopAuth = {
@@ -18,6 +18,7 @@ const getDesktopWindow = (): DesktopWindow => window as DesktopWindow;
 describe('authStore [REQ:BAS-AUTH]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     // Reset store state
     useAuthStore.setState({
       isAuthenticated: false,
@@ -172,6 +173,52 @@ describe('authStore [REQ:BAS-AUTH]', () => {
         configurable: true,
       });
       setItemSpy.mockRestore();
+    });
+
+    it('consumes the callback, provisions only the refresh token server-side, and strips the fragment', async () => {
+      delete getDesktopWindow().desktop;
+      const payload = btoa(JSON.stringify({ sub: 'user-123', email: 'user@example.com', email_verified: true }));
+      const accessToken = `header.${payload}.signature`;
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      window.history.pushState({}, '', `/auth/callback#access_token=${encodeURIComponent(accessToken)}&refresh_token=refresh-secret&expires_at=${encodeURIComponent(expiresAt)}&state=callback-state`);
+      sessionStorage.setItem('auth_state', 'callback-state');
+
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201 });
+      vi.stubGlobal('fetch', fetchMock);
+
+      setupAuthListener();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user?.email).toBe('user@example.com');
+      expect(window.location.hash).toBe('');
+      expect(fetchMock).toHaveBeenCalledWith('/api/v1/auth/subscription/session', expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: 'refresh-secret' }),
+      }));
+      expect(sessionStorage.getItem('vrooli.web.access-token')).toContain(accessToken);
+      expect(sessionStorage.getItem('vrooli.web.access-token')).not.toContain('refresh-secret');
+
+      vi.unstubAllGlobals();
+      window.history.replaceState({}, '', '/');
+    });
+
+    it('rejects a callback with a missing or mismatched state before provisioning', async () => {
+      delete getDesktopWindow().desktop;
+      window.history.pushState({}, '', '/auth/callback#access_token=access&refresh_token=refresh&expires_at=2030-01-01T00%3A00%3A00Z&state=wrong');
+      sessionStorage.setItem('auth_state', 'expected');
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      setupAuthListener();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(fetchMock).not.toHaveBeenCalledWith('/api/v1/auth/subscription/session', expect.anything());
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+
+      vi.unstubAllGlobals();
+      window.history.replaceState({}, '', '/');
     });
   });
 
@@ -346,11 +393,15 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       mockDesktopAuth.onAuthChanged.mockImplementation((cb: (event: string) => void) => {
         authChangedCallback = cb;
       });
+      mockDesktopAuth.isAuthenticated.mockResolvedValue(false);
       mockDesktopAuth.getUser.mockResolvedValue({
         id: 'user-123',
         email: 'newuser@example.com',
         emailVerified: true,
       });
+
+      // Trigger listener setup now that desktop mock is in place
+      setupAuthListener();
 
       // Simulate the event
       if (!authChangedCallback) {

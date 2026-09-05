@@ -1,0 +1,1721 @@
+{
+  "selectors": {
+    "layout.main": {
+      "testId": "main-layout",
+      "selector": "[data-testid=\"main-layout\"]"
+    },
+    "layout.header": {
+      "testId": "header",
+      "selector": "[data-testid=\"header\"]"
+    },
+    "layout.desktopTabs": {
+      "testId": "desktop-tabs",
+      "selector": "[data-testid=\"desktop-tabs\"]"
+    },
+    "layout.mobileNav": {
+      "testId": "mobile-nav",
+      "selector": "[data-testid=\"mobile-nav\"]"
+    },
+    "layout.agentsToggle": {
+      "testId": "layout-agents-toggle",
+      "selector": "[data-testid=\"layout-agents-toggle\"]"
+    },
+    "workspace.header": {
+      "testId": "workspace-header",
+      "selector": "[data-testid=\"workspace-header\"]"
+    },
+    "workspace.settingsGear": {
+      "testId": "settings-gear",
+      "selector": "[data-testid=\"settings-gear\"]"
+    },
+    "workspace.settingsDrawer": {
+      "testId": "settings-drawer",
+      "selector": "[data-testid=\"settings-drawer\"]"
+    },
+    "workspace.drawerSettingsTab": {
+      "testId": "settings-drawer-tab-settings",
+      "selector": "[data-testid=\"settings-drawer-tab-settings\"]"
+    },
+    "error.container": {
+      "testId": "error-state",
+      "selector": "[data-testid=\"error-state\"]"
+    },
+    "error.icon": {
+      "testId": "error-icon",
+      "selector": "[data-testid=\"error-icon\"]"
+    },
+    "error.title": {
+      "testId": "error-title",
+      "selector": "[data-testid=\"error-title\"]"
+    },
+    "error.message": {
+      "testId": "error-message",
+      "selector": "[data-testid=\"error-message\"]"
+    },
+    "error.retryButton": {
+      "testId": "error-retry",
+      "selector": "[data-testid=\"error-retry\"]"
+    },
+    "errorBoundary.container": {
+      "testId": "error-boundary",
+      "selector": "[data-testid=\"error-boundary\"]"
+    },
+    "errorBoundary.title": {
+      "testId": "error-boundary-title",
+      "selector": "[data-testid=\"error-boundary-title\"]"
+    },
+    "errorBoundary.message": {
+      "testId": "error-boundary-message",
+      "selector": "[data-testid=\"error-boundary-message\"]"
+    },
+    "errorBoundary.refreshButton": {
+      "testId": "error-boundary-refresh",
+      "selector": "[data-testid=\"error-boundary-refresh\"]"
+    },
+    "errorBoundary.showDetailsButton": {
+      "testId": "error-boundary-show-details",
+      "selector": "[data-testid=\"error-boundary-show-details\"]"
+    },
+    "errorBoundary.diagnosticsPanel": {
+      "testId": "error-boundary-diagnostics",
+      "selector": "[data-testid=\"error-boundary-diagnostics\"]"
+    },
+    "errorBoundary.copyButton": {
+      "testId": "error-boundary-copy",
+      "selector": "[data-testid=\"error-boundary-copy\"]"
+    },
+    "errorBoundary.copyConfirmation": {
+      "testId": "error-boundary-copy-confirmation",
+      "selector": "[data-testid=\"error-boundary-copy-confirmation\"]"
+    },
+    "errorBoundary.errorName": {
+      "testId": "error-boundary-error-name",
+      "selector": "[data-testid=\"error-boundary-error-name\"]"
+    },
+    "errorBoundary.errorMessage": {
+      "testId": "error-boundary-error-message",
+      "selector": "[data-testid=\"error-boundary-error-message\"]"
+    },
+    "errorBoundary.componentStack": {
+      "testId": "error-boundary-component-stack",
+      "selector": "[data-testid=\"error-boundary-component-stack\"]"
+    },
+    "errorBoundary.timestamp": {
+      "testId": "error-boundary-timestamp",
+      "selector": "[data-testid=\"error-boundary-timestamp\"]"
+    },
+    "errorBoundary.userAgent": {
+      "testId": "error-boundary-user-agent",
+      "selector": "[data-testid=\"error-boundary-user-agent\"]"
+    },
+    "errorBoundary.errorCategory": {
+      "testId": "error-boundary-error-category",
+      "selector": "[data-testid=\"error-boundary-error-category\"]"
+    },
+    "notFound.page": {
+      "testId": "not-found-page",
+      "selector": "[data-testid=\"not-found-page\"]"
+    },
+    "notFound.title": {
+      "testId": "not-found-title",
+      "selector": "[data-testid=\"not-found-title\"]"
+    },
+    "notFound.message": {
+      "testId": "not-found-message",
+      "selector": "[data-testid=\"not-found-message\"]"
+    },
+    "notFound.homeButton": {
+      "testId": "not-found-home",
+      "selector": "[data-testid=\"not-found-home\"]"
+    },
+    "tabs.backlog": {
+      "testId": "tab-backlog",
+      "selector": "[data-testid=\"tab-backlog\"]"
+    },
+    "tabs.scenarios": {
+      "testId": "tab-scenarios",
+      "selector": "[data-testid=\"tab-scenarios\"]"
+    },
+    "tabs.execution": {
+      "testId": "tab-execution",
+      "selector": "[data-testid=\"tab-execution\"]"
+    },
+    "tabs.prompts": {
+      "testId": "tab-prompts",
+      "selector": "[data-testid=\"tab-prompts\"]"
+    },
+    "tabs.settings": {
+      "testId": "tab-settings",
+      "selector": "[data-testid=\"tab-settings\"]"
+    },
+    "mobileTabs.backlog": {
+      "testId": "mobile-tab-backlog",
+      "selector": "[data-testid=\"mobile-tab-backlog\"]"
+    },
+    "mobileTabs.scenarios": {
+      "testId": "mobile-tab-scenarios",
+      "selector": "[data-testid=\"mobile-tab-scenarios\"]"
+    },
+    "mobileTabs.execution": {
+      "testId": "mobile-tab-execution",
+      "selector": "[data-testid=\"mobile-tab-execution\"]"
+    },
+    "mobileTabs.prompts": {
+      "testId": "mobile-tab-prompts",
+      "selector": "[data-testid=\"mobile-tab-prompts\"]"
+    },
+    "mobileTabs.settings": {
+      "testId": "mobile-tab-settings",
+      "selector": "[data-testid=\"mobile-tab-settings\"]"
+    },
+    "backlog.page": {
+      "testId": "backlog-page",
+      "selector": "[data-testid=\"backlog-page\"]"
+    },
+    "backlog.search": {
+      "testId": "backlog-search",
+      "selector": "[data-testid=\"backlog-search\"]"
+    },
+    "backlog.filter": {
+      "testId": "backlog-filter",
+      "selector": "[data-testid=\"backlog-filter\"]"
+    },
+    "backlog.createButton": {
+      "testId": "create-backlog",
+      "selector": "[data-testid=\"create-backlog\"]"
+    },
+    "backlog.createFirstButton": {
+      "testId": "create-first-backlog",
+      "selector": "[data-testid=\"create-first-backlog\"]"
+    },
+    "backlog.empty": {
+      "testId": "backlog-empty",
+      "selector": "[data-testid=\"backlog-empty\"]"
+    },
+    "backlog.grid": {
+      "testId": "backlog-grid",
+      "selector": "[data-testid=\"backlog-grid\"]"
+    },
+    "backlog.noResults": {
+      "testId": "backlog-no-results",
+      "selector": "[data-testid=\"backlog-no-results\"]"
+    },
+    "backlog.sortButton": {
+      "testId": "backlog-sort-button",
+      "selector": "[data-testid=\"backlog-sort-button\"]"
+    },
+    "backlog.batchToggle": {
+      "testId": "backlog-batch-toggle",
+      "selector": "[data-testid=\"backlog-batch-toggle\"]"
+    },
+    "backlog.summaryStats": {
+      "testId": "backlog-summary-stats",
+      "selector": "[data-testid=\"backlog-summary-stats\"]"
+    },
+    "backlog.readyCount": {
+      "testId": "backlog-ready-count",
+      "selector": "[data-testid=\"backlog-ready-count\"]"
+    },
+    "backlog.cliHint": {
+      "testId": "backlog-cli-hint",
+      "selector": "[data-testid=\"backlog-cli-hint\"]"
+    },
+    "backlog.showFinishedToggle": {
+      "testId": "backlog-show-finished-toggle",
+      "selector": "[data-testid=\"backlog-show-finished-toggle\"]"
+    },
+    "backlog.statusLegend": {
+      "testId": "backlog-status-legend",
+      "selector": "[data-testid=\"backlog-status-legend\"]"
+    },
+    "backlog.welcomeHint": {
+      "testId": "backlog-welcome-hint",
+      "selector": "[data-testid=\"backlog-welcome-hint\"]"
+    },
+    "backlog.kindTabs": {
+      "testId": "backlog-kind-tabs",
+      "selector": "[data-testid=\"backlog-kind-tabs\"]"
+    },
+    "captures.quickInput": {
+      "testId": "captures-quick-input",
+      "selector": "[data-testid=\"captures-quick-input\"]"
+    },
+    "captures.quickInputSubmit": {
+      "testId": "captures-quick-input-submit",
+      "selector": "[data-testid=\"captures-quick-input-submit\"]"
+    },
+    "captures.quickInputMic": {
+      "testId": "captures-quick-input-mic",
+      "selector": "[data-testid=\"captures-quick-input-mic\"]"
+    },
+    "captures.quickComposer": {
+      "testId": "captures-quick-composer",
+      "selector": "[data-testid=\"captures-quick-composer\"]"
+    },
+    "captures.quickInputAttach": {
+      "testId": "captures-quick-input-attach",
+      "selector": "[data-testid=\"captures-quick-input-attach\"]"
+    },
+    "captures.quickInputSend": {
+      "testId": "captures-quick-input-send",
+      "selector": "[data-testid=\"captures-quick-input-send\"]"
+    },
+    "captures.card": {
+      "testId": "capture-card",
+      "selector": "[data-testid=\"capture-card\"]"
+    },
+    "captures.retryButton": {
+      "testId": "capture-retry-button",
+      "selector": "[data-testid=\"capture-retry-button\"]"
+    },
+    "captures.acceptAllButton": {
+      "testId": "capture-accept-all-button",
+      "selector": "[data-testid=\"capture-accept-all-button\"]"
+    },
+    "captures.dismissButton": {
+      "testId": "capture-dismiss-button",
+      "selector": "[data-testid=\"capture-dismiss-button\"]"
+    },
+    "captures.itemAcceptButton": {
+      "testId": "capture-item-accept-button",
+      "selector": "[data-testid=\"capture-item-accept-button\"]"
+    },
+    "captures.itemEditButton": {
+      "testId": "capture-item-edit-button",
+      "selector": "[data-testid=\"capture-item-edit-button\"]"
+    },
+    "captures.itemDismissButton": {
+      "testId": "capture-item-dismiss-button",
+      "selector": "[data-testid=\"capture-item-dismiss-button\"]"
+    },
+    "agentSessions.composer": {
+      "testId": "agent-session-composer",
+      "selector": "[data-testid=\"agent-session-composer\"]"
+    },
+    "agentSessions.composerMic": {
+      "testId": "agent-session-composer-mic",
+      "selector": "[data-testid=\"agent-session-composer-mic\"]"
+    },
+    "agentSessions.composerImageAttach": {
+      "testId": "agent-session-composer-attach",
+      "selector": "[data-testid=\"agent-session-composer-attach\"]"
+    },
+    "agentSessions.composerContextAttach": {
+      "testId": "agent-session-composer-context",
+      "selector": "[data-testid=\"agent-session-composer-context\"]"
+    },
+    "agentSessions.composerImagePreviewRemove": {
+      "testId": "attachment-preview-remove",
+      "selector": "[data-testid=\"attachment-preview-remove\"]"
+    },
+    "agentSessions.contextPicker": {
+      "testId": "session-context-picker",
+      "selector": "[data-testid=\"session-context-picker\"]"
+    },
+    "agentSessions.contextSearch": {
+      "testId": "session-context-search",
+      "selector": "[data-testid=\"session-context-search\"]"
+    },
+    "agentSessions.contextEntityList": {
+      "testId": "session-context-entity-list",
+      "selector": "[data-testid=\"session-context-entity-list\"]"
+    },
+    "agentSessions.contextRow": {
+      "testId": "session-context-row",
+      "selector": "[data-testid=\"session-context-row\"]"
+    },
+    "agentSessions.contextSelectedTray": {
+      "testId": "session-context-selected-tray",
+      "selector": "[data-testid=\"session-context-selected-tray\"]"
+    },
+    "agentSessions.contextAttachButton": {
+      "testId": "session-context-attach",
+      "selector": "[data-testid=\"session-context-attach\"]"
+    },
+    "agentSessions.entityAttachAction": {
+      "testId": "entity-attach-session-action",
+      "selector": "[data-testid=\"entity-attach-session-action\"]"
+    },
+    "agentSessions.entityAttachSheet": {
+      "testId": "entity-attach-session-sheet",
+      "selector": "[data-testid=\"entity-attach-session-sheet\"]"
+    },
+    "agentSessions.entityAttachSearch": {
+      "testId": "entity-attach-session-search",
+      "selector": "[data-testid=\"entity-attach-session-search\"]"
+    },
+    "agentSessions.entityAttachSessionList": {
+      "testId": "entity-attach-session-list",
+      "selector": "[data-testid=\"entity-attach-session-list\"]"
+    },
+    "agentSessions.entityAttachConfirm": {
+      "testId": "entity-attach-session-confirm",
+      "selector": "[data-testid=\"entity-attach-session-confirm\"]"
+    },
+    "agentSessions.entityAttachQuickStart": {
+      "testId": "entity-attach-session-quick-start",
+      "selector": "[data-testid=\"entity-attach-session-quick-start\"]"
+    },
+    "agentSessions.entityAttachKindSelect": {
+      "testId": "entity-attach-session-kind-select",
+      "selector": "[data-testid=\"entity-attach-session-kind-select\"]"
+    },
+    "agentSessions.entityAttachModeNew": {
+      "testId": "entity-attach-mode-new",
+      "selector": "[data-testid=\"entity-attach-mode-new\"]"
+    },
+    "agentSessions.entityAttachModeExisting": {
+      "testId": "entity-attach-mode-existing",
+      "selector": "[data-testid=\"entity-attach-mode-existing\"]"
+    },
+    "agentSessions.entityAttachSuggestion": {
+      "testId": "entity-attach-suggestion",
+      "selector": "[data-testid=\"entity-attach-suggestion\"]"
+    },
+    "agentSessions.proposalStart": {
+      "testId": "proposal-session-start",
+      "selector": "[data-testid=\"proposal-session-start\"]"
+    },
+    "agentSessions.messageContextChips": {
+      "testId": "session-message-context-chips",
+      "selector": "[data-testid=\"session-message-context-chips\"]"
+    },
+    "agentSessions.messageImageThumbnails": {
+      "testId": "session-message-image-thumbnails",
+      "selector": "[data-testid=\"session-message-image-thumbnails\"]"
+    },
+    "agentSessions.starterSuggestions": {
+      "testId": "agent-session-starter-suggestions",
+      "selector": "[data-testid=\"agent-session-starter-suggestions\"]"
+    },
+    "agentSessions.starterSuggestion": {
+      "testId": "agent-session-starter-suggestion",
+      "selector": "[data-testid=\"agent-session-starter-suggestion\"]"
+    },
+    "agentSessions.starterSuggestionCount": {
+      "testId": "agent-session-starter-suggestion-count",
+      "selector": "[data-testid=\"agent-session-starter-suggestion-count\"]"
+    },
+    "questionStepper.container": {
+      "testId": "question-stepper",
+      "selector": "[data-testid=\"question-stepper\"]"
+    },
+    "questionStepper.prevButton": {
+      "testId": "question-stepper-prev",
+      "selector": "[data-testid=\"question-stepper-prev\"]"
+    },
+    "questionStepper.nextButton": {
+      "testId": "question-stepper-next",
+      "selector": "[data-testid=\"question-stepper-next\"]"
+    },
+    "questionStepper.skipButton": {
+      "testId": "question-stepper-skip",
+      "selector": "[data-testid=\"question-stepper-skip\"]"
+    },
+    "questionStepper.progress": {
+      "testId": "question-stepper-progress",
+      "selector": "[data-testid=\"question-stepper-progress\"]"
+    },
+    "questionStepper.workshopOption": {
+      "testId": "question-stepper-workshop-option",
+      "selector": "[data-testid=\"question-stepper-workshop-option\"]"
+    },
+    "questionStepper.reviewApprove": {
+      "testId": "question-stepper-review-approve",
+      "selector": "[data-testid=\"question-stepper-review-approve\"]"
+    },
+    "questionStepper.reviewFlag": {
+      "testId": "question-stepper-review-flag",
+      "selector": "[data-testid=\"question-stepper-review-flag\"]"
+    },
+    "backlogDetails.page": {
+      "testId": "backlog-details-page",
+      "selector": "[data-testid=\"backlog-details-page\"]"
+    },
+    "backlogDetails.title": {
+      "testId": "backlog-details-title",
+      "selector": "[data-testid=\"backlog-details-title\"]"
+    },
+    "backlogDetails.description": {
+      "testId": "backlog-details-description",
+      "selector": "[data-testid=\"backlog-details-description\"]"
+    },
+    "backlogDetails.backButton": {
+      "testId": "backlog-details-back",
+      "selector": "[data-testid=\"backlog-details-back\"]"
+    },
+    "backlogDetails.editButton": {
+      "testId": "backlog-details-edit",
+      "selector": "[data-testid=\"backlog-details-edit\"]"
+    },
+    "backlogDetails.deleteButton": {
+      "testId": "backlog-details-delete",
+      "selector": "[data-testid=\"backlog-details-delete\"]"
+    },
+    "backlogDetails.queueButton": {
+      "testId": "backlog-details-queue",
+      "selector": "[data-testid=\"backlog-details-queue\"]"
+    },
+    "backlogDetails.agentButton": {
+      "testId": "backlog-details-agent",
+      "selector": "[data-testid=\"backlog-details-agent\"]"
+    },
+    "backlogDetails.deleteDialog": {
+      "testId": "backlog-delete-dialog",
+      "selector": "[data-testid=\"backlog-delete-dialog\"]"
+    },
+    "backlogDetails.deleteConfirmButton": {
+      "testId": "backlog-delete-confirm",
+      "selector": "[data-testid=\"backlog-delete-confirm\"]"
+    },
+    "backlogDetails.deleteCancelButton": {
+      "testId": "backlog-delete-cancel",
+      "selector": "[data-testid=\"backlog-delete-cancel\"]"
+    },
+    "backlogDetails.deleteCopyButton": {
+      "testId": "backlog-delete-copy",
+      "selector": "[data-testid=\"backlog-delete-copy\"]"
+    },
+    "backlogDetails.fileTree": {
+      "testId": "backlog-details-file-tree",
+      "selector": "[data-testid=\"backlog-details-file-tree\"]"
+    },
+    "backlogDetails.filePreview": {
+      "testId": "backlog-details-file-preview",
+      "selector": "[data-testid=\"backlog-details-file-preview\"]"
+    },
+    "backlogDetails.fileUpload": {
+      "testId": "backlog-details-file-upload",
+      "selector": "[data-testid=\"backlog-details-file-upload\"]"
+    },
+    "backlogDetails.uploadDropzone": {
+      "testId": "file-upload-dropzone",
+      "selector": "[data-testid=\"file-upload-dropzone\"]"
+    },
+    "backlogDetails.uploadList": {
+      "testId": "file-upload-list",
+      "selector": "[data-testid=\"file-upload-list\"]"
+    },
+    "backlogDetails.suggestionsPanel": {
+      "testId": "backlog-suggestions-panel",
+      "selector": "[data-testid=\"backlog-suggestions-panel\"]"
+    },
+    "backlogDetails.suggestionsSubmit": {
+      "testId": "backlog-suggestions-submit",
+      "selector": "[data-testid=\"backlog-suggestions-submit\"]"
+    },
+    "backlogDetails.breadcrumb": {
+      "testId": "backlog-details-breadcrumb",
+      "selector": "[data-testid=\"backlog-details-breadcrumb\"]"
+    },
+    "backlogDetails.activityTimeline": {
+      "testId": "backlog-details-activity-timeline",
+      "selector": "[data-testid=\"backlog-details-activity-timeline\"]"
+    },
+    "backlogDetails.activeRunBanner": {
+      "testId": "backlog-details-active-run-banner",
+      "selector": "[data-testid=\"backlog-details-active-run-banner\"]"
+    },
+    "backlogDetails.tabRow": {
+      "testId": "backlog-details-tab-row",
+      "selector": "[data-testid=\"backlog-details-tab-row\"]"
+    },
+    "backlogDetails.tabInfo": {
+      "testId": "backlog-details-tab-info",
+      "selector": "[data-testid=\"backlog-details-tab-info\"]"
+    },
+    "backlogDetails.tabPrompt": {
+      "testId": "backlog-details-tab-prompt",
+      "selector": "[data-testid=\"backlog-details-tab-prompt\"]"
+    },
+    "backlogDetails.tabFiles": {
+      "testId": "backlog-details-tab-files",
+      "selector": "[data-testid=\"backlog-details-tab-files\"]"
+    },
+    "backlogDetails.tabActivity": {
+      "testId": "backlog-details-tab-activity",
+      "selector": "[data-testid=\"backlog-details-tab-activity\"]"
+    },
+    "backlogDetails.tabRelated": {
+      "testId": "backlog-details-tab-related",
+      "selector": "[data-testid=\"backlog-details-tab-related\"]"
+    },
+    "backlogDetails.relatedContent": {
+      "testId": "backlog-details-related-content",
+      "selector": "[data-testid=\"backlog-details-related-content\"]"
+    },
+    "backlogDetails.activityTab": {
+      "testId": "backlog-details-activity-tab",
+      "selector": "[data-testid=\"backlog-details-activity-tab\"]"
+    },
+    "backlogDetails.promptPanel": {
+      "testId": "backlog-details-prompt-panel",
+      "selector": "[data-testid=\"backlog-details-prompt-panel\"]"
+    },
+    "backlogDetails.milestoneChip": {
+      "testId": "backlog-details-milestone-chip",
+      "selector": "[data-testid=\"backlog-details-milestone-chip\"]"
+    },
+    "backlogForm.dialog": {
+      "testId": "backlog-form-dialog",
+      "selector": "[data-testid=\"backlog-form-dialog\"]"
+    },
+    "backlogForm.titleInput": {
+      "testId": "backlog-form-title",
+      "selector": "[data-testid=\"backlog-form-title\"]"
+    },
+    "backlogForm.nameInput": {
+      "testId": "backlog-form-name",
+      "selector": "[data-testid=\"backlog-form-name\"]"
+    },
+    "backlogForm.descriptionInput": {
+      "testId": "backlog-form-description",
+      "selector": "[data-testid=\"backlog-form-description\"]"
+    },
+    "backlogForm.statusSelect": {
+      "testId": "backlog-form-status",
+      "selector": "[data-testid=\"backlog-form-status\"]"
+    },
+    "backlogForm.priorityInput": {
+      "testId": "backlog-form-priority",
+      "selector": "[data-testid=\"backlog-form-priority\"]"
+    },
+    "backlogForm.tagsInput": {
+      "testId": "backlog-form-tags",
+      "selector": "[data-testid=\"backlog-form-tags\"]"
+    },
+    "backlogForm.kindSelect": {
+      "testId": "backlog-form-kind",
+      "selector": "[data-testid=\"backlog-form-kind\"]"
+    },
+    "backlogForm.submitButton": {
+      "testId": "backlog-form-submit",
+      "selector": "[data-testid=\"backlog-form-submit\"]"
+    },
+    "backlogForm.cancelButton": {
+      "testId": "backlog-form-cancel",
+      "selector": "[data-testid=\"backlog-form-cancel\"]"
+    },
+    "backlogForm.agentDialog": {
+      "testId": "backlog-agent-dialog",
+      "selector": "[data-testid=\"backlog-agent-dialog\"]"
+    },
+    "backlogForm.agentMode": {
+      "testId": "backlog-agent-mode",
+      "selector": "[data-testid=\"backlog-agent-mode\"]"
+    },
+    "backlogForm.agentContext": {
+      "testId": "backlog-agent-context",
+      "selector": "[data-testid=\"backlog-agent-context\"]"
+    },
+    "backlogForm.agentSubmit": {
+      "testId": "backlog-agent-submit",
+      "selector": "[data-testid=\"backlog-agent-submit\"]"
+    },
+    "scenarios.page": {
+      "testId": "scenarios-page",
+      "selector": "[data-testid=\"scenarios-page\"]"
+    },
+    "scenarios.search": {
+      "testId": "scenarios-search",
+      "selector": "[data-testid=\"scenarios-search\"]"
+    },
+    "scenarios.filter": {
+      "testId": "scenarios-filter",
+      "selector": "[data-testid=\"scenarios-filter\"]"
+    },
+    "scenarios.filterDropdown": {
+      "testId": "scenarios-filter-dropdown",
+      "selector": "[data-testid=\"scenarios-filter-dropdown\"]"
+    },
+    "scenarios.statusFilter": {
+      "testId": "scenarios-status-filter",
+      "selector": "[data-testid=\"scenarios-status-filter\"]"
+    },
+    "scenarios.count": {
+      "testId": "scenarios-count",
+      "selector": "[data-testid=\"scenarios-count\"]"
+    },
+    "scenarios.empty": {
+      "testId": "scenarios-empty",
+      "selector": "[data-testid=\"scenarios-empty\"]"
+    },
+    "scenarios.noResults": {
+      "testId": "scenarios-no-results",
+      "selector": "[data-testid=\"scenarios-no-results\"]"
+    },
+    "scenarios.list": {
+      "testId": "scenarios-list",
+      "selector": "[data-testid=\"scenarios-list\"]"
+    },
+    "scenarios.statusSummary": {
+      "testId": "scenarios-status-summary",
+      "selector": "[data-testid=\"scenarios-status-summary\"]"
+    },
+    "scenarios.runningCount": {
+      "testId": "scenarios-running-count",
+      "selector": "[data-testid=\"scenarios-running-count\"]"
+    },
+    "scenarios.stoppedCount": {
+      "testId": "scenarios-stopped-count",
+      "selector": "[data-testid=\"scenarios-stopped-count\"]"
+    },
+    "scenarios.errorCount": {
+      "testId": "scenarios-error-count",
+      "selector": "[data-testid=\"scenarios-error-count\"]"
+    },
+    "scenarioDetails.page": {
+      "testId": "scenario-details-page",
+      "selector": "[data-testid=\"scenario-details-page\"]"
+    },
+    "scenarioDetails.header": {
+      "testId": "scenario-details-header",
+      "selector": "[data-testid=\"scenario-details-header\"]"
+    },
+    "scenarioDetails.title": {
+      "testId": "scenario-details-title",
+      "selector": "[data-testid=\"scenario-details-title\"]"
+    },
+    "scenarioDetails.description": {
+      "testId": "scenario-details-description",
+      "selector": "[data-testid=\"scenario-details-description\"]"
+    },
+    "scenarioDetails.backButton": {
+      "testId": "scenario-details-back",
+      "selector": "[data-testid=\"scenario-details-back\"]"
+    },
+    "scenarioDetails.metadataSection": {
+      "testId": "scenario-details-metadata",
+      "selector": "[data-testid=\"scenario-details-metadata\"]"
+    },
+    "scenarioDetails.actionsSection": {
+      "testId": "scenario-details-actions",
+      "selector": "[data-testid=\"scenario-details-actions\"]"
+    },
+    "scenarioDetails.startButton": {
+      "testId": "scenario-details-start",
+      "selector": "[data-testid=\"scenario-details-start\"]"
+    },
+    "scenarioDetails.stopButton": {
+      "testId": "scenario-details-stop",
+      "selector": "[data-testid=\"scenario-details-stop\"]"
+    },
+    "scenarioDetails.restartButton": {
+      "testId": "scenario-details-restart",
+      "selector": "[data-testid=\"scenario-details-restart\"]"
+    },
+    "scenarioDetails.actionError": {
+      "testId": "scenario-details-action-error",
+      "selector": "[data-testid=\"scenario-details-action-error\"]"
+    },
+    "scenarioDetails.greenfieldToggle": {
+      "testId": "scenario-greenfield-toggle",
+      "selector": "[data-testid=\"scenario-greenfield-toggle\"]"
+    },
+    "scenarioDetails.saveButton": {
+      "testId": "scenario-details-save",
+      "selector": "[data-testid=\"scenario-details-save\"]"
+    },
+    "scenarioDetails.priority": {
+      "testId": "scenario-details-priority",
+      "selector": "[data-testid=\"scenario-details-priority\"]"
+    },
+    "scenarioDetails.tags": {
+      "testId": "scenario-details-tags",
+      "selector": "[data-testid=\"scenario-details-tags\"]"
+    },
+    "scenarioDetails.status": {
+      "testId": "scenario-details-status",
+      "selector": "[data-testid=\"scenario-details-status\"]"
+    },
+    "scenarioDetails.deleteButton": {
+      "testId": "scenario-details-delete",
+      "selector": "[data-testid=\"scenario-details-delete\"]"
+    },
+    "scenarioDetails.deleteDialog": {
+      "testId": "scenario-delete-dialog",
+      "selector": "[data-testid=\"scenario-delete-dialog\"]"
+    },
+    "scenarioDetails.deleteConfirmButton": {
+      "testId": "scenario-delete-confirm",
+      "selector": "[data-testid=\"scenario-delete-confirm\"]"
+    },
+    "scenarioDetails.deleteCancelButton": {
+      "testId": "scenario-delete-cancel",
+      "selector": "[data-testid=\"scenario-delete-cancel\"]"
+    },
+    "scenarioDetails.deleteCopyButton": {
+      "testId": "scenario-delete-copy",
+      "selector": "[data-testid=\"scenario-delete-copy\"]"
+    },
+    "scenarioDetails.archiveCheckbox": {
+      "testId": "scenario-delete-archive",
+      "selector": "[data-testid=\"scenario-delete-archive\"]"
+    },
+    "scenarioDetails.breadcrumb": {
+      "testId": "scenario-details-breadcrumb",
+      "selector": "[data-testid=\"scenario-details-breadcrumb\"]"
+    },
+    "scenarioDetails.cliHint": {
+      "testId": "scenario-details-cli-hint",
+      "selector": "[data-testid=\"scenario-details-cli-hint\"]"
+    },
+    "settings.page": {
+      "testId": "settings-page",
+      "selector": "[data-testid=\"settings-page\"]"
+    },
+    "settings.themeSettings": {
+      "testId": "theme-settings",
+      "selector": "[data-testid=\"theme-settings\"]"
+    },
+    "settings.themeDark": {
+      "testId": "theme-dark",
+      "selector": "[data-testid=\"theme-dark\"]"
+    },
+    "settings.themeLight": {
+      "testId": "theme-light",
+      "selector": "[data-testid=\"theme-light\"]"
+    },
+    "settings.themeSystem": {
+      "testId": "theme-system",
+      "selector": "[data-testid=\"theme-system\"]"
+    },
+    "settings.executionDefaults": {
+      "testId": "execution-defaults",
+      "selector": "[data-testid=\"execution-defaults\"]"
+    },
+    "settings.fixBeforeFeature": {
+      "testId": "fix-before-feature-settings",
+      "selector": "[data-testid=\"fix-before-feature-settings\"]"
+    },
+    "settings.workshopSettings": {
+      "testId": "workshop-settings",
+      "selector": "[data-testid=\"workshop-settings\"]"
+    },
+    "settings.agentSettings": {
+      "testId": "agent-settings",
+      "selector": "[data-testid=\"agent-settings\"]"
+    },
+    "settings.uiPreferences": {
+      "testId": "ui-preferences",
+      "selector": "[data-testid=\"ui-preferences\"]"
+    },
+    "settings.reviewSettings": {
+      "testId": "review-settings",
+      "selector": "[data-testid=\"review-settings\"]"
+    },
+    "settings.settingsTabs": {
+      "testId": "settings-tabs",
+      "selector": "[data-testid=\"settings-tabs\"]"
+    },
+    "settings.tabGeneral": {
+      "testId": "settings-tab-general",
+      "selector": "[data-testid=\"settings-tab-general\"]"
+    },
+    "settings.tabExecution": {
+      "testId": "settings-tab-execution",
+      "selector": "[data-testid=\"settings-tab-execution\"]"
+    },
+    "settings.tabWorkshop": {
+      "testId": "settings-tab-workshop",
+      "selector": "[data-testid=\"settings-tab-workshop\"]"
+    },
+    "settings.tabReview": {
+      "testId": "settings-tab-review",
+      "selector": "[data-testid=\"settings-tab-review\"]"
+    },
+    "settings.tabAudio": {
+      "testId": "settings-tab-audio",
+      "selector": "[data-testid=\"settings-tab-audio\"]"
+    },
+    "settings.audioAutoSpeak": {
+      "testId": "settings-audio-auto-speak",
+      "selector": "[data-testid=\"settings-audio-auto-speak\"]"
+    },
+    "settings.audioVoice": {
+      "testId": "settings-audio-voice",
+      "selector": "[data-testid=\"settings-audio-voice\"]"
+    },
+    "settings.audioSpeed": {
+      "testId": "settings-audio-speed",
+      "selector": "[data-testid=\"settings-audio-speed\"]"
+    },
+    "settings.audioSummarize": {
+      "testId": "settings-audio-summarize",
+      "selector": "[data-testid=\"settings-audio-summarize\"]"
+    },
+    "settings.audioUnavailableBanner": {
+      "testId": "settings-audio-unavailable",
+      "selector": "[data-testid=\"settings-audio-unavailable\"]"
+    },
+    "settings.integrations": {
+      "testId": "settings-integrations",
+      "selector": "[data-testid=\"settings-integrations\"]"
+    },
+    "settings.saveButton": {
+      "testId": "settings-save",
+      "selector": "[data-testid=\"settings-save\"]"
+    },
+    "execution.page": {
+      "testId": "execution-page",
+      "selector": "[data-testid=\"execution-page\"]"
+    },
+    "execution.tabs": {
+      "testId": "execution-tabs",
+      "selector": "[data-testid=\"execution-tabs\"]"
+    },
+    "execution.search": {
+      "testId": "execution-search",
+      "selector": "[data-testid=\"execution-search\"]"
+    },
+    "execution.filter": {
+      "testId": "execution-filter",
+      "selector": "[data-testid=\"execution-filter\"]"
+    },
+    "execution.empty": {
+      "testId": "execution-empty",
+      "selector": "[data-testid=\"execution-empty\"]"
+    },
+    "execution.noResults": {
+      "testId": "execution-no-results",
+      "selector": "[data-testid=\"execution-no-results\"]"
+    },
+    "execution.activeSection": {
+      "testId": "execution-active-section",
+      "selector": "[data-testid=\"execution-active-section\"]"
+    },
+    "execution.activeList": {
+      "testId": "execution-active-list",
+      "selector": "[data-testid=\"execution-active-list\"]"
+    },
+    "execution.grid": {
+      "testId": "execution-grid",
+      "selector": "[data-testid=\"execution-grid\"]"
+    },
+    "execution.promptTrace": {
+      "testId": "execution-prompt-trace",
+      "selector": "[data-testid=\"execution-prompt-trace\"]"
+    },
+    "executionDetails.page": {
+      "testId": "execution-details-page",
+      "selector": "[data-testid=\"execution-details-page\"]"
+    },
+    "executionDetails.tabRow": {
+      "testId": "execution-details-tab-row",
+      "selector": "[data-testid=\"execution-details-tab-row\"]"
+    },
+    "executionDetails.tabOverview": {
+      "testId": "execution-details-tab-overview",
+      "selector": "[data-testid=\"execution-details-tab-overview\"]"
+    },
+    "executionDetails.tabChanges": {
+      "testId": "execution-details-tab-changes",
+      "selector": "[data-testid=\"execution-details-tab-changes\"]"
+    },
+    "executionDetails.tabReview": {
+      "testId": "execution-details-tab-review",
+      "selector": "[data-testid=\"execution-details-tab-review\"]"
+    },
+    "executionDetails.tabPrompt": {
+      "testId": "execution-details-tab-prompt",
+      "selector": "[data-testid=\"execution-details-tab-prompt\"]"
+    },
+    "executionDetails.overviewMetadata": {
+      "testId": "execution-details-overview-metadata",
+      "selector": "[data-testid=\"execution-details-overview-metadata\"]"
+    },
+    "executionDetails.overviewActions": {
+      "testId": "execution-details-overview-actions",
+      "selector": "[data-testid=\"execution-details-overview-actions\"]"
+    },
+    "executionDetails.changesFileList": {
+      "testId": "execution-details-changes-file-list",
+      "selector": "[data-testid=\"execution-details-changes-file-list\"]"
+    },
+    "executionDetails.changesEmpty": {
+      "testId": "execution-details-changes-empty",
+      "selector": "[data-testid=\"execution-details-changes-empty\"]"
+    },
+    "executionDetails.reviewSection": {
+      "testId": "execution-details-review-section",
+      "selector": "[data-testid=\"execution-details-review-section\"]"
+    },
+    "executionDetails.reviewEmpty": {
+      "testId": "execution-details-review-empty",
+      "selector": "[data-testid=\"execution-details-review-empty\"]"
+    },
+    "executionDetails.promptTrace": {
+      "testId": "execution-details-prompt-trace",
+      "selector": "[data-testid=\"execution-details-prompt-trace\"]"
+    },
+    "executionDetails.promptEmpty": {
+      "testId": "execution-details-prompt-empty",
+      "selector": "[data-testid=\"execution-details-prompt-empty\"]"
+    },
+    "executionDetails.followUpButton": {
+      "testId": "execution-details-follow-up",
+      "selector": "[data-testid=\"execution-details-follow-up\"]"
+    },
+    "executionDetails.retryButton": {
+      "testId": "execution-details-retry",
+      "selector": "[data-testid=\"execution-details-retry\"]"
+    },
+    "executionDetails.cancelButton": {
+      "testId": "execution-details-cancel",
+      "selector": "[data-testid=\"execution-details-cancel\"]"
+    },
+    "executionDetails.runChecksButton": {
+      "testId": "execution-details-run-checks",
+      "selector": "[data-testid=\"execution-details-run-checks\"]"
+    },
+    "executionDetails.viewRunButton": {
+      "testId": "execution-details-view-run",
+      "selector": "[data-testid=\"execution-details-view-run\"]"
+    },
+    "followUp.dialog": {
+      "testId": "follow-up-dialog",
+      "selector": "[data-testid=\"follow-up-dialog\"]"
+    },
+    "followUp.typeFixup": {
+      "testId": "follow-up-type-fixup",
+      "selector": "[data-testid=\"follow-up-type-fixup\"]"
+    },
+    "followUp.typeFollowup": {
+      "testId": "follow-up-type-followup",
+      "selector": "[data-testid=\"follow-up-type-followup\"]"
+    },
+    "followUp.typeCustom": {
+      "testId": "follow-up-type-custom",
+      "selector": "[data-testid=\"follow-up-type-custom\"]"
+    },
+    "followUp.runModeContinue": {
+      "testId": "follow-up-run-mode-continue",
+      "selector": "[data-testid=\"follow-up-run-mode-continue\"]"
+    },
+    "followUp.runModeNew": {
+      "testId": "follow-up-run-mode-new",
+      "selector": "[data-testid=\"follow-up-run-mode-new\"]"
+    },
+    "followUp.contextInput": {
+      "testId": "follow-up-context-input",
+      "selector": "[data-testid=\"follow-up-context-input\"]"
+    },
+    "followUp.submitButton": {
+      "testId": "follow-up-submit-button",
+      "selector": "[data-testid=\"follow-up-submit-button\"]"
+    },
+    "followUp.error": {
+      "testId": "follow-up-error",
+      "selector": "[data-testid=\"follow-up-error\"]"
+    },
+    "followUp.reviewSummary": {
+      "testId": "follow-up-review-summary",
+      "selector": "[data-testid=\"follow-up-review-summary\"]"
+    },
+    "followUp.runHealth": {
+      "testId": "follow-up-run-health",
+      "selector": "[data-testid=\"follow-up-run-health\"]"
+    },
+    "review.statusHeader": {
+      "testId": "review-status-header",
+      "selector": "[data-testid=\"review-status-header\"]"
+    },
+    "review.statusHeaderRunLink": {
+      "testId": "review-status-header-run-link",
+      "selector": "[data-testid=\"review-status-header-run-link\"]"
+    },
+    "review.primaryAction": {
+      "testId": "review-primary-action",
+      "selector": "[data-testid=\"review-primary-action\"]"
+    },
+    "review.rerunAction": {
+      "testId": "review-rerun-action",
+      "selector": "[data-testid=\"review-rerun-action\"]"
+    },
+    "review.stopAction": {
+      "testId": "review-stop-action",
+      "selector": "[data-testid=\"review-stop-action\"]"
+    },
+    "review.gatherEvidenceAction": {
+      "testId": "review-gather-evidence-action",
+      "selector": "[data-testid=\"review-gather-evidence-action\"]"
+    },
+    "review.scenarioChips": {
+      "testId": "review-scenario-chips",
+      "selector": "[data-testid=\"review-scenario-chips\"]"
+    },
+    "review.scenarioResultCards": {
+      "testId": "review-scenario-result-cards",
+      "selector": "[data-testid=\"review-scenario-result-cards\"]"
+    },
+    "review.scenarioResultCard": {
+      "testId": "review-scenario-result-card",
+      "selector": "[data-testid=\"review-scenario-result-card\"]"
+    },
+    "review.launchSheet": {
+      "testId": "review-launch-sheet",
+      "selector": "[data-testid=\"review-launch-sheet\"]"
+    },
+    "review.launchSheetFullReview": {
+      "testId": "review-launch-sheet-full-review",
+      "selector": "[data-testid=\"review-launch-sheet-full-review\"]"
+    },
+    "review.launchSheetGatherEvidence": {
+      "testId": "review-launch-sheet-gather-evidence",
+      "selector": "[data-testid=\"review-launch-sheet-gather-evidence\"]"
+    },
+    "review.activityTimelineLabel": {
+      "testId": "review-activity-timeline-label",
+      "selector": "[data-testid=\"review-activity-timeline-label\"]"
+    },
+    "review.phaseProgress": {
+      "testId": "review-phase-progress",
+      "selector": "[data-testid=\"review-phase-progress\"]"
+    },
+    "review.evidenceContextSummary": {
+      "testId": "review-evidence-context-summary",
+      "selector": "[data-testid=\"review-evidence-context-summary\"]"
+    },
+    "review.followUpSheet": {
+      "testId": "review-follow-up-sheet",
+      "selector": "[data-testid=\"review-follow-up-sheet\"]"
+    },
+    "goalDetails.conceptExplainerDialog": {
+      "testId": "concept-explainer-dialog",
+      "selector": "[data-testid=\"concept-explainer-dialog\"]"
+    },
+    "related.tab": {
+      "testId": "related-tab",
+      "selector": "[data-testid=\"related-tab\"]"
+    },
+    "related.groupLinked": {
+      "testId": "related-group-linked",
+      "selector": "[data-testid=\"related-group-linked\"]"
+    },
+    "related.groupSameScope": {
+      "testId": "related-group-same_scope",
+      "selector": "[data-testid=\"related-group-same_scope\"]"
+    },
+    "related.groupSimilar": {
+      "testId": "related-group-similar",
+      "selector": "[data-testid=\"related-group-similar\"]"
+    },
+    "prompts.page": {
+      "testId": "prompts-page",
+      "selector": "[data-testid=\"prompts-page\"]"
+    },
+    "prompts.tabs": {
+      "testId": "prompts-tabs",
+      "selector": "[data-testid=\"prompts-tabs\"]"
+    },
+    "prompts.tabMap": {
+      "testId": "prompts-tab-map",
+      "selector": "[data-testid=\"prompts-tab-map\"]"
+    },
+    "prompts.tabViewer": {
+      "testId": "prompts-tab-viewer",
+      "selector": "[data-testid=\"prompts-tab-viewer\"]"
+    },
+    "prompts.mapPanel": {
+      "testId": "prompts-map-panel",
+      "selector": "[data-testid=\"prompts-map-panel\"]"
+    },
+    "prompts.viewerPanel": {
+      "testId": "prompts-viewer-panel",
+      "selector": "[data-testid=\"prompts-viewer-panel\"]"
+    },
+    "prompts.usageMatrix": {
+      "testId": "prompts-usage-matrix",
+      "selector": "[data-testid=\"prompts-usage-matrix\"]"
+    },
+    "prompts.bindingMap": {
+      "testId": "prompts-binding-map",
+      "selector": "[data-testid=\"prompts-binding-map\"]"
+    },
+    "prompts.skillsList": {
+      "testId": "prompts-skills-list",
+      "selector": "[data-testid=\"prompts-skills-list\"]"
+    },
+    "prompts.editor": {
+      "testId": "prompts-editor",
+      "selector": "[data-testid=\"prompts-editor\"]"
+    },
+    "prompts.contentInput": {
+      "testId": "prompts-content-input",
+      "selector": "[data-testid=\"prompts-content-input\"]"
+    },
+    "prompts.saveDraft": {
+      "testId": "prompts-save-draft",
+      "selector": "[data-testid=\"prompts-save-draft\"]"
+    },
+    "prompts.publish": {
+      "testId": "prompts-publish",
+      "selector": "[data-testid=\"prompts-publish\"]"
+    },
+    "prompts.versions": {
+      "testId": "prompts-versions",
+      "selector": "[data-testid=\"prompts-versions\"]"
+    },
+    "prompts.preview": {
+      "testId": "prompts-preview",
+      "selector": "[data-testid=\"prompts-preview\"]"
+    },
+    "commandPost.decisionStream.container": {
+      "testId": "ds-container",
+      "selector": "[data-testid=\"ds-container\"]"
+    },
+    "commandPost.decisionStream.header": {
+      "testId": "ds-header",
+      "selector": "[data-testid=\"ds-header\"]"
+    },
+    "commandPost.decisionStream.backButton": {
+      "testId": "ds-back",
+      "selector": "[data-testid=\"ds-back\"]"
+    },
+    "commandPost.decisionStream.counter": {
+      "testId": "ds-counter",
+      "selector": "[data-testid=\"ds-counter\"]"
+    },
+    "commandPost.decisionStream.contextToggle": {
+      "testId": "ds-context-toggle",
+      "selector": "[data-testid=\"ds-context-toggle\"]"
+    },
+    "commandPost.decisionStream.contextPanel": {
+      "testId": "ds-context-panel",
+      "selector": "[data-testid=\"ds-context-panel\"]"
+    },
+    "commandPost.decisionStream.questionArea": {
+      "testId": "ds-question-area",
+      "selector": "[data-testid=\"ds-question-area\"]"
+    },
+    "commandPost.decisionStream.navBar": {
+      "testId": "ds-nav-bar",
+      "selector": "[data-testid=\"ds-nav-bar\"]"
+    },
+    "commandPost.decisionStream.navBack": {
+      "testId": "ds-nav-back",
+      "selector": "[data-testid=\"ds-nav-back\"]"
+    },
+    "commandPost.decisionStream.navSkip": {
+      "testId": "ds-nav-skip",
+      "selector": "[data-testid=\"ds-nav-skip\"]"
+    },
+    "commandPost.decisionStream.navSnooze": {
+      "testId": "ds-nav-snooze",
+      "selector": "[data-testid=\"ds-nav-snooze\"]"
+    },
+    "commandPost.decisionStream.navNext": {
+      "testId": "ds-nav-next",
+      "selector": "[data-testid=\"ds-nav-next\"]"
+    },
+    "commandPost.decisionStream.progressBar": {
+      "testId": "ds-progress-bar",
+      "selector": "[data-testid=\"ds-progress-bar\"]"
+    },
+    "commandPost.decisionStream.openItemLink": {
+      "testId": "ds-open-item",
+      "selector": "[data-testid=\"ds-open-item\"]"
+    },
+    "commandPost.decisionStream.deleteButton": {
+      "testId": "ds-delete-question",
+      "selector": "[data-testid=\"ds-delete-question\"]"
+    },
+    "commandPost.decisionStream.deleteConfirm": {
+      "testId": "ds-delete-confirm",
+      "selector": "[data-testid=\"ds-delete-confirm\"]"
+    },
+    "commandPost.decisionStream.navigatorButton": {
+      "testId": "ds-navigator-button",
+      "selector": "[data-testid=\"ds-navigator-button\"]"
+    },
+    "commandPost.decisionStream.navigatorPopover": {
+      "testId": "ds-navigator-popover",
+      "selector": "[data-testid=\"ds-navigator-popover\"]"
+    },
+    "commandPost.decisionStream.navigatorRow": {
+      "testId": "ds-navigator-row",
+      "selector": "[data-testid=\"ds-navigator-row\"]"
+    },
+    "commandPost.decisionStream.navigatorSnooze": {
+      "testId": "ds-navigator-snooze",
+      "selector": "[data-testid=\"ds-navigator-snooze\"]"
+    },
+    "sidebar.emptyState": {
+      "testId": "sidebar-empty-state",
+      "selector": "[data-testid=\"sidebar-empty-state\"]"
+    },
+    "sidebar.emptyStateTitle": {
+      "testId": "sidebar-empty-state-title",
+      "selector": "[data-testid=\"sidebar-empty-state-title\"]"
+    },
+    "sidebar.emptyStateClear": {
+      "testId": "sidebar-empty-state-clear",
+      "selector": "[data-testid=\"sidebar-empty-state-clear\"]"
+    },
+    "detailHeader.sidebarButton": {
+      "testId": "page-sidebar-button",
+      "selector": "[data-testid=\"page-sidebar-button\"]"
+    },
+    "graphNavControls.container": {
+      "testId": "graph-nav-controls",
+      "selector": "[data-testid=\"graph-nav-controls\"]"
+    },
+    "graphNavControls.panUp": {
+      "testId": "graph-nav-pan-up",
+      "selector": "[data-testid=\"graph-nav-pan-up\"]"
+    },
+    "graphNavControls.panDown": {
+      "testId": "graph-nav-pan-down",
+      "selector": "[data-testid=\"graph-nav-pan-down\"]"
+    },
+    "graphNavControls.panLeft": {
+      "testId": "graph-nav-pan-left",
+      "selector": "[data-testid=\"graph-nav-pan-left\"]"
+    },
+    "graphNavControls.panRight": {
+      "testId": "graph-nav-pan-right",
+      "selector": "[data-testid=\"graph-nav-pan-right\"]"
+    },
+    "graphNavControls.zoomIn": {
+      "testId": "graph-nav-zoom-in",
+      "selector": "[data-testid=\"graph-nav-zoom-in\"]"
+    },
+    "graphNavControls.zoomOut": {
+      "testId": "graph-nav-zoom-out",
+      "selector": "[data-testid=\"graph-nav-zoom-out\"]"
+    },
+    "graphNavControls.fitView": {
+      "testId": "graph-nav-fit-view",
+      "selector": "[data-testid=\"graph-nav-fit-view\"]"
+    },
+    "plan.board": {
+      "testId": "plan-board",
+      "selector": "[data-testid=\"plan-board\"]"
+    },
+    "plan.boardLoading": {
+      "testId": "plan-board-loading",
+      "selector": "[data-testid=\"plan-board-loading\"]"
+    },
+    "plan.boardError": {
+      "testId": "plan-board-error",
+      "selector": "[data-testid=\"plan-board-error\"]"
+    },
+    "plan.boardRefresh": {
+      "testId": "plan-board-refresh",
+      "selector": "[data-testid=\"plan-board-refresh\"]"
+    },
+    "plan.cycleWarning": {
+      "testId": "plan-cycle-warning",
+      "selector": "[data-testid=\"plan-cycle-warning\"]"
+    },
+    "plan.columnNow": {
+      "testId": "plan-column-now",
+      "selector": "[data-testid=\"plan-column-now\"]"
+    },
+    "plan.columnNowHeader": {
+      "testId": "plan-column-now-header",
+      "selector": "[data-testid=\"plan-column-now-header\"]"
+    },
+    "plan.columnNext": {
+      "testId": "plan-column-next",
+      "selector": "[data-testid=\"plan-column-next\"]"
+    },
+    "plan.columnLater": {
+      "testId": "plan-column-later",
+      "selector": "[data-testid=\"plan-column-later\"]"
+    },
+    "plan.columnDone": {
+      "testId": "plan-column-done",
+      "selector": "[data-testid=\"plan-column-done\"]"
+    },
+    "plan.nowEmpty": {
+      "testId": "plan-now-empty",
+      "selector": "[data-testid=\"plan-now-empty\"]"
+    },
+    "plan.nowSpawnCta": {
+      "testId": "plan-now-spawn-cta",
+      "selector": "[data-testid=\"plan-now-spawn-cta\"]"
+    },
+    "plan.nextEmpty": {
+      "testId": "plan-next-empty",
+      "selector": "[data-testid=\"plan-next-empty\"]"
+    },
+    "plan.laterEmpty": {
+      "testId": "plan-later-empty",
+      "selector": "[data-testid=\"plan-later-empty\"]"
+    },
+    "plan.doneEmpty": {
+      "testId": "plan-done-empty",
+      "selector": "[data-testid=\"plan-done-empty\"]"
+    },
+    "plan.doneWindow": {
+      "testId": "plan-done-window",
+      "selector": "[data-testid=\"plan-done-window\"]"
+    },
+    "plan.beyondHorizon": {
+      "testId": "plan-beyond-horizon",
+      "selector": "[data-testid=\"plan-beyond-horizon\"]"
+    },
+    "plan.groupToggle": {
+      "testId": "plan-group-toggle",
+      "selector": "[data-testid=\"plan-group-toggle\"]"
+    },
+    "plan.cardGateBadge": {
+      "testId": "plan-card-gate-badge",
+      "selector": "[data-testid=\"plan-card-gate-badge\"]"
+    },
+    "plan.cardWaveBadge": {
+      "testId": "plan-card-wave-badge",
+      "selector": "[data-testid=\"plan-card-wave-badge\"]"
+    },
+    "plan.cardOutcomeGlyph": {
+      "testId": "plan-card-outcome-glyph",
+      "selector": "[data-testid=\"plan-card-outcome-glyph\"]"
+    },
+    "plan.boardFilters": {
+      "testId": "plan-board-filters",
+      "selector": "[data-testid=\"plan-board-filters\"]"
+    },
+    "plan.snoozedHiddenCount": {
+      "testId": "plan-snoozed-hidden-count",
+      "selector": "[data-testid=\"plan-snoozed-hidden-count\"]"
+    },
+    "plan.nowSelectToggle": {
+      "testId": "plan-now-select-toggle",
+      "selector": "[data-testid=\"plan-now-select-toggle\"]"
+    },
+    "plan.nowRefresh": {
+      "testId": "plan-now-refresh",
+      "selector": "[data-testid=\"plan-now-refresh\"]"
+    },
+    "plan.nowSpawn": {
+      "testId": "plan-now-spawn",
+      "selector": "[data-testid=\"plan-now-spawn\"]"
+    },
+    "plan.nowLanesToggle": {
+      "testId": "plan-now-lanes-toggle",
+      "selector": "[data-testid=\"plan-now-lanes-toggle\"]"
+    },
+    "plan.nowLanesHelp": {
+      "testId": "plan-now-lanes-help",
+      "selector": "[data-testid=\"plan-now-lanes-help\"]"
+    },
+    "plan.filterDrawer": {
+      "testId": "plan-filter-drawer",
+      "selector": "[data-testid=\"plan-filter-drawer\"]"
+    },
+    "plan.filterSearch": {
+      "testId": "plan-filter-search",
+      "selector": "[data-testid=\"plan-filter-search\"]"
+    },
+    "plan.filterStatus": {
+      "testId": "plan-filter-status",
+      "selector": "[data-testid=\"plan-filter-status\"]"
+    },
+    "plan.filterLane": {
+      "testId": "plan-filter-lane",
+      "selector": "[data-testid=\"plan-filter-lane\"]"
+    },
+    "plan.filterOwnerType": {
+      "testId": "plan-filter-owner-type",
+      "selector": "[data-testid=\"plan-filter-owner-type\"]"
+    },
+    "plan.filterGroupBy": {
+      "testId": "plan-filter-group-by",
+      "selector": "[data-testid=\"plan-filter-group-by\"]"
+    },
+    "plan.filterShowSnoozed": {
+      "testId": "plan-filter-show-snoozed",
+      "selector": "[data-testid=\"plan-filter-show-snoozed\"]"
+    },
+    "plan.filterReset": {
+      "testId": "plan-filter-reset",
+      "selector": "[data-testid=\"plan-filter-reset\"]"
+    },
+    "plan.decisionDrawer": {
+      "testId": "plan-decision-drawer",
+      "selector": "[data-testid=\"plan-decision-drawer\"]"
+    },
+    "plan.decisionDrawerEmpty": {
+      "testId": "plan-decision-drawer-empty",
+      "selector": "[data-testid=\"plan-decision-drawer-empty\"]"
+    },
+    "plan.nextRunAll": {
+      "testId": "plan-next-run-all",
+      "selector": "[data-testid=\"plan-next-run-all\"]"
+    },
+    "plan.nextAnswerAll": {
+      "testId": "plan-next-answer-all",
+      "selector": "[data-testid=\"plan-next-answer-all\"]"
+    },
+    "plan.cardMenu": {
+      "testId": "plan-card-menu",
+      "selector": "[data-testid=\"plan-card-menu\"]"
+    },
+    "plan.cardMenuOpen": {
+      "testId": "plan-card-menu-open",
+      "selector": "[data-testid=\"plan-card-menu-open\"]"
+    },
+    "plan.cardMenuAnswer": {
+      "testId": "plan-card-menu-answer",
+      "selector": "[data-testid=\"plan-card-menu-answer\"]"
+    },
+    "plan.cardMenuRun": {
+      "testId": "plan-card-menu-run",
+      "selector": "[data-testid=\"plan-card-menu-run\"]"
+    },
+    "plan.cardMenuWorkshop": {
+      "testId": "plan-card-menu-workshop",
+      "selector": "[data-testid=\"plan-card-menu-workshop\"]"
+    },
+    "plan.cardMenuFinalize": {
+      "testId": "plan-card-menu-finalize",
+      "selector": "[data-testid=\"plan-card-menu-finalize\"]"
+    },
+    "plan.cardMenuArchive": {
+      "testId": "plan-card-menu-archive",
+      "selector": "[data-testid=\"plan-card-menu-archive\"]"
+    },
+    "operationsCenter.laneBar": {
+      "testId": "operations-center-lane-bar",
+      "selector": "[data-testid=\"operations-center-lane-bar\"]"
+    },
+    "operationsCenter.activityRow": {
+      "testId": "operations-center-activity-row",
+      "selector": "[data-testid=\"operations-center-activity-row\"]"
+    },
+    "operationsCenter.activityRowCheckbox": {
+      "testId": "operations-center-activity-row-checkbox",
+      "selector": "[data-testid=\"operations-center-activity-row-checkbox\"]"
+    },
+    "operationsCenter.bulkActionBar": {
+      "testId": "operations-center-bulk-action-bar",
+      "selector": "[data-testid=\"operations-center-bulk-action-bar\"]"
+    },
+    "operationsCenter.bulkStopSelected": {
+      "testId": "operations-center-bulk-stop-selected",
+      "selector": "[data-testid=\"operations-center-bulk-stop-selected\"]"
+    },
+    "operationsCenter.bulkStopAll": {
+      "testId": "operations-center-bulk-stop-all",
+      "selector": "[data-testid=\"operations-center-bulk-stop-all\"]"
+    },
+    "operationsCenter.bulkClearSelection": {
+      "testId": "operations-center-bulk-clear-selection",
+      "selector": "[data-testid=\"operations-center-bulk-clear-selection\"]"
+    },
+    "operationsCenter.bulkStopConfirmDialog": {
+      "testId": "operations-center-bulk-stop-confirm",
+      "selector": "[data-testid=\"operations-center-bulk-stop-confirm\"]"
+    },
+    "operationsCenter.bulkStopAllConfirmDialog": {
+      "testId": "operations-center-bulk-stop-all-confirm",
+      "selector": "[data-testid=\"operations-center-bulk-stop-all-confirm\"]"
+    },
+    "operationsCenter.bulkStopOutcomeToast": {
+      "testId": "operations-center-bulk-stop-outcome",
+      "selector": "[data-testid=\"operations-center-bulk-stop-outcome\"]"
+    },
+    "evidence.cliOutput": {
+      "testId": "evidence-cli-output",
+      "selector": "[data-testid=\"evidence-cli-output\"]"
+    },
+    "evidence.configDiff": {
+      "testId": "evidence-config-diff",
+      "selector": "[data-testid=\"evidence-config-diff\"]"
+    },
+    "evidence.workflowRecording": {
+      "testId": "evidence-workflow-recording",
+      "selector": "[data-testid=\"evidence-workflow-recording\"]"
+    },
+    "evidence.lightbox": {
+      "testId": "media-lightbox",
+      "selector": "[data-testid=\"media-lightbox\"]"
+    },
+    "evidence.truncatedLink": {
+      "testId": "evidence-truncated-link",
+      "selector": "[data-testid=\"evidence-truncated-link\"]"
+    },
+    "evidence.reviewCheckbox": {
+      "testId": "evidence-review-checkbox",
+      "selector": "[data-testid=\"evidence-review-checkbox\"]"
+    },
+    "evidence.markAllReviewed": {
+      "testId": "evidence-mark-all-reviewed",
+      "selector": "[data-testid=\"evidence-mark-all-reviewed\"]"
+    },
+    "evidence.agentAssessment": {
+      "testId": "evidence-agent-assessment",
+      "selector": "[data-testid=\"evidence-agent-assessment\"]"
+    },
+    "evidenceRequest.panel": {
+      "testId": "evidence-request-panel",
+      "selector": "[data-testid=\"evidence-request-panel\"]"
+    },
+    "evidenceRequest.messageList": {
+      "testId": "evidence-request-messages",
+      "selector": "[data-testid=\"evidence-request-messages\"]"
+    },
+    "evidenceRequest.textInput": {
+      "testId": "evidence-request-input",
+      "selector": "[data-testid=\"evidence-request-input\"]"
+    },
+    "evidenceRequest.sendButton": {
+      "testId": "evidence-request-send",
+      "selector": "[data-testid=\"evidence-request-send\"]"
+    },
+    "evidenceRequest.dismissButton": {
+      "testId": "evidence-request-dismiss",
+      "selector": "[data-testid=\"evidence-request-dismiss\"]"
+    },
+    "evidenceRequest.staleWarning": {
+      "testId": "evidence-request-stale-warning",
+      "selector": "[data-testid=\"evidence-request-stale-warning\"]"
+    },
+    "evidenceRequest.error": {
+      "testId": "evidence-request-error",
+      "selector": "[data-testid=\"evidence-request-error\"]"
+    },
+    "evidenceRequest.targetContext": {
+      "testId": "evidence-request-target-context",
+      "selector": "[data-testid=\"evidence-request-target-context\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "backlog.cardByName": {
+      "description": "Backlog card filtered by kind and name",
+      "selectorPattern": "[data-testid=\"backlog-card-${kind}-${name}\"]",
+      "testIdPattern": "backlog-card-${kind}-${name}",
+      "params": [
+        {
+          "name": "kind",
+          "type": "enum",
+          "values": [
+            "idea",
+            "research",
+            "fix",
+            "execute",
+            "chore"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "plan.cardById": {
+      "description": "Plan board card by canonical node id",
+      "selectorPattern": "[data-testid=\"plan-card-${id}\"]",
+      "testIdPattern": "plan-card-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "plan.groupById": {
+      "description": "Plan column card group by group id",
+      "selectorPattern": "[data-testid=\"plan-group-${id}\"]",
+      "testIdPattern": "plan-group-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "plan.nowGroup": {
+      "description": "Now column group (milestone name or 'standalone')",
+      "selectorPattern": "[data-testid=\"plan-now-group-${key}\"]",
+      "testIdPattern": "plan-now-group-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "plan.doneWindowChoice": {
+      "description": "Done column window preset button",
+      "selectorPattern": "[data-testid=\"plan-done-window-${label}\"]",
+      "testIdPattern": "plan-done-window-${label}",
+      "params": [
+        {
+          "name": "label",
+          "type": "enum",
+          "values": [
+            "1h",
+            "6h",
+            "24h"
+          ]
+        }
+      ]
+    },
+    "scenarios.cardByName": {
+      "description": "Scenario card filtered by name",
+      "selectorPattern": "[data-testid=\"scenario-card-${name}\"]",
+      "testIdPattern": "scenario-card-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "scenarios.actionStart": {
+      "description": "Scenario start action button",
+      "selectorPattern": "[data-testid=\"scenario-action-start-${name}\"]",
+      "testIdPattern": "scenario-action-start-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "scenarios.actionStop": {
+      "description": "Scenario stop action button",
+      "selectorPattern": "[data-testid=\"scenario-action-stop-${name}\"]",
+      "testIdPattern": "scenario-action-stop-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "scenarios.actionRestart": {
+      "description": "Scenario restart action button",
+      "selectorPattern": "[data-testid=\"scenario-action-restart-${name}\"]",
+      "testIdPattern": "scenario-action-restart-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "related.rowByEntity": {
+      "description": "Related-work result row by entity kind and key",
+      "selectorPattern": "[data-testid=\"related-row-${entity}-${id}\"]",
+      "testIdPattern": "related-row-${entity}-${id}",
+      "params": [
+        {
+          "name": "entity",
+          "type": "enum",
+          "values": [
+            "backlog",
+            "goal",
+            "record"
+          ]
+        },
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

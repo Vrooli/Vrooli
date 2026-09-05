@@ -10,7 +10,7 @@
 | **URL** | Absolute URL to open | Yes (when destination = url) | Accepts https/http/file/etc. Normalized via `InstructionParam.URL`.
 | **Scenario name** | Scenario slug as registered with the Vrooli lifecycle | Yes (when destination = scenario) | Populated from `useScenarioStore`. The runtime resolves the app URL/port before navigating.
 | **Scenario path** | Optional path appended to the resolved base URL | No | Supports absolute or relative paths; normalization mirrors the runtime’s `ScenarioPath` handling.
-| **Wait until** | `load`, `domcontentloaded`, `networkidle` | No | Maps to the Chrome DevTools Protocol `Page.navigate` `waitUntil` option via Browserless.
+| **Wait until** | `load`, `domcontentloaded`, `networkidle` | No | Maps to the Chrome DevTools Protocol `Page.navigate` `waitUntil` option via the Playwright driver.
 | **Timeout (ms)** | Navigation timeout | No | Defaults to 30 000 ms; enforced by the executor when unset. |
 | **Post-wait (ms)** | Extra delay after load | No | Useful for heavy SPAs before continuing to the next node.
 
@@ -23,7 +23,7 @@
 
 1. The compiler emits a `navigate` step with the raw node data.
 2. The automation executor preserves the URL/scenario/wait/timeout fields in the contract instruction; the workflow validator ensures required inputs are present.
-3. The Browserless session performs the actual navigation, waiting for the requested lifecycle event before releasing the workflow to subsequent nodes.
+3. The Playwright driver performs the actual navigation, waiting for the requested lifecycle event before releasing the workflow to subsequent nodes.
 4. Execution artifacts capture the resolved URL, response timing, and console/network telemetry for replay/debugging.
 
 ## Examples

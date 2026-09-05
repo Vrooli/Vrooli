@@ -2,10 +2,16 @@ package scenarios
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"math"
+	"net/http"
 	"strings"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
+	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
+	scoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring/scoring_v1connect"
 )
 
 // DOC: docs/reference/operational-targets.md
@@ -13,59 +19,114 @@ import (
 
 const defaultCompletenessTimeout = 30 * time.Second
 
+const (
+	scsScenarioSlug          = "scenario-completeness-scoring"
+	completenessPageSize     = 500
+	maxCompletenessPageFetch = 500
+)
+
 // CompletenessSource provides completeness scores for scenarios.
 type CompletenessSource interface {
 	Scores(ctx context.Context) (map[string]int, error)
 }
 
-// CLICompletenessSource fetches completeness scores via scenario-completeness-scoring CLI.
-type CLICompletenessSource struct {
-	timeout time.Duration
+type scenarioURLResolver interface {
+	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
 }
 
-// NewCLICompletenessSource creates a CLI-backed completeness provider.
-func NewCLICompletenessSource(timeout time.Duration) *CLICompletenessSource {
+// SCSCompletenessSource fetches completeness scores from ScoreService.ListScores.
+type SCSCompletenessSource struct {
+	timeout    time.Duration
+	resolver   scenarioURLResolver
+	httpClient connect.HTTPClient
+}
+
+// NewSCSCompletenessSource creates a typed scenario-completeness-scoring provider.
+func NewSCSCompletenessSource(timeout time.Duration) *SCSCompletenessSource {
 	if timeout <= 0 {
 		timeout = defaultCompletenessTimeout
 	}
-	return &CLICompletenessSource{timeout: timeout}
+	return &SCSCompletenessSource{
+		timeout:    timeout,
+		resolver:   discovery.NewResolver(discovery.ResolverConfig{}),
+		httpClient: &http.Client{Timeout: timeout},
+	}
 }
 
-// Scores retrieves completeness scores using `scenario-completeness-scoring scores --json`.
-func (c *CLICompletenessSource) Scores(ctx context.Context) (map[string]int, error) {
-	output, err := executeCommand(ctx, c.timeout, "scenario-completeness-scoring", "scores", "--json")
+// NewSCSCompletenessSourceWithDeps creates a provider with testable resolution
+// and transport seams.
+func NewSCSCompletenessSourceWithDeps(timeout time.Duration, resolver scenarioURLResolver, httpClient connect.HTTPClient) *SCSCompletenessSource {
+	source := NewSCSCompletenessSource(timeout)
+	if resolver != nil {
+		source.resolver = resolver
+	}
+	if httpClient != nil {
+		source.httpClient = httpClient
+	}
+	return source
+}
+
+// Scores retrieves completeness scores from persisted SCS snapshots. This path
+// is intentionally read-only and never invokes fleet recomputation.
+func (c *SCSCompletenessSource) Scores(ctx context.Context) (map[string]int, error) {
+	if c == nil {
+		return nil, fmt.Errorf("SCS completeness source is nil")
+	}
+	if c.timeout <= 0 {
+		c.timeout = defaultCompletenessTimeout
+	}
+	if c.resolver == nil {
+		c.resolver = discovery.NewResolver(discovery.ResolverConfig{})
+	}
+	if c.httpClient == nil {
+		c.httpClient = &http.Client{Timeout: c.timeout}
+	}
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctxWithTimeout, scsScenarioSlug)
 	if err != nil {
 		return nil, err
 	}
+	client := scoringconnect.NewScoreServiceClient(c.httpClient, strings.TrimRight(baseURL, "/"))
 
-	var resp completenessScoresResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
-	}
-
-	scores := make(map[string]int, len(resp.Scenarios))
-	for _, item := range resp.Scenarios {
-		name := strings.TrimSpace(item.Scenario)
-		if name == "" {
-			continue
+	scores := make(map[string]int)
+	pageToken := ""
+	for pages := 0; pages < maxCompletenessPageFetch; pages++ {
+		resp, err := client.ListScores(ctxWithTimeout, connect.NewRequest(&scoringv1.ListScoresRequest{
+			SortBy:    scoringv1.ScoreSortBy_SCORE_SORT_BY_SCENARIO,
+			Order:     scoringv1.SortOrder_SORT_ORDER_ASC,
+			PageSize:  completenessPageSize,
+			PageToken: pageToken,
+		}))
+		if err != nil {
+			return nil, err
 		}
-		score := int(math.Round(item.Score))
-		if score < 0 {
-			score = 0
-		} else if score > 100 {
-			score = 100
+		if resp == nil || resp.Msg == nil {
+			return nil, fmt.Errorf("SCS ListScores returned no response")
 		}
-		scores[name] = score
+		for _, item := range resp.Msg.GetScores() {
+			name := strings.TrimSpace(item.GetScenario())
+			if name == "" {
+				continue
+			}
+			scores[name] = clampCompletenessScore(float64(item.GetScore()))
+		}
+		pageToken = strings.TrimSpace(resp.Msg.GetNextPageToken())
+		if pageToken == "" {
+			return scores, nil
+		}
 	}
-
-	return scores, nil
+	return nil, fmt.Errorf("SCS ListScores exceeded %d pages", maxCompletenessPageFetch)
 }
 
-type completenessScoresResponse struct {
-	Scenarios []completenessScoreItem `json:"scenarios"`
-}
-
-type completenessScoreItem struct {
-	Scenario string  `json:"scenario"`
-	Score    float64 `json:"score"`
+func clampCompletenessScore(raw float64) int {
+	score := int(math.Round(raw))
+	if score < 0 {
+		return 0
+	}
+	if score > 100 {
+		return 100
+	}
+	return score
 }

@@ -16,20 +16,25 @@ import (
 func TestDocHealingClientCreateRun(t *testing.T) {
 	t.Parallel()
 
-	var ensurePayload map[string]interface{}
+	cfg := DefaultDocHealingProfileConfig()
+	var reconcilePayload map[string]interface{}
 	var taskPayload map[string]interface{}
 	var runPayload map[string]interface{}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/profiles/ensure", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/profiles/reconcile-scenario", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", r.Method)
 		}
-		if err := json.NewDecoder(r.Body).Decode(&ensurePayload); err != nil {
-			t.Fatalf("decode ensure payload: %v", err)
+		if err := json.NewDecoder(r.Body).Decode(&reconcilePayload); err != nil {
+			t.Fatalf("decode reconcile payload: %v", err)
 		}
-		resp := &apipb.EnsureProfileResponse{
-			Profile: &domainpb.AgentProfile{Id: "profile-1"},
+		resp := &apipb.ReconcileScenarioProfilesResponse{
+			Scenario: "knowledge-observatory",
+			Results: []*apipb.ProfileReconcileResult{{
+				ProfileKey: cfg.ProfileKey,
+				ProfileId:  "profile-1",
+			}},
 		}
 		writeProtoJSON(t, w, resp)
 	})
@@ -61,7 +66,6 @@ func TestDocHealingClientCreateRun(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	cfg := DefaultDocHealingProfileConfig()
 	client := NewDocHealingClientWithBaseURL(5*time.Second, cfg, server.URL)
 	runID, err := client.CreateRun(context.Background(), dochealing.AgentRunRequest{
 		Title:       "Doc Heal",
@@ -79,8 +83,8 @@ func TestDocHealingClientCreateRun(t *testing.T) {
 		t.Fatalf("expected run id run-1, got %s", runID)
 	}
 
-	if ensurePayload["profileKey"] != cfg.ProfileKey {
-		t.Fatalf("expected profileKey %q, got %v", cfg.ProfileKey, ensurePayload["profileKey"])
+	if reconcilePayload["scenario"] != "knowledge-observatory" {
+		t.Fatalf("expected knowledge-observatory reconciliation, got %v", reconcilePayload["scenario"])
 	}
 	taskBody, ok := taskPayload["task"].(map[string]interface{})
 	if !ok {
@@ -91,6 +95,13 @@ func TestDocHealingClientCreateRun(t *testing.T) {
 	}
 	if runPayload["taskId"] != "task-1" {
 		t.Fatalf("expected taskId task-1, got %v", runPayload["taskId"])
+	}
+	profileRef, ok := runPayload["profileRef"].(map[string]interface{})
+	if !ok || profileRef["profileKey"] != cfg.ProfileKey {
+		t.Fatalf("expected declared profile ref %q, got %v", cfg.ProfileKey, runPayload["profileRef"])
+	}
+	if _, hasDefaults := profileRef["defaults"]; hasDefaults {
+		t.Fatalf("run profile ref must not send inline defaults: %v", profileRef)
 	}
 }
 

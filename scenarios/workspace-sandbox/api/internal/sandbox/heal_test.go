@@ -7,16 +7,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/audit"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/process"
+	"workspace-sandbox/internal/testutil/mocks"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // --- helpers ---
 
-func newHealTestService(drv *mockDriver, repo *mockRepository) *Service {
+func newHealTestService(drv *mocks.FakeDriver, repo *mocks.FakeRepository) *Service {
+	clk := schedule.System()
 	return NewService(repo, drv, ServiceConfig{
 		DefaultProjectRoot: "/tmp/project",
-	})
+	}, clk, audit.NewRepoEmitter(repo.LogAuditEvent, clk), process.NewOSExecStarter())
 }
 
 func activeSandbox(id uuid.UUID, lastUsed time.Time) *types.Sandbox {
@@ -37,9 +44,9 @@ func activeSandbox(id uuid.UUID, lastUsed time.Time) *types.Sandbox {
 
 func TestReconcileActiveMounts_StaleMount_AutoHeals(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("merged directory is not mounted (may be stale)")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("merged directory is not mounted (may be stale)")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -69,9 +76,9 @@ func TestReconcileActiveMounts_StaleMount_AutoHeals(t *testing.T) {
 
 func TestReconcileActiveMounts_HealthyMount_Skipped(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
+	drv := mocks.NewFakeDriver()
 	// verifyMountErr is nil — mount is healthy
-	repo := newMockRepository()
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -91,9 +98,9 @@ func TestReconcileActiveMounts_HealthyMount_Skipped(t *testing.T) {
 
 func TestReconcileActiveMounts_StoppedSandbox_Skipped(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("stale")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("stale")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -114,9 +121,9 @@ func TestReconcileActiveMounts_StoppedSandbox_Skipped(t *testing.T) {
 
 func TestReconcileActiveMounts_RecentlyUsed_Skipped(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("stale")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("stale")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -139,10 +146,10 @@ func TestReconcileActiveMounts_RecentlyUsed_Skipped(t *testing.T) {
 
 func TestReconcileActiveMounts_BackoffRespected(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("stale")
-	drv.mountErr = errors.New("mount failed") // Ensure heal fails
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("stale")
+	drv.MountErr = errors.New("mount failed") // Ensure heal fails
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -176,10 +183,10 @@ func TestReconcileActiveMounts_BackoffRespected(t *testing.T) {
 
 func TestReconcileActiveMounts_MaxFailures_SetsError(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("stale")
-	drv.mountErr = errors.New("mount failed")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("stale")
+	drv.MountErr = errors.New("mount failed")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -213,9 +220,9 @@ func TestReconcileActiveMounts_MaxFailures_SetsError(t *testing.T) {
 
 func TestReconcileActiveMounts_DeletedDuringHeal_NoError(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("stale")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("stale")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -227,7 +234,7 @@ func TestReconcileActiveMounts_DeletedDuringHeal_NoError(t *testing.T) {
 	}
 
 	// Delete sandbox before heal runs, simulating concurrent deletion.
-	delete(repo.sandboxes, id)
+	delete(repo.Sandboxes, id)
 
 	// Should not panic.
 	svc.ReconcileActiveMounts(context.Background(), tracker, cfg)
@@ -235,9 +242,9 @@ func TestReconcileActiveMounts_DeletedDuringHeal_NoError(t *testing.T) {
 
 func TestReconcileActiveMounts_AlreadyFixed_NoOp(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.verifyMountErr = errors.New("stale")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.VerifyMountErr = errors.New("stale")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	tracker := newHealTracker()
 	cfg := DefaultHealConfig()
@@ -263,9 +270,9 @@ func TestReconcileActiveMounts_AlreadyFixed_NoOp(t *testing.T) {
 
 func TestHealSandbox_StopFails(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.unmountErr = errors.New("unmount failed")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.UnmountErr = errors.New("unmount failed")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 
 	sb := activeSandbox(id, time.Now().Add(-5*time.Minute))
@@ -281,9 +288,9 @@ func TestHealSandbox_StopFails(t *testing.T) {
 
 func TestHealSandbox_StartFails(t *testing.T) {
 	id := uuid.New()
-	drv := newMockDriver()
-	drv.mountErr = errors.New("mount failed")
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	drv.MountErr = errors.New("mount failed")
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 
 	sb := activeSandbox(id, time.Now().Add(-5*time.Minute))
@@ -403,8 +410,8 @@ func TestBackoffDuration(t *testing.T) {
 // --- Verify heal test helper uses mock correctly ---
 
 func TestHealTestService_CreatesValidService(t *testing.T) {
-	drv := newMockDriver()
-	repo := newMockRepository()
+	drv := mocks.NewFakeDriver()
+	repo := mocks.NewFakeRepository()
 	svc := newHealTestService(drv, repo)
 	if svc == nil {
 		t.Fatal("expected non-nil service")

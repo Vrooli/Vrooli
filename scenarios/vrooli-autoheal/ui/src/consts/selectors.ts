@@ -268,15 +268,23 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   // Main dashboard container
   dashboard: 'autoheal-dashboard',
+  shell: {
+    header: 'autoheal-shell-header',
+    nav: 'autoheal-shell-nav',
+    content: 'autoheal-shell-content',
+  },
   // Run tick button in header
   runTickButton: 'autoheal-run-tick-button',
+  runTickButtonDesktop: 'autoheal-run-tick-button-desktop',
+  settingsButton: 'autoheal-settings-button',
   // Health check card
   checkCard: 'autoheal-check-card',
   // Summary section
   summary: {
+    grid: 'autoheal-summary-grid',
     total: 'autoheal-summary-total',
     ok: 'autoheal-summary-ok',
     warning: 'autoheal-summary-warning',
@@ -294,6 +302,8 @@ const literalSelectors: LiteralSelectorTree = {
   tabs: {
     dashboard: 'autoheal-tab-dashboard',
     trends: 'autoheal-tab-trends',
+    timeline: 'autoheal-tab-timeline',
+    incidents: 'autoheal-tab-incidents',
     docs: 'autoheal-tab-docs',
   },
   // Trends page
@@ -305,9 +315,9 @@ const literalSelectors: LiteralSelectorTree = {
   // System Protection section [REQ:WATCH-DETECT-001]
   systemProtection: 'autoheal-system-protection',
   systemProtectionCompact: 'autoheal-system-protection-compact',
-};
+} as const satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   /*
   Example dynamic selectors:
   projects: {
@@ -318,7 +328,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     }),
   },
   */
-};
+} as const satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

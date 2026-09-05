@@ -1,0 +1,437 @@
+package database
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+)
+
+// ============================================================================
+// CheckpointRepository Implementation
+// ============================================================================
+
+type checkpointRepository struct {
+	db  *DB
+	log *logrus.Logger
+}
+
+var _ repository.CheckpointRepository = (*checkpointRepository)(nil)
+
+// checkpointRow is the database row representation for run_checkpoints.
+type checkpointRow struct {
+	RunID             uuid.UUID    `db:"run_id"`
+	Phase             string       `db:"phase"`
+	StepWithinPhase   int          `db:"step_within_phase"`
+	SandboxID         NullableUUID `db:"sandbox_id"`
+	WorkDir           string       `db:"work_dir"`
+	LockID            NullableUUID `db:"lock_id"`
+	LastEventSequence int64        `db:"last_event_sequence"`
+	LastHeartbeat     SQLiteTime   `db:"last_heartbeat"`
+	RetryCount        int          `db:"retry_count"`
+	SavedAt           SQLiteTime   `db:"saved_at"`
+	Metadata          MetadataMap  `db:"metadata"`
+}
+
+func (c *checkpointRow) toDomain() *domain.RunCheckpoint {
+	return &domain.RunCheckpoint{
+		RunID:             c.RunID,
+		Phase:             domain.RunPhase(c.Phase),
+		StepWithinPhase:   c.StepWithinPhase,
+		SandboxID:         c.SandboxID.ToPtr(),
+		WorkDir:           c.WorkDir,
+		LockID:            c.LockID.ToPtr(),
+		LastEventSequence: c.LastEventSequence,
+		LastHeartbeat:     c.LastHeartbeat.Time(),
+		RetryCount:        c.RetryCount,
+		SavedAt:           c.SavedAt.Time(),
+		Metadata:          c.Metadata,
+	}
+}
+
+func checkpointFromDomain(c *domain.RunCheckpoint) *checkpointRow {
+	return &checkpointRow{
+		RunID:             c.RunID,
+		Phase:             string(c.Phase),
+		StepWithinPhase:   c.StepWithinPhase,
+		SandboxID:         NewNullableUUID(c.SandboxID),
+		WorkDir:           c.WorkDir,
+		LockID:            NewNullableUUID(c.LockID),
+		LastEventSequence: c.LastEventSequence,
+		LastHeartbeat:     SQLiteTime(c.LastHeartbeat),
+		RetryCount:        c.RetryCount,
+		SavedAt:           SQLiteTime(c.SavedAt),
+		Metadata:          c.Metadata,
+	}
+}
+
+const checkpointColumns = `run_id, phase, step_within_phase, sandbox_id, work_dir,
+	lock_id, last_event_sequence, last_heartbeat, retry_count, saved_at, metadata`
+
+func (r *checkpointRepository) Save(ctx context.Context, checkpoint *domain.RunCheckpoint) error {
+	checkpoint.SavedAt = time.Now()
+	row := checkpointFromDomain(checkpoint)
+
+	// Upsert: insert or update on conflict
+	query := `INSERT INTO run_checkpoints (run_id, phase, step_within_phase, sandbox_id, work_dir,
+		lock_id, last_event_sequence, last_heartbeat, retry_count, saved_at, metadata)
+		VALUES (:run_id, :phase, :step_within_phase, :sandbox_id, :work_dir,
+		:lock_id, :last_event_sequence, :last_heartbeat, :retry_count, :saved_at, :metadata)
+		ON CONFLICT (run_id) DO UPDATE SET
+		phase = EXCLUDED.phase, step_within_phase = EXCLUDED.step_within_phase,
+		sandbox_id = EXCLUDED.sandbox_id, work_dir = EXCLUDED.work_dir,
+		lock_id = EXCLUDED.lock_id, last_event_sequence = EXCLUDED.last_event_sequence,
+		last_heartbeat = EXCLUDED.last_heartbeat, retry_count = EXCLUDED.retry_count,
+		saved_at = EXCLUDED.saved_at, metadata = EXCLUDED.metadata`
+
+	_, err := r.db.NamedExecContext(ctx, query, row)
+	if err != nil {
+		return wrapDBError("save_checkpoint", "RunCheckpoint", checkpoint.RunID.String(), err)
+	}
+	return nil
+}
+
+func (r *checkpointRepository) Get(ctx context.Context, runID uuid.UUID) (*domain.RunCheckpoint, error) {
+	query := fmt.Sprintf("SELECT %s FROM run_checkpoints WHERE run_id = ?", checkpointColumns)
+	var row checkpointRow
+	if err := r.db.GetContext(ctx, &row, query, runID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("get_checkpoint", "RunCheckpoint", runID.String(), err)
+	}
+	return row.toDomain(), nil
+}
+
+func (r *checkpointRepository) Delete(ctx context.Context, runID uuid.UUID) error {
+	query := `DELETE FROM run_checkpoints WHERE run_id = ?`
+	_, err := r.db.ExecContext(ctx, query, runID)
+	if err != nil {
+		return wrapDBError("delete_checkpoint", "RunCheckpoint", runID.String(), err)
+	}
+	return nil
+}
+
+func (r *checkpointRepository) ListStale(ctx context.Context, olderThan time.Duration) ([]*domain.RunCheckpoint, error) {
+	cutoff := SQLiteTime(time.Now().Add(-olderThan))
+	query := fmt.Sprintf("SELECT %s FROM run_checkpoints WHERE last_heartbeat < ?", checkpointColumns)
+
+	var rows []checkpointRow
+	if err := r.db.SelectContext(ctx, &rows, query, cutoff); err != nil {
+		return nil, wrapDBError("list_stale_checkpoints", "RunCheckpoint", "", err)
+	}
+
+	result := make([]*domain.RunCheckpoint, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
+}
+
+func (r *checkpointRepository) Heartbeat(ctx context.Context, runID uuid.UUID) error {
+	query := `UPDATE run_checkpoints SET last_heartbeat = ? WHERE run_id = ?`
+	_, err := r.db.ExecContext(ctx, query, SQLiteTime(time.Now()), runID)
+	if err != nil {
+		return wrapDBError("update_checkpoint", "RunCheckpoint", runID.String(), err)
+	}
+	return nil
+}
+
+// ============================================================================
+// IdempotencyRepository Implementation
+// ============================================================================
+
+type idempotencyRepository struct {
+	db  *DB
+	log *logrus.Logger
+}
+
+var _ repository.IdempotencyRepository = (*idempotencyRepository)(nil)
+
+// idempotencyRow is the database row representation for idempotency_records.
+type idempotencyRow struct {
+	Key        string         `db:"key"`
+	Status     string         `db:"status"`
+	EntityID   NullableUUID   `db:"entity_id"`
+	EntityType sql.NullString `db:"entity_type"`
+	CreatedAt  SQLiteTime     `db:"created_at"`
+	ExpiresAt  SQLiteTime     `db:"expires_at"`
+	Response   []byte         `db:"response"`
+}
+
+func (i *idempotencyRow) toDomain() *domain.IdempotencyRecord {
+	entityType := ""
+	if i.EntityType.Valid {
+		entityType = i.EntityType.String
+	}
+	return &domain.IdempotencyRecord{
+		Key:        i.Key,
+		Status:     domain.IdempotencyStatus(i.Status),
+		EntityID:   i.EntityID.ToPtr(),
+		EntityType: entityType,
+		CreatedAt:  i.CreatedAt.Time(),
+		ExpiresAt:  i.ExpiresAt.Time(),
+		Response:   i.Response,
+	}
+}
+
+const idempotencyColumns = `key, status, entity_id, entity_type, created_at, expires_at, response`
+
+func (r *idempotencyRepository) Check(ctx context.Context, key string) (*domain.IdempotencyRecord, error) {
+	query := fmt.Sprintf("SELECT %s FROM idempotency_records WHERE key = ? AND expires_at > ?", idempotencyColumns)
+	var row idempotencyRow
+	if err := r.db.GetContext(ctx, &row, query, key, SQLiteTime(time.Now().UTC())); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("check_idempotency", "IdempotencyRecord", key, err)
+	}
+	return row.toDomain(), nil
+}
+
+func (r *idempotencyRepository) Reserve(ctx context.Context, key string, ttl time.Duration) (*domain.IdempotencyRecord, error) {
+	now := time.Now()
+	record := &domain.IdempotencyRecord{
+		Key:       key,
+		Status:    domain.IdempotencyStatusPending,
+		CreatedAt: now,
+		ExpiresAt: now.Add(ttl),
+	}
+
+	// A reservation row must be reclaimable once it expires or its request
+	// failed — a crash between Reserve and Complete/Failed must not wedge the
+	// key forever (workflow dispatch keys are deterministic, so a permanently
+	// held key permanently blocks that node). Live pending or completed rows
+	// win the conflict and the reserve fails.
+	query := `INSERT INTO idempotency_records (key, status, created_at, expires_at)
+		VALUES (:key, :status, :created_at, :expires_at)
+		ON CONFLICT(key) DO UPDATE SET
+			status = excluded.status,
+			created_at = excluded.created_at,
+			expires_at = excluded.expires_at,
+			entity_id = NULL,
+			entity_type = NULL,
+			response = NULL
+		WHERE idempotency_records.expires_at <= excluded.created_at
+		   OR idempotency_records.status = 'failed'`
+
+	row := struct {
+		Key       string     `db:"key"`
+		Status    string     `db:"status"`
+		CreatedAt SQLiteTime `db:"created_at"`
+		ExpiresAt SQLiteTime `db:"expires_at"`
+	}{
+		Key:       record.Key,
+		Status:    string(record.Status),
+		CreatedAt: SQLiteTime(record.CreatedAt),
+		ExpiresAt: SQLiteTime(record.ExpiresAt),
+	}
+
+	res, err := r.db.NamedExecContext(ctx, query, row)
+	if err != nil {
+		return nil, wrapDBError("reserve_idempotency", "IdempotencyRecord", key, err)
+	}
+	if affected, err := res.RowsAffected(); err == nil && affected == 0 {
+		return nil, fmt.Errorf("reserve_idempotency: key %q is held by an in-flight or completed request", key)
+	}
+	return record, nil
+}
+
+func (r *idempotencyRepository) Complete(ctx context.Context, key string, entityID uuid.UUID, entityType string, response []byte) error {
+	query := `UPDATE idempotency_records SET status = ?, entity_id = ?, entity_type = ?, response = ? WHERE key = ?`
+	_, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusComplete), entityID, entityType, response, key)
+	if err != nil {
+		return wrapDBError("complete_idempotency", "IdempotencyRecord", key, err)
+	}
+	return nil
+}
+
+func (r *idempotencyRepository) Fail(ctx context.Context, key string) error {
+	query := `UPDATE idempotency_records SET status = ? WHERE key = ?`
+	_, err := r.db.ExecContext(ctx, query, string(domain.IdempotencyStatusFailed), key)
+	if err != nil {
+		return wrapDBError("fail_idempotency", "IdempotencyRecord", key, err)
+	}
+	return nil
+}
+
+func (r *idempotencyRepository) CleanupExpired(ctx context.Context) (int, error) {
+	query := `DELETE FROM idempotency_records WHERE expires_at < ?`
+	result, err := r.db.ExecContext(ctx, query, SQLiteTime(time.Now().UTC()))
+	if err != nil {
+		return 0, wrapDBError("cleanup_idempotency", "IdempotencyRecord", "", err)
+	}
+	count, _ := result.RowsAffected()
+	return int(count), nil
+}
+
+// ============================================================================
+// PolicyRepository Implementation
+// ============================================================================
+
+type policyRepository struct {
+	db  *DB
+	log *logrus.Logger
+}
+
+var _ repository.PolicyRepository = (*policyRepository)(nil)
+
+// policyRow is the database row representation for policies.
+type policyRow struct {
+	ID           uuid.UUID       `db:"id"`
+	Name         string          `db:"name"`
+	Description  string          `db:"description"`
+	Priority     int             `db:"priority"`
+	ScopePattern string          `db:"scope_pattern"`
+	Rules        PolicyRulesJSON `db:"rules"`
+	Enabled      bool            `db:"enabled"`
+	CreatedBy    string          `db:"created_by"`
+	CreatedAt    SQLiteTime      `db:"created_at"`
+	UpdatedAt    SQLiteTime      `db:"updated_at"`
+}
+
+func (p *policyRow) toDomain() *domain.Policy {
+	return &domain.Policy{
+		ID:           p.ID,
+		Name:         p.Name,
+		Description:  p.Description,
+		Priority:     p.Priority,
+		ScopePattern: p.ScopePattern,
+		Rules:        p.Rules.V,
+		Enabled:      p.Enabled,
+		CreatedBy:    p.CreatedBy,
+		CreatedAt:    p.CreatedAt.Time(),
+		UpdatedAt:    p.UpdatedAt.Time(),
+	}
+}
+
+func policyFromDomain(p *domain.Policy) *policyRow {
+	return &policyRow{
+		ID:           p.ID,
+		Name:         p.Name,
+		Description:  p.Description,
+		Priority:     p.Priority,
+		ScopePattern: p.ScopePattern,
+		Rules:        PolicyRulesJSON{V: p.Rules},
+		Enabled:      p.Enabled,
+		CreatedBy:    p.CreatedBy,
+		CreatedAt:    SQLiteTime(p.CreatedAt),
+		UpdatedAt:    SQLiteTime(p.UpdatedAt),
+	}
+}
+
+const policyColumns = `id, name, description, priority, scope_pattern, rules, enabled, created_by, created_at, updated_at`
+
+func (r *policyRepository) Create(ctx context.Context, policy *domain.Policy) error {
+	if policy.ID == uuid.Nil {
+		policy.ID = uuid.New()
+	}
+	now := time.Now()
+	policy.CreatedAt = now
+	policy.UpdatedAt = now
+
+	row := policyFromDomain(policy)
+	query := `INSERT INTO policies (id, name, description, priority, scope_pattern, rules, enabled, created_by, created_at, updated_at)
+		VALUES (:id, :name, :description, :priority, :scope_pattern, :rules, :enabled, :created_by, :created_at, :updated_at)`
+
+	_, err := r.db.NamedExecContext(ctx, query, row)
+	if err != nil {
+		return wrapDBError("create", "Policy", policy.ID.String(), err)
+	}
+	return nil
+}
+
+func (r *policyRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Policy, error) {
+	query := fmt.Sprintf("SELECT %s FROM policies WHERE id = ?", policyColumns)
+	var row policyRow
+	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("get", "Policy", id.String(), err)
+	}
+	return row.toDomain(), nil
+}
+
+func (r *policyRepository) List(ctx context.Context, filter repository.ListFilter) ([]*domain.Policy, error) {
+	base := fmt.Sprintf("SELECT %s FROM policies ORDER BY priority DESC, updated_at DESC", policyColumns)
+	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
+	query := queryWithPaging
+
+	var rows []policyRow
+	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+		return nil, wrapDBError("list", "Policy", "", err)
+	}
+
+	result := make([]*domain.Policy, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
+}
+
+func (r *policyRepository) ListEnabled(ctx context.Context) ([]*domain.Policy, error) {
+	query := fmt.Sprintf("SELECT %s FROM policies WHERE enabled = true ORDER BY priority DESC", policyColumns)
+
+	var rows []policyRow
+	if err := r.db.SelectContext(ctx, &rows, query); err != nil {
+		return nil, wrapDBError("list_enabled", "Policy", "", err)
+	}
+
+	result := make([]*domain.Policy, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
+}
+
+func (r *policyRepository) Update(ctx context.Context, policy *domain.Policy) error {
+	policy.UpdatedAt = time.Now()
+	row := policyFromDomain(policy)
+
+	query := `UPDATE policies SET name = :name, description = :description,
+		priority = :priority, scope_pattern = :scope_pattern, rules = :rules,
+		enabled = :enabled, created_by = :created_by, updated_at = :updated_at
+		WHERE id = :id`
+
+	_, err := r.db.NamedExecContext(ctx, query, row)
+	if err != nil {
+		return wrapDBError("update", "Policy", policy.ID.String(), err)
+	}
+	return nil
+}
+
+func (r *policyRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM policies WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return wrapDBError("delete", "Policy", id.String(), err)
+	}
+	return nil
+}
+
+func (r *policyRepository) FindByScope(ctx context.Context, scopePath string) ([]*domain.Policy, error) {
+	// Simple LIKE-based pattern matching for now
+	// In production, you might want more sophisticated glob matching
+	query := fmt.Sprintf("SELECT %s FROM policies WHERE enabled = true AND (scope_pattern = '' OR ? LIKE REPLACE(REPLACE(scope_pattern, '*', '%%'), '?', '_')) ORDER BY priority DESC", policyColumns)
+
+	var rows []policyRow
+	if err := r.db.SelectContext(ctx, &rows, query, scopePath); err != nil {
+		return nil, wrapDBError("find_by_scope", "Policy", scopePath, err)
+	}
+
+	result := make([]*domain.Policy, len(rows))
+	for i, row := range rows {
+		result[i] = row.toDomain()
+	}
+	return result, nil
+}
+
+// ============================================================================

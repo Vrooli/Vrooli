@@ -1,62 +1,196 @@
-# Problems
+# Problems — Tunnel Manager
 
-## 2026-02-19: Remaining UX Issues (Phase 2)
+Persistent register of known issues, tech debt, and deferred work
+specific to **this** scenario. Future agents read this file to avoid
+re-discovering the same constraint.
 
-### Problem
-1. Status badges use color-only differentiation (green/red/yellow) without text or icon alternatives for color-blind users. 2. No pagination for long lists (metrics history, probe history) - mobile shows 20 items, desktop 50, older records inaccessible. 3. No column sorting on tables. 4. No search/filter for routes when list grows large. 5. Timestamps in metrics history tables still use toLocaleTimeString() (not relative) since they represent high-frequency data points. 6. Completeness scoring test counter regression - tool counts 3 tests instead of 274 after full suite run; appears to be infrastructure/counting issue not a code regression.
+This file ships empty in newly generated scenarios. Append entries as
+they appear.
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 3
+## What belongs here
 
-### Problem
-RESOLVED: (1) Status badges now include icons alongside colors via shared StatusBadge component (CheckCircle2, XCircle, AlertTriangle, MinusCircle) — no longer color-only. (2) Route table now has search/filter input for filtering by subdomain, scenario, or port. (3) Route table now has sortable columns (subdomain, scenario, port, status) with visual sort indicators. REMAINING: (4) No pagination for very long lists (metrics/probe history) — truncated with 'showing N of M'. (5) No column sorting on metrics/probe history tables (only route table has sorting). (6) Completeness scoring test counter regression still present (infrastructure issue).
+- **Known bugs** that are real but not yet worth fixing
+- **Tech debt** — workarounds that need a real fix later
+- **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
+- **Constraints discovered the hard way** that aren't visible from
+  the code (e.g., "this resource needs warm-up before the first call;
+  see commit X")
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 5
+## What does NOT belong here
 
-### Problem
-RESOLVED: (1) Pagination added to MetricsHistory, ProbeHistory, and RecoveryTimeline — users can now navigate through all records instead of seeing truncated subsets. (2) Recovery trigger and circuit reset now require confirmation dialogs before executing (were previously one-click dangerous actions). (3) Tunnel health score now color-coded (green/yellow/red) with tooltip indicating threshold meaning. (4) Route filter shows result count during active search. (5) ProbeHistory error column uses break-words instead of truncation for better readability. REMAINING: (1) No column sorting on metrics/probe history tables (only route table has sorting). (2) Completeness scoring test counter regression still present (infrastructure issue). (3) No chart/graph visualization for metrics (tables only). (4) No export/download capabilities for audit results or metrics.
+- **Generic template issues** — those go in
+  [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+- **Open feature requests** — track those in PRD operational targets
+- **Code comments** — if the constraint is local to one file, a
+  comment there is more discoverable
+- **Test failures** — fix them, don't document them
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 6
+## Entry template
 
-### Problem
-RESOLVED: (1) Column sorting added to Metrics History table (Time, HA Conns, Streams, RTT, Errors) and Probe History table (Subdomain, Type, Status, Latency) with visual sort indicators. (2) Tooltip component now uses aria-describedby linking trigger to tooltip content for screen readers. (3) ConfirmDialog now has aria-describedby, focus trap (Tab key stays within dialog), and dynamic pending text derived from confirmLabel instead of hardcoded 'Deleting...'. (4) Pagination uses semantic nav element with aria-label and aria-live for page count announcements. (5) All table headers across all components now use scope=col for proper screen reader table navigation. (6) All error states now use role=alert for immediate screen reader announcements. (7) All loading states now use role=status with sr-only labels for screen reader feedback. (8) Decorative icons across components now have aria-hidden=true. REMAINING: (1) No chart/graph visualization for metrics (tables only). (2) No export/download capabilities for audit results or metrics. (3) Completeness scoring test counter regression still present (infrastructure issue).
+Use this shape so entries are scannable. Append newest at the bottom.
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 7
+```markdown
+### YYYY-MM-DD — short title
 
-### Problem
-RESOLVED: (1) Document title now updates on route navigation for screen reader users. (2) Active nav links now have aria-current='page'. (3) Form tooltip triggers restructured from span[tabIndex] to proper button elements outside labels. (4) All validated form inputs have aria-invalid and aria-describedby linked to error messages. (5) All 7 data tables now have sr-only caption elements. (6) Truncated table cells now have title attributes for full-content access. (7) Global focus-visible ring styling ensures all interactive elements have visible focus indicators. (8) prefers-reduced-motion media query added for animation-sensitive users. (9) All remaining decorative icons have aria-hidden='true'. REMAINING: (1) No chart/graph visualization for metrics (tables only). (2) No export/download capabilities for audit results or metrics. (3) Completeness scoring test counter regression still present (infrastructure issue).
+**Symptom:** What goes wrong, observable from outside the system.
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 8
+**Root cause:** What actually causes it (or "unknown" if not yet diagnosed).
 
-### Problem
-RESOLVED: (1) DashboardPage now has sr-only h1 heading (WCAG Level A heading hierarchy). (2) Sort header buttons have visible focus-visible:ring-2 styling for keyboard navigation. (3) Form required fields now have visual asterisks and required/aria-required attributes. (4) Form label contrast improved from text-slate-400 to text-slate-300 for WCAG AA compliance. (5) Help button focus ring upgraded from 1px to 2px. (6) Route filter result count has role=status + aria-live=polite for screen reader announcements. (7) Pagination touch targets increased from 28px to 36px. (8) ConfirmDialog buttons stack vertically on mobile. (9) External links announce '(opens in new tab)' to screen readers. REMAINING: (1) No chart/graph visualization for metrics (tables only). (2) No export/download capabilities for audit results or metrics. (3) Completeness scoring test counter regression still present (infrastructure issue).
+**Workaround:** What to do today to keep moving.
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 9
+**Real fix:** What needs to happen for this entry to be deleted.
 
-### Problem
-RESOLVED: (1) All text-slate-400 color contrast violations eliminated across 15 UI files — upgraded to text-slate-300 for WCAG AA 4.5:1 compliance on dark backgrounds. (2) Help buttons in RouteForm replaced from cryptic '(?)' text with Lucide HelpCircle icons and field-specific aria-labels. (3) Form validation now auto-focuses first invalid field on submit for keyboard accessibility. (4) Mobile card layouts now have semantic role=list/listitem + aria-label across all 6 components/pages (HealthPage, ProbesPage, MetricsPage, ProbeResults, AuditView, RouteTable). (5) StatusBadge neutral variant contrast improved. (6) Pagination and confirm-dialog button contrast improved. REMAINING: (1) No chart/graph visualization for metrics (tables only). (2) No export/download capabilities for audit results or metrics. (3) Completeness scoring test counter regression still present (infrastructure issue).
+**Owner:** Who should drive the fix (or "unassigned").
 
----
-## 2026-02-19: UX Issues Update - Phase 2 Iteration 10
+**Refs:** Code paths, related issues, prior commits.
+```
 
-### Problem
-RESOLVED: (1) Metric card grids (HealthPage, MetricsPage, RecoveryPage) now single-column on mobile (<640px) preventing cramped 2-col layouts. (2) All page spacing responsive (space-y-4 sm:space-y-6) reducing excessive vertical gaps on mobile. (3) RouteForm port/health fields stack vertically on mobile for usable input widths. (4) Sort header buttons enlarged to min-h-[36px] for comfortable touch targets. (5) Back link on RouteDetailPage padded for touch accessibility. (6) Tooltips now tap-to-toggle on touch devices (click handler + outside-click dismiss). (7) CSS normalization prevents iOS zoom-on-focus and normalizes input appearance across mobile browsers. REMAINING: (1) No chart/graph visualization for metrics (tables only). (2) No export/download capabilities for audit results or metrics. (3) Completeness scoring test counter regression still present (infrastructure issue).
+## Entries
 
----
-## 2026-02-19: Tech Debt Update - Phase 3 Refactoring
+### 2026-06-19 — Production readiness truth map gaps
 
-### Problem
-RESOLVED: (1) SortHeader UI component duplicated 3 times across RouteTable, MetricsPage, ProbesPage — consolidated into generic SortHeader<F> + useSort hook in ui/sort-header.tsx. (2) Circuit breaker reset logic duplicated 4 times in recovery_engine.go — extracted resetCounters() and checkGuards() helpers. (3) Observability HTTP handlers orphaned in main.go instead of colocated with their stores — moved to metrics_store.go and probe_store.go. REMAINING TECH DEBT: (1) Route scan column list (9 cols) repeated verbatim in List, GetByID, Create, Update methods of route_service.go — could be extracted to a constant. (2) No chart/graph visualization for metrics (tables only). (3) No export/download capabilities for audit results or metrics. (4) Completeness scoring test counter regression still present (infrastructure issue).
+**Symptom:** Fresh Tunnel Manager instances could report or imply remote-mode readiness even when Cloudflare credentials were absent; some docs still described Phase 1 planned behavior while the PRD marked P0/P1 targets complete; probe/recovery scheduling and UI flows needed reconciliation with live behavior.
 
----
-## 2026-02-19: Tech Debt Update - Phase 3 Refactoring Iteration 2
+**Root cause:** The regenerated implementation landed broad API/CLI/UI surfaces before a production truth pass. Config docs used canonical `CLOUDFLARE_*` names while runtime code read `CF_*`; the config service defaulted to remote mode; exposure/recovery/probe scheduling and UI setup workflows needed to be reconciled against the product contract.
 
-### Problem
-RESOLVED: (1) Route scan column list (9 cols) previously repeated verbatim in List, GetByID, Create, Update methods — extracted routeColumns constant and scanRoute() helper in route_service.go. (2) parseRouteID duplicated across 3 HTTP handlers (Get, Update, Delete) — extracted shared parseRouteID(w,r) helper. (3) extractHostname duplicated between cf_client.go and local_config.go with different implementations — consolidated into helpers.go using strings.TrimPrefix. (4) Ready-poll loop duplicated between recovery_engine.go doRecovery and local_config.go RestartCloudflared — extracted pollReady() helper in helpers.go (used by local_config.go; recovery_engine.go retains inline loop for injected healthCheck testability). REMAINING TECH DEBT: (1) No chart/graph visualization for metrics (tables only). (2) No export/download capabilities for audit results or metrics. (3) Completeness scoring test counter regression still present (infrastructure issue). (4) api.ts buildApiUrl calls repeat { baseUrl: API_BASE } — cannot extract to helper without breaking scoring tool API endpoint detection.
+**Workaround:** Treat config readiness as the first source of truth. The canonical Cloudflare fields are resolved through the Vrooli credential authority; legacy `CF_*` names and plaintext scenario stores are not accepted. The remaining lifecycle environment variables are operational toggles only. Fresh config defaults to local mode, and `config sync --dry-run` reports missing remote setup instead of failing when remote credentials are absent. As of the follow-up exposure passes, `exposure` composes the same production config-service builder as `config`, so remote-mode `Expose`/`Reconcile` use the configured Cloudflare ingress client instead of an unwired config service; the API also starts a cancellable exposure scheduler that runs CORE reconcile and expired-lease reaping at boot and on `TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL`. As of the probe/recovery pass, probes run at boot and periodically by default (`TUNNEL_MANAGER_PROBE_INTERVAL`), while background recovery evaluation is implemented but opt-in (`TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`) because an acted evaluation restarts cloudflared. As of the UI redesign slices, Overview shows config readiness/mode/missing fields; Settings owns local/remote mode, Cloudflare readiness, sync preview, and sync apply; Exposure owns search, CORE/LEASED filtering, reconcile feedback, lease actions, and route-classification badges; Diagnostics/Metrics owns latest tunnel metrics, route classification counts, diagnostic-signal limits, probe history, and manual scrape/probe actions; Audit owns fixed-port compliance summaries, status filtering, and remediation hints; and Recovery owns the state-machine summary, breaker/backoff risk, next operator action, manual force warning, and event details.
 
----
+As of the Phase 7 follow-up reconciliation, PRD/requirements no longer mark the full OT-P1-001 scope as complete: current probe-pair classification is implemented and tested, while DNS-failure and Cloudflare-outage isolation are explicitly tracked as not implemented until resolver/upstream signals exist.
+
+**Real fix:** Remaining production-readiness work is advisory/deferred: implement richer DNS/Cloudflare outage classification signals when resolver/upstream inputs exist, integrate scenario-authenticator aud-scoped tokens before granting direct privileged mutation access to non-operator cross-scenario callers, and validate live Cloudflare behavior with an attended operator run. Time-series/history retention is no longer TBD: metrics/probes keep a rolling 14-day window, and recovery events keep a rolling 90-day window. Service-layer static-token authz is no longer TBD: `TUNNEL_MANAGER_AUTHZ_ENFORCED=1` fail-closes privileged mutation RPCs behind `TUNNEL_MANAGER_OPERATOR_TOKEN` or fallback `API_TOKEN`.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/config/{types.go,cfclient.go,service.go,production.go}`, `api/handlers/{config,exposure,probes,recovery}/module.go`, `api/internal/{exposure,probes,recovery}/scheduler.go`, `packages/proto/schemas/tunnel-manager/v1/config/config.proto`, user plan `tunnel-manager-production-readiness-redesign`.
+
+### 2026-06-18 — Superseded: product implementation was not yet built during docs-first phase
+
+**Symptom:** Historical during the regeneration docs-first phase: API/CLI/UI described domains and endpoints that did not exist as code yet.
+
+**Root cause:** Intentional. Phase 1 is documentation-first (charter → requirements → domain map → docs). Implementation is Phase 2.
+
+**Workaround:** Superseded. Product domains are now implemented and validation-green; keep this entry only as historical context for why early docs were planned-contract heavy.
+
+**Real fix:** Done by the implementation and validation-hardening slices recorded in `PROGRESS.md`.
+
+**Owner:** unassigned. **Refs:** `docs/plans/tunnel-manager-regen-adoption-plan.md`, `PRD.md`.
+
+### 2026-06-18 — Superseded: `make test` reported fleet-reds from template/example content
+
+**Symptom:** Historical during regeneration: `make test` exited 1 with dependencies/unit/tidiness ERROR findings even though raw unit and dependencies phases passed.
+
+**Root cause:** test-genie fleet analysis flags the template's own example/scaffold content — `notes` domain (`TEST_HELPER_FROM_PRODUCTION`, duplicated blocks, low coverage), formal-flow testutil cyclomatic complexity, the UI coverage gate (App.tsx/profiler 0%), and the pnpm `minimumReleaseAge` policy. None originate from this regen.
+
+**Workaround:** Superseded. `vrooli scenario test tunnel-manager` now passes 18/18 phases.
+
+**Real fix:** Done by detemplate, real domain coverage, pnpm `minimumReleaseAge`, and validation-hardening slices.
+
+**Owner:** unassigned. **Refs:** `coverage/latest/findings.json`.
+
+### 2026-06-18 — `prd-control-tower` generate/validate blocked
+
+**Symptom:** `prd-control-tower prd generate` returns `ORPHANED_CRITICAL_TARGETS`; `prd validate` returns `blocked`.
+
+**Root cause:** Known prd-control-tower issue (also hit by image-tools). Unrelated to PRD content.
+
+**Workaround:** PRD authored directly to the canonical v2.0 template (the documented fallback); the orientation charter gate (placeholder-absence) passes. `requirements validate` works and returns healthy.
+
+**Real fix:** Re-run `prd-control-tower` once the tool issue is resolved; until then the hand-authored PRD is authoritative.
+
+**Owner:** unassigned. **Refs:** `PRD.md`.
+
+### 2026-06-18 — Cloudflare hostname cap unconfirmed
+
+**Symptom:** The exact maximum public-hostname count per tunnel is unknown (operator estimate ~100 via dashboard; docs don't state a hard cap).
+
+**Root cause:** Cloudflare docs cover ingress config shape, not limits; the dashboard limit likely differs from API/config-managed limits.
+
+**Workaround:** Tiered exposure (core + leased) is cap-robust regardless. Hostname-budget management is parked at OT-P2-001.
+
+**Real fix:** Phase 3 — confirm the real cap against the live Cloudflare plan; promote OT-P2-001 to P0 if the cap is low.
+
+**Owner:** unassigned. **Refs:** `PRD.md` (note under P2).
+
+### 2026-06-19 — SUPERSEDES the residual-red entry above: validation gates are green
+
+**Symptom:** The prior 15/18 suite state is resolved. `vrooli scenario test tunnel-manager` now reports **18/18 phases green** with completeness 85/100 (`nearly_ready`). The previously red `standards`, `tidiness`, and `proto` phases pass.
+
+**Root cause:** The failures were a mix of stale generated metadata, analyzer-recognition shape, and local maintainability debt:
+- **standards:** the security-header analyzer only credits literal `w.Header().Set(...)` calls in files that write responses. The REST error writer set the right headers through a local header variable, so the analyzer still flagged it.
+- **tidiness:** the scanner blocked on high-complexity/high-duplication helper code and repeated manifest coverage test scaffolding.
+- **proto:** `proto-health` was still serving stale tunnel-manager surface data that included the removed `NotesService`.
+
+**Fix shipped:** Regenerated tunnel-manager endpoint metadata, refreshed proto descriptor inputs, restarted `proto-health`, changed the REST error writer to analyzer-visible header calls, extracted the shared scheduler loop, deduped CLI manifest service-coverage tests, and simplified high-complexity/high-duplication test helpers.
+
+**Remaining advisory debt:** Standards still reports medium/low warnings (env validation heuristics, hardcoded local values, root-health heuristic, test-file warnings). Proto still reports warnings for template-sourced `errors.proto`/`health.proto` and unsupported REST proof for `/health`. These do not block the suite.
+
+**Baseline:** `git-control-tower baseline diff --scenario tunnel-manager --name tunnel-manager-production-readiness-redesign --wait` returned `Overall: preexisting`: standards cleared, no regressions, and only an inherited smoke baseline failure remains.
+
+**Owner:** tunnel-manager maintainers for advisory cleanup; fleet/tooling owners for analyzer/template warning polish. **Refs:** `api/internal/httpx/errors.go`, `api/internal/scheduler/loop.go`, `cli/internal/manifesttest/manifesttest.go`, `packages/proto/gen/descriptor/image.binpb`, `.vrooli/endpoints.json`.
+
+### 2026-06-20 — Credential setup API/UI still needs dynamic re-resolution
+
+**Status:** Resolved by the follow-up greenfield config/secrets slice.
+
+**Symptom:** Tunnel Manager had a Greenfield credential store backend, but operators still could not provision Cloudflare credentials through dedicated CLI/UI setup commands.
+
+**Root cause:** The first consolidation slice deliberately stopped at the backend seam and production resolver. The config service constructed the Cloudflare ingress client at service-build time, so write RPCs before dynamic re-resolution would have saved credentials but left remote sync using the old nil/stale client until restart.
+
+**Fix:** The config production builder now wires a resolving ingress client that re-resolves credentials per remote read/push. `ConfigService` exposes browser-safe credential status plus write-only set/clear RPCs, credential writes are covered by the privileged mutation authz gate, the CLI exposes `config credentials-status|credentials-set|credentials-clear`, and Settings provides the same write-only setup/clear flow through the Vrooli credential authority. Cloudflare credential environment variables and legacy aliases are not accepted; remaining lifecycle environment variables are operational toggles only. Live Cloudflare validation remains attended/deferred until real operator credentials are available.
+
+**Owner:** tunnel-manager maintainers. **Refs:** `api/internal/config/credentials.go`, `api/internal/config/production.go`, `api/handlers/config/connect_handler.go`, `cli/domains/config/handlers.go`, `ui/src/pages/SettingsPage.tsx`, plan `tunnel-manager-greenfield-config-and-secrets-consolidation`.
+
+## UX Issues
+
+### 2026-08-21 — Command-center interaction polish remains in progress
+
+**Status:** Substantially resolved; final desktop/mobile journey evidence and the remaining route-detail polish are still open under the active UX plan.
+
+**Symptom:** The exposure surface now renders live routes and responsive mobile cards, and the guided expose/review flow is manifest-backed with bounded duration, policy, verification, and remediation states. Remaining work is concentrated in complete browser evidence for the full desktop/mobile journeys and any final route-detail presentation gaps.
+
+**Root cause:** The first implementation prioritized wiring every API domain and satisfying broad runtime checks before completing the interaction model. Browser captures exposed visual and responsive gaps that static validation could not establish.
+
+**Workaround:** Use the exposure table on desktop or route cards on mobile; use the shared refresh/retry controls when a dependent probe or configuration query is unavailable. Live core read endpoints are currently responsive after the probe query optimization.
+
+**Real fix:** Finish focused desktop/mobile browser captures for the guided review, route detail, error, and dark-mode journeys; close any remaining presentation gaps; and reconcile the evidence into the experience contract before final plan validation.
+
+**Owner:** tunnel-manager maintainers.
+
+**Refs:** `ui/src/features/exposure/ExposurePanel.tsx`, `ui/src/features/overview/OverviewPanel.tsx`, plan `tunnel-manager-exposure-command-center-ux`, BAS captures under `/tmp/tunnel-manager-*`.
+
+### 2026-08-21 — Shared DataTable adoption is gated by the scenario token ramp
+
+**Status:** Deliberately deferred; the current route collection remains a maintained product-specific implementation.
+
+**Evidence:** `react-component-library adoptions preflight react-component-library:DataTable tunnel-manager --version 1.3.0 --json` reports native style fit and a strong responsive/async contract, but blocks on 19 semantic tokens that are not defined by Tunnel Manager. The token-sync command currently creates only an empty managed marker, so copying the component would produce unverified styling rather than a governed adoption.
+
+**Decision:** Keep the exposure collection bespoke for now. It has explicit lease lifecycle actions, probe classifications, route-specific detail, and a deliberate mobile-card/table split. Revisit adoption after the shared token contract is supplied and the component is previewed against Tunnel Manager's light/dark ramp.
+
+**Owner:** tunnel-manager and react-component-library maintainers. **Refs:** `ui/src/features/exposure/ExposurePanel.tsx`, `scenarios/react-component-library/library/components/DataTable/versions/1.3.0/experience-contract.json`.
+
+## Work ladder
+
+- Rung: W0
+- Evidence: the exact `swarm-manager goals list --json` name/title/description filter returned no goal naming `tunnel-manager`; the active user-owned Plan Manager execution `credential-blast-radius-make-minted-secrets-un-losable` explicitly requires migrating its operator-credential reads to the shared fail-closed authority seam.
+- Blocker: independent goal-to-PRD reconciliation is unavailable through the swarm-manager gate; continue only under the explicit Plan Manager objective and do not claim the scenario contract is independently reconciled. The prior W3 claim was structurally unsupported because no named goal existed for its W0 comparison.
+- Measured: 2026-08-27
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| _None yet._ |  |  |  |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues

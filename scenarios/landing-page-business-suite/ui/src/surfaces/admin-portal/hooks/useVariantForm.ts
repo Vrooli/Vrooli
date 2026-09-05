@@ -18,7 +18,6 @@ import {
   sanitizeSlugInput,
   validateVariantForm,
   type VariantFormState,
-  type VariantSnapshotPayload,
 } from '../controllers/variantEditorController';
 import { buildDefaultHeaderConfig, normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
 import { VariantSnapshotSchema } from '../../../shared/api/schemas/variants.schema';
@@ -99,6 +98,7 @@ export function useVariantForm({
 
   // Monaco markers listener ref
   const markersListener = useRef<IDisposable | null>(null);
+  const mountedRef = useRef(true);
 
   // Computed values
   const isJsonTab = activeTab === 'json';
@@ -116,9 +116,9 @@ export function useVariantForm({
    */
   const handleEditorMount = useCallback(
     (_editor: MonacoEditor.IStandaloneCodeEditor, monaco: MonacoApi) => {
-    const jsonDefaults = (monaco.languages as typeof monaco.languages & {
-      json?: { jsonDefaults?: { setDiagnosticsOptions: (options: unknown) => void } };
-    }).json?.jsonDefaults;
+    const jsonDefaults = (monaco.languages as unknown as {
+      json: { jsonDefaults?: { setDiagnosticsOptions: (options: unknown) => void } };
+    }).json.jsonDefaults;
 
     if (jsonDefaults) {
       jsonDefaults.setDiagnosticsOptions({
@@ -138,7 +138,7 @@ export function useVariantForm({
       setSchemaIssues(
         markers.map(
           (marker: MonacoEditor.IMarker) =>
-            `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
+            `${marker.message} (line ${String(marker.startLineNumber)}:${String(marker.startColumn)})`
         )
       );
     };
@@ -189,13 +189,17 @@ export function useVariantForm({
     try {
       setSnapshotLoading(true);
       const snapshot = await loadVariantSnapshot(slug);
+      if (!mountedRef.current) return;
       setSnapshotDraft(JSON.stringify(snapshot, null, 2));
       setSnapshotError(null);
     } catch (err) {
+      if (!mountedRef.current) return;
       console.error('Variant snapshot fetch error:', err);
       setSnapshotError(err instanceof Error ? err.message : 'Failed to load variant JSON');
     } finally {
-      setSnapshotLoading(false);
+      if (mountedRef.current) {
+        setSnapshotLoading(false);
+      }
     }
   }, [slug, isNew]);
 
@@ -208,6 +212,7 @@ export function useVariantForm({
     try {
       setLoading(true);
       const data = await loadVariantEditorData(slug);
+      if (!mountedRef.current) return;
       setAxesSeeded(false);
       setVariant(data.variant);
       setForm(hydrateFormFromVariant(data.variant));
@@ -222,11 +227,14 @@ export function useVariantForm({
       await fetchSnapshot();
       setError(null);
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to load variant');
       console.error('Variant fetch error:', err);
       setSnapshotLoading(false);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [slug, fetchSnapshot]);
 
@@ -303,7 +311,7 @@ export function useVariantForm({
       if (!validated.success) {
         throw new Error('Invalid JSON structure for variant snapshot');
       }
-      const saved = await persistVariantSnapshot(slug, validated.data as VariantSnapshotPayload);
+      const saved = await persistVariantSnapshot(slug, validated.data);
       setSnapshotDraft(JSON.stringify(saved, null, 2));
       await fetchVariant();
       onSuccess?.('Variant JSON applied successfully', 'JSON saved');
@@ -328,7 +336,7 @@ export function useVariantForm({
   const handleCopyIssues = useCallback(async () => {
     if (schemaIssues.length === 0) {
       setCopyStatus('No schema issues to copy');
-      setTimeout(() => setCopyStatus(null), 2000);
+      setTimeout(() => { setCopyStatus(null); }, 2000);
       return;
     }
     const text = schemaIssues.join('\n');
@@ -336,22 +344,9 @@ export function useVariantForm({
       await navigator.clipboard.writeText(text);
       setCopyStatus('Copied schema issues');
     } catch {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        setCopyStatus('Copied schema issues');
-      } catch {
-        setCopyStatus('Copy failed (clipboard blocked)');
-      } finally {
-        document.body.removeChild(textarea);
-      }
+      setCopyStatus('Copy failed (clipboard blocked)');
     } finally {
-      setTimeout(() => setCopyStatus(null), 2000);
+      setTimeout(() => { setCopyStatus(null); }, 2000);
     }
   }, [schemaIssues]);
 
@@ -366,14 +361,14 @@ export function useVariantForm({
       setCopyStatus('Copy failed');
       console.error('Schema copy failed', err);
     } finally {
-      setTimeout(() => setCopyStatus(null), 2000);
+      setTimeout(() => { setCopyStatus(null); }, 2000);
     }
   }, []);
 
   // Initial load effect
   useEffect(() => {
     if (!isNew && slug) {
-      fetchVariant();
+      void fetchVariant();
     }
   }, [isNew, slug, fetchVariant]);
 
@@ -382,13 +377,15 @@ export function useVariantForm({
     const fetchVariantSpaceData = async () => {
       try {
         const space = await loadVariantSpaceDefinition();
+        if (!mountedRef.current) return;
         setVariantSpace(space);
       } catch (err) {
+        if (!mountedRef.current) return;
         console.error('Variant space fetch error:', err);
         setError(err instanceof Error ? err.message : 'Failed to load variant axes');
       }
     };
-    fetchVariantSpaceData();
+    void fetchVariantSpaceData();
   }, []);
 
   // Seed axes selection when variant space is loaded
@@ -410,6 +407,7 @@ export function useVariantForm({
   // Cleanup markers listener
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       markersListener.current?.dispose();
     };
   }, []);

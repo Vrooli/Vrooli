@@ -1,0 +1,258 @@
+:root {
+  /* Compatibility aliases for standalone catalog components. New source
+     should prefer the canonical --color/--dur names below, but released
+     assets may be adopted into older Vrooli shells. Keeping this bridge in
+     the kit prevents a component from silently degrading to browser chrome. */
+  --app-background: var(--color-background);
+  --app-shell: var(--color-shell);
+  --app-surface: var(--color-surface);
+  --app-surface-muted: var(--color-surface-muted);
+  --app-surface-raised: var(--color-surface-raised);
+  --app-foreground: var(--color-foreground);
+  --app-muted-foreground: var(--color-muted-foreground);
+  --control-border: 1px solid var(--color-border);
+  --motion-fast: var(--dur-quick);
+  --motion-normal: var(--dur-moderate);
+  --color-background: #f8fafc;
+  --color-shell: #020617;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-raised: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+  --color-border: #cbd5e1;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0891b2;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #0284c7;
+  --color-focus: #2563eb;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-sheet: 1rem;
+  --radius-pill: 9999px;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs: 12px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+  --space-xl: 40px;
+  --space-2xl: 48px;
+  --tap-target-min: 44px;
+  --text-display-size: 32px;
+  --text-display-line: 38px;
+  --text-title-size: 24px;
+  --text-title-line: 30px;
+  --text-heading-size: 18px;
+  --text-heading-line: 24px;
+  --text-subheading-size: 15px;
+  --text-subheading-line: 20px;
+  --text-body-size: 14px;
+  --text-body-line: 22px;
+  --text-body-sm-size: 13px;
+  --text-body-sm-line: 20px;
+  --text-label-size: 12px;
+  --text-label-line: 16px;
+  --text-caption-size: 11px;
+  --text-caption-line: 16px;
+  --elev-flat: none;
+  --elev-raised: 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10);
+  --elev-overlay: 0 2px 4px rgba(9, 18, 22, .06), 0 4px 12px rgba(9, 18, 22, .10);
+  --elev-modal: 0 4px 12px rgba(9, 18, 22, .10), 0 16px 48px rgba(9, 18, 22, .18);
+  --layer-base: 0;
+  --layer-sticky: 100;
+  --layer-dropdown: 200;
+  --layer-overlay: 300;
+  --layer-modal: 400;
+  --layer-toast: 500;
+  --layer-tooltip: 600;
+  --border-hairline: 1px;
+  --border-strong: 2px;
+  --opacity-disabled: .40;
+  --opacity-muted: .64;
+  --opacity-scrim: .72;
+  --dur-instant: 120ms;
+  --dur-quick: 180ms;
+  --dur-moderate: 280ms;
+  --dur-deliberate: 400ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(.3, 0, 1, 1);
+  --spring-subtle: cubic-bezier(.2, .8, .2, 1.05);
+  --spring-expressive: cubic-bezier(.16, 1.2, .3, 1.05);
+  --touch-target: 44px;
+  --sidebar-width: 20rem;
+  --sidebar-min-width: 16.25rem;
+  --sidebar-max-width: 30rem;
+  color-scheme: light;
+/* rcl:tokens:begin */
+  --badge-border: var(--color-border);
+  --color-border-strong: #64748b;
+  --color-field: var(--color-surface);
+  --color-surface-sunken: #0b1220;
+  --container-content: 72rem;
+  --container-wide: 96rem;
+  --control-height: initial;
+  --control-height-lg: initial;
+  --control-height-sm: initial;
+  --control-padding: var(--space-sm);
+  --control-radius: var(--radius-control);
+  --control-size-icon: 40px;
+  --control-size-lg: 44px;
+  --control-size-md: 40px;
+  --control-size-sm: 36px;
+  --control-size-xl: 48px;
+  --control-size-xs: 32px;
+  --dur-enter: var(--dur-quick);
+  --dur-fast: var(--dur-instant);
+  --dur-normal: var(--dur-moderate);
+  --dur-slow: var(--dur-deliberate);
+  --elev-: initial;
+  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
+  --icon-size-lg: 24px;
+  --icon-size-md: 20px;
+  --icon-size-sm: 16px;
+  --layout-content: 34rem;
+  --layout-content-compact: 28rem;
+  --layout-content-wide: 42rem;
+  --panel-padding: var(--space-md);
+  --panel-radius: var(--radius-panel);
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-none: 0;
+  --radius-overlay: 1rem;
+  --radius-sm: 0.25rem;
+  --radius-xl: 1.25rem;
+  --space-: initial;
+  --space-4xl: 6rem;
+  --space-4xs: 2px;
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-label-tracking: 0.005em;
+  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+/* rcl:tokens:end */}
+
+:root[data-resolved-theme="dark"],
+.dark {
+  --color-background: #020617;
+  --color-shell: #020617;
+  --color-surface: #0f172a;
+  --color-surface-muted: #1e293b;
+  --color-surface-raised: #172033;
+  --color-foreground: #f8fafc;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #334155;
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #020617;
+  --color-accent: #22d3ee;
+  --color-success: #22c55e;
+  --color-danger: #f87171;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-focus: #60a5fa;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+  --elev-flat: none;
+  --elev-raised: 0 1px 2px rgba(0, 0, 0, .40);
+  --elev-overlay: 0 4px 16px rgba(0, 0, 0, .50);
+  --elev-modal: 0 16px 48px rgba(0, 0, 0, .60);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]) {
+    --color-background: #020617;
+    --color-shell: #020617;
+    --color-surface: #0f172a;
+    --color-surface-muted: #1e293b;
+    --color-surface-raised: #172033;
+    --color-foreground: #f8fafc;
+    --color-muted-foreground: #94a3b8;
+    --color-border: #334155;
+    --color-primary: #60a5fa;
+    --color-primary-foreground: #020617;
+    --color-accent: #22d3ee;
+    --color-success: #22c55e;
+    --color-danger: #f87171;
+    --color-warning: #f59e0b;
+    --color-info: #38bdf8;
+    --color-focus: #60a5fa;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+    color-scheme: dark;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

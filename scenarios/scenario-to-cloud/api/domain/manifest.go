@@ -20,7 +20,7 @@ type CloudManifest struct {
 }
 
 // CloudflareAPITokenKey is the env var name used for DNS-01 issuance via Cloudflare.
-const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN"
+const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN" // #nosec G101 -- this is an environment-variable name, never a credential value.
 
 // ManifestTarget specifies where to deploy.
 type ManifestTarget struct {
@@ -63,8 +63,8 @@ type ManifestBundle struct {
 	Resources       []string `json:"resources,omitempty"`
 }
 
-// ManifestPorts maps port names to port numbers.
-// Standard ports (ui, api, ws) are common, but scenarios can define additional ports
+// ManifestPorts maps scenario listener port names to fixed deployment ports.
+// API and UI are common, but scenarios can define additional listener ports
 // like playwright_driver, metrics, etc. in their service.json.
 type ManifestPorts map[string]int
 
@@ -90,14 +90,23 @@ type ManifestSecrets struct {
 // BundleSecretPlan represents a secret from secrets-manager.
 // This is included in the manifest so the deploy target can generate/prompt for secrets.
 type BundleSecretPlan struct {
-	ID          string                 `json:"id"`
-	Class       string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
-	Required    bool                   `json:"required"`
-	Description string                 `json:"description,omitempty"`
-	Format      string                 `json:"format,omitempty"` // validation pattern
-	Target      BundleSecretTarget     `json:"target"`
-	Prompt      *SecretPromptMetadata  `json:"prompt,omitempty"`
-	Generator   map[string]interface{} `json:"generator,omitempty"`
+	ID               string                 `json:"id"`
+	Class            string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
+	Required         bool                   `json:"required"`
+	Description      string                 `json:"description,omitempty"`
+	Format           string                 `json:"format,omitempty"` // validation pattern
+	Target           BundleSecretTarget     `json:"target"`
+	Descriptor       *DescriptorAddress     `json:"descriptor,omitempty"`
+	DescriptorReason string                 `json:"descriptor_reason,omitempty"`
+	Prompt           *SecretPromptMetadata  `json:"prompt,omitempty"`
+	Generator        map[string]interface{} `json:"generator,omitempty"`
+}
+
+// DescriptorAddress is the canonical credential-authority address satisfied
+// by a deployment secret. It remains optional for legacy manifests.
+type DescriptorAddress struct {
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
 }
 
 // BundleSecretTarget specifies where to inject the secret value.

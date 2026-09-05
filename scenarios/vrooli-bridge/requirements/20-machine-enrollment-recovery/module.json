@@ -1,0 +1,174 @@
+{
+  "_metadata": {
+    "description": "Durable Machine intent, immutable enrollment recovery, trust, and capability-policy invariants.",
+    "last_validated_at": "2026-08-31T21:49:09-04:00",
+    "module": "machine-enrollment-recovery",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-MEC-001",
+      "title": "Machine source of truth and conservative migration",
+      "status": "planned",
+      "category": "core",
+      "description": "A stable Machine UUID exists before contact, retains ordered locators and immutable Node lineage, and composes Registry and Presence without copying their mutable facts. Migration preserves history and sends ambiguous correlations to review rather than matching host/IP/name.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/concepts/DATA.md#machine-ownership-matrix",
+          "phase": "design",
+          "status": "planned",
+          "notes": "The Phase 1 ownership and migration contract explicitly prohibits locator-equality adoption and copied Registry/Presence facts."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/FLOWS.md#machine-enrollment-and-recovery",
+          "phase": "design",
+          "status": "planned",
+          "notes": "The temporal contract names the fixtures and invariants that Phase 2 tests must make executable before this requirement can advance."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-002",
+      "title": "Per-Machine trust and typed lifecycle effects",
+      "status": "planned",
+      "category": "security",
+      "description": "New enrollment uses per-Machine keys, typed host/client fingerprints, fail-closed host verification, and separate audited archive, revoke, SSH removal, Machine removal, cleanup, and purge effects.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/SECURITY.md#machine-enrollment-boundaries",
+          "phase": "design",
+          "status": "planned",
+          "notes": "The Phase 1 security contract defines per-Machine trust, typed fingerprints, fail-closed review, authorization, and destructive-effect ordering for Phase 4 implementation tests."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-003",
+      "title": "Immutable enrollment attempts and pairing recovery",
+      "status": "planned",
+      "category": "core",
+      "description": "Enrollment attempts preserve correlation across pairing and service-install failure. Terminal attempts never change; retry creates retry_of_attempt_id; replay and concurrent requests converge without duplicate current Nodes or reusable codes.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/concepts/FLOWS.md#machine-enrollment-and-recovery",
+          "phase": "design",
+          "status": "planned",
+          "notes": "The Phase 1 temporal contract specifies failure injection and replay/concurrency assertions that Phase 3 must convert into executable workflow tests."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/internal/DECISIONS.md",
+          "phase": "design",
+          "status": "planned",
+          "notes": "The correlation and terminal-attempt immutability decisions are explicitly recorded before implementation."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-004",
+      "title": "One-command durable SSH connection",
+      "status": "planned",
+      "category": "security",
+      "description": "The canonical `vrooli-bridge onboard connect --host \u003chost\u003e --user \u003cuser\u003e` flow resolves one Machine, prompts once for first touch, installs a Bridge-managed key, pairs the node, performs a final key-only verification, and reconnects after Bridge restart without a password or replacement identity.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Durable orchestration tests assert final key-only verification and fail-closed behavior; live restart evidence remains a final qualification step."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/onboard/handlers_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI tests assert first-touch prompting, trusted reconnect without prompting, and server-owned Machine resolution."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/RUNBOOK.md#canonical-one-command-connection",
+          "phase": "operations",
+          "status": "planned",
+          "notes": "Run the documented first-touch, Bridge restart, and no-prompt reconnect ladder on an authorized target."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-005",
+      "title": "Connection identity and credential fail-closed behavior",
+      "status": "in_progress",
+      "category": "security",
+      "description": "Preflight returns explicit first-touch, reconnect, recovery-required, ambiguous, and host-key-review decisions. A no-password request cannot start first touch or recovery, and passwords never appear in durable records or process arguments.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/onboard/integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The integration flow asserts password and pairing-code absence from database rows, events, and logs."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/onboard/handlers_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI request captures verify credential-safe intake and trusted reconnect behavior."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-006",
+      "title": "Node capability inventory and configuration outcome",
+      "status": "in_progress",
+      "category": "core",
+      "description": "A Bridge agent reports one typed capability observation per declared coding agent, Bridge persists the inventory and probe time, and a terminal configuration attempt records its operation, state, time, and unmet items on the node.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/registry/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "agent/internal/channel/channel_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/orchestrator_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-007",
+      "title": "Per-machine desired configuration and drift",
+      "status": "in_progress",
+      "category": "core",
+      "description": "A machine profile carries desired scenarios, optional resources, required capabilities, and setup environment; the machine records the applied profile version and time; and drift is returned as typed differences.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/machines/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/orchestrator_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    }
+  ]
+}

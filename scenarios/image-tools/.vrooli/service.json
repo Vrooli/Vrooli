@@ -1,0 +1,239 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "12GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "image-tools",
+    "displayName": "Image Tools",
+    "description": "Local-first image toolbox: deterministic editing, on-demand AI generation/enhancement, and image analysis via CLI, UI, and API.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-16T19:37:32Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "image-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "image-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "hostTools": [
+    {
+      "name": "google-chrome-stable",
+      "required": false,
+      "reason": "High-fidelity SVG rasterization. oksvg silently drops <filter>, <mask>, <pattern> and CSS, so a document using any of them is rendered here or refused by name — never degraded into a plausible wrong picture.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Only consulted for SVG that uses one of those four features; plain SVG keeps the pure-Go path, so this is never required (headless tenet). Discovery falls back through google-chrome, chromium, chromium-browser, chrome and headless-shell, and IMAGE_TOOLS_CHROME_BINARY overrides it. Absent, ops.rasterizeSVG returns ErrSVGFidelityUnavailable naming the features and this tool."
+    },
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Transcode image formats Go's native imaging libraries can't fully cover (AVIF/HEIC encode, animated GIF/WebP) during deterministic format conversion",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Deterministic ops use pure-Go imaging by default; ffmpeg is only consulted for the formats Go can't handle, and conversion degrades gracefully (clear error) when it is absent. Never required (headless tenet)."
+    },
+    {
+      "name": "realesrgan-ncnn-vulkan",
+      "required": false,
+      "reason": "Optional upscale/denoise backend (Real-ESRGAN ncnn-vulkan). Fetched on demand into ~/.vrooli/bin via `vrooli host install`; never auto-downloaded by default setup (headless tenet).",
+      "when": [
+        "develop"
+      ],
+      "notes": "Data-declared url/release host tool (internal/tools/realesrgan-ncnn-vulkan). Backs the realesrgan-ncnn-vulkan provider's upscale/denoise ops."
+    },
+    {
+      "name": "sd",
+      "required": false,
+      "manual": true,
+      "reason": "Optional generative backend (stable-diffusion.cpp) for text_to_image/image_to_image. GPU-recommended; no checksum-pinnable release, so install is manual.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Capability-gated (requires GPU) in internal/tools/sd; resolves not-applicable on CPU-only hosts. Backs the stable-diffusion.cpp provider."
+    },
+    {
+      "name": "iopaint",
+      "required": false,
+      "manual": true,
+      "reason": "Optional object-removal/inpainting backend (IOPaint). Python/pip tool; surfaced but never auto-fetched.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Backs the iopaint provider's object_removal op. Install with pipx/pip (see installHint)."
+    },
+    {
+      "name": "rembg",
+      "required": false,
+      "manual": true,
+      "reason": "Optional background-removal backend (rembg). Python/pip tool; surfaced but never auto-fetched.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Backs the rembg provider's background_removal/background_replace ops. Install with pipx/pip (see installHint)."
+    },
+    {
+      "name": "llama-cpp",
+      "required": false,
+      "manual": true,
+      "reason": "Optional caption backend (llama.cpp multimodal runner). Built/installed manually; surfaced but never auto-fetched.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Backs the llama.cpp provider's caption op (llama-mtmd-cli/llama-cli)."
+    },
+    {
+      "name": "uv",
+      "required": false,
+      "reason": "Astral uv builds the private, lock-pinned Python venv that isolates every Python AI backend (diffusers, onnxruntime, python-sidecar). Its absolute interpreter — never the host python3 — runs the sidecars, so torch/diffusers/transformers come from internal/pydeps/requirements.lock and cannot be perturbed by other Python on the box.",
+      "when": [
+        "develop"
+      ],
+      "notes": "Data-declared release host tool (internal/tools/uv) fetched no-sudo into ~/.vrooli/bin. On the next start image-tools builds/repairs the venv from the embedded lock; until uv is installed the Python backends report unavailable (surfaced before use), never falling back to the shared interpreter. The single Python-dependency source of truth is the lock — there is no separate pip step."
+    }
+  ],
+  "dependencies": {
+    "resources": {
+      "openrouter": {
+        "type": "openrouter",
+        "required": false,
+        "model_roles": [
+          "image.generate.default",
+          "image.generate.logo",
+          "image.edit.default",
+          "image.edit.identity"
+        ],
+        "description": "Optional BYOK cloud image backend (last tier). The concrete model is resolved per request from an OpenRouter policy role; callers carry intent via the openrouter_role param.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

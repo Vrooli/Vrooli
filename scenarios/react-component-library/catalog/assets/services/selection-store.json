@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "services.selection-store",
+    "name": "Selection Store",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The reusable scoped store for single, multiple, range, keyboard, and programmatic collection selection with stable item identities across reordering and pagination.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {"requires": []},
+  "budgets": {"mountMs": 3000}
+}

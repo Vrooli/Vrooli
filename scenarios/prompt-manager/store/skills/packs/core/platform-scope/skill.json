@@ -1,16 +1,27 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "platform-scope",
-  "name": "Platform Scope",
+  "createdAt": "2026-02-10T00:00:00Z",
   "description": "Session constraints for shared packages/platform code: compatibility-first, brownfield-safe, no breaking changes by default.",
+  "entry": "SKILL.md",
+  "id": "platform-scope",
+  "kind": "skill",
   "modes": [
     "scope"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
+  "name": "Platform Scope",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
   "revision": 1,
-  "createdAt": "2026-02-10T00:00:00Z",
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "scope",
+    "platform",
+    "constraints"
+  ],
   "updatedAt": "2026-02-10T00:00:00Z"
 }
-

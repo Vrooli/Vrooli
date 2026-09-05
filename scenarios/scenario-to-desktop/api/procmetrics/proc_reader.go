@@ -3,6 +3,7 @@ package procmetrics
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -146,4 +147,105 @@ func (r *LinuxProcReader) IsAlive(pid int) bool {
 		return false
 	}
 	return proc.Signal(syscall.Signal(0)) == nil
+}
+
+// ProcessTree returns the unique descendants of rootPID that remain visible
+// in /proc. A disappearing process is skipped because short-lived Electron
+// helpers are expected during startup.
+func (r *LinuxProcReader) ProcessTree(rootPID int) ([]ProcessInfo, error) {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil, fmt.Errorf("read /proc: %w", err)
+	}
+	all := make(map[int]ProcessInfo)
+	for _, entry := range entries {
+		pid, parseErr := strconv.Atoi(entry.Name())
+		if parseErr != nil || !entry.IsDir() {
+			continue
+		}
+		statData, readErr := os.ReadFile(filepath.Join("/proc", entry.Name(), "stat"))
+		if readErr != nil {
+			continue
+		}
+		ppid, command, utime, stime, parseErr := parseProcessStat(string(statData))
+		if parseErr != nil {
+			continue
+		}
+		statusData, readErr := os.ReadFile(filepath.Join("/proc", entry.Name(), "status"))
+		if readErr != nil {
+			continue
+		}
+		rss, peak, threads, parseErr := parseStatus(string(statusData))
+		if parseErr != nil {
+			continue
+		}
+		all[pid] = ProcessInfo{PID: pid, PPID: ppid, Command: command, Role: classifyRole(pid, rootPID, command), CPUJiffies: utime + stime, RSSBytes: rss, PeakBytes: peak, Threads: threads}
+	}
+	if _, ok := all[rootPID]; !ok {
+		return nil, fmt.Errorf("root process %d is not visible", rootPID)
+	}
+	children := make(map[int][]int)
+	for pid, info := range all {
+		children[info.PPID] = append(children[info.PPID], pid)
+	}
+	result := make([]ProcessInfo, 0, len(all))
+	queue := []int{rootPID}
+	seen := make(map[int]bool)
+	for len(queue) > 0 {
+		pid := queue[0]
+		queue = queue[1:]
+		if seen[pid] {
+			continue
+		}
+		seen[pid] = true
+		if info, ok := all[pid]; ok {
+			result = append(result, info)
+		}
+		queue = append(queue, children[pid]...)
+	}
+	return result, nil
+}
+
+func parseProcessStat(content string) (ppid int, command string, utime, stime int64, err error) {
+	closing := strings.LastIndex(content, ")")
+	if closing < 0 || closing+2 >= len(content) {
+		return 0, "", 0, 0, fmt.Errorf("malformed /proc/pid/stat")
+	}
+	command = strings.TrimPrefix(content[strings.Index(content, "(")+1:closing], "")
+	fields := strings.Fields(content[closing+2:])
+	if len(fields) < 13 {
+		return 0, "", 0, 0, fmt.Errorf("malformed /proc/pid/stat fields")
+	}
+	ppid, err = strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, "", 0, 0, fmt.Errorf("parse ppid: %w", err)
+	}
+	utime, err = strconv.ParseInt(fields[11], 10, 64)
+	if err != nil {
+		return 0, "", 0, 0, fmt.Errorf("parse utime: %w", err)
+	}
+	stime, err = strconv.ParseInt(fields[12], 10, 64)
+	if err != nil {
+		return 0, "", 0, 0, fmt.Errorf("parse stime: %w", err)
+	}
+	return ppid, command, utime, stime, nil
+}
+
+func classifyRole(pid, rootPID int, command string) ProcessRole {
+	if pid == rootPID {
+		return RoleElectronMain
+	}
+	lower := strings.ToLower(command)
+	switch {
+	case strings.Contains(lower, "gpu"):
+		return RoleElectronGPU
+	case strings.Contains(lower, "renderer"), strings.Contains(lower, "zygote"):
+		return RoleElectronRender
+	case strings.Contains(lower, "runtime"), strings.Contains(lower, "node"), strings.Contains(lower, "deno"), strings.Contains(lower, "bun"):
+		return RoleBundledRuntime
+	case lower != "":
+		return RoleScenarioService
+	default:
+		return RoleUnknown
+	}
 }

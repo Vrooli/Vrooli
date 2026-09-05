@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "blog-post-from-declared-style",
+    "title": "Produce a blog post from a consumer-declared style",
+    "purpose": "The scenario's first vertical slice and its primary reason to exist. A consuming scenario declares a voice as a file in its own folder; the operator converges an outline, then converges each section against its own candidate set, sees coherence measured across the assembled sections, and commits a document whose every candidate carries provenance.",
+    "prd_refs": [
+      "OT-P0-019",
+      "OT-P0-025",
+      "OT-P0-029"
+    ]
+  },
+  "steps": [
+    {
+      "page": "declaration-registry",
+      "state": "default",
+      "intent": "Confirm the consumer's declared style registered and see which file owns it",
+      "via": "source-path"
+    },
+    {
+      "page": "style-library",
+      "state": "declared-style",
+      "intent": "Read the resolved style to know what it will actually instruct",
+      "via": "resolved-preview"
+    },
+    {
+      "page": "document-workspace",
+      "state": "outline-pending",
+      "intent": "Create the document; feasibility is decided before any section is generated",
+      "via": "feasibility-notice"
+    },
+    {
+      "page": "variation-board",
+      "state": "default",
+      "intent": "Converge the outline and then each section by pinning and rejecting rather than ranking",
+      "via": "candidate-card"
+    },
+    {
+      "page": "document-workspace",
+      "state": "assembled",
+      "intent": "Read measured cross-section coherence and assemble the committed sections",
+      "via": "coherence-report"
+    }
+  ]
+}

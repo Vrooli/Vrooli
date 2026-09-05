@@ -1,6 +1,8 @@
 package app
 
 import (
+	"path/filepath"
+
 	"test-genie/internal/app/httpserver"
 	"test-genie/internal/app/runtime"
 )
@@ -31,19 +33,24 @@ func NewServer() (*httpserver.Server, error) {
 		ServiceName: "Test Genie API",
 	}
 	httpDeps := httpserver.Dependencies{
-		DB:                         deps.DB,
-		SuiteQueue:                 deps.SuiteRequests,
-		Executions:                 deps.ExecutionHistory,
-		ExecutionSvc:               deps.ExecutionService,
-		ExecutionPlanner:           deps.ExecutionPlanner,
-		Scenarios:                  deps.ScenarioService,
-		PhaseCatalog:               deps.PhaseCatalog,
-		AgentService:               deps.AgentService,
-		FixService:                 deps.FixService,
-		RequirementsImproveService: deps.RequirementsImproveService,
-		RequirementsSyncer:         deps.RequirementsSyncer,
-		ToolRegistry:               deps.ToolRegistry,
-		ToolHandler:                deps.ToolHandler,
+		RepoRoot:            filepath.Dir(cfg.ScenariosRoot),
+		DB:                  deps.DB,
+		HealthDB:            deps.HealthDB,
+		Executions:          deps.ExecutionHistory,
+		ExecutionPlanner:    deps.ExecutionPlanner,
+		RunManager:          deps.RunManager,
+		Scenarios:           deps.ScenarioService,
+		PhaseCatalog:        deps.PhaseCatalog,
+		AgentService:        deps.AgentService,
+		RemediationService:  deps.RemediationService,
+		RemediationLauncher: deps.RemediationLauncher,
+		RequirementsSyncer:  deps.RequirementsSyncer,
+		PlaybooksClaims:     deps.PlaybooksClaims,
+		EligibilityService:  deps.EligibilityService,
+		RunsService:         deps.RunsService,
+		ValidationService:   deps.ValidationService,
+		StartBackground:     deps.StartBackground,
+		SweepStatus:         deps.SweepStatus,
 	}
 
 	return newHTTPServer(httpCfg, httpDeps)

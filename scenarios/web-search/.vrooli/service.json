@@ -1,0 +1,226 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "web-search",
+    "displayName": "Web Search",
+    "description": "Federated web search provider with live results and a self-curating, citation-backed research knowledge store",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-09T16:20:15Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "8c596cbbfea2dbe0c85cfcabd58e0c1cf5fd0389fe97b1c6ae46d80b1c116249"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "web-search",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "web-search"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "searxng": {
+        "type": "searxng",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Privacy-respecting metasearch aggregator (Google/Bing/DuckDuckGo/Startpage) backing the live-web path (L0/L1/L2). web-search calls its JSON API and normalizes results into the search-hub SearchHit shape; nothing external is stored except via the TTL cache and distilled findings.",
+        "degraded_behavior": "If SearXNG is down, the web-search.live provider degrades to unavailable (surfaced warning + governor-style 'try later'); the web-search.learnings provider keeps serving internalized findings, so default federated queries are unaffected."
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local Ollama roles for the findings semantic index, L1 snippet synthesis, and L2/L3 finding distillation.",
+        "degraded_behavior": "Embeddings unavailable -> findings search falls back to text matching and reindex is deferred; synthesis unavailable -> raw hits are still returned (synthesis is always additive/opt-in).",
+        "model_roles": [
+          "embedding.default",
+          "summarize.default"
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector database for the semantic findings index (collection: web-search-findings) via the aisearch-go package, mirroring the cli-health adoption pattern.",
+        "degraded_behavior": "Semantic recall of findings falls back to BM25-style text matching; reindex is deferred."
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the findings shortlist for the strongest ordering.",
+        "degraded_behavior": "Reranking falls back to raw dense (cosine) order; findings search still returns results, only the final ordering is less precise."
+      }
+    },
+    "scenarios": {
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Browser escalation leg of the L2 fetch stack (greenfield 2026-06, replacing the deleted browserless resource coupling). L2 fetches pages with plain HTTP first; when a page fails or extracts as a JS shell, web-search calls BAS CaptureService.Capture (Connect-RPC, inline_dom=true) for the rendered outerHTML. Disable the leg with WEB_SEARCH_BROWSER_ESCALATION=off.",
+        "degraded_behavior": "Without browser-automation-studio, L2 fetch is HTTP-only: server-rendered pages still synthesize normally; JS-shell pages contribute thin or no text, and L2 abstains only if every candidate page fails."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Federated search router. web-search self-registers two providers from .vrooli/search.json at boot: web-search.live (SCOPE_EXTERNAL, rate-limited, reached only on explicit --type web/--all or fallback escalation) and web-search.learnings (SCOPE_PROJECT, local findings corpus, joins default routing). Registration is an idempotent upsert.",
+        "degraded_behavior": "If search-hub is down at boot, self-registration retries briefly then gives up; web-search serves its own search/research endpoints normally and re-registers on its next boot."
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Agentic run lifecycle for L3 iterative research (OT-P1-002): web-search spawns an agent-manager run that uses L2 endpoints and web-search CLI commands as tools to plan, loop, verify, and emit a cited brief. The L3 RPC starts the run and returns a handle the caller polls via GetResearchStatus.",
+        "degraded_behavior": "Without agent-manager, only L0/L1/L2 (single-pass) research is available; L3 iterative research-and-reconcile is unavailable."
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/web-search/SKILL.md",
+      "programs": [
+        "web-search.research"
+      ]
+    },
+    "improve": {
+      "source": "skills/web-search-improve/SKILL.md",
+      "programs": [
+        "web-search.setpoint-read",
+        "web-search.findings-curate"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "ledger": "findings"
+    }
+  }
+}

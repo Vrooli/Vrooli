@@ -1,99 +1,99 @@
 
-> @vrooli/playwright-driver@2.0.0 test:coverage /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver
+> @vrooli/playwright-driver@2.0.0 test:coverage <repo-root>/scenarios/browser-automation-studio/playwright-driver
 > jest --coverage
 
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 ts-jest[config] (WARN) 
-    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in <repo-root>/scenarios/browser-automation-studio/playwright-driver/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
   
 PASS tests/unit/handlers/base.test.ts
 PASS tests/unit/frame-streaming/direct-frame-server.test.ts
@@ -512,32 +512,32 @@ PASS tests/unit/recording/state-machine.test.ts
 
     console.error
       [StateMachine] Listener error: Error: Listener error
-          at /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tests/unit/recording/state-machine.test.ts:661:15
-          at /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-mock@29.7.0/node_modules/jest-mock/build/index.js:397:39
-          at /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-mock@29.7.0/node_modules/jest-mock/build/index.js:404:13
-          at mockConstructor (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-mock@29.7.0/node_modules/jest-mock/build/index.js:148:19)
-          at listener (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/src/recording/orchestration/state-machine.ts:640:13)
+          at <repo-root>/scenarios/browser-automation-studio/playwright-driver/tests/unit/recording/state-machine.test.ts:661:15
+          at <repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-mock@29.7.0/node_modules/jest-mock/build/index.js:397:39
+          at <repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-mock@29.7.0/node_modules/jest-mock/build/index.js:404:13
+          at mockConstructor (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-mock@29.7.0/node_modules/jest-mock/build/index.js:148:19)
+          at listener (<repo-root>/scenarios/browser-automation-studio/playwright-driver/src/recording/orchestration/state-machine.ts:640:13)
           at Set.forEach (<anonymous>)
-          at Object.forEach [as dispatch] (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/src/recording/orchestration/state-machine.ts:638:19)
-          at /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tests/unit/recording/state-machine.test.ts:670:17
-          at Object.<anonymous> (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/toThrowMatchers.js:74:11)
-          at Object.throwingMatcher [as toThrow] (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:320:21)
-          at Object.<anonymous> (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/tests/unit/recording/state-machine.test.ts:671:14)
-          at Promise.then.completed (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+          at Object.forEach [as dispatch] (<repo-root>/scenarios/browser-automation-studio/playwright-driver/src/recording/orchestration/state-machine.ts:638:19)
+          at <repo-root>/scenarios/browser-automation-studio/playwright-driver/tests/unit/recording/state-machine.test.ts:670:17
+          at Object.<anonymous> (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/toThrowMatchers.js:74:11)
+          at Object.throwingMatcher [as toThrow] (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:320:21)
+          at Object.<anonymous> (<repo-root>/scenarios/browser-automation-studio/playwright-driver/tests/unit/recording/state-machine.test.ts:671:14)
+          at Promise.then.completed (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
           at new Promise (<anonymous>)
-          at callAsyncCircusFn (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
-          at _callCircusTest (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+          at callAsyncCircusFn (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+          at _callCircusTest (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
           at processTicksAndRejections (node:internal/process/task_queues:95:5)
-          at _runTest (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
-          at _runTestsForDescribeBlock (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
-          at _runTestsForDescribeBlock (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
-          at _runTestsForDescribeBlock (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
-          at run (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
-          at runAndTransformResultsToJestFormat (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
-          at jestAdapter (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
-          at runTestInternal (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)
-          at runTest (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)
-          at Object.worker (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/testWorker.js:106:12)
+          at _runTest (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+          at _runTestsForDescribeBlock (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+          at _runTestsForDescribeBlock (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+          at _runTestsForDescribeBlock (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+          at run (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+          at runAndTransformResultsToJestFormat (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
+          at jestAdapter (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
+          at runTestInternal (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:367:16)
+          at runTest (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:444:34)
+          at Object.worker (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/testWorker.js:106:12)
 
       641 |           } catch (err) {
       642 |             // Don't let listener errors break the state machine
@@ -6099,15 +6099,15 @@ PASS tests/unit/routes/session-start.test.ts
 
     console.error
       [rebrowser-patches][frames._context] cannot get world, error: ProtocolError: Protocol error (Runtime.evaluate): Internal server error, session closed.
-          at /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:116:57
+          at <repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:116:57
           at new Promise (<anonymous>)
-          at CRSession.send (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:115:12)
-          at CRSession.__re__getMainWorld (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:266:20)
+          at CRSession.send (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:115:12)
+          at CRSession.__re__getMainWorld (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:266:20)
           at runNextTicks (node:internal/process/task_queues:60:5)
           at processImmediate (node:internal/timers:454:9)
           at process.callbackTrampoline (node:internal/async_hooks:130:17)
-          at CRSession.__re__emitExecutionContext (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:220:28)
-          at Frame.evaluateExpression (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/frames.js:645:21) {
+          at CRSession.__re__emitExecutionContext (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:220:28)
+          at Frame.evaluateExpression (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/frames.js:645:21) {
         type: 'closed',
         method: 'Runtime.evaluate',
         logs: undefined
@@ -6342,15 +6342,15 @@ PASS tests/unit/routes/session-close.test.ts
 
     console.error
       [rebrowser-patches][frames._context] cannot get world, error: ProtocolError: Protocol error (Runtime.evaluate): Internal server error, session closed.
-          at /home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:116:57
+          at <repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:116:57
           at new Promise (<anonymous>)
-          at CRSession.send (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:115:12)
-          at CRSession.__re__getMainWorld (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:266:20)
+          at CRSession.send (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:115:12)
+          at CRSession.__re__getMainWorld (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:266:20)
           at runNextTicks (node:internal/process/task_queues:60:5)
           at processImmediate (node:internal/timers:454:9)
           at process.callbackTrampoline (node:internal/async_hooks:130:17)
-          at CRSession.__re__emitExecutionContext (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:220:28)
-          at Frame.evaluateExpression (/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/frames.js:645:21) {
+          at CRSession.__re__emitExecutionContext (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/chromium/crConnection.js:220:28)
+          at Frame.evaluateExpression (<repo-root>/scenarios/browser-automation-studio/playwright-driver/node_modules/.pnpm/rebrowser-playwright-core@1.52.0/node_modules/rebrowser-playwright-core/lib/server/frames.js:645:21) {
         type: 'closed',
         method: 'Runtime.evaluate',
         logs: undefined

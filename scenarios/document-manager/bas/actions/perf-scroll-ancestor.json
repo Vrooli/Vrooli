@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "perf-scroll-ancestor",
+    "description": "Perf interaction helper: walk up from a target element to its nearest scrollable ancestor and scroll it. Use it when the scroll-parent of a virtualized list isn't the element you started from.",
+    "labels": {
+      "intent": "performance",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "reset": "none",
+      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the element inside the scrollable region (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"deltaY\",\"type\":\"number\",\"required\":false,\"default\":600,\"description\":\"Vertical scroll delta in pixels\"}]"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "scroll-nearest-ancestor",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { let el = document.querySelector(\"${@params/selector}\"); const dy = Number(\"${@params/deltaY}\") || 600; while (el && el !== document.body) { const cs = getComputedStyle(el); if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && el.scrollHeight > el.clientHeight) { el.scrollBy(0, dy); return true; } el = el.parentElement; } window.scrollBy(0, dy); return false; })()"
+        },
+        "metadata": {
+          "label": "Scroll nearest scrollable ancestor of ${@params/selector}"
+        }
+      }
+    }
+  ]
+}

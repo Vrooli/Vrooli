@@ -1,50 +1,41 @@
 /**
  * Tests for SidebarHeader.
  *
- * Verifies home button behavior, settings button, and collapse button.
+ * Verifies home, settings, and collapse handlers fire, and pins that the
+ * home button carries the running-agent badge (no standalone agents pill).
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { SidebarHeader } from "./SidebarHeader";
-import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
-import { useGraphUIStore } from "../../stores/graph-ui-store";
+import { useOperationsStore } from "../../../../stores/operations-store";
 
-// Mock AgentsDropdown to avoid store complexity.
-vi.mock("../../../../components/agents/AgentsDropdown", () => ({
-  AgentsDropdown: () => <div data-testid="agents-dropdown" />,
+// Mock the pending-decision count to avoid a QueryClientProvider dependency.
+vi.mock("../../../../hooks/usePendingDecisionCount", () => ({
+  NEXT_ACTION_FEED_QUERY_KEY: ["next-actions-feed"],
+  usePendingDecisionCount: () => 0,
 }));
-
-// Mock useCommandPostBadgeCount to avoid QueryClientProvider dependency.
-vi.mock("../../../../hooks/useCommandPostBadgeCount", () => ({
-  useCommandPostBadgeCount: () => 0,
-}));
-
-// Mock react-query to avoid QueryClientProvider dependency.
-vi.mock("@tanstack/react-query", async () => {
-  const actual = await vi.importActual("@tanstack/react-query");
-  return { ...actual, useQuery: () => ({ data: undefined, isLoading: false }) };
-});
-
-beforeEach(() => {
-  useDetailSelectionStore.setState({ selection: null });
-  useGraphUIStore.setState({ sidebarCollapsed: false });
-});
 
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHeader>>) {
   return render(
-    <SidebarHeader
-      onSettingsOpen={vi.fn()}
-      onCollapse={vi.fn()}
-      onViewActivity={vi.fn()}
-      onViewBacklog={vi.fn()}
-      {...overrides}
-    />,
+    <MemoryRouter>
+      <SidebarHeader
+        onSettingsOpen={vi.fn()}
+        onCollapse={vi.fn()}
+        onGoHome={vi.fn()}
+        {...overrides}
+      />
+    </MemoryRouter>,
   );
 }
 
 describe("SidebarHeader", () => {
+  beforeEach(() => {
+    useOperationsStore.getState().reset();
+  });
+
   it("renders home button and app title", () => {
     renderHeader();
 
@@ -52,19 +43,14 @@ describe("SidebarHeader", () => {
     expect(screen.getByText("Swarm Manager")).toBeInTheDocument();
   });
 
-  it("home button clears detail selection and collapses sidebar", async () => {
-    useDetailSelectionStore.setState({
-      selection: { entityType: "backlog", kind: "fix", name: "test" },
-    });
-    useGraphUIStore.setState({ sidebarCollapsed: false });
-
-    renderHeader();
+  it("calls onGoHome when home button is clicked", async () => {
+    const onGoHome = vi.fn();
+    renderHeader({ onGoHome });
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId("sidebar-home"));
 
-    expect(useDetailSelectionStore.getState().selection).toBeNull();
-    expect(useGraphUIStore.getState().sidebarCollapsed).toBe(true);
+    expect(onGoHome).toHaveBeenCalledOnce();
   });
 
   it("calls onSettingsOpen when settings button is clicked", async () => {
@@ -87,9 +73,29 @@ describe("SidebarHeader", () => {
     expect(onCollapse).toHaveBeenCalledOnce();
   });
 
-  it("renders agents dropdown", () => {
+  it("badges the home button with the active agent count", () => {
+    useOperationsStore.setState({
+      view: {
+        lanes: [],
+        queue: { depth: 0, maxDepth: 50 },
+        activities: [{ runId: "run-1" }, { runId: "run-2" }],
+        recentlyFinished: [],
+        generatedAt: "2026-07-07T00:00:00Z",
+        windowSeconds: 10800,
+      } as never,
+    });
+
     renderHeader();
 
-    expect(screen.getByTestId("agents-dropdown")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-home-agent-badge")).toHaveTextContent("2");
+  });
+
+  it("hides the home badge and renders no agents pill when idle", () => {
+    renderHeader();
+
+    expect(screen.queryByTestId("sidebar-home-agent-badge")).toBeNull();
+    expect(screen.queryByTestId("layout-ops-trigger-button")).toBeNull();
+    expect(screen.queryByTestId("agents-badge")).toBeNull();
+    expect(screen.queryByTestId("agents-dropdown")).toBeNull();
   });
 });

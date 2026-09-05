@@ -5,7 +5,7 @@
  * single return object for BacklogDetailsPage. Each concern is implemented in
  * its own sub-hook:
  *
- *   - useBacklogCRUDHandlers  -- item CRUD, agent, workshop
+ *   - useBacklogCRUDHandlers  -- item CRUD and lifecycle actions
  *   - useBacklogFileHandlers  -- file select, upload, rename/move/copy/delete
  *   - (remaining)             -- review, targets, requirements, modules, selection
  *
@@ -52,7 +52,6 @@ export interface UseBacklogHandlersOptions {
   selectedFile: BacklogFile | null;
   // Navigation
   closeDetail: () => void;
-  refreshActivities: (force: boolean) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +68,6 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     setSearchParams,
     selectedFile,
     closeDetail,
-    refreshActivities,
   } = opts;
 
   const { _mutations, archiveTargets, targetIdSet, reqModuleMap } = data;
@@ -81,7 +79,6 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     backlogKind,
     name,
     closeDetail,
-    refreshActivities,
   });
 
   const fileHandlers = useBacklogFileHandlers({
@@ -307,7 +304,7 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
   }, []);
 
   return {
-    // CRUD & workshop (from sub-hook)
+    // CRUD (from sub-hook)
     ...crudHandlers,
     // File operations (from sub-hook)
     ...fileHandlers,

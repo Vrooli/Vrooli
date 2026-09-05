@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "catalog-workspace",
+    "title": "Component catalog workspace",
+    "routes": ["/"],
+    "purpose": "Let a library maintainer find a component or hook and open its focused workspace without traversing obsolete dashboard routes.",
+    "prd_refs": ["OT-P0-001", "OT-P0-005"]
+  },
+  "priorities": [
+    {
+      "statement": "The component and hook catalog is usable before secondary controls or metadata."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The unified catalog is visible with Components selected."
+    },
+    {
+      "id": "hooks",
+      "description": "The unified catalog is visible with Hooks selected."
+    },
+    { "id": "loading", "description": "Catalog results are loading." },
+    { "id": "empty", "description": "No assets match the active filters." },
+    {
+      "id": "request-error",
+      "description": "Catalog retrieval failed and a recovery path is visible."
+    }
+  ],
+  "regions": [
+    {
+      "id": "catalog-results",
+      "purpose": "Render the primary catalog's loaded, empty, or failed component and hook results.",
+      "component": {
+        "library": { "component": "experience-surface", "version": "1.0.2" }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": ["loading", "ready", "empty", "error"]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "catalog-results": {
+        "selector": "[data-experience-surface=\"catalog-results\"]"
+      }
+    }
+  }
+}

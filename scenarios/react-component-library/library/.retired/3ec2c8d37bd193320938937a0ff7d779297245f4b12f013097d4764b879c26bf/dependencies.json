@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:AsyncPanel",
+  "version": "1.0.3",
+  "resolvedAt": "2026-08-31T05:06:36Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:ExperienceSurface",
+      "version": "1.0.2",
+      "rank": 4
+    }
+  ]
+}

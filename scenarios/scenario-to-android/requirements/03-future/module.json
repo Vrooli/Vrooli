@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Extend to Wear OS, Android TV, and Android XR targets, which carry their own Play target-API floors and their own conformance chapters, using the same Prober and Driver seams rather than new engines.",
+      "id": "S2A-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Additional Android form factors",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Record device and app integrity verdicts as evidence so a release gate can distinguish a run on an attested device from a run on an unverified one.",
+      "id": "S2A-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Play Integrity and attestation evidence",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Add a second shell technology to the template family — a lower-memory native shell — for scenarios whose UX warrants it, without changing the ramp's adapter contract.",
+      "id": "S2A-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Alternative shell template",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Package several scenarios into one Android application with a shared shell and per-scenario routing, so an owner ships a suite rather than one app per scenario.",
+      "id": "S2A-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Multi-scenario bundle applications",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2A-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

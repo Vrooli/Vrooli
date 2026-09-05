@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/api-core/scheduletest"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
-func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *clock.MockClock) {
+func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *scheduletest.FakeClock) {
 	t.Helper()
 	repo := persistence.NewMockRepository()
-	mockClock := clock.NewMock(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
+	mockClock := scheduletest.New(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
 	log := logrus.New()
 	log.SetLevel(logrus.PanicLevel)
 
@@ -187,7 +187,9 @@ func TestService_EndSession(t *testing.T) {
 
 	// Create a profile and start session
 	created, _ := svc.CreateProfile("Test")
-	svc.StartSession("browser-session-1", created.ID)
+	if err := svc.StartSession("browser-session-1", created.ID); err != nil {
+		t.Fatalf("StartSession failed: %v", err)
+	}
 
 	mockClock.Advance(time.Hour)
 
@@ -226,7 +228,9 @@ func TestService_EndSession_LimitsTabs(t *testing.T) {
 
 	// Create a profile and start session
 	created, _ := svc.CreateProfile("Test")
-	svc.StartSession("browser-session-1", created.ID)
+	if err := svc.StartSession("browser-session-1", created.ID); err != nil {
+		t.Fatalf("StartSession failed: %v", err)
+	}
 
 	// Create more tabs than the limit
 	tabs := make([]persistence.TabState, persistence.MaxRestoredTabs+10)
@@ -305,7 +309,9 @@ func TestService_AddHistoryEntry_Pruning(t *testing.T) {
 		MaxEntries:    5,
 		RetentionDays: 30,
 	}
-	svc.repo.Save(created)
+	if err := svc.repo.Save(created); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	// Add more entries than the limit
 	for i := 0; i < 10; i++ {
@@ -315,7 +321,9 @@ func TestService_AddHistoryEntry_Pruning(t *testing.T) {
 			Title:     "Page",
 			Timestamp: mockClock.Now().Format(time.RFC3339),
 		}
-		svc.AddHistoryEntry(created.ID, entry)
+		if _, err := svc.AddHistoryEntry(created.ID, entry); err != nil {
+			t.Fatalf("AddHistoryEntry failed: %v", err)
+		}
 		mockClock.Advance(time.Minute)
 	}
 
@@ -336,7 +344,9 @@ func TestService_ClearHistory(t *testing.T) {
 		URL:       "https://example.com",
 		Timestamp: mockClock.Now().Format(time.RFC3339),
 	}
-	svc.AddHistoryEntry(created.ID, entry)
+	if _, err := svc.AddHistoryEntry(created.ID, entry); err != nil {
+		t.Fatalf("AddHistoryEntry failed: %v", err)
+	}
 
 	// Clear history
 	updated, err := svc.ClearHistory(created.ID)
@@ -360,7 +370,9 @@ func TestService_DeleteHistoryEntry(t *testing.T) {
 			URL:       "https://example.com/" + string(rune('0'+i)),
 			Timestamp: mockClock.Now().Format(time.RFC3339),
 		}
-		svc.AddHistoryEntry(created.ID, entry)
+		if _, err := svc.AddHistoryEntry(created.ID, entry); err != nil {
+			t.Fatalf("AddHistoryEntry failed: %v", err)
+		}
 	}
 
 	// Delete the middle entry
@@ -397,7 +409,9 @@ func TestService_ActiveSessionRegistry_Concurrent(t *testing.T) {
 
 	// Create profiles
 	for i := 0; i < 5; i++ {
-		svc.CreateProfile("Profile " + string(rune('A'+i)))
+		if _, err := svc.CreateProfile("Profile " + string(rune('A'+i))); err != nil {
+			t.Fatalf("CreateProfile failed: %v", err)
+		}
 	}
 	profiles, _ := svc.ListProfiles()
 
@@ -466,7 +480,9 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		MaxEntries:    100,
 		RetentionDays: 7, // 7 day TTL
 	}
-	svc.repo.Save(created)
+	if err := svc.repo.Save(created); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	// Add entry that's 10 days old
 	oldEntry := persistence.HistoryEntry{
@@ -474,7 +490,9 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		URL:       "https://old.com",
 		Timestamp: mockClock.Now().AddDate(0, 0, -10).Format(time.RFC3339),
 	}
-	svc.AddHistoryEntry(created.ID, oldEntry)
+	if _, err := svc.AddHistoryEntry(created.ID, oldEntry); err != nil {
+		t.Fatalf("AddHistoryEntry failed: %v", err)
+	}
 
 	// Add recent entry
 	recentEntry := persistence.HistoryEntry{
@@ -482,7 +500,9 @@ func TestService_PruneHistoryByTTL(t *testing.T) {
 		URL:       "https://recent.com",
 		Timestamp: mockClock.Now().Format(time.RFC3339),
 	}
-	svc.AddHistoryEntry(created.ID, recentEntry)
+	if _, err := svc.AddHistoryEntry(created.ID, recentEntry); err != nil {
+		t.Fatalf("AddHistoryEntry failed: %v", err)
+	}
 
 	// Get history with pruning
 	entries, _, err := svc.GetHistoryWithPruning(created.ID)

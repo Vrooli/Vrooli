@@ -8,7 +8,7 @@ Successfully enhanced resource-codex to integrate with OpenAI's 2025 Codex CLI a
 
 ### 1. New Library: `lib/codex-cli.sh`
 - **Installation management**: Auto-install Codex CLI via npm
-- **Configuration**: Automatic API key setup from Vault
+- **Configuration**: Automatic API key setup through credential-authority process injection
 - **Execution wrapper**: Safe execution with workspace isolation
 - **Smart routing**: Automatically choose best backend (CLI → API → fallback)
 - **High-level tasks**: Fix code, generate tests, refactor, etc.
@@ -152,11 +152,8 @@ resource-codex manage install-cli
 resource-codex agent "Create a calculator with tests"
 ```
 
-### Demo Script
-```bash
-./resources/codex/examples/codex-cli-demo.sh
-# Shows full comparison and capabilities
-```
+### Validation Surface
+Use the commands in `resources/codex/QUICK-START.md` to validate the CLI integration surface directly.
 
 ## Architecture Benefits
 

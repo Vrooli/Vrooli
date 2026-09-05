@@ -2,19 +2,38 @@ package livedesktop
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"scenario-to-desktop-api/procmetrics"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/procmetrics"
 )
+
+type testProcess struct {
+	cmd *exec.Cmd
+}
+
+func (p *testProcess) PID() int {
+	if p != nil && p.cmd != nil && p.cmd.Process != nil {
+		return p.cmd.Process.Pid
+	}
+	return 0
+}
+
+func (p *testProcess) IsRunning() bool {
+	return p != nil && p.cmd != nil && p.cmd.ProcessState == nil && p.cmd.Process != nil
+}
 
 // --- Mock PlatformBackend ---
 
@@ -77,14 +96,14 @@ func (b *mockPlatformBackend) LaunchApp(ctx context.Context, display PlatformDis
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	return &linuxProcess{cmd: cmd}, nil
+	return &testProcess{cmd: cmd}, nil
 }
 
 func (b *mockPlatformBackend) KillApp(proc PlatformProcess) {
 	b.mu.Lock()
 	b.killCalled = true
 	b.mu.Unlock()
-	lp, ok := proc.(*linuxProcess)
+	lp, ok := proc.(*testProcess)
 	if ok && lp != nil && lp.cmd != nil && lp.cmd.Process != nil {
 		_ = lp.cmd.Process.Kill()
 		_ = lp.cmd.Wait()
@@ -138,6 +157,26 @@ func newTestService(store Store, backend PlatformBackend) *Service {
 	return NewService(store, backend, newTestLogger(), "")
 }
 
+func TestFindArtifactByDigestSearchesStaging(t *testing.T) {
+	root := t.TempDir()
+	stagingRoot := filepath.Join(root, "cache", "staging")
+	artifact := filepath.Join(stagingRoot, "demo", "pipeline-1", "platforms", "electron", "dist-electron", "Demo.AppImage")
+	require.NoError(t, os.MkdirAll(filepath.Dir(artifact), 0o755))
+	payload := []byte("exact validation artifact")
+	require.NoError(t, os.WriteFile(artifact, payload, 0o755))
+	digest := sha256.Sum256(payload)
+
+	service := NewService(NewInMemoryStore(), newMockBackend(), newTestLogger(), root)
+	service.WithArtifactStagingRoot(stagingRoot)
+	resolved, err := service.FindArtifactByDigest("demo", "sha256:"+hex.EncodeToString(digest[:]))
+
+	require.NoError(t, err)
+	assert.Equal(t, artifact, resolved)
+
+	_, err = service.FindArtifactByDigest("demo", "sha256:"+strings.Repeat("0", 64))
+	assert.Error(t, err)
+}
+
 // --- Tests ---
 
 func TestStartSession_Success(t *testing.T) {
@@ -159,6 +198,19 @@ func TestStartSession_Success(t *testing.T) {
 	assert.Equal(t, 5900, session.VNCPort)
 	assert.Equal(t, 6080, session.WSPort)
 	assert.Equal(t, "linux", session.Platform)
+}
+
+func TestStartSession_RejectsCancelledContext(t *testing.T) {
+	store := NewInMemoryStore()
+	svc := newTestService(store, newMockBackend())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session, err := svc.StartSession(ctx, SessionConfig{ScenarioName: "test"})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, session)
+	assert.Empty(t, store.List())
 }
 
 func TestStartSession_ExplicitLinuxPlatform(t *testing.T) {
@@ -310,7 +362,7 @@ func TestStopSession_KillsAppProcess(t *testing.T) {
 	cmd := exec.Command("sleep", "3600")
 	require.NoError(t, cmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: cmd}
+	session.AppProcess = &testProcess{cmd: cmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -335,7 +387,7 @@ func TestLaunchApp_KillsPreviousApp(t *testing.T) {
 	oldCmd := exec.Command("sleep", "3600")
 	require.NoError(t, oldCmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: oldCmd}
+	session.AppProcess = &testProcess{cmd: oldCmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -508,7 +560,7 @@ func TestKillApp_StopsMonitor(t *testing.T) {
 	cmd := exec.Command("sleep", "3600")
 	require.NoError(t, cmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: cmd}
+	session.AppProcess = &testProcess{cmd: cmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 

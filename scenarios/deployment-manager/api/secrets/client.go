@@ -15,6 +15,8 @@ import (
 // BundleSecret represents bundle_secrets from secrets-manager.
 type BundleSecret struct {
 	ID          string                 `json:"id"`
+	LogicalID   string                 `json:"logical_id"`
+	Field       string                 `json:"field"`
 	Class       string                 `json:"class"`
 	Required    bool                   `json:"required"`
 	Description string                 `json:"description"`

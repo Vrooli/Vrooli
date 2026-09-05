@@ -1,269 +1,149 @@
-# Vrooli Service Schema System
+# Vrooli Schema Inventory
 
 ## Overview
 
-The Vrooli Service Schema System provides a modular, extensible configuration framework for defining, deploying, and managing services. It enables Vrooli to function both as a platform and as a template for building derived services.
+`.vrooli/schemas/` contains a mix of:
 
-## Schema Architecture
+- canonical authored schemas that define repo-owned manifest contracts
+- generated schema artifacts derived from active resource manifests
 
-The schema system is composed of six modular JSON schemas that work together:
+The most important source-of-truth rule is:
 
-### 1. `service.schema.json` (Main Schema)
-The primary schema that references all other schemas. Defines complete service configurations including metadata, resources, execution environments, deployment strategies, and lifecycle management.
+- `resources/<name>/resource.json` is the canonical source for resource manifest structure and resource-specific dependency authoring
+- `.vrooli/schemas/resource-definitions.json` and `.vrooli/schemas/resource-catalog.json` are generated artifacts, not canonical authored configuration
 
-**Key Sections:**
-- `service`: Service metadata and identification
-- `resources`: Resource dependencies and configurations
-- `execution`: Code execution environments and sandboxing
-- `scenarios`: Deployment scenarios and profiles
-- `serve`: Deployment, monitoring, and scaling
-- `inheritance`: Configuration inheritance and extension
-- `lifecycle`: Service lifecycle management
+## Current Inventory
 
-### 2. `common.schema.json` (Shared Definitions)
-Contains reusable definitions used across all schemas:
-- Data types (semver, port, url, path, duration, memory, cpu)
-- Common structures (environment variables, labels, annotations)
-- Health checks and secret references
-- Resource requirements and network policies
-- Lifecycle hooks
+### Canonical Authored Schemas
 
-### 3. `resources.schema.json` (Resource Management)
-Defines resource dependencies and lifecycle:
-- **Databases**: PostgreSQL, MySQL, MongoDB, etc.
-- **Caches**: Redis, Memcached, Hazelcast
-- **Queues**: RabbitMQ, Kafka, BullMQ
-- **Storage**: S3, MinIO, cloud storage
-- **Search**: Elasticsearch, Qdrant, Solr
-- **AI/ML**: LLMs, embeddings, custom models
-- **Monitoring**: Prometheus, Grafana, DataDog
-- **External**: Third-party APIs and services
+- `service.schema.json`
+  Defines project-level and scenario-level `.vrooli/service.json` manifests.
+  The current top-level properties include `service`, `dependencies`, `tier_feasibility`, `hostTools`, `hostSafeguards`, `lifecycle`, `ports`, `runtime`, and `version`.
 
-### 4. `execution.schema.json` (Execution Environment)
-Manages code execution, sandboxing, and security:
-- **Sandboxing**: Process, container, VM, WASM isolation
-- **Permissions**: Filesystem, network, process, system
-- **Runtimes**: Language support and configuration
-- **Security**: Authentication, authorization, encryption
-- **Limits**: Resource constraints and quotas
-- **Auditing**: Execution tracking and logging
+- `operator-state.schema.json`
+  Defines the per-install operator-state document at `.vrooli/operator-state.json`. Holds mutable operator choices (which scenarios/resources are enabled, per-scenario auto-restart overrides, host-tool and safeguard opt-ins) written by `vrooli-onboarding`. See [`docs/configuration/architecture.md`](../../docs/configuration/architecture.md) for the manifest-vs-state separation.
 
-### 5. `scenarios.schema.json` (Service Scenarios)
-Defines deployment scenarios and workflows:
-- **Scenarios**: Named deployment configurations
-- **Profiles**: Reusable configuration sets
-- **Templates**: Parameterized configurations
-- **Workflows**: Multi-step deployment processes
-- **Initialization**: Resource startup sequences
-- **Validation**: Pre/post deployment checks
+- `resource.schema.json`
+  Defines `resources/<name>/resource.json` manifests for active resources and resource templates.
 
-### 6. `serve.schema.json` (Deployment & Operations)
-Handles deployment, monitoring, and scaling:
-- **Deployment**: Targets, strategies, artifacts
-- **Monitoring**: Metrics, logging, tracing, profiling
-- **Scaling**: Horizontal, vertical, cluster autoscaling
-- **Networking**: Ingress, service mesh, CDN, load balancing
-- **Observability**: SLOs, SLIs, error budgets
-- **Resilience**: Circuit breakers, retries, rate limiting
+- `resources.schema.json`
+  Defines the generic dependency wrapper shared by scenario/project resource declarations.
+  This is the generic layer merged with resource-specific dependency schema during generated artifact creation.
 
-## Usage Examples
+- `common.schema.json`
+  Shared definitions such as `semver`, `port`, `url`, and other reused primitives.
 
-### Basic Service Configuration
+- `repo-contract.schema.json`
+  Defines the schema for `.vrooli/repo-contract.json`.
 
-```json
-{
-  "$schema": "./schemas/service.schema.json",
-  "version": "1.0.0",
-  "service": {
-    "name": "my-service",
-    "version": "1.0.0",
-    "type": "api"
-  },
-  "resources": {
-    "databases": {
-      "postgres": {
-        "type": "postgresql",
-        "enabled": true,
-        "connection": {
-          "host": "localhost",
-          "port": 5432,
-          "database": "myapp"
-        }
-      }
-    }
-  }
-}
-```
+- `package.schema.json`
+  Defines the schema for package-governance manifests.
 
-### Inheritance and Extension
+- `resource-blueprint.schema.json`
+  Defines the schema for `.vrooli/resource-blueprints/*.json`.
 
-Services can inherit from Vrooli or other base configurations:
+- `deprecated-resources.schema.json`
+  Defines the schema for `.vrooli/deprecated-resources.json`.
 
-```json
-{
-  "$schema": "../schemas/service.schema.json",
-  "version": "1.0.0",
-  "service": {
-    "name": "derived-service",
-    "version": "1.0.0",
-    "type": "platform"
-  },
-  "inheritance": {
-    "extends": "../service.json",
-    "overrides": {
-      "resources": true,
-      "execution": false
-    }
-  }
-}
-```
+- `space-definition.schema.json`
+  Defines the cross-scenario coverage-space *denominator* contract (`space-definition/v1`). Each projection owner (search-hub=Answer, test-genie=Validate, prompt-manager=Guide) emits its curated space doc as schema-valid JSON via the `space --projection <p> --json` verb (shared impl: `packages/api-core/spacecli` + parser `packages/api-core/spacedoc`). Consumed by `meta-optimization-manager` to compute coverage — the denominator only; the live numerator is never carried here.
 
-### Scenario-Based Deployment
+- `monetization.schema.json`
+  Defines version 2 of a scenario's `.vrooli/monetization.json` — the declaration of its paid surface: `bundle_key`, `app_key`, gated `features[]`, and `meters[]`. Each surface uses class `A` for cost-bearing work or `B` for local-capacity work and names one or more `enforcement_paths`; Class B meters declare a durable `outbox`, and features may declare `min_plan_rank` or meters `byok`. The file's **presence is the applicability trigger** for the `monetization-conformance` Test Genie phase, provided by `landing-page-business-suite`; the phase also becomes applicable when a scenario is *detected* to touch LPBS, so deleting the file produces a failing run rather than a skipped one. Engineering contract: [`docs/concepts/PAID_FEATURES.md`](../../docs/concepts/PAID_FEATURES.md). Pricing, tiers, and bundle membership remain operator canon under `docs/monetization/` and are never authored here.
 
-Define multiple deployment scenarios:
+- `scenario-ui-manifest.schema.json`
+  Defines `templates/scenarios/<id>/ui/manifest.json` (and any scenario-level overrides) — the contract that declares where UI building blocks (`layout-shell`, `page`, `ui-primitive`, etc.) live inside a scenario's UI source tree. Owned by the template the scenario was generated from. Consumed by `react-component-library`'s adoptions resolver to compute canonical filesystem paths for adopted components. `$id: scenario-ui-manifest/v1`.
 
-```json
-{
-  "scenarios": {
-    "development": {
-      "name": "development",
-      "category": "development",
-      "resources": {
-        "include": ["postgres", "redis"],
-        "exclude": ["monitoring"]
-      },
-      "deployment": {
-        "target": "local"
-      }
-    },
-    "production": {
-      "name": "production",
-      "category": "production",
-      "resources": {
-        "required": ["postgres", "redis", "monitoring"]
-      },
-      "deployment": {
-        "target": "kubernetes",
-        "strategy": "blue-green"
-      }
-    }
-  }
-}
-```
+- `scenario-experience-spec.schema.json`
+  Defines a scenario's root `experience/` folder (`index.json` + `pages/*.json` + `journeys/*.json`) — the experience-axis UX spec: claim-based, open-world assertions about perceivable outcomes with per-claim enforcement tiers (machine/manual/aspirational), WAI-ARIA element vocabulary, and a stable-intent vs. volatile-bindings split. One schema covers all three document kinds, discriminated by the top-level `kind` field. Owned by `scenarios/experience-manager` (doctrine in its `docs/internal/DECISIONS.md`; cross-file semantics enforced by its parser). `$id: scenario-experience-spec/v1`.
 
-## Key Features
+- `experience-capability-registry.schema.json`
+  Defines `scenarios/experience-manager/capabilities/` — the fleet-wide vocabulary of experience **capabilities**, **capture axes**, **evidence kinds**, and **perceivable states**. One schema covers five document kinds discriminated by the top-level `kind`: `capability-registry-index`, `state-vocabulary`, `axis-registry`, `evidence-registry`, `capability-group`. A capability carries one or both facets: `promises` (an asset asserts it to users; validatable through claim types, capture axes, and evidence kinds) and `port` (an asset needs it from its host; satisfiable by a template `provides` block or an adopted asset). Nothing here records status — whether a capability is provable, axis-unavailable, evidence-missing, or has no checker is computed from the live reconciler, never authored. This registry is the source that the claim-type vocabulary (today duplicated across the experience-spec schema description, `spec.knownClaimType()`, and `reconcile.claimEvaluator()`) and the perceivable-state vocabulary (today duplicated across four places) should derive from. Consumed by `react-component-library` catalog assets via `requiredCapabilities` and `expects`. `$id: experience-capability-registry/v1`.
 
-### 1. Modularity
-Each schema focuses on a specific aspect of service configuration, allowing for:
-- Independent evolution of schema components
-- Selective inclusion of configuration sections
-- Clear separation of concerns
+- `catalog-asset.schema.json`
+  Defines `scenarios/react-component-library/catalog/` — the desired-state UI asset catalog and its gate registry. It covers the catalog config and every asset descriptor, including target maturity, typed dependency edges, required capabilities, ports, states, and applicable quality gates. The catalog describes intent only; implementation maturity is derived by `catalogcoverage` from gate evidence. Cross-registry and no-vacuous-rung rules are enforced by `react-component-library`'s `catalogvalidate` package. `$id: catalog-asset/v1`.
 
-### 2. Inheritance
-Services can inherit from base configurations:
-- Extend existing services (like Vrooli)
-- Override specific sections
-- Merge configurations with various strategies
+### Generated Artifacts
 
-### 3. Scenarios and Profiles
-Support for multiple deployment scenarios:
-- Development, testing, staging, production
-- Different resource combinations
-- Environment-specific configurations
+- `resource-definitions.json`
+  Generated from active `resources/*/resource.json` manifests.
+  Contains aggregated resource-specific dependency schemas plus the generated `resourceCatalog` object consumed by `service.schema.json`.
 
-### 4. Resource Abstraction
-Service-centric approach aligned with Vrooli's architecture:
-- AI models and ML services (Ollama, OpenRouter, Whisper)
-- Automation platforms (n8n, Windmill, Node-RED)
-- AI agents (Claude Code, Agent-S2)
-- Storage systems (PostgreSQL, Redis, MinIO, Qdrant)
-- Execution environments (Judge0, BullMQ queues)
+## Generated Artifact Pipeline
 
-Resources use flexible configurations with `additionalProperties: true`, allowing service-specific properties while maintaining common patterns for authentication, health checks, and monitoring.
+The generated artifacts are built by:
 
-### 5. Security and Sandboxing
-Comprehensive security model:
-- Multiple sandboxing strategies (process, container, VM, WASM)
-- Fine-grained permission controls
-- Audit logging and compliance
+- `internal/resources/schema_artifacts.go`
 
-### 6. Lifecycle Management
-Complete service lifecycle support:
-- Pre/post hooks for all lifecycle events
-- Dependency management
-- Health checks and readiness probes
+The generation flow is:
 
-## Benefits
+1. Read every `resources/<name>/resource.json`
+2. Extract each manifest's `dependency_schema`
+3. Merge resource-specific dependency schema with `resources.schema.json#/definitions/resourceConfig`
+4. Emit `resource-definitions.json`
 
-### For Vrooli as a Platform
-- **Standardized Configuration**: Consistent configuration across all components
-- **Multi-Environment Support**: Easy switching between development, testing, and production
-- **Resource Management**: Centralized resource configuration and lifecycle
-- **Deployment Flexibility**: Support for local, Docker, Kubernetes, and cloud deployments
-
-### For Service Derivation
-- **Template Reuse**: Use Vrooli as a template for new services
-- **Configuration Inheritance**: Inherit and customize Vrooli's configuration
-- **Selective Overrides**: Change only what's needed, inherit the rest
-- **Ecosystem Compatibility**: Maintain compatibility with Vrooli tooling
-
-### For Operations
-- **Observability**: Built-in monitoring, logging, and tracing
-- **Resilience**: Circuit breakers, retries, and rate limiting
-- **Scaling**: Automatic horizontal and vertical scaling
-- **Security**: Comprehensive security controls and auditing
-
-## Schema Validation
-
-Validate service configurations using JSON Schema validators:
+Commands:
 
 ```bash
-# Install ajv-cli
-npm install -g ajv-cli
-
-# Validate a service configuration
-ajv validate -s .vrooli/schemas/service.schema.json -d .vrooli/service.json
+vrooli resource schema sync
+vrooli resource schema validate
 ```
 
-## Migration from Existing Configuration
+Automatic regeneration:
 
-To migrate existing Vrooli configurations:
+- `vrooli setup` regenerates these artifacts through the setup path
 
-1. **Consolidate Resources**: Move resource configurations to the `resources` section
-2. **Define Execution Environments**: Configure sandboxing and permissions
-3. **Create Scenarios**: Define deployment scenarios for different environments
-4. **Setup Monitoring**: Configure metrics, logging, and alerts
-5. **Add Lifecycle Hooks**: Define initialization and cleanup procedures
+## Current Usage
 
-## Best Practices
+### `service.schema.json`
 
-1. **Start Simple**: Begin with minimal configuration and add complexity as needed
-2. **Use Inheritance**: Leverage base configurations to reduce duplication
-3. **Define Scenarios**: Create specific scenarios for each deployment environment
-4. **Version Everything**: Use semantic versioning for services and configurations
-5. **Document Custom Fields**: Add descriptions for any custom configuration
-6. **Validate Early**: Use schema validation in CI/CD pipelines
-7. **Secure Secrets**: Use secret references, never hardcode credentials
+`service.schema.json` is a live consumer of the generated artifacts:
 
-## Future Enhancements
+- it references `resource-definitions.json#/resourceCatalog`
+- that makes `resource-definitions.json` part of the current schema-validation chain for `service.json`
 
-- **Schema Registry**: Central repository for schema versions
-- **Configuration Generator**: UI/CLI for generating configurations
-- **Validation Library**: Runtime validation and type safety
-- **Migration Tools**: Automated migration from other formats
-- **Cloud Templates**: Pre-built templates for cloud providers
-- **Compliance Profiles**: Industry-specific compliance configurations
+### `resource-definitions.json`
 
-## Contributing
+This file is still live today because:
 
-To contribute to the schema system:
+- `service.schema.json` depends on it
+- schema artifact validation checks it for drift
+- setup regenerates it automatically
 
-1. Propose changes via GitHub issues
-2. Maintain backward compatibility
-3. Update documentation and examples
-4. Add validation tests
-5. Follow semantic versioning
+## Source Of Truth Rules
 
-## License
+For resource-related schema work:
 
-The Vrooli Service Schema System is part of the Vrooli project and is licensed under GPL-3.0.
+- author canonical resource shape in `resources/<name>/resource.json`
+- author resource-specific dependency authoring shape in `resource.json.dependency_schema`
+- do not hand-edit `resource-definitions.json`
+
+For repo-aware structure work:
+
+- update `.vrooli/repo-contract.json`
+- update `repo-contract.schema.json`
+- update repo-contract docs and tests in the same change
+
+## Historical Notes
+
+Older docs and planning material may still describe:
+
+- `execution.schema.json`
+- `serve.schema.json`
+- a removed `build-aggregated-schemas.sh` script
+
+Those references are historical. The current implementation uses:
+
+- `service.schema.json` as the main authored service manifest schema
+- `internal/resources/schema_artifacts.go` as the active generated-artifact implementation
+
+## Validation
+
+Useful validation entrypoints:
+
+```bash
+vrooli contract validate
+vrooli resource schema validate
+vrooli resource schema sync
+make validate-repo-contract
+```

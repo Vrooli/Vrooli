@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.discovery;
+
+import "buf/validate/validate.proto";
+import "data-backup-manager/v1/destinations/destinations.proto";
+import "data-backup-manager/v1/sources/sources.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery;discovery_v1";
+
+// =============================================================================
+// DISCOVERY DOMAIN — onboarding suggestions (targets to protect, places to back up to)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain discovery
+// @imports sources, destinations
+// @stability stable
+//
+// Wire contract for DiscoveryService. The five-noun product (Target ×
+// Destination × Plan → Run → Restore) is pure self-registration, so a fresh
+// install protects nothing until the operator wires it up by hand. Discovery
+// removes that cold-start cliff by scanning the local environment read-only and
+// surfacing two kinds of one-click suggestions:
+//
+//   - Target suggestions: well-known Vrooli runtime state worth protecting
+//     (~/.vrooli/{plans,state,config,data,secrets.enc.json} and runtime.db).
+//     The legacy plaintext secrets.json is excluded. v1 scope is ~/.vrooli
+//     only; scenario stores are a deferred follow-up.
+//   - Destination suggestions: places to back up TO, discovered OS-agnostically
+//     from mounted volumes, ranking plugged-in removable/external drives first.
+//
+// Suggestions are DERIVED, never stored — the service recomputes each call and
+// filters against the live catalog plus a small dismissals table. "Accepting" a
+// suggestion is NOT an RPC here: the UI/CLI calls the existing
+// TargetsService.RegisterTarget / DestinationsService.CreateDestination, which
+// keeps a single source of truth and reuses their validation (separate-root
+// rule, encryption-on). The scanners never write to, or read the contents of,
+// any scanned path.
+//
+// Consumed by:
+//   - API: handlers/discovery/connect_handler.go implements DiscoveryServiceHandler.
+//   - CLI: cli (data-backup-manager discovery targets|destinations|dismiss).
+//   - UI:  ui/src/features/discovery/ (Overview onboarding Suggestions panel).
+// =============================================================================
+
+service DiscoveryService {
+  rpc ListTargetSuggestions(ListTargetSuggestionsRequest) returns (ListTargetSuggestionsResponse);
+  rpc ListDestinationSuggestions(ListDestinationSuggestionsRequest) returns (ListDestinationSuggestionsResponse);
+  rpc DismissSuggestion(DismissSuggestionRequest) returns (DismissSuggestionResponse);
+}
+
+// DriveClass classifies a discovered volume so the UI can rank and badge it.
+// gopsutil does not report removability, so the API computes this behind the
+// internal/sysmounts seam (per-OS classifier).
+enum DriveClass {
+  DRIVE_CLASS_UNSPECIFIED = 0;
+  // Removable/external media (USB stick, external HDD/SSD, SD card).
+  DRIVE_CLASS_REMOVABLE = 1;
+  // A fixed internal volume (the machine's own disks).
+  DRIVE_CLASS_FIXED = 2;
+  // A network/remote mount (NFS, SMB, etc.).
+  DRIVE_CLASS_NETWORK = 3;
+}
+
+// TargetSuggestion is a not-yet-registered backup source the operator likely
+// wants to protect. Already-registered and dismissed suggestions are filtered
+// server-side, so no flag is needed on the wire. Accepting it = calling
+// TargetsService.RegisterTarget with owner/name/source_kind/locator.
+message TargetSuggestion {
+  // Stable id = sha256("target|" + locator), hex-truncated. Stable across
+  // rescans so a dismissal keyed by id survives.
+  string id = 1;
+  // Owner the resulting target would carry (e.g. "vrooli" for platform state).
+  string owner = 2;
+  // Owner-scoped name the resulting target would carry (e.g. "plans").
+  string name = 3;
+  // Source kind that would capture this source.
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 4;
+  // Absolute source locator (a path for filesystem, a db file for sqlite).
+  string locator = 5;
+  // Human-facing reason this is worth protecting.
+  string rationale = 6;
+  // Best-effort size estimate in bytes (never a deep recursive walk). 0 = unknown.
+  int64 approx_bytes = 7;
+  // True when this suggestion includes secrets/credentials (e.g. a coding
+  // agent's OAuth tokens). Surfaced for visibility but never auto-accepted —
+  // the operator must register it deliberately.
+  bool sensitive = 8;
+  // Operator-facing warning shown for sensitive suggestions; empty otherwise.
+  string warning = 9;
+  // True when this source is part of the minimal critical recovery inventory.
+  bool critical = 10;
+}
+
+// DestinationSuggestion is a mounted volume the operator could back up to.
+// Accepting it = calling DestinationsService.CreateDestination with a
+// filesystem backend at `location`.
+message DestinationSuggestion {
+  // Stable id = sha256("dest|" + location), hex-truncated.
+  string id = 1;
+  // Suggested human-facing destination name (operator can rename on accept).
+  string label = 2;
+  // Backend a created destination would use (filesystem for local volumes).
+  vrooli.data_backup_manager.v1.destinations.BackendKind backend_kind = 3;
+  // Mountpoint / filesystem path a created destination would point at.
+  string location = 4;
+  DriveClass drive_class = 5;
+  // Free space at the mountpoint, bytes. 0 = unknown.
+  int64 free_bytes = 6;
+  // Total capacity at the mountpoint, bytes. 0 = unknown.
+  int64 total_bytes = 7;
+  // Convenience flag mirroring drive_class == REMOVABLE.
+  bool removable = 8;
+  // True when this location is safe under the separate-root rule (not inside
+  // any protected path). When false the UI disables Enable and shows the reason
+  // — CreateDestination would reject it anyway.
+  bool separate_root_ok = 9;
+  // Human-facing reason this is a good (or flagged) destination.
+  string rationale = 10;
+}
+
+message ListTargetSuggestionsRequest {}
+
+message ListTargetSuggestionsResponse {
+  repeated TargetSuggestion suggestions = 1;
+}
+
+message ListDestinationSuggestionsRequest {}
+
+message ListDestinationSuggestionsResponse {
+  repeated DestinationSuggestion suggestions = 1;
+}
+
+// DismissSuggestionRequest hides a suggestion permanently by its stable id.
+message DismissSuggestionRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DismissSuggestionResponse {
+  // True when the dismissal was recorded (idempotent — re-dismissing is fine).
+  bool dismissed = 1;
+}

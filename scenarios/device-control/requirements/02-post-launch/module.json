@@ -1,0 +1,195 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Drive iOS simulators on a macOS node through simctl and XCUITest: install, launch, input, semantic tree, screenshot and video capture.",
+      "id": "DVC-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "ios-simctl strategy",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "integration phase — planned test `api/strategy/iossimctl/adapter_test.go::TestSimctlStrategyCapabilityTier`. Simulator adapter reports the semantic tier and satisfies install, launch, input, tree, screenshot and video against a fake simctl transport."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Drive physical iPhones through devicectl and WebDriverAgent at semantic tier. Gated on Apple Developer Program enrollment and code signing; reports unavailable with that next action until enrollment exists.",
+      "id": "DVC-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "ios-xcuitest strategy",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "integration phase — planned test `api/strategy/iosxcuitest/adapter_test.go::TestXcuitestUnavailableWithoutSigning`. Without enrollment and signing the strategy reports unavailable naming that next action; with a fake signed environment it reports the semantic tier."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Drive physical iPhones through iPhone Mirroring with synthetic HID events and OCR. Floor tier only and requires no developer account, which makes it the first usable physical-iPhone path. Explicitly non-promotable for release evidence because OCR reads pixels rather than meaning.",
+      "id": "DVC-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "in_progress",
+      "title": "ios-mirror strategy",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/strategy/contract_test.go::TestEvidenceClassIsStructuralAndIosMirrorIsNotPromotable",
+          "status": "complete",
+          "notes": "Declaration seam is proven on Linux: every iOS strategy exposes evidence_class and ios-mirror is advisory-ocr/non-promotable. Full macOS mirroring remains intentionally unimplemented."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Drive the local machine as a device, reusing existing headless display and input tooling so desktop automation composes with the same flow vocabulary.",
+      "id": "DVC-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "complete",
+      "title": "host-desktop strategy",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/strategy/hostdesktop/hostdesktop_test.go::TestHostDesktopStrategyCapabilityTier",
+          "status": "complete",
+          "notes": "Targeted suite proves the platform-neutral host-desktop declaration and the explicit unsupported Windows path while preserving the Linux prerequisite probe."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "`device-control agent start --device <id> --goal \"<goal>\"` uses the prompt-manager device-control skill and routes any inference through ai-gateway. The delivered bounded local loop builds a typed capability/state world model, remains valid without a frame modality, is bounded by lease scope, fully audited, abortable, and can promote executable steps into a deterministic flow. Long-lived orchestration through agent-manager remains deferred.",
+      "id": "DVC-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "complete",
+      "title": "Bounded agent mode via prompt-manager skill and ai-gateway",
+      "validation": [
+        {
+          "type": "test",
+          "status": "complete",
+          "ref": "api/internal/control/service_test.go::TestAgentRefusesWithoutSkillAndPromotesPassingRun",
+          "notes": "Targeted control tests cover skill refusal, typed world-model planning, no-frame completion, undeclared-step refusal, dry-run, lease ownership, and post-actuation state verification. Production inference uses the generated ai-gateway planner and no provider SDK."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Every agent action is recorded as a flow step, so a successful goal-directed run exports as a deterministic flow that replays without inference cost. This is the compounding loop: infer once, replay free.",
+      "id": "DVC-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "complete",
+      "title": "Promote an agent run to a deterministic flow",
+      "validation": [
+        {
+          "type": "test",
+          "status": "complete",
+          "ref": "api/internal/control/service_test.go::TestAgentRefusesWithoutSkillAndPromotesPassingRun",
+          "notes": "A passing agent run records executable steps, promotion creates a durable flow-run entry, and the existing flow export path returns those steps without an AI step."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A flow step attaches to an application WebView and hands control to a named BAS flow, so native shell automation and web content automation compose on a single timeline with one evidence record.",
+      "id": "DVC-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Browser-automation-studio delegation step",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "integration phase — planned test `api/flows/basdelegation_test.go::TestWebViewDelegationSharesOneTimeline`. A delegation step attaches to a WebView, runs a named BAS flow, and merges its result into the same chaptered evidence timeline."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Live device view with session controls, flow authoring and validation, run review with chaptered evidence, capability-composed television/phone panels, LAN discovery, pairing, and a strategy conformance matrix showing what each device can actually prove right now.",
+      "id": "DVC-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "complete",
+      "title": "Operator UI",
+      "validation": [
+      {
+        "type": "test",
+        "ref": "ui/src/pages/DeviceDetailPage.test.tsx",
+        "status": "complete",
+        "notes": "The `/devices/:deviceId` route renders capability-composed remote, media, property, sensor, log, and live-view panels; Dashboard owns LAN discovery and PIN pairing; the detail page exposes durable identity claims and address-only correlation refusal. Full UI tests, type-check, lint, and coverage passed; real-device pairing remains an external gated walkthrough."
+      }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Captured reference images with stable identity so common targets resolve deterministically at the middle rung of the ladder, without inference cost and without a semantic tree.",
+      "id": "DVC-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Visual-anchor library",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "unit phase — planned test `api/flows/anchors_test.go::TestVisualAnchorResolvesWithoutInference`. A stored anchor resolves its target deterministically with no ai-gateway call recorded."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Typed normalized gesture vocabulary covers long press, double tap, drag, fling, scroll-to, and capability-gated pinch; pixel escape hatches are explicitly non-portable.",
+      "id": "DVC-P1-010",
+      "prd_ref": "OT-P1-008",
+      "status": "in_progress",
+      "title": "Typed gesture vocabulary",
+      "validation": [{"type": "test", "ref": "api/internal/control/gestures_test.go::TestGestureVocabularyBuildsTypedPointerEvents", "status": "complete", "notes": "Targeted fake-runner table covers long press, double tap, drag, and fling; physical gesture proof remains pending."}]
+    },
+    {
+      "criticality": "P1",
+      "description": "Live device state reads preserve all Android foreground, screen/lock, orientation, battery, thermal, and display fields while adding a property bag for television receiver state; unavailable properties retain an explicit reason instead of a zero value.",
+      "id": "DVC-P1-011",
+      "prd_ref": "OT-P1-008",
+      "status": "complete",
+      "title": "Device state observation",
+      "validation": [{"type": "test", "ref": "api/strategy/androidadb/androidadb_test.go::TestReadStateParsesRecordedAndroidProbes", "status": "complete", "notes": "Recorded dumpsys table covers all Android fields; Google Cast property-state tests cover volume, mute, application, player state, unavailable power/input, and transport attribution while preserving the mobile fields."}]
+    },
+    {
+      "criticality": "P1",
+      "description": "Lease-owned state changes carry reverse-order undo callbacks and emit named restored or failed restoration events when a flow ends or is killed.",
+      "id": "DVC-P1-012",
+      "prd_ref": "OT-P1-008",
+      "status": "in_progress",
+      "title": "Guaranteed state restoration",
+      "validation": [{"type": "test", "ref": "api/internal/sessions/restoration_test.go::TestStateManagerRestoresReverseOrderAndReportsFailures", "status": "complete", "notes": "State manager ordering and failure reporting are proven; kill-mid-flow hardware proof remains pending."}]
+    },
+    {
+      "criticality": "P1",
+      "description": "Vision results can promote persistent normalized anchors and completed runs can export deterministic replay flows with resolution rung metadata and failed-step exclusions.",
+      "id": "DVC-P1-013",
+      "prd_ref": "OT-P1-009",
+      "status": "in_progress",
+      "title": "Record and export replay flows",
+      "validation": [{"type": "test", "ref": "api/internal/flows/resolution_test.go::TestVisionPromotionReplaysThroughAnchorWithoutGateway", "status": "complete", "notes": "Vision-to-anchor replay asserts the second resolution makes no gateway call; physical export replay remains pending."}]
+    },
+    {
+      "criticality": "P1",
+      "description": "Bridge closes the out-of-band device-control dispatch path: device-scoped verbs require a matching, unexpired bridge-held lease record and every refusal is audited before run creation.",
+      "id": "DVC-P1-014",
+      "prd_ref": "OT-P1-008",
+      "status": "complete",
+      "title": "Bridge device lease dispatch gate",
+      "validation": [{"type": "test", "ref": "../vrooli-bridge/api/internal/dispatch/service_test.go::TestDispatch_DeviceScopedVerbWithoutHeldLease_IsRefusedAndAudited", "status": "complete", "notes": "Targeted bridge service test proves failed-precondition refusal, no run/push side effects, and a rejected audit record; the held-record acceptance path is covered beside it."}]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "app": {
+    "eyebrow": "Command Center",
+    "title": "Operational truth at a glance",
+    "description": "Read declared outcomes with provenance, freshness, and honest gaps."
+  },
+  "navigation": {
+    "missionControl": "Mission Control",
+    "hive": "The Hive",
+    "forge": "The Forge",
+    "ledger": "The Ledger",
+    "broadcast": "The Broadcast",
+    "panorama": "Panorama"
+  },
+  "readings": {
+    "localOrigin": "Local instance",
+    "productionOrigin": "Production instance",
+    "unconfigured": "Unconfigured source"
+  },
+  "errors": {
+    "dashboardNotFound": "Dashboard not found",
+    "sourceUnavailable": "Source unavailable"
+  }
+}

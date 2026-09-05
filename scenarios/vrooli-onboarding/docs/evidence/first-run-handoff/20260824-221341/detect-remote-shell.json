@@ -1,0 +1,13 @@
+{
+  "kind": "remote-shell",
+  "reachable": false,
+  "reason": "SSH session, no local display",
+  "evidence": [
+    "IsWSL=false",
+    "DISPLAY=",
+    "WAYLAND_DISPLAY=",
+    "SSH_CONNECTION=fe80::d89:bba1:eba2:a11e%enp11s0 56694 fe80::3e41:4e3d:ffad:24e2%enp11s0 22",
+    "SSH_TTY=/dev/pts/14",
+    "loginctl Remote=yes"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.range-slider",
+    "name": "RangeSlider",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The multi-thumb range control with collision policy, minimum distance, per-thumb keyboard interaction, marks, and touch-friendly targets.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.slider",
+        "reason": "Thumb mechanics, formatting, and accessibility text are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "gesture-alternative",
+    "status-announced"
+  ]
+}

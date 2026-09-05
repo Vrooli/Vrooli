@@ -1,9 +1,30 @@
+---
+name: "utils-unification"
+description: "Extract, standardize, and consolidate shared utilities (React-specific or general) to prevent duplication and drift while improving discoverability and testability"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","architecture","refactor"]
+  tags: ["skill"]
+  icon: "merge"
+  status: "active"
+  defaultScope: "refactor-scope"
+  revision: 48
+  createdAt: "2026-01-26T00:00:00Z"
+  updatedAt: "2026-02-07T01:05:12Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Utils Unification
 
 Prioritize **extracting, standardizing, and consolidating utilities** so shared logic is consistent, discoverable, and testable. The goal is to prevent duplication and drift while keeping utilities sharply scoped and aligned to screaming architecture.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -115,10 +136,15 @@ core    X-> app code
 
 | Utility type | Preferred location | Notes |
 |--------------|--------------------|------|
-| Hooks (`useX`) | `shared/hooks/` or `framework/react/` | Hooks are utilities; keep them discoverable and stable |
-| JSX helpers | `shared/components/` | If it returns JSX, treat it as a component |
-| Classname helpers | `shared/core/` | Keep pure string logic out of React code |
-| Data adapters | `shared/domain/` | Transform API data to UI-ready shapes |
+| Hooks (`useX`) | `path:shared/hooks/` or `literal:framework/react/` | Hooks are utilities; keep them discoverable and stable |
+| JSX helpers | `path:shared/components/` | If it returns JSX, treat it as a component |
+| Classname helpers | `path:shared/core/` | Keep pure string logic out of React code |
+| Data adapters | `path:shared/domain/` | Transform API data to UI-ready shapes |
+
+Connect transport factories are framework utilities and should live in
+`path:shared/framework/` or the app's API boundary substrate. Thin RPC client
+wrappers that speak domain language may live in `path:shared/domain/`, but avoid
+wrapping generated clients unless the wrapper removes real duplication.
 
 ---
 
@@ -288,3 +314,5 @@ You **must**:
 * Ensure new utilities are testable and have seams
 
 **Avoid superficial changes** that only rename files or move code without real consolidation.
+
+Last updated: 2026-05-04 (Connect-RPC adoption)

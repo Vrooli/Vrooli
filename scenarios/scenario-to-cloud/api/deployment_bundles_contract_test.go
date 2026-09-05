@@ -53,9 +53,9 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 		size int64
 		mt   int64
 	}{
-		"mini-vrooli_landing-page-business-suite_" + shaOld + ".tar.gz": {size: 100, mt: 1000},
-		"mini-vrooli_landing-page-business-suite_" + shaMid + ".tar.gz": {size: 200, mt: 2000},
-		"mini-vrooli_landing-page-business-suite_" + shaNew + ".tar.gz": {size: 300, mt: 3000},
+		"mini-vrooli_landing-page-business-suite_" + shaOld + ".tar.gz":     {size: 100, mt: 1000},
+		"mini-vrooli_landing-page-business-suite_" + shaMid + ".tar.gz":     {size: 200, mt: 2000},
+		"mini-vrooli_landing-page-business-suite_" + shaNew + ".tar.gz":     {size: 300, mt: 3000},
 		"mini-vrooli_other-scenario_" + strings.Repeat("d", 64) + ".tar.gz": {size: 400, mt: 4000},
 	}
 
@@ -103,8 +103,8 @@ func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {
 	srv.sshRunner = fakeSSH
 	srv.deploymentRepo = &FakeDeploymentRepo{
 		Deployment: &domain.Deployment{
-			ID:          deploymentID,
-			Name:        "lpbs @ example.com",
+			ID:           deploymentID,
+			Name:         "lpbs @ example.com",
 			ScenarioID:   "landing-page-business-suite",
 			Status:       domain.StatusDeployed,
 			Manifest:     manifestJSON,
@@ -268,8 +268,8 @@ func TestDeploymentVPSBundles_GCProtectsRecordedBundleSHA(t *testing.T) {
 	// this would normally be deleted unless protected.
 	srv.deploymentRepo = &FakeDeploymentRepo{
 		Deployment: &domain.Deployment{
-			ID:          "dep-1",
-			Name:        "lpbs",
+			ID:           "dep-1",
+			Name:         "lpbs",
 			ScenarioID:   "landing-page-business-suite",
 			Status:       domain.StatusDeployed,
 			Manifest:     manifestJSON,
@@ -305,4 +305,3 @@ func TestDeploymentVPSBundles_GCProtectsRecordedBundleSHA(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
-

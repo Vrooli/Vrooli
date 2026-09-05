@@ -24,11 +24,11 @@ type ResetDemoDataFn = typeof resetDemoData;
 type GetBrandingFn = typeof getBranding;
 type ListDownloadAppsAdminFn = typeof listDownloadAppsAdmin;
 
-const listVariantsMock = vi.fn<Parameters<ListVariantsFn>, ReturnType<ListVariantsFn>>();
-const getStripeSettingsMock = vi.fn<Parameters<GetStripeSettingsFn>, ReturnType<GetStripeSettingsFn>>();
-const resetDemoDataMock = vi.fn<Parameters<ResetDemoDataFn>, ReturnType<ResetDemoDataFn>>();
-const getBrandingMock = vi.fn<Parameters<GetBrandingFn>, ReturnType<GetBrandingFn>>();
-const listDownloadAppsAdminMock = vi.fn<Parameters<ListDownloadAppsAdminFn>, ReturnType<ListDownloadAppsAdminFn>>();
+const listVariantsMock = vi.fn<ListVariantsFn>();
+const getStripeSettingsMock = vi.fn<GetStripeSettingsFn>();
+const resetDemoDataMock = vi.fn<ResetDemoDataFn>();
+const getBrandingMock = vi.fn<GetBrandingFn>();
+const listDownloadAppsAdminMock = vi.fn<ListDownloadAppsAdminFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
@@ -44,7 +44,7 @@ vi.mock('../../../shared/api', async () => {
 
 // Mock analytics controller
 type FetchAnalyticsSummaryFn = typeof fetchAnalyticsSummary;
-const fetchAnalyticsSummaryMock = vi.fn<Parameters<FetchAnalyticsSummaryFn>, ReturnType<FetchAnalyticsSummaryFn>>();
+const fetchAnalyticsSummaryMock = vi.fn<FetchAnalyticsSummaryFn>();
 
 vi.mock('../controllers/analyticsController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/analyticsController')>(
@@ -58,10 +58,7 @@ vi.mock('../controllers/analyticsController', async () => {
 
 // Mock admin experience
 type GetAdminExperienceSnapshotFn = typeof getAdminExperienceSnapshot;
-const getAdminExperienceSnapshotMock = vi.fn<
-  Parameters<GetAdminExperienceSnapshotFn>,
-  ReturnType<GetAdminExperienceSnapshotFn>
->();
+const getAdminExperienceSnapshotMock = vi.fn<GetAdminExperienceSnapshotFn>();
 
 vi.mock('../../../shared/lib/adminExperience', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/lib/adminExperience')>(
@@ -163,6 +160,15 @@ const mockExperience: AdminExperienceSnapshot = {
   },
 };
 
+async function waitForInitialLoads(result: { current: ReturnType<typeof useAdminHome> }) {
+  await waitFor(() => {
+    expect(result.current.healthLoading).toBe(false);
+    expect(result.current.stripeLoading).toBe(false);
+    expect(result.current.brandingLoading).toBe(false);
+    expect(result.current.downloadsLoading).toBe(false);
+  });
+}
+
 describe('useAdminHome', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -175,13 +181,15 @@ describe('useAdminHome', () => {
   });
 
   describe('initial state', () => {
-    it('starts with loading states', () => {
+    it('starts with loading states', async () => {
       const { result } = renderHook(() => useAdminHome());
 
       expect(result.current.healthLoading).toBe(true);
       expect(result.current.stripeLoading).toBe(true);
       expect(result.current.brandingLoading).toBe(true);
       expect(result.current.downloadsLoading).toBe(true);
+
+      await waitForInitialLoads(result);
     });
 
     it('loads experience snapshot on mount', async () => {
@@ -189,6 +197,8 @@ describe('useAdminHome', () => {
 
       expect(result.current.experience).toEqual(mockExperience);
       expect(getAdminExperienceSnapshotMock).toHaveBeenCalledTimes(1);
+
+      await waitForInitialLoads(result);
     });
   });
 
@@ -221,6 +231,7 @@ describe('useAdminHome', () => {
 
     it('sets degraded state when analytics fail', async () => {
       fetchAnalyticsSummaryMock.mockRejectedValue(new Error('Analytics unavailable'));
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const { result } = renderHook(() => useAdminHome());
 
@@ -230,6 +241,8 @@ describe('useAdminHome', () => {
 
       expect(result.current.healthMetricsDegraded).toBe(true);
       expect(result.current.healthSnapshot).not.toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith('Admin health analytics unavailable:', expect.any(Error));
+      warnSpy.mockRestore();
     });
 
     it('refreshes health snapshot on demand', async () => {
@@ -459,13 +472,13 @@ describe('useAdminHome', () => {
       });
 
       act(() => {
-        result.current.handleResetDemoData();
+        void result.current.handleResetDemoData();
       });
 
       expect(result.current.resettingDemoData).toBe(true);
 
-      await act(async () => {
-        resolveReset?.(mockResetResponse);
+      act(() => {
+        resolveReset(mockResetResponse);
       });
 
       await waitFor(() => {
@@ -475,14 +488,16 @@ describe('useAdminHome', () => {
   });
 
   describe('resume path builders', () => {
-    it('builds variant resume path for variant surface', () => {
+    it('builds variant resume path for variant surface', async () => {
       const { result } = renderHook(() => useAdminHome());
 
       const path = result.current.buildResumeVariantPath();
       expect(path).toBe('/admin/customization/variants/test-variant');
+
+      await waitForInitialLoads(result);
     });
 
-    it('builds variant resume path for section surface', () => {
+    it('builds variant resume path for section surface', async () => {
       getAdminExperienceSnapshotMock.mockReturnValue({
         version: 1,
         lastVariant: {
@@ -499,9 +514,11 @@ describe('useAdminHome', () => {
 
       const path = result.current.buildResumeVariantPath();
       expect(path).toBe('/admin/customization/variants/test-variant/sections/123');
+
+      await waitForInitialLoads(result);
     });
 
-    it('returns null when no variant to resume', () => {
+    it('returns null when no variant to resume', async () => {
       getAdminExperienceSnapshotMock.mockReturnValue({
         version: 1,
         lastVariant: undefined,
@@ -512,16 +529,20 @@ describe('useAdminHome', () => {
 
       const path = result.current.buildResumeVariantPath();
       expect(path).toBeNull();
+
+      await waitForInitialLoads(result);
     });
 
-    it('builds analytics resume path', () => {
+    it('builds analytics resume path', async () => {
       const { result } = renderHook(() => useAdminHome());
 
       const path = result.current.buildResumeAnalyticsPath();
       expect(path).toBe('/admin/analytics?variant=test-variant');
+
+      await waitForInitialLoads(result);
     });
 
-    it('builds analytics resume path with custom range', () => {
+    it('builds analytics resume path with custom range', async () => {
       getAdminExperienceSnapshotMock.mockReturnValue({
         version: 1,
         lastVariant: undefined,
@@ -537,9 +558,11 @@ describe('useAdminHome', () => {
 
       const path = result.current.buildResumeAnalyticsPath();
       expect(path).toBe('/admin/analytics?variant=test-variant&range=30');
+
+      await waitForInitialLoads(result);
     });
 
-    it('builds analytics resume path without variant', () => {
+    it('builds analytics resume path without variant', async () => {
       getAdminExperienceSnapshotMock.mockReturnValue({
         version: 1,
         lastVariant: undefined,
@@ -555,9 +578,11 @@ describe('useAdminHome', () => {
 
       const path = result.current.buildResumeAnalyticsPath();
       expect(path).toBe('/admin/analytics');
+
+      await waitForInitialLoads(result);
     });
 
-    it('returns null when no analytics to resume', () => {
+    it('returns null when no analytics to resume', async () => {
       getAdminExperienceSnapshotMock.mockReturnValue({
         version: 1,
         lastVariant: undefined,
@@ -568,14 +593,18 @@ describe('useAdminHome', () => {
 
       const path = result.current.buildResumeAnalyticsPath();
       expect(path).toBeNull();
+
+      await waitForInitialLoads(result);
     });
   });
 
   describe('confirmation dialog', () => {
-    it('toggles reset confirmation dialog', () => {
+    it('toggles reset confirmation dialog', async () => {
       const { result } = renderHook(() => useAdminHome());
 
       expect(result.current.showResetConfirm).toBe(false);
+
+      await waitForInitialLoads(result);
 
       act(() => {
         result.current.setShowResetConfirm(true);

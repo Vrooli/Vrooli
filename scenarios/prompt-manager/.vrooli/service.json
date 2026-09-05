@@ -1,11 +1,46 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "prompt-manager",
     "displayName": "Personal Prompt Manager",
     "description": "File-based prompt storage and management tool with API access and web interface for organizing AI prompts",
+    "platform_capabilities": {
+      "heartbeat-orchestration": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "native-go-heartbeat-scheduler-and-agent-manager-client",
+          "evidence": "Linux module and heartbeat contract tests; host qualification is not claimed"
+        },
+        "macos": {
+          "status": "unqualified",
+          "mechanism": "portable-go-scheduler-and-platform-neutral-storage",
+          "evidence": "darwin cross-build; no real-host qualification"
+        },
+        "windows": {
+          "status": "unqualified",
+          "mechanism": "portable-go-scheduler-and-platform-neutral-storage",
+          "evidence": "windows cross-build; no real-host qualification"
+        }
+      }
+    },
     "version": "1.0.0",
     "type": "business-application",
     "category": "productivity",
@@ -35,6 +70,17 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/prompt-manager/experiment-receipts",
+        "field": "key-ring",
+        "label": "Prompt Manager experiment receipt signing key ring",
+        "description": "Versioned Ed25519 signing keys retained by the native Vrooli credential authority. The active private key is never stored in scenario files or environment variables.",
+        "required": false
+      }
+    ]
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -43,7 +89,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36235,
+      "port": 21235,
       "description": "React UI"
     }
   },
@@ -74,146 +120,139 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/prompt-manager-api"]
-          },
-          {
-            "type": "cli",
-            "command": "prompt-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o prompt-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and UI server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./prompt-manager-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/prompt-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute prompt-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'prompt-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
     "scenarios": {
       "agent-manager": {
+        "enabled": true,
         "required": false,
-        "description": "Executes heartbeat runs via task/run API. Heartbeat system degrades when unavailable."
+        "startup_policy": "try_start",
+        "description": "Executes heartbeat runs through Prompt Manager's declared role-only profiles. Heartbeat system degrades when unavailable.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/heartbeat.json",
+              ".vrooli/agent-manager/heartbeat-single-process.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Scheduled heartbeat runs are skipped until agent-manager is available"
+      },
+      "source-ledger": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Team corpus ledger: the API registers one scope per team at boot and reads team knowledge through it.",
+        "degraded_behavior": "Team knowledge features are unavailable until source-ledger is reachable"
+      },
+      "vrooli-events": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Platform event bus the API publishes team and heartbeat events to.",
+        "degraded_behavior": "Events are not published until vrooli-events is reachable"
       }
     },
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Metrics and test results storage (prompts stored in files)",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema_v2.sql",
-            "type": "schema"
-          }
-        ]
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "description": "Vector database for AI-powered semantic search (stores skill embeddings)"
+        "startup_policy": "try_start",
+        "description": "Vector database for AI-powered semantic search (stores skill embeddings)",
+        "degraded_behavior": "Semantic search features fall back to file-backed lookup only"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "description": "Local LLM for AI search embeddings (nomic-embed-text) and prompt testing (llama3.2)",
-        "models": [
-          "nomic-embed-text",
-          "llama3.2"
+        "startup_policy": "try_start",
+        "description": "Local Ollama roles for AI search embeddings and prompt testing",
+        "degraded_behavior": "Local embedding generation and prompt-evaluation flows are unavailable",
+        "model_roles": [
+          "embedding.default",
+          "chat.small"
         ]
+      }
+    }
+  },
+  "trust_signing": {
+    "provider": "development"
+  },
+  "environment": {
+    "VROOLI_SKILL_PROJECTION_ALL": "true"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "prompt-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "prompt-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
+  "skills": {
+    "feature": [],
+    "waivers": {
+      "usage": {
+        "reason": "Declared 2026-09-02: the usage role is served by the pack skill `skill-authoring` at store/skills/packs/core/skill-authoring/SKILL.md, whose programs are prompt-manager.skill-set-read and prompt-manager.meta-optimization-reads; the skillRole source pattern accepts only skills/<id>/SKILL.md, which prompt-manager does not ship.",
+        "declared_at": "2026-09-02"
+      },
+      "improve": {
+        "reason": "Guide setpoint is served by meta-optimization-manager coverage until `prompt-manager skill-set validate` ships (declared 2026-09-02).",
+        "declared_at": "2026-09-02"
       }
     }
   }

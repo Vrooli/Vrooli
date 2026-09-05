@@ -1,14 +1,265 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-03-17
+Last updated: 2026-08-26
+
+> **Audio adoption (2026-05-16):** `internal/voice/`, `internal/tts/`,
+> `handlers/voice/`, `handlers/tts/`, and the `web-console/v1/voice` +
+> `web-console/v1/tts` protos have all been deleted. Every audio capability
+> (STT, TTS synthesis, voice listing, summarization, speaker verification,
+> wake word) lives in the **audio-tools** scenario and is consumed via:
+>
+> - Backend: `internal/audioports.Remote*` adapters (RemoteSpeechToText,
+>   RemoteTextToSpeech, RemoteSpeechTextProcessor, RemoteSummarizer)
+>   wrapping the audio-tools Connect clients.
+> - Frontend: `@vrooli/audio-capture-browser` (pnpm file: link from
+>   `packages/audio-capture-browser/`), with Web Console retaining only
+>   terminal-targeting and recovery UX.
+>
+> The web-console-internal `tts_hook_status.go` REST endpoints
+> (`/api/v1/tts-hook/{status,config,ack,playback}`) cover only Claude
+> project-settings hook routing diagnostics + the auto/backend/startMuted
+> preference triple. They are an enumerated REST exception
+> (RESTReasonHostHookGlue) and never cross scenario boundaries.
+>
+> The terminal workspace must boot when audio-tools is absent. Lifecycle may
+> try to start audio-tools, and Settings may show lifecycle-owned start/restart
+> commands for the scenario, but web-console must not start Whisper, Kokoro, or
+> other audio provider resources directly.
+
+## Voice turn diagnostics (2026-07-11)
+
+`PcmVoiceStreamProvider` is the shared same-origin transport adapter;
+the shared `StreamDiagnosticRecorder` from `@vrooli/audio-capture-browser`
+is the privacy boundary. It records only opaque session identity, protocol
+state, retained durability level, coverage cursors, status/error codes, and
+terminal reason—never PCM or transcript text. `useVoiceCore` exposes its
+sanitized JSON export to every mic surface, and `VoiceMicButton` makes it
+available from the failed-turn recovery tooltip. This keeps browser capture
+semantics shared while leaving Web Console responsible for its own recovery UX.
+
+## Audio Summarize Model Catalog (added 2026-05-17)
+
+**Owner boundary:** audio-tools owns summarize model policy, catalog metadata,
+Ollama `/api/tags` inspection, and persisted summarize config. Web Console
+owns only the same-origin admin surface and settings UI.
+
+- Audio-tools API: `SummarizeService.ListSummarizeModels` returns known
+  recommended candidates merged with locally installed Ollama models.
+- Web-console API: `AudioAdminService.ListSummarizeModels` mirrors the shape
+  with web-console-owned proto messages. UI code imports only
+  `@vrooli/proto-types/web-console/*`.
+- Backend adapter: `api/internal/audioports.RemoteSummarizeConfigAdmin`
+  forwards config and catalog calls. `connect.CodeFailedPrecondition` maps to
+  `audiotools.ErrFailedPrecondition` so a missing selected model does not look
+  like global audio-tools downtime.
+- UI hook: `ui/src/components/settings/useSummarizeSettings.ts` owns load,
+  save, model-list, and error state for the settings surface.
+
+Key invariant: model install/pull operations are operator actions outside this
+seam. The UI may show `ollama pull <model>` but must not run it.
+
+## Input delivery (refactored 2026-04-24)
+
+Terminal input now flows through a kind-discriminated path. See
+[TERMINAL-INPUT-PROTOCOL.md](TERMINAL-INPUT-PROTOCOL.md) for the full
+contract.
+
+- `PTY.WriteInput(data, kind)` ([CODE: api/pty.go]) replaced the
+  legacy `PTY.Write(p) (int, error)`. `realPTY` ignores `kind`;
+  `tmuxPTY` routes `keystroke` via `tmux send-keys -l --` and `paste`
+  via `tmux load-buffer` + `paste-buffer -d`, both after cancelling
+  any active tmux client mode. Closes the "Ctrl+C unblocks lost
+  input" Bug A.
+- `stdin_ack.reason` carries typed failure codes
+  (`tmux_write_failed`, `pty_closed`, `not_ready`, `invalid_input`).
+  The UI surfaces the reason in the paste context menu.
+- `TerminalContextMenu` waits for settlement via
+  `subscribeInputSettled` before closing, showing
+  `Pasting… → Pasted` or `Paste failed: <reason>`. Closes Bug B.
+- Terminal replay uses a server-side emulator and a self-contained ANSI
+  snapshot (`api/terminal/`). Each live stdout frame also carries an
+  `output_cursor`; the session retains an 8 MiB frame-boundary ring. A
+  reconnect sends `hello{want_resume,rendered_through}` and receives only the
+  covered delta, or an explicit `resync` followed by the authoritative
+  snapshot when the cursor has expired. `history_end.output_cursor` records
+  the renderer's new checkpoint.
+
+## The handoff seam (added 2026-08-27)
+
+One generic verb moves a message from one session to another inside a group.
+Design record: [ROLES-AND-HANDOFFS-UX.md](ROLES-AND-HANDOFFS-UX.md).
+
+**The seam is `submitToActiveTerminal(data, intent, targetId)`**
+([CODE: ui/src/hooks/useSessionManager.ts]). Its third parameter already
+addressed a specific pane, so the missing part was never the transport — it was
+the UI and the queueing.
+
+- `ui/src/lib/handoff.ts` — `renderHandoffPrompt`, the send path's only text
+  transformation. It imports nothing at all.
+- `ui/src/hooks/useHandoff.ts` — `sendHandoff`, which returns a per-target
+  `sent` / `queued` / `failed` result.
+- `ui/src/lib/captureRules.ts` — the matcher, which produces suggestions.
+
+**The send path and the matcher share no code.** Deleting every capture rule
+must not change one line of the send path's behaviour, and the way that is
+guaranteed is that neither side can reach the other. Three greps hold the line,
+and all three must return nothing:
+
+```bash
+# 1. Nothing in the shipped surface is named for one workflow.
+grep -rn --exclude=web-console-api --exclude=cli \
+  "plan_path\|planPath\|plan_file\|implementer_id\|planner_id\|critic_id" \
+  scenarios/web-console/api scenarios/web-console/ui/src \
+  scenarios/web-console/cli packages/proto/schemas/web-console
+
+# 2. The send path does not reach the matcher.
+grep -rn "captureRules" scenarios/web-console/ui/src/lib/handoff.ts \
+  scenarios/web-console/ui/src/hooks/useHandoff.ts
+
+# 3. Seeded content is data, not a privileged code path.
+grep -rn "is_builtin\|isBuiltin\|builtin" \
+  scenarios/web-console/api/internal/grouptemplates \
+  scenarios/web-console/api/internal/handoffrules
+```
+
+## The snippet seam (added 2026-08-28)
+
+The mechanism record is
+[SNIPPETS-AND-MESSAGE-ACTIONS-UX.md](SNIPPETS-AND-MESSAGE-ACTIONS-UX.md).
+`ui/src/lib/snippetVars.ts` is the only text transformation for a snippet. It
+recognizes only lowercase named tokens and supplied string values, and it has
+no imports. Promotion is a one-way command call; neither the snippet row nor
+any role, template, or skill stores a link back to the other surface.
+
+These four greps must return no match:
+
+```bash
+# 1. No workflow- or skill-link field entered the snippet surface.
+grep -rn --exclude=web-console-api --exclude=cli \
+  "plan_path\|planPath\|plan_file\|snippet_skill_id\|skill_id" \
+  scenarios/web-console/api scenarios/web-console/ui/src \
+  scenarios/web-console/cli packages/proto/schemas/web-console
+
+# 2. Neither text transformation nor the send path can reach the matcher.
+grep -rn "captureRules" scenarios/web-console/ui/src/lib/handoff.ts \
+  scenarios/web-console/ui/src/lib/snippetVars.ts \
+  scenarios/web-console/ui/src/hooks/useHandoff.ts
+
+# 3. Seeded snippets are ordinary rows, never privileged built-ins.
+grep -rn "is_builtin\|isBuiltin\|SeedSnippetID" \
+  scenarios/web-console/api scenarios/web-console/ui/src \
+  | grep -v "api/internal/snippets/seed.go"
+
+# 4. Substitution stays dependency-free.
+grep -n "^import" scenarios/web-console/ui/src/lib/snippetVars.ts
+```
+
+### Delivery, and why a handoff is never dropped
+
+`submitToActiveTerminal` returns `{status: "rejected", reason: "disposed"}` when
+no terminal handle exists for the target. A session created one millisecond ago
+has no mounted terminal, so a naive send is dropped **silently** — the single
+most likely defect in this feature.
+
+Two existing mechanisms remove the need to invent anything:
+
+1. **The pending-input queue** (`useStdinStream`). Queued text is visible to the
+   operator, discardable, and manually flushable. A handoff enqueues; it does
+   not race.
+2. **The pending-map pattern.** `Workspace.tsx` already carried
+   `pendingGroupBySessionRef`, drained by the session-reconcile effect when the
+   pane appears. `pendingHandoffBySessionRef` has the identical shape and is
+   drained in the same effect — a second draining mechanism would be a second
+   place for a message to go missing.
+
+`queued` is a first-class result, never collapsed into `sent`. Reporting success
+for text still sitting in a queue is the failure this seam exists to prevent.
+
+### Role and pane
+
+A role is the durable identity inside a group; a pane is the runtime projection
+of a live session. They are joined by `session_id`, and roles are optional —
+every pre-roles grouping behaviour works with `workspace_roles` empty. Full
+table contract: [data-model.md](../reference/data-model.md#workspace_roles).
+
+`ReassignPane` re-keys a pane during session recovery; `ReassignRoleSession`
+performs the matching move for roles, so a recovered session keeps its role
+rather than leaving it aimed at a session id that no longer exists.
+
+## Session decomposition (refactored 2026-04-24)
+
+`api/session.go` was split by concern — all methods still on
+`*Session`, but each file now names a single responsibility:
+
+- [CODE: api/session.go] — Session struct, lifecycle (Create, Delete,
+  Exit, Resize, WriteInput, ProbeReady), policy, readLoop.
+- [CODE: api/broadcast.go] — Output fan-out, per-client coalesce,
+  pending-buffer trim, SIGWINCH recovery gating.
+  (`ClientInfo`, `broadcast`, `deliver`, `FlushPending`,
+  `maybeSIGWINCHRecovery`, `notifyIfThreshold`)
+- [CODE: api/terminal/] — Decoded terminal emulator (parser, screen
+  grid, bounded scrollback ring, alt-buffer flag) and the ANSI
+  snapshot serializer. The session holds one `*terminal.Emulator`;
+  every PTY read is fed into it, and every `Subscribe()` returns a
+  self-contained snapshot.
+- [CODE: api/terminal_ws.go] — WS upgrade + handler glue.
+- [CODE: api/terminal_ws_input.go] — Per-message input dispatch
+  (kind-aware stdin, resize, ping/pong, conversation_event_ack).
+
+Greenfield assertion tests in [CODE: api/greenfield_assertions_test.go]
+enforce:
+
+- No `ptmx.Write(` outside `pty.go`/`pty_tmux.go`.
+- No legacy `PTY.Write(p []byte) (int, error)` method declaration.
+- No references to deleted rework/phase-2 plan filenames.
+- `SIGWINCH` via `SetSize` only inside `maybeSIGWINCHRecovery` /
+  `Resize` (checked across both `session.go` and `broadcast.go`).
+
+## Terminal reliability seams (2026-08-26)
+
+The terminal path has three explicit boundaries that must remain transport-
+neutral:
+
+- **Platform availability:** OS-specific PTY and echo files are selected by
+  build tags. The capability registry and `.vrooli/service.json` publish the
+  resulting status; callers use typed unsupported errors instead of a
+  runtime host-support boolean.
+- **Persistent input/control:** one bounded per-session writer queue orders
+  reliable stdin, best-effort control bytes, and ANSI responder replies. The
+  persistent backend keeps a long-lived tmux control client for command-style
+  operations; the PTY interface hides that channel from session and HTTP code.
+- **Protocol state:** `ui/src/lib/terminalProtocol.ts` is a DOM-free reducer
+  for replay, live, resync, echo, size, and presence state. WebSocket effects
+  remain in the hook, while this reducer is tested independently of xterm.
+
+Session synchronization follows the same ownership split: `emuMu` protects
+the emulator and snapshot cache, `clientsMu` protects viewers/leases/presence,
+and `ptyMu` protects only replacement of the PTY pointer. The locks are
+acquired in `clientsMu` → `emuMu` order and no lock is held across backend
+I/O. Backend echo state is sampled into a session cache with a 250 ms floor;
+the WebSocket path emits only changed combined state and retains a five-second
+maximum refresh while a client is connected.
 
 ## Responsibility Zones
+
+### Remote terminal federation
+
+`api/remote_terminal.go` is the server-side federation adapter for
+`vrooli-bridge`. It is an intentional REST/WS exception because the browser
+terminal wire protocol is JSON-over-WebSocket while Bridge sessions are binary
+protobuf-over-WebSocket. The browser receives only target readiness facts and
+a short-lived web-console session ID; Bridge owner and re-authentication tokens
+remain server-side. An enrolled local operator session is preferred, and the
+shared `api-core/nodereach` owns per-request Bridge discovery, authentication, and
+stream setup. The adapter translates stdin sequence numbers, stdout, resize,
+acknowledgements, launch commands, and close events. A target is unavailable
+when its shared readiness facts or server-side operator authorization fail.
 
 ### 1. Entry / Presentation
 **Owner**: `ui/src/components/`
 - [CODE: ui/src/components/Workspace.tsx] — **Stable core**: pane grid layout, header, empty-state UI. Delegates all session logic to `useSessionManager` hook.
 - [CODE: ui/src/components/ErrorBanner.tsx] — **Volatile edge**: reusable error display with category/recovery/retry. Single place to change error UX.
-- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation consumption (active-pane auto-TTS, seen/listened cursor advancement). Exposes `speakText`/`speakSequence` via TerminalPaneHandle for MessagesPane TTS delegation
+- [CODE: ui/src/components/TerminalPane.tsx] — xterm.js rendering plus pane-local conversation ingestion, received/seen acknowledgements, and provider control plumbing. It does not own auto-TTS policy or listened-cursor commits.
 - [CODE: ui/src/components/MessagesPane.tsx] — semantic messages rendering with per-message TTS controls (read-from-here, read-one, stop); delegates TTS execution to TerminalPane via Workspace callbacks; never owns TTS provider directly
 - [CODE: ui/src/components/TerminalLauncher.tsx] — Modal UI for session creation and shortcut selection (reads shortcuts from [CODE: ui/src/consts/shortcuts.ts])
 - [CODE: ui/src/components/SessionDrawer.tsx] — Sidebar with session list and delete controls
@@ -28,17 +279,33 @@ Last updated: 2026-03-17
 - Key invariant: conversation features consume `ConversationEvent`s, never raw PTY output history.
 
 ### 2. Transport / Protocol
-**Owner**: [CODE: ui/src/hooks/useTerminalSocket.ts] (client), [CODE: api/terminal_ws.go] (server)
-- `useTerminalSocket` — Manages WebSocket connection, bidirectional I/O (stdin/stdout), conversation event delivery, conversation event acknowledgments, resize messages, keepalive, and lifecycle events (exit, error, disconnect). Signals readiness via `onReady` callback. Accepts optional `createSocket` factory for test injection.
-- `terminal_ws.go` — Server-side WebSocket upgrade, message framing, PTY I/O bridging, ping/pong
-- Key invariant: terminal transport carries both raw PTY frames and semantic `conversation_event` side-channel messages, but only the conversation side-channel drives unread/messages/TTS logic.
+**Owner**: [CODE: ui/src/hooks/terminal/useTerminalSession.ts] (client), [CODE: api/terminal_ws.go] (server)
+- `useTerminalSession` — Composes three focused hooks and exposes a single surface:
+  - [CODE: ui/src/hooks/terminal/useTerminalTransport.ts] owns the WebSocket lifecycle (connect, reconnect backoff, visibility-aware defer) and a monotonic `wsGen` counter.
+  - [CODE: ui/src/hooks/terminal/useStdinStream.ts] owns cumulative UTF-8 offsets, the offline pending-input queue, reconnect reconciliation, and replay.
+  - The session hook wires session_ready gating, history_end replay, and `pty_state` → local-echo enable/disable into a shared `TerminalInputGate`.
+- `terminal_ws.go` — Server-side WebSocket upgrade, message framing, PTY I/O bridging, ping/pong. Emits `session_ready{gen}`, `history_end{total_bytes, resumed}`, and `pty_state{altBuffer}` in addition to stdout/sync_warning/stdin_ack.
+- Key invariant: every stdin path (xterm.onData, mobile toolbar, paste, voice, upload) flows through the same gate (§2c), so a single state-aware decision point governs whether a byte goes to the PTY or is held.
+
+### 2c. Single-path Input Gate
+**Owner**: [CODE: ui/src/components/terminal/inputGate.ts]
+- `TerminalInputGate.submit(data, source: InputSource)` returns a typed `GateResult`:
+  - `{status: "sent", seq}` — handed to the WebSocket stack.
+  - `{status: "queued", reason}` — pending; flushes on next session_ready. Reasons: `"not-ready"`, `"ws-closed"`, `"paused"`.
+  - `{status: "rejected", reason}` — refused. Reasons: `"empty"`, `"disposed"`.
+- Paste source uses the same reliable stdin lane as every other operator payload. Mouse-report bytes are the only xterm input routed to the best-effort control lane; paste is never held in a second mouse-mode queue.
+- Every consumer imports the gate result type; there is no `boolean`-returning shortcut. See `greenfield-assertions.test.ts` for the enforcing tests.
 
 ### 2b. Conversation Ingestion
-**Owner**: [CODE: api/conversation_router.go], [CODE: api/tts_hook_handler.go], [CODE: api/codex_tailer.go]
-- Claude hook adapter parses Stop-hook payloads and appends assistant conversation events.
-- Codex tailer parses rollout output and appends assistant conversation events.
-- `appendConversationEvent(...)` is the only semantic ingestion path.
+**Owner**: [CODE: api/conversation_router.go], [CODE: api/tts_hook_handler.go], [CODE: api/codex_tailer.go], [CODE: api/grok_tailer.go], [CODE: api/opencode_watcher.go]
+- Claude hook adapter parses Stop-hook payloads and appends assistant conversation events (`source=claude_hook`).
+- Codex tailer parses rollout output and appends user/assistant conversation events (`source=codex_tailer`).
+- Grok tailer parses `updates.jsonl` ACP turns under a per-session `GROK_HOME` and appends user/assistant text at each `turn_completed` boundary (`source=grok_tailer`).
+- OpenCode watcher subscribes to a managed `opencode serve` SSE stream and reconciles via `GET /session/{id}/message`, appending user/assistant text (`source=opencode_api`).
+- `AppendAssistant` / `AppendUser` (the `ConversationDispatcher` seam) is the only semantic ingestion path; every adapter routes through it. No adapter writes the conversation store directly or scrapes PTY output.
+- Source names are a stable, documented set: `claude_hook`, `codex_tailer`, `grok_tailer`, `opencode_api`.
 - Key invariant: source adapters produce normalized conversation events first; TTS is downstream of those events.
+- Checkpoint invariant: each adapter persists a replay-safe, source-scoped cursor in `agent_transcript_checkpoints`. Codex and Grok use byte offsets (Grok advances only at turn boundaries); OpenCode uses a per-session JSON high-water mark. `ConversationStore` short-window dedup is the second line of defense, never the primary guard.
 
 ### 3. Domain / Session Lifecycle
 **Owner**: [CODE: api/session.go], [CODE: api/pty.go]
@@ -70,6 +337,28 @@ Last updated: 2026-03-17
   - `GET /api/v1/sessions/{id}/conversation`
   - `PUT /api/v1/sessions/{id}/conversation/cursor`
 
+### 4a. Sanctioned REST Exceptions (UI → API)
+
+Every UI → API call goes through Connect-RPC except for the endpoints
+below. All are template-sanctioned `RESTReason` values (see
+`api/internal/module/module.go::RESTReason*` in the react-vite
+template). Adding another REST surface requires either picking another
+enumerated `RESTReason` or extending the template — not a one-off
+exemption.
+
+| File | Endpoint | Reason | Why REST |
+|---|---|---|---|
+| [CODE: ui/src/api/health.ts] | `GET /health` | `RESTReasonOpsProbe` | The API liveness probe must answer before Connect-RPC routing is wired up. Load balancers, lifecycle checks, and `curl` need the simplest possible shape. The proto in `packages/proto/schemas/web-console/v1/health/health.proto` carries the JSON wire shape so the response decodes through `fromJson(ResponseSchema, ...)` for type safety — there is no hand-rolled `HealthResponse` type. |
+| [CODE: ui/src/api/uploads.ts] | `POST /sessions/{id}/upload` | `RESTReasonMultipartUpload` | Multipart binary upload. Connect-RPC binary payloads are non-trivial; the template explicitly enumerates multipart as an allowed shape. Metadata around uploads (if any) stays proto-typed; only the raw bytes ride the REST edge. |
+| [CODE: ui/src/api/filePreview.ts] (consumed by native elements, not `fetch`) | `GET\|HEAD /sessions/{id}/file-previews/{previewId}/blob` | `RESTReasonOpsProbe` | Byte-range blob stream consumed directly by native `<img>/<video>/<audio>/<iframe>` `src`/`href` — browser-native transport Connect cannot express (the same category as `terminal_ws`). The opaque, session-bound `preview_id` (never a raw path) is issued by `FilePreviewService.Resolve`; preview metadata + bounded text stay proto-typed over Connect. Bytes never travel through Connect. |
+
+**Regression guard**: [CODE: ui/src/api/__tests__/no-rest-exceptions.test.ts]
+greps `ui/src/api/*.ts` for the literal token `fetch(` and fails if it
+appears outside `health.ts` and `uploads.ts`. `filePreview.ts` does not
+trip it: the blob bytes are loaded by native element `src`/`href`
+attributes, not a `fetch(` call, so the file-preview REST surface adds no
+`fetch(` to the API layer.
+
 ### 5. Integration / Infrastructure
 **Owner**: [CODE: api/main.go], [CODE: ui/src/lib/api.ts]
 - `main.go` — Database connection, router setup, health checks, server lifecycle
@@ -83,7 +372,198 @@ Last updated: 2026-03-17
 - **Selectors**: [CODE: ui/src/consts/selectors.ts] — centralized data-testid registry for automation
 - **Shortcuts**: [CODE: ui/src/consts/shortcuts.ts] — **Volatile edge**: shortcut definitions, decoupled from launcher component
 
+## TTS Playback Lifecycle Seam (UI, added 2026-07-07)
+
+Streaming-tail-durability made spoken output survive the three teardown
+races that used to truncate it. The ownership boundary is:
+`useTtsPlaybackController` (domain policy: which event plays, queueing,
+version) → `useTextToSpeechCore` (provider lifecycle) → `KokoroProvider`
+(single `HTMLAudioElement`). The durable guarantees:
+
+- **Resilient per-paragraph sequence.** `KokoroProvider.speakSequence`
+  synthesizes paragraphs pipelined (concurrency 2) and plays each as its
+  own track. A single paragraph's synth-reject or MP3 decode error is
+  isolated — retry once → per-paragraph browser-voice fallback →
+  skip-with-notice — and the sequence **continues**. Only a real
+  stop/dispose abort halts the tail. Non-fatal degradation surfaces via
+  `onParagraphOutcome` (observability), never gating playback. This is the
+  TTS twin of the audio-tools event-durability contract (each paragraph is a
+  durable ordered unit): see
+  [`scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract`](../../../audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract).
+  [CODE: ui/src/audio-integration/hooks/tts/KokoroProvider.ts]
+- **Playback survives pane unmount / warm-set eviction.** The workspace
+  keeps only `WARM_SET_SIZE` panes mounted; an evicted pane used to
+  dispose its provider mid-tail. `useTextToSpeechCore` opts into a
+  process-wide `ttsPlaybackRegistry` keyed by session id
+  (`playbackOwnerKey` + `persistPlaybackAcrossUnmount`): on unmount while
+  speaking it **hands the provider off** instead of disposing; a remount
+  **re-adopts the same instance** (single owner, no leak). The registry
+  disposes an orphaned provider once its tail settles (`onSettled`). A
+  new `speak` calls `stopOrphansExcept` so two sessions never speak at
+  once; genuine session-end (`removePane`) calls `registry.stop`.
+  [CODE: ui/src/audio-integration/hooks/tts/playbackRegistry.ts]
+- **Mid-playback messages queue, not drop.** An assistant message
+  arriving while TTS is busy is enqueued in a bounded FIFO
+  (`MAX_AUTOPLAY_QUEUE = 8`, oldest dropped on overflow) and spoken when
+  the current one ends (`drainPendingAutoplay`), honoring the current
+  playback intent — replacing the old `!isSpeaking` guard that silently
+  dropped it. [CODE: ui/src/domains/tts-playback/useTtsPlaybackController.ts]
+
+- **Replays serve from the byte cache (per paragraph).** The synth path
+  threads a real `event_id` plus a per-paragraph `chunk_index` (proto,
+  additive) so each paragraph populates the audio-tools byte cache under a
+  distinct key — no whole-message collision. `useTextToSpeechCore`'s
+  replay path fetches chunk `0..N-1`; a full hit plays them via
+  `KokoroProvider.speakFromBlobs` with **no synthesis**, and any miss falls
+  through to synth (which repopulates every chunk). The cache is populated
+  as a side-effect of the live per-paragraph synth (zero extra synth); the
+  chain-path `Synthesize` handler in audio-tools now writes the cache it
+  reads (previously a dead seam — replays always missed).
+  [CODE: ui/src/audio-integration/api/tts.ts],
+  [CODE: scenarios/audio-tools/api/handlers/tts/connect_handler.go]
+
+## STT Ingress Durability Seam (UI, added 2026-07-08)
+
+The dictation (STT) direction obeys the same audio-tools event-durability
+contract as TTS playback:
+[`scenarios/audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract`](../../../audio-tools/docs/domains/stt/streaming-pipeline.md#event-durability-contract).
+The client is the last hop; its durable guarantees:
+
+- **Lossless tail recovery via a committed-length cursor.** A turn that ends on
+  an uncommitted partial (a teardown race dropped the flush) promotes exactly
+  the remainder of the latest partial that lies BEYOND the durable segment-finals
+  already committed — recovering the full uncommitted tail without ever
+  double-appending committed words. Replaces the single overwritten
+  trailing-partial slot. [CODE: ui/src/audio-integration/hooks/voice/trailingPartial.ts]
+  (`uncommittedRemainder`), wired in [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts].
+- **Coalesced partial render.** Interim `partial` text is throttled to one paint
+  per animation frame (durable segment-finals still render immediately), so a
+  high partial rate cannot jank the main thread and re-introduce client-side
+  backpressure. Cancelled on every turn-terminal path. [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts]
+- **Processed-coverage retention.** `PcmVoiceStreamProvider` writes each
+  canonical PCM frame to the bounded origin-local turn journal before it is
+  released to the same-origin WebSocket. It compacts only on the server's
+  `processed_acknowledgement`; persisted next-sequence and sample cursors stay
+  intact even when all replay bytes have compacted. [CODE:
+  ui/src/audio-integration/hooks/voice/PcmVoiceStreamProvider.ts]
+
 ## Testability Seams
+
+### Terminal Screen Read Seam (API)
+**File**: `api/terminal/view.go`
+**Purpose**: Expose the decoded grid (cells, cursor, alt-buffer flag, scrollback count) as plain Go values so programmatic consumers — Connect-RPC, CLI, agents — can inspect the screen without parsing ANSI.
+
+| Component | Surface | Notes |
+|-----------|---------|-------|
+| `Emulator.Cursor`, `Cells`, `View` | Deep-copy reads under the owner's mutex | Outputs are owned by the caller |
+| `Emulator.PlainText(includeScrollback)` | Plain UTF-8, trailing blanks stripped | Replaces the historical `stripANSI` helper for screen-text use cases |
+| `handlers/terminal.TerminalService.GetScreen` | Connect-RPC wrapper | Adds `plain_text` convenience field |
+
+### Session Input Seam (API)
+**File**: `api/session/input.go`
+**Purpose**: Single typed envelope (`SessionInput`) plus a single `applyInput` PTY-write call site. WS input handler, recovery adapter, Connect TerminalService.SendInput, and the legacy ANSI responder all funnel through here.
+
+| Component | Variants |
+|-----------|----------|
+| `InputText`, `InputKeys`, `InputRaw` | Constructors; the value type is opaque to callers |
+| `KeyMap` (interface) | The terminal Connect handler's `DefaultKeyMap` resolves Enter/Tab/arrows/F1-F12/Ctrl+&lt;letter&gt; for programmatic callers; the WebSocket path encodes keys in the browser |
+| `Session.SendInput` | Resolves bytes via `KeyMap` and calls `applyInput` (the single PTY-write seam) |
+
+### Terminal Control Event Seam (API)
+**File**: `api/terminal/events.go`
+**Purpose**: Stream parsed control events (alt-buffer enter/exit, CSI queries DA1/DA3/XTVERSION/DECRQM 2026) for observers that need them. The ANSI auto-responder (Phase 3, 2026-05-13) consumes this stream and writes server-side replies through `Session.SendInput`; no inline byte-scan exists in `readLoop` any more.
+
+| Component | Surface |
+|-----------|---------|
+| `Emulator.ControlEvents()` | Read end of a bounded (256) channel; lazily allocated |
+| `Session.startAnsiResponder()` | Spawns the observer goroutine for non-persistent backends |
+| `ansiReplyFor(ControlEvent) []byte` | Pure mapping from event → reply bytes (unit-testable) |
+
+Backpressure: drop-oldest; the read loop must never block. The responder skips persistent (tmux) backends — tmux answers queries for its own panes.
+
+### ANSI Strip Seam (API)
+**File**: `api/terminal/strip.go`
+**Purpose**: Stateless helper for callers that have a byte stream they want to render as plain text without spinning up an emulator (e.g. conversation-log normalization, dedup-key computation). For grid-level reads — visible cells, cursor, scrollback — use `Emulator.View()` / `Emulator.PlainText()` instead.
+
+| Component | Surface |
+|-----------|---------|
+| `terminal.StripEscapes([]byte) []byte` | Removes CSI / OSC / two-byte ESC sequences; preserves UTF-8 |
+
+Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
+
+### Conversation Dispatcher Seam (API)
+**File**: `api/conversation_router.go`
+**Purpose**: Narrow interface (`ConversationDispatcher`) for publishing trusted assistant and user conversation events to a terminal session. Lets non-Server callers — hook handlers, the codex/grok tailers, the OpenCode watcher, future adapters — depend on a small surface instead of `*Server`, and lets tests substitute a fake dispatcher. The OpenCode watcher additionally depends on the fakeable `opencode.Client` seam (session list / message history / SSE events) and an injectable `startServer`, so its backfill, reconcile, reconnect, and attribution logic are unit-tested against an in-memory fake with no real `opencode serve`.
+
+| Component | Surface |
+|-----------|---------|
+| `ConversationDispatcher.AppendAssistant(text, sessionID, source)` | Publish an assistant response, run TTS routing |
+| `ConversationDispatcher.AppendUser(text, sessionID, source)` | Publish a user prompt (no TTS) |
+| `*Server` implements both implicitly | Compile-time check via `var _ ConversationDispatcher = (*Server)(nil)` |
+
+### Conversation Hub Seam (API)
+**Files**: `api/conversation_hub.go`, `api/events_stream.go`
+**Purpose**: Process-wide conversation event channel. Every conversation event (assistant/user append, async summarize update) is published once to `ConversationHub` and fanned out to all Server-Sent Events subscribers over `GET /api/v1/events/stream`, decoupled from any single session's terminal WebSocket. The browser opens ONE stream for ALL sessions, so unread badges and conversation deltas no longer depend on a per-session terminal WS being open. This replaced the per-session conversation fan-out entirely — there is exactly one conversation-event channel.
+
+| Component | Surface |
+|-----------|---------|
+| `ConversationHub.Publish(env) int64` | Assigns the next monotonic global id, retains in the ring buffer, fans out to subscribers (never blocks; drops + resync-signals a full subscriber) |
+| `ConversationHub.Subscribe(lastEventID) (*hubSubscriber, []HubEnvelope, gap)` | Registers a client; replays retained envelopes newer than the cursor; `gap=true` when the cursor predates the retained window |
+| `ConversationHub.Unsubscribe(sub)` | Removes a client from the fan-out (idempotent) |
+| `Server.publishConversationEvent(event)` | Single publish path; maps `event.IsUpdate` → kind (`conversation_event_update` / `conversation_event`) |
+| `Server.handleEventStream(w, r)` | SSE handler; honors `Last-Event-ID` header / `?last_event_id=` query (header wins); emits `conversation_out_of_sync` on gap so the client backfills via `GET /conversation?since_sequence=N` |
+
+**Knobs (package vars/consts for tests)**: `hubRingSize` (replay buffer depth, default 1024), `hubSubscriberBuffer` (per-subscriber channel, default 256), `hubHeartbeatInterval` (SSE keepalive comment cadence, default 15s).
+
+### File Preview Resolver + Preview-ID Store Seam (API)
+**File**: `api/internal/filepreview/` (resolver, classification, store), `api/file_preview_handlers.go` (adapter + blob route)
+**Purpose**: Keep path resolution, MIME/kind classification, and the opaque preview-id store transport-neutral and independently unit-testable, and keep the blob route from ever becoming an arbitrary local file server.
+
+| Component | Surface |
+|-----------|---------|
+| `filepreview.Resolver` | `Resolve(sessionCwd, cwdErr, rawPath) (*Target, error)` — pure: probes absolute → session_cwd → project_root, classifies by extension + content sniff, downgrades oversize text. `ReadText(*Target)` re-validates UTF-8 + size cap. No session/Connect/mux deps. |
+| `filepreview.Store` | `Issue(sessionID, *Target) (id, expiry)` / `Lookup(sessionID, id)` — in-memory, session-bound, expiring (`DefaultTTL` 30m). All miss modes collapse to `ErrPreviewNotFound`. `now`/`rand` are injectable for tests. |
+| Blob handler | `Server.handleFilePreviewBlob` — accepts only a preview id (never a raw path), re-stats the file (409 on size/mtime drift, 404 on delete), sets `Content-Type`/`no-store`/`nosniff`/`Content-Disposition`, then `http.ServeContent` for Range/HEAD/206/416. |
+
+**Invariants**: directory traversal is impossible because resolution happens before id issuance; the blob route binds id↔session; a swapped file is never served under a stale id.
+
+### File Preview Renderer Registry Seam (UI)
+**File**: `ui/src/components/file-preview/` (controller, renderers, registry)
+**Purpose**: Keep `MessagesFileViewer` a thin shell — a normalized `PreviewModel` state machine feeding a kind-keyed renderer table — so new preview kinds are additive, not new special-cases.
+
+| Component | Surface |
+|-----------|---------|
+| `useFilePreviewController(sessionId)` | Owns the `idle → resolving → loadingText → ready \| unsupported \| error` state machine; request-id guarded; the only seam surfaces (MessagesPane, future) call to open a path. |
+| `renderers` registry (`renderers/index.ts`) | `Record<PreviewKind, PreviewRenderer>` — one component per kind; `rendererForKind` falls back to the unsupported renderer. |
+| `previewBlobHref` / `format.ts` | Pure helpers (blob URL join, `formatBytes`, `parseDelimited` CSV/TSV parser) split out for fast-refresh + unit tests. |
+
+### API↔CLI Parity Seam (CLI)
+**File**: `cli/parity_test.go`
+**Purpose**: Lock in the contract that every Connect-RPC method has a matching CLI command. Drift in either direction fails the test with a punch list so an agent can't ship a new RPC without a CLI command — and can't quietly drop a CLI command that the proto seed still references.
+
+| Component | Surface |
+|-----------|---------|
+| `gen-endpoints` manifest coverage gate | Loads `cli/manifest.json` and registered endpoint descriptors, then asserts every Connect procedure is either bound in the manifest or explicitly omitted there. |
+| `parityCLISkipIDs` | Explicit opt-out map for endpoints that genuinely cannot have a CLI form (server streams, long-lived subscriptions). Adding here requires justification |
+| Note marker | An endpoint's `rest_exception.note` can contain `cli:skip` to opt out without touching test code |
+| `builtinCLICommands` | Allowlist for commands provided by cli-core's `NewStandardScenarioApp` (e.g. `status`) that domain registration doesn't surface |
+
+**Invariants**: command lookups strip the `web-console ` binary prefix and drop trailing `--flag` segments so `capabilities --liveness` resolves to the same key as `capabilities` (the flag is parsed inside the handler, not by the dispatcher).
+
+### Backend Plug-Point Seam (API)
+**Files**: `api/internal/backend/plug.go`, `api/internal/backend/backend.go`, `api/backends/claude/`, `api/backends/codex/`
+**Purpose**: Optional, code-only extension hooks on `backend.Descriptor` so per-backend behavior (key encoding, prompt detection, idle gating) lives next to the backend instead of branching in the session pipeline. All fields are `json:"-"` so the descriptor's wire shape is unchanged.
+
+| Component | Surface |
+|-----------|---------|
+| `backend.KeyMap` | `Encode(name) ([]byte, bool)` — symbolic key → bytes (e.g. `Ctrl+C` → `\x03`). Nil means session default. |
+| `backend.PromptDetector` | `IsAwaitingInput(view ScreenView) bool` — backend-aware "agent is at input prompt" signal. Nil means fall back to idle heuristics. |
+| `backend.IdleHeuristic` | `QuietWindowExceeded(sinceLastMillis int64) bool` — backend-aware quiet-window decision. Nil means session default. |
+| `backend.ScreenView` | Narrow read surface for detectors: `Cols/Rows/CursorRow/CursorCol/PlainText`. Session adapts its richer screen type to this interface. |
+| `backends/claude/` | `FilterEnv`, `DefaultPromptDetector` — claude-specific env stripping + ❯-glyph-on-cursor-row detector. |
+| `backends/codex/` | `SharedHome`, `SessionHome`, `SessionsDir`, `PrepareSessionHome`, `ExtractAssistantText`, `ExtractUserText`, `RolloutLine`, `DefaultPromptDetector` — codex-specific home layout + rollout parsing + heuristic detector. |
+
+**Invariants**: Nil-safe (verified by `internal/backend/plug_test.go`); no import cycle (interfaces live in `internal/backend`, not in `session/`); descriptor JSON unchanged so the UI's backend picker keeps working byte-for-byte.
 
 ### PTY Factory Seam (API)
 **File**: `api/pty.go`
@@ -98,7 +578,7 @@ Last updated: 2026-03-17
 **Benefits**: Tests run without spawning shell processes (faster, no OS dependencies for core logic), resize delegates to the `PTY` interface (testable without ioctl), kill/close behavior is verifiable via the fake's state.
 
 ### WebSocket Factory Seam (UI)
-**File**: `ui/src/hooks/useTerminalSocket.ts`
+**File**: `ui/src/hooks/terminal/useTerminalSession.ts`
 **Purpose**: Decouple WebSocket transport from terminal protocol handling for testable hook behavior.
 
 | Component | Production | Test |
@@ -126,7 +606,7 @@ Last updated: 2026-03-17
 
 | Double | What It Replaces | Used By |
 |--------|-----------------|---------|
-| `FakeWebSocket` | Real `WebSocket` via `SocketFactory` seam | `useTerminalSocket.hook.test.ts` |
+| `FakeWebSocket` | Real `WebSocket` via `SocketFactory` seam | `terminal-session hook tests` |
 | `createMockTerminal()` | xterm.js `Terminal` instance | WebSocket hook tests |
 | `findWriteCall()` | Inline assertion search across terminal writes | WebSocket hook tests |
 | `makeSessions()` | Inline session data construction | Component tests (SessionDrawer, etc.) |
@@ -170,28 +650,32 @@ Last updated: 2026-03-17
 **Benefits**: Command detection is a pure function with no UI or provider dependencies. All matching logic (fuzzy matching, number extraction) can be tested with simple string inputs. Wake word detection handles activation separately (see Wake Word Engine seam below).
 
 ### Wake Word Engine Seam (UI)
-**Files**: `ui/src/hooks/voice/wakeword/types.ts`, `ui/src/hooks/voice/wakeword/engine.ts`, `ui/src/hooks/voice/wakeword/passiveListener.ts`
+**Files**: `ui/src/audio-integration/hooks/voice/wakeword/types.ts`, `ui/src/audio-integration/hooks/voice/wakeword/engine.ts`, `ui/src/audio-integration/hooks/voice/wakeword/dtw.ts`, `ui/src/audio-integration/hooks/voice/wakeword/trim.ts`, `ui/src/audio-integration/hooks/voice/wakeword/passiveListener.ts`
 **Purpose**: Isolate audio feature extraction and comparison behind a strategy interface so the MFCC+DTW implementation can be swapped for a neural embedding model later.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `WakeWordEngine` interface | Strategy abstraction for feature extraction + comparison | Allows mock engines in integration tests |
-| `MfccDtwEngine` | Extracts 13-coefficient MFCCs, compares via DTW with Sakoe-Chiba band | Direct unit tests with synthetic audio signals |
+| `WakeWordEngine` interface | Strategy abstraction: `extractFeatures` / `compare` / `compareBest(…, calibration?)` / `calibrate` | Allows mock engines in integration tests |
+| `MfccDtwEngine` | Extracts 13-coeff MFCCs, normalizes (CMVN), drops c0 (energy) from the distance, compares via symmetric-step DTW, scores relative to enrollment calibration | `engine.test.ts` — CMVN, c0/loudness invariance, trim, calibrate, synthetic separation |
 | `createWakeWordEngine()` | Factory — single point of change for swapping implementations | Tests call factory to verify wiring |
-| `PassiveListener` | VAD + ring buffer + MFCC/DTW loop running in RAF tick | Unit-testable via mocked engine and VAD refs |
+| `PassiveListener` | VAD + ring buffer + MFCC/DTW loop running in RAF tick; passes `template.calibration` into `compareBest` | Unit-testable via mocked engine and VAD refs |
 | `extractMfcc()` | Pure-JS MFCC extraction (FFT, mel filterbank, DCT) | Tested with known-frequency sine waves |
-| `dtwDistance()` | DTW with Sakoe-Chiba band constraint | Tested with identical, shifted, and unrelated sequences |
+| `trimSilence()` | Endpoint silence trim applied first inside `extractFeatures` (uniform across all consumers) | `engine.test.ts` — padded clip self-matches unpadded |
+| `dtwDistance()` | Symmetric-step DTW (diagonal ×2, `/(n+m)` normalization), Sakoe-Chiba band, c0 excluded via `startCoeff` | `dtw.test.ts` — identity, time-warp invariance, c0 exclusion, corner reachability |
+| `calibrate()` / `calibratedScore()` | Derives (μ,σ) of intra-enrollment-set DTW distances; maps a live distance to a 0–1 score relative to the user's own consistency | `dtw.test.ts` / `engine.test.ts` — anchors at μ and μ+kσ, monotonicity |
+
+**Scoring contract**: A match score answers "how consistent is this utterance with the user's enrollment set," not "1/(1+raw distance)." `EngineCalibration` (μ,σ) and the MFCC features are BOTH derived on load from the persisted RAW audio — **never serialized** (no proto field). `WakeWordEngine.compareBest` takes an optional `calibration`; absent it falls back to an uncalibrated logistic so the engine is usable pre-calibration. Any future engine (e.g. `embedding-v1`) must implement `calibrate` too. The shared `WAKE_WORD_AUDIO_CONSTRAINTS` pins identical `getUserMedia` settings across enrollment / settings-test / passive paths so the acoustic channel matches at detection time.
 
 **Benefits**: All wake word detection runs client-side (no audio leaves the browser during passive mode). The `WakeWordEngine` interface is the replacement seam — swapping to neural embeddings requires only a new class implementing the same interface and updating `createWakeWordEngine()`.
 
 ### Voice Segment Boundary Seam (API)
-**File**: `api/voice_stream_ws.go`
+**File**: `api/internal/voice/stream_ws.go`
 **Purpose**: Segment-final transcription runs in a goroutine separate from the partial ticker, allowing high-quality retranscription without blocking streaming partials.
 
 | Component | Production | Test |
 |-----------|-----------|------|
 | Segment boundary channel | Receives from WebSocket input loop | Can be directly sent to in tests |
-| Segment-final goroutine | Calls Whisper with transcoded audio | Mockable via `transcribeBytes` |
+| Segment-final goroutine | Calls Whisper with transcoded audio | Mockable via injected `HTTPDoer` + transcode function |
 
 **Benefits**: Segment finals are decoupled from the partial transcription loop, so each can be tested independently.
 
@@ -212,10 +696,13 @@ Last updated: 2026-03-17
 
 **Module structure** (each file has one responsibility):
 - `voice/types.ts` — shared types, constants, `TranscriptionProvider` interface, `VoiceState` enum
-- `voice/VoiceStreamProvider.ts` — WebSocket streaming provider (preferred)
+- `voice/PcmVoiceStreamProvider.ts` — replay-safe PCM-v2 WebSocket provider
+  (preferred); the older MediaRecorder provider is not selected by the voice
+  core
 - `voice/WhisperProvider.ts` — HTTP batch transcription provider
 - `voice/WebSpeechProvider.ts` — Browser-native fallback + SpeechRecognition types
 - `voice/vad.ts` — Voice Activity Detection pure functions
+- `voice/autoStopDecision.ts` — Pure auto-stop verdict and matching mic-button ring projection
 - `voice/audioUtils.ts` — `createAudioFilterChain` pure function
 - `voice/index.ts` — barrel re-exports
 
@@ -225,14 +712,14 @@ Last updated: 2026-03-17
 | Component | Production | Test |
 |-----------|-----------|------|
 | `WhisperProvider` | Records via MediaRecorder, POSTs audio to `/api/v1/voice/transcribe` | Mock `navigator.mediaDevices` + mock fetch |
-| `VoiceStreamProvider` | Starts MediaRecorder immediately on mic acquisition, buffers chunks until WebSocket connects, then streams to `/api/v1/voice/stream` | Mock WebSocket + mic + MediaRecorder |
+| `PcmVoiceStreamProvider` | Captures canonical PCM, journals before send, then streams v2 frames to `/api/v1/voice/stream` through the same-origin proxy; reconnect replay is deduplicated by the server session ledger | Mock WebSocket + mic + capture/journal seams |
 | `WebSpeechProvider` | Uses browser SpeechRecognition API with `continuous: true`, `interimResults: true` | Mock `window.SpeechRecognition` |
 | `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError`, `onPartial` callbacks | Same interface, deterministic behavior |
-| `MediaDevicesAdapter` | `navigator.mediaDevices.getUserMedia()` | Mock that resolves/rejects for permission tests |
+| Mic ownership registry | Sole production path to `navigator.mediaDevices.getUserMedia()`; providers call `acquireMicStream(owner, constraints)` | Mock `getUserMedia`, assert lease owner/release |
 | AudioContext singleton | Reused across recording sessions; resumed if suspended | Mock constructor, assert single creation |
 | Language parameter | `voiceLanguage` from store -> `lang` (WebSpeech) / `language` (Whisper/Stream); `"auto"` omits language param for Whisper auto-detection | Set store value, assert provider property |
-| Audio buffering (VoiceStreamProvider) | Chunks buffer in `pendingChunks` before WS connects; flushed on `ws.onopen` | Mock WS in CONNECTING state, verify chunks buffered then flushed |
-| WS reconnection | 2 attempts with exponential backoff (1s, 3s) + chunk buffering during reconnection | FakeWebSocket close simulation |
+| Audio buffering (PcmVoiceStreamProvider) | v2 frames are written to the turn journal before they enter the pending queue; journal data is authoritative for reconnect replay | Mock WS in CONNECTING state, verify journal-before-send ordering |
+| WS reconnection | 2 attempts with exponential backoff (1s, 3s) + at-least-once journal replay; server deduplicates by sequence/range/digest | FakeWebSocket close simulation |
 | Stale WS cleanup | `start()` closes previous WS and resets MediaRecorder before creating new ones | Call `start()` twice, verify first WS is closed |
 | Final timeout | `computeFinalTimeout(elapsed)`: max(10s, 2x recording duration), capped at 60s | Pure function, table-driven unit tests |
 | Audio bitrate | `AUDIO_BITRATE = 48_000` for MediaRecorder `audioBitsPerSecond` | Constant, ~6KB/s on localhost |
@@ -240,6 +727,7 @@ Last updated: 2026-03-17
 | `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain -> `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories |
 | `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ~= 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5x/s) | Pure function, table-driven unit tests |
 | `vadTick(vad, rms, now, silenceTimeoutMs)` | Exported pure function. Drives VAD state machine; accepts `silenceTimeoutMs` parameter (default 2000ms) | Direct unit testing with synthetic VadRefs and timestamps |
+| `decideAutoStop()` / `decideAutoStopRing()` | Shared server/client authority for stopping and the countdown ring; stale-but-latched server timeout remains terminal | Pure tests + `VoiceMicButton` render tests |
 | `processedResultCount` | WebSpeechProvider instance field tracking dispatched result indices to prevent cumulative duplication; persists across spontaneous browser restarts | Controllable SpeechRecognition stub fires cumulative `onresult` events |
 | `startRecording` error guard | `try/finally` ensures `startingRef` is always cleared, preventing permanent lockout | Throw during capability check, assert subsequent recording succeeds |
 | Capability liveness check | Pre-recording debounced check uses `fetchCapabilitiesLiveness` (GET-only, no test transcription) for fast response; full check only on mount | Mock both endpoints, verify liveness is used pre-recording |
@@ -247,51 +735,112 @@ Last updated: 2026-03-17
 
 **Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper -> Web Speech -> disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Each provider is independently testable in its own module. State machine prevents impossible state combinations.
 
+### Mic Ownership Seam (UI)
+**File**: `ui/src/audio-integration/hooks/voice/micOwnership.ts`
+**Purpose**: Single owner + lease registry for EVERY browser `getUserMedia` audio
+stream opened by web-console UI. Gives every live mic stream exactly one
+observable owner, lets page-lifecycle emergency cleanup release all of them
+without per-owner handlers, and makes `MediaStreamTrack.stop()` the single
+release path. Closes the iOS-PWA "mic indicator on while the UI looks idle"
+failure class (passive wake-word / prewarm / settings captures leaking live
+tracks). [DOC: docs/internal/VOICE-LATENCY.md#page-lifecycle-mic-cleanup-always-on-for-all-mic-owners]
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `acquireMicStream(owner, constraints, opts?)` | `getUserMedia` + register a lease under a named `MicOwner` | Mock `getUserMedia`, assert lease + owner |
+| `registerMicStream(owner, stream, opts?)` | Register an externally-acquired stream | Pass a fake stream, assert snapshot |
+| `releaseMicLease(lease, reason)` / `lease.release` | Stop all tracks once, run `onRelease`, idempotent | Double-release → one `stop()`, one `onRelease` |
+| `releaseAllMicLeases(reason, predicate?)` | Release every (filtered) lease | Predicate selects owners |
+| `getActiveMicLeases()` | Metadata-only snapshots (never the raw stream) | Assert owner/trackCount, no `stream` field |
+| `subscribeMicLeases(listener)` | Notify on every acquire/release with a metadata-only snapshot, so the UI can derive live-mic honesty without polling | Subscribe, acquire/release, assert snapshot + no `stream` field |
+| `installMicLifecycleCleanup(resolveScope?)` | Ref-counted `visibilitychange`/`pagehide`/`freeze` backstop; `resolveScope(event)` (injected by useVoiceCore from `decideMicLifecycle`) selects `all` vs `non-active` per event/platform | Inject a resolver returning `all`, assert active recording released on hidden |
+| lease `onRelease(reason)` | Owner resets its own state when released by anyone | Fire OS `ended`, assert owner reset |
+
+**Key invariant**: lease release is idempotent and stops tracks exactly once;
+`onRelease` lets the owner (micReadiness, PassiveListener, settings flows) reset
+its own state when the registry or the OS releases the lease.
+
+### Voice Capture Lifecycle Controller Seam (UI)
+**Files**: `ui/src/audio-integration/hooks/voice/voiceCaptureController.ts`, `ui/src/audio-integration/hooks/voice/micLifecyclePolicy.ts`
+**Purpose**: Single authority for transitioning provider/capture ownership in
+`useVoiceCore`. Before this seam, provider replacement/disposal/error cleanup was
+scattered across several hook branches — a provider could be replaced without
+disposing the old one first, leaking a live mic track (the iOS-PWA "stuck
+indicator" class). The controller wraps the existing `providerRef` (reads stay
+`providerRef.current`; only sanctioned mutations go through it) and owns the
+start-cancellation generation token + stale-lease recovery. The pure
+`micLifecyclePolicy` helpers make the platform privacy decision and the
+registry-vs-UI honesty check reviewable and unit-testable.
+[DOC: docs/internal/VOICE-LATENCY.md#page-lifecycle-mic-cleanup-always-on-for-all-mic-owners]
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `controller.replace(next, reason)` | Dispose previous provider (release lease) BEFORE installing next — atomic, no-op if already current | Replace, assert old disposed once + ref is next |
+| `controller.shutdown(reason)` | Cancel in-flight start + dispose provider + run hook capture teardown; idempotent | Double shutdown, assert one dispose + teardown ran |
+| `controller.beginStart()` / `isCurrentStart()` / `cancelStarts()` | Generation token so a late-resolving `start()` releases its lease instead of entering recording | `cancelStarts` then assert token stale |
+| `controller.recoverStaleLeases({voiceState,…})` | Release orphaned leases (`selectStaleLeases`) + dispose dangling provider + log invariant violation | Register an idle `voice-stream` lease, assert released + logged |
+| `decideMicLifecycle({event, standalonePwa})` | Pure: which leases release and whether active capture stops per event/platform. `visible` never arms the mic by itself | Matrix test (hidden PWA → all; desktop → non-active; visible → no release/no stop) |
+| `selectStaleLeases({leases, voiceState, …})` | Pure: which live leases the workflow should not hold | Active-owner-while-idle / prewarm-off / passive-no-listener |
+| `isStandaloneDisplayMode()` | `navigator.standalone` or `display-mode: standalone` | Impure detector; the decision it feeds is the pure unit |
+
+**Key invariant**: provider cleanup is idempotent and replay-safe; an error,
+fallback, cancel, unmount, hidden, pagehide, freeze, or stale-start path always
+releases the mic track and never leaves the UI idle while a provider owns a live
+stream. `voiceState` is workflow state; the registry is hardware truth. The old
+`voiceState === "passive"` branch is retired; passive wake-word listening is
+represented by `passiveListeningActive` and a `passive-wake-word` lease.
+
 ### Voice Latency — Stream Ownership Seam (UI)
-**Files**: `ui/src/hooks/voice/micReadiness.ts`, `ui/src/hooks/voice/sharedAudioContext.ts`
+**Files**: `ui/src/audio-integration/hooks/voice/micReadiness.ts`, `ui/src/audio-integration/hooks/voice/sharedAudioContext.ts`
 **Purpose**: Decouple mic stream lifecycle from provider lifecycle, enabling pre-warmed streams for near-instant activation while maintaining testability.
 [DOC: docs/internal/VOICE-LATENCY.md]
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `micReadiness.acquireStream()` | Calls `getUserMedia`, caches result | Mock `getUserMedia`, verify single call |
-| `micReadiness.releaseStream()` | Stops all tracks, nulls stream | Verify `track.stop()` called |
-| `micReadiness.installVisibilityHandler()` | Listens for `visibilitychange`, releases/acquires mic | Dispatch synthetic events, verify behavior |
+| `micReadiness.acquireStream()` | Acquires a `low-latency-prewarm` lease via the mic ownership registry, caches it after explicit mic-control intent | Mock `getUserMedia`, verify mount/visibility do not call it and intent does |
+| `micReadiness.releaseStream()` | Releases the lease (stops all tracks, resets state) | Verify `track.stop()` called |
 | `sharedAudioContext.getSharedAudioContext()` | Returns singleton AudioContext | Mock constructor, assert single creation |
 | `sharedAudioContext.ensureAudioContextOnGesture()` | One-shot pointerdown/keydown listener | Simulate event, verify context created |
 | `VoiceStreamProvider.preConnect()` | Opens WebSocket early, 30s timeout | Mock WebSocket, verify reuse in `start()` |
-| `VoiceStreamProvider.start(preWarmedStream?)` | Uses injected stream or calls `getUserMedia` | Pass mock stream, verify no `getUserMedia` |
-| `VoiceStreamProvider.retainStream` | When true, `stop()` keeps tracks alive | Set flag, call stop, verify tracks not stopped |
+| `VoiceStreamProvider.start(preWarmedStream?)` | Uses injected stream or acquires its own lease | Pass mock stream, verify no `getUserMedia` |
+| `VoiceStreamProvider` lease vs injected stream | Provider releases only a stream it acquired (lease set); injected stream's lease stays with micReadiness | Inject a stream, stop, verify tracks not stopped |
 | `vad.createVadRefsFromCache(cached)` | Seeds thresholds from localStorage cache | Pure function, assert `waitingForSpeech` state |
 | `vad.extractCacheableFloor(vad)` | Extracts current thresholds for persistence | Pure function round-trip test |
 | `api.getCapabilitiesLivenessSnapshot()` | Synchronous read of cached capabilities | Verify no network call in `startRecording()` |
 
-**Key invariant**: Stream ownership transfers on injection. Before injection, micReadiness may release the stream (on visibility hidden). After injection, the provider uses the stream. On `dispose()`, the provider always stops tracks regardless of `retainStream`.
+**Key invariant**: Ownership is tracked by a lease, not the `retainStream` flag.
+A provider holds a lease only for a stream it acquired itself; an injected
+pre-warmed stream's lease stays with micReadiness. `stop()`/`dispose()` release
+only the provider's own lease — never another owner's tracks.
 
-**Key invariant**: Active recording is NEVER interrupted by visibility changes. The visibility handler checks `isRecordingActive()` and no-ops if true.
+**Key invariant**: Page-lifecycle cleanup releases passive/prewarm/settings mic
+owners on hidden and ALL owners on pagehide; an active recording is stopped on
+hidden (privacy). Re-arm happens only after explicit mic-control intent, never
+from visibility alone.
 
 ### Audio Transcoding Seam (API)
-**File**: `api/audio_transcode.go`
+**File**: `api/internal/audio/transcode.go`
 **Purpose**: Decouple audio format conversion from transcription handlers for testable preprocessing.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg stdin/stdout pipe (16kHz mono WAV) | No-op passthrough or tracking function via `t.Cleanup` |
-| `checkFfmpeg` | `sync.Once` + `exec.LookPath` caches ffmpeg availability | Implicitly controlled by `transcodeAudio` override |
+| `audio.Transcode` | ffmpeg stdin/stdout pipe (16kHz mono WAV) | `voice.Service.SetTranscode(...)` with no-op passthrough or tracking function |
+| ffmpeg lookup | `sync.Once` + `exec.LookPath` caches ffmpeg availability | Implicitly controlled by the injected transcode function |
 
-**Benefits**: Audio preprocessing can be tested without ffmpeg installed. Both batch (`handleVoiceTranscribe`) and streaming (`transcribeBytes`) paths share the same seam. Graceful fallback to raw audio when ffmpeg is unavailable or transcoding fails.
+**Benefits**: Audio preprocessing can be tested without ffmpeg installed. Both batch (`Voice.Transcribe`) and streaming (`HandleStreamWS`) paths share the same seam. Graceful fallback to raw audio when ffmpeg is unavailable or transcoding fails.
 
 ### Voice Stream WebSocket Seam (API)
-**File**: `api/voice_stream_ws.go`
+**File**: `api/internal/voice/stream_ws.go`
 **Purpose**: Decouple streaming transcription from the Whisper service for testable WebSocket behavior.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `whisperURL` package var | Points to `localhost:8090/asr?output=json` | Swapped to `httptest.NewServer` URL via `t.Cleanup` defer |
-| `transcribeBytes(ctx, audio, language, transcode, initialPrompt)` | Optionally transcodes via `transcodeAudio`, then calls Whisper; appends `initial_prompt` to URL when non-empty | Uses mock Whisper handler to verify payload size, language, and URL params |
-| `transcode` parameter | `true` for final transcription (ffmpeg WAV), `false` for partials (raw WebM) | Track `transcodeAudio` call count per WS lifecycle — 0 for partials, 1 for final |
-| `transcodeAudio` package var | `defaultTranscodeAudio` → ffmpeg 16kHz mono WAV | No-op passthrough via `t.Cleanup` in `setupVoiceWSServer` |
-| `VoiceStreamConfig` on `Server` | Runtime-configurable struct with `FlushIntervalMs`, `MinDeltaBytes`, `OverlapBytes`. Read once per session (snapshot pattern). Backed by `store/voice-config.json`. | Tests set config via `srv.setVoiceConfig(VoiceStreamConfig{...})` before dialing WS. Each test gets its own `srv` — no cleanup needed. |
+| `voice.HTTPDoer` | `*http.Client` passed from `api/main.go` into `voice.NewService` | Fake/httptest client through `Service.SetHTTPClient(...)` |
+| `whisperURL` service field | Resolved from `WHISPER_URL` at startup | Swapped to `httptest.NewServer` URL with `Service.SetWhisperURL(...)` |
+| `TranscribeBytes(ctx, url, httpClient, transcode, audio, language, doTranscode, initialPrompt)` | Optionally transcodes via the injected function, then calls Whisper through `HTTPDoer`; appends `initial_prompt` to URL when non-empty | Uses mock Whisper handler to verify payload size, language, and URL params |
+| `transcode` parameter | `true` for final transcription (ffmpeg WAV), `false` for partials (raw WebM) | Track injected transcode call count per WS lifecycle — 0 for partials, 1 for final |
+| `transcode` service field | `audio.Transcode` → ffmpeg 16kHz mono WAV | No-op passthrough via `Service.SetTranscode(...)` |
+| `voice.Config` on `voice.Service` | Runtime-configurable struct with `FlushIntervalMs`, `MinDeltaBytes`, `OverlapBytes`. Read once per session (snapshot pattern). Backed by the scenario `api-core/storage` state path. | Tests set config on the service before dialing WS. Each test gets its own `srv` — no cleanup needed. |
 | `VoiceStreamConfig` GET/PUT API | `GET /api/v1/voice/config` returns current config. `PUT /api/v1/voice/config` partial-updates, validates, persists to disk. | `TestHandleGetVoiceConfig`, `TestHandleUpdateVoiceConfig_*` use `httptest.NewRecorder` with `voiceConfigTestServer` helper. |
 | `firstTick` eager bypass | On the first ticker tick, bypasses `MinDeltaBytes` gate to reduce perceived latency for the initial partial | `TestVoiceStreamWS_EagerFirstPartial` verifies sub-MinDeltaBytes audio triggers on first tick |
 | Delta offset tracking | `lastPartialOffset` advances per tick; only new bytes (`buf[offset:]`) sent to Whisper | `trackingWhisperHandler` records payload sizes — each partial ≈ delta size, not full buffer |
@@ -374,19 +923,20 @@ Verification disabled           → no gating at all (current behavior)
 
 **Benefits**: Time-dependent local echo behavior (stale prediction reset, overflow cap) can be tested deterministically without real delays. The clock injection is a single constructor parameter with a sensible default.
 
-### Terminal Cache Storage Seam (UI)
-**File**: `ui/src/lib/terminalCache.ts`
-**Purpose**: Abstracts terminal state persistence for cache-based history resume.
+### Terminal Emulator Seam (API)
+**File**: `api/terminal/emulator.go`
+**Purpose**: Owns the durable decoded state of a PTY's output (screen + alt-buffer + bounded scrollback). The session never inspects raw PTY bytes for replay.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `saveTerminalCache()` | Serializes terminal state to `sessionStorage` | Direct `sessionStorage.clear()` in `beforeEach`; tested via public API without mocking internal storage |
-| `loadTerminalCache()` | Reads and deserializes cached terminal state from `sessionStorage` | Same — tested via public API |
-| `clearTerminalCache()` | Removes cached state from `sessionStorage` | Same — tested via public API |
+| `terminal.New(Options)` | Constructs an emulator sized to the session | `New(Options{Cols, Rows, ScrollbackLines})` with deterministic options |
+| `Emulator.Feed([]byte)` | Called from `Session.broadcast` for every PTY read | Driven directly with crafted byte streams to assert state |
+| `Emulator.Snapshot()` | Returns a self-contained ANSI replay payload | Round-trip: `New().Feed(Snapshot()) ≡ original` (`emulator_test.go`) |
+| `Emulator.Resize(cols, rows)` | Called from `Session.Resize` | Asserts scrollback line count is preserved |
 
-**Benefits**: Enables instant visual restore on page refresh. Server sends only delta output. Tests verify cache lifecycle without browser dependencies.
+**Benefits**: Replay is replay-safe across alt-buffer/charset/resize transitions. The snapshot remains the recovery source of truth while the bounded cursor ring avoids retransmitting already-rendered output during short reconnects.
 
-**Boundary**: `terminalCache.ts` ↔ `TerminalPane.tsx` (serialize/restore) ↔ `useTerminalSocket.ts` (offset negotiation)
+**Boundary**: `api/terminal/` ↔ `api/session.go` (`Subscribe()` returns the snapshot and cursor-bearing frame stream) ↔ `api/terminal_ws.go` (resume handshake, cursor frames, and snapshot fallback) ↔ `ui/src/hooks/terminal/useTerminalSession.ts` (renderer checkpoint and snapshot-mode flag).
 
 ### Combo Sequence Delay Seam (UI)
 **File**: `ui/src/lib/comboSequence.ts`
@@ -462,15 +1012,20 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Backend Seams
 
-**`TTSSynthesizer` interface** (`tts_synthesize.go`):
-- Production: `KokoroSynthesizer` — proxies to Kokoro-FastAPI `/v1/audio/speech`
-- Test: Mock returning `io.ReadCloser` with test audio bytes
-- Injected via `Server.ttsSynthesizer` field
+**Internal TTS service boundary** (`api/internal/tts/types.go`, `api/internal/tts/service.go`, wired by `api/tts_adapter.go`):
+- Production: `internal/tts.Service` implements `internal/tts.HandlerService`; `handlers/tts` aliases that contract for Connect-RPC, and `newTTSAdapter(*Server)` adapts current web-console config stores, status callbacks, capability lookup, cache, synthesizer, and voice lister into `internal/tts.Deps`.
+- Purpose: TTS config validation, summarize config validation, status assembly, synthesis normalization, cache lookup, and voice listing behavior live outside `package main`.
+- Test: `api/internal/tts/service_test.go` covers core service behavior directly; handler tests still drive the Connect handler contract.
 
-**`TTSVoiceLister` interface** (`tts_voices.go`):
-- Production: `KokoroVoiceLister` — proxies to Kokoro-FastAPI `/v1/audio/voices`
+**`TTSSynthesizer` interface** (`api/internal/tts/kokoro_synthesize.go`, aliased by `api/tts_synthesize.go`):
+- Production: `internal/tts.KokoroSynthesizer` — proxies to Kokoro-FastAPI `/v1/audio/speech`
+- Test: Mock returning `io.ReadCloser` with test audio bytes
+- Injected through `internal/tts.Deps.SynthesizeAudio`
+
+**`TTSVoiceLister` interface** (`api/internal/tts/kokoro_voices.go`, aliased by `api/tts_voices.go`):
+- Production: `internal/tts.KokoroVoiceLister` — proxies to Kokoro-FastAPI `/v1/audio/voices`
 - Test: Mock returning `[]TTSVoice` slice
-- Injected via `Server.ttsVoiceLister` field
+- Injected through `internal/tts.Deps.ListVoiceCatalog`
 
 ### Capability Gating
 
@@ -481,25 +1036,25 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Hook Delivery Chain
 
-**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` / `CodexTailer` → `routeTTSCandidate` → `SendTTS` → WebSocket `tts_candidate` side-channel → UI `useTerminalSocket` `onTTSCandidate` → terminal-visible correlation → `useTextToSpeech.speakParagraphs` → WebSocket `tts_ack`
+**Path**: `web-console hooks register` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` / transcript sources → conversation append/fan-out → WebSocket `conversation_event` → UI `useTerminalSession` → `TerminalPane` append + received/seen ack → `useTtsPlaybackController.handleIncomingEvent` → `TerminalPaneHandle.speakText` → `useTextToSpeech.speakParagraphs` → conversation playback ack/cursor update
 
 **Seam points**:
-1. `tts-hooks.sh` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
+1. `web-console hooks register` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
 2. Claude Stop hook ↔ API: HTTP POST with `X-Hook-Token` auth header
 3. `routeTTSCandidate` ↔ source adapters: backend routing only accepts explicit terminal ownership; it does not infer from PTY output
-4. `SendTTS` ↔ WebSocket: buffered candidate fan-out (non-blocking, drops on full)
-5. `useTerminalSocket` ↔ `TerminalPane`: client receives `tts_candidate` and emits `tts_ack`
-6. `TerminalPane` ↔ xterm.js buffer: rendered terminal text is the source of truth for correlation
+4. Conversation store/fan-out ↔ WebSocket: normalized events broadcast to session subscribers
+5. `useTerminalSession` ↔ `TerminalPane`: client receives `conversation_event` and emits delivery/playback acknowledgements
+6. `TerminalPane` ↔ `useTtsPlaybackController`: TerminalPane owns provider plumbing; controller owns auto-play intent, queue, selected target, and listened commits
 7. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
 
-**Testing**: `tts_hook_handler_test.go` covers Claude session mapping. `tts_router_test.go` covers candidate routing/dedup. `codex_tailer_test.go` includes an E2E test from rollout file → owning terminal candidate.
+**Testing**: `tts_hook_handler_test.go` covers Claude session mapping. `tts_router_test.go` covers candidate routing/dedup. `codex_tailer_test.go` includes an E2E test from rollout file → owning terminal candidate. `mid_session_conversation_test.go` locks in that attribution holds for sessions started as plain shells (no shortcut) and that unattributed payloads cannot bleed into other sessions. User-facing contract: [guides/CONVERSATION_TRACKING.md](../guides/CONVERSATION_TRACKING.md).
 
 ### Two Independent TTS Trigger Paths
 
-1. **Claude Code Hook** (`tts-hooks.sh` → `claude-code` reconcile → `claude-stop-hook.sh` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Web-console now uses a command hook instead of a raw HTTP hook so the terminal environment can inject `WC_WEB_CONSOLE_SESSION_ID` directly into the payload. Claude keeps its native shared `~/.claude` session storage unchanged, so sign-in and onboarding state are preserved.
-2. **CodexTailer** (`codex_tailer.go`): Passive poll. Watches each terminal session's dedicated `CODEX_HOME/sessions/` tree and extracts assistant text. Each terminal gets a prepared `CODEX_HOME` overlay: shared auth/config is symlinked from `~/.codex`, while rollout/session data remains terminal-owned. Rollout ownership is therefore explicit from the filesystem path, not inferred from text.
+1. **Claude Code Hook** (`web-console hooks dispatch` → `handleHookStop`): Active push. Claude Code fires a Stop hook after each response. Web-console registers a portable Go command hook, so the terminal environment can inject `WC_WEB_CONSOLE_SESSION_ID` directly into the payload. Claude keeps its native shared `~/.claude` session storage unchanged, so sign-in and onboarding state are preserved.
+2. **CodexTailer** (`codex_tailer.go`, `internal/tailer`): Passive poll. Watches each terminal session's dedicated `CODEX_HOME/sessions/` tree and extracts assistant text. Each terminal gets a prepared `CODEX_HOME` overlay only when Codex is launched: shared auth/config and regenerable runtime state resolve to `~/.codex`, while rollout/session data remains terminal-owned. Rollout ownership is therefore explicit from the filesystem path, not inferred from text.
 
-Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, explicit target session ownership, and **dedup check**. Browser-side correlation happens later against the rendered xterm buffer, and the client reports outcomes back via `tts_ack`. `/api/v1/tts/status` exposes both backend routing and client acknowledgment state.
+Both paths converge as normalized conversation events. Frontend auto-play is gated by `autoTtsEnabled`, active pane ownership, assistant role, and persisted playback intent. The client reports delivery and playback outcomes over conversation-event acknowledgements.
 
 **Dedup cache** (`ttsDedup` in `tts_router.go`): routing uses a time-bounded event-identity cache keyed from `source + session + cleaned text`. Entries expire after `ttsDedupTTL` (30s). The `ttl` field is injectable for testing.
 
@@ -512,10 +1067,10 @@ Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, expl
 ### Phase 2 (2026-02-19) — Responsibility Boundaries
 | Violation | Before | After |
 |-----------|--------|-------|
-| WebSocket protocol in TerminalPane | TerminalPane mixed xterm.js rendering with WS protocol | Extracted to `useTerminalSocket` hook |
+| WebSocket protocol in TerminalPane | TerminalPane mixed xterm.js rendering with WS protocol | Extracted to `useTerminalSession` hook |
 | Data formatting in SessionDrawer JSX | Inline `split("/").pop()`, `toLocaleTimeString()` | Extracted to `lib/format.ts` utilities |
 | setTimeout shortcut injection | `setTimeout(500)` timing assumption in Workspace | Event-driven `onReady` callback from TerminalPane |
-| ANSI escape codes scattered | Hardcoded `\x1b[90m` in TerminalPane | Centralized `ANSI` constants in useTerminalSocket |
+| ANSI escape codes scattered | Hardcoded `\x1b[90m` in TerminalPane | Centralized `ANSI` constants in useTerminalSession |
 | Implicit onExit callback | `readLoop(onExit func(string))` mutated SessionManager | `exitCh` channel; SessionManager listens on `Done()` |
 | Silent JSON decode errors | `_ = json.Decode()` in handler | Logged with `log.Printf` for debugging |
 
@@ -552,7 +1107,7 @@ Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, expl
 ## Remaining Ownership Issues
 
 1. ~~**Shortcut defaults hardcoded** in `TerminalLauncher.tsx`~~ — **Resolved Phase 8**: Extracted to `consts/shortcuts.ts`
-2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSocket` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
+2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSession` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
 3. ~~**No session persistence**~~ — **Resolved**: Workspace pane metadata persisted in SQLite `workspace_panes` table with cross-device sync via `WorkspaceStore` interface
 4. **No structured logging** — Simple `log.Printf` across API; should use structured logger at integration boundaries
 5. ~~**API client hardcoded in Workspace**~~ — **Resolved Phase 8**: Session lifecycle extracted to `useSessionManager` hook
@@ -578,7 +1133,7 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 ### Axis 3: Error Codes & Recovery (API + UI)
 **What changes**: Adding new error types, adjusting recovery hints, new categories
 **Cost**: Low — API: add entry to `errorCatalog` map in `session_handlers.go`; UI: `ErrorBanner.tsx` renders any `ErrorInfo` shape
-**Files to touch**: `session_handlers.go` (catalog entry), optionally `useTerminalSocket.ts` (WS recovery)
+**Files to touch**: `session_handlers.go` (catalog entry), optionally `useTerminalSession.ts` (WS recovery)
 **Test coverage**: `TestErrorCatalog_StructuralInvariants` validates all entries have valid category, message, recovery, status. `TestWriteJSONError_UnknownCode_Fallback` verifies graceful degradation for new codes.
 **Invariant**: Unknown codes fall back to `internal` category with generic recovery hint.
 
@@ -590,8 +1145,8 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 
 ### Axis 5: WebSocket Protocol (P0-002b)
 **What changes**: Adding message types, changing framing, adjusting handshake
-**Cost**: High (inherently coupled) — requires coordinated changes in `terminal_ws.go` and `useTerminalSocket.ts`
-**Files to touch**: `terminal_ws.go` (server), `useTerminalSocket.ts` (client), both message type definitions
+**Cost**: High (inherently coupled) — requires coordinated changes in `terminal_ws.go` and `useTerminalSession.ts`
+**Files to touch**: `terminal_ws.go` (server), `useTerminalSession.ts` (client), both message type definitions
 **Mitigation**: Message types are string constants on both sides; `TerminalMessage` interface/struct serves as the protocol contract. Adding new types is additive and backward-compatible.
 
 ### Axis 6: Terminal Appearance
@@ -613,7 +1168,7 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 | `pty.go` / PTY interface | **Stable core** | Abstraction boundary — changes only if PTY API changes |
 | `terminal_ws.go` / WS protocol | **Stable core** | Message framing — additive changes only |
 | `main.go` / server wiring | **Stable core** | Router + middleware — rarely touched |
-| `useTerminalSocket.ts` | **Stable core** | WS lifecycle hook — additive message types only |
+| `useTerminalSession.ts` | **Stable core** | WS lifecycle hook — additive message types only |
 | `useSessionManager.ts` | **Stable core** | Session orchestration — change when API contract changes |
 | `TerminalPane.tsx` | **Stable core** | xterm.js rendering — change only for terminal feature additions |
 | `consts/shortcuts.ts` | **Volatile edge** | Shortcut definitions — expected to change with profiles (P1-010) |
@@ -646,7 +1201,7 @@ Phase 14 extracted the following decision points into named, testable helpers. E
 
 | Helper | File | Decision | Inputs |
 |--------|------|----------|--------|
-| `isCleanWsClose(code)` | `useTerminalSocket.ts` | Whether a WebSocket close is intentional (1000/1001) vs. unexpected | Close code |
+| `isCleanWsClose(code)` | `useTerminalSession.ts` | Whether a WebSocket close is intentional (1000/1001) vs. unexpected | Close code |
 
 ### Decision Groupings by Domain
 
@@ -657,7 +1212,7 @@ Phase 14 extracted the following decision points into named, testable helpers. E
 | **Error classification** | `session_handlers.go` | `classifyCreateError`, `writeJSONError`, `errorCatalog` |
 | **AI command extraction** | `ai_generate.go` | `extractCommand`, `knownCodeFences`, `checkProviderResponse` |
 | **Configuration** | `config.go` | `resolveShell`, `envInt`, `LoadConfig` |
-| **WebSocket transport** | `terminal_ws.go` (server), `useTerminalSocket.ts` (client) | `isCleanWsClose`, WS message dispatch |
+| **WebSocket transport** | `terminal_ws.go` (server), `useTerminalSession.ts` (client) | `isCleanWsClose`, WS message dispatch |
 
 ### Well-Extracted vs. Still-Scattered
 
@@ -792,9 +1347,16 @@ The API uses a hybrid organization:
 | `error` | Server→Client | Runtime error with known recovery hints for common cases |
 | `pong` | Server→Client | Keepalive response confirming connection liveness |
 | `resize_info` | Server→Client | Informational: reports effective PTY size after resize (may differ from requested if other clients are larger) |
+| `size_info` | Server→Client | Authoritative shared grid plus leader/lease state for all viewers |
+| `take_lease` | Client→Server | Explicit transfer of terminal size authority to this connection |
 | `sync_warning` | Server→Client | Coalescing notification: `coalesced_frames` count indicates output frames merged due to slow consumption (data is preserved, not lost) |
 
 **UI Feedback Surfaces:**
+
+**Size Lease seam:** `api/session/sizelease.go` owns declared sizes and the
+single authoritative PTY resize path; `ui/src/hooks/terminal/useTerminalSession.ts`
+owns application of `size_info` and the Take over command. Device labels are
+recognition-only client assertions and are never authorization inputs.
 | Component | Signal Type | Behavior |
 |-----------|------------|----------|
 | App startup | Loading spinner | "Connecting to API..." with 3 retries, then error page with retry button |
@@ -810,5 +1372,283 @@ The API uses a hybrid organization:
 1. **No event stream endpoint** — Events are polled via `GET /api/v1/events`. An SSE or WebSocket-based real-time event stream would enable live dashboards without polling. Low priority for single-user.
 2. **No structured logging** — API uses `log.Printf` (text). A structured logger (slog) would enable machine-parseable log aggregation. Documented in PROBLEMS.md, deferred.
 3. **No Prometheus/OpenTelemetry** — Metrics are JSON-only poll. External observability integration is a future concern.
-4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSocket`.
+4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSession`.
 5. **Session delete from UI** — No confirmation feedback beyond the session disappearing from the list. Low priority.
+
+## Device roster and terminal size lease
+
+`api/handlers/devices` owns the Connect `DeviceService` transport contract;
+`api/devices_catalog.go` adapts it to `session.Manager.ConnectedDevices()` and
+`Session.Supersede`. The service is a live projection, not a second device
+database. `List` groups WebSocket connections by browser-local device identity,
+and `Disconnect` refuses the caller's own device before asking the session to
+supersede another connection.
+
+The existing `/api/v1/events/stream` lifecycle stream carries device metadata for
+connected and disconnected sessions. `useDevices` owns the snapshot query while
+`Workspace` invalidates it on those deltas; no device polling timer is allowed.
+Terminal size and lease authority remain in `api/session/sizelease.go` and the
+terminal protocol reducer. Device identity is never an authorization signal.
+
+## Audio Extraction Prep — Domain Boundary Seams (2026-05-16)
+
+These rows capture the audio-tools extraction-prep state. Each row identifies a
+seam currently in `web-console/api/internal/{voice,tts,audio}`. Future
+`scenarios/audio-tools` will own implementations behind the same interfaces;
+the future web-console adopter will swap the local implementations for
+`audio-tools` clients without touching orchestration code.
+
+### TTS HandlerService Seam (API)
+- **File**: [CODE: scenarios/web-console/api/internal/tts/types.go]
+- **Interface**: `inttts.HandlerService` — Connect-RPC TTS handler depends on
+  this. Production impl is `inttts.Service` constructed via `newTTSAdapter` in
+  `api/tts_adapter.go`.
+- **Test substitution**: pass a fake `HandlerService` to
+  `handlers/tts.NewConnectHandler` — `handlers/tts/connect_handler_test.go`
+  patterns apply.
+- **Maturity**: Stable. Phase 4 will add a `TextToSpeech` *capability* port on
+  top to decouple orchestration from this transport-shaped contract.
+
+### TTS Synthesizer / VoiceLister Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/tts/service.go],
+  [CODE: scenarios/web-console/api/internal/tts/kokoro_synthesize.go]
+- **Interface**: `Deps.SynthesizeAudio`, `Deps.ListVoiceCatalog` —
+  function-pointer seams the Service uses for synthesis and voice enumeration.
+- **Production impl**: `KokoroSynthesizer.Synthesize`,
+  `KokoroVoiceLister.ListVoices`, wired through `tts_adapter.go`.
+- **Test substitution**: in-package tests construct `inttts.Deps` with
+  closures.
+- **Maturity**: Stable. Future audio-tools will provide the
+  synthesize/list-voices HTTP/Connect clients behind the same Deps shape.
+
+### TTS Text Pipeline Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/tts/normalizer.go],
+  [CODE: scenarios/web-console/api/internal/tts/chunker.go]
+- **Functions**: `NormalizeTextForSpeech`, `SplitIntoSpeechParagraphs`,
+  `TTSMaxChunkLength`. Pure functions, no Server state.
+- **Callers**: `conversation_router.go`, `conversation_adapter.go`,
+  `conversation_store.go`, `tts_summarization_service.go` — all via the
+  `inttts.` package qualifier.
+- **Boundary enforced by**: `TestGreenfield_TTSReusableCoreNotInPackageMain`.
+- **Maturity**: Stable; ready for verbatim extraction into audio-tools.
+
+### Voice HandlerService Seam (API)
+- **File**: [CODE: scenarios/web-console/api/internal/voice/types.go]
+- **Interface**: `intvoice.HandlerService` — Connect-RPC Voice handler depends
+  on this. Production impl is `intvoice.Adapter`, wrapping a `Backend`
+  (`intvoice.Service` in production).
+- **Test substitution**: pass a fake `HandlerService` to
+  `handlers/voice.NewConnectHandler`; or pass a fake `Backend` to
+  `intvoice.Adapter{}` for higher-fidelity orchestration tests.
+- **Maturity**: Stable as of 2026-05-16 Phase 3 inversion. Previously these
+  types lived in `handlers/voice` and `internal/voice` imported the handler
+  package — that direction has been reversed.
+
+### Voice Backend (Storage/State) Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/voice/types.go],
+  [CODE: scenarios/web-console/api/internal/voice/service.go]
+- **Interface**: `intvoice.Backend` — the Adapter's storage/state seam
+  covering Whisper capability checks, speaker evaluation, stream/speaker/
+  wakeword config persistence, and the speaker resource client.
+- **Production impl**: `intvoice.Service` — owns config paths, in-memory
+  state, the `SpeakerClient`, and the Whisper `HTTPDoer`.
+- **Test substitution**: fakes implement the 22 Backend methods; see existing
+  speaker_extraction tests and `voice_test_helpers_test.go` patterns.
+
+### Audio Transcoder Seam (API)
+- **File**: [CODE: scenarios/web-console/api/internal/audio/transcode.go]
+- **Function**: `Transcode(ctx, audio) ([]byte, error)` — invokes ffmpeg.
+  Passed into `intvoice.NewService` as the `transcode` callback so the WS
+  pipeline can swap it for a passthrough in tests.
+- **Maturity**: Stable. Audio-tools will eventually own this; current shape is
+  already extraction-ready.
+
+### Boundary Enforcement Tests (API)
+- **File**: [CODE: scenarios/web-console/api/greenfield_assertions_test.go]
+- **Tests**:
+  - `TestGreenfield_TTSReusableCoreNotInPackageMain` — reusable TTS text
+    primitives must live in internal/tts.
+  - `TestGreenfield_InternalAudioDomainsDoNotImportHandlers` —
+    internal/{voice,tts,audio} cannot import handlers/*.
+- These are intentional ratchets: passing them is the precondition for
+  audio-tools scenario generation.
+
+### Audio Capability Port Seam (API)
+- **Files**: [CODE: scenarios/web-console/api/internal/audioports/ports.go],
+  [CODE: scenarios/web-console/api/internal/audioports/local_processor.go]
+- **Interfaces**: `SpeechToText`, `TextToSpeech`, `SpeechTextProcessor`. These
+  are web-console-owned capability ports — the abstraction conversation /
+  terminal / TTS orchestration depends on. Local production implementation
+  (`LocalSpeechTextProcessor`) is backed by `internal/tts`; the future
+  audio-tools client will implement the same interfaces and slot in without
+  touching orchestration code.
+- **Wired into**: `Server.speechProcessor` (main.go), `ConversationStore.processor`,
+  `TTSSummarizationService.processor`. Each has a `SetSpeechProcessor` setter
+  and a default-bound `speechProcessor()` accessor so tests don't have to
+  inject explicitly.
+- **Boundary enforced by**:
+  `TestGreenfield_OrchestrationRoutesThroughAudioPorts` — package-main `.go`
+  files cannot call `inttts.NormalizeTextForSpeech(` /
+  `inttts.SplitIntoSpeechParagraphs(` directly. Reads must go through the
+  port.
+- **Maturity**: Stable for the text pipeline (`SpeechTextProcessor`).
+  `SpeechToText` and `TextToSpeech` are declared but the orchestration sites
+  for Transcribe/Synthesize/ListVoices still call internal services directly
+  through `tts_adapter.go`. Routing those through the ports is a follow-up
+  pass scoped in PROBLEMS.md §10.
+
+### Frontend Audio Adoption Boundary Seam (UI)
+- **Files**: [CODE: scenarios/web-console/ui/src/domains/audio/index.ts],
+  [CODE: scenarios/web-console/ui/src/domains/audio/README.md]
+- **Purpose**: The UI mirror of `internal/audioports`. The re-export surface
+  is the only path consumer modules should use when reaching for reusable
+  audio capability code (`VoiceStreamProvider`, `WhisperProvider`,
+  `WebSpeechProvider`, VAD, audio filter chain, shared AudioContext,
+  `KokoroProvider`, `BrowserTTSProvider`, `TranscriptionProvider`/`TTSProvider`
+  type contracts).
+- **Migration**: When audio-tools ships its UI surface, redirecting these
+  re-exports is the only edit needed; consumer imports across `Workspace`,
+  `TerminalPane`, terminal input gate, and the settings sections stay stable.
+- **Classification of web-console-specific (non-extractable) UI** is recorded
+  in the README: voice-command parser, audio cues / recording activity,
+  `useVoiceInput` orchestrator, `useTextToSpeech` orchestrator,
+  `tts-playback` controller, mic button / rejection banner /
+  command-suggestion components, and the audio player bar tied to the
+  conversation cursor.
+- **Maturity**: Stable as a documented boundary; no behaviour change
+  shipped. Migrating consumer imports to use `domains/audio` rather than
+  reaching into `hooks/voice/**`/`hooks/tts/**` directly is a follow-up
+  ratchet (recorded in PROBLEMS.md §10).
+
+### Connected Scenarios Registry Seam (API + UI)
+- **API file**: [CODE: scenarios/web-console/api/internal/capabilities/registry.go]
+- **Checker file**: [CODE: scenarios/web-console/api/internal/capabilities/checkers.go]
+  (`ScenarioChecker`)
+- **Action file**: [CODE: scenarios/web-console/api/internal/capabilities/actions.go]
+  (`LifecycleActionService`)
+- **Handler file**: [CODE: scenarios/web-console/api/handlers/capabilities/connect_handler.go]
+  (`RunAction`)
+- **UI file**: [CODE: scenarios/web-console/ui/src/components/IntegrationsPanel.tsx]
+- **Purpose**: Single source of truth for which other Vrooli scenarios this
+  web console adopts. Each `capabilities.Def` with `DependencyKind ==
+  DependencyScenario` is a declared integration; the static catalogue lives in
+  `capabilities.Known` so a single edit there registers a scenario across the
+  capabilities Connect-RPC response, the Integrations settings panel, and any
+  future feature gate.
+- **Runtime probe**: `ScenarioChecker.CheckResult` shells out to `vrooli
+  scenario status <slug> --json` and decodes typed fields (`status`,
+  `health_status`, `health_error`, and `start_operation`). The `Run` field is
+  the command-runner seam; tests substitute a closure. Status classification
+  must not depend on substring searches over arbitrary CLI text.
+- **Recovery boundary**: Status results may carry `reason_code`,
+  `action_kind`, `action_label`, and `operator_command` for the UI. Scenario
+  recovery delegates through `LifecycleActionService`, which accepts only
+  `scenario_start`/`scenario_restart` for declared `DependencyScenario`
+  entries, invokes `vrooli scenario start|restart <slug> --json --timeout N`,
+  then blocks once with `vrooli scenario wait <slug> --json --timeout N`.
+  Commands are executed as argv, not shell strings. Resource/provider recovery
+  remains with the owning scenario/provider lifecycle; audio internals belong
+  to audio-tools.
+- **UI behaviour**: `IntegrationsPanel` groups entries by `dependencyKind`.
+  Scenario integrations render in the "Connected Scenarios" subsection with
+  typed reason/action guidance when unavailable. Backend-supported scenario
+  actions show explicit Start/Restart buttons with progress/result/error state
+  and refresh the capabilities query after completion. Operator-only states
+  show the command but no button. Resource capabilities (Ollama, OpenRouter,
+  and future local services) render in a separate "Local Resources" subsection.
+  Whisper, Kokoro, speaker verification, and other audio providers do not
+  appear as web-console-owned resources.
+- **Audio-tools entry**: registered today with `slug: "audio-tools"`. Its
+  features list is the contract audio-tools fills:
+  `voice-input`, `voice-streaming`, `voice-speaker-verification`,
+  `voice-enrollment`, `voice-output`, `tts-summarization`, `tts-cache`,
+  `tts-paragraph-split`, `audio-provider-routing`.
+- **Test files**:
+  [CODE: scenarios/web-console/api/internal/capabilities/scenario_checker_test.go]
+  (typed status, legacy list shape, lifecycle operation, malformed JSON, and
+  unavailable cases);
+  [CODE: scenarios/web-console/api/internal/capabilities/actions_test.go]
+  (delegated lifecycle command construction, failures, declared-slug
+  restriction, and argv safety);
+  [CODE: scenarios/web-console/api/handlers/capabilities/connect_handler_test.go]
+  (RunAction transport mapping);
+  [CODE: scenarios/web-console/ui/src/__tests__/integrations-panel.test.tsx]
+  (grouping, typed reason/action metadata, delegated action success/failure,
+  and operator-only guidance).
+- **Maturity**: Stable. Future enrichment (e.g. audio-tools self-reporting
+  *which* provider — Whisper vs cloud API — it's currently using) lands by
+  extending `Def`/`State` or by a follow-up RPC; the current shape leaves
+  room without re-plumbing the panel.
+
+### Audio admin / runtime ports (API)
+
+- **Where**: [CODE: api/internal/audioports/ports.go] (interfaces),
+  [CODE: api/internal/audioports/contracts.go] (proto ↔ domain mappers
+  + typed enums), `remote_*.go` (Remote* adapters: speaker / wake-word
+  / stream-config / tts-config / summarize-config / playback-event).
+- **Seam**: every handler in `handlers/audio_admin` and
+  `handlers/audio_runtime` accepts these interfaces as `Deps`; tests
+  pass small fakes. See
+  [CODE: api/handlers/audio_admin/connect_handler_test.go] and
+  [CODE: api/handlers/audio_runtime/connect_handler_test.go].
+- **Boundary rule**: handlers consume only audioports domain types.
+  audio-tools proto types never cross the handler boundary;
+  `contracts.go` is the single conversion point.
+
+### Voice WS reverse proxy (API)
+
+- **Where**: [CODE: api/voice_stream_proxy.go] — registered at
+  `/api/v1/voice/stream`.
+- **What it does**: opens a same-origin WebSocket to the browser,
+  dials audio-tools' upstream WS, and bridges frames both directions.
+  The browser never sees audio-tools' host; web-console owns the
+  scenario-URL resolution + re-resolution.
+- **Seam**: takes an `audiotoolsint.URLResolver` so tests can inject
+  a fake-upstream URL.
+
+## Overlay keyboard avoidance
+
+**The seam.** React Component Library's `useViewportEnvironment` measures and
+normalizes the browser viewport once for every overlay consumer. Each overlay
+publishes the resulting `--rcl-*` geometry on its own presentation root;
+Web Console does not own or write those variables. `useAppViewport`
+(`ui/src/hooks/useAppViewport.ts`) consumes the same normalized snapshot and
+projects only the application shell's `--wc-app-height`, `--wc-kb-height`,
+safe-area variables, and deduplicated follower keyboard state. Its only scroll
+correction is for a demonstrated non-zero page or visual-viewport offset, so an
+ordinary resize cannot create a VisualViewport scroll feedback loop.
+
+**The trap.** The primitive's `avoidKeyboard` prop defaults to `false`. An
+overlay that never mentions it compiles, renders, and passes review — and then
+on a phone the virtual keyboard slides up over the field being typed into.
+Twelve of fifteen overlays were in that state. The correct code and the broken
+code differ by an absent line, which is exactly what code review does not see.
+
+**The guard.** `ui/src/__tests__/overlay-keyboard-contract.test.ts` requires
+every file rendering `ResponsiveDialog`, `FullPageDrawer`, `BottomSheet` or
+`DrawerShell` to mention `avoidKeyboard` — either opting in, or opting out with
+a stated reason in a comment directly above. It also asserts it found at least
+ten overlays, so a refactor cannot empty its subject set and pass vacuously.
+
+To find every overlay and its choice:
+
+```
+grep -rlE "<(ResponsiveDialog|FullPageDrawer|BottomSheet|DrawerShell)\b" ui/src/components --include=*.tsx
+```
+
+## Integration and commercial-context seams
+
+`IntegrationsPanel` composes three independent domains. `useCapabilities` and
+the capability action endpoint own runtime dependency health and lifecycle
+actions. `/api/v1/integrations/connections` projects only declared,
+metadata-only credential connections. `/api/v1/commercial-context` is an
+optional authenticated projection from Landing Page Business Suite and never
+participates in capability authorization.
+
+The connection query is rendered independently from runtime loading and error
+states. Commercial content is filtered by placement, server eligibility,
+expiration, and dismissal windows before presentation. Credential values are
+write-only and are never placed in response JSON, browser storage, URLs, or
+component state. The focused contract tests live in
+`ui/src/__tests__/integrations-panel.test.tsx` and
+`ui/src/api/__tests__/commercial-context.test.ts`.

@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "focus",
+        "kind": "enum",
+        "label": "Mode",
+        "options": ["focus", "canvas"],
+        "path": "mode"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "mode": "focus"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Preview canvas",
+          "role": "region"
+        },
+        {
+          "kind": "text",
+          "value": "One specimen"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Shared substrate",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "mode": "canvas"
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Preview canvas",
+          "role": "region"
+        },
+        {
+          "kind": "text",
+          "value": "Spatial canvas"
+        }
+      ],
+      "id": "canvas",
+      "mode": "live",
+      "name": "Spatial canvas",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": ["focus", "canvas"]
+      }
+    }
+  ],
+  "title": "Canvas frame"
+}

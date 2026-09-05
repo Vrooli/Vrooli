@@ -1,0 +1,266 @@
+{
+  "version": "1.0.0",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "surfaces": [
+        "cli",
+        "ui"
+      ],
+      "internal_reason": "cli-core status and browser infrastructure health use the root health route"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "surfaces": [
+        "ui"
+      ],
+      "internal_reason": "client API health alias"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resources/health",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resources",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resources/{name}",
+      "surfaces": [
+        "cli"
+      ],
+      "internal_reason": "CLI resource detail command; the UI uses the derived V2 resource read model"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/operator-state",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v2/operator-state",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/scenarios",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/recommendation",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/resources",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/core-set",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/closure",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/union",
+      "surfaces": [
+        "cli"
+      ],
+      "internal_reason": "Deployment-union export is a CLI artifact affordance; the UI exposes the derived closure instead"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/credentials",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/handoff",
+      "surfaces": [],
+      "internal_reason": "vrooli-bridge consumes this HTTP projection directly"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/apply",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/apply/plan",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/apply/{run_id}",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/session",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/session/step",
+      "surfaces": [
+        "ui"
+      ],
+      "internal_reason": "UI navigation currently owns the durable pointer; the CLI resume phase will add the reverse write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/steps",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/operator-inputs",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/operator-inputs/resolve",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/capabilities",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/capabilities/status",
+      "surfaces": [],
+      "internal_reason": "Compatibility alias for the canonical capabilities status read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/capabilities/preview",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/capabilities/apply",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/host-requirements",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/readiness",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/readiness/degraded-acknowledgement",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/credentials/provision",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/credentials/doctor",
+      "surfaces": [
+        "cli"
+      ],
+      "internal_reason": "CLI credential doctor is the explicit terminal diagnosis affordance; the UI consumes the same diagnosis through readiness"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/glossary",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    }
+  ]
+}

@@ -9,9 +9,15 @@ import (
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/transitionrun"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/handoff"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // stubPolicyProvider implements PolicyProvider for tests.
@@ -25,17 +31,185 @@ func (s *stubPolicyProvider) LoadPolicy() (Policy, error) {
 
 type stubAgentService struct {
 	spawnCalls int
-	spawnErr   error
+}
+
+type stubPhasedPlanWorkflow struct {
+	start        agentmanager.WorkflowStart
+	startErr     error
+	invocation   agentmanager.Invocation
+	startCalls   int
+	completion   agentmanager.InvocationCompletion
+	collectErr   error
+	collectCalls int
+	approveCalls int
+	cancelCalls  int
+	progress     agentmanager.WorkflowProgress
+	progressErr  error
+}
+
+type stubConclusionWorkflow struct {
+	start        agentmanager.WorkflowStart
+	startErr     error
+	invocation   agentmanager.Invocation
+	startCalls   int
+	completion   agentmanager.InvocationCompletion
+	collectErr   error
+	collectCalls int
+}
+
+func (s *stubConclusionWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	s.startCalls++
+	s.invocation = invocation
+	if s.startErr != nil {
+		return agentmanager.WorkflowStart{}, s.startErr
+	}
+	if s.start.ExecutionID == "" {
+		return agentmanager.WorkflowStart{ExecutionID: "conclusion-1", RunID: "run-c", DefinitionDigest: "sha256:conclusion"}, nil
+	}
+	return s.start, nil
+}
+
+func (s *stubConclusionWorkflow) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
+	s.collectCalls++
+	return s.completion, s.collectErr
+}
+
+func (s *stubPhasedPlanWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	s.startCalls++
+	s.invocation = invocation
+	if s.startErr != nil {
+		return agentmanager.WorkflowStart{}, s.startErr
+	}
+	if s.start.ExecutionID == "" && s.start.DefinitionDigest == "" && s.start.RunID == "" {
+		return agentmanager.WorkflowStart{ExecutionID: "wfx-1", RunID: "run-1", DefinitionDigest: "sha256:def"}, nil
+	}
+	return s.start, nil
+}
+
+func (s *stubPhasedPlanWorkflow) CollectWorkflow(_ context.Context, _ string) (agentmanager.InvocationCompletion, error) {
+	s.collectCalls++
+	return s.completion, s.collectErr
+}
+
+func (s *stubPhasedPlanWorkflow) GetWorkflowProgress(_ context.Context, _ string) (agentmanager.WorkflowProgress, error) {
+	return s.progress, s.progressErr
+}
+
+func TestWorkflowProgressReadsAgentManagerTraceWithoutPersistingIt(t *testing.T) {
+	workflow := &stubPhasedPlanWorkflow{progress: agentmanager.WorkflowProgress{CurrentNode: "slice", SliceCount: 2, Turns: 7, CostUSD: 0.42, EdgeTraversals: map[string]int32{"slice->review": 2}, UpdatedAt: "2026-07-22T12:00:00Z"}}
+	service, _, started, _ := setupPhasedPlanExecution(t, "progress-plan")
+	service.phasedPlanWorkflow = workflow
+	progress, err := service.WorkflowProgress(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if progress.CurrentNode != "slice" || progress.SliceCount != 2 || progress.Turns != 7 {
+		t.Fatalf("progress=%+v", progress)
+	}
+	stored, err := service.Get(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.transitionCorrelation(stored); err != nil {
+		t.Fatalf("live progress lost execution correlation: %v", err)
+	}
+}
+
+func (s *stubPhasedPlanWorkflow) SignalWorkflow(context.Context, string, string, *structpb.Value, string) error {
+	s.approveCalls++
+	return nil
+}
+
+func (s *stubPhasedPlanWorkflow) CancelWorkflow(context.Context, string, string, string) error {
+	s.cancelCalls++
+	return nil
 }
 
 func (s *stubAgentService) IsEnabled() bool { return true }
 
-func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	s.spawnCalls++
-	if s.spawnErr != nil {
-		return agentmanager.RunResult{}, s.spawnErr
+// stubOperationStarter fakes the historical operation reaper seam.
+type stubOperationStarter struct {
+	cancelCalls int
+	cancelReq   OperationCancelRequest
+}
+
+func (s *stubOperationStarter) CancelOperation(_ context.Context, req OperationCancelRequest) error {
+	s.cancelCalls++
+	s.cancelReq = req
+	return nil
+}
+
+type snapshotAgentService struct {
+	stubAgentService
+	runStateCalls int
+}
+
+func testPlanRenderer() *fakeMarkdownRenderer {
+	return &fakeMarkdownRenderer{result: planclient.RenderMarkdownResult{
+		Markdown: "# Rendered implementation plan\n\nTest plan content.", QualityStatus: "pass",
+		Plan: &sharedv1.Plan{ContentHash: "sha256:test-plan"},
+	}}
+}
+
+func TestPlanAcceptanceAllowsQualityPassNeverStartedPlan(t *testing.T) {
+	item := backlogItem{
+		Kind: "execute", Name: "first-start", Title: "First start",
+		PlanRef: &planRef{Provider: planRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: planRefRoleExecutionSpec},
 	}
-	return agentmanager.RunResult{TaskID: "task-1", RunID: "run-1"}, nil
+	item.PlanAcceptance = &planAcceptance{
+		Actor: "operator", PlanContentHash: "sha256:first-start",
+		SubjectVersion: executionPlanAcceptanceSubjectVersion(item),
+	}
+	renderer := &fakeMarkdownRenderer{result: planclient.RenderMarkdownResult{
+		Markdown: "# First start", QualityStatus: "pass",
+		Plan: &sharedv1.Plan{Id: "plan-1", ContentHash: "sha256:first-start", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
+	}}
+	svc := NewService(ServiceConfig{DataRoot: t.TempDir(), PlanRenderer: renderer})
+	if blocker := svc.planAcceptanceBlockingReason(context.Background(), item); blocker.Code != "" {
+		t.Fatalf("never-started quality-pass plan blocked: %+v", blocker)
+	}
+}
+
+func (s *snapshotAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
+	s.runStateCalls++
+	return agentmanager.RunState{Status: "completed", FinishedAt: "2026-05-14T00:00:00Z"}, nil
+}
+
+func TestListSnapshotDoesNotProcessActiveExecutions(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	agent := &snapshotAgentService{}
+	svc := NewService(ServiceConfig{
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
+		AgentService: agent,
+	})
+	if err := svc.store.Save([]Record{{
+		ExecutionID: "exec-1",
+		BacklogKind: "execute",
+		BacklogName: "slow-graph",
+		Status:      StatusRunning,
+		RunID:       "run-1",
+		CreatedAt:   "2026-05-14T00:00:00Z",
+	}}); err != nil {
+		t.Fatalf("save executions: %v", err)
+	}
+
+	records, err := svc.ListSnapshot(context.Background(), ListFilters{})
+	if err != nil {
+		t.Fatalf("ListSnapshot: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("ListSnapshot returned %d records, want 1", len(records))
+	}
+	if records[0].Status != StatusRunning {
+		t.Fatalf("snapshot status = %q, want persisted running", records[0].Status)
+	}
+	if agent.runStateCalls != 0 {
+		t.Fatalf("ListSnapshot called GetRunState %d times, want 0", agent.runStateCalls)
+	}
 }
 
 func TestQueueAndStartManualExecution(t *testing.T) {
@@ -52,11 +226,15 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -69,6 +247,10 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if record.Status != StatusPending {
 		t.Fatalf("expected pending status, got %s", record.Status)
 	}
+	if strings.TrimSpace(record.QueuedAt) == "" {
+		t.Fatal("expected QueuedAt to be set on enqueue")
+	}
+	queuedAt := record.QueuedAt
 
 	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "test-idea", "spec.json"))
 	if storedItem["status"] != "queued" {
@@ -82,42 +264,36 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if started.Status != StatusStarting {
 		t.Fatalf("expected starting status, got %s", started.Status)
 	}
-	if started.TaskID != "task-1" || started.RunID != "run-1" {
-		t.Fatalf("expected task/run IDs set, got task=%s run=%s", started.TaskID, started.RunID)
+	if started.QueuedAt != queuedAt {
+		t.Fatalf("expected QueuedAt preserved through start: got %q want %q", started.QueuedAt, queuedAt)
 	}
-	if started.PromptTrace == nil {
-		t.Fatal("expected prompt trace to be captured")
+	// A plan-backed item starts the bounded data-defined workflow. The consumer
+	// keeps the workflow execution and immutable frontier correlations.
+	if started.RunID != "run-1" {
+		t.Fatalf("expected run id from operation start, got %q", started.RunID)
 	}
-	if started.PromptTrace.Purpose != "process" {
-		t.Fatalf("expected purpose 'process', got %q", started.PromptTrace.Purpose)
+	if correlation := workflowCorrelationFor(t, service, started); correlation.ExecutionID != "wfx-1" || started.TaskID != "wfx-1" {
+		t.Fatalf("expected journal workflow execution and task ref, got correlation=%q task=%q", correlation.ExecutionID, started.TaskID)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<execution-context>") {
-		t.Fatal("expected prompt to contain <execution-context> tag")
+	if agent.spawnCalls != 0 {
+		t.Fatalf("expected no direct spawn for a plan-backed item, got %d", agent.spawnCalls)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<implementation-plan path=\"plan.md\">") {
-		t.Fatal("expected prompt to contain implementation plan tag")
+	if workflow.startCalls != 1 {
+		t.Fatalf("expected 1 workflow start, got %d", workflow.startCalls)
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "Manually created plan for testing") {
-		t.Fatal("expected prompt to contain plan.md content")
+	input, _ := workflow.invocation.Input.AsInterface().(map[string]any)
+	plan, _ := input["plan"].(map[string]any)
+	consumer, _ := input["consumer"].(map[string]any)
+	if plan["reference"] != "test-plan-test-idea" {
+		t.Fatalf("expected plan handle from the item plan_ref, got %#v", plan["reference"])
 	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<idea-handoff>") {
-		t.Fatal("expected prompt to contain idea handoff metadata")
-	}
-	for _, handoffFile := range []string{
-		filepath.Join(root, "ideas", "test-idea", "handoff", "brief.md"),
-		filepath.Join(root, "ideas", "test-idea", "handoff", "manifest.json"),
-		filepath.Join(root, "ideas", "test-idea", "handoff", "source-index.json"),
-	} {
-		if _, err := os.Stat(handoffFile); err != nil {
-			t.Fatalf("expected handoff file %s to exist: %v", handoffFile, err)
-		}
-	}
-	if agent.spawnCalls != 1 {
-		t.Fatalf("expected 1 spawn call, got %d", agent.spawnCalls)
+	if plan["frontierDigest"] == "" || consumer["entityVersion"] == "" {
+		t.Fatal("expected immutable workflow frontier correlations")
 	}
 }
 
-func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testing.T) {
+// TestQueueAndStartManualExecution_ResearchRequiresPlan proves a
+func TestQueueAndStartManualExecution_ResearchRequiresCanonicalPlan(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "research", "test-research", map[string]any{
 		"name":        "test-research",
@@ -127,37 +303,20 @@ func TestQueueAndStartManualExecution_ResearchUsesConclusionDeliverable(t *testi
 		"priority":    3,
 		"tags":        []string{},
 	})
-	mustWriteDeliverableFile(t, root, "research", "test-research")
-
-	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: agent,
+		PlanRenderer: testPlanRenderer(),
+		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 	})
-
-	record, err := service.QueueBacklog(context.Background(), CreateRequest{
+	_, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "research",
 		BacklogName: "test-research",
 		Mode:        ModeManual,
 	})
-	if err != nil {
-		t.Fatalf("QueueBacklog error: %v", err)
-	}
-
-	started, err := service.Start(context.Background(), record.ExecutionID)
-	if err != nil {
-		t.Fatalf("Start error: %v", err)
-	}
-	if started.PromptTrace == nil {
-		t.Fatal("expected prompt trace to be captured")
-	}
-	if !strings.Contains(started.PromptTrace.Prompt, "<research-conclusion path=\"conclusion.md\">") {
-		t.Fatal("expected prompt to contain research conclusion tag")
-	}
-	if !strings.Contains(started.PromptTrace.Prompt, "Manually created conclusion for testing") {
-		t.Fatal("expected prompt to contain conclusion.md content")
+	if err == nil || !strings.Contains(err.Error(), "plan_ref") {
+		t.Fatalf("QueueBacklog error = %v, want canonical plan guard", err)
 	}
 }
 
@@ -174,8 +333,9 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "policy-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		PolicyProvider: &stubPolicyProvider{policy: Policy{
 			DefaultMode: ModeManual,
 		}},
@@ -211,8 +371,9 @@ func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-idea")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -241,12 +402,13 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 	})
 	mustWriteDeliverableFile(t, root, "idea", "rollback-idea")
 
-	agent := &stubAgentService{spawnErr: errors.New("spawn failed")}
+	workflow := &stubPhasedPlanWorkflow{startErr: errors.New("workflow start failed")}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PhasedPlanWorkflow: workflow,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 
 	_, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -284,8 +446,9 @@ func TestCancel_RestoresArchivedIdeaStatus(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -329,8 +492,9 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel-forced")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -370,8 +534,9 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "cancel-restore-error")
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
+		DataRoot:     root,
+		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -414,6 +579,33 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir backlog item: %v", err)
 	}
+	if kind != "research" {
+		if _, ok := payload["plan_ref"]; !ok {
+			payload["plan_ref"] = map[string]any{
+				"provider": "plan-manager",
+				"plan_id":  "test-plan-" + name,
+				"slug":     "test-plan-" + name,
+				"role":     "execution_spec",
+			}
+		}
+		if _, ok := payload["plan_acceptance"]; !ok {
+			raw, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatalf("marshal acceptance fixture: %v", err)
+			}
+			var item backlogItem
+			if err := json.Unmarshal(raw, &item); err != nil {
+				t.Fatalf("decode acceptance fixture: %v", err)
+			}
+			item.Name = name
+			item.Kind = kind
+			payload["plan_acceptance"] = map[string]any{
+				"actor": "test", "accepted_at": "2026-01-01T00:00:00Z",
+				"plan_content_hash": "sha256:test-plan",
+				"subject_version":   executionPlanAcceptanceSubjectVersion(item),
+			}
+		}
+	}
 	bytes, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
@@ -423,35 +615,13 @@ func mustWriteBacklogItem(t *testing.T, root, kind, name string, payload map[str
 	}
 }
 
-// mustWriteDeliverableFile creates the primary workshop artifact in the item
-// directory so that workshop readiness preflight passes (deliverable exists
-// with no rounds = manually created artifact).
+// mustWriteDeliverableFile is retained as a call-site fixture name. Readiness
+// is now uniformly driven by plan_ref, including for research items.
 func mustWriteDeliverableFile(t *testing.T, root, kind, name string) {
 	t.Helper()
-	kindDir := "ideas"
-	deliverablePath := "plan.md"
-	switch kind {
-	case "research":
-		kindDir = "research"
-		deliverablePath = "conclusion.md"
-	case "fix":
-		kindDir = "fix"
-	case "execute":
-		kindDir = "execute"
-	case "chore":
-		kindDir = "chore"
-	}
-	dir := filepath.Join(root, kindDir, name)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir for deliverable: %v", err)
-	}
-	content := "# Plan\nManually created plan for testing."
-	if deliverablePath == "conclusion.md" {
-		content = "# Conclusion\nManually created conclusion for testing."
-	}
-	if err := os.WriteFile(filepath.Join(dir, deliverablePath), []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", deliverablePath, err)
-	}
+	_ = root
+	_ = kind
+	_ = name
 }
 
 func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
@@ -465,49 +635,6 @@ func mustLoadBacklogItem(t *testing.T, path string) map[string]any {
 		t.Fatalf("unmarshal %s: %v", path, err)
 	}
 	return value
-}
-
-func TestMapRunStatus_DirectMappings(t *testing.T) {
-	tests := []struct {
-		input    string
-		errorMsg string
-		want     Status
-		wantMsg  string
-	}{
-		{"pending", "", StatusStarting, ""},
-		{"starting", "", StatusStarting, ""},
-		{"running", "", StatusRunning, ""},
-		{"needs_review", "", StatusNeedsReview, ""},
-		{"complete", "", StatusCompleted, ""},
-		{"failed", "boom", StatusFailed, "boom"},
-		{"failed", "", StatusFailed, "agent-manager run failed"},
-		{"cancelled", "", StatusCanceled, ""},
-		{"unspecified", "", StatusRunning, ""},
-		{"RUNNING", "", StatusRunning, ""},
-		{"unknown-value", "", StatusRunning, ""},
-	}
-	for _, tc := range tests {
-		tracker := &runTracker{}
-		got, msg := mapRunStatus(tc.input, tc.errorMsg, tracker, 5)
-		if got != tc.want {
-			t.Errorf("mapRunStatus(%q, %q): got %s, want %s", tc.input, tc.errorMsg, got, tc.want)
-		}
-		if msg != tc.wantMsg {
-			t.Errorf("mapRunStatus(%q, %q): msg got %q, want %q", tc.input, tc.errorMsg, msg, tc.wantMsg)
-		}
-	}
-}
-
-type stubInspector struct {
-	state agentmanager.RunState
-	err   error
-}
-
-func (s *stubInspector) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
-	if s.err != nil {
-		return agentmanager.RunState{}, s.err
-	}
-	return s.state, nil
 }
 
 type stubStopper struct {
@@ -535,12 +662,16 @@ func TestCancel_StartingExecution(t *testing.T) {
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	service.stopper = stopper
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -565,8 +696,59 @@ func TestCancel_StartingExecution(t *testing.T) {
 	if canceled.Status != StatusCanceled {
 		t.Fatalf("expected canceled, got %s", canceled.Status)
 	}
-	if stopper.stopCalls != 1 {
-		t.Fatalf("expected 1 StopRun call, got %d", stopper.stopCalls)
+	if state := transitionApplyStateFor(t, service, workflowCorrelationFor(t, service, canceled).ExecutionID); state != transitionrun.ApplyStateComplete {
+		t.Fatalf("workflow cancellation must close the consumer apply boundary, got %q", state)
+	}
+	if stopper.stopCalls != 0 {
+		t.Fatalf("workflow-owned cancellation must not stop a child run directly, got %d", stopper.stopCalls)
+	}
+	if workflow.cancelCalls != 1 {
+		t.Fatalf("expected 1 workflow cancellation, got %d", workflow.cancelCalls)
+	}
+}
+
+func TestStart_EmptyWorkflowExecutionIDFailsCleanly(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "idea", "norunid-item", map[string]any{
+		"name": "norunid-item", "title": "No Run", "description": "d",
+		"status": "backlog", "priority": 3, "tags": []string{},
+	})
+	mustWriteDeliverableFile(t, root, "idea", "norunid-item")
+
+	agent := &stubAgentService{}
+	service := NewService(ServiceConfig{
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "p"},
+		TransitionRegistry: testTransitionRegistry(t),
+	})
+	workflow := &stubPhasedPlanWorkflow{start: agentmanager.WorkflowStart{DefinitionDigest: "sha256:def"}}
+	service.SetPhasedPlanWorkflow(workflow)
+
+	rec, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "idea", BacklogName: "norunid-item", Mode: ModeManual})
+	if err != nil {
+		t.Fatalf("queue: %v", err)
+	}
+	if _, startErr := service.Start(context.Background(), rec.ExecutionID); startErr == nil {
+		t.Fatal("expected a start error when the workflow returns no execution id")
+	}
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var got *Record
+	for i := range records {
+		if records[i].ExecutionID == rec.ExecutionID {
+			got = &records[i]
+		}
+	}
+	if got == nil {
+		t.Fatal("record disappeared")
+	}
+	if got.Status != StatusPending {
+		t.Fatalf("record must stay pending/retryable, got %s", got.Status)
 	}
 }
 
@@ -585,12 +767,16 @@ func TestCancel_NeedsReviewExecution(t *testing.T) {
 	stopper := &stubStopper{}
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
 	})
 	service.stopper = stopper
+	workflow := &stubPhasedPlanWorkflow{}
+	service.SetPhasedPlanWorkflow(workflow)
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "idea",
@@ -637,135 +823,6 @@ func TestMigrateRecords_OrphanedRunning(t *testing.T) {
 	}
 	if migrated[2].Status != StatusCompleted {
 		t.Fatalf("expected completed to stay completed, got %s", migrated[2].Status)
-	}
-}
-
-// TestRefreshRunning_FailedRunSetsBacklogFailed verifies that when an agent-manager
-// run transitions to "failed", the backlog item status is set to "failed" (not
-// silently reverted to its previous status).
-func TestRefreshRunning_FailedRunSetsBacklogFailed(t *testing.T) {
-	root := t.TempDir()
-	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
-
-	mustWriteBacklogItem(t, root, "idea", "fail-status", map[string]any{
-		"name":        "fail-status",
-		"title":       "Fail Status",
-		"description": "desc",
-		"status":      "in_progress",
-		"priority":    3,
-		"tags":        []string{},
-	})
-
-	// Seed an execution record that looks like a running execution.
-	store := NewStore(storePath)
-	if err := store.Save([]Record{{
-		ExecutionID:    "exec-fail-1",
-		BacklogKind:    "idea",
-		BacklogName:    "fail-status",
-		PreviousStatus: "backlog",
-		Status:         StatusRunning,
-		Mode:           ModeManual,
-		RunID:          "run-fail-1",
-		CreatedAt:      "2026-01-28T00:00:00Z",
-		UpdatedAt:      "2026-01-28T00:00:00Z",
-	}}); err != nil {
-		t.Fatalf("save seed record: %v", err)
-	}
-
-	// Inspector returns "failed" for the run.
-	inspector := &stubInspector{
-		state: agentmanager.RunState{
-			RunID:      "run-fail-1",
-			Status:     "failed",
-			ErrorMsg:   "agent crashed",
-			FinishedAt: "2026-01-28T01:00:00Z",
-		},
-	}
-
-	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: storePath,
-	})
-	service.inspector = inspector
-
-	// List triggers refreshRunningLocked which should detect the failed run.
-	records, err := service.List(context.Background(), ListFilters{})
-	if err != nil {
-		t.Fatalf("List error: %v", err)
-	}
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	if records[0].Status != StatusFailed {
-		t.Fatalf("expected execution status failed, got %s", records[0].Status)
-	}
-
-	// Verify the backlog item was set to "failed" (not reverted to "backlog").
-	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "fail-status", "spec.json"))
-	if storedItem["status"] != "failed" {
-		t.Fatalf("expected backlog status 'failed', got %#v", storedItem["status"])
-	}
-}
-
-// TestRefreshRunning_CanceledRunRestoresBacklogStatus verifies that when a run
-// is canceled, the backlog item status is restored to its previous status.
-func TestRefreshRunning_CanceledRunRestoresBacklogStatus(t *testing.T) {
-	root := t.TempDir()
-	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
-
-	mustWriteBacklogItem(t, root, "idea", "cancel-restore", map[string]any{
-		"name":        "cancel-restore",
-		"title":       "Cancel Restore",
-		"description": "desc",
-		"status":      "in_progress",
-		"priority":    3,
-		"tags":        []string{},
-	})
-
-	store := NewStore(storePath)
-	if err := store.Save([]Record{{
-		ExecutionID:    "exec-cancel-1",
-		BacklogKind:    "idea",
-		BacklogName:    "cancel-restore",
-		PreviousStatus: "ready",
-		Status:         StatusRunning,
-		Mode:           ModeManual,
-		RunID:          "run-cancel-1",
-		CreatedAt:      "2026-01-28T00:00:00Z",
-		UpdatedAt:      "2026-01-28T00:00:00Z",
-	}}); err != nil {
-		t.Fatalf("save seed record: %v", err)
-	}
-
-	inspector := &stubInspector{
-		state: agentmanager.RunState{
-			RunID:      "run-cancel-1",
-			Status:     "cancelled",
-			FinishedAt: "2026-01-28T01:00:00Z",
-		},
-	}
-
-	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: storePath,
-	})
-	service.inspector = inspector
-
-	records, err := service.List(context.Background(), ListFilters{})
-	if err != nil {
-		t.Fatalf("List error: %v", err)
-	}
-	if len(records) != 1 {
-		t.Fatalf("expected 1 record, got %d", len(records))
-	}
-	if records[0].Status != StatusCanceled {
-		t.Fatalf("expected execution status canceled, got %s", records[0].Status)
-	}
-
-	// Verify the backlog item was restored to previous status "ready" (not "failed").
-	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "cancel-restore", "spec.json"))
-	if storedItem["status"] != "ready" {
-		t.Fatalf("expected backlog status 'ready', got %#v", storedItem["status"])
 	}
 }
 
@@ -962,7 +1019,8 @@ func TestTriggerReview_CompletedExecution(t *testing.T) {
 	}
 
 	svc := &Service{
-		rootDir:        dir,
+		dataRoot:       dir,
+		repoRoot:       dir,
 		store:          store,
 		reviewClient:   &stubReviewClient{triggerJobID: "job-new"},
 		policyProvider: &defaultPolicyProvider{},
@@ -1006,7 +1064,8 @@ func TestTriggerReview_WrongStatus(t *testing.T) {
 			}
 
 			svc := &Service{
-				rootDir:        dir,
+				dataRoot:       dir,
+				repoRoot:       dir,
 				store:          store,
 				reviewClient:   &stubReviewClient{triggerJobID: "job-x"},
 				policyProvider: &defaultPolicyProvider{},
@@ -1037,31 +1096,6 @@ func TestTriggerReview_MissingExecution(t *testing.T) {
 	}
 }
 
-func TestRecordToProto_MapsLegacyReviewFieldsIntoFinalization(t *testing.T) {
-	record := Record{
-		ExecutionID:            "exec-new-fields",
-		BacklogKind:            "execute",
-		BacklogName:            "test",
-		Status:                 StatusCompleted,
-		Mode:                   ModeYOLO,
-		LegacyReviewSkipReason: "GCT unavailable: connection refused",
-		LegacyReviewStartedAt:  "2026-03-24T10:00:00Z",
-		CreatedAt:              "2026-03-24T00:00:00Z",
-		UpdatedAt:              "2026-03-24T01:00:00Z",
-	}
-	pb := recordToProto(record)
-
-	if pb.Finalization == nil {
-		t.Fatal("expected finalization to be synthesized")
-	}
-	if pb.Finalization.SkipReason == nil || *pb.Finalization.SkipReason != "GCT unavailable: connection refused" {
-		t.Fatalf("expected skip reason to be mapped, got %v", pb.Finalization.SkipReason)
-	}
-	if pb.Finalization.StartedAt == nil || *pb.Finalization.StartedAt != "2026-03-24T10:00:00Z" {
-		t.Fatalf("expected started_at to be mapped, got %v", pb.Finalization.StartedAt)
-	}
-}
-
 func TestRecordToProto_OmitsEmptyFinalization(t *testing.T) {
 	record := Record{
 		ExecutionID: "exec-empty-fields",
@@ -1088,7 +1122,7 @@ func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
 		Title:              "Video Studio",
 		ItemFolder:         "/path/to/ideas/video-studio",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:video-studio",
 		DeliverableContent: "# Plan\nBuild a video editor.",
 		IdeaHandoff: &handoff.Package{
 			Dir:             "/path/to/ideas/video-studio/handoff",
@@ -1117,7 +1151,7 @@ func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
 	}
 
 	// Plan tag present with content.
-	if !strings.Contains(prompt, "<implementation-plan path=\"plan.md\">") || !strings.Contains(prompt, "</implementation-plan>") {
+	if !strings.Contains(prompt, "<implementation-plan path=\"plan-manager:video-studio\">") || !strings.Contains(prompt, "</implementation-plan>") {
 		t.Error("missing implementation-plan tags")
 	}
 	if !strings.Contains(prompt, "Build a video editor.") {
@@ -1126,7 +1160,7 @@ func TestBuildExecutionPrompt_ProcessRun(t *testing.T) {
 	if !strings.Contains(prompt, "<idea-handoff>") || !strings.Contains(prompt, "<idea-handoff-brief path=\"/path/to/ideas/video-studio/handoff/brief.md\">") {
 		t.Error("missing idea handoff tags")
 	}
-	if !strings.Contains(prompt, "Use brief.md as the ecosystem-manager task notes") {
+	if !strings.Contains(prompt, "Execute the next bounded plan slice through the declared swarm-manager workflow") {
 		t.Error("missing downstream handoff instruction")
 	}
 
@@ -1146,7 +1180,7 @@ func TestBuildExecutionPrompt_FixupRun(t *testing.T) {
 		Title:              "Fix Login Crash",
 		ItemFolder:         "/path/to/fix/login-crash",
 		RunType:            "fixup",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:login-crash",
 		DeliverableContent: "# Plan\nFix the nil pointer.",
 		ReviewFeedback:     "Tests still failing.\n- test_coverage (red): Missing edge case test",
 	})
@@ -1167,7 +1201,7 @@ func TestBuildExecutionPrompt_FixupRun(t *testing.T) {
 	}
 
 	// Plan still included.
-	if !strings.Contains(prompt, "<implementation-plan path=\"plan.md\">") {
+	if !strings.Contains(prompt, "<implementation-plan path=\"plan-manager:login-crash\">") {
 		t.Error("fixup run should still include implementation plan")
 	}
 	if !strings.Contains(prompt, "Fix the nil pointer.") {
@@ -1182,7 +1216,7 @@ func TestBuildExecutionPrompt_FollowUpRun(t *testing.T) {
 		Title:              "Update Dependencies",
 		ItemFolder:         "/path/to/execute/dependency-update",
 		RunType:            "followup",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:dependency-update",
 		DeliverableContent: "# Plan\nUpdate all Go deps.",
 		FollowUpNote:       "Focus on the swarm-manager scenario only.",
 	})
@@ -1228,7 +1262,7 @@ func TestBuildExecutionPrompt_EmptyOptionalSections(t *testing.T) {
 		Name:               "test",
 		ItemFolder:         "/tmp/test",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:test",
 		DeliverableContent: "plan content",
 		ReviewFeedback:     "",
 		FollowUpNote:       "   ",
@@ -1248,7 +1282,7 @@ func TestBuildExecutionPrompt_NoTitle(t *testing.T) {
 		Name:               "bug",
 		ItemFolder:         "/tmp/fix/bug",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:bug",
 		DeliverableContent: "fix it",
 	})
 
@@ -1264,7 +1298,7 @@ func TestBuildExecutionPrompt_SuggestedSkills(t *testing.T) {
 		Title:              "Refactor API",
 		ItemFolder:         "/tmp/execute/refactor-api",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:refactor-api",
 		DeliverableContent: "# Plan\nRefactor.",
 		SuggestedSkills:    []string{"refactor", "screaming-architecture-audit"},
 	})
@@ -1286,7 +1320,7 @@ func TestBuildExecutionPrompt_NoSuggestedSkills(t *testing.T) {
 		Name:               "bug-fix",
 		ItemFolder:         "/tmp/fix/bug-fix",
 		RunType:            "process",
-		DeliverablePath:    "plan.md",
+		DeliverablePath:    "plan-manager:bug-fix",
 		DeliverableContent: "fix it",
 	})
 

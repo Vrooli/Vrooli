@@ -1,0 +1,934 @@
+<title>Where SDA's 71 Seconds Go</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700;900&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --ground:     #edf0f3;
+  --surface:    #ffffff;
+  --surface-2:  #e2e8ee;
+  --ink:        #0f141b;
+  --ink-soft:   #333d4a;
+  --muted:      #626d7c;
+  --rule:       #d1dae2;
+  --rule-hard:  #adbac6;
+  --accent:     #3b4ea8;
+  --accent-ink: #2c3c84;
+  --accent-wash:#dfe4f5;
+  --hot:        #a63e2b;
+  --hot-wash:   #f6e2dd;
+  --ok:         #2c6b4c;
+  --ok-wash:    #dcecdf;
+  --warn:       #86600f;
+  --warn-wash:  #f4e9cf;
+  --code-bg:    #e7ecf1;
+
+  --f-display: "Chivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:     #0d1116;
+    --surface:    #151b22;
+    --surface-2:  #1c242d;
+    --ink:        #dfe5ec;
+    --ink-soft:   #b8c3cf;
+    --muted:      #8794a3;
+    --rule:       #26313b;
+    --rule-hard:  #3a4854;
+    --accent:     #8a9bea;
+    --accent-ink: #adb9f2;
+    --accent-wash:#1a2140;
+    --hot:        #e08a76;
+    --hot-wash:   #331d17;
+    --ok:         #71b891;
+    --ok-wash:    #16291e;
+    --warn:       #d3a94f;
+    --warn-wash:  #2b2313;
+    --code-bg:    #111820;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:     #0d1116;
+  --surface:    #151b22;
+  --surface-2:  #1c242d;
+  --ink:        #dfe5ec;
+  --ink-soft:   #b8c3cf;
+  --muted:      #8794a3;
+  --rule:       #26313b;
+  --rule-hard:  #3a4854;
+  --accent:     #8a9bea;
+  --accent-ink: #adb9f2;
+  --accent-wash:#1a2140;
+  --hot:        #e08a76;
+  --hot-wash:   #331d17;
+  --ok:         #71b891;
+  --ok-wash:    #16291e;
+  --warn:       #d3a94f;
+  --warn-wash:  #2b2313;
+  --code-bg:    #111820;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 26px 110px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Every direct child is a grid item, so each needs an explicit min-width:0 or
+   wide tables and pre blocks push the page into horizontal scroll. */
+.wrap > * { min-width: 0; }
+
+@media (min-width: 1060px) {
+  .wrap {
+    grid-template-columns: 186px minmax(0, 1fr);
+    column-gap: 54px;
+  }
+  .masthead, .readout { grid-column: 1 / -1; }
+}
+
+/* ---- masthead ---- */
+
+.masthead { padding: 58px 0 30px; }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 16px;
+}
+
+h1 {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-size: clamp(2.3rem, 5.6vw, 3.7rem);
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  margin: 0 0 18px;
+  max-width: 18ch;
+  text-wrap: balance;
+}
+
+.standfirst {
+  max-width: 64ch;
+  font-size: 1.14rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 0 26px;
+}
+
+.provenance {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---- headline readout ---- */
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 0 0 52px;
+}
+
+.readout > div {
+  background: var(--surface);
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.readout .k {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.readout .v {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.9rem;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.readout .n { font-size: 13.5px; color: var(--ink-soft); line-height: 1.35; }
+.readout .u { font-size: 0.5em; font-weight: 600; letter-spacing: 0; }
+.v.hot { color: var(--hot); }
+.v.ok  { color: var(--ok); }
+
+/* ---- rail ---- */
+
+/* The base state is hidden; the reveal lives below the base rule, not in the
+   layout media query at the top, so the two do not cancel at equal specificity. */
+.rail { display: none; }
+
+@media (min-width: 1060px) {
+  .rail { display: block; }
+}
+
+.rail nav {
+  position: sticky;
+  top: 26px;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 6px;
+  border-top: 2px solid var(--ink);
+}
+
+.rail a {
+  color: var(--muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  padding-left: 9px;
+}
+.rail a:hover, .rail a:focus-visible { color: var(--accent); border-left-color: var(--accent); }
+
+/* ---- sections ---- */
+
+section { margin: 0 0 60px; scroll-margin-top: 22px; }
+
+h2 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.62rem;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+
+.dek {
+  color: var(--muted);
+  font-size: 15.5px;
+  max-width: 66ch;
+  margin: 0 0 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.005em;
+  margin: 30px 0 8px;
+}
+
+p { max-width: 66ch; margin: 0 0 16px; }
+p.wide { max-width: 78ch; }
+
+/* One rule for every inline code span, wherever it sits — paragraphs, list
+   items, table cells, bar captions, readout notes. */
+code {
+  font-family: var(--f-mono);
+  font-size: 0.855em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 2px;
+  overflow-wrap: anywhere;
+}
+.evidence code { background: none; padding: 0; }
+
+strong { font-weight: 600; }
+.lede { font-size: 1.05rem; color: var(--ink-soft); }
+
+/* ---- cost bars ---- */
+
+.bars {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 22px 24px 20px;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.bar-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
+
+.bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+}
+.bar-head .lbl { color: var(--ink-soft); min-width: 0; overflow-wrap: anywhere; }
+.bar-head .num { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); flex: 0 0 auto; }
+.bar-head .num.hot  { color: var(--hot); }
+.bar-head .num.warn { color: var(--warn); }
+.bar-head .num.ok   { color: var(--ok); }
+
+.bar-track { height: 13px; background: var(--surface-2); position: relative; }
+.bar-fill { height: 100%; }
+.bar-fill.hot { background: var(--hot); }
+.bar-fill.warn { background: var(--warn); }
+.bar-fill.ok { background: var(--ok); }
+.bar-note { font-size: 13px; color: var(--muted); line-height: 1.4; }
+
+/* ---- tables ---- */
+
+.tbl-scroll { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--rule); background: var(--surface); }
+
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+
+th {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  font-weight: 500;
+  padding: 11px 14px;
+  border-bottom: 1.5px solid var(--rule-hard);
+  white-space: nowrap;
+}
+
+td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 15px;
+  line-height: 1.45;
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13.5px; }
+td.num.hot { color: var(--hot); }
+td.num.ok  { color: var(--ok); }
+td.mono-cell { font-family: var(--f-mono); font-size: 12.5px; line-height: 1.4; }
+
+/* ---- findings ---- */
+
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--rule-hard);
+  padding: 18px 22px 16px;
+  margin: 0 0 12px;
+}
+.finding.sev-hot { border-left-color: var(--hot); }
+.finding.sev-warn { border-left-color: var(--warn); }
+.finding.sev-note { border-left-color: var(--accent); }
+
+.f-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.f-id {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.f-title {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: -0.005em;
+  flex: 1 1 320px;
+}
+
+.tag {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 2.5px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.tag.hot { background: var(--hot-wash); color: var(--hot); }
+.tag.warn { background: var(--warn-wash); color: var(--warn); }
+.tag.note { background: var(--accent-wash); color: var(--accent-ink); }
+.tag.ok { background: var(--ok-wash); color: var(--ok); }
+
+.finding p { font-size: 15.5px; margin: 0 0 10px; max-width: 72ch; }
+.finding p:last-child { margin-bottom: 0; }
+
+.evidence {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--code-bg);
+  padding: 9px 12px;
+  color: var(--ink-soft);
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0 0 10px;
+}
+
+/* ---- callout ---- */
+
+.callout {
+  background: var(--accent-wash);
+  border-left: 4px solid var(--accent);
+  padding: 18px 22px;
+  margin: 0 0 22px;
+}
+.callout h3 { margin-top: 0; }
+.callout p { max-width: 72ch; font-size: 15.5px; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* ---- steps ---- */
+
+.step {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 0 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 18px 22px 16px;
+  margin: 0 0 12px;
+}
+
+.step-n {
+  font-family: var(--f-display);
+  font-weight: 900;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.step-body { min-width: 0; }
+.step-body h3 { margin: 0 0 6px; font-size: 1.04rem; }
+.step-body p { font-size: 15.5px; margin: 0 0 10px; max-width: 72ch; }
+.step-body p:last-child { margin-bottom: 0; }
+
+.step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0 0 10px;
+}
+
+ul.tight { margin: 0 0 12px; padding-left: 20px; max-width: 70ch; }
+ul.tight li { margin-bottom: 5px; font-size: 15.5px; }
+
+.footnote {
+  border-top: 2px solid var(--ink);
+  padding-top: 16px;
+  font-size: 14.5px;
+  color: var(--muted);
+  max-width: 74ch;
+}
+
+a { color: var(--accent-ink); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Scenario Dependency Analyzer · performance forensics · read-only</p>
+  <h1>Where SDA's 71 Seconds Go</h1>
+  <p class="standfirst">Sixty-eight of them are the same failed network lookup, repeated 198 times, for a module that does not exist upstream. One environment variable removes them and the verdicts do not change by a single row. Everything else in this report is what remains once that is gone.</p>
+  <div class="provenance">
+    <span>host 32 cores / 60 GB</span>
+    <span>branch agi</span>
+    <span>2026-08-23</span>
+    <span>247 scenario Go surfaces</span>
+    <span>315 in-repo modules</span>
+    <span>no files changed</span>
+  </div>
+</header>
+
+<div class="readout">
+  <div>
+    <span class="k">Measured today</span>
+    <span class="v hot">71.9<span class="u">s</span></span>
+    <span class="n"><code>freshness --touched</code>, the check hygiene runs on every commit</span>
+  </div>
+  <div>
+    <span class="k">Same command, GOPROXY=off</span>
+    <span class="v ok">3.4<span class="u">s</span></span>
+    <span class="n">Identical verdicts: 44 clean, 4 stale, 199 error</span>
+  </div>
+  <div>
+    <span class="k">CPU actually used</span>
+    <span class="v">4.6<span class="u">%</span></span>
+    <span class="n">31 s of CPU against 70 s of wall clock on 32 cores</span>
+  </div>
+  <div>
+    <span class="k">Error rows from one defect</span>
+    <span class="v hot">198<span class="u">/199</span></span>
+    <span class="n">A single missing <code>replace</code> for <code>envkit-go</code></span>
+  </div>
+  <div>
+    <span class="k">Result cache</span>
+    <span class="v">none</span>
+    <span class="n">Warm rerun repeats every byte of work at the same cost</span>
+  </div>
+</div>
+
+<aside class="rail">
+  <nav>
+    <a href="#mechanism">The mechanism</a>
+    <a href="#experiments">The experiments</a>
+    <a href="#findings">Findings P1–P9</a>
+    <a href="#not">What is not wrong</a>
+    <a href="#plan">The sequence</a>
+    <a href="#cache">Cache design</a>
+    <a href="#end-state">Where it ends up</a>
+    <a href="#method">Method</a>
+  </nav>
+</aside>
+
+<main>
+
+<section id="mechanism">
+  <h2>The mechanism</h2>
+  <p class="dek">Three measurements identify the bottleneck without ambiguity, and they rule out every explanation people usually reach for first.</p>
+
+  <p class="lede">The command spends 95% of its life blocked, not computing. Adding workers changes nothing. Removing the network changes everything.</p>
+
+  <p>Each of the 247 scenario Go surfaces gets one <code>go mod tidy -diff</code> subprocess, run through a worker pool. For 198 of them that subprocess reaches <code>github.com/vrooli/envkit-go v0.0.0</code>, finds no local <code>replace</code> directive pointing at <code>packages/envkit-go</code>, and concludes it must fetch the module from the internet. It cannot: the module is in-repo and has no upstream. So it asks <code>proxy.golang.org</code>, waits, fails, and reports an error.</p>
+
+  <p>The Go toolchain serializes those lookups on the module cache. That is why raising concurrency from 8 to 32 is worth nothing at all, and why the arithmetic lands exactly on the observed number: 198 lookups × ≈0.35 s each ≈ 69 s ≈ the whole run.</p>
+
+  <div class="bars">
+    <div class="bar-row">
+      <div class="bar-head"><span class="lbl">as shipped · concurrency 8</span><span class="num hot">71.9 s</span></div>
+      <div class="bar-track"><div class="bar-fill hot" style="width:100%"></div></div>
+      <div class="bar-note">44 clean · 4 stale · 199 error</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-head"><span class="lbl">concurrency raised to 32</span><span class="num hot">70.8 s</span></div>
+      <div class="bar-track"><div class="bar-fill hot" style="width:98.5%"></div></div>
+      <div class="bar-note">Same verdicts. Four times the workers buys 1.1 seconds — the pool is not the constraint.</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-head"><span class="lbl">GOPRIVATE=github.com/vrooli/* (proxy bypassed, direct still on)</span><span class="num warn">60.9 s</span></div>
+      <div class="bar-track"><div class="bar-fill warn" style="width:84.7%"></div></div>
+      <div class="bar-note">Skipping the proxy still leaves a <code>git ls-remote</code> to GitHub per surface. Not the fix.</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-head"><span class="lbl">GOPROXY=off · same binary, same flags</span><span class="num ok">3.4 s</span></div>
+      <div class="bar-track"><div class="bar-fill ok" style="width:4.7%"></div></div>
+      <div class="bar-note">44 clean · 4 stale · 199 error — verdict-for-verdict identical. 21× faster, zero information lost.</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-head"><span class="lbl">the 247 subprocesses alone, offline (SDA's own overhead excluded)</span><span class="num ok">1.5 s</span></div>
+      <div class="bar-track"><div class="bar-fill ok" style="width:2.1%"></div></div>
+      <div class="bar-note">The floor. The ~1.9 s gap between this and 3.4 s is SDA's discovery and impact phase — see P5.</div>
+    </div>
+  </div>
+
+  <p>The last two rows matter for what comes after. Once the network is out of the picture, the fleet-wide sweep of 247 modules is a <em>1.5-second</em> operation. The thing everyone has been treating as expensive is not expensive. It only looked that way through a failure that costs a third of a second and repeats itself two hundred times.</p>
+</section>
+
+<section id="experiments">
+  <h2>The experiments</h2>
+  <p class="dek">Every row was run on this host today against the working tree. Verdict columns are the tool's own <code>--json</code> summary, so "identical" means identical.</p>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead>
+      <tr><th>Probe</th><th>Wall</th><th>User+Sys</th><th>Verdicts</th><th>Reads</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>freshness --touched --json</code> · cold</td>
+        <td class="num">71.9 s</td>
+        <td class="num">21.2 + 11.7 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td>Baseline as hygiene invokes it</td>
+      </tr>
+      <tr>
+        <td>Same command, immediately again</td>
+        <td class="num">69.9 s</td>
+        <td class="num">20.9 + 10.8 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td>No warm path exists — nothing is cached</td>
+      </tr>
+      <tr>
+        <td>Same, <code>--concurrency 32</code></td>
+        <td class="num">70.8 s</td>
+        <td class="num">20.0 + 10.8 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td>Worker count is not the constraint</td>
+      </tr>
+      <tr>
+        <td>Same, with <code>GOPROXY=off</code> in the environment</td>
+        <td class="num">3.4 s</td>
+        <td class="num">12.1 + 9.8 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td><strong>21× faster, identical output</strong></td>
+      </tr>
+      <tr>
+        <td>247 bare <code>go mod tidy -diff</code>, offline, 8-way</td>
+        <td class="num">1.5 s</td>
+        <td class="num">11.0 + 8.7 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td>The true cost of the sweep</td>
+      </tr>
+      <tr>
+        <td>Same, offline, 32-way</td>
+        <td class="num">1.2 s</td>
+        <td class="num">10.6 + 8.3 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td>Offline, concurrency finally helps a little</td>
+      </tr>
+      <tr>
+        <td>247 bare, network on, 8-way</td>
+        <td class="num">71.0 s</td>
+        <td class="num">18.9 + 11.5 s</td>
+        <td class="num">44 / 4 / 199</td>
+        <td>Reproduces outside SDA — this is a Go-toolchain cost, not an SDA bug</td>
+      </tr>
+      <tr>
+        <td><code>deps reconcile --all --json</code></td>
+        <td class="num">30.8 s</td>
+        <td class="num">0.04 + 0.03 s</td>
+        <td class="num">abort</td>
+        <td>Dies on a template module, returns nothing for the other 120 scenarios</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The last row's CPU column is the tell: the CLI burns 70 milliseconds and waits 30 seconds. <code>deps reconcile</code> is a thin client, and all of that time is server-side work that is then thrown away.</p>
+</section>
+
+<section id="findings">
+  <h2>Findings</h2>
+  <p class="dek">Nine, ordered by how much they cost. P1 and P2 are one problem seen from two sides; P3 is what makes the problem recur; P7 is a separate command with the same shape of defect.</p>
+
+  <div class="finding sev-hot">
+    <div class="f-head"><span class="f-id">P1</span><span class="f-title">68 of 71 seconds are failed network lookups for a module with no upstream</span><span class="tag hot">Speed</span><span class="tag hot">21×</span></div>
+    <p>198 of the 199 error surfaces emit the same first line. <code>runGo</code> in <code>cli/domains/health/freshness.go</code> overlays only <code>GOWORK=off</code> and <code>GOFLAGS=</code>; <code>GOPROXY</code> passes through from the ambient environment, so every surface that is missing a local <code>replace</code> takes a full round trip to <code>proxy.golang.org</code> and <code>sum.golang.org</code> before it can fail.</p>
+    <div class="evidence">go: downloading github.com/vrooli/envkit-go v0.0.0     × 198 surfaces
+go env GOPROXY  →  https://proxy.golang.org,direct
+GOPRIVATE, GONOSUMDB  →  unset</div>
+    <p><strong>Fix:</strong> run the sweep offline and treat a genuine cache miss as its own status rather than an error. Detail in step 1.</p>
+  </div>
+
+  <div class="finding sev-hot">
+    <div class="f-head"><span class="f-id">P2</span><span class="f-title">The worker pool is inert — the Go module cache serializes the lookups</span><span class="tag hot">Speed</span></div>
+    <p>Concurrency 8 and concurrency 32 produce the same wall clock, and the run uses 31 seconds of CPU across 70 seconds on a 32-core host. Any future tuning of <code>--concurrency</code> is wasted effort while P1 stands, and the knob will mislead whoever tries it. Once the network is gone, concurrency starts working again — 1.5 s at 8-way, 1.2 s at 32-way — which is the right time to size it.</p>
+  </div>
+
+  <div class="finding sev-hot">
+    <div class="f-head"><span class="f-id">P3</span><span class="f-title">There is no result cache anywhere in the CLI</span><span class="tag hot">Speed</span><span class="tag note">Recurrence</span></div>
+    <p>Running the command twice back to back costs the same both times. Grepping the whole <code>cli/</code> tree for caching finds three hits, and all three are directory names in a walk-skip list. Every invocation re-walks the repository, re-parses 315 <code>go.mod</code> files, and re-spawns 247 subprocesses to recompute answers that could not have changed.</p>
+    <p><code>go mod tidy -diff</code> is a pure function of a small, hashable input set, which makes this cheap to fix properly rather than with mtimes. Design in the cache section below.</p>
+  </div>
+
+  <div class="finding sev-hot">
+    <div class="f-head"><span class="f-id">P4</span><span class="f-title">One missing replace directive produces 80% of the report</span><span class="tag hot">Accuracy</span></div>
+    <p>39 scenario surfaces declare <code>replace github.com/vrooli/envkit-go =&gt; …/packages/envkit-go</code>. 208 do not, and 198 of those reach <code>envkit-go</code> transitively through <code>cli-core</code> or <code>api-core</code>. The freshness gate is therefore reporting one defect 198 times, and the surfaces that error can never be assessed for actual staleness — the check stops before it gets there.</p>
+    <p>This is why speed and accuracy are the same work here. A precommit gate that is 80% noise gets ignored regardless of how fast it runs, and fixing the noise also removes the cost.</p>
+  </div>
+
+  <div class="finding sev-warn">
+    <div class="f-head"><span class="f-id">P5</span><span class="f-title">The repository is walked twice and the dependency closure is recomputed 247 times</span><span class="tag warn">Speed</span><span class="tag note">Cleanliness</span></div>
+    <p><code>discoverGoSurfaces</code> walks <code>scenarios/</code>; <code>discoverGoModules</code> then walks the entire repository root, which contains <code>scenarios/</code> — so every scenario <code>go.mod</code> is found and hand-parsed twice. Separately, <code>impactedSurfaces</code> calls <code>transitiveRequirements</code> once per surface with no memoization, re-deriving the same closures from the same 315-module map, and it does so even when the changed-module set is empty and the answer cannot matter.</p>
+    <p>Worth roughly 1.9 seconds warm, more on a cold page cache — which is most CI runs. Small next to P1, but it is the whole remaining budget once P1 is gone.</p>
+  </div>
+
+  <div class="finding sev-warn">
+    <div class="f-head"><span class="f-id">P6</span><span class="f-title">68 modules are never checked; four synthetic test fixtures are</span><span class="tag warn">Accuracy</span><span class="tag warn">Coverage</span></div>
+    <p>Surfaces are discovered under <code>scenarios/</code> only. That excludes 23 modules in <code>packages/</code> — including <code>envkit-go</code>, <code>api-core</code> and <code>cli-core</code>, the shared spine every scenario depends on — plus 31 in <code>resources/</code>, 12 in <code>templates/</code>, the root module, and <code>cmd/</code>. A root <code>go.mod</code> edit is exactly what triggers the fleet-wide fan-out, and the module it edits is the one module the check will not look at.</p>
+    <p>In the other direction, the sweep includes four modules that are deliberately synthetic: <code>go-code-graph/bas/fixtures/{go-cycles,go-usage-facts,go-tests,go-mislocated}</code> and <code>browser-automation-studio/bas/seeds</code>. They exist to be malformed. Exclusion needs to be a declared rule, not a hardcoded directory-name list.</p>
+  </div>
+
+  <div class="finding sev-warn">
+    <div class="f-head"><span class="f-id">P7</span><span class="f-title"><code>deps reconcile --all</code> is serial, fail-fast, and re-walks the repo once per scenario</span><span class="tag warn">Speed</span><span class="tag hot">Accuracy</span></div>
+    <p>The CLI issues one RPC per scenario in a <code>for</code> loop and returns on the first error. Server-side, each request calls <code>LoadTopology(repoRoot)</code> — a fresh walk of all 315 modules — then, per surface, forks <code>go mod edit -json</code> for its own <code>go.mod</code> and for every in-repo module it requires, and AST-parses every <code>.go</code> file in the scenario.</p>
+    <p>Inside that parse, <code>matchingInRepoModule</code> linear-scans all 315 module paths for <em>every import of every file</em> — on the order of 10<sup>8</sup> prefix comparisons across the fleet, where a longest-prefix map would be one lookup.</p>
+    <p>The observable result is that <code>deps reconcile --all</code> spends 30.8 seconds, hits a <code>{{SCENARIO_ID}}</code> placeholder in a template module, and aborts with nothing to show for it. This is the command the freshness report itself recommends as the fix for P4.</p>
+    <div class="evidence">reconcile go.mod replaces: internal: exit status 1: go: -require={{SCENARIO_ID}}@v0.0.0:
+  invalid path: malformed import path "{{SCENARIO_ID}}": invalid char '{'</div>
+  </div>
+
+  <div class="finding sev-note">
+    <div class="f-head"><span class="f-id">P8</span><span class="f-title">Two different go.mod parsers, both hand-rolled, neither correct</span><span class="tag note">Maintainability</span></div>
+    <p><code>freshness.go</code> parses <code>go.mod</code> with a line scanner that ignores <code>replace</code> entirely and indexes <code>strings.Fields(rest)[0]</code> without a length check. <code>gomodreconcile</code> deliberately does the opposite — it shells out to <code>go mod edit -json</code> on the grounds that "the go binary is authoritative" — and pays a process fork per file for it. Both are solving the same problem with opposite trade-offs and different bugs.</p>
+    <p><code>golang.org/x/mod/modfile</code> is the correct answer for both: authoritative, in-process, no fork. It is already resolved in the module cache transitively but is not an approved direct dependency, so adopting it goes through SDA's own governance — <code>deps approved search</code> then <code>deps install</code>, never a raw <code>go get</code>.</p>
+  </div>
+
+  <div class="finding sev-note">
+    <div class="f-head"><span class="f-id">P9</span><span class="f-title">--touched cannot see a new file, and nothing bounds the total run</span><span class="tag note">Accuracy</span></div>
+    <p><code>changedPaths</code> runs <code>git diff --name-only HEAD</code> and <code>git diff --cached --name-only</code>, with a fallback that passes <code>--untracked-files=no</code>. A brand-new, unstaged <code>go.mod</code> — the exact file a new scenario adds — is invisible to <code>--touched</code>. Separately, <code>runGo</code> caps each subprocess at 120 s but nothing caps the run, so the worst case is 247 × 120 s with no ceiling and no partial result.</p>
+  </div>
+</section>
+
+<section id="not">
+  <h2>What is not wrong</h2>
+  <p class="dek">Two things that look like the problem, are not, and would absorb real effort if pursued.</p>
+
+  <div class="callout">
+    <h3>The fan-out is honest — correcting it buys 3.6%</h3>
+    <p>The natural read is that a root <code>go.mod</code> edit fans out to the whole fleet because <code>impactedSurfaces</code> takes a shortcut: when <code>go.mod</code> or <code>go.sum</code> changes at the root it marks every surface impacted unconditionally, without consulting the dependency graph at all. That shortcut is real. It is also very nearly right.</p>
+    <p>Computing the actual transitive require closure for all 247 surfaces gives <strong>238 that genuinely reach <code>github.com/vrooli/vrooli</code></strong>, almost all of them through <code>packages/cli-core</code>. Making the impact analysis exact removes nine surfaces — four of which are the synthetic fixtures from P6. A root module edit really does invalidate the fleet.</p>
+    <p>So the lever is not "compute impact more precisely so less work happens." It is "make each unit of work cost what it should" — 6 ms instead of 350 ms — and then cache it. This corrects the framing in the earlier portability report, which proposed reporting impact and deferring verification on the theory that the consumer list would be cheap and short. The list is cheap. It is not short.</p>
+  </div>
+
+  <p>Second: <strong>this is not a fork storm and not a memory problem.</strong> 247 subprocesses sounds alarming, but they are bounded by the worker pool, peak resident memory never approached the host's 60 GB, and the offline sweep completes in 1.5 seconds. The <code>sys</code> time of ~9 s across the run is ordinary process-spawn cost for 247 <code>go</code> invocations. Once the cache in step 3 lands, the steady-state number of spawns drops to the handful of surfaces that actually changed, and the question stops being interesting.</p>
+</section>
+
+<section id="plan">
+  <h2>The sequence</h2>
+  <p class="dek">Ordered by dependency, not by size. Steps 1 and 2 are independent and can land in either order, but 2 is far more pleasant after 1, and 7 is only honest after 1–4.</p>
+
+  <div class="step">
+    <div class="step-n">1</div>
+    <div class="step-body">
+      <h3>Run the sweep offline, with a typed retry tier for genuine cache misses</h3>
+      <div class="step-meta"><span class="tag hot">71.9 s → 3.4 s</span><span class="tag note">~15 lines</span><span class="tag note">freshness.go</span></div>
+      <p>Add <code>GOPROXY=off</code> to the overlay in <code>runGo</code> alongside the existing <code>GOWORK=off</code> and <code>GOFLAGS=</code>. A blanket <code>GOPROXY=off</code> alone would be wrong — on a cold host it turns a legitimate first-time download into a failure — so pair it with a second tier keyed on the toolchain's own error text, which is stable and unambiguous:</p>
+      <div class="evidence">go: probe imports
+	github.com/nats-io/nats.go: module lookup disabled by GOPROXY=off</div>
+      <p>Surfaces that emit that string get re-run once with the network on. Surfaces that fail for any other reason — including all 198 <code>envkit-go</code> cases — never touch it. Report the retried ones as a distinct <code>needs_download</code> status rather than folding them into <code>error</code>, so a cold cache reads as a cold cache instead of a defect.</p>
+      <p>Verified on this host: identical verdicts at 21× the speed, and the offline sweep is provably reproducible outside SDA.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">2</div>
+    <div class="step-body">
+      <h3>Repair the envkit-go replace fleet-wide, which requires fixing reconcile first</h3>
+      <div class="step-meta"><span class="tag hot">199 errors → ~1</span><span class="tag warn">blocked by step 6</span></div>
+      <p>208 surfaces need one <code>replace</code> line. The primitive that generates it — <code>gomodreconcile</code> — already names this failure mode in its package doc and produces the right edit. It cannot currently be run across the fleet because of P7, so the ordering is: make reconcile survive a bad module (step 6), then apply it repo-wide, then re-measure freshness against a report that is signal.</p>
+      <p>Until this lands, treat the freshness gate's error count as one finding, not 199. It is the same finding.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">3</div>
+    <div class="step-body">
+      <h3>Add a content-addressed result cache</h3>
+      <div class="step-meta"><span class="tag hot">3.4 s → tens of ms warm</span><span class="tag note">the durable win</span></div>
+      <p>This is what turns a fast check into a free one, and it is what makes the fleet-wide fan-out from P6's root-module case permanently affordable. Keys and invalidation are spelled out in the next section — the important property is that it must hash content, not stat mtimes, because the whole point is to be trustworthy inside a precommit hook where files are being rewritten as it runs.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">4</div>
+    <div class="step-body">
+      <h3>One walk, one parser, memoized closures</h3>
+      <div class="step-meta"><span class="tag warn">~1.9 s → ~0.3 s</span><span class="tag note">cleanliness</span></div>
+      <ul class="tight">
+        <li>Walk the repository root once and derive both the module map and the surface list from that single pass, rather than walking <code>scenarios/</code> and then walking the root over it again.</li>
+        <li>Memoize <code>transitiveRequirements</code> by module path — the closure is identical for every surface that shares a root — and skip it entirely when <code>changedModules</code> is empty.</li>
+        <li>Replace the hand-rolled line scanner with <code>golang.org/x/mod/modfile</code> (P8), which also gives <code>replace</code> awareness for free and removes the unchecked slice index.</li>
+        <li>Make surface exclusion a declared rule that names <code>bas/fixtures</code>, <code>bas/seeds</code> and <code>templates/</code> with a reason, replacing the inline <code>switch d.Name()</code> list that appears twice in the file.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">5</div>
+    <div class="step-body">
+      <h3>Extend coverage past scenarios/</h3>
+      <div class="step-meta"><span class="tag warn">+68 modules</span><span class="tag warn">accuracy</span></div>
+      <p>Once a surface costs ~6 ms and repeats are cached, there is no reason to check 247 of 315 modules. Include <code>packages/</code>, <code>resources/</code>, <code>cmd/</code> and the root module in discovery; keep <code>templates/</code> excluded by the declared rule from step 4, since those modules hold placeholders by design. This closes the gap where the module whose edit triggers the fan-out is itself unchecked.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">6</div>
+    <div class="step-body">
+      <h3>Make reconcile collect errors, hoist topology, and drop the per-import linear scan</h3>
+      <div class="step-meta"><span class="tag hot">unblocks step 2</span><span class="tag warn">30.8 s → seconds</span></div>
+      <ul class="tight">
+        <li><strong>Stop aborting.</strong> Collect per-surface failures into the response instead of returning <code>CodeInternal</code> on the first one. A malformed template must not cost the other 120 scenarios their result.</li>
+        <li><strong>Load topology once.</strong> Memoize <code>LoadTopology</code> per repository tree digest instead of re-walking 315 modules on every one of the ~121 RPCs.</li>
+        <li><strong>Stop the per-scenario RPC loop.</strong> Either add a fleet-scoped request or fan out with an <code>errgroup</code> at the CLI — but only after the two items above, or parallel fan-out just multiplies the redundant walks.</li>
+        <li><strong>Replace <code>matchingInRepoModule</code></strong> with a longest-prefix map over module paths, turning a 315-entry scan per import into one lookup.</li>
+        <li><strong>Replace the <code>go mod edit -json</code> fork</strong> with in-process parsing, per P8. The stated rationale — the go binary is authoritative — is satisfied by <code>x/mod/modfile</code>, which is the same parser the go binary uses.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">7</div>
+    <div class="step-body">
+      <h3>Give the hygiene lane a budget it enforces on itself</h3>
+      <div class="step-meta"><span class="tag note">control plane</span><span class="tag note">keeps it honest</span></div>
+      <p>Two things, and neither belongs to SDA. First, the <code>Makefile</code> defines <code>VROOLI := go run ./cmd/vrooli</code>, so every <code>make hygiene</code> recompiles the CLI — around 20 seconds on the commit path. <code>setup</code> already has a <code>command -v vrooli</code> fast path; <code>hygiene</code> should use the same one.</p>
+      <p>Second, <code>hygiene.Registry.Run</code> iterates providers serially with no time budget, which is how a 60-second lane silently became a two-minute one. Let each provider declare a budget, have the registry enforce it, and report an over-budget provider as a finding against itself. A gate that quietly grows past its lane is the same class of failure as a gate that quietly stops running — and unlike that one, this is measurable.</p>
+      <p>With steps 1–4 done, SDA's provider costs roughly 3 seconds cold and near-nothing warm, which fits the lane comfortably. It no longer needs to defer verification to a slower lane — the earlier proposal to report impact and verify elsewhere was solving a cost that will not exist.</p>
+    </div>
+  </div>
+</section>
+
+<section id="cache">
+  <h2>Cache design</h2>
+  <p class="dek">The one piece worth specifying before anyone writes it, because getting the key wrong produces a cache that is fast and silently wrong.</p>
+
+  <p><code>go mod tidy -diff</code> depends on more than <code>go.mod</code>. It resolves the module's actual import graph, so a source file that adds or removes an import changes the answer with no manifest edit at all. An mtime- or manifest-only key would go stale in exactly the case the check exists to catch.</p>
+
+  <h3>Key</h3>
+  <div class="evidence">sha256(
+  go.mod bytes
+  go.sum bytes
+  sorted import set of every .go file under the module   ← the non-obvious one
+  go toolchain version   (go env GOVERSION)
+  tool schema version    (bump to invalidate all entries on a logic change)
+)</div>
+
+  <p>The import set is cheap to derive with <code>parser.ParseFile(..., parser.ImportsOnly)</code>, which reads only up to the import block — and step 6 needs that same scan for reconcile, so the two should share one implementation rather than growing a second copy.</p>
+
+  <h3>Value, storage, and eviction</h3>
+  <ul class="tight">
+    <li>Store the full <code>freshnessSurfaceReport</code> — status, diff paths, error text — so a cached stale verdict is as actionable as a fresh one.</li>
+    <li>Write under the scenario's own data directory, not <code>/tmp</code>. Scratch directories on this host do not survive a few days, and a verification baseline that silently vanishes is worse than no cache.</li>
+    <li>Bound it. The scenario already carries an unbounded <code>phase-cache/</code> at 56 MB and 362 files with no owner; a second unbounded cache would be a repeat, not a feature. Cap by entry count with LRU eviction and record the cap where an operator can see it.</li>
+    <li>Never cache a <code>needs_download</code> result from step 1 — that status describes the host's module cache, not the surface, and it changes without any file changing.</li>
+  </ul>
+
+  <h3>Expected steady state</h3>
+  <p>A commit touching one scenario invalidates that scenario's surfaces and nothing else: a handful of subprocesses, tens of milliseconds. A commit touching the root <code>go.mod</code> invalidates all 238 dependent surfaces honestly — and at 6 ms each, offline, that is still under two seconds. Which is the real conclusion of this report: the fan-out was never the problem worth solving.</p>
+</section>
+
+<section id="end-state">
+  <h2>Where it ends up</h2>
+  <p class="dek">What the seven steps are worth, split by how much of each number is measured and how much is inference.</p>
+
+  <p class="lede">The case you are actually living with — a long-lived branch with the root <code>go.mod</code> modified, so every commit re-checks 238 surfaces — goes from 71.9 seconds to roughly four tenths of a second.</p>
+
+  <p>One number in the cache design was worth checking before trusting any of this, because getting it wrong would invert the conclusion: if computing a cache key costs more than the check it replaces, the cache is theatre. Hashing all <strong>20,972 Go files</strong> across the fleet — 159 MB — takes <strong>about 50 milliseconds</strong> warm on this host, which has SHA-NI. Key computation is noise. The cache can key on honest content rather than mtimes and still cost nothing.</p>
+
+  <h3>Component budget</h3>
+  <p>Both columns assume <code>GOPROXY=off</code>, a warm page cache, and 32 cores.</p>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Today</th><th>After</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Repo walk + manifest parse</td><td class="num">~0.5 s</td><td class="num">~0.25 s</td></tr>
+      <tr><td>Impact closure</td><td class="num">247 unmemoized walks</td><td class="num">~0.01 s</td></tr>
+      <tr><td>Cache keys · 315 modules, 21k files</td><td class="num">—</td><td class="num">~0.05–0.10 s</td></tr>
+      <tr><td>Subprocess sweep</td><td class="num">1.5 s · all 247</td><td class="num">misses only</td></tr>
+      <tr><td><strong>Network</strong></td><td class="num hot"><strong>68.5 s</strong></td><td class="num ok"><strong>0</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>End state by case</h3>
+
+  <div class="tbl-scroll">
+  <table>
+    <thead>
+      <tr><th>Case</th><th>Now</th><th>Projected</th><th>Confidence</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Commit touching one scenario</td>
+        <td class="num">71.9 s</td>
+        <td class="num"><strong>~0.35 s</strong></td>
+        <td><span class="tag ok">High</span></td>
+      </tr>
+      <tr>
+        <td>Root <code>go.mod</code> touched, cache warm — <em>today's exact state on <code>agi</code></em></td>
+        <td class="num">71.9 s</td>
+        <td class="num"><strong>~0.4 s</strong></td>
+        <td><span class="tag ok">High</span></td>
+      </tr>
+      <tr>
+        <td>Cold cache, all 315 modules (with step 5 coverage)</td>
+        <td class="num">n/a · only 247 checked</td>
+        <td class="num"><strong>~3 s</strong></td>
+        <td><span class="tag note">Medium</span></td>
+      </tr>
+      <tr>
+        <td><code>deps reconcile --all</code></td>
+        <td class="num">30.8 s → abort</td>
+        <td class="num"><strong>1–3 s, completes</strong></td>
+        <td><span class="tag warn">Low–medium</span></td>
+      </tr>
+      <tr>
+        <td><code>make hygiene</code> end to end</td>
+        <td class="num">2 m 05 s</td>
+        <td class="num"><strong>~40 s</strong></td>
+        <td><span class="tag note">Medium</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Steps 1 and 3 account for essentially all of it. Steps 4 through 7 are what keep it there.</p>
+
+  <h3>Three caveats</h3>
+
+  <p><strong>The root module is a 2.4-second floor.</strong> <code>go mod tidy -diff</code> on the root module alone measures 2.4 s — 9.5 s user, 10.3 s sys; it is a large module. Once step 5 brings it into coverage, any run that genuinely invalidates it pays that, and concurrency cannot help because it is one item. That single measurement is what sets the ~3 s cold figure, not the other 314 modules. It is also why the cache in step 3 is not a nice-to-have: without it, that 2.4 s lands on every commit.</p>
+
+  <p><strong>The reconcile number is the soft one.</strong> Its symptom is measured — 30.8 s, then abort — but its internals were not profiled. The 1–3 s projection is inference from the four defects in P7: topology loaded 121 times instead of once, a 315-entry linear scan per import, a process fork per file, and fail-fast. The direction is certain; the magnitude is not, and it should be re-measured rather than assumed once step 6 lands.</p>
+
+  <p><strong>Cold CI is a different question.</strong> Every figure here assumes a warm <code>GOMODCACHE</code>. On a fresh runner, step 1's <code>needs_download</code> tier fires for real and the run pays actual downloads once. That is a CI-caching concern rather than an SDA one — but ~3 s is not the number a cold container will show.</p>
+
+  <div class="callout">
+    <h3>What none of this fixes</h3>
+    <p>Every number above is about cost, not correctness. Until step 2 lands, the report still carries <strong>199 error rows for one missing <code>replace</code> directive</strong>. A gate that runs in 0.4 seconds and is 80% noise is still a gate people learn to ignore — and that failure mode does not show up in any timing.</p>
+  </div>
+</section>
+
+<section id="method">
+  <h2>Method</h2>
+  <p class="dek">So the numbers can be reproduced or disputed.</p>
+  <p class="wide">Read-only. Every measurement was taken on this host on 2026-08-23 against the working tree on branch <code>agi</code>, using the installed <code>scenario-dependency-analyzer</code> binary and <code>time</code>. Verdict counts come from the tool's own <code>--json</code> summary. The offline comparisons re-ran the identical <code>go mod tidy -diff</code> invocation the tool issues, under <code>xargs -P</code>, to confirm the cost reproduces outside SDA. The transitive-closure figure in "What is not wrong" was computed by parsing every <code>go.mod</code> in the repository and walking the require graph, which is the same algorithm <code>impactedSurfaces</code> would use if it did not short-circuit. The <code>GOPROXY=off</code> error signature was confirmed against a scratch module requiring a version that does not exist. The cache-key figure in "Where it ends up" is a measured upper bound: SHA-256 over all 20,972 <code>.go</code> files under <code>scenarios/</code>, <code>packages/</code>, <code>resources/</code> and <code>cmd/</code>, run 8-way, which completes in ~50 ms warm and is unchanged at 32-way.</p>
+  <p class="wide">No files in the repository were modified, no <code>--apply</code> path was exercised, and <code>deps reconcile</code> was run only in its default dry-run form. The one command that failed — <code>deps reconcile --all</code> — failed read-only and is reported as a finding.</p>
+  <div class="footnote">
+    Companion to the earlier portability report, which measured this same 71 seconds from the outside and attributed it to fan-out. That attribution is corrected in "What is not wrong": the fan-out is real and almost entirely justified. The cost is per-surface, and it is network.
+  </div>
+</section>
+
+</main>
+</div>

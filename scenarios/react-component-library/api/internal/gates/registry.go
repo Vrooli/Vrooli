@@ -1,0 +1,273 @@
+package gates
+
+import (
+	"context"
+	"database/sql"
+	"strings"
+
+	"react-component-library/internal/librarywalk"
+)
+
+// Scope identifies the repository and, optionally, the assets a gate must
+// inspect. An empty Assets slice means the full corpus.
+type Scope struct {
+	Context  context.Context
+	Root     string
+	Assets   []string
+	DB       *sql.DB
+	Revision func(string, string) (string, error)
+	Set      librarywalk.Set
+}
+
+func (s Scope) IsFullCorpus() bool { return len(s.Assets) == 0 }
+
+// Reads declares the minimum input set a gate needs in order to compute its
+// rule. It is metadata for the runner contract, not permission to widen the
+// caller's reported asset scope.
+type Reads uint8
+
+const (
+	ReadsAsset Reads = iota
+	ReadsClosure
+	ReadsCorpus
+)
+
+var readOverrides = map[string]Reads{
+	"graph-reconciled": ReadsClosure, "dependency-rank": ReadsClosure, "kit-compatibility": ReadsCorpus,
+	"affinity-compatible": ReadsCorpus, "dist-resolution": ReadsClosure, "deprecated-import": ReadsClosure,
+	"version-liveness": ReadsClosure, "fallback-parity": ReadsClosure, "token-ramp-complete": ReadsClosure,
+	"types": ReadsAsset, "tokens": ReadsAsset, "token-vocabulary": ReadsAsset, "api": ReadsAsset,
+	"story-grammar": ReadsAsset, "conformance": ReadsCorpus, "version-shape": ReadsAsset, "examples": ReadsAsset,
+	"specifier-shape": ReadsAsset, "rtl": ReadsAsset, "reduced-motion": ReadsAsset, "performance": ReadsAsset,
+	"console-clean": ReadsAsset, "surface-discipline": ReadsAsset, "lifecycle": ReadsAsset, "i18n": ReadsAsset,
+	"restyle-contract": ReadsAsset, "manifest-identity": ReadsAsset, "manifest-metadata": ReadsAsset,
+	"style-injection": ReadsAsset, "style-ownership": ReadsAsset, "utility-class": ReadsAsset,
+	"provenance-stamp": ReadsAsset, "evidence-freshness": ReadsAsset, "composition": ReadsAsset,
+	"composition-contract":     ReadsAsset,
+	"scenario-canonical-layer": ReadsCorpus,
+}
+
+// Runner is the compatibility shape used by direct calibration/unit callers.
+// Registry dispatch uses ContextRunner so the production seam is cancellable.
+type (
+	Runner        func(Scope) (Result, error)
+	ContextRunner func(context.Context, Scope) (Result, error)
+)
+
+// RuleSource identifies the declaration layer that imposed a rule.
+type RuleSource string
+
+const (
+	RuleSourceUniversal RuleSource = "universal"
+	RuleSourceKind      RuleSource = "kind"
+	RuleSourceAsset     RuleSource = "asset"
+	RuleSourceCorpus    RuleSource = "corpus"
+)
+
+// Definition is the single executable registration record for a gate.
+type Definition struct {
+	ID                string
+	Run               ContextRunner
+	Reads             Reads
+	DeterminismInputs []string
+}
+
+var registry = []Definition{
+	registeredDefinition("graph-reconciled", true, ValidateGraphReconciled, "catalog/assets/**", "library/**"),
+	registeredDefinition("dependency-rank", true, ValidateDependencyRank, "catalog/assets/**", "library/**"),
+	registeredDefinition("self-hosting", true, ValidateSelfHosting, "catalog/assets/**", "library/**"),
+	registeredDefinition("bas-genericity", true, ValidateBASGenericity, "catalog/assets/**", "library/**"),
+	registeredDefinition("token-vocabulary", true, ValidateTokenVocabulary, "catalog/config.json", "library/**"),
+	registeredDefinition("fallback-parity", false, ValidateFallbackParity, "catalog/config.json", "library/**"),
+	registeredDefinition("kit-compatibility", true, ValidateKitCompatibility, "catalog/config.json", "library/**"),
+	registeredDefinition("affinity-compatible", true, ValidateAffinityNotBroaderThanCompatibility, "catalog/config.json", "library/**"),
+	registeredDefinition("token-ramp-complete", true, ValidateTokenRampComplete, "catalog/assets/**", "library/**"),
+	registeredDefinition("scenario-token-requirements", true, ValidateScenarioTokenRequirements, "catalog/config.json", "library/**", "ui/src/**"),
+	registeredDefinition("scenario-canonical-layer", true, ValidateScenarioCanonicalLayer, "library/**", "scenarios/*/ui/src/**"),
+	registeredDefinition("released-version-immutable", true, ValidateReleasedVersionImmutable, "library/released-version-hashes.json", "library/**"),
+	registeredDefinition("version-mirror-integrity", true, ValidateVersionMirrorIntegrity, "library/**"),
+	registeredDefinition("specifier-shape", true, ValidateSpecifierShape, "library/**", "catalog/config.json"),
+	registeredDefinition("version-shape", true, ValidateVersionShape, "catalog/version-shape.json", "library/**"),
+	registeredDefinition("field-ownership", true, ValidateFieldOwnership, "catalog/assets/**", "library/**"),
+	registeredDefinition("release-provenance", true, ValidateReleaseProvenance, "library/release-provenance.json", "library/**"),
+	registeredDefinition("version-liveness", true, ValidateVersionLiveness, "library/**"),
+	registeredDefinition("dist-resolution", true, ValidateDistResolution, "package.json", "dist/**"),
+	registeredDefinition("types", false, func(scope Scope) (Result, error) {
+		return ValidateTypes(scope)
+	}, "package.json", "pnpm-lock.yaml", "library/**"),
+	registeredDefinition("api", false, ValidateAPI, "catalog/assets/**", "library/**"),
+	declarationOnlyDefinition("unit", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("interaction", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("accessibility", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("responsive", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("visual", false, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("rtl", false, ValidateRTL, "catalog/config.json", "library/**"),
+	registeredDefinition("reduced-motion", false, ValidateReducedMotion, "catalog/config.json", "library/**"),
+	registeredDefinition("performance", true, ValidatePerformance, "catalog/assets/**", "library/**"),
+	registeredDefinition("console-clean", true, ValidateConsoleClean, "catalog/config.json", "library/**"),
+	registeredDefinition("surface-discipline", false, ValidateSurfaceDiscipline, "catalog/config.json", "library/**"),
+	registeredDefinition("composition", false, ValidateComposition, "catalog/assets/**", "library/**"),
+	registeredDefinition("composition-contract", true, ValidateCompositionContract, "catalog/assets/**", "library/**"),
+	registeredDefinition("documentation", false, ValidateDocumentation, "catalog/assets/**", "library/**"),
+	registeredDefinition("examples", true, ValidateExamples, "catalog/assets/**", "library/**"),
+	registeredDefinition("fixture-adversarial", true, ValidateFixtures, "catalog/assets/**", "library/**"),
+	registeredDefinition("tokens", true, ValidateTokens, "catalog/config.json", "library/**"),
+	registeredDefinition("conformance", true, ValidateConformance, "catalog/assets/**", "library/**"),
+	registeredDefinition("lifecycle", true, ValidateLifecycle, "catalog/config.json", "library/**"),
+	registeredDefinition("i18n", false, ValidateI18n, "catalog/config.json", "library/**"),
+	registeredDefinition("selector-coverage", false, ValidateSelectorCoverage, "catalog/config.json", "library/**"),
+	registeredDefinition("restyle-contract", true, ValidateRestyleContract, "catalog/assets/**", "library/**"),
+	registeredDefinition("manifest-identity", true, ValidateManifestIdentity, "catalog/assets/**", "library/**"),
+	registeredDefinition("manifest-metadata", true, ValidateManifestMetadata, "catalog/assets/**", "library/**"),
+	registeredDefinition("declaration-coverage", true, ValidateDeclarationCoverage, "catalog/assets/**", "library/**"),
+	registeredDefinition("overlay-surface-composition", true, ValidateOverlaySurfaceComposition, "catalog/assets/**", "library/**"),
+	registeredDefinition("shared-style-ownership", true, ValidateSharedStyleOwnership, "catalog/assets/**", "library/**"),
+	registeredDefinition("style-injection", true, ValidateStyleInjection, "catalog/assets/**", "library/**"),
+	registeredDefinition("style-ownership", true, ValidateStyleOwnership, "catalog/assets/**", "library/**"),
+	registeredDefinition("foreign-token-classes", true, ValidateForeignTokenClasses, "catalog/config.json", "library/**"),
+	registeredDefinition("utility-class", true, ValidateNoUtilityClasses, "catalog/config.json", "library/**"),
+	registeredDefinition("consumer-pin", true, ValidateConsumerPins, "catalog/assets/**", "library/**", "ui/src/**"),
+	registeredDefinition("deprecated-import", true, ValidateDeprecatedImports, "catalog/assets/**", "library/**"),
+	registeredDefinition("provenance-stamp", true, ValidateProvenanceStamp, "catalog/assets/**", "library/**"),
+	registeredDefinition("story-grammar", true, ValidateStoryGrammar, "catalog/assets/**", "library/**"),
+	registeredDefinition("story-distinctness", true, ValidateStoryDistinctness, "catalog/assets/**", "library/**"),
+	registeredDefinition("harness-manifest", true, ValidateHarnessManifest, "harnesses/manifest.json", "harnesses/**", "library/**"),
+	registeredDefinition("evidence-freshness", true, ValidateEvidenceFreshness, "catalog/assets/**", "library/**"),
+}
+
+func registeredDefinition(id string, corpus bool, run func(Scope) (Result, error), inputs ...string) Definition {
+	reads := declaredReads(id, corpus)
+	return Definition{ID: id, Reads: reads, Run: legacyRunner(run), DeterminismInputs: append([]string(nil), inputs...)}
+}
+
+func legacyRunner(run func(Scope) (Result, error)) ContextRunner {
+	return func(ctx context.Context, scope Scope) (Result, error) {
+		scope.Context = ctx
+		return run(scope)
+	}
+}
+
+func declarationOnlyDefinition(id string, corpus bool, inputs ...string) Definition {
+	reads := declaredReads(id, corpus)
+	return Definition{ID: id, Reads: reads, DeterminismInputs: append([]string(nil), inputs...)}
+}
+
+func declaredReads(id string, corpus bool) Reads {
+	if reads, ok := readOverrides[id]; ok {
+		return reads
+	}
+	if corpus {
+		return ReadsCorpus
+	}
+	return ReadsAsset
+}
+
+// Definitions returns a copy so callers cannot mutate the executable order.
+func Definitions() []Definition {
+	return append([]Definition(nil), registry...)
+}
+
+// Register adds a gate for tests and controlled extensions.
+func Register(definition Definition) {
+	registry = append(registry, definition)
+}
+
+func Lookup(id string) (Definition, bool) {
+	for _, definition := range registry {
+		if definition.ID == id {
+			return definition, true
+		}
+	}
+	return Definition{}, false
+}
+
+// Run executes a registered gate with the caller's scope. Keeping lookup and
+// execution together prevents future dispatch code from silently discarding
+// the asset set while still allowing declaration-only gates to remain
+// explicitly unmeasured.
+func Run(id string, scope Scope) (Result, bool, error) {
+	definition, ok := Lookup(id)
+	if !ok || definition.Run == nil {
+		return Result{}, false, nil
+	}
+	result, err := RunDefinition(definition, scope)
+	return result, true, err
+}
+
+// RunDefinition is the single dispatch seam for scope semantics. Corpus gates
+// receive an explicit full-corpus scope; asset gates receive the caller's
+// selection. This prevents a registry declaration from becoming descriptive
+// metadata that the execution path silently ignores.
+func RunDefinition(definition Definition, scope Scope) (Result, error) {
+	if scope.Context == nil {
+		scope.Context = context.Background()
+	}
+	if err := scope.Context.Err(); err != nil {
+		return Result{}, err
+	}
+	if scope.Set.Files == nil && scope.Set.Versions == nil && scope.Root != "" {
+		set, err := librarywalk.Files(scope.Context, scope.Root, librarywalk.Scope{Assets: assetSet(scope.Assets)}, librarywalk.Reads(definition.Reads))
+		if err != nil {
+			return Result{}, err
+		}
+		scope.Set = set
+	}
+	runScope := scope
+	if definition.Reads == ReadsCorpus {
+		// Corpus gates are intentionally invariant under an asset selector. The
+		// selector controls which gates are applicable, not the meaning of a
+		// corpus measurement.
+		runScope.Assets = nil
+	}
+	result, err := definition.Run(scope.Context, runScope)
+	if err != nil {
+		return result, err
+	}
+	if definition.Reads != ReadsCorpus && definition.Reads != ReadsClosure {
+		return filterToScope(result, scope.Assets), nil
+	}
+	return filterToScope(result, scope.Assets), nil
+}
+
+func assetSet(assets []string) map[string]struct{} {
+	if len(assets) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(assets))
+	for _, asset := range assets {
+		set[asset] = struct{}{}
+	}
+	return set
+}
+
+func filterToScope(result Result, assets []string) Result {
+	if len(assets) == 0 {
+		return result
+	}
+	allowed := make(map[string]struct{}, len(assets))
+	for _, asset := range assets {
+		allowed[asset] = struct{}{}
+	}
+	keep := func(f Finding) bool {
+		if f.AssetID == "" || len(f.AssetID) > 10 && f.AssetID[:10] == "__corpus__." {
+			return false
+		}
+		if _, ok := allowed[f.AssetID]; ok {
+			return true
+		}
+		for asset := range allowed {
+			if f.AssetID == strings.TrimPrefix(asset, "react-component-library:") {
+				return true
+			}
+		}
+		return false
+	}
+	filtered := result.Findings[:0]
+	for _, finding := range result.Findings {
+		if keep(finding) {
+			filtered = append(filtered, finding)
+		}
+	}
+	result.Findings = filtered
+	return result
+}

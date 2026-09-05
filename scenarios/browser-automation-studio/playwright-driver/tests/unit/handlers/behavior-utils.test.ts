@@ -11,7 +11,7 @@ import {
   moveMouseNaturally,
   getElementCenter,
 } from '../../../src/handlers/behavior-utils';
-import { createMockPage, createTestConfig } from '../../helpers';
+import { createTestConfig } from '../../helpers';
 import { BEHAVIOR_SETTINGS_KEY } from '../../../src/browser-profile';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { sleep } from '../../../src/utils';

@@ -1,6 +1,155 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "web-console-db": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "web-console.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Conversation history, workspace state, shortcuts, provider configuration, and sender-owned snippets share the scenario database; 2 GiB bounds unexpected growth without making durable operator data reclaimable."
+        },
+        "rationale": "Primary durable SQLite database owned by Web Console."
+      },
+      "web-console-db-wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "web-console.db-wal",
+        "format": "sqlite",
+        "regenerable": true,
+        "rationale": "SQLite write-ahead log sidecar for the durable Web Console database."
+      },
+      "web-console-db-shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "web-console.db-shm",
+        "format": "sqlite",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the durable Web Console database."
+      },
+      "recovery-snapshots": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "recovery-snapshots",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Recovery snapshots preserve operator data across hardening and repair operations; the ceiling detects runaway snapshot accumulation without authorizing automatic deletion."
+        },
+        "rationale": "Protected SQLite recovery copies created before potentially destructive repair."
+      },
+      "deployment-report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retain the most recent deployment evidence for operational review."
+        },
+        "rationale": "Lifecycle deployment evidence written beneath the scenario data root."
+      },
+      "routed-agent-runs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "runs",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Run metadata supports recovery and attribution for programmatic sessions and follows the transcript review window."
+        },
+        "rationale": "Run metadata created by bounded agent-manager operations routed through Web Console's scenario storage lease."
+      },
+      "routed-control-plane-keys": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "control-plane-keys",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "4KiB",
+          "rationale": "The routed Ed25519 keypair is a small stable secret; this bound catches unrelated writes without rotating identity."
+        },
+        "rationale": "Control-plane signing identity created inside Web Console's routed storage boundary."
+      },
+      "routed-agent-identity": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "identity-secret.key",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "1KiB",
+          "rationale": "The routed agent identity secret is a single small stable key; this bound detects unrelated content without rotating identity."
+        },
+        "rationale": "Agent identity secret created inside Web Console's routed storage boundary."
+      },
+      "session-rollouts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "subpath": "sessions",
+        "rationale": "Per-session agent rollout transcripts are owner-budgeted review evidence and are disposable after the 30-day review window. Runtime directories under this tree are links to the shared agent home after launch-time provisioning.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retain session transcripts for 30 days for user recovery; owner cleanup protects active sessions."
+        }
+      },
+      "agent-runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "subpath": "agent-runtime",
+        "rationale": "Regenerable agent runtime state is isolated from durable rollouts when a native agent cannot use the shared user home; normal launches link caches and runtime directories to that shared home.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Fallback runtime state is disposable and may be reclaimed after the same review window without affecting rollout transcripts."
+        }
+      },
+      "uploads": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": false,
+        "subpath": "uploads",
+        "rationale": "User-provided attachments are written beneath the cache-class upload root and are owned by web-console for request-scoped cleanup."
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "web-console-sessions",
+        "name": "Web Console old sessions",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner",
+        "storage_entries": ["session-rollouts"]
+      }
+    ],
+    "rationale": "The session tree is owner-managed durable state; cleanup is delegated to web-console so active sessions remain protected."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "b016b9e7a5d7a21f40712aee481354ba02720d3bc8ae2aa0b2fa94655c240c56"
+  },
   "service": {
     "parent": "vrooli",
     "name": "web-console",
@@ -9,6 +158,133 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
+    "capabilities": [
+      "terminal-local",
+      "terminal-persistent",
+      "terminal-remote"
+    ],
+    "platform_capabilities": {
+      "terminal-standard-pty": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "creack-pty-v2",
+          "evidence": "api PTY integration suite on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "creack-pty-v2-with-darwin-termios",
+          "evidence": "go build and go vet linux-to-darwin matrix plus TIOCGETA adapter"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "native-ConPTY-pipe-backed-pty",
+          "evidence": "go build and go vet windows/amd64 and windows/arm64"
+        }
+      },
+      "terminal-persistent-tmux": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "tmux-control-mode-with-local-pty-attach",
+          "evidence": "api tmux integration and control-channel tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "unix-tmux-control-mode-with-local-pty-attach",
+          "evidence": "go build and go vet darwin matrix; no real-host tmux run"
+        },
+        "windows": {
+          "status": "not_applicable",
+          "evidence": "pty_tmux.go !windows compile-time seam",
+          "review_by": "2027-08-26"
+        }
+      },
+      "terminal-remote-bridge": {
+        "pairs": [
+          {
+            "console": "linux",
+            "node": "linux",
+            "status": "build-verified",
+            "mechanism": "vrooli-bridge-websocket-session-stream",
+            "evidence": "api bridge PTY contract tests on linux/amd64"
+          },
+          {
+            "console": "linux",
+            "node": "macos",
+            "status": "build-verified",
+            "mechanism": "vrooli-bridge-websocket-session-stream",
+            "evidence": "docs/reference/cross-platform-effort/evidence/remote-session-plan-live-attempt-2026-08-29.md"
+          }
+        ]
+      },
+      "session-working-dir": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "launch-spec-working-directory",
+          "evidence": "api session launch and recovery tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "launch-spec-working-directory",
+          "evidence": "go build and go vet darwin matrix"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "ConPTY-create-process-current-directory",
+          "evidence": "go build and go vet windows matrix"
+        }
+      },
+      "terminal-echo-state": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "TCGETS-termios-sampler",
+          "evidence": "api echo-state tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "TIOCGETA-termios-sampler",
+          "evidence": "darwin echo adapter and cross-target build"
+        },
+        "windows": {
+          "status": "not_applicable",
+          "review_by": "2027-08-26",
+          "evidence": "Windows ConPTY does not expose the Unix termios echo-control surface used by this capability."
+        }
+      },
+      "agent-hooks": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "Go-web-console-hooks-dispatch-subcommand",
+          "evidence": "cli hooks tests and API hook handler tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "Go-web-console-hooks-dispatch-subcommand",
+          "evidence": "go build and go vet darwin matrix"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "Go-web-console-hooks-dispatch-subcommand",
+          "evidence": "go build and go vet windows matrix"
+        }
+      },
+      "file-preview": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "Go-file-preview-resolver",
+          "evidence": "api file-preview handler tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "Go-file-preview-resolver",
+          "evidence": "go build and go vet darwin matrix"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "Go-file-preview-resolver",
+          "evidence": "go build and go vet windows matrix"
+        }
+      }
+    },
     "tags": [
       "react-ui",
       "go-api"
@@ -30,7 +306,12 @@
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "support": {
       "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    },
+    "system_required": true
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
   },
   "ports": {
     "api": {
@@ -41,14 +322,21 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 36233
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "port": 21233
     }
   },
+  "hostTools": [
+    {
+      "name": "tmux",
+      "required": false,
+      "reason": "Enable persistent detachable sessions that survive web-console restarts",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Persistent tmux support is declared in service.platform_capabilities; runtime availability is reported by /api/v1/capabilities/describe."
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -77,180 +365,182 @@
         }
       ]
     },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/web-console-api"]
-          },
-          {
-            "type": "cli",
-            "command": "web-console"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o web-console-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
     "develop": {
       "description": "Launch API and Vite dev server",
       "steps": [
         {
-          "name": "start-api",
-          "run": "cd api && ./web-console-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/web-console-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
           "name": "register-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
-          "description": "Register Claude Code Stop hook for auto-TTS"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute web-console --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        },
-        {
-          "name": "sync-validation",
-          "run": "scripts/sync-validation-results.sh",
-          "description": "Sync requirement validations to phase-results for scoring"
-        }
-      ]
-    },
-    "production": {
-      "description": "Build and run production services",
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go build -o web-console-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && ./web-console-api",
-          "background": true,
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle"
-        },
-        {
-          "name": "register-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
-          "description": "Register Claude Code Stop hook for auto-TTS"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "deregister-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'",
-          "description": "Deregister Claude Code Stop hook before shutdown"
-        },
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'web-console-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
+          "exec": [
+            "web-console",
+            "hooks",
+            "register"
+          ],
+          "description": "Register the Claude Code Stop and UserPromptSubmit hooks that capture session messages",
+          "on_error": "continue"
         }
       ]
     }
   },
-  "capabilities": {
-    "offline_capable": false,
-    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); voice features require Whisper/Kokoro servers",
-    "ai_providers": ["ollama", "openrouter"],
-    "ai_fallback": "openrouter",
-    "ai_note": "Ollama preferred (free+local); OpenRouter used when Ollama unavailable"
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli subscription session",
+        "description": "Device-scoped subscription refresh credential shared by bundled scenarios. Access tokens remain in memory only.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "label": "OpenRouter API key",
+        "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      }
+    ]
   },
   "dependencies": {
     "resources": {
-      "sqlite": {
-        "type": "sqlite",
+      "ollama": {
+        "type": "ollama",
         "enabled": true,
-        "required": true,
-        "description": "Portable storage for workspace layout, shortcuts, and AI provider config"
-      },
-      "kokoro": {
-        "type": "kokoro",
-        "enabled": false,
         "required": false,
-        "description": "Text-to-speech synthesis for voice output"
+        "startup_policy": "try_start",
+        "description": "Local LLM provider for AI command generation (primary; falls back to OpenRouter)",
+        "degraded_behavior": "AI generation falls back to OpenRouter when Ollama is unavailable",
+        "model_roles": [
+          "chat.default"
+        ]
       },
-      "whisper": {
-        "type": "whisper",
-        "enabled": false,
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
         "required": false,
-        "description": "Speech-to-text transcription for voice input"
+        "startup_policy": "try_start",
+        "description": "Cloud LLM provider (BYOK) for AI command generation; used as the fallback when Ollama is unavailable. Model selection resolves through resource-openrouter policy roles.",
+        "degraded_behavior": "AI generation is unavailable only if both Ollama and OpenRouter are unreachable; OpenRouter uses the credential authority first and an environment fallback when configured.",
+        "model_roles": [
+          "chat.default"
+        ]
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Claude Code agent exposed through the operator action surface.",
+        "degraded_behavior": "Claude Code remains unavailable until an operator explicitly installs it."
+      },
+      "codex": {
+        "type": "codex",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Codex agent exposed through the operator action surface.",
+        "degraded_behavior": "Codex remains unavailable until an operator explicitly installs it."
+      },
+      "opencode": {
+        "type": "opencode",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable OpenCode agent exposed through the operator action surface.",
+        "degraded_behavior": "OpenCode remains unavailable until an operator explicitly installs it."
+      },
+      "grok": {
+        "type": "grok",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Grok agent exposed through the operator action surface.",
+        "degraded_behavior": "Grok remains unavailable until an operator explicitly installs it."
+      },
+      "antigravity": {
+        "type": "antigravity",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Antigravity agent exposed through the operator action surface.",
+        "degraded_behavior": "Antigravity remains unavailable until an operator explicitly installs it."
+      }
+    },
+    "scenarios": {
+      "audio-tools": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "web-console reaches audio-tools through its scenario resolver and audioports client boundary; the dependency is a separately orchestrated service and is not linked as an in-process implementation dependency.",
+        "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and the shared browser capture package. web-console contains zero audio synthesis or transcription code.",
+        "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh."
+      },
+      "vrooli-bridge": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "web-console reaches vrooli-bridge through the configured Bridge URL and bridge session transport; the dependency is an externally orchestrated service boundary rather than an in-process import.",
+        "description": "Optional remote terminal capability. web-console uses the bridge session transport when a Bridge URL and enrolled node are configured.",
+        "degraded_behavior": "Local terminal sessions remain available; remote targets show bridge_url_missing or another typed capability reason until vrooli-bridge is configured."
+      },
+      "integration-hub": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Web Console consumes Integration Hub through the generated common.v1.integrations ConnectionService; no hub implementation is imported into this scenario.",
+        "description": "Provider-neutral connection metadata and lifecycle owner for managed integrations.",
+        "degraded_behavior": "Runtime dependencies and local BYOK behavior remain available; connected-account management reports an explicit unavailable state until Integration Hub recovers."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "web-console",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "web-console"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

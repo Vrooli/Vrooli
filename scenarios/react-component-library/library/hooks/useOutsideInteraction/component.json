@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-outside-interaction",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:useOutsideInteraction"
+}

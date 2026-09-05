@@ -1,223 +1,436 @@
 {
-  "service": {
-    "name": "scenario-to-desktop",
-    "displayName": "Scenario To Desktop",
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "automation",
-    "tags": [],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-to-desktop"
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "skills": {
+    "usage": {
+      "source": "skills/scenario-to-desktop/SKILL.md",
+      "programs": [
+        "scenario-to-desktop.pipeline-inspect",
+        "scenario-to-desktop.evidence-inventory"
+      ]
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "improve": {
+      "source": "skills/scenario-to-desktop-improve/SKILL.md",
+      "programs": [
+        "scenario-to-desktop.setpoint-read"
+      ]
     },
-    "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
-    "version": "1.0.0"
+    "feature": [],
+    "learning": {
+      "scope": "scenario-to-desktop-usage"
+    },
+    "waivers": {}
   },
-  "version": "1.0.0",
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "range": "15000-19999",
-      "description": "Desktop build API server port"
+  "cli": {
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "range": "35000-39999",
-      "description": "Desktop build UI server port"
+    "command": "scenario-to-desktop",
+    "enabled": true,
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "invoke": {
+      "command": "scenario-to-desktop",
+      "kind": "installed_command"
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "description": "Fallback: File-based template storage",
+        "enabled": false,
+        "purpose": "Store desktop application templates and build history",
+        "required": false,
+        "type": "postgres",
+        "startup_policy": "try_start"
+      },
+      "redis": {
+        "description": "Fallback: Local filesystem caching",
+        "enabled": false,
+        "purpose": "Cache compiled applications and build artifacts",
+        "required": false,
+        "type": "redis",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "agent-manager": {
+        "config": {
+          "declarations": {
+            "profileMode": "update_if_unmodified",
+            "reconcile": true,
+            "sources": [
+              ".vrooli/agent-manager/default.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Desktop generation and smoke testing remain available; only agent-assisted pipeline investigations and remediation suggestions are unavailable until Agent Manager is healthy.",
+        "description": "Agent orchestration layer for pipeline investigations",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "type": "scenario"
+      },
+      "deployment-manager": {
+        "degraded_behavior": "Proxy-mode desktop generation remains available; bundled-runtime manifest generation is unavailable until Deployment Manager is healthy.",
+        "purpose": "Bundle manifest generation for bundled runtime mode",
+        "required": true,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario-to-desktop requests bundled-runtime manifests from Deployment Manager through its external CLI/service boundary; it does not import Deployment Manager code.",
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "startup_policy": "must_start"
+      },
+      "vrooli-bridge": {
+        "degraded_behavior": "Local desktop validation remains available; remote bridge targets are unavailable until Vrooli Bridge is healthy and configured.",
+        "purpose": "Discover and dispatch validation cells to trusted remote bridge targets",
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario-to-desktop uses Vrooli Bridge through its typed service transport for optional remote target inventory and dispatch; it does not import bridge implementation code.",
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "label": "LPBS service identity",
+        "description": "Shared LPBS service identity resolved by scenario-to-desktop through the credential authority.",
+        "required": true,
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "windows-cert-password",
+        "env": "CSC_KEY_PASSWORD",
+        "label": "Windows certificate password",
+        "description": "Optional password consumed by electron-builder for Windows code signing.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-id",
+        "env": "APPLE_ID",
+        "label": "Apple ID",
+        "description": "Optional Apple account consumed by electron-builder for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-app-password",
+        "env": "APPLE_APP_SPECIFIC_PASSWORD",
+        "label": "Apple app-specific password",
+        "description": "Optional Apple app-specific password consumed by electron-builder for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-api-key-p8",
+        "env": "APPLE_API_KEY_FILE",
+        "label": "Apple API key file",
+        "description": "Optional Apple API key file consumed by electron-builder for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d",
+    "generated_at": "2026-07-26T19:20:20Z",
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "notes": "Native runtime handler exists; scenario also uses the resource-ffmpeg CLI for recording flows",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Capture screenshots and assemble desktop smoke-test artifacts on Linux",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "Xvfb",
+      "notes": "Native runtime handler provisions the Linux virtual display dependency when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Provide a virtual X display for Linux smoke tests and live desktop sessions",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "x11vnc",
+      "notes": "Native runtime handler provisions the Linux VNC bridge when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Expose the Linux virtual desktop over VNC for interactive desktop sessions",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "websockify",
+      "notes": "Native runtime handler provisions the browser WebSocket bridge when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Bridge the Linux VNC desktop session to a browser WebSocket endpoint",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "openbox",
+      "notes": "Native runtime handler provisions the lightweight Linux window manager when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Provide a lightweight window manager inside the Linux virtual display",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "xdotool",
+      "notes": "Native runtime handler provisions X11 window inspection tooling when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    }
+  ],
   "lifecycle": {
     "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        },
+        {
+          "critical": false,
+          "interval": 45000,
+          "name": "ui_endpoint",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 3000,
+          "type": "http"
+        }
+      ],
       "description": "Scenario to Desktop health check configuration",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
       },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
-        }
-      ],
-      "timeout": 5000,
       "interval": 30000,
-      "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize scenario-to-desktop",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-desktop-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src",
-            "note": "Vite build output"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-desktop",
-            "targets": [
-              "scenario-to-desktop"
-            ]
-          },
-          {
-            "type": "file",
-            "path": "ui/package.json"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o scenario-to-desktop-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI with Vite",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start scenario-to-desktop services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-desktop-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-desktop-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server in background (serves ui/dist production bundle)",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2>/dev/null || true",
-          "description": "Stop UI server process"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-to-desktop",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-to-desktop --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
+      "startup_grace_period": 10000,
+      "timeout": 5000
     }
   },
-  "dependencies": {
-    "resources": {
-      "browserless": {
-        "type": "browserless",
-        "enabled": false,
-        "required": false,
-        "purpose": "Desktop application testing and screenshot validation",
-        "description": "Fallback: Manual testing workflow"
+  "ports": {
+    "api": {
+      "description": "Desktop build API server port",
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "description": "Desktop build UI server port",
+      "env_var": "UI_PORT",
+      "range": "20000-24999"
+    }
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "service": {
+    "category": "automation",
+    "description": "Transform Vrooli scenarios into professional Electron desktop applications",
+    "displayName": "Scenario to Desktop",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "MIT",
+    "maintainers": [
+      {
+        "email": "support@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "scenario-to-desktop",
+    "parent": "vrooli",
+    "repository": {
+      "directory": "/scenarios/scenario-to-desktop",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "tags": [],
+    "type": "scenario",
+    "version": "1.0.0"
+  },
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
       },
-      "postgres": {
-        "type": "postgres",
-        "enabled": false,
-        "required": false,
-        "purpose": "Store desktop application templates and build history",
-        "description": "Fallback: File-based template storage"
+      "runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "Scenario runtime artifacts observed in the canonical runtime directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
       },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "purpose": "Cache compiled applications and build artifacts",
-        "description": "Fallback: Local filesystem caching"
+      "staging": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "subpath": "staging",
+        "regenerable": true,
+        "reclaim": {
+          "pruner": "custom"
+        },
+        "budget": {
+          "max_bytes": "20GiB",
+          "max_age": "7d",
+          "rationale": "Retain recent reproducible evidence within an explicit capacity ceiling; the owner protects live work and removes oldest eligible entries when either bound is exceeded."
+        },
+        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection."
       }
     },
-    "scenarios": {
-      "deployment-manager": {
-        "required": true,
-        "version": "1.0.0",
-        "versionRange": ">=1.0.0",
-        "purpose": "Bundle manifest generation for bundled runtime mode"
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "output": "api/bin/scenario-to-desktop-api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  }
 }

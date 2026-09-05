@@ -265,8 +265,12 @@ func (s *Server) dispatchCheck(ctx context.Context, check, scenarioName string) 
 		if repoRoot == "" {
 			return nil
 		}
-		_, err := s.tidinessClient.TriggerLightScan(ctx, TidinessLightScanRequest{
-			ScenarioPath: repoRoot + "/scenarios/" + scenarioName,
+		scenarioPath, err := resolveScenarioPath(repoRoot, scenarioName)
+		if err != nil {
+			return err
+		}
+		_, err = s.tidinessClient.TriggerLightScan(ctx, TidinessLightScanRequest{
+			ScenarioPath: scenarioPath,
 		})
 		return err
 	case "tests":

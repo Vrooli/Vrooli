@@ -1,0 +1,48 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Derive the skills a scenario owes (usage, feature, improve), inventory the sensors and programs those skills can cite, orchestrate authoring through the per-role guides, and write the service.json skills declaration. Refuses to invent a sensor.",
+  "entry": "SKILL.md",
+  "icon": "layers",
+  "id": "skill-set-authoring",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "meta"
+  ],
+  "name": "skill-set-authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "prompt-manager skill list",
+      "measures-health validate scenario",
+      "business-health matrix show",
+      "program-runtime bindings condition",
+      "program-runtime library search",
+      "program-runtime programs submit",
+      "swarm-manager backlog create",
+      "cli-health search query",
+      "vrooli scenario status",
+      "vrooli-memory journal note"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "measures-health",
+      "program-runtime"
+    ]
+  },
+  "revision": 4,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "authoring",
+    "skill-set",
+    "scenario",
+    "self-improvement",
+    "meta-optimization"
+  ],
+  "updatedAt": "2026-09-02T23:00:00Z"
+}

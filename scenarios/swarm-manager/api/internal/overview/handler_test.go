@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/goals"
 )
 
 func TestHandlerGetOverview_EmptyBacklog(t *testing.T) {
 	svc := NewService(
 		&mockBacklogLister{items: []backlog.BacklogItem{}},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}},
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 	h := NewHandler(svc)
 
@@ -40,14 +40,14 @@ func TestHandlerGetOverview_EmptyBacklog(t *testing.T) {
 	if len(resp.Items) != 0 {
 		t.Errorf("expected 0 items, got %d", len(resp.Items))
 	}
-	if len(resp.Initiatives) != 0 {
-		t.Errorf("expected 0 initiatives, got %d", len(resp.Initiatives))
+	if len(resp.Goals) != 0 {
+		t.Errorf("expected 0 goals, got %d", len(resp.Goals))
 	}
 	if resp.Summary.TotalItems != 0 {
 		t.Errorf("expected total_items=0, got %d", resp.Summary.TotalItems)
 	}
-	if resp.Summary.ActiveInitiatives != 0 {
-		t.Errorf("expected active_initiatives=0, got %d", resp.Summary.ActiveInitiatives)
+	if resp.Summary.ActiveGoals != 0 {
+		t.Errorf("expected active_goals=0, got %d", resp.Summary.ActiveGoals)
 	}
 }
 
@@ -57,14 +57,14 @@ func TestHandlerGetOverview_PopulatedData(t *testing.T) {
 		{Name: "b", Kind: backlog.KindFix, Status: backlog.StatusReady, Priority: 3, Tags: []string{}},
 		{Name: "c", Kind: backlog.KindExecute, Status: backlog.StatusCompleted, Priority: 1, Tags: []string{}, DependsOn: []string{"idea/a"}},
 	}
-	inits := []initiatives.InitiativeWithRollup{
-		{Initiative: initiatives.Initiative{Name: "i1", Status: "active"}},
-		{Initiative: initiatives.Initiative{Name: "i2", Status: "completed"}},
+	goalList := []goals.GoalWithScope{
+		{Goal: goals.Goal{Name: "g1", Status: goals.StatusActive}},
+		{Goal: goals.Goal{Name: "g2", Status: goals.StatusArchived}},
 	}
 
 	svc := NewService(
 		&mockBacklogLister{items: items},
-		&mockInitiativeLister{items: inits},
+		&mockGoalLister{items: goalList},
 	)
 	h := NewHandler(svc)
 
@@ -87,9 +87,9 @@ func TestHandlerGetOverview_PopulatedData(t *testing.T) {
 		t.Errorf("expected 3 items, got %d", len(resp.Items))
 	}
 
-	// Verify initiatives are returned.
-	if len(resp.Initiatives) != 2 {
-		t.Errorf("expected 2 initiatives, got %d", len(resp.Initiatives))
+	// Verify goals are returned.
+	if len(resp.Goals) != 2 {
+		t.Errorf("expected 2 goals, got %d", len(resp.Goals))
 	}
 
 	// Verify dependency graph has edges (c depends on a).
@@ -101,15 +101,15 @@ func TestHandlerGetOverview_PopulatedData(t *testing.T) {
 	if resp.Summary.TotalItems != 3 {
 		t.Errorf("expected total_items=3, got %d", resp.Summary.TotalItems)
 	}
-	if resp.Summary.ActiveInitiatives != 1 {
-		t.Errorf("expected active_initiatives=1, got %d", resp.Summary.ActiveInitiatives)
+	if resp.Summary.ActiveGoals != 1 {
+		t.Errorf("expected active_goals=1, got %d", resp.Summary.ActiveGoals)
 	}
 }
 
 func TestHandlerGetOverview_BacklogError(t *testing.T) {
 	svc := NewService(
 		&mockBacklogLister{err: fmt.Errorf("disk error")},
-		&mockInitiativeLister{items: []initiatives.InitiativeWithRollup{}},
+		&mockGoalLister{items: []goals.GoalWithScope{}},
 	)
 	h := NewHandler(svc)
 
@@ -123,10 +123,10 @@ func TestHandlerGetOverview_BacklogError(t *testing.T) {
 	}
 }
 
-func TestHandlerGetOverview_InitiativeError(t *testing.T) {
+func TestHandlerGetOverview_GoalError(t *testing.T) {
 	svc := NewService(
 		&mockBacklogLister{items: []backlog.BacklogItem{}},
-		&mockInitiativeLister{err: fmt.Errorf("disk error")},
+		&mockGoalLister{err: fmt.Errorf("disk error")},
 	)
 	h := NewHandler(svc)
 

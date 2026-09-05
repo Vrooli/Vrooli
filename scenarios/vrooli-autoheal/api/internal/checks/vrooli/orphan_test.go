@@ -7,45 +7,21 @@ import (
 	"strings"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
 
-// MockProcReader is a mock implementation of ProcReader for testing
-type MockProcReader struct {
-	Processes   []checks.ProcessInfo
-	Error       error
-	EnvironData map[int]map[string]string // PID -> env vars
-	CmdlineData map[int]string            // PID -> cmdline
-}
+func TestOrphanCheckNonLinuxIsNotApplicable(t *testing.T) {
+	originalOS := checkOS
+	checkOS = "darwin"
+	t.Cleanup(func() { checkOS = originalOS })
 
-func (m *MockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
-	return &checks.MemInfo{}, nil
-}
-
-func (m *MockProcReader) ListProcesses() ([]checks.ProcessInfo, error) {
-	return m.Processes, m.Error
-}
-
-func (m *MockProcReader) ReadProcessEnviron(pid int) (map[string]string, error) {
-	if m.EnvironData != nil {
-		if env, ok := m.EnvironData[pid]; ok {
-			return env, nil
-		}
+	result := NewOrphanCheck().Run(context.Background())
+	if result.Status != checks.StatusNotApplicable {
+		t.Fatalf("status = %v, want %v", result.Status, checks.StatusNotApplicable)
 	}
-	return make(map[string]string), nil
 }
 
-func (m *MockProcReader) ReadProcessCmdline(pid int) (string, error) {
-	if m.CmdlineData != nil {
-		if cmd, ok := m.CmdlineData[pid]; ok {
-			return cmd, nil
-		}
-	}
-	return "", nil
-}
-
-// TestOrphanCheckInterface verifies OrphanCheck implements Check
-// [REQ:ORPHAN-CHECK-001]
 func TestOrphanCheckInterface(t *testing.T) {
 	var _ checks.Check = (*OrphanCheck)(nil)
 
@@ -62,627 +38,137 @@ func TestOrphanCheckInterface(t *testing.T) {
 	if check.Category() != checks.CategoryInfrastructure {
 		t.Errorf("Category() = %q, want %q", check.Category(), checks.CategoryInfrastructure)
 	}
-	// Should only run on Linux
-	platforms := check.Platforms()
-	if len(platforms) == 0 {
+	if len(check.Platforms()) == 0 {
 		t.Error("OrphanCheck should have platform restrictions")
 	}
 }
 
-// TestOrphanCheckHealable verifies OrphanCheck implements HealableCheck
-// [REQ:HEAL-ACTION-001]
 func TestOrphanCheckHealable(t *testing.T) {
 	var _ checks.HealableCheck = (*OrphanCheck)(nil)
 
 	check := NewOrphanCheck()
-
-	// Test recovery actions with nil result
 	actions := check.RecoveryActions(nil)
-	if len(actions) == 0 {
-		t.Error("RecoveryActions() should return actions")
+	if len(actions) != 2 {
+		t.Fatalf("expected 2 actions, got %d", len(actions))
 	}
 
-	// Verify expected actions exist
-	expectedActions := map[string]bool{
-		"list":      false,
-		"kill-safe": false,
-		"kill":      false,
+	expected := map[string]bool{
+		"list": false,
+		"kill": false,
 	}
 	for _, action := range actions {
-		if _, exists := expectedActions[action.ID]; exists {
-			expectedActions[action.ID] = true
+		if _, ok := expected[action.ID]; ok {
+			expected[action.ID] = true
 		}
 	}
-	for id, found := range expectedActions {
+	for id, found := range expected {
 		if !found {
-			t.Errorf("Expected action %q not found in RecoveryActions()", id)
+			t.Errorf("expected action %q not found", id)
 		}
 	}
 }
 
-// TestOrphanCheckRunWithMock tests OrphanCheck.Run() using mock readers
-// [REQ:ORPHAN-CHECK-001] [REQ:TEST-SEAM-001]
-func TestOrphanCheckRunWithMock(t *testing.T) {
+func TestOrphanCheckRunWithCoreJSON(t *testing.T) {
 	tests := []struct {
-		name             string
-		trackedProcesses []checks.TrackedProcess
-		runningProcesses []checks.ProcessInfo
-		stateReaderErr   error
-		procReaderErr    error
-		expectedStatus   checks.Status
-		expectMsgPart    string
+		name           string
+		output         string
+		err            error
+		expectedStatus checks.Status
+		expectedMsg    string
+		expectedCount  int
 	}{
 		{
-			name:             "no processes",
-			trackedProcesses: nil,
-			runningProcesses: nil,
-			expectedStatus:   checks.StatusOK,
-			expectMsgPart:    "No orphan Vrooli processes",
-		},
-		{
-			name: "all processes tracked",
-			trackedProcesses: []checks.TrackedProcess{
-				{PID: 100, PGID: 100, Scenario: "app-monitor"},
-			},
-			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "vrooli-app", State: "S"},
-			},
+			name:           "no orphans",
+			output:         `{"success":true,"orphans":[]}`,
 			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "No orphan Vrooli processes",
+			expectedMsg:    "No orphan Vrooli processes detected",
+			expectedCount:  0,
 		},
 		{
-			name: "one orphan process",
-			trackedProcesses: []checks.TrackedProcess{
-				{PID: 100, PGID: 100, Scenario: "app-monitor"},
-			},
-			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "vrooli-app", State: "S"},
-				{PID: 200, PPid: 1, Comm: "vrooli-orphan", State: "S"}, // Orphan - not tracked
-			},
-			expectedStatus: checks.StatusOK, // 1 orphan below warning threshold
-			expectMsgPart:  "1 orphan Vrooli processes",
+			name:           "warning threshold",
+			output:         `{"success":true,"orphans":[{"pid":100,"ppid":1,"command":"alpha"},{"pid":101,"ppid":1,"command":"beta"},{"pid":102,"ppid":1,"command":"gamma"}]}`,
+			expectedStatus: checks.StatusWarning,
+			expectedMsg:    "Warning: 3 orphan Vrooli processes detected",
+			expectedCount:  3,
 		},
 		{
-			name: "multiple orphans - warning threshold",
-			trackedProcesses: []checks.TrackedProcess{
-				{PID: 100, PGID: 100, Scenario: "app-monitor"},
-			},
-			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "vrooli-app", State: "S"},
-				{PID: 200, PPid: 1, Comm: "vrooli-orphan1", State: "S"},
-				{PID: 201, PPid: 1, Comm: "vrooli-orphan2", State: "S"},
-				{PID: 202, PPid: 1, Comm: "vrooli-orphan3", State: "S"},
-			},
-			expectedStatus: checks.StatusWarning, // 3 orphans hits warning threshold
-			expectMsgPart:  "3 orphan Vrooli processes",
+			name:           "critical threshold",
+			output:         `{"success":true,"orphans":[{"pid":1,"ppid":0,"command":"a"},{"pid":2,"ppid":0,"command":"b"},{"pid":3,"ppid":0,"command":"c"},{"pid":4,"ppid":0,"command":"d"},{"pid":5,"ppid":0,"command":"e"},{"pid":6,"ppid":0,"command":"f"},{"pid":7,"ppid":0,"command":"g"},{"pid":8,"ppid":0,"command":"h"},{"pid":9,"ppid":0,"command":"i"},{"pid":10,"ppid":0,"command":"j"}]}`,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "Critical: 10 orphan Vrooli processes detected",
+			expectedCount:  10,
 		},
 		{
-			name:             "error reading state",
-			trackedProcesses: nil,
-			runningProcesses: nil,
-			stateReaderErr:   checks.ErrCommandNotFound,
-			expectedStatus:   checks.StatusCritical,
-			expectMsgPart:    "Failed to read tracked processes",
-		},
-		{
-			name:             "error reading processes",
-			trackedProcesses: []checks.TrackedProcess{},
-			runningProcesses: nil,
-			procReaderErr:    checks.ErrCommandNotFound,
-			expectedStatus:   checks.StatusCritical,
-			expectMsgPart:    "Failed to list running processes",
-		},
-		{
-			name: "child of tracked process is not orphan",
-			trackedProcesses: []checks.TrackedProcess{
-				{PID: 100, PGID: 100, Scenario: "app-monitor"},
-			},
-			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "vrooli-parent", State: "S"},
-				{PID: 200, PPid: 100, Comm: "vrooli-child", State: "S"}, // Child of tracked - not orphan
-			},
-			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "No orphan Vrooli processes",
-		},
-		{
-			name:             "non-vrooli process ignored",
-			trackedProcesses: []checks.TrackedProcess{},
-			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "nginx", State: "S"},      // Not a Vrooli process
-				{PID: 200, PPid: 1, Comm: "postgresql", State: "S"}, // Not a Vrooli process
-			},
-			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "No orphan Vrooli processes",
+			name:           "command error",
+			err:            testutil.ErrCommandNotFound,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "Failed to read orphan process status",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStateReader := &MockVrooliStateReader{
-				TrackedProcesses: tt.trackedProcesses,
-				ListProcessErr:   tt.stateReaderErr,
-			}
-			mockProcReader := &MockProcReader{
-				Processes: tt.runningProcesses,
-				Error:     tt.procReaderErr,
+			executor := testutil.NewMockExecutor()
+			executor.Responses["vrooli orphans --json"] = testutil.MockResponse{
+				Output: []byte(tt.output),
+				Error:  tt.err,
 			}
 
-			check := NewOrphanCheck(
-				WithOrphanStateReader(mockStateReader),
-				WithOrphanProcReader(mockProcReader),
-			)
+			check := NewOrphanCheck(WithOrphanExecutor(executor))
 			result := check.Run(context.Background())
-
 			if result.Status != tt.expectedStatus {
-				t.Errorf("Status = %v, want %v", result.Status, tt.expectedStatus)
+				t.Fatalf("Status = %v, want %v", result.Status, tt.expectedStatus)
 			}
-			if !strings.Contains(result.Message, tt.expectMsgPart) {
-				t.Errorf("Message = %q, want to contain %q", result.Message, tt.expectMsgPart)
+			if result.Message != tt.expectedMsg {
+				t.Fatalf("Message = %q, want %q", result.Message, tt.expectedMsg)
+			}
+			if tt.err == nil {
+				if got, _ := result.Details["orphanCount"].(int); got != tt.expectedCount {
+					t.Fatalf("orphanCount = %d, want %d", got, tt.expectedCount)
+				}
 			}
 		})
 	}
 }
 
-// TestOrphanCheckThresholds tests custom threshold configuration
-// [REQ:ORPHAN-CHECK-001]
-func TestOrphanCheckThresholds(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 100, PPid: 1, Comm: "vrooli-orphan1", State: "S"},
-			{PID: 101, PPid: 1, Comm: "vrooli-orphan2", State: "S"},
-		},
-	}
-
-	// With default thresholds (warning=3, critical=10), 2 orphans is OK
-	checkDefault := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
-	resultDefault := checkDefault.Run(context.Background())
-	if resultDefault.Status != checks.StatusOK {
-		t.Errorf("Default thresholds: Status = %v, want %v", resultDefault.Status, checks.StatusOK)
-	}
-
-	// With custom thresholds (warning=1, critical=5), 2 orphans is Warning
-	checkCustom := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-		WithOrphanThresholds(1, 5),
-	)
-	resultCustom := checkCustom.Run(context.Background())
-	if resultCustom.Status != checks.StatusWarning {
-		t.Errorf("Custom thresholds: Status = %v, want %v", resultCustom.Status, checks.StatusWarning)
-	}
-}
-
-// TestOrphanCheckExecuteActionList tests the list action
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestOrphanCheckExecuteActionList(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{
-			{PID: 100, PGID: 100, Scenario: "app-monitor"},
-		},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 100, PPid: 1, Comm: "vrooli-tracked", State: "S"},
-			{PID: 200, PPid: 1, Comm: "vrooli-orphan", State: "S"},
-		},
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli orphans --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"orphans":[{"pid":100,"ppid":1,"command":"alpha"}]}`),
 	}
 
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
+	check := NewOrphanCheck(WithOrphanExecutor(executor))
 	result := check.ExecuteAction(context.Background(), "list")
-
 	if !result.Success {
-		t.Errorf("Success = false, want true")
+		t.Fatalf("expected success, got error %q", result.Error)
 	}
-	if !strings.Contains(result.Output, "TRACKED") {
-		t.Errorf("Output should contain TRACKED")
+	if result.Message != "Found 1 orphan processes" {
+		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, "ORPHAN") {
-		t.Errorf("Output should contain ORPHAN")
-	}
-	if !strings.Contains(result.Message, "1 orphan") {
-		t.Errorf("Message = %q, want to contain '1 orphan'", result.Message)
+	if !containsText(result.Output, "alpha") {
+		t.Fatalf("Output = %q, want diagnostic JSON to include the orphan command alpha", result.Output)
 	}
 }
 
-// TestOrphanCheckExecuteActionUnknown tests unknown action handling
-// [REQ:HEAL-ACTION-001]
-func TestOrphanCheckExecuteActionUnknown(t *testing.T) {
-	check := NewOrphanCheck()
-	result := check.ExecuteAction(context.Background(), "invalid-action")
-
-	if result.Success {
-		t.Error("Success should be false for unknown action")
-	}
-	if result.Error != "unknown action: invalid-action" {
-		t.Errorf("Error = %q, want %q", result.Error, "unknown action: invalid-action")
-	}
-}
-
-func TestOrphanCheckExecuteActionKillSafe_SkipsProtectedAndUnmanaged(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 2001, PPid: 1, Comm: "vrooli-helper", State: "S"},
-			{PID: 2002, PPid: 1, Comm: "vrooli-autoheal-api", State: "S"},
-		},
-		EnvironData: map[int]map[string]string{
-			2001: {}, // unmanaged
-			2002: {
-				"VROOLI_LIFECYCLE_MANAGED": "true",
-				"VROOLI_SCENARIO":          "vrooli-autoheal", // protected
-			},
-		},
-		CmdlineData: map[int]string{
-			2002: "/home/test/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop",
-		},
+func TestOrphanCheckExecuteActionKillDelegatesToOwnershipAwareCoreCleanup(t *testing.T) {
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli cleanup orphans --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"data":{"stopped":[{"name":"100","message":"alpha"}],"failed":[],"message":"Stopped 1 processes (0 failed)"}}`),
 	}
 
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
-	result := check.ExecuteAction(context.Background(), "kill-safe")
-
+	check := NewOrphanCheck(WithOrphanExecutor(executor))
+	result := check.ExecuteAction(context.Background(), "kill")
 	if !result.Success {
-		t.Fatalf("expected kill-safe success when only skipped candidates, got error: %s", result.Error)
+		t.Fatalf("expected success, got error %q", result.Error)
 	}
-	if !strings.Contains(result.Output, "unmanaged") {
-		t.Errorf("expected output to describe unmanaged skip, got: %s", result.Output)
+	if result.Message != "Stopped 1 processes (0 failed)" {
+		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, "protected") {
-		t.Errorf("expected output to describe protected skip, got: %s", result.Output)
+	if got := len(executor.Calls); got != 1 {
+		t.Fatalf("expected 1 executor call, got %d", got)
 	}
-}
-
-// TestOrphanCheckRecoveryActionsDangerous tests dangerous action marking
-// [REQ:HEAL-ACTION-001]
-func TestOrphanCheckRecoveryActionsDangerous(t *testing.T) {
-	check := NewOrphanCheck()
-	actions := check.RecoveryActions(nil)
-
-	actionMap := make(map[string]checks.RecoveryAction)
-	for _, a := range actions {
-		actionMap[a.ID] = a
-	}
-
-	// list should be safe
-	if action, ok := actionMap["list"]; ok {
-		if action.Dangerous {
-			t.Error("list action should not be dangerous")
-		}
-	}
-
-	// kill-safe should be safe
-	if action, ok := actionMap["kill-safe"]; ok {
-		if action.Dangerous {
-			t.Error("kill-safe action should not be dangerous")
-		}
-	}
-
-	// kill should be dangerous
-	if action, ok := actionMap["kill"]; ok {
-		if !action.Dangerous {
-			t.Error("kill action should be dangerous")
-		}
-	}
-}
-
-// TestOrphanCheckRecoveryActionsAvailability tests action availability based on state
-// [REQ:HEAL-ACTION-001]
-func TestOrphanCheckRecoveryActionsAvailability(t *testing.T) {
-	check := NewOrphanCheck()
-
-	// With no orphans, kill should not be available
-	noOrphansResult := &checks.Result{
-		Details: map[string]interface{}{"orphanCount": 0},
-	}
-	actionsNoOrphans := check.RecoveryActions(noOrphansResult)
-	for _, action := range actionsNoOrphans {
-		if action.ID == "kill" && action.Available {
-			t.Error("kill action should not be available when no orphans")
-		}
-		if action.ID == "kill-safe" && action.Available {
-			t.Error("kill-safe action should not be available when no orphans")
-		}
-		if action.ID == "list" && !action.Available {
-			t.Error("list action should always be available")
-		}
-	}
-
-	// With orphans, kill should be available
-	hasOrphansResult := &checks.Result{
-		Details: map[string]interface{}{"orphanCount": 3},
-	}
-	actionsHasOrphans := check.RecoveryActions(hasOrphansResult)
-	for _, action := range actionsHasOrphans {
-		if action.ID == "kill" && !action.Available {
-			t.Error("kill action should be available when orphans exist")
-		}
-		if action.ID == "kill-safe" && !action.Available {
-			t.Error("kill-safe action should be available when orphans exist")
-		}
-	}
-}
-
-// TestOrphanCheckHealthMetrics tests that health metrics are properly set
-// [REQ:ORPHAN-CHECK-001]
-func TestOrphanCheckHealthMetrics(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 100, PPid: 1, Comm: "vrooli-orphan1", State: "S"},
-			{PID: 101, PPid: 1, Comm: "vrooli-orphan2", State: "S"},
-		},
-	}
-
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
-	result := check.Run(context.Background())
-
-	if result.Metrics == nil {
-		t.Fatal("Metrics should not be nil")
-	}
-	if result.Metrics.Score == nil {
-		t.Fatal("Score should not be nil")
-	}
-
-	// With 2 orphans, score should be 100 - (2 * 10) = 80
-	expectedScore := 80
-	if *result.Metrics.Score != expectedScore {
-		t.Errorf("Score = %d, want %d", *result.Metrics.Score, expectedScore)
-	}
-
-	if len(result.Metrics.SubChecks) == 0 {
-		t.Error("SubChecks should not be empty")
-	}
-}
-
-// TestOrphanCheckDetails tests that result details are properly populated
-// [REQ:ORPHAN-CHECK-001]
-func TestOrphanCheckDetails(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{
-			{PID: 100, PGID: 100, Scenario: "app-monitor"},
-		},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 100, PPid: 1, Comm: "vrooli-tracked", State: "S"},
-			{PID: 200, PPid: 1, Comm: "vrooli-orphan1", State: "S"},
-			{PID: 201, PPid: 1, Comm: "vrooli-orphan2", State: "S"},
-		},
-	}
-
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
-	result := check.Run(context.Background())
-
-	// Verify details are populated
-	if orphanCount, ok := result.Details["orphanCount"].(int); !ok || orphanCount != 2 {
-		t.Errorf("orphanCount = %v, want 2", result.Details["orphanCount"])
-	}
-	if trackedCount, ok := result.Details["trackedCount"].(int); !ok || trackedCount != 1 {
-		t.Errorf("trackedCount = %v, want 1", result.Details["trackedCount"])
-	}
-	if _, ok := result.Details["orphans"]; !ok {
-		t.Error("orphans should be in details")
-	}
-}
-
-// TestOrphanCheckAncestryTracking tests that children of tracked processes are not marked as orphans
-// [REQ:ORPHAN-CHECK-001]
-func TestOrphanCheckAncestryTracking(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{
-			{PID: 100, PGID: 100, Scenario: "app-monitor"},
-		},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 100, PPid: 1, Comm: "vrooli-parent", State: "S"},
-			{PID: 200, PPid: 100, Comm: "vrooli-child", State: "S"},      // Child of 100
-			{PID: 300, PPid: 200, Comm: "vrooli-grandchild", State: "S"}, // Grandchild of 100
-		},
-	}
-
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
-	result := check.Run(context.Background())
-
-	// All processes should be tracked (parent or descendants of parent)
-	if orphanCount, ok := result.Details["orphanCount"].(int); !ok || orphanCount != 0 {
-		t.Errorf("orphanCount = %v, want 0 (all are tracked or descendants)", result.Details["orphanCount"])
-	}
-}
-
-func TestIsSelfCheckProcess(t *testing.T) {
-	tests := []struct {
-		comm string
-		want bool
-	}{
-		{comm: "vrooli-autoheal", want: true},
-		{comm: "./orphan-check", want: true},
-		{comm: "zombie-detector", want: true},
-		{comm: "vrooli-orphan", want: false},
-		{comm: "browser-automation-studio-api", want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.comm, func(t *testing.T) {
-			got := isSelfCheckProcess(tt.comm)
-			if got != tt.want {
-				t.Fatalf("isSelfCheckProcess(%q) = %v, want %v", tt.comm, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestVrooliProcessPatterns tests the process pattern matching
-// [REQ:ORPHAN-CHECK-001]
-func TestVrooliProcessPatterns(t *testing.T) {
-	tests := []struct {
-		command  string
-		expected bool
-	}{
-		{"vrooli", true},
-		{"vrooli-api", true},
-		{"/scenarios/app-monitor/api", true},
-		{"/scenarios/test-app/ui", true},
-		{"node_modules/.bin/vite", true},
-		{"ecosystem-manager", true},
-		{"picker-wheel", true},
-		{"nginx", false},
-		{"postgresql", false},
-		{"bash", false},
-		{"/usr/bin/node", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.command, func(t *testing.T) {
-			result := VrooliProcessPatterns.MatchString(tt.command)
-			if result != tt.expected {
-				t.Errorf("VrooliProcessPatterns.MatchString(%q) = %v, want %v", tt.command, result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestGetOrphanPIDs tests the GetOrphanPIDs helper function
-// [REQ:ORPHAN-CHECK-001]
-func TestGetOrphanPIDs(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{
-			{PID: 100, PGID: 100, Scenario: "app-monitor"},
-		},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			{PID: 100, PPid: 1, Comm: "vrooli-tracked", State: "S"},
-			{PID: 200, PPid: 1, Comm: "scenario-api", State: "S"}, // Not named "orphan" to avoid filter
-			{PID: 201, PPid: 1, Comm: "scenario-ui", State: "S"},  // Not named "orphan" to avoid filter
-		},
-		// Provide environment markers to identify as Vrooli processes
-		EnvironData: map[int]map[string]string{
-			100: {"VROOLI_LIFECYCLE_MANAGED": "true"},
-			200: {"VROOLI_LIFECYCLE_MANAGED": "true"},
-			201: {"VROOLI_LIFECYCLE_MANAGED": "true"},
-		},
-	}
-
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-	)
-
-	pids, err := check.GetOrphanPIDs()
-	if err != nil {
-		t.Fatalf("GetOrphanPIDs() error = %v", err)
-	}
-
-	if len(pids) != 2 {
-		t.Errorf("GetOrphanPIDs() returned %d PIDs, want 2", len(pids))
-	}
-
-	// Verify the correct PIDs are returned
-	pidSet := make(map[int]bool)
-	for _, pid := range pids {
-		pidSet[pid] = true
-	}
-	if !pidSet[200] || !pidSet[201] {
-		t.Errorf("GetOrphanPIDs() = %v, want [200, 201]", pids)
-	}
-}
-
-// TestOrphanCheckGracePeriod tests that young processes are skipped
-// [REQ:ORPHAN-CHECK-001]
-func TestOrphanCheckGracePeriod(t *testing.T) {
-	// Create a mock state reader with no tracked processes
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{},
-	}
-
-	// Create processes with different ages using StartTime
-	// StartTime is in clock ticks since boot - we simulate this by using
-	// different values. The actual age calculation depends on boot time,
-	// but for testing we can verify the logic is applied correctly.
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{
-			// Old process (StartTime = 0 means age calculation returns 0, treated as "unknown age" -> not skipped)
-			{PID: 100, PPid: 1, Comm: "vrooli-old", State: "S", StartTime: 0},
-			// We can't easily mock the boot time, so we test the configuration instead
-		},
-	}
-
-	// Test that grace period can be configured
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-		WithGracePeriod(60), // 60 second grace period
-	)
-
-	// Verify grace period is set
-	if check.gracePeriodSeconds != 60 {
-		t.Errorf("gracePeriodSeconds = %v, want 60", check.gracePeriodSeconds)
-	}
-
-	// Test default grace period
-	defaultCheck := NewOrphanCheck()
-	if defaultCheck.gracePeriodSeconds != DefaultGracePeriodSeconds {
-		t.Errorf("default gracePeriodSeconds = %v, want %v", defaultCheck.gracePeriodSeconds, DefaultGracePeriodSeconds)
-	}
-}
-
-// TestOrphanCheckGracePeriodInDetails tests that grace period info appears in result details
-func TestOrphanCheckGracePeriodInDetails(t *testing.T) {
-	mockStateReader := &MockVrooliStateReader{
-		TrackedProcesses: []checks.TrackedProcess{},
-	}
-	mockProcReader := &MockProcReader{
-		Processes: []checks.ProcessInfo{},
-	}
-
-	check := NewOrphanCheck(
-		WithOrphanStateReader(mockStateReader),
-		WithOrphanProcReader(mockProcReader),
-		WithGracePeriod(45),
-	)
-
-	result := check.Run(context.Background())
-
-	// Verify grace period is in details
-	gracePeriod, ok := result.Details["gracePeriodSeconds"]
-	if !ok {
-		t.Error("gracePeriodSeconds not found in result details")
-	}
-	if gracePeriod != float64(45) {
-		t.Errorf("gracePeriodSeconds = %v, want 45", gracePeriod)
-	}
-
-	// Verify skippedYoung is in details
-	skippedYoung, ok := result.Details["skippedYoung"]
-	if !ok {
-		t.Error("skippedYoung not found in result details")
-	}
-	if skippedYoung != 0 {
-		t.Errorf("skippedYoung = %v, want 0 (no processes)", skippedYoung)
+	call := executor.Calls[0]
+	if call.Name != "vrooli" || strings.Join(call.Args, " ") != "cleanup orphans --json" {
+		t.Fatalf("unexpected command: %s %s", call.Name, strings.Join(call.Args, " "))
 	}
 }

@@ -1,0 +1,1013 @@
+<title>Mobile Delivery Ramps — Architecture Proposal</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-muted: #f1f5f9;
+    --fg: #0f172a;
+    --muted: #64748b;
+    --border: #cbd5e1;
+    --border-soft: #e2e8f0;
+    --primary: #2563eb;
+    --accent: #0891b2;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --info: #0284c7;
+    --focus: #2563eb;
+    --tint-success: rgba(22, 163, 74, .10);
+    --tint-danger: rgba(220, 38, 38, .10);
+    --tint-warning: rgba(217, 119, 6, .12);
+    --tint-info: rgba(2, 132, 199, .10);
+    --tint-neutral: rgba(100, 116, 139, .12);
+    --shadow-raised: 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10);
+    --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #020617;
+      --surface: #0f172a;
+      --surface-muted: #1e293b;
+      --fg: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --border-soft: #1e293b;
+      --primary: #60a5fa;
+      --accent: #22d3ee;
+      --success: #22c55e;
+      --danger: #f87171;
+      --warning: #f59e0b;
+      --info: #38bdf8;
+      --focus: #60a5fa;
+      --tint-success: rgba(34, 197, 94, .14);
+      --tint-danger: rgba(248, 113, 113, .14);
+      --tint-warning: rgba(245, 158, 11, .16);
+      --tint-info: rgba(56, 189, 248, .14);
+      --tint-neutral: rgba(148, 163, 184, .16);
+      --shadow-raised: 0 1px 2px rgba(0, 0, 0, .4), 0 1px 3px rgba(0, 0, 0, .3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #020617;
+    --surface: #0f172a;
+    --surface-muted: #1e293b;
+    --fg: #f8fafc;
+    --muted: #94a3b8;
+    --border: #334155;
+    --border-soft: #1e293b;
+    --primary: #60a5fa;
+    --accent: #22d3ee;
+    --success: #22c55e;
+    --danger: #f87171;
+    --warning: #f59e0b;
+    --info: #38bdf8;
+    --focus: #60a5fa;
+    --tint-success: rgba(34, 197, 94, .14);
+    --tint-danger: rgba(248, 113, 113, .14);
+    --tint-warning: rgba(245, 158, 11, .16);
+    --tint-info: rgba(56, 189, 248, .14);
+    --tint-neutral: rgba(148, 163, 184, .16);
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, .4), 0 1px 3px rgba(0, 0, 0, .3);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 22px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+  }
+  .prose { max-width: 68ch; }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+  h1 { font-size: 32px; line-height: 38px; font-weight: 650; letter-spacing: -0.02em; }
+  h2 { font-size: 24px; line-height: 30px; font-weight: 650; letter-spacing: -0.015em; }
+  h3 { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  a { color: var(--primary); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+  code { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface-muted); padding: 1px 5px; border-radius: 4px; }
+  strong { font-weight: 600; }
+
+  .eyebrow {
+    font-size: 11px; line-height: 16px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+
+  header.masthead {
+    display: flex; flex-direction: column; gap: 16px;
+    padding-bottom: 32px; border-bottom: 2px solid var(--fg);
+  }
+  .masthead .lede { font-size: 15px; line-height: 24px; color: var(--muted); max-width: 64ch; }
+  .locked { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .locked span {
+    font-size: 12px; line-height: 16px; font-weight: 500;
+    padding: 4px 10px; border-radius: 9999px;
+    background: var(--tint-info); color: var(--info);
+    border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
+  }
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+  .section-head { display: flex; flex-direction: column; gap: 8px; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+    padding: 2px 8px; border-radius: 9999px; white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.pass { color: var(--success); background: var(--tint-success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+  .chip.unavailable { color: var(--warning); background: var(--tint-warning); border-color: color-mix(in srgb, var(--warning) 32%, transparent); }
+  .chip.unsupported { color: var(--muted); background: var(--tint-neutral); border-color: color-mix(in srgb, var(--muted) 30%, transparent); }
+  .chip.blocked { color: var(--danger); background: var(--tint-danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+  .chip.ready { color: var(--info); background: var(--tint-info); border-color: color-mix(in srgb, var(--info) 30%, transparent); }
+
+  .vocab { display: flex; flex-wrap: wrap; gap: 20px 28px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .vocab div { display: flex; flex-direction: column; gap: 6px; max-width: 30ch; }
+  .vocab p { font-size: 13px; line-height: 20px; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 20px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  thead th {
+    font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted);
+    background: var(--surface-muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  caption { caption-side: top; text-align: left; padding: 12px 14px 0; font-size: 12px; color: var(--muted); }
+
+  figure { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  .figbox { padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
+  figcaption { font-size: 13px; line-height: 20px; color: var(--muted); max-width: 72ch; }
+
+  .callout {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 18px 20px; border-radius: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+  }
+  .callout.warn { border-left-color: var(--warning); }
+  .callout.risk { border-left-color: var(--danger); }
+  .callout .eyebrow { color: var(--primary); }
+  .callout.warn .eyebrow { color: var(--warning); }
+  .callout.risk .eyebrow { color: var(--danger); }
+  .callout p { font-size: 13.5px; line-height: 21px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .card {
+    display: flex; flex-direction: column; gap: 10px; padding: 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: var(--shadow-raised);
+  }
+  .card h3 { font-size: 15px; line-height: 20px; }
+  .card p { font-size: 13px; line-height: 20px; color: var(--muted); }
+  .card ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 21px; color: var(--muted); }
+  .card li::marker { color: var(--accent); }
+
+  ol.rungs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; counter-reset: rung; }
+  ol.rungs > li {
+    display: grid; grid-template-columns: 32px 1fr; gap: 0 16px;
+    padding: 16px 0; border-bottom: 1px solid var(--border-soft); counter-increment: rung;
+  }
+  ol.rungs > li:last-child { border-bottom: none; }
+  ol.rungs > li::before {
+    content: counter(rung);
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface-muted);
+  }
+  .rung-body { display: flex; flex-direction: column; gap: 6px; }
+  .rung-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+  .rung-head h3 { font-size: 14px; line-height: 20px; }
+  .rung-meta { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
+  .rung-body p { font-size: 13px; line-height: 20px; color: var(--muted); max-width: 76ch; }
+
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px; align-items: start; }
+  .split > div { display: flex; flex-direction: column; gap: 12px; }
+
+  details { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; }
+  details + details { margin-top: 10px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details p { margin-top: 10px; font-size: 13px; line-height: 20px; color: var(--muted); max-width: 76ch; }
+
+  footer.doc-foot {
+    border-top: 1px solid var(--border); padding-top: 24px;
+    font-size: 12px; line-height: 19px; color: var(--muted);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  footer.doc-foot a { color: var(--muted); }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">Deployment ramps · Tier 3 · Design proposal · Revision 2</p>
+    <h1>Mobile delivery ramps</h1>
+    <p class="lede">
+      Rebuilding <code>scenario-to-ios</code> and <code>scenario-to-android</code> on a shared ramp spine —
+      and, underneath them, settling where device control actually lives so that phones become a fleet
+      capability rather than something the deployment ramps happen to own.
+    </p>
+    <div class="locked">
+      <span>Shared spine, desktop retrofitted</span>
+      <span>Two ramps, not one</span>
+      <span>Designed in parallel</span>
+      <span>Physical devices in scope</span>
+      <span>No store accounts yet</span>
+    </div>
+  </header>
+
+  <!-- ============ LAYERS ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">The answer to "where does this logic go"</p>
+      <h2>Four layers, each owning one question</h2>
+    </div>
+    <div class="prose">
+      <p>
+        Your instinct — that the bridge should be the hub for everything you control — is right about
+        <em>reach</em> and wrong about <em>operation</em>. Bridge's value is being the single place that
+        answers "what do I control, is it online, and am I allowed to send it this." If it also contained
+        ADB, WebDriverAgent, and mirroring logic it would become a mobile toolkit, and every new device
+        platform would bloat the trust plane. So device control becomes its own capability that bridge
+        reaches, and the ramps consume.
+      </p>
+    </div>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 900 420" role="img" aria-label="Four stacked layers: vrooli-bridge owns reach and trust; device-control owns device verbs with three platform adapters; browser-automation-studio owns web content flows; the three delivery ramps compose all of them and emit evidence to deployment-manager." xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="l-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <polygon points="0,1 9,5 0,9" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="12">
+
+            <!-- ramps -->
+            <rect x="20" y="14" width="700" height="72" rx="6" fill="none" stroke="#0891b2" stroke-width="2"/>
+            <text x="38" y="36" font-size="12.5" font-weight="600" fill="#0891b2">delivery ramps</text>
+            <text x="38" y="52" font-size="11" opacity=".75">compose the layers below; own the release gate</text>
+            <g font-size="11" font-family="'JetBrains Mono', monospace" opacity=".85">
+              <text x="38" y="74">scenario-to-desktop</text>
+              <text x="230" y="74">scenario-to-android</text>
+              <text x="430" y="74">scenario-to-ios</text>
+            </g>
+
+            <rect x="740" y="14" width="140" height="72" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <text x="810" y="42" text-anchor="middle" font-size="11.5" font-weight="600">deployment-</text>
+            <text x="810" y="58" text-anchor="middle" font-size="11.5" font-weight="600">manager</text>
+            <text x="810" y="76" text-anchor="middle" font-size="10" opacity=".7">release gate</text>
+            <line x1="722" y1="50" x2="738" y2="50" stroke="currentColor" stroke-width="1.5" marker-end="url(#l-ar)"/>
+
+            <!-- BAS -->
+            <line x1="200" y1="118" x2="200" y2="90" stroke="currentColor" stroke-width="1.5" marker-end="url(#l-ar)"/>
+            <rect x="20" y="120" width="420" height="86" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <text x="38" y="142" font-size="12.5" font-weight="600">browser-automation-studio</text>
+            <text x="38" y="158" font-size="11" opacity=".75">owns: what the app should <tspan font-style="italic">do</tspan> — web content flows</text>
+            <g font-size="10.5" opacity=".7" font-family="'JetBrains Mono', monospace">
+              <text x="38" y="180">engine: playwright</text>
+              <text x="180" y="180">electron</text>
+              <text x="262" y="180" fill="#0891b2">android-webview</text>
+              <text x="38" y="196" fill="#0891b2">ios-webview</text>
+              <text x="150" y="196" opacity=".8">← two new engines on an existing seam</text>
+            </g>
+
+            <!-- device control -->
+            <line x1="600" y1="118" x2="600" y2="90" stroke="currentColor" stroke-width="1.5" marker-end="url(#l-ar)"/>
+            <rect x="460" y="120" width="420" height="86" rx="6" fill="none" stroke="#0891b2" stroke-width="2"/>
+            <text x="478" y="142" font-size="12.5" font-weight="600" fill="#0891b2">device-control  <tspan font-size="10" opacity=".8" font-weight="400">(new)</tspan></text>
+            <text x="478" y="158" font-size="11" opacity=".75">owns: what you can <tspan font-style="italic">do to</tspan> a device — the verbs</text>
+            <g font-size="10.5" opacity=".7" font-family="'JetBrains Mono', monospace">
+              <text x="478" y="180">android-adb</text>
+              <text x="588" y="180">ios-xcuitest</text>
+              <text x="700" y="180">ios-mirror</text>
+              <text x="478" y="196" opacity=".8" font-family="Inter, system-ui, sans-serif">install · input · observe · lease</text>
+            </g>
+
+            <!-- bridge -->
+            <line x1="200" y1="238" x2="200" y2="210" stroke="currentColor" stroke-width="1.5" marker-end="url(#l-ar)"/>
+            <line x1="600" y1="238" x2="600" y2="210" stroke="currentColor" stroke-width="1.5" marker-end="url(#l-ar)"/>
+            <rect x="20" y="240" width="860" height="80" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <text x="38" y="262" font-size="12.5" font-weight="600">vrooli-bridge</text>
+            <text x="38" y="278" font-size="11" opacity=".75">owns: what you control and whether you may — identity, pairing, scopes, allowlisted verbs, durable runs, audit</text>
+            <g font-size="10.5" opacity=".7">
+              <text x="38" y="302">nodes (run the agent)</text>
+              <text x="230" y="302" fill="#0891b2">attached devices (do not)</text>
+              <text x="430" y="302">VPS · Tier 4 targets</text>
+              <text x="620" y="302">one registry, one audit trail</text>
+            </g>
+
+            <!-- physical -->
+            <line x1="450" y1="352" x2="450" y2="324" stroke="currentColor" stroke-width="1.5" marker-end="url(#l-ar)"/>
+            <rect x="20" y="354" width="860" height="54" rx="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".7"/>
+            <text x="38" y="376" font-size="11.5" font-weight="600" opacity=".8">physical world</text>
+            <g font-size="10.5" opacity=".65">
+              <text x="150" y="376">this Linux box</text>
+              <text x="270" y="376">minimouse (Intel Mac)</text>
+              <text x="440" y="376">Android phones</text>
+              <text x="570" y="376">iPhone</text>
+              <text x="670" y="376">emulators / simulators</text>
+              <text x="150" y="396">future: Windows box, Apple Silicon Mac, VPS fleet</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        Each layer answers exactly one question, and nothing answers two. The test: adding a Windows box
+        touches only bridge; adding a new phone model touches only device-control; adding a new scenario
+        flow touches only BAS.
+      </figcaption>
+    </figure>
+
+    <div class="callout">
+      <p class="eyebrow">Why device-control is its own scenario, not part of a ramp</p>
+      <p>
+        You named the reason yourself: you will want to drive these phones for general automation, not just
+        deployment validation. If the ADB and WebDriverAgent logic lives inside <code>scenario-to-android</code>,
+        every non-deployment consumer has to depend on a deployment ramp to tap a button. As its own
+        meta-scenario it becomes a capability others build on — which is the whole point of the scenario model.
+        <code>device-sync-hub</code> is adjacent but genuinely different: it moves <em>files between</em> your
+        devices; this <em>drives</em> them. Same fleet, opposite direction.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ FLEET MODEL ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">The one concept bridge is missing</p>
+      <h2>A phone is not a node — it is a peripheral of one</h2>
+    </div>
+    <div class="prose">
+      <p>
+        Bridge today assumes fleet member = machine running the bridge agent. That already covers your VPS
+        fleet, so Tier 4 needs nothing new. But a phone cannot run the agent — not reliably on Android, not
+        at all on iOS. Rather than weakening what a node means, add a second member kind that is explicitly
+        reachable only <em>through</em> a host node. That keeps every existing node invariant intact and makes
+        the dependency honest: unplug the phone, or take its host offline, and it goes unreachable for a
+        stated reason.
+      </p>
+    </div>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 900 330" role="img" aria-label="Fleet tree: vrooli-bridge registry contains three nodes running the agent — this Linux box, minimouse, and a VPS — and attached devices hanging off the first two via USB, wireless ADB, and iPhone Mirroring transports." xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="f-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <polygon points="0,1 9,5 0,9" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="12">
+
+            <rect x="330" y="12" width="240" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <text x="450" y="32" text-anchor="middle" font-size="12.5" font-weight="600">vrooli-bridge fleet registry</text>
+            <text x="450" y="48" text-anchor="middle" font-size="10.5" opacity=".7">identity · trust · scopes · audit</text>
+
+            <line x1="450" y1="58" x2="450" y2="76" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="150" y1="76" x2="750" y2="76" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="150" y1="76" x2="150" y2="96" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-ar)"/>
+            <line x1="450" y1="76" x2="450" y2="96" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-ar)"/>
+            <line x1="750" y1="76" x2="750" y2="96" stroke="currentColor" stroke-width="1.5" marker-end="url(#f-ar)"/>
+
+            <!-- nodes -->
+            <g>
+              <rect x="40" y="98" width="220" height="64" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <text x="150" y="120" text-anchor="middle" font-size="12" font-weight="600">this Linux box</text>
+              <text x="150" y="136" text-anchor="middle" font-size="10.5" opacity=".7" font-family="'JetBrains Mono', monospace">linux/amd64 · agent</text>
+              <text x="150" y="152" text-anchor="middle" font-size="10" opacity=".6">/dev/kvm · android emu</text>
+
+              <rect x="340" y="98" width="220" height="64" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <text x="450" y="120" text-anchor="middle" font-size="12" font-weight="600">minimouse</text>
+              <text x="450" y="136" text-anchor="middle" font-size="10.5" opacity=".7" font-family="'JetBrains Mono', monospace">darwin/amd64 · agent</text>
+              <text x="450" y="152" text-anchor="middle" font-size="10" opacity=".6">Xcode · ios sim · mirroring</text>
+
+              <rect x="640" y="98" width="220" height="64" rx="6" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".75"/>
+              <text x="750" y="120" text-anchor="middle" font-size="12" font-weight="600" opacity=".8">VPS · Tier 4</text>
+              <text x="750" y="136" text-anchor="middle" font-size="10.5" opacity=".6" font-family="'JetBrains Mono', monospace">linux · agent</text>
+              <text x="750" y="152" text-anchor="middle" font-size="10" opacity=".55">already fits — no new concept</text>
+            </g>
+
+            <text x="20" y="186" font-size="10.5" font-weight="600" opacity=".55" text-anchor="start">NODES — run the agent</text>
+            <line x1="20" y1="196" x2="880" y2="196" stroke="currentColor" stroke-width="1" opacity=".3" stroke-dasharray="3 3"/>
+            <text x="20" y="216" font-size="10.5" font-weight="600" opacity=".55" text-anchor="start">ATTACHED DEVICES — reachable only through a host node</text>
+
+            <!-- attached -->
+            <line x1="110" y1="162" x2="110" y2="234" stroke="#0891b2" stroke-width="1.5" marker-end="url(#f-ar)"/>
+            <text x="120" y="212" font-size="10" fill="#0891b2">usb</text>
+            <line x1="200" y1="162" x2="245" y2="234" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#f-ar)"/>
+            <text x="222" y="212" font-size="10" fill="#0891b2">wireless adb</text>
+            <line x1="450" y1="162" x2="560" y2="234" stroke="#0891b2" stroke-width="1.5" marker-end="url(#f-ar)"/>
+            <text x="470" y="212" font-size="10" fill="#0891b2">mirroring / usb</text>
+
+            <g>
+              <rect x="40" y="236" width="150" height="58" rx="6" fill="none" stroke="#0891b2" stroke-width="1.5"/>
+              <text x="115" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#0891b2">Android phone A</text>
+              <text x="115" y="272" text-anchor="middle" font-size="10" opacity=".7">semantic ui tree</text>
+              <text x="115" y="286" text-anchor="middle" font-size="10" opacity=".7">install · input · record</text>
+
+              <rect x="205" y="236" width="150" height="58" rx="6" fill="none" stroke="#0891b2" stroke-width="1.5"/>
+              <text x="280" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#0891b2">Android phone B</text>
+              <text x="280" y="272" text-anchor="middle" font-size="10" opacity=".7">pairing expires</text>
+              <text x="280" y="286" text-anchor="middle" font-size="10" opacity=".7">re-pair on reboot</text>
+
+              <rect x="490" y="236" width="150" height="58" rx="6" fill="none" stroke="#0891b2" stroke-width="1.5"/>
+              <text x="565" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#0891b2">iPhone</text>
+              <text x="565" y="272" text-anchor="middle" font-size="10" opacity=".7">two adapters, one device</text>
+              <text x="565" y="286" text-anchor="middle" font-size="10" opacity=".7">see adapter table</text>
+            </g>
+
+            <text x="450" y="320" text-anchor="middle" font-size="10.5" opacity=".6">host node offline → attached device unreachable, with that exact reason</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        The VPS row is deliberately included: a cloud server runs the agent, so it is simply a node. Tier 4
+        needs no new bridge concept — only phones do.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ ADAPTERS ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">Device control</p>
+      <h2>Three adapters — and the iPhone gets two of them</h2>
+    </div>
+    <div class="prose">
+      <p>
+        The phone-harness link you sent changes the iOS plan for the better. It uses iPhone Mirroring plus
+        synthetic HID events and Vision OCR — no jailbreak, no Xcode, no WebDriverAgent, and crucially
+        <strong>no developer account</strong>. That is a fundamentally different trade from the industrial
+        WebDriverAgent path, and the right move is to support both rather than pick one, because they are
+        strong in exactly the places the other is weak.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <caption>Adapters are selected by what the task needs to prove, not by preference.</caption>
+        <thead>
+          <tr>
+            <th>Adapter</th>
+            <th>Mechanism</th>
+            <th>Sees</th>
+            <th>Needs</th>
+            <th>Good for</th>
+            <th>Cannot do</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">android-adb</td>
+            <td>ADB + UiAutomator2</td>
+            <td>Semantic view hierarchy</td>
+            <td>USB or wireless debugging; no account</td>
+            <td>Everything — conformance and general automation</td>
+            <td>Little. Wireless pairing expires on reboot.</td>
+          </tr>
+          <tr>
+            <td class="mono">ios-xcuitest</td>
+            <td><code>devicectl</code> + WebDriverAgent</td>
+            <td>Semantic accessibility tree</td>
+            <td>Mac node, Xcode, code signing, <strong>dev account</strong></td>
+            <td>Release-grade conformance on our own apps</td>
+            <td>Apps we did not sign</td>
+          </tr>
+          <tr>
+            <td class="mono">ios-mirror</td>
+            <td>iPhone Mirroring + CGEvent HID + Vision OCR</td>
+            <td>Pixels and OCR text — not semantics</td>
+            <td>Mac node on Sequoia+; accessibility &amp; screen-recording grants</td>
+            <td>General automation of any app, today, with no enrollment</td>
+            <td>Multi-touch, Face ID, camera, DRM video; one session at a time</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p class="eyebrow">Why this unblocks you immediately</p>
+      <p>
+        <code>ios-xcuitest</code> sits behind rungs 1 and 3 of the Apple ladder — it cannot work until you
+        enroll. <code>ios-mirror</code> needs none of that. So physical-iPhone work can start now via the
+        mirror adapter, and the XCUITest adapter becomes the release-grade path once enrollment happens. The
+        readiness model expresses this natively: with no account, <code>ios-xcuitest</code> reports
+        <span class="chip unavailable">unavailable</span> with "enroll in the Apple Developer Program" as its
+        next action, while <code>ios-mirror</code> reports <span class="chip pass">available</span>.
+      </p>
+    </div>
+
+    <div class="callout risk">
+      <p class="eyebrow">A constraint worth stating plainly</p>
+      <p>
+        Mirror-driven evidence should never gate a release. OCR reads pixels, not meaning — it cannot tell a
+        correctly-rendered greeting from a convincing screenshot of one, and it has no stable element
+        identity to assert against. Treat <code>ios-mirror</code> as an exploration and general-automation
+        adapter whose journeys are recorded as <span class="chip unavailable">unavailable</span> for release
+        purposes. Anything gating a release runs on a semantic adapter.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ONE FLOW FOUR SURFACES ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">The payoff from choosing Capacitor</p>
+      <h2>One flow, four surfaces</h2>
+    </div>
+    <div class="prose">
+      <p>
+        Because every ramp wraps the same web bundle, the scenario's actual UX is web content everywhere —
+        so a BAS flow authored once replays on all four surfaces. Only the attach mechanism differs, and BAS
+        already has the seam for that: <code>EngineCapabilities</code> advertises what an engine supports,
+        the compiler derives a <code>CapabilityRequirement</code> from the workflow, and
+        <code>CheckCompatibility</code> computes the gap before execution. The existing
+        <code>ENGINE_OVERRIDE=desktop</code> path and the <code>ElectronTarget</code> renderer attach are the
+        precedent — mobile is two more engines on a proven seam, not a new architecture.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Surface</th>
+            <th>App shell</th>
+            <th>Attach mechanism</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Browser</td>
+            <td>—</td>
+            <td>CDP direct (Playwright)</td>
+            <td><span class="chip pass">built</span></td>
+          </tr>
+          <tr>
+            <td>Desktop</td>
+            <td>Electron</td>
+            <td>CDP to the admitted renderer URL</td>
+            <td><span class="chip pass">built</span></td>
+          </tr>
+          <tr>
+            <td>Android</td>
+            <td>Capacitor WebView</td>
+            <td>CDP over <code>adb forward</code>; Playwright has WebView attach</td>
+            <td><span class="chip ready">extension</span></td>
+          </tr>
+          <tr>
+            <td>iOS</td>
+            <td>Capacitor WKWebView</td>
+            <td>WebKit inspector protocol via <code>ios_webkit_debug_proxy</code> over usbmux</td>
+            <td><span class="chip ready">extension</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p class="eyebrow">Where BAS stops</p>
+      <p>
+        BAS owns web content and nothing else. Permission dialogs, biometric prompts, share sheets, the app
+        switcher, notifications, install and update — all native chrome, all outside the WebView. That is
+        precisely the boundary between the two journey kinds below: <strong>device-control drives the shell,
+        BAS drives the content</strong>, and a conformance journey is the two interleaved on one timeline.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ JOURNEYS ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">Journeys</p>
+      <h2>Two kinds, and they are orthogonal</h2>
+    </div>
+
+    <div class="split">
+      <div>
+        <h3>Ramp-owned conformance journeys</h3>
+        <p style="font-size:13px;line-height:20px;color:var(--muted)">
+          "Does a generated app behave like a Vrooli app on this platform?" Same chapters for every scenario;
+          different chapters per platform. This is the existing <code>journey-evidence.v2</code> model —
+          registered capability plans, chapters with purpose, bounded readiness, settle policy, expected vs
+          observed, and capture refs. <code>hello-desktop</code> proves it for desktop with
+          <code>hello-desktop.baseline.v2</code>; <code>hello-mobile</code> will do the same job here. The
+          runner has no scenario-name branch, which is what keeps it generic.
+        </p>
+      </div>
+      <div>
+        <h3>Scenario-owned journeys</h3>
+        <p style="font-size:13px;line-height:20px;color:var(--muted)">
+          "Does <em>this</em> scenario work in the generated app?" Same flow for every platform; different
+          flow per scenario. These are BAS cases, authored once by whoever owns the scenario, replayed on
+          browser, desktop, Android, and iOS. A scenario author never writes a mobile-specific flow — if they
+          have to, the shell abstraction has leaked.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="eyebrow">The orthogonality is the design</p>
+      <p>
+        Conformance journeys vary by platform and are constant across scenarios. Scenario journeys vary by
+        scenario and are constant across platforms. Every cell in that matrix is covered by exactly one
+        owner, and neither axis has to know about the other.
+      </p>
+    </div>
+
+    <h3 style="margin-top:8px">Proposed mobile conformance chapters</h3>
+    <div class="prose">
+      <p>
+        Desktop's chapters ask about window geometry, tray, menus, and clean shutdown. Almost none of that
+        transfers. Mobile's platform contract is dominated by one thing desktop has no equivalent for — the
+        OS can suspend or kill your app at any moment and expects you to come back correctly.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Chapter</th>
+            <th>What it proves</th>
+            <th>Android mechanism</th>
+            <th>iOS mechanism</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">install_cold_start</td><td>Fresh install launches to usable UI within a bounded budget</td><td class="mono">adb install · am start</td><td class="mono">devicectl install · launch</td></tr>
+          <tr><td class="mono">permission_deny_grace</td><td>Denying a runtime permission degrades gracefully — no crash, no dead end</td><td class="mono">pm revoke · UiAutomator</td><td class="mono">XCUITest springboard alert</td></tr>
+          <tr><td class="mono">background_resume</td><td>Backgrounding and returning preserves state and re-establishes connections</td><td class="mono">am start HOME · resume</td><td class="mono">XCUIDevice home · activate</td></tr>
+          <tr><td class="mono">process_death_restore</td><td>OS-killed app restores to the same screen, not the splash</td><td class="mono">am kill · relaunch</td><td class="mono">terminate · activate</td></tr>
+          <tr><td class="mono">rotation_size_class</td><td>Layout survives rotation without loss or overlap</td><td class="mono">settings put rotation</td><td class="mono">XCUIDevice orientation</td></tr>
+          <tr><td class="mono">keyboard_avoidance</td><td>The soft keyboard never covers the focused input</td><td class="mono">input + ui tree geometry</td><td class="mono">XCUITest frame assert</td></tr>
+          <tr><td class="mono">offline_transition</td><td>Losing and regaining network produces a stated state, not a spinner</td><td class="mono">svc wifi/data</td><td class="mono">network link conditioner</td></tr>
+          <tr><td class="mono">deep_link</td><td>A universal/app link opens the right route from cold and warm start</td><td class="mono">am start -a VIEW</td><td class="mono">devicectl open url</td></tr>
+          <tr><td class="mono">notification_tap</td><td>A delivered notification routes correctly when tapped</td><td class="mono">adb notification post</td><td class="mono">simctl push · XCUITest</td></tr>
+          <tr><td class="mono">back_navigation</td><td>Platform back behaves natively — gesture on iOS, hardware/gesture on Android</td><td class="mono">input keyevent BACK</td><td class="mono">swipe from edge</td></tr>
+          <tr><td class="mono">update_migration</td><td>Upgrading over an installed build preserves user data</td><td class="mono">install -r</td><td class="mono">install over</td></tr>
+          <tr><td class="mono">clean_uninstall</td><td>Removal leaves no orphaned data</td><td class="mono">pm uninstall · verify</td><td class="mono">devicectl uninstall</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;line-height:20px;color:var(--muted);max-width:72ch">
+      Every one of these runs identically on an emulator and on a physical device — the adapter changes, the
+      chapter does not. That is the property that makes physical-device evidence worth having rather than a
+      parallel universe of bespoke tests.
+    </p>
+  </section>
+
+  <!-- ============ TWO AXES ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">The readiness model</p>
+      <h2>Two axes, one vocabulary</h2>
+    </div>
+    <div class="prose">
+      <p>
+        Getting an Apple account and passing Google's developer verification is not paperwork beside the
+        engineering — it is the other half of whether a ramp can do its job. So it is modeled exactly like
+        target capability: probed, evidence-backed, answered with the same words. The enrollment walkthrough
+        you asked for is simply this lane, rendered.
+      </p>
+    </div>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 880 250" role="img" aria-label="Two parallel probe lanes — validation readiness and release readiness — each producing a status, a named missing capability, and a next action, both resolving through the same shared disposition vocabulary." xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <polygon points="0,1 9,5 0,9" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g fill="currentColor" font-family="Inter, system-ui, sans-serif" font-size="12">
+            <rect x="20" y="20" width="300" height="86" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <text x="40" y="44" font-size="12.5" font-weight="600">validation readiness</text>
+            <text x="40" y="62" font-size="11" opacity=".75">can I prove this app works?</text>
+            <text x="40" y="80" font-size="10.5" opacity=".6" font-family="'JetBrains Mono', monospace">kvm · sdk · xcode · gui session</text>
+            <text x="40" y="96" font-size="10.5" opacity=".6" font-family="'JetBrains Mono', monospace">device attached · capture</text>
+
+            <rect x="20" y="132" width="300" height="86" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <text x="40" y="156" font-size="12.5" font-weight="600">release readiness</text>
+            <text x="40" y="174" font-size="11" opacity=".75">can I legitimately ship it?</text>
+            <text x="40" y="192" font-size="10.5" opacity=".6" font-family="'JetBrains Mono', monospace">enrollment · verification · signing</text>
+            <text x="40" y="208" font-size="10.5" opacity=".6" font-family="'JetBrains Mono', monospace">target api · store record</text>
+
+            <line x1="320" y1="63" x2="392" y2="105" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+            <line x1="320" y1="175" x2="392" y2="133" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+            <rect x="400" y="80" width="210" height="78" rx="6" fill="none" stroke="#0891b2" stroke-width="2"/>
+            <text x="505" y="104" text-anchor="middle" font-size="12.5" font-weight="600" fill="#0891b2">one vocabulary</text>
+            <text x="505" y="124" text-anchor="middle" font-size="10.5" opacity=".8">status + exact missing thing</text>
+            <text x="505" y="142" text-anchor="middle" font-size="10.5" opacity=".8">+ next action</text>
+
+            <line x1="610" y1="119" x2="682" y2="119" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+            <g font-family="'JetBrains Mono', monospace" font-size="11">
+              <rect x="690" y="42" width="170" height="26" rx="13" fill="none" stroke="#16a34a" stroke-width="1.5"/>
+              <text x="775" y="59" text-anchor="middle" fill="#16a34a">pass / available</text>
+              <rect x="690" y="80" width="170" height="26" rx="13" fill="none" stroke="#d97706" stroke-width="1.5"/>
+              <text x="775" y="97" text-anchor="middle" fill="#d97706">unavailable</text>
+              <rect x="690" y="118" width="170" height="26" rx="13" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".55"/>
+              <text x="775" y="135" text-anchor="middle" opacity=".7">unsupported</text>
+              <rect x="690" y="156" width="170" height="26" rx="13" fill="none" stroke="#dc2626" stroke-width="1.5"/>
+              <text x="775" y="173" text-anchor="middle" fill="#dc2626">failed</text>
+            </g>
+            <text x="775" y="204" text-anchor="middle" font-size="10.5" opacity=".65">never a silent degrade to pass</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        Both lanes answer with the same four words, so a release gate reasons across them without translation.
+      </figcaption>
+    </figure>
+
+    <div class="vocab">
+      <div><span class="chip pass">pass</span><p>Proven, with evidence references — locally or on a reachable target that returned them.</p></div>
+      <div><span class="chip unavailable">unavailable</span><p>Missing <em>right now</em>. Must name the exact missing capability and the next action.</p></div>
+      <div><span class="chip unsupported">unsupported</span><p>Categorically impossible on any reachable target. Terminal, not a degraded pass.</p></div>
+      <div><span class="chip blocked">failed</span><p>Attempted and did not hold. Distinct from never having been attempted.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ MATRIX ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">Ground truth</p>
+      <h2>What the matrix says today</h2>
+    </div>
+    <div class="prose">
+      <p>
+        Probed on this host before any work. Android is in better shape than expected —
+        <code>/dev/kvm</code> exists and is writable by your user, JDK 17 and <code>ffmpeg</code> are present,
+        only the SDK is absent. Physical rows now reflect that you have the hardware.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Ramp</th><th>Device kind</th><th>Node / adapter</th><th>Today</th><th>Missing / reason</th><th>After the work</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">android</td><td class="mono">EMULATOR</td><td>this machine</td>
+            <td><span class="chip unavailable">unavailable</span></td>
+            <td>Android SDK, platform-tools, system image, AVD.</td>
+            <td><span class="chip pass">pass</span> — primary path</td>
+          </tr>
+          <tr>
+            <td class="mono">android</td><td class="mono">EMULATOR</td><td>minimouse</td>
+            <td><span class="chip unavailable">unavailable</span></td>
+            <td>SDK absent. Intel macOS accelerates via Hypervisor.framework.</td>
+            <td><span class="chip pass">pass</span> — proves symmetry</td>
+          </tr>
+          <tr>
+            <td class="mono">android</td><td class="mono">PHYSICAL</td><td class="mono">android-adb</td>
+            <td><span class="chip unavailable">unavailable</span></td>
+            <td>Phones exist; not yet paired, no SDK, no fleet record.</td>
+            <td><span class="chip pass">pass</span> — semantic, no account</td>
+          </tr>
+          <tr>
+            <td class="mono">ios</td><td class="mono">EMULATOR</td><td>this machine</td>
+            <td><span class="chip unsupported">unsupported</span></td>
+            <td>No Apple toolchain exists for Linux. Correct forever.</td>
+            <td><span class="chip unsupported">unsupported</span> — stays honest</td>
+          </tr>
+          <tr>
+            <td class="mono">ios</td><td class="mono">EMULATOR</td><td>minimouse</td>
+            <td><span class="chip unavailable">unavailable</span></td>
+            <td>Xcode version, simulator runtimes, GUI session all unverified.</td>
+            <td><span class="chip pass">pass</span> — via bridge</td>
+          </tr>
+          <tr>
+            <td class="mono">ios</td><td class="mono">PHYSICAL</td><td class="mono">ios-mirror</td>
+            <td><span class="chip unavailable">unavailable</span></td>
+            <td>Needs mirroring paired + accessibility/screen-recording grants. <strong>No account needed.</strong></td>
+            <td><span class="chip pass">pass</span> — exploration only</td>
+          </tr>
+          <tr>
+            <td class="mono">ios</td><td class="mono">PHYSICAL</td><td class="mono">ios-xcuitest</td>
+            <td><span class="chip unavailable">unavailable</span></td>
+            <td>No Apple Developer Program enrollment — cannot sign WebDriverAgent.</td>
+            <td><span class="chip unavailable">unavailable</span> until rung 1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ LADDER ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">The walkthrough</p>
+      <h2>Release readiness ladder</h2>
+    </div>
+    <div class="prose">
+      <p>
+        Each rung is probed, not remembered. The ramp knows which rungs it can climb for you, which need a
+        government ID or a card, and what the next physical action is. Rendered as a checklist in the UI,
+        queryable from the CLI, and the source for the docs — one model, three surfaces, so documentation
+        cannot drift from code.
+      </p>
+    </div>
+
+    <div class="split">
+      <div>
+        <h3>Google · Android</h3>
+        <ol class="rungs">
+          <li><div class="rung-body"><div class="rung-head"><h3>Play Console registration</h3><span class="rung-meta">$25 once · you</span></div><p>Identity and payment. Ramp probes for a usable account and links straight to the console.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>Developer verification</h3><span class="rung-meta">free · you</span></div><p>Government ID. Gates Play <em>and</em> sideloading on certified devices — see the calendar.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>Signing key + Play App Signing</h3><span class="rung-meta">automatable</span></div><p>Upload key generated and stored through secrets-manager. No key material in the repo.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>targetSdk 36</h3><span class="rung-meta">automatable · asserted</span></div><p>Enforced at build and reported as a machine assertion, not a comment in a Gradle file.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>Internal testing track</h3><span class="rung-meta">automatable</span></div><p>First real distribution surface. Unlocks once rungs 1–4 hold.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>Production listing</h3><span class="rung-meta">mixed</span></div><p>Assets and privacy policy generated from scenario metadata; the data-safety form is yours.</p></div></li>
+        </ol>
+      </div>
+      <div>
+        <h3>Apple · iOS</h3>
+        <ol class="rungs">
+          <li><div class="rung-body"><div class="rung-head"><h3>Apple Developer Program</h3><span class="rung-meta">$99/yr · you</span></div><p>Apple ID, 2FA, identity. Organization enrollment additionally needs a D-U-N-S number.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>macOS node with Xcode 26</h3><span class="rung-meta">probe automatable</span></div><p>Ramp verifies version, simulator runtimes, GUI session. Xcode itself we cannot install for you.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>Certificates + provisioning</h3><span class="rung-meta">automatable</span></div><p>Issued and rotated through secrets-manager once rung 1 exists. Also unlocks <code>ios-xcuitest</code>.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>Bundle ID + App Store Connect record</h3><span class="rung-meta">automatable</span></div><p>Created via API key, derived from scenario identity so it is reproducible.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>TestFlight upload</h3><span class="rung-meta">automatable</span></div><p>The equivalent of Play's internal track — first surface a real person can install from.</p></div></li>
+          <li><div class="rung-body"><div class="rung-head"><h3>App Review submission</h3><span class="rung-meta">mixed</span></div><p>Privacy labels and screenshots generated from journey evidence; review replies are yours.</p></div></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CALENDAR ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">Dated external constraints</p>
+      <h2>The clock we are building against</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Constraint</th><th>Effect on us</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="num">Apr 28, 2026</td><td>App Store Connect requires Xcode 26 + iOS 26 SDK</td><td>minimouse on macOS 26 + Xcode 26 still qualifies.</td><td><span class="chip pass">in effect</span></td></tr>
+          <tr><td class="num">Aug 31, 2026</td><td>Play: new apps and updates must target API 36</td><td>Generated Android apps must target 36+ from the first build.</td><td><span class="chip unavailable">3 weeks</span></td></tr>
+          <tr><td class="num">Sep 30, 2026</td><td>Android developer verification — BR, ID, SG, TH</td><td>Unverified apps blocked on certified devices, including sideload.</td><td><span class="chip unavailable">7 weeks</span></td></tr>
+          <tr><td class="num">Nov 1, 2026</td><td>Play API-36 extension deadline</td><td>The latest slip available if Aug 31 is missed.</td><td><span class="chip ready">buffer</span></td></tr>
+          <tr><td class="num">2027</td><td>Android developer verification goes global</td><td>"Just hand them the APK" stops working outside ADB.</td><td><span class="chip unavailable">planned</span></td></tr>
+          <tr><td class="num">~Apr 2027</td><td>Projected Xcode 27 mandate</td><td>Xcode 27 requires Apple Silicon — minimouse can no longer produce submittable builds.</td><td><span class="chip blocked">projected</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <p class="eyebrow">The constraint that shapes the architecture</p>
+      <p>
+        macOS 26 was the last Intel release and Xcode 27 dropped Intel entirely, so minimouse has roughly a
+        year of <em>release</em> capability left — though it stays a useful validation node indefinitely. The
+        design therefore never names it: <strong>"iOS build and signing host" is a bridge-node role</strong>,
+        and satisfying it with an Apple Silicon machine later is a node registration, not a rewrite.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ INVENTORY ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">Scope</p>
+      <h2>What gets built</h2>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3>New scenarios</h3>
+        <ul>
+          <li><code>scenario-to-android</code> — regenerated</li>
+          <li><code>scenario-to-ios</code> — regenerated</li>
+          <li><code>device-control</code> — the device capability</li>
+          <li><code>hello-mobile</code> — conformance fixture</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Extended</h3>
+        <ul>
+          <li><code>vrooli-bridge</code> — attached-device member kind, transports, leases</li>
+          <li><code>browser-automation-studio</code> — two WebView engines</li>
+          <li><code>scenario-to-desktop</code> — retrofit onto the spine</li>
+          <li><code>deployment-manager</code> — mobile profiles, readiness rungs</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>New shared code</h3>
+        <ul>
+          <li>Ramp spine package — matrix, inventory, transport, evidence</li>
+          <li><code>android-sdk</code> resource — SDK, platform-tools, emulator, AVD</li>
+          <li>Capacitor shell templates as a pluggable family</li>
+          <li>Rewrite of <code>docs/tiers/tier-3-mobile.md</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Already generic — no change</h3>
+        <ul>
+          <li><code>common/v1/evidence.proto</code> — device kinds, bridge identity</li>
+          <li>Producer conformance validation</li>
+          <li>Bridge dispatch, durable runs, audit</li>
+          <li>Tier 4 / VPS — a VPS is just a node</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <p class="eyebrow">Xcode is not a resource</p>
+      <p>
+        It is a host capability with a verify-and-instruct path. We cannot install, license, or version it,
+        and pretending otherwise would put a permanently failing acquisition step in the resource fleet.
+        <code>android-sdk</code> is the opposite case — fully scriptable, so it earns real resource treatment.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ OPEN ============ -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">Still open</p>
+      <h2>Decisions I would rather you make than assume</h2>
+    </div>
+
+    <details>
+      <summary>Device leases — who arbitrates when two things want the same phone?</summary>
+      <p>
+        One phone, one session, and the mirror adapter enforces that in hardware. Without an explicit lease,
+        a deployment journey and a general-automation task will silently corrupt each other's runs. My lean
+        is leases in bridge alongside the fleet record — same place that already owns scopes and audit — with
+        device-control refusing any verb that lacks a held lease.
+      </p>
+    </details>
+
+    <details>
+      <summary>Wireless ADB or USB for the Android phones?</summary>
+      <p>
+        Wireless means a phone is not chained to a host and can sit on a shelf; but pairing expires on reboot
+        and the link is flakier, which shows up as intermittent evidence failures — the worst kind. USB is
+        boringly reliable and ties each phone to one host node. My lean is to support both transports from
+        the start but default conformance runs to USB, because release evidence should not be able to fail
+        for network reasons.
+      </p>
+    </details>
+
+    <details>
+      <summary>Does the spine get extracted before or after the new ramps are built?</summary>
+      <p>
+        You chose the full retrofit, which is right long-term. Extract-first gives both ramps a real spine
+        immediately but destabilizes a monetization-critical ramp early. Build-then-retrofit keeps desktop
+        untouched but leaves two implementations alive for a while. My lean is extract-first with desktop
+        retrofitted last — the interface gets shaped by two new consumers before the incumbent is moved onto it.
+      </p>
+    </details>
+
+    <details>
+      <summary>How is a capability this powerful scoped and consented?</summary>
+      <p>
+        This is the one I would most like your thinking on. <code>device-control</code> can tap anything on
+        your personal phone, read anything on screen, and install software. That is a serious capability to
+        leave running, and the honest framing is that it deserves the same treatment as a credential: scoped
+        grants per consumer, a visible indicator while a session is live, full audit of every verb, and a
+        hard kill. Whether an agent should ever hold it unattended is a policy question, not a technical one.
+      </p>
+    </details>
+  </section>
+
+  <footer class="doc-foot">
+    <p>
+      Probed on this host: <code>/dev/kvm</code> present and writable · JDK 17.0.19 · ffmpeg present ·
+      Android SDK absent · <code>minimouse</code> darwin/amd64 online via bridge.
+    </p>
+    <p>
+      Sources:
+      <a href="https://developer.apple.com/news/?id=ueeok6yw">Apple Developer</a> ·
+      <a href="https://support.google.com/googleplay/android-developer/answer/11926878?hl=en">Play Console Help</a> ·
+      <a href="https://android-developers.googleblog.com/2026/03/android-developer-verification-rolling-out-to-all-developers.html">Android Developers Blog</a> ·
+      <a href="https://developer.android.com/studio/releases/emulator">Android emulator notes</a> ·
+      <a href="https://blakecrosley.com/blog/xcode-27-drops-intel">Xcode 27 Intel</a> ·
+      <a href="https://playwright.dev/docs/api/class-android">Playwright Android</a> ·
+      <a href="https://appium.github.io/appium-xcuitest-driver/11.4/guides/run-preinstalled-wda/">Appium XCUITest / WDA</a> ·
+      <a href="https://github.com/google/ios-webkit-debug-proxy">ios-webkit-debug-proxy</a> ·
+      <a href="https://github.com/ShawnPana/phone-harness">phone-harness</a>.
+      The April 2027 row is a projection from Apple's annual cadence, not an announced date.
+    </p>
+  </footer>
+
+</div>

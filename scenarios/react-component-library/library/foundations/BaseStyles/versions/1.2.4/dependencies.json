@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:BaseStyles",
+  "version": "1.2.4",
+  "resolvedAt": "2026-09-03T23:01:50Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

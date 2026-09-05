@@ -1,25 +1,58 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import {
   ArrowDown,
-  Check,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
-  Copy,
-  Play,
+  Loader2,
+  MoreHorizontal,
+  RotateCw,
   Search,
-  Volume2,
 } from "lucide-react";
-import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
+import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
+import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { summarizeEvent } from "../lib/api";
+import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
+import { writeText } from "../lib/clipboard";
+import { getConversationRange, searchConversation, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
+import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
+import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
-import MessagesSearchDrawer from "./MessagesSearchDrawer";
-import MessageJumpList from "./MessageJumpList";
+import { useVirtualList } from "../hooks/useVirtualList";
+import { useReleaseOnElementInteraction } from "../hooks/useKeyboardListeners";
+import MessageJumpList, { type MessageExportSelection } from "./MessageJumpList";
+import { getDerived } from "./MessageJumpList.helpers";
+import MessageExportDrawer from "./MessageExportDrawer";
+import { AudioSettingsContent } from "./tts/AudioSettingsContent";
+import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
+import type { TTSPlaybackState } from "../audio-integration";
+import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
+import MessagesFileViewer from "./MessagesFileViewer";
+import HandoffSuggestionChip from "./handoff/HandoffSuggestionChip";
+import { useHandoffSuggestions } from "../hooks/useHandoffSuggestions";
+import MessagesMermaidViewer from "./MessagesMermaidViewer";
+import MessagesPaneState from "./MessagesPaneState";
+import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
+import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
+import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
+import {
+  MESSAGE_ACTIONS,
+  actionIcon,
+  actionLabelKey,
+  actionPlacement,
+  type MessageAction,
+  type MessageActionContext,
+  type MessageAudioSettings,
+} from "./messages/messageActions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,24 +60,38 @@ import MessageJumpList from "./MessageJumpList";
 
 interface MessagesPaneProps {
   sessionId: string;
-  onSpeakFromHere: (eventId: string) => void;
-  onSpeakOne: (eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => void;
+  /**
+   * Hand a file (or a matched passage) from this session to another in its
+   * group. Threaded down to the file viewer, which already holds both the
+   * resolved path and this session id.
+   */
+  onHandoff?: (sessionId: string, payload: string) => void;
+  onPlayFromHere: (eventId: string) => void;
+  onPlayEvent: (eventId: string) => void;
   activeSpeakingEventId: string | null;
+  loadingEventId?: string | null;
   isTtsSpeaking: boolean;
-}
-
-interface AudioPopoverContentProps {
-  eventId: string;
-  volume: number;
-  summarized: boolean;
-  hasSummary: boolean;
-  isSummarizing: boolean;
-  summarizeError: string | null;
-  onVolumeChange: (level: number) => void;
-  onToggleSummarized: (useSummarized: boolean) => void;
-  onRequestSummarize: () => void;
-  onCancelSummarize: () => void;
-  onClose: () => void;
+  summarizeLevel: SummarizationLevel;
+  selectedVersionForEvent: (event: ConversationEvent) => PlaybackVersion;
+  summarizingEventId: string | null;
+  getSummarizeError: (eventId: string) => string | null;
+  onClearSummarizeError: (eventId: string) => void;
+  onToggleSummarized: (eventId: string, useSummarized: boolean) => void;
+  onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
+  playbackState: TTSPlaybackState;
+  onSetPlaybackRate: (rate: number) => void;
+  onSetVolume: (level: number) => void;
+  onSetMuted: (next: boolean) => void;
+  playbackFocusRequest: PlaybackFocusRequest | null;
+  toolbarTrailingAction?: ReactNode;
+  /** Removes every transcript-mutating affordance while preserving navigation,
+   * rendering, copy/export, Mermaid, and file preview behavior. */
+  readOnly?: boolean;
+  /** Optional archive hit to reveal after its containing page is loaded. */
+  focusEventId?: string | null;
+  focusSequence?: number | null;
+  /** Stages a message in the operator-selected live session composer. */
+  onSendToComposer?: (text: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,196 +100,688 @@ interface AudioPopoverContentProps {
 const COLLAPSE_THRESHOLD_PX = 400;
 
 // ---------------------------------------------------------------------------
-// AudioPopoverContent (unchanged from original)
+// Scroll snapshot persistence — keeps a per-session record of where the user
+// left the messages pane so re-mounting after a view switch restores their
+// position instead of dumping them somewhere in the middle.
 // ---------------------------------------------------------------------------
+interface ScrollSnapshot {
+  atBottom: boolean;
+  topEventId: string | null;
+}
 
-function AudioPopoverContent({
-  eventId,
-  volume,
-  summarized,
-  hasSummary,
-  isSummarizing,
-  summarizeError,
-  onVolumeChange,
-  onToggleSummarized,
-  onRequestSummarize,
-  onCancelSummarize,
-  onClose,
-}: AudioPopoverContentProps) {
-  return (
-    <div className="space-y-3">
-      <div>
-        <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
-          Volume
-        </label>
-        <input
-          data-testid={`msg-volume-slider-${eventId}`}
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={volume}
-          onChange={(e) => onVolumeChange(Number(e.target.value))}
-          className={cn(
-            "h-1.5 w-full cursor-pointer rounded-full",
-            summarized
-              ? "[&::-webkit-slider-thumb]:bg-amber-400 accent-amber-400"
-              : "accent-wc-accent",
-          )}
-        />
-        <div className="mt-0.5 flex justify-between text-[10px] text-wc-text-faint">
-          <span>0</span>
-          <span>{Math.round(volume * 100)}%</span>
-        </div>
-      </div>
+interface PrependScrollAnchor {
+  eventId: string;
+  offsetFromViewportTop: number;
+}
 
-      {hasSummary && (
-        <div className="border-t border-wc-default pt-3">
-          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
-            Playback version
-          </label>
-          <div className="flex gap-1">
-            <button
-              data-testid={`msg-play-summarized-${eventId}`}
-              className={cn(
-                "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
-                summarized
-                  ? "bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40"
-                  : "bg-wc-surface-base text-wc-text-muted hover:bg-wc-surface-input",
-              )}
-              onClick={() => { onToggleSummarized(true); onClose(); }}
-            >
-              Summarized
-            </button>
-            <button
-              data-testid={`msg-play-original-${eventId}`}
-              className={cn(
-                "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
-                !summarized
-                  ? "bg-wc-accent/20 text-wc-accent ring-1 ring-wc-accent/40"
-                  : "bg-wc-surface-base text-wc-text-muted hover:bg-wc-surface-input",
-              )}
-              onClick={() => { onToggleSummarized(false); onClose(); }}
-            >
-              Original
-            </button>
-          </div>
-        </div>
-      )}
+const scrollSnapshotKey = (sessionId: string) => `wc.messagesScroll.${sessionId}`;
 
-      {!hasSummary && (
-        <div className="border-t border-wc-default pt-3">
-          {isSummarizing ? (
-            <button
-              data-testid={`msg-cancel-summarize-${eventId}`}
-              className="w-full rounded-lg px-3 py-2 text-xs font-medium transition bg-red-500/10 text-red-400 hover:bg-red-500/20"
-              onClick={onCancelSummarize}
-            >
-              Cancel summarization
-            </button>
-          ) : (
-            <button
-              data-testid={`msg-request-summarize-${eventId}`}
-              className="w-full rounded-lg px-3 py-2 text-xs font-medium transition bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
-              onClick={onRequestSummarize}
-            >
-              Summarize for playback
-            </button>
-          )}
-          {summarizeError && (
-            <div
-              data-testid={`msg-summarize-error-${eventId}`}
-              className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
-            >
-              {summarizeError}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+function readScrollSnapshot(sessionId: string): ScrollSnapshot | null {
+  try {
+    const raw = sessionStorage.getItem(scrollSnapshotKey(sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ScrollSnapshot>;
+    if (typeof parsed.atBottom !== "boolean") return null;
+    return {
+      atBottom: parsed.atBottom,
+      topEventId: typeof parsed.topEventId === "string" ? parsed.topEventId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeScrollSnapshot(sessionId: string, snapshot: ScrollSnapshot): void {
+  try {
+    sessionStorage.setItem(scrollSnapshotKey(sessionId), JSON.stringify(snapshot));
+  } catch {
+    // Ignore — sessionStorage may be unavailable in some embeddings.
+  }
 }
 
 // ---------------------------------------------------------------------------
 // MessagesPane
 // ---------------------------------------------------------------------------
 
+interface MessageRowProps {
+  actionContext: MessageActionContext;
+  index: number;
+  registerItem: (index: number, node: HTMLElement | null) => void;
+  fontSize: number;
+  isFocused: boolean;
+  isSearchFocused: boolean;
+  isDimmed: boolean;
+  isExpanded: boolean;
+  onToggleExpanded: (eventId: string) => void;
+  onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
+  onFileReferenceClick: (path: string) => void;
+  onMermaidOpen: (code: string) => void;
+}
+
+/** Anchored placement order for popovers opening below their trigger. */
+const BELOW_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["bottom-end", "bottom-start", "top-end", "top-start"];
+
+const MessageRow = memo(function MessageRow({
+  actionContext,
+  index,
+  registerItem,
+  fontSize,
+  isFocused,
+  isSearchFocused,
+  isDimmed,
+  isExpanded,
+  onToggleExpanded,
+  onLinkClick,
+  onFileReferenceClick,
+  onMermaidOpen,
+}: MessageRowProps) {
+  const {
+    event,
+    isTtsSpeaking,
+    activeSpeakingEventId,
+    isAudioLoading,
+    summarizeLevel,
+    selectedVersion,
+    summarizingEventId,
+    getSummarizeError,
+    onClearSummarizeError,
+    onToggleSummarized,
+    onChangeLevel,
+    audioSettings,
+    onSetPlaybackRate,
+    onSetVolume,
+    onSetMuted,
+    isMobile,
+    isPlaintext,
+    onPlayEvent,
+  } = actionContext;
+  const { t } = useTranslation();
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const [playbackModeOpen, setPlaybackModeOpen] = useState(false);
+  const [isTall, setIsTall] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  // Desktop audio popover anchors below the per-message audio button,
+  // end-aligned, via the shared anchored-floating math.
+  const audioPopoverRef = useRef<HTMLDivElement | null>(null);
+  const audioPopoverStyle = useAnchoredPopoverPosition(
+    openPopoverId === event.id && !isMobile,
+    moreButtonRef,
+    audioPopoverRef,
+    BELOW_ANCHOR_PLACEMENTS,
+  );
+
+  useEffect(() => {
+    const node = contentRef.current;
+    if (!node) return;
+
+    const measure = () => { setIsTall(node.scrollHeight > COLLAPSE_THRESHOLD_PX); };
+    measure();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => { measure(); });
+    observer.observe(node);
+    return () => { observer.disconnect(); };
+  }, [event.text, isExpanded, isPlaintext]);
+
+  const isUser = event.role === "user";
+  const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
+  const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
+  const useSummarized = selectedVersion === "active" && hasSummary;
+  const isPopoverOpen = openPopoverId === event.id;
+  const isCollapsed = isTall && !isExpanded;
+  const resolvedActionContext: MessageActionContext = {
+    ...actionContext,
+    onOpenPlaybackMode: () => { setPlaybackModeOpen(true); },
+    onOpenAudio: () => {
+      onPlayEvent(event.id);
+      setOpenPopoverId(isPopoverOpen ? null : event.id);
+    },
+    renderPlaybackAction: () => (
+      <PlaybackModeControl
+        testIdPrefix={`msg-${event.id}`}
+        isSummarized={useSummarized && hasSummary}
+        hasOriginalVersion={hasSummary}
+        canSummarize
+        isSummarizing={summarizingEventId === event.id}
+        currentLevel={summarizeLevel}
+        onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
+        onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
+        open={playbackModeOpen}
+        onOpenChange={setPlaybackModeOpen}
+        hideTrigger
+        anchorRef={moreButtonRef}
+      />
+    ),
+  };
+  const applicableActions = MESSAGE_ACTIONS.filter((action) => action.appliesTo(resolvedActionContext));
+  const inlineActions = applicableActions.filter((action) => actionPlacement(action, resolvedActionContext) === "primary").slice(0, 3);
+  const inlineIds = new Set(inlineActions.map((action) => action.id));
+  const overflowActions = applicableActions.filter((action) => !inlineIds.has(action.id));
+  const overflowItems: ContextMenuItem[] = overflowActions.map((action) => {
+    const ActionIcon = actionIcon(action, resolvedActionContext);
+    return {
+      id: action.id,
+      label: t(actionLabelKey(action, resolvedActionContext) as never),
+      icon: action.id === "render-mode"
+        ? (
+          <span
+            data-testid={action.testId(resolvedActionContext)}
+            aria-pressed={action.pressed?.(resolvedActionContext)}
+          >
+            <ActionIcon className="h-3.5 w-3.5" />
+          </span>
+        )
+        : action.id === "audio-settings" && isAudioLoading
+        ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
+        : <ActionIcon className="h-3.5 w-3.5" />,
+      testId: action.id === "render-mode" ? undefined : action.testId(resolvedActionContext),
+      disabled: action.disabled?.(resolvedActionContext),
+      pressed: action.pressed?.(resolvedActionContext),
+      onSelect: () => { action.run(resolvedActionContext); },
+    };
+  });
+  const accentColor = isTtsActive
+    ? "border-l-wc-accent"
+    : isUser
+      ? "border-l-sky-500/60"
+      : "border-l-emerald-500/60";
+
+  return (
+    <article
+      ref={(node) => { registerItem(index, node); }}
+      data-testid={`msg-card-${event.id}`}
+      className={cn(
+        "border-b border-wc-default border-l-[3px] py-3 ps-3 pe-1 transition-colors",
+        accentColor,
+        isFocused && "bg-wc-accent/5",
+        isSearchFocused && "ring-1 ring-wc-accent/50 rounded-r-lg",
+        isDimmed && "opacity-40",
+      )}
+    >
+      <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
+        {inlineActions.map((action) => {
+          const ActionIcon = actionIcon(action, resolvedActionContext);
+          return (
+            <button
+              key={action.id}
+              data-message-action-inline
+              data-testid={action.testId(resolvedActionContext)}
+              onClick={() => { action.run(resolvedActionContext); }}
+              disabled={action.disabled?.(resolvedActionContext)}
+              aria-pressed={action.pressed?.(resolvedActionContext)}
+              className={cn(
+                "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary",
+                action.pressed?.(resolvedActionContext) && "text-wc-accent",
+                action.disabled?.(resolvedActionContext) && "cursor-wait opacity-60",
+              )}
+              title={t(actionLabelKey(action, resolvedActionContext) as never)}
+              aria-label={t(actionLabelKey(action, resolvedActionContext) as never)}
+              type="button"
+            >
+              {action.id === "audio-settings" && isAudioLoading
+                ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
+                : <ActionIcon className={cn("h-3.5 w-3.5", action.id === "copy" && actionContext.copied && "text-green-400")} />}
+            </button>
+          );
+        })}
+
+        {overflowActions.length > 0 && (
+          <>
+            <button
+              ref={moreButtonRef}
+              data-message-action-inline
+              data-testid={`msg-actions-more-${event.id}`}
+              type="button"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
+              aria-label={t(strings.messageActions.more)}
+              aria-haspopup="menu"
+              aria-expanded={overflowOpen}
+              onClick={() => { setOverflowOpen((open) => !open); }}
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+            <ContextMenu
+              open={overflowOpen}
+              onOpenChange={setOverflowOpen}
+              anchorRef={moreButtonRef}
+              placement="bottom-end"
+              title={t(strings.messageActions.more)}
+              closeLabel={t(strings.handoff.close)}
+              testId={`msg-actions-menu-${event.id}`}
+              items={overflowItems}
+            />
+          </>
+        )}
+
+        {MESSAGE_ACTIONS.filter((action) => action.render && action.appliesTo(resolvedActionContext)).map((action) => (
+          <span key={`${action.id}-composite`}>{action.render?.(resolvedActionContext)}</span>
+        ))}
+
+        {isPopoverOpen && createPortal(
+              isMobile ? (
+                <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => { e.preventDefault(); }}>
+                  <div className="absolute inset-0 bg-wc-backdrop" onClick={() => { setOpenPopoverId(null); }} />
+                  <div
+                    data-testid={`audio-popover-${event.id}`}
+                    className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
+                  >
+                    <div className="mb-3 flex justify-center">
+                      <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
+                    </div>
+                    <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.messagesPane.audioSettingsHeading)}</h3>
+                    <AudioSettingsContent
+                      testIdPrefix={`msg-${event.id}`}
+                      volume={audioSettings.volume}
+                      isMuted={audioSettings.isMuted}
+                      playbackRate={audioSettings.playbackRate}
+                      isSummarized={useSummarized && hasSummary}
+                      capabilities={audioSettings.capabilities}
+                      onVolumeChange={onSetVolume}
+                      onSetMuted={onSetMuted}
+                      onSetPlaybackRate={onSetPlaybackRate}
+                    />
+                    {isAudioLoading && (
+                      <div data-testid={`audio-popover-loading-${event.id}`} className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                        <span>{t(strings.app.loading)}</span>
+                      </div>
+                    )}
+                    {getSummarizeError(event.id) && (
+                      <div
+                        data-testid={`msg-summarize-error-${event.id}`}
+                        className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
+                      >
+                        {getSummarizeError(event.id)}
+                      </div>
+                    )}
+                    {getSummarizeError(event.id) && (
+                      <button
+                        data-testid={`msg-clear-summarize-error-${event.id}`}
+                        className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
+                        onClick={() => { onClearSummarizeError(event.id); }}
+                      >
+                        {t(strings.messagesPane.dismissError)}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="fixed inset-0 z-wc-popover-backdrop" onClick={() => { setOpenPopoverId(null); }} />
+                  <div
+                    ref={audioPopoverRef}
+                    data-testid={`audio-popover-${event.id}`}
+                    className="wc-stable-theme z-wc-popover w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+                    style={audioPopoverStyle}
+                  >
+                    <AudioSettingsContent
+                      testIdPrefix={`msg-${event.id}`}
+                      volume={audioSettings.volume}
+                      isMuted={audioSettings.isMuted}
+                      playbackRate={audioSettings.playbackRate}
+                      isSummarized={useSummarized && hasSummary}
+                      capabilities={audioSettings.capabilities}
+                      onVolumeChange={onSetVolume}
+                      onSetMuted={onSetMuted}
+                      onSetPlaybackRate={onSetPlaybackRate}
+                    />
+                    {isAudioLoading && (
+                      <div data-testid={`audio-popover-loading-${event.id}`} className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                        <span>{t(strings.app.loading)}</span>
+                      </div>
+                    )}
+                    {getSummarizeError(event.id) && (
+                      <div
+                        data-testid={`msg-summarize-error-${event.id}`}
+                        className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
+                      >
+                        {getSummarizeError(event.id)}
+                      </div>
+                    )}
+                    {getSummarizeError(event.id) && (
+                      <button
+                        data-testid={`msg-clear-summarize-error-${event.id}`}
+                        className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
+                        onClick={() => { onClearSummarizeError(event.id); }}
+                      >
+                        {t(strings.messagesPane.dismissError)}
+                      </button>
+                    )}
+                  </div>
+                </>
+              ),
+              document.body,
+            )}
+
+        <span className="flex-1" />
+        <span>#{event.sequence}</span>
+      </div>
+
+      <div className={cn("relative", isCollapsed && "max-h-[400px] overflow-hidden")}>
+        <div
+          ref={contentRef}
+          data-testid={`msg-markdown-${event.id}`}
+          style={{ fontSize: `${fontSize}px` }}
+          className="text-wc-text-primary"
+        >
+          {isPlaintext ? (
+            <pre
+              data-testid={`msg-plaintext-${event.id}`}
+              className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono"
+            >
+              {event.text}
+            </pre>
+          ) : (
+            <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+          )}
+        </div>
+
+        {isCollapsed && (
+          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-wc-surface-base to-transparent pointer-events-none" />
+        )}
+      </div>
+
+      {isTall && (
+        <button
+          data-testid={`msg-collapse-${event.id}`}
+          onClick={() => { onToggleExpanded(event.id); }}
+          className="mt-1 text-xs text-wc-accent hover:text-wc-accent/80 transition-colors"
+          type="button"
+        >
+          {isExpanded ? t(strings.messagesPane.showLess) : t(strings.messagesPane.showMore)}
+        </button>
+      )}
+    </article>
+  );
+}, (prevProps, nextProps) => (
+  Object.keys(prevProps.actionContext).length === Object.keys(nextProps.actionContext).length &&
+  Object.entries(prevProps.actionContext).every(([key, value]) => (
+    value === (nextProps.actionContext as unknown as Record<string, unknown>)[key]
+  )) &&
+  prevProps.fontSize === nextProps.fontSize &&
+  prevProps.isFocused === nextProps.isFocused &&
+  prevProps.isSearchFocused === nextProps.isSearchFocused &&
+  prevProps.isDimmed === nextProps.isDimmed &&
+  prevProps.isExpanded === nextProps.isExpanded &&
+  prevProps.onLinkClick === nextProps.onLinkClick &&
+  prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
+  prevProps.onMermaidOpen === nextProps.onMermaidOpen
+));
+
 export default function MessagesPane({
   sessionId,
-  onSpeakFromHere,
-  onSpeakOne,
+  onHandoff,
+  onPlayFromHere,
+  onPlayEvent,
   activeSpeakingEventId,
+  loadingEventId = null,
   isTtsSpeaking,
+  summarizeLevel,
+  selectedVersionForEvent,
+  summarizingEventId,
+  getSummarizeError,
+  onClearSummarizeError,
+  onToggleSummarized,
+  onChangeLevel,
+  playbackState,
+  onSetPlaybackRate,
+  onSetVolume,
+  onSetMuted,
+  playbackFocusRequest,
+  toolbarTrailingAction,
+  readOnly = false,
+  focusEventId = null,
+  focusSequence = null,
+  onSendToComposer,
 }: MessagesPaneProps) {
+  const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
+  const totalCount = useConversationStore((state) => state.sessions[sessionId]?.totalCount ?? events.length);
+  // The session slice is referentially stable, so deriving the view from it in
+  // a memo avoids re-rendering the pane on every unrelated store write. The
+  // view — not events.length — decides what this pane shows.
+  const sessionSlice = useConversationStore((state) => getSessionSlice(state, sessionId));
+  const viewState = useMemo(() => resolveConversationView(sessionSlice), [sessionSlice]);
+  // Only after the interruption outlives its grace period; most drops recover
+  // faster than the sentence can be read.
+  const liveInterrupted = useLiveStreamNotice();
   const isMobile = useMediaQuery("(max-width: 767px)");
+
+  // Stable subset of playbackState for the per-message audio popover. Keeping
+  // its identity stable across the player's ~10 Hz time polls is what stops
+  // every visible row from re-rendering during TTS playback.
+  const audioSettings = useMemo<MessageAudioSettings>(
+    () => ({
+      volume: playbackState.volume,
+      isMuted: playbackState.isMuted,
+      playbackRate: playbackState.playbackRate,
+      capabilities: playbackState.capabilities,
+    }),
+    [playbackState.volume, playbackState.isMuted, playbackState.playbackRate, playbackState.capabilities],
+  );
   const fontSize = useWorkspaceStore(
     useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
   );
 
-  // --- Audio popover state ---
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [volume, setVolume] = useState(1);
-  const [playbackModes, setPlaybackModes] = useState<Record<string, boolean>>({});
-  const [summarizingIds, setSummarizingIds] = useState<Set<string>>(new Set());
-  const [summarizeErrors, setSummarizeErrors] = useState<Record<string, string>>({});
-  const summarizeAbortControllers = useRef<Record<string, AbortController>>({});
-  const audioButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
   // --- Copy ---
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
+  const [snippetSaveSource, setSnippetSaveSource] = useState<{ body: string; sourceLabel: string } | null>(null);
   const handleCopy = useCallback((eventId: string, text: string) => {
-    void navigator.clipboard.writeText(text);
+    void writeText(text);
     setCopiedEventId(eventId);
-    setTimeout(() => setCopiedEventId((prev) => (prev === eventId ? null : prev)), 2000);
+    setTimeout(() => { setCopiedEventId((prev) => (prev === eventId ? null : prev)); }, 2000);
   }, []);
 
   // --- Search & navigation ---
-  const [searchOpen, setSearchOpen] = useState(false);
+  // The navigator panel owns search editing, but the query is lifted here so
+  // the message list keeps dimming non-matches and the toolbar match-stepping
+  // arrows keep working while (and after) the navigator is open.
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
-  const messageRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [serverSearchMatches, setServerSearchMatches] = useState<ConversationSearchMatch[]>([]);
+  const [serverSearchReady, setServerSearchReady] = useState(false);
+  const [searchTruncated, setSearchTruncated] = useState(false);
 
-  // --- Jump list ---
-  const [jumpListOpen, setJumpListOpen] = useState(false);
+  // --- Navigator panel ---
+  const [navOpen, setNavOpen] = useState(false);
+  const [navInitialFocus, setNavInitialFocus] = useState<"search" | "list">("list");
+  const openNavigator = useCallback((focus: "search" | "list") => {
+    setNavInitialFocus(focus);
+    setNavOpen(true);
+  }, []);
+  const handleNavQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setFocusedEventId(null);
+  }, []);
 
   // --- Collapse ---
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [tallIds, setTallIds] = useState<Set<string>>(new Set());
-  const contentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // --- Render mode (markdown by default; ids in this set show plain text) ---
+  const [plaintextIds, setPlaintextIds] = useState<Set<string>>(new Set());
+  const toggleRenderMode = useCallback((eventId: string) => {
+    setPlaintextIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, []);
+
+  // --- Export selection (session-scoped source of truth shared by the
+  // navigator's selection mode and the export drawer) ---
+  const [exportSelectedIds, setExportSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [exportEventsById, setExportEventsById] = useState<ReadonlyMap<string, ConversationEvent>>(new Map());
+  const [exportDrawerOpen, setExportDrawerOpen] = useState(false);
+
+  // --- File preview ---
+  const filePreview = useFilePreviewController(sessionId);
+  // Rules only ever offer. Nothing on this path can send.
+  const handoffSuggestions = useHandoffSuggestions(sessionId);
 
   // --- Auto-scroll ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
+  const [isNearBottom, setIsNearBottom] = useState(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
   const prevEventCountRef = useRef(events.length);
+  // While true, the totalSize-change effect re-pins the scroll position to the
+  // bottom. Cleared once the user scrolls away from the bottom.
+  const pinToBottomRef = useRef(true);
+  // While set, the totalSize-change effect re-scrolls to this event id until
+  // the row's measured size is stable. Cleared after restore completes or the
+  // user manually scrolls.
+  const pinToEventIdRef = useRef<string | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const pinSettleCountRef = useRef(0);
+  const pinTargetRef = useRef<string | null>(null);
+  const programmaticTimeoutRef = useRef<number | null>(null);
+  const restoreAppliedRef = useRef(false);
+  // Pagination inserts older rows before the visible window. Keep a DOM
+  // anchor through that insertion so loading another page feels like normal
+  // continuous upward scrolling rather than a jump or a captured wheel.
+  const prependScrollAnchorRef = useRef<PrependScrollAnchor | null>(null);
 
-  // Track "near bottom" via IntersectionObserver on the sentinel div
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry) {
-          isNearBottomRef.current = entry.isIntersecting;
-          if (entry.isIntersecting) setNewMessageCount(0);
-        }
-      },
-      { threshold: 0 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+  const runProgrammaticScroll = useCallback((scroll: () => void) => {
+    programmaticScrollRef.current = true;
+    if (programmaticTimeoutRef.current != null) window.clearTimeout(programmaticTimeoutRef.current);
+    scroll();
+    const el = scrollContainerRef.current;
+    if (el && "onscrollend" in el) {
+      el.addEventListener("scrollend", () => {
+        programmaticScrollRef.current = false;
+      }, { once: true });
+    }
+    let previous = el?.scrollTop ?? 0;
+    let settledFrames = 0;
+    const settle = () => {
+      const current = el?.scrollTop ?? 0;
+      settledFrames = current === previous ? settledFrames + 1 : 0;
+      previous = current;
+      if (settledFrames >= 2) {
+        programmaticScrollRef.current = false;
+        return;
+      }
+      requestAnimationFrame(settle);
+    };
+    requestAnimationFrame(settle);
+    programmaticTimeoutRef.current = window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+    }, 1200);
   }, []);
 
-  // Auto-scroll to bottom on initial load
-  useEffect(() => {
-    if (events.length > 0) {
-      scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight });
+  useEffect(() => () => {
+    if (programmaticTimeoutRef.current != null) window.clearTimeout(programmaticTimeoutRef.current);
+  }, []);
+
+  // --- Refresh: on mount, on browser tab focus, and via manual button ---
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  // What the last manual refresh did. A spinner that stops is not feedback:
+  // "fetched successfully, nothing new" and "the request failed" previously
+  // looked identical, which is why refresh appeared to do nothing at all.
+  // A failed refresh persists until the next attempt; a successful one is a
+  // brief confirmation. They are separate because they have different
+  // lifetimes and different priority against the live-stream notice.
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [transientNotice, setTransientNotice] = useState<string | null>(null);
+  const refreshNoticeTimer = useRef<number | null>(null);
+
+  const showTransientNotice = useCallback((text: string) => {
+    setTransientNotice(text);
+    if (refreshNoticeTimer.current != null) window.clearTimeout(refreshNoticeTimer.current);
+    refreshNoticeTimer.current = window.setTimeout(() => { setTransientNotice(null); }, 3000);
+  }, []);
+
+  useEffect(() => () => {
+    if (refreshNoticeTimer.current != null) window.clearTimeout(refreshNoticeTimer.current);
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const outcome = await refreshConversationSession(sessionId);
+      if (!outcome.ok) {
+        setRefreshError(outcome.error.message);
+        setTransientNotice(null);
+      } else {
+        setRefreshError(null);
+        showTransientNotice(outcome.addedEvents > 0
+          ? t(strings.messagesPane.refreshAdded, { count: outcome.addedEvents })
+          : t(strings.messagesPane.refreshUpToDate));
+      }
+    } finally {
+      setIsRefreshing(false);
     }
-    // Only run on first hydration
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events.length > 0]);
+  }, [sessionId, showTransientNotice, t]);
+
+  // Refresh on pane mount (covers switching view mode back to messages). Also
+  // refresh whenever the tab becomes visible again — the server may have
+  // delivered events while the WS was background-throttled or dropped on a
+  // full client buffer (conversation_out_of_sync also handles the latter, but
+  // a missed signal can happen during reconnects).
+  useEffect(() => {
+    void refreshConversationSession(sessionId);
+    const onVisibility = () => {
+      if (!document.hidden) {
+        void refreshConversationSession(sessionId);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onVisibility);
+    };
+  }, [sessionId]);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const updateNearBottom = (allowPagination = true) => {
+      const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
+      const nearBottom = remaining <= 200;
+      isNearBottomRef.current = nearBottom;
+      setIsNearBottom(nearBottom);
+      if (nearBottom) setNewMessageCount(0);
+      if (!nearBottom && !programmaticScrollRef.current) {
+        pinToBottomRef.current = false;
+        pinToEventIdRef.current = null;
+      }
+      if (allowPagination && el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
+        const containerTop = el.getBoundingClientRect().top;
+        const anchor = [...el.querySelectorAll<HTMLElement>("[data-event-id]")]
+          .find((row) => row.getBoundingClientRect().bottom > containerTop);
+        if (anchor?.dataset.eventId) {
+          prependScrollAnchorRef.current = {
+            eventId: anchor.dataset.eventId,
+            offsetFromViewportTop: anchor.getBoundingClientRect().top - containerTop,
+          };
+        }
+        void loadOlderConversationPage(sessionId).then((loaded) => {
+          // A failed/no-op request never causes a render where the layout
+          // effect can consume this anchor.
+          if (!loaded) prependScrollAnchorRef.current = null;
+        });
+      }
+    };
+
+    updateNearBottom(false);
+    const onScroll = () => { updateNearBottom(true); };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => { el.removeEventListener("scroll", onScroll); };
+  }, [sessionId]);
+
+  // Release the bottom-pin or event-pin as soon as the user scrolls away from
+  // it. We do this from a wheel/touchstart listener so synthetic re-scrolls
+  // from the totalSize-change effect don't release the pin.
+  useReleaseOnElementInteraction(scrollContainerRef, () => {
+    pinToBottomRef.current = false;
+    pinToEventIdRef.current = null;
+  });
 
   // Auto-scroll on new events (when near bottom) or show pill
   useEffect(() => {
@@ -253,72 +792,284 @@ export default function MessagesPane({
 
     if (isNearBottomRef.current) {
       requestAnimationFrame(() => {
-        scrollContainerRef.current?.scrollTo({
-          top: scrollContainerRef.current.scrollHeight,
-          behavior: "smooth",
+        runProgrammaticScroll(() => {
+          scrollContainerRef.current?.scrollTo({
+            top: scrollContainerRef.current.scrollHeight,
+            behavior: "auto",
+          });
         });
       });
     } else {
       setNewMessageCount((prev) => prev + newCount);
     }
-  }, [events.length]);
+  }, [events.length, runProgrammaticScroll]);
 
   const scrollToBottom = useCallback(() => {
-    scrollContainerRef.current?.scrollTo({
-      top: scrollContainerRef.current.scrollHeight,
-      behavior: "smooth",
+    pinToBottomRef.current = true;
+    pinToEventIdRef.current = null;
+    runProgrammaticScroll(() => {
+      scrollContainerRef.current?.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     });
     setNewMessageCount(0);
-  }, []);
+  }, [runProgrammaticScroll]);
 
-  // --- Collapse: measure content heights ---
+  // Search the entire session, rather than only the currently loaded window.
+  // Highlighting still uses the returned ids against the bounded local window.
   useEffect(() => {
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const eventId = (entry.target as HTMLElement).dataset.eventId;
-        if (!eventId) continue;
-        const isTall = entry.contentRect.height > COLLAPSE_THRESHOLD_PX;
-        setTallIds((prev) => {
-          const next = new Set(prev);
-          if (isTall) next.add(eventId);
-          else next.delete(eventId);
-          return next;
-        });
-      }
-    });
-
-    for (const [, el] of contentRefs.current) {
-      observer.observe(el);
+    const query = searchQuery.trim();
+    if (!query) {
+      setServerSearchMatches([]);
+      setServerSearchReady(false);
+      setSearchTruncated(false);
+      return;
     }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void searchConversation(sessionId, query).then((response) => {
+        if (!cancelled) {
+          setServerSearchMatches(response.matches);
+          setSearchTruncated(response.truncated);
+          setServerSearchReady(true);
+        }
+      }).catch(() => {
+        if (!cancelled) {
+          setServerSearchMatches([]);
+          setSearchTruncated(false);
+          setServerSearchReady(false);
+        }
+      });
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery, sessionId]);
 
-    return () => observer.disconnect();
-  }, [events.length]); // Re-observe when events change
-
-  // Search match IDs
   const searchMatchIds = useMemo(() => {
     if (!searchQuery) return [];
-    const q = searchQuery.toLowerCase();
-    return events.filter((e) => e.text.toLowerCase().includes(q)).map((e) => e.id);
-  }, [events, searchQuery]);
+    if (serverSearchReady) return serverSearchMatches.map((match) => match.eventId);
+    const query = searchQuery.toLowerCase();
+    return events.filter((event) => getDerived(event).previewLower.includes(query)).map((event) => event.id);
+  }, [events, searchQuery, serverSearchMatches, serverSearchReady]);
+  const searchMatchById = useMemo(
+    () => new Map(serverSearchMatches.map((match) => [match.eventId, match])),
+    [serverSearchMatches],
+  );
+  const searchMatchSet = useMemo(() => new Set(searchMatchIds), [searchMatchIds]);
+  const eventIds = useMemo(() => events.map((event) => event.id), [events]);
+  const eventIndexById = useMemo(
+    () => new Map(eventIds.map((id, index) => [id, index])),
+    [eventIds],
+  );
+  const searchMatchIndexById = useMemo(
+    () => new Map(searchMatchIds.map((id, index) => [id, index])),
+    [searchMatchIds],
+  );
 
   const navIds = useMemo(
-    () => (searchQuery ? searchMatchIds : events.map((e) => e.id)),
-    [searchQuery, searchMatchIds, events],
+    () => (searchQuery ? searchMatchIds : eventIds),
+    [searchQuery, searchMatchIds, eventIds],
   );
 
   const focusedNavIndex = useMemo(
-    () => (focusedEventId ? navIds.indexOf(focusedEventId) : -1),
-    [focusedEventId, navIds],
+    () => {
+      if (!focusedEventId) return -1;
+      return searchQuery
+        ? (searchMatchIndexById.get(focusedEventId) ?? -1)
+        : (eventIndexById.get(focusedEventId) ?? -1);
+    },
+    [eventIndexById, focusedEventId, searchMatchIndexById, searchQuery],
   );
 
   const currentMatchIndex = useMemo(
-    () => (focusedEventId ? searchMatchIds.indexOf(focusedEventId) : -1),
-    [focusedEventId, searchMatchIds],
+    () => (focusedEventId ? (searchMatchIndexById.get(focusedEventId) ?? -1) : -1),
+    [focusedEventId, searchMatchIndexById],
   );
 
-  const scrollToEvent = useCallback((eventId: string) => {
-    messageRefs.current.get(eventId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, []);
+  const estimateMessageHeight = useCallback((index: number) => {
+    const event = events[index];
+    if (!event) return 140;
+    const lineEstimate = Math.ceil(event.text.length / 90);
+    return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
+  }, [events]);
+  const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
+  const { registerItem, totalSize, virtualItems, scrollToIndex } = useVirtualList({
+    count: events.length,
+    estimateSize: estimateMessageHeight,
+    getItemKey: getMessageKey,
+    overscan: 8,
+    scrollElementRef: scrollContainerRef,
+    enabled: events.length > 40,
+  });
+
+  // useLayoutEffect runs after React has placed the prepended page but before
+  // the browser paints it.  The former anchor is temporarily outside the
+  // virtual window at this point, so use its new virtual index rather than a
+  // DOM lookup. Subsequent row measurement adjustments are anchored by the
+  // virtualizer itself.
+  useLayoutEffect(() => {
+    const anchor = prependScrollAnchorRef.current;
+    const el = scrollContainerRef.current;
+    if (!anchor || !el) return;
+    const index = events.findIndex((event) => event.id === anchor.eventId);
+    if (index < 0) return;
+    scrollToIndex(index, "auto", "start");
+    el.scrollTop -= anchor.offsetFromViewportTop;
+    prependScrollAnchorRef.current = null;
+  }, [events, scrollToIndex]);
+
+  const scrollToEvent = useCallback(async (eventId: string) => {
+    const index = eventIndexById.get(eventId);
+    if (index == null) {
+      const match = searchMatchById.get(eventId);
+      if (!match || !await loadConversationPageContaining(sessionId, match.sequence)) return;
+      requestAnimationFrame(() => {
+        const loadedIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
+        if (loadedIndex >= 0) runProgrammaticScroll(() => { scrollToIndex(loadedIndex, "auto", "center"); });
+      });
+      return;
+    }
+    pinToBottomRef.current = false;
+    pinToEventIdRef.current = null;
+    runProgrammaticScroll(() => { scrollToIndex(index, "smooth", "center"); });
+  }, [eventIndexById, runProgrammaticScroll, scrollToIndex, searchMatchById, sessionId]);
+
+  // Restore scroll position on mount: read the snapshot saved when the pane
+  // last unmounted and pin to the appropriate target. The pin is held until
+  // the virtualizer's measured sizes stabilize (handled by the totalSize
+  // effect below).
+  useEffect(() => {
+    if (restoreAppliedRef.current) return;
+    if (events.length === 0) return;
+    const snapshot = readScrollSnapshot(sessionId);
+    if (!snapshot || snapshot.atBottom) {
+      pinToBottomRef.current = true;
+      pinToEventIdRef.current = null;
+    } else if (snapshot.topEventId && eventIndexById.has(snapshot.topEventId)) {
+      pinToBottomRef.current = false;
+      pinToEventIdRef.current = snapshot.topEventId;
+    } else {
+      pinToBottomRef.current = true;
+      pinToEventIdRef.current = null;
+    }
+    restoreAppliedRef.current = true;
+    // Trigger an immediate apply; the totalSize effect will keep re-applying
+    // as measurements settle.
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (pinToBottomRef.current) {
+      runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
+    } else if (pinToEventIdRef.current) {
+      const index = eventIndexById.get(pinToEventIdRef.current);
+      if (index != null) runProgrammaticScroll(() => { scrollToIndex(index, "auto", "start"); });
+    }
+  }, [events.length, sessionId, eventIndexById, runProgrammaticScroll, scrollToIndex]);
+
+  // Re-apply the active pin whenever the virtualizer's totalSize changes.
+  // This is what fixes the "lands in the middle" bug: estimated sizes are
+  // smaller than actual, so the initial scrollTo lands too high; once rows
+  // measure their real heights totalSize grows and we re-scroll.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const target = pinToBottomRef.current ? "bottom" : pinToEventIdRef.current;
+    if (!target) return;
+    pinSettleCountRef.current = pinTargetRef.current === target ? pinSettleCountRef.current + 1 : 0;
+    pinTargetRef.current = target;
+    if (pinSettleCountRef.current >= 8) {
+      pinToBottomRef.current = false;
+      pinToEventIdRef.current = null;
+      pinTargetRef.current = null;
+      return;
+    }
+    if (pinToBottomRef.current) {
+      runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
+    } else if (pinToEventIdRef.current) {
+      const index = eventIndexById.get(pinToEventIdRef.current);
+      if (index != null) runProgrammaticScroll(() => { scrollToIndex(index, "auto", "start"); });
+    }
+  }, [totalSize, eventIndexById, runProgrammaticScroll, scrollToIndex]);
+
+  // Save snapshot on unmount and whenever sessionId changes. We compute
+  // `atBottom` directly from the live DOM instead of trusting
+  // isNearBottomRef.current — under React StrictMode the dev-only second
+  // mount unmounts synchronously, before the (async/passive) scroll listener
+  // has had a chance to observe the restore's programmatic scrollTo, so the
+  // ref can be stale (`true` from its initial value). Reading geometry here
+  // is the source of truth.
+  useEffect(() => {
+    const containerEl = scrollContainerRef.current;
+    return () => {
+      const el = containerEl;
+      if (!el) return;
+      const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
+      const atBottom = remaining <= 200;
+      let topEventId: string | null = null;
+      if (!atBottom) {
+        const containerTop = el.getBoundingClientRect().top;
+        const rows = el.querySelectorAll<HTMLElement>("[data-event-id]");
+        for (const row of rows) {
+          if (row.getBoundingClientRect().bottom - containerTop > 0) {
+            topEventId = row.dataset.eventId ?? null;
+            break;
+          }
+        }
+      }
+      // Skip writing if we have nothing actionable: it'd just overwrite a
+      // previously-saved good snapshot with a default `atBottom: true`.
+      if (!atBottom && !topEventId) return;
+      writeScrollSnapshot(sessionId, { atBottom, topEventId });
+    };
+  }, [sessionId]);
+
+  // Normalize the export selection whenever the conversation refreshes so it
+  // never references events that no longer exist in the session.
+  useEffect(() => {
+    setExportSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (eventIndexById.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [eventIndexById]);
+
+  const exportSelection = useMemo<MessageExportSelection>(
+    () => ({
+      selectedIds: exportSelectedIds,
+      onToggle: (eventId) =>
+        { setExportSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(eventId)) next.delete(eventId);
+          else next.add(eventId);
+          return next;
+        }); },
+      onSelectAll: () => {
+        setExportSelectedIds(new Set(eventIds));
+        void getConversationRange(sessionId, 1, totalCount).then((response) => {
+          setExportSelectedIds(new Set(response.events.map((event) => event.id)));
+          setExportEventsById(new Map(response.events.map((event) => [event.id, event])));
+        }).catch(() => undefined);
+      },
+      onSelectVisible: (visibleIds) => { setExportSelectedIds(new Set(visibleIds)); },
+      onClear: () => { setExportSelectedIds(new Set()); },
+      onContinue: () => { setExportDrawerOpen(true); },
+    }),
+    [exportSelectedIds, eventIds, sessionId, totalCount],
+  );
+
+  // Selected events in conversation order for the drawer/formatter.
+  const exportEvents = useMemo(() => {
+    const loadedById = new Map(events.map((event) => [event.id, event]));
+    return [...exportSelectedIds]
+      .map((id) => exportEventsById.get(id) ?? loadedById.get(id))
+      .filter((event): event is ConversationEvent => event !== undefined)
+      .sort((left, right) => left.sequence - right.sequence);
+  }, [events, exportEventsById, exportSelectedIds]);
 
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
@@ -328,6 +1079,18 @@ export default function MessagesPane({
       setExpandedIds((prev) => new Set(prev).add(eventId));
     }
   }, [scrollToEvent, searchQuery]);
+
+  useEffect(() => {
+    if (!focusEventId || !focusSequence) return;
+    let cancelled = false;
+    const reveal = async () => {
+      const present = useConversationStore.getState().sessions[sessionId]?.events.some((event) => event.id === focusEventId);
+      if (!present && !await loadConversationPageContaining(sessionId, focusSequence)) return;
+      if (!cancelled) requestAnimationFrame(() => { focusAndScroll(focusEventId); });
+    };
+    void reveal();
+    return () => { cancelled = true; };
+  }, [focusEventId, focusSequence, focusAndScroll, sessionId]);
 
   const handleNavUp = useCallback(() => {
     if (navIds.length === 0) return;
@@ -343,408 +1106,277 @@ export default function MessagesPane({
     if (targetId) focusAndScroll(targetId);
   }, [navIds, focusedNavIndex, focusAndScroll]);
 
-  const handleCloseSearch = useCallback(() => {
-    setSearchOpen(false);
-    setSearchQuery("");
-    setFocusedEventId(null);
-  }, []);
-
-  // --- Audio helpers ---
-  const handleToggleSummarized = useCallback((eventId: string, useSummarized: boolean) => {
-    setPlaybackModes((prev) => ({ ...prev, [eventId]: useSummarized }));
-  }, []);
-
-  const handleSpeakOne = useCallback((event: typeof events[number]) => {
-    const useSummarized = playbackModes[event.id] ?? event.summarized;
-    const paragraphs = useSummarized
-      ? event.speechParagraphs
-      : (event.originalSpeechParagraphs ?? event.speechParagraphs);
-    onSpeakOne(event.id, event.text, paragraphs, { version: useSummarized ? "active" : "original" });
-  }, [onSpeakOne, playbackModes]);
-
-  const handleRequestSummarize = useCallback((eventId: string) => {
-    // Abort any in-flight request for this event
-    summarizeAbortControllers.current[eventId]?.abort();
-    const controller = new AbortController();
-    summarizeAbortControllers.current[eventId] = controller;
-
-    setSummarizingIds((prev) => new Set(prev).add(eventId));
-    setSummarizeErrors((prev) => {
-      const next = { ...prev };
-      delete next[eventId];
-      return next;
-    });
-    void summarizeEvent(sessionId, eventId, controller.signal).then((res) => {
-      if (res.summarized && res.speechParagraphs) {
-        const convState = useConversationStore.getState();
-        const session = convState.sessions[sessionId];
-        if (session) {
-          const updatedEvents = session.events.map((ev) =>
-            ev.id === eventId
-              ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs }
-              : ev,
-          );
-          useConversationStore.setState({
-            sessions: { ...convState.sessions, [sessionId]: { ...session, events: updatedEvents } },
-          });
-        }
-      } else if (res.error) {
-        setSummarizeErrors((prev) => ({ ...prev, [eventId]: res.error ?? "Unknown error" }));
-      }
-    }).catch((err: unknown) => {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      const message = err instanceof Error ? err.message : "Summarization failed";
-      setSummarizeErrors((prev) => ({ ...prev, [eventId]: message }));
-    }).finally(() => {
-      delete summarizeAbortControllers.current[eventId];
-      setSummarizingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(eventId);
-        return next;
-      });
-    });
-  }, [sessionId]);
-
-  const handleCancelSummarize = useCallback((eventId: string) => {
-    summarizeAbortControllers.current[eventId]?.abort();
-    delete summarizeAbortControllers.current[eventId];
-    setSummarizingIds((prev) => {
-      const next = new Set(prev);
-      next.delete(eventId);
-      return next;
-    });
-  }, []);
-
-  // Abort all in-flight summarizations on unmount
-  useEffect(() => {
-    const controllers = summarizeAbortControllers.current;
-    return () => {
-      for (const controller of Object.values(controllers)) {
-        controller.abort();
-      }
-    };
-  }, []);
-
-  const getPopoverStyle = useCallback((eventId: string): React.CSSProperties => {
-    const btn = audioButtonRefs.current[eventId];
-    if (!btn) return { position: "fixed", top: 100, right: 16 };
-    const rect = btn.getBoundingClientRect();
-    const top = Math.min(rect.bottom + 4, window.innerHeight - 200);
-    const right = Math.max(8, window.innerWidth - rect.right);
-    return { position: "fixed", top, right };
-  }, []);
-
   // --- Current message position for jump trigger ---
-  const focusedEventIndex = focusedEventId ? events.findIndex((e) => e.id === focusedEventId) : -1;
+  const focusedEventIndex = focusedEventId ? (eventIndexById.get(focusedEventId) ?? -1) : -1;
   const jumpLabel = focusedEventIndex >= 0
-    ? `${focusedEventIndex + 1} / ${events.length}`
+    ? `${focusedEventIndex + 1} / ${totalCount}`
     : `${events.length}`;
+
+  const toggleExpanded = useCallback((eventId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!playbackFocusRequest) return;
+    focusAndScroll(playbackFocusRequest.eventId);
+  }, [focusAndScroll, playbackFocusRequest]);
+
+  const { openPreview } = filePreview;
+  const handleMarkdownLinkClick = useCallback((href: string, event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!looksLikeFileReference(href)) return;
+    event.preventDefault();
+    void openPreview(href, "message_link");
+  }, [openPreview]);
+
+  const handleInlineCodeFileClick = useCallback((path: string) => {
+    void openPreview(path, "inline_code");
+  }, [openPreview]);
+
+  const [mermaidViewer, setMermaidViewer] = useState<{ code: string } | null>(null);
+  const handleMermaidOpen = useCallback((code: string) => {
+    setMermaidViewer({ code });
+  }, []);
+  const closeMermaidViewer = useCallback(() => { setMermaidViewer(null); }, []);
 
   return (
     <div
-      ref={scrollContainerRef}
       data-testid={`messages-pane-${sessionId}`}
-      className="relative h-full overflow-auto bg-wc-surface-base px-2 pb-4 pt-1 select-text"
+      aria-readonly={readOnly}
+      className="relative flex h-full flex-col bg-wc-surface-base px-2 pb-4 pt-1 select-text"
     >
-      <div className="flex flex-col">
-        {/* Control strip */}
-        <div
-          data-testid="messages-control-strip"
-          className="sticky top-0 z-10 flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
+      <div
+        data-testid="messages-control-strip"
+        className="z-wc-chrome flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
+      >
+        <IconButton
+          data-testid="messages-search-btn"
+          onClick={() => { openNavigator("search"); }}
+          selected={!!searchQuery}
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          className={cn(searchQuery && "ring-1 ring-wc-accent/50")}
+          aria-label={t(strings.messagesPane.searchMessagesTitle)}
         >
-          <button
-            data-testid="messages-search-btn"
-            onClick={() => setSearchOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
-            title="Search messages"
-            type="button"
-          >
-            <Search className="h-3.5 w-3.5" />
-          </button>
+          <Search />
+        </IconButton>
 
-          {/* Jump trigger */}
-          <button
-            data-testid="msg-jump-trigger"
-            onClick={() => setJumpListOpen((v) => !v)}
-            disabled={events.length === 0}
-            className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-            title="Jump to message"
-            type="button"
-          >
-            <ChevronsUpDown className="h-3.5 w-3.5" />
-            <span className="font-mono">{jumpLabel}</span>
-          </button>
+        <button
+          data-testid="msg-jump-trigger"
+          onClick={() => { navOpen ? setNavOpen(false) : openNavigator("list"); }}
+          disabled={events.length === 0}
+          className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
+          title={t(strings.messagesPane.jumpToMessageTitle)}
+          type="button"
+        >
+          <ChevronsUpDown className="h-3.5 w-3.5" />
+          <span className="font-mono">{jumpLabel}</span>
+        </button>
 
-          <button
-            data-testid="messages-nav-up"
-            onClick={handleNavUp}
-            disabled={navIds.length === 0}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-            title={searchQuery ? "Previous match" : "Previous message"}
-            type="button"
-          >
-            <ChevronUp className="h-3.5 w-3.5" />
-          </button>
-          <button
-            data-testid="messages-nav-down"
-            onClick={handleNavDown}
-            disabled={navIds.length === 0}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-            title={searchQuery ? "Next match" : "Next message"}
-            type="button"
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Search drawer */}
-        <MessagesSearchDrawer
-          open={searchOpen}
-          onClose={handleCloseSearch}
-          query={searchQuery}
-          onQueryChange={(q) => {
-            setSearchQuery(q);
-            setFocusedEventId(null);
-          }}
-          matchCount={searchMatchIds.length}
-          currentMatchIndex={currentMatchIndex}
-          onPrevMatch={handleNavUp}
-          onNextMatch={handleNavDown}
-        />
-
-        {/* Jump list */}
-        {jumpListOpen && (
-          <MessageJumpList
-            events={events}
-            focusedEventId={focusedEventId}
-            onSelect={focusAndScroll}
-            onClose={() => setJumpListOpen(false)}
-          />
-        )}
-
-        {/* Messages */}
-        {events.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-wc-default bg-wc-surface px-4 py-6 text-sm text-wc-text-muted">
-            No conversation events yet for this session.
+        <IconButton
+          data-testid="messages-nav-up"
+          onClick={handleNavUp}
+          disabled={navIds.length === 0}
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          aria-label={searchQuery ? t(strings.messagesPane.prevMatchTitle) : t(strings.messagesPane.prevMessageTitle)}
+        >
+          <ChevronUp />
+        </IconButton>
+        <IconButton
+          data-testid="messages-nav-down"
+          onClick={handleNavDown}
+          disabled={navIds.length === 0}
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          aria-label={searchQuery ? t(strings.messagesPane.nextMatchTitle) : t(strings.messagesPane.nextMessageTitle)}
+        >
+          <ChevronDown />
+        </IconButton>
+        <IconButton
+          data-testid="messages-refresh-btn"
+          onClick={handleRefresh}
+          // The control owns the busy affordance, so the spin is no longer a
+          // class the call site has to remember to add and remove.
+          pending={isRefreshing}
+          pendingLabel={t(strings.messagesPane.refreshTitle)}
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          aria-label={t(strings.messagesPane.refreshTitle)}
+        >
+          <RotateCw />
+        </IconButton>
+        {toolbarTrailingAction && (
+          <div data-testid="messages-control-trailing" className="ms-auto flex items-center">
+            {toolbarTrailingAction}
           </div>
-        ) : (
-          events.map((event) => {
-            const isUser = event.role === "user";
-            const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
-            const isFocused = focusedEventId === event.id;
-            const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
-            const useSummarized = playbackModes[event.id] ?? event.summarized;
-            const isPopoverOpen = openPopoverId === event.id;
-
-            // Collapse logic
-            const isTall = tallIds.has(event.id);
-            const isExpanded = expandedIds.has(event.id);
-            const isCollapsed = isTall && !isExpanded;
-
-            // Accent bar color
-            const accentColor = isTtsActive
-              ? "border-l-wc-accent"
-              : isUser
-                ? "border-l-sky-500/60"
-                : "border-l-emerald-500/60";
-
-            return (
-              <article
-                key={event.id}
-                ref={(el) => { if (el) messageRefs.current.set(event.id, el); else messageRefs.current.delete(event.id); }}
-                data-testid={`msg-card-${event.id}`}
-                className={cn(
-                  "border-b border-wc-default border-l-[3px] py-3 pl-3 pr-1 transition-colors",
-                  accentColor,
-                  isFocused && "bg-wc-accent/5",
-                  // Dim non-matching messages during search
-                  searchQuery && !searchMatchIds.includes(event.id) && "opacity-40",
-                )}
-              >
-                {/* Header row */}
-                <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
-                  <button
-                    data-testid={`msg-copy-${event.id}`}
-                    onClick={() => handleCopy(event.id, event.text)}
-                    className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-                    title="Copy message"
-                    type="button"
-                  >
-                    {copiedEventId === event.id
-                      ? <Check className="h-3.5 w-3.5 text-green-400" />
-                      : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-
-                  {!isUser && (
-                    <>
-                      <button
-                        data-testid={`msg-speak-from-${event.id}`}
-                        onClick={() => onSpeakFromHere(event.id)}
-                        className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-                        title="Read from here"
-                        type="button"
-                      >
-                        <Play className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        ref={(el) => { audioButtonRefs.current[event.id] = el; }}
-                        data-testid={`msg-audio-${event.id}`}
-                        onClick={() => {
-                          handleSpeakOne(event);
-                          setOpenPopoverId(isPopoverOpen ? null : event.id);
-                        }}
-                        className={cn(
-                          "rounded p-0.5 transition",
-                          hasSummary && useSummarized
-                            ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
-                            : "text-wc-text-faint hover:text-wc-text-muted hover:bg-wc-accent/10",
-                        )}
-                        title="Audio options"
-                        type="button"
-                      >
-                        <Volume2 className="h-3 w-3" />
-                      </button>
-
-                      {/* Audio popover */}
-                      {isPopoverOpen && createPortal(
-                        isMobile ? (
-                          <div className="fixed inset-0 z-[60]" onMouseDown={(e) => e.preventDefault()}>
-                            <div className="absolute inset-0 bg-wc-backdrop" onClick={() => setOpenPopoverId(null)} />
-                            <div
-                              data-testid={`audio-popover-${event.id}`}
-                              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
-                            >
-                              <div className="mb-3 flex justify-center">
-                                <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
-                              </div>
-                              <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">Audio Settings</h3>
-                              <AudioPopoverContent
-                                eventId={event.id}
-                                volume={volume}
-                                summarized={useSummarized}
-                                hasSummary={hasSummary}
-                                isSummarizing={summarizingIds.has(event.id)}
-                                summarizeError={summarizeErrors[event.id] ?? null}
-                                onVolumeChange={setVolume}
-                                onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
-                                onRequestSummarize={() => handleRequestSummarize(event.id)}
-                                onCancelSummarize={() => handleCancelSummarize(event.id)}
-                                onClose={() => setOpenPopoverId(null)}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="fixed inset-0 z-[60]" onClick={() => setOpenPopoverId(null)} />
-                            <div
-                              data-testid={`audio-popover-${event.id}`}
-                              className="z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
-                              style={getPopoverStyle(event.id)}
-                            >
-                              <AudioPopoverContent
-                                eventId={event.id}
-                                volume={volume}
-                                summarized={useSummarized}
-                                hasSummary={hasSummary}
-                                isSummarizing={summarizingIds.has(event.id)}
-                                summarizeError={summarizeErrors[event.id] ?? null}
-                                onVolumeChange={setVolume}
-                                onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
-                                onRequestSummarize={() => handleRequestSummarize(event.id)}
-                                onCancelSummarize={() => handleCancelSummarize(event.id)}
-                                onClose={() => setOpenPopoverId(null)}
-                              />
-                            </div>
-                          </>
-                        ),
-                        document.body,
-                      )}
-                    </>
-                  )}
-
-                  <span className="flex-1">
-                    {isUser ? "You" : event.source === "claude_hook" ? "Claude Code" : "Codex"}
-                  </span>
-
-                  {hasSummary && (
-                    <span
-                      data-testid={`msg-summarized-badge-${event.id}`}
-                      className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                        useSummarized
-                          ? "bg-amber-500/20 text-amber-400"
-                          : "bg-wc-surface-base text-wc-text-faint",
-                      )}
-                    >
-                      {useSummarized ? "Summarized" : "Original"}
-                    </span>
-                  )}
-                  <span>#{event.sequence}</span>
-                </div>
-
-                {/* Message content with markdown rendering */}
-                <div
-                  className={cn("relative", isCollapsed && "max-h-[400px] overflow-hidden")}
-                >
-                  <div
-                    ref={(el) => { if (el) contentRefs.current.set(event.id, el); else contentRefs.current.delete(event.id); }}
-                    data-event-id={event.id}
-                    data-testid={`msg-markdown-${event.id}`}
-                    style={{ fontSize: `${fontSize}px` }}
-                    className="text-wc-text-primary"
-                  >
-                    <MarkdownRenderer
-                      content={event.text}
-                      searchQuery={searchQuery || undefined}
-                      isSearchFocused={searchMatchIds[currentMatchIndex] === event.id}
-                    />
-                  </div>
-
-                  {/* Gradient fade when collapsed */}
-                  {isCollapsed && (
-                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-wc-surface-base to-transparent pointer-events-none" />
-                  )}
-                </div>
-
-                {/* Collapse toggle */}
-                {isTall && (
-                  <button
-                    data-testid={`msg-collapse-${event.id}`}
-                    onClick={() => {
-                      setExpandedIds((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(event.id)) next.delete(event.id);
-                        else next.add(event.id);
-                        return next;
-                      });
-                    }}
-                    className="mt-1 text-xs text-wc-accent hover:text-wc-accent/80 transition-colors"
-                    type="button"
-                  >
-                    {isExpanded ? "Show less" : "Show more"}
-                  </button>
-                )}
-              </article>
-            );
-          })
         )}
-
-        {/* Sentinel for auto-scroll detection */}
-        <div ref={sentinelRef} className="h-1" aria-hidden="true" />
       </div>
 
-      {/* "New messages" pill */}
+      {navOpen && (
+        <MessageJumpList
+          events={events}
+          focusedEventId={focusedEventId}
+          onSelect={focusAndScroll}
+          onClose={() => { setNavOpen(false); }}
+          mode="jump"
+          initialFocus={navInitialFocus}
+          query={searchQuery}
+          onQueryChange={handleNavQueryChange}
+          searchMatchCount={searchQuery ? serverSearchMatches.length : undefined}
+          searchTruncated={searchTruncated}
+          exportSelection={exportSelection}
+        />
+      )}
+
+      <MessageExportDrawer
+        open={exportDrawerOpen}
+        events={exportEvents}
+        onClose={() => { setExportDrawerOpen(false); }}
+      />
+
+
+      <MessagesPaneStatusLine
+        status={resolveMessagesPaneStatus({
+          refreshError,
+          liveInterrupted,
+          liveInterruptedText: t(strings.messagesPane.liveDisconnected),
+          transient: transientNotice,
+        })}
+      />
+
+      <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-auto">
+        {viewState.kind !== "messages" ? (
+          <MessagesPaneState view={viewState} onRetry={() => void handleRefresh()} />
+        ) : (
+          <div className="relative" style={{ height: `${totalSize}px` }}>
+            {virtualItems.map(({ index, start }) => {
+              const event = events[index];
+              if (!event) return null;
+              return (
+                <div key={event.id} data-event-id={event.id} className="absolute left-0 right-0" style={{ top: `${start}px` }}>
+                  <MessageRow
+                    actionContext={{
+                      event,
+                      sessionId,
+                      readOnly,
+                      copied: copiedEventId === event.id,
+                      isPlaintext: plaintextIds.has(event.id),
+                      isAudioLoading: event.role !== "user" && loadingEventId === event.id,
+                      isTtsSpeaking,
+                      activeSpeakingEventId,
+                      summarizeLevel,
+                      selectedVersion: selectedVersionForEvent(event),
+                      summarizingEventId,
+                      getSummarizeError,
+                      onClearSummarizeError,
+                      onToggleSummarized,
+                      onChangeLevel,
+                      audioSettings,
+                      onSetPlaybackRate,
+                      onSetVolume,
+                      onSetMuted,
+                      isMobile,
+                      onCopy: handleCopy,
+                      onPlayFromHere,
+                      onPlayEvent,
+                      onToggleRenderMode: toggleRenderMode,
+                      onSendToComposer,
+                      onSaveAsSnippet: (text) => {
+                        setSnippetSaveSource({
+                          body: text,
+                          sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
+                        });
+                      },
+                      onHandoff: readOnly ? undefined : onHandoff,
+                    }}
+                    index={index}
+                    registerItem={registerItem}
+                    fontSize={fontSize}
+                    isFocused={focusedEventId === event.id}
+                    isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
+                    isDimmed={!!searchQuery && !searchMatchSet.has(event.id)}
+                    isExpanded={expandedIds.has(event.id)}
+                    onToggleExpanded={toggleExpanded}
+                    onLinkClick={handleMarkdownLinkClick}
+                    onFileReferenceClick={handleInlineCodeFileClick}
+                    onMermaidOpen={handleMermaidOpen}
+                  />
+                  {/* Suggestions render INSIDE the message's own block, so
+                      offering one never moves the transcript the operator is
+                      reading. */}
+                  {onHandoff && handoffSuggestions.forEvent(event.id).map((suggestion) => (
+                    <HandoffSuggestionChip
+                      key={`${suggestion.ruleId}:${suggestion.payload}`}
+                      suggestion={suggestion}
+                      onOpen={(s) => { onHandoff(sessionId, s.payload); }}
+                      onDismiss={handoffSuggestions.dismiss}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {newMessageCount > 0 && (
         <button
           data-testid="msg-new-pill"
           onClick={scrollToBottom}
-          className="fixed bottom-16 left-1/2 z-20 -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
           type="button"
         >
-          <ArrowDown className="mr-1.5 inline-block h-3.5 w-3.5" />
-          {newMessageCount} new message{newMessageCount !== 1 ? "s" : ""}
+          <ArrowDown className="me-1.5 inline-block h-3.5 w-3.5" />
+          {t(strings.messagesPane.newMessages, { count: newMessageCount })}
         </button>
       )}
+
+      {newMessageCount === 0 && !isNearBottom && events.length > 0 && (
+        <IconButton
+          data-testid="msg-jump-bottom"
+          aria-label={t(strings.messagesPane.jumpToBottomAria)}
+          onClick={scrollToBottom}
+          surface="soft"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 shadow-lg"
+        >
+          <ArrowDown />
+        </IconButton>
+      )}
+
+      <MessagesFileViewer
+        state={filePreview.state}
+        onHandoff={onHandoff ? (path) => { onHandoff(sessionId, path); } : undefined}
+        onClose={filePreview.close}
+        onReopen={filePreview.reopen}
+        onRendererError={filePreview.reportError}
+        onNavigate={filePreview.navigateTo}
+        onNavigateBack={filePreview.navigateBack}
+        onLoadMore={filePreview.loadMore}
+        onListOptionsChange={filePreview.setListOptions}
+      />
+
+      <MessagesMermaidViewer
+        open={mermaidViewer !== null}
+        code={mermaidViewer?.code ?? ""}
+        onClose={closeMermaidViewer}
+      />
+
+      <SnippetSaveSheet
+        open={snippetSaveSource !== null}
+        onClose={() => { setSnippetSaveSource(null); }}
+        mode="create"
+        initialBody={snippetSaveSource?.body ?? ""}
+        sourceLabel={snippetSaveSource?.sourceLabel}
+      />
     </div>
   );
 }

@@ -423,6 +423,11 @@ message BillingPortalResponse {
   string url = 1;
 }
 
+// GetBillingPortalRequest asks for the hosted billing portal URL.
+//
+// @usage LandingPagePaymentsService.GetBillingPortal
+message GetBillingPortalRequest {}
+
 // =============================================================================
 // SERVICE DEFINITION
 // =============================================================================
@@ -458,4 +463,7 @@ service LandingPagePaymentsService {
   // Updates Stripe settings and returns the refreshed snapshot.
   // Admin-only endpoint for credential management.
   rpc UpdateStripeSettings(landing_page_react_vite.v1.UpdateStripeSettingsRequest) returns (landing_page_react_vite.v1.UpdateStripeSettingsResponse);
+
+  // Returns the hosted billing portal URL for self-service management.
+  rpc GetBillingPortal(GetBillingPortalRequest) returns (BillingPortalResponse);
 }

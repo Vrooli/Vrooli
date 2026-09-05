@@ -210,8 +210,8 @@ func (h *Handler) CloseRecordingPage(w http.ResponseWriter, r *http.Request) {
 	}).Info("Page closed by user")
 
 	h.respondSuccess(w, http.StatusOK, map[string]string{
-		"closedPageId":  pageIDStr,
-		"activePageId":  newActivePageID.String(),
+		"closedPageId": pageIDStr,
+		"activePageId": newActivePageID.String(),
 	})
 }
 

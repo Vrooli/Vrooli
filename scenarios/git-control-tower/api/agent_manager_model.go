@@ -37,21 +37,6 @@ func normalizeEventType(protoValue string) string {
 	return protoValue
 }
 
-// runnerTypeToString converts proto runner-type strings to UI-friendly form.
-func runnerTypeToString(wire string) string {
-	switch wire {
-	case "RUNNER_TYPE_CLAUDE_CODE":
-		return "claude-code"
-	case "RUNNER_TYPE_CUSTOM":
-		return "custom"
-	default:
-		if wire == "" {
-			return ""
-		}
-		return strings.ToLower(strings.TrimPrefix(wire, "RUNNER_TYPE_"))
-	}
-}
-
 // ============================================================================
 // Wire types — match proto-JSON (snake_case, enum strings, wrappers)
 // ============================================================================
@@ -92,10 +77,14 @@ type wireRun struct {
 	ApprovalState   string          `json:"approval_state,omitempty"`
 	PromptPreview   string          `json:"prompt_preview,omitempty"`
 	SandboxID       string          `json:"sandbox_id,omitempty"`
-	StartedAt       string          `json:"started_at,omitempty"`
-	EndedAt         string          `json:"ended_at,omitempty"`
-	CreatedAt       string          `json:"created_at,omitempty"`
-	UpdatedAt       string          `json:"updated_at,omitempty"`
+	// CommitHash identifies the commit produced when this run's sandbox changes
+	// were applied. Keeping it in the proxy model preserves the run-to-commit
+	// attribution that agent-manager owns for Git Control Tower consumers.
+	CommitHash string `json:"commit_hash,omitempty"`
+	StartedAt  string `json:"started_at,omitempty"`
+	EndedAt    string `json:"ended_at,omitempty"`
+	CreatedAt  string `json:"created_at,omitempty"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
 }
 
 // Wire event oneof data structs.
@@ -171,8 +160,7 @@ type wireAgentProfile struct {
 	Name        string `json:"name,omitempty"`
 	ProfileKey  string `json:"profile_key,omitempty"`
 	Description string `json:"description,omitempty"`
-	RunnerType  string `json:"runner_type,omitempty"`
-	Model       string `json:"model,omitempty"`
+	RoleRef     string `json:"role_ref,omitempty"`
 	MaxTurns    int    `json:"max_turns,omitempty"`
 }
 
@@ -224,12 +212,6 @@ type wireStopRunResponse struct {
 type wireListProfilesResponse struct {
 	Profiles []wireAgentProfile `json:"profiles"`
 	Total    int                `json:"total,omitempty"`
-}
-
-type wireEnsureProfileResponse struct {
-	Profile *wireAgentProfile `json:"profile,omitempty"`
-	Created bool              `json:"created,omitempty"`
-	Updated bool              `json:"updated,omitempty"`
 }
 
 // Wire request types (outbound, snake_case).

@@ -23,6 +23,7 @@ var DefaultStepConfigs = map[string]StepConfig{
 	"mkdir":             {CommandTimeout: 15 * time.Second},
 	"bootstrap":         {CommandTimeout: 2 * time.Minute},
 	"extract":           {CommandTimeout: 1 * time.Minute},
+	"install_vrooli":    {CommandTimeout: 2 * time.Minute},
 	"setup":             {CommandTimeout: 5 * time.Minute},
 	"autoheal":          {CommandTimeout: 15 * time.Second},
 	"verify_setup":      {CommandTimeout: 10 * time.Second},

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,21 +12,107 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+
+	"git-control-tower/internal/testutil/fixtures"
+
+	httpx "github.com/vrooli/api-core/servertest"
+
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/storage"
+
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	bas_base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	bas_telemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bas_execution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
-func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureDeps, *httptest.Server) {
+// basStubOpts configures the in-memory BAS stub used by visual-capture tests.
+// Each ExecuteAdhocWorkflow call produces a sequentially-numbered exec_id
+// ("exec-1", "exec-2", ...); the same id is then expected by status and
+// screenshot lookups.
+type basStubOpts struct {
+	failExecIDs            map[string]bool // executions that should report FAILED status
+	emptyScreenshotExecIDs map[string]bool // executions whose screenshot list should be empty
+	screenshotURL          string          // absolute URL to return for each screenshot artifact; required when binary fetches happen
+}
+
+type basStub struct {
+	execCount int32
+	opts      basStubOpts
+}
+
+func (s *basStub) ExecuteAdhocWorkflow(_ context.Context, _ *connect.Request[bas_execution.ExecuteAdhocRequest]) (*connect.Response[bas_execution.ExecuteAdhocResponse], error) {
+	n := atomic.AddInt32(&s.execCount, 1)
+	return connect.NewResponse(&bas_execution.ExecuteAdhocResponse{
+		ExecutionId: fmt.Sprintf("exec-%d", n),
+		Status:      bas_base.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+	}), nil
+}
+
+func (s *basStub) GetExecution(_ context.Context, req *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+	id := req.Msg.GetExecutionId()
+	exec := &bas_execution.Execution{
+		ExecutionId: id,
+		Status:      bas_base.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+	}
+	if s.opts.failExecIDs[id] {
+		exec.Status = bas_base.ExecutionStatus_EXECUTION_STATUS_FAILED
+		msg := "step timed out"
+		exec.Error = &msg
+	}
+	return connect.NewResponse(&basapi.GetExecutionResponse{Execution: exec}), nil
+}
+
+func (s *basStub) GetExecutionScreenshots(_ context.Context, req *connect.Request[basapi.GetExecutionScreenshotsRequest]) (*connect.Response[bas_execution.GetScreenshotsResponse], error) {
+	id := req.Msg.GetExecutionId()
+	if s.opts.emptyScreenshotExecIDs[id] {
+		return connect.NewResponse(&bas_execution.GetScreenshotsResponse{ExecutionId: id, Total: 0}), nil
+	}
+	return connect.NewResponse(&bas_execution.GetScreenshotsResponse{
+		ExecutionId: id,
+		Total:       1,
+		Screenshots: []*bas_execution.ExecutionScreenshot{
+			{
+				StepIndex: 0,
+				Screenshot: &bas_telemetry.TimelineScreenshot{
+					ArtifactId:  "ss",
+					Url:         s.opts.screenshotURL,
+					ContentType: "image/png",
+					Width:       1280,
+					Height:      720,
+				},
+			},
+		},
+	}), nil
+}
+
+func (s *basStub) GetExecutionRecordedVideos(_ context.Context, _ *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionVideosResponse], error) {
+	return connect.NewResponse(&basapi.GetExecutionVideosResponse{}), nil
+}
+
+func testCaptureSetup(t *testing.T, opts basStubOpts) (VisualCaptureDeps, string) {
 	t.Helper()
 
-	server := httptest.NewServer(basHandler)
-	t.Cleanup(server.Close)
+	// Binary asset server: serves the screenshot PNG (and would serve videos
+	// in future) at a stable URL the Connect stub points each screenshot at.
+	assetMux := http.NewServeMux()
+	assetMux.HandleFunc("/api/v1/screenshots/artifacts/ss.png", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
+	})
+	server := httpx.NewHandlerServer(t, assetMux)
+
+	if opts.screenshotURL == "" {
+		// Path-only — BrowserAutomationClient.GetScreenshotData prepends the
+		// resolved base URL when fetching the bytes.
+		opts.screenshotURL = "/api/v1/screenshots/artifacts/ss.png"
+	}
 
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
-	if err := os.MkdirAll(repoDir, 0o755); err != nil {
-		t.Fatalf("create repo dir: %v", err)
-	}
+	fixtures.WriteRepoContract(t, repoDir)
+	fixtures.WriteScenarioServiceJSON(t, repoDir, "test-app", `{"service":{"name":"test-app"}}`)
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		EnvGet:      func(key string) string { return "" },
@@ -37,12 +122,15 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 		t.Fatalf("create storage resolver: %v", err)
 	}
 
+	stub := &basStub{opts: opts}
 	basClient := &BrowserAutomationClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(server.URL),
 			serviceName: "browser-automation-studio",
 		},
+		workflowsFactory:  func(string) basWorkflowsAPI { return stub },
+		executionsFactory: func(string) basExecutionsAPI { return stub },
 	}
 
 	return VisualCaptureDeps{
@@ -51,13 +139,13 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 		FS:      OSFileIO{},
 		RepoDir: repoDir,
 		RepoID:  1,
-	}, server
+	}, server.URL
 }
 
 func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, adhocWorkflowHandler(t, nil))
+	deps, _ := testCaptureSetup(t, basStubOpts{})
 
 	// Create lighthouse.json
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
@@ -112,12 +200,13 @@ func TestCaptureScenario_NoLighthouseConfig(t *testing.T) {
 	}
 }
 
-func TestDiscoverPages_MultipleLocations(t *testing.T) {
+func TestDiscoverPages_IgnoresLegacyAppsLocation(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, tmpDir, "my-app")
 
-	// Create lighthouse.json under apps/ instead of scenarios/
+	// Create lighthouse.json under apps/ instead of the contract-defined scenario path.
 	appsDir := filepath.Join(tmpDir, "apps", "my-app", ".vrooli")
 	if err := os.MkdirAll(appsDir, 0o755); err != nil {
 		t.Fatalf("create apps dir: %v", err)
@@ -136,10 +225,10 @@ func TestDiscoverPages_MultipleLocations(t *testing.T) {
 
 	pages := discoverPages(OSFileIO{}, tmpDir, "my-app")
 	if len(pages) != 1 {
-		t.Fatalf("expected 1 page from apps/ lighthouse.json, got %d", len(pages))
+		t.Fatalf("expected fallback page set, got %d", len(pages))
 	}
-	if pages[0].Path != "/main" {
-		t.Errorf("expected path /main, got %s", pages[0].Path)
+	if pages[0].Path != "/" {
+		t.Errorf("expected fallback path /, got %s", pages[0].Path)
 	}
 }
 
@@ -165,61 +254,10 @@ func TestSanitizeFilename(t *testing.T) {
 	}
 }
 
-// partialFailureHandler returns a BAS handler where failExecIDs return empty screenshots.
-func partialFailureHandler(t *testing.T, failExecIDs map[string]bool) http.HandlerFunc {
-	t.Helper()
-	var execCount int32
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/v1/workflows/execute-adhoc" && r.Method == http.MethodPost:
-			n := atomic.AddInt32(&execCount, 1)
-			_ = json.NewEncoder(w).Encode(BASExecuteResponse{
-				ExecutionID: fmt.Sprintf("exec-%d", n),
-				Status:      "running",
-			})
-
-		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/") && strings.HasSuffix(r.URL.Path, "/screenshots"):
-			execID := strings.TrimPrefix(r.URL.Path, "/api/v1/executions/")
-			execID = strings.TrimSuffix(execID, "/screenshots")
-			if failExecIDs[execID] {
-				_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{Total: 0})
-				return
-			}
-			_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{
-				Screenshots: []BASExecutionScreenshot{
-					{Screenshot: struct {
-						ArtifactID   string `json:"artifact_id"`
-						Url          string `json:"url"`
-						ThumbnailUrl string `json:"thumbnail_url"`
-						ContentType  string `json:"content_type"`
-						Width        int    `json:"width"`
-						Height       int    `json:"height"`
-					}{Url: "/api/v1/screenshots/artifacts/ss-1.png", ContentType: "image/png", Width: 1280, Height: 720}},
-				},
-				Total: 1,
-			})
-
-		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/"):
-			_ = json.NewEncoder(w).Encode(BASExecutionDetail{
-				ExecutionID: strings.TrimPrefix(r.URL.Path, "/api/v1/executions/"),
-				Status:      "EXECUTION_STATUS_COMPLETED",
-			})
-
-		case r.URL.Path == "/api/v1/screenshots/artifacts/ss-1.png":
-			w.Header().Set("Content-Type", "image/png")
-			_, _ = w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
-
-		default:
-			w.WriteHeader(404)
-		}
-	}
-}
-
 func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, partialFailureHandler(t, map[string]bool{"exec-2": true}))
+	deps, _ := testCaptureSetup(t, basStubOpts{emptyScreenshotExecIDs: map[string]bool{"exec-2": true}})
 
 	meta, err := CaptureScenario(context.Background(), deps, VisualCaptureRequest{
 		ScenarioSlug: "test-app",
@@ -239,7 +277,7 @@ func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 func TestCaptureScenario_FullFlow(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, adhocWorkflowHandler(t, nil))
+	deps, _ := testCaptureSetup(t, basStubOpts{})
 
 	// Create lighthouse.json with two pages
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
@@ -466,68 +504,13 @@ func TestSettleExpression(t *testing.T) {
 	}
 }
 
-// adhocWorkflowHandler returns an http.HandlerFunc that mocks all BAS endpoints
-// needed for CaptureScenario's adhoc workflow path. The optional failExecIDs set
-// causes those execution IDs to return FAILED status.
-func adhocWorkflowHandler(t *testing.T, failExecIDs map[string]bool) http.HandlerFunc {
-	t.Helper()
-	var execCount int32
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/v1/workflows/execute-adhoc" && r.Method == http.MethodPost:
-			n := atomic.AddInt32(&execCount, 1)
-			_ = json.NewEncoder(w).Encode(BASExecuteResponse{
-				ExecutionID: fmt.Sprintf("exec-%d", n),
-				Status:      "running",
-			})
-
-		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/") && strings.HasSuffix(r.URL.Path, "/screenshots"):
-			_ = json.NewEncoder(w).Encode(BASScreenshotsResponse{
-				Screenshots: []BASExecutionScreenshot{
-					{Screenshot: struct {
-						ArtifactID   string `json:"artifact_id"`
-						Url          string `json:"url"`
-						ThumbnailUrl string `json:"thumbnail_url"`
-						ContentType  string `json:"content_type"`
-						Width        int    `json:"width"`
-						Height       int    `json:"height"`
-					}{Url: "/api/v1/screenshots/artifacts/ss.png", ContentType: "image/png", Width: 1280, Height: 720}},
-				},
-				Total: 1,
-			})
-
-		case strings.HasPrefix(r.URL.Path, "/api/v1/executions/"):
-			execID := strings.TrimPrefix(r.URL.Path, "/api/v1/executions/")
-			status := "EXECUTION_STATUS_COMPLETED"
-			errMsg := ""
-			if failExecIDs != nil && failExecIDs[execID] {
-				status = "EXECUTION_STATUS_FAILED"
-				errMsg = "step timed out"
-			}
-			_ = json.NewEncoder(w).Encode(BASExecutionDetail{
-				ExecutionID: execID,
-				Status:      status,
-				Error:       errMsg,
-			})
-
-		case r.URL.Path == "/api/v1/screenshots/artifacts/ss.png":
-			w.Header().Set("Content-Type", "image/png")
-			_, _ = w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
-
-		default:
-			w.WriteHeader(404)
-		}
-	}
-}
-
-func TestPrepareForCapture_BaselineMode_ClearsAll(t *testing.T) {
+func TestPrepareForCapture_BaselineMode_IsAdditive(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	resolver := testStorageResolver(t, dir)
 	store := NewVisualCaptureStorage(resolver, OSFileIO{})
 
-	// Seed baseline + capture
+	// Seed an existing baseline-pinned snapshot and a loose capture.
 	for _, m := range []SnapshotSetMeta{
 		{ID: "b1", ScenarioSlug: "s", Role: SnapshotRoleBaseline, TriggerType: "manual", CreatedAt: time.Now().UTC().Add(-2 * time.Minute), Status: "complete"},
 		{ID: "c1", ScenarioSlug: "s", Role: SnapshotRoleCapture, TriggerType: "manual", CreatedAt: time.Now().UTC(), Status: "complete"},
@@ -537,13 +520,15 @@ func TestPrepareForCapture_BaselineMode_ClearsAll(t *testing.T) {
 		}
 	}
 
+	// Baseline mode is additive: a new baseline must not disturb existing
+	// snapshots (other baselines' pins or the loose capture).
 	if err := prepareForCapture(store, 1, "s", CaptureModeBaseline); err != nil {
 		t.Fatalf("prepareForCapture baseline: %v", err)
 	}
 
 	list, _ := store.ListSnapshotSets(1, "s")
-	if len(list) != 0 {
-		t.Errorf("expected all snapshots cleared for baseline mode, got %d", len(list))
+	if len(list) != 2 {
+		t.Errorf("expected baseline mode to preserve all snapshots, got %d", len(list))
 	}
 }
 
@@ -578,6 +563,7 @@ func TestPrepareForCapture_CaptureMode_PreservesBaseline(t *testing.T) {
 func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, dir, "test-app")
 
 	// Create scenario files
 	scenarioDir := filepath.Join(dir, "scenarios", "test-app", "ui", "src")
@@ -589,8 +575,11 @@ func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Capture happened 1 second before the file was written
 	captureTime := time.Now().UTC().Add(-2 * time.Second)
+	modTime := captureTime.Add(1 * time.Second)
+	if err := os.Chtimes(filePath, modTime, modTime); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
 	result := CheckCaptureStaleness(dir, "test-app", captureTime)
 	if !result.IsStale {
 		t.Error("expected stale when file modified after capture")
@@ -600,6 +589,7 @@ func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
 func TestCheckCaptureStaleness_NotStale(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, dir, "test-app")
 
 	scenarioDir := filepath.Join(dir, "scenarios", "test-app")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -609,8 +599,12 @@ func TestCheckCaptureStaleness_NotStale(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Capture happened well after the file was written
 	captureTime := time.Now().UTC().Add(1 * time.Minute)
+	modTime := captureTime.Add(-1 * time.Minute)
+	target := filepath.Join(scenarioDir, "main.go")
+	if err := os.Chtimes(target, modTime, modTime); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
 	result := CheckCaptureStaleness(dir, "test-app", captureTime)
 	if result.IsStale {
 		t.Error("expected not stale when capture is after file changes")
@@ -620,10 +614,19 @@ func TestCheckCaptureStaleness_NotStale(t *testing.T) {
 func TestCheckCaptureStaleness_NoScenarioDir(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, dir, "existing")
 
 	result := CheckCaptureStaleness(dir, "nonexistent", time.Now().UTC())
 	if result.IsStale {
 		t.Error("expected not stale for nonexistent scenario dir")
+	}
+}
+
+func mkdirAllVisualCaptureRepo(t *testing.T, root string, scenarios ...string) {
+	t.Helper()
+	fixtures.WriteRepoContract(t, root)
+	for _, scenario := range scenarios {
+		fixtures.WriteScenarioServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
 	}
 }
 
@@ -648,7 +651,7 @@ func TestPresetSuffix(t *testing.T) {
 func TestCaptureScenario_MultiplePresets(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, adhocWorkflowHandler(t, nil))
+	deps, _ := testCaptureSetup(t, basStubOpts{})
 
 	// Create lighthouse.json with 2 pages
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")

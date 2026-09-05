@@ -20,7 +20,7 @@ const mockNavState = {
   isNavigating: false,
   navigationId: null as string | null,
   prompt: '',
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   steps: [] as AINavigationStep[],
   status: 'idle' as const,
   totalTokens: 0,
@@ -35,6 +35,7 @@ const mockNavState = {
 };
 
 vi.mock('../ai-navigation/useAINavigation', () => ({
+  AINavigationError: class AINavigationError extends Error {},
   useAINavigation: vi.fn(({ onStep, onComplete }) => {
     // Capture callbacks for testing
     mockOnStep = onStep;
@@ -54,7 +55,7 @@ vi.mock('../ai-navigation/useAINavigation', () => ({
 }));
 
 describe('useAIConversation', () => {
-  const defaultSettings = { model: 'qwen3-vl-30b', maxSteps: 20 };
+  const defaultSettings = { model: 'local_first', maxSteps: 20 };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -89,7 +90,7 @@ describe('useAIConversation', () => {
 
   describe('sendMessage', () => {
     it('should create user message when sending', async () => {
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result } = renderHook(() =>
         useAIConversation({
@@ -109,12 +110,12 @@ describe('useAIConversation', () => {
     });
 
     it('should call startNavigation with correct parameters', async () => {
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result } = renderHook(() =>
         useAIConversation({
           sessionId: 'test-session',
-          settings: { model: 'gpt-4o', maxSteps: 30 },
+          settings: { model: 'remote_only', maxSteps: 30 },
         })
       );
 
@@ -122,12 +123,12 @@ describe('useAIConversation', () => {
         await result.current.sendMessage('Click the button');
       });
 
-      expect(mockStartNavigation).toHaveBeenCalledWith('Click the button', 'gpt-4o', 30);
+      expect(mockStartNavigation).toHaveBeenCalledWith('Click the button', 'remote_only', 30);
     });
 
     it('should create assistant message after starting navigation', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result } = renderHook(() =>
         useAIConversation({
@@ -187,7 +188,7 @@ describe('useAIConversation', () => {
   describe('navigation step updates', () => {
     it('should update assistant message with steps', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result } = renderHook(() =>
         useAIConversation({
@@ -226,7 +227,7 @@ describe('useAIConversation', () => {
 
     it('should accumulate tokens across steps', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result } = renderHook(() =>
         useAIConversation({
@@ -265,7 +266,7 @@ describe('useAIConversation', () => {
 
     it('should call onTimelineAction callback when step received', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
       const onTimelineAction = vi.fn();
 
       const { result } = renderHook(() =>
@@ -303,7 +304,7 @@ describe('useAIConversation', () => {
   describe('navigation completion', () => {
     it('should mark message as completed on success', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result, rerender } = renderHook(() =>
         useAIConversation({
@@ -331,7 +332,7 @@ describe('useAIConversation', () => {
 
     it('should mark message as failed on error', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result, rerender } = renderHook(() =>
         useAIConversation({
@@ -357,7 +358,7 @@ describe('useAIConversation', () => {
 
     it('should mark message as aborted', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result, rerender } = renderHook(() =>
         useAIConversation({
@@ -402,7 +403,7 @@ describe('useAIConversation', () => {
   describe('human intervention', () => {
     it('should update message status when awaiting human', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result, rerender } = renderHook(() =>
         useAIConversation({
@@ -436,7 +437,7 @@ describe('useAIConversation', () => {
 
     it('should call resumeNavigation and update message', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result, rerender } = renderHook(() =>
         useAIConversation({
@@ -473,7 +474,7 @@ describe('useAIConversation', () => {
   describe('clearConversation', () => {
     it('should clear all messages', async () => {
       mockNavState.navigationId = 'nav-123';
-      mockStartNavigation.mockResolvedValue(undefined);
+      mockStartNavigation.mockResolvedValue('nav-123');
 
       const { result } = renderHook(() =>
         useAIConversation({

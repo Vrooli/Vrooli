@@ -1,0 +1,340 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.program_runtime.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.program_runtime.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.program_runtime.v1.capabilities.DescribeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.program_runtime.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "bindings_list",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ListBindings",
+      "method": "POST",
+      "summary": "List governed manifest-bound callables.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_unbound",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ListUnbound",
+      "method": "POST",
+      "summary": "List fleet capabilities with declared unbound reasons.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_sweep",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/SweepBindings",
+      "method": "POST",
+      "summary": "Exercise safe reachable read-effect bindings with operator provenance.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_act",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveActCells",
+      "method": "POST",
+      "summary": "Resolve Act operation classes against the live callable registry.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_doctor",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DoctorBindings",
+      "method": "POST",
+      "summary": "Report callable-binding health and unresolved arguments.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_describe",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DescribeBinding",
+      "method": "POST",
+      "summary": "Describe resolved proto paths for one binding.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_resolve_intent",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveIntent",
+      "method": "POST",
+      "summary": "Resolve natural-language intent to governed bindings through semantic discovery or a local fallback.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "bindings_condition",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingConditionService/GetBindingCondition",
+      "method": "POST",
+      "summary": "Report per-binding serving, freshness, and exercise condition.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
+      "id": "programs_submit",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/SubmitProgram",
+      "method": "POST",
+      "summary": "Execute a governed program.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_get",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/GetProgram",
+      "method": "POST",
+      "summary": "Read a submitted program.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_wait",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/WaitForProgram",
+      "method": "POST",
+      "summary": "Block until a program reaches a terminal state.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_list",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/ListPrograms",
+      "method": "POST",
+      "summary": "List submitted programs.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_mine",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/MineFailures",
+      "method": "POST",
+      "summary": "Summarize recurring program failures.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_mine_refusals",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/MineRefusals",
+      "method": "POST",
+      "summary": "Summarize durable binding refusals.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_mine_unresolved",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/MineUnresolvedBindings",
+      "method": "POST",
+      "summary": "Summarize attempted names with no governed binding.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_governance_share",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/GovernanceShare",
+      "method": "POST",
+      "summary": "Report governed versus observed program calls over a window.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_authoring_eval",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/RunAuthoringEval",
+      "method": "POST",
+      "summary": "Measure first-attempt authoring against the versioned corpus.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_discovery_eval",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/RunDiscoveryEval",
+      "method": "POST",
+      "summary": "Measure intent discovery against the versioned corpus.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "library_list",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/ListLibrary",
+      "method": "POST",
+      "summary": "List versioned library programs.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_get",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/GetLibrary",
+      "method": "POST",
+      "summary": "Read one library program.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_promote",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/PromoteLibrary",
+      "method": "POST",
+      "summary": "Explicitly promote a successful program.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_set_current",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/SetCurrentLibrary",
+      "method": "POST",
+      "summary": "Set the current version for new sessions.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_run_declared",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/RunDeclaredProgram",
+      "method": "POST",
+      "summary": "Run one declared contract in a fresh bounded session.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "sessions_create",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/CreateSession",
+      "method": "POST",
+      "summary": "Create a governed program session.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_get",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/GetSession",
+      "method": "POST",
+      "summary": "Read a program session.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_list",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/ListSessions",
+      "method": "POST",
+      "summary": "List program sessions.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_delegations",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/ListDelegations",
+      "method": "POST",
+      "summary": "List retained delegated session executions.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_delete",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/DeleteSession",
+      "method": "POST",
+      "summary": "Delete a program session.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_grant",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/GrantSession",
+      "method": "POST",
+      "summary": "Grant a session capability.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "telemetry_events",
+      "path": "/vrooli.program_runtime.v1.telemetry.TelemetryService/ListEvents",
+      "method": "POST",
+      "summary": "List typed program-runtime events.",
+      "description": "",
+      "category": "telemetry"
+    },
+    {
+      "id": "shapes_list",
+      "path": "/vrooli.program_runtime.v1.shapes.ShapeService/ListShapes",
+      "method": "POST",
+      "summary": "List observed and nominated binding shapes.",
+      "description": "",
+      "category": "shapes"
+    },
+    {
+      "id": "shapes_get",
+      "path": "/vrooli.program_runtime.v1.shapes.ShapeService/GetShape",
+      "method": "POST",
+      "summary": "Read one binding shape.",
+      "description": "",
+      "category": "shapes"
+    },
+    {
+      "id": "shapes_expire",
+      "path": "/vrooli.program_runtime.v1.shapes.ShapeService/ExpireShapes",
+      "method": "POST",
+      "summary": "Expire observed binding shapes.",
+      "description": "",
+      "category": "shapes"
+    }
+  ]
+}

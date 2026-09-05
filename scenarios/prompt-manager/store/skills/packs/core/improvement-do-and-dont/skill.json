@@ -1,0 +1,27 @@
+{
+  "createdAt": "2026-06-01T00:00:00Z",
+  "description": "Canonical reference for what counts as a real improvement vs. metric-gaming. Read alongside any steer skill before changing tests, ledgers, or rule configs.",
+  "entry": "SKILL.md",
+  "icon": "checkcircle",
+  "id": "improvement-do-and-dont",
+  "kind": "skill",
+  "modes": [
+    "practice"
+  ],
+  "name": "Improvement Do \u0026 Don't",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "anti-gaming"
+  ],
+  "updatedAt": "2026-06-01T00:00:00Z"
+}

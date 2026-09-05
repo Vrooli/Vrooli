@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
-	"system-monitor-api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
 
 // failingListsRepo wraps a memory repository but returns errors
@@ -34,11 +34,11 @@ func TestGenerateReport_WarningsOnPartialFailure(t *testing.T) {
 
 	// Seed at least one metric so the report has data to work with.
 	now := clk.Now()
-	err := repo.SaveMetrics(context.Background(), "test", map[string]interface{}{
+	err := repo.SaveMetricCycle(context.Background(), "report-seed", now, []repository.MetricObservation{{CollectorName: "test", Values: map[string]interface{}{
 		"cpu_usage":    50.0,
 		"memory_usage": 40.0,
 		"timestamp":    now.Format(time.RFC3339),
-	})
+	}}})
 	if err != nil {
 		t.Fatalf("seed metrics: %v", err)
 	}

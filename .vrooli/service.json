@@ -1,11 +1,845 @@
 {
   "$schema": "schemas/service.schema.json",
-  "version": "2.0.2",
+  "credentials": {
+    "descriptors": [
+      {
+        "description": "Username consumed by the host remote-desktop provider.",
+        "field": "username",
+        "label": "Remote desktop username",
+        "logical_id": "vrooli/remote-desktop",
+        "required": false
+      },
+      {
+        "description": "Password consumed by the host remote-desktop provider.",
+        "field": "password",
+        "label": "Remote desktop password",
+        "logical_id": "vrooli/remote-desktop",
+        "required": false
+      }
+    ]
+  },
+  "dependencies": {
+    "resources": {
+      "adguard-home": {
+        "description": "Managed AdGuard Home DNS filtering and resolver service for scenarios such as Network Manager",
+        "enabled": false,
+        "required": false
+      },
+      "android-sdk": {
+        "description": "Android SDK command-line tooling",
+        "enabled": false,
+        "required": false
+      },
+      "antigravity": {
+        "description": "Google Antigravity coding CLI (optional external-cli; sudo-free install, conversation/permission state backed up; agent-manager runner)",
+        "enabled": true,
+        "required": false
+      },
+      "claude-code": {
+        "description": "Claude Code development assistant",
+        "enabled": true,
+        "required": true
+      },
+      "cloudflared": {
+        "description": "Cloudflare tunnel client",
+        "enabled": true,
+        "required": false
+      },
+      "codex": {
+        "description": "AI-powered code generation and completion via OpenAI GPT models",
+        "enabled": true,
+        "required": false
+      },
+      "doc-ocr": {
+        "description": "Native document OCR tooling",
+        "enabled": false,
+        "required": false
+      },
+      "doc-parse": {
+        "description": "Native document parsing tooling",
+        "enabled": false,
+        "required": false
+      },
+      "grok": {
+        "description": "xAI Grok Build coding CLI (optional external-cli; sudo-free install, conversation/credential state backed up)",
+        "enabled": true,
+        "required": false
+      },
+      "k6": {
+        "description": "Modern load testing tool with JavaScript scripting",
+        "enabled": true,
+        "health_check": {
+          "command": "resource-k6 status --json",
+          "interval": 30,
+          "timeout": 10
+        },
+        "healthy": false
+      },
+      "kokoro": {
+        "description": "Text-to-speech synthesis service",
+        "enabled": true,
+        "required": false
+      },
+      "kopia": {
+        "description": "Content-addressed encrypted backup engine (kopia) for data-backup-manager",
+        "enabled": true,
+        "required": false
+      },
+      "kyutai-stt": {
+        "enabled": true
+      },
+      "minio": {
+        "description": "S3-compatible object storage service",
+        "enabled": true,
+        "required": false
+      },
+      "ollama": {
+        "enabled": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        },
+        "required": true,
+        "status": {
+          "running": true
+        }
+      },
+      "opencode": {
+        "enabled": true
+      },
+      "openrouter": {
+        "description": "Unified API to many model providers for AI access",
+        "enabled": true,
+        "required": false
+      },
+      "postgres": {
+        "enabled": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        },
+        "required": true
+      },
+      "qdrant": {
+        "container_name": "qdrant",
+        "data_directory": "${HOME}/.qdrant/data",
+        "description": "Vector database for embeddings and semantic search",
+        "enabled": true,
+        "last_updated": "2025-08-13 14:23:53",
+        "required": true,
+        "status": "installed",
+        "version": "unknown"
+      },
+      "redis": {
+        "description": "Event bus and caching layer",
+        "enabled": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        },
+        "instances": {
+          "default": {
+            "maxMemory": "2gb",
+            "password": "",
+            "persistence": "rdb",
+            "port": 6380
+          }
+        },
+        "required": true,
+        "version": "7"
+      },
+      "reranker": {
+        "enabled": true
+      },
+      "searxng": {
+        "description": "Privacy-respecting search engine",
+        "enabled": true,
+        "required": true
+      },
+      "sherpa-onnx": {
+        "description": "Sherpa ONNX speech processing runtime",
+        "enabled": false,
+        "required": false
+      },
+      "speaker-verification": {
+        "enabled": false
+      },
+      "twilio": {
+        "data_dir": "~/.vrooli/twilio",
+        "description": "SMS, voice, and messaging automation via Twilio API",
+        "enabled": true,
+        "required": false
+      },
+      "unstructured-io": {
+        "description": "Document processing and parsing service",
+        "enabled": true,
+        "required": false
+      },
+      "vault": {
+        "description": "Optional HashiCorp Vault capability for explicitly Vault-backed workflows; ordinary credentials use the Vrooli credential authority",
+        "enabled": false,
+        "required": false
+      },
+      "whisper": {
+        "description": "Speech-to-text processing service",
+        "enabled": true,
+        "required": false
+      },
+      "x402-facilitator": {
+        "description": "x402 payment facilitation service",
+        "enabled": true,
+        "required": false
+      }
+    }
+  },
+  "hostCron": [
+    {
+      "name": "capacity-sweep",
+      "schedule": "*/5 * * * *",
+      "target": "tools/capacity-sweep"
+    },
+    {
+      "name": "resource-upstream-check",
+      "schedule": "@daily",
+      "target": "tools/resource-upstream-check"
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "clock",
+      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if >5 minutes off",
+      "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "dns_resolution",
+      "notes": "Writes /etc/systemd/resolved.conf.d/99-vrooli-dns.conf with Google and Cloudflare DNS; flushes cache",
+      "reason": "Configure reliable DNS servers via systemd-resolved for resilient name resolution",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "docker_host_firewall",
+      "notes": "Creates and wires VROOLI-DOCKER iptables chain into DOCKER-USER for container-to-host networking",
+      "reason": "Enable Docker containers to reach native host services via iptables VROOLI-DOCKER chain",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "kernel_config",
+      "notes": "Manages /etc/sysctl.d/99-vrooli.conf with inotify and other kernel parameters",
+      "reason": "Configure kernel parameters for optimal Vrooli operation (inotify limits for dev servers)",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "workspace_sandbox_userns",
+      "notes": "Installs/loads a dedicated vrooli-workspace-sandbox AppArmor profile when plain unshare is blocked; does not disable AppArmor or kernel.apparmor_restrict_unprivileged_userns globally.",
+      "reason": "Allow workspace-sandbox to restart through its portable launcher with the default overlayfs-userns driver after Linux host reboots",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "nat_protection",
+      "notes": "Scans iptables -t nat OUTPUT for REDIRECT rules whose target ports have no listener and removes them",
+      "reason": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "remote_session_protection",
+      "notes": "Native runtime applies managed Linux sysctl and systemd protections for remote sessions",
+      "reason": "Protect remote Linux GUI sessions when the deployment profile calls for it",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "remote_desktop_access",
+      "notes": "Declares remote desktop experience and reports provider support without overriding display-manager policy; remote-desktop credentials are held by Vrooli's encrypted credential authority, not the login keyring",
+      "reason": "Make remote desktop behavior explicit and safe to inspect before applying",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "login_keyring_unlock",
+      "notes": "High-risk, opt-in safeguard. On an autologin host, backs up the login keyring and opens the user's keyring prompt to request a blank passphrase. Any process running as the autologin user can then read secrets stored in the keyring.",
+      "reason": "Make the login keyring available to an autologin session when the operator explicitly accepts the loss of encryption at rest",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "tcp_tuning",
+      "notes": "Manages /etc/sysctl.d/99-vrooli-tcp.conf with tcp_ecn, tcp_mtu_probing, tcp_base_mss",
+      "reason": "Optimize TCP stack for reliable connectivity (disable ECN, enable PMTU probing)",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "ollama_resource_controls",
+      "notes": "Writes /etc/systemd/system/ollama.service.d/99-vrooli-resource-controls.conf. Auto-skips on hosts without ollama.service. Operator must `systemctl restart ollama` to apply limits to the running process.",
+      "reason": "Cap ollama.service memory and bias OOM killer toward it so an embeddings burst cannot exhaust host RAM (see 2026-05-07 host-stability investigation)",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "nvidia_driver",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because a CPU fallback is a supported, reported state; a resource that must have an accelerator declares acceleration.require = required.",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Accelerator readiness is a host requirement, not a per-resource probe. The safeguard proves the NVIDIA driver is ready, that the compute device nodes survive a boot with no client attached, and that the invoking user can open them. Registering it here is what makes it run outside setup: without a develop-time registration the host is only checked at install, which is exactly when the device nodes are least likely to exist.",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "host_hardening",
+      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) — without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
+      "reason": "Turn silent hard resets into observable kdump-able panics (sysrq, hung_task/softlockup/NMI/oops panic) and rate-limit journald so UFW BLOCK floods don't drown panic info",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "vrooli_launcher",
+      "notes": "Optional: only matters if you want `sudo vrooli ...` to work. The shim forwards to the calling user's ~/.vrooli/bin/vrooli; see internal/safeguards/vrooli-launcher/handler.go package doc for the design rationale.",
+      "reason": "Install /usr/local/bin/vrooli launcher shim so `sudo vrooli` resolves (sudo's secure_path excludes ~/.vrooli/bin where make install writes the real binary)",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "pstore_native",
+      "notes": "Loads efi_pstore (UEFI hosts) and/or erst (ACPI ERST hosts) and persists at-boot via /etc/modules-load.d. Reports SupportNotApplicable when neither backend is available; configure pstore_ramoops as a RAM-backed fallback in that case.",
+      "reason": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "pstore_observability",
+      "notes": "Creates the vrooli-observability group, adds the invoking project user, installs a root-owned pstore collector service/timer, and exports artifacts read-only. Does not delete /sys/fs/pstore artifacts. A logout/login or reboot may be needed before the current shell observes new group membership.",
+      "reason": "Export root-readable pstore crash artifacts into /var/lib/vrooli/host-observability/pstore so unprivileged scenarios can inspect crash evidence without sudo",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "kdump_observability",
+      "notes": "Installs a root-owned collector service/timer that exports a bounded panic summary from each /var/crash dump into /var/lib/vrooli/host-observability/crashdumps. The vmcore itself is never copied. Retention prunes only kdump's own timestamp directories, only beyond the newest retain_vmcores, and only once that dump's summary exists; anything else in /var/crash is left alone. Requires the same vrooli-observability group as pstore_observability, so a logout/login may be needed before the current shell sees membership.",
+      "reason": "Make kernel panics visible to unprivileged scenarios: kdump writes a complete record to /var/crash but the dmesg is mode 0600 root and the vmcore is roughly the size of RAM, so on 2026-08-19 a host panic left perfect evidence that nothing in Vrooli could read",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "pstore_ramoops",
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
+      "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "crashkernel_reserve",
+      "notes": "Modifies GRUB_CMDLINE_LINUX with crashkernel=512M-:256M (overridable via the reservation parameter). Backup written. REQUIRES OPERATOR REBOOT after running `sudo update-grub`.",
+      "reason": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter so kdump-tools can capture panics",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "netconsole",
+      "notes": "Loads the netconsole kernel module with the operator-supplied target parameter (kernel netconsole format: src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac). Reports an invalid parameter when unset.",
+      "reason": "Stream kernel oops/panic output to a remote log collector for off-host crash forensics",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "edac_modules",
+      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h–1Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
+      "reason": "Load EDAC drivers so memory error counters become readable under /sys/devices/system/edac/ on supported chipsets",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "tpm_credential_access",
+      "notes": "Adds the invoking operator account to the group owning /dev/tpmrm0 (usually tss). Auto-skips on hosts with no TPM, or where the device grants its group nothing. Setup picks the grant up in its own credential stage and adds the unattended wrap in the same run; no logout and no second command.",
+      "reason": "Let the encrypted credential store open itself from the TPM after a reboot, instead of requiring an operator to type a passphrase at every boot",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "autoheal_watchdog",
+      "notes": "Installs and verifies the autoheal loop in the invoking user's native scheduler. Dedicated-host policy enables Linux lingering for pre-login startup; shared-host policy remains login-scoped. Re-inspected in the readiness phase by the autoheal boot-recovery readiness check.",
+      "reason": "Ensure the supervisor that repairs failed workloads survives reboot and is not dependent on a separate scenario install command",
+      "required": true,
+      "when": [
+        "setup",
+        "readiness"
+      ]
+    },
+    {
+      "name": "runtime_supervisor",
+      "notes": "Renders the runtime supervisor unit from the shared ServiceDefinition, validates it with the native manager, installs and enables it as the invoking user, restarts it when its content changed, and proves it active. Re-inspected in the readiness phase with the unit's NRestarts and Result as evidence.",
+      "reason": "The supervisor unit was the only long-lived unit setup never converged; on 2026-09-02 a unit rendered two weeks earlier crash-looped 495 times after boot because its argv no longer parsed",
+      "required": true,
+      "when": [
+        "setup",
+        "readiness"
+      ]
+    },
+    {
+      "name": "emergency_watchdog",
+      "notes": "Installs ~/.vrooli/libexec/emergency-watchdog.sh plus a systemd user service and timer under the invoking user's home. Needs no privilege. Replaces scripts/emergency-watchdog.sh, which was referenced by runbooks, installed by nothing, and whose hand-created unit hard-coded one operator's repository path. Holds unit restarts while CPU PSI shows the host is saturated.",
+      "reason": "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine",
+      "required": true,
+      "when": [
+        "setup",
+        "readiness"
+      ]
+    },
+    {
+      "name": "log_volume_bounds",
+      "notes": "Adds a maxsize bound to /etc/logrotate.d/rsyslog (original preserved under /var/lib/vrooli/log-volume-bounds), overrides logrotate.timer to hourly, installs a per-process rsyslog rate limit in /etc/rsyslog.d/05-vrooli-ratelimit.conf, and truncates any bounded log already more than eight times past the bound after preserving its last megabyte under /var/log/vrooli/log-volume-bounds. Hosts without a flat rsyslog stanza are not applicable.",
+      "reason": "Make the flat-file system log store unable to fill the disk: on 2026-09-01 a wedged keyring daemon wrote 320 GB into syslog and auth.log in 70 hours because rotation was weekly with no size trigger, while journald's own 4 GB cap held",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "keyring_daemon_limits",
+      "notes": "Writes ~/.config/systemd/user/gnome-keyring-daemon.service.d/99-vrooli-limits.conf (LimitNOFILE=65536) as the invoking user, reloads the user manager, reports how many descriptors the running daemon holds, and restarts the unit when it is at or above 50% of its limit or when a maintenance window is declared. Needs no privilege. Not applicable without a systemd-managed keyring unit.",
+      "reason": "A client leak took gnome-keyring-daemon to 1024/1024 descriptors on 2026-09-01; from then on every secret lookup hung, console sign-in stalled in pam_gnome_keyring, and the accept() failure was logged 50,000 times a second. The limit turns a weekly wedge into a year-scale leak and setup restarts the daemon before it wedges",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "agent_session_containment",
+      "notes": "Writes ~/.config/systemd/user/vrooli-agents.slice as the invoking user (CPUWeight=50, MemoryHigh=50%, MemoryMax=60%, TasksMax=4096, ManagedOOMMemoryPressure=kill; typed config), reloads the user manager, starts the slice, and reads the live cgroup back before it claims applied. Needs no privilege. The coding-agent launcher and the web console start every session in a scope under this slice. Re-inspected in the readiness phase.",
+      "reason": "On 2026-09-02 three agent sessions building at once drove a 32-core host to a 15-minute load of 1,499 with nothing able to stop them: their slice had MemoryMax=infinity, TasksMax=164514 and was excluded from systemd-oomd. A user-manager slice with ceilings makes a build storm the slice's problem, not the host's",
+      "required": true,
+      "when": [
+        "setup",
+        "readiness"
+      ]
+    },
+    {
+      "name": "path_hygiene",
+      "notes": "Rewrites a marked block in the operator's shell profile so ~/.vrooli/shims and then ~/.vrooli/bin appear exactly once and first on the interactive PATH, and reports duplicate PATH entries or a shadowing vrooli binary. Needs no privilege and edits only between its own markers. It was registered in the runtime registry and carried a manifest, but was never listed here, so `vrooli setup` reported no such requirement and the block in an operator's profile was whatever an older installer had left.",
+      "reason": "Without it the canonical CLI and the coding-agent shims can be installed correctly and still never run, because a stale `go install` copy or an agent's own install directory sits ahead of them on PATH",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "coding_agent_shims",
+      "notes": "Installs alias links (codex, claude, grok, opencode, agy) in ~/.vrooli/shims pointing at vrooli-agent-launcher, which attributes the run and then execs the real agent. Needs no privilege. Deliberately not ~/.vrooli/bin: that is the shared executable install root, and a storage declaration over it described gigabytes of other components' build output as a 64MiB regenerable cache. Applying also retires aliases the previous layout left in the install root. Stays optional because the control plane re-asserts the alias set on every start, so an operator who never opts in still gets working shims; what apply adds is the one-time migration and an explicit recorded choice.",
+      "reason": "Attribute coding-agent runs started from any shell, including non-interactive ones, instead of only from an interactive bash that happened to source a profile snippet",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    }
+  ],
+  "hostTools": [
+    {
+      "name": "uv",
+      "required": false,
+      "version": ">=0.5.0",
+      "reason": "Optional Python builder and typecheck fixture support",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "git",
+      "notes": "Root-owned core tool",
+      "rationale": "The control plane needs Git to identify and operate on the source tree during setup and development.",
+      "reason": "Support repository bootstrap, source operations, and setup-time git configuration",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "curl",
+      "notes": "Root-owned core tool",
+      "rationale": "Setup and lifecycle helpers retrieve release metadata and artifacts over HTTP.",
+      "reason": "Support HTTP-based bootstrap, diagnostics, and resource helper flows",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "jq",
+      "notes": "Root-owned core tool",
+      "rationale": "The documented operator and validation workflows require a portable JSON command-line parser.",
+      "reason": "Support JSON parsing. Commonly used by coding agents and scripts",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "yq",
+      "notes": "Root-owned core tool",
+      "rationale": "The documented operator and validation workflows require a portable YAML command-line parser.",
+      "reason": "Support YAML parsing. Commonly used by coding agents and scripts",
+      "required": true,
+      "when": [
+        "setup",
+        "test"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "docker",
+      "notes": "Root-owned core tool",
+      "reason": "Run containerized resources across setup modes",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "go",
+      "notes": "Root-owned development toolchain",
+      "rationale": "The Go toolchain is required to build and validate the control plane itself.",
+      "reason": "Build and validate native Vrooli tooling during development setup",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "node",
+      "notes": "Root-owned development toolchain",
+      "reason": "Build and run JavaScript-based workspace tooling during development setup",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "pnpm",
+      "notes": "Pinned standalone binary matching the pnpm-workspace.yaml packageManager version; installed into ~/.vrooli/bin (no sudo).",
+      "reason": "Install and build scenario UI workspaces; lifecycle steps fall back to plain `pnpm` when the host Node.js has no corepack shims",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "python",
+      "notes": "Root-owned development helper runtime",
+      "reason": "Support repo validation helpers and Python-based flows during development setup",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "java",
+      "notes": "Root-owned formal verification runtime",
+      "reason": "Provide Java 17+ for formal verification backends used by Quint verify",
+      "required": false,
+      "when": [
+        "setup",
+        "test"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "quint",
+      "notes": "Pinned to 0.32.0; installed via internal/tools/quint Go handler from @informalsystems/quint.",
+      "reason": "Check formal temporal-flow models and generate deterministic model-based test artifacts",
+      "required": false,
+      "when": [
+        "setup",
+        "test"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "buf",
+      "notes": "Pinned to v1.37.0; installed via internal/tools/buf Go handler (no shell installer). See docs/development/proto.md.",
+      "reason": "Drive packages/proto codegen, lint, and breaking-change checks; also gates template validation",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "protoc-gen-go",
+      "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`.",
+      "reason": "Local protoc plugin for Go codegen; replaces the BSR remote plugin so packages/proto generates offline",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "protoc-gen-connect-go",
+      "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`.",
+      "reason": "Local Connect-RPC protoc plugin for Go service codegen; keeps packages/proto generation offline",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "protoc-gen-es",
+      "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via npm into ~/.cache/vrooli/protoc-plugins/node.",
+      "reason": "Local protoc plugin for TypeScript/JavaScript codegen; replaces the BSR remote plugin",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development"
+      ],
+      "name": "protoc",
+      "notes": "v25+ required for both --python_out and --pyi_out built-ins.",
+      "reason": "Provides built-in Python and pyi codegen invoked by buf via protoc_builtin; replaces the BSR remote python/pyi plugins",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "rasdaemon",
+      "notes": "Custom handler enables and starts rasdaemon.service; events recorded to /var/lib/rasdaemon/ras-mc_event.db for ras-mc-ctl.",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Capture AMD/Intel hardware error events (MCE, EDAC, PCIe AER) so unexplained host resets can be diagnosed via the system-mce-recent autoheal check",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "mcelog",
+      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel — that is treated as ExecutionAlreadyPresent, not a failure.",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Capture Machine Check Exceptions on hosts where rasdaemon is unavailable; otherwise treated as superseded",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "name": "kdump-tools",
+      "notes": "Custom handler preseeds debconf and installs noninteractively. Reports ExecutionRebootRequired until crashkernel= appears in /proc/cmdline (provided by the crashkernel_reserve safeguard).",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Capture full kernel crash dumps on panic to /var/crash for forensic analysis of unexplained resets",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    }
+  ],
+  "lifecycle": {
+    "clean": {
+      "description": "Clean build artifacts and dependencies",
+      "steps": [
+        {
+          "description": "Remove build artifacts and dependencies",
+          "name": "run-clean",
+          "run": "rm -rf packages/*/dist packages/*/build packages/*/.next node_modules packages/*/node_modules || true"
+        }
+      ]
+    },
+    "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${VROOLI_API_PORT}/health",
+          "timeout": 10000,
+          "type": "http"
+        }
+      ],
+      "description": "Health contract for the project control-plane API started by the project develop lifecycle",
+      "endpoints": {
+        "api": "/health"
+      },
+      "startup_grace_period": 30000
+    },
+    "version": "2.0.2"
+  },
+  "ports": {
+    "api": {
+      "description": "Vrooli unified API server for orchestration and resource management",
+      "env_var": "VROOLI_API_PORT",
+      "port": 8092
+    }
+  },
   "service": {
-    "name": "vrooli-dev",
-    "displayName": "Vrooli Development Environment",
     "description": "Development environment for building and testing Vrooli scenarios - self-contained apps that extend the intelligence system",
-    "version": "2.0.2",
+    "displayName": "Vrooli Development Environment",
+    "documentation": "./docs/README.md",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "AGPL-3.0-only",
+    "maintainers": [
+      {
+        "email": "team@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "vrooli-dev",
+    "repository": {
+      "directory": "/",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "email": "team@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
     "tags": [
       "development-environment",
       "infrastructure",
@@ -16,538 +850,11 @@
       "intelligence-system",
       "self-improving",
       "vrooli-core",
-      "ecosystem-manager",
       "capability-builder",
       "semantic-search",
       "multi-resource"
     ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/"
-    },
-    "license": "AGPL-3.0-only",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./docs/README.md",
-    "support": {
-      "email": "team@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    "version": "2.0.2"
   },
-  "ports": {
-    "api": {
-      "env_var": "VROOLI_API_PORT",
-      "port": 8092,
-      "description": "Vrooli unified API server for orchestration and resource management"
-    },
-    "health": {
-      "env_var": "HEALTH_PORT",
-      "port": 3001,
-      "description": "Health check and monitoring endpoint"
-    },
-    "orchestrator": {
-      "env_var": "ORCHESTRATOR_PORT",
-      "port": 9500,
-      "description": "Scenario orchestrator API for managing running scenarios"
-    }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api",
-      "health": "http://localhost:3000/api/health"
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "type": "http",
-          "endpoint": "http://localhost:3000/api/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "database": {
-          "type": "tcp",
-          "interval": "30s"
-        },
-        "redis": {
-          "type": "tcp",
-          "interval": "30s"
-        }
-      }
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.2",
-    "setup": {
-      "description": "Initialize system for scenario development",
-      "condition": {
-        "checks": [
-          {
-            "type": "data",
-            "path": "data"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "base-setup",
-          "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)",
-          "timeout": "15m"
-        },
-        {
-          "name": "install-cli",
-          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
-          "description": "Install Vrooli CLI command"
-        },
-        {
-          "name": "add-data",
-          "run": "echo '[INFO] Skipping resource population during setup - resources are ready for manual population when needed'",
-          "description": "Add app data to resources (skipped during setup)"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Prepare development environment",
-      "steps": [
-        {
-          "name": "load-env",
-          "run": "if [[ -f .env ]]; then echo 'Loading .env file' && set -a && source .env && set +a; else echo 'No .env file found'; fi",
-          "description": "Load environment variables from .env if exists"
-        },
-        {
-          "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi; true",
-          "description": "Start the Vrooli unified API server with built-in scenario management"
-        },
-        {
-          "name": "start-orchestrator",
-          "run": "sleep 5 && echo '🎬 Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
-          "description": "Start orchestrator after API is ready",
-          "background": false
-        }
-      ]
-    },
-    "build": {
-      "description": "Prepare build environment",
-      "steps": [
-        {
-          "name": "create-directories",
-          "run": "mkdir -p build dist",
-          "description": "Create build and dist directories"
-        },
-        {
-          "name": "set-build-env",
-          "run": "export BUILD_TIME=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\" && export BUILD_ENV=\"${ENVIRONMENT:-development}\" && echo \"Build environment: $BUILD_ENV at $BUILD_TIME\"",
-          "description": "Set build environment variables"
-        }
-      ]
-    },
-    "deploy": {
-      "description": "Deployment preparation",
-      "steps": [
-        {
-          "name": "show-deploy-info",
-          "run": "echo 'Scenarios should be deployed individually from their directories'",
-          "description": "Deployment information"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and dependencies",
-      "steps": [
-        {
-          "name": "run-clean",
-          "run": "rm -rf packages/*/dist packages/*/build packages/*/.next node_modules packages/*/node_modules || true",
-          "description": "Remove build artifacts and dependencies"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "blender": {
-        "enabled": false,
-        "required": false,
-        "description": "Professional 3D creation suite with Python API"
-      },
-      "browserless": {
-        "enabled": true,
-        "required": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
-      "btcpay": {
-        "enabled": false
-      },
-      "claude-code": {
-        "enabled": true,
-        "required": true,
-        "description": "Claude Code development assistant"
-      },
-      "cloudflare-ai-gateway": {
-        "enabled": true
-      },
-      "cncjs": {
-        "enabled": false
-      },
-      "codex": {
-        "enabled": true,
-        "required": false,
-        "description": "AI-powered code generation and completion via OpenAI GPT models"
-      },
-      "comfyui": {
-        "enabled": false,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
-      "earthly": {
-        "enabled": false
-      },
-      "eclipse-ditto": {
-        "enabled": false
-      },
-      "elmer-fem": {
-        "enabled": false
-      },
-      "esphome": {
-        "enabled": false
-      },
-      "ffmpeg": {
-        "enabled": false,
-        "required": false,
-        "description": "Universal media processing framework for video/audio conversion, streaming, and analysis",
-        "temp_dir": "~/.vrooli/ffmpeg/temp",
-        "output_dir": "~/.vrooli/ffmpeg/output"
-      },
-      "freecad": {
-        "enabled": false
-      },
-      "gazebo": {
-        "enabled": false
-      },
-      "gemini": {
-        "enabled": true,
-        "required": false,
-        "description": "Google Gemini AI API integration"
-      },
-      "geonode": {
-        "enabled": false
-      },
-      "geth": {
-        "enabled": false
-      },
-      "ggwave": {
-        "enabled": false
-      },
-      "godot": {
-        "enabled": false
-      },
-      "gridlabd": {
-        "enabled": false
-      },
-      "haystack": {
-        "enabled": false,
-        "required": false,
-        "description": "End-to-end framework for question answering and search",
-        "data_dir": "~/.vrooli/haystack"
-      },
-      "home-assistant": {
-        "enabled": true,
-        "required": false,
-        "description": "Open source home automation platform for IoT device control and automation",
-        "config_dir": "~/.vrooli/home-assistant/config",
-        "timezone": "America/New_York"
-      },
-      "judge0": {
-        "enabled": true,
-        "required": false,
-        "description": "Code execution and testing platform"
-      },
-      "k6": {
-        "enabled": true,
-        "description": "Modern load testing tool with JavaScript scripting",
-        "healthy": false,
-        "health_check": {
-          "command": "resource-k6 status --json",
-          "interval": 30,
-          "timeout": 10
-        }
-      },
-      "kafka": {
-        "enabled": true
-      },
-      "keycloak": {
-        "enabled": true,
-        "required": false,
-        "description": "Identity and access management solution for securing applications and services",
-        "admin_port": 9990,
-        "data_dir": "~/.vrooli/keycloak"
-      },
-      "kicad": {
-        "enabled": false,
-        "order": 52
-      },
-      "langchain": {
-        "enabled": false,
-        "description": "Framework for developing applications with LLMs",
-        "api_port": 8101,
-        "data_dir": "~/.langchain"
-      },
-      "litellm": {
-        "enabled": true
-      },
-      "llamaindex": {
-        "enabled": false,
-        "description": "Data framework for LLM applications with RAG capabilities",
-        "data_dir": "~/.vrooli/llamaindex"
-      },
-      "lnbits": {
-        "enabled": false
-      },
-      "mail-in-a-box": {
-        "enabled": true
-      },
-      "mathlib": {
-        "enabled": false
-      },
-      "matrix-synapse": {
-        "enabled": false
-      },
-      "mcrcon": {
-        "enabled": false
-      },
-      "meep": {
-        "enabled": false
-      },
-      "mifos": {
-        "enabled": false
-      },
-      "minio": {
-        "enabled": true,
-        "required": false,
-        "description": "S3-compatible object storage service"
-      },
-      "neo4j": {
-        "enabled": true,
-        "required": false,
-        "description": "Native property graph database for knowledge graphs and recommendations",
-        "docker_image": "neo4j:5.24.0",
-        "ports": {
-          "http": 7474,
-          "bolt": 7687
-        }
-      },
-      "nsfw-detector": {
-        "enabled": false
-      },
-      "obs-studio": {
-        "enabled": false,
-        "required": false,
-        "description": "Professional streaming and recording software with programmatic control via WebSocket API",
-        "websocket_port": 4455,
-        "recording_path": "~/Videos/obs-recordings",
-        "data_dir": "~/.vrooli/obs-studio"
-      },
-      "octoprint": {
-        "enabled": false
-      },
-      "ollama": {
-        "enabled": true,
-        "required": true,
-        "status": {
-          "running": true
-        },
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
-      "open-data-cube": {
-        "enabled": false
-      },
-      "opencode": {
-        "enabled": true
-      },
-      "openfoam": {
-        "enabled": false
-      },
-      "openrouter": {
-        "enabled": true,
-        "required": false,
-        "description": "Unified API to many model providers for AI access"
-      },
-      "openscad": {
-        "enabled": false,
-        "description": "Programmatic 3D CAD modeler"
-      },
-      "papermc": {
-        "enabled": false
-      },
-      "parlant": {
-        "enabled": false
-      },
-      "pihole": {
-        "enabled": true
-      },
-      "postgis": {
-        "enabled": true,
-        "required": false,
-        "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
-        "container_name": "postgis-main",
-        "data_directory": "${HOME}/.vrooli/postgis",
-        "version": "16-3.4",
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
-      "postgres": {
-        "enabled": true,
-        "required": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
-      "pushover": {
-        "enabled": true,
-        "required": false,
-        "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
-        "credentials_file": "~/.vrooli/pushover-credentials.json",
-        "data_dir": "~/.vrooli/pushover"
-      },
-      "pybullet": {
-        "enabled": true
-      },
-      "qdrant": {
-        "enabled": true,
-        "required": true,
-        "container_name": "qdrant",
-        "data_directory": "${HOME}/.qdrant/data",
-        "version": "unknown",
-        "status": "installed",
-        "last_updated": "2025-08-13 14:23:53",
-        "description": "Vector database for embeddings and semantic search"
-      },
-      "questdb": {
-        "enabled": true,
-        "required": false,
-        "description": "High-performance time series database"
-      },
-      "redis": {
-        "enabled": true,
-        "required": true,
-        "version": "7",
-        "description": "Event bus and caching layer",
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        },
-        "instances": {
-          "default": {
-            "port": 6380,
-            "maxMemory": "2gb",
-            "persistence": "rdb",
-            "password": ""
-          }
-        }
-      },
-      "restic": {
-        "enabled": true
-      },
-      "ros2": {
-        "enabled": true
-      },
-      "sagemath": {
-        "enabled": true
-      },
-      "searxng": {
-        "enabled": true,
-        "required": true,
-        "description": "Privacy-respecting search engine"
-      },
-      "segment-anything": {
-        "enabled": true
-      },
-      "simpy": {
-        "enabled": true,
-        "required": false,
-        "description": "Discrete event simulation framework for modeling complex systems",
-        "data_dir": "~/.vrooli/simpy"
-      },
-      "sqlite": {
-        "enabled": true
-      },
-      "step-ca": {
-        "enabled": true
-      },
-      "su2": {
-        "enabled": true
-      },
-      "terraform": {
-        "enabled": true
-      },
-      "traccar": {
-        "enabled": true
-      },
-      "twilio": {
-        "enabled": true,
-        "required": false,
-        "description": "SMS, voice, and messaging automation via Twilio API",
-        "credentials_file": "~/.vrooli/twilio-credentials.json",
-        "data_dir": "~/.vrooli/twilio"
-      },
-      "ultralytics-yolo": {
-        "enabled": true
-      },
-      "unstructured-io": {
-        "enabled": true,
-        "required": false,
-        "description": "Document processing and parsing service"
-      },
-      "vault": {
-        "enabled": true,
-        "required": true,
-        "description": "Secrets management and secure storage"
-      },
-      "virustotal": {
-        "enabled": true
-      },
-      "kokoro": {
-        "enabled": true,
-        "required": false,
-        "description": "Text-to-speech synthesis service"
-      },
-      "whisper": {
-        "enabled": true,
-        "required": false,
-        "description": "Speech-to-text processing service"
-      },
-      "wikijs": {
-        "enabled": true
-      },
-      "wireguard": {
-        "enabled": true
-      },
-      "zigbee2mqtt": {
-        "enabled": true
-      }
-    }
-  }
+  "version": "2.0.2"
 }

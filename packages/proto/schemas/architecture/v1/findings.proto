@@ -1,0 +1,243 @@
+syntax = "proto3";
+
+package vrooli.architecture.v1;
+
+import "common/v1/validation_target.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1;architecturev1";
+
+// =============================================================================
+// ARCHITECTURE FINDINGS (shared, source-agnostic)
+// =============================================================================
+//
+// @layer 0  (neutral shared contract)
+// @domain architecture
+// @imports common.v1.ValidationTarget
+// @stability beta
+//
+// ArchitectureFinding is the ONE normalized finding envelope that flows
+// across Vrooli's two-layer architecture-validation model:
+//
+//   test-genie (the camera)  --ArchitectureFinding-->  architecture-cartographer
+//   stateless audit aggregator                          stateful migration tracker
+//
+// test-genie's per-surface phases (CLI/UI/docs/standards/structure) and its
+// architecture phase each normalize their NATIVE finding shapes into this
+// type and surface them in the suite report. The cartographer's migration
+// domain INGESTS these findings, tracks each through a lifecycle, and on
+// re-audit reconciles purely by `stable_id`.
+//
+// This package is deliberately neutral (not under architecture-cartographer/)
+// so BOTH scenarios can import the generated type without creating a
+// circular scenario→scenario proto dependency. Detection has no memory;
+// tracking does all of it; this message is the seam.
+//
+// STABLE-ID CONTRACT (mirrors the cartographer's `csid:` design):
+//   stable_id = "afid:" + first 8 bytes hex of
+//     sha256(scenario \x1f source \x1f code \x1f sorted(locations)
+//             [\x1f subject-kind \x1e subject-id \x1e subject-root])
+//   Severity, message, suggestion, and domains are EXCLUDED from the hash
+//   Subject is included only when non-empty, preserving legacy IDs for
+//   scenario findings without explicit attribution.
+//   so the same defect collapses to one ID across runs (cosmetic changes
+//   never manufacture a false regression). The reference Go implementation
+//   lives in gen-adjacent helper code; this comment is the wire-level
+//   authority for what goes into the hash.
+// =============================================================================
+
+// FindingSource identifies which validation surface produced a finding.
+// It is part of the stable-ID hash, so the same defect reported by two
+// different surfaces is two distinct findings (intentional — they are
+// fixed in different places).
+enum FindingSource {
+  FINDING_SOURCE_UNSPECIFIED = 0;
+  // STRUCTURE: in-process structural/manifest findings (test-genie
+  // `structure` phase).
+  FINDING_SOURCE_STRUCTURE = 1;
+  // CLI: cli-health manifest/binding conformance.
+  FINDING_SOURCE_CLI = 2;
+  // UI: ui-health manifest/slot conformance.
+  FINDING_SOURCE_UI = 3;
+  // DOCS: knowledge-observatory docs-manifest conformance.
+  FINDING_SOURCE_DOCS = 4;
+  // STANDARDS: scenario-auditor standards battery.
+  FINDING_SOURCE_STANDARDS = 5;
+  // ARCHITECTURE: architecture-cartographer structural cohesion
+  // (cycles, coupling, convergence, mislocation).
+  FINDING_SOURCE_ARCHITECTURE = 6;
+  // TIDINESS: tidiness-manager file/function quality (reserved — not
+  // wired in the unification plan, but a valid future ingest source).
+  FINDING_SOURCE_TIDINESS = 7;
+  // COVERAGE: test-genie `coverage` phase — parses per-target test
+  // coverage (Go profiles, Node LCOV) and flags under-threshold targets.
+  FINDING_SOURCE_COVERAGE = 8;
+  // SECURITY: test-genie `security` phase — delegates to the
+  // security-health scenario (secrets, Go SAST, Go vuln-DB, JS deps) and
+  // emits normalized findings whose critical/high → ERROR gates the
+  // swarm-manager R1 ("Safe") ladder rung.
+  FINDING_SOURCE_SECURITY = 9;
+  // MEASURES: test-genie `measures` phase — delegates to the
+  // measures-health scenario (measure coverage of stateful domains +
+  // behavioral adoption probe) and emits normalized findings whose
+  // uncovered-stateful-domain / hollow-declaration → ERROR feeds the
+  // swarm-manager soft `measures` ladder dimension (R4).
+  FINDING_SOURCE_MEASURES = 10;
+  // BUSINESS: test-genie `business` phase — validates the scenario's
+  // requirements registry (requirements/*.json + PRD.md linkage) and
+  // emits typed drift findings (starter-template registries, orphaned
+  // refs, unvalidated P0 requirements, dangling validation refs).
+  // Advisory in v1: severities capped at ERROR, never BLOCKER. Feeds the
+  // swarm-manager `business` ladder dimension.
+  FINDING_SOURCE_BUSINESS = 11;
+  // PROTO: test-genie `proto` phase — delegates to the proto-health
+  // scenario (domain organization, generated-artifact sync, transport
+  // world, and proto-surface facts) and emits normalized findings. Feeds
+  // the swarm-manager soft `proto-health` R2 ladder dimension.
+  FINDING_SOURCE_PROTO = 12;
+  // DEPENDENCY: test-genie `dependencies` phase — delegates to the
+  // scenario-dependency-analyzer actual graph drift check and emits
+  // declared-vs-actual scenario dependency findings. Feeds the
+  // swarm-manager soft `dependency-accuracy` R2 ladder dimension.
+  FINDING_SOURCE_DEPENDENCY = 13;
+  // STORAGE: test-genie `storage` phase — delegates to the storage-manager
+  // scenario (schema layout, migration hygiene, persistence-seam adoption,
+  // and test-isolation safety) and emits normalized findings. Its L2
+  // isolation verdict is a fail-closed precondition for the destructive
+  // `playbooks` phase; feeds the swarm-manager `storage` ladder
+  // dimension.
+  FINDING_SOURCE_STORAGE = 14;
+  // BRANDING: test-genie `branding` phase — delegates to the brand-manager
+  // scenario (ScenarioValidationService) and emits normalized branding
+  // findings (display-name, color-system, typography, logo, favicon, WCAG-AA
+  // contrast, applied brand markers) climbing a branding maturity ladder.
+  // Deterministic rules offer PreviewFix/ApplyFix auto-fixes. Feeds the
+  // swarm-manager `branding` ladder dimension.
+  FINDING_SOURCE_BRANDING = 15;
+  // WORKFLOW: test-genie `workflow` phase — delegates BAS workflow catalog,
+  // safety, maturity, deterministic fixes, and execution evidence to the
+  // workflow-health scenario through ScenarioValidationService.
+  FINDING_SOURCE_WORKFLOW = 16;
+  // PROGRAMS: program-runtime declared-program validation phase.
+  FINDING_SOURCE_PROGRAMS = 17;
+  // SKILLS: prompt-manager scenario skill-set validation phase.
+  FINDING_SOURCE_SKILLS = 18;
+}
+
+// FindingSeverity is the normalized severity ladder. Every producer maps
+// its native severity into this enum via the shared normalization table
+// (see test-genie phases). BLOCKER is reserved for findings that hard-stop
+// a healthy architecture (e.g. import cycles).
+enum FindingSeverity {
+  FINDING_SEVERITY_UNSPECIFIED = 0;
+  FINDING_SEVERITY_INFO = 1;
+  FINDING_SEVERITY_WARNING = 2;
+  FINDING_SEVERITY_ERROR = 3;
+  FINDING_SEVERITY_BLOCKER = 4;
+}
+
+// FindingClass separates deterministic findings that may gate a phase from
+// heuristic findings that should remain advisory. It is EXCLUDED from the
+// stable-ID hash so reclassification does not manufacture regressions.
+enum FindingClass {
+  FINDING_CLASS_UNSPECIFIED = 0;
+  FINDING_CLASS_DETERMINISTIC = 1;
+  FINDING_CLASS_HEURISTIC = 2;
+}
+
+// EffortHint is a coarse, normalized estimate of how much work a finding
+// takes to resolve. It is advisory ranking input only and is EXCLUDED from
+// the stable-ID hash — effort can be re-estimated without re-keying the
+// finding. Producers either pass a validator-supplied estimate or apply a
+// documented per-source default heuristic (see test-genie phases).
+enum EffortHint {
+  EFFORT_HINT_UNSPECIFIED = 0;
+  // TRIVIAL: a few minutes (e.g., a broken doc link, a missing manifest key).
+  EFFORT_HINT_TRIVIAL = 1;
+  // SMALL: a focused single-file change (e.g., one standards rule violation,
+  // one contract/UI binding gap).
+  EFFORT_HINT_SMALL = 2;
+  // MEDIUM: a multi-file change within one domain.
+  EFFORT_HINT_MEDIUM = 3;
+  // LARGE: a structural change spanning domains (e.g., breaking an import
+  // cycle, relocating a mislocated package).
+  EFFORT_HINT_LARGE = 4;
+}
+
+// Evidence is one producer-supplied piece of justification for a finding.
+// Intentionally generic (a string `kind`, not an enum) so any surface can
+// attach its own evidence vocabulary without a contract bump.
+message Evidence {
+  // Stable kind identifier (e.g., "scc_member", "import_edge",
+  // "missing_manifest_entry", "slot_violation").
+  string kind = 1;
+  // Human-readable summary shown in CLI/UI.
+  string summary = 2;
+  // Optional locator (file path, edge string, scc id, manifest key).
+  string locator = 3;
+  // Optional structured payload (canonical-form JSON) for producers that
+  // need to round-trip more than a string.
+  bytes payload = 4;
+}
+
+// SuggestedFix is one advisory resolution attached to a finding. `kind` is
+// a free string (NOT the cartographer's old file-op enum) so surface
+// findings can suggest non-file fixes (e.g. "add_manifest_entry",
+// "manual", "external"). The migration tracker uses `kind` to decide
+// whether `apply` can auto-execute or only record a status transition.
+message SuggestedFix {
+  // Stable identifier within the finding.
+  string id = 1;
+  // Free-form fix category (e.g., "move_file", "rewrite_import",
+  // "add_manifest_entry", "manual", "external").
+  string kind = 2;
+  // Resolver name expected to execute this fix, when applicable.
+  string resolver = 3;
+  // Human-readable summary shown in CLI/UI.
+  string summary = 4;
+  // Optional structured payload (canonical-form JSON) the resolver
+  // consumes to perform the fix.
+  bytes payload = 5;
+  // Confidence score in [0, 1] attached to this fix.
+  double confidence = 6;
+}
+
+// ArchitectureFinding is the canonical normalized finding. Producers emit
+// it; the migration tracker ingests and reconciles it. Adding optional
+// fields is allowed; the stable-ID hash inputs (scenario, source, code,
+// locations) are frozen.
+message ArchitectureFinding {
+  // Target scenario name.
+  string scenario = 1;
+  // Producing surface.
+  FindingSource source = 2;
+  // Producer-stable finding code (e.g., a cartographer "type[/subtype]",
+  // a cli-health code, an auditor rule id). Part of the stable-ID hash.
+  string code = 3;
+  // Normalized severity.
+  FindingSeverity severity = 4;
+  // Repo-relative locations the finding touches. Normalized (forward
+  // slashes, sorted) before hashing. Part of the stable-ID hash.
+  repeated string locations = 5;
+  // Domains the finding touches. Display-only — EXCLUDED from the hash
+  // (surface findings often have none).
+  repeated string domains = 6;
+  // Human-readable description.
+  string message = 7;
+  // Optional remediation hint.
+  string suggestion = 8;
+  // Deterministic content-hash key: "afid:" + 8 hex bytes of the hash
+  // inputs above, followed by the non-empty subject tuple when present.
+  string stable_id = 9;
+  // Producer-supplied evidence.
+  repeated Evidence evidence = 10;
+  // Suggested resolutions, ranked best-first.
+  repeated SuggestedFix suggested_fixes = 11;
+  // Coarse effort estimate used for profile-aware ranking. Advisory only —
+  // EXCLUDED from the stable-ID hash.
+  EffortHint effort = 12;
+  // Deterministic vs heuristic class. EXCLUDED from the stable-ID hash.
+  FindingClass finding_class = 13;
+  // Target-specific attribution when a provider reports on an object other
+  // than the run's own target. Empty means the run's own target.
+  common.v1.ValidationTarget subject = 14;
+}

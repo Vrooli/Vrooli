@@ -307,3 +307,9 @@ func (r *inMemoryCaptureRecorder) SetArtifactConfig(_ *config.ArtifactCollection
 func (r *inMemoryCaptureRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
 	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
+
+func (r *inMemoryCaptureRecorder) SetArtifactConfigForExecution(_ uuid.UUID, _ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores per-execution artifact config - collects everything.
+}
+
+func (r *inMemoryCaptureRecorder) ForgetExecution(_ uuid.UUID) {}

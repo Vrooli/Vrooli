@@ -1,0 +1,245 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "soak_evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "soak-evidence",
+        "regenerable": false,
+        "rationale": "Soak and reliability measurements are historical evidence, not reproducible outputs; 1090744 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The dated evidence cohort measured 1090744 bytes on 2026-08-27; 256 MiB is an alarm-only ceiling for durable measurements."
+        }
+      }
+    },
+    "rationale": "Storage surfaces include durable scenario data and separately named long-form qualification evidence."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "audio-tools",
+    "displayName": "Audio Tools",
+    "description": "Shared audio capabilities: STT, TTS, summarization, audio processing, provider routing (BYOK/LPBS/Local)",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-05-16T17:00:03Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "65a572a83cb605354b7482b2e2eacc02fbe131f2ea8a058878f9a5692fa84325"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "audio-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "audio-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Transcode arbitrary audio uploads into Whisper-friendly formats during STT processing",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Audio transcoding falls back to passing raw audio when ffmpeg is unavailable"
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "steps": [
+        {
+          "name": "build-api",
+          "exec": [
+            "go",
+            "-C",
+            "api",
+            "run",
+            "./cmd/build"
+          ],
+          "description": "Build Go API server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "whisper": {
+        "required": false,
+        "description": "Local STT tier (faster-whisper engine)",
+        "startup_policy": "try_start"
+      },
+      "kyutai-stt": {
+        "required": false,
+        "description": "Optional Linux/CUDA streaming STT accelerator",
+        "startup_policy": "try_start"
+      },
+      "kokoro": {
+        "required": false,
+        "description": "Local TTS tier",
+        "startup_policy": "try_start"
+      },
+      "sherpa-onnx": {
+        "required": false,
+        "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation",
+        "startup_policy": "try_start"
+      },
+      "ollama": {
+        "required": false,
+        "description": "Local summarize tier",
+        "startup_policy": "try_start"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "required": false,
+        "model_roles": [
+          "summarize.default"
+        ],
+        "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
+        "startup_policy": "try_start"
+      },
+      "postgres": {
+        "required": false,
+        "description": "Optional usage history backend; sqlite is default",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "landing-page-business-suite": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests.",
+        "bundle_policy": "discover"
+      }
+    }
+  },
+  "environment": {
+    "GOWORK": "off",
+    "AUDIO_WHISPER_URL": "http://localhost:8090",
+    "AUDIO_KYUTAI_URL": "http://localhost:8094",
+    "AUDIO_SHERPA_URL": "http://localhost:8880",
+    "AUDIO_OLLAMA_URL": "http://localhost:11434",
+    "AUDIO_AI_ENABLE_BYOK": "true",
+    "AUDIO_AI_ENABLE_VROOLI": "false",
+    "AUDIO_AI_ENABLE_LOCAL": "true",
+    "AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS": "false",
+    "AUDIO_AVAIL_TTL_BYOK": "5m",
+    "AUDIO_AVAIL_TTL_VROOLI": "30s"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "ui/server.js"
+        ],
+        "port": "ui"
+      }
+    }
+  }
+}

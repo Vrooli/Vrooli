@@ -1,0 +1,3926 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "browser-automation-studio",
+  "description": "Browser Automation Studio CLI surface. Single source of truth for command groups, flag shapes, governance metadata, and bindings. Connect-RPC commands are cross-validated at test time against generated service descriptors; explicit local bindings catalog the top-level commands that intentionally own non-RPC behavior.",
+  "groups": [
+    {
+      "name": "capture",
+      "flat": true,
+      "description": "Capture screenshot/console/network/video/DOM/performance/accessibility artifacts from a single page load",
+      "commands": [
+        {
+          "name": "capture",
+          "description": "Capture artifacts from a single page load",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Target URL to load"
+            },
+            {
+              "name": "capture",
+              "description": "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance,accessibility",
+              "bind": {
+                "field": "captures"
+              }
+            },
+            {
+              "name": "dimensions",
+              "description": "Preset viewport: mobile|tablet|desktop",
+              "bind_waiver": "CLI-local preset is converted into the structured Dimensions request by the capture command."
+            },
+            {
+              "name": "width",
+              "description": "Viewport width (overrides dimensions)"
+            },
+            {
+              "name": "height",
+              "description": "Viewport height (overrides dimensions)"
+            },
+            {
+              "name": "device-scale-factor",
+              "description": "Viewport device scale factor"
+            },
+            {
+              "name": "wait-for",
+              "description": "Wait condition before capture (load|networkidle|selector:...)",
+              "bind_waiver": "CLI-local readiness syntax is parsed into the structured WaitFor request by the capture command."
+            },
+            {
+              "name": "screenshot-selector",
+              "description": "CSS selector for the authoritative screenshot boundary"
+            },
+            {
+              "name": "out",
+              "description": "Server-relative output directory for artifact files",
+              "local_only": true
+            },
+            {
+              "name": "label",
+              "description": "Optional label tagged onto every produced artifact"
+            },
+            {
+              "name": "inline-accessibility",
+              "bool": true,
+              "description": "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Send X-Dry-Run header; server validates without producing artifacts",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CaptureService",
+            "method": "Capture"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "flat": true,
+      "description": "Show BAS API and workflow operational status.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show operational status and resource health.",
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit the operational report as JSON."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "playbooks",
+      "flat": true,
+      "description": "Order, scaffold, and verify BAS playbook registries.",
+      "commands": [
+        {
+          "name": "playbooks",
+          "description": "Manage playbook registries using order, scaffold, or verify.",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "One of: order, scaffold, verify."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "recording",
+      "flat": true,
+      "description": "Import recordings into BAS workflows.",
+      "commands": [
+        {
+          "name": "recording",
+          "description": "Import a recording archive into a BAS workflow.",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Only supported operation: import."
+            },
+            {
+              "name": "archive",
+              "required": true,
+              "description": "Recording archive path; command form is recording import <archive>."
+            }
+          ],
+          "flags": [
+            {
+              "name": "project-id",
+              "description": "Target project UUID."
+            },
+            {
+              "name": "project-name",
+              "description": "Target project name."
+            },
+            {
+              "name": "workflow-id",
+              "description": "Target workflow UUID."
+            },
+            {
+              "name": "workflow-name",
+              "description": "Target workflow name."
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Emit the imported recording result as JSON."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenarios",
+      "description": "Discover sibling scenarios on the host and resolve their HTTP ports.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every scenario known to the local vrooli CLI, with status.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenariosService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "port",
+          "description": "Get the primary HTTP port and resolved base URL for a scenario by name.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario slug (e.g. notes, calendar)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenariosService",
+            "method": "GetPort"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "schema",
+      "description": "Workflow JSON-Schema and step-definition discovery.",
+      "commands": [
+        {
+          "name": "workflow",
+          "description": "Get the workflow JSON-Schema. Filter by --nodes a,b,c to keep only listed node types.",
+          "flags": [
+            {
+              "name": "nodes",
+              "description": "Comma-separated node-type filter",
+              "bind": {
+                "field": "node_types"
+              }
+            },
+            {
+              "name": "output",
+              "description": "Write schema to file instead of stdout",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchemaService",
+            "method": "GetWorkflowSchema"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "node-types",
+          "description": "List every node-type slug defined by the workflow schema.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchemaService",
+            "method": "GetNodeTypes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "steps",
+          "description": "List CLI step definitions. Filter by --types a,b,c or restrict to CLI-supported steps with --cli-only.",
+          "flags": [
+            {
+              "name": "types",
+              "description": "Comma-separated step-type filter"
+            },
+            {
+              "name": "cli-only",
+              "bool": true,
+              "description": "Only return CLI-supported step types"
+            },
+            {
+              "name": "format",
+              "description": "Output format: text (default), json, markdown",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchemaService",
+            "method": "GetStepDefinitions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "entitlement",
+      "description": "Subscription status, identity, usage, dev overrides, and entitlement API source.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the current entitlement status (tier, features, usage, AI credits).",
+          "flags": [
+            {
+              "name": "user",
+              "description": "Override resolved user identity (default: server-side fallback chain)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "identity-get",
+          "description": "Show the persisted user identity (email).",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "GetIdentity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "identity-set",
+          "description": "Persist a user identity (email) and refresh status.",
+          "positionals": [
+            {
+              "name": "email",
+              "required": true,
+              "description": "Email to persist (must contain @ if non-empty)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "SetIdentity"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "identity-clear",
+          "description": "Clear the persisted user identity (logout).",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "ClearIdentity"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Invalidate cached entitlement for a user and return fresh status.",
+          "positionals": [
+            {
+              "name": "user",
+              "required": true,
+              "description": "User identity (email) to refresh"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "RefreshStatus"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage",
+          "description": "Show the unified credit usage summary for the current billing period.",
+          "flags": [
+            {
+              "name": "user",
+              "description": "User identity (email)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "GetUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage-history",
+          "description": "Show usage summaries across multiple billing periods.",
+          "flags": [
+            {
+              "name": "user",
+              "description": "User identity (email)"
+            },
+            {
+              "name": "months",
+              "description": "Number of months to retrieve (default 6)"
+            },
+            {
+              "name": "offset",
+              "description": "Months to skip from current (default 0)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "GetUsageHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "operations",
+          "description": "Show the paginated operation log for a billing month.",
+          "flags": [
+            {
+              "name": "user",
+              "description": "User identity (email)"
+            },
+            {
+              "name": "month",
+              "description": "YYYY-MM (default: current billing month)"
+            },
+            {
+              "name": "category",
+              "description": "Optional category filter: ai | execution | export"
+            },
+            {
+              "name": "limit",
+              "description": "Page size (default 20)"
+            },
+            {
+              "name": "offset",
+              "description": "Starting offset (default 0)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EntitlementService",
+            "method": "GetOperationLog"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "projects",
+      "description": "Project CRUD + project-scoped workflow operations (list/bulk-delete/execute-all).",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a project. Generates a folder index row; optionally seeds preset subfolders.",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Project name"
+            },
+            {
+              "name": "folder-path",
+              "required": true,
+              "description": "Absolute folder path on disk"
+            },
+            {
+              "name": "description",
+              "description": "Optional description"
+            },
+            {
+              "name": "preset",
+              "description": "Preset layout: empty | recommended | custom"
+            },
+            {
+              "name": "preset-paths",
+              "description": "Comma-separated subfolders for preset=custom"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "CreateProject"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List every project with computed stats.",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum projects to return (0 = server default)"
+            },
+            {
+              "name": "offset",
+              "description": "Pagination offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "ListProjects"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Fetch a single project + stats by id.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "GetProject"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Patch project name / description / folder_path. Empty fields are ignored.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "New project name"
+            },
+            {
+              "name": "description",
+              "description": "New description"
+            },
+            {
+              "name": "folder-path",
+              "description": "New absolute folder path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "UpdateProject"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a project. With --delete-files, also removes the on-disk folder.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "delete-files",
+              "bool": true,
+              "description": "Also remove the project folder on disk"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "DeleteProject"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "workflows",
+          "description": "List workflows belonging to a project.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum workflows to return"
+            },
+            {
+              "name": "offset",
+              "description": "Pagination offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "ListProjectWorkflows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "bulk-delete-workflows",
+          "description": "Delete multiple workflows from a project in a single call.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workflow-ids",
+              "required": true,
+              "description": "Comma-separated workflow UUIDs"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "BulkDeleteProjectWorkflows"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "execute-all",
+          "description": "Start an execution for every workflow in the project.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectsService",
+            "method": "ExecuteAllProjectWorkflows"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "workflows",
+      "description": "Workflow CRUD, versioning, validation, AI modification, and execution start.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List workflows, optionally filtered by project.",
+          "flags": [
+            {
+              "name": "project-id",
+              "description": "Filter by project UUID"
+            },
+            {
+              "name": "folder-path",
+              "description": "Filter by folder path within the project"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of results (1\u2013100)"
+            },
+            {
+              "name": "offset",
+              "description": "Pagination offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ListWorkflows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a workflow by ID (optionally at a specific version).",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Specific version to retrieve (default: latest)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "GetWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a new workflow in a project.",
+          "flags": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Workflow name"
+            },
+            {
+              "name": "folder-path",
+              "description": "Folder path within the project"
+            },
+            {
+              "name": "flow-file",
+              "description": "Path to JSON file containing the V2 flow definition",
+              "bind": {
+                "field": "flow_definition",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "ai-prompt",
+              "description": "Optional AI prompt used to generate the workflow"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "CreateWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a workflow's definition and metadata.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Updated workflow name"
+            },
+            {
+              "name": "description",
+              "description": "Updated description"
+            },
+            {
+              "name": "folder-path",
+              "description": "Updated folder path"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated tag list"
+            },
+            {
+              "name": "flow-file",
+              "description": "Path to JSON file with updated V2 flow definition",
+              "bind": {
+                "field": "flow_definition",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "change-description",
+              "description": "Description of this change"
+            },
+            {
+              "name": "source",
+              "description": "Change source (manual|autosave|import|ai_generated|recording)"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic-lock version (required to avoid conflicts)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "UpdateWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a workflow.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "DeleteWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "execute",
+          "description": "Execute a persisted workflow.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Workflow version to execute (default: latest)",
+              "bind": {
+                "field": "workflow_version"
+              }
+            },
+            {
+              "name": "wait",
+              "bool": true,
+              "description": "Wait for completion before responding",
+              "bind": {
+                "field": "wait_for_completion"
+              },
+              "bind_waiver": "wait is a server request option controlling synchronous workflow execution"
+            },
+            {
+              "name": "parameters-file",
+              "description": "Path to JSON file with ExecutionParameters",
+              "bind": {
+                "field": "parameters",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "requires-video",
+              "bool": true,
+              "description": "Record playwright video"
+            },
+            {
+              "name": "requires-trace",
+              "bool": true,
+              "description": "Record playwright trace.zip"
+            },
+            {
+              "name": "requires-har",
+              "bool": true,
+              "description": "Record HAR archive"
+            },
+            {
+              "name": "frame-streaming",
+              "bool": true,
+              "description": "Enable live frame streaming via WS"
+            },
+            {
+              "name": "seed-mode",
+              "description": "Seed apply mode (needs-applying)"
+            },
+            {
+              "name": "seed-scenario",
+              "description": "Seed scenario slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ExecuteWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "execute-adhoc",
+          "description": "Execute a workflow definition without persisting it.",
+          "flags": [
+            {
+              "name": "flow-file",
+              "required": true,
+              "description": "Path to JSON file with the adhoc V2 flow definition",
+              "bind": {
+                "field": "flow_definition",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "wait",
+              "bool": true,
+              "description": "Wait for completion before responding",
+              "bind": {
+                "field": "wait_for_completion"
+              },
+              "bind_waiver": "wait is a server request option controlling synchronous workflow execution"
+            },
+            {
+              "name": "name",
+              "description": "Optional label for the adhoc execution"
+            },
+            {
+              "name": "description",
+              "description": "Optional description for the adhoc execution"
+            },
+            {
+              "name": "parameters-file",
+              "description": "Path to JSON file with ExecutionParameters",
+              "bind": {
+                "field": "parameters",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "requires-video",
+              "bool": true,
+              "description": "Record playwright video"
+            },
+            {
+              "name": "requires-trace",
+              "bool": true,
+              "description": "Record playwright trace.zip"
+            },
+            {
+              "name": "requires-har",
+              "bool": true,
+              "description": "Record HAR archive"
+            },
+            {
+              "name": "frame-streaming",
+              "bool": true,
+              "description": "Enable live frame streaming via WS"
+            },
+            {
+              "name": "seed-mode",
+              "description": "Seed apply mode (needs-applying)"
+            },
+            {
+              "name": "seed-scenario",
+              "description": "Seed scenario slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ExecuteAdhocWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate a workflow definition.",
+          "flags": [
+            {
+              "name": "flow-file",
+              "required": true,
+              "description": "Path to JSON file with the V2 flow definition",
+              "bind": {
+                "field": "workflow",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "baseline-workflow-id",
+              "description": "Exact workflow to preserve during automated repair"
+            },
+            {
+              "name": "expected-version",
+              "description": "Required baseline revision for repair"
+            },
+            {
+              "name": "require-assertion",
+              "bool": true,
+              "description": "Require an explicit assertion before automated promotion"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ValidateWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate-resolved",
+          "description": "Validate a workflow definition whose tokens have already been substituted.",
+          "flags": [
+            {
+              "name": "flow-file",
+              "required": true,
+              "description": "Path to JSON file with the V2 flow definition",
+              "bind": {
+                "field": "workflow",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ValidateResolvedWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "modify",
+          "description": "Apply an AI-driven modification prompt to a workflow definition.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "prompt",
+              "required": true,
+              "description": "Natural-language modification prompt",
+              "bind": {
+                "field": "modification_prompt"
+              }
+            },
+            {
+              "name": "flow-file",
+              "required": true,
+              "description": "Path to JSON file with current V2 flow definition",
+              "bind": {
+                "field": "current_flow",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ModifyWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "versions",
+          "description": "List stored versions of a workflow (newest first).",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ListWorkflowVersions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "version-get",
+          "description": "Get a single stored workflow version.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            },
+            {
+              "name": "version",
+              "required": true,
+              "description": "Version number (>= 1)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "GetWorkflowVersion"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "version-restore",
+          "description": "Restore a prior workflow version as the current head.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            },
+            {
+              "name": "version",
+              "required": true,
+              "description": "Version number to restore"
+            }
+          ],
+          "flags": [
+            {
+              "name": "change-description",
+              "description": "Description of why the restore is happening"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "RestoreWorkflowVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "project-files",
+      "description": "Project file tree, read/write workflow files, move/delete/resync, and OS reveal/open.",
+      "commands": [
+        {
+          "name": "tree",
+          "description": "List the file tree (folders + workflow files + indexed assets) for a project.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "GetProjectFileTree"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "read",
+          "description": "Read a workflow JSON file as a WorkflowSummary message.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "required": true,
+              "description": "Project-root-relative workflow JSON path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "ReadProjectFile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "mkdir",
+          "description": "Create a directory (with parents) inside the project root.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "required": true,
+              "description": "Project-root-relative directory path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "MkdirProjectPath"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "write",
+          "description": "Persist a new workflow JSON file (refuses overwrite).",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "required": true,
+              "description": "Project-root-relative .json path"
+            },
+            {
+              "name": "name",
+              "description": "Workflow display name (defaults to filename stem)"
+            },
+            {
+              "name": "type",
+              "description": "Workflow type: action | flow | case"
+            },
+            {
+              "name": "description",
+              "description": "Optional workflow description"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated tags"
+            },
+            {
+              "name": "flow-file",
+              "description": "Path to a JSON file containing the ProjectWorkflowFileWrite body (top-level keys: name, description, tags, flow_definition, metadata, settings)",
+              "bind": {
+                "field": "workflow",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "WriteProjectWorkflowFile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "move",
+          "description": "Rename or move a file/folder inside the project root.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "from-path",
+              "required": true,
+              "description": "Project-root-relative source path"
+            },
+            {
+              "name": "to-path",
+              "required": true,
+              "description": "Project-root-relative target path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "MoveProjectFile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a file or directory (recursive) inside the project root.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "required": true,
+              "description": "Project-root-relative path to remove"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "DeleteProjectFile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "resync",
+          "description": "Force a filesystem -> DB resync; report indexed counts.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "ResyncProjectFiles"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "reveal",
+          "description": "Reveal a project file (or open a folder) in the system file manager.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "required": true,
+              "description": "Project-root-relative path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "RevealProjectPath"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "open-folder",
+          "description": "Open the project root folder in the system file manager.",
+          "positionals": [
+            {
+              "name": "project-id",
+              "required": true,
+              "description": "Project UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProjectFilesService",
+            "method": "OpenProjectFolder"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "executions",
+      "description": "Inspect workflow executions, stream timelines, list recorded artifacts, and control execution lifecycle.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List executions, optionally filtered by workflow or project.",
+          "flags": [
+            {
+              "name": "workflow-id",
+              "description": "Filter by workflow UUID"
+            },
+            {
+              "name": "project-id",
+              "description": "Filter by project UUID"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of results (default 50, max 100)"
+            },
+            {
+              "name": "offset",
+              "description": "Pagination offset"
+            },
+            {
+              "name": "include-exportability",
+              "bool": true,
+              "description": "Include per-execution exportability info"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "ListExecutions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a single execution by ID.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "timeline",
+          "description": "Fetch the proto timeline for an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecutionTimeline"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "replay-package",
+          "description": "Inspect the versioned, storage-independent replay evidence package for an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecutionReplayPackage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop a running execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "StopExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume an interrupted execution from its last checkpoint.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "resume-url",
+              "description": "Optional URL to navigate to before resuming"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "ResumeExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "screenshots",
+          "description": "List screenshots captured during an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecutionScreenshots"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recorded-videos",
+          "description": "List recorded video artifacts for an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecutionRecordedVideos"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recorded-traces",
+          "description": "List recorded Playwright trace artifacts for an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecutionRecordedTraces"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recorded-har",
+          "description": "List recorded HAR archives for an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "GetExecutionRecordedHar"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "seed-cleanup",
+          "description": "Schedule deferred seed cleanup for a previously executed seed scenario.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "cleanup-token",
+              "required": true,
+              "description": "Opaque cleanup token returned when the seed was applied"
+            },
+            {
+              "name": "seed-scenario",
+              "description": "Seed scenario identifier (defaults to browser-automation-studio)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "ScheduleExecutionSeedCleanup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retention-preview",
+          "description": "Preview (dry-run) which terminal executions and artifact directories a retention sweep would remove. No deletion is performed.",
+          "flags": [
+            {
+              "name": "max-age-days",
+              "description": "Remove executions older than this many days (0 disables the age filter)"
+            },
+            {
+              "name": "keep-latest",
+              "description": "Keep this many most-recent terminal executions per workflow"
+            },
+            {
+              "name": "workflow-id",
+              "description": "Restrict to a single workflow UUID"
+            },
+            {
+              "name": "project-id",
+              "description": "Restrict to a single project UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "PreviewExecutionArtifactRetention"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retention-run",
+          "description": "Delete matched terminal execution rows and their artifact directories together. Requires --confirm to mutate.",
+          "flags": [
+            {
+              "name": "max-age-days",
+              "description": "Remove executions older than this many days (0 disables the age filter)"
+            },
+            {
+              "name": "keep-latest",
+              "description": "Keep this many most-recent terminal executions per workflow"
+            },
+            {
+              "name": "workflow-id",
+              "description": "Restrict to a single workflow UUID"
+            },
+            {
+              "name": "project-id",
+              "description": "Restrict to a single project UUID"
+            },
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "Required explicit confirmation; without it the run is refused"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionsService",
+            "method": "RunExecutionArtifactRetention"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "uxmetrics",
+      "description": "UX friction metrics for completed executions and workflow-level aggregates (Pro tier and above).",
+      "commands": [
+        {
+          "name": "get-execution",
+          "description": "Print previously-computed UX metrics for an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "UXMetricsService",
+            "method": "GetExecutionMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get-step",
+          "description": "Print real-time metrics for a single step within an execution.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            },
+            {
+              "name": "step-index",
+              "required": true,
+              "description": "Zero-based step index"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "UXMetricsService",
+            "method": "GetStepMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compute",
+          "description": "Trigger full UX-metric computation for a completed execution and persist the result.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "UXMetricsService",
+            "method": "ComputeExecutionMetrics"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workflow-aggregate",
+          "description": "Print rolled-up UX-friction stats across recent executions of a workflow.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Number of recent executions to include (default 10, max 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "UXMetricsService",
+            "method": "GetWorkflowAggregate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "replay-config",
+      "description": "Persisted replay/export style configuration (chrome theme, cursor, background, watermark, intro/outro cards).",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Print the persisted replay configuration as JSON. Returns an empty object when nothing is saved.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReplayConfigService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "set",
+          "description": "Replace the persisted replay configuration with a JSON payload read from --config-file or stdin.",
+          "flags": [
+            {
+              "name": "config-file",
+              "description": "Path to a JSON file containing the replay configuration; omit to read stdin.",
+              "bind": {
+                "field": "config",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReplayConfigService",
+            "method": "Put"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reset",
+          "description": "Delete the persisted replay configuration.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReplayConfigService",
+            "method": "Reset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "schedules",
+      "description": "Cron schedule CRUD, manual trigger, on/off toggle, and calendar-occurrences projection.",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Attach a new cron schedule to a workflow.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Display name"
+            },
+            {
+              "name": "cron",
+              "required": true,
+              "description": "Cron expression (5-field: minute hour dom month dow)",
+              "bind": {
+                "field": "cron_expression"
+              }
+            },
+            {
+              "name": "description",
+              "description": "Optional description"
+            },
+            {
+              "name": "timezone",
+              "description": "IANA timezone (default UTC)"
+            },
+            {
+              "name": "parameters",
+              "description": "JSON object of workflow parameters",
+              "bind": {
+                "field": "parameters",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "The argument name intentionally remains the public CLI name; json_inline is required to decode the structured workflow-parameter map."
+            },
+            {
+              "name": "inactive",
+              "bool": true,
+              "description": "Create the schedule in the inactive state",
+              "bind": {
+                "field": "is_active"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Create"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List schedules, optionally filtered by workflow.",
+          "flags": [
+            {
+              "name": "workflow-id",
+              "description": "Filter by workflow UUID"
+            },
+            {
+              "name": "active-only",
+              "bool": true,
+              "description": "Return only active schedules"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum results"
+            },
+            {
+              "name": "offset",
+              "description": "Result offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list-by-workflow",
+          "description": "List schedules attached to a single workflow.",
+          "positionals": [
+            {
+              "name": "workflow-id",
+              "required": true,
+              "description": "Workflow UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "active-only",
+              "bool": true,
+              "description": "Return only active schedules"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum results"
+            },
+            {
+              "name": "offset",
+              "description": "Result offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "ListByWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Print a single schedule by id.",
+          "positionals": [
+            {
+              "name": "schedule-id",
+              "required": true,
+              "description": "Schedule UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Apply a partial update to a schedule.",
+          "positionals": [
+            {
+              "name": "schedule-id",
+              "required": true,
+              "description": "Schedule UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "New display name"
+            },
+            {
+              "name": "description",
+              "description": "New description"
+            },
+            {
+              "name": "cron",
+              "description": "New cron expression",
+              "bind": {
+                "field": "cron_expression"
+              }
+            },
+            {
+              "name": "timezone",
+              "description": "New IANA timezone"
+            },
+            {
+              "name": "parameters",
+              "description": "JSON object of workflow parameters (replaces persisted parameters)",
+              "bind": {
+                "field": "parameters",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "The argument name intentionally remains the public CLI name; json_inline is required to decode the structured workflow-parameter map."
+            },
+            {
+              "name": "active",
+              "description": "true|false to set the schedule active or inactive",
+              "bind": {
+                "field": "is_active"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Update"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Remove a schedule.",
+          "positionals": [
+            {
+              "name": "schedule-id",
+              "required": true,
+              "description": "Schedule UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Delete"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "toggle",
+          "description": "Flip a schedule's is_active state.",
+          "positionals": [
+            {
+              "name": "schedule-id",
+              "required": true,
+              "description": "Schedule UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Toggle"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "trigger",
+          "description": "Fire a schedule's workflow immediately and update last_run_at.",
+          "positionals": [
+            {
+              "name": "schedule-id",
+              "required": true,
+              "description": "Schedule UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Trigger"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "occurrences",
+          "description": "Project schedule runs within a date range.",
+          "flags": [
+            {
+              "name": "start",
+              "required": true,
+              "description": "Range start (RFC3339)"
+            },
+            {
+              "name": "end",
+              "required": true,
+              "description": "Range end (RFC3339)"
+            },
+            {
+              "name": "max-per-schedule",
+              "description": "Per-schedule cap (default 100, max 1000)"
+            },
+            {
+              "name": "workflow-id",
+              "description": "Optional workflow filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SchedulesService",
+            "method": "Occurrences"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai",
+      "description": "AI helpers: page preview screenshot, link metadata, element analysis, coordinate probe, AI element analysis, and DOM tree.",
+      "commands": [
+        {
+          "name": "preview-screenshot",
+          "description": "Navigate to a URL and capture a full-page screenshot.",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Target URL to capture"
+            },
+            {
+              "name": "width",
+              "description": "Optional viewport width (clamped to [200, 10000])"
+            },
+            {
+              "name": "height",
+              "description": "Optional viewport height (clamped to [200, 10000])"
+            },
+            {
+              "name": "device",
+              "description": "Viewport preset: mobile (390x844), tablet (768x1024), desktop (1440x900)",
+              "bind": {
+                "field": "viewport"
+              },
+              "bind_waiver": "CLI-local viewport preset is converted into the structured Viewport request by the preview command."
+            },
+            {
+              "name": "device-scale-factor",
+              "description": "Browser device scale factor (0.5-4.0)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "TakePreviewScreenshot"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "link-preview",
+          "description": "Fetch OpenGraph metadata for a URL.",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "URL whose metadata to fetch"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "GetLinkPreview"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "analyze-elements",
+          "description": "Extract interactive elements and AI suggestions for a page.",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Target URL to analyze"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "AnalyzeElements"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "element-at-coordinate",
+          "description": "Probe the DOM at (x, y) and return the resolved element and ancestor candidates.",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Target URL"
+            },
+            {
+              "name": "x",
+              "required": true,
+              "description": "Viewport-relative x in CSS pixels"
+            },
+            {
+              "name": "y",
+              "required": true,
+              "description": "Viewport-relative y in CSS pixels"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "GetElementAtCoordinate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "ai-analyze",
+          "description": "Ask the local Ollama model for interactive-element suggestions for a user intent.",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Target URL"
+            },
+            {
+              "name": "intent",
+              "required": true,
+              "description": "User intent (e.g. 'find the search button')"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "AIAnalyzeElements"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "dom-tree",
+          "description": "Return a normalized DOM tree snapshot for a URL.",
+          "flags": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Target URL"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "GetDOMTree"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "vision-navigation",
+      "description": "AI-driven multi-step browser navigation: list navigators, start/abort/resume sessions, and inspect status.",
+      "commands": [
+        {
+          "name": "list-navigators",
+          "description": "List available AI navigation backends and the registry default.",
+          "flags": [
+            {
+              "name": "client-source",
+              "description": "Override the client source hint (ui|cli|api, default cli)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisionNavigationService",
+            "method": "ListNavigators"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start an AI-driven navigation session against an existing browser session.",
+          "flags": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Existing browser session ID",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "prompt",
+              "required": true,
+              "description": "Natural-language navigation instruction"
+            },
+            {
+              "name": "model",
+              "description": "Vision model identifier (default gpt-4o)"
+            },
+            {
+              "name": "max-steps",
+              "description": "Maximum navigation steps (1..100, default 20)"
+            },
+            {
+              "name": "navigator",
+              "description": "Preferred navigator: playwright | claude_code (default auto-select)",
+              "bind": {
+                "field": "navigator_type"
+              }
+            },
+            {
+              "name": "api-key",
+              "description": "BYOK API key (bypasses credit charging subject to navigator policy)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisionNavigationService",
+            "method": "StartNavigation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Get the current state of a navigation session (status, step count, total tokens).",
+          "positionals": [
+            {
+              "name": "navigation-id",
+              "required": true,
+              "description": "Navigation session UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisionNavigationService",
+            "method": "GetNavigationStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "abort",
+          "description": "Abort an in-flight navigation after the current step.",
+          "positionals": [
+            {
+              "name": "navigation-id",
+              "required": true,
+              "description": "Navigation session UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisionNavigationService",
+            "method": "AbortNavigation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume a navigation that paused for human intervention.",
+          "positionals": [
+            {
+              "name": "navigation-id",
+              "required": true,
+              "description": "Navigation session UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisionNavigationService",
+            "method": "ResumeNavigation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "session-profiles",
+      "description": "CRUD on persisted browser session profiles (anti-detection settings + stored storage state).",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every persisted session profile sorted by last_used_at desc.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionProfilesService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an empty session profile with an optional display name.",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Display name (defaults to auto-generated 'Session N')"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionProfilesService",
+            "method": "Create"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Rename a profile or replace its browser profile settings. At least one of --name / --browser-profile is required.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Profile UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "New display name"
+            },
+            {
+              "name": "browser-profile",
+              "description": "Inline JSON for the BrowserProfile blob (anti-detection / fingerprint / behavior / proxy)",
+              "bind": {
+                "field": "browser_profile",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "browser-profile is a JSON request payload and needs json_inline decoding"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionProfilesService",
+            "method": "Update"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Remove a session profile and clear any active session associations.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Profile UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionProfilesService",
+            "method": "Delete"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "consumer-declarations",
+      "description": "Validate public, scenario-owned Browser Automation Studio consumer declarations.",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate inline declaration JSON. Read a scenario-owned file locally before invoking this command.",
+          "flags": [
+            {
+              "name": "declaration-json",
+              "required": true,
+              "description": "Declaration JSON payload",
+              "bind": {
+                "field": "declaration_json",
+                "kind": "raw_string"
+              },
+              "bind_waiver": "declaration-json is an inline JSON request payload and needs raw_string preservation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConsumerDeclarationsService",
+            "method": "Validate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "drills",
+      "description": "Run development-only controlled driver failure and recovery drills.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List supported failure drills.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FailureDrillService",
+            "method": "ListDrills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run one named controlled drill: DRIVER_UNAVAILABLE, PARTIAL_INITIALIZATION, CAPACITY, or EXPIRY.",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Drill enum name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FailureDrillService",
+            "method": "RunDrill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "observability",
+      "description": "Status, diagnostics, metrics, runtime config, and pipeline self-test for the playwright-driver, plus the in-process debug-mode toggle.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Fetch the playwright-driver observability snapshot.",
+          "flags": [
+            {
+              "name": "depth",
+              "description": "Detail level: quick | standard | deep (default standard)"
+            },
+            {
+              "name": "no-cache",
+              "bool": true,
+              "description": "Force a fresh fetch instead of returning a cached snapshot"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "GetObservability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Invalidate the cached observability snapshot.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "RefreshObservability"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "diagnostics",
+          "description": "Trigger a manual diagnostic run. Pass --options-file with a JSON body matching playwright-driver's DiagnosticRunRequest.",
+          "flags": [
+            {
+              "name": "options-file",
+              "description": "Path to a JSON file with the diagnostic options body",
+              "bind": {
+                "field": "options",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "RunDiagnostics"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sessions",
+          "description": "List active playwright-driver browser sessions.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "GetSessionList"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cleanup",
+          "description": "Trigger manual idle-session cleanup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "RunCleanup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics",
+          "description": "Fetch the JSON-parsed Prometheus metrics snapshot.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "GetMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "pipeline-test",
+          "description": "Run the autonomous end-to-end recording-pipeline self-test.",
+          "flags": [
+            {
+              "name": "options-file",
+              "description": "Path to a JSON file with the pipeline test options",
+              "bind": {
+                "field": "options",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "RunPipelineTest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "config-get",
+          "description": "Show the current runtime config overrides.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "GetConfigRuntime"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "config-set",
+          "description": "Update a runtime configuration value.",
+          "positionals": [
+            {
+              "name": "env-var",
+              "required": true,
+              "description": "Environment variable name to update"
+            }
+          ],
+          "flags": [
+            {
+              "name": "value",
+              "required": true,
+              "description": "New value (parsed by the driver per the env var's data type)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "UpdateConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "config-reset",
+          "description": "Reset a runtime configuration value back to its environment/default value.",
+          "positionals": [
+            {
+              "name": "env-var",
+              "required": true,
+              "description": "Environment variable name to reset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "ResetConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "debug-mode-get",
+          "description": "Read the in-process debug-mode toggle state.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "GetDebugMode"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "debug-mode-set",
+          "description": "Enable or disable in-process debug mode.",
+          "flags": [
+            {
+              "name": "enabled",
+              "bool": true,
+              "description": "Enable debug mode"
+            },
+            {
+              "name": "components",
+              "description": "Comma-separated component names to scope debug logging to"
+            },
+            {
+              "name": "duration-minutes",
+              "description": "Auto-disable after this many minutes (default 30, max 120)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ObservabilityService",
+            "method": "SetDebugMode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "exports",
+      "description": "Export library: persisted records for rendered replays (mp4/gif/json/html), AI caption generation, and OS file-manager reveal.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List exports. Optionally filter by --execution-id or --workflow-id.",
+          "flags": [
+            {
+              "name": "execution-id",
+              "description": "Filter by execution UUID"
+            },
+            {
+              "name": "workflow-id",
+              "description": "Filter by workflow UUID"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of results"
+            },
+            {
+              "name": "offset",
+              "description": "Pagination offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "ListExports"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Fetch a single export by id.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "GetExport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Record a new export library row for a previously produced artifact.",
+          "flags": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID this export was rendered from"
+            },
+            {
+              "name": "workflow-id",
+              "description": "Optional workflow UUID"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Display name"
+            },
+            {
+              "name": "format",
+              "required": true,
+              "description": "One of: mp4, gif, json, html"
+            },
+            {
+              "name": "storage-url",
+              "description": "Storage location of the rendered artifact"
+            },
+            {
+              "name": "thumbnail-url",
+              "description": "Optional thumbnail URL"
+            },
+            {
+              "name": "file-size-bytes",
+              "description": "File size in bytes"
+            },
+            {
+              "name": "duration-ms",
+              "description": "Duration in milliseconds"
+            },
+            {
+              "name": "frame-count",
+              "description": "Frame count for video exports"
+            },
+            {
+              "name": "status",
+              "description": "Initial status (pending|processing|completed|failed)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "CreateExport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Patch fields on an existing export row.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "New display name"
+            },
+            {
+              "name": "storage-url",
+              "description": "New storage URL"
+            },
+            {
+              "name": "thumbnail-url",
+              "description": "New thumbnail URL"
+            },
+            {
+              "name": "file-size-bytes",
+              "description": "New file size in bytes"
+            },
+            {
+              "name": "duration-ms",
+              "description": "New duration in milliseconds"
+            },
+            {
+              "name": "frame-count",
+              "description": "New frame count"
+            },
+            {
+              "name": "ai-caption",
+              "description": "Set the AI-generated caption"
+            },
+            {
+              "name": "status",
+              "description": "New status (pending|processing|completed|failed)"
+            },
+            {
+              "name": "error",
+              "description": "Failure reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "UpdateExport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an export row. Underlying storage file cleanup is delegated.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "DeleteExport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Get a compact status snapshot for reconnection scenarios.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "GetExportStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "generate-caption",
+          "description": "Generate an AI caption for the export and persist it.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "GenerateExportCaption"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "reveal",
+          "description": "Reveal the export's storage file in the system file manager.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "RevealExport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "open-folder",
+          "description": "Open the folder containing the export's storage file in the system file manager.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Export UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExportsService",
+            "method": "OpenExportFolder"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "measures",
+      "description": "Read windowed browser execution quality measures",
+      "commands": [
+        {
+          "name": "pass-rate",
+          "description": "Read the fraction of terminal executions that completed successfully",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "ExecutionSuccessRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "executions",
+            "intent": "Fraction of terminal browser executions that completed successfully.",
+            "questions": [
+              "what is the browser execution pass rate",
+              "how often do browser executions succeed",
+              "what fraction of executions passed"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} execution pass rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "p95-duration",
+          "description": "Read the 95th percentile browser execution duration",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "ExecutionDurationP95"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "executions",
+            "intent": "95th percentile duration of completed browser executions.",
+            "questions": [
+              "what is the p95 browser execution duration",
+              "how long do browser executions take",
+              "what is the slowest typical browser execution"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "duration_ms",
+              "unit": "milliseconds",
+              "summary_template": "{duration_ms} ms p95 execution duration ({window})"
+            }
+          }
+        },
+        {
+          "name": "step-failure-rate",
+          "description": "Read the fraction of recorded execution steps that failed",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "StepFailureRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "execution_metrics",
+            "intent": "Fraction of recorded execution steps that failed.",
+            "questions": [
+              "what is the browser step failure rate",
+              "how many execution steps fail",
+              "are browser workflow steps failing"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} step failure rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "selector-failure-rate",
+          "description": "Read the fraction of selector interactions that failed",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Canonical time window token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.browser_automation_studio.v1.measures.MeasuresService",
+            "method": "SelectorFailureRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "telemetry",
+            "intent": "Fraction of interaction traces whose selector interaction failed.",
+            "questions": [
+              "what is the selector failure rate",
+              "how often do browser selectors fail",
+              "are locator interactions failing"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} selector failure rate ({window})"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "executions",
+        "stateful": true,
+        "reason": "Workflow executions persist status and created/completed timestamps."
+      },
+      {
+        "domain": "execution_metrics",
+        "stateful": true,
+        "reason": "Computed execution metrics persist step failures, retries, duration, and computed timestamps."
+      },
+      {
+        "domain": "selectors",
+        "stateful": true,
+        "reason": "Selector candidates are retained in the selector domain for execution quality analysis."
+      },
+      {
+        "domain": "telemetry",
+        "stateful": true,
+        "reason": "Interaction telemetry is retained with timestamped execution traces."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "selectors",
+        "reason": "Selector definitions are embedded workflow metadata without an independent retained timestamp; selector failures are measured from timestamped interaction telemetry."
+      }
+    ]
+  },
+  "omitted": [
+    {
+      "service": "EntitlementService",
+      "method": "GetOverride",
+      "reason": "Development-only entitlement override inspector; no CLI command is exposed because overrides are controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "SetOverride",
+      "reason": "Development-only entitlement override control; no CLI command is exposed because overrides are controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "ClearOverride",
+      "reason": "Development-only entitlement override control; no CLI command is exposed because overrides are controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "GetApiSource",
+      "reason": "Development-only entitlement API source inspector; no CLI command is exposed because source selection is controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "SetApiSource",
+      "reason": "Development-only entitlement API source control; no CLI command is exposed because source selection is controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "ClearApiSource",
+      "reason": "Development-only entitlement API source control; no CLI command is exposed because source selection is controlled through the UI and test fixtures."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "GetStorageState",
+      "reason": "UI-owned storage inspector; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "ClearAllStorage",
+      "reason": "UI-owned destructive storage control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "ClearAllCookies",
+      "reason": "UI-owned destructive cookie control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteCookiesByDomain",
+      "reason": "UI-owned destructive cookie control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteCookie",
+      "reason": "UI-owned destructive cookie control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "ClearAllLocalStorage",
+      "reason": "UI-owned destructive storage control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteLocalStorageByOrigin",
+      "reason": "UI-owned destructive storage control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteLocalStorageItem",
+      "reason": "UI-owned destructive storage control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "GetServiceWorkers",
+      "reason": "UI-owned live-session inspector; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "ClearAllServiceWorkers",
+      "reason": "UI-owned destructive live-session control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteServiceWorker",
+      "reason": "UI-owned destructive live-session control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "GetHistory",
+      "reason": "UI-owned history inspector; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "ClearHistory",
+      "reason": "UI-owned destructive history control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteHistoryEntry",
+      "reason": "UI-owned destructive history control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "UpdateHistorySettings",
+      "reason": "UI-owned history settings control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "NavigateToHistoryURL",
+      "reason": "UI-owned live-session navigation affordance; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "GetSessionTabs",
+      "reason": "UI-owned saved-tabs inspector; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "ClearSessionTabs",
+      "reason": "UI-owned destructive saved-tabs control; no CLI command is currently exposed."
+    },
+    {
+      "service": "RecordingsService",
+      "method": "DeleteSessionTab",
+      "reason": "UI-owned destructive saved-tabs control; no CLI command is currently exposed."
+    }
+  ]
+}

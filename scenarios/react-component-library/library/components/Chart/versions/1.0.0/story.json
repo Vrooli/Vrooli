@@ -1,0 +1,140 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Weekly activation",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "name": "Sat 84",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "role": "table"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Thu 76",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive trend",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Connect a data source"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "name": "Try again",
+          "role": "button"
+        }
+      ],
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline",
+      "role": "boundary"
+    }
+  ],
+  "title": "Chart"
+}

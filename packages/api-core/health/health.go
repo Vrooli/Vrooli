@@ -77,8 +77,12 @@ const (
 	Critical
 )
 
+// processStart is captured once when the health package is initialized. Health
+// uptime describes service age, so it must not be reset when a handler builder
+// is constructed inside a request.
+var processStart = time.Now()
+
 // Response is the standardized health check response matching the Vrooli schema.
-// This structure is validated by the CLI's health-validator.sh.
 type Response struct {
 	// Status is the overall health: healthy, degraded, or unhealthy.
 	Status string `json:"status"`
@@ -104,6 +108,18 @@ type Response struct {
 
 	// Metrics contains runtime metrics (goroutines, heap, uptime).
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
+
+	// Functional describes whether the service's primary purpose is currently
+	// served. It is independent from process and dependency liveness so a
+	// healthy HTTP server cannot hide a service-wide refusal of real work.
+	Functional *FunctionalStatus `json:"functional,omitempty"`
+}
+
+// FunctionalStatus is an optional purpose-level health dimension. A nil value
+// preserves the legacy response shape and semantics.
+type FunctionalStatus struct {
+	Healthy bool   `json:"healthy"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // DependencyStatus represents the health of a single dependency.
@@ -161,11 +177,13 @@ type Checker interface {
 
 // Builder constructs a health handler with configuration and checks.
 type Builder struct {
-	service   string
-	version   string
-	checks    []checkerEntry
-	timeout   time.Duration
-	startTime time.Time
+	service    string
+	version    string
+	checks     []checkerEntry
+	metrics    []metricEntry
+	functional func(context.Context) FunctionalStatus
+	timeout    time.Duration
+	startTime  time.Time
 
 	// For testing
 	nowFunc func() time.Time
@@ -174,6 +192,11 @@ type Builder struct {
 type checkerEntry struct {
 	checker     Checker
 	criticality Criticality
+}
+
+type metricEntry struct {
+	name  string
+	value func(time.Time) any
 }
 
 // Handler creates an http.HandlerFunc for the /health endpoint.
@@ -193,7 +216,8 @@ func Handler(checks ...Checker) http.HandlerFunc {
 	return b.Handler()
 }
 
-// New creates a new health check builder.
+// New creates a new health check builder. Uptime is measured from the process
+// start captured by this package, never from handler-construction time.
 // If no service name is provided, it's auto-detected from directory structure or SCENARIO_NAME env.
 //
 // Usage:
@@ -208,7 +232,7 @@ func New(service ...string) *Builder {
 	return &Builder{
 		service:   svc,
 		timeout:   5 * time.Second,
-		startTime: time.Now(),
+		startTime: processStart,
 		nowFunc:   time.Now,
 	}
 }
@@ -237,6 +261,27 @@ func (b *Builder) Check(c Checker, criticality Criticality) *Builder {
 	return b
 }
 
+// Metric adds a deterministic, handler-owned metric to the health response.
+// The callback receives the response timestamp so derived freshness signals
+// share one clock reading with the health envelope. This is useful for
+// providers whose corpus is materialized live rather than by a background
+// vector reconciler.
+func (b *Builder) Metric(name string, value func(time.Time) any) *Builder {
+	if name == "" || value == nil {
+		return b
+	}
+	b.metrics = append(b.metrics, metricEntry{name: name, value: value})
+	return b
+}
+
+// Functional adds an optional purpose-level health assertion. A false result
+// makes the response degraded while retaining readiness for diagnosis. The
+// callback is only evaluated when the health endpoint is requested.
+func (b *Builder) Functional(check func(context.Context) FunctionalStatus) *Builder {
+	b.functional = check
+	return b
+}
+
 // Timeout sets the maximum duration for all health checks.
 // Default is 5 seconds.
 func (b *Builder) Timeout(d time.Duration) *Builder {
@@ -256,7 +301,7 @@ func (b *Builder) Handler() http.HandlerFunc {
 		if resp.Status == StatusUnhealthy {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -273,9 +318,19 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 		UptimeSeconds: now.Sub(b.startTime).Seconds(),
 		Metrics:       b.collectMetrics(now),
 	}
+	for _, metric := range b.metrics {
+		resp.Metrics[metric.name] = metric.value(now)
+	}
 
 	if len(b.checks) > 0 {
 		resp.Dependencies = b.runChecks(ctx, &resp)
+	}
+	if b.functional != nil {
+		functional := b.functional(ctx)
+		resp.Functional = &functional
+		if !functional.Healthy && resp.Status == StatusHealthy {
+			resp.Status = StatusDegraded
+		}
 	}
 
 	return resp
@@ -422,17 +477,10 @@ func (c *dbChecker) Check(ctx context.Context) CheckResult {
 		}
 	}
 
-	// Query the current database name for visibility
-	var dbName string
-	if row := c.db.QueryRowContext(ctx, "SELECT current_database()"); row != nil {
-		_ = row.Scan(&dbName) // Ignore error - database name is optional info
-	}
-
 	return CheckResult{
 		Name:      c.name,
 		Connected: true,
 		Latency:   latency,
-		Database:  dbName,
 	}
 }
 

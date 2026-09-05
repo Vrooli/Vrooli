@@ -9,7 +9,17 @@ import (
 	"swarm-manager/internal/pathutil"
 )
 
-func summarizeFinalization(finalization Finalization) (classification string, summary string, hasActionableFailure bool) {
+// summarizeFinalization folds the per-scenario finalization steps into an
+// aggregate classification, a human summary, and the hasActionableFailure flag
+// that routes the backlog item to needs-fixup/hand-back (vs accepted).
+//
+// gateRegressions enables the Baseline Modes promote gate (plan P6 §200-201):
+// when set, a scenario whose recorded before/after diff verdict is a genuine
+// regression counts as an actionable failure even if every other step passed,
+// so a change that turns a previously-passing surface red is handed back
+// instead of silently accepted. When false the verdict is still recorded and
+// warned (see runBaselineDiffs) but does not gate the outcome.
+func summarizeFinalization(finalization Finalization, gateRegressions bool) (classification string, summary string, hasActionableFailure bool) {
 	if finalization.Status == FinalizationStatusSkipped {
 		return FinalizationAggregateSkipped, strings.TrimSpace(finalization.SkipReason), false
 	}
@@ -50,6 +60,21 @@ func summarizeFinalization(finalization Finalization) (classification string, su
 				summaries = append(summaries, fmt.Sprintf("%s needs follow-up: %s", scenario.ScenarioName, scenario.Review.Result.Summary))
 			}
 		}
+
+		// Baseline regression gate (plan P6 §200-201): a change that turned a
+		// previously-passing surface red is a regression attributable to this
+		// item, so hand it back even when the absolute review came back ready.
+		// Only the genuine "regression" verdict gates — new-failure /
+		// pre-existing / not-comparable are not this change's fault.
+		if gateRegressions && scenario.BaselineDiff != nil && scenario.BaselineDiff.HasNewRegressions() {
+			hasActionableFailure = true
+			surfaces := strings.Join(scenario.BaselineDiff.RegressedSurfaces, ", ")
+			if surfaces == "" {
+				surfaces = "tests"
+			}
+			summaries = append(summaries, fmt.Sprintf("%s introduced %d regression(s) [%s]",
+				scenario.ScenarioName, len(scenario.BaselineDiff.Regressions), surfaces))
+		}
 	}
 
 	classification = FinalizationAggregateReady
@@ -77,55 +102,6 @@ func newFinalizationWarning(code, scenarioName, message string, retryable bool) 
 	}
 }
 
-func effectiveFinalization(record Record) *Finalization {
-	if record.Finalization != nil {
-		return record.Finalization
-	}
-	if record.LegacyReviewResult == nil && record.LegacyReviewJobID == "" && record.LegacyReviewSkipReason == "" && record.LegacyReviewStartedAt == "" {
-		return nil
-	}
-	finalization := &Finalization{
-		Eligible:          true,
-		Status:            FinalizationStatusCompleted,
-		Phase:             FinalizationPhaseCompleted,
-		ScopeSource:       FinalizationScopeAcceptanceAllow,
-		StartedAt:         record.LegacyReviewStartedAt,
-		CompletedAt:       record.FinishedAt,
-		AffectedScenarios: []string{},
-		Warnings:          []FinalizationWarning{},
-		Scenarios:         []ScenarioFinalization{},
-	}
-	if record.Status == StatusValidating {
-		finalization.Status = FinalizationStatusRunning
-		finalization.Phase = FinalizationPhaseReviewing
-	}
-	if record.LegacyReviewSkipReason != "" {
-		finalization.Status = FinalizationStatusSkipped
-		finalization.Phase = FinalizationPhaseSkipped
-		finalization.SkipReason = record.LegacyReviewSkipReason
-		finalization.AggregateClassification = FinalizationAggregateSkipped
-		finalization.AggregateSummary = record.LegacyReviewSkipReason
-		return finalization
-	}
-	if record.LegacyReviewResult != nil {
-		finalization.AggregateClassification = record.LegacyReviewResult.Classification
-		finalization.AggregateSummary = record.LegacyReviewResult.Summary
-		finalization.Scenarios = []ScenarioFinalization{{
-			ScenarioName: record.BacklogName,
-			Restart:      RestartResult{Status: FinalizationStatusCompleted},
-			Health:       HealthCheckResult{Status: FinalizationStatusCompleted, SchemaValid: true},
-			Review: ScenarioReviewStep{
-				Status: FinalizationStatusCompleted,
-				JobID:  record.LegacyReviewResult.JobID,
-				Result: record.LegacyReviewResult,
-			},
-		}}
-		return finalization
-	}
-	finalization.AggregateClassification = FinalizationAggregateNotAssessable
-	return finalization
-}
-
 func unionSortedStrings(base []string, extras []string) []string {
 	return pathutil.UniqueSortedStrings(append(append([]string{}, base...), extras...))
 }
@@ -140,29 +116,6 @@ func mapKeysSorted(values map[string][]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-func migrateLegacyFinalizationState(record *Record, item backlogItem) bool {
-	if record == nil || record.Finalization != nil {
-		return false
-	}
-	finalization := effectiveFinalization(*record)
-	if finalization == nil {
-		return false
-	}
-	if len(finalization.Scenarios) == 1 && finalization.Scenarios[0].ScenarioName == record.BacklogName {
-		scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
-		if len(scenarios) > 0 {
-			finalization.Scenarios[0].ScenarioName = scenarios[0]
-			finalization.AffectedScenarios = []string{scenarios[0]}
-		}
-	}
-	record.Finalization = finalization
-	record.LegacyReviewResult = nil
-	record.LegacyReviewJobID = ""
-	record.LegacyReviewSkipReason = ""
-	record.LegacyReviewStartedAt = ""
-	return true
 }
 
 func logFinalizationError(executionID string, err error) {

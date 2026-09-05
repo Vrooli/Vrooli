@@ -1,0 +1,71 @@
+{
+  "description": "When deterministic signals are exhausted, surface ranked candidate domains for orphaned chunks by reusing scenario-dependency-analyzer's Ollama+Qdrant pipeline; suggestions only — never auto-applied.",
+  "module_id": "MOD-P2-016",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "When deterministic signals are exhausted and no placement verdict meets the confidence threshold, cartographer may surface ranked candidate domains for orphaned chunks by reusing scenario-dependency-analyzer's Ollama+Qdrant pipeline (AC-P2-EMBED-RANKER). Suggestions are surfaced as candidates only and are never auto-applied. This capability is strictly P2 and must not be present in v1. The embedding ranker must be an optional plugin that activates only when explicitly configured in the manifest.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Embedding-Based Suggestion Ranker for Orphaned Chunks",
+      "validation": [
+        {
+          "notes": "Embedding ranker plugin is not invoked when not configured in manifest",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Embedding ranker returns a ranked list of domain candidates with confidence scores, never a single auto-applied verdict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Suggestions from embedding ranker are clearly labeled as 'embedding-assisted' in the output to distinguish from deterministic signals",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Embedding ranker integration test against a running Ollama+Qdrant fixture server returns ranked candidates for an orphaned file",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Disabling Ollama in the environment causes the ranker to fail gracefully with a warning, not a hard error",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No embedding-based suggestion is ever auto-applied; human or agent must explicitly accept before any action is taken",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Embedding ranker is activated only for files where all deterministic signals return below-threshold confidence",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Embedding-Based Suggestion Ranker"
+}

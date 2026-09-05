@@ -1,0 +1,11 @@
+{
+ "provider_id": "git-control-tower.git-provenance",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "git-control-tower",
+  "bucket": "BUCKET_KNOW",
+  "type": "git-provenance",
+  "description": "Git history and change provenance searchable by intent — 'when/why did this change; what run/prompt/initiative produced it?'. No semantic search exists yet; today this means git log. The rich commit↔run↔prompt↔initiative graph is being built in git-control-tower.",
+  "intended_home": "git-control-tower",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Profile details"
+        },
+        {
+          "kind": "role",
+          "name": "Display name",
+          "role": "textbox"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Validation",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "2 issues to review"
+        }
+      ],
+      "id": "validation",
+      "mode": "live",
+      "name": "Validation summary",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Collapsed",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Expand Advanced preferences",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "Collapsed to keep the primary task focused."
+        }
+      ],
+      "id": "collapsed",
+      "mode": "live",
+      "name": "Collapsed",
+      "role": "boundary"
+    }
+  ],
+  "title": "FormSection"
+}

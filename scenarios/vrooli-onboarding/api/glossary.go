@@ -21,7 +21,6 @@ var defaultGlossary = []glossaryEntry{
 	{Term: "redis", Description: "A fast in-memory data store for caching and messaging", Category: "database"},
 	{Term: "ollama", Description: "A local AI model runner that lets you use language models without cloud services", Category: "ai"},
 	{Term: "qdrant", Description: "A vector database for storing and searching AI embeddings", Category: "database"},
-	{Term: "browserless", Description: "A headless browser service for web scraping and automated testing", Category: "browser"},
 	{Term: "vault", Description: "A secrets management tool that securely stores passwords and API keys", Category: "security"},
 	{Term: "health check", Description: "An automatic test that verifies a service is running correctly", Category: "operations"},
 	{Term: "port", Description: "A numbered channel that services use to communicate (like a phone extension)", Category: "networking"},

@@ -10,13 +10,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // TestCheckoutSession_NormalizesEmail verifies that CreateCheckoutSession normalizes
 // email addresses before making Stripe API calls.
 func TestCheckoutSession_NormalizesEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create checkout_sessions table
@@ -125,7 +125,6 @@ func TestCheckoutSession_NormalizesEmail(t *testing.T) {
 // coupon twice by using different email case variations.
 func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -156,28 +155,28 @@ func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name            string
-		email           string
+		name             string
+		email            string
 		expectedEligible bool
 	}{
 		{
-			name:            "lowercase matches existing",
-			email:           "used@example.com",
+			name:             "lowercase matches existing",
+			email:            "used@example.com",
 			expectedEligible: false,
 		},
 		{
-			name:            "uppercase matches existing (case insensitive)",
-			email:           "USED@EXAMPLE.COM",
+			name:             "uppercase matches existing (case insensitive)",
+			email:            "USED@EXAMPLE.COM",
 			expectedEligible: false,
 		},
 		{
-			name:            "mixed case matches existing",
-			email:           "Used@Example.COM",
+			name:             "mixed case matches existing",
+			email:            "Used@Example.COM",
 			expectedEligible: false,
 		},
 		{
-			name:            "different user is eligible",
-			email:           "new@example.com",
+			name:             "different user is eligible",
+			email:            "new@example.com",
 			expectedEligible: true,
 		},
 	}
@@ -195,7 +194,6 @@ func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 // regardless of email case.
 func TestLookupCustomerID_CaseInsensitive(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -256,7 +254,7 @@ func TestLookupCustomerID_CaseInsensitive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			customerID := service.lookupCustomerID(tt.lookupEmail)
+			customerID := commerce.NewAccountLinkService(service.db).LookupCustomerID(tt.lookupEmail)
 			assert.Equal(t, tt.expectedCustomerID, customerID)
 		})
 	}
@@ -266,7 +264,6 @@ func TestLookupCustomerID_CaseInsensitive(t *testing.T) {
 // works with any email case.
 func TestVerifySubscription_MixedCaseMatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -309,9 +306,9 @@ func TestVerifySubscription_MixedCaseMatch(t *testing.T) {
 	service.checkoutCacheTTL = 1 * time.Hour // Prevent refresh attempts
 
 	tests := []struct {
-		name          string
-		userIdentity  string
-		expectActive  bool
+		name         string
+		userIdentity string
+		expectActive bool
 	}{
 		{
 			name:         "lowercase email finds subscription",
@@ -352,7 +349,6 @@ func TestVerifySubscription_MixedCaseMatch(t *testing.T) {
 // emails when recording intro usage.
 func TestMarkIntroUsed_EmailNormalization(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables

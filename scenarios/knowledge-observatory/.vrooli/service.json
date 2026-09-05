@@ -1,6 +1,33 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "knowledge-observatory",
@@ -18,7 +45,7 @@
       "knowledge-health",
       "graph-visualization",
       "go-api",
-      "postgres-storage",
+      "sqlite-storage",
       "qdrant-vectors",
       "dashboard-ui"
     ],
@@ -50,7 +77,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Knowledge Observatory UI dashboard port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -80,121 +107,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI, initialize database",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/knowledge-observatory-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "knowledge-observatory",
-            "targets": [
-              "knowledge-observatory"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o knowledge-observatory-api .",
-          "description": "Build Go API binary (knowledge-observatory-api) in api/ directory"
-        },
-        {
-          "name": "setup-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize PostgreSQL schema and seed knowledge-observatory data"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd2d Knowledge Observatory initialized\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: knowledge-observatory --help'",
-          "description": "Display access URLs for API and UI"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle via Node server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./knowledge-observatory-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/knowledge-observatory-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd2d Knowledge Observatory running:\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: knowledge-observatory --help'",
-          "description": "Display access URLs for API and UI after startup"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "ensure-ui-build",
-          "run": "if [ -f ui/package.json ] && [ ! -f ui/dist/index.html ]; then cd ui && pnpm run build; else echo 'UI build already present'; fi",
-          "description": "Ensure UI bundle exists before Lighthouse audits"
-        },
-        {
-          "name": "run-tests",
-          "run": "ui_url=\"http://localhost:${UI_PORT}\"\ncheck_health() { curl -sS -o /dev/null -w \"%{http_code}\" \"$ui_url/health\" 2>/dev/null || true; }\nif curl -sS \"$ui_url/\" 2>/dev/null | grep -q \"Knowledge Observatory UI\"; then\n  echo \"Using existing Knowledge Observatory UI at $ui_url\"\n  test-genie execute knowledge-observatory --preset comprehensive --ui-url \"$ui_url\"\n  exit $?\nfi\nif [ \"$(check_health)\" != \"000\" ]; then\n  echo \"Port ${UI_PORT} is already serving a different UI. Stop the conflicting service or free the port.\"\n  exit 1\nfi\n( cd ui && node server.js ) &\nui_pid=$!\ntrap 'kill $ui_pid 2>/dev/null || true' EXIT\ni=0\nwhile [ \"$i\" -lt 30 ]; do\n  if [ \"$(check_health)\" != \"000\" ]; then\n    break\n  fi\n  i=$((i+1))\n  sleep 1\ndone\nif [ \"$(check_health)\" = \"000\" ]; then\n  echo \"UI failed to start on $ui_url\"\n  exit 1\nfi\ntest-genie execute knowledge-observatory --preset comprehensive --ui-url \"$ui_url\"",
-          "description": "Run structure/unit/integration/business/performance phases (ensures Knowledge Observatory UI is the Lighthouse target)"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'knowledge-observatory-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -203,31 +115,118 @@
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Primary vector database containing all semantic knowledge to monitor and search"
-      },
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Knowledge metadata, quality metrics, search history, and configuration storage",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
+        "description": "Primary vector database containing all semantic knowledge to monitor and search",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "description": "Enhanced semantic analysis and natural language query understanding"
+        "description": "Dense embeddings for hybrid documentation search and the LLM-as-reranker fallback",
+        "model_roles": [
+          "embedding.default",
+          "rerank.llm_fallback"
+        ],
+        "startup_policy": "try_start"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "description": "Optional relational source for observatory metadata",
+        "startup_policy": "try_start"
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the fused hybrid-search shortlist for the strongest result ordering.",
+        "degraded_behavior": "Reranking falls back to the qwen3:4b LLM reranker, then to raw RRF-fused order; search still returns results, only the final ordering is less precise."
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional coding-agent execution for deep documentation search and documentation healing. Agent Manager owns portable profile reconciliation and resource-owned runner/model selection.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/deep-search.json",
+              ".vrooli/agent-manager/doc-healing.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Documentation indexing and standard health checks continue when Agent Manager is unavailable; deep-search and document-healing actions return a clear unavailable error."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Federated search router. knowledge-observatory self-registers its `knowledge-observatory.docs` provider (descriptor + tuning + tests) from `.vrooli/search.json` at boot so search-hub can route to it and run quality sweeps. Registration is an idempotent upsert.",
+        "degraded_behavior": "If search-hub is down at boot, self-registration retries briefly then gives up; KO serves docs search normally and re-registers on its next boot."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "knowledge-observatory",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "knowledge-observatory"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

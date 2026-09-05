@@ -39,7 +39,7 @@ export function TiersManagement() {
   } = useBillingForm();
 
   // Stripe import modal
-  const stripeImport = useStripeImport(loadBundles);
+  const stripeImport = useStripeImport(() => { void loadBundles(); });
 
   // Coupon mappings for plan-coupon assignment
   const couponMappings = useCouponMappings();
@@ -59,7 +59,7 @@ export function TiersManagement() {
   }, []);
 
   const handleAddPlanSuccess = useCallback(() => {
-    loadBundles();
+    void loadBundles();
   }, [loadBundles]);
 
   const defaultBundleKey = useMemo(
@@ -93,7 +93,6 @@ export function TiersManagement() {
       <div className={LAYOUT.pageSpacing}>
         <div className="flex items-start justify-between gap-4">
           <PageHeader
-            variant="icon-title"
             title="Plan Management"
             description="Configure pricing plans and control how subscription tiers appear to visitors."
             icon={Layers}
@@ -104,7 +103,7 @@ export function TiersManagement() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               size="sm"
-              onClick={() => handleOpenAddPlan(defaultBundleKey)}
+              onClick={() => { handleOpenAddPlan(defaultBundleKey); }}
               className="gap-2"
               disabled={loadingBundles}
             >
@@ -114,7 +113,7 @@ export function TiersManagement() {
             <Button
               variant="outline"
               size="sm"
-              onClick={stripeImport.openModal}
+              onClick={() => { void stripeImport.openModal(); }}
               className="gap-2"
             >
               <Download className="h-4 w-4" />
@@ -166,14 +165,14 @@ export function TiersManagement() {
           onTabChange={setPricingTab}
           showDemoPlaceholders={includeDemoPlaceholders}
           onToggleDemoPlaceholders={toggleDemoPlaceholders}
-          onReload={loadBundles}
+          onReload={() => { void loadBundles(); }}
           loading={loadingBundles}
           error={bundleError}
           onPriceChange={handlePriceChange}
           onSavePrice={handleSavePrice}
           onVerifyPrice={handleVerifyPrice}
           onRemoveDemoPlan={removeDemoPlan}
-          onDeletePlan={handleDeletePlan}
+          onDeletePlan={(...args) => { void handleDeletePlan(...args); }}
           onReorderPlans={handleReorderPlans}
           priceChecks={priceChecks}
           onAddPlan={handleOpenAddPlan}

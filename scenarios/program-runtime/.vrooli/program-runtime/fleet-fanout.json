@@ -1,0 +1,92 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.fleet-fanout",
+  "version": "1",
+  "purpose": "Read three governed scenario surfaces concurrently and return only a count and the first-row key set per surface; the fan-out construction pattern.",
+  "inputs": {},
+  "assumptions": [
+    "agent-manager, ai-gateway, and program-runtime are running"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "no row set is materialized; every reading is count or head(1)",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/measures/run-volume",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/total",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/bindings/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "surfaces": "name -> {count, first_row_keys} for each surface read, or {unavailable: true} for a surface whose scenario did not answer"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "binding ids read"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "agent-manager",
+        "ai-gateway",
+        "program-runtime"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

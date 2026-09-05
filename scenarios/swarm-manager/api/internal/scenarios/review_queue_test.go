@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
 
 // --- Stubs ---

@@ -2,6 +2,38 @@
 
 > Source of truth: the code. Verify claims below against actual implementation.
 
+## Flow Index
+
+| Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
+|---|---|---|---|---|---|---|
+| `web-console.playback-transport.ui` | `tts-playback` | High — pause/resume + queue advancement bugs reported by users | L5 transport, L3 intent | `ui/src/domains/tts-playback/flow/flow.json`, `transition.ts`, `store.ts`, `useTtsPlaybackController.ts` | `flow.test.ts` (formal replay), `useTtsPlaybackController.test.ts`, `workspace-tts-replay-bar.test.tsx`, `terminal-pane-tts-stop.test.tsx` | Transport is formalized. Persistent user intent is reducer/hook tested but not yet represented in `flow.json`. |
+| `web-console.voice-capture.ui` | `voice-input` | Medium — user-facing recording lifecycle has async provider startup, cancellation, auto-stop, and transcribing grace windows | L3 | `ui/src/hooks/useVoiceInput.ts`, `ui/src/components/VoiceMicButton.tsx` | `useVoiceInput.test.ts`, `audioCueContract.test.ts`, `voice-mic-button.test.tsx` | Provider startup and cue pairing are covered; full capture flow is not yet declaratively specified. |
+| `web-console.voice-activity-autostop.ui` | `voice-input` | Medium — VAD auto-stop can surprise users and the visual level can drift if UI state is not derived from the same sample as VAD | L3 | `ui/src/hooks/voice/vad.ts`, `ui/src/hooks/voice/activity.ts`, `ui/src/hooks/useVoiceInput.ts` | `vad.test.ts`, `activity.test.ts`, `voice-mic-button.test.tsx` | Not formalized. Future work can promote the activity snapshot to a declarative spec if more VAD UI states are added. |
+| `web-console.grok-tailer.api` | `conversation-ingestion` | Medium — delayed file creation, partial trailing lines, mid-turn restart | L2 (imperative; turn-boundary checkpoint invariant tested) | `api/grok_tailer.go`, `api/backends/grok/updates.go` | `grok_tailer_test.go` (backfill, resume, partial line, dup replay, agent-info), `backends/grok/updates_test.go` (parse + turn accumulation) | Not declaratively specified. States are file-discovery → tail → accumulate-turn → emit-at-boundary; could be promoted to an L3 workflow if tool/thought capture is added. |
+| `web-console.opencode-watcher.api` | `conversation-ingestion` | Medium — SSE reconnect, full-history reconcile idempotency, directory attribution ambiguity | L2 (imperative; reconnect + idempotency + attribution-uniqueness tested) | `api/opencode_watcher.go`, `api/backends/opencode/{client.go,normalize.go}` | `opencode_watcher_test.go` (backfill, idempotent reconcile, directory filter, ambiguity skip, reconnect, restart-claims), `backends/opencode/{normalize_test.go,client_test.go}` | Not declaratively specified. Lifecycle is start-server → subscribe → (event\|tick) → debounced reconcile → reconnect-with-backoff. Attribution is best-effort by directory+time+uniqueness. |
+
+## Unmodeled Candidates
+
+| Candidate | Why It May Be Temporal | Current Risk | Recommended Next Step |
+|---|---|---|---|
+| Session SSE / WebSocket stream | Reconnect, exponential backoff, partial-event buffering | Medium — silent stalls reported | Inventory states (connecting/open/draining/reconnecting/closed) before any rework |
+| Claude-console attach lifecycle | Sessions reattach across reloads; pty buffering | Medium | L1 inventory of attach/replay/swap states |
+| Optimistic message send | UI shows pending, then server confirms | Low | Keep at L1 until a bug surfaces |
+| Voice persistent mode | Already partially inventoried below; segment boundary + speaker verification has implicit ordering | Medium | Promote VAD + speaker-verification gate to a single L2 workflow |
+
+## Declarative & Formal Spec Status
+
+| Flow ID | Spec Type | Generated Artifacts | Drift Check | Status |
+|---|---|---|---|---|
+| `web-console.playback-transport.ui` | `flow.json` (schemaVersion 6) | `flow/generated/{model.qnt,runtime.ts,replay.helper.ts,artifact.json}` | `flow-verifier verify check` + vitest replay of all named traces | adopted |
+| `web-console.playback-intent.ui` | TypeScript helpers + persisted Zustand store | N/A | Vitest helper/controller/component regression tests | adopted, not formalized |
+
+## Audit Notes
+
+- **2026-05-13** — Initial L5 adoption of `web-console.playback-transport.ui`. Quint check passes (TypeOK, IllegalTransitionsPreserveState, PausedSwallowsAutoAdvance, StaleCompletionIsIgnored). Vitest replay green. Wired into `useTtsPlaybackController` to fix user-reported "pause auto-advances to next message" and "pause then play elsewhere" races. Stale-completion guarding via `loadId` carried in event payloads, mirroring the notes template's `attempt-id` pattern.
+- **2026-05-15** — Frontend TTS auto-play policy moved out of `TerminalPane` and into `useTtsPlaybackController`. The controller now owns persisted `playbackIntent` (`continuous`, `paused`, `stopped`), selected target, incoming assistant auto-play decisions, and listened-cursor commits after natural completion. The playback bar has no close/collapse presentation state; when auto-TTS is enabled, visibility derives from a valid active/replay target. `TerminalPane` appends conversation events, sends received/seen acks, and exposes provider controls only. Remaining gap: intent is documented and tested in TypeScript, but not yet in the formal flow model.
+- **2026-05-15** — Mic button presentation was separated from TTS playback presentation. `VoiceMicButton` no longer renders speaker/green playback state; TTS speaking state is interaction-only so starting voice input can stop active playback before recording. `useVoiceInput` now exposes a `voiceActivity` snapshot built from the same audio-analysis sample that drives VAD, and `VoiceMicButton` renders the one-shot silence auto-stop countdown as a circular ring only after the configured visual grace.
+
 ## Async Operation Inventory
 
 ### API (Go)
@@ -14,6 +46,9 @@
 | **WebSocket output forwarder** | `terminal_ws.go:101` | WS upgrade in `handleTerminalWS` | PTY output channel + `ctx.Done()` | Writes stdout/exit to WS conn, calls `FlushPending` after each write | Channel closed (process exit), WS write error, or `ctx.Done()` (input loop exited) |
 | **WebSocket input loop** | `terminal_ws.go` | WS upgrade (inline, same goroutine) | WS read | Writes to PTY stdin, triggers resize | WS read error → `defer cancel()` signals forwarder |
 | **AI provider chain** | `ai_generate.go:253` | `POST /api/v1/ai/generate` | HTTP request context | Per-provider timeout context, health metrics | All providers tried or first success |
+| **CodexTailer poll/tail** | `codex_tailer.go` | `Server` startup | 2s scan ticker + per-file 500ms tail ticker, session list | Appends conversation events, byte-offset checkpoints | `Stop()` in server Cleanup; per-file watcher exits on file vanish or session gone |
+| **GrokTailer poll/tail** | `grok_tailer.go` | `Server` startup | 2s scan ticker + per-file 500ms tail ticker, session list | Appends user/assistant at `turn_completed`; checkpoints offset only at turn boundaries | `Stop()` in server Cleanup; per-file watcher exits on file vanish or session gone |
+| **OpenCodeWatcher** | `opencode_watcher.go` | `Server` startup | Managed `opencode serve` SSE stream + 15s reconcile ticker | Attributes sessions to panes, reconciles `/session/{id}/message`, persists per-session cursor | `Stop()` in server Cleanup (cancels ctx, kills managed server); reconnects stream with bounded backoff |
 
 ### UI (React/TypeScript)
 
@@ -47,7 +82,7 @@
 | Race | Location | Status | Mitigation |
 |------|----------|--------|------------|
 | Concurrent WS writes | `terminal_ws.go:89` | **Mitigated** | `writeMu sync.Mutex` serializes all WS writes |
-| Client channel coalescing | `session.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending`. Pending buffer capped at `OfflineBufferMax` with ANSI-boundary-aware trimming |
+| Client channel coalescing | `broadcast.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending`. Pending buffer capped at the fixed `pendingBufferMax`; on overflow the oldest bytes are truncated and the next snapshot replay restores correct state |
 | Event subscriber drop | `events.go:74` | **By design** | Non-blocking fan-out; full channels skip events |
 | Stale AI response | `AiInput.tsx` | **Mitigated** | Generation ID ref discards stale setState calls |
 | Stale settings load | `SettingsPage.tsx` | **Mitigated** | Cancellation signal prevents setState on unmounted component |

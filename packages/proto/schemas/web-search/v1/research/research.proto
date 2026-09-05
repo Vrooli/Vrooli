@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package vrooli.web_search.v1.research;
+
+import "google/protobuf/timestamp.proto";
+import "web-search/v1/livesearch/livesearch.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/research;research_v1";
+
+// ResearchService is the L2/L3 deep-research surface that sits above the L0/L1
+// live-search path. L2 (RunL2) is a synchronous single-pass pipeline: it fetches
+// the top-N result pages, extracts readable text, and produces ONE cited
+// synthesis grounded in the full page content (not just snippets). L3 (RunL3)
+// hands the harder, iterative research-and-reconcile loop to an agent-manager
+// run and returns a run handle the caller polls via GetResearchStatus.
+//
+// Auto-capture policy: L3 distills findings by default; L2 only when the caller
+// opts in (capture=true); L0/L1 never persist.
+service ResearchService {
+  // RunL2 runs the synchronous L2 fetch -> read -> single-pass cited synthesis
+  // pipeline and returns a Brief plus the cited synthesis. With capture=true the
+  // distilled claims are written to the findings store (FINDING_SOURCE_L2).
+  rpc RunL2(RunL2Request) returns (RunL2Response);
+  // RunL3 starts an agent-manager run that performs the iterative
+  // research-and-reconcile loop and returns the run handle. The loop semantics
+  // (gather nearby findings -> research the gap with L2 tools -> reconcile:
+  // distill, supersede outdated, flag low-confidence contradictions) are encoded
+  // in the agent task. Auto-capture is on for L3.
+  rpc RunL3(RunL3Request) returns (RunL3Response);
+  // GetResearchStatus polls an L3 run by id.
+  rpc GetResearchStatus(GetResearchStatusRequest) returns (GetResearchStatusResponse);
+  // GatherRelatedFindings returns the findings semantically NEAR a query — the
+  // bounded GATHER step of the research-and-reconcile loop (OT-P1-003). The
+  // sweep is "near the query", never a whole-store scan: the server enforces a
+  // hard cap (max 20) regardless of the requested max, so the L3 agent uses this
+  // endpoint instead of a free-form findings search.
+  rpc GatherRelatedFindings(GatherRelatedFindingsRequest) returns (GatherRelatedFindingsResponse);
+}
+
+// Citation links a synthesis claim back to the fetched page that supports it.
+message Citation {
+  // result_index is the zero-based index into the fetched page set.
+  int32 result_index = 1;
+  string url = 2;
+  string title = 3;
+}
+
+// Brief is the research artifact a Run produced: the query, the level ("l2" |
+// "l3"), the synthesized summary, and the citations that ground it.
+message Brief {
+  string query = 1;
+  string level = 2; // "l2" | "l3"
+  string summary = 3;
+  repeated Citation citations = 4;
+}
+
+message RunL2Request {
+  string query = 1;
+  // top_n caps how many result pages are fetched and read (1..10). Defaults to a
+  // server-side value when unset or non-positive.
+  int32 top_n = 2;
+  // capture opts in to persisting the distilled claims as findings (L2 default
+  // is OFF; L0/L1 never capture, L3 always does).
+  bool capture = 3;
+}
+
+message RunL2Response {
+  // brief carries the query, level, summary, and citations.
+  Brief brief = 1;
+  // synthesis is the cited synthesis text (== brief.summary; surfaced separately
+  // for parity with the live-search response shape).
+  string synthesis = 2;
+  // abstained is set when the fetched pages were insufficient or in conflict; the
+  // synthesis is then an explicit abstention rather than a guess.
+  bool abstained = 3;
+  // captured_finding_ids lists the findings written when capture was set. Empty
+  // when capture was off or nothing was distilled.
+  repeated string captured_finding_ids = 4;
+  // degraded_engines lists upstream engines that did not contribute to the L0
+  // candidate search backing this run (mirrors
+  // livesearch.SearchResponse.degraded_engines). A weak synthesis with a
+  // non-empty list usually means the inputs were partial, not that the web
+  // lacks an answer.
+  repeated vrooli.web_search.v1.livesearch.EngineIssue degraded_engines = 5;
+  // abstain_reason explains WHICH collapse produced an abstention (empty when
+  // abstained=false): "no_candidates" (the L0 search returned no usable
+  // pages), "all_fetches_empty" (candidates existed but every fetch failed or
+  // extracted no text), "model_abstained" (the model judged the documents
+  // insufficient or in conflict), "reply_unparseable" (no parseable JSON in
+  // the model reply), or "citations_invalid" (the answer was grounded in no
+  // valid document index — treated as fabrication).
+  string abstain_reason = 6;
+  // excerpts mirrors, per fetched document, the text actually sent to the
+  // synthesis model (post relevance-selection/truncation, transport-capped) —
+  // the observability needed to debug a wrong or abstaining synthesis.
+  repeated DocumentExcerpt excerpts = 7;
+}
+
+// DocumentExcerpt is what the synthesis model actually read from one fetched
+// document: the source url/title plus the (capped) excerpt text.
+message DocumentExcerpt {
+  string url = 1;
+  string title = 2;
+  string excerpt = 3;
+}
+
+message RunL3Request {
+  string query = 1;
+}
+
+message RunL3Response {
+  // run_id is the agent-manager run handle to poll via GetResearchStatus.
+  string run_id = 1;
+  // status is the initial run status (e.g. "pending", "running").
+  string status = 2;
+}
+
+message GetResearchStatusRequest {
+  string run_id = 1;
+}
+
+message GetResearchStatusResponse {
+  string run_id = 1;
+  // status is the current run status ("pending" | "running" | "complete" |
+  // "failed" | "cancelled").
+  string status = 2;
+  // summary is the run's final summary when complete (may be empty otherwise).
+  string summary = 3;
+  // started_at / finished_at are populated when known.
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp finished_at = 5;
+  // error_msg explains a failed run.
+  string error_msg = 6;
+}
+
+message GatherRelatedFindingsRequest {
+  string query = 1;
+  // max requests an upper bound on how many nearby findings to return. The
+  // server clamps it to [1, 20]; an unset/non-positive value defaults to 20.
+  // The bound is enforced server-side — a caller cannot widen the sweep.
+  int32 max = 2;
+}
+
+// GatheredFinding is one finding semantically near the gather query, projected
+// to the fields the reconcile step needs (no full citation payload).
+message GatheredFinding {
+  string finding_id = 1;
+  string claim = 2;
+  double confidence = 3;
+  // status is the lifecycle state ("active" | "disputed"); superseded findings
+  // are excluded from the gather (they are not in the semantic index).
+  string status = 4;
+  // score is the semantic relevance of this finding to the query.
+  double score = 5;
+}
+
+message GatherRelatedFindingsResponse {
+  repeated GatheredFinding findings = 1;
+  // cap_applied is the effective bound the server enforced for this gather
+  // (after clamping the requested max), so callers can see the sweep was
+  // bounded.
+  int32 cap_applied = 2;
+}

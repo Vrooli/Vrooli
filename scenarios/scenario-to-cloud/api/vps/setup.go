@@ -36,6 +36,10 @@ func buildBootstrapCommand(manifest domain.CloudManifest) string {
 	return command
 }
 
+func buildVrooliSetupCommand(workdir string) string {
+	return shellutil.VrooliCommand(workdir, "vrooli setup --yes yes --environment production")
+}
+
 // SetupRequest is the request body for VPS setup.
 type SetupRequest struct {
 	Manifest   domain.CloudManifest `json:"manifest"`
@@ -91,10 +95,16 @@ func BuildSetupPlan(manifest domain.CloudManifest, bundlePath string) ([]domain.
 			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("tar -xzf %s -C %s", shellutil.QuoteSingle(remoteBundlePath), shellutil.QuoteSingle(manifest.Target.VPS.Workdir))),
 		},
 		{
+			ID:          "install_vrooli",
+			Title:       "Install native vrooli CLI",
+			Description: "Build the native Linux vrooli binary locally for the detected target architecture, upload it to the deployment workdir, and mark it executable.",
+			Command:     buildInstallVrooliPlanCommand(cfg, manifest.Target.VPS.Workdir),
+		},
+		{
 			ID:          "setup",
 			Title:       "Run Vrooli setup",
 			Description: "Runs production setup with only required resources.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))),
+			Command:     ssh.LocalSSHCommand(cfg, buildVrooliSetupCommand(manifest.Target.VPS.Workdir)),
 		},
 		{
 			ID:          "autoheal",
@@ -106,7 +116,7 @@ func BuildSetupPlan(manifest domain.CloudManifest, bundlePath string) ([]domain.
 			ID:          "verify",
 			Title:       "Verify vrooli CLI",
 			Description: "Sanity check that vrooli runs within the deployment directory.",
-			Command:     ssh.LocalSSHCommand(cfg, fmt.Sprintf("cd %s && vrooli --version", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(manifest.Target.VPS.Workdir, "vrooli --version")),
 		},
 	}, nil
 }
@@ -219,9 +229,17 @@ func RunSetupWithProgress(
 	*progress += StepWeights["extract"]
 	emit("step_completed", "extract", "Extracting bundle")
 
+	// Step: install_vrooli
+	emit("step_started", "install_vrooli", "Installing native vrooli CLI")
+	if err := installRemoteVrooliCLI(ctx, cfg, manifest.Target.VPS.Workdir, sshRunner, scpRunner); err != nil {
+		return failStep("install_vrooli", "Installing native vrooli CLI", err)
+	}
+	*progress += StepWeights["install_vrooli"]
+	emit("step_completed", "install_vrooli", "Installing native vrooli CLI")
+
 	// Step: setup (production mode - skips dev tools, installs only required resources)
 	emit("step_started", "setup", "Running setup")
-	if err := runStep("setup", fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes --environment production", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+	if err := runStep("setup", buildVrooliSetupCommand(manifest.Target.VPS.Workdir)); err != nil {
 		return failStep("setup", "Running setup", err)
 	}
 	*progress += StepWeights["setup"]
@@ -237,7 +255,7 @@ func RunSetupWithProgress(
 
 	// Step: verify
 	emit("step_started", "verify_setup", "Verifying installation")
-	if err := runStep("verify_setup", fmt.Sprintf("cd %s && vrooli --version", shellutil.QuoteSingle(manifest.Target.VPS.Workdir))); err != nil {
+	if err := runStep("verify_setup", shellutil.VrooliCommand(manifest.Target.VPS.Workdir, "vrooli --version")); err != nil {
 		return failStep("verify_setup", "Verifying installation", err)
 	}
 	*progress += StepWeights["verify_setup"]

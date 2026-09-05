@@ -1,0 +1,189 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.collection-page",
+    "name": "CollectionPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "A route-level surface for browsing a resource collection: title and actions, search and filters, a table or card presentation, selection with bulk actions, and pagination — owning every generic state so an adopting scenario supplies only its records and its domain actions.",
+    "targets": [
+      "react-vite"
+    ],
+    "kits": [
+      "vrooli-default"
+    ],
+    "slot": "page-template",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "patterns.search-filter-results",
+        "reason": "Owns query state, URL synchronization, stale-result handling, and the empty-versus-no-match distinction."
+      },
+      {
+        "asset": "data-display.data-table",
+        "reason": "The default collection presentation, including sort, selection, and responsive column priority."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Coordinates the loading, empty, partial, error, stale, refreshing, and offline states this template promises."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Carries the title, breadcrumbs, primary action, and overflow that every route-level surface needs."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "data-display.bulk-action-bar",
+        "reason": "Only collections whose records support multi-item operations need it, and it brings destructive-action safeguards a read-only collection should not inherit."
+      },
+      {
+        "asset": "overlays.inspector-panel",
+        "reason": "Useful when records are inspected without leaving the list, but a collection that navigates to a detail route does not want the extra surface."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRecord"
+      ]
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "i18n-adapter"
+    },
+    {
+      "capability": "layer-manager"
+    },
+    {
+      "capability": "live-announcer"
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    },
+    {
+      "capability": "telemetry-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "semantic-structure",
+    "heading-hierarchy",
+    "keyboard-operable",
+    "focus-order",
+    "status-announced",
+    "responsive-transformation",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "mobile-capability-parity",
+    "offline-behavior",
+    "freshness-disclosure",
+    "partial-degradation",
+    "recovery-path",
+    "error-honesty",
+    "permission-explained",
+    "empty-state-craft",
+    "entrance-restraint",
+    "card-restraint",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "api": {
+    "levels": [
+      "controller",
+      "convenience"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ]
+  },
+  "regions": [
+    {
+      "id": "header",
+      "purpose": "Title, breadcrumbs, description, and the primary and overflow actions for the collection.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "filters",
+      "purpose": "Search entry, structured filters, active-filter chips, saved views, and reset.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "collection",
+      "purpose": "The records themselves, in table or card presentation with selection and pagination.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "data-display"
+    },
+    {
+      "id": "bulk-actions",
+      "purpose": "Contextual actions that appear once records are selected, with scope and destructive safeguards.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "inspector",
+      "purpose": "Optional contextual detail for the selected record without leaving the collection.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ],
+  "qualityGates": [
+    "forced-colors"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Selecting a record carries it into the inspector while preserving its position in the list and its live state, so the user never loses their place in the collection they are working through.",
+      "required": false
+    },
+    "avoid": [
+      "uniform-card-grid",
+      "card-wrapping-page-sections",
+      "modal-for-routine-inspection",
+      "toast-as-only-error-record"
+    ]
+  },
+  "rationale": "The highest-leverage template in the catalog: most operational scenarios are mostly collection pages, and every one of them currently reimplements loading, empty, partial, stale, and error handling by hand. Delivery is `generated` because the shape is fully determined by the resource contract plus field metadata."
+}

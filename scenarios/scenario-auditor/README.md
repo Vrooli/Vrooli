@@ -9,13 +9,13 @@ The Scenario Auditor is Vrooli's permanent quality gatekeeper, ensuring every sc
 ### 🛡️ Comprehensive Standards Enforcement
 - **API Standards**: Go best practices, security patterns, documentation requirements
 - **Configuration Standards**: service.json schema compliance, lifecycle completeness  
-- **UI Standards**: Browserless testing practices, accessibility, performance
+- **UI Standards**: BAS/Playwright testing practices, accessibility, performance
 - **Testing Standards**: Phase-based structure, coverage requirements, integration patterns
 
 ### 🔧 Rule Engine
 - **Modular YAML Rules**: Easy to read, write, and maintain
 - **Toggleable Preferences**: Enable/disable rules with persistent storage
-- **Category Organization**: Rules grouped by api, config, ui, testing
+- **Category Organization**: Rules grouped by api, cli, test, makefile (structure/config/ui rules migrated to the `structure-health` scenario)
 - **AI-Powered Creation**: Generate and edit rules using natural language
 
 ### 📊 Quality Dashboard
@@ -46,7 +46,6 @@ make setup
 # Or step by step
 make install  # Install dependencies
 make build    # Build binaries
-make install-cli  # Install CLI globally
 ```
 
 ### Usage
@@ -58,10 +57,10 @@ make run
 open http://localhost:35001
 
 # Use the CLI
-scenario-auditor scan current
-scenario-auditor rules --category config
-scenario-auditor fix ecosystem-manager --auto
-scenario-auditor audit browser-automation-studio --limit 10 --min-severity high
+scenario-auditor standards scan current --wait
+scenario-auditor rules list --category api
+scenario-auditor fixes status
+scenario-auditor standards violations --scenario browser-automation-studio
 ```
 
 ## 📋 CLI Commands
@@ -73,16 +72,16 @@ The CLI is a lightweight wrapper around the scenario-auditor API. Make sure the 
 vrooli scenario start scenario-auditor
 
 # Then use CLI commands
-scenario-auditor scan [scenario] [--rule <rule_id>] [--wait] [--timeout <s>]
-scenario-auditor rules               # List available rules
-scenario-auditor health              # Check API health
+scenario-auditor standards scan [scenario] [--rule <rule_id>] [--wait] [--timeout <duration>]
+scenario-auditor rules list          # List available rules
+scenario-auditor status              # Check API health
 scenario-auditor version             # Show version
 scenario-auditor help                # Show help
 ```
 
 **Note**: The CLI now uses async job-based scanning. Scans run in the background and the CLI polls for completion. Large scenarios may take 20-30 seconds to scan completely.
 
-`scenario-auditor audit` defaults to summary output optimized for agent loops: once the security + standards scans finish, the CLI prints severity counts, the top N violations (default 20), and the artifact path for each scan. Use `--limit <n>` to change how many entries appear, `--min-severity <critical|high|...>` to filter noise, `--json` to emit the summary payload for downstream tooling, and `--all` to fall back to the legacy raw JSON stream. Pass `--download-artifacts <dir>` if you want the CLI to save the referenced artifact files locally.
+`scenario-auditor standards scan --wait` is the main agent/operator flow: it starts a standards job, polls until completion, and returns the final job status. Use `scenario-auditor standards summary <job-id>` when you need the curated summary payload with severity counts, top violations, and recommended steps. Pass `--json` to either command for machine-readable output.
 
 ### Summary API & Artifacts
 
@@ -92,7 +91,7 @@ scenario-auditor help                # Show help
   - `group_by=rule` – include an aggregated `groups` array keyed by rule_id for quick remediation planning
 - `GET /api/v1/standards/violations/summary?scenario=<name>` returns the cached summary for the latest standards scan of a scenario (or the fleet-wide `all` bucket when omitted). It accepts the same filtering parameters so dashboards like app-monitor can present prioritized results without rerunning a scan.
 - `GET /api/v1/scenarios/scan/jobs/{id}/artifact` (and `/standards/.../artifact`) streams the archived JSON blob persisted under `logs/scenario-auditor/<type>/<scenario>/…`. Artifacts stay on disk for 14 days and the CLI’s `--download-artifacts <dir>` flag simply mirrors these endpoints locally.
-- Consumers that still need the full payload can combine the artifact endpoint with `scenario-auditor audit --all`; everyone else should rely on the lightweight summary for faster feedback loops.
+- Consumers that still need the full payload can fetch the scan artifact endpoint directly after the job completes; everyone else should rely on the lightweight summary for faster feedback loops.
 
 ### Port Detection
 
@@ -108,25 +107,25 @@ This ensures the CLI works correctly even when multiple scenarios are running wi
 ### Examples
 ```bash
 # Scan current scenario
-scenario-auditor scan
+scenario-auditor standards scan scenario-auditor --wait
 
 # Target a specific rule and wait for completion (recommended for fixes)
-scenario-auditor scan ecosystem-manager --rule interop_iframe_guard --wait --timeout 600
+scenario-auditor standards scan swarm-manager --rule health_check --wait --timeout 10m
 
 # Run a full scan only if you need the complete violation list
-scenario-auditor scan ecosystem-manager
+scenario-auditor standards scan swarm-manager
 
 # List available rules
-scenario-auditor rules
+scenario-auditor rules list
 
 # Check API health
-scenario-auditor health
+scenario-auditor status
 
 # Show version
 scenario-auditor version
 
 # List a scenario's violations after the scan job completes
-scenario-auditor rules --category interop
+scenario-auditor standards violations --scenario swarm-manager
 
 ```
 
@@ -156,9 +155,11 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 
 ### Rule Categories
 1. **API Standards** (`api/rules/api/`): Go best practices, security patterns
-2. **Configuration Standards** (`api/rules/config/`): service.json compliance
-3. **UI Standards** (`api/rules/ui/`): Browserless testing best practices
-4. **Testing Standards** (`api/rules/testing/`): Phase-based testing structure
+2. **CLI Standards** (`api/rules/cli/`): CLI conventions and output patterns
+3. **Testing Standards** (`api/rules/test/`): Phase-based testing structure
+4. **Makefile Standards** (`api/rules/makefile/`): Makefile conventions and targets
+
+> **Note**: The structure, config, and UI rule packs (e.g. `required_layout`, `env_validation`, `service_ports`, `helmet`, `focus_visible`, `spatial_nav`) have been migrated to the **`structure-health`** scenario, which now backs test-genie's Structure phase. Scenario Auditor retains only the cross-cutting policy/content standards rules: api, cli, test, makefile.
 
 ### Technology Stack
 - **Backend**: Go with Gorilla Mux, PostgreSQL
@@ -175,10 +176,10 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 - ✅ Binary naming conventions (`<scenario>-api`, `<scenario>`)
 - ✅ Health check configuration (API + UI endpoints)
 - ✅ Required step ordering and presence
-- ✅ Develop lifecycle includes start-api/start-ui/show-urls conventions
+- ✅ Develop lifecycle includes start-api/start-ui conventions
 - ✅ Ports configuration enforces API_PORT 15000-19999 and UI_PORT 35000-39999 ranges
 - ✅ Test lifecycle uses the Go orchestrator via test-genie (`vrooli scenario test <scenario>`)
-- ✅ Setup steps cover install-cli, scenario-specific build-api, and show-urls finale
+- ✅ Setup steps cover scenario-specific build-api plus required UI bundle work
 - ✅ Setup conditions ensure binaries and CLI checks match the scenario name
 - ✅ Lifecycle.health config enforces /health endpoints and http checks
 
@@ -191,9 +192,15 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 - ✅ Consistent naming conventions
 
 ### Iframe Bridge Integration
-- Add `@vrooli/iframe-bridge` to the UI package dependencies (workspace builds can use `workspace:*`, published scenarios should pin a semver range).
+- Add `@vrooli/iframe-bridge` to the UI package dependencies using a relative `file:` path.
 - In the UI entry file, import `initIframeBridgeChild` from the shared package, guard with `window.parent !== window`, and initialize it with an `appId` so orchestration can identify the UI.
 - Scenarios that previously vendored `iframeBridgeChild.ts` should remove the copy and rely on the shared package instead.
+
+### Package Governance Enforcement
+- Shared-package adoption policy is enforced through the external `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION` rule provided by `scenario-stack-governor`.
+- That rule delegates to Structure Health's project target, so scenario-auditor stays aligned with the canonical structural catalog instead of re-implementing package policy locally.
+- This covers manifest-backed package adoption, forbidden workspace-star usage in real scenarios, and unauthorized shared-package propagation hacks.
+- Canonical documentation lives in [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) and [scenario-stack-governor/README.md](/home/matthalloran8/Vrooli/scenarios/scenario-stack-governor/README.md:21).
 
 ### Phase-Based Testing
 - ✅ test/phases/ directory structure
@@ -259,9 +266,10 @@ scenario-auditor/
 │   ├── handlers_*.go     # API handlers
 │   ├── rules/        # Interpreted rule sources (organized by category)
 │   │   ├── api/          # API standards
-│   │   ├── config/       # Configuration rules
-│   │   ├── ui/           # UI standards
-│   │   └── testing/      # Testing requirements
+│   │   ├── cli/          # CLI standards
+│   │   ├── test/         # Testing requirements
+│   │   └── makefile/     # Makefile standards
+│   │   # NOTE: structure/, config/, ui/ rule packs migrated to the structure-health scenario
 │   └── storage/          # Data persistence
 ├── cli/                  # Command-line tool
 │   ├── main.go          # CLI entry point
@@ -361,7 +369,7 @@ Runtime signature: Go-based rules must expose an exported `Check` function with 
 ## 📚 Resources
 
 - [Product Requirements Document](PRD.md)
-- [UI Testing Best Practices](../resources/browserless/docs/UI_TESTING_BEST_PRACTICES.md)
+- [UI Testing Best Practices (BAS/Playwright)](../browser-automation-studio/README.md)
 - [Phase-Based Testing Guide](test/README.md)
 - [Rule Creation Documentation](docs/RULE_CREATION.md)
 

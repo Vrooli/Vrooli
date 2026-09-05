@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "name": "mission-control-loads",
+    "description": "Navigates to /mission-control and verifies the ThemeProvider applies data-theme='ground-control'. Console output is captured by the runner's console-logs artifact.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-FOUNDATION-MISSION-CONTROL-LOADS\"]"
+    },
+    "version": "2",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /mission-control"
+        }
+      }
+    },
+    {
+      "id": "wait-theme-applied",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='ground-control']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='ground-control'"
+        }
+      }
+    },
+    {
+      "id": "assert-theme-attribute",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-theme='ground-control']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected [data-theme='ground-control'] to be attached by ThemeProvider on /mission-control"
+        },
+        "metadata": {
+          "label": "Assert data-theme='ground-control' present"
+        }
+      }
+    },
+    {
+      "id": "assert-supporting-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface='supporting'][data-experience-state='ready'], [data-experience-surface='supporting'][data-experience-state='partial']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Expected the supporting readings region to reach a terminal lifecycle state"
+        },
+        "metadata": {
+          "label": "Supporting readings reached a terminal state"
+        }
+      }
+    },
+    {
+      "id": "capture-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /mission-control"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-mission-control",
+      "target": "wait-theme-applied",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-theme-applied",
+      "target": "assert-theme-attribute",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-theme-attribute",
+      "target": "assert-supporting-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-supporting-ready",
+      "target": "capture-mission-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

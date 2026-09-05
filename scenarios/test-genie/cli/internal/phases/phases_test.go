@@ -13,9 +13,17 @@ func TestNormalizeSelectionNormalizesAliasesAndDedupes(t *testing.T) {
 		t.Fatalf("NormalizeSelection returned error: %v", err)
 	}
 
-	want := []string{"unit", "playbooks"}
+	want := []string{"unit", "workflow"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected normalized phases %v, got %v", want, got)
+	}
+}
+
+func TestDeprecatedAliasWarnings(t *testing.T) {
+	got := DeprecatedAliasWarnings([]string{"playbooks", "e2e", "unit"})
+	want := []string{"phase \"playbooks\" is deprecated; use \"workflow\""}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeprecatedAliasWarnings() = %v, want %v", got, want)
 	}
 }
 
@@ -40,7 +48,7 @@ func TestNormalizeSelectionRejectsUnknownPhase(t *testing.T) {
 }
 
 func TestApplySkipNormalizesAliases(t *testing.T) {
-	got := ApplySkip([]string{"unit", "e2e", "playbooks", "lint"}, []string{" PLAYBOOKS ", "lint"})
+	got := ApplySkip([]string{"unit", "e2e", "playbooks", "quality"}, []string{" PLAYBOOKS ", "quality"})
 	want := []string{"unit"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected skipped phases %v, got %v", want, got)
@@ -48,9 +56,9 @@ func TestApplySkipNormalizesAliases(t *testing.T) {
 }
 
 func TestMakeDescriptorMapsDoesNotInventFallbackTimeouts(t *testing.T) {
-	descMap, targets := MakeDescriptorMaps([]Descriptor{{Name: "Lint"}})
-	if _, ok := descMap["lint"]; !ok {
-		t.Fatalf("expected lint descriptor map entry, got %v", descMap)
+	descMap, targets := MakeDescriptorMaps([]Descriptor{{Name: "Quality"}})
+	if _, ok := descMap["quality"]; !ok {
+		t.Fatalf("expected quality descriptor map entry, got %v", descMap)
 	}
 	if len(targets) != 0 {
 		t.Fatalf("expected no synthetic timeouts, got %v", targets)

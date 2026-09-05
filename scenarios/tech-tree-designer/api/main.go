@@ -2,389 +2,100 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
+	"tech-tree-designer/internal/modules"
+	"tech-tree-designer/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
+
+	graphH "tech-tree-designer/handlers/graph"
+	healthH "tech-tree-designer/handlers/health"
+	ontologyH "tech-tree-designer/handlers/ontology"
+	planningH "tech-tree-designer/handlers/planning"
+	graphdomain "tech-tree-designer/internal/graph"
+	ontologydomain "tech-tree-designer/internal/ontology"
+	planningdomain "tech-tree-designer/internal/planning"
+
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph"
 )
 
-const (
-	treeIDQueryParam   = "tree_id"
-	treeSlugQueryParam = "tree_slug"
-	treeIDHeader       = "X-Tech-Tree-Id"
-	treeSlugHeader     = "X-Tech-Tree-Slug"
-)
-
-var slugCleaner = regexp.MustCompile(`[^a-z0-9-]+`)
-
-func scanTechTree(row *sql.Row) (*TechTree, error) {
-	var tree TechTree
-	var parentID sql.NullString
-	err := row.Scan(
-		&tree.ID,
-		&tree.Slug,
-		&tree.Name,
-		&tree.Description,
-		&tree.Version,
-		&tree.TreeType,
-		&tree.Status,
-		&tree.IsActive,
-		&parentID,
-		&tree.CreatedAt,
-		&tree.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if parentID.Valid {
-		tree.ParentTree = &parentID.String
-	} else {
-		tree.ParentTree = nil
-	}
-	return &tree, nil
+type graphScenarioSource struct {
+	graph *graphdomain.Service
 }
 
-func fetchTechTreeByID(ctx context.Context, id string) (*TechTree, error) {
-	if db == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
-	return scanTechTree(db.QueryRowContext(ctx, `
-		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
-		FROM tech_trees
-		WHERE id = $1
-	`, id))
-}
-
-func fetchTechTreeBySlug(ctx context.Context, slug string) (*TechTree, error) {
-	if db == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
-	return scanTechTree(db.QueryRowContext(ctx, `
-		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
-		FROM tech_trees
-		WHERE slug = $1
-	`, slug))
-}
-
-func fetchDefaultTechTree(ctx context.Context) (*TechTree, error) {
-	if db == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
-	return scanTechTree(db.QueryRowContext(ctx, `
-		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
-		FROM tech_trees
-		WHERE tree_type = 'official' AND status = 'active'
-		ORDER BY updated_at DESC
-		LIMIT 1
-	`))
-}
-
-func resolveTreeContext(c *gin.Context) (*TechTree, error) {
-	ctx := c.Request.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if treeID := strings.TrimSpace(c.Query(treeIDQueryParam)); treeID != "" {
-		return fetchTechTreeByID(ctx, treeID)
-	}
-
-	if treeSlug := strings.TrimSpace(c.Query(treeSlugQueryParam)); treeSlug != "" {
-		return fetchTechTreeBySlug(ctx, treeSlug)
-	}
-
-	if headerID := strings.TrimSpace(c.GetHeader(treeIDHeader)); headerID != "" {
-		return fetchTechTreeByID(ctx, headerID)
-	}
-
-	if headerSlug := strings.TrimSpace(c.GetHeader(treeSlugHeader)); headerSlug != "" {
-		return fetchTechTreeBySlug(ctx, headerSlug)
-	}
-
-	return fetchDefaultTechTree(ctx)
-}
-
-func normalizeSlug(value string) string {
-	slug := strings.ToLower(strings.TrimSpace(value))
-	slug = strings.ReplaceAll(slug, " ", "-")
-	slug = slugCleaner.ReplaceAllString(slug, "-")
-	slug = strings.Trim(slug, "-")
-	if slug == "" {
-		slug = fmt.Sprintf("tree-%d", time.Now().Unix())
-	}
-	return slug
-}
-
-func resolveRepoRoot() (string, error) {
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	log.Printf("DEBUG: resolveRepoRoot - starting from working dir: %s", workingDir)
-
-	current := workingDir
-	for depth := 0; depth < 8; depth++ {
-		log.Printf("DEBUG: resolveRepoRoot - checking depth %d: %s", depth, current)
-
-		// Always prefer .git as the definitive marker of repo root
-		gitPath := filepath.Join(current, ".git")
-		if _, err := os.Stat(gitPath); err == nil {
-			log.Printf("DEBUG: resolveRepoRoot - found .git at: %s", current)
-			return current, nil
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			log.Printf("DEBUG: resolveRepoRoot - reached filesystem root")
-			break
-		}
-		current = parent
-	}
-
-	// Fallback: if we didn't find .git, look for scenarios/ directory
-	// (this handles non-git installations)
-	current = workingDir
-	for depth := 0; depth < 8; depth++ {
-		scenariosPath := filepath.Join(current, "scenarios")
-		if info, err := os.Stat(scenariosPath); err == nil && info.IsDir() {
-			// Verify this looks like the root scenarios dir, not a subdirectory
-			// by checking if it contains multiple scenario directories
-			entries, readErr := os.ReadDir(scenariosPath)
-			if readErr == nil && len(entries) > 5 {
-				log.Printf("DEBUG: resolveRepoRoot - found scenarios/ with %d entries at: %s", len(entries), current)
-				return current, nil
-			}
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-
-	log.Printf("DEBUG: resolveRepoRoot - failed to find repo root after 8 levels")
-	return "", fmt.Errorf("unable to resolve repository root from %s", workingDir)
-}
-
-func computeNextStageOrder(ctx context.Context, sectorID string) (int, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	var nextOrder int
-	err := db.QueryRowContext(ctx, `
-		SELECT COALESCE(MAX(stage_order), 0) + 1
-		FROM progression_stages
-		WHERE sector_id = $1
-	`, sectorID).Scan(&nextOrder)
-	if err != nil {
-		return 0, err
-	}
-	if nextOrder <= 0 {
-		nextOrder = 1
-	}
-	return nextOrder, nil
-}
-
-func fetchTreeStats(ctx context.Context, treeID string) (int, int, int, error) {
-	var sectorCount, stageCount, mappingCount int
-	err := db.QueryRowContext(ctx, `
-		SELECT
-			(SELECT COUNT(1) FROM sectors WHERE tree_id = $1) AS sector_count,
-			(SELECT COUNT(1)
-			 FROM progression_stages ps
-			 JOIN sectors s ON ps.sector_id = s.id
-			 WHERE s.tree_id = $1) AS stage_count,
-			(SELECT COUNT(1)
-			 FROM scenario_mappings sm
-			 JOIN progression_stages ps ON sm.stage_id = ps.id
-			 JOIN sectors s ON ps.sector_id = s.id
-			 WHERE s.tree_id = $1) AS mapping_count
-	`, treeID).Scan(&sectorCount, &stageCount, &mappingCount)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	return sectorCount, stageCount, mappingCount, nil
-}
-
-func writeTreeResponse(c *gin.Context, tree *TechTree, statusCode int) {
-	ctx := c.Request.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	sectorCount, stageCount, mappingCount, err := fetchTreeStats(ctx, tree.ID)
-	response := gin.H{"tree": tree}
-	if err == nil {
-		response["stats"] = gin.H{
-			"sectors":           sectorCount,
-			"stages":            stageCount,
-			"scenario_mappings": mappingCount,
-		}
-	}
-	c.JSON(statusCode, response)
+func (s graphScenarioSource) ScenarioGraph(ctx context.Context) (*graphv1.TechTreeGraph, error) {
+	return s.graph.Describe(ctx, graphdomain.SourceRequest{})
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "tech-tree-designer",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "tech-tree-designer"}) {
+		return
 	}
 
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	var err error
-	db, err = database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "tech-tree-designer",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Initialize service layer
-	treeService = NewTreeService(db)
-	sectorService = NewSectorService(db)
-	stageService = NewStageService(db)
-	graphService = NewGraphService(db)
-	graphQueryService = NewGraphQueryService(db)
-
-	repoRoot, rootErr := resolveRepoRoot()
-	if rootErr != nil {
-		log.Printf("WARNING: scenario catalog disabled (repo root unresolved): %v", rootErr)
-	} else {
-		log.Printf("INFO: Resolved repo root: %s", repoRoot)
-		visibilityPath := filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
-		log.Printf("INFO: Visibility path: %s", visibilityPath)
-		manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
-		if catalogErr != nil {
-			log.Printf("WARNING: scenario catalog unavailable: %v", catalogErr)
-		} else {
-			catalogManager = manager
-			log.Printf("INFO: Scenario catalog manager initialized successfully")
-			catalogManager.StartBackgroundRefresh(24 * time.Hour)
-		}
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Initialize Gin router
-	r := gin.Default()
-
-	// Add CORS middleware with explicit allowed origins
-	r.Use(func(c *gin.Context) {
-		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
-		if allowedOrigins == "" {
-			allowedOrigins = "http://localhost:3000,http://localhost:35000"
-		}
-
-		origin := c.Request.Header.Get("Origin")
-		// Only set CORS header if origin is in allowed list
-		for _, allowed := range []string{"http://localhost:3000", "http://localhost:35000"} {
-			if origin == allowed {
-				c.Header("Access-Control-Allow-Origin", origin)
-				break
-			}
-		}
-
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	})
-
-	// Health check endpoint
-	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
-
-	// API routes
-	api := r.Group("/api/v1")
-	{
-		api.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
-
-		// Tech tree routes
-		api.GET("/tech-tree", getTechTree)
-		api.GET("/tech-tree/sectors", getSectors)
-		api.POST("/tech-tree/sectors", createSectorHandler)
-		api.PATCH("/tech-tree/sectors/:id", updateSectorHandler)
-		api.DELETE("/tech-tree/sectors/:id", deleteSectorHandler)
-		api.GET("/tech-tree/sectors/:id", getSector)
-		api.GET("/tech-tree/stages/:id", getStage)
-		api.GET("/tech-tree/stages/:id/children", getStageChildren)
-		api.POST("/tech-tree/stages", createStageHandler)
-		api.PATCH("/tech-tree/stages/:id", updateStageHandler)
-		api.DELETE("/tech-tree/stages/:id", deleteStageHandler)
-		api.PUT("/tech-tree/graph", updateGraph)
-		api.GET("/tech-tree/graph/dot", exportGraphAsDOT)
-		api.GET("/tech-trees", listTechTrees)
-		api.POST("/tech-trees", createTechTreeHandler)
-		api.PATCH("/tech-trees/:id", updateTechTreeHandler)
-		api.POST("/tech-trees/:id/clone", cloneTechTreeHandler)
-		api.POST("/tech-tree/ai/stage-ideas", aiStageIdeasHandler)
-		api.GET("/tech-tree/scenario-catalog", getScenarioCatalogHandler)
-		api.POST("/tech-tree/scenario-catalog/refresh", refreshScenarioCatalogHandler)
-		api.POST("/tech-tree/scenario-catalog/visibility", updateScenarioVisibilityHandler)
-
-		// Progress tracking routes
-		api.GET("/progress/scenarios", getScenarioMappings)
-		api.POST("/progress/scenarios", updateScenarioMapping)
-		api.DELETE("/progress/scenarios/:id", deleteScenarioMapping)
-		api.PUT("/progress/scenarios/:scenario", updateScenarioStatus)
-
-		// Maturity tracking routes
-		api.PUT("/stages/:id/maturity", updateStageMaturity)
-		api.GET("/stages/:id/maturity/events", getStageMaturityEvents)
-
-		// Strategic analysis routes
-		api.POST("/tech-tree/analyze", analyzeStrategicPath)
-		api.GET("/milestones", getStrategicMilestones)
-		api.POST("/milestones", createStrategicMilestone)
-		api.PATCH("/milestones/:id", updateStrategicMilestone)
-		api.DELETE("/milestones/:id", deleteStrategicMilestone)
-		api.GET("/recommendations", getRecommendations)
-
-		// Dependencies and connections
-		api.GET("/dependencies", getDependencies)
-		api.GET("/connections", getCrossSectorConnections)
-
-		// Graph query endpoints for agents
-		api.GET("/graph/neighborhood", getStageNeighborhood)
-		api.GET("/graph/path", getShortestPath)
-		api.GET("/graph/ancestors", getStageAncestors)
-		api.GET("/graph/export/view", exportGraphViewAsText)
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	// Get port from environment (required)
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("API_PORT environment variable is required (no default port allowed for security)")
+	planningService := planningdomain.NewService(
+		planningdomain.NewSQLiteRepository(db),
+		planningdomain.NewCompilerValidator(""),
+		planningdomain.NewFilesystemMaterializer(""),
+	)
+	graphService := graphdomain.NewServiceWithPlanned(
+		graphdomain.NewSDASource(graphdomain.NewSDAClient(nil, nil)),
+		planningService,
+	)
+	ontologyService := ontologydomain.NewServiceWithScenarioSource(
+		ontologydomain.NewSQLiteRepository(db),
+		graphScenarioSource{graph: graphService},
+	)
+
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "tech-tree-designer-api", "1.0.0"),
+		graphH.Module(graphService),
+		ontologyH.Module(ontologyService),
+		planningH.Module(planningService),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	log.Printf("🚀 Tech Tree Designer API starting on port %s", port)
-	log.Printf("🌟 Strategic Intelligence System ready for superintelligence guidance")
-
-	r.Run(":" + port)
 }
-
-// Get the main tech tree

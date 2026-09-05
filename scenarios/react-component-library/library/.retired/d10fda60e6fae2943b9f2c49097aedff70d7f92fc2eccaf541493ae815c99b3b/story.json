@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace",
+          "role": "combobox"
+        },
+        {
+          "kind": "text",
+          "value": "Search the right context"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Selected",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace",
+          "role": "combobox"
+        },
+        {
+          "kind": "text",
+          "value": "A selection that stays legible"
+        }
+      ],
+      "id": "selected",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Workspace",
+            "role": "combobox"
+          }
+        },
+        {
+          "kind": "key",
+          "target": {
+            "name": "Workspace",
+            "role": "combobox"
+          },
+          "text": "ArrowDown"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "name": "Workspace",
+            "role": "combobox"
+          },
+          "text": "Enter"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Selected",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorState",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace",
+          "role": "combobox"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace search is temporarily unavailable."
+        }
+      ],
+      "id": "error-state",
+      "mode": "live",
+      "name": "Error State",
+      "role": "boundary"
+    }
+  ],
+  "title": "AsyncOptionsField"
+}

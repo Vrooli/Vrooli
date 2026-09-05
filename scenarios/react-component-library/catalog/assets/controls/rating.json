@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.rating",
+    "name": "Rating",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The discrete preference control supporting icons, partial display, hover preview, keyboard entry, read-only presentation, and an accessible value label.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite widgets expose a single tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "Rating symbols resolve through the registry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "pointer-independence",
+    "non-color-status"
+  ]
+}

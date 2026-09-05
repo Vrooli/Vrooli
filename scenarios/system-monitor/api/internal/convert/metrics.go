@@ -1,52 +1,132 @@
 package convert
 
 import (
-	"system-monitor-api/internal/models"
-
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func MetricsResponseToProto(m *models.MetricsResponse) *domain.MetricsResponse {
+func metricValue(s models.MetricState, fallback float64) *metricspb.MetricValue {
+	if s.Status == "" {
+		s.Status = "measured"
+		s.Value = fallback
+	}
+	value := &metricspb.MetricValue{
+		Provenance:       s.Provenance,
+		Units:            s.Units,
+		CycleId:          s.CycleID,
+		FreshnessSeconds: s.FreshnessSeconds,
+	}
+	if !s.ObservedAt.IsZero() {
+		value.ObservedAt = timestamppb.New(s.ObservedAt)
+	}
+	switch s.Status {
+	case "measured":
+		value.State = &metricspb.MetricValue_Measured{Measured: s.Value}
+	case "unsupported":
+		if s.Reason == "" {
+			s.Reason = "metric is not supported on this host"
+		}
+		value.State = &metricspb.MetricValue_UnsupportedReason{UnsupportedReason: s.Reason}
+	case "stale":
+		value.State = &metricspb.MetricValue_StaleReason{StaleReason: s.Reason}
+	case "not_yet_sampled":
+		value.State = &metricspb.MetricValue_NotYetSampledReason{NotYetSampledReason: s.Reason}
+	default:
+		if s.Reason == "" {
+			s.Reason = "metric collection failed"
+		}
+		value.State = &metricspb.MetricValue_FailedError{FailedError: s.Reason}
+	}
+	return value
+}
+
+func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsResponse {
 	if m == nil {
 		return nil
 	}
-	pb := &domain.MetricsResponse{
-		CpuUsage:       m.CPUUsage,
-		MemoryUsage:    m.MemoryUsage,
-		TcpConnections: int32(m.TCPConnections),
-		GpuUsage:       m.GPUUsage,
-		Timestamp:      timestamppb.New(m.Timestamp),
+	gpuState := m.GPUState
+	if gpuState.Status == "" && m.GPUUsage == nil {
+		gpuState = models.MetricState{Status: "unsupported", Reason: "GPU collector unavailable"}
 	}
+	pb := &metricspb.MetricsResponse{
+		CycleId:            m.CycleID,
+		CpuUsage:           m.CPUUsage,
+		MemoryUsage:        m.MemoryUsage,
+		TcpConnections:     int32(m.TCPConnections),
+		GpuUsage:           m.GPUUsage,
+		Timestamp:          timestamppb.New(m.Timestamp),
+		Cpu:                metricValue(m.CPUState, m.CPUUsage),
+		Memory:             metricValue(m.MemoryState, m.MemoryUsage),
+		Connections:        metricValue(m.ConnectionsState, float64(m.TCPConnections)),
+		Gpu:                metricValue(gpuState, dereferenceFloat(m.GPUUsage)),
+		Disk:               metricValue(m.DiskState, m.DiskUsage),
+		SwapTraffic:        metricValue(m.SwapTrafficState, 0),
+		MajorFaults:        metricValue(m.MajorFaultsState, 0),
+		FragmentationIndex: metricValue(m.FragmentationIndexState, 0),
+	}
+	pb.Cpu = metricValue(m.CPUState, m.CPUUsage)
+	pb.Memory = metricValue(m.MemoryState, m.MemoryUsage)
+	pb.Connections = metricValue(m.ConnectionsState, float64(m.TCPConnections))
+	pb.Gpu = metricValue(gpuState, dereferenceFloat(m.GPUUsage))
+	pb.Disk = metricValue(m.DiskState, m.DiskUsage)
 	return pb
 }
 
-func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *domain.MetricsTimelineResponse {
+func dereferenceFloat(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricspb.MetricsTimelineResponse {
 	if m == nil {
 		return nil
 	}
-	samples := make([]*domain.MetricTimelineSample, len(m.Samples))
+	samples := make([]*metricspb.MetricTimelineSample, len(m.Samples))
 	for i, s := range m.Samples {
-		samples[i] = &domain.MetricTimelineSample{
-			Timestamp:      timestamppb.New(s.Timestamp),
-			CpuUsage:       s.CPUUsage,
-			MemoryUsage:    s.MemoryUsage,
-			TcpConnections: int32(s.TCPConnections),
-			GpuUsage:       s.GPUUsage,
+		samples[i] = &metricspb.MetricTimelineSample{
+			CycleId:                     s.CycleID,
+			Timestamp:                   timestamppb.New(s.Timestamp),
+			CpuUsage:                    s.CPUUsage,
+			MemoryUsage:                 s.MemoryUsage,
+			TcpConnections:              int32(s.TCPConnections),
+			GpuUsage:                    s.GPUUsage,
+			SwapUsage:                   s.SwapUsage,
+			Cpu:                         metricValue(s.CPUState, s.CPUUsage),
+			Memory:                      metricValue(s.MemoryState, s.MemoryUsage),
+			Connections:                 metricValue(s.ConnectionsState, float64(s.TCPConnections)),
+			Gpu:                         metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
+			Swap:                        metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
+			SwapTraffic:                 metricValue(s.SwapTrafficState, 0),
+			MajorFaults:                 metricValue(s.MajorFaultsState, 0),
+			FragmentationIndex:          metricValue(s.FragmentationIndexState, 0),
+			CpuContextSwitchesPerSecond: metricValue(s.CPUContextSwitchesPerSecond, 0),
+			CpuInterruptsPerSecond:      metricValue(s.CPUInterruptsPerSecond, 0),
+			CpuNormalizedLoad_1:         metricValue(s.CPUNormalizedLoad1, 0),
+			CpuNormalizedLoad_5:         metricValue(s.CPUNormalizedLoad5, 0),
+			CpuRunQueueDepth:            metricValue(s.CPURunQueueDepth, 0),
+			CpuStallSomeAvg10:           metricValue(s.CPUStallSomeAvg10, 0),
+			CpuStallFullAvg10:           metricValue(s.CPUStallFullAvg10, 0),
+			CpuCoreImbalanceIndex:       metricValue(s.CPUCoreImbalanceIndex, 0),
+			CpuModeIowait:               metricValue(s.CPUModeIowait, 0),
+			CpuModeSteal:                metricValue(s.CPUModeSteal, 0),
 		}
 	}
-	return &domain.MetricsTimelineResponse{
+	return &metricspb.MetricsTimelineResponse{
 		WindowSeconds:         int32(m.WindowSeconds),
 		SampleIntervalSeconds: int32(m.SampleIntervalSeconds),
 		Samples:               samples,
 	}
 }
 
-func DetailedMetricsToProto(m *models.DetailedMetrics) *domain.DetailedMetrics {
+func DetailedMetricsToProto(m *models.DetailedMetrics) *metricspb.DetailedMetrics {
 	if m == nil {
 		return nil
 	}
-	pb := &domain.DetailedMetrics{
+	pb := &metricspb.DetailedMetrics{
 		CpuDetails:     cpuMetricsToProto(m.CPUDetails),
 		MemoryDetails:  memoryMetricsToProto(m.MemoryDetails),
 		NetworkDetails: networkMetricsToProto(m.NetworkDetails),
@@ -59,22 +139,22 @@ func DetailedMetricsToProto(m *models.DetailedMetrics) *domain.DetailedMetrics {
 	return pb
 }
 
-func ProcessMonitorDataToProto(m *models.ProcessMonitorData) *domain.ProcessMonitorData {
+func ProcessMonitorDataToProto(m *models.ProcessMonitorData) *metricspb.ProcessMonitorData {
 	if m == nil {
 		return nil
 	}
-	return &domain.ProcessMonitorData{
+	return &metricspb.ProcessMonitorData{
 		ProcessHealth:  processHealthInfoToProto(m.ProcessHealth),
 		ResourceMatrix: processInfoSliceToProto(m.ResourceMatrix),
 		Timestamp:      timestamppb.New(m.Timestamp),
 	}
 }
 
-func InfrastructureMonitorDataToProto(m *models.InfrastructureMonitorData) *domain.InfrastructureMonitorData {
+func InfrastructureMonitorDataToProto(m *models.InfrastructureMonitorData) *metricspb.InfrastructureMonitorData {
 	if m == nil {
 		return nil
 	}
-	return &domain.InfrastructureMonitorData{
+	return &metricspb.InfrastructureMonitorData{
 		DatabasePools:   connectionPoolSliceToProto(m.DatabasePools),
 		HttpClientPools: connectionPoolSliceToProto(m.HTTPClientPools),
 		MessageQueues:   messageQueueInfoToProto(m.MessageQueues),
@@ -83,29 +163,134 @@ func InfrastructureMonitorDataToProto(m *models.InfrastructureMonitorData) *doma
 	}
 }
 
-func cpuMetricsToProto(m models.CPUMetrics) *domain.CPUMetrics {
-	return &domain.CPUMetrics{
-		Usage:           m.Usage,
-		TopProcesses:    processInfoSliceToProto(m.TopProcesses),
-		LoadAverage:     m.LoadAverage,
-		ContextSwitches: m.ContextSwitches,
-		TotalGoroutines: int32(m.Goroutines),
+func DiskDetailResponseToProto(m *models.DiskDetailResponse) *metricspb.DiskDetailResponse {
+	if m == nil {
+		return nil
+	}
+	return &metricspb.DiskDetailResponse{
+		Partitions:     diskPartitionInfoSliceToProto(m.Partitions),
+		ActiveMount:    m.ActiveMount,
+		Depth:          int32(m.Depth),
+		TopDirectories: diskUsageEntrySliceToProto(m.TopDirectories),
+		LargestFiles:   diskUsageEntrySliceToProto(m.LargestFiles),
+		Notes:          m.Notes,
+		Timestamp:      timestamppb.New(m.Timestamp),
 	}
 }
 
-func memoryMetricsToProto(m models.MemoryMetrics) *domain.MemoryMetrics {
-	pb := &domain.MemoryMetrics{
-		Usage:          m.Usage,
-		TopProcesses:   processInfoSliceToProto(m.TopProcesses),
-		GrowthPatterns: memoryGrowthSliceToProto(m.GrowthPatterns),
-		SwapUsage:      swapInfoToProto(m.SwapUsage),
-		DiskUsage:      diskInfoToProto(m.DiskUsage),
+func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, entries []repository.ProcessTimelineEntry) *metricspb.ProcessTimelineResponse {
+	pbEntries := make([]*metricspb.ProcessTimelineEntry, 0, len(entries))
+	for _, e := range entries {
+		row := &metricspb.ProcessTimelineEntry{
+			Owner:       e.Owner,
+			Comm:        e.Comm,
+			Pid:         int32(e.PID),
+			Aggregated:  e.Aggregated,
+			CpuPct:      e.CPUPct,
+			CpuSeconds:  e.CPUSeconds,
+			MaxCpuPct:   e.MaxCPUPct,
+			RssKb:       e.RSSKB,
+			SampleCount: e.SampleCount,
+		}
+		if !e.FirstSeen.IsZero() {
+			row.FirstSeen = timestamppb.New(e.FirstSeen)
+		}
+		if !e.LastSeen.IsZero() {
+			row.LastSeen = timestamppb.New(e.LastSeen)
+		}
+		pbEntries = append(pbEntries, row)
+	}
+	response := &metricspb.ProcessTimelineResponse{
+		WindowSeconds: int32(windowSeconds),
+		Owner:         owner,
+		Top:           int32(top),
+		Count:         int32(len(pbEntries)),
+		Entries:       pbEntries,
+	}
+	for _, e := range entries {
+		if !e.FirstSeen.IsZero() && (response.CoveredStart == nil || e.FirstSeen.Before(response.CoveredStart.AsTime())) {
+			response.CoveredStart = timestamppb.New(e.FirstSeen)
+		}
+		if !e.LastSeen.IsZero() && (response.CoveredEnd == nil || e.LastSeen.After(response.CoveredEnd.AsTime())) {
+			response.CoveredEnd = timestamppb.New(e.LastSeen)
+		}
+	}
+	return response
+}
+
+func cpuMetricsToProto(m models.CPUMetrics) *metricspb.CPUMetrics {
+	return &metricspb.CPUMetrics{
+		Usage:                    m.Usage,
+		TopProcesses:             processInfoSliceToProto(m.TopProcesses),
+		TopCpuSecondsProcesses:   processInfoSliceToProto(m.TopCPUSecondsProcesses),
+		LoadAverage:              m.LoadAverage,
+		UsageState:               metricValue(m.UsageState, m.Usage),
+		ContextSwitchesPerSecond: metricValue(m.ContextSwitchesPerSecond, 0),
+		InterruptsPerSecond:      metricValue(m.InterruptsPerSecond, 0),
+		LoadAverageState:         metricValue(m.LoadAverageState, 0),
+		NormalizedLoad_1:         metricValue(m.NormalizedLoad1, 0),
+		NormalizedLoad_5:         metricValue(m.NormalizedLoad5, 0),
+		RunQueueDepth:            metricValue(m.RunQueueDepth, 0),
+		CpuPsiSomeAvg10:          metricValue(m.StallSomeAvg10, 0),
+		CpuPsiFullAvg10:          metricValue(m.StallFullAvg10, 0),
+		ModeBreakdown:            metricStateMapToProto(m.ModeBreakdown),
+		PerCoreUtilization:       metricStateMapToProto(m.PerCoreUtilization),
+		CoreImbalanceIndex:       metricValue(m.CoreImbalanceIndex, 0),
+		QuotaThrottling:          metricValue(m.QuotaThrottling, 0),
+		FrequencyDerateRatio:     metricValue(m.FrequencyDerateRatio, 0),
+		ThermalThrottleEvidence:  metricValue(m.ThermalThrottleEvidence, 0),
+		ThermalTripPointCelsius:  metricValue(m.ThermalTripPointCelsius, 0),
+		ForkRate:                 metricValue(m.ForkRate, 0),
+	}
+}
+
+func metricStateMapToProto(states map[string]models.MetricState) map[string]*metricspb.MetricValue {
+	result := make(map[string]*metricspb.MetricValue, len(states))
+	for key, state := range states {
+		result[key] = metricValue(state, 0)
+	}
+	return result
+}
+
+func memoryMetricsToProto(m models.MemoryMetrics) *metricspb.MemoryMetrics {
+	pb := &metricspb.MemoryMetrics{
+		Usage:              m.Usage,
+		TopProcesses:       processInfoSliceToProto(m.TopProcesses),
+		TopPagingProcesses: processInfoSliceToProto(m.TopPagingProcesses),
+		SwapUsage:          swapInfoToProto(m.SwapUsage),
+		DiskUsage:          diskInfoToProto(m.DiskUsage),
+		Paging:             pagingMetricsToProto(m.Paging),
+		Fragmentation:      fragmentationMetricsToProto(m.Fragmentation),
 	}
 	return pb
 }
 
-func networkMetricsToProto(m models.NetworkMetrics) *domain.NetworkMetrics {
-	return &domain.NetworkMetrics{
+func pagingMetricsToProto(m models.PagingMetrics) *metricspb.PagingMetrics {
+	return &metricspb.PagingMetrics{
+		SwapInPerSecond:           metricValue(m.SwapInPerSecond, 0),
+		SwapOutPerSecond:          metricValue(m.SwapOutPerSecond, 0),
+		SwapTrafficPagesPerSecond: metricValue(m.SwapTrafficPagesPerSecond, 0),
+		MajorFaultsPerSecond:      metricValue(m.MajorFaultsPerSecond, 0),
+		PageFaultsPerSecond:       metricValue(m.PageFaultsPerSecond, 0),
+	}
+}
+
+func fragmentationMetricsToProto(m models.FragmentationMetrics) *metricspb.FragmentationMetrics {
+	rates := make(map[string]*metricspb.MetricValue, len(m.CompactionRates))
+	for name, value := range m.CompactionRates {
+		rates[name] = metricValue(value, 0)
+	}
+	return &metricspb.FragmentationMetrics{
+		MaxFreeOrder:           metricValue(m.MaxFreeOrder, 0),
+		LowOrderShare:          metricValue(m.LowOrderShare, 0),
+		CompactionFailureRatio: metricValue(m.CompactionFailureRatio, 0),
+		CompactionRates:        rates,
+		Buddyinfo:              m.Buddyinfo,
+	}
+}
+
+func networkMetricsToProto(m models.NetworkMetrics) *metricspb.NetworkMetrics {
+	return &metricspb.NetworkMetrics{
 		TcpStates:       tcpConnectionStatesToProto(m.TCPStates),
 		PortUsage:       portUsageInfoToProto(m.PortUsage),
 		NetworkStats:    networkStatisticsToProto(m.NetworkStats),
@@ -113,8 +298,8 @@ func networkMetricsToProto(m models.NetworkMetrics) *domain.NetworkMetrics {
 	}
 }
 
-func systemHealthToProto(m models.SystemHealth) *domain.SystemHealth {
-	pb := &domain.SystemHealth{
+func systemHealthToProto(m models.SystemHealth) *metricspb.SystemHealth {
+	pb := &metricspb.SystemHealth{
 		FileDescriptors:     fileDescriptorInfoToProto(m.FileDescriptors),
 		ServiceDependencies: serviceHealthSliceToProto(m.ServiceDependencies),
 		Certificates:        certificateInfoSliceToProto(m.Certificates),
@@ -122,14 +307,15 @@ func systemHealthToProto(m models.SystemHealth) *domain.SystemHealth {
 	if m.InotifyWatchers != nil {
 		pb.InotifyWatchers = inotifyWatcherInfoToProto(m.InotifyWatchers)
 	}
+	pb.ApiProcessGoroutines = int32(m.APIProcessGoroutines)
 	return pb
 }
 
-func gpuMetricsToProto(m *models.GPUMetrics) *domain.GPUMetrics {
+func gpuMetricsToProto(m *models.GPUMetrics) *metricspb.GPUMetrics {
 	if m == nil {
 		return nil
 	}
-	return &domain.GPUMetrics{
+	return &metricspb.GPUMetrics{
 		Summary:       gpuSummaryToProto(m.Summary),
 		Devices:       gpuDeviceMetricsSliceToProto(m.Devices),
 		Errors:        m.Errors,
@@ -138,8 +324,8 @@ func gpuMetricsToProto(m *models.GPUMetrics) *domain.GPUMetrics {
 	}
 }
 
-func gpuSummaryToProto(m models.GPUSummary) *domain.GPUSummary {
-	return &domain.GPUSummary{
+func gpuSummaryToProto(m models.GPUSummary) *metricspb.GPUSummary {
+	return &metricspb.GPUSummary{
 		TotalUtilizationPercent:   m.TotalUtilizationPercent,
 		AverageUtilizationPercent: m.AverageUtilizationPercent,
 		TotalMemoryMb:             m.TotalMemoryMB,
@@ -149,10 +335,10 @@ func gpuSummaryToProto(m models.GPUSummary) *domain.GPUSummary {
 	}
 }
 
-func gpuDeviceMetricsSliceToProto(ms []models.GPUDeviceMetrics) []*domain.GPUDeviceMetrics {
-	result := make([]*domain.GPUDeviceMetrics, len(ms))
+func gpuDeviceMetricsSliceToProto(ms []models.GPUDeviceMetrics) []*metricspb.GPUDeviceMetrics {
+	result := make([]*metricspb.GPUDeviceMetrics, len(ms))
 	for i, m := range ms {
-		pb := &domain.GPUDeviceMetrics{
+		pb := &metricspb.GPUDeviceMetrics{
 			Index:                    int32(m.Index),
 			Uuid:                     m.UUID,
 			Name:                     m.Name,
@@ -185,10 +371,10 @@ func gpuDeviceMetricsSliceToProto(ms []models.GPUDeviceMetrics) []*domain.GPUDev
 	return result
 }
 
-func gpuProcessInfoSliceToProto(ms []models.GPUProcessInfo) []*domain.GPUProcessInfo {
-	result := make([]*domain.GPUProcessInfo, len(ms))
+func gpuProcessInfoSliceToProto(ms []models.GPUProcessInfo) []*metricspb.GPUProcessInfo {
+	result := make([]*metricspb.GPUProcessInfo, len(ms))
 	for i, m := range ms {
-		pb := &domain.GPUProcessInfo{
+		pb := &metricspb.GPUProcessInfo{
 			Pid:           int32(m.PID),
 			ProcessName:   m.ProcessName,
 			MemoryUsedMb:  m.MemoryUsedMB,
@@ -202,26 +388,61 @@ func gpuProcessInfoSliceToProto(ms []models.GPUProcessInfo) []*domain.GPUProcess
 	return result
 }
 
-func processInfoSliceToProto(ms []models.ProcessInfo) []*domain.ProcessInfo {
-	result := make([]*domain.ProcessInfo, len(ms))
+func diskPartitionInfoSliceToProto(ms []models.DiskPartitionInfo) []*metricspb.DiskPartitionInfo {
+	result := make([]*metricspb.DiskPartitionInfo, len(ms))
 	for i, m := range ms {
-		result[i] = &domain.ProcessInfo{
-			Pid:             int32(m.PID),
-			Name:            m.Name,
-			CpuPercent:      m.CPUPercent,
-			MemoryMb:        m.MemoryMB,
-			Connections:     int32(m.Connections),
-			Threads:         int32(m.Threads),
-			FileDescriptors: int32(m.FDs),
-			Status:          m.Status,
-			Goroutines:      int32(m.Goroutines),
+		result[i] = &metricspb.DiskPartitionInfo{
+			Device:         m.Device,
+			MountPoint:     m.MountPoint,
+			SizeBytes:      m.SizeBytes,
+			SizeHuman:      m.SizeHuman,
+			UsedBytes:      m.UsedBytes,
+			UsedHuman:      m.UsedHuman,
+			AvailableBytes: m.AvailableBytes,
+			AvailableHuman: m.AvailableHuman,
+			UsePercent:     m.UsePercent,
 		}
 	}
 	return result
 }
 
-func tcpConnectionStatesToProto(m models.TCPConnectionStates) *domain.TCPConnectionStates {
-	return &domain.TCPConnectionStates{
+func diskUsageEntrySliceToProto(ms []models.DiskUsageEntry) []*metricspb.DiskUsageEntry {
+	result := make([]*metricspb.DiskUsageEntry, len(ms))
+	for i, m := range ms {
+		result[i] = &metricspb.DiskUsageEntry{
+			Path:      m.Path,
+			SizeBytes: m.SizeBytes,
+			SizeHuman: m.SizeHuman,
+			Category:  m.Category,
+		}
+	}
+	return result
+}
+
+func processInfoSliceToProto(ms []models.ProcessInfo) []*metricspb.ProcessInfo {
+	result := make([]*metricspb.ProcessInfo, len(ms))
+	for i, m := range ms {
+		result[i] = &metricspb.ProcessInfo{
+			Pid:                  int32(m.PID),
+			Name:                 m.Name,
+			CpuPercent:           m.CPUPercent,
+			MemoryMb:             m.MemoryMB,
+			Connections:          int32(m.Connections),
+			Threads:              int32(m.Threads),
+			FileDescriptors:      int32(m.FDs),
+			Status:               m.Status,
+			Goroutines:           int32(m.Goroutines),
+			SwapKb:               m.SwapKB,
+			MajorFaultsPerSecond: m.MajorFaultsPerSecond,
+			CpuSeconds:           m.CPUSeconds,
+			CpuSecondsState:      metricValue(m.CPUSecondsState, m.CPUSeconds),
+		}
+	}
+	return result
+}
+
+func tcpConnectionStatesToProto(m models.TCPConnectionStates) *metricspb.TCPConnectionStates {
+	return &metricspb.TCPConnectionStates{
 		Established: int32(m.Established),
 		TimeWait:    int32(m.TimeWait),
 		CloseWait:   int32(m.CloseWait),
@@ -236,10 +457,10 @@ func tcpConnectionStatesToProto(m models.TCPConnectionStates) *domain.TCPConnect
 	}
 }
 
-func connectionPoolSliceToProto(ms []models.ConnectionPool) []*domain.ConnectionPool {
-	result := make([]*domain.ConnectionPool, len(ms))
+func connectionPoolSliceToProto(ms []models.ConnectionPool) []*metricspb.ConnectionPool {
+	result := make([]*metricspb.ConnectionPool, len(ms))
 	for i, m := range ms {
-		result[i] = &domain.ConnectionPool{
+		result[i] = &metricspb.ConnectionPool{
 			Name:     m.Name,
 			Active:   int32(m.Active),
 			Idle:     int32(m.Idle),
@@ -252,8 +473,8 @@ func connectionPoolSliceToProto(ms []models.ConnectionPool) []*domain.Connection
 	return result
 }
 
-func networkStatisticsToProto(m models.NetworkStatistics) *domain.NetworkStatistics {
-	return &domain.NetworkStatistics{
+func networkStatisticsToProto(m models.NetworkStatistics) *metricspb.NetworkStatistics {
+	return &metricspb.NetworkStatistics{
 		BandwidthInMbps:  m.BandwidthInMbps,
 		BandwidthOutMbps: m.BandwidthOutMbps,
 		PacketLoss:       m.PacketLoss,
@@ -262,25 +483,25 @@ func networkStatisticsToProto(m models.NetworkStatistics) *domain.NetworkStatist
 	}
 }
 
-func portUsageInfoToProto(m models.PortUsageInfo) *domain.PortUsageInfo {
-	return &domain.PortUsageInfo{
+func portUsageInfoToProto(m models.PortUsageInfo) *metricspb.PortUsageInfo {
+	return &metricspb.PortUsageInfo{
 		Used:  int32(m.Used),
 		Total: int32(m.Total),
 	}
 }
 
-func fileDescriptorInfoToProto(m models.FileDescriptorInfo) *domain.FileDescriptorInfo {
-	return &domain.FileDescriptorInfo{
+func fileDescriptorInfoToProto(m models.FileDescriptorInfo) *metricspb.FileDescriptorInfo {
+	return &metricspb.FileDescriptorInfo{
 		Used:    int32(m.Used),
 		Max:     int32(m.Max),
 		Percent: m.Percent,
 	}
 }
 
-func serviceHealthSliceToProto(ms []models.ServiceHealth) []*domain.ServiceHealth {
-	result := make([]*domain.ServiceHealth, len(ms))
+func serviceHealthSliceToProto(ms []models.ServiceHealth) []*metricspb.ServiceHealth {
+	result := make([]*metricspb.ServiceHealth, len(ms))
 	for i, m := range ms {
-		result[i] = &domain.ServiceHealth{
+		result[i] = &metricspb.ServiceHealth{
 			Name:      m.Name,
 			Status:    m.Status,
 			LatencyMs: m.LatencyMs,
@@ -291,10 +512,10 @@ func serviceHealthSliceToProto(ms []models.ServiceHealth) []*domain.ServiceHealt
 	return result
 }
 
-func certificateInfoSliceToProto(ms []models.CertificateInfo) []*domain.CertificateInfo {
-	result := make([]*domain.CertificateInfo, len(ms))
+func certificateInfoSliceToProto(ms []models.CertificateInfo) []*metricspb.CertificateInfo {
+	result := make([]*metricspb.CertificateInfo, len(ms))
 	for i, m := range ms {
-		result[i] = &domain.CertificateInfo{
+		result[i] = &metricspb.CertificateInfo{
 			Domain:       m.Domain,
 			DaysToExpiry: int32(m.DaysToExpiry),
 			Status:       m.Status,
@@ -303,11 +524,11 @@ func certificateInfoSliceToProto(ms []models.CertificateInfo) []*domain.Certific
 	return result
 }
 
-func inotifyWatcherInfoToProto(m *models.InotifyWatcherInfo) *domain.InotifyWatcherInfo {
+func inotifyWatcherInfoToProto(m *models.InotifyWatcherInfo) *metricspb.InotifyWatcherInfo {
 	if m == nil {
 		return nil
 	}
-	return &domain.InotifyWatcherInfo{
+	return &metricspb.InotifyWatcherInfo{
 		Supported:        m.Supported,
 		WatchesUsed:      int32(m.WatchesUsed),
 		WatchesMax:       int32(m.WatchesMax),
@@ -318,36 +539,24 @@ func inotifyWatcherInfoToProto(m *models.InotifyWatcherInfo) *domain.InotifyWatc
 	}
 }
 
-func memoryGrowthSliceToProto(ms []models.MemoryGrowth) []*domain.MemoryGrowth {
-	result := make([]*domain.MemoryGrowth, len(ms))
-	for i, m := range ms {
-		result[i] = &domain.MemoryGrowth{
-			Process:         m.Process,
-			GrowthMbPerHour: m.GrowthMBPerHour,
-			RiskLevel:       m.RiskLevel,
-		}
-	}
-	return result
-}
-
-func swapInfoToProto(m models.SwapInfo) *domain.SwapInfo {
-	return &domain.SwapInfo{
+func swapInfoToProto(m models.SwapInfo) *metricspb.SwapInfo {
+	return &metricspb.SwapInfo{
 		Used:    m.Used,
 		Total:   m.Total,
 		Percent: m.Percent,
 	}
 }
 
-func diskInfoToProto(m models.DiskInfo) *domain.DiskInfo {
-	return &domain.DiskInfo{
+func diskInfoToProto(m models.DiskInfo) *metricspb.DiskInfo {
+	return &metricspb.DiskInfo{
 		Used:    m.Used,
 		Total:   m.Total,
 		Percent: m.Percent,
 	}
 }
 
-func processHealthInfoToProto(m models.ProcessHealthInfo) *domain.ProcessHealthInfo {
-	return &domain.ProcessHealthInfo{
+func processHealthInfoToProto(m models.ProcessHealthInfo) *metricspb.ProcessHealthInfo {
+	return &metricspb.ProcessHealthInfo{
 		TotalProcesses:  int32(m.TotalProcesses),
 		ZombieProcesses: processInfoSliceToProto(m.ZombieProcesses),
 		HighThreadCount: processInfoSliceToProto(m.HighThreadCount),
@@ -355,13 +564,13 @@ func processHealthInfoToProto(m models.ProcessHealthInfo) *domain.ProcessHealthI
 	}
 }
 
-func messageQueueInfoToProto(m models.MessageQueueInfo) *domain.MessageQueueInfo {
-	return &domain.MessageQueueInfo{
-		RedisPubsub: &domain.RedisPubSubInfo{
+func messageQueueInfoToProto(m models.MessageQueueInfo) *metricspb.MessageQueueInfo {
+	return &metricspb.MessageQueueInfo{
+		RedisPubsub: &metricspb.RedisPubSubInfo{
 			Subscribers: int32(m.RedisPubSub.Subscribers),
 			Channels:    int32(m.RedisPubSub.Channels),
 		},
-		BackgroundJobs: &domain.BackgroundJobsInfo{
+		BackgroundJobs: &metricspb.BackgroundJobsInfo{
 			Pending: int32(m.BackgroundJobs.Pending),
 			Active:  int32(m.BackgroundJobs.Active),
 			Failed:  int32(m.BackgroundJobs.Failed),
@@ -369,8 +578,8 @@ func messageQueueInfoToProto(m models.MessageQueueInfo) *domain.MessageQueueInfo
 	}
 }
 
-func storageIOInfoToProto(m models.StorageIOInfo) *domain.StorageIOInfo {
-	return &domain.StorageIOInfo{
+func storageIOInfoToProto(m models.StorageIOInfo) *metricspb.StorageIOInfo {
+	return &metricspb.StorageIOInfo{
 		DiskQueueDepth: m.DiskQueueDepth,
 		IoWaitPercent:  m.IOWaitPercent,
 		ReadMbPerSec:   m.ReadMBPerSec,

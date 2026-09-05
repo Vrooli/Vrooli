@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "drawer",
+    "title": "Drawer",
+    "purpose": "A layered side surface with an explicit dialog boundary.",
+    "storyRef": "../../library/components/FullPageDrawer/versions/1.2.11/story.json"
+  },
+  "states": [
+    { "id": "open", "example": "desktop-card", "description": "The drawer is open." }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "dialog",
+      "description": "The open drawer surface."
+    }
+  ],
+  "claims": [
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The open drawer exposes a named dialog surface.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["open"]
+    },
+    {
+      "id": "dismissal-contract",
+      "type": "custom",
+      "statement": "Drawer uses the shared layer coordinator and bounded dismissal.",
+      "tier": "manual",
+      "states": ["open"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[role='dialog']" } } }
+}

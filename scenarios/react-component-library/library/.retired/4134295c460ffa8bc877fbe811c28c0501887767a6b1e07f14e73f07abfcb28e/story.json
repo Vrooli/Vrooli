@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "content",
+        "kind": "enum",
+        "label": "Width",
+        "options": ["compact", "content", "comfortable", "wide", "full"],
+        "path": "width"
+      },
+      {
+        "default": "none",
+        "kind": "enum",
+        "label": "Gutter",
+        "options": ["none", "sm", "md", "lg", "responsive"],
+        "path": "gutter"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "gutter": "none",
+        "width": "content"
+      },
+      "id": "width-content",
+      "mode": "pinned",
+      "name": "width content",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "args": {
+        "gutter": "sm",
+        "width": "compact"
+      },
+      "id": "width-compact",
+      "mode": "pinned",
+      "name": "width compact",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "width",
+      "covers": {
+        "width": ["compact", "content", "comfortable", "wide", "full"]
+      }
+    },
+    {
+      "args": {
+        "gutter": "md",
+        "width": "comfortable"
+      },
+      "id": "width-comfortable",
+      "mode": "pinned",
+      "name": "width comfortable",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "gutter",
+      "covers": {
+        "gutter": ["none", "sm", "md", "lg", "responsive"]
+      }
+    },
+    {
+      "args": {
+        "gutter": "lg",
+        "width": "wide"
+      },
+      "id": "width-wide",
+      "mode": "pinned",
+      "name": "width wide",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "gutter": "responsive",
+        "width": "full"
+      },
+      "id": "width-full",
+      "mode": "pinned",
+      "name": "width full",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "Container"
+}

@@ -3,12 +3,16 @@ package evidence
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/requirements/types"
+
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
@@ -39,21 +43,26 @@ type Loader interface {
 
 	// LoadManualValidations loads evidence from manual validation logs.
 	LoadManualValidations(ctx context.Context, scenarioRoot string) (*types.ManualManifest, error)
+
+	// LoadExternalAutomationEvidence loads receipts emitted by an external
+	// automation provider (for example, browser-automation-studio).
+	LoadExternalAutomationEvidence(ctx context.Context, scenarioRoot string) (types.EvidenceMap, error)
 }
 
 // loader implements Loader using file system operations.
 type loader struct {
-	reader Reader
+	reader       Reader
+	artifactRoot func(string) (string, error)
 }
 
 // New creates a Loader with the provided Reader.
 func New(reader Reader) Loader {
-	return &loader{reader: reader}
+	return &loader{reader: reader, artifactRoot: func(root string) (string, error) { return root, nil }}
 }
 
 // NewDefault creates a Loader using the real file system.
 func NewDefault() Loader {
-	return &loader{reader: &osReader{}}
+	return &loader{reader: &osReader{}, artifactRoot: artifactpaths.ScenarioRootForDir}
 }
 
 // LoadAll loads evidence from all sources.
@@ -78,6 +87,15 @@ func (l *loader) LoadAll(ctx context.Context, scenarioRoot string) (*types.Evide
 		bundle.ManualValidations = manualValidations
 	}
 
+	// External automation is deliberately kept separate from phase results:
+	// the provider owns the run, while Test Genie owns the requirement sync.
+	// Merge the normalized receipts into the common evidence map so all
+	// existing matching and status rules apply consistently.
+	externalEvidence, err := l.LoadExternalAutomationEvidence(ctx, scenarioRoot)
+	if err == nil && len(externalEvidence) > 0 {
+		bundle.PhaseResults.Merge(externalEvidence)
+	}
+
 	bundle.LoadedAt = time.Now()
 	return bundle, nil
 }
@@ -92,7 +110,16 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 
 	evidenceMap := make(types.EvidenceMap)
 
-	dir := filepath.Join(scenarioRoot, sharedartifacts.PhaseResultsDir)
+	artifactRoot, err := l.artifactRoot(scenarioRoot)
+	if err != nil {
+		return evidenceMap, err
+	}
+	runID := l.latestRunID(artifactRoot)
+	if runID == "" {
+		return evidenceMap, nil
+	}
+
+	dir := sharedartifacts.RunPhaseResultsDir(artifactRoot, runID)
 	if l.reader.Exists(dir) {
 		results, err := loadPhaseResultsFromDir(ctx, l.reader, dir)
 		if err == nil {
@@ -101,6 +128,22 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 	}
 
 	return evidenceMap, nil
+}
+
+// latestRunID reads coverage/latest/manifest.json (via the injected reader) and
+// returns the run_id of the most recent run, or "" when none is recorded.
+func (l *loader) latestRunID(scenarioRoot string) string {
+	data, err := l.reader.ReadFile(sharedartifacts.LatestManifestPath(scenarioRoot))
+	if err != nil {
+		return ""
+	}
+	var manifest struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return ""
+	}
+	return manifest.RunID
 }
 
 // LoadVitestEvidence loads evidence from vitest coverage files.
@@ -143,7 +186,11 @@ func (l *loader) LoadManualValidations(ctx context.Context, scenarioRoot string)
 	default:
 	}
 
-	path := sharedartifacts.ManualValidationsPath(scenarioRoot)
+	artifactRoot, err := l.artifactRoot(scenarioRoot)
+	if err != nil {
+		return nil, err
+	}
+	path := sharedartifacts.ManualValidationsPath(artifactRoot)
 	if !l.reader.Exists(path) {
 		return nil, nil
 	}
@@ -154,6 +201,54 @@ func (l *loader) LoadManualValidations(ctx context.Context, scenarioRoot string)
 	}
 
 	return manifest, nil
+}
+
+// LoadExternalAutomationEvidence loads provider receipts from the two
+// supported locations:
+//   - coverage/external-evidence, for generated run output; and
+//   - bas/evidence, for source-controlled receipts that were exported from a
+//     provider run and are intended to remain reviewable with the scenario.
+//
+// Invalid files are ignored in the same way as malformed optional Vitest and
+// manual evidence. A valid receipt still has to identify the requirement,
+// validation reference, phase, status, provider run, and provider evidence.
+func (l *loader) LoadExternalAutomationEvidence(ctx context.Context, scenarioRoot string) (types.EvidenceMap, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	evidenceMap := make(types.EvidenceMap)
+	artifactRoot, err := l.artifactRoot(scenarioRoot)
+	if err != nil {
+		return nil, err
+	}
+	for _, dir := range []string{
+		artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "external-evidence"),
+		filepath.Join(scenarioRoot, "bas", "evidence"),
+	} {
+		if !l.reader.Exists(dir) {
+			continue
+		}
+		entries, err := l.reader.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+				continue
+			}
+			path := filepath.Join(dir, entry.Name())
+			records, err := loadExternalAutomationFile(ctx, l.reader, path)
+			if err != nil {
+				continue
+			}
+			evidenceMap.Merge(records)
+		}
+	}
+
+	return evidenceMap, nil
 }
 
 // LoadFromPhaseExecution creates evidence from phase execution results.

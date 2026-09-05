@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"scenario-to-desktop-api/pipeline"
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
-	"scenario-to-desktop-api/pipeline"
 )
 
 // titleCase provides Unicode-correct title casing (replacement for deprecated strings.Title)
@@ -182,7 +182,7 @@ Example safe commands:
 - tail -n 200 <build-log>
 - ps aux | grep -E "(electron|npm|node)" | head -20
 - find <output-dir> -maxdepth 3 -type f -name "*.dmg" -o -name "*.exe"
-- npm run build 2>&1 | tail -n 200`
+- pnpm run build 2>&1 | tail -n 200`
 
 	return &domainpb.ContextAttachment{
 		Type:     "note",

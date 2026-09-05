@@ -1,30 +1,89 @@
 {
   "_metadata": {
-    "description": "Operational requirements registry for scenario-completeness-scoring",
-    "schema_version": "1.0.0",
-    "auto_sync_enabled": true,
-    "last_validated_at": "2025-11-28",
-    "last_synced_at": "2025-11-28"
-  },
-  "meta": {
-    "scenario": "scenario-completeness-scoring",
-    "version": "2025.11",
-    "generated": "2025-11-28",
-    "owners": [
-      {
-        "team": "Vrooli Platform",
-        "contact": "platform@vrooli.dev"
-      }
-    ]
+    "entity": "scenario-completeness-scoring",
+    "generated_at": "2026-06-10T12:00:07-04:00",
+    "generator": "business-health",
+    "schema_version": "1.0"
   },
   "imports": [
-    "01-core-scoring/module.json",
-    "02-configuration/module.json",
-    "03-circuit-breaker/module.json",
-    "04-health-monitoring/module.json",
-    "05-history-trends/module.json",
-    "06-analysis/module.json",
-    "07-ui-dashboard/module.json"
+    "01-score-read-path/module.json",
+    "02-maturity-headline/module.json",
+    "03-composite-score/module.json",
+    "04-recommendations/module.json",
+    "05-staleness-honesty/module.json",
+    "06-resilient-collection/module.json",
+    "07-importance-enrichment/module.json",
+    "08-consumer-contract/module.json",
+    "09-status-dashboard-ui/module.json",
+    "10-fleet-bulk-view/module.json",
+    "11-what-if-analysis/module.json"
   ],
-  "requirements": []
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-score-read-path",
+      "priority": "P0",
+      "title": "Score Read Path"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-maturity-headline",
+      "priority": "P0",
+      "title": "Maturity Headline"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-composite-score",
+      "priority": "P0",
+      "title": "Composite Score"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-recommendations",
+      "priority": "P0",
+      "title": "Recommendations"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-staleness-honesty",
+      "priority": "P0",
+      "title": "Staleness Honesty"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-resilient-collection",
+      "priority": "P0",
+      "title": "Resilient Collection"
+    },
+    {
+      "id": "MOD-P1-007",
+      "path": "07-importance-enrichment",
+      "priority": "P1",
+      "title": "Importance Enrichment"
+    },
+    {
+      "id": "MOD-P1-008",
+      "path": "08-consumer-contract",
+      "priority": "P1",
+      "title": "Consumer Contract"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-status-dashboard-ui",
+      "priority": "P1",
+      "title": "Status Dashboard UI"
+    },
+    {
+      "id": "MOD-P2-010",
+      "path": "10-fleet-bulk-view",
+      "priority": "P2",
+      "title": "Fleet Bulk View"
+    },
+    {
+      "id": "MOD-P2-011",
+      "path": "11-what-if-analysis",
+      "priority": "P2",
+      "title": "What-If Analysis"
+    }
+  ]
 }

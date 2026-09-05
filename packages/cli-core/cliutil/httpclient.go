@@ -8,9 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
 	"time"
 )
+
+var installIdentityForwardingTransport sync.Once
 
 // APIError represents a structured error from the API with rich recovery information.
 type APIError struct {
@@ -106,10 +110,16 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 // HTTPClient wraps an http.Client with base URL resolution, token injection,
 // and JSON request helpers.
 type HTTPClient struct {
-	client      *http.Client
-	baseOptions APIBaseOptions
-	token       string
-	dryRun      bool
+	client       *http.Client
+	baseOptions  APIBaseOptions
+	token        string
+	dryRun       bool
+	headerSource func() map[string]string
+	// invocationHeaderSource is owned by cliapp's per-command preflight. It
+	// must remain distinct from an application header source: scenarios may
+	// require their own transport contract (for example, runtime attribution)
+	// in addition to common invocation provenance.
+	invocationHeaderSource func() map[string]string
 }
 
 type HTTPClientOptions struct {
@@ -120,6 +130,9 @@ type HTTPClientOptions struct {
 }
 
 func NewHTTPClient(opts HTTPClientOptions) *HTTPClient {
+	installIdentityForwardingTransport.Do(func() {
+		http.DefaultTransport = identityForwardingTransport{next: http.DefaultTransport}
+	})
 	client := opts.Client
 	if client == nil {
 		timeout := opts.Timeout
@@ -137,6 +150,37 @@ func NewHTTPClient(opts HTTPClientOptions) *HTTPClient {
 	}
 }
 
+// identityForwardingTransport keeps verified Agent Manager identity attached to
+// raw HTTP and Connect clients that use http.DefaultTransport. Scenario CLIs
+// normally use HTTPClient.ApplyRequestHeaders, but durable streaming clients
+// intentionally create their own no-timeout http.Client. Reading the token at
+// request time makes both paths carry the same provenance without each
+// scenario needing a special case.
+type identityForwardingTransport struct{ next http.RoundTripper }
+
+func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req == nil {
+		return t.roundTripper().RoundTrip(req)
+	}
+	if strings.TrimSpace(req.Header.Get(HeaderAgentIdentityToken)) != "" || strings.TrimSpace(os.Getenv(EnvIdentityToken)) == "" {
+		return t.roundTripper().RoundTrip(req)
+	}
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	if clone.Header == nil {
+		clone.Header = make(http.Header)
+	}
+	clone.Header.Set(HeaderAgentIdentityToken, os.Getenv(EnvIdentityToken))
+	return t.roundTripper().RoundTrip(clone)
+}
+
+func (t identityForwardingTransport) roundTripper() http.RoundTripper {
+	if t.next == nil {
+		return http.DefaultTransport
+	}
+	return t.next
+}
+
 func (h *HTTPClient) SetToken(token string) {
 	h.token = token
 }
@@ -145,6 +189,27 @@ func (h *HTTPClient) SetToken(token string) {
 // the X-Dry-Run header so APIs can skip mutations after validation.
 func (h *HTTPClient) SetDryRun(enabled bool) {
 	h.dryRun = enabled
+}
+
+// SetHeaderSource installs a callback invoked once per request to produce
+// extra HTTP headers added to every outgoing call. Use this for headers
+// whose value is computed lazily (e.g. read from environment variables
+// that may be set after client construction). Returning nil or an empty
+// map skips extra-header injection. Empty values in the returned map are
+// dropped at request time so callers can express "skip this header" via
+// an empty string without conditional wrapping.
+//
+// Repeated calls replace the previous source. Pass nil to clear.
+func (h *HTTPClient) SetHeaderSource(fn func() map[string]string) {
+	h.headerSource = fn
+}
+
+// SetInvocationHeaderSource installs the per-command provenance source used by
+// cliapp. It composes with SetHeaderSource instead of replacing application
+// headers that are required by a scenario API contract. Repeated calls replace
+// only the prior invocation source.
+func (h *HTTPClient) SetInvocationHeaderSource(fn func() map[string]string) {
+	h.invocationHeaderSource = fn
 }
 
 func (h *HTTPClient) SetBaseOptions(opts APIBaseOptions) {
@@ -161,6 +226,26 @@ func (h *HTTPClient) Timeout() time.Duration {
 		return 0
 	}
 	return h.client.Timeout
+}
+
+// CloneWithTimeout returns a copy of the client that uses timeout instead of the
+// default. Every other field is carried over — base options, token, dry-run, and
+// both header sources — so a long-running maintenance call keeps the same
+// transport contract and provenance headers as ordinary commands. The
+// underlying *http.Client is replaced rather than mutated, because it is shared
+// with any other client built from the same options.
+func (h *HTTPClient) CloneWithTimeout(timeout time.Duration) *HTTPClient {
+	if h == nil || timeout <= 0 {
+		return h
+	}
+	clone := *h
+	clone.client = &http.Client{Timeout: timeout}
+	if h.client != nil {
+		transport := *h.client
+		transport.Timeout = timeout
+		clone.client = &transport
+	}
+	return &clone
 }
 
 // Do performs an HTTP request with JSON encoding and standard error handling.
@@ -181,7 +266,7 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		return nil, fmt.Errorf("invalid api base URL %q", base)
 	}
 	endpoint := strings.TrimRight(base, "/") + path
-	if query != nil && len(query) > 0 {
+	if len(query) > 0 {
 		endpoint += "?" + query.Encode()
 	}
 
@@ -210,12 +295,7 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if h.token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.token))
-	}
-	if h.dryRun {
-		req.Header.Set("X-Dry-Run", "true")
-	}
+	h.ApplyRequestHeaders(req)
 
 	resp, err := h.client.Do(req)
 	if err != nil {
@@ -231,6 +311,35 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		return nil, ParseAPIError(resp.StatusCode, data)
 	}
 	return data, nil
+}
+
+// ApplyRequestHeaders applies the configured authentication, dry-run, and
+// custom headers to req. It lets non-JSON transports reuse the same request
+// decoration as DoWithContext without inheriting JSON body handling.
+func (h *HTTPClient) ApplyRequestHeaders(req *http.Request) {
+	if h == nil || req == nil {
+		return
+	}
+	if h.token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.token))
+	}
+	if h.dryRun {
+		req.Header.Set("X-Dry-Run", "true")
+	}
+	applyHeaderSource(req, h.headerSource)
+	applyHeaderSource(req, h.invocationHeaderSource)
+}
+
+func applyHeaderSource(req *http.Request, source func() map[string]string) {
+	if source == nil {
+		return
+	}
+	for k, v := range source() {
+		if v == "" {
+			continue
+		}
+		req.Header.Set(k, v)
+	}
 }
 
 // ExtractErrorMessage pulls a human-readable error string from a JSON error

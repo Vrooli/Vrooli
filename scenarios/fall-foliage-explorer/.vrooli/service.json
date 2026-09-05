@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "fall-foliage-explorer",
     "displayName": "Fall Foliage Explorer",
@@ -55,7 +71,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Fall Foliage Explorer UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -90,120 +106,19 @@
     },
     "setup": {
       "description": "Initialize Fall Foliage Explorer",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/fall-foliage-explorer-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "fall-foliage-explorer",
-            "targets": [
-              "fall-foliage-explorer"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x foliage-explorer && ./install.sh",
-          "description": "Install CLI command"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o fall-foliage-explorer-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build static UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Fall Foliage Explorer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: fall-foliage-explorer --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Fall Foliage Explorer app",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./fall-foliage-explorer-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/fall-foliage-explorer-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Fall Foliage Explorer running:\\n  UI: http://localhost:'$UI_PORT'\\n  API: http://localhost:'$API_PORT",
-          "description": "Display service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for fall-foliage-explorer",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute fall-foliage-explorer --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"fall-foliage-explorer-api\" || true; sleep 1; pkill -9 -f \"fall-foliage-explorer-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/fall-foliage-explorer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/fall-foliage-explorer.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
         }
       ]
     }
@@ -215,66 +130,83 @@
         "enabled": true,
         "required": true,
         "purpose": "historical foliage data and user trips",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "real-time weather data caching"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/foliage-data-fetcher.json",
-            "type": "workflow",
-            "name": "foliage-data-fetcher",
-            "active": true
-          },
-          {
-            "file": "initialization/n8n/weather-integration.json",
-            "type": "workflow",
-            "name": "weather-integration",
-            "active": true
-          },
-          {
-            "file": "initialization/n8n/foliage-predictor.json",
-            "type": "workflow",
-            "name": "foliage-predictor",
-            "active": true
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2:3b"
+        "model_roles": [
+          "chat.small"
         ],
-        "purpose": "foliage predictions and pattern analysis"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "weather data scraping"
+        "purpose": "foliage predictions and pattern analysis",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "fall-foliage-explorer",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "fall-foliage-explorer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.tabs",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.4",
+    "1.2.1",
+    "1.0.0",
+    "1.1.0",
+    "1.2.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.4",
+    "1.2.1",
+    "1.1.0",
+    "1.2.0",
+    "1.0.0"
+  ],
+  "latest": "1.2.3",
+  "libraryId": "react-component-library:Tabs"
+}

@@ -1,0 +1,1037 @@
+<title>The Second Layer of internal/</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root {
+  --ground: #F6F8F8;
+  --surface: #FFFFFF;
+  --surface-2: #EAEFEE;
+  --ink: #121D1C;
+  --ink-2: #4C5A58;
+  --ink-3: #74827F;
+  --rule: #D5DCDB;
+  --rule-strong: #B6C1BF;
+  --accent: #0E7A80;
+  --accent-ink: #0A5B60;
+  --accent-soft: #DBEDEE;
+  --on-accent: #FFFFFF;
+  --brass: #96650B;
+  --brass-ink: #7A5209;
+  --brass-soft: #F4E9D1;
+  --crit: #AC382C;
+  --ok: #2C6F42;
+  --shadow: 0 1px 2px rgba(18,29,28,.06), 0 8px 24px -12px rgba(18,29,28,.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0D1413;
+    --surface: #141D1C;
+    --surface-2: #1C2726;
+    --ink: #E5EBEA;
+    --ink-2: #9AA8A6;
+    --ink-3: #74827F;
+    --rule: #293635;
+    --rule-strong: #3A4A48;
+    --accent: #45C9D1;
+    --accent-ink: #7FDDE2;
+    --accent-soft: #0F302F;
+    --on-accent: #0D1413;
+    --brass: #DBA646;
+    --brass-ink: #E8BE72;
+    --brass-soft: #33280F;
+    --crit: #E4705F;
+    --ok: #63C287;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"] {
+  --on-accent: #0D1413;
+  --ground: #0D1413;
+  --surface: #141D1C;
+  --surface-2: #1C2726;
+  --ink: #E5EBEA;
+  --ink-2: #9AA8A6;
+  --ink-3: #74827F;
+  --rule: #293635;
+  --rule-strong: #3A4A48;
+  --accent: #45C9D1;
+  --accent-ink: #7FDDE2;
+  --accent-soft: #0F302F;
+  --brass: #DBA646;
+  --brass-ink: #E8BE72;
+  --brass-soft: #33280F;
+  --crit: #E4705F;
+  --ok: #63C287;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 28px 120px;
+}
+
+/* ---------- type ---------- */
+h1, h2, h3, h4 {
+  font-family: Archivo, ui-sans-serif, system-ui, sans-serif;
+  text-wrap: balance;
+  margin: 0;
+  letter-spacing: -0.017em;
+}
+h1 { font-size: clamp(2.1rem, 5vw, 3.15rem); font-weight: 800; line-height: 1.02; }
+h2 { font-size: clamp(1.4rem, 2.6vw, 1.85rem); font-weight: 700; line-height: 1.12; }
+h3 { font-size: 1.13rem; font-weight: 700; line-height: 1.25; }
+h4 { font-size: .95rem; font-weight: 700; }
+p { margin: 0; }
+
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: .69rem;
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+code {
+  font-size: .855em;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: .08em .34em;
+  word-break: break-word;
+}
+.lede { font-size: 1.12rem; color: var(--ink-2); max-width: 66ch; }
+.prose { max-width: 70ch; display: flex; flex-direction: column; gap: .85rem; }
+.prose p { color: var(--ink-2); }
+.prose strong { color: var(--ink); font-weight: 600; }
+a { color: var(--accent-ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* ---------- masthead ---------- */
+header.top {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  margin-bottom: 0;
+}
+.top-inner {
+  max-width: 1080px; margin: 0 auto; padding: 56px 28px 40px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.top-meta {
+  display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline;
+}
+.rule-hairline { height: 1px; background: var(--rule); }
+
+/* instrument strip */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.strip > div {
+  padding: 14px 16px 15px;
+  border-right: 1px solid var(--rule);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.strip > div:last-child { border-right: 0; }
+.strip .n {
+  font-family: Archivo, sans-serif; font-weight: 800;
+  font-size: 1.62rem; line-height: 1; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.strip .k { font-size: .74rem; color: var(--ink-3); line-height: 1.35; }
+.strip .n.a { color: var(--accent-ink); }
+.strip .n.b { color: var(--brass-ink); }
+
+/* ---------- sections ---------- */
+section { padding-top: 60px; }
+.sec-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.sec-head .bar { width: 34px; height: 3px; background: var(--accent); border-radius: 2px; }
+
+/* ---------- two-col boundary ---------- */
+.boundary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .boundary { grid-template-columns: 1fr; } }
+.bcol {
+  border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--surface); overflow: hidden;
+}
+.bcol > .bh {
+  padding: 12px 16px; border-bottom: 1px solid var(--rule);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.bcol.mine > .bh { background: var(--accent-soft); }
+.bcol.other > .bh { background: var(--surface-2); }
+.bcol ul { margin: 0; padding: 12px 16px 14px 30px; display: flex; flex-direction: column; gap: 7px; }
+.bcol li { font-size: .89rem; color: var(--ink-2); }
+.bcol li strong { color: var(--ink); font-weight: 600; }
+
+/* ---------- findings ---------- */
+.findings { display: flex; flex-direction: column; gap: 18px; }
+.f {
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.f-head {
+  display: grid; grid-template-columns: 54px 1fr; align-items: stretch;
+  border-bottom: 1px solid var(--rule);
+}
+.f-rank {
+  display: flex; align-items: center; justify-content: center;
+  font-family: Archivo, sans-serif; font-weight: 800; font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--accent); color: var(--on-accent);
+  border-right: 1px solid var(--rule);
+}
+.f-title { padding: 13px 18px 14px; display: flex; flex-direction: column; gap: 7px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 500;
+  letter-spacing: .04em; text-transform: uppercase;
+  padding: 2.5px 8px; border-radius: 3px;
+  border: 1px solid var(--rule-strong); color: var(--ink-2); background: var(--surface-2);
+  white-space: nowrap;
+}
+.chip.win { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.chip.dup { background: var(--brass-soft); border-color: var(--brass); color: var(--brass-ink); }
+.chip.risk { background: transparent; border-color: var(--crit); color: var(--crit); }
+.f-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+.f-body > .prose { max-width: 74ch; }
+
+.evidence {
+  border: 1px solid var(--rule); border-left: 3px solid var(--brass);
+  background: var(--surface-2); border-radius: 0 5px 5px 0;
+  padding: 11px 14px;
+  font-family: "IBM Plex Mono", monospace; font-size: .795rem; line-height: 1.65;
+  color: var(--ink-2);
+  overflow-x: auto;
+}
+.evidence .lbl {
+  display: block; font-size: .66rem; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 5px; font-weight: 600;
+}
+.evidence b { color: var(--ink); font-weight: 600; }
+pre.code {
+  margin: 0; padding: 12px 14px; overflow-x: auto;
+  background: var(--surface-2); border: 1px solid var(--rule); border-radius: 5px;
+  font-family: "IBM Plex Mono", monospace; font-size: .78rem; line-height: 1.6;
+  color: var(--ink-2);
+}
+pre.code .hi { color: var(--brass-ink); font-weight: 600; }
+pre.code .ok { color: var(--accent-ink); font-weight: 600; }
+pre.code .dim { color: var(--ink-3); }
+
+/* ---------- tables ---------- */
+.tw { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .855rem; }
+th, td { text-align: left; padding: 8px 13px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+thead th {
+  font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  background: var(--surface-2); white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.path { font-family: "IBM Plex Mono", monospace; font-size: .78rem; color: var(--ink-2); }
+
+/* ---------- bars ---------- */
+.bars { display: flex; flex-direction: column; gap: 9px; }
+.bar-row { display: grid; grid-template-columns: minmax(140px, 210px) 1fr 62px; gap: 12px; align-items: center; }
+.bar-row .lab { font-family: "IBM Plex Mono", monospace; font-size: .765rem; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 15px; background: var(--surface-2); border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--brass); }
+.bar-fill.a { background: var(--accent); }
+.bar-row .val { font-family: "IBM Plex Mono", monospace; font-size: .765rem; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-2); }
+@media (max-width: 640px) { .bar-row { grid-template-columns: 1fr 46px; } .bar-row .bar-track { grid-column: 1 / 2; } }
+
+/* ---------- matrix ---------- */
+.matrix-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table.matrix { font-size: .8rem; }
+table.matrix th.k {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  padding: 10px 4px; font-size: .66rem; letter-spacing: .07em;
+  height: 118px; vertical-align: bottom; white-space: nowrap;
+}
+table.matrix td, table.matrix th { border-bottom: 1px solid var(--rule); }
+table.matrix td.ph {
+  font-family: "IBM Plex Mono", monospace; font-size: .765rem;
+  white-space: nowrap; padding-right: 16px;
+}
+table.matrix td.prov { font-size: .74rem; color: var(--ink-3); white-space: nowrap; padding-right: 16px; }
+table.matrix td.c { text-align: center; padding: 5px 3px; width: 30px; }
+.cell { display: inline-block; width: 13px; height: 13px; border-radius: 2px; border: 1px solid var(--rule-strong); background: transparent; }
+.cell.on { background: var(--accent); border-color: var(--accent); }
+.cell.cp { background: var(--brass); border-color: var(--brass); }
+tr.only td.ph { color: var(--ink-3); }
+tr.reach td.ph { color: var(--ink); font-weight: 600; }
+tr.reach { background: var(--accent-soft); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: .78rem; color: var(--ink-2); }
+.legend span.s { display: inline-flex; align-items: center; gap: 7px; }
+
+/* ---------- ladder ---------- */
+.ladder { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.step { display: grid; grid-template-columns: 46px 1fr auto; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--rule); align-items: start; }
+.step:last-child { border-bottom: 0; }
+.step .sn {
+  font-family: "IBM Plex Mono", monospace; font-size: .72rem; font-weight: 600;
+  color: var(--ink-3); padding-top: 3px; letter-spacing: .05em;
+}
+.step .sc { display: flex; flex-direction: column; gap: 4px; }
+.step .st { font-weight: 600; font-size: .95rem; }
+.step .sd { font-size: .845rem; color: var(--ink-2); }
+.step .sm { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+.step .sm .big { font-family: Archivo, sans-serif; font-weight: 700; font-size: 1.02rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.step .sm .sml { font-size: .68rem; color: var(--ink-3); font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+@media (max-width: 700px) { .step { grid-template-columns: 32px 1fr; } .step .sm { grid-column: 2; text-align: left; align-items: flex-start; } }
+
+/* ---------- notes ---------- */
+.note {
+  border: 1px solid var(--rule); border-left: 3px solid var(--crit);
+  border-radius: 0 5px 5px 0; background: var(--surface);
+  padding: 13px 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.note.calm { border-left-color: var(--accent); }
+.note .nh { font-family: "IBM Plex Mono", monospace; font-size: .69rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.note p { font-size: .885rem; color: var(--ink-2); }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+footer { margin-top: 70px; padding-top: 22px; border-top: 1px solid var(--rule); }
+footer p { font-size: .8rem; color: var(--ink-3); font-family: "IBM Plex Mono", monospace; line-height: 1.7; }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-meta">
+      <span class="eyebrow">Vrooli control plane</span>
+      <span class="eyebrow">branch agi · 2026-08-26</span>
+      <span class="eyebrow">second-pass audit</span>
+    </div>
+    <h1>The Second Layer of internal/</h1>
+    <p class="lede">A 13-phase consolidation plan just completed on this tree. It did what it said: one CLI shape, typed JSON, lint in CI, no sequence-named files, every package documented. Re-measuring immediately afterward, <strong>clone density did not move</strong> — 234 source and 218 test clone entries at <code>dupl -t 60</code>, against 229 and 216 before. The same six files still top the list.</p>
+    <p class="lede">That is not a failure of the plan. It is evidence that the remaining debt is a different shape, and it has one signature: <strong>the canonical abstraction already exists, and the call sites bypass it.</strong> Six independent instances, below.</p>
+    <div class="strip">
+      <div><span class="n">132,087</span><span class="k">non-test lines in internal/</span></div>
+      <div><span class="n">95,891</span><span class="k">test lines · 84 packages</span></div>
+      <div><span class="n b">11,441</span><span class="k">clone-side lines in tests alone</span></div>
+      <div><span class="n b">823</span><span class="k">goconst + mnd findings</span></div>
+      <div><span class="n a">24 / 30</span><span class="k">test phases blind to this code</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="method">
+  <div class="sec-head">
+    <div class="bar"></div>
+    <span class="eyebrow">How this was measured</span>
+    <h2>Instruments, and one thing you should know first</h2>
+  </div>
+  <div class="stack">
+    <div class="prose">
+      <p>Everything below is a measurement on the working tree, not an impression. Tools used: <code>dupl -t 60</code> over source and tests separately, <code>gocyclo</code>, <code>golangci-lint</code> with <code>goconst</code> and <code>mnd</code> enabled (neither is in your config today), plus targeted greps and reads. Counts exclude <code>_test.go</code> unless the row says otherwise.</p>
+      <p>All figures were re-taken <strong>after</strong> <code>consolidate-internal-close-the-cli-migration-boundary</code> reported all 13 phases done and <code>go build ./...</code> exited zero. Where a number moved, the before/after pair is shown.</p>
+    </div>
+    <div class="note calm">
+      <span class="nh">The one number that tells the story</span>
+      <p><code>internal/cliout</code> exports <code>RenderTable</code> — a correct, tabwriter-backed table renderer. It has <strong>zero call sites</strong> in the entire tree. Beside it sit 412 hand-aligned <code>Fprintf</code> calls that each re-implement a worse version of it. That single pair is the whole report in miniature, and it repeats five more times below.</p>
+    </div>
+  </div>
+</section>
+
+<section id="boundary">
+  <div class="sec-head">
+    <div class="bar"></div>
+    <span class="eyebrow">Scope</span>
+    <h2>What the last plan delivered, and what it left</h2>
+  </div>
+  <div class="stack">
+  <div class="boundary">
+    <div class="bcol other">
+      <div class="bh">
+        <span class="eyebrow">Delivered — 13 phases, verified</span>
+        <h3>consolidate-internal</h3>
+      </div>
+      <ul>
+        <li><strong>Arrangement.</strong> Four residual families out of <code>vroolicli</code>. It shrank 3,135 → 1,651 lines.</li>
+        <li><strong>Typed JSON.</strong> <code>cliv1</code> protos through <code>cliout.WriteProtoJSON</code> in all four.</li>
+        <li><strong>Lint + format in CI.</strong> <code>golangci-lint</code>, <code>gofumpt -l</code>, and a <code>--new-from-rev</code> <code>gocyclo</code> gate now run in <code>test.yml</code>.</li>
+        <li><strong>Named files.</strong> Zero <code>*-partN.go</code> remain.</li>
+        <li><strong>Docs.</strong> 100% <code>doc.go</code> coverage; <code>internal/README.md</code> maps the families.</li>
+        <li><strong>Handler dedup.</strong> <code>hostreqkit.AptRepoInstaller</code>, <code>GoInstallInstaller</code>, and <code>SysctlApplier</code> exist and are adopted. <code>dupl -t 120</code> over those handlers is clean.</li>
+      </ul>
+    </div>
+    <div class="bcol mine">
+      <div class="bh">
+        <span class="eyebrow">Untouched — this report</span>
+        <h3>The second layer</h3>
+      </div>
+      <ul>
+        <li><strong>Tests were out of scope everywhere.</strong> The handler dedup collapsed 739 source lines to 164 and left all 1,461 test lines in place.</li>
+        <li><strong>A third wiring dialect appeared.</strong> The four new families use neither the older families' bind idiom nor each other's.</li>
+        <li><strong>Atomic writes.</strong> 26 files hand-roll a weaker version of a helper that exists.</li>
+        <li><strong>Vocabulary bypass.</strong> 290 goconst findings against typed enums that already exist.</li>
+        <li><strong>Tunable levers.</strong> 440 duration literals, 68 named; 533 mnd findings.</li>
+        <li><strong>Renderers.</strong> <code>cliout.RenderTable</code> exists with zero callers.</li>
+        <li><strong>Runner seams.</strong> Six identical interfaces bypass <code>internal/shell</code>.</li>
+        <li><strong>Phase coverage.</strong> 24 of 30 test-genie phases still cannot see this code.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p>The reason the second column survived a thorough plan is visible in that plan's own Definition of Done. Item 19 reads: <em>"<code>dupl -t 120</code> over <code>internal/tools</code> and <code>internal/safeguards</code> reports no clone group spanning two handler directories."</em> It passes. Run the identical command at the identical threshold with test files included and it returns <strong>13 cross-directory clone entries across six directory pairs</strong> — every one of them a handler test. The gate was honest about what it measured; it measured source.</p>
+  </div>
+
+  <h3 style="margin-top:8px">The bypass ledger</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Canonical thing that exists</th><th>Adopted</th><th>Bypassed</th><th>What the bypass costs</th></tr></thead>
+      <tbody>
+        <tr><td class="path">cliout.RenderTable</td><td class="num" style="color:var(--crit)">0</td><td class="num">412 Fprintf</td><td>CLI columns do not align</td></tr>
+        <tr><td class="path">config.WriteOwnedFileAtomic</td><td class="num">13</td><td class="num">26 files</td><td>root-owned files under sudo; no fsync</td></tr>
+        <tr><td class="path">cliout.WriteJSONValue</td><td class="num">—</td><td class="num">2 copies</td><td>3 identical functions, 1 exported</td></tr>
+        <tr><td class="path">internal/shell</td><td class="num">—</td><td class="num">6 interfaces</td><td>a new fake per new host probe</td></tr>
+        <tr><td class="path">repocontract.HomeKey*</td><td class="num">57</td><td class="num">51 literals</td><td>path authority split in half</td></tr>
+        <tr><td class="path">HealthStatus* / HostOS* / Kind*</td><td class="num">—</td><td class="num">290 goconst</td><td>untyped status and platform strings</td></tr>
+        <tr><td class="path">hostreqkit.AptRepoInstaller</td><td class="num">3 handlers</td><td class="num">3 test files</td><td>shared logic re-tested 4×</td></tr>
+      </tbody>
+    </table>
+  </div>
+  </div>
+</section>
+
+<section id="findings">
+  <div class="sec-head">
+    <div class="bar"></div>
+    <span class="eyebrow">Ranked by lines removed per hour spent</span>
+    <h2>Eight findings</h2>
+  </div>
+
+  <div class="findings">
+
+    <!-- 1 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">1</div>
+        <div class="f-title">
+          <h3>26 files hand-roll an atomic write that already exists — and the copies are less safe</h3>
+          <div class="chips">
+            <span class="chip dup">duplication</span>
+            <span class="chip risk">correctness</span>
+            <span class="chip win">mechanical</span>
+            <span class="chip">~400 lines</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p><code>internal/config/ownedwrite.go</code> is the canonical writer. It creates the temp file <em>in the destination directory</em>, chmods before the rename, <code>Sync()</code>s, <code>defer os.Remove</code>s the temp on every failure path, and — critically — chowns the result back to the invoking user when running under <code>sudo</code>. Fourteen packages use it. Thirteen call sites total.</p>
+          <p>Twenty-six other files re-implement the same idea by hand. Every one I read does <code>path + ".tmp"</code> → <code>os.WriteFile</code> → <code>os.Rename</code> with <strong>no fsync, no temp cleanup on failure, and no ownership repair</strong>.</p>
+          <p>That last one is not cosmetic. Any of these writers reached during <code>sudo vrooli setup</code> leaves a root-owned file in the operator's home — the exact failure class that made a healthy required safeguard read as a permanent blocker once already.</p>
+        </div>
+        <pre class="code"><span class="ok">// internal/config/ownedwrite.go — canonical</span>
+tmp, _ := os.CreateTemp(filepath.Dir(path), ".vrooli-owned-*")
+<span class="ok">defer os.Remove(tmpPath)</span>
+tmp.Chmod(perm); tmp.Write(data); <span class="ok">tmp.Sync()</span>; tmp.Close()
+<span class="ok">chownPathToInvokingUser(tmpPath)</span>
+os.Rename(tmpPath, path)
+<span class="ok">return chownPathToInvokingUser(path)</span>
+
+<span class="hi">// internal/resources/broker_storage.go — one of 26</span>
+tmp := s.Path + ".tmp"
+os.WriteFile(tmp, data, 0o600)   <span class="dim">// no sync, no cleanup, no chown</span>
+os.Rename(tmp, s.Path)</pre>
+        <div class="evidence">
+          <span class="lbl">Sites</span>
+          <b>internal/</b>{safeguards/path-hygiene, safeguards/emergency-watchdog, baselinefloor, credentialescrow, hostfacts, buildinfo ×2, templatevalidation, resources/broker_storage, resources/legacy_docker_migration, resources/securestore ×3, resources/drivers_managed_service, resources/managed_service_acquisition, resources/deprecated, resources/agentinstall, scenariostale, setup ×2, peerrecord, releaseauthority, cliinstall, privilegebroker, runtime/tool_handler, lifecycle/phases}
+        </div>
+        <div class="note calm">
+          <span class="nh">The win</span>
+          <p>Replace each body with a <code>config.WriteOwnedFileAtomic</code> call. Mechanical, individually reviewable, and it converts a silent privilege bug into a single audited seam. Add a <code>forbidigo</code> or <code>ast-grep</code> rule banning <code>os.Rename</code> outside <code>internal/config</code> so it cannot come back.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 2 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">2</div>
+        <div class="f-title">
+          <h3>~97 handler packages stamp out the same test file — 13,400 test lines over 10,166 source lines</h3>
+          <div class="chips">
+            <span class="chip dup">test boilerplate</span>
+            <span class="chip win">high payoff</span>
+            <span class="chip">~4,000 lines</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p><code>internal/tools</code> and <code>internal/safeguards</code> hold 41 <code>handler.go</code> files and 40 <code>handler_test.go</code> files. Tools alone carry <strong>4,041 test lines against 1,855 source lines — a 2.17× ratio</strong>. <code>stripe</code> is 56 source lines and 666 test lines.</p>
+          <p>Those tests are not 40 different tests. They are one test file, stamped, with a noun swapped. The same function names recur across packages verbatim:</p>
+        </div>
+        <div class="bars">
+          <div class="bar-row"><span class="lab">TestNameAndKind</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span class="val">25 pkgs</span></div>
+          <div class="bar-row"><span class="lab">linuxHost (helper)</span><span class="bar-track"><span class="bar-fill" style="width:84%"></span></span><span class="val">21 pkgs</span></div>
+          <div class="bar-row"><span class="lab">newHandler / newTestHandler</span><span class="bar-track"><span class="bar-fill" style="width:60%"></span></span><span class="val">15 / 13</span></div>
+          <div class="bar-row"><span class="lab">stubAll (helper)</span><span class="bar-track"><span class="bar-fill" style="width:52%"></span></span><span class="val">13 pkgs</span></div>
+          <div class="bar-row"><span class="lab">TestApplyDryRun</span><span class="bar-track"><span class="bar-fill" style="width:48%"></span></span><span class="val">12 pkgs</span></div>
+          <div class="bar-row"><span class="lab">TestInspectManualRequirement</span><span class="bar-track"><span class="bar-fill" style="width:44%"></span></span><span class="val">11 pkgs</span></div>
+          <div class="bar-row"><span class="lab">TestInspectNonLinuxUnsupported</span><span class="bar-track"><span class="bar-fill" style="width:40%"></span></span><span class="val">10 pkgs</span></div>
+          <div class="bar-row"><span class="lab">TestApplyUnsupportedReturnsEarly</span><span class="bar-track"><span class="bar-fill" style="width:40%"></span></span><span class="val">10 pkgs</span></div>
+          <div class="bar-row"><span class="lab">stubLookups (helper)</span><span class="bar-track"><span class="bar-fill" style="width:40%"></span></span><span class="val">10 pkgs</span></div>
+        </div>
+        <pre class="code"><span class="dim">// three files, one test — the only difference is a string literal</span>
+func TestNameAndKind(t *testing.T) {
+  h := newTestHandler()
+  if h.Name() != <span class="hi">"clock"</span> { t.Fatalf("Name = %q", h.Name()) }
+  if h.Kind() != hostreqspec.KindSafeguard { t.Fatalf("Kind = %q", h.Kind()) }
+}
+<span class="dim">// safeguards/tcp-tuning → "tcp_tuning" · safeguards/kernel-config → "kernel_config" · ×25</span></pre>
+        <div class="note">
+          <span class="nh">The last plan collapsed these handlers 4.5:1 and left every test in place</span>
+          <p><code>hostreqkit.AptRepoInstaller</code> now exists and works. <code>internal/tools/stripe/handler.go</code> is 56 lines of pure declaration — a struct literal naming the keyring path, the source line, and three dry-run notes. Its behavior is entirely the shared installer's.</p>
+          <p><code>internal/tools/stripe/handler_test.go</code> is still <strong>666 lines across 23 test functions</strong>, and 21 of them — <code>TestApplyLinuxAptFullFlow</code>, <code>TestApplyLinuxInstallsGpgIfMissing</code>, <code>TestApplyLinuxKeyDownloadFailure</code>, <code>TestApplyDarwinBrewFlow</code> — exercise <code>AptRepoInstaller</code> through a 56-line wrapper. <code>vault</code> (417 lines) and <code>cloudflared</code> (378) do the same thing again. <code>hostreqkit/install_test.go</code> already tests <code>AptRepoInstaller</code> directly at <code>TestAptRepoInstallerInspectPlatforms</code>. <strong>The shared installer is now tested four times.</strong></p>
+        </div>
+        <div class="note calm">
+          <span class="nh">The win — and the precedent already exists</span>
+          <p><code>internal/hostreqkit/dryrun.go</code> already exports <code>CompareDryRunAndApply(handler, host, status, opts)</code>: a shared conformance helper for exactly this family. The pattern is proven; it just was never extended past one check.</p>
+          <p>Add <code>hostreqkit/conformance</code> with one exported <code>RunSuite(t, Case{Handler, Name, Kind, Platforms, …})</code>. Each handler package's test file collapses to a table entry of five to fifteen lines. My estimate is <strong>3,500–4,500 test lines retired</strong>, and — the part that matters more — every new handler gets the whole suite by default instead of by copy-paste. Handlers that skip a check today start failing loudly instead of silently.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 3 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">3</div>
+        <div class="f-title">
+          <h3>The shape the other plan is migrating into is itself the densest clone site in the tree</h3>
+          <div class="chips">
+            <span class="chip dup">duplication</span>
+            <span class="chip risk">sequencing</span>
+            <span class="chip">~600 lines</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p>Of 229 source clone entries at <code>-t 60</code>, <strong>70 sit in six <code>internal/cli/*handlers</code> and <code>*cli</code> files</strong>. <code>resourcehandlers/handlers.go</code> alone participates in 25.</p>
+          <p>The unit of duplication is a twelve-line binding stanza where only four things vary — command constant, parse function, service method, render function. Everything else, including the <code>newService(deps, ctx)</code> error dance, is repeated verbatim per command. There are 35 such stanzas today.</p>
+        </div>
+        <pre class="code"><span class="dim">// internal/cli/recoveryhandlers/handlers.go — repeated 11× in this file alone</span>
+recoverycli.CommandRestore: rootcli.BindGlobalCommand(deps.Stdout,
+  func(ctx C, args []string) (recoveryapp.RestoreRequest, error) {
+    return recoverycli.ParseRestoreRequest(args)
+  },
+  func(ctx C, req recoveryapp.RestoreRequest) (cliout.Format, recoveryapp.RestoreOutput, error) {
+<span class="hi">    format, service, err := newService(deps, ctx)</span>
+<span class="hi">    if err != nil { return "", recoveryapp.RestoreOutput{}, err }</span>
+    resp, err := service.Restore(req)
+    return format, resp, err
+  },
+  recoverycli.RenderRestore,
+),</pre>
+        <div class="evidence">
+          <span class="lbl">Clone participation, source files</span>
+          resourcehandlers <b>25</b> · recoveryhandlers <b>18</b> · projectcli <b>10</b> · capacityhandlers <b>8</b> · resourcecli/reports_proto <b>7</b> · cliinstall/manager <b>7</b>
+          <br><span class="lbl" style="margin-top:8px">Test coverage of that wiring</span>
+          recoveryhandlers <b>214 src / 0 test</b> · capacityhandlers <b>185 / 0</b> · hygienehandlers <b>62 / 0</b> · packagehandlers <b>220 / 34</b>
+        </div>
+        <h4 style="margin-top:4px">And there are now three dialects, not one</h4>
+        <div class="prose">
+          <p><code>internal/README.md</code> documents one shape and names the families that follow it: auth, capacity, contract, hygiene, package, project, recovery, resource, scenario. Those nine use <code>rootcli.BindGlobalCommand</code> — 36 stanzas.</p>
+          <p>The four families extracted by the last plan got the <em>directory</em> shape but not the <em>binding</em> idiom. Each has an <code>Xcli</code> of 15–38 lines and an <code>Xhandlers</code> of 59–122 lines that are thin shims, while 443–2,872 lines of real command code sit in <code>app/X</code> behind a hand-written <code>switch args[0]</code> and direct <code>commandtree.ParseArgs</code> calls. None of the four uses <code>rootcli.Bind</code> at all.</p>
+        </div>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Family</th><th>app/X</th><th>Xcli</th><th>Xhandlers</th><th>rootcli.Bind</th><th>own JSON writer</th></tr></thead>
+            <tbody>
+              <tr><td class="path">credentials</td><td class="num">2,872</td><td class="num">27</td><td class="num">122</td><td class="num" style="color:var(--crit)">0</td><td class="num">1</td></tr>
+              <tr><td class="path">host</td><td class="num">1,126</td><td class="num">17</td><td class="num">62</td><td class="num" style="color:var(--crit)">0</td><td class="num">3</td></tr>
+              <tr><td class="path">runtime</td><td class="num">505</td><td class="num">38</td><td class="num">76</td><td class="num" style="color:var(--crit)">0</td><td class="num">3</td></tr>
+              <tr><td class="path">capability</td><td class="num">443</td><td class="num">15</td><td class="num">59</td><td class="num" style="color:var(--crit)">0</td><td class="num">1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="nh">The migration produced a byte-identical copy of an exported helper</span>
+          <p>The clearest single artifact of the dialect split: <code>internal/app/host/json.go</code> was created by the migration and contains <code>writeHostJSON</code> — marshal, unmarshal, <code>structpb.NewValue</code>, <code>cliout.WriteProtoJSON</code>. That is line-for-line what <code>cliout.WriteJSONValue</code> already does, in the very package the function imports. <code>writeCredentialJSON</code> is the same again with <code>NewStruct</code>. Three implementations, one of them already exported and public.</p>
+        </div>
+        <div class="note calm">
+          <span class="nh">The win</span>
+          <p>One <code>bindService(deps, newService, parse, method, render)</code> generic collapses each twelve-line stanza to one line and drops <code>BuildHandlers</code> off the complexity list. Then move the four new families onto the same binding, delete the eight per-family JSON writers in favour of <code>cliout.WriteJSONValue</code>, and <code>internal/README.md</code> becomes true for the first time.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 4 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">4</div>
+        <div class="f-title">
+          <h3>The typed vocabularies already exist. Hundreds of call sites use bare strings anyway.</h3>
+          <div class="chips">
+            <span class="chip dup">magic strings</span>
+            <span class="chip win">lint-enforceable</span>
+            <span class="chip">292 findings</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p>This is not "add some constants." <code>scenarioruntime.HealthStatusHealthy</code>, <code>deployability.HostOSLinux</code>, <code>hostreqspec.Kind*</code>, and <code>cliout.FormatJSON</code> all exist and are all correct. The problem is that the rest of the tree ignores them — <code>hostreqspec/spec.go</code> itself compares against literal <code>"darwin"</code> and <code>"linux"</code> while defining typed constants twenty lines above.</p>
+          <p><code>goconst</code> reports 292 findings. The top repeats are precisely the domain vocabulary that has a home already:</p>
+        </div>
+        <div class="grid2">
+          <div class="tw">
+            <table>
+              <thead><tr><th>Repeated literal</th><th>Occ.</th><th>Home that exists</th></tr></thead>
+              <tbody>
+                <tr><td class="path">"healthy" / "unhealthy"</td><td class="num">21 / 18</td><td class="path">HealthStatus*</td></tr>
+                <tr><td class="path">"running" / "stopped" / "failed"</td><td class="num">12 / 8 / 20</td><td class="path">Status*</td></tr>
+                <tr><td class="path">"linux" / "darwin" / "windows"</td><td class="num">14 / 12 / 9</td><td class="path">HostOS*</td></tr>
+                <tr><td class="path">"json"</td><td class="num">27</td><td class="path">cliout.FormatJSON</td></tr>
+                <tr><td class="path">"sudo" / "/usr/bin/sudo"</td><td class="num">24 / 15</td><td class="path">hostreqkit</td></tr>
+                <tr><td class="path">"unsupported" / "unknown"</td><td class="num">9 / 11</td><td class="path">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>Path vocabulary</th><th>Bare</th><th>Contract</th></tr></thead>
+              <tbody>
+                <tr><td class="path">".vrooli"</td><td class="num">51</td><td class="num">57</td></tr>
+                <tr><td class="path">"scenarios"</td><td class="num">43</td><td class="num">—</td></tr>
+                <tr><td class="path">".vrooli/service.json"</td><td class="num">20</td><td class="num">—</td></tr>
+              </tbody>
+            </table>
+            <div style="padding:12px 14px; font-size:.83rem; color:var(--ink-2); border-top:1px solid var(--rule);">
+              <code>repocontract.HomeKey*</code> is used 57 times. Bare <code>".vrooli"</code> appears 51 times in non-test source beside it. Roughly half the tree honors the contract package and half re-derives the path.
+            </div>
+          </div>
+        </div>
+        <div class="note calm">
+          <span class="nh">The win</span>
+          <p>Enable <code>goconst</code> and fix by vocabulary rather than by file — status, platform, format, path — so each pass is one small typed enum adopted everywhere. This is the cheapest finding to make permanent, because a linter holds it.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 5 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">5</div>
+        <div class="f-title">
+          <h3>440 duration literals, 68 of them named — there is no tunable surface for timing</h3>
+          <div class="chips">
+            <span class="chip dup">magic numbers</span>
+            <span class="chip">533 mnd findings</span>
+            <span class="chip">control surface</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p>Across 71 non-test files there are 440 inline <code>N * time.Unit</code> literals. Only 68 are bound to a name containing <em>timeout</em>, <em>interval</em>, <em>retry</em>, or <em>backoff</em>. The distribution shows the same handful of values chosen over and over by different authors, which is the signature of a missing default rather than of deliberate per-site tuning.</p>
+        </div>
+        <div class="bars">
+          <div class="bar-row"><span class="lab">30 * time.Second</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span class="val">47</span></div>
+          <div class="bar-row"><span class="lab">10 * time.Second</span><span class="bar-track"><span class="bar-fill" style="width:68%"></span></span><span class="val">32</span></div>
+          <div class="bar-row"><span class="lab">2 * time.Minute</span><span class="bar-track"><span class="bar-fill" style="width:66%"></span></span><span class="val">31</span></div>
+          <div class="bar-row"><span class="lab">2 * time.Second</span><span class="bar-track"><span class="bar-fill" style="width:64%"></span></span><span class="val">30</span></div>
+          <div class="bar-row"><span class="lab">5 * time.Second</span><span class="bar-track"><span class="bar-fill" style="width:57%"></span></span><span class="val">27</span></div>
+          <div class="bar-row"><span class="lab">10 * time.Minute</span><span class="bar-track"><span class="bar-fill" style="width:55%"></span></span><span class="val">26</span></div>
+          <div class="bar-row"><span class="lab">24 / 48 * time.Hour</span><span class="bar-track"><span class="bar-fill" style="width:62%"></span></span><span class="val">17 / 12</span></div>
+          <div class="bar-row"><span class="lab">250 / 500 * time.Millisecond</span><span class="bar-track"><span class="bar-fill" style="width:49%"></span></span><span class="val">12 / 11</span></div>
+        </div>
+        <div class="prose">
+          <p>The same shape shows in file permissions — <code>0o755</code> ×293, <code>0o644</code> ×216, <code>0o600</code> ×122, <code>0o700</code> ×65, plus stragglers in <code>0755</code>/<code>0644</code> octal-legacy form — and in retention windows and poll intervals. <code>mnd</code> reports 533 magic numbers overall.</p>
+        </div>
+        <div class="note calm">
+          <span class="nh">The win</span>
+          <p>Not a config file — a <code>internal/tuning</code> (or an extension of <code>internal/config</code>) exporting named defaults grouped by concern: <code>tuning.HostProbeTimeout</code>, <code>tuning.ServiceStartDeadline</code>, <code>tuning.CacheTTL</code>, <code>perm.Dir</code>, <code>perm.Secret</code>. That converts 440 invisible decisions into one readable table someone can actually review, and it makes an env or manifest override possible later without touching 71 files. Start with the four permission modes — they're a one-hour sweep and eliminate the <code>0755</code>-vs-<code>0o755</code> inconsistency for free.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 6 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">6</div>
+        <div class="f-title">
+          <h3><code>cliout.RenderTable</code> exists, is correct, and has zero callers</h3>
+          <div class="chips">
+            <span class="chip dup">duplication</span>
+            <span class="chip">UX defect</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p>Parsing is in good shape — <code>Parse*Request</code> already routes through a shared <code>parse()</code> with <code>FlagValue</code>/<code>HasFlag</code>, and there are only 7 raw <code>flag.NewFlagSet</code> users. Rendering is where the layer stopped.</p>
+          <p>Every <code>Render*</code> re-opens with the same <code>if format == cliout.FormatJSON</code> branch — 73 occurrences — and then hand-builds a table with tab characters inside <code>Fprintf</code>. There are <strong>412 raw <code>Fprintf(w, …)</code> calls across <code>internal/cli</code> and <code>internal/app</code></strong>, and the only two <code>text/tabwriter</code> references in the whole tree are both inside <code>internal/cliout/cliout.go</code> itself. Raw tab characters in <code>Fprintf</code> do not align in a terminal; they align only when every value happens to be the same width.</p>
+          <p>The fix does not need designing. <code>cliout.RenderTable(w, headers, rows)</code> is already written, already correct, already builds a <code>tabwriter</code> with a two-space gutter — and <code>grep</code> finds <strong>zero call sites</strong> for it anywhere in <code>internal/</code>.</p>
+          <p>Empty states are ad-hoc too: <code>"no active engagements"</code>, <code>"no capacity claims"</code>, <code>"no root"</code> — three phrasings, three authors.</p>
+        </div>
+        <pre class="code">func RenderList(w io.Writer, format cliout.Format, resp recoveryapp.ListOutput) error {
+<span class="hi">  if format == cliout.FormatJSON { return writeRecoveryJSON(w, ...) }   // ×73</span>
+<span class="hi">  if len(resp.Engagements) == 0 { fmt.Fprintln(w, "no active engagements"); return nil }</span>
+  for _, e := range resp.Engagements {
+    fmt.Fprintf(w, <span class="hi">"%s\t%s\t%s\t%s\t%s\n"</span>, ...)   <span class="dim">// never aligns</span>
+  }
+}</pre>
+        <div class="note calm">
+          <span class="nh">The win</span>
+          <p>A <code>cliout.Table{Headers, Rows, Empty}</code> that owns the JSON branch, the empty state, and a real tabwriter. Each renderer becomes a row-mapping function. This is the one finding on the list that a user will notice immediately — the CLI's tables start lining up.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 7 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">7</div>
+        <div class="f-title">
+          <h3>Six identical command-runner seams, six fakes to maintain, one canonical package ignored</h3>
+          <div class="chips">
+            <span class="chip dup">duplication</span>
+            <span class="chip">test infra</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p><code>internal/shell</code> is 134 lines and is the intended seam. Meanwhile at least six packages declare their own structurally identical interface — <code>LookPath(string) (string, error)</code> plus <code>Run(ctx, name, ...args) ([]byte, error)</code> — under six different names, and five test files each write their own fake for it.</p>
+        </div>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Interface</th><th>Location</th></tr></thead>
+            <tbody>
+              <tr><td class="path">CommandRunner</td><td class="path">internal/hostinventory/collector.go:21</td></tr>
+              <tr><td class="path">IntegrityCommandRunner</td><td class="path">internal/hostinventory/integrity_collector.go:26</td></tr>
+              <tr><td class="path">SessionCommandRunner</td><td class="path">internal/hostinventory/session.go:9</td></tr>
+              <tr><td class="path">RemoteDesktopCommandRunner</td><td class="path">internal/hostinventory/remote_desktop.go:14</td></tr>
+              <tr><td class="path">CommandRunner</td><td class="path">internal/workloadowner/live.go:13</td></tr>
+              <tr><td class="path">(anonymous)</td><td class="path">internal/hostpresentation/hostpresentation.go:39</td></tr>
+              <tr><td class="path">hostInventoryNoopCommandRunner</td><td class="path">internal/safeguards/remote-session-protection/handler.go:415</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note calm">
+          <span class="nh">The win</span>
+          <p>Promote one <code>shell.Runner</code> interface and ship <code>shell/shelltest</code> with a scripted fake. Four of these live in the same package (<code>hostinventory</code>) and can merge without touching a call site. The payoff is test infrastructure more than line count: today, testing a new host probe means writing a seventh fake.</p>
+          <p>Related and adjacent: <strong>69 inline shell-script heredocs across 25 test files</strong> write fake binaries into a temp dir and prepend it to <code>PATH</code>, each with its own spelling. A <code>shelltest.StubBin(t, "docker", exitCode, stdout)</code> retires all of them. And <code>t.Setenv</code> appears 228 times, dominated by the same <code>HOME</code>/<code>SUDO_USER</code>/<code>USER</code>/<code>XDG_*</code> tuple — one <code>testenv.AsSudoUser(t)</code> helper covers the majority.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 8 -->
+    <article class="f">
+      <div class="f-head">
+        <div class="f-rank">8</div>
+        <div class="f-title">
+          <h3>The lint config declares a complexity budget it never enforces</h3>
+          <div class="chips">
+            <span class="chip risk">dead config</span>
+            <span class="chip win">one line</span>
+          </div>
+        </div>
+      </div>
+      <div class="f-body">
+        <div class="prose">
+          <p><code>.golangci.yml</code> still carries <code>linters-settings.gocyclo.min-complexity: 30</code> while <code>gocyclo</code> is absent from <code>linters.enable</code>. The last plan worked around that rather than fixing it: <code>test.yml</code> now runs a second <code>golangci-lint</code> step with <code>--new-from-rev=b6640b68 --enable-only=gocyclo</code>. That gates <em>new</em> complexity and grandfathers all 488 functions above 10, including the 20 above the configured threshold of 30.</p>
+          <p>That is a reasonable ratchet and worth keeping. The gap is that the config file still reads as though the project enforces a complexity budget in the default lint run, and it does not — a reader who runs <code>golangci-lint run ./internal/...</code> locally sees a clean result that CI would also pass, and learns nothing about the 20.</p>
+          <p><code>internal/cli/scenariohandlers.BuildHandlers</code> is <strong>86</strong> — finding 3 wearing a different hat, since that function is a wall of binding stanzas.</p>
+        </div>
+        <div class="grid2">
+          <div class="tw">
+            <table>
+              <thead><tr><th>Cyclomatic</th><th>Function</th></tr></thead>
+              <tbody>
+                <tr><td class="num">86</td><td class="path">scenariohandlers.BuildHandlers</td></tr>
+                <tr><td class="num">61</td><td class="path">resources/manifest.Validate</td></tr>
+                <tr><td class="num">51</td><td class="path">remote-desktop-access.Apply</td></tr>
+                <tr><td class="num">49</td><td class="path">capacity.Policy.withKey</td></tr>
+                <tr><td class="num">42</td><td class="path">config.RepairService.Repair</td></tr>
+                <tr><td class="num">41</td><td class="path">setup.RunSetupWithOptions</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>Threshold</th><th>Functions over</th></tr></thead>
+              <tbody>
+                <tr><td class="num">&gt; 10</td><td class="num">488</td></tr>
+                <tr><td class="num">&gt; 15</td><td class="num">201</td></tr>
+                <tr><td class="num">&gt; 30 <span style="color:var(--brass-ink)">(configured)</span></td><td class="num">20</td></tr>
+              </tbody>
+            </table>
+            <div style="padding:12px 14px; font-size:.83rem; color:var(--ink-2); border-top:1px solid var(--rule);">
+              Also absent from the enabled set, and each one maps directly onto a finding above: <code>goconst</code> (#4), <code>mnd</code> (#5), <code>dupl</code> (#1,2,3), <code>gocritic</code>, <code>prealloc</code>.
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <span class="nh">The suite is not green right now</span>
+          <p><code>go test ./internal/... -count=1</code> exits <strong>1</strong>. 168 packages pass; <code>internal/lifecycle</code> fails on <code>TestPackageScriptsAreShellFree</code>. The cause is outside <code>internal/</code>: <code>scenarios/system-monitor/ui/package.json</code> declares <code>build: tsc --noEmit &amp;&amp; vite build</code> and <code>build:profile: vite build --mode profile</code>, so the profile channel silently skips typechecking. It is a one-line defect in a live-repo invariant test, and until it is fixed every phase of any control-plane work validates against a red baseline.</p>
+        </div>
+        <div class="note calm">
+          <span class="nh">Genuinely healthy — leave these alone</span>
+          <p>Error handling is in good order and does not need a pass: <strong>1,348 <code>fmt.Errorf</code> with <code>%w</code> against 20 with <code>%v</code>/<code>%s</code></strong>, and only 42 capitalized error strings out of 2,135. Package documentation is complete — every directory under <code>internal/</code> holding Go code has a <code>doc.go</code>, and <code>internal/README.md</code> maps the families. One real modernization is available — <code>sort.Strings</code>/<code>sort.Slice</code> appear 192 times while the <code>slices</code> package is imported in 13 files and <code>maps</code> in none, on Go 1.25.</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section id="phases">
+  <div class="sec-head">
+    <div class="bar"></div>
+    <span class="eyebrow">Your second question</span>
+    <h2>24 of 30 test phases cannot see this code — and for tidiness, the fix is one JSON line</h2>
+  </div>
+  <div class="stack">
+    <div class="prose">
+      <p>You suspected the phase scenarios could grade the control plane and hadn't been generalized. That is right, and it is narrower than you'd expect. Every phase descriptor declares <code>targets.kinds</code>, and the vocabulary already includes <code>control-plane</code>, <code>package</code>, <code>project</code>, <code>docs</code>, <code>tool</code>, <code>safeguard</code>, <code>team</code>. Seven phases now use it; the remaining descriptors record their honest scenario-only scope.</p>
+      <p>That declaration is a hard gate: <code>applicability.go:77</code> drops any target whose kind is not in <code>DeclaredTargetKinds</code>. So <code>internal/</code> — 132,087 lines, the largest single body of code in the repo — is graded by proto, cli contracts, unit, quality, structure, storage, and tidiness.</p>
+    </div>
+
+    <div class="matrix-scroll">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th style="min-width:170px">Phase</th>
+            <th style="min-width:190px">Provider</th>
+            <th class="k">scenario</th>
+            <th class="k">resource</th>
+            <th class="k">tool</th>
+            <th class="k">safeguard</th>
+            <th class="k">team</th>
+            <th class="k">package</th>
+            <th class="k" style="color:var(--brass-ink)">control-plane</th>
+            <th class="k">docs</th>
+            <th class="k">project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="reach"><td class="ph">structure</td><td class="prov">structure-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td></tr>
+          <tr class="reach"><td class="ph">storage</td><td class="prov">storage-manager</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td></tr>
+          <tr class="reach"><td class="ph">quality</td><td class="prov">quality-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td></tr>
+          <tr class="reach"><td class="ph">unit</td><td class="prov">unit-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="reach"><td class="ph">proto</td><td class="prov">proto-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="reach"><td class="ph">contracts</td><td class="prov">cli-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">dependencies</td><td class="prov">scenario-dependency-analyzer</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">docs</td><td class="prov">knowledge-observatory</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="reach"><td class="ph">tidiness</td><td class="prov">tidiness-manager</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell cp"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">security</td><td class="prov">security-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">performance</td><td class="prov">performance-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">architecture</td><td class="prov">architecture-cartographer</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">portability</td><td class="prov">scenario-dependency-analyzer</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">api</td><td class="prov">api-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">measures</td><td class="prov">measures-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">workflow</td><td class="prov">workflow-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">templates</td><td class="prov">template-manager</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">experience</td><td class="prov">experience-manager</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">ui-health</td><td class="prov">ui-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">business</td><td class="prov">business-health</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">branding</td><td class="prov">brand-manager</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">search</td><td class="prov">search-hub</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">component-tests</td><td class="prov">react-component-library</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">agent-conformance</td><td class="prov">agent-manager</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">ai-conformance</td><td class="prov">ai-gateway</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">provider-conformance</td><td class="prov">test-genie</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">event-capture-conf.</td><td class="prov">vrooli-events</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">monetization-conf.</td><td class="prov">landing-page-business-suite</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+          <tr class="only"><td class="ph">soak</td><td class="prov">audio-tools</td><td class="c"><span class="cell on"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td><td class="c"><span class="cell"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span class="s"><span class="cell on"></span> declared target kind</span>
+      <span class="s"><span class="cell cp"></span> reaches <code>internal/</code></span>
+      <span class="s"><span class="cell"></span> not declared</span>
+      <span class="s" style="color:var(--ink-3)">7 of 30 phases grade the control plane.</span>
+    </div>
+
+    <div class="note calm">
+      <span class="nh">Tidiness specifically — the provider was already capable</span>
+      <p>I traced the whole path expecting to find missing provider work. There was none. <code>tidiness-manager</code>'s <code>resolveValidationTarget(scenario, path)</code> short-circuits on <code>path</code> before any scenario resolution happens:</p>
+    </div>
+    <pre class="code"><span class="dim">// scenarios/tidiness-manager/api/validation_connect.go</span>
+func (s *Server) resolveValidationTarget(scenario, path string) (string, string, error) {
+  if scenario == "" &amp;&amp; path == "" { return "", "", fmt.Errorf("scenario or path is required") }
+<span class="ok">  if path != "" {                                    // ← arbitrary path, already supported</span>
+<span class="ok">    if scenario == "" { scenario = filepath.Base(filepath.Clean(path)) }</span>
+<span class="ok">    return scenario, path, nil</span>
+  }
+  ... <span class="dim">// scenario locator only reached when path is empty</span>
+}
+
+<span class="dim">// packages/maturity-go/assessment/describe.go — the default ValidateTarget adapter</span>
+<span class="ok">Scenario: target.GetId(), Path: target.GetRoot()</span>   <span class="dim">// every assessment.Serve provider gets this free</span></pre>
+    <div class="prose">
+      <p>So the transport carries a target path (<code>validationprovider.RunTarget</code>), the shared <code>assessment.Serve</code> shim already synthesizes <code>ValidateTarget</code> from <code>ValidateScenario</code> by mapping <code>target.Root</code> → <code>path</code>, and tidiness already honors <code>path</code>. The descriptor's <code>targets.kinds</code> was the only gate; it now includes <code>control-plane</code>.</p>
+      <p>The first real control-plane run reported 152 findings at rung L3: 25 warnings, 127 infos, and 63 HIGH_COMPLEXITY warnings. The phase passed under gating because only error-class findings fail it. The run is useful and honest: it measures the tree without pretending that open advisory work is clean.</p>
+      <p>The same one-line question applies to <code>security</code>, <code>performance</code>, <code>architecture</code>, and <code>measures</code> — with more provider-side risk each time, since only 9 of 26 providers implement <code>ValidateTarget</code> natively rather than through the shim. Tidiness is the one where the answer is unambiguous.</p>
+    </div>
+  </div>
+</section>
+
+<section id="post-change">
+  <div class="sec-head">
+    <div class="bar"></div>
+    <span class="eyebrow">Measured after the 16-phase execution</span>
+    <h2>Post-change record — the bypasses are retired, and the ratchet is live</h2>
+  </div>
+  <div class="stack">
+    <div class="prose">
+      <p>Measured on 2026-08-26 from the repository root with <code>go run ./cmd/vrooli-debt-census --json</code>. The before column is the Phase 2 AST/tool census recorded in the execution log; the after column is the same census after Phases 3–14. Negative deltas are reductions. A value is not considered complete merely because it is small: the committed budget is lowered to the current measurement and may only move downward.</p>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Delta</th><th>Owning phase</th></tr></thead>
+        <tbody>
+          <tr><td class="path">os_rename_outside_config</td><td class="num">26</td><td class="num">4</td><td class="num">−22</td><td>3</td></tr>
+          <tr><td class="path">fprintf_tab_rows</td><td class="num">17</td><td class="num">0</td><td class="num">−17</td><td>4</td></tr>
+          <tr><td class="path">private_json_writers</td><td class="num">9</td><td class="num">0</td><td class="num">−9</td><td>5</td></tr>
+          <tr><td class="path">bind_stanzas</td><td class="num">35</td><td class="num">0</td><td class="num">−35</td><td>6</td></tr>
+          <tr><td class="path">hand_written_dispatchers</td><td class="num">5</td><td class="num">0</td><td class="num">−5</td><td>7</td></tr>
+          <tr><td class="path">duplicate_runner_interfaces</td><td class="num">4</td><td class="num">0</td><td class="num">−4</td><td>8</td></tr>
+          <tr><td class="path">test_lookpath_fakes</td><td class="num">6</td><td class="num">0</td><td class="num">−6</td><td>8</td></tr>
+          <tr><td class="path">inline_shell_heredocs</td><td class="num">69</td><td class="num">0</td><td class="num">−69</td><td>8</td></tr>
+          <tr><td class="path">stamped_handler_tests</td><td class="num">25</td><td class="num">0</td><td class="num">−25</td><td>10</td></tr>
+          <tr><td class="path">bare_vrooli_path_literals</td><td class="num">92</td><td class="num">92</td><td class="num">0</td><td>12</td></tr>
+          <tr><td class="path">unnamed_duration_literals</td><td class="num">158</td><td class="num">0</td><td class="num">−158</td><td>13</td></tr>
+          <tr><td class="path">bare_octal_file_modes</td><td class="num">178</td><td class="num">0</td><td class="num">−178</td><td>13</td></tr>
+          <tr><td class="path">goconst_findings</td><td class="num">290</td><td class="num">192</td><td class="num">−98</td><td>14</td></tr>
+          <tr><td class="path">mnd_findings</td><td class="num">533</td><td class="num">0</td><td class="num">−533</td><td>14</td></tr>
+          <tr><td class="path">gocyclo_over_30</td><td class="num">20</td><td class="num">20</td><td class="num">0</td><td>14</td></tr>
+          <tr><td class="path">dupl_src_entries</td><td class="num">234</td><td class="num">225</td><td class="num">−9</td><td>14</td></tr>
+          <tr><td class="path">dupl_test_entries</td><td class="num">218</td><td class="num">163</td><td class="num">−55</td><td>11</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note calm">
+      <span class="nh">Updated bypass ledger</span>
+      <p><code>cliout.RenderTable</code> has 17 production call sites and zero hand-tab rows; <code>config.WriteOwnedFileAtomic</code> owns all managed file commits, with four remaining <code>os.Rename</code> calls limited to directory migration/archive behavior; <code>cliout.WriteJSONValue</code> is the sole dynamic JSON-value seam; <code>rootcli.BindService</code> owns all family binding; <code>shell.Runner</code> owns the command boundary; and <code>hostreqkittest.RunSuite</code> owns shared handler behavior. The remaining goconst and complexity values are visible, budgeted, and lint-clean under the configured rules.</p>
+    </div>
+    <div class="note calm">
+      <span class="nh">Updated phase coverage matrix</span>
+      <p><strong>control-plane:</strong> contracts, structure, storage, quality, unit, proto, and tidiness. <strong>Scenario-only by recorded provider contract:</strong> security, performance, architecture, measures, API, workflow, templates, experience, branding, search, component-tests, agent-conformance, AI-conformance, provider-conformance, event-capture-conformance, monetization-conformance, soak, portability, dependencies, and docs. Each scenario-only descriptor now records the reason in its description; providers without a native <code>ValidateTarget</code> are not advertised as control-plane graders.</p>
+    </div>
+    <div class="note">
+      <span class="nh">Live evidence</span>
+      <p><code>20260826-194049-f15dee61</code> was the advisory calibration run; <code>20260826-194313-f74fa22f</code> was the final gating run. The latter's tidiness phase passed with the control-plane target and reported the L3 evidence-backed assessment. The full tidiness-manager suite remains red on unrelated pre-existing scenario/UI/API/dependency findings, so the phase result and suite result are reported separately.</p>
+    </div>
+  </div>
+</section>
+
+<section id="ladder">
+  <div class="sec-head">
+    <div class="bar"></div>
+    <span class="eyebrow">Sequenced — earlier steps make later ones smaller</span>
+    <h2>Where I would start</h2>
+  </div>
+  <div class="ladder">
+    <div class="step">
+      <span class="sn">0</span>
+      <span class="sc">
+        <span class="st">Make the baseline green</span>
+        <span class="sd">Fix <code>build:profile</code> in <code>scenarios/system-monitor/ui/package.json</code> to <code>tsc --noEmit &amp;&amp; vite build --mode profile</code>. Until <code>go test ./internal/...</code> exits zero, no later phase can tell its own regressions from the standing failure.</span>
+      </span>
+      <span class="sm"><span class="big">1 line</span><span class="sml">~15 min</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">A</span>
+      <span class="sc">
+        <span class="st">Turn on <code>tidiness</code> for <code>control-plane</code>, non-gating</span>
+        <span class="sd">One JSON line in the descriptor. Gives you a standing measurement of everything below before you change any of it — and a baseline to prove the rest of this worked.</span>
+      </span>
+      <span class="sm"><span class="big">1 line</span><span class="sml">~1 hour</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">B</span>
+      <span class="sc">
+        <span class="st">Enable <code>goconst</code>, <code>mnd</code>, <code>dupl</code>, <code>gocyclo</code> as warnings</span>
+        <span class="sd">Findings 4, 5, 8. Do not gate yet — the counts are 292 / 533 / 445 / ~20. Enabling them as reporting-only turns eight findings into a live worklist that shrinks visibly.</span>
+      </span>
+      <span class="sm"><span class="big">~10 lines</span><span class="sml">~1 hour</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">C</span>
+      <span class="sc">
+        <span class="st">Collapse the atomic writers onto <code>config.WriteOwnedFileAtomic</code></span>
+        <span class="sd">Finding 1. Twenty-six independent, individually revertable edits. Closes a real sudo-ownership bug class as a side effect. Add the <code>os.Rename</code> ban rule last.</span>
+      </span>
+      <span class="sm"><span class="big">−400 lines</span><span class="sml">~1 day</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">D</span>
+      <span class="sc">
+        <span class="st">Add <code>bindService</code>, collapse the 36 stanzas, then unify the three dialects</span>
+        <span class="sd">Finding 3. Collapse the stanza first, then move <code>credentials</code>, <code>host</code>, <code>runtime</code>, and <code>capability</code> onto it and delete their eight private JSON writers in favour of <code>cliout.WriteJSONValue</code>. Drops <code>BuildHandlers</code> from 86 complexity and makes <code>internal/README.md</code> true.</span>
+      </span>
+      <span class="sm"><span class="big">−600 lines</span><span class="sml">~1–2 days</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">E</span>
+      <span class="sc">
+        <span class="st">Ship <code>hostreqkit/conformance</code> and retire the stamped handler tests</span>
+        <span class="sd">Finding 2, the largest single number on the list. Extends a helper that already exists. Every future handler inherits the full suite instead of copying it.</span>
+      </span>
+      <span class="sm"><span class="big">−4,000 lines</span><span class="sml">~3–4 days</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">F</span>
+      <span class="sc">
+        <span class="st">Adopt <code>cliout.RenderTable</code>, then <code>shell.Runner</code> + <code>shelltest</code></span>
+        <span class="sd">Findings 6 and 7. <code>RenderTable</code> is already written — this is adoption, not construction, and it is the one item here a user sees. The runner unification is smaller in lines but removes the "write a seventh fake" tax on every new host probe.</span>
+      </span>
+      <span class="sm"><span class="big">−500 lines</span><span class="sml">~2–3 days</span></span>
+    </div>
+    <div class="step">
+      <span class="sn">G</span>
+      <span class="sc">
+        <span class="st">Name the tunables, then flip the linters to gating</span>
+        <span class="sd">Finding 5, and the close-out for B. Permission modes first (one hour, mechanical), then timeouts by concern. Gate only once the counts are near zero, so CI never lands red.</span>
+      </span>
+      <span class="sm"><span class="big">440 → ~40</span><span class="sml">~2 days</span></span>
+    </div>
+  </div>
+  <div style="margin-top:18px" class="note calm">
+    <span class="nh">No blocking dependency remains</span>
+    <p><code>consolidate-internal-close-the-cli-migration-boundary</code> reports all 13 phases done, and <code>go build ./...</code> exits zero. Nothing here waits on it. Step D is the only one that touches files that plan rewrote, and it extends its outcome rather than reversing it: the four families keep their <code>app/X</code> + <code>Xcli</code> + <code>Xhandlers</code> triple and their <code>cliv1</code> protos, and gain the binding idiom the other nine families already use.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Measured on branch <code>agi</code>, working tree, 2026-08-26 · dupl 60-token threshold · golangci-lint v1.64.8 with goconst + mnd · gocyclo · go 1.25.0<br>
+  Effort figures are estimates. Line-reduction figures are derived from clone-side line counts and per-package censuses, not from performed edits.</p>
+</footer>
+
+</div>

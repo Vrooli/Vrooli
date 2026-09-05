@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"scenario-to-cloud/cli/internal/streaming"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"scenario-to-cloud/cli/internal/streaming"
 )
 
 // Client provides API access for deployment operations.

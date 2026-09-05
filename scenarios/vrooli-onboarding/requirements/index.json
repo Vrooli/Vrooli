@@ -1,89 +1,280 @@
 {
   "_metadata": {
     "entity": "vrooli-onboarding",
-    "generated_at": "2026-03-18T16:40:05-04:00",
-    "generator": "prd-control-tower",
-    "schema_version": "1.0"
+    "description": "Requirement registry for the target onboarding contract. Modules follow the operator's decision path: select capabilities, commit them through one authority, provision credentials, consent to host changes, apply and verify, reach parity across surfaces and tiers, and prove the experience.",
+    "schema_version": "1.0.0"
   },
   "imports": [
-    "01-resource-configuration-wizard/module.json",
-    "02-configuration-state-management/module.json",
-    "03-health-monitoring-dashboard/module.json",
-    "04-progress-persistence-system/module.json",
-    "05-smart-flow-optimization/module.json",
-    "06-user-friendly-documentation/module.json"
+    "01-capability-selection/module.json",
+    "02-operator-state-authority/module.json",
+    "03-credentials/module.json",
+    "04-host-requirements/module.json",
+    "05-apply-and-readiness/module.json",
+    "06-surface-parity/module.json",
+    "07-deployment-tier-parity/module.json",
+    "08-experience-and-evidence/module.json"
   ],
   "modules": [
     {
-      "id": "MOD-P0-001",
-      "path": "01-resource-configuration-wizard",
+      "id": "MOD-SELECTION",
+      "path": "01-capability-selection",
       "prd_ref": "OT-P0-001",
       "priority": "P0",
-      "requirement_count": 3,
-      "requirement_ids": ["REQ-P0-001", "REQ-P0-002", "REQ-P0-003"],
-      "title": "Resource Configuration Wizard",
+      "title": "Capability selection",
+      "requirement_count": 11,
+      "requirement_ids": [
+        "ONB-SELECT-CAPABILITY-FIRST",
+        "ONB-SELECT-READ-MODEL",
+        "ONB-SELECT-CLOSURE",
+        "ONB-SELECT-CASCADE-DISCLOSURE",
+        "ONB-SELECT-SYSTEM-LOCKED",
+        "ONB-SELECT-FILTER",
+        "ONB-SELECT-OPTIONAL-RESOURCES",
+        "ONB-SELECT-UNION-EXPORT",
+        "ONB-SELECT-NO-HARDCODED-INVENTORY",
+        "ONB-OPMODE-PER-SCENARIO"
+      ],
       "operationalTargets": [
-        { "id": "OT-P0-001", "status": "passing" }
+        {
+          "id": "OT-P0-001"
+        },
+        {
+          "id": "OT-P0-004"
+        },
+        {
+          "id": "OT-P1-005"
+        },
+        {
+          "id": "OT-P2-001"
+        }
       ]
     },
     {
-      "id": "MOD-P0-002",
-      "path": "02-configuration-state-management",
-      "prd_ref": "OT-P0-002",
+      "id": "MOD-STATE",
+      "path": "02-operator-state-authority",
+      "prd_ref": "OT-P0-003",
       "priority": "P0",
-      "requirement_count": 3,
-      "requirement_ids": ["REQ-P0-004", "REQ-P0-005", "REQ-P0-006"],
-      "title": "Configuration State Management",
+      "title": "Operator-state write authority",
+      "requirement_count": 10,
+      "requirement_ids": [
+        "ONB-STATE-AUTHORITY",
+        "ONB-STATE-MERGE-PATCH",
+        "ONB-STATE-PRESERVES-UNKNOWN",
+        "ONB-STATE-SCHEMA-VALIDATED",
+        "ONB-STATE-SINGLE-WRITER",
+        "ONB-STATE-ATOMIC",
+        "ONB-STATE-RESOURCE-AUTHORITY",
+        "ONB-STATE-COMPLETION-MARKER",
+        "ONB-STATE-CONCURRENT-SAFE",
+        "ONB-CORE-SUPERVISION-AUTHORITY",
+        "ONB-REENTRY-RESUMES"
+      ],
       "operationalTargets": [
-        { "id": "OT-P0-002", "status": "passing" }
+        {
+          "id": "OT-P0-002"
+        },
+        {
+          "id": "OT-P0-003"
+        },
+        {
+          "id": "OT-P0-006"
+        },
+        {
+          "id": "OT-P0-009"
+        },
+        {
+          "id": "OT-P1-002"
+        }
       ]
     },
     {
-      "id": "MOD-P1-003",
-      "path": "03-health-monitoring-dashboard",
-      "prd_ref": "OT-P1-001",
+      "id": "MOD-CREDENTIALS",
+      "path": "03-credentials",
+      "prd_ref": "OT-P0-007",
+      "priority": "P0",
+      "title": "Credentials",
+      "requirement_count": 9,
+      "requirement_ids": [
+        "ONB-CRED-BOUNDARY",
+        "ONB-CRED-RELAY",
+        "ONB-CRED-NO-DISCLOSURE",
+        "ONB-CRED-DESCRIPTOR-COMPLETE",
+        "ONB-CRED-DIAGNOSIS",
+        "ONB-CRED-RECOVERY-COVERAGE",
+        "ONB-CRED-HEADLESS-STORE",
+        "ONB-CRED-PROJECT-SCOPE",
+        "ONB-CRED-RECOVERY-VISIBLE"
+      ],
+      "operationalTargets": [
+        {
+          "id": "OT-P0-007"
+        },
+        {
+          "id": "OT-P1-001"
+        },
+        {
+          "id": "OT-P1-003"
+        },
+        {
+          "id": "OT-P1-004"
+        }
+      ]
+    },
+    {
+      "id": "MOD-HOST",
+      "path": "04-host-requirements",
+      "prd_ref": "OT-P0-004",
+      "priority": "P0",
+      "title": "Host tools and safeguards",
+      "requirement_count": 8,
+      "requirement_ids": [
+        "ONB-HOST-CONSENT",
+        "ONB-HOST-DERIVED",
+        "ONB-HOST-RISK-DISCLOSURE",
+        "ONB-HOST-CONFIG-FORMS",
+        "ONB-HOST-CONFIG-VALIDATED",
+        "ONB-HOST-UNSUPPORTED-PLATFORM",
+        "ONB-HOST-SCOPE-PARITY",
+        "ONB-HOST-PROBE-TRUTH"
+      ],
+      "operationalTargets": [
+        {
+          "id": "OT-P0-004"
+        },
+        {
+          "id": "OT-P1-001"
+        }
+      ]
+    },
+    {
+      "id": "MOD-APPLY",
+      "path": "05-apply-and-readiness",
+      "prd_ref": "OT-P0-006",
+      "priority": "P0",
+      "title": "Apply and readiness",
+      "requirement_count": 11,
+      "requirement_ids": [
+        "ONB-APPLY-INTENT-BECOMES-STATE",
+        "ONB-APPLY-EXECUTES",
+        "ONB-APPLY-PER-ITEM-RESULT",
+        "ONB-APPLY-IDEMPOTENT",
+        "ONB-APPLY-PARTIAL-FAILURE",
+        "ONB-READY-COMPOSED",
+        "ONB-READY-RESOURCE-PROBE",
+        "ONB-READY-REMEDIATION",
+        "ONB-READY-RECHECK",
+        "ONB-READY-DEGRADED-CONTINUE",
+        "ONB-COMPLETE-REQUIRES-READY"
+      ],
+      "operationalTargets": [
+        {
+          "id": "OT-P0-006"
+        },
+        {
+          "id": "OT-P1-001"
+        }
+      ]
+    },
+    {
+      "id": "MOD-PARITY",
+      "path": "06-surface-parity",
+      "prd_ref": "OT-P0-008",
+      "priority": "P0",
+      "title": "Surface parity",
+      "requirement_count": 8,
+      "requirement_ids": [
+        "ONB-PARITY-THREE-SURFACES",
+        "ONB-CLI-INTERACTIVE",
+        "ONB-CLI-NONINTERACTIVE",
+        "ONB-PARITY-IDENTICAL-STATE",
+        "ONB-PARITY-RESUMABLE-SESSION",
+        "ONB-CLI-CREDENTIALS-STDIN",
+        "ONB-CLI-EXIT-CODE",
+        "ONB-CLI-NO-DEAD-COMMANDS"
+      ],
+      "operationalTargets": [
+        {
+          "id": "OT-P0-007"
+        },
+        {
+          "id": "OT-P0-008"
+        },
+        {
+          "id": "OT-P1-004"
+        },
+        {
+          "id": "OT-P1-007"
+        }
+      ]
+    },
+    {
+      "id": "MOD-TIERS",
+      "path": "07-deployment-tier-parity",
+      "prd_ref": "OT-P0-005",
+      "priority": "P0",
+      "title": "Deployment-tier parity",
+      "requirement_count": 7,
+      "requirement_ids": [
+        "ONB-TIER-PARITY",
+        "ONB-TIER-BUNDLE-CATALOG",
+        "ONB-TIER-NO-STEP-ERROR",
+        "ONB-TIER-BUNDLE-COMPLETENESS",
+        "ONB-TIER-STATE-LOCATION",
+        "ONB-TIER-REMOTE-ONBOARDING",
+        "ONB-TIER-SUBSET-SHIPPING"
+      ],
+      "operationalTargets": [
+        {
+          "id": "OT-P0-005"
+        },
+        {
+          "id": "OT-P1-004"
+        },
+        {
+          "id": "OT-P1-005"
+        }
+      ]
+    },
+    {
+      "id": "MOD-EXPERIENCE",
+      "path": "08-experience-and-evidence",
+      "prd_ref": "OT-P1-006",
       "priority": "P1",
-      "requirement_count": 2,
-      "requirement_ids": ["REQ-P1-001", "REQ-P1-002"],
-      "title": "Health Monitoring Dashboard",
+      "title": "Experience and evidence",
+      "requirement_count": 12,
+      "requirement_ids": [
+        "ONB-UX-CONTRACT",
+        "ONB-UX-WCAG-AA",
+        "ONB-UX-KEYBOARD",
+        "ONB-UX-THEMES",
+        "ONB-UX-DESIGN-SYSTEM",
+        "ONB-UX-JOURNEY-EVIDENCE",
+        "ONB-CONTRACT-ENDPOINT-DRIFT",
+        "ONB-CONTRACT-COVERAGE-FLOOR",
+        "ONB-INTEGRATIONS-DEFERRED",
+        "ONB-PROFILE-PRESELECT",
+        "ONB-CONFIG-DISCOVERY",
+        "ONB-REENTRY-REVISABLE"
+      ],
       "operationalTargets": [
-        { "id": "OT-P1-001", "status": "passing" }
-      ]
-    },
-    {
-      "id": "MOD-P1-004",
-      "path": "04-progress-persistence-system",
-      "prd_ref": "OT-P1-002",
-      "priority": "P1",
-      "requirement_count": 2,
-      "requirement_ids": ["REQ-P1-003", "REQ-P1-004"],
-      "title": "Progress Persistence System",
-      "operationalTargets": [
-        { "id": "OT-P1-002", "status": "passing" }
-      ]
-    },
-    {
-      "id": "MOD-P2-005",
-      "path": "05-smart-flow-optimization",
-      "prd_ref": "OT-P2-001",
-      "priority": "P2",
-      "requirement_count": 2,
-      "requirement_ids": ["REQ-P2-001", "REQ-P2-003"],
-      "title": "Smart Flow Optimization",
-      "operationalTargets": [
-        { "id": "OT-P2-001", "status": "passing" }
-      ]
-    },
-    {
-      "id": "MOD-P2-006",
-      "path": "06-user-friendly-documentation",
-      "prd_ref": "OT-P2-002",
-      "priority": "P2",
-      "requirement_count": 2,
-      "requirement_ids": ["REQ-P2-002", "REQ-P2-004"],
-      "title": "User-Friendly Documentation",
-      "operationalTargets": [
-        { "id": "OT-P2-002", "status": "passing" }
+        {
+          "id": "OT-P1-006"
+        },
+        {
+          "id": "OT-P1-007"
+        },
+        {
+          "id": "OT-P2-002"
+        },
+        {
+          "id": "OT-P2-003"
+        },
+        {
+          "id": "OT-P2-004"
+        },
+        {
+          "id": "OT-P1-002"
+        }
       ]
     }
   ]

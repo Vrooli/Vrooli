@@ -7,235 +7,394 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness and dependency status.",
       "category": "system",
-      "response": {
-        "type": "object",
-        "properties": {
-          "status": "string",
-          "readiness": "boolean",
-          "dependencies": "object"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Lifecycle and load-balancer probes must reach health without a generated client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "transport_only"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "transport_only"
+          }
         }
-      },
-      "examples": [
-        {
-          "name": "Check health",
-          "curl": "curl http://localhost:${API_PORT}/health"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager status"
       }
     },
     {
-      "id": "analyze_dependencies",
-      "path": "/api/v1/dependencies/analyze/{scenario}",
-      "method": "GET",
-      "summary": "Analyze scenario dependencies",
-      "description": "Recursively fetches all resource and scenario dependencies for a given scenario [REQ:DM-P0-001][REQ:DM-P0-002][REQ:DM-P0-006]",
-      "category": "analysis",
-      "response": {
-        "type": "object",
-        "properties": {
-          "scenario": "string",
-          "dependencies": "object",
-          "circular_dependencies": "array",
-          "aggregate_requirements": "object"
-        }
-      },
-      "examples": [
-        {
-          "name": "Analyze scenario dependencies",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/dependencies/analyze/picker-wheel"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager analyze <scenario>"
-      },
-      "experimental": true
-    },
-    {
-      "id": "score_fitness",
-      "path": "/api/v1/fitness/score",
-      "method": "POST",
-      "summary": "Calculate platform fitness scores",
-      "description": "Scores dependency fitness for specified deployment tiers (1-5) [REQ:DM-P0-003][REQ:DM-P0-004][REQ:DM-P0-005]",
-      "category": "analysis",
-      "request": {
-        "type": "object",
-        "properties": {
-          "scenario": "string",
-          "tiers": "array"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "scores": "object",
-          "blockers": "array",
-          "warnings": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Score fitness for desktop tier",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/fitness/score -d '{\"scenario\":\"picker-wheel\",\"tiers\":[2]}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager fitness <scenario> --tier <tier>"
-      },
-      "experimental": true
-    },
-    {
       "id": "list_profiles",
-      "path": "/api/v1/profiles",
-      "method": "GET",
+      "path": "/vrooli.deployment_manager.v1.profiles.ProfilesService/ListProfiles",
+      "method": "POST",
       "summary": "List deployment profiles",
-      "description": "Returns all deployment profiles with summary info [REQ:DM-P0-012][REQ:DM-P0-015]",
-      "category": "profiles",
-      "response": {
-        "type": "array",
-        "items": "object"
-      },
-      "examples": [
-        {
-          "name": "List all profiles",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/profiles"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager profiles list"
-      },
-      "experimental": true
+      "description": "List deployment profiles through the generated Connect contract.",
+      "category": "profiles"
+    },
+    {
+      "id": "get_profile",
+      "path": "/vrooli.deployment_manager.v1.profiles.ProfilesService/GetProfile",
+      "method": "POST",
+      "summary": "Get a deployment profile",
+      "description": "Get a deployment profile through the generated Connect contract.",
+      "category": "profiles"
     },
     {
       "id": "create_profile",
-      "path": "/api/v1/profiles",
+      "path": "/vrooli.deployment_manager.v1.profiles.ProfilesService/CreateProfile",
       "method": "POST",
-      "summary": "Create deployment profile",
-      "description": "Creates a new deployment profile for a scenario and target tier(s) [REQ:DM-P0-007][REQ:DM-P0-012][REQ:DM-P0-013][REQ:DM-P0-014]",
-      "category": "profiles",
-      "request": {
-        "type": "object",
-        "properties": {
-          "name": "string",
-          "scenario": "string",
-          "tiers": "array",
-          "swaps": "object",
-          "secrets": "object",
-          "settings": "object"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "string",
-          "version": "number"
-        }
-      },
-      "examples": [
-        {
-          "name": "Create desktop profile",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/profiles -d '{\"name\":\"picker-wheel-desktop\",\"scenario\":\"picker-wheel\",\"tiers\":[2]}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager profile create <name> --scenario <scenario> --tier <tier>"
-      },
-      "experimental": true
+      "summary": "Create a deployment profile",
+      "description": "Create a deployment profile through the generated Connect contract.",
+      "category": "profiles"
+    },
+    {
+      "id": "update_profile",
+      "path": "/vrooli.deployment_manager.v1.profiles.ProfilesService/UpdateProfile",
+      "method": "POST",
+      "summary": "Update a deployment profile",
+      "description": "Update a deployment profile through the generated Connect contract.",
+      "category": "profiles"
+    },
+    {
+      "id": "delete_profile",
+      "path": "/vrooli.deployment_manager.v1.profiles.ProfilesService/DeleteProfile",
+      "method": "POST",
+      "summary": "Delete a deployment profile",
+      "description": "Delete a deployment profile through the generated Connect contract.",
+      "category": "profiles"
+    },
+    {
+      "id": "list_profile_versions",
+      "path": "/vrooli.deployment_manager.v1.profiles.ProfilesService/ListProfileVersions",
+      "method": "POST",
+      "summary": "List profile versions",
+      "description": "List profile versions through the generated Connect contract.",
+      "category": "profiles"
+    },
+    {
+      "id": "report_target_verdict",
+      "path": "/vrooli.deployment_manager.v1.evidence.EvidenceService/ReportTargetVerdict",
+      "method": "POST",
+      "summary": "Report target evidence",
+      "description": "Report target evidence through the generated Connect contract.",
+      "category": "evidence"
+    },
+    {
+      "id": "list_target_verdicts",
+      "path": "/vrooli.deployment_manager.v1.evidence.EvidenceService/ListTargetVerdicts",
+      "method": "POST",
+      "summary": "List target evidence",
+      "description": "List target evidence through the generated Connect contract.",
+      "category": "evidence"
+    },
+    {
+      "id": "get_evidence_review",
+      "path": "/vrooli.deployment_manager.v1.evidence.EvidenceService/GetEvidenceReview",
+      "method": "POST",
+      "summary": "Review release evidence",
+      "description": "Review release evidence through the generated Connect contract.",
+      "category": "evidence"
+    },
+    {
+      "id": "analyze_dependencies",
+      "path": "/vrooli.deployment_manager.v1.dependencies.DependenciesService/Analyze",
+      "method": "POST",
+      "summary": "Analyze scenario dependencies",
+      "description": "Analyze scenario dependencies through the generated Connect contract.",
+      "category": "dependencies"
+    },
+    {
+      "id": "score_fitness",
+      "path": "/vrooli.deployment_manager.v1.fitness.FitnessService/Score",
+      "method": "POST",
+      "summary": "Score deployment fitness",
+      "description": "Score deployment fitness through the generated Connect contract.",
+      "category": "fitness"
     },
     {
       "id": "deploy",
-      "path": "/api/v1/deploy/{profile_id}",
+      "path": "/vrooli.deployment_manager.v1.deployments.DeploymentsService/Deploy",
       "method": "POST",
       "summary": "Deploy a profile",
-      "description": "Orchestrates deployment of a profile to its target tier(s) [REQ:DM-P0-028][REQ:DM-P0-029][REQ:DM-P0-032][REQ:DM-P0-033]",
-      "category": "deployment",
-      "response": {
-        "type": "object",
-        "properties": {
-          "deployment_id": "string",
-          "status": "string",
-          "logs_url": "string"
-        }
-      },
-      "examples": [
-        {
-          "name": "Deploy profile",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/deploy/profile123"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager deploy <profile_id>"
-      },
-      "experimental": true
+      "description": "Deploy a profile through the generated Connect contract.",
+      "category": "deployments"
+    },
+    {
+      "id": "deploy_desktop",
+      "path": "/vrooli.deployment_manager.v1.deployments.DeploymentsService/DeployDesktop",
+      "method": "POST",
+      "summary": "Deploy a desktop profile",
+      "description": "Deploy a desktop profile through the generated Connect contract.",
+      "category": "deployments"
     },
     {
       "id": "deployment_status",
-      "path": "/api/v1/deployments/{deployment_id}",
-      "method": "GET",
+      "path": "/vrooli.deployment_manager.v1.deployments.DeploymentsService/Status",
+      "method": "POST",
       "summary": "Get deployment status",
-      "description": "Returns current status and metadata for a deployment [REQ:DM-P0-030][REQ:DM-P0-031]",
-      "category": "deployment",
-      "response": {
-        "type": "object",
-        "properties": {
-          "id": "string",
-          "status": "string",
-          "profile_id": "string",
-          "started_at": "string",
-          "completed_at": "string",
-          "artifacts": "array"
-        }
-      },
-      "examples": [
-        {
-          "name": "Check deployment status",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/deployments/deploy123"
-        }
-      ],
-      "cli_mapping": {
-        "command": "deployment-manager deployment status <deployment_id>"
-      },
-      "experimental": true
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "description": "Get deployment status through the generated Connect contract.",
+      "category": "deployments"
     },
     {
-      "name": "analyze",
-      "description": "Analyze scenario dependencies and requirements",
-      "endpoint_id": "analyze_dependencies"
+      "id": "list_swaps",
+      "path": "/vrooli.deployment_manager.v1.swaps.SwapsService/List",
+      "method": "POST",
+      "summary": "List dependency swaps",
+      "description": "List dependency swaps through the generated Connect contract.",
+      "category": "swaps"
     },
     {
-      "name": "fitness",
-      "description": "Calculate platform fitness scores",
-      "endpoint_id": "score_fitness"
+      "id": "analyze_swap",
+      "path": "/vrooli.deployment_manager.v1.swaps.SwapsService/Analyze",
+      "method": "POST",
+      "summary": "Analyze a dependency swap",
+      "description": "Analyze a dependency swap through the generated Connect contract.",
+      "category": "swaps"
     },
     {
-      "name": "profiles list",
-      "description": "List all deployment profiles",
-      "endpoint_id": "list_profiles"
+      "id": "cascade_swap",
+      "path": "/vrooli.deployment_manager.v1.swaps.SwapsService/Cascade",
+      "method": "POST",
+      "summary": "Analyze swap cascade",
+      "description": "Analyze swap cascade through the generated Connect contract.",
+      "category": "swaps"
     },
     {
-      "name": "profile create",
-      "description": "Create new deployment profile",
-      "endpoint_id": "create_profile"
+      "id": "apply_swap",
+      "path": "/vrooli.deployment_manager.v1.swaps.SwapsService/Apply",
+      "method": "POST",
+      "summary": "Apply a dependency swap",
+      "description": "Apply a dependency swap through the generated Connect contract.",
+      "category": "swaps"
     },
     {
-      "name": "deploy",
-      "description": "Deploy a profile to target tier(s)",
-      "endpoint_id": "deploy"
+      "id": "apply_swap_to_profile",
+      "path": "/vrooli.deployment_manager.v1.swaps.SwapsService/ApplyToProfile",
+      "method": "POST",
+      "summary": "Apply a swap to a profile",
+      "description": "Apply a swap to a profile through the generated Connect contract.",
+      "category": "swaps"
     },
     {
-      "name": "deployment status",
-      "description": "Check deployment status",
-      "endpoint_id": "deployment_status"
+      "id": "list_telemetry",
+      "path": "/vrooli.deployment_manager.v1.telemetry.TelemetryService/List",
+      "method": "POST",
+      "summary": "List telemetry",
+      "description": "List telemetry through the generated Connect contract.",
+      "category": "telemetry"
+    },
+    {
+      "id": "upload_telemetry",
+      "path": "/vrooli.deployment_manager.v1.telemetry.TelemetryService/Upload",
+      "method": "POST",
+      "summary": "Upload telemetry",
+      "description": "Upload telemetry through the generated Connect contract.",
+      "category": "telemetry"
+    },
+    {
+      "id": "report_migration",
+      "path": "/vrooli.deployment_manager.v1.migration.MigrationService/Report",
+      "method": "POST",
+      "summary": "Report a migration task",
+      "description": "Report a migration task through the generated Connect contract.",
+      "category": "migration"
+    },
+    {
+      "id": "migration_status",
+      "path": "/vrooli.deployment_manager.v1.migration.MigrationService/Status",
+      "method": "POST",
+      "summary": "Get migration task status",
+      "description": "Get migration task status through the generated Connect contract.",
+      "category": "migration"
+    },
+    {
+      "id": "list_approvals",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/List",
+      "method": "POST",
+      "summary": "List approvals",
+      "description": "List approvals through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "get_approval",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/Get",
+      "method": "POST",
+      "summary": "Get an approval",
+      "description": "Get an approval through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "create_approval",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/Create",
+      "method": "POST",
+      "summary": "Create an approval",
+      "description": "Create an approval through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "decide_approval",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/Decide",
+      "method": "POST",
+      "summary": "Decide an approval",
+      "description": "Decide an approval through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "check_release_gate",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/CheckReleaseGate",
+      "method": "POST",
+      "summary": "Check release gate",
+      "description": "Check release gate through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "set_required_platforms",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/SetRequiredPlatforms",
+      "method": "POST",
+      "summary": "Set required platforms",
+      "description": "Set required platforms through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "get_required_platforms",
+      "path": "/vrooli.deployment_manager.v1.approvals.ApprovalsService/GetRequiredPlatforms",
+      "method": "POST",
+      "summary": "Get required platforms",
+      "description": "Get required platforms through the generated Connect contract.",
+      "category": "approvals"
+    },
+    {
+      "id": "get_lpbs_config",
+      "path": "/vrooli.deployment_manager.v1.lpbs.LPBSService/GetConfig",
+      "method": "POST",
+      "summary": "Get LPBS release configuration",
+      "description": "Get LPBS release configuration through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "save_lpbs_config",
+      "path": "/vrooli.deployment_manager.v1.lpbs.LPBSService/SaveConfig",
+      "method": "POST",
+      "summary": "Save LPBS release configuration",
+      "description": "Save LPBS release configuration through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "list_releases",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/List",
+      "method": "POST",
+      "summary": "List releases",
+      "description": "List releases through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "get_release",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Get",
+      "method": "POST",
+      "summary": "Get a release",
+      "description": "Get a release through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "reverify_release",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Reverify",
+      "method": "POST",
+      "summary": "Reverify a release",
+      "description": "Reverify a release through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "start_release",
+      "path": "/vrooli.deployment_manager.v1.releases.ReleasesService/Start",
+      "method": "POST",
+      "summary": "Start a release",
+      "description": "Start a release through the generated Connect contract.",
+      "category": "releases"
+    },
+    {
+      "id": "report_readiness_evidence",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ReportEvidence",
+      "method": "POST",
+      "summary": "Report producer readiness evidence",
+      "description": "Report producer readiness evidence through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "prepare_readiness_review",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/PrepareReview",
+      "method": "POST",
+      "summary": "Prepare an exact readiness review",
+      "description": "Prepare an exact readiness review through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "get_readiness_review",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/GetReview",
+      "method": "POST",
+      "summary": "Get a readiness review",
+      "description": "Get a readiness review through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "list_readiness_reviews",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ListReviews",
+      "method": "POST",
+      "summary": "List readiness reviews",
+      "description": "List readiness reviews through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "list_readiness_review_waivers",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ListReviewWaivers",
+      "method": "POST",
+      "summary": "List readiness review waivers",
+      "description": "List readiness review waivers through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "synchronize_readiness_goal",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/SynchronizeGoalClosure",
+      "method": "POST",
+      "summary": "Synchronize readiness goal closure",
+      "description": "Synchronize readiness goal closure through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "approve_readiness_review",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/ApproveReview",
+      "method": "POST",
+      "summary": "Approve a readiness review",
+      "description": "Approve a readiness review through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "create_readiness_waiver",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/CreateWaiver",
+      "method": "POST",
+      "summary": "Create a readiness waiver",
+      "description": "Create a readiness waiver through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "record_readiness_human_check",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/RecordHumanCheck",
+      "method": "POST",
+      "summary": "Record an independent readiness human check",
+      "description": "Record an independent readiness human check through the generated Connect contract.",
+      "category": "readiness"
+    },
+    {
+      "id": "check_readiness_policy",
+      "path": "/vrooli.deployment_manager.v1.readiness.ReadinessService/CheckPolicyProjection",
+      "method": "POST",
+      "summary": "Check the readiness policy projection",
+      "description": "Check the readiness policy projection through the generated Connect contract.",
+      "category": "readiness"
     }
   ]
 }

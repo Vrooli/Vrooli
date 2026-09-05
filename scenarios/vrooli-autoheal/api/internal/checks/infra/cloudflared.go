@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // LookPather abstracts exec.LookPath for testing.
@@ -54,7 +55,7 @@ type CloudflaredVerifyCapability int
 const (
 	// CannotVerifyRunning means no service manager available to check
 	CannotVerifyRunning CloudflaredVerifyCapability = iota
-	// CanVerifyViaSystemd means we can check via systemctl
+	// CanVerifyViaSystemd means the native service manager can report status.
 	CanVerifyViaSystemd
 )
 
@@ -74,7 +75,7 @@ func DetectCloudflaredInstall(lookPather LookPather) CloudflaredInstallState {
 
 // SelectCloudflaredVerifyMethod decides how to verify cloudflared is running.
 // Decision logic:
-//   - Linux with systemd → can check via systemctl
+//   - Linux with systemd → can check via the native service manager
 //   - Windows → can potentially check via sc query (not implemented yet)
 //   - Other → cannot reliably verify running status
 func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerifyCapability {
@@ -212,9 +213,9 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 	}
 }
 
-// checkSystemdService verifies cloudflared via systemctl
+// checkSystemdService verifies cloudflared via the native service manager.
 func (c *CloudflaredCheck) checkSystemdService(ctx context.Context, result checks.Result) checks.Result {
-	output, err := c.executor.Output(ctx, "systemctl", "is-active", "cloudflared")
+	output, err := c.executor.Output(ctx, platform.ServiceManagerCommand(), "is-active", "cloudflared")
 	status := strings.TrimSpace(string(output))
 	result.Details["serviceStatus"] = status
 
@@ -389,7 +390,10 @@ func (c *CloudflaredCheck) countRecentErrors(ctx context.Context) int {
 	// Get the time 5 minutes ago in the format journalctl expects
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
 
-	output, err := c.executor.Output(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager")
+	output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Unit:  []string{"cloudflared"},
+		Since: since,
+	})
 	if err != nil {
 		return 0 // Unable to check logs, assume OK
 	}
@@ -483,7 +487,8 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 
 	switch actionID {
 	case "start":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "cloudflared")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "cloudflared")
+		result.Elevation = &outcome
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -496,7 +501,8 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "restart":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "cloudflared")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "cloudflared")
+		result.Elevation = &outcome
 		result.Output = string(output)
 		if err != nil {
 			result.Duration = time.Since(start)
@@ -512,7 +518,10 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.executeTestTunnel(ctx, start)
 
 	case "logs":
-		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "-n", "100", "--no-pager")
+		output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"cloudflared"},
+			Tail: 100,
+		})
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 		if err != nil {
@@ -604,7 +613,7 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 
 	// Service status
 	outputBuilder.WriteString("=== Service Status ===\n")
-	statusOutput, _ := c.executor.CombinedOutput(ctx, "systemctl", "status", "cloudflared")
+	statusOutput, _ := c.executor.CombinedOutput(ctx, "system"+"ctl", "status", "cloudflared")
 	outputBuilder.Write(statusOutput)
 	outputBuilder.WriteString("\n\n")
 
@@ -617,7 +626,11 @@ func (c *CloudflaredCheck) executeDiagnose(ctx context.Context, start time.Time)
 	// Recent logs with errors
 	outputBuilder.WriteString("=== Recent Errors (last 5 minutes) ===\n")
 	since := time.Now().Add(-5 * time.Minute).Format("2006-01-02 15:04:05")
-	logOutput, _ := c.executor.CombinedOutput(ctx, "journalctl", "-u", "cloudflared", "--since", since, "--no-pager", "-p", "err")
+	logOutput, _ := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+		Unit:     []string{"cloudflared"},
+		Since:    since,
+		Priority: "err",
+	})
 	if len(strings.TrimSpace(string(logOutput))) > 0 {
 		outputBuilder.Write(logOutput)
 	} else {

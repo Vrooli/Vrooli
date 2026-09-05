@@ -1,0 +1,643 @@
+<title>Reaching minimouse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --g:      #edece9;
+    --g2:     #f8f7f5;
+    --sunk:   #e1e0dc;
+    --i:      #15181a;
+    --i2:     #454b4e;
+    --i3:     #6f7679;
+    --rl:     #d2d2cd;
+    --rl2:    #e3e3de;
+    --acc:    #17624a;
+    --acc-bg: #d8e9e0;
+    --warn:   #8d5a12;
+    --warn-bg:#f0e4cc;
+    --crit:   #97292c;
+    --crit-bg:#f2d9d8;
+    --sh:     0 1px 2px rgba(21,24,26,.05), 0 16px 38px -26px rgba(21,24,26,.42);
+  }
+  :root:not([data-theme="light"]) { color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --g: #111413; --g2: #191d1c; --sunk: #0c0f0e;
+      --i: #e7ecea; --i2: #a6b0ac; --i3: #757e7b;
+      --rl: #2a3230; --rl2: #212827;
+      --acc: #5ec596; --acc-bg: #10301f;
+      --warn: #dda85c; --warn-bg: #33280f;
+      --crit: #e2807a; --crit-bg: #351b1b;
+      --sh: 0 1px 2px rgba(0,0,0,.5), 0 16px 38px -26px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --g: #111413; --g2: #191d1c; --sunk: #0c0f0e;
+    --i: #e7ecea; --i2: #a6b0ac; --i3: #757e7b;
+    --rl: #2a3230; --rl2: #212827;
+    --acc: #5ec596; --acc-bg: #10301f;
+    --warn: #dda85c; --warn-bg: #33280f;
+    --crit: #e2807a; --crit-bg: #351b1b;
+    --sh: 0 1px 2px rgba(0,0,0,.5), 0 16px 38px -26px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--g); color: var(--i);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px; line-height: 1.62; margin: 0; padding: 0 20px 110px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .spine { max-width: 70ch; margin: 0 auto; }
+  .wide  { max-width: 1160px; margin: 0 auto; }
+
+  h1,h2,h3,h4 { font-family: Gabarito, Inter, sans-serif; margin: 0; text-wrap: balance; letter-spacing: -0.018em; }
+  h1 { font-size: clamp(2.2rem, 5.2vw, 3.3rem); font-weight: 800; line-height: 1.03; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; line-height: 1.13; }
+  h3 { font-size: 1.16rem; font-weight: 700; }
+  h4 { font-size: .97rem; font-weight: 700; }
+  p { margin: 0; }
+  code, .m { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .86em; }
+  code { background: var(--sunk); border-radius: 3px; padding: .12em .4em; }
+  a { color: var(--acc); text-underline-offset: 3px; }
+
+  .eyebrow { font-family: "JetBrains Mono", monospace; font-size: .7rem; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--acc); }
+
+  header.top { padding: 58px 0 26px; border-bottom: 2px solid var(--i); margin-bottom: 12px; }
+  .deck { font-size: 1.12rem; color: var(--i2); margin-top: 18px; max-width: 62ch; }
+  .stamps { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 24px; font-family: "JetBrains Mono", monospace; font-size: .74rem; color: var(--i3); }
+  .stamps b { color: var(--i2); font-weight: 500; }
+
+  section { margin-top: 64px; }
+  .sec-head { display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; }
+  .sec-head p { color: var(--i2); }
+
+  /* outcomes */
+  .outs { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+  .out { background: var(--g2); border: 1px solid var(--rl); border-top: 3px solid var(--acc); border-radius: 3px; padding: 20px; box-shadow: var(--sh); }
+  .out .tag { font-family: "JetBrains Mono", monospace; font-size: .68rem; letter-spacing: .13em; text-transform: uppercase; color: var(--acc); }
+  .out h3 { margin: 9px 0 9px; }
+  .out p { font-size: .93rem; color: var(--i2); line-height: 1.55; }
+
+  /* evidence */
+  .ev { background: var(--g2); border: 1px solid var(--rl); border-left: 3px solid var(--crit); border-radius: 3px; overflow: hidden; }
+  .ev.ok { border-left-color: var(--acc); }
+  .ev-h { padding: 11px 15px; border-bottom: 1px solid var(--rl2); background: var(--sunk); font-family: "JetBrains Mono", monospace; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--i3); }
+  pre { margin: 0; padding: 15px; overflow-x: auto; font-family: "JetBrains Mono", monospace; font-size: .795rem; line-height: 1.62; color: var(--i2); background: var(--g2); }
+  pre b { color: var(--crit); font-weight: 600; }
+  pre i { color: var(--acc); font-style: normal; font-weight: 600; }
+  pre u { color: var(--i3); text-decoration: none; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* workstream */
+  .ws { border: 1px solid var(--rl); border-radius: 4px; background: var(--g2); box-shadow: var(--sh); overflow: hidden; margin-bottom: 20px; }
+  .ws-h { display: flex; align-items: flex-start; gap: 15px; padding: 18px 20px; border-bottom: 1px solid var(--rl2); }
+  .ws-n { font-family: "JetBrains Mono", monospace; font-size: .74rem; font-weight: 600; letter-spacing: .1em; color: var(--acc); background: var(--acc-bg); border-radius: 3px; padding: 4px 9px; flex: none; margin-top: 2px; }
+  .ws-h h3 { line-height: 1.25; }
+  .ws-h .goal { font-size: .87rem; color: var(--i3); margin-top: 5px; }
+  .ws-b { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 0; }
+  .ws-c { padding: 17px 20px; border-right: 1px solid var(--rl2); border-top: 1px solid var(--rl2); }
+  .ws-c:last-child { border-right: none; }
+  .ws-c h4 { font-family: "JetBrains Mono", monospace; font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--i3); margin-bottom: 10px; }
+  .ws-c ul { margin: 0; padding-left: 17px; }
+  .ws-c li { font-size: .875rem; color: var(--i2); line-height: 1.5; margin-bottom: 7px; }
+  .ws-c li:last-child { margin-bottom: 0; }
+  .ws-c li b { color: var(--i); font-weight: 600; }
+  .ws-dod { padding: 15px 20px; background: var(--acc-bg); border-top: 1px solid var(--rl2); }
+  .ws-dod h4 { font-family: "JetBrains Mono", monospace; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--acc); margin-bottom: 8px; }
+  .ws-dod p { font-size: .88rem; color: var(--i2); line-height: 1.55; }
+  .ws-dod .m { color: var(--i); }
+
+  .tw { overflow-x: auto; border: 1px solid var(--rl); border-radius: 4px; background: var(--g2); box-shadow: var(--sh); }
+  table { border-collapse: collapse; width: 100%; min-width: 740px; font-size: .875rem; }
+  th, td { text-align: left; padding: 12px 15px; vertical-align: top; border-bottom: 1px solid var(--rl2); }
+  thead th { font-family: "JetBrains Mono", monospace; font-size: .68rem; font-weight: 600; letter-spacing: .11em; text-transform: uppercase; color: var(--i3); background: var(--sunk); border-bottom: 1px solid var(--rl); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.k { font-weight: 600; white-space: nowrap; }
+  td.d { color: var(--i2); }
+  .pill { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+  .p-ok { background: var(--acc-bg); color: var(--acc); }
+  .p-w  { background: var(--warn-bg); color: var(--warn); }
+  .p-c  { background: var(--crit-bg); color: var(--crit); }
+
+  .del { display: flex; flex-direction: column; gap: 11px; }
+  .di { display: grid; grid-template-columns: 26px 1fr; gap: 13px; align-items: start; padding: 15px 17px; border: 1px solid var(--rl); border-radius: 4px; background: var(--g2); }
+  .di .box { width: 17px; height: 17px; border: 1.6px solid var(--i3); border-radius: 3px; margin-top: 3px; }
+  .di h4 { margin-bottom: 5px; }
+  .di p { font-size: .875rem; color: var(--i2); line-height: 1.55; }
+
+  .warnbox { border: 1px solid var(--warn); border-left: 3px solid var(--warn); background: var(--warn-bg); border-radius: 4px; padding: 17px 20px; }
+  .warnbox h4 { color: var(--warn); margin-bottom: 8px; }
+  .warnbox p { font-size: .9rem; color: var(--i2); line-height: 1.58; }
+  .warnbox p + p { margin-top: 10px; }
+  .warnbox b { color: var(--i); }
+
+  hr.r { border: none; border-top: 1px solid var(--rl); margin: 0 0 38px; }
+</style>
+
+<header class="top spine">
+  <div class="eyebrow">Implementation plan &middot; third of three</div>
+  <h1>Reaching minimouse</h1>
+  <p class="deck">
+    What has to be built, generalized and deleted so that web-console can open a shell on
+    minimouse and system-monitor can read its vitals &mdash; with the code left more portable
+    than it was, and evidence that settles it.
+  </p>
+  <div class="stamps">
+    <span><b>Verified live</b> 2026-08-26</span>
+    <span><b>minimouse</b> online, 6s heartbeat, untouched</span>
+    <span><b>Companions</b> <a href="https://claude.ai/code/artifact/8350f5e7-3b5f-4d25-b3e3-eeefb811d1e5">Bridge Reach Map</a> &middot; <a href="https://claude.ai/code/artifact/955a2313-b06c-452b-9f01-191468926017">Linking a Machine</a></span>
+  </div>
+</header>
+
+<main>
+
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">The two outcomes</div>
+    <h2>What finished looks like</h2>
+    <p>
+      Everything below exists to make these two sentences true, on this hardware, without
+      configuration.
+    </p>
+  </div>
+  <div class="outs">
+    <div class="out">
+      <div class="tag">Outcome A</div>
+      <h3>A shell on minimouse, from web-console</h3>
+      <p>
+        Start web-console with no Bridge environment variables set. minimouse appears in
+        Machines within two seconds. Open a session; get an interactive darwin shell that
+        resizes, survives a reconnect, and closes cleanly. No credential reaches the browser.
+      </p>
+    </div>
+    <div class="out">
+      <div class="tag">Outcome B</div>
+      <h3>minimouse&rsquo;s vitals, in system-monitor</h3>
+      <p>
+        Switch the machine control to minimouse. CPU, memory, disk and the device graph are
+        the Mac&rsquo;s, sourced from its darwin collectors. The identity strip says whose
+        numbers these are. Disconnect freezes the view with a stamped age and reconnects itself.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="r" style="margin-top:64px;">
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Measured today, on the live fleet</div>
+    <h2>One probe changed the plan</h2>
+    <p>
+      Outcome B looked like UI work. It is not: the transport that would carry it is broken
+      for every scenario-owned verb, on every node, and nothing in the repository exercises
+      that path.
+    </p>
+  </div>
+
+  <div class="spine stack" style="max-width:78ch;">
+    <div class="ev ok">
+      <div class="ev-h">a root verb, relayed to minimouse &mdash; works</div>
+<pre>$ vrooli scenario status minimouse/system-monitor --json
+{ "success": <i>true</i>, "scenario": { "name": "system-monitor",
+  "status": "stopped", "processes": 0, ... } }        <u>&larr; the Mac's real answer</u>
+</pre>
+    </div>
+
+    <div class="ev">
+      <div class="ev-h">a scenario-owned verb, same node, same second &mdash; fails</div>
+<pre>$ vrooli-bridge relay call --node-id 25c7e426&hellip; \
+    --scenario system-monitor --command "system-monitor metrics current"
+
+{ "outcome": <b>"RELAY_CALL_OUTCOME_FAILED"</b>,
+  "reason": <b>"exec: \"system-monitor\": executable file not found in $PATH"</b>,
+  "exit_code": <b>127</b> }
+</pre>
+    </div>
+
+    <p style="color:var(--i2); font-size:.95rem;">
+      The mechanism is exact. <code>BuildArgv</code> has a branch for scenario-owned verbs that
+      sets <code>argv[0]</code> to the scenario name and <b>discards the operator-configured
+      binary path entirely</b>, so the CLI is resolved from whatever <span class="m">PATH</span>
+      the agent inherited from its service manager. The runner does build a better PATH
+      &mdash; <code>commandEnvironment</code> adds <code>~/.vrooli/bin</code> and the toolchain
+      directories &mdash; but it assigns it to <code>cmd.Env</code> <em>after</em>
+      <code>exec.Command</code> has already resolved the binary against the parent&rsquo;s
+      environment. The constructed PATH never participates in the lookup that fails.
+    </p>
+
+    <p style="color:var(--i2); font-size:.95rem;">
+      All 38 of system-monitor&rsquo;s CLI commands are <code>run_eligible</code> with declared
+      effects, so they are already in the derived dispatch vocabulary, and minimouse already
+      holds <code>*:read</code>. Admission passes. Execution is what fails. <b>Outcome B is
+      one correctly-placed resolution away from working</b>, and no test in the repository
+      covers a scenario-owned verb on a real node &mdash; the unit test asserts the argv shape
+      and stops there.
+    </p>
+  </div>
+</section>
+
+<hr class="r" style="margin-top:60px;">
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">The work</div>
+    <h2>Seven workstreams</h2>
+    <p>
+      Each names what to add, what to delete, and what has to be true about portability
+      &mdash; then states a done condition that can be checked rather than judged. The first
+      three are prerequisites; the last four can run in parallel once they land.
+    </p>
+  </div>
+
+  <!-- W1 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W1</span>
+      <div>
+        <h3>Make the node CLI resolvable, not guessable</h3>
+        <div class="goal">Unblocks Outcome B. Smallest workstream, largest consequence.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li><b>Split <code>cliinstall</code> in two</b> and promote the resolution half to <code>packages/</code>: <em>finding</em> an installed scenario CLI needs only a home directory; <em>installing</em> one needs a repository. Today both live behind <code>NewManager(root, home)</code> in <code>internal/</code>, which a node cannot use and a desktop install cannot satisfy.</li>
+          <li>Resolve every scenario verb to an <b>absolute path</b> before exec, from the same directory the node&rsquo;s <code>vrooli</code> binary lives in.</li>
+          <li>A live-node test that dispatches a scenario-owned verb and asserts a real payload &mdash; not an argv shape.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Delete / fix</h4>
+        <ul>
+          <li>The <code>argv[0] = verbTokens[0]</code> branch in <code>BuildArgv</code>. argv[0] becomes operator-resolved on both branches, which also restores the metacharacter invariant its own comment claims.</li>
+          <li>The dead <code>commandEnvironment</code> PATH work, or make it actually participate in resolution. Right now it is careful code that cannot affect the outcome.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li>Absolute-path exec behaves identically on darwin, linux and Windows. <b>PATH-based resolution does not</b> &mdash; service managers give minimal environments, and launchd, systemd and the Windows SCM each give a different one.</li>
+          <li>The resolution seam must not require a repository checkout, or nodes installed from a desktop package can never run a scenario verb.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p><span class="m">vrooli-bridge relay call --scenario system-monitor --command "system-monitor metrics current"</span> against minimouse returns a JSON payload with darwin values and exit code 0 &mdash; and the same holds for a verb whose CLI was not yet built on the node.</p>
+    </div>
+  </div>
+
+  <!-- W2 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W2</span>
+      <div>
+        <h3>One node client, six wirings deleted</h3>
+        <div class="goal">The package every consumer uses instead of inventing its own reach.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li><code>packages/nodeclient</code> with four verbs: <code>list()</code>, <code>call()</code>, <code>dispatch()</code>, <code>open()</code>. Typed <code>[]string</code> arguments end to end, in-process Connect rather than subprocess forks, and a timeout that is <b>owned</b> rather than defaulted.</li>
+          <li>Bridge located by slug through <code>ResolveScenarioURLDefault</code>, per request, with the env var as an override only. The pattern already exists in <code>scenario-to-ios</code>.</li>
+          <li><code>open()</code> promoted into the typed contract, so streaming stops being a literal WebSocket path that only web-console knows.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Delete</h4>
+        <ul>
+          <li><code>discovery/default_remote.go</code>&rsquo;s rival relay encoder &mdash; seed the client from <code>vroolicli/remote.go</code>, the only correct one.</li>
+          <li>Both copies of <code>bridgeNodeList</code> / <code>bridgeRelayEnvelope</code>; the dead <code>TimeoutSeconds</code> and <code>MaxResponseBytes</code> fields; the <code>PortKey</code>-carries-a-verb abuse.</li>
+          <li>Several historical environment namespaces and web-console&rsquo;s private registry client; current fleet consumers use <code>packages/nodeclient</code>, with program-runtime&rsquo;s private sidecar variables retained.</li>
+          <li>web-console&rsquo;s <code>remoteTerminalTarget</code>, in favour of <code>targetmodel.Target</code>.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li>Dropping subprocess forks removes the assumption that a CLI is on PATH in the calling process &mdash; the same class of bug as W1, one layer up.</li>
+          <li>Move the delivery-ramp device vocabulary (<span class="m">android-emulator</span>, <span class="m">cdp</span>, <span class="m">screen-recording</span>) out of <code>targetmodel</code> so the shared node model stops encoding one consumer&rsquo;s platform assumptions.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p>A repository search for the legacy untyped Bridge endpoint variable returns no production hits; every consumer reaches nodes through the shared client; and CSV argument flattening no longer exists on any path, verified by relaying an argument containing a comma.</p>
+    </div>
+  </div>
+
+  <!-- W3 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W3</span>
+      <div>
+        <h3>Make reachability tell the truth</h3>
+        <div class="goal">Every surface inherits these answers; wrong here is wrong everywhere.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li>One typed readiness vocabulary in <code>targetmodel</code>: a check identity, a label, a pass state and a recovery action, resolved from the identity.</li>
+          <li>A staleness rule that is computed, not reported: a node with no heartbeat age is <b>not</b> fresh.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Delete / fix</h4>
+        <ul>
+          <li>The three parallel readiness enumerations in web-console and the string-keyed switch that couples them.</li>
+          <li>The empty <span class="m">bridge-node:</span> placeholder row, and every recovery action that cannot work &mdash; starting with &ldquo;Start Bridge&rdquo; while Bridge is running.</li>
+          <li>The presence ordering defect. Live today: swarminator reports <span class="m">online: true, heartbeat_fresh: true</span> with a <span class="m">last_seen_at</span> of seven days ago and no age field at all.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li>Recovery actions must not assume a shell or a terminal. The desktop deployment has neither, so each action names an in-app destination.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p>A node last seen seven days ago renders as not-responding in every surface, with the age shown; and no recovery action in the product names a step the user cannot take from inside the app.</p>
+    </div>
+  </div>
+
+  <!-- W4 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W4</span>
+      <div>
+        <h3>Linking a machine without a shell</h3>
+        <div class="goal">The day-one flow. Verified on a scratch node, never by re-linking minimouse.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li>An <b>mDNS responder</b> on the control plane advertising <span class="m">_vrooli-bridge._tcp.local</span> &mdash; the record the agent already browses for and nothing publishes.</li>
+          <li>A <b>node-side client</b> for <code>RequestPairing</code>, and the follow-through that turns an approval into credentials. The RPCs and four CLI verbs already exist with no caller.</li>
+          <li>A <b>verification phrase</b> derived from both keys, shown on each machine, matched by the person.</li>
+          <li><b>Permission presets</b> over <code>ApprovePairingRequest.scopes</code>, replacing wildcard defaults with a narrow one that is also the easy one.</li>
+          <li>The agent binary <b>shipped by the installer</b>, not built on arrival.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Delete</h4>
+        <ul>
+          <li>The agent&rsquo;s hand-rolled 395-line DNS-SD browser &mdash; its query encoder, message parser, name decompressor and TXT reader &mdash; in favour of <code>packages/mdns-go</code>, which <code>device-control</code> already imports.</li>
+          <li>The assumption that joining implies <code>git clone</code> and <code>make setup</code>. Keep that path for developer nodes; it must stop being the only one.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li><code>mdns-go</code> already splits its listener across <code>listen_linux</code> and <code>listen_other</code>; the responder needs the same treatment plus a documented Windows firewall prompt.</li>
+          <li>Bundling means one agent per platform in the installer. The cross-builder covers linux and darwin on amd64 and arm64 &mdash; <b>Windows is out of scope for the node agent</b> and should be stated rather than discovered.</li>
+          <li>Autostart differs per platform (launchd, systemd, SCM). The bootstrap already handles the first two; the bundled path needs the same coverage.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p>A scratch machine with only the installed app joins the fleet from the UI in under a minute: it appears by itself on the LAN, shows matching words on both screens, is granted a preset narrower than <span class="m">*:write</span>, and reaches ONLINE &mdash; with no terminal, no repository and no code typed by hand.</p>
+    </div>
+  </div>
+</section>
+
+<section class="wide" style="margin-top:20px;">
+  <!-- W5 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W5</span>
+      <div>
+        <h3>web-console: machines, and a shell on one</h3>
+        <div class="goal">Outcome A. Screens 01&ndash;04 of the mockups.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li>A <b>Machines</b> surface: linked machines, honest reachability, the grant in a sentence, and a working Add flow.</li>
+          <li>Session open / resize / close against a selected machine, with the identity of that machine visible for the life of the session.</li>
+          <li>Reconnect behaviour that states what it is doing and what it will do next.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Delete</h4>
+        <ul>
+          <li><code>bridge_pty.go</code>&rsquo;s private WebSocket framing, once <code>open()</code> exists in the node client.</li>
+          <li><code>remote_targets.go</code>&rsquo;s credential resolution, registry client, and the uncancellable <code>context.Background()</code> health probe on every catalog read.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li>The remote shell already degrades correctly: a real PTY where one exists, a bounded pipe fallback elsewhere, and resize <em>rejected</em> rather than faked. Keep that honesty visible in the UI rather than hiding it.</li>
+          <li>Credentials stay server-side. A node must never receive browser credentials, and the browser must never receive Bridge&rsquo;s.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p>From a cold start with no Bridge environment variables, minimouse is listed within two seconds; a session opens; <span class="m">uname -a</span> returns Darwin; resize takes effect; the session survives a control-plane restart or says plainly that it did not; and no Bridge token appears in any browser-visible payload.</p>
+    </div>
+  </div>
+
+  <!-- W6 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W6</span>
+      <div>
+        <h3>system-monitor: the machine as app state</h3>
+        <div class="goal">Outcome B. Screens 05&ndash;07. Greenfield &mdash; zero bridge references today.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li>A <b>machine context</b> that scopes every query, plus a machine-keyed cache so switching back does not refetch and two machines&rsquo; series never merge.</li>
+          <li>The header switcher, including <b>Add a machine&hellip;</b> so the flow is reachable without opening vrooli-bridge.</li>
+          <li>The identity strip, and a frozen-with-timestamp degraded state on disconnect.</li>
+          <li>Actions gated by the machine&rsquo;s grant, disabled <em>with the reason</em> rather than failing after the click.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Decide first</h4>
+        <ul>
+          <li><b>Relay the CLI verbs</b> (works the moment W1 lands, no new Bridge surface, one round trip per sample) <b>or proxy the typed API</b> (better for live streams, a real new surface with real auth questions).</li>
+          <li>Recommendation: relay now &mdash; it reaches Outcome B and proves the path &mdash; and design the proxy separately rather than letting it block this.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li>system-monitor is <b>already cross-platform</b>: sampler, memory, paging and network all split across darwin, linux and windows, and the device graph has a real <code>collect_darwin</code> alongside its sysfs path. This is not a porting project.</li>
+          <li>Panels must render a platform&rsquo;s <em>absent</em> metrics as absent rather than zero &mdash; a Mac has no sysfs fragmentation figure, and a zero there is a lie.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p>Switching to minimouse renders CPU, memory, disk and the device graph from darwin collectors; the strip names the machine throughout; unavailable-on-darwin panels say so; pulling the network freezes the view with one shared timestamp and it recovers unattended.</p>
+    </div>
+  </div>
+
+  <!-- W7 -->
+  <div class="ws">
+    <div class="ws-h">
+      <span class="ws-n">W7</span>
+      <div>
+        <h3>Evidence that settles it</h3>
+        <div class="goal">Produced as the work lands, not reconstructed afterwards.</div>
+      </div>
+    </div>
+    <div class="ws-b">
+      <div class="ws-c">
+        <h4>Add</h4>
+        <ul>
+          <li>An evidence record under <code>docs/reference/cross-platform-effort/evidence/</code>, following the phase-C2 precedent: dated, with commands, correlation ids and verbatim outputs.</li>
+          <li>Screen capture of both outcomes, showing the machine identity in frame at the same time as the remote data.</li>
+          <li>A regression test that dispatches a scenario-owned verb to a real node, so W1 cannot silently return.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Rules</h4>
+        <ul>
+          <li>Every claim carries the command that produced it. A screenshot alone proves a render, not a round trip.</li>
+          <li>Negative evidence counts: capture the degraded and denied paths, not only the green one.</li>
+          <li>Record what was <em>not</em> covered. Silence reads as coverage.</li>
+        </ul>
+      </div>
+      <div class="ws-c">
+        <h4>Portability</h4>
+        <ul>
+          <li>Evidence is a two-machine claim: linux control plane, darwin node. Note the pair explicitly, because a single-host run would pass while proving nothing.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="ws-dod">
+      <h4>Done when</h4>
+      <p>Someone who was not present can read the record, re-run the commands against the same fleet, and get the same answers &mdash; including the failures.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="r" style="margin-top:56px;">
+
+<section class="spine">
+  <div class="sec-head">
+    <div class="eyebrow">Standing constraint</div>
+    <h2>minimouse stays linked</h2>
+  </div>
+  <div class="warnbox">
+    <h4>The one thing that would break it</h4>
+    <p>
+      Nothing in W1, W2, W3, W5 or W6 touches the pairing &mdash; they change how we
+      <em>reach</em> a node, not how it is enrolled. <b>W4 is the exception</b>: it changes
+      the join path, and the tempting way to test a join path is to re-join a machine you
+      already have.
+    </p>
+    <p>
+      So W4 is verified on a <b>scratch node</b> &mdash; a VM or a spare box &mdash; and
+      minimouse is never re-onboarded, never re-provisioned, and never used to test pairing.
+      Its enrollment is treated as production data for the duration.
+    </p>
+    <p>
+      Two related cautions. minimouse is a <b>working-tree node</b> at revision
+      <span class="m">3e5bccc5cd&hellip;+dirty</span> with no fetchable commit, so fleet rolls
+      and <code>provision sync</code> exclude it by design &mdash; do not "fix" that by
+      reprovisioning. And its grants are currently <code>*:read</code> and
+      <code>*:write</code>; when W4 introduces presets, <b>narrow minimouse deliberately and
+      separately</b>, after both outcomes are proven, so a permission change never gets
+      confused with a transport failure.
+    </p>
+  </div>
+</section>
+
+<hr class="r" style="margin-top:56px;">
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Deliverables</div>
+    <h2>What exists at the end that does not exist now</h2>
+  </div>
+  <div class="del">
+    <div class="di"><div class="box"></div><div>
+      <h4>A shared node client package</h4>
+      <p><code>packages/nodeclient</code> &mdash; four verbs, typed arguments, owned timeouts, Bridge located by slug. Six private wirings and four environment namespaces removed in the same change, so the deletion is part of the deliverable rather than a follow-up.</p>
+    </div></div>
+    <div class="di"><div class="box"></div><div>
+      <h4>A portable CLI-resolution seam</h4>
+      <p>The resolution half of <code>cliinstall</code> promoted out of <code>internal/</code>, usable by a node with no repository checkout, so a scenario verb dispatched to any machine resolves to a real binary on every supported platform.</p>
+    </div></div>
+    <div class="di"><div class="box"></div><div>
+      <h4>One readiness vocabulary</h4>
+      <p>Check identity, label, state and recovery action defined once in <code>targetmodel</code> and consumed everywhere &mdash; replacing three parallel lists coupled by string matching, and carrying a staleness rule that cannot report a week-old node as fresh.</p>
+    </div></div>
+    <div class="di"><div class="box"></div><div>
+      <h4>A join path for people without terminals</h4>
+      <p>LAN advertisement, a node-side join request, key-derived verification words, permission presets, and an agent the installer already placed on disk. The developer path stays; it stops being the only one.</p>
+    </div></div>
+    <div class="di"><div class="box"></div><div>
+      <h4>Machines as a product surface in two apps</h4>
+      <p>web-console gains machines and remote sessions; system-monitor gains a machine axis through its whole UI. Both consume the same client and the same vocabulary, so the third app costs a fraction of the second.</p>
+    </div></div>
+    <div class="di"><div class="box"></div><div>
+      <h4>A reproducible evidence record</h4>
+      <p>Dated, command-level, two-machine, including the degraded and denied paths and an explicit statement of what was not covered &mdash; plus a regression test that keeps the scenario-verb path from silently breaking again.</p>
+    </div></div>
+    <div class="di"><div class="box"></div><div>
+      <h4>Documentation that matches the code</h4>
+      <p>vrooli-bridge&rsquo;s README and discovery documentation now describe the implemented Bridge responder and shared agent browser. The manual URL remains the documented cross-network fallback.</p>
+    </div></div>
+  </div>
+</section>
+
+<hr class="r" style="margin-top:56px;">
+
+<section class="wide">
+  <div class="sec-head spine" style="max-width:70ch;">
+    <div class="eyebrow">Sequence</div>
+    <h2>Order, and what each step unblocks</h2>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th style="width:9%;">Step</th><th style="width:26%;">Work</th><th style="width:13%;">Risk</th><th>Why here</th></tr></thead>
+      <tbody>
+        <tr><td class="k">1</td><td class="d">W1 &mdash; node CLI resolution</td><td><span class="pill p-ok">Low</span></td><td class="d">Small, isolated, and Outcome B is impossible without it. Proves the fleet can run scenario verbs before anything is built on that assumption.</td></tr>
+        <tr><td class="k">2</td><td class="d">W2 &mdash; the node client</td><td><span class="pill p-w">Medium</span></td><td class="d">Everything after this consumes it. Doing it later means writing the UI twice. The risk is breadth, not depth &mdash; it touches seven consumers.</td></tr>
+        <tr><td class="k">3</td><td class="d">W3 &mdash; readiness truth</td><td><span class="pill p-ok">Low</span></td><td class="d">Cheap once W2 centralises the model, and every screen in W5 and W6 renders its output.</td></tr>
+        <tr><td class="k">4</td><td class="d">W5 &mdash; web-console</td><td><span class="pill p-w">Medium</span></td><td class="d">Outcome A. First proof that the client carries a real product surface, and the streaming verb gets exercised by its hardest consumer first.</td></tr>
+        <tr><td class="k">5</td><td class="d">W6 &mdash; system-monitor</td><td><span class="pill p-ok">Low</span></td><td class="d">Outcome B. Deliberately second: it is the test of whether the second app was cheap. If it is not, W2 is not finished.</td></tr>
+        <tr><td class="k">6</td><td class="d">W4 &mdash; linking</td><td><span class="pill p-c">High</span></td><td class="d">Last, because it is the only workstream that can disturb an existing link, and because doing it earlier would mean designing the UI before the client exists.</td></tr>
+        <tr><td class="k">&mdash;</td><td class="d">W7 &mdash; evidence</td><td><span class="pill p-ok">Low</span></td><td class="d">Continuous. Each step lands with its own record; the final document assembles them rather than reconstructing them.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="spine" style="max-width:70ch; margin-top:26px;">
+    <p style="color:var(--i2); font-size:.94rem;">
+      One honest note on scope. Steps 1 through 5 are bounded and mostly deletion &mdash; the
+      designs are already right and the code is already mostly written. <b>Step 6 is a
+      different size</b>: bundling an agent, advertising on a LAN, and getting a trust
+      handshake right are product work, not cleanup. It is placed last so that if it has to
+      wait, both outcomes are already true and demonstrable without it.
+    </p>
+  </div>
+</section>
+
+</main>

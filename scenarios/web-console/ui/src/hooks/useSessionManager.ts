@@ -1,8 +1,20 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createSession, deleteSession, listSessions, getWorkspaceLayout, updateWorkspacePane, toErrorInfo, type SessionInfo, type ErrorInfo, type BackendID, type PolicyMode } from "../lib/api";
+import { toErrorInfo, type ErrorInfo } from "../lib/errors";
+import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
+import { roleFromDTO } from "./useRoleActions";
+import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
+import type { TerminalTarget } from "../api/targets";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
+import type { GateResult, InputIntent } from "../components/terminal/inputGate";
+import type { InputSettlementCallback, InputSettledListener } from "./terminal/useStdinStream";
+import { ttsPlaybackRegistry } from "../audio-integration";
+
+function newLaunchIdempotencyKey(): string {
+	return `ui-session-${globalThis.crypto.randomUUID()}`;
+}
 
 // DOC: docs/concepts/ARCHITECTURE.md#session-creation
 // DOC: docs/internal/SEAMS.md#1b-session-orchestration
@@ -27,28 +39,63 @@ export interface PaneState {
 }
 
 function supportsMessagesViewForCommand(command?: string): boolean {
-  if (!command) return false;
+  return agentTypeFromCommand(command) !== "none";
+}
+
+// agentTypeFromCommand classifies the launch command into the closed
+// AgentType set persisted server-side. Used to populate the create-session
+// payload so the recovery flow can later reattach the agent. Exported for unit
+// coverage of the classification table.
+export function agentTypeFromCommand(command?: string): AgentType {
+  if (!command) return "none";
   const trimmed = command.trim().toLowerCase();
-  return trimmed.startsWith("claude ") || trimmed === "claude" || trimmed.startsWith("codex ") || trimmed === "codex";
+  const launcherMatch = trimmed.match(/vrooli-agent-launcher\s+--agent(?:=|\s+)(claude|claude-code|codex|opencode|grok)\b/);
+  if (launcherMatch) {
+    const runner = launcherMatch[1];
+    if (runner === "claude" || runner === "claude-code") return "claude";
+    if (runner === "codex") return "codex";
+    if (runner === "opencode") return "opencode";
+    if (runner === "grok") return "grok";
+  }
+  const governedLaunch = trimmed.match(/^vrooli\s+agent\s+launch\b(?:\s+--runner(?:=|\s+)(claude|claude-code|codex|opencode|grok))?/);
+  if (governedLaunch) {
+    const runner = governedLaunch[1];
+    if (runner === "claude" || runner === "claude-code") return "claude";
+    if (runner === "codex") return "codex";
+    if (runner === "opencode") return "opencode";
+    if (runner === "grok") return "grok";
+    return "claude";
+  }
+  if (trimmed === "claude" || trimmed.startsWith("claude ")) return "claude";
+  if (trimmed === "codex" || trimmed.startsWith("codex ")) return "codex";
+  if (trimmed === "opencode" || trimmed.startsWith("opencode ")) return "opencode";
+  if (trimmed === "grok" || trimmed.startsWith("grok ")) return "grok";
+  return "none";
 }
 
 export function useSessionManager() {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<ErrorInfo | null>(null);
+  const [hydrationError, setHydrationError] = useState<ErrorInfo | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
-  const pendingCommands = useRef<Map<string, string>>(new Map());
+  const archivedUndoRef = useRef<Map<string, PaneState>>(new Map());
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flushPendingCommand = useCallback((sessionId: string) => {
-    const command = pendingCommands.current.get(sessionId);
-    if (!command) return;
-    const handle = terminalRefs.current.get(sessionId);
-    if (!handle) return;
-    pendingCommands.current.delete(sessionId);
-    handle.sendInput(command + "\n");
-  }, []);
+  // Mirror panes/isHydrated into refs so the SSE-driven merge callbacks below
+  // can stay identity-stable (empty deps — see the wiring in Workspace) while
+  // still reading the freshest state. Reading state through the callback
+  // closure would go stale; a ref does not.
+  const panesRef = useRef(panes);
+  panesRef.current = panes;
+  const isHydratedRef = useRef(isHydrated);
+  isHydratedRef.current = isHydrated;
+  // External creates that land before hydration finishes are buffered, then
+  // flushed once hydration establishes the authoritative baseline. Merging
+  // before that would trip hydratePanes' hydrate-once guard (its setPanes keeps
+  // `prev` whenever prev.length > 0), suppressing the full initial list.
+  const pendingExternalRef = useRef<{ session: SessionInfo; supportsMessagesView: boolean }[]>([]);
 
   // Hydrate workspace panes from existing sessions so reload reconnects to
   // durable sessions instead of showing the empty-state landing screen.
@@ -66,6 +113,25 @@ export function useSessionManager() {
         const layout = layoutResult.status === "fulfilled" ? layoutResult.value : null;
 
         if (canceled) return;
+
+        // Surface per-call failures. Logging always (so a single-call
+        // regression is visible without devtools-on-mobile); the UI banner
+        // fires only when both calls fail, because a single failure usually
+        // means a degraded surface rather than a totally broken hydration
+        // (e.g. layout fetch fails but sessions still render via the
+        // fallback path below).
+        if (sessionsResult.status === "rejected") {
+          console.error("hydratePanes: listSessions failed", sessionsResult.reason);
+        }
+        if (layoutResult.status === "rejected") {
+          console.error("hydratePanes: getWorkspaceLayout failed", layoutResult.reason);
+        }
+        if (sessionsResult.status === "rejected" && layoutResult.status === "rejected") {
+          setHydrationError({
+            ...toErrorInfo(sessionsResult.reason),
+            retry: true,
+          });
+        }
 
         if (sessions.length > 0) {
           // Build a lookup of supports_messages_view from the backend layout
@@ -96,6 +162,7 @@ export function useSessionManager() {
               fontSize: p.font_size,
               groupId: p.group_id,
               supportsMessagesView: p.supports_messages_view ?? false,
+              manuallyUnread: p.manually_unread ?? false,
             }));
 
           // Sessions without pane metadata get defaults
@@ -110,6 +177,7 @@ export function useSessionManager() {
                 fontSize: store.defaultFontSize,
                 groupId: null,
                 supportsMessagesView: false,
+                manuallyUnread: false,
               };
               paneMetadata.push(newPane);
               // Persist new pane to backend (fire-and-forget)
@@ -123,9 +191,13 @@ export function useSessionManager() {
             }
           }
 
-          // Update store
+          // Update store. The order is normalized on the way in: the backend
+          // sorts by (sort_order, created_at) and ties are routine, so the
+          // list it returns can interleave a group's members with panes that
+          // are not in the group. Normalizing here means the very first paint
+          // after a reload already satisfies the block invariant.
           if (store.panes.length === 0) useWorkspaceStore.setState({
-            panes: paneMetadata,
+            panes: orderPanesByGroupBlocks(paneMetadata),
             activePane: layout.active_pane || paneMetadata[0]?.sessionId || null,
             groups: layout.groups.map((g) => ({
               id: g.id,
@@ -134,6 +206,32 @@ export function useSessionManager() {
               isCollapsed: g.is_collapsed,
             })),
           });
+
+          // Roles are workspace layout too, and they ride along in this same
+          // response. Nothing else in the client populates them, so without
+          // this a waiting role vanished on reload while still sitting in the
+          // database — it looked like the feature was never persisted.
+          //
+          // Written OUTSIDE the pane guard above: that guard exists so a
+          // second hydration cannot clobber live pane state, and roles have
+          // no competing source. Anything created locally while this request
+          // was in flight is merged in rather than dropped.
+          const liveSessions = new Set(sessions.map((s) => s.id));
+          const hydratedRoles = layout.roles.map((dto) => {
+            const role = roleFromDTO(dto);
+            // A role pointing at a session that no longer exists comes back
+            // WAITING. Rendering a placeholder is honest; rendering a role
+            // attached to a dead session id is not, and a handoff aimed at it
+            // would go nowhere. Local-only: the server owns the stored value,
+            // and correcting it on every hydrate would turn a transient empty
+            // session list into a write storm.
+            return role.sessionId && !liveSessions.has(role.sessionId)
+              ? { ...role, sessionId: null }
+              : role;
+          });
+          const hydratedIds = new Set(hydratedRoles.map((role) => role.id));
+          const localOnly = useWorkspaceStore.getState().roles.filter((role) => !hydratedIds.has(role.id));
+          useWorkspaceStore.getState().setRoles([...hydratedRoles, ...localOnly]);
         } else if (sessions.length > 0 && store.panes.length === 0) {
           // Fallback: no layout from backend, build from sessions.
           // Without layout data, supportsMessagesView defaults to false.
@@ -146,12 +244,20 @@ export function useSessionManager() {
               fontSize: store.defaultFontSize,
               groupId: null,
               supportsMessagesView: false,
+              manuallyUnread: false,
             })),
             activePane: sessions[0]?.id || null,
           });
         }
-      } catch {
-        // Best-effort hydration: keep empty-state on API/list failures.
+      } catch (err) {
+        // Unexpected synchronous failure inside the hydration pipeline
+        // (decoder bug, type mismatch, etc.). The per-call rejection paths
+        // above already cover network failures; reaching this catch means
+        // something is structurally wrong, so surface it.
+        if (!canceled) {
+          console.error("hydratePanes: unexpected failure", err);
+          setHydrationError({ ...toErrorInfo(err), retry: true });
+        }
       } finally {
         if (!canceled) setIsHydrated(true);
       }
@@ -180,6 +286,10 @@ export function useSessionManager() {
     setCreateError(null);
   }, []);
 
+  const clearHydrationError = useCallback(() => {
+    setHydrationError(null);
+  }, []);
+
   // Guard against concurrent creation requests (e.g., rapid double-click).
   // The `isCreating` state flag drives the UI (button disable), while
   // `createInFlight` prevents the handler itself from executing twice.
@@ -190,6 +300,9 @@ export function useSessionManager() {
     command?: string;
     backend?: BackendID;
     policy?: { mode: PolicyMode; duration?: string };
+	 target?: TerminalTarget;
+	workingDir?: string;
+	tmuxMouseMode?: boolean;
   }) => {
     const command = opts?.command;
     // Replay guard: if a creation is already in-flight, skip silently.
@@ -198,15 +311,23 @@ export function useSessionManager() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      const session = await createSession({
-        cols: DEFAULT_COLS,
+		const session = await createSession({
+			cols: DEFAULT_COLS,
         rows: DEFAULT_ROWS,
         backend: opts?.backend,
         policy: opts?.policy,
-      });
-      if (command) {
-        pendingCommands.current.set(session.id, command);
-      }
+        launch_command: command,
+        // Execute the launch command server-side (paste into the fresh PTY) so
+        // it runs exactly once. The client no longer types it after connect.
+        execute_launch_command: Boolean(command),
+        agent_type: agentTypeFromCommand(command),
+			target_id: opts?.target && opts.target.kind !== "local" ? opts.target.id : undefined,
+			working_dir: opts?.workingDir,
+			tmux_mouse_mode: opts?.tmuxMouseMode ?? useWorkspaceStore.getState().tmuxMouseMode,
+			owner: opts?.target && opts.target.kind !== "local" ? `target:${opts.target.id}` : undefined,
+			display_label: opts?.target?.label,
+			idempotency_key: newLaunchIdempotencyKey(),
+		});
       setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command) }]);
       return session;
     } catch (err) {
@@ -227,43 +348,202 @@ export function useSessionManager() {
     }
   }, []);
 
-  const handleTerminalReady = useCallback((sessionId: string) => {
-    flushPendingCommand(sessionId);
-  }, [flushPendingCommand]);
-
-  const removePane = useCallback(async (sessionId: string) => {
+  const releasePaneLocally = useCallback((sessionId: string) => {
     setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
     terminalRefs.current.delete(sessionId);
+    // Session-end is a genuine stop intent: tear down any TTS provider held for
+    // this session in the playback registry, even if it was handed off (still
+    // speaking) when its pane last unmounted, so ending a session stops its
+    // audio rather than leaving an orphaned tail playing.
+    ttsPlaybackRegistry.stop(sessionId);
+  }, []);
+
+  const removePane = useCallback(async (sessionId: string): Promise<"undoable" | "removed" | "failed"> => {
+    const pane = panesRef.current.find((candidate) => candidate.session.id === sessionId);
+    if (!pane) return "failed";
     try {
-      await deleteSession(sessionId);
+      await archiveSession(sessionId);
+      releasePaneLocally(sessionId);
+      archivedUndoRef.current.set(sessionId, pane);
+      return "undoable";
     } catch {
-      // Session may already be dead
+      return "failed";
+    }
+  }, [releasePaneLocally]);
+
+  const undoArchive = useCallback(async (sessionId: string): Promise<boolean> => {
+    const pane = archivedUndoRef.current.get(sessionId);
+    if (!pane) return false;
+    try {
+      await unarchiveSession(sessionId);
+      setPanes((prev) => prev.some((candidate) => candidate.session.id === sessionId) ? prev : [...prev, pane]);
+      archivedUndoRef.current.delete(sessionId);
+      return true;
+    } catch {
+      archivedUndoRef.current.delete(sessionId);
+      return false;
     }
   }, []);
+
+  const deletePanePermanently = useCallback(async (sessionId: string) => {
+    try {
+      await deleteSession(sessionId);
+    } finally {
+      archivedUndoRef.current.delete(sessionId);
+      releasePaneLocally(sessionId);
+    }
+  }, [releasePaneLocally]);
 
   const handleExit = useCallback((sessionId: string) => {
     console.log(`Session ${sessionId} exited`);
   }, []);
 
-  const sendToActiveTerminal = useCallback(
-    (data: string, targetId?: string): boolean => {
+  // applyExternalMerge appends an externally created session as a pane. It is
+  // idempotent by session id: a session already tracked — because THIS client
+  // created it (launchSession appended it optimistically) or an earlier event
+  // already merged it — is a no-op. That id-dedup is what keeps a UI-originated
+  // create from being double-added when its own session.created echo arrives.
+  // Appending (never replacing the array) leaves every other pane's live state
+  // untouched, so a merge can't reset an active tab, unread badge, or scroll.
+  const applyExternalMerge = useCallback((session: SessionInfo, supportsMessagesView: boolean) => {
+    setPanes((prev) => {
+      if (prev.some((p) => p.session.id === session.id)) return prev;
+      return [...prev, { session, supportsMessagesView }];
+    });
+  }, []);
+
+  // mergeExternalSession is the SSE entry point for an externally created
+  // session (any origin). Before hydration completes it buffers, so it never
+  // races the initial listSessions() baseline (see pendingExternalRef).
+  const mergeExternalSession = useCallback(
+    (session: SessionInfo, supportsMessagesView = false) => {
+      if (!isHydratedRef.current) {
+        pendingExternalRef.current.push({ session, supportsMessagesView });
+        return;
+      }
+      applyExternalMerge(session, supportsMessagesView);
+    },
+    [applyExternalMerge],
+  );
+
+  // Flush buffered pre-hydration external creates once hydration lands. The
+  // authoritative list is already in place, so applyExternalMerge's id-dedup
+  // silently drops any that hydration already covered.
+  useEffect(() => {
+    if (!isHydrated) return;
+    const pending = pendingExternalRef.current;
+    if (pending.length === 0) return;
+    pendingExternalRef.current = [];
+    for (const item of pending) applyExternalMerge(item.session, item.supportsMessagesView);
+  }, [isHydrated, applyExternalMerge]);
+
+  // endExternalSession drops a session that was deleted/terminated elsewhere.
+  // Delete and terminate are handled identically. The focused pane is spared:
+  // yanking the terminal the user is actively looking at would destroy their
+  // view mid-read, so we leave it in place (its terminal WebSocket has already
+  // closed, showing a disconnected state) and let the user close it explicitly
+  // — closing skips the confirm dialog because the now-gone session 404s. Every
+  // other pane is removed and its local resources released. No deleteSession
+  // call: the session is already gone server-side.
+  const endExternalSession = useCallback((sessionId: string) => {
+    if (!panesRef.current.some((p) => p.session.id === sessionId)) return;
+    if (useWorkspaceStore.getState().activePane === sessionId) return;
+    setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
+    terminalRefs.current.delete(sessionId);
+    ttsPlaybackRegistry.stop(sessionId);
+  }, []);
+
+  const submitToActiveTerminal = useCallback(
+    (data: string, intent: Exclude<InputIntent, "control">, targetId?: string): GateResult => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
         const handle = terminalRefs.current.get(target);
         if (handle) {
-          return handle.sendInput(data);
+          return handle.input.submit(data, intent);
         }
       }
-      return false;
+      return { status: "rejected", reason: "disposed" };
     },
     [panes],
   );
+
+  const subscribeActiveInputSettled = useCallback(
+    (targetId: string | undefined, cb: InputSettledListener): () => void => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return () => {};
+      const handle = terminalRefs.current.get(target);
+      if (!handle) return () => {};
+      return handle.input.subscribeSettled(cb);
+    },
+    [panes],
+  );
+
+  const awaitActiveInputOffset = useCallback(
+    (targetId: string | undefined, offset: number, cb: InputSettlementCallback): () => void => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return () => {};
+      const handle = terminalRefs.current.get(target);
+      return handle?.input.awaitOffset(offset, cb) ?? (() => {});
+    },
+    [panes],
+  );
+
+  const subscribeActivePendingInput = useCallback(
+    (targetId: string | undefined, cb: () => void): () => void => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return () => {};
+      const handle = terminalRefs.current.get(target);
+      if (!handle) return () => {};
+      return handle.pendingInput.subscribe(cb);
+    },
+    [panes],
+  );
+
+  const getActivePendingInputSnapshot = useCallback(
+    (targetId?: string): readonly { data: string; addedAt: number; intent: "typing" | "bulk_text" | "named_key"; held?: boolean }[] => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return [];
+      const handle = terminalRefs.current.get(target);
+      return handle?.pendingInput.snapshot() ?? [];
+    },
+    [panes],
+  );
+
+  const discardActivePendingInput = useCallback((index: number, targetId?: string): void => {
+    const target = targetId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.pendingInput.discard(index);
+  }, [panes]);
+
+  const discardAllActivePendingInput = useCallback((targetId?: string): void => {
+    const target = targetId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.pendingInput.discardAll();
+  }, [panes]);
+
+  const flushActivePendingInputNow = useCallback((targetId?: string): void => {
+    const target = targetId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.pendingInput.flushNow();
+  }, [panes]);
+
+  const copySelectionOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
+    const target = sessionId ?? panes[panes.length - 1]?.session.id;
+    return target ? (await terminalRefs.current.get(target)?.selection.copy()) ?? false : false;
+  }, [panes]);
+
+  const pasteFromClipboardOnPane = useCallback(async (sessionId?: string): Promise<boolean> => {
+    const target = sessionId ?? panes[panes.length - 1]?.session.id;
+    return target ? (await terminalRefs.current.get(target)?.selection.paste()) ?? false : false;
+  }, [panes]);
+
+  const scrollTerminalOnPane = useCallback((lines: number, sessionId?: string): void => {
+    const target = sessionId ?? panes[panes.length - 1]?.session.id;
+    if (target) terminalRefs.current.get(target)?.control.scroll(lines);
+  }, [panes]);
 
   const focusActiveTerminal = useCallback(
     (targetId?: string) => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
-        terminalRefs.current.get(target)?.focus();
+        terminalRefs.current.get(target)?.control.focus();
       }
     },
     [panes],
@@ -273,78 +553,75 @@ export function useSessionManager() {
     (sessionId: string, handle: TerminalPaneHandle | null) => {
       if (handle) {
         terminalRefs.current.set(sessionId, handle);
-        // onReady can fire before the ref callback in some mount orders.
-        // Flush here too so queued launch commands are never stranded.
-        flushPendingCommand(sessionId);
       } else {
         terminalRefs.current.delete(sessionId);
       }
     },
-    [flushPendingCommand],
+    [],
   );
 
   const stopActiveTts = useCallback(
     (targetId?: string) => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
-        terminalRefs.current.get(target)?.stopTts();
+        terminalRefs.current.get(target)?.playback.stop();
       }
     },
     [panes],
   );
 
   const speakTextOnPane = useCallback(
-    (sessionId: string, text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
-      terminalRefs.current.get(sessionId)?.speakText(text, paragraphs, opts);
-    },
-    [],
-  );
-
-  const speakSequenceOnPane = useCallback(
-    (sessionId: string, texts: string[], onProgress: (index: number) => void) => {
-      return terminalRefs.current.get(sessionId)?.speakSequence(texts, onProgress) ?? Promise.resolve();
+    (sessionId: string, text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original"; initiatedBy?: "auto" | "manual" }) => {
+      return terminalRefs.current.get(sessionId)?.playback.speak(text, paragraphs, opts) ?? Promise.resolve(undefined);
     },
     [],
   );
 
   const pauseTtsOnPane = useCallback(
     (sessionId: string) => {
-      terminalRefs.current.get(sessionId)?.pauseTts();
+      terminalRefs.current.get(sessionId)?.playback.pause();
     },
     [],
   );
 
   const resumeTtsOnPane = useCallback(
     (sessionId: string) => {
-      terminalRefs.current.get(sessionId)?.resumeTts();
+      terminalRefs.current.get(sessionId)?.playback.resume();
     },
     [],
   );
 
   const seekTtsOnPane = useCallback(
     (sessionId: string, seconds: number) => {
-      terminalRefs.current.get(sessionId)?.seekTts(seconds);
+      terminalRefs.current.get(sessionId)?.playback.seek(seconds);
     },
     [],
   );
 
   const setTtsPlaybackRateOnPane = useCallback(
     (sessionId: string, rate: number) => {
-      terminalRefs.current.get(sessionId)?.setTtsPlaybackRate(rate);
+      terminalRefs.current.get(sessionId)?.playback.setPlaybackRate(rate);
     },
     [],
   );
 
   const setTtsVolumeOnPane = useCallback(
     (sessionId: string, level: number) => {
-      terminalRefs.current.get(sessionId)?.setTtsVolume(level);
+      terminalRefs.current.get(sessionId)?.playback.setVolume(level);
+    },
+    [],
+  );
+
+  const setTtsMutedOnPane = useCallback(
+    (sessionId: string, next: boolean) => {
+      terminalRefs.current.get(sessionId)?.playback.setMuted(next);
     },
     [],
   );
 
   const getTtsStateOnPane = useCallback(
     (sessionId: string) => {
-      return terminalRefs.current.get(sessionId)?.getTtsState() ?? null;
+      return terminalRefs.current.get(sessionId)?.playback.getState() ?? null;
     },
     [],
   );
@@ -354,22 +631,37 @@ export function useSessionManager() {
     isHydrated,
     isCreating,
     createError,
+    hydrationError,
     clearError,
+    clearHydrationError,
     launchSession,
-    handleTerminalReady,
     removePane,
+    undoArchive,
+    deletePanePermanently,
+    mergeExternalSession,
+    endExternalSession,
     handleExit,
-    sendToActiveTerminal,
+    submitToActiveTerminal,
+    subscribeActiveInputSettled,
+    awaitActiveInputOffset,
+    subscribeActivePendingInput,
+    getActivePendingInputSnapshot,
+    discardActivePendingInput,
+    discardAllActivePendingInput,
+    flushActivePendingInputNow,
+    copySelectionOnPane,
+    pasteFromClipboardOnPane,
+    scrollTerminalOnPane,
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,
     speakTextOnPane,
-    speakSequenceOnPane,
     pauseTtsOnPane,
     resumeTtsOnPane,
     seekTtsOnPane,
     setTtsPlaybackRateOnPane,
     setTtsVolumeOnPane,
+    setTtsMutedOnPane,
     getTtsStateOnPane,
   };
 }

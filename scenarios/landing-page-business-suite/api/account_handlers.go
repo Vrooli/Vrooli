@@ -1,206 +1,125 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
+	downloadhttp "landing-page-business-suite-api/handlers/delivery"
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/delivery"
+	"landing-page-business-suite-api/internal/logx"
+
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
-func handleLandingConfig(service *LandingConfigService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		variant := r.URL.Query().Get("variant")
-		config, err := service.GetLandingConfig(r.Context(), variant)
-		if err != nil {
-			logStructuredError("landing_config_failed", map[string]interface{}{
-				"variant": variant,
-				"error":   err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to load landing config. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-
-		writeJSON(w, config)
-	}
+type managedDownloadResolutionError struct {
+	stage string
+	err   error
 }
 
-func handlePlans(service *PlanService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		overview, err := service.GetPricingOverview()
-		if err != nil {
-			logStructuredError("plans_load_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to load pricing plans. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		writeJSON(w, &landing_page_react_vite_v1.GetPricingResponse{Pricing: overview})
-	}
-}
+func (e *managedDownloadResolutionError) Error() string { return e.err.Error() }
+func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
 
-func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := getUserEmail(r.Context())
-		if user == "" {
-			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
-			return
-		}
-		subscription, err := accountService.GetSubscription(user)
-		if err != nil {
-			logStructuredError("subscription_fetch_failed", map[string]interface{}{
-				"user":  user,
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve subscription status. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		writeJSON(w, &landing_page_react_vite_v1.VerifySubscriptionResponse{Status: subscription})
-	}
-}
-
-func handleMeCredits(accountService *AccountService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := getUserEmail(r.Context())
-		if user == "" {
-			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
-			return
-		}
-		credits, err := accountService.GetCredits(user)
-		if err != nil {
-			logStructuredError("credits_fetch_failed", map[string]interface{}{
-				"user":  user,
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve credit balance. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		balance := map[string]interface{}{}
-		if credits.Balance != nil {
-			if data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(credits.Balance); err == nil {
-				if unmarshalErr := json.Unmarshal(data, &balance); unmarshalErr != nil {
-					logStructuredError("credits_balance_unmarshal_failed", map[string]interface{}{
-						"user":  user,
-						"error": unmarshalErr.Error(),
-					})
-					// Continue with empty balance - non-critical
-				}
+func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.Dependencies {
+	return downloadhttp.Dependencies{
+		UserEmail: getUserEmail,
+		Authorize: func(ctx context.Context, appKey, platform, user string) (downloadhttp.Authorization, error) {
+			asset, err := authorizer.Authorize(ctx, appKey, platform, user)
+			if err != nil || asset == nil {
+				return downloadhttp.Authorization{}, err
 			}
-		}
-
-		writeJSON(w, map[string]interface{}{
-			"balance":                    balance,
-			"display_credits_label":      credits.DisplayCreditsLabel,
-			"display_credits_multiplier": credits.DisplayCreditsMultiplier,
-		})
-	}
-}
-
-func handleEntitlements(accountService *AccountService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := getUserEmail(r.Context())
-		if user == "" {
-			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
-			return
-		}
-		entitlements, err := accountService.GetEntitlements(user)
-		if err != nil {
-			logStructuredError("entitlements_fetch_failed", map[string]interface{}{
-				"user":  user,
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve entitlements. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		writeJSON(w, entitlements)
-	}
-}
-
-func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		appKey := strings.TrimSpace(r.URL.Query().Get("app"))
-		if appKey == "" {
-			writeJSONError(w, http.StatusBadRequest, "App key is required.", ApiErrorTypeValidation)
-			return
-		}
-		platform := strings.TrimSpace(r.URL.Query().Get("platform"))
-		if platform == "" {
-			writeJSONError(w, http.StatusBadRequest, "Platform is required.", ApiErrorTypeValidation)
-			return
-		}
-
-		user := getUserEmail(r.Context())
-		if user == "" {
-			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
-			return
-		}
-
-		asset, err := authorizer.Authorize(appKey, platform, user)
-		if err != nil {
-			logStructuredError("download_authorization_failed", map[string]interface{}{
-				"app_key":  appKey,
-				"platform": platform,
-				"user":     user,
-				"error":    err.Error(),
-			})
+			artifactID := int64(0)
+			if asset.ArtifactID != nil {
+				artifactID = *asset.ArtifactID
+			}
+			return downloadhttp.Authorization{Payload: asset, Managed: asset.ArtifactSource == "managed", ArtifactID: artifactID, SetURL: func(url string) { asset.ArtifactURL = url }}, nil
+		},
+		ClassifyError: func(err error) downloadhttp.ErrorKind {
 			switch {
-			case errors.Is(err, ErrDownloadNotFound):
-				writeJSONError(w, http.StatusNotFound, "Download not found for this platform.", ApiErrorTypeNotFound)
-			case errors.Is(err, ErrDownloadAppNotFound):
-				writeJSONError(w, http.StatusNotFound, "Application not found.", ApiErrorTypeNotFound)
-			case errors.Is(err, ErrDownloadRequiresActiveSubscription):
-				writeJSONError(w, http.StatusForbidden, "An active subscription is required to download this content.", ApiErrorTypeForbidden)
-			case errors.Is(err, ErrDownloadIdentityRequired):
-				writeJSONError(w, http.StatusBadRequest, "Please provide your email to download.", ApiErrorTypeValidation)
-			case errors.Is(err, ErrDownloadPlatformRequired):
-				writeJSONError(w, http.StatusBadRequest, "Please select a platform.", ApiErrorTypeValidation)
-			case errors.Is(err, ErrDownloadEntitlementsUnavailable):
-				writeJSONError(w, http.StatusServiceUnavailable, "Unable to verify your entitlements. Please try again.", ApiErrorTypeServerError)
-			default:
-				writeJSONError(w, http.StatusInternalServerError, "Failed to authorize download. Please try again.", ApiErrorTypeServerError)
+			case errors.Is(err, delivery.ErrAssetNotFound):
+				return downloadhttp.ErrorNotFound
+			case errors.Is(err, delivery.ErrAppNotFound):
+				return downloadhttp.ErrorAppNotFound
+			case errors.Is(err, delivery.ErrRequiresActiveSubscription):
+				return downloadhttp.ErrorSubscriptionRequired
+			case errors.Is(err, delivery.ErrIdentityRequired):
+				return downloadhttp.ErrorIdentityRequired
+			case errors.Is(err, delivery.ErrPlatformRequired):
+				return downloadhttp.ErrorPlatformRequired
+			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
+				return downloadhttp.ErrorEntitlementsUnavailable
 			}
-			return
-		}
-
-		if asset != nil && strings.TrimSpace(asset.ArtifactSource) == "managed" && asset.ArtifactID != nil && *asset.ArtifactID > 0 {
-			artifact, err := hosting.GetArtifact(r.Context(), plans.BundleKey(), *asset.ArtifactID)
+			return ""
+		},
+		ResolveManaged: func(ctx context.Context, id int64) (string, bool, error) {
+			artifact, err := hosting.GetArtifact(ctx, plans.BundleKey(), id)
 			if err != nil {
-				logStructuredError("artifact_fetch_failed", map[string]interface{}{
-					"app_key":     appKey,
-					"platform":    platform,
-					"artifact_id": *asset.ArtifactID,
-					"error":       err.Error(),
-				})
-				writeJSONError(w, http.StatusInternalServerError, "Failed to resolve download. Please try again.", ApiErrorTypeServerError)
-				return
+				return "", false, &managedDownloadResolutionError{stage: "fetch", err: err}
 			}
 			if artifact == nil {
-				logStructuredError("artifact_not_found", map[string]interface{}{
-					"app_key":     appKey,
-					"platform":    platform,
-					"artifact_id": *asset.ArtifactID,
-				})
-				writeJSONError(w, http.StatusNotFound, "Download artifact not found.", ApiErrorTypeNotFound)
-				return
+				return "", false, nil
 			}
-			signedURL, err := hosting.PresignGetArtifact(r.Context(), plans.BundleKey(), *artifact)
+			url, err := hosting.PresignGetArtifact(ctx, plans.BundleKey(), *artifact)
 			if err != nil {
-				logStructuredError("presign_url_failed", map[string]interface{}{
-					"app_key":     appKey,
-					"platform":    platform,
-					"artifact_id": *asset.ArtifactID,
-					"error":       err.Error(),
-				})
-				writeJSONError(w, http.StatusInternalServerError, "Failed to generate download link. Please try again.", ApiErrorTypeServerError)
-				return
+				return "", true, &managedDownloadResolutionError{stage: "presign", err: err}
 			}
-			asset.ArtifactURL = signedURL
-		}
+			return url, true, nil
+		},
+		ManagedError: func(err error) (string, string) {
+			var resolution *managedDownloadResolutionError
+			if errors.As(err, &resolution) && resolution.stage == "fetch" {
+				return "artifact_fetch_failed", "Failed to resolve download. Please try again."
+			}
+			return "presign_url_failed", "Failed to generate download link. Please try again."
+		},
+		WriteJSON:  writeJSON,
+		WriteError: writeJSONError,
+		Log:        logx.Error,
+	}
+}
 
-		writeJSON(w, asset)
+// downloadConnectAuthorizationDependencies composes the generated delivery
+// procedure around the same entitlement and managed-artifact services as the
+// established REST endpoint.
+func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.ConnectAuthorizationDependencies {
+	return downloadhttp.ConnectAuthorizationDependencies{
+		UserEmail: getUserEmail,
+		Authorize: authorizer.Authorize,
+		ClassifyError: func(err error) downloadhttp.ErrorKind {
+			switch {
+			case errors.Is(err, delivery.ErrAssetNotFound):
+				return downloadhttp.ErrorNotFound
+			case errors.Is(err, delivery.ErrAppNotFound):
+				return downloadhttp.ErrorAppNotFound
+			case errors.Is(err, delivery.ErrRequiresActiveSubscription):
+				return downloadhttp.ErrorSubscriptionRequired
+			case errors.Is(err, delivery.ErrIdentityRequired):
+				return downloadhttp.ErrorIdentityRequired
+			case errors.Is(err, delivery.ErrPlatformRequired):
+				return downloadhttp.ErrorPlatformRequired
+			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
+				return downloadhttp.ErrorEntitlementsUnavailable
+			}
+			return ""
+		},
+		ResolveManaged: func(ctx context.Context, id int64) (string, bool, error) {
+			artifact, err := hosting.GetArtifact(ctx, plans.BundleKey(), id)
+			if err != nil {
+				return "", false, &managedDownloadResolutionError{stage: "fetch", err: err}
+			}
+			if artifact == nil {
+				return "", false, nil
+			}
+			url, err := hosting.PresignGetArtifact(ctx, plans.BundleKey(), *artifact)
+			if err != nil {
+				return "", true, &managedDownloadResolutionError{stage: "presign", err: err}
+			}
+			return url, true, nil
+		},
+		Log: logx.Error,
 	}
 }
 
@@ -210,14 +129,17 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingSer
 
 func writeJSON(w http.ResponseWriter, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if msg, ok := payload.(proto.Message); ok {
 		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(msg)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Failed to encode response", ApiErrorTypeServerError)
 			return
 		}
+		// #nosec G705 -- this is an application/json response with nosniff, not an HTML sink;
+		// protojson output is required to preserve the generated API contract.
 		if _, err := w.Write(data); err != nil {
-			logStructuredError("write_json_failed", map[string]interface{}{
+			logx.Error("write_json_failed", map[string]interface{}{
 				"error": err.Error(),
 			})
 		}
@@ -271,7 +193,7 @@ func writeJSONError(w http.ResponseWriter, status int, message string, errorType
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logStructuredError("write_json_error_failed", map[string]interface{}{
+		logx.Error("write_json_error_failed", map[string]interface{}{
 			"error":          err.Error(),
 			"status":         status,
 			"original_error": message,

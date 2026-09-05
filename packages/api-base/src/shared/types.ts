@@ -243,6 +243,11 @@ export interface ProxyOptions {
   agent?: Agent
 }
 
+export interface LifecycleGuardConfig {
+  /** Skip lifecycle guard checks. Intended for tests only. */
+  disableLifecycleGuard?: boolean
+}
+
 /**
  * Raw app metadata returned by host API for proxying
  */
@@ -413,7 +418,7 @@ export interface EmbeddedProxyOptions {
 /**
  * Options for creating scenario server
  */
-export interface ServerTemplateOptions {
+export interface ServerTemplateOptions extends LifecycleGuardConfig {
   /** UI server port */
   uiPort: number | string
   /** API server port */
@@ -442,9 +447,23 @@ export interface ServerTemplateOptions {
   proxyMetadata?: ProxyInfo
   /** Inject scenario config into HTML */
   scenarioConfig?: ScenarioConfig
-  /** WebSocket URL prefix to proxy (e.g., '/ws'). If set, automatically handles WebSocket upgrades */
+  /**
+   * Match filter for WebSocket upgrades (e.g. '/ws'). Upgrades whose URL starts
+   * with this prefix are proxied to the API; all others are refused. Setting it
+   * installs the upgrade handler on whichever http.Server serves the app, so it
+   * works with both `startScenarioServer` and `createScenarioServer` + `listen`.
+   *
+   * This selects requests. It does not rewrite them — see `wsPathTransform`.
+   */
   wsPathPrefix?: string
-  /** URL transformation for WebSocket paths (e.g., '/ws' -> '/api/v1'). Defaults to replacing prefix with '/api/v1' */
+  /**
+   * Optional remap of the upstream WebSocket path. Receives the incoming URL
+   * (path plus query) and returns the path to request from the API.
+   *
+   * Defaults to preserving the path unchanged, which is what a prefix the API
+   * also serves requires. Supply this only to mount the socket at a different
+   * upstream path, e.g. `(url) => url.replace(/^\/ws/, '/api/v1')`.
+   */
   wsPathTransform?: (path: string) => string
   /** Additional headers to inject into proxied requests */
   proxyHeaders?: Record<string, string> | ((req: any) => Record<string, string>)

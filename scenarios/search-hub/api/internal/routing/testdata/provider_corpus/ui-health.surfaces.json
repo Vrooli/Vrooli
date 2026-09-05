@@ -1,0 +1,28 @@
+{
+ "provider_id": "ui-health.surfaces",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "ui-health",
+  "bucket": "BUCKET_REUSE",
+  "type": "component",
+  "description": "UI surfaces across every scenario's frontend (pages, components, features, hooks, layouts), searchable by what each surface renders or does (for example \"settings page\", \"delete confirmation dialog\", \"theme toggle\"). Route here to find an existing UI surface to reuse instead of building a new one.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "ui-health",
+      "path": "/vrooli.ui_health.v1.search.SearchService/Search",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "filePath",
+    "title_field": "displayName",
+    "score_field": "score",
+    "snippet_field": "description",
+    "path_field": "filePath",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

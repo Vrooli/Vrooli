@@ -1,0 +1,19 @@
+syntax = "proto3";
+package vrooli.vrooli_memory.v1.federation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/federation;federation_v1";
+service SearchControlService {
+  rpc Reindex(ReindexRequest) returns (ReindexResponse);
+  rpc WriteConfig(WriteConfigRequest) returns (WriteConfigResponse);
+}
+message ReindexRequest {
+  string authorization_token = 1;
+}
+message ReindexResponse {
+  string job_id = 1;
+}
+message WriteConfigRequest {
+  string authorization_token = 1;
+  string config_json = 2;
+}
+message WriteConfigResponse {}

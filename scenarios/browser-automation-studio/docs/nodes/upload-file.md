@@ -7,14 +7,14 @@
 | Field | Description | Required | Notes |
 | --- | --- | --- | --- |
 | **Target selector** | CSS selector for the file input | Yes | Must point to a genuine file input; custom widgets still need scripts.
-| **File paths** | Absolute paths (one per line) | Yes | Paths are resolved on the machine running Browserless.
+| **File paths** | Absolute paths (one per line) | Yes | Paths are resolved on the machine running the Playwright driver.
 | **Timeout (ms)** | Wait for the input | No | Defaults to 30 000; min 500.
 | **Wait after (ms)** | Delay after attaching files | No | Helpful for apps that validate immediately.
 
 ## Runtime Behavior
 
 1. The automation compiler forwards selector/file list/timeout/wait params as authored; validation is handled by the workflow validator.
-2. Browserless resolves the selector, verifies it’s a file input, and calls `chromedp.SetUploadFiles`, pointing to the provided paths.
+2. The Playwright driver resolves the selector, verifies it’s a file input, and sets the upload files, pointing to the provided paths.
 3. Execution artifacts store the selector and file count (paths themselves are not logged for security).
 
 ## Example

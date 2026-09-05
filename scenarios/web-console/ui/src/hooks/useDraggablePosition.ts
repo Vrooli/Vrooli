@@ -218,7 +218,12 @@ export const useDraggablePosition = (
     };
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(handleResize);
+    if (observer && elementRef.current) observer.observe(elementRef.current);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      observer?.disconnect();
+    };
   }, [clampPosition, isActive]);
 
   useEffect(() => {
@@ -396,7 +401,9 @@ export const useDraggablePosition = (
   }, [getInitialPosition, storageKey]);
 
   const moveTo = useCallback((pos: { x: number; y: number }) => {
-    setPosition(pos);
+    setPosition((previous) =>
+      previous.x === pos.x && previous.y === pos.y ? previous : pos,
+    );
   }, []);
 
   return useMemo(

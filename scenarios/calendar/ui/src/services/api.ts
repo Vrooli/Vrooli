@@ -8,7 +8,7 @@ import type {
   OptimizationResponse,
   User
 } from '@/types'
-import { resolveApiBase } from '@vrooli/api-base'
+import { getInjectedConfig, resolveApiBase } from '@vrooli/api-base'
 import {
   clearStoredAuth,
   dispatchAuthRequiredEvent,
@@ -18,7 +18,7 @@ import {
   resolveAuthenticatorLoginUrl
 } from '@/utils/auth'
 
-const explicitApiUrlEnv = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+const explicitApiUrlEnv = getInjectedConfig()?.apiUrl?.trim()
 const explicitApiUrl = explicitApiUrlEnv ? explicitApiUrlEnv : undefined
 
 const API_BASE_URL = resolveApiBase({

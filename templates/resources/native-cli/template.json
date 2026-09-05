@@ -1,0 +1,45 @@
+{
+  "name": "native-cli",
+  "displayName": "Native CLI",
+  "description": "Scaffold a repo-owned Go resource binary with a first-class operator command surface and manifest-driven install/invoke metadata.",
+  "driver": "native-cli",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "developer-tooling"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "full"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
+    }
+  },
+  "docs": {
+    "resource-templates": "docs/resources/resource-templates.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "Generated scaffolds should treat the repo-owned Go binary as the primary operator surface.",
+    "Command wiring should stay separate from the resource domain implementation."
+  ]
+}

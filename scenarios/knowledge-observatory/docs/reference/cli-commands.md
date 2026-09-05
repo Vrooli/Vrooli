@@ -121,7 +121,7 @@ knowledge-observatory ingest-job --namespace docs --content "$(cat README.md)" -
 ## job-status
 
 ```bash
-knowledge-observatory job-status <job_id>
+knowledge-observatory job-status "<job_id>"
 ```
 
 ## ingest-health
@@ -230,7 +230,7 @@ knowledge-observatory docs health knowledge-observatory
 knowledge-observatory docs view "scenarios/knowledge-observatory/docs/manifest.json" --format preview
 knowledge-observatory docs reset "scenarios/knowledge-observatory/docs/internal/PROBLEMS.md" --max-age-days 30 --keep-min-entries 3 --preview
 knowledge-observatory docs heal knowledge-observatory --dry-run --wait
-knowledge-observatory docs heal-status <job_id>
+knowledge-observatory docs heal-status "<job_id>"
 ```
 
 ### docs search-files
@@ -294,10 +294,49 @@ Fetch the documentation tree for a scenario.
 
 Fetch documentation health details for a scenario.
 
+```bash
+knowledge-observatory docs health knowledge-observatory
+knowledge-observatory docs health knowledge-observatory --json
+```
+
 **Options:**
 | Flag | Description |
 |------|-------------|
 | `--scenario` | Scenario name (optional if provided as positional argument) |
+| `--scope` | `scenario` (default) or `path` |
+| `--path` | Docs path to scan when using path scope |
+| `--checks` | Comma-separated checks: `structure`, `content`, `links`, `refs`, `commands`, `manifest`, `numbers` |
+| `--strict-external-links` | Treat external link failures as failures |
+| `--require-all-docs-registered` | Report scenario docs missing from `docs/manifest.json` |
+| `--skip-external-links` | Skip external link probing for offline runs |
+| `--json` | Emit raw JSON output |
+
+The `refs` check validates explicit marked references such as `cli:...`.
+The `commands` check conservatively validates Vrooli-owned commands found in
+fenced shell snippets by delegating to CLI Health (DOCS policy); it does not
+execute the referenced commands.
+
+Command-snippet finding codes:
+| Code | Severity | Meaning |
+|------|----------|---------|
+| `broken_command_snippet` | warning | Snippet is invalid: unknown path, bad arguments, `enum_placeholder_mismatch` (an `"<a\|b\|c>"` alternation drifted from the manifest/proto vocabulary), or `invalid_literal_value` (an example value violates descriptor-derived constraints) |
+| `placeholder_style` | warning | Snippet is correct but uses unquoted `<...>` placeholders; the finding carries a byte-exact quoted fix that `docs fix-placeholders` applies deterministically |
+| `partial_command_snippet` | info | Command path exists but argument metadata was unavailable |
+| `unknown_command_snippet` | warning | Validation could not complete (CLI Health unreachable, unknown owner) |
+
+The preferred documentation convention is quoted placeholders: `"<session>"`
+for a named slot, `"<minor|moderate|major|architectural>"` for an enum whose
+alternation must exactly match the owning manifest's `values` (union any proto
+enum). Quoting keeps snippets shell-safe when pasted verbatim and lets the
+enum vocabulary be machine-checked instead of hand-maintained prose.
+
+Human output includes the shared health maturity report. For Knowledge
+Observatory docs health, that report separates documentation contract, required
+docs, append-log integrity, content quality, link health, reference integrity,
+and manifest coverage so operators can see the highest-priority documentation
+capability instead of one overloaded local ladder. The `--json` form preserves
+the complete shared `assessment` payload, including `assessment.local` for
+legacy consumers and `assessment.capabilities[]` for capability-aware tooling.
 
 ### docs view
 
@@ -325,9 +364,31 @@ Fetch status for a healing job by ID.
 |------|-------------|
 | `--job-id` | Healing job ID (optional if provided as positional argument) |
 
+### docs fix-placeholders
+
+Apply the deterministic quoted-placeholder fixes for a scenario's markdown
+command snippets. A thin wrapper over the shared scenario-validation
+`PreviewFix`/`ApplyFix` RPC scoped to the `placeholder_style` rule: the server
+re-validates every snippet through CLI Health and applies each returned
+byte-exact fix verbatim (never recomputed). Idempotent — a second run reports
+zero candidates.
+
+```bash
+knowledge-observatory docs fix-placeholders "<scenario>" --dry-run   # unified diff, no writes
+knowledge-observatory docs fix-placeholders "<scenario>"             # apply
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--scenario` | Scenario name (optional if provided as positional argument) |
+| `--dry-run` | Preview the unified diff without writing; selects exactly the files/lines the apply path would touch |
+| `--json` | Emit the raw FixResponse |
+
 ### docs reset
 
-Reset/clean supported documents (PROBLEMS/PROGRESS).
+Reset/clean supported documents that declare `operations.appendLog` with
+reset support in the resolved documentation manifest.
 
 **Options:**
 | Flag | Description |
@@ -341,8 +402,8 @@ Reset/clean supported documents (PROBLEMS/PROGRESS).
 
 ```bash
 knowledge-observatory configure
-knowledge-observatory configure api_base http://localhost:<API_PORT>
-knowledge-observatory configure token <api_token>
+knowledge-observatory configure api_base http://localhost:"<API_PORT>"
+knowledge-observatory configure token "<api_token>"
 ```
 
 ## Environment overrides

@@ -8,10 +8,14 @@ import (
 	"testing"
 	"time"
 
-	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
-	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+
+	"github.com/vrooli/api-core/storage"
+	appoptimization "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/optimization"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestHealthHandler tests the health endpoint
@@ -38,8 +42,8 @@ func TestHealthHandler(t *testing.T) {
 			t.Errorf("Expected status 'healthy' or 'degraded', got %v", status)
 		}
 
-		if response["service"] != "scenario-dependency-analyzer" {
-			t.Errorf("Expected service name, got %v", response["service"])
+		if response["service"] != "scenario-dependency-analyzer-api" {
+			t.Errorf("Expected service 'scenario-dependency-analyzer-api', got %v", response["service"])
 		}
 	})
 }
@@ -65,6 +69,18 @@ func TestAnalysisHealthHandler(t *testing.T) {
 
 		if status := response["status"]; status != "healthy" && status != "degraded" {
 			t.Errorf("Expected status 'healthy' or 'degraded', got %v", status)
+		}
+
+		if response["service"] != "scenario-dependency-analyzer-api" {
+			t.Errorf("Expected service 'scenario-dependency-analyzer-api', got %v", response["service"])
+		}
+
+		if _, ok := response["timestamp"].(string); !ok {
+			t.Errorf("Expected timestamp string")
+		}
+
+		if _, ok := response["readiness"].(bool); !ok {
+			t.Errorf("Expected readiness boolean")
 		}
 
 		capabilities, ok := response["capabilities"].([]interface{})
@@ -130,6 +146,32 @@ func TestGetGraphHandler(t *testing.T) {
 		suite := NewHandlerTestSuite(t, router)
 		suite.TestErrorPatterns(patterns)
 	})
+}
+
+func TestGetGraphCentralityHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	router := setupTestRouter()
+
+	recorder := makeHTTPRequest(t, router, "GET", "/api/v1/graph/centrality?scenario=consumer", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d. Body: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response types.GraphCentralityReport
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if response.Scenario != "consumer" {
+		t.Fatalf("scenario filter = %q, want consumer", response.Scenario)
+	}
+	if got := len(response.Nodes); got != 1 {
+		t.Fatalf("expected one centrality row, got %d", got)
+	}
+	if response.Nodes[0].Scenario != "consumer" {
+		t.Fatalf("row scenario = %q, want consumer", response.Nodes[0].Scenario)
+	}
 }
 
 // TestAnalyzeProposedHandler tests the proposed scenario analysis endpoint
@@ -285,7 +327,7 @@ func TestGenerateOptimizationRecommendations(t *testing.T) {
 			Extra: []types.DependencyDrift{{Name: "redis"}},
 		},
 	}
-	recommendations := appoptimization.GenerateRecommendations("sample", analysis, nil)
+	recommendations := appoptimization.GenerateRecommendations("sample", analysis)
 	if len(recommendations) == 0 {
 		t.Fatalf("expected recommendation for unused resource")
 	}
@@ -321,7 +363,7 @@ func TestBuildTierBlockerRecommendations(t *testing.T) {
 		},
 	}
 	analysis := &types.DependencyAnalysisResponse{DeploymentReport: report}
-	recommendations := appoptimization.GenerateRecommendations("sample", analysis, nil)
+	recommendations := appoptimization.GenerateRecommendations("sample", analysis)
 	if len(recommendations) == 0 {
 		t.Fatalf("expected recommendation for blocker")
 	}
@@ -342,31 +384,12 @@ func TestBuildUnusedScenarioRecommendations(t *testing.T) {
 			Extra: []types.DependencyDrift{{Name: "legacy-tool"}},
 		},
 	}
-	recs := appoptimization.GenerateRecommendations("sample", analysis, nil)
+	recs := appoptimization.GenerateRecommendations("sample", analysis)
 	if len(recs) != 1 {
 		t.Fatalf("expected unused scenario recommendation")
 	}
 	if recs[0].RecommendedState["scenario_name"] != "legacy-tool" {
 		t.Fatalf("unexpected recommended scenario: %+v", recs[0])
-	}
-}
-
-func TestBuildSecretStrategyRecommendations(t *testing.T) {
-	cfg := &types.ServiceConfig{Deployment: &types.ServiceDeployment{Tiers: map[string]types.DeploymentTier{
-		"tier-2": {
-			Secrets: []types.DeploymentTierSecret{{SecretID: "api-key", StrategyRef: ""}},
-		},
-	}}}
-	recs := appoptimization.GenerateRecommendations("sample", &types.DependencyAnalysisResponse{}, cfg)
-	found := false
-	for _, rec := range recs {
-		if rec.RecommendedState["action"] == "annotate_secret_strategy" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected secret strategy recommendation")
 	}
 }
 
@@ -402,16 +425,10 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 			Required: true,
 		},
 	}
-	childCfg.Deployment = &types.ServiceDeployment{
-		AggregateRequirements: &types.DeploymentRequirements{
-			RAMMB:    floatPtr(256),
-			DiskMB:   floatPtr(256),
-			CPUCores: floatPtr(0.5),
-		},
+	childCfg.TierFeasibility = &types.TierFeasibility{
 		Tiers: map[string]types.DeploymentTier{
 			"tier-2-desktop": {
-				Status:       "limited",
-				FitnessScore: floatPtr(0.4),
+				Requirements: &types.DeploymentRequirements{RAMMB: floatPtr(256), DiskMB: floatPtr(256), CPUCores: floatPtr(0.5)},
 			},
 		},
 		Dependencies: types.DeploymentDependencyCatalog{
@@ -440,20 +457,12 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 			Required: true,
 		},
 	}
-	rootCfg.Deployment = &types.ServiceDeployment{
-		AggregateRequirements: &types.DeploymentRequirements{
-			RAMMB:    floatPtr(1024),
-			DiskMB:   floatPtr(2048),
-			CPUCores: floatPtr(1),
-		},
+	rootCfg.TierFeasibility = &types.TierFeasibility{
 		Tiers: map[string]types.DeploymentTier{
 			"tier-1-local": {
-				Status:       "ready",
-				FitnessScore: floatPtr(0.95),
+				Requirements: &types.DeploymentRequirements{RAMMB: floatPtr(1024), DiskMB: floatPtr(2048), CPUCores: floatPtr(1)},
 			},
 			"tier-2-desktop": {
-				Status:       "limited",
-				FitnessScore: floatPtr(0.6),
 				Adaptations: []types.DeploymentAdaptation{
 					{Swap: "sqlite"},
 				},
@@ -532,7 +541,11 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 		t.Fatalf("expected postgres to surface sqlite alternative")
 	}
 
-	if _, err := os.Stat(filepath.Join(rootPath, ".vrooli", "deployment", "deployment-report.json")); err != nil {
+	reportPath, err := canonicalDeploymentReportPath("root-app")
+	if err != nil {
+		t.Fatalf("resolve canonical deployment report path: %v", err)
+	}
+	if _, err := os.Stat(reportPath); err != nil {
 		t.Fatalf("expected deployment report file to exist: %v", err)
 	}
 
@@ -541,10 +554,25 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 	}
 }
 
-func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.ServiceConfig) string {
+func canonicalDeploymentReportPath(scenario string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: scenario},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
+}
+
+func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.Manifest) string {
 	t.Helper()
 	scenarioPath := filepath.Join(scenariosDir, name)
-	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("failed to create scenario dirs: %v", err)
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
@@ -552,14 +580,14 @@ func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.
 		t.Fatalf("failed to marshal service config: %v", err)
 	}
 	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	if err := os.WriteFile(servicePath, data, 0644); err != nil {
+	if err := os.WriteFile(servicePath, data, 0o644); err != nil {
 		t.Fatalf("failed to write service config: %v", err)
 	}
 	return scenarioPath
 }
 
-func newTestServiceConfig(name string) *types.ServiceConfig {
-	cfg := &types.ServiceConfig{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
+func newTestServiceConfig(name string) *types.Manifest {
+	cfg := &types.Manifest{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
 	cfg.Service.Name = name
 	cfg.Service.DisplayName = name
 	cfg.Service.Description = "test"
@@ -614,7 +642,7 @@ func setupTempScenarios(t *testing.T) tempScenarioEnv {
 	t.Helper()
 	root := t.TempDir()
 	scenariosDir := filepath.Join(root, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
 		t.Fatalf("failed to create temp scenarios dir: %v", err)
 	}
 	return tempScenarioEnv{ScenariosDir: scenariosDir}
@@ -627,20 +655,14 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("ValidConfig", func(t *testing.T) {
 		// Save and set required env vars
-		originalPort := os.Getenv("API_PORT")
-		originalDBURL := os.Getenv("DATABASE_URL")
-		defer func() {
-			if originalPort != "" {
-				os.Setenv("API_PORT", originalPort)
-			}
-			if originalDBURL != "" {
-				os.Setenv("DATABASE_URL", originalDBURL)
-			}
-		}()
-
-		// Set test values
-		os.Setenv("API_PORT", "8080")
-		os.Setenv("DATABASE_URL", "postgres://test:test@localhost/test")
+		// Isolate storage by redirecting the whole class tree, not by naming a
+		// database file. The root is scenario-agnostic, so every scenario
+		// beneath it still resolves to its own separate path.
+		t.Setenv("API_PORT", "8080")
+		t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+		if os.Getenv("API_PORT") != "8080" {
+			t.Fatal("API_PORT test setup was not applied")
+		}
 
 		// Note: loadConfig calls log.Fatal on error, so we can't easily test
 		// the error paths without refactoring. We'll just verify it works with valid config.
@@ -706,7 +728,7 @@ func TestCalculateComplexityScore(t *testing.T) {
 				}
 			}
 
-			score := calculateComplexityScore(nodes, edges)
+			score := graphdomain.CalculateComplexityScore(nodes, edges)
 
 			if score < 0 {
 				t.Errorf("Expected non-negative complexity score, got %f", score)
@@ -818,106 +840,6 @@ func TestCalculateResourceConfidence(t *testing.T) {
 			if confidence < tt.minExpected || confidence > tt.maxExpected {
 				t.Errorf("Expected confidence between %f and %f, got %f",
 					tt.minExpected, tt.maxExpected, confidence)
-			}
-		})
-	}
-}
-
-// TestMapPatternToResource tests pattern to resource mapping
-func TestMapPatternToResource(t *testing.T) {
-	tests := []struct {
-		pattern  string
-		expected string
-	}{
-		{"database", "postgres"},
-		{"postgres", "postgres"},
-		{"postgresql", "postgres"},
-		{"storage", "minio"},
-		{"minio", "minio"},
-		{"cache", "redis"},
-		{"redis", "redis"},
-		{"llm", "ollama"},
-		{"ollama", "ollama"},
-		{"workflow", "n8n"},
-		{"n8n", "n8n"},
-		{"vector", "qdrant"},
-		{"qdrant", "qdrant"},
-		{"unknown", ""},
-		{"caching", ""}, // Not in map
-		{"ai", ""},      // Not in map
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
-			result := mapPatternToResource(tt.pattern)
-			if result != tt.expected {
-				t.Errorf("mapPatternToResource(%q) = %q, want %q", tt.pattern, result, tt.expected)
-			}
-		})
-	}
-}
-
-// TestGetHeuristicPredictions tests heuristic-based predictions
-func TestGetHeuristicPredictions(t *testing.T) {
-	tests := []struct {
-		description       string
-		expectedResources []string
-		minPredictions    int
-	}{
-		{
-			description:       "Need database to store user data",
-			expectedResources: []string{"postgres"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Build AI chat with language model",
-			expectedResources: []string{"ollama"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Use cache for session storage",
-			expectedResources: []string{"redis"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Vector search with semantic similarity and embedding",
-			expectedResources: []string{"qdrant"},
-			minPredictions:    1,
-		},
-		{
-			description:       "Workflow automation with triggers",
-			expectedResources: []string{"n8n"},
-			minPredictions:    1,
-		},
-		{
-			description:       "File upload and document storage",
-			expectedResources: []string{"minio"},
-			minPredictions:    1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.description, func(t *testing.T) {
-			predictions := getHeuristicPredictions(tt.description)
-
-			if len(predictions) < tt.minPredictions {
-				t.Errorf("Expected at least %d predictions, got %d", tt.minPredictions, len(predictions))
-			}
-
-			// Verify expected resources are in predictions
-			for _, expectedResource := range tt.expectedResources {
-				found := false
-				for _, pred := range predictions {
-					if resourceName, ok := pred["resource_name"].(string); ok {
-						if resourceName == expectedResource {
-							found = true
-							break
-						}
-					}
-				}
-				if !found {
-					t.Errorf("Expected resource %q not found in predictions", expectedResource)
-				}
 			}
 		})
 	}

@@ -39,18 +39,23 @@ A deployment record is created with status `pending`. The manifest is stored for
 ### 2. Build Bundle
 
 If a bundle doesn't exist (or force rebuild is requested), a mini-Vrooli bundle is created containing:
-- Core Vrooli scripts (`manage.sh`, `setup.sh`)
 - Scenario files and dependencies
 - Resource configurations
 - Deployment configuration
+
+The bundle no longer treats the old project bootstrap script as part of the deployment contract.
+Instead, VPS setup uploads a deployment-local native `vrooli` binary to
+`<workdir>/.vrooli/bin/vrooli` and all subsequent remote operations execute that
+binary directly with `--no-stale-check`.
 
 ### 3. VPS Setup (`setup_running`)
 
 The bundle is transferred to the VPS and setup runs:
 1. Extract bundle to `~/Vrooli`
-2. Run `./scripts/manage.sh setup`
-3. Install required tools (git, curl, etc.)
-4. Configure environment
+2. Detect Linux architecture and upload the matching native `vrooli` CLI to `<workdir>/.vrooli/bin/vrooli`
+3. Run `vrooli setup --yes yes --environment production`
+4. Install required tools (git, curl, etc.)
+5. Configure environment
 
 #### VPS Bundle Cache (Disk Management)
 

@@ -1,32 +1,34 @@
 package main
 
 import (
-	"database/sql"
-
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 // APIServer centralizes the HTTP surface for the scenario so routes reflect the
-// core domains: health, vault coverage, security scanning, resources, and deployment.
+// core domains: health, credential coverage, security scanning, resources, and deployment.
 type APIServer struct {
-	db       *sql.DB
+	db       *database.RoutedDB
 	handlers handlerSet
 }
 
 type handlerSet struct {
-	health           *HealthHandlers
-	vault            *VaultHandlers
-	security         *SecurityHandlers
-	resources        *ResourceHandlers
-	deployment       *DeploymentHandlers
-	scenarios        *ScenarioHandlers
-	orientation      *OrientationHandlers
-	campaigns        *CampaignHandlers
-	overrides        *ScenarioOverrideHandlers
-	adminOverrides   *AdminOverrideHandlers
+	health         *HealthHandlers
+	credentials    *CredentialHandlers
+	security       *SecurityHandlers
+	resources      *ResourceHandlers
+	deployment     *DeploymentHandlers
+	scenarios      *ScenarioHandlers
+	orientation    *OrientationHandlers
+	campaigns      *CampaignHandlers
+	overrides      *ScenarioOverrideHandlers
+	adminOverrides *AdminOverrideHandlers
+	receiptSigning *ReceiptSigningHandlers
+	allowlist      *AllowlistHandlers
+	watchlist      *WatchlistHandlers
 }
 
-func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
+func newAPIServer(db *database.RoutedDB, logger *Logger) *APIServer {
 	var validator *SecretValidator
 	var orientationBuilder *OrientationBuilder
 	var campaignStore CampaignStore
@@ -39,6 +41,7 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 	// Create manifest builder for deployment handlers
 	manifestBuilder := NewManifestBuilder(ManifestBuilderConfig{
 		DB:     db,
+		Clock:  systemManifestClock{},
 		Logger: logger,
 	})
 
@@ -46,7 +49,7 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 		db: db,
 		handlers: handlerSet{
 			health:         NewHealthHandlers(db),
-			vault:          NewVaultHandlers(db, logger, validator),
+			credentials:    NewCredentialHandlers(db, logger, validator),
 			security:       NewSecurityHandlers(db, logger),
 			resources:      NewResourceHandlers(db),
 			deployment:     NewDeploymentHandlers(manifestBuilder),
@@ -55,6 +58,9 @@ func newAPIServer(db *sql.DB, logger *Logger) *APIServer {
 			campaigns:      NewCampaignHandlers(manifestBuilder, campaignStore),
 			overrides:      NewScenarioOverrideHandlers(db, logger),
 			adminOverrides: NewAdminOverrideHandlers(db, logger),
+			receiptSigning: NewReceiptSigningHandlers(),
+			allowlist:      NewAllowlistHandlers(db, logger),
+			watchlist:      NewWatchlistHandlers(db, logger),
 		},
 	}
 }
@@ -75,14 +81,17 @@ func (s *APIServer) routes() *mux.Router {
 	orientation := api.PathPrefix("/orientation").Subrouter()
 	s.handlers.orientation.RegisterRoutes(orientation)
 
-	// Vault coverage and provisioning
-	vault := api.PathPrefix("/vault").Subrouter()
-	s.handlers.vault.RegisterRoutes(vault)
-	s.handlers.vault.RegisterLegacyRoutes(api)
+	// Credential coverage and provisioning. Receipt signing is an authority-backed
+	// operational endpoint, separate from ordinary credential provisioning.
+	credentials := api.PathPrefix("/credentials").Subrouter()
+	s.handlers.credentials.RegisterRoutes(credentials)
+	s.handlers.receiptSigning.RegisterRoutes(credentials)
 
 	// Security intelligence
 	security := api.PathPrefix("/security").Subrouter()
 	s.handlers.security.RegisterRoutes(security)
+	s.handlers.allowlist.RegisterRoutes(security)
+	s.handlers.watchlist.RegisterRoutes(security)
 	s.handlers.security.RegisterLegacyRoutes(api)
 
 	// Resource intelligence

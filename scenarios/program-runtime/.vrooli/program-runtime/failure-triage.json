@@ -1,0 +1,87 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.failure-triage",
+  "version": "1",
+  "purpose": "Summarize recurring program failure shapes from programs mine as shape counts and three sample program ids, without materializing the corpus.",
+  "inputs": {
+    "include_operator": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include operator-provenance submissions in the mined corpus."
+    }
+  },
+  "assumptions": [
+    "program-runtime is running"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "at most 20 shape rows are read with head; no full materialization",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/programs/mine",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "shapes": "count of distinct failure shapes",
+      "by_shape": "shape -> count (first 20 shapes)",
+      "top": "the three most frequent shapes"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "sample program ids, one per shape, at most three"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

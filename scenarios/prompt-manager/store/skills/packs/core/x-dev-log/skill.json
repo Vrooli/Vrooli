@@ -1,19 +1,36 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "x-dev-log",
-  "name": "X Dev Log Generator",
+  "createdAt": "2026-01-29T00:00:00Z",
   "description": "Generate X/Twitter dev log threads by mining Vrooli scenario activity (git-control-tower, agent-manager, swarm-manager, app-issue-tracker)",
+  "entry": "SKILL.md",
+  "icon": "messagecircle",
+  "id": "x-dev-log",
+  "kind": "skill",
   "modes": [
     "tools"
   ],
+  "name": "X Dev Log Generator",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "git-control-tower",
+      "prompt-manager work",
+      "swarm-manager",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "git-control-tower",
+      "prompt-manager",
+      "swarm-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 43,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill"
   ],
-  "icon": "messagecircle",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2026-01-29T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

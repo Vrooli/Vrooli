@@ -1,9 +1,12 @@
 // Individual health check result card
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:HEAL-ACTION-001]
 import { Clock, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
+import { memo, useCallback } from "react";
+import type { MouseEvent } from "react";
 import { ActionButtons, StatusIcon } from "../../../shared/components";
 import { Card } from "../../../shared/ui/primitives";
-import { type HealthResult, type SubCheck, type CheckCategory } from "../../../lib/api";
+import { Notice } from "../../../shared/ui/composites";
+import { type ActionLog, type HealthResult, type SubCheck, type CheckCategory } from "../../../lib/api";
 import { selectors } from "../../../consts/selectors";
 import { formatRelativeTime } from "../../../lib/utils";
 
@@ -13,6 +16,7 @@ interface EnrichedCheck extends HealthResult {
   importance?: string;
   category?: CheckCategory;
   intervalSeconds?: number;
+  autoHealIssue?: ActionLog;
 }
 
 interface CheckCardProps {
@@ -29,7 +33,7 @@ function formatInterval(seconds: number): string {
   return `${hours}h`;
 }
 
-export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckCardProps) {
+function CheckCardImpl({ check, onInfoClick, mobileListItem = false }: CheckCardProps) {
   const score = check.metrics?.score;
   const subChecks = check.metrics?.subChecks ?? [];
   const hasSubChecks = subChecks.length > 0;
@@ -39,32 +43,22 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
   // Use title if available, fall back to checkId
   const displayTitle = check.title || check.checkId;
 
-  const handleCardClick = () => {
-    if (onInfoClick) {
-      onInfoClick(check.checkId);
-    }
-  };
+  const handleInfoClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onInfoClick?.(check.checkId);
+  }, [check.checkId, onInfoClick]);
 
   return (
     <Card
-      variant={onInfoClick ? "interactive" : "default"}
-      className={`min-w-0 w-full p-4 ${onInfoClick ? "cursor-pointer hover:bg-surface-overlay/60" : ""} ${
+      variant="default"
+      className={`min-w-0 w-full p-4 ${onInfoClick ? "hover:bg-surface-overlay/60" : ""} ${
         mobileListItem
           ? "rounded-none border-x-0 border-t-0 bg-transparent shadow-none first:rounded-t-lg first:border-t last:rounded-b-lg last:border-b sm:rounded-lg sm:border sm:border-border-default/70 sm:bg-surface-elevated/70 sm:shadow-panel"
           : ""
       }`}
       data-testid={selectors.checkCard}
-      onClick={handleCardClick}
-      role={onInfoClick ? "button" : undefined}
-      tabIndex={onInfoClick ? 0 : undefined}
-      onKeyDown={(e) => {
-        if (onInfoClick && (e.key === "Enter" || e.key === " ")) {
-          e.preventDefault();
-          onInfoClick(check.checkId);
-        }
-      }}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <StatusIcon status={check.status} />
         <div className="flex-1 min-w-0">
           {/* Header row: Title + Info icon + timing info */}
@@ -80,10 +74,7 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
               </div>
               {onInfoClick && (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onInfoClick(check.checkId);
-                  }}
+                  onClick={handleInfoClick}
                   className="shrink-0 rounded p-1 text-text-muted transition-colors hover:bg-surface-overlay/70 hover:text-accent-primary"
                   title="View details"
                   aria-label="View check details"
@@ -136,12 +127,14 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
           </div>
 
           {/* Importance notice - shown when status is not ok */}
-          {isNonOk && check.importance && (
-            <div className="mt-2 flex items-start gap-2 rounded border border-accent-warning/30 bg-accent-warning/10 p-2">
+          {isNonOk && check.importance ? (
+            <Notice tone="warning" className="mt-2 flex min-w-0 items-start gap-2 p-2">
               <AlertTriangle size={14} className="mt-0.5 shrink-0 text-accent-warning" />
               <p className="min-w-0 flex-1 break-words text-xs text-accent-warning">{check.importance}</p>
-            </div>
-          )}
+            </Notice>
+          ) : null}
+
+          {check.autoHealIssue ? <HealingIssueNotice issue={check.autoHealIssue} /> : null}
 
           {/* Sub-checks - displayed as structured checklist */}
           {hasSubChecks && (
@@ -160,6 +153,8 @@ export function CheckCard({ check, onInfoClick, mobileListItem = false }: CheckC
   );
 }
 
+export const CheckCard = memo(CheckCardImpl);
+
 // Renders a single sub-check as a pass/fail indicator
 function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
   const Icon = subCheck.passed ? CheckCircle2 : XCircle;
@@ -175,5 +170,29 @@ function SubCheckRow({ subCheck }: { subCheck: SubCheck }) {
         <span className="min-w-0 break-words text-text-muted/80">- {subCheck.detail}</span>
       )}
     </div>
+  );
+}
+
+function HealingIssueNotice({ issue }: { issue: ActionLog }) {
+  const skipped = issue.actionId === "autoheal-skip";
+  return (
+    <Notice tone={skipped ? "warning" : "danger"} className="mt-2 flex min-w-0 items-start gap-2 p-2">
+      {skipped ? (
+        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-accent-warning" />
+      ) : (
+        <XCircle size={14} className="mt-0.5 shrink-0 text-accent-danger" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className={`text-xs font-medium ${skipped ? "text-accent-warning" : "text-accent-danger"}`}>
+          {skipped ? "Auto-heal skipped" : "Auto-heal failed"}
+        </p>
+        <p className="mt-0.5 break-words text-xs text-text-muted">
+          {issue.message || issue.error || `Action ${issue.actionId} did not complete`}
+        </p>
+        <p className="mt-0.5 text-[11px] text-text-muted/80" title={new Date(issue.timestamp).toLocaleString()}>
+          Last recovery outcome: {formatRelativeTime(issue.timestamp)}
+        </p>
+      </div>
+    </Notice>
   );
 }

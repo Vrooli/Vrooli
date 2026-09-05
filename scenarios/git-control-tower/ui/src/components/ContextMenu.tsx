@@ -5,6 +5,7 @@ export interface ContextMenuItem {
   icon?: React.ReactNode;
   onClick: () => void;
   variant?: "default" | "danger";
+  testId?: string;
 }
 
 interface ContextMenuProps {
@@ -99,6 +100,7 @@ export function ContextMenu({ isOpen, position, items, onClose }: ContextMenuPro
             onClose();
           }}
           role="menuitem"
+          data-testid={item.testId}
         >
           {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
           <span>{item.label}</span>

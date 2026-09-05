@@ -1,0 +1,20 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "code-facts",
+  "phase": "code-facts",
+  "displayName": "Code Facts",
+  "description": "Validates target-aware code evidence and fact provenance.",
+  "source": "validation-provider",
+  "orderHint": 2,
+  "timeout": "120s",
+  "findingSource": "architecture",
+  "validation": {"contract": "scenario-validation/v1"},
+  "targets": {"kinds": ["scenario", "control-plane"], "selection": "enumerate"},
+  "applicability": {"default": "applies"},
+  "policy": {"selection": "default_when_applicable", "providerReadiness": "required_when_applicable", "providerLifecycle": "start_if_needed", "freshness": "require_live_contract", "resultGating": "gating", "unavailable": "fail"},
+  "runnability": {"needsAPI": true},
+  "determinism": {"default": "file-determined", "inputs": ["**/*.go", "**/*.ts", ".vrooli/service.json"]},
+  "docs": {"path": "scenarios/test-genie/docs/phases/architecture/README.md"},
+  "maturity": {"version": "1.0.0", "levels": [{"id": "L0", "name": "Evidence unavailable", "description": "Code facts cannot be queried.", "entry_criteria": [], "exit_criteria": ["The provider is reachable."]}, {"id": "L1", "name": "Evidence queryable", "description": "Code facts answer target queries with provenance.", "entry_criteria": ["The provider is reachable."], "exit_criteria": ["Required fact families are available."]}, {"id": "L2", "name": "Evidence proven", "description": "Fact responses are live and provenance-backed.", "entry_criteria": ["Required fact families are available."], "exit_criteria": ["No required findings remain."]}], "capabilities": [{"id": "fact_provenance", "label": "Fact Provenance", "description": "Target-aware facts are queryable from the authoritative analyzer.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Facts cannot be queried.", "capability_summary": "Code evidence is unavailable.", "next_unlock": "Start the provider."}, {"id": "L1", "name": "Queryable", "description": "Facts can be queried.", "capability_summary": "Code evidence is queryable.", "next_unlock": "Prove provenance."}, {"id": "L2", "name": "Proven", "description": "Facts include live provenance.", "capability_summary": "Code evidence is proven."}]}], "findings": {}, "fallback": {"capability_id": "fact_provenance", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required"}}
+}

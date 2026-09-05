@@ -40,7 +40,8 @@ This check verifies that the graphical login system is functioning:
 Display manager failures cause:
 - Inability to log into graphical sessions
 - Black screen after boot
-- Loss of remote desktop access (VNC, RDP via xrdp)
+- Loss of every consumer that needs a desktop session (remote desktop, browser
+  automation, screenshots, display-bound work)
 - Disconnected existing sessions on restart
 
 ## Recovery Actions
@@ -123,7 +124,11 @@ journalctl -u gdm -b
 
 ## Related Checks
 
-- **infra-rdp**: RDP/xrdp remote access (depends on display manager)
+- **infra-rdp**: owns the RDP service layer and depends on this check's layer.
+  This check makes no statement about RDP: it has no RDP subcheck, no
+  `rdpPortListening` or `gnomeRDPConfigured` detail, and never claims RDP
+  availability. `infra-rdp` reports that dependency through its own
+  `sessionAvailable` detail.
 - **system-disk**: Disk space issues can cause DM failures
 
 ---

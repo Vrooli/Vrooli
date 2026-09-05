@@ -601,13 +601,13 @@
           "description": "Bundled playwright-driver process for browser-automation-studio",
           "binaries": {
             "darwin-x64": {
-              "path": "bin/playwright-driver/darwin-x64/browser-automation-studio-playwright-driver"
+              "path": "bin/playwright-driver/darwin-x64/browser-automation-studio-playwright-driver/run.sh"
             },
             "linux-x64": {
-              "path": "bin/playwright-driver/linux-x64/browser-automation-studio-playwright-driver"
+              "path": "bin/playwright-driver/linux-x64/browser-automation-studio-playwright-driver/run.sh"
             },
             "win-x64": {
-              "path": "bin/playwright-driver/win-x64/browser-automation-studio-playwright-driver.exe"
+              "path": "bin/playwright-driver/win-x64/browser-automation-studio-playwright-driver.exe/run.cmd"
             }
           },
           "build": {

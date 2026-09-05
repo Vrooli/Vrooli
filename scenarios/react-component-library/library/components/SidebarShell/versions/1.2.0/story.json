@@ -1,0 +1,186 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "persistent",
+        "kind": "enum",
+        "label": "Mode",
+        "options": [
+          "persistent",
+          "overlay",
+          "responsive"
+        ],
+        "path": "mode"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Mobile Open",
+        "path": "mobileOpen"
+      },
+      {
+        "default": 280,
+        "kind": "number",
+        "label": "Width",
+        "path": "width"
+      }
+    ]
+  },
+  "composition": {
+    "frame": {
+      "asset": "navigation.page",
+      "capability": "navigation",
+      "fixture": "fixtures.resource-collection",
+      "region": "navigation",
+      "version": "1.0.0"
+    }
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "mobileOpen": false,
+        "mode": "persistent",
+        "width": 280
+      },
+      "composition": {
+        "specimen": {
+          "export": "Persistent",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace",
+          "role": "complementary"
+        },
+        {
+          "kind": "text",
+          "value": "Northstar workspace"
+        },
+        {
+          "kind": "text",
+          "value": "Resources"
+        },
+        {
+          "kind": "text",
+          "value": "2 alerts"
+        }
+      ],
+      "id": "persistent",
+      "mode": "live",
+      "name": "Persistent workspace navigation",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "mobileOpen": true,
+        "mode": "overlay"
+      },
+      "composition": {
+        "specimen": {
+          "export": "OverlayOpen",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Mobile navigation",
+          "role": "dialog"
+        },
+        {
+          "kind": "text",
+          "value": "Northstar menu"
+        },
+        {
+          "kind": "text",
+          "value": "Settings"
+        }
+      ],
+      "id": "overlay-open",
+      "mode": "live",
+      "name": "Open mobile navigation",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "persistent",
+          "overlay",
+          "responsive"
+        ]
+      }
+    },
+    {
+      "args": {
+        "mobileOpen": false,
+        "mode": "persistent"
+      },
+      "composition": {
+        "specimen": {
+          "export": "FixtureFailure",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Navigation data is unavailable"
+        }
+      ],
+      "id": "fixture-failure",
+      "mode": "live",
+      "name": "Navigation data failure",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "mobileOpen": false,
+        "mode": "responsive"
+      },
+      "composition": {
+        "specimen": {
+          "export": "ResponsiveClosed",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "complementary"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-label",
+          "selector": "[data-testid='sidebar-shell']",
+          "value": "Scenario"
+        },
+        {
+          "kind": "attribute",
+          "name": "data-mode",
+          "selector": "[data-testid='sidebar-shell']",
+          "value": "responsive"
+        },
+        {
+          "kind": "text",
+          "value": "Overview"
+        }
+      ],
+      "id": "responsive-closed",
+      "mode": "live",
+      "name": "Responsive navigation closed",
+      "role": "boundary"
+    }
+  ],
+  "title": "SidebarShell"
+}

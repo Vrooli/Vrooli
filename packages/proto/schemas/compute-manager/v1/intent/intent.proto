@@ -1,0 +1,11 @@
+syntax = "proto3";
+package vrooli.compute_manager.v1.intent;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/intent;intent_v1";
+import "google/protobuf/timestamp.proto";
+enum IntentState { INTENT_STATE_UNSPECIFIED = 0; INTENT_STATE_RESERVING = 1; INTENT_STATE_OPEN = 2; INTENT_STATE_FULFILLED = 3; INTENT_STATE_REFUSED = 4; INTENT_STATE_ABANDONED = 5; }
+message Intent { string id = 1; string idempotency_key = 2; string requested_by = 3; string provider = 4; string reservation_id = 5; string instance_id = 6; IntentState state = 7; google.protobuf.Timestamp created_at = 8; google.protobuf.Timestamp resolved_at = 9; }
+message ListIntentsRequest { string state = 1; string provider = 2; }
+message ListIntentsResponse { repeated Intent intents = 1; }
+message GetIntentRequest { string id_or_key = 1; }
+message GetIntentResponse { Intent intent = 1; }
+service IntentService { rpc ListIntents(ListIntentsRequest) returns (ListIntentsResponse); rpc GetIntent(GetIntentRequest) returns (GetIntentResponse); }

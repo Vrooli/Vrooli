@@ -1,0 +1,109 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "device-control.prepare-task",
+  "version": "1",
+  "purpose": "Resolve one durable device and summarize reusable flows for its exact comparison context.",
+  "inputs": {
+    "device": {
+      "type": "string",
+      "required": true,
+      "description": "Exact device ID or unique inventory name"
+    },
+    "context_key": {
+      "type": "string",
+      "required": true,
+      "description": "Task/profile/app-version comparison context"
+    }
+  },
+  "assumptions": [
+    "Caller authorizes the selected operation and device; device-control owns leases, validation, and durable state"
+  ],
+  "invariants": [
+    "One bounded result envelope on every path",
+    "No raw device frames or credentials in output",
+    "No retries or speculative alternative device actions",
+    "Only the owner saves a passing complete candidate; unknown never means passed"
+  ],
+  "bindings": [
+    {
+      "id": "device-control/device/list",
+      "effect": "read"
+    },
+    {
+      "id": "device-control/flow/list",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "result": "Bounded exact identities and owner outcomes"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "device_selection_required",
+        "identity_mismatch",
+        "invalid_response",
+        "capability_gap",
+        "flow_failed"
+      ]
+    },
+    "evidence": "Run and saved-flow references only"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 5
+  },
+  "fixtures": [
+    {
+      "id": "missing-input",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "invalid-device",
+      "inputs": {
+        "device": false
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "device-control"
+}

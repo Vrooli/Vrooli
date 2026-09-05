@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "hello-mobile-smoke",
+    "description": "Types a deterministic value into hello-mobile, submits it, and verifies the visible derived response.",
+    "requirement": "HELLO-MOBILE-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "flow_id": "hello-mobile-smoke",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 412, "viewport_height": 915},
+  "nodes": [
+    {"id":"open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"hello-mobile","scenario_path":"/","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open Hello Mobile"}}},
+    {"id":"wait-title","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/helloMobile.title","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for fixture title"}}},
+    {"id":"input","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/helloMobile.input","value":"android","clear_first":true},"metadata":{"label":"Enter deterministic input"}}},
+    {"id":"submit","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/helloMobile.submit"},"metadata":{"label":"Submit the fixture input"}}},
+    {"id":"assert-result","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/helloMobile.result","mode":"ASSERTION_MODE_TEXT_CONTAINS","expected":{"stringValue":"Result: DIORDNA"},"timeout_ms":10000,"failure_message":"Hello Mobile should render the deterministic transformed value"},"metadata":{"label":"Verify the visible response"}}}
+  ]
+}

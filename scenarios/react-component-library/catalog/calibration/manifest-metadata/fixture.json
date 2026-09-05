@@ -1,0 +1,10 @@
+{
+  "gate": "manifest-metadata",
+  "assetId": "calibration.manifest-metadata",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.manifest_metadata",
+  "source": "clean.tsx",
+  "catalogAsset": "asset.json",
+  "description": "The component manifest has no discoverable description."
+}

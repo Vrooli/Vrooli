@@ -1,0 +1,396 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "proposals",
+    "title": "Proposals",
+    "routes": [
+      "/proposals"
+    ],
+    "purpose": "Show promotions that agents have proposed and let an operator accept or decline with a reason. This is the only path by which an offer becomes active.",
+    "prd_refs": [
+      "OT-P0-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What is being proposed, and by which actor"
+    },
+    {
+      "statement": "The evidence the proposer read"
+    },
+    {
+      "statement": "What accepting will change"
+    },
+    {
+      "statement": "Declined history, so a repeated proposal is visible as repeated"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present — the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/proposals"
+      }
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/proposals"
+      }
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "pending"
+        }
+      }
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "success"
+        }
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The query succeeded and there is genuinely nothing — distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "awaiting-disposition",
+      "description": "A proposal exists and no operator has ruled on it; its age is shown because an old undisposed proposal is itself a signal.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "awaiting-disposition"
+        }
+      }
+    },
+    {
+      "id": "operator-required",
+      "description": "An agent-authored proposal is present and its acceptance control states that only an operator may grant it.",
+      "setup": {
+        "route": "/proposals",
+        "query": {
+          "fixture": "operator-required"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "proposal-list",
+      "role": "table",
+      "name": "Proposals",
+      "description": "Open promotion proposals awaiting operator disposition."
+    },
+    {
+      "id": "proposer-identity",
+      "role": "columnheader",
+      "description": "Which actor authored the proposal, taken from the authenticated context rather than a request field."
+    },
+    {
+      "id": "evidence-trace",
+      "role": "list",
+      "name": "Evidence",
+      "description": "The facts and values the proposer read, so the operator can check the reasoning rather than trust it."
+    },
+    {
+      "id": "effect-preview",
+      "role": "note",
+      "description": "What accepting this proposal will change, stated before the accept control."
+    },
+    {
+      "id": "decline-history",
+      "role": "columnheader",
+      "name": "Previously declined",
+      "description": "Prior declines for the same offer, so a repeated proposal is visible as repeated."
+    },
+    {
+      "id": "accept-action",
+      "role": "button",
+      "name": "Accept",
+      "description": "Grants the proposal. Operator-only."
+    },
+    {
+      "id": "operator-only-note",
+      "role": "note",
+      "description": "States that acceptance requires an operator role and that agents may only propose."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "Explains an empty proposal queue."
+    },
+    {
+      "id": "decline-action",
+      "role": "button",
+      "name": "Decline",
+      "description": "Declines a proposal with a required reason. Operator-only."
+    },
+    {
+      "id": "decline-reason",
+      "role": "textbox",
+      "name": "Decline reason",
+      "description": "The persistent reason attached to an operator decline."
+    }
+  ],
+  "claims": [
+    {
+      "id": "proposal-names-its-author",
+      "type": "element-present",
+      "statement": "Every proposal states which actor authored it.",
+      "tier": "machine",
+      "viewports": ["desktop", "mobile"],
+      "elements": [
+        "proposer-identity"
+      ],
+      "states": [
+        "awaiting-disposition",
+        "default"
+      ],
+      "rationale": "Priority 1 and SECURITY.md. The operator's decision depends on who proposed it, and the identity must come from the authenticated context rather than a request field."
+    },
+    {
+      "id": "evidence-precedes-decision",
+      "type": "reading-order",
+      "statement": "The evidence the proposer read appears before the accept control.",
+      "tier": "machine",
+      "elements": [
+        "evidence-trace",
+        "effect-preview",
+        "accept-action"
+      ],
+      "states": [
+        "awaiting-disposition"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Priorities 2 and 3. An accept control reachable before the reasoning invites rubber-stamping, which would make the operator boundary ceremonial."
+    },
+    {
+      "id": "accept-states-operator-requirement",
+      "type": "element-present",
+      "statement": "The acceptance control states that granting requires an operator role and that agents may only propose.",
+      "tier": "machine",
+      "elements": [
+        "operator-only-note"
+      ],
+      "states": [
+        "operator-required",
+        "awaiting-disposition"
+      ],
+      "rationale": "OT-P0-005. Making the boundary visible is what turns it from an implementation detail into a guarantee the operator can rely on."
+    },
+    {
+      "id": "repeated-proposals-are-visible",
+      "type": "element-present",
+      "statement": "Prior declines for the same offer are shown alongside a new proposal.",
+      "tier": "machine",
+      "elements": [
+        "decline-history"
+      ],
+      "states": [
+        "awaiting-disposition"
+      ],
+      "rationale": "Priority 4. Without decline history an agent can re-propose indefinitely and the operator re-decides from scratch each time."
+    },
+    {
+      "id": "effect-is-stated-before-accepting",
+      "type": "element-present",
+      "statement": "What accepting will change is stated before the accept control.",
+      "tier": "machine",
+      "elements": [
+        "effect-preview"
+      ],
+      "states": [
+        "awaiting-disposition"
+      ],
+      "rationale": "Promotion to active is the one irreversible-feeling action in the scenario; its consequence should never be inferred."
+    },
+    {
+      "id": "accept-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The acceptance control is operable from the keyboard.",
+      "tier": "machine",
+      "elements": [
+        "accept-action"
+      ],
+      "states": [
+        "awaiting-disposition"
+      ],
+      "rationale": "It is the operator's single most important action in the scenario."
+    },
+    {
+      "id": "decline-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The decline control and its reason field are keyboard reachable.",
+      "tier": "machine",
+      "elements": ["decline-action", "decline-reason"],
+      "states": ["awaiting-disposition", "operator-required"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "proposal-list": {
+        "testid": "proposal-list"
+      },
+      "proposer-identity": {
+        "testid": "proposal-proposer"
+      },
+      "evidence-trace": {
+        "testid": "proposal-evidence"
+      },
+      "effect-preview": {
+        "testid": "proposal-effect"
+      },
+      "decline-history": {
+        "testid": "proposal-decline-history"
+      },
+      "accept-action": {
+        "testid": "proposal-accept"
+      },
+      "operator-only-note": {
+        "testid": "proposal-operator-only"
+      },
+      "empty-guidance": {
+        "testid": "proposals-empty-guidance"
+      },
+      "decline-action": {
+        "testid": "proposal-decline"
+      },
+      "decline-reason": {
+        "testid": "proposal-decline-reason"
+      }
+    }
+  }
+}

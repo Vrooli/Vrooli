@@ -1,18 +1,26 @@
 package handlers
+
 // DOC: docs/reference/api-endpoints.md#health
 
 import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/healthutil"
-	"system-monitor-api/internal/httputil"
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/storage"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	healthpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/healthutil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 )
 
 // HealthHandler handles health check requests
@@ -21,6 +29,10 @@ type HealthHandler struct {
 	monitorSvc  MonitorQuerier
 	settingsMgr SettingsProvider
 	startTime   time.Time
+}
+
+type selfMetricsProvider interface {
+	SelfMetrics() map[string]interface{}
 }
 
 // NewHealthHandler creates a new health handler
@@ -35,7 +47,16 @@ func NewHealthHandler(cfg *config.Config, monitorSvc MonitorQuerier, settingsMgr
 
 // Handle processes health check requests
 func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	httputil.JSON(w, h.buildHealthResponse(r.Context())) //nolint:errcheck
+}
+
+// Health handles the typed Connect-RPC health contract while preserving the
+// same source data as the REST health probes.
+func (h *HealthHandler) Health(ctx context.Context, _ *connect.Request[healthpb.HealthRequest]) (*connect.Response[healthpb.HealthResponse], error) {
+	return connect.NewResponse(h.healthResponseToProto(h.buildHealthResponse(ctx))), nil
+}
+
+func (h *HealthHandler) buildHealthResponse(ctx context.Context) map[string]interface{} {
 	overallStatus := "healthy"
 
 	// Schema-compliant health response
@@ -93,13 +114,11 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if h.config.Resources.OllamaURL != "" {
-		ollamaHealth := h.checkOllama()
-		dependencies["ollama"] = ollamaHealth
-		if ollamaHealth["connected"] == false {
-			if overallStatus == "healthy" {
-				overallStatus = "degraded"
-			}
+	ollamaHealth := h.checkOllama()
+	dependencies["ollama"] = ollamaHealth
+	if ollamaHealth["connected"] == false {
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
 		}
 	}
 
@@ -128,8 +147,95 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			systemMetrics["active_monitoring"] = true
 		}
 	}
+	if provider, ok := h.monitorSvc.(selfMetricsProvider); ok {
+		systemMetrics := healthResponse["metrics"].(map[string]interface{})
+		systemMetrics["self"] = provider.SelfMetrics()
+	}
 
-	httputil.JSON(w, healthResponse) //nolint:errcheck
+	return healthResponse
+}
+
+func (h *HealthHandler) healthResponseToProto(response map[string]interface{}) *healthpb.HealthResponse {
+	return &healthpb.HealthResponse{
+		Status:           healthStatusToProto(stringValue(response["status"])),
+		Service:          stringValue(response["service"]),
+		Timestamp:        stringValue(response["timestamp"]),
+		Readiness:        boolValue(response["readiness"]),
+		Version:          stringValue(response["version"]),
+		ProcessorActive:  boolValue(response["processor_active"]),
+		MaintenanceState: stringValue(response["maintenance_state"]),
+		Dependencies:     mapToProtoJSONValues(mapValue(response["dependencies"])),
+		Metrics:          mapToProtoJSONValues(mapValue(response["metrics"])),
+	}
+}
+
+func healthStatusToProto(status string) commonv1.HealthStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "healthy":
+		return commonv1.HealthStatus_HEALTH_STATUS_HEALTHY
+	case "degraded":
+		return commonv1.HealthStatus_HEALTH_STATUS_DEGRADED
+	case "unhealthy":
+		return commonv1.HealthStatus_HEALTH_STATUS_UNHEALTHY
+	default:
+		return commonv1.HealthStatus_HEALTH_STATUS_UNSPECIFIED
+	}
+}
+
+func mapToProtoJSONValues(values map[string]interface{}) map[string]*commonv1.JsonValue {
+	out := make(map[string]*commonv1.JsonValue, len(values))
+	for key, value := range values {
+		out[key] = interfaceToProtoJSONValue(value)
+	}
+	return out
+}
+
+func interfaceToProtoJSONValue(value interface{}) *commonv1.JsonValue {
+	switch typed := value.(type) {
+	case nil:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	case bool:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: typed}}
+	case string:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: typed}}
+	case int:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(typed)}}
+	case int64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: typed}}
+	case float64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: typed}}
+	case map[string]interface{}:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: mapToProtoJSONValues(typed)}}}
+	case []interface{}:
+		values := make([]*commonv1.JsonValue, 0, len(typed))
+		for _, item := range typed {
+			values = append(values, interfaceToProtoJSONValue(item))
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: &commonv1.JsonList{Values: values}}}
+	default:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: fmt.Sprint(typed)}}
+	}
+}
+
+func stringValue(value interface{}) string {
+	if typed, ok := value.(string); ok {
+		return typed
+	}
+	return ""
+}
+
+func boolValue(value interface{}) bool {
+	if typed, ok := value.(bool); ok {
+		return typed
+	}
+	return false
+}
+
+func mapValue(value interface{}) map[string]interface{} {
+	if typed, ok := value.(map[string]interface{}); ok {
+		return typed
+	}
+	return nil
 }
 
 // checkMetricsCollection tests the core system monitoring capability
@@ -155,30 +261,20 @@ func (h *HealthHandler) checkMetricsCollection(ctx context.Context) map[string]i
 // checkInvestigationSystem tests the investigation file system access
 func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 	result := healthutil.NewResult()
-
-	// Check if investigations directory exists and is accessible
-	investigationsDir := "investigations"
-	if _, err := os.Stat(investigationsDir); err != nil {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{})
+	if err != nil {
+		return healthutil.WithError(result, "SCENARIO_ROOT_RESOLUTION",
+			fmt.Sprintf("Cannot create storage resolver: %v", err), "resource", false)
+	}
+	investigationsDir, err := storage.EnsureClassDir(resolver, storage.Options{ScenarioID: "system-monitor"}, storage.ClassState, 0o755)
+	if err != nil {
 		return healthutil.WithError(result, "INVESTIGATION_DIR_ACCESS",
-			fmt.Sprintf("Cannot access investigations directory: %v", err), "resource", false)
+			fmt.Sprintf("Cannot access investigation state: %v", err), "resource", false)
 	}
-
-	// Check if results directory exists and is writable
-	resultsDir := "results"
-	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
-		return healthutil.WithError(result, "RESULTS_DIR_WRITE",
-			fmt.Sprintf("Cannot create/write results directory: %v", err), "resource", false)
+	if _, err := os.Stat(filepath.Join(investigationsDir, "investigations")); err != nil && !os.IsNotExist(err) {
+		return healthutil.WithError(result, "INVESTIGATION_OVERLAY_ACCESS",
+			fmt.Sprintf("Cannot inspect investigation overlay: %v", err), "resource", false)
 	}
-
-	// Test writing a small test file
-	testFile := filepath.Join(resultsDir, ".health_check_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
-		return healthutil.WithError(result, "FILESYSTEM_WRITE_TEST",
-			fmt.Sprintf("Cannot write test file: %v", err), "resource", true)
-	}
-
-	// Clean up test file
-	os.Remove(testFile)
 
 	return healthutil.MarkConnected(result)
 }
@@ -186,9 +282,18 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 // checkNodeRed tests Node-RED connectivity
 func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 	result := healthutil.NewResult()
+	target, err := parseHealthDependencyURL(h.config.Resources.NodeRedURL)
+	if err != nil {
+		return healthutil.WithError(result, "NODE_RED_URL_INVALID", err.Error(), "configuration", true)
+	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(h.config.Resources.NodeRedURL)
+	req, err := http.NewRequest(http.MethodGet, target.String(), nil)
+	if err != nil {
+		return healthutil.WithError(result, "NODE_RED_REQUEST_INVALID", err.Error(), "configuration", true)
+	}
+	// #nosec G704 -- the URL is validated as an operator-configured HTTP(S) dependency before the request.
+	resp, err := client.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return healthutil.WithError(result, "CONNECTION_REFUSED",
@@ -203,24 +308,51 @@ func (h *HealthHandler) checkNodeRed() map[string]interface{} {
 	return healthutil.MarkConnected(result)
 }
 
-// checkOllama tests Ollama AI service connectivity
+// checkOllama tests Ollama over its HTTP health surface. Health handlers must
+// not fork a control-plane CLI: that turns every liveness request into a
+// process-creation event and makes the handler unavailable when the CLI is.
 func (h *HealthHandler) checkOllama() map[string]interface{} {
 	result := healthutil.NewResult()
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(h.config.Resources.OllamaURL + "/api/tags")
+	base := strings.TrimRight(os.Getenv("OLLAMA_BASE_URL"), "/")
+	if base == "" {
+		base = "http://127.0.0.1:11434"
+	}
+	target, err := parseHealthDependencyURL(base)
+	if err != nil {
+		return healthutil.WithError(result, "OLLAMA_URL_INVALID", err.Error(), "configuration", true)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// #nosec G704 -- target was validated as an operator-configured HTTP(S) dependency above.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.JoinPath("api/tags").String(), nil)
+	if err != nil {
+		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED", err.Error(), "network", true)
+	}
+	// #nosec G704 -- the URL is validated as an operator-configured HTTP(S) dependency before the request.
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED",
-			fmt.Sprintf("Cannot connect to Ollama: %v", err), "network", true)
+			fmt.Sprintf("Ollama HTTP health request failed: %v", err), "network", true)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return healthutil.WithError(result, fmt.Sprintf("HTTP_%d", resp.StatusCode),
-			fmt.Sprintf("Ollama returned status %d", resp.StatusCode), "network", resp.StatusCode >= 500)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return healthutil.WithError(result, "OLLAMA_CONNECTION_FAILED", fmt.Sprintf("Ollama returned HTTP %d", resp.StatusCode), "network", true)
 	}
-
 	return healthutil.MarkConnected(result)
+}
+
+func parseHealthDependencyURL(raw string) (*url.URL, error) {
+	target, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return nil, fmt.Errorf("dependency URL is invalid: %w", err)
+	}
+	if target.Scheme != "http" && target.Scheme != "https" {
+		return nil, fmt.Errorf("dependency URL must use http or https")
+	}
+	if target.Hostname() == "" || target.User != nil {
+		return nil, fmt.Errorf("dependency URL must contain a host and no user credentials")
+	}
+	return target, nil
 }
 
 // checkWebhookEndpoint tests webhook URL accessibility

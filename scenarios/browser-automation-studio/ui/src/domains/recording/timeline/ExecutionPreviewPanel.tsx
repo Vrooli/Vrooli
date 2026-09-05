@@ -14,7 +14,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Play, Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { useExecutionStore, type Execution, useExecutionEvents } from '@/domains/executions';
+import { useExecutionStore, type Execution } from '@/domains/executions/store';
+import { useExecutionEvents } from '@/domains/executions/hooks/useExecutionEvents';
 import { useExecutionFrameStream } from '@/domains/executions/hooks/useExecutionFrameStream';
 import { useWorkflowStore } from '@stores/workflowStore';
 import {

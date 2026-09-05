@@ -7,6 +7,7 @@ import { useToast } from '../../../shared/components/ToastProvider';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { str, bool } from '../../../shared/utils/typeGuards';
 import { getRiskLevelColor } from '../../../shared/utils/colors';
+import { ReportBody } from '../../../shared/report/ReportBody';
 
 interface InvestigationsPanelProps {
   investigations: Investigation[];
@@ -62,7 +63,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           <span className="text-sm font-bold text-bright">
             Investigation {investigation.id}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+          <div data-sm-style="sm-style-67bc078b69">
             {autoFix && (
               <span className="badge badge-success">Auto-Fix</span>
             )}
@@ -85,7 +86,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         </div>
 
         {typeof progress === 'number' && !compact && (
-          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+          <div data-sm-style="sm-style-c08663b577">
             <div className="progress-bar">
               <div
                 className="progress-fill"
@@ -97,11 +98,11 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         )}
 
         {investigation.findings && (
-          <div className="text-sm mb-sm">{investigation.findings}</div>
+          <ReportBody text={investigation.findings} className="report-body-inset mb-sm" />
         )}
 
         {userNote && (
-          <div className="text-xs text-muted" style={{ fontStyle: 'italic', marginBottom: 'var(--spacing-sm)' }}>
+          <div className="text-xs text-muted" data-sm-style="sm-style-912591a331">
             User Note: {userNote}
           </div>
         )}
@@ -153,7 +154,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         </h2>
         <button
           className="btn btn-action"
-          onClick={triggerInvestigation}
+          onClick={() => { void triggerInvestigation(); }}
         >
           RUN ANOMALY CHECK
         </button>

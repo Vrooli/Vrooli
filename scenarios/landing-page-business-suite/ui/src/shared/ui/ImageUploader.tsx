@@ -70,7 +70,7 @@ export function ImageUploader({
 
     // Validate file size
     if (file.size > maxSize) {
-      setError(`File too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB`);
+      setError(`File too large. Maximum size is ${String(Math.round(maxSize / 1024 / 1024))}MB`);
       return;
     }
 
@@ -113,7 +113,7 @@ export function ImageUploader({
     event.preventDefault();
     event.stopPropagation();
 
-    const file = event.dataTransfer.files?.[0];
+    const file = event.dataTransfer.files[0];
     if (!file) return;
 
     // Check if file is an image
@@ -128,7 +128,7 @@ export function ImageUploader({
     const syntheticEvent = {
       target: { files: dataTransfer.files },
     } as React.ChangeEvent<HTMLInputElement>;
-    handleFileSelect(syntheticEvent);
+    void handleFileSelect(syntheticEvent);
   }, [handleFileSelect]);
 
   const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
@@ -155,7 +155,7 @@ export function ImageUploader({
               src={resolvedUrl}
               alt={alt}
               className="h-full w-full object-contain"
-              onError={() => setImageError(true)}
+              onError={() => { setImageError(true); }}
             />
           ) : (
             <ImageIcon className="h-6 w-6 text-slate-500" />
@@ -170,7 +170,7 @@ export function ImageUploader({
               ref={fileInputRef}
               type="file"
               accept={accept}
-              onChange={handleFileSelect}
+              onChange={(event) => { void handleFileSelect(event); }}
               className="hidden"
               disabled={disabled || uploading}
             />
@@ -198,7 +198,7 @@ export function ImageUploader({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowUrlInput(true)}
+                onClick={() => { setShowUrlInput(true); }}
                 disabled={disabled || uploading}
                 className="text-slate-400 hover:text-slate-200"
               >
@@ -215,6 +215,7 @@ export function ImageUploader({
                 onClick={handleClear}
                 disabled={disabled || uploading}
                 className="text-rose-400 hover:text-rose-300"
+                aria-label="Clear image"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -227,7 +228,7 @@ export function ImageUploader({
               <input
                 type="url"
                 value={urlInputValue}
-                onChange={(e) => setUrlInputValue(e.target.value)}
+                onChange={(e) => { setUrlInputValue(e.target.value); }}
                 placeholder="https://example.com/image.png"
                 className="flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-1.5 text-sm text-white"
                 onKeyDown={(e) => {

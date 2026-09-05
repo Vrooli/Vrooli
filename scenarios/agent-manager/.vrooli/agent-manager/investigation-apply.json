@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "Agent-Manager Apply Investigation",
+  "profileKey": "agent-manager/investigation-apply",
+  "description": "Agent profile for applying investigation recommendations (has write capabilities)",
+  "roleRef": "code.smart",
+  "roleReason": "Applying approved multi-file investigation fixes requires deep reasoning and careful policy-bound edits.",
+  "maxTurns": 1000,
+  "timeout": "7200s",
+  "allowedTools": ["read", "glob", "grep", "shell", "web_search", "edit", "write"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "manualReview": true
+  },
+  "networkAccess": "NETWORK_ACCESS_LOCALHOST",
+  "createdBy": "agent-manager",
+  "effort": "medium"
+}

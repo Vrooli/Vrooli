@@ -14,7 +14,10 @@ import (
 	"deployment-manager/build"
 	"deployment-manager/bundles"
 	"deployment-manager/profiles"
+	"deployment-manager/releases"
 	"deployment-manager/shared"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // DeployDesktopRequest is the request for orchestrated desktop deployment.
@@ -48,6 +51,15 @@ type DeployDesktopRequest struct {
 	// When provided, the release gate is checked: all required platforms must be
 	// approved for this exact commit before deployment proceeds.
 	GitCommitHash string `json:"git_commit_hash,omitempty"`
+	// ReleaseID, when set, wires this deployment into an existing release
+	// record allocated by POST /api/v1/profiles/{id}/releases/start.
+	ReleaseID string `json:"release_id,omitempty"`
+	// Channel is the release channel (stable, beta, ...) forwarded to S2D
+	// and mapped to LPBS variant_key on apply.
+	Channel string `json:"channel,omitempty"`
+	// ReleaseVersion mirrors scenario-to-desktop's Config.Version and flows
+	// to LPBS so the verify endpoint has an expected version to match.
+	ReleaseVersion string `json:"release_version,omitempty"`
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
@@ -81,6 +93,10 @@ type Orchestrator struct {
 	profileRepo           profiles.Repository
 	approvalsRepo         ApprovalsRepository
 	publishedVersionsRepo PublishedVersionsRepository
+	releasesRepo          releases.Repository
+	lpbsConfigRepo        profiles.LPBSReleaseConfigRepository
+	cloudClient           CloudHealthClient
+	lpbsClient            LPBSReleaseClient
 	vrooli                string
 	log                   func(string, map[string]interface{})
 }
@@ -92,19 +108,29 @@ func NewOrchestrator(profileRepo profiles.Repository, log func(string, map[strin
 
 // NewOrchestratorWithApprovals creates a new deployment orchestrator with approval gating.
 func NewOrchestratorWithApprovals(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, log func(string, map[string]interface{})) *Orchestrator {
-	return NewOrchestratorFull(profileRepo, approvalsRepo, nil, log)
+	return NewOrchestratorFull(profileRepo, approvalsRepo, nil, nil, nil, nil, nil, log)
 }
 
 // NewOrchestratorFull creates a new deployment orchestrator with all optional repositories.
-func NewOrchestratorFull(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, publishedVersionsRepo PublishedVersionsRepository, log func(string, map[string]interface{})) *Orchestrator {
-	vrooli := os.Getenv("VROOLI_ROOT")
-	if vrooli == "" {
-		vrooli = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
+func NewOrchestratorFull(
+	profileRepo profiles.Repository,
+	approvalsRepo ApprovalsRepository,
+	publishedVersionsRepo PublishedVersionsRepository,
+	releasesRepo releases.Repository,
+	lpbsConfigRepo profiles.LPBSReleaseConfigRepository,
+	cloudClient CloudHealthClient,
+	lpbsClient LPBSReleaseClient,
+	log func(string, map[string]interface{}),
+) *Orchestrator {
+	vrooli := resolveRepoRoot()
 	return &Orchestrator{
 		profileRepo:           profileRepo,
 		approvalsRepo:         approvalsRepo,
 		publishedVersionsRepo: publishedVersionsRepo,
+		releasesRepo:          releasesRepo,
+		lpbsConfigRepo:        lpbsConfigRepo,
+		cloudClient:           cloudClient,
+		lpbsClient:            lpbsClient,
 		vrooli:                vrooli,
 		log:                   log,
 	}
@@ -137,6 +163,10 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"profile_id is required"}`, http.StatusBadRequest)
 		return
 	}
+	if strings.TrimSpace(req.GitCommitHash) == "" {
+		http.Error(w, `{"error":"git_commit_hash is required","reason":"commit_identifier_required"}`, http.StatusBadRequest)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Minute)
 	defer cancel()
@@ -150,7 +180,7 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 			Steps:     make([]OrchestrationStep, 0),
 		},
 		ctx:             ctx,
-		scenarioBaseDir: filepath.Join(o.vrooli, "scenarios"),
+		scenarioBaseDir: resolveTopLevelScenarioDir(o.vrooli),
 	}
 
 	ds.effectiveTimeout = time.Duration(req.TimeoutSeconds) * time.Second
@@ -217,7 +247,7 @@ func (o *Orchestrator) deployLoadProfile(ds *deployState) int {
 	ds.response.Steps = append(ds.response.Steps, step)
 
 	// Release gate check
-	if ds.req.GitCommitHash != "" && o.approvalsRepo != nil {
+	if o.approvalsRepo != nil {
 		step = o.startStep("Check release gate")
 		gate, gateErr := o.approvalsRepo.CheckReleaseGate(ds.ctx, ds.req.ProfileID, ds.req.GitCommitHash)
 		if gateErr != nil {
@@ -369,7 +399,7 @@ func (o *Orchestrator) deployAssembleManifest(ds *deployState) int {
 	ds.manifest = manifest
 	ds.outputDir = ds.req.OutputDir
 	if ds.outputDir == "" {
-		ds.outputDir = filepath.Join(o.vrooli, "scenarios", ds.profile.Scenario)
+		ds.outputDir = resolveScenarioDir(o.vrooli, ds.profile.Scenario)
 	}
 
 	// Write manifest
@@ -433,7 +463,7 @@ func (o *Orchestrator) deployBuildBinaries(ds *deployState) int {
 		return 0
 	}
 
-	scenarioDir := filepath.Join(o.vrooli, "scenarios", ds.profile.Scenario)
+	scenarioDir := resolveScenarioDir(o.vrooli, ds.profile.Scenario)
 	builder := build.NewBuilder(scenarioDir, o.log)
 
 	if len(ds.buildPlatforms) == 0 {
@@ -691,7 +721,7 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 			}
 		} else {
 			ds.response.NextSteps = []string{
-				fmt.Sprintf("cd %s", filepath.Join(o.vrooli, "scenarios", ds.profile.Scenario, "platforms", "electron")),
+				fmt.Sprintf("cd %s", filepath.Join(resolveScenarioDir(o.vrooli, ds.profile.Scenario), "platforms", "electron")),
 				"pnpm install",
 				"pnpm run dist:all  # Build installers for all platforms",
 			}
@@ -699,6 +729,34 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 	} else {
 		ds.response.Status = "failed"
 	}
+}
+
+func resolveRepoRoot() string {
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
+	}
+	return root
+}
+
+func resolveTopLevelScenarioDir(repoRoot string) string {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return ""
+	}
+	resolved, err := contract.TopLevelDir(repoRoot, "scenarios")
+	if err != nil {
+		return ""
+	}
+	return resolved
+}
+
+func resolveScenarioDir(repoRoot, scenario string) string {
+	resolved, err := repocontract.ResolveScenarioPath(repoRoot, strings.TrimSpace(scenario))
+	if err != nil {
+		return ""
+	}
+	return resolved
 }
 
 // blockingDependencies lists dependencies that require swaps for desktop deployment.

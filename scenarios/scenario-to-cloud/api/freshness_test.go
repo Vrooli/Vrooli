@@ -154,10 +154,8 @@ func setupFreshnessFixture(t *testing.T, scenarioID, serviceVersion, uiVersion s
 	t.Helper()
 
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	for _, dir := range []string{
-		".vrooli",
-		"resources",
-		"scripts",
 		filepath.Join("scenarios", scenarioID, ".vrooli"),
 		filepath.Join("scenarios", scenarioID, "ui"),
 	} {
@@ -185,9 +183,6 @@ func setupFreshnessFixture(t *testing.T, scenarioID, serviceVersion, uiVersion s
 		"name":    scenarioID + "-ui",
 		"version": uiVersion,
 	})
-	if err := os.WriteFile(filepath.Join(repoRoot, "scripts", "manage.sh"), []byte("#!/usr/bin/env bash\n"), 0o644); err != nil {
-		t.Fatalf("write manage.sh: %v", err)
-	}
 	if err := os.WriteFile(filepath.Join(repoRoot, "scenarios", scenarioID, "README.md"), []byte("demo"), 0o644); err != nil {
 		t.Fatalf("write scenario readme: %v", err)
 	}

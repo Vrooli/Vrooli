@@ -6,10 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/envkit-go"
 )
 
 // Process abstracts process operations for testing.
@@ -46,6 +48,7 @@ type NodeProcess struct {
 	script    string
 	port      int
 	log       *logrus.Logger
+	env       []string
 
 	cmd      *exec.Cmd
 	exitChan chan struct{}
@@ -62,13 +65,14 @@ type NodeProcess struct {
 //   - script: script to run within driverDir (e.g., "dist/server.js")
 //   - port: port for the driver to listen on
 //   - log: logger for process events
-func NewNodeProcess(nodePath, driverDir, script string, port int, log *logrus.Logger) *NodeProcess {
+func NewNodeProcess(nodePath, driverDir, script string, port int, log *logrus.Logger, env ...string) *NodeProcess {
 	return &NodeProcess{
 		nodePath:  nodePath,
 		driverDir: driverDir,
 		script:    script,
 		port:      port,
 		log:       log,
+		env:       append([]string(nil), env...),
 	}
 }
 
@@ -107,10 +111,20 @@ func (p *NodeProcess) Start() error {
 		p.log.Warn("API_PORT not set, using default for history callbacks")
 	}
 	historyCallbackURL := fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
-	p.cmd.Env = append(os.Environ(),
+	childEnv := envkit.Env{
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
-	)
+	}
+	// Lifecycle names these ports with PLAYWRIGHT_DRIVER_*; the Node driver
+	// consumes its own FRAME_STREAM_DIRECT_PORT and METRICS_PORT names.
+	if framesPort := os.Getenv("PLAYWRIGHT_DRIVER_FRAMES_PORT"); framesPort != "" {
+		childEnv = append(childEnv, fmt.Sprintf("FRAME_STREAM_DIRECT_PORT=%s", framesPort))
+	}
+	if metricsPort := os.Getenv("PLAYWRIGHT_DRIVER_METRICS_PORT"); metricsPort != "" {
+		childEnv = append(childEnv, fmt.Sprintf("METRICS_PORT=%s", metricsPort))
+	}
+	p.cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, childEnv)
+	p.cmd.Env = append(p.cmd.Env, p.env...)
 
 	// Capture stdout/stderr for logging
 	p.cmd.Stdout = &logWriter{log: p.log, level: logrus.InfoLevel, prefix: "[playwright-driver]"}
@@ -263,21 +277,23 @@ func (p *NodeProcess) resolveDriverDir() (string, error) {
 		return p.driverDir, nil
 	}
 
-	// Try to resolve relative to the API binary location
-	// The API binary is typically at: <scenario>/api/browser-automation-studio-api
-	// So we go up one level to get to <scenario>/
+	// Try to resolve relative to the API binary location. Development builds
+	// place the API at <scenario>/api/<binary>, while desktop bundles place it
+	// at <bundle>/bin/api/<binary> and stage the driver at <bundle>/<driver>.
+	// Check both layouts so the same sidecar supervisor owns the driver in each
+	// tier.
 	if execPath, err := os.Executable(); err == nil {
-		// Get the directory containing the executable (api/)
 		execDir := filepath.Dir(execPath)
-		// Go up one level to the scenario root
-		scenarioRoot := filepath.Dir(execDir)
-		// Construct the full path
-		candidatePath := filepath.Join(scenarioRoot, p.driverDir)
-		if absPath, err := filepath.Abs(candidatePath); err == nil {
-			// Check if this path exists
-			if _, err := os.Stat(absPath); err == nil {
-				p.log.WithField("path", absPath).Debug("Resolved driver directory relative to executable")
-				return absPath, nil
+		candidates := []string{
+			filepath.Join(filepath.Dir(execDir), p.driverDir),
+			filepath.Join(filepath.Dir(filepath.Dir(execDir)), p.driverDir),
+		}
+		for _, candidatePath := range candidates {
+			if absPath, err := filepath.Abs(candidatePath); err == nil {
+				if info, err := os.Stat(absPath); err == nil && info.IsDir() {
+					p.log.WithField("path", absPath).Debug("Resolved driver directory relative to executable")
+					return absPath, nil
+				}
 			}
 		}
 	}
@@ -332,8 +348,8 @@ type MockProcess struct {
 	StartErr      error
 	StopErr       error
 	WaitErr       error
-	StartCalled   int
-	StopCalled    int
+	StartCalled   atomic.Int64
+	StopCalled    atomic.Int64
 	SimulateCrash chan struct{} // Close to simulate a crash
 
 	mu       sync.Mutex
@@ -355,7 +371,7 @@ func (m *MockProcess) Start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.StartCalled++
+	m.StartCalled.Add(1)
 	if m.StartErr != nil {
 		return m.StartErr
 	}
@@ -393,7 +409,7 @@ func (m *MockProcess) Stop(gracePeriod time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.StopCalled++
+	m.StopCalled.Add(1)
 	if m.StopErr != nil {
 		return m.StopErr
 	}

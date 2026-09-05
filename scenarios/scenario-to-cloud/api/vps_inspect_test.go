@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
 )
@@ -54,12 +55,10 @@ func TestVPSInspectPlanAndApply(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	// Commands now include PATH setup for SSH non-interactive sessions
-	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
 	runner := &FakeSSHRunner{Responses: map[string]ssh.Result{
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'landing-page-business-suite' --json":   {ExitCode: 0, Stdout: `{"status":"healthy"}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":                                 {ExitCode: 0, Stdout: `{"resources":[]}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'landing-page-business-suite' --tail 123": {ExitCode: 0, Stdout: "hello\nworld"},
+		shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario status 'landing-page-business-suite' --json"):   {ExitCode: 0, Stdout: `{"status":"healthy"}`},
+		shellutil.VrooliCommand("/root/Vrooli", "vrooli resource status --json"):                                 {ExitCode: 0, Stdout: `{"resources":[]}`},
+		shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario logs 'landing-page-business-suite' --tail 123"): {ExitCode: 0, Stdout: "hello\nworld"},
 	}}
 
 	result := vps.RunInspect(ctx, manifest, opts, runner)
@@ -164,9 +163,9 @@ func TestBuildInspectPlanSteps(t *testing.T) {
 		id       string
 		contains string
 	}{
-		{"scenario_status", "vrooli scenario status"},
-		{"resource_status", "vrooli resource status"},
-		{"scenario_logs", "vrooli scenario logs"},
+		{"scenario_status", "scenario status"},
+		{"resource_status", "resource status"},
+		{"scenario_logs", "scenario logs"},
 	}
 
 	if len(plan.Steps) != len(expectedSteps) {
@@ -247,22 +246,21 @@ func TestRunInspectHandlesErrors(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
 			responses := map[string]ssh.Result{
-				pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test-app' --json":   {ExitCode: 0, Stdout: `{}`},
-				pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":              {ExitCode: 0, Stdout: `{}`},
-				pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test-app' --tail 100": {ExitCode: 0, Stdout: "logs"},
+				shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario status 'test-app' --json"):   {ExitCode: 0, Stdout: `{}`},
+				shellutil.VrooliCommand("/root/Vrooli", "vrooli resource status --json"):              {ExitCode: 0, Stdout: `{}`},
+				shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario logs 'test-app' --tail 100"): {ExitCode: 0, Stdout: "logs"},
 			}
 			errs := map[string]error{}
 
 			// Set up failure based on test case
 			switch tt.failOn {
 			case "status":
-				errs[pathPrefix+"cd '/root/Vrooli' && vrooli scenario status 'test-app' --json"] = errors.New(tt.expectedError)
+				errs[shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario status 'test-app' --json")] = errors.New(tt.expectedError)
 			case "resource":
-				errs[pathPrefix+"cd '/root/Vrooli' && vrooli resource status --json"] = errors.New(tt.expectedError)
+				errs[shellutil.VrooliCommand("/root/Vrooli", "vrooli resource status --json")] = errors.New(tt.expectedError)
 			case "logs":
-				errs[pathPrefix+"cd '/root/Vrooli' && vrooli scenario logs 'test-app' --tail 100"] = errors.New(tt.expectedError)
+				errs[shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario logs 'test-app' --tail 100")] = errors.New(tt.expectedError)
 			}
 
 			runner := &FakeSSHRunner{Responses: responses, Errs: errs}
@@ -298,11 +296,10 @@ func TestRunInspectTimestamp(t *testing.T) {
 	}
 	opts := vps.InspectOptions{TailLines: 10}
 
-	pathPrefix := `export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH" && `
 	runner := &FakeSSHRunner{Responses: map[string]ssh.Result{
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario status 'test' --json":  {ExitCode: 0, Stdout: `{}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli resource status --json":         {ExitCode: 0, Stdout: `{}`},
-		pathPrefix + "cd '/root/Vrooli' && vrooli scenario logs 'test' --tail 10": {ExitCode: 0, Stdout: ""},
+		shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario status 'test' --json"):  {ExitCode: 0, Stdout: `{}`},
+		shellutil.VrooliCommand("/root/Vrooli", "vrooli resource status --json"):         {ExitCode: 0, Stdout: `{}`},
+		shellutil.VrooliCommand("/root/Vrooli", "vrooli scenario logs 'test' --tail 10"): {ExitCode: 0, Stdout: ""},
 	}}
 
 	// Subtract 1 second from before to allow for rounding differences in RFC3339 format

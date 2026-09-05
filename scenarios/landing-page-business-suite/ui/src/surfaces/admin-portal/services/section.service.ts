@@ -10,7 +10,11 @@ export const STYLING_CONFIG = getStylingConfig();
 /**
  * LocalStorage key for comparison variant preferences
  */
-export const COMPARE_STORAGE_KEY = 'landing-manager-section-editor-compare';
+export const COMPARE_STORAGE_KEY = 'landing-page-business-suite-section-editor-compare';
+
+function normalizedSectionOrder(order: number): number {
+  return Number.isFinite(order) ? order : 0;
+}
 
 /**
  * Get variant styling guidance for a specific variant
@@ -52,7 +56,7 @@ export function saveComparePreference(variantSlug: string, compareSlug: string |
   try {
     const raw = window.localStorage.getItem(COMPARE_STORAGE_KEY);
     const parsed = raw ? safeParseJson(raw) : undefined;
-    const stored: Record<string, string> = {};
+    let stored: Record<string, string> = {};
     if (isRecord(parsed)) {
       for (const [key, value] of Object.entries(parsed)) {
         if (typeof value === 'string') {
@@ -63,7 +67,9 @@ export function saveComparePreference(variantSlug: string, compareSlug: string |
     if (compareSlug) {
       stored[variantSlug] = compareSlug;
     } else {
-      delete stored[variantSlug];
+      stored = Object.fromEntries(
+        Object.entries(stored).filter(([key]) => key !== variantSlug)
+      );
     }
     window.localStorage.setItem(COMPARE_STORAGE_KEY, JSON.stringify(stored));
   } catch {
@@ -75,7 +81,7 @@ export function saveComparePreference(variantSlug: string, compareSlug: string |
  * Sort sections by order
  */
 export function sortSectionsByOrder(sections: LandingSection[]): LandingSection[] {
-  return [...sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return [...sections].sort((a, b) => normalizedSectionOrder(a.order) - normalizedSectionOrder(b.order));
 }
 
 /**
@@ -87,7 +93,7 @@ export function findSectionByType(
 ): LandingSection | null {
   const matching = sections
     .filter((section) => section.section_type === sectionType)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    .sort((a, b) => normalizedSectionOrder(a.order) - normalizedSectionOrder(b.order));
   return matching[0] ?? null;
 }
 

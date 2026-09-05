@@ -14,7 +14,7 @@ func TestClientCheckReadsHealthStatus(t *testing.T) {
 		if r.URL.Path != "/health" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		fmt.Fprint(w, `{"status":"ok","service":"test-genie","version":"1.0.0","operations":{"queue":{"pending":1,"queued":2,"delegated":0,"stale":0,"running":1,"failed":0,"oldestQueuedAgeSeconds":12}}}`)
+		fmt.Fprint(w, `{"status":"ok","service":"test-genie","version":"1.0.0"}`)
 	}))
 	defer server.Close()
 
@@ -35,9 +35,6 @@ func TestClientCheckReadsHealthStatus(t *testing.T) {
 	}
 	if resp.Status != "ok" || resp.Service != "test-genie" {
 		t.Fatalf("expected parsed health response, got %+v", resp)
-	}
-	if resp.Operations.Queue.Queued != 2 || resp.Operations.Queue.Running != 1 {
-		t.Fatalf("expected queue metrics to be parsed, got %+v", resp.Operations.Queue)
 	}
 }
 

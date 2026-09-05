@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Maintain recorded manual qualification evidence across iOS Safari, installed PWA, Android Chrome, and desktop microphone environments.",
+      "id": "ATD-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Expanded device qualification",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:ATD-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

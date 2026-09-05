@@ -1,11 +1,18 @@
-import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Pause, Play, Square, Volume2, VolumeX } from "lucide-react";
-import type { TTSPlaybackCapabilities } from "../hooks/tts/types";
+import { ChevronLeft, ChevronRight, Loader2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TTSPlaybackCapabilities } from "../audio-integration";
+import type { ConversationEvent } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
+import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
-
-const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
+import { AudioSettingsContent } from "./tts/AudioSettingsContent";
+import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
+import { getScrubClasses } from "./tts/scrubStyles";
+import MessageJumpList from "./MessageJumpList";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 export interface AudioPlayerBarProps {
   isPaused: boolean;
@@ -13,6 +20,7 @@ export interface AudioPlayerBarProps {
   duration: number | null;
   playbackRate: number;
   volume: number;
+  isMuted: boolean;
   capabilities: TTSPlaybackCapabilities;
   /** Whether the currently playing content is a summarized version. */
   isSummarized?: boolean;
@@ -22,17 +30,41 @@ export interface AudioPlayerBarProps {
   canSummarize?: boolean;
   /** Whether a summarization request is in progress. */
   isSummarizing?: boolean;
+  /** Whether playback data or synthesized audio is being prepared. */
+  isLoading?: boolean;
+  /** Current global summarization level. */
+  currentLevel?: SummarizationLevel;
+  currentMessageLabel?: string | null;
+  currentMessageId?: string | null;
+  messageSelectorEvents?: ConversationEvent[];
+  hasQueuedNext?: boolean;
+  hasQueuedPrevious?: boolean;
   onPause: () => void;
   onResume: () => void;
   onSeek: (seconds: number) => void;
   onSetPlaybackRate: (rate: number) => void;
   onSetVolume: (level: number) => void;
-  onStop: () => void;
-  /** Called when the user wants to switch between summarized and original playback. */
+  onSetMuted: (next: boolean) => void;
+  onJumpToCurrentMessage?: () => void;
+  onSelectMessage?: (eventId: string) => void;
+  /** Called when the user wants to switch to the original (unsummarized) version. */
   onToggleSummarized?: (useSummarized: boolean) => void;
-  /** Called when the user requests on-demand summarization for the active event. */
-  onRequestSummarize?: () => void;
+  /** Called when the user picks a summarization level (may be the current one). */
+  onChangeLevel?: (level: SummarizationLevel) => void;
+  /** Optional close control for manually-started playback surfaces. */
+  onDismiss?: () => void;
+  /** Whether the full playback controls are visible. */
+  isExpanded?: boolean;
+  /** Expand the compact now-playing line. */
+  onExpand?: () => void;
+  onPreviousMessage?: () => void;
+  onNextMessage?: () => void;
+  /** Honest explanation when auto playback selected the browser fallback. */
+  backendReason?: string;
 }
+
+/** Anchored placement order for popovers opening above their trigger. */
+const ABOVE_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["top-end", "top-start", "bottom-end", "bottom-start"];
 
 /** Format seconds as m:ss. Returns "--:--" when value is null or not finite. */
 function formatTime(seconds: number | null): string {
@@ -44,128 +76,11 @@ function formatTime(seconds: number | null): string {
 }
 
 /**
- * Audio settings content — shared between the desktop popover and the
- * mobile bottom sheet. Renders volume slider and summarization controls.
- */
-function AudioSettingsContent({
-  volume,
-  isSummarized,
-  hasOriginalVersion,
-  canSummarize,
-  isSummarizing,
-  capabilities,
-  onVolumeChange,
-  onToggleSummarized,
-  onRequestSummarize,
-}: {
-  volume: number;
-  isSummarized: boolean;
-  hasOriginalVersion: boolean;
-  canSummarize: boolean;
-  isSummarizing: boolean;
-  capabilities: TTSPlaybackCapabilities;
-  onVolumeChange: (level: number) => void;
-  onToggleSummarized?: (useSummarized: boolean) => void;
-  onRequestSummarize?: () => void;
-}) {
-  const handleVolumeChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => onVolumeChange(Number(e.target.value)),
-    [onVolumeChange],
-  );
-
-  return (
-    <div className="space-y-3">
-      {/* Volume */}
-      {capabilities.canAdjustVolume && (
-        <div>
-          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
-            Volume
-          </label>
-          <input
-            data-testid="tts-volume-slider"
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={handleVolumeChange}
-            className={cn(
-              "h-1.5 w-full cursor-pointer rounded-full",
-              isSummarized
-                ? "[&::-webkit-slider-thumb]:bg-amber-400 accent-amber-400"
-                : "accent-wc-accent",
-            )}
-          />
-          <div className="mt-0.5 flex justify-between text-[10px] text-wc-text-faint">
-            <span>0</span>
-            <span>{Math.round(volume * 100)}%</span>
-          </div>
-        </div>
-      )}
-
-      {/* Summarization toggle — shown when event already has both versions */}
-      {hasOriginalVersion && onToggleSummarized && (
-        <div className="border-t border-wc-default pt-3">
-          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-wc-text-faint">
-            Playback version
-          </label>
-          <div className="flex gap-1">
-            <button
-              data-testid="tts-play-summarized"
-              className={cn(
-                "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
-                isSummarized
-                  ? "bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40"
-                  : "bg-wc-surface-base text-wc-text-muted hover:bg-wc-surface-input",
-              )}
-              onClick={() => onToggleSummarized(true)}
-            >
-              Summarized
-            </button>
-            <button
-              data-testid="tts-play-original"
-              className={cn(
-                "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition",
-                !isSummarized
-                  ? "bg-wc-accent/20 text-wc-accent ring-1 ring-wc-accent/40"
-                  : "bg-wc-surface-base text-wc-text-muted hover:bg-wc-surface-input",
-              )}
-              onClick={() => onToggleSummarized(false)}
-            >
-              Original
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Request summarization — shown when no summary exists yet but summarizer is available */}
-      {!hasOriginalVersion && canSummarize && onRequestSummarize && (
-        <div className="border-t border-wc-default pt-3">
-          <button
-            data-testid="tts-request-summarize"
-            disabled={isSummarizing}
-            className={cn(
-              "w-full rounded-lg px-3 py-2 text-xs font-medium transition",
-              isSummarizing
-                ? "bg-wc-surface-base text-wc-text-faint cursor-wait"
-                : "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25",
-            )}
-            onClick={onRequestSummarize}
-          >
-            {isSummarizing ? "Summarizing…" : "Summarize for playback"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
  * Global bottom bar for TTS playback controls.
  *
- * Renders pause/resume, stop, scrub bar, time display, speed selector,
- * and an audio button that opens a popover (desktop) or bottom sheet (mobile)
- * with volume slider and summarization controls.
+ * Renders pause/resume, stop, scrub bar, time display, mode control, and an
+ * audio button that opens a popover (desktop) or bottom sheet (mobile) with
+ * volume + speed settings.
  */
 export default function AudioPlayerBar({
   isPaused,
@@ -173,35 +88,57 @@ export default function AudioPlayerBar({
   duration,
   playbackRate,
   volume,
+  isMuted,
   capabilities,
   isSummarized = false,
   hasOriginalVersion = false,
   canSummarize = false,
   isSummarizing = false,
+  isLoading = false,
+  currentLevel = "moderate",
+  currentMessageLabel = null,
+  currentMessageId = null,
+  messageSelectorEvents,
+  hasQueuedNext = false,
+  hasQueuedPrevious = false,
   onPause,
   onResume,
   onSeek,
   onSetPlaybackRate,
   onSetVolume,
-  onStop,
+  onSetMuted,
+  onJumpToCurrentMessage,
+  onSelectMessage,
   onToggleSummarized,
-  onRequestSummarize,
+  onChangeLevel,
+  onDismiss,
+  isExpanded = true,
+  onExpand,
+  onPreviousMessage,
+  onNextMessage,
+  backendReason,
 }: AudioPlayerBarProps) {
+  const { t } = useTranslation();
   const [showPopover, setShowPopover] = useState(false);
+  const [showMessageSelector, setShowMessageSelector] = useState(false);
+  const [showRemainingTime, setShowRemainingTime] = useState(() => {
+    try {
+      return window.localStorage.getItem("vrooli.tts.showRemainingTime") === "true";
+    } catch {
+      return false;
+    }
+  });
   const isMobile = useMediaQuery("(max-width: 767px)");
   const audioButtonRef = useRef<HTMLButtonElement>(null);
+  const currentMessageButtonRef = useRef<HTMLButtonElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const wasExpandedRef = useRef(isExpanded);
 
   const handlePlayPause = useCallback(() => {
     if (isPaused) onResume();
     else onPause();
   }, [isPaused, onPause, onResume]);
-
-  const handleSpeedCycle = useCallback(() => {
-    const currentIndex = SPEED_PRESETS.indexOf(playbackRate as typeof SPEED_PRESETS[number]);
-    const nextIndex = (currentIndex + 1) % SPEED_PRESETS.length;
-    const nextSpeed = SPEED_PRESETS[nextIndex] ?? 1;
-    onSetPlaybackRate(nextSpeed);
-  }, [playbackRate, onSetPlaybackRate]);
 
   const handleScrubChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -210,184 +147,343 @@ export default function AudioPlayerBar({
     [onSeek],
   );
 
-  const isMuted = volume === 0;
-  const showScrub = capabilities.canSeek && duration !== null;
+  const scrubEnabled = capabilities.canSeek && duration !== null;
+  // The bar is "idle" when no audio is loaded — replay mode, between events,
+  // or before the first playback poll tick. In this state every control keeps
+  // its shape but non-transport controls go visibly disabled to prevent the
+  // layout from shifting between playing and idle.
+  const isIdle = duration === null;
+  const displayedTime = showRemainingTime && duration !== null
+    ? Math.max(0, duration - currentTime)
+    : currentTime;
+  const browserFallbackActive = backendReason?.includes("browser speech synthesis is active")
+    || backendReason?.includes("Browser handled playback")
+    || false;
 
-  // Compute popover position anchored above the audio button
-  const getPopoverStyle = useCallback((): React.CSSProperties => {
-    const btn = audioButtonRef.current;
-    if (!btn) return { position: "fixed", bottom: 48, right: 16 };
-    const rect = btn.getBoundingClientRect();
-    return {
-      position: "fixed",
-      bottom: window.innerHeight - rect.top + 8,
-      right: Math.max(8, window.innerWidth - rect.right),
-    };
-  }, []);
+  useEffect(() => {
+    if (isExpanded && !wasExpandedRef.current) {
+      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      requestAnimationFrame(() => {
+        const first = barRef.current?.querySelector<HTMLElement>("button:not([disabled]), input:not([disabled])");
+        first?.focus();
+      });
+    } else if (!isExpanded && wasExpandedRef.current) {
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    }
+    wasExpandedRef.current = isExpanded;
+  }, [isExpanded]);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && isExpanded) {
+      event.preventDefault();
+      onDismiss?.();
+      return;
+    }
+    if (event.key !== "Tab" || !isExpanded || !barRef.current) return;
+    const focusable = Array.from(barRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])"));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, [isExpanded, onDismiss]);
+
+  // Desktop settings popover anchors above the audio button, end-aligned,
+  // via the shared anchored-floating math (measure-then-position).
+  const audioPopoverRef = useRef<HTMLDivElement>(null);
+  const audioPopoverStyle = useAnchoredPopoverPosition(
+    showPopover && !isMobile,
+    audioButtonRef,
+    audioPopoverRef,
+    ABOVE_ANCHOR_PLACEMENTS,
+  );
 
   return (
     <div
+      ref={barRef}
       data-testid="audio-player-bar"
-      className={cn(
-        "flex items-center gap-2 border-t px-3 py-1.5 text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200",
-        isSummarized
-          ? "border-amber-500/30 bg-amber-950/30"
-          : "border-wc-default bg-wc-surface-raised",
-      )}
+      data-audio-state="player"
+      data-expanded={isExpanded ? "true" : "false"}
+      role="region"
+      aria-label="Audio playback"
+      onKeyDown={handleKeyDown}
+      onClick={(event) => {
+        if (!isExpanded && !(event.target as HTMLElement).closest('[data-testid="tts-time"], [data-testid="tts-dismiss"]')) onExpand?.();
+      }}
+      data-loading={isLoading ? "true" : "false"}
+      className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised py-1.5 ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
     >
-      {/* Summarized indicator */}
-      {isSummarized && (
-        <span
-          data-testid="tts-summarized-badge"
-          className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-400"
-        >
-          Summarized
+      {browserFallbackActive && (
+        <div data-testid="tts-browser-fallback-notice" className="absolute -top-7 start-2 rounded bg-wc-surface-raised px-2 py-1 text-[11px] text-wc-text-muted shadow">
+          {backendReason}
+        </div>
+      )}
+      {isExpanded && <PlaybackModeControl
+        testIdPrefix="tts"
+        isSummarized={isSummarized}
+        hasOriginalVersion={hasOriginalVersion}
+        canSummarize={canSummarize}
+        isSummarizing={isSummarizing}
+        currentLevel={currentLevel}
+        disabled={isIdle}
+        onToggleSummarized={onToggleSummarized}
+        onChangeLevel={onChangeLevel}
+      />}
+
+      {!isPaused && (
+        <span data-testid="tts-equalizer" aria-label="Playing" className="flex h-4 items-end gap-px px-0.5" aria-hidden="true">
+          {["h-1.5", "h-3", "h-2", "h-4"].map((height, index) => (
+            <span key={index} className={cn("w-0.5 animate-pulse rounded-sm bg-wc-accent motion-reduce:animate-none", height)} />
+          ))}
         </span>
       )}
 
-      {/* Play / Pause */}
-      <button
+      {isExpanded && onPreviousMessage && (
+        <IconButton
+          data-testid="tts-previous-message"
+          onClick={onPreviousMessage}
+          disabled={!hasQueuedPrevious}
+          size="sm"
+          aria-label="Previous message"
+        >
+          <ChevronLeft />
+        </IconButton>
+      )}
+
+      <IconButton
         data-testid="tts-play-pause"
         onClick={handlePlayPause}
-        disabled={!capabilities.canPause}
-        className={cn(
-          "rounded p-1 transition hover:bg-wc-accent/10",
-          !capabilities.canPause && "opacity-40 cursor-not-allowed",
-        )}
-        title={isPaused ? "Resume" : "Pause"}
+        disabled={isLoading || !capabilities.canPause}
+        size="sm"
+        className={cn("shrink-0", !isLoading && !capabilities.canPause && "cursor-not-allowed")}
+        aria-label={isLoading ? t(strings.app.loading) : isPaused ? t(strings.audioPlayerBar.resume) : t(strings.audioPlayerBar.pause)}
       >
-        {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-      </button>
+        {isLoading
+          ? <Loader2 data-testid="tts-playback-loading" className="animate-spin" />
+          : isPaused ? <Play /> : <Pause />}
+      </IconButton>
 
-      {/* Stop */}
-      <button
-        data-testid="tts-stop"
-        onClick={onStop}
-        className="rounded p-1 transition hover:bg-wc-accent/10"
-        title="Stop"
-      >
-        <Square className="h-4 w-4" />
-      </button>
-
-      {/* Scrub bar — always rendered to prevent layout shift; disabled while loading */}
-      {showScrub ? (
-        <input
-          data-testid="tts-scrub"
-          type="range"
-          min={0}
-          max={duration}
-          value={currentTime}
-          step={0.1}
-          onChange={handleScrubChange}
-          className={cn(
-            "mx-1 h-1 flex-1 cursor-pointer",
-            isSummarized ? "accent-amber-400" : "accent-wc-accent",
-          )}
-        />
-      ) : capabilities.canSeek ? (
-        <div
-          data-testid="tts-scrub-loading"
-          className="mx-1 flex h-1 flex-1 overflow-hidden rounded-full bg-wc-surface-input"
-        >
-          <div
-            className={cn(
-              "h-full w-1/3 animate-pulse rounded-full",
-              isSummarized ? "bg-amber-500/30" : "bg-wc-accent/30",
-            )}
-          />
-        </div>
-      ) : null}
-
-      {/* Time display */}
-      <span data-testid="tts-time" className="min-w-[5rem] text-center text-xs tabular-nums text-wc-text-muted">
-        {formatTime(currentTime)} / {formatTime(duration)}
-      </span>
-
-      {/* Speed selector */}
-      {capabilities.canAdjustSpeed && (
+      {currentMessageLabel && (
         <button
-          data-testid="tts-speed"
-          onClick={handleSpeedCycle}
-          className="rounded px-1.5 py-0.5 text-xs font-medium tabular-nums transition hover:bg-wc-accent/10"
-          title="Playback speed"
+          ref={currentMessageButtonRef}
+          data-testid="tts-current-message"
+          type="button"
+          onClick={() => {
+            if (messageSelectorEvents?.length && onSelectMessage) {
+              setShowMessageSelector((prev) => !prev);
+              return;
+            }
+            onJumpToCurrentMessage?.();
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-wc-surface-base px-1.5 py-1 text-[11px] font-medium text-wc-text-muted ring-1 ring-wc-default transition hover:bg-wc-surface-input"
+          title={messageSelectorEvents?.length && onSelectMessage ? t(strings.audioPlayerBar.selectMessage) : t(strings.audioPlayerBar.jumpToCurrentMessage)}
         >
-          {playbackRate}x
+          <span>{currentMessageLabel}</span>
+          {hasQueuedNext && <span className="text-[10px] text-amber-300">{t(strings.audioPlayerBar.nextBadge)}</span>}
+          {isLoading && <Loader2 data-testid="tts-message-loading" className="h-3 w-3 animate-spin text-wc-accent" />}
         </button>
       )}
 
-      {/* Audio button — opens popover/sheet via portal */}
-      {capabilities.canAdjustVolume && (
+      {showMessageSelector && messageSelectorEvents?.length && onSelectMessage && (
+        <MessageJumpList
+          events={messageSelectorEvents}
+          focusedEventId={currentMessageId}
+          mode="playback-select"
+          onSelect={(eventId) => {
+            onSelectMessage(eventId);
+            setShowMessageSelector(false);
+          }}
+          onClose={() => setShowMessageSelector(false)}
+          desktopAnchorRef={currentMessageButtonRef}
+          currentTime={currentTime}
+          duration={duration}
+          isPaused={isPaused}
+          isSummarized={isSummarized}
+          onPause={onPause}
+          onResume={onResume}
+          onSeek={onSeek}
+          hasQueuedNext={hasQueuedNext}
+        />
+      )}
+
+      {/* Scrub — always rendered in the same slot so the bar shape is stable
+          across playing/idle states. Disabled with min=max=0 when no audio
+          is loaded (replay mode, first-tick fallback, non-seekable backends). */}
+      {isExpanded && <input
+        data-testid="tts-scrub"
+        type="range"
+        min={0}
+        max={scrubEnabled ? (duration as number) : 0}
+        value={scrubEnabled ? currentTime : 0}
+        step={0.1}
+        disabled={!scrubEnabled}
+        onChange={handleScrubChange}
+        aria-label={t(strings.audioPlayerBar.seekAriaLabel)}
+        className={getScrubClasses({
+          isSummarized,
+          enabled: scrubEnabled,
+          extra: "mx-1 flex-1",
+        })}
+      />}
+
+      <button
+        data-testid="tts-time"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!isExpanded) onExpand?.();
+          setShowRemainingTime((previous) => {
+            const next = !previous;
+            try {
+              window.localStorage.setItem("vrooli.tts.showRemainingTime", String(next));
+            } catch {
+              // Storage is optional (private browsing and embedded surfaces).
+            }
+            return next;
+          });
+        }}
+        aria-label={showRemainingTime ? "Show elapsed time" : "Show remaining time"}
+        title={showRemainingTime ? "Show elapsed time" : "Show remaining time"}
+        className="shrink-0 whitespace-nowrap text-center text-[11px] tabular-nums text-wc-text-muted"
+      >
+        {showRemainingTime ? `-${formatTime(displayedTime)}` : formatTime(displayedTime)} / {formatTime(duration)}
+        {hasQueuedNext && currentMessageLabel && <span data-testid="tts-queue-position"> · {currentMessageLabel}</span>}
+      </button>
+
+      {/* Audio button — context-sensitive: when muted, single-tap unmutes; when
+          unmuted, opens the popover with volume/speed/mute controls. */}
+      {isExpanded && capabilities.canAdjustVolume && (
         <button
           ref={audioButtonRef}
           data-testid="tts-audio-button"
-          onClick={() => setShowPopover((prev) => !prev)}
-          className={cn(
-            "rounded p-1 transition",
-            isSummarized
-              ? "text-amber-400 hover:bg-amber-500/10"
-              : "hover:bg-wc-accent/10",
-          )}
-          title="Audio settings"
+          onClick={() => {
+            if (isMuted) onSetMuted(false);
+            else setShowPopover((prev) => !prev);
+          }}
+          className="shrink-0 rounded p-1 transition hover:bg-wc-accent/10"
+          title={isMuted ? t(strings.audioPlayerBar.unmute) : t(strings.audioPlayerBar.audioSettings)}
         >
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
+      )}
+
+      {isExpanded && onNextMessage && (
+        <IconButton
+          data-testid="tts-next-message"
+          onClick={onNextMessage}
+          disabled={!hasQueuedNext}
+          size="sm"
+          aria-label="Next message"
+        >
+          <ChevronRight />
+        </IconButton>
+      )}
+
+      {!isExpanded && onExpand && (
+        <IconButton
+          data-testid="tts-expand"
+          onClick={(event) => { event.stopPropagation(); onExpand(); }}
+          size="sm"
+          className="shrink-0"
+          aria-label={t(strings.audioPlayerBar.audioSettings)}
+        >
+          <Volume2 />
+        </IconButton>
+      )}
+
+      {onDismiss && (
+        <IconButton
+          data-testid="tts-dismiss"
+          onClick={onDismiss}
+          size="sm"
+          className="shrink-0"
+          aria-label={t(strings.audioPlayerBar.closePlayback)}
+        >
+          <X />
+        </IconButton>
       )}
 
       {/* Popover / bottom sheet — always rendered via portal to escape terminal touch handlers */}
       {showPopover && createPortal(
         isMobile ? (
           // Mobile bottom sheet
-          <div className="fixed inset-0 z-[60]" onMouseDown={(e) => e.preventDefault()}>
+          <div
+            className="fixed inset-0 z-wc-popover-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="audio-settings-heading"
+            onMouseDown={(e) => e.preventDefault()}
+          >
             <div
               data-testid="audio-sheet-backdrop"
+              aria-hidden="true"
               className="absolute inset-0 bg-wc-backdrop"
               onClick={() => setShowPopover(false)}
             />
             <div
               data-testid="audio-popover"
-              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] shadow-2xl"
+              className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
             >
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
               </div>
-              <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">Audio Settings</h3>
+              <h3 id="audio-settings-heading" className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.audioPlayerBar.audioSettingsHeading)}</h3>
               <AudioSettingsContent
+                testIdPrefix="tts"
                 volume={volume}
+                isMuted={isMuted}
+                playbackRate={playbackRate}
                 isSummarized={isSummarized}
-                hasOriginalVersion={hasOriginalVersion}
-                canSummarize={canSummarize}
-                isSummarizing={isSummarizing}
                 capabilities={capabilities}
                 onVolumeChange={onSetVolume}
-                onToggleSummarized={onToggleSummarized}
-                onRequestSummarize={onRequestSummarize}
+                onSetMuted={onSetMuted}
+                onSetPlaybackRate={onSetPlaybackRate}
               />
+              {isLoading && (
+                <div data-testid="tts-audio-loading" className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                  <span>{t(strings.app.loading)}</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          // Desktop popover — positioned above button via portal
           <>
             <div
               data-testid="audio-popover-backdrop"
-              className="fixed inset-0 z-[60]"
+              className="fixed inset-0 z-wc-popover-backdrop"
               onClick={() => setShowPopover(false)}
             />
             <div
+              ref={audioPopoverRef}
               data-testid="audio-popover"
-              className="z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
-              style={getPopoverStyle()}
+              className="wc-stable-theme z-wc-popover w-60 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+              style={audioPopoverStyle}
             >
               <AudioSettingsContent
+                testIdPrefix="tts"
                 volume={volume}
+                isMuted={isMuted}
+                playbackRate={playbackRate}
                 isSummarized={isSummarized}
-                hasOriginalVersion={hasOriginalVersion}
-                canSummarize={canSummarize}
-                isSummarizing={isSummarizing}
                 capabilities={capabilities}
                 onVolumeChange={onSetVolume}
-                onToggleSummarized={onToggleSummarized}
-                onRequestSummarize={onRequestSummarize}
+                onSetMuted={onSetMuted}
+                onSetPlaybackRate={onSetPlaybackRate}
               />
+              {isLoading && (
+                <div data-testid="tts-audio-loading" className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
+                  <span>{t(strings.app.loading)}</span>
+                </div>
+              )}
             </div>
           </>
         ),

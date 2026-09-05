@@ -1,0 +1,267 @@
+{
+  "version": 9,
+  "note": "Assigns a quality tier to every model-backed style, so the lane that draws a picture is a declared property of the style instead of two constants in render.go. No style's art direction changes.",
+  "retune_reasons": [
+    "A quality tier is a floor on capability and a ceiling on spend, and both halves are load-bearing. The floor keeps a picture that needs a frontier model from being served by a local checkpoint wearing a frontier label. The ceiling keeps a style that never asked for a paid provider from reaching one, which is the exact defect the two hardcoded routing constants were written to fix after every model-backed render was billed to a cloud provider while an installed local GPU sat idle.",
+    "Only styles drawn by a model carry a tier above procedural, so this version restates exactly the six model-backed styles and no others. The remaining thirty-eight are drawn in-process and are procedural by construction: restating them here would create a second authority for thirty-eight unchanged art directions, and a seed version that rewrites a style it did not change is how a catalog drifts from its own history.",
+    "op-art-interior is frontier_model because it is below bar with cause flat-source. The 2026-08-13 verdict pass read it as a coarse line screen over a dark blob with no interior and no op-art in it; the ledger's own repair row names re-sourcing at the frontier tier as the fix. Its subject is a high-contrast modernist interior with receding vaulting, which is a photographic composition that the installed local model set does not hold at delivery geometry.",
+    "synth-celestial is local_model rather than frontier_model despite a representational subject, because it already meets the bar on the local lane: the verdict pass records it as the reference case and the only file in the catalog that currently reaches it, drawn from a prompt with no conditioning. Promoting the one working reference to a tier this host cannot serve would make it unrenderable to buy nothing.",
+    "guided-industrial, guided-interior-riso and guided-botanical are local_model for the same reason: each is recorded as meeting the bar through edge or depth conditioning over a structured scaffold, which is a composition the local lane holds. guided-botanical reached that state in v6 by moving from an edge conditioner over an abstract field to depth over terrain, and the tier does not need to change what the conditioning already fixed.",
+    "constructivist-figure is local_model rather than frontier_model even though it has never been judged. Its blocker is recorded as a VAE allocation failure at 1440x720 on this host, which is a capacity fact and not a capability one, and the render path now sizes its generation canvas from the selected model's declared native geometry instead of a Stable Diffusion 1.5 constant. Assigning a paid tier to a style whose only failure was host memory would spend money to answer a question nobody has asked yet.",
+    "Every style's version is incremented so an install that already holds these rows takes the new value. The seed upserts on id and replaces the row, so a version that does not bump is indistinguishable from one that was never applied."
+  ],
+  "styles": [
+    {
+      "id": "synth-celestial",
+      "name": "Synthesized Celestial",
+      "version": 2,
+      "role": "ambient",
+      "subject": "celestial",
+      "lineage": "art_nouveau",
+      "strategy": "synthesized",
+      "quality_tier": "local_model",
+      "treatments": [
+        "curve",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "treatment_params": {
+        "curve": "{\"exponent\": 0.92}",
+        "grain": "{\"seed\": 41, \"amount\": 0.04, \"contrast_multiplier\": 1.03}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.3,
+          "width": 0.38,
+          "height": 0.36,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "generation": {
+        "prompt_template": "art nouveau celestial chart, gilded constellations and a crescent moon over deep indigo, ornamental linework, engraved plate, no text, no people",
+        "negative": "text, watermark, logo, signature, people, faces, photorealistic"
+      }
+    },
+    {
+      "id": "guided-industrial",
+      "name": "Guided Industrial",
+      "version": 2,
+      "role": "ambient",
+      "subject": "industrial",
+      "lineage": "constructivist",
+      "strategy": "guided",
+      "quality_tier": "local_model",
+      "treatments": [
+        "duotone",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#8c1b12",
+        "$brand.background": "#efe7d8"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"seed\": 23, \"amount\": 0.06, \"contrast_multiplier\": 1.08}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.24,
+          "width": 0.4,
+          "height": 0.42,
+          "kind": "overlay",
+          "text_color": "#efe7d8"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "terrain",
+        "conditioner": "edge",
+        "params_json": ""
+      },
+      "generation": {
+        "prompt_template": "wide industrial hall, exposed steel trusses and clerestory light, heavy machinery in silhouette, deep atmospheric haze, dramatic side lighting, no text, no people",
+        "negative": "text, watermark, logo, signature, people, faces, blurry, low contrast"
+      }
+    },
+    {
+      "id": "guided-interior-riso",
+      "name": "Guided Interior Riso",
+      "version": 2,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "riso_zine",
+      "strategy": "guided",
+      "quality_tier": "local_model",
+      "treatments": [
+        "dither_diffusion",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#2b3ea8",
+        "$brand.background": "#fbf3e2"
+      },
+      "treatment_params": {
+        "dither_diffusion": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"seed\": 31, \"amount\": 0.05, \"contrast_multiplier\": 1.04}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "arcade",
+        "conditioner": "edge",
+        "params_json": ""
+      },
+      "generation": {
+        "prompt_template": "sunlit modernist interior, tall windows, long shadows across a bare floor, a single chair, quiet and empty, no text, no people",
+        "negative": "text, watermark, logo, signature, people, faces, clutter"
+      }
+    },
+    {
+      "id": "guided-botanical",
+      "name": "Guided Botanical",
+      "version": 3,
+      "role": "ambient",
+      "subject": "botanical",
+      "lineage": "art_nouveau",
+      "strategy": "guided",
+      "quality_tier": "local_model",
+      "treatments": [
+        "duotone",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#14351f",
+        "$brand.background": "#f2ead6"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"amount\": 0.07, \"contrast_multiplier\": 1.05, \"seed\": 3}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.24,
+          "width": 0.4,
+          "height": 0.42,
+          "kind": "overlay",
+          "text_color": "#f2ead6"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "terrain",
+        "conditioner": "depth",
+        "params_json": "{\"focal_x\": 0.68}"
+      },
+      "generation": {
+        "prompt_template": "dense botanical forms pressed flat against the picture plane, hard-edged overlapping leaves and stems filling the right two thirds, art nouveau linework, generous empty ground at left, no text, no people",
+        "negative": "text, watermark, signature, photorealistic skin, lens flare, flat colour blocks, empty frame"
+      }
+    },
+    {
+      "id": "constructivist-figure",
+      "name": "Constructivist Figure",
+      "version": 2,
+      "role": "ambient",
+      "subject": "figure",
+      "lineage": "constructivist",
+      "strategy": "synthesized",
+      "quality_tier": "local_model",
+      "treatments": [
+        "posterize"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#a4161a",
+        "$brand.background": "#f5f0e6"
+      },
+      "generation": {
+        "prompt_template": "a non-identifiable silhouetted figure in flat geometric planes, steep diagonal composition, large areas of unbroken ground",
+        "negative": "recognisable face, portrait likeness, text, watermark"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":4,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "op-art-interior",
+      "name": "Op Art Interior",
+      "version": 5,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "op_art",
+      "strategy": "guided",
+      "quality_tier": "frontier_model",
+      "treatments": [
+        "line_screen"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#141414",
+        "$brand.background": "#f2f2f2"
+      },
+      "treatment_params": {
+        "line_screen": "{\"spacing_rel\": 0.0181, \"angle\": 45, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "arcade",
+        "conditioner": "edge",
+        "params_json": ""
+      },
+      "generation": {
+        "prompt_template": "a high-contrast modernist interior, hard-edged vaulting and repeated columns receding, strong directional light, generous unbroken wall at left",
+        "negative": "text, watermark, signature, people, furniture clutter, lens flare",
+        "model": "",
+        "provider_url": "",
+        "credential": ""
+      }
+    }
+  ]
+}

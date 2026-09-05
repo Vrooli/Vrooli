@@ -13,33 +13,34 @@ package backlog
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"os"
 	"strings"
-	"time"
+
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/attempt"
+	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/planclient"
+	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/dispatch"
-	"swarm-manager/internal/execution"
-	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/pathutil"
-	"swarm-manager/internal/promptmanager"
-	"swarm-manager/internal/settings"
-	"swarm-manager/internal/workshop"
 )
 
-type AgentSpawner interface {
+// AgentManagerAvailability is the injection type for the concrete agent
+// service passed to NewHandlerWithClients. The backlog domain package never
+// spawns or continues Agent Manager runs (that capability lives entirely
+// behind the operation runner; see the internal/archtest spawn-boundary
+// guardrail) — only the AgentActivityChecker capability of the injected
+// service is consumed, via a type assertion in the constructor. The interface
+// is intentionally minimal: a fake without HasActiveAgent (leaving the
+// active-agent guard a no-op) is still a valid injection.
+type AgentManagerAvailability interface {
 	IsEnabled() bool
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
-	ContinueRun(ctx context.Context, runID string, message string) error
-	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 }
 
 // AgentActivityChecker checks whether a backlog item has an active agent.
@@ -49,68 +50,191 @@ type AgentActivityChecker interface {
 	HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool
 }
 
-// Handler provides HTTP handlers for backlog operations.
-type Handler struct {
-	rootDir            string
-	store              Store
-	agentService       AgentSpawner
-	activityChecker    AgentActivityChecker
-	promptClient       promptmanager.Client
-	initiativeAssigner InitiativeAssigner
-	executionQueuer    ExecutionQueuer
-	policyProvider     execution.PolicyProvider
-	governanceProvider execution.GovernanceProvider
-	eventDispatcher    dispatch.Invalidator
-	eventLogger        EventLogger
-	workshopTicker     *WorkshopTicker
+// ExecutionActivityChecker reports whether an item has work queued or running.
+// It is intentionally a narrow cross-domain seam so plan acceptance does not
+// reach into execution persistence directly.
+type ExecutionActivityChecker interface {
+	HasActiveForBacklog(ctx context.Context, kind, name string) bool
 }
+
+// ItemTerminalHandler is invoked after the review-decide endpoint flips an
+// item to a terminal status (completed / failed / needs_followup). The
+// callback fires synchronously inside the HTTP handler so downstream effects
+// (milestone-level review trigger, future per-item telemetry) see the
+// decision before the response is sent, but implementations are expected to
+// be cheap or self-gate expensive work to a goroutine.
+type ItemTerminalHandler func(ctx context.Context, kind, name string, status BacklogStatus)
+
+// BacklogRecordRequest carries the context the review-decide hook hands to the
+// records capture seam so it can write a FILLED, searchable record (not an empty
+// stub): the item's own title/description seed the record's trigger/approach,
+// the acceptance globs derive the target scenario, and the milestone links it
+// back. The hook already has the item loaded, so passing it here costs nothing
+// and lets the record be born indexed instead of an empty stub nobody fills.
+type BacklogRecordRequest struct {
+	Kind            string
+	Name            string
+	Title           string
+	Description     string
+	AcceptanceAllow []string
+	Milestone       string
+	Status          BacklogStatus
+	DecidedBy       string
+}
+
+// RecordCreator is the records capture seam: when a backlog item reaches a
+// terminal status (and the client did not pass --no-record), the review-decide
+// endpoint asks the implementation to write a record capturing the work, drawn
+// from the item itself. The returned id is surfaced to the client so the agent
+// can enrich it via `records supersede` (the record is born filled+immutable, so
+// `records edit` is not the amend path). Errors are logged and dropped; capture
+// must never block or fail the terminal transition.
+//
+// seam: backlog.RecordCreator
+type RecordCreator interface {
+	CreateBacklogRecord(ctx context.Context, req BacklogRecordRequest) (recordID string, err error)
+}
+
+// Handler provides HTTP handlers for backlog operations.
+//
+// dataRoot is where on-disk item folders live (runtime home,
+// `~/.vrooli/data/vrooli/swarm-manager/<kind>/...`). repoRoot is the
+// scenario source path used purely as a repo anchor (e.g. by
+// validate_globs.go to resolve `.vrooli/repo-contract.json`).
+type Handler struct {
+	dataRoot               string
+	repoRoot               string
+	store                  Store
+	activityChecker        AgentActivityChecker
+	promptClient           promptmanager.Client
+	planClient             planclient.Client
+	milestoneAssigner      MilestoneAssigner
+	sessionArtifacts       sessionArtifactRecorder
+	executionQueuer        ExecutionQueuer
+	executionActivity      ExecutionActivityChecker
+	eventDispatcher        dispatch.Invalidator
+	eventLogger            EventLogger
+	itemTerminalHandler    ItemTerminalHandler
+	recordCreator          RecordCreator
+	reviewRoundInspector   ReviewRoundInspector
+	reviewEvidenceVerifier ReviewEvidenceVerifier
+	transitionRunner       *transitionrunner.Runner
+	transitionRegistry     transitions.Registry
+	lifecycleService       *Service
+	decisionCount          DecisionCountProvider
+	followUpDispatcher     FollowUpDispatcher
+	attemptDecisionRouter  attempt.Decider
+}
+
+// ReviewEvidenceVerifier is the narrow review-domain mutation seam used by
+// the typed BacklogService transport. It keeps evidence verification out of
+// REST while preserving review as the owner of its round projection and ledger
+// event.
+type ReviewEvidenceVerifier interface {
+	VerifyEvidenceWithActor(ctx context.Context, kind, name string, roundNum int, evidenceID string, verified bool, executionID, actor, reason string) error
+}
+
+// DecisionCountProvider supplies cross-domain decisions (for example durable
+// mutation proposals) that must take precedence over normal item actions.
+// The backlog package intentionally owns only the precedence rule, not the
+// storage or lifecycle of those decisions.
+//
+// The contract is whole-store rather than per-item: the provider answers by
+// scanning a store it owns, so asking once per item would make every list
+// projection quadratic in the number of items.
+type DecisionCountProvider interface {
+	PendingDecisionCounts(ctx context.Context) (map[string]int, error)
+}
+
+// SetDecisionCountProvider installs the cross-domain decision reader used by
+// ResolveNextAction. Passing nil restores backlog-only resolution.
+func (h *Handler) SetDecisionCountProvider(provider DecisionCountProvider) {
+	h.decisionCount = provider
+}
+
+// SetReviewEvidenceVerifier installs the review-owned evidence mutation seam.
+func (h *Handler) SetReviewEvidenceVerifier(verifier ReviewEvidenceVerifier) {
+	h.reviewEvidenceVerifier = verifier
+}
+
+// SetAttemptDecisionRouter installs cross-domain attempt decision adapters.
+// Backlog review remains locally owned; other subject kinds dispatch through
+// this seam from the single BacklogService.DecideAttempt RPC.
+func (h *Handler) SetAttemptDecisionRouter(router attempt.Decider) {
+	h.attemptDecisionRouter = router
+}
+
+// FollowUpDispatcher bridges an item-level recovery instruction to the
+// execution domain without exposing execution records to the HTTP surface.
+type FollowUpDispatcher interface {
+	DispatchFollowUp(ctx context.Context, kind BacklogKind, name, steering string) error
+}
+
+func (h *Handler) SetFollowUpDispatcher(dispatcher FollowUpDispatcher) {
+	h.followUpDispatcher = dispatcher
+}
+
+// SetExecutionActivityChecker installs the execution-active guard used by
+// destructive readiness changes such as un-accepting a plan.
+func (h *Handler) SetExecutionActivityChecker(checker ExecutionActivityChecker) {
+	h.executionActivity = checker
+}
+
+// SetLifecycleService installs the single lifecycle implementation used by
+// direct danger actions. Proposal application receives the same service from
+// the server wiring, so neither entrypoint can drift in guard or rollback
+// behavior.
+func (h *Handler) SetLifecycleService(service *Service) { h.lifecycleService = service }
 
 // EventLogger records state-change events for analytics.
 type EventLogger interface {
-	EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string)
-	EmitBacklogStatusChanged(entityID, from, to string)
+	EmitBacklogCreated(entityID, kind, status string, priority int, milestone, effort string)
+	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, milestone, effort, actorType, actorID string)
+	EmitBacklogStatusChanged(ctx context.Context, entityID, from, to string)
 	EmitBacklogPriorityChanged(entityID string, from, to int)
 	EmitBacklogEffortChanged(entityID, from, to string)
 	EmitBacklogDependencyAdded(entityID, target string)
 	EmitBacklogDependencyRemoved(entityID, target string)
-	EmitBacklogInitiativeChanged(entityID, from, to string)
+	EmitBacklogMilestoneChanged(entityID, from, to string)
 	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
 	EmitBacklogUnarchived(entityID, archivedAt string)
 	EmitBacklogDeleted(entityID string)
-	EmitWorkshopRoundCompleted(entityID string, roundNumber int)
+	EmitWorkshopRoundCompleted(entityID string, payload eventlog.WorkshopRoundPayload)
 	EmitBacklogViewed(entityID, kind string)
-	EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool)
-	EmitClarificationResolved(entityID string, roundNumber int, itemID string, messageCount int, impactLevel string)
-	EmitClarificationAction(entityID string, roundNumber int, itemID string, action string)
 }
 
 // NewHandler creates a new backlog handler.
-// If rootDir is empty, it defaults to the scenario root directory.
-func NewHandler(rootDir string) *Handler {
-	if rootDir == "" {
-		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
-	}
+// Empty dataRoot defaults to runtimepaths.DataPath("");
+// empty repoRoot defaults to pathutil.ResolveScenarioRoot("swarm-manager").
+func NewHandler(dataRoot, repoRoot string) *Handler {
+	dataRoot = resolveDataRootOrDefault(dataRoot)
+	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		rootDir:      rootDir,
-		store:        NewFileStore(rootDir),
-		agentService: nil,
+		dataRoot:     dataRoot,
+		repoRoot:     repoRoot,
+		store:        NewFileStore(dataRoot),
 		promptClient: promptmanager.NewHTTPClient(),
+		planClient:   planclient.NewConnectClient(nil, nil),
 	}
 }
 
 // NewHandlerWithClients creates a new backlog handler with custom dependencies.
 // If agentService implements AgentActivityChecker (e.g., *agentactivity.Service),
 // it is also used for active-agent guards.
-func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClient promptmanager.Client) *Handler {
-	if rootDir == "" {
-		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
-	}
+func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerAvailability, promptClient promptmanager.Client) *Handler {
+	dataRoot = resolveDataRootOrDefault(dataRoot)
+	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		rootDir:      rootDir,
-		store:        NewFileStore(rootDir),
-		agentService: agentService,
+		dataRoot:     dataRoot,
+		repoRoot:     repoRoot,
+		store:        NewFileStore(dataRoot),
 		promptClient: promptClient,
+		planClient:   planclient.NewConnectClient(nil, nil),
 	}
+	// The injected agent service is consumed only as the active-agent guard source
+	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
+	// called from the backlog domain package — autonomous launches flow through the
+	// operation runner (see internal/archtest spawn-boundary guardrail).
 	if checker, ok := agentService.(AgentActivityChecker); ok {
 		h.activityChecker = checker
 	}
@@ -120,20 +244,50 @@ func NewHandlerWithClients(rootDir string, agentService AgentSpawner, promptClie
 	return h
 }
 
+// SetTransitionRunner installs the server-owned declared-transition runtime.
+// Backlog contributes only subject snapshots and terminal mutations.
+func (h *Handler) SetTransitionRunner(runner *transitionrunner.Runner) {
+	h.transitionRunner = runner
+}
+
+// SetTransitionRegistry installs the immutable scenario declaration catalog.
+// Backlog code selects a stable domain transition; only the catalog names the
+// Agent Manager workflow that implements it.
+func (h *Handler) SetTransitionRegistry(registry transitions.Registry) {
+	h.transitionRegistry = registry
+}
+
+// SetPlanClient injects the canonical plan-manager client used for linked-plan
+// rendering and workshop finalization.
+func (h *Handler) SetPlanClient(client planclient.Client) {
+	h.planClient = client
+}
+
+// resolveDataRootOrDefault returns dataRoot if non-empty; otherwise resolves
+// the runtime-home data path. Falls back to scenarioRoot on resolver error.
+func resolveDataRootOrDefault(dataRoot string) string {
+	if dataRoot != "" {
+		return dataRoot
+	}
+	if p, err := runtimepaths.DataPath(""); err == nil {
+		return p
+	}
+	return pathutil.ResolveScenarioRoot("swarm-manager")
+}
+
+// resolveRepoRootOrDefault returns repoRoot if non-empty; otherwise resolves
+// the swarm-manager scenario source path.
+func resolveRepoRootOrDefault(repoRoot string) string {
+	if repoRoot != "" {
+		return repoRoot
+	}
+	return pathutil.ResolveScenarioRoot("swarm-manager")
+}
+
 // Store returns the underlying backlog store for cross-package use (e.g.,
-// initiative rollup computation).
+// milestone rollup computation).
 func (h *Handler) Store() Store {
 	return h.store
-}
-
-// SetPolicyProvider injects a policy provider for execution service creation.
-func (h *Handler) SetPolicyProvider(pp execution.PolicyProvider) {
-	h.policyProvider = pp
-}
-
-// SetGovernanceProvider injects a governance provider for execution service creation.
-func (h *Handler) SetGovernanceProvider(gp execution.GovernanceProvider) {
-	h.governanceProvider = gp
 }
 
 // SetEventDispatcher injects an optional graph invalidation dispatcher.
@@ -146,20 +300,62 @@ func (h *Handler) SetEventLogger(l EventLogger) {
 	h.eventLogger = l
 }
 
-// StartWorkshopTicker starts the background ticker that fires deferred
-// auto-advance spawns. It also recovers any pending advances from disk
-// that survived a server restart.
-func (h *Handler) StartWorkshopTicker() {
-	t := newWorkshopTicker(h)
-	h.workshopTicker = t
-	t.RecoverPending()
-	t.Start()
+// SetAgentSessionArtifactRecorder wires durable session artifact attribution
+// into backlog mutation chokepoints. Non-session requests are ignored by the
+// recorder path because they carry no session_id in verified provenance.
+func (h *Handler) SetAgentSessionArtifactRecorder(r sessionArtifactRecorder) {
+	h.sessionArtifacts = r
 }
 
-// StopWorkshopTicker stops the background ticker.
-func (h *Handler) StopWorkshopTicker() {
-	if h.workshopTicker != nil {
-		h.workshopTicker.Stop()
+// SetItemTerminalHandler wires a callback invoked after the review-decide
+// endpoint flips an item to a terminal status. Passing nil clears the
+// handler. The callback runs inside the request goroutine, so long-running
+// work should self-dispatch.
+//
+// Prefer AddItemTerminalHandler when multiple subsystems need to observe
+// terminal transitions (milestone review + records + future telemetry).
+// SetItemTerminalHandler replaces all prior handlers, so chaining via Set
+// silently overwrites earlier registrations.
+func (h *Handler) SetItemTerminalHandler(f ItemTerminalHandler) {
+	h.itemTerminalHandler = f
+}
+
+// SetRecordCreator wires the records capture seam. main.go installs this after
+// both backlog and records services are constructed. Nil resets to no-op
+// (review-decide will not capture a record).
+func (h *Handler) SetRecordCreator(c RecordCreator) {
+	h.recordCreator = c
+}
+
+// AddItemTerminalHandler appends a callback to the terminal-status chain. All
+// registered handlers run in registration order; a panic in one does NOT
+// prevent the next from running (each call is wrapped). Returns nil if f is
+// nil (so callers can pass conditional handlers without guarding).
+func (h *Handler) AddItemTerminalHandler(f ItemTerminalHandler) {
+	if f == nil {
+		return
+	}
+	prev := h.itemTerminalHandler
+	h.itemTerminalHandler = func(ctx context.Context, kind, name string, status BacklogStatus) {
+		if prev != nil {
+			func() {
+				defer func() { _ = recover() }()
+				prev(ctx, kind, name, status)
+			}()
+		}
+		func() {
+			defer func() { _ = recover() }()
+			f(ctx, kind, name, status)
+		}()
+	}
+}
+
+// SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
+// notifications from the underlying FileStore after every SaveItem/DeleteItem.
+// Silently no-ops if the backing store is not a FileStore.
+func (h *Handler) SetAIIndexer(indexer AIIndexer) {
+	if fs, ok := h.store.(*FileStore); ok {
+		fs.SetAIIndexer(indexer)
 	}
 }
 
@@ -188,18 +384,18 @@ func (h *Handler) invalidateAllGraphLenses() {
 	if h.eventDispatcher == nil {
 		return
 	}
-	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
-func (h *Handler) validateInitiativeReference(name string) error {
-	if strings.TrimSpace(name) == "" || h.initiativeAssigner == nil {
+func (h *Handler) validateMilestoneReference(name string) error {
+	if strings.TrimSpace(name) == "" || h.milestoneAssigner == nil {
 		return nil
 	}
-	if _, err := h.initiativeAssigner.Get(strings.TrimSpace(name)); err != nil {
+	if _, err := h.milestoneAssigner.Get(strings.TrimSpace(name)); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return fmt.Errorf("initiative %q does not exist", strings.TrimSpace(name))
+			return fmt.Errorf("milestone %q does not exist", strings.TrimSpace(name))
 		}
-		return fmt.Errorf("failed to load initiative %q: %w", strings.TrimSpace(name), err)
+		return fmt.Errorf("failed to load milestone %q: %w", strings.TrimSpace(name), err)
 	}
 	return nil
 }
@@ -211,9 +407,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/batch", h.BatchCreate).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/batch/queue", h.BatchQueue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/summary", h.BacklogSummary).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/feedback-summary", h.FeedbackSummary).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/maturity-summary", h.MaturitySummary).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/pending-questions", h.PendingQuestions).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/next-actions", h.NextActionBatch).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/validate-globs", h.ValidateGlobs).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}", h.Update).Methods("PATCH")
@@ -222,20 +417,26 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.UploadFile).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files", h.OperateFile).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/validation", h.GetValidation).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-render", h.RenderLinkedPlan).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.AcceptPlan).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-accept", h.UnacceptPlan).Methods("DELETE")
+	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair", h.StartPlanRepair).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-repair/{repairID}/apply", h.ApplyPlanRepair).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-candidates/{candidateID}/apply", h.ApplyPlanCandidate).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-author", h.StartPlanAuthor).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/plan-author/{executionID}/apply", h.ApplyPlanAuthor).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/process-preflight", h.ProcessPreflight).Methods("GET")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/next-action", h.NextAction).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/reset", h.WorkshopReset).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/pending-advance", h.WorkshopCancelPendingAdvance).Methods("DELETE")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/continue", h.ContinueClarification).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}/action", h.ClarificationAction).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/follow-up/author", h.AuthorFollowUp).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/follow-up/dispatch", h.DispatchFollowUp).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recover-review", h.RecoverReview).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/retry", h.Retry).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recreate", h.Recreate).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/reset-artifacts", h.ResetArtifacts).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.GetArchiveTargets).Methods("GET")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets", h.CreateTargetHandler).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/targets/{targetId}", h.UpdateTargetHandler).Methods("PUT")
@@ -247,266 +448,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/review", h.BatchReviewHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/export", h.Export).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
-}
 
-// Update updates an existing backlog item.
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "update")
-	if !ok {
-		return
-	}
-
-	existing, err := h.store.LoadItem(kind, name)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			apierr.MapError(w, "[backlog] update", apierr.NotFound("backlog item not found"))
-			return
-		}
-		slog.Error("failed to load item for update", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] update", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
-		return
-	}
-
-	update, fields, err := decodeUpdateBacklogPatch(r)
-	if err != nil {
-		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-		return
-	}
-	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind); validationErr != "" {
-		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", validationErr))
-		return
-	}
-
-	oldStatus := existing.Status
-	oldPriority := existing.Priority
-	oldEffort := existing.Effort
-	oldInitiative := existing.Initiative
-	oldDependsOn := append([]string(nil), existing.DependsOn...)
-
-	if fields.Has(updateFieldEffort) {
-		normalized, err := validateEffort(update.GetEffort())
-		if err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		update.Effort = &normalized
-	}
-
-	applyUpdateBacklogPatch(&existing, update, fields)
-	existing.Updated = time.Now().UTC().Format(time.RFC3339)
-
-	if fields.Has(updateFieldInitiative) {
-		if err := h.validateInitiativeReference(existing.Initiative); err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-	}
-
-	if fields.Has(updateFieldDependsOn) && len(existing.DependsOn) > 0 {
-		if err := h.store.ValidateDependencies(existing.DependsOn); err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		if err := h.checkDependencyCycles(existing); err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-	}
-
-	if err := h.store.SaveItem(existing); err != nil {
-		slog.Error("failed to save item", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to save backlog item"))
-		return
-	}
-
-	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
-	h.maybeCascadeWorkshop(oldStatus, existing)
-
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}
-	h.invalidateAllGraphLenses()
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to encode response"))
-	}
-}
-
-// logAndEmitUpdate logs the update and emits analytics events for changed fields.
-func (h *Handler) logAndEmitUpdate(
-	kind BacklogKind, name string,
-	oldStatus, newStatus BacklogStatus,
-	oldPriority, newPriority int,
-	oldEffort, newEffort string,
-	oldInitiative, newInitiative string,
-	oldDeps, newDeps []string,
-) {
-	if oldStatus != newStatus || oldPriority != newPriority {
-		slog.Info("item updated", "name", name, "old_status", oldStatus, "new_status", newStatus, "old_priority", oldPriority, "new_priority", newPriority)
-	} else {
-		slog.Info("item updated", "name", name)
-	}
-
-	if h.eventLogger == nil {
-		return
-	}
-	entityID := string(kind) + "/" + name
-	if oldStatus != newStatus {
-		h.eventLogger.EmitBacklogStatusChanged(entityID, string(oldStatus), string(newStatus))
-	}
-	if oldPriority != newPriority {
-		h.eventLogger.EmitBacklogPriorityChanged(entityID, oldPriority, newPriority)
-	}
-	if oldEffort != newEffort {
-		h.eventLogger.EmitBacklogEffortChanged(entityID, oldEffort, newEffort)
-	}
-	if oldInitiative != newInitiative {
-		h.eventLogger.EmitBacklogInitiativeChanged(entityID, oldInitiative, newInitiative)
-	}
-	h.emitDependencyChanges(entityID, oldDeps, newDeps)
-}
-
-// maybeCascadeWorkshop triggers workshops for dependents when a status
-// transition unblocks them.
-func (h *Handler) maybeCascadeWorkshop(oldStatus BacklogStatus, item BacklogItem) {
-	if oldStatus == item.Status {
-		return
-	}
-	if !blockingDepStatuses[oldStatus] || blockingDepStatuses[item.Status] {
-		return
-	}
-	cfg, cfgErr := settings.NewStore("").Load()
-	if cfgErr != nil {
-		slog.Warn("cascade settings load error, using defaults", "err", cfgErr)
-		cfg = settings.DefaultSettings()
-	}
-	if workshop.ShouldCascade(cfg.AutoCascadeWorkshop) {
-		go h.cascadeWorkshopTrigger(item)
-	}
-}
-
-// Delete deletes a backlog item by name.
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "delete")
-	if !ok {
-		return
-	}
-
-	// Idempotent delete: if the item doesn't exist, return 204 immediately.
-	itemDir := h.store.ItemDir(kind, name)
-	if _, err := h.store.LoadItem(kind, name); errors.Is(err, ErrNotFound) {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	if err := os.RemoveAll(itemDir); err != nil {
-		slog.Error("failed to delete item", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
-		return
-	}
-
-	// Remove this item from the depends_on list of any items that reference it.
-	ref := string(kind) + "/" + name
-	if n, err := h.store.RemoveDependencyRef(ref); err != nil {
-		slog.Error("failed to clean up dependency references", "ref", ref, "err", err)
-	} else if n > 0 {
-		slog.Info("cleaned up dependency references", "ref", ref, "updated_items", n)
-	}
-
-	slog.Info("item deleted", "name", name, "kind", kind)
-	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogDeleted(string(kind) + "/" + name)
-	}
-	h.invalidateAllGraphLenses()
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// Archive sets archived_at on a backlog item. The item must be in a terminal
-// status (completed or failed).
-func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "archive")
-	if !ok {
-		return
-	}
-
-	item, err := h.store.LoadItem(kind, name)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
-			return
-		}
-		apierr.MapError(w, "[backlog] archive", apierr.Internal("%s", err.Error()))
-		return
-	}
-
-	if item.ArchivedAt != nil {
-		resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-		if err := httputil.ProtoJSON(w, resp); err != nil {
-			apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
-		}
-		return
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	item.ArchivedAt = &now
-	item.Updated = now
-
-	if err := h.store.SaveItem(item); err != nil {
-		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to save item"))
-		return
-	}
-
-	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogArchived(string(kind)+"/"+name, string(item.Status), now)
-	}
-	h.invalidateAllGraphLenses()
-
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
-	}
-}
-
-// Unarchive clears archived_at on a backlog item.
-func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "unarchive")
-	if !ok {
-		return
-	}
-
-	item, err := h.store.LoadItem(kind, name)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
-			return
-		}
-		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("%s", err.Error()))
-		return
-	}
-
-	if item.ArchivedAt == nil {
-		resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-		if err := httputil.ProtoJSON(w, resp); err != nil {
-			apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to encode response"))
-		}
-		return
-	}
-
-	prevArchivedAt := *item.ArchivedAt
-	item.ArchivedAt = nil
-	item.Updated = time.Now().UTC().Format(time.RFC3339)
-
-	if err := h.store.SaveItem(item); err != nil {
-		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to save item"))
-		return
-	}
-
-	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogUnarchived(string(kind)+"/"+name, prevArchivedAt)
-	}
-	h.invalidateAllGraphLenses()
-
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to encode response"))
-	}
+	// Connect BacklogService — the typed cross-scenario feedback contract
+	// (CreateItem/GetItem). See connect_service.go. Mounted alongside the REST
+	// surface; the REST routes above remain for swarm-manager's own UI.
+	registerBacklogConnectRoutes(r, h)
 }
 
 func (h *Handler) parseKindAndName(w http.ResponseWriter, r *http.Request, action string) (BacklogKind, string, bool) {

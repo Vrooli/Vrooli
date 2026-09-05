@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import type { TeamSharedFileEntry } from '@/types/team'
 import type { HighlightRequest } from '@/lib/highlight'
 import type { ContentSearchMatch } from '@/lib/schemas'
@@ -862,23 +863,21 @@ function TeamFileContextMenu({
       }
     }
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
     }, 0)
 
     return () => {
       clearTimeout(timer)
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
     }
   }, [onClose])
+
+  useGlobalKeydown((event) => {
+    if (event.key === 'Escape') {
+      onClose()
+    }
+  }, { target: 'document' })
 
   useEffect(() => {
     if (!menuRef.current) return

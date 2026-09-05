@@ -1,0 +1,557 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "auth_register",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register",
+      "method": "POST",
+      "summary": "Register an account",
+      "description": "Creates an account in a realm and returns it auto-signed-in (access + refresh token). Duplicate email yields already_exists; weak input yields invalid_argument.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string (required)",
+          "password": "string (required, >=8 chars, upper+lower+digit)",
+          "realm": "string (default realm if empty)",
+          "username": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "account": "Account",
+          "tokens": "TokenPair"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid email or weak password"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Email already registered in the realm"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register -H 'Content-Type: application/json' -d '{\"email\":\"a@b.co\",\"password\":\"Passw0rd\"}'"
+        }
+      ]
+    },
+    {
+      "id": "auth_login",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login",
+      "method": "POST",
+      "summary": "Sign in",
+      "description": "Verifies credentials and issues a fresh access + refresh token. Unknown account and wrong password both yield unauthenticated (anti-enumeration); a locked account yields permission_denied.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string (required)",
+          "password": "string (required)",
+          "realm": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "account": "Account",
+          "tokens": "TokenPair"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid email or password"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Account temporarily locked"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Login",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login -H 'Content-Type: application/json' -d '{\"email\":\"a@b.co\",\"password\":\"Passw0rd\"}'"
+        }
+      ]
+    },
+    {
+      "id": "auth_refresh",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Refresh",
+      "method": "POST",
+      "summary": "Rotate a refresh token",
+      "description": "Rotates the presented refresh token single-use and mints a new access token. Replaying an already-rotated token revokes the whole token family (reuse detection) and yields unauthenticated.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "refresh_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "tokens": "TokenPair"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid or replayed refresh token"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Refresh",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Refresh -H 'Content-Type: application/json' -d '{\"refresh_token\":\"...\"}'"
+        }
+      ]
+    },
+    {
+      "id": "auth_change_password",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ChangePassword",
+      "method": "POST",
+      "summary": "Change account password",
+      "description": "Verifies the current password, stores a new Argon2id hash, revokes every live session, and records an audit event.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "current_password": "string (required)",
+          "new_password": "string (required, >=8 chars, upper+lower+digit)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "revoked_sessions": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "New password does not meet policy"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token or current password"
+        }
+      ]
+    },
+    {
+      "id": "auth_logout",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Logout",
+      "method": "POST",
+      "summary": "Sign out",
+      "description": "Blacklists the access token until its own expiry and revokes the caller's sessions. Idempotent.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "examples": [
+        {
+          "name": "Logout",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Logout -H 'Content-Type: application/json' -d '{\"access_token\":\"...\"}'"
+        }
+      ]
+    },
+    {
+      "id": "auth_validate",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Validate",
+      "method": "POST",
+      "summary": "Validate an access token",
+      "description": "Verifies an access token server-side (signature, expiry, issuer, realm aud, not blacklisted) and returns its claims. Relying parties should prefer local JWKS verification; this is for callers that cannot verify locally.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "expires_at": "timestamp",
+          "realm": "string",
+          "roles": "array<string>",
+          "scopes": "array<string>",
+          "user_id": "string",
+          "valid": "bool"
+        }
+      },
+      "examples": [
+        {
+          "name": "Validate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Validate -H 'Content-Type: application/json' -d '{\"access_token\":\"...\"}'"
+        }
+      ]
+    },
+    {
+      "id": "auth_grant_scope",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/GrantScope",
+      "method": "POST",
+      "summary": "Grant a principal scope",
+      "description": "Assigns an opaque scope to the authenticated principal and records an audit event.",
+      "category": "authorization",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "principal_id": "string",
+          "scope": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "principal_id": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scope must not be empty"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_revoke_scope",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/RevokeScope",
+      "method": "POST",
+      "summary": "Revoke a principal scope",
+      "description": "Removes an opaque scope from the authenticated principal and records an audit event.",
+      "category": "authorization",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "principal_id": "string",
+          "scope": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "principal_id": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scope must not be empty"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_list_scopes",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ListScopes",
+      "method": "POST",
+      "summary": "List principal scopes",
+      "description": "Lists opaque scopes assigned to the authenticated principal.",
+      "category": "authorization",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "principal_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "principal_id": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_link_machine_account",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/LinkMachineAccount",
+      "method": "POST",
+      "summary": "Link a local machine principal",
+      "description": "Binds the signed-in account to a machine and opaque local principal. A default binding is required for password-free exchange.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "is_default": "bool",
+          "local_principal": "string (required)",
+          "machine_id": "string (required)",
+          "realm": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "account_id": "string",
+          "is_default": "bool",
+          "linked_at": "timestamp",
+          "local_principal": "string",
+          "machine_id": "string",
+          "realm": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid machine binding"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_exchange_machine_principal",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeMachinePrincipal",
+      "method": "POST",
+      "summary": "Exchange a local principal for a token",
+      "description": "Local Unix-socket-only exchange of a kernel-verified principal for a normal short-lived access and refresh token.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "account": "Account",
+          "tokens": "TokenPair"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Unbound or unverified local principal"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Ambiguous default binding"
+        }
+      ]
+    },
+    {
+      "id": "auth_issue_break_glass",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/IssueBreakGlass",
+      "method": "POST",
+      "summary": "Issue a short-lived break-glass credential",
+      "description": "Issues an offline-verifiable credential from provisioned owner-only material, bounded by the account's current scopes.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "credential": "string",
+          "expires_at": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token or unavailable provision"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Requested scope exceeds account ceiling"
+        }
+      ]
+    },
+    {
+      "id": "jwks",
+      "path": "/.well-known/jwks.json",
+      "method": "GET",
+      "summary": "JSON Web Key Set",
+      "description": "Publishes the RS256 public key (kid, n, e) so relying parties verify owner tokens locally. Cache-Control: public, max-age=300.",
+      "category": "auth",
+      "response": {
+        "type": "object",
+        "properties": {
+          "keys": "array<JWK{kty,use,alg,kid,n,e}>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Fetch JWKS",
+          "curl": "curl http://localhost:${API_PORT}/.well-known/jwks.json"
+        }
+      ],
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "The /.well-known/jwks.json path and JWK Set shape are an external standard (RFC 7517 / OIDC), consumed by relying parties that verify tokens offline. Not expressible as a Connect RPC."
+      }
+    },
+    {
+      "id": "sessions_list",
+      "path": "/vrooli.scenario_authenticator.v1.sessions.SessionsService/ListSessions",
+      "method": "POST",
+      "summary": "List active sessions",
+      "description": "Returns the active sessions for the access token's owner.",
+      "category": "sessions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "array<Session>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid or expired token"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List sessions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.sessions.SessionsService/ListSessions -H 'Content-Type: application/json' -d '{\"access_token\":\"...\"}'"
+        }
+      ]
+    },
+    {
+      "id": "sessions_revoke",
+      "path": "/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeSession",
+      "method": "POST",
+      "summary": "Revoke a session",
+      "description": "Drops a single session by id. Idempotent — revoking a session that is already gone succeeds (the device-sync-hub un-pair contract).",
+      "category": "sessions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "examples": [
+        {
+          "name": "Revoke session",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeSession -H 'Content-Type: application/json' -d '{\"session_id\":\"...\"}'"
+        }
+      ]
+    },
+    {
+      "id": "sessions_revoke_all",
+      "path": "/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeAllSessions",
+      "method": "POST",
+      "summary": "Revoke all sessions",
+      "description": "Drops every session for the access token's owner (log out everywhere) and returns how many were revoked.",
+      "category": "sessions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "revoked_count": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid or expired token"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Revoke all",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.sessions.SessionsService/RevokeAllSessions -H 'Content-Type: application/json' -d '{\"access_token\":\"...\"}'"
+        }
+      ]
+    }
+  ]
+}

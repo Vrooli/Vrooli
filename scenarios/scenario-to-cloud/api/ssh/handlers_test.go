@@ -172,7 +172,7 @@ func TestHandleTestConnection_Success(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(testDir) })
 
 	keyPath := filepath.Join(testDir, "test_key")
-	if err := os.WriteFile(keyPath, []byte("-----BEGIN OPENSSH PRIVATE KEY-----\nfake"), 0o600); err != nil {
+	if err := os.WriteFile(keyPath, []byte(fakePEMKeyHeader("OPENSSH", "PRIVATE")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,10 +1,14 @@
 import { Laptop } from "lucide-react";
-import type { DiscoveredCertificate, LinuxSigningConfig } from "../../lib/api";
+import type {
+  DiscoveredCertificate,
+  LinuxSigningConfig,
+} from "../../domain/signing";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { SigningFormWrapper } from "./SigningFormWrapper";
 import { DiscoveredCertSelector } from "./DiscoveredCertSelector";
+import { selectors } from "../../consts/selectors";
 
 interface LinuxSigningFormProps {
   config?: LinuxSigningConfig;
@@ -23,12 +27,12 @@ export function LinuxSigningForm({
   onApplyDiscovered,
   onGenerate,
   generating,
-  generationMessage
+  generationMessage,
 }: LinuxSigningFormProps) {
   const handleChange = (updates: Partial<LinuxSigningConfig>) => {
     onChange({
       ...config,
-      ...updates
+      ...updates,
     });
   };
 
@@ -61,6 +65,7 @@ export function LinuxSigningForm({
       onToggle={handleEnable}
       headerActions={headerActions}
       disabledMessage="Enable Linux signing to configure GPG key settings."
+      testId={selectors.signing.linuxForm}
     >
       {discovered && discovered.length > 0 && onApplyDiscovered && (
         <DiscoveredCertSelector
@@ -73,11 +78,15 @@ export function LinuxSigningForm({
 
       {/* GPG Key ID */}
       <div>
-        <Label htmlFor="linux-gpg-key" className="text-xs">GPG Key ID</Label>
+        <Label htmlFor="linux-gpg-key" className="text-xs">
+          GPG Key ID
+        </Label>
         <Input
           id="linux-gpg-key"
           value={config?.gpg_key_id || ""}
-          onChange={(e) => handleChange({ gpg_key_id: e.target.value })}
+          onChange={(e) => {
+            handleChange({ gpg_key_id: e.target.value });
+          }}
           placeholder="ABC123DEF456789012345678"
           className="mt-1 text-sm font-mono"
         />
@@ -94,7 +103,9 @@ export function LinuxSigningForm({
         <Input
           id="linux-gpg-passphrase-env"
           value={config?.gpg_passphrase_env || ""}
-          onChange={(e) => handleChange({ gpg_passphrase_env: e.target.value })}
+          onChange={(e) => {
+            handleChange({ gpg_passphrase_env: e.target.value });
+          }}
           placeholder="GPG_PASSPHRASE"
           className="mt-1 text-sm"
         />
@@ -111,7 +122,9 @@ export function LinuxSigningForm({
         <Input
           id="linux-gpg-homedir"
           value={config?.gpg_homedir || ""}
-          onChange={(e) => handleChange({ gpg_homedir: e.target.value })}
+          onChange={(e) => {
+            handleChange({ gpg_homedir: e.target.value });
+          }}
           placeholder="~/.gnupg"
           className="mt-1 text-sm"
         />
@@ -123,9 +136,10 @@ export function LinuxSigningForm({
       {/* Info Box */}
       <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
         <p className="text-xs text-slate-400">
-          <strong className="text-slate-300">Note:</strong> Linux signing uses GPG to sign
-          .deb and .rpm packages. AppImage signing is also supported. Make sure your GPG key
-          is available in the keyring on the build machine.
+          <strong className="text-slate-300">Note:</strong> Linux signing uses
+          GPG to sign .deb and .rpm packages. AppImage signing is also
+          supported. Make sure your GPG key is available in the keyring on the
+          build machine.
         </p>
       </div>
       {generationMessage && (

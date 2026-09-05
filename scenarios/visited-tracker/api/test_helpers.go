@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -12,16 +11,25 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalLogger *log.Logger
-	cleanup        func()
+func setTestStorageRoot(t *testing.T, root string) {
+	t.Helper()
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "storage"))
+}
+
+func initTestStorageRoot(t *testing.T, root string) {
+	t.Helper()
+	if logger == nil {
+		t.Cleanup(setupTestLogger())
+	}
+	setTestStorageRoot(t, root)
+	if err := initFileStorage(); err != nil {
+		t.Fatalf("Failed to init file storage: %v", err)
+	}
 }
 
 // setupTestLogger initializes the global logger for testing
@@ -29,149 +37,6 @@ func setupTestLogger() func() {
 	originalLogger := logger
 	logger = log.New(os.Stdout, "[test] ", log.LstdFlags)
 	return func() { logger = originalLogger }
-}
-
-// TestEnvironment manages isolated test environment
-type TestEnvironment struct {
-	TempDir    string
-	OriginalWD string
-	Cleanup    func()
-}
-
-// setupTestDirectory creates an isolated test environment with proper cleanup
-func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "visited-tracker-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
-	if err := os.Chdir(tempDir); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to change to temp dir: %v", err)
-	}
-
-	if err := initFileStorage(); err != nil {
-		os.Chdir(originalWD)
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
-
-	return &TestEnvironment{
-		TempDir:    tempDir,
-		OriginalWD: originalWD,
-		Cleanup: func() {
-			os.Chdir(originalWD)
-			os.RemoveAll(tempDir)
-		},
-	}
-}
-
-// TestCampaign provides a pre-configured campaign for testing
-type TestCampaign struct {
-	Campaign     *Campaign
-	TrackedFiles []TrackedFile
-	Cleanup      func()
-}
-
-// setupTestCampaign creates a test campaign with sample data
-func setupTestCampaign(t *testing.T, name string, patterns []string) *TestCampaign {
-	if patterns == nil {
-		patterns = []string{"*.go"}
-	}
-
-	description := fmt.Sprintf("Test campaign: %s", name)
-	campaign := &Campaign{
-		ID:          uuid.New(),
-		Name:        name,
-		Description: &description,
-		Patterns:    patterns,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-		Status:      "active",
-		Metadata:    make(map[string]interface{}),
-	}
-
-	// Create some sample tracked files
-	now := time.Now()
-	trackedFiles := []TrackedFile{
-		{
-			ID:           uuid.New(),
-			FilePath:     "test1.go",
-			VisitCount:   5,
-			LastModified: now.Add(-2 * time.Hour),
-			LastVisited:  &now,
-			Deleted:      false,
-		},
-		{
-			ID:           uuid.New(),
-			FilePath:     "test2.go",
-			VisitCount:   3,
-			LastModified: now.Add(-1 * time.Hour),
-			LastVisited:  nil,
-			Deleted:      false,
-		},
-		{
-			ID:           uuid.New(),
-			FilePath:     "test3.js",
-			VisitCount:   1,
-			LastModified: now.Add(-30 * time.Minute),
-			LastVisited:  nil,
-			Deleted:      false,
-		},
-	}
-
-	campaign.TrackedFiles = trackedFiles
-
-	if err := saveCampaign(campaign); err != nil {
-		t.Fatalf("Failed to save test campaign: %v", err)
-	}
-
-	return &TestCampaign{
-		Campaign:     campaign,
-		TrackedFiles: trackedFiles,
-		Cleanup: func() {
-			deleteCampaignFile(campaign.ID)
-		},
-	}
-}
-
-// setupTestCampaignWithFiles creates a test campaign and actual files on disk
-func setupTestCampaignWithFiles(t *testing.T, name string, files map[string]string) *TestCampaign {
-	// Create the files on disk
-	for filename, content := range files {
-		if err := ioutil.WriteFile(filename, []byte(content), 0o644); err != nil {
-			t.Fatalf("Failed to create test file %s: %v", filename, err)
-		}
-	}
-
-	// Determine patterns from file extensions
-	patterns := []string{}
-	extMap := make(map[string]bool)
-	for filename := range files {
-		ext := filepath.Ext(filename)
-		if ext != "" && !extMap[ext] {
-			patterns = append(patterns, "*"+ext)
-			extMap[ext] = true
-		}
-	}
-
-	testCampaign := setupTestCampaign(t, name, patterns)
-
-	// Update cleanup to remove files
-	originalCleanup := testCampaign.Cleanup
-	testCampaign.Cleanup = func() {
-		for filename := range files {
-			os.Remove(filename)
-		}
-		originalCleanup()
-	}
-
-	return testCampaign
 }
 
 // HTTPTestRequest represents an HTTP test request
@@ -210,24 +75,20 @@ func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, error) {
 
 	httpReq := httptest.NewRequest(req.Method, req.Path, bodyReader)
 
-	// Set headers
 	if req.Headers != nil {
 		for key, value := range req.Headers {
 			httpReq.Header.Set(key, value)
 		}
 	}
 
-	// Set default content type for POST/PUT requests with body
 	if req.Body != nil && httpReq.Header.Get("Content-Type") == "" {
 		httpReq.Header.Set("Content-Type", "application/json")
 	}
 
-	// Set URL variables (for mux)
 	if req.URLVars != nil {
 		httpReq = mux.SetURLVars(httpReq, req.URLVars)
 	}
 
-	// Set query parameters
 	if req.QueryParams != nil {
 		q := httpReq.URL.Query()
 		for key, value := range req.QueryParams {
@@ -240,100 +101,15 @@ func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, error) {
 	return w, nil
 }
 
-// assertJSONResponse validates JSON response structure and content
-func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedFields map[string]interface{}) map[string]interface{} {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
-		return nil
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to parse JSON response: %v. Response: %s", err, w.Body.String())
-		return nil
-	}
-
-	// Validate expected fields
-	for key, expectedValue := range expectedFields {
-		actualValue, exists := response[key]
-		if !exists {
-			t.Errorf("Expected field '%s' not found in response", key)
-			continue
-		}
-
-		if expectedValue != nil && actualValue != expectedValue {
-			t.Errorf("Expected field '%s' to be %v, got %v", key, expectedValue, actualValue)
-		}
-	}
-
-	return response
-}
-
-// assertJSONArray validates that response contains an array and returns it
-func assertJSONArray(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, arrayField string) []interface{} {
-	response := assertJSONResponse(t, w, expectedStatus, nil)
-	if response == nil {
-		return nil
-	}
-
-	array, ok := response[arrayField].([]interface{})
-	if !ok {
-		t.Errorf("Expected field '%s' to be an array, got %T", arrayField, response[arrayField])
-		return nil
-	}
-
-	return array
-}
-
-// assertErrorResponse validates error responses
-func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedErrorMessage string) {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
-		return
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to parse JSON error response: %v. Response: %s", err, w.Body.String())
-		return
-	}
-
-	errorMsg, exists := response["error"]
-	if !exists {
-		t.Error("Expected error field in response")
-		return
-	}
-
-	if expectedErrorMessage != "" && !strings.Contains(errorMsg.(string), expectedErrorMessage) {
-		t.Errorf("Expected error message to contain '%s', got '%s'", expectedErrorMessage, errorMsg)
-	}
-}
-
-// testHandlerWithRequest is a helper for testing handlers with specific requests
-func testHandlerWithRequest(t *testing.T, handler http.HandlerFunc, req HTTPTestRequest) *httptest.ResponseRecorder {
-	w, err := makeHTTPRequest(req)
-	if err != nil {
-		t.Fatalf("Failed to create HTTP request: %v", err)
-	}
-
-	httpReq := httptest.NewRequest(req.Method, req.Path, nil)
-	if req.URLVars != nil {
-		httpReq = mux.SetURLVars(httpReq, req.URLVars)
-	}
-
-	handler(w, httpReq)
-	return w
-}
-
 // TestDataGenerator provides utilities for generating test data
 type TestDataGenerator struct{}
 
-// generateVisitRequest creates a test visit request
+// VisitRequest creates a test visit request
 func (g *TestDataGenerator) VisitRequest(files []string) VisitRequest {
 	return VisitRequest{Files: VisitFiles{Paths: files}}
 }
 
-// generateCreateCampaignRequest creates a test campaign creation request
+// CreateCampaignRequest creates a test campaign creation request
 func (g *TestDataGenerator) CreateCampaignRequest(name string, patterns []string) CreateCampaignRequest {
 	description := fmt.Sprintf("Test campaign: %s", name)
 	return CreateCampaignRequest{
@@ -343,7 +119,7 @@ func (g *TestDataGenerator) CreateCampaignRequest(name string, patterns []string
 	}
 }
 
-// generateAdjustVisitRequest creates a test adjust visit request
+// AdjustVisitRequest creates a test adjust visit request
 func (g *TestDataGenerator) AdjustVisitRequest(fileID uuid.UUID, action string) AdjustVisitRequest {
 	return AdjustVisitRequest{
 		FileID: fileID.String(),
@@ -351,20 +127,20 @@ func (g *TestDataGenerator) AdjustVisitRequest(fileID uuid.UUID, action string) 
 	}
 }
 
-// generateStructureSyncRequest creates a test structure sync request
+// StructureSyncRequest creates a test structure sync request
 func (g *TestDataGenerator) StructureSyncRequest(patterns []string) StructureSyncRequest {
 	return StructureSyncRequest{
 		Patterns: patterns,
 	}
 }
 
-// Global test data generator instance
+// TestData is the global test data generator.
 var TestData = &TestDataGenerator{}
 
-// Common test scenarios
+// TestScenarios provides common test scenarios.
 type TestScenarios struct{}
 
-// testCampaignNotFound tests handlers with non-existent campaign IDs
+// CampaignNotFound tests handlers with non-existent campaign IDs
 func (s *TestScenarios) CampaignNotFound(t *testing.T, handler http.HandlerFunc, method, path string) {
 	nonExistentID := uuid.New()
 	req := HTTPTestRequest{
@@ -388,7 +164,7 @@ func (s *TestScenarios) CampaignNotFound(t *testing.T, handler http.HandlerFunc,
 	}
 }
 
-// testInvalidUUID tests handlers with invalid UUID formats
+// InvalidUUID tests handlers with invalid UUID formats
 func (s *TestScenarios) InvalidUUID(t *testing.T, handler http.HandlerFunc, method, path string) {
 	req := HTTPTestRequest{
 		Method:  method,
@@ -411,5 +187,5 @@ func (s *TestScenarios) InvalidUUID(t *testing.T, handler http.HandlerFunc, meth
 	}
 }
 
-// Global test scenarios instance
+// Scenarios is the global test scenarios instance.
 var Scenarios = &TestScenarios{}

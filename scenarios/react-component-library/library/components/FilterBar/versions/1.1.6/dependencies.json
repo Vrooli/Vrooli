@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:FilterBar",
+  "version": "1.1.6",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Chip",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Cluster",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:SearchInput",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

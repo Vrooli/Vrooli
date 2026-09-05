@@ -1,0 +1,503 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "monetization",
+  "displayName": "Monetization Team",
+  "mission": "Own the canonical monetization plan for Vrooli \u2014 catalog, tiers, funnel, revenue lines, and financial model \u2014 and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
+  "objectivesServed": [
+    {
+      "id": "T1",
+      "role": "primary",
+      "acknowledgedRevision": "eb66069cc894"
+    }
+  ],
+  "instrument": {
+    "status": "live",
+    "scenario": "offer-desk",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "offer-desk",
+      "money-ledger"
+    ]
+  },
+  "enabled": true,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 2,
+  "createdAt": "2026-04-20T00:00:00Z",
+  "updatedAt": "2026-04-22T11:17:33Z",
+  "topicCatalog": [
+    {
+      "prefix": "opportunity-inbox/*",
+      "status": "live",
+      "purpose": "Intake for monetization opportunity signals classified by `monetization-opportunity`."
+    },
+    {
+      "prefix": "scout-scan/*",
+      "status": "live",
+      "purpose": "Scout heartbeat summaries and pool snapshots."
+    },
+    {
+      "prefix": "monetization/opportunity/*",
+      "status": "live",
+      "purpose": "Additional opportunity observations that are not yet promoted."
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "status": "live",
+      "purpose": "Validation requests classified by `monetization-validation`."
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "status": "live",
+      "purpose": "Cross-team benchmark-adjacent evidence from marketing."
+    },
+    {
+      "prefix": "monetization-benchmark-record/*",
+      "status": "live",
+      "purpose": "Validated benchmark records."
+    }
+  ],
+  "operatingContract": {
+    "schemaVersion": 1,
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "monetization-judgment",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/monetization/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/offer-desk/docs/spaces/offers.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/manifest.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/operating/OPERATING_MODEL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/operating/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/STRATEGY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/FUNNEL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/BENCHMARKS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/TELEMETRY_ROADMAP.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/adoption-validation.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/changelog.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/editing.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-opportunity/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-opportunity/taxonomy.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-validation/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-validation/taxonomy.json"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "monetization",
+            "director-swarm",
+            "marketing-crew",
+            "landing-page-business-suite",
+            "scenario-to-cloud",
+            "scenario-qa"
+          ],
+          "rationale": "The rules a member applies every heartbeat: positioning, lifecycle and packaging discipline, pricing principles, funnel definitions, evidence protocol, telemetry roadmap, taxonomies, governance, and operator-input guidance. None of these files carries live state \u2014 Offer Desk is authoritative for catalog, tier, channel, revenue-line, deliverable, pricing, and promotion state, and Money Ledger for financial posture.",
+          "useFor": "the rules and judgment a decision must satisfy; read this set every heartbeat and query the Offer Desk instrument for current state"
+        },
+        {
+          "id": "monetization-rationale",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/monetization/catalogs/CATALOG.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/PRICING.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/TIERS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/CATALOG.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/app-stores.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/community-content.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/in-product-expansion.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/oss-discovery.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/skill-registries.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/channels/web-seo.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/affiliate-commerce.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/app-development.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/consulting.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/consumer-products.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/flipping.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/lead-generation.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/subscription.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/addons/elder-care.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/addons/family-with-kids.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/addons/property-services.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/base/business.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/base/lifestyle.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/FINANCIAL_MODEL.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "monetization",
+            "director-swarm",
+            "marketing-crew",
+            "landing-page-business-suite",
+            "scenario-to-cloud",
+            "scenario-qa"
+          ],
+          "rationale": "The 23 sources the approved Phase 8 disposition classified `mixed`. Their live matrices and status tables were removed during adoption and each now carries an authority note pointing at the instrument; what remains is the reasoning behind a record \u2014 the hypothesis, the anti-patterns, the legal surface, the unresolved decisions. Read for why a record looks the way it does, never to learn what is currently true.",
+          "useFor": "background reasoning behind a specific offer, channel, revenue line, tier, or price when the instrument shows a record you need to interpret; never as a source of current state"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "scout-scan/YYYY-MM-DD": {
+        "ownerMemberId": "opportunity-scout",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      }
+    },
+    "members": {
+      "catalog-strategist": {
+        "lane": "Maintain the SKU, discovery-channel, delivery-tier, services-line, and scenario-role graph; propose promotions, mappings, retirements, and services lifecycle changes when triggers fire.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not edit canonical docs under docs/monetization directly; propose changes via work items.",
+          "Do not aggregate other members into a synthetic monetization brief."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "headlinerCriteria": [
+            "strong standalone appeal",
+            "deployable today"
+          ],
+          "tier4Policy": "north-star; do not plan without explicit operator initiation"
+        }
+      },
+      "opportunity-scout": {
+        "lane": "Generate candidate SKUs, add-ons, services lines, and discovery channels; classify them, attach explicit revisit triggers, and maintain the candidate pool.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Every candidate needs a concrete revisit trigger.",
+          "Every idea needs both acquisition and retention hypotheses.",
+          "Do not nominate Tier 4 hardware work without explicit operator initiation.",
+          "Inbox triage must leave no entry under opportunity-inbox/* \u2014 promote (retag to monetization/opportunity/<slug>), observe (retag to scout-scan/YYYY-MM-DD), file work, or delete."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "ideasPerHeartbeat": "3-10 when signal supports it; fewer is valid during quiet signal",
+          "destinationRule": [
+            "strong signal plus clear fit -> work item",
+            "plausible speculative idea -> knowledge entry under monetization/opportunity/<slug> with required front-matter (catalog, revisit_trigger, acquisition_hypothesis, retention_hypothesis)",
+            "raw untriaged signal -> knowledge entry under opportunity-inbox/<signal-type>/<slug>",
+            "weak or incoherent -> drop"
+          ]
+        }
+      },
+      "financial-tracker": {
+        "lane": "Maintain the monetization ledger, classify operator-provided and telemetry-backed inputs, compute runway/default-alive deltas, and flag financial guardrail changes.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Operator financial inputs enter through Money Ledger's /adapters surface; never fabricate an absent value or edit retired copies.",
+          "Every numeric field must carry an honesty flag.",
+          "Keep channels separate from revenue lines."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "servicesTimeGuardrailPercent": 30,
+          "requiredHonestyFlags": [
+            "fixed",
+            "measured",
+            "estimate",
+            "aspirational",
+            "pending-telemetry",
+            "pending-operator",
+            "stale"
+          ]
+        }
+      },
+      "market-validator": {
+        "lane": "Capture external benchmarks, validate market assumptions, refresh stale comps, and propose benchmark/pricing/model updates for the active tier and bundle.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Every captured value needs a source, date, and applicability flag.",
+          "Deep research stays scoped to the active tier and bundle.",
+          "Validation-inbox triage must leave no entry under validation-inbox/* \u2014 validate (retag to monetization-benchmark-record/<slug>), preserve adjacent evidence, file a work item, or delete.",
+          "The staleness sweep enqueues but never re-fetches or resolves; resolution happens via the router and method skills only."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "monetization-contrarian": {
+        "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not create promotional or positive-action work items.",
+          "Do not block work items directly; operator resolves them.",
+          "Do not invent new failure modes on the fly; use framework-update work items."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "failureModes": [
+            "catalog sprawl",
+            "premature tier activation",
+            "services trap",
+            "retention-blind acquisition",
+            "hallucinated metrics",
+            "positioning drift",
+            "marketing-default"
+          ],
+          "channelActivationGuardrail": [
+            "activation trigger met",
+            "telemetry present",
+            "channel not confused with revenue line",
+            "trust/safety prerequisites satisfied"
+          ]
+        }
+      }
+    }
+  },
+  "attributionValidFrom": "2026-05-04"
+}

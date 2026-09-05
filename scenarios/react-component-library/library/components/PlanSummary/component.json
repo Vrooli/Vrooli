@@ -1,0 +1,14 @@
+{
+  "catalogId": "data-display.plan-summary",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "latest": "0.1.1",
+  "libraryId": "react-component-library:PlanSummary"
+}

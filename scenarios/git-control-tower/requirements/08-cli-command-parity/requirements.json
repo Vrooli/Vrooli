@@ -1,17 +1,123 @@
 {
   "_metadata": {
     "description": "OT-P0-008 CLI command parity",
-    "last_updated": "2025-12-16"
+    "last_validated_at": "2026-07-13T20:02:25-04:00"
   },
   "requirements": [
     {
       "id": "GCT-OT-P0-008",
-      "category": "operational_target.p0",
-      "prd_ref": "Operational Targets > P0 > OT-P0-008",
       "title": "CLI command parity",
-      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)",
       "status": "pending",
-      "validation": []
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-008",
+      "category": "operational_target.p0",
+      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)"
+    },
+    {
+      "id": "GCT-BASELINE-V2-P0",
+      "title": "Baselines pin one immutable comprehensive Test Genie run",
+      "status": "pending",
+      "prd_ref": "OT-P0-008",
+      "category": "operational_target.p0",
+      "description": "The baseline API and CLI persist a schema-versioned single-run anchor, pass every Test Genie phase diff through without a local phase registry, separate behavioral blockers from advisory staleness/enrichment failures, migrate same-run V1 manifests idempotently, reject mixed-run manifests with repair guidance, and pin or unpin the run exactly once.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestServiceCapturePersistsOneRichRunAnchor and TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery cover new captures; TestServiceLegacyMigrationReconcilesRetentionPinOnce, TestServiceLegacyMigrationPinFailureRemainsRetryable, and TestServiceListReconcilesEveryLegacyRetentionPin cover crash-safe exactly-once migration retention; TestCopiedBaselineMigrationRehearsal applies the same path twice to copied real manifests; TestServiceForwardsUnknownPhaseAndOpaqueArtifacts covers lossless dynamic evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/storage_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers stable same-run migration plus mixed, empty, partial, skipped, corrupt, already-V2, and concurrent migrate/delete cases."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/bucketing_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Fails if fixed Test Genie phase routing returns and preserves unknown phase descriptors and typed reasons losslessly."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/baseline/register_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves empty-create and per-surface edit commands are absent from the CLI."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/service_test.go::TestServicePreservesBehavioralVerdictWhenAdvisoryEvidenceIsUnavailable",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auxiliary catalog and visual outages mark evidence incomplete without overwriting an authoritative behavioral verdict."
+        }
+      ]
+    },
+    {
+      "id": "GCT-DURABLE-OPS-P0",
+      "title": "Baseline waits detach without changing durable outcomes",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "operational_target.p0",
+      "description": "Snapshot, collection capture, and diff intents remain pending when an attachment times out or is canceled; independent children reattach concurrently; terminal cache state is never fabricated from transport failure; and every incomplete wait returns typed exit 3 recovery by the existing durable identity without starting duplicate work.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves capture/diff attachment deadlines leave pending intents and no terminal cache or pin side effect."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/baseline/register_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves one blocking read plus one non-blocking recovery read on EOF, with no retry for ordinary inspect or non-EOF errors."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/collection_service_test.go::TestResumeCollectionCaptureWaitsConcurrentlyAndReturnsTypedIncomplete",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proves bounded concurrent collection reattachment and typed pending identities on cancellation."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/baseline/collection_test.go::TestCollectionWaitCommandsExitNotReadyOnTypedIncomplete",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proves collection capture and diff waits return exit 3 and one durable recovery command while incomplete."
+        }
+      ]
+    },
+    {
+      "id": "GCT-SOURCE-EVIDENCE-001",
+      "title": "Git-aware bounded informational source evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "baseline",
+      "description": "Path-snapshot estimates and captures use tracked plus non-ignored untracked Git candidates by default, retain only metadata unless content retention is explicit, and return deterministic scope-repair guidance before source evidence can start behavioral collection work.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/path_snapshot_test.go::TestEstimatePathSnapshotUsesGitCandidatesAndFlagsBroadScopes",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers ignored dependency filtering, explicit ignored opt-in, individual-scenario safety, and generated-output repair guidance."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/baseline/path_snapshot_test.go::TestRetainedContentMustFitQuotaWhileMetadataDoesNot",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers metadata-only default and explicit retained-content quota preflight."
+        }
+      ]
     }
   ]
 }

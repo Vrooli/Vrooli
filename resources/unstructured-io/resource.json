@@ -1,0 +1,378 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "unstructured-io",
+  "storage": {
+    "entries": {
+      "cache": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.cache/vrooli/resources/unstructured-io",
+          "macos": "$USER_HOME/Library/Caches/vrooli/resources/unstructured-io",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/unstructured-io"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_CACHE_DIR",
+          "scope": "container"
+        },
+        "rationale": "The service binds RESOURCE_CACHE_DIR to /app/cache for reusable extraction artifacts.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "logs": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/state/logs/vrooli/resources/unstructured-io",
+          "macos": "$USER_HOME/Library/Logs/vrooli/resources/unstructured-io",
+          "windows": "$USER_HOME/AppData/Local/Logs/vrooli/resources/unstructured-io"
+        },
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_LOGS_DIR",
+          "scope": "container"
+        },
+        "rationale": "The service binds RESOURCE_LOGS_DIR to /app/logs; logs are diagnostic and regenerable.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "processing": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/state/vrooli/resources/unstructured-io/tmp",
+          "macos": "$USER_HOME/Library/Application Support/State/vrooli/resources/unstructured-io/tmp",
+          "windows": "$USER_HOME/AppData/Local/State/vrooli/resources/unstructured-io/tmp"
+        },
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_STATE_DIR",
+          "scope": "container"
+        },
+        "rationale": "The compose service binds this directory to /tmp/unstructured-processing for transient extraction work.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "Unstructured IO",
+  "description": "Managed Unstructured API service for document partitioning and OCR-backed extraction.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-unstructured-io",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-unstructured-io_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-unstructured-io"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The pinned OCI filesystem is extracted and supervised as a native Linux managed service; hi_res remains partial because detectron2 is not present in the frozen runtime."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "target-smoke"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "No signed native macOS artifact is published; the OCI runtime is Linux-only."
+          ],
+          "evidence": [
+            "manifest-validation"
+          ],
+          "reason": "The pinned Unstructured OCI image publishes linux/amd64 only and cannot be claimed as a macOS native service."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "No signed native Windows artifact is published; the OCI runtime is Linux-only."
+          ],
+          "evidence": [
+            "manifest-validation"
+          ],
+          "reason": "The pinned Unstructured OCI image publishes linux/amd64 only and cannot be claimed as a Windows native service."
+        }
+      }
+    }
+  },
+  "portability_tier": "conditional",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/unstructured-io",
+      "version": "2025.09.11",
+      "layout": "dir",
+      "entry_path": "usr/lib/ld-linux-x86-64.so.2",
+      "bundle_artifact": "unstructured-io_${os}_${arch}",
+      "sha256_by_platform": {
+        "linux-amd64": "38697ddb80a3ac739bd11d2255c70fd3d0d22b81786414b660b72b4476df4e35"
+      }
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "Apache-2.0",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "image": "downloads.unstructured.io/unstructured-io/unstructured-api@sha256:a43ab55898599157fb0e0e097dabb8ecdd1d8e3df1ae5b67c6e15a136b171a6c",
+          "artifact_sha256": "38697ddb80a3ac739bd11d2255c70fd3d0d22b81786414b660b72b4476df4e35",
+          "layout": "dir",
+          "bin_path": "usr/lib/ld-linux-x86-64.so.2"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "The pinned Unstructured image publishes no linux/arm64 manifest."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "The pinned Unstructured image is Linux-only and no signed native macOS artifact is published."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "The pinned Unstructured image is Linux-only and no signed native Windows artifact is published."
+        }
+      ]
+    },
+    "attach_health_path": "/healthcheck",
+      "arguments": [
+      "--library-path",
+      "${RESOURCE_ARTIFACT_DIR}/usr/lib:${RESOURCE_ARTIFACT_DIR}/usr/lib64:${RESOURCE_ARTIFACT_DIR}/lib:${RESOURCE_ARTIFACT_DIR}/lib64",
+      "${RESOURCE_ARTIFACT_DIR}/usr/bin/python3.12",
+      "-m",
+      "uvicorn",
+      "prepline_general.api.app:app",
+      "--log-config",
+      "${RESOURCE_ARTIFACT_DIR}/home/notebook-user/logger_config.yaml",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_HTTP}",
+      "--workers",
+      "1"
+    ],
+    "environment": {
+      "HOME": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user",
+      "HOST": "127.0.0.1",
+      "PATH": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user/.local/bin:${RESOURCE_ARTIFACT_DIR}/usr/local/bin:${RESOURCE_ARTIFACT_DIR}/usr/bin:${RESOURCE_ARTIFACT_DIR}/bin",
+      "PYTHONHOME": "${RESOURCE_ARTIFACT_DIR}/usr",
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/home/notebook-user:${RESOURCE_ARTIFACT_DIR}/home/notebook-user/.local/lib/python3.12/site-packages",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PORT": "${RESOURCE_PORT_HTTP}",
+      "TESSDATA_PREFIX": "${RESOURCE_ARTIFACT_DIR}/usr/local/share/tessdata",
+      "UNSTRUCTURED_API_LOG_LEVEL": "INFO",
+      "UNSTRUCTURED_API_MAX_REQUEST_SIZE": "52428800",
+      "UNSTRUCTURED_API_WORKERS": "1",
+      "UNSTRUCTURED_API_PORT": "${RESOURCE_PORT_HTTP}"
+    },
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 1536,
+    "disk_mb": 10000,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "measured",
+    "confidence": "high",
+    "class": "ai",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 11450
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "readiness",
+      "command": [
+        "resource-unstructured-io",
+        "health"
+      ],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": ["resource-unstructured-io", "health"],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Unstructured.io dependency settings.",
+    "properties": {
+      "processing": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "cache": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "docker": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "health": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "outputFormats": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "UNSTRUCTURED_HOST": "localhost"
+    },
+    "from_ports": {
+      "UNSTRUCTURED_PORT": "http"
+    },
+    "from_runtime_env": [
+      "UNSTRUCTURED_API_LOG_LEVEL",
+      "UNSTRUCTURED_API_MAX_REQUEST_SIZE",
+      "UNSTRUCTURED_API_WORKERS",
+      "UNSTRUCTURED_API_PORT"
+    ],
+    "derived": {
+      "UNSTRUCTURED_URL": {
+        "template": "http://${UNSTRUCTURED_HOST}:${UNSTRUCTURED_PORT}"
+      },
+      "UNSTRUCTURED_IO_URL": {
+        "template": "${UNSTRUCTURED_URL}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 450,
+    "startup_timeout_seconds": 40,
+    "startup_time_estimate": "10-20s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

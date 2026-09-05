@@ -1,6 +1,64 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "365d",
+          "rationale": "The SQLite database and producer-reference ledger are bounded to a 2 GiB working set and one year of historical release evidence; retention/reclaim is performed by the scenario data maintenance command."
+        },
+        "rationale": "Deployment-manager owns its SQLite database and reference-ledger data under the scenario data directory."
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Retention enforcement receipts are bounded audit records; 1 MiB detects unexpected growth without authorizing deletion."
+        },
+        "rationale": "Retention enforcement receipts preserve attributable cleanup decisions under the canonical scenario state root."
+      }
+    },
+    "rationale": "Scenario-owned SQLite and evidence reference storage is declared explicitly so lifecycle startup creates the data root before opening the database."
+  },
+  "maturity": "greenfield",
+  "skills": {
+    "usage": {
+      "source": "skills/deployment-manager/SKILL.md",
+    "programs": [
+      "deployment-manager.readiness-review",
+      "deployment-manager.release-preflight",
+      "deployment-manager.release-observe",
+      "deployment-manager.release-recover"
+    ]
+    },
+    "improve": {
+      "source": "skills/deployment-manager-improve/SKILL.md",
+    "programs": [
+      "deployment-manager.setpoint-read"
+    ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "deployment-manager-usage"
+    },
+    "waivers": {}
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    }
+  },
   "service": {
     "parent": "vrooli",
     "name": "deployment-manager",
@@ -39,6 +97,10 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -48,12 +110,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -83,147 +140,46 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI, initialize database",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/deployment-manager-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "deployment-manager",
-            "targets": [
-              "deployment-manager"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o deployment-manager-api .",
-          "description": "Build Go API binary (deployment-manager-api) in api/ directory"
-        },
-        {
-          "name": "setup-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize PostgreSQL schema and seed deployment-manager data"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Deployment Manager initialized\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: deployment-manager --help\\n\\n\ud83d\udca1 Quick start:\\n  deployment-manager analyze <scenario>\\n  deployment-manager profiles list\\n  deployment-manager fitness <scenario> --tier 2'",
-          "description": "Display access URLs for API and UI"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle via Node server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && POSTGRES_DB=deployment_manager ./deployment-manager-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/deployment-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Deployment Manager running:\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: deployment-manager --help\\n\\n\ud83d\udcdd View logs: make logs\\n\ud83d\uded1 Stop: make stop'",
-          "description": "Display access URLs for API and UI after startup"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute deployment-manager --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'deployment-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
+  "hostTools": [
+    {
+      "name": "helm",
+      "required": false,
+      "reason": "Legacy k8s deployment examples use helm template for chart rendering",
+      "when": [
+        "develop"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ]
+    }
+  ],
+  "environment": {},
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Deployment profile storage, audit logs, fitness rules database, swap suggestion database",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
-      },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
-        "purpose": "Optional caching layer for fitness scores and dependency tree calculations"
+        "purpose": "Optional caching layer for fitness scores and dependency tree calculations",
+        "startup_policy": "try_start"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional deployment inventory and migration evidence database",
+        "startup_policy": "try_start"
       },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": false,
-        "purpose": "AI-powered migration strategy suggestions and dependency swap recommendations (agent integration)"
+        "purpose": "AI-powered migration strategy suggestions and dependency swap recommendations (agent integration)",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
@@ -231,19 +187,130 @@
         "required": true,
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
-        "purpose": "Dependency tree data source for fitness scoring and deployment analysis"
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment-manager reaches scenario-dependency-analyzer through service discovery and its HTTP/Connect boundary; no source-level package import is expected.",
+        "purpose": "Dependency tree data source for fitness scoring and deployment analysis",
+        "degraded_behavior": "Deployment Manager remains available for profile and evidence review; dependency analysis and fitness scoring return an explicit analyzer-unavailable result until the provider is ready.",
+        "startup_policy": "must_start"
       },
       "secrets-manager": {
         "required": true,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Deployment Manager starts for non-secret deployment planning; bundle assembly that requires secret classifications returns its explicit Secrets Manager unavailable error until the service is ready.",
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
-        "purpose": "Secret classification, template generation, and tier-specific secret strategies"
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment-manager reaches secrets-manager through service discovery and its external service boundary; no source-level package import is expected.",
+        "purpose": "Secret classification, template generation, and tier-specific secret strategies",
+        "supervision_precedence": "required"
       },
-      "app-issue-tracker": {
-        "required": true,
-        "version": "2.0.0-file-based",
-        "versionRange": ">=2.0.0-file-based",
-        "purpose": "Migration task creation when dependency swaps are approved"
+      "scenario-to-cloud": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Cloud deployment health is queried through the discovered scenario HTTP boundary.",
+        "degraded_behavior": "Cloud release health checks report unavailable while scenario-to-cloud is stopped."
+      },
+      "scenario-to-desktop": {
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "Desktop packaging is queried through the discovered scenario HTTP boundary.",
+        "degraded_behavior": "Desktop packaging operations report unavailable while scenario-to-desktop is stopped."
+      },
+      "swarm-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Deployment Manager remains available for analysis, profiles, releases, and evidence review; migration-task filing returns an explicit swarm-manager unavailable error until the provider is ready.",
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment-manager files migration tasks through swarm-manager's external Connect service; no source-level package import is expected.",
+        "purpose": "Optional backlog integration for approved dependency migration tasks"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "deployment-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "deployment-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
       }
     }
   }

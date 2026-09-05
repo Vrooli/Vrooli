@@ -201,6 +201,13 @@ func (h *Handler) ServeRecordingAsset(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "asset_path", "error": "invalid path"}))
 		return
 	}
+	// HAR files contain request headers, cookies, query parameters, and bodies.
+	// They are protected evidence: the generic asset route may never stream raw
+	// HAR bytes. Consumers receive only sanitized evidence metadata.
+	if isProtectedEvidencePath(cleaned) {
+		h.respondError(w, &APIError{Status: http.StatusForbidden, Code: "PROTECTED_EVIDENCE", Message: "Raw HAR evidence is not available for download"})
+		return
+	}
 
 	baseDir := filepath.Join(h.recordingsRoot, execID.String())
 	assetPath := filepath.Join(baseDir, cleaned)
@@ -246,4 +253,14 @@ func (h *Handler) ServeRecordingAsset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	http.ServeContent(w, r, filepath.Base(assetPath), info.ModTime(), file)
+}
+
+func isProtectedEvidencePath(path string) bool {
+	parts := strings.FieldsFunc(filepath.ToSlash(path), func(r rune) bool { return r == '/' })
+	for i := 0; i+1 < len(parts); i++ {
+		if parts[i] == "artifacts" && parts[i+1] == "har" {
+			return true
+		}
+	}
+	return strings.EqualFold(filepath.Ext(path), ".har")
 }

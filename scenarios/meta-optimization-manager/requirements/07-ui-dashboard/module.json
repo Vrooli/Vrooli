@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "module": "ui-dashboard",
+    "description": "OT-P2-001 — operator UI dashboard.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-UI-001",
+      "title": "operator console renders the readiness scoreboard, focus list, gaps registry, and trends",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "ui",
+      "description": "A React/Vite operator console renders per-projection coverage with denominator-confidence, the ranked focus list, the gaps registry, and the trials/convergence trends, following the vrooli-default design contract.",
+      "tags": ["ui", "dashboard"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "UI: feature components render scoreboard/focus/gaps; target ui/src/features." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: dashboard renders against live aggregator." }
+      ]
+    }
+  ]
+}

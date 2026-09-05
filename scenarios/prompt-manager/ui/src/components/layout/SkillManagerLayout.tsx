@@ -14,7 +14,8 @@
  * - Resizable sidebar with localStorage persistence
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { Profiler, useState, useCallback, useEffect, useRef, useMemo, type CSSProperties } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from '@/hooks/use-toast'
 import { Home, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
@@ -26,8 +27,10 @@ import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { AgentEditorPanel } from '../editor/AgentEditorPanel'
 import { TeamEditorPanel } from '../editor/TeamEditorPanel'
+import type { MemberDetailSection } from '../editor/MemberDetailPanel'
 import { RunEditorPanel } from '../editor/RunEditorPanel'
 import { TopicEditorPanel } from '../topic/TopicEditorPanel'
+import { ActionEditorPanel } from '../action/ActionEditorPanel'
 import { TopicSelectionWizard } from '../topic/TopicSelectionWizard'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useAgentData } from '@/hooks/useAgentData'
@@ -39,48 +42,116 @@ import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
-import { useUrlState, type ViewMode } from '@/hooks/useUrlState'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
-import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
-import { usePendingDecisionSync } from '@/hooks/usePendingDecisionSync'
+import { useRunningAgents } from '@/hooks/useRunningAgents'
+import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { RunningAgentsPopover } from '@/components/tree/RunningAgentsPopover'
-import { PendingDecisionsPopover } from '@/components/tree/PendingDecisionsPopover'
-import { useSelectionStore } from '@/stores/selectionStore'
+import { HeartbeatControlPopover } from '@/components/tree/HeartbeatControlPopover'
 import { useGraphStore, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
 import { useCombineStore } from '@/stores/combineStore'
-import { formatAgents, formatTeams, formatTopics } from '@/lib/formatEntities'
+import { formatActions, formatAgents, formatTeams, formatTopics } from '@/lib/formatEntities'
 import { recordCopySet } from '@/lib/copySetStorage'
 import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree } from '@/services/treeService'
 import { NewFolderDialog } from '../tree/NewFolderDialog'
-import { getSkill } from '@/services/skillService'
+import { getSkill, searchSkillIds } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
-import type { Skill, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
+import type { Skill, FolderType, CreateSkillRequest, UpdateSkillRequest, ContentSearchOptions, SkillSearchMode } from '@/types'
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import type { HighlightRequest } from '@/lib/highlight'
 import { createHighlightMatch } from '@/lib/highlight'
+import { onProfilerRender } from '@/lib/profiler'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { useShallow } from 'zustand/react/shallow'
+import { useAppBack } from '@/app/routes/useAppBack'
+import {
+  actionDetailPath,
+  agentDetailPath,
+  graphPath,
+  runDetailPath,
+  skillDetailPath,
+  teamDetailPath,
+  topicDetailPath,
+  topicWizardPath,
+  worldPath,
+  routeForEntity,
+} from '@/app/routes/route-paths'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
+
+function getRouteHome(pathname: string): 'world' | 'graph' {
+  return pathname.startsWith('/graph') ? 'graph' : 'world'
+}
+
+function highlightFromSearchParams(searchParams: URLSearchParams): HighlightRequest | null {
+  const file = searchParams.get('hlFile') ?? undefined
+  const lineValue = searchParams.get('hlLine')
+  const text = searchParams.get('hlText') ?? ''
+  if (!file && !lineValue && !text) return null
+
+  const parsedLine = lineValue ? Number.parseInt(lineValue, 10) : 1
+  return {
+    file,
+    line: Number.isFinite(parsedLine) && parsedLine > 0 ? parsedLine : 1,
+    text,
+  }
+}
 
 /**
  * Main layout component for the skill manager.
  */
 export function SkillManagerLayout() {
-  // Running agent sync (single polling instance, feeds 3D world + stores)
-  const runningAgentsData = useRunningAgentStatusSync()
-  // Pending decision sync (single polling instance, feeds sidebar + world view)
-  const pendingDecisionsData = usePendingDecisionSync()
+  return (
+    <Profiler id="SkillManagerLayout" onRender={onProfilerRender}>
+      <SkillManagerLayoutImpl />
+    </Profiler>
+  )
+}
+
+function SkillManagerLayoutImpl() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const params = useParams<{
+    skillId?: string
+    agentId?: string
+    teamId?: string
+    runId?: string
+    topicId?: string
+    actionId?: string
+  }>()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const goBack = useAppBack(worldPath())
+  const routeHome = getRouteHome(location.pathname)
+  const selectedSkillId = params.skillId ?? null
+  const creatingSkillDraft = selectedSkillId === 'new'
+  const selectedAgentId = params.agentId ?? null
+  const selectedTeamId = params.teamId ?? null
+  const selectedRunId = params.runId ?? null
+  const selectedTopicId = params.topicId ?? null
+  const selectedActionId = params.actionId ?? null
+  const topicWizardActive = location.pathname === topicWizardPath()
+  const pendingTab = searchParams.get('tab')
+  const pendingSubTab = searchParams.get('subTab')
+  const pendingMemberId = searchParams.get('memberId')
+  const pendingMemberSection = searchParams.get('memberSection')
+  const highlightRequest = useMemo(
+    () => highlightFromSearchParams(searchParams),
+    [searchParams]
+  )
+
+  // Running agents (shared poller; the world feed consumes the same signal)
+  const runningAgentsData = useRunningAgents()
+  const heartbeatControlData = useHeartbeatControlStatus()
 
   // Mobile state
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false
   )
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [draftSkillModes, setDraftSkillModes] = useState<string[]>([])
 
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -107,6 +178,27 @@ export function SkillManagerLayout() {
     deleteSkill: deleteSkillApi,
   } = useSkillsData()
 
+  // "new" is a client-only draft route. It deliberately participates in the
+  // normal editor state machine so validation and save affordances remain
+  // consistent, but it never enters the server-backed skill list until save.
+  const editorSkills = useMemo<Skill[]>(() => {
+    if (!creatingSkillDraft) return skills
+    return [...skills, {
+      id: 'new',
+      file: 'new.md',
+      name: 'New Skill',
+      description: '',
+      content: '# New Skill\n\nEnter your skill content here...',
+      modes: draftSkillModes,
+      tags: [],
+      draft: true,
+      folder: 'local',
+      createdAt: '',
+      updatedAt: '',
+      usageCount: 0,
+    }]
+  }, [creatingSkillDraft, draftSkillModes, skills])
+
   const {
     agents,
     isLoading: isLoadingAgents,
@@ -127,41 +219,21 @@ export function SkillManagerLayout() {
 
   const isLoading = isLoadingSkills || isLoadingAgents
 
-  // Centralized selection state from Zustand store.
-  const {
-    selectedSkillId,
-    setSelectedSkillId,
-    selectedAgentId,
-    setSelectedAgentId,
-    selectedTeamId,
-    setSelectedTeamId,
-    selectedRunId,
-    setSelectedRunId,
-    selectedTopicId,
-    setSelectedTopicId,
-    topicWizardActive,
-    setTopicWizardActive,
-    graphViewActive,
-    setGraphViewActive,
-  } = useSelectionStore(useShallow((state) => ({
-    selectedSkillId: state.selectedSkillId,
-    setSelectedSkillId: state.setSelectedSkillId,
-    selectedAgentId: state.selectedAgentId,
-    setSelectedAgentId: state.setSelectedAgentId,
-    selectedTeamId: state.selectedTeamId,
-    setSelectedTeamId: state.setSelectedTeamId,
-    selectedRunId: state.selectedRunId,
-    setSelectedRunId: state.setSelectedRunId,
-    selectedTopicId: state.selectedTopicId,
-    setSelectedTopicId: state.setSelectedTopicId,
-    topicWizardActive: state.topicWizardActive,
-    setTopicWizardActive: state.setTopicWizardActive,
-    graphViewActive: state.graphViewActive,
-    setGraphViewActive: state.setGraphViewActive,
-  })))
-
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
+
+  // Clear stale ?memberId / ?memberSection params when the team changes and the
+  // pending memberId is not present in the new team's members. Avoids ghost
+  // selection state after switching teams via URL.
+  useEffect(() => {
+    if (!currentTeam || !pendingMemberId) return
+    const stillExists = currentTeam.members.some((m) => m.agentId === pendingMemberId)
+    if (stillExists) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('memberId')
+    next.delete('memberSection')
+    setSearchParams(next, { replace: true })
+  }, [currentTeam, pendingMemberId, searchParams, setSearchParams])
 
   // Health scores from graph store.
   // Use useShallow to avoid infinite re-renders from new [] references when graph is null.
@@ -188,16 +260,10 @@ export function SkillManagerLayout() {
 
   // Content search matches (for editor highlighting)
   const [contentMatches, setContentMatches] = useState<ContentSearchMatch[]>([])
+  const [quickSearchMatchedSkillIds, setQuickSearchMatchedSkillIds] = useState<Set<string> | null>(null)
 
   // Line number to scroll to in the editor (set when clicking a content search result)
   const [scrollToLine, setScrollToLine] = useState<number | null>(null)
-
-  // Cross-reference highlight request (set when clicking an xref)
-  const [highlightRequest, setHighlightRequest] = useState<HighlightRequest | null>(null)
-
-  // Tab deep-link state (e.g. from pending decisions → team activity → decisions)
-  const [pendingTab, setPendingTab] = useState<string | null>(null)
-  const [pendingSubTab, setPendingSubTab] = useState<string | null>(null)
 
   // Filter matches to only those for the currently selected skill
   const currentSkillMatches = useMemo(() => {
@@ -239,7 +305,41 @@ export function SkillManagerLayout() {
     initialViewMode: initialSidebarState.viewMode,
     initialDetailMode: initialSidebarState.detailMode,
     initialSearchQuery: initialSidebarState.searchQuery,
+    searchMatchedSkillIds: quickSearchMatchedSkillIds,
   })
+
+  useEffect(() => {
+    if (activeTab !== 'skills' || searchMode !== 'quick') {
+      setQuickSearchMatchedSkillIds(null)
+      return
+    }
+
+    const query = searchQuery.trim()
+    if (!query) {
+      setQuickSearchMatchedSkillIds(null)
+      return
+    }
+
+    setQuickSearchMatchedSkillIds(null)
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      searchSkillIds(query)
+        .then((ids) => {
+          if (cancelled) return
+          setQuickSearchMatchedSkillIds(new Set(ids))
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return
+          console.warn('[SkillManagerLayout] Quick skill search failed; using local fallback', error)
+          setQuickSearchMatchedSkillIds(null)
+        })
+    }, 200)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [activeTab, searchMode, searchQuery])
 
   // Read health scores from graph store (populated when user visits graph view)
   const healthScoreMap = useMemo(() => {
@@ -267,7 +367,7 @@ export function SkillManagerLayout() {
 
   // Combine store
   const {
-    combineMode,
+    selectionMode,
     combineEntityType,
     combineSelectedIds,
     combineFormat,
@@ -280,7 +380,7 @@ export function SkillManagerLayout() {
     setCombineFormat,
     setIsCombineCopying,
   } = useCombineStore(useShallow((state) => ({
-    combineMode: state.isActive,
+    selectionMode: state.isActive,
     combineEntityType: state.entityType,
     combineSelectedIds: state.selectedIds,
     combineFormat: state.format,
@@ -308,7 +408,7 @@ export function SkillManagerLayout() {
     prefetchAbort.current?.abort()
     setPrefetchedContent(null)
 
-    if (!combineMode || combineSelectedIds.size === 0) return
+    if (!selectionMode || combineSelectedIds.size === 0) return
 
     const identifiers = Array.from(combineSelectedIds)
     const abort = new AbortController()
@@ -350,7 +450,7 @@ export function SkillManagerLayout() {
             scorePercent: 0,
           }))
           text = formatTeams(results, combineFormat)
-        } else {
+        } else if (combineEntityType === 'topics') {
           const topics = await api.getTopics()
           const selected = topics.filter((t) => combineSelectedIds.has(t.id))
           const results = selected.map((t) => ({
@@ -358,6 +458,10 @@ export function SkillManagerLayout() {
             score: 0,
           }))
           text = formatTopics(results, combineFormat)
+        } else {
+          const actions = await api.getActions()
+          const selected = actions.filter((action) => combineSelectedIds.has(action.id))
+          text = formatActions(selected, combineFormat)
         }
         if (!stale) setPrefetchedContent(text)
       } catch {
@@ -368,7 +472,7 @@ export function SkillManagerLayout() {
 
     return () => { abort.abort() }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- agents array identity changes; content depends on IDs not refs
-  }, [combineMode, combineSelectedIds, combineFormat, combineEntityType])
+  }, [selectionMode, combineSelectedIds, combineFormat, combineEntityType])
 
   // Combine helper functions
   const handleCombineCheckboxChange = useCallback(
@@ -392,7 +496,8 @@ export function SkillManagerLayout() {
     const entityLabel = combineEntityType === 'skills' ? 'skill'
       : combineEntityType === 'agents' ? 'agent'
       : combineEntityType === 'teams' ? 'team'
-      : 'topic'
+      : combineEntityType === 'topics' ? 'topic'
+      : 'action'
 
     if (prefetchedContent === null) {
       toast({
@@ -454,7 +559,7 @@ export function SkillManagerLayout() {
     isDeleting,
     isLoadingContent,
   } = usePromptEditor({
-    skills,
+    skills: editorSkills,
     selectedItemId: selectedSkillId,
     onSave: updateSkills,
     onDelete: deleteSkillApi,
@@ -565,120 +670,41 @@ export function SkillManagerLayout() {
 
   // Wrapped save functions with toast notifications
   const handleSaveCurrentSkill = useCallback(async () => {
+    if (creatingSkillDraft) {
+      try {
+        const created = await createSkill({
+          name: formState.name,
+          description: formState.description,
+          content: formState.content,
+          modes: formState.modes,
+          tags: formState.tags,
+          icon: formState.icon || undefined,
+          draft: formState.draft,
+          folder: formState.folder,
+        })
+        const editorStore = useEditorStore.getState()
+        editorStore.movePromptState('new', created.id)
+        editorStore.markAsSaved(created.id, created)
+        setDraftSkillModes([])
+        showSaveResultToast({ success: true, savedCount: 1, failedCount: 0, errors: [], newId: created.id }, false)
+        navigate(skillDetailPath(created.id), { replace: true })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        showSaveResultToast({ success: false, savedCount: 0, failedCount: 1, errors: [{ id: 'new', name: 'New Skill', message }] }, false)
+      }
+      return
+    }
     const result = await saveCurrentSkill()
     showSaveResultToast(result, false)
-    // If skill was renamed, update selection to new ID
     if (result.newId) {
-      setSelectedSkillId(result.newId)
+      navigate(skillDetailPath(result.newId), { replace: true })
     }
-  }, [saveCurrentSkill, showSaveResultToast, setSelectedSkillId])
+  }, [creatingSkillDraft, createSkill, formState, navigate, saveCurrentSkill, showSaveResultToast])
 
   const handleSaveAllChanges = useCallback(async () => {
     const result = await saveAllChanges()
     showSaveResultToast(result, true)
   }, [saveAllChanges, showSaveResultToast])
-
-  // URL state synchronization
-  const { updateUrl } = useUrlState({
-    onSkillIdChange: useCallback((id: string | null) => {
-      // If navigating via browser back/forward with dirty state,
-      // the discard dialog is not shown - changes are stored instead
-      if (isDirty && id !== selectedSkillId) {
-        storeCurrentChanges()
-      }
-      setSelectedSkillId(id)
-    }, [isDirty, selectedSkillId, storeCurrentChanges, setSelectedSkillId]),
-    onAgentIdChange: useCallback((id: string | null) => {
-      if (isDirty && id !== selectedAgentId) {
-        storeCurrentChanges()
-      }
-      setSelectedAgentId(id)
-    }, [isDirty, selectedAgentId, storeCurrentChanges, setSelectedAgentId]),
-    onTeamIdChange: useCallback((id: string | null) => {
-      if (isDirty && id !== selectedTeamId) {
-        storeCurrentChanges()
-      }
-      setSelectedTeamId(id)
-    }, [isDirty, selectedTeamId, storeCurrentChanges, setSelectedTeamId]),
-    onRunIdChange: useCallback((id: string | null) => {
-      if (isDirty) {
-        storeCurrentChanges()
-      }
-      setSelectedRunId(id)
-    }, [isDirty, storeCurrentChanges, setSelectedRunId]),
-    onSettingsOpenChange: useCallback((open: boolean) => {
-      setShowSettingsDialog(open)
-    }, []),
-    onViewChange: useCallback((view: ViewMode) => {
-      setGraphViewActive(view === 'graph')
-    }, [setGraphViewActive]),
-    onHighlightChange: useCallback((hl: HighlightRequest | null) => {
-      setHighlightRequest(hl)
-    }, []),
-    onTabChange: useCallback((tab: string | null) => {
-      setPendingTab(tab)
-    }, []),
-    onSubTabChange: useCallback((subTab: string | null) => {
-      setPendingSubTab(subTab)
-    }, []),
-    isDirty,
-    storeCurrentChanges,
-  })
-
-  // Sync URL when selected skill changes (clear tab state — only applies to teams)
-  useEffect(() => {
-    updateUrl({ skillId: selectedSkillId })
-    if (selectedSkillId) {
-      setPendingTab(null)
-      setPendingSubTab(null)
-    }
-  }, [selectedSkillId, updateUrl])
-
-  // Sync URL when selected agent changes (clear tab state — only applies to teams)
-  useEffect(() => {
-    updateUrl({ agentId: selectedAgentId })
-    if (selectedAgentId) {
-      setPendingTab(null)
-      setPendingSubTab(null)
-    }
-  }, [selectedAgentId, updateUrl])
-
-  // Sync URL when selected team changes
-  useEffect(() => {
-    updateUrl({ teamId: selectedTeamId })
-    if (!selectedTeamId) {
-      setPendingTab(null)
-      setPendingSubTab(null)
-    }
-  }, [selectedTeamId, updateUrl])
-
-  // Sync URL when selected run changes (clear tab state — only applies to teams)
-  useEffect(() => {
-    updateUrl({ runId: selectedRunId })
-    if (selectedRunId) {
-      setPendingTab(null)
-      setPendingSubTab(null)
-    }
-  }, [selectedRunId, updateUrl])
-
-  // Sync URL when settings dialog state changes
-  useEffect(() => {
-    updateUrl({ settingsOpen: showSettingsDialog })
-  }, [showSettingsDialog, updateUrl])
-
-  // Sync URL when view mode changes
-  useEffect(() => {
-    updateUrl({ view: graphViewActive ? 'graph' : 'world' })
-  }, [graphViewActive, updateUrl])
-
-  // Sync URL when tab deep-link state changes
-  useEffect(() => {
-    updateUrl({ tab: pendingTab })
-  }, [pendingTab, updateUrl])
-
-  useEffect(() => {
-    updateUrl({ subTab: pendingSubTab })
-  }, [pendingSubTab, updateUrl])
 
   // Auto-expand tree to show selected item
   useEffect(() => {
@@ -693,7 +719,7 @@ export function SkillManagerLayout() {
   // Resizable sidebar
   const {
     width: sidebarWidth,
-    isResizing,
+    panelRef: sidebarPanelRef,
     containerRef,
     handleResizeStart,
   } = useResizableSidebar({
@@ -725,8 +751,11 @@ export function SkillManagerLayout() {
   // Handle item selection - new architecture supports multi-prompt editing
   const handleSelectItem = useCallback(
     (id: string, lineNumber?: number) => {
-      // Changes are auto-saved to store, just switch
-      setSelectedSkillId(id)
+      if (isDirty && id !== selectedSkillId) {
+        storeCurrentChanges()
+      }
+      const query = lineNumber ? { hlLine: lineNumber } : undefined
+      navigate(skillDetailPath(id, query))
 
       // Store line number so the editor scrolls to it
       setScrollToLine(lineNumber ?? null)
@@ -736,39 +765,26 @@ export function SkillManagerLayout() {
         setIsMobileSidebarOpen(false)
       }
     },
-    [setSelectedSkillId, isMobile]
+    [isDirty, isMobile, navigate, selectedSkillId, storeCurrentChanges]
   )
 
   // Handle delete confirmation
   const handleConfirmDelete = useCallback(async () => {
     await deleteCurrentSkill()
     setShowDeleteDialog(false)
-    setSelectedSkillId(null)
-  }, [deleteCurrentSkill, setSelectedSkillId])
+    navigate(worldPath(), { replace: true })
+  }, [deleteCurrentSkill, navigate])
 
   // Handle new skill creation
-  const handleCreateNew = useCallback(async (modes: string[] = []) => {
-    const newSkill: CreateSkillRequest = {
-      name: 'New Skill',
-      description: '',
-      content: '# New Skill\n\nEnter your skill content here...',
-      modes,
-      tags: [],
-      folder: 'local',
-      draft: true,
+  const handleCreateNew = useCallback((modes: string[] = []) => {
+    // The route is client-only; preserve caller-selected modes in component
+    // state until the explicit save creates the server-backed skill.
+    setDraftSkillModes(modes)
+    navigate(skillDetailPath('new'))
+    if (isMobile) {
+      setIsMobileSidebarOpen(false)
     }
-
-    try {
-      const created = await createSkill(newSkill)
-      setSelectedSkillId(created.id)
-
-      if (isMobile) {
-        setIsMobileSidebarOpen(false)
-      }
-    } catch (error) {
-      console.error('Failed to create skill:', error)
-    }
-  }, [createSkill, setSelectedSkillId, isMobile])
+  }, [isMobile, navigate])
 
   // Handle delete folder request (shows confirmation dialog)
   const handleDeleteFolderRequest = useCallback((skillIds: string[], folderLabel: string) => {
@@ -786,14 +802,14 @@ export function SkillManagerLayout() {
       }
       // Clear selection if the selected skill was in the deleted folder
       if (selectedSkillId && deleteFolderDialog.skillIds.includes(selectedSkillId)) {
-        setSelectedSkillId(null)
+        navigate(worldPath(), { replace: true })
       }
     } catch (error) {
       console.error('Failed to delete folder:', error)
     } finally {
       setDeleteFolderDialog(null)
     }
-  }, [deleteFolderDialog, deleteSkillApi, selectedSkillId, setSelectedSkillId])
+  }, [deleteFolderDialog, deleteSkillApi, navigate, selectedSkillId])
 
   // Handle copy skill
   const handleCopySkill = useCallback(async (skillId: string) => {
@@ -817,7 +833,7 @@ export function SkillManagerLayout() {
       }
 
       const created = await createSkill(newSkill)
-      setSelectedSkillId(created.id)
+      navigate(skillDetailPath(created.id))
 
       if (isMobile) {
         setIsMobileSidebarOpen(false)
@@ -825,7 +841,7 @@ export function SkillManagerLayout() {
     } catch (error) {
       console.error('Failed to copy skill:', error)
     }
-  }, [createSkill, setSelectedSkillId, isMobile])
+  }, [createSkill, isMobile, navigate])
 
   const handleDuplicateAgent = useCallback(async () => {
     if (!agentFromEditor) return
@@ -846,7 +862,7 @@ export function SkillManagerLayout() {
         tags: [...agentFromEditor.tags],
         fileOrder: [...agentFromEditor.fileOrder],
       })
-      setSelectedAgentId(created.id)
+      navigate(agentDetailPath(created.id))
 
       if (isMobile) {
         setIsMobileSidebarOpen(false)
@@ -858,7 +874,7 @@ export function SkillManagerLayout() {
         description: 'Unable to duplicate agent. Try again.',
       })
     }
-  }, [agentFromEditor, createAgent, setSelectedAgentId, isMobile])
+  }, [agentFromEditor, createAgent, isMobile, navigate])
 
   // Context menu: duplicate any agent by ID (not just the currently selected one)
   const handleDuplicateAgentById = useCallback(async (agentId: string) => {
@@ -881,7 +897,7 @@ export function SkillManagerLayout() {
         tags: [...agent.tags],
         fileOrder: [...agent.fileOrder],
       })
-      setSelectedAgentId(created.id)
+      navigate(agentDetailPath(created.id))
 
       if (isMobile) {
         setIsMobileSidebarOpen(false)
@@ -893,19 +909,19 @@ export function SkillManagerLayout() {
         description: 'Unable to duplicate agent. Try again.',
       })
     }
-  }, [agents, createAgent, setSelectedAgentId, isMobile])
+  }, [agents, createAgent, isMobile, navigate])
 
   // Context menu: open customize modal for a specific agent (selects and opens editor)
   const handleCustomizeAgentById = useCallback((agentId: string) => {
-    setSelectedAgentId(agentId)
-  }, [setSelectedAgentId])
+    navigate(agentDetailPath(agentId))
+  }, [navigate])
 
   // Context menu: open prompt preview for a specific agent (selects + switches to prompt tab)
   const [agentEditorInitialTab, setAgentEditorInitialTab] = useState<string | undefined>(undefined)
   const handlePreviewPromptById = useCallback((agentId: string) => {
-    setSelectedAgentId(agentId)
+    navigate(agentDetailPath(agentId, { tab: 'prompt' }))
     setAgentEditorInitialTab('prompt')
-  }, [setSelectedAgentId])
+  }, [navigate])
 
   // Clear the one-shot initial tab after it's been consumed by the editor
   useEffect(() => {
@@ -940,7 +956,7 @@ export function SkillManagerLayout() {
 
     try {
       await deleteCurrentAgent()
-      setSelectedAgentId(null)
+      navigate(worldPath(), { replace: true })
     } catch (error) {
       console.error('Failed to delete agent:', error)
       toast({
@@ -950,7 +966,7 @@ export function SkillManagerLayout() {
     } finally {
       setShowDeleteAgentDialog(false)
     }
-  }, [agentFromEditor, deleteCurrentAgent, setSelectedAgentId])
+  }, [agentFromEditor, deleteCurrentAgent, navigate])
 
   const handleConfirmDeleteTeam = useCallback(async (agentIdsToDelete: string[]) => {
     if (!selectedTeamId) {
@@ -971,7 +987,7 @@ export function SkillManagerLayout() {
 
       // Delete the team
       await deleteTeam(selectedTeamId)
-      setSelectedTeamId(null)
+      navigate(worldPath(), { replace: true })
 
       toast({
         title: 'Team deleted',
@@ -990,7 +1006,7 @@ export function SkillManagerLayout() {
       setIsTeamDeleting(false)
       setShowDeleteTeamDialog(false)
     }
-  }, [selectedTeamId, deleteTeam, deleteAgent, setSelectedTeamId])
+  }, [selectedTeamId, deleteTeam, deleteAgent, navigate])
 
   // Handle move to folder (update skill modes)
   const handleMoveToFolder = useCallback(async (skillId: string, path: string[]) => {
@@ -1004,7 +1020,13 @@ export function SkillManagerLayout() {
   }, [updateSkills])
 
   // Handle change storage location (update skill folder)
-  const handleChangeStorage = useCallback(async (skillId: string, folder: 'local' | 'core' | 'drafts') => {
+  const handleChangeStorage = useCallback(async (skillId: string, folder: FolderType) => {
+    // A scenario-owned skill lives in its scenario's own skills/ root and is not
+    // one of the writable packs, so it is not a valid move target.
+    if (folder === 'scenario') {
+      console.error('Cannot move a skill into the scenario pack; it is owned by its scenario.')
+      return
+    }
     try {
       const updates = new Map<string, { folder: 'local' | 'core' | 'drafts' }>()
       updates.set(skillId, { folder })
@@ -1079,9 +1101,8 @@ export function SkillManagerLayout() {
       if (result.id !== skillId) {
         useEditorStore.getState().movePromptState(skillId, result.id)
         useEditorStore.getState().markAsSaved(result.id, result)
-        // Update selection if this was the currently selected skill
         if (selectedSkillId === skillId) {
-          setSelectedSkillId(result.id)
+          navigate(skillDetailPath(result.id), { replace: true })
         }
       } else {
         useEditorStore.getState().markAsSaved(skillId, result)
@@ -1091,7 +1112,7 @@ export function SkillManagerLayout() {
         description: `"${state.name}" has been saved.`,
       })
     }
-  }, [skills, updateSkills, selectedSkillId, setSelectedSkillId])
+  }, [skills, updateSkills, selectedSkillId, navigate])
 
   const handleDiscardSkillById = useCallback((skillId: string) => {
     useEditorStore.getState().discardChanges(skillId)
@@ -1154,7 +1175,7 @@ export function SkillManagerLayout() {
   // Keyboard shortcuts (defined after callbacks so they're available)
   useKeyboardShortcuts({
     onSave: () => {
-      if (isDirty && validation.valid) {
+      if ((isDirty || creatingSkillDraft) && validation.valid) {
         void handleSaveCurrentSkill()
       }
     },
@@ -1173,7 +1194,7 @@ export function SkillManagerLayout() {
         redo()
       }
     },
-    onNew: () => void handleCreateNew(),
+    onNew: () => handleCreateNew(),
     onFocusSearch: () => {
       const searchInput = searchInputRef.current
       if (!searchInput) {
@@ -1208,7 +1229,7 @@ export function SkillManagerLayout() {
         return
       }
       // Exit combine mode if active
-      if (combineMode) {
+      if (selectionMode) {
         exitCombineMode()
         return
       }
@@ -1217,9 +1238,8 @@ export function SkillManagerLayout() {
         setIsMobileSidebarOpen(false)
         return
       }
-      // If editing a skill and not dirty, close the editor and return to skill tree
-      if (selectedSkillId && !isDirty) {
-        setSelectedSkillId(null)
+      if (!isDirty && routeHome !== 'world') {
+        goBack()
         return
       }
     },
@@ -1231,19 +1251,16 @@ export function SkillManagerLayout() {
   // Navigate to an agent's files in the Agent Editor
   const handleNavigateToAgentFiles = useCallback(
     (agentId: string, filePath?: string) => {
-      setSelectedAgentId(agentId)
-      if (filePath) {
-        setHighlightRequest({ file: filePath, line: 1, text: '' })
-      }
+      navigate(agentDetailPath(agentId, filePath ? { hlFile: filePath, hlLine: 1 } : undefined))
     },
-    [setSelectedAgentId]
+    [navigate]
   )
 
   // Navigate to a running agent's team member view
   const handleNavigateToRunningAgent = useCallback(
     (teamId: string, agentId: string) => {
       setActiveTab('teams')
-      setSelectedTeamId(teamId)
+      navigate(teamDetailPath(teamId, { tab: 'members', member: agentId }))
       // Delay member selection to let the team load first
       requestAnimationFrame(() => {
         useTeamEditorStore.getState().setSelectedMemberId(agentId)
@@ -1252,21 +1269,7 @@ export function SkillManagerLayout() {
         setIsMobileSidebarOpen(false)
       }
     },
-    [setActiveTab, setSelectedTeamId, isMobile]
-  )
-
-  // Navigate to a team's decision log
-  const handleNavigateToDecision = useCallback(
-    (teamId: string) => {
-      setActiveTab('teams')
-      setSelectedTeamId(teamId)
-      setPendingTab('activity')
-      setPendingSubTab('decisions')
-      if (isMobile) {
-        setIsMobileSidebarOpen(false)
-      }
-    },
-    [setActiveTab, setSelectedTeamId, isMobile]
+    [navigate, setActiveTab, isMobile]
   )
 
   // Handle cross-reference navigation with highlight
@@ -1279,35 +1282,33 @@ export function SkillManagerLayout() {
         text: ref.skillId,
       }
 
-      // Set entity selection (each setter auto-clears the other entity types)
-      if (entityType === 'agent') {
-        setSelectedAgentId(entityId)
-      } else if (entityType === 'team') {
-        setSelectedTeamId(entityId)
-      } else {
-        setSelectedSkillId(entityId)
-      }
-
-      // Set highlight request
-      setHighlightRequest(hlRequest)
-
-      // Update URL with entity + highlight params
-      updateUrl({
-        skillId: entityType === 'skill' ? entityId : null,
-        agentId: entityType === 'agent' ? entityId : null,
-        teamId: entityType === 'team' ? entityId : null,
+      navigate(routeForEntity(entityType, entityId, {
         hlFile: hlRequest.file ?? null,
         hlLine: hlRequest.line,
         hlText: hlRequest.text,
-      })
+      }))
     },
-    [setSelectedAgentId, setSelectedTeamId, setSelectedSkillId, updateUrl]
+    [navigate]
   )
 
   // Clear highlight URL params after highlight is applied visually
   const handleHighlightHandled = useCallback(() => {
-    updateUrl({ hlFile: null, hlLine: null, hlText: null })
-  }, [updateUrl])
+    const next = new URLSearchParams(searchParams)
+    next.delete('hlFile')
+    next.delete('hlLine')
+    next.delete('hlText')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  const updateRouteSearchParam = useCallback((key: string, value: string | null) => {
+    const next = new URLSearchParams(searchParams)
+    if (value) {
+      next.set(key, value)
+    } else {
+      next.delete(key)
+    }
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // Compute highlight-based search matches for skill editor
   const highlightSkillMatches = useMemo(() => {
@@ -1326,11 +1327,33 @@ export function SkillManagerLayout() {
     : scrollToLine
 
   const handleGoToHomeView = useCallback(() => {
-    setSelectedSkillId(null)
-    setSelectedAgentId(null)
-    setSelectedTeamId(null)
-    setSelectedRunId(null)
-  }, [setSelectedSkillId, setSelectedAgentId, setSelectedTeamId, setSelectedRunId])
+    navigate(routeHome === 'graph' ? graphPath() : worldPath())
+  }, [navigate, routeHome])
+
+  const navigateToAgent = useCallback((id: string) => {
+    navigate(agentDetailPath(id))
+    if (isMobile) setIsMobileSidebarOpen(false)
+  }, [isMobile, navigate])
+
+  const navigateToTeam = useCallback((id: string) => {
+    navigate(teamDetailPath(id))
+    if (isMobile) setIsMobileSidebarOpen(false)
+  }, [isMobile, navigate])
+
+  const navigateToRun = useCallback((id: string) => {
+    navigate(runDetailPath(id))
+    if (isMobile) setIsMobileSidebarOpen(false)
+  }, [isMobile, navigate])
+
+  const navigateToTopic = useCallback((id: string) => {
+    navigate(topicDetailPath(id))
+    if (isMobile) setIsMobileSidebarOpen(false)
+  }, [isMobile, navigate])
+
+  const navigateToAction = useCallback((id: string) => {
+    navigate(actionDetailPath(id))
+    if (isMobile) setIsMobileSidebarOpen(false)
+  }, [isMobile, navigate])
 
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
@@ -1358,7 +1381,7 @@ export function SkillManagerLayout() {
         onToggleCollapse={toggleCollapse}
         onExpandAll={expandAll}
         onCollapseAll={collapseAll}
-        onCreateNew={(modes) => void handleCreateNew(modes)}
+        onCreateNew={(modes) => handleCreateNew(modes)}
         searchInputRef={searchInputRef}
         onOpenSettings={() => setShowSettingsDialog(true)}
         filterState={filterState}
@@ -1378,7 +1401,7 @@ export function SkillManagerLayout() {
         onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
         onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
         onCreateNewFolder={handleCreateNewFolderRequest}
-        combineMode={combineMode}
+        selectionMode={selectionMode}
         combineSelectedIds={combineSelectedIds}
         combineFormat={combineFormat}
         onCombineFormatChange={setCombineFormat}
@@ -1392,8 +1415,15 @@ export function SkillManagerLayout() {
         combineCopySuccess={combineCopySuccess}
         initialActiveTab={activeTab}
         onActiveTabChange={setActiveTab}
-        onSelectSkillFromMenu={setSelectedSkillId}
-        onSelectAgentFromMenu={setSelectedAgentId}
+        onSelectSkillFromMenu={(id) => handleSelectItem(id)}
+        onSelectAgentFromMenu={navigateToAgent}
+        selectedAgentId={selectedAgentId}
+        onSelectTeamFromMenu={navigateToTeam}
+        selectedTeamId={selectedTeamId}
+        onSelectRunFromMenu={navigateToRun}
+        selectedRunId={selectedRunId}
+        onSelectTopicFromMenu={navigateToTopic}
+        selectedTopicId={selectedTopicId}
         onSaveSkill={handleSaveSkillById}
         onDiscardSkill={handleDiscardSkillById}
         onSaveAgent={handleSaveAgentById}
@@ -1404,12 +1434,15 @@ export function SkillManagerLayout() {
         onContentMatchesChange={setContentMatches}
         onNavigateToRunningAgent={handleNavigateToRunningAgent}
         runningAgentsData={runningAgentsData}
-        pendingDecisionsData={pendingDecisionsData}
-        onNavigateToDecision={handleNavigateToDecision}
+        heartbeatControlData={heartbeatControlData}
+        onOpenTopicWizard={() => navigate(topicWizardPath())}
         onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
         onCustomizeAgent={handleCustomizeAgentById}
         onPreviewPrompt={handlePreviewPromptById}
         onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
+        onGoHome={handleGoToHomeView}
+        onSelectActionFromMenu={navigateToAction}
+        selectedActionId={selectedActionId}
       />
     </PanelErrorBoundary>
   )
@@ -1419,8 +1452,9 @@ export function SkillManagerLayout() {
       {/* Desktop sidebar with resize handle */}
       {!isMobile && (
         <div
-          className="relative flex-shrink-0 transition-[width] duration-200"
-          style={{ width: isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : sidebarWidth }}
+          ref={sidebarPanelRef}
+          className="relative flex-shrink-0 w-[var(--pm-sidebar-width)] data-[resizing=true]:transition-none"
+          style={{ '--pm-sidebar-width': `${isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : sidebarWidth}px` } as CSSProperties}
         >
           {sidebar}
           {/* Resize handle - wider hit area (12px) with narrow visual indicator */}
@@ -1434,20 +1468,19 @@ export function SkillManagerLayout() {
               className={`
                 absolute top-0 right-0 h-full w-3 cursor-col-resize
                 flex items-center justify-center group
-                ${isResizing ? '' : ''}
               `}
             >
               {/* Visual indicator - narrow line with subtle visibility */}
               <div
                 className={`
                   absolute right-0 top-0 h-full w-0.5 transition-colors
-                  ${isResizing ? 'bg-primary' : 'bg-border group-hover:bg-primary/50'}
+                  bg-border group-hover:bg-primary/50 group-active:bg-primary
                 `}
               />
               <GripVertical
                 className={`
                   h-6 w-3 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity z-10
-                  ${isResizing ? 'opacity-100 text-primary' : ''}
+                  group-active:opacity-100 group-active:text-primary
                 `}
               />
             </div>
@@ -1456,26 +1489,33 @@ export function SkillManagerLayout() {
       )}
 
       {/* Main content area */}
-      <div className={`flex-1 flex flex-col min-w-0 ${isResizing ? 'select-none' : ''}`}>
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
             {topicWizardActive ? (
               <TopicSelectionWizard
-                onClose={() => setTopicWizardActive(false)}
+                onClose={goBack}
                 className="h-full"
               />
             ) : selectedRunId ? (
               <RunEditorPanel
                 runId={selectedRunId}
-                onClose={() => setSelectedRunId(null)}
+                onClose={goBack}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 className="h-full"
               />
             ) : selectedTopicId ? (
               <TopicEditorPanel
                 topicId={selectedTopicId}
-                onClose={() => setSelectedTopicId(null)}
+                onClose={goBack}
+                onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
+                className="h-full"
+              />
+            ) : selectedActionId ? (
+              <ActionEditorPanel
+                actionId={selectedActionId}
+                onClose={goBack}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 className="h-full"
               />
@@ -1485,8 +1525,17 @@ export function SkillManagerLayout() {
                 allAgents={agents}
                 initialTab={pendingTab}
                 initialSubTab={pendingSubTab}
-                onTabChange={(tab) => setPendingTab(tab)}
-                onSubTabChange={(subTab) => setPendingSubTab(subTab)}
+                initialMemberId={pendingMemberId}
+                initialMemberSection={pendingMemberSection as MemberDetailSection | null}
+                onTabChange={(tab) => updateRouteSearchParam('tab', tab)}
+                onSubTabChange={(subTab) => updateRouteSearchParam('subTab', subTab)}
+                onMemberSelect={(agentId) => updateRouteSearchParam('memberId', agentId)}
+                onMemberSectionChange={(section) =>
+                  updateRouteSearchParam(
+                    'memberSection',
+                    section && section !== 'overview' ? section : null,
+                  )
+                }
                 onNavigateToAgentFiles={handleNavigateToAgentFiles}
                 onUpdate={async (updates) => {
                   if (selectedTeamId) {
@@ -1516,7 +1565,7 @@ export function SkillManagerLayout() {
                   }
                   throw new Error('No team selected')
                 }}
-                onClose={() => setSelectedTeamId(null)}
+                onClose={goBack}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 onDelete={() => setShowDeleteTeamDialog(true)}
                 isDeleting={isTeamDeleting}
@@ -1543,7 +1592,7 @@ export function SkillManagerLayout() {
                 onDiscard={discardAgentChanges}
                 onDelete={() => setShowDeleteAgentDialog(true)}
                 onDuplicate={() => void handleDuplicateAgent()}
-                onClose={() => setSelectedAgentId(null)}
+                onClose={goBack}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 isSaving={isAgentSaving}
                 isDeleting={isAgentDeleting}
@@ -1559,7 +1608,7 @@ export function SkillManagerLayout() {
                 originalContent={originalContent}
                 validation={validation}
                 allSkills={skills}
-                isDirty={isDirty}
+                isDirty={isDirty || creatingSkillDraft}
                 dirtyCount={dirtyCount}
                 onFieldChange={updateField}
                 availableTags={availableTags}
@@ -1571,7 +1620,6 @@ export function SkillManagerLayout() {
                 onSaveAll={() => void handleSaveAllChanges()}
                 onDiscard={discardCurrentChanges}
                 onDelete={() => setShowDeleteDialog(true)}
-                onSelectSkill={handleSelectItem}
                 isSaving={isSaving}
                 isDeleting={isDeleting}
                 isLoadingContent={isLoadingContent}
@@ -1584,10 +1632,12 @@ export function SkillManagerLayout() {
                   }
                 }}
                 onNavigateToXRef={handleNavigateToXRef}
+                onClose={goBack}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 onOpenMobileSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
-                pendingDecisionCount={pendingDecisionsData.count}
                 runningAgentCount={runningAgentsData.count}
+                homeView={routeHome}
+                onHomeViewChange={(view) => navigate(view === 'graph' ? graphPath() : worldPath())}
                 className="h-full"
               />
             )}
@@ -1597,7 +1647,7 @@ export function SkillManagerLayout() {
 
       {/* Mobile sidebar overlay */}
       {isMobile && isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Skill manager navigation">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -1622,6 +1672,12 @@ export function SkillManagerLayout() {
                 <h2 className="text-sm font-semibold text-foreground truncate">Skills</h2>
               </div>
               <div className="flex items-center gap-1">
+                <HeartbeatControlPopover
+                  status={heartbeatControlData.status}
+                  isLoading={heartbeatControlData.isLoading}
+                  onPause={() => heartbeatControlData.pause('manual pause from UI')}
+                  onResume={heartbeatControlData.resume}
+                />
                 {runningAgentsData.count > 0 && (
                   <RunningAgentsPopover
                     onNavigateToMember={(teamId, agentId) => {
@@ -1632,19 +1688,6 @@ export function SkillManagerLayout() {
                     count={runningAgentsData.count}
                     stopAgent={runningAgentsData.stopAgent}
                     stoppingIds={runningAgentsData.stoppingIds}
-                  />
-                )}
-                {pendingDecisionsData.count > 0 && (
-                  <PendingDecisionsPopover
-                    onNavigateToDecision={(teamId) => {
-                      handleNavigateToDecision(teamId)
-                      setIsMobileSidebarOpen(false)
-                    }}
-                    groupedByTeam={pendingDecisionsData.groupedByTeam}
-                    count={pendingDecisionsData.count}
-                    acceptDecision={pendingDecisionsData.acceptDecision}
-                    rejectDecision={pendingDecisionsData.rejectDecision}
-                    processingIds={pendingDecisionsData.processingIds}
                   />
                 )}
                 <button
@@ -1692,7 +1735,7 @@ export function SkillManagerLayout() {
                 onToggleCollapse={() => {}}
                 onExpandAll={expandAll}
                 onCollapseAll={collapseAll}
-                onCreateNew={(modes) => void handleCreateNew(modes)}
+                onCreateNew={(modes) => handleCreateNew(modes)}
                 filterState={filterState}
                 onFilterStateChange={setFilterState}
                 sortConfig={sortConfig}
@@ -1710,7 +1753,7 @@ export function SkillManagerLayout() {
                 onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
                 onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
                 onCreateNewFolder={handleCreateNewFolderRequest}
-                combineMode={combineMode}
+                selectionMode={selectionMode}
                 combineSelectedIds={combineSelectedIds}
                 combineFormat={combineFormat}
                 onCombineFormatChange={setCombineFormat}
@@ -1725,25 +1768,34 @@ export function SkillManagerLayout() {
                 initialActiveTab={activeTab}
                 onActiveTabChange={setActiveTab}
                 onSelectSkillFromMenu={(id) => {
-                  setSelectedSkillId(id)
+                  handleSelectItem(id)
                   setIsMobileSidebarOpen(false)
                 }}
                 onSelectAgentFromMenu={(id) => {
-                  setSelectedAgentId(id)
+                  navigate(agentDetailPath(id))
                   setIsMobileSidebarOpen(false)
                 }}
+                selectedAgentId={selectedAgentId}
                 onSelectTeamFromMenu={(id) => {
-                  setSelectedTeamId(id)
+                  navigate(teamDetailPath(id))
                   setIsMobileSidebarOpen(false)
                 }}
+                selectedTeamId={selectedTeamId}
                 onSelectRunFromMenu={(id) => {
-                  setSelectedRunId(id)
+                  navigate(runDetailPath(id))
                   setIsMobileSidebarOpen(false)
                 }}
+                selectedRunId={selectedRunId}
                 onSelectTopicFromMenu={(id) => {
-                  setSelectedTopicId(id)
+                  navigate(topicDetailPath(id))
                   setIsMobileSidebarOpen(false)
                 }}
+                selectedTopicId={selectedTopicId}
+                onSelectActionFromMenu={(id) => {
+                  navigate(actionDetailPath(id))
+                  setIsMobileSidebarOpen(false)
+                }}
+                selectedActionId={selectedActionId}
                 onSaveSkill={handleSaveSkillById}
                 onDiscardSkill={handleDiscardSkillById}
                 onSaveAgent={handleSaveAgentById}
@@ -1754,12 +1806,16 @@ export function SkillManagerLayout() {
                 onContentMatchesChange={setContentMatches}
                 onNavigateToRunningAgent={handleNavigateToRunningAgent}
                 runningAgentsData={runningAgentsData}
-        pendingDecisionsData={pendingDecisionsData}
-        onNavigateToDecision={handleNavigateToDecision}
+                heartbeatControlData={heartbeatControlData}
+                onOpenTopicWizard={() => navigate(topicWizardPath())}
                 onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
                 onCustomizeAgent={handleCustomizeAgentById}
                 onPreviewPrompt={handlePreviewPromptById}
                 onToggleTeamEnabled={(id) => void handleToggleTeamEnabled(id)}
+                onGoHome={() => {
+                  handleGoToHomeView()
+                  setIsMobileSidebarOpen(false)
+                }}
                 hideTopControlsRow={true}
                 className="border-r-0"
               />
@@ -1827,7 +1883,12 @@ export function SkillManagerLayout() {
 
       {/* Loading overlay */}
       {isLoading && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Loading prompt manager data"
+        >
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">Loading skills...</p>

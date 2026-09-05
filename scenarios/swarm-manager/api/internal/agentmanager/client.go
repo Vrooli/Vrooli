@@ -74,6 +74,10 @@ var ErrNotAvailable = errors.New("agent-manager not available")
 // ErrRequestFailed is returned when agent-manager returns a non-2xx response.
 var ErrRequestFailed = errors.New("agent-manager request failed")
 
+// ErrWorkflowNotReady is returned when a workflow execution is healthy but
+// has not reached a terminal state yet. Callers may safely retry collection.
+var ErrWorkflowNotReady = errors.New("agent-manager workflow result not ready")
+
 var protoJSONMarshal = protojson.MarshalOptions{
 	UseProtoNames: false, // match existing clients (lowerCamelCase)
 }
@@ -116,6 +120,31 @@ func (c *HTTPClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfile
 	}
 
 	var result apipb.EnsureProfileResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ReconcileScenarioProfiles reconciles profile files declared by the calling scenario.
+func (c *HTTPClient) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	req := &apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}
+	body, err := protoJSONMarshal.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/reconcile-scenario", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+
+	var result apipb.ReconcileScenarioProfilesResponse
 	if err := decodeProtoResponse(resp, &result); err != nil {
 		return nil, err
 	}
@@ -204,6 +233,38 @@ func (c *HTTPClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, e
 	return result.Run, nil
 }
 
+func (c *HTTPClient) GetRunEvents(ctx context.Context, runID string, opts RunEventsOptions) (*apipb.GetRunEventsResponse, error) {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	values := url.Values{}
+	if opts.AfterSequence > 0 {
+		values.Set("after_sequence", fmt.Sprintf("%d", opts.AfterSequence))
+	}
+	if opts.Limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", opts.Limit))
+	}
+	path := "/api/v1/runs/" + url.PathEscape(trimmed) + "/events"
+	if encoded := values.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp)
+	}
+	var result apipb.GetRunEventsResponse
+	if err := decodeProtoResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // GetRunDiff retrieves the diff for a sandboxed run.
 func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
 	trimmed := strings.TrimSpace(runID)
@@ -229,6 +290,42 @@ func (c *HTTPClient) GetRunDiff(ctx context.Context, runID string) (*domainpb.Ru
 		return nil, fmt.Errorf("%w: missing run diff", ErrRequestFailed)
 	}
 	return result.Diff, nil
+}
+
+// ApproveRun releases a run that is held at needs_review, merging its sandbox
+// overlay into the working tree. Used by the pre-merge engagement hold: the
+// caller opens the Baseline Modes restore point (capturing the clean working
+// tree) BEFORE calling this, so the merge lands the candidate on top of a
+// captured baseline.
+func (c *HTTPClient) ApproveRun(ctx context.Context, runID, actor, commitMsg string) error {
+	trimmed := strings.TrimSpace(runID)
+	if trimmed == "" {
+		return fmt.Errorf("%w: run id is required", ErrRequestFailed)
+	}
+
+	req := &apipb.ApproveRunRequest{RunId: trimmed}
+	if a := strings.TrimSpace(actor); a != "" {
+		req.Actor = &a
+	}
+	if m := strings.TrimSpace(commitMsg); m != "" {
+		req.CommitMsg = &m
+	}
+	body, err := protoJSONMarshal.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs/"+url.PathEscape(trimmed)+"/approve", body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp)
+	}
+
+	return nil
 }
 
 // ContinueRun sends a follow-up message to an existing run's conversation.

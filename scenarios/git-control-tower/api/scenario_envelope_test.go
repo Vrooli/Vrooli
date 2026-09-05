@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"git-control-tower/internal/testutil/fixtures"
+
 	"github.com/gorilla/mux"
 )
 
@@ -43,8 +45,7 @@ func TestParseServiceJSON_FullData(t *testing.T) {
 			"setup": {
 				"steps": [
 					{"name": "install-deps", "run": "npm install"},
-					{"name": "build-api", "run": "go build -o api ."},
-					{"name": "show-urls", "run": "echo done"}
+					{"name": "build-api", "run": "go build -o api ."}
 				]
 			}
 		}
@@ -76,9 +77,6 @@ func assertEnvelopeServiceFields(t *testing.T, env *ScenarioEnvelopeResponse) {
 	}
 	if env.Description != "A test scenario" {
 		t.Errorf("Description = %q, want %q", env.Description, "A test scenario")
-	}
-	if env.Path != "scenarios/my-scenario" {
-		t.Errorf("Path = %q, want %q", env.Path, "scenarios/my-scenario")
 	}
 	if len(env.Tags) != 2 || env.Tags[0] != "web" || env.Tags[1] != "api" {
 		t.Errorf("Tags = %v, want [web api]", env.Tags)
@@ -181,6 +179,26 @@ func TestParseServiceJSON_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestParseServiceJSON_UsesRepoContractWhenAvailable(t *testing.T) {
+	repoRoot := t.TempDir()
+	fixtures.WriteRepoContract(t, repoRoot)
+	t.Setenv("VROOLI_ROOT", repoRoot)
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
+
+	raw := `{
+		"service": {"name": "my-scenario", "displayName": "My Scenario", "description": "A test scenario"},
+		"dependencies": {}
+	}`
+
+	env, err := ParseServiceJSON([]byte(raw), "my-scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env.Path != "scenarios/my-scenario" {
+		t.Fatalf("Path = %q, want %q", env.Path, "scenarios/my-scenario")
+	}
+}
+
 // =============================================================================
 // containsBuild unit tests
 // =============================================================================
@@ -195,7 +213,7 @@ func TestContainsBuild(t *testing.T) {
 		{"BUILD", true},
 		{"rebuild-all", true},
 		{"install-deps", false},
-		{"show-urls", false},
+		{"start-api", false},
 		{"buil", false}, // too short
 		{"", false},
 	}
@@ -215,6 +233,7 @@ func setupEnvelopeTestServer(t *testing.T) (*Server, *mux.Router, string) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
+	fixtures.WriteRepoContract(t, tmpDir)
 	router := mux.NewRouter()
 
 	srv := &Server{
@@ -228,22 +247,10 @@ func setupEnvelopeTestServer(t *testing.T) (*Server, *mux.Router, string) {
 	return srv, router, tmpDir
 }
 
-// writeServiceJSON writes a service.json fixture for the given scenario slug.
-func writeServiceJSON(t *testing.T, repoRoot, slug, content string) {
-	t.Helper()
-	dir := filepath.Join(repoRoot, "scenarios", slug, ".vrooli")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("failed to create fixture dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte(content), 0o644); err != nil {
-		t.Fatalf("failed to write fixture: %v", err)
-	}
-}
-
 func TestHandleScenarioEnvelope_Success(t *testing.T) {
 	_, router, tmpDir := setupEnvelopeTestServer(t)
 
-	writeServiceJSON(t, tmpDir, "test-scenario", `{
+	fixtures.WriteScenarioServiceJSON(t, tmpDir, "test-scenario", `{
 		"service": {"name": "test-scenario", "displayName": "Test Scenario", "description": "A test", "tags": ["test"]},
 		"dependencies": {"scenarios": {"test-genie": {"description": "Tests"}}},
 		"lifecycle": {"test": {"steps": [{"name": "run", "run": "make test"}]}}
@@ -288,7 +295,7 @@ func TestHandleScenarioEnvelope_NotFound(t *testing.T) {
 func TestHandleScenarioEnvelope_MalformedJSON(t *testing.T) {
 	_, router, tmpDir := setupEnvelopeTestServer(t)
 
-	writeServiceJSON(t, tmpDir, "broken", "not valid json {{{")
+	fixtures.WriteScenarioServiceJSON(t, tmpDir, "broken", "not valid json {{{")
 
 	req := httptest.NewRequest("GET", "/api/v1/scenarios/broken/envelope", nil)
 	w := httptest.NewRecorder()
@@ -302,7 +309,7 @@ func TestHandleScenarioEnvelope_MalformedJSON(t *testing.T) {
 func TestHandleScenarioEnvelope_CachesResult(t *testing.T) {
 	srv, router, tmpDir := setupEnvelopeTestServer(t)
 
-	writeServiceJSON(t, tmpDir, "cached", `{
+	fixtures.WriteScenarioServiceJSON(t, tmpDir, "cached", `{
 		"service": {"name": "cached", "displayName": "Cached", "description": "d"},
 		"dependencies": {}
 	}`)

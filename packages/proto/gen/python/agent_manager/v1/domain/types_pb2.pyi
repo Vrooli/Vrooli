@@ -16,13 +16,14 @@ class RunnerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUNNER_TYPE_CLAUDE_CODE: _ClassVar[RunnerType]
     RUNNER_TYPE_CODEX: _ClassVar[RunnerType]
     RUNNER_TYPE_OPENCODE: _ClassVar[RunnerType]
+    RUNNER_TYPE_GROK: _ClassVar[RunnerType]
+    RUNNER_TYPE_ANTIGRAVITY: _ClassVar[RunnerType]
 
-class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ModelSelectionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    MODEL_PRESET_UNSPECIFIED: _ClassVar[ModelPreset]
-    MODEL_PRESET_FAST: _ClassVar[ModelPreset]
-    MODEL_PRESET_CHEAP: _ClassVar[ModelPreset]
-    MODEL_PRESET_SMART: _ClassVar[ModelPreset]
+    MODEL_SELECTION_TYPE_UNSPECIFIED: _ClassVar[ModelSelectionType]
+    MODEL_SELECTION_TYPE_MODEL: _ClassVar[ModelSelectionType]
+    MODEL_SELECTION_TYPE_RUNNER_DEFAULT: _ClassVar[ModelSelectionType]
 
 class NetworkAccess(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -40,11 +41,21 @@ class SandboxLifecycleEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SANDBOX_LIFECYCLE_EVENT_APPROVED: _ClassVar[SandboxLifecycleEvent]
     SANDBOX_LIFECYCLE_EVENT_REJECTED: _ClassVar[SandboxLifecycleEvent]
     SANDBOX_LIFECYCLE_EVENT_TERMINAL: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TURN_FAILED: _ClassVar[SandboxLifecycleEvent]
+    SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED: _ClassVar[SandboxLifecycleEvent]
 
 class SandboxAcceptanceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: _ClassVar[SandboxAcceptanceMode]
     SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: _ClassVar[SandboxAcceptanceMode]
+
+class SandboxMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SANDBOX_MODE_UNSPECIFIED: _ClassVar[SandboxMode]
+    SANDBOX_MODE_TRACKING: _ClassVar[SandboxMode]
+    SANDBOX_MODE_PROTECTED: _ClassVar[SandboxMode]
+    SANDBOX_MODE_OFF: _ClassVar[SandboxMode]
 
 class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -67,6 +78,18 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_COMPLETE: _ClassVar[RunStatus]
     RUN_STATUS_FAILED: _ClassVar[RunStatus]
     RUN_STATUS_CANCELLED: _ClassVar[RunStatus]
+    RUN_STATUS_PARKED: _ClassVar[RunStatus]
+    RUN_STATUS_UNKNOWN: _ClassVar[RunStatus]
+
+class RunFinalizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RUN_FINALIZATION_STATUS_UNSPECIFIED: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_NONE: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_PENDING: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_RUNNING: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_SUCCEEDED: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_FAILED: _ClassVar[RunFinalizationStatus]
+    RUN_FINALIZATION_STATUS_SKIPPED: _ClassVar[RunFinalizationStatus]
 
 class RunPhase(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -87,6 +110,14 @@ class RunMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_MODE_UNSPECIFIED: _ClassVar[RunMode]
     RUN_MODE_SANDBOXED: _ClassVar[RunMode]
     RUN_MODE_IN_PLACE: _ClassVar[RunMode]
+
+class ExecutionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EXECUTION_MODE_UNSPECIFIED: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_CODEC_PIPE: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_INTERACTIVE: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_IMPORTED: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_ATTACHED: _ClassVar[ExecutionMode]
 
 class ApprovalState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -110,6 +141,7 @@ class RunEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_EVENT_TYPE_ERROR: _ClassVar[RunEventType]
     RUN_EVENT_TYPE_MESSAGE_DELETED: _ClassVar[RunEventType]
     RUN_EVENT_TYPE_COMPACTION: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_LIFECYCLE: _ClassVar[RunEventType]
 
 class RecoveryAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -150,10 +182,11 @@ RUNNER_TYPE_UNSPECIFIED: RunnerType
 RUNNER_TYPE_CLAUDE_CODE: RunnerType
 RUNNER_TYPE_CODEX: RunnerType
 RUNNER_TYPE_OPENCODE: RunnerType
-MODEL_PRESET_UNSPECIFIED: ModelPreset
-MODEL_PRESET_FAST: ModelPreset
-MODEL_PRESET_CHEAP: ModelPreset
-MODEL_PRESET_SMART: ModelPreset
+RUNNER_TYPE_GROK: RunnerType
+RUNNER_TYPE_ANTIGRAVITY: RunnerType
+MODEL_SELECTION_TYPE_UNSPECIFIED: ModelSelectionType
+MODEL_SELECTION_TYPE_MODEL: ModelSelectionType
+MODEL_SELECTION_TYPE_RUNNER_DEFAULT: ModelSelectionType
 NETWORK_ACCESS_UNSPECIFIED: NetworkAccess
 NETWORK_ACCESS_NONE: NetworkAccess
 NETWORK_ACCESS_LOCALHOST: NetworkAccess
@@ -165,8 +198,15 @@ SANDBOX_LIFECYCLE_EVENT_RUN_CANCELLED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_APPROVED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_REJECTED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_TERMINAL: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TURN_FAILED: SandboxLifecycleEvent
+SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED: SandboxLifecycleEvent
 SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED: SandboxAcceptanceMode
 SANDBOX_ACCEPTANCE_MODE_ALLOWLIST: SandboxAcceptanceMode
+SANDBOX_MODE_UNSPECIFIED: SandboxMode
+SANDBOX_MODE_TRACKING: SandboxMode
+SANDBOX_MODE_PROTECTED: SandboxMode
+SANDBOX_MODE_OFF: SandboxMode
 TASK_STATUS_UNSPECIFIED: TaskStatus
 TASK_STATUS_QUEUED: TaskStatus
 TASK_STATUS_RUNNING: TaskStatus
@@ -183,6 +223,15 @@ RUN_STATUS_NEEDS_REVIEW: RunStatus
 RUN_STATUS_COMPLETE: RunStatus
 RUN_STATUS_FAILED: RunStatus
 RUN_STATUS_CANCELLED: RunStatus
+RUN_STATUS_PARKED: RunStatus
+RUN_STATUS_UNKNOWN: RunStatus
+RUN_FINALIZATION_STATUS_UNSPECIFIED: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_NONE: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_PENDING: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_RUNNING: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_SUCCEEDED: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_FAILED: RunFinalizationStatus
+RUN_FINALIZATION_STATUS_SKIPPED: RunFinalizationStatus
 RUN_PHASE_UNSPECIFIED: RunPhase
 RUN_PHASE_QUEUED: RunPhase
 RUN_PHASE_INITIALIZING: RunPhase
@@ -197,6 +246,11 @@ RUN_PHASE_COMPLETED: RunPhase
 RUN_MODE_UNSPECIFIED: RunMode
 RUN_MODE_SANDBOXED: RunMode
 RUN_MODE_IN_PLACE: RunMode
+EXECUTION_MODE_UNSPECIFIED: ExecutionMode
+EXECUTION_MODE_CODEC_PIPE: ExecutionMode
+EXECUTION_MODE_INTERACTIVE: ExecutionMode
+EXECUTION_MODE_IMPORTED: ExecutionMode
+EXECUTION_MODE_ATTACHED: ExecutionMode
 APPROVAL_STATE_UNSPECIFIED: ApprovalState
 APPROVAL_STATE_NONE: ApprovalState
 APPROVAL_STATE_PENDING: ApprovalState
@@ -214,6 +268,7 @@ RUN_EVENT_TYPE_ARTIFACT: RunEventType
 RUN_EVENT_TYPE_ERROR: RunEventType
 RUN_EVENT_TYPE_MESSAGE_DELETED: RunEventType
 RUN_EVENT_TYPE_COMPACTION: RunEventType
+RUN_EVENT_TYPE_LIFECYCLE: RunEventType
 RECOVERY_ACTION_UNSPECIFIED: RecoveryAction
 RECOVERY_ACTION_NONE: RecoveryAction
 RECOVERY_ACTION_RETRY: RecoveryAction
@@ -248,42 +303,50 @@ class SandboxFileCriteria(_message.Message):
     def __init__(self, path_globs: _Optional[_Iterable[str]] = ..., extensions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SandboxAcceptanceConfig(_message.Message):
-    __slots__ = ("mode", "allow", "deny", "ignore_binary", "auto_approve", "auto_reject", "disable_auto_approve_if_empty")
+    __slots__ = ("mode", "allow", "deny", "ignore_binary")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ALLOW_FIELD_NUMBER: _ClassVar[int]
     DENY_FIELD_NUMBER: _ClassVar[int]
     IGNORE_BINARY_FIELD_NUMBER: _ClassVar[int]
-    AUTO_APPROVE_FIELD_NUMBER: _ClassVar[int]
-    AUTO_REJECT_FIELD_NUMBER: _ClassVar[int]
-    DISABLE_AUTO_APPROVE_IF_EMPTY_FIELD_NUMBER: _ClassVar[int]
     mode: SandboxAcceptanceMode
     allow: SandboxFileCriteria
     deny: SandboxFileCriteria
     ignore_binary: bool
-    auto_approve: bool
-    auto_reject: bool
-    disable_auto_approve_if_empty: bool
-    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ..., disable_auto_approve_if_empty: _Optional[bool] = ...) -> None: ...
+    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ...) -> None: ...
 
 class SandboxLifecycleConfig(_message.Message):
-    __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout")
+    __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout", "checkpoint_on")
     STOP_ON_FIELD_NUMBER: _ClassVar[int]
     DELETE_ON_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
     IDLE_TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_ON_FIELD_NUMBER: _ClassVar[int]
     stop_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
     delete_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
     ttl: _duration_pb2.Duration
     idle_timeout: _duration_pb2.Duration
-    def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+    checkpoint_on: _containers.RepeatedScalarFieldContainer[SandboxLifecycleEvent]
+    def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., checkpoint_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ...) -> None: ...
 
 class SandboxConfig(_message.Message):
-    __slots__ = ("lifecycle", "acceptance")
+    __slots__ = ("lifecycle", "acceptance", "mode", "manual_review", "auto_apply", "apply_on_failure", "network_mode", "no_lock")
     LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    MANUAL_REVIEW_FIELD_NUMBER: _ClassVar[int]
+    AUTO_APPLY_FIELD_NUMBER: _ClassVar[int]
+    APPLY_ON_FAILURE_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_MODE_FIELD_NUMBER: _ClassVar[int]
+    NO_LOCK_FIELD_NUMBER: _ClassVar[int]
     lifecycle: SandboxLifecycleConfig
     acceptance: SandboxAcceptanceConfig
-    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ...) -> None: ...
+    mode: SandboxMode
+    manual_review: bool
+    auto_apply: bool
+    apply_on_failure: bool
+    network_mode: NetworkAccess
+    no_lock: bool
+    def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ..., mode: _Optional[_Union[SandboxMode, str]] = ..., manual_review: _Optional[bool] = ..., auto_apply: _Optional[bool] = ..., apply_on_failure: _Optional[bool] = ..., network_mode: _Optional[_Union[NetworkAccess, str]] = ..., no_lock: _Optional[bool] = ...) -> None: ...
 
 class FeatureFlags(_message.Message):
     __slots__ = ("enable_browser",)

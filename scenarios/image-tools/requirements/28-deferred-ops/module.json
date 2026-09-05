@@ -1,0 +1,27 @@
+{
+  "description": "Animated GIF/APNG, recolor/replace-color, channel/alpha ops, collage, content-aware heal, sketch->image, style transfer, interrogate, document scan, prompt enhancement, QR/barcode generation, texture/avatar/logo generation remain deferred until validated demand.",
+  "module_id": "MOD-P2-005",
+  "prd_ref": "OT-P2-005",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "feature",
+      "dependencies": [],
+      "description": "Animated GIF/APNG, recolor/replace-color, channel/alpha ops, collage, content-aware heal, sketch->image, style transfer, interrogate, document scan, prompt enhancement, QR/barcode generation, texture/avatar/logo generation remain deferred until validated demand.",
+      "id": "IMG-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Deferred Ops (Demand-Gated)",
+      "validation": [
+        {
+          "notes": "Deferred ops added only on validated user/partner demand",
+          "phase": "manual",
+          "ref": "docs/internal/DECISIONS.md",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "Deferred Ops (Demand-Gated)"
+}

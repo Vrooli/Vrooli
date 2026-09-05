@@ -8,9 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // BROWSER PROFILE CONFIGURATION
 // =============================================================================
 //
-// @layer 1
-// @domain base
-// @imports none
 // @stability stable
 //
 // BrowserProfile controls anti-detection, fingerprinting, and human-like behavior
@@ -45,6 +42,11 @@ message BrowserProfile {
   // Custom HTTP headers sent with every request.
   // Keys like "Host", "Content-Length", and "Cookie" are blocked.
   map<string, string> extra_headers = 6;
+  // Capture-only preference for CSS prefers-reduced-motion emulation.
+  optional string motion_preference = 7; // no-preference, reduce
+  // Capture-only interaction state label. The capture orchestrator may pair
+  // this with an interaction flow before the final snapshot.
+  optional string interaction_state = 8; // rest, hover, focus-visible, pressed, disabled
 }
 
 // FingerprintSettings controls browser identity and device characteristics.

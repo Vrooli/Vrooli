@@ -3,9 +3,15 @@
  * Manages Scenario, Template, Framework, and Deployment modals.
  */
 
-import { TemplateModal, ScenarioModal, FrameworkModal, DeploymentModal } from "../modals";
+import {
+  TemplateModal,
+  ScenarioModal,
+  FrameworkModal,
+  DeploymentModal,
+} from "../modals";
 import type { ScenarioDesktopStatus } from "../scenario-inventory/types";
 import type { DeploymentMode, ServerType } from "../../domain/deployment";
+import type { DesktopFramework } from "../../domain/generator";
 
 export interface GeneratorModalsContainerProps {
   // Modal visibility state
@@ -15,7 +21,9 @@ export interface GeneratorModalsContainerProps {
     framework: boolean;
     deployment: boolean;
   };
-  closeModal: (modal: "scenario" | "template" | "framework" | "deployment") => void;
+  closeModal: (
+    modal: "scenario" | "template" | "framework" | "deployment",
+  ) => void;
   // Scenario modal props
   loadingScenarios: boolean;
   scenarios: ScenarioDesktopStatus[];
@@ -25,8 +33,8 @@ export interface GeneratorModalsContainerProps {
   selectedTemplate: string;
   onTemplateSelect: (template: string) => void;
   // Framework modal props
-  selectedFramework: string;
-  onFrameworkSelect: (framework: string) => void;
+  selectedFramework: DesktopFramework;
+  onFrameworkSelect: (framework: DesktopFramework) => void;
   // Deployment modal props
   deploymentMode: DeploymentMode;
   serverType: ServerType;
@@ -57,7 +65,9 @@ export function GeneratorModalsContainer({
         loading={loadingScenarios}
         scenarios={scenarios}
         selectedScenarioName={selectedScenarioName}
-        onClose={() => closeModal("scenario")}
+        onClose={() => {
+          closeModal("scenario");
+        }}
         onSelect={(name) => {
           onScenarioSelect(name);
           closeModal("scenario");
@@ -66,7 +76,9 @@ export function GeneratorModalsContainer({
       <TemplateModal
         open={modals.template}
         selectedTemplate={selectedTemplate}
-        onClose={() => closeModal("template")}
+        onClose={() => {
+          closeModal("template");
+        }}
         onSelect={(template) => {
           onTemplateSelect(template);
           closeModal("template");
@@ -75,7 +87,9 @@ export function GeneratorModalsContainer({
       <FrameworkModal
         open={modals.framework}
         selectedFramework={selectedFramework}
-        onClose={() => closeModal("framework")}
+        onClose={() => {
+          closeModal("framework");
+        }}
         onSelect={(nextFramework) => {
           onFrameworkSelect(nextFramework);
           closeModal("framework");
@@ -86,7 +100,9 @@ export function GeneratorModalsContainer({
         deploymentMode={deploymentMode}
         serverType={serverType}
         allowedServerTypes={allowedServerTypes}
-        onClose={() => closeModal("deployment")}
+        onClose={() => {
+          closeModal("deployment");
+        }}
         onChange={(nextMode, nextServerType) => {
           onDeploymentChange(nextMode, nextServerType);
         }}

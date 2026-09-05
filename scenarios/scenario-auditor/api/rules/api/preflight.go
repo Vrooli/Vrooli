@@ -277,7 +277,8 @@ func CheckPreflight(content []byte, filePath string, scenario string) *Violation
 
 	// This rule is for long-running services (APIs), not CLIs
 	normalized := filepath.ToSlash(filePath)
-	if strings.HasPrefix(normalized, "cli/") || strings.Contains(normalized, "/cli/") {
+	if strings.HasPrefix(normalized, "cli/") || strings.Contains(normalized, "/cli/") ||
+		strings.HasPrefix(normalized, "tools/") || strings.Contains(normalized, "/tools/") {
 		return nil
 	}
 

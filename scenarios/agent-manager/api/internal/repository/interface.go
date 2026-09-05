@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -30,7 +31,10 @@ type RunListFilter struct {
 	TaskID                    *uuid.UUID
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
+	EndedFrom                 *time.Time
+	EndedTo                   *time.Time
 	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager" to drain runs targeting a scenario)
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
 }
@@ -61,6 +65,53 @@ type ProfileRepository interface {
 
 	// Delete removes a profile by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+// WorkflowRepository stores immutable, digest-addressed workflow revisions.
+// ActivateBatch validates and activates an entire scenario reload atomically;
+// a failed reload therefore leaves every previously active revision intact.
+type WorkflowRepository interface {
+	ActivateBatch(ctx context.Context, revisions []*domain.WorkflowRevision) error
+	GetActive(ctx context.Context, owner, key string) (*domain.WorkflowRevision, error)
+	GetByDigest(ctx context.Context, digest string) (*domain.WorkflowRevision, error)
+	List(ctx context.Context, owner, key string, filter ListFilter) ([]*domain.WorkflowRevision, error)
+}
+
+type WorkflowCommit struct {
+	ExpectedVersion int64
+	Execution       *domain.WorkflowExecution
+	Attempt         *domain.WorkflowNodeAttempt
+	Attempts        []*domain.WorkflowNodeAttempt
+	Journal         []*domain.WorkflowJournalEntry
+}
+
+// WorkflowExecutionListFilter bounds operator history queries. Empty owner,
+// workflow key, and status values mean "all"; pagination is always bounded by
+// the repository implementation.
+type WorkflowExecutionListFilter struct {
+	ListFilter
+	Owner       string
+	WorkflowKey string
+	Status      domain.WorkflowExecutionStatus
+}
+
+// WorkflowExecutionRepository is the durable interpreter commit boundary.
+// Commit is compare-and-swap and atomically persists execution state, one
+// attempt projection, and append-only journal entries.
+type WorkflowExecutionRepository interface {
+	Create(ctx context.Context, execution *domain.WorkflowExecution, initial *domain.WorkflowJournalEntry) error
+	Get(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error)
+	GetByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowExecution, error)
+	List(ctx context.Context, filter WorkflowExecutionListFilter) ([]*domain.WorkflowExecution, error)
+	Commit(ctx context.Context, commit WorkflowCommit) (bool, error)
+	GetAttemptByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowNodeAttempt, error)
+	ListAttempts(ctx context.Context, executionID uuid.UUID) ([]*domain.WorkflowNodeAttempt, error)
+	// ExecutionIDForRun resolves the workflow execution that dispatched the
+	// given run through a node attempt. Returns uuid.Nil (nil error) when the
+	// run does not belong to any workflow attempt — the common non-workflow run.
+	ExecutionIDForRun(ctx context.Context, runID uuid.UUID) (uuid.UUID, error)
+	ListJournal(ctx context.Context, executionID uuid.UUID, afterSequence int64, limit int) ([]*domain.WorkflowJournalEntry, error)
+	ListRecoverable(ctx context.Context, limit int) ([]*domain.WorkflowExecution, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -109,36 +160,59 @@ type RunRepository interface {
 	// Update modifies an existing run.
 	Update(ctx context.Context, run *domain.Run) error
 
+	// TouchHeartbeat atomically updates ONLY a run's last_heartbeat (and
+	// updated_at), and ONLY while it is still in an actively-executing status
+	// (running or starting). It returns true when a row was updated.
+	//
+	// This exists so a heartbeat tick can never resurrect a run that has moved
+	// on. The heartbeat loop holds an in-memory *Run whose Status is whatever it
+	// was when the loop started; a full-row Update from that stale pointer would
+	// clobber a concurrent park/stop transition (e.g. running→parked written by
+	// another goroutine), rewriting status back to running. The status-guarded,
+	// single-column update closes that race at the SQL layer (no TOCTOU).
+	TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
+
+	// UpdateRunnerStreamState atomically persists ONLY the runner streaming
+	// columns (session id, runner pid/pgid, transcript path/cursor/seq) from the
+	// supplied run, and ONLY while it is still actively executing (running or
+	// starting). It returns true when a row was updated.
+	//
+	// Same race class as TouchHeartbeat: the executor's OnAdvance/OnProcessStart/
+	// OnSessionID transcript callbacks fire on every agent output chunk and hold
+	// an in-memory *Run whose Status is the stale "running" value. A full-row
+	// Update from that pointer during the park turn-end grace window would rewrite
+	// a just-persisted running→parked transition back to running (clobbering the
+	// park before detectParked ever reads it). The status-guarded targeted update
+	// closes that race at the SQL layer (no TOCTOU): once the run is parked/
+	// terminal, the streaming write no-ops instead of resurrecting it.
+	UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error)
+
 	// Delete removes a run by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
 
-	// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
-	// Returns runs with status=pending or status=failed (with attempts < maxRetries),
-	// ordered by queued_at ascending (oldest first).
-	ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error)
-
-	// ClaimRecommendationExtraction atomically marks a run as "extracting".
-	// Returns true if claim succeeded (no concurrent extractor got it first).
-	// This prevents duplicate extraction if multiple workers exist.
-	ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error)
-
-	// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
-	// recommendations extracted yet (status is empty or "none").
-	// Used on startup to seed the extraction queue with existing runs.
-	// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
-	ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error)
-
-	// ListStaleExtractions returns runs that have been stuck in "extracting" status
-	// for longer than the stale timeout. These are likely from crashed workers.
-	// Used by the worker to recover stuck extractions.
-	ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error)
-
 	// GetByTokenHash retrieves a run by its identity token hash.
 	// Returns nil, nil if no matching run is found.
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error)
+
+	// GetByImportProvenance returns the run that adopted an external source
+	// session, or nil when that session has not been imported.
+	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
+}
+
+// RunLabelUpdater is an intentionally narrow maintenance seam. Label
+// backfills must not use RunRepository.Update because that would rewrite the
+// complete run row, including identity and attribution fields.
+type RunLabelUpdater interface {
+	UpdateRunLabel(ctx context.Context, id uuid.UUID, label string, source domain.RunLabelSource) error
+}
+
+// RunSubjectUpdater updates only the derived subject projection. Keeping this
+// seam separate prevents analytics projection from overwriting live run state.
+type RunSubjectUpdater interface {
+	UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error
 }
 
 // -----------------------------------------------------------------------------
@@ -189,31 +263,6 @@ type PolicyRepository interface {
 
 	// FindByScope finds policies matching a scope pattern.
 	FindByScope(ctx context.Context, scopePath string) ([]*domain.Policy, error)
-}
-
-// -----------------------------------------------------------------------------
-// LockRepository - ScopeLock persistence
-// -----------------------------------------------------------------------------
-
-// LockRepository provides persistence for ScopeLock entities.
-type LockRepository interface {
-	// Acquire attempts to acquire a lock.
-	Acquire(ctx context.Context, lock *domain.ScopeLock) error
-
-	// Release releases a lock by ID.
-	Release(ctx context.Context, id uuid.UUID) error
-
-	// ReleaseByRun releases all locks for a run.
-	ReleaseByRun(ctx context.Context, runID uuid.UUID) error
-
-	// Check finds overlapping locks for a scope.
-	Check(ctx context.Context, scopePath, projectRoot string) ([]*domain.ScopeLock, error)
-
-	// Refresh extends a lock's expiration.
-	Refresh(ctx context.Context, id uuid.UUID, newExpiry int64) error
-
-	// CleanupExpired removes expired locks.
-	CleanupExpired(ctx context.Context) (int, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -277,7 +326,11 @@ type StatsTimeWindow struct {
 
 // StatsFilter specifies filtering options for stats queries.
 type StatsFilter struct {
-	Window      StatsTimeWindow
+	Window StatsTimeWindow
+	// RunIDs scopes aggregates to explicit runs. It is intentionally additive to
+	// the existing window and dimension filters so run inspection can reuse the
+	// same SQL aggregation seam as cross-run analytics.
+	RunIDs      []uuid.UUID
 	RunnerTypes []domain.RunnerType // Filter by specific runners
 	ProfileIDs  []uuid.UUID         // Filter by specific profiles
 	Models      []string            // Filter by specific models
@@ -309,19 +362,16 @@ type DurationStats struct {
 
 // CostStats contains cost aggregation data.
 type CostStats struct {
-	TotalCostUSD              float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalCostUSDAuthoritative float64 `json:"totalCostUsdAuthoritative" db:"total_cost_usd_authoritative"`
-	TotalCostUSDEstimated     float64 `json:"totalCostUsdEstimated" db:"total_cost_usd_estimated"`
-	TotalCostUSDUnknown       float64 `json:"totalCostUsdUnknown" db:"total_cost_usd_unknown"`
-	InputCostUSD              float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD             float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD          float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD      float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	AvgCostUSD                float64 `json:"avgCostUsd" db:"avg_cost_usd"`
-	InputTokens               int64   `json:"inputTokens" db:"input_tokens"`
-	OutputTokens              int64   `json:"outputTokens" db:"output_tokens"`
-	CacheReadTokens           int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
-	TotalTokens               int64   `json:"totalTokens" db:"total_tokens"`
+	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
+	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
+	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
+	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
+	AvgCostUSD           float64 `json:"avgCostUsd" db:"avg_cost_usd"`
+	InputTokens          int64   `json:"inputTokens" db:"input_tokens"`
+	OutputTokens         int64   `json:"outputTokens" db:"output_tokens"`
+	CacheReadTokens      int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
+	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
 }
 
 // RunnerBreakdown contains stats grouped by runner type.
@@ -336,36 +386,37 @@ type RunnerBreakdown struct {
 
 // ProfileBreakdown contains stats grouped by agent profile.
 type ProfileBreakdown struct {
-	ProfileID    uuid.UUID `json:"profileId" db:"profile_id"`
-	ProfileName  string    `json:"profileName" db:"profile_name"`
-	RunCount     int       `json:"runCount" db:"run_count"`
-	SuccessCount int       `json:"successCount" db:"success_count"`
-	FailedCount  int       `json:"failedCount" db:"failed_count"`
-	TotalCostUSD float64   `json:"totalCostUsd" db:"total_cost_usd"`
+	// ProfileID is intentionally text. Historical read-model rows may contain
+	// sentinel values such as "unknown" instead of UUIDs, and stats must report
+	// those rows rather than making the whole projection unreadable.
+	ProfileID    string  `json:"profileId" db:"profile_id"`
+	ProfileName  string  `json:"profileName" db:"profile_name"`
+	RunCount     int     `json:"runCount" db:"run_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	FailedCount  int     `json:"failedCount" db:"failed_count"`
+	TotalCostUSD float64 `json:"totalCostUsd" db:"total_cost_usd"`
 }
 
 // ModelBreakdown contains stats grouped by model.
 type ModelBreakdown struct {
-	Model                     string  `json:"model" db:"model"`
-	RunCount                  int     `json:"runCount" db:"run_count"`
-	SuccessCount              int     `json:"successCount" db:"success_count"`
-	TotalCostUSD              float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalCostUSDAuthoritative float64 `json:"totalCostUsdAuthoritative" db:"total_cost_usd_authoritative"`
-	TotalCostUSDEstimated     float64 `json:"totalCostUsdEstimated" db:"total_cost_usd_estimated"`
-	TotalCostUSDUnknown       float64 `json:"totalCostUsdUnknown" db:"total_cost_usd_unknown"`
-	InputCostUSD              float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD             float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD          float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD      float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	TotalTokens               int64   `json:"totalTokens" db:"total_tokens"`
+	Model                string  `json:"model" db:"model"`
+	RunCount             int     `json:"runCount" db:"run_count"`
+	SuccessCount         int     `json:"successCount" db:"success_count"`
+	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
+	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
+	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
+	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
+	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
 }
 
 // ToolUsageStats contains tool call frequency data.
 type ToolUsageStats struct {
-	ToolName     string `json:"toolName" db:"tool_name"`
-	CallCount    int    `json:"callCount" db:"call_count"`
-	SuccessCount int    `json:"successCount" db:"success_count"`
-	FailedCount  int    `json:"failedCount" db:"failed_count"`
+	ToolName     string  `json:"toolName" db:"tool_name"`
+	CallCount    int     `json:"callCount" db:"call_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	FailedCount  int     `json:"failedCount" db:"failed_count"`
+	FailureRate  float64 `json:"failureRate" db:"failure_rate"`
 }
 
 // ToolUsageModelBreakdown contains tool usage grouped by model.

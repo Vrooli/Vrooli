@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The voice control keeps a short amplitude history in the host component and
+ * paints it as button background layers. The icon and the control chrome stay
+ * in the component library; this only supplies the mobile-friendly activity
+ * treatment. */
+.voice-waveform-host {
+  position: relative;
+}
+
+.voice-waveform-host [data-voice-waveform] {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  inline-size: 100%;
+  block-size: 100%;
+  color: rgb(34 211 238 / 72%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.voice-waveform-host[data-voice-waveform-active="true"] [data-voice-waveform] {
+  opacity: 1;
+}
+
+.voice-waveform-control [data-rcl-voice-level] {
+  /* The rolling waveform replaces the old single rising level fill. */
+  opacity: 0;
+}
+
+/* The terminal grid must be measured against the same face on every host.
+ * The font is bundled by @fontsource and emitted by Vite from this origin;
+ * `block` prevents xterm's first fit from observing a fallback face. */
+@font-face {
+  font-family: "Web Console JetBrains Mono";
+  src: url("@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   color-scheme: dark;
 
@@ -28,6 +68,7 @@
 
   /* Accent */
   --wc-accent: 34 211 238;             /* cyan-400 */
+  --wc-accent-fg: 15 23 42;            /* slate-900 */
   --wc-accent-border: 6 182 212 / 0.4; /* cyan-500/40 */
   --wc-accent-active: 14 116 144 / 0.4; /* cyan-700/40 */
 
@@ -36,6 +77,16 @@
   --wc-error-detail: 248 113 113;      /* red-400 */
   --wc-error-border: 239 68 68 / 0.3;  /* red-500/30 */
   --wc-error-surface: 69 10 10 / 0.5;  /* red-950/50 */
+
+  /* Semantic: success and warning.
+   *
+   * These sit alongside error so state can be read as a set. They are
+   * deliberately not the accent hue: the accent means "chosen", and a card
+   * that borrowed it to say "installed" would read as selected. Every state
+   * surface derives from these with a Tailwind alpha, so a theme that
+   * restates them restates the whole vocabulary. */
+  --wc-success: 74 222 128;            /* green-400 */
+  --wc-warning: 245 178 63;            /* amber-400, warmed */
 
   /* Header surface */
   --wc-surface-header: var(--wc-surface-raised);
@@ -46,6 +97,15 @@
   /* Overlay */
   --wc-backdrop: 0 0 0 / 0.4;
   --wc-backdrop-heavy: 0 0 0 / 0.6;
+
+  /* Safe-area insets. These CSS defaults make env(safe-area-inset-*) available
+   * before/independent of JS (avoids a pre-hydration flash of un-inset chrome
+   * on notched devices). useAppViewport.ts overrides them imperatively at
+   * runtime (e.g. forcing --wc-safe-bottom to 0 while the keyboard is open). */
+  --wc-safe-top: env(safe-area-inset-top, 0px);
+  --wc-safe-right: env(safe-area-inset-right, 0px);
+  --wc-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --wc-safe-left: env(safe-area-inset-left, 0px);
 }
 
 /* ── Viewport locking ──
@@ -73,13 +133,94 @@ html {
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Backs the iOS notch / status-bar region (which has no element of its own).
+   * --wc-chrome-color is set imperatively by lib/chromeTheme.ts when adaptive
+   * chrome is active; otherwise it falls back to the slate header surface. */
+  background: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+  transition: background-color 200ms ease;
+  font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
   position: fixed;
   inset: 0;
 }
+
+/* ── Adaptive app chrome ──
+ * Surfaces that tint to the focused terminal background (status bar, top bar,
+ * bottom toolbar, desktop sidebar) in single-focus display modes. Each falls
+ * back to its normal slate design token when --wc-chrome-color is unset (grid
+ * mode or adaptive chrome disabled), so the default appearance is unchanged.
+ * The color is applied imperatively (see lib/chromeTheme.ts) — never through
+ * React state — so a busy TUI repaint never re-renders the terminal subtree. */
+.wc-chrome-surface {
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+  transition: background-color 200ms ease;
+}
+.wc-chrome-surface-raised {
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-raised)));
+  transition: background-color 200ms ease;
+}
+/* Contrast-correct foreground for inherited text on a tinted surface. Children
+ * with their own explicit text-* token keep it; this only adapts inheritors. */
+.wc-chrome-fg {
+  color: var(--wc-chrome-fg, inherit);
+}
+
+.wc-ios-tint-edge {
+  position: fixed;
+  display: none;
+  left: 0;
+  right: 0;
+  /* Sits BEHIND app chrome (z-index: 0), not above it. The always-present
+   * tinted top/bottom bars and the body background already satisfy Safari 26's
+   * edge sampler; this strip is only a fallback for any edge a chrome bar does
+   * not cover. A high z-index here would overpaint chrome that reaches the very
+   * edge (e.g. the hamburger's unread badge), so it is deliberately kept low. */
+  z-index: 0;
+  height: 4px;
+  width: 100%;
+  pointer-events: none;
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+}
+
+html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
+  display: block;
+}
+
+.wc-ios-tint-edge-top {
+  top: 0;
+}
+
+.wc-ios-tint-edge-bottom {
+  bottom: 0;
+}
+
+.wc-stable-theme {
+  color-scheme: dark;
+  --wc-surface-base: 2 6 23;
+  --wc-surface-raised: 15 23 42;
+  --wc-surface-input: 30 41 59;
+  --wc-surface-header: var(--wc-surface-raised);
+  --wc-text-primary: 248 250 252;
+  --wc-text-secondary: 226 232 240;
+  --wc-text-muted: 148 163 184;
+  --wc-text-faint: 100 116 139;
+  --wc-border-default: 255 255 255 / 0.1;
+  --wc-border-hover: 255 255 255 / 0.3;
+  --wc-accent: 34 211 238;
+  --wc-accent-fg: 15 23 42;
+  --wc-accent-border: 6 182 212 / 0.4;
+  --wc-accent-active: 14 116 144 / 0.4;
+}
+
+/* Top-chrome banners are the library's — react-component-library:Banner owns
+ * the visual base, the tone palettes, and the safe-area strip's tint. Nothing
+ * here emits `data-wc-banner*` any more, so the local copies of those rules
+ * were removed rather than left to rot alongside rules that do apply.
+ *
+ * `.wc-stable-theme` below is still ours: it is the token pin the region is
+ * rendered under, not banner styling. */
 
 /* ── Tab bar: prevent text selection ──
  * On mobile, long-pressing a tab triggers the context menu (rename,
@@ -105,6 +246,78 @@ body {
   border: 2px dashed rgba(122, 160, 255, 0.94);
   pointer-events: none;
   z-index: 8;
+}
+
+/* RCL controls consume the library's semantic --color-* contract while
+ * web-console's adaptive chrome publishes the live terminal palette as
+ * --wc-* RGB triples. Keep the adapter at the app boundary so the library
+ * stays host-agnostic and every adopted control (including arrows and voice)
+ * follows the same terminal-derived theme. */
+[data-testid="mobile-toolbar"] {
+  --color-background: rgb(var(--wc-surface-base));
+  --color-foreground: rgb(var(--wc-text-secondary));
+  --color-primary: rgb(var(--wc-accent));
+  --color-primary-foreground: rgb(var(--wc-accent-fg));
+  --color-secondary: rgb(var(--wc-accent));
+  --color-surface: rgb(var(--wc-surface-input));
+  --color-surface-raised: rgb(var(--wc-surface-raised));
+  --color-surface-muted: rgb(var(--wc-surface-base));
+  --color-border: rgb(var(--wc-border-default));
+  --color-border-strong: rgb(var(--wc-border-hover));
+  --color-muted-foreground: rgb(var(--wc-text-muted));
+  --color-accent: rgb(var(--wc-accent));
+  --color-focus: rgb(var(--wc-accent));
+  --color-danger: rgb(var(--wc-error-detail));
+  --color-info: rgb(var(--wc-accent));
+  --color-success: rgb(var(--wc-accent));
+  --color-on-primary: rgb(var(--wc-accent-fg));
+}
+
+/* Keep the first mobile paint single-column even if the browser applies its
+ * emulated viewport after React's initial width read. The JS layout state will
+ * converge as soon as the resize listener runs; this CSS guard prevents an
+ * intrinsic xterm width from escaping horizontally during that handoff. */
+@media (max-width: 767px) {
+  /* Every mobile-toolbar button is a touch target, including the compact
+   * key strip and optional actions whose intrinsic icon/text size is smaller
+   * than the mobile interaction minimum. */
+  [data-testid="mobile-toolbar"] button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  [data-testid="pane-grid"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="pane-grid"] > [data-testid="terminal-pane-container"] {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="pane-grid"] [data-testid="terminal-pane"] {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* xterm's helper textarea is the real mobile keyboard surface. It is
+   * visually hidden, but remains focusable and therefore appears in the
+   * accessibility tree; keep its hit box comfortable without changing the
+   * desktop cursor/input geometry. */
+  [data-testid="pane-grid"] .xterm-helper-textarea {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  [data-testid="pane-grid"] > [data-testid^="grid-splitter-"] {
+    display: none;
+  }
 }
 
 /* Hide native scrollbar when minimap is active */
@@ -175,7 +388,38 @@ body {
   50% { opacity: 0.7; }
 }
 
+/* ── Machine status lamp ──
+ * A dispatchable machine's lamp halo breathes, which is the one moving part of
+ * the fleet drawer. Reachability is the only fact about a machine that changes
+ * without the operator doing anything, so it is the only one that animates.
+ * The reduced-motion block below neutralizes it. */
+@keyframes wcMachineLampBreathe {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.68; }
+}
+
+.wc-machine-lamp-halo {
+  animation: wcMachineLampBreathe 3.4s ease-in-out infinite;
+}
+
 /* ── Floating toolbar dock/undock animation ── */
 .wc-dock-transition {
   transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ── Reduced motion ──
+ * Users who request reduced motion (often for vestibular sensitivity) should
+ * not receive non-essential animation/transition. We neutralize durations
+ * globally rather than per-component so new motion is covered by default; the
+ * breathing wake-word indicator and dock slide degrade to an instant state
+ * change. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

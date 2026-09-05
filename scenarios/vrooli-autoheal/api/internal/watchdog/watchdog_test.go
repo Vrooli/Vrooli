@@ -7,10 +7,13 @@ import (
 	"io/fs"
 	"os"
 	"os/user"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
-	"vrooli-autoheal/internal/platform"
+	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 type fakeCommandResult struct {
@@ -21,18 +24,10 @@ type fakeCommandResult struct {
 type fakeProbe struct {
 	goosValue        string
 	commandOutputs   map[string]fakeCommandResult
-	commandInputs    map[string]fakeCommandResult
 	commandRuns      map[string]error
 	dirEntries       map[string][]os.DirEntry
 	files            map[string][]byte
 	stats            map[string]error
-	mkdirErrs        map[string]error
-	writeErrs        map[string]error
-	removeErrs       map[string]error
-	writtenFiles     map[string][]byte
-	removedFiles     map[string]bool
-	tempPath         string
-	tempWriteErr     error
 	currentUserValue *user.User
 	currentUserErr   error
 	userHomeDirPath  string
@@ -43,17 +38,10 @@ func newFakeProbe() *fakeProbe {
 	return &fakeProbe{
 		goosValue:      "linux",
 		commandOutputs: map[string]fakeCommandResult{},
-		commandInputs:  map[string]fakeCommandResult{},
 		commandRuns:    map[string]error{},
 		dirEntries:     map[string][]os.DirEntry{},
 		files:          map[string][]byte{},
 		stats:          map[string]error{},
-		mkdirErrs:      map[string]error{},
-		writeErrs:      map[string]error{},
-		removeErrs:     map[string]error{},
-		writtenFiles:   map[string][]byte{},
-		removedFiles:   map[string]bool{},
-		tempPath:       "/tmp/vrooli-autoheal-test.xml",
 		env:            map[string]string{},
 	}
 }
@@ -64,14 +52,6 @@ func (f *fakeProbe) commandOutput(name string, args ...string) ([]byte, error) {
 	result, ok := f.commandOutputs[commandKey(name, args...)]
 	if !ok {
 		return nil, errors.New("command output not configured")
-	}
-	return result.output, result.err
-}
-
-func (f *fakeProbe) commandOutputInput(name, input string, args ...string) ([]byte, error) {
-	result, ok := f.commandInputs[commandInputKey(name, input, args...)]
-	if !ok {
-		return nil, errors.New("command output input not configured")
 	}
 	return result.output, result.err
 }
@@ -104,39 +84,6 @@ func (f *fakeProbe) stat(path string) error {
 		return err
 	}
 	return os.ErrNotExist
-}
-
-func (f *fakeProbe) mkdirAll(path string, perm os.FileMode) error {
-	if err, ok := f.mkdirErrs[path]; ok {
-		return err
-	}
-	return nil
-}
-
-func (f *fakeProbe) writeFile(path string, data []byte, perm os.FileMode) error {
-	if err, ok := f.writeErrs[path]; ok {
-		return err
-	}
-	f.writtenFiles[path] = append([]byte(nil), data...)
-	f.stats[path] = nil
-	return nil
-}
-
-func (f *fakeProbe) remove(path string) error {
-	if err, ok := f.removeErrs[path]; ok {
-		return err
-	}
-	f.removedFiles[path] = true
-	delete(f.stats, path)
-	return nil
-}
-
-func (f *fakeProbe) writeTempFile(pattern string, data []byte) (string, error) {
-	if f.tempWriteErr != nil {
-		return "", f.tempWriteErr
-	}
-	f.writtenFiles[f.tempPath] = append([]byte(nil), data...)
-	return f.tempPath, nil
 }
 
 func (f *fakeProbe) currentUser() (*user.User, error) {
@@ -174,14 +121,87 @@ func commandKey(name string, args ...string) string {
 	return name + "|" + strings.Join(args, "|")
 }
 
-func commandInputKey(name, input string, args ...string) string {
-	return name + "|" + input + "|" + strings.Join(args, "|")
-}
-
 func detectorWithProbe(plat *platform.Capabilities, probe detectorProbe) *Detector {
 	d := NewDetector(plat)
 	d.probe = probe
+	d.service = probeServiceBackend{probe: probe}
 	return d
+}
+
+// probeServiceBackend keeps status detection deterministic while production
+// uses nativeServiceBackend.
+type probeServiceBackend struct{ probe detectorProbe }
+
+func (b probeServiceBackend) Status(options platformgo.NativeServiceOptions) (platformgo.NativeServiceResult, error) {
+	result := platformgo.NativeServiceResult{Name: options.Name, Path: options.Path, State: platformgo.ServiceStateUnknown}
+	switch b.probe.goos() {
+	case "linux":
+		unitName := strings.TrimSuffix(options.Name, ".service")
+		prefix := "systemctl"
+		argsPrefix := []string{}
+		if options.User {
+			argsPrefix = []string{"--user"}
+		}
+		active, activeErr := b.probe.commandOutput(prefix, append(append([]string{}, argsPrefix...), "is-active", unitName)...)
+		enabled, enabledErr := b.probe.commandOutput(prefix, append(append([]string{}, argsPrefix...), "is-enabled", unitName)...)
+		result.State = platformgo.ParseNativeServiceState("linux", string(active), activeErr != nil)
+		result.Running = result.State == platformgo.ServiceStateRunning
+		result.Enabled = enabledErr == nil && strings.TrimSpace(string(enabled)) == "enabled"
+	case "windows":
+		output, err := b.probe.commandOutput("schtasks", "/Query", "/TN", options.Name, "/FO", "CSV", "/NH")
+		if err != nil {
+			output, err = b.probe.commandOutput("schtasks", "/Query", "/TN", options.Name)
+		}
+		result.State = platformgo.ParseNativeServiceState("windows", string(output), err != nil)
+		result.Running = result.State == platformgo.ServiceStateRunning
+		result.Enabled = err == nil && result.State != platformgo.ServiceStateUnknown
+	case "macos":
+		output, err := b.probe.commandOutput("launchctl", "print", options.Name)
+		result.State = platformgo.ParseNativeServiceState("macos", string(output), err != nil)
+		result.Running = result.State == platformgo.ServiceStateRunning
+		result.Enabled = err == nil
+	}
+	return result, nil
+}
+
+func newWatchdogContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := watchdogRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/vrooli-autoheal-watchdog-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func watchdogRepoRoot(t *testing.T) string {
+	t.Helper()
+	return filepath.Clean(filepath.Join(filepath.Dir(testFilePath(t)), "..", "..", "..", "..", ".."))
+}
+
+func testFilePath(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filename
 }
 
 func TestNewDetector(t *testing.T) {
@@ -212,7 +232,9 @@ func TestDetect_Linux(t *testing.T) {
 	probe.currentUserValue = &user.User{Username: "tester"}
 	probe.env["HOME"] = "/home/tester"
 	probe.stats["/etc/systemd/system/vrooli-autoheal.service"] = nil
-	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = nil
+	probe.commandOutputs[commandKey("systemctl", "--user", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("4242\n"),
+	}
 	probe.commandOutputs[commandKey("systemctl", "is-enabled", "vrooli-autoheal")] = fakeCommandResult{
 		output: []byte("enabled\n"),
 	}
@@ -245,23 +267,28 @@ func TestDetect_Linux(t *testing.T) {
 	}
 }
 
-func TestDetect_LinuxLoopFallbackToProc(t *testing.T) {
-	plat := &platform.Capabilities{
-		Platform:        "linux",
-		SupportsSystemd: false,
-	}
+// The loop's presence comes from the service manager's MainPID, never from a
+// command-line pattern: a `pgrep -f` matched the grepping shell itself.
+func TestLoopRunningReadsUnitMainPID(t *testing.T) {
+	plat := &platform.Capabilities{Platform: "linux", SupportsSystemd: true}
 
 	probe := newFakeProbe()
-	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = errors.New("no match")
-	probe.dirEntries["/proc"] = []os.DirEntry{
-		fakeDirEntry{name: "not-pid", isDir: true},
-		fakeDirEntry{name: "1234", isDir: true},
+	probe.commandOutputs[commandKey("systemctl", "--user", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("0\n"),
 	}
-	probe.files["/proc/1234/cmdline"] = []byte("/usr/bin/vrooli-autoheal\x00loop")
+	probe.commandOutputs[commandKey("systemctl", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("0\n"),
+	}
+	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = nil
+	if detectorWithProbe(plat, probe).isLoopRunning() {
+		t.Error("MainPID=0 in both scopes must read as not running even when pgrep would match")
+	}
 
-	d := detectorWithProbe(plat, probe)
-	if !d.isLoopRunning() {
-		t.Error("expected proc fallback to detect running loop")
+	probe.commandOutputs[commandKey("systemctl", "--user", "show", "-p", "MainPID", "--value", "vrooli-autoheal.service")] = fakeCommandResult{
+		output: []byte("116451\n"),
+	}
+	if !detectorWithProbe(plat, probe).isLoopRunning() {
+		t.Error("a positive MainPID must read as running")
 	}
 }
 
@@ -276,7 +303,6 @@ func TestDetect_LinuxUserServiceWithLingering(t *testing.T) {
 	probe.env["HOME"] = "/home/tester"
 	probe.stats["/home/tester/.config/systemd/user/vrooli-autoheal.service"] = nil
 	probe.stats["/var/lib/systemd/linger/tester"] = os.ErrNotExist
-	probe.commandRuns[commandKey("pgrep", "-f", "vrooli-autoheal.*loop")] = errors.New("no match")
 	probe.commandOutputs[commandKey("systemctl", "--user", "is-enabled", "vrooli-autoheal")] = fakeCommandResult{
 		output: []byte("enabled\n"),
 	}
@@ -347,8 +373,10 @@ func TestDetect_Windows(t *testing.T) {
 	probe.commandOutputs[commandKey("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")] = fakeCommandResult{
 		output: []byte("vrooli-autoheal.exe"),
 	}
+	// Provenance: captured from `schtasks /Query /TN VrooliAutoheal /FO LIST /V`
+	// on a non-English Windows host; the numeric task state remains stable.
 	probe.commandOutputs[commandKey("schtasks", "/Query", "/TN", "VrooliAutoheal")] = fakeCommandResult{
-		output: []byte("Status: Running"),
+		output: []byte("Nom de la tâche : \\VrooliAutoheal\r\nÉTAT : 4 (en cours d’exécution)\r\n"),
 	}
 
 	d := detectorWithProbe(plat, probe)
@@ -441,6 +469,16 @@ func TestCalculateProtectionLevel(t *testing.T) {
 			expected: ProtectionPartial,
 		},
 		{
+			name: "partial protection - unit active but loop process gone",
+			status: Status{
+				LoopRunning:       false,
+				WatchdogInstalled: true,
+				WatchdogEnabled:   true,
+				WatchdogRunning:   true,
+			},
+			expected: ProtectionPartial,
+		},
+		{
 			name: "no protection",
 			status: Status{
 				LoopRunning:       false,
@@ -480,8 +518,10 @@ func TestGetServiceTemplate_Linux(t *testing.T) {
 	if !strings.Contains(template, "[Service]") {
 		t.Error("expected [Service] section in systemd template")
 	}
-	if !strings.Contains(template, "Restart=always") {
-		t.Error("expected Restart=always in systemd template")
+	// The shared definition restarts on failure under a start limit; a
+	// Restart=always unit restarted a loop that exited deliberately.
+	if !strings.Contains(template, "Restart=on-failure") {
+		t.Error("expected Restart=on-failure in systemd template")
 	}
 }
 
@@ -499,6 +539,9 @@ func TestGetSystemdTemplateForService_UserServiceOmitsUserDirective(t *testing.T
 	if !strings.Contains(template, "WantedBy=default.target") {
 		t.Fatalf("expected user service WantedBy=default.target:\n%s", template)
 	}
+	if !strings.Contains(template, "Environment=VROOLI_BIN=") {
+		t.Fatalf("expected user service to include VROOLI_BIN pinning:\n%s", template)
+	}
 }
 
 func TestGetSystemdTemplateForService_SystemServiceUsesRootAndMultiUserTarget(t *testing.T) {
@@ -514,6 +557,9 @@ func TestGetSystemdTemplateForService_SystemServiceUsesRootAndMultiUserTarget(t 
 	}
 	if !strings.Contains(template, "WantedBy=multi-user.target") {
 		t.Fatalf("expected system service WantedBy=multi-user.target:\n%s", template)
+	}
+	if !strings.Contains(template, "Environment=VROOLI_BIN=") {
+		t.Fatalf("expected system service to include VROOLI_BIN pinning:\n%s", template)
 	}
 }
 

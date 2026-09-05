@@ -2,7 +2,7 @@
 package persistence
 
 // Repository defines the persistence interface for session profiles.
-// It enables future migration to database storage while currently using JSON files.
+// It isolates the session-profile service from its storage implementation.
 type Repository interface {
 	// Get retrieves a profile by ID.
 	// Returns nil, nil if the profile does not exist.

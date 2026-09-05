@@ -49,6 +49,7 @@ export const AUTH_CHANNELS = {
     SIGN_IN: "auth:sign-in",
     SIGN_OUT: "auth:sign-out",
     GET_ACCESS_TOKEN: "auth:get-access-token",
+    GET_ENTITLEMENT_LEASE: "auth:get-entitlement-lease",
     GET_USER: "auth:get-user",
     IS_AUTHENTICATED: "auth:is-authenticated",
     REFRESH: "auth:refresh",

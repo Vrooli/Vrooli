@@ -4,6 +4,8 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { PreflightResponseSchema } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 import {
   selectIsRunning,
   selectCurrentStage,
@@ -34,10 +36,16 @@ import {
   selectPreflightOverride,
 } from "./pipelineSelectors";
 import { initialPipelineState, type PipelineStore } from "./pipelineTypes";
-import type { VerbosePipelineStatus } from "../lib/api";
+import { createPipelineStatus } from "../test-utils/mocks";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 // Helper to create test state with overrides
-function createTestState(overrides: Partial<PipelineStore> = {}): PipelineStore {
+function createTestState(
+  overrides: Partial<PipelineStore> = {},
+): PipelineStore {
   return {
     ...initialPipelineState,
     ...overrides,
@@ -108,11 +116,9 @@ describe("pipelineSelectors", () => {
 
     it("returns current_stage from pipeline status", () => {
       const state = createTestState({
-        pipelineStatus: {
-          current_stage: "build",
-        } as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({ currentStage: StageName.BUILD }),
       });
-      expect(selectCurrentStage(state)).toBe("build");
+      expect(selectCurrentStage(state)).toBe(StageName.BUILD);
     });
   });
 
@@ -124,59 +130,89 @@ describe("pipelineSelectors", () => {
 
     it("returns 0 when no stage_order", () => {
       const state = createTestState({
-        pipelineStatus: {} as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({ stageOrder: [] }),
+      });
+      expect(selectProgress(state)).toBe(0);
+    });
+
+    it("returns 0 for a partial status missing its stage collections", () => {
+      const state = createTestState({
+        pipelineStatus: {
+          status: StageStatus.PENDING,
+        } as PipelineStore["pipelineStatus"],
       });
       expect(selectProgress(state)).toBe(0);
     });
 
     it("returns 0 when stage_order is empty", () => {
       const state = createTestState({
-        pipelineStatus: {
-          stage_order: [],
-          stages: {},
-        } as unknown as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({ stageOrder: [], stages: {} }),
       });
       expect(selectProgress(state)).toBe(0);
     });
 
     it("calculates progress based on completed stages", () => {
       const state = createTestState({
-        pipelineStatus: {
-          stage_order: ["bundle", "preflight", "generate", "build"],
+        pipelineStatus: createPipelineStatus({
+          stageOrder: [
+            StageName.BUNDLE,
+            StageName.PREFLIGHT,
+            StageName.GENERATE,
+            StageName.BUILD,
+          ],
           stages: {
-            bundle: { status: "completed" },
-            preflight: { status: "completed" },
-            generate: { status: "running" },
-            build: { status: "pending" },
+            bundle: { stage: StageName.BUNDLE, status: StageStatus.COMPLETED },
+            preflight: {
+              stage: StageName.PREFLIGHT,
+              status: StageStatus.COMPLETED,
+            },
+            generate: {
+              stage: StageName.GENERATE,
+              status: StageStatus.RUNNING,
+            },
+            build: { stage: StageName.BUILD, status: StageStatus.PENDING },
           },
-        } as unknown as VerbosePipelineStatus,
+        }),
       });
       expect(selectProgress(state)).toBe(0.5); // 2 of 4 completed
     });
 
     it("counts skipped stages as completed", () => {
       const state = createTestState({
-        pipelineStatus: {
-          stage_order: ["bundle", "preflight", "generate"],
+        pipelineStatus: createPipelineStatus({
+          stageOrder: [
+            StageName.BUNDLE,
+            StageName.PREFLIGHT,
+            StageName.GENERATE,
+          ],
           stages: {
-            bundle: { status: "completed" },
-            preflight: { status: "skipped" },
-            generate: { status: "completed" },
+            bundle: { stage: StageName.BUNDLE, status: StageStatus.COMPLETED },
+            preflight: {
+              stage: StageName.PREFLIGHT,
+              status: StageStatus.SKIPPED,
+            },
+            generate: {
+              stage: StageName.GENERATE,
+              status: StageStatus.COMPLETED,
+            },
           },
-        } as unknown as VerbosePipelineStatus,
+        }),
       });
       expect(selectProgress(state)).toBe(1); // All done
     });
 
     it("returns 0 when all stages are pending", () => {
       const state = createTestState({
-        pipelineStatus: {
-          stage_order: ["bundle", "preflight"],
+        pipelineStatus: createPipelineStatus({
+          stageOrder: [StageName.BUNDLE, StageName.PREFLIGHT],
           stages: {
-            bundle: { status: "pending" },
-            preflight: { status: "pending" },
+            bundle: { stage: StageName.BUNDLE, status: StageStatus.PENDING },
+            preflight: {
+              stage: StageName.PREFLIGHT,
+              status: StageStatus.PENDING,
+            },
           },
-        } as unknown as VerbosePipelineStatus,
+        }),
       });
       expect(selectProgress(state)).toBe(0);
     });
@@ -185,32 +221,32 @@ describe("pipelineSelectors", () => {
   describe("selectStageStatus", () => {
     it("returns pending when no pipeline status", () => {
       const state = createTestState({ pipelineStatus: null });
-      const selector = selectStageStatus("build");
-      expect(selector(state)).toBe("pending");
+      const selector = selectStageStatus(StageName.BUILD);
+      expect(selector(state)).toBe(StageStatus.PENDING);
     });
 
     it("returns stage status from stages map", () => {
       const state = createTestState({
-        pipelineStatus: {
+        pipelineStatus: createPipelineStatus({
           stages: {
-            build: { status: "running" },
+            build: { stage: StageName.BUILD, status: StageStatus.RUNNING },
           },
-        } as unknown as VerbosePipelineStatus,
+        }),
       });
-      const selector = selectStageStatus("build");
-      expect(selector(state)).toBe("running");
+      const selector = selectStageStatus(StageName.BUILD);
+      expect(selector(state)).toBe(StageStatus.RUNNING);
     });
 
     it("returns pending for missing stage", () => {
       const state = createTestState({
-        pipelineStatus: {
+        pipelineStatus: createPipelineStatus({
           stages: {
-            bundle: { status: "completed" },
+            bundle: { stage: StageName.BUNDLE, status: StageStatus.COMPLETED },
           },
-        } as unknown as VerbosePipelineStatus,
+        }),
       });
-      const selector = selectStageStatus("build");
-      expect(selector(state)).toBe("pending");
+      const selector = selectStageStatus(StageName.BUILD);
+      expect(selector(state)).toBe(StageStatus.PENDING);
     });
   });
 
@@ -222,29 +258,27 @@ describe("pipelineSelectors", () => {
 
     it("returns false when pipeline not completed", () => {
       const state = createTestState({
-        pipelineStatus: {
-          status: "running",
-          stopped_after_stage: "generate",
-        } as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({
+          status: StageStatus.RUNNING,
+          stoppedAfterStage: StageName.GENERATE,
+        }),
       });
       expect(selectCanResume(state)).toBe(false);
     });
 
     it("returns true when completed with stopped_after_stage", () => {
       const state = createTestState({
-        pipelineStatus: {
-          status: "completed",
-          stopped_after_stage: "generate",
-        } as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({
+          status: StageStatus.COMPLETED,
+          stoppedAfterStage: StageName.GENERATE,
+        }),
       });
       expect(selectCanResume(state)).toBe(true);
     });
 
     it("returns false when completed without stopped_after_stage", () => {
       const state = createTestState({
-        pipelineStatus: {
-          status: "completed",
-        } as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({ status: StageStatus.COMPLETED }),
       });
       expect(selectCanResume(state)).toBe(false);
     });
@@ -258,11 +292,11 @@ describe("pipelineSelectors", () => {
 
     it("returns stopped_after_stage from status", () => {
       const state = createTestState({
-        pipelineStatus: {
-          stopped_after_stage: "generate",
-        } as VerbosePipelineStatus,
+        pipelineStatus: createPipelineStatus({
+          stoppedAfterStage: StageName.GENERATE,
+        }),
       });
-      expect(selectStoppedAfterStage(state)).toBe("generate");
+      expect(selectStoppedAfterStage(state)).toBe(StageName.GENERATE);
     });
   });
 
@@ -290,17 +324,26 @@ describe("pipelineSelectors", () => {
     });
 
     it("returns true when running", () => {
-      const state = createTestState({ isSubmitting: false, runStatus: "running" });
+      const state = createTestState({
+        isSubmitting: false,
+        runStatus: "running",
+      });
       expect(selectIsBusy(state)).toBe(true);
     });
 
     it("returns true when starting", () => {
-      const state = createTestState({ isSubmitting: false, runStatus: "starting" });
+      const state = createTestState({
+        isSubmitting: false,
+        runStatus: "starting",
+      });
       expect(selectIsBusy(state)).toBe(true);
     });
 
     it("returns false when completed", () => {
-      const state = createTestState({ isSubmitting: false, runStatus: "completed" });
+      const state = createTestState({
+        isSubmitting: false,
+        runStatus: "completed",
+      });
       expect(selectIsBusy(state)).toBe(false);
     });
   });
@@ -364,20 +407,20 @@ describe("pipelineSelectors", () => {
 
       it("returns empty array when no secrets in result", () => {
         const state = createTestState({
-          preflightResult: {} as ReturnType<typeof createTestState>["preflightResult"],
+          preflightResult: create(PreflightResponseSchema),
         });
         expect(selectMissingSecrets(state)).toEqual([]);
       });
 
       it("returns only required secrets without values", () => {
         const state = createTestState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             secrets: [
-              { id: "API_KEY", required: true, has_value: false },
-              { id: "OPTIONAL", required: false, has_value: false },
-              { id: "PROVIDED", required: true, has_value: true },
+              { id: "API_KEY", required: true, hasValue: false },
+              { id: "OPTIONAL", required: false, hasValue: false },
+              { id: "PROVIDED", required: true, hasValue: true },
             ],
-          } as ReturnType<typeof createTestState>["preflightResult"],
+          }),
         });
         const missing = selectMissingSecrets(state);
         expect(missing).toHaveLength(1);
@@ -400,9 +443,9 @@ describe("pipelineSelectors", () => {
 
       it("returns false when missing secrets", () => {
         const state = createTestState({
-          preflightResult: {
-            secrets: [{ id: "API_KEY", required: true, has_value: false }],
-          } as ReturnType<typeof createTestState>["preflightResult"],
+          preflightResult: create(PreflightResponseSchema, {
+            secrets: [{ id: "API_KEY", required: true, hasValue: false }],
+          }),
         });
         expect(selectPreflightSecretsOk(state)).toBe(false);
       });
@@ -416,46 +459,44 @@ describe("pipelineSelectors", () => {
 
       it("returns false when validation fails", () => {
         const state = createTestState({
-          preflightResult: {
-            status: "completed",
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: false },
-            ready: { ready: true, details: {} },
+            ready: { ready: true },
             secrets: [],
-          } as ReturnType<typeof createTestState>["preflightResult"],
+          }),
         });
         expect(selectPreflightOk(state)).toBe(false);
       });
 
       it("returns false when readiness fails", () => {
         const state = createTestState({
-          preflightResult: {
-            status: "completed",
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: true },
-            ready: { ready: false, details: {} },
+            ready: { ready: false },
             secrets: [],
-          } as ReturnType<typeof createTestState>["preflightResult"],
+          }),
         });
         expect(selectPreflightOk(state)).toBe(false);
       });
 
       it("returns false when missing required secrets", () => {
         const state = createTestState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: true },
             ready: { ready: true },
-            secrets: [{ id: "API_KEY", required: true, has_value: false }],
-          } as ReturnType<typeof createTestState>["preflightResult"],
+            secrets: [{ id: "API_KEY", required: true, hasValue: false }],
+          }),
         });
         expect(selectPreflightOk(state)).toBe(false);
       });
 
       it("returns true when all checks pass", () => {
         const state = createTestState({
-          preflightResult: {
+          preflightResult: create(PreflightResponseSchema, {
             validation: { valid: true },
             ready: { ready: true },
-            secrets: [{ id: "API_KEY", required: true, has_value: true }],
-          } as ReturnType<typeof createTestState>["preflightResult"],
+            secrets: [{ id: "API_KEY", required: true, hasValue: true }],
+          }),
         });
         expect(selectPreflightOk(state)).toBe(true);
       });
@@ -480,37 +521,49 @@ describe("pipelineSelectors", () => {
 
   describe("stage result selectors", () => {
     it("selectBundleResult returns bundleResult", () => {
-      const bundleResult = { bundle_path: "/path" } as ReturnType<typeof createTestState>["bundleResult"];
+      const bundleResult = { bundlePath: "/path" } as unknown as ReturnType<
+        typeof createTestState
+      >["bundleResult"];
       const state = createTestState({ bundleResult });
       expect(selectBundleResult(state)).toBe(bundleResult);
     });
 
     it("selectPreflightResult returns preflightResult", () => {
-      const preflightResult = { validation: {} } as ReturnType<typeof createTestState>["preflightResult"];
+      const preflightResult = { validation: {} } as ReturnType<
+        typeof createTestState
+      >["preflightResult"];
       const state = createTestState({ preflightResult });
       expect(selectPreflightResult(state)).toBe(preflightResult);
     });
 
     it("selectGenerateResult returns generateResult", () => {
-      const generateResult = { output_path: "/path" } as ReturnType<typeof createTestState>["generateResult"];
+      const generateResult = { outputPath: "/path" } as unknown as ReturnType<
+        typeof createTestState
+      >["generateResult"];
       const state = createTestState({ generateResult });
       expect(selectGenerateResult(state)).toBe(generateResult);
     });
 
     it("selectBuildResult returns buildResult", () => {
-      const buildResult = { artifacts: {} } as ReturnType<typeof createTestState>["buildResult"];
+      const buildResult = { artifacts: {} } as ReturnType<
+        typeof createTestState
+      >["buildResult"];
       const state = createTestState({ buildResult });
       expect(selectBuildResult(state)).toBe(buildResult);
     });
 
     it("selectSmokeTestResult returns smokeTestResult", () => {
-      const smokeTestResult = { passed: true } as ReturnType<typeof createTestState>["smokeTestResult"];
+      const smokeTestResult = { status: 2 } as unknown as ReturnType<
+        typeof createTestState
+      >["smokeTestResult"];
       const state = createTestState({ smokeTestResult });
       expect(selectSmokeTestResult(state)).toBe(smokeTestResult);
     });
 
     it("selectDeployResult returns deployResult", () => {
-      const deployResult = { update_url: "https://example.com" } as ReturnType<typeof createTestState>["deployResult"];
+      const deployResult = {
+        updateUrl: "https://example.com",
+      } as unknown as ReturnType<typeof createTestState>["deployResult"];
       const state = createTestState({ deployResult });
       expect(selectDeployResult(state)).toBe(deployResult);
     });
@@ -578,7 +631,10 @@ describe("pipelineSelectors", () => {
         const state = createTestState({
           pipelineHistory: ["pipeline-1", "pipeline-2"],
         });
-        expect(selectPipelineHistory(state)).toEqual(["pipeline-1", "pipeline-2"]);
+        expect(selectPipelineHistory(state)).toEqual([
+          "pipeline-1",
+          "pipeline-2",
+        ]);
       });
     });
 

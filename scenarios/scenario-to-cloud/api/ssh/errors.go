@@ -44,7 +44,8 @@ func ClassifyError(errStr, host, defaultHint string) *SSHError {
 	errLower := strings.ToLower(errStr)
 
 	switch {
-	case strings.Contains(errStr, "Host key verification failed"):
+	case strings.Contains(errStr, "Host key verification failed"),
+		strings.Contains(errLower, "knownhosts: key mismatch"):
 		return &SSHError{
 			Category:  ErrHostKey,
 			Message:   "Server host key has changed",

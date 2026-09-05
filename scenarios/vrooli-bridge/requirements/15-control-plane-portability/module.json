@@ -1,0 +1,32 @@
+{
+  "_metadata": {
+    "description": "Control plane runs on macOS/Windows hosts; bridge written portable day one, full support gated on platform portability (P2).",
+    "last_validated_at": "2026-07-17T20:07:11-04:00",
+    "module": "control-plane-portability",
+    "prd_ref": "OT-P2-001",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P2-001",
+      "title": "Control Plane on macOS / Windows",
+      "status": "not_implemented",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Bridge is source-portable, but qualifying Vrooli control-plane installation on macOS and Windows is a separate platform track outside this scenario plan.",
+      "revisit_trigger": "The Vrooli control plane becomes an approved macOS or Windows deployment target requiring qualification.",
+      "prd_ref": "OT-P2-001",
+      "category": "core",
+      "description": "The control plane itself runs on a macOS or Windows host, not only Linux. Bridge is written cross-platform from day one so it is never the blocker, but full support is gated on Vrooli-the-platform becoming installable/runnable on those OSes (a separate project-level track outside this scenario's scope). P2: designed and recorded as a future seam, not built here.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/PROBLEMS.md",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Recorded as a future seam (OT-P2-001): Bridge is written cross-platform, but real macOS/Windows control-plane qualification remains gated on the platform track and has not been attested."
+        }
+      ]
+    }
+  ]
+}

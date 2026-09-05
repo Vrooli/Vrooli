@@ -1,60 +1,124 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
+    "parent": "vrooli",
     "name": "vrooli-bridge",
     "displayName": "Vrooli Bridge",
-    "description": "Enables external projects to leverage Vrooli's intelligence by managing documentation injection and integration tracking",
-    "version": "1.0.0",
+    "description": "Fleet control plane that provisions, updates, and runs allowlisted commands across an owner's trusted Vrooli nodes on every OS",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "automation",
     "tags": [
-      "vrooli-enhancement",
-      "project-management",
-      "documentation",
-      "integration",
-      "cross-project",
-      "filesystem",
-      "go-api",
-      "postgres-storage",
-      "vanilla-ui"
+      "react-ui",
+      "go-api"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
+    "platform_capabilities": {
+      "bridge-node-channel": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "dial-out-websocket-channel",
+          "evidence": "Bridge channel contract tests on linux/amd64"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "dial-out-websocket-channel",
+          "evidence": "live minimouse Darwin amd64 agent handshake protocol_version=2 with machine_arch=amd64 and binary_arch=amd64"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "dial-out-websocket-channel",
+          "evidence": "cross-platform agent build and protocol fixtures; real Windows run pending"
+        }
+      },
+      "bridge-relay-transport": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "typed-relay-over-node-channel",
+          "evidence": "Bridge relay and dispatch contract tests on linux/amd64"
+        }
+      },
+      "bridge-session-transport": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "owner-authenticated-session-websocket",
+          "evidence": "Bridge session websocket and PTY contract tests on linux/amd64"
+        }
       }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/vrooli-bridge"
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-06-18T00:14:20Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "07c578f32d3ba10c86cc91ce06d830a48959a1fffad8348f97a9858b6313bbc8"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-bridge",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-bridge"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Vrooli Bridge API port",
+      "description": "Go API server; fixed Bridge control-plane port for LAN admission",
+      "port": 18767,
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Project management dashboard",
-      "range": "35000-39999"
+      "description": "React UI",
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Vrooli Bridge health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -65,158 +129,71 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
-          "timeout": 5000,
+          "timeout": 10000,
           "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 60000
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Vrooli Bridge",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-bridge-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-bridge",
-            "targets": [
-              "vrooli-bridge"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-bridge-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build static UI bundle from source"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Bridge initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Vrooli Bridge with API server and UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-bridge-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/vrooli-bridge-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-bridge --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for vrooli-bridge",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute vrooli-bridge --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"vrooli-bridge-api\" || true; sleep 1; pkill -9 -f \"vrooli-bridge-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/vrooli-bridge/ui/server.py\" || true; sleep 1; pkill -9 -f \"scenarios/vrooli-bridge/ui/server.py\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
+      "startup_grace_period": 60000
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
+    "scenarios": {
+      "scenario-authenticator": {
+        "type": "scenario",
         "enabled": true,
         "required": true,
-        "purpose": "project registry and integration metadata",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "startup_policy": "try_start",
+        "degraded_behavior": "Bridge fails closed for owner-session and protected fleet operations when the authenticator is unavailable.",
+        "description": "Owner identity and token validation for Bridge's authenticated control-plane surface.",
+        "supervision_precedence": "required"
       },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
+      "vrooli-onboarding": {
         "required": false,
-        "purpose": "cache project scanning results for faster UI updates"
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Optional onboarding selection handoff uses the discovered HTTP boundary.",
+        "degraded_behavior": "Legacy host-only onboarding remains available when the onboarding scenario is stopped."
+      }
+    }
+  },
+  "environment": {
+    "API_BIND_ADDRESS": "0.0.0.0"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

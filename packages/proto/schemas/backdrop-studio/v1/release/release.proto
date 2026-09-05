@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package vrooli.backdrop_studio.v1.release;
+
+import "backdrop-studio/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release;release_v1";
+
+service ReleaseService {
+  rpc Release(ReleaseRequest) returns (ReleasedBackdrop);
+  rpc GetReference(GetReferenceRequest) returns (ReleasedBackdrop);
+}
+
+message ReleaseRequest {
+  string candidate_id = 1;
+  string style_id = 2;
+  string strategy = 3;
+  string surface_id = 4;
+  int32 width = 5;
+  int32 height = 6;
+  int32 expected_width = 7;
+  int32 expected_height = 8;
+  string placement = 9;
+  string alt_text = 10;
+  bool decorative = 11;
+  bool ai_generated = 12;
+  bool ai_generated_set = 13;
+  double contrast_ratio = 14;
+  double contrast_threshold = 15;
+  bool legibility_passes = 16;
+  repeated shared.ReservedRegion reserved_regions = 17;
+  bytes image_png = 18;
+}
+
+message GetReferenceRequest {
+  string id = 1;
+}
+
+message ReleasedBackdrop {
+  string id = 1;
+  string candidate_id = 2;
+  string style_id = 3;
+  string surface_id = 4;
+  string placement = 5;
+  int32 width = 6;
+  int32 height = 7;
+  string alt_text = 8;
+  bool decorative = 9;
+  bool ai_generated = 10;
+  double contrast_ratio = 11;
+  double contrast_threshold = 12;
+  repeated shared.ReservedRegion reserved_regions = 13;
+  string uri = 14;
+  string asset_studio_ref = 15;
+}

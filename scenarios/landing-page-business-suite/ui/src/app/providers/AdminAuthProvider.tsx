@@ -44,7 +44,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-    checkSession();
+    void checkSession();
 
     return () => {
       isMounted = false;
@@ -53,18 +53,16 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await adminLogin(email, password);
-    setIsAuthenticated(Boolean(response?.authenticated));
-    setUser(response?.authenticated && response.email ? { email: response.email } : { email });
+    setIsAuthenticated(response.authenticated);
+    setUser(response.authenticated && response.email ? { email: response.email } : { email });
     setIsSessionLoading(false);
-    setCanResetDemoData(Boolean(response?.reset_enabled));
+    setCanResetDemoData(Boolean(response.reset_enabled));
   };
 
-  const logout = async () => {
-    try {
-      await adminLogout();
-    } catch (e) {
-      console.error('Logout failed:', e);
-    }
+  const logout = (): void => {
+    void adminLogout().catch((error: unknown) => {
+      console.error('Logout failed:', error);
+    });
     setIsAuthenticated(false);
     setUser(null);
     setIsSessionLoading(false);

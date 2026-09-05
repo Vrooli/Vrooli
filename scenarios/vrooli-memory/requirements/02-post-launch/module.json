@@ -1,0 +1,380 @@
+{
+  "_metadata": {
+    "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
+    "last_validated_at": "2026-08-19T00:50:07-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VMEM-P1-001",
+      "title": "Work-record memory kind",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "records-absorption",
+      "criticality": "P1",
+      "description": "A work-record memory kind carries the fields the swarm-manager records contract defined — trigger, approach, evidence, outcome — validated as a required set at write. This replaces `swarm-manager records create` as the agent-facing verb so agents learn one write surface. Backlog association is derived from run correlation rather than a hand-passed flag, which is the failure this absorption is designed to fix.",
+      "tags": [
+        "work-record",
+        "migration",
+        "swarm-manager"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestWorkRecordRequiresEveryNarrativeField",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A work-record note missing a required field is rejected with a field-specific error."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/harness/import_test.go::TestSwarmImportReplayAfterInterruptionLosesNothingOrDuplicatesNothing",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A work-record written inside a run resolves its backlog association from correlation with no flag passed."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Migration review: existing swarm-manager records import as work-record memories with narrative and outcome preserved."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-002",
+      "title": "Run correlation and sibling events",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "A memory written inside an agent run stores the receipt correlation emitted automatically by api-core — run id, workflow execution id, actor kind. Retrieval exposes a command that lists the other events from that run. Memory stores identifiers only and never a denormalized copy of run data, so there is exactly one truth about any run.",
+      "tags": [
+        "vrooli-events",
+        "attribution",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A write carrying run correlation persists the ids and no copied run payload."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A write with absent correlation (operator shell, null run id) succeeds and stores no correlation."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/recall/connect_handler_test.go::TestListSiblingEventsUsesOnlyTheStoredRunCorrelation",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The sibling-events command resolves a stored run id to the other events of that run."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-003",
+      "title": "Tree descent",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "retrieval",
+      "criticality": "P1",
+      "description": "Zooming a summary renders that node's immediate constituents — leaves verbatim, child summaries as summaries labeled with their span and depth — and descent repeats to the leaves. A reader must never mistake a summary for an original, so every rendered summary is labeled as one.",
+      "tags": [
+        "retrieval",
+        "zoom",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Zoom on a depth-2 node returns its immediate children, not its transitive leaves."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Rendered summary nodes carry an explicit summary label with span and depth; leaves do not."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-004",
+      "title": "Supersession-aware summarization",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "category": "compaction",
+      "criticality": "P1",
+      "description": "When a candidate cluster contains contradicting entries, the summarization prompt resolves by recency rather than conjoining both claims. Because clustering is semantic, near-identical contradictions co-occur in the same cluster, so resolution is always a within-cluster judgment and never a corpus-wide contradiction search.",
+      "tags": [
+        "compaction",
+        "summarization",
+        "contradiction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A cluster containing a claim and its later negation summarizes to the later claim only."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A cluster of compatible claims summarizes without dropping the distinct claims it can fit in budget."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Operator review of summarization output on a real cluster sample, distinguishing intended fact dropping from fact mutation."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-005",
+      "title": "Multi-space facet embedding",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-005",
+      "category": "embedding",
+      "criticality": "P1",
+      "description": "Several short derived texts per memory — topic, rule/implication, entities — are each embedded normally rather than conditioning one vector on an instruction. This yields multiple neighbourhoods per memory using the embedding model already deployed fleet-wide, and keeps the derived texts human-readable so bad clustering is debuggable. Embeddings intended for clustering use the model's clustering task prefix rather than the document prefix.",
+      "tags": [
+        "embedding",
+        "clustering",
+        "ai-gateway"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A memory produces one embedding per derived facet text, each retrievable and attributable to its source text."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/inference/client_test.go::TestEmbedderUsesDistinctGatewayTasks",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Clustering-purpose embeddings request the clustering task prefix; retrieval-purpose embeddings request the document prefix."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/journal/service_test.go::TestFacetTextsKeepDistinctClusteringSpaces",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Two memories related only on one facet co-cluster in that facet's space and not in the others."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestClusteringGroupsOnASecondaryFacetSpace",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Clustering groups two memories that agree on the entities space while disagreeing on topic, which is the purpose clause: more than one notion of relatedness."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestPairScoringNeverComparesAcrossFacetSpaces",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Spaces are paired by index and the shorter side bounds the comparison, so a summary's single space never scores against a leaf's entities framing."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallScoresAcrossEveryFacetSpace",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Recall takes the best space, so a query matching a secondary framing outranks a partial primary match."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-006",
+      "title": "Operator review surface",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The fleet exposes harness state in vrooli-memory while Source Ledger owns the corpus-first operator surface: journal timeline, frontier, facet review, vocabulary, and cross-scope search. Coding-harness operators retain projection, import, capture, and maintenance visibility without a duplicate journal UI.",
+      "tags": [
+        "ui",
+        "operator",
+        "correction"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "../source-ledger/ui/src/pages/LedgerPages.tsx::ScopeDetailPage",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "Source Ledger scope detail renders the journal timeline and bounded frontier/facet views."
+        },
+        {
+          "type": "manual",
+          "ref": "../source-ledger/ui/src/pages/LedgerPages.tsx::SearchPage",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "Source Ledger cross-scope search labels results with their owning scope."
+        },
+        {
+          "type": "manual",
+          "ref": "../source-ledger/ui/src/pages/LedgerPages.tsx::VocabularyPage",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "Source Ledger vocabulary editor exposes per-scope retention policy controls; vrooli-memory dashboard retains harness state only."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-007",
+      "title": "Curated instruction topology repair",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "harness",
+      "criticality": "P1",
+      "description": "Scenario startup treats the project-level AGENTS.md as the canonical curated instruction file, recovers it from a surviving non-generated peer when missing, and repairs declared workspace and home aliases as symlinks to it. It removes only the retired vrooli-memory prompt block during migration; it never writes generated wake content into AGENTS.md, CLAUDE.md, GEMINI.md, or any other curated instruction alias.",
+      "tags": [
+        "harness",
+        "adoption",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyUsesProjectAgentsAsCanonicalAndRepairsLinks",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Startup repairs workspace and home aliases to the project-level AGENTS.md canonical file."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyRecoversMissingCanonicalWithoutImportingGeneratedProjection",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Recovery ignores generated projection content and preserves surviving curated content."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyRejectsNoSurvivingCandidate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Startup fails closed when no canonical or surviving curated candidate exists."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-008",
+      "title": "Harness write capture",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
+      "category": "harness",
+      "criticality": "P1",
+      "description": "Native memory writes made by an agent through its own harness tooling are captured into the journal. Two channels, selected per harness by the capability matrix in docs/concepts/INTEGRATIONS.md: a pre-write hook where the runtime exposes one, and store diff as the universal floor. The Go-native vrooli-memory hook reconciler writes only documented configuration and never touches agent binaries; it preserves unrelated native hook entries and swallows capture failures. A native hook may omit a filesystem destination, so capture uses a stable logical source locator. Runtimes without a verified hook use the governed store sweep or the prompt's direct `vrooli-memory journal note` fallback.",
+      "tags": [
+        "harness",
+        "capture",
+        "hooks",
+        "resources"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A native memory write in a hook-capable harness appears in the journal without the agent invoking any memory command."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "With the hook disabled, the same write is still captured by the next store-diff sweep — degraded latency, no loss."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/harness/hooks_test.go::TestNativeHookFailureAlwaysReturnsSuccess",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Structured native hook payloads are filtered and capture/API failures are swallowed so the agent tool call always remains unblocked."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Per-runtime verification of which harnesses expose a usable pre-write surface; findings update the capability matrix."
+        }
+      ]
+    },
+    {
+      "id": "VMEM-P1-010",
+      "title": "Pinned-set bounding by curation",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-010",
+      "category": "facets",
+      "criticality": "P1",
+      "description": "The pinned set is bounded by operator curation rather than by compaction, because a rule the system is obliged to display unconditionally cannot be safely auto-merged or auto-evicted. Three mechanisms, each terminating in an operator decision: (1) consolidation proposals — the cohesion scoring the forest already computes is run over pinned entries and surfaces near-duplicate groups as merge proposals, never as automatic collapses; (2) renewal — each pin carries a review date and lapses to unpinned rather than deleted when not reconfirmed, so a lapsed rule stays a searchable standing-rule memory and the mechanism fails safe; (3) a pin budget that returns a trade-off against the weakest current pins when a new pin would exceed it. The budget is the forcing function: without it the first two are optional and therefore skipped, which is the failure mode measured on `--backlog-ref` in D-001. The binding constraint is attention, not tokens — a wake view with fifteen standing rules is read and one with three hundred is skimmed — so this limit binds well below the overflow reported by `VMEM-P0-006`.",
+      "tags": [
+        "pinning",
+        "facets",
+        "curation",
+        "operator"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Near-duplicate pinned entries surface as a merge proposal and are never collapsed without operator confirmation."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A pin whose review date passes without reconfirmation becomes unpinned, remains in the journal, and remains retrievable by recall."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Reconfirming a pin extends its review date without creating a duplicate journal entry."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A pin request that would exceed the budget returns the weakest current pins as a trade-off proposal rather than silently pinning or silently refusing."
+        },
+        {
+          "type": "test",
+          "ref": "../source-ledger/api/handlers/facets/connect_handler_test.go::TestAssignFacetRejectsUnknownFacetAndSetsPin",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Lapse and merge both change wake output while leaving every affected journal entry intact and searchable."
+        },
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "Calibrate the budget and review interval against a real pinned set; both initial values are unvalidated."
+        }
+      ]
+    }
+  ]
+}

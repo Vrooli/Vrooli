@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.evidence;
+
+import "test-genie/v1/runs/runs.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/evidence;evidence_v1";
+
+// EvidenceService is GCT's phase-agnostic, single-origin view over Test Genie
+// run history and typed evidence catalogs. Run-captured descriptors and open
+// artifact kinds cross this boundary unchanged; GCT never registers phase keys.
+service EvidenceService {
+  // StartRun delegates durable ownership to Test Genie and returns immediately.
+  rpc StartRun(vrooli.test_genie.v1.runs.StartRunRequest) returns (vrooli.test_genie.v1.runs.StartRunResponse);
+  // ListRuns returns metadata-only run records after server-side filtering.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  // GetRun returns one canonical run snapshot and a filtered page of its typed
+  // evidence references. Artifact bytes remain behind opaque access routes.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // ListEvidence searches typed artifact references across recent runs without
+  // assuming which phase produced a kind.
+  rpc ListEvidence(ListEvidenceRequest) returns (ListEvidenceResponse);
+}
+
+message ListRunsRequest {
+  string scenario = 1;
+  string status = 2;
+  string search = 3;
+  string provider = 4;
+  string phase_class = 5;
+  string dimension = 6;
+  int32 limit = 7;
+  int32 offset = 8;
+}
+
+message ListRunsResponse {
+  repeated vrooli.test_genie.v1.runs.RunInfo runs = 1;
+  int32 total = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  bool has_more = 5;
+}
+
+message GetRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+  repeated string artifact_kinds = 3;
+  string artifact_search = 4;
+  int32 artifact_limit = 5;
+  int32 artifact_offset = 6;
+}
+
+message GetRunResponse {
+  vrooli.test_genie.v1.runs.RunInfo run = 1;
+  int32 terminal_snapshot_schema_version = 2;
+  repeated string degraded_reasons = 3;
+  int32 artifact_catalog_schema_version = 4;
+  string artifact_catalog_digest = 5;
+  repeated vrooli.test_genie.v1.runs.ArtifactRef artifacts = 6;
+  int32 artifact_total = 7;
+  int32 artifact_limit = 8;
+  int32 artifact_offset = 9;
+  bool artifacts_have_more = 10;
+  bool legacy_artifacts_discovered = 11;
+}
+
+message ListEvidenceRequest {
+  string scenario = 1;
+  repeated string kinds = 2;
+  string search = 3;
+  string run_status = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+  // run_limit bounds metadata catalogs inspected before evidence pagination.
+  // Zero uses the service default.
+  int32 run_limit = 7;
+}
+
+message EvidenceItem {
+  vrooli.test_genie.v1.runs.RunInfo run = 1;
+  vrooli.test_genie.v1.runs.ArtifactRef artifact = 2;
+}
+
+message ListEvidenceResponse {
+  repeated EvidenceItem items = 1;
+  int32 total = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  bool has_more = 5;
+  repeated string degraded_reasons = 6;
+}

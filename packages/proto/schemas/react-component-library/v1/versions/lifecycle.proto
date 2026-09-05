@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.versions;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/versions;versions_v1";
+
+service VersionLifecycleService {
+  rpc ListVersionLedger(ListVersionLedgerRequest) returns (ListVersionLedgerResponse);
+  rpc ListRetireCandidates(ListRetireCandidatesRequest) returns (ListRetireCandidatesResponse);
+  rpc PlanCleanup(PlanCleanupRequest) returns (PlanCleanupResponse);
+  rpc CleanupVersions(CleanupVersionsRequest) returns (CleanupVersionsResponse);
+  rpc CleanupDraft(CleanupDraftRequest) returns (CleanupDraftResponse);
+  rpc DeprecateVersion(VersionLifecycleRequest) returns (VersionLifecycleResponse);
+  rpc ArchiveVersion(VersionLifecycleRequest) returns (VersionLifecycleResponse);
+  rpc RetireVersion(VersionLifecycleRequest) returns (VersionLifecycleResponse);
+  rpc MaterializeVersion(MaterializeVersionRequest) returns (MaterializeVersionResponse);
+  rpc ReconcilePresence(ReconcilePresenceRequest) returns (ReconcilePresenceResponse);
+  rpc ExportArchive(ArchiveRequest) returns (ArchiveResponse);
+  rpc ImportArchive(ImportArchiveRequest) returns (ArchiveResponse);
+  rpc Doctor(DoctorRequest) returns (DoctorResponse);
+}
+
+message ListVersionLedgerRequest { string library_id = 1; string window = 2; }
+message VersionLedgerRow {
+  string library_id = 1;
+  string version = 2;
+  string created_at = 3;
+  string released_at = 4;
+  string retired_at = 5;
+  string lifecycle_state = 6;
+  int32 gate_pass_count = 7;
+  int32 gate_fail_count = 8;
+  int32 test_runs = 9;
+  double test_pass_rate = 10;
+  int32 adoption_current = 11;
+  int32 adoption_peak = 12;
+  int32 file_count = 13;
+  int32 lines_of_code = 14;
+  int32 dependency_count = 15;
+  string presence = 16;
+}
+message ListVersionLedgerResponse { repeated VersionLedgerRow rows = 1; }
+
+message ListRetireCandidatesRequest { string component_id = 1; }
+message RetireCandidate { string component_id = 1; string library_id = 2; string version = 3; string status = 4; }
+message ListRetireCandidatesResponse { repeated RetireCandidate candidates = 1; }
+message VersionLifecycleRequest { string component_id = 1; string version = 2; bool confirm = 3; string plan_hash = 4; }
+message VersionLifecycleResponse { RetireCandidate version = 1; string lifecycle_state = 2; }
+
+message MaterializeVersionRequest {
+  string component_id = 1;
+  string version = 2;
+  bool all = 3;
+  string into = 4;
+}
+message MaterializedVersion {
+  string component_id = 1;
+  string library_id = 2;
+  string version = 3;
+  string directory = 4;
+  int32 files_written = 5;
+  bool already_present = 6;
+}
+message MaterializeVersionResponse { repeated MaterializedVersion versions = 1; }
+
+message ReconcilePresenceRequest {
+  string component_id = 1;
+  bool apply = 2;
+}
+message ReconcilePresenceResponse {
+  repeated RetireCandidate evict = 1;
+  repeated RetireCandidate materialize = 2;
+  repeated RetireCandidate unchanged = 3;
+  bool applied = 4;
+}
+
+message ArchiveRequest { string path = 1; }
+message ImportArchiveRequest { string path = 1; bool overwrite = 2; }
+message ArchiveResponse {
+  string path = 1;
+  int32 schema_version = 2;
+  map<string, int32> row_counts = 3;
+  string checksum = 4;
+}
+message DoctorRequest {}
+message DoctorIssue {
+  string library_id = 1;
+  string version = 2;
+  string path = 3;
+  string expected_sha256 = 4;
+  string actual_sha256 = 5;
+  string reason = 6;
+}
+message DoctorResponse { repeated DoctorIssue issues = 1; }
+
+message CleanupScope {
+  string component_id = 1;
+  string library_id = 2;
+  int32 older_than_days = 3;
+}
+message CleanupItem {
+  RetireCandidate version = 1;
+  bool eligible = 2;
+  string reason = 3;
+  int32 adoption_count = 4;
+  int32 dependency_count = 5;
+  int32 age_days = 6;
+  repeated VersionReference references = 7;
+}
+message VersionReference {
+  string kind = 1;
+  string owner_library_id = 2;
+  string owner_version = 3;
+  string owner_path = 4;
+  string import_specifier = 5;
+  string evidence = 6;
+  string owner_scenario = 7;
+  string adoption_id = 8;
+}
+message PlanCleanupRequest { CleanupScope scope = 1; }
+message PlanCleanupResponse {
+  repeated CleanupItem items = 1;
+  string plan_hash = 2;
+}
+message CleanupVersionsRequest {
+  CleanupScope scope = 1;
+  string plan_hash = 2;
+  bool confirm = 3;
+}
+message CleanupVersionsResponse {
+  repeated CleanupItem items = 1;
+  string plan_hash = 2;
+  int32 retired_count = 3;
+  bool applied = 4;
+}
+message CleanupDraftRequest {
+  string component_id = 1;
+  int32 older_than_days = 2;
+  bool confirm = 3;
+}
+message CleanupDraftResponse {
+  CleanupItem item = 1;
+  bool applied = 2;
+}

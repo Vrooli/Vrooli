@@ -1,0 +1,43 @@
+{
+  "_metadata": {
+    "description": "One node-agent cross-compiled for linux/darwin/windows; platform-native service install; no Linux-only assumptions.",
+    "last_validated_at": "2026-08-24T17:40:20-04:00",
+    "module": "cross-platform-agent",
+    "prd_ref": "OT-P0-007",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P0-007",
+      "title": "Cross-Platform Node-Agent",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "One node-agent codebase is cross-compiled for Linux, macOS, and Windows and installs itself as the platform-native background service (systemd / launchd / Windows Service or Scheduled Task). The agent uses platform path/process abstractions only, with no Linux-only assumptions. Build verification is distinct from real-hardware support qualification.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "agent/internal/service/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Service-install adapter selects systemd/launchd/Windows-Service by service-manager kind (mirrors NativeServiceManager(GOOS)); rendered units carry no hardcoded POSIX paths and the privileged helper installs under a separate OS principal. Verified by the Linux-runnable package test suite."
+        },
+        {
+          "type": "test",
+          "ref": "agent/build/crosscompile_test.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Agent cross-compiles cleanly CGO_ENABLED=0 for all six targets: linux/darwin/windows × amd64/arm64."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/DEPLOYMENT.md#node-agent",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Pending real-hardware qualification. Cross-compilation and Linux-runnable adapter tests do not establish service lifecycle support on macOS or Windows."
+        }
+      ]
+    }
+  ]
+}

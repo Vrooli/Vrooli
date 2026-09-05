@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": [
+      {
+        "path": "value",
+        "kind": "text",
+        "label": "Value",
+        "default": "7"
+      },
+      {
+        "path": "tone",
+        "kind": "text",
+        "label": "Tone",
+        "default": "warning"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Count",
+      "args": {
+        "value": "7",
+        "tone": "warning"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "7"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {
+      "id": "dot",
+      "name": "Dot",
+      "args": {
+        "dot": true,
+        "tone": "danger"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-notification-badge-indicator]",
+          "name": "data-dot",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

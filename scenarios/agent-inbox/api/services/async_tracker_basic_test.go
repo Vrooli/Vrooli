@@ -4,8 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // Test helpers (inlined to avoid import cycle with testutil)
@@ -40,7 +38,7 @@ func waitForCompletion(t *testing.T, ch <-chan AsyncCompletionEvent, timeout tim
 
 // TestNewAsyncTrackerService verifies the service initializes correctly.
 func TestNewAsyncTrackerService(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	if svc == nil {
 		t.Fatal("expected non-nil service")
@@ -58,7 +56,7 @@ func TestNewAsyncTrackerService(t *testing.T) {
 
 // TestStartTracking_MissingAsyncBehavior verifies error when no async config is provided.
 func TestStartTracking_MissingAsyncBehavior(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	err := svc.StartTracking(context.Background(), "tc-1", "chat-1", "tool", "scenario", nil, nil)
 	if err == nil {
@@ -68,8 +66,8 @@ func TestStartTracking_MissingAsyncBehavior(t *testing.T) {
 
 // TestStartTracking_MissingStatusPolling verifies error when status polling config is missing.
 func TestStartTracking_MissingStatusPolling(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
-	asyncBehavior := &toolspb.AsyncBehavior{} // No StatusPolling
+	svc := NewAsyncTrackerService(nil, nil)
+	asyncBehavior := &AsyncBehavior{} // No StatusPolling
 
 	err := svc.StartTracking(context.Background(), "tc-1", "chat-1", "tool", "scenario", nil, asyncBehavior)
 	if err == nil {
@@ -79,21 +77,21 @@ func TestStartTracking_MissingStatusPolling(t *testing.T) {
 
 // TestStartTracking_ExtractsOperationID verifies the operation ID is extracted from the result.
 func TestStartTracking_ExtractsOperationID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Cancel context immediately to stop polling
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	asyncBehavior := &toolspb.AsyncBehavior{
-		StatusPolling: &toolspb.StatusPolling{
+	asyncBehavior := &AsyncBehavior{
+		StatusPolling: &StatusPolling{
 			OperationIdField:       "run_id",
 			StatusTool:             "get_status",
 			StatusToolIdParam:      "id",
 			PollIntervalSeconds:    1,
 			MaxPollDurationSeconds: 60,
 		},
-		CompletionConditions: &toolspb.CompletionConditions{
+		CompletionConditions: &CompletionConditions{
 			StatusField:   "status",
 			SuccessValues: []string{"completed"},
 			FailureValues: []string{"failed"},
@@ -125,10 +123,10 @@ func TestStartTracking_ExtractsOperationID(t *testing.T) {
 
 // TestStartTracking_MissingOperationID verifies error when run_id field is missing.
 func TestStartTracking_MissingOperationID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
-	asyncBehavior := &toolspb.AsyncBehavior{
-		StatusPolling: &toolspb.StatusPolling{
+	asyncBehavior := &AsyncBehavior{
+		StatusPolling: &StatusPolling{
 			OperationIdField: "run_id",
 			StatusTool:       "get_status",
 		},
@@ -147,7 +145,7 @@ func TestStartTracking_MissingOperationID(t *testing.T) {
 
 // TestSubscribeWithID verifies ID-based subscription tracking.
 func TestSubscribeWithID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	sub := svc.SubscribeWithID("chat-1")
 	if sub == nil {
@@ -179,7 +177,7 @@ func TestSubscribeWithID(t *testing.T) {
 
 // TestUnsubscribeByID verifies subscription cleanup.
 func TestUnsubscribeByID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	sub := svc.SubscribeWithID("chat-1")
 	svc.UnsubscribeByID(sub)
@@ -197,7 +195,7 @@ func TestUnsubscribeByID(t *testing.T) {
 
 // TestRegisterCompletionCallback verifies callback registration.
 func TestRegisterCompletionCallback(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	ch := svc.RegisterCompletionCallback("chat-1")
 	if ch == nil {
@@ -217,7 +215,7 @@ func TestRegisterCompletionCallback(t *testing.T) {
 
 // TestUnregisterCompletionCallback verifies callback cleanup.
 func TestUnregisterCompletionCallback(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	svc.RegisterCompletionCallback("chat-1")
 	svc.UnregisterCompletionCallback("chat-1")
@@ -232,7 +230,7 @@ func TestUnregisterCompletionCallback(t *testing.T) {
 
 // TestStopTracking verifies operation cancellation and callback trigger.
 func TestStopTracking(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Register completion callback first
 	completionCh := svc.RegisterCompletionCallback("chat-1")

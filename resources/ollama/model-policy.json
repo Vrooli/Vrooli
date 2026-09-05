@@ -1,0 +1,687 @@
+{
+  "schema_version": "2026-06-10",
+  "roles": {
+    "embedding.default": {
+      "model": "nomic-embed-text:latest",
+      "fallbacks": [],
+      "required_capabilities": ["embedding"],
+      "description": "Default local embedding model for 768-dimensional Qdrant collections and semantic search indexes.",
+      "preference": 10,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "high",
+        "source": "resources/ollama/docs/EMBEDDING_MODELS.md",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "chat.small": {
+      "model": "qwen3.5:4b",
+      "fallbacks": ["llama3.2:3b", "llama3.2:1b"],
+      "required_capabilities": ["generate", "chat"],
+      "description": "Small local chat/generation role for low-latency or low-memory scenario paths.",
+      "preference": 20,
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (tiny/fast general)",
+        "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "chat.default": {
+      "model": "qwen3.5:9b",
+      "fallbacks": ["qwen3.5:4b", "llama3.1:8b"],
+      "required_capabilities": ["generate", "chat", "summarize"],
+      "description": "Default local generation role for synthesis, summarization, and lightweight agent workflows.",
+      "preference": 30,
+      "sampling_defaults": {
+        "temperature": 0.7,
+        "top_p": 0.95
+      },
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
+        "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "summarize.default": {
+      "model": "qwen3.5:9b",
+      "fallbacks": ["qwen3.5:4b", "llama3.2:3b"],
+      "required_capabilities": ["generate", "chat", "summarize"],
+      "description": "Default summarization and distillation role for text-heavy scenario outputs.",
+      "preference": 40,
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
+        "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "rerank.llm_fallback": {
+      "model": "qwen3.5:4b",
+      "fallbacks": ["qwen3:4b", "qwen3:1.7b"],
+      "required_capabilities": ["generate", "rerank"],
+      "description": "LLM fallback reranking role used when the dedicated reranker resource is unavailable.",
+      "preference": 50,
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (tiny/fast general)",
+        "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "classify.routing": {
+      "model": "qwen3.5:4b",
+      "fallbacks": ["qwen3:1.7b", "qwen3:4b"],
+      "required_capabilities": ["generate", "classify"],
+      "description": "Small local generation role for structured routing/classification decisions.",
+      "preference": 55,
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (tiny/fast general)",
+        "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "code.local": {
+      "model": "gemma4:12b",
+      "fallbacks": ["llama3.1:8b", "llama3.2:3b"],
+      "required_capabilities": ["generate", "code", "tools"],
+      "description": "Local code-assistance role for scenarios that explicitly need code-specialized generation. Consumed by agentic tool-calling runners (OpenCode), so tool-calling is a hard requirement enforced by the model-admission gate.",
+      "preference": 60,
+      "sampling_defaults": {
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "top_k": 40
+      },
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (balanced coding)",
+        "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "write.default": {
+      "model": "gemma4:12b",
+      "fallbacks": ["qwen3.5:9b", "qwen3.5:4b"],
+      "required_capabilities": ["generate", "chat"],
+      "description": "Local natural-prose writing role for marketing copy, blog prose, technical writing, and creative drafts.",
+      "preference": 70,
+      "sampling_defaults": {
+        "temperature": 0.9,
+        "top_p": 0.95
+      },
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "max_tokens": 8192,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "AI Gateway sampling-and-write-roles plan 2026-08-16; fallback order keeps 32768-context models ahead of any 8192-context model so a large-k profile stays locally servable",
+        "observed_at": "2026-08-16",
+        "sample_count": 0
+      }
+    },
+    "vision.default": {
+      "model": "qwen3-vl:4b",
+      "fallbacks": ["qwen3-vl:2b", "llava:7b"],
+      "required_capabilities": ["generate", "chat", "vision"],
+      "description": "Local-first visual understanding role selected from the host capability ladder; callers supply image input through the gateway envelope.",
+      "preference": 65,
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "multimodal-inference-in-ai-gateway-one-provider-boundary Phase 4 host-fit ladder",
+        "observed_at": "2026-08-10",
+        "sample_count": 1
+      }
+    }
+  },
+  "models": {
+    "nomic-embed-text:latest": {
+      "family": "nomic-embed-text",
+      "tags": ["latest"],
+      "capabilities": ["embedding"],
+      "modalities": {"input": ["text"], "output": ["vector"]},
+      "context_window_tokens": 8192,
+      "embedding_dimensions": 768,
+      "disk_size_gb_estimate": 0.3,
+      "ram_gb_estimate": 0.8,
+      "vram_gb_estimate": 0.8,
+      "default_eligible": true,
+      "use_case_notes": "Primary local embedding model for current 768-dimensional Qdrant collections.",
+      "caveats": ["Do not use chat models for 768-dimensional collection embeddings."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "resources/ollama/docs/EMBEDDING_MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "embedding_dimensions": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "resources/ollama/docs/EMBEDDING_MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "mxbai-embed-large:latest": {
+      "family": "mxbai-embed-large",
+      "tags": ["latest"],
+      "capabilities": ["embedding"],
+      "modalities": {"input": ["text"], "output": ["vector"]},
+      "context_window_tokens": 512,
+      "embedding_dimensions": 1024,
+      "disk_size_gb_estimate": 0.7,
+      "ram_gb_estimate": 1.5,
+      "vram_gb_estimate": 1.5,
+      "default_eligible": false,
+      "use_case_notes": "Optional 1024-dimensional embedding model for shadow migrations and provider-specific experiments.",
+      "caveats": ["Do not use for existing 768-dimensional collections without a shadow reindex and evaluated cutover."],
+      "provenance": {
+        "identity": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama model inventory",
+          "observed_at": "2026-08-13",
+          "sample_count": 1
+        },
+        "embedding_dimensions": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama embedding probe",
+          "observed_at": "2026-08-13",
+          "sample_count": 1
+        }
+      }
+    },
+    "qwen3.5:4b": {
+      "family": "qwen",
+      "tags": ["3.5", "4b"],
+      "capabilities": ["generate", "chat", "summarize", "rerank", "classify", "tools"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 3.0,
+      "ram_gb_estimate": 6.0,
+      "vram_gb_estimate": 6.0,
+      "default_eligible": true,
+      "use_case_notes": "Tiny/fast general model — small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
+      "caveats": ["The bare ':4b' tag pulls Ollama's default quant; pin a quant-specific tag to force Q8_0."],
+      "provenance": {
+        "modalities": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama /api/show vision capability plus image-bearing /api/chat probe",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "0.30.10"
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-23 best-available local-model survey; tag verified against ollama library registry",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 4B parameter-size estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3.5:9b": {
+      "family": "qwen",
+      "tags": ["3.5", "9b"],
+      "capabilities": ["generate", "chat", "summarize", "tools"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 6.0,
+      "ram_gb_estimate": 11.0,
+      "vram_gb_estimate": 11.0,
+      "default_eligible": true,
+      "use_case_notes": "Default general model for synthesis and summarization. Recommended quant Q6_K (~7.5 GB) or Q8_0 (~9.5 GB).",
+      "caveats": ["May exceed the default 12 GiB Ollama container budget at Q8_0 alongside other resident models."],
+      "provenance": {
+        "modalities": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama /api/show vision capability plus image-bearing /api/chat probe",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "0.30.10"
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-23 best-available local-model survey; tag verified against ollama library registry",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 9B parameter-size estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        }
+      }
+    },
+    "gemma4:12b": {
+      "family": "gemma",
+      "tags": ["4", "12b"],
+      "capabilities": ["generate", "chat", "code", "tools"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 7.0,
+      "ram_gb_estimate": 12.0,
+      "vram_gb_estimate": 12.0,
+      "default_eligible": true,
+      "use_case_notes": "Balanced local coding model (Gemma 4 12B). Recommended official QAT Q4_0 (~6.7 GB).",
+      "caveats": ["Tight fit for the default 12 GiB Ollama budget when other models are resident; capacity planner should flag co-residency."],
+      "provenance": {
+        "modalities": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama /api/show vision capability plus image-bearing /api/chat probe; audio remains unassigned",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "0.30.10"
+        },
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-23 best-available local-model survey; tag verified against ollama library registry",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 12B QAT-Q4 estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        }
+      }
+    },
+    "llama3.2:1b": {
+      "family": "llama",
+      "tags": ["3.2", "1b"],
+      "capabilities": ["generate", "chat", "summarize"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "context_window_tokens": 8192,
+      "disk_size_gb_estimate": 1.3,
+      "ram_gb_estimate": 2.0,
+      "vram_gb_estimate": 2.0,
+      "default_eligible": true,
+      "use_case_notes": "Very small generation fallback for constrained hosts.",
+      "caveats": ["Use only when latency or memory pressure matters more than answer quality."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "scenario manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "manual parameter-size estimate pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "llama3.2:3b": {
+      "family": "llama",
+      "tags": ["3.2", "3b"],
+      "capabilities": ["generate", "chat", "summarize"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "context_window_tokens": 8192,
+      "disk_size_gb_estimate": 2.0,
+      "ram_gb_estimate": 4.0,
+      "vram_gb_estimate": 4.0,
+      "default_eligible": true,
+      "use_case_notes": "Small balanced general-purpose model for local chat/generation.",
+      "caveats": ["Prefer qwen3.5:4b for default synthesis when host capacity permits."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md and scenario manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md hardware guidance; pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "llama3.1:8b": {
+      "family": "llama",
+      "tags": ["3.1", "8b"],
+      "capabilities": ["generate", "chat", "summarize"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "context_window_tokens": 8192,
+      "disk_size_gb_estimate": 4.7,
+      "ram_gb_estimate": 8.0,
+      "vram_gb_estimate": 8.0,
+      "default_eligible": true,
+      "use_case_notes": "Larger general-purpose fallback for hosts that can keep an 8B model resident.",
+      "caveats": ["May exceed the default 12 GiB Ollama container budget when loaded with other models."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md download-size guidance; pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3:1.7b": {
+      "family": "qwen",
+      "tags": ["3", "1.7b"],
+      "capabilities": ["generate", "chat", "summarize", "rerank"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 1.4,
+      "ram_gb_estimate": 3.0,
+      "vram_gb_estimate": 3.0,
+      "default_eligible": false,
+      "use_case_notes": "Small LLM rerank/classify fallback candidate observed in health/search manifests.",
+      "caveats": ["Prior search quality notes report weak discrimination for some reranking workloads."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "scenario manifest inventory and reranker degradation notes",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3:4b": {
+      "family": "qwen",
+      "tags": ["3", "4b"],
+      "capabilities": ["generate", "chat", "summarize", "rerank"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 2.6,
+      "ram_gb_estimate": 5.0,
+      "vram_gb_estimate": 5.0,
+      "default_eligible": true,
+      "use_case_notes": "Prior-generation local synthesis and LLM-rerank fallback model retained as a deeper fallback.",
+      "caveats": ["LLM reranking is a fallback; prefer the dedicated reranker resource for production quality."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "high",
+          "source": "web-search and knowledge-observatory manifests",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "codellama:7b": {
+      "family": "codellama",
+      "tags": ["7b"],
+      "capabilities": ["generate", "chat", "code"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "context_window_tokens": 4096,
+      "disk_size_gb_estimate": 3.8,
+      "ram_gb_estimate": 8.0,
+      "vram_gb_estimate": 8.0,
+      "default_eligible": false,
+      "use_case_notes": "Legacy code-specialized fallback retained for existing model-orchestration manifests.",
+      "caveats": ["Prefer the gemma4:12b code.local role target for new code workflows; codellama:7b cannot emit structured tool calls and is unsuitable for agentic/tool use."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "ai-model-orchestra-controller manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "llava:7b": {
+      "family": "llava",
+      "tags": ["7b"],
+      "capabilities": ["generate", "chat", "vision"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 4.7,
+      "ram_gb_estimate": 8.0,
+      "vram_gb_estimate": 5.0,
+      "default_eligible": false,
+      "use_case_notes": "Optional local image-understanding model retained for explicit vision experiments and fallback comparisons.",
+      "caveats": ["Not assigned to a default role; use a documented direct-model exception until a role requires the legacy LLaVA path."],
+      "provenance": {
+        "modalities": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama /api/show vision capability plus image-bearing /api/chat probe",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "0.30.10"
+        },
+        "identity": {
+          "source_kind": "ollama_show",
+          "confidence": "high",
+          "source": "live Ollama /api/show and /api/tags probe",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "live daemon"
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "live Ollama /api/tags size with conservative runtime headroom estimate",
+          "observed_at": "2026-08-10",
+          "sample_count": 1
+        }
+      }
+    },
+    "qwen3-vl:2b": {
+      "family": "qwen3-vl",
+      "tags": ["2b"],
+      "capabilities": ["generate", "chat", "vision"],
+      "modalities": {"input": ["text", "image", "video"], "output": ["text"]},
+      "coordinate_convention": "normalized_1000",
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 1.9,
+      "ram_gb_estimate": 4.0,
+      "vram_gb_estimate": 1.9,
+      "default_eligible": false,
+      "use_case_notes": "Smallest qwen3-vl fallback for hosts where the selected 4B rung does not fit.",
+      "caveats": ["Not installed by default on this host; selected through the host capability ladder only when required."],
+      "provenance": {
+        "modalities": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama /api/show vision capability plus image-bearing CPU-only gateway probe",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "0.30.10"
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "qwen3-vl published rung estimate: 2B approximately 1.9 GB",
+          "observed_at": "2026-08-10",
+          "sample_count": 1
+        }
+      }
+    },
+    "qwen3-vl:4b": {
+      "family": "qwen3-vl",
+      "tags": ["4b"],
+      "capabilities": ["generate", "chat", "vision"],
+      "modalities": {"input": ["text", "image", "video"], "output": ["text"]},
+      "coordinate_convention": "normalized_1000",
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 3.3,
+      "ram_gb_estimate": 6.0,
+      "vram_gb_estimate": 3.3,
+      "default_eligible": true,
+      "use_case_notes": "Selected local visual-understanding rung for the measured host: 16376 MiB total VRAM and approximately 5982 MiB free at selection time; the 4B rung fits with headroom and is materially stronger for grounding than the legacy LLaVA fallback.",
+      "caveats": ["Selection is host-dependent; retain the 2B fallback for lower-VRAM machines and do not assume video is routable until a future role is explicitly introduced."],
+      "provenance": {
+        "modalities": {
+          "source_kind": "ollama_show",
+          "confidence": "measured",
+          "source": "live Ollama /api/show vision capability plus image-bearing gateway probe",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "ollama_version": "0.30.10"
+        },
+        "selection": {
+          "source_kind": "host_probe",
+          "confidence": "measured",
+          "source": "nvidia-smi plus published qwen3-vl footprint ladder",
+          "observed_at": "2026-08-10",
+          "sample_count": 1,
+          "host_fingerprint": "NVIDIA GeForce RTX 4070 Ti SUPER; 16376 MiB total; 5982 MiB free"
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "qwen3-vl published rung estimate: 4B approximately 3.3 GB",
+          "observed_at": "2026-08-10",
+          "sample_count": 1
+        }
+      }
+    }
+  },
+  "constraints": {
+    "resident_model_budget_percent": 70,
+    "minimum_host_memory_headroom_percent": 20,
+    "minimum_host_disk_headroom_gb": 20,
+    "max_loaded_models_policy": 3,
+    "default_parallel_requests": 4,
+    "role_preference_order": [
+      "embedding.default",
+      "chat.small",
+      "chat.default",
+      "summarize.default",
+      "rerank.llm_fallback",
+      "classify.routing",
+      "code.local",
+      "vision.default",
+      "write.default"
+    ],
+    "direct_model_exception_required_fields": ["reason", "owner", "review_after"],
+    "provenance_required": true,
+    "provenance_source_kinds": [
+      "manual_policy",
+      "operator_override",
+      "ollama_tags",
+      "ollama_show",
+      "ollama_ps",
+      "host_probe",
+      "static_estimate",
+      "derived_estimate",
+      "measured_profile",
+      "scenario_pin"
+    ],
+    "modality_vocabulary": ["text", "image", "vector", "video", "audio"]
+  },
+  "provenance": {
+    "policy": {
+      "source_kind": "manual_policy",
+      "confidence": "medium",
+      "source": "ollama-model-roles-and-shared-host-inventory implementation plan Phase 4",
+      "observed_at": "2026-06-10",
+      "sample_count": 0
+    },
+    "scenario_inventory": {
+      "source_kind": "scenario_pin",
+      "confidence": "medium",
+      "source": "search-hub result rec-ac9698550e18b144 and current scenario manifest scan",
+      "observed_at": "2026-06-10",
+      "sample_count": 0
+    },
+    "capacity_defaults": {
+      "source_kind": "static_estimate",
+      "confidence": "medium",
+      "source": "resources/ollama/resource.json runtime defaults and manual model-size estimates",
+      "observed_at": "2026-06-10",
+      "sample_count": 0
+    }
+  }
+}

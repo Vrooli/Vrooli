@@ -2,6 +2,7 @@ import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getKeyboardParams, getShortcutParams } from '../types';
 import { normalizeError } from '../utils';
+import { getActionType } from '../proto';
 
 /**
  * Keyboard handler
@@ -20,7 +21,8 @@ export class KeyboardHandler extends BaseHandler {
     const { logger } = context;
 
     try {
-      switch (instruction.type.toLowerCase()) {
+		const actionType = getActionType(instruction);
+		switch (actionType.toLowerCase()) {
         case 'keyboard':
           return await this.handleKeyboard(instruction, context);
 
@@ -31,7 +33,7 @@ export class KeyboardHandler extends BaseHandler {
           return {
             success: false,
             error: {
-              message: `Unsupported keyboard type: ${instruction.type}`,
+				message: `Unsupported keyboard type: ${actionType}`,
               code: 'UNSUPPORTED_TYPE',
               kind: 'orchestration',
               retryable: false,
@@ -40,7 +42,7 @@ export class KeyboardHandler extends BaseHandler {
       }
     } catch (error) {
       logger.error('Keyboard operation failed', {
-        type: instruction.type,
+			type: getActionType(instruction),
         error: error instanceof Error ? error.message : String(error),
       });
 

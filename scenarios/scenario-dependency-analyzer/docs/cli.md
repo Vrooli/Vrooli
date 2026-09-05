@@ -17,6 +17,7 @@ Complete command-line interface reference for analyzing and visualizing scenario
   - [list](#list)
   - [deployment](#deployment)
   - [health](#health)
+  - [deps approved](#deps-approved)
   - [status](#status)
 - [Examples](#examples)
 - [Output Formats](#output-formats)
@@ -50,20 +51,40 @@ scenario-dependency-analyzer --version
 scenario-dependency-analyzer status
 
 # Analyze a scenario's dependencies
-scenario-dependency-analyzer analyze ecosystem-manager
+scenario-dependency-analyzer analyze swarm-manager
 
 # Scan and detect dependencies from code
-scenario-dependency-analyzer scan ecosystem-manager
+scenario-dependency-analyzer scan swarm-manager
 
 # Export recursive dependency DAG
-scenario-dependency-analyzer dag export ecosystem-manager --recursive
+scenario-dependency-analyzer dag export swarm-manager --recursive
 
 # Generate dependency graph
 scenario-dependency-analyzer graph combined --format json
 
+# Generate the actual import-evidence interface graph
+scenario-dependency-analyzer graph actual --json
+
+# Report declared-vs-actual drift
+scenario-dependency-analyzer drift swarm-manager --json
+
+# Validate dependency health through the Test Genie producer contract
+scenario-dependency-analyzer health swarm-manager --json
+
+# Search approved dependency governance memory
+scenario-dependency-analyzer deps approved search "React graph library" --json
+
 # Check deployment readiness
-scenario-dependency-analyzer deployment ecosystem-manager
+scenario-dependency-analyzer deployment swarm-manager
+
+# Compatibility view of the control-plane supervision set
+scenario-dependency-analyzer core-set --json
 ```
+
+The `core-set` verb is retained for Scenario Dependency Analyzer consumers. It
+uses the same database-free service as `vrooli supervision-set`; it does not
+own a separate seed or dependency list. New platform consumers should prefer
+`vrooli supervision-set --json` or the in-process supervision service.
 
 ---
 
@@ -90,7 +111,7 @@ scenario-dependency-analyzer analyze <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Analyze a single scenario
-scenario-dependency-analyzer analyze ecosystem-manager
+scenario-dependency-analyzer analyze swarm-manager
 
 # Analyze with transitive dependencies
 scenario-dependency-analyzer analyze api-manager --transitive
@@ -104,7 +125,7 @@ scenario-dependency-analyzer analyze chart-generator --verbose
 
 **Output:**
 ```
-🔍 Analyzing dependencies for: ecosystem-manager
+🔍 Analyzing dependencies for: swarm-manager
 ✅ Analysis complete
 
 📊 Dependency Summary:
@@ -136,7 +157,7 @@ scenario-dependency-analyzer scan <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Scan without applying changes
-scenario-dependency-analyzer scan ecosystem-manager
+scenario-dependency-analyzer scan swarm-manager
 
 # Scan and apply all detected dependencies
 scenario-dependency-analyzer scan api-tools --apply
@@ -150,12 +171,12 @@ scenario-dependency-analyzer scan my-scenario --json
 
 **Output:**
 ```
-🛰️  Scanning scenario: ecosystem-manager
+🛰️  Scanning scenario: swarm-manager
 ✅ Scan complete
   Applied changes: true
   Resources added: 2
   Scenarios added: 1
-  Tip: run 'git diff scenarios/ecosystem-manager/.vrooli/service.json' to review
+  Tip: run 'git diff scenarios/swarm-manager/.vrooli/service.json' to review
 ```
 
 ---
@@ -184,7 +205,7 @@ scenario-dependency-analyzer dag export <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Export full recursive DAG
-scenario-dependency-analyzer dag export ecosystem-manager
+scenario-dependency-analyzer dag export swarm-manager
 
 # Export only top-level dependencies
 scenario-dependency-analyzer dag export api-manager --no-recursive
@@ -198,7 +219,7 @@ scenario-dependency-analyzer dag export chart-gen --json
 
 **Output:**
 ```
-📊 Exporting DAG for: ecosystem-manager (recursive=true)
+📊 Exporting DAG for: swarm-manager (recursive=true)
 ✅ DAG exported
 
 Dependency Tree:
@@ -231,6 +252,7 @@ scenario-dependency-analyzer graph [type] [OPTIONS]
 - `--format <format>` - Output format: json, dot, mermaid (default: json)
 - `--output <file>` - Save output to file
 - `--json` - Force JSON output
+- `--actual` - Legacy flag for the Connect-backed actual interface graph; prefer `graph actual --json` for new automation
 
 **Examples:**
 ```bash
@@ -248,6 +270,12 @@ scenario-dependency-analyzer graph scenario --format mermaid
 
 # Save JSON to file
 scenario-dependency-analyzer graph --type combined --output graph.json
+
+# Rank scenario centrality for swarm-manager scheduling inputs
+scenario-dependency-analyzer graph centrality
+
+# Read one scenario's centrality as JSON
+scenario-dependency-analyzer graph centrality --scenario test-genie --json
 ```
 
 **Output (DOT format):**
@@ -256,8 +284,8 @@ digraph Dependencies {
   rankdir=LR;
   node [shape=box];
   postgres [label="postgres"];
-  ecosystem-manager [label="ecosystem-manager"];
-  ecosystem-manager -> postgres [label="requires"];
+  swarm-manager [label="swarm-manager"];
+  swarm-manager -> postgres [label="requires"];
 }
 ```
 
@@ -269,6 +297,36 @@ dot -Tpng deps.dot -o graph.png
 # View in browser (macOS)
 dot -Tsvg deps.dot | open -f -a Safari
 ```
+
+**Centrality output:**
+`graph centrality` reports each scenario's direct and transitive reverse
+dependency counts, required-edge weighted score, and distance to the nearest
+core seed. Swarm Manager consumes this as one input to derived scenario
+importance.
+
+**Actual graph output:**
+`graph actual --json` reports nodes, evidence-tagged scenario edges, transport world, and stability metadata. It is backed by `DescribeInterfaceGraph` and is the preferred machine interface for future planners.
+
+---
+
+### drift
+
+Report declared-vs-actual scenario dependency drift.
+
+**Usage:**
+```bash
+scenario-dependency-analyzer drift [scenario] [OPTIONS]
+```
+
+**Arguments:**
+- `scenario` - Optional scenario filter; omit for fleet-wide drift
+
+**Options:**
+- `--json` - Emit machine-readable findings
+
+**Semantics:**
+- `undeclared_but_used` is a warning because import evidence proves an actual scenario edge.
+- `declared_without_import_evidence` is informational because runtime URL discovery and CLI shell-out usage are not yet represented in upstream AST facts.
 
 ---
 
@@ -344,7 +402,7 @@ scenario-dependency-analyzer impact <dependency> [OPTIONS]
 scenario-dependency-analyzer impact postgres
 
 # Analyze scenario dependency impact
-scenario-dependency-analyzer impact ecosystem-manager --json
+scenario-dependency-analyzer impact swarm-manager --json
 ```
 
 **Output:**
@@ -355,7 +413,7 @@ scenario-dependency-analyzer impact ecosystem-manager --json
 Removing postgres would break 12 scenarios and affect 25 indirect dependents.
 
 Direct Dependents:
-  - ecosystem-manager (REQUIRED)
+  - swarm-manager (REQUIRED)
     Purpose: Store dependency metadata and analysis results
   - api-manager (REQUIRED)
     Purpose: Main data storage for API configurations
@@ -402,7 +460,7 @@ scenario-dependency-analyzer propose \
 scenario-dependency-analyzer propose \
   --name "task-scheduler" \
   --requirements "cron,database" \
-  --similar "ecosystem-manager,system-monitor"
+  --similar "swarm-manager,system-monitor"
 
 # Get JSON output
 scenario-dependency-analyzer propose \
@@ -423,7 +481,7 @@ Resources:
   - redis
 
 Related Scenarios:
-  - ecosystem-manager
+  - swarm-manager
   - api-manager
 ```
 
@@ -449,7 +507,7 @@ scenario-dependency-analyzer optimize [scenario] [OPTIONS]
 **Examples:**
 ```bash
 # Get optimization recommendations
-scenario-dependency-analyzer optimize ecosystem-manager
+scenario-dependency-analyzer optimize swarm-manager
 
 # Optimize all scenarios
 scenario-dependency-analyzer optimize all --type resource
@@ -463,9 +521,9 @@ scenario-dependency-analyzer optimize chart-gen --json
 
 **Output:**
 ```
-🔧 Getting optimization recommendations for: ecosystem-manager
+🔧 Getting optimization recommendations for: swarm-manager
 
-Scenario: ecosystem-manager
+Scenario: swarm-manager
   Recommendations: 3
   High priority: 1
     - [resource_swap] Consider lightweight AI alternative
@@ -499,7 +557,7 @@ scenario-dependency-analyzer list <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # List all dependencies
-scenario-dependency-analyzer list ecosystem-manager
+scenario-dependency-analyzer list swarm-manager
 
 # List only resources
 scenario-dependency-analyzer list api-manager --type resources
@@ -510,8 +568,8 @@ scenario-dependency-analyzer list chart-gen --json
 
 **Output:**
 ```
-📋 Fetching dependencies for: ecosystem-manager
-✅ Dependencies for ecosystem-manager:
+📋 Fetching dependencies for: swarm-manager
+✅ Dependencies for swarm-manager:
 
 resource:
   - postgres (required)
@@ -544,7 +602,7 @@ scenario-dependency-analyzer deployment <scenario> [OPTIONS]
 **Examples:**
 ```bash
 # Check deployment readiness
-scenario-dependency-analyzer deployment ecosystem-manager
+scenario-dependency-analyzer deployment swarm-manager
 
 # Get JSON report
 scenario-dependency-analyzer deployment api-tools --json
@@ -552,8 +610,8 @@ scenario-dependency-analyzer deployment api-tools --json
 
 **Output:**
 ```
-🛰️  Loading deployment report for: ecosystem-manager
-Scenario: ecosystem-manager
+🛰️  Loading deployment report for: swarm-manager
+Scenario: swarm-manager
 Generated: 2025-11-22T17:30:00Z
 
 Tier readiness:
@@ -569,44 +627,274 @@ Bundle dependencies:
   - scenario :: data-tools (tiers: desktop, server, saas, mobile)
 
 Bundle files:
-  - binary: api/ecosystem-manager-api (present)
+  - binary: api/swarm-manager-api (present)
   - config: .vrooli/service.json (present)
-  - schema: initialization/postgres/schema.sql (present)
+  - schema: api/internal/<domain>/schema.sql (present)
 ```
 
 ---
 
 ### health
 
-Check service health and analysis capabilities.
+Validate dependency health for one scenario through SDA's producer contract.
+This is the public surface Test Genie will consume for its dependencies phase.
+The current response includes Code Facts-backed surfaces, dependency readiness,
+runtime dependency status for required resources/scenarios, approved dependency
+governance, pnpm release-age policy validation, graph drift, and a stable
+security-health dependency-index availability section.
 
 **Usage:**
 ```bash
-scenario-dependency-analyzer health [OPTIONS]
+scenario-dependency-analyzer health <scenario> [OPTIONS]
 ```
 
+**Arguments:**
+- `scenario` - Scenario name
+
 **Options:**
-- `--json` - Output in JSON format
-- `--detailed` - Include detailed analysis health check
+- `--json` - Output raw JSON
+- `--use-cache` - Allow cached upstream facts (default: true)
 
 **Examples:**
 ```bash
-# Basic health check
-scenario-dependency-analyzer health
+# Human-readable dependency health summary
+scenario-dependency-analyzer health swarm-manager
 
-# Detailed health check
-scenario-dependency-analyzer health --detailed
-
-# Get JSON output
-scenario-dependency-analyzer health --json
+# Get machine-readable producer output
+scenario-dependency-analyzer health swarm-manager --json
 ```
 
 **Output:**
 ```
-🏥 Checking health...
-✅ Scenario Dependency Analyzer is healthy
-   API: http://localhost:20400
+Scenario: swarm-manager
+Passed: false
+Findings: 0
+Degraded integrations: 0
+
+Dependency Health Sections
+pass: Code Facts surfaces - 3 Code Facts surface(s) discovered.
+pass: Dependency readiness - Host commands, runtimes, modules, and packages passed readiness checks (6 command probe(s)).
+pass: Runtime dependencies - 2 required resource(s), 1 required scenario dependency(ies) checked.
+not_configured: Approved dependency governance - Approved dependency registry is present but has no records yet; observed dependencies are reported as needs-review guidance, not allowlist failures.
+pass: Package release-age policy - 1 pnpm-managed dependency surface(s) checked for minimumReleaseAge >= 10080 minutes.
+pass: Security Health dependency index - Security Health dependency index available=true ready=true indexed=47867 vulnerable=1041.
+pass: Dependency graph drift - Declared scenario dependencies match import evidence.
 ```
+
+Release-age policy uses pnpm's `minimumReleaseAge` setting. Vrooli's default is
+10080 minutes. `minimumReleaseAgeExclude` entries are allowed only when the
+exception is recorded in `.vrooli/dependencies/approved-dependencies.json` with
+rationale and review expiry.
+
+The `security-index` section calls `security-health deps status --json` to
+report dependency-index availability and freshness. It may include aggregate
+index counts, but it does not emit vulnerable-package findings into dependency
+health. Vulnerability scanning and security-phase gating remain owned by
+Security Health; SDA governance commands consume Security Health vulnerability
+evidence only for approval, denial, and remediation decisions.
+
+Dependency freshness belongs to SDA. `vrooli hygiene` may aggregate and render
+dependency freshness, but root hygiene must call an SDA-owned provider instead
+of reimplementing package topology, touched-file selection, or Go module drift
+checks.
+
+Per-scenario freshness uses Code Facts-discovered dependency surfaces and falls
+back to conventional `api`, `cli`, and `ui` roots only when Code Facts is
+unavailable. Fleet/touched freshness should use the same health findings after
+mapping git-touched files to in-repo package/module roots and impacted scenario
+surfaces. Root `go.mod` and `go.sum` changes affect all applicable Go surfaces.
+
+Readiness findings stay on stable maturity rules: Go module presence, local
+replace resolution, tidy drift, optional build freshness, Node package metadata,
+lockfiles, and install state map to `package_readiness`; discovery and
+classification failures map to `surface_inventory`. Any new emitted rule ID
+must be registered in `.vrooli/maturity.json` before it is used.
+
+Fixes use preview/apply semantics. SDA may safely apply deterministic Go fixes
+for a specific surface, such as local replace reconciliation or `go mod tidy`.
+Ambiguous mappings, unsupported ecosystems, optional build failures, and
+third-party dependency governance changes are advisory until a typed fixer owns
+them.
+
+---
+
+### freshness
+
+Report fleet/touched package freshness for Go scenario surfaces. This is the
+SDA-owned provider surface that root `vrooli hygiene` aggregates for dependency
+freshness; root hygiene must not maintain its own shared-package trigger list.
+
+**Usage:**
+```bash
+scenario-dependency-analyzer freshness [--touched|--all] [OPTIONS]
+```
+
+**Options:**
+- `--touched` - Check only surfaces impacted by changed in-repo modules (default)
+- `--all` - Check every discovered Go scenario surface
+- `--apply` - Run `go mod tidy` on stale surfaces
+- `--build` - Run `go build ./...` after tidy checks
+- `--concurrency <n>` - Maximum package surfaces to check concurrently (default: `8`)
+- `--repo-root <path>` - Repository root (defaults to `git rev-parse --show-toplevel`)
+- `--json` - Output raw JSON
+
+**Examples:**
+```bash
+# Machine-readable touched-surface report for hygiene aggregation
+scenario-dependency-analyzer freshness --touched --json
+
+# Repair deterministic tidy drift on impacted Go surfaces
+scenario-dependency-analyzer freshness --touched --apply
+```
+
+The report includes the selected mode, git-touched files, checked scenario
+surfaces, stale/error counts, diff paths, fixability labels, and next actions.
+Stale tidy drift is automatic and points to `freshness --apply`; errored
+surfaces caused by missing in-repo replaces are guided and point to
+`deps reconcile --all --json` for preview before apply. Touched mode maps
+changed files to in-repo Go module roots and then to scenario surfaces requiring
+those modules; root `go.mod` and `go.sum` changes fan out to all Go surfaces.
+
+---
+
+### deps approved
+
+Inspect approved third-party dependency governance records. Approved records are
+review memory, not an exhaustive allowlist. If a better dependency is
+appropriate, suggest it with purpose, version/range, alternatives considered,
+and security/license notes so it can be reviewed and recorded.
+
+**Usage:**
+```bash
+scenario-dependency-analyzer deps approved list [OPTIONS]
+scenario-dependency-analyzer deps approved search <query> [OPTIONS]
+scenario-dependency-analyzer deps approved explain <ecosystem>/<package> [OPTIONS]
+scenario-dependency-analyzer deps approved validate <scenario> [OPTIONS]
+scenario-dependency-analyzer deps approved validate --all [OPTIONS]
+scenario-dependency-analyzer deps approved triage [OPTIONS]
+scenario-dependency-analyzer deps approved findings [OPTIONS]
+scenario-dependency-analyzer deps approved usage <ecosystem>/<package> [OPTIONS]
+scenario-dependency-analyzer deps approved upsert --file <record.json> [OPTIONS]
+scenario-dependency-analyzer deps approved propose-records [OPTIONS]
+scenario-dependency-analyzer deps approved upsert-batch --file <proposals.json> [OPTIONS]
+scenario-dependency-analyzer deps approved security-gaps [OPTIONS]
+scenario-dependency-analyzer deps approved approve-observed <ecosystem>/<package> [OPTIONS]
+scenario-dependency-analyzer deps approved widen-range <ecosystem>/<package> --to-major-line [OPTIONS]
+scenario-dependency-analyzer deps approved approve <ecosystem>/<package> --rationale <text> [OPTIONS]
+scenario-dependency-analyzer deps approved deny <ecosystem>/<package> --reason <text> [OPTIONS]
+scenario-dependency-analyzer deps approved remediate <ecosystem>/<package> --vulnerability <id> [OPTIONS]
+scenario-dependency-analyzer deps approved deny-vulnerable <ecosystem>/<package> --vulnerability <id> [OPTIONS]
+```
+
+**Options:**
+- `--json` - Output raw JSON
+- `--ecosystem` - Filter list/search by ecosystem such as `npm` or `go`
+- `--state` - Filter list by governance state
+- `--all` - Validate every discovered scenario
+- `--policy-mode` - Override registry policy mode: `advisory`, `strict`, or `review_gate`
+- `--section` - Filter `triage` output to `security`, `seeding`, `ranges`, `hotspots`, or `expired`
+- `--limit` - Maximum triage groups per section, or grouped findings, in human output
+- `--scenario`, `--package`, `--severity`, `--class` - Filter `findings` output; human mode groups by dependency and class
+- `--minimum-severity` - Filter `security-gaps` output by normalized vulnerability severity such as `high`
+- `--file` - Read an `ApprovedDependencyRecord` JSON document for `upsert`
+- `--top-unrecorded` - Maximum unrecorded dependency groups to propose as draft records
+- `--minimum-scenario-count` - Only propose records for dependencies observed in at least this many scenarios
+- `--from-findings` - Build an `approve-observed` decision from fleet findings and observed usage
+- `--to-major-line` - Widen an existing record to the single observed major line
+- `--range-strategy` - Proposal or approve-observed range strategy: `observed`, `exact`, `major_line`, `minimum`, or `wildcard`
+- `--range` - Version or version range for `approve` and `deny`
+- `--range-policy` - How SDA evaluates `--range`: `exact`, `major_line`, `minimum`, `dev_tooling`, or `security_denied`
+- `--rationale` / `--reason` - Required review rationale for approval or denial
+- `--replacement` - Replacement or remediation guidance for denied dependencies
+- `--vulnerability` - Security Health vulnerability id for remediation and security-derived denial
+- `--affected-range` - Affected range to deny; defaults to Security Health evidence
+- `--fixed-range` - Fixed range guidance; defaults to Security Health evidence
+- `--dry-run` / `--apply` - Preview or apply a governance mutation; mutation commands dry-run by default
+
+**Examples:**
+```bash
+# List all recorded approvals
+scenario-dependency-analyzer deps approved list --json
+
+# Search for a known-good graph package
+scenario-dependency-analyzer deps approved search "React graph library" --json
+
+# Explain one package record
+scenario-dependency-analyzer deps approved explain npm/reactflow --json
+
+# Validate one scenario's package declarations
+scenario-dependency-analyzer deps approved validate graph-studio --json
+
+# Validate dependency governance across the fleet
+scenario-dependency-analyzer deps approved validate --all --json
+
+# Show grouped governance decisions to make next
+scenario-dependency-analyzer deps approved triage
+
+# List raw fleet governance findings for automation
+scenario-dependency-analyzer deps approved findings --severity WARNING --json
+
+# Show every scenario and surface using one dependency
+scenario-dependency-analyzer deps approved usage npm/react --json
+
+# Propose draft records for the highest-frequency unrecorded dependencies
+scenario-dependency-analyzer deps approved propose-records --top-unrecorded 25 --json
+
+# Preview applying a proposal response without writing the registry
+scenario-dependency-analyzer deps approved upsert-batch --file ./proposals.json --dry-run --json
+
+# Show vulnerable dependency exposures that are not represented by denied governance records
+scenario-dependency-analyzer deps approved security-gaps --minimum-severity high
+
+# Preview approving a dependency directly from observed fleet usage
+scenario-dependency-analyzer deps approved approve-observed npm/react --from-findings --json
+
+# Preview widening an existing approval to the observed major line
+scenario-dependency-analyzer deps approved widen-range npm/react --to-major-line --json
+
+# Preview an approval without writing the registry
+scenario-dependency-analyzer deps approved approve npm/react --range "18.2.0" --range-policy major_line --rationale "Approved UI runtime framework." --json
+
+# Apply a denied dependency decision
+scenario-dependency-analyzer deps approved deny npm/left-pad --range "*" --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --apply --json
+
+# Preview Security Health-derived remediation without writing the registry
+scenario-dependency-analyzer deps approved remediate npm/vite --vulnerability GHSA-example --json
+
+# Preview a vulnerability-derived denied range; add --apply to write the registry
+scenario-dependency-analyzer deps approved deny-vulnerable npm/vite --vulnerability GHSA-example --json
+
+# Apply a full record from JSON
+scenario-dependency-analyzer deps approved upsert --file ./record.json --apply --json
+
+# Apply a reviewed batch proposal after editing rationale/security/license notes
+scenario-dependency-analyzer deps approved upsert-batch --file ./proposals.json --apply --json
+```
+
+Validation behavior:
+- recorded dependency within range: pass/info
+- recorded dependency outside range: warning by default
+- recorded dependency outside an explicit scenario exception: warning or error depending on the exception
+- unrecorded direct dependency: warning in advisory mode, error in strict mode
+- unrecorded Go indirect dependency: observed-only by default unless a denied/deprecated record exists
+- Security Health vulnerability evidence: exposed through `security-gaps` and `remediate`; `deny-vulnerable` records a denied affected range through the governance API and dry-runs by default
+- denied or blocked dependency: error
+- deprecated dependency: warning with replacement guidance
+- expired governance review: warning
+
+Signal categories:
+- `direct_runtime` - direct dependency declarations used at runtime.
+- `direct_dev` - direct development/tooling declarations.
+- `indirect` - Go `require_indirect` dependencies, aggregated without ordinary approval seeding noise.
+- `lockfile_transitive` - lockfile-only vulnerable evidence; handled through `security-gaps`, not normal approval seeding.
+- `security_vulnerable` - Security Health evidence that should be upgraded, denied, or explicitly reviewed.
+
+Range policy behavior:
+- `exact` accepts only the exact recorded version unless the recorded range itself is parseable.
+- `major_line` accepts versions on the same major line at or above the recorded baseline.
+- `minimum` accepts versions at or above the recorded lower bound and honors explicit upper bounds such as `<20.0.0`.
+- `dev_tooling` behaves like major-line policy for broad tooling approvals while Security Health-denied ranges still fail separately.
+- `security_denied` is for vulnerability-derived denied records; matching versions fail, while versions outside the affected range are not blocked by that denied record.
 
 ---
 
@@ -737,8 +1025,8 @@ Use in Markdown:
 ````markdown
 ```mermaid
 graph TD
-  ecosystem-manager[ecosystem-manager] --> postgres[postgres]
-  ecosystem-manager[ecosystem-manager] --> ollama[ollama]
+  swarm-manager[swarm-manager] --> postgres[postgres]
+  swarm-manager[swarm-manager] --> ollama[ollama]
 ```
 ````
 
@@ -760,7 +1048,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup Vrooli
-        run: ./scripts/manage.sh setup --yes yes
+        run: vrooli setup --yes yes
       - name: Start analyzer
         run: vrooli scenario run scenario-dependency-analyzer
       - name: Scan dependencies

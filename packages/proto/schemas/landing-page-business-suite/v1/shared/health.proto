@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package vrooli.landing_page_business_suite.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1";
+
+// Health is an operational REST probe for lifecycle systems and load
+// balancers. This schema records the response shape without requiring a
+// generated client for GET /health.
+//
+// @stability beta
+
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}
+
+message Response {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,14 +20,42 @@ type Manifest struct {
 	Telemetry     Telemetry  `json:"telemetry"`
 	Ports         *PortRules `json:"ports,omitempty"`
 	Swaps         []Swap     `json:"swaps,omitempty"`
+	Peers         []Peer     `json:"peers,omitempty"`
 	Secrets       []Secret   `json:"secrets,omitempty"`
 	Services      []Service  `json:"services"`
+	// CatalogRequirements are immutable catalog paths the bundled application
+	// needs in order to boot every declared capability. Packaging validation
+	// fails before launch when one is absent.
+	CatalogRequirements []string `json:"catalog_requirements,omitempty"`
+}
+
+// InvalidIPCHostError identifies a manifest that would expose the authenticated
+// control API beyond the local machine.
+type InvalidIPCHostError struct{ Host string }
+
+func (e InvalidIPCHostError) Error() string {
+	return fmt.Sprintf("ipc.host %q is not a loopback address", e.Host)
+}
+
+// MissingPeerDiscoveryPathError identifies a discover edge that cannot
+// produce any runtime binding and would otherwise be silently discarded.
+type MissingPeerDiscoveryPathError struct{ Scenario string }
+
+func (e MissingPeerDiscoveryPathError) Error() string {
+	return fmt.Sprintf("peer %q declares bundle_policy discover but has no discovery bindings", e.Scenario)
+}
+
+type MissingEmbeddedPeerError struct{ Scenario string }
+
+func (e MissingEmbeddedPeerError) Error() string {
+	return fmt.Sprintf("peer %q declares bundle_policy embed but contributes no bundled services", e.Scenario)
 }
 
 type App struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
 	Description string `json:"description,omitempty"`
+	Scenario    string `json:"scenario,omitempty"`
 }
 
 type IPC struct {
@@ -58,6 +87,21 @@ type Swap struct {
 	Limitations string `json:"limitations,omitempty"`
 }
 
+type Peer struct {
+	Scenario         string        `json:"scenario"`
+	BundlePolicy     string        `json:"bundle_policy"`
+	StartupPolicy    string        `json:"startup_policy,omitempty"`
+	DegradedBehavior string        `json:"degraded_behavior,omitempty"`
+	Bindings         []PeerBinding `json:"bindings"`
+}
+
+type PeerBinding struct {
+	EnvVar          string `json:"env_var"`
+	Form            string `json:"form"`
+	Port            string `json:"port"`
+	WhenUnavailable string `json:"when_unavailable"`
+}
+
 type Secret struct {
 	ID          string            `json:"id"`
 	Class       string            `json:"class"`
@@ -67,6 +111,39 @@ type Secret struct {
 	Generator   map[string]any    `json:"generator,omitempty"`
 	Required    *bool             `json:"required,omitempty"`
 	Target      SecretTarget      `json:"target"`
+
+	// LogicalID and Field are the durable, backend-neutral name this secret
+	// resolves to, exactly as a resource or scenario manifest declares it.
+	//
+	// They exist so a bundle reads the credential the operator already
+	// provisioned. Without them a bundle invented its own namespace from the
+	// app's display name, so the OpenRouter key entered during onboarding and
+	// the OpenRouter key a packaged bundle looked for were two different stored
+	// values with no declared relationship — provision-once was not true across
+	// tiers, and neither was a recovery bundle taken on one of them.
+	//
+	// Both are optional in the file: LogicalIdentity falls back to the bundle's
+	// own namespace so an existing manifest still resolves somewhere, and the
+	// generator fills them in from the scenario's declaration.
+	LogicalID string `json:"logical_id,omitempty"`
+	Field     string `json:"field,omitempty"`
+}
+
+// CredentialField is the durable field this secret addresses. It matches the
+// normalization every other tier uses, so SESSION_SECRET, session_secret, and
+// session.secret name one stored value rather than three empty ones.
+func (s Secret) CredentialField() string {
+	raw := strings.TrimSpace(s.Field)
+	if raw == "" {
+		raw = strings.TrimSpace(s.ID)
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(s.Target.Name)
+	}
+	if raw == "" {
+		return ""
+	}
+	return strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(raw))
 }
 
 type SecretTarget struct {
@@ -75,24 +152,27 @@ type SecretTarget struct {
 }
 
 type Service struct {
-	ID           string                 `json:"id"`
-	Type         string                 `json:"type"`
-	Description  string                 `json:"description,omitempty"`
-	Binaries     map[string]Binary      `json:"binaries"`
-	Build        *BuildConfig           `json:"build,omitempty"`
-	Env          map[string]string      `json:"env,omitempty"`
-	Secrets      []string               `json:"secrets,omitempty"`
-	DataDirs     []string               `json:"data_dirs,omitempty"`
-	LogDir       string                 `json:"log_dir,omitempty"`
-	Ports        *ServicePorts          `json:"ports,omitempty"`
-	Health       HealthCheck            `json:"health"`
-	Readiness    ReadinessCheck         `json:"readiness"`
-	Dependencies []string               `json:"dependencies,omitempty"`
-	Migrations   []Migration            `json:"migrations,omitempty"`
-	Assets       []Asset                `json:"assets,omitempty"`
-	GPU          *GPURequirements       `json:"gpu,omitempty"`
-	Critical     *bool                  `json:"critical,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ID           string            `json:"id"`
+	Type         string            `json:"type"`
+	Description  string            `json:"description,omitempty"`
+	Binaries     map[string]Binary `json:"binaries"`
+	Build        *BuildConfig      `json:"build,omitempty"`
+	Env          map[string]string `json:"env,omitempty"`
+	Secrets      []string          `json:"secrets,omitempty"`
+	DataDirs     []string          `json:"data_dirs,omitempty"`
+	LogDir       string            `json:"log_dir,omitempty"`
+	Ports        *ServicePorts     `json:"ports,omitempty"`
+	Health       HealthCheck       `json:"health"`
+	Readiness    ReadinessCheck    `json:"readiness"`
+	Dependencies []string          `json:"dependencies,omitempty"`
+	Migrations   []Migration       `json:"migrations,omitempty"`
+	Assets       []Asset           `json:"assets,omitempty"`
+	// AssetDirs contains runtime directories that must be copied and preserved
+	// as part of a service bundle (for example, a Node service's dependencies).
+	AssetDirs []string               `json:"asset_dirs,omitempty"`
+	GPU       *GPURequirements       `json:"gpu,omitempty"`
+	Critical  *bool                  `json:"critical,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 	// DistRoot is the directory to serve static files from for ui-bundle services.
 	// If not specified, the runtime will automatically detect it by finding index.html
 	// in the assets list and using its parent directory.
@@ -200,10 +280,55 @@ func (m *Manifest) Validate(targetOS, targetArch string) error {
 	if len(m.Services) == 0 {
 		return errors.New("services must not be empty")
 	}
+	if err := validatePeers(m.Peers, m.Services); err != nil {
+		return err
+	}
 	keys := PlatformKeys(targetOS, targetArch)
 	for _, svc := range m.Services {
 		if err := validateService(svc, keys); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validatePeers(peers []Peer, services []Service) error {
+	for _, peer := range peers {
+		if strings.TrimSpace(peer.Scenario) == "" {
+			return errors.New("peer.scenario is required")
+		}
+		switch peer.BundlePolicy {
+		case "embed":
+			prefix := peer.Scenario + "--"
+			found := false
+			for _, service := range services {
+				if strings.HasPrefix(service.ID, prefix) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return MissingEmbeddedPeerError{Scenario: peer.Scenario}
+			}
+		case "discover", "either":
+			if len(peer.Bindings) == 0 {
+				return MissingPeerDiscoveryPathError{Scenario: peer.Scenario}
+			}
+		default:
+			return fmt.Errorf("peer %q has unsupported bundle_policy %q", peer.Scenario, peer.BundlePolicy)
+		}
+		for _, binding := range peer.Bindings {
+			if binding.EnvVar == "" || binding.Port == "" {
+				return fmt.Errorf("peer %q has an incomplete discovery binding", peer.Scenario)
+			}
+			switch binding.Form {
+			case "http_base_url", "ws_base_url", "host_port", "port_number":
+			default:
+				return fmt.Errorf("peer %q binding %s has unsupported form %q", peer.Scenario, binding.EnvVar, binding.Form)
+			}
+			if binding.WhenUnavailable != "omit" && binding.WhenUnavailable != "fail" {
+				return fmt.Errorf("peer %q binding %s has unsupported when_unavailable %q", peer.Scenario, binding.EnvVar, binding.WhenUnavailable)
+			}
 		}
 	}
 	return nil
@@ -220,10 +345,21 @@ func (m *Manifest) validateHeader() error {
 	if m.App.Name == "" || m.App.Version == "" {
 		return errors.New("app.name and app.version are required")
 	}
-	if m.IPC.Host == "" || m.IPC.Port == 0 {
-		return errors.New("ipc.host and ipc.port are required")
+	if m.IPC.Host == "" || m.IPC.Port < 0 {
+		return errors.New("ipc.host and a non-negative ipc.port allocator input are required")
+	}
+	if !isLoopbackHost(m.IPC.Host) {
+		return InvalidIPCHostError{Host: m.IPC.Host}
 	}
 	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.TrimSpace(host)
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	return net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
 }
 
 // validateService checks a single service definition.

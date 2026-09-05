@@ -1,0 +1,203 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Ready content",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pending",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Preparing your workspace"
+        }
+      ],
+      "id": "pending",
+      "mode": "live",
+      "name": "Initial loading",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Refreshing",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing"
+        },
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "id": "refreshing",
+      "mode": "live",
+      "name": "Refreshing in place",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Stale",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Showing saved content"
+        },
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "id": "stale",
+      "mode": "live",
+      "name": "Stale but useful",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PartialError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "needs attention"
+        },
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "id": "partial-error",
+      "mode": "live",
+      "name": "Partial failure",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Showing the latest content"
+        }
+      ],
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline with saved content",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "name": "Try again",
+          "role": "button"
+        }
+      ],
+      "id": "error-static",
+      "mode": "live",
+      "name": "Error with retry",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ErrorRecovery",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "id": "error",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Try again",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Recoverable error",
+      "role": "boundary"
+    }
+  ],
+  "title": "AsyncBoundary"
+}

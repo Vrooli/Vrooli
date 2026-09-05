@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "device-control",
+  "description": "Experience contract for Device Control. The operator surface is a fleet console: which devices are controlled, what each can provably do, what is driving them right now, and what the resulting evidence shows. Disposition vocabulary (available / unavailable / unsupported / failed) is the most repeated element and is never collapsed.",
+  "pages": [
+    {
+      "id": "fleet",
+      "path": "pages/fleet.json",
+      "title": "Fleet",
+      "status": "draft"
+    },
+    {
+      "id": "device-detail",
+      "path": "pages/device-detail.json",
+      "title": "Device",
+      "status": "draft"
+    },
+    {
+      "id": "strategies",
+      "path": "pages/strategies.json",
+      "title": "Strategies",
+      "status": "draft"
+    },
+    {
+      "id": "session",
+      "path": "pages/session.json",
+      "title": "Live session",
+      "status": "draft"
+    },
+    {
+      "id": "flows",
+      "path": "pages/flows.json",
+      "title": "Flows",
+      "status": "draft"
+    },
+    {
+      "id": "run-review",
+      "path": "pages/run-review.json",
+      "title": "Run review",
+      "status": "draft"
+    },
+    {
+      "id": "agent",
+      "path": "pages/agent.json",
+      "title": "Agent mode",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "prove-a-device-can-run-a-flow",
+      "path": "journeys/prove-a-device-can-run-a-flow.json",
+      "title": "Prove a device can run a flow, then run it",
+      "status": "draft"
+    },
+    {
+      "id": "notice-and-stop-an-unexpected-session",
+      "path": "journeys/notice-and-stop-an-unexpected-session.json",
+      "title": "Notice a session you did not start, and stop it",
+      "status": "draft"
+    }
+  ]
+}

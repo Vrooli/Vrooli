@@ -61,6 +61,39 @@ func TestListRemoteProfiles(t *testing.T) {
 	}
 }
 
+func TestLoadMonetizationManifestDefaultsEntitlement(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	manifestPath := filepath.Join(root, "scenarios", "paid-app", ".vrooli", "monetization.json")
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, []byte(`{"version":2,"bundle_key":"business_suite","app_key":"paid-app"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := LoadMonetizationManifest("", "paid-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest == nil || manifest.AppKey != "paid-app" || manifest.RequiresEntitlement == nil || !*manifest.RequiresEntitlement {
+		t.Fatalf("unexpected manifest: %+v", manifest)
+	}
+}
+
+func TestLoadMonetizationManifestRejectsMalformedDeclaration(t *testing.T) {
+	root := t.TempDir()
+	manifestPath := filepath.Join(root, "scenarios", "paid-app", ".vrooli", "monetization.json")
+	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, []byte(`{"version":1,"bundle_key":"business_suite","app_key":"paid-app"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadMonetizationManifest(root, "paid-app"); err == nil {
+		t.Fatal("malformed monetization declaration unexpectedly accepted")
+	}
+}
+
 func TestListRemoteProfilesWrappedResponse(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -202,6 +235,7 @@ func TestUploadArtifact(t *testing.T) {
 	defer s3Server.Close()
 
 	var proxyCallCount int
+	var commitMetadata, applyMetadata map[string]interface{}
 
 	lpbsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -224,8 +258,14 @@ func TestUploadArtifact(t *testing.T) {
 					ObjectKey: "uploads/test-app.exe",
 				})
 			case strings.Contains(path, "commit"):
+				if nested, ok := payload["body"].(map[string]interface{}); ok {
+					commitMetadata, _ = nested["metadata"].(map[string]interface{})
+				}
 				_, _ = w.Write([]byte(`{"id":99}`))
 			case strings.Contains(path, "apply"):
+				if nested, ok := payload["body"].(map[string]interface{}); ok {
+					applyMetadata, _ = nested["metadata"].(map[string]interface{})
+				}
 				_, _ = w.Write([]byte(`{"ok":true}`))
 			default:
 				t.Errorf("unexpected proxy path: %s", path)
@@ -273,6 +313,46 @@ func TestUploadArtifact(t *testing.T) {
 	// = 3 proxy calls to the proxy endpoint
 	if proxyCallCount != 3 {
 		t.Errorf("expected 3 proxy calls, got %d", proxyCallCount)
+	}
+	for name, metadata := range map[string]map[string]interface{}{"commit": commitMetadata, "apply": applyMetadata} {
+		if metadata == nil {
+			t.Fatalf("%s metadata was not forwarded", name)
+		}
+		if metadata["app_key"] != "test-app" || metadata["platform"] != "windows" || metadata["release_version"] != "1.0.0" {
+			t.Errorf("%s metadata identity = %#v", name, metadata)
+		}
+		if metadata["sha256"] == "" || metadata["sha512"] == "" {
+			t.Errorf("%s metadata missing checksums: %#v", name, metadata)
+		}
+	}
+}
+
+func TestArtifactMetadataCarriesManifestPolicyAndBuiltChecksums(t *testing.T) {
+	requiresEntitlement := true
+	metadata := artifactMetadata(&UploadRequest{
+		AppKey:         "browser-automation-studio",
+		Platform:       "linux",
+		ReleaseVersion: "2.4.0",
+	}, &MonetizationManifest{
+		Version:             2,
+		BundleKey:           "business_suite",
+		AppKey:              "browser-automation-studio",
+		RequiresEntitlement: &requiresEntitlement,
+	}, "sha256", "sha512", true)
+
+	for key, want := range map[string]interface{}{
+		"bundle_key":           "business_suite",
+		"app_key":              "browser-automation-studio",
+		"platform":             "linux",
+		"release_version":      "2.4.0",
+		"sha256":               "sha256",
+		"sha512":               "sha512",
+		"requires_entitlement": true,
+		"manifest_version":     2,
+	} {
+		if metadata[key] != want {
+			t.Errorf("metadata[%q] = %#v, want %#v", key, metadata[key], want)
+		}
 	}
 }
 

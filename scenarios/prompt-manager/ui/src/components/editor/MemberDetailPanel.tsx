@@ -10,28 +10,33 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Trash2, Save, FileText, AlertCircle, ArrowUpRight, ArrowDownRight, PanelRightClose, Clock, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { CollapsibleSection } from '@/components/shared/CollapsibleSection'
 import * as heartbeatService from '@/services/heartbeatService'
+import * as memberFlowService from '@/services/memberFlowService'
 import { toast } from '@/hooks/use-toast'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
+import type { TopicDeclaration } from '@/types/topicsGraph'
 import { MemberScheduleSection } from './MemberScheduleSection'
 import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
 import { MemberPromptPreview } from './MemberPromptPreview'
-import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
-import { useSelectionStore } from '@/stores/selectionStore'
+import { MemberInboxTab } from './MemberInboxTab'
+import { useRunningAgents } from '@/hooks/useRunningAgents'
+import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { ToastAction } from '@/components/ui/toast'
+import { runDetailPath } from '@/app/routes/route-paths'
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'pipeline' | 'prompt'
+export type MemberDetailSection = 'overview' | 'responsibilities' | 'heartbeat' | 'inbox' | 'pipeline' | 'prompt'
 
-type ActiveTab = 'overview' | 'pipeline' | 'prompt'
+type ActiveTab = 'overview' | 'inbox' | 'pipeline' | 'prompt'
 
 interface MemberDetailPanelProps {
   team: TeamDetails
@@ -39,10 +44,13 @@ interface MemberDetailPanelProps {
   appearance?: AgentAppearance
   manager?: TeamMember | null
   directReports?: TeamMember[]
-  /** Which section tab to navigate to */
+  /** Controlled section value. When supplied, the panel mirrors this value
+   * instead of holding its own state, and emits onSectionChange on user nav. */
+  section?: MemberDetailSection
+  /** Called when the user picks a section button. */
+  onSectionChange?: (section: MemberDetailSection) => void
+  /** Initial section for uncontrolled use. Ignored when `section` is provided. */
   initialSection?: MemberDetailSection
-  /** Nonce that changes on each navigation request to guarantee the effect fires */
-  initialSectionNonce?: number
   onUpdateMember: (agentId: string, request: UpdateMemberRequest) => Promise<TeamMember>
   onRemoveMember: (agentId: string) => Promise<void>
   onClose: () => void
@@ -81,14 +89,20 @@ function formatRelativePastTime(date: Date) {
 // Component
 // ============================================================================
 
+function sectionToTab(section: MemberDetailSection): ActiveTab {
+  if (section === 'pipeline' || section === 'prompt' || section === 'inbox') return section
+  return 'overview'
+}
+
 export function MemberDetailPanel({
   team,
   member,
   appearance,
   manager = null,
   directReports = [],
+  section,
+  onSectionChange,
   initialSection,
-  initialSectionNonce,
   onUpdateMember,
   onRemoveMember,
   onClose,
@@ -96,39 +110,56 @@ export function MemberDetailPanel({
   onNavigateToAgentFiles,
   className,
 }: MemberDetailPanelProps) {
+  const navigate = useNavigate()
   // Running agent state from shared store
-  const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
+  const { runningAgents } = useRunningAgents()
+  const runningAgent = useMemo(
+    () => runningAgents.find((entry) => entry.agentId === member.agentId),
+    [runningAgents, member.agentId],
+  )
+  const heartbeatControl = useHeartbeatControlStatus()
+  const teamHeartbeatControlStatus = useMemo(() => {
+    return heartbeatControl.status?.teams?.find((entry) => entry.teamId === team.id) ?? null
+  }, [heartbeatControl.status?.teams, team.id])
 
-  // Local state — 3 tabs: overview, pipeline, prompt
-  const [activeSection, setActiveSection] = useState<ActiveTab>(
-    initialSection === 'pipeline' ? 'pipeline'
-      : initialSection === 'prompt' ? 'prompt'
-        : 'overview'
+  // Internal section state for uncontrolled use; ignored when `section` is supplied.
+  const [internalSection, setInternalSection] = useState<MemberDetailSection>(
+    initialSection ?? 'overview',
+  )
+  const effectiveSection = section ?? internalSection
+
+  const handleSectionChange = useCallback(
+    (next: MemberDetailSection) => {
+      if (onSectionChange) onSectionChange(next)
+      else setInternalSection(next)
+    },
+    [onSectionChange],
   )
 
-  // Sync when a navigation request arrives (e.g. clicking a heartbeat in Info tab).
-  // The nonce ensures the effect fires even for repeated navigations to the same section.
+  const activeSection = sectionToTab(effectiveSection)
+
+  // Scroll to overview sub-section when section transitions into responsibilities/heartbeat.
   useEffect(() => {
-    if (!initialSection) return
-    const tab: ActiveTab = (initialSection === 'responsibilities' || initialSection === 'heartbeat')
-      ? 'overview' : initialSection
-    setActiveSection(tab)
-    if (initialSection === 'responsibilities' || initialSection === 'heartbeat') {
-      setTimeout(() => {
-        document.getElementById(`section-${initialSection}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 100)
-    }
-  }, [initialSection, initialSectionNonce])
+    if (effectiveSection !== 'responsibilities' && effectiveSection !== 'heartbeat') return
+    const id = `section-${effectiveSection}`
+    const handle = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
+    return () => window.clearTimeout(handle)
+  }, [effectiveSection])
 
   const [responsibilities, setResponsibilities] = useState('')
   const [heartbeatInstructions, setHeartbeatInstructions] = useState('')
   const [heartbeatConfig, setHeartbeatConfig] = useState<HeartbeatConfig | null>(null)
   const [schedule, setSchedule] = useState('0 */6 * * *')
   const [recentHeartbeatLogs, setRecentHeartbeatLogs] = useState<heartbeatService.LogEntry[]>([])
+  const [topics, setTopics] = useState<TopicDeclaration | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingRecentHeartbeats, setIsLoadingRecentHeartbeats] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const hasInbox = (topics?.intake?.length ?? 0) > 0
 
   // Dirty tracking
   const [isResponsibilitiesDirty, setIsResponsibilitiesDirty] = useState(false)
@@ -145,14 +176,16 @@ export function MemberDetailPanel({
       setIsLoadingRecentHeartbeats(true)
       setError(null)
       try {
-        const [resp, instr, config] = await Promise.all([
+        const [resp, instr, config, topicsResp] = await Promise.all([
           heartbeatService.getResponsibilities(team.id, member.agentId),
           heartbeatService.getHeartbeatInstructions(team.id, member.agentId),
           heartbeatService.getHeartbeat(team.id, member.agentId),
+          memberFlowService.getMemberTopics(team.id, member.agentId).catch(() => null),
         ])
         setResponsibilities(resp)
         setHeartbeatInstructions(instr)
         setHeartbeatConfig(config)
+        setTopics(topicsResp?.topics ?? null)
         setSchedule(config?.schedule ?? '0 */6 * * *')
         setIsResponsibilitiesDirty(false)
         setIsInstructionsDirty(false)
@@ -175,7 +208,7 @@ export function MemberDetailPanel({
       }
     }
     void loadData()
-  }, [team.id, member.agentId])
+	}, [team.id, member.agentId, navigate])
 
   // Handle role toggle
   const handleToggleRole = useCallback(
@@ -292,7 +325,7 @@ export function MemberDetailPanel({
         action: runId ? (
           <ToastAction
             altText="Open run"
-            onClick={() => useSelectionStore.getState().setSelectedRunId(runId)}
+            onClick={() => navigate(runDetailPath(runId))}
           >
             Open Run
           </ToastAction>
@@ -306,7 +339,7 @@ export function MemberDetailPanel({
       console.error('Failed to trigger heartbeat:', err)
       toast({ title: 'Failed to trigger heartbeat', variant: 'destructive' })
     }
-  }, [team.id, member.agentId])
+  }, [team.id, member.agentId, navigate])
 
   const recentHeartbeats = useMemo(() => {
     const entries: {
@@ -433,11 +466,11 @@ export function MemberDetailPanel({
         </div>
       </div>
 
-      {/* Section tabs — 2 tabs */}
+      {/* Section tabs */}
       <div className="flex-shrink-0 flex border-b border-border">
         <button
           type="button"
-          onClick={() => setActiveSection('overview')}
+          onClick={() => handleSectionChange('overview')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeSection === 'overview'
@@ -447,9 +480,24 @@ export function MemberDetailPanel({
         >
           Overview
         </button>
+        {hasInbox && (
+          <button
+            type="button"
+            onClick={() => handleSectionChange('inbox')}
+            data-testid="member-tab-inbox"
+            className={cn(
+              'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+              activeSection === 'inbox'
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Inbox
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => setActiveSection('pipeline')}
+          onClick={() => handleSectionChange('pipeline')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeSection === 'pipeline'
@@ -461,7 +509,7 @@ export function MemberDetailPanel({
         </button>
         <button
           type="button"
-          onClick={() => setActiveSection('prompt')}
+          onClick={() => handleSectionChange('prompt')}
           className={cn(
             'flex-1 px-4 py-2 text-sm font-medium transition-colors',
             activeSection === 'prompt'
@@ -559,7 +607,8 @@ export function MemberDetailPanel({
               isRunning={!!runningAgent}
               runDuration={runningAgent?.duration}
               runningRunId={runningAgent?.runId}
-              onOpenRun={(runId) => useSelectionStore.getState().setSelectedRunId(runId)}
+              onOpenRun={(runId) => navigate(runDetailPath(runId))}
+              heartbeatControlStatus={teamHeartbeatControlStatus}
             />
 
             <section>
@@ -610,7 +659,7 @@ export function MemberDetailPanel({
                             type="button"
                             className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                             title="Open full run view"
-                            onClick={() => useSelectionStore.getState().setSelectedRunId(entry.runId ?? '')}
+                            onClick={() => navigate(runDetailPath(entry.runId ?? ''))}
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>
@@ -707,17 +756,21 @@ Describe what this agent is responsible for in this team..."
           </div>
         )}
 
+        {/* Inbox section */}
+        {activeSection === 'inbox' && (
+          <MemberInboxTab
+            teamId={team.id}
+            intake={topics?.intake ?? []}
+            output={topics?.output ?? []}
+          />
+        )}
+
         {/* Pipeline section */}
         {activeSection === 'pipeline' && (
           <MemberPromptPipelineSection
             teamId={team.id}
             memberId={member.agentId}
-            onNavigateToTab={(section) => {
-              setActiveSection('overview')
-              setTimeout(() => {
-                document.getElementById(`section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }, 50)
-            }}
+            onNavigateToTab={(target) => handleSectionChange(target)}
             onNavigateToAgentFiles={onNavigateToAgentFiles ? (filePath) => onNavigateToAgentFiles(member.agentId, filePath) : undefined}
           />
         )}

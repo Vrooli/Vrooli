@@ -18,7 +18,6 @@ export function ResourceTree({
   groups,
   expandedResources,
   selectedSecretId,
-  excludedResources,
   excludedSecrets,
   overriddenSecrets,
   onToggleResource,

@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -25,8 +25,8 @@ Operational targets are tracked via `requirements/` modules and auto-updated by 
 - [ ] OT-P0-006 | Inspect + Logs | Provide a standard way to fetch status + logs over SSH for the deployed scenario/resources.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Multi-Environment Profiles | Support multiple environment configs (staging/prod) with separate domains/targets.
-- [ ] OT-P1-002 | Target Scaffolds | Add scaffolds for future targets (k8s, Railway, etc.) without requiring P0 deploy support.
+- [x] OT-P1-001 | Multi-Environment Profiles | Support multiple environment configs (staging/prod) with separate domains/targets.
+- [x] OT-P1-002 | Target Scaffolds | Add scaffolds for future targets (k8s, Railway, etc.) without requiring P0 deploy support.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Rollback | Keep previous release + one-command rollback.

@@ -26,7 +26,7 @@ export function IntervalTabs({ activeTab, onTabChange, className }: IntervalTabs
               ? 'bg-white/10 text-white'
               : 'bg-transparent text-slate-300 hover:bg-white/5'
           )}
-          onClick={() => onTabChange(tab)}
+          onClick={() => { onTabChange(tab); }}
         >
           {TAB_LABELS[tab]}
         </button>

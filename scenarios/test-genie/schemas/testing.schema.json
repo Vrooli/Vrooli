@@ -4,7 +4,9 @@
   "title": "Vrooli Testing Configuration",
   "description": "Configuration for scenario testing phases",
   "type": "object",
-  "required": ["version"],
+  "required": [
+    "version"
+  ],
   "properties": {
     "$schema": {
       "type": "string",
@@ -45,7 +47,9 @@
             "type": "string"
           },
           "examples": [
-            ["cli/install.sh"]
+            [
+              "cli/go.mod"
+            ]
           ]
         },
         "exclude_dirs": {
@@ -55,7 +59,9 @@
             "type": "string"
           },
           "examples": [
-            ["ui"]
+            [
+              "ui"
+            ]
           ]
         },
         "additional_files": {
@@ -70,7 +76,9 @@
               {
                 "type": "object",
                 "description": "File check with options",
-                "required": ["path"],
+                "required": [
+                  "path"
+                ],
                 "properties": {
                   "path": {
                     "type": "string",
@@ -90,7 +98,10 @@
             ]
           },
           "examples": [
-            ["ui/tsconfig.json", "initialization/sqlite/schema.sql"]
+            [
+              "ui/tsconfig.json",
+              "api/internal/<domain>/schema.sql"
+            ]
           ]
         },
         "additional_dirs": {
@@ -105,7 +116,9 @@
               {
                 "type": "object",
                 "description": "Directory check with options",
-                "required": ["path"],
+                "required": [
+                  "path"
+                ],
                 "properties": {
                   "path": {
                     "type": "string",
@@ -121,12 +134,12 @@
             ]
           },
           "examples": [
-            ["ui", "initialization"]
+            ["ui"]
           ]
         },
         "ui_smoke": {
           "type": "object",
-          "description": "Browserless-backed UI smoke harness configuration",
+          "description": "BAS (Browser Automation Studio)-backed UI smoke harness configuration",
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -137,7 +150,7 @@
               "type": "integer",
               "minimum": 1000,
               "default": 90000,
-              "description": "Navigation timeout passed to Browserless (milliseconds)"
+              "description": "Navigation timeout passed to the BAS workflow engine (milliseconds)"
             },
             "handshake_timeout_ms": {
               "type": "integer",
@@ -160,17 +173,17 @@
         },
         "playbooks": {
           "type": "object",
-          "description": "Playbooks structure validation configuration. Validates test/playbooks/ follows canonical layout.",
+          "description": "Legacy workflow asset structure validation configuration. Validates BAS assets follow the canonical layout.",
           "properties": {
             "enabled": {
               "type": "boolean",
               "default": true,
-              "description": "Enable playbooks structure validation. When true, validates registry.json exists, directories use NN- prefixes, and fixtures declare fixture_id."
+              "description": "Enable legacy workflow asset structure validation. When true, validates registry.json exists, directories use NN- prefixes, and fixtures declare fixture_id."
             },
             "strict": {
               "type": "boolean",
               "default": false,
-              "description": "When true, playbooks issues block the structure phase. When false (default), issues are reported as informational warnings."
+              "description": "When true, workflow asset issues block the structure phase. When false (default), issues are reported as informational warnings."
             }
           }
         }
@@ -178,12 +191,12 @@
     },
     "playbooks": {
       "type": "object",
-      "description": "Playbooks (E2E) phase configuration. Executes Vrooli Ascension workflows for end-to-end UI testing.",
+      "description": "Deprecated alias for workflow phase configuration. Prefer phases.workflow for phase controls; this block remains for BAS diagnostics and seed compatibility.",
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable or disable the playbooks phase"
+          "description": "Enable or disable the workflow phase through the legacy playbooks alias"
         },
         "bas": {
           "type": "object",
@@ -256,6 +269,54 @@
             }
           }
         },
+        "diagnostics": {
+          "type": "object",
+          "description": "Rich diagnostic artifacts captured by BAS during workflow execution. Defaults are cheap (console only); enable richer capture for baselines/regression diagnosis.",
+          "properties": {
+            "video": {
+              "type": "boolean",
+              "default": false,
+              "description": "Record a Playwright video of each workflow"
+            },
+            "console": {
+              "type": "boolean",
+              "default": true,
+              "description": "Capture browser console logs (cheap; default on)"
+            },
+            "network": {
+              "type": "boolean",
+              "default": false,
+              "description": "Capture network request/response events"
+            },
+            "har": {
+              "type": "boolean",
+              "default": false,
+              "description": "Record a HAR archive of network traffic"
+            },
+            "trace": {
+              "type": "boolean",
+              "default": false,
+              "description": "Record a Playwright trace (zip) for time-travel debugging"
+            },
+            "dom": {
+              "type": "boolean",
+              "default": false,
+              "description": "Capture DOM snapshots"
+            }
+          }
+        },
+        "continue_on_failure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run all selected workflows even after one fails, instead of stopping at the first failure"
+        },
+        "workflow_filter": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Restrict execution to the named workflows (by file/registry key). Empty means run all."
+        },
         "execution": {
           "type": "object",
           "description": "Workflow execution settings",
@@ -293,28 +354,83 @@
         }
       }
     },
-    "unit": {
+    "lint": {
       "type": "object",
-      "description": "Unit test phase configuration. Uses convention: only define languages you want to test. Defaults: go→api, node→ui, python→api",
+      "description": "Static-quality lint contract consumed by Quality Health and Test Genie's quality phase. The legacy native lint phase is retired, but this block still declares strict handler policy for scenario quality gates.",
+      "additionalProperties": false,
       "properties": {
-        "languages": {
+        "handlers": {
           "type": "object",
-          "description": "Language-specific test configuration. Only include languages that should be tested. Presence of a language key implies enabled=true.",
+          "description": "Handler-specific lint configuration keyed by handler ID.",
           "properties": {
-            "go": {
-              "$ref": "#/definitions/language_config",
-              "description": "Go test configuration (default dir: 'api')"
+            "go_module": {
+              "$ref": "#/definitions/lint_handler_config",
+              "description": "Lint any top-level component rooted at a Go module."
             },
-            "node": {
-              "$ref": "#/definitions/language_config",
-              "description": "Node.js/TypeScript test configuration (default dir: 'ui')"
+            "node_package": {
+              "$ref": "#/definitions/lint_handler_config",
+              "description": "Lint any top-level component rooted at a Node package."
             },
-            "python": {
-              "$ref": "#/definitions/language_config",
-              "description": "Python test configuration (default dir: 'api')"
+            "python_project": {
+              "$ref": "#/definitions/lint_handler_config",
+              "description": "Lint any top-level component rooted at a Python project."
+            }
+          },
+          "additionalProperties": false
+        },
+        "policy": {
+          "type": "object",
+          "description": "Policy for unmatched or unconfigured components.",
+          "additionalProperties": false,
+          "properties": {
+            "unconfigured_common_components": {
+              "type": "object",
+              "description": "Severity to use when common top-level components exist without a supported lint quality contract.",
+              "properties": {
+                "api": {
+                  "$ref": "#/definitions/lint_policy_severity"
+                },
+                "ui": {
+                  "$ref": "#/definitions/lint_policy_severity"
+                },
+                "cli": {
+                  "$ref": "#/definitions/lint_policy_severity"
+                }
+              },
+              "additionalProperties": {
+                "$ref": "#/definitions/lint_policy_severity"
+              }
+            },
+            "unmatched_code_components": {
+              "$ref": "#/definitions/lint_policy_severity",
+              "description": "Severity for code-bearing top-level components that do not match any supported lint handler."
             }
           }
         },
+        "components": {
+          "type": "object",
+          "description": "Per-component lint overrides keyed by top-level component name.",
+          "additionalProperties": {
+            "$ref": "#/definitions/lint_component_config"
+          }
+        },
+        "ignore": {
+          "type": "array",
+          "description": "Top-level directory names to ignore during lint quality contract discovery.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "unit": {
+      "type": "object",
+      "description": "Unit Health policy profile configuration.",
+      "additionalProperties": false,
+      "required": [
+        "policy_profile"
+      ],
+      "properties": {
         "options": {
           "type": "object",
           "description": "Global unit test options",
@@ -330,6 +446,10 @@
               "description": "Stop testing on first failure"
             }
           }
+        },
+        "policy_profile": {
+          "$ref": "#/definitions/unit_policy_profile",
+          "description": "Canonical Unit Health policy profile. Declares template-owned unit-test policy classes and required roles; Code Facts remains the source of truth for observed surfaces."
         }
       }
     },
@@ -437,6 +557,11 @@
               "type": "boolean",
               "default": true
             },
+            "validate_marked_refs": {
+              "type": "boolean",
+              "default": true,
+              "description": "Validate marked inline path/doc references such as `path:...` and `doc:...`"
+            },
             "code_extensions": {
               "type": "array",
               "items": {
@@ -523,6 +648,60 @@
       "type": "object",
       "description": "Performance validation phase configuration. Presence of this section enables performance testing. Individual checks can be enabled/disabled.",
       "properties": {
+        "budgets": {
+          "type": "object",
+          "description": "Per-scenario performance budgets \u2014 the single source of truth the performance-health budgets domain gates on (and that the benchmark runner reads for its build thresholds). All durations are milliseconds; sizes are bytes. Zero or absent means the axis is unset (never a violation). A breach of any declared axis fails baseline-diff exactly like any other health regression.",
+          "additionalProperties": false,
+          "properties": {
+            "go_build_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max wall-clock for `go build ./...` (api/), in milliseconds."
+            },
+            "ui_build_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max wall-clock for the UI production build, in milliseconds."
+            },
+            "bundle_max_bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max total size of the UI production build output, in bytes."
+            },
+            "lcp_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max Largest Contentful Paint, in milliseconds (continuous/out-of-band axis)."
+            },
+            "startup_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max time-to-healthy after restart, in milliseconds (continuous/out-of-band axis)."
+            },
+            "component_commit_avg_max_ms": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max AVERAGE commit time for the slowest component, in milliseconds (continuous/out-of-band axis)."
+            },
+            "component_commit_max_ms": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max commit time for the slowest component, in milliseconds (continuous/out-of-band axis)."
+            },
+            "ratchet": {
+              "type": "boolean",
+              "default": false,
+              "description": "When true, a budget write may only TIGHTEN an existing axis, never loosen it."
+            },
+            "flows": {
+              "type": "object",
+              "description": "Per-interaction-flow budgets keyed by flow slug (a bas/flows/<slug>.json marked intent:performance). Each gates a specific targeted journey \u2014 driven by `performance-health audit run <scenario> --workflow <slug>` and measured by the continuous capture-sweep \u2014 independently of the scenario aggregate. Only the Tier-1/web-vitals axes apply per-flow; build/bundle/startup stay scenario-level.",
+              "additionalProperties": {
+                "$ref": "#/definitions/flow_budget"
+              }
+            }
+          }
+        },
         "checks": {
           "type": "object",
           "description": "Performance validation checks. Each check can be independently enabled/disabled.",
@@ -581,6 +760,9 @@
         }
       }
     },
+    "dependencies": {
+      "$ref": "#/definitions/dependencies_config"
+    },
     "presets": {
       "type": "object",
       "description": "Named phase presets for the test runner",
@@ -593,21 +775,78 @@
     },
     "phases": {
       "type": "object",
-      "description": "Per-phase execution overrides such as timeout targets",
-      "properties": {
-        "structure": { "$ref": "#/definitions/phase_options" },
-        "dependencies": { "$ref": "#/definitions/phase_options" },
-        "smoke": { "$ref": "#/definitions/phase_options" },
-        "unit": { "$ref": "#/definitions/phase_options" },
-        "integration": { "$ref": "#/definitions/phase_options" },
-        "playbooks": { "$ref": "#/definitions/phase_options" },
-        "business": { "$ref": "#/definitions/phase_options" },
-        "performance": { "$ref": "#/definitions/phase_options" }
+      "description": "Per-phase execution overrides keyed by descriptor-backed phase name. The schema validates the common options shape; Test Genie validates keys against the live phase registry at runtime.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
       },
-      "additionalProperties": { "$ref": "#/definitions/phase_options" }
+      "additionalProperties": {
+        "$ref": "#/definitions/phase_options"
+      }
     }
   },
   "definitions": {
+    "flow_budget": {
+      "type": "object",
+      "description": "One interaction-flow's performance thresholds. Only the axes a targeted capture can measure (LCP and the slowest component's avg/max commit time); build/bundle/startup are scenario-level only. Ratchet is inherited from the parent performance.budgets.ratchet. Zero or absent means the axis is unset.",
+      "additionalProperties": false,
+      "properties": {
+        "load_only": {
+          "type": "boolean",
+          "description": "Whether the flow is measured only during initial load."
+        },
+        "lcp_max_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Max Largest Contentful Paint for this flow, in milliseconds."
+        },
+        "component_commit_avg_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max AVERAGE commit time for the slowest component during this flow, in milliseconds."
+        },
+        "component_commit_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max commit time for the slowest component during this flow, in milliseconds."
+        },
+        "long_task_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total long-task duration for this flow, in milliseconds."
+        },
+        "long_task_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max individual long-task duration for this flow, in milliseconds."
+        },
+        "raster_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total raster duration for this flow, in milliseconds."
+        },
+        "layout_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total layout duration for this flow, in milliseconds."
+        },
+        "paint_total_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max total paint duration for this flow, in milliseconds."
+        },
+        "dropped_frame_rate_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Max dropped-frame rate for this flow."
+        },
+        "input_event_count_min": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum input-event count expected for this flow."
+        }
+      }
+    },
     "phase_options": {
       "type": "object",
       "description": "Phase-level preferences",
@@ -626,8 +865,199 @@
           "type": "boolean",
           "default": false,
           "description": "Whether this phase requires the scenario runtime to be running"
+        },
+        "budgets": {
+          "type": "object",
+          "description": "Optional phase-owned budgets. Tidiness uses duplication_line_debt, long_files, complexity_over_threshold, coupling_over_threshold, and debt_markers. Security uses error_findings. Absent budgets are advisory-only.",
+          "additionalProperties": false,
+          "properties": {
+            "duplication_line_debt": {"type": "integer", "minimum": 0},
+            "baseline_duplication_line_debt": {"type": "integer", "minimum": 0, "description": "Recorded duplication-line-debt baseline enforced when ratchet is true."},
+            "long_files": {"type": "integer", "minimum": 0},
+            "baseline_long_files": {"type": "integer", "minimum": 0},
+            "complexity_over_threshold": {"type": "integer", "minimum": 0},
+            "baseline_complexity_over_threshold": {"type": "integer", "minimum": 0},
+            "coupling_over_threshold": {"type": "integer", "minimum": 0},
+            "baseline_coupling_over_threshold": {"type": "integer", "minimum": 0},
+            "debt_markers": {"type": "integer", "minimum": 0},
+            "baseline_debt_markers": {"type": "integer", "minimum": 0},
+            "error_findings": {"type": "integer", "minimum": 0, "description": "Maximum blocking security findings allowed for the target; zero is an explicit clean budget."},
+            "baseline_error_findings": {"type": "integer", "minimum": 0, "description": "Recorded blocking-security-finding baseline enforced when ratchet is true."},
+            "reserve": {"type": "integer", "minimum": 0, "default": 0, "description": "Explicit temporary allowance above a declared budget."},
+            "reserve_reason": {"type": "string", "minLength": 40, "description": "Required justification when reserve is non-zero."},
+            "ratchet": {"type": "boolean", "default": false, "description": "Budget updates may only tighten recorded values."}
+          }
         }
       }
+    },
+    "dependencies_config": {
+      "type": "object",
+      "description": "Read-only dependency preflight policy",
+      "additionalProperties": false,
+      "properties": {
+        "strict": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fail instead of warning when dependency readiness cannot be proven."
+        },
+        "runtime_versions": {
+          "type": "object",
+          "description": "Minimum runtime/tool versions keyed by command name. Only >= constraints are supported.",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^$|^>=\\s*[0-9]+(\\.[0-9]+){0,2}$"
+          },
+          "properties": {
+            "go": {
+              "type": "string",
+              "default": ">=1.21"
+            },
+            "node": {
+              "type": "string",
+              "default": ">=18.0.0"
+            },
+            "python3": {
+              "type": "string",
+              "default": ">=3.10.0"
+            },
+            "pnpm": {
+              "type": "string"
+            },
+            "npm": {
+              "type": "string"
+            },
+            "yarn": {
+              "type": "string"
+            }
+          }
+        },
+        "go_modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "tidy_diff": {
+              "type": "boolean",
+              "default": true
+            },
+            "build": {
+              "type": "boolean",
+              "default": false
+            },
+            "local_replace_resolution": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "node_packages": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "require_node_modules": {
+              "type": "boolean",
+              "default": true
+            },
+            "lockfile_required": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "health_policy": {
+              "type": "string",
+              "enum": [
+                "fail",
+                "warn",
+                "skip"
+              ],
+              "default": "fail"
+            },
+            "allow_unknown_health_when_running": {
+              "type": "boolean",
+              "default": true
+            },
+            "skip": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "scenarios": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "health_policy": {
+              "type": "string",
+              "enum": [
+                "fail",
+                "warn",
+                "skip"
+              ],
+              "default": "fail"
+            }
+          }
+        }
+      }
+    },
+    "lint_handler_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "strict": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat lint warnings from this handler as quality-gate errors."
+        }
+      }
+    },
+    "lint_component_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "handler": {
+          "type": "string",
+          "description": "Force a specific handler for this top-level component."
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Override strictness for this component."
+        }
+      }
+    },
+    "lint_policy_severity": {
+      "type": "string",
+      "enum": [
+        "ignore",
+        "info",
+        "warning",
+        "error"
+      ]
     },
     "language_config": {
       "type": "object",
@@ -664,6 +1094,347 @@
         }
       }
     },
+    "unit_policy_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "template",
+        "required_roles",
+        "policy_classes",
+        "customization"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "2.0.0",
+          "description": "Versioned Unit Health v2 policy-profile contract."
+        },
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "scenario_class"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Template id that owns this baseline policy."
+            },
+            "scenario_class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Scenario class used by Unit Health to choose default policy semantics."
+            }
+          }
+        },
+        "required_roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/unit_required_role"
+          },
+          "description": "Roles that must be observed through Code Facts for this template class."
+        },
+        "policy_classes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/unit_policy_class"
+          },
+          "description": "Named policy classes referenced by required roles and additive policies."
+        },
+        "runner_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/unit_runner_profile"
+          },
+          "description": "Named bounded execution profiles resolved by adapters."
+        },
+        "customization": {
+          "$ref": "#/definitions/unit_policy_customization"
+        }
+      }
+    },
+    "unit_required_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "policy_class"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "policy_class": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "surface_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "language": {
+              "type": "string",
+              "minLength": 1
+            },
+            "framework": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "unit_policy_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "runner_profile", "test_kind", "hermetic"],
+      "properties": {
+        "adapter": {
+          "$ref": "#/definitions/unit_adapter_ref"
+        },
+        "runner_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "test_kind": {
+          "type": "string",
+          "enum": ["unit", "component", "repository", "integration", "workflow"]
+        },
+        "platforms": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "hermetic": {
+          "$ref": "#/definitions/unit_hermeticity"
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "framework": {
+          "type": "string",
+          "minLength": 1
+        },
+        "package_manager": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Adapter-owned package or toolchain identifier; the generic policy contract does not close this vocabulary."
+        },
+        "coverage": {
+          "$ref": "#/definitions/unit_coverage_policy"
+        },
+        "test_utils": {
+          "$ref": "#/definitions/unit_test_utils_policy"
+        },
+        "projection": {
+          "$ref": "#/definitions/unit_projection_policy"
+        }
+      }
+    },
+    "unit_adapter_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1}
+      }
+    },
+    "unit_runner_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_weight", "memory_bytes", "max_workers", "timeout_seconds", "no_output_timeout_seconds", "sharding", "network", "filesystem"],
+      "properties": {
+        "cpu_weight": {"type": "integer", "minimum": 0},
+        "memory_bytes": {"type": "integer", "minimum": 0},
+        "max_workers": {"type": "integer", "minimum": 1},
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "no_output_timeout_seconds": {"type": "integer", "minimum": 1},
+        "sharding": {"type": "string", "enum": ["none", "file", "workspace", "static"]},
+        "network": {"type": "string", "enum": ["deny", "allow_declared", "allow"]},
+        "filesystem": {"type": "string", "enum": ["temporary_root", "workspace_readonly", "workspace"]},
+        "platforms": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "unit_hermeticity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "filesystem", "restore_environment"],
+      "properties": {
+        "network": {"type": "string", "enum": ["deny", "allow_declared", "allow"]},
+        "filesystem": {"type": "string", "enum": ["temporary_root", "workspace_readonly", "workspace"]},
+        "temporary_root": {"type": "boolean"},
+        "restore_environment": {"type": "boolean"},
+        "detect_open_handles": {"type": "boolean"},
+        "detect_child_leaks": {"type": "boolean"},
+        "order_independent": {"type": "boolean"}
+      }
+    },
+    "unit_coverage_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "total",
+            "per_file",
+            "both"
+          ],
+          "default": "both"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reporters": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "unit_test_utils_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_roots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "production_import_ban": {
+          "type": "boolean",
+          "default": true
+        },
+        "canonical_render_helper": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "unit_projection_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_scripts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Adapter-owned projection settings. The selected adapter defines and validates the keys."
+        }
+      }
+    },
+    "unit_policy_customization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "monotonic"
+          ],
+          "description": "Scenario customizations may only be equal-or-stricter than the template baseline unless covered by a waiver."
+        },
+        "waivers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/unit_policy_waiver"
+          },
+          "default": []
+        }
+      }
+    },
+    "unit_policy_waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding",
+        "reason",
+        "owner"
+      ],
+      "properties": {
+        "finding": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 12
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date"
+        },
+        "revisit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "expires_at"
+          ]
+        },
+        {
+          "required": [
+            "revisit"
+          ]
+        }
+      ]
+    },
     "lighthouse_config": {
       "type": "object",
       "description": "Lighthouse performance and accessibility audits configuration",
@@ -694,7 +1465,11 @@
           "description": "Bundle targets to validate",
           "items": {
             "type": "object",
-            "required": ["name", "path", "max_size_kb"],
+            "required": [
+              "name",
+              "path",
+              "max_size_kb"
+            ],
             "properties": {
               "name": {
                 "type": "string",
@@ -720,7 +1495,12 @@
                 "items": {
                   "type": "string"
                 },
-                "examples": [["*.map", "*.LICENSE.txt"]]
+                "examples": [
+                  [
+                    "*.map",
+                    "*.LICENSE.txt"
+                  ]
+                ]
               },
               "requirement": {
                 "type": "string",
@@ -742,7 +1522,11 @@
         },
         "language": {
           "type": "string",
-          "enum": ["go", "node", "python"],
+          "enum": [
+            "go",
+            "node",
+            "python"
+          ],
           "default": "go",
           "description": "Language for benchmark tests"
         },
@@ -777,7 +1561,10 @@
           "description": "Endpoints to test",
           "items": {
             "type": "object",
-            "required": ["path", "max_ms"],
+            "required": [
+              "path",
+              "max_ms"
+            ],
             "properties": {
               "path": {
                 "type": "string",

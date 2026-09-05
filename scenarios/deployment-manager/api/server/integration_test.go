@@ -158,7 +158,7 @@ func TestEndToEndProfileDeploymentWorkflow(t *testing.T) {
 	// Step 2: Validate profile - need to mock the get operation
 	t.Run("validate_profile", func(t *testing.T) {
 		if profileID == "" {
-			t.Skip("profile ID not set from previous step")
+			t.Fatal("profile ID not set from create_profile step")
 		}
 
 		// Mock the database call for validation
@@ -194,7 +194,7 @@ func TestEndToEndProfileDeploymentWorkflow(t *testing.T) {
 	// Step 3: Deploy profile
 	t.Run("deploy_profile", func(t *testing.T) {
 		if profileID == "" {
-			t.Skip("profile ID not set from previous step")
+			t.Fatal("profile ID not set from create_profile step")
 		}
 
 		req := httptest.NewRequest("POST", "/api/v1/deploy/"+profileID, nil)

@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.teams;
+
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams;teams_v1";
+
+service TeamsService {
+  rpc ListTeams(ListTeamsRequest) returns (ListTeamsResponse);
+  rpc GetTeam(GetTeamRequest) returns (TeamDetails);
+  rpc CreateTeam(CreateTeamRequest) returns (TeamDetails);
+  rpc UpdateTeam(UpdateTeamRequest) returns (TeamDetails);
+  rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);
+  rpc GetExclusiveMembers(GetExclusiveMembersRequest) returns (ExclusiveMembersResponse);
+  rpc AddMember(AddMemberRequest) returns (Member);
+  rpc UpdateMember(UpdateMemberRequest) returns (Member);
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  rpc GetRoles(GetRolesRequest) returns (GetRolesResponse);
+  rpc SetRoles(SetRolesRequest) returns (GetRolesResponse);
+  rpc ListSharedFiles(ListSharedFilesRequest) returns (ListSharedFilesResponse);
+  rpc GetSharedFile(GetSharedFileRequest) returns (SharedFileContent);
+  rpc SetSharedFile(SetSharedFileRequest) returns (SharedFileContent);
+  rpc CreateSharedFile(CreateSharedFileRequest) returns (SharedFileContent);
+  rpc RenameSharedFile(RenameSharedFileRequest) returns (SharedFileContent);
+  rpc DeleteSharedFile(DeleteSharedFileRequest) returns (DeleteSharedFileResponse);
+  rpc GetOrgChart(GetOrgChartRequest) returns (OrgChart);
+  rpc SetOrgChart(SetOrgChartRequest) returns (OrgChart);
+  rpc UpdateOrgChartEdge(UpdateOrgChartEdgeRequest) returns (OrgChart);
+  rpc DeleteOrgChartEdge(DeleteOrgChartEdgeRequest) returns (OrgChart);
+  rpc ListMessages(ListMessagesRequest) returns (Inbox);
+  rpc SendMessage(SendMessageRequest) returns (Message);
+  rpc ClearMessages(ClearMessagesRequest) returns (ClearMessagesResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc ListAvailableClaudeCodeTeams(ListAvailableClaudeCodeTeamsRequest) returns (ListAvailableClaudeCodeTeamsResponse);
+  rpc ImportClaudeCodeTeam(ImportClaudeCodeTeamRequest) returns (TeamDetails);
+  rpc ExportClaudeCodeTeam(ExportClaudeCodeTeamRequest) returns (ExportClaudeCodeTeamResponse);
+  rpc ListKnowledge(ListKnowledgeRequest) returns (ListKnowledgeResponse);
+  rpc AddKnowledge(AddKnowledgeRequest) returns (KnowledgeEntry);
+  rpc UpdateKnowledge(UpdateKnowledgeRequest) returns (KnowledgeEntry);
+  rpc DeleteKnowledge(DeleteKnowledgeRequest) returns (DeleteKnowledgeResponse);
+}
+
+message Team {
+  string id = 1;
+  string display_name = 2;
+  string mission = 3;
+  bool enabled = 4;
+  google.protobuf.Struct runtime = 5;
+  google.protobuf.Struct coordination = 6;
+  google.protobuf.Struct execution = 7;
+  google.protobuf.Struct operating_contract = 8;
+  repeated google.protobuf.Struct validation_findings = 9;
+  int32 member_count = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+message Role { string id = 1; string name = 2; string description = 3; }
+message Member { string agent_id = 1; string display_name = 2; repeated string roles = 3; string status = 4; }
+message TeamDetails {
+  string id = 1;
+  string display_name = 2;
+  string mission = 3;
+  bool enabled = 4;
+  google.protobuf.Struct runtime = 5;
+  google.protobuf.Struct coordination = 6;
+  google.protobuf.Struct execution = 7;
+  google.protobuf.Struct operating_contract = 8;
+  repeated google.protobuf.Struct validation_findings = 9;
+  int32 member_count = 10;
+  string created_at = 11;
+  string updated_at = 12;
+  repeated Role roles = 13;
+  repeated Member members = 14;
+}
+message TeamInput {
+  string id = 1;
+  string display_name = 2;
+  string mission = 3;
+  bool enabled = 4;
+  google.protobuf.Struct runtime = 5;
+  google.protobuf.Struct coordination = 6;
+  google.protobuf.Struct execution = 7;
+  google.protobuf.Struct operating_contract = 8;
+}
+message ListTeamsRequest {}
+message ListTeamsResponse { repeated Team teams = 1; }
+message GetTeamRequest { string id = 1; }
+message CreateTeamRequest { TeamInput team = 1; }
+message UpdateTeamRequest { string id = 1; TeamInput team = 2; google.protobuf.FieldMask update_mask = 3; }
+message DeleteTeamRequest { string id = 1; }
+message DeleteTeamResponse {}
+message ExclusiveMember { string agent_id = 1; string display_name = 2; }
+message GetExclusiveMembersRequest { string team_id = 1; }
+message ExclusiveMembersResponse { string team_id = 1; repeated ExclusiveMember members = 2; }
+message AddMemberRequest { string team_id = 1; string agent_id = 2; repeated string roles = 3; }
+message UpdateMemberRequest { string team_id = 1; string agent_id = 2; repeated string roles = 3; optional string status = 4; }
+message RemoveMemberRequest { string team_id = 1; string agent_id = 2; }
+message RemoveMemberResponse {}
+message GetRolesRequest { string team_id = 1; }
+message GetRolesResponse { repeated Role roles = 1; }
+message SetRolesRequest { string team_id = 1; repeated Role roles = 2; }
+message SharedFileEntry { string path = 1; bool is_dir = 2; int64 size = 3; }
+message ListSharedFilesRequest { string team_id = 1; }
+message ListSharedFilesResponse { string team_id = 1; repeated SharedFileEntry files = 2; }
+message SharedFileContent { string team_id = 1; string path = 2; string content = 3; }
+message GetSharedFileRequest { string team_id = 1; string path = 2; }
+message SetSharedFileRequest { string team_id = 1; string path = 2; string content = 3; }
+message CreateSharedFileRequest { string team_id = 1; string path = 2; string content = 3; bool is_dir = 4; }
+message RenameSharedFileRequest { string team_id = 1; string from = 2; string to = 3; }
+message DeleteSharedFileRequest { string team_id = 1; string path = 2; }
+message DeleteSharedFileResponse {}
+message OrgEdge { string manager_agent_id = 1; string report_agent_id = 2; }
+message OrgChart { string team_id = 1; repeated OrgEdge edges = 2; }
+message GetOrgChartRequest { string team_id = 1; }
+message SetOrgChartRequest { string team_id = 1; repeated OrgEdge edges = 2; }
+message UpdateOrgChartEdgeRequest { string team_id = 1; string report_agent_id = 2; string manager_agent_id = 3; }
+message DeleteOrgChartEdgeRequest { string team_id = 1; string report_agent_id = 2; }
+message Message { string id = 1; string team_id = 2; string from_agent_id = 3; string to_agent_id = 4; string content = 5; string created_at = 6; }
+message Inbox { string team_id = 1; string agent_id = 2; repeated Message messages = 3; }
+message ListMessagesRequest { string team_id = 1; string agent_id = 2; }
+message SendMessageRequest { string team_id = 1; string agent_id = 2; string from_agent_id = 3; string content = 4; }
+message ClearMessagesRequest { string team_id = 1; string agent_id = 2; }
+message ClearMessagesResponse {}
+message DeleteMessageRequest { string team_id = 1; string agent_id = 2; string message_id = 3; }
+message DeleteMessageResponse {}
+message AvailableClaudeCodeTeam { string name = 1; int32 member_count = 2; }
+message ListAvailableClaudeCodeTeamsRequest {}
+message ListAvailableClaudeCodeTeamsResponse { repeated AvailableClaudeCodeTeam teams = 1; }
+message ImportClaudeCodeTeamRequest { string team_name = 1; }
+message ExportClaudeCodeTeamRequest { string team_id = 1; }
+message ExportClaudeCodeTeamResponse { string team_id = 1; google.protobuf.Struct export = 2; }
+
+message KnowledgeEntry {
+  string id = 1;
+  string at = 2;
+  string topic = 3;
+  string content = 4;
+  string source = 5;
+  string supersedes = 6;
+  string caller = 7;
+  string caller_note = 8;
+  google.protobuf.Struct attribution = 9;
+}
+message ListKnowledgeRequest {
+  string team_id = 1;
+  string topic = 2;
+  string topic_prefix = 3;
+  int32 last = 4;
+}
+message ListKnowledgeResponse { string team_id = 1; repeated KnowledgeEntry entries = 2; }
+message AddKnowledgeRequest {
+  string team_id = 1;
+  string topic = 2;
+  string content = 3;
+  string caller_note = 4;
+  string source = 5;
+  string supersedes = 6;
+}
+message UpdateKnowledgeRequest {
+  string team_id = 1;
+  string knowledge_id = 2;
+  optional string topic = 3;
+  optional string content = 4;
+  optional string source = 5;
+  optional string supersedes = 6;
+  google.protobuf.FieldMask update_mask = 7;
+}
+message DeleteKnowledgeRequest { string team_id = 1; string knowledge_id = 2; }
+message DeleteKnowledgeResponse {}

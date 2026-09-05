@@ -1,0 +1,1266 @@
+<title>Roles and Handoffs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   Palette inherited from web-console: accent is the product's cyan
+   (--wc-accent: 34 211 238); every group rail is a literal value
+   from consts/config.ts HEADER_COLORS. Mockups render in the app's
+   own dark chrome with fixed values — they are screenshots of a
+   dark product, so they stay dark on either page theme.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --ground:      #e7ebef;
+  --surface:     #ffffff;
+  --surface-2:   #f1f4f7;
+  --sunken:      #dde3e9;
+  --ink:         #11161c;
+  --ink-2:       #3d4a57;
+  --ink-3:       #67757f;
+  --ink-4:       #909ea9;
+  --line:        #cfd8e0;
+  --line-soft:   #e1e7ec;
+  --accent:      #0a7f97;
+  --accent-soft: #d8f1f7;
+  --accent-line: #7ed0e2;
+  --ok:   #157f45;
+  --warn: #9a5e04;
+  --bad:  #b3312a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0a0e13;
+    --surface:     #131920;
+    --surface-2:   #19212a;
+    --sunken:      #0e141a;
+    --ink:         #e6edf3;
+    --ink-2:       #b3c0cb;
+    --ink-3:       #8492a0;
+    --ink-4:       #61707c;
+    --line:        #263039;
+    --line-soft:   #1c242c;
+    --accent:      #3ccfe8;
+    --accent-soft: #0c2a33;
+    --accent-line: #1a6a7d;
+    --ok:   #52c483;
+    --warn: #e0a83f;
+    --bad:  #f0736a;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0a0e13;
+  --surface:     #131920;
+  --surface-2:   #19212a;
+  --sunken:      #0e141a;
+  --ink:         #e6edf3;
+  --ink-2:       #b3c0cb;
+  --ink-3:       #8492a0;
+  --ink-4:       #61707c;
+  --line:        #263039;
+  --line-soft:   #1c242c;
+  --accent:      #3ccfe8;
+  --accent-soft: #0c2a33;
+  --accent-line: #1a6a7d;
+  --ok:   #52c483;
+  --warn: #e0a83f;
+  --bad:  #f0736a;
+}
+
+/* group palette — fixed, matches the product */
+:root {
+  --g-red:#ff6b6b; --g-orange:#ffa94d; --g-yellow:#ffd43b; --g-green:#69db7c;
+  --g-teal:#38d9c0; --g-blue:#4dabf7; --g-violet:#9775fa; --g-pink:#f783ac;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 960px; margin: 0 auto; padding: 0 24px 96px; }
+@media (max-width: 620px) { .page { padding: 0 16px 72px; } }
+
+h1,h2,h3,h4 {
+  font-family: "Bricolage Grotesque", "Instrument Sans", sans-serif;
+  text-wrap: balance; margin: 0; letter-spacing: -0.018em;
+}
+h1 { font-size: clamp(2.2rem,5.6vw,3.2rem); font-weight:800; line-height:1.03; letter-spacing:-0.035em; }
+h2 { font-size: clamp(1.45rem,3vw,1.9rem); font-weight:700; line-height:1.15; }
+h3 { font-size: 1.1rem; font-weight:700; line-height:1.32; }
+h4 { font-size: 0.94rem; font-weight:700; line-height:1.35; }
+p  { margin: 0; max-width: 70ch; }
+
+.stack   > * + * { margin-top: 1rem; }
+.stack-s > * + * { margin-top: 0.5rem; }
+
+.eyebrow {
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:0.67rem; font-weight:500; text-transform:uppercase;
+  letter-spacing:0.16em; color:var(--ink-4);
+}
+.lede { font-size:1.13rem; color:var(--ink-2); max-width:63ch; }
+.small { font-size:0.875rem; color:var(--ink-3); max-width:72ch; }
+.mono { font-family:"JetBrains Mono",ui-monospace,monospace; }
+code {
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:0.85em;
+  background:var(--surface-2); border:1px solid var(--line-soft);
+  border-radius:4px; padding:0.08em 0.34em; color:var(--ink-2); word-break:break-word;
+}
+strong { font-weight:600; color:var(--ink); }
+em.q { font-style:normal; color:var(--ink-2); }
+a { color:var(--accent); text-underline-offset:2px; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:3px; }
+
+.masthead { padding:74px 0 42px; border-bottom:1px solid var(--line); }
+.masthead .eyebrow { margin-bottom:20px; }
+.masthead h1 { margin-bottom:20px; }
+.thesis {
+  margin-top:28px; border-left:3px solid var(--accent);
+  padding:3px 0 3px 20px; font-size:1.04rem; color:var(--ink-2); max-width:64ch;
+}
+
+section.rail {
+  margin-top:66px; border-left:3px solid var(--rail,var(--line)); padding-left:22px;
+}
+section.rail > .eyebrow { margin-bottom:9px; }
+section.rail > h2 { margin-bottom:14px; }
+@media (max-width:620px){ section.rail { padding-left:15px; } }
+
+/* ── vocabulary ─────────────────────────────────────────────── */
+.vocab { margin-top:26px; border-top:1px solid var(--line); }
+.vterm {
+  display:grid; grid-template-columns:11rem 1fr; gap:0 24px;
+  padding:16px 0; border-bottom:1px solid var(--line-soft); align-items:start;
+}
+.vterm .name { display:flex; flex-direction:column; gap:3px; }
+.vterm .name b { font-family:"Bricolage Grotesque",sans-serif; font-size:1.02rem; font-weight:700; letter-spacing:-0.015em; }
+.vterm .tag {
+  font-family:"JetBrains Mono",monospace; font-size:0.63rem; letter-spacing:0.1em;
+  text-transform:uppercase; color:var(--ink-4);
+}
+.vterm .tag.new { color:var(--warn); }
+.vterm .def { font-size:0.91rem; color:var(--ink-2); }
+.vterm .def .ex { display:block; margin-top:5px; font-size:0.845rem; color:var(--ink-3); }
+@media (max-width:640px){ .vterm { grid-template-columns:1fr; gap:6px; } }
+
+/* ── generalization rules ───────────────────────────────────── */
+.rules { display:grid; gap:11px; margin-top:24px; }
+.rule {
+  display:grid; grid-template-columns:auto 1fr; gap:0 15px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:10px; padding:15px 17px;
+}
+.rule .no {
+  font-family:"JetBrains Mono",monospace; font-size:0.7rem; font-weight:700;
+  color:var(--accent); background:var(--accent-soft);
+  width:24px; height:24px; border-radius:6px; display:grid; place-items:center;
+  font-variant-numeric:tabular-nums;
+}
+.rule h4 { margin-bottom:3px; }
+.rule p { font-size:0.875rem; color:var(--ink-3); }
+.rule .no-hard { display:block; margin-top:7px; font-size:0.8rem; color:var(--ink-4); }
+.rule .no-hard b { color:var(--bad); font-weight:600; }
+
+/* ═══ MOCKUP SYSTEM — fixed dark app chrome ═════════════════ */
+.u {
+  --u-bg:#0d1218; --u-panel:#151d25; --u-raised:#1b242e; --u-input:#111920;
+  --u-line:#26313c; --u-line-2:#334150;
+  --u-text:#e2eaf1; --u-mute:#8fa0b0; --u-faint:#657787;
+  --u-accent:#22d3ee; --u-accent-dim:#0f7a8c;
+  font-family:"Instrument Sans",sans-serif;
+  color:var(--u-text);
+  background:var(--u-bg);
+  border:1px solid var(--u-line);
+  border-radius:13px;
+  overflow:hidden;
+  font-size:13px; line-height:1.45;
+  box-shadow:0 1px 2px rgba(0,0,0,.2), 0 14px 34px -20px rgba(0,0,0,.65);
+}
+.ic { width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:1.6;
+      stroke-linecap:round; stroke-linejoin:round; flex:none; display:block; }
+.ic-fill { fill:currentColor; stroke:none; }
+
+.u-head {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 15px; background:var(--u-panel); border-bottom:1px solid var(--u-line);
+}
+.u-head .u-t { font-weight:600; font-size:14px; letter-spacing:-0.012em; }
+.u-head .u-sub { color:var(--u-faint); font-size:11.5px; }
+.u-head .u-x { margin-left:auto; color:var(--u-faint); font-size:15px; }
+.u-body { padding:15px; display:grid; gap:14px; }
+.u-body.tight { gap:10px; }
+.u-foot {
+  display:flex; align-items:center; gap:9px;
+  padding:12px 15px; background:var(--u-panel); border-top:1px solid var(--u-line);
+}
+.u-hr { height:1px; background:var(--u-line); }
+.u-scroll { overflow-x:auto; }
+
+.u-lab {
+  font-family:"JetBrains Mono",monospace; font-size:9.5px; font-weight:500;
+  letter-spacing:0.15em; text-transform:uppercase; color:var(--u-faint);
+}
+.u-mute{color:var(--u-mute);} .u-faint{color:var(--u-faint);} .u-acc{color:var(--u-accent);}
+.u-ok{color:#69db7c;} .u-warn{color:#ffa94d;} .u-bad{color:#ff6b6b;}
+.u-mono{font-family:"JetBrains Mono",monospace;}
+.u-11{font-size:11.5px;} .u-12{font-size:12px;} .u-10{font-size:10.5px;}
+.u-grow{flex:1; min-width:0;}
+.u-trunc{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.u-r{margin-left:auto;}
+.u-flex{display:flex; align-items:center; gap:9px;}
+.u-flex-t{display:flex; align-items:flex-start; gap:9px;}
+
+.u-led { width:7px; height:7px; border-radius:50%; flex:none; box-shadow:0 0 0 3px rgba(255,255,255,.045); }
+.u-sw  { width:9px; height:9px; border-radius:3px; flex:none; }
+
+/* compact select trigger — the system-monitor MachinePicker pattern */
+.u-trig {
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--u-input); border:1px solid var(--u-line);
+  border-radius:8px; padding:7px 10px; font-size:12.5px; max-width:100%;
+}
+.u-trig .cv { color:var(--u-faint); margin-left:2px; font-size:13px; }
+.u-trig.on { border-color:var(--u-accent-dim); }
+
+.u-menu {
+  background:var(--u-raised); border:1px solid var(--u-line-2);
+  border-radius:10px; overflow:hidden;
+  box-shadow:0 16px 32px -18px rgba(0,0,0,.8);
+}
+.u-menu .u-lab { padding:9px 12px 5px; display:block; }
+.u-opt {
+  display:flex; align-items:center; gap:10px; padding:8px 12px;
+  border-top:1px solid transparent;
+}
+.u-opt + .u-opt { border-top-color:rgba(255,255,255,.045); }
+.u-opt.sel { background:rgba(34,211,238,.09); }
+.u-opt .nm { font-size:12.5px; }
+.u-opt .mt { font-size:11px; color:var(--u-faint); }
+.u-menu .u-add {
+  display:flex; align-items:center; gap:8px; padding:9px 12px;
+  border-top:1px solid var(--u-line); color:var(--u-accent); font-size:12px;
+  background:rgba(34,211,238,.05);
+}
+
+/* cards */
+.u-card {
+  background:var(--u-input); border:1px solid var(--u-line);
+  border-radius:10px; padding:11px 12px;
+  display:flex; align-items:center; gap:11px;
+}
+.u-card.sel { border-color:var(--u-accent-dim); background:rgba(34,211,238,.055); box-shadow:inset 0 0 0 1px rgba(34,211,238,.16); }
+.u-card .ttl { font-size:12.5px; font-weight:500; }
+.u-card .sub { font-size:11px; color:var(--u-faint); }
+.u-card .ico { width:26px; height:26px; border-radius:7px; display:grid; place-items:center;
+               background:rgba(255,255,255,.045); font-size:13px; flex:none; }
+.u-card.sel .ico { background:rgba(34,211,238,.15); color:var(--u-accent); }
+
+.u-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+@media (max-width:560px){ .u-grid2 { grid-template-columns:1fr; } }
+
+/* destination strip */
+.u-dest {
+  display:flex; align-items:center; gap:11px;
+  background:linear-gradient(90deg, rgba(56,217,192,.10), rgba(56,217,192,0) 62%);
+  border:1px solid var(--u-line); border-left:3px solid var(--dc,var(--g-teal));
+  border-radius:0 9px 9px 0; padding:9px 12px;
+}
+
+/* inputs */
+.u-in {
+  background:var(--u-input); border:1px solid var(--u-line); border-radius:8px;
+  padding:8px 11px; font-size:12.5px; color:var(--u-text);
+  display:flex; align-items:center; gap:8px;
+}
+.u-in.focus { border-color:var(--u-accent-dim); box-shadow:0 0 0 2px rgba(34,211,238,.1); }
+.u-in .ph { color:var(--u-faint); }
+.u-caret { display:inline-block; width:1.5px; height:13px; background:var(--u-accent); vertical-align:-2px; }
+
+.u-btn {
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--u-accent); color:#06222a; border-radius:8px;
+  padding:8px 14px; font-size:12.5px; font-weight:700; white-space:nowrap;
+}
+.u-btn.gh { background:transparent; color:var(--u-text); border:1px solid var(--u-line-2); font-weight:500; }
+.u-btn.dg { background:#b3312a; color:#fff; }
+.u-btn.sm { padding:6px 11px; font-size:11.5px; }
+
+.u-chip {
+  display:inline-flex; align-items:center; gap:6px;
+  border:1px solid var(--u-line-2); background:rgba(255,255,255,.035);
+  border-radius:999px; padding:4px 10px; font-size:11.5px; white-space:nowrap;
+}
+.u-chip.acc { border-color:var(--u-accent-dim); background:rgba(34,211,238,.1); color:#bdf1fa; }
+.u-chip.warn { border-color:#8a5c1c; background:rgba(255,169,77,.11); color:#ffc98a; }
+
+/* role rows */
+.u-role {
+  border:1px solid var(--u-line); border-left:3px solid var(--rc,var(--g-blue));
+  background:var(--u-input); border-radius:0 9px 9px 0; padding:10px 12px;
+  display:grid; grid-template-columns:auto 1fr auto; gap:0 10px; align-items:center;
+}
+.u-role.wait { background:transparent; border-style:dashed; border-left-style:solid; }
+.u-role .rn { font-size:12.5px; font-weight:500; }
+.u-role .rd { grid-column:2/-1; font-size:11px; color:var(--u-faint); margin-top:3px;
+              font-family:"JetBrains Mono",monospace; }
+.u-role .rh { width:22px; height:22px; border-radius:6px; display:grid; place-items:center;
+              background:rgba(255,255,255,.05); font-size:11px; }
+
+/* sidebar mock */
+.u-side { display:flex; flex-direction:column; }
+.u-gh {
+  display:flex; align-items:center; gap:8px; padding:7px 10px;
+  border-left:3px solid var(--gc); background:var(--u-panel); border-radius:0 7px 0 0;
+  font-size:12px; font-weight:600;
+}
+.u-gt {
+  display:flex; align-items:center; gap:9px; padding:9px 10px;
+  border-left:3px solid var(--gc); background:rgba(255,255,255,.02); font-size:12.5px;
+}
+.u-gt.act { background:rgba(34,211,238,.075); }
+.u-gt.wait { background:transparent; border-top:1px dashed var(--u-line); border-bottom:1px dashed var(--u-line); }
+.u-gt.end { border-radius:0 0 7px 0; }
+
+/* list rows for managers */
+.u-row {
+  display:flex; align-items:center; gap:10px; padding:9px 11px;
+  border:1px solid var(--u-line); border-radius:9px; background:var(--u-input);
+}
+.u-row.plain { border:none; background:transparent; padding:7px 2px; border-radius:0; }
+.u-row.sel { border-color:var(--u-accent-dim); background:rgba(34,211,238,.06); }
+.u-row.dim { opacity:.62; }
+.u-ck { width:14px; height:14px; border-radius:4px; border:1.5px solid var(--u-line-2); flex:none;
+        display:grid; place-items:center; font-size:9px; }
+.u-ck.on { background:var(--u-accent); border-color:var(--u-accent); color:#06222a; }
+
+/* master-detail */
+.u-md { display:grid; grid-template-columns:200px 1fr; min-height:0; }
+.u-md > .l { border-right:1px solid var(--u-line); background:var(--u-panel); padding:11px; display:grid; gap:4px; align-content:start; }
+.u-md > .r { padding:15px; display:grid; gap:13px; align-content:start; }
+@media (max-width:660px){ .u-md { grid-template-columns:1fr; } .u-md > .l { border-right:none; border-bottom:1px solid var(--u-line); } }
+.u-nav { display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:7px; font-size:12.5px; }
+.u-nav.on { background:rgba(34,211,238,.1); color:#bdf1fa; }
+
+/* toast */
+.u-toast { display:flex; align-items:center; gap:11px; padding:12px 14px; }
+
+/* figure furniture */
+.fig { margin-top:26px; }
+.fig > h4 { margin-bottom:4px; }
+.fig > .cap-top { font-size:0.83rem; color:var(--ink-3); margin-bottom:11px; max-width:70ch; }
+.cap { font-size:0.82rem; color:var(--ink-3); margin-top:11px; max-width:70ch; }
+.cap b { color:var(--ink-2); font-weight:600; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+@media (max-width:820px){ .two { grid-template-columns:1fr; } }
+
+/* space budget bars */
+.budget { display:grid; gap:14px; margin-top:22px; }
+.bud-row { display:grid; grid-template-columns:5.2rem 1fr; gap:0 14px; align-items:center; }
+.bud-row .bl { font-family:"JetBrains Mono",monospace; font-size:0.72rem; color:var(--ink-3); letter-spacing:0.04em; }
+.bar { display:flex; height:30px; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
+.bar span {
+  display:grid; place-items:center; font-family:"JetBrains Mono",monospace;
+  font-size:0.64rem; letter-spacing:0.03em; color:#0d1218; font-weight:700;
+  overflow:hidden; white-space:nowrap;
+}
+.bud-key { display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:2px; padding-left:calc(5.2rem + 14px); }
+.bud-key i { display:inline-flex; align-items:center; gap:6px; font-style:normal; font-size:0.76rem; color:var(--ink-3); }
+.bud-key i::before { content:""; width:10px; height:10px; border-radius:3px; background:var(--kc); }
+@media (max-width:620px){ .bud-row{grid-template-columns:1fr;gap:5px;} .bud-key{padding-left:0;} }
+
+/* build order */
+.phase { display:grid; grid-template-columns:3.2rem 1fr; gap:0 18px; padding:18px 0; border-bottom:1px solid var(--line-soft); }
+.phase:first-of-type { border-top:1px solid var(--line); }
+.phase .p { font-family:"JetBrains Mono",monospace; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; color:var(--ink-4); padding-top:4px; }
+.phase h3 { margin-bottom:5px; }
+.phase p { font-size:0.885rem; color:var(--ink-3); }
+.phase .files { margin-top:8px; font-size:0.775rem; color:var(--ink-4); font-family:"JetBrains Mono",monospace; }
+.badges { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.badge { font-family:"JetBrains Mono",monospace; font-size:0.65rem; letter-spacing:0.05em; text-transform:uppercase;
+         padding:3px 8px; border-radius:4px; border:1px solid var(--line); color:var(--ink-3); background:var(--surface-2); }
+.badge.hi { border-color:var(--accent-line); color:var(--accent); background:var(--accent-soft); }
+@media (max-width:620px){ .phase{grid-template-columns:1fr;} .phase .p{padding-top:0;margin-bottom:6px;} }
+
+.decide { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-top:12px; }
+.decide h4 { margin-bottom:5px; }
+.decide p { font-size:0.88rem; color:var(--ink-3); }
+.decide .rec { margin-top:9px; font-size:0.85rem; color:var(--ink-2); border-left:2px solid var(--accent-line); padding-left:11px; }
+.decide .rec b { color:var(--accent); font-weight:600; }
+
+footer { margin-top:74px; padding-top:22px; border-top:1px solid var(--line); }
+footer p { font-size:0.8rem; color:var(--ink-4); max-width:78ch; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-chev-d" viewBox="0 0 16 16"><path d="m4 6.5 4 4 4-4"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 16 16"><path d="m6 3.5 4.5 4.5L6 12.5"/></symbol>
+<symbol id="i-check" viewBox="0 0 16 16"><path d="m3.2 8.4 3.1 3.1 6.5-7"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.2v9.6M3.2 8h9.6"/></symbol>
+<symbol id="i-x" viewBox="0 0 16 16"><path d="m4.2 4.2 7.6 7.6M11.8 4.2l-7.6 7.6"/></symbol>
+<symbol id="i-term" viewBox="0 0 16 16"><path d="m3 4.2 3.6 3.8L3 11.8M8.4 12H13"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 16 16"><path d="M8.9 1.8 3.9 8.6h3.4l-.9 5.6 5.7-7.4H8.4z"/></symbol>
+<symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.6A1.6 1.6 0 0 1 3.6 3h2l1.3 1.9h5.5A1.6 1.6 0 0 1 14 6.5v5.1a1.6 1.6 0 0 1-1.6 1.6H3.6A1.6 1.6 0 0 1 2 11.6z"/></symbol>
+<symbol id="i-arrow-r" viewBox="0 0 16 16"><path d="M2.8 8h10.4M9.2 4l4 4-4 4"/></symbol>
+<symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3.4v9.2L12.6 8z"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 16 16"><path d="M11.4 2.4 13.6 4.6 6 12.2H3.8v-2.2z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.8 4.4h10.4M6.4 4.4V2.8h3.2v1.6M4.6 4.4 5.2 13.2h5.6l.6-8.8"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><path d="M7.2 12.2a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM10.8 10.8 13.6 13.6"/></symbol>
+<symbol id="i-file" viewBox="0 0 16 16"><path d="M9.2 1.8H4.4a1.6 1.6 0 0 0-1.6 1.6v9.2a1.6 1.6 0 0 0 1.6 1.6h7.2a1.6 1.6 0 0 0 1.6-1.6V5.8zM9.2 1.8v4h4M5.4 8.6h5.2M5.4 11h3.4"/></symbol>
+<symbol id="i-monitor" viewBox="0 0 16 16"><path d="M2.4 3.4h11.2v7.2H2.4zM6 13.4h4M8 10.6v2.8"/></symbol>
+<symbol id="i-server" viewBox="0 0 16 16"><path d="M2.4 2.8h11.2v4.4H2.4zM2.4 8.8h11.2v4.4H2.4zM4.6 5h.02M4.6 11h.02"/></symbol>
+<symbol id="i-undo" viewBox="0 0 16 16"><path d="M3.6 6.6h6.6a3.6 3.6 0 0 1 0 7.2H7M3.6 6.6l3-3M3.6 6.6l3 3"/></symbol>
+<symbol id="i-dots" viewBox="0 0 16 16"><path stroke-width="2.1" d="M8 3.4h.02M8 8h.02M8 12.6h.02"/></symbol>
+<symbol id="i-grip" viewBox="0 0 16 16"><path stroke-width="2.1" d="M6 3.6h.02M6 8h.02M6 12.4h.02M10 3.6h.02M10 8h.02M10 12.4h.02"/></symbol>
+<symbol id="i-handoff" viewBox="0 0 16 16"><path d="M2.6 2.8v5.6a1.8 1.8 0 0 0 1.8 1.8h9M9.6 7.2l3.2 3-3.2 3"/></symbol>
+<symbol id="i-sparkle" viewBox="0 0 16 16"><path d="M8 1.8v3.4M8 10.8v3.4M1.8 8h3.4M10.8 8h3.4M3.6 3.6 6 6M10 10l2.4 2.4M12.4 3.6 10 6M3.6 12.4 6 10"/></symbol>
+<symbol id="i-clock" viewBox="0 0 16 16"><path d="M8 14.2A6.2 6.2 0 1 0 8 1.8a6.2 6.2 0 0 0 0 12.4ZM8 4.6V8l2.6 1.6"/></symbol>
+<symbol id="i-users" viewBox="0 0 16 16"><path d="M6 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2ZM1.6 13.6c0-2.3 2-3.6 4.4-3.6s4.4 1.3 4.4 3.6M11 5.4a2.1 2.1 0 0 1 0 4.2M13 13.6c0-1.6-.5-2.7-1.4-3.3"/></symbol>
+<symbol id="i-copy" viewBox="0 0 16 16"><path d="M5.6 5.6h7.2v7.2H5.6zM3.2 10.4V3.2h7.2"/></symbol>
+<symbol id="i-back" viewBox="0 0 16 16"><path d="M13.2 8H2.8M6.8 4l-4 4 4 4"/></symbol>
+<symbol id="i-gear" viewBox="0 0 16 16"><path d="M8 10.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4Z"/><path d="M12.6 9.8a1.2 1.2 0 0 0 .24 1.32l.04.04a1.4 1.4 0 1 1-2 2l-.04-.04a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.73 1.1v.12a1.4 1.4 0 1 1-2.8 0V14a1.2 1.2 0 0 0-.78-1.1 1.2 1.2 0 0 0-1.32.24l-.04.04a1.4 1.4 0 1 1-2-2l.04-.04a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.73H2A1.4 1.4 0 1 1 2 6.4h.06A1.2 1.2 0 0 0 3.2 5.6a1.2 1.2 0 0 0-.24-1.32l-.04-.04a1.4 1.4 0 1 1 2-2l.04.04A1.2 1.2 0 0 0 6.28 2.5h.06a1.2 1.2 0 0 0 .73-1.1V1.3a1.4 1.4 0 1 1 2.8 0v.06a1.2 1.2 0 0 0 .73 1.1 1.2 1.2 0 0 0 1.32-.24l.04-.04a1.4 1.4 0 1 1 2 2l-.04.04a1.2 1.2 0 0 0-.24 1.32v.06a1.2 1.2 0 0 0 1.1.73h.12a1.4 1.4 0 1 1 0 2.8H14a1.2 1.2 0 0 0-1.1.73Z"/></symbol>
+</defs></svg>
+
+<div class="page">
+
+<header class="masthead">
+  <div class="eyebrow">web-console · sessions, groups, handoffs</div>
+  <h1>Roles and handoffs</h1>
+  <p class="lede">Two new ideas, both deliberately generic: a group holds <em>roles</em> rather than loose tabs, and any role can <em>hand off</em> to another. Your plan-then-implement pair is one configuration of that — not the thing being built.</p>
+  <p class="thesis">The design test I held myself to: nothing in the data model may know what a "plan" is. Plan detection ships as one deletable example rule sitting on top of a general mechanism.</p>
+</header>
+
+<section class="rail" style="--rail: var(--g-blue)">
+  <div class="eyebrow">Vocabulary</div>
+  <h2>Four words, two of them new</h2>
+  <p class="small">Naming matters more than usual here, because the wrong noun is what locks a design into one workflow. These four carry no assumption about how many sessions you run or what they do.</p>
+
+  <div class="vocab">
+    <div class="vterm">
+      <div class="name"><b>Session</b><span class="tag">exists</span></div>
+      <div class="def">One terminal, one process. Unchanged.</div>
+    </div>
+    <div class="vterm">
+      <div class="name"><b>Group</b><span class="tag">exists · re-framed</span></div>
+      <div class="def">One piece of work, named for the task rather than the tools. Today it is a folder you drag tabs into afterwards; it should be the thing you create first.
+        <span class="ex">Same <code>workspace.Group</code> record — name, colour, order, collapsed. No schema change to re-frame it.</span></div>
+    </div>
+    <div class="vterm">
+      <div class="name"><b>Role</b><span class="tag new">new</span></div>
+      <div class="def">A named position inside a group. A role is either <strong>running</strong> (it has a session) or <strong>waiting</strong> (it has a command and no process yet).
+        <span class="ex">"Planner", "Implementer", "Reviewer", "Log watcher". Deliberately not "step" — a watcher tailing logs beside you is a role, not a stage in a sequence.</span></div>
+    </div>
+    <div class="vterm">
+      <div class="name"><b>Handoff</b><span class="tag new">new</span></div>
+      <div class="def">Send a message to another role, starting it if it is waiting. That is the entire definition.
+        <span class="ex">Everything workflow-specific — the wording, the payload, whether it is suggested to you — is configuration layered on this one verb.</span></div>
+    </div>
+    <div class="vterm">
+      <div class="name"><b>Group template</b><span class="tag">derived</span></div>
+      <div class="def">A saved set of roles you can stamp out. Not a fifth concept so much as "a group, saved" — and the main way you author one is <em class="q">Save this group as a template</em>.</div>
+    </div>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-red)">
+  <div class="eyebrow">Design constraints</div>
+  <h2>Six things that must not be hardcoded</h2>
+  <p class="small">You asked for this explicitly, so I made it a checklist the implementation can be reviewed against. Each rule names the assumption it forbids.</p>
+
+  <div class="rules">
+    <div class="rule">
+      <div class="no">1</div>
+      <div>
+        <h4>A group holds 1..N roles</h4>
+        <p>Solo work is a one-role group. Your pair is two. A plan → critique → implement chain is three. A dev server plus two agents plus a log tail is four, with no ordering at all.</p>
+        <span class="no-hard"><b>Forbidden:</b> anything named <code>primary</code>/<code>secondary</code>, any pair-shaped field, any UI that breaks past two.</span>
+      </div>
+    </div>
+    <div class="rule">
+      <div class="no">2</div>
+      <div>
+        <h4>A handoff targets any role, or a new one</h4>
+        <p>Forward to a waiting role, to one already running, to several at once, or to a session created on the spot. Fan-out is the same operation with more than one target selected.</p>
+        <span class="no-hard"><b>Forbidden:</b> a handoff that can only start something, or that assumes exactly one destination.</span>
+      </div>
+    </div>
+    <div class="rule">
+      <div class="no">3</div>
+      <div>
+        <h4>The payload is generic text with one slot</h4>
+        <p>A handoff carries a prompt template and an optional payload. The payload is whatever you were looking at: a file path, a selected passage, a command's output — or nothing.</p>
+        <span class="no-hard"><b>Forbidden:</b> a <code>plan_path</code> field. The variable is <code>{{payload}}</code>, and a plan is one kind of payload.</span>
+      </div>
+    </div>
+    <div class="rule">
+      <div class="no">4</div>
+      <div>
+        <h4>Suggestion is separable from mechanism</h4>
+        <p>Capture rules decide when the console <em>offers</em> a handoff. Delete every rule and handoffs still work — you invoke them yourself. That separation is what keeps the feature honest for someone whose workflow you have never seen.</p>
+        <span class="no-hard"><b>Forbidden:</b> detection logic anywhere in the handoff execution path.</span>
+      </div>
+    </div>
+    <div class="rule">
+      <div class="no">5</div>
+      <div>
+        <h4>Templates are an accelerator, never a prerequisite</h4>
+        <p>Every capability works on a group you assembled by hand. Templates only remove repetition.</p>
+        <span class="no-hard"><b>Forbidden:</b> a role that can only exist inside a templated group.</span>
+      </div>
+    </div>
+    <div class="rule">
+      <div class="no">6</div>
+      <div>
+        <h4>Shipped content is examples, not behaviour</h4>
+        <p>The <em class="q">Plan → Implement</em> template and the <code>~/.vrooli/plans/*.md</code> rule ship as ordinary editable rows, indistinguishable from ones you write. Delete them and nothing degrades.</p>
+        <span class="no-hard"><b>Forbidden:</b> a built-in that cannot be renamed or removed — the state today's Codex sign-in card is in.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-teal)">
+  <div class="eyebrow">Redesign · New Session</div>
+  <h2>The dialog spends its space on the wrong thing</h2>
+  <div class="stack">
+    <p>You are right that it feels padded. Choosing a machine is a one-line decision that currently gets a stack of full-width readiness cards, while choosing an agent — the actual reason you opened the dialog — is a vertical list of eight identical rows you have to read one at a time.</p>
+    <p>And the Codex sign-in card is worth cutting outright. I searched: <strong>there is no signed-in detection anywhere in the codebase.</strong> The card is a hardcoded command shown unconditionally whether or not you are signed in. You find out you are logged out when the agent tells you, which is exactly when you can act on it. It belongs in the shortcut list like every other command, where you can edit or delete it.</p>
+  </div>
+
+  <div class="budget">
+    <div class="bud-row">
+      <div class="bl">Today</div>
+      <div class="bar">
+        <span style="width:26%;background:#4dabf7">Machine 26%</span>
+        <span style="width:7%;background:#ffd43b">7%</span>
+        <span style="width:44%;background:#38d9c0">Agents 44%</span>
+        <span style="width:9%;background:#9775fa">9%</span>
+        <span style="width:14%;background:#5b6875;color:#e2eaf1">chrome</span>
+      </div>
+    </div>
+    <div class="bud-row">
+      <div class="bl">Proposed</div>
+      <div class="bar">
+        <span style="width:7%;background:#4dabf7"></span>
+        <span style="width:8%;background:#ff6b6b">Dest</span>
+        <span style="width:60%;background:#38d9c0">Agents 60%</span>
+        <span style="width:11%;background:#9775fa">Custom</span>
+        <span style="width:14%;background:#5b6875;color:#e2eaf1">chrome</span>
+      </div>
+    </div>
+    <div class="bud-key">
+      <i style="--kc:#4dabf7">Machine picker</i>
+      <i style="--kc:#ff6b6b">Destination</i>
+      <i style="--kc:#ffd43b">Codex sign-in</i>
+      <i style="--kc:#38d9c0">Agent choices</i>
+      <i style="--kc:#9775fa">Custom command</i>
+      <i style="--kc:#5b6875">Title, options, footer</i>
+    </div>
+    <p class="cap">Approximate vertical share of the dialog, one remote machine linked. <b>Machine selection drops from roughly a quarter of the surface to a single row</b>, the sign-in card disappears, and the space returns to the decision you actually came to make.</p>
+  </div>
+
+  <div class="fig">
+    <h4>New Session — one session</h4>
+    <p class="cap-top">Machine and destination sit on one line as compact triggers. Agents become a two-column grid you can scan in a glance instead of a column you read.</p>
+    <div class="u u-scroll">
+      <div class="u-head">
+        <svg class="ic" style="font-size:15px;color:#22d3ee"><use href="#i-term"/></svg>
+        <span class="u-t">New Session</span>
+        <svg class="ic u-x"><use href="#i-x"/></svg>
+      </div>
+
+      <div class="u-body">
+        <div class="u-flex" style="flex-wrap:wrap; gap:8px">
+          <span class="u-trig">
+            <span class="u-led" style="background:#69db7c"></span>
+            <span>This machine</span>
+            <svg class="ic cv"><use href="#i-chev-d"/></svg>
+          </span>
+          <span class="u-dest u-grow" style="--dc:var(--g-teal); min-width:200px">
+            <svg class="ic" style="font-size:14px;color:#38d9c0"><use href="#i-folder"/></svg>
+            <span class="u-grow u-trunc">Into <b>session grouping UX</b> <span class="u-faint u-11">· 2 roles</span></span>
+            <svg class="ic u-faint"><use href="#i-chev-d"/></svg>
+          </span>
+        </div>
+
+        <div class="u-grid2">
+          <div class="u-card sel">
+            <span class="ico"><svg class="ic"><use href="#i-bolt"/></svg></span>
+            <span class="u-grow"><span class="ttl">Claude Code</span><br><span class="sub">attributed</span></span>
+            <svg class="ic u-acc" style="font-size:14px"><use href="#i-check"/></svg>
+          </div>
+          <div class="u-card">
+            <span class="ico"><svg class="ic"><use href="#i-bolt"/></svg></span>
+            <span class="u-grow"><span class="ttl">Codex</span><br><span class="sub">attributed</span></span>
+          </div>
+          <div class="u-card">
+            <span class="ico"><svg class="ic"><use href="#i-bolt"/></svg></span>
+            <span class="u-grow"><span class="ttl">OpenCode</span><br><span class="sub">attributed</span></span>
+          </div>
+          <div class="u-card">
+            <span class="ico"><svg class="ic"><use href="#i-bolt"/></svg></span>
+            <span class="u-grow"><span class="ttl">Grok</span><br><span class="sub">attributed</span></span>
+          </div>
+          <div class="u-card">
+            <span class="ico"><svg class="ic"><use href="#i-term"/></svg></span>
+            <span class="u-grow"><span class="ttl">Empty shell</span><br><span class="sub">bash</span></span>
+          </div>
+          <div class="u-card" style="border-style:dashed">
+            <span class="ico u-faint"><svg class="ic"><use href="#i-gear"/></svg></span>
+            <span class="u-grow"><span class="ttl u-mute">Edit shortcuts</span><br><span class="sub">6 hidden</span></span>
+          </div>
+        </div>
+
+        <div class="u-flex" style="gap:8px">
+          <span class="u-in u-grow"><span class="u-faint u-mono">$</span><span class="ph">Run a custom command…</span></span>
+          <span class="u-btn gh sm">Run</span>
+        </div>
+
+        <div class="u-flex u-faint u-11" style="gap:16px">
+          <span class="u-flex" style="gap:5px"><svg class="ic"><use href="#i-chev-r"/></svg>Appearance · inherits group</span>
+          <span class="u-flex" style="gap:5px"><svg class="ic"><use href="#i-chev-r"/></svg>Directory, backend, timeout</span>
+        </div>
+      </div>
+    </div>
+    <p class="cap"><b>Attributed variants collapse into their parent card.</b> Eight shortcuts became four agents with a sub-label, because "Claude Code" and "Claude Code (attributed)" are one choice with a setting, not two agents.</p>
+  </div>
+
+  <div class="fig two">
+    <div>
+      <h4>The machine picker, open</h4>
+      <div class="u">
+        <div class="u-body tight">
+          <span class="u-trig on">
+            <span class="u-led" style="background:#69db7c"></span>
+            <span>This machine</span>
+            <svg class="ic cv"><use href="#i-chev-d"/></svg>
+          </span>
+          <div class="u-menu">
+            <span class="u-lab">Launch on</span>
+            <div class="u-opt sel">
+              <span class="u-led" style="background:#69db7c"></span>
+              <span class="u-grow"><span class="nm">This machine</span><br><span class="mt">Web Console process</span></span>
+              <svg class="ic u-acc"><use href="#i-check"/></svg>
+            </div>
+            <div class="u-opt">
+              <span class="u-led" style="background:#69db7c"></span>
+              <span class="u-grow"><span class="nm">studio-mini</span><br><span class="mt">darwin/arm64 · 12s ago</span></span>
+              <span class="u-chip">shell</span>
+            </div>
+            <div class="u-opt">
+              <span class="u-led" style="background:#ffa94d"></span>
+              <span class="u-grow"><span class="nm">rack-01</span><br><span class="mt">Bridge needs update</span></span>
+              <span class="u-chip warn">update</span>
+            </div>
+            <div class="u-opt">
+              <span class="u-led" style="background:#5b6875"></span>
+              <span class="u-grow"><span class="nm u-mute">tower</span><br><span class="mt">Offline · 3d ago</span></span>
+            </div>
+            <div class="u-add">
+              <svg class="ic"><use href="#i-plus"/></svg>
+              <span>Link a machine…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Straight port of system-monitor's <code>MachinePicker</code>: presence LED, meta line, grant chip, and a pinned link action that never scrolls away. The readiness detail moves into the row rather than owning a card.</p>
+    </div>
+    <div>
+      <h4>The destination picker, open</h4>
+      <div class="u">
+        <div class="u-body tight">
+          <span class="u-dest" style="--dc:var(--g-teal)">
+            <svg class="ic" style="font-size:14px;color:#38d9c0"><use href="#i-folder"/></svg>
+            <span class="u-grow">Into <b>session grouping UX</b></span>
+            <svg class="ic u-faint"><use href="#i-chev-d"/></svg>
+          </span>
+          <div class="u-menu">
+            <div class="u-in focus" style="margin:9px 9px 4px"><svg class="ic u-faint"><use href="#i-search"/></svg><span>sess</span><span class="u-caret"></span></div>
+            <div class="u-opt sel">
+              <span class="u-sw" style="background:#38d9c0"></span>
+              <span class="u-grow"><span class="nm">session grouping UX</span></span>
+              <span class="u-faint u-11">2</span>
+              <svg class="ic u-acc"><use href="#i-check"/></svg>
+            </div>
+            <div class="u-opt">
+              <span class="u-sw" style="background:#f783ac"></span>
+              <span class="u-grow"><span class="nm">session recovery bug</span></span>
+              <span class="u-faint u-11">1</span>
+            </div>
+            <div class="u-opt">
+              <span class="u-sw" style="background:#5b6875"></span>
+              <span class="u-grow"><span class="nm u-mute">No group</span></span>
+            </div>
+            <div class="u-add">
+              <svg class="ic"><use href="#i-plus"/></svg>
+              <span>New group “sess”</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">The same control answers "where does this land" and "make me a group", so you never create an empty group first. This is also the assign picker, reused verbatim from a tab's menu.</p>
+    </div>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-orange)">
+  <div class="eyebrow">Redesign · New Group</div>
+  <h2>Starting a whole group</h2>
+  <p class="small">The second mode of the same dialog. Pick a template, name the work once, and adjust which roles start now — the list is editable before you commit, so a template is a starting point rather than a contract.</p>
+
+  <div class="fig">
+    <h4>New Session — group mode, a three-role template</h4>
+    <div class="u u-scroll">
+      <div class="u-head">
+        <svg class="ic" style="font-size:15px;color:#22d3ee"><use href="#i-users"/></svg>
+        <span class="u-t">New Group</span>
+        <span class="u-sub">from template</span>
+        <svg class="ic u-x"><use href="#i-x"/></svg>
+      </div>
+      <div class="u-body">
+
+        <div class="u-flex" style="flex-wrap:wrap;gap:8px">
+          <span class="u-trig on" style="min-width:210px">
+            <span class="u-sw" style="background:#ffa94d"></span>
+            <span class="u-grow u-trunc">Plan → Critique → Implement</span>
+            <svg class="ic cv"><use href="#i-chev-d"/></svg>
+          </span>
+          <span class="u-trig">
+            <span class="u-led" style="background:#69db7c"></span>
+            <span>This machine</span>
+            <svg class="ic cv"><use href="#i-chev-d"/></svg>
+          </span>
+        </div>
+
+        <div>
+          <span class="u-lab" style="display:block;margin-bottom:6px">Name this work</span>
+          <div class="u-in focus"><span>session grouping UX</span><span class="u-caret"></span></div>
+          <div class="u-faint u-11" style="margin-top:6px">Group name · colour assigned automatically</div>
+        </div>
+
+        <div class="u-hr"></div>
+
+        <div class="u-flex">
+          <span class="u-lab">Roles</span>
+          <span class="u-r u-faint u-11 u-flex" style="gap:5px"><svg class="ic"><use href="#i-plus"/></svg>Add role</span>
+        </div>
+
+        <div style="display:grid;gap:8px">
+          <div class="u-role" style="--rc:var(--g-orange)">
+            <span class="rh u-faint"><svg class="ic"><use href="#i-grip"/></svg></span>
+            <span class="rn">Planner</span>
+            <span class="u-chip acc"><svg class="ic" style="font-size:11px"><use href="#i-play"/></svg>starts now</span>
+            <span class="rd">claude · ~/Vrooli</span>
+          </div>
+          <div class="u-role wait" style="--rc:var(--g-orange)">
+            <span class="rh u-faint"><svg class="ic"><use href="#i-grip"/></svg></span>
+            <span class="rn u-mute">Critic</span>
+            <span class="u-chip warn"><svg class="ic" style="font-size:11px"><use href="#i-clock"/></svg>waiting</span>
+            <span class="rd">codex · receives “Critique {{payload}}”</span>
+          </div>
+          <div class="u-role wait" style="--rc:var(--g-orange)">
+            <span class="rh u-faint"><svg class="ic"><use href="#i-grip"/></svg></span>
+            <span class="rn u-mute">Implementer</span>
+            <span class="u-chip warn"><svg class="ic" style="font-size:11px"><use href="#i-clock"/></svg>waiting</span>
+            <span class="rd">codex · receives “Implement {{payload}}”</span>
+          </div>
+        </div>
+      </div>
+      <div class="u-foot">
+        <span class="u-faint u-11 u-flex" style="gap:5px"><svg class="ic"><use href="#i-pencil"/></svg>Edit template</span>
+        <span class="u-r"></span>
+        <span class="u-btn gh">Cancel</span>
+        <span class="u-btn"><svg class="ic"><use href="#i-plus"/></svg>Create group</span>
+      </div>
+    </div>
+    <p class="cap">Three roles, not two, and the middle one is not a mandatory stage — you can delete it here without touching the saved template. <b>A waiting role costs nothing:</b> it holds a command and a prompt, and no process.</p>
+  </div>
+
+  <div class="fig two">
+    <div>
+      <h4>The group at rest, in the sidebar</h4>
+      <div class="u">
+        <div class="u-body" style="padding:11px">
+          <div class="u-side">
+            <div class="u-gh" style="--gc:var(--g-orange)">
+              <svg class="ic u-faint" style="font-size:12px"><use href="#i-chev-d"/></svg>
+              <span class="u-grow">session grouping UX</span>
+              <svg class="ic u-faint" style="font-size:13px"><use href="#i-plus"/></svg>
+              <svg class="ic u-faint" style="font-size:13px"><use href="#i-dots"/></svg>
+            </div>
+            <div class="u-gt act" style="--gc:var(--g-orange)">
+              <span class="u-led" style="background:#69db7c"></span>
+              <span class="u-grow"><span>Planner</span><br><span class="u-faint u-10">claude · wrote a plan 2m ago</span></span>
+              <svg class="ic u-acc" style="font-size:14px"><use href="#i-handoff"/></svg>
+            </div>
+            <div class="u-gt wait" style="--gc:var(--g-orange)">
+              <svg class="ic u-faint" style="font-size:12px"><use href="#i-play"/></svg>
+              <span class="u-grow"><span class="u-mute">Critic</span><br><span class="u-faint u-10">waiting · codex</span></span>
+            </div>
+            <div class="u-gt wait end" style="--gc:var(--g-orange)">
+              <svg class="ic u-faint" style="font-size:12px"><use href="#i-play"/></svg>
+              <span class="u-grow"><span class="u-mute">Implementer</span><br><span class="u-faint u-10">waiting · codex</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Waiting roles render dashed and greyed — visibly present, visibly not running. Clicking one starts it. The handoff glyph appears on a role that has somewhere to send something.</p>
+    </div>
+    <div>
+      <h4>Group header menu</h4>
+      <div class="u">
+        <div class="u-body tight" style="padding:11px">
+          <div class="u-menu">
+            <span class="u-lab">session grouping UX</span>
+            <div class="u-opt"><svg class="ic u-faint"><use href="#i-plus"/></svg><span class="u-grow nm">New session here</span></div>
+            <div class="u-opt"><svg class="ic u-faint"><use href="#i-play"/></svg><span class="u-grow nm">Start all waiting roles</span><span class="u-faint u-11">2</span></div>
+            <div class="u-opt"><svg class="ic u-faint"><use href="#i-chev-d"/></svg><span class="u-grow nm">Collapse</span></div>
+            <div class="u-opt"><svg class="ic u-faint"><use href="#i-pencil"/></svg><span class="u-grow nm">Rename &amp; recolour</span></div>
+            <div class="u-opt"><svg class="ic u-acc"><use href="#i-copy"/></svg><span class="u-grow nm u-acc">Save as template…</span></div>
+            <div class="u-opt"><svg class="ic u-faint"><use href="#i-gear"/></svg><span class="u-grow nm">Manage all groups</span></div>
+            <div class="u-opt"><svg class="ic u-bad"><use href="#i-trash"/></svg><span class="u-grow nm u-bad">Close group</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Rename and recolour move back in-place — sending you to a full manager to change a name was a big part of why groups felt heavy. <b>Save as template</b> lives here because capturing a group you already built is the low-effort authoring path.</p>
+    </div>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-violet)">
+  <div class="eyebrow">The core verb</div>
+  <h2>Where a handoff is offered</h2>
+  <div class="stack">
+    <p>You described your real habit precisely: agent writes a plan, you switch to the Messages view, click the path, a viewer opens and renders the markdown. That viewer is the best possible place for this, and it already has what it needs — <code>useFilePreviewController(sessionId)</code> means <strong>the viewer knows both the file and the session it came from</strong>, which is exactly the pair a handoff requires.</p>
+    <p>Three surfaces, ranked, plus one I would deliberately skip.</p>
+  </div>
+
+  <div class="fig">
+    <h4>Primary — the file viewer you already open</h4>
+    <div class="u">
+      <div class="u-head">
+        <svg class="ic u-faint" style="font-size:14px"><use href="#i-back"/></svg>
+        <span><span class="u-t">session-grouping-ux.md</span><br>
+          <span class="u-sub u-mono">~/.vrooli/plans/session-grouping-ux.md</span></span>
+        <span class="u-r u-flex" style="gap:8px">
+          <span class="u-btn sm"><svg class="ic"><use href="#i-handoff"/></svg>Hand off</span>
+          <svg class="ic u-faint" style="font-size:14px"><use href="#i-copy"/></svg>
+          <svg class="ic u-faint" style="font-size:14px"><use href="#i-x"/></svg>
+        </span>
+      </div>
+      <div class="u-body" style="gap:9px">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:700">Session grouping UX</div>
+        <div class="u-mute u-12">Phase 1 — thread the pending group into the launcher and render a destination strip…</div>
+        <div class="u-hr"></div>
+        <div class="u-menu" style="max-width:400px">
+          <span class="u-lab">Hand off this file</span>
+          <div class="u-opt sel">
+            <span class="u-ck on"><svg class="ic"><use href="#i-check"/></svg></span>
+            <span class="u-grow"><span class="nm">Critic</span><br><span class="mt">waiting · “Critique the plan at …”</span></span>
+          </div>
+          <div class="u-opt">
+            <span class="u-ck"></span>
+            <span class="u-grow"><span class="nm">Implementer</span><br><span class="mt">waiting · “Implement the plan at …”</span></span>
+          </div>
+          <div class="u-opt">
+            <span class="u-ck"></span>
+            <span class="u-grow"><span class="nm u-mute">New session in this group…</span></span>
+          </div>
+          <div style="padding:10px 12px;border-top:1px solid var(--u-line);display:grid;gap:8px">
+            <span class="u-lab">Message</span>
+            <div class="u-in" style="align-items:flex-start">
+              <span>Critique the plan at <span class="u-acc u-mono u-11">~/.vrooli/plans/session-grouping-ux.md</span></span>
+            </div>
+            <div class="u-flex">
+              <span class="u-faint u-11">Sends once the agent reaches its prompt</span>
+              <span class="u-r"></span>
+              <span class="u-btn sm"><svg class="ic"><use href="#i-arrow-r"/></svg>Send</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap"><b>Multi-select is the fan-out.</b> Tick Critic and Implementer and the same file goes to both, each with its own prompt. The message is editable before sending — nothing is dispatched behind your back.</p>
+  </div>
+
+  <div class="fig two">
+    <div>
+      <h4>Secondary — a suggestion in the Messages view</h4>
+      <div class="u">
+        <div class="u-body" style="gap:10px">
+          <div class="u-flex-t" style="gap:9px">
+            <span class="u-sw" style="background:#9775fa;margin-top:5px"></span>
+            <span class="u-mute u-12 u-grow">Plan finalized. The rendered mirror is at
+              <span class="u-acc u-mono u-11">~/.vrooli/plans/session-grouping-ux.md</span> — 12 phases.</span>
+          </div>
+          <div class="u-flex" style="gap:8px;padding:9px 11px;border:1px dashed #3a5a63;border-radius:9px;background:rgba(34,211,238,.045)">
+            <svg class="ic u-acc" style="font-size:14px"><use href="#i-sparkle"/></svg>
+            <span class="u-grow u-12">Matches <b>Plan file</b> — hand off?</span>
+            <span class="u-btn sm">Critic</span>
+            <span class="u-btn gh sm">Implementer</span>
+            <svg class="ic u-faint"><use href="#i-x"/></svg>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Inline, dismissible, never modal. It names the rule that fired so a wrong suggestion tells you which rule to edit. Appears only when a capture rule matches — with no rules, this surface simply never shows.</p>
+    </div>
+    <div>
+      <h4>Always available — the pane header</h4>
+      <div class="u">
+        <div class="u-head" style="border-left:3px solid #9775fa">
+          <span class="u-led" style="background:#69db7c"></span>
+          <span class="u-t" style="font-size:12.5px">Planner</span>
+          <span class="u-sub">claude</span>
+          <span class="u-r u-flex" style="gap:9px">
+            <span class="u-chip acc"><svg class="ic" style="font-size:11px"><use href="#i-handoff"/></svg>Hand off</span>
+            <svg class="ic u-faint" style="font-size:14px"><use href="#i-dots"/></svg>
+          </span>
+        </div>
+        <div class="u-body" style="gap:6px">
+          <div class="u-mono u-11 u-faint">$ vrooli agent launch --runner claude</div>
+          <div class="u-mono u-11 u-mute">Plan written to ~/.vrooli/plans/session-grouping-ux.md</div>
+          <div class="u-mono u-11 u-faint">▏</div>
+        </div>
+      </div>
+      <p class="cap">The manual path. Opens the same composer with an empty payload, so you can hand off a thought rather than a file — <em class="q">"take over from here, the failing test is TestSizeLease"</em>.</p>
+    </div>
+  </div>
+
+  <div class="stack" style="margin-top:28px">
+    <p><strong>The surface I would not build: detection inside the terminal view.</strong> The terminal is a raw byte stream with its own cursor addressing. Overlaying suggestion chips on it means hit-testing against reflowing text, fighting the alternate screen buffer, and getting it wrong whenever an agent redraws. The Messages view exists precisely because it is the structured surface — put structured affordances there. The terminal keeps the header button, which needs no text analysis at all.</p>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-green)">
+  <div class="eyebrow">Configuration</div>
+  <h2>Capture rules — the customizable part</h2>
+  <div class="stack">
+    <p>This is the piece that decides whether the feature generalizes. A capture rule is four fields: a name, where to look, what to match, and what to do about it. It produces a suggestion; it never performs one.</p>
+    <p>Match against paths with a glob, or against message text with a pattern. Both are just "find a payload in what this session said". Your plan rule ships as one row you can rename, edit, or delete.</p>
+  </div>
+
+  <div class="fig">
+    <h4>Settings → Handoff rules</h4>
+    <div class="u u-scroll">
+      <div class="u-head">
+        <svg class="ic" style="font-size:15px;color:#22d3ee"><use href="#i-sparkle"/></svg>
+        <span class="u-t">Handoff rules</span>
+        <span class="u-sub">suggestions only — handoffs always work manually</span>
+        <svg class="ic u-x"><use href="#i-x"/></svg>
+      </div>
+      <div class="u-body">
+        <div class="u-row sel" style="display:grid;grid-template-columns:auto 1fr auto;gap:9px 10px">
+          <svg class="ic u-faint" style="margin-top:3px"><use href="#i-grip"/></svg>
+          <span><span style="font-weight:500">Plan file</span> <span class="u-faint u-11">· example, safe to delete</span></span>
+          <span class="u-flex" style="gap:9px">
+            <span class="u-chip acc">on</span>
+            <svg class="ic u-faint"><use href="#i-dots"/></svg>
+          </span>
+          <span></span>
+          <span style="grid-column:2/-1;display:grid;gap:7px">
+            <span class="u-flex" style="gap:7px;flex-wrap:wrap">
+              <span class="u-chip">Look in <b>file paths</b></span>
+              <span class="u-chip u-mono">**/.vrooli/plans/*.md</span>
+            </span>
+            <span class="u-flex" style="gap:7px;flex-wrap:wrap">
+              <span class="u-chip">Suggest in <b>Messages</b>, <b>File viewer</b></span>
+              <span class="u-chip">Offer <b>any waiting role</b></span>
+            </span>
+          </span>
+        </div>
+
+        <div class="u-row" style="display:grid;grid-template-columns:auto 1fr auto;gap:9px 10px">
+          <svg class="ic u-faint" style="margin-top:3px"><use href="#i-grip"/></svg>
+          <span><span style="font-weight:500">Failing test</span></span>
+          <span class="u-flex" style="gap:9px"><span class="u-chip acc">on</span><svg class="ic u-faint"><use href="#i-dots"/></svg></span>
+          <span></span>
+          <span style="grid-column:2/-1;display:flex;gap:7px;flex-wrap:wrap">
+            <span class="u-chip">Look in <b>message text</b></span>
+            <span class="u-chip u-mono">FAIL\s+(\S+)</span>
+          </span>
+        </div>
+
+        <div class="u-row dim" style="display:grid;grid-template-columns:auto 1fr auto;gap:9px 10px">
+          <svg class="ic u-faint" style="margin-top:3px"><use href="#i-grip"/></svg>
+          <span><span style="font-weight:500">Any markdown I open</span></span>
+          <span class="u-flex" style="gap:9px"><span class="u-chip">off</span><svg class="ic u-faint"><use href="#i-dots"/></svg></span>
+          <span></span>
+          <span style="grid-column:2/-1;display:flex;gap:7px;flex-wrap:wrap">
+            <span class="u-chip">Look in <b>file paths</b></span>
+            <span class="u-chip u-mono">**/*.md</span>
+          </span>
+        </div>
+      </div>
+      <div class="u-foot">
+        <span class="u-btn gh sm"><svg class="ic"><use href="#i-plus"/></svg>New rule</span>
+        <span class="u-r u-faint u-11">Rules never send anything. They only decide when a suggestion appears.</span>
+      </div>
+    </div>
+    <p class="cap">The footer line is doing real work — it is the promise that makes this safe to leave on. <b>A rule firing wrongly costs you a dismissed chip</b>, never a message sent to an agent.</p>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-pink)">
+  <div class="eyebrow">Configuration</div>
+  <h2>Managing templates</h2>
+  <p class="small">Master–detail, modelled on the existing shortcut-profile surface. The role list is the same component as the one in the New Group dialog, so editing a template and adjusting a group before creating it feel identical.</p>
+
+  <div class="fig">
+    <h4>Settings → Group templates</h4>
+    <div class="u u-scroll">
+      <div class="u-head">
+        <svg class="ic" style="font-size:15px;color:#22d3ee"><use href="#i-users"/></svg>
+        <span class="u-t">Group templates</span>
+        <svg class="ic u-x"><use href="#i-x"/></svg>
+      </div>
+      <div class="u-md">
+        <div class="l">
+          <div class="u-nav on"><span class="u-sw" style="background:#ffa94d"></span><span class="u-grow u-trunc">Plan → Critique → Implement</span></div>
+          <div class="u-nav"><span class="u-sw" style="background:#4dabf7"></span><span class="u-grow u-trunc">Fix with log tail</span></div>
+          <div class="u-nav"><span class="u-sw" style="background:#69db7c"></span><span class="u-grow u-trunc">Solo session</span></div>
+          <div class="u-nav u-faint" style="margin-top:5px"><svg class="ic"><use href="#i-plus"/></svg><span>New template</span></div>
+        </div>
+        <div class="r">
+          <div class="u-flex">
+            <span class="u-in u-grow" style="font-weight:500">Plan → Critique → Implement</span>
+            <span class="u-trig"><span class="u-sw" style="background:#ffa94d"></span><svg class="ic cv"><use href="#i-chev-d"/></svg></span>
+          </div>
+          <div class="u-faint u-11">Group named from what you type at creation · used 14 times</div>
+
+          <div class="u-hr"></div>
+
+          <div class="u-flex"><span class="u-lab">Roles</span><span class="u-r u-faint u-11">drag to reorder</span></div>
+
+          <div class="u-role" style="--rc:var(--g-orange)">
+            <span class="rh u-faint"><svg class="ic"><use href="#i-grip"/></svg></span>
+            <span class="rn">Planner</span>
+            <span class="u-flex" style="gap:8px"><span class="u-chip acc">starts now</span><svg class="ic u-faint"><use href="#i-dots"/></svg></span>
+            <span class="rd">claude --attributed · ~/Vrooli</span>
+          </div>
+
+          <div style="border:1px solid var(--u-accent-dim);border-left:3px solid #ffa94d;border-radius:0 9px 9px 0;background:rgba(34,211,238,.05);padding:11px 12px;display:grid;gap:10px">
+            <div class="u-flex">
+              <svg class="ic u-faint"><use href="#i-grip"/></svg>
+              <span style="font-weight:500">Critic</span>
+              <span class="u-r u-flex" style="gap:8px"><span class="u-chip warn">waiting</span><svg class="ic u-faint"><use href="#i-chev-d"/></svg></span>
+            </div>
+            <div style="display:grid;gap:7px">
+              <span class="u-lab">Command</span>
+              <span class="u-in u-mono u-11">codex --yolo</span>
+              <span class="u-lab">Working directory</span>
+              <span class="u-in u-mono u-11"><span class="ph">inherit from group</span></span>
+              <span class="u-lab">Incoming handoff message</span>
+              <span class="u-in u-11">Critique the plan at <span class="u-acc u-mono">{{payload}}</span> and list what would break</span>
+              <span class="u-faint u-10"><b class="u-mono">{{payload}}</b> is the file or text handed over · leave blank to compose each time</span>
+            </div>
+          </div>
+
+          <div class="u-role wait" style="--rc:var(--g-orange)">
+            <span class="rh u-faint"><svg class="ic"><use href="#i-grip"/></svg></span>
+            <span class="rn u-mute">Implementer</span>
+            <span class="u-flex" style="gap:8px"><span class="u-chip warn">waiting</span><svg class="ic u-faint"><use href="#i-dots"/></svg></span>
+            <span class="rd">codex · “Implement the plan at {{payload}}”</span>
+          </div>
+
+          <div class="u-flex u-faint u-11" style="gap:6px"><svg class="ic"><use href="#i-plus"/></svg>Add role</div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">Every field has a defensible default, so a role can be as little as a command. <b>The prompt lives on the receiving role, not on the sender</b> — that way any session can hand off to the Critic and get the Critic's framing, which is what makes handoffs composable rather than point-to-point.</p>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-yellow)">
+  <div class="eyebrow">Redesign · Manage Groups</div>
+  <h2>Groups that clean up after themselves</h2>
+  <div class="stack">
+    <p>The current drawer does two unrelated jobs — <em class="q">assign this session</em> and <em class="q">administer everything</em> — which is why it feels clumsy. Assignment moves to the compact picker shown earlier. What is left is a real manager: sortable, multi-select, and with a section for the wreckage.</p>
+    <p>Plus the rule that keeps that section mostly empty: <strong>when the last session leaves a group, close the group and offer an undo.</strong> You already recreate groups by name rather than reusing them, so transient is the honest default.</p>
+  </div>
+
+  <div class="fig">
+    <h4>Manage Groups</h4>
+    <div class="u u-scroll">
+      <div class="u-head">
+        <svg class="ic" style="font-size:15px;color:#22d3ee"><use href="#i-folder"/></svg>
+        <span class="u-t">Manage Groups</span>
+        <span class="u-sub">6 groups · 4 empty</span>
+        <svg class="ic u-x"><use href="#i-x"/></svg>
+      </div>
+      <div class="u-body tight">
+        <div class="u-flex" style="gap:8px">
+          <span class="u-in u-grow"><svg class="ic u-faint"><use href="#i-search"/></svg><span class="ph">Filter groups…</span></span>
+          <span class="u-trig u-11">Recent <svg class="ic cv"><use href="#i-chev-d"/></svg></span>
+        </div>
+
+        <span class="u-lab" style="margin-top:3px">Active</span>
+        <div class="u-row">
+          <span class="u-ck"></span>
+          <span class="u-sw" style="background:#38d9c0"></span>
+          <span class="u-grow u-trunc">session grouping UX</span>
+          <span class="u-chip">3 roles · 1 waiting</span>
+          <svg class="ic u-faint"><use href="#i-dots"/></svg>
+        </div>
+        <div class="u-row">
+          <span class="u-ck"></span>
+          <span class="u-sw" style="background:#f783ac"></span>
+          <span class="u-grow u-trunc">session recovery bug</span>
+          <span class="u-chip">1 role</span>
+          <svg class="ic u-faint"><use href="#i-dots"/></svg>
+        </div>
+
+        <div class="u-flex" style="margin-top:9px">
+          <span class="u-lab">Empty · 4</span>
+          <span class="u-r u-acc u-11">Close all empty</span>
+        </div>
+        <div class="u-row dim">
+          <span class="u-ck on"><svg class="ic"><use href="#i-check"/></svg></span>
+          <span class="u-sw" style="background:#4dabf7"></span>
+          <span class="u-grow u-trunc">web console tabs</span>
+          <span class="u-faint u-11">3d ago</span>
+          <svg class="ic u-faint"><use href="#i-dots"/></svg>
+        </div>
+        <div class="u-row dim">
+          <span class="u-ck on"><svg class="ic"><use href="#i-check"/></svg></span>
+          <span class="u-sw" style="background:#ffd43b"></span>
+          <span class="u-grow u-trunc u-mute">New Group</span>
+          <span class="u-faint u-11">3d ago</span>
+          <svg class="ic u-faint"><use href="#i-dots"/></svg>
+        </div>
+        <div class="u-row dim">
+          <span class="u-ck"></span>
+          <span class="u-sw" style="background:#9775fa"></span>
+          <span class="u-grow u-trunc u-mute">New Group</span>
+          <span class="u-faint u-11">5d ago</span>
+          <svg class="ic u-faint"><use href="#i-dots"/></svg>
+        </div>
+      </div>
+      <div class="u-foot">
+        <span class="u-btn gh sm"><svg class="ic"><use href="#i-plus"/></svg>New group</span>
+        <span class="u-r"></span>
+        <span class="u-faint u-11">2 selected</span>
+        <span class="u-btn dg sm"><svg class="ic"><use href="#i-trash"/></svg>Close 2</span>
+      </div>
+    </div>
+    <p class="cap">Empty groups get their own section sorted by age, with a one-click sweep. <b>The word is "close", not "delete"</b> — closing a group releases its sessions and is undoable; nothing about a group is precious enough to warrant a confirm dialog per row.</p>
+  </div>
+
+  <div class="fig" style="max-width:440px">
+    <div class="u">
+      <div class="u-toast">
+        <span class="u-sw" style="background:#38d9c0"></span>
+        <span class="u-grow u-12">Closed <b>session grouping UX</b></span>
+        <span class="u-acc u-flex u-12" style="gap:6px"><svg class="ic"><use href="#i-undo"/></svg>Undo</span>
+      </div>
+    </div>
+    <p class="cap">The same toast covers auto-reap and manual close, so there is one recovery path to learn.</p>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-blue)">
+  <div class="eyebrow">Sequencing</div>
+  <h2>What to build, in what order</h2>
+  <p class="small" style="margin-bottom:4px">Ordered by payoff per unit of work. Each phase ships alone and leaves the console coherent.</p>
+
+  <div class="phase">
+    <div class="p">P1</div>
+    <div>
+      <h3>Launcher layout and destination</h3>
+      <p>Pass the pending group in as a real prop and render the destination strip. Swap the target card stack for the machine picker. Fold attributed variants into their parent card. Delete the Codex sign-in card. No schema change; no new concepts.</p>
+      <div class="files">TerminalLauncher.tsx · Workspace.tsx · port MachinePicker from system-monitor</div>
+      <div class="badges"><span class="badge hi">highest payoff / effort</span><span class="badge">UI only</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="p">P2</div>
+    <div>
+      <h3>Group hygiene</h3>
+      <p>Split the assign picker out of the manager and reuse the destination control for it. Rename and recolour in place from the group header. Auto-close empty groups with an undo toast. Multi-select and an Empty section in the manager.</p>
+      <div class="files">useGroupActions.ts · ManageGroupsDrawer.tsx · GroupContextMenu.tsx · TabContextMenu.tsx</div>
+      <div class="badges"><span class="badge">UI only</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="p">P3</div>
+    <div>
+      <h3>Handoff — manual only</h3>
+      <p>The verb, with no detection anywhere. A composer reachable from the pane header and the file viewer that sends text to one or more sessions in the group. Works on hand-made groups, so it lands before roles exist.</p>
+      <div class="files">MessagesFileViewer.tsx header actions · TerminalHeader.tsx · existing submitToActiveTerminal seam</div>
+      <div class="badges"><span class="badge hi">biggest daily win</span><span class="badge">UI only</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="p">P4</div>
+    <div>
+      <h3>Waiting roles</h3>
+      <p>The one real new primitive: a pane record holding a label and a command with no session id yet, rendered dashed and started on click. Handoff gains "start it first" as a case.</p>
+      <div class="files">api/internal/workspace types + store · useWorkspaceStore.ts · SessionSidebar.tsx · TabBar.tsx</div>
+      <div class="badges"><span class="badge">schema change</span><span class="badge">unlocks P5 · P6</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="p">P5</div>
+    <div>
+      <h3>Templates</h3>
+      <p>Server-stored role sets, the group mode in the launcher, the settings manager, and <em class="q">Save group as template</em>. Storage modelled on the shortcuts service.</p>
+      <div class="files">new templates service · TerminalLauncher group mode · settings panel</div>
+      <div class="badges"><span class="badge">schema change</span></div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="p">P6</div>
+    <div>
+      <h3>Capture rules</h3>
+      <p>Deliberately last. Suggestion is the only part that can be wrong in a way that annoys you daily, and it is worth building against real handoff usage rather than guessing. Ships with example rules, all deletable.</p>
+      <div class="files">rules store · useConversationStore scan · Messages suggestion chip</div>
+      <div class="badges"><span class="badge">build on real usage</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="rail" style="--rail: var(--g-orange)">
+  <div class="eyebrow">Your call</div>
+  <h2>Four decisions I would want from you</h2>
+
+  <div class="decide">
+    <h4>Is "role" the right word?</h4>
+    <p>It carries no ordering, which is what lets a log watcher and an implementer coexist. The alternatives imply sequence (<em class="q">step</em>, <em class="q">stage</em>) or are jargon (<em class="q">slot</em>, <em class="q">seat</em>).</p>
+    <p class="rec"><b>I'd keep "role".</b> It also gives waiting roles a natural read — an unfilled position, not a broken session.</p>
+  </div>
+
+  <div class="decide">
+    <h4>Does the prompt live on the sender or the receiver?</h4>
+    <p>On the receiver, any session can hand off to the Critic and get the Critic's framing — handoffs compose. On the sender, you get per-source wording but N×M configuration.</p>
+    <p class="rec"><b>Receiver, with a sender override.</b> The composer is always editable, so the override costs nothing and the default stays composable.</p>
+  </div>
+
+  <div class="decide">
+    <h4>Should closing the last session close its group?</h4>
+    <p>Auto-close with undo keeps the manager clean, but can surprise you when you deliberately pre-create a group to fill later.</p>
+    <p class="rec"><b>Auto-close, with an exemption while any role is still waiting.</b> A half-started group is exactly the case where an empty group is intentional, and roles let the console tell the difference.</p>
+  </div>
+
+  <div class="decide">
+    <h4>Is P6 worth building at all?</h4>
+    <p>Once handoff is one click from the file viewer you already open, detection saves you a menu, not a workflow. It may not earn its complexity.</p>
+    <p class="rec"><b>Ship P1–P5, then judge.</b> If you find yourself reaching for the handoff button reflexively at the same moment every time, that moment is worth automating. If not, the rules engine is complexity you avoided.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Read against branch <span class="mono">agi</span> · scenarios/web-console · 2026-08-27. Grounded in <span class="mono">TerminalLauncher.tsx</span>, <span class="mono">Workspace.tsx</span>, <span class="mono">ManageGroupsDrawer.tsx</span>, <span class="mono">useGroupActions.ts</span>, <span class="mono">MessagesFileViewer.tsx</span>, <span class="mono">useFilePreviewController.ts</span>, <span class="mono">api/internal/workspace</span>, and system-monitor's <span class="mono">MachinePicker.tsx</span>. Accent and group colours are the console's own tokens; mockups render in its default dark chrome and stay dark on either page theme.</p>
+</footer>
+
+</div>

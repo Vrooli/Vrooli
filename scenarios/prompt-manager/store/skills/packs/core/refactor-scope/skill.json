@@ -1,21 +1,28 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "refactor-scope",
-  "name": "Refactor Scope",
+  "createdAt": "2026-02-03T00:00:00Z",
   "description": "Preserve behavior, no new features",
+  "entry": "SKILL.md",
+  "icon": "shield",
+  "id": "refactor-scope",
+  "kind": "skill",
   "modes": [
     "scope"
   ],
+  "name": "Refactor Scope",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 29,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "scope",
     "refactor",
     "constraints"
   ],
-  "icon": "shield",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 29,
-  "createdAt": "2026-02-03T00:00:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

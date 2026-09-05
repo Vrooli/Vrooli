@@ -1,0 +1,376 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.sessions;
+
+import "web-console/v1/shared/target.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions;sessions_v1";
+
+// =============================================================================
+// SESSIONS DOMAIN — terminal session lifecycle, expiration policy, and
+//                   persistent-session recovery
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain sessions
+// @stability stable
+//
+// Wire contract for SessionsService. Mirrors nine legacy REST routes:
+//   POST   /api/v1/sessions                       -> Create
+//   GET    /api/v1/sessions                       -> List
+//   GET    /api/v1/sessions/recoverable           -> ListRecoverable
+//   DELETE /api/v1/sessions/recoverable/{id}      -> DismissRecoverable
+//   POST   /api/v1/sessions/{id}/recover          -> Recover
+//   GET    /api/v1/sessions/{id}                  -> Get
+//   DELETE /api/v1/sessions/{id}                  -> Delete
+//   GET    /api/v1/sessions/{id}/policy           -> GetPolicy
+//   PUT    /api/v1/sessions/{id}/policy           -> UpdatePolicy
+//
+// The terminal WebSocket (/api/v1/sessions/{id}/ws) and multipart upload
+// (/api/v1/sessions/{id}/upload) are NOT part of this Service — they stay on
+// raw HTTP routes registered separately by main.go.
+//
+// X-Idempotency-Key continues to flow through Connect request headers; the
+// handler reads it via req.Header().
+//
+// Consumed by:
+//   - API: handlers/sessions/connect_handler.go
+//   - UI:  ui/src/api/sessions.ts
+//   - CLI: cli/domains/session/register.go
+// =============================================================================
+
+service SessionsService {
+  rpc Create(CreateRequest) returns (CreateResponse);
+  rpc List(ListRequest) returns (ListResponse);
+  rpc ListArchived(ListArchivedRequest) returns (ListArchivedResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Archive(ArchiveRequest) returns (ArchiveResponse);
+  rpc Unarchive(UnarchiveRequest) returns (UnarchiveResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc ListRecoverable(ListRecoverableRequest) returns (ListRecoverableResponse);
+  rpc DismissRecoverable(DismissRecoverableRequest) returns (DismissRecoverableResponse);
+  rpc Recover(RecoverRequest) returns (RecoverResponse);
+  // Reopen is the archive-facing name for the proven Recover workflow. It
+  // preserves the same idempotency header and result contract.
+  rpc Reopen(ReopenRequest) returns (ReopenResponse);
+  rpc GetArchiveRetention(GetArchiveRetentionRequest) returns (GetArchiveRetentionResponse);
+  rpc PruneArchive(PruneArchiveRequest) returns (PruneArchiveResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Shared types
+// -----------------------------------------------------------------------------
+
+// SessionOrigin records who opened a session, so the UI can separate
+// human-opened tabs from sessions launched by agents or remote clients.
+//
+// Create normalizes SESSION_ORIGIN_UNSPECIFIED to SESSION_ORIGIN_PROGRAMMATIC:
+// every first-party UI client sets SESSION_ORIGIN_UI explicitly, so an
+// origin-less create can only have come from a programmatic caller. Rows that
+// predate this field are backfilled to SESSION_ORIGIN_UI (the historical
+// sessions were all opened from the web UI).
+enum SessionOrigin {
+  SESSION_ORIGIN_UNSPECIFIED = 0;
+  SESSION_ORIGIN_UI = 1;
+  SESSION_ORIGIN_PROGRAMMATIC = 2;
+  SESSION_ORIGIN_REMOTE = 3;
+}
+
+// ExpirationPolicy controls when a session ends. mode is one of
+// "never" | "preset" | "custom"; duration is Go-style "1h30m" only when
+// mode is "custom".
+message ExpirationPolicy {
+  string mode = 1;
+  string duration = 2;
+}
+
+// Session is the wire shape returned by Create/List/Get.
+message Session {
+  string id = 1;
+  string shell = 2;
+  string created_at = 3;
+  int32 cols = 4;
+  int32 rows = 5;
+  string backend = 6; // "persistent" | "ephemeral"
+  bool survives_restart = 7;
+  ExpirationPolicy policy = 8;
+	bool recovered = 10;
+	SessionOrigin origin = 11;
+	string owner = 12; // free-form provenance tag, e.g. "agent-manager"
+	string display_label = 13; // human-facing label for the sidebar
+  // True when a recovered Claude pane has terminal output but no new tracked
+  // conversation event after the recovery grace period.
+  bool tracking_degraded = 14;
+  // Present for sessions hosted by a remote target. Safe node metadata only;
+  // credentials and transport proofs never cross this boundary.
+  vrooli.web_console.v1.shared.Target target = 15;
+}
+
+// RecoverableSession describes an awaiting_recovery row.
+message RecoverableSession {
+  string id = 1;
+  string backend = 2;
+  string shell = 3;
+  int32 cols = 4;
+  int32 rows = 5;
+  string created_at = 6;
+  string orphaned_at = 7;
+  string last_activity_at = 8;
+  string agent_type = 9; // "none" | "codex" | "claude"
+  string agent_session_id = 10;
+  string launch_command = 11;
+  string cwd = 12;
+  string last_rollout_path = 13;
+  bool recoverable = 14;
+  string not_recoverable_reason = 15;
+  string pane_name = 16;
+  string header_color = 17;
+  string group_name = 18;
+}
+
+// -----------------------------------------------------------------------------
+// Create
+// -----------------------------------------------------------------------------
+
+message CreateRequest {
+  string shell = 1;
+  int32 cols = 2;
+  int32 rows = 3;
+  string backend = 4;
+  ExpirationPolicy policy = 5;
+  bool has_policy = 6;
+  string launch_command = 7;
+  string agent_type = 8;
+  SessionOrigin origin = 9;
+  string owner = 10; // free-form provenance tag, e.g. "agent-manager"
+  string display_label = 11; // human-facing label for the sidebar
+  // execute_launch_command asks the server-side launch path to paste
+  // launch_command into the fresh session's stdin. Local sessions receive it
+  // immediately after create; remote sessions receive it exactly once when
+  // their first terminal transport attaches. The store does not persist this
+  // intent.
+  bool execute_launch_command = 12;
+  // Empty creates a local session. Otherwise this is a target catalog id.
+  string target_id = 13;
+  string working_dir = 14;
+  // For persistent sessions, choose whether tmux captures mouse input for
+  // this pane. The default is false so ordinary scrolling stays local.
+  bool tmux_mouse_mode = 15;
+}
+
+message CreateResponse {
+  Session session = 1;
+}
+
+// -----------------------------------------------------------------------------
+// List / Get / Delete
+// -----------------------------------------------------------------------------
+
+message ListRequest {}
+
+message ListResponse {
+  repeated Session sessions = 1;
+  // recovery reports startup session-recovery progress. Reattaching surviving
+  // tmux sessions runs asynchronously so the API can serve immediately, so a
+  // client that lists during recovery may see fewer sessions than will exist
+  // once recovery finishes. When in_progress is true the UI should show an
+  // honest "sessions still recovering" indicator instead of treating the list
+  // as complete.
+  RecoveryStatus recovery = 2;
+}
+
+enum ArchiveRestoreState {
+  ARCHIVE_RESTORE_STATE_UNSPECIFIED = 0;
+  ARCHIVE_RESTORE_STATE_REOPENABLE = 1;
+  ARCHIVE_RESTORE_STATE_READ_ONLY = 2;
+  ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE = 3;
+}
+
+message ArchivedSession {
+  string id = 1;
+  string archived_at = 2;
+  string created_at = 3;
+  string agent_type = 4;
+  string agent_session_id = 5;
+  string cwd = 6;
+  string pane_name = 7;
+  string header_color = 8;
+  string group_name = 9;
+  int64 message_count = 10;
+  ArchiveRestoreState restore_state = 11;
+  string restore_state_reason = 12;
+  // True when this entry is a crash orphan awaiting an explicit recovery decision.
+  bool awaiting_recovery = 13;
+}
+
+message ListArchivedRequest {}
+
+message ListArchivedResponse {
+  repeated ArchivedSession sessions = 1;
+  int32 total = 2;
+}
+
+// RecoveryStatus is a snapshot of startup persistent-session recovery.
+message RecoveryStatus {
+  bool in_progress = 1;
+  // total is the number of persisted (detached) sessions recovery will attempt
+  // to reattach. Adopted orphan sessions are extra and not counted here.
+  int32 total = 2;
+  int32 recovered = 3;
+  int32 awaiting_recovery = 4;
+  int32 adopted = 5;
+  // Unix-millis timestamps; completed_at is 0 while in_progress.
+  int64 started_at_unix_ms = 6;
+  int64 completed_at_unix_ms = 7;
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  Session session = 1;
+}
+
+message ArchiveRequest {
+  string id = 1;
+}
+
+message ArchiveResponse {
+  string id = 1;
+}
+
+message UnarchiveRequest {
+  string id = 1;
+}
+
+message UnarchiveResponse {
+  string id = 1;
+}
+
+message DeleteRequest {
+  string id = 1;
+}
+
+message DeleteResponse {}
+
+// -----------------------------------------------------------------------------
+// Recovery
+// -----------------------------------------------------------------------------
+
+message ListRecoverableRequest {}
+
+message ListRecoverableResponse {
+  repeated RecoverableSession sessions = 1;
+}
+
+message DismissRecoverableRequest {
+  string id = 1;
+}
+
+message DismissRecoverableResponse {
+  string id = 1;
+}
+
+message RecoverRequest {
+  string id = 1;
+}
+
+message RecoverResponse {
+  string old_session_id = 1;
+  string new_session_id = 2;
+  string agent_type = 3;
+  string command_sent = 4;
+  bool codex_home_copied = 5;
+}
+
+message ReopenRequest {
+  string id = 1;
+}
+
+message ReopenResponse {
+  string old_session_id = 1;
+  string new_session_id = 2;
+  string agent_type = 3;
+  string command_sent = 4;
+  bool codex_home_copied = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Archive retention
+// -----------------------------------------------------------------------------
+
+message ArchiveRetentionPolicy {
+  int32 message_less_age_days = 1;
+  int32 agent_home_age_days = 2;
+  int64 max_bytes = 3;
+}
+
+message ArchiveRetentionStats {
+  int64 entry_count = 1;
+  int64 message_count = 2;
+  int64 transcript_bytes = 3;
+  int64 agent_home_bytes = 4;
+  int64 total_bytes = 5;
+}
+
+message GetArchiveRetentionRequest {}
+
+message GetArchiveRetentionResponse {
+  ArchiveRetentionPolicy policy = 1;
+  ArchiveRetentionStats stats = 2;
+}
+
+message PruneArchiveRequest {
+  // False is the safe default and only reports planned actions.
+  bool apply = 1;
+}
+
+message ArchivePruneAction {
+  string session_id = 1;
+  // "agent_home" or "transcript".
+  string kind = 2;
+  int64 bytes = 3;
+  bool applied = 4;
+}
+
+message PruneArchiveResponse {
+  bool dry_run = 1;
+  repeated ArchivePruneAction actions = 2;
+  int64 reclaimed_bytes = 3;
+  ArchiveRetentionStats before = 4;
+  ArchiveRetentionStats after = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Policy
+// -----------------------------------------------------------------------------
+
+message GetPolicyRequest {
+  string id = 1;
+}
+
+// PolicyView bundles the policy with derived expiry info. expires_at and
+// ttl_seconds are only present when has_expiry = true (mode != "never").
+message PolicyView {
+  string session_id = 1;
+  ExpirationPolicy policy = 2;
+  string expires_at = 3;
+  double ttl_seconds = 4;
+  bool has_expiry = 5;
+}
+
+message GetPolicyResponse {
+  PolicyView policy = 1;
+}
+
+message UpdatePolicyRequest {
+  string id = 1;
+  ExpirationPolicy policy = 2;
+}
+
+message UpdatePolicyResponse {
+  PolicyView policy = 1;
+}

@@ -1,0 +1,2142 @@
+<title>Declared, Not Proven</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+
+<style>
+:root {
+  --ground: #EDF0F2;
+  --surface: #FFFFFF;
+  --surface-2: #F5F7F8;
+  --ink: #12191E;
+  --ink-2: #35434E;
+  --muted: #5C6A76;
+  --line: #D2DADF;
+  --line-strong: #B3BFC7;
+  --accent: #14556B;
+  --accent-soft: #E1EDF1;
+  --proven: #1B6F49;
+  --proven-soft: #DCEDE4;
+  --staged: #9A6410;
+  --staged-soft: #F5E9D5;
+  --declared: #6B7885;
+  --declared-soft: #E4E8EB;
+  --gap: #9E2F36;
+  --gap-soft: #F5E0E1;
+
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --wide: 1120px;
+  --prose: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0D1317;
+    --surface: #151E24;
+    --surface-2: #1B262D;
+    --ink: #E3EAEE;
+    --ink-2: #BDC9D1;
+    --muted: #8B9AA5;
+    --line: #2A3841;
+    --line-strong: #3C4E59;
+    --accent: #63B4CE;
+    --accent-soft: #16323C;
+    --proven: #57B387;
+    --proven-soft: #14301F;
+    --staged: #D4A051;
+    --staged-soft: #33260F;
+    --declared: #8B98A4;
+    --declared-soft: #232D34;
+    --gap: #E0757C;
+    --gap-soft: #351A1C;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0D1317;
+  --surface: #151E24;
+  --surface-2: #1B262D;
+  --ink: #E3EAEE;
+  --ink-2: #BDC9D1;
+  --muted: #8B9AA5;
+  --line: #2A3841;
+  --line-strong: #3C4E59;
+  --accent: #63B4CE;
+  --accent-soft: #16323C;
+  --proven: #57B387;
+  --proven-soft: #14301F;
+  --staged: #D4A051;
+  --staged-soft: #33260F;
+  --declared: #8B98A4;
+  --declared-soft: #232D34;
+  --gap: #E0757C;
+  --gap-soft: #351A1C;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 28px 100px;
+}
+
+.prose { max-width: var(--prose); }
+
+p { margin: 0 0 1em; }
+strong { font-weight: 600; color: var(--ink); }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.08em 0.34em;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+.masthead-inner {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 56px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+}
+.eyebrow .tick { color: var(--line-strong); }
+h1 {
+  font-size: clamp(38px, 6.4vw, 66px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  max-width: 16ch;
+}
+.deck {
+  font-size: clamp(18px, 2.1vw, 21px);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 60ch;
+  margin: 0;
+}
+.stamp {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- sections ---------- */
+
+section { padding-top: 68px; }
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--ink);
+}
+.sec-tag {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  flex: none;
+}
+.sec-head h2 {
+  font-size: clamp(23px, 3vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.017em;
+}
+.sec-intro { margin-top: 22px; }
+
+h3 {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  margin: 38px 0 12px;
+}
+
+/* ---------- reading panel ---------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 28px;
+  margin: 26px 0;
+}
+
+.bars { display: flex; flex-direction: column; gap: 20px; }
+.bar-row { display: flex; flex-direction: column; gap: 7px; }
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bar-label .verdict {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+.bar {
+  display: flex;
+  height: 34px;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  min-width: 0;
+  overflow: hidden;
+}
+.seg-proven { background: var(--proven); }
+.seg-staged { background: var(--staged); }
+.seg-declared { background: var(--declared); }
+.seg-undeclared { background: var(--line-strong); color: var(--ink); }
+.seg-ineligible {
+  background: repeating-linear-gradient(-45deg, var(--line-strong) 0 5px, var(--line) 5px 10px);
+  color: var(--ink);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.legend span { display: flex; align-items: center; gap: 7px; }
+.swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+
+.callout {
+  margin: 26px 0;
+  padding: 20px 24px;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 3px 3px 0;
+}
+.callout p { margin: 0; }
+.callout p + p { margin-top: 0.7em; }
+
+/* ---------- stat strip ---------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 26px 0;
+}
+.stat { background: var(--surface); padding: 18px 20px; }
+.stat .n {
+  font-family: var(--f-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  display: block;
+}
+.stat .k {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+  margin-top: 6px;
+  line-height: 1.45;
+}
+.stat.is-gap .n { color: var(--gap); }
+.stat.is-proven .n { color: var(--proven); }
+
+/* ---------- tables ---------- */
+
+.scroller { overflow-x: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-family: var(--f-mono); font-size: 13px; }
+caption {
+  caption-side: top;
+  text-align: left;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 14px 18px 0;
+}
+th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  background: var(--surface-2);
+}
+tbody tr:last-child td { border-bottom: none; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+td.wide { font-family: var(--f-body); font-size: 15px; line-height: 1.5; min-width: 26ch; }
+
+/* ---------- pills ---------- */
+
+.pill {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.p-proven { background: var(--proven-soft); color: var(--proven); }
+.p-staged { background: var(--staged-soft); color: var(--staged); }
+.p-declared { background: var(--declared-soft); color: var(--declared); }
+.p-gap { background: var(--gap-soft); color: var(--gap); }
+.p-accent { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- findings ---------- */
+
+.findings { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 26px 0; }
+.finding { background: var(--surface); padding: 22px 24px; display: grid; grid-template-columns: 74px 1fr; gap: 4px 20px; }
+.finding .id {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  padding-top: 3px;
+}
+.finding h4 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  line-height: 1.4;
+}
+/* The pill sits inline so a heading containing <code> stays one sentence.
+   A flex container here would turn every text node into its own flex item. */
+.finding h4 .pill { margin-left: 8px; vertical-align: 2px; }
+.findings.decided .id { color: var(--proven); }
+.findings.decided .finding { border-left: 3px solid var(--proven-soft); }
+.finding .ruling {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--proven-soft);
+  border-radius: 3px;
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+.finding .ruling b {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--proven);
+  display: block;
+  margin-bottom: 4px;
+}
+.finding .body { grid-column: 2; }
+.finding .body p { margin: 8px 0 0; font-size: 16px; line-height: 1.55; }
+.finding .body ul { margin: 10px 0 0; padding-left: 20px; font-size: 15.5px; line-height: 1.55; }
+.finding .body li { margin-bottom: 5px; }
+.finding .ev {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  word-break: break-word;
+}
+.finding .ev b { color: var(--ink-2); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10.5px; }
+
+@media (max-width: 620px) {
+  .finding { grid-template-columns: 1fr; }
+  .finding .body { grid-column: 1; }
+}
+
+/* ---------- pipeline ---------- */
+
+.pipe {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 26px 0;
+}
+.stage {
+  background: var(--surface);
+  padding: 16px 22px;
+  display: grid;
+  grid-template-columns: 130px 1fr 128px;
+  gap: 6px 20px;
+  align-items: center;
+}
+.stage .sname { font-family: var(--f-mono); font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; }
+.stage .sdesc { font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.stage .sstate { text-align: right; }
+.stage.is-blocked { background: var(--gap-soft); }
+.stage.is-blocked .sdesc { color: var(--ink); }
+@media (max-width: 680px) {
+  .stage { grid-template-columns: 1fr; }
+  .stage .sstate { text-align: left; }
+}
+
+/* ---------- roadmap ---------- */
+
+.roadmap { display: flex; flex-direction: column; gap: 14px; margin: 26px 0; counter-reset: stage; }
+.step {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 4px 18px;
+}
+.step::before {
+  counter-increment: stage;
+  content: counter(stage, decimal-leading-zero);
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+.step h4 { font-size: 17px; font-weight: 600; letter-spacing: -0.008em; }
+.step .body { grid-column: 2; }
+.step .body p { margin: 8px 0 0; font-size: 16px; line-height: 1.55; }
+.step ul { margin: 10px 0 0; padding-left: 20px; font-size: 15.5px; line-height: 1.55; }
+.step li { margin-bottom: 5px; }
+.step .why {
+  margin-top: 12px;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.step .why b { color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.07em; font-size: 10.5px; }
+
+.tracks { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin: 30px 0; align-items: start; }
+@media (max-width: 900px) { .tracks { grid-template-columns: 1fr; } }
+
+.track { display: flex; flex-direction: column; gap: 12px; }
+.track-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--track);
+}
+.track-head .tk {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--track);
+  flex: none;
+}
+.track-head h3 { font-size: 18px; font-weight: 600; margin: 0; }
+.track .roadmap { margin: 0; }
+.track .step { border-left-color: var(--track); }
+.track .step::before { color: var(--track); }
+.track-note {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0;
+}
+.t-a { --track: var(--accent); }
+.t-b { --track: var(--staged); }
+
+.converge {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--proven);
+  border-radius: 0 0 4px 4px;
+  padding: 26px 28px;
+  margin: 30px 0 0;
+}
+.converge h3 { margin: 0 0 4px; font-size: 20px; }
+.converge .lede { font-size: 16px; color: var(--ink-2); margin: 0 0 16px; max-width: 66ch; }
+.gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  background: var(--proven-soft);
+  border-radius: 3px;
+}
+.gates .glabel {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--proven);
+  width: 100%;
+  margin-bottom: 2px;
+}
+.gates code { background: var(--surface); border-color: var(--line); }
+.converge ol { margin: 0; padding-left: 22px; font-size: 16px; line-height: 1.6; }
+.converge ol li { margin-bottom: 9px; }
+
+.protocol {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gap);
+  border-radius: 0 4px 4px 0;
+  padding: 24px 28px;
+  margin: 26px 0;
+}
+.protocol h4 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+.protocol > p { font-size: 16px; color: var(--ink-2); max-width: 66ch; }
+.protocol ol { margin: 16px 0 0; padding-left: 0; list-style: none; counter-reset: rule; display: flex; flex-direction: column; gap: 12px; }
+.protocol ol li {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 14px;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.protocol ol li::before {
+  counter-increment: rule;
+  content: "R" counter(rule);
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gap);
+  padding-top: 4px;
+}
+
+/* ---------- misc ---------- */
+
+ul.plain { list-style: none; padding: 0; margin: 18px 0; display: flex; flex-direction: column; gap: 10px; }
+ul.plain li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.footer {
+  margin-top: 76px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line-strong);
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="eyebrow">
+      <span>Vrooli · Portability Audit</span>
+      <span class="tick">/</span>
+      <span>24 Aug 2026</span>
+      <span class="tick">/</span>
+      <span>independent read + live instrument</span>
+    </div>
+    <h1>Declared, Not Proven</h1>
+    <p class="deck">
+      The capability ledger is honest about what the repository <em>says</em>. It has no
+      vocabulary for what has actually <em>run</em>. Off Linux, that difference is the
+      entire remaining portability gap — and it is smaller than it looks. The foundation
+      underneath it needs more work than the gap does.
+    </p>
+    <div class="stamp">
+      <span>manifest root <code>/home/matthalloran8/Vrooli</code></span>
+      <span>114 manifests read</span>
+      <span>ledger + conformance + fleet + hygiene executed live</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ THE READING ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FT-01</span>
+      <h2>The reading</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        <code>vrooli capability ledger</code> resolves 45 capabilities against 3 host OSes
+        (and, nominally, 2 architectures). The situation column looks encouraging: 33 of 45
+        capabilities are <span class="pill p-proven">built_everywhere</span>. The
+        qualification column — how much real-world proof each cell carries — tells a
+        different story, and it is the one that matters.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="bars">
+
+        <div class="bar-row">
+          <div class="bar-label">
+            <span>Linux</span>
+            <span class="verdict">36 of 90 cells proven on hardware</span>
+          </div>
+          <div class="bar" role="img" aria-label="Linux: 36 qualified, 52 unqualified, 2 undeclared, of 90 cells">
+            <div class="seg seg-proven" style="width:40.00%">36</div>
+            <div class="seg seg-declared" style="width:57.78%">52</div>
+            <div class="seg seg-undeclared" style="width:2.22%"></div>
+          </div>
+        </div>
+
+        <div class="bar-row">
+          <div class="bar-label">
+            <span>macOS</span>
+            <span class="verdict">0 of 90 cells proven on hardware</span>
+          </div>
+          <div class="bar" role="img" aria-label="macOS: 0 qualified, 16 build-verified, 60 unqualified, 10 undeclared, 4 ineligible, of 90 cells">
+            <div class="seg seg-staged" style="width:17.78%">16</div>
+            <div class="seg seg-declared" style="width:66.67%">60</div>
+            <div class="seg seg-undeclared" style="width:11.11%">10</div>
+            <div class="seg seg-ineligible" style="width:4.44%"></div>
+          </div>
+        </div>
+
+        <div class="bar-row">
+          <div class="bar-label">
+            <span>Windows</span>
+            <span class="verdict">0 of 90 cells proven on hardware</span>
+          </div>
+          <div class="bar" role="img" aria-label="Windows: 0 qualified, 18 build-verified, 52 unqualified, 14 undeclared, 6 ineligible, of 90 cells">
+            <div class="seg seg-staged" style="width:20.00%">18</div>
+            <div class="seg seg-declared" style="width:57.78%">52</div>
+            <div class="seg seg-undeclared" style="width:15.56%">14</div>
+            <div class="seg seg-ineligible" style="width:6.67%">6</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--proven)"></i> qualified — ran on real hardware</span>
+        <span><i class="swatch" style="background:var(--staged)"></i> build_verified — compiles, never ran</span>
+        <span><i class="swatch" style="background:var(--declared)"></i> unqualified — wired, unproven</span>
+        <span><i class="swatch" style="background:var(--line-strong)"></i> undeclared</span>
+        <span><i class="swatch seg-ineligible"></i> ineligible — scoped out</span>
+      </div>
+    </div>
+
+    <div class="callout prose">
+      <p>
+        <strong>Zero cells on macOS or Windows carry <code>qualified</code>.</strong>
+        Not one. Every non-Linux claim in the repository rests on cross-compilation,
+        fixtures, or an author's assertion. That is not dishonest — the manifests say so
+        in their own evidence strings — but it means the 33 <code>built_everywhere</code>
+        rows measure <em>declaration coverage</em>, and reading them as portability
+        progress overstates it by exactly the distance between <code>unqualified</code>
+        and <code>qualified</code>.
+      </p>
+    </div>
+
+    <div class="stats">
+      <div class="stat is-proven"><span class="n">598</span><span class="k">cross-compile targets, 0 findings</span></div>
+      <div class="stat"><span class="n">45</span><span class="k">capabilities in vocabulary</span></div>
+      <div class="stat is-gap"><span class="n">8</span><span class="k">scenarios blocked on ≥1 OS</span></div>
+      <div class="stat is-gap"><span class="n">4</span><span class="k">CI jobs that run off Linux</span></div>
+      <div class="stat is-gap"><span class="n">0</span><span class="k">scenario suites ever run off Linux</span></div>
+    </div>
+
+    <div class="prose">
+      <p>
+        The conformance gate is real and it passes: <code>vrooli capability conformance</code>
+        cross-compiled 598 module × OS targets for darwin and windows in 70 seconds with zero
+        findings. CI does run four genuine non-Linux jobs — desktop runtime, credential store,
+        the encrypted-store override, and the Unit Health executor — and the credential job
+        even fails loudly if its recovery drill <em>skips</em>. What no job does is run
+        <code>vrooli setup</code>, a scenario lifecycle, or a scenario test suite on a macOS or
+        Windows runner. That absence is the whole reason the green band is empty.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ VALIDATION ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FT-02</span>
+      <h2>Is <code>platform_status</code> validated, or taken as-is?</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        Your direct question, and the answer has three layers. Two of them are real gates.
+        The third — the one that would make a claim mean something — does not exist.
+      </p>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <caption>What actually checks a platform claim</caption>
+        <thead>
+          <tr><th>Layer</th><th>What it enforces</th><th>Verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>JSON&nbsp;Schema</td>
+            <td class="wide">The token must appear in an enum in the manifest's schema.</td>
+            <td><span class="pill p-gap">Drifted</span></td>
+          </tr>
+          <tr>
+            <td>Resolver</td>
+            <td class="wide"><code>ParsePlatformStatus</code> rejects any token outside the 6-value Go vocabulary and returns a terminal <code>status_invalid</code> — never a silent downgrade.</td>
+            <td><span class="pill p-proven">Solid</span></td>
+          </tr>
+          <tr>
+            <td>Conformance</td>
+            <td class="wide">Cross-compiles the Go module behind each claim for the OS it claims. Proves the code <em>builds</em> there.</td>
+            <td><span class="pill p-staged">Partial</span></td>
+          </tr>
+          <tr>
+            <td>Evidence</td>
+            <td class="wide">Nothing requires a recorded real-host run before a manifest may claim <code>supported</code>.</td>
+            <td><span class="pill p-gap">Absent</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout prose">
+      <p>
+        <strong>The load-bearing defect: <code>"supported"</code> maps directly to
+        <code>QualificationQualified</code></strong> — whose own definition is
+        <em>"runs on real hardware of this platform"</em> — with no evidence requirement of
+        any kind. Typing one word in a manifest earns the top rung of the honesty ladder.
+        54 resource platform entries already say <code>supported</code>.
+      </p>
+      <p>
+        The honesty ladder is well designed. It just has no ratchet.
+      </p>
+    </div>
+
+    <h3>Three schemas, three different enums</h3>
+    <div class="prose">
+      <p>
+        Principle 6 of your own portability model says <em>"one vocabulary, derived everywhere
+        else — a second hand-maintained list is a drift source."</em> That principle is enforced
+        for capability <em>names</em> and violated for platform <em>statuses</em>, right now:
+      </p>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <caption>Platform-status vocabularies currently in the tree</caption>
+        <thead>
+          <tr><th>Source</th><th>Values</th><th class="num">Count</th><th>Missing vs Go</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>internal/deployability</code></td><td>supported · build-verified · experimental · unqualified · partial · unsupported</td><td class="num">6</td><td>— canonical</td></tr>
+          <tr><td><code>common.schema.json</code></td><td>all six</td><td class="num">6</td><td>— matches</td></tr>
+          <tr><td><code>service.schema.json</code></td><td>supported · build-verified · experimental · unqualified · unsupported</td><td class="num">5</td><td><code>partial</code></td></tr>
+          <tr><td><code>resource.schema.json</code></td><td>supported · build-verified · partial · unsupported</td><td class="num">4</td><td><code>experimental</code>, <code>unqualified</code></td></tr>
+          <tr><td><code>docs/reference/platform-support.md</code></td><td>supported · build-verified · experimental · unqualified</td><td class="num">4</td><td><code>partial</code>, <code>unsupported</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>
+        <code>common.schema.json</code> already holds the correct six. The other two simply
+        don't <code>$ref</code> it. The existing drift gate
+        (<code>capabilityvocabulary_test.go</code>) covers only the capability-<em>name</em>
+        enum, and only in <code>safeguard.schema.json</code> and <code>tool.schema.json</code>
+        — it never touches platform status, and never touches the resource or service schemas
+        at all.
+      </p>
+    </div>
+
+    <h3>Every evidence string in the fleet is boilerplate</h3>
+
+    <div class="stats">
+      <div class="stat"><span class="n">288</span><span class="k">platform_status entries across tools + safeguards</span></div>
+      <div class="stat is-gap"><span class="n">3</span><span class="k">distinct evidence strings among them</span></div>
+      <div class="stat is-gap"><span class="n">0</span><span class="k">carrying real host evidence</span></div>
+    </div>
+
+    <div class="prose">
+      <p>
+        146 tool entries read <em>"Manifest-declared applicability; no host-sampled
+        qualification recorded."</em> 45 safeguard entries read <em>"A mechanism exists but no
+        implementation is wired for this host OS."</em> 19 read <em>"No implementation is
+        declared for this host OS."</em> That is the complete set. The <code>evidence</code>
+        field was bulk-generated and has never been filled in — which is honest, but it means
+        the field currently costs 288 lines of manifest and carries zero bits of information.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ STRUCTURE ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FT-03</span>
+      <h2>Four portability systems, two claiming to be canonical</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        This is the deepest structural problem, and it explains most of the smaller ones.
+        Portability facts are declared and aggregated in four unconnected places.
+      </p>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <caption>Parallel portability sources</caption>
+        <thead>
+          <tr><th>System</th><th>Declared in</th><th>Read by</th><th>Reaches the ledger?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Capabilities</td>
+            <td>67 tools · 29 safeguards · 3 scenarios</td>
+            <td><code>internal/deployability</code></td>
+            <td><span class="pill p-proven">Yes</span></td>
+          </tr>
+          <tr>
+            <td>Resources</td>
+            <td>29 <code>resource.json</code></td>
+            <td>scenario-dependency-analyzer</td>
+            <td><span class="pill p-gap">No — 0 of 29 declare a capability</span></td>
+          </tr>
+          <tr>
+            <td>Support matrix</td>
+            <td><code>docs/reference/platform-support.md</code></td>
+            <td>humans only</td>
+            <td><span class="pill p-gap">No — hand-maintained</span></td>
+          </tr>
+          <tr>
+            <td>Run evidence</td>
+            <td><code>docs/reference/cross-platform-effort/</code></td>
+            <td>humans only</td>
+            <td><span class="pill p-gap">No — prose files</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout prose">
+      <p>
+        <code>PORTABILITY-MODEL.md</code> says the capability vocabulary plus co-located
+        declarations are the single source. <code>platform-support.md</code> opens with
+        <em>"This is the canonical source for Vrooli platform capability claims."</em>
+        <strong>Both cannot be true.</strong> The markdown matrix is richer, more honest and
+        more useful than the ledger today — it distinguishes Intel from Apple Silicon, names
+        exact blockers, and cites operation IDs. It is also entirely manual and drifts the
+        moment anyone edits a manifest.
+      </p>
+    </div>
+
+    <div class="prose">
+      <p>
+        The resolution is not to delete the matrix. It is to recognise that it holds the one
+        thing the ledger structurally cannot represent — <em>recorded evidence of a real run</em>
+        — and to make that a first-class field the ledger reads, rather than a document the
+        ledger competes with.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ FINDINGS ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FT-04</span>
+      <h2>Findings</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        Ordered by how much each one distorts the picture an operator forms. IDs are
+        references, not a sequence.
+      </p>
+    </div>
+
+    <div class="findings">
+
+      <article class="finding">
+        <div class="id">P-01</div>
+        <h4>The architecture axis is decorative <span class="pill p-gap">Misleading</span></h4>
+        <div class="body">
+          <p>
+            The grid resolves 45 capabilities × 3 OS × 2 arch = 270 cells, but
+            <strong>0 of 135 OS-cells differ between amd64 and arm64.</strong> The axis doubles
+            the grid and adds no information. Worse, the human renderer drops the arch column
+            entirely, so <code>portability grid</code> prints every row twice with nothing to
+            distinguish the copies, and <code>ladder status</code> emits duplicate ranked
+            findings numbered 1 and 2.
+          </p>
+          <p>
+            The vocabulary <em>declares</em> <code>"linux/arm64": "no_equivalent_ever"</code>
+            for <code>hardware-error-telemetry</code>, and that cell still resolves
+            <code>implemented / rasdaemon</code> on arm64. Arch policy is honoured only in
+            row-level prose, never in a cell. Apple Silicon — your most likely non-Linux target
+            — has no distinct answer anywhere in the instrument.
+          </p>
+          <div class="ev"><b>Evidence</b> · ledger JSON, 135 OS-cells compared pairwise; <code>.vrooli/capability-vocabulary.json</code> <code>platform_policies</code></div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-02</div>
+        <h4>Conformance proves compilation; nothing measures behaviour <span class="pill p-gap">Blind spot</span></h4>
+        <div class="body">
+          <p>
+            598/598 green is a compiler result. Independently, <strong>29 non-test Go files read
+            <code>/proc</code> or <code>/sys</code> with no <code>runtime.GOOS</code> dispatch and
+            no build tag.</strong> They compile cleanly for Windows and fail or return nothing at
+            runtime. Most are Linux-declared safeguards, legitimately. These are not:
+            <code>internal/hostsession</code>, <code>internal/network/snapshot_parse.go</code>,
+            <code>internal/maintenance/process_snapshot.go</code>,
+            <code>internal/privilegebroker/volume.go</code>,
+            <code>internal/hostreqkit/modules</code>,
+            <code>packages/cli-core/cliutil/agent_context.go</code>, three system-monitor
+            collectors and two vrooli-autoheal checks.
+          </p>
+          <p>
+            There is no axis for <em>"declared implemented, never executed off-host."</em> The
+            ladder's <code>unread</code> is about device sensors, not code paths.
+          </p>
+          <div class="ev"><b>Evidence</b> · 40 non-test files reference procfs/sysfs; 29 lack both a build tag and a <code>runtime.GOOS</code> switch</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-03</div>
+        <h4>A stale Linux-only assertion sits in every scenario CLI <span class="pill p-staged">Debt</span></h4>
+        <div class="body">
+          <p>
+            <code>packages/cli-core/cliutil/agent_context.go:217</code> still reads:
+            <em>"On non-Linux platforms /proc is not available — Vrooli is Linux-only per
+            CLAUDE.md, so this returns false."</em> That package links into every scenario CLI.
+            <strong>46 <code>Linux-only</code> comment sites</strong> remain across non-test Go
+            in <code>internal</code>, <code>packages</code> and <code>scenarios</code>.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>grep -rn "Linux-only" --include=*.go</code>, excluding tests</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-04</div>
+        <h4>Nine unported controls hold five capabilities hostage <span class="pill p-gap">Real work</span></h4>
+        <div class="body">
+          <p>
+            Because controls resolve with <code>AND</code>, a single unported control keeps its
+            whole capability at <code>controls_incomplete</code> on both non-Linux platforms.
+            The blocked set is small and enumerable:
+            <code>docker_host_firewall</code>, <code>login_keyring_unlock</code>,
+            <code>tpm_credential_access</code>, <code>nvidia_driver</code>,
+            <code>ollama_resource_controls</code>, <code>autoheal_recovery_privileges</code>,
+            <code>onboarding_apply_privileges</code>, <code>path_hygiene</code>,
+            <code>vrooli_launcher</code>.
+          </p>
+          <p>
+            They gate <code>container-runtime</code>, <code>credential-storage</code>,
+            <code>gpu-driver-health</code>, <code>service-resource-limits</code> and
+            <code>developer-utility</code>. This is the densest concentration of unambiguous
+            work in the entire grid.
+          </p>
+          <div class="ev"><b>Evidence</b> · 5 <code>controls_incomplete</code> cells on each of macOS and Windows</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-05</div>
+        <h4>Genuine gaps filed as deliberate decisions <span class="pill p-gap">Misleading</span></h4>
+        <div class="body">
+          <p>
+            <code>test-execution</code> and <code>terminal-multiplexing</code> are both
+            <span class="pill p-declared">scoped_out</span> on Windows — meaning
+            <strong>the test suite cannot run on Windows</strong>, presented as a settled
+            decision rather than an open gap. Only <strong>2 of 45</strong> capabilities have a
+            <code>platform_policies</code> entry, so every other absence is classified by
+            inference from declaration text rather than by an operator's recorded intent.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>platform_policies</code> holds only <code>host-pressure-detection</code> and <code>hardware-error-telemetry</code></div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-06</div>
+        <h4>Manifests state the same fact twice <span class="pill p-staged">Cleanup</span></h4>
+        <div class="body">
+          <p>
+            <strong>All 67 tools carry both <code>platforms: [...]</code> and
+            <code>platform_status: {...}</code></strong> — a bare OS list and a per-OS status
+            block, in the same file, describing the same thing. Safeguards do the same. One is
+            derivable from the other; keeping both guarantees they eventually disagree.
+          </p>
+          <div class="ev"><b>Evidence</b> · 67 of 67 <code>tool.json</code> files declare both keys</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-07</div>
+        <h4>A zeroed projection reported as clean <span class="pill p-gap">False green</span></h4>
+        <div class="body">
+          <p>
+            <code>vrooli capability fleet</code> returns
+            <code>desktopBundling: {resources:0, hostRequired:0, vendorable:0, prohibited:0,
+            unknown:0, databaseBlocked:false, reason:""}</code>. An empty projection is being
+            reported as a clean structure. This is precisely the failure the portability model
+            forbids for the grid — <em>"an empty grid reads as a claim rather than a
+            failure"</em> — applied to a sibling field that never got the same treatment.
+          </p>
+          <div class="ev"><b>Evidence</b> · live <code>capability fleet --json</code></div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">P-08</div>
+        <h4>Two resource-level defects the fleet already caught <span class="pill p-gap">Real work</span></h4>
+        <div class="body">
+          <p>
+            <code>sherpa-onnx</code> declares <code>unsupported</code> on
+            <strong>all three</strong> platforms while remaining a required dependency of
+            <code>audio-tools</code> — that scenario cannot resolve anywhere, including here.
+            Separately, Docker is a hard tier ceiling for three scenarios:
+            <code>document-manager</code> (unstructured-io), <code>treasury</code>
+            (x402-facilitator) and <code>audio-tools</code> (kyutai-stt), all desktop-blocked on
+            every OS. And <code>process-containment</code> is <code>peerless</code> on all three
+            OSes — a vocabulary entry with zero declarers anywhere.
+          </p>
+          <div class="ev"><b>Evidence</b> · 17 <code>blockedByOs</code> cells across 8 scenarios; 7 <code>dockerBlocked</code> cells across 3</div>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="prose">
+      <p>
+        One piece of unexpected good news: <strong>shell dependence is nearly gone.</strong>
+        80 <code>.sh</code> files remain in the tree, but only two live scenarios still invoke
+        one from a lifecycle step — <code>hello-plugin</code> and <code>workspace-sandbox</code>.
+        The other 23 <code>service.json</code> hits are stale Electron bundle artifacts. That is
+        a category the grid does not measure at all, and it has been quietly cleaned.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ DEBT ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FT-05</span>
+      <h2>Debt, duplication and dead weight</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        A separate sweep, weighted equally: what would a new senior engineer flinch at?
+        The honest headline is that the <em>architecture</em> is in better shape than the
+        <em>housekeeping</em>. There is very little copy-paste and almost no sprawl — but
+        there is a lot of unfinished business left visible in the tree, and one gate that
+        is silently switched off.
+      </p>
+    </div>
+
+    <div class="findings">
+
+      <article class="finding">
+        <div class="id">R-01</div>
+        <h4>155 platform-gated test skips will fake a green macOS run <span class="pill p-gap">Critical</span></h4>
+        <div class="body">
+          <p>
+            The repository holds <strong>1,006 <code>t.Skip</code> calls</strong> — 155 gated on
+            platform, 162 on short mode, 92 on an environment variable. The platform-gated ones
+            include core control-plane suites:
+            <code>internal/lifecycle/operation_record_test.go</code>,
+            <code>internal/process/process_test.go</code> and
+            <code>internal/cli/scenariocli/scenariocli_test.go</code> all skip wholesale when
+            <code>runtime.GOOS != "linux"</code>.
+          </p>
+          <p>
+            <strong>This is the single biggest threat to the minimouse deliverable.</strong> Run
+            the suite on the Mac today and it reports green while executing a fraction of itself
+            — and that green would then be recorded as <code>qualified</code> evidence. Your own
+            doctrine already covers this case: <em>tests assert coverage, never population.</em>
+            A skip must be counted and reported per platform, never silent.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>grep -rn "t.Skip" --include=*_test.go</code> across <code>internal</code>, <code>packages</code>, <code>scenarios</code></div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-02</div>
+        <h4>The repository structure gate is dark right now <span class="pill p-gap">Critical</span></h4>
+        <div class="body">
+          <p>
+            <code>vrooli hygiene</code> currently fails on <code>repo_contract_provider</code>:
+            structure-health times out at <strong>10.001s against its own declared 10s
+            budget</strong>. While that provider is unavailable, the repo contract's 9 layout
+            rules, 5 glob rules and per-scenario required-files checks enforce nothing. Root
+            hygiene only aggregates the provider result, so a dead provider reads as a blocked
+            run rather than as unguarded structure.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>vrooli hygiene --summary</code> — 2 blocking, 3 warnings; budget warning measured 10.001s</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-03</div>
+        <h4>43 of 121 scenarios still ship template boilerplate as their README <span class="pill p-staged">Professionalism</span></h4>
+        <div class="body">
+          <p>
+            43 scenario READMEs still contain <em>"This scenario was generated from the
+            <code>react-vite</code> template"</em> followed by the scaffold's own feature list.
+            <strong>70 still carry <code>docs/START-HERE.md</code></strong> — the template's
+            first-session initialization protocol, which exists to be completed and removed. 7
+            still contain the <code>notes</code> demo domain the template explicitly describes as
+            <em>"a worked vertical slice meant to be copied once and then deleted."</em> 50
+            mention "placeholder".
+          </p>
+          <p>
+            Both scenarios at the centre of this audit — <code>infrastructure-manager</code> and
+            <code>vrooli-bridge</code> — are in that 43, despite having genuinely excellent
+            hand-written design documentation underneath the boilerplate. The scaffold text is
+            actively burying the good work.
+          </p>
+          <div class="ev"><b>Evidence</b> · 121 scenarios; 43 README matches, 70 <code>START-HERE.md</code>, 7 <code>api/**/notes</code> domains</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-04</div>
+        <h4>Plan Manager can see 19 of 1,018 plans <span class="pill p-gap">Signal loss</span></h4>
+        <div class="body">
+          <p>
+            My first pass called this "1,004 unreconciled mirrors" and that framing was wrong —
+            mirror freshness is a non-issue, and exactly <strong>5</strong> mirrors are stale.
+            Running the reconcile directly shows what the number actually is:
+            <strong>986 of 1,037 items are <code>IMPORT_PLANNED</code>, carrying no
+            <code>plan_id</code> and no mirror record at all.</strong> They are not mirrors.
+            They are plan documents that Plan Manager has never seen.
+          </p>
+          <p>
+            <code>plan-manager plans list</code> returns <strong>19 plans</strong>. There are
+            1,018 plan documents on disk. So the Recall reflex — <em>"before non-trivial work,
+            check whether a plan already exists"</em> — is answered from <strong>1.9% of the
+            corpus</strong>. That is the real defect, and it is worse than stale mirrors: it
+            means "no existing plan" is almost always a false negative.
+          </p>
+          <p>
+            This is a decision, not a cleanup task. Either import what still matters and archive
+            the rest, or declare the directory an archive and exclude it from the hygiene check
+            so it stops reporting an archive as debt. Mirror freshness stays off the board
+            either way.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>plan-manager plans reconcile --dry-run --json</code> → 986 <code>IMPORT_PLANNED</code>, 19 <code>ALREADY_CANONICAL</code>, 14 <code>MIRROR_FRESH</code>, 13 <code>PARSE_FAILED</code>, 5 <code>MIRROR_REPAIR_NEEDED</code>; <code>plans list</code> → 19</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-05</div>
+        <h4>Empty scaffold directories — local residue, not repository debt <span class="pill p-declared">Automate it</span></h4>
+        <div class="body">
+          <p>
+            Correction to my first pass: <strong>Git cannot track empty directories</strong>, and
+            none of these 21 contain a <code>.gitkeep</code>. They do not exist in a fresh clone —
+            they are residue on this machine from features that were deleted or moved. The
+            severity is lower than I implied.
+          </p>
+          <p>
+            They still cost something: they fooled me into reading three deleted features as
+            unfinished work, and they will fool an agent the same way.
+            <strong>shareddrift</strong> has <em>zero</em> references anywhere in source — the
+            feature is gone and only the shells remain. <strong>agentpolicy</strong> lives on in
+            <code>packages/agentharness/</code>, so its empty <code>internal/cli/*</code> pair is
+            leftover from a move. Also empty: <code>internal/codingagents</code>,
+            <code>internal/hostobservability</code>,
+            <code>packages/cli-core/cmd/policy-runner</code>,
+            <code>packages/binaryfetch/cmd/syncschema</code>, plus two generation bugs — a nested
+            <code>packages/proto/packages/proto/</code> path and a nanosecond-timestamped fixture
+            directory.
+          </p>
+          <p>
+            <strong>This is trivially automatable, and safe precisely because Git ignores it:</strong>
+            an empty directory with no <code>.gitkeep</code> can always be removed. The convention
+            for deliberate-empty already exists in this repo — <code>bas/flows</code>,
+            <code>bas/actions</code>, <code>bas/cases</code>, <code>bas/seeds</code> all carry
+            <code>.gitkeep</code>. So the rule needs no exception list.
+          </p>
+          <div class="ev"><b>Home</b> · the repo contract's <code>layout</code> rules, applied by <code>vrooli hygiene --fix-safe</code> — repo-wide scope. Not tidiness-manager (per-scenario code quality) and not structure-health's scenario-skeleton lane.</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-06</div>
+        <h4>Thirteen scenarios violate their own template's architecture <span class="pill p-staged">Refactor</span></h4>
+        <div class="body">
+          <p>
+            The <code>react-vite</code> template promises a <em>"domain-first API shape with
+            per-domain service, repository, schema, handler module, mocks, and tests."</em>
+            <strong>13 scenarios have an <code>api/main.go</code> over 1,000 lines</strong>,
+            led by <code>api-library</code> at 3,786 and <code>calendar</code> at 3,119, then
+            <code>scenario-auditor</code> (1,901), <code>file-tools</code> (1,804),
+            <code>web-console</code> (1,406) and <code>swarm-manager</code> (1,404).
+          </p>
+          <p>
+            Note the location: <strong>these are in <code>scenarios/</code>, not
+            <code>internal/</code>.</strong> The control plane does not have this problem — see
+            R-07.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>api/main.go</code> line counts across 121 scenarios</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-07</div>
+        <h4><code>internal/</code> is not full of dead code — it is full of unstated purpose <span class="pill p-gap">Root cause</span></h4>
+        <div class="body">
+          <p>
+            I built the full import graph rather than guessing. <strong>173 packages; 7 with no
+            importer; only 2 genuinely dead</strong> — <code>internal/reporoot</code> (47 LOC)
+            and <code>internal/scheduler</code> (22 LOC), both thin aliases nothing calls. Of the
+            other five, <code>internal/tools/buf</code> is manifest-only data,
+            <code>internal/protocodegen</code> is a test-only guard,
+            <code>deployability/cmd/capability-vocabulary</code> is a generator binary, and
+            <code>internal/resources/runtime/operations</code> is the one that still needs a
+            look. That is roughly <strong>70 lines of dead code in a 173-package tree.</strong>
+          </p>
+          <p>
+            The dependency shape is healthy, not tangled. <code>hostreqkit</code> (57 importers)
+            and <code>hostreqspec</code> (52) are real shared hubs. <code>internal/runtime</code>
+            has a fan-out of 50 and is <strong>not</strong> a god object — it is the tool and
+            safeguard registry, importing 30 safeguards and 13 tools by construction. Leave it
+            alone.
+          </p>
+          <p>
+            The actual finding is this: <strong>93 of 173 packages — 54% — have no package
+            doc</strong>, and that includes every one of the twelve largest:
+            <code>internal/resources</code> (10,523 LOC), <code>internal/lifecycle</code>
+            (8,305), <code>internal/cli/vroolicli</code> (5,810),
+            <code>internal/hostinventory</code> (4,878), <code>internal/scenarioruntime</code>
+            (4,661), <code>internal/setup</code> (3,053).
+          </p>
+          <p>
+            Every downstream symptom follows from that. The <code>host*</code> cluster is an
+            eleven-way split — <code>hostinventory</code>, <code>hostreqkit</code>,
+            <code>hostreq</code>, <code>hostpressure</code>, <code>hostreqcheck</code>,
+            <code>hostreqspec</code>, <code>hostfacts</code>, <code>hostreqrun</code>,
+            <code>hostlifecycle</code>, <code>hostsession</code>, and the empty
+            <code>hostobservability</code> — and <strong>six of the ten with code have no
+            package doc</strong>, including both top hubs. There are
+            <strong>six different ways to resolve the repository root</strong>
+            (<code>repo-contract-go</code> exposes four, plus
+            <code>internal/app/contract.ResolveRoot</code>, plus a private
+            <code>repoRoot()</code> inside one safeguard, plus the dead
+            <code>internal/reporoot</code>). Nobody wrote down which one is canonical, so a
+            seventh will appear.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>go list</code> import graph over <code>./...</code> including test imports; package-doc scan across 173 packages. <code>packages/hostreq</code> is <em>not</em> part of the problem — it is a deliberate, documented façade over <code>internal/hostreq</code>.</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-09</div>
+        <h4>Five real god-files in the control plane — a short, specific list <span class="pill p-staged">Refactor</span></h4>
+        <div class="body">
+          <p>
+            "<code>internal/</code> is messy" is too vague to act on, and mostly untrue. The
+            concentration problem is five places:
+          </p>
+          <ul>
+            <li><code>internal/cliinstall</code> — <strong>2 files holding 2,462 LOC</strong>, with <code>uninstall.go</code> alone at 1,458. The clearest case in the tree.</li>
+            <li><code>internal/lifecycle</code> — 8,305 LOC across 23 files and <strong>zero subpackages</strong>; <code>lifecycle.go</code> is 1,718.</li>
+            <li><code>internal/scenario</code> — 4 files, 1,997 LOC, of which <code>scenario.go</code> is 1,549.</li>
+            <li><code>internal/resources/drivers.go</code> — 1,911 LOC in a single file (though the package itself is well split: 36 files, 9 subpackages).</li>
+            <li><code>internal/setup/setup.go</code> — 1,449 LOC.</li>
+          </ul>
+          <p>
+            By contrast <code>internal/hostinventory</code> holds 4,878 LOC across 24 files with
+            a largest file of 602 — it is big, but it is properly divided. Size alone is not the
+            signal; concentration is.
+          </p>
+          <div class="ev"><b>Evidence</b> · per-package file count, LOC, subpackage count and largest-file measurement</div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">R-08</div>
+        <h4>36GB of unbounded local run state <span class="pill p-declared">Retention</span></h4>
+        <div class="body">
+          <p>
+            <code>scenarios/</code> occupies 56GB. <strong>16GB is coverage output across
+            217,706 files</strong>; roughly 20GB more is runtime SQLite state under
+            <code>scenarios/*/data/</code>, with <code>vrooli-autoheal</code> alone at 8.8GB and
+            <code>experience-manager</code> at 7.3GB. All of it is correctly gitignored, so this
+            is not repository bloat — but retention machinery exists
+            (<code>retention-tombstones</code>, <code>pin-leases.json</code>) and is plainly not
+            bounding anything.
+          </p>
+          <div class="ev"><b>Evidence</b> · <code>du -sh</code> per scenario; <code>find scenarios/*/coverage -type f</code> = 217,706</div>
+        </div>
+      </article>
+
+    </div>
+
+    <h3>How to split a file without making it worse</h3>
+
+    <div class="prose">
+      <p>
+        The stated worry is the right one: an agent asked to "split this file" will often
+        re-implement rather than move, leaving two copies of logic that then drift. That failure
+        is preventable, and it is preventable <em>mechanically</em> rather than by review
+        diligence. Six rules, and the third is the one that actually catches it.
+      </p>
+    </div>
+
+    <div class="protocol">
+      <h4>Split protocol</h4>
+      <p>Every rule below is checkable by a machine. If a split cannot satisfy all six, it is not a split — it is a rewrite wearing a split's clothes, and it needs a design first.</p>
+      <ol>
+        <li><strong>Document before you divide.</strong> Write the package doc first. If the purpose cannot be stated in two sentences, stop — that <em>is</em> the finding, and no split will improve a package nobody can describe. This is also why R-07 must land before R-09.</li>
+        <li><strong>Move whole declarations; never retype one.</strong> Cut and paste entire functions, types and constants. No reformatting, no renaming, no signature changes, no "while I'm here."</li>
+        <li><strong>Diff the symbol set, not the diff.</strong> Enumerate every declaration in the package before and after — exported <em>and</em> unexported. The two sets must be byte-identical in names and equal in count. This single check catches re-implementation, accidental duplication and silent drops, and it is a short script over <code>go/ast</code>.</li>
+        <li><strong>Zero test edits in a split commit.</strong> If a test had to change, the behaviour changed, so it was not a split. Revert and separate the two concerns.</li>
+        <li><strong>Behaviour changes land afterward, separately.</strong> One commit moves code; the next changes it. Never the same commit — a reviewer cannot see a logic change buried in a 2,000-line move.</li>
+        <li><strong>Run the duplication scan after each split.</strong> Tidiness Manager already owns duplication detection. Make it the closing gate of the split, so a leftover copy is caught by the tool rather than by whoever hits the bug in six months.</li>
+      </ol>
+    </div>
+
+    <div class="callout prose">
+      <p>
+        Applied to the concrete list: <code>internal/cliinstall</code> is the right first
+        target — two files, 2,462 lines, an obvious install/uninstall seam, and a small enough
+        blast radius to validate the protocol itself. <strong>Do not start with
+        <code>internal/lifecycle</code></strong> (8,305 LOC, 13 dependents, no package doc,
+        no subpackages). It needs R-07's documentation pass and a deliberate subpackage design
+        before anyone touches it.
+      </p>
+    </div>
+
+    <h3>What is already clean — don't spend effort here</h3>
+
+    <div class="prose">
+      <p>
+        Several things I expected to find problems in turned out to be in good order, and it
+        is worth saying so explicitly so the cleanup pass does not waste time re-litigating
+        them:
+      </p>
+      <ul class="plain">
+        <li><span class="pill p-proven">Done</span> <span><strong>The <code>scripts/</code> retirement is essentially complete.</strong> Four <code>.sh</code> files remain at the root, down from 226. System-monitor's 16 investigation scripts are the one real remaining cluster.</span></li>
+        <li><span class="pill p-proven">Good</span> <span><strong>Safeguards are a real framework, not copy-paste.</strong> All 29 handlers import <code>hostreqspec</code> and <code>hostreqkit</code>; 7,659 LOC across 29 handlers averages 264 lines each, with no duplicated scaffolding.</span></li>
+        <li><span class="pill p-proven">Good</span> <span><strong>Module structure is sane.</strong> One vendored tree (6.1MB), and replace directives peak at 15 per module across 315 modules — normal for a local-package monorepo, not sprawl.</span></li>
+        <li><span class="pill p-proven">Good</span> <span><strong>Documentation links are intact.</strong> No dangling references to the recently deleted <code>docs/skills/*</code>, and every relative link in <code>docs/README.md</code> resolves.</span></li>
+        <li><span class="pill p-proven">Good</span> <span><strong>Debt markers are low.</strong> 113 <code>TODO</code>/<code>FIXME</code> and 55 <code>Deprecated:</code> across the entire non-generated tree, with only three <code>compat/</code> directories.</span></li>
+        <li><span class="pill p-proven">Good</span> <span><strong>Text-to-speech consolidation landed.</strong> The implementations now sit under <code>audio-tools</code> rather than being spread across scenarios.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ MINIMOUSE ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FT-06</span>
+      <h2>How far is minimouse, really?</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        Further than you think. I started <code>vrooli-bridge</code> and asked it. The node is
+        <strong>online right now</strong> — heartbeat five seconds old, protocol compatible,
+        <code>dispatchable=true</code>, five scopes, enrolled since 17 Aug.
+      </p>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <caption>Live bridge fleet</caption>
+        <thead>
+          <tr><th>Node</th><th>Platform</th><th>Heartbeat</th><th>Dispatchable</th><th>Scopes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>minimouse</code></td>
+            <td>darwin / amd64 <span class="pill p-staged">Intel</span></td>
+            <td>5s ago</td>
+            <td><span class="pill p-proven">Yes</span></td>
+            <td class="num">5</td>
+          </tr>
+          <tr>
+            <td><code>swarminator</code></td>
+            <td>linux / amd64</td>
+            <td>offline</td>
+            <td><span class="pill p-gap">No</span></td>
+            <td class="num">7</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prose">
+      <p>
+        The exact command shape you guessed already exists. The grammar is
+        <code>node/scenario@variant</code> — so <code>vrooli scenario status
+        minimouse/system-monitor</code>, with <code>--node minimouse</code> and
+        <code>VROOLI_NODE</code> as equivalents, and an address prefix winning over the flag.
+        Here is what is built versus what is wired:
+      </p>
+    </div>
+
+    <div class="pipe">
+      <div class="stage">
+        <div class="sname">Address grammar</div>
+        <div class="sdesc"><code>SplitAddress</code> parses node, scenario and variant; six scenario commands accept <code>--node</code>.</div>
+        <div class="sstate"><span class="pill p-proven">Built</span></div>
+      </div>
+      <div class="stage">
+        <div class="sname">Node trust</div>
+        <div class="sdesc">Target resolution, revocation and pairing checks, online and dispatchability gates, per-node command scopes.</div>
+        <div class="sstate"><span class="pill p-proven">Built</span></div>
+      </div>
+      <div class="stage">
+        <div class="sname">Signed relay</div>
+        <div class="sdesc">Scope admission then transport through the node's signed relay, with typed <code>ErrNodeUnpaired</code> / <code>ErrNodeOffline</code> failures.</div>
+        <div class="sstate"><span class="pill p-proven">Built</span></div>
+      </div>
+      <div class="stage is-blocked">
+        <div class="sname">Dispatch catalog</div>
+        <div class="sdesc">Built eagerly across every scenario. <strong>One malformed manifest takes down remote dispatch fleet-wide</strong> — <code>scenarios/hello-plugin/cli/manifest.json</code> has 2 commands missing the required <code>binding</code> property.</div>
+        <div class="sstate"><span class="pill p-gap">Blocking</span></div>
+      </div>
+      <div class="stage">
+        <div class="sname"><code>scenario status</code></div>
+        <div class="sdesc">The only command with a remote branch. Reaches the relay correctly and produces a proper triage block on failure.</div>
+        <div class="sstate"><span class="pill p-proven">Wired</span></div>
+      </div>
+      <div class="stage is-blocked">
+        <div class="sname">start · stop · restart · wait · port</div>
+        <div class="sdesc">All five advertise <code>--node</code>, parse it, build the <code>node/slug</code> address — and then fall through to the local path. <code>vrooli scenario start minimouse/system-monitor</code> exits 1 with <strong>zero output on stdout and stderr</strong>.</div>
+        <div class="sstate"><span class="pill p-gap">Not wired</span></div>
+      </div>
+    </div>
+
+    <div class="callout prose">
+      <p>
+        <strong>Your end goal is three fixes away, not three months.</strong> Repair one JSON
+        manifest, add the remote branch to <code>start</code>/<code>stop</code>/<code>wait</code>
+        that <code>status</code> already demonstrates, and give <code>start</code> the error
+        reporting it currently swallows. The transport, trust model and scope admission are
+        already done and already exercised.
+      </p>
+    </div>
+
+    <h3>What the Mac still can't prove</h3>
+    <div class="prose">
+      <p>
+        Two constraints survive the fix list, and both are worth knowing before you plan around
+        the machine:
+      </p>
+      <ul class="plain">
+        <li><span class="pill p-gap">Blocker</span> <span><strong>No fresh-host run has ever been performed.</strong> The 14 Aug audit records that <code>/Users/matthalloran8/Vrooli</code> is not a Git checkout, so the repair operation stopped at clone. The successful onboarding used an isolated checkout and did <em>not</em> remove <code>~/.vrooli</code> or the original tree. The cleanup tombstone explicitly states no remote cleanup was executed — so first-run backend selection, passphrase count, Keychain reachability after reset, and unattended credential read after reboot are all still unproven. Your offer to clean the machine removes exactly this blocker.</span></li>
+        <li><span class="pill p-staged">Constraint</span> <span><strong>minimouse is a Macmini8,1 — Intel.</strong> Even a perfect validation run there qualifies <code>darwin/amd64</code> only. <code>darwin/arm64</code> stays cross-build evidence forever without a second machine, which makes finding P-01 more than cosmetic: the grid currently cannot even express the distinction you would be earning.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ DECISIONS ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FIC-00</span>
+      <h2>Decisions settled</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        Every open question, closed. Four were operator calls; the rest follow from evidence and
+        are recorded here with their reasoning so the plan does not have to re-argue them. One
+        operator answer is <strong>amended</strong> — research after the fact showed the premise
+        behind it was wrong.
+      </p>
+    </div>
+
+    <div class="findings decided">
+
+      <article class="finding">
+        <div class="id">D-01</div>
+        <h4>Windows is a full development target <span class="pill p-accent">Operator</span></h4>
+        <div class="body">
+          <p>
+            <code>vrooli setup</code>, the test suite, and scenario lifecycle must all work
+            natively on Windows.
+          </p>
+          <div class="ruling">
+            <b>Consequence</b>
+            <code>test-execution</code> and <code>terminal-multiplexing</code> are
+            <strong>no longer <code>scoped_out</code></strong> — they are
+            <code>real_peer_nobody_wired</code>, which is the only situation the model calls
+            unambiguous work. Their Windows peers need naming (pwsh jobs or Windows Terminal
+            panes for multiplexing) and wiring. This is the largest single scope increase in the
+            plan, and it lands in Track A.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-02</div>
+        <h4>Import all 986 unindexed plans <span class="pill p-accent">Operator</span></h4>
+        <div class="body">
+          <p>
+            Recall answers from the real corpus rather than from 1.9% of it.
+          </p>
+          <div class="ruling">
+            <b>Consequence</b>
+            Import is bulk and mechanical; the 13 unparseable files need hand repair or
+            relocation first, since a failed import is worse than an absent one. Add a retention
+            or archival policy at the same time so the corpus stops growing unbounded. Mirror
+            freshness stays off the board entirely — 5 stale mirrors was never the problem.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-03</div>
+        <h4>Migrate off Docker where feasible — and it is feasible for all three <span class="pill p-accent">Operator + research</span></h4>
+        <div class="body">
+          <p>
+            The framing turned out to be backwards. Vrooli has <strong>already escaped Docker
+            twelve times</strong>: 12 of 29 resources use <code>driver: managed-service</code>,
+            and <code>searxng</code> in particular is composed from a pinned standalone Python
+            runtime, locked wheels and a source tree, with per-target digests across
+            <strong>all six OS/arch targets</strong>. Only 2 resources still use
+            <code>docker-service</code> and 3 use <code>compose-service</code>. This is not a new
+            capability — it is finishing an established one.
+          </p>
+          <div class="ruling">
+            <b>Ruling — per resource</b>
+            <strong>x402-facilitator → migrate, easy.</strong> <code>x402-rs</code> ships a
+            standalone Rust facilitator binary installable via Cargo with tagged GitHub releases;
+            a single static binary cross-compiles to all three OSes. Follow the
+            <code>cloudflared</code> / <code>minio</code> checksum-pinned pattern.<br><br>
+            <strong>kyutai-stt → migrate, medium.</strong> <code>moshi</code> ≥ 0.2.6 is a pip
+            package and upstream ships a Rust streaming server for production. Two viable routes:
+            the <code>searxng</code> pinned-Python pattern, or the <code>whisper</code>
+            native-server-plus-model pattern this repo already runs. Model weights are the real
+            work, not the container.<br><br>
+            <strong>unstructured-io → migrate degraded, hardest.</strong>
+            <code>pip install unstructured</code> is native; the blocker is
+            <code>detectron2</code> for the <code>hi_res</code> PDF layout strategy, which is
+            <em>not officially supported on Windows</em> and needs a source build elsewhere. But
+            <code>hi_res</code> is optional — default partitioning and the <code>fast</code>
+            strategy need no detectron2. So declare it <code>managed-service</code> with
+            <code>partial</code> on platforms lacking detectron2. <code>partial</code> already
+            exists in the vocabulary and maps to <code>QualificationDegraded</code>, which is
+            exactly the honest claim.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-04</div>
+        <h4>Hardware ceiling — <em>amended</em>: CI is the qualification surface <span class="pill p-gap">Amended</span></h4>
+        <div class="body">
+          <p>
+            You chose to record an honest ceiling rather than buy machines. That is still right
+            about procurement — but the premise I gave you was wrong, and the ceiling should be
+            much narrower than either of us assumed.
+          </p>
+          <p>
+            <strong>GitHub's <code>macos-latest</code> runners are Apple Silicon (arm64), and
+            <code>windows-latest</code> runners are real Windows hardware.</strong> Your CI
+            already executes four jobs on both. That means <code>darwin/arm64</code> and
+            <code>windows/amd64</code> can reach <code>qualified</code> through CI without
+            purchasing anything — and Windows must, given D-01.
+          </p>
+          <p>
+            It also reverses a judgment about minimouse. It is a Macmini8,1 — <strong>Intel — and
+            Apple has discontinued x86_64, with GitHub retiring Intel macOS runners after the
+            macOS 15 image ends in Fall 2027.</strong> minimouse is therefore the wrong machine
+            for long-run macOS coverage and the right machine for something CI structurally
+            cannot do.
+          </p>
+          <div class="ruling">
+            <b>Ruling</b>
+            Split the qualification surface by what each can actually prove.
+            <strong>CI earns <code>qualified</code></strong> for anything an ephemeral runner can
+            execute — build, lifecycle, scenario suites — on <code>darwin/arm64</code> and
+            <code>windows/amd64</code>. <strong>minimouse earns what CI cannot:</strong> reboot
+            persistence, LaunchAgent survival across restart, Keychain reachability after a clean
+            reset, unattended credential read, and a genuine first-run onboarding on a host that
+            was never set up before. Runners are ephemeral and prove none of those.<br><br>
+            Record the ceiling narrowly: <em>hardware-persistence claims remain
+            <code>build_verified</code> on platforms with no dedicated machine</em> — not a blanket
+            ceiling on the platforms themselves. Revisit before Fall 2027 regardless.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-05</div>
+        <h4>Build the architecture axis for real — reversing my own recommendation <span class="pill p-staged">Derived</span></h4>
+        <div class="body">
+          <p>
+            I offered "collapse it to OS" as the cheaper option. D-01 and D-04 remove that choice.
+            With Windows a full development target, <code>windows/arm64</code> images now
+            GitHub-owned, Apple Silicon the only surviving Mac architecture, and a
+            <code>linux/arm64</code> policy already authored in the vocabulary and silently
+            ignored, the axis carries real information the moment anyone looks.
+          </p>
+          <div class="ruling">
+            <b>Ruling</b>
+            Make the resolver honour per-architecture policies at the <em>cell</em>, not just in
+            row-level prose — starting with the <code>hardware-error-telemetry</code> /
+            <code>linux/arm64</code> case that currently resolves <code>implemented</code>
+            against its own <code>no_equivalent_ever</code> policy. Fix the renderer's duplicate
+            rows and duplicate ladder findings as part of the same change.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-06</div>
+        <h4><code>process-containment</code> is a resolver bug, not a missing declaration <span class="pill p-staged">Derived</span></h4>
+        <div class="body">
+          <p>
+            Corrected diagnosis. I reported it as "a vocabulary entry with zero declarers." It has
+            <strong>five</strong>: <code>autoheal_watchdog</code>,
+            <code>emergency_watchdog</code>, <code>host_hardening</code>,
+            <code>kernel_config</code> and <code>workspace_sandbox_userns</code>. Every one is
+            <code>capability_role: control</code>, and the resolver only reports
+            <code>implemented</code> when a <code>primary</code> or <code>peer</code>
+            <em>provider</em> resolves. Controls are AND-required but never resolve a capability
+            themselves — so a capability implemented entirely by safeguards is
+            <code>peerless</code> by construction, on every OS including Linux.
+          </p>
+          <p>
+            The model's own rule makes this a latent trap rather than a one-off:
+            <em>"Every safeguard is a control."</em> Any future capability implemented purely by
+            safeguards will hit exactly this.
+          </p>
+          <div class="ruling">
+            <b>Ruling</b>
+            Fix the resolver, not the manifest. A capability whose declarers are all controls
+            resolves when every control resolves. Promoting one safeguard to <code>primary</code>
+            would clear the symptom while contradicting the doctrine and leaving the trap armed
+            for the next one.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-07</div>
+        <h4>The ledger absorbs the matrix; the matrix keeps its content <span class="pill p-staged">Derived</span></h4>
+        <div class="body">
+          <p>
+            Two documents currently claim to be canonical. The resolution is not to pick a winner
+            on authority but on what each is actually good at.
+          </p>
+          <div class="ruling">
+            <b>Ruling</b>
+            The ledger gains a structured evidence field — <code>{run_id, host, os, arch, date,
+            surface, artifact_uri}</code> — required for any claim above
+            <code>build-verified</code>. <code>platform-support.md</code> becomes a
+            <em>generated</em> view of that field and loses its "canonical source" sentence. Its
+            content is better than the ledger's today; its maintenance model is worse. Keep the
+            content, delete the maintenance.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-08</div>
+        <h4>A run counts only against a declared skip budget <span class="pill p-staged">Derived</span></h4>
+        <div class="body">
+          <p>
+            With 155 platform-gated skips, "the suite passed on macOS" is not a claim anyone can
+            evaluate. The fix is not to eliminate every skip — some are legitimate platform limits
+            — but to make the number a first-class part of the result.
+          </p>
+          <div class="ruling">
+            <b>Ruling</b>
+            Every run emits executed / skipped / total per platform. A validation run may only be
+            recorded as <code>qualified</code> evidence if the platform skip count is at or below
+            a <em>declared, checked-in</em> budget for that platform. Measure first, set the
+            budget at the measured value, then ratchet down. A run that exceeds its budget is not
+            a failure — it is simply not evidence.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-09</div>
+        <h4>Smaller rulings, closed <span class="pill p-declared">Derived</span></h4>
+        <div class="body">
+          <ul>
+            <li><strong>structure-health's 10s budget</strong> — fix the cost, don't raise the number. A contract validation exceeding 10s over 121 scenarios points at missing caching, and 10.001s is a hair over, not a genuine need. If profiling proves otherwise, raise it deliberately with the reason recorded in the same commit.</li>
+            <li><strong><code>sherpa-onnx</code></strong> — it is not broken. Its own manifest says every acquisition target stays unsupported until a signed Vrooli adapter bundle is published; that is a release gate, not a code gap. Make the <code>audio-tools</code> dependency optional now so the scenario resolves, and let the signing gate proceed on its own schedule.</li>
+            <li><strong>The 43 boilerplate READMEs</strong> — generate a skeleton from each scenario's own <code>PRD.md</code> and <code>DESIGN.md</code>, then have a human or agent pass over it. Gate with a contract rule that fails any scenario still shipping template text, so the 44th cannot happen.</li>
+            <li><strong><code>internal/lifecycle</code></strong> — out of scope for this effort. 8,305 LOC, 13 dependents, no package doc, no subpackages. It needs its own subpackage design; folding it into a cleanup sweep is how the split protocol gets violated.</li>
+            <li><strong>Retention</strong> — pick concrete numbers rather than "bound it": keep the last 20 runs or 30 days of coverage per scenario, whichever is smaller, and cap <code>data/</code> per scenario with an explicit alarm rather than silent growth. 36GB accumulated because no number was ever written down.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-10</div>
+        <h4><code>system-monitor</code> is the right first target — one line of resolver logic is wrong <span class="pill p-gap">Corrected</span></h4>
+        <div class="body">
+          <p>
+            I had this backwards. I read the fleet's <em>ineligible</em> verdict as a property of
+            <code>system-monitor</code> and recommended routing around it. It is a property of the
+            verdict logic, and the scenario was built for exactly the outcome the operator
+            described.
+          </p>
+          <p>
+            <code>service.platform_capabilities</code> is a scenario's <strong>provides</strong>
+            declaration — the per-OS status of capabilities the scenario <em>implements</em>.
+            <code>scenario-dependency-analyzer</code>'s <code>authoredPlatformOverrides</code>
+            consumes it as a <strong>requires</strong> list: one entry marked
+            <code>unsupported</code> sets the whole scenario to <code>blocked</code> on that OS.
+          </p>
+          <p>
+            The asymmetry in that same switch statement proves the intent was never this.
+            <code>partial</code>, <code>experimental</code>, <code>unqualified</code> and
+            <code>build-verified</code> all correctly downgrade the scenario to
+            <code>degraded</code> — a non-blocking state. Only <code>unsupported</code> blocks.
+            But on a <em>provided</em> capability, <code>unsupported</code> means "this one
+            feature is unavailable here," which is a degradation by definition.
+          </p>
+          <p>
+            The runtime already behaves correctly, and the manifest says so in its own evidence
+            strings: the darwin backend <em>"grades memory errors not-applicable"</em> and the
+            windows backend <em>"grades memory errors unmeasurable."</em> The code degrades. Only
+            the eligibility verdict blocks.
+          </p>
+          <div class="ruling">
+            <b>Ruling</b>
+            Fix <code>platform_verdict.go</code>: <code>unsupported</code> on an authored
+            <em>provided</em> capability degrades the scenario; it does not block it. Add an
+            opt-in <code>essential: true</code> per capability, defaulting false, for the rare
+            scenario that genuinely cannot function without one. Also fix the reason string —
+            it reports only the first blocker via <code>if blocking == ""</code>, so macOS is
+            named as blocked by <code>memory-errors</code> when <code>thermal</code> is
+            unsupported there too.<br><br>
+            <strong>Blast radius is three scenarios.</strong> Only <code>storage-manager</code>,
+            <code>system-monitor</code> and <code>vrooli-autoheal</code> author
+            <code>platform_capabilities</code> at all, and <code>system-monitor</code> is the
+            only one currently blocked by it.
+          </div>
+        </div>
+      </article>
+
+      <article class="finding">
+        <div class="id">D-11</div>
+        <h4>What <code>system-monitor</code> should read after the fix <span class="pill p-proven">Target state</span></h4>
+        <div class="body">
+          <p>
+            Its declarations are already honest and near-complete — this is a scenario that was
+            built portable, then held back by one verdict rule:
+          </p>
+          <ul>
+            <li><strong>linux</strong> — 10 of 10 <code>supported</code> → <code>available</code></li>
+            <li><strong>macos</strong> — 8 <code>build-verified</code>, 2 <code>unsupported</code> (<code>thermal</code>, <code>memory-errors</code>) → <code>available, degraded</code></li>
+            <li><strong>windows</strong> — 9 <code>build-verified</code>, 1 <code>unsupported</code> (<code>memory-errors</code>) → <code>available, degraded</code></li>
+          </ul>
+          <div class="ruling">
+            <b>Consequence for the deliverable</b>
+            <code>vrooli scenario start minimouse/system-monitor</code> becomes exactly the right
+            proof — it exercises remote dispatch, native darwin collectors, and honest
+            per-capability degradation in a single command. And running it on real hardware is
+            what converts those 8 <code>build-verified</code> macOS cells into the ledger's first
+            <code>qualified</code> entries, which is the whole point of the exercise.
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ ROADMAP ============ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-tag">FIC-01</span>
+      <h2>Two tracks, one deliverable</h2>
+    </div>
+
+    <div class="prose sec-intro">
+      <p>
+        Capability work and foundation work are weighted equally here, and they are genuinely
+        independent — different files, different reviewers, no shared merge conflicts. Run them
+        in parallel. What is <em>not</em> optional is the convergence rule at the bottom: four
+        specific items must land before minimouse is touched, because without them the
+        validation run produces a green result that means nothing and, worse, records that
+        meaningless result as permanent <code>qualified</code> evidence.
+      </p>
+    </div>
+
+    <div class="tracks">
+
+      <!-- TRACK A -->
+      <div class="track t-a">
+        <div class="track-head">
+          <span class="tk">Track A</span>
+          <h3>Instrument &amp; portability</h3>
+        </div>
+        <p class="track-note">Makes the grid tell the truth, then makes the truth better.</p>
+
+        <div class="roadmap">
+
+          <article class="step">
+            <div class="body">
+              <h4>Unblock remote dispatch</h4>
+              <p>Smallest change, largest payoff — it turns the Mac from a documented artifact into a machine you drive from here.</p>
+              <ul>
+                <li>Add <code>binding</code> to the two commands in <code>scenarios/hello-plugin/cli/manifest.json</code>.</li>
+                <li>Make the dispatch catalog resilient: one invalid manifest should exclude that scenario and say so, not fail the catalog fleet-wide.</li>
+                <li>Give <code>scenario start</code> the remote branch <code>status</code> already demonstrates, then <code>stop</code>, <code>wait</code>, <code>restart</code>, <code>port</code>.</li>
+                <li>Fix the silent exit-1 on <code>start</code>. An empty failure is worse than a wrong one.</li>
+              </ul>
+              <div class="why"><b>Unlocks</b> · the end-goal command</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Collapse the status vocabularies</h4>
+              <p>Do this before any new declaration is authored, or the cleanup is instantly re-drifted.</p>
+              <ul>
+                <li><code>service.schema.json</code> and <code>resource.schema.json</code> <code>$ref</code> the enum already correct in <code>common.schema.json</code>.</li>
+                <li>Extend the drift gate to platform status across all four consumer schemas — today it covers capability names across two.</li>
+                <li>Derive <code>platforms: [...]</code> from <code>platform_status</code> at load time; delete the duplicate key from 67 tool and 29 safeguard manifests.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · P-06 · restores Principle 6 where it is currently violated</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Put a ratchet on the honesty ladder</h4>
+              <p>The highest-leverage change in this report. Today <code>supported</code> is free; make it earned.</p>
+              <ul>
+                <li>Require a structured <code>evidence</code> object — run ID, host, date, artifact — for any claim above <code>build-verified</code>. Fail validation without it.</li>
+                <li>Replace the 288 boilerplate strings with real evidence or explicit <code>null</code>. Three distinct values across a fleet is noise.</li>
+                <li>Teach the ledger to read that evidence and fold <code>platform-support.md</code> into it as a <em>generated</em> view — its content is better, its maintenance model is worse.</li>
+                <li>Retire the "canonical source" claim from whichever document loses.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · FT-02, FT-03 · required before any run can be recorded</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Fix the instrument's own reporting</h4>
+              <p>Cheap, and it stops the grid misleading whoever reads it during validation.</p>
+              <ul>
+                <li>Make the architecture axis carry real per-arch resolution at the cell (D-05), starting with <code>hardware-error-telemetry</code> on <code>linux/arm64</code>, which currently resolves <code>implemented</code> against its own <code>no_equivalent_ever</code> policy.</li>
+                <li>Fix the renderer's duplicate rows and deduplicate ladder findings.</li>
+                <li>Make <code>desktopBundling</code> raise an error when it computes nothing, instead of returning a clean zeroed structure.</li>
+                <li>Fix the controls-only resolution bug so <code>process-containment</code> resolves from its five safeguards (D-06) — this is a resolver change, not a manifest edit.</li>
+                <li>Fix the provides-read-as-requires bug in <code>platform_verdict.go</code> so an <code>unsupported</code> provided capability degrades a scenario instead of blocking it (D-10), and report every unsupported capability rather than only the first. This alone makes <code>system-monitor</code> eligible on all three OSes.</li>
+                <li>Author <code>platform_policies</code> for every capability still classified by inference — 43 of 45 currently have none.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · P-01, P-07, P-08 (partial) · <b>implements</b> D-05, D-06</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Wire Windows as a real development target</h4>
+              <p>The scope increase from D-01, and the largest single block of new work in the plan. Sequence it after the vocabulary and ratchet stages so the new claims are born under the evidence rule.</p>
+              <ul>
+                <li>Name and wire a Windows peer for <code>test-execution</code> — these are now <code>real_peer_nobody_wired</code>, not <code>scoped_out</code>.</li>
+                <li>Same for <code>terminal-multiplexing</code>: pwsh jobs or Windows Terminal panes, whichever the lifecycle actually needs.</li>
+                <li>Work the remaining Windows <code>unwired</code> cells: <code>clock-accuracy</code>, <code>code-analysis</code>, <code>crash-forensics</code>, <code>network-host-config</code>, <code>hardware-error-telemetry</code>, <code>system-monitor-memory-errors</code>.</li>
+                <li>Add a <code>windows-latest</code> CI job running a full scenario lifecycle — under D-04 this is the qualification surface for Windows, so it is not optional.</li>
+              </ul>
+              <div class="why"><b>Implements</b> · D-01 · gated on the ratchet stage above</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Close the runtime blind spot</h4>
+              <p>Conformance proves builds. This makes the non-Linux code paths honest before you execute them.</p>
+              <ul>
+                <li>Lint <code>/proc</code> and <code>/sys</code> literals in files with neither a build tag nor a <code>runtime.GOOS</code> switch. Start the budget at 29 and ratchet down.</li>
+                <li>Give the shared, non-safeguard offenders explicit dispatch with typed <em>unsupported</em> results — <code>internal/portspec/ephemeral.go</code> is the pattern to copy.</li>
+                <li>Purge the 46 <code>Linux-only</code> comments, starting at <code>agent_context.go:217</code>.</li>
+                <li>Port the nine controls in P-04, or mark them ineligible with a policy that says why.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · P-02, P-03, P-04</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Finish the Docker migration</h4>
+              <p>Not new capability — 12 of 29 resources already run <code>managed-service</code> with no container runtime. This closes the last five, in ascending difficulty (D-03).</p>
+              <ul>
+                <li><strong>x402-facilitator</strong> → <code>managed-service</code> with checksum-pinned <code>x402-rs</code> release binaries, following <code>cloudflared</code>/<code>minio</code>. Single static Rust binary, all three OSes. Unblocks <code>treasury</code> on desktop.</li>
+                <li><strong>kyutai-stt</strong> → either the <code>searxng</code> pinned-Python-runtime pattern or the <code>whisper</code> native-server-plus-model pattern. Model weights are the work; the container is not. Unblocks <code>audio-tools</code>.</li>
+                <li><strong>unstructured-io</strong> → <code>managed-service</code>, native pip install, with <code>hi_res</code> declared <code>partial</code> where <code>detectron2</code> is unavailable (certainly Windows). <code>partial</code> maps to <code>QualificationDegraded</code> — the honest claim, and already in the vocabulary. Unblocks <code>document-manager</code> at degraded fidelity.</li>
+                <li>Make the <code>audio-tools</code> → <code>sherpa-onnx</code> dependency optional (D-09). Its unsupported status is a signing gate, not a code gap, and it should not keep a scenario unresolvable everywhere.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · P-08 · <b>implements</b> D-03</div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+
+      <!-- TRACK B -->
+      <div class="track t-b">
+        <div class="track-head">
+          <span class="tk">Track B</span>
+          <h3>Foundation &amp; hygiene</h3>
+        </div>
+        <p class="track-note">Makes the repository match the quality of its own design documents.</p>
+
+        <div class="roadmap">
+
+          <article class="step">
+            <div class="body">
+              <h4>Make skips visible</h4>
+              <p>Prerequisite for every claim Track A wants to record. A silent skip is a false green with a paper trail.</p>
+              <ul>
+                <li>Route platform skips through one helper that <em>reports</em> rather than vanishing, and emit a per-platform executed / skipped / total count with every run.</li>
+                <li>Publish that count as part of test-genie's run record so a macOS run states what it did not do.</li>
+                <li>Triage the 155 platform-gated skips: each is either a real platform limit worth declaring, or a test that should be ported.</li>
+                <li>Start with the three core suites — <code>internal/lifecycle</code>, <code>internal/process</code>, <code>internal/cli/scenariocli</code>.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-01 · <b>blocks</b> the validation run</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Turn the structure gate back on</h4>
+              <p>Nine layout rules and five glob rules are currently enforcing nothing.</p>
+              <ul>
+                <li>Profile structure-health's 10s budget overrun and either fix the cost or raise the budget deliberately — do not leave it timing out at 10.001s.</li>
+                <li>Change the aggregate semantics so an unavailable provider reads as <em>unguarded</em>, not merely as a blocked hygiene run.</li>
+                <li>Repair the one stale dependency surface hygiene already names: <code>scenarios/scenario-to-plugin/api/go.mod</code>.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-02</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Finish the scaffolds</h4>
+              <p>The single most visible professionalism gap. Nothing here is hard; it has just never been anyone's task.</p>
+              <ul>
+                <li>Rewrite the 43 boilerplate READMEs to describe the scenario, not the template. Start with <code>infrastructure-manager</code> and <code>vrooli-bridge</code>.</li>
+                <li>Remove the 70 completed <code>docs/START-HERE.md</code> files and delete the 7 leftover <code>notes</code> demo domains.</li>
+                <li>Add a repo-contract rule that fails a scenario still shipping template text — the gate that would have prevented all 43.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-03 · pairs with Track B stage 2</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Automate the empty-directory sweep</h4>
+              <p>Cheap and permanent. Write the gate first, let it do the deleting — the point is that this never needs a human again.</p>
+              <ul>
+                <li>Add a repo-contract <code>layout</code> rule: an empty directory with no <code>.gitkeep</code> is a finding, auto-fixed by <code>vrooli hygiene --fix-safe</code>.</li>
+                <li>Safe by construction — Git cannot track empty directories, so the fix can never remove anything a clone depends on, and the <code>.gitkeep</code> convention already marks the deliberate cases.</li>
+                <li>Separately, fix the two <em>generators</em> producing the nested <code>packages/proto/packages/proto/</code> path and the timestamped <code>rcl-fixture-positive-…</code> directory. The sweep hides those symptoms; only the generator fix stops them.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-05 · one rule, no recurring maintenance</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Decide what the plan corpus is <em>for</em></h4>
+              <p>Not a cleanup task — a decision. Make it before writing any code, because the two options lead to opposite work.</p>
+              <ul>
+                <li><strong>Option A — index it.</strong> Import the 986 unseen documents so Recall answers from the real corpus. Costs a triage pass; makes "is there an existing plan?" trustworthy for the first time.</li>
+                <li><strong>Option B — declare it an archive.</strong> Exclude the directory from the hygiene check entirely and accept that Plan Manager indexes only live plans. Costs nothing; makes the 19-plan index an explicit choice rather than an accident.</li>
+                <li>Either way: repair or relocate the 13 unparseable files, and stop reporting mirror freshness — 5 stale mirrors is noise and should never have been on the board.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-04 · pick one; the current state is neither</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Write down what the control plane's packages are for</h4>
+              <p>The highest-value stage in Track B, and pure writing — no behaviour changes, no risk. It is also the hard prerequisite for the stage after it.</p>
+              <ul>
+                <li>Add a package doc to the 93 packages missing one, largest first: <code>resources</code>, <code>lifecycle</code>, <code>vroolicli</code>, <code>hostinventory</code>, <code>scenarioruntime</code>, <code>setup</code>.</li>
+                <li>Gate it — a new <code>internal/</code> package without a package doc fails the contract. This is what stops the eleven-way <code>host*</code> split recurring.</li>
+                <li>With docs in hand, resolve the two concrete boundary defects: collapse the <code>hostreq</code>/<code>hostreqkit</code>/<code>hostreqcheck</code>/<code>hostreqspec</code>/<code>hostreqrun</code> split to the boundaries the docs justify, and name one canonical repo-root resolver among the six that exist.</li>
+                <li>Delete the two genuinely dead packages: <code>internal/reporoot</code>, <code>internal/scheduler</code>. Confirm <code>internal/resources/runtime/operations</code> then keep or remove it.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-07 · <b>blocks</b> the split stage below</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Split the five god-files, under the protocol</h4>
+              <p>Last, deliberately. Every split follows the six-rule protocol above, with the symbol-set diff as the gate that makes duplication impossible rather than unlikely.</p>
+              <ul>
+                <li>Build the symbol-set differ first — a short <code>go/ast</code> script — and prove it on <code>internal/cliinstall</code> (2 files, 2,462 LOC, clean install/uninstall seam).</li>
+                <li>Then <code>internal/scenario</code> (1,549-line <code>scenario.go</code>), <code>internal/resources/drivers.go</code> (1,911) and <code>internal/setup/setup.go</code> (1,449).</li>
+                <li><code>internal/lifecycle</code> (8,305 LOC, 0 subpackages, 13 dependents) needs a subpackage design of its own — schedule it separately, not as part of this sweep.</li>
+                <li>Only then the 13 scenario <code>api/main.go</code> files, same protocol, <code>api-library</code> and <code>calendar</code> first.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-06, R-09 · gated on the stage above</div>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="body">
+              <h4>Bound the local run state</h4>
+              <p>Independent of everything else; can run any time.</p>
+              <ul>
+                <li>Make coverage and <code>data/</code> retention actually bound — the tombstone and pin-lease machinery exists and is not holding 36GB in check.</li>
+              </ul>
+              <div class="why"><b>Closes</b> · R-08</div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CONVERGENCE -->
+    <div class="converge">
+      <h3>Convergence — clean minimouse and run live validation</h3>
+      <p class="lede">
+        The deliverable. Run it only once every gate below is green, so that a failure is
+        attributable and a success is recordable.
+      </p>
+
+      <div class="gates">
+        <span class="glabel">Required before touching the Mac</span>
+        <span><code>A · remote dispatch wired</code></span>
+        <span><code>A · evidence ratchet in place</code></span>
+        <span><code>B · skips counted and reported</code></span>
+        <span><code>B · structure gate re-enabled</code></span>
+      </div>
+
+      <ol>
+        <li>Remove <code>/Users/matthalloran8/Vrooli</code>, <code>~/.vrooli</code>, and the plan-audit checkout through a Bridge cleanup operation, so the tombstone records a real reset rather than a refusal.</li>
+        <li>Single Bridge onboarding from clean: setup → onboarding → node pairing → service install → heartbeat. <strong>Count the passphrase prompts</strong> — that number is the onboarding quality metric, and the 14 Aug audit could never obtain it.</li>
+        <li>Reboot, then verify unattended credential read, Keychain reachability, and LaunchAgent survival. <strong>Under D-04 these are minimouse's real job</strong> — an ephemeral CI runner cannot prove any of them, and no cross-build ever will.</li>
+        <li>From this machine: <code>vrooli scenario start minimouse/system-monitor</code>, then <code>status</code>, then a health assertion, then <code>stop</code>. This is the target proof — it exercises remote dispatch, native darwin collectors, and honest per-capability degradation at once.</li>
+        <li>Confirm the degradation is <em>reported</em>, not silent: <code>thermal</code> and <code>memory-errors</code> must come back not-applicable with their reasons, and the scenario must be <code>available, degraded</code> rather than green.</li>
+        <li>Run a full scenario suite on the node. <strong>Check the platform skip count against its declared budget first</strong> (D-08) — over budget means the run is not evidence, regardless of whether it passed.</li>
+        <li>Record the result as the first <code>qualified</code> evidence in the ledger, scoped to <code>darwin/amd64</code> and to the persistence claims CI cannot make.</li>
+      </ol>
+    </div>
+
+    <div class="roadmap" style="margin-top:30px">
+      <article class="step">
+        <div class="body">
+          <h4>Afterwards — make the win permanent</h4>
+          <p>Otherwise the ledger returns to zero the next time someone edits a manifest.</p>
+          <ul>
+            <li>Extend CI past its four non-Linux jobs to a full scenario lifecycle on <code>macos-latest</code> and <code>windows-latest</code>. Per D-04 this is not a nice-to-have: those runners are the qualification surface for <code>darwin/arm64</code> and <code>windows/amd64</code>, and D-01 makes the Windows one mandatory.</li>
+            <li>Schedule a recurring Bridge-driven validation against minimouse for the persistence claims, so <code>qualified</code> decays if it stops passing.</li>
+            <li>Record the narrow ceiling in <code>platform_policies</code>: hardware-persistence claims stay <code>build_verified</code> on platforms with no dedicated machine — not a blanket ceiling on the platforms themselves.</li>
+            <li>Diary a review before Fall 2027. Apple has discontinued x86_64 and Intel macOS runners retire after the macOS 15 image, which puts a shelf life on minimouse as a macOS surface.</li>
+          </ul>
+          <div class="why"><b>Protects</b> · everything above · <b>implements</b> D-04</div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="footer">
+    <div>Sources: <code>vrooli capability ledger --json</code> · <code>vrooli capability conformance</code> (598 targets, 70s) · <code>vrooli capability fleet --json</code> · <code>infrastructure-manager portability grid</code> · <code>infrastructure-manager ladder status</code> · <code>vrooli-bridge nodes list</code> · direct source read of <code>internal/deployability</code>, <code>.vrooli/schemas</code>, <code>internal/tools</code>, <code>internal/safeguards</code>, <code>resources</code>, <code>.github/workflows</code>.</div>
+    <div>Live commands executed 24 Aug 2026 against the working tree on this host. No files were modified.</div>
+  </div>
+
+</div>

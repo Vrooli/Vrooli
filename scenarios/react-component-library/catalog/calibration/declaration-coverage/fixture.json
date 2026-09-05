@@ -1,0 +1,9 @@
+{
+  "gate": "declaration-coverage",
+  "assetId": "__corpus__.declaration-coverage",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.declaration_coverage",
+  "source": "broken.tsx",
+  "description": "Implements an asset without a catalog declaration."
+}

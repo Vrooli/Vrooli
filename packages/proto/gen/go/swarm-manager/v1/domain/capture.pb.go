@@ -275,20 +275,20 @@ var File_swarm_manager_v1_domain_capture_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_capture_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/capture.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xcf\x02\n" +
+	"%swarm-manager/v1/domain/capture.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xdd\x02\n" +
 	"\aCapture\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
 	"\x04text\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12 \n" +
 	"\vattachments\x18\x03 \x03(\tR\vattachments\x12!\n" +
 	"\acreated\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acreated\x12>\n" +
 	"\x06status\x18\x05 \x01(\tB&\xbaH#r!R\vclassifyingR\n" +
-	"classifiedR\x06failedR\x06status\x12T\n" +
-	"\x0eclassification\x18\x06 \x01(\v2'.swarm_manager.v1.CaptureClassificationH\x00R\x0eclassification\x88\x01\x01\x12\x17\n" +
+	"classifiedR\x06failedR\x06status\x12b\n" +
+	"\x0eclassification\x18\x06 \x01(\v25.vrooli.swarm_manager.v1.domain.CaptureClassificationH\x00R\x0eclassification\x88\x01\x01\x12\x17\n" +
 	"\x04note\x18\a \x01(\tH\x01R\x04note\x88\x01\x01B\x11\n" +
 	"\x0f_classificationB\a\n" +
-	"\x05_note\"\x88\x01\n" +
-	"\x15CaptureClassification\x12A\n" +
-	"\x05items\x18\x01 \x03(\v2+.swarm_manager.v1.CaptureClassificationItemR\x05items\x12,\n" +
+	"\x05_note\"\x96\x01\n" +
+	"\x15CaptureClassification\x12O\n" +
+	"\x05items\x18\x01 \x03(\v29.vrooli.swarm_manager.v1.domain.CaptureClassificationItemR\x05items\x12,\n" +
 	"\rclassified_at\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fclassifiedAt\"\xf7\x01\n" +
 	"\x19CaptureClassificationItem\x12>\n" +
 	"\x04kind\x18\x01 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1d\n" +
@@ -315,13 +315,13 @@ func file_swarm_manager_v1_domain_capture_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_swarm_manager_v1_domain_capture_proto_goTypes = []any{
-	(*Capture)(nil),                   // 0: swarm_manager.v1.Capture
-	(*CaptureClassification)(nil),     // 1: swarm_manager.v1.CaptureClassification
-	(*CaptureClassificationItem)(nil), // 2: swarm_manager.v1.CaptureClassificationItem
+	(*Capture)(nil),                   // 0: vrooli.swarm_manager.v1.domain.Capture
+	(*CaptureClassification)(nil),     // 1: vrooli.swarm_manager.v1.domain.CaptureClassification
+	(*CaptureClassificationItem)(nil), // 2: vrooli.swarm_manager.v1.domain.CaptureClassificationItem
 }
 var file_swarm_manager_v1_domain_capture_proto_depIdxs = []int32{
-	1, // 0: swarm_manager.v1.Capture.classification:type_name -> swarm_manager.v1.CaptureClassification
-	2, // 1: swarm_manager.v1.CaptureClassification.items:type_name -> swarm_manager.v1.CaptureClassificationItem
+	1, // 0: vrooli.swarm_manager.v1.domain.Capture.classification:type_name -> vrooli.swarm_manager.v1.domain.CaptureClassification
+	2, // 1: vrooli.swarm_manager.v1.domain.CaptureClassification.items:type_name -> vrooli.swarm_manager.v1.domain.CaptureClassificationItem
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

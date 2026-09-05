@@ -1,0 +1,112 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "MetricCard",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-core",
+        "states": ["ready", "semantic-status"]
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-card-metric]",
+          "value": "1"
+        }
+      ],
+      "id": "metric-card",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Metric card with semantic content",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "EmptyStateCard",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-empty",
+        "states": ["empty"]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No drift detected"
+        }
+      ],
+      "id": "empty-tool",
+      "mode": "live",
+      "name": "Empty card state",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContentCard",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-long-content",
+        "states": ["long-content", "wrap"]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Review and apply all pending workspace configuration changes"
+        }
+      ],
+      "id": "long-content",
+      "mode": "live",
+      "name": "Long content wraps cleanly",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CardGrid",
+          "module": "./story.tsx"
+        }
+      },
+      "evidence": {
+        "reviewSet": "card-context",
+        "states": ["raised-grid"]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Adoption health"
+        }
+      ],
+      "id": "card-grid-raised",
+      "mode": "live",
+      "name": "Card inside raised grid context",
+      "role": "boundary"
+    }
+  ],
+  "title": "Card"
+}

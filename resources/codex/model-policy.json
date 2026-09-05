@@ -1,0 +1,32 @@
+{
+  "schema_version": "v1",
+  "runner": "codex",
+  "provenance": {"source": "OpenAI model catalog and local Codex model cache (~/.codex/models_cache.json fetched_at=2026-08-30T20:40:13Z)", "observed_at": "2026-08-30"},
+  "billing": {"mode": "subscription", "source": "operator-declared-codex-cli-subscription"},
+  "model_aliases": {
+    "gpt-5.6-luna": {"canonical_model": "codex/gpt-5.6-luna", "provider": "codex"},
+    "gpt-5.4": {"canonical_model": "codex/gpt-5.4", "provider": "codex"},
+    "gpt-5.4-mini": {"canonical_model": "codex/gpt-5.4-mini", "provider": "codex"},
+    "gpt-5.6-sol": {"canonical_model": "codex/gpt-5.6-sol", "provider": "codex"},
+    "gpt-5.5": {"canonical_model": "codex/gpt-5.5", "provider": "codex"},
+    "codex-auto-review": {"canonical_model": "codex/codex-auto-review", "provider": "codex"},
+    "gpt-5.3-codex-spark": {"canonical_model": "codex/gpt-5.3-codex-spark", "provider": "codex"},
+    "gpt-5.6-terra": {"canonical_model": "codex/gpt-5.6-terra", "provider": "codex"},
+    "gpt-reserve": {"canonical_model": "codex/gpt-reserve", "provider": "codex"}
+  },
+  "roles": {
+    "code.default": {"model": "gpt-5.6-luna", "canonical_model": "codex/gpt-5.6-luna", "fallbacks": ["gpt-5.4"], "description": "Balanced Codex implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "gpt-5.6-luna", "canonical_model": "codex/gpt-5.6-luna", "fallbacks": ["gpt-5.4-mini"], "description": "Low-latency Codex edits.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "gpt-5.6-sol", "canonical_model": "codex/gpt-5.6-sol", "fallbacks": ["gpt-5.5"], "description": "Highest-capability Codex reasoning.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "gpt-5.6-luna", "canonical_model": "codex/gpt-5.6-luna", "fallbacks": ["gpt-5.4-mini"], "description": "Cost-conscious Codex tasks.", "capabilities": ["code", "tools"]},
+    "code.ux": {"model": "gpt-5.6-sol", "canonical_model": "codex/gpt-5.6-sol", "fallbacks": ["gpt-5.5"], "description": "User-facing interaction and frontend work where quality matters most.", "capabilities": ["code", "tools", "ux"]},
+    "code.judgment": {"model": "gpt-5.6-luna", "canonical_model": "codex/gpt-5.6-luna", "fallbacks": ["gpt-5.4"], "description": "Fallback for high-level judgment and strategic reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.inspection": {"model": "gpt-5.6-luna", "canonical_model": "codex/gpt-5.6-luna", "fallbacks": ["gpt-5.4"], "description": "Code inspection, reproduction, execution, and evidence gathering.", "capabilities": ["code", "tools"]},
+    "code.longrun": {"model": "gpt-5.6-sol", "canonical_model": "codex/gpt-5.6-sol", "fallbacks": ["gpt-5.5"], "description": "Long-horizon autonomous coding work.", "capabilities": ["code", "tools", "reasoning"]},
+    "write.default": {"model": "gpt-5.6-sol", "canonical_model": "codex/gpt-5.6-sol", "fallbacks": ["gpt-5.5"], "description": "Natural-prose writing and editorial work.", "capabilities": ["writing", "tools"]},
+    "code.review": {"model": "codex-auto-review", "canonical_model": "codex/codex-auto-review", "fallbacks": ["gpt-5.6-luna"], "description": "Reserved automatic review model; not assigned to the fleet.", "capabilities": ["code", "tools"]},
+    "code.spark": {"model": "gpt-5.3-codex-spark", "canonical_model": "codex/gpt-5.3-codex-spark", "fallbacks": ["gpt-5.4-mini"], "description": "Reserved low-latency model; not assigned to the fleet.", "capabilities": ["code", "tools"]},
+    "code.terra": {"model": "gpt-5.6-terra", "canonical_model": "codex/gpt-5.6-terra", "fallbacks": ["gpt-5.6-luna"], "description": "Reserved Codex model; not assigned to the fleet.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.reserve": {"model": "gpt-reserve", "canonical_model": "codex/gpt-reserve", "fallbacks": ["gpt-5.4"], "description": "Reserved emergency model; not assigned to the fleet.", "capabilities": ["code", "tools"]}
+  }
+}

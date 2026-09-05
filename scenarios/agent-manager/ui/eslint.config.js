@@ -5,13 +5,15 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules"] },
+  { ignores: ["dist", "node_modules", "coverage"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
+      ecmaVersion: 2020,
       parserOptions: {
-        project: ["./tsconfig.json", "./tsconfig.test.json"],  // Enable type-aware linting
+        project: "./tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
@@ -46,10 +48,11 @@ export default tseslint.config(
       // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
       // Using ! hides bugs that will crash at runtime with "X is not a function"
       // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
+      // CRITICAL: no-non-null-assertion preserves runtime null safety.
       "@typescript-eslint/no-non-null-assertion": "error",
 
-      // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
-      // These catch bugs like "v.trim is not a function" when v is not actually a string
+      // CRITICAL: no-unsafe-* catches operations on untrusted values that would crash at runtime.
+      // These catch bugs like "v.trim is not a function" when v is not actually a string.
       "@typescript-eslint/no-unsafe-member-access": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-argument": "warn",
@@ -59,10 +62,21 @@ export default tseslint.config(
       // Prevents explicit 'any' which disables all type checking for that value
       "@typescript-eslint/no-explicit-any": "error",
 
-      // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
+      // CRITICAL: no-cycle detects circular dependencies that cause "Cannot access X before initialization"
       // These runtime errors are extremely hard to debug in production (minified variable names).
       // Requires eslint-plugin-import and eslint-import-resolver-typescript
       "import/no-cycle": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["src/test-utils/**", "src/features/*/mocks/**"],
+              message: "Production code must not import test helpers or feature mocks.",
+            },
+          ],
+        },
+      ],
 
       // ════════════════════════════════════════════════════════════════════════
       // STANDARD RULES (can be adjusted if needed)
@@ -72,10 +86,76 @@ export default tseslint.config(
       "react-hooks/exhaustive-deps": "warn",
 
       // Ensures only components are exported for proper HMR
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": "off",
 
       // Allow unused vars prefixed with underscore (common pattern for ignored params)
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          checksVoidReturn: {
+            attributes: false,
+          },
+        },
+      ],
+      "@typescript-eslint/no-deprecated": "off",
+      "@typescript-eslint/no-dynamic-delete": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-invalid-void-type": "off",
+      "@typescript-eslint/no-meaningless-void-operator": "off",
+      "@typescript-eslint/no-base-to-string": "off",
+      "@typescript-eslint/no-misused-spread": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "off",
+      "@typescript-eslint/no-unnecessary-type-arguments": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unnecessary-type-conversion": "off",
+      "@typescript-eslint/no-unnecessary-type-parameters": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/restrict-plus-operands": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+    },
+  },
+  {
+    extends: [tseslint.configs.disableTypeChecked],
+    files: ["tests/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        project: false,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/await-thenable": "off",
+      "@typescript-eslint/no-base-to-string": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/unbound-method": "off",
+	  "no-restricted-imports": "off",
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    files: ["src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
+  {
+    files: ["vite.config.ts", "tailwind.config.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.node.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   }
 );

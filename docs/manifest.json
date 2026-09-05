@@ -1,0 +1,454 @@
+{
+  "version": "1.2.0",
+  "title": "Vrooli Documentation",
+  "description": "Project-level documentation for the Vrooli platform",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Set up Vrooli and learn the core command flow",
+          "audience": [
+            "users",
+            "developers"
+          ]
+        },
+        {
+          "path": "README.md",
+          "title": "Docs Hub",
+          "description": "Project-level documentation navigation"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "title": "Contributing",
+          "description": "Current contributor workflow and expectations"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Current platform architecture and operating model"
+        },
+        {
+          "path": "concepts/RECURSIVE_SELF_IMPROVEMENT.md",
+          "title": "Recursive Self-Improvement",
+          "description": "The loop by which Vrooli improves its own ability to build software: the four projections (Answer/Validate/Guide/Act), the maturation gradient, and the operating layer that runs it"
+        },
+        {
+          "path": "concepts/ECOSYSTEM.md",
+          "title": "Ecosystem Fit",
+          "description": "How a single scenario fits the whole: functional role, interfaces, and compound value"
+        },
+        {
+          "path": "concepts/MEASURES.md",
+          "title": "Measures",
+          "description": "Federated metrics layer: scenarios declare named, typed, parameterized analytical queries so questions map to computed, provenance-backed answers"
+        },
+        {
+          "path": "concepts/PAID_FEATURES.md",
+          "title": "Paid Features",
+          "description": "Engineering contract for turning a capability into a paid feature (metered vs gated) and wiring it through LPBS"
+        },
+        {
+          "path": "concepts/PUBLIC_ASSETS.md",
+          "title": "Public-Asset Convention",
+          "description": "The /public/* URL-prefix convention for world-readable assets: its security contract, what belongs there, and the edge Access-bypass enforcement"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Shared vocabulary for the platform"
+        }
+      ]
+    },
+    {
+      "id": "design",
+      "title": "Design",
+      "icon": "palette",
+      "documents": [
+        {
+          "path": "design/README.md",
+          "title": "Design Language System",
+          "description": "Canonical DESIGN.md governance for scenario UI design languages"
+        },
+        {
+          "path": "design/registry.md",
+          "title": "Design Kit Registry",
+          "description": "Available reusable design kits and adapters"
+        },
+        {
+          "path": "design/adapters.md",
+          "title": "Design Adapters",
+          "description": "Stack-specific adapter contracts for design kits"
+        },
+        {
+          "path": "design/governance.md",
+          "title": "Design Governance",
+          "description": "Ownership, versioning, and scenario DESIGN.md rules"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "guides/README.md",
+          "title": "Guides Hub",
+          "description": "Task-oriented contributor and operator guides"
+        },
+        {
+          "path": "guides/development-environment.md",
+          "title": "Development Environment",
+          "description": "Current project-level development environment flow"
+        },
+        {
+          "path": "guides/development-workflows.md",
+          "title": "Development Workflows",
+          "description": "Preferred project and scenario workflows"
+        },
+        {
+          "path": "TESTING.md",
+          "title": "Testing",
+          "description": "Testing entrypoint and handoff to Test Genie"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "Current project-level CLI reference"
+        },
+        {
+          "path": "reference/build-and-validation.md",
+          "title": "Build And Validation",
+          "description": "Project-level build and validation surfaces"
+        },
+        {
+          "path": "reference/cli-invokers.md",
+          "title": "CLI Invokers",
+          "description": "Generated registry of every process that builds a vrooli argv, and the ad-hoc callers not yet migrated"
+        },
+        {
+          "path": "reference/agent-sessions.md",
+          "title": "Agent Sessions",
+          "description": "Editor leases, vrooli agent list, advisory claims, and freezing and thawing a session scope"
+        },
+        {
+          "path": "reference/host-pressure.md",
+          "title": "Host Pressure",
+          "description": "The toolchain floor, the agent slice, the one setpoint reader with attribution, the contain-storm authority, and the per-OS evidence tiers"
+        },
+        {
+          "path": "reference/native-service-definitions.md",
+          "title": "Native Service Definitions",
+          "description": "The platform-go service definition contract, per-OS renderers and validators, the PATH table, the core units, and the drop-in writers left for consolidation"
+        },
+        {
+          "path": "reference/health-maturity-assessments.md",
+          "title": "Health Maturity Assessments",
+          "description": "Provider-owned health maturity reports and automation contract"
+        },
+        {
+          "path": "reference/accessibility-validation.md",
+          "title": "Accessibility Validation",
+          "description": "Accessibility evidence ownership across UI, performance, branding, and experience health"
+        },
+        {
+          "path": "reference/environment-management.md",
+          "title": "Environment Management",
+          "description": "Current project-level environment and secrets posture"
+        },
+        {
+          "path": "reference/port-allocation.md",
+          "title": "Port Allocation",
+          "description": "Canonical scenario port bands and the OS ephemeral-range hazard"
+        },
+        {
+          "path": "reference/experience-readiness.md",
+          "title": "Experience Readiness Contracts",
+          "description": "Authoring, ownership, lifecycle vocabulary, and progressive consumption of scenario experience readiness"
+        },
+        {
+          "path": "reference/node-capability-readiness.md",
+          "title": "Node Capability Readiness",
+          "description": "Contract for probing, transporting, rendering, and configuring machine capabilities"
+        },
+        {
+          "path": "repo-contract.md",
+          "title": "Repo Contract",
+          "description": "Repo-aware structure rules"
+        },
+        {
+          "path": "package-governance.md",
+          "title": "Package Governance",
+          "description": "Shared package policy and validation"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "activity",
+      "documents": [
+        {
+          "path": "operations/README.md",
+          "title": "Operations Hub",
+          "description": "Operational guidance and diagnostics"
+        },
+        {
+          "path": "operations/production-guide.md",
+          "title": "Production Guide",
+          "description": "Current Tier 1 operations guidance"
+        },
+        {
+          "path": "operations/logging.md",
+          "title": "Logging",
+          "description": "Diagnostics and logging surfaces"
+        },
+        {
+          "path": "operations/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "First-line troubleshooting workflow"
+        },
+        {
+          "path": "operations/ci-cd.md",
+          "title": "CI/CD",
+          "description": "Current CI and automation posture"
+        }
+      ]
+    },
+    {
+      "id": "systems",
+      "title": "System Areas",
+      "icon": "grid",
+      "documents": [
+        {
+          "path": "scenarios/README.md",
+          "title": "Scenarios",
+          "description": "Scenario-system documentation"
+        },
+        {
+          "path": "resources/README.md",
+          "title": "Resources",
+          "description": "Resource-system documentation"
+        },
+        {
+          "path": "deployment/README.md",
+          "title": "Deployment",
+          "description": "Deployment tiers, maturity, and portability"
+        },
+        {
+          "path": "deployment/reference/server-deployment.md",
+          "title": "Server Deployment Reference",
+          "description": "Reference-oriented server deployment notes and constraints"
+        }
+      ]
+    },
+    {
+      "id": "agent-system",
+      "title": "Agent System",
+      "icon": "brain",
+      "documents": [
+        {
+          "path": "agent-system/README.md",
+          "title": "Agent System Hub",
+          "description": "Plan-of-record for prompt-manager's self-improving agent system"
+        },
+        {
+          "path": "agent-system/PRIMITIVES.md",
+          "title": "Primitives",
+          "description": "Core nouns: skills, agents, teams, plans, decisions, knowledge, inboxes, actions, CLIs"
+        },
+        {
+          "path": "agent-system/LAYERS.md",
+          "title": "Layers",
+          "description": "Canonical rule for where truth, judgment, execution, implementation, and raw learning belong"
+        },
+        {
+          "path": "agent-system/INTAKE_PIPELINE.md",
+          "title": "Intake Pipeline",
+          "description": "Inbox-router-drain pattern and topic-prefix routing conventions"
+        },
+        {
+          "path": "agent-system/TEAM_MEMBER_ARCHITECTURE.md",
+          "title": "Team Member Architecture",
+          "description": "Nine-layer model for evaluating a team member's operating surface"
+        },
+        {
+          "path": "agent-system/PROMOTION_LADDER.md",
+          "title": "Promotion Ladder",
+          "description": "How prose guidance matures into CLI contracts, Actions, and retired prose"
+        },
+        {
+          "path": "agent-system/TEAM_DOCS_PATTERNS.md",
+          "title": "Team Docs Patterns",
+          "description": "Plan-of-record authority, typed knowledge flow, and promotion gates"
+        },
+        {
+          "path": "agent-system/SKILL_AUTHORING.md",
+          "title": "Skill Authoring",
+          "description": "Universal quality bars for prompt-manager skills"
+        },
+        {
+          "path": "agent-system/DEPRECATION_POLICY.md",
+          "title": "Deprecation Policy",
+          "description": "Rules for retiring skills, agents, and teams"
+        },
+        {
+          "path": "agent-system/REFERENCE_SCENARIOS.md",
+          "title": "Reference Scenarios",
+          "description": "Gold-star reference scenario registry and rot triage rules"
+        },
+        {
+          "path": "agent-system/TOPICS_SCHEMA.md",
+          "title": "Topics Schema",
+          "description": "Canonical schema for per-member topic-flow declarations (topics.json)"
+        },
+        {
+          "path": "agent-system/TOPICS.md",
+          "title": "Topics Registry",
+          "description": "Human registry of every topic prefix in active use, with per-team breakdown and adoption checklist"
+        }
+      ]
+    },
+    {
+      "id": "strategy",
+      "title": "Strategy",
+      "icon": "flag",
+      "documents": [
+        {
+          "path": "strategy/README.md",
+          "title": "Strategy Hub",
+          "description": "Project framing and direction"
+        },
+        {
+          "path": "strategy/context.md",
+          "title": "Context",
+          "description": "Project purpose and current framing"
+        },
+        {
+          "path": "strategy/decisions.md",
+          "title": "Decisions",
+          "description": "Architectural decision record"
+        },
+        {
+          "path": "strategy/risks.md",
+          "title": "Risks",
+          "description": "Project-level risks and mitigations"
+        },
+        {
+          "path": "strategy/roadmap.md",
+          "title": "Roadmap",
+          "description": "Roadmap and strategic direction"
+        },
+        {
+          "path": "strategy/business-solutions.md",
+          "title": "Business Solutions",
+          "description": "Commercial and positioning framing"
+        },
+        {
+          "path": "strategy/personal-ai-server.md",
+          "title": "Personal AI Server",
+          "description": "Exploratory infrastructure and appliance-style reference"
+        }
+      ]
+    },
+    {
+      "id": "team-plans",
+      "title": "Team Plans",
+      "icon": "network",
+      "documents": [
+        {
+          "path": "director-swarm/README.md",
+          "title": "Director Swarm",
+          "description": "Portfolio direction, initiative sequencing, and outcome discipline"
+        },
+        {
+          "path": "infra-health/README.md",
+          "title": "Infra Health",
+          "description": "Reliability, instrumentation, and portability plan of record"
+        },
+        {
+          "path": "marketing/README.md",
+          "title": "Marketing",
+          "description": "External voice, campaigns, channels, and brand canon"
+        },
+        {
+          "path": "agent-system/README.md",
+          "title": "Agent System",
+          "description": "Plan-of-record for agent, team, skill, Action, and topic-flow improvement patterns"
+        },
+        {
+          "path": "monetization/README.md",
+          "title": "Monetization",
+          "description": "Strategy, catalog, pricing, revenue lines, channels, and financial model"
+        },
+        {
+          "path": "narrative/README.md",
+          "title": "Narrative",
+          "description": "Project identity canon for pitch, story, FAQ, press kit, and pitch deck"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Problems",
+          "description": "Known documentation debt and migration gaps",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Documentation rewrite status",
+          "internal": true
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Boundaries between project docs and scenario/resource docs",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": [
+      "getting-started",
+      "concepts",
+      "guides",
+      "reference",
+      "operations",
+      "systems",
+      "agent-system",
+      "strategy",
+      "team-plans"
+    ],
+    "secondary": [
+      "internal"
+    ]
+  }
+}

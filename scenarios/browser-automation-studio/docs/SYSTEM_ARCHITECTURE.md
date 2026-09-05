@@ -49,13 +49,13 @@ flowchart TB
     end
 
     subgraph External["External Systems"]
-        PW_DRIVER["Playwright Driver\n(Node.js/TypeScript)\n• HTTP server :39400\n• Session management\n• 28 instruction handlers\n• Telemetry collection"]
+        PW_DRIVER["Playwright Driver\n(Node.js/TypeScript)\n• HTTP server on allocated PLAYWRIGHT_DRIVER_PORT\n• Session management\n• 28 instruction handlers\n• Telemetry collection"]
 
         CHROMIUM["Chromium Browser\n• Playwright automation\n• CDP protocol\n• Screenshot/DOM capture"]
     end
 
     subgraph Data["Data Layer"]
-        POSTGRES["PostgreSQL\n• Workflows & projects\n• Executions & steps\n• Artifacts & timeline\n• Users & auth"]
+        SQLITE["SQLite (embedded)\n• Workflows & projects index\n• Executions & schedules\n• Credit usage & operation log\n• UX metrics traces"]
 
         MINIO["MinIO (S3)\n• Screenshots\n• Videos/traces\n• HAR files\n• Export bundles"]
 
@@ -110,12 +110,12 @@ flowchart TB
     EVENTS -->|Broadcast| WS_HUB
 
     %% Data persistence
-    RECORDER --> POSTGRES
+    RECORDER --> SQLITE
     RECORDER --> MINIO
-    WF_SVC --> POSTGRES
-    REC_SVC --> POSTGRES
+    WF_SVC --> SQLITE
+    REC_SVC --> SQLITE
     REC_SVC --> FILESYSTEM
-    REPLAY_SVC --> POSTGRES
+    REPLAY_SVC --> SQLITE
     REPLAY_SVC --> MINIO
 
     %% Validation
@@ -140,7 +140,7 @@ flowchart TB
     class ROUTER,WF_HANDLER,EXEC_HANDLER,AI_HANDLER,REC_HANDLER,EXPORT_HANDLER api
     class WF_SVC,REPLAY_SVC,REC_SVC,EXPORT_SVC service
     class CONTRACTS,COMPILER,EXECUTOR,ENGINE,RECORDER,EVENTS automation
-    class POSTGRES,MINIO,FILESYSTEM data
+    class SQLITE,MINIO,FILESYSTEM data
     class PW_DRIVER,CHROMIUM external
 ```
 
@@ -277,7 +277,7 @@ Real-time streaming:
 
 ### 5. Playwright Driver (`playwright-driver/`)
 
-**TypeScript HTTP server** (port 39400):
+**TypeScript HTTP server** (port allocated from the scenario range 24400-24499 as `PLAYWRIGHT_DRIVER_PORT`):
 - Session management (browser/context/page lifecycle)
 - 28 instruction handlers (navigation, interaction, assertions, etc.)
 - Telemetry collection (console, network, screenshots, DOM)

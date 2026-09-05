@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "overlays.menu",
+  "deprecatedVersions": [
+    "1.1.1",
+    "1.1.2",
+    "1.2.0",
+    "1.2.1",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.1",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4",
+    "1.2.5"
+  ],
+  "latest": "2.0.0",
+  "libraryId": "react-component-library:Menu"
+}

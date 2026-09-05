@@ -12,14 +12,21 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 // DeploymentManagerGenerator implements ManifestGenerator by calling
 // the deployment-manager scenario to create bundle manifests.
 type DeploymentManagerGenerator struct {
-	client *http.Client
-	logger Logger
+	client     *http.Client
+	logger     Logger
+	resolveURL DeploymentManagerURLResolver
 }
+
+// DeploymentManagerURLResolver resolves the deployment-manager base URL.
+// It is injectable so callers can use an explicit local endpoint in tests
+// while production continues to use service discovery.
+type DeploymentManagerURLResolver func(context.Context) (string, error)
 
 // DeploymentManagerGeneratorOption configures a DeploymentManagerGenerator.
 type DeploymentManagerGeneratorOption func(*DeploymentManagerGenerator)
@@ -38,10 +45,22 @@ func WithGeneratorHTTPClient(c *http.Client) DeploymentManagerGeneratorOption {
 	}
 }
 
+// WithDeploymentManagerURLResolver overrides deployment-manager discovery.
+func WithDeploymentManagerURLResolver(resolver DeploymentManagerURLResolver) DeploymentManagerGeneratorOption {
+	return func(g *DeploymentManagerGenerator) {
+		if resolver != nil {
+			g.resolveURL = resolver
+		}
+	}
+}
+
 // NewDeploymentManagerGenerator creates a new manifest generator.
 func NewDeploymentManagerGenerator(opts ...DeploymentManagerGeneratorOption) *DeploymentManagerGenerator {
 	g := &DeploymentManagerGenerator{
 		client: &http.Client{Timeout: 5 * time.Minute},
+		resolveURL: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+		},
 	}
 	for _, opt := range opts {
 		opt(g)
@@ -75,7 +94,7 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 	}
 
 	// Resolve deployment-manager URL
-	deploymentManagerURL, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+	deploymentManagerURL, err := g.resolveURL(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve deployment-manager: %w", err)
 	}
@@ -83,7 +102,10 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 	// Build request
 	// Note: StageBundle is false because binaries may not exist yet (especially for TypeScript services).
 	// The packager will handle staging after services are built.
-	includeSecrets := true
+	includeSecrets, err := scenarioRequiresSecretPlans(scenarioName)
+	if err != nil {
+		return "", err
+	}
 	req := bundleExportRequest{
 		Scenario:       scenarioName,
 		Tier:           "tier-2-desktop",
@@ -148,6 +170,41 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 		g.logger.Info("manifest written", "path", manifestPath)
 	}
 	return manifestPath, nil
+}
+
+// scenarioRequiresSecretPlans avoids making an otherwise self-contained
+// desktop build depend on Secrets Manager. Resource-backed scenarios still
+// obtain their bundle secret plans; an empty dependency set deliberately
+// produces an empty secret plan without a cross-scenario runtime call.
+func scenarioRequiresSecretPlans(scenarioName string) (bool, error) {
+	root := filepath.Join(sharedpath.DetectScenariosRoot(), scenarioName, ".vrooli", "service.json")
+	data, err := os.ReadFile(root)
+	if err != nil {
+		// The generator can be used against a remote or synthetic scenario in
+		// tests. Preserve the safe historic behavior in that case: ask Secrets
+		// Manager for plans rather than asserting that no plans exist.
+		if os.IsNotExist(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("read scenario service manifest for secret planning: %w", err)
+	}
+	var service struct {
+		Dependencies struct {
+			Resources map[string]struct {
+				Enabled  bool `json:"enabled"`
+				Required bool `json:"required"`
+			} `json:"resources"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &service); err != nil {
+		return false, fmt.Errorf("parse scenario service manifest for secret planning: %w", err)
+	}
+	for _, dependency := range service.Dependencies.Resources {
+		if dependency.Enabled && dependency.Required {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // writeManifest writes the manifest to the output directory.

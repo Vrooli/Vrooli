@@ -1,46 +1,132 @@
 // Package driver provides sandbox driver interfaces and implementations.
+//
+// The package is split into orthogonal capability interfaces (MountDriver,
+// ChangeTracker, MountVerifier) so each driver implementation declares
+// exactly what it supports. Process execution lives in the sub-package
+// driver/exec; drivers do NOT implement Exec/StartProcess directly.
+//
+// File map:
+//
+//	driver.go         interfaces + types (this file)
+//	select.go         SelectDriver + NewDriverFor
+//	slot.go           atomic.Pointer wrapper + SwitchDriver
+//	options.go        DriverOption capability matrix
+//	probe.go          host capability probes
+//	helpers.go        shared overlayfs/cleanup helpers
+//	overlay.go        unified OverlayDriver (overlayfs-userns, overlayfs-root, fuse-overlayfs)
+//	copy.go           cross-platform fallback
+//	exec/             process isolation (Exec, StartProcess, BwrapConfig, …)
 package driver
 
 import (
 	"context"
-	"encoding/json"
-	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/config"
+	"workspace-sandbox/internal/driverid"
 	"workspace-sandbox/internal/types"
 )
 
 // StableFileID generates a deterministic UUID for a file within a sandbox.
-// This ensures the same file always gets the same ID across API calls,
-// enabling reliable file-based operations like approve and discard.
+// The same file always gets the same ID across API calls, enabling
+// reliable file-based operations (approve, discard, partial approval).
 func StableFileID(sandboxID uuid.UUID, filePath string) uuid.UUID {
 	return uuid.NewSHA1(sandboxID, []byte(filePath))
 }
 
-// DriverType identifies which driver implementation is in use.
-type DriverType string
+// DriverID is the canonical identifier across DB, wire, preference file,
+// launcher decisions, and Go code. The four values are fixed.
+type DriverID = driverid.ID
 
 const (
-	DriverTypeOverlayfs     DriverType = "overlayfs"
-	DriverTypeFuseOverlayfs DriverType = "fuse-overlayfs" // Unprivileged with direct access
-	DriverTypeCopy          DriverType = "copy"           // [OT-P2-004] Cross-platform fallback
-	DriverTypeNone          DriverType = "none"
+	DriverOverlayfsUserNS DriverID = driverid.OverlayfsUserNS
+	DriverOverlayfsRoot   DriverID = driverid.OverlayfsRoot
+	DriverFuseOverlayfs   DriverID = driverid.FuseOverlayfs
+	DriverCopy            DriverID = driverid.Copy
+)
+
+// ContainmentLevel is the single decision boundary for "how contained
+// should this exec be". Each driver declares its required level via
+// MountDriver.RequiredContainment; callers pass the result to exec.Exec /
+// exec.StartProcess, which dispatches to the OS-specific containment
+// backend. Defining the type here (instead of in driver/exec) keeps the
+// exec package free of a back-reference cycle.
+type ContainmentLevel int
+
+const (
+	// ContainmentNone runs the command directly in s.MergedDir with no
+	// containment backend. Used by the copy driver, which has no real
+	// mount.
+	ContainmentNone ContainmentLevel = iota
+
+	// ContainmentPreferred requires the containment backend for protected
+	// execution. If the backend is unavailable, the request fails and callers
+	// may explicitly negotiate tracking mode instead. It never silently
+	// degrades a protected request to direct execution.
+	ContainmentPreferred
+
+	// ContainmentRequired hard-errors when no containment backend is
+	// available. Used by kernel overlayfs whose mount lives inside the
+	// API's mount namespace — a direct child won't see the merged dir, so
+	// falling back would return the host filesystem and silently produce
+	// wrong results.
+	ContainmentRequired
 )
 
 // MountPaths contains the paths used for overlay mounting.
+//
+// HomeLowerDir/HomeUpperDir/HomeWorkDir/HomeMergedDir are populated when
+// the driver mounts a per-sandbox fuse-overlayfs over the host $HOME. The
+// merged dir is bind-mounted at /home/<user> inside the bwrap namespace
+// so agent CLIs find their host config while writes go to the upper
+// layer (per-run, ephemeral). Zero when $HOME is not set or the driver
+// chose not to set up a home overlay (e.g. CopyDriver, tests).
 type MountPaths struct {
 	LowerDir  string // Read-only layer (canonical repo)
 	UpperDir  string // Writable layer (changes)
 	WorkDir   string // Overlayfs work directory
 	MergedDir string // Merged mount point
+
+	HomeLowerDir  string // Host $HOME, read-only via overlay
+	HomeUpperDir  string // Per-sandbox writable layer for $HOME writes
+	HomeWorkDir   string // fuse-overlayfs scratch dir for the home overlay
+	HomeMergedDir string // Merged $HOME mount point on the host side
 }
 
-// Driver is the interface for sandbox driver implementations.
-type Driver interface {
-	// Type returns the driver type.
-	Type() DriverType
+// DriverCapabilities is the pure (no-I/O) declaration of what a driver
+// supports. Used by handlers to decide whether a profile's requirements
+// can be satisfied — see IsolationProfile.HomeOverlayRequirement.
+//
+// DOC: home-overlay seam — driver-side capability declaration. See
+// docs/internal/SEAMS.md.
+type DriverCapabilities struct {
+	// HomeOverlay is true when the driver can mount a per-sandbox overlay
+	// over the host $HOME. False for the copy driver. True for both
+	// overlayfs variants and fuse-overlayfs.
+	HomeOverlay bool
+	// CoW is true when changes are stored copy-on-write. False for the
+	// copy driver (full copies, not CoW).
+	CoW bool
+	// NamespaceIsolation is the containment guarantee this driver provides
+	// when paired with a containment backend. Mirrors RequiredContainment()
+	// but is a struct field (one decision) rather than a method (one
+	// capability).
+	NamespaceIsolation ContainmentLevel
+	// Tracking is true when the driver preserves canonical-file safety and
+	// provenance without promising process or network containment.
+	Tracking bool
+	// Protected is true only when the driver requires a real containment
+	// backend for execution. It is never inferred from copying files.
+	Protected bool
+}
+
+// MountDriver is the base interface every driver implements: mount
+// lifecycle plus orphan reconciliation.
+type MountDriver interface {
+	// ID returns the canonical driver ID. Used in DB columns, wire
+	// payloads, preference files, and every internal switch.
+	ID() DriverID
 
 	// Version returns the driver version.
 	Version() string
@@ -54,50 +140,69 @@ type Driver interface {
 	// Unmount removes the overlay mount.
 	Unmount(ctx context.Context, s *types.Sandbox) error
 
-	// GetChangedFiles returns the list of files changed in the upper layer.
-	GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error)
-
 	// Cleanup removes all sandbox artifacts (dirs, mounts).
 	Cleanup(ctx context.Context, s *types.Sandbox) error
 
-	// --- Temporal Safety Methods ---
+	// ListSandboxDirs returns the IDs of all sandbox directories on disk
+	// under BaseDir. Used by the filesystem orphan reconciler to detect
+	// dirs the repository does not know about.
+	//
+	// Implementations must skip non-UUID entries silently (driver
+	// bookkeeping like the preference file lives there too) and treat a
+	// missing BaseDir as "no orphans".
+	ListSandboxDirs(ctx context.Context) ([]uuid.UUID, error)
 
-	// IsMounted verifies whether the sandbox overlay is currently mounted.
-	// This enables validation before operations that require an active mount.
-	// Returns true if mounted, false if not, and error if check fails.
-	IsMounted(ctx context.Context, s *types.Sandbox) (bool, error)
+	// CleanupOrphan releases an orphaned sandbox by ID alone. Idempotent:
+	// missing dirs and already-unmounted overlays are not errors.
+	CleanupOrphan(ctx context.Context, id uuid.UUID) error
 
-	// VerifyMountIntegrity checks that the mount is healthy and accessible.
-	// Returns nil if the mount is valid, or an error describing the problem.
-	// This can detect issues like stale mounts or corrupted overlay state.
-	VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error
+	// RequiredContainment declares which ContainmentLevel this driver
+	// requires. Callers pass the result to exec.Exec / exec.StartProcess.
+	// Replaces the prior central exec.DriverModeFor type-switch — adding a
+	// new driver no longer requires editing a central dispatcher.
+	RequiredContainment() ContainmentLevel
 
-	// --- Partial Approval Support (OT-P1-002) ---
-
-	// RemoveFromUpper removes a file from the upper (writable) layer.
-	// This is used after partial approval to clean up applied files
-	// while preserving unapproved changes for follow-up approvals.
-	// Returns nil if file doesn't exist (idempotent).
-	RemoveFromUpper(ctx context.Context, s *types.Sandbox, filePath string) error
-
-	// --- Process Isolation Methods (OT-P0-003) ---
-
-	// Exec executes a command inside the sandbox with process isolation.
-	// Uses bubblewrap on Linux to provide filesystem constraints where
-	// the canonical repo is read-only and only the overlay upper layer is writable.
-	Exec(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (*ExecResult, error)
-
-	// StartProcess starts a long-running process in the sandbox.
-	// Returns the PID for tracking purposes.
-	StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error)
+	// Capabilities declares what features this driver supports. Pure
+	// (no I/O); each driver returns a static struct. Used by handlers
+	// to decide whether a requested profile can be satisfied.
+	//
+	// DOC: home-overlay seam.
+	Capabilities() DriverCapabilities
 }
 
-// MountState represents the current state of a sandbox mount.
-type MountState struct {
-	IsMounted    bool   `json:"isMounted"`
-	IsHealthy    bool   `json:"isHealthy"`
-	MergedDir    string `json:"mergedDir,omitempty"`
-	ErrorMessage string `json:"errorMessage,omitempty"`
+// ChangeTracker captures the change-detection + partial-approval seam.
+// All three drivers satisfy it.
+type ChangeTracker interface {
+	// GetChangedFiles returns the list of files changed in the upper layer.
+	GetChangedFiles(ctx context.Context, s *types.Sandbox) ([]*types.FileChange, error)
+
+	// RemoveFromUpper removes a file from the upper (writable) layer.
+	// Idempotent: returns nil if file doesn't exist.
+	RemoveFromUpper(ctx context.Context, s *types.Sandbox, relPath string) error
+}
+
+// MountVerifier is implemented only by drivers backed by an actual mount
+// (overlayfs, fuse-overlayfs). CopyDriver does NOT implement it; callers
+// that don't know which driver is active should use VerifyIfSupported.
+type MountVerifier interface {
+	VerifyMountIntegrity(ctx context.Context, s *types.Sandbox) error
+}
+
+// Driver is the composite that the service layer holds: every driver
+// supports mount lifecycle and change tracking. MountVerifier is opt-in.
+type Driver interface {
+	MountDriver
+	ChangeTracker
+}
+
+// VerifyIfSupported returns nil for drivers without a mount to verify
+// (CopyDriver). For mount-backed drivers it delegates to
+// VerifyMountIntegrity. Keeps callers branchless.
+func VerifyIfSupported(ctx context.Context, d Driver, s *types.Sandbox) error {
+	if v, ok := d.(MountVerifier); ok {
+		return v.VerifyMountIntegrity(ctx, s)
+	}
+	return nil
 }
 
 // Config holds driver configuration.
@@ -105,213 +210,32 @@ type Config struct {
 	// BaseDir is the root directory for sandbox artifacts.
 	BaseDir string
 
+	// HomeOverlayBaseDir is the directory that holds per-sandbox
+	// home-{upper,work,merged} dirs. MUST be outside $HOME. Resolved by
+	// config.ResolveStoragePaths and config.PrepareStoragePaths at startup.
+	HomeOverlayBaseDir string
+
 	// MaxSandboxes limits the total number of active sandboxes.
 	MaxSandboxes int
 
 	// MaxSizeMB limits the size of a single sandbox.
 	MaxSizeMB int64
-
-	// UseFuseOverlayfs uses fuse-overlayfs instead of kernel overlayfs.
-	// This allows unprivileged operation but may be slower.
-	UseFuseOverlayfs bool
-}
-
-// defaultBaseDir returns the default sandbox base directory.
-// Uses XDG data directory (~/.local/share/workspace-sandbox) for unprivileged operation.
-func defaultBaseDir() string {
-	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".local", "share", "workspace-sandbox")
-	}
-	return "/var/lib/workspace-sandbox"
 }
 
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
+	baseDir, _ := config.DefaultBaseDir()
 	return Config{
-		BaseDir:          defaultBaseDir(),
-		MaxSandboxes:     1000,
-		MaxSizeMB:        10240, // 10 GB
-		UseFuseOverlayfs: false,
+		BaseDir:      baseDir,
+		MaxSandboxes: 1000,
+		MaxSizeMB:    10240, // 10 GB
 	}
 }
 
 // Info contains metadata about a driver.
 type Info struct {
-	Type        DriverType
+	ID          DriverID
 	Version     string
 	Description string
 	Available   bool
-}
-
-// --- Driver Selection [OT-P2-004] ---
-
-// SelectDriver returns the best available driver for the current system.
-// It tests each driver in priority order and returns the first one that works.
-//
-// Selection order (when UseFuseOverlayfs is false):
-//  1. OverlayfsDriver - native kernel overlayfs (best performance)
-//     Works if: running in user namespace (kernel 5.11+) OR has CAP_SYS_ADMIN
-//  2. FuseOverlayfsDriver - fuse-overlayfs (direct access, good performance)
-//     Works if: fuse-overlayfs installed, /dev/fuse available
-//  3. CopyDriver - cross-platform fallback (always works)
-//     Uses file copies instead of overlayfs, slower but universal
-//
-// Selection order (when UseFuseOverlayfs is true):
-//  1. FuseOverlayfsDriver - prioritized for direct filesystem access
-//  2. OverlayfsDriver - fallback to native overlayfs
-//  3. CopyDriver - cross-platform fallback
-//
-// The cfg parameter is used to configure whichever driver is selected.
-// Logs are emitted explaining which driver was selected and why fallbacks occurred.
-func SelectDriver(ctx context.Context, cfg Config) (Driver, error) {
-	// If fuse-overlayfs is explicitly requested, try it first
-	if cfg.UseFuseOverlayfs {
-		fuseDriver := NewFuseOverlayfsDriver(cfg)
-		available, err := fuseDriver.IsAvailable(ctx)
-		if err == nil && available {
-			log.Printf("driver: using fuse-overlayfs (direct access, configured preference)")
-			return fuseDriver, nil
-		}
-		if err != nil {
-			log.Printf("driver: fuse-overlayfs requested but not available: %v", err)
-		}
-		// Fall through to try other options
-	}
-
-	// Try native overlayfs first (best performance)
-	overlayDriver := NewOverlayfsDriver(cfg)
-	available, err := overlayDriver.IsAvailable(ctx)
-	if err == nil && available {
-		log.Printf("driver: using native overlayfs (optimal performance)")
-		return overlayDriver, nil
-	}
-
-	// Log why overlayfs isn't available
-	if err != nil {
-		log.Printf("driver: overlayfs not available: %v", err)
-	} else {
-		log.Printf("driver: overlayfs not available (mount test failed)")
-	}
-
-	// Try fuse-overlayfs if not explicitly requested but native isn't available
-	if !cfg.UseFuseOverlayfs {
-		fuseDriver := NewFuseOverlayfsDriver(cfg)
-		available, err := fuseDriver.IsAvailable(ctx)
-		if err == nil && available {
-			log.Printf("driver: using fuse-overlayfs (direct access, fallback from native overlayfs)")
-			return fuseDriver, nil
-		}
-		if err != nil {
-			log.Printf("driver: fuse-overlayfs not available: %v", err)
-		}
-	}
-
-	// Fall back to copy driver
-	log.Printf("driver: falling back to copy driver (slower but universal)")
-	log.Printf("driver: for better performance, install fuse-overlayfs or ensure Linux kernel 5.11+ with user namespaces")
-	copyDriver := NewCopyDriver(cfg)
-	return copyDriver, nil
-}
-
-// DriverInfo returns information about available drivers on the current system.
-// [OT-P2-004] Cross-Platform Driver Interface
-func DriverInfo(ctx context.Context, cfg Config) []Info {
-	var info []Info
-
-	// Check overlayfs
-	overlayDriver := NewOverlayfsDriver(cfg)
-	overlayAvailable, _ := overlayDriver.IsAvailable(ctx)
-	info = append(info, Info{
-		Type:        DriverTypeOverlayfs,
-		Version:     overlayDriver.Version(),
-		Description: "Linux overlayfs driver - efficient copy-on-write using kernel overlayfs",
-		Available:   overlayAvailable,
-	})
-
-	// Check fuse-overlayfs
-	fuseDriver := NewFuseOverlayfsDriver(cfg)
-	fuseAvailable, _ := fuseDriver.IsAvailable(ctx)
-	info = append(info, Info{
-		Type:        DriverTypeFuseOverlayfs,
-		Version:     fuseDriver.Version(),
-		Description: "FUSE overlayfs driver - unprivileged overlayfs with direct filesystem access",
-		Available:   fuseAvailable,
-	})
-
-	// Copy driver is always available
-	copyDriver := NewCopyDriver(cfg)
-	info = append(info, Info{
-		Type:        DriverTypeCopy,
-		Version:     copyDriver.Version(),
-		Description: "Cross-platform copy driver - works on any OS using file copies",
-		Available:   true,
-	})
-
-	return info
-}
-
-// --- Driver Preference Storage ---
-
-const preferenceFileName = "driver-preference.json"
-
-// DriverPreference stores the user's driver preference.
-type DriverPreference struct {
-	// DriverID is the selected driver option ID (e.g., "fuse-overlayfs", "overlayfs-userns")
-	DriverID string `json:"driverId"`
-}
-
-// SaveDriverPreference saves the driver preference to a file.
-func SaveDriverPreference(baseDir, driverID string) error {
-	// Ensure base directory exists
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
-		return err
-	}
-
-	pref := DriverPreference{DriverID: driverID}
-	data, err := json.MarshalIndent(pref, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	prefPath := filepath.Join(baseDir, preferenceFileName)
-	return os.WriteFile(prefPath, data, 0o644)
-}
-
-// LoadDriverPreference loads the driver preference from a file.
-// Returns empty string and error if no preference is set.
-func LoadDriverPreference(baseDir string) (string, error) {
-	prefPath := filepath.Join(baseDir, preferenceFileName)
-	data, err := os.ReadFile(prefPath)
-	if err != nil {
-		return "", err
-	}
-
-	var pref DriverPreference
-	if err := json.Unmarshal(data, &pref); err != nil {
-		return "", err
-	}
-
-	return pref.DriverID, nil
-}
-
-// SelectDriverWithPreference returns the best available driver,
-// respecting any saved preference.
-func SelectDriverWithPreference(ctx context.Context, cfg Config) (Driver, error) {
-	// Check for saved preference
-	pref, err := LoadDriverPreference(cfg.BaseDir)
-	if err == nil && pref != "" {
-		// Map preference to config
-		switch pref {
-		case string(DriverOptionFuseOverlayfs):
-			cfg.UseFuseOverlayfs = true
-		case string(DriverOptionOverlayfsUserNS), string(DriverOptionOverlayfsRoot):
-			cfg.UseFuseOverlayfs = false
-		case string(DriverOptionCopy):
-			// Force copy driver
-			log.Printf("driver: using copy driver (saved preference)")
-			return NewCopyDriver(cfg), nil
-		}
-	}
-
-	return SelectDriver(ctx, cfg)
 }

@@ -32,7 +32,7 @@ export function listRemoteProfilesAdmin() {
     if (!validated) {
       return { profiles: [] };
     }
-    return validated;
+    return { profiles: validated.profiles ?? [] };
   });
 }
 
@@ -53,7 +53,7 @@ export function createRemoteProfileAdmin(payload: RemoteProfileCreatePayload) {
 }
 
 export function updateRemoteProfileAdmin(id: number, payload: RemoteProfileUpdatePayload) {
-  return apiCall<RemoteProfile>(`/admin/remote-profiles/${id}`, {
+  return apiCall<RemoteProfile>(`/admin/remote-profiles/${String(id)}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
     headers: {
@@ -69,7 +69,7 @@ export function updateRemoteProfileAdmin(id: number, payload: RemoteProfileUpdat
 }
 
 export function deleteRemoteProfileAdmin(id: number) {
-  return apiCall<{ success: boolean }>(`/admin/remote-profiles/${id}`, {
+  return apiCall<{ success: boolean }>(`/admin/remote-profiles/${String(id)}`, {
     method: 'DELETE',
   }).then((resp) => {
     const validated = parseOrNull(SuccessResponseSchema, resp, 'RemoteProfileDeleteResponse');
@@ -81,7 +81,7 @@ export function deleteRemoteProfileAdmin(id: number) {
 }
 
 export function loginRemoteProfileAdmin(id: number, payload: RemoteProfileLoginPayload) {
-  return apiCall<RemoteProfile>(`/admin/remote-profiles/${id}/login`, {
+  return apiCall<RemoteProfile>(`/admin/remote-profiles/${String(id)}/login`, {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: {
@@ -97,7 +97,7 @@ export function loginRemoteProfileAdmin(id: number, payload: RemoteProfileLoginP
 }
 
 export function logoutRemoteProfileAdmin(id: number) {
-  return apiCall<RemoteProfile>(`/admin/remote-profiles/${id}/logout`, {
+  return apiCall<RemoteProfile>(`/admin/remote-profiles/${String(id)}/logout`, {
     method: 'POST',
   }).then((resp) => {
     const validated = parseOrNull(RemoteProfileSchema, resp, 'RemoteProfile');
@@ -109,7 +109,7 @@ export function logoutRemoteProfileAdmin(id: number) {
 }
 
 export function testRemoteProfileAdmin(id: number) {
-  return apiCall<RemoteProfile>(`/admin/remote-profiles/${id}/test`, {
+  return apiCall<RemoteProfile>(`/admin/remote-profiles/${String(id)}/test`, {
     method: 'POST',
   }).then((resp) => {
     const validated = parseOrNull(RemoteProfileSchema, resp, 'RemoteProfile');
@@ -121,7 +121,7 @@ export function testRemoteProfileAdmin(id: number) {
 }
 
 export function getRemoteProfileSessionLinksAdmin(id: number) {
-  return apiCall<RemoteProfileSessionLinks>(`/admin/remote-profiles/${id}/session-links`).then((resp) => {
+  return apiCall<RemoteProfileSessionLinks>(`/admin/remote-profiles/${String(id)}/session-links`).then((resp) => {
     const validated = parseOrNull(RemoteProfileSessionLinksSchema, resp, 'RemoteProfileSessionLinks');
     if (!validated) {
       throw new Error('Invalid remote profile session links response from API');
@@ -131,7 +131,7 @@ export function getRemoteProfileSessionLinksAdmin(id: number) {
 }
 
 export function revokeRemoteProfileSessionsAdmin(id: number) {
-  return apiCall<RemoteProfileSessionLinks>(`/admin/remote-profiles/${id}/remote-revoke`, {
+  return apiCall<RemoteProfileSessionLinks>(`/admin/remote-profiles/${String(id)}/remote-revoke`, {
     method: 'POST',
   }).then((resp) => {
     const validated = parseOrNull(RemoteProfileSessionLinksSchema, resp, 'RemoteProfileSessionLinks');

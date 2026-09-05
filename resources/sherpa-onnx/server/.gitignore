@@ -1,0 +1,4 @@
+# Native build outputs are release-stage material, never source evidence.
+/dist/
+/resource-sherpa-onnx-server
+/resource-sherpa-onnx-server.exe

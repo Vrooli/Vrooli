@@ -70,4 +70,3 @@ func TestIsSafeBundleFilename(t *testing.T) {
 		}
 	}
 }
-

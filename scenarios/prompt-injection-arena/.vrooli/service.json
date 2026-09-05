@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "prompt-injection-arena",
     "displayName": "Prompt Injection Arena",
@@ -51,7 +67,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Arena web interface port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -86,123 +102,19 @@
     },
     "setup": {
       "description": "Initialize Prompt Injection Arena",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/prompt-injection-arena-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "prompt-injection-arena",
-            "targets": [
-              "prompt-injection-arena"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o prompt-injection-arena-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add scenario data to resources"
-        },
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate injection technique embeddings for similarity search"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Prompt Injection Arena initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start prompt injection arena with API and UI servers",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./prompt-injection-arena-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/prompt-injection-arena-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for prompt-injection-arena",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute prompt-injection-arena --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"prompt-injection-arena-api\" || true; sleep 1; pkill -9 -f \"prompt-injection-arena-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/prompt-injection-arena.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/prompt-injection-arena.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
         }
       ]
     }
@@ -214,51 +126,83 @@
         "enabled": true,
         "required": true,
         "purpose": "Store injection library, agent configs, test results, leaderboards",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2",
-          "mistral",
-          "codellama",
-          "qwen2.5:7b",
-          "nomic-embed-text"
+        "model_roles": [
+          "chat.small",
+          "embedding.default"
         ],
-        "purpose": "Execute agent configurations against injection tests safely"
+        "purpose": "Execute agent configurations against injection tests safely",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/security-sandbox.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/injection-tester.json",
-            "type": "workflow"
-          }
-        ]
+        "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns",
+        "startup_policy": "try_start"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "prompt-injection-arena",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "prompt-injection-arena"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    :root{
+      --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#020617;color:#f8fafc;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+    a{color:#22d3ee}
+    a:hover{color:#67e8f9}
+    .tr{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .key{display:flex;align-items:center;justify-content:center;height:34px;min-width:44px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1e293b;color:#e2e8f0;font-size:13px;font-weight:500;flex-shrink:0}
+    .term{font-family:var(--mono);font-size:12px;line-height:19px}
+  </style>
+</helmet>
+
+<div style="width:390px;height:844px;background:#020617;display:flex;flex-direction:column;overflow:hidden">
+
+  <div style="height:26px;flex-shrink:0"></div>
+
+  <!-- Pane header -->
+  <div style="display:flex;align-items:center;gap:9px;height:40px;flex-shrink:0;padding:0 14px;background:#0f172a;border-bottom:1px solid rgba(255,255,255,0.1)">
+    <div style="width:8px;height:8px;border-radius:999px;background:#4dabf7;flex-shrink:0"></div>
+    <div class="tr" style="flex:1;min-width:0;font-size:13px;font-weight:600;color:#e2e8f0">claude · web-console</div>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h16"></path><path d="m13 6 6 6-6 6"></path></svg>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+  </div>
+
+  <!-- Terminal -->
+  <div class="term" style="flex:1;min-height:0;padding:12px 14px;display:flex;flex-direction:column;gap:11px;overflow:hidden">
+    <div style="display:flex;gap:8px">
+      <span style="color:#22d3ee">●</span>
+      <span style="color:#e2e8f0">Read <span style="color:#94a3b8">ui/src/hooks/useHandoff.ts</span></span>
+    </div>
+    <div style="color:#64748b;padding-left:16px">Read 188 lines</div>
+    <div style="display:flex;gap:8px">
+      <span style="color:#22d3ee">●</span>
+      <span style="color:#e2e8f0">targetsForSession opens with</span>
+    </div>
+    <div style="color:#94a3b8;padding-left:16px">if (!groupId) return [];</div>
+    <div style="color:#64748b;padding-left:16px">so a session outside a group has no<br>handoff targets at all.</div>
+    <div style="display:flex;gap:8px;margin-top:2px">
+      <span style="color:#69db7c">&gt;</span>
+      <span style="display:inline-block;width:7px;height:15px;background:#e2e8f0;opacity:.7"></span>
+    </div>
+  </div>
+
+  <!-- Snippet rail -->
+  <div style="flex-shrink:0;background:#0f172a;border-top:1px solid rgba(255,255,255,0.1);padding:9px 0 9px 14px;display:flex;align-items:center;gap:7px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);flex-shrink:0">
+      <div style="width:8px;height:8px;border-radius:999px;background:#38d9c0"></div>
+      <div style="font-size:13px;font-weight:500;color:#e2e8f0;white-space:nowrap">Scientific debug</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);flex-shrink:0">
+      <div style="width:8px;height:8px;border-radius:999px;background:#4dabf7"></div>
+      <div style="font-size:13px;font-weight:500;color:#e2e8f0;white-space:nowrap">Plan handoff</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);flex-shrink:0">
+      <div style="width:8px;height:8px;border-radius:999px;background:#9775fa"></div>
+      <div style="font-size:13px;font-weight:500;color:#e2e8f0;white-space:nowrap">No workar</div>
+    </div>
+  </div>
+
+  <!-- Control row -->
+  <div style="flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 14px;background:#0f172a;overflow:hidden">
+    <div class="key">esc</div>
+    <div class="key">tab</div>
+    <div class="key">ctrl</div>
+    <div class="key" style="min-width:40px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;height:34px;min-width:44px;padding:0 10px;border-radius:8px;border:1px solid rgba(6,182,212,0.4);background:rgba(34,211,238,0.10);color:#22d3ee;flex-shrink:0">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l4 5-4 5H4"></path><path d="M14 9h6"></path><path d="M14 14h6"></path><path d="M4 19h16"></path></svg>
+    </div>
+  </div>
+
+  <!-- Input pill -->
+  <div style="flex-shrink:0;display:flex;align-items:flex-end;gap:6px;padding:4px 8px 12px;background:#0f172a">
+    <div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;height:52px;padding:0 6px 0 14px;border-radius:26px;background:#1e293b;border:1px solid rgba(255,255,255,0.1)">
+      <div class="tr" style="flex:1;min-width:0;font-size:16px;color:#64748b">Message or command…</div>
+      <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:#64748b;flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+      </div>
+      <div style="width:44px;height:44px;border-radius:999px;background:#22d3ee;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h16"></path><path d="m13 6 6 6-6 6"></path></svg>
+      </div>
+    </div>
+    <div style="width:52px;height:52px;border-radius:999px;border:1px solid rgba(255,255,255,0.1);background:#1e293b;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v4"></path></svg>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

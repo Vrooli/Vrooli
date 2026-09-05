@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.healing;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/healing;healing_v1";
+
+service HealingService {
+  rpc ListOutcomes(ListOutcomesRequest) returns (ListOutcomesResponse);
+  rpc GetEpisodes(GetEpisodesRequest) returns (GetEpisodesResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc GetReadiness(GetReadinessRequest) returns (GetReadinessResponse);
+}
+
+enum Outcome {
+  OUTCOME_UNSPECIFIED = 0;
+  OUTCOME_SUCCEEDED = 1;
+  OUTCOME_FAILED = 2;
+  OUTCOME_TIMED_OUT = 3;
+  OUTCOME_SKIPPED = 4;
+}
+
+message HealOutcome {
+  string check_id = 1;
+  string action_id = 2;
+  Outcome outcome = 3;
+  string message = 4;
+  google.protobuf.Timestamp observed_at = 5;
+  int64 duration_ms = 6;
+}
+
+message HealEpisode {
+  string id = 1;
+  string check_id = 2;
+  string trigger = 3;
+  Outcome outcome = 4;
+  int32 attempts = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  string evidence_json = 8;
+}
+
+message ListOutcomesRequest { int32 window_hours = 1; }
+message ListOutcomesResponse { repeated HealOutcome outcomes = 1; }
+message GetEpisodesRequest { string check_id = 1; int32 limit = 2; }
+message GetEpisodesResponse { repeated HealEpisode episodes = 1; }
+message GetHistoryRequest { string check_id = 1; int32 limit = 2; }
+message GetHistoryResponse { repeated HealOutcome outcomes = 1; }
+
+message GetReadinessRequest { int32 limit = 1; }
+
+message ReadinessElement {
+  string check_id = 1;
+  string status = 2;
+  google.protobuf.Timestamp ready_at = 3;
+  int64 latency_ms = 4;
+  string starter = 5;
+  string evidence = 6;
+}
+
+// BootRecoveryPrecondition is one named verdict of the boot-recovery
+// readiness check: state is ok, failed or undetermined, always with a reason.
+message BootRecoveryPrecondition {
+  string name = 1;
+  string state = 2;
+  string reason = 3;
+}
+
+// BootRecovery is the typed projection of the system-boot-recovery-readiness
+// check: would the autoheal boot path work if the host rebooted now. Status
+// is the check's status (ok, critical, undetermined) or "unknown" when the
+// check has not run since the API started; remediation is the one repair.
+message BootRecovery {
+  string status = 1;
+  repeated BootRecoveryPrecondition preconditions = 2;
+  google.protobuf.Timestamp evaluated_at = 3;
+  string remediation = 4;
+  string message = 5;
+}
+
+message GetReadinessResponse {
+  bool available = 1;
+  string unavailable_reason = 2;
+  string boot_id = 3;
+  google.protobuf.Timestamp process_started_at = 4;
+  repeated ReadinessElement elements = 5;
+  repeated HealEpisode episodes = 6;
+  google.protobuf.Timestamp computed_at = 7;
+  BootRecovery boot_recovery = 8;
+}

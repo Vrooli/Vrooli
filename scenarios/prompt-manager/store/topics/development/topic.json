@@ -1,0 +1,17 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "development",
+  "name": "Development",
+  "description": "General software development on a Vrooli scenario: building, maintaining, refactoring, and shipping code. Root practices every task should keep in view.",
+  "skills": [
+    "documentation-health",
+    "test",
+    "domain-clarity",
+    "requirements-traceability-steer"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:13Z",
+  "updatedAt": "2026-06-04T17:35:13Z"
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "freecad",
+  "display_name": "FreeCAD",
+  "category": "cad",
+  "summary": "Parametric 3D CAD platform for scripted design generation, engineering geometry, and manufacturing exports.",
+  "why_it_matters": "FreeCAD captures useful open CAD capability knowledge, but current support is too shallow and unused to justify maintaining it as a supported resource today.",
+  "when_to_use": [
+    "A future scenario needs programmatic CAD generation.",
+    "Operators need open-source parametric design tools in automation workflows.",
+    "The workflow depends on geometry export for manufacturing or simulation."
+  ],
+  "example_scenarios": [
+    "Parametric part generators",
+    "Engineering design automation",
+    "CAD-to-manufacturing pipelines"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "FreeCAD is cross-platform, but Python API behavior, GUI automation, and package quality vary by host environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Validated FreeCAD installation path",
+    "Defined scripting and export workflow boundaries",
+    "Artifact storage conventions for generated models"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Promotion should focus on a few validated CAD automation workflows rather than broad wrapper coverage.",
+    "GUI and headless usage need separate support assumptions.",
+    "Keep geometry generation and downstream manufacturing/export concerns distinct."
+  ],
+  "operational_notes": [
+    "Version drift can break workbenches and scripted exports.",
+    "Health checks should validate a minimal scripted CAD job.",
+    "Desktop and headless usage have different failure modes."
+  ],
+  "risks": [
+    "CAD automation is deeper than basic lifecycle support suggests.",
+    "Cross-platform scripting reliability is easy to overclaim."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "freecad"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/freecad"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

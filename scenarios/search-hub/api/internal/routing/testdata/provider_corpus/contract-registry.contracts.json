@@ -1,0 +1,11 @@
+{
+ "provider_id": "contract-registry.contracts",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "contract-registry",
+  "bucket": "BUCKET_REUSE",
+  "type": "contracts",
+  "description": "API / proto contracts (Connect RPCs, message types, REST endpoints) searchable by domain — 'what endpoints/messages exist for X?'. No semantic search exists yet; today this means grepping packages/proto/schemas/.",
+  "intended_home": "contract-registry",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

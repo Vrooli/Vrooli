@@ -84,7 +84,8 @@ describe('Session Idempotency', () => {
       expect(secondResult.sessionId).toBe(thirdResult.sessionId);
 
       // Only one browser context should be created
-      expect(mockBrowser.newContext.mock.calls.length).toBe(1);
+      // The first session also performs the process-cached host-audio probe.
+      expect(mockBrowser.newContext.mock.calls.length).toBe(2);
     });
 
     it('should reset session state when reuse_mode is clean', async () => {
@@ -161,7 +162,8 @@ describe('Session Idempotency', () => {
       expect(succeeded.length).toBeGreaterThanOrEqual(1);
 
       // Page should only be closed once
-      expect(mockPage.close.mock.calls.length).toBe(1);
+      // The probe page and the session page each close exactly once.
+      expect(mockPage.close.mock.calls.length).toBe(2);
     });
   });
 

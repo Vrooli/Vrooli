@@ -1,57 +1,52 @@
 {
-  "description": "bwrap to run agent/tool processes in constrained filesystem view with canonical repo mounted read-only",
-  "module_id": "MOD-P0-003",
-  "prd_ref": "OT-P0-003",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
-      "category": "security",
-      "dependencies": [
-        "REQ-P0-003"
-      ],
-      "description": "Configure bubblewrap to provide process isolation with restricted filesystem view",
       "id": "REQ-P0-004",
-      "prd_ref": "OT-P0-003",
-      "status": "implemented",
       "title": "Process Isolation with Bubblewrap",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "security",
+      "description": "Configure bubblewrap to provide process isolation with restricted filesystem view",
       "validation": [
         {
-          "notes": "Verify bwrap configuration",
+          "type": "test",
+          "ref": "api/internal/driver/exec/args_test.go::TestBuildBwrapArgs",
           "phase": "unit",
-          "ref": "api/internal/driver/bwrap_test.go::TestBuildBwrapArgs",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify bwrap configuration"
         },
         {
-          "notes": "Test filesystem restrictions",
+          "type": "test",
+          "ref": "api/internal/driver/exec/args_test.go::TestBwrapNetworkConfig",
           "phase": "unit",
-          "ref": "api/internal/driver/bwrap_test.go::TestBwrapNetworkConfig",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test filesystem restrictions"
         },
         {
-          "notes": "Validate process isolation",
+          "type": "test",
+          "ref": "api/internal/driver/exec/args_test.go::TestBwrapPIDNamespaceConfig",
           "phase": "unit",
-          "ref": "api/internal/driver/bwrap_test.go::TestBwrapPIDNamespaceConfig",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Validate process isolation"
         },
         {
-          "notes": "Check bwrap availability",
+          "type": "test",
+          "ref": "api/internal/driver/exec/run_test.go::TestIsBwrapAvailable",
           "phase": "unit",
-          "ref": "api/internal/driver/bwrap_test.go::TestIsBwrapAvailable",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Check bwrap availability"
         },
         {
-          "notes": "Safe-git wrapper creation",
+          "type": "test",
+          "ref": "api/internal/handlers/process_git_allowlist_test.go::TestEvaluateProtectedGitAllowlist_BlocksMutatingVerbs",
           "phase": "unit",
-          "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Safe-git wrapper creation"
         }
       ]
     }
-  ],
-  "title": "Bubblewrap Process Isolation"
+  ]
 }

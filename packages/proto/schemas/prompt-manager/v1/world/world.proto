@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.world;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/world;world_v1";
+
+// WorldService serves the 3D world: operator configuration, per-scene layout
+// overrides and a server-streamed feed of swarm signals. Agent positions are
+// never persisted; they are simulation output in the UI.
+service WorldService {
+  rpc GetWorldConfig(GetWorldConfigRequest) returns (WorldConfig);
+  rpc SetWorldConfig(SetWorldConfigRequest) returns (WorldConfig);
+  rpc GetLayout(GetLayoutRequest) returns (WorldLayout);
+  rpc SetLayout(SetLayoutRequest) returns (WorldLayout);
+  // StreamWorldFeed opens with a SNAPSHOT event (active runs and upcoming
+  // heartbeats) followed by live events. since_seq replays buffered events
+  // newer than a sequence the client already saw.
+  rpc StreamWorldFeed(StreamWorldFeedRequest) returns (stream WorldEvent);
+}
+
+// WorldConfig is the operator's world preferences, shared across browsers.
+message WorldConfig {
+  // Scene id: park or office.
+  string scene = 1;
+  // Quality profile id: low, medium, high, ultra.
+  string quality_profile = 2;
+  // Whether the quality governor may move between profiles.
+  bool quality_auto = 3;
+  // Time-of-day mode: clock, dawn, day, dusk or night.
+  string period_mode = 4;
+  // Render the HUD without the canvas.
+  bool two_d_mode = 5;
+  bool show_diagnostics = 6;
+  // Global scale multiplier for props relative to actors.
+  double scale = 7;
+  string updated_at = 8;
+}
+
+message GetWorldConfigRequest {}
+
+message SetWorldConfigRequest {
+  WorldConfig config = 1;
+}
+
+message Vec2 {
+  double x = 1;
+  double z = 2;
+}
+
+// LayoutOverride adjusts one generated place by id.
+message LayoutOverride {
+  string place_id = 1;
+  optional Vec2 position = 2;
+  optional double rotation = 3;
+  bool removed = 4;
+}
+
+// DecorAddition is an operator-placed prop that is not part of the generated layout.
+message DecorAddition {
+  string id = 1;
+  string prop_id = 2;
+  Vec2 position = 3;
+  double rotation = 4;
+  double scale = 5;
+}
+
+message WorldLayout {
+  string scene = 1;
+  repeated LayoutOverride overrides = 2;
+  repeated DecorAddition decor = 3;
+  string updated_at = 4;
+}
+
+message GetLayoutRequest {
+  string scene = 1;
+}
+
+message SetLayoutRequest {
+  WorldLayout layout = 1;
+}
+
+enum WorldEventKind {
+  WORLD_EVENT_KIND_UNSPECIFIED = 0;
+  WORLD_EVENT_KIND_SNAPSHOT = 1;
+  WORLD_EVENT_KIND_RUN_STARTED = 2;
+  WORLD_EVENT_KIND_RUN_FINISHED = 3;
+  WORLD_EVENT_KIND_RUN_FAILED = 4;
+  WORLD_EVENT_KIND_HEARTBEAT_UPCOMING = 5;
+  WORLD_EVENT_KIND_HEARTBEAT_CANCELLED = 6;
+  WORLD_EVENT_KIND_AGENT_MESSAGE = 7;
+}
+
+message ActiveRunSummary {
+  string team_id = 1;
+  string agent_id = 2;
+  string run_id = 3;
+  string started_at = 4;
+}
+
+message UpcomingHeartbeat {
+  string team_id = 1;
+  string agent_id = 2;
+  string scheduled_at = 3;
+}
+
+message WorldEvent {
+  WorldEventKind kind = 1;
+  // Monotonic per process; clients resume with since_seq.
+  uint64 seq = 2;
+  // RFC 3339 timestamp of the event.
+  string at = 3;
+  string agent_id = 4;
+  string team_id = 5;
+  string run_id = 6;
+  // Free text: an agent message, or the run error for RUN_FAILED.
+  string message = 7;
+  // RFC 3339 scheduled time for HEARTBEAT_UPCOMING.
+  string scheduled_at = 8;
+  // Populated on SNAPSHOT only.
+  repeated ActiveRunSummary active_runs = 9;
+  repeated UpcomingHeartbeat upcoming = 10;
+}
+
+message StreamWorldFeedRequest {
+  uint64 since_seq = 1;
+}

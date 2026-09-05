@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-swipe-gesture",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0",
+    "1.1.1",
+    "1.1.2"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.1.1",
+    "1.1.0",
+    "1.1.2",
+    "2.0.0",
+    "1.1.3"
+  ],
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:useSwipeGesture"
+}

@@ -1,0 +1,162 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "ai-gateway.setpoint-read",
+  "version": "1",
+  "purpose": "Read every row of ai-gateway's improve setpoint in one submission from the seven route measures and the evidence sample, and report each as in band, out of band, or unavailable.",
+  "inputs": {
+    "window_token": {
+      "type": "string",
+      "default": "TIME_WINDOW_TOKEN_LAST_7D",
+      "enum": [
+        "TIME_WINDOW_TOKEN_THIS_WEEK",
+        "TIME_WINDOW_TOKEN_LAST_7D",
+        "TIME_WINDOW_TOKEN_LAST_30D",
+        "TIME_WINDOW_TOKEN_THIS_MONTH",
+        "TIME_WINDOW_TOKEN_LAST_MONTH",
+        "TIME_WINDOW_TOKEN_THIS_QUARTER"
+      ],
+      "description": "measures TimeWindow token; each measure binding takes window={\"token\": <this>}."
+    },
+    "evidence_sample": {
+      "type": "integer",
+      "default": 50,
+      "description": "Most recent route evidence rows behind local-share; the binding returns at most 50."
+    }
+  },
+  "assumptions": [
+    "ai-gateway is running and its measures and routing bindings are reachable from the kernel",
+    "measures bindings accept window as a TimeWindow message {token}; a bare string such as last_7d fails to encode",
+    "protojson omits zero-valued fields, so a missing count on breaker-open or capacity-rejections is a real zero when total is above zero",
+    "local-share is read from the most recent evidence rows, not from a window; the reading states its basis",
+    "each call runs in its own program-runtime session; session variables persist across submissions",
+    "the caller treats an unavailable row as unknown, never as zero",
+    "protojson omits zero-valued scalars: when `total` reports routes in the window, an absent `rate` on success-rate, fallback-rate, or failure-rate is read as 0.0, exactly as absent counts are read as 0; with zero routes a rate is unavailable."
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "no row set is materialized; every reading is head(1), count, or group_by",
+    "the envelope is printed exactly once, on every path",
+    "a row with no measure behind it (cost-per-caller) is reported unavailable as pending-telemetry, never estimated from evidence rows"
+  ],
+  "bindings": [
+    {
+      "id": "ai-gateway/measures/total",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/success-rate",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/fallback-rate",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/failure-rate",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/breaker-open",
+      "effect": "read"
+    },
+    {
+      "id": "ai-gateway/measures/capacity-rejections",
+      "effect": "read"
+    },
+  {
+    "id": "ai-gateway/measures/latency-p95",
+    "effect": "read"
+  },
+  {
+    "id": "ai-gateway/measures/cost",
+    "effect": "read"
+  },
+  {
+    "id": "ai-gateway/measures/tokens",
+    "effect": "read"
+  },
+  {
+    "id": "ai-gateway/measures/local-share",
+    "effect": "read"
+  },
+    {
+      "id": "ai-gateway/routing/evidence-list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one entry per setpoint row in the improve skill's table order: cost-per-caller, local-share, fallback-rate, failure-rate, breaker-open, latency-p95, capacity-rejections, success-rate, route-volume",
+      "readable": "count of rows read from a governed binding",
+      "unavailable": "count of rows not readable in-program"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "sensor command names, one per row"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "partial"
+        ]
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "bad-window",
+      "inputs": {
+        "window_token": "last_7d"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "ai-gateway-improve"
+}

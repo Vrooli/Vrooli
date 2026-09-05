@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "templates.dashboard-page",
+    "name": "DashboardPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The dashboard surface with metric hierarchy, configurable sections, layout-matching skeletons, partial section failure, time-range selection, refresh, personalization, and responsive rearrangement.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, description, and actions are the shared header."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      },
+      {
+        "asset": "data-display.stat-card",
+        "reason": "Metric tiles are shared stat surfaces."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Only dashboards that plot series need the chart framework."
+      },
+      {
+        "asset": "data-display.data-table",
+        "reason": "Tabular detail suits some dashboards and clutters others."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TMetric"
+      ]
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "density-adaptive-layout"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "header",
+      "purpose": "Title, time-range selection, refresh, and personalization controls.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "primary-metrics",
+      "purpose": "The small set of numbers this dashboard exists to communicate.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "detail",
+      "purpose": "Supporting charts, tables, or breakdowns beneath the primary metrics.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "activity",
+      "purpose": "Recent events or alerts relevant to the metrics above.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ],
+  "beauty": {
+    "avoid": [
+      "uniform-card-grid",
+      "card-wrapping-page-sections"
+    ]
+  },
+  "rationale": "Partial section failure is the defining requirement: one metric endpoint failing must degrade its own tile and leave the rest of the dashboard usable, rather than blanking the page. Twelve identical tiles in a grid is the failure mode the avoid constraint names."
+}

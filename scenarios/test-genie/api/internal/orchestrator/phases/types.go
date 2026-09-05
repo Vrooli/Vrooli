@@ -6,26 +6,17 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/workspace"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // Name identifies a single orchestrator phase.
 type Name string
-
-// Canonical phase names implemented by the Go orchestrator.
-const (
-	Structure    Name = "structure"
-	Standards    Name = "standards"
-	Dependencies Name = "dependencies"
-	Lint         Name = "lint"
-	Docs         Name = "docs"
-	Smoke        Name = "smoke"
-	Unit         Name = "unit"
-	Integration  Name = "integration"
-	Playbooks    Name = "playbooks"
-	Business     Name = "business"
-	Performance  Name = "performance"
-)
 
 const (
 	// DefaultTimeout defines the baseline duration budget for runners unless overridden.
@@ -33,20 +24,68 @@ const (
 )
 
 const (
+	ClassificationSourceProvider = "provider"
+	ClassificationSourceHarness  = "harness"
+)
+
+const (
 	FailureClassMisconfiguration  = "misconfiguration"
 	FailureClassMissingDependency = "missing_dependency"
 	FailureClassTimeout           = "timeout"
+	FailureClassMaturityContract  = "maturity_contract"
+	FailureClassTestFailure       = "test_failure"
 	FailureClassSystem            = "system"
 )
 
 // Descriptor surfaces metadata about registered phases so the UI/CLI can
-// describe the orchestration flow without scraping bash scripts.
+// describe the orchestration flow from the catalog.
 type Descriptor struct {
-	Name                  string `json:"name"`
-	Optional              bool   `json:"optional"`
-	Description           string `json:"description,omitempty"`
-	Source                string `json:"source"`
-	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
+	Name                  string                        `json:"name"`
+	DisplayName           string                        `json:"displayName,omitempty"`
+	Optional              bool                          `json:"optional"`
+	Description           string                        `json:"description,omitempty"`
+	Source                string                        `json:"source"`
+	Provider              string                        `json:"provider,omitempty"`
+	DefaultTimeoutSeconds int                           `json:"defaultTimeoutSeconds,omitempty"`
+	DocPath               string                        `json:"docPath,omitempty"`
+	DescriptorPath        string                        `json:"descriptorPath,omitempty"`
+	SkipEnvVar            string                        `json:"skipEnvVar,omitempty"`
+	Comparable            bool                          `json:"comparable"`
+	Advisory              bool                          `json:"advisory,omitempty"`
+	ArtifactBacked        bool                          `json:"artifactBacked,omitempty"`
+	NonComparable         bool                          `json:"nonComparable,omitempty"`
+	Policy                phasepolicy.Policy            `json:"policy,omitempty"`
+	Runnability           runnability.PhaseCapabilities `json:"runnability,omitempty"`
+	FindingSource         string                        `json:"findingSource,omitempty"`
+	ProfileMembership     []string                      `json:"profileMembership,omitempty"`
+	FreshnessRequirement  string                        `json:"freshnessRequirement,omitempty"`
+	PhaseClass            string                        `json:"phaseClass,omitempty"`
+	RuntimeClass          string                        `json:"runtimeClass,omitempty"`
+	Concurrency           Concurrency                   `json:"concurrency,omitempty"`
+	Determinism           Determinism                   `json:"determinism,omitempty"`
+	Dimensions            []string                      `json:"dimensions,omitempty"`
+}
+
+// Concurrency describes the provider-owned isolation contract for a phase.
+// An empty mode is resolved to exclusive by the scheduler.
+type Concurrency struct {
+	Mode   string `json:"mode,omitempty"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// Determinism is the normalized provider declaration used by the phase cache.
+// An empty declaration is observational and therefore never cacheable.
+type Determinism struct {
+	Default      string                         `json:"default,omitempty"`
+	Inputs       []string                       `json:"inputs,omitempty"`
+	Reason       string                         `json:"reason,omitempty"`
+	Capabilities map[string]DeterminismOverride `json:"capabilities,omitempty"`
+}
+
+type DeterminismOverride struct {
+	Mode   string   `json:"mode,omitempty"`
+	Inputs []string `json:"inputs,omitempty"`
+	Reason string   `json:"reason,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -154,9 +193,33 @@ type RunReport struct {
 	Observations          []Observation
 	FailureClassification string
 	Remediation           string
+	// Findings carries phase findings normalized into the
+	// shared ArchitectureFinding contract. Observations remain the human
+	// view; Findings is the machine seam the cartographer campaign
+	// tracker ingests and reconciles by stable ID. Pointers (not values)
+	// because proto messages embed a no-copy MessageState.
+	Findings []*architecturev1.ArchitectureFinding
+	// Assessment preserves the provider-owned maturity contract, including
+	// descriptor-owned recommended skill IDs, for phase evidence consumers.
+	Assessment *commonv1.MaturityAssessment
+	// Metrics carries the delegated provider's execution metrics when present.
+	// nil for non-delegated phases and for providers that have not adopted the
+	// metrics contract.
+	Metrics *commonv1.ExecutionMetrics
+	// FindingSource is the lower-case source token for the phase's finding
+	// channel. This mirrors ExecutionResult.FindingSource and lets phase pointer
+	// artifacts retain covered-source information.
+	FindingSource string
+	// PhasePresentation is the compact per-phase maturity standing projected from
+	// the delegated provider's MaturityAssessment (Phase Capability Contract). nil
+	// for native phases and providers that declare no ladder.
+	PhasePresentation *commonv1.PhasePresentation
+	// FindingsSummary is the per-severity finding tally for the phase (non-nil
+	// whenever a delegated provider returned an assessment).
+	FindingsSummary *runspb.PhaseFindingsSummary
 }
 
-// Runner is the function signature every Go-native phase must satisfy.
+// Runner is the function signature every catalog phase must satisfy.
 type Runner func(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport
 
 // Definition is the normalized runner metadata used during plan selection.
@@ -165,48 +228,197 @@ type Definition struct {
 	Runner   Runner
 	Timeout  time.Duration
 	Optional bool
+	// DisplayName is descriptor-owned presentation metadata. Name remains the
+	// stable machine key used in API payloads, run records, and commands.
+	DisplayName string
+	// ProviderScenario is set for delegated provider-backed phases. Empty means
+	// the phase has no external provider readiness work.
+	ProviderScenario string
+	// Policy is the explicit internal replacement for the overloaded Optional
+	// flag. Optional remains on external descriptors as a legacy projection.
+	Policy phasepolicy.Policy
+	// SkipEnvVar is the catalog-owned environment switch that disables this
+	// phase during selection. Runners must not inspect it.
+	SkipEnvVar string
+	// Capabilities is the phase's runnability contract (surfaces, lifecycle
+	// mutation, DB isolation, resources). Sourced from the catalog Spec; the
+	// runnability gate reads it to decide RUN/RUN_DEGRADED/SKIP.
+	Capabilities runnability.PhaseCapabilities
+	// FindingSource is the architecture-finding channel this phase emits into
+	// (FINDING_SOURCE_UNSPECIFIED for phases that produce no findings, e.g.
+	// performance). Carried from the catalog Spec so the orchestrator
+	// can stamp the per-phase findingSource token onto each ExecutionResult.
+	FindingSource        architecturev1.FindingSource
+	ProfileMembership    []string
+	FreshnessRequirement string
+	PhaseClass           string
+	RuntimeClass         string
+	Concurrency          Concurrency
+	Determinism          Determinism
+	Dimensions           []string
 }
 
 // Spec captures metadata for a catalog entry.
 type Spec struct {
-	Name           Name
+	Name Name
+	// DisplayName is presentation metadata sourced from provider descriptors.
+	// Name remains the stable machine key.
+	DisplayName    string
 	Runner         Runner
 	Optional       bool
 	DefaultTimeout time.Duration
-	Weight         int
-	Description    string
-	Source         string
+	// SkipEnvVar is the externally-observable environment switch that disables
+	// this phase before runnability or execution. Empty values are derived from
+	// the phase name at catalog registration.
+	SkipEnvVar  string
+	Description string
+	Source      string
+	// Doc is the repo-relative documentation path for the phase. When empty at
+	// registration it is auto-derived by convention, keeping doc lookups in
+	// lockstep with the catalog instead of a separate hand-maintained map.
+	Doc string
+	// Capabilities is the phase's runnability contract. Register normalizes the
+	// embedded Phase/Optional fields so every catalog entry carries a complete
+	// manifest; the anti-drift guard asserts surface-bearing phases declare one.
+	Capabilities runnability.PhaseCapabilities
+	// Policy is the explicit internal replacement for the overloaded Optional
+	// flag. Descriptor-backed registry construction should populate it directly;
+	// legacy catalog registration derives it from Optional/Advisory.
+	Policy phasepolicy.Policy
+	// FindingSource is the architecture-finding channel this phase emits into.
+	// Leave UNSPECIFIED for phases that produce no findings (performance).
+	// The orchestrator
+	// stamps the lower-case token onto each ExecutionResult so a downstream
+	// campaign reaudit can derive which sources a partial run actually covered.
+	FindingSource        architecturev1.FindingSource
+	ProfileMembership    []string
+	FreshnessRequirement string
+	PhaseClass           string
+	RuntimeClass         string
+	Concurrency          Concurrency
+	Determinism          Determinism
+	Dimensions           []string
+	// NonComparable opts a phase out of baseline/run comparison. The default is
+	// comparable; catalog entries opt out only when their result cannot produce
+	// a meaningful phase verdict.
+	NonComparable bool
+	Advisory      bool
+	// ArtifactBacked marks phases whose primary comparison channel is artifact
+	// metadata or a dedicated analyzer rather than phase pass/fail status.
+	ArtifactBacked bool
+	// Delegated is present when the phase delegates to another scenario through
+	// ScenarioValidationService. It is catalog-owned metadata, not a second
+	// provider registry.
+	Delegated *Delegated
+}
+
+// ToDefinition projects a catalog Spec into the runner Definition consumed
+// during plan selection. The three phase-metadata layers intentionally share
+// field names — Spec is the catalog's registration record, Definition its
+// selection-time projection, and Descriptor (see Catalog.Descriptors) its
+// serialized view — so this single converter is the only place Spec→Definition
+// fields are copied, keeping the layers from drifting.
+func (s Spec) ToDefinition() Definition {
+	def := Definition{
+		Name:                 s.Name,
+		Runner:               s.Runner,
+		Timeout:              s.DefaultTimeout,
+		Optional:             s.Optional,
+		DisplayName:          s.DisplayName,
+		Policy:               s.Policy,
+		SkipEnvVar:           s.SkipEnvVar,
+		Capabilities:         s.Capabilities,
+		FindingSource:        s.FindingSource,
+		ProfileMembership:    append([]string(nil), s.ProfileMembership...),
+		FreshnessRequirement: s.FreshnessRequirement,
+		PhaseClass:           s.PhaseClass,
+		RuntimeClass:         s.RuntimeClass,
+		Concurrency:          s.Concurrency,
+		Determinism:          s.Determinism,
+		Dimensions:           append([]string(nil), s.Dimensions...),
+	}
+	if s.Delegated != nil {
+		def.ProviderScenario = s.Delegated.ProviderScenario
+	}
+	return def
 }
 
 // ExecutionResult captures per-phase outcome information.
 type ExecutionResult struct {
-	Name            string        `json:"name"`
-	Status          string        `json:"status"`
-	DurationSeconds int           `json:"durationSeconds"`
-	LogPath         string        `json:"logPath"`
-	Error           string        `json:"error,omitempty"`
-	Classification  string        `json:"classification,omitempty"`
-	Remediation     string        `json:"remediation,omitempty"`
-	Observations    []Observation `json:"observations,omitempty"`
+	Name                          string    `json:"name"`
+	Status                        string    `json:"status"`
+	StartedAt                     time.Time `json:"startedAt,omitempty"`
+	CompletedAt                   time.Time `json:"completedAt,omitempty"`
+	DurationSeconds               int       `json:"durationSeconds"`
+	DurationMilliseconds          int64     `json:"durationMilliseconds,omitempty"`
+	PredictedDurationMilliseconds int64     `json:"predictedDurationMilliseconds,omitempty"`
+	LogPath                       string    `json:"logPath"`
+	Error                         string    `json:"error,omitempty"`
+	Classification                string    `json:"classification,omitempty"`
+	ClassificationSource          string    `json:"classificationSource,omitempty"`
+	Remediation                   string    `json:"remediation,omitempty"`
+	// RunnabilityVerdict records the runnability gate's decision for this phase
+	// ("run", "run_degraded", or "skip") and RunnabilityReason its rationale.
+	// For a skipped phase these explain why it could not run in this
+	// environment; for a degraded run they note the less-preferred path taken.
+	RunnabilityVerdict string        `json:"runnabilityVerdict,omitempty"`
+	RunnabilityReason  string        `json:"runnabilityReason,omitempty"`
+	Observations       []Observation `json:"observations,omitempty"`
+	// FindingSource is the lower-case source token (findingid vocabulary) for
+	// the channel this phase emits into; empty for phases that produce no
+	// findings. Its presence even on a zero-finding phase is what lets a
+	// campaign reaudit know the source WAS covered by this run.
+	FindingSource string `json:"findingSource,omitempty"`
+	// Findings is the normalized, machine-ingestable finding set for this
+	// phase (see RunReport.Findings). Serialized in the suite `--json`
+	// report so `architecture-cartographer campaign create --from-audit`
+	// can ingest it. Enum fields marshal as their proto integer values —
+	// a stable seam since both sides share this contract.
+	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`
+	// Assessment is the unchanged provider maturity response for this phase.
+	Assessment *commonv1.MaturityAssessment `json:"assessment,omitempty"`
+	// Metrics is the delegated provider's reported execution metrics (timing,
+	// stages, resources, host environment), persisted into immutable per-run
+	// phase evidence and a fixed-width SQLite rollup. Absent for phases whose
+	// provider has not adopted the contract.
+	Metrics *commonv1.ExecutionMetrics `json:"metrics,omitempty"`
+	// PhasePresentation is the compact per-phase maturity standing (Phase
+	// Capability Contract) projected from the provider's MaturityAssessment. It is
+	// carried into the phase-completed run event, the terminal response, and the
+	// findings.json artifact so the human scorecard and --json output derive from
+	// one server payload. nil for native phases / providers with no ladder.
+	PhasePresentation *commonv1.PhasePresentation `json:"phasePresentation,omitempty"`
+	// FindingsSummary is the per-severity finding tally for the phase.
+	FindingsSummary    *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
+	CacheHit           bool                         `json:"cacheHit,omitempty"`
+	CacheSourceRunID   string                       `json:"cacheSourceRunId,omitempty"`
+	CacheAudit         bool                         `json:"cacheAudit,omitempty"`
+	CacheAuditMismatch bool                         `json:"cacheAuditMismatch,omitempty"`
+	CacheNoSaving      bool                         `json:"cacheNoSaving,omitempty"`
 }
 
-// NormalizeName standardizes arbitrary input into a canonical Name.
+// NormalizeName standardizes arbitrary input into a descriptor key.
 func NormalizeName(raw string) (Name, bool) {
-	normalized := Name(strings.ToLower(strings.TrimSpace(raw)))
+	normalized := Name(NormalizeKey(raw))
 	if normalized == "" {
 		return "", false
 	}
 	return normalized, true
 }
 
-// String returns the canonical lowercase phase name.
+// NormalizeKey standardizes arbitrary input into a descriptor key.
+func NormalizeKey(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+// String returns the normalized descriptor key.
 func (n Name) String() string {
 	return string(n)
 }
 
-// Key returns a safe map key for the phase.
+// Key returns a safe map key for the descriptor.
 func (n Name) Key() string {
-	return strings.ToLower(strings.TrimSpace(n.String()))
+	return NormalizeKey(n.String())
 }
 
 // IsZero reports whether the name is empty.

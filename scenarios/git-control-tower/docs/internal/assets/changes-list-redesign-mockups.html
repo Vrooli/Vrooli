@@ -1,0 +1,742 @@
+<title>Changes List Redesign</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root {
+    --paper:      #eef1f1;
+    --card:       #f8fafa;
+    --ink:        #14191b;
+    --ink-2:      #414d51;
+    --ink-3:      #6d7c81;
+    --rule:       #d3dadb;
+    --rule-soft:  #e2e7e8;
+    --teal:       #0e7f81;
+    --teal-deep:  #095d5f;
+    --plum:       #7b3168;
+    --amber:      #9a6708;
+    --crit:       #a8321f;
+    --bench:      #dfe5e5;
+
+    /* app-slate: the mockups are painted in git-control-tower's own palette
+       in BOTH themes on purpose — a mockup that changes colour with the
+       reader's theme is no longer a mockup of the app. */
+    --app-950: #020617;
+    --app-900: #0f172a;
+    --app-850: #111c31;
+    --app-800: #1e293b;
+    --app-700: #334155;
+    --app-500: #64748b;
+    --app-400: #94a3b8;
+    --app-300: #cbd5e1;
+    --app-100: #f1f5f9;
+    --app-blue:#60a5fa;
+    --app-grn: #4ade80;
+    --app-red: #f87171;
+    --app-amb: #fbbf24;
+    --run-a:   #c084fc;
+    --run-b:   #22d3ee;
+
+    --measure: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #101416;
+      --card:      #171d1f;
+      --ink:       #e7edee;
+      --ink-2:     #aebabd;
+      --ink-3:     #7e8d91;
+      --rule:      #2a3437;
+      --rule-soft: #212a2c;
+      --teal:      #4fc8c2;
+      --teal-deep: #7fded6;
+      --plum:      #d98cc0;
+      --amber:     #e0aa4a;
+      --crit:      #f0836d;
+      --bench:     #0a0d0e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:     #101416;
+    --card:      #171d1f;
+    --ink:       #e7edee;
+    --ink-2:     #aebabd;
+    --ink-3:     #7e8d91;
+    --rule:      #2a3437;
+    --rule-soft: #212a2c;
+    --teal:      #4fc8c2;
+    --teal-deep: #7fded6;
+    --plum:      #d98cc0;
+    --amber:     #e0aa4a;
+    --crit:      #f0836d;
+    --bench:     #0a0d0e;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  .col  { max-width: var(--measure); }
+
+  h1, h2, h3, h4, .ui { font-family: Archivo, "Helvetica Neue", Arial, sans-serif; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+
+  h1 { font-size: clamp(2.1rem, 5vw, 3.1rem); line-height: 1.04; font-weight: 700; letter-spacing: -0.025em; margin: 0; text-wrap: balance; }
+  h2 { font-size: clamp(1.5rem, 3vw, 1.95rem); line-height: 1.12; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 .3em; text-wrap: balance; }
+  h3 { font-size: 1.16rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 .35em; }
+  h4 { font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-3); margin: 0 0 .6em; }
+  p  { margin: 0 0 1em; }
+  a  { color: var(--teal-deep); text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 3px; }
+
+  .eyebrow { font-family: Archivo, sans-serif; font-size: .74rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-deep); }
+  .lede { font-size: 1.2rem; color: var(--ink-2); max-width: 62ch; }
+
+  header.top {
+    border-bottom: 1px solid var(--rule);
+    padding: 56px 0 40px;
+  }
+  header.top .wrap { display: flex; flex-direction: column; gap: 18px; }
+
+  section { padding: 54px 0; border-bottom: 1px solid var(--rule-soft); }
+  section:last-of-type { border-bottom: none; }
+  .sec-head { display: flex; gap: 18px; align-items: baseline; margin-bottom: 26px; flex-wrap: wrap; }
+  .sec-num { font-family: "IBM Plex Mono", monospace; font-size: .8rem; font-weight: 600; color: var(--teal); letter-spacing: .08em; padding-top: .5em; }
+
+  /* ---------- findings ---------- */
+  .findings { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+  .finding {
+    display: grid;
+    grid-template-columns: 3.2rem 1fr;
+    gap: 0 18px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .f-id { font-family: "IBM Plex Mono", monospace; font-size: .78rem; font-weight: 600; color: var(--ink-3); padding-top: .34em; }
+  .f-body h3 { margin-bottom: .3em; }
+  .f-body p { margin-bottom: .5em; color: var(--ink-2); font-size: .97rem; }
+  .f-body p:last-child { margin-bottom: 0; }
+  .ev { font-family: "IBM Plex Mono", monospace; font-size: .78rem; color: var(--ink-3); display: block; margin-top: .5em; line-height: 1.75; }
+  .ev b { color: var(--ink-2); font-weight: 500; }
+
+  .chip {
+    display: inline-block; font-family: Archivo, sans-serif; font-size: .68rem; font-weight: 600;
+    letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: 2px;
+    vertical-align: 2px; margin-left: 8px; white-space: nowrap;
+  }
+  .chip.built { background: color-mix(in srgb, var(--teal) 16%, transparent); color: var(--teal-deep); }
+  .chip.gap   { background: color-mix(in srgb, var(--crit) 15%, transparent); color: var(--crit); }
+  .chip.easy  { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+
+  /* ---------- bench: where mockups sit ---------- */
+  .bench { background: var(--bench); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 46px 0; margin: 0; }
+  .bench .wrap { }
+  .rack { display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .rig { display: flex; flex-direction: column; gap: 12px; }
+  .rig-label { font-family: Archivo, sans-serif; font-size: .74rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .rig-label .now  { color: var(--crit); }
+  .rig-label .next { color: var(--teal-deep); }
+  .rig-note { font-size: .88rem; color: var(--ink-3); max-width: 34ch; line-height: 1.5; }
+
+  /* ---------- phone ---------- */
+  .phone {
+    width: 340px; max-width: 100%;
+    background: var(--app-950);
+    border: 1px solid #263243;
+    border-radius: 22px;
+    overflow: hidden;
+    color: var(--app-300);
+    font-family: Archivo, "Helvetica Neue", sans-serif;
+    font-size: 13px; line-height: 1.35;
+    box-shadow: 0 18px 40px -20px rgba(0,0,0,.6);
+  }
+  .phone .statusbar {
+    height: 30px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; font-size: 11px; font-weight: 600; color: var(--app-100);
+    font-variant-numeric: tabular-nums;
+  }
+  .phone .navbar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border-bottom: 1px solid var(--app-800); color: var(--app-300); font-size: 12px;
+  }
+  .phone .navbar .branch { font-family: "IBM Plex Mono", monospace; color: var(--app-100); font-weight: 600; }
+  .phone .navbar .sha { font-family: "IBM Plex Mono", monospace; color: var(--app-500); }
+  .phone .navbar .spacer { flex: 1; }
+
+  .glyph { display: inline-flex; align-items: center; justify-content: center; }
+  .ib-old { width: 34px; height: 34px; border-radius: 999px; border: 1px solid var(--app-700); color: var(--app-400); }
+  .ib-old.on { border-color: rgba(96,165,250,.45); background: rgba(96,165,250,.12); color: var(--app-blue); }
+  .ib-new { width: 28px; height: 28px; border-radius: 8px; color: var(--app-400); }
+  .ib-new.on { background: rgba(96,165,250,.16); color: var(--app-blue); }
+
+  .panel-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--app-800); }
+  .panel-head .title { font-weight: 700; font-size: 15px; color: var(--app-100); }
+  .panel-head .spacer { flex: 1; }
+  .panel-head .count { font-size: 11px; color: var(--app-500); font-variant-numeric: tabular-nums; }
+
+  .scroll { height: 470px; overflow: hidden; position: relative; }
+  .fade { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: linear-gradient(to bottom, transparent, var(--app-950)); pointer-events: none; }
+
+  /* --- CURRENT: card groups --- */
+  .g-card { margin: 0 8px 16px; border: 1px solid rgba(30,41,59,.8); border-radius: 8px; background: rgba(2,6,23,.4); }
+  .g-card .g-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 12px; }
+  .g-card .g-name { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--app-300); }
+  .g-card .g-path { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--app-500); margin-top: 2px; }
+  .g-card .g-count { font-size: 13px; color: var(--app-500); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .banner-old {
+    margin: 8px 8px 4px; padding: 9px 10px; border: 1px solid rgba(6,95,70,.5);
+    background: rgba(6,78,59,.2); border-radius: 6px; display: flex; align-items: center; gap: 8px;
+    font-size: 11.5px; color: #a7f3d0;
+  }
+  .banner-old .b-btn { margin-left: auto; border: 1px solid var(--app-700); border-radius: 6px; padding: 4px 8px; color: var(--app-100); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+
+  /* --- PROPOSED: bands + dense rows --- */
+  .chiprow { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--app-800); overflow: hidden; }
+  .fchip { font-size: 11px; padding: 4px 9px; border-radius: 999px; background: rgba(30,41,59,.7); color: var(--app-400); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+  .fchip.sel { background: rgba(96,165,250,.16); color: var(--app-blue); }
+  .fchip .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--run-a); }
+
+  .band {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px 5px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--app-500);
+    background: linear-gradient(to bottom, rgba(15,23,42,.95), rgba(15,23,42,.6));
+    border-top: 1px solid var(--app-800);
+  }
+  .band .rule { flex: 1; height: 1px; background: var(--app-800); }
+  .band .n { letter-spacing: .04em; color: #4a5a70; font-variant-numeric: tabular-nums; }
+
+  .grow {
+    display: flex; align-items: center; gap: 9px;
+    height: 44px; padding: 0 12px;
+    border-bottom: 1px solid rgba(30,41,59,.55);
+  }
+  .grow .chev { color: #475569; font-size: 11px; width: 9px; }
+  .grow .name { font-size: 13.5px; font-weight: 600; color: var(--app-300); letter-spacing: .002em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .grow .sub { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--app-500); }
+  .grow .spacer { flex: 1; }
+  .grow .marks { display: flex; gap: 3px; }
+  .grow .mark { width: 6px; height: 6px; border-radius: 999px; }
+  .grow .cnt { font-size: 12px; color: var(--app-500); font-variant-numeric: tabular-nums; min-width: 20px; text-align: right; }
+  .grow.open { background: rgba(30,41,59,.28); }
+
+  .frow {
+    display: flex; align-items: center; gap: 8px;
+    height: 40px; padding: 0 12px 0 0;
+    border-bottom: 1px solid rgba(30,41,59,.45);
+    position: relative;
+  }
+  .frow .spine { width: 3px; align-self: stretch; background: transparent; flex: none; }
+  .frow .indent { width: 18px; flex: none; }
+  .frow .st { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600; width: 12px; text-align: center; flex: none; }
+  .frow .st.m { color: var(--app-amb); }
+  .frow .st.a { color: var(--app-grn); }
+  .frow .st.d { color: var(--app-red); }
+  .frow .fn { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--app-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .frow .fn .dir { color: #55647c; }
+  .frow .spacer { flex: 1; }
+  .frow .runchip {
+    display: inline-flex; align-items: center; gap: 4px; font-family: "IBM Plex Mono", monospace;
+    font-size: 10px; padding: 2px 6px; border-radius: 999px; flex: none;
+  }
+  .frow .num { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; flex: none; font-variant-numeric: tabular-nums; }
+  .frow .num .p { color: #34d399; }
+  .frow .num .m { color: #fb7185; }
+
+  .bottomnav { display: flex; border-top: 1px solid var(--app-800); background: var(--app-900); }
+  .bottomnav div { flex: 1; text-align: center; padding: 8px 0 10px; font-size: 10px; color: var(--app-500); }
+  .bottomnav div.on { color: var(--app-blue); box-shadow: inset 0 -2px 0 var(--app-blue); }
+  .bottomnav .ic { display: block; font-size: 14px; margin-bottom: 3px; }
+
+  /* --- sheets --- */
+  .sheet { border-top: 1px solid var(--app-800); background: var(--app-900); padding: 6px 0 10px; }
+  .sheet .grab { width: 34px; height: 4px; border-radius: 999px; background: var(--app-700); margin: 4px auto 12px; }
+  .sheet .s-head { padding: 0 16px 10px; border-bottom: 1px solid var(--app-800); }
+  .sheet .s-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--app-100); }
+  .sheet .s-meta { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--app-500); margin-top: 4px; }
+  .sheet .s-warn { margin: 10px 16px 0; padding: 8px 10px; border-radius: 6px; background: rgba(120,53,15,.28); border: 1px solid rgba(180,83,9,.4); color: #fcd34d; font-size: 11.5px; display: flex; gap: 7px; }
+  .sheet .s-acts { display: flex; gap: 8px; padding: 12px 16px; }
+  .sheet .s-btn { flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+  .sheet .s-btn.primary { background: rgba(96,165,250,.18); color: #93c5fd; border: 1px solid rgba(96,165,250,.35); }
+  .sheet .s-btn.ghost { border: 1px solid var(--app-700); color: var(--app-300); }
+  .sheet .s-link { padding: 11px 16px; font-size: 12.5px; color: var(--app-blue); border-top: 1px solid var(--app-800); display: flex; align-items: center; justify-content: space-between; }
+  .menu-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; font-size: 13px; color: var(--app-300); border-bottom: 1px solid rgba(30,41,59,.5); }
+  .menu-item .ic { width: 16px; color: var(--app-500); font-size: 13px; text-align: center; }
+  .menu-item.danger { color: #fca5a5; }
+  .menu-item.danger .ic { color: #f87171; }
+  .menu-item .tail { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 10px; }
+  .menu-sep { height: 7px; background: rgba(2,6,23,.6); border-bottom: 1px solid var(--app-800); }
+  .menu-head { padding: 10px 16px; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--app-400); border-bottom: 1px solid var(--app-800); }
+
+  /* ---------- callouts ---------- */
+  .calls { display: flex; flex-direction: column; gap: 14px; max-width: 30ch; }
+  .call { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+  .call .k {
+    font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 600;
+    background: var(--teal); color: #fff; border-radius: 3px; padding: 2px 5px; line-height: 1.3; margin-top: 2px;
+  }
+  .call .t { font-size: .89rem; line-height: 1.5; color: var(--ink-2); }
+  .call .t b { color: var(--ink); font-weight: 600; font-family: Archivo, sans-serif; }
+
+  /* ---------- data strip ---------- */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 26px 0 0; }
+  .metric { background: var(--card); padding: 16px 18px; }
+  .metric .v { font-family: Archivo, sans-serif; font-size: 1.7rem; font-weight: 700; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .metric .v small { font-size: .95rem; font-weight: 500; color: var(--ink-3); }
+  .metric .k { font-family: Archivo, sans-serif; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); margin-top: 6px; }
+
+  /* ---------- chrome stack diagram ---------- */
+  .stack { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .stackcol { flex: 1 1 280px; min-width: 260px; }
+  .layers { border: 1px solid var(--rule); }
+  .layer { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--rule-soft); background: var(--card); }
+  .layer:last-child { border-bottom: none; }
+  .layer .sw { width: 38px; height: 26px; border-radius: 3px; border: 1px solid rgba(148,163,184,.35); flex: none; }
+  .layer .lab { font-family: Archivo, sans-serif; font-size: .82rem; font-weight: 600; color: var(--ink); }
+  .layer .val { font-family: "IBM Plex Mono", monospace; font-size: .72rem; color: var(--ink-3); }
+  .layer .why { font-size: .8rem; color: var(--ink-3); margin-left: auto; text-align: right; max-width: 15ch; line-height: 1.35; }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; margin-top: 20px; border: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; font-family: Archivo, sans-serif; font-size: .88rem; min-width: 620px; background: var(--card); }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); font-weight: 600; background: color-mix(in srgb, var(--paper) 60%, var(--card)); }
+  tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: "IBM Plex Mono", monospace; font-size: .78rem; }
+  td .cost { font-family: "IBM Plex Mono", monospace; font-size: .76rem; color: var(--ink-3); }
+
+  .note { border-left: 2px solid var(--teal); padding: 2px 0 2px 16px; color: var(--ink-2); font-size: .96rem; margin: 22px 0; }
+  .note b { font-family: Archivo, sans-serif; color: var(--ink); }
+
+  footer { padding: 40px 0 64px; color: var(--ink-3); font-size: .86rem; }
+
+  @media (max-width: 700px) {
+    body { font-size: 16px; }
+    .finding { grid-template-columns: 1fr; gap: 4px; }
+    .f-id { padding-top: 0; }
+    .calls { max-width: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="wrap col">
+    <div class="eyebrow">git-control-tower · mobile changes list</div>
+    <h1>Six defects, two already-built fixes</h1>
+    <p class="lede">A read of the Changes panel against its source. Every complaint traces to a specific line; the status-bar bug and the toolbar buttons both have working implementations elsewhere in this repo that git-control-tower never adopted.</p>
+    <div class="metrics">
+      <div class="metric"><div class="v">9 <small>→ 14</small></div><div class="k">Groups per screen</div></div>
+      <div class="metric"><div class="v">1 <small>→ 2</small></div><div class="k">Grouping levels</div></div>
+      <div class="metric"><div class="v">3 <small>→ 1</small></div><div class="k">Chrome colours in play</div></div>
+      <div class="metric"><div class="v">0</div><div class="k">Checks that could catch it</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><div class="col"><h2>What the code actually says</h2><p style="margin:0;color:var(--ink-2)">Each finding below was read out of the working tree on <code>agi</code>. The verdict chip says whether the fix has to be designed or merely adopted.</p></div></div>
+
+    <div class="col findings">
+
+      <div class="finding">
+        <div class="f-id">F1</div>
+        <div class="f-body">
+          <h3>Groups sort by label only — <code>Kind</code> is computed, then discarded<span class="chip gap">design needed</span></h3>
+          <p>The resolver already knows each group's target kind. It writes <code>Kind: string(target.Kind)</code> into every contract group, then sorts on <code>sourceRank → order → Label</code>. <code>order</code> is hard-coded <code>0</code> for every contract group, so the entire list collapses to one alphabetical run. Scenarios appear to come first only because <code>agent-*</code>, <code>ai-*</code>, <code>algorithm-*</code>, <code>api-*</code> happen to sort early; further down, resources and packages interleave with scenarios exactly as you saw.</p>
+          <p>The repo contract defines nine kinds — scenario, resource, tool, safeguard, team, package, control-plane, docs, project. That is a ready-made second level; nothing needs to be invented.</p>
+          <span class="ev"><b>api/grouping_groups.go:64-72</b> kind written · <b>:87-95</b> sort ignores it<br><b>ui/src/components/FileList.tsx:496</b> <code>kind</code> reaches the UI and is used only to decide whether one button renders</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="f-id">F2</div>
+        <div class="f-body">
+          <h3>Every group is a bordered card with a 16px gutter<span class="chip easy">cheap</span></h3>
+          <p>Each group renders as <code>mb-4 rounded-lg border bg-slate-950/40</code> with a two-line header: an uppercase label plus the full path. On mobile that is roughly 70px of vertical space per <em>collapsed</em> group carrying one number.</p>
+          <p>The second line is the redundant one. <code>scenarios/agent-inbox/</code> is fully derivable from the kind band plus the group name — so adding hierarchy is what lets the path go, and the density improves rather than degrades.</p>
+          <span class="ev"><b>ui/src/components/FileList.tsx:739</b> card shell · <b>:757-765</b> two-line header</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="f-id">F3</div>
+        <div class="f-body">
+          <h3>"Reveal in file tree" is one call away and not wired<span class="chip built">already built</span></h3>
+          <p><code>ProjectTreeView</code> already accepts <code>scrollToFile</code>, expands every ancestor directory, and scrolls the row into view. <code>App.tsx</code> already owns the <code>scrollToFile</code> state and a completion handler. The only missing piece is a menu item that sets view mode to <code>tree</code> and the path in the same tick.</p>
+          <span class="ev"><b>ui/src/components/ProjectTreeView.tsx:485-546</b> expand-and-scroll · <b>ui/src/App.tsx:186, 1517-1525</b> state already present</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="f-id">F4</div>
+        <div class="f-body">
+          <h3>The toolbar buttons are hand-rolled; RCL ships the exact control<span class="chip built">already built</span></h3>
+          <p><code>ViewModeCycleButton</code> is a bare <code>&lt;button&gt;</code> at <code>h-11 w-11</code> with a full circular border and per-mode border colours. <code>IconButton.tsx</code> in this scenario is 21 lines of <code>p-2 rounded-md</code>.</p>
+          <p>React Component Library <code>IconButton@3.1.2</code> covers all of it: an <code>xs</code> rung at 32px, four surfaces where <code>ghost</code> needs no border, <code>selected</code> that sets <code>aria-pressed</code>, and <code>morph</code> that animates the glyph swap with no call-site work. Its own release notes describe fixing this control for web-console's view toggle — the same widget, one scenario over.</p>
+          <span class="ev"><b>ui/src/components/ViewModeCycleButton.tsx:56</b> · <b>ui/src/components/IconButton.tsx:12</b><br><b>packages/react-component-library/dist/components/IconButton/versions/3.1.2</b> — git-control-tower's <code>ui/package.json</code> has no RCL dependency at all</span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="f-id">F5</div>
+        <div class="f-body">
+          <h3>Three different colours claim the top of the screen<span class="chip built">already built</span></h3>
+          <p><code>index.html</code> hard-codes <code>theme-color: #0f172a</code>. The app shell paints <code>bg-slate-950</code> (<code>#020617</code>). The header paints <code>bg-slate-900/95</code> with <code>backdrop-blur</code> <em>and</em> carries <code>pt-safe</code>, so it also owns the notch strip — at 95% opacity over slate-950, which is a fourth value again. Nothing derives any of these from the others.</p>
+          <p>RCL's <code>ChromeTheme</code> service exists precisely for this: it resolves one value and writes both channels — the <code>theme-color</code> meta tag Android reads and the <code>StatusBarFill</code> strip iOS black-translucent paints — so they cannot drift. web-console adopted it. git-control-tower did not.</p>
+          <span class="ev"><b>ui/index.html:6</b> · <b>ui/src/App.tsx:2812</b> · <b>ui/src/components/MobileHeader.tsx:89</b><br>reference adoption: <b>scenarios/web-console/ui/src/lib/chromeTheme.ts</b> and <b>components/TopSafeArea.tsx</b></span>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="f-id">F6</div>
+        <div class="f-body">
+          <h3>The banner calls sandbox output "approved" — and the run data it hides is already served<span class="chip gap">design needed</span></h3>
+          <p>You are right that auto-apply is not review. The banner reads <em>"Approved changes ready · apply all"</em> for files a sandbox wrote while you were not looking.</p>
+          <p>What makes this worth redesigning rather than deleting: the API already returns <code>agentManagerRunId</code>, <code>sandboxOwner</code>, <code>changeType</code> and <code>appliedAt</code> <strong>per file</strong>, and a second endpoint already groups pending changes by run. The UI throws all of it away and renders one aggregate count. The run view you half-remembered does exist — <code>AIProvenanceTab</code> — but it is buried inside the Review panel with no path to it from a file.</p>
+          <span class="ev"><b>ui/src/components/FileList.tsx:664-694</b> banner · <b>api/approved_changes_model.go:12-20</b> per-file provenance, unused<br><b>api/approved_changes_handler.go:66</b> <code>/provenance</code> by run · <b>ui/src/components/ScenarioReviewPanel.tsx:218</b> the only entry point</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ MOCKUP 1 ============ -->
+<div class="bench">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><div class="col"><h2>The list</h2><p style="margin:0;color:var(--ink-2)">Same repository state, same 470px of list. Hierarchy pays for itself by making the path line redundant.</p></div></div>
+    <div class="rack">
+
+      <div class="rig">
+        <div class="rig-label"><span class="now">Now</span> · cards + one flat run</div>
+        <div class="phone">
+          <div class="statusbar" style="background:#0f172a"><span>11:28</span><span>◗◗◗ ▮</span></div>
+          <div class="navbar" style="background:rgba(15,23,42,.95)">
+            <span class="branch">⑂ agi</span><span class="sha">· 6c527cf ⌄</span>
+            <span class="spacer"></span>
+            <span class="glyph ib-old" style="width:26px;height:26px;border:none">⇅</span>
+            <span class="glyph ib-old" style="width:26px;height:26px;border:none">▤</span>
+            <span class="glyph ib-old" style="width:26px;height:26px;border:none">⌕</span>
+            <span class="glyph ib-old" style="width:26px;height:26px;border:none">☰</span>
+          </div>
+          <div class="panel-head">
+            <span style="color:#475569">⌄</span>
+            <span class="title">Changes</span>
+            <span class="glyph" style="color:#64748b">▥</span>
+            <span class="spacer"></span>
+            <span class="glyph ib-old">＋</span>
+            <span class="glyph ib-old on">▤</span>
+          </div>
+          <div class="scroll">
+            <div class="banner-old">
+              <span>◈</span><span>Approved changes ready</span><span style="color:#6ee7b7">13 files</span>
+              <span class="b-btn">Apply all</span>
+            </div>
+            <div class="g-card"><div class="g-head"><div><div class="g-name">Agent-Inbox</div><div class="g-path">scenarios/agent-inbox/</div></div><div class="g-count">2 files</div></div></div>
+            <div class="g-card"><div class="g-head"><div><div class="g-name">Agent-Manager</div><div class="g-path">scenarios/agent-manager/</div></div><div class="g-count">45 files</div></div></div>
+            <div class="g-card"><div class="g-head"><div><div class="g-name" style="font-size:13px">Agent-Metareasoning-Manager</div><div class="g-path">scenarios/agent-metareasoning-manager/</div></div><div class="g-count">2 files</div></div></div>
+            <div class="g-card"><div class="g-head"><div><div class="g-name">AI-Chatbot-Manager</div><div class="g-path">scenarios/ai-chatbot-manager/</div></div><div class="g-count">2 files</div></div></div>
+            <div class="g-card"><div class="g-head"><div><div class="g-name">AI-Gateway</div><div class="g-path">scenarios/ai-gateway/</div></div><div class="g-count">2 files</div></div></div>
+            <div class="fade"></div>
+          </div>
+          <div class="bottomnav">
+            <div class="on"><span class="ic">▤</span>Changes</div><div><span class="ic">⊞</span>Diff</div><div><span class="ic">⌥</span>Commit</div><div><span class="ic">⟲</span>History</div><div><span class="ic">◈</span>Review</div>
+          </div>
+        </div>
+        <div class="rig-note">5 groups visible. Two lines and a bordered card to carry one integer.</div>
+      </div>
+
+      <div class="rig">
+        <div class="rig-label"><span class="next">Proposed</span> · kind bands + full-bleed rows</div>
+        <div class="phone">
+          <div class="statusbar" style="background:#0f172a"><span>11:28</span><span>◗◗◗ ▮</span></div>
+          <div class="navbar" style="background:#0f172a">
+            <span class="branch">⑂ agi</span><span class="sha">· 6c527cf ⌄</span>
+            <span class="spacer"></span>
+            <span class="glyph ib-new">⇅</span>
+            <span class="glyph ib-new">▤</span>
+            <span class="glyph ib-new">⌕</span>
+            <span class="glyph ib-new">☰</span>
+          </div>
+          <div class="panel-head">
+            <span style="color:#475569">⌄</span>
+            <span class="title">Changes</span>
+            <span class="spacer"></span>
+            <span class="count">123 groups · 412 files</span>
+            <span class="glyph ib-new">▥</span>
+            <span class="glyph ib-new on">▤</span>
+          </div>
+          <div class="chiprow">
+            <span class="fchip sel">All 412</span>
+            <span class="fchip"><span class="dot"></span>Agent 13</span>
+            <span class="fchip">Staged 0</span>
+            <span class="fchip">Conflicts</span>
+          </div>
+          <div class="scroll">
+            <div class="band">Scenarios <span class="rule"></span> <span class="n">41 · 287 files</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">agent-inbox</span><span class="spacer"></span><span class="cnt">2</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">agent-manager</span><span class="spacer"></span><span class="marks"><i class="mark" style="background:var(--run-a)"></i><i class="mark" style="background:var(--run-b)"></i></span><span class="cnt">45</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">agent-metareasoning-manager</span><span class="spacer"></span><span class="cnt">2</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">ai-chatbot-manager</span><span class="spacer"></span><span class="cnt">2</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">ai-gateway</span><span class="spacer"></span><span class="marks"><i class="mark" style="background:var(--run-a)"></i></span><span class="cnt">2</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">algorithm-library</span><span class="spacer"></span><span class="cnt">2</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">api-health</span><span class="spacer"></span><span class="cnt">1</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">git-control-tower</span><span class="spacer"></span><span class="cnt">7</span></div>
+            <div class="band">Resources <span class="rule"></span> <span class="n">3 · 9 files</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">postgres</span><span class="spacer"></span><span class="cnt">4</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">qdrant</span><span class="spacer"></span><span class="cnt">3</span></div>
+            <div class="band">Control plane <span class="rule"></span> <span class="n">1 · 62 files</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">internal</span><span class="spacer"></span><span class="marks"><i class="mark" style="background:var(--run-b)"></i></span><span class="cnt">62</span></div>
+            <div class="fade"></div>
+          </div>
+          <div class="bottomnav">
+            <div class="on"><span class="ic">▤</span>Changes</div><div><span class="ic">⊞</span>Diff</div><div><span class="ic">⌥</span>Commit</div><div><span class="ic">⟲</span>History</div><div><span class="ic">◈</span>Review</div>
+          </div>
+        </div>
+        <div class="rig-note">11 groups and 3 kind bands in the same space, and you can see where scenarios end.</div>
+      </div>
+
+      <div class="calls">
+        <div class="call"><span class="k">A</span><span class="t"><b>Kind band, not a nested container.</b> A 26px sticky rule with a count. It groups without indenting, so the second level costs one row per kind instead of a wrapper around every group. It renders only when more than one kind is present.</span></div>
+        <div class="call"><span class="k">B</span><span class="t"><b>The path line is gone.</b> Band + name reconstructs it exactly. Manual-rule groups and <code>Other</code> keep their path, because for those it is not derivable.</span></div>
+        <div class="call"><span class="k">C</span><span class="t"><b>Filter chips replace the banner.</b> "Agent 13" states the same fact without the word <em>approved</em> and without an action attached to it. It filters; it does not stage.</span></div>
+        <div class="call"><span class="k">D</span><span class="t"><b>Run dots on the collapsed row.</b> Each distinct run gets a stable hue. Two dots on <code>agent-manager</code> means two runs touched it — visible without expanding.</span></div>
+        <div class="call"><span class="k">E</span><span class="t"><b>Kind order is fixed, not alphabetical.</b> Scenarios → resources → packages → control-plane → tools → safeguards → teams → docs → unmapped. Within a band, alphabetical as today.</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ MOCKUP 2 ============ -->
+<div class="bench" style="border-top:none">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><div class="col"><h2>Attribution, without the word "approved"</h2><p style="margin:0;color:var(--ink-2)">The run is a property of the file, surfaced where the file is. Staging stays the flow you already use.</p></div></div>
+    <div class="rack">
+
+      <div class="rig">
+        <div class="rig-label"><span class="next">Proposed</span> · expanded group</div>
+        <div class="phone">
+          <div class="panel-head"><span style="color:#475569">⌄</span><span class="title">Changes</span><span class="spacer"></span><span class="count">412 files</span><span class="glyph ib-new">▥</span><span class="glyph ib-new on">▤</span></div>
+          <div class="chiprow"><span class="fchip">All 412</span><span class="fchip sel"><span class="dot"></span>Agent 13</span><span class="fchip">Staged 0</span></div>
+          <div style="height:430px;overflow:hidden;position:relative">
+            <div class="band">Scenarios <span class="rule"></span> <span class="n">41 · 287 files</span></div>
+            <div class="grow open"><span class="chev">⌄</span><span class="name">agent-manager</span><span class="spacer"></span><span class="marks"><i class="mark" style="background:var(--run-a)"></i><i class="mark" style="background:var(--run-b)"></i></span><span class="cnt">45</span></div>
+            <div class="frow"><i class="spine"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">api/handlers/</span>runs.go</span><span class="spacer"></span><span class="num"><span class="p">+42</span> <span class="m">−7</span></span></div>
+            <div class="frow"><i class="spine" style="background:var(--run-a)"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">api/</span>model.go</span><span class="spacer"></span><span class="runchip" style="background:rgba(192,132,252,.16);color:#d8b4fe">◆ 7f3a</span><span class="num"><span class="p">+12</span></span></div>
+            <div class="frow"><i class="spine" style="background:var(--run-a)"></i><i class="indent"></i><span class="st a">A</span><span class="fn"><span class="dir">ui/src/</span>RunCard.tsx</span><span class="spacer"></span><span class="runchip" style="background:rgba(192,132,252,.16);color:#d8b4fe">◆ 7f3a</span><span class="num"><span class="p">+88</span></span></div>
+            <div class="frow"><i class="spine" style="background:var(--run-b)"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">cli/</span>runs_cmd.go</span><span class="spacer"></span><span class="runchip" style="background:rgba(34,211,238,.15);color:#67e8f9">◆ c19d</span><span class="num"><span class="p">+9</span> <span class="m">−3</span></span></div>
+            <div class="frow"><i class="spine"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">docs/</span>RUNS.md</span><span class="spacer"></span><span class="num"><span class="p">+4</span></span></div>
+            <div class="frow"><i class="spine"></i><i class="indent"></i><span class="st d">D</span><span class="fn"><span class="dir">api/</span>legacy_runs.go</span><span class="spacer"></span><span class="num"><span class="m">−211</span></span></div>
+            <div class="band">Resources <span class="rule"></span> <span class="n">3 · 9 files</span></div>
+            <div class="grow"><span class="chev">›</span><span class="name">postgres</span><span class="spacer"></span><span class="cnt">4</span></div>
+            <div class="fade"></div>
+          </div>
+        </div>
+        <div class="rig-note">A 3px spine in the gutter carries the run identity down the list; the chip names it. Unattributed rows lose nothing.</div>
+      </div>
+
+      <div class="rig">
+        <div class="rig-label"><span class="next">Proposed</span> · run sheet</div>
+        <div class="phone">
+          <div style="height:150px;opacity:.32;pointer-events:none">
+            <div class="band">Scenarios <span class="rule"></span> <span class="n">41 · 287 files</span></div>
+            <div class="grow open"><span class="chev">⌄</span><span class="name">agent-manager</span><span class="spacer"></span><span class="cnt">45</span></div>
+            <div class="frow"><i class="spine"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">api/handlers/</span>runs.go</span></div>
+            <div class="frow"><i class="spine" style="background:var(--run-a)"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">api/</span>model.go</span></div>
+          </div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="s-head">
+              <div class="s-title"><span style="color:var(--run-a)">◆</span> Sandbox run 7f3a91c2</div>
+              <div class="s-meta">claude-opus-5 · applied 11:04 · 24 min ago</div>
+              <div class="s-meta">6 files · <span style="color:#34d399">+214</span> <span style="color:#fb7185">−38</span> · 4 scenarios</div>
+            </div>
+            <div class="s-warn"><span>⚠</span><span>Auto-applied by the sandbox. Nothing here has been reviewed.</span></div>
+            <div class="s-acts">
+              <div class="s-btn primary">Select all 6</div>
+              <div class="s-btn ghost">Combined diff</div>
+            </div>
+            <div style="max-height:150px;overflow:hidden;border-top:1px solid #1e293b">
+              <div class="frow"><i class="spine" style="background:var(--run-a)"></i><span style="width:8px"></span><span class="st m">M</span><span class="fn"><span class="dir">agent-manager/api/</span>model.go</span><span class="spacer"></span><span class="num"><span class="p">+12</span></span></div>
+              <div class="frow"><i class="spine" style="background:var(--run-a)"></i><span style="width:8px"></span><span class="st a">A</span><span class="fn"><span class="dir">agent-manager/ui/</span>RunCard.tsx</span><span class="spacer"></span><span class="num"><span class="p">+88</span></span></div>
+              <div class="frow"><i class="spine" style="background:var(--run-a)"></i><span style="width:8px"></span><span class="st m">M</span><span class="fn"><span class="dir">ai-gateway/api/</span>route.go</span><span class="spacer"></span><span class="num"><span class="p">+31</span> <span class="m">−8</span></span></div>
+              <div class="fade"></div>
+            </div>
+            <div class="s-link"><span>Open run in Agent Manager</span><span>→</span></div>
+          </div>
+        </div>
+        <div class="rig-note">Reached by tapping the chip or the spine. "Select all" feeds the selection toolbar you already have — this sheet stages nothing itself.</div>
+      </div>
+
+      <div class="rig">
+        <div class="rig-label"><span class="next">Proposed</span> · file actions</div>
+        <div class="phone">
+          <div style="height:220px;opacity:.32;pointer-events:none">
+            <div class="band">Scenarios <span class="rule"></span> <span class="n">41 · 287 files</span></div>
+            <div class="grow open"><span class="chev">⌄</span><span class="name">agent-manager</span><span class="spacer"></span><span class="cnt">45</span></div>
+            <div class="frow"><i class="spine"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">api/handlers/</span>runs.go</span></div>
+            <div class="frow"><i class="spine" style="background:var(--run-a)"></i><i class="indent"></i><span class="st m">M</span><span class="fn"><span class="dir">api/</span>model.go</span></div>
+            <div class="frow"><i class="spine" style="background:var(--run-a)"></i><i class="indent"></i><span class="st a">A</span><span class="fn"><span class="dir">ui/src/</span>RunCard.tsx</span></div>
+          </div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="menu-head">agent-manager/api/model.go</div>
+            <div class="menu-item"><span class="ic">＋</span>Stage</div>
+            <div class="menu-item danger"><span class="ic">↺</span>Discard changes</div>
+            <div class="menu-sep"></div>
+            <div class="menu-item" style="color:#93c5fd"><span class="ic" style="color:#60a5fa">⌂</span>Reveal in file tree</div>
+            <div class="menu-item"><span class="ic" style="color:var(--run-a)">◆</span>Show the run that changed this<span class="tail" style="color:#d8b4fe">7f3a</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-item"><span class="ic">◷</span>Blame</div>
+            <div class="menu-item"><span class="ic">⊘</span>Ignore…</div>
+          </div>
+        </div>
+        <div class="rig-note">Two new rows. Both jump to views that already exist — the tree scroller and the provenance run group.</div>
+      </div>
+
+    </div>
+
+    <div class="col" style="margin-top:34px">
+      <div class="note"><b>Why the banner goes away rather than moving.</b> Its only unique information was a count, which the <code>Agent 13</code> chip now carries. Its action bulk-staged files on the strength of a setting you flipped once, days earlier — so it dressed a configuration choice up as a review decision. Every path in the redesign routes through selection and the existing Stage control, which means agent files are staged the same way and with the same deliberateness as everything else.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ICON BUTTONS ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><div class="col"><h2>Controls</h2><p style="margin:0;color:var(--ink-2)">Adopting <code>@vrooli/react-component-library</code> deletes two local components and adds the morph you were describing.</p></div></div>
+    <div class="tablewrap col" style="max-width:none">
+      <table>
+        <thead><tr><th>Control</th><th>Today</th><th>With RCL <code>IconButton@3.1.2</code></th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>View-mode cycle</b><br><span class="cost">ViewModeCycleButton.tsx</span></td>
+            <td class="mono">h-11 w-11, rounded-full,<br>1px border, per-mode<br>border + bg colour</td>
+            <td class="mono">size="xs" (32px)<br>surface="ghost"<br>selected={…} morph="auto"<br>swapIdentity="view-mode"</td>
+            <td>Border disappears; 44px → 32px visual, 44px tap target retained on coarse pointers; List ↔ Layers ↔ FolderTree morph between glyphs.</td>
+          </tr>
+          <tr>
+            <td><b>Local IconButton</b><br><span class="cost">IconButton.tsx, 21 lines</span></td>
+            <td class="mono">p-2 rounded-md<br>hover:bg-slate-800</td>
+            <td class="mono">delete the file</td>
+            <td>One control vocabulary across the toolbar. <code>aria-pressed</code> arrives on every toggle for free.</td>
+          </tr>
+          <tr>
+            <td><b>Header actions</b><br><span class="cost">MobileHeader.tsx</span></td>
+            <td class="mono">bare &lt;button&gt; + lucide,<br>sizes set per call site</td>
+            <td class="mono">size="xs" surface="ghost"</td>
+            <td>Sync / review / search / menu land on one 32px rung instead of three hand-set sizes.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col" style="margin-top:16px;color:var(--ink-3);font-size:.92rem"><code>swapIdentity</code> matters here specifically: the cycle button is rendered from two different parents on mobile vs desktop, which is the exact remount case RCL 3.1.0 added the prop for.</p>
+  </div>
+</section>
+
+<!-- ============ CHROME ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><div class="col"><h2>The status bar</h2><p style="margin:0;color:var(--ink-2)">Four surfaces claim the top 60px of the screen and no two agree.</p></div></div>
+    <div class="stack">
+      <div class="stackcol">
+        <h4>Today</h4>
+        <div class="layers">
+          <div class="layer"><span class="sw" style="background:#0f172a"></span><span><span class="lab">theme-color</span><br><span class="val">#0f172a</span></span><span class="why">hard-coded literal in index.html</span></div>
+          <div class="layer"><span class="sw" style="background:#0e1626"></span><span><span class="lab">header + notch strip</span><br><span class="val">slate-900/95 over slate-950</span></span><span class="why">pt-safe puts the notch inside a 95% surface</span></div>
+          <div class="layer"><span class="sw" style="background:#020617"></span><span><span class="lab">app shell</span><br><span class="val">#020617</span></span><span class="why">what the translucency composites against</span></div>
+          <div class="layer"><span class="sw" style="background:linear-gradient(90deg,#0f172a,#020617)"></span><span><span class="lab">blur backdrop</span><br><span class="val">varies with scroll</span></span><span class="why">shifts as content passes under it</span></div>
+        </div>
+      </div>
+      <div class="stackcol">
+        <h4>With ChromeTheme</h4>
+        <div class="layers">
+          <div class="layer"><span class="sw" style="background:#0f172a"></span><span><span class="lab">chromeTheme.setBase()</span><br><span class="val">one resolved statusColor</span></span><span class="why">the single source</span></div>
+          <div class="layer"><span class="sw" style="background:#0f172a"></span><span><span class="lab">meta theme-color</span><br><span class="val">written by the service</span></span><span class="why">Android + installed PWA</span></div>
+          <div class="layer"><span class="sw" style="background:#0f172a"></span><span><span class="lab">&lt;StatusBarFill /&gt;</span><br><span class="val">--rcl-status-fill</span></span><span class="why">iOS black-translucent</span></div>
+          <div class="layer"><span class="sw" style="background:#0f172a"></span><span><span class="lab">opaque header</span><br><span class="val">same token, no /95</span></span><span class="why">nothing left to composite</span></div>
+        </div>
+        <p style="font-size:.9rem;color:var(--ink-3);margin-top:14px">Bonus the service already gives you: a modal or an error banner can <code>contribute()</code> at a higher priority, so the notch matches the most urgent thing on screen and releases on unmount.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VALIDATION ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><div class="col"><h2>Why nothing caught it</h2><p style="margin:0;color:var(--ink-2)">You were right that a scenario is supposed to own this. The claim exists, is correctly worded, and is guarded by an assertion that cannot fail for the reason it was written.</p></div></div>
+
+    <div class="col">
+      <p>git-control-tower ships a mobile regression oracle. Case <b>GCT-MOBILE-002</b> is titled <code>chrome-declaration-and-render-alignment</code> and its claim reads, verbatim:</p>
+      <blockquote style="margin:18px 0;padding:14px 18px;border-left:2px solid var(--crit);background:var(--card);font-family:'IBM Plex Mono',monospace;font-size:.85rem;line-height:1.6;color:var(--ink-2)">"Declared theme/status chrome metadata matches the rendered top safe-area surface."</blockquote>
+      <p>It declares <code>required_artifacts</code> of <code>screenshot_png</code> and <code>layout_json</code>, and its status is <code>repaired_and_guarded</code>. It is the right claim. It degraded across three hand-offs:</p>
+    </div>
+
+    <div class="tablewrap col" style="max-width:none">
+      <table>
+        <thead><tr><th style="width:15%">Layer</th><th style="width:38%">What it should assert</th><th style="width:47%">What it actually asserts</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>The guard</b><br><span class="cost">MobileShellContract.test.ts:10</span></td>
+            <td>The declared colour equals the rendered top surface.</td>
+            <td class="mono">expect(indexHTML).toContain('name="theme-color"')<br><span style="font-family:Archivo,sans-serif;color:var(--crit)">— presence of the tag. Green for any value, including a wrong one. It never reads the header's colour at all.</span></td>
+          </tr>
+          <tr>
+            <td><b>The spec</b><br><span class="cost">experience/pages/workspace.json</span></td>
+            <td>A machine-tier claim about chrome colour agreement.</td>
+            <td>Cases 002 and 006 were merged into one claim, <code>gct-mobile-002-006-chrome-pinned</code>, whose statement is purely geometric — "stay inside the viewport… without overlapping". The colour half has no representative in the spec.</td>
+          </tr>
+          <tr>
+            <td><b>The validator</b><br><span class="cost">experience-manager</span></td>
+            <td>Flag an oracle case with no corresponding spec claim.</td>
+            <td>Its registry holds four checks — BAS reference integrity, state coverage, attestation freshness, evidence reconcile. The spec parser never reads <code>experience/fixtures/</code> at all, so the oracle is an unreferenced document. Nothing can notice a case that lost its claim.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <div class="note"><b>The proper fix is the third row.</b> Repairing the guard fixes one colour. Adding a <code>fixture.claim_coverage</code> check to experience-manager — parse <code>experience/fixtures/*.json</code>, require every case id to be named by at least one spec claim, and fail when a case declares <code>screenshot_png</code> evidence that no machine-tier claim consumes — makes the whole class of silent degradation visible, in this scenario and in every other one that ships an oracle. That check is what would have caught this, and it is the one that does not exist.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ORDER ============ -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><div class="col"><h2>Build order</h2><p style="margin:0;color:var(--ink-2)">Ordered by evidence produced per unit of work, not by the order you raised them.</p></div></div>
+    <div class="tablewrap col" style="max-width:none">
+      <table>
+        <thead><tr><th style="width:4%"></th><th style="width:30%">Step</th><th style="width:40%">Change</th><th style="width:26%">Why here</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">1</td><td><b>Fixture claim-coverage check</b><br><span class="cost">experience-manager</span></td><td>New check in the registry; teach the spec parser to read <code>experience/fixtures/</code>.</td><td>It fails on GCT-MOBILE-002 the moment it lands, which is the proof the check works. Do it before the fix, not after.</td></tr>
+          <tr><td class="mono">2</td><td><b>Adopt ChromeTheme</b><br><span class="cost">git-control-tower/ui</span></td><td>Add the RCL dependency; <code>setBase</code> at the shell; <code>StatusBarFill</code> above the header; drop <code>pt-safe</code> and the <code>/95</code>.</td><td>Turns step 1 green honestly. Also brings RCL into the package.json, which step 3 needs.</td></tr>
+          <tr><td class="mono">3</td><td><b>IconButton adoption</b></td><td>Replace <code>ViewModeCycleButton</code> internals and delete local <code>IconButton.tsx</code>.</td><td>Pure substitution, no new API surface. Ships the morph.</td></tr>
+          <tr><td class="mono">4</td><td><b>Two-level grouping</b><br><span class="cost">api + ui</span></td><td>Add <code>kindRank</code> to the sort in <code>ResolveChangeGroups</code>; render kind bands; drop the redundant path line; full-bleed rows with dividers.</td><td>The API half is a few lines because <code>Kind</code> is already resolved. The UI half is the real work.</td></tr>
+          <tr><td class="mono">5</td><td><b>Reveal in file tree</b></td><td>One menu item wiring <code>setFileViewMode("tree")</code> + <code>setScrollToFile(path)</code>.</td><td>Smallest item on the list; the scroller already exists.</td></tr>
+          <tr><td class="mono">6</td><td><b>Attribution model</b><br><span class="cost">ui, then api</span></td><td>Thread per-file <code>agentManagerRunId</code> into rows; stable run hues; spine + chip; run sheet; filter chip. Remove the banner and <code>onStageApproved</code>.</td><td>Largest and last, because it is the only one where the shape is a judgement call rather than a repair.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="col">
+      <div class="note" style="border-color:var(--amber)"><b>One thing to decide before step 6.</b> Whether removing the legacy bulk action should also retire the <code>/approved-changes</code> endpoint's aggregate shape, or leave it serving the CLI. The per-file data on that same response is what the new UI consumes, so the endpoint stays either way — the question is only whether <code>committableFiles</code> and <code>suggestedMessage</code> keep a consumer. <code>suggestedMessage</code> is used by the commit panel, so probably yes.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap col">
+    Read against <code>scenarios/git-control-tower</code> and <code>packages/react-component-library</code> on branch <code>agi</code>, 2026-08-30. Mockups are static HTML at the app's own palette; no code has been changed.
+  </div>
+</footer>

@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Capability vocabulary",
+  "type": "object",
+  "required": ["version", "capabilities"],
+  "definitions": {
+    "platformPolicyValue": {
+      "oneOf": [
+        { "enum": ["no_equivalent_ever","no_work_required"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "rationale", "review_by"],
+          "properties": {
+            "status": { "enum": ["no_equivalent_ever","no_work_required"] },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "not": { "pattern": "(?i)(no implementation|not applicable on this host os|handler|vrooli)" }
+            },
+            "review_by": { "type": "string", "format": "date" }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"type": "integer", "minimum": 1},
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "platform_policies": {
+      "type": "object",
+      "properties": {
+        "hardware-persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ceiling", "scope", "not_platform_ceiling", "review_by", "rationale"],
+          "properties": {
+            "ceiling": {"const": "build_verified"},
+            "scope": {"const": "hardware-persistence"},
+            "not_platform_ceiling": {"const": "true"},
+            "review_by": {"type": "string", "format": "date"},
+            "rationale": {"type": "string", "minLength": 1},
+            "dedicated_machines": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "oneOf": [
+            {"$ref": "#/properties/platform_policies/properties/hardware-persistence"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "linux": {"$ref": "#/definitions/platformPolicyValue"},
+                "macos": {"$ref": "#/definitions/platformPolicyValue"},
+                "windows": {"$ref": "#/definitions/platformPolicyValue"}
+              },
+              "patternProperties": {
+                "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"$ref": "#/definitions/platformPolicyValue"}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "control_policies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "linux": {"enum": ["no_equivalent_ever","no_work_required"]},
+            "macos": {"enum": ["no_equivalent_ever","no_work_required"]},
+            "windows": {"enum": ["no_equivalent_ever","no_work_required"]}
+          },
+          "patternProperties": {
+            "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_equivalent_ever","no_work_required"]}
+          }
+        }
+      }
+    },
+    "control_policy_reasons": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

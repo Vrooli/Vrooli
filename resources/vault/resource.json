@@ -1,0 +1,316 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "vault",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/vault",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Managed Vault uses file storage under RESOURCE_DATA_DIR; this contains encrypted secret state and must be preserved.",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "config": {
+        "rung": "owned",
+        "path": {
+          "linux": "$USER_HOME/.config/vrooli/resources/vault",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"
+        },
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "sensitive": true,
+        "rationale": "The generated loopback-only vault.hcl lives under RESOURCE_CONFIG_DIR.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "HashiCorp Vault",
+  "description": "Optional managed Vault capability for explicitly Vault-backed workflows.",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/vault",
+        "field": "token",
+        "env": "VAULT_TOKEN",
+        "label": "Vault operator token",
+        "description": "Operator token used by Vrooli-authored Vault integrations.",
+        "required": false
+      }
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-vault",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-vault_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-vault"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "hashicorp-checksum-signature-verified",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-shared",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/vault",
+      "version": "1.17.6",
+      "sha256_by_platform": {
+        "linux-amd64": "9929f66df86b1bb64c2ff5dca14cb3da34f3c064d11e4af2e50ba33177e5cdb0",
+        "linux-arm64": "438a552f2a51bbb2a5e135f2a60d9b4b3ecd3cb3dcff776021686ec16f17010a",
+        "macos-amd64": "d7be7ef93315148ea5889baff52e43c2b1824183378d8554da283e8047d77d30",
+        "macos-arm64": "71d41f26eed5d33845672b1971e02c9e9c8e3161ceb69ffd33ccf808905c8f41",
+        "windows-amd64": "2584b56bdf40c2fb2c49910507d45711f0791deacba412a856d9025ad5150e9c"
+      },
+      "bundle_artifact": "vault_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "BUSL-1.1",
+      "provenance": {
+        "kind": "gpg-checksums",
+        "key_url": "https://keybase.io/hashicorp/pgp_keys.asc",
+        "checksum_manifest_url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_SHA256SUMS",
+        "checksum_signature_url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_SHA256SUMS.sig",
+        "fingerprint": "C874011F0AB405110D02105534365D9472D7468F"
+      },
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_linux_amd64.zip", "sha256": "0cddc1fbbb88583b5ba5b845f9f8fae47c6fb39a6d48cd543c6ba6fd3ac1a669", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_linux_arm64.zip", "sha256": "05a48513fd609e26c25d6b6b74005bce3430984fe4161696236cc2226e664f3a", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_darwin_amd64.zip", "sha256": "6900092b154e4d306ed24a0217c68e373b84161bf3dcc4988f401115a33fe768", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_darwin_arm64.zip", "sha256": "5120c28700460a74782f30ae14b1b6493e8d43fa15947ef954384bfc684a6be7", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_windows_amd64.zip", "sha256": "4b66a86e6a6033103a102bce5a3aa660c81c244cb3841a37374f71f069f6d191", "archive": "zip", "layout": "file", "bin_path": "vault.exe"}
+      ]
+    },
+    "attach_health_path": "/v1/sys/health",
+    "arguments": [
+      "server",
+      "-config=${RESOURCE_CONFIG_DIR}/vault.hcl"
+    ],
+    "environment": {
+      "VROOLI_VAULT_RUNTIME": "managed",
+      "VAULT_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "VAULT_API_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}"
+    },
+    "config": {
+      "path": "vault.hcl",
+      "content": "storage \"file\" {\n  path = \"${RESOURCE_DATA_DIR}\"\n}\n\nlistener \"tcp\" {\n  address = \"127.0.0.1:${RESOURCE_PORT_HTTP}\"\n  tls_disable = true\n}\n\napi_addr = \"http://127.0.0.1:${RESOURCE_PORT_HTTP}\"\ndisable_mlock = true\nui = false\n"
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "secret-tool"
+          ],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "fixture-runtime-test"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "fixture-runtime-test"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through the credential authority.",
+            "Windows recovery validation requires the configured credential authority provider to be available."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "windows-drive-type-classifier-test",
+            "fixture-runtime-test"
+          ],
+          "reason": "Managed Vault can run on Windows when the credential authority provider is available; recovery material is never stored in plaintext files."
+        }
+      }
+    }
+  },
+  "category": "storage",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 1024,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "hostTools": [
+    {
+      "name": "secret-tool",
+      "required": true,
+      "reason": "Linux managed-shared Vault stores recovery material only in the active user Secret Service",
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Required by Linux managed Vault bootstrap for recovery material in both control-plane and desktop-bundle modes."
+    }
+  ],
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 8200,
+      "host": 8200
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
+      "expected_status": [
+        200,
+        429,
+        472,
+        473
+      ],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
+      "expected_status": [200, 429, 472, 473],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "VAULT_HOST": "localhost"
+    },
+    "from_ports": {
+      "VAULT_PORT": "http"
+    },
+    "derived": {
+      "VAULT_URL": {
+        "template": "http://${VAULT_HOST}:${VAULT_PORT}"
+      },
+      "VAULT_ADDR": {
+        "template": "${VAULT_URL}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 900,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ExecutionHistory, InlineExecutionViewer } from "@/domains/executions";
-import { useExecutionStore } from "@/domains/executions";
+import ExecutionHistory from "@/domains/executions/history/ExecutionHistory";
+import { InlineExecutionViewer } from "@/domains/executions/InlineExecutionViewer";
+import { useExecutionStore } from "@/domains/executions/store";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";

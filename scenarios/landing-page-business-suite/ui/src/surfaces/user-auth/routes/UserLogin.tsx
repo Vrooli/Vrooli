@@ -12,9 +12,11 @@ interface AuthCallbackParams {
   redirect_uri: string;
   app: string;
   state: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
 }
 
-function isValidEmail(email: string): boolean {
+export function isValidEmail(email: string): boolean {
   const trimmed = email.trim();
   if (!trimmed) return false;
   const atIndex = trimmed.indexOf('@');
@@ -37,6 +39,8 @@ export function UserLogin() {
     const redirectUri = searchParams.get('redirect_uri');
     const app = searchParams.get('app') || 'Vrooli';
     const state = searchParams.get('state') || '';
+    const codeChallenge = searchParams.get('code_challenge') || undefined;
+    const codeChallengeMethod = searchParams.get('code_challenge_method') || undefined;
 
     setAppName(app);
 
@@ -46,6 +50,8 @@ export function UserLogin() {
         redirect_uri: redirectUri,
         app,
         state,
+        ...(codeChallenge ? { code_challenge: codeChallenge } : {}),
+        ...(codeChallengeMethod ? { code_challenge_method: codeChallengeMethod } : {}),
       };
       sessionStorage.setItem(AUTH_CALLBACK_PARAMS_KEY, JSON.stringify(params));
     }
@@ -102,7 +108,7 @@ export function UserLogin() {
             We sent a login link to <span className="text-white font-medium">{email}</span>
           </p>
           <p className="text-sm text-slate-500 mb-8">
-            Click the link in the email to sign in{appName ? ` to ${appName}` : ''}.
+            Click the link in the email to sign in to {appName}.
             The link expires in 15 minutes.
           </p>
           <button
@@ -124,7 +130,7 @@ export function UserLogin() {
       title="Sign In"
       subtitle={appName ? `Sign in to access ${appName}` : 'Sign in with your email'}
     >
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
             Email address

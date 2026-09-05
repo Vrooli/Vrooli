@@ -1,0 +1,193 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Theme",
+          "role": "radiogroup"
+        },
+        {
+          "kind": "role",
+          "name": "Use system setting",
+          "role": "radio"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Dark",
+          "role": "radio"
+        },
+        {
+          "kind": "role",
+          "name": "Selected theme",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Selected: dark"
+        }
+      ],
+      "id": "interactive",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Dark",
+            "role": "radio"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Controlled selection",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Theme",
+          "role": "radiogroup"
+        }
+      ],
+      "id": "disabled",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Disabled group",
+      "role": "boundary"
+    },
+    {
+      "id": "cards",
+      "name": "Cards give each option a surface",
+      "role": "boundary",
+      "mode": "live",
+      "description": "An option carrying a sentence of consequence needs a target bigger than a 16px dot. The card is the same SelectionControl with a surface, so the semantics \u2014 one radiogroup, one checked radio \u2014 are unchanged.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Cards"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-radio-options]",
+          "attribute": "data-variant",
+          "value": "card"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-radio-options][data-variant='card'] [data-rcl-selection-row]",
+          "value": "3"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-radio-card-head]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='story-card-badge']"
+        },
+        {
+          "kind": "role",
+          "role": "radiogroup"
+        }
+      ]
+    },
+    {
+      "id": "card-selection",
+      "name": "Choosing a card moves the checked state",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The surface is decoration; the radio underneath is what changes. The click goes through the option's own testId, which is the handle a flow needs to name the choice it is making rather than the server value behind it.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Cards"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='story-option-operate']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]:has([data-testid='story-option-operate'])",
+          "attribute": "data-state",
+          "value": "checked"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]:has(input[value='read'])",
+          "attribute": "data-state",
+          "value": "unchecked"
+        }
+      ]
+    }
+  ],
+  "title": "RadioGroup"
+}

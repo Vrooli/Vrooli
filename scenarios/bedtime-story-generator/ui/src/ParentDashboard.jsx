@@ -27,7 +27,7 @@ const ParentDashboard = ({ onClose }) => {
     setIsLoading(true);
     try {
       const apiUrl =
-        import.meta.env.VITE_API_URL ||
+        globalThis.__VROOLI_CONFIG__?.apiUrl ||
         `http://localhost:${window.location.port.replace("300", "69")}`;
       const response = await fetch(`${apiUrl}/api/v1/stories`);
       if (response.ok) {
@@ -87,7 +87,7 @@ const ParentDashboard = ({ onClose }) => {
 
     try {
       const apiUrl =
-        import.meta.env.VITE_API_URL ||
+        globalThis.__VROOLI_CONFIG__?.apiUrl ||
         `http://localhost:${window.location.port.replace("300", "69")}`;
       const response = await fetch(`${apiUrl}/api/v1/stories/${storyId}`, {
         method: "DELETE",
@@ -107,7 +107,7 @@ const ParentDashboard = ({ onClose }) => {
   const exportStory = async (story) => {
     // Use the API export endpoint that generates HTML for PDF printing
     const apiUrl =
-      import.meta.env.VITE_API_URL ||
+        globalThis.__VROOLI_CONFIG__?.apiUrl ||
       `http://localhost:${window.location.port.replace("300", "69")}`;
     const exportUrl = `${apiUrl}/api/v1/stories/${story.id}/export`;
 

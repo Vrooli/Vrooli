@@ -49,6 +49,14 @@ interface FilePathMenuProps {
   triggerIcon?: ReactNode
   /** Additional class names */
   className?: string
+  /** Controlled open state. When provided, component ignores its internal isOpen. */
+  open?: boolean
+  /** Called when open state should change (controlled mode). */
+  onOpenChange?: (open: boolean) => void
+  /** Hide the internal trigger button. Use with `open`/`onOpenChange` and `anchorRef`. */
+  hideTrigger?: boolean
+  /** External element to anchor the popover to when `hideTrigger` is set. */
+  anchorRef?: React.RefObject<HTMLElement | null>
 }
 
 /**
@@ -71,8 +79,21 @@ export function FilePathMenu({
   isEditable = true,
   triggerIcon,
   className,
+  open,
+  onOpenChange,
+  hideTrigger = false,
+  anchorRef,
 }: FilePathMenuProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = open !== undefined
+  const isOpen = isControlled ? open : internalOpen
+  const setIsOpen = useCallback(
+    (next: boolean) => {
+      if (!isControlled) setInternalOpen(next)
+      onOpenChange?.(next)
+    },
+    [isControlled, onOpenChange]
+  )
   const extension = (() => {
     if (fileExtension) {
       return fileExtension.startsWith('.') ? fileExtension : `.${fileExtension}`
@@ -110,9 +131,10 @@ export function FilePathMenu({
 
   // Calculate position when menu opens
   useLayoutEffect(() => {
-    if (!isOpen || !triggerRef.current) return
+    const anchorEl = anchorRef?.current ?? triggerRef.current
+    if (!isOpen || !anchorEl) return
 
-    const trigger = triggerRef.current.getBoundingClientRect()
+    const trigger = anchorEl.getBoundingClientRect()
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
     const menuWidth = Math.min(320, viewportWidth - 16) // Max width with padding
@@ -147,7 +169,7 @@ export function FilePathMenu({
     }
 
     setPosition({ top, left, right })
-  }, [isOpen])
+  }, [isOpen, anchorRef])
 
   // Close on click outside
   useEffect(() => {
@@ -168,7 +190,7 @@ export function FilePathMenu({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [isOpen, editingName, safeFile, extension, onFileChange, isEditable])
+  }, [isOpen, editingName, safeFile, extension, onFileChange, isEditable, setIsOpen])
 
   // Close on Escape
   useEffect(() => {
@@ -185,7 +207,7 @@ export function FilePathMenu({
     return () => {
       document.removeEventListener('keydown', handleEscape)
     }
-  }, [isOpen, safeFile, extension])
+  }, [isOpen, safeFile, extension, setIsOpen])
 
   // Build path segments for breadcrumb display only (modes are UI categories, not directory structure)
   const breadcrumbSegments = (pathSegments ?? modes).filter(Boolean)
@@ -272,8 +294,9 @@ export function FilePathMenu({
   const StorageIcon = storageInfo.icon
 
   return (
-    <div ref={menuRef} className={cn('relative', className)}>
+    <div ref={menuRef} className={cn(hideTrigger ? 'contents' : 'relative', className)}>
       {/* Trigger button - shows filename */}
+      {!hideTrigger && (
       <button
         ref={triggerRef}
         type="button"
@@ -289,6 +312,7 @@ export function FilePathMenu({
         {triggerIcon ?? <StorageIcon className="h-3 w-3 text-muted-foreground" />}
         <span className="hidden sm:inline font-medium">{safeFile}</span>
       </button>
+      )}
 
       {/* Dropdown menu - fixed position for viewport awareness */}
       {isOpen && (

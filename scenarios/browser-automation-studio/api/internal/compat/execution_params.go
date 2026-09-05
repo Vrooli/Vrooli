@@ -6,6 +6,7 @@ package compat
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
@@ -42,6 +43,9 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 
 	// 2. Normalize workflow definition fields for proto compatibility
 	if flowDef, ok := raw["flow_definition"].(map[string]any); ok && flowDef != nil {
+		if err := RejectLegacyWorkflowNodes(flowDef); err != nil {
+			return nil, err
+		}
 		NormalizeWorkflowDefinitionV2(flowDef)
 	}
 
@@ -140,6 +144,74 @@ var executionModeMapping = map[string]string{
 	"destructive": "EXECUTION_MODE_DESTRUCTIVE",
 }
 
+// NormalizeWorkflowDefinitionV2Bytes applies the same compatibility transforms
+// the flow-file loader uses (short-form execution_mode → enum, viewport
+// settings, V1→V2 node shape, lowerCamelCase keys) to a STANDALONE
+// WorkflowDefinitionV2 JSON body, returning protojson-ready bytes. Used by the
+// capture path, which splices a raw bas/flows body that must parse identically
+// to one fed through `execute-adhoc --flow-file`.
+func NormalizeWorkflowDefinitionV2Bytes(body []byte) ([]byte, error) {
+	if len(strings.TrimSpace(string(body))) == 0 {
+		return body, nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return nil, err
+	}
+	if err := RejectLegacyWorkflowNodes(doc); err != nil {
+		return nil, err
+	}
+	NormalizeWorkflowDefinitionV2(doc)
+	normalized, ok := normalizeProtoJSONKeys(doc).(map[string]any)
+	if !ok {
+		return json.Marshal(doc)
+	}
+	return json.Marshal(normalized)
+}
+
+// NormalizeExternalWorkflowDefinitionBytes is the sole import boundary that
+// upgrades an explicitly external legacy workflow document before it is stored
+// as a V2 definition. Execution ingress must use NormalizeWorkflowDefinitionV2Bytes.
+func NormalizeExternalWorkflowDefinitionBytes(body []byte) ([]byte, error) {
+	if len(strings.TrimSpace(string(body))) == 0 {
+		return body, nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return nil, err
+	}
+	normalizeLegacyWorkflowNodes(doc)
+	NormalizeWorkflowDefinitionV2(doc)
+	normalized, ok := normalizeProtoJSONKeys(doc).(map[string]any)
+	if !ok {
+		return json.Marshal(doc)
+	}
+	return json.Marshal(normalized)
+}
+
+// RejectLegacyWorkflowNodes makes the V2-only workflow boundary explicit.
+// Action-bearing nodes must use the typed action oneof; the historical
+// node.type + node.data representation is never upgraded during execution.
+func RejectLegacyWorkflowNodes(doc map[string]any) error {
+	nodes, ok := doc["nodes"].([]any)
+	if !ok {
+		return nil
+	}
+	for index, rawNode := range nodes {
+		node, ok := rawNode.(map[string]any)
+		if !ok || node == nil {
+			continue
+		}
+		if _, hasAction := node["action"]; hasAction {
+			continue
+		}
+		if _, hasType := node["type"]; hasType {
+			return fmt.Errorf("workflow node %d uses legacy type/data shape; provide action instead", index)
+		}
+	}
+	return nil
+}
+
 // NormalizeWorkflowDefinitionV2 applies V2 compatibility transformations to a workflow definition.
 // This handles both settings normalization and node-level transformations.
 //
@@ -183,14 +255,12 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 			continue
 		}
 
-		// Transform V1 nodes to V2 format
-		normalizeNodeV1ToV2(node)
-
 		// Handle subflow args wrapping for V2 nodes
 		action, ok := node["action"].(map[string]any)
 		if !ok || action == nil {
 			continue
 		}
+		normalizeActionForProtoJSON(action)
 		subflow, ok := action["subflow"].(map[string]any)
 		if !ok || subflow == nil {
 			continue
@@ -205,6 +275,19 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 			normalized[k] = typeconv.WrapJsonValue(v)
 		}
 		subflow["args"] = normalized
+	}
+}
+
+func normalizeLegacyWorkflowNodes(doc map[string]any) {
+	nodes, ok := doc["nodes"].([]any)
+	if !ok {
+		return
+	}
+	for _, rawNode := range nodes {
+		node, ok := rawNode.(map[string]any)
+		if ok && node != nil {
+			normalizeNodeV1ToV2(node)
+		}
 	}
 }
 
@@ -247,6 +330,7 @@ func normalizeNodeV1ToV2(node map[string]any) {
 	if len(params) > 0 {
 		action[paramsKey] = params
 	}
+	normalizeActionForProtoJSON(action)
 	if metadata != nil {
 		action["metadata"] = metadata
 	}
@@ -326,6 +410,80 @@ func normalizeParamsData(stepType string, data map[string]any) map[string]any {
 	delete(result, "label")
 
 	return result
+}
+
+// normalizeActionForProtoJSON preserves the concise workflow-schema vocabulary
+// while producing the enum and field forms protojson requires. This runs for
+// V1-shaped workflow files after their action wrapper is constructed, so every
+// file-loading entry point accepts the same authored form.
+func normalizeActionForProtoJSON(action map[string]any) {
+	if navigate, ok := action["navigate"].(map[string]any); ok {
+		if destination, ok := navigate["destinationType"].(string); ok {
+			navigate["destination_type"] = normalizeNavigateDestinationType(destination)
+			delete(navigate, "destinationType")
+		}
+		if waitUntil, ok := navigate["waitUntil"].(string); ok {
+			navigate["wait_until"] = normalizeNavigateWaitEvent(waitUntil)
+			delete(navigate, "waitUntil")
+		}
+	}
+	if assertion, ok := action["assert"].(map[string]any); ok {
+		if mode, ok := assertion["assertMode"].(string); ok {
+			assertion["mode"] = normalizeAssertionMode(mode)
+			delete(assertion, "assertMode")
+		}
+		if expected, ok := assertion["expectedValue"]; ok {
+			assertion["expected"] = typeconv.WrapJsonValue(expected)
+			delete(assertion, "expectedValue")
+		}
+	}
+}
+
+func normalizeNavigateDestinationType(value string) string {
+	switch strings.ToLower(value) {
+	case "url":
+		return "NAVIGATE_DESTINATION_TYPE_URL"
+	case "scenario":
+		return "NAVIGATE_DESTINATION_TYPE_SCENARIO"
+	default:
+		return "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED"
+	}
+}
+
+func normalizeNavigateWaitEvent(value string) string {
+	switch strings.ToLower(value) {
+	case "load":
+		return "NAVIGATE_WAIT_EVENT_LOAD"
+	case "domcontentloaded":
+		return "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED"
+	case "networkidle":
+		return "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+	case "commit":
+		return "NAVIGATE_WAIT_EVENT_COMMIT"
+	default:
+		return "NAVIGATE_WAIT_EVENT_UNSPECIFIED"
+	}
+}
+
+func normalizeAssertionMode(value string) string {
+	switch strings.ToLower(value) {
+	case "exists":
+		return "ASSERTION_MODE_EXISTS"
+	case "not_exists", "notexists":
+		return "ASSERTION_MODE_NOT_EXISTS"
+	case "visible":
+		return "ASSERTION_MODE_VISIBLE"
+	case "hidden":
+		return "ASSERTION_MODE_HIDDEN"
+	case "text_contains", "textcontains":
+		return "ASSERTION_MODE_TEXT_CONTAINS"
+	case "text_equals", "textequals":
+		return "ASSERTION_MODE_TEXT_EQUALS"
+	case "attribute_equals", "attributeequals":
+		return "ASSERTION_MODE_ATTRIBUTE_EQUALS"
+	default:
+		return "ASSERTION_MODE_UNSPECIFIED"
+	}
 }
 
 // normalizeViewportSettings handles the executionViewport camelCase → snake_case conversion.

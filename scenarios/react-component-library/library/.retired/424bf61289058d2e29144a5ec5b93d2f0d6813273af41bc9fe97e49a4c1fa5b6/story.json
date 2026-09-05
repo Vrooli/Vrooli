@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Working title",
+          "role": "textbox"
+        },
+        {
+          "kind": "role",
+          "name": "Preview leave protection",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "You have unsaved changes",
+          "role": "alertdialog"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Preview leave protection",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Editable draft",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PromptOpen",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "You have unsaved changes",
+          "role": "alertdialog"
+        },
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Discard changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Keep editing",
+          "role": "button"
+        }
+      ],
+      "id": "prompt-open",
+      "mode": "live",
+      "name": "Unsaved changes prompt",
+      "role": "boundary"
+    }
+  ],
+  "title": "DirtyStateGuard"
+}

@@ -15,7 +15,7 @@ import type {
   GraphEntityType,
   GraphLens,
   GraphNode,
-  InitiativeRollupData,
+  GoalRollupData,
 } from "../surfaces/graph/types";
 
 export interface GraphProjectionMeta {
@@ -24,8 +24,6 @@ export interface GraphProjectionMeta {
   edgeCount: number;
   generatedAt: string;
   agentManagerAvailable: boolean | null;
-  focusNodeId: string | null;
-  focusNodeType: string | null;
   hint: string | null;
 }
 
@@ -37,7 +35,6 @@ export interface GraphProjection {
 
 export interface GraphRequestOptions {
   signal?: AbortSignal;
-  focusNodeId?: string;
 }
 
 export interface IGraphService {
@@ -51,7 +48,7 @@ const NODE_TYPE_MAP: Record<string, GraphEntityType> = {
   AgentActivity: "agent-activity",
   Capture: "capture",
   Run: "agent-run",
-  Initiative: "initiative",
+	Goal: "goal",
 };
 
 function truncate(value: string, maxLength: number): string {
@@ -68,7 +65,7 @@ function mapRollup(proto?: {
   inProgress: number;
   failed: number;
   pending: number;
-}): InitiativeRollupData {
+}): GoalRollupData {
   return {
     total: proto?.total ?? 0,
     completed: proto?.completed ?? 0,
@@ -121,20 +118,20 @@ function mapProtoNode(raw: ProtoGraphNode): GraphNode {
         },
       };
     }
-    case "initiative": {
-      const initiative = data.value.value;
+	case "goal": {
+		const goal = data.value.value;
       return {
         id: raw.id,
         type: entityType,
         position,
         data: {
-          entityType: "initiative",
-          rawType: "Initiative",
-          label: initiative.title || initiative.name || raw.id,
-          name: initiative.name,
-          title: initiative.title,
-          status: initiative.status,
-          rollup: mapRollup(initiative.rollup),
+          entityType: "goal",
+          rawType: "Goal",
+          label: goal.title || goal.name || raw.id,
+          name: goal.name,
+          title: goal.title,
+          status: goal.status,
+          rollup: mapRollup(goal.rollup),
         },
       };
     }
@@ -291,8 +288,6 @@ function normalizeMeta(meta: {
   edgeCount: number;
   generatedAt: string;
   agentManagerAvailable?: boolean;
-  focusNodeId?: string;
-  focusNodeType?: string;
   hint?: string;
 }): GraphProjectionMeta {
   return {
@@ -302,8 +297,6 @@ function normalizeMeta(meta: {
     generatedAt: meta.generatedAt,
     agentManagerAvailable:
       typeof meta.agentManagerAvailable === "boolean" ? meta.agentManagerAvailable : null,
-    focusNodeId: meta.focusNodeId ?? null,
-    focusNodeType: meta.focusNodeType ?? null,
     hint: meta.hint ?? null,
   };
 }
@@ -311,10 +304,7 @@ function normalizeMeta(meta: {
 export function createGraphService(apiClient: IApiClient = defaultApiClient): IGraphService {
   return {
     async getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection> {
-      let url = `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`;
-      if (options?.focusNodeId) {
-        url += `&focus_node_id=${encodeURIComponent(options.focusNodeId)}`;
-      }
+      const url = `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`;
       const data = await apiClient.get<unknown>(url, { signal: options?.signal });
       const parsed = parseProtoResponse(graphResponseSchema, data, "graph");
 

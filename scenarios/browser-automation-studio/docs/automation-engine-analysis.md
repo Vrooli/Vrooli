@@ -130,7 +130,7 @@ Advertisement of engine features:
 ```go
 type EngineCapabilities struct {
     SchemaVersion         string
-    Engine                string  // e.g., "playwright", "browserless"
+    Engine                string  // e.g., "playwright" ("browserless" is a legacy label)
     Version               string
     RequiresDocker        bool
     RequiresXvfb          bool
@@ -209,7 +209,7 @@ func (s *playwrightSession) Run(ctx context.Context, instruction contracts.Compi
 - Output: HTTP JSON → `StepOutcome` (decodes base64 screenshots, normalizes timestamps)
 
 **Configuration**:
-- `PLAYWRIGHT_DRIVER_URL` (default: `http://127.0.0.1:39400`)
+- `PLAYWRIGHT_DRIVER_URL` (set by the lifecycle from the allocated `PLAYWRIGHT_DRIVER_PORT`, range 24400-24499)
 
 ### Node.js Driver: `playwright-driver/server.js`
 
@@ -295,7 +295,7 @@ func (c SelectionConfig) Resolve(requested string) string {
 ```
 
 **Environment Variables**:
-- `ENGINE` - Default engine (currently defaults to "browserless", should be "playwright")
+- `ENGINE` - Default engine name (defaults to "playwright")
 - `ENGINE_OVERRIDE` - Force all executions to specific engine
 - `PLAYWRIGHT_DRIVER_URL` - URL to Playwright driver
 

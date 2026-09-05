@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "edges": [
+          {
+            "from": "catalog",
+            "to": "asset"
+          }
+        ],
+        "nodes": [
+          {
+            "health": "healthy",
+            "id": "catalog",
+            "label": "Catalog"
+          },
+          {
+            "health": "degraded",
+            "id": "asset",
+            "label": "Asset"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Catalog, healthy",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Asset, degraded",
+          "role": "button"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    }
+  ],
+  "title": "NetworkGraph"
+}

@@ -89,6 +89,15 @@ type SecurityHeadersRule struct{}
 func (r *SecurityHeadersRule) Check(content string, filepath string) ([]Violation, error) {
 	var violations []Violation
 
+	// Test files are not production API surfaces: httptest handlers and table
+	// fixtures legitimately write to a recorder without security headers. The
+	// generic custom-pattern scanner already excludes *_test.go; the standards
+	// path scans them, so skip them here to avoid false positives. Mirrors
+	// scanners/custom.go shouldScanFile.
+	if strings.HasSuffix(filepath, "_test.go") || strings.Contains(strings.ToLower(filepath), "_test.") {
+		return violations, nil
+	}
+
 	// Check for HTTP response writer usage
 	if !strings.Contains(content, "http.ResponseWriter") {
 		// Not an HTTP handler, skip

@@ -1,0 +1,185 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-28T18:50:15-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-015a",
+      "title": "Durable Sender-Owned Message Snippets",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "description": "Operators can create, edit, pin, recolour, list, use, and freely delete sender-owned reusable message text that has no receiver, group, role, or privileged built-in status.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/snippets/store_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers durable CRUD, pin preservation, touch accounting, ordering, and ordinary seeded rows."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015b",
+      "title": "Named Snippet Variables",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "Snippet bodies support flat named variables in first-appearance order; supplied empty values substitute while missing values remain visibly verbatim, and only the closed auto-resolution set is implicit.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/lib/snippetVars.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers the closed variable language, first-appearance order, empty substitution, and visible unresolved values."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015c",
+      "title": "Snippet Capture And Composer Reach",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "ui",
+      "description": "Operators can save sent text or the current draft, insert a snippet at the caret from the full-screen composer and mobile toolbar, and fill unresolved variables before insertion without automatic sending.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/message-actions-snippet-handoff.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers save-from-message placement and exact-body capture in live and read-only message panes."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/full-screen-composer-snippets.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers caret insertion and the variable-resolution detour without automatic sending."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015d",
+      "title": "Handoff Beyond Group Boundaries",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "Any live session can hand work to sessions in its group, sessions outside it, or a newly launched session; an ungrouped source has useful targets and a new target inherits no group.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/handoff-send.test.ts",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers stable in-group order, other sessions, ungrouped sources, nullable new-session groups, sequential delivery, and queued outcomes."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015e",
+      "title": "Governed Handoff Message Sources",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "The handoff composer exposes sectioned targets and resolves editable per-target text by explicit edit, selected snippet, receiver role prompt, then payload while preserving sent, queued, and failed results.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/handoff-composer.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers sectioned targets, four-level message precedence, variable completion, per-target edits, and distinct queued results."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015f",
+      "title": "Bounded Message Action Model",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "description": "Every message action is declared in one model, no more than three controls render inline, all action targets are at least 44 pixels, existing selectors remain valid, and remaining actions are reachable through overflow.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/messages/messageActions.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers the declared action set and every applicability gate."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/message-actions-layout.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers the three-control cap, 44-pixel targets, shared overflow menu, and capability absence."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/message-actions-snippet-handoff.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers direct handoff without a capture-rule match and exact source/payload forwarding."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015g",
+      "title": "Snippet Management And Skill Promotion",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "integration",
+      "description": "Settings provides complete snippet management and an explicit one-way promotion into the governed prompt-manager skill registry without storing a link or synchronizing afterwards.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/snippets-panel.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covers create, edit, pin, delete, promotion confirmation, cancellation, success, and unchanged snippet state."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/snippets/promote_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers exact governed CLI invocation, successful promotion, missing prompt-manager, nonzero stderr, and unchanged snippet persistence."
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-snippets/01-capture/snippet-save-from-message.json",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "Schema-valid browser case; execution is currently refused by the scenario-wide missing routed-isolation proof recorded in Test Genie run 20260828-221742-094ec475."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-015h",
+      "title": "Localized And End-To-End Proven Snippet Workflows",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "integration",
+      "description": "All new controls have parity across English, Arabic, and Japanese and the primary capture, insertion, variable, cross-group handoff, ungrouped handoff, and overflow journeys are proven against a real API and browser.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/i18n/locales/locales.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Proves English, Arabic, and Japanese key parity for the localized surface."
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-snippets/02-composer/snippet-insert-into-composer.json",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "Representative of six schema-valid real-browser cases registered for capture, insertion, variable fill, cross-group handoff, ungrouped handoff, and overflow. Execution is refused until Web Console routed isolation is proven; see Test Genie run 20260828-221742-094ec475."
+        }
+      ]
+    }
+  ]
+}

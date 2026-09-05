@@ -1,0 +1,214 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "test-genie",
+  "generator": "v1.0.0",
+  "manifest_hash": "78d6f171cf65027a4b4cf08b1acb28c3e064910e14e60416bbd69f8e3f6a0ad5",
+  "commands": [
+    {
+      "path": "eligibility check",
+      "group": "eligibility",
+      "command": "check",
+      "binding": "EligibilityService.Check",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "execute",
+      "command": "execute",
+      "declared_exception": "durable_run",
+      "observed_primitive": "durable_run"
+    },
+    {
+      "path": "remediate cancel",
+      "group": "remediate",
+      "command": "cancel",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "remediate create",
+      "group": "remediate",
+      "command": "create",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "remediate list",
+      "group": "remediate",
+      "command": "list",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "remediate recover",
+      "group": "remediate",
+      "command": "recover",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "remediate retry",
+      "group": "remediate",
+      "command": "retry",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "remediate show",
+      "group": "remediate",
+      "command": "show",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "remediate verify",
+      "group": "remediate",
+      "command": "verify",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "runs abort",
+      "group": "runs",
+      "command": "abort",
+      "binding": "RunsService.AbortRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs artifact",
+      "group": "runs",
+      "command": "artifact",
+      "binding": "RunsService.GetRunArtifact",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs artifacts",
+      "group": "runs",
+      "command": "artifacts",
+      "binding": "RunsService.ListRunArtifacts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs compare",
+      "group": "runs",
+      "command": "compare",
+      "binding": "RunsService.CompareRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs cost",
+      "group": "runs",
+      "command": "cost",
+      "binding": "RunsService.GetCostReport",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs delete",
+      "group": "runs",
+      "command": "delete",
+      "binding": "RunsService.DeleteRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs findings",
+      "group": "runs",
+      "command": "findings",
+      "binding": "RunsService.GetRunFindings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs fleet-health",
+      "group": "runs",
+      "command": "fleet-health",
+      "binding": "RunsService.GetFleetHealth",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "runs follow",
+      "group": "runs",
+      "command": "follow",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "runs freshness",
+      "group": "runs",
+      "command": "freshness",
+      "binding": "RunsService.CheckFreshness",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs list",
+      "group": "runs",
+      "command": "list",
+      "binding": "RunsService.ListRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs pin",
+      "group": "runs",
+      "command": "pin",
+      "binding": "RunsService.PinRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs self-health",
+      "group": "runs",
+      "command": "self-health",
+      "binding": "RunsService.GetSelfHealth",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "runs show",
+      "group": "runs",
+      "command": "show",
+      "binding": "RunsService.GetRun",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs status",
+      "group": "runs",
+      "command": "status",
+      "binding": "RunsService.GetRunStatus",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "runs unpin",
+      "group": "runs",
+      "command": "unpin",
+      "binding": "RunsService.UnpinRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "runs wait",
+      "group": "runs",
+      "command": "wait",
+      "declared_exception": "durable_run",
+      "observed_primitive": "durable_run"
+    },
+    {
+      "path": "runs wait-all",
+      "group": "runs",
+      "command": "wait-all",
+      "declared_exception": "durable_run",
+      "observed_primitive": "durable_run"
+    }
+  ]
+}

@@ -1,0 +1,656 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/independent-review",
+  "version": "1.2.2",
+  "description": "Gather bounded independent evidence for one completed backlog execution. Swarm owns the immutable execution snapshot, review ledger, and operator gate.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "executionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "executionId",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "snapshot": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "entity",
+      "snapshot"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": ["accepted", "changes-requested", "inconclusive"],
+            "description": "Use accepted for ready or ready_with_notes, changes-requested for needs_work, and inconclusive for not_assessable."
+          },
+          "handoff": {
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "ready_with_notes",
+                  "needs_work",
+                  "not_assessable"
+                ]
+              },
+              "agent_assessment": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "evidence": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "criterion_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "type": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "producer": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "trust": {
+                      "type": "string",
+                      "enum": [
+                        "authoritative",
+                        "observed",
+                        "reported",
+                        "operator_verified"
+                      ]
+                    },
+                    "settlement": {
+                      "type": "string",
+                      "enum": [
+                        "settled",
+                        "refuted",
+                        "unavailable"
+                      ]
+                    },
+                    "unavailable_reason": {
+                      "type": "string",
+                      "maxLength": 4096
+                    },
+                    "attempted_producer": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "criterion_id",
+                    "type",
+                    "title",
+                    "description",
+                    "producer",
+                    "trust",
+                    "settlement"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "criterion_verdicts": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "criterion_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "settlement": {
+                      "type": "string",
+                      "enum": [
+                        "settled",
+                        "refuted",
+                        "unavailable"
+                      ]
+                    },
+                    "evidence_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "criterion_id",
+                    "settlement",
+                    "evidence_ids"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "improvement_suggestions": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "regression_introduced": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "disposition": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "plan_revision",
+                      "plan_authoring",
+                      "follow_up",
+                      "archive",
+                      "supersede",
+                      "attention"
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "high",
+                      "medium",
+                      "low"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "maxLength": 4096
+                  },
+                  "follow_up": {
+                    "type": "object",
+                    "properties": {
+                      "steering": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8192
+                      },
+                      "disposition": {
+                        "type": "string",
+                        "enum": [
+                          "follow_up_run",
+                          "replan",
+                          "new_items"
+                        ]
+                      },
+                      "items": {
+                        "type": "array",
+                        "maxItems": 25,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "priority": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 10
+                            },
+                            "depends_on": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "name",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "steering",
+                      "disposition"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "rationale",
+                  "confidence"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "verdict",
+              "agent_assessment",
+              "evidence",
+              "criterion_verdicts",
+              "improvement_suggestions",
+              "regression_introduced",
+              "notes",
+              "summary",
+              "disposition"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "outcome",
+          "handoff"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "review",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/review-evidence",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": ["accepted", "changes-requested", "inconclusive"],
+                "description": "Use accepted for ready or ready_with_notes, changes-requested for needs_work, and inconclusive for not_assessable."
+              },
+              "handoff": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "ready",
+                      "ready_with_notes",
+                      "needs_work",
+                      "not_assessable"
+                    ]
+                  },
+                  "agent_assessment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16384
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "criterion_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "type": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "producer": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "trust": {
+                          "type": "string",
+                          "enum": [
+                            "authoritative",
+                            "observed",
+                            "reported",
+                            "operator_verified"
+                          ]
+                        },
+                        "settlement": {
+                          "type": "string",
+                          "enum": [
+                            "settled",
+                            "refuted",
+                            "unavailable"
+                          ]
+                        },
+                        "unavailable_reason": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "attempted_producer": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "criterion_id",
+                        "type",
+                        "title",
+                        "description",
+                        "producer",
+                        "trust",
+                        "settlement"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "criterion_verdicts": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "criterion_id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "settlement": {
+                          "type": "string",
+                          "enum": [
+                            "settled",
+                            "refuted",
+                            "unavailable"
+                          ]
+                        },
+                        "evidence_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      },
+                      "required": [
+                        "criterion_id",
+                        "settlement",
+                        "evidence_ids"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "improvement_suggestions": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "regression_introduced": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 4096
+                    }
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 16384
+                  },
+                  "disposition": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "plan_revision",
+                          "plan_authoring",
+                          "follow_up",
+                          "archive",
+                          "supersede",
+                          "attention"
+                        ]
+                      },
+                      "rationale": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 8192
+                      },
+                      "confidence": {
+                        "type": "string",
+                        "enum": [
+                          "high",
+                          "medium",
+                          "low"
+                        ]
+                      },
+                      "scope": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "follow_up": {
+                        "type": "object",
+                        "properties": {
+                          "steering": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 8192
+                          },
+                          "disposition": {
+                            "type": "string",
+                            "enum": [
+                              "follow_up_run",
+                              "replan",
+                              "new_items"
+                            ]
+                          },
+                          "items": {
+                            "type": "array",
+                            "maxItems": 25,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "priority": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 10
+                                },
+                                "depends_on": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name",
+                                "title"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "steering",
+                          "disposition"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "rationale",
+                      "confidence"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "verdict",
+                  "agent_assessment",
+                  "evidence",
+                  "criterion_verdicts",
+                  "improvement_suggestions",
+                  "regression_introduced",
+                  "notes",
+                  "summary",
+                  "disposition"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "outcome",
+              "handoff"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "entity",
+            "source": "workflow_input",
+            "selector": "$.entity",
+            "limit": 1,
+            "maxBytes": 2048,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "snapshot",
+            "source": "workflow_input",
+            "selector": "$.snapshot",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": {
+          "skillId": "swarm-manager-workflow-independent-review"
+        }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 900000,
+    "maxChargeMicroUsd": 5000000,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": {
+    "consumerMutationOwner": "swarm-manager"
+  }
+}

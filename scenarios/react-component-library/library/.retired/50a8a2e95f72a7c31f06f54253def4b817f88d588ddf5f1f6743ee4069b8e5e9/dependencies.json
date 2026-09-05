@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:ResourceCollection",
+  "version": "1.0.5",
+  "resolvedAt": "2026-08-31T05:05:59Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:DataTable",
+      "version": "1.4.1",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:DataToolbar",
+      "version": "1.0.5",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

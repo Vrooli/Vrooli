@@ -1,0 +1,141 @@
+{
+  "_metadata": {
+    "description": "Requirements derived from the P2 operational targets in PRD.md.",
+    "last_validated_at": "2026-08-30T17:59:51-04:00",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CHANMGR-P2-001",
+      "title": "Platform API executors",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-001",
+      "category": "execution",
+      "criticality": "P2",
+      "description": "Executes actions through official platform APIs where one exists and the identity qualifies for the required access tier. Cleanest and most durable of the three executors, but narrow — most platforms expose posting and little of the engagement vocabulary warming depends on, and access tiers change without notice. Never the assumed path.",
+      "tags": [
+        "execution",
+        "platform-api"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An API-executed action produces a record identical in shape to the manual and browser executors."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An action kind with no API coverage on a platform falls back to the configured executor rather than failing."
+        }
+      ]
+    },
+    {
+      "id": "CHANMGR-P2-002",
+      "title": "Cannibalization detection",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-002",
+      "category": "signals",
+      "criticality": "P2",
+      "description": "Detects audience overlap across persona identities operating in the same niche, which the channel canon already records as a real risk when multiple persona accounts run the same slate. Reports overlap as evidence for an operator decision; it does not retire or repoint an identity on its own.",
+      "tags": [
+        "signals",
+        "portfolio"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Overlap above the configured threshold produces an advisory record naming both identities and the evidence."
+        }
+      ]
+    },
+    {
+      "id": "CHANMGR-P2-003",
+      "title": "Window optimization",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-003",
+      "category": "queue",
+      "criticality": "P2",
+      "description": "Proposes posting windows derived from an identity's observed reach rather than from a declared window. A proposal only — accepting it edits the program descriptor through the normal validated path, so an optimizer can never silently rewrite a warming program.",
+      "tags": [
+        "queue",
+        "optimization"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A window proposal is produced as a record and does not mutate the active program until accepted."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A proposal derived from fewer than the configured minimum observations is withheld rather than emitted."
+        }
+      ]
+    },
+    {
+      "id": "CHANMGR-P2-004",
+      "title": "Multi-operator handoff",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-004",
+      "category": "execution",
+      "criticality": "P2",
+      "description": "Assigns manual actions to a named operator and tracks completion per assignee, so that manual execution scales past one person without two operators performing the same action on one identity.",
+      "tags": [
+        "execution",
+        "manual"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An assigned action appears only in the assignee's due list and cannot be completed twice."
+        }
+      ]
+    },
+    {
+      "id": "CHANMGR-P2-005",
+      "title": "Deliberate re-release",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-005",
+      "category": "queue",
+      "criticality": "P2",
+      "description": "Releases a previously published draft again as a distinct release with its own record. For a team producing little, recycling proven material is how cadence is held without producing more — and cadence is the binding constraint long before content quality is. The boundary stays intact: content-desk decides which draft is eligible for re-release and re-approves it; this scenario schedules and records the new release.",
+      "tags": [
+        "queue",
+        "content-desk",
+        "cadence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A deliberate re-release creates a second release record with its own post id, while a retry of the original release still returns the original result. The idempotency key must distinguish 'retry of release X' from 'new release of draft Y' — CHANMGR-P0-014 asserts the retry half and this asserts the other."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A re-release is refused when the identity's asset-uniqueness constraint would be violated by republishing the same media."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Re-release requires an explicit approval reference from content-desk; a release cannot be repeated on this scenario's own initiative."
+        }
+      ]
+    }
+  ]
+}

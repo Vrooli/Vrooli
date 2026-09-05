@@ -1,0 +1,242 @@
+{
+  "_metadata": {
+    "description": "The operator experience contract and the evidence that proves it: accessibility, theming, the shared design system, recorded journeys, and contract-drift gates.",
+    "last_validated_at": "2026-08-24T18:20:16-04:00",
+    "module": "onboarding.experience",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ONB-UX-CONTRACT",
+      "title": "The wizard shall meet its declared experience contract on every step, in both themes, for keyboard-only and assistive-technology operators.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "experience",
+      "description": "Compositional claim for the experience domain, checked against the page and journey specs in experience/. Keyboard operation and step-change announcement hold today; theming, the shared design system, and per-step audit coverage do not.",
+      "children": [
+        "ONB-UX-WCAG-AA",
+        "ONB-UX-KEYBOARD",
+        "ONB-UX-THEMES",
+        "ONB-UX-DESIGN-SYSTEM"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/App.a11y.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covers the initial flow only; per-step coverage is covered by companion evidence."
+        }
+      ]
+    },
+    {
+      "id": "ONB-UX-WCAG-AA",
+      "title": "The wizard shall pass an automated accessibility audit with zero violations on every step and every declared state.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "experience",
+      "description": "The unit audit covers the initial operator flow and the recorded all-steps browser run covers every declared wizard step; states that only appear after an error remain governed by the experience contract.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/App.a11y.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Initial flow asserted clean."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/accessibility/all-steps.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Recorded BAS evidence exercises every declared page state in a real browser and includes a non-empty video receipt.",
+          "scenario": "browser-automation-studio"
+        }
+      ]
+    },
+    {
+      "id": "ONB-UX-KEYBOARD",
+      "title": "Every wizard control shall be reachable and operable by keyboard alone, with a visible focus indicator.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "experience",
+      "description": "View navigation implements the full tablist pattern with roving tabindex and arrow, Home, and End keys, and focus moves to the step heading on navigation. The remaining gap is the step controls added by the target design.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/App.accessibility.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts roving tabindex, arrow and Home/End navigation, and tabpanel wiring."
+        }
+      ]
+    },
+    {
+      "id": "ONB-UX-THEMES",
+      "title": "The wizard should render correctly in light and dark themes, and shall not define a colour that resolves in only one of them.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "experience",
+      "description": "The UI is currently dark-only with literal utility classes, and the declared brand tokens are read by nothing. Onboarding is the first screen a paying user sees, which makes it the natural first consumer of the shared token set.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/design-tokens.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence target: `ui/src/design-tokens.test.ts`; this requirement remains planned until that evidence is added. every declared token resolves in both themes and no component holds a literal colour."
+        }
+      ]
+    },
+    {
+      "id": "ONB-UX-DESIGN-SYSTEM",
+      "title": "The wizard should render its primitives through the shared component library rather than scenario-local copies.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "experience",
+      "description": "Scenario-local button and search primitives drift from the library and carry their own accessibility burden. Adopting the library also makes onboarding the reference consumer, which is the point of maintaining one.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/ui/library_adoption_test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence target: `ui/src/components/ui/library_adoption_test.ts`; this requirement remains planned until that evidence is added. asserts no scenario-local re-implementation of a library primitive remains."
+        }
+      ]
+    },
+    {
+      "id": "ONB-UX-JOURNEY-EVIDENCE",
+      "title": "Each journey declared in the experience contract shall have a recorded browser-automation run that exercises it end to end.",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "experience",
+      "description": "The scenario's whole job is a multi-step human flow that must be demonstrably correct on three tiers. The six declared journeys have provider receipts with non-empty recordings; those recordings double as the launch demo and as the desktop evidence handed to deployment-manager.",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "bas/evidence/experience-journeys.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The receipt lists one passed BAS execution and non-empty video artifact for each declared journey. Test Genie sync promotes this validation only from the provider receipt.",
+          "scenario": "browser-automation-studio"
+        }
+      ]
+    },
+    {
+      "id": "ONB-CONTRACT-ENDPOINT-DRIFT",
+      "title": "If the declared endpoint contract does not match the registered routes, then the test suite shall fail.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "evidence",
+      "description": "Three documents describe this API and all three are currently wrong, including the machine-readable one that a test phase already reads. Generating the declaration from the router turns a review habit into a gate.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/endpoints_contract_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: compares the declared endpoint set against the router's registered set in both directions."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CONTRACT-COVERAGE-FLOOR",
+      "title": "The API and CLI test suites shall meet the coverage floor declared in the scenario testing policy.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "category": "evidence",
+      "description": "Both surfaces are below the declared floor, and six of seven CLI packages have no tests at all. The policy's required test-utility projections are also absent, so the floor is not currently enforced.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/testutil/no_prod_import_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: the policy-required projection for the API role."
+        },
+        {
+          "type": "test",
+          "ref": "cli/internal/testutil/no_prod_import_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: the policy-required projection for the CLI role."
+        }
+      ]
+    },
+    {
+      "id": "ONB-INTEGRATIONS-DEFERRED",
+      "title": "If a scenario declares an integration before integration-hub ships, then the integrations step shall present it as deferred and shall create no binding.",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-002",
+      "category": "experience",
+      "description": "A visibly deferred step is honest. A step that fabricates a connection so the flow looks complete is worse than an empty one, because it produces state nothing can honour.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts the deferral notice renders and links to the owning contract."
+        }
+      ]
+    },
+    {
+      "id": "ONB-PROFILE-PRESELECT",
+      "title": "Where a named profile exists, the wizard may pre-select its scenario and resource set at goal intake.",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "experience",
+      "description": "Deferred until a second concrete profile exists; the state schema already reserves the active-profile field. Designing a profile format against one example produces a format that fits one example.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/configuration/profiles.md",
+          "status": "planned",
+          "notes": "Evidence target: `docs/configuration/profiles.md`; this requirement remains planned until that evidence is added. deferred by the configuration contract; revisit when a second profile is real."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CONFIG-DISCOVERY",
+      "title": "The wizard may publish its configuration surface to search-hub so an operator may find a setting by intent.",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-004",
+      "category": "evidence",
+      "description": "search-hub already registers a configuration provider for this scenario as a capability gap with no endpoint. Filling it lets an operator ask 'where do I turn off telemetry' instead of knowing which file to open.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_surface_credentials_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence target: `api/v2_search_provider_test.go`; this requirement remains planned until that evidence is added. the provider returns the declared operator-controllable surface."
+        }
+      ]
+    },
+    {
+      "id": "ONB-REENTRY-REVISABLE",
+      "title": "While an install is configured, the wizard should allow an operator to revise any decision that is not deferred.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "experience",
+      "description": "Adding one scenario later must not mean re-answering every question, and no committed decision may become read-only after the first pass. Step navigation is reachable today for completed steps; the final step currently hides both navigation controls, which strands the operator there.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/WizardShell.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts completed-step indicators navigate backwards."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/WizardShell.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: every step, including the last, offers a route back to any earlier decision."
+        }
+      ]
+    }
+  ]
+}

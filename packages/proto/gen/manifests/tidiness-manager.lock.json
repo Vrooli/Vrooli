@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scenario": "tidiness-manager",
+  "input_digest": "sha256:ace1e8719c5151702a5244eb16c6355a81e0406223113130b63983250d04b1ed",
+  "input_files": [
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto",
+    "schemas/tidiness-manager/v1/validation/validation.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/tidiness-manager/v1/validation/validation.pb.go": "sha256:6bbb47a937475688794b8ffda1f4c791ee35b6fc28487906de8acd47659a66da",
+    "gen/python/tidiness_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tidiness_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tidiness_manager/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tidiness_manager/v1/validation/validation_pb2.py": "sha256:b61da935ec45a2a405eef2c26501b2533032112f49bc70411114559f45616954",
+    "gen/python/tidiness_manager/v1/validation/validation_pb2.pyi": "sha256:c664ee70be67d6f5d7b0c7dbd2d44a2cd24c4bcbb9fb0b21b3860b5803138b79",
+    "gen/typescript/tidiness-manager/v1/validation/validation_pb.ts": "sha256:a213bca455a9aa6fab026f16da4a819095c743a52c45198410e246f049444836"
+  }
+}

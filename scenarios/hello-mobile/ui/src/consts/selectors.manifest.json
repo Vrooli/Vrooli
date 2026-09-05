@@ -1,0 +1,266 @@
+{
+  "selectors": {
+    "helloMobile.title": {
+      "testId": "hello-mobile-title",
+      "selector": "[data-testid=\"hello-mobile-title\"]"
+    },
+    "helloMobile.input": {
+      "testId": "hello-mobile-input",
+      "selector": "[data-testid=\"hello-mobile-input\"]"
+    },
+    "helloMobile.submit": {
+      "testId": "hello-mobile-submit",
+      "selector": "[data-testid=\"hello-mobile-submit\"]"
+    },
+    "helloMobile.result": {
+      "testId": "hello-mobile-result",
+      "selector": "[data-testid=\"hello-mobile-result\"]"
+    },
+    "helloMobile.state": {
+      "testId": "hello-mobile-state",
+      "selector": "[data-testid=\"hello-mobile-state\"]"
+    },
+    "helloMobile.connectivity": {
+      "testId": "hello-mobile-connectivity",
+      "selector": "[data-testid=\"hello-mobile-connectivity\"]"
+    },
+    "helloMobile.route": {
+      "testId": "hello-mobile-route",
+      "selector": "[data-testid=\"hello-mobile-route\"]"
+    },
+    "helloMobile.notification": {
+      "testId": "hello-mobile-notification",
+      "selector": "[data-testid=\"hello-mobile-notification\"]"
+    },
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "notes.surface": {
+      "testId": "notes-surface",
+      "selector": "[data-testid=\"notes-surface\"]"
+    },
+    "notes.card": {
+      "testId": "notes-card",
+      "selector": "[data-testid=\"notes-card\"]"
+    },
+    "notes.list": {
+      "testId": "notes-list",
+      "selector": "[data-testid=\"notes-list\"]"
+    },
+    "notes.loading": {
+      "testId": "notes-loading",
+      "selector": "[data-testid=\"notes-loading\"]"
+    },
+    "notes.empty": {
+      "testId": "notes-empty",
+      "selector": "[data-testid=\"notes-empty\"]"
+    },
+    "notes.error": {
+      "testId": "notes-error",
+      "selector": "[data-testid=\"notes-error\"]"
+    },
+    "notes.createButton": {
+      "testId": "notes-create-button",
+      "selector": "[data-testid=\"notes-create-button\"]"
+    },
+    "notes.createdAt": {
+      "testId": "notes-created-at",
+      "selector": "[data-testid=\"notes-created-at\"]"
+    },
+    "notes.attachmentCount": {
+      "testId": "notes-attachment-count",
+      "selector": "[data-testid=\"notes-attachment-count\"]"
+    },
+    "notes.attachmentUpload": {
+      "testId": "notes-attachment-upload",
+      "selector": "[data-testid=\"notes-attachment-upload\"]"
+    },
+    "notes.attachmentFile": {
+      "testId": "notes-attachment-file",
+      "selector": "[data-testid=\"notes-attachment-file\"]"
+    },
+    "notes.attachmentButton": {
+      "testId": "notes-attachment-button",
+      "selector": "[data-testid=\"notes-attachment-button\"]"
+    },
+    "notes.attachmentStatus": {
+      "testId": "notes-attachment-status",
+      "selector": "[data-testid=\"notes-attachment-status\"]"
+    },
+    "notes.measure.card": {
+      "testId": "notes-measure-card",
+      "selector": "[data-testid=\"notes-measure-card\"]"
+    },
+    "notes.measure.value": {
+      "testId": "notes-measure-value",
+      "selector": "[data-testid=\"notes-measure-value\"]"
+    },
+    "notes.measure.loading": {
+      "testId": "notes-measure-loading",
+      "selector": "[data-testid=\"notes-measure-loading\"]"
+    },
+    "notes.measure.error": {
+      "testId": "notes-measure-error",
+      "selector": "[data-testid=\"notes-measure-error\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.notes": {
+      "testId": "page-notes",
+      "selector": "[data-testid=\"page-notes\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "notes",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "notes",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "version": "1",
+  "environment": "production",
+  "target": {
+    "type": "vps",
+    "vps": {
+      "host": "UNSET_PENDING_OPERATOR",
+      "workdir": "/root/Vrooli"
+    }
+  },
+  "scenario": {
+    "id": "landing-page-business-suite"
+  },
+  "dependencies": {
+    "scenarios": ["landing-page-business-suite"],
+    "resources": ["postgres"],
+    "analyzer": {
+      "tool": "scenario-dependency-analyzer"
+    }
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true,
+    "scenarios": ["landing-page-business-suite", "vrooli-autoheal"],
+    "resources": ["postgres"]
+  },
+  "ports": {
+    "api": 18080,
+    "ui": 20080
+  },
+  "edge": {
+    "domain": "vrooli.com",
+    "dns_policy": "warn",
+    "caddy": {
+      "enabled": true
+    }
+  },
+  "secrets": {
+    "summary": {
+      "total_secrets": 0,
+      "per_install_generated": 0,
+      "user_prompt": 0,
+      "remote_fetch": 0,
+      "infrastructure": 0
+    },
+    "bundle_secrets": []
+  }
+}

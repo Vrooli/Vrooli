@@ -168,6 +168,17 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
   const reactFlowInstance = useReactFlow();
 
+  // React Flow wrapper classes are an integration seam, not workflow state.
+  // Derive them from the canonical node type on every render so persistence and
+  // normalization cannot erase stable automation hooks.
+  const renderedNodes = useMemo(
+    () => nodes.map((node) => ({
+      ...node,
+      className: [node.className, `workflow-node--${node.type}`].filter(Boolean).join(" "),
+    })),
+    [nodes],
+  );
+
   const graphContainerRef = useRef<HTMLDivElement | null>(null);
   const [graphWidth, setGraphWidth] = useState(0);
   const [isViewportDialogOpen, setViewportDialogOpen] = useState(false);
@@ -801,10 +812,10 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
         (node) => !nodesWithOutgoingEdges.has(node.id)
       );
 
-      setNodes((nds) => nds.concat(newNode));
-
       // If there's exactly one chain end, auto-connect it to the new node
       const sourceNode = chainEndNodes[0];
+      const nextNodes = [...nodes, newNode];
+      const nextEdges = [...edges];
       if (chainEndNodes.length === 1 && sourceNode) {
         const newEdge: Edge = {
           id: `edge-${sourceNode.id}-${newNodeId}`,
@@ -819,10 +830,34 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
             color: EDGE_MARKER_COLORS[effectiveTheme],
           },
         };
-        setEdges((eds) => eds.concat(newEdge));
+        nextEdges.push(newEdge);
       }
+
+      // History stores complete workflow states, including the state after the
+      // edit. Recording only the pre-drop state enabled Undo but made Redo
+      // restore the same pre-drop snapshot.
+      const currentState: WorkflowState = { nodes: [...nodes], edges: [...edges] };
+      const nextState: WorkflowState = { nodes: nextNodes, edges: nextEdges };
+      const retainedHistory = history.length === 0
+        ? [currentState]
+        : history.slice(0, historyIndex + 1);
+      const nextHistory = [...retainedHistory, nextState].slice(-50);
+
+      setNodes(nextNodes);
+      setEdges(nextEdges);
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
     },
-    [reactFlowInstance, setNodes, setEdges, nodes, edges, effectiveTheme],
+    [
+      reactFlowInstance,
+      setNodes,
+      setEdges,
+      nodes,
+      edges,
+      effectiveTheme,
+      history,
+      historyIndex,
+    ],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -836,6 +871,8 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       className="flex-1 relative"
       data-testid={selectors.workflowBuilder.canvas.root}
       data-builder-ready={viewMode === "visual" && isReactFlowReady ? "true" : "false"}
+      onDropCapture={onDrop}
+      onDragOverCapture={onDragOver}
     >
       {viewMode === "visual" && (
         <WorkflowToolbar
@@ -887,15 +924,13 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
 
       {viewMode === "visual" ? (
         <ReactFlow
-          nodes={nodes}
+          nodes={renderedNodes}
           edges={edges}
           onNodesChange={onNodesChangeHandler}
           onEdgesChange={onEdgesChangeHandler}
           onConnect={onConnect}
           onConnectStart={onConnectStart}
           onConnectEnd={onConnectEnd}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           fitView

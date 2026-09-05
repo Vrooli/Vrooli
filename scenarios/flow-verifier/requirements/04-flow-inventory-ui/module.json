@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "flow-inventory-ui",
+    "description": "Flow Inventory MVP screen: list discovered flows with last-run status; offer Verify all.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UI-001",
+      "title": "InventoryPage lists all discovered flows",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "ui/src/features/inventory/InventoryPage.tsx fetches /api/v1/flows + latest /api/v1/runs and renders one row per flow with id, path, language, schema version, last status.",
+      "tags": ["ui", "inventory"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Vitest renders InventoryPage against mocked API; asserts row count and status badges."
+        }
+      ]
+    },
+    {
+      "id": "UI-002",
+      "title": "Verify all triggers verification per flow",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "A single Verify all button posts /api/v1/verifications for each flow and updates row status as each finishes.",
+      "tags": ["ui", "interaction"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Vitest user-event test asserts button click triggers POST per row and updates status after resolution."
+        }
+      ]
+    },
+    {
+      "id": "UI-003",
+      "title": "Accessibility baseline",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Inventory page passes axe a11y test with no violations at WCAG-AA.",
+      "tags": ["ui", "a11y"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "InventoryPage.a11y.test.tsx using @axe-core/react."
+        }
+      ]
+    }
+  ]
+}

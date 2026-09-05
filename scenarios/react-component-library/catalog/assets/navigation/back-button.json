@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.back-button",
+    "name": "BackButton",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "navigation",
+    "description": "The navigation control using router history when it is valid and a deterministic fallback destination when history is unavailable or would leave the application.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.button",
+        "reason": "Presentation and variants are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "tap-target-size"
+  ],
+  "rationale": "The fallback is the whole point: a back control that leaves the application when opened from a deep link is a defect users experience as the app losing their place."
+}

@@ -1,0 +1,773 @@
+{
+  "$schema": "../../.vrooli/schemas/scenario-docs-manifest.schema.json",
+  "version": "2.0.0",
+  "title": "Deployment Manager Documentation",
+  "description": "The maintained documentation contract for deployment-manager, including its proto-first evidence and tiered release surfaces.",
+  "defaultDocument": "README.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Keep product and system concepts in docs/concepts, task procedures in docs/guides, stable lookup material in docs/reference, operations in docs/operations, commercial material in docs/business, and durable engineering decisions in docs/internal or docs/decisions. Register every durable document here."
+  },
+  "sections": [
+    {
+      "id": "deployment-manager-docs",
+      "title": "Deployment Manager",
+      "description": "The complete maintained documentation surface.",
+      "documents": [
+        {
+          "path": "README.md",
+          "docType": "docs-index",
+          "title": "Documentation index",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../README.md",
+          "docType": "scenario-readme",
+          "title": "Scenario README",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements",
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "manifest",
+          "title": "Documentation Manifest",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "CHEATSHEET.md",
+          "docType": "cheatsheet",
+          "title": "CHEATSHEET.md",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "DEPLOYMENT-GUIDE.md",
+          "docType": "deployment-guide",
+          "title": "DEPLOYMENT-GUIDE.md",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "DESKTOP-DEPLOYMENT-GUIDE.md",
+          "docType": "desktop-deployment-guide",
+          "title": "DESKTOP-DEPLOYMENT-GUIDE.md",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "PROGRESS.md",
+          "docType": "progress",
+          "title": "PROGRESS.md",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "QUICKSTART.md",
+          "docType": "quickstart",
+          "title": "QUICKSTART.md",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "RESEARCH.md",
+          "docType": "research",
+          "title": "RESEARCH.md",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "ROADMAP.md",
+          "docType": "roadmap",
+          "title": "ROADMAP.md",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api/bundles.md",
+          "docType": "api-bundles",
+          "title": "api bundles",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api/deployments.md",
+          "docType": "api-deployments",
+          "title": "api deployments",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api/fitness.md",
+          "docType": "api-fitness",
+          "title": "api fitness",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api/profiles.md",
+          "docType": "api-profiles",
+          "title": "api profiles",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api/swaps.md",
+          "docType": "api-swaps",
+          "title": "api swaps",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "api/telemetry.md",
+          "docType": "api-telemetry",
+          "title": "api telemetry",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "architecture/bundle-pipeline.md",
+          "docType": "bundle-pipeline-architecture",
+          "title": "bundle pipeline",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "cli/deployment-commands.md",
+          "docType": "cli-deployment-commands",
+          "title": "cli deployment commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "cli/overview-commands.md",
+          "docType": "cli-overview-commands",
+          "title": "cli overview commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "cli/profile-commands.md",
+          "docType": "cli-profile-commands",
+          "title": "cli profile commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "cli/secret-commands.md",
+          "docType": "cli-secret-commands",
+          "title": "cli secret commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "cli/swap-commands.md",
+          "docType": "cli-swap-commands",
+          "title": "cli swap commands",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "docType": "concept-architecture",
+          "title": "concept architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "docType": "domains",
+          "title": "concept domains",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/001-tiered-deployment.md",
+          "docType": "decision-001",
+          "title": "decision 001",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/002-manifest-driven-bundles.md",
+          "docType": "decision-002",
+          "title": "decision 002",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/003-runtime-supervisor.md",
+          "docType": "decision-003",
+          "title": "decision 003",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/004-secrets-classification.md",
+          "docType": "decision-004",
+          "title": "decision 004",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/005-governance-plane-boundary.md",
+          "docType": "decision-005",
+          "title": "decision 005",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/006-greenfield-storage.md",
+          "docType": "decision-006",
+          "title": "decision 006",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "decisions/007-shared-evidence-contract.md",
+          "docType": "decision-007",
+          "title": "decision 007",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "examples/picker-wheel-cloud.md",
+          "docType": "example-picker-wheel-cloud",
+          "title": "example picker wheel cloud",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "examples/picker-wheel-desktop.md",
+          "docType": "example-picker-wheel-desktop",
+          "title": "example picker wheel desktop",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "examples/system-monitor-desktop.md",
+          "docType": "example-system-monitor-desktop",
+          "title": "example system monitor desktop",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "examples/manifests/desktop-happy.json",
+          "docType": "manifest-desktop-happy",
+          "title": "manifest desktop happy",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "examples/manifests/desktop-playwright.json",
+          "docType": "manifest-desktop-playwright",
+          "title": "manifest desktop playwright",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "examples/manifests/desktop-with-build.json",
+          "docType": "manifest-desktop-with-build",
+          "title": "manifest desktop with build",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/auto-updates.md",
+          "docType": "guide-auto-updates",
+          "title": "guide auto updates",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "guides/bundle-manifest-schema.md",
+          "docType": "guide-bundle-manifest-schema",
+          "title": "guide bundle manifest schema",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/code-signing.md",
+          "docType": "guide-code-signing",
+          "title": "guide code signing",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/dependency-swapping.md",
+          "docType": "guide-dependency-swapping",
+          "title": "guide dependency swapping",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/deployment-checklist.md",
+          "docType": "guide-deployment-checklist",
+          "title": "guide deployment checklist",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/evidence-contract.md",
+          "docType": "guide-evidence-contract",
+          "title": "guide evidence contract",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/fitness-scoring.md",
+          "docType": "guide-fitness-scoring",
+          "title": "guide fitness scoring",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/packaging-matrix.md",
+          "docType": "guide-packaging-matrix",
+          "title": "guide packaging matrix",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/quick-start.md",
+          "docType": "guide-quick-start",
+          "title": "guide quick start",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/secrets-management.md",
+          "docType": "guide-secrets-management",
+          "title": "guide secrets management",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "guides/version-matrix.md",
+          "docType": "guide-version-matrix",
+          "title": "guide version matrix",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/DECISIONS.md",
+          "docType": "internal-decisions",
+          "title": "internal decisions",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "internal-problems",
+          "title": "internal problems",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "docType": "seams",
+          "title": "internal seams",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "providers/cloudflare-tunnel.md",
+          "docType": "provider-cloudflare-tunnel",
+          "title": "provider cloudflare tunnel",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "providers/digitalocean.md",
+          "docType": "provider-digitalocean",
+          "title": "provider digitalocean",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "providers/hardware-appliance.md",
+          "docType": "provider-hardware-appliance",
+          "title": "provider hardware appliance",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "scenarios/deployment-manager.md",
+          "docType": "scenario-reference",
+          "title": "scenario deployment manager",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "scenarios/scenario-dependency-analyzer.md",
+          "docType": "scenario-dependency-analyzer",
+          "title": "scenario dependency analyzer",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "scenarios/scenario-to-cloud.md",
+          "docType": "scenario-to-cloud",
+          "title": "scenario to cloud",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "scenarios/scenario-to-desktop.md",
+          "docType": "scenario-to-desktop",
+          "title": "scenario to desktop",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "scenarios/scenario-to-mobile.md",
+          "docType": "scenario-to-mobile",
+          "title": "scenario to mobile",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "scenarios/scenario-to-plugin.md",
+          "docType": "scenario-to-plugin",
+          "title": "scenario to plugin",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "scenarios/secrets-manager.md",
+          "docType": "scenario-secrets-manager",
+          "title": "scenario secrets manager",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "schemas/bundle-schema.desktop.v0.1.json",
+          "docType": "bundle-schema-desktop",
+          "title": "bundle schema desktop",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "tiers/tier-1-local-dev.md",
+          "docType": "tier-1-local-dev",
+          "title": "tier 1 local dev",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "tiers/tier-2-desktop.md",
+          "docType": "tier-2-desktop",
+          "title": "tier 2 desktop",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "tiers/tier-3-mobile.md",
+          "docType": "tier-3-mobile",
+          "title": "tier 3 mobile",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "tiers/tier-4-saas.md",
+          "docType": "tier-4-saas",
+          "title": "tier 4 saas",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "tiers/tier-5-enterprise.md",
+          "docType": "tier-5-enterprise",
+          "title": "tier 5 enterprise",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "tutorials/hello-desktop-walkthrough.md",
+          "docType": "tutorial",
+          "title": "tutorial hello desktop",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "workflows/desktop-deployment.md",
+          "docType": "workflow-desktop-deployment",
+          "title": "workflow desktop deployment",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "workflows/mobile-deployment.md",
+          "docType": "workflow-mobile-deployment",
+          "title": "workflow mobile deployment",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "workflows/saas-deployment.md",
+          "docType": "workflow-saas-deployment",
+          "title": "workflow saas deployment",
+          "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "workflows/troubleshooting.md",
+          "docType": "workflow-troubleshooting",
+          "title": "workflow troubleshooting",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    }
+  ]
+}

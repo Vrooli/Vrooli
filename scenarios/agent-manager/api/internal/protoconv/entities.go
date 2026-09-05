@@ -4,14 +4,33 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"agent-manager/internal/domain"
-
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+// validUTF8 protects the protobuf boundary from historical/imported data that
+// may contain arbitrary bytes. Protobuf string fields must contain UTF-8;
+// replacing malformed sequences keeps read surfaces available without
+// discarding otherwise valid content.
+func validUTF8(value string) string {
+	return strings.ToValidUTF8(value, "\uFFFD")
+}
+
+func validUTF8Slice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]string, len(values))
+	for i, value := range values {
+		result[i] = validUTF8(value)
+	}
+	return result
+}
 
 // =============================================================================
 // AGENT PROFILE
@@ -22,35 +41,36 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 	if p == nil {
 		return nil
 	}
-	fallback := make([]pb.RunnerType, 0, len(p.FallbackRunnerTypes))
-	for _, rt := range p.FallbackRunnerTypes {
-		fallback = append(fallback, RunnerTypeToProto(rt))
-	}
 	return &pb.AgentProfile{
-		Id:                   UUIDToString(p.ID),
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RunnerType:           RunnerTypeToProto(p.RunnerType),
-		Model:                p.Model,
-		ModelPreset:          ModelPresetToProto(p.ModelPreset),
-		MaxTurns:             int32(p.MaxTurns),
-		Timeout:              DurationToProto(p.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             FeatureFlagsToProto(p.Features),
-		ExtraFlags:           RunnerExtraFlagsToProto(p.ExtraFlags),
-		NetworkAccess:        NetworkAccessToProto(p.NetworkAccess),
-		RequiresSandbox:      p.RequiresSandbox,
-		RequiresApproval:     p.RequiresApproval,
-		SandboxConfig:        SandboxConfigToProto(p.SandboxConfig),
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		CreatedAt:            TimestampToProto(p.CreatedAt),
-		UpdatedAt:            TimestampToProto(p.UpdatedAt),
+		Id:                    UUIDToString(p.ID),
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              int32(p.MaxTurns),
+		Timeout:               DurationToProto(p.Timeout),
+		Effort:                string(p.Effort),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              FeatureFlagsToProto(p.Features),
+		ExtraFlags:            RunnerExtraFlagsToProto(p.ExtraFlags),
+		NetworkAccess:         NetworkAccessToProto(p.NetworkAccess),
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       TimestampToProto(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		SandboxConfig:         SandboxConfigToProto(p.SandboxConfig),
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		CreatedBy:             p.CreatedBy,
+		CreatedAt:             TimestampToProto(p.CreatedAt),
+		UpdatedAt:             TimestampToProto(p.UpdatedAt),
+		SkillPack:             p.SkillPack,
+		SkillExperimentId:     p.SkillExperimentID,
 	}
 }
 
@@ -59,38 +79,36 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 	if p == nil {
 		return nil
 	}
-	fallback := make([]domain.RunnerType, 0, len(p.FallbackRunnerTypes))
-	for _, rt := range p.FallbackRunnerTypes {
-		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			continue
-		}
-		fallback = append(fallback, RunnerTypeFromProto(rt))
-	}
 	return &domain.AgentProfile{
-		ID:                   UUIDFromString(p.Id),
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RunnerType:           RunnerTypeFromProto(p.RunnerType),
-		Model:                p.Model,
-		ModelPreset:          ModelPresetFromProto(p.ModelPreset),
-		MaxTurns:             int(p.MaxTurns),
-		Timeout:              DurationFromProto(p.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             FeatureFlagsFromProto(p.Features),
-		ExtraFlags:           RunnerExtraFlagsFromProto(p.ExtraFlags),
-		NetworkAccess:        NetworkAccessFromProto(p.NetworkAccess),
-		RequiresSandbox:      p.RequiresSandbox,
-		RequiresApproval:     p.RequiresApproval,
-		SandboxConfig:        SandboxConfigFromProto(p.SandboxConfig),
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		CreatedAt:            TimestampFromProto(p.CreatedAt),
-		UpdatedAt:            TimestampFromProto(p.UpdatedAt),
+		ID:                    UUIDFromString(p.Id),
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              int(p.MaxTurns),
+		Timeout:               DurationFromProto(p.Timeout),
+		Effort:                domain.Effort(p.Effort),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(p.ToolRestrictionPolicy),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              FeatureFlagsFromProto(p.Features),
+		ExtraFlags:            RunnerExtraFlagsFromProto(p.ExtraFlags),
+		NetworkAccess:         NetworkAccessFromProto(p.NetworkAccess),
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       TimestampFromProto(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		SandboxConfig:         SandboxConfigFromProto(p.SandboxConfig),
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		CreatedBy:             p.CreatedBy,
+		CreatedAt:             TimestampFromProto(p.CreatedAt),
+		UpdatedAt:             TimestampFromProto(p.UpdatedAt),
+		SkillPack:             p.SkillPack,
+		SkillExperimentID:     p.SkillExperimentId,
 	}
 }
 
@@ -213,25 +231,40 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 
 	run := &pb.Run{
-		Id:              UUIDToString(r.ID),
-		TaskId:          UUIDToString(r.TaskID),
-		Tag:             r.Tag,
-		SessionId:       r.SessionID,
-		RunMode:         RunModeToProto(r.RunMode),
-		Status:          RunStatusToProto(r.Status),
-		Phase:           RunPhaseToProto(r.Phase),
-		ProgressPercent: int32(r.ProgressPercent),
-		IdempotencyKey:  r.IdempotencyKey,
-		ErrorMsg:        r.ErrorMsg,
-		ApprovalState:   ApprovalStateToProto(r.ApprovalState),
-		ApprovedBy:      r.ApprovedBy,
-		DiffPath:        r.DiffPath,
-		LogPath:         r.LogPath,
-		ChangedFiles:    int32(r.ChangedFiles),
-		TotalSizeBytes:  r.TotalSizeBytes,
-		PromptPreview:   r.PromptPreview,
-		CreatedAt:       TimestampToProto(r.CreatedAt),
-		UpdatedAt:       TimestampToProto(r.UpdatedAt),
+		Id:                    UUIDToString(r.ID),
+		TaskId:                UUIDToString(r.TaskID),
+		Tag:                   validUTF8(r.Tag),
+		Label:                 validUTF8(r.Label),
+		LabelSource:           validUTF8(string(r.LabelSource)),
+		SessionId:             validUTF8(r.SessionID),
+		RunMode:               RunModeToProto(r.RunMode),
+		ExecutionMode:         ExecutionModeToProto(r.ExecutionMode),
+		HarnessKind:           validUTF8(r.HarnessKind),
+		HarnessSessionId:      validUTF8(r.HarnessSessionID),
+		WebConsoleSessionId:   validUTF8(r.WebConsoleSessionID),
+		WebConsoleSessionUrl:  validUTF8(r.WebConsoleSessionURL),
+		Status:                RunStatusToProto(r.Status),
+		Phase:                 RunPhaseToProto(r.Phase),
+		ProgressPercent:       int32(r.ProgressPercent),
+		IdempotencyKey:        validUTF8(r.IdempotencyKey),
+		ErrorMsg:              validUTF8(r.ErrorMsg),
+		ApprovalState:         ApprovalStateToProto(r.ApprovalState),
+		ApprovedBy:            validUTF8(r.ApprovedBy),
+		DiffPath:              validUTF8(r.DiffPath),
+		LogPath:               validUTF8(r.LogPath),
+		ChangedFiles:          int32(r.ChangedFiles),
+		TotalSizeBytes:        r.TotalSizeBytes,
+		CommitHash:            validUTF8(r.CommitHash),
+		PromptPreview:         validUTF8(r.PromptPreview),
+		RequestedModel:        validUTF8(r.RequestedModel),
+		ActualModel:           validUTF8(r.ActualModel),
+		FinalizationStatus:    RunFinalizationStatusToProto(r.FinalizationStatus),
+		FinalizationError:     validUTF8(r.FinalizationError),
+		CreatedAt:             TimestampToProto(r.CreatedAt),
+		UpdatedAt:             TimestampToProto(r.UpdatedAt),
+		ImportSourceHarness:   validUTF8(r.ImportSourceHarness),
+		ImportSourceSessionId: validUTF8(r.ImportSourceSessionID),
+		GoalId:                validUTF8(r.GoalID),
 	}
 
 	if r.AgentProfileID != nil {
@@ -263,41 +296,93 @@ func RunToProto(r *domain.Run) *pb.Run {
 	if r.ApprovedAt != nil {
 		run.ApprovedAt = TimestampToProto(*r.ApprovedAt)
 	}
+	if r.FinalizedAt != nil {
+		run.FinalizedAt = TimestampToProto(*r.FinalizedAt)
+	}
+	if r.ImportedAt != nil {
+		t := TimestampToProto(*r.ImportedAt)
+		run.ImportedAt = t
+	}
+
+	if r.AwaitHandle != nil {
+		run.AwaitHandle = AwaitHandleToProto(r.AwaitHandle)
+	}
 
 	if r.Summary != nil {
 		run.Summary = &pb.RunSummary{
-			Description:   r.Summary.Description,
-			FilesModified: r.Summary.FilesModified,
-			FilesCreated:  r.Summary.FilesCreated,
-			FilesDeleted:  r.Summary.FilesDeleted,
+			Description:   validUTF8(r.Summary.Description),
+			FilesModified: validUTF8Slice(r.Summary.FilesModified),
+			FilesCreated:  validUTF8Slice(r.Summary.FilesCreated),
+			FilesDeleted:  validUTF8Slice(r.Summary.FilesDeleted),
 			TokensUsed:    int32(r.Summary.TokensUsed),
 			TurnsUsed:     int32(r.Summary.TurnsUsed),
 			CostEstimate:  r.Summary.CostEstimate,
 			ContextTokens: int32(r.Summary.ContextTokens),
 		}
 	}
+	if r.Result != nil {
+		run.Result = RunResultToProto(r.Result)
+	}
+	run.Subject = validUTF8Slice(r.Subject)
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigToProto(r.ResolvedConfig)
 	}
 	if r.Actions != nil {
 		run.Actions = &pb.RunActions{
-			CanInvestigate:               r.Actions.CanInvestigate,
-			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
-			CanDelete:                    r.Actions.CanDelete,
-			CanStop:                      r.Actions.CanStop,
-			CanRetry:                     r.Actions.CanRetry,
-			CanContinue:                  r.Actions.CanContinue,
-			CanContinueReason:            r.Actions.CanContinueReason,
-			CanApprove:                   r.Actions.CanApprove,
-			CanReject:                    r.Actions.CanReject,
-			CanReview:                    r.Actions.CanReview,
-			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
-			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+			CanInvestigate:             r.Actions.CanInvestigate,
+			CanApplyInvestigation:      r.Actions.CanApplyInvestigation,
+			CanDelete:                  r.Actions.CanDelete,
+			CanStop:                    r.Actions.CanStop,
+			CanRetry:                   r.Actions.CanRetry,
+			CanContinue:                r.Actions.CanContinue,
+			CanContinueReason:          validUTF8(r.Actions.CanContinueReason),
+			CanApprove:                 r.Actions.CanApprove,
+			CanReject:                  r.Actions.CanReject,
+			CanReview:                  r.Actions.CanReview,
+			CanResumeFromFailure:       r.Actions.CanResumeFromFailure,
+			CanResumeFromFailureReason: validUTF8(r.Actions.CanResumeFromFailureReason),
+			FinalizationWarning:        validUTF8(r.Actions.FinalizationWarning),
+			CanRetryFinalization:       r.Actions.CanRetryFinalization,
 		}
 	}
 
 	return run
+}
+
+// AwaitHandleToProto converts a domain AwaitHandle to proto. Returns nil for a
+// nil handle so a non-parked run carries no await_handle.
+func AwaitHandleToProto(h *domain.AwaitHandle) *pb.AwaitHandle {
+	if h == nil {
+		return nil
+	}
+	out := &pb.AwaitHandle{
+		Producer:     validUTF8(h.Producer),
+		Key:          validUTF8(h.Key),
+		RegisteredAt: TimestampToProto(h.RegisteredAt),
+	}
+	if h.Deadline != nil {
+		out.Deadline = TimestampToProto(*h.Deadline)
+	}
+	return out
+}
+
+// AwaitHandleFromProto converts a proto AwaitHandle to domain. Returns nil for a
+// nil handle.
+func AwaitHandleFromProto(h *pb.AwaitHandle) *domain.AwaitHandle {
+	if h == nil {
+		return nil
+	}
+	out := &domain.AwaitHandle{
+		Producer:     h.Producer,
+		Key:          h.Key,
+		RegisteredAt: TimestampFromProto(h.RegisteredAt),
+	}
+	if h.Deadline != nil {
+		t := TimestampFromProto(h.Deadline)
+		out.Deadline = &t
+	}
+	return out
 }
 
 // RunFromProto converts a proto Run to domain Run.
@@ -307,24 +392,35 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	}
 
 	run := &domain.Run{
-		ID:              UUIDFromString(r.Id),
-		TaskID:          UUIDFromString(r.TaskId),
-		Tag:             r.Tag,
-		SessionID:       r.SessionId,
-		RunMode:         RunModeFromProto(r.RunMode),
-		Status:          RunStatusFromProto(r.Status),
-		Phase:           RunPhaseFromProto(r.Phase),
-		ProgressPercent: int(r.ProgressPercent),
-		IdempotencyKey:  r.IdempotencyKey,
-		ErrorMsg:        r.ErrorMsg,
-		ApprovalState:   ApprovalStateFromProto(r.ApprovalState),
-		ApprovedBy:      r.ApprovedBy,
-		DiffPath:        r.DiffPath,
-		LogPath:         r.LogPath,
-		ChangedFiles:    int(r.ChangedFiles),
-		TotalSizeBytes:  r.TotalSizeBytes,
-		CreatedAt:       TimestampFromProto(r.CreatedAt),
-		UpdatedAt:       TimestampFromProto(r.UpdatedAt),
+		ID:                    UUIDFromString(r.Id),
+		TaskID:                UUIDFromString(r.TaskId),
+		Tag:                   r.Tag,
+		SessionID:             r.SessionId,
+		RunMode:               RunModeFromProto(r.RunMode),
+		ExecutionMode:         ExecutionModeFromProto(r.ExecutionMode),
+		HarnessKind:           r.HarnessKind,
+		HarnessSessionID:      r.HarnessSessionId,
+		WebConsoleSessionID:   r.WebConsoleSessionId,
+		WebConsoleSessionURL:  r.WebConsoleSessionUrl,
+		Status:                RunStatusFromProto(r.Status),
+		Phase:                 RunPhaseFromProto(r.Phase),
+		ProgressPercent:       int(r.ProgressPercent),
+		IdempotencyKey:        r.IdempotencyKey,
+		ErrorMsg:              r.ErrorMsg,
+		ApprovalState:         ApprovalStateFromProto(r.ApprovalState),
+		ApprovedBy:            r.ApprovedBy,
+		FinalizationStatus:    RunFinalizationStatusFromProto(r.FinalizationStatus),
+		FinalizationError:     r.FinalizationError,
+		DiffPath:              r.DiffPath,
+		LogPath:               r.LogPath,
+		ChangedFiles:          int(r.ChangedFiles),
+		TotalSizeBytes:        r.TotalSizeBytes,
+		CommitHash:            r.CommitHash,
+		CreatedAt:             TimestampFromProto(r.CreatedAt),
+		UpdatedAt:             TimestampFromProto(r.UpdatedAt),
+		ImportSourceHarness:   r.ImportSourceHarness,
+		ImportSourceSessionID: r.ImportSourceSessionId,
+		GoalID:                r.GoalId,
 	}
 
 	// Handle optional timestamps (pointer fields)
@@ -343,6 +439,18 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	if r.ApprovedAt != nil {
 		t := TimestampFromProto(r.ApprovedAt)
 		run.ApprovedAt = &t
+	}
+	if r.FinalizedAt != nil {
+		t := TimestampFromProto(r.FinalizedAt)
+		run.FinalizedAt = &t
+	}
+	if r.ImportedAt != nil {
+		t := TimestampFromProto(r.ImportedAt)
+		run.ImportedAt = &t
+	}
+
+	if r.AwaitHandle != nil {
+		run.AwaitHandle = AwaitHandleFromProto(r.AwaitHandle)
 	}
 
 	run.AgentProfileID = OptionalStringToUUID(r.AgentProfileId)
@@ -366,24 +474,30 @@ func RunFromProto(r *pb.Run) *domain.Run {
 			ContextTokens: int(r.Summary.ContextTokens),
 		}
 	}
+	if r.Result != nil {
+		run.Result = RunResultFromProto(r.Result)
+	}
+	run.Subject = append([]string(nil), r.Subject...)
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigFromProto(r.ResolvedConfig)
 	}
 	if r.Actions != nil {
 		run.Actions = &domain.RunActions{
-			CanInvestigate:               r.Actions.CanInvestigate,
-			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
-			CanDelete:                    r.Actions.CanDelete,
-			CanStop:                      r.Actions.CanStop,
-			CanRetry:                     r.Actions.CanRetry,
-			CanContinue:                  r.Actions.CanContinue,
-			CanContinueReason:            r.Actions.CanContinueReason,
-			CanApprove:                   r.Actions.CanApprove,
-			CanReject:                    r.Actions.CanReject,
-			CanReview:                    r.Actions.CanReview,
-			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
-			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+			CanInvestigate:             r.Actions.CanInvestigate,
+			CanApplyInvestigation:      r.Actions.CanApplyInvestigation,
+			CanDelete:                  r.Actions.CanDelete,
+			CanStop:                    r.Actions.CanStop,
+			CanRetry:                   r.Actions.CanRetry,
+			CanContinue:                r.Actions.CanContinue,
+			CanContinueReason:          r.Actions.CanContinueReason,
+			CanApprove:                 r.Actions.CanApprove,
+			CanReject:                  r.Actions.CanReject,
+			CanReview:                  r.Actions.CanReview,
+			CanResumeFromFailure:       r.Actions.CanResumeFromFailure,
+			CanResumeFromFailureReason: r.Actions.CanResumeFromFailureReason,
+			FinalizationWarning:        r.Actions.FinalizationWarning,
+			CanRetryFinalization:       r.Actions.CanRetryFinalization,
 		}
 	}
 
@@ -408,28 +522,29 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 	if c == nil {
 		return nil
 	}
-	fallback := make([]pb.RunnerType, 0, len(c.FallbackRunnerTypes))
-	for _, rt := range c.FallbackRunnerTypes {
-		fallback = append(fallback, RunnerTypeToProto(rt))
-	}
 	return &pb.RunConfig{
-		RunnerType:           RunnerTypeToProto(c.RunnerType),
-		Model:                c.Model,
-		ModelPreset:          ModelPresetToProto(c.ModelPreset),
-		MaxTurns:             int32(c.MaxTurns),
-		Timeout:              DurationToProto(c.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         c.AllowedTools,
-		DeniedTools:          c.DeniedTools,
-		SkipPermissionPrompt: c.SkipPermissionPrompt,
-		Features:             FeatureFlagsToProto(c.Features),
-		ExtraFlags:           RunnerExtraFlagsToProto(c.ExtraFlags),
-		NetworkAccess:        NetworkAccessToProto(c.NetworkAccess),
-		RequiresSandbox:      c.RequiresSandbox,
-		RequiresApproval:     c.RequiresApproval,
-		SandboxConfig:        SandboxConfigToProto(c.SandboxConfig),
-		AllowedPaths:         c.AllowedPaths,
-		DeniedPaths:          c.DeniedPaths,
+		RunnerType:            RunnerTypeToProto(c.RunnerType),
+		Model:                 c.Model,
+		RoleRef:               c.RoleRef,
+		MaxTurns:              int32(c.MaxTurns),
+		Timeout:               DurationToProto(c.Timeout),
+		Effort:                string(c.Effort),
+		AllowedTools:          c.AllowedTools,
+		DeniedTools:           c.DeniedTools,
+		ToolRestrictionPolicy: string(c.ToolRestrictionPolicy.Effective()),
+		SkipPermissionPrompt:  c.SkipPermissionPrompt,
+		Features:              FeatureFlagsToProto(c.Features),
+		ExtraFlags:            RunnerExtraFlagsToProto(c.ExtraFlags),
+		NetworkAccess:         NetworkAccessToProto(c.NetworkAccess),
+		PolicySnapshot:        ExecutionPolicySnapshotToProto(c.PolicySnapshot),
+		ResultSpec:            ResultSpecToProto(c.ResultSpec),
+		SandboxConfig:         SandboxConfigToProto(c.SandboxConfig),
+		AllowedPaths:          c.AllowedPaths,
+		DeniedPaths:           c.DeniedPaths,
+		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
+		TranscriptCodec:       c.TranscriptCodec,
+		TranscriptCodecScore:  c.TranscriptCodecScore,
+		Until:                 c.Until,
 	}
 }
 
@@ -438,31 +553,245 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 	if c == nil {
 		return nil
 	}
-	fallback := make([]domain.RunnerType, 0, len(c.FallbackRunnerTypes))
-	for _, rt := range c.FallbackRunnerTypes {
-		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
+	return &domain.RunConfig{
+		RunnerType:            RunnerTypeFromProto(c.RunnerType),
+		Model:                 c.Model,
+		RoleRef:               c.RoleRef,
+		MaxTurns:              int(c.MaxTurns),
+		Timeout:               DurationFromProto(c.Timeout),
+		Effort:                domain.Effort(c.Effort),
+		AllowedTools:          c.AllowedTools,
+		DeniedTools:           c.DeniedTools,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(c.ToolRestrictionPolicy),
+		SkipPermissionPrompt:  c.SkipPermissionPrompt,
+		Features:              FeatureFlagsFromProto(c.Features),
+		ExtraFlags:            RunnerExtraFlagsFromProto(c.ExtraFlags),
+		NetworkAccess:         NetworkAccessFromProto(c.NetworkAccess),
+		PolicySnapshot:        ExecutionPolicySnapshotFromProto(c.PolicySnapshot),
+		ResultSpec:            ResultSpecFromProto(c.ResultSpec),
+		SandboxConfig:         SandboxConfigFromProto(c.SandboxConfig),
+		AllowedPaths:          c.AllowedPaths,
+		DeniedPaths:           c.DeniedPaths,
+		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
+		TranscriptCodec:       c.TranscriptCodec,
+		TranscriptCodecScore:  c.TranscriptCodecScore,
+		Until:                 c.Until,
+	}
+}
+
+func ResultSpecToProto(spec *domain.ResultSpec) *pb.ResultSpec {
+	if spec == nil {
+		return nil
+	}
+	return &pb.ResultSpec{
+		Version: spec.Version, Kind: ResultSpecKindToProto(spec.Kind),
+		Schema: append([]byte(nil), spec.Schema...), SchemaDigest: spec.SchemaDigest,
+		ClassificationValues: append([]string(nil), spec.ClassificationValues...),
+		ExtractionMode:       StructuredExtractionModeToProto(spec.ExtractionMode), ExtractionRole: spec.ExtractionRole,
+		SchemaRepairAttempts: intToInt32Ptr(spec.SchemaRepairAttempts),
+	}
+}
+
+func ResultSpecFromProto(spec *pb.ResultSpec) *domain.ResultSpec {
+	if spec == nil {
+		return nil
+	}
+	return &domain.ResultSpec{
+		Version: spec.Version, Kind: ResultSpecKindFromProto(spec.Kind),
+		Schema: append([]byte(nil), spec.Schema...), SchemaDigest: spec.SchemaDigest,
+		ClassificationValues: append([]string(nil), spec.ClassificationValues...),
+		ExtractionMode:       StructuredExtractionModeFromProto(spec.ExtractionMode), ExtractionRole: spec.ExtractionRole,
+		SchemaRepairAttempts: int32ToIntPtr(spec.SchemaRepairAttempts),
+	}
+}
+
+func intToInt32Ptr(value *int) *int32 {
+	if value == nil {
+		return nil
+	}
+	converted := int32(*value)
+	return &converted
+}
+
+func int32ToIntPtr(value *int32) *int {
+	if value == nil {
+		return nil
+	}
+	converted := int(*value)
+	return &converted
+}
+
+func ResultSpecKindToProto(kind domain.ResultSpecKind) pb.ResultSpecKind {
+	switch kind {
+	case domain.ResultSpecKindNone:
+		return pb.ResultSpecKind_RESULT_SPEC_KIND_NONE
+	case domain.ResultSpecKindJSONSchema:
+		return pb.ResultSpecKind_RESULT_SPEC_KIND_JSON_SCHEMA
+	case domain.ResultSpecKindClassification:
+		return pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION
+	default:
+		return pb.ResultSpecKind_RESULT_SPEC_KIND_UNSPECIFIED
+	}
+}
+
+func ResultSpecKindFromProto(kind pb.ResultSpecKind) domain.ResultSpecKind {
+	switch kind {
+	case pb.ResultSpecKind_RESULT_SPEC_KIND_NONE:
+		return domain.ResultSpecKindNone
+	case pb.ResultSpecKind_RESULT_SPEC_KIND_JSON_SCHEMA:
+		return domain.ResultSpecKindJSONSchema
+	case pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION:
+		return domain.ResultSpecKindClassification
+	default:
+		return ""
+	}
+}
+
+func StructuredExtractionModeToProto(mode domain.StructuredExtractionMode) pb.StructuredExtractionMode {
+	switch mode {
+	case domain.StructuredExtractionDeterministic:
+		return pb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY
+	case domain.StructuredExtractionConstrained:
+		return pb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK
+	default:
+		return pb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_UNSPECIFIED
+	}
+}
+
+func StructuredExtractionModeFromProto(mode pb.StructuredExtractionMode) domain.StructuredExtractionMode {
+	switch mode {
+	case pb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY:
+		return domain.StructuredExtractionDeterministic
+	case pb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK:
+		return domain.StructuredExtractionConstrained
+	default:
+		return ""
+	}
+}
+
+// ExecutionPolicySnapshotToProto exposes the run-owned immutable policy
+// decision through run detail without reconstructing it from current policy.
+func ExecutionPolicySnapshotToProto(snapshot *domain.ExecutionPolicySnapshot) *pb.ExecutionPolicySnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	candidates := make([]*pb.ExecutionCandidate, 0, len(snapshot.Candidates))
+	for _, candidate := range snapshot.Candidates {
+		candidates = append(candidates, ExecutionCandidateToProto(candidate))
+	}
+	return &pb.ExecutionPolicySnapshot{
+		CatalogDigest:     snapshot.CatalogDigest,
+		RoleRef:           snapshot.RoleRef,
+		Candidates:        candidates,
+		SelectedIndex:     int32(snapshot.SelectedIndex),
+		SelectedCandidate: ExecutionCandidateToProto(snapshot.SelectedCandidate),
+		Explanation:       PolicyResolutionExplanationToProto(snapshot.Explanation),
+	}
+}
+
+// ExecutionPolicySnapshotFromProto converts a persisted policy decision from
+// the generated API contract into its domain representation.
+func ExecutionPolicySnapshotFromProto(snapshot *pb.ExecutionPolicySnapshot) *domain.ExecutionPolicySnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	candidates := make([]domain.ExecutionCandidate, 0, len(snapshot.Candidates))
+	for _, candidate := range snapshot.Candidates {
+		if candidate != nil {
+			candidates = append(candidates, ExecutionCandidateFromProto(candidate))
+		}
+	}
+	return &domain.ExecutionPolicySnapshot{
+		CatalogDigest:     snapshot.CatalogDigest,
+		RoleRef:           snapshot.RoleRef,
+		Candidates:        candidates,
+		SelectedIndex:     int(snapshot.SelectedIndex),
+		SelectedCandidate: ExecutionCandidateFromProto(snapshot.SelectedCandidate),
+		Explanation:       PolicyResolutionExplanationFromProto(snapshot.Explanation),
+	}
+}
+
+func ExecutionCandidateToProto(candidate domain.ExecutionCandidate) *pb.ExecutionCandidate {
+	return &pb.ExecutionCandidate{
+		RunnerType:    RunnerTypeToProto(candidate.RunnerType),
+		SelectionType: ModelSelectionTypeToProto(candidate.SelectionType),
+		Model:         candidate.Model,
+		ResourceRole:  candidate.ResourceRole,
+		Fallbacks:     append([]string(nil), candidate.Fallbacks...),
+		Available:     candidate.Available,
+		FailureCode:   candidate.FailureCode,
+		Failure:       candidate.Failure,
+		Provenance:    &pb.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt},
+		Enforcement:   &pb.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)},
+		PolicyPath:    candidate.PolicyPath,
+		PolicyDigest:  candidate.PolicyDigest,
+	}
+}
+
+func ExecutionCandidateFromProto(candidate *pb.ExecutionCandidate) domain.ExecutionCandidate {
+	if candidate == nil {
+		return domain.ExecutionCandidate{}
+	}
+	result := domain.ExecutionCandidate{
+		RunnerType:    RunnerTypeFromProto(candidate.RunnerType),
+		SelectionType: ModelSelectionTypeFromProto(candidate.SelectionType),
+		Model:         candidate.Model,
+		ResourceRole:  candidate.ResourceRole,
+		Fallbacks:     append([]string(nil), candidate.Fallbacks...),
+		Available:     candidate.Available,
+		FailureCode:   candidate.FailureCode,
+		Failure:       candidate.Failure,
+		PolicyPath:    candidate.PolicyPath,
+		PolicyDigest:  candidate.PolicyDigest,
+	}
+	if candidate.Provenance != nil {
+		result.Provenance = domain.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt}
+	}
+	if candidate.Enforcement != nil {
+		result.Enforcement = domain.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)}
+	}
+	return result
+}
+
+func PolicyResolutionExplanationToProto(explanation domain.PolicyResolutionExplanation) *pb.PolicyResolutionExplanation {
+	preflight := make([]*pb.CandidatePreflight, 0, len(explanation.Preflight))
+	for _, check := range explanation.Preflight {
+		preflight = append(preflight, &pb.CandidatePreflight{
+			Index:     int32(check.Index),
+			Candidate: ExecutionCandidateToProto(check.Candidate),
+			Available: check.Available,
+			Reason:    check.Reason,
+		})
+	}
+	return &pb.PolicyResolutionExplanation{
+		Source:           explanation.Source,
+		Summary:          explanation.Summary,
+		RequestedRoleRef: explanation.RequestedRoleRef,
+		Preflight:        preflight,
+	}
+}
+
+func PolicyResolutionExplanationFromProto(explanation *pb.PolicyResolutionExplanation) domain.PolicyResolutionExplanation {
+	if explanation == nil {
+		return domain.PolicyResolutionExplanation{}
+	}
+	preflight := make([]domain.CandidatePreflight, 0, len(explanation.Preflight))
+	for _, check := range explanation.Preflight {
+		if check == nil {
 			continue
 		}
-		fallback = append(fallback, RunnerTypeFromProto(rt))
+		preflight = append(preflight, domain.CandidatePreflight{
+			Index:     int(check.Index),
+			Candidate: ExecutionCandidateFromProto(check.Candidate),
+			Available: check.Available,
+			Reason:    check.Reason,
+		})
 	}
-	return &domain.RunConfig{
-		RunnerType:           RunnerTypeFromProto(c.RunnerType),
-		Model:                c.Model,
-		ModelPreset:          ModelPresetFromProto(c.ModelPreset),
-		MaxTurns:             int(c.MaxTurns),
-		Timeout:              DurationFromProto(c.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         c.AllowedTools,
-		DeniedTools:          c.DeniedTools,
-		SkipPermissionPrompt: c.SkipPermissionPrompt,
-		Features:             FeatureFlagsFromProto(c.Features),
-		ExtraFlags:           RunnerExtraFlagsFromProto(c.ExtraFlags),
-		NetworkAccess:        NetworkAccessFromProto(c.NetworkAccess),
-		RequiresSandbox:      c.RequiresSandbox,
-		RequiresApproval:     c.RequiresApproval,
-		SandboxConfig:        SandboxConfigFromProto(c.SandboxConfig),
-		AllowedPaths:         c.AllowedPaths,
-		DeniedPaths:          c.DeniedPaths,
+	return domain.PolicyResolutionExplanation{
+		Source:           explanation.Source,
+		Summary:          explanation.Summary,
+		RequestedRoleRef: explanation.RequestedRoleRef,
+		Preflight:        preflight,
 	}
 }
 
@@ -551,9 +880,20 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 		}
 		event.Data = &pb.RunEvent_Message{
 			Message: &pb.MessageEventData{
-				Role:        data.Role,
-				Content:     data.Content,
-				Attachments: pbAttachments,
+				Role:               data.Role,
+				Content:            data.Content,
+				Attachments:        pbAttachments,
+				MessageId:          data.MessageID,
+				ConversationId:     data.ConversationID,
+				TurnId:             data.TurnID,
+				ProviderOrigin:     data.ProviderOrigin,
+				CompletionReason:   data.CompletionReason,
+				Terminal:           data.Terminal,
+				ParentMessageId:    data.ParentMessageID,
+				ProviderEventType:  data.ProviderEventType,
+				RawEvidenceRef:     data.RawEvidenceRef,
+				EvidenceOnly:       data.EvidenceOnly,
+				EvidenceForEventId: data.EvidenceForEventID,
 			},
 		}
 	case *domain.MessageDeletedEventData:
@@ -612,20 +952,24 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				MimeType: data.MimeType,
 			},
 		}
-	case *domain.CostEventData:
-		event.Data = &pb.RunEvent_Cost{
-			Cost: &pb.CostEventData{
-				InputTokens:           int32(data.InputTokens),
-				OutputTokens:          int32(data.OutputTokens),
-				CacheCreationTokens:   int32(data.CacheCreationTokens),
-				CacheReadTokens:       int32(data.CacheReadTokens),
-				TotalCostUsd:          data.TotalCostUSD,
-				ServiceTier:           data.ServiceTier,
-				Model:                 data.Model,
-				WebSearchRequests:     int32(data.WebSearchRequests),
-				ServerToolUseRequests: int32(data.ServerToolUseRequests),
-			},
+	case *domain.UsageEventData:
+		event.Data = &pb.RunEvent_Metric{Metric: &pb.MetricEventData{
+			Name:  "usage_tokens",
+			Value: float64(data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens),
+			Unit:  "tokens",
+			Tags:  map[string]string{"model": data.Model, "runnerType": data.RunnerType},
+		}}
+	case *domain.ChargeEventData:
+		value := float64(0)
+		if data.AmountMicroUSD != nil {
+			value = float64(*data.AmountMicroUSD) / 1_000_000
 		}
+		event.Data = &pb.RunEvent_Metric{Metric: &pb.MetricEventData{
+			Name:  "usage_charge",
+			Value: value,
+			Unit:  "USD",
+			Tags:  map[string]string{"basis": string(data.Basis), "model": data.Model, "runnerType": data.RunnerType},
+		}}
 	case *domain.ProgressEventData:
 		event.Data = &pb.RunEvent_Progress{
 			Progress: &pb.ProgressEventData{
@@ -674,6 +1018,182 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 	}
 
 	return event
+}
+
+// RunResultToProto converts the canonical terminal result.
+func RunResultToProto(result *domain.RunResult) *pb.RunResult {
+	if result == nil {
+		return nil
+	}
+	candidates := make([]*pb.FinalOutputCandidate, 0, len(result.Candidates))
+	for _, candidate := range result.Candidates {
+		candidates = append(candidates, &pb.FinalOutputCandidate{
+			Id: validUTF8(candidate.ID), EventId: validUTF8(candidate.EventID), Sequence: candidate.Sequence,
+			Content: validUTF8(candidate.Content), MessageId: validUTF8(candidate.MessageID),
+			ConversationId: validUTF8(candidate.ConversationID), TurnId: validUTF8(candidate.TurnID),
+			ProviderOrigin: validUTF8(candidate.ProviderOrigin), CompletionReason: validUTF8(candidate.CompletionReason),
+			Terminal: candidate.Terminal, ParentMessageId: validUTF8(candidate.ParentMessageID),
+			ProviderEventType: validUTF8(candidate.ProviderEventType), RawEvidenceRef: validUTF8(candidate.RawEvidenceRef),
+			EvidenceTier: int32(candidate.EvidenceTier),
+		})
+	}
+	return &pb.RunResult{
+		FinalOutput: validUTF8(result.FinalOutput),
+		Selection: &pb.FinalOutputSelection{
+			Status:              FinalOutputSelectionStatusToProto(result.Selection.Status),
+			SelectedCandidateId: validUTF8(result.Selection.SelectedCandidateID),
+			Rule:                validUTF8(result.Selection.Rule),
+			AlgorithmVersion:    validUTF8(result.Selection.AlgorithmVersion),
+			Evidence:            validUTF8Slice(result.Selection.Evidence),
+		},
+		Candidates:     candidates,
+		Success:        result.Success,
+		ExitCode:       int32(result.ExitCode),
+		TerminalReason: validUTF8(result.TerminalReason),
+		Structured:     StructuredResultToProto(result.Structured),
+	}
+}
+
+func StructuredResultToProto(result *domain.StructuredResult) *pb.StructuredResult {
+	if result == nil {
+		return nil
+	}
+	diagnostics := make([]*pb.StructuredDiagnostic, 0, len(result.Diagnostics))
+	for _, diagnostic := range result.Diagnostics {
+		diagnostics = append(diagnostics, &pb.StructuredDiagnostic{Code: validUTF8(diagnostic.Code), Path: validUTF8(diagnostic.Path), Message: validUTF8(diagnostic.Message)})
+	}
+	var extractor *pb.StructuredExtractionProvenance
+	if result.Extractor != nil {
+		extractor = &pb.StructuredExtractionProvenance{
+			RoleRef: validUTF8(result.Extractor.RoleRef), Provider: validUTF8(result.Extractor.Provider), Model: validUTF8(result.Extractor.Model),
+			PolicySnapshot: ExecutionPolicySnapshotToProto(result.Extractor.PolicySnapshot),
+		}
+	}
+	return &pb.StructuredResult{
+		Status: StructuredResultStatusToProto(result.Status), SpecKind: ResultSpecKindToProto(result.SpecKind),
+		SchemaDigest: validUTF8(result.SchemaDigest), Value: append([]byte(nil), result.Value...), Method: validUTF8(result.Method),
+		SourceCandidateId: validUTF8(result.SourceCandidateID), Extractor: extractor, Diagnostics: diagnostics,
+	}
+}
+
+func FinalOutputSelectionStatusToProto(status domain.FinalOutputSelectionStatus) pb.FinalOutputSelectionStatus {
+	switch status {
+	case domain.FinalOutputSelectionSelected:
+		return pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_SELECTED
+	case domain.FinalOutputSelectionAmbiguous:
+		return pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS
+	case domain.FinalOutputSelectionUnavailable:
+		return pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE
+	default:
+		return pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNSPECIFIED
+	}
+}
+
+func RunResultFromProto(result *pb.RunResult) *domain.RunResult {
+	if result == nil {
+		return nil
+	}
+	candidates := make([]domain.FinalOutputCandidate, 0, len(result.Candidates))
+	for _, candidate := range result.Candidates {
+		if candidate == nil {
+			continue
+		}
+		candidates = append(candidates, domain.FinalOutputCandidate{
+			ID: candidate.Id, EventID: candidate.EventId, Sequence: candidate.Sequence,
+			Content: candidate.Content, MessageID: candidate.MessageId,
+			ConversationID: candidate.ConversationId, TurnID: candidate.TurnId,
+			ProviderOrigin: candidate.ProviderOrigin, CompletionReason: candidate.CompletionReason,
+			Terminal: candidate.Terminal, ParentMessageID: candidate.ParentMessageId,
+			ProviderEventType: candidate.ProviderEventType, RawEvidenceRef: candidate.RawEvidenceRef,
+			EvidenceTier: int(candidate.EvidenceTier),
+		})
+	}
+	selection := domain.FinalOutputSelection{}
+	if result.Selection != nil {
+		selection = domain.FinalOutputSelection{
+			Status:              FinalOutputSelectionStatusFromProto(result.Selection.Status),
+			SelectedCandidateID: result.Selection.SelectedCandidateId,
+			Rule:                result.Selection.Rule,
+			AlgorithmVersion:    result.Selection.AlgorithmVersion,
+			Evidence:            result.Selection.Evidence,
+		}
+	}
+	return &domain.RunResult{
+		FinalOutput: result.FinalOutput, Selection: selection, Candidates: candidates,
+		Success: result.Success, ExitCode: int(result.ExitCode), TerminalReason: result.TerminalReason,
+		Structured: StructuredResultFromProto(result.Structured),
+	}
+}
+
+func StructuredResultFromProto(result *pb.StructuredResult) *domain.StructuredResult {
+	if result == nil {
+		return nil
+	}
+	diagnostics := make([]domain.StructuredDiagnostic, 0, len(result.Diagnostics))
+	for _, diagnostic := range result.Diagnostics {
+		if diagnostic != nil {
+			diagnostics = append(diagnostics, domain.StructuredDiagnostic{Code: diagnostic.Code, Path: diagnostic.Path, Message: diagnostic.Message})
+		}
+	}
+	var extractor *domain.StructuredExtractionProvenance
+	if result.Extractor != nil {
+		extractor = &domain.StructuredExtractionProvenance{
+			RoleRef: result.Extractor.RoleRef, Provider: result.Extractor.Provider, Model: result.Extractor.Model,
+			PolicySnapshot: ExecutionPolicySnapshotFromProto(result.Extractor.PolicySnapshot),
+		}
+	}
+	return &domain.StructuredResult{
+		Status: StructuredResultStatusFromProto(result.Status), SpecKind: ResultSpecKindFromProto(result.SpecKind),
+		SchemaDigest: result.SchemaDigest, Value: append([]byte(nil), result.Value...), Method: result.Method,
+		SourceCandidateID: result.SourceCandidateId, Extractor: extractor, Diagnostics: diagnostics,
+	}
+}
+
+func StructuredResultStatusToProto(status domain.StructuredResultStatus) pb.StructuredResultStatus {
+	switch status {
+	case domain.StructuredResultSuccess:
+		return pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_SUCCESS
+	case domain.StructuredResultUnavailable:
+		return pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_UNAVAILABLE
+	case domain.StructuredResultInvalid:
+		return pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_INVALID
+	case domain.StructuredResultAmbiguous:
+		return pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_AMBIGUOUS
+	case domain.StructuredResultAbstained:
+		return pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_ABSTAINED
+	default:
+		return pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_UNSPECIFIED
+	}
+}
+
+func StructuredResultStatusFromProto(status pb.StructuredResultStatus) domain.StructuredResultStatus {
+	switch status {
+	case pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_SUCCESS:
+		return domain.StructuredResultSuccess
+	case pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_UNAVAILABLE:
+		return domain.StructuredResultUnavailable
+	case pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_INVALID:
+		return domain.StructuredResultInvalid
+	case pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_AMBIGUOUS:
+		return domain.StructuredResultAmbiguous
+	case pb.StructuredResultStatus_STRUCTURED_RESULT_STATUS_ABSTAINED:
+		return domain.StructuredResultAbstained
+	default:
+		return ""
+	}
+}
+
+func FinalOutputSelectionStatusFromProto(status pb.FinalOutputSelectionStatus) domain.FinalOutputSelectionStatus {
+	switch status {
+	case pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_SELECTED:
+		return domain.FinalOutputSelectionSelected
+	case pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS:
+		return domain.FinalOutputSelectionAmbiguous
+	case pb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_UNAVAILABLE:
+		return domain.FinalOutputSelectionUnavailable
+	default:
+		return ""
+	}
 }
 
 // RunEventsToProto converts a slice of domain RunEvent to proto.
@@ -756,6 +1276,7 @@ type ApproveResult struct {
 	Remaining  int
 	IsPartial  bool
 	CommitHash string
+	AppliedAt  time.Time
 	ErrorMsg   string
 }
 
@@ -892,10 +1413,21 @@ func extractDiffPath(line string) string {
 
 // DiffResult mirrors sandbox.DiffResult for import avoidance.
 type DiffResult struct {
-	SandboxID   uuid.UUID
-	Files       []FileChange
-	UnifiedDiff string
-	Generated   time.Time
+	SandboxID    uuid.UUID
+	Files        []FileChange
+	UnifiedDiff  string
+	Generated    time.Time
+	Stats        DiffStats
+	ArchiveState string
+}
+
+// DiffStats mirrors the value nested in sandbox.DiffResult without importing
+// the sandbox package and recreating the cycle this conversion seam avoids.
+type DiffStats struct {
+	FilesChanged  int
+	FilesAdded    int
+	FilesModified int
+	FilesDeleted  int
 }
 
 // FileChange mirrors sandbox.FileChange for import avoidance.
@@ -924,16 +1456,85 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 		Message:     r.Message,
 		InstallHint: "",
 		Capabilities: &pb.RunnerCapabilities{
-			SupportsStreaming:    r.Capabilities.SupportsStreaming,
-			SupportsMessages:     r.Capabilities.SupportsMessages,
-			SupportsToolEvents:   r.Capabilities.SupportsToolEvents,
-			SupportsCostTracking: r.Capabilities.SupportsCostTracking,
-			SupportsCancellation: r.Capabilities.SupportsCancellation,
-			MaxTurns:             int32(r.Capabilities.MaxTurns),
-			SupportedFeatures:    r.Capabilities.SupportedFeatures,
-			AllowedExtraFlags:    r.Capabilities.AllowedExtraFlags,
+			SpawnCapabilities:        SpawnCapabilitiesToProto(r.Capabilities.SpawnCapabilities),
+			SupportsStreaming:        r.Capabilities.SupportsStreaming,
+			SupportsMessages:         r.Capabilities.SupportsMessages,
+			SupportsToolEvents:       r.Capabilities.SupportsToolEvents,
+			SupportsCostTracking:     r.Capabilities.SupportsCostTracking,
+			SupportsCancellation:     r.Capabilities.SupportsCancellation,
+			SupportsContinuation:     r.Capabilities.SupportsContinuation,
+			SupportsWarmIteration:    r.Capabilities.SupportsWarmIteration,
+			SupportsImageAttachments: r.Capabilities.SupportsImageAttachments,
+			SupportsEffort:           r.Capabilities.SupportsEffort,
+			EffortMappings:           r.Capabilities.EffortMappings,
+			EffortModelSpecific:      r.Capabilities.EffortModelSpecific,
+			SupportsRunnerDefault:    r.Capabilities.SupportsRunnerDefault,
+			DynamicModelPrefixes:     r.Capabilities.DynamicModelPrefixes,
+			MaxTurns:                 int32(r.Capabilities.MaxTurns),
+			SupportedFeatures:        r.Capabilities.SupportedFeatures,
+			AllowedExtraFlags:        r.Capabilities.AllowedExtraFlags,
+			SupportsToolRestriction:  r.Capabilities.SupportsToolRestriction,
+			ToolRestrictionMappings:  r.Capabilities.ToolRestrictionMappings,
 		},
 		SupportedModels: r.Capabilities.SupportedModels,
+	}
+}
+
+func SpawnCapabilitiesToProto(capabilities []SpawnCapability) []*pb.SpawnCapability {
+	result := make([]*pb.SpawnCapability, 0, len(capabilities))
+	for _, capability := range capabilities {
+		result = append(result, &pb.SpawnCapability{
+			ExecutionMode:   capability.ExecutionMode,
+			SandboxModes:    capability.SandboxModes,
+			NativeObjective: capability.NativeObjective,
+		})
+	}
+	return result
+}
+
+func spawnCapabilitiesFromProto(capabilities []*pb.SpawnCapability) []SpawnCapability {
+	result := make([]SpawnCapability, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if capability == nil {
+			continue
+		}
+		result = append(result, SpawnCapability{
+			ExecutionMode:   capability.ExecutionMode,
+			SandboxModes:    capability.SandboxModes,
+			NativeObjective: capability.NativeObjective,
+		})
+	}
+	return result
+}
+
+// RunnerCapabilitiesFromProto reconstructs the import-avoiding capability
+// mirror. Supported models live on RunnerStatus in the wire contract, so the
+// caller supplies that adjacent field for a lossless round trip.
+func RunnerCapabilitiesFromProto(capabilities *pb.RunnerCapabilities, supportedModels []string) RunnerCapabilities {
+	if capabilities == nil {
+		return RunnerCapabilities{SupportedModels: supportedModels}
+	}
+	return RunnerCapabilities{
+		SpawnCapabilities:        spawnCapabilitiesFromProto(capabilities.SpawnCapabilities),
+		SupportsMessages:         capabilities.SupportsMessages,
+		SupportsToolEvents:       capabilities.SupportsToolEvents,
+		SupportsCostTracking:     capabilities.SupportsCostTracking,
+		SupportsStreaming:        capabilities.SupportsStreaming,
+		SupportsCancellation:     capabilities.SupportsCancellation,
+		SupportsContinuation:     capabilities.SupportsContinuation,
+		SupportsWarmIteration:    capabilities.SupportsWarmIteration,
+		SupportsImageAttachments: capabilities.SupportsImageAttachments,
+		SupportsToolRestriction:  capabilities.SupportsToolRestriction,
+		ToolRestrictionMappings:  capabilities.ToolRestrictionMappings,
+		SupportsEffort:           capabilities.SupportsEffort,
+		EffortMappings:           capabilities.EffortMappings,
+		EffortModelSpecific:      capabilities.EffortModelSpecific,
+		MaxTurns:                 int(capabilities.MaxTurns),
+		SupportedModels:          supportedModels,
+		SupportsRunnerDefault:    capabilities.SupportsRunnerDefault,
+		DynamicModelPrefixes:     capabilities.DynamicModelPrefixes,
+		SupportedFeatures:        capabilities.SupportedFeatures,
+		AllowedExtraFlags:        capabilities.AllowedExtraFlags,
 	}
 }
 
@@ -956,13 +1557,30 @@ type OrchestratorRunnerStatus struct {
 
 // RunnerCapabilities mirrors runner.Capabilities for import avoidance.
 type RunnerCapabilities struct {
-	SupportsMessages     bool
-	SupportsToolEvents   bool
-	SupportsCostTracking bool
-	SupportsStreaming    bool
-	SupportsCancellation bool
-	MaxTurns             int
-	SupportedModels      []string
-	SupportedFeatures    []string
-	AllowedExtraFlags    []string
+	SpawnCapabilities        []SpawnCapability
+	SupportsMessages         bool
+	SupportsToolEvents       bool
+	SupportsCostTracking     bool
+	SupportsStreaming        bool
+	SupportsCancellation     bool
+	SupportsContinuation     bool
+	SupportsWarmIteration    bool
+	SupportsImageAttachments bool
+	SupportsToolRestriction  bool
+	ToolRestrictionMappings  map[string]string
+	SupportsEffort           bool
+	EffortMappings           map[string]string
+	EffortModelSpecific      bool
+	MaxTurns                 int
+	SupportedModels          []string
+	SupportsRunnerDefault    bool
+	DynamicModelPrefixes     []string
+	SupportedFeatures        []string
+	AllowedExtraFlags        []string
+}
+
+type SpawnCapability struct {
+	ExecutionMode   string
+	SandboxModes    []string
+	NativeObjective bool
 }

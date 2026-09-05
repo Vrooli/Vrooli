@@ -1,3 +1,22 @@
+---
+name: "cross-platform-readiness"
+description: "Prepares scenarios for deployment beyond Tier 1 (local stack) by eliminating environment variable dependencies, replacing non-portable resources, adopting api-core/storage for runtime filesystem state, and ensuring build/runtime portability across desktop, mobile, cloud, and enterprise tiers."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer"]
+  tags: ["portability","desktop","mobile","deployment","environment-variables","resources","filesystem","api-core-storage","sqlite","bundling","electron","cross-compilation"]
+  status: "active"
+  revision: 30
+  createdAt: "2026-02-03T14:00:00Z"
+  updatedAt: "2026-05-04T02:48:26Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Cross-Platform Readiness
 
 Prioritize **preparing scenarios for deployment beyond Tier 1** (local Vrooli stack) in `scenarios/{{TARGET}}/`. This skill steers toward eliminating assumptions that break on desktop, mobile, cloud, or enterprise deployments.
@@ -7,7 +26,9 @@ Your goal is to ensure `{{TARGET}}` can be **bundled, distributed, and run** on 
 Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's portability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read storage-steer visited-tracker-tools`
+
+`storage-steer` is the storage-architecture authority — this skill picks *which* engine each tier needs; `storage-steer` decides *how* to architect it (per-domain schema, repository pattern, migration tier). The two skills share boundaries deliberately and cross-reference each other.
 
 Optional reading:
 - `prompt-manager skill read brand-manager` (draft — branding validation for deployment readiness)
@@ -57,7 +78,7 @@ This skill ensures scenarios work across **all tiers** by eliminating tier-speci
 **In scope:**
 - Environment variable usage patterns (fallbacks, detection flags)
 - Resource dependency analysis and swap recommendations
-- Filesystem runtime storage portability via `api-core/storage`
+- Filesystem runtime storage portability via `package:api-core/storage`
 - Build configuration (CGO, static binaries, cross-compilation)
 - Network/IPC patterns (localhost variants, port allocation)
 - Data storage portability (postgres→sqlite swaps)
@@ -66,7 +87,7 @@ This skill ensures scenarios work across **all tiers** by eliminating tier-speci
 **Out of scope:**
 - Tier-specific UI implementation (Electron IPC, mobile native) → tier guides
 - Code signing and distribution → scenario-to-desktop skill
-- Database schema design → storage-steer skill
+- Storage architecture (per-domain schema, repository pattern, migration tier) → storage-steer skill
 - Performance optimization → performance skills
 - Actual bundle creation → deployment-manager
 
@@ -122,10 +143,12 @@ func resolveScenarioAssets() string {
 ```go
 // ❌ WRONG: Hard requirement on monorepo env vars
 func getConfig() string {
-    return filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios", "my-scenario", "config")
+    return requireEnv("VROOLI_ROOT")
 }
 // Crashes in desktop mode: VROOLI_ROOT is empty
 ```
+
+When code genuinely needs canonical monorepo layout semantics in a Go runtime, use repo-contract-backed helpers instead of joining `VROOLI_ROOT` with `scenarios/...` manually. The canonical Go adapter is `path:packages/repo-contract-go`.
 
 #### 2.3 Decision Tree: Environment Variable Usage
 
@@ -189,7 +212,7 @@ port := requireEnv("API_PORT") // Crashes if not set
 | **PostgreSQL** | 0.3 (Wine/native) | 0.0 (impossible) | 0.95 | **SQLite** (pure Go) |
 | **Redis** | 0.5 (embedded possible) | 0.3 (limited) | 0.9 | In-memory cache |
 | **Ollama** | 0.0 (always-on server) | 0.0 | 0.95 | **OpenRouter** (as fallback) |
-| **Browserless** | 0.6 (bundled driver) | 0.0 | 0.9 | Bundled Playwright |
+| **browser-automation-studio** | 0.6 (bundled driver) | 0.0 | 0.9 | Bundled Playwright |
 | **Neo4j** | 0.6 (heavy) | 0.0 | 0.95 | SQLite + JSON |
 | **MinIO** | 0.7 (can embed) | 0.4 | 0.9 | Filesystem + cloud |
 | **Qdrant** | 0.5 (resource-heavy) | 0.2 | 0.9 | SQLite FTS |
@@ -221,7 +244,9 @@ func getSQLitePath() string {
 }
 ```
 
-See `resources/sqlite/README.md` for comprehensive SQLite guidance.
+Use `modernc.org/sqlite` with the `sqlite` driver name for embedded scenario storage. For scenario runtime architecture, prefer embedded SQLite in the scenario rather than a standalone SQLite resource.
+
+Once the engine is chosen, `storage-steer` covers the architecture: schema lives next to the code that interprets it (`internal/<dom>/schema.sql` embedded via `go:embed`, applied at boot via `database.EnsureSchemas` from `path:packages/api-core/database`), repository interfaces hide the engine, and the same per-domain rule applies to Qdrant collections and Redis namespaces.
 
 #### 3.3 Full Replacement vs Runtime Swap
 
@@ -297,16 +322,13 @@ There are two strategies for handling non-portable resources:
 Document your resource strategy in service.json or bundle manifest:
 
 ```json
-// For FULL REPLACEMENT - just use the portable resource
+// For FULL REPLACEMENT - embed SQLite in the scenario
 {
-  "dependencies": {
-    "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "description": "Primary storage (portable, no server required)"
-      }
-    }
+  "environment": {
+    "MYAPP_SQLITE_PATH": "${SCENARIO_DATA_DIR}/myapp.db"
+  },
+  "notes": {
+    "storage_strategy": "Embedded SQLite via modernc.org/sqlite; no standalone SQLite resource"
   }
 }
 
@@ -319,17 +341,14 @@ Document your resource strategy in service.json or bundle manifest:
         "enabled": true,
         "required": false,
         "description": "Production storage (Tier 1/4)"
-      },
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "required": false,
-        "description": "Portable storage (Tier 2/3)"
       }
     }
   },
+  "environment": {
+    "MYAPP_SQLITE_PATH": "${SCENARIO_DATA_DIR}/myapp.db"
+  },
   "notes": {
-    "storage_selection": "Uses STORAGE_BACKEND env var; defaults to sqlite if postgres unavailable"
+    "storage_selection": "Uses STORAGE_BACKEND env var; defaults to embedded sqlite if postgres unavailable"
   }
 }
 
@@ -401,7 +420,20 @@ return storage.WriteFileAtomic(path, payload, storage.DefaultFilePerm)
 
 - Hardcoded absolute paths (`$HOME/...`, `os.TempDir()/...`, `C:\\...`)
 - Scenario-local mutable writes (`./data`, `./state`) under app/deploy targets
-- Hand-rolled `DATA_DIR` resolution or custom traversal checks when `api-core/storage` is available
+- Hand-rolled `DATA_DIR` resolution or custom traversal checks when `package:api-core/storage` is available
+
+#### 4.4 Tracked Source Assets
+
+Do not confuse tracked scenario-authored source files with runtime state.
+
+If a file is edited through a UI or tool but the intended result is a shared, reviewable change to scenario behavior, keep it in the repo in an explicit source directory such as:
+
+- `config/`
+- `policy/`
+
+Use `package:api-core/storage` only for local runtime state, not for versioned source artifacts.
+
+Reserve `.vrooli/` for repo or manifest metadata rather than as a generic bucket for checked-in configuration.
 
 ---
 
@@ -592,7 +624,7 @@ cat scenarios/{{TARGET}}/.vrooli/service.json | jq '.dependencies.resources'
 - [ ] `CGO_ENABLED=0 go build` fails
 
 **Filesystem & Paths:**
-- [ ] Runtime filesystem writes bypass `api-core/storage`
+- [ ] Runtime filesystem writes bypass `package:api-core/storage`
 - [ ] Mutable files stored under scenario deploy/app directories
 - [ ] Custom `DATA_DIR` policy used instead of shared storage resolver
 
@@ -675,7 +707,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 Read existing portability documentation:
 - `scenarios/{{TARGET}}/.vrooli/service.json` - Resource dependencies
 - `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md` - Prior findings (if exists)
-- `resources/sqlite/README.md` - If database swap is needed
+- `packages/api-core/README.md` - If shared SQLite driver/env guidance is needed
 - `packages/api-core/docs/storage.md` - Filesystem runtime storage contract
 - `scenarios/deployment-manager/docs/guides/fitness-scoring.md` - Fitness criteria
 
@@ -686,11 +718,11 @@ Update `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md`:
 - Correct any inaccuracies discovered.
 - Update tier compatibility status based on work completed.
 - Note resource swaps implemented or still needed.
-- Create the `docs/internal/` directory if needed.
+- Create the `path:docs/internal/` directory if needed.
 
 ---
 
-### 11. Output Expectations
+### **11. Output Expectations**
 
 You may update in `scenarios/{{TARGET}}/`:
 - Add environment variable fallback chains
@@ -698,7 +730,7 @@ You may update in `scenarios/{{TARGET}}/`:
 - Swap database drivers (postgres→sqlite with modernc.org driver)
 - Add resource abstraction interfaces for swappable backends
 - Update service.json with `offline_capable` flag and limitations
-- Adopt `api-core/storage` for runtime filesystem paths
+- Adopt `package:api-core/storage` for runtime filesystem paths
 - Update CORS to accept both localhost variants
 - Update Makefile/build scripts for static builds
 
@@ -706,7 +738,7 @@ You must:
 - Preserve all Tier 1 (local stack) functionality
 - Use `modernc.org/sqlite` for SQLite (not `go-sqlite3`)
 - Ensure `CGO_ENABLED=0 go build` works after changes
-- Route mutable runtime filesystem state through `api-core/storage`
+- Route mutable runtime filesystem state through `package:api-core/storage`
 - Document resource swap limitations in manifest
 - Update `PORTABILITY_AUDIT.md` with changes made
 

@@ -24,7 +24,7 @@ export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
   const { variant, config, loading, error, resolution, statusNote, lastUpdated, refresh } = useLandingVariant();
   const { comingSoonEnabled, toggling, handleToggle } = useComingSoonToggle();
 
-  const variantLabel = variant ? `${variant.name ?? variant.slug} (${variant.slug})` : 'Variant not resolved yet';
+  const variantLabel = variant ? `${variant.name} (${variant.slug})` : 'Variant not resolved yet';
   const resolutionLabel = getResolutionLabel(resolution);
 
   const fallbackActive = Boolean(config?.fallback);
@@ -61,7 +61,7 @@ export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
       <div className="mb-6" data-testid="runtime-signal-compact">
         <button
           type="button"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => { setExpanded(!expanded); }}
           className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium hover:bg-white/10 transition-colors"
           data-testid="runtime-signal-toggle"
         >

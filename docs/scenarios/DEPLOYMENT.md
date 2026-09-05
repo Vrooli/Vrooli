@@ -1,74 +1,54 @@
-# Direct Scenario Deployment (Tier 1)
+# Scenario deployment contract
 
-> 📚 **[Back to Scenario Documentation](README.md)** · **[Deployment Hub](../deployment/README.md)**
+This page defines what a scenario author must declare. It does not describe
+how a packager implements a target.
 
-This guide now focuses solely on Tier 1 — running scenarios directly from source on a full Vrooli stack. For any other deployment target (desktop, mobile, SaaS, enterprise), see the [deployment hub](../deployment/README.md).
+The project-level deployment model and maturity status live in the
+[Deployment Hub](../deployment/README.md). Target-specific implementation
+guides live with the owning `scenario-to-*` scenario.
 
-## Why Tier 1 Matters
+## Current baseline
 
-- It is the truth we have today: scenarios run from the `scenarios/` directory with shared resources.
-- Every other deployment tier must behave like Tier 1 once bundled.
-- Tier 1 environments (local machine, dev VPS) are also how we expose scenarios via app-monitor + Cloudflare tunnels.
+The supported reference path is **deployment Tier 1: the local Vrooli stack**.
+Scenarios run through the lifecycle-managed control plane and may use the
+resources available to that installation.
 
-## Running Scenarios
+Portability beyond that baseline is target-specific. A scenario is not desktop,
+mobile, cloud, or appliance-ready merely because its Tier 1 process starts or
+its UI builds.
 
-### Using the CLI
+## Author responsibilities
 
-```bash
-# List available scenarios
-vrooli scenario list
+A scenario that wants a target evaluated must provide:
 
-# Run a scenario
-vrooli scenario run picker-wheel
+- honest dependencies in `.vrooli/service.json`;
+- a deployment profile or target declaration appropriate to the target;
+- target-specific credentials and secret strategies;
+- migrations or compatibility notes for any dependency swap;
+- `bas/` workflows for the user journeys that prove the scenario works;
+- documented limitations when a capability is conditional, degraded, or remote.
 
-# Test a scenario
-vrooli scenario test picker-wheel
-```
+The author must not silently omit dependencies to improve a fitness score or
+describe a remote capability as offline.
 
-### Using Scenario Makefiles
+## Ownership
 
-```bash
-cd scenarios/picker-wheel
-make start   # starts develop lifecycle (serves production bundles)
-make stop
-make logs
-```
+| Concern | Owner |
+| --- | --- |
+| Scenario behavior and dependency declarations | Scenario author |
+| Dependency graph and target fitness | `scenario-dependency-analyzer` |
+| Approval, release gate, and release record | `deployment-manager` |
+| Target packaging and native runtime | `scenario-to-*` ramp |
+| Credential classification and secure storage | `secrets-manager` and the credential authority |
+| Journey and target evidence | Test Genie, evidence producers, and the ramp |
 
-## Process Isolation
+Scenario code should consume these contracts. It should not grow a second
+packaging or release system.
 
-- **Process Home**: `~/.vrooli/processes/scenarios/<scenario>/`
-- **Logs**: `~/.vrooli/logs/scenarios/<scenario>/`
-- **Port Registry**: Vrooli assigns ports automatically; see `~/.vrooli/port-registry.json`.
+## Target references
 
-## Resource Sharing
-
-Scenarios reuse shared resources defined in `.vrooli/service.json` (Ollama, Postgres, Redis, Qdrant, etc.). Tier 1 assumes those resources run locally via `vrooli resource start-all` or the Vrooli lifecycle manager.
-
-## Environment Variables
-
-Automatically set when running within the scenario lifecycle:
-
-- `SCENARIO_NAME`
-- `SCENARIO_MODE=true`
-- `SCENARIO_PATH`
-- `PM_HOME`
-- `PM_LOG_DIR`
-
-## Preparing for Other Tiers
-
-While operating in Tier 1, capture deployment metadata to help future tiers:
-
-1. **Dependency Listings** — Keep `service.json` up to date via `scenario-dependency-analyzer`.
-2. **Deployment Metadata** — Add `deployment.platforms` entries with fitness scores and requirements.
-3. **Secrets Strategy** — Classify secrets using the schema outlined in [Secrets Management](../deployment/guides/secrets-management.md).
-
-## Troubleshooting Tier 1
-
-- Scenario won't start? Ensure service.json exists and run `vrooli scenario run <name> --dry-run`.
-- Port conflicts? Inspect/remove `~/.vrooli/port-registry.json` (only if no scenarios are running).
-- Resource unavailable? Run `resource-<name> start` or `vrooli resource start-all`.
-
-## What's Next?
-
-- For Tier 2+ deployments (desktop, mobile, SaaS, enterprise), follow the [hub-and-spokes documentation](../deployment/README.md).
-- When building packagers (`scenario-to-*`), ensure they recreate Tier 1 behavior inside the bundle.
+- [Deployment Hub](../deployment/README.md)
+- [Resource deployment contract](../resources/deployment-contract.md)
+- [Credential configuration](../configuration/secrets.md)
+- [Desktop evidence contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md)
+- [Production UI bundle expectations](PRODUCTION_BUNDLES.md)

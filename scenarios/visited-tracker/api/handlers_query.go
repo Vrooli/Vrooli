@@ -48,10 +48,11 @@ func leastVisitedHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"files": files,
 	})
 }
+
 func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -97,11 +98,12 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"files":          files,
 		"critical_count": criticalCount,
 	})
 }
+
 func coverageHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -153,7 +155,7 @@ func coverageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"total_files":         totalFiles,
 		"visited_files":       visitedFiles,
 		"unvisited_files":     totalFiles - visitedFiles,
@@ -206,12 +208,12 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		exportCampaign.TrackedFiles = filteredFiles
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&exportCampaign)
+		_ = json.NewEncoder(w).Encode(&exportCampaign)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
 
 func importHandler(w http.ResponseWriter, r *http.Request) {
@@ -299,7 +301,7 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"message":  "Campaign merged successfully",
 			"campaign": existingCampaign,
 		})
@@ -332,9 +334,8 @@ func importHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":  "Campaign imported successfully",
 		"campaign": importedCampaign,
 	})
 }
-

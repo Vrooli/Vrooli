@@ -19,6 +19,7 @@ import { SyncButton } from "./SyncButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { useHeaderState } from "../hooks/useHeaderState";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 interface MobileHeaderProps {
   status?: RepoStatus;
@@ -86,7 +87,7 @@ export function MobileHeader({
   return (
     <>
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900/95 backdrop-blur-sm pt-safe"
+        className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900"
         data-testid="mobile-header"
       >
         {/* Left: Branch info */}
@@ -120,35 +121,38 @@ export function MobileHeader({
           )}
 
           {onOpenReview && (
-            <button
+            <IconButton
               onClick={onOpenReview}
-              className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
               aria-label="Scenario review"
+              size="xs"
+              surface="ghost"
               data-testid="mobile-review-button"
             >
               <ClipboardCheck className="h-5 w-5 text-slate-400" />
-            </button>
+            </IconButton>
           )}
 
           {onOpenFileSearch && (
-            <button
+            <IconButton
               onClick={onOpenFileSearch}
-              className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
               aria-label="Search files"
+              size="xs"
+              surface="ghost"
               data-testid="mobile-search-button"
             >
               <Search className="h-5 w-5 text-slate-400" />
-            </button>
+            </IconButton>
           )}
 
-          <button
+          <IconButton
             onClick={() => setMenuOpen(true)}
-            className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
             aria-label="Open menu"
+            size="xs"
+            surface="ghost"
             data-testid="mobile-menu-button"
           >
             <Menu className="h-5 w-5 text-slate-400" />
-          </button>
+          </IconButton>
         </div>
       </header>
 

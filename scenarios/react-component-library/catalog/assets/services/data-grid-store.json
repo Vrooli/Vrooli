@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.data-grid-store",
+    "name": "Data Grid Store",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The store factory owning grid selection, column state, sorting, filtering, grouping, editing, virtualization windows, focus position, and persisted layout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "One store per grid instance."
+      },
+      {
+        "asset": "services.selection-store",
+        "reason": "Grid selection is the shared selection model rather than a private copy."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ]
+}

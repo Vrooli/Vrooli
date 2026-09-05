@@ -13,11 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"scenario-to-desktop-runtime/fileutil"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/fileutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 )
 
 // BundleValidationResult contains the results of bundle validation.
@@ -99,6 +100,18 @@ type Runtime interface {
 	RuntimeInfo() RuntimeInfo
 }
 
+// ProviderObservationSource is optional so older/test runtimes can keep the
+// core control API while the bundled supervisor exposes safe provider facts.
+type ProviderObservationSource interface {
+	ProviderObservations() map[string]resourceplan.ProviderObservation
+}
+
+type ResourceUpgradeSource interface {
+	ResourceUpgradeOffers() ([]resourceplan.UpgradeOffer, error)
+	ApplyResourceUpgrade(context.Context, string) error
+	RecordResourceUpgrade(outcome resourceplan.UpgradeOutcome) error
+}
+
 // SecretStore defines the interface for secret management used by the API.
 type SecretStore interface {
 	Get() map[string]string
@@ -135,9 +148,19 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/logs/tail", s.handleLogs)
 	mux.HandleFunc("/shutdown", s.handleShutdown)
 	mux.HandleFunc("/secrets", s.handleSecrets)
+	mux.HandleFunc("/credentials/status", s.handleCredentialStatus)
+	mux.HandleFunc("/credentials/resolve", s.handleCredentialResolve)
+	mux.HandleFunc("/credentials/provision", s.handleCredentialProvision)
+	mux.HandleFunc("/credentials/delete", s.handleCredentialDelete)
+	mux.HandleFunc("/credentials/list", s.handleCredentialList)
+	mux.HandleFunc("/credentials/doctor", s.handleCredentialDoctor)
+	mux.HandleFunc("/credentials/recovery/export", s.handleCredentialRecoveryExport)
+	mux.HandleFunc("/credentials/recovery/restore", s.handleCredentialRecoveryRestore)
 	mux.HandleFunc("/telemetry", s.handleTelemetry)
 	mux.HandleFunc("/validate", s.handleValidate)
 	mux.HandleFunc("/status", s.handleStatus)
+	mux.HandleFunc("/provider-observations", s.handleProviderObservations)
+	mux.HandleFunc("/resource-upgrades", s.handleResourceUpgrades)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.
@@ -244,6 +267,55 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleProviderObservations(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(ProviderObservationSource)
+	if !ok {
+		http.Error(w, "provider observations unavailable", http.StatusNotImplemented)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"observations": source.ProviderObservations()})
+}
+
+func (s *Server) handleResourceUpgrades(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(ResourceUpgradeSource)
+	if !ok {
+		http.Error(w, "resource upgrades unavailable", http.StatusNotImplemented)
+		return
+	}
+	if r.Method == http.MethodGet {
+		offers, err := source.ResourceUpgradeOffers()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"offers": offers})
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var outcome resourceplan.UpgradeOutcome
+	if err := json.NewDecoder(r.Body).Decode(&outcome); err != nil {
+		http.Error(w, "invalid upgrade outcome", http.StatusBadRequest)
+		return
+	}
+	if outcome.Decision == "accepted" {
+		if err := source.ApplyResourceUpgrade(r.Context(), outcome.Resource); err != nil {
+			outcome.Decision = "failed"
+			outcome.Reason = err.Error()
+			_ = source.RecordResourceUpgrade(outcome)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	}
+	if err := source.RecordResourceUpgrade(outcome); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "recorded"})
+}
+
 func runtimeBuildVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok || info == nil {
@@ -313,7 +385,31 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Find the service.
+	// Bundled managed resources have no manifest launcher entry. Their logs are
+	// still available through the normal authenticated runtime surface using the
+	// explicit resource:<name> identifier.
+	if resource, ok := strings.CutPrefix(serviceID, "resource:"); ok {
+		provider, ok := s.runtime.(interface{ ResourceLogPath(string) (string, bool) })
+		if !ok {
+			http.Error(w, "managed resource logs are unavailable", http.StatusBadRequest)
+			return
+		}
+		logPath, ok := provider.ResourceLogPath(resource)
+		if !ok {
+			http.Error(w, "unknown managed resource", http.StatusBadRequest)
+			return
+		}
+		content, err := fileutil.TailFile(s.runtime.FileSystem(), logPath, lines)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("tail logs: %v", err), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write(content)
+		return
+	}
+
+	// Find the manifest service.
 	m := s.runtime.Manifest()
 	var service *manifest.Service
 	for i := range m.Services {

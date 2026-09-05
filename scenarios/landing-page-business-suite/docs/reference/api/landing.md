@@ -8,19 +8,21 @@ audience: ["developers"]
 
 # Landing Endpoints
 
-Public endpoints for retrieving landing page configuration. No authentication required.
+Public APIs for retrieving landing page configuration. No authentication required.
 
-## GET /landing-config
+## LandingConfigService.GetLandingConfig
 
 Returns the complete landing page configuration including sections, pricing, and downloads.
 
 **Authentication:** None
 
-**Query Parameters:**
+**Transport:** Connect-RPC `POST /landing_page_business_suite.v1.LandingConfigService/GetLandingConfig`
+
+**Request fields:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `variant` | string | Optional variant slug to force a specific variant |
+| `variant_slug` | string | Optional variant slug to force a specific variant |
 
 **Response:**
 ```json
@@ -60,11 +62,8 @@ Returns the complete landing page configuration including sections, pricing, and
 
 **Example:**
 ```bash
-# Get default variant
-curl http://localhost:3000/api/v1/landing-config
-
-# Force specific variant
-curl http://localhost:3000/api/v1/landing-config?variant=holiday-special
+# Get a specific variant through the scenario CLI
+landing-page-business-suite landing-config --variant holiday-special --json
 ```
 
 ---
@@ -223,6 +222,6 @@ Returns robots.txt content.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Variants](variants.md) - A/B testing endpoints
 - [Payments](payments.md) - Stripe integration

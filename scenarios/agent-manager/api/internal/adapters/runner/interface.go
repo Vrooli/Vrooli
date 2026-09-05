@@ -10,19 +10,22 @@ package runner
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
+
 	"github.com/google/uuid"
 )
 
 // Continuation errors
 var (
-	// ErrSessionExpired indicates the session no longer exists or has expired.
-	ErrSessionExpired = errors.New("session no longer exists or has expired")
-
-	// ErrContinuationNotSupported indicates the runner doesn't support session continuation.
+	// ErrContinuationNotSupported indicates the runner doesn't support
+	// session continuation. Session-expiry on the wire is now signalled
+	// via *domain.RunnerError with ErrCodeRunnerSessionExpired (see
+	// codecs.Codec.ClassifyTerminalError).
 	ErrContinuationNotSupported = errors.New("runner does not support session continuation")
 )
 
@@ -47,8 +50,10 @@ type Runner interface {
 
 	// Continue resumes an existing session with a follow-up message.
 	// Uses the stored session_id to continue the conversation.
-	// Returns ErrSessionExpired if the session no longer exists.
-	// Returns ErrContinuationNotSupported if the runner doesn't support this.
+	// Returns a typed *domain.RunnerError (with code RUNNER_SESSION_EXPIRED
+	// or RUNNER_SESSION_STATE_LOST) when the codec recognises a known
+	// session/state failure shape. Returns ErrContinuationNotSupported
+	// if the runner doesn't support continuation at all.
 	Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
 
 	// Stop attempts to gracefully stop a running agent.
@@ -58,10 +63,87 @@ type Runner interface {
 	// IsAvailable checks if this runner is currently available.
 	// Returns false with a reason if the runner cannot be used.
 	IsAvailable(ctx context.Context) (bool, string)
+
+	// ProbeModel performs a lightweight check that the given model ID is
+	// usable by this runner. Implementations should avoid full inference —
+	// the goal is to surface obviously-broken configurations at startup, not
+	// to validate every possible failure mode. The empty string represents
+	// the runner-default sentinel; probes should treat it as "accept".
+	//
+	// Returns nil when the model appears usable (or when the runner cannot
+	// cheaply tell). Authoritative "this model is dead" signal comes from
+	// runtime classification via Classify (see fallback.ClassifiedError).
+	ProbeModel(ctx context.Context, modelID string) error
+
+	// Classify converts a non-success Execute outcome (stderr +
+	// exitCode) into a typed *fallback.ClassifiedError. Delegates to
+	// the codec's structured-signal classifier with TextClassifier as
+	// the residual safety net. Returns nil when stderr is empty AND
+	// exitCode == 0.
+	//
+	// DOC: scenarios/agent-manager/docs/internal/EVENT_TAXONOMY.md
+	// (model.fallback.attempted reason field).
+	Classify(stderr string, exitCode int) *fallback.ClassifiedError
+}
+
+// GoalMarkerProvider declares the runner-owned transcript markers that can
+// establish imported goal metadata. The orchestration layer consumes this
+// optional seam without knowing a harness's wire format.
+type GoalMarkerProvider interface {
+	GoalStatusFromTranscriptLine(string) (GoalMarker, bool)
+}
+
+// GoalStatus is the lossless status vocabulary emitted by Codex thread goals.
+// It is deliberately not a boolean: blocked and budget-limited runs require
+// different Swarm terminal handling.
+type GoalStatus string
+
+const (
+	GoalStatusActive        GoalStatus = "active"
+	GoalStatusPaused        GoalStatus = "paused"
+	GoalStatusBlocked       GoalStatus = "blocked"
+	GoalStatusUsageLimited  GoalStatus = "usage_limited"
+	GoalStatusBudgetLimited GoalStatus = "budget_limited"
+	GoalStatusComplete      GoalStatus = "complete"
+)
+
+func (s GoalStatus) Valid() bool {
+	switch s {
+	case GoalStatusActive, GoalStatusPaused, GoalStatusBlocked, GoalStatusUsageLimited, GoalStatusBudgetLimited, GoalStatusComplete:
+		return true
+	default:
+		return false
+	}
+}
+
+type GoalMarker struct {
+	Objective string     `json:"objective"`
+	Status    GoalStatus `json:"status"`
+}
+
+// CommandExtraction is the runner-owned interpretation of a tool-call input.
+// Args preserve literal argv boundaries; callers must never evaluate them as
+// shell syntax. Reason is populated when the payload has no declared command.
+type CommandExtraction struct {
+	Command     string
+	Args        []string
+	Reason      string
+	LiteralArgs bool
+}
+
+// CommandExtractor declares the codec-owned command extraction seam used by
+// durable invocation projection. A generic key search is only the fallback
+// for standalone callers that have no selected runner.
+type CommandExtractor interface {
+	ExtractCommand(input map[string]any) CommandExtraction
 }
 
 // Capabilities describes what features a runner supports.
 type Capabilities struct {
+	// SpawnCapabilities are verified substrate/sandbox combinations. A
+	// combination absent here is infeasible; callers must not infer support
+	// from runner type or version.
+	SpawnCapabilities []SpawnCapability
 	// SupportsMessages indicates the runner can capture structured messages.
 	SupportsMessages bool
 
@@ -79,15 +161,49 @@ type Capabilities struct {
 
 	// SupportsContinuation indicates the runner can resume previous sessions.
 	SupportsContinuation bool
+	// SupportsWarmIteration indicates the runner can carry an engine-owned
+	// completion test across a continuation without losing session state.
+	SupportsWarmIteration bool
 
 	// SupportsImageAttachments indicates the runner can accept image file attachments.
 	SupportsImageAttachments bool
 
+	// SupportsToolRestriction reports whether this runner can enforce the
+	// canonical AllowedTools restriction for an individual launch.
+	SupportsToolRestriction bool
+
+	// ToolRestrictionMappings maps canonical profile tools to native runner
+	// names. An empty map is the explicit unsupported stance.
+	ToolRestrictionMappings map[string]string
+
+	// SupportsEffort reports whether this runner applies the canonical effort
+	// control to each launch and continuation.
+	SupportsEffort bool
+
+	// EffortMappings documents canonical-to-native effort translation. An empty
+	// map is the explicit unsupported stance unless EffortModelSpecific is true.
+	EffortMappings map[string]string
+
+	// EffortModelSpecific means the runner accepts effort only for a declared
+	// provider/model domain. Such runners intentionally publish no universal
+	// mapping; their codec validates the selected model before launch.
+	EffortModelSpecific bool
+
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
 
-	// SupportedModels lists the models this runner can use.
+	// SupportedModels contains only runtime-discovered model facts. Concrete
+	// coding-agent selections come from resource-owned role resolution and are
+	// captured in immutable run snapshots, never composed into runner mechanics.
 	SupportedModels []string
+
+	// SupportsRunnerDefault reports whether omitting the model flag is a valid
+	// execution choice for this runner.
+	SupportsRunnerDefault bool
+
+	// DynamicModelPrefixes names runtime-discovered namespaces owned by the
+	// codec.
+	DynamicModelPrefixes []string
 
 	// SupportedFeatures lists which typed FeatureFlags this runner supports.
 	// Unsupported features are silently ignored during arg building.
@@ -96,6 +212,12 @@ type Capabilities struct {
 	// AllowedExtraFlags is the allowlist of extra CLI flags this runner accepts.
 	// Flags not in this list are rejected during validation.
 	AllowedExtraFlags []string
+}
+
+type SpawnCapability struct {
+	ExecutionMode   string
+	SandboxModes    []string
+	NativeObjective bool
 }
 
 // ExecuteRequest contains everything needed to execute an agent.
@@ -122,6 +244,12 @@ type ExecuteRequest struct {
 	// For in-place runs, this is the actual project directory.
 	WorkingDir string
 
+	// SandboxID identifies the workspace-sandbox container for this run when
+	// the run is sandboxed. Required for protected-mode launches (the runner
+	// uses it to construct a SandboxLauncher via SandboxLauncherFactory).
+	// nil for in-place runs.
+	SandboxID *uuid.UUID
+
 	// Prompt is the user message for the agent (context data, task question).
 	// For runners that support system prompts, this contains only the user-facing
 	// content. For runners that don't, SystemPrompt is prepended to this.
@@ -141,6 +269,11 @@ type ExecuteRequest struct {
 
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment
+
+	// Transcript config enables durable stdout capture and replay across
+	// agent-manager restarts. When nil, runners fall back to the legacy
+	// in-process streaming path.
+	Transcript *TranscriptConfig
 }
 
 // EffectivePrompt returns the prompt with the system prompt prepended using
@@ -199,6 +332,41 @@ type ContinueRequest struct {
 
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment
+
+	// Transcript config enables durable stdout capture and replay across
+	// agent-manager restarts for continuation turns.
+	Transcript *TranscriptConfig
+
+	// ResolvedConfig carries the run's resolved sandbox/runner config so
+	// continuation routes through the same Launcher (host vs sandbox) as
+	// the original Execute call. Populated by the orchestrator from the
+	// stored Run.ResolvedConfig.
+	ResolvedConfig *domain.RunConfig
+
+	// SandboxID identifies the workspace-sandbox container the original
+	// Execute call ran in, when the run was sandboxed. Required for
+	// protected-mode routing on the continuation; nil otherwise.
+	SandboxID *uuid.UUID
+}
+
+// GetConfig returns the resolved configuration for the continuation,
+// falling back to the runtime default. Mirrors ExecuteRequest.GetConfig
+// so launcherSelector.PickFor can route both call shapes uniformly.
+func (r *ContinueRequest) GetConfig() *domain.RunConfig {
+	if r.ResolvedConfig != nil {
+		return r.ResolvedConfig
+	}
+	return domain.DefaultRunConfig()
+}
+
+type TranscriptConfig struct {
+	TranscriptPath string
+	StderrPath     string
+	StdoutFile     *os.File
+	StderrFile     *os.File
+	OnProcessStart func(pid, pgid int) error
+	OnAdvance      func(cursor, lastSeq int64) error
+	OnSessionID    func(sessionID string) error
 }
 
 // Attachment represents a file attachment to include in a request.
@@ -220,6 +388,10 @@ type ExecuteResult struct {
 	// Summary contains the structured output from the agent.
 	Summary *domain.RunSummary
 
+	// Result is the canonical provenance-bearing terminal output. Summary is
+	// derived from it for compatibility after resolution.
+	Result *domain.RunResult
+
 	// ErrorMessage contains any error message if Success is false.
 	ErrorMessage string
 
@@ -232,6 +404,15 @@ type ExecuteResult struct {
 	// SessionID is the runner-specific session identifier for conversation continuation.
 	// Populated from runner stream events (session_id, thread_id, sessionID).
 	SessionID string
+
+	// TerminalError carries a typed error when the runner detected a
+	// terminal failure (e.g. ErrSandboxNoExitInfo bubbling up from the
+	// sandbox launcher's Wait). When non-nil, the orchestration layer
+	// promotes it to e.execErr so the typed-error path classifies the
+	// failure correctly (SANDBOX_NO_EXIT_INFO, etc.). Optional —
+	// runners that don't have typed errors leave it nil and orchestration
+	// falls back to ErrorMessage as before.
+	TerminalError error
 }
 
 // ExecutionMetrics contains statistics about the execution.
@@ -242,7 +423,14 @@ type ExecutionMetrics struct {
 	CacheReadTokens     int
 	CacheCreationTokens int
 	ToolCallCount       int
-	CostEstimateUSD     float64
+	// SuccessfulToolResults counts tool results that reported success
+	// (ToolResultEventData.Success). It is the "did the agent's actions
+	// actually land?" signal: a run can emit a tool call yet produce no
+	// successful result (e.g. a write to a hallucinated path, or a tool
+	// call narrated as text the runner never executed). Codecs use this to
+	// distinguish real work from a silent no-op in PostClassify.
+	SuccessfulToolResults int
+	CostEstimateUSD       float64
 }
 
 // TotalTokens returns total tokens used, including cache tokens.
@@ -264,6 +452,83 @@ type EventSink interface {
 
 	// Close signals that no more events will be sent.
 	Close() error
+}
+
+// SequencedEventSink is an optional EventSink extension that exposes the last
+// persisted run_events.sequence value after Emit() succeeds.
+type SequencedEventSink interface {
+	EventSink
+	LastSequence() int64
+}
+
+// TranscriptParseResult is the normalized output from a runner-specific
+// transcript parser when consuming durable stdout from transcript.ndjson.
+type TranscriptParseResult struct {
+	Events    []*domain.RunEvent
+	SessionID string
+	// Label and LabelSource are optional transcript metadata. They are emitted
+	// by providers that carry a durable title (for example Claude's ai-title)
+	// and are consumed by import orchestration.
+	Label       string
+	LabelSource domain.RunLabelSource
+	// Timestamp is the source timestamp for this transcript line.
+	Timestamp time.Time
+	Terminal  *TranscriptTerminal
+	Err       error
+}
+
+// TranscriptTerminal captures runner-native terminal state discovered from the
+// transcript itself, which is required when the orchestrator dies before it can
+// synthesize final status events.
+type TranscriptTerminal struct {
+	Success      bool
+	ExitCode     int
+	ErrorMessage string
+	Summary      *domain.RunSummary
+}
+
+// TranscriptParser is an optional runner seam used by transcript recovery.
+// Implementations should reuse the same per-runner parsing logic used for live
+// execution rather than introducing a second translation layer.
+type TranscriptParser interface {
+	ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult
+}
+
+// TranscriptParserFactory creates a fresh parser for one logical transcript
+// consumption. Callers that tail live output and then perform a final drain
+// must share the returned parser across both Consume calls so replay state
+// follows the transcript stream rather than resetting per line.
+type TranscriptParserFactory interface {
+	NewTranscriptParser() TranscriptParser
+}
+
+// TranscriptModelSetter supplies the resolved model to transcript-derived
+// parsers. Recovery/import paths do not replay BuildArgs, so they must carry
+// this attribution explicitly instead of silently emitting an unlabeled use.
+type TranscriptModelSetter interface {
+	SetTranscriptModel(string)
+}
+
+// TranscriptRetentionSetter selects whether echoed user/operator turns are
+// retained during a durable transcript import. Live execution keeps the
+// historical suppression behavior; imported evidence opts into redacted,
+// typed user turns for intervention and progression analysis.
+type TranscriptRetentionSetter interface {
+	SetTranscriptRetention(bool)
+}
+
+// AgentLaunchInfo exposes the per-agent facts the interactive execution
+// substrate needs to build a launch command for the real interactive CLI: the
+// per-run tag env key (so the reconciler can attribute the process from
+// /proc) and the resolved binary path. core.Runner satisfies this by
+// delegating to its codec, mirroring how it satisfies [TranscriptParser].
+// Callers resolve it via Registry.Get(runnerType) + a type assertion, the same
+// pattern transcript recovery uses.
+type AgentLaunchInfo interface {
+	Type() domain.RunnerType
+	TagEnvKey() string
+	BinaryPath() string
+	ControlArgs(cfg *domain.RunConfig) ([]string, error)
 }
 
 // -----------------------------------------------------------------------------

@@ -1,6 +1,9 @@
 // Package sqlutil provides shared SQLite helpers used across store, policy,
 // and subscription packages, eliminating duplicated format strings and
 // conversion functions.
+//
+// DOC: docs/internal/SEAMS.md
+// DOC: docs/internal/INVARIANTS.md
 package sqlutil
 
 import "time"

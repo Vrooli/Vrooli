@@ -13,12 +13,20 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 // AutomationRunner provides an interface for running ephemeral automation sequences.
 // This abstraction enables testing AI helper endpoints without requiring a real browser.
 type AutomationRunner interface {
 	Run(ctx context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error)
+}
+
+// deviceScaleAutomationRunner is an optional extension used by screenshot
+// callers that need to control browser pixel density without changing the
+// shared runner contract used by other AI helpers.
+type deviceScaleAutomationRunner interface {
+	RunWithDeviceScale(ctx context.Context, viewportWidth, viewportHeight int, deviceScaleFactor float64, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error)
 }
 
 // inMemoryRecorder captures outcomes/telemetry without touching the database so AI
@@ -62,6 +70,12 @@ func (r *inMemoryRecorder) SetArtifactConfig(_ *config.ArtifactCollectionSetting
 func (r *inMemoryRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
 	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
+
+func (r *inMemoryRecorder) SetArtifactConfigForExecution(_ uuid.UUID, _ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores per-execution artifact config - collects everything.
+}
+
+func (r *inMemoryRecorder) ForgetExecution(_ uuid.UUID) {}
 
 func (r *inMemoryRecorder) Outcomes() []autocontracts.StepOutcome {
 	r.mu.Lock()
@@ -129,6 +143,12 @@ func newAutomationRunner(log *logrus.Logger) (*DefaultAutomationRunner, error) {
 
 // Run executes a sequence of automation instructions and returns outcomes.
 func (r *DefaultAutomationRunner) Run(ctx context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+	return r.RunWithDeviceScale(ctx, viewportWidth, viewportHeight, 0, instructions)
+}
+
+// RunWithDeviceScale executes an ephemeral run with an optional browser device
+// scale factor. The profile reaches the Playwright context builder unchanged.
+func (r *DefaultAutomationRunner) RunWithDeviceScale(ctx context.Context, viewportWidth, viewportHeight int, deviceScaleFactor float64, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -147,6 +167,10 @@ func (r *DefaultAutomationRunner) Run(ctx context.Context, viewportWidth, viewpo
 		},
 		CreatedAt: time.Now().UTC(),
 	}
+	var browserProfile *sessionprofile.BrowserProfile
+	if deviceScaleFactor != 0 {
+		browserProfile = &sessionprofile.BrowserProfile{Fingerprint: &sessionprofile.FingerprintSettings{DeviceScaleFactor: deviceScaleFactor}}
+	}
 
 	engineName := autoengine.FromEnv().Resolve(r.defaultEngine)
 	eventSink := autoevents.NewMemorySink(autocontracts.DefaultEventBufferLimits)
@@ -156,6 +180,7 @@ func (r *DefaultAutomationRunner) Run(ctx context.Context, viewportWidth, viewpo
 		EngineFactory:     r.engineFactory,
 		Recorder:          recorder,
 		EventSink:         eventSink,
+		BrowserProfile:    browserProfile,
 		HeartbeatInterval: 0,
 	}
 
@@ -178,9 +203,10 @@ type MockAutomationRunner struct {
 
 // MockRunCall records a call to Run.
 type MockRunCall struct {
-	ViewportWidth  int
-	ViewportHeight int
-	Instructions   []autocontracts.CompiledInstruction
+	ViewportWidth     int
+	ViewportHeight    int
+	DeviceScaleFactor float64
+	Instructions      []autocontracts.CompiledInstruction
 }
 
 // NewMockAutomationRunner creates a MockAutomationRunner with default successful outcomes.
@@ -198,17 +224,28 @@ func NewMockAutomationRunner() *MockAutomationRunner {
 }
 
 // Run records the call and returns configured outcomes or error.
-func (m *MockAutomationRunner) Run(_ context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+func (m *MockAutomationRunner) Run(ctx context.Context, viewportWidth, viewportHeight int, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+	return m.run(ctx, viewportWidth, viewportHeight, 0, instructions)
+}
+
+func (m *MockAutomationRunner) run(_ context.Context, viewportWidth, viewportHeight int, deviceScaleFactor float64, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
 	m.RunCalls = append(m.RunCalls, MockRunCall{
-		ViewportWidth:  viewportWidth,
-		ViewportHeight: viewportHeight,
-		Instructions:   instructions,
+		ViewportWidth:     viewportWidth,
+		ViewportHeight:    viewportHeight,
+		DeviceScaleFactor: deviceScaleFactor,
+		Instructions:      instructions,
 	})
 
 	if m.Err != nil {
 		return nil, nil, m.Err
 	}
 	return m.Outcomes, m.Events, nil
+}
+
+// RunWithDeviceScale lets screenshot tests assert the same call path as the
+// production runner while preserving the compact mock call record.
+func (m *MockAutomationRunner) RunWithDeviceScale(ctx context.Context, viewportWidth, viewportHeight int, deviceScaleFactor float64, instructions []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+	return m.run(ctx, viewportWidth, viewportHeight, deviceScaleFactor, instructions)
 }
 
 // Reset clears recorded calls for reuse between tests.

@@ -1,0 +1,414 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "command-center",
+  "description": "Read surface for the Director Swarm instrument, plus explicitly confirmed allowlisted integration recovery actions.",
+  "groups": [
+    {
+      "name": "board",
+      "description": "The derived board and its composed readings.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "board",
+          "description": "Show the derived board shape: rooms, the outcome denominator with its confidence, and per-source availability.",
+          "binding": {
+            "kind": "local",
+            "handler": "board"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "room",
+          "description": "Show composed readings for one outcome category, each with its coverage, trust and empirical axes and its source's declared instrument state.",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Room id, as returned by `board`.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "samples",
+              "description": "Whether illustrative readings are withheld, marked, or returned plain.",
+              "default": "mark"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "room"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        }
+      ]
+    },
+    {
+      "name": "instrument",
+      "description": "The ranked surface and the open-loop self-report.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "focus",
+          "description": "Show the one ranked surface: what is worth building next, ordered, each entry naming its owner and why it ranks where it does.",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Filter to one finding kind: untrusted-reading, source-unavailable, no-instrument, no-pipeline, unregistered-outcome."
+            },
+            {
+              "name": "owner",
+              "description": "Filter to one team's findings."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "focus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "open-loop",
+          "description": "Show every MISSING cell and UNREGISTERED outcome, dated and aged, including this instrument's own blind spots.",
+          "flags": [
+            {
+              "name": "older-than",
+              "description": "Only show holes that have stood longer than the given duration, e.g. 90d."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "open-loop"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "describe",
+          "description": "Show the full projection of this instrument's sensor space, its source bindings, and their declared instrument state.",
+          "binding": {
+            "kind": "local",
+            "handler": "describe"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "gaps",
+          "description": "Compatibility alias for open-loop, filtered to non-NOW coverage and grouped by room, matching the sensor path the outcomes charter names.",
+          "binding": {
+            "kind": "local",
+            "handler": "gaps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "integrations",
+          "description": "Show declared integration lifecycle and feature state.",
+          "binding": {
+            "kind": "local",
+            "handler": "integrations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "integrations-refresh",
+          "description": "Refresh declared integration lifecycle and feature state.",
+          "binding": {
+            "kind": "local",
+            "handler": "integrations-refresh"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        },
+        {
+          "name": "integration-action",
+          "description": "Run one explicitly confirmed allowlisted integration action.",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Declared integration id.",
+              "required": true
+            },
+            {
+              "name": "action",
+              "description": "Action kind returned by integrations.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirm",
+              "description": "Confirm the lifecycle action."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "integration-action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "mutate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Service health.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "status",
+          "description": "Check API health and per-source dependency status.",
+          "binding": {
+            "kind": "local",
+            "handler": "status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "semantics": {
+            "kind": "query"
+          }
+        }
+      ]
+    },
+    {
+      "name": "walk",
+      "description": "Bounded source evidence for morning walk preparation",
+      "commands": [
+        {
+          "name": "read",
+          "description": "Read current board measurements without samples; preserves coverage, trust and empirical evidence",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum readings, 1-100",
+              "default": "40"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "Read"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "state",
+          "description": "Read latest owned briefing and checkpoint",
+          "flags": [
+            {
+              "name": "channel",
+              "description": "channel",
+              "default": "operator"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "State"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "publish",
+          "description": "Validate and conditionally publish a durable briefing",
+          "flags": [
+            {
+              "name": "channel",
+              "description": "channel",
+              "default": "operator"
+            },
+            {
+              "name": "request-key",
+              "description": "request key"
+            },
+            {
+              "name": "expected-previous-id",
+              "description": "expected previous id"
+            },
+            {
+              "name": "program-id",
+              "description": "program id"
+            },
+            {
+              "name": "envelope-json",
+              "description": "envelope json"
+            },
+            {
+              "name": "briefing",
+              "description": "briefing"
+            },
+            {
+              "name": "fleet-health-json",
+              "description": "fleet health json"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "Publish"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "checkpoint",
+          "description": "Validate and conditionally append a checkpoint transition",
+          "flags": [
+            {
+              "name": "channel",
+              "description": "channel",
+              "default": "operator"
+            },
+            {
+              "name": "request-key",
+              "description": "request key"
+            },
+            {
+              "name": "expected-previous-id",
+              "description": "expected previous id"
+            },
+            {
+              "name": "walk-id",
+              "description": "walk id"
+            },
+            {
+              "name": "state",
+              "description": "state"
+            },
+            {
+              "name": "resume-phase",
+              "description": "resume phase"
+            },
+            {
+              "name": "content",
+              "description": "content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalkService",
+            "method": "Checkpoint"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    }
+  ]
+}

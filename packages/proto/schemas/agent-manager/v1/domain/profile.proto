@@ -57,19 +57,12 @@ message AgentProfile {
   // Optional description of what this profile is used for.
   string description = 3;
 
-  // Which agent runner to use (claude-code, codex, opencode).
-  RunnerType runner_type = 4 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
+  // Portable coding intent. Concrete runner/model selection is output-only
+  // evidence in the immutable execution snapshot.
+  string role_ref = 33 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
   }];
-
-  // Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
-  // If empty, uses the runner's default model.
-  string model = 5;
-
-  // Preset to use for model selection (FAST/CHEAP/SMART).
-  // Mutually exclusive with model.
-  ModelPreset model_preset = 19;
 
   // Maximum number of conversation turns before stopping.
   // 0 means unlimited (use with caution).
@@ -83,17 +76,17 @@ message AgentProfile {
   // Default: 30 minutes if not specified.
   google.protobuf.Duration timeout = 7;
 
-  // Ordered list of fallback runners to try if the primary is unavailable.
-  // Empty disables automatic fallback.
-  repeated RunnerType fallback_runner_types = 22;
-
   // Tools the agent is allowed to use.
   // Empty means use runner defaults.
-  // Examples: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+  // Canonical values: read, write, edit, glob, grep, shell, web_search, web_fetch.
   repeated string allowed_tools = 8;
 
   // Tools explicitly denied even if in allowed_tools.
   repeated string denied_tools = 9;
+
+  // Whether a runner that cannot enforce allowed_tools must refuse launch
+  // (enforced, the default) or may proceed with an advisory warning.
+  string tool_restriction_policy = 34;
 
   // Skip permission prompts during execution.
   // WARNING: Enables autonomous execution without user confirmation.
@@ -109,13 +102,33 @@ message AgentProfile {
   // Network access level for agent execution.
   NetworkAccess network_access = 25;
 
-  // Whether runs using this profile require sandbox isolation.
-  // Default: true for safety.
-  bool requires_sandbox = 11;
+  // Scenario slug that owns this repo-sourced profile.
+  string owner_scenario = 26;
 
-  // Whether runs using this profile require human approval before applying changes.
-  // Default: true for safety.
-  bool requires_approval = 12;
+  // Relative path to the source profile JSON within the owning scenario.
+  string source_path = 27;
+
+  // SHA-256 hash of the current source file content.
+  string source_hash = 28;
+
+  // SHA-256 hash last applied to this profile by reconciliation.
+  string last_applied_hash = 29;
+
+  // Modification time of the source file when it was last reconciled.
+  google.protobuf.Timestamp source_updated_at = 30;
+
+  // True when the profile has been edited locally since source reconciliation.
+  bool local_override = 31;
+
+  // Reserved to prevent accidental reuse of the wire IDs/names from
+  // earlier schema iterations. SandboxConfig.mode is the single source
+  // of truth for whether a run is sandboxed — see
+  // scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision
+  // boundary). Run-end apply behavior is controlled by
+  // SandboxConfig (manual_review / auto_apply / apply_on_failure) per
+  // the auditability contract.
+  reserved 4, 5, 11, 12, 19, 22, 32;
+  reserved "runner_type", "model", "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 20;
@@ -135,6 +148,14 @@ message AgentProfile {
 
   // When the profile was last updated.
   google.protobuf.Timestamp updated_at = 17;
+
+  // Canonical reasoning effort: low, medium, high, xhigh, or max.
+  string effort = 35;
+
+  // Prompt-manager skill identifiers projected into this profile's private
+  // per-run runtime scope. Paths are never accepted here.
+  repeated string skill_pack = 36;
+  string skill_experiment_id = 37;
 }
 
 // =============================================================================
@@ -151,6 +172,38 @@ message AgentProfile {
 // The orchestrator resolves the final config before execution.
 //
 // @usage Run.resolved_config, CreateRunRequest.inline_config
+// ResultSpecKind selects the one canonical structured-result contract.
+enum ResultSpecKind {
+  RESULT_SPEC_KIND_UNSPECIFIED = 0;
+  RESULT_SPEC_KIND_NONE = 1;
+  RESULT_SPEC_KIND_JSON_SCHEMA = 2;
+  RESULT_SPEC_KIND_CLASSIFICATION = 3;
+}
+
+// StructuredExtractionMode controls deterministic-only versus optional
+// constrained fallback. Every fallback candidate is locally revalidated.
+enum StructuredExtractionMode {
+  STRUCTURED_EXTRACTION_MODE_UNSPECIFIED = 0;
+  STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY = 1;
+  STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK = 2;
+}
+
+// ResultSpec is normalized before persistence. schema contains canonical JSON
+// bytes and schema_digest identifies those exact bytes. classification_values
+// is a create convenience compiled into schema and omitted after resolution.
+message ResultSpec {
+  string version = 1;
+  ResultSpecKind kind = 2;
+  bytes schema = 3;
+  string schema_digest = 4;
+  repeated string classification_values = 5;
+  StructuredExtractionMode extraction_mode = 6;
+  string extraction_role = 7;
+  // Omitted means the workflow-safe default of one corrective continuation;
+  // zero disables schema repair.
+  optional int32 schema_repair_attempts = 8;
+}
+
 message RunConfig {
   // Which agent runner to use.
   RunnerType runner_type = 1;
@@ -158,9 +211,11 @@ message RunConfig {
   // Model to use for execution.
   string model = 2;
 
-  // Preset to use for model selection (FAST/CHEAP/SMART).
-  // Mutually exclusive with model.
-  ModelPreset model_preset = 12;
+  // Portable role selected before policy_snapshot was created.
+  string role_ref = 21;
+
+  // Optional normalized typed-result request.
+  ResultSpec result_spec = 22;
 
   // Maximum conversation turns.
   int32 max_turns = 3;
@@ -168,15 +223,16 @@ message RunConfig {
   // Maximum execution time.
   google.protobuf.Duration timeout = 4;
 
-  // Ordered list of fallback runners to try if the primary is unavailable.
-  // Empty disables automatic fallback.
-  repeated RunnerType fallback_runner_types = 15;
-
   // Tools the agent is allowed to use.
   repeated string allowed_tools = 5;
 
   // Tools explicitly denied.
   repeated string denied_tools = 6;
+
+  string tool_restriction_policy = 23;
+
+  // Canonical reasoning effort: low, medium, high, xhigh, or max.
+  string effort = 24;
 
   // Skip permission prompts.
   bool skip_permission_prompt = 7;
@@ -190,11 +246,18 @@ message RunConfig {
   // Network access level for agent execution.
   NetworkAccess network_access = 18;
 
-  // Require sandbox isolation.
-  bool requires_sandbox = 8;
+  // Immutable policy resolution captured before the run is persisted. This is
+  // output-only orchestration state: create surfaces accept RunConfigOverrides,
+  // which deliberately has no policy_snapshot field.
+  ExecutionPolicySnapshot policy_snapshot = 19;
 
-  // Require human approval.
-  bool requires_approval = 9;
+  // Reserved to prevent accidental reuse of the wire IDs/names from
+  // earlier schema iterations. SandboxConfig.mode is the single source
+  // of truth for whether a run is sandboxed; run-end apply behavior is
+  // controlled by SandboxConfig levers (manual_review / auto_apply /
+  // apply_on_failure).
+  reserved 8, 9, 12, 15, 20;
+  reserved "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 13;
@@ -204,6 +267,78 @@ message RunConfig {
 
   // Paths explicitly denied.
   repeated string denied_paths = 11;
+
+  // Immutable transcript attribution captured during import/replay.
+  string manifest_index_snapshot = 25;
+  string transcript_codec = 26;
+  double transcript_codec_score = 27;
+
+  // Engine-owned completion test for warm plan engagements.
+  string until = 28;
+}
+
+// ExecutionCandidate is one immutable runner/model attempt in resolved order.
+message ExecutionCandidate {
+  RunnerType runner_type = 1;
+  ModelSelectionType selection_type = 2;
+  string model = 3;
+  string resource_role = 4;
+  repeated string fallbacks = 5;
+  bool available = 6;
+  string failure_code = 7;
+  string failure = 8;
+  ResourceProvenance provenance = 9;
+  PermissionEnforcement enforcement = 10;
+  string policy_path = 11;
+  string policy_digest = 12;
+}
+
+// ResourceProvenance records the resource-owned policy authority that
+// produced this concrete candidate.
+message ResourceProvenance {
+  string source = 1;
+  string observed_at = 2;
+}
+
+// PermissionEnforcement reports the resource's real enforcement posture.
+message PermissionEnforcement {
+  string permissions = 1;
+  repeated string caveats = 2;
+}
+
+// CandidatePreflight records creation-time availability evidence used to pick
+// the initial candidate. Runtime attempts are recorded separately as events.
+message CandidatePreflight {
+  int32 index = 1;
+  ExecutionCandidate candidate = 2;
+  bool available = 3;
+  string reason = 4;
+}
+
+// PolicyResolutionExplanation makes profile/override precedence and initial
+// candidate selection inspectable without consulting mutable current policy.
+message PolicyResolutionExplanation {
+  string source = 1;
+  string summary = 2;
+  RunnerType requested_runner = 3;
+  string requested_model = 4;
+  string requested_role_ref = 8;
+  repeated CandidatePreflight preflight = 6;
+  reserved 5, 7;
+  reserved "requested_preset", "requested_policy_ref";
+}
+
+// ExecutionPolicySnapshot pins the active catalog revision and complete
+// ordered candidate sequence owned by a run.
+message ExecutionPolicySnapshot {
+  string catalog_digest = 1;
+  repeated ExecutionCandidate candidates = 3;
+  int32 selected_index = 4;
+  ExecutionCandidate selected_candidate = 5;
+  PolicyResolutionExplanation explanation = 6;
+  string role_ref = 7;
+  reserved 2;
+  reserved "policy_ref";
 }
 
 // RunConfigOverrides contains optional overrides for run configuration.
@@ -213,27 +348,19 @@ message RunConfig {
 //
 // @usage CreateRunRequest.inline_config
 message RunConfigOverrides {
-  // Which agent runner to use.
-  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
+  // Portable role intent. Concrete runner/model selection is resolved by the
+  // active resource-owned role policy and persisted only in the run snapshot.
+  optional string role_ref = 26;
 
-  // Model to use for execution.
-  optional string model = 2;
-
-  // Preset to use for model selection (FAST/CHEAP/SMART).
-  // Mutually exclusive with model.
-  optional ModelPreset model_preset = 16;
+  // Optional typed-result request. The server validates, canonicalizes, and
+  // persists it with the resolved run configuration.
+  ResultSpec result_spec = 27;
 
   // Maximum conversation turns.
   optional int32 max_turns = 3;
 
   // Maximum execution time.
   optional google.protobuf.Duration timeout = 4;
-
-  // Ordered list of fallback runners to try if the primary is unavailable.
-  repeated RunnerType fallback_runner_types = 19;
 
   // Tools the agent is allowed to use.
   repeated string allowed_tools = 5;
@@ -256,11 +383,19 @@ message RunConfigOverrides {
   // Network access level override.
   optional NetworkAccess network_access = 24;
 
-  // Require sandbox isolation.
-  optional bool requires_sandbox = 8;
+  // Canonical reasoning effort override.
+  optional string effort = 28;
 
-  // Require human approval.
-  optional bool requires_approval = 9;
+  // Explicit per-run model override. Role resolution still supplies the
+  // default; this field only overrides the selected model for this run.
+  optional string model = 29;
+
+  // Reserved to prevent accidental reuse of wire IDs/names from earlier
+  // schema iterations. SandboxConfig.mode is the single source of truth
+  // for whether a run is sandboxed; run-end apply behavior is on
+  // SandboxConfig levers.
+  reserved 1, 2, 8, 9, 16, 19, 20, 25;
+  reserved "runner_type", "policy_ref", "requires_sandbox", "requires_approval", "model_preset", "fallback_runner_types", "clear_fallback_runner_types";
 
   // Sandbox lifecycle + acceptance configuration.
   SandboxConfig sandbox_config = 17;
@@ -282,9 +417,6 @@ message RunConfigOverrides {
 
   // Clear denied paths inherited from profile.
   bool clear_denied_paths = 15;
-
-  // Clear fallback runners inherited from profile.
-  bool clear_fallback_runner_types = 20;
 }
 
 // =============================================================================

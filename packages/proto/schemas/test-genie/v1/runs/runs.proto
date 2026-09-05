@@ -1,0 +1,1302 @@
+syntax = "proto3";
+
+package vrooli.test_genie.v1.runs;
+
+import "common/v1/maturity.proto";
+import "common/v1/operations.proto";
+import "common/v1/validation_target.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1";
+
+// =============================================================================
+// TEST-GENIE RUNS DOMAIN — append-only run history
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain test-genie
+// @stability unstable
+//
+// Wire contract for RunsService, the surface over test-genie's append-only run
+// index (coverage/runs.index.json). Each test-genie execution produces a stable
+// runID-keyed record; this service enumerates, inspects, pins, compares, and
+// deletes those records.
+//
+// Consumed by:
+//   - test-genie CLI: `test-genie runs {list,show,delete,pin,unpin,compare}`.
+//   - git-control-tower baseline adapters: pin a run to a baseline and compare
+//     a baseline run against the current run for regression diagnosis.
+//
+// Pins protect a run from retention GC while an external consumer references
+// it. Comparison classifies each phase as clean / regression / new-failure /
+// preexisting / not-comparable.
+// =============================================================================
+
+service RunsService {
+  // ListRuns enumerates runs for a scenario, newest-first.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  // GetRun returns a single run record.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  // DeleteRun removes a run's artifacts and index entry. Pinned runs require force.
+  rpc DeleteRun(DeleteRunRequest) returns (DeleteRunResponse);
+  // PinRun protects a run from retention GC on behalf of an external consumer.
+  rpc PinRun(PinRunRequest) returns (PinRunResponse);
+  // UnpinRun removes a consumer's pin.
+  rpc UnpinRun(UnpinRunRequest) returns (UnpinRunResponse);
+  // CompareRuns classifies the per-phase differences between two runs.
+  rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
+  // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
+  rpc GetPhaseArtifact(GetPhaseArtifactRequest) returns (GetPhaseArtifactResponse);
+  // ListRunArtifacts returns the typed, path-free evidence catalog for a run.
+  // Kinds are open strings so future provider evidence passes through without
+  // a Test Genie or consumer schema change.
+  rpc ListRunArtifacts(ListRunArtifactsRequest) returns (ListRunArtifactsResponse);
+  // GetRunArtifact returns metadata for one opaque run-scoped artifact ID.
+  // Bytes are streamed through the access_path advertised on ArtifactRef.
+  rpc GetRunArtifact(GetRunArtifactRequest) returns (GetRunArtifactResponse);
+
+  // GetRunFindings returns the per-phase maturity standing (Phase Capability
+  // Contract) persisted in the run's findings.json, on demand.
+  rpc GetRunFindings(GetRunFindingsRequest) returns (GetRunFindingsResponse);
+  // ListRunVideos enumerates the recorded workflow videos for a run. The bytes
+  // themselves are served over a binary REST route (videos stream rather than
+  // round-trip through proto); the rel_path here is the handle that route
+  // takes. Consumed by git-control-tower's WorkflowReplayService.
+  rpc ListRunVideos(ListRunVideosRequest) returns (ListRunVideosResponse);
+  // ListRunVisuals enumerates the per-page UI visual artifacts (screenshot +
+  // optional video) captured by a run under the baseline capture profile. The
+  // bytes are served over the same binary REST artifact route (rel_path is the
+  // handle); the structured page set + screenshot count is what git-control-tower
+  // diffs at the metadata level between two baselines.
+  rpc ListRunVisuals(ListRunVisualsRequest) returns (ListRunVisualsResponse);
+  // CompareRunVisuals returns the per-page pixel-level comparison of two runs'
+  // captures by delegating analysis to ui-health. Test Genie owns run
+  // orchestration and artifact enumeration only; ui-health owns visual-health
+  // analysis and thresholds. Every delta is advisory: a difference is never a
+  // verdict here.
+  rpc CompareRunVisuals(CompareRunVisualsRequest) returns (CompareRunVisualsResponse);
+  // FindRun returns the newest completed run matching a shape filter (scenario +
+  // optional git_sha / tree_digest / preset / capture_profile / status). It is
+  // the reuse primitive: git-control-tower asks "is there already a clean-tree
+  // comprehensive+baseline run at this sha?" before starting a new one, so a
+  // snapshot-then-diff (or repeated diff) at the same clean tree does not
+  // re-run the suite. Read-only.
+  rpc FindRun(FindRunRequest) returns (FindRunResponse);
+  // CheckFreshness reports, per phase, whether some recorded run executed that
+  // phase (status passed) against the scenario's CURRENT working-tree digest.
+  // Read-only; consumed by git-control-tower's advisory pre-commit step and
+  // the `test-genie runs freshness` CLI verb.
+  rpc CheckFreshness(CheckFreshnessRequest) returns (CheckFreshnessResponse);
+  // GetSelfHealth aggregates Test Genie's own observability into one read:
+  //   (a) catalog summary (phases, delegated vs native, per-phase provider +
+  //       finding source),
+  //   (b) per-provider conformance/adoption against the shared validation
+  //       contract (reachable, contract-valid, identity, maturity.json valid,
+  //       metrics_adopted) — probed LIVE and time-boxed,
+  //   (c) the reliability ledger over a recent window (per phase/provider:
+  //       availability %, failure-class + skip-reason histograms, degraded
+  //       counts, duration p50/p95/min/max/avg, worst-scenarios-per-phase) plus
+  //       run-level terminal-outcome counts.
+  // Read-only; compute-on-read (no persisted rollups). Consumed by the
+  // `test-genie health` CLI verb and the meta-optimization heartbeat.
+  rpc GetSelfHealth(GetSelfHealthRequest) returns (GetSelfHealthResponse);
+
+  // GetFleetHealth aggregates STORED runs across the whole fleet into a
+  // fleet-wide health snapshot: importance/staleness-aware per-scenario rollups
+  // (runs, availability, failure rate, issue count, last-run age + outcome),
+  // a most-errored ranking, finding-source clustering, and — when a roster is
+  // requested — explicit never-tested-in-window coverage gaps. It is
+  // compute-on-read over runs that ALREADY executed (the default-OFF background
+  // fleet scheduler keeps them fresh); it does NOT launch a fleet run. Every
+  // datum is as-of stamped so stale data can never read as fresh. Read-only;
+  // consumed by the `test-genie fleet status` CLI verb and meta-optimization.
+  rpc GetFleetHealth(GetFleetHealthRequest) returns (GetFleetHealthResponse);
+  // GetCostReport aggregates measured phase cost over a bounded window. Low
+  // reliability samples are reported separately and never blended into totals.
+  rpc GetCostReport(GetCostReportRequest) returns (GetCostReportResponse);
+
+  // --- Durable run lifecycle (server-owned, request-decoupled) ---------------
+  // The run manager owns execution under a server-lifetime context, so a run
+  // survives client cancellation. StartRun returns immediately with the run id;
+  // FollowRun/WaitRun/AbortRun/GetRunStatus address that run by id. These are
+  // the typed surface the test-genie CLI and agents use; the legacy REST
+  // execute/stream endpoints are thin adapters over the same run manager.
+
+  // StartRun starts a suite run under a server-lifetime context and returns its
+  // run id synchronously (before the suite executes). The run survives client
+  // cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // FollowRun streams canonical run events for a run, replaying history so a
+  // late or re-attaching follower sees the full sequence. Cancelling the stream
+  // detaches the viewer WITHOUT aborting the run.
+  rpc FollowRun(FollowRunRequest) returns (stream RunEvent);
+  // WaitRun blocks until the run reaches a terminal state or the timeout
+  // elapses, returning the final (or current) live status.
+  rpc WaitRun(WaitRunRequest) returns (WaitRunResponse);
+  // AbortRun cancels a running run and transitions it to aborted.
+  rpc AbortRun(AbortRunRequest) returns (AbortRunResponse);
+  // GetRunStatus returns a point-in-time live snapshot (status, active phase,
+  // elapsed, remaining ETA, recommended next-check backoff).
+  rpc GetRunStatus(GetRunStatusRequest) returns (RunLiveStatus);
+}
+
+// RunEvent is the single canonical run-event vocabulary every follower observes
+// regardless of transport. event is one of: run_started, phase_started,
+// phase_progress, phase_heartbeat, phase_completed, phase_failed, run_completed.
+message RunEvent {
+  string event = 1;
+  double elapsed_seconds = 2;
+  // run_started / run_completed boundaries.
+  string run_id = 3;
+  string target = 4;
+  string artifact_dir = 5;
+  string preset = 6;
+  // phase-scoped fields.
+  string phase = 7;
+  int32 phase_index = 8;
+  int32 phase_total = 9;
+  string status = 10;
+  int32 duration_seconds = 11;
+  double quiet_seconds = 12;
+  string message = 13;
+  // terminal fields (run_completed).
+  bool success = 14;
+  string verdict = 15;
+  string error = 16;
+  // Historical v1 standing. New writers leave this unset; it remains so older
+  // event bytes decode as explicitly legacy evidence rather than as a v1
+  // presentation with shifted fields.
+  PhaseMaturityStanding maturity_standing = 17;
+  PhaseFindingsSummary findings_summary = 18;
+  // Provider-owned canonical presentation for new events.
+  common.v1.PhasePresentation phase_presentation = 19;
+  // Monotonic per-run cursor. Followers resume with this value in
+  // FollowRunRequest.after_sequence; it is intentionally not evidence.
+  uint64 sequence = 20;
+  common.v1.ValidationTarget target_ref = 21;
+}
+
+// RunLiveStatus is a point-in-time snapshot of a run.
+message RunLiveStatus {
+  string run_id = 1;
+  string target = 2;
+  string status = 3; // in_progress | passed | failed | aborted
+  string active_phase = 4;
+  int32 phase_index = 5;
+  int32 phase_total = 6;
+  string started_at = 7; // RFC3339
+  double elapsed_seconds = 8;
+  int32 estimated_total_seconds = 9;
+  int32 estimated_remaining_seconds = 10;
+  bool eta_known = 11;
+  // recommended_next_check_seconds is the backoff a poller should wait before
+  // re-checking: 0 when terminal, else the remaining estimate clamped to
+  // [5, 60] (30 when the ETA is unknown).
+  int32 recommended_next_check_seconds = 12;
+  string verdict = 13;
+  bool success = 14;
+  string error = 15;
+  // active reports whether the snapshot came from the live registry (true) or
+  // the durable index (false).
+  bool active = 16;
+  // terminal_presentations carries the provider-computed per-phase canonical
+  // presentations once a terminal live snapshot has the run result in memory. This
+  // lets the canonical agent path (`runs wait --json`) see the same Phase
+  // Capability Contract standing that follow streams receive on phase terminal
+  // events. Empty while in progress or when the server only has the durable
+  // index record.
+  // Historical v1 standings, retained only to safely decode old live snapshots.
+  repeated PhaseMaturityStanding terminal_standings = 17;
+  repeated PhaseFindingsSummary terminal_findings_summaries = 18;
+  // degraded_reasons is non-empty when a terminal status could not be backed
+  // by the canonical snapshot (for example, a legacy, corrupt, or unsupported
+  // snapshot). Consumers must render this as UNKNOWN/degraded evidence rather
+  // than treating absent phase data as a zero-phase success.
+  repeated string degraded_reasons = 19;
+  // Canonical presentations for new terminal live snapshots.
+  repeated common.v1.PhasePresentation terminal_presentations = 20;
+  // Canonical lifecycle decision surface. The legacy fields above remain run
+  // evidence/presentation details; clients deciding whether to wait must use
+  // this standing rather than infer state from them.
+  common.v1.OperationStanding standing = 21;
+  common.v1.ValidationTarget target_ref = 22;
+  int32 queue_position = 23;
+  int32 estimated_queue_wait_seconds = 24;
+}
+
+// AdmissionSaturation explains a temporary capacity rejection without making
+// consumers parse the human-readable error string.
+enum AdmissionLimitKind {
+  ADMISSION_LIMIT_KIND_UNSPECIFIED = 0;
+  ADMISSION_LIMIT_KIND_GLOBAL_QUEUE = 1;
+  ADMISSION_LIMIT_KIND_CALLER_QUEUE = 2;
+  ADMISSION_LIMIT_KIND_GLOBAL_PREVIEW = 3;
+  ADMISSION_LIMIT_KIND_CALLER_PREVIEW = 4;
+  ADMISSION_LIMIT_KIND_RESERVATION_QUEUE = 5;
+}
+
+message AdmissionSaturation {
+  AdmissionLimitKind limit_kind = 1;
+  int32 occupancy = 2;
+  int32 configured_limit = 3;
+  int32 fifo_position = 4;
+  int32 retry_after_seconds = 5;
+}
+
+message StartRunRequest {
+  string target = 1;
+  string preset = 2;
+  repeated string phases = 3;
+  repeated string skip = 4;
+  bool fail_fast = 5;
+  string diagnostics_preset = 6;
+  string ui_url = 7;
+  string api_url = 8;
+  // Field 9 (browserless_url) was removed when test-genie's browser substrate
+  // unified onto Browser Automation Studio (the Browserless client was deleted).
+  reserved 9;
+  reserved "browserless_url";
+  string scenario_path = 10;
+  string logical_repo_root = 11;
+  string logical_scenario_rel_path = 12;
+  string suite_request_id = 13;
+  // capture_profile is the capture-depth dial (orthogonal to the phase set). ""
+  // is the default depth with no extra all-pages visual capture. "baseline"
+  // enables all-pages visual capture + video + full diagnostics for
+  // git-control-tower baseline snapshots.
+  string capture_profile = 14;
+  // Gate-quality runs require clean, digest-stamped source evidence. Ordinary
+  // callers leave this false and receive shared-scoped provenance when their
+  // declared inputs remain stable.
+  bool require_gate_quality = 15;
+  common.v1.ValidationTarget target_ref = 16;
+  string collection_reservation_id = 17;
+  int32 collection_reservation_member_count = 18;
+  // Retain this run's artifacts and compact phase measurements under a
+  // server-owned, expiring lease. Intended for calibration/evidence runs;
+  // ordinary executions remain subject to normal retention.
+  bool retain_for_evidence = 19;
+  string retention_reason = 20;
+}
+
+message StartRunResponse {
+  string run_id = 1;
+  string target = 2;
+  // estimated_total_seconds is the summed plan-preview estimate; the CLI uses it
+  // to decide whether to follow inline or auto-background. 0 when unknown.
+  int32 estimated_total_seconds = 3;
+  bool eta_known = 4;
+  // coalesced is true when this request matched an already-in-flight run of the
+  // same scenario with the same logical request key and rode it instead of
+  // starting a second suite. run_id is then the in-flight run's id. The
+  // one-run-per-scenario invariant means identical re-requests are idempotent.
+  bool coalesced = 5;
+  common.v1.ValidationTarget target_ref = 6;
+}
+
+// RunBusyInfo describes the in-progress run that caused a divergent StartRun to
+// be rejected (carried in the FailedPrecondition error detail). It lets callers
+// render wait/abort guidance without parsing error strings.
+message RunBusyInfo {
+  string target = 1;
+  string run_id = 2;
+  string preset = 3;
+}
+
+message FollowRunRequest {
+  string target = 1;
+  string run_id = 2;
+  // suppress_heartbeats drops phase_heartbeat keep-alive events from THIS
+  // follower's stream (phase transitions and the terminal run_completed still
+  // flow). It is a per-follower filter, not a global toggle: the server's
+  // heartbeat loop keeps publishing to the shared broadcaster, so other
+  // followers (notably the browser SSE stream) still receive beats. The CLI sets
+  // it for non-interactive consumers (non-TTY stdout, --jsonl) so a backgrounded
+  // follow does not re-wake an agent on every beat; an interactive TTY follow
+  // leaves it false.
+  bool suppress_heartbeats = 3;
+  // Resume strictly after this event sequence. Zero requests the currently
+  // retained tail; a non-zero cursor older than that tail is stale and callers
+  // must recover terminal detail from durable evidence.
+  uint64 after_sequence = 4;
+}
+
+message WaitRunRequest {
+  string target = 1;
+  string run_id = 2;
+  int32 timeout_seconds = 3; // 0 = block until terminal
+}
+
+message WaitRunResponse {
+  RunLiveStatus status = 1;
+  bool timed_out = 2; // true if the wait returned before the run was terminal
+  // terminal_run is the canonical durable RunInfo projection. It is populated
+  // only for a terminal response backed by a valid persisted snapshot, and is
+  // the same record returned by GetRun after retirement or restart.
+  RunInfo terminal_run = 3;
+  int32 terminal_snapshot_schema_version = 4;
+  repeated string degraded_reasons = 5;
+}
+
+message AbortRunRequest {
+  string target = 1;
+  string run_id = 2;
+}
+
+message AbortRunResponse {
+  RunLiveStatus status = 1;
+}
+
+message GetRunStatusRequest {
+  string target = 1;
+  string run_id = 2;
+}
+
+message GetCostReportRequest {
+  string target = 1;
+  int64 window_seconds = 2; // 0 = 7 days
+  int64 compare_window_seconds = 3; // 0 = no comparison
+  // fleet aggregates by PHASE across every scenario instead of reporting one
+  // row per scenario/phase pair. A fleet-wide answer to "where does suite time
+  // go" is a per-phase question; per-scenario rows number in the hundreds and
+  // bury it.
+  bool fleet = 4;
+}
+
+message CostPhaseSummary {
+  string target = 1;
+  string phase = 2;
+  int32 sample_count = 3;
+  int32 reliable_sample_count = 4;
+  int32 excluded_sample_count = 5;
+  int64 total_wall_clock_ms = 6;
+  int64 median_wall_clock_ms = 7;
+  int64 p90_wall_clock_ms = 8;
+  int64 total_cpu_user_ms = 9;
+  int64 max_peak_rss_bytes = 10;
+  int64 change_wall_clock_ms = 11;
+  double change_percent = 12;
+  int32 prediction_sample_count = 13;
+  int64 prediction_error_total_ms = 14;
+  int64 prediction_mean_absolute_error_ms = 15;
+  double prediction_mean_absolute_error_percent = 16;
+  int32 passing_sample_count = 17;
+  int32 failing_sample_count = 18;
+  int64 passing_median_wall_clock_ms = 19;
+  int64 passing_p90_wall_clock_ms = 20;
+  int64 failing_median_wall_clock_ms = 21;
+  int64 failing_p90_wall_clock_ms = 22;
+  int32 cache_hit_count = 23;
+  int32 executed_sample_count = 24;
+  double cache_hit_rate_percent = 25;
+  int32 cache_audit_count = 26;
+  int32 cache_audit_mismatch_count = 27;
+  int32 cache_no_saving_count = 28;
+  int64 cache_audit_wall_clock_ms = 29;
+  int64 estimated_gross_saved_wall_clock_ms = 30;
+  int64 estimated_net_saved_wall_clock_ms = 31;
+  // provider_scenario names the scenario whose provider owns this phase, so a
+  // cost row points at something ownable. Empty for a native phase.
+  string provider_scenario = 32;
+  // Queue latency is the wait between a run being requested and it getting a
+  // concurrency slot. It is invisible to phase timings and is frequently the
+  // larger half of "why was my suite slow". Both are -1 when unknown, which is
+  // the case for runs recorded before requested_at existed.
+  int64 queue_latency_median_ms = 33;
+  int64 queue_latency_p90_ms = 34;
+  // Repeat-failure cost is wall-clock spent re-deriving a failure the phase had
+  // already produced under an identical cache identity. It is the direct
+  // measure of what caching failed results reclaims.
+  int64 repeat_failure_wall_clock_ms = 35;
+  int32 repeat_failure_sample_count = 36;
+}
+
+message GetCostReportResponse {
+  repeated CostPhaseSummary phases = 1;
+  int64 window_seconds = 2;
+  int64 compare_window_seconds = 3;
+}
+
+// DiagnosticsInfo is the serialized diagnostics profile a run executed with.
+message DiagnosticsInfo {
+  bool video = 1;
+  bool console = 2;
+  bool network = 3;
+  bool har = 4;
+  bool trace = 5;
+  bool dom = 6;
+}
+
+// PinInfo is a single external pin protecting the run from GC.
+message PinInfo {
+  string pinned_by = 1;
+  string pinned_at = 2; // RFC3339
+  string reason = 3;
+}
+
+// PhaseFindingsSummary is a compact per-severity tally of a phase's findings.
+message PhaseFindingsSummary {
+  int32 blockers = 1;
+  int32 errors = 2;
+  int32 warnings = 3;
+  int32 infos = 4;
+  int32 total = 5;
+}
+
+// PhaseCapabilityStanding and PhaseMaturityStanding are the retired run-wire
+// projection. They are retained solely to decode historical run data; all new
+// writers and consumers use common.v1.PhasePresentation.
+message PhaseCapabilityStanding {
+  string id = 1;
+  string label = 2;
+  string current_level = 3;
+  string current_level_label = 4;
+  string next_level = 5;
+  string current_summary = 6;
+  string next_unlock = 7;
+  bool clean = 8;
+  int32 blocking_finding_count = 9;
+  repeated string blocking_finding_codes = 10;
+  int32 priority_rank = 11;
+  string priority_reason = 12;
+}
+
+message PhaseMaturityStanding {
+  string provider = 1;
+  string phase = 2;
+  string current_level = 3;
+  string current_level_label = 4;
+  string next_level = 5;
+  string ceiling_level = 6;
+  bool clean = 7;
+  int32 unknown_count = 8;
+  repeated string blocking_finding_codes = 9;
+  string next_move = 10;
+  string next_move_reason = 11;
+  string priority_capability_id = 12;
+  string priority_capability_label = 13;
+  string north_star = 14;
+  bool at_maximum = 15;
+  repeated PhaseCapabilityStanding capabilities = 16;
+}
+
+// PhaseInfo is a compact per-phase summary.
+message PhaseInfo {
+  string name = 1;
+  string status = 2; // passed | failed | skipped
+  double duration_seconds = 3;
+  bool comparable = 4;
+  bool advisory = 5;
+  bool artifact_backed = 6;
+  bool non_comparable = 7;
+  // Historical v1 standing, retained solely to decode pre-presentation runs.
+  PhaseMaturityStanding maturity_standing = 8;
+  PhaseFindingsSummary findings_summary = 9;
+  // Provider-owned canonical presentation for new terminal records.
+  common.v1.PhasePresentation phase_presentation = 10;
+}
+
+// PhaseDescriptorPolicy is the descriptor-owned execution policy captured for
+// a run. String values intentionally preserve the provider descriptor
+// vocabulary so additive policy values remain inspectable by older clients.
+message PhaseDescriptorPolicy {
+  string selection = 1;
+  string provider_readiness = 2;
+  string provider_lifecycle = 3;
+  string freshness = 4;
+  string result_gating = 5;
+  string unavailable = 6;
+}
+
+// PhaseApplicabilityDecision is the immutable applicability decision made for
+// one phase while planning this run. It is historical evidence, not a live
+// re-evaluation against the current target or provider catalog.
+message PhaseApplicabilityDecision {
+  string status = 1; // applies | not_applicable | unknown | invalid
+  repeated string reason_codes = 2;
+  repeated string reasons = 3;
+  bool planned = 4;
+}
+
+// RunPhaseDescriptor is the run-captured presentation and orchestration
+// metadata for one immutable phase machine key.
+message RunPhaseDescriptor {
+  string phase = 1;
+  string display_name = 2;
+  string description = 3;
+  string provider = 4;
+  int32 order_hint = 5;
+  string phase_class = 6;
+  string runtime_class = 7;
+  repeated string dimensions = 8;
+  string finding_source = 9;
+  PhaseDescriptorPolicy policy = 10;
+  string docs_path = 11;
+  string maturity_reference = 12;
+  string applicability_default = 13;
+  repeated string evidence_kinds = 14;
+  repeated string aliases = 15;
+  repeated string supersedes = 16;
+  PhaseApplicabilityDecision applicability = 17;
+  // Fingerprint of the validation semantics only. Presentation metadata is
+  // deliberately excluded so copy changes do not invalidate evidence.
+  string comparison_fingerprint = 18;
+  // compatible | changed-unreviewed | invalidated | superseded.
+  string comparison_mode = 19;
+}
+
+// RunDescriptorSnapshot is the complete descriptor catalog frozen at run
+// planning time. digest is sha256 over the canonical snapshot payload.
+message RunDescriptorSnapshot {
+  int32 schema_version = 1;
+  string digest = 2;
+  repeated RunPhaseDescriptor phases = 3;
+}
+
+// RunInfo mirrors the run index record.
+message RunInfo {
+  string run_id = 1;
+  string target = 2;
+  string started_at = 3; // RFC3339
+  string completed_at = 4; // RFC3339, empty if in-progress
+  string status = 5; // in_progress | passed | failed | aborted
+  repeated PhaseInfo phases = 6;
+  string git_sha = 7;
+  string git_branch = 8;
+  bool git_dirty = 9;
+  string git_dirty_summary = 10;
+  DiagnosticsInfo diagnostics = 11;
+  repeated PinInfo pins = 12;
+  // tree_digest is the scenario working-tree content digest captured at run
+  // start ("td:"-prefixed sha256; see test-genie internal/shared/treedigest).
+  // Empty on runs that predate digest stamping.
+  string tree_digest = 13;
+  // preset is the requested suite preset ("quick"|"comprehensive"|...) and
+  // capture_profile the capture-depth dial (""|"baseline"). Both identify the
+  // suite SHAPE the run executed, so a consumer (git-control-tower) can reuse a
+  // completed run only when it matches the shape it needs. Empty on runs that
+  // predate shape stamping.
+  string preset = 14;
+  string capture_profile = 15;
+  repeated string planned_phases = 16;
+  string phase_set_digest = 17;
+  int32 descriptor_snapshot_schema_version = 18;
+  string descriptor_snapshot_digest = 19;
+  RunDescriptorSnapshot descriptor_snapshot = 20;
+  // Configuration fingerprint is the immutable execution-plan component that
+  // complements tree_digest, phase_set_digest, and descriptor_snapshot_digest.
+  // Empty only for runs that predate canonical terminal projections.
+  string execution_configuration_fingerprint = 21;
+  // gate_quality is true only for the optional strict, clean linked-worktree
+  // provenance tier. It is not a baseline-validity flag.
+  bool gate_quality = 22;
+  // strict | shared-scoped | degraded. This is provenance, independent from
+  // whether the terminal behavior result can be compared.
+  string evidence_tier = 23;
+  // Declared source boundary covered by tree_digest. Current implementations
+  // use target:<kind>:<id>; the string is deliberately additive for future
+  // collection/dependency-closure scopes.
+  string source_scope = 24;
+  // False means relevant inputs changed while this attempt was executing; the
+  // result is retained for diagnosis but is ineligible for cache reuse.
+  bool source_stable = 25;
+  common.v1.ValidationTarget target_ref = 26;
+}
+
+message ListRunsRequest {
+  string target = 1;
+  string status = 2; // optional filter: passed | failed | ...
+  int32 limit = 3; // 0 = all
+}
+
+message ListRunsResponse {
+  repeated RunInfo runs = 1;
+}
+
+message GetRunRequest {
+  string target = 1;
+  string run_id = 2;
+}
+
+message GetRunResponse {
+  RunInfo run = 1;
+  int32 terminal_snapshot_schema_version = 2;
+  repeated string degraded_reasons = 3;
+}
+
+message DeleteRunRequest {
+  string target = 1;
+  string run_id = 2;
+  bool force = 3; // required to delete a pinned run
+}
+
+message DeleteRunResponse {
+  bool deleted = 1;
+}
+
+message PinRunRequest {
+  string target = 1;
+  string run_id = 2;
+  string pinned_by = 3; // e.g. "gct:baseline:plan-7c3"
+  string reason = 4;
+}
+
+message PinRunResponse {
+  RunInfo run = 1;
+}
+
+message UnpinRunRequest {
+  string target = 1;
+  string run_id = 2;
+  string pinned_by = 3;
+}
+
+message UnpinRunResponse {
+  RunInfo run = 1;
+}
+
+message CompareRunsRequest {
+  string target = 1;
+  string run_id_a = 2; // baseline
+  string run_id_b = 3; // current
+  string phase = 4; // optional: restrict to one phase
+}
+
+enum PhaseComparisonReasonCode {
+  PHASE_COMPARISON_REASON_CODE_UNSPECIFIED = 0;
+  PHASE_COMPARISON_REASON_CODE_NEW_PHASE = 1;
+  PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE = 2;
+  PHASE_COMPARISON_REASON_CODE_INAPPLICABLE = 3;
+  PHASE_COMPARISON_REASON_CODE_SKIPPED = 4;
+  PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE = 5;
+  PHASE_COMPARISON_REASON_CODE_MISSING_ARTIFACT = 6;
+  PHASE_COMPARISON_REASON_CODE_INCOMPATIBLE_SCHEMA = 7;
+  PHASE_COMPARISON_REASON_CODE_LEGACY_METADATA_UNAVAILABLE = 8;
+}
+
+message PhaseComparisonReason {
+  PhaseComparisonReasonCode code = 1;
+  string detail = 2;
+}
+
+// ComparisonDiagnostic preserves a machine-readable measurement or contract
+// cause. readiness fields are provider-owned and remain available to the UI
+// and CLI instead of being collapsed into a generic not-comparable verdict.
+message ComparisonDiagnostic {
+  string side = 1; // baseline | current | comparison
+  string code = 2;
+  string detail = 3;
+  string classification = 4;
+  string lifecycle_action = 5;
+  string remediation = 6;
+  repeated string observations = 7;
+}
+
+// PhaseDiff classifies the difference for a single phase between run A and B.
+message PhaseDiff {
+  string phase = 1;
+  string status_a = 2;
+  string status_b = 3;
+  // verdict: clean | regression | new-failure | preexisting | not-comparable
+  string verdict = 4;
+  repeated string regressions = 5; // passing in A, failing in B
+  repeated string new_failures = 6; // absent in A, failing in B
+  repeated string preexisting_failures = 7; // failing in both
+  repeated string cleared_failures = 8; // failing in A, passing in B
+  RunPhaseDescriptor descriptor_a = 9;
+  RunPhaseDescriptor descriptor_b = 10;
+  repeated PhaseComparisonReason reasons = 11;
+  // Independent comparison dimensions. New consumers must use these rather
+  // than verdict, which is retained only for legacy readers.
+  string behavior = 12; // clean | regression | new-failure | preexisting | cleared | unknown
+  string coverage = 13; // measured | current-only | baseline-missing | current-missing | unmeasured
+  string compatibility = 14; // compatible | changed-unreviewed | invalidated | superseded | legacy
+  string provenance = 15; // verified | volatile | mismatched | legacy
+  repeated ComparisonDiagnostic diagnostics = 16;
+}
+
+message CompareRunsResponse {
+  repeated PhaseDiff phases = 1;
+  // verdict is the worst per-phase verdict (regression > not-comparable >
+  // new-failure > clean), driving the CLI exit code.
+  string verdict = 2;
+  int32 schema_version = 3;
+  string behavior = 4;
+  string coverage = 5;
+  string compatibility = 6;
+  string provenance = 7;
+  repeated ComparisonDiagnostic diagnostics = 8;
+}
+
+message FindRunRequest {
+  string target = 1;
+  // All match filters are exact-match and optional (empty = don't constrain):
+  string git_sha = 2;
+  string tree_digest = 3;
+  string preset = 4;
+  string capture_profile = 5;
+  // status defaults to "passed" when empty (the reuse case wants a clean run).
+  string status = 6;
+  // require_clean, when true, excludes runs captured against a dirty tree
+  // (git_dirty). Reuse always sets this — an uncommitted-edit run isn't a
+  // faithful stand-in for the current clean tree.
+  bool require_clean = 7;
+  // phase_set_digest is the exact planned phase shape required by the caller.
+  // Empty means "do not constrain"; baseline reuse should set this so stale
+  // completed runs from before catalog evolution cannot silently stand in.
+  string phase_set_digest = 8;
+  // require_gate_quality excludes clean but exploratory/shared-worktree runs.
+  bool require_gate_quality = 9;
+  // match_current_source asks Test Genie to compute the current declared scope
+  // and validation-plan fingerprints server-side, then return only a stable
+  // matching result. This is the shared-workspace cache-reuse primitive.
+  bool match_current_source = 10;
+}
+
+message FindRunResponse {
+  bool found = 1;
+  RunInfo run = 2; // the newest matching run; unset when found=false
+}
+
+message GetPhaseArtifactRequest {
+  string target = 1;
+  string run_id = 2;
+  string phase = 3;
+}
+
+message GetPhaseArtifactResponse {
+  string content = 1; // raw phase-results JSON
+  string content_type = 2; // "application/json"
+}
+
+enum ArtifactAccessCapability {
+  ARTIFACT_ACCESS_CAPABILITY_UNSPECIFIED = 0;
+  ARTIFACT_ACCESS_CAPABILITY_STREAM = 1;
+}
+
+enum ArtifactProvenance {
+  ARTIFACT_PROVENANCE_UNSPECIFIED = 0;
+  ARTIFACT_PROVENANCE_CATALOG = 1;
+  ARTIFACT_PROVENANCE_LEGACY_DISCOVERY = 2;
+}
+
+message ArtifactRelationship {
+  string type = 1;
+  string target_artifact_id = 2;
+}
+
+// ArtifactComparison describes optional analyzer-owned comparison behavior.
+// Advisory visual semantics never alter the Test Genie run verdict.
+message ArtifactComparison {
+  string semantics = 1;
+  string analyzer = 2;
+  map<string, string> metadata = 3;
+}
+
+// ArtifactRef is the public, safe evidence reference. It intentionally has no
+// relative or absolute filesystem path; access is through the opaque ID and
+// run-scoped proxy route only.
+message ArtifactRef {
+  string id = 1;
+  string kind = 2;
+  string media_type = 3;
+  string label = 4;
+  string producing_phase = 5;
+  int64 size_bytes = 6;
+  string created_at = 7;
+  ArtifactAccessCapability access_capability = 8;
+  string access_path = 9;
+  map<string, string> metadata = 10;
+  repeated ArtifactRelationship relationships = 11;
+  ArtifactComparison comparison = 12;
+  ArtifactProvenance provenance = 13;
+}
+
+message ListRunArtifactsRequest {
+  string target = 1;
+  string run_id = 2;
+  repeated string kinds = 3;
+  // Optional metadata filter. Consumers never need a phase filter to discover
+  // screenshots, workflow recordings, or another evidence kind.
+  string producing_phase = 4;
+}
+
+message ListRunArtifactsResponse {
+  int32 schema_version = 1;
+  string digest = 2;
+  repeated ArtifactRef artifacts = 3;
+  bool legacy_discovered = 4;
+  repeated string degraded_reasons = 5;
+}
+
+message GetRunArtifactRequest {
+  string target = 1;
+  string run_id = 2;
+  string artifact_id = 3;
+}
+
+message GetRunArtifactResponse {
+  ArtifactRef artifact = 1;
+  bool legacy_discovered = 2;
+}
+
+message GetRunFindingsRequest {
+  string target = 1;
+  // run_id selects the run; empty or "latest" resolves to the latest run.
+  string run_id = 2;
+}
+
+// RunFindingsPhase is one phase's Phase Capability Contract presentation as persisted
+// in the run's findings.json artifact.
+message RunFindingsPhase {
+  string name = 1;
+  string status = 2;
+  string finding_source = 3;
+  // Historical v1 standing, retained solely to decode old findings artifacts.
+  PhaseMaturityStanding maturity_standing = 4;
+  PhaseFindingsSummary findings_summary = 5;
+  // Provider-owned canonical presentation for new findings artifacts.
+  common.v1.PhasePresentation phase_presentation = 6;
+}
+
+// GetRunFindingsResponse returns the per-phase presentation on demand, the
+// same presentation carried in the run's phase-completed events — read back from the
+// durable findings.json artifact so an agent can revisit where each capability
+// stands without re-running the suite.
+message GetRunFindingsResponse {
+  string target = 1;
+  string run_id = 2;
+  string verdict = 3;
+  string completed_at = 4; // RFC3339
+  repeated RunFindingsPhase phases = 5;
+}
+
+// RunVideo describes one recorded workflow video, addressable by a path
+// relative to the run's artifact root.
+message RunVideo {
+  string workflow = 1;
+  string rel_path = 2; // path relative to the run dir; handle for the binary route
+  int64 size_bytes = 3;
+}
+
+message ListRunVideosRequest {
+  string target = 1;
+  string run_id = 2;
+}
+
+message ListRunVideosResponse {
+  repeated RunVideo videos = 1;
+}
+
+// RunVisual describes one page's baseline visual capture, addressable by paths
+// relative to the run's artifact root (handles for the binary artifact route).
+message RunVisual {
+  // page is the captured route (e.g. "/", "/backlog").
+  string page = 1;
+  // label is the human-readable page name.
+  string label = 2;
+  // screenshot_rel_path is the run-relative path to the page screenshot, or ""
+  // when no screenshot was captured.
+  string screenshot_rel_path = 3;
+  // video_rel_path is the run-relative path to the page video, or "" when none.
+  string video_rel_path = 4;
+  // screenshot_size_bytes is the screenshot file size (0 when absent).
+  int64 screenshot_size_bytes = 5;
+}
+
+message ListRunVisualsRequest {
+  string target = 1;
+  string run_id = 2;
+}
+
+message ListRunVisualsResponse {
+  repeated RunVisual visuals = 1;
+}
+
+message CompareRunVisualsRequest {
+  string target = 1;
+  string base_run_id = 2;
+  string current_run_id = 3;
+}
+
+// VisualDelta is one page's pixel-level comparison between two runs' captures.
+message VisualDelta {
+  string page = 1;
+  string label = 2;
+  // status: identical | changed | added | removed. Every non-identical status
+  // is a neutral "review before/after" signal, not a failure.
+  string status = 3;
+  // changed_fraction is the share of the downscaled luminance grid that moved
+  // (0 unless status is "changed").
+  double changed_fraction = 4;
+  // Opaque links back to the exact typed screenshot evidence. Empty when the
+  // page exists on only the opposite side or legacy discovery found no image.
+  string base_artifact_id = 5;
+  string current_artifact_id = 6;
+}
+
+message CompareRunVisualsResponse {
+  repeated VisualDelta deltas = 1;
+}
+
+message CheckFreshnessRequest {
+  string target = 1;
+  // phases to check. Empty = the global required set (test-genie's quick
+  // preset — a code-level SSOT, deliberately NOT per-scenario configurable).
+  repeated string phases = 2;
+}
+
+// PhaseFreshness is the verdict for one phase.
+message PhaseFreshness {
+  string phase = 1;
+  // status: fresh   — a run with the current tree digest ran this phase, passed
+  //         stale   — digest-stamped runs exist, but none passed this phase at
+  //                   the current digest
+  //         unknown — no digest-stamped runs exist for the scenario
+  string status = 2;
+  string last_run_id = 3; // newest run that passed this phase, if any
+  string last_run_completed_at = 4; // RFC3339, empty if none/in-progress
+}
+
+message CheckFreshnessResponse {
+  string target = 1;
+  // tree_digest is the scenario's CURRENT working-tree digest the verdicts
+  // were computed against.
+  string tree_digest = 2;
+  repeated PhaseFreshness phases = 3;
+  // suggested_command reproduces freshness for every stale/unknown phase
+  // (e.g. "test-genie execute <scenario> --preset quick").
+  string suggested_command = 4;
+}
+
+// =============================================================================
+// SELF-HEALTH — Test Genie's own reliability/conformance surface (GetSelfHealth)
+// =============================================================================
+
+message GetSelfHealthRequest {
+  // window_days bounds the reliability ledger look-back. 0 = server default
+  // (30 days).
+  int32 window_days = 1;
+  // skip_conformance omits the LIVE provider conformance scan (the slow part:
+  // one time-boxed probe per delegated provider). The reliability ledger and
+  // catalog summary still come back. Default (false) includes conformance.
+  bool skip_conformance = 2;
+  // include_trend, when set, fills the persisted-snapshot trend series on the
+  // response (newest-first, bounded by window_days). The current ledger's
+  // captured_at + trend delta against the last differing snapshot are always
+  // filled when a snapshot history exists, independent of this flag.
+  bool include_trend = 3;
+  // force_live_conformance opts into the synchronous provider scan. This is
+  // intentionally explicit because the scan fans out to every provider and
+  // is not suitable for a latency-bounded health read.
+  bool force_live_conformance = 4;
+}
+
+message GetSelfHealthResponse {
+  SelfHealth self_health = 1;
+}
+
+message GetFleetHealthRequest {
+  // window_days bounds the fleet aggregation look-back. 0 = server default
+  // (30 days), shared with the reliability ledger.
+  int32 window_days = 1;
+  // include_roster, when set, has the server enumerate the full fleet roster so
+  // never_tested_in_window is populated (an explicit coverage gap). Default
+  // (false) omits the cross-reference and leaves that list empty (unknown, not
+  // asserted).
+  bool include_roster = 2;
+}
+
+message GetFleetHealthResponse {
+  FleetHealth fleet_health = 1;
+}
+
+// FleetHealth is the fleet-wide health snapshot aggregated over stored runs.
+message FleetHealth {
+  int32 window_days = 1;
+  // captured_at is the as-of stamp for the whole rollup (RFC3339Nano UTC).
+  string captured_at = 2;
+  int32 scenarios_tested = 3; // scenarios with >=1 run in the window
+  int32 scenarios_total = 4; // tested + never-tested (when roster requested)
+  int32 total_runs = 5;
+  // Deprecated compatibility alias. Use failed_phase_observations; this name
+  // was ambiguous with findings emitted by individual phases.
+  int32 total_issues = 6 [deprecated = true];
+  repeated FleetScenarioHealth scenarios = 7; // most-errored first
+  repeated FleetFindingSource top_finding_sources = 8;
+  // never_tested_in_window names roster scenarios with no run in the window — an
+  // explicit coverage gap, never a silent zero. Empty when no roster requested.
+  repeated string never_tested_in_window = 9;
+  repeated FleetAlert alerts = 10;
+  repeated FailureClassificationCount failure_classifications = 11;
+  int32 failed_phase_observations = 12;
+  // Finding quality keeps actionable blockers/errors separate from the much
+  // larger warning/info volume.
+  FleetFindingQuality finding_quality = 13;
+}
+
+// FailureClassificationCount is a typed split of failed phase observations.
+// The `system` bucket is the orchestrator fallback; provider-stated causes are
+// preserved as their own buckets.
+message FailureClassificationCount {
+  string classification = 1;
+  int32 count = 2;
+}
+
+// FleetFindingQuality is the severity rollup for findings emitted by phases in
+// the requested window. Blockers + errors are the actionable headline; the
+// warning/info volume is advisory context.
+message FleetFindingQuality {
+  int32 blockers = 1;
+  int32 errors = 2;
+  int32 warnings = 3;
+  int32 infos = 4;
+  int32 total = 5;
+}
+
+// FleetAlert turns a non-clean fleet condition into an operator action. The
+// alert is computed from the same immutable run evidence as FleetHealth and
+// carries the evidence age and rollback path explicitly.
+message FleetAlert {
+  string code = 1;
+  string severity = 2; // warning | error
+  string target = 3;
+  string source = 4;
+  string message = 5;
+  double evidence_age_days = 6;
+  string owner = 7;
+  string next_action = 8;
+  string rollback_path = 9;
+}
+
+// FleetScenarioHealth is one scenario's rollup over the window, all from stored
+// runs. last_run_at + age_days make staleness explicit per scenario.
+message FleetScenarioHealth {
+  string target = 1;
+  int32 runs = 2;
+  int32 passed_runs = 3;
+  int32 failed_runs = 4;
+  double availability = 5;
+  double failure_rate = 6;
+  int32 issues = 7; // failed phase observations in the window
+  string last_run_at = 8; // RFC3339Nano UTC; empty when no run in window
+  string last_outcome = 9; // newest run's terminal outcome
+  double age_days = 10; // now - last_run_at, in days
+}
+
+// FleetFindingSource is one finding-source's issue count across the fleet.
+message FleetFindingSource {
+  string source = 1;
+  int32 issues = 2;
+}
+
+// SelfHealth stitches catalog, conformance, and reliability into one snapshot.
+message SelfHealth {
+  CatalogSummary catalog = 1;
+  // conformance is the per-provider adoption scorecard. Empty when
+  // skip_conformance was set.
+  repeated ProviderConformance conformance = 2;
+  // conformance_freshness is "live" for an explicitly forced scan, "cached"
+  // for the background snapshot, or "skipped" when skip_conformance was set.
+  string conformance_freshness = 3;
+  ReliabilityLedger ledger = 4;
+  // trend_series is the persisted self-health snapshot history, newest-first.
+  // Populated only when include_trend was requested and snapshots exist.
+  repeated SelfHealthTrendPoint trend_series = 5;
+  // conformance_captured_at is the UTC capture time of the cached scorecard.
+  // It is empty for live, skipped, or not-yet-captured conformance.
+  string conformance_captured_at = 6;
+}
+
+// SelfHealthTrendPoint is one persisted self-health snapshot in the trend
+// series — the headline metrics at a capture time.
+message SelfHealthTrendPoint {
+  string captured_at = 1; // RFC3339Nano UTC
+  double availability = 2;
+  int32 run_count = 3;
+  int32 hard_violations = 4;
+  int32 metrics_adopted = 5; // delegated providers emitting ExecutionMetrics
+}
+
+// TrendDelta compares the current ledger against the last persisted snapshot
+// whose content differed, so consumers can render "availability 0.97 ↑0.04
+// since <date>" without recomputing history.
+message TrendDelta {
+  string previous_captured_at = 1; // RFC3339Nano UTC of the baseline snapshot
+  double previous_availability = 2;
+  int32 previous_run_count = 3;
+  double availability_delta = 4; // current - previous
+  int32 run_count_delta = 5; // current - previous
+}
+
+// CatalogSummary describes the registered phase set.
+message CatalogSummary {
+  int32 total_phases = 1;
+  int32 delegated_phases = 2;
+  int32 native_phases = 3;
+  repeated CatalogPhase phases = 4;
+}
+
+// CatalogPhase is one registered phase's catalog metadata.
+message CatalogPhase {
+  string name = 1;
+  bool optional = 2;
+  string source = 3; // "native" or "delegated"
+  bool delegated = 4;
+  string provider = 5; // delegated provider scenario; empty for native
+  string finding_source = 6; // lower-case finding-source token; empty when none
+}
+
+// ProviderConformance is one provider's adoption scorecard against the shared
+// ScenarioValidationService contract.
+message ProviderConformance {
+  string provider = 1;
+  string phase = 2;
+  bool reachable = 3;
+  bool contract_valid = 4;
+  bool identity_ok = 5;
+  bool spec_valid = 6;
+  bool metrics_adopted = 7; // required: a reachable provider that drops ExecutionMetrics is a hard violation
+  double adoption_score = 8; // fraction of the five dimensions satisfied
+  repeated string violations = 9;
+  // autofix is the spec-derived autofix declaration rollup (Stage 1, advisory).
+  // It never enters adoption_score or the hard-violation set.
+  AutofixCoverage autofix = 10;
+  // classification is the mutually exclusive fleet posture: compliant,
+  // unavailable (advisory live infrastructure), exempt (intentionally native),
+  // or violation (deterministic descriptor/response contract failure).
+  string classification = 11;
+  // reason_codes are stable machine-readable details for classification. Human
+  // diagnostics remain in violations; consumers must not infer state by parsing
+  // those strings.
+  repeated string reason_codes = 12;
+  // True when the descriptor declares at least one implemented deterministic
+  // fixer that must satisfy the sandboxed PreviewFix/ApplyFix contract.
+  bool fix_contract_required = 13;
+  // True only after the provider's PreviewFix/ApplyFix responses agree and all
+  // candidate paths stay inside the isolated conformance fixture.
+  bool fix_contract_valid = 14;
+  // True when the provider-owned descriptor declares its concurrency mode.
+  // Missing declarations are scheduled exclusively for safety but remain a
+  // conformance migration finding.
+  bool concurrency_declared = 15;
+  // True when the live validation response carried metrics, independent of
+  // whether the execution history persisted them.
+  bool metrics_reachable = 16;
+  bool failure_classification_missing = 17;
+}
+
+// AutofixCoverage is the per-provider autofix declaration rollup derived from a
+// provider's shipped maturity.json. Counts are absolute; the headline is
+// `pending` (the actionable backlog). `implementation_rate` keeps pending in the
+// denominator and is informational only — never a gate.
+message AutofixCoverage {
+  int32 total = 1; // declared finding mappings
+  int32 fixable_universe = 2; // auto + external
+  int32 implemented = 3; // fixable findings whose fixer exists
+  int32 pending = 4; // fixable findings whose fixer is not built yet (headline gap)
+  int32 manual = 5; // findings declared (or defaulted) manual
+  int32 declared = 6; // findings carrying an explicit fix_class
+  bool declaration_complete = 7; // every finding classified (the advisory dim)
+  double implementation_rate = 8; // implemented / (implemented + pending); informational
+}
+
+// ReliabilityLedger is the compute-on-read reliability + performance rollup.
+message ReliabilityLedger {
+  int32 window_days = 1;
+  int32 run_count = 2;
+  // availability is the fraction of terminal runs that produced a result
+  // (passed or failed) out of all runs (incl. errored/aborted/timeout).
+  double availability = 3;
+  repeated RunOutcomeCount run_outcomes = 4;
+  repeated PhaseReliability phases = 5;
+  repeated ProviderReliability providers = 6;
+  // captured_at is the persist time of the most recent self-health snapshot
+  // (RFC3339Nano UTC), empty when no snapshot history exists yet.
+  string captured_at = 7;
+  // trend is the delta of this ledger vs the last differing snapshot. Nil when
+  // there is no prior differing snapshot to compare against.
+  TrendDelta trend = 8;
+}
+
+// RunOutcomeCount is one bucket of the run-level terminal-outcome histogram.
+message RunOutcomeCount {
+  string outcome = 1; // passed | failed | errored | aborted | timeout | unknown
+  int32 count = 2;
+}
+
+// LabeledCount is one bucket of a string-keyed histogram.
+message LabeledCount {
+  string label = 1;
+  int32 count = 2;
+}
+
+// DurationStats summarizes executed-phase durations (seconds).
+message DurationStats {
+  int32 samples = 1;
+  int32 p50 = 2;
+  int32 p95 = 3;
+  int32 min = 4;
+  int32 max = 5;
+  int32 avg = 6;
+}
+
+// SecurityFriction is the evidence-bound security-phase remediation signal.
+// It is intentionally derived only from completed phase observations: missing
+// or unavailable provider evidence is never converted into a successful fix.
+message SecurityFriction {
+  int32 failed_attempts = 1;
+  int32 green_transitions = 2;
+  int32 recurring_failures = 3;
+  int32 time_to_green_samples = 4;
+  DurationStats time_to_green = 5;
+}
+
+// ScenarioFailureRate ranks a scenario's failure rate for one phase.
+message ScenarioFailureRate {
+  string target = 1;
+  int32 executed = 2;
+  int32 failures = 3;
+  double failure_rate = 4;
+}
+
+// PhaseReliability is the per-phase reliability + performance rollup.
+message PhaseReliability {
+  string phase = 1;
+  string provider = 2; // empty for native phases
+  string finding_source = 3;
+  int32 total_observations = 4;
+  int32 passed = 5;
+  int32 failed = 6;
+  int32 skipped = 7;
+  int32 degraded = 8;
+  double availability = 9; // executed / total observations
+  double failure_rate = 10; // failed / executed
+  int32 metrics_adopted = 11; // observations carrying ExecutionMetrics
+  repeated LabeledCount skip_reasons = 12;
+  repeated LabeledCount classifications = 13;
+  DurationStats duration = 14;
+  repeated ScenarioFailureRate worst_scenarios = 15;
+  // Populated for the security phase (or a phase explicitly backed by the
+  // security finding source); empty for unrelated phases.
+  SecurityFriction security_friction = 16;
+  int32 consecutive_failures = 17;
+  // RFC3339Nano timestamp of the oldest observation in the current contiguous
+  // failure streak. Consumers use the age of this streak for sustained
+  // degradation decisions rather than treating an arbitrary sample count as
+  // a duration.
+  string failure_streak_since = 18;
+}
+
+// ProviderReliability is the per-provider rollup across its phase(s).
+message ProviderReliability {
+  string provider = 1;
+  repeated string phases = 2;
+  int32 total_observations = 3;
+  int32 passed = 4;
+  int32 failed = 5;
+  int32 skipped = 6;
+  double availability = 7;
+  double failure_rate = 8;
+  int32 metrics_adopted = 9;
+  DurationStats duration = 10;
+}

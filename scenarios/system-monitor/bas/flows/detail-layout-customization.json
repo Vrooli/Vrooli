@@ -1,0 +1,32 @@
+{
+  "id": "system-monitor-detail-layout-customization",
+  "name": "system-monitor-detail-layout-customization",
+  "description": "Generic BAS validation of the shared detail layout controls: open, change density and columns, hide a section, reorder a section, and reset preferences.",
+  "metadata": {"name": "system-monitor-detail-layout-customization", "description": "Validate shared detail layout customization on CPU without component-specific harness logic.", "labels": {"reset": "local-storage", "intent": "responsive-layout", "requires_confirmation": "true", "routed_isolation": "true"}, "execution_mode": "mutating"},
+  "version": 1,
+  "flow_definition": {
+    "metadata": {
+      "name": "system-monitor-detail-layout-customization",
+      "description": "Validate shared detail layout customization on CPU without component-specific harness logic.",
+      "labels": {"reset": "local-storage", "intent": "responsive-layout", "requires_confirmation": "true", "routed_isolation": "true"},
+      "execution_mode": "mutating"
+    },
+    "settings": {"viewport_width": 1440, "viewport_height": 900},
+    "nodes": [
+      {"id":"open-cpu","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"url":"http://127.0.0.1:21232/metrics/cpu?theme=dark","timeout_ms":30000,"wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","destination_type":"NAVIGATE_DESTINATION_TYPE_URL"},"metadata":{"label":"Open CPU detail"}}},
+      {"id":"wait-layout","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/detail-layout-customize","state":"WAIT_STATE_VISIBLE","timeout_ms":30000},"metadata":{"label":"Wait for detail layout controls"}}},
+      {"id":"open-controls","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/detail-layout-customize"},"metadata":{"label":"Open layout customization"}}},
+      {"id":"assert-controls","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/detail-layout-controls","mode":"ASSERTION_MODE_VISIBLE","failure_message":"Detail layout controls must be visible","timeout_ms":10000},"metadata":{"label":"Customization controls are visible"}}},
+      {"id":"set-density","action":{"type":"ACTION_TYPE_SELECT","select_option":{"selector":"@selector/detail-density","value":"compact"},"metadata":{"label":"Set compact density"}}},
+      {"id":"set-columns","action":{"type":"ACTION_TYPE_SELECT","select_option":{"selector":"@selector/detail-columns","value":"2"},"metadata":{"label":"Set two-column layout"}}},
+      {"id":"hide-section","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/detail-mode-history-toggle"},"metadata":{"label":"Hide one detail section"}}},
+      {"id":"move-section","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/detail-process-monitor-up"},"metadata":{"label":"Move a section with keyboard-safe control"}}},
+      {"id":"reset","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/detail-layout-reset"},"metadata":{"label":"Reset layout preferences"}}},
+      {"id":"assert-content","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/detail-mode-history","mode":"ASSERTION_MODE_VISIBLE","failure_message":"Reset must restore hidden sections","timeout_ms":10000},"metadata":{"label":"Reset restores the default content"}}},
+      {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture customized layout validation"}}}
+    ],
+    "edges": [
+      {"source":"open-cpu","target":"wait-layout"},{"source":"wait-layout","target":"open-controls"},{"source":"open-controls","target":"assert-controls"},{"source":"assert-controls","target":"set-density"},{"source":"set-density","target":"set-columns"},{"source":"set-columns","target":"hide-section"},{"source":"hide-section","target":"move-section"},{"source":"move-section","target":"reset"},{"source":"reset","target":"assert-content"},{"source":"assert-content","target":"capture"}
+    ]
+  }
+}

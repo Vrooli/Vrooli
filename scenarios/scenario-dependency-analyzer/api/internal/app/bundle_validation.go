@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -31,6 +32,7 @@ type desktopBundleManifest struct {
 	Telemetry     manifestTelemetry      `json:"telemetry"`
 	Ports         *manifestPorts         `json:"ports,omitempty"`
 	Swaps         []manifestSwap         `json:"swaps,omitempty"`
+	Peers         []manifestPeer         `json:"peers,omitempty"`
 	Secrets       []manifestSecret       `json:"secrets,omitempty"`
 	Services      []manifestServiceEntry `json:"services"`
 }
@@ -39,6 +41,7 @@ type manifestApp struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
 	Description string `json:"description"`
+	Scenario    string `json:"scenario,omitempty"`
 }
 
 type manifestIPC struct {
@@ -68,6 +71,13 @@ type manifestSwap struct {
 	Replacement string `json:"replacement"`
 	Reason      string `json:"reason"`
 	Limitations string `json:"limitations"`
+}
+
+type manifestPeer struct {
+	Scenario         string `json:"scenario"`
+	BundlePolicy     string `json:"bundle_policy"`
+	StartupPolicy    string `json:"startup_policy,omitempty"`
+	DegradedBehavior string `json:"degraded_behavior,omitempty"`
 }
 
 type manifestSecret struct {
@@ -107,6 +117,7 @@ type manifestServiceEntry struct {
 	Dependencies []string                         `json:"dependencies,omitempty"`
 	Migrations   []manifestMigration              `json:"migrations,omitempty"`
 	Assets       []manifestAsset                  `json:"assets,omitempty"`
+	DistRoot     string                           `json:"dist_root,omitempty"`
 	GPU          *manifestGPU                     `json:"gpu,omitempty"`
 	Critical     *bool                            `json:"critical,omitempty"`
 }
@@ -181,8 +192,8 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 	if manifest.App.Name == "" || manifest.App.Version == "" {
 		return fmt.Errorf("app.name and app.version are required")
 	}
-	if manifest.IPC.Mode != "loopback-http" || manifest.IPC.Host == "" || manifest.IPC.Port == 0 || manifest.IPC.AuthTokenPath == "" {
-		return fmt.Errorf("ipc must define loopback-http host, port, and auth_token_path")
+	if manifest.IPC.Mode != "loopback-http" || manifest.IPC.Host == "" || manifest.IPC.Port < 0 || manifest.IPC.AuthTokenPath == "" {
+		return fmt.Errorf("ipc must define loopback-http host, a non-negative allocator input, and auth_token_path")
 	}
 	if manifest.Telemetry.File == "" {
 		return fmt.Errorf("telemetry.file is required")
@@ -196,6 +207,11 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 			return fmt.Errorf("secret %s: %w", secret.ID, err)
 		}
 	}
+	for _, peer := range manifest.Peers {
+		if err := validatePeer(peer, manifest.Services); err != nil {
+			return err
+		}
+	}
 
 	for _, svc := range manifest.Services {
 		if err := validateService(svc); err != nil {
@@ -204,6 +220,31 @@ func validateDesktopBundleManifestBytes(data []byte) error {
 	}
 	if err := validateAgainstDesktopSchema(data); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validatePeer(peer manifestPeer, services []manifestServiceEntry) error {
+	if peer.Scenario == "" {
+		return errors.New("peer.scenario is required")
+	}
+	switch peer.BundlePolicy {
+	case "embed":
+		found := false
+		for _, service := range services {
+			if strings.HasPrefix(service.ID, peer.Scenario+"--") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("PEER_EMBED_SERVICES_MISSING: peer %s contributes no bundled services", peer.Scenario)
+		}
+	case "discover", "either":
+		// Peer addresses are resolved through discovery at call time. The
+		// manifest no longer projects environment bindings into the bundle.
+	default:
+		return fmt.Errorf("peer %s has unsupported bundle_policy %q", peer.Scenario, peer.BundlePolicy)
 	}
 	return nil
 }

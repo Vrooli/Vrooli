@@ -4,19 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import {
-  useAgentManagerStatus,
-  useTasks,
-  useTaskDetails,
-  useCreateTask,
-  useStopTask,
-} from "../useInvestigation";
-import type {
-  AgentManagerStatus,
-  Investigation,
-  CreateTaskRequest,
-} from "../../types/investigation";
 import {
   mockGetAgentManagerStatus,
   mockCreateTask,
@@ -27,6 +14,23 @@ import {
   createMockInvestigation,
   createMockInvestigationSummary,
 } from "./useInvestigation.testUtils";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
+import {
+  useAgentManagerStatus,
+  useTasks,
+  useTaskDetails,
+  useCreateTask,
+  useStopTask,
+} from "../useInvestigation";
+import {
+  AgentManagerStatusResponseSchema,
+  InvestigationEffort,
+  TaskType,
+  type AgentManagerStatusResponse,
+  type Investigation,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/tasks_pb";
+import type { CreateTaskInput } from "../../lib/api/tasks";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -49,10 +53,13 @@ describe("useAgentManagerStatus", () => {
   });
 
   it("returns agent manager status when available", async () => {
-    const mockStatus: AgentManagerStatus = {
-      available: true,
-      url: "http://localhost:8080",
-    };
+    const mockStatus: AgentManagerStatusResponse = create(
+      AgentManagerStatusResponseSchema,
+      {
+        available: true,
+        url: "http://localhost:8080",
+      },
+    );
     mockGetAgentManagerStatus.mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => useAgentManagerStatus(), {
@@ -67,10 +74,13 @@ describe("useAgentManagerStatus", () => {
   });
 
   it("returns unavailable status", async () => {
-    const mockStatus: AgentManagerStatus = {
-      available: false,
-      reason: "Service unreachable",
-    };
+    const mockStatus: AgentManagerStatusResponse = create(
+      AgentManagerStatusResponseSchema,
+      {
+        available: false,
+        reason: "Service unreachable",
+      },
+    );
     mockGetAgentManagerStatus.mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => useAgentManagerStatus(), {
@@ -86,7 +96,9 @@ describe("useAgentManagerStatus", () => {
   });
 
   it("handles error without retry", async () => {
-    mockGetAgentManagerStatus.mockRejectedValue(new Error("Connection refused"));
+    mockGetAgentManagerStatus.mockRejectedValue(
+      new Error("Connection refused"),
+    );
 
     const { result } = renderHook(() => useAgentManagerStatus(), {
       wrapper: createWrapper(),
@@ -181,7 +193,7 @@ describe("useTaskDetails", () => {
 
     const { result } = renderHook(
       () => useTaskDetails("pipeline-456", "task-123"),
-      { wrapper: createWrapper() }
+      { wrapper: createWrapper() },
     );
 
     await waitFor(() => {
@@ -202,10 +214,10 @@ describe("useCreateTask", () => {
       wrapper: createWrapper(),
     });
 
-    const request: CreateTaskRequest = {
-      task_type: "investigate",
+    const request: CreateTaskInput = {
+      taskType: TaskType.INVESTIGATE,
       focus: { harness: true, subject: false },
-      effort: "logs",
+      effort: InvestigationEffort.LOGS,
     };
 
     await act(async () => {
@@ -225,7 +237,7 @@ describe("useCreateTask", () => {
       () =>
         new Promise((resolve) => {
           resolveCreate = resolve;
-        })
+        }),
     );
 
     const { result } = renderHook(() => useCreateTask(), {
@@ -239,7 +251,7 @@ describe("useCreateTask", () => {
       createPromise = result.current.mutateAsync({
         pipelineId: "pipeline-456",
         request: {
-          task_type: "investigate",
+          taskType: TaskType.INVESTIGATE,
           focus: { harness: true, subject: false },
         },
       });
@@ -283,8 +295,10 @@ describe("useStopTask", () => {
     mockStopTask.mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolveStop = () => resolve(undefined);
-        })
+          resolveStop = () => {
+            resolve(undefined);
+          };
+        }),
     );
 
     const { result } = renderHook(() => useStopTask(), {

@@ -48,34 +48,26 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 	}
 
 	// Filter out self to avoid restarting our own process mid-finalization.
-	if s.selfScenarioName != "" {
-		filtered := make([]string, 0, len(scope.affectedScenarios))
-		for _, name := range scope.affectedScenarios {
-			if name == s.selfScenarioName {
-				slog.Warn("skipping self-restart during finalization",
-					"execution_id", executionID,
-					"scenario", s.selfScenarioName,
-				)
-				_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
-					finalizationWarningSelfRestartSkipped,
-					s.selfScenarioName,
-					fmt.Sprintf("Scenario %q was in scope but skipped because restarting it would kill this running process. If changes to %s require a restart, restart it manually after finalization completes.", s.selfScenarioName, s.selfScenarioName),
-					false,
-				))
-				continue
-			}
-			filtered = append(filtered, name)
-		}
-		scope.affectedScenarios = filtered
-	}
+	scope.affectedScenarios = s.filterSelfScenario(executionID, scope.affectedScenarios)
 
 	if err := s.markFinalizationPhase(executionID, FinalizationPhaseRestarting); err != nil {
 		return err
 	}
 	for _, scenarioName := range scope.affectedScenarios {
-		if err := s.runScenarioRestartAndHealth(ctx, executionID, scenarioName); err != nil {
+		// Route restart/health to @shadow when this scenario is shadow-engaged
+		// under the owner (plan P-b.5); bare name otherwise.
+		target := s.shadowTargetFor(record, scenarioName)
+		if err := s.runScenarioRestartAndHealth(ctx, executionID, scenarioName, target); err != nil {
 			return err
 		}
+	}
+
+	// Before/after baseline diff: compare each affected scenario against the
+	// baseline captured before execution so the review agent can separate
+	// regressions this item caused from pre-existing failures. Additive to the
+	// absolute review below — best-effort, never fails finalization.
+	if err := s.runBaselineDiffs(ctx, executionID, scope, record.PreExecBaselines); err != nil {
+		return err
 	}
 
 	if err := s.markFinalizationPhase(executionID, FinalizationPhaseReviewing); err != nil {
@@ -89,25 +81,76 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 
 	// Evidence gathering phase (optional, policy-gated). The review agent
 	// spawns asynchronously; its failure is non-fatal to finalization.
+	//
+	// reviewStarted records whether a review round was actually spawned. It
+	// drives the terminal status decision in finishFinalization: a started
+	// review lands the item in `in_review` (a round is actively gathering);
+	// a review that was disabled or failed to spawn lands the item directly
+	// in `review_pending` so the user can still decide a terminal state via
+	// review-decide instead of being stranded in an `in_review` with no
+	// review round behind it (the orphaned-in_review dead-end).
+	reviewStarted, reviewSkipReason, err := s.runEvidenceGathering(ctx, executionID, scope, item)
+	if err != nil {
+		return err
+	}
+
+	// Pre-exec baselines have served their purpose (the diff results are
+	// persisted on the record and handed to the review agent); reclaim them
+	// unless configured to retain. Best-effort — never blocks finalization.
+	s.cleanupPreExecBaselines(ctx, record.PreExecBaselines)
+
+	return s.finishFinalization(executionID, reviewStarted, reviewSkipReason)
+}
+
+// filterSelfScenario drops the running scenario from the affected set so
+// finalization never restarts its own process, recording a warning when it does.
+func (s *Service) filterSelfScenario(executionID string, affected []string) []string {
+	if s.selfScenarioName == "" {
+		return affected
+	}
+	filtered := make([]string, 0, len(affected))
+	for _, name := range affected {
+		if name == s.selfScenarioName {
+			slog.Warn("skipping self-restart during finalization",
+				"execution_id", executionID,
+				"scenario", s.selfScenarioName,
+			)
+			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
+				finalizationWarningSelfRestartSkipped,
+				s.selfScenarioName,
+				fmt.Sprintf("Scenario %q was in scope but skipped because restarting it would kill this running process. If changes to %s require a restart, restart it manually after finalization completes.", s.selfScenarioName, s.selfScenarioName),
+				false,
+			))
+			continue
+		}
+		filtered = append(filtered, name)
+	}
+	return filtered
+}
+
+// runEvidenceGathering spawns the (policy-gated) review agent and reports
+// whether a review round actually started plus a skip reason when it did not.
+func (s *Service) runEvidenceGathering(ctx context.Context, executionID string, scope finalizationScope, item backlogItem) (reviewStarted bool, reviewSkipReason string, err error) {
 	switch enabled, reason := s.checkReviewAgentEnabled(); {
 	case enabled:
 		if err := s.markFinalizationPhase(executionID, FinalizationPhaseEvidenceGathering); err != nil {
-			return err
+			return false, "", err
 		}
 		if err := s.triggerReviewAgent(ctx, executionID, scope, item); err != nil {
 			slog.Warn("review agent spawn failed", "execution_id", executionID, "err", err)
 			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
 				finalizationWarningReviewAgentFailed, "", err.Error(), false,
 			))
+			return false, "review agent spawn failed: " + err.Error(), nil
 		}
+		return true, "", nil
 	default:
 		slog.Info("evidence gathering skipped", "execution_id", executionID, "reason", reason)
 		_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
 			reason, "", s.evidenceSkipMessage(reason), false,
 		))
+		return false, s.evidenceSkipMessage(reason), nil
 	}
-
-	return s.finishFinalization(executionID)
 }
 
 func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioName, sandboxID string, acceptanceAllow []string) error {
@@ -191,7 +234,17 @@ func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioNa
 	}
 }
 
-func (s *Service) finishFinalization(executionID string) error {
+// finishFinalization writes the terminal finalization state and moves the
+// backlog item into the review gate.
+//
+// reviewStarted reports whether processFinalization actually spawned a review
+// round. When true the item enters `in_review` (a round is gathering). When
+// false — the review agent was disabled or its spawn failed — the item enters
+// `review_pending` directly so the user can decide a terminal state, instead of
+// being stranded in `in_review` with no review round to ever advance it (the
+// orphaned-in_review dead-end). reviewSkipReason explains the latter case and
+// is recorded as a synthetic review round for UI/audit clarity.
+func (s *Service) finishFinalization(executionID string, reviewStarted bool, reviewSkipReason string) error {
 	s.mu.Lock()
 	records, idx, err := s.loadRecordLocked(executionID)
 	if err != nil {
@@ -199,17 +252,26 @@ func (s *Service) finishFinalization(executionID string) error {
 		return err
 	}
 	record := &records[idx]
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 
 	finalization.Status = FinalizationStatusCompleted
 	finalization.Phase = FinalizationPhaseCompleted
 	finalization.CompletedAt = nowRFC3339()
-	classification, summary, hasActionableFailure := summarizeFinalization(*finalization)
+	classification, summary, hasActionableFailure := summarizeFinalization(*finalization, s.finalizationCfg.BaselineRegressionGateEnabled)
 	finalization.AggregateClassification = classification
 	finalization.AggregateSummary = summary
 	record.Finalization = finalization
 	record.UpdatedAt = nowRFC3339()
 	record.FinishedAt = nowRFC3339()
+
+	// A started review gathers evidence in `in_review`; without one, route the
+	// item straight to the human-decidable `review_pending` so it can never be
+	// orphaned in `in_review` with no round behind it.
+	reviewStatus := backlogStatusInReview
+	if !reviewStarted {
+		reviewStatus = backlogStatusReviewPending
+	}
 
 	item, loadErr := s.loadBacklogItemByRecord(record)
 	autoSpawnFixup := false
@@ -225,11 +287,17 @@ func (s *Service) finishFinalization(executionID string) error {
 				record.Status = StatusNeedsFixup
 				record.FailureReason = ""
 			}
-			_ = s.updateBacklogStatus(item, backlogStatusFailed)
+			if err := s.updateBacklogStatus(item, reviewStatus); err != nil {
+				slog.Warn("failed to set backlog review status after finalization",
+					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "status", reviewStatus, "err", err)
+			}
 		default:
 			record.Status = StatusCompleted
 			record.FailureReason = ""
-			_ = s.updateBacklogStatus(item, backlogStatusCompleted)
+			if err := s.updateBacklogStatus(item, reviewStatus); err != nil {
+				slog.Warn("failed to set backlog review status after finalization",
+					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "status", reviewStatus, "err", err)
+			}
 		}
 	} else {
 		record.Status = StatusNeedsFixup
@@ -241,10 +309,32 @@ func (s *Service) finishFinalization(executionID string) error {
 		return err
 	}
 	s.mu.Unlock()
-	s.dispatchStatusUpdate(*record)
+
+	// Record why no evidence was gathered when we routed straight to
+	// review_pending, so the review surface explains the empty round set.
+	// Best-effort: never blocks finalization. Done outside the lock (disk I/O).
+	if loadErr == nil && !reviewStarted && s.reviewService != nil {
+		reason := strings.TrimSpace(reviewSkipReason)
+		if reason == "" {
+			reason = "review agent did not run; routed to review_pending for manual decision"
+		}
+		if recErr := s.reviewService.RecordUnavailableReview(item.Kind, item.Name, executionID, reason); recErr != nil {
+			slog.Warn("failed to record review-unavailable marker",
+				"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "err", recErr)
+		}
+	}
+
+	s.dispatchStatusAndLog(*record, prevStatus)
 
 	// Fire-and-forget: record experiment outcome if this execution was part of an experiment.
 	s.recordExperimentOutcome(record)
+
+	// Baseline Modes engagements are NOT closed here (plan P-c). Finalization is
+	// the agent's verdict, not the user's: the owner's engagement set is held
+	// across finalization into review_pending and promoted/abandoned as a whole
+	// at review-decide (the atomic accept/reject), so a candidate is never blessed
+	// into live before the human accept. The owner keying (ownerKeyFor) means a
+	// fixup transparently shares the same set — no per-record inheritance needed.
 
 	if autoSpawnFixup {
 		s.spawnFixupRun(context.Background(), record, item)
@@ -361,9 +451,13 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 		Summary        string            `json:"summary"`
 	}
 	resultsByScenario := make(map[string]*scenarioGCTResult)
+	baselineByScenario := make(map[string]BaselineDiffResult)
 	for _, name := range scope.affectedScenarios {
 		sf, err := s.loadScenarioFinalization(executionID, name)
-		if err == nil && sf.Review.Result != nil {
+		if err != nil {
+			continue
+		}
+		if sf.Review.Result != nil {
 			r := sf.Review.Result
 			resultsByScenario[name] = &scenarioGCTResult{
 				Classification: r.Classification,
@@ -371,6 +465,9 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 				RawDimensions:  r.RawDimensions,
 				Summary:        r.Summary,
 			}
+		}
+		if sf.BaselineDiff != nil {
+			baselineByScenario[name] = *sf.BaselineDiff
 		}
 	}
 
@@ -380,11 +477,15 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 			gctJSON = string(b)
 		}
 	}
+	baselineJSON := MarshalBaselineDiffResults(baselineByScenario)
 
+	machineEvidence := resolveCriterionChecks(ctx, item.AcceptanceCriteria, defaultCriterionCommandRunner{})
 	return s.reviewService.StartReviewForExecution(ctx,
-		executionID, item.Kind, item.Name, item.Title,
+		executionID, item.Kind, item.Name, item.Title, item.Description,
 		s.itemDir(item.Kind, item.Name),
+		item.AcceptanceCriteria,
+		machineEvidence,
 		scope.affectedScenarios, scope.changedPathsByScenario,
-		gctJSON,
+		gctJSON, baselineJSON,
 	)
 }

@@ -1,0 +1,192 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "typescript-code-graph",
+    "displayName": "TypeScript Code Graph",
+    "description": "Deterministic file/module/symbol/import graph extraction and mechanical TypeScript refactor execution for Vrooli scenarios; wraps ts-morph and is consumed by architecture-cartographer and react-component-library.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-05-23T18:45:53Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "18f4f18a35fff00577f790c466c274ec6177f11631acccc3602698cf8f7fde73"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "typescript-code-graph",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "typescript-code-graph"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json",
+        "sidecar/src/**",
+        "sidecar/package.json",
+        "sidecar/pnpm-lock.yaml",
+        "sidecar/tsconfig.json",
+        "sidecar/scripts/build.mjs"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "node",
+      "required": true,
+      "min_version": "20.0.0",
+      "reason": "Node sidecar runtime (>=20) — runs the bundled ts-morph parser child process. The supervisor execs `node sidecar/dist/index.js` on API start; without Node, the API returns Unavailable on every Extract/RewriteApply call.",
+      "when": [
+        "setup",
+        "develop",
+        "production"
+      ],
+      "notes": "Version constraint: >=20.0.0. Pinned by the sidecar's package.json engines field and the esbuild target in sidecar/scripts/build.mjs."
+    },
+    {
+      "name": "pnpm",
+      "required": true,
+      "min_version": "10.14.0",
+      "reason": "Sidecar dependency installer; used only for the sidecar's own deps (ts-morph + devDeps). Never invoked against consumer projects.",
+      "when": [
+        "setup"
+      ],
+      "notes": "Honours pnpm-lock.yaml via --frozen-lockfile for reproducible builds."
+    }
+  ],
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    },
+    "sidecar": {
+      "role": "sidecar",
+      "build": {
+        "kind": "node_bundle",
+        "dir": "sidecar",
+        "output": "sidecar/dist/index.js"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "dist/index.js"
+        ],
+        "cwd": "sidecar",
+        "supervised_by": "api"
+      }
+    }
+  }
+}

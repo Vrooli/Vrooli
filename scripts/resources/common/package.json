@@ -1,6 +1,0 @@
-{
-  "type": "module",
-  "dependencies": {
-    "commander": "^9.0.0"
-  }
-}

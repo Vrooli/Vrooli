@@ -1,228 +1,259 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"scenario-authenticator/auth"
-	"scenario-authenticator/db"
-	"scenario-authenticator/handlers"
-	apimiddleware "scenario-authenticator/middleware"
+	"scenario-authenticator/internal/modules"
+	"scenario-authenticator/internal/server"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/vrooli/api-core/health"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	authH "scenario-authenticator/handlers/auth"
+	healthH "scenario-authenticator/handlers/health"
+	jwksH "scenario-authenticator/handlers/jwks"
+	sessionsH "scenario-authenticator/handlers/sessions"
+	"scenario-authenticator/internal/accounts"
+	"scenario-authenticator/internal/audit"
+	"scenario-authenticator/internal/authcrypto"
+	"scenario-authenticator/internal/authorization"
+	"scenario-authenticator/internal/localexchange"
+	"scenario-authenticator/internal/ratelimit"
+	"scenario-authenticator/internal/realm"
+	"scenario-authenticator/internal/redisstate"
+	"scenario-authenticator/internal/sessions"
+
+	"github.com/vrooli/api-core/trustposture"
+	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 )
 
+type breakGlassProvisioner struct {
+	paths     trustposture.KeyPaths
+	available bool
+	ttl       time.Duration
+	target    string
+}
+
+func (p breakGlassProvisioner) Provision(_ context.Context, accountID, realmID string, scopes []string, linkedAt time.Time) error {
+	if !p.available {
+		return fmt.Errorf("break-glass is unavailable under the configured trust posture")
+	}
+	return trustposture.Provision(p.paths, accountID, realm.AudienceFor(realmID), scopes, linkedAt)
+}
+
+func (p breakGlassProvisioner) Issue(_ context.Context, accountID, realmID string, requested []string, now time.Time) (string, time.Time, error) {
+	if !p.available || p.ttl <= 0 {
+		return "", time.Time{}, fmt.Errorf("break-glass is unavailable under the configured trust posture")
+	}
+	token, err := trustposture.IssueFromProvisionForTarget(p.paths, p.target, requested, now, p.ttl)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return token, now.Add(p.ttl), nil
+}
+
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-authenticator",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-authenticator"}) {
+		return
 	}
 
-	// Change to project root directory for consistent file operations
-	if rootDir := resolveRepoRoot(); rootDir != "" {
-		if err := os.Chdir(rootDir); err != nil {
-			log.Printf("⚠️  Warning: Could not change to project root (%s): %v", rootDir, err)
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "scenario-authenticator",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	schemas := append(modules.AllSchemas(), database.SchemaProviderFunc(redisstate.Schema))
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), schemas...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+
+	// --- Authentication stack ------------------------------------------------
+	// The signing keypair persists under the storage seam (absolute path, fatal
+	// on write failure — never silently regenerate, which would rotate the key
+	// and break every relying party). Hot state (sessions, refresh-family
+	// revocation, blacklist, rate-limit counters) is a set of security controls
+	// rather than a cache, so its store is selected explicitly below.
+	clk := schedule.System()
+	keyDir, err := authcrypto.ResolveKeyDir()
+	if err != nil {
+		log.Fatalf("resolve signing key directory: %v", err)
+	}
+	keys, err := authcrypto.LoadOrGenerate(keyDir)
+	if err != nil {
+		log.Fatalf("load/generate signing key: %v", err)
+	}
+	posture, err := trustposture.LoadWorkingTree()
+	if err != nil {
+		log.Fatalf("load trust posture: %v", err)
+	}
+	defaults, err := trustposture.DefaultsFor(posture.Posture)
+	if err != nil {
+		log.Fatalf("resolve trust posture defaults: %v", err)
+	}
+	breakGlassPaths, err := trustposture.ResolveAuthenticatorKeyPaths()
+	if err != nil {
+		log.Fatalf("resolve break-glass key paths: %v", err)
+	}
+	breakGlassTarget, err := os.Hostname()
+	if err != nil || strings.TrimSpace(breakGlassTarget) == "" {
+		log.Fatalf("resolve break-glass target: %v", err)
+	}
+	signer := authcrypto.NewSigner(keys, authcrypto.SignerConfig{
+		Issuer: realm.Issuer,
+		Expiry: authcrypto.ResolveExpiry(defaults.AccessTokenTTL),
+	})
+
+	// Selection is explicit, never a fallback on connection failure. Redis
+	// configured but unreachable stays boot-fatal: degrading to a store that
+	// shares nothing across replicas would let one replica keep honouring a
+	// token another replica revoked. With no Redis configured, this is a
+	// single-node deployment and the durable local store is the right answer —
+	// it keeps the blacklist across restart, which the in-memory fake cannot.
+	var hotState redisstate.Store
+	closeHotState := func() error { return nil }
+	if redisstate.RedisConfigured() {
+		redisStore, redisErr := redisstate.NewRedisStore(context.Background())
+		if redisErr != nil {
+			log.Fatalf("redis is configured but unavailable: %v", redisErr)
 		}
+		hotState = redisStore
+		closeHotState = redisStore.Close
 	} else {
-		log.Printf("⚠️  Warning: Could not determine repository root; continuing with current working directory")
-	}
-
-	// Load configuration from environment variables
-	port := getRequiredEnv("API_PORT", "")
-	dbURL := getDBURL()
-	redisURL := getRequiredEnv("REDIS_URL", "")
-
-	// Initialize database
-	if err := db.InitDB(dbURL); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to initialize database: %v", err)
-	}
-	defer db.Close()
-
-	// Initialize Redis
-	if err := db.InitRedis(redisURL); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to initialize Redis: %v", err)
-	}
-
-	// Load JWT keys
-	if err := auth.LoadJWTKeys(); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to load JWT keys: %v", err)
-	}
-
-	// Setup Chi router
-	router := chi.NewRouter()
-
-	// Add middleware
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-
-	// Configure CORS with environment-based origins for security
-	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8080"}
-	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
-		allowedOrigins = strings.Split(corsOrigins, ",")
-	}
-
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
-	}))
-
-	// Health check
-	router.Get("/health", health.Handler())
-
-	// Authentication endpoints
-	router.Post("/api/v1/auth/register", handlers.RegisterHandler)
-	router.Post("/api/v1/auth/login", handlers.LoginHandler)
-	router.Get("/api/v1/auth/validate", handlers.ValidateHandler)
-	router.Post("/api/v1/auth/validate", handlers.ValidateHandler)
-	router.Post("/api/v1/auth/refresh", handlers.RefreshHandler)
-	router.Post("/api/v1/auth/logout", handlers.LogoutHandler)
-	router.Post("/api/v1/auth/reset-password", handlers.ResetPasswordHandler)
-	router.Post("/api/v1/auth/complete-reset", handlers.CompleteResetHandler)
-
-	// Two-Factor Authentication endpoints
-	router.Post("/api/v1/auth/2fa/setup", apimiddleware.AuthMiddleware(handlers.Setup2FAHandler))
-	router.Post("/api/v1/auth/2fa/enable", apimiddleware.AuthMiddleware(handlers.Enable2FAHandler))
-	router.Post("/api/v1/auth/2fa/disable", apimiddleware.AuthMiddleware(handlers.Disable2FAHandler))
-	router.Post("/api/v1/auth/2fa/verify", handlers.Verify2FAHandler)
-
-	// User management endpoints
-	router.Get("/api/v1/users", apimiddleware.RequireRole("admin", handlers.GetUsersHandler))
-	router.Get("/api/v1/users/{id}", apimiddleware.AuthMiddleware(handlers.GetUserHandler))
-	router.Put("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.UpdateUserHandler))
-	router.Delete("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.DeleteUserHandler))
-
-	// Session management
-	router.Get("/api/v1/sessions", apimiddleware.AuthMiddleware(handlers.GetSessionsHandler))
-	router.Delete("/api/v1/sessions/{id}", apimiddleware.AuthMiddleware(handlers.RevokeSessionHandler))
-
-	// OAuth endpoints
-	handlers.InitOAuth() // Initialize OAuth configuration
-	router.Get("/api/v1/auth/oauth/providers", handlers.GetOAuthProvidersHandler)
-	router.Get("/api/v1/auth/oauth/login", handlers.OAuthLoginHandler)
-	router.Get("/api/v1/auth/oauth/google/callback", handlers.OAuthCallbackHandler)
-	router.Get("/api/v1/auth/oauth/github/callback", handlers.OAuthCallbackHandler)
-
-	// API Key management
-	router.Post("/api/v1/apikeys", apimiddleware.AuthMiddleware(handlers.CreateAPIKeyHandler))
-	router.Get("/api/v1/apikeys", apimiddleware.AuthMiddleware(handlers.ListAPIKeysHandler))
-	router.Delete("/api/v1/apikeys/{id}", apimiddleware.AuthMiddleware(handlers.RevokeAPIKeyHandler))
-	router.Post("/api/v1/apikeys/validate", handlers.ValidateAPIKeyHandler)
-
-	// Application management
-	router.Get("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.GetApplicationsHandler))
-	router.Post("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.RegisterApplicationHandler))
-	router.Get("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.GetApplicationHandler))
-	router.Put("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.UpdateApplicationHandler))
-	router.Delete("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.DeleteApplicationHandler))
-	router.Get("/api/v1/applications/{id}/integration-code", apimiddleware.RequireRole("admin", handlers.GenerateIntegrationCodeHandler))
-
-	// Start server
-	log.Printf("[scenario-authenticator/api] 🚀 Authentication API server starting on port %s", port)
-	log.Printf("[scenario-authenticator/api] 📍 Health check: http://localhost:%s/health", port)
-	log.Printf("[scenario-authenticator/api] 🔑 JWT keys loaded successfully")
-	log.Printf("[scenario-authenticator/api] 🎯 Ready to process authentication requests")
-	log.Printf("[scenario-authenticator/api] ✨ CORS enabled with Chi router")
-	log.Printf("[scenario-authenticator/api] 🔒 Security headers enabled for all responses")
-
-	// Wrap router with security middleware (request size limit, then security headers)
-	handler := apimiddleware.RequestSizeLimitMiddleware(router)
-	handler = apimiddleware.SecurityHeadersMiddleware(handler)
-
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Server failed to start: %v", err)
-	}
-}
-
-// getRequiredEnv gets an environment variable with optional fallback
-func getRequiredEnv(primary, fallback string) string {
-	value := os.Getenv(primary)
-	if value == "" && fallback != "" {
-		value = os.Getenv(fallback)
-	}
-	if value == "" {
-		log.Fatalf("[scenario-authenticator/api] ❌ %s environment variable is required", primary)
-	}
-	return value
-}
-
-// getDBURL constructs database URL from environment variables
-func getDBURL() string {
-	// Try POSTGRES_URL first, but override the database name
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL != "" {
-		// Replace the database name with scenario_authenticator
-		// Parse the URL and replace the database part
-		if strings.Contains(dbURL, "vrooli?") {
-			dbURL = strings.Replace(dbURL, "vrooli?", "scenario_authenticator?", 1)
-		} else if strings.Contains(dbURL, "vrooli") && strings.Contains(dbURL, "sslmode") {
-			dbURL = strings.Replace(dbURL, "vrooli", "scenario_authenticator", 1)
+		durable, durableErr := redisstate.NewSQLiteStore(db)
+		if durableErr != nil {
+			log.Fatalf("durable hot-state store unavailable: %v", durableErr)
 		}
-		return dbURL
+		sweepCtx, cancelSweep := context.WithCancel(context.Background())
+		go durable.RunSweeper(sweepCtx, time.Hour, func(err error) {
+			log.Printf("hot-state sweep failed: %v", err)
+		})
+		hotState = durable
+		closeHotState = func() error { cancelSweep(); return nil }
 	}
-
-	// Build from individual components
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	// Force scenario_authenticator database
-	dbName := "scenario_authenticator"
-
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
-		log.Fatal("[scenario-authenticator/api] ❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
+	storageNamespace, err := storage.ResolveNamespace(storage.NamespaceConfig{FallbackScenario: "scenario-authenticator"})
+	if err != nil {
+		log.Fatalf("resolve hot-state storage namespace: %v", err)
 	}
-
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		dbUser, dbPassword, dbHost, dbPort, dbName)
-}
-
-// resolveRepoRoot attempts to locate the repository root so relative assets (like JWT keys) persist between runs.
-func resolveRepoRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
+	authRedisStore, err := redisstate.NewNamespacedStore(hotState, storageNamespace, "auth")
+	if err != nil {
+		log.Fatalf("scope hot-state storage namespace: %v", err)
 	}
-
-	if exePath, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exePath)
-		if candidate := verifyRepoRoot(filepath.Join(dir, "..", "..", "..")); candidate != "" {
-			return candidate
+	sessionMgr := sessions.NewManager(authRedisStore, nil)
+	repo := accounts.NewSQLiteRepository(db, clk)
+	auditLogger := audit.NewSQLiteLogger(db, clk)
+	authorizationService := authorization.NewService(repo.(authorization.ScopeStore), auditLogger)
+	authService := accounts.NewService(accounts.ServiceConfig{
+		Repo:             repo,
+		Signer:           signer,
+		Sessions:         sessionMgr,
+		Audit:            auditLogger,
+		Authorization:    authorizationService,
+		MachineBindings:  repo.(accounts.MachineBindingStore),
+		BreakGlass:       breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
+		BreakGlassIssuer: breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
+		Clock:            clk,
+	})
+	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
+	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)
+	localSocketPath := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SOCKET"))
+	if localSocketPath == "" {
+		socketName := "vrooli-scenario-authenticator"
+		if namespace := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_NAMESPACE")); namespace != "" {
+			namespace = strings.Map(func(r rune) rune {
+				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+					return r
+				}
+				return '-'
+			}, namespace)
+			socketName += "-" + namespace
 		}
+		localSocketPath = filepath.Join(os.TempDir(), socketName+".sock")
 	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		if candidate := verifyRepoRoot(filepath.Join(cwd, "..", "..", "..")); candidate != "" {
-			return candidate
+	localMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != accountsconnect.AccountsServiceExchangeMachinePrincipalProcedure {
+			http.NotFound(w, r)
+			return
 		}
+		principal, ok := localexchange.PeerPrincipal(r.Context())
+		if !ok {
+			_ = auditLogger.Log(r.Context(), audit.Event{Action: "machine.exchange.refused", Success: false, Metadata: map[string]any{"reason": "peer_credential_unavailable"}})
+			http.Error(w, "local peer credential unavailable", http.StatusUnauthorized)
+			return
+		}
+		if !exchangeLimiter.Allow(principal.String(), time.Now().UTC()) {
+			_ = auditLogger.Log(r.Context(), audit.Event{Action: "machine.exchange.refused", Success: false, Metadata: map[string]any{"reason": "rate_limited", "local_principal": principal.String()}})
+			http.Error(w, "local exchange rate limited", http.StatusTooManyRequests)
+			return
+		}
+		localHandler.ServeHTTP(w, r)
+	})
+	localStop, err := localexchange.Start(context.Background(), localSocketPath, localMux)
+	if err != nil {
+		log.Fatalf("start local identity exchange: %v", err)
 	}
 
-	return ""
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "scenario-authenticator-api", "1.0.0"),
+		authH.Module(authService, log.Default()),
+		sessionsH.Module(authService, log.Default()),
+		jwksH.Module(keys),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	rootMux.Handle("/", srv.Handler())
+
+	// Backend-authoritative fixed-window rate limit on the brute-force surface
+	// (login/register). Scoped by Connect service path so health/JWKS probes are
+	// never throttled. Defense-in-depth on top of per-account lockout.
+	limiter := ratelimit.New(authRedisStore, ratelimit.Config{
+		Limit:  20,
+		Window: time.Minute,
+		PathPrefixes: []string{
+			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login",
+			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register",
+		},
+	}, nil)
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(limiter.Middleware(rootMux))
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			localStop()
+			_ = closeHotState()
+			return db.Close()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
-
-// verifyRepoRoot ensures the candidate path looks like the repository root.
-func verifyRepoRoot(candidate string) string {
-	candidate = filepath.Clean(candidate)
-	if candidate == "" {
-		return ""
-	}
-
-	if info, err := os.Stat(filepath.Join(candidate, "scenarios")); err == nil && info.IsDir() {
-		return candidate
-	}
-
-	return ""
-}
-// Test change

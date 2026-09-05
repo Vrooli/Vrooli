@@ -8,20 +8,28 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 )
 
 // ResourceCheck monitors a Vrooli resource via CLI.
 // Resources are core infrastructure (postgres, redis, etc.) and are always critical.
 type ResourceCheck struct {
-	id           string
-	resourceName string
-	title        string
-	description  string
-	importance   string
-	interval     int
-	executor     checks.CommandExecutor
+	id                string
+	resourceName      string
+	title             string
+	description       string
+	importance        string
+	interval          int
+	executor          checks.CommandExecutor
+	client            *integration.Client
+	recoveryPoll      checks.PollConfig
+	critical          bool
+	supervisionIntent string
+	attributionChain  []coreset.AttributionStep
 }
 
 // ResourceCheckOption configures a ResourceCheck.
@@ -31,6 +39,25 @@ type ResourceCheckOption func(*ResourceCheck)
 func WithResourceExecutor(executor checks.CommandExecutor) ResourceCheckOption {
 	return func(c *ResourceCheck) {
 		c.executor = executor
+		c.client = integration.NewClient(executor)
+	}
+}
+
+// WithResourceRecoveryPolling configures lifecycle verification. Production
+// uses the normal resource startup budget; tests use short deterministic waits.
+func WithResourceRecoveryPolling(timeout, interval, initialDelay time.Duration) ResourceCheckOption {
+	return func(c *ResourceCheck) {
+		c.recoveryPoll = checks.PollConfig{Timeout: timeout, Interval: interval, InitialDelay: initialDelay}
+	}
+}
+
+// WithResourceSupervision maps the canonical intent to severity and preserves
+// the complete authority chain on each status result.
+func WithResourceSupervision(intent string, chain []coreset.AttributionStep) ResourceCheckOption {
+	return func(c *ResourceCheck) {
+		c.supervisionIntent = intent
+		c.attributionChain = append([]coreset.AttributionStep(nil), chain...)
+		c.critical = intent != coreset.IntentTryStart
 	}
 }
 
@@ -65,10 +92,10 @@ var resourceMetadata = map[string]struct {
 		description: "Checks SearXNG metasearch engine resource via vrooli CLI",
 		importance:  "Required for web search and research capabilities",
 	},
-	"browserless": {
-		title:       "Browserless Chrome",
-		description: "Checks Browserless headless Chrome resource via vrooli CLI",
-		importance:  "Required for web scraping, screenshots, and browser automation",
+	"whisper": {
+		title:       "Whisper STT",
+		description: "Checks Whisper speech-to-text resource and its activity edge via vrooli CLI",
+		importance:  "Required for local speech-to-text and whisper capacity activity reporting",
 	},
 }
 
@@ -97,6 +124,9 @@ func NewResourceCheck(resourceName string, opts ...ResourceCheckOption) *Resourc
 		importance:   meta.importance,
 		interval:     60,
 		executor:     checks.DefaultExecutor,
+		client:       integration.NewClient(checks.DefaultExecutor),
+		recoveryPoll: checks.PollConfig{Timeout: 30 * time.Second, Interval: 2 * time.Second, InitialDelay: 3 * time.Second},
+		critical:     true,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -117,27 +147,109 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 		CheckID: c.id,
 		Details: make(map[string]interface{}),
 	}
+	if c.supervisionIntent != "" {
+		result.Details["supervisionIntent"] = c.supervisionIntent
+		result.Details["attributionChain"] = append([]coreset.AttributionStep(nil), c.attributionChain...)
+	}
+	result.Details["critical"] = c.critical
 
-	// Run vrooli resource status using injected executor
-	output, err := c.executor.CombinedOutput(ctx, "vrooli", "resource", "status", c.resourceName)
-
-	result.Details["output"] = string(output)
-
+	status, _, err := c.client.ResourceStatus(ctx, c.resourceName)
 	if err != nil {
-		result.Status = checks.StatusCritical
+		result.Status = c.failureStatus()
 		result.Message = c.resourceName + " resource is not healthy"
 		result.Details["error"] = err.Error()
 		return result
 	}
 
-	// Use centralized CLI output classifier
-	// Resources are critical infrastructure, so stopped = critical
-	const isCritical = true
-	cliStatus := ClassifyCLIOutput(string(output))
-	result.Status = CLIStatusToCheckStatus(cliStatus, isCritical)
-	result.Message = CLIStatusDescription(cliStatus, c.resourceName+" resource")
+	result.Details["installed"] = status.Installed
+	result.Details["running"] = status.Running
+	result.Details["statusText"] = status.NormalizedStatus()
+	result.Details["companionDown"] = status.HasCompanionDownSignal()
+	if status.Healthy != nil {
+		result.Details["healthy"] = *status.Healthy
+	}
+	if status.Serving != nil {
+		result.Details["serving"] = *status.Serving
+	}
+	result.Details["modeDrift"] = status.ModeDrift
+	result.Details["needsReacquire"] = status.NeedsReacquire
+
+	switch {
+	case !status.Success:
+		result.Status = checks.StatusWarning
+		result.Message = c.resourceName + " resource status check was not successful"
+	case !status.Installed:
+		result.Status = c.failureStatus()
+		result.Message = c.resourceName + " resource is not installed"
+		result.Details["available"] = false
+	case !status.Running:
+		result.Status = c.failureStatus()
+		result.Message = c.resourceName + " resource is stopped"
+		result.Details["available"] = false
+	case status.NeedsReacquire:
+		// The staged artifact is intact and the host moved. Restarting cannot
+		// fix it; re-acquiring can, and the reacquire-artifact action does
+		// exactly that. The producer's diagnosis is carried through verbatim so
+		// an incident body names which facts changed.
+		result.Status = c.failureStatus()
+		result.Message = c.resourceName + " resource needs its artifact re-acquired: the host facts changed since install"
+		result.Details["available"] = false
+		if reason := strings.TrimSpace(status.ProbeError); reason != "" {
+			result.Message += " — " + reason
+			result.Details["reacquireReason"] = reason
+		}
+	case status.IsDegraded():
+		// The resource answers requests; it is just not meeting its contract.
+		// Calling this critical would restart something that is working, and a
+		// restart does not put a resource back on a backend the host cannot
+		// reach, so the loop would never end.
+		result.Status = checks.StatusWarning
+		result.Message = c.resourceName + " resource is degraded but still serving"
+		result.Details["available"] = true
+	case status.Healthy != nil && !*status.Healthy:
+		if status.Serving != nil && *status.Serving {
+			result.Status = checks.StatusWarning
+			result.Message = c.resourceName + " resource is unhealthy but still serving"
+			result.Details["available"] = true
+		} else {
+			result.Status = c.failureStatus()
+			result.Message = c.resourceName + " resource is unhealthy"
+			result.Details["available"] = false
+		}
+	case status.Healthy != nil && *status.Healthy:
+		result.Status = checks.StatusOK
+		result.Message = c.resourceName + " resource is healthy"
+		result.Details["available"] = true
+	case status.NormalizedStatus() == "healthy":
+		result.Status = checks.StatusOK
+		result.Message = c.resourceName + " resource is healthy"
+		result.Details["available"] = true
+	case status.NormalizedStatus() == "unhealthy":
+		result.Status = c.failureStatus()
+		result.Message = c.resourceName + " resource is unhealthy"
+		result.Details["available"] = false
+	default:
+		result.Status = checks.StatusWarning
+		result.Message = c.resourceName + " resource status unclear"
+	}
+
+	// Availability and contract health are deliberately separate. A warning
+	// policy may auto-heal degraded checks, but a serving primary must never
+	// accumulate lifecycle attempts merely because an optional companion is
+	// down or another non-availability contract is degraded. Keep recovery
+	// actions available for an operator; suppress only scheduled auto-heal.
+	if available, ok := result.Details["available"].(bool); ok && available {
+		result.Details["autoHealEligible"] = false
+	}
 
 	return result
+}
+
+func (c *ResourceCheck) failureStatus() checks.Status {
+	if c.critical {
+		return checks.StatusCritical
+	}
+	return checks.StatusWarning
 }
 
 // ResourceName returns the name of the resource (for action execution)
@@ -145,48 +257,24 @@ func (c *ResourceCheck) ResourceName() string {
 	return c.resourceName
 }
 
+func (c *ResourceCheck) HealTarget() checks.HealTarget {
+	return checks.HealTarget{Kind: "resource", Name: c.resourceName}
+}
+
 // RecoveryActions returns the available recovery actions for this resource check
 // [REQ:HEAL-ACTION-001]
 func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
-	// Determine current state from last result
-	// Use check status as the primary indicator, with output parsing as secondary
 	isRunning := false
 	isStopped := false
 	if lastResult != nil {
-		// Primary: use check status (most reliable)
-		if lastResult.Status == checks.StatusOK {
-			isRunning = true
-		} else if lastResult.Status == checks.StatusCritical {
-			isStopped = true
-		}
-
-		// Secondary: parse output for more specific state info
-		// Only override if we find definitive state indicators
-		output, ok := lastResult.Details["output"].(string)
-		if ok {
-			lowerOutput := strings.ToLower(output)
-			// Check for negative phrases FIRST to avoid false positives
-			hasNotRunning := strings.Contains(lowerOutput, "not running") ||
-				strings.Contains(lowerOutput, "may not be running") ||
-				strings.Contains(lowerOutput, "isn't running") ||
-				strings.Contains(lowerOutput, "is not running")
-
-			// Look for definitive positive state indicators (format: "Running: true/false")
-			hasDefinitiveRunning := strings.Contains(lowerOutput, "running: true") ||
-				strings.Contains(lowerOutput, "status: running") ||
-				strings.Contains(lowerOutput, "state: running")
-
-			hasDefinitiveStopped := strings.Contains(lowerOutput, "running: false") ||
-				strings.Contains(lowerOutput, "status: stopped") ||
-				strings.Contains(lowerOutput, "state: stopped")
-
-			// Only update state if we have definitive indicators
-			if hasDefinitiveRunning && !hasNotRunning {
+		if running, ok := lastResult.Details["running"].(bool); ok {
+			isRunning = running
+			isStopped = !running
+		} else {
+			if lastResult.Status == checks.StatusOK {
 				isRunning = true
-				isStopped = false
-			} else if hasDefinitiveStopped || hasNotRunning {
+			} else if lastResult.Status == checks.StatusCritical {
 				isStopped = true
-				isRunning = false
 			}
 		}
 	}
@@ -228,6 +316,24 @@ func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true, // Always available
 		},
 	}
+	if needsReacquire(lastResult) {
+		actions = append([]checks.RecoveryAction{{
+			ID:          "reacquire-artifact",
+			Name:        "Re-acquire Artifact",
+			Description: "Discard the staged artifact for " + c.resourceName + " and re-resolve, re-download and re-verify it under the host's current facts",
+			Dangerous:   false,
+			Available:   true,
+		}}, actions...)
+	}
+	if companionDown(lastResult) {
+		actions = append([]checks.RecoveryAction{{
+			ID:          "respawn-companion",
+			Name:        "Respawn Companion",
+			Description: "Respawn the dead companion for the " + c.resourceName + " resource without restarting the container",
+			Dangerous:   false,
+			Available:   true,
+		}}, actions...)
+	}
 
 	return actions
 }
@@ -248,6 +354,11 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	case "start":
 		args = []string{"resource", "start", c.resourceName}
 		needsVerification = true
+	case "respawn-companion":
+		args = []string{"resource", "start", c.resourceName}
+		needsVerification = true
+	case "reacquire-artifact":
+		args = []string{"resource", "install", c.resourceName, "--reacquire"}
 	case "stop":
 		args = []string{"resource", "stop", c.resourceName}
 	case "restart":
@@ -285,6 +396,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	result.Duration = time.Since(start)
 	result.Success = true
 	switch actionID {
+	case "reacquire-artifact":
+		result.Message = c.resourceName + " artifact re-acquired under the host's current facts"
 	case "stop":
 		result.Message = c.resourceName + " resource stopped successfully"
 	case "status":
@@ -296,25 +409,42 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	return result
 }
 
+// needsReacquire reads the typed artifact-drift signal the control plane
+// publishes, rather than matching on status text.
+func needsReacquire(lastResult *checks.Result) bool {
+	if lastResult == nil {
+		return false
+	}
+	drift, _ := lastResult.Details["needsReacquire"].(bool)
+	return drift
+}
+
+func companionDown(lastResult *checks.Result) bool {
+	if lastResult == nil {
+		return false
+	}
+	companion, _ := lastResult.Details["companionDown"].(bool)
+	return companion
+}
+
 // verifyRecovery checks that the resource is actually healthy after a start/restart action
 // Uses polling with timeout instead of fixed sleep for reliable verification.
 func (c *ResourceCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
 	// Configure polling: resources typically need a few seconds to initialize
-	pollConfig := checks.PollConfig{
-		Timeout:      30 * time.Second,
-		Interval:     2 * time.Second,
-		InitialDelay: 3 * time.Second, // Initial delay for resource startup
-	}
-
-	// Poll until healthy or timeout
-	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
+	// A serving resource has recovered availability even when a companion is
+	// degraded. Keep the warning, but do not turn availability into a failed
+	// heal that restarts the serving target again.
+	pollResult := checks.PollForResult(ctx, c, c.recoveryPoll, resourceRecoveryAccepted)
 	result.Duration = time.Since(start)
 
 	if pollResult.Success {
 		result.Success = true
-		result.Message = fmt.Sprintf("%s resource %s successful and verified healthy", c.resourceName, actionID)
+		result.Message = fmt.Sprintf("%s resource %s successful and verified available", c.resourceName, actionID)
 		if pollResult.FinalResult != nil {
 			result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
+			if pollResult.FinalResult.Status == checks.StatusWarning {
+				result.Warning = pollResult.FinalResult.Message
+			}
 		}
 		result.Output += fmt.Sprintf("\n(verified after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
 	} else {
@@ -328,4 +458,12 @@ func (c *ResourceCheck) verifyRecovery(ctx context.Context, result checks.Action
 	}
 
 	return result
+}
+
+func resourceRecoveryAccepted(result checks.Result) bool {
+	if result.Status == checks.StatusOK {
+		return true
+	}
+	serving, _ := result.Details["serving"].(bool)
+	return result.Status == checks.StatusWarning && serving
 }

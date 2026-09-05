@@ -4,10 +4,28 @@ Complete documentation for the prompt-manager CLI (`prompt-manager`).
 
 ## Installation
 
-```bash
-cd scenarios/prompt-manager/cli
-go build -o prompt-manager .
-```
+The CLI is installed and refreshed by the scenario lifecycle. Use
+`vrooli scenario start prompt-manager`; do not run or install the scenario
+binary directly.
+
+## Contract and maturity
+
+`cli/manifest.json` is the machine-readable command contract. The current
+surface contains 130 declared command leaves: 120 generated Connect bindings
+and 10 intentionally local compatibility/meta commands. The 75 proto methods
+without a standalone CLI workflow are listed in `omitted[]` with method-specific
+reasons; they remain available to generated clients. Eighteen runtime
+multiplexers or composite/local renderer modes are recorded in `exceptions[]`.
+
+CLI Health validates the manifest against the generated descriptors and Program
+Runtime resolves its callable bindings from the same file. A new command is not
+complete until its binding, arguments, effect, run eligibility, and permissions
+describe the behavior users actually invoke.
+
+Nine read commands also declare live analytical measures: `action list`,
+`agent list`, `discovery-metrics`, `graph health`, `skill-usage`, `skill list`,
+`tag list`, `team list`, and `topic list`. Their compute paths are served at
+`/measures` and read the same domain stores as the typed RPCs.
 
 ## Global Options
 
@@ -23,14 +41,34 @@ go build -o prompt-manager .
 | Command | Description |
 |---------|-------------|
 | `prompt-manager skill` | Manage skills (CRUD, versions, ratings) |
-| `prompt-manager agent` | Manage agents (CRUD, appearance, files) |
+| `prompt-manager agent` | Manage canonical agents (CRUD, soul, search) |
+| `prompt-manager member` | Deprecated avatar compatibility projection over agents |
+| `prompt-manager team` | Manage teams, heartbeat operations, handoffs, and task boards |
+| `prompt-manager experiment` | Manage governed skill experiments |
 | `prompt-manager tag` | Manage tags |
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
+| `prompt-manager discover` | Discover relevant skills and opt-in Action matches |
+| `prompt-manager discovery-gaps` | Clustered unmet-capability queries (discovery misses) |
+| `prompt-manager discovery-metrics` | Inspect persisted discovery telemetry |
+| `prompt-manager skill-usage` | Inspect persisted skill-read and discovery usage |
+| `prompt-manager heartbeat-control` | Inspect and control global heartbeat scheduling |
+| `prompt-manager action` | Manage typed executable Action contracts |
 | `prompt-manager graph` | Relationship graph analysis |
 | `prompt-manager metadata` | Fetch URL metadata |
 | `prompt-manager status` | Check API health |
 | `prompt-manager configure` | View/update CLI settings |
+
+Action and skill command validation delegates Vrooli-owned command truth to CLI
+Health. Prompt Manager owns action policy, placeholders, permissions, and
+run-eligibility reporting; it does not maintain a separate current-command
+catalog. When CLI Health can prove a command path exists but cannot prove
+arguments or action governance, Prompt Manager reports the action as
+unvalidated instead of treating partial coverage as fully safe.
+Skill graph health also reports CLI Health findings for Vrooli-owned commands
+detected in skill content: invalid current commands are critical diagnostics,
+while command-exists/arguments-unknown results remain visible as partial
+coverage warnings.
 
 ---
 
@@ -134,20 +172,6 @@ prompt-manager skill delete <id> [--force]
 |------|-------------|
 | `--force` | Skip confirmation prompt |
 
-### prompt-manager skill use
-
-Record usage and copy skill content to clipboard.
-
-```bash
-prompt-manager skill use <id>
-```
-
-**Example:**
-```bash
-prompt-manager skill use debugging
-# Output: Usage recorded! Content copied to clipboard.
-```
-
 ### prompt-manager skill sync
 
 Sync skills with hash-based change detection.
@@ -179,7 +203,7 @@ prompt-manager skill read <identifier> [<identifier>...] [--resolve=auto|id|file
 
 **Example:**
 ```bash
-prompt-manager skill read react-coherence domain-compression --output=combined --format=markdown --copy
+prompt-manager skill read ui-health domain-clarity --output=combined --format=markdown --copy
 ```
 
 ### prompt-manager skill rate
@@ -301,7 +325,9 @@ prompt-manager experiment start <experiment-id>
 
 ### prompt-manager experiment conclude
 
-Conclude a running experiment with a winner.
+Conclude a running experiment with a recommended winner. This command never
+changes `SKILL.md`; a separately authorized holdout-confirmed promotion is
+required.
 
 ```bash
 prompt-manager experiment conclude <experiment-id> <winner-variant-id> [--notes TEXT]
@@ -313,6 +339,14 @@ List raw outcomes for an experiment.
 
 ```bash
 prompt-manager experiment outcomes <experiment-id> [--json]
+```
+
+### prompt-manager experiment report
+
+Show a per-arm aggregation report: serve counts, outcome counts, outcome status breakdown, success rate, and mean tokens used.
+
+```bash
+prompt-manager experiment report <experiment-id> [--json]
 ```
 
 ### prompt-manager experiment delete
@@ -456,7 +490,7 @@ prompt-manager team show engineering
 Create a new team.
 
 ```bash
-prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--decision-mode=yolo|approval] [--json]
+prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--json]
 ```
 
 **Options:**
@@ -470,25 +504,26 @@ prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|
 | `--messaging-mode` | Messaging mode override: `disabled`, `async-inbox`, or `in-session` |
 | `--queue-policy` | Execution queue policy: `bounded-parallel` (default) or `serialized` |
 | `--max-concurrent-runs` | Concurrency limit for `bounded-parallel` execution |
-| `--show-org-context`, `--inject-inbox`, `--allow-peer-triggers`, `--show-task-board-guidance`, `--show-decision-log-guidance`, `--show-knowledge-log-guidance`, `--require-handoff` | Override individual coordination capabilities |
-| `--decision-mode` | Decision policy: `yolo` (default behavior) or `approval` |
+| `--show-org-context`, `--inject-inbox`, `--allow-peer-triggers`, `--show-task-board-guidance`, `--show-knowledge-log-guidance`, `--require-handoff` | Override individual coordination capabilities |
 | `--json` | Output as JSON |
 
 **Example:**
 ```bash
 prompt-manager team create "Engineering" --mission="Build and maintain core platform"
 prompt-manager team create "Scenario QA" --coordination-pattern=independent --queue-policy=bounded-parallel --max-concurrent-runs=2
-prompt-manager team create "Director Swarm" --runtime-mode=single-process --coordination-pattern=leader-led --lead-agent-id=director --decision-mode=approval
+prompt-manager team create "Director Swarm" --runtime-mode=single-process --coordination-pattern=leader-led --lead-agent-id=director
 ```
 
 When you choose `--runtime-mode=single-process`, the CLI resolves the team onto the leader-led serialized preset before sending the request.
+
+Teams are stored with a required `operatingContract`. The default create flow seeds an empty contract for teams with no members; production teams should replace it with member policies before enabling heartbeats.
 
 ### prompt-manager team update
 
 Update an existing team.
 
 ```bash
-prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--decision-mode=yolo|approval] [--json]
+prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--json]
 ```
 
 **Options:**
@@ -502,8 +537,27 @@ prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|fal
 | `--lead-agent-id` | Set or replace the explicit lead agent for leader-led teams |
 | `--reporting-mode`, `--messaging-mode`, `--queue-policy`, `--max-concurrent-runs` | Update policy settings directly |
 | Capability override flags | Update prompt and coordination capabilities individually |
-| `--decision-mode` | Change decision policy |
 | `--json` | Output as JSON |
+
+### prompt-manager team operating-contract
+
+Print the stored operating contract for a team.
+
+```bash
+prompt-manager team operating-contract <team-id>
+```
+
+The output is the `team.json.operatingContract` object. Heartbeat prompts render a member-specific resolved view from this contract.
+
+### prompt-manager team validate-contract
+
+Validate the team's operating contract through the API load path.
+
+```bash
+prompt-manager team validate-contract <team-id> [--json]
+```
+
+Invalid contracts fail with the same validation errors used by team loading and heartbeat prompt building.
 
 Enabled leader-led teams require `coordination.leadAgentId` to reference an active team member. The API will reject updates that would enable an invalid lead configuration.
 
@@ -836,6 +890,9 @@ prompt-manager graph health --type=skill
 prompt-manager graph health debugging
 ```
 
+Skill health includes command-reference diagnostics from CLI Health for
+Vrooli-owned commands detected in skill instructions.
+
 ---
 
 ## Testing
@@ -921,6 +978,123 @@ prompt-manager search "debugging" --folder=core
 ```bash
 prompt-manager search "react coherence" --output=combined --format=markdown
 ```
+
+### prompt-manager discover
+
+[CODE: cli/discover/discover.go]
+
+Discover relevant skills using topic search plus AI search with a complexity budget. Use `--type action` or `--type all` to include Action matches; omitting `--type` preserves the legacy skill-only response shape.
+
+```bash
+prompt-manager discover "concept1" "concept2" [--complexity minor|moderate|major|architectural] [--limit=N] [--type skill|action|all] [--json]
+```
+
+**Action discovery examples:**
+
+```bash
+prompt-manager discover "take screenshot of scenario UI" --type all
+prompt-manager discover "take screenshot of scenario UI" --type action
+prompt-manager discover "debugging methodology" --type skill
+```
+
+`--type all` returns both skills and Actions with a type discriminator. Agents should prefer exact Action matches for deterministic execution and use skills when the work requires judgment.
+
+### prompt-manager discovery-gaps
+
+[CODE: cli/discover/discover.go]
+
+Show clustered unmet-capability queries — the searches that `prompt-manager discover` answered with nothing useful (zero results or only sub-threshold matches). These misses are captured server-side automatically; this command reads a time window and clusters near-duplicate queries so the meta-optimization team can route each to a new action, capability-work, or cli-backlog. Counts are window-relative.
+
+```bash
+prompt-manager discovery-gaps [--since 7d] [--type skill|action|all] [--limit=N] [--json]
+```
+
+---
+
+## Actions
+
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. The CLI exposes CRUD, validation, and governed run commands; execution governance remains owned by the API. See [DOC: docs/concepts/ACTIONS.md].
+
+### prompt-manager action list
+
+List Actions with optional status, pack, tag, or owner filters.
+
+```bash
+prompt-manager action list [--pack=core|local|drafts] [--status=active|draft|archived] [--owner=...] [--tag=...] [--json]
+```
+
+### prompt-manager action show
+
+Show an Action contract, including input schema, output schema, command target, permissions, examples, and validation status.
+
+```bash
+prompt-manager action show <id> [--json]
+```
+
+### prompt-manager action create
+
+Create an Action from a single Vrooli CLI command. **Previews by default** (writes nothing): the command resolves the owner, infers inputs from `{{placeholders}}`, infers permissions from the owner's `cli/manifest.json`, validates the contract, and surfaces any similar existing actions. Add `--apply` to register it (default status `active`). Alternatively, pass a fully authored `--file=action.json`. Record a prose-retirement work item with its validation evidence.
+
+```bash
+# Preview (no write): infer + validate + show similar actions
+prompt-manager action create --name "Show Scenario Status" --command 'vrooli scenario status {{scenario}}'
+
+# Register it
+prompt-manager action create --name "Show Scenario Status" --command 'vrooli scenario status {{scenario}}' --apply
+
+# Refine an inferred input, set an explicit id, or target a pack
+prompt-manager action create --name "Capture Page" --command 'browser-automation-studio capture {{url}} --out {{out}}' \
+  --input out:path --id bas.capture --pack core --apply
+
+# Or create from a fully authored contract (also previews unless --apply)
+prompt-manager action create --file=path/to/action.json [--pack=core|local|drafts] --apply
+```
+
+`--command` and `--file` are mutually exclusive; exactly one is required. Placeholder names may use lower camel case or snake case, such as `{{scenario}}` or `{{phase_or_provider}}`, and each placeholder infers a required input. `--input name:type[:optional]` refines an inferred input (repeatable). A near-duplicate (same executable + subcommand, or high semantic similarity) is surfaced in the preview so you can `action update` an existing action instead of creating a near-duplicate. If `--pack` is omitted, the action lands in the active `local` pack so it is immediately discoverable.
+
+### prompt-manager action update
+
+Replace an existing Action contract from an `action.json` file. The Action ID in the file must match the path ID.
+
+```bash
+prompt-manager action update <id> --file=path/to/action.json [--json]
+```
+
+### prompt-manager action delete
+
+Archive an Action by default. Use `--hard` only when the underlying file should be removed.
+
+```bash
+prompt-manager action delete <id> [--yes] [--hard]
+```
+
+### prompt-manager action validate
+
+Validate that an Action contract is well-formed and points to an allowed Vrooli-controlled command.
+
+```bash
+prompt-manager action validate <id> [--json]
+```
+
+Validation should reject shell pipelines, command separators, raw external tools, missing input/output schemas, and undeclared permissions.
+
+### prompt-manager action run
+
+Run an active, runnable Action with typed input through the governed API runtime. The CLI remains a thin API client and does not duplicate validation, permission checks, timeout handling, concurrency throttling, stdout/stderr caps, or audit history.
+
+```bash
+prompt-manager action run <id> [--<declared-input>=<value> ...] [--input='{"key":"value"}'|--input-file=payload.json] [--dry-run] [--json]
+```
+
+Safe seed dry-run:
+
+```bash
+prompt-manager action run scenario.status.show --input='{"scenario":"prompt-manager"}' --dry-run --json
+```
+
+Declared Action inputs may be supplied directly as named flags, for example `prompt-manager action run scenario.status.show --scenario=prompt-manager --dry-run`. The CLI resolves the Action contract first, converts scalar values according to its declared type, and sends the same governed run request as the JSON forms. Do not provide the same input in both a named flag and `--input`; that is rejected as ambiguous. Use `--dry-run` to validate inputs and return the rendered argv without starting the process. Non-JSON output prints status, exit code, duration, rendered argv, stdout/stderr snippets, parsed output, and any API error message. `failed`, `timed-out`, `rejected`, and `throttled` responses return a non-zero CLI error after printing the run envelope.
+
+Branching and implementation logic belong in the owning CLI, not in the Action wrapper.
 
 ---
 

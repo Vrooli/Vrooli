@@ -1,0 +1,360 @@
+package componenttests
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"react-component-library/internal/components"
+)
+
+type Stage string
+
+const (
+	StageClosure  Stage = "closure_integrity"
+	StageStatic   Stage = "source_integrity"
+	StageContract Stage = "contract_validation"
+	StageDeclared Stage = "declared_behavior"
+	StageEvidence Stage = "experience_evidence"
+)
+
+type Verdict string
+
+const (
+	VerdictPassed  Verdict = "passed"
+	VerdictFailed  Verdict = "failed"
+	VerdictBlocked Verdict = "blocked"
+)
+
+type Result struct {
+	Stage          Stage      `json:"stage"`
+	AssetLibraryID string     `json:"assetLibraryId"`
+	Version        string     `json:"version"`
+	Subject        string     `json:"subject,omitempty"`
+	Verdict        Verdict    `json:"verdict"`
+	Message        string     `json:"message,omitempty"`
+	Remediation    string     `json:"remediation,omitempty"`
+	Evidence       []Evidence `json:"evidence,omitempty"`
+}
+
+type Evidence struct {
+	Kind              string               `json:"kind"`
+	Console           *ConsoleEvidence     `json:"console,omitempty"`
+	Performance       *PerformanceEvidence `json:"performance,omitempty"`
+	AccessibilityJSON string               `json:"accessibilityJson,omitempty"`
+	Artifacts         []string             `json:"artifacts,omitempty"`
+}
+
+type ConsoleEvidence struct {
+	ConsoleErrors  []string `json:"consoleErrors,omitempty"`
+	PageErrors     []string `json:"pageErrors,omitempty"`
+	FailedRequests []string `json:"failedRequests,omitempty"`
+}
+
+type PerformanceEvidence struct {
+	MountMS       float64   `json:"mountMs"`
+	CommitCount   int       `json:"commitCount"`
+	RerenderCount int       `json:"rerenderCount"`
+	LongTasks     []float64 `json:"longTasks,omitempty"`
+	NodeCount     int       `json:"nodeCount"`
+}
+type Artifact struct {
+	Kind, Label, StoryID, AssetLibraryID, Version, Reference string
+}
+type Report struct {
+	ID              string     `json:"id"`
+	RootComponentID string     `json:"rootComponentId"`
+	RootLibraryID   string     `json:"rootLibraryId"`
+	RootVersion     string     `json:"rootVersion"`
+	IncludeClosure  bool       `json:"includeClosure"`
+	SourceRevision  string     `json:"sourceRevision,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	Verdict         Verdict    `json:"verdict"`
+	Results         []Result   `json:"results"`
+	Artifacts       []Artifact `json:"artifacts"`
+}
+type Request struct {
+	ComponentID, Version string
+	IncludeClosure       bool
+}
+
+// ValidationError identifies an invalid runner request with a stable code for
+// the CLI and workbench instead of returning an opaque transport error.
+type ValidationError struct {
+	Code, Field, Detail string
+}
+
+func (e ValidationError) Error() string {
+	if e.Field == "" {
+		return e.Code + ": " + e.Detail
+	}
+	return fmt.Sprintf("%s at %s: %s", e.Code, e.Field, e.Detail)
+}
+
+// StoryReader supplies validated story expectations. It never exposes setup
+// or executable values: the story contract is the sole preview/test boundary.
+type StoryReader interface {
+	ListStories(context.Context, components.StoryQuery) ([]components.ComponentStory, error)
+}
+
+// StoryExecution is the browser-observed outcome of one rendered story. The
+// runner intentionally consumes the preview harness result rather than
+// reimplementing DOM assertions in Go.
+type StoryExecution struct {
+	Passed            bool
+	Failures          []string
+	Duration          time.Duration
+	Console           ConsoleEvidence
+	Performance       PerformanceEvidence
+	AccessibilityJSON string
+	Artifacts         []Artifact
+}
+
+// ExecutorUnavailableError means the browser harness cannot run in the
+// current environment. It is deliberately distinct from a rendered-story
+// failure: absence of Chrome must leave an auditable blocked result rather
+// than falsely reporting a behavioral regression.
+type ExecutorUnavailableError struct{ Err error }
+
+func (e ExecutorUnavailableError) Error() string {
+	if e.Err == nil {
+		return "story executor is unavailable"
+	}
+	return "story executor is unavailable: " + e.Err.Error()
+}
+
+func (e ExecutorUnavailableError) Unwrap() error { return e.Err }
+
+// StoryExecutor loads the production preview harness for one immutable story.
+// It is a narrow seam so runner tests can calibrate pass, fail, and no-mount
+// outcomes without starting a browser.
+type StoryExecutor interface {
+	ExecuteStory(context.Context, string, string, string) (StoryExecution, error)
+}
+
+// ExecutorProber is an optional preflight capability for executors backed by
+// an external browser service. Providers can fail a validation phase before
+// scheduling a corpus of jobs when that service is unavailable.
+type ExecutorProber interface {
+	Probe(context.Context) error
+}
+
+// StorySheetExecutor is an optional capability of the production BAS
+// executor. Individual story captures remain authoritative; sheets are
+// bounded review accelerators and therefore never replace StoryExecutor.
+type StorySheetExecutor interface {
+	ExecuteStorySheet(context.Context, string, string, []string) (StoryExecution, error)
+}
+
+type Runner struct {
+	Assets   components.DependencyReader
+	Stories  StoryReader
+	Executor StoryExecutor
+	Now      func() time.Time
+	Revision func(context.Context, string, string) (string, error)
+}
+
+// Run performs the deterministic, safe pre-harness stages. Browser and React
+// harness adapters consume the normalized report later; this stage proves that
+// no runtime can start until the versioned closure and restricted contract are
+// valid. It is deliberately failure-isolating: one bad sibling contract does
+// not hide the others.
+func (r Runner) Run(ctx context.Context, request Request) (Report, error) {
+	if r.Assets == nil || r.Stories == nil {
+		return Report{}, fmt.Errorf("component test runner is not configured")
+	}
+	if strings.TrimSpace(request.ComponentID) == "" || strings.TrimSpace(request.Version) == "" {
+		return Report{}, ValidationError{Code: "version_required", Detail: "component id and explicit version are required"}
+	}
+	closure, err := components.ResolveDependencyClosure(ctx, r.Assets, request.ComponentID, request.Version)
+	if err != nil {
+		return Report{}, err
+	}
+	if !request.IncludeClosure {
+		closure = closure[len(closure)-1:]
+	}
+	now := time.Now().UTC()
+	if r.Now != nil {
+		now = r.Now().UTC()
+	}
+	// ResolveDependencyClosure accepts every public component identifier the
+	// components service supports (internal id, library id, catalog id, or
+	// slug). Persist the canonical internal id so rerun/list operations use
+	// the same identity regardless of which public identifier started the run.
+	root := closure[len(closure)-1].Asset
+	report := Report{RootComponentID: root.ID, RootLibraryID: root.LibraryID, RootVersion: request.Version, IncludeClosure: request.IncludeClosure, CreatedAt: now}
+	if r.Revision != nil {
+		revision, revisionErr := r.Revision(ctx, root.CatalogID, request.Version)
+		if revisionErr != nil {
+			return Report{}, fmt.Errorf("compute source revision for %s@%s: %w", root.LibraryID, request.Version, revisionErr)
+		}
+		report.SourceRevision = revision
+	}
+	report.ID = reportID(report)
+	for _, resolved := range closure {
+		asset, version := resolved.Asset, resolved.Version
+		report.Results = append(report.Results, Result{Stage: StageClosure, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictPassed, Message: "version-pinned asset resolved"})
+		report.Results = append(report.Results, staticSourceResult(asset, version))
+		results, artifacts, storyErr := r.directStoryResults(ctx, asset, version)
+		if storyErr != nil {
+			return Report{}, storyErr
+		}
+		report.Results = append(report.Results, results...)
+		report.Artifacts = append(report.Artifacts, artifacts...)
+	}
+	report.Verdict = VerdictPassed
+	for _, result := range report.Results {
+		if result.Verdict == VerdictFailed {
+			report.Verdict = VerdictFailed
+			break
+		}
+		if result.Verdict == VerdictBlocked {
+			report.Verdict = VerdictBlocked
+		}
+	}
+	return report, nil
+}
+
+// directStoryResults accepts the same validated story.json contract that
+// drives the preview workbench; no second behavior declaration is required.
+func (r Runner) directStoryResults(ctx context.Context, asset components.Component, version components.ComponentVersion) ([]Result, []Artifact, error) {
+	if asset.AssetKind == components.AssetKindFoundation {
+		return []Result{{
+			Stage:          StageContract,
+			AssetLibraryID: asset.LibraryID,
+			Version:        version.Version,
+			Verdict:        VerdictPassed,
+			Message:        "non-renderable foundation validated as a source-only closure member",
+		}}, nil, nil
+	}
+	projected, err := r.Stories.ListStories(ctx, components.StoryQuery{ComponentID: asset.ID, Version: version.Version, Limit: 20})
+	if err != nil {
+		return nil, nil, fmt.Errorf("list stories for %s@%s: %w", asset.LibraryID, version.Version, err)
+	}
+	if len(projected) != 1 {
+		return []Result{{Stage: StageContract, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictFailed, Message: "asset version must have exactly one indexed story contract", Remediation: "add one valid story.json and reindex"}}, nil, nil
+	}
+	var story components.StoryContract
+	if err := json.Unmarshal([]byte(projected[0].ContractJSON), &story); err != nil {
+		return nil, nil, fmt.Errorf("decode story contract for %s@%s: %w", asset.LibraryID, version.Version, err)
+	}
+	results := []Result{{Stage: StageContract, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictPassed, Message: "validated story contract accepted"}}
+	artifacts := make([]Artifact, 0, len(story.Stories)*4+1)
+	for _, definition := range story.Stories {
+		if r.Executor == nil {
+			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: "story executor is not configured", Remediation: "configure the preview harness executor before trusting story results"})
+			continue
+		}
+		execution, err := r.Executor.ExecuteStory(ctx, asset.LibraryID, version.Version, definition.ID)
+		if err != nil {
+			var unavailable ExecutorUnavailableError
+			if errors.As(err, &unavailable) {
+				results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: unavailable.Error(), Remediation: "install or configure Chrome before trusting story results"})
+				continue
+			}
+			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictFailed, Message: "story did not render: " + err.Error(), Remediation: "fix the preview harness or story mount before adopting this version"})
+			continue
+		}
+		message := fmt.Sprintf("rendered story assertion completed in %s", execution.Duration.Round(time.Millisecond))
+		if !execution.Passed {
+			message = strings.Join(execution.Failures, "; ")
+			if message == "" {
+				message = "story assertions failed"
+			}
+		}
+		verdict := VerdictPassed
+		if !execution.Passed {
+			verdict = VerdictFailed
+		}
+		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: verdict, Message: message, Remediation: remediationFor(verdict), Evidence: storyEvidence(execution)})
+		artifacts = append(artifacts, execution.Artifacts...)
+		evidenceVerdict := VerdictPassed
+		evidenceMessage := "BAS evidence bundle captured and parsed"
+		if len(execution.Artifacts) == 0 || strings.TrimSpace(execution.AccessibilityJSON) == "" {
+			evidenceVerdict = VerdictBlocked
+			evidenceMessage = "BAS did not return the complete structured evidence bundle"
+		}
+		results = append(results, Result{Stage: StageEvidence, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: evidenceVerdict, Message: evidenceMessage, Remediation: "repair BAS capture artifact production before trusting experience evidence", Evidence: storyEvidence(execution)})
+	}
+	if sheetExecutor, ok := r.Executor.(StorySheetExecutor); ok && len(story.Stories) > 1 {
+		storyIDs := make([]string, 0, len(story.Stories))
+		for _, definition := range story.Stories {
+			storyIDs = append(storyIDs, definition.ID)
+		}
+		for start := 0; start < len(storyIDs); start += 4 {
+			end := start + 4
+			if end > len(storyIDs) {
+				end = len(storyIDs)
+			}
+			group := storyIDs[start:end]
+			execution, sheetErr := sheetExecutor.ExecuteStorySheet(ctx, asset.LibraryID, version.Version, group)
+			verdict := VerdictPassed
+			message := "BAS labeled story review sheet captured"
+			if sheetErr != nil {
+				verdict = VerdictFailed
+				message = "story review sheet did not render: " + sheetErr.Error()
+			} else if !execution.Passed {
+				verdict = VerdictFailed
+				message = strings.Join(execution.Failures, "; ")
+				if message == "" {
+					message = "story review sheet assertions failed"
+				}
+			}
+			results = append(results, Result{Stage: StageEvidence, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: "review-sheet:" + strings.Join(group, ","), Verdict: verdict, Message: message, Remediation: "repair the generic BAS story-sheet route before trusting composite review evidence", Evidence: storyEvidence(execution)})
+			artifacts = append(artifacts, execution.Artifacts...)
+		}
+	}
+	artifacts = append(artifacts, Artifact{Kind: "story-contract", Label: "story.json", AssetLibraryID: asset.LibraryID, Version: version.Version, Reference: asset.LibraryID + "@" + version.Version + ":story.json"})
+	return results, artifacts, nil
+}
+
+func storyEvidence(execution StoryExecution) []Evidence {
+	refs := make([]string, 0, len(execution.Artifacts))
+	for _, artifact := range execution.Artifacts {
+		if artifact.Reference != "" {
+			refs = append(refs, artifact.Reference)
+		}
+	}
+	return []Evidence{
+		{Kind: "console", Console: &execution.Console},
+		{Kind: "performance", Performance: &execution.Performance},
+		{Kind: "accessibility", AccessibilityJSON: execution.AccessibilityJSON},
+		{Kind: "bas-capture", Artifacts: refs},
+	}
+}
+
+func remediationFor(verdict Verdict) string {
+	if verdict == VerdictFailed {
+		return "fix the rendered story expectation or component behavior"
+	}
+	return ""
+}
+
+func staticSourceResult(asset components.Component, version components.ComponentVersion) Result {
+	result := Result{Stage: StageStatic, AssetLibraryID: asset.LibraryID, Version: version.Version, Verdict: VerdictPassed, Message: "versioned source integrity accepted"}
+	if strings.TrimSpace(version.Content) == "" {
+		result.Verdict = VerdictFailed
+		result.Message = "versioned entry source is empty"
+		result.Remediation = "restore the version entry source before running behavior checks"
+		return result
+	}
+	if strings.TrimSpace(version.ContentSHA256) == "" {
+		result.Verdict = VerdictBlocked
+		result.Message = "versioned source has no indexed content digest"
+		result.Remediation = "reindex the catalog so the immutable source digest is recorded"
+	}
+	return result
+}
+
+func reportID(report Report) string {
+	// CreatedAt is evidence metadata, not report identity. Including the clock
+	// made a repeated validation of the same immutable closure look like a new
+	// report and prevented durable reuse on an unchanged run.
+	sum := sha256.Sum256([]byte(strings.Join([]string{report.RootLibraryID, report.RootVersion, fmt.Sprintf("%t", report.IncludeClosure), report.SourceRevision}, "\x00")))
+	return "ctr_" + hex.EncodeToString(sum[:8])
+}

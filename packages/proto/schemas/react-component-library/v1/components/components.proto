@@ -1,0 +1,736 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.components;
+
+import "google/protobuf/timestamp.proto";
+import "experience-manager/v1/contract/contract.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components;components_v1";
+
+// =============================================================================
+// COMPONENTS DOMAIN — registry of indexed React components
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @stability stable
+//
+// Wire contract for the ComponentsService Connect-RPC service. The registry
+// catalogs Git-tracked component manifests under library/components/* and their
+// explicit version folders. Index is a server-side manifest walk + upsert; the
+// rest are reads.
+//
+// Consumed by:
+//   - API: handlers/components/connect_handler.go implements the generated
+//          ComponentsServiceHandler interface.
+//   - UI:  ui/src/api/components.ts (Connect-Web client).
+//   - CLI: cli/domains/components/handlers.go (Connect-Go client).
+// =============================================================================
+
+service ComponentsService {
+  rpc ListComponents(ListComponentsRequest) returns (ListComponentsResponse);
+  rpc GetComponent(GetComponentRequest) returns (GetComponentResponse);
+  rpc GetComponentByLibraryId(GetComponentByLibraryIdRequest) returns (GetComponentByLibraryIdResponse);
+  rpc IndexComponents(IndexComponentsRequest) returns (IndexComponentsResponse);
+  rpc InitializeComponent(InitializeComponentRequest) returns (InitializeComponentResponse);
+  rpc IngestComponent(IngestComponentRequest) returns (IngestComponentResponse);
+  rpc BeginComponentVersion(BeginComponentVersionRequest) returns (BeginComponentVersionResponse);
+  rpc CheckComponentVersion(CheckComponentVersionRequest) returns (CheckComponentVersionResponse);
+  rpc PublishComponentVersion(PublishComponentVersionRequest) returns (PublishComponentVersionResponse);
+  rpc CreateComponentVersion(CreateComponentVersionRequest) returns (CreateComponentVersionResponse);
+  rpc UpdateComponentManifest(UpdateComponentManifestRequest) returns (UpdateComponentManifestResponse);
+  rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
+  rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
+  rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
+  rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
+  rpc ResolveLibraryImport(ResolveLibraryImportRequest) returns (ResolveLibraryImportResponse);
+  rpc ListComponentStories(ListComponentStoriesRequest) returns (ListComponentStoriesResponse);
+  rpc ListPreviewFrames(ListPreviewFramesRequest) returns (ListPreviewFramesResponse);
+  rpc PersistPreviewFrame(PersistPreviewFrameRequest) returns (PersistPreviewFrameResponse);
+  rpc ListDesignStyles(ListDesignStylesRequest) returns (ListDesignStylesResponse);
+  rpc ValidateStyleFit(ValidateStyleFitRequest) returns (ValidateStyleFitResponse);
+}
+
+// AssetKind makes the existing catalog projection capable of representing
+// both renderable React components and non-renderable reusable hooks. The
+// ComponentsService name and existing Component fields are retained for wire
+// compatibility with current clients.
+enum AssetKind {
+  ASSET_KIND_UNSPECIFIED = 0;
+  ASSET_KIND_COMPONENT = 1;
+  ASSET_KIND_HOOK = 2;
+}
+
+// AssetDependency is an authored edge from one catalog asset version to a
+// specific library asset version. Version is required so preview and adoption
+// can materialize a deterministic closure without selecting a moving latest.
+message AssetDependency {
+  string library_id = 1;
+  string version = 2;
+}
+
+// AssetMetrics is computed by the server as part of catalog projections. It
+// deliberately contains only counts that can be acted on in the catalog; no
+// client is expected to issue per-row count queries.
+message AssetMetrics {
+  int32 direct_adoption_count = 1;
+  int32 version_count = 2;
+  // Includes direct roots and dependency files materialized through a parent
+  // adoption. It is always at least direct_adoption_count.
+  int32 effective_adoption_count = 3;
+  repeated VersionAdoptionMetric version_adoptions = 4;
+}
+
+message VersionAdoptionMetric {
+  string version = 1;
+  int32 current_count = 2;
+  int32 peak_count = 3;
+}
+
+// Component is the canonical wire shape for a single indexed component.
+message Component {
+  // UUID assigned by the API on first index.
+  string id = 1;
+
+  // Stable cross-scenario identifier from component.json.
+  string library_id = 2;
+
+  // Human-readable name (from `@displayName`, falls back to file basename).
+  string display_name = 3;
+
+  // Short prose description (from `@description`).
+  string description = 4;
+
+  // Path of the latest released .tsx file relative to the configured source
+  // root. Empty when no latest release has been published.
+  string source_path = 5;
+
+  // Latest released version from component.json.latest.
+  string version = 6;
+
+  // Tag list parsed from `@tags` (JSON array or comma-separated).
+  repeated string tags = 7;
+
+  // Server time at the moment this component was last (re-)indexed.
+  google.protobuf.Timestamp indexed_at = 8;
+
+  // Server time at the moment this row was last updated (changes per upsert).
+  google.protobuf.Timestamp updated_at = 9;
+
+  // Captured raw JSDoc header fields keyed by `@name` (after stripping `@`).
+  // Echoed for transparency; UI may surface unknown fields. Empty when the
+  // caller did not opt into header inclusion (List omits it; Get includes it).
+  map<string, string> headers = 10;
+
+  // Component folder slug under library/components/.
+  string slug = 11;
+
+  // Path to component.json relative to the configured source root.
+  string manifest_path = 12;
+
+  // Explicit draft version from component.json.draft, if one exists.
+  string draft_version = 13;
+
+  // Explicit latest released version from component.json.latest.
+  string latest_version = 14;
+
+  // Canonical target slot from component.json.slot used for adoption path
+  // resolution. Empty means the target template's default slot applies.
+  string slot = 15;
+
+  // Advisory component-to-design-style fit declarations from component.json.
+  // Search and adoption workflows use these as guidance, not hard gates.
+  repeated ComponentDesignAffinity design_styles = 16;
+
+  // Stable operator-facing catalog category from component.json. This is
+  // deliberately distinct from the implementation slot.
+  string category = 17;
+
+  // Explicit catalog asset kind. Existing indexed rows are components.
+  AssetKind asset_kind = 18;
+
+  // Version-pinned dependencies declared by this asset's manifest.
+  repeated AssetDependency dependencies = 19;
+
+  // Server-projected catalog counts.
+  AssetMetrics metrics = 20;
+
+  // Desired-state catalog placement. These fields are populated when the
+  // indexed row has a catalogId; supplemental implementation rows retain
+  // their ordinary registry shape.
+  string catalog_domain = 21;
+  int32 catalog_domain_order = 22;
+  int32 catalog_rung = 23;
+  string catalog_rung_name = 24;
+  int32 transitive_dependent_count = 25;
+  string catalog_id = 26;
+
+  // Derived from the latest released version's external token requirements
+  // and the registered design-kit vocabularies. This is capability, not taste;
+  // design_styles remains the separately authored aesthetic-fit signal.
+  ComponentKitCompatibility kit_compatibility = 27;
+}
+
+// ListComponentsRequest filters the registry view.
+message ListComponentsRequest {
+  // Case-insensitive substring matched against library_id, display_name,
+  // description, and source_path. Empty string = no filter. When set,
+  // results are ordered by display_name (case-insensitive) per req SF-001.
+  string match = 1;
+
+  // Exact (case-insensitive) single-tag filter. Kept for back-compat;
+  // for new callers prefer `tags` (multi-tag OR). Empty string = no filter.
+  string tag = 2;
+
+  // Max rows to return. 0 = server default (200). Capped server-side.
+  int32 limit = 3;
+
+  // Multi-tag OR filter (any-of) — req SF-002. Empty / whitespace-only
+  // entries are ignored. When combined with `match` and/or `category`,
+  // each facet ANDs with the others.
+  repeated string tags = 4;
+
+  // Category AND filter — matches against the parsed @category header.
+  // Empty string = no filter.
+  string category = 5;
+
+  // Design-style AND filter — matches component.json designStyles[].styleId.
+  // Empty string = no filter.
+  string style_id = 6;
+
+  // Optional affinity filter. When combined with style_id, both must match the
+  // same declaration. Valid values are native, compatible, and discouraged.
+  string affinity = 7;
+
+  // Optional exact asset kind filter. Unspecified retains the legacy view of
+  // all catalog assets.
+  AssetKind asset_kind = 8;
+}
+
+message ListComponentsResponse {
+  // Components ordered newest-first by indexed_at.
+  repeated Component components = 1;
+}
+
+message GetComponentRequest {
+  string id = 1;
+  // Opt-in because ordinary catalog reads do not require a cross-scenario
+  // evidence lookup.
+  bool include_experience = 2;
+}
+
+message GetComponentResponse {
+  Component component = 1;
+  ComponentExperience experience = 2;
+}
+
+message GetComponentByLibraryIdRequest {
+  string library_id = 1;
+}
+
+message GetComponentByLibraryIdResponse {
+  Component component = 1;
+}
+
+message ComponentExperience {
+  string component_id = 1;
+  string library_id = 2;
+  string version = 3;
+  string contract_id = 4;
+  string title = 5;
+  string purpose = 6;
+  repeated ComponentExperienceState states = 7;
+  repeated ComponentExperienceClaim claims = 8;
+  repeated ComponentExperienceEvidence evidence = 9;
+  string evidence_status = 10;
+  string evidence_message = 11;
+}
+
+message ComponentExperienceState {
+  string id = 1;
+  string example_name = 2;
+  string description = 3;
+}
+
+message ComponentExperienceClaim {
+  string id = 1;
+  string type = 2;
+  string statement = 3;
+  string tier = 4;
+  repeated string states = 5;
+}
+
+message ComponentExperienceEvidence {
+  string claim_id = 1;
+  string verdict = 2;
+  string state_id = 3;
+  string example_name = 4;
+  string capture_ref = 5;
+  string checked_at = 6;
+  string message = 7;
+  string viewport = 8;
+  int32 viewport_width = 9;
+  int32 viewport_height = 10;
+  vrooli.experience_manager.v1.contract.ClaimMeasurement measurement = 11;
+}
+
+// IndexComponentsRequest triggers a re-walk of the configured source root.
+message IndexComponentsRequest {
+  // Skip the reachability-derived materialization reconciliation after the
+  // index. The default keeps the registry and working tree converged.
+  bool no_reconcile = 1;
+}
+
+// IndexComponentsResponse summarises the index pass.
+message IndexComponentsResponse {
+  // Total component manifests visited by the walker.
+  int32 scanned = 1;
+
+  // Files that produced a successful upsert.
+  int32 indexed = 2;
+
+  // Manifests or version folders skipped because they are not component
+  // release inputs.
+  int32 skipped = 3;
+
+  // Rows deleted because their previously-indexed source file is gone.
+  int32 deleted = 4;
+
+  // Human-readable error strings, one per file that failed validation.
+  repeated string errors = 5;
+
+  // Library IDs successfully indexed in this pass, in walk order.
+  repeated string library_ids = 6;
+
+  // Non-blocking story-contract migration diagnostics.
+  repeated string warnings = 7;
+}
+
+message InitializeComponentRequest {
+  string library_id = 1;
+  string slug = 2;
+  string display_name = 3;
+  string description = 4;
+  repeated string tags = 5;
+  string initial_version = 6;
+  string file_name = 7;
+  string initial_source = 8;
+}
+
+message InitializeComponentResponse {
+  Component component = 1;
+  string manifest_path = 2;
+  string source_path = 3;
+}
+
+// IngestComponent copies a scenario-local TSX component into the library,
+// records its source provenance, indexes it, and returns actionable static
+// conformance findings. The API owns all filesystem and catalog mutation.
+message IngestComponentRequest {
+  string scenario = 1;
+  string source_file = 2;
+  string slug = 3;
+  string display_name = 4;
+  string description = 5;
+  repeated string tags = 6;
+  string slot = 7;
+  // Optional origin companion paths. The API also discovers direct relative
+  // imports, so callers normally only need this for non-imported files.
+  repeated string source_files = 8;
+  string version = 9;
+  // accept_behavior_loss records an explicit operator decision to proceed
+  // with a harvest that the static behavior-inventory diff flags as dropping
+  // origin behavior (e.g. a focus-trap hook reachable only via an app-alias
+  // import the library cannot carry). It does NOT skip the check: the named
+  // losses are still computed and are persisted as an acknowledged parity
+  // report on the created version. Without it a lossy harvest fails.
+  bool accept_behavior_loss = 10;
+  // Optional scenario-relative experience-component document transferred into
+  // the version folder as experience-contract.json. When omitted, ingest
+  // derives experience/components/<slug>.json when it exists.
+  string experience_contract_path = 11;
+}
+
+message IngestFinding {
+  string code = 1;
+  string message = 2;
+  string source_file = 3;
+}
+
+message IngestComponentResponse {
+  Component component = 1;
+  string manifest_path = 2;
+  string source_path = 3;
+  string draft_version = 4;
+  repeated IngestFinding findings = 5;
+  string checklist_path = 6;
+  IngestParityReport parity_report = 7;
+}
+
+message IngestParityReport {
+  repeated string origin_files = 1;
+  repeated string harvested_files = 2;
+  repeated IngestFinding findings = 3;
+  bool acknowledged = 4;
+}
+
+enum ComponentVersionIntent {
+  COMPONENT_VERSION_INTENT_UNSPECIFIED = 0;
+  COMPONENT_VERSION_INTENT_DRAFT = 1;
+  COMPONENT_VERSION_INTENT_RELEASE = 2;
+}
+
+message CreateComponentVersionRequest {
+  string component_id = 1;
+  string version = 2;
+  string from_version = 3;
+  ComponentVersionIntent intent = 4;
+  string file_name = 5;
+  string source = 6;
+  string changelog_md = 7;
+  bool acknowledge_parity_waiver = 8;
+  // Durable operator-authored parity evidence for versions created outside
+  // the ingest workflow. Uses the same contract as ingest.
+  IngestParityReport parity_report = 9;
+}
+
+message CreateComponentVersionResponse {
+  Component component = 1;
+  ComponentVersion version = 2;
+  string source_path = 3;
+}
+
+// BeginComponentVersion creates one mutable draft from the current release.
+// component accepts either the stable libraryId or the internal catalog UUID.
+message BeginComponentVersionRequest {
+  string component = 1;
+  string bump = 2;
+  string version = 3;
+}
+
+message BeginComponentVersionResponse {
+  Component component = 1;
+  ComponentVersion version = 2;
+  string source_path = 3;
+  repeated string artifact_paths = 4;
+  string preview_path = 5;
+}
+
+message ComponentVersionCheck {
+  string stage = 1;
+  string verdict = 2;
+  string message = 3;
+  string remediation = 4;
+}
+
+message CheckComponentVersionRequest {
+  string component = 1;
+  string version = 2;
+}
+
+message CheckComponentVersionResponse {
+  Component component = 1;
+  string version = 2;
+  bool passed = 3;
+  repeated ComponentVersionCheck checks = 4;
+  string preview_path = 5;
+}
+
+message PublishComponentVersionRequest {
+  string component = 1;
+  string draft_version = 2;
+  string version = 3;
+  string changelog_md = 4;
+  bool acknowledge_parity_waiver = 5;
+}
+
+message PublishComponentVersionResponse {
+  Component component = 1;
+  ComponentVersion version = 2;
+  string source_path = 3;
+  repeated string artifact_paths = 4;
+  string preview_path = 5;
+}
+
+message UpdateComponentManifestRequest {
+  string component_id = 1;
+  string display_name = 2;
+  string description = 3;
+  repeated string tags = 4;
+  string latest_version = 5;
+  string draft_version = 6;
+  repeated string deprecated_versions = 7;
+  string catalog_id = 8;
+  repeated string replaced_by = 9;
+  bool clear_supplemental_justification = 10;
+  bool clear_catalog_id = 11;
+  repeated AssetDependency dependencies = 12;
+}
+
+message UpdateComponentManifestResponse {
+  Component component = 1;
+}
+
+// GetComponentContentRequest reads the on-disk source file backing a
+// component. id accepts either the stable libraryId or the catalog UUID.
+message GetComponentContentRequest {
+  string id = 1;
+  // Optional file path relative to the latest version folder. Empty selects
+  // the entry file for backward-compatible single-file callers.
+  string path = 2;
+}
+
+message GetComponentContentResponse {
+  // Raw source text of the component file (UTF-8).
+  string content = 1;
+
+  // Echoed source_path (relative to the configured source root) so the
+  // caller can render a header without re-fetching the Component row.
+  string source_path = 2;
+
+  // SHA-256 hex digest of the content at read time. Callers send this
+  // back on UpdateComponentContent as expected_sha256 to detect
+  // concurrent edits; empty string = caller opts out of the check.
+  string sha256 = 3;
+}
+
+// UpdateComponentContentRequest writes the on-disk source file in
+// place. The component row itself is not mutated; callers should follow
+// with IndexComponents if the header changed.
+message UpdateComponentContentRequest {
+  // Stable libraryId or catalog UUID of the component to write.
+  string id = 1;
+
+  // New full file content (UTF-8). Caller is responsible for keeping
+  // the @libraryId header intact — the indexer will reject the file on
+  // the next walk if it doesn't.
+  string content = 2;
+
+  // Optional optimistic-concurrency guard. When non-empty and not equal
+  // to the current on-disk SHA-256, the server returns FailedPrecondition
+  // and the write is rejected.
+  string expected_sha256 = 3;
+  // Optional file path relative to the latest version folder. Empty selects
+  // the entry file.
+  string path = 4;
+}
+
+message UpdateComponentContentResponse {
+  // SHA-256 hex digest of the freshly written content.
+  string sha256 = 1;
+
+  // Echoed source_path of the file just written.
+  string source_path = 2;
+}
+
+enum ComponentVersionStatus {
+  COMPONENT_VERSION_STATUS_UNSPECIFIED = 0;
+  COMPONENT_VERSION_STATUS_DRAFT = 1;
+  COMPONENT_VERSION_STATUS_RELEASED = 2;
+  COMPONENT_VERSION_STATUS_DEPRECATED = 3;
+  COMPONENT_VERSION_STATUS_ARCHIVED = 4;
+}
+
+message ComponentVersion {
+  string id = 1;
+  string component_id = 2;
+  string library_id = 3;
+  string version = 4;
+  ComponentVersionStatus status = 5;
+  string source_path = 6;
+  string content_sha256 = 7;
+  string changelog_md = 8;
+  google.protobuf.Timestamp indexed_at = 9;
+  google.protobuf.Timestamp released_at = 10;
+  repeated ComponentVersionFile files = 11;
+  IngestParityReport parity_report = 12;
+  ComponentKitCompatibility kit_compatibility = 13;
+}
+
+enum ComponentKitCompatibilityVerdict {
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSPECIFIED = 0;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNIVERSAL = 1;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_RESTRICTED = 2;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSATISFIABLE = 3;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNDEFINED_VOCABULARY = 4;
+}
+
+message ComponentKitCompatibility {
+  ComponentKitCompatibilityVerdict verdict = 1;
+  repeated string compatible_kit_ids = 2;
+  repeated string unsatisfied_properties = 3;
+}
+
+message ComponentVersionFile {
+  string path = 1;
+  string content_sha256 = 2;
+  bool is_entry = 3;
+  string slot = 4;
+}
+
+enum DesignAffinity {
+  DESIGN_AFFINITY_UNSPECIFIED = 0;
+  DESIGN_AFFINITY_NATIVE = 1;
+  DESIGN_AFFINITY_COMPATIBLE = 2;
+  DESIGN_AFFINITY_DISCOURAGED = 3;
+}
+
+message ComponentDesignAffinity {
+  string style_id = 1;
+  DesignAffinity affinity = 2;
+  string reason = 3;
+}
+
+message ListComponentVersionsRequest {
+  string component_id = 1;
+  int32 limit = 2;
+}
+
+message ListComponentVersionsResponse {
+  repeated ComponentVersion versions = 1;
+}
+
+message GetComponentVersionContentRequest {
+  string component_id = 1;
+  string version = 2;
+  string path = 3;
+}
+
+message GetComponentVersionContentResponse {
+  ComponentVersion version = 1;
+  string content = 2;
+}
+
+// ResolveLibraryImport maps a published package specifier to the immutable
+// catalog source it names. Relative imports are intentionally reported as
+// unresolved: they belong to the local file's module graph, not the library
+// catalog.
+message ResolveLibraryImportRequest {
+  string specifier = 1;
+  string from_path = 2;
+}
+
+message ResolveLibraryImportResponse {
+  bool resolved = 1;
+  string specifier = 2;
+  string asset_id = 3;
+  string library_id = 4;
+  string version = 5;
+  string export_kind = 6;
+  string description = 7;
+  string source_path = 8;
+  string diagnostic = 9;
+}
+
+// ComponentStory is the validated, version-level projection of story.json.
+// Args, fixtures, and stories remain JSON to retain the declarative field
+// grammar while avoiding separate, drifting transport schemas for each asset.
+message ComponentStory {
+  string id = 1;
+  string component_id = 2;
+  string library_id = 3;
+  string version = 4;
+  int32 schema_version = 5;
+  string kind = 6;
+  string title = 7;
+  string args_json = 8;
+  string environment_json = 9;
+  string stories_json = 10;
+  string contract_json = 11;
+  string source_path = 12;
+  google.protobuf.Timestamp indexed_at = 13;
+}
+
+message ListComponentStoriesRequest {
+  string component_id = 1;
+  string version = 2;
+  int32 limit = 3;
+}
+
+message ListComponentStoriesResponse {
+  repeated ComponentStory stories = 1;
+  // Non-blocking diagnostics for the returned story contracts.
+  repeated string warnings = 2;
+}
+
+// ListPreviewFrames returns catalog-backed frame candidates for a subject. It
+// is deliberately read-only: selecting a candidate in the UI changes only the
+// Preview request until an author explicitly persists a story reference.
+message ListPreviewFramesRequest {
+  string component_id = 1;
+  string version = 2;
+  string story_id = 3;
+}
+
+message PreviewFrameCandidate {
+  string asset = 1;
+  string version = 2;
+  string region = 3;
+  string capability = 4;
+  string fixture = 5;
+  string label = 6;
+  bool compatible = 7;
+  string diagnostic_code = 8;
+  string diagnostic = 9;
+}
+
+message ListPreviewFramesResponse {
+  repeated PreviewFrameCandidate candidates = 1;
+}
+
+// PersistPreviewFrame promotes a temporary frame experiment into a new draft
+// story contract. Released version bytes remain immutable; the server creates
+// a patch draft when the selected version has no active draft.
+message PersistPreviewFrameRequest {
+  string component_id = 1;
+  string version = 2;
+  string story_id = 3;
+  string asset = 4;
+  string frame_version = 5;
+  string region = 6;
+  string capability = 7;
+  string fixture = 8;
+}
+
+message PersistPreviewFrameResponse {
+  string component_id = 1;
+  string version = 2;
+  string story_id = 3;
+  string story_json = 4;
+  string source_path = 5;
+}
+
+message DesignStyle {
+  string id = 1;
+  string name = 2;
+  repeated string tags = 3;
+  repeated string supports = 4;
+}
+
+message ListDesignStylesRequest {}
+
+message ListDesignStylesResponse {
+  repeated DesignStyle styles = 1;
+}
+
+enum StyleFitVerdictKind {
+  STYLE_FIT_VERDICT_KIND_UNSPECIFIED = 0;
+  STYLE_FIT_VERDICT_KIND_OK = 1;
+  STYLE_FIT_VERDICT_KIND_INFO = 2;
+  STYLE_FIT_VERDICT_KIND_WARN = 3;
+}
+
+message ValidateStyleFitRequest {
+  string component_id = 1;
+  string scenario = 2;
+  string version = 3;
+}
+
+message ValidateStyleFitResponse {
+  StyleFitVerdictKind kind = 1;
+  string component_id = 2;
+  string version = 3;
+  string scenario = 4;
+  string scenario_style = 5;
+  DesignAffinity affinity = 6;
+  string detail = 7;
+}

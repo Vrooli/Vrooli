@@ -1,0 +1,108 @@
+package routing
+
+import (
+	"ai-gateway/internal/module"
+
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
+)
+
+var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:          "routing_preview_route",
+		Path:        routingconnect.RoutingServicePreviewRouteProcedure,
+		Method:      "POST",
+		Summary:     "Preview routing policy for a gateway request",
+		Description: "Validates the gateway request and returns deterministic provider candidates, selected route, fallback eligibility, and policy reasons without running inference.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "PreviewRouteRequest", Properties: map[string]string{"request": "GatewayRequest"}},
+		Response:    &module.Schema{Type: "PreviewRouteResponse", Properties: map[string]string{"valid": "bool", "issues": "array<ValidationIssue>", "candidates": "array<RouteCandidate>", "policy_reasons": "array<string>", "fallback_allowed": "bool", "route_plan_id": "string"}},
+	},
+	{
+		ID:          "routing_execute_route",
+		Path:        routingconnect.RoutingServiceExecuteRouteProcedure,
+		Method:      "POST",
+		Summary:     "Execute a routed gateway request",
+		Description: "Executes a provider-neutral request through the selected resource command and persists redacted route evidence before returning provider output.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "ExecuteRouteRequest", Properties: map[string]string{"request": "GatewayRequest", "input_text": "string"}},
+		Response:    &module.Schema{Type: "ExecuteRouteResponse", Properties: map[string]string{"valid": "bool", "issues": "array<ValidationIssue>", "evidence": "RouteEvidence", "output_text": "string", "policy_reasons": "array<string>", "applied": "AppliedSettings"}},
+	},
+	{
+		ID:          "routing_submit_media",
+		Path:        routingconnect.RoutingServiceSubmitMediaProcedure,
+		Method:      "POST",
+		Summary:     "Submit asynchronous provider-neutral media work",
+		Description: "Creates a durable image or video execution receipt. The executor owns output bytes and returns only stable output references, route evidence, and terminal accounting.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "SubmitMediaRequest", Properties: map[string]string{"request": "GatewayRequest", "prompt": "string", "inputs": "array<MediaInput>", "output_count": "int32", "idempotency_key": "string"}},
+		Response:    &module.Schema{Type: "SubmitMediaResponse", Properties: map[string]string{"execution": "MediaExecution"}},
+	},
+	{
+		ID:          "routing_get_media_execution",
+		Path:        routingconnect.RoutingServiceGetMediaExecutionProcedure,
+		Method:      "POST",
+		Summary:     "Inspect a media execution receipt",
+		Description: "Returns the durable lifecycle, route evidence, output references, and terminal accounting for one media execution.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "GetMediaExecutionRequest", Properties: map[string]string{"execution_id": "string"}},
+		Response:    &module.Schema{Type: "GetMediaExecutionResponse", Properties: map[string]string{"execution": "MediaExecution"}},
+	},
+	{
+		ID:          "routing_wait_media_execution",
+		Path:        routingconnect.RoutingServiceWaitMediaExecutionProcedure,
+		Method:      "POST",
+		Category:    "routing",
+		Summary:     "Wait for a durable media execution to become terminal",
+		Description: "Blocks server-side until a queued or running media receipt reaches succeeded, failed, or cancelled.",
+	},
+	{
+		ID:          "routing_cancel_media_execution",
+		Path:        routingconnect.RoutingServiceCancelMediaExecutionProcedure,
+		Method:      "POST",
+		Summary:     "Cancel a queued or running media execution",
+		Description: "Requests cancellation through the registered media executor and returns the updated durable receipt.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "CancelMediaExecutionRequest", Properties: map[string]string{"execution_id": "string"}},
+		Response:    &module.Schema{Type: "CancelMediaExecutionResponse", Properties: map[string]string{"execution": "MediaExecution"}},
+	},
+	{
+		ID:          "routing_retry_media_execution",
+		Path:        routingconnect.RoutingServiceRetryMediaExecutionProcedure,
+		Method:      "POST",
+		Summary:     "Retry a terminal media execution",
+		Description: "Creates a new media receipt from a failed or cancelled execution with an explicit idempotency key.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "RetryMediaExecutionRequest", Properties: map[string]string{"execution_id": "string", "idempotency_key": "string"}},
+		Response:    &module.Schema{Type: "RetryMediaExecutionResponse", Properties: map[string]string{"execution": "MediaExecution"}},
+	},
+	{
+		ID:          "routing_list_route_evidence",
+		Path:        routingconnect.RoutingServiceListRouteEvidenceProcedure,
+		Method:      "POST",
+		Summary:     "List route evidence events",
+		Description: "Lists redacted route evidence metadata for recent gateway executions.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "ListRouteEvidenceRequest", Properties: map[string]string{"limit": "int32", "scenario": "string"}},
+		Response:    &module.Schema{Type: "ListRouteEvidenceResponse", Properties: map[string]string{"events": "array<RouteEvidence>"}},
+	},
+	{
+		ID:          "routing_get_route_evidence",
+		Path:        routingconnect.RoutingServiceGetRouteEvidenceProcedure,
+		Method:      "POST",
+		Summary:     "Inspect one route evidence event",
+		Description: "Returns one redacted route evidence metadata event by ID.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "GetRouteEvidenceRequest", Properties: map[string]string{"event_id": "string"}},
+		Response:    &module.Schema{Type: "GetRouteEvidenceResponse", Properties: map[string]string{"event": "RouteEvidence"}},
+	},
+	{
+		ID:          "routing_list_provider_health",
+		Path:        routingconnect.RoutingServiceListProviderHealthProcedure,
+		Method:      "POST",
+		Summary:     "List provider circuit-breaker health",
+		Description: "Returns persisted provider circuit-breaker state per (provider, role, kind) with the effective state at read time, so operators can see which providers are suppressed and why without reading logs or database rows.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "ListProviderHealthRequest", Properties: map[string]string{}},
+		Response:    &module.Schema{Type: "ListProviderHealthResponse", Properties: map[string]string{"items": "array<ProviderHealth>"}},
+	},
+}

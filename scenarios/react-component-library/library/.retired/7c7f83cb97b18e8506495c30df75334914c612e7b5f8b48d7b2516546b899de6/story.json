@@ -1,0 +1,120 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": [],
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Adoption health"
+        },
+        {
+          "kind": "text",
+          "value": "8 scenarios current"
+        }
+      ],
+      "id": "metric-card",
+      "mode": "pinned",
+      "name": "Metric Card",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MetricCard"
+        }
+      },
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No drift detected"
+        }
+      ],
+      "id": "empty-tool",
+      "mode": "pinned",
+      "name": "Empty Tool",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "EmptyTool"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Button / v1.2.0 / native"
+        }
+      ],
+      "id": "compact-record",
+      "mode": "pinned",
+      "name": "Compact Record",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CompactRecord"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "StandaloneFlat"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Standalone surface"
+        }
+      ],
+      "id": "standalone-flat",
+      "mode": "live",
+      "name": "Standalone flat surface",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CardGridRaised"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Grid surface"
+        }
+      ],
+      "id": "card-grid-raised",
+      "mode": "live",
+      "name": "Card inside raised grid context",
+      "role": "boundary"
+    }
+  ],
+  "title": "Card"
+}

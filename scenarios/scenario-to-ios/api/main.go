@@ -1,185 +1,193 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
-	"time"
 
-	"github.com/vrooli/api-core/health"
+	"scenario-to-ios/internal/builds"
+	"scenario-to-ios/internal/capabilities"
+	"scenario-to-ios/internal/distribution"
+	"scenario-to-ios/internal/journeys"
+	"scenario-to-ios/internal/modules"
+	"scenario-to-ios/internal/readiness"
+	"scenario-to-ios/internal/releases"
+	"scenario-to-ios/internal/server"
+	"scenario-to-ios/internal/targets"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
+	_ "modernc.org/sqlite"
+
+	buildsH "scenario-to-ios/handlers/builds"
+	capsH "scenario-to-ios/handlers/capabilities"
+	distributionH "scenario-to-ios/handlers/distribution"
+	healthH "scenario-to-ios/handlers/health"
+	journeysH "scenario-to-ios/handlers/journeys"
+	readinessH "scenario-to-ios/handlers/readiness"
+	releasesH "scenario-to-ios/handlers/releases"
+	targetsH "scenario-to-ios/handlers/targets"
 )
 
-type Server struct {
-	router *http.ServeMux
-	logger *log.Logger
-}
-
-type BuildRequest struct {
-	ScenarioName    string                 `json:"scenario_name"`
-	ConfigOverrides map[string]interface{} `json:"config_overrides,omitempty"`
-}
-
-type BuildResponse struct {
-	Success  bool              `json:"success"`
-	IPAPath  string            `json:"ipa_path,omitempty"`
-	BuildID  string            `json:"build_id,omitempty"`
-	Metadata map[string]string `json:"metadata,omitempty"`
-	Error    string            `json:"error,omitempty"`
-}
-
-func (s *Server) respondJSON(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
-}
-
-func (s *Server) respondError(w http.ResponseWriter, statusCode int, errMsg string) {
-	w.WriteHeader(statusCode)
-	s.respondJSON(w, BuildResponse{
-		Success: false,
-		Error:   errMsg,
+// scenarioStorageRoots resolves all filesystem storage classes once at
+// startup. File writers must select their class through fileRootPath so a
+// test-mode request uses the lease-owned root instead of the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
-}
-
-// NOTE: handleHealth replaced by api-core/health for standardized responses
-
-func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		s.respondError(w, http.StatusMethodNotAllowed, "Only POST method allowed")
-		return
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
 	}
-
-	var req BuildRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.respondError(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON: %v", err))
-		return
+	scenarioID, err := storage.ScenarioNamespace("scenario-to-ios")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve scenario-to-ios storage namespace: %w", err)
 	}
-
-	// Validate scenario name
-	if req.ScenarioName == "" {
-		s.respondError(w, http.StatusBadRequest, "scenario_name is required")
-		return
-	}
-
-	// Sanitize scenario name (prevent path traversal)
-	scenarioName := filepath.Base(req.ScenarioName)
-	if scenarioName != req.ScenarioName || strings.Contains(scenarioName, "..") {
-		s.respondError(w, http.StatusBadRequest, "Invalid scenario_name format")
-		return
-	}
-
-	s.logInfo("Building iOS app for scenario: %s", scenarioName)
-
-	// Check if scenario exists (stub - will verify actual scenario path later)
-	scenarioPath := fmt.Sprintf("/home/matthalloran8/Vrooli/scenarios/%s", scenarioName)
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-		s.respondError(w, http.StatusNotFound, fmt.Sprintf("Scenario not found: %s", scenarioName))
-		return
-	}
-
-	// Generate build ID
-	buildID := fmt.Sprintf("ios-%s-%d", scenarioName, time.Now().Unix())
-
-	// Create build output directory
-	buildDir := fmt.Sprintf("/tmp/builds/%s", buildID)
-	if err := os.MkdirAll(buildDir, 0755); err != nil {
-		s.logError("Failed to create build directory: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create build directory: %v", err))
-		return
-	}
-
-	// Expand template
-	expander := NewTemplateExpander(scenarioName)
-	projectDir := filepath.Join(buildDir, "project")
-	if err := expander.ExpandTemplate(projectDir); err != nil {
-		s.logError("Template expansion failed: %v", err)
-		s.respondError(w, http.StatusInternalServerError, fmt.Sprintf("Template expansion failed: %v", err))
-		return
-	}
-
-	s.logInfo("Template expanded successfully to: %s", projectDir)
-
-	// Build metadata
-	metadata := map[string]string{
-		"scenario_name":        scenarioName,
-		"status":               "template_expanded",
-		"message":              "iOS project generated, IPA build requires Xcode on macOS",
-		"minimum_ios_version":  "15.0",
-		"supported_devices":    "iPhone, iPad",
-		"implementation_stage": "template_expansion_complete",
-		"project_path":         projectDir,
-		"build_directory":      buildDir,
-	}
-
-	// IPA path (would be generated by Xcode build)
-	ipaPath := fmt.Sprintf("%s/%s.ipa", buildDir, scenarioName)
-
-	response := BuildResponse{
-		Success:  true,
-		BuildID:  buildID,
-		IPAPath:  ipaPath,
-		Metadata: metadata,
-	}
-
-	s.logInfo("Build request processed: %s (template expanded)", buildID)
-	s.respondJSON(w, response)
-}
-
-func (s *Server) logInfo(msg string, fields ...interface{}) {
-	s.logger.Printf("[INFO] "+msg, fields...)
-}
-
-func (s *Server) logError(msg string, fields ...interface{}) {
-	s.logger.Printf("[ERROR] "+msg, fields...)
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-to-ios",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-to-ios"}) {
+		return
 	}
 
-	// Get port from environment variable (fail fast if missing)
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		fmt.Fprintf(os.Stderr, `❌ API_PORT environment variable is required but not set.
-
-🚀 The lifecycle system should set this automatically. If you see this error:
-   - Verify the scenario is started via: vrooli scenario start scenario-to-ios
-   - Check .vrooli/service.json for port configuration
-   - Ensure port registry has allocated a port for this scenario
-
-💡 This variable must be explicitly configured - defaults are not allowed for ports
-   as they may cause conflicts or security issues.
-`)
-		os.Exit(1)
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "scenario-to-ios",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	s := &Server{
-		router: http.NewServeMux(),
-		logger: logger,
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+	matrixStore, err := validationmatrix.NewFileStore(filepath.Join(primaryFileRoots.DataDir, "validation-matrices"))
+	if err != nil {
+		log.Fatalf("validation matrix storage configuration failed: %v", err)
+	}
+	prober := targets.Prober{GOOS: runtime.GOOS}
+	// No Apple toolchain runs on Linux, so a macOS bridge node is this ramp's
+	// normal execution path rather than a fallback. Without a bridge source the
+	// inventory can only ever answer "no registered macOS bridge node",
+	// regardless of what the fleet actually holds.
+	bridgeClient := validationmatrix.NewClient("", os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, validationmatrix.WithPlatform("ios"))
+	var bridgeSources []deliveryramp.BridgeSource
+	if bridgeClient != nil {
+		bridgeSources = append(bridgeSources, bridgeClient)
+	}
+	discoverTargets := func(ctx context.Context) (deliveryramp.Inventory, error) {
+		return deliveryramp.Discover(ctx, prober, bridgeSources...)
+	}
+	builder := builds.Builder{GOOS: runtime.GOOS}
+	iosPlan := journeys.Plan()
+	journeySelection := validationmatrix.JourneySelection{
+		JourneyID:     iosPlan.ID,
+		DisplayName:   "iOS generated-app conformance",
+		SourcePath:    "internal/journeys/plan.go",
+		ExecutionMode: "platform",
+		Required:      true,
+		Category:      "ios",
+		Requirements:  []string{"macOS simulator or iOS bridge", "device-control lease", "BAS WebView flow"},
+		Safety:        validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true},
+	}
+	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest) (deliveryramp.JourneyResult, error) {
+		return (journeys.Driver{GOOS: runtime.GOOS}).Execute(ctx, request)
+	}
+	matrixExecutor := releases.Executor{JourneyPlan: iosPlan, RunJourney: journeyRunner}
+	// The bridge executor must not be the local one. A Linux host cannot build
+	// or boot an iOS simulator, so running a "bridge" cell locally could only
+	// fail or, worse, attribute a local result to a remote target.
+	executors := validationmatrix.Executors{Local: matrixExecutor}
+	if bridgeClient != nil {
+		executors.Bridge = bridgeClient
+	}
+	matrixService := validationmatrix.NewService(
+		matrixStore,
+		executors,
+		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: prober, Journey: journeySelection}),
+	)
+	matrixService.RecoverStale()
+	matrixHandler := validationmatrix.NewHandler(matrixService)
+	readinessProbe := readiness.Probe{
+		DeveloperProgram: envBool("APPLE_DEVELOPER_PROGRAM"),
+		VerifiedIdentity: envBool("APPLE_VERIFIED_IDENTITY"),
+		// The build-host rung is derived from live fleet state rather than an
+		// environment flag. A remembered flag can claim a macOS host that is not
+		// there, which is exactly what the ladder exists to prevent.
+		ObserveBuildHost: readiness.BuildHostObserver(discoverTargets),
+		SigningReference: envBool("APPLE_SIGNING_REFERENCE"),
+		TestFlightAccess: envBool("APPLE_TESTFLIGHT_ACCESS"),
+		AppStoreListing:  envBool("APPLE_APP_STORE_LISTING"),
+	}
+	distributor := distribution.Distributor{
+		DeveloperProgram: readinessProbe.DeveloperProgram,
+		SigningReference: readinessProbe.SigningReference,
+		TestFlightAccess: readinessProbe.TestFlightAccess,
+		AppStoreListing:  readinessProbe.AppStoreListing,
 	}
 
-	// Health check - use api-core/health for standardized response
-	healthHandler := health.New().
-		Version("1.0.0").
-		Handler()
-	s.router.HandleFunc("/health", healthHandler)
-	s.router.HandleFunc("/api/v1/health", healthHandler)
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "scenario-to-ios-api", "1.0.0"),
+		capsH.Module(capabilities.NewRegistry()),
+		buildsH.Module(builder),
+		targetsH.Module(prober, bridgeSources...),
+		journeysH.Module(),
+		readinessH.Module(readinessProbe),
+		distributionH.Module(distributor),
+		releasesH.Module([]*validationmatrix.Handler{matrixHandler}, releasesH.Surface{
+			Probe:        discoverTargets,
+			ChapterCount: len(iosPlan.Steps),
+		}),
+	)
 
-	// iOS conversion endpoints
-	s.router.HandleFunc("/api/v1/ios/build", s.handleBuild)
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
-	addr := ":" + port
-	s.logInfo("scenario-to-ios API starting on %s", addr)
-	if err := http.ListenAndServe(addr, s.router); err != nil {
-		s.logger.Fatalf("[ERROR] Server failed: %v", err)
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func envBool(key string) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	return value == "1" || value == "true" || value == "yes"
 }

@@ -3,6 +3,7 @@ package docschema
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -109,6 +110,71 @@ func Handler() {}
 	}
 	if result.BrokenCodeRefs[0].Target != "src/missing.ts#func" {
 		t.Fatalf("unexpected broken ref target: %s", result.BrokenCodeRefs[0].Target)
+	}
+}
+
+func TestAuditScenarioDocumentation_MarkedRefs(t *testing.T) {
+	scenario := t.TempDir()
+	writeFile(t, filepath.Join(scenario, "README.md"), "Root doc sees `path:api/handler.go`.\n")
+	writeFile(t, filepath.Join(scenario, "api", "handler.go"), `package main
+
+func Handler() {}
+`)
+	writeFile(t, filepath.Join(scenario, "docs", "guide.md"), `# Guide
+
+Valid doc: `+"`doc:docs/reference/api.md`"+`
+Missing path: `+"`path:missing.go`"+`
+Example path: `+"`path[example]:missing-example.go`"+`
+Other domain: `+"`topic:team/foo`"+`
+Unknown: `+"`made-up:value`"+`
+
+`+"```markdown"+`
+Ignored: `+"`path:fenced-missing.go`"+`
+`+"```"+`
+`)
+	writeFile(t, filepath.Join(scenario, "docs", "reference", "api.md"), "# API")
+
+	result, err := AuditScenarioDocumentation(scenario)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if result.MarkedRefsFound != 6 {
+		t.Fatalf("expected 6 marked refs found, got %d", result.MarkedRefsFound)
+	}
+	if result.MarkedRefsSkipped != 2 {
+		t.Fatalf("expected 2 skipped marked refs, got %d", result.MarkedRefsSkipped)
+	}
+	if len(result.BrokenMarkedRefs) != 1 {
+		t.Fatalf("expected 1 broken marked ref, got %d: %+v", len(result.BrokenMarkedRefs), result.BrokenMarkedRefs)
+	}
+	if result.BrokenMarkedRefs[0].Target != "missing.go" {
+		t.Fatalf("unexpected broken marked target: %+v", result.BrokenMarkedRefs[0])
+	}
+	if len(result.UnknownMarkedRefs) != 1 {
+		t.Fatalf("expected 1 unknown marked ref, got %d: %+v", len(result.UnknownMarkedRefs), result.UnknownMarkedRefs)
+	}
+	if result.UnknownMarkedRefs[0].Marker != "made-up" {
+		t.Fatalf("unexpected unknown marked ref: %+v", result.UnknownMarkedRefs[0])
+	}
+}
+
+func TestAuditScenarioDocumentation_DocMarkedRefRequiresMarkdownFile(t *testing.T) {
+	scenario := t.TempDir()
+	writeFile(t, filepath.Join(scenario, "README.md"), "See `doc:api/handler.go`.\n")
+	writeFile(t, filepath.Join(scenario, "api", "handler.go"), `package main
+
+func Handler() {}
+`)
+
+	result, err := AuditScenarioDocumentation(scenario)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(result.BrokenMarkedRefs) != 1 {
+		t.Fatalf("expected doc marked ref to be broken, got %+v", result.BrokenMarkedRefs)
+	}
+	if !strings.Contains(result.BrokenMarkedRefs[0].Reason, ".md or .mdx") {
+		t.Fatalf("expected markdown-file reason, got %+v", result.BrokenMarkedRefs[0])
 	}
 }
 

@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-07-21T21:23:51Z",
+  "description": "Independent evaluator prompt for measured skill experiments",
+  "entry": "SKILL.md",
+  "id": "skill-experiment-calibration-evaluator",
+  "kind": "skill",
+  "name": "skill-experiment-calibration-evaluator",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "calibration",
+    "skill-experiment",
+    "evaluator"
+  ],
+  "updatedAt": "2026-07-21T21:43:41Z"
+}

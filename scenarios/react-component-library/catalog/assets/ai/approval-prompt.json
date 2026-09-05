@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.approval-prompt",
+    "name": "ApprovalPrompt",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The human-in-the-loop decision surface presenting the proposed action, its target, scope, consequences, alternatives, expiry, and resulting approval state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.alert",
+        "reason": "Tone, structure, and non-colour treatment are shared."
+      },
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions and overflow use the shared group."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.alert-dialog",
+        "reason": "Irreversible actions warrant a modal confirmation; routine scoped approvals should stay inline in the transcript."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "destructive-confirmation",
+    "permission-explained",
+    "error-message-usefulness",
+    "status-announced",
+    "recovery-path",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "retry"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "The exact scope of what is being permitted is stated in one line above the approve control, so consent is never given to something broader than what was read."
+    }
+  },
+  "rationale": "The highest-stakes component in the domain. Scope must be legible without expanding anything, approval must not be the default focus target, and expiry must be visible, because an approval prompt that is easy to accept blindly is worse than none."
+}

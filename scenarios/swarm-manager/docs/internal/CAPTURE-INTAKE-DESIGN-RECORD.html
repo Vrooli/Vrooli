@@ -1,0 +1,1235 @@
+<title>Capture &amp; Research Hardening — Design Record</title>
+
+<style>
+  :root {
+    --paper:      #E9EEF4;
+    --card:       #FFFFFF;
+    --card-2:     #F3F6FA;
+    --ink:        #0F2137;
+    --ink-soft:   #41556C;
+    --ink-faint:  #6D8096;
+    --rule:       #C4D2E0;
+    --rule-soft:  #DBE4ED;
+    --blue:       #1B4F8A;
+    --red:        #A83218;
+    --teal:       #0E6A5C;
+    --violet:     #56497A;
+    --amber:      #855100;
+    --blue-bg:    #E0EAF4;
+    --red-bg:     #F7E7E2;
+    --teal-bg:    #DEEFEB;
+    --violet-bg:  #EAE6F2;
+    --amber-bg:   #F6ECD9;
+
+    --font-display: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --measure: 70ch;
+    --page: 1080px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #0B141D;
+      --card:      #12202C;
+      --card-2:    #172938;
+      --ink:       #DBE7F2;
+      --ink-soft:  #9CB1C6;
+      --ink-faint: #6F8399;
+      --rule:      #27394B;
+      --rule-soft: #1C2D3D;
+      --blue:      #78AEDF;
+      --red:       #E58C77;
+      --teal:      #5FC9B5;
+      --violet:    #AC9ED4;
+      --amber:     #DDB061;
+      --blue-bg:   #14283C;
+      --red-bg:    #2D1A15;
+      --teal-bg:   #0F2F29;
+      --violet-bg: #221D31;
+      --amber-bg:  #2C2113;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:     #0B141D;
+    --card:      #12202C;
+    --card-2:    #172938;
+    --ink:       #DBE7F2;
+    --ink-soft:  #9CB1C6;
+    --ink-faint: #6F8399;
+    --rule:      #27394B;
+    --rule-soft: #1C2D3D;
+    --blue:      #78AEDF;
+    --red:       #E58C77;
+    --teal:      #5FC9B5;
+    --violet:    #AC9ED4;
+    --amber:     #DDB061;
+    --blue-bg:   #14283C;
+    --red-bg:    #2D1A15;
+    --teal-bg:   #0F2F29;
+    --violet-bg: #221D31;
+    --amber-bg:  #2C2113;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 24px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--page);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: 56px 0 32px;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin: 0;
+  }
+
+  .masthead h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5vw, 3.3rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .standfirst {
+    font-family: var(--font-display);
+    font-size: clamp(1.05rem, 2vw, 1.28rem);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: var(--measure);
+    margin: 0;
+  }
+
+  .meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    padding-top: 4px;
+  }
+  .meta-strip b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 22px; }
+
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+
+  .sec-head h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.16rem;
+    line-height: 1.3;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  p { margin: 0; max-width: var(--measure); }
+  .prose { display: flex; flex-direction: column; gap: 14px; }
+
+  a { color: var(--blue); }
+
+  code, .mono {
+    font-family: var(--font-mono);
+    font-size: 0.855em;
+    background: var(--card-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: 0.08em 0.34em;
+    word-break: break-word;
+  }
+
+  /* ---------- thesis callout ---------- */
+
+  .thesis {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--blue);
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .thesis .lede {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    line-height: 1.4;
+    max-width: 62ch;
+    margin: 0;
+  }
+  .thesis p:not(.lede) { color: var(--ink-soft); font-size: 0.95rem; }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 0;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; min-width: 620px; max-width: 100%; height: auto; }
+  figcaption {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 78ch;
+    border-top: 1px solid var(--rule-soft);
+    padding-top: 14px;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.9rem; }
+  thead th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.id { font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.where { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); line-height: 1.45; }
+  td strong { font-weight: 600; }
+
+  /* ---------- severity + status marks ---------- */
+
+  .tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .t-bug    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red); }
+  .t-gap    { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber); }
+  .t-dead   { background: var(--violet-bg); color: var(--violet); border: 1px solid var(--violet); }
+  .t-keep   { background: var(--teal-bg);   color: var(--teal);   border: 1px solid var(--teal); }
+  .t-open   { background: var(--blue-bg);   color: var(--blue);   border: 1px solid var(--blue); }
+
+  /* ---------- count band ---------- */
+
+  .counts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .count {
+    background: var(--card);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .count .n {
+    font-family: var(--font-display);
+    font-size: 2.15rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .count .l {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .count.bug .n    { color: var(--red); }
+  .count.gap .n    { color: var(--amber); }
+  .count.dead .n   { color: var(--violet); }
+  .count.clean .n  { color: var(--blue); }
+  .count.open .n   { color: var(--teal); }
+
+  /* ---------- card grids ---------- */
+
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card p { font-size: 0.92rem; color: var(--ink-soft); max-width: none; }
+  .card .card-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .card.locked { border-left: 3px solid var(--teal); }
+  .card.openq  { border-left: 3px solid var(--amber); }
+  .card.retract{ border-left: 3px solid var(--red); }
+
+  ul { margin: 0; padding-left: 1.15em; display: flex; flex-direction: column; gap: 7px; max-width: var(--measure); }
+  li { line-height: 1.55; }
+  li::marker { color: var(--ink-faint); }
+
+  .note {
+    font-size: 0.88rem;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+    max-width: 80ch;
+  }
+
+  :where(a, button):focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 0 16px 64px; }
+    .wrap { gap: 44px; }
+    figure { padding: 16px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">Swarm Manager · Design Record</p>
+    <h1>Capture &amp; Research Hardening</h1>
+    <p class="standfirst">
+      Quick Capture has produced exactly one record in its lifetime — a test string, in May, that
+      classified to zero items. This is why, what the target shape is, and everything that has to be
+      fixed, built, or removed to get there.
+    </p>
+    <div class="meta-strip">
+      <span><b>Scope</b> capture · research kind · intake cleanup</span>
+      <span><b>Dated</b> 2026-08-09</span>
+      <span><b>Basis</b> code reading, not runtime observation</span>
+      <span><b>Open questions</b> none &#8212; all settled</span>
+      <span><b>Status</b> ready to plan</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="thesis">
+      <p class="lede">Capture is a labeler, not a shaper. Its job should not be to be right — it should be
+      to get a thought onto a rail where being wrong is cheap to fix.</p>
+      <p>Every piece of context you supply by hand today — why an idea matters, what it replaces, how it
+      fits — the classifier is structurally prevented from supplying. It receives one binding (the capture
+      text), gets eight turns, and is told not to look further. It cannot read the repo, cannot search the
+      web, cannot see your screenshots, and cannot express a goal, a milestone, or a dependency even if it
+      inferred one.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Current state</p>
+      <h2>What happens when you submit a capture</h2>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 960 620" role="img" aria-label="The current capture pipeline: a composer posts text and images, a single-node workflow classifies the text alone, and the result forks into a working UI triage path and a degraded API path that discards the classification.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)"/>
+          </marker>
+        </defs>
+
+        <!-- spine boxes -->
+        <rect x="130" y="16" width="380" height="52" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="320" y="39" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Quick Capture composer</text>
+        <text x="320" y="56" text-anchor="middle" font-size="11" fill="var(--ink-faint)">text · images · voice · draft persistence</text>
+
+        <line x1="320" y1="68" x2="320" y2="104" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="332" y="90" font-size="11" fill="var(--ink-soft)">multipart POST</text>
+
+        <rect x="130" y="106" width="380" height="66" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="320" y="128" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">POST /api/v1/captures</text>
+        <text x="320" y="145" text-anchor="middle" font-size="11" fill="var(--ink-faint)">writes capture.json</text>
+        <text x="320" y="161" text-anchor="middle" font-size="11" fill="var(--red)">writes attachments/ &#8212; to the cache class</text>
+
+        <line x1="320" y1="172" x2="320" y2="208" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="332" y="194" font-size="11" fill="var(--ink-soft)">auto-starts transition</text>
+
+        <rect x="130" y="210" width="380" height="94" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="320" y="232" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">capture.classify workflow</text>
+        <text x="320" y="250" text-anchor="middle" font-size="11" fill="var(--ink-faint)">one node · profile analysis · 8 turns</text>
+        <text x="320" y="267" text-anchor="middle" font-size="11" fill="var(--red)">sole binding: the capture text</text>
+        <text x="320" y="284" text-anchor="middle" font-size="11" fill="var(--red)">no repo · no web · no backlog · no goals</text>
+
+        <line x1="320" y1="304" x2="320" y2="340" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <text x="332" y="326" font-size="11" fill="var(--ink-soft)">typed result, applied by Swarm</text>
+
+        <rect x="130" y="342" width="380" height="66" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="320" y="364" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">classification.json</text>
+        <text x="320" y="381" text-anchor="middle" font-size="11" fill="var(--ink-faint)">&#8804;10 items &#215; 6 fields</text>
+        <text x="320" y="397" text-anchor="middle" font-size="11" fill="var(--red)">no goal · milestone · depends_on · effort</text>
+
+        <!-- fork -->
+        <line x1="320" y1="408" x2="320" y2="436" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="180" y1="436" x2="470" y2="436" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="180" y1="436" x2="180" y2="470" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <line x1="470" y1="436" x2="470" y2="470" stroke="var(--red)" stroke-width="1.5" marker-end="url(#ar-red)"/>
+
+        <rect x="60" y="472" width="240" height="80" fill="var(--card-2)" stroke="var(--teal)" stroke-width="1.5"/>
+        <text x="180" y="494" text-anchor="middle" font-size="12" font-weight="600" fill="var(--teal)">UI triage</text>
+        <text x="180" y="511" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">accept / edit / dismiss per item</text>
+        <text x="180" y="527" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">uses the classification</text>
+        <text x="180" y="543" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">kind · title · desc · priority · tags</text>
+
+        <rect x="350" y="472" width="240" height="80" fill="var(--card-2)" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="470" y="494" text-anchor="middle" font-size="12" font-weight="600" fill="var(--red)">API / CLI create-item</text>
+        <text x="470" y="511" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">title = raw text[:80] + &#8220;...&#8221;</text>
+        <text x="470" y="527" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">kind defaults to &#8220;execute&#8221;</text>
+        <text x="470" y="543" text-anchor="middle" font-size="10.5" fill="var(--red)">one item &#8212; classification discarded</text>
+
+        <!-- annotation gutter -->
+        <line x1="620" y1="16" x2="620" y2="560" stroke="var(--rule)" stroke-width="1" stroke-dasharray="3 4"/>
+
+        <text x="644" y="128" font-size="11.5" font-weight="600" fill="var(--red)">Images stored, never seen</text>
+        <text x="644" y="145" font-size="11" fill="var(--ink-soft)">Agent gets a relative path; its workspace</text>
+        <text x="644" y="160" font-size="11" fill="var(--ink-soft)">is the project root; the file is in cache.</text>
+        <text x="644" y="175" font-size="11" fill="var(--ink-soft)">Bindings are text-only &#8212; no image path.</text>
+
+        <text x="644" y="238" font-size="11.5" font-weight="600" fill="var(--red)">Your note is never bound</text>
+        <text x="644" y="255" font-size="11" fill="var(--ink-soft)">capture.Note is excluded from the input</text>
+        <text x="644" y="270" font-size="11" fill="var(--ink-soft)">and from the version hash, so annotate-</text>
+        <text x="644" y="285" font-size="11" fill="var(--ink-soft)">then-reclassify is a silent no-op.</text>
+
+        <text x="644" y="364" font-size="11.5" font-weight="600" fill="var(--red)">Priority scale mismatch</text>
+        <text x="644" y="381" font-size="11" fill="var(--ink-soft)">Schema caps at 1&#8211;5; backlog is 1&#8211;10.</text>
+        <text x="644" y="396" font-size="11" fill="var(--ink-soft)">Capture-born items outrank the rest.</text>
+
+        <text x="644" y="500" font-size="11.5" font-weight="600" fill="var(--red)">Two paths, one degraded</text>
+        <text x="644" y="517" font-size="11" fill="var(--ink-soft)">The headless path is strictly worse than</text>
+        <text x="644" y="532" font-size="11" fill="var(--ink-soft)">typing the item by hand.</text>
+      </svg>
+      <figcaption>
+        <b>The transport spine is correct; everything feeding it is starved.</b> Immutable snapshot,
+        version guard, read-only workflow, consumer-owned mutation and idempotent apply are all sound and
+        worth keeping. The failures are all inputs and outputs: what the agent is allowed to see, what it
+        is allowed to say, and where the result is permitted to land.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Target state</p>
+      <h2>Where a thought should go instead</h2>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 960 560" role="img" aria-label="The target intake: a grounded shape workflow routes a capture to one of three landings — proposals for well-defined work, a single research item for under-defined work, or a recorded discard.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar2-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--teal)"/>
+          </marker>
+        </defs>
+
+        <rect x="290" y="16" width="380" height="52" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="480" y="39" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Capture &#8212; as much or as little as you want</text>
+        <text x="480" y="56" text-anchor="middle" font-size="11" fill="var(--ink-faint)">one line, or a long rationale, with screenshots</text>
+
+        <line x1="480" y1="68" x2="480" y2="102" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+        <rect x="230" y="104" width="500" height="112" fill="var(--card-2)" stroke="var(--teal)" stroke-width="2"/>
+        <text x="480" y="127" text-anchor="middle" font-size="13" font-weight="600" fill="var(--teal)">Ground &#8594; shape workflow</text>
+        <text x="480" y="147" text-anchor="middle" font-size="11" fill="var(--ink-soft)">reads the repo &#183; searches the web &#183; queries aisearch for neighbours</text>
+        <text x="480" y="164" text-anchor="middle" font-size="11" fill="var(--ink-soft)">reads the attached images &#183; carries the same orientation kit an agent gets</text>
+        <text x="480" y="181" text-anchor="middle" font-size="11" fill="var(--ink-soft)">ecosystem-fit &#183; scenario-work-ladder &#183; writing-standards</text>
+        <text x="480" y="201" text-anchor="middle" font-size="11" font-style="italic" fill="var(--ink-faint)">orientation, not a cage</text>
+
+        <line x1="480" y1="216" x2="480" y2="248" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="160" y1="248" x2="800" y2="248" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="160" y1="248" x2="160" y2="286" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <line x1="480" y1="248" x2="480" y2="286" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+        <line x1="800" y1="248" x2="800" y2="286" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+        <text x="160" y="268" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-soft)">well-defined</text>
+        <text x="480" y="268" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-soft)">under-defined</text>
+        <text x="800" y="268" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-soft)">not actionable</text>
+
+        <rect x="30" y="288" width="260" height="96" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="160" y="310" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Typed proposals</text>
+        <text x="160" y="329" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">create_goal &#183; add_item</text>
+        <text x="160" y="345" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">milestone &#183; depends_on &#183; effort</text>
+        <text x="160" y="361" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">acceptance criteria</text>
+        <text x="160" y="377" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">spawned_from: cap-&#8230;</text>
+
+        <rect x="350" y="288" width="260" height="96" fill="var(--card-2)" stroke="var(--teal)" stroke-width="1.5"/>
+        <text x="480" y="310" text-anchor="middle" font-size="12" font-weight="600" fill="var(--teal)">One research item</text>
+        <text x="480" y="329" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">durable node in the work graph</text>
+        <text x="480" y="345" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">authors a plan like any kind</text>
+        <text x="480" y="361" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">the plan is an investigation</text>
+        <text x="480" y="377" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">whose steps may create anything</text>
+
+        <rect x="670" y="288" width="260" height="96" fill="var(--card-2)" stroke="currentColor" stroke-width="1.5"/>
+        <text x="800" y="310" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Discarded</text>
+        <text x="800" y="329" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">with a recorded reason</text>
+        <text x="800" y="345" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">kept honest for the audit trail</text>
+        <text x="800" y="361" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">&#8212;</text>
+        <text x="800" y="377" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">capture is deleted on triage</text>
+
+        <line x1="160" y1="384" x2="160" y2="430" stroke="var(--teal)" stroke-width="1.5"/>
+        <line x1="480" y1="384" x2="480" y2="430" stroke="var(--teal)" stroke-width="1.5"/>
+        <line x1="160" y1="430" x2="480" y2="430" stroke="var(--teal)" stroke-width="1.5"/>
+        <line x1="320" y1="430" x2="320" y2="462" stroke="var(--teal)" stroke-width="1.5" marker-end="url(#ar2-teal)"/>
+
+        <rect x="180" y="464" width="280" height="56" fill="var(--card-2)" stroke="var(--teal)" stroke-width="2"/>
+        <text x="320" y="486" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--teal)">Unified decision stream</text>
+        <text x="320" y="504" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">proposal.apply &#183; operator reviews and accepts</text>
+
+        <text x="500" y="484" font-size="11" fill="var(--ink-soft)">Items land at status</text>
+        <text x="500" y="500" font-size="11" font-weight="600" fill="var(--teal)">suggested</text>
+        <text x="565" y="500" font-size="11" fill="var(--ink-soft)">&#8212; exactly what the</text>
+        <text x="500" y="516" font-size="11" fill="var(--ink-soft)">target operating model already specifies.</text>
+      </svg>
+      <figcaption>
+        <b>Capture stays an event; the entity types do the shaping.</b> Capture and research are kept
+        separate on purpose: a capture is a thought at 3pm — ephemeral, unnamed, deleted on triage — while
+        a research item is a durable graph node with a name, dependencies, goal-closure membership and an
+        ETA. Merging them would either turn every stray thought into a permanent node or strip research of
+        everything that makes it useful.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">The lens</p>
+      <h2>Where this work sits in the operating model</h2>
+    </div>
+
+    <div class="prose">
+      <p><code>docs/concepts/TARGET-OPERATING-MODEL.md</code> is the normative mental model for this
+      scenario, and it is accurate. It names exactly two intake paths — capture and session — and its
+      state machine already contains the transition we are building:
+      <code>Captured &#8594; Suggested: classify / shape workflow</code>. The word <em>shape</em> is
+      already in the document. Nothing here invents a new flow; we are hardening the weakest link in a
+      flow the document already describes.</p>
+      <p>Read from that lens, this whole effort is one row of the doc's transition table —
+      <em>“Capture &#8594; suggestion / discard”</em> — brought up to the standard every other row already
+      meets.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Doc location</th><th>What it says today</th><th>Change needed</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="where">§ Intake<br>line 75</td>
+            <td>“Quick Capture: observation &#8594; classification &#8594; suggested backlog work or discard” — two landings.</td>
+            <td><strong>Add the third landing.</strong> An under-defined capture resolves to one research item, not to a guess or a discard.</td>
+          </tr>
+          <tr>
+            <td class="where">§ Intake<br>lines 79&#8211;82</td>
+            <td>Sessions may propose milestones and items; captures produce “suggested backlog work” only.</td>
+            <td><strong>Grant capture the same reach.</strong> A well-grounded capture may propose a goal or milestone, through the same proposal rail sessions use.</td>
+          </tr>
+          <tr>
+            <td class="where">§ Transition model<br>lines 185&#8211;187</td>
+            <td>“Research, maintenance, and milestone work may have different deliverables, but must fit the same authority model.”</td>
+            <td><strong>Narrow it.</strong> We settled that research uses the same plan deliverable as every other kind; only the thinking differs. The permissive wording invites the divergence we are removing.</td>
+          </tr>
+          <tr>
+            <td class="where">§ Concepts<br>line 59</td>
+            <td>Capture owns “raw input, attachments, classification state”.</td>
+            <td><span class="tag t-keep">no change</span> Still exactly right.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">The research collapse</p>
+      <h2>A signal that reaches every agent and is read by none</h2>
+    </div>
+
+    <div class="prose">
+      <p>The <code>research</code> kind was once open-ended and produced its own artifact. It has since
+      converged onto <code>execute</code> in three independent places. The mechanical proof is that the
+      kind-branching functions were flattened to constants but kept their parameters.</p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 960 320" role="img" aria-label="The backlog kind travels into every execution prompt but no skill in the chain interprets it, so a research item executes identically to an execute item.">
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <rect x="20" y="96" width="180" height="66" fill="var(--card-2)" stroke="var(--teal)" stroke-width="1.5"/>
+        <text x="110" y="124" text-anchor="middle" font-size="12" font-weight="600" fill="var(--teal)">spec.kind</text>
+        <text x="110" y="142" text-anchor="middle" font-size="11" fill="var(--ink-faint)">= &#8220;research&#8221;</text>
+
+        <line x1="200" y1="129" x2="250" y2="129" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+        <rect x="252" y="96" width="216" height="66" fill="var(--card-2)" stroke="var(--teal)" stroke-width="1.5"/>
+        <text x="360" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="var(--teal)">execution prompt</text>
+        <text x="360" y="138" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">&#8220;Backlog item: research/&lt;name&gt;&#8221;</text>
+        <text x="360" y="154" text-anchor="middle" font-size="10.5" fill="var(--ink-faint)">the kind is delivered, verbatim</text>
+
+        <line x1="468" y1="129" x2="510" y2="129" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="510" y1="42" x2="510" y2="216" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="510" y1="42" x2="556" y2="42" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+        <line x1="510" y1="129" x2="556" y2="129" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+        <line x1="510" y1="216" x2="556" y2="216" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+        <rect x="558" y="18" width="382" height="48" fill="var(--card-2)" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="574" y="38" font-size="11.5" font-weight="600" fill="currentColor">plan-author skill</text>
+        <text x="574" y="55" font-size="10.5" fill="var(--red)">mentions kind only as a variable description</text>
+
+        <rect x="558" y="105" width="382" height="48" fill="var(--card-2)" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="574" y="125" font-size="11.5" font-weight="600" fill="currentColor">phased-plan-slice skill</text>
+        <text x="574" y="142" font-size="10.5" fill="var(--red)">never mentions kind at all</text>
+
+        <rect x="558" y="192" width="382" height="48" fill="var(--card-2)" stroke="var(--red)" stroke-width="1.5"/>
+        <text x="574" y="212" font-size="11.5" font-weight="600" fill="currentColor">plan-workshop-review skill</text>
+        <text x="574" y="229" font-size="10.5" fill="var(--red)">&#8220;kind&#8221; there means item-vs-milestone</text>
+
+        <text x="558" y="278" font-size="12" font-weight="600" fill="var(--teal)">The fix is skill text, not code.</text>
+        <text x="558" y="296" font-size="11" fill="var(--ink-soft)">The signal already arrives. Nothing consumes it.</text>
+      </svg>
+      <figcaption>
+        <b>Three independent collapses.</b> <code>KindConfig</code> gives every kind only a directory
+        name; the two kind-specific skills that once branched are orphaned; and the live prompt builder's
+        <code>deliverablePromptTag(kind)</code> and <code>missingDeliverableReason(kind, path)</code>
+        ignore their arguments entirely. Because research is to behave identically to every other kind, the
+        correct move on those two functions is to delete the dead parameters — not restore branching.
+      </figcaption>
+    </figure>
+
+    <div class="grid-2">
+      <div class="card">
+        <span class="card-eyebrow">What the orphaned skill says</span>
+        <h3>The exploratory kind is the one forbidden to explore</h3>
+        <p><code>swarm-manager-initialize-research</code> ends with <em>“Do not create workshop rounds as
+        an alternate lifecycle.”</em> Its sibling, <code>initialize-backlog</code> — explicitly titled
+        “non-research” — <em>does</em> create workshop rounds with decisions. Neither has run in a long
+        time; both are orphaned.</p>
+      </div>
+      <div class="card">
+        <span class="card-eyebrow">The settled position</span>
+        <h3>Same lifecycle, same code, different thinking</h3>
+        <p>Research authors a plan and executes it exactly like every other kind. What differs is only how
+        the plan is conceived: an investigation whose steps may produce backlog items, a goal, an answer,
+        something outside project management entirely, or nothing. No kind-specific code paths.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Findings</p>
+      <h2>Twenty-seven issues, four classes</h2>
+    </div>
+
+    <div class="counts">
+      <div class="count bug"><span class="n">5</span><span class="l">Correctness bugs</span></div>
+      <div class="count gap"><span class="n">8</span><span class="l">Capability gaps</span></div>
+      <div class="count dead"><span class="n">7</span><span class="l">Research collapse</span></div>
+      <div class="count clean"><span class="n">7</span><span class="l">Drift &amp; dead code</span></div>
+      <div class="count open"><span class="n">0</span><span class="l">Open questions left</span></div>
+    </div>
+
+    <h3>Correctness — bugs worth fixing whatever direction we take</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Issue</th><th>Where</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">A1 <span class="tag t-bug">bug</span></td>
+            <td><strong>Attachments are unreachable.</strong> Stored correctly, then handed to the agent as a relative path, in a workspace set to the project root, while the file lives in the cache class. Bindings are text-only, so there is no fallback.</td>
+            <td class="where">captures/create.go:102<br>captures/classify.go:81-90<br>domain/workflow.go:147-150</td>
+          </tr>
+          <tr>
+            <td class="id">A2 <span class="tag t-bug">bug</span></td>
+            <td><strong>Your note never reaches the classifier.</strong> Excluded from the classification input and from the version hash, so annotating a capture and re-classifying changes nothing and does not even bump the version.</td>
+            <td class="where">captures/classify.go:86, 185-193<br>captures/handler.go:246</td>
+          </tr>
+          <tr>
+            <td class="id">A3 <span class="tag t-bug">bug</span></td>
+            <td><strong>The headless path discards the classification.</strong> Title becomes the first 80 characters of raw text, kind defaults to <code>execute</code>, and one item is created regardless of how many were suggested.</td>
+            <td class="where">captures/handler.go:278-350</td>
+          </tr>
+          <tr>
+            <td class="id">A4 <span class="tag t-bug">bug</span></td>
+            <td><strong>No provenance back to the capture.</strong> The adapter hardcodes priority 5 and never sets <code>spawned_from</code>.</td>
+            <td class="where">captures/adapters.go</td>
+          </tr>
+          <tr>
+            <td class="id">A5 <span class="tag t-bug">bug</span></td>
+            <td><strong>Priority scale mismatch.</strong> Schema caps at 1–5, backlog is 1–10 with default 5, and the skill says use 3 when there is no urgency signal — so capture-born items systematically outrank hand-made ones.</td>
+            <td class="where">capture-classify.json<br>backlog/item_build.go:55</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Capability — what the vision needs that does not exist yet</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Issue</th><th>Where</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">B1 <span class="tag t-gap">gap</span></td>
+            <td><strong>Context-blind by construction.</strong> One binding, eight turns, and a skill that says do not look further. The profile <em>does</em> grant read, glob, grep and shell — the cage is instruction and budget, not permission.</td>
+            <td class="where">capture-classify.json<br>analysis.json</td>
+          </tr>
+          <tr>
+            <td class="id">B2 <span class="tag t-gap">gap</span></td>
+            <td><strong>Web access is actively denied.</strong> <code>web_search</code> and <code>web_fetch</code> are canonical tool names and agent-manager's own investigation profile uses them, but no swarm-manager profile requests either — and the Claude and Grok runners enforce the allowlist.</td>
+            <td class="where">profile.proto:81<br>codecs/claude.go:124</td>
+          </tr>
+          <tr>
+            <td class="id">B3 <span class="tag t-gap">gap</span></td>
+            <td><strong>Six output fields against a domain of about twenty-five.</strong> No dependencies, milestone, effort, acceptance criteria, or suggested skills — though the batch seam already accepts all of them atomically.</td>
+            <td class="where">captures/io.go:54-61<br>backlog/batch_handler.go:94</td>
+          </tr>
+          <tr>
+            <td class="id">B4 <span class="tag t-gap">gap</span></td>
+            <td><strong>No agent path can propose a goal.</strong> Not in the classification schema, and the proposal mutation vocabulary has no <code>create_goal</code> verb. The landing plumbing exists; the verb does not.</td>
+            <td class="where">swarm-manager-proposals skill<br>autofiler/filer.go:21-24</td>
+          </tr>
+          <tr>
+            <td class="id">B5 <span class="tag t-gap">gap</span></td>
+            <td><strong>No dedup or linking.</strong> Semantic search over backlog, goals and records already exists with a similarity service on top; classification queries neither.</td>
+            <td class="where">aisearch/models.go:17-19<br>related/aisearch.go</td>
+          </tr>
+          <tr>
+            <td class="id">B6 <span class="tag t-gap">gap</span></td>
+            <td><strong>Captures are not indexed for similarity</strong> — the entity set is backlog, goal and record only.</td>
+            <td class="where">aisearch/models.go:17-19</td>
+          </tr>
+          <tr>
+            <td class="id">B7 <span class="tag t-gap">gap</span></td>
+            <td><strong>No round two.</strong> Always round one. No clarifying question, no re-classify with a correction, no escalation path.</td>
+            <td class="where">captures/io.go:76</td>
+          </tr>
+          <tr>
+            <td class="id">B8 <span class="tag t-gap">gap</span></td>
+            <td><strong>Off the proposal rail.</strong> Goal and plan workflows record proposals into the decision stream; capture writes a bespoke file and gets a bespoke triage widget.</td>
+            <td class="where">goals/transition_adapter.go<br>captures/classify.go:146-177</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Research collapse &amp; drift</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Issue</th><th>Where</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">C1 <span class="tag t-dead">collapse</span></td>
+            <td><strong>Research has no distinct behaviour.</strong> Every kind gets only a directory name; the deliverable field is empty for all five.</td>
+            <td class="where">backlog/kind_config.go:15-21</td>
+          </tr>
+          <tr>
+            <td class="id">C2 <span class="tag t-dead">collapse</span></td>
+            <td><strong>The kind-branching skill inverts the intent</strong> — research is forbidden workshop rounds while every other kind creates them.</td>
+            <td class="where">initialize-research / -backlog skills</td>
+          </tr>
+          <tr>
+            <td class="id">C3 <span class="tag t-dead">collapse</span></td>
+            <td><strong>Both initialize skills are orphaned</strong> — referenced nowhere but a foreign test fixture.</td>
+            <td class="where">repo-wide</td>
+          </tr>
+          <tr>
+            <td class="id">C4 <span class="tag t-dead">collapse</span></td>
+            <td><strong>Flattened functions kept their parameters.</strong> Two kind-aware helpers ignore their arguments entirely.</td>
+            <td class="where">execution/prompt_builder.go:155-161</td>
+          </tr>
+          <tr>
+            <td class="id">C5 <span class="tag t-dead">collapse</span></td>
+            <td><strong>Dead research artifact path.</strong> The handoff builder still reads a research summary file that nothing writes.</td>
+            <td class="where">handoff/idea_package.go:161</td>
+          </tr>
+          <tr>
+            <td class="id">C6 <span class="tag t-dead">collapse</span></td>
+            <td><strong>The old workshop package is decommissioned</strong> — superseded by Plan Workshop, with an active migration that archives unaccepted legacy workshops. <em>This is what misled the design conversation.</em></td>
+            <td class="where">planworkshop/migration.go:15-65</td>
+          </tr>
+          <tr>
+            <td class="id">C7 <span class="tag t-keep">seam</span></td>
+            <td><strong>Kind is delivered to every agent and interpreted by none</strong> — which is exactly where research's distinct thinking belongs, and it is skill-only.</td>
+            <td class="where">execution/prompt_builder.go:32</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Cleanup</p>
+      <h2>What to remove so the next reader is not misled</h2>
+    </div>
+
+    <div class="prose">
+      <p>Ranked by how much confusion each one causes. The clarification surface is the clearest case: it
+      reads as a rich working feature from every angle and is inert at every layer.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <span class="card-eyebrow">Priority one &#183; actively misleading</span>
+        <h3>Five orphaned skills, still catalogued as live</h3>
+        <p><code>initialize-backlog</code>, <code>initialize-research</code> and
+        <code>classify-capture</code> have no caller; <code>backlog-tools</code> and
+        <code>processing-guidance</code> are referenced only by those, so they are transitively dead. The
+        prompt catalog still advertises the dead capture skill with a file-writing contract that was
+        deliberately removed.</p>
+        <p><em>Fold still-true content forward before deleting</em> — <code>backlog-tools</code> documents
+        folder structure and CLI commands the new research guidance will want.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-eyebrow">Priority one &#183; a complete dead vertical</span>
+        <h3>The clarification surface: nothing writes, routes, emits or renders</h3>
+        <p>File I/O with no non-test caller. Three event emitters implemented and never called, with the
+        interface duplicated on the backlog handler. No HTTP route. UI types with no importer. A store
+        comment referencing a <code>clarification-store.ts</code> that does not exist.</p>
+        <p>Four layers of apparent feature, zero live path.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-eyebrow">Priority one &#183; full retirement, now unblocked</span>
+        <h3>The legacy workshop package goes entirely</h3>
+        <p><strong>The cutover already happened.</strong> The migration marker on this install is
+        <code>v2</code>, completed <b>2026-07-22</b>: 99 legacy workshops archived, backups written, one
+        corrupt round file recorded as an error. There is no reason to keep the code alive.</p>
+        <p>It has one real dependency — the idea handoff brief summarises workshop decisions into
+        <code>brief.md</code>, which is fed to every idea execution. Plan Workshop already stores the
+        successor data (<code>Response.Answers</code>, <code>Response.Accepted</code>), so the brief can be
+        re-sourced rather than preserved. That re-sourcing is the only ordering constraint in the whole
+        retirement.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-eyebrow">Smaller dead weight</span>
+        <h3>Six loose ends</h3>
+        <ul>
+          <li>Vestigial <code>kind</code> parameters in the prompt builder — delete, do not re-branch</li>
+          <li>The dead research summary read in the handoff builder</li>
+          <li><code>capture.asAttempt()</code> — test-only caller</li>
+          <li>The degraded second triage path</li>
+          <li><code>planworkshop.Subject</code> hardcoded to one kind despite “generic subject” framing</li>
+          <li>A fully-implemented auto-filer source that is never composed anywhere</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Retirement order for the legacy workshop path</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Action</th><th>Why it sits here</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">1</td>
+            <td>Resolve the single recorded migration error — one corrupt historical round under <code>fix/dtv-cli-validate-and-report</code>.</td>
+            <td>The only known unclean state. Everything after assumes the migration report is trustworthy.</td>
+          </tr>
+          <tr>
+            <td class="id">2</td>
+            <td>Re-source the idea handoff brief from Plan Workshop responses instead of legacy rounds.</td>
+            <td><strong>The one true ordering constraint.</strong> Until this lands, deleting the package breaks every idea execution prompt.</td>
+          </tr>
+          <tr>
+            <td class="id">3</td>
+            <td>Delete the clarification vertical: file I/O, the three uncalled event emitters, the duplicated interface, the orphan UI types, the stale store comment.</td>
+            <td>Independent of everything else — nothing at any layer is live.</td>
+          </tr>
+          <tr>
+            <td class="id">4</td>
+            <td>Delete the <code>workshop</code> package and its re-export shim in <code>backlog</code>.</td>
+            <td>Free once step 2 lands.</td>
+          </tr>
+          <tr>
+            <td class="id">5</td>
+            <td>Remove the <code>workshop</code> and <code>clarifications</code> reset-artifact scopes — including the proposal-vocabulary entry and the UI union type.</td>
+            <td>A contract change across Go, the mutation vocabulary and TypeScript. Do it deliberately, not as a drive-by.</td>
+          </tr>
+          <tr>
+            <td class="id">6</td>
+            <td>Delete <code>MigrateLegacyHistory</code> and its boot-time call; decide the fate of the 110 source <code>workshop/</code> directories still on disk (99 have backups; check the 11-directory delta first).</td>
+            <td>Last, because it is the thing that proves steps 1&#8211;5 were safe.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      <b>Deliberately out of scope.</b> Around forty files under <code>api/internal/</code> carry
+      legacy, migration or deprecation markers — execution backfill, event log, stats, evidence import,
+      agent-session proposal migration. Each deserves the same treatment the workshop path is getting here,
+      but folding them all into one plan would make it unreviewable. This plan fully retires the workshop
+      path and everything it touches; the rest should be its own sequenced effort rather than an
+      indefinite deferral.
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Skills</p>
+      <h2>Exactly which prompts change, and against which rules</h2>
+    </div>
+
+    <div class="prose">
+      <p>Every skill here is a <strong>contract skill</strong> — the prompt contract of a declared workflow
+      node, rendered verbatim into a headless run. The authoring canon fixes their structure precisely, so
+      these are not stylistic edits. Two canon rules do most of the work:</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <span class="card-eyebrow">Canon rule</span>
+        <h3>Shape from schema, choice from skill</h3>
+        <p>The workflow node's <code>resultSpec.schema</code> is the single source of truth for output
+        shape, and the engine already renders it into the run prompt. A skill must not restate field lists,
+        enum values or required-ness — restated shape drifts. What the skill <em>must</em> own is the
+        outcome decision rules, as a work table keyed to observable end states.</p>
+        <p><strong>The current capture skill violates this.</strong> Its “Item field rules” section
+        restates the kind enum, priority, title, tags and confidence — every one of which is already in the
+        schema.</p>
+      </div>
+
+      <div class="card">
+        <span class="card-eyebrow">Canon rule</span>
+        <h3>Method by citation, never inlined</h3>
+        <p>When a run needs doctrine, the skill cites it — <code>prompt-manager skill read &lt;id&gt;</code>
+        — rather than inlining doctrine another skill owns. The canon exemplar,
+        <code>swarm-manager-workflow-plan-author</code>, is four short sections long and delegates its
+        entire method to <code>implementation-plan-authoring</code>.</p>
+        <p><strong>The current capture skill violates this too</strong> — it hand-rolls its own
+        classification doctrine instead of citing <code>ecosystem-fit</code> and
+        <code>writing-standards</code>.</p>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Skill</th><th>Action</th><th>What changes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="where">swarm-manager-<br>workflow-capture-classify</td>
+            <td><span class="tag t-gap">rewrite</span></td>
+            <td>Becomes the ground-and-shape contract. Delete the schema-restating field rules. Add method-by-citation to <code>ecosystem-fit</code>, <code>scenario-work-ladder</code> and <code>writing-standards</code>. Rebuild the outcome work table around the three landings. Add the variable legend entries for the new bindings (grounding context, attachments, note).</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-<br>workflow-plan-author</td>
+            <td><span class="tag t-gap">extend</span></td>
+            <td>Add the kind-aware section — the seam where the kind finally gets interpreted. A decision table stating what a plan means for each kind, with research as an investigation whose steps may create items, a goal, or nothing.</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-<br>workflow-phased-plan-slice</td>
+            <td><span class="tag t-gap">extend</span></td>
+            <td>Currently never mentions kind at all. Needs to know that executing a research plan legitimately means producing proposals rather than code.</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-proposals</td>
+            <td><span class="tag t-gap">extend</span></td>
+            <td>Add the <code>create_goal</code> verb to the mutation vocabulary — the one thing blocking a capture from ever producing a goal.</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-initialize-research</td>
+            <td><span class="tag t-dead">delete</span></td>
+            <td>Orphaned, and its central rule contradicts the design. <strong>Carry one line forward first:</strong> its step 4 — conclude with an explicit resolution proposal when the evidence supports no action — is the correct answer to how research terminates honestly.</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-initialize-backlog</td>
+            <td><span class="tag t-dead">delete</span></td>
+            <td>Orphaned. Its workshop-round bootstrap targets the legacy format being retired.</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-classify-capture</td>
+            <td><span class="tag t-dead">delete</span></td>
+            <td>Superseded by the workflow skill. Remove the prompt-catalog entry with it.</td>
+          </tr>
+          <tr>
+            <td class="where">swarm-manager-backlog-tools<br>swarm-manager-processing-guidance</td>
+            <td><span class="tag t-dead">fold &amp; delete</span></td>
+            <td>Transitively dead — referenced only by the two orphaned initialize skills. Move the still-true folder-structure and CLI content into the live skills that need it, then delete.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <span class="card-eyebrow">Acceptance gate for every rewritten skill</span>
+      <h3>The divergence probe, not a review opinion</h3>
+      <p>Canon makes one check the primary gate for contract skills: two compliant readings of the same
+      end state must select the same outcome value. Probe specifically for end states where an affirmative
+      row is <em>arguably but not provably</em> satisfied — those must resolve to the conservative outcome,
+      and an unresolved optimistic-versus-conservative split is a confirmed defect.</p>
+      <p>For capture this is concrete and load-bearing: <strong>when grounding is incomplete, the run must
+      not guess a goal.</strong> It takes the conservative branch — one research item — and names the
+      unproven predicate. That single rule is what stops a hardened capture from confidently inventing
+      structure it has not earned.</p>
+      <p>Validation also cross-checks the workflow declaration: every template variable in the skill has a
+      matching node binding, and the skill restates no part of the node's schema.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Settled</p>
+      <h2>Decisions locked during this conversation</h2>
+    </div>
+
+    <div class="grid-2">
+      <div class="card locked">
+        <span class="card-eyebrow">Entity model</span>
+        <h3>Capture and research stay separate; no third type</h3>
+        <p>A capture is an event — ephemeral, unnamed, deleted on triage. A research item is a durable
+        graph node. A new entity type would need graph nodes, board columns, decision cards, ETA modelling,
+        goal closure, dependency semantics, search indexing and a CLI surface — all of which backlog items
+        already have.</p>
+      </div>
+
+      <div class="card locked">
+        <span class="card-eyebrow">Research</span>
+        <h3>Identical lifecycle, identical code</h3>
+        <p>Research authors a plan and executes it like any other kind, acting through the swarm-manager
+        CLI. The difference lives entirely in how the plan is conceived. No kind-specific code paths.</p>
+      </div>
+
+      <div class="card locked">
+        <span class="card-eyebrow">Architecture</span>
+        <h3>Behaviour in skills and workflows, not hardcoded</h3>
+        <p>Prior hardcoding made behaviour hard to evolve as better processes were found. The judgment
+        layer must stay editable without a code change.</p>
+        <p><strong>The line inside that rule:</strong> verbs belong in code — typed contracts, result
+        schemas, the mutation vocabulary — so an agent <em>can</em> express an operation at all. Judgment
+        belongs in skills: when to use which verb. Adding <code>create_goal</code> widens the verb set; it
+        does not hardcode behaviour.</p>
+      </div>
+
+      <div class="card locked">
+        <span class="card-eyebrow">Scope &amp; tooling</span>
+        <h3>Grant web access; defer clutter control</h3>
+        <p>The capture and research profiles should get <code>web_search</code> and <code>web_fetch</code>,
+        with the same orientation kit a working agent receives. Auto-archive and clutter controls are
+        deliberately deferred — revisit only if clutter actually materialises.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Resolved</p>
+      <h2>The last two questions, and why they went this way</h2>
+    </div>
+
+    <h3>How eager should capture be?</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Option</th><th>What it means</th><th>Verdict</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="id">A</td>
+            <td><strong>Always propose.</strong> Nothing exists until the operator accepts a proposal in the decision stream.</td>
+            <td>Rejected — it adds a gate <em>before</em> the gate. Two review steps for one thought is the friction we are removing.</td>
+          </tr>
+          <tr>
+            <td class="id">B</td>
+            <td><strong>Always land at <code>suggested</code>.</strong> Everything appears immediately in the pre-commitment tier; archive is the undo.</td>
+            <td><span class="tag t-keep">chosen</span> This <em>is</em> the documented design.</td>
+          </tr>
+          <tr>
+            <td class="id">C</td>
+            <td><strong>Confidence-routed.</strong> Land when the workflow is confident, propose when it is not.</td>
+            <td>Rejected — the routing rule is a judgment call that will drift, and it produces two different review surfaces for the same object.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p><strong>Why B.</strong> <code>suggested</code> already exists as the not-yet-committed tier: the
+      auto-filer files into it, the next-action projection handles it, and the operating model's state
+      machine reads <code>Suggested &#8594; Backlog: operator or policy accepts</code>. Landing there is not
+      skipping review — it moves review into the decision stream, which is exactly where you said you want
+      it. Option A would invent a second, earlier gate that the model does not have.</p>
+      <p><em>The consequence to watch:</em> <code>suggested</code> volume becomes the pressure gauge. No
+      auto-archive — that stays deferred — but the tier must be visibly distinct and filterable so growth is
+      observable rather than silent.</p>
+    </div>
+
+    <h3>Does research participate in goal-closure maths?</h3>
+    <div class="prose">
+      <p>This one answered itself in the code. Goal closure already distinguishes two terminal states:
+      <code>completed</code> counts as progress, and <code>dropped</code> <em>resolves an item without
+      achieving it</em> — it satisfies dependents so nothing stays blocked, but it is counted separately and
+      excluded from progress.</p>
+      <p><strong>So research needs no special maths and no new status.</strong> A research item whose
+      investigation concludes that work is warranted proposes that work and completes. One that concludes
+      nothing is warranted resolves as <code>dropped</code>, with the rationale recorded. Dependents
+      unblock, progress stays honest, and the entire distinction lives in one row of the plan-author
+      outcome table — skill text, not code.</p>
+      <p>The orphaned <code>initialize-research</code> skill reached the same conclusion before it was
+      abandoned: conclude with an explicit resolution proposal when the evidence supports no action. That
+      one instruction is worth carrying forward out of the file we are deleting.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Corrections</p>
+      <h2>Things this investigation got wrong along the way</h2>
+    </div>
+
+    <div class="prose">
+      <p>Recorded rather than quietly edited, because each one is a trap the codebase sets — a future
+      reader will hit the same ones.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card retract">
+        <span class="card-eyebrow">Retracted</span>
+        <h3>“Reuse the clarification threads”</h3>
+        <p>They look like a rich multi-turn conversation feature with attachments and impact grading. They
+        are a decommissioned surface with no writer, no route and no renderer. The live seam is Plan
+        Workshop and Agent Sessions.</p>
+      </div>
+
+      <div class="card retract">
+        <span class="card-eyebrow">Retracted</span>
+        <h3>“Make capture an auto-filer source”</h3>
+        <p>The auto-filer is a periodic scenario-health remediation filer. Everything is scenario-scoped,
+        it sweeps on a timer, it takes a single source — and its reconciliation loop archives any suggestion
+        whose finding stops appearing. A capture has no re-emitting source, so every capture-derived
+        suggestion would be auto-archived on the next tick.</p>
+      </div>
+
+      <div class="card retract">
+        <span class="card-eyebrow">Corrected</span>
+        <h3>“Nothing bootstraps items any more”</h3>
+        <p>Overstated. Only the <em>initialize</em> step is gone. Item and goal creation are well covered:
+        capture triage, session batch apply, goal-discovery proposals, plan import, direct create, and the
+        auto-filer. <code>TARGET-OPERATING-MODEL.md</code> is the normative map and it is accurate.</p>
+      </div>
+
+      <div class="card retract">
+        <span class="card-eyebrow">Narrowed</span>
+        <h3>“Goals are unproducible”</h3>
+        <p>The landing plumbing exists and is already wired into an intake path. What is missing is only
+        the proposal <em>verb</em> so an agent can propose one.</p>
+      </div>
+
+      <div class="card retract">
+        <span class="card-eyebrow">Retracted</span>
+        <h3>“The legacy workshop path cannot be fully retired yet”</h3>
+        <p>Wrong conclusion from a missing file. The migration marker was not where I looked — it sits in
+        the resolved data root and shows a completed <code>v2</code> cutover from 2026-07-22. The
+        retirement is unblocked; it has one ordering constraint, not a blocker.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="note">
+      Compiled 2026-08-09 from a single design conversation. Every claim here was verified by reading the
+      code, the migration report, or the authoring canon at the cited path; none was verified by running
+      the system. Line numbers reflect the working tree at time of writing and will drift.
+    </p>
+  </section>
+
+</div>

@@ -1,0 +1,349 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "reranker",
+  "storage": {
+    "entries": {
+      "model_cache": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/reranker/model-cache",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/reranker/model-cache",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/reranker/model-cache"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "container"
+        },
+        "rationale": "Text Embeddings Inference downloads the model into the bind-mounted /data cache; the model is re-downloadable.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "Reranker",
+  "description": "Managed cross-encoder reranking service using the checksum-verified Hugging Face Text-Embeddings-Inference server. Scores query/passage relevance for the second stage of hybrid retrieval; consumed by aisearch-go and search-hub.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-reranker",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-reranker_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-reranker"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json",
+        "model-policy.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/reranker",
+      "version": "1.7.4",
+      "sha256_by_platform": {
+        "linux-amd64": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a"
+      },
+      "bundle_artifact": "reranker_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "Apache-2.0",
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=8.9"
+          },
+          "image": "ghcr.io/huggingface/text-embeddings-inference@sha256:8350eef88360fd746de01cd951adef9584a35ad957a7d02fa3309c2b6e962323",
+          "artifact_sha256": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a",
+          "layout": "file",
+          "bin_path": "/usr/local/bin/text-embeddings-router"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "unsupported": "the pinned TEI CPU image links libiomp5.so, which the image ships outside the extracted bin_path executable; single-file extraction cannot capture it and the host provides no system-wide copy, so the artifact passes its digest check and cannot start. Measured on 2026-08-20: `reranker_linux_amd64: error while loading shared libraries: libiomp5.so: cannot open shared object file`."
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "amd64"
+          },
+          "unsupported": "the pinned TEI image has no native macOS executable bundle"
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "arm64"
+          },
+          "unsupported": "the pinned TEI image has no native macOS executable bundle"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "unsupported": "the pinned TEI image has no native Windows executable bundle"
+        }
+      ]
+    },
+    "attach_health_path": "/health",
+    "arguments": [
+      "--model-id=${RERANKER_MODEL}",
+      "--port=${RESOURCE_PORT_HTTP}",
+      "--prometheus-port=${RESOURCE_PORT_METRICS}",
+      "--hostname=127.0.0.1",
+      "--huggingface-hub-cache=${RESOURCE_DATA_DIR}/model-cache"
+    ],
+    "environment_file": "active.env",
+    "environment": {
+      "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3",
+      "HUGGINGFACE_HUB_CACHE": "${RESOURCE_DATA_DIR}/model-cache",
+      "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache"
+    }
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 180,
+    "stop_timeout_seconds": 30
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The pinned TEI 1.7.4 server binary is evidenced on Linux amd64 when the host provides CUDA compute 8.9+. The current CPU image is explicitly unsupported because single-file extraction cannot carry its libiomp5.so runtime dependency."
+          ],
+          "evidence": [],
+          "reason": "The pinned OCI image is available for controlled acquisition, but desktop bundling remains unsupported until target smoke evidence is published."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A signed native macOS TEI bundle has not yet been staged and exercised."
+          ],
+          "evidence": [],
+          "reason": "Native macOS delivery remains pending an artifact and target smoke evidence."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A signed native Windows TEI bundle has not yet been staged and exercised."
+          ],
+          "evidence": [],
+          "reason": "Native Windows delivery remains pending an artifact and target smoke evidence."
+        }
+      }
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cuda"
+    ],
+    "require": "required",
+    "cuda": {
+      "min_compute": "8.9"
+    },
+    "claim": {
+      "resource_kind": "vram",
+      "gpu_index": 0,
+      "preferred_bytes": 1447034880,
+      "floor_bytes": 633339904,
+      "priority": "service",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "BAAI/bge-reranker-v2-m3",
+            "amount_bytes": 1447034880
+          },
+          {
+            "label": "Alibaba-NLP/gte-reranker-modernbert-base",
+            "amount_bytes": 633339904
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": true
+      }
+    }
+  },
+  "companions": [
+    {
+      "name": "capacity-sync",
+      "command": "resource-reranker",
+      "args": [
+        "capacity-sync"
+      ]
+    }
+  ],
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 3072,
+    "disk_mb": 4096,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 80,
+      "host": 11453
+    },
+    {
+      "name": "metrics",
+      "container": 9000,
+      "host": 11454
+    }
+  ],
+  "orchestration": {
+    "startup_order": 566,
+    "startup_timeout_seconds": 180,
+    "startup_time_estimate": "first start pulls ~2.3GB model (1-5 min); warm start 10-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "RERANKER_HOST": "localhost",
+      "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3"
+    },
+    "from_ports": {
+      "RERANKER_PORT": "http"
+    },
+    "derived": {
+      "RERANKER_URL": {
+        "template": "http://${RERANKER_HOST}:${RERANKER_PORT}"
+      },
+      "RERANKER_BASE_URL": {
+        "template": "${RERANKER_URL}"
+      },
+      "RERANKER_RERANK_ENDPOINT": {
+        "template": "${RERANKER_URL}/rerank"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares a CUDA backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because reranking has documented consumer fallbacks when no validated target is available; the resource reports unavailable rather than pretending an unsupported CPU bundle is runnable."
+    }
+  ]
+}

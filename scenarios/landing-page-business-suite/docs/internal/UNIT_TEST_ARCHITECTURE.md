@@ -20,7 +20,7 @@
 
 ## Infrastructure Status
 - Database tests use `setupTestDB` which resolves `TEST_DATABASE_URL` or provisions a Postgres container via testcontainers.
-- Schema + seed data are ensured for each test run through `ensureSchema` + `seedDefaultData`.
+- Schema + seed data are applied for each test run through `applyRuntimeSchema` + `seedDefaultData`.
 
 ## Issues Found
 - Test helpers are currently file-local; consider moving commonly reused stubs into a dedicated `api/internal/testutil` package if reuse grows.

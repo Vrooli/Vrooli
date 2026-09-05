@@ -5,12 +5,44 @@
   "description": "Enhanced service configuration with resource auto-completion support",
   "type": "object",
   "properties": {
+    "storage": {
+      "$ref": "common.schema.json#/definitions/storageSurface",
+      "description": "Portable declaration of the component's on-disk storage surface."
+    },
+    "retention": {
+      "$ref": "common.schema.json#/definitions/retention",
+      "description": "Declared storage ceilings for the runtime data this scenario accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
+    },
+    "plugin": {
+      "$ref": "#/definitions/pluginDeclaration",
+      "description": "Optional, explicit publication contract consumed by scenario-to-plugin. Absence means this scenario is not publishable."
+    },
     "$schema": {
       "type": "string",
       "description": "Schema reference"
     },
     "version": {
       "$ref": "common.schema.json#/definitions/semver"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "development",
+        "production"
+      ],
+      "default": "development",
+      "description": "Operational mode for this scenario. 'development' enables dev-only surfaces (test-mode HTTP middleware, RoutingService for test-DB installation). 'production' disables them. Absent or unrecognized values default to 'development'."
+    },
+    "maturity": {
+      "type": "string",
+      "enum": [
+        "greenfield",
+        "pilot",
+        "production",
+        "sunset"
+      ],
+      "default": "greenfield",
+      "description": "Lifecycle maturity / deploy stage of this scenario, independent of dev/prod 'mode'. 'greenfield' = not yet deployed, so no schema migrations are expected (migration debt is informational, not a failure); 'pilot' = limited live use; 'production' = serving real data (migration hygiene is enforced); 'sunset' = being retired. Consumed by storage-manager to derive storage_stage and gate migration findings. Absent or unrecognized values default to 'greenfield'."
     },
     "service": {
       "type": "object",
@@ -39,12 +71,44 @@
           "type": "string",
           "description": "High-level scenario category"
         },
+        "class": {
+          "type": "string",
+          "enum": ["meta", "interface-enabler", "external-integration", "product"],
+          "description": "Functional ecosystem role; orthogonal to delivery category and monetization meter class."
+        },
         "tags": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "description": "Free-form keywords for search and filtering"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true,
+          "description": "Stable machine-readable capabilities exposed by this scenario; unlike free-form tags, these support declarative automation."
+        },
+        "platform_capabilities": {
+          "type": "object",
+          "description": "Per-host-OS support declarations for capabilities exposed by this service.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "linux": {"$ref": "#/definitions/platformCapability"},
+              "macos": {"$ref": "#/definitions/platformCapability"},
+              "windows": {"$ref": "#/definitions/platformCapability"},
+              "pairs": {
+                "type": "array",
+                "items": {"$ref": "#/definitions/platformPairCapability"},
+                "uniqueItems": true
+              }
+            }
+          }
         },
         "maintainers": {
           "type": "array",
@@ -104,17 +168,19 @@
           },
           "additionalProperties": false
         },
-        "importance": {
-          "type": "string",
-          "enum": [
-            "critical",
-            "important",
-            "standard",
-            "experimental"
-          ]
+        "system_required": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, this scenario is part of Vrooli's own operation (e.g. vrooli-onboarding, secrets-manager). Onboarding renders system-required scenarios as enabled and not user-toggleable."
         }
       },
       "additionalProperties": false
+    },
+    "generation": {
+      "$ref": "#/definitions/generationMetadata"
+    },
+    "cli": {
+      "$ref": "#/definitions/cliConfig"
     },
     "ports": {
       "type": "object",
@@ -140,17 +206,27 @@
         "additionalProperties": false
       }
     },
+    "components": {
+      "type": "object",
+      "description": "Long-running processes owned by this scenario. Build describes the portable artifact; run describes the process launched from it.",
+      "patternProperties": {
+        "^[a-z0-9]+(?:-[a-z0-9]+)*$": {
+          "$ref": "#/definitions/component"
+        }
+      },
+      "additionalProperties": false
+    },
     "dependencies": {
       "type": "object",
       "description": "Scenario and resource dependencies",
       "properties": {
         "resources": {
           "$ref": "resource-definitions.json#/resourceCatalog",
-          "description": "Resource dependencies declared under the dependencies namespace"
+          "description": "Resource dependencies keyed by canonical resource identifier as a flat object map"
         },
         "scenarios": {
           "type": "object",
-          "description": "Scenario dependencies keyed by scenario identifier",
+          "description": "Scenario dependencies keyed by canonical scenario identifier as a flat object map",
           "patternProperties": {
             "^[a-z0-9-]+$": {
               "$ref": "#/definitions/scenarioDependency"
@@ -161,31 +237,129 @@
       },
       "additionalProperties": false
     },
-    "deployment": {
+    "trust_signing": {
       "type": "object",
+      "description": "Lifecycle-owned trust-signing dependency declaration. It contains only provider routing and credential-file metadata, never raw key material.",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "development",
+            "vault-transit"
+          ]
+        },
+        "resource": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string",
+          "format": "uri"
+        },
+        "key_name": {
+          "type": "string"
+        },
+        "credential_file": {
+          "type": "string"
+        },
+        "operator_credential_file": {
+          "type": "string"
+        },
+        "operator_subjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "operator_tls_cert_file": {
+          "type": "string"
+        },
+        "operator_tls_key_file": {
+          "type": "string"
+        },
+        "operator_tls_client_ca_file": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider"
+      ],
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "description": "Scenario-scoped environment variables merged into every lifecycle step's environment. Values may reference declared port names and runtime paths with ${NAME}; internal/ports expands them before the step runs.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "hostTools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hostRequirement"
+      }
+    },
+    "hostSafeguards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hostRequirement"
+      }
+    },
+    "hostCron": {
+      "type": "array",
+      "description": "Repository-owned user-cron entries. Targets are repository-relative and the control plane audits, but does not silently install or remove, these entries.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "schedule", "target"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "schedule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "not": {
+              "pattern": "^(?:/|[A-Za-z]:[\\\\/]|(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))"
+            }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "description": "How this scenario or service is meant to be run. Declares the scenario's recommended runtime shape; per-install operator choices (whether to actually keep it running) live in operator-state.json.",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "long_running",
+            "on_demand",
+            "one_shot"
+          ],
+          "default": "on_demand",
+          "description": "'long_running' = process intended to stay up (e.g. an API server, a watcher); 'on_demand' = started when invoked and stopped when idle; 'one_shot' = runs to completion and exits (e.g. a migration tool)."
+        },
+        "auto_restart_default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Recommended default for the auto-heal toggle in onboarding. Operators can override per-install via operator-state.json. Typically true for long_running scenarios that are part of system operation; false for user applications the operator may prefer to start manually."
+        }
+      }
+    },
+    "tier_feasibility": {
+      "type": "object",
+      "description": "Authored evidence about which deployment tiers are feasible. Derived readiness and analyzer verdicts are never persisted in the scenario manifest.",
       "properties": {
         "metadata_version": {
           "type": "integer",
           "minimum": 1
-        },
-        "last_analyzed_at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "analyzer": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "version": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        "aggregate_requirements": {
-          "$ref": "#/definitions/deploymentRequirements"
         },
         "tiers": {
           "type": "object",
@@ -231,10 +405,14 @@
     },
     "lifecycle": {
       "type": "object",
+      "description": "Lifecycle phases. This schema governs both the root project manifest and scenario manifests, so it admits every phase name the runtime resolves in internal/lifecycle phaseFor. Which phases a given target kind may declare is a narrower policy question enforced by structure-health, not here: a scenario declaring `clean` is valid JSON against a real runtime phase and still a governance violation.",
       "properties": {
         "version": {
           "type": "string",
           "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "defaults": {
+          "$ref": "#/definitions/phaseDefaults"
         },
         "setup": {
           "$ref": "#/definitions/lifecyclePhase"
@@ -242,13 +420,25 @@
         "develop": {
           "$ref": "#/definitions/lifecyclePhase"
         },
-        "test": {
+        "build": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "deploy": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "clean": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "backup": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "restore": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "production": {
           "$ref": "#/definitions/lifecyclePhase"
         },
         "stop": {
-          "$ref": "#/definitions/lifecyclePhase"
-        },
-        "shutdown": {
           "$ref": "#/definitions/lifecyclePhase"
         },
         "health": {
@@ -256,6 +446,32 @@
         }
       },
       "additionalProperties": false
+    },
+    "credentials": {
+      "$ref": "common.schema.json#/definitions/credentials"
+    },
+    "integrations": {
+      "type": "array",
+      "description": "Declarative external integration requirements. Onboarding reports these requirements but does not create connections.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "uniqueItems": true
+          },
+          "purpose": {"type": "string"},
+          "required": {"type": "boolean", "default": false},
+          "multi": {"type": "boolean", "default": false}
+        },
+        "required": ["connector"],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false,
@@ -283,36 +499,637 @@
     }
   ],
   "definitions": {
+    "platformCapability": {
+      "type": "object",
+      "description": "One host OS declaration. mechanism names the interface an implementation uses or would use, and is required for every status except unsupported. For unsupported it must be OMITTED, not filled with a placeholder: the capability resolver reads a named mechanism as 'something exists here and nobody wired it' (unwired) and an absent one as 'deliberately absent on this platform' (ineligible). A placeholder such as \"none\" would park a genuine no-equivalent case in the wire-me-up queue forever.",
+      "required": ["status", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
+        "mechanism": {"type": "string", "minLength": 1},
+        "since": {"type": "string", "format": "date"},
+        "review_by": {"type": "string", "format": "date"},
+        "evidence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "common.schema.json#/definitions/platformEvidence" },
+            { "type": "string", "minLength": 1 }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["unsupported", "not_applicable"]}}, "required": ["status"]},
+          "then": {},
+          "else": {"required": ["mechanism"]}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_applicable"}}, "required": ["status"]},
+          "then": {"required": ["evidence", "review_by"], "not": {"required": ["mechanism"]}}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_implemented"}}, "required": ["status"]},
+          "then": {"required": ["evidence", "mechanism", "since"], "not": {"properties": {"mechanism": {"const": "handler"}}}}
+        }
+      ]
+    },
+    "platformPairCapability": {
+      "type": "object",
+      "description": "One console-to-node cross-machine declaration.",
+      "required": ["console", "node", "status", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "console": {"enum": ["linux", "macos", "windows"]},
+        "node": {"enum": ["linux", "macos", "windows"]},
+        "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
+        "mechanism": {"type": "string", "minLength": 1},
+        "since": {"type": "string", "format": "date"},
+        "review_by": {"type": "string", "format": "date"},
+        "evidence": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "common.schema.json#/definitions/platformEvidence"},
+            {"type": "string", "minLength": 1}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["unsupported", "not_applicable"]}}, "required": ["status"]},
+          "then": {},
+          "else": {"required": ["mechanism"]}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_applicable"}}, "required": ["status"]},
+          "then": {"required": ["review_by"], "not": {"required": ["mechanism"]}}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_implemented"}}, "required": ["status"]},
+          "then": {"required": ["since"], "not": {"properties": {"mechanism": {"const": "handler"}}}}
+        }
+      ]
+    },
+    "component": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["api", "ui", "worker", "sidecar"]
+        },
+        "build": {
+          "$ref": "#/definitions/componentBuild"
+        },
+        "run": {
+          "$ref": "#/definitions/componentRun"
+        }
+      },
+      "required": ["role", "build", "run"],
+      "additionalProperties": false
+    },
+    "componentBuild": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["cargo", "go_module", "node_bundle", "pnpm_vite", "python_uv", "reuse"]
+        },
+        "dir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "entry": {
+                "type": "string",
+                "minLength": 1
+              },
+              "output": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["output"],
+            "additionalProperties": false
+          }
+        },
+        "reuse": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["kind"],
+          "not": {"required": ["reuse"]}
+        },
+        {
+          "required": ["reuse"],
+          "not": {"required": ["kind"]}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "componentRun": {
+      "type": "object",
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "cwd": {"type": "string"},
+        "env": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "port": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "data_dirs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "log_dir": {"type": "string", "minLength": 1},
+        "readiness": {"$ref": "#/definitions/componentReadiness"},
+        "depends_on": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/componentDependency"},
+          "uniqueItems": true
+        },
+        "supervised_by": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "condition": {"$ref": "#/definitions/conditionBlock"}
+      },
+      "required": ["argv"],
+      "additionalProperties": false
+    },
+    "componentReadiness": {
+      "type": "object",
+      "properties": {
+        "type": {"type": "string", "enum": ["http", "port_open"]},
+        "path": {"type": "string"},
+        "timeout_ms": {"type": "integer", "minimum": 1}
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "componentDependency": {
+      "type": "object",
+      "properties": {
+        "component": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "wait": {"type": "string", "enum": ["started", "ready"]}
+      },
+      "required": ["component", "wait"],
+      "additionalProperties": false
+    },
+    "generationMetadata": {
+      "type": "object",
+      "description": "Durable provenance for scenarios generated from a template.",
+      "properties": {
+        "template": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "design": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "adapter": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "manifest_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Digest of the template manifest this scenario was generated from, used to detect template drift."
+        },
+        "content_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Digest of the generated content, used to detect local divergence from the template output."
+        }
+      },
+      "required": [
+        "template"
+      ],
+      "additionalProperties": false
+    },
+    "cliConfig": {
+      "type": "object",
+      "description": "Installed artifact contract for a scenario or resource CLI. Go-module installs produce a binary plus sibling manifest and build metadata files.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "adapter": {
+          "$ref": "#/definitions/cliAdapter"
+        },
+        "artifacts": {
+          "$ref": "#/definitions/cliArtifacts"
+        },
+        "distribution": {
+          "$ref": "#/definitions/cliDistribution"
+        },
+        "source_build": {
+          "$ref": "#/definitions/cliSourceBuild"
+        },
+        "invoke": {
+          "$ref": "#/definitions/cliInvoke"
+        },
+        "freshness": {
+          "$ref": "#/definitions/cliFreshness"
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "command",
+              "adapter",
+              "source_build",
+              "invoke",
+              "freshness"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "cliAdapter": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "go_module"
+          ]
+        },
+        "module_dir": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliArtifacts": {
+      "type": "object",
+      "description": "Installed companion artifacts generated beside the CLI binary.",
+      "properties": {
+        "manifest": {
+          "$ref": "#/definitions/cliArtifact"
+        },
+        "build_metadata": {
+          "$ref": "#/definitions/cliArtifact"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliArtifact": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "enum": [
+            "sibling"
+          ],
+          "description": "Install the artifact beside the binary using the canonical cli-core naming convention."
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliDistribution": {
+      "type": "object",
+      "description": "A signed release artifact consumed by a deployment target; source installs are not target delivery.",
+      "required": [
+        "kind",
+        "artifact_name"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "prebuilt_artifact"
+          ]
+        },
+        "artifact_name": {
+          "type": "string",
+          "pattern": "\\$\\{os\\}.*\\$\\{arch\\}|\\$\\{arch\\}.*\\$\\{os\\}",
+          "description": "Platform artifact template, e.g. resource-example_${os}_${arch}."
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliSourceBuild": {
+      "type": "object",
+      "description": "Developer/release build inputs. This is never a desktop delivery mechanism.",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "go_module"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliInvoke": {
+      "type": "object",
+      "description": "How the installed CLI is invoked after installation.",
+      "required": [
+        "kind",
+        "command"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "installed_command"
+          ]
+        },
+        "command": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliFreshness": {
+      "type": "object",
+      "description": "Source inputs used to determine whether the installed CLI artifact is stale and should be rebuilt.",
+      "required": [
+        "inputs"
+      ],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata_file": {
+          "type": "string",
+          "description": "Optional path to the installed build metadata file used by freshness checks."
+        }
+      },
+      "additionalProperties": false
+    },
+    "hostRequirement": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "min_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Minimum acceptable host-tool version. Version discovery remains owned by the host requirement implementation."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "when": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "manual": {
+          "type": "boolean"
+        },
+        "requires": {
+          "type": "object",
+          "description": "Hardware-capability gate evaluated against host inventory (GPU/VRAM/arch/RAM). When any condition is unmet the requirement is cleanly skipped (not applicable), never failed.",
+          "additionalProperties": false,
+          "properties": {
+            "gpu": {
+              "type": "boolean",
+              "description": "Require (true) or forbid (false) a detected GPU"
+            },
+            "minVramGb": {
+              "type": "number",
+              "description": "Minimum total VRAM in GiB on at least one detected GPU"
+            },
+            "arch": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Allowed host architectures (Go GOARCH, e.g. amd64, arm64)"
+            },
+            "minRamGb": {
+              "type": "number",
+              "description": "Minimum total system RAM in GiB"
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
     "scenarioDependency": {
       "type": "object",
-      "description": "Metadata describing a dependent scenario",
+      "description": "Metadata describing a dependent scenario. `required` describes business importance, while `startup_policy` describes orchestration behavior.",
       "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this dependency participates in runtime orchestration. Disabled dependencies are skipped entirely."
+        },
         "name": {
           "type": "string",
           "description": "Scenario identifier"
         },
+        "type": {
+          "type": "string",
+          "description": "Dependency type metadata"
+        },
         "required": {
           "type": "boolean",
           "default": true,
-          "description": "Whether the dependency is mandatory"
+          "description": "Whether the dependency is semantically important for correct behavior. When `startup_policy` is omitted, required dependencies default to `must_start`."
         },
-        "version": {
-          "$ref": "common.schema.json#/definitions/semver",
-          "description": "Exact scenario version required"
+        "startup_policy": {
+          "type": "string",
+          "enum": [
+            "must_start",
+            "try_start",
+            "ignore"
+          ],
+          "description": "One input to the derived supervision intent. Values are `must_start`, `try_start`, and `ignore`. When omitted, intent derives as `must_start` for required edges and `try_start` otherwise. Repository manifests declare this explicitly."
+        },
+        "supervision_precedence": {
+          "type": "string",
+          "enum": ["required", "startup_policy"],
+          "description": "Explicit acknowledgement required only when `required` and `startup_policy` disagree. `required=true` with `try_start` derives `must_start` and uses `required`; `required=false` with `must_start` derives `must_start` and uses `startup_policy`."
+        },
+        "freshness_policy": {
+          "type": "string",
+          "enum": [
+            "restart_when_stale",
+            "reuse_running",
+            "rebuild_only"
+          ],
+          "description": "How lifecycle orchestration should treat this dependency when it is running and healthy but its sources have changed (stale). Orthogonal to `startup_policy`. Defaults to `restart_when_stale` (rebuild and restart, gated so a byte-identical rebuild does not restart). `reuse_running` keeps the running process untouched; `rebuild_only` rebuilds the artifact without restarting. Per-edge policy may only reduce disruption on a shared dependency, never increase it. Invalid on `ignore` edges."
         },
         "versionRange": {
           "type": "string",
           "description": "Semantic version range that is acceptable"
         },
+        "version": {
+          "type": "string",
+          "description": "Dependency version metadata"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Why the dependency is used"
+        },
         "description": {
           "type": "string",
           "description": "Human-readable context for the dependency"
+        },
+        "runtime_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Declare true only when this dependency is exercised exclusively through runtime orchestration or an external CLI/service boundary, so import-graph evidence is not expected. Requires runtime_only_rationale."
+        },
+        "runtime_only_rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete explanation of the runtime-only interaction and why source-level import evidence is intentionally absent."
+        },
+        "degraded_behavior": {
+          "type": "string",
+          "description": "Human explanation of the fallback behavior when this dependency is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
+        },
+        "bundle_policy": {
+          "type": "string",
+          "enum": ["embed", "discover", "either"],
+          "description": "How a Tier 2 bundle satisfies this scenario dependency edge."
+        },
+        "config": {
+          "type": "object",
+          "description": "Dependency-specific configuration owned by the declaring scenario and the dependent scenario.",
+          "additionalProperties": true
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "runtime_only": {
+                "const": true
+              }
+            },
+            "required": [
+              "runtime_only"
+            ]
+          },
+          "then": {
+            "required": [
+              "runtime_only_rationale"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
     },
     "deploymentRequirements": {
       "type": "object",
       "properties": {
+        "class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
         "ram_mb": {
           "type": "number",
           "minimum": 0
@@ -326,7 +1143,8 @@
           "minimum": 0
         },
         "gpu": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Whether this tier requires a GPU. Hardware-specific constraints belong in the target capability contract."
         },
         "network": {
           "type": "string",
@@ -374,41 +1192,26 @@
     "deploymentTier": {
       "type": "object",
       "properties": {
-        "status": {
-          "type": "string",
-          "enum": [
-            "ready",
-            "limited",
-            "blocked"
-          ]
-        },
-        "fitness_score": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "constraints": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "notes": {
           "type": "string"
         },
         "requirements": {
           "$ref": "#/definitions/deploymentRequirements"
         },
+        "host_os": {
+          "type": "object",
+          "description": "Declared per-host-OS delivery input. The resolver derives the verdict; this block never stores a verdict.",
+          "properties": {
+            "linux": {"$ref": "#/definitions/hostOSDeploymentInput"},
+            "macos": {"$ref": "#/definitions/hostOSDeploymentInput"},
+            "windows": {"$ref": "#/definitions/hostOSDeploymentInput"}
+          },
+          "additionalProperties": false
+        },
         "adaptations": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/deploymentAdaptation"
-          }
-        },
-        "secrets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/deploymentTierSecret"
           }
         },
         "artifacts": {
@@ -442,50 +1245,13 @@
       },
       "additionalProperties": false
     },
-    "deploymentTierSecret": {
+    "hostOSDeploymentInput": {
       "type": "object",
       "properties": {
-        "secret_id": {
-          "type": "string",
-          "description": "Unique identifier for the secret (e.g., 'ADMIN_DEFAULT_PASSWORD')"
-        },
-        "classification": {
-          "type": "string",
-          "enum": [
-            "infrastructure",
-            "service",
-            "user"
-          ],
-          "description": "Category of secret: infrastructure (system), service (scenario-specific), user (end-user provided)"
-        },
-        "strategy_ref": {
-          "type": "string",
-          "description": "Reference to a secret handling strategy"
-        },
-        "notes": {
-          "type": "string",
-          "description": "Internal notes about the secret"
-        },
-        "label": {
-          "type": "string",
-          "description": "Human-readable display name for UI (e.g., 'Admin Password')"
-        },
-        "description": {
-          "type": "string",
-          "description": "Detailed explanation of the secret's purpose for users"
-        },
-        "required": {
-          "type": "boolean",
-          "description": "Whether this secret is required for the scenario to function (default: true)"
-        },
-        "default_hint": {
-          "type": "string",
-          "description": "Hint for what value to provide (e.g., 'Generate a random 32-character string')"
-        }
+        "mechanism": {"type": "string", "minLength": 1},
+        "notes": {"type": "string"}
       },
-      "required": [
-        "secret_id"
-      ],
+      "required": ["mechanism"],
       "additionalProperties": false
     },
     "deploymentArtifact": {
@@ -551,11 +1317,6 @@
         "supported": {
           "type": "boolean"
         },
-        "fitness_score": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1
-        },
         "reason": {
           "type": "string"
         },
@@ -609,14 +1370,116 @@
       },
       "additionalProperties": false
     },
+    "pluginDeclaration": {
+      "type": "object",
+      "description": "The governed source declaration for an Agent Plugin package.",
+      "required": ["slug", "skills", "standalone"],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "skills": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/pluginSkill"}
+        },
+        "mcp": {"$ref": "#/definitions/pluginMCP"},
+        "entitlement_tier": {
+          "type": "string",
+          "enum": ["free", "solo", "pro", "studio", "business"]
+        },
+        "standalone": {"$ref": "#/definitions/pluginStandalone"}
+      },
+      "additionalProperties": false
+    },
+    "pluginSkill": {
+      "type": "object",
+      "required": ["name", "source", "command_groups"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^skills/[a-z0-9]+(?:-[a-z0-9]+)*/SKILL\\.md$"
+        },
+        "command_groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "pluginMCP": {
+      "type": "object",
+      "required": ["name", "command"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "command": {"type": "string", "minLength": 1},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "authentication": {
+          "type": "string",
+          "enum": ["none", "environment", "user_config"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "pluginStandalone": {
+      "type": "object",
+      "description": "Machine-checkable standalone-install predicate inputs.",
+      "required": ["install_script", "runtime_binaries", "resources"],
+      "properties": {
+        "install_script": {
+          "type": "string",
+          "pattern": "^(?:[a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.(?:sh|ps1)$"
+        },
+        "runtime_binaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:[a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+$"
+          },
+          "uniqueItems": true
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "phaseDefaults": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "continue",
+            "retry"
+          ],
+          "default": "stop"
+        }
+      },
+      "additionalProperties": false
+    },
     "lifecyclePhase": {
       "type": "object",
       "properties": {
         "description": {
           "type": "string"
-        },
-        "condition": {
-          "$ref": "#/definitions/conditionBlock"
         },
         "steps": {
           "type": "array",
@@ -626,14 +1489,40 @@
               "name": {
                 "type": "string"
               },
-              "run": {
+              "exec": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string"}
+              },
+              "cwd": {
                 "type": "string"
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {"type": "string"}
+              },
+              "on_error": {
+                "type": "string",
+                "enum": ["stop", "continue", "retry"]
+              },
+              "timeout": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Maximum execution time in milliseconds."
               },
               "description": {
                 "type": "string"
               },
               "background": {
                 "type": "boolean"
+              },
+              "error": {
+                "type": "string",
+                "enum": [
+                  "stop",
+                  "continue",
+                  "retry"
+                ]
               },
               "condition": {
                 "$ref": "#/definitions/conditionBlock"
@@ -642,19 +1531,33 @@
                 "type": "object",
                 "properties": {
                   "max_attempts": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
                   },
                   "delay": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "backoff": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "linear",
+                      "exponential"
+                    ]
                   }
                 },
                 "additionalProperties": false
+              },
+              "environment": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
               }
             },
-            "required": [
-              "name",
-              "run"
-            ],
+            "required": ["name", "exec"],
             "additionalProperties": false
           }
         }
@@ -689,6 +1592,12 @@
           "type": "string"
         },
         "env_var_set": {
+          "type": "string"
+        },
+        "env_set": {
+          "type": "string"
+        },
+        "env_not_set": {
           "type": "string"
         },
         "always": {
@@ -793,6 +1702,7 @@
                 "type": "string",
                 "enum": [
                   "http",
+                  "connect_rpc",
                   "tcp",
                   "postgres",
                   "redis",
@@ -841,7 +1751,7 @@
         "startup_grace_period": {
           "type": "integer",
           "default": 10000,
-          "description": "Grace period in milliseconds before first health check"
+          "description": "Failure ceiling in milliseconds for derived component readiness before the health contract is evaluated; a ready component proceeds immediately"
         }
       },
       "additionalProperties": false

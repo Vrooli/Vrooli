@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:HeroReadout",
+  "version": "0.1.2",
+  "resolvedAt": "2026-09-04T00:02:15Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:FreshnessArc",
+      "major": 0,
+      "observed": "0.1.2",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ProvenanceInk",
+      "major": 0,
+      "observed": "0.1.2",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:RollingNumber",
+      "major": 0,
+      "observed": "0.1.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "schema_version": "1",
+  "field_reference": {
+    "id": "stable catalog id referenced by the resolver, picker, and CLI",
+    "kind": "lora | controlnet | ip-adapter — the conditioning contract",
+    "architecture": "the SINGLE base architecture this adapter conditions; compatibility is adapter.architecture == model.architecture",
+    "weight": "consent weight contributed (none|low|high); effective op weight is max(op, adapters...)",
+    "preprocessor": "controlnet only: canny|depth|pose|segment|none — the analysis step that derives the control image from a raw input",
+    "scale_range": "min/max/default conditioning strength",
+    "ready": "execution proven on this architecture by an attended GPU run; ships false (with a pending reason) until proven, flipped to true (pending cleared) ONLY after the attended GPU e2e proves the kind×architecture — see docs/internal/TESTING.md",
+    "pending": "for a not-ready adapter, what blocks proving it",
+    "enabled": "seed default enabled state (overlaid at runtime); an adapter must also be Ready before it is offered for execution",
+    "source": "fetch strategy: assets[] (single-file) | repo (diffusers snapshot, revision must be pinned before enable) | local_path"
+  },
+  "adapters": [
+    {
+      "id": "lcm-lora-sdv1-5",
+      "name": "LCM-LoRA (SD 1.5)",
+      "kind": "lora",
+      "architecture": "sd15",
+      "weight": "none",
+      "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
+      "size_mb_approx": 135,
+      "source": {
+        "source_repo": "https://huggingface.co/latent-consistency/lcm-lora-sdv1-5",
+        "docs_url": "https://huggingface.co/latent-consistency/lcm-lora-sdv1-5",
+        "assets": [
+          {
+            "url": "https://huggingface.co/latent-consistency/lcm-lora-sdv1-5/resolve/main/pytorch_lora_weights.safetensors",
+            "filename": "lcm-lora-sdv1-5.safetensors",
+            "kind": "safetensors",
+            "min_bytes": 100000000
+          }
+        ],
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "MIT",
+        "commercial_use": "yes",
+        "commercial_use_notes": "",
+        "base_model_lineage": "Stable Diffusion 1.5",
+        "known_risks": "step-count LoRA; alters sampler schedule, not subject identity"
+      },
+      "ready": true,
+      "pending": "",
+      "enabled": true
+    },
+    {
+      "id": "ip-adapter-sd15",
+      "name": "IP-Adapter (SD 1.5)",
+      "kind": "ip-adapter",
+      "architecture": "sd15",
+      "weight": "high",
+      "scale_range": { "min": 0.0, "max": 1.0, "default": 0.6 },
+      "size_mb_approx": 2600,
+      "source": {
+        "source_repo": "https://huggingface.co/h94/IP-Adapter",
+        "docs_url": "https://huggingface.co/h94/IP-Adapter",
+        "repo": {
+          "repo_id": "h94/IP-Adapter",
+          "revision": "018e402774aeeddd60609b4ecdb7e298259dc729",
+          "allow_patterns": ["models/ip-adapter_sd15.safetensors", "models/image_encoder/*"]
+        },
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "Apache-2.0",
+        "commercial_use": "yes",
+        "commercial_use_notes": "",
+        "base_model_lineage": "Stable Diffusion 1.5",
+        "known_risks": "identity/style transfer from a reference image — high consent weight (can carry a real person's likeness)"
+      },
+      "ready": true,
+      "pending": "",
+      "enabled": true
+    },
+    {
+      "id": "controlnet-canny-sd15",
+      "name": "ControlNet Canny (SD 1.5)",
+      "kind": "controlnet",
+      "architecture": "sd15",
+      "weight": "none",
+      "preprocessor": "canny",
+      "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
+      "size_mb_approx": 1450,
+      "source": {
+        "source_repo": "https://huggingface.co/lllyasviel/sd-controlnet-canny",
+        "docs_url": "https://huggingface.co/lllyasviel/sd-controlnet-canny",
+        "repo": { "repo_id": "lllyasviel/sd-controlnet-canny", "revision": "7f2f69197050967007f6bbd23ab5e52f0384162a" },
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "CreativeML OpenRAIL-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "OpenRAIL-M permits commercial use under use-based restrictions; pin a revision and confirm terms before enabling.",
+        "base_model_lineage": "Stable Diffusion 1.5",
+        "known_risks": "structural conditioner; does not alter subject identity on its own"
+      },
+      "ready": true,
+      "pending": "",
+      "enabled": false
+    },
+    {
+      "id": "controlnet-depth-sd15",
+      "name": "ControlNet Depth (SD 1.5)",
+      "kind": "controlnet",
+      "architecture": "sd15",
+      "weight": "none",
+      "preprocessor": "depth",
+      "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
+      "size_mb_approx": 1450,
+      "source": {
+        "source_repo": "https://huggingface.co/lllyasviel/sd-controlnet-depth",
+        "docs_url": "https://huggingface.co/lllyasviel/sd-controlnet-depth",
+        "repo": { "repo_id": "lllyasviel/sd-controlnet-depth", "revision": "" },
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "CreativeML OpenRAIL-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "OpenRAIL-M permits commercial use under use-based restrictions; pin a revision and confirm terms before enabling.",
+        "base_model_lineage": "Stable Diffusion 1.5",
+        "known_risks": "structural conditioner; reuses the depth_map analysis op as its preprocessor"
+      },
+      "ready": false,
+      "pending": "ControlNet conditioning + depth preprocess are proven runnable in plan Phase 5 (attended SD1.5 GPU run); pin a repo revision and flip Ready then.",
+      "enabled": false
+    },
+    {
+      "id": "controlnet-openpose-sd15",
+      "name": "ControlNet OpenPose (SD 1.5)",
+      "kind": "controlnet",
+      "architecture": "sd15",
+      "weight": "none",
+      "preprocessor": "pose",
+      "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
+      "size_mb_approx": 1450,
+      "source": {
+        "source_repo": "https://huggingface.co/lllyasviel/sd-controlnet-openpose",
+        "docs_url": "https://huggingface.co/lllyasviel/sd-controlnet-openpose",
+        "repo": { "repo_id": "lllyasviel/sd-controlnet-openpose", "revision": "" },
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "CreativeML OpenRAIL-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "OpenRAIL-M permits commercial use under use-based restrictions; pin a revision and confirm terms before enabling.",
+        "base_model_lineage": "Stable Diffusion 1.5",
+        "known_risks": "structural conditioner driven by an OpenPose skeleton (pose_estimate)"
+      },
+      "ready": false,
+      "pending": "ControlNet conditioning + pose preprocess are proven runnable in plan Phase 5 (attended SD1.5 GPU run); pin a repo revision and flip Ready then.",
+      "enabled": false
+    },
+    {
+      "id": "controlnet-canny-sdxl",
+      "name": "ControlNet Canny (SDXL)",
+      "kind": "controlnet",
+      "architecture": "sdxl",
+      "weight": "none",
+      "preprocessor": "canny",
+      "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
+      "size_mb_approx": 2500,
+      "source": {
+        "source_repo": "https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0",
+        "docs_url": "https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0",
+        "repo": { "repo_id": "diffusers/controlnet-canny-sdxl-1.0", "revision": "" },
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "OpenRAIL++-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "OpenRAIL++-M permits commercial use under use-based restrictions; pin a revision and confirm terms before enabling. SDXL ControlNet e2e is gated behind a higher-VRAM check.",
+        "base_model_lineage": "Stable Diffusion XL 1.0",
+        "known_risks": "structural conditioner; SDXL+controlnet may exceed 8 GB VRAM (gated)"
+      },
+      "ready": false,
+      "pending": "SDXL ControlNet conditioning is proven runnable in plan Phase 5 behind a higher-VRAM skip; pin a repo revision and flip Ready then.",
+      "enabled": false
+    },
+    {
+      "id": "controlnet-depth-sdxl",
+      "name": "ControlNet Depth (SDXL)",
+      "kind": "controlnet",
+      "architecture": "sdxl",
+      "weight": "none",
+      "preprocessor": "depth",
+      "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
+      "size_mb_approx": 2500,
+      "source": {
+        "source_repo": "https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0",
+        "docs_url": "https://huggingface.co/diffusers/controlnet-depth-sdxl-1.0",
+        "repo": { "repo_id": "diffusers/controlnet-depth-sdxl-1.0", "revision": "" },
+        "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
+      },
+      "capability_labels": {
+        "nsfw_capable": false,
+        "license": "OpenRAIL++-M",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "OpenRAIL++-M permits commercial use under use-based restrictions; pin a revision and confirm terms before enabling. SDXL ControlNet e2e is gated behind a higher-VRAM check.",
+        "base_model_lineage": "Stable Diffusion XL 1.0",
+        "known_risks": "structural conditioner; reuses the depth_map analysis op as its preprocessor"
+      },
+      "ready": false,
+      "pending": "SDXL ControlNet conditioning is proven runnable in plan Phase 5 behind a higher-VRAM skip; pin a repo revision and flip Ready then.",
+      "enabled": false
+    }
+  ]
+}

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // Default context items to include if none specified
@@ -362,7 +362,7 @@ func buildDiagnosticChecklistAttachment() *domainpb.ContextAttachment {
    → Check ~/.vrooli/logs/ for resource and scenario start logs
 
 3. If no, is it declared in the scenario's service.json?
-   → Check <workdir>/scenarios/<scenario>/.vrooli/service.json
+   → Check the target scenario's .vrooli/service.json at its contract-defined scenario root
 
 4. Is the Vrooli CLI working?
    → Run: vrooli --version && vrooli resource list

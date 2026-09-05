@@ -1,17 +1,19 @@
 package handlers
+
 // DOC: docs/reference/api-endpoints.md#reports
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
-	"github.com/gorilla/mux"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/convert"
-	"system-monitor-api/internal/httputil"
+	"connectrpc.com/connect"
+	reportspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 )
 
 // ReportHandler handles report-related HTTP requests
@@ -30,9 +32,56 @@ func NewReportHandler(cfg *config.Config, reportService ReportGenerator, log *sl
 	}
 }
 
-// GenerateReport handles POST /api/reports/generate
-func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
-	var pbReq apipb.GenerateReportRequest
+// GenerateReport handles the typed Connect-RPC report generation contract.
+func (h *ReportHandler) GenerateReport(ctx context.Context, req *connect.Request[reportspb.GenerateReportRequest]) (*connect.Response[reportspb.GenerateReportResponse], error) {
+	reportType := req.Msg.GetType()
+	if reportType != "daily" && reportType != "weekly" {
+		return nil, connectError(apierrors.Validation("type", "Must be 'daily' or 'weekly'"))
+	}
+
+	report, err := h.reportService.GenerateReport(ctx, reportType)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&reportspb.GenerateReportResponse{
+		Report: convert.EnhancedSystemReportToProto(report),
+	}), nil
+}
+
+// ListReports handles the typed Connect-RPC report listing contract.
+func (h *ReportHandler) ListReports(ctx context.Context, _ *connect.Request[reportspb.ListReportsRequest]) (*connect.Response[reportspb.ListReportsResponse], error) {
+	reports, err := h.reportService.ListReports(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&reportspb.ListReportsResponse{
+		Reports: convert.EnhancedSystemReportsToProto(reports),
+		Count:   int32(len(reports)),
+	}), nil
+}
+
+// GetReport handles the typed Connect-RPC report retrieval contract.
+func (h *ReportHandler) GetReport(ctx context.Context, req *connect.Request[reportspb.GetReportRequest]) (*connect.Response[reportspb.GetReportResponse], error) {
+	id := req.Msg.GetId()
+	if id == "" {
+		return nil, connectError(apierrors.Validation("id", "Report ID is required"))
+	}
+
+	report, err := h.reportService.GetReport(ctx, id)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&reportspb.GetReportResponse{
+		Report: convert.EnhancedSystemReportToProto(report),
+	}), nil
+}
+
+// HandleGenerateReport handles POST /api/reports/generate.
+func (h *ReportHandler) HandleGenerateReport(w http.ResponseWriter, r *http.Request) {
+	var pbReq reportspb.GenerateReportRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid request body"))
 		return
@@ -54,26 +103,25 @@ func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
 	httputil.SafeProtoJSON(w, h.log, r, convert.EnhancedSystemReportToProto(report))
 }
 
-// ListReports handles GET /api/reports
-func (h *ReportHandler) ListReports(w http.ResponseWriter, r *http.Request) {
+// HandleListReports handles GET /api/reports.
+func (h *ReportHandler) HandleListReports(w http.ResponseWriter, r *http.Request) {
 	reports, err := h.reportService.ListReports(r.Context())
 	if err != nil {
 		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	resp := &apipb.ListReportsResponse{
+	resp := &reportspb.ListReportsResponse{
 		Reports: convert.EnhancedSystemReportsToProto(reports),
 		Count:   int32(len(reports)),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// GetReport handles GET /api/reports/{id}
-func (h *ReportHandler) GetReport(w http.ResponseWriter, r *http.Request) {
+// HandleGetReport handles GET /api/reports/{id}.
+func (h *ReportHandler) HandleGetReport(w http.ResponseWriter, r *http.Request) {
 	// Extract report ID from URL parameters
-	vars := mux.Vars(r)
-	id := vars["id"]
+	id := r.PathValue("id")
 
 	if id == "" {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("id", "Report ID is required"))

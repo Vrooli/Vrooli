@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 type stubHub struct {
@@ -51,7 +52,7 @@ func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-func (s *stubHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (s *stubHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	return wsHub.BroadcastResult{}
 }
 
@@ -297,7 +298,7 @@ func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-func (b *blockingHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (b *blockingHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	return wsHub.BroadcastResult{}
 }
 

@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, Play, FileText, AlertTriangle, Eye, Sparkles, Info, Terminal } from "lucide-react";
 import { useState } from "react";
-import { fetchScenarioDetail, type FileStats } from "../lib/api";
+import { fetchScenarioDetail } from "../lib/api";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -23,7 +23,12 @@ export default function ScenarioDetail() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["scenario-detail", scenarioName],
-    queryFn: () => fetchScenarioDetail(scenarioName!),
+    queryFn: () => {
+      if (!scenarioName) {
+        throw new Error("Scenario name is required");
+      }
+      return fetchScenarioDetail(scenarioName);
+    },
     enabled: !!scenarioName,
   });
 

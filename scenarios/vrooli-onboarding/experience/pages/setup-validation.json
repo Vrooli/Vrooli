@@ -1,0 +1,203 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-validation",
+    "title": "Validation",
+    "routes": [
+      "/setup/validation"
+    ],
+    "purpose": "Prove the install works, and make every gap actionable without leaving the step.",
+    "prd_refs": [
+      "OT-P1-001",
+      "OT-P1-002"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every non-ready item names its cause and its next action."
+    },
+    {
+      "statement": "Fix-then-verify is a fast loop, not a page reload."
+    },
+    {
+      "statement": "A required gap blocks; an optional gap is a recorded, deliberate choice."
+    },
+    {
+      "statement": "The operator is never stranded here with no way back."
+    }
+  ],
+  "states": [
+    {
+      "id": "checking",
+      "description": "The probe pass is running.",
+      "setup": {
+        "route": "/setup/validation"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "Every required and optional item is ready."
+    },
+    {
+      "id": "degraded",
+      "description": "Every required item is ready; an optional item is not."
+    },
+    {
+      "id": "blocked",
+      "description": "A required item is not ready."
+    },
+    {
+      "id": "probe-unavailable",
+      "description": "A probe could not run; the report says so rather than reporting a pass."
+    }
+  ],
+  "elements": [
+    {
+      "id": "status-summary",
+      "role": "status",
+      "description": "The composed readiness verdict."
+    },
+    {
+      "id": "readiness-item",
+      "role": "listitem",
+      "description": "One probed item with its status."
+    },
+    {
+      "id": "remediation",
+      "role": "note",
+      "description": "The next action for a non-ready item."
+    },
+    {
+      "id": "recheck",
+      "role": "button",
+      "description": "Re-runs the probe pass without a reload.",
+      "name": "Recheck"
+    },
+    {
+      "id": "continue-degraded",
+      "role": "button",
+      "description": "Continues with a recorded acknowledgement.",
+      "name": "Continue with degraded"
+    },
+    {
+      "id": "back",
+      "role": "button",
+      "description": "Returns to any earlier decision.",
+      "name": "Back"
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-gap-has-a-next-action",
+      "type": "element-present",
+      "statement": "Every item that is not ready shows a remediation naming the next action.",
+      "tier": "aspirational",
+      "elements": [
+        "remediation"
+      ],
+      "states": [
+        "degraded",
+        "blocked"
+      ]
+    },
+    {
+      "id": "recheck-without-reload",
+      "type": "element-present",
+      "statement": "The operator can re-run the probe pass from this step without reloading.",
+      "tier": "aspirational",
+      "elements": [
+        "recheck"
+      ],
+      "states": [
+        "degraded",
+        "blocked",
+        "ready"
+      ]
+    },
+    {
+      "id": "degraded-continue-only-when-required-are-ready",
+      "type": "element-absent",
+      "statement": "Continue-with-degraded is not offered while a required item is not ready.",
+      "tier": "aspirational",
+      "elements": [
+        "continue-degraded"
+      ],
+      "states": [
+        "blocked"
+      ]
+    },
+    {
+      "id": "degraded-continue-offered",
+      "type": "element-present",
+      "statement": "Continue-with-degraded is offered when every required item is ready.",
+      "tier": "aspirational",
+      "elements": [
+        "continue-degraded"
+      ],
+      "states": [
+        "degraded"
+      ]
+    },
+    {
+      "id": "never-stranded",
+      "type": "element-present",
+      "statement": "A route back to earlier decisions is available from the final step.",
+      "tier": "aspirational",
+      "elements": [
+        "back"
+      ],
+      "states": [
+        "ready",
+        "degraded",
+        "blocked"
+      ],
+      "rationale": "The final step is where an operator most needs to change an earlier answer."
+    },
+    {
+      "id": "unavailable-probe-is-not-a-pass",
+      "type": "state-covered",
+      "statement": "A probe that could not run reports that it could not run, rather than reporting readiness.",
+      "tier": "aspirational",
+      "states": [
+        "probe-unavailable"
+      ]
+    },
+    {
+      "id": "summary-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "The composed verdict is visible without scrolling the item list.",
+      "tier": "aspirational",
+      "elements": [
+        "status-summary"
+      ],
+      "states": [
+        "degraded",
+        "blocked"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "status-summary": {
+        "testid": "readiness-summary"
+      },
+      "readiness-item": {
+        "testid": "readiness-item"
+      },
+      "remediation": {
+        "testid": "remediation"
+      },
+      "recheck": {
+        "testid": "recheck"
+      },
+      "continue-degraded": {
+        "testid": "readiness-continue-degraded"
+      },
+      "back": {
+        "testid": "wizard-prev"
+      }
+    }
+  }
+}

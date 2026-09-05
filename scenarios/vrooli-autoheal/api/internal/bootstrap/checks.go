@@ -9,19 +9,28 @@ package bootstrap
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/userconfig"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/coverage"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
-// Default targets for infrastructure checks - defined here in bootstrap
-// so check implementations stay pure and don't embed operational defaults.
 const (
-	DefaultNetworkTarget = "8.8.8.8:53" // Google DNS for connectivity check
-	DefaultDNSDomain     = "google.com" // Reliable domain for DNS resolution check
+	NetworkTargetEnv     = "AUTOHEAL_NETWORK_TARGET"
+	DNSDomainEnv         = "AUTOHEAL_DNS_DOMAIN"
+	ExternalDNSServerEnv = "AUTOHEAL_EXTERNAL_DNS_SERVER"
 )
+
+// Infrastructure targets belong to lifecycle configuration. Keeping them out
+// of the binary allows deployments to choose a reachable resolver without
+// rebuilding the health supervisor.
+func configuredInfrastructureValue(key string) string {
+	return strings.TrimSpace(os.Getenv(key))
+}
 
 // RegisterDefaultChecks adds all standard health checks to the registry.
 // This centralizes check registration, keeping main.go focused on server setup.
@@ -33,29 +42,59 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 
 // RegisterChecksFromConfig adds health checks using the user's monitoring configuration.
 // This respects which scenarios and resources the user has configured for monitoring.
-func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager) {
+func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager, delivery coverage.DeliveryReader) (*SupervisionController, error) {
 	factory := NewCheckFactoryFromConfigManager(configMgr)
+	factory.deliveryReader = delivery
+	// Scenario/resource membership is reconciled from the canonical supervision
+	// set below. The persisted monitoring configuration is additive input to
+	// that controller, not a second registration path.
+	factory.criticalScenarios = nil
+	factory.nonCriticalScenarios = nil
+	factory.resources = nil
 	RegisterChecksWithFactory(registry, caps, factory)
+	controller := NewSupervisionController(registry, configMgr, NewSupervisionSource(checks.DefaultExecutor))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, err := controller.Refresh(ctx); err != nil {
+		return nil, err
+	}
+	registry.Register(&supervisionSourceCheck{controller: controller})
+	return controller, nil
 }
 
 // RegisterChecksWithFactory adds health checks to the registry using the provided factory.
 // This enables testing check registration with mock factories.
 // [REQ:TEST-SEAM-001]
 func RegisterChecksWithFactory(registry *checks.Registry, caps *platform.Capabilities, factory CheckFactory) {
+	started := time.Now()
 	// Infrastructure checks
+	sectionStarted := time.Now()
 	for _, check := range factory.CreateInfrastructureChecks(caps) {
 		registry.Register(check)
 	}
+	log.Printf("autoheal startup: infrastructure checks registered in %s", time.Since(sectionStarted))
 
 	// System checks
+	sectionStarted = time.Now()
 	for _, check := range factory.CreateSystemChecks() {
 		registry.Register(check)
 	}
+	log.Printf("autoheal startup: system checks registered in %s", time.Since(sectionStarted))
 
 	// Vrooli checks (API, resources, scenarios, watchdog)
+	sectionStarted = time.Now()
 	for _, check := range factory.CreateVrooliChecks(caps) {
 		registry.Register(check)
 	}
+	// These projections are themselves checks so a missing remediation path or
+	// unreadable delivery source is visible in the same ordered-severity model.
+	registry.Register(coverage.NewRemediationReachCheck(registry))
+	delivery := coverage.UnavailableDeliveryReader
+	if provider, ok := factory.(deliveryReaderProvider); ok && provider.DeliveryReader() != nil {
+		delivery = provider.DeliveryReader()
+	}
+	registry.Register(coverage.NewDeliveryReachCheck(delivery))
+	log.Printf("autoheal startup: Vrooli checks registered in %s (total=%s)", time.Since(sectionStarted), time.Since(started))
 }
 
 // ResultLoader is the interface for loading persisted results.
@@ -107,4 +146,10 @@ func ScheduleInitialTick(registry *checks.Registry, saver ResultSaver, delay tim
 
 		log.Printf("initial tick completed: %d checks executed", len(results))
 	}()
+}
+
+// deliveryReaderProvider is implemented by the factory that carries the
+// notification-hub delivery projection; a fake factory need not.
+type deliveryReaderProvider interface {
+	DeliveryReader() coverage.DeliveryReader
 }

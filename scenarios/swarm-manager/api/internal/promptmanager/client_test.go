@@ -2,11 +2,15 @@ package promptmanager
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 )
 
 type mockHTTPDoer struct {
@@ -22,6 +26,27 @@ func makeResponse(status int, body string) *http.Response {
 		StatusCode: status,
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
+}
+
+type fakeSkillsService struct {
+	skillsconnect.UnimplementedSkillsServiceHandler
+	read func(*skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error)
+}
+
+func (f fakeSkillsService) ReadSkills(_ context.Context, req *connect.Request[skillsv1.ReadSkillsRequest]) (*connect.Response[skillsv1.ReadSkillsResponse], error) {
+	response, err := f.read(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(response), nil
+}
+
+func newSkillsClient(t *testing.T, read func(*skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error)) *HTTPClient {
+	t.Helper()
+	_, handler := skillsconnect.NewSkillsServiceHandler(fakeSkillsService{read: read})
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 }
 
 func TestNewHTTPClient_Defaults(t *testing.T) {
@@ -48,35 +73,18 @@ func TestNewHTTPClientWithResolver_Defaults(t *testing.T) {
 }
 
 func TestHTTPClient_ReadSkill(t *testing.T) {
-	client := NewHTTPClientWithResolver(
-		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-		&mockHTTPDoer{doFunc: func(req *http.Request) (*http.Response, error) {
-			if req.Method != http.MethodPost {
-				t.Errorf("expected POST, got %s", req.Method)
-			}
-			if req.URL.Path != "/api/v1/skills/read" {
-				t.Errorf("expected /api/v1/skills/read, got %s", req.URL.Path)
-			}
-
-			var rr readRequest
-			if err := json.NewDecoder(req.Body).Decode(&rr); err != nil {
-				t.Fatalf("decode request: %v", err)
-			}
-			if len(rr.Identifiers) != 1 || rr.Identifiers[0] != "test-skill" {
-				t.Errorf("expected identifier test-skill, got %v", rr.Identifiers)
-			}
-			if rr.Variables["ITEM_NAME"] != "my-item" {
-				t.Errorf("expected variable ITEM_NAME=my-item, got %s", rr.Variables["ITEM_NAME"])
-			}
-			if rr.Output != "combined" {
-				t.Errorf("expected output combined, got %s", rr.Output)
-			}
-
-			resp := readResponse{Combined: "rendered prompt content"}
-			body, _ := json.Marshal(resp)
-			return makeResponse(http.StatusOK, string(body)), nil
-		}},
-	)
+	client := newSkillsClient(t, func(req *skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {
+		if len(req.GetIdentifiers()) != 1 || req.GetIdentifiers()[0] != "test-skill" {
+			t.Errorf("expected identifier test-skill, got %v", req.GetIdentifiers())
+		}
+		if req.GetVariables()["ITEM_NAME"] != "my-item" {
+			t.Errorf("expected variable ITEM_NAME=my-item, got %s", req.GetVariables()["ITEM_NAME"])
+		}
+		if req.GetOutput() != "combined" {
+			t.Errorf("expected output combined, got %s", req.GetOutput())
+		}
+		return &skillsv1.ReadSkillsResponse{Combined: "rendered prompt content"}, nil
+	})
 
 	result, err := client.ReadSkill(context.Background(), "test-skill", map[string]string{"ITEM_NAME": "my-item"}, false)
 	if err != nil {
@@ -87,20 +95,37 @@ func TestHTTPClient_ReadSkill(t *testing.T) {
 	}
 }
 
+func TestHTTPClientReadSkillSourceReturnsImmutableMetadata(t *testing.T) {
+	client := newSkillsClient(t, func(req *skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {
+		if req.GetOutput() != "both" || len(req.GetVariables()) != 0 || req.GetWithScope() {
+			t.Fatalf("source request = %+v", req)
+		}
+		return &skillsv1.ReadSkillsResponse{Combined: "<skills>{{TARGET}} {{CONFIG}}</skills>", CombinedHash: "sha256:source", Skills: []*skillsv1.Skill{{Id: "test-skill", Revision: 7, ContentHash: "sha256:raw", Variables: []*skillsv1.Variable{{Name: "TARGET"}, {Name: "CONFIG"}}}}}, nil
+	})
+
+	source, err := client.ReadSkillSource(context.Background(), "test-skill", []string{"CONFIG", "TARGET"})
+	if err != nil {
+		t.Fatalf("ReadSkillSource: %v", err)
+	}
+	if source.SkillID != "test-skill" || source.Revision != 7 || source.SelectedVariantID != "control" || source.ContentHash != "sha256:source" {
+		t.Fatalf("source = %+v", source)
+	}
+	if strings.Join(source.TemplateVariables, ",") != "CONFIG,TARGET" {
+		t.Fatalf("variables = %v", source.TemplateVariables)
+	}
+}
+
 func TestHTTPClient_ReadSkill_ServerError(t *testing.T) {
-	client := NewHTTPClientWithResolver(
-		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
-		&mockHTTPDoer{doFunc: func(_ *http.Request) (*http.Response, error) {
-			return makeResponse(http.StatusInternalServerError, "internal error"), nil
-		}},
-	)
+	client := newSkillsClient(t, func(*skillsv1.ReadSkillsRequest) (*skillsv1.ReadSkillsResponse, error) {
+		return nil, connect.NewError(connect.CodeInternal, context.Canceled)
+	})
 
 	_, err := client.ReadSkill(context.Background(), "test-skill", nil, false)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "status 500") {
-		t.Errorf("expected status 500 in error, got %v", err)
+	if !strings.Contains(err.Error(), "internal") {
+		t.Errorf("expected Connect internal error, got %v", err)
 	}
 }
 

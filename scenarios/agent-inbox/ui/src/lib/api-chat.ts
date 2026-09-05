@@ -58,7 +58,7 @@ export async function createChat(data?: { name?: string; model?: string; view_mo
   return jsonResponse<Chat>(res);
 }
 
-export async function updateChat(id: string, data: { name?: string; model?: string; tools_enabled?: boolean }): Promise<Chat> {
+export async function updateChat(id: string, data: { name?: string; model?: string }): Promise<Chat> {
   const url = buildApiUrl(`/chats/${id}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "PATCH",
@@ -127,11 +127,10 @@ export async function markAllChatsAsRead(): Promise<{ updated: number }> {
   return jsonResponse<{ updated: number }>(res);
 }
 
-// Active Template (template-to-tool linking)
+// Active Template
 export async function setActiveTemplate(
   chatId: string,
-  templateId: string | null,
-  toolIds: string[]
+  templateId: string | null
 ): Promise<Chat> {
   const url = buildApiUrl(`/chats/${chatId}/active-template`, { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -139,7 +138,6 @@ export async function setActiveTemplate(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       template_id: templateId ?? "",
-      tool_ids: toolIds
     })
   });
 

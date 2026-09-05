@@ -1,0 +1,22 @@
+{
+  "floor_bytes": 1048576,
+  "roots": [],
+  "exclusions": [
+    {
+      "path": "$DEVICE_ROOT/proc",
+      "reason": "Linux process pseudo-filesystem; it has no durable storage bytes."
+    },
+    {
+      "path": "$DEVICE_ROOT/sys",
+      "reason": "Kernel sysfs; it is virtual and must not enter disk accounting."
+    },
+    {
+      "path": "$DEVICE_ROOT/dev",
+      "reason": "Device filesystem; device nodes are not durable file storage."
+    },
+    {
+      "path": "$DEVICE_ROOT/run",
+      "reason": "Runtime tmpfs; it is ephemeral and may change during a census."
+    }
+  ]
+}

@@ -1,4 +1,45 @@
+---
+name: "test"
+description: "Test suite strengthening - coverage, reliability, signal strength"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","test"]
+  tags: ["skill"]
+  icon: "testtube"
+  status: "active"
+  targetDimensions: ["tests","coverage"]
+  programmaticHome: "unit-health:unit"
+  revision: 48
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-07-21T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Test Suite Strengthening
+
+> **Ladder position:** R0 and R3 (runnable & green, then features hardened — coverage). Green-and-runnable is the floor; real coverage of critical behavior is the hardening. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
+
+> **Provider & scorer:** the **unit-health** scenario is the canonical test-maturity provider behind Test Genie's `unit` phase — it owns test execution, coverage, test architecture, test quality, and the local-maturity score. This skill is the *remediation* loop, **not** the scorer. To see a scenario's current test maturity, failing/uncovered surfaces, and the next blocker, run the human report:
+>
+> ```bash
+> unit-health validate scenario {{TARGET}}
+> ```
+>
+> (add `--execution` to actually run the test commands; `--json` is for Test Genie/programmatic consumers, not your workflow). Fix the findings it reports; don't treat this skill's prose as the authority on whether tests are "good enough" — `unit-health` is.
+
+> **Policy profile contract:** for react-vite-derived scenarios, `.vrooli/testing.json`
+> `unit.policy_profile` declares the template unit-test contract while Code Facts
+> discovers the actual API/CLI/UI surfaces. Treat `UNIT_POLICY_*`,
+> `UNIT_REQUIRED_ROLE_MISSING`, `UNIT_SURFACE_UNGOVERNED`, and
+> `UNIT_POLICY_PROJECTION_DRIFT` as Unit Health contract findings: fix the
+> declared profile or native test projection, not Test Genie orchestration.
+> Legacy `unit.languages` is compatibility-only and is not the policy source for
+> new generated scenarios.
 
 Prioritize **test quality, coverage, and reliability** across this scenario.
 Do **not** break functionality or regress existing tests; all changes must maintain or improve overall completeness.
@@ -6,7 +47,7 @@ Do **not** break functionality or regress existing tests; all changes must maint
 Focus on producing a **high-signal, trustworthy test suite** that accurately reflects the scenario’s operational targets and technical requirements.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+- `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
 
 ---
 
@@ -17,7 +58,7 @@ Required reading:
 * For **UI-level validation**, e2e tests are handled by BAS workflows in `bas/` directories. See the **e2e-testing** skill for strategy and the **browser-automation-studio** skill for CLI usage. This skill focuses on unit and integration tests that complement (not duplicate) e2e coverage.
 
 Optional reading:
-- `prompt-manager skills read e2e-testing browser-automation-studio`
+- `prompt-manager skill read e2e-testing browser-automation-studio`
 
 * Ensure **each operational target** has clear, meaningful test coverage through its linked technical requirements.
 * Where gaps exist, add tests that validate the **actual behavior** users and systems depend on, not just internal implementation details.
@@ -48,6 +89,7 @@ Optional reading:
 
 * Ensure tests would **fail clearly and immediately** if the behavior they protect were broken.
 * Avoid loosening tests or weakening assertions just to make them pass; tests should **enforce correctness**, not accommodate bugs.
+* **Never weaken or delete a `[REQ:]`-tagged test to get green.** That test is the executable definition of a tracked requirement; removing its assertion un-defines the requirement (and the controller will not count it toward operational targets). Fix the code, or — only if the assertion is genuinely wrong — make it *more accurate* to the requirement, never looser. See `improvement-do-and-dont`.
 
 ---
 
@@ -82,13 +124,44 @@ Optional reading:
 
 ---
 
-### **6. Memory Management with Visited Tracker**
+### **6. Anti-Patterns: Test the Specification, Not the Diff**
+
+The suite is an executable specification of what the scenario does **now**.
+Tests that encode the *history of a change* instead of a *current requirement*
+are noise that hardens into obstruction. Avoid these shapes:
+
+* **Tombstone tests.** After removing a feature, do not write tests asserting
+  the behavior is gone ("the old endpoint returns 404", "the flag no longer
+  exists"). Absences are unenumerable, meaningful only to someone holding the
+  removal diff, and can block a legitimate future feature that reuses the
+  surface. The removal protocol is: delete the old feature's tests, update the
+  requirements registry (delete the requirement or mark it `not_implemented`),
+  and **positively test the replacement behavior**. Removal coverage = the
+  suite passes without the feature.
+* **"Shall not" done as absence.** A genuine ongoing prohibition (auth
+  rejection, input validation, rate limiting) is a *positive* claim about an
+  observable response — "if an unauthenticated request arrives, the API
+  returns 401" — and deserves a permanent test asserting that response. If it
+  matters enough to test forever, it belongs in `requirements/` as an
+  unwanted-behaviour requirement; that is a judgment call, not a mandate to
+  tag every test.
+* **Change-detector tests.** Assertions that pin incidental implementation
+  detail (exact private call order, snapshot-everything) fail on harmless
+  refactors and pass on real regressions. Assert the behavior a requirement
+  names.
+* **Characterization tests as permanent fixtures.** Pinning current behavior
+  wholesale is legitimate *temporarily* while refactoring untested code —
+  mark them as scaffolding and delete them when the refactor lands.
+
+---
+
+### **7. Memory Management with Visited Tracker**
 
 Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION set to `scenarios/{{TARGET}}` and TAG set to `test`.
 
 ---
 
-### **7. Output Expectations**
+### **8. Output Expectations**
 
 You may update or add:
 
@@ -111,6 +184,6 @@ Focus this loop on delivering **practical, high-impact test improvements** that 
 
 ---
 
-### **8. Documentation**
+### **9. Documentation**
 
 Use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then update the **Test Gaps** section with your findings (critical flows lacking coverage, flaky tests, assertion quality issues, remaining coverage priorities).

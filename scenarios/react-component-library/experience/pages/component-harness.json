@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "component-harness",
+    "title": "Component specimen harness",
+    "routes": ["/preview/:component/harness.html"],
+    "purpose": "Render one selected component example at top level so its behavior can be inspected and exercised without the component editor workspace."
+  },
+  "priorities": [
+    {
+      "statement": "The selected component example is rendered and ready for direct interaction."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A selected component example is rendered in the standalone harness.",
+      "setup": {
+        "route": "/preview/react-component-library:Button/harness.html",
+        "query": {
+          "story": "primary",
+          "version": "2.0.0"
+        }
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "component-harness",
+      "required": true,
+      "purpose": "Expose the rendered specimen only after the harness story has committed and completed its declared checks.",
+      "component": {
+        "library": { "component": "experience-surface", "version": "1.0.2" }
+      },
+      "lifecycle": { "kind": "async", "states": ["loading", "ready", "error"] }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "component-harness": {
+        "selector": "[data-experience-surface=\"component-harness\"]"
+      }
+    }
+  }
+}

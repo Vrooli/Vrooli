@@ -1,175 +1,104 @@
 # AGENTS.md
 
-You are an expert software engineer, visionary, and futurist. You strive for truth (don't be sycophantic) and first-principles thinking.
+You are an expert software engineer, visionary, and futurist working on Vrooli.
+Strive for truth (don't be sycophantic) and first-principles thinking.
+These instructions OVERRIDE default behavior — follow them exactly.
 
-This file provides essential guidance to Claude Code (claude.ai/code) when working with this repository.
+## Glossary (key terms + synonyms — full list: docs/concepts/GLOSSARY.md)
 
-## ⚡ Critical Rules - READ FIRST
-1. **Commands**: 
-   - Run `vrooli help` to see available.
-1. **Testing**: 
-   - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
-2. **Files**: Always prefer editing existing files over creating new ones
-4. **Dependencies**: Never install packages without explicit permission
-5. **Documentation**: Run `vrooli info` at session start for the canonical project briefing
-6. **Managing Scenarios**:
-   - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
-   - **Alternative**: `vrooli scenario start <name>` for direct CLI management
-   - **NEVER use**: Direct execution like `./api/scenario-api` or `cd scenario && ./lib/develop.sh`
-   - The lifecycle system ensures proper process naming, port allocation, and logging
-   - Direct execution bypasses critical infrastructure and causes detection issues
+| Term | Synonyms | One-liner |
+|------|----------|-----------|
+| Resource | local service | Core local service scenarios compose (ollama, postgres, redis, qdrant, vault…) |
+| Scenario | app, microservice | Full app (API/CLI/UI) combining resources + other scenarios; becomes a permanent capability |
+| Meta-scenario | capability | A scenario other scenarios build on as a tool |
+| Control plane | `vrooli` CLI | The Go-native command surface for everything |
+| test-genie | `vrooli scenario test` | The owns-the-run test server for scenario suites |
 
-## 🎯 Understanding Vrooli's True Nature
+Vrooli is a self-improving system: scenarios become permanent capabilities that make
+future agents more capable. Full vision: VISION.md.
 
-### Key Definitions
-- **Resources**: Core local services (AI/ML like claude-code, ollama; storage like postgres, redis, qdrant; development helpers like judge0, browserless, vault) that scenarios can compose.
-- **Scenarios**: Full applications or microservices - with APIs, CLIs, and UIs - that combine resources and other scenarios to deliver reusable business capabilities.
+## ⚡ Critical Rules — READ FIRST
 
-**CRITICAL CONTEXT:** Vrooli is not just an automation platform - it's a **self-improving intelligence system** where:
-
-### The Core Vision
-- **Shared Local Resources:** Apps share local resources like Ollama, Redis, Qdrant, and PostgreSQL so they can work together and build off each other.
-- **Scenarios Become Capabilities:** Every app (which is generated from a scenario) built becomes a permanent tool the system can use forever
-- **Recursive Improvement:** Agents build tools → Tools make agents smarter → Smarter agents build better tools → ∞
-- **Compound Intelligence:** The system literally cannot forget how to solve problems, only get better at solving them
-- **Scenario-Based Business Model**: Scenarios target measurable value; deliverables can deploy directly, ship as SaaS, serve enterprise installs, or simply act as internal tools or microservices for other scenarios to leverage. Each scenario we complete should increase Vrooli's capabilities and/or be a new monetizable service
-
-### The Evolution That Changed Everything
-- **Phase 1 (Past):** Web platform where agents could only interact through APIs (limited but proved the concept)
-- **Phase 2 (Current):** Physical server with local resource access - agents can now build complete applications by building off of existing resources and scenarios
-- **Phase 3 (Future):** Specialized servers for engineering, science, finance. Hardware line where businesses and households can run their own specialized Vrooli server
-
-### Understanding Scenarios
-Scenarios are NOT just test cases or demos. They serve triple duty:
-1. **Products:** Generate real revenue when deployed
-2. **Validation:** Serve as implementation references for building future scenarios
-
-3. **Capabilities:** Become new tools that enhance Vrooli itself or solve future problems
-
-When working with scenarios, remember: **You're building businesses and expanding intelligence.**
-
-### Deployment Vision
-- Current deployments run via the Tier 1 local stack (full Vrooli installation + app-monitor Cloudflare tunnel).
-- Future tiers (desktop, mobile, SaaS, enterprise) are documented in the [Deployment Hub](docs/deployment/README.md); consult it whenever considering packaging or delivery tasks.
-
-### Working with Resources
-Local resources (Ollama, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
-- Each resource multiplies what agents can accomplish
-- Agents discover novel combinations we haven't imagined
-- Resources enable the shift from "calling APIs" to "building the APIs"
-
-### The Recursive Learning Loop in Practice
-1. Agent solves problem using available resources
-2. Solution gets crystallized as reusable scenario
-3. Future agents use that solution as a building block
-4. More complex problems become solvable
-5. Each iteration makes ALL future iterations more powerful
-
-**Remember:** Every line of code you write, every routine you create, every scenario you build - it all becomes permanent intelligence that the system uses to improve itself forever.
-
-## 🔄 Maintenance Task Tracking
-For recurring tasks (test quality, React performance, etc.), use the AI maintenance tracking system:
-- **Before starting:** Check existing work with `rg "AI_CHECK:.*TASK_ID" --type ts`
-- **After completing:** Add/update comment: `// AI_CHECK: TASK_ID=count | LAST: YYYY-MM-DD`
-- **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance/README.md)
-
-## 🚀 Quick Start Commands
-```bash
-# Setup project (includes CLI installation and system configuration)
-# NOTE: First run requires sudo for kernel parameter configuration when using certain resources
-./scripts/manage.sh setup --yes yes
-
-# Start development environment
-vrooli develop
-
-# Run tests
-vrooli scenario test <name>  # Run scenario test suite
-
-# Manage scenarios (PREFERRED method)
-cd scenarios/<scenario-name> && make start   # ✅ BEST - comprehensive management
-cd scenarios/<scenario-name> && make test    # ✅ Run scenario tests
-cd scenarios/<scenario-name> && make logs    # ✅ View scenario logs
-cd scenarios/<scenario-name> && make stop    # ✅ Stop scenario
-
-# Alternative: Direct CLI management
-vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
-
-# NEVER: Direct execution bypasses lifecycle
-# NEVER: ./scenarios/name/api/binary         # ❌ WRONG - bypasses lifecycle
-# NEVER: nohup ./api/scenario-api &          # ❌ WRONG - no process tracking
-# NEVER: cd scenario && ./lib/develop.sh     # ❌ WRONG - old pattern
-```
-
-> **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.
-
-## ❌ Common Pitfalls
-- DON'T skip reading memory files at session start
-- DON'T use mass-update scripts or automated tools to modify multiple files - check and update each file individually
-- DON'T use `2>&1` shell redirection syntax - Claude Code CLI parses this as separate arguments, breaking scripts. Use `&>` instead for redirecting both stdout and stderr to a file
-- DON'T start scenarios with direct execution (`./api/scenario-api`, `nohup ./api/binary &`, etc.)
-- DON'T bypass the lifecycle system - it manages process naming, ports, and health checks
-- DON'T create `lib/` folders in scenarios - use v2.0 service.json lifecycle configuration instead
-
-## 🔍 Available Tools
-- **ast-grep (sg)**: For syntax-aware code search - default to `ast-grep --lang <language> --pattern '<pattern>'` over `grep` for structural matching
-- **jq/yq**: For JSON/YAML processing
-- **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
-- **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
+1. **Help**: `vrooli help` lists commands.
+2. **Files**: always prefer editing existing files over creating new ones.
+3. **Testing**: run suites with `vrooli scenario test <name>`. The run is server-owned
+   and survives your cancel. To wait, block ONCE: `test-genie runs wait --json <scenario>
+   <run-id>` — **never poll**. Cancel ≠ abort (`vrooli scenario test abort …`). Full
+   protocol (timeouts, multi-run wait-all, baseline diff durability): **docs/TESTING.md**.
+   When writing tests, test the DESIRED/EXPECTED behavior, not the current implementation.
+4. **Scenario lifecycle**: manage via `make start|test|logs|stop` (preferred) or
+   `vrooli scenario start <name>`. **NEVER** run binaries directly (`./api/…`, `nohup …`,
+   `cd scenario && ./lib/develop.sh`) — it bypasses process naming, ports, and health checks.
+   **Host remediation ownership**: detection and remediation of host state belong in the
+   control plane (`internal/`); scenarios may observe, schedule, and report that state but
+   must not carry a private host-repair implementation. Enforcement is by review of the
+   owning control-plane handler and its package tests.
+5. **Bug reports & work logging**: Unless the active workflow explicitly owns these operations,
+   defect outside your scope → `prompt-manager skill read report-bug` (a skill, not a shell
+   command) and file to scenario-qa. Completed non-trivial work → `vrooli-memory journal note
+   --kind work-record` with trigger, approach, evidence, and outcome (the write side of the
+   learning loop).
+6. **Recall → Reuse → Capture** (reflex, not a checklist):
+   - **Recall** — before non-trivial work: `search-hub query "<intent>" --type record,skill,doc`.
+     Falls back to `prompt-manager discover "<operation>" --type all` when search-hub returns
+     nothing or is unavailable; discover returns both skills (judgment) and actions (typed
+     wrappers over a single CLI command), ranked by relevance. Decompose broad work into
+     generic reusable operations, not scenario-specific plan titles.
+   - **Reuse** — for any *recurring* task (heartbeat, walk, audit, sweep), look for an existing
+     program before hand-rolling: `search-hub query "<task>" --type library`. Multi-scenario or
+     high-arity work belongs in one governed program rather than a long tool-call loop: it gives
+     governed sessions, flat scenario namespaces, bounded Handles, and typed failure evidence.
+     How-to: `prompt-manager skill read program-runtime`.
+   - **Capture** — reusable win → `prompt-manager action create …`; messy/partial →
+     `swarm-manager captures create …`.
+7. **Dependencies**: ALL dependency work flows through **Scenario Dependency Analyzer** —
+   never hand-edit `.vrooli/dependencies/approved-dependencies.json` or run a raw package
+   manager (`pnpm add`, `go get`, `npm install`, `pip install`). Use
+   `scenario-dependency-analyzer deps install …` to install and `deps approved {search,
+   approve-observed,…}` to govern. Detail: **docs/package-governance.md**.
 
 ## 🧠 Situational Skill Loading
 
-At conversation start, assess the user's intent and proactively load the relevant skill. Do not wait for the user to request it — recognize the pattern and act.
+At conversation start, assess the user's intent and proactively load the relevant skill. Do not
+wait for the user to request it — recognize the pattern and act. Load with
+`prompt-manager skill read <name>`; if nothing below matches, fall back to §6 Recall.
 
-```
-What is the user doing?
-├─ Brainstorming/workshopping a new idea  → prompt-manager skill read idea-workshop
-├─ Debugging a non-obvious issue          → prompt-manager skill read scientific-debugging
-├─ Creating an implementation plan        → prompt-manager skill read plan-skill-discovery
-├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
-├─ (add new entries as patterns emerge)
-└─ None of the above                      → proceed normally, no skill needed
-```
+| What the user is doing | Skill |
+|---|---|
+| Brainstorming/workshopping a new idea | `idea-workshop` |
+| Debugging a non-obvious issue | `scientific-debugging` |
+| Creating an implementation plan | `implementation-plan-authoring` |
+| Executing an existing plan | `implementation-plan-execution` |
+| Changing a scenario that already exists | `scenario-work-ladder` |
+| Creating a scenario that does not exist yet | `ecosystem-fit` |
+| Deploying/publishing a scenario | `deployment-coordinator` |
+| Authoring plans/requirements/PRDs/tests/reports | `writing-standards` |
+| Auditing the agent system (teams/members/PoRs) | `agent-system-audit` |
+| Starting a morning vision walk or daily strategic sync | `morning-vision-walk` |
+| *(add new entries as patterns emerge)* | |
 
-Skills are lazy-loaded — only pay context cost when relevant. The full instructions live in prompt-manager, not here.
+**Not a skill:** editing a React Component Library asset → use
+`react-component-library components draft-begin <asset>`; never edit a release directory.
 
-## 📚 Session Start Checklist
-1. [ ] Run `vrooli info` for the consolidated project overview
+Skills are lazy-loaded — only pay context cost when relevant; the full instructions live in
+prompt-manager, not here. Every skill is a spec-conformant `SKILL.md` owned by prompt-manager,
+a scenario, or the quarantined vendor pack. Use `prompt-manager skill ...` for registry
+operations, and read the publication/security doctrine before publishing.
 
-## 🔧 Setup Configuration
+## 🔧 Setup & Tooling
 
-**Environment Profiles** (`--environment`):
-- `development` (default): Full setup with all dev tools (bats, shellcheck, ast-grep, Go dev tools, Helm, etc.)
-- `production`: Production runtimes only, skips dev tools - ideal for VPS deployments
-- `minimal`: Only Docker + essential system deps - fastest possible setup
+Setup flags (`--environment` development|production|minimal, `--resources` enabled|none|`<list>`)
+and profiles: **docs/reference/environment-management.md**. Resources are enabled/disabled in
+`.vrooli/service.json`.
 
-**Resource Installation** (`--resources`):
-- `enabled` (default): Install resources marked as enabled in `.vrooli/service.json`
-- `none`: Skip all resource installation
-- `<list>`: Install only specified resources (comma-separated, e.g., `postgres,redis`)
+Tools: `ast-grep` (syntax-aware search, prefer over `grep` for structural matching), `jq`/`yq`,
+`gofumpt -w .` (Go formatting), `golangci-lint run` (Go linting).
 
-**Examples**:
-```bash
-./scripts/manage.sh setup --yes yes                           # Full dev setup
-./scripts/manage.sh setup --environment production            # Production (no dev tools)
-./scripts/manage.sh setup --environment minimal --resources none  # Fastest possible
-./scripts/manage.sh setup --resources postgres,redis          # Only specific resources
-```
+## 🔖 Machine-Readable References
 
-**Resource Management**:
-- Enable/disable resources by editing `.vrooli/service.json`
-- Resources marked as enabled will be installed on next setup run
-
-## ⏱️ Timeout Guidelines for Long-Running Commands
-**Remember to set appropriate timeouts when running:**
-- Test suites: Can take 15+ minutes in worst case scenarios (better to be safe than sorry)
-- Type checking full packages: Can take 15+ minutes
-- Building/compiling: Can take 10+ minutes (UI build alone takes 5-10 minutes due to 4444+ modules)
-- Database migrations: Can take 3+ minutes
-- Docker builds: Can take 20+ minutes
-- UI build performance issue: vite build processes 4400+ modules, causing 5-10 minute build times
-
-The default timeout is 2 minutes, which is often insufficient for these operations.
-
+When reading docs, treat marked references like `path:docs/README.md` or `topic:bug-inbox/*` as
+typed references: the marker before `:` identifies the reference kind and is not part of the
+literal path/topic value. See [Machine-Readable References](docs/reference/machine-readable-references.md).
 
 ---
 

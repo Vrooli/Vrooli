@@ -31,7 +31,7 @@ func (m *mockConfigResolver) ResolveAnalyzerURL() (string, error) {
 }
 func (m *mockConfigResolver) ResolveSecretsManagerURL() (string, error)  { return "", nil }
 func (m *mockConfigResolver) ResolveDesktopPackagerURL() (string, error) { return "", nil }
-func (m *mockConfigResolver) ResolveTelemetryDir() string                { return "/tmp" }
+func (m *mockConfigResolver) ResolveTelemetryDir() (string, error)       { return "/tmp", nil }
 
 // setMockConfig installs a mock config resolver and returns a cleanup function.
 func setMockConfig(url string, err error) func() {

@@ -3,22 +3,15 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { timestampMs } from '@bufbuild/protobuf/wkt';
 import { buildUrl as buildApiUrl } from '../../../lib/api-client';
 import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
+import { parseMetricsResponse } from '../../../shared/api/current-metrics-contract';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { toIsoString } from '../../../shared/utils/timestamps';
-import {
-  parseMetricsResponse,
-  parseDetailedMetrics,
-  parseProcessMonitorData,
-  parseInfrastructureMonitorData,
-  parseInvestigations,
-  parseGetMaintenanceStateResponse,
-  parseSetMaintenanceStateResponse,
-} from '../../../shared/api/proto-contracts';
 import { usePolling } from '../../../shared/hooks/usePolling';
 import { useHealthCheck } from './useHealthCheck';
 import { useMetricHistory } from './useMetricHistory';
 import type {
   MetricsResponse,
+  DeviceGraph,
   DetailedMetrics,
   ProcessMonitorData,
   InfrastructureMonitorData,
@@ -42,10 +35,11 @@ export interface SystemHealthStatus {
   checks?: Record<string, unknown>;
 }
 
-export type Subsystem = 'metrics' | 'detailedMetrics' | 'processes' | 'infrastructure' | 'investigations';
+export type Subsystem = 'metrics' | 'detailedMetrics' | 'deviceGraph' | 'processes' | 'infrastructure' | 'investigations';
 
 interface UseSystemMonitorReturn {
   metrics: MetricsResponse | null;
+  deviceGraph: DeviceGraph | null;
   detailedMetrics: DetailedMetrics | null;
   processMonitorData: ProcessMonitorData | null;
   infrastructureData: InfrastructureMonitorData | null;
@@ -55,7 +49,12 @@ interface UseSystemMonitorReturn {
   error: APIError | null;
   subsystemErrors: Partial<Record<Subsystem, APIError>>;
   isStale: boolean;
+  retryAttempt: number;
   lastSuccessfulFetch: Date | null;
+  /** When the polling loop last tried, so a surface can count down honestly. */
+  lastAttemptAt: Date | null;
+  /** The real polling period for the current subject, in seconds. */
+  retryIntervalSeconds: number;
   healthStatus: SystemHealthStatus | null;
   healthError: string | null;
   toggleMonitoring: () => Promise<void>;
@@ -66,8 +65,15 @@ interface UseSystemMonitorReturn {
 
 type MaintenanceState = 'active' | 'inactive' | string;
 
-export const useSystemMonitor = (): UseSystemMonitorReturn => {
+interface UseSystemMonitorOptions {
+  enabled?: boolean;
+  node?: string;
+}
+
+export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemMonitorOptions = {}): UseSystemMonitorReturn => {
+  const pollingEnabled = options.enabled ?? true;
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [deviceGraph, setDeviceGraph] = useState<DeviceGraph | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetrics | null>(null);
   const [processMonitorData, setProcessMonitorData] = useState<ProcessMonitorData | null>(null);
   const [infrastructureData, setInfrastructureData] = useState<InfrastructureMonitorData | null>(null);
@@ -75,6 +81,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   const [isLoading, setIsLoading] = useState(true);
   const [subsystemErrors, setSubsystemErrors] = useState<Partial<Record<Subsystem, APIError>>>({});
   const [lastSuccessfulFetch, setLastSuccessfulFetch] = useState<Date | null>(null);
+  const [lastAttemptAt, setLastAttemptAt] = useState<Date | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const isStale = consecutiveFailures >= 3;
   const [uiBoostActive, setUiBoostActive] = useState(false);
@@ -86,14 +93,15 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   });
   const { showApiError } = useToast();
   const lastMetricsErrorRef = useRef<string | null>(null);
+  const remoteNodeSelectedRef = useRef(false);
+  remoteNodeSelectedRef.current = Boolean(options.node);
 
   const setSubsystemError = useCallback((subsystem: Subsystem, err: APIError | null) => {
     setSubsystemErrors(prev => {
       if (err === null) {
         if (!(subsystem in prev)) return prev;
-        const next = { ...prev };
-        delete next[subsystem];
-        return next;
+        const { [subsystem]: _omit, ...rest } = prev;
+        return rest;
       }
       return { ...prev, [subsystem]: err };
     });
@@ -112,8 +120,14 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     };
   }, []);
 
-  // Only show toast for metrics errors (primary data source)
+  // Only show toast for metrics errors (primary data source).
+  //
+  // Not while a remote machine is the subject: the identity strip states that
+  // condition persistently, names the machine, and offers the retry. A toast
+  // beside it repeats the same fact in a form that disappears, and carries an
+  // internal reference code the reader cannot act on.
   useEffect(() => {
+    if (remoteNodeSelectedRef.current) return;
     const metricsError = subsystemErrors.metrics;
     if (metricsError && metricsError.error !== lastMetricsErrorRef.current) {
       lastMetricsErrorRef.current = metricsError.error;
@@ -124,11 +138,19 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, [subsystemErrors, showApiError]);
 
   const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
-  const setMetricsError = useCallback((err: APIError | null) => setSubsystemError('metrics', err), [setSubsystemError]);
-  const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
+  const setMetricsError = useCallback((err: APIError | null) => { setSubsystemError('metrics', err); }, [setSubsystemError]);
+  const { metricHistory, fetchMetricsTimeline, clearHistory, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
+  const remoteNodeSelected = Boolean(options.node);
+  // Remote readings cross a relay, so they are polled less often than local
+  // ones. The value is named because surfaces quote it back to the reader.
+  const metricsPollIntervalMs = remoteNodeSelected ? 15000 : 5000;
 
   const fetchMetrics = useCallback(async () => {
-    const url = uiBoostActive ? '/metrics/current?fresh=1' : '/metrics/current';
+    const params = new URLSearchParams();
+    if (uiBoostActive) params.set('fresh', '1');
+    if (options.node) params.set('node', options.node);
+    const query = params.toString();
+    const url = `/metrics/current${query ? `?${query}` : ''}`;
     try {
       const data = await protoFetch(url, parseMetricsResponse);
       if (!mountedRef.current) return;
@@ -145,12 +167,31 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       setSubsystemError('metrics', toApiError(err));
       setConsecutiveFailures(prev => prev + 1);
     }
-  }, [uiBoostActive, appendGpuPoint, setSubsystemError]);
+  }, [options.node, uiBoostActive, appendGpuPoint, setSubsystemError]);
+
+  const fetchDeviceGraph = useCallback(async () => {
+    try {
+      const { parseDeviceGraph } = await import('../../../shared/api/current-metrics-contract');
+      const query = options.node ? `?node=${encodeURIComponent(options.node)}` : '';
+      const data = await protoFetch(`/metrics/devices${query}`, parseDeviceGraph);
+      if (!mountedRef.current) return;
+      setDeviceGraph(data);
+      setSubsystemError('deviceGraph', null);
+    } catch (err) {
+      console.debug('API call failed for /metrics/devices:', err);
+      if (!mountedRef.current) return;
+      setSubsystemError('deviceGraph', toApiError(err));
+    }
+  }, [options.node, setSubsystemError]);
 
   useEffect(() => {
     let cancelled = false;
 
     const activateMonitoring = async () => {
+      const {
+        parseGetMaintenanceStateResponse,
+        parseSetMaintenanceStateResponse,
+      } = await import('../../../shared/api/proto-contracts');
       let currentState: MaintenanceState = 'inactive';
       try {
         const state = await protoFetch('/maintenance/state', parseGetMaintenanceStateResponse);
@@ -183,12 +224,15 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       }
     };
 
-    activateMonitoring().catch(err => console.error('Failed to activate monitoring:', err));
+    const activationTimer = window.setTimeout(() => {
+      activateMonitoring().catch((err: unknown) => { console.error('Failed to activate monitoring:', err); });
+    }, 2200);
 
     const stateRef = maintenanceStateRef.current;
 
     return () => {
       cancelled = true;
+      window.clearTimeout(activationTimer);
       const previous = stateRef.previous;
       if (stateRef.activated && previous && previous !== 'active') {
         fetch(buildApiUrl('/maintenance/state'), {
@@ -197,7 +241,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ maintenanceState: previous })
-        }).catch(unmountError => {
+        }).catch((unmountError: unknown) => {
           console.warn('Failed to restore monitoring state:', unmountError);
         });
       }
@@ -205,7 +249,9 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, []);
 
   const fetchDetailedMetrics = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
+      const { parseDetailedMetrics } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/detailed', parseDetailedMetrics);
       if (!mountedRef.current) return;
       setDetailedMetrics(data);
@@ -219,10 +265,12 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       if (!mountedRef.current) return;
       setSubsystemError('detailedMetrics', toApiError(err));
     }
-  }, [appendDiskUsagePoint, setSubsystemError]);
+  }, [appendDiskUsagePoint, remoteNodeSelected, setSubsystemError]);
 
   const fetchProcessMonitorData = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
+      const { parseProcessMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/processes', parseProcessMonitorData);
       if (!mountedRef.current) return;
       setProcessMonitorData(data);
@@ -232,10 +280,12 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       if (!mountedRef.current) return;
       setSubsystemError('processes', toApiError(err));
     }
-  }, [setSubsystemError]);
+  }, [remoteNodeSelected, setSubsystemError]);
 
   const fetchInfrastructureData = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
+      const { parseInfrastructureMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/infrastructure', parseInfrastructureMonitorData);
       if (!mountedRef.current) return;
       setInfrastructureData(data);
@@ -253,10 +303,12 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       if (!mountedRef.current) return;
       setSubsystemError('infrastructure', toApiError(err));
     }
-  }, [appendDiskPoints, setSubsystemError]);
+  }, [appendDiskPoints, remoteNodeSelected, setSubsystemError]);
 
   const fetchInvestigations = useCallback(async () => {
+    if (remoteNodeSelected) return;
     try {
+      const { parseInvestigations } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/investigations?limit=10', parseInvestigations);
       if (!mountedRef.current) return;
       const sorted = [...data].sort((a, b) => {
@@ -277,15 +329,40 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       if (!mountedRef.current) return;
       setSubsystemError('investigations', toApiError(err));
     }
-  }, [setSubsystemError]);
+  }, [remoteNodeSelected, setSubsystemError]);
 
   const refreshMetrics = useCallback(async () => {
+    // Stamped before the request rather than after it: the countdown a reader
+    // sees must be the schedule the loop is actually keeping, and the next tick
+    // is scheduled relative to this attempt whether or not it succeeds.
+    setLastAttemptAt(new Date());
+    await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
+    if (!remoteNodeSelected) {
+      await Promise.all([
+        fetchDetailedMetrics(),
+        fetchMetricsTimeline(historyWindowSeconds)
+      ]);
+    }
+  }, [fetchDetailedMetrics, fetchDeviceGraph, fetchMetrics, fetchMetricsTimeline, historyWindowSeconds, remoteNodeSelected]);
+
+  const fetchDeferredData = useCallback(async () => {
+    if (remoteNodeSelected) return;
     await Promise.all([
-      fetchMetrics(),
       fetchDetailedMetrics(),
-      fetchMetricsTimeline()
+      fetchProcessMonitorData(),
+      fetchInfrastructureData(),
+      fetchInvestigations(),
+      fetchMetricsTimeline(historyWindowSeconds)
     ]);
-  }, [fetchDetailedMetrics, fetchMetrics, fetchMetricsTimeline]);
+  }, [
+    fetchMetricsTimeline,
+    fetchDetailedMetrics,
+    fetchProcessMonitorData,
+    fetchInfrastructureData,
+	  fetchInvestigations,
+	  historyWindowSeconds,
+	  remoteNodeSelected
+  ]);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
@@ -302,49 +379,99 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       return;
     }
 
-    await Promise.all([
-      fetchMetrics(),
-      fetchDetailedMetrics(),
-      fetchProcessMonitorData(),
-      fetchInfrastructureData(),
-      fetchInvestigations(),
-      fetchMetricsTimeline(120)
-    ]);
+    await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
 
     if (!mountedRef.current) return;
     setIsLoading(false);
+
+    await fetchDeferredData();
+
+    if (!mountedRef.current) return;
   }, [
     checkHealth,
     setSubsystemError,
-    fetchMetricsTimeline,
+    fetchDeviceGraph,
     fetchMetrics,
-    fetchDetailedMetrics,
-    fetchProcessMonitorData,
-    fetchInfrastructureData,
-    fetchInvestigations
+    fetchDeferredData
   ]);
+
+  const refreshInitial = useCallback(async () => {
+    setIsLoading(true);
+
+    const isHealthy = await checkHealth();
+    if (!mountedRef.current) return;
+    if (!isHealthy) {
+      setSubsystemError('metrics', {
+        error: 'API server is not responding',
+        detail: { code: 'unavailable', message: 'Health check failed - ensure the Go backend is running', retryable: true, recovery: 'wait' },
+        timestamp: new Date().toISOString(),
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
+
+    if (!mountedRef.current) return;
+    setIsLoading(false);
+  }, [checkHealth, fetchDeviceGraph, fetchMetrics, setSubsystemError]);
+
+  // A machine switch is a new observation context. Do not retain local
+  // histories or detailed panels while the selected target is remote; those
+  // values cannot be silently presented as if they belonged to that machine.
+  useEffect(() => {
+    setMetrics(null);
+    setDeviceGraph(null);
+    setIsLoading(true);
+    setConsecutiveFailures(0);
+    setLastSuccessfulFetch(null);
+    setLastAttemptAt(null);
+    if (!remoteNodeSelected) return;
+    setDetailedMetrics(null);
+    setProcessMonitorData(null);
+    setInfrastructureData(null);
+    setInvestigations([]);
+    clearHistory();
+    setSubsystemErrors({});
+    // Keyed on the node id, not on `remoteNodeSelected`: moving between two
+    // remote machines is also a change of subject, and leaving the previous
+    // machine's readings on screen under the new machine's name is the exact
+    // failure the identity strip exists to prevent.
+  }, [clearHistory, options.node, remoteNodeSelected]);
 
   // Initial load
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void refreshInitial();
+    const deferredTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        void fetchDeferredData();
+      }
+    }, 2200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(deferredTimer);
+    };
+  }, [fetchDeferredData, refreshInitial]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
-  usePolling(refreshMetrics, 5000, true, { enabled: true, maxIntervalMs: 60000 });
+  usePolling(refreshMetrics, metricsPollIntervalMs, pollingEnabled, { enabled: true, maxIntervalMs: 60000 });
 
   // Set up polling for detailed data + health (every 60 seconds)
   const fetchDetailedAll = useCallback(() => {
+    if (remoteNodeSelected) return;
     Promise.all([
       fetchProcessMonitorData(),
       fetchInfrastructureData(),
       fetchInvestigations(),
       checkHealth()
-    ]).catch(err => console.error('Failed to fetch detailed data:', err));
-  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth]);
-  usePolling(fetchDetailedAll, 60000, true, { enabled: true, maxIntervalMs: 300000 });
+    ]).catch((err: unknown) => { console.error('Failed to fetch detailed data:', err); });
+  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth, remoteNodeSelected]);
+  usePolling(fetchDetailedAll, 60000, pollingEnabled, { enabled: true, maxIntervalMs: 300000 });
 
   return {
     metrics,
+    deviceGraph,
     detailedMetrics,
     processMonitorData,
     infrastructureData,
@@ -354,12 +481,15 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     error,
     subsystemErrors,
     isStale,
+    retryAttempt: consecutiveFailures,
     lastSuccessfulFetch,
+    lastAttemptAt,
+    retryIntervalSeconds: metricsPollIntervalMs / 1000,
     healthStatus,
     healthError,
     toggleMonitoring,
     refreshHealth,
-    refresh,
-    refreshMetrics
+    refresh: () => { void refresh(); },
+    refreshMetrics: () => { void refreshMetrics(); }
   };
 };

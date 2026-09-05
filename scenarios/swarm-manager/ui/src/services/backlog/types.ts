@@ -4,7 +4,9 @@
  * Shared type definitions used across backlog service modules.
  */
 
-import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ClarificationThread, ItemBlockingInfo } from "../../types";
+import type { NextActionEffect } from "../next-action-service";
+
+import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ItemBlockingInfo, PlanRef } from "../../types";
 
 /**
  * Response from queueing a backlog item for processing.
@@ -31,45 +33,43 @@ export interface BacklogFileOperationResult {
 
 export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
-  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "initiative" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "note"
+  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "note"
 >>;
-
-/** Result of auto-advance decision from the workshop save endpoint. */
-export interface WorkshopAutoAdvance {
-  triggered: boolean;
-  runId?: string;
-  taskId?: string;
-  reason: string;
-  nextMode?: "workshop" | "finalize";
-  /** Whether an advance is pending (countdown active, not yet spawned). */
-  pending?: boolean;
-  /** When the pending advance will fire (RFC 3339 timestamp). */
-  advanceAt?: string;
-  /** Configured delay in seconds. */
-  delaySeconds?: number;
-}
-
-/** Response from saving a workshop round via the dedicated endpoint. */
-export interface WorkshopSaveResponse {
-  file: BacklogFile;
-  autoAdvance: WorkshopAutoAdvance;
-}
-
-export interface WorkshopDeleteRoundResponse {
-  deletedRound: number;
-  remainingRounds: number;
-}
-
-export interface WorkshopResetResponse {
-  deletedRounds: number;
-  statusReverted: boolean;
-}
 
 export interface ImportBacklogResponse {
   dryRun: boolean;
   changes: Array<{ item: string; action: string; details: string[] }>;
   errors: string[];
   summary: string;
+}
+
+export interface RenderedBacklogPlan {
+  path: string;
+  markdown: string;
+  qualityStatus?: string;
+  qualityFindings?: string[];
+  planRef?: PlanRef;
+}
+
+export type BacklogNextActionID = "none" | "decide" | "accept_suggestion" | "author_plan" | "accept_plan" | "repair_plan" | "resolve_dependencies" | "review" | "view_execution" | "run" | "retry" | "archive" | "dispatch_followup" | "author_followup" | "plan_goal" | "define_criteria" | "close_out" | "chain";
+
+export interface BacklogNextAction {
+  id: BacklogNextActionID;
+  compactLabel: string;
+  expandedLabel: string;
+  enabled: boolean;
+  reason?: string;
+  blockers: BlockingReason[];
+  target?: string;
+  /**
+   * What performing this action does to the system, declared by the server so
+   * a control can warn before spending agent time. Optional on the wire: a UI
+   * build newer than its API treats absence as unknown, never as harmless.
+   */
+  effect?: NextActionEffect;
+  /** Server's marker for actions that remove or interrupt state. */
+  destructive?: boolean;
+  followUp?: { steering: string; disposition: "follow_up_run" | "replan" | "new_items"; items?: Array<{ kind: string; name: string; title: string }> };
 }
 
 /**
@@ -80,6 +80,8 @@ export interface IBacklogService {
   list(kinds?: BacklogKind[]): Promise<{ items: BacklogItem[]; blocking: Record<string, ItemBlockingInfo> }>;
   listBySpawnedFrom(spawnedFrom: string): Promise<BacklogItem[]>;
   get(kind: BacklogKind, name: string): Promise<BacklogItem>;
+  getNextAction(kind: BacklogKind, name: string): Promise<BacklogNextAction>;
+  getNextActions(items: Array<{ kind: BacklogKind; name: string }>): Promise<Record<string, BacklogNextAction>>;
   create(item: Omit<BacklogItem, "created" | "updated">): Promise<BacklogItem>;
   update(
     kind: BacklogKind,
@@ -91,6 +93,8 @@ export interface IBacklogService {
   unarchiveItem(kind: BacklogKind, name: string): Promise<BacklogItem>;
   getFiles(kind: BacklogKind, name: string): Promise<BacklogFile[]>;
   getFileContent(kind: BacklogKind, name: string, filePath: string): Promise<string>;
+  getRenderedPlan(kind: BacklogKind, name: string): Promise<RenderedBacklogPlan>;
+  startPlanAuthor(kind: BacklogKind, name: string): Promise<{ executionId: string; definitionDigest: string }>;
   uploadFile(kind: BacklogKind, name: string, file: File, path?: string): Promise<BacklogFile>;
   saveFileContent(
     kind: BacklogKind,
@@ -112,22 +116,16 @@ export interface IBacklogService {
       startedBy?: string;
       confirm?: boolean;
       force?: boolean;
+      strategy?: string;
+      maxSlices?: number;
     }
   ): Promise<QueueResponse>;
-  research(
+  retry(
     kind: BacklogKind,
     name: string,
-    payload?: {
-      prompt?: string;
-      projectRoot?: string;
-      mode?: string;
-      contextPaths?: string[];
-      contextTargetIds?: string[];
-      contextRequirementIds?: string[];
-      confirm?: boolean;
-      force?: boolean;
-    }
-  ): Promise<import("../../types").ResearchResponse>;
+    note?: string,
+  ): Promise<{ newExecutionId: string; parentExecutionId: string; status: string }>;
+  dispatchFollowUp(kind: BacklogKind, name: string): Promise<void>;
   getArchiveTargets(kind: BacklogKind, name: string): Promise<import("../../types").ArchiveTargetsResponse>;
   createArchiveTarget(kind: string, name: string, target: import("../../types").ArchiveTargetFormValues): Promise<void>;
   updateArchiveTarget(kind: string, name: string, targetId: string, target: import("../../types").ArchiveTargetFormValues): Promise<void>;
@@ -152,53 +150,5 @@ export interface IBacklogService {
   }): Promise<Blob>;
   importItems(file: File, apply?: boolean): Promise<ImportBacklogResponse>;
   getBacklogSummary(): Promise<import("../../types").BacklogSummaryResponse>;
-  getFeedbackSummary(): Promise<import("../../types").FeedbackSummaryResponse>;
-  getMaturitySummary(): Promise<import("../../types").MaturitySummaryResponse>;
   getPendingQuestions(): Promise<import("../../types").PendingQuestionsResponse>;
-  workshopSave(
-    kind: BacklogKind,
-    name: string,
-    roundNumber: number,
-    content: string,
-  ): Promise<WorkshopSaveResponse>;
-  workshopDeleteRound(
-    kind: BacklogKind,
-    name: string,
-    roundNumber: number,
-  ): Promise<WorkshopDeleteRoundResponse>;
-  workshopReset(
-    kind: BacklogKind,
-    name: string,
-  ): Promise<WorkshopResetResponse>;
-  workshopCancelPendingAdvance(
-    kind: BacklogKind,
-    name: string,
-  ): Promise<{ cancelled: boolean }>;
-  createClarification(
-    kind: BacklogKind,
-    name: string,
-    roundNumber: number,
-    itemId: string,
-    message?: string,
-    files?: File[],
-  ): Promise<{ thread: ClarificationThread }>;
-  getClarification(
-    kind: BacklogKind,
-    name: string,
-    threadId: string,
-  ): Promise<{ thread: ClarificationThread }>;
-  continueClarification(
-    kind: BacklogKind,
-    name: string,
-    threadId: string,
-    message: string,
-    files?: File[],
-  ): Promise<{ thread: ClarificationThread }>;
-  clarificationAction(
-    kind: BacklogKind,
-    name: string,
-    threadId: string,
-    action: string,
-    updatedItemJson?: string,
-  ): Promise<{ action: string; success: boolean; message: string; run_id?: string; task_id?: string }>;
 }

@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.shared;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;shared";
+
+// @stability beta
+
+// BacklogFile represents a file or directory within a backlog item folder.
+message BacklogFile {
+  // File or directory name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Relative path from the backlog item root.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // File type: "file" or "directory".
+  // @constraint one of: file, directory
+  string type = 3 [(buf.validate.field).string = {
+    in: [
+      "file",
+      "directory"
+    ]
+  }];
+
+  // File size in bytes (files only).
+  optional int64 size = 4 [(buf.validate.field).int64 = {gte: 0}];
+
+  // Child nodes (directories only).
+  repeated BacklogFile children = 5;
+}
+
+// BacklogCriterion is an independently settleable definition of done. It is
+// shared because both the backlog domain projection and its API commands carry
+// the same stable criterion identity.
+message BacklogCriterion {
+  // Assigned by the server when criteria are first persisted. Clients omit it
+  // when creating or replacing criteria; retained IDs support review evidence
+  // and historical correlation.
+  string id = 1;
+  string gherkin = 2 [(buf.validate.field).string.min_len = 1];
+  optional CriterionCheck check = 3;
+}
+
+// CriterionCheck is the machine-verifiable check bound to a criterion.
+message CriterionCheck {
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "test_genie_phase",
+      "command"
+    ]
+  }];
+  string scenario = 2;
+  string phase = 3;
+  repeated string argv = 4;
+  int32 expect_exit = 5;
+}

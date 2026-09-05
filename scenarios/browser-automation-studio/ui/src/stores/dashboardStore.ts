@@ -2,11 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
-import { parseProjectList } from '../utils/projectProto';
-import { safeParse } from '../shared/api/safeParse';
+import { fetchProjectsList } from '../domains/projects/services/projectApi';
 import {
-  WorkflowsListResponseSchema,
-  ExecutionsListResponseSchema,
   type WorkflowItem,
   type ExecutionItem,
 } from '../shared/api/schemas';
@@ -82,7 +79,7 @@ let workflowNamesCache: {
   inFlight: Promise<Map<string, { name: string; projectId?: string; projectName?: string }>> | null;
 } = { fetchedAt: 0, value: new Map(), inFlight: null };
 
-const getProjectsMapCached = async (apiBase: string): Promise<Map<string, string>> => {
+const getProjectsMapCached = async (_apiBase: string): Promise<Map<string, string>> => {
   const now = Date.now();
   if (projectsCache.value.size > 0 && now - projectsCache.fetchedAt < PROJECTS_CACHE_TTL_MS) {
     return projectsCache.value;
@@ -92,9 +89,7 @@ const getProjectsMapCached = async (apiBase: string): Promise<Map<string, string
   }
 
   projectsCache.inFlight = (async () => {
-    const projectsResponse = await fetch(`${apiBase}/projects`);
-    const projectsData: unknown = await projectsResponse.json();
-    const projectEntries = parseProjectList(projectsData);
+    const projectEntries = await fetchProjectsList();
     const next = new Map<string, string>();
     projectEntries.forEach((p) => next.set(p.id, p.name));
     projectsCache = { fetchedAt: Date.now(), value: next, inFlight: null };
@@ -117,22 +112,18 @@ const getWorkflowNamesCached = async (
   }
 
   workflowNamesCache.inFlight = (async () => {
-    const workflowsResponse = await fetch(`${apiBase}/workflows?limit=100`);
-    const rawData = await workflowsResponse.json() as Record<string, unknown>;
-    // Ensure workflows array exists for schema validation
-    const normalizedData = { workflows: Array.isArray(rawData?.workflows) ? rawData.workflows : [] };
-    const result = safeParse(WorkflowsListResponseSchema, normalizedData, 'WorkflowNamesCache');
+    void apiBase;
+    const { fetchWorkflowList } = await import('@/domains/workflows/services/workflowApi');
+    const workflows = await fetchWorkflowList(100);
     const next = new Map<string, { name: string; projectId?: string; projectName?: string }>();
-    if (result.success) {
-      result.data.workflows.forEach((w) => {
-        const projectId = w.project_id ?? w.projectId ?? '';
-        next.set(w.id, {
-          name: w.name ?? 'Untitled',
-          projectId,
-          projectName: projectsMap.get(projectId),
-        });
+    workflows.forEach((w) => {
+      const projectId = w.project_id ?? w.projectId ?? '';
+      next.set(w.id, {
+        name: w.name ?? 'Untitled',
+        projectId,
+        projectName: projectsMap.get(projectId),
       });
-    }
+    });
     workflowNamesCache = { fetchedAt: Date.now(), value: next, inFlight: null };
     return next;
   })();
@@ -204,20 +195,9 @@ export const useDashboardStore = create<DashboardState>()(
 
           const projectsMap = await getProjectsMapCached(config.API_URL);
 
-          // Fetch recent workflows (sorted by updated_at desc on server)
-          const response = await fetch(`${config.API_URL}/workflows?limit=10`);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch workflows: ${response.status}`);
-          }
-          const rawData = await response.json() as Record<string, unknown>;
-          // Ensure workflows array exists for schema validation
-          const normalizedData = { workflows: Array.isArray(rawData?.workflows) ? rawData.workflows : [] };
-          const result = safeParse(WorkflowsListResponseSchema, normalizedData, 'WorkflowsList');
-          if (!result.success) {
-            throw new Error(result.error);
-          }
-
-          const workflows = result.data.workflows.map((w) => normalizeRecentWorkflow(w, projectsMap));
+          const { fetchWorkflowList } = await import('@/domains/workflows/services/workflowApi');
+          const list = await fetchWorkflowList(10);
+          const workflows = list.map((w) => normalizeRecentWorkflow(w, projectsMap));
 
           // Sort by updatedAt descending
           workflows.sort((a: RecentWorkflow, b: RecentWorkflow) => b.updatedAt.getTime() - a.updatedAt.getTime());
@@ -234,25 +214,15 @@ export const useDashboardStore = create<DashboardState>()(
         try {
           const config = await getConfig();
 
-          // Fetch executions - use higher limit to show more in dashboard
-          const response = await fetch(`${config.API_URL}/executions?limit=50`);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch executions: ${response.status}`);
-          }
-          const rawData = await response.json() as Record<string, unknown>;
-          // Ensure executions array exists for schema validation
-          const normalizedData = { executions: Array.isArray(rawData?.executions) ? rawData.executions : [] };
-          const result = safeParse(ExecutionsListResponseSchema, normalizedData, 'ExecutionsList');
-          if (!result.success) {
-            throw new Error(result.error);
-          }
+          const { listExecutionsViaApi, executionMsgToItem } = await import('@/domains/executions/services/executionApi');
+          const resp = await listExecutionsViaApi({ limit: 50 });
 
           const projectsMap = await getProjectsMapCached(config.API_URL);
           const workflowNames = await getWorkflowNamesCached(config.API_URL, projectsMap);
 
-          const executions = result.data.executions.map((e) =>
-            normalizeRecentExecution(e, workflowNames)
-          );
+          const executions = resp.executions
+            .map(executionMsgToItem)
+            .map((e) => normalizeRecentExecution(e, workflowNames));
 
           // Sort by startedAt descending
           executions.sort((a: RecentExecution, b: RecentExecution) => b.startedAt.getTime() - a.startedAt.getTime());
@@ -275,22 +245,14 @@ export const useDashboardStore = create<DashboardState>()(
       fetchRunningExecutions: async () => {
         try {
           const config = await getConfig();
-          const response = await fetch(`${config.API_URL}/executions?limit=50`);
-          if (!response.ok) return;
-
-          const rawData = await response.json() as Record<string, unknown>;
-          // Ensure executions array exists for schema validation
-          const normalizedData = { executions: Array.isArray(rawData?.executions) ? rawData.executions : [] };
-          const result = safeParse(ExecutionsListResponseSchema, normalizedData, 'RunningExecutionsList');
-          if (!result.success) {
-            logger.warn('Failed to parse running executions', { component: 'DashboardStore', action: 'fetchRunningExecutions', error: result.error });
-            return;
-          }
+          const { listExecutionsViaApi, executionMsgToItem } = await import('@/domains/executions/services/executionApi');
+          const resp = await listExecutionsViaApi({ limit: 50 });
 
           const projectsMap = await getProjectsMapCached(config.API_URL);
           const workflowNames = await getWorkflowNamesCached(config.API_URL, projectsMap);
 
-          const running = result.data.executions
+          const running = resp.executions
+            .map(executionMsgToItem)
             .filter((e) => {
               const status = normalizeExecutionStatus(e.status);
               return status === 'running' || status === 'pending';

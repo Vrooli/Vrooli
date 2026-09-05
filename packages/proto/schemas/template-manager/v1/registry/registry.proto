@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.registry;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/registry;registry_v1";
+
+// RegistryService exposes the governed inventory of scenario templates,
+// design kits, and resource templates.
+service RegistryService {
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc GetTemplate(GetTemplateRequest) returns (GetTemplateResponse);
+}
+
+enum TemplateKind {
+  TEMPLATE_KIND_UNSPECIFIED = 0;
+  TEMPLATE_KIND_SCENARIO = 1;
+  TEMPLATE_KIND_DESIGN = 2;
+  TEMPLATE_KIND_RESOURCE = 3;
+}
+
+message TemplateRecord {
+  string id = 1;
+  TemplateKind kind = 2;
+  string display_name = 3;
+  string version = 4;
+  string manifest_path = 5;
+  string source_path = 6;
+  repeated string tags = 7;
+  string status = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  TemplateVersionLag version_lag = 10;
+}
+
+message TemplateVersionLag {
+  string current_version = 1;
+  string latest_version = 2;
+  int32 lag_count = 3;
+}
+
+message ListTemplatesRequest {
+  TemplateKind kind = 1;
+}
+
+message ListTemplatesResponse {
+  repeated TemplateRecord templates = 1;
+}
+
+message GetTemplateRequest {
+  string id = 1;
+}
+
+message GetTemplateResponse {
+  TemplateRecord template = 1;
+}

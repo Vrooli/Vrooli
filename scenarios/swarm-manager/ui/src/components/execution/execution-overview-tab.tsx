@@ -11,15 +11,16 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { Button } from "../ui/button";
 import { EntityLink } from "../ui/entity-link";
 import { IdentityBadge } from "../ui/identity-badge";
 import { PostRunStatusBadge } from "./post-run-status-badge";
 import { DetailSection } from "../detail/DetailSection";
 import { formatRelativeTime, canRunPostRunChecks } from "../../lib";
-import { formatExecutionMode } from "../../types";
+import { ENTITY_TYPE_ICONS, formatExecutionMode } from "../../types";
 import { selectors } from "../../consts/selectors";
+import { buildAgentRunUrl } from "../../services/external-links";
 import type { ExecutionRecord } from "../../types";
 
 export interface ExecutionOverviewTabProps {
@@ -52,7 +53,7 @@ export function ExecutionOverviewTab({
 
   return (
     <div className="space-y-0" data-testid={selectors.executionDetails.page}>
-      <DetailSection title="Details" hideDivider>
+      <DetailSection title="Overview" icon={ENTITY_TYPE_ICONS.execution} hideDivider>
         <div className="space-y-3">
           {/* Metadata grid */}
           <div
@@ -109,7 +110,7 @@ export function ExecutionOverviewTab({
           {/* Agent Manager run link */}
           {execution.runId && agentManagerUiUrl && (
             <a
-              href={`${agentManagerUiUrl}/runs/${execution.runId}`}
+              href={buildAgentRunUrl(agentManagerUiUrl, execution.runId) ?? "#"}
               target="_blank"
               rel="noopener noreferrer"
               data-testid={selectors.executionDetails.viewRunButton}
@@ -129,7 +130,7 @@ export function ExecutionOverviewTab({
           {execution.failureReason && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
               <p className="text-xs text-red-400 font-medium uppercase tracking-wider mb-1">Failure Reason</p>
-              <div className="prose-sm-slate text-sm text-red-200" dangerouslySetInnerHTML={{ __html: renderMarkdown(execution.failureReason) }} />
+              <MarkdownRenderer content={execution.failureReason} className="prose-sm-slate text-sm text-red-200" />
             </div>
           )}
 

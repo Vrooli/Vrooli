@@ -14,13 +14,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	core "agent-inbox/internal/core"
+
+	coredb "github.com/vrooli/api-core/database"
 )
 
 // =============================================================================
@@ -117,21 +118,10 @@ func (r *Repository) DB() *sql.DB {
 
 // InitSchema initializes the database schema by executing schema.sql.
 func (r *Repository) InitSchema(ctx context.Context) error {
-	schemaPath := filepath.Join(filepath.Dir(currentFilePath()), "schema.sql")
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("read schema: %w", err)
-	}
-	if _, err := r.db.ExecContext(ctx, string(schemaBytes)); err != nil {
+	if err := coredb.EnsureSchemas(ctx, r.db, coredb.SchemaProviderFunc(core.Schema)); err != nil {
 		return fmt.Errorf("execute schema: %w", err)
 	}
 	return nil
-}
-
-// currentFilePath returns the path to this source file at runtime.
-func currentFilePath() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filename
 }
 
 // newID generates a new UUID string for use as a primary key.

@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace name"
+        },
+        {
+          "kind": "text",
+          "value": "Email address"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Field errors",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "CustomTitle",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Almost there"
+        }
+      ],
+      "id": "custom-title",
+      "mode": "live",
+      "name": "Custom title",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Everything looks good."
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "No errors",
+      "role": "boundary"
+    }
+  ],
+  "title": "ValidationSummary"
+}

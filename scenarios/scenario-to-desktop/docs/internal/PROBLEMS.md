@@ -1,8 +1,157 @@
 # Known Issues & Problems
 
+The work ladder and current issues at the top are the maintained status. Older
+entries are retained as investigation history and may describe the state at
+the time they were written; they are not release-readiness claims. For the
+current desktop support contract, use [OVERVIEW.md](../OVERVIEW.md) and the
+[desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
+## Work ladder
+
+- Rung: W3 (learning capture and measurement implementation).
+- Evidence: the named readiness goal requires an attributable learning loop; Deployment Manager OT-P0-044 supplies that contract. The archived cross-ramp goal and desktop OT-P0-004 cover agent tooling for the desktop ramp. Business and requirements gates passed on 2026-09-04. This task implements the operator-approved learning recommendations without changing release promises.
+- Blocker: none for the learning setup; live outcome baselines remain unearned. Shared Memory UI/attestation findings are recorded in the learning progress entry.
+- Measured: 2026-09-04
+
+## Security scanner triage (2026-07-27)
+
+`gitleaks detect --source . --no-git` is configured through the scenario-local
+`.gitleaks.toml`, which extends (rather than replaces) Gitleaks' default rules.
+The allowlist is deliberately path-scoped and covers only reviewed non-secret
+material:
+
+- `.build-fingerprint.json` is a generated, gitignored map of source hashes.
+- Historical `.vrooli/secrets.json` files are migration inputs only. The
+  desktop runtime does not read them during normal startup; the explicit
+  credentialclient/secrets-manager migration owns import and separately
+  confirmed deletion after recovery verification.
+- `coverage/logs/` contains generated test output, not source or deployable
+  configuration.
+- `api/signing/validation/prerequisites_test.go` uses the public fake GPG key
+  identifier `ABC123DEF456` to exercise missing-key validation; it is not a
+  private key or credential.
+
+Additional reviewed scanner matches remain documented at their source sites:
+the notarization generator references environment-variable names
+`APPLE_API_KEY_ID` and `APPLE_ID_PASSWORD`, lifecycle and stage display-name
+maps contain no values, and test idempotency/validator inputs are synthetic.
+The redaction tests construct an AWS-shaped identifier at runtime so they test
+redaction behavior without embedding a secret-shaped literal in source.
+
+This configuration must not be broadened to whole source trees or rule IDs.
+Any new match requires individual review, a source-level justification where
+appropriate, and an update to this record.
+
 ## Current Issues
 
-None - All known issues have been resolved. Scenario is production-ready.
+### Per-target BAS desktop-console evidence (PRODUCER EVIDENCE RESOLVED)
+
+**Severity**: High
+**Date Discovered**: 2026-07-30
+
+**Problem**: The signed desktop-evidence manifest still cannot be published
+because the release-authority trust anchor is not configured. The underlying
+producer-owned per-target evidence is now present: fresh Secrets Manager and
+scenario-to-desktop manifests were produced through the canonical generation,
+build, smoke, and launch path, and Hello Desktop has an existing passed native
+manifest from pipeline `cb9b96a2-3830-064a-ae6d-748a9a0d5b00`.
+
+The earlier fixture POST 404 is resolved. Workflow Health run
+`b585ca68-05f8-4857-89a9-65181630d9ad` executed all nine existing BAS cases
+through a real Electron renderer; the leased fixture POST reached the host API
+with HTTP 200, and the target artifact, authenticated CDP identity, and
+renderer-to-host propagation were recorded in the BAS timeline.
+
+**Current state**: The representative local Linux matrix cell persists the
+provider-neutral workflow execution reference beside the platform journey and
+recording. The fresh canonical producer manifests bind the validation run,
+artifact digest, target, and cell; all five required evidence gates pass. The
+remaining release limitation is signing/trust-anchor configuration, not video
+production or target launch evidence.
+
+The final linked matrix proof is `run-d9ca84cdc491292e9def58ab`: one required
+local Linux cell passed with the exact Secrets Manager artifact digest, three
+checksummed BAS artifacts, and playable MP4 capture
+`36df2d6a-47eb-45df-8c37-63cf941370a3`. Its evidence URI is the persisted
+`/api/v1/captures/secrets-manager/36df2d6a-47eb-45df-8c37-63cf941370a3/file`
+route.
+
+The certification matrix superseding that single-cell proof is
+`run-63a9781eaacc421f49fabd83`: both the required platform desktop smoke cell
+and the required Secrets Manager BAS cell passed (2/2), with separate
+persisted platform and BAS MP4 recordings linked to the same artifact and
+target.
+
+The current matrix executor also revalidated the mutating representative:
+`run-ca34229709796ab4ef200722` passed both required cells, and its leased BAS
+cell produced persisted MP4 `660ae988-baa8-4466-9e93-5752f2179afe` after the
+provider isolation validator confirmed routed isolation and no primary-storage
+leakage.
+
+**Typed residual disposition**: `UNAVAILABLE` for signed release submission
+only; producer validation and reviewable video evidence are `PASS`. **Owner**:
+release-authority/deployment-manager operator. **Revisit trigger**: configure
+the approved release trust anchor, then rerun the release-evidence sign/submit
+step against the already durable matrix artifacts. No new desktop or BAS
+implementation is required for this residual.
+
+The profile boundary is also fail-closed in the live matrix: offline profile
+run `run-f537d9079f4687fa4c12d034` returned `UNSUPPORTED` with the explicit
+missing `VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK` reason, and the release
+gate failed the required cell rather than promoting it to pass.
+
+Test Genie is not part of this handoff: it remains a generic validation runner,
+while the semantic workflow provider owns execution and artifact production.
+
+### UI Coverage Floor (RESOLVED)
+
+**Severity**: High
+**Date Discovered**: 2026-07-23
+
+**Problem**: The declared React/Vite test policy requires 85% V8 coverage for
+lines, functions, branches, and statements. The prior UI suite recorded only
+51.90% statement coverage across the explicitly scoped production source tree.
+
+**Resolution**: The historical blocking failure is resolved: the fresh Test
+Genie run `20260730-181510-39fbc00e` passed its `unit` phase, and the stale
+2026-07-14 failing `coverage/latest/findings.json` record was removed. Current
+coverage findings remain visible as advisory debt in that run; they are not
+evidence that the old blocking test policy is satisfied or ignored.
+
+**Verification**: `vrooli scenario test scenario-to-desktop` completed with
+19 passed phases, 0 failed, and one inapplicable skipped phase on 2026-07-30.
+
+### Mutating Desktop BAS Journey Has Routed File Isolation (RESOLVED)
+
+**Severity**: Medium
+**Date Discovered**: 2026-07-26
+
+**Problem**: The observer-only BAS catalog had no safe way to exercise a
+desktop-console mutation without risking normal file-backed scenario state.
+
+**Resolution**: `bas/cases/04-evidence/leased-desktop-evidence.json` now runs
+through the provider-owned routed lease and creates a deterministic fixture
+AppImage plus smoke report only in leased storage. The API rejects non-test or
+lease-less requests. Workflow Health run
+`b585ca68-05f8-4857-89a9-65181630d9ad` executed all nine cases; the fixture
+asserted `leased writes: 3`, with zero primary requests and writes reported by
+the lease. Its durable BAS timeline is
+`coverage/workflow-health/runs/b585ca68-05f8-4857-89a9-65181630d9ad/scenario-to-desktop-bas-cases-04-evidence-leased-desktop-evidence.json/timeline.json`.
+
+**Remaining scope**: The fixture validates the routed console mutation seam;
+it does not stand in for a release AppImage or a live-desktop VNC success
+journey. Those require their own real desktop evidence.
+
+### Native evidence boundary (CURRENT)
+
+The native Linux baseline is proven by pipeline
+`e1c278d0-6170-3d28-6688-cb44b2d16006` for `hello-desktop`: the generated
+AppImage launched under Xvfb/openbox, the v2 journey passed, the MP4 decoded,
+and the producer manifest persisted. Provider-specific communication fixtures
+remain contract/unit evidence only until a real bundled-service, thin-client,
+and shared-broker fixture can exercise those routes through a generated app.
+They remain environment-gated and must not be promoted to release claims from
+the deterministic provider seam alone.
 
 ## Recently Resolved Issues
 

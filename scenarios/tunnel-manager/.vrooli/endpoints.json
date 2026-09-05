@@ -7,14 +7,14 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -23,16 +23,1223 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "tunnel-manager status"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.tunnel_manager.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.tunnel_manager.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
-    }
-  ],
-  "cli_commands": [
+    },
     {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "id": "audit_run",
+      "path": "/vrooli.tunnel_manager.v1.audit.AuditService/RunAudit",
+      "method": "POST",
+      "summary": "Run a port-compliance audit",
+      "description": "Compares each enabled manifest route's expected local_port against the UI port declared in the scenario's service.json, returning one finding per route plus a count of violations (status != compliant).",
+      "category": "audit",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<PortAuditResult>",
+          "violation_count": "int32 (count of results with status != compliant)"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run audit",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.audit.AuditService/RunAudit -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "config_get",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/GetConfig",
+      "method": "POST",
+      "summary": "Get tunnel configuration",
+      "description": "Returns the persisted tunnel configuration (mode and Cloudflare coordinates) through the generated Connect-RPC Config service.",
+      "category": "config",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "TunnelConfig",
+          "readiness": "ConfigReadiness"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get config",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetConfig -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "config_sync",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/Sync",
+      "method": "POST",
+      "summary": "Reconcile ingress with the routes manifest",
+      "description": "Computes desired ingress from enabled routes (subdomain.domain hostnames → http://localhost:<port> + catch-all 404), diffs it against live ingress, and applies the difference (Cloudflare API in remote mode; config.yml + cloudflared restart in local mode). dry_run computes the diff without applying. Idempotent: a no-drift sync applies nothing.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool (compute diff without applying)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "added": "array<string> (hostnames added)",
+          "message": "string (operator explanation)",
+          "missing_fields": "array<string> (canonical env names)",
+          "mode": "Mode",
+          "no_changes": "bool (manifest already matched live ingress)",
+          "removed": "array<string> (hostnames removed)",
+          "setup_required": "bool (dry-run found missing setup)"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Remote mode requested but Cloudflare credentials are absent"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ingress read/apply failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dry-run sync",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/Sync -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "config_credentials_status",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/GetCredentialStatus",
+      "method": "POST",
+      "summary": "Get Cloudflare credential status",
+      "description": "Returns browser-safe Cloudflare credential presence/source metadata. Secret values are never returned.",
+      "category": "config",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "CredentialStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Credential store read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Credential status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetCredentialStatus -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "config_credentials_set",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials",
+      "method": "POST",
+      "summary": "Set Cloudflare credentials",
+      "description": "Stores write-only Cloudflare credential values in the operator secret store and returns redacted status metadata.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "account_id": "string",
+          "api_token": "string (write-only)",
+          "tunnel_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "CredentialStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Operator token denied"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Credential store write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Set credentials",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials -H 'Content-Type: application/json' -d '{\"account_id\":\"acct\",\"tunnel_id\":\"tun\",\"api_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_credentials_clear",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials",
+      "method": "POST",
+      "summary": "Clear Cloudflare credentials",
+      "description": "Removes file-backed Cloudflare credential values from the operator secret store. Env-sourced credentials remain effective until the process environment changes.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "fields": "array<string> (account_id | tunnel_id | api_token | all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "CredentialStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Operator token denied"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Credential store delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Clear token",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials -H 'Content-Type: application/json' -d '{\"fields\":[\"api_token\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "config_switch_mode",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode",
+      "method": "POST",
+      "summary": "Switch tunnel management mode",
+      "description": "Migrates between remote (Cloudflare API) and local (config.yml) management, applies the current manifest's ingress through the target channel, and persists the new mode.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "target_mode": "Mode (MODE_REMOTE | MODE_LOCAL)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "current_mode": "Mode",
+          "previous_mode": "Mode"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown target mode"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Remote mode requested but Cloudflare credentials are absent"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ingress apply or persist failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Switch to local",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode -H 'Content-Type: application/json' -d '{\"target_mode\":\"MODE_LOCAL\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_get_drift",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/GetDrift",
+      "method": "POST",
+      "summary": "Get ingress drift",
+      "description": "Reconciles the desired manifest, the live tunnel, and the ownership ledger into a classified read model (managed/missing/external_ok/orphaned/ignored/unmanaged). Read-only — never applies.",
+      "category": "config",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "counts": "DriftCounts (per-state tally)",
+          "entries": "array<IngressEntry> (hostname, service_target, state, source, scenario, lease_id, note)",
+          "mode": "Mode"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Remote mode requested but Cloudflare credentials are absent"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ingress read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get drift",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetDrift -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "config_adopt_ingress",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress",
+      "method": "POST",
+      "summary": "Adopt an unmanaged ingress hostname",
+      "description": "Brings an unmanaged live hostname under management: as a scenario route when it resolves to a known scenario, otherwise as an external route. Records MANAGED/EXTERNAL ownership in the ledger.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hostname": "string (required)",
+          "scenario": "string (adopt as this scenario route)",
+          "target": "string (adopt as external route pointing here)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entry": "IngressEntry (reclassified)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing hostname or unadoptable target"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "A route already exists for the subdomain"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Route create or ledger write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Adopt as external",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"api.itsagitime.com\",\"target\":\"http://127.0.0.1:9000\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_ignore_ingress",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress",
+      "method": "POST",
+      "summary": "Ignore an external ingress hostname",
+      "description": "Acknowledges a live hostname as external and records it IGNORED, so reconcile never pushes or prunes it.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hostname": "string (required)",
+          "note": "string (optional operator note)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entry": "IngressEntry (reclassified)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing hostname"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ledger write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Ignore hostname",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\",\"note\":\"operator dashboard\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_prune_ingress",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress",
+      "method": "POST",
+      "summary": "Prune a single ingress hostname",
+      "description": "Removes a single named hostname from live ingress and the ownership ledger. The only path that removes a specific entry.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hostname": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "pruned": "bool (true when removed)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing hostname"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Remote mode requested but Cloudflare credentials are absent"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ingress apply or ledger delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Prune hostname",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\"}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_expose",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/Expose",
+      "method": "POST",
+      "summary": "Expose a scenario",
+      "description": "Ensures the scenario has a LEASED route, is running, and has live ingress; returns the lease and reachable URL. Idempotent — re-exposing extends the existing lease rather than duplicating ingress.",
+      "category": "exposure",
+      "request": {
+        "type": "object",
+        "properties": {
+          "requested_by": "string (optional caller identity)",
+          "scenario": "string (required)",
+          "ttl_seconds": "int64 (0 = default ~1 week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "lease": "Lease",
+          "public_url": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Scenario has no resolvable fixed UI port"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Route, run, or ingress failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Expose for a day",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/Expose -H 'Content-Type: application/json' -d '{\"scenario\":\"web-console\",\"ttl_seconds\":86400}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_extend_lease",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/ExtendLease",
+      "method": "POST",
+      "summary": "Extend a lease",
+      "description": "Pushes a lease's expiry out by ttl_seconds from now.",
+      "category": "exposure",
+      "request": {
+        "type": "object",
+        "properties": {
+          "lease_id": "string (required)",
+          "ttl_seconds": "int64 (0 = default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "lease": "Lease"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No lease with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Extend",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/ExtendLease -H 'Content-Type: application/json' -d '{\"lease_id\":\"abc\",\"ttl_seconds\":3600}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_revoke_lease",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/RevokeLease",
+      "method": "POST",
+      "summary": "Revoke a lease",
+      "description": "Ends a lease immediately and retracts ingress unless the scenario is also CORE.",
+      "category": "exposure",
+      "request": {
+        "type": "object",
+        "properties": {
+          "lease_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "retracted": "bool (false when scenario is also CORE)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No lease with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or ingress failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Revoke",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/RevokeLease -H 'Content-Type: application/json' -d '{\"lease_id\":\"abc\"}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_list_leases",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/ListLeases",
+      "method": "POST",
+      "summary": "List leases",
+      "description": "Returns leases newest-first, optionally filtered by status.",
+      "category": "exposure",
+      "request": {
+        "type": "object",
+        "properties": {
+          "status": "LeaseStatus (unset = all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "leases": "array<Lease>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List active",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/ListLeases -H 'Content-Type: application/json' -d '{\"status\":\"LEASE_STATUS_ACTIVE\"}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_list_exposures",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/ListExposures",
+      "method": "POST",
+      "summary": "List exposures",
+      "description": "Returns the reconciled exposure state per scenario (tier, route, lease, reachability) — the data behind the Exposure UI surface.",
+      "category": "exposure",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "exposures": "array<Exposure>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List exposures",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/ListExposures -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_is_exposed",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/IsExposed",
+      "method": "POST",
+      "summary": "Check exposure",
+      "description": "Reports whether a scenario is currently reachable and, if so, its public URL — the read backing app-monitor open-in-new-tab.",
+      "category": "exposure",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "exposed": "bool",
+          "public_url": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Is exposed",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/IsExposed -H 'Content-Type: application/json' -d '{\"scenario\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "exposure_reconcile",
+      "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/Reconcile",
+      "method": "POST",
+      "summary": "Reconcile exposure",
+      "description": "Re-derives CORE routes from the coreset closure and reaps expired leases. Idempotent; also run on a timer.",
+      "category": "exposure",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "core_ensured": "int32",
+          "leases_reaped": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Manifest or repository failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Reconcile",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/Reconcile -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "probes_run",
+      "path": "/vrooli.tunnel_manager.v1.probes.ProbesService/RunProbes",
+      "method": "POST",
+      "summary": "Run a probe cycle",
+      "description": "Probes every enabled route's local port (internal) and public URL (external), persists the results, and returns them, through the generated Connect-RPC Probes service.",
+      "category": "probes",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<ProbeResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Route manifest read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run probes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.probes.ProbesService/RunProbes -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "probes_list",
+      "path": "/vrooli.tunnel_manager.v1.probes.ProbesService/ListProbes",
+      "method": "POST",
+      "summary": "List probe history",
+      "description": "Returns recent probe history newest-first, optionally filtered by subdomain, through the generated Connect-RPC Probes service.",
+      "category": "probes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (0 = default)",
+          "subdomain": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<ProbeResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List probes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.probes.ProbesService/ListProbes -H 'Content-Type: application/json' -d '{\"subdomain\":\"agent-manager\",\"limit\":20}'"
+        }
+      ]
+    },
+    {
+      "id": "probes_classify",
+      "path": "/vrooli.tunnel_manager.v1.probes.ProbesService/Classify",
+      "method": "POST",
+      "summary": "Classify route reachability",
+      "description": "Derives the per-route reachability diagnosis (healthy / tunnel-down / scenario-down / config-drift) from the latest stored internal+external probes.",
+      "category": "probes",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "classifications": "array<RouteClassification>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Classify routes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.probes.ProbesService/Classify -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "recovery_get_state",
+      "path": "/vrooli.tunnel_manager.v1.recovery.RecoveryService/GetState",
+      "method": "POST",
+      "summary": "Get recovery state",
+      "description": "Returns the live recovery state-machine snapshot (status, consecutive failures, backoff level, circuit-breaker state) through the generated Connect-RPC Recovery service.",
+      "category": "recovery",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "state": "RecoveryState"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "State read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get state",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.recovery.RecoveryService/GetState -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "recovery_list_events",
+      "path": "/vrooli.tunnel_manager.v1.recovery.RecoveryService/ListEvents",
+      "method": "POST",
+      "summary": "List recovery events",
+      "description": "Returns the recovery event log newest-first, capped at limit (default 50), through the generated Connect-RPC Recovery service.",
+      "category": "recovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (0 = default 50)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<RecoveryEvent>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Negative limit"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List events",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.recovery.RecoveryService/ListEvents -H 'Content-Type: application/json' -d '{\"limit\":20}'"
+        }
+      ]
+    },
+    {
+      "id": "recovery_recover",
+      "path": "/vrooli.tunnel_manager.v1.recovery.RecoveryService/Recover",
+      "method": "POST",
+      "summary": "Trigger recovery",
+      "description": "Triggers a manual cloudflared recovery attempt. Idempotent while a recovery is already in flight (returns SKIPPED); rejected while the circuit breaker is open unless force is true.",
+      "category": "recovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "force": "bool (bypass circuit breaker)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "event": "RecoveryEvent",
+          "outcome": "EventOutcome"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Restart or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Force recover",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.recovery.RecoveryService/Recover -H 'Content-Type: application/json' -d '{\"force\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "routes_list",
+      "path": "/vrooli.tunnel_manager.v1.routes.RoutesService/ListRoutes",
+      "method": "POST",
+      "summary": "List routes",
+      "description": "Returns all manifest routes ordered by subdomain, optionally filtered by tier, through the generated Connect-RPC Routes service.",
+      "category": "routes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "tier": "Tier (TIER_CORE | TIER_LEASED; unset returns all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "routes": "array<Route>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List routes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.routes.RoutesService/ListRoutes -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "routes_get",
+      "path": "/vrooli.tunnel_manager.v1.routes.RoutesService/GetRoute",
+      "method": "POST",
+      "summary": "Get a route by id",
+      "description": "Returns the manifest route matching the request id through the generated Connect-RPC Routes service.",
+      "category": "routes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "route": "Route"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No route with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get route",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.routes.RoutesService/GetRoute -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "routes_create",
+      "path": "/vrooli.tunnel_manager.v1.routes.RoutesService/CreateRoute",
+      "method": "POST",
+      "summary": "Create a route",
+      "description": "Persists a new manifest route. Subdomain (valid DNS label), scenario, and local_port are required; domain defaults to itsagitime.com, health_path to /health, tier to leased, enabled to true.",
+      "category": "routes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "domain": "string (default itsagitime.com)",
+          "enabled": "bool (default true)",
+          "health_path": "string (default /health)",
+          "local_port": "int32 (required, 1-65535)",
+          "scenario": "string (required)",
+          "subdomain": "string (required, DNS label)",
+          "tier": "Tier (default TIER_LEASED)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "route": "Route"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid subdomain, missing scenario, or out-of-range port"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "A route already exists for the subdomain"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create route",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.routes.RoutesService/CreateRoute -H 'Content-Type: application/json' -d '{\"subdomain\":\"agent-manager\",\"scenario\":\"agent-manager\",\"local_port\":21100}'"
+        }
+      ]
+    },
+    {
+      "id": "routes_update",
+      "path": "/vrooli.tunnel_manager.v1.routes.RoutesService/UpdateRoute",
+      "method": "POST",
+      "summary": "Update a route",
+      "description": "Applies a partial update to the route with the given id; only set fields change.",
+      "category": "routes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "domain": "string",
+          "enabled": "bool",
+          "health_path": "string",
+          "id": "string (required)",
+          "local_port": "int32",
+          "scenario": "string",
+          "subdomain": "string",
+          "tier": "Tier"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "route": "Route"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid field value"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No route with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Disable route",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.routes.RoutesService/UpdateRoute -H 'Content-Type: application/json' -d '{\"id\":\"abc123\",\"enabled\":false}'"
+        }
+      ]
+    },
+    {
+      "id": "routes_delete",
+      "path": "/vrooli.tunnel_manager.v1.routes.RoutesService/DeleteRoute",
+      "method": "POST",
+      "summary": "Delete a route",
+      "description": "Removes a manifest route by id. Returns deleted=false when the id did not exist.",
+      "category": "routes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete route",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.routes.RoutesService/DeleteRoute -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "tunnel_get_status",
+      "path": "/vrooli.tunnel_manager.v1.tunnel.TunnelService/GetStatus",
+      "method": "POST",
+      "summary": "Get composite tunnel health",
+      "description": "Returns the current composite tunnel health (cloudflared systemd unit state + /ready probe) plus the most recent scraped metrics sample, through the generated Connect-RPC Tunnel service.",
+      "category": "tunnel",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "latest_metrics": "MetricsSample (null when none scraped)",
+          "status": "TunnelStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.tunnel.TunnelService/GetStatus -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "tunnel_list_metrics",
+      "path": "/vrooli.tunnel_manager.v1.tunnel.TunnelService/ListMetrics",
+      "method": "POST",
+      "summary": "List scraped metrics samples",
+      "description": "Returns persisted Prometheus metrics samples scraped within the optional [from, to] window, ordered by scraped_at ascending, through the generated Connect-RPC Tunnel service.",
+      "category": "tunnel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "from": "google.protobuf.Timestamp (optional window start)",
+          "to": "google.protobuf.Timestamp (optional window end)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "samples": "array<MetricsSample>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List metrics",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.tunnel.TunnelService/ListMetrics -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "tunnel_scrape",
+      "path": "/vrooli.tunnel_manager.v1.tunnel.TunnelService/Scrape",
+      "method": "POST",
+      "summary": "Force a metrics scrape",
+      "description": "Fetches the cloudflared /metrics endpoint once, parses the key gauges/counters, persists the sample, and returns it, through the generated Connect-RPC Tunnel service.",
+      "category": "tunnel",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "sample": "MetricsSample"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scrape fetch/parse or repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Scrape now",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.tunnel.TunnelService/Scrape -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
     }
   ]
 }

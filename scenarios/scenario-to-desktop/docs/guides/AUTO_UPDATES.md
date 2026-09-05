@@ -13,7 +13,7 @@ This guide explains how to configure automatic updates for desktop applications 
 
 ## Overview
 
-The auto-update system uses [electron-updater](https://www.electron.build/auto-update) to check for and apply updates. Scenario-to-desktop supports multiple update providers:
+The auto-update system uses [electron-updater](https://www.electron.build/docs/api/) to check for and apply updates. Scenario-to-desktop supports multiple update providers:
 
 | Provider | Description | Use Case |
 |----------|-------------|----------|
@@ -259,6 +259,6 @@ electron-builder artifacts + updater metadata (latest*.yml)
 
 ## See Also
 
-- [electron-updater documentation](https://www.electron.build/auto-update)
+- [electron-updater documentation](https://www.electron.build/docs/api/)
 - [LPBS Deployment](./DEPLOYMENT.md)
 - [Pipeline Stages](../reference/smoke-test-pipeline.md)

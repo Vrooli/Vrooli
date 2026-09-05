@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.stack",
+  "deprecatedVersions": [
+    "1.2.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.2.1"
+  ],
+  "latest": "1.2.2",
+  "libraryId": "react-component-library:Stack"
+}

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:Message",
+  "version": "1.0.7",
+  "resolvedAt": "2026-08-31T05:07:13Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Avatar",
+      "version": "1.3.8",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:RelativeTime",
+      "version": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StatusIndicator",
+      "version": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Text",
+      "version": "1.1.1",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

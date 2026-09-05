@@ -312,7 +312,7 @@ Each integration should be:
 
 ## 📞 Next Steps
 
-### For Ecosystem-Manager
+### For swarm-manager
 1. Create task `scenario-improver-data-backup-manager-file-tools-integration` (HIGH)
 2. Create task `scenario-improver-smart-file-photo-manager-file-tools-integration` (HIGH)
 3. Create task `scenario-improver-document-manager-file-tools-integration` (MEDIUM)

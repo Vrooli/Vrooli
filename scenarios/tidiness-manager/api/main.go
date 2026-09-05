@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	schema "tidiness-manager/internal/tidiness"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -17,6 +21,8 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Config holds minimal runtime configuration
@@ -34,6 +40,12 @@ type Server struct {
 	campaignOrchestrator *AutoCampaignOrchestrator
 	scanCoordinator      *ScanCoordinator
 	scenarioLocator      *ScenarioLocator
+	budgetAuditMu        sync.RWMutex
+	budgetAudits         map[string]*BudgetAuditReport
+	// environment is the host CaptureEnvironment captured once at init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	environment *commonv1.CaptureEnvironment
 }
 
 // NewServer initializes configuration, database, and routes
@@ -47,9 +59,24 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		return nil, fmt.Errorf("schema initialization failed: %w", err)
+	}
+
 	store := NewTidinessStore(db)
 	if err := store.EnsureTypeSafetyColumns(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ensure type-safety columns: %w", err)
+	}
+	scenarioLocator, err := NewScenarioLocator(5 * time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize scenario locator: %w", err)
+	}
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if envErr != nil {
+		environment = nil
 	}
 	srv := &Server{
 		config:          &Config{},
@@ -57,7 +84,9 @@ func NewServer() (*Server, error) {
 		store:           store,
 		router:          mux.NewRouter(),
 		campaignMgr:     NewCampaignManager(),
-		scenarioLocator: NewScenarioLocator(5 * time.Minute),
+		scenarioLocator: scenarioLocator,
+		budgetAudits:    make(map[string]*BudgetAuditReport),
+		environment:     environment,
 	}
 
 	srv.scanCoordinator = NewScanCoordinator(
@@ -83,6 +112,28 @@ func NewServer() (*Server, error) {
 	return srv, nil
 }
 
+func (s *Server) storeBudgetAudit(scenarioPath string, audit *BudgetAuditReport) {
+	if s == nil || audit == nil {
+		return
+	}
+	s.budgetAuditMu.Lock()
+	defer s.budgetAuditMu.Unlock()
+	if s.budgetAudits == nil {
+		s.budgetAudits = make(map[string]*BudgetAuditReport)
+	}
+	s.budgetAudits[filepath.Clean(scenarioPath)] = audit
+}
+
+func (s *Server) loadBudgetAudit(scenarioPath string) (*BudgetAuditReport, bool) {
+	if s == nil {
+		return nil, false
+	}
+	s.budgetAuditMu.RLock()
+	defer s.budgetAuditMu.RUnlock()
+	audit, ok := s.budgetAudits[filepath.Clean(scenarioPath)]
+	return audit, ok
+}
+
 func (s *Server) setupRoutes() {
 	// Add CORS middleware for all routes
 	s.router.Use(loggingMiddleware)
@@ -97,10 +148,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scan/light", s.handleLightScan).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
+	s.router.HandleFunc("/api/v1/budget-audit", s.handleBudgetAudit).Methods("POST")
 
-	// Type-safety scanning endpoints
-	s.router.HandleFunc("/api/v1/scan/type-safety", s.handleTypeSafetyScan).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scan/type-safety/fix", s.handleTypeSafetyFix).Methods("POST", "OPTIONS")
+	// Scenario-level tidiness validation is exposed through the shared
+	// scenario-validation/v1 Connect-RPC contract.
+	mountScenarioValidation(s.router, newScenarioValidationHandler(s), s.validationDescriber())
 
 	// Smart scanning endpoints (TM-SS-001, TM-SS-002)
 	s.router.HandleFunc("/api/v1/scan/smart", s.handleSmartScan).Methods("POST", "OPTIONS")
@@ -119,12 +171,8 @@ func (s *Server) setupRoutes() {
 	// Refactor recommendations endpoint - combines visited-tracker + file metrics
 	s.router.HandleFunc("/api/v1/agent/refactor-recommendations", s.handleRefactorRecommendations).Methods("GET", "OPTIONS")
 
-	// Tidiness score endpoint - provides aggregate tidiness metrics for ecosystem-manager
-	// Supports two URL patterns for compatibility:
-	// - /api/v1/scenarios/{scenario}/tidiness (preferred, RESTful)
-	// - /api/v1/scan/{scenario} (legacy, for ecosystem-manager compatibility)
+	// Tidiness score endpoint provides aggregate tidiness metrics to consumers.
 	s.router.HandleFunc("/api/v1/scenarios/{scenario}/tidiness", s.handleGetTidinessScore).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scan/{scenario}", s.handleGetTidinessScore).Methods("GET", "OPTIONS")
 
 	// Auto-campaign endpoints (OT-P1-001, OT-P1-002)
 	s.router.HandleFunc("/api/v1/campaigns", s.handleCreateCampaign).Methods("POST", "OPTIONS")
@@ -150,6 +198,12 @@ func (s *Server) Cleanup() error {
 // corsMiddleware adds CORS headers to allow cross-origin requests from the UI
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setStandardSecurityHeaders(w)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+
 		// Allow requests from localhost origins only
 		origin := r.Header.Get("Origin")
 		if origin != "" && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
@@ -234,7 +288,11 @@ func (s *Server) ensureScanCoordinator() error {
 	}
 
 	if s.scenarioLocator == nil {
-		s.scenarioLocator = NewScenarioLocator(5 * time.Minute)
+		locator, err := NewScenarioLocator(5 * time.Minute)
+		if err != nil {
+			return err
+		}
+		s.scenarioLocator = locator
 	}
 
 	if s.db == nil {

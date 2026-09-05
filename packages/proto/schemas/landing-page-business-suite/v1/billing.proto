@@ -1,0 +1,357 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "common/v1/types.proto";
+import "google/protobuf/timestamp.proto";
+import "landing-page-business-suite/v1/shared/commerce.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// BILLING DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Defines checkout, subscription, and credit wallet types for the landing page
+// billing system. Integrates with Stripe for payment processing.
+//
+// USAGE CONTEXTS:
+//   - Checkout: CreateCheckoutSession creates Stripe checkout flows
+//   - Subscriptions: VerifySubscription checks user subscription status
+//   - Credits: GetCredits returns wallet balance and transaction history
+//   - Portal: BillingPortal provides self-service subscription management
+//
+// =============================================================================
+
+// =============================================================================
+// BILLING ENUMS
+// =============================================================================
+
+// SessionKind captures the intent of a checkout session.
+//
+// Determines what Stripe objects are created and what post-checkout
+// processing occurs. Maps closely to PlanKind in pricing.proto.
+//
+// Used by checkout session requests and responses.
+enum SessionKind {
+  // Default/unknown kind. Should not appear in valid data.
+  SESSION_KIND_UNSPECIFIED = 0;
+
+  // Checkout creates a recurring subscription.
+  // Post-checkout: Stripe subscription created, user gains tier access.
+  SESSION_KIND_SUBSCRIPTION = 1;
+
+  // Checkout purchases credits for user's wallet.
+  // Post-checkout: Credits added to wallet balance.
+  SESSION_KIND_CREDITS_TOPUP = 2;
+
+  // Checkout processes a supporter contribution/donation.
+  // Post-checkout: No credits or subscription; thank-you acknowledgment.
+  SESSION_KIND_SUPPORTER_CONTRIBUTION = 3;
+}
+
+// CheckoutSessionStatus mirrors Stripe checkout session states.
+//
+// Indicates the current state of a checkout flow. Sessions expire after
+// 24 hours if not completed.
+//
+// Represents the checkout session state.
+enum CheckoutSessionStatus {
+  // Default/unknown status. Should not appear in valid data.
+  CHECKOUT_SESSION_STATUS_UNSPECIFIED = 0;
+
+  // Session created and awaiting customer action.
+  // Customer can complete checkout at the session URL.
+  CHECKOUT_SESSION_STATUS_OPEN = 1;
+
+  // Customer completed checkout successfully.
+  // Payment processed; post-checkout webhooks will fire.
+  CHECKOUT_SESSION_STATUS_COMPLETE = 2;
+
+  // Session expired (24 hours elapsed without completion).
+  // Customer must create a new checkout session.
+  CHECKOUT_SESSION_STATUS_EXPIRED = 3;
+
+  // Session was explicitly canceled.
+  // Customer navigated to cancel URL or session was voided.
+  CHECKOUT_SESSION_STATUS_CANCELED = 4;
+}
+
+// TransactionType categorizes wallet credit/debit entries.
+//
+// Used for auditing, reporting, and displaying transaction history.
+// Positive amounts are credits (additions), negative are debits.
+//
+// Represents the type of a credit transaction.
+enum TransactionType {
+  // Default/unknown type. Should not appear in valid data.
+  TRANSACTION_TYPE_UNSPECIFIED = 0;
+
+  // Credits purchased via checkout (positive amount).
+  // Associated with a Stripe payment intent.
+  TRANSACTION_TYPE_CREDIT_TOPUP = 1;
+
+  // Credits consumed by usage (negative amount).
+  // Associated with API calls, executions, or other metered usage.
+  TRANSACTION_TYPE_CONSUMPTION = 2;
+
+  // Manual adjustment by admin (positive or negative).
+  // Used for corrections, disputes, or special cases.
+  TRANSACTION_TYPE_ADJUSTMENT = 3;
+
+  // Refund of previously purchased credits (negative to reverse).
+  // Associated with a Stripe refund.
+  TRANSACTION_TYPE_REFUND = 4;
+
+  // Credits granted without payment (positive amount).
+  // Used for promotions, referrals, or compensation.
+  TRANSACTION_TYPE_GRANT = 5;
+}
+
+// =============================================================================
+// CHECKOUT SESSION TYPES
+// =============================================================================
+
+// CheckoutSession represents a created Stripe checkout session.
+//
+// Contains all information needed to redirect a customer to Stripe's
+// hosted checkout page and track the session outcome.
+//
+// Returned after a checkout session is created.
+message CheckoutSession {
+  // Reserved fields from migrations:
+  // - 16: metadata_untyped (removed in v1.1, replaced by typed metadata field 17)
+  reserved 16;
+  reserved "metadata_untyped";
+
+  // Stripe session identifier (cs_*).
+  // @format stripe_session_id
+  string session_id = 1;
+  // Kind of session determining post-checkout behavior.
+  SessionKind session_kind = 2;
+  // Current status of the checkout flow.
+  CheckoutSessionStatus status = 3;
+  // Hosted checkout URL to redirect the customer.
+  // @format url
+  string url = 4;
+  // Stripe publishable key for client-side SDK initialization.
+  // @format stripe_publishable_key (pk_*)
+  string publishable_key = 5;
+  // Customer email address associated with the session.
+  // @format email
+  string customer_email = 6;
+  // Stripe price identifier being purchased (price_*).
+  // @format stripe_price_id
+  string stripe_price_id = 7;
+  // Stripe product identifier, when available (prod_*).
+  // @format stripe_product_id
+  optional string stripe_product_id = 8;
+  // Subscription identifier if created after checkout (sub_*).
+  // Only populated for SUBSCRIPTION session kind after completion.
+  // @format stripe_subscription_id
+  optional string subscription_id = 9;
+  // Subscription schedule identifier when intro pricing is used.
+  // @format stripe_schedule_id
+  optional string schedule_id = 10;
+  // Total amount in cents for this checkout.
+  // @unit cents
+  int64 amount_cents = 11;
+  // Currency code (ISO 4217, e.g., "usd").
+  // @format iso4217
+  string currency = 12;
+  // URL to redirect customer after successful checkout.
+  // @format url
+  string success_url = 13;
+  // URL to redirect customer if they cancel checkout.
+  // @format url
+  string cancel_url = 14;
+  // When the checkout session was created.
+  google.protobuf.Timestamp created_at = 15;
+  // Additional structured metadata for tracking and analytics.
+  // Key: Metadata identifier (e.g., "utm_source", "referral_code")
+  // Value: JSON-compatible value
+  // Common keys: "campaign", "referrer", "client_ip"
+  map<string, common.v1.JsonValue> metadata = 17;
+}
+
+// CreateCheckoutSessionRequest starts a new checkout flow for a price.
+//
+// Creates a Stripe checkout session.
+message CreateCheckoutSessionRequest {
+  // Reserved fields from migrations:
+  // - 6: metadata_untyped (removed in v1.1, replaced by typed metadata field 7)
+  reserved 6;
+  reserved "metadata_untyped";
+
+  // Stripe price identifier to purchase (price_*).
+  // @format stripe_price_id
+  string price_id = 1;
+  // Customer email address for the checkout.
+  // @format email
+  string customer_email = 2;
+  // URL to redirect customer after successful checkout.
+  // @format url
+  string success_url = 3;
+  // URL to redirect customer if they cancel checkout.
+  // @format url
+  string cancel_url = 4;
+  // Intended session kind. Defaults to SUBSCRIPTION if unspecified.
+  SessionKind session_kind = 5;
+  // Arbitrary metadata to associate with the session.
+  // Key: Metadata identifier (e.g., "utm_source", "referral_code")
+  // Value: JSON-compatible value for tracking and analytics
+  map<string, common.v1.JsonValue> metadata = 7;
+  string visitor_id = 8;
+  string utm_source = 9;
+  string utm_medium = 10;
+  string utm_campaign = 11;
+  string referrer_kind = 12;
+  string country_code = 13;
+}
+
+// CreateCheckoutSessionResponse returns the created checkout session.
+//
+// Response from checkout session creation.
+message CreateCheckoutSessionResponse {
+  // The created checkout session with redirect URL.
+  CheckoutSession session = 1;
+}
+
+// =============================================================================
+// SUBSCRIPTION TYPES
+// =============================================================================
+
+// VerifySubscriptionRequest asks for the latest subscription state for a user.
+//
+// Verifies a subscription.
+message VerifySubscriptionRequest {
+  // Email address or Stripe customer ID to look up.
+  // @format email or stripe_customer_id (cus_*)
+  string user_identity = 1;
+}
+
+// CancelSubscriptionRequest cancels an active subscription for a user.
+//
+// Cancellation takes effect at end of current billing period by default.
+//
+// Cancels a subscription.
+message CancelSubscriptionRequest {
+  // Email address or Stripe customer ID to cancel.
+  // @format email or stripe_customer_id (cus_*)
+  string user_identity = 1;
+}
+
+// CancelSubscriptionResponse reports the cancellation outcome.
+//
+// Response from subscription cancellation.
+message CancelSubscriptionResponse {
+  // Subscription identifier that was canceled (sub_*).
+  // @format stripe_subscription_id
+  optional string subscription_id = 1;
+  // Resulting subscription state (typically CANCELED).
+  vrooli.landing_page_business_suite.v1.shared.SubscriptionState state = 2;
+  // When the cancellation was processed.
+  google.protobuf.Timestamp canceled_at = 3;
+  // Human-readable message about the cancellation outcome.
+  optional string message = 4;
+}
+
+// =============================================================================
+// CREDITS AND WALLET TYPES
+// =============================================================================
+
+// CreditTransaction describes a wallet credit/debit entry.
+//
+// Transactions form an immutable audit log of all credit changes.
+// The running balance can be computed by summing all transactions.
+//
+// Lists credit transactions.
+message CreditTransaction {
+  // Reserved fields from migrations:
+  // - 4: description (removed in v1.1, moved to metadata)
+  // - 5: metadata_untyped (removed in v1.1, replaced by typed metadata field 8)
+  reserved 4, 5;
+  reserved "description", "metadata_untyped";
+
+  // Unique transaction identifier (UUID format).
+  // @format uuid
+  string id = 1;
+  // Customer email associated with the transaction.
+  // @format email
+  string customer_email = 2;
+  // Amount in credits. Positive for credits (topup, grant), negative for debits.
+  int64 amount_credits = 3;
+  // Transaction type for categorization and reporting.
+  TransactionType type = 7;
+  // Structured metadata describing the transaction.
+  // Key: Metadata identifier (e.g., "stripe_payment_id", "usage_type", "reason")
+  // Value: JSON-compatible value for audit trail
+  // Common keys: "payment_intent_id", "api_call_id", "admin_user", "note"
+  map<string, common.v1.JsonValue> metadata = 8;
+  // When the transaction was created.
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// GetCreditsResponse returns the current balance and recent transactions.
+//
+// Response from the credits API.
+message GetCreditsResponse {
+  // Current credit balance for the customer.
+  vrooli.landing_page_business_suite.v1.shared.CreditsBalance balance = 1;
+  // Recent credit transactions, ordered by created_at descending.
+  repeated CreditTransaction transactions = 2;
+}
+
+// =============================================================================
+// BILLING PORTAL
+// =============================================================================
+
+// BillingPortalResponse supplies a hosted billing portal URL.
+//
+// The portal allows customers to manage their subscription, update
+// payment methods, and view invoices without custom UI.
+//
+// Redirect target for the billing portal.
+message BillingPortalResponse {
+  // URL to redirect customer to Stripe's hosted billing portal.
+  // @format url
+  string url = 1;
+}
+
+// GetBillingPortalRequest asks for the hosted billing portal URL.
+//
+// Opens the billing portal.
+message GetBillingPortalRequest {
+  // Optional URL to return to after the customer exits Stripe's portal.
+  // Relative paths are not accepted because Stripe requires an absolute URL.
+  // @format url
+  string return_url = 1;
+}
+
+// =============================================================================
+// SERVICE DEFINITION
+// =============================================================================
+
+// LandingPagePaymentsService exposes billing operations.
+//
+// Provides a unified API for:
+//   - Checkout session creation and management
+//   - Subscription verification and cancellation
+service LandingPagePaymentsService {
+  // Creates a Stripe checkout session for purchasing a price.
+  // Returns a session with a redirect URL for the customer.
+  rpc CreateCheckoutSession(CreateCheckoutSessionRequest) returns (CreateCheckoutSessionResponse);
+
+  // Verifies the current subscription status for a user.
+  // Returns cached status; refreshed on webhook events.
+  rpc VerifySubscription(VerifySubscriptionRequest) returns (vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse);
+
+  // Cancels an active subscription for a user.
+  // Cancellation takes effect at end of current billing period.
+  rpc CancelSubscription(CancelSubscriptionRequest) returns (CancelSubscriptionResponse);
+
+  // Returns the hosted billing portal URL for self-service management.
+  rpc GetBillingPortal(GetBillingPortalRequest) returns (BillingPortalResponse);
+}

@@ -2,91 +2,108 @@ package backlog
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/agentsessions"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 )
 
-// mockInitiativeAssigner implements InitiativeAssigner for testing.
-type mockInitiativeAssigner struct {
-	snapshots  map[string]InitiativeSnapshot
-	addedItems map[string][]string
-	getErr     error
-	createErr  error
-	updateErr  error
-	replaceErr error
-	deleteErr  error
-	addErr     error
+// mockMilestoneAssigner implements MilestoneAssigner for testing.
+type mockMilestoneAssigner struct {
+	snapshots   map[string]MilestoneSnapshot
+	addedItems  map[string][]string
+	createOrder []string
+	updateOrder []string
+	replaceLog  []MilestoneSnapshot
+	getErr      error
+	createErr   error
+	updateErr   error
+	replaceErr  error
+	deleteErr   error
+	addErr      error
 }
 
-func newMockInitiativeAssigner() *mockInitiativeAssigner {
-	return &mockInitiativeAssigner{
-		snapshots:  make(map[string]InitiativeSnapshot),
+func newMockMilestoneAssigner() *mockMilestoneAssigner {
+	return &mockMilestoneAssigner{
+		snapshots:  make(map[string]MilestoneSnapshot),
 		addedItems: make(map[string][]string),
 	}
 }
 
-func (m *mockInitiativeAssigner) Get(name string) (*InitiativeSnapshot, error) {
+func (m *mockMilestoneAssigner) Get(name string) (*MilestoneSnapshot, error) {
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	snapshot, ok := m.snapshots[name]
 	if !ok {
-		return nil, fmt.Errorf("initiative %q not found", name)
+		return nil, fmt.Errorf("milestone %q not found", name)
 	}
 	copied := snapshot
 	copied.Items = append([]string(nil), snapshot.Items...)
+	copied.DependsOn = append([]string(nil), snapshot.DependsOn...)
 	return &copied, nil
 }
 
-func (m *mockInitiativeAssigner) Create(spec InitiativeSpec) error {
+func (m *mockMilestoneAssigner) Create(spec MilestoneSpec) error {
 	if m.createErr != nil {
 		return m.createErr
 	}
-	m.snapshots[spec.Name] = InitiativeSnapshot{
+	m.createOrder = append(m.createOrder, spec.Name)
+	m.snapshots[spec.Name] = MilestoneSnapshot{
 		Name:        spec.Name,
 		Title:       spec.Title,
 		Description: spec.Description,
 		Status:      spec.Status,
+		Priority:    spec.Priority,
+		DependsOn:   append([]string(nil), spec.DependsOn...),
 		Items:       nil,
+		CreatedBy:   spec.CreatedBy,
 	}
 	return nil
 }
 
-func (m *mockInitiativeAssigner) Update(spec InitiativeSpec) error {
+func (m *mockMilestoneAssigner) Update(spec MilestoneSpec) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
 	snapshot, ok := m.snapshots[spec.Name]
 	if !ok {
-		return fmt.Errorf("initiative %q not found", spec.Name)
+		return fmt.Errorf("milestone %q not found", spec.Name)
 	}
+	m.updateOrder = append(m.updateOrder, spec.Name)
 	snapshot.Title = spec.Title
 	snapshot.Description = spec.Description
 	snapshot.Status = spec.Status
+	snapshot.Priority = spec.Priority
+	snapshot.DependsOn = append([]string(nil), spec.DependsOn...)
 	m.snapshots[spec.Name] = snapshot
 	return nil
 }
 
-func (m *mockInitiativeAssigner) Replace(snapshot InitiativeSnapshot) error {
+func (m *mockMilestoneAssigner) Replace(snapshot MilestoneSnapshot) error {
 	if m.replaceErr != nil {
 		return m.replaceErr
 	}
 	copied := snapshot
 	copied.Items = append([]string(nil), snapshot.Items...)
+	copied.DependsOn = append([]string(nil), snapshot.DependsOn...)
+	m.replaceLog = append(m.replaceLog, copied)
 	m.snapshots[snapshot.Name] = copied
 	return nil
 }
 
-func (m *mockInitiativeAssigner) Delete(name string) error {
+func (m *mockMilestoneAssigner) Delete(name string) error {
 	if m.deleteErr != nil {
 		return m.deleteErr
 	}
@@ -94,28 +111,64 @@ func (m *mockInitiativeAssigner) Delete(name string) error {
 	return nil
 }
 
-func (m *mockInitiativeAssigner) AddItems(name string, items []string) error {
+func (m *mockMilestoneAssigner) AddItems(name string, items []string) error {
 	if m.addErr != nil {
 		return m.addErr
 	}
 	m.addedItems[name] = append(m.addedItems[name], items...)
 	snapshot, ok := m.snapshots[name]
 	if !ok {
-		return fmt.Errorf("initiative %q not found", name)
+		return fmt.Errorf("milestone %q not found", name)
 	}
 	snapshot.Items = append(snapshot.Items, items...)
 	m.snapshots[name] = snapshot
 	return nil
 }
 
-func setupBatchTestHandler(t *testing.T) (*Handler, string, *mockInitiativeAssigner) {
+func (m *mockMilestoneAssigner) RememberItem(name, ref string) error {
+	if m.addErr != nil {
+		return m.addErr
+	}
+	snapshot, ok := m.snapshots[name]
+	if !ok {
+		return fmt.Errorf("milestone %q not found", name)
+	}
+	for _, existing := range snapshot.Items {
+		if existing == ref {
+			return nil
+		}
+	}
+	snapshot.Items = append(snapshot.Items, ref)
+	m.snapshots[name] = snapshot
+	m.addedItems[name] = append(m.addedItems[name], ref)
+	return nil
+}
+
+func (m *mockMilestoneAssigner) ForgetItem(name, ref string) error {
+	snapshot, ok := m.snapshots[name]
+	if !ok {
+		return nil
+	}
+	filtered := make([]string, 0, len(snapshot.Items))
+	for _, existing := range snapshot.Items {
+		if existing == ref {
+			continue
+		}
+		filtered = append(filtered, existing)
+	}
+	snapshot.Items = filtered
+	m.snapshots[name] = snapshot
+	return nil
+}
+
+func setupBatchTestHandler(t *testing.T) (*Handler, string, *mockMilestoneAssigner) {
 	t.Helper()
 	agent := &mockAgentService{
 		result: agentmanager.RunResult{RunID: "batch-run", TaskID: "batch-task"},
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
-	ia := newMockInitiativeAssigner()
-	h.SetInitiativeAssigner(ia)
+	ia := newMockMilestoneAssigner()
+	h.SetMilestoneAssigner(ia)
 	return h, rootDir, ia
 }
 
@@ -163,21 +216,222 @@ func TestBatchCreate_Success(t *testing.T) {
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "user-mgmt", "spec.json"))
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "fix", "fix-login", "spec.json"))
 
-	// No initiative was requested.
+	// No milestone was requested.
 	if len(ia.snapshots) != 0 {
-		t.Errorf("expected no initiatives created, got %d", len(ia.snapshots))
+		t.Errorf("expected no milestones created, got %d", len(ia.snapshots))
 	}
 }
 
-func TestBatchCreate_WithInitiative(t *testing.T) {
+func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
+	h, rootDir, _ := setupBatchTestHandler(t)
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "agent-batch-a", Title: "Agent Batch A", Kind: "idea", Milestone: "agent-batch-init"},
+			{Name: "agent-batch-b", Title: "Agent Batch B", Kind: "execute"},
+		},
+		Milestones: []batchCreateMilestone{
+			{Name: "agent-batch-init", Title: "Agent Batch Milestone"},
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	prov := identity.Provenance{
+		Actor:      identity.TypeAgent,
+		RunID:      "run-batch-1",
+		TaskID:     "task-batch-1",
+		ProfileKey: "swarm-manager/default",
+	}
+	req := httptest.NewRequest("POST", "/api/v1/backlog/batch", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(identity.NewContext(req.Context(), prov))
+	w := httptest.NewRecorder()
+
+	h.BatchCreate(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	for _, tc := range []struct {
+		kind BacklogKind
+		dir  string
+		name string
+	}{
+		{kind: KindIdea, dir: "ideas", name: "agent-batch-a"},
+		{kind: KindExecute, dir: "execute", name: "agent-batch-b"},
+	} {
+		saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
+		if saved.CreatedBy == nil {
+			t.Fatalf("%s/%s missing created_by", tc.kind, tc.name)
+		}
+		if !reflect.DeepEqual(*saved.CreatedBy, prov) {
+			t.Fatalf("%s/%s created_by = %+v, want %+v", tc.kind, tc.name, saved.CreatedBy, prov)
+		}
+	}
+	snapshot := h.milestoneAssigner.(*mockMilestoneAssigner).snapshots["agent-batch-init"]
+	if snapshot.CreatedBy == nil {
+		t.Fatal("batch-created milestone missing created_by")
+	}
+	if !reflect.DeepEqual(*snapshot.CreatedBy, prov) {
+		t.Fatalf("batch-created milestone created_by = %+v, want %+v", snapshot.CreatedBy, prov)
+	}
+}
+
+func TestBatchCreate_SessionProvenanceRecordsItemAndMilestoneArtifacts(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+	recorder := &fakeSessionArtifacts{}
+	h.SetAgentSessionArtifactRecorder(recorder)
+
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "session-batch-a", Title: "Session Batch A", Kind: "idea", Milestone: "session-batch-init"},
+			{Name: "session-batch-b", Title: "Session Batch B", Kind: "execute", Milestone: "session-batch-init"},
+		},
+		Milestones: []batchCreateMilestone{
+			{Name: "session-batch-init", Title: "Session Batch Milestone"},
+		},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+	prov := identity.Provenance{
+		Actor:       identity.TypeAgent,
+		RunID:       "run-batch-session",
+		TaskID:      "task-batch-session",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_batch",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_batch",
+	}
+	req := httptest.NewRequest("POST", "/api/v1/backlog/batch", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(identity.NewContext(req.Context(), prov))
+	w := httptest.NewRecorder()
+
+	h.BatchCreate(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	if len(recorder.artifacts) != 3 {
+		t.Fatalf("artifacts = %d, want 3: %+v", len(recorder.artifacts), recorder.artifacts)
+	}
+	refs := map[string]agentsessions.ArtifactType{}
+	for _, artifact := range recorder.artifacts {
+		refs[artifact.EntityRef] = artifact.ArtifactType
+		if artifact.SessionID != "sess_batch" || artifact.RunID != "run-batch-session" {
+			t.Fatalf("unexpected artifact provenance: %+v", artifact)
+		}
+	}
+	if refs["idea/session-batch-a"] != agentsessions.ArtifactBacklogItem {
+		t.Fatalf("missing backlog artifact for session-batch-a: %+v", refs)
+	}
+	if refs["execute/session-batch-b"] != agentsessions.ArtifactBacklogItem {
+		t.Fatalf("missing backlog artifact for session-batch-b: %+v", refs)
+	}
+	if refs["session-batch-init"] != agentsessions.ArtifactMilestone {
+		t.Fatalf("missing milestone artifact: %+v", refs)
+	}
+}
+
+func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+	recorder := &fakeSessionArtifacts{}
+	h.SetAgentSessionArtifactRecorder(recorder)
+
+	payload := `{
+		"items": [
+			{"name": "session-apply-a", "title": "Session Apply A", "kind": "idea", "milestone": "session-apply-init"},
+			{"name": "session-apply-b", "title": "Session Apply B", "kind": "execute", "milestone": "session-apply-init"}
+		],
+		"milestones": [
+			{"name": "session-apply-init", "title": "Session Apply Milestone"}
+		]
+	}`
+	prov := identity.Provenance{
+		Actor:       identity.TypeAgent,
+		RunID:       "run-session-apply",
+		TaskID:      "task-session-apply",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_apply",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_apply",
+	}
+
+	artifacts, err := h.ApplyAgentSessionBacklogBatchImport(identity.NewContext(context.Background(), prov), payload, prov)
+	if err != nil {
+		t.Fatalf("ApplyAgentSessionBacklogBatchImport() error = %v", err)
+	}
+	if len(artifacts) != 3 {
+		t.Fatalf("artifacts = %d, want 3: %+v", len(artifacts), artifacts)
+	}
+	for _, tc := range []struct {
+		kind BacklogKind
+		dir  string
+		name string
+	}{
+		{kind: KindIdea, dir: "ideas", name: "session-apply-a"},
+		{kind: KindExecute, dir: "execute", name: "session-apply-b"},
+	} {
+		saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
+		if saved.CreatedBy == nil || saved.CreatedBy.SessionID != "sess_apply" || saved.CreatedBy.RunID != "run-session-apply" {
+			t.Fatalf("%s/%s created_by = %+v", tc.kind, tc.name, saved.CreatedBy)
+		}
+	}
+	if got := ia.snapshots["session-apply-init"].CreatedBy; got == nil || got.SessionID != "sess_apply" {
+		t.Fatalf("milestone created_by = %+v", got)
+	}
+	for _, artifact := range recorder.artifacts {
+		if artifact.MutationSource != "agent_sessions.apply.backlog_batch_import" {
+			t.Fatalf("artifact mutation source = %q", artifact.MutationSource)
+		}
+	}
+}
+
+func TestApplyAgentSessionBacklogBatchImportRollsBackWhenArtifactRecordingFails(t *testing.T) {
+	h, rootDir, ia := setupBatchTestHandler(t)
+	recorder := &fakeSessionArtifacts{err: fmt.Errorf("artifact store unavailable")}
+	h.SetAgentSessionArtifactRecorder(recorder)
+
+	payload := `{
+		"items": [
+			{"name": "session-rollback-a", "title": "Session Rollback A", "kind": "idea", "milestone": "session-rollback-init"},
+			{"name": "session-rollback-b", "title": "Session Rollback B", "kind": "execute", "milestone": "session-rollback-init"}
+		],
+		"milestones": [
+			{"name": "session-rollback-init", "title": "Session Rollback Milestone"}
+		]
+	}`
+	prov := identity.Provenance{
+		Actor:       identity.TypeAgent,
+		RunID:       "run-session-rollback",
+		TaskID:      "task-session-rollback",
+		ProfileKey:  "swarm-manager/default",
+		SessionID:   "sess_rollback",
+		SessionKind: "meta_orchestration",
+		Source:      "session/sess_rollback",
+	}
+
+	_, err := h.ApplyAgentSessionBacklogBatchImport(identity.NewContext(context.Background(), prov), payload, prov)
+	if err == nil {
+		t.Fatal("ApplyAgentSessionBacklogBatchImport() error = nil, want artifact recording failure")
+	}
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "session-rollback-a", "spec.json"))
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "execute", "session-rollback-b", "spec.json"))
+	if _, ok := ia.snapshots["session-rollback-init"]; ok {
+		t.Fatalf("milestone was not rolled back: %+v", ia.snapshots["session-rollback-init"])
+	}
+}
+
+func TestBatchCreate_WithMilestone(t *testing.T) {
 	h, _, ia := setupBatchTestHandler(t)
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "dashboard", Title: "Dashboard", Kind: "idea", Initiative: "q1-sprint"},
-			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", Initiative: "q1-sprint"},
+			{Name: "dashboard", Title: "Dashboard", Kind: "idea", Milestone: "q1-sprint"},
+			{Name: "api-refactor", Title: "API Refactor", Kind: "execute", Milestone: "q1-sprint"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "q1-sprint", Title: "Q1 Sprint"},
 		},
 	}
@@ -190,22 +444,22 @@ func TestBatchCreate_WithInitiative(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(resp.Initiatives) != 1 || resp.Initiatives[0].Name != "q1-sprint" {
-		t.Fatalf("expected initiative summary for q1-sprint, got %+v", resp.Initiatives)
+	if len(resp.Milestones) != 1 || resp.Milestones[0].Name != "q1-sprint" {
+		t.Fatalf("expected milestone summary for q1-sprint, got %+v", resp.Milestones)
 	}
-	if resp.Initiatives[0].Action != "create" {
-		t.Errorf("expected create action, got %q", resp.Initiatives[0].Action)
+	if resp.Milestones[0].Action != "create" {
+		t.Errorf("expected create action, got %q", resp.Milestones[0].Action)
 	}
 
 	snapshot, ok := ia.snapshots["q1-sprint"]
 	if !ok {
-		t.Fatal("expected initiative 'q1-sprint' to be created")
+		t.Fatal("expected milestone 'q1-sprint' to be created")
 	}
 	if len(ia.addedItems["q1-sprint"]) != 2 {
-		t.Errorf("expected 2 items added to initiative, got %d", len(ia.addedItems["q1-sprint"]))
+		t.Errorf("expected 2 items added to milestone, got %d", len(ia.addedItems["q1-sprint"]))
 	}
 	if len(snapshot.Items) != 2 {
-		t.Errorf("expected 2 persisted initiative items, got %d", len(snapshot.Items))
+		t.Errorf("expected 2 persisted milestone items, got %d", len(snapshot.Items))
 	}
 }
 
@@ -244,7 +498,7 @@ func TestBatchCreate_RejectsUnknownField(t *testing.T) {
 	}
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "same-item", "spec.json"))
 	if len(ia.snapshots) != 0 {
-		t.Fatalf("expected no initiative mutations, got %d", len(ia.snapshots))
+		t.Fatalf("expected no milestone mutations, got %d", len(ia.snapshots))
 	}
 }
 
@@ -475,17 +729,17 @@ func containsSubstr(s, substr string) bool {
 	return false
 }
 
-func TestBatchCreate_InitiativeAddItemsFails_RollsBackEverything(t *testing.T) {
+func TestBatchCreate_MilestoneAddItemsFails_RollsBackEverything(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 	ia.addErr = fmt.Errorf("disk full")
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "widget-a", Title: "Widget A", Kind: "idea", Initiative: "my-init"},
-			{Name: "widget-b", Title: "Widget B", Kind: "fix", Initiative: "my-init"},
+			{Name: "widget-a", Title: "Widget A", Kind: "idea", Milestone: "my-init"},
+			{Name: "widget-b", Title: "Widget B", Kind: "fix", Milestone: "my-init"},
 		},
-		Initiatives: []batchCreateInitiative{
-			{Name: "my-init", Title: "My Initiative"},
+		Milestones: []batchCreateMilestone{
+			{Name: "my-init", Title: "My Milestone"},
 		},
 	}
 
@@ -494,19 +748,19 @@ func TestBatchCreate_InitiativeAddItemsFails_RollsBackEverything(t *testing.T) {
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "widget-a", "spec.json"))
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "widget-b", "spec.json"))
 	if _, ok := ia.snapshots["my-init"]; ok {
-		t.Fatal("expected initiative rollback to remove my-init")
+		t.Fatal("expected milestone rollback to remove my-init")
 	}
 }
 
-func TestBatchCreate_InitiativeCreateFails_Returns500(t *testing.T) {
+func TestBatchCreate_MilestoneCreateFails_Returns500(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 	ia.createErr = fmt.Errorf("store corrupt")
 
 	payload := batchCreateRequest{
 		Items: []batchCreateItem{
-			{Name: "orphan-item", Title: "Orphan", Kind: "idea", Initiative: "broken-init"},
+			{Name: "orphan-item", Title: "Orphan", Kind: "idea", Milestone: "broken-init"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "broken-init", Title: "Broken Init"},
 		},
 	}
@@ -514,19 +768,19 @@ func TestBatchCreate_InitiativeCreateFails_Returns500(t *testing.T) {
 	w := doBatchCreate(t, h, payload)
 	testutil.AssertStatus(t, w, http.StatusInternalServerError)
 
-	// Item should NOT be on disk — initiative creation fails before item creation.
+	// Item should NOT be on disk — milestone creation fails before item creation.
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "orphan-item", "spec.json"))
 }
 
-func TestBatchCreate_PreviewDoesNotMutateDiskOrInitiatives(t *testing.T) {
+func TestBatchCreate_PreviewDoesNotMutateDiskOrMilestones(t *testing.T) {
 	h, rootDir, ia := setupBatchTestHandler(t)
 
 	payload := batchCreateRequest{
 		Preview: true,
 		Items: []batchCreateItem{
-			{Name: "preview-item", Title: "Preview Item", Kind: "idea", Initiative: "preview-init"},
+			{Name: "preview-item", Title: "Preview Item", Kind: "idea", Milestone: "preview-init"},
 		},
-		Initiatives: []batchCreateInitiative{
+		Milestones: []batchCreateMilestone{
 			{Name: "preview-init", Title: "Preview Init"},
 		},
 	}
@@ -540,7 +794,7 @@ func TestBatchCreate_PreviewDoesNotMutateDiskOrInitiatives(t *testing.T) {
 	}
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "preview-item", "spec.json"))
 	if len(ia.snapshots) != 0 {
-		t.Fatalf("expected preview to avoid initiative mutations, got %d snapshots", len(ia.snapshots))
+		t.Fatalf("expected preview to avoid milestone mutations, got %d snapshots", len(ia.snapshots))
 	}
 }
 
@@ -647,5 +901,56 @@ func TestBatchCreate_EffortOptional(t *testing.T) {
 	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
 	if resp.Items[0].Effort != "" {
 		t.Errorf("expected empty effort, got %q", resp.Items[0].Effort)
+	}
+}
+
+func TestBatchCreate_PersistsSpawnedFromAndLinearChain(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+
+	// Mirrors a plan-import: a linear depends_on chain with provenance stamps.
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "my-plan-phase-1", Title: "Design", Kind: "execute", SpawnedFrom: "plan-manager:my-plan/phase-1"},
+			{Name: "my-plan-phase-2", Title: "Build", Kind: "execute", SpawnedFrom: "plan-manager:my-plan/phase-2", DependsOn: []string{"execute/my-plan-phase-1"}},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusCreated(t, w)
+
+	var resp batchCreateResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.Items))
+	}
+	if resp.Items[0].SpawnedFrom != "plan-manager:my-plan/phase-1" {
+		t.Errorf("batch item did not carry spawned_from: %q", resp.Items[0].SpawnedFrom)
+	}
+
+	// Persisted to disk (not just echoed).
+	loaded, err := h.store.LoadItem("execute", "my-plan-phase-2")
+	if err != nil {
+		t.Fatalf("load persisted item: %v", err)
+	}
+	if loaded.SpawnedFrom != "plan-manager:my-plan/phase-2" {
+		t.Errorf("persisted spawned_from = %q, want plan-manager:my-plan/phase-2", loaded.SpawnedFrom)
+	}
+	if len(loaded.DependsOn) != 1 || loaded.DependsOn[0] != "execute/my-plan-phase-1" {
+		t.Errorf("persisted depends_on = %v, want [execute/my-plan-phase-1]", loaded.DependsOn)
+	}
+}
+
+func TestImportBatchItems_LandsAtomicallyWithProvenance(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+
+	payload := `{"items":[{"name":"p-phase-1","title":"One","kind":"execute","spawned_from":"plan-manager:p/phase-1"}]}`
+	items, err := h.ImportBatchItems(context.Background(), payload, identity.Provenance{})
+	if err != nil {
+		t.Fatalf("ImportBatchItems: %v", err)
+	}
+	if len(items) != 1 || items[0].SpawnedFrom != "plan-manager:p/phase-1" {
+		t.Fatalf("import result = %+v", items)
 	}
 }

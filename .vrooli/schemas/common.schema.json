@@ -4,6 +4,102 @@
   "title": "Common Schema Definitions",
   "description": "Shared definitions used across Vrooli service schemas",
   "definitions": {
+    "platformStatus": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "$ref": "#/definitions/platformStatusToken" },
+        "mechanism": { "type": "string" },
+        "since": { "type": "string", "format": "date" },
+        "review_by": { "type": "string", "format": "date" },
+        "evidence": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/definitions/platformEvidence" },
+            { "type": "string", "minLength": 1 }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not_applicable" } } },
+          "then": {
+            "required": ["evidence", "review_by"],
+            "not": { "required": ["mechanism"] }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "not_implemented" } } },
+          "then": {
+            "required": ["evidence", "mechanism", "since"],
+            "not": {
+              "anyOf": [
+                { "properties": { "mechanism": { "const": "handler" } } },
+                { "properties": { "evidence": { "type": "string", "pattern": "(?i)(no implementation|not applicable on this host os|no .* implementation)" } } }
+              ]
+            }
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "evidence": {
+                "type": "string",
+                "pattern": "(?i)(no implementation for the .* host mechanism|not applicable on this host os)"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "platformStatusToken": {
+      "type": "string",
+      "enum": ["supported","build-verified","experimental","unqualified","partial","unsupported","not_implemented","not_applicable"]
+    },
+    "invariant": {
+      "type": "object",
+      "description": "An OS-neutral relationship that must hold for a host capability to work. An invariant names no package and no package manager; platform providers derive concrete implementation details.",
+      "required": ["id", "kind", "statement", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"] },
+        "applicability": { "$ref": "#/definitions/invariantApplicability" },
+        "notes": { "type": "string" }
+      }
+    },
+    "invariantApplicability": {
+      "type": "object",
+      "description": "Optional host predicates for an invariant. An empty object means the invariant is always applicable.",
+      "additionalProperties": false,
+      "properties": {
+        "device_class": { "type": "string", "minLength": 1 },
+        "vendor_id": { "type": "string", "minLength": 1 },
+        "platforms": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["linux", "macos", "windows"] },
+          "uniqueItems": true
+        },
+        "capability": { "type": "string", "minLength": 1 }
+      }
+    },
+    "platformEvidence": {
+      "type": "object",
+      "required": ["run_id", "host", "os", "arch", "date", "surface", "artifact_uri"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "host": { "type": "string", "minLength": 1 },
+        "os": { "type": "string", "minLength": 1 },
+        "arch": { "type": "string", "minLength": 1 },
+        "date": { "type": "string", "minLength": 1 },
+        "surface": { "type": "string", "minLength": 1 },
+        "artifact_uri": { "type": "string", "minLength": 1 }
+      }
+    },
     "semver": {
       "type": "string",
       "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
@@ -63,7 +159,9 @@
     },
     "secretReference": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -79,7 +177,15 @@
         },
         "source": {
           "type": "string",
-          "enum": ["environment", "file", "vault", "kubernetes", "aws-secrets", "azure-keyvault", "gcp-secrets"],
+          "enum": [
+            "environment",
+            "file",
+            "vault",
+            "kubernetes",
+            "aws-secrets",
+            "azure-keyvault",
+            "gcp-secrets"
+          ],
           "description": "Secret source type"
         }
       },
@@ -88,6 +194,622 @@
     "secretRef": {
       "$ref": "#/definitions/secretReference",
       "description": "Alias for secretReference (backward compatibility)"
+    },
+    "verificationCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One-shot post-action verification probe. Used after installing a host tool or applying a host safeguard to confirm the action took effect. Distinct from runtime health monitoring (which runs continuously on an interval): a verificationCheck runs once and answers 'did the install or apply succeed?'.",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run for the verification."
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments for the verification command."
+        },
+        "expectExitCode": {
+          "type": "integer",
+          "description": "Expected exit code (default 0)."
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files that must exist for the verification to pass. Combined with `command`: file checks run first, then the command."
+        }
+      }
+    },
+    "durableDataEntry": {
+      "type": "object",
+      "description": "One durable on-disk location worth preserving. The single shared shape for both the operator runtime home (repo-contract.schema.json#/properties/runtime_home/properties/entries) and a resource's declared host state (resource.schema.json#/properties/durable_data/properties/entries). `regenerable` is the include/exclude switch: false = irreplaceable state that must be backed up; true = reconstructable (caches, logs, build output) and skipped.",
+      "required": [
+        "path",
+        "kind",
+        "regenerable"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\\\]+$",
+          "description": "Slash-normalized path of this entry, relative to its container's base (the runtime home, or a resource durable_data base). No backslashes. Leading slashes, drive letters, and parent traversal are enforced by repo-contract/resource validators rather than this portable JSON Schema regex."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "dir",
+            "file"
+          ],
+          "description": "Whether this entry is a directory or a single file."
+        },
+        "regenerable": {
+          "type": "boolean",
+          "description": "True if the data here can be reconstructed (caches, logs, build output) and need not be backed up; false if it is durable state that must be preserved."
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "sqlite",
+            "json"
+          ],
+          "description": "On-disk format hint for file entries (e.g. sqlite → capture a consistent database copy)."
+        },
+        "sensitive": {
+          "type": "boolean",
+          "description": "True if the entry holds secrets/credentials (e.g. OAuth tokens). Surfaced with a warning and never auto-accepted; contents are never read into UIs or logs."
+        },
+        "owner": {
+          "type": "string",
+          "description": "Named authority responsible for writes, repair, and lifecycle decisions."
+        },
+        "protected": {
+          "type": "boolean",
+          "description": "True when the entry is durable or otherwise protected from default cleanup."
+        },
+        "cleanup": {
+          "type": "string",
+          "enum": ["never", "storage_manager"],
+          "description": "Cleanup authority. `never` is the conservative protected default."
+        },
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_age": {
+              "type": "string",
+              "pattern": "^\\d+(ms|s|m|h|d)$",
+              "description": "Maximum age before an eligible entry may be reclaimed."
+            },
+            "max_bytes": {
+              "type": "string",
+              "pattern": "^\\d+(B|KiB|MiB|GiB|TiB|KB|MB|GB|TB)$",
+              "description": "Maximum aggregate bytes for an eligible entry."
+            },
+            "keep_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Minimum number of newest entries to retain."
+            },
+            "protect_active": {
+              "type": "boolean",
+              "description": "Protect entries carrying active process or test-run lease markers."
+            }
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Human-facing reason this is worth preserving. Optional presentation copy."
+        }
+      }
+    },
+    "storageEntry": {
+      "type": "object",
+      "description": "One declared storage surface. The rung describes ownership and relocation capability; budget describes what may be reclaimed.",
+      "additionalProperties": false,
+      "required": [
+        "rung",
+        "kind",
+        "regenerable"
+      ],
+      "properties": {
+        "rung": {
+          "type": "string",
+          "enum": [
+            "owned",
+            "relocatable",
+            "pinned"
+          ]
+        },
+        "path": {
+          "deprecated": true,
+          "description": "Legacy explicit location. Prefer class plus subpath so api-core/storage remains the only path authority.",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\\\]+$"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "linux": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "macos": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "windows": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "linux",
+              "macos",
+              "windows"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "dir",
+            "file"
+          ]
+        },
+        "class": {
+          "type": "string",
+          "enum": [
+            "config",
+            "data",
+            "cache",
+            "logs",
+            "state",
+            "test_runs"
+          ]
+        },
+        "subpath": {
+          "type": "string",
+          "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
+          "description": "Optional path below the resolver-selected class root. Must be relative and traversal-safe."
+        },
+        "regenerable": {
+          "type": "boolean",
+          "description": "Required deletion intent. true means the owner can reconstruct the entry; false means retention may measure it but must never prune it."
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "sqlite",
+            "json"
+          ]
+        },
+        "sensitive": {
+          "type": "boolean"
+        },
+        "relocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope"
+          ],
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "process-tree",
+                "session",
+                "daemon",
+                "container"
+              ]
+            },
+            "config": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "reclaim": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "command": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pruner": {
+              "type": "string",
+              "enum": [
+                "builtin",
+                "custom"
+              ]
+            }
+          }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": [
+                "max_age"
+              ]
+            },
+            {
+              "required": [
+                "max_bytes"
+              ]
+            }
+          ],
+          "properties": {
+            "max_age": {
+              "type": "string",
+              "pattern": "^[0-9]+(h|d)$"
+            },
+            "max_bytes": {
+              "type": "string",
+              "pattern": "^[0-9]+(B|KiB|MiB|GiB|TiB)$"
+            },
+            "rationale": {
+              "type": "string"
+            }
+          }
+        },
+        "rationale": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            { "required": ["class"] },
+            { "required": ["path"] }
+          ]
+        },
+        {
+          "if": {
+            "properties": {
+              "rung": {
+                "const": "owned"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "class"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "rung": {
+                "const": "relocatable"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "relocation"
+            ]
+          }
+        }
+      ]
+    },
+    "ownerCleanupProvider": {
+      "type": "object",
+      "description": "Owner-delegated cleanup provider. Storage Manager discovers this declaration and delegates Estimate, Preview, and Apply to the declaring scenario; it never opens owner-private storage.",
+      "additionalProperties": false,
+      "required": ["id", "name", "safety_tier", "default_mode", "default_approval"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "safety_tier": { "type": "string", "enum": ["safe", "safe_with_owner", "conditional", "dangerous"] },
+        "default_mode": { "type": "string", "enum": ["enabled", "disabled"] },
+        "default_approval": { "type": "string", "enum": ["none", "owner", "operator"] }
+      }
+    },
+    "storageSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/storageEntry"
+          }
+        },
+        "cleanup_providers": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ownerCleanupProvider" },
+          "uniqueItems": true,
+          "description": "Cleanup surfaces implemented by this owner and callable through Storage Manager's owner-delegation protocol."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why the owner has these storage entries, or why an explicit empty declaration is accurate."
+        }
+      }
+    },
+    "retentionBudget": {
+      "type": "object",
+      "description": "One declared storage ceiling the framework enforces. Consumed by packages/api-core/retention, which prunes the target down to whichever bound binds first and reports which one it was. NOT a backup declaration: durable_data answers 'preserve this' and its `regenerable: false` means never delete, while a retention budget answers 'this may never exceed this much'. A budget must declare at least one bound; an age bound alone is a promise proportional to an ingest rate the scenario usually does not control, so it is accepted but reported as unbounded in size.",
+      "required": [
+        "target"
+      ],
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "max_age"
+          ]
+        },
+        {
+          "required": [
+            "max_bytes"
+          ]
+        }
+      ],
+      "properties": {
+        "target": {
+          "type": "object",
+          "description": "What this budget bounds. Paths are relative to the scenario's own storage-class root and resolve through api-core/storage, so a shadow variant prunes its own data and never live's.",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "sqlite_table",
+                "directory",
+                "file"
+              ],
+              "description": "sqlite_table bounds rows in one table of one SQLite database; directory bounds the top-level entries of one directory; file bounds one regenerable file."
+            },
+            "class": {
+              "type": "string",
+              "enum": [
+                "config",
+                "data",
+                "cache",
+                "logs",
+                "state",
+                "test_runs"
+              ],
+              "default": "data",
+              "description": "Storage class root the target path is relative to (api-core/storage Class). Defaults to data."
+            },
+            "database": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\\\]+$",
+              "description": "sqlite_table only. Slash-normalized path of the SQLite database, relative to the class root (e.g. autoheal.sqlite)."
+            },
+            "table": {
+              "type": "string",
+              "minLength": 1,
+              "description": "sqlite_table only. Table the budget bounds."
+            },
+            "time_column": {
+              "type": "string",
+              "minLength": 1,
+              "description": "sqlite_table only. Column carrying the row's age, used to order deletes oldest-first and to evaluate max_age."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\\\]+$",
+              "description": "directory only. Slash-normalized directory path relative to the class root."
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "sqlite_table"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "database",
+                  "table",
+                  "time_column"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "directory"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "path"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "file"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
+        },
+        "max_age": {
+          "type": "string",
+          "pattern": "^[0-9]+(h|d)$",
+          "description": "Age bound with an explicit unit, hours or days (e.g. 30d, 72h). An age bound alone is not a size bound."
+        },
+        "max_bytes": {
+          "type": "string",
+          "pattern": "^[0-9]+(B|KiB|MiB|GiB|TiB)$",
+          "description": "Size bound with an explicit unit (e.g. 2GiB). A unit is mandatory: a bare integer invites a 1000x mistake that is invisible in review and is a disk outage."
+        },
+        "pruner": {
+          "type": "string",
+          "enum": [
+            "builtin",
+            "custom"
+          ],
+          "default": "builtin",
+          "description": "builtin uses the framework pruner for the target kind and needs no scenario Go code. custom requires the scenario to register a retention.Pruner under this budget's key; the framework still owns whether the target is within budget, the scenario owns which rows die."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this ceiling, and what drives the volume. Read by whoever next has to decide whether the number is still right."
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "description": "Declared storage ceilings for the data this component accumulates, enforced by packages/api-core/retention without per-component code. Distinct from durable_data, which declares what to back up.",
+      "required": [
+        "budgets"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "budgets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/retentionBudget"
+          },
+          "description": "Budgets keyed by stable logical name. The key names the budget in findings and logs, and is the registry name a custom pruner registers under."
+        }
+      }
+    },
+    "credentialDescriptor": {
+      "type": "object",
+      "description": "Declares one credential by a durable, backend-neutral name. logical_id and field are the only identifiers the credential store ever sees; a descriptor never names Vault, a file, or any other provider-shaped path. Replaces the retired secretDescriptor.",
+      "required": [
+        "logical_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "logical_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]+/[a-z0-9][a-z0-9._/-]+$",
+          "description": "Stable namespaced identity, e.g. vrooli/openrouter. Durable across hosts, platforms, and deployment tiers."
+        },
+        "field": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$",
+          "description": "Which value of that identity this descriptor addresses, e.g. api-key. Defaults to 'value'."
+        },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Process environment variable to inject the value into. Optional, and declared ONLY when the consumer is a process Vrooli does not author — a database container, a third-party CLI — which can receive a value no other way. Vrooli-authored code omits this and resolves through the credential-authority binding for its language, which keeps the value out of the process environment where it would be readable at /proc/<pid>/environ and inherited by every subprocess."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the declaring component can do its job without this value. A missing application credential never blocks a start; it makes the component report unhealthy."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable display name shown in onboarding and admin surfaces."
+        },
+        "description": {
+          "type": "string",
+          "description": "Why this credential is needed and what it unlocks."
+        },
+        "obtain_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Where an operator signs up for or generates this credential."
+        },
+        "provisioning": {
+          "type": "string",
+          "enum": ["operator", "derived", "generated"],
+          "default": "operator",
+          "description": "Who supplies this value. operator: a person provides it. derived: the declaring component writes it once derived_from is present. generated: the declaring component mints it out of nothing, typically on first start, because there is nowhere an operator could obtain it. Only an operator-supplied value may block configuration while it is absent."
+        },
+        "derived_from": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$",
+          "description": "Field that must be present before a derived credential can be provisioned."
+        },
+        "tiers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^tier-[1-5]-[a-z0-9-]+$"
+          },
+          "uniqueItems": true,
+          "description": "Deployment tiers where this credential is required. Empty or omitted means every tier."
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "description": "The credentials block shared by resource manifests and scenario service manifests. Both use one shape on purpose: a scenario-declared credential and a resource-declared one must be the same thing to the store, the diagnosis, and the recovery bundle. A credential nothing declares is a credential no backup captures.",
+      "additionalProperties": false,
+      "properties": {
+        "descriptors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/credentialDescriptor"
+          }
+        }
+      }
     }
   }
 }

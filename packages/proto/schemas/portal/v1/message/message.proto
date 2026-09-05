@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package vrooli.portal.v1.message;
+
+import "portal/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message;message_v1";
+
+// MessageService owns the conversation tree and streamed completion path.
+service MessageService {
+  rpc GetTree(GetTreeRequest) returns (GetTreeResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
+  rpc Regenerate(RegenerateRequest) returns (RegenerateResponse);
+  rpc StreamCompletion(StreamCompletionRequest) returns (stream CompletionEvent);
+}
+
+enum MessageRole {
+  MESSAGE_ROLE_UNSPECIFIED = 0;
+  MESSAGE_ROLE_SYSTEM = 1;
+  MESSAGE_ROLE_USER = 2;
+  MESSAGE_ROLE_ASSISTANT = 3;
+  MESSAGE_ROLE_AGENT = 4;
+}
+
+enum CompletionEventKind {
+  COMPLETION_EVENT_KIND_UNSPECIFIED = 0;
+  COMPLETION_EVENT_KIND_STATUS = 1;
+  COMPLETION_EVENT_KIND_TOKEN = 2;
+  COMPLETION_EVENT_KIND_SEARCH_ATTACHMENT = 3;
+  COMPLETION_EVENT_KIND_AGENT_ACTIVITY = 4;
+  COMPLETION_EVENT_KIND_DONE = 5;
+  COMPLETION_EVENT_KIND_ERROR = 6;
+}
+
+message Message {
+  string id = 1;
+  string chat_id = 2;
+  string parent_message_id = 3;
+  int32 sibling_index = 4;
+  MessageRole role = 5;
+  string content = 6;
+  string model = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  repeated SearchAttachment search_attachments = 10;
+}
+
+message SearchAttachment {
+  string id = 1;
+  string query = 2;
+  repeated vrooli.portal.v1.shared.SearchHit hits = 3;
+  bool degraded = 4;
+  string reason = 5;
+  int64 latency_ms = 6;
+  string created_at = 7;
+}
+
+message UsageRecord {
+  string message_id = 1;
+  string provider = 2;
+  string model = 3;
+  int32 prompt_tokens = 4;
+  int32 completion_tokens = 5;
+  double cost_usd = 6;
+}
+
+message GetTreeRequest {
+  string chat_id = 1;
+}
+
+message GetTreeResponse {
+  repeated Message messages = 1;
+  string active_leaf_message_id = 2;
+}
+
+message SendMessageRequest {
+  string chat_id = 1;
+  string parent_message_id = 2;
+  string content = 3;
+  string model = 4;
+  bool web_search_enabled = 5;
+  repeated string selected_skill_ids = 6;
+}
+
+message SendMessageResponse {
+  Message user_message = 1;
+}
+
+message EditMessageRequest {
+  string message_id = 1;
+  string content = 2;
+}
+
+message EditMessageResponse {
+  Message message = 1;
+}
+
+message RegenerateRequest {
+  string message_id = 1;
+  string model = 2;
+}
+
+message RegenerateResponse {
+  Message assistant_message = 1;
+}
+
+message StreamCompletionRequest {
+  string chat_id = 1;
+  string from_message_id = 2;
+  string model = 3;
+  bool web_search_enabled = 4;
+  repeated string selected_skill_ids = 5;
+  vrooli.portal.v1.shared.ChatMode mode = 6;
+}
+
+message CompletionEvent {
+  CompletionEventKind kind = 1;
+  string message_id = 2;
+  string text = 3;
+  SearchAttachment search_attachment = 4;
+  UsageRecord usage = 5;
+  string error_code = 6;
+  string error_message = 7;
+}

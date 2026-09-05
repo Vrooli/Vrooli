@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,80 +11,26 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"test-genie/internal/execution"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/runmanager"
+	"test-genie/internal/scenarios"
+	"test-genie/internal/selfhealthsnapshots"
+	"test-genie/internal/shared"
+	"test-genie/internal/storage/sqlitedb"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/execution"
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
-	"test-genie/internal/scenarios"
-	"test-genie/internal/shared"
+	"github.com/vrooli/api-core/database"
+	apihealth "github.com/vrooli/api-core/health"
+	_ "modernc.org/sqlite"
 )
-
-func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {
-	id := uuid.New()
-	q := &stubSuiteQueue{
-		getResp: &queue.SuiteRequest{
-			ID:           id,
-			ScenarioName: "demo",
-			Status:       "queued",
-		},
-	}
-	server := &Server{
-		config:        Config{Port: "0"},
-		router:        mux.NewRouter(),
-		suiteRequests: q,
-		logger:        log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/suite-requests/"+id.String(), nil)
-	req = mux.SetURLVars(req, map[string]string{"id": id.String()})
-	rec := httptest.NewRecorder()
-
-	server.handleGetSuiteRequest(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-
-	var payload queue.SuiteRequest
-	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if payload.ID != id {
-		t.Fatalf("expected suite request %s, got %s", id, payload.ID)
-	}
-	if q.lastGet != id {
-		t.Fatalf("expected queue Get to receive %s, got %s", id, q.lastGet)
-	}
-}
-
-func TestServer_handleGetSuiteRequestNotFound(t *testing.T) {
-	q := &stubSuiteQueue{
-		getErr: sql.ErrNoRows,
-	}
-	server := &Server{
-		config:        Config{Port: "0"},
-		router:        mux.NewRouter(),
-		suiteRequests: q,
-		logger:        log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/suite-requests/123", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": uuid.NewString()})
-	rec := httptest.NewRecorder()
-
-	server.handleGetSuiteRequest(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", rec.Code)
-	}
-}
 
 func TestServer_handleListScenarios(t *testing.T) {
 	scenarioSvc := &stubScenarioDirectory{
@@ -332,12 +279,13 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 		name       string
 		body       string
 		executor   *stubSuiteExecutor
+		planner    *fakeExecutionPlanner
 		wantStatus int
 		assert     func(t *testing.T, exec *stubSuiteExecutor)
 	}{
 		{
 			name: "success",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551","browserlessUrl":"http://localhost:4110"}`,
+			body: `{"scenarioName":"demo","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551"}`,
 			executor: &stubSuiteExecutor{
 				result: &orchestrator.SuiteExecutionResult{
 					ExecutionID:  uuid.New(),
@@ -351,17 +299,63 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				if exec.input.Request.ScenarioName != "demo" {
 					t.Fatalf("expected scenario demo, got %s", exec.input.Request.ScenarioName)
 				}
-				if exec.input.SuiteRequestID == nil {
-					t.Fatal("expected suite request ID to be set")
-				}
 				if exec.input.Request.UIURL != "http://localhost:35771" {
 					t.Fatalf("expected uiUrl to pass through, got %s", exec.input.Request.UIURL)
 				}
 				if exec.input.Request.APIURL != "http://localhost:17551" {
 					t.Fatalf("expected apiUrl to pass through, got %s", exec.input.Request.APIURL)
 				}
-				if exec.input.Request.BrowserlessURL != "http://localhost:4110" {
-					t.Fatalf("expected browserlessUrl to pass through, got %s", exec.input.Request.BrowserlessURL)
+			},
+		},
+		{
+			name: "adaptive profile selection is expanded before run start",
+			body: `{"scenarioName":"demo","preset":"quick"}`,
+			executor: &stubSuiteExecutor{
+				result: &orchestrator.SuiteExecutionResult{
+					ExecutionID:  uuid.New(),
+					ScenarioName: "demo",
+					StartedAt:    time.Now(),
+					CompletedAt:  time.Now(),
+				},
+			},
+			planner: &fakeExecutionPlanner{
+				result: &execution.ExecutionPlanPreview{
+					ScenarioName: "demo",
+					PresetUsed:   "quick",
+					Profile: &execution.ProfilePlan{
+						Name:          "quick",
+						Strategy:      "budget_fast_feedback",
+						BudgetSeconds: 180,
+					},
+					Phases: []execution.PlannedPhase{
+						{Name: "structure", EstimatedDurationSeconds: 10},
+						{Name: "unit", EstimatedDurationSeconds: 40},
+					},
+					OmittedPhases: []execution.PlannedPhase{
+						{Name: "performance", OmissionReasons: []string{"omitted_budget_exceeded"}},
+					},
+					Summary: execution.ExecutionPlanSummary{
+						PhaseCount:               2,
+						EstimatedDurationSeconds: 50,
+						BudgetSeconds:            180,
+					},
+				},
+			},
+			wantStatus: http.StatusOK,
+			assert: func(t *testing.T, exec *stubSuiteExecutor) {
+				// The budget-trimmed selection must reach the executor — it
+				// cannot re-derive a profile fit — but it travels as a planner
+				// resolution, not as explicit operator intent. Explicit phases
+				// carry no preset, which is what erased preset_used on every
+				// durable run and broke baseline reuse eligibility.
+				if got := strings.Join(exec.input.Request.ResolvedPhases, ","); got != "structure,unit" {
+					t.Fatalf("resolved phases = %s, want adaptive preview selection", got)
+				}
+				if len(exec.input.Request.Phases) != 0 {
+					t.Fatalf("explicit phases = %v, want none for a preset request", exec.input.Request.Phases)
+				}
+				if exec.input.Request.Preset != "quick" {
+					t.Fatalf("preset should remain quick for run metadata, got %q", exec.input.Request.Preset)
 				}
 			},
 		},
@@ -372,36 +366,34 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "invalid suite request id",
-			body:       `{"scenarioName":"demo","suiteRequestId":"not-a-uuid"}`,
+			name:       "retired suite request selector",
+			body:       `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111"}`,
 			executor:   &stubSuiteExecutor{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "suite request not found",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111"}`,
-			executor: &stubSuiteExecutor{
-				err: execution.ErrSuiteRequestNotFound,
-			},
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name: "validation error",
+			// Errors raised while the suite executes surface as a durable failed
+			// run. The blocking endpoint returns that terminal result with HTTP
+			// 200; HTTP 500 is reserved for transport or service failures.
+			name: "execution failure",
 			body: `{"scenarioName":"demo"}`,
 			executor: &stubSuiteExecutor{
-				err: shared.NewValidationError("bad request"),
+				err: errors.New("execution failed"),
 			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusOK,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := &Server{
-				config:       Config{Port: "0"},
-				router:       mux.NewRouter(),
-				executionSvc: tt.executor,
-				logger:       log.New(io.Discard, "", 0),
+				config:     Config{Port: "0"},
+				router:     mux.NewRouter(),
+				runManager: runmanager.New(tt.executor, t.TempDir()),
+				logger:     log.New(io.Discard, "", 0),
+			}
+			if tt.planner != nil {
+				server.executionPlanner = tt.planner
 			}
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/executions", strings.NewReader(tt.body))
@@ -419,7 +411,49 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 	}
 }
 
-func TestServer_handleHealthReportsOperations(t *testing.T) {
+func TestServer_handleExecuteSuiteIncludesFailureDetails(t *testing.T) {
+	server := &Server{
+		config: Config{Port: "0"},
+		router: mux.NewRouter(),
+		runManager: runmanager.New(&stubSuiteExecutor{
+			err: errors.New("start target scenario demo: exit status 2"),
+		}, t.TempDir()),
+		logger: log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/executions", strings.NewReader(`{
+		"scenarioName": "demo",
+		"scenarioPath": "/tmp/vrooli-template/scenarios/demo"
+	}`))
+	rec := httptest.NewRecorder()
+
+	server.handleExecuteSuite(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var payload orchestrator.SuiteExecutionResult
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Success {
+		t.Fatal("expected success=false")
+	}
+	if payload.Verdict != orchestrator.SuiteVerdictFail {
+		t.Fatalf("verdict = %q, want %q", payload.Verdict, orchestrator.SuiteVerdictFail)
+	}
+	if payload.FailureReason != "start target scenario demo: exit status 2" {
+		t.Fatalf("failureReason = %q", payload.FailureReason)
+	}
+	if payload.ScenarioName != "demo" {
+		t.Fatalf("scenarioName = %q", payload.ScenarioName)
+	}
+	if payload.RunID == "" {
+		t.Fatal("expected durable run id for terminal failure")
+	}
+}
+
+func TestServer_handleHealthUsesCanonicalBoundedContract(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("sqlmock.New error: %v", err)
@@ -428,36 +462,10 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 
 	mock.ExpectPing().WillReturnError(nil)
 
-	oldest := time.Now().Add(-2 * time.Minute)
-	q := &stubSuiteQueue{
-		snapshot: queue.SuiteRequestSnapshot{
-			Total:          5,
-			Queued:         3,
-			Delegated:      1,
-			Stale:          1,
-			Running:        1,
-			Completed:      0,
-			Failed:         0,
-			OldestQueuedAt: &oldest,
-		},
-	}
-	history := &fakeExecutionHistory{
-		latest: &orchestrator.SuiteExecutionResult{
-			ExecutionID:  uuid.New(),
-			ScenarioName: "demo",
-			StartedAt:    time.Now().Add(-time.Minute),
-			CompletedAt:  time.Now(),
-			Success:      true,
-			PhaseSummary: orchestrator.PhaseSummary{Total: 2, Passed: 2},
-		},
-	}
-
 	server := &Server{
-		config:           Config{Port: "0", ServiceName: "Test Genie API"},
-		db:               db,
-		suiteRequests:    q,
-		executionHistory: history,
-		logger:           log.New(io.Discard, "", 0),
+		config: Config{Port: "0", ServiceName: "Test Genie API"},
+		db:     database.NewFromPrimary(db),
+		logger: log.New(io.Discard, "", 0),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -469,40 +477,99 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
+	body := rec.Body.Bytes()
 	var payload map[string]interface{}
-	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&payload); err != nil {
 		t.Fatalf("decode health payload: %v", err)
 	}
 	if payload["status"] != "healthy" {
 		t.Fatalf("expected healthy status, got %v", payload["status"])
 	}
+	var standard apihealth.Response
+	if err := json.Unmarshal(body, &standard); err != nil {
+		t.Fatalf("health payload must decode as api-core health response: %v", err)
+	}
+	if dep, ok := standard.Dependencies["database"]; !ok || !dep.Connected {
+		t.Fatalf("expected standard connected database dependency, got %#v", standard.Dependencies)
+	}
 	deps, ok := payload["dependencies"].(map[string]interface{})
-	if !ok || deps["database"] != "connected" {
+	if !ok {
 		t.Fatalf("expected database dependency, got %#v", deps)
 	}
-	operations, ok := payload["operations"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected operations payload, got %#v", payload["operations"])
+	dbDep, ok := deps["database"].(map[string]interface{})
+	if !ok || dbDep["connected"] != true {
+		t.Fatalf("expected connected database dependency, got %#v", deps["database"])
 	}
-	queuePayload, ok := operations["queue"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected queue payload, got %#v", operations)
-	}
-	if queuePayload["pending"].(float64) != 4 {
-		t.Fatalf("expected pending count 4, got %v", queuePayload["pending"])
-	}
-	if queuePayload["stale"].(float64) != 1 {
-		t.Fatalf("expected stale count 1, got %v", queuePayload["stale"])
-	}
-	executionPayload, ok := operations["lastExecution"].(map[string]interface{})
-	if !ok {
-		t.Fatalf("expected last execution payload, got %#v", operations)
-	}
-	if executionPayload["scenario"] != "demo" {
-		t.Fatalf("expected scenario demo, got %#v", executionPayload)
+	if _, exists := payload["operations"]; exists {
+		t.Fatalf("health must not include execution-history operations: %#v", payload["operations"])
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet mock expectations: %v", err)
+	}
+}
+
+func TestServer_handleHealthDegradesForCachedSweepFailure(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	mock.ExpectPing().WillReturnError(nil)
+	status := &selfhealthsnapshots.StatusStore{}
+	status.Record(selfhealthsnapshots.SweepStatus{Outcome: "timed_out", Error: "deadline exceeded"})
+	server := &Server{config: Config{Port: "0"}, db: database.NewFromPrimary(db), sweepStatus: status, logger: log.New(io.Discard, "", 0)}
+	rec := httptest.NewRecorder()
+	server.handleHealth(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	var payload apihealth.Response
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status != apihealth.StatusDegraded || !payload.Readiness {
+		t.Fatalf("payload = %#v", payload)
+	}
+	if dep := payload.Dependencies["self_health_sweep"]; dep.Connected {
+		t.Fatalf("sweep dependency = %#v", dep)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestServer_handleHealthDoesNotWaitForHeldRuntimeSQLitePool(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test-genie.db")
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeDB, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtimeDB.Close()
+	runtimeDB.SetMaxOpenConns(1)
+	healthDB, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer healthDB.Close()
+	conn, err := runtimeDB.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	server := &Server{config: Config{Port: "0"}, db: database.NewFromPrimary(runtimeDB), healthDB: healthDB, logger: log.New(io.Discard, "", 0)}
+	start := time.Now()
+	rec := httptest.NewRecorder()
+	server.handleHealth(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if elapsed := time.Since(start); elapsed > 250*time.Millisecond {
+		t.Fatalf("health waited %s on held runtime pool", elapsed)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }
 
@@ -514,13 +581,11 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectPing().WillReturnError(errors.New("offline"))
-	q := &stubSuiteQueue{}
 	history := &fakeExecutionHistory{}
 
 	server := &Server{
 		config:           Config{Port: "0"},
-		db:               db,
-		suiteRequests:    q,
+		db:               database.NewFromPrimary(db),
 		executionHistory: history,
 		logger:           log.New(io.Discard, "", 0),
 	}
@@ -530,8 +595,8 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 
 	server.handleHealth(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 even when unhealthy, got %d", rec.Code)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when unhealthy, got %d", rec.Code)
 	}
 	var payload map[string]interface{}
 	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
@@ -540,41 +605,28 @@ func TestServer_handleHealthDatabaseFailure(t *testing.T) {
 	if payload["status"] != "unhealthy" {
 		t.Fatalf("expected unhealthy status, got %v", payload["status"])
 	}
-	deps := payload["dependencies"].(map[string]interface{})
-	if deps["database"] != "disconnected" {
-		t.Fatalf("expected disconnected dependency, got %#v", deps)
+	deps, ok := payload["dependencies"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected dependencies payload, got %#v", payload["dependencies"])
+	}
+	dbDep, ok := deps["database"].(map[string]interface{})
+	if !ok || dbDep["connected"] != false {
+		t.Fatalf("expected disconnected database dependency, got %#v", deps["database"])
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet mock expectations: %v", err)
 	}
 }
 
-type stubSuiteQueue struct {
-	getResp     *queue.SuiteRequest
-	getErr      error
-	lastGet     uuid.UUID
-	snapshot    queue.SuiteRequestSnapshot
-	snapshotErr error
-}
-
-func (s *stubSuiteQueue) Queue(ctx context.Context, payload queue.QueueSuiteRequestInput) (*queue.SuiteRequest, error) {
-	return nil, nil
-}
-
-func (s *stubSuiteQueue) List(ctx context.Context, limit int) ([]queue.SuiteRequest, error) {
-	return nil, nil
-}
-
-func (s *stubSuiteQueue) Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error) {
-	s.lastGet = id
-	return s.getResp, s.getErr
-}
-
-func (s *stubSuiteQueue) StatusSnapshot(ctx context.Context) (queue.SuiteRequestSnapshot, error) {
-	if s.snapshotErr != nil {
-		return queue.SuiteRequestSnapshot{}, s.snapshotErr
+func TestCheckSQLiteSchemaRejectsUnavailableStore(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:/missing/test-genie-health.db?mode=ro")
+	if err != nil {
+		t.Fatalf("open test sqlite handle: %v", err)
 	}
-	return s.snapshot, nil
+	defer db.Close()
+	if err := checkSQLiteSchema(context.Background(), db); err == nil {
+		t.Fatal("expected missing read-only database to fail health probe")
+	}
 }
 
 type stubScenarioDirectory struct {
@@ -588,14 +640,6 @@ type stubScenarioDirectory struct {
 	runName      string
 	runPreferred string
 	runArgs      []string
-
-	// UI Smoke fields
-	uiSmokeResp           *scenarios.UISmokeResult
-	uiSmokeErr            error
-	uiSmokeName           string
-	uiSmokeUIURL          string
-	uiSmokeBrowserlessURL string
-	uiSmokeTimeoutMs      int64
 
 	scenarioRoot string
 }
@@ -634,28 +678,6 @@ func (s *stubScenarioDirectory) ListFilesWithMeta(ctx context.Context, name stri
 	return scenarios.FileListResult{}, nil
 }
 
-func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error) {
-	s.uiSmokeName = name
-	s.uiSmokeUIURL = uiURL
-	s.uiSmokeBrowserlessURL = browserlessURL
-	s.uiSmokeTimeoutMs = timeoutMs
-	if s.uiSmokeErr != nil {
-		return nil, s.uiSmokeErr
-	}
-	return s.uiSmokeResp, nil
-}
-
-func (s *stubScenarioDirectory) RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error) {
-	s.uiSmokeName = name
-	s.uiSmokeUIURL = opts.URL
-	s.uiSmokeBrowserlessURL = opts.BrowserlessURL
-	s.uiSmokeTimeoutMs = opts.TimeoutMs
-	if s.uiSmokeErr != nil {
-		return nil, s.uiSmokeErr
-	}
-	return s.uiSmokeResp, nil
-}
-
 func (s *stubScenarioDirectory) ScenarioRoot() string {
 	return s.scenarioRoot
 }
@@ -674,277 +696,4 @@ func (s *stubSuiteExecutor) Execute(ctx context.Context, input execution.SuiteEx
 func (s *stubSuiteExecutor) ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	s.input = input
 	return s.result, s.err
-}
-
-// ============================================================================
-// UI Smoke Handler Tests
-// ============================================================================
-
-func TestServer_handleUISmoke_Success(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeResp: &scenarios.UISmokeResult{
-			Scenario:   "demo",
-			Status:     "passed",
-			Message:    "UI loaded successfully",
-			Timestamp:  time.Now(),
-			DurationMs: 1500,
-			UIURL:      "http://localhost:3000",
-		},
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var result scenarios.UISmokeResult
-	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if result.Status != "passed" {
-		t.Errorf("expected status 'passed', got %q", result.Status)
-	}
-	if scenarioSvc.uiSmokeName != "demo" {
-		t.Errorf("expected scenario name 'demo', got %q", scenarioSvc.uiSmokeName)
-	}
-}
-
-func TestServer_handleUISmoke_WithCustomURL(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeResp: &scenarios.UISmokeResult{
-			Scenario: "demo",
-			Status:   "passed",
-			Message:  "UI loaded successfully",
-			UIURL:    "http://custom.example.com:8080",
-		},
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	payload := `{"url": "http://custom.example.com:8080", "browserless_url": "http://localhost:4110", "timeout_ms": 120000}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	// Verify the custom URL was passed through
-	if scenarioSvc.uiSmokeUIURL != "http://custom.example.com:8080" {
-		t.Errorf("expected uiURL 'http://custom.example.com:8080', got %q", scenarioSvc.uiSmokeUIURL)
-	}
-	if scenarioSvc.uiSmokeBrowserlessURL != "http://localhost:4110" {
-		t.Errorf("expected browserlessURL 'http://localhost:4110', got %q", scenarioSvc.uiSmokeBrowserlessURL)
-	}
-	if scenarioSvc.uiSmokeTimeoutMs != 120000 {
-		t.Errorf("expected timeoutMs 120000, got %d", scenarioSvc.uiSmokeTimeoutMs)
-	}
-}
-
-func TestServer_handleUISmoke_MissingScenarioName(t *testing.T) {
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: &stubScenarioDirectory{},
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios//ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": ""})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_ScenarioNotFound(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeErr: os.ErrNotExist,
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/nonexistent/ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_ValidationError(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeErr: shared.NewValidationError("invalid configuration"),
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_InternalError(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeErr: errors.New("browserless connection failed"),
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_InvalidJSON(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeResp: &scenarios.UISmokeResult{
-			Scenario: "demo",
-			Status:   "passed",
-		},
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	// Invalid JSON body
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader("not valid json"))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_NoScenarioService(t *testing.T) {
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: nil, // No scenario service
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_WhitespaceScenarioName(t *testing.T) {
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: &stubScenarioDirectory{},
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/test/ui-smoke", nil)
-	req = mux.SetURLVars(req, map[string]string{"name": "   "}) // Whitespace-only name via URL var
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestServer_handleUISmoke_PartialPayload(t *testing.T) {
-	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeResp: &scenarios.UISmokeResult{
-			Scenario: "demo",
-			Status:   "passed",
-		},
-	}
-	server := &Server{
-		config:    Config{Port: "0"},
-		router:    mux.NewRouter(),
-		scenarios: scenarioSvc,
-		logger:    log.New(io.Discard, "", 0),
-	}
-
-	// Only URL provided, no timeout or browserless URL
-	payload := `{"url": "http://localhost:4000"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
-	rec := httptest.NewRecorder()
-
-	server.handleUISmoke(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	// Verify only URL was set
-	if scenarioSvc.uiSmokeUIURL != "http://localhost:4000" {
-		t.Errorf("expected uiURL 'http://localhost:4000', got %q", scenarioSvc.uiSmokeUIURL)
-	}
-	if scenarioSvc.uiSmokeBrowserlessURL != "" {
-		t.Errorf("expected browserlessURL to be empty, got %q", scenarioSvc.uiSmokeBrowserlessURL)
-	}
-	if scenarioSvc.uiSmokeTimeoutMs != 0 {
-		t.Errorf("expected timeoutMs to be 0, got %d", scenarioSvc.uiSmokeTimeoutMs)
-	}
 }

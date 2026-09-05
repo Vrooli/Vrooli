@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "voices",
+    "title": "Voices",
+    "routes": ["/voices"],
+    "purpose": "Present the available speech-synthesis voices and their actual provider availability.",
+    "prd_refs": ["OT-P1-001"]
+  }
+}

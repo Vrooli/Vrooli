@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.verdict-summary",
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.5"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.5"
+  ],
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:VerdictSummary"
+}

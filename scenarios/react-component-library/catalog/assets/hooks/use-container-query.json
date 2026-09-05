@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-container-query",
+    "name": "useContainerQuery",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A container-awareness primitive for behavioral adaptation when CSS container queries alone cannot express the required change.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-resize-observer",
+        "reason": "Container width comes from the shared observer."
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "asset": {
+    "id": "calibration-performance",
+    "kind": "component",
+    "name": "Performance calibration fixture"
+  },
+  "budgets": {
+    "mountMs": 1
+  }
+}

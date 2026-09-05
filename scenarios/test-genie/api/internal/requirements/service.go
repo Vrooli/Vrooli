@@ -2,23 +2,27 @@ package requirements
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/evidence"
 	"test-genie/internal/requirements/parsing"
-	"test-genie/internal/requirements/reporting"
 	"test-genie/internal/requirements/snapshot"
-	syncpkg "test-genie/internal/requirements/sync"
 	"test-genie/internal/requirements/types"
-	"test-genie/internal/requirements/validation"
+	sharedartifacts "test-genie/internal/shared/artifacts"
+
+	syncpkg "test-genie/internal/requirements/sync"
 )
 
 // Service orchestrates requirement operations.
@@ -30,9 +34,8 @@ type Service struct {
 	loader          evidence.Loader
 	enricher        enrichment.Enricher
 	syncer          syncpkg.Syncer
-	reporter        reporting.Reporter
-	validator       validation.Validator
 	snapshotBuilder snapshot.Builder
+	artifactRoot    func(string) (string, error)
 }
 
 // NewService creates a Service with production dependencies.
@@ -48,9 +51,8 @@ func NewService() *Service {
 		loader:          evidence.NewDefault(),
 		enricher:        enrichment.New(),
 		syncer:          syncpkg.NewDefault(),
-		reporter:        reporting.New(),
-		validator:       validation.NewDefault(),
 		snapshotBuilder: snapshot.New(),
+		artifactRoot:    artifactpaths.ScenarioRootForDir,
 	}
 }
 
@@ -68,9 +70,8 @@ func NewServiceWithDeps(reader Reader, writer Writer) *Service {
 		loader:          evidence.New(reader),
 		enricher:        enrichment.New(),
 		syncer:          syncpkg.New(syncReader, syncWriter),
-		reporter:        reporting.New(),
-		validator:       validation.New(reader),
 		snapshotBuilder: snapshot.New(),
+		artifactRoot:    func(scenarioDir string) (string, error) { return scenarioDir, nil },
 	}
 }
 
@@ -116,32 +117,65 @@ type SyncOutput struct {
 	Errors             []error
 }
 
-// Sync performs full requirements synchronization.
-func (s *Service) Sync(ctx context.Context, input SyncInput) error {
+// StatusChange records a single requirement-level declared-status transition
+// produced by a sync run. Kind classification (promotion/regression) is left to
+// the caller so this layer stays free of presentation semantics.
+type StatusChange struct {
+	ID     string
+	PRDRef string
+	From   string
+	To     string
+}
+
+// SyncReport is the structured outcome of a sync or a read-only snapshot. It
+// carries the counts the execute report renders so callers never recompute
+// status semantics. On a skipped/cached read, Synced is false and Changes is
+// empty, but Summary/OT/LastSyncedAt still reflect the last persisted state.
+type SyncReport struct {
+	// Synced is true when this report reflects a fresh write this run.
+	Synced bool
+	// LastSyncedAt is the timestamp of the most recent persisted sync, if any.
+	LastSyncedAt *time.Time
+	// Summary is the enrichment rollup of requirement counts.
+	Summary enrichment.Summary
+	// OT aggregates operational-target completion.
+	OT syncpkg.OTSummary
+	// Changes lists requirement-level status transitions made this run.
+	Changes []StatusChange
+}
+
+// Sync performs full requirements synchronization and returns a structured
+// report of the resulting counts and status changes. A nil report (with nil
+// error) means there is no requirements directory to sync.
+func (s *Service) Sync(ctx context.Context, input SyncInput) (*SyncReport, error) {
+	artifactRoot, err := s.artifactRoot(input.ScenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve requirement artifact root: %w", err)
+	}
 	// 1. Discover requirement files
 	files, err := s.discoverer.Discover(ctx, input.ScenarioDir)
 	if err != nil {
 		if errors.Is(err, types.ErrNoRequirementsDir) || errors.Is(err, discovery.ErrNoRequirementsDir) {
 			// No requirements directory - nothing to sync
-			return nil
+			return nil, nil
 		}
-		return fmt.Errorf("discovery: %w", err)
+		return nil, fmt.Errorf("discovery: %w", err)
 	}
 
 	if len(files) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// 2. Parse all requirement files
 	index, err := s.parser.ParseAll(ctx, files)
 	if err != nil {
-		return fmt.Errorf("parsing: %w", err)
+		return nil, fmt.Errorf("parsing: %w", err)
 	}
 
 	// 3. Load test evidence
 	evidenceBundle, err := s.loader.LoadAll(ctx, input.ScenarioDir)
 	if err != nil {
-		return fmt.Errorf("loading evidence: %w", err)
+		return nil, fmt.Errorf("loading evidence: %w", err)
 	}
 
 	// 4. Convert phase results to evidence
@@ -150,21 +184,29 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) error {
 		evidenceBundle.PhaseResults.Merge(phaseEvidence)
 	}
 
+	// Provider phase results are intentionally compact: a provider may attest
+	// that its test command passed without serializing every test case. Preserve
+	// requirement traceability in that case only when the declared validation
+	// points at a test file that explicitly carries the requirement tag. This is
+	// execution evidence (the phase passed), not a source-only status promotion.
+	s.addTaggedTestEvidence(index, evidenceBundle, input.ScenarioDir)
+
 	// 5. Enrich requirements with live status
 	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
-		return fmt.Errorf("enrichment: %w", err)
+		return nil, fmt.Errorf("enrichment: %w", err)
 	}
 
 	// 6. Sync files
 	opts := syncpkg.Options{
 		ScenarioRoot:   input.ScenarioDir,
+		ArtifactRoot:   artifactRoot,
 		TestCommands:   input.CommandHistory,
 		UpdateStatuses: true,
 		DiscoverNew:    true,
 	}
 	result, err := s.syncer.Sync(ctx, index, evidenceBundle, opts)
 	if err != nil {
-		return fmt.Errorf("sync: %w", err)
+		return nil, fmt.Errorf("sync: %w", err)
 	}
 
 	log.Printf("Sync complete: %d files updated, %d statuses changed",
@@ -174,100 +216,173 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) error {
 	summary := s.enricher.ComputeSummary(index.Modules)
 	snap, err := s.snapshotBuilder.Build(ctx, index, summary)
 	if err == nil && snap != nil {
-		snapshotPath := filepath.Join(input.ScenarioDir, "coverage", "requirements-sync", "latest.json")
+		snapshotPath := artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "requirements-sync", "latest.json")
 		if err := s.writer.MkdirAll(filepath.Dir(snapshotPath), 0o755); err != nil {
-			return fmt.Errorf("create snapshot dir: %w", err)
+			return nil, fmt.Errorf("create snapshot dir: %w", err)
 		}
 		if err := snapshot.WriteSnapshot(s.writer, snapshotPath, snap); err != nil {
-			return fmt.Errorf("write snapshot: %w", err)
+			return nil, fmt.Errorf("write snapshot: %w", err)
 		}
 	}
 
-	return nil
+	report := &SyncReport{
+		Synced:       true,
+		LastSyncedAt: s.readLastSyncedAt(input.ScenarioDir),
+		Summary:      summary,
+		OT:           syncpkg.OperationalTargetSummary(index),
+		Changes:      collectStatusChanges(index, result.Changes),
+	}
+	return report, nil
 }
 
-// Report generates a requirements report.
-func (s *Service) Report(ctx context.Context, scenarioDir string, opts reporting.Options, w io.Writer) error {
-	// 1. Discover requirement files
-	files, err := s.discoverer.Discover(ctx, scenarioDir)
-	if err != nil {
-		return fmt.Errorf("discovery: %w", err)
+// addTaggedTestEvidence derives per-requirement evidence from a passed test
+// phase when that phase did not publish individual test records. A validation
+// must name a readable test file and that file must explicitly tag its owning
+// requirement as [REQ:ID] (or the legacy [ID] form). No record is created for
+// failed, skipped, or unknown phases.
+func (s *Service) addTaggedTestEvidence(index *parsing.ModuleIndex, bundle *types.EvidenceBundle, scenarioDir string) {
+	if index == nil || bundle == nil {
+		return
 	}
 
-	// 2. Parse all requirement files
-	index, err := s.parser.ParseAll(ctx, files)
-	if err != nil {
-		return fmt.Errorf("parsing: %w", err)
+	for _, req := range index.AllRequirements() {
+		for _, validation := range req.Validations {
+			if !validation.IsTest() || strings.TrimSpace(validation.Ref) == "" {
+				continue
+			}
+
+			phase := strings.ToLower(strings.TrimSpace(validation.Phase))
+			if phase == "" {
+				phase = "unit"
+			}
+			if evidence.GetPhaseStatus(bundle.PhaseResults, phase) != types.LivePassed {
+				continue
+			}
+
+			ref := validation.Ref
+			path := ref
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(scenarioDir, path)
+			}
+			source, err := s.reader.ReadFile(path)
+			if err != nil || !hasRequirementTag(string(source), req.ID) {
+				continue
+			}
+
+			bundle.PhaseResults.Add(types.EvidenceRecord{
+				RequirementID: req.ID,
+				ValidationRef: ref,
+				Status:        types.LivePassed,
+				Phase:         phase,
+				Evidence:      "passed " + phase + " phase with tagged test reference",
+				SourcePath:    ref,
+			})
+		}
 	}
-
-	// 3. Load test evidence
-	evidenceBundle, err := s.loader.LoadAll(ctx, scenarioDir)
-	if err != nil {
-		return fmt.Errorf("loading evidence: %w", err)
-	}
-
-	// 4. Enrich requirements
-	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
-		return fmt.Errorf("enrichment: %w", err)
-	}
-
-	// 5. Compute summary
-	summary := s.enricher.ComputeSummary(index.Modules)
-
-	// 6. Generate report
-	return s.reporter.Generate(ctx, index, summary, opts, w)
 }
 
-// Validate checks requirement structure.
-func (s *Service) Validate(ctx context.Context, scenarioDir string) (*types.ValidationResult, error) {
-	// 1. Discover requirement files
-	files, err := s.discoverer.Discover(ctx, scenarioDir)
+func hasRequirementTag(source, requirementID string) bool {
+	return strings.Contains(source, "[REQ:"+requirementID+"]") ||
+		strings.Contains(source, "["+requirementID+"]")
+}
+
+// Snapshot reads the last persisted requirement state without writing anything.
+// It powers the execute report on partial/skipped runs: counts reflect disk,
+// Synced is false, and Changes is empty. A nil report means no requirements dir.
+func (s *Service) Snapshot(ctx context.Context, input SyncInput) (*SyncReport, error) {
+	files, err := s.discoverer.Discover(ctx, input.ScenarioDir)
 	if err != nil {
 		if errors.Is(err, types.ErrNoRequirementsDir) || errors.Is(err, discovery.ErrNoRequirementsDir) {
-			return types.NewValidationResult(), nil
+			return nil, nil
 		}
 		return nil, fmt.Errorf("discovery: %w", err)
 	}
+	if len(files) == 0 {
+		return nil, nil
+	}
 
-	// 2. Parse all requirement files
 	index, err := s.parser.ParseAll(ctx, files)
 	if err != nil {
 		return nil, fmt.Errorf("parsing: %w", err)
 	}
 
-	// 3. Run validation rules
-	result := s.validator.Validate(ctx, index, scenarioDir)
+	// Enrich with whatever evidence is already on disk so live status reflects
+	// the last full run, but never write — this is a read-only view.
+	evidenceBundle, err := s.loader.LoadAll(ctx, input.ScenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("loading evidence: %w", err)
+	}
+	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
+		return nil, fmt.Errorf("enrichment: %w", err)
+	}
 
-	return result, nil
+	report := &SyncReport{
+		Synced:       false,
+		LastSyncedAt: s.readLastSyncedAt(input.ScenarioDir),
+		Summary:      s.enricher.ComputeSummary(index.Modules),
+		OT:           syncpkg.OperationalTargetSummary(index),
+	}
+	return report, nil
 }
 
-// GetSummary returns a summary of the requirements.
-func (s *Service) GetSummary(ctx context.Context, scenarioDir string) (enrichment.Summary, error) {
-	// 1. Discover requirement files
-	files, err := s.discoverer.Discover(ctx, scenarioDir)
+// readLastSyncedAt loads the timestamp of the most recent persisted sync from
+// the sync metadata file. Returns nil when no sync has ever run.
+func (s *Service) readLastSyncedAt(scenarioDir string) *time.Time {
+	if scenarioDir == "" {
+		return nil
+	}
+	artifactRoot, err := s.artifactRoot(scenarioDir)
 	if err != nil {
-		return enrichment.Summary{}, fmt.Errorf("discovery: %w", err)
+		return nil
 	}
-
-	// 2. Parse all requirement files
-	index, err := s.parser.ParseAll(ctx, files)
+	raw, err := s.reader.ReadFile(sharedartifacts.SyncMetadataPath(artifactRoot))
 	if err != nil {
-		return enrichment.Summary{}, fmt.Errorf("parsing: %w", err)
+		return nil
 	}
-
-	// 3. Load test evidence
-	evidenceBundle, err := s.loader.LoadAll(ctx, scenarioDir)
-	if err != nil {
-		return enrichment.Summary{}, fmt.Errorf("loading evidence: %w", err)
+	var meta struct {
+		SyncedAt time.Time `json:"synced_at"`
 	}
-
-	// 4. Enrich requirements
-	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
-		return enrichment.Summary{}, fmt.Errorf("enrichment: %w", err)
+	if err := json.Unmarshal(raw, &meta); err != nil || meta.SyncedAt.IsZero() {
+		return nil
 	}
+	t := meta.SyncedAt
+	return &t
+}
 
-	// 5. Compute and return summary
-	return s.enricher.ComputeSummary(index.Modules), nil
+// collectStatusChanges maps the syncer's raw change list down to
+// requirement-level declared-status transitions, attaching each requirement's
+// PRDRef so callers can group changes by operational target.
+func collectStatusChanges(index *parsing.ModuleIndex, changes []syncpkg.Change) []StatusChange {
+	if len(changes) == 0 {
+		return nil
+	}
+	prdRefByID := make(map[string]string)
+	if index != nil {
+		for _, module := range index.Modules {
+			if module == nil {
+				continue
+			}
+			for i := range module.Requirements {
+				req := &module.Requirements[i]
+				prdRefByID[req.ID] = req.PRDRef
+			}
+		}
+	}
+	var out []StatusChange
+	for _, c := range changes {
+		// Only requirement-level status transitions are user-facing; validation
+		// status churn is an implementation detail.
+		if c.Type != syncpkg.ChangeTypeStatusUpdate || c.Field != "status" {
+			continue
+		}
+		out = append(out, StatusChange{
+			ID:     c.RequirementID,
+			PRDRef: prdRefByID[c.RequirementID],
+			From:   c.OldValue,
+			To:     c.NewValue,
+		})
+	}
+	return out
 }
 
 // convertPhaseResults converts orchestrator phase results to evidence.

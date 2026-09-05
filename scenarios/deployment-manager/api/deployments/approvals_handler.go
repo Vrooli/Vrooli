@@ -214,6 +214,35 @@ func (h *ApprovalsHandler) GetRequiredPlatforms(w http.ResponseWriter, r *http.R
 	})
 }
 
+// SetRequiredTargets configures the exact target set whose evidence must pass
+// before a release can be approved.
+func (h *ApprovalsHandler) SetRequiredTargets(w http.ResponseWriter, r *http.Request) {
+	profileID := mux.Vars(r)["id"]
+	var req SetRequiredTargetsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if err := h.repo.SetRequiredTargets(r.Context(), profileID, req.Targets); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"profile_id": profileID, "targets": req.Targets})
+}
+
+func (h *ApprovalsHandler) GetRequiredTargets(w http.ResponseWriter, r *http.Request) {
+	profileID := mux.Vars(r)["id"]
+	targets, err := h.repo.GetRequiredTargets(r.Context(), profileID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	if targets == nil {
+		targets = []RequiredTarget{}
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"profile_id": profileID, "targets": targets})
+}
+
 // writeJSON sends a JSON response.
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")

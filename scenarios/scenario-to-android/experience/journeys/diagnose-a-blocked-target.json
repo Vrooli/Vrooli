@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "diagnose-a-blocked-target",
+    "title": "Find out why a target cannot be proven, and fix it",
+    "purpose": "The diagnostic loop, and the one that decides whether this scenario is trustworthy. An operator sees a target that is not passing and must reach the specific missing capability — and its remedy — without reading source code or falling back to the CLI. Every unavailable state in the system is a promise that this journey terminates somewhere actionable.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-006"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "partial",
+      "intent": "Notice that a target is not passing, and read its disposition without needing colour to tell one disposition from another.",
+      "via": "target-matrix"
+    },
+    {
+      "page": "target-detail",
+      "state": "no-acceleration",
+      "intent": "Read the specific missing capability — hardware acceleration — rather than a generic failure.",
+      "via": "target-matrix row"
+    },
+    {
+      "page": "target-detail",
+      "state": "missing-toolchain",
+      "intent": "See a second, differently-caused unavailability and confirm it names a different next action.",
+      "via": "next-action reprobe"
+    },
+    {
+      "page": "target-detail",
+      "state": "bridge-offline",
+      "intent": "Confirm a remote target whose host node is offline stays listed and carries the reachability reason rather than disappearing.",
+      "via": "target switcher"
+    },
+    {
+      "page": "target-detail",
+      "state": "physical-unpaired",
+      "intent": "Reach a physical phone that is visible but unauthorized, and confirm the remedy is stated as an action to take on the handset rather than a retry the host could perform.",
+      "via": "target-matrix row"
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-blocked-state-terminates-in-an-action",
+      "type": "custom",
+      "statement": "Every unavailable disposition reachable in this journey names both the missing capability and a next action the operator can take.",
+      "tier": "manual",
+      "rationale": "S2A-P0-003. This is the load-bearing promise of the whole disposition model. An unavailable state with no remedy is indistinguishable from a bug. The page-level machine check lives on target-detail as blocked-always-offers-an-action; this journey claim attests the property holds across the whole walk."
+    },
+    {
+      "id": "distinct-causes-give-distinct-remedies",
+      "type": "custom",
+      "statement": "Two targets unavailable for different reasons display different missing capabilities and different next actions.",
+      "tier": "manual",
+      "rationale": "A single generic 'unavailable' message across distinct causes is the failure mode this journey is designed to catch."
+    },
+    {
+      "id": "unreachable-is-never-invisible",
+      "type": "custom",
+      "statement": "A target whose host node is offline remains present in the inventory with its reason.",
+      "tier": "manual",
+      "rationale": "A disappearing target reads as a configuration change rather than a temporary outage, and sends the operator looking in the wrong place."
+    },
+    {
+      "id": "diagnosis-needs-no-cli",
+      "type": "custom",
+      "statement": "The journey completes without leaving the operator surface.",
+      "tier": "manual",
+      "rationale": "The CLI is the complete control surface for agents; the UI must be complete for diagnosis, or the matrix is only a status light."
+    },
+    {
+      "id": "physical-blockers-are-walkable-too",
+      "type": "custom",
+      "statement": "The diagnosis journey covers a physical-device blocker, not only emulator and toolchain blockers.",
+      "tier": "manual",
+      "rationale": "S2A-P0-003. Physical devices are the targets most likely to be blocked by something outside the host entirely, and a journey that never visits one leaves the most human-dependent failure path unexercised."
+    }
+  ]
+}

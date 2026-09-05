@@ -3,10 +3,10 @@ package validation
 import (
 	"testing"
 
+	"scenario-to-desktop-api/signing/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/signing/types"
 )
 
 func TestDefaultValidator_ValidateConfig_NilConfig(t *testing.T) {
@@ -322,7 +322,7 @@ func TestDefaultValidator_ValidateConfig_LinuxValid(t *testing.T) {
 	config := &types.SigningConfig{
 		Enabled: true,
 		Linux: &types.LinuxSigningConfig{
-			GPGKeyID: "ABC123DEF456",
+			GPGKeyID: "fixture-gpg-key-id",
 		},
 	}
 	result := v.ValidateConfig(config)

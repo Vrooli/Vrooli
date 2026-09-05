@@ -1,35 +1,73 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "mode": "development",
   "service": {
     "parent": "vrooli",
     "name": "development-toolchain-validator",
     "displayName": "Development Toolchain Validator",
-    "description": "Validates steer skill interoperability, tooling correctness, and cross-scenario coherence against reference implementations",
+    "description": "Validates Vrooli's development toolchain by executing skills against pristine golden scenarios and evaluating sandbox diffs against expected-diff manifests.",
     "version": "0.0.1",
     "type": "business-application",
-    "category": "developer_tools",
+    "category": "ai_tools",
     "tags": [
       "react-ui",
       "go-api"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/development-toolchain-validator"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-05-18T14:42:59Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "65a572a83cb605354b7482b2e2eacc02fbe131f2ea8a058878f9a5692fa84325"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "development-toolchain-validator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "development-toolchain-validator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "ports": {
@@ -41,12 +79,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -57,131 +90,97 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
           "timeout": 10000,
-          "interval": 30000,
-          "critical": true
+          "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000,
-          "critical": false
+          "interval": 30000
         }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/development-toolchain-validator-api"]
-          },
-          {
-            "type": "cli",
-            "command": "development-toolchain-validator"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o development-toolchain-validator-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./development-toolchain-validator-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/development-toolchain-validator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute development-toolchain-validator --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'development-toolchain-validator-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      ],
+      "startup_grace_period": 15000
     }
   },
   "dependencies": {
-    "resources": {}
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Spawns sandboxed skill runs; provides run summary + diff reference for skill validation.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/default.json",
+              ".vrooli/agent-manager/divergence-probe.json",
+              ".vrooli/agent-manager/skill-experiment-calibration-evaluator.json",
+              ".vrooli/agent-manager/skill-experiment-calibration-treatment.json",
+              ".vrooli/agent-manager/skill-experiment-calibration.json",
+              ".vrooli/agent-manager/skill-experiment-audit.json",
+              ".vrooli/agent-manager/skill-experiment-calibration-input.json",
+              ".vrooli/agent-manager/skill-experiment-audit-input.json"
+            ]
+          }
+        }
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Source of truth for skill catalog (id/version/content hash) mirrored by skill_catalog.",
+        "startup_policy": "must_start"
+      },
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Reads sandbox diff content when content-rule manifest evaluation needs raw file content; degrades to path-only verdict when unavailable.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

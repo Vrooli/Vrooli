@@ -1,20 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
-import { GripHorizontal, X } from "lucide-react";
-import { useDraggablePosition } from "../hooks/useDraggablePosition";
+import { useTranslation } from "react-i18next";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import type { SessionInfo } from "../lib/api";
+import type { SessionInfo } from "../api/sessions";
 import { cn } from "../lib/classnames";
-import { Button } from "./ui/button";
+import { strings } from "../consts/strings";
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import GroupTemplatesPanel from "./settings/GroupTemplatesPanel";
+import HandoffRulesPanel from "./settings/HandoffRulesPanel";
 import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
 import SessionManagementSection from "./settings/SessionManagementSection";
 import ShortcutProfilesSection from "./settings/ShortcutProfilesSection";
+import SnippetsPanel from "./settings/SnippetsPanel";
 import TtsSettingsSection from "./settings/TtsSettingsSection";
 import VoiceInputSection from "./settings/VoiceInputSection";
 import WorkspaceSection from "./settings/WorkspaceSection";
-import { DEFAULT_SETTINGS_TAB, SETTINGS_TABS, type SettingsTabId } from "./settings/tabs";
+import AccountSection from "./settings/AccountSection";
+import {
+  DEFAULT_SETTINGS_TAB,
+  SETTINGS_TAB_IDS,
+  useSettingsTabs,
+  type SettingsTabId,
+} from "./settings/tabs";
 
 const TAB_STORAGE_KEY = "wc-settings-active-tab";
 
@@ -22,7 +32,7 @@ function loadStoredTab(): SettingsTabId {
   if (typeof window === "undefined") return DEFAULT_SETTINGS_TAB;
   try {
     const raw = window.localStorage.getItem(TAB_STORAGE_KEY);
-    if (raw && SETTINGS_TABS.some((tab) => tab.id === raw)) {
+    if (raw && (SETTINGS_TAB_IDS as readonly string[]).includes(raw)) {
       return raw as SettingsTabId;
     }
   } catch {
@@ -48,14 +58,21 @@ type SettingsSectionComponent = ComponentType<{
 }>;
 
 const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
+  account: AccountSection as SettingsSectionComponent,
   sessions: SessionManagementSection,
   workspace: WorkspaceSection as SettingsSectionComponent,
   "voice-input": VoiceInputSection as SettingsSectionComponent,
   "voice-output": TtsSettingsSection as SettingsSectionComponent,
   shortcuts: ShortcutProfilesSection as SettingsSectionComponent,
   "new-pane-defaults": NewPaneDefaultsSection as SettingsSectionComponent,
+  templates: GroupTemplatesPanel as SettingsSectionComponent,
+  snippets: SnippetsPanel as SettingsSectionComponent,
+  "handoff-rules": HandoffRulesPanel as SettingsSectionComponent,
   integrations: IntegrationsSection as SettingsSectionComponent,
 };
+
+/** The library keeps `settings-tab-<id>` reachable so existing flows still address a tab. */
+const settingsTabTestId = (tab: string) => `settings-tab-${tab}`;
 
 interface SettingsModalProps {
   sessions: Array<{ session: SessionInfo }>;
@@ -66,201 +83,173 @@ export default function SettingsModal({
   sessions,
   onDeleteSession,
 }: SettingsModalProps) {
+  const { t } = useTranslation();
   const settingsModalOpen = useWorkspaceStore((state) => state.settingsModalOpen);
   const setSettingsModalOpen = useWorkspaceStore((state) => state.setSettingsModalOpen);
+  const settingsInitialTab = useWorkspaceStore((state) => state.settingsInitialTab);
+  const setSettingsInitialTab = useWorkspaceStore((state) => state.setSettingsInitialTab);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const [activeTab, setActiveTab] = useState<SettingsTabId>(loadStoredTab);
-
-  const { elementRef, floatingStyle, pointerHandlers, handleClickCapture } =
-    useDraggablePosition({
-      isActive: settingsModalOpen && !isMobile,
-      storageKey: "wc-settings-pos",
-      defaultPosition: () => {
-        if (typeof window === "undefined") return { x: 80, y: 60 };
-        return {
-          x: Math.max(12, (window.innerWidth - 1040) / 2),
-          y: Math.max(12, window.innerHeight * 0.08),
-        };
-      },
-    });
+  const settingsTabs = useSettingsTabs();
 
   useEffect(() => {
     storeTab(activeTab);
   }, [activeTab]);
 
+  // Opening a voice tab is audio intent: the reader is here to
+  // configure the feature, so an unreachable backend is finally
+  // news. Latched here rather than left to the panel so both
+  // tabs are covered by one rule.
+  const markAudioIntent = useWorkspaceStore((state) => state.markAudioIntent);
+  useEffect(() => {
+    if (!settingsModalOpen) return;
+    if (activeTab === "voice-input" || activeTab === "voice-output") markAudioIntent();
+  }, [settingsModalOpen, activeTab, markAudioIntent]);
+
+  // Consume a one-shot deep-link request (e.g. "Manage defaults" in the
+  // appearance modal) — jump to the requested tab, then clear the request.
+  useEffect(() => {
+    if (!settingsInitialTab) return;
+    if ((SETTINGS_TAB_IDS as readonly string[]).includes(settingsInitialTab)) {
+      setActiveTab(settingsInitialTab as SettingsTabId);
+    }
+    setSettingsInitialTab(null);
+  }, [settingsInitialTab, setSettingsInitialTab]);
+
   const activeDefinition = useMemo(
-    () => SETTINGS_TABS.find((tab) => tab.id === activeTab) ?? SETTINGS_TABS[0],
-    [activeTab],
+    () => settingsTabs.find((tab) => tab.id === activeTab) ?? settingsTabs[0],
+    [activeTab, settingsTabs],
   );
   const Section = SECTION_COMPONENTS[activeTab];
 
-  if (!settingsModalOpen) return null;
+  // The tab strip is the library's, so overflow, roving focus, arrow-key
+  // navigation, and the selected-tab scroll-into-view come with it rather than
+  // being re-implemented per surface.
+  const tabItems = useMemo(
+    () =>
+      settingsTabs.map((tab) => {
+        const Icon = tab.icon;
+        return {
+          id: tab.id,
+          label: isMobile ? tab.shortLabel : tab.label,
+          icon: <Icon />,
+        };
+      }),
+    [isMobile, settingsTabs],
+  );
 
-  const close = () => setSettingsModalOpen(false);
+  const close = () => {
+    setSettingsModalOpen(false);
+  };
 
-  const shellClassName = isMobile
-    ? "fixed inset-x-0 bottom-0 top-4 z-50 flex flex-col overflow-hidden rounded-t-[28px] border border-wc-default bg-wc-surface-raised shadow-2xl"
-    : "fixed left-0 top-0 z-50 flex h-[min(84vh,760px)] w-[min(96vw,1040px)] flex-col overflow-hidden rounded-[28px] border border-wc-default bg-wc-surface-raised shadow-2xl";
-
-  const shellStyle = isMobile ? undefined : floatingStyle;
+  // On a small viewport the drawer already names the active section in its
+  // header and the section repeats its own description in the body, so the
+  // eyebrow and the description would be the third and fourth copies of the
+  // same words — on the surface with the least room for them.
+  const title = isMobile ? (
+    <span className="text-base font-semibold">
+      {activeDefinition?.label ?? t(strings.settings.title)}
+    </span>
+  ) : (
+    <>
+      <span className="me-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-wc-text-muted">
+        {t(strings.settings.eyebrow)}
+      </span>
+      <span className="text-base font-semibold">
+        {activeDefinition?.label ?? t(strings.settings.title)}
+      </span>
+    </>
+  );
 
   return (
-    <>
-      <div
-        data-testid="settings-backdrop"
-        className="fixed inset-0 z-40 bg-wc-backdrop"
-        onClick={close}
-      />
-
-      <div
-        ref={(node) => {
-          elementRef.current = node;
-        }}
-        data-testid="settings-modal"
-        className={shellClassName}
-        style={shellStyle}
-        onPointerDown={(event) => {
-          if (isMobile) return;
-          const target = event.target as HTMLElement | null;
-          const isOnHandle = Boolean(target?.closest("[data-drag-handle]"));
-          const isOnControl = Boolean(target?.closest("button, a, input, textarea, select"));
-          if (isOnHandle && !isOnControl) {
-            pointerHandlers.onPointerDown(event);
-          }
-        }}
-        onPointerMove={isMobile ? undefined : pointerHandlers.onPointerMove}
-        onPointerUp={isMobile ? undefined : pointerHandlers.onPointerUp}
-        onPointerCancel={isMobile ? undefined : pointerHandlers.onPointerCancel}
-        onClickCapture={isMobile ? undefined : handleClickCapture}
-      >
-        <div
-          data-drag-handle={!isMobile ? true : undefined}
-          className={cn(
-            "border-b border-wc-default px-4 py-3",
-            !isMobile && "cursor-grab active:cursor-grabbing select-none touch-none",
-          )}
-        >
-          {isMobile && (
-            <div className="mb-3 flex justify-center">
-              <div className="h-1.5 w-12 rounded-full bg-wc-text-muted/35" />
-            </div>
-          )}
-
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              {!isMobile && <GripHorizontal className="mt-0.5 h-4 w-4 text-wc-text-faint" />}
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-wc-text-muted">
-                  Settings
-                </div>
-                <h2 className="text-lg font-semibold text-wc-text-primary">
-                  {activeDefinition?.label ?? "Settings"}
-                </h2>
-                <p className="text-sm text-wc-text-faint">
-                  {activeDefinition?.description}
-                </p>
-              </div>
-            </div>
-            <Button
-              data-testid="settings-close"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={close}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+    <FullPageDrawer
+      avoidKeyboard
+      open={settingsModalOpen}
+      onClose={close}
+      closeLabel={t(strings.settings.closeAriaLabel)}
+      title={title}
+      headerExtra={
+        isMobile ? undefined : (
+          <p className="mt-1 text-sm text-wc-text-faint">{activeDefinition?.description}</p>
+        )
+      }
+      // The tab strip belongs above the scroll region and outside the content
+      // gutter: a band that scrolls away with the content is not navigation,
+      // and a full-bleed strip is what lets seven tabs use the whole width.
+      subheader={
+        isMobile ? (
+          <div data-testid="settings-tabs-row" className="px-1">
+            <Tabs
+              ariaLabel={t(strings.settings.sidebarAria)}
+              items={tabItems}
+              active={activeTab}
+              onChange={(next) => {
+                setActiveTab(next as SettingsTabId);
+              }}
+              itemTestId={settingsTabTestId}
+            />
           </div>
+        ) : undefined
+      }
+      testId="settings-modal"
+    >
+      {isMobile ? (
+        <div className="px-3 py-4">
+          <Section
+            sessions={sessions}
+            onDeleteSession={onDeleteSession}
+            onRequestClose={close}
+            open={settingsModalOpen}
+          />
         </div>
-
-        {isMobile ? (
-          <>
-            <nav
-              data-testid="settings-tabs-row"
-              className="flex shrink-0 gap-2 overflow-x-auto border-b border-wc-default px-4 py-3"
-              role="tablist"
-            >
-              {SETTINGS_TABS.map((tab) => {
+      ) : (
+        <div className="flex h-full min-h-0 overflow-hidden">
+          <aside
+            data-testid="settings-sidebar"
+            className="w-[260px] shrink-0 overflow-y-auto border-r border-wc-default bg-wc-surface-base/50 p-3"
+          >
+            <nav className="space-y-1" role="tablist" aria-label={t(strings.settings.sidebarAria)}>
+              {settingsTabs.map((tab) => {
                 const isActive = tab.id === activeTab;
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
-                    data-testid={`settings-tab-${tab.id}`}
+                    data-testid={settingsTabTestId(tab.id)}
                     type="button"
                     role="tab"
                     aria-selected={isActive}
                     className={cn(
-                      "flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm transition-colors",
+                      "flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-start transition-colors",
                       isActive
-                        ? "border-wc-accent bg-wc-surface-input text-wc-text-primary"
-                        : "border-wc-default bg-wc-surface-base/70 text-wc-text-muted",
+                        ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
+                        : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",
                     )}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                    }}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.shortLabel}</span>
+                    <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive && "text-wc-accent")} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{tab.label}</div>
+                      <div className="text-[11px] text-wc-text-faint">{tab.description}</div>
+                    </div>
                   </button>
                 );
               })}
             </nav>
+          </aside>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              <Section
-                sessions={sessions}
-                onDeleteSession={onDeleteSession}
-                onRequestClose={close}
-                open={settingsModalOpen}
-              />
-            </div>
-          </>
-        ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden">
-            <aside
-              data-testid="settings-sidebar"
-              className="w-[260px] shrink-0 border-r border-wc-default bg-wc-surface-base/50 p-3"
-            >
-              <nav className="space-y-1" role="tablist" aria-label="Settings sections">
-                {SETTINGS_TABS.map((tab) => {
-                  const isActive = tab.id === activeTab;
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      data-testid={`settings-tab-${tab.id}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={isActive}
-                      className={cn(
-                        "flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors",
-                        isActive
-                          ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
-                          : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",
-                      )}
-                      onClick={() => setActiveTab(tab.id)}
-                    >
-                      <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive && "text-wc-accent")} />
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{tab.label}</div>
-                        <div className="text-[11px] text-wc-text-faint">{tab.description}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </nav>
-            </aside>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-              <Section
-                sessions={sessions}
-                onDeleteSession={onDeleteSession}
-                onRequestClose={close}
-                open={settingsModalOpen}
-              />
-            </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <Section
+              sessions={sessions}
+              onDeleteSession={onDeleteSession}
+              onRequestClose={close}
+              open={settingsModalOpen}
+            />
           </div>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </FullPageDrawer>
   );
 }

@@ -1,1 +1,7 @@
-api/react-component-library
+# Test Genie and browser-run snapshots are disposable. Durable gate verdicts
+# live in the catalog evidence store and are not reconstructed from these
+# dated files.
+/captures/
+/docs/evidence/
+/.vite/
+ui/.graph-project-*/

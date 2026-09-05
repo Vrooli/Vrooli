@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "code": "proto.shared_type_misplaced",
+      "message_full_names": [
+        "vrooli.search_hub.v1.eval.EvalSuite",
+        "vrooli.search_hub.v1.registry.IncubatingProvider",
+        "vrooli.search_hub.v1.registry.Tuning"
+      ],
+      "reason": "These V1 message identities are already consumed across Search Hub's control, eval, registry, and routing contracts. Moving them to v1/shared would change generated full names and break existing clients; a future versioned contract migration must inventory consumers and preserve compatibility. New reusable Search Hub messages belong in v1/shared.",
+      "expires": "V2 contract migration with a consumer inventory and compatibility plan"
+    }
+  ]
+}

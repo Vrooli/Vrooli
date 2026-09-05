@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 )
 
 func TestManagerAllocate(t *testing.T) {
@@ -120,6 +120,30 @@ func TestManagerAllocate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestManagerAllocateAssignsIPCFromSharedRange(t *testing.T) {
+	m := &manifest.Manifest{
+		IPC:   manifest.IPC{Host: "127.0.0.1", Port: 0},
+		Ports: &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 47100}},
+		Services: []manifest.Service{{
+			ID: "api",
+			Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{
+				Name: "http", Range: manifest.PortRange{Min: 47000, Max: 47100},
+			}}},
+		}},
+	}
+	manager := ports.NewManager(m, infra.RealNetworkDialer{})
+	if err := manager.Allocate(); err != nil {
+		t.Fatalf("Allocate() failed: %v", err)
+	}
+	servicePort, err := manager.Resolve("api", "http")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.IPC.Port < 47000 || m.IPC.Port > 47100 || m.IPC.Port == servicePort {
+		t.Fatalf("IPC port %d was not allocated distinctly from service port %d", m.IPC.Port, servicePort)
 	}
 }
 

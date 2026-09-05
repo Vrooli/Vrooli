@@ -1,0 +1,157 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.author-flow",
+  "version": "2",
+  "purpose": "Validate and execute one assertion-bearing candidate, then persist it or repair an exact workflow revision while preserving its acceptance contract.",
+  "inputs": {
+    "flow": {
+      "type": "object",
+      "description": "Typed V2 candidate with explicit outcome assertions."
+    },
+    "name": {
+      "type": "string",
+      "default": "candidate",
+      "description": "Label for the ad hoc execution and the suggested workflow name."
+    },
+    "folder": {
+      "type": "string",
+      "default": "candidates",
+      "description": "Folder the caller persists into."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project UUID for a new flow"
+    },
+    "workflow_id": {
+      "type": "string",
+      "description": "Existing workflow UUID for repair"
+    },
+    "expected_version": {
+      "type": "integer",
+      "description": "Exact baseline revision required for repair"
+    }
+  },
+  "assumptions": [
+    "Caller authorizes candidate execution and persistence in the selected project; existing workflow execution safety applies."
+  ],
+  "invariants": [
+    "One execution; persist only after completed execution with an evidence ID",
+    "Repair preserves assertions, settings and metadata; update uses expected_version",
+    "A pending or failed candidate never replaces a saved workflow",
+    "One bounded envelope on every path"
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/workflows/validate",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/execute-adhoc",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/get",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/create",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/update",
+      "effect": "write"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "valid": "validate result.valid",
+      "validation_errors": "count of validation errors",
+      "validation_warnings": "count of validation warnings",
+      "node_count": "result.stats.nodeCount",
+      "execution_id": "ad hoc execution UUID",
+      "execution_status": "EXECUTION_STATUS_* after wait",
+      "outcome": "passed | failed",
+      "persistable": "true only when validation passed and the ad hoc run completed",
+      "workflow_id": "Persisted workflow UUID, or null",
+      "version": "Saved immutable revision, or null"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "validation_failed",
+        "selector_not_found",
+        "timeout",
+        "auth_required",
+        "step_failed",
+        "invalid_response",
+        "version_conflict",
+        "execution_pending"
+      ]
+    },
+    "evidence": "execution:<id>"
+  },
+  "budget": {
+    "wall_ms": 300000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0,
+    "async": true,
+    "async_reason": "wall_ms exceeds the 120 s synchronous bound: submit with --async and wait once."
+  },
+  "fixtures": [
+    {
+      "id": "missing-candidate",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "missing-repair-version",
+      "inputs": {
+        "workflow_id": "invalid",
+        "flow": {
+          "nodes": [
+            {}
+          ]
+        }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio"
+}

@@ -1,0 +1,428 @@
+{
+  "selectors": {
+    "admin.login.email": {
+      "testId": "admin-login-email",
+      "selector": "[data-testid=\"admin-login-email\"]"
+    },
+    "admin.login.passwordField": {
+      "testId": "admin-login-password",
+      "selector": "[data-testid=\"admin-login-password\"]"
+    },
+    "admin.login.submit": {
+      "testId": "admin-login-submit",
+      "selector": "[data-testid=\"admin-login-submit\"]"
+    },
+    "admin.login.error": {
+      "testId": "admin-login-error",
+      "selector": "[data-testid=\"admin-login-error\"]"
+    },
+    "admin.breadcrumb": {
+      "testId": "admin-breadcrumb",
+      "selector": "[data-testid=\"admin-breadcrumb\"]"
+    },
+    "admin.nav.home": {
+      "testId": "nav-home",
+      "selector": "[data-testid=\"nav-home\"]"
+    },
+    "admin.nav.analytics": {
+      "testId": "nav-analytics",
+      "selector": "[data-testid=\"nav-analytics\"]"
+    },
+    "admin.nav.customization": {
+      "testId": "nav-customization",
+      "selector": "[data-testid=\"nav-customization\"]"
+    },
+    "admin.nav.logout": {
+      "testId": "nav-logout",
+      "selector": "[data-testid=\"nav-logout\"]"
+    },
+    "admin.home.resumePanel": {
+      "testId": "admin-resume-panel",
+      "selector": "[data-testid=\"admin-resume-panel\"]"
+    },
+    "admin.home.resumeCustomization": {
+      "testId": "admin-resume-customization",
+      "selector": "[data-testid=\"admin-resume-customization\"]"
+    },
+    "admin.home.resumeAnalytics": {
+      "testId": "admin-resume-analytics",
+      "selector": "[data-testid=\"admin-resume-analytics\"]"
+    },
+    "admin.home.resumeCard": {
+      "testId": "admin-resume-card",
+      "selector": "[data-testid=\"admin-resume-card\"]"
+    },
+    "admin.home.resumeAnalyticsCard": {
+      "testId": "admin-resume-analytics-card",
+      "selector": "[data-testid=\"admin-resume-analytics-card\"]"
+    },
+    "admin.home.experienceGuide": {
+      "testId": "admin-experience-guide",
+      "selector": "[data-testid=\"admin-experience-guide\"]"
+    },
+    "admin.home.guideAnalytics": {
+      "testId": "admin-guide-analytics",
+      "selector": "[data-testid=\"admin-guide-analytics\"]"
+    },
+    "admin.home.guideCustomization": {
+      "testId": "admin-guide-customization",
+      "selector": "[data-testid=\"admin-guide-customization\"]"
+    },
+    "admin.home.guidePreview": {
+      "testId": "admin-guide-preview",
+      "selector": "[data-testid=\"admin-guide-preview\"]"
+    },
+    "admin.mode.analytics": {
+      "testId": "admin-mode-analytics",
+      "selector": "[data-testid=\"admin-mode-analytics\"]"
+    },
+    "admin.mode.customization": {
+      "testId": "admin-mode-customization",
+      "selector": "[data-testid=\"admin-mode-customization\"]"
+    },
+    "admin.analytics.filters": {
+      "testId": "analytics-filters",
+      "selector": "[data-testid=\"analytics-filters\"]"
+    },
+    "admin.analytics.timeRange": {
+      "testId": "analytics-time-range",
+      "selector": "[data-testid=\"analytics-time-range\"]"
+    },
+    "admin.analytics.variantFilter": {
+      "testId": "analytics-variant-filter",
+      "selector": "[data-testid=\"analytics-variant-filter\"]"
+    },
+    "admin.analytics.focusBanner": {
+      "testId": "analytics-focus-banner",
+      "selector": "[data-testid=\"analytics-focus-banner\"]"
+    },
+    "admin.analytics.resetFilters": {
+      "testId": "analytics-reset-filters",
+      "selector": "[data-testid=\"analytics-reset-filters\"]"
+    },
+    "admin.analytics.focusCustomize": {
+      "testId": "analytics-focus-customize",
+      "selector": "[data-testid=\"analytics-focus-customize\"]"
+    },
+    "admin.analytics.focusPreview": {
+      "testId": "analytics-focus-preview",
+      "selector": "[data-testid=\"analytics-focus-preview\"]"
+    },
+    "admin.analytics.totalVisitors": {
+      "testId": "analytics-total-visitors",
+      "selector": "[data-testid=\"analytics-total-visitors\"]"
+    },
+    "admin.analytics.conversionRate": {
+      "testId": "analytics-conversion-rate",
+      "selector": "[data-testid=\"analytics-conversion-rate\"]"
+    },
+    "admin.analytics.topCta": {
+      "testId": "analytics-top-cta",
+      "selector": "[data-testid=\"analytics-top-cta\"]"
+    },
+    "admin.analytics.variantPerformance": {
+      "testId": "analytics-variant-performance",
+      "selector": "[data-testid=\"analytics-variant-performance\"]"
+    },
+    "admin.analytics.variantDetail": {
+      "testId": "analytics-variant-detail",
+      "selector": "[data-testid=\"analytics-variant-detail\"]"
+    },
+    "admin.analytics.variantActions": {
+      "testId": "analytics-variant-actions",
+      "selector": "[data-testid=\"analytics-variant-actions\"]"
+    },
+    "admin.customization.triggerAgent": {
+      "testId": "trigger-agent-customization",
+      "selector": "[data-testid=\"trigger-agent-customization\"]"
+    },
+    "admin.customization.createVariant": {
+      "testId": "create-variant",
+      "selector": "[data-testid=\"create-variant\"]"
+    },
+    "admin.customization.addSection": {
+      "testId": "add-section",
+      "selector": "[data-testid=\"add-section\"]"
+    },
+    "admin.customization.filterBar": {
+      "testId": "variant-filter-bar",
+      "selector": "[data-testid=\"variant-filter-bar\"]"
+    },
+    "admin.customization.filterSearch": {
+      "testId": "variant-search-input",
+      "selector": "[data-testid=\"variant-search-input\"]"
+    },
+    "admin.customization.filterAttentionToggle": {
+      "testId": "variant-attention-filter",
+      "selector": "[data-testid=\"variant-attention-filter\"]"
+    },
+    "admin.customization.clearFilters": {
+      "testId": "clear-variant-filters",
+      "selector": "[data-testid=\"clear-variant-filters\"]"
+    },
+    "admin.customization.needsAttentionFocus": {
+      "testId": "needs-attention-focus",
+      "selector": "[data-testid=\"needs-attention-focus\"]"
+    },
+    "admin.customization.variantListSummary": {
+      "testId": "variant-list-summary",
+      "selector": "[data-testid=\"variant-list-summary\"]"
+    },
+    "admin.variant.nameInput": {
+      "testId": "variant-name-input",
+      "selector": "[data-testid=\"variant-name-input\"]"
+    },
+    "admin.variant.slugInput": {
+      "testId": "variant-slug-input",
+      "selector": "[data-testid=\"variant-slug-input\"]"
+    },
+    "admin.variant.descriptionInput": {
+      "testId": "variant-description-input",
+      "selector": "[data-testid=\"variant-description-input\"]"
+    },
+    "admin.variant.weightInput": {
+      "testId": "variant-weight-input",
+      "selector": "[data-testid=\"variant-weight-input\"]"
+    },
+    "admin.variant.save": {
+      "testId": "save-variant",
+      "selector": "[data-testid=\"save-variant\"]"
+    },
+    "admin.section.form": {
+      "testId": "section-form",
+      "selector": "[data-testid=\"section-form\"]"
+    },
+    "admin.section.preview": {
+      "testId": "section-preview",
+      "selector": "[data-testid=\"section-preview\"]"
+    },
+    "admin.section.typeInput": {
+      "testId": "section-type-input",
+      "selector": "[data-testid=\"section-type-input\"]"
+    },
+    "admin.section.enabledInput": {
+      "testId": "section-enabled-input",
+      "selector": "[data-testid=\"section-enabled-input\"]"
+    },
+    "admin.section.orderInput": {
+      "testId": "section-order-input",
+      "selector": "[data-testid=\"section-order-input\"]"
+    },
+    "admin.section.save": {
+      "testId": "save-section",
+      "selector": "[data-testid=\"save-section\"]"
+    },
+    "admin.section.content.titleInput": {
+      "testId": "content-title-input",
+      "selector": "[data-testid=\"content-title-input\"]"
+    },
+    "admin.section.content.subtitleInput": {
+      "testId": "content-subtitle-input",
+      "selector": "[data-testid=\"content-subtitle-input\"]"
+    },
+    "admin.section.content.ctaTextInput": {
+      "testId": "content-cta-text-input",
+      "selector": "[data-testid=\"content-cta-text-input\"]"
+    },
+    "admin.section.content.ctaUrlInput": {
+      "testId": "content-cta-url-input",
+      "selector": "[data-testid=\"content-cta-url-input\"]"
+    },
+    "admin.section.content.imageUrlInput": {
+      "testId": "content-image-url-input",
+      "selector": "[data-testid=\"content-image-url-input\"]"
+    },
+    "admin.agent.briefInput": {
+      "testId": "agent-brief-input",
+      "selector": "[data-testid=\"agent-brief-input\"]"
+    },
+    "admin.agent.assetsInput": {
+      "testId": "agent-assets-input",
+      "selector": "[data-testid=\"agent-assets-input\"]"
+    },
+    "admin.agent.previewInput": {
+      "testId": "agent-preview-input",
+      "selector": "[data-testid=\"agent-preview-input\"]"
+    },
+    "admin.agent.submit": {
+      "testId": "agent-submit",
+      "selector": "[data-testid=\"agent-submit\"]"
+    },
+    "publicLanding.surface": {
+      "testId": "landing-experience-surface",
+      "selector": "[data-testid=\"landing-experience-surface\"]"
+    },
+    "publicLanding.experienceHeader": {
+      "testId": "landing-experience-header",
+      "selector": "[data-testid=\"landing-experience-header\"]"
+    },
+    "publicLanding.navCta": {
+      "testId": "landing-nav-cta",
+      "selector": "[data-testid=\"landing-nav-cta\"]"
+    },
+    "publicLanding.navMobile": {
+      "testId": "landing-nav-mobile",
+      "selector": "[data-testid=\"landing-nav-mobile\"]"
+    },
+    "publicLanding.navDownload": {
+      "testId": "landing-nav-download",
+      "selector": "[data-testid=\"landing-nav-download\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "admin.analytics.variantRow": {
+      "description": "Analytics variant performance row by variant ID",
+      "selectorPattern": "[data-testid=\"analytics-variant-row-${id}\"]",
+      "testIdPattern": "analytics-variant-row-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "number"
+        }
+      ]
+    },
+    "admin.analytics.viewDetails": {
+      "description": "View details button for specific variant",
+      "selectorPattern": "[data-testid=\"analytics-view-details-${id}\"]",
+      "testIdPattern": "analytics-view-details-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "number"
+        }
+      ]
+    },
+    "admin.analytics.editVariant": {
+      "description": "Customize button for specific variant from analytics table",
+      "selectorPattern": "[data-testid=\"analytics-edit-${id}\"]",
+      "testIdPattern": "analytics-edit-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "number"
+        }
+      ]
+    },
+    "admin.customization.variantCard": {
+      "description": "Variant card by slug",
+      "selectorPattern": "[data-testid=\"variant-card-${slug}\"]",
+      "testIdPattern": "variant-card-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.editVariant": {
+      "description": "Edit variant button by slug",
+      "selectorPattern": "[data-testid=\"edit-variant-${slug}\"]",
+      "testIdPattern": "edit-variant-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.previewVariant": {
+      "description": "Preview variant button by slug",
+      "selectorPattern": "[data-testid=\"preview-variant-${slug}\"]",
+      "testIdPattern": "preview-variant-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.archiveVariant": {
+      "description": "Archive variant button by slug",
+      "selectorPattern": "[data-testid=\"archive-variant-${slug}\"]",
+      "testIdPattern": "archive-variant-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.variantAnalytics": {
+      "description": "Link to view analytics for a variant card",
+      "selectorPattern": "[data-testid=\"variant-analytics-${slug}\"]",
+      "testIdPattern": "variant-analytics-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.variantPerformance": {
+      "description": "Variant performance summary block",
+      "selectorPattern": "[data-testid=\"variant-performance-${slug}\"]",
+      "testIdPattern": "variant-performance-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.variantStatus": {
+      "description": "Variant status badges block",
+      "selectorPattern": "[data-testid=\"variant-status-${slug}\"]",
+      "testIdPattern": "variant-status-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.deleteVariant": {
+      "description": "Delete variant button by slug",
+      "selectorPattern": "[data-testid=\"delete-variant-${slug}\"]",
+      "testIdPattern": "delete-variant-${slug}",
+      "params": [
+        {
+          "name": "slug",
+          "type": "string"
+        }
+      ]
+    },
+    "admin.customization.section": {
+      "description": "Section item by ID",
+      "selectorPattern": "[data-testid=\"section-${id}\"]",
+      "testIdPattern": "section-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "number"
+        }
+      ]
+    },
+    "admin.customization.editSection": {
+      "description": "Edit section button by ID",
+      "selectorPattern": "[data-testid=\"edit-section-${id}\"]",
+      "testIdPattern": "edit-section-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "number"
+        }
+      ]
+    },
+    "admin.breadcrumbSegment": {
+      "description": "Breadcrumb segment by index",
+      "selectorPattern": "[data-testid=\"breadcrumb-${index}\"]",
+      "testIdPattern": "breadcrumb-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,232 @@
+[
+  {
+    "asset": "hooks.*",
+    "kind": "permanent",
+    "reason": "Hooks are behavior-only assets and do not own a DOM root."
+  },
+  {
+    "asset": "foundations.contracts",
+    "kind": "permanent",
+    "reason": "The foundation exports types and contracts only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.icon-registry",
+    "kind": "permanent",
+    "reason": "The foundation exports icon data and helpers only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.icon-geometry",
+    "kind": "permanent",
+    "reason": "The foundation exports pure geometry functions only; it renders nothing and has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.tokens",
+    "kind": "permanent",
+    "reason": "The foundation exports token data only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.base-styles",
+    "kind": "permanent",
+    "reason": "The foundation owns a stylesheet side effect and returns no DOM root to stamp."
+  },
+  {
+    "asset": "react-component-library:StyleSheet",
+    "kind": "permanent",
+    "reason": "The foundation owns stylesheet insertion behavior and returns no DOM root to stamp."
+  },
+  {
+    "asset": "react-component-library:Portal",
+    "kind": "permanent",
+    "reason": "Portal is an internal overlay transport without a standalone catalog identity or owned root; its consumers own the stamped surface."
+  },
+  {
+    "asset": "react-component-library:CanvasFrame",
+    "kind": "backlog",
+    "reason": "CanvasFrame is an internal preview surface without a standalone catalog entry."
+  },
+  {
+    "asset": "react-component-library:useOverlaySurface",
+    "kind": "permanent",
+    "reason": "useOverlaySurface is behavior-only overlay state without a standalone DOM root or catalog identity."
+  },
+  {
+    "asset": "react-component-library:useVoiceInput",
+    "kind": "permanent",
+    "reason": "useVoiceInput is behavior-only and does not own a DOM root or standalone catalog identity."
+  },
+  {
+    "asset": "foundations.visual-recipes",
+    "kind": "permanent",
+    "reason": "The foundation exports recipes and token maps only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.class-merge",
+    "kind": "permanent",
+    "reason": "The foundation exports class composition helpers only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.gesture-direction",
+    "kind": "permanent",
+    "reason": "The foundation exports pure direction-resolution functions only; it renders nothing and has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.gesture-tokens",
+    "kind": "permanent",
+    "reason": "The foundation exports gesture feel tokens and a merge helper only; it renders nothing and has no DOM-owned root."
+  },
+  {
+    "asset": "components.gesture-tokens",
+    "kind": "permanent",
+    "reason": "The token-only gesture foundation is temporarily indexed under components by the ingest API; it has no DOM-owned root."
+  },
+  {
+    "asset": "components.use-hover-intent",
+    "kind": "permanent",
+    "reason": "The behavior-only hover controller is temporarily indexed under components by the ingest API; it has no DOM-owned root."
+  },
+  {
+    "asset": "primitives.slot",
+    "kind": "permanent",
+    "reason": "Slot clones a consumer-owned element and does not own a DOM root to stamp."
+  },
+  {
+    "asset": "services.command-registry",
+    "kind": "permanent",
+    "reason": "The service exports an imperative registry and does not render a DOM root."
+  },
+  {
+    "asset": "services.drag-drop-store",
+    "kind": "permanent",
+    "reason": "The service exports store state and does not render a DOM root."
+  },
+  {
+    "asset": "services.form-store",
+    "kind": "permanent",
+    "reason": "The service exports form state and does not render a DOM root."
+  },
+  {
+    "asset": "services.layer-manager",
+    "kind": "permanent",
+    "reason": "The service exports layer coordination and does not render a DOM root."
+  },
+  {
+    "asset": "services.selection-store",
+    "kind": "permanent",
+    "reason": "The service exports selection state and does not render a DOM root."
+  },
+  {
+    "asset": "services.shortcut-registry",
+    "kind": "permanent",
+    "reason": "The service exports keyboard registry state and does not render a DOM root."
+  },
+  {
+    "asset": "services.create-scoped-store",
+    "kind": "permanent",
+    "reason": "The service exports a store factory and does not render a DOM root."
+  },
+  {
+    "asset": "navigation.scroll-restoration",
+    "kind": "permanent",
+    "reason": "The service exports a scroll effect and does not render a DOM root."
+  },
+  {
+    "asset": "monetization.auth-section",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.entitlement-error-card",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.pending-sync-badge",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.subscription-status-card",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.upgrade-prompt",
+    "kind": "permanent",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "react-component-library:AssetDetailShell",
+    "kind": "backlog",
+    "reason": "Workbench shell with no owned catalog asset yet; catalogue it as a page-template so its rendered tree can be scored."
+  },
+  {
+    "asset": "react-component-library:AsyncPanel",
+    "kind": "backlog",
+    "reason": "Workbench async boundary with no owned catalog asset yet; catalogue it under feedback."
+  },
+  {
+    "asset": "react-component-library:CommandCenterShell",
+    "kind": "backlog",
+    "reason": "Workbench shell with no owned catalog asset yet; catalogue it as a page-template."
+  },
+  {
+    "asset": "react-component-library:ControlBase",
+    "kind": "backlog",
+    "reason": "Shared control substrate with no owned catalog asset yet; catalogue it under controls."
+  },
+  {
+    "asset": "react-component-library:DrawerShell",
+    "kind": "backlog",
+    "reason": "Overlay shell with no owned catalog asset yet; catalogue it under overlays."
+  },
+  {
+    "asset": "react-component-library:ExperienceSurface",
+    "kind": "backlog",
+    "reason": "Experience surface with no owned catalog asset yet; catalogue it under patterns."
+  },
+  {
+    "asset": "react-component-library:FocusTrapPanel",
+    "kind": "backlog",
+    "reason": "Focus management panel with no owned catalog asset yet; catalogue it under overlays."
+  },
+  {
+    "asset": "react-component-library:InspectorLayout",
+    "kind": "backlog",
+    "reason": "Inspector layout with no owned catalog asset yet; catalogue it as a page-template."
+  },
+  {
+    "asset": "react-component-library:PageFrame",
+    "kind": "backlog",
+    "reason": "Page frame with no owned catalog asset yet; catalogue it as a page-template."
+  },
+  {
+    "asset": "react-component-library:StatusBadge",
+    "kind": "backlog",
+    "reason": "Status badge with no owned catalog asset yet; catalogue it under feedback."
+  },
+  {
+    "asset": "react-component-library:VoiceInputButton",
+    "kind": "backlog",
+    "reason": "Voice input control with no owned catalog asset yet; catalogue it under controls."
+  },
+  {
+    "asset": "react-component-library:WorkspaceHeader",
+    "kind": "backlog",
+    "reason": "Workspace header with no owned catalog asset yet; catalogue it under navigation."
+  },
+  {
+    "asset": "react-component-library:markdown-renderer",
+    "kind": "backlog",
+    "reason": "Markdown renderer with no owned catalog asset yet; catalogue it under data-display."
+  },
+  {
+    "asset": "react-component-library:mermaid-diagram",
+    "kind": "backlog",
+    "reason": "Diagram renderer with no owned catalog asset yet; catalogue it under visualization."
+  },
+  {
+    "asset": "react-component-library:NotificationBadge",
+    "kind": "backlog",
+    "reason": "Supplemental badge implementation has no catalog asset yet; catalogue it under feedback before treating it as a governed catalog release."
+  }
+]

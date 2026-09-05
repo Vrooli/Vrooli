@@ -1,7 +1,15 @@
-import { forwardRef, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useEscapeDismiss } from "../../hooks/useEscapeDismiss";
 
 interface DrawerProps {
   open: boolean;
@@ -14,7 +22,15 @@ interface DrawerProps {
   children: ReactNode;
 }
 
-export function Drawer({ open, onClose, title, description, side = "right", panelClassName, children }: DrawerProps) {
+export function Drawer({
+  open,
+  onClose,
+  title,
+  description,
+  side = "right",
+  panelClassName,
+  children,
+}: DrawerProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -24,21 +40,16 @@ export function Drawer({ open, onClose, title, description, side = "right", pane
       setMounted(true);
       // Trigger transition on next frame
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => setVisible(true));
+        requestAnimationFrame(() => {
+          setVisible(true);
+        });
       });
     } else {
       setVisible(false);
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
+  useEscapeDismiss(open, onClose);
 
   const handleTransitionEnd = () => {
     if (!visible) setMounted(false);
@@ -46,9 +57,14 @@ export function Drawer({ open, onClose, title, description, side = "right", pane
 
   if (!mounted) return null;
 
-  const translateClass = side === "right"
-    ? visible ? "translate-x-0" : "translate-x-full"
-    : visible ? "translate-x-0" : "-translate-x-full";
+  const translateClass =
+    side === "right"
+      ? visible
+        ? "translate-x-0"
+        : "translate-x-full"
+      : visible
+        ? "translate-x-0"
+        : "-translate-x-full";
 
   return createPortal(
     <div className="fixed inset-0 z-[99999]" aria-modal="true" role="dialog">
@@ -76,8 +92,14 @@ export function Drawer({ open, onClose, title, description, side = "right", pane
           <DrawerHeader>
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1 min-w-0">
-                {title && <h2 className="text-lg font-semibold text-slate-50 truncate">{title}</h2>}
-                {description && <p className="text-sm text-slate-400">{description}</p>}
+                {title && (
+                  <h2 className="text-lg font-semibold text-slate-50 truncate">
+                    {title}
+                  </h2>
+                )}
+                {description && (
+                  <p className="text-sm text-slate-400">{description}</p>
+                )}
               </div>
               <button
                 type="button"
@@ -101,21 +123,33 @@ type DrawerSectionProps = HTMLAttributes<HTMLDivElement>;
 
 export const DrawerHeader = forwardRef<HTMLDivElement, DrawerSectionProps>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("border-b border-slate-800 px-5 py-4", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn("border-b border-slate-800 px-5 py-4", className)}
+      {...props}
+    />
   ),
 );
 DrawerHeader.displayName = "DrawerHeader";
 
 export const DrawerBody = forwardRef<HTMLDivElement, DrawerSectionProps>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex-1 overflow-y-auto px-5 py-4", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn("flex-1 overflow-y-auto px-5 py-4", className)}
+      {...props}
+    />
   ),
 );
 DrawerBody.displayName = "DrawerBody";
 
 export const DrawerFooter = forwardRef<HTMLDivElement, DrawerSectionProps>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("border-t border-slate-800 px-5 py-4", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn("border-t border-slate-800 px-5 py-4", className)}
+      {...props}
+    />
   ),
 );
 DrawerFooter.displayName = "DrawerFooter";

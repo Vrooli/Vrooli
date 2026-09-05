@@ -1,42 +1,207 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "System Monitor Documentation",
   "description": "Real-time system monitoring with AI-driven anomaly detection",
   "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Every durable scenario document should be registered here. Use docs/concepts/ for product and system concepts, docs/guides/ for task procedures, docs/reference/ for stable lookup material, docs/internal/ for developer and agent memory, docs/operations/ for runtime operations, docs/business/ for commercial strategy, and docs/domains/<domain>/ for domain-specific depth that would overload DOMAINS.md."
+  },
   "sections": [
     {
       "id": "getting-started",
       "title": "Getting Started",
       "icon": "rocket",
+      "description": "First-touch experience, scenario identity, and local startup flow",
       "documents": [
-        { "id": "quickstart", "title": "Quick Start", "path": "QUICKSTART.md", "type": "guide", "description": "Get up and running in 5 minutes" },
-        { "id": "readme", "title": "README", "path": "../README.md", "type": "overview", "description": "Full feature overview, architecture, and configuration" }
+        {
+          "path": "QUICKSTART.md",
+          "docType": "quickstart",
+          "title": "Quick Start",
+          "aliases": ["quick-start", "run-local"],
+          "description": "Get up and running in 5 minutes",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["local-runbook", "first-run"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "../README.md",
+          "docType": "readme",
+          "title": "README",
+          "aliases": ["overview", "summary"],
+          "description": "Full feature overview, architecture, and configuration",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["scenario-summary", "entrypoint"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "manifest",
+          "title": "Documentation Manifest",
+          "aliases": ["docs-manifest", "contract"],
+          "description": "Machine-readable documentation contract used by documentation health tooling",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["documentation-contract", "documentation-validation"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements Document",
+          "aliases": ["requirements", "product-requirements"],
+          "description": "Full PRD with operational targets, API contract, CLI interface, and architecture",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["product-requirements", "operational-targets"],
+          "maturity": "active",
+          "requiredBy": ["oriented"],
+          "completion": "required"
+        }
       ]
     },
     {
       "id": "concepts",
       "title": "Concepts",
       "icon": "lightbulb",
+      "description": "Durable product and system mental models",
       "documents": [
-        { "id": "architecture", "title": "Architecture", "path": "concepts/ARCHITECTURE.md", "type": "concept", "description": "System design, layers, and data flow" }
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "docType": "architecture",
+          "title": "Architecture",
+          "aliases": ["arch", "system-architecture"],
+          "description": "System design, layers, and data flow",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["system-architecture", "surface-responsibilities"],
+          "maturity": "active",
+          "requiredBy": ["generated", "oriented", "implemented"],
+          "completion": "required"
+        }
       ]
     },
     {
       "id": "reference",
       "title": "Reference",
       "icon": "book",
+      "description": "Stable lookup material for APIs, CLI commands, and configuration",
       "documents": [
-        { "id": "api-endpoints", "title": "API Endpoints", "path": "reference/api-endpoints.md", "type": "reference", "description": "Complete REST API reference with 40+ endpoints" },
-        { "id": "cli-commands", "title": "CLI Commands", "path": "reference/cli-commands.md", "type": "reference", "description": "Command-line interface reference" },
-        { "id": "configuration", "title": "Configuration", "path": "reference/configuration.md", "type": "reference", "description": "Environment variables and settings" }
+        {
+          "path": "reference/api-endpoints.md",
+          "docType": "api-reference",
+          "title": "API Endpoints",
+          "aliases": ["api", "api-endpoints", "endpoints"],
+          "description": "Complete REST API reference with 40+ endpoints",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["api-reference"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "docType": "cli-reference",
+          "title": "CLI Commands",
+          "aliases": ["cli", "cli-commands", "commands"],
+          "description": "Command-line interface reference",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["cli-reference"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented"],
+          "completion": "required"
+        },
+        {
+          "path": "reference/configuration.md",
+          "docType": "configuration-reference",
+          "title": "Configuration",
+          "aliases": ["config", "configuration", "environment"],
+          "description": "Environment variables and settings",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["configuration-reference", "runtime-configuration"],
+          "maturity": "active",
+          "requiredBy": ["generated", "deployable"],
+          "completion": "required"
+        },
+        {
+          "path": "reference/platform-capabilities.md",
+          "docType": "platform-reference",
+          "title": "Platform Capabilities",
+          "aliases": ["platforms", "capability-matrix", "cross-platform"],
+          "description": "Native metric backends, units, first-sample behavior, and unsupported states",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["platform-capabilities", "cross-platform-contract"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance",
+      "icon": "gauge",
+      "description": "Collection budgets and monitor self-observability",
+      "documents": [
+        {
+          "path": "perf/OBSERVABILITY_BUDGETS.md",
+          "docType": "performance",
+          "title": "Observability Budgets",
+          "aliases": ["performance-budgets", "collection-budgets"],
+          "description": "Duration, fork, process-walk, history, and retention budgets",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["performance-budget", "monitor-overhead"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "wrench",
+      "description": "Deployment, runbooks, observability, and runtime readiness",
+      "documents": [
+        {
+          "path": "operations/RUNBOOK.md",
+          "docType": "runbook",
+          "title": "Runbook",
+          "aliases": ["operations-runbook", "operator-runbook"],
+          "description": "Safe metrics retention/compaction workflow and backup posture",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["runbook", "operator-procedures", "incident-response"],
+          "maturity": "active",
+          "requiredBy": ["deployable"],
+          "completion": "required"
+        }
       ]
     },
     {
       "id": "guides",
       "title": "Guides",
       "icon": "book-open",
+      "description": "Task-oriented walkthroughs",
       "documents": [
-        { "id": "troubleshooting", "title": "Troubleshooting", "path": "guides/troubleshooting.md", "type": "guide", "description": "Common issues and solutions" }
+        {
+          "path": "guides/troubleshooting.md",
+          "docType": "troubleshooting",
+          "title": "Troubleshooting",
+          "aliases": ["troubleshoot", "common-failures"],
+          "description": "Common issues and solutions",
+          "audience": ["users", "operators", "developers", "agents"],
+          "canonicalFor": ["troubleshooting", "common-failures"],
+          "maturity": "active",
+          "requiredBy": ["generated"],
+          "completion": "required"
+        }
       ]
     },
     {
@@ -44,30 +209,145 @@
       "title": "Internal",
       "icon": "lock",
       "visibility": "developers-only",
+      "description": "Developer-facing and agent-facing memory",
       "documents": [
-        { "id": "seams", "title": "Seams & Architecture Boundaries", "path": "internal/SEAMS.md", "type": "internal", "description": "Testability boundaries, responsibility zones, and integration seams" },
-        { "id": "problems", "title": "Known Issues & Technical Debt", "path": "internal/PROBLEMS.md", "type": "internal", "description": "Known bugs, test gaps, stability issues, and technical debt" },
-        { "id": "progress", "title": "Spec Sync Progress", "path": "internal/PROGRESS.md", "type": "internal", "description": "Tracks spec-sync sessions and unresolved discrepancies" },
-        { "id": "coherence-notes", "title": "UI Coherence Audit", "path": "internal/COHERENCE-NOTES.md", "type": "internal", "description": "React UI coherence audit with scoring and action items" },
-        { "id": "error-semantics", "title": "Error Semantics", "path": "internal/ERROR-SEMANTICS.md", "type": "internal", "description": "Error creation, propagation, and consumption patterns" },
-        { "id": "interop-audit", "title": "Interop Audit", "path": "internal/INTEROP_AUDIT.md", "type": "internal", "description": "Interoperability analysis" },
-        { "id": "unit-test-arch", "title": "Unit Test Architecture", "path": "internal/UNIT_TEST_ARCHITECTURE.md", "type": "internal", "description": "Test strategy and patterns" },
-        { "id": "utils-unification", "title": "Utils Unification Notes", "path": "internal/UTILS_UNIFICATION_NOTES.md", "type": "internal", "description": "Utility consolidation notes" }
-      ]
-    },
-    {
-      "id": "plans",
-      "title": "Plans",
-      "icon": "map",
-      "visibility": "developers-only",
-      "documents": [
-        { "id": "refactoring", "title": "API Refactoring Guide", "path": "plans/REFACTORING.md", "type": "plan", "description": "API architecture refactoring notes, module structure, and migration guide" },
-        { "id": "prd", "title": "Product Requirements Document", "path": "../PRD.md", "type": "specification", "description": "Full PRD with operational targets, API contract, CLI interface, and architecture" }
+        {
+          "path": "internal/SEAMS.md",
+          "docType": "seams",
+          "title": "Seams & Architecture Boundaries",
+          "aliases": ["seam", "boundaries", "boundary-registry"],
+          "description": "Testability boundaries, responsibility zones, and integration seams",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["seams", "test-substitution", "boundary-registry"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "problems",
+          "title": "Known Issues & Technical Debt",
+          "aliases": ["problem", "issues", "known-problems"],
+          "description": "Known bugs, test gaps, stability issues, and technical debt",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["known-problems", "deferred-work", "architecture-drift"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "docType": "progress",
+          "title": "Spec Sync Progress",
+          "aliases": ["progress-log", "changelog", "handoff-log"],
+          "description": "Tracks spec-sync sessions and unresolved discrepancies",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["change-history", "handoff-log"],
+          "maturity": "active",
+          "requiredBy": ["generated", "implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "docType": "coherence-notes",
+          "title": "UI Coherence Audit",
+          "aliases": ["coherence", "ui-coherence"],
+          "description": "React UI coherence audit with scoring and action items",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["ui-coherence-audit"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "docType": "error-handling",
+          "title": "Error Semantics",
+          "aliases": ["errors", "error-semantics", "recovery"],
+          "description": "Error creation, propagation, and consumption patterns",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["error-semantics", "recovery-paths"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "docType": "integrations",
+          "title": "Interop Audit",
+          "aliases": ["interop", "interoperability"],
+          "description": "Interoperability analysis",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["interoperability-audit"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "docType": "testing",
+          "title": "Unit Test Architecture",
+          "aliases": ["tests", "test-strategy", "qa"],
+          "description": "Test strategy and patterns",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["testing-strategy", "test-patterns"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "docType": "decisions",
+          "title": "Utils Unification Notes",
+          "aliases": ["utils", "utils-unification"],
+          "description": "Utility consolidation notes",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["utility-consolidation"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/METRIC_CONTRACT.md",
+          "docType": "data-contract",
+          "title": "Metric Contract",
+          "aliases": ["metric-contract", "observation-contract", "cycle-contract"],
+          "description": "Cycle, state, unit, provenance, and consumer semantics for metric observations",
+          "audience": ["developers", "operators", "agents"],
+          "canonicalFor": ["metric-semantics", "observation-contract"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/REQUIREMENTS_TRACEABILITY.md",
+          "docType": "traceability",
+          "title": "Observability Hardening Traceability",
+          "aliases": ["traceability", "evidence-matrix"],
+          "description": "Executable evidence map for the observability contract",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["requirements-traceability", "evidence-matrix"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "docType": "storage-audit",
+          "title": "Storage Architecture Audit",
+          "aliases": ["storage-audit", "storage-architecture"],
+          "description": "Greenfield storage strategy, repository ownership, and data-state boundaries",
+          "audience": ["developers", "operators", "agents"],
+          "canonicalFor": ["storage-architecture", "storage-strategy"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required"
+        }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "reference", "guides"],
-    "secondary": ["internal", "plans"]
+    "primary": ["getting-started", "concepts", "reference", "operations", "guides"],
+    "secondary": ["internal"]
   }
 }

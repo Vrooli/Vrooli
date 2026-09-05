@@ -1,0 +1,31 @@
+{
+  "suite_id": "swarm-manager.records.starter",
+  "provider_id": "swarm-manager.records",
+  "name": "Swarm-manager records — starter baseline",
+  "description": "STARTER baseline for the swarm-manager records corpus (engineering learnings / work records) — a few informational topical queries plus a junk-rejection case. Add reviewed expect_ids once the swarm-manager owner pins canonical record ids.",
+  "state": "active",
+  "cases": [
+    {
+      "case_id": "rerank-enablement",
+      "query": "enabling the cross-encoder reranker for search",
+      "tags": ["informational"]
+    },
+    {
+      "case_id": "session-recovery",
+      "query": "web console session recovery and data loss",
+      "tags": ["informational"]
+    },
+    {
+      "case_id": "voice-auto-stop",
+      "query": "voice auto-stop silence race fix",
+      "tags": ["informational"]
+    },
+    {
+      "case_id": "gibberish-1",
+      "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+      "tags": ["gibberish"],
+      "expect_no_strong_hit": true,
+      "expect_max_score": 0.45
+    }
+  ]
+}

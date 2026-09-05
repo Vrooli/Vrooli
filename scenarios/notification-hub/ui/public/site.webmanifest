@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Notification Hub",
+  "short_name": "notification-hub",
+  "description": "Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

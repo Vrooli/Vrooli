@@ -1,27 +1,15 @@
 {
-  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
     "description": "Sample testing configuration for React + Vite template",
     "last_updated": "2025-11-08T00:00:00Z"
   },
-  "version": "1.0.0",
-  "structure": {
-    "additional_dirs": [
-      "ui"
-    ]
-  },
-  "unit": {
-    "languages": {
-      "go": {},
-      "node": {}
-    }
-  },
   "business": {
     "checks": {
-      "endpoints": {
+      "cli_commands": {
         "enabled": true
       },
-      "cli_commands": {
+      "endpoints": {
         "enabled": true
       },
       "websockets": {
@@ -29,13 +17,222 @@
       }
     }
   },
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    }
+  },
   "performance": {
     "checks": {
-      "lighthouse": {
-        "enabled": true
-      },
       "bundle_size": {
         "enabled": true
+      },
+      "lighthouse": {
+        "enabled": true
+      }
+    }
+  },
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "policy_profile": {
+      "customization": {
+        "mode": "monotonic",
+        "waivers": []
+      },
+      "policy_classes": {
+        "go_cli": {
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "framework": "go test",
+          "language": "go",
+          "package_manager": "go",
+          "projection": {
+            "required_files": [
+              "cli/app_test.go",
+              "cli/internal/testutil/no_prod_import_test.go"
+            ]
+          },
+          "test_utils": {
+            "production_import_ban": true,
+            "required_roots": [
+              "cli/internal/testutil"
+            ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        },
+        "go_service": {
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "framework": "go test",
+          "language": "go",
+          "package_manager": "go",
+          "projection": {
+            "required_files": [
+              "api/internal/testutil/no_prod_import_test.go"
+            ]
+          },
+          "test_utils": {
+            "production_import_ban": true,
+            "required_roots": [
+              "api/internal/testutil"
+            ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        },
+        "react_vite_ui": {
+          "coverage": {
+            "minimum_percent": 85,
+            "mode": "both",
+            "provider": "v8",
+            "reporters": [
+              "text",
+              "json-summary",
+              "json"
+            ]
+          },
+          "framework": "vitest",
+          "language": "typescript",
+          "package_manager": "pnpm",
+          "projection": {
+            "required_files": [
+              "ui/vite.config.ts",
+              "ui/src/test-setup.ts",
+              "ui/src/test-utils/renderWithProviders.tsx"
+            ],
+            "required_scripts": [
+              "test",
+              "test:coverage"
+            ],
+            "settings": {
+              "coverage_provider": "v8",
+              "environment": "jsdom",
+              "setup_files": [
+                "./src/test-setup.ts"
+              ]
+            }
+          },
+          "test_utils": {
+            "canonical_render_helper": "ui/src/test-utils/renderWithProviders.tsx",
+            "production_import_ban": true,
+            "required_roots": [
+              "ui/src/test-utils"
+            ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "react-vitest",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        }
+      },
+      "required_roles": [
+        {
+          "match": {
+            "kind": "api",
+            "language": "go",
+            "path": "api",
+            "surface_id": "api"
+          },
+          "policy_class": "go_service",
+          "role": "api"
+        },
+        {
+          "match": {
+            "kind": "cli",
+            "language": "go",
+            "path": "cli",
+            "surface_id": "cli"
+          },
+          "policy_class": "go_cli",
+          "role": "cli"
+        },
+        {
+          "match": {
+            "framework": "vite",
+            "kind": "ui",
+            "language": "typescript",
+            "path": "ui",
+            "surface_id": "ui"
+          },
+          "policy_class": "react_vite_ui",
+          "role": "ui"
+        }
+      ],
+      "template": {
+        "id": "react-vite",
+        "scenario_class": "react-vite"
+      },
+      "version": "2.0.0",
+      "runner_profiles": {
+        "default": {
+          "cpu_weight": 1,
+          "memory_bytes": 536870912,
+          "max_workers": 1,
+          "timeout_seconds": 600,
+          "no_output_timeout_seconds": 60,
+          "sharding": "none",
+          "network": "allow",
+          "filesystem": "workspace"
+        }
+      }
+    }
+  },
+  "version": "1.0.0",
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "ratchet": true,
+        "duplication_line_debt": 48231,
+        "baseline_duplication_line_debt": 48232,
+        "long_files": 27,
+        "baseline_long_files": 28,
+        "complexity_over_threshold": 196,
+        "baseline_complexity_over_threshold": 197,
+        "coupling_over_threshold": 4,
+        "baseline_coupling_over_threshold": 5,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
       }
     }
   }

@@ -1,0 +1,81 @@
+syntax = "proto3";
+package vrooli.device_control.v1.flows;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows;flows_v1";
+service FlowService {
+  rpc ValidateFlow(ValidateFlowRequest) returns (CapabilityGapReport);
+  rpc RunFlow(RunFlowRequest) returns (RunResult);
+}
+message ValidateFlowRequest {
+  Flow flow = 1;
+  string strategy_id = 2;
+}
+message RunFlowRequest {
+  Flow flow = 1;
+  string device_id = 2;
+  string actor = 3;
+  string lease_token = 4;
+}
+message Flow {
+  string id = 1;
+  string name = 2;
+  repeated Step steps = 3;
+  bool allow_unredacted_capture = 4;
+  // usb is the default; wireless must be explicitly requested after promotion.
+  string transport = 5;
+  bool require_unlocked = 6;
+  string auth_profile_id = 7;
+}
+message Step {
+  string id = 1;
+  string kind = 2;
+  repeated string required_capabilities = 3;
+  string target = 4;
+  int64 timeout_ms = 5;
+  google.protobuf.Struct arguments = 6;
+}
+message CapabilityGapReport {
+  bool runnable = 1;
+  repeated string gaps = 2;
+  repeated string warnings = 3;
+}
+message RunResult {
+  string run_id = 1;
+  string disposition = 2;
+  repeated Chapter chapters = 3;
+  repeated Resolution resolutions = 4;
+  repeated EvidenceReference evidence = 5;
+  bool incomplete = 6;
+  string disconnect_reason = 7;
+  string disconnect_step = 8;
+}
+message Chapter {
+  string id = 1;
+  string title = 2;
+  string disposition = 3;
+  string message = 4;
+}
+message Resolution {
+  string target = 1;
+  string rung = 2;
+  double confidence = 3;
+}
+message EvidenceReference {
+  string id = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string created_at = 4;
+  bool redaction_verified = 5;
+  string recording_method = 6;
+  double effective_fps = 7;
+  string producer = 8;
+  string kind = 9;
+  repeated string applied_rules = 10;
+  bool opted_out = 11;
+  string claim_class = 12;
+  double minimum_useful_fps = 13;
+  string disposition = 14;
+  string disposition_reason = 15;
+}

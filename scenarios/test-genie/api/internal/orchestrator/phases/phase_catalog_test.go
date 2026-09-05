@@ -36,8 +36,8 @@ func TestNormalizePhaseName(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected normalization success")
 	}
-	if name != Unit {
-		t.Fatalf("expected %s but got %s", Unit, name)
+	if name != Name("unit") {
+		t.Fatalf("expected %s but got %s", Name("unit"), name)
 	}
 	if !name.IsZero() && name.Key() != "unit" {
 		t.Fatalf("unexpected map key %s", name.Key())
@@ -54,38 +54,79 @@ func TestPhaseCatalogDescriptors(t *testing.T) {
 		if descriptor.Name == "" {
 			t.Fatalf("descriptor missing name: %#v", descriptor)
 		}
+		if descriptor.DisplayName == "" {
+			t.Fatalf("descriptor missing displayName: %#v", descriptor)
+		}
 		if descriptor.Source == "" {
 			t.Fatalf("descriptor missing source: %#v", descriptor)
+		}
+		if descriptor.Determinism.Default != "file-determined" && descriptor.Determinism.Default != "observational" {
+			t.Fatalf("descriptor %q missing resolved determinism mode: %#v", descriptor.Name, descriptor.Determinism)
+		}
+		if descriptor.Determinism.Default == "file-determined" && len(descriptor.Determinism.Inputs) == 0 {
+			t.Fatalf("file-determined descriptor %q missing declared inputs", descriptor.Name)
 		}
 	}
 }
 
-func TestLintPhaseTimeout(t *testing.T) {
-	catalog := NewDefaultCatalog(15 * time.Minute) // Default is 15 minutes
-	lint, ok := catalog.Lookup("lint")
-	if !ok {
-		t.Fatalf("expected lint phase to be registered")
+func TestPhaseCatalogComparisonMetadataDefaultsComparable(t *testing.T) {
+	catalog := NewDefaultCatalog(time.Second)
+	for _, spec := range catalog.All() {
+		if !spec.Comparable() {
+			t.Fatalf("default phase %q is not comparable; phases must opt out explicitly", spec.Name)
+		}
 	}
-	expected := 30 * time.Second
-	if lint.DefaultTimeout != expected {
-		t.Errorf("lint phase timeout = %v, want %v", lint.DefaultTimeout, expected)
+
+	catalog.Register(Spec{Name: "artifact-only", NonComparable: true, ArtifactBacked: true})
+	spec, ok := catalog.Lookup("artifact-only")
+	if !ok {
+		t.Fatal("artifact-only phase was not registered")
+	}
+	if spec.Comparable() {
+		t.Fatal("explicitly non-comparable phase reported comparable")
+	}
+	descriptors := catalog.Descriptors()
+	var found bool
+	for _, d := range descriptors {
+		if d.Name != "artifact-only" {
+			continue
+		}
+		found = true
+		if d.Comparable || !d.NonComparable || !d.ArtifactBacked {
+			t.Fatalf("descriptor metadata = %+v, want non-comparable artifact-backed", d)
+		}
+	}
+	if !found {
+		t.Fatal("artifact-only descriptor missing")
 	}
 }
 
-func TestLintPhaseIsRegistered(t *testing.T) {
-	catalog := NewDefaultCatalog(time.Minute)
-	lint, ok := catalog.Lookup("lint")
+func TestQualityPhaseTimeout(t *testing.T) {
+	catalog := NewDefaultCatalog(15 * time.Minute) // Default is 15 minutes
+	quality, ok := catalog.Lookup("quality")
 	if !ok {
-		t.Fatalf("expected lint phase to be registered")
+		t.Fatalf("expected quality phase to be registered")
 	}
-	if lint.Runner == nil {
-		t.Fatalf("lint phase should have a runner")
+	expected := 120 * time.Second
+	if quality.DefaultTimeout != expected {
+		t.Errorf("quality phase timeout = %v, want %v", quality.DefaultTimeout, expected)
 	}
-	if lint.Optional {
-		t.Fatalf("lint phase should not be optional")
+}
+
+func TestQualityPhaseIsRegistered(t *testing.T) {
+	catalog := NewDefaultCatalog(time.Minute)
+	quality, ok := catalog.Lookup("quality")
+	if !ok {
+		t.Fatalf("expected quality phase to be registered")
 	}
-	if !strings.Contains(lint.Description, "linting") && !strings.Contains(lint.Description, "static analysis") {
-		t.Errorf("lint phase description should mention linting or static analysis, got: %s", lint.Description)
+	if quality.Runner == nil {
+		t.Fatalf("quality phase should have a runner")
+	}
+	if quality.Optional {
+		t.Fatalf("quality phase should not be optional")
+	}
+	if !strings.Contains(quality.Description, "quality-health") || !strings.Contains(quality.Description, "lint") {
+		t.Errorf("quality phase description should mention quality-health and lint, got: %s", quality.Description)
 	}
 }
 
@@ -101,7 +142,7 @@ func TestDocsPhaseIsRegistered(t *testing.T) {
 	if docsPhase.Optional {
 		t.Fatalf("docs phase should not be optional")
 	}
-	if !strings.Contains(strings.ToLower(docsPhase.Description), "docs") {
-		t.Errorf("docs phase description should mention docs, got: %s", docsPhase.Description)
+	if !strings.Contains(strings.ToLower(docsPhase.Description), "documentation") {
+		t.Errorf("docs phase description should mention documentation, got: %s", docsPhase.Description)
 	}
 }

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "scenario": "business-health",
+  "input_digest": "sha256:9fb28b6f0119ce5936284b908a005646fff733a41d43af12ae38209f7fdd0f2a",
+  "input_files": [
+    "schemas/business-health/v1/contract/contract.proto",
+    "schemas/business-health/v1/fleet/fleet.proto",
+    "schemas/business-health/v1/search/search.proto",
+    "schemas/business-health/v1/shared/errors.proto",
+    "schemas/business-health/v1/shared/health.proto",
+    "schemas/business-health/v1/wizard/wizard.proto",
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/business-health/v1/contract/contract.pb.go": "sha256:651b28174bbb87a2a5473ae5fc91103b745bea3ae68b6b7f3a16b12e2bf24ad8",
+    "gen/go/business-health/v1/contract/contract_v1connect/contract.connect.go": "sha256:bfad10e93770058d161de228df1e16bc6db2eeda4ed870646d6047d175bed247",
+    "gen/go/business-health/v1/fleet/fleet.pb.go": "sha256:e987526a5d12a6422544b1cafaafebde04d0448a114cce03653f4ad68fd5e3bf",
+    "gen/go/business-health/v1/fleet/fleet_v1connect/fleet.connect.go": "sha256:410f20d0fe785f386c266e746e3771993dce724d96c34b1e1f606b43886ab1ef",
+    "gen/go/business-health/v1/search/search.pb.go": "sha256:a4486424347886cadbe03a663b9e8dbec1a69e8bfa3ccb8f744ca3a502edd6bf",
+    "gen/go/business-health/v1/search/search_v1connect/search.connect.go": "sha256:03630fcdfb4a7e502bcb7ddfbf9bd1a6f5b2b1aa78e81889d2feb99ba1017ddd",
+    "gen/go/business-health/v1/shared/errors.pb.go": "sha256:d2ac8c8637edd7addc11cdcc56d1aad13a832b240b22dacfac0330d64e481242",
+    "gen/go/business-health/v1/shared/health.pb.go": "sha256:28bf79afd093842831fc9b0d0624446f4c6725a59e0cc3bee40899347e2a21f2",
+    "gen/go/business-health/v1/wizard/wizard.pb.go": "sha256:31f5e24bcea910bb816cf739d8681323a237c12af313f8c278fce3aa1543bbfe",
+    "gen/go/business-health/v1/wizard/wizard_v1connect/wizard.connect.go": "sha256:d4619ff2c0755e2be77655c2705cabc53df4ab2a6d551dbe6c90590632779040",
+    "gen/python/business_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/contract/contract_pb2.py": "sha256:7c7fc4cc5ece4c9bffd3d3c9fb8f7c67badb50fe9a95b4961557162676951495",
+    "gen/python/business_health/v1/contract/contract_pb2.pyi": "sha256:86170a40c8752bbc55f1484fac98b7145f8b5edac56e4b133862fa17349e721b",
+    "gen/python/business_health/v1/contract/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/fleet/fleet_pb2.py": "sha256:22cf47bcfabfae4551c73cbc18c59957288347608b74c5cc5019f45bc0bde46b",
+    "gen/python/business_health/v1/fleet/fleet_pb2.pyi": "sha256:3e8e6af3aca7b44fa58b8195ff7b8476969fce3127bb1aac2aaac81d543f52fd",
+    "gen/python/business_health/v1/fleet/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/search/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/search/search_pb2.py": "sha256:0a56902fe45a855729c26a07f879a52415fa7b708516aded06b315e105d4d11e",
+    "gen/python/business_health/v1/search/search_pb2.pyi": "sha256:bbaa9e5a007ebea55d463641409099b1689f83bc53debde26972e3151c594235",
+    "gen/python/business_health/v1/shared/errors_pb2.py": "sha256:746c8fe9f6ba928ba9e9ffe1e2cba15e95fe2f44e8f04e5e790f51e105a68003",
+    "gen/python/business_health/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/business_health/v1/shared/health_pb2.py": "sha256:5ca2d229c5c22cd0cc79507f5b27ea70d7f256328d03bc0461a48d161cad0836",
+    "gen/python/business_health/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/business_health/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/wizard/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/business_health/v1/wizard/wizard_pb2.py": "sha256:6828c7bcd387baff990442f75f73ae2072c97ff9d790ca8166887a367862637f",
+    "gen/python/business_health/v1/wizard/wizard_pb2.pyi": "sha256:eaf82b72d85a8627ff4e7462ea246c43b851a70289cafe92b8686e8508a193cb",
+    "gen/typescript/business-health/v1/contract/contract_pb.ts": "sha256:03c13fce1c5f0fd7f699cdbd414cadb5f3a14d0cc304b81f2e9fedfaee6d500f",
+    "gen/typescript/business-health/v1/fleet/fleet_pb.ts": "sha256:ccad512168cb27a8abd57ea744bb2823f215ea98c33c7b2b31a6d981852c258c",
+    "gen/typescript/business-health/v1/search/search_pb.ts": "sha256:913d49372ab924b39a33612c0b3ff3ed5a18bd12809c5378f07bf951779356dc",
+    "gen/typescript/business-health/v1/shared/errors_pb.ts": "sha256:b3efb8a402f000d5d341b4d0f59f52dc55e08bd70d11b34828b282f25e978fe5",
+    "gen/typescript/business-health/v1/shared/health_pb.ts": "sha256:6eaa7948a0dce461c2d84342c7a10835a664176f277deff499d619f250c58398",
+    "gen/typescript/business-health/v1/wizard/wizard_pb.ts": "sha256:be845062d5435a4db954579a0a09ce949ec24c567ad767e1949acd1ac3578ced"
+  }
+}

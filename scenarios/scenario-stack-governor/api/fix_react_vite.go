@@ -303,7 +303,7 @@ func insertStepInRaw(raw []byte, desiredRun string, lifecycle, setup map[string]
 		before := text[:stepsClose]
 		after := text[stepsClose:]
 
-		if stepsAny != nil && len(stepsAny) > 0 {
+		if len(stepsAny) > 0 {
 			trimmed := strings.TrimRight(before, " \t\n\r")
 			return []byte(trimmed + ",\n" + indent + stepJSON + "\n" + closingIndent + after)
 		}

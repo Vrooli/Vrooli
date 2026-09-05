@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Web UI for the Browser Extension Generator scenario",
   "scripts": {
-    "start": "node server.js"
+    "start": "vrooli lifecycle protect -- node server.js",
+    "build": "node scripts/build.mjs"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"

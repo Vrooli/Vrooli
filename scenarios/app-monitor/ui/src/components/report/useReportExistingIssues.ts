@@ -1,5 +1,5 @@
 /**
- * Hook for managing existing issues state in the report dialog.
+ * Hook for managing existing fix backlog state in the report dialog.
  * Wraps the scenarioIssuesStore to provide a consistent interface.
  */
 
@@ -15,16 +15,26 @@ interface UseReportExistingIssuesParams {
 
 export interface ReportExistingIssuesState {
   status: 'idle' | 'loading' | 'ready' | 'error';
-  issues: Array<{
+  active: Array<{
     id?: string;
+    kind?: string;
+    name?: string;
     title?: string;
     status?: string;
-    issue_url?: string;
+    url?: string;
   }>;
-  openCount: number;
+  archived: Array<{
+    id?: string;
+    kind?: string;
+    name?: string;
+    title?: string;
+    status?: string;
+    url?: string;
+  }>;
   activeCount: number;
+  archivedCount: number;
   totalCount: number;
-  trackerUrl: string | null;
+  swarmUrl: string | null;
   lastFetched: string | null;
   stale: boolean;
   fromCache: boolean;
@@ -33,8 +43,8 @@ export interface ReportExistingIssuesState {
 }
 
 /**
- * Hook for accessing existing issues from the scenario issues store.
- * Automatically fetches issues when the dialog opens.
+ * Hook for accessing existing Swarm Manager fixes from the scenario store.
+ * Automatically fetches fixes when the dialog opens.
  */
 export function useReportExistingIssues({
   app,
@@ -66,11 +76,12 @@ export function useReportExistingIssues({
     if (!storeEntry) {
       return {
         status: 'idle',
-        issues: [],
-        openCount: 0,
+        active: [],
+        archived: [],
         activeCount: 0,
+        archivedCount: 0,
         totalCount: 0,
-        trackerUrl: null,
+        swarmUrl: null,
         lastFetched: null,
         stale: false,
         fromCache: false,
@@ -85,11 +96,12 @@ export function useReportExistingIssues({
 
     return {
       status: storeEntry.status,
-      issues: storeEntry.summary?.issues ?? [],
-      openCount: storeEntry.openCount ?? 0,
+      active: storeEntry.summary?.active ?? [],
+      archived: storeEntry.summary?.archived ?? [],
       activeCount: storeEntry.activeCount ?? 0,
+      archivedCount: storeEntry.archivedCount ?? 0,
       totalCount: storeEntry.totalCount ?? 0,
-      trackerUrl: storeEntry.summary?.tracker_url ?? null,
+      swarmUrl: storeEntry.summary?.swarm_url ?? null,
       lastFetched: storeEntry.summary?.last_fetched ?? null,
       stale: storeEntry.stale,
       fromCache: storeEntry.summary?.from_cache ?? false,

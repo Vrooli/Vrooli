@@ -20,9 +20,9 @@
       "timeout_ms": 5000
     },
     {
-      "path": "/vault/secrets/status",
+      "path": "/credentials/secrets/status",
       "method": "GET",
-      "description": "Vault secrets coverage summary across all resources",
+      "description": "Credential authority coverage summary across all resources",
       "critical": true,
       "response_required_fields": [
         "total_resources",
@@ -84,11 +84,11 @@
     {
       "path": "/security/compliance",
       "method": "GET",
-      "description": "Unified compliance metrics combining vault coverage and vulnerability stats",
+      "description": "Unified compliance metrics combining credential coverage and vulnerability stats",
       "critical": true,
       "response_required_fields": [
         "risk_score",
-        "vault_coverage_percent",
+        "credential_coverage_health",
         "total_vulnerabilities",
         "critical_vulnerabilities",
         "compliance_status"
@@ -97,7 +97,7 @@
       "timeout_ms": 10000
     },
     {
-      "path": "/secrets/validate",
+      "path": "/credentials/secrets/validate",
       "method": "POST",
       "description": "Validate secrets for a specific resource",
       "critical": false,
@@ -114,9 +114,9 @@
       "timeout_ms": 15000
     },
     {
-      "path": "/secrets/provision",
+      "path": "/credentials/secrets/provision",
       "method": "POST",
-      "description": "Provision secrets to Vault (P1 feature)",
+      "description": "Provision secrets through the native credential authority (P1 feature)",
       "critical": false,
       "request_body_required_fields": [
         "resource",
@@ -153,8 +153,7 @@
   "base_url": "http://localhost:${API_PORT}",
   "test_config": {
     "run_before_tests": [
-      "vrooli resource start postgres",
-      "vrooli resource start vault"
+      "vrooli resource start postgres"
     ],
     "cleanup_after_tests": false,
     "parallel_execution": false

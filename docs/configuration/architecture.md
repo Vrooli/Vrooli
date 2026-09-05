@@ -1,0 +1,138 @@
+# Configuration Architecture
+
+This page is the load-bearing reference for *where each configuration decision lives*. Every other page in this folder is a consumer of the table below.
+
+## The three categories
+
+Every configuration value in Vrooli fits exactly one category. Mixing them is the failure mode this layering prevents.
+
+- **Declarative manifest** — what something *is*. Hand-edited, source-controlled, slow-changing. Lives in `service.json` / `resource.json` / `tool.json` / `safeguard.json`.
+- **Computed analysis** — what an analyzer *figured out* about something. Tool output is regenerable and lives in analyzer reports or generated schema artifacts, never in the authored scenario manifest's `tier_feasibility` input.
+- **Operator state** — what this install *chose*. Wizard- or hand-edited per machine. Lives in `.vrooli/operator-state.json`.
+
+These don't reduce to each other. A scenario's manifest declares `runtime.kind = "long_running"`; the operator's state says `auto_restart: true`; an analyzer's output says `tier-3-mobile fitness 0.4`. Same scenario, three independent statements, three independent files.
+
+Generated runtime state is outside this configuration model. Setup completion markers, resource-populated markers, runtime registries (including the SQLite port-claim registry), process records, logs, and telemetry are mutable operational artifacts and live under `~/.vrooli/`, not project `.vrooli/`. Project-specific setup/resource markers are rooted at `~/.vrooli/state/projects/<project-key>/`, where the project key is derived from the cleaned absolute project root.
+
+## Source-of-truth table
+
+For each operator-visible decision, exactly one file is the source of truth. Other files may reference or derive from it; they never override it.
+
+| Decision | Source of truth | Surfaced by |
+|---|---|---|
+| Whether a scenario is enabled | `.vrooli/operator-state.json` → `scenarios.<name>.enabled` (overrides manifest) | onboarding scenarios step |
+| Whether a scenario is system-required (uneditable) | `scenarios/<name>/.vrooli/service.json` → `service.system_required` | onboarding scenarios step (renders as locked-on) |
+| Scenario's recommended runtime shape | `scenarios/<name>/.vrooli/service.json` → `runtime.kind` | onboarding (filter/sort), lifecycle orchestrator |
+| Scenario's recommended auto-restart default | `scenarios/<name>/.vrooli/service.json` → `runtime.auto_restart_default` | onboarding (per-scenario toggle default) |
+| Scenario's actual auto-restart on this install | `.vrooli/operator-state.json` → `scenarios.<name>.auto_restart` (override of default) | onboarding operating-mode step |
+| Scenario → scenario dependencies | `scenarios/<name>/.vrooli/service.json` → `dependencies.scenarios` | onboarding scenarios step (cascade hint) |
+| Whether a resource is enabled | `.vrooli/operator-state.json` → `resources.<name>.enabled` | onboarding resources step |
+| Resource → resource dependencies | `resources/<name>/resource.json` → `dependencies` | onboarding resources step (cascade) |
+| Resource credential descriptors | `resources/<name>/resource.json` → `credentials.descriptors[]` | onboarding secrets step |
+| Where an ordinary credential value is stored | probed native credential authority keyed by descriptor logical identity + field | control plane runtime injection |
+| Host tool opt-in | `.vrooli/operator-state.json` → `host_tools.<name>.opted_in` (override of manifest `required`) | onboarding host step |
+| Host safeguard opt-in | `.vrooli/operator-state.json` → `host_safeguards.<name>.opted_in` (override of manifest `required`) | onboarding host step |
+| Safeguard risk indicator | `internal/safeguards/<name>/safeguard.json` → `risk` | onboarding host step (risk column) |
+| What host tools/safeguards exist | filesystem: `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` (drift-protected by `internal/runtime/manifests_test.go`) | onboarding host step (registry source) |
+| What integration connector types exist | filesystem: `scenarios/integration-hub/connectors/<id>/connector.json` (pilot currently uses an API-key connector) | integration-hub UI; onboarding integrations step |
+| Connection instances (OAuth tokens, API keys for connectors) | Credential authority under identity `vrooli/integrations/<connector>/<connection_id>` + integration-hub metadata state | integration-hub UI |
+| Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; binding contract in progress) | onboarding integrations step |
+| Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (binding contract in progress) | onboarding integrations step |
+| Connector-level secrets (e.g. OAuth client_secret) | Credential authority under identity `vrooli/integrations/connectors/<connector_id>` (needed as drivers are added) | integration-hub setup, not user-facing |
+| Active profile | `.vrooli/operator-state.json` → `active_profile` | reserved for future use; profiles deferred |
+
+Anything not in this table is out of scope for the wizard.
+
+## Resolution order
+
+To answer "what is the *effective* value of X right now?", the system applies a fixed resolution order per concern. Onboarding only ever writes to `operator-state.json`; runtime-readers walk this order:
+
+### Per-scenario auto-restart
+
+```
+1. .vrooli/operator-state.json → scenarios.<name>.auto_restart   (if present)
+2. scenarios/<name>/.vrooli/service.json → runtime.auto_restart_default   (if present)
+3. schema default (false)
+```
+
+### Whether a scenario is enabled
+
+```
+1. scenarios/<name>/.vrooli/service.json → service.system_required = true   →   ALWAYS ENABLED (no operator override possible)
+2. .vrooli/operator-state.json → scenarios.<name>.enabled   (if present)
+3. default (disabled — operator must opt in)
+```
+
+### Whether a host safeguard is applied
+
+```
+1. .vrooli/operator-state.json → host_safeguards.<name>.opted_in   (if present)
+2. fall back to manifest's `required` field (which mirrors hostRequirement defaults in service.json)
+3. default (not applied — safeguards are opt-in by nature)
+```
+
+### What credential metadata is shown to the operator
+
+```
+1. resources/<name>/resource.json → credentials.descriptors[] — render the
+   logical identity, field, label, description, and obtain URL without a value
+2. fall back: empty (resource declares no credentials)
+```
+
+### Which connection a scenario uses for a given connector (planned binding)
+
+The Hub owns connection metadata today; scenario binding is the next contract:
+
+```
+1. .vrooli/operator-state.json → integrations.<scenario>.<connector>   (operator binding)
+2. if absent and scenario marks the integration as required → wizard error: "no connection bound"
+3. if absent and scenario marks the integration as optional → scenario runs in degraded mode
+```
+
+For `multi: true` scenarios (persona-actor case), the operator-state value is an array of `{ context, connection_id }` rather than a single `connection_id`. The scenario picks at runtime by `context`.
+
+These resolution orders are the contract. UIs and runtime code consume them; new surfaces should reuse the same evaluator rather than reimplementing.
+
+## Host update-control modes
+
+The host update-control mode is operator state, not a manifest default. This
+host records `guard` in `.vrooli/operator-state.json`; the control plane owns
+the guard, freeze, and coupled-set decisions. A scenario may observe and
+report update state, but it must not repair host packages privately.
+
+The effective mode resolves in this order:
+
+1. `.vrooli/operator-state.json` → `host_update_control.mode`.
+2. The control-plane default (`observe` when no operator choice exists).
+
+`guard` preserves declared coupled sets and requires a maintenance window for
+live replacement. Runtime checks report drift and missing evidence; they do
+not silently change the mode or apply package updates.
+
+## Scenario runtime configuration
+
+Scenario runtime configuration is distinct from all three source-of-truth
+categories above. A scenario's `.vrooli/config.json` and schema-backed API
+settings hold live application policy such as notification templates,
+sensitivity mapping, and event subscriptions. `service.json` declares the
+scenario and lifecycle contract; `.vrooli/operator-state.json` records
+installation choices. Neither file is a substitute for a scenario's live
+runtime configuration, and changing an API-backed setting must not require a
+scenario restart.
+
+## Naming conventions for shared types
+
+When a definition in `common.schema.json` is referenced from multiple schemas, the **property name on each consumer should match the definition name** if the type plays a single semantic role at every call site. Divergence between property name and type name is reserved for the Kubernetes pattern — one type that genuinely plays multiple roles (e.g. one `Probe` shape used as `livenessProbe`, `readinessProbe`, `startupProbe`). In that case the property name encodes the role; the type name encodes only the shape.
+
+Worked example: `verificationCheck` (in `common.schema.json`) is referenced from both `tool.schema.json` and `safeguard.schema.json` for the same role — one-shot post-action verification. The property is named `verificationCheck` in both manifests. There is no `installCheck` / `applyCheck` divergence because the role is identical.
+
+Counter-example (planned): when `runtimeProbe` lands as a shared type and is referenced from the canonical service and resource schemas, both consumers use the property name `runtimeProbe` (or `runtimeProbes` for arrays). Splitting into `livenessProbe` / `readinessProbe` would only be justified if the same shape acquired multiple distinct roles within a single consumer.
+
+## Open work items
+
+Items intentionally deferred from the current schema bundle. Each is a future-conversation decision; do not resolve speculatively.
+
+- **`integration-hub` expansion** — the Hub pilot owns metadata-only connection lifecycle and the OpenRouter API-key connector. Remaining work includes connector manifests, OAuth/device-flow drivers, onboarding binding, and multi-instance consumption. See [`integrations/connectors.md`](integrations/connectors.md) and [`integrations/connections.md`](integrations/connections.md).
+- **External-auth credential schema** — concrete schema dispatch for `oauth_web` / `oauth_device` / `external_sign_in_command` / `app_password` patterns. Catalog lives in [`integrations/external-auth.md`](integrations/external-auth.md); the schema lands as part of the integration-hub work above. The current `secretDescriptor` continues to cover paste-string resource secrets independently.
+- **Profiles** — bundled selections of scenarios + resources + secrets (e.g. "engineering", "marketing", "homelab"). `operator-state.json` reserves `active_profile` for this; `profile.schema.json` lands when the second concrete profile exists. See [`profiles.md`](profiles.md).
+- **Schema-types unification (Wave 2)** — Wave 1 landed: `verificationCheck` (one-shot post-action verification) was lifted to `common.schema.json` and is referenced by both `tool.schema.json` and `safeguard.schema.json`, replacing the two duplicate inline definitions. Wave 2 is the harder consolidation: continuous monitoring declarations in the canonical service and resource schemas need to fold into a shared `runtimeProbe` definition. The naming-convention reconciliation (snake_case vs camelCase) and the Go-consumer migration on both sides are real work; deferred to its own plan. `dependencies` shape overlap between `service.dependencies.scenarios` and `service.tier_feasibility.dependencies` is also Wave 2 territory.

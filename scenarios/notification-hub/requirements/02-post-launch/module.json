@@ -1,0 +1,198 @@
+{
+  "_metadata": {
+    "description": "P1 operational targets for the owner notification spine. Amended 2026-08-17 to promote acknowledgement and escalation from P2 and to add the blocking ask primitive; that trio leads this tier.",
+    "last_validated_at": "2026-08-22T16:44:17-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NOTIFICA-P1-001",
+      "title": "Cross-node delivery relay",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "When this host cannot serve a channel, the system should forward the delivery to a fleet node that advertises the capability through vrooli-bridge durable dispatch.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestProcess_RelaysRemoteMachineDelivery",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The hub routes a non-local channel through the remote delivery seam and records the remote machine receipt; live bridge dispatch remains operator integration evidence."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-002",
+      "title": "iMessage delivery from a Mac node",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "When a recipient channel is iMessage, the system should deliver it through the paired Mac node and should record the same receipt shape as a local delivery.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestProcess_DeliversIMessageThroughDesktopAdapter",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The hub selects the iMessage desktop adapter and records its receipt; live paired-Mac delivery remains operator integration evidence."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-003",
+      "title": "Event-driven ingress",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "The system should accept vrooli-events webhook deliveries and should raise notifications from subscription pattern matches.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/integrations/events_test.go::TestEventWebhookAcceptsDurableEventsPayload",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Signed nested vrooli-events webhook payloads are translated into durable notifications and startup registration is idempotent."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-004",
+      "title": "Email channel",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "The system should deliver notifications over SMTP using operator-supplied credentials.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestProcess_RoutesRegisteredChannelsAndRedactsByApproval",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "SMTP routing and sensitivity fallback are covered with an injected sender; live relay credentials remain operator configuration."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-005",
+      "title": "Digest collapsing",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "When several low-urgency notifications arrive inside a digest window, the system should combine them into one scheduled summary delivery.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestSend_LowUrgencyDigestCollapsesIntoOneSummary",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Low-urgency digest suppression and summary release are covered by the hub service test."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-006",
+      "title": "Scheduled delivery",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "The system should deliver a notification at a caller-specified future time and should survive a restart between acceptance and delivery.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestSend_ScheduledNotificationIsHeldUntilRelease",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Future scheduled acceptance remains held across the durable hold record until the clock reaches its release time."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-007",
+      "title": "Delivery analytics",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "description": "The system should report delivery counts, failure rates, and per-channel latency over a selectable window.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestProcess_RoutesRegisteredChannelsAndRedactsByApproval",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Analytics reports total notifications, per-channel attempts, outcomes, failure rate, and latency."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-008",
+      "title": "Owner-controlled notification content",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "description": "The system shall keep notification content under owner control end to end. Web Push satisfies this by encrypting the payload under keys held only by this scenario and the recipient's browser, so no push service can read a body. Any future channel that cannot meet this bar shall be treated as a lower sensitivity tier rather than adopted silently.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/push/webpush_test.go::TestSender_EncryptsPayloadAndUsesWebPushHeaders",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "RFC 8291 encryption and Web Push headers are covered by the transport test; provider arrival remains operator evidence."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-009",
+      "title": "Acknowledgement and response",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "description": "The system should accept an acknowledgement or a chosen action from a delivered notification and should return it to the requesting scenario, so a notification can carry a decision back rather than only carrying information out.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Allowed action answers are persisted and returned by the blocking wait primitive."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-010",
+      "title": "Blocking ask primitive",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-010",
+      "criticality": "P1",
+      "description": "The system should expose a request that delivers a question and blocks until the recipient answers or a caller-supplied deadline expires, and should return the answer or a stated timeout to the caller. This is the calling convention an agent needs; NOTIFICA-P1-009 is the data path underneath it.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The ask/wait calling convention returns a chosen answer or expiry state."
+        }
+      ]
+    },
+    {
+      "id": "NOTIFICA-P1-011",
+      "title": "Escalation chains",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-011",
+      "criticality": "P1",
+      "description": "When a notification marked critical is not acknowledged within its timeout, the system should escalate it to the next channel in the recipient's chain and should record each escalation step. Ships with NOTIFICA-P1-009 and NOTIFICA-P1-010, because an unanswered approval is the case that needs escalating.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestAsk_EscalatesThroughConfiguredChannelsThenExpires",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Due critical asks advance through configured escalation channels and expire after the chain is exhausted."
+        }
+      ]
+    }
+  ]
+}

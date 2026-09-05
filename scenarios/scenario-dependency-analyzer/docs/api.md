@@ -2,11 +2,68 @@
 
 ## Overview
 
-The Scenario Dependency Analyzer API provides programmatic access to dependency analysis, graph generation, deployment readiness assessment, and metadata gap detection for Vrooli scenarios.
+The Scenario Dependency Analyzer API provides programmatic access to dependency analysis, graph generation, deployment readiness assessment, metadata gap detection, and actual cross-scenario interface graph data for Vrooli scenarios.
 
-**Base URL**: `http://localhost:{API_PORT}/api/v1`
+**Base path**: `/api/v1` on the lifecycle-assigned `API_PORT`
 **Default Port**: Dynamically assigned (use `vrooli scenario port scenario-dependency-analyzer API_PORT`)
 **Content-Type**: `application/json`
+
+The legacy REST endpoints remain for the existing UI and operators. New programmatic graph consumers should use the Connect RPC surface described below.
+
+---
+
+## Connect Surface
+
+### `vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph`
+
+Describe the actual cross-scenario interface graph assembled from `proto-health` and `code-facts`, served from SDA's derived cache when fresh.
+
+**Request**:
+```json
+{
+  "scenarios": ["scenario-dependency-analyzer"],
+  "limit": 0,
+  "stabilityFilter": "stable",
+  "languageFilter": ["go"],
+  "maxScenarioHops": 1
+}
+```
+
+**Response**:
+```json
+{
+  "graph": {
+    "nodes": [
+      {
+        "scenario": "scenario-dependency-analyzer"
+      }
+    ],
+    "edges": [
+      {
+        "fromScenario": "scenario-dependency-analyzer",
+        "toScenario": "proto-health",
+        "evidence": [
+          {
+            "source": "EVIDENCE_SOURCE_PROTO_IMPORT",
+            "toFile": "proto-health/v1/shared/surface.proto"
+          }
+        ],
+        "transportWorld": "connect",
+        "stability": ["stable"]
+      }
+    ],
+    "errors": [
+      {
+        "source": "code-facts",
+        "scenario": "example",
+        "message": "upstream fact collection error"
+      }
+    ]
+  }
+}
+```
+
+**Boundary**: SDA does not scan source files for this graph. It consumes proto facts from `proto-health`, import facts from `code-facts`, persists only a rebuildable derived graph cache, and performs fleet-level attribution. Drift comparison remains available through `GET /api/v1/drift` and the `drift` CLI command.
 
 ---
 
@@ -40,9 +97,13 @@ Comprehensive health check including analysis capabilities.
 ```json
 {
   "status": "healthy",
+  "service": "scenario-dependency-analyzer-api",
+  "timestamp": "2026-06-14T21:28:55Z",
+  "readiness": true,
+  "version": "1.0.0",
   "capabilities": ["dependency_analysis", "graph_generation"],
-  "scenarios_found": 45,
-  "resources_available": 12,
+  "scenarios_found": 1,
+  "resources_available": 2,
   "database_status": "connected"
 }
 ```
@@ -58,8 +119,8 @@ List all scenarios with metadata and last-scan status.
 ```json
 [
   {
-    "name": "ecosystem-manager",
-    "display_name": "Ecosystem Manager",
+    "name": "swarm-manager",
+    "display_name": "Swarm Manager",
     "version": "1.0.0",
     "last_scanned": "2025-01-22T09:30:00Z",
     "resource_count": 5,
@@ -77,7 +138,7 @@ Get detailed information for a specific scenario including declared vs detected 
 **Response**:
 ```json
 {
-  "name": "ecosystem-manager",
+  "name": "swarm-manager",
   "service_config": {...},
   "dependencies": {
     "resources": [...],
@@ -107,7 +168,7 @@ Perform full dependency analysis for a scenario.
 **Response**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "resources": [
     {
       "id": "uuid",
@@ -177,7 +238,7 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
 **Response**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "report_version": 1,
   "generated_at": "2025-01-22T10:00:00Z",
   "dependencies": [
@@ -211,7 +272,7 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
     }
   },
   "bundle_manifest": {
-    "scenario": "ecosystem-manager",
+    "scenario": "swarm-manager",
     "files": [...],
     "dependencies": [...]
   },
@@ -221,15 +282,15 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
     "gaps_by_scenario": {
       "api-tools": {
         "scenario_name": "api-tools",
-        "has_deployment_block": false,
+        "has_tier_feasibility": false,
         "suggested_actions": [
-          "Add deployment block to .vrooli/service.json"
+          "Add tier_feasibility to .vrooli/service.json"
         ]
       }
     },
     "missing_tiers": ["mobile", "saas"],
     "recommendations": [
-      "2 scenario(s) missing deployment blocks entirely - run scan --apply to initialize",
+      "2 scenario(s) missing tier_feasibility entirely - author tier evidence before deployment analysis",
       "Add tier definitions for: [mobile, saas]"
     ]
   }
@@ -247,7 +308,7 @@ Export the recursive dependency DAG for a scenario.
 **Response**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "recursive": true,
   "generated_at": "2025-01-22T10:00:00Z",
   "dag": [
@@ -292,14 +353,14 @@ Generate dependency graph for visualization.
       "type": "resource"
     },
     {
-      "id": "ecosystem-manager",
-      "label": "Ecosystem Manager",
+      "id": "swarm-manager",
+      "label": "Swarm Manager",
       "type": "scenario"
     }
   ],
   "edges": [
     {
-      "source": "ecosystem-manager",
+      "source": "swarm-manager",
       "target": "postgres",
       "label": "requires"
     }
@@ -340,6 +401,30 @@ Detect circular dependencies in the dependency graph.
 }
 ```
 
+### `GET /api/v1/graph/centrality`
+Calculate scenario centrality over the combined dependency graph.
+
+**Parameters**:
+- `scenario` (query, optional): Limit output to one scenario
+
+**Response**:
+```json
+{
+  "graph_type": "combined",
+  "nodes": [
+    {
+      "scenario": "test-genie",
+      "direct_reverse_dependency_count": 2,
+      "transitive_reverse_dependency_count": 5,
+      "required_reverse_dependency_count": 3,
+      "required_edge_weighted_score": 9,
+      "distance_to_core_seed": 1,
+      "nearest_core_seed": "swarm-manager"
+    }
+  ]
+}
+```
+
 ---
 
 ## Impact Analysis
@@ -359,7 +444,7 @@ Analyze the impact of removing a dependency.
   "total_affected": 23,
   "direct_dependents": [
     {
-      "scenario_name": "ecosystem-manager",
+      "scenario_name": "swarm-manager",
       "required": true,
       "purpose": "Store ecosystem metadata"
     }
@@ -382,7 +467,7 @@ Get optimization recommendations for scenarios.
 **Request Body**:
 ```json
 {
-  "scenario": "ecosystem-manager",
+  "scenario": "swarm-manager",
   "type": "resource",
   "apply": false
 }
@@ -392,7 +477,7 @@ Get optimization recommendations for scenarios.
 ```json
 {
   "results": {
-    "ecosystem-manager": {
+    "swarm-manager": {
       "recommendations": [
         {
           "id": "opt-001",
@@ -426,7 +511,7 @@ Analyze dependencies for a proposed scenario description.
   "name": "ai-chatbot",
   "description": "AI-powered chat with database storage",
   "requirements": ["nlp", "database", "api"],
-  "similar_scenarios": ["ecosystem-manager"]
+  "similar_scenarios": ["swarm-manager"]
 }
 ```
 
@@ -437,7 +522,7 @@ Analyze dependencies for a proposed scenario description.
   "recommended_scenarios": ["data-tools", "api-manager"],
   "similar_patterns": [
     {
-      "scenario": "ecosystem-manager",
+      "scenario": "swarm-manager",
       "similarity_score": 0.78
     }
   ],

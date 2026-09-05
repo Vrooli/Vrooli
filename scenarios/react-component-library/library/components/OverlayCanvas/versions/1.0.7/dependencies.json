@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:OverlayCanvas",
+  "version": "1.0.7",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Stack",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:Text",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:VisualRecipes",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

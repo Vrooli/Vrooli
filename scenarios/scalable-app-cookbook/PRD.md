@@ -304,7 +304,7 @@ custom_commands:
 ### Cross-Scenario Interactions
 ```yaml
 provides_to:
-  - scenario: ecosystem-manager
+  - scenario: swarm-manager
     capability: Architecture pattern templates for generated scenarios
     interface: API
     
@@ -457,7 +457,7 @@ discovery:
 
 ### Declarative Test Specification
 - **Entry point**: `test/run-tests.sh` orchestrates the shared phased runner.
-- **Structure phase**: Validates required files/directories for the API, CLI, UI, and initialization assets.
+- **Structure phase**: Validates required files/directories for the API, CLI, UI, and domain-owned assets.
 - **Dependencies phase**: Confirms Go module resolution, UI dependency installs (`npm install --dry-run`), and tool availability (`curl`, `jq`).
 - **Unit phase**: Executes Go unit tests with coverage captured under `coverage/scalable-app-cookbook/go`.
 - **Integration phase**: Probes `/health`, `/api/v1/patterns/search`, and `/api/v1/patterns/stats` to guarantee seeded data and catalog APIs remain healthy.
@@ -522,7 +522,7 @@ discovery:
 
 ### Related PRDs
 - algorithm-library PRD (sibling reference scenario)
-- ecosystem-manager README (major downstream consumer)
+- swarm-manager README (major downstream consumer)
 
 ### External Resources
 - [Scalable Web Architecture Patterns](https://highscalability.com/)

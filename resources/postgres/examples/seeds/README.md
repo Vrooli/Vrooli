@@ -73,30 +73,13 @@ seeds/
 - Usage-based pricing alerts
 - Customer support automation
 
-## 🚀 Usage Instructions
+## Usage Notes
 
-### Quick Start with Template
-```bash
-# Create instance with client template
-./manage.sh --action create --instance my-client --template real-estate
+Treat these files as reusable SQL seed bundles.
 
-# Apply template-specific seed data
-./manage.sh --action seed --instance my-client --seed-path ./examples/seeds/real-estate/
-```
-
-### Manual Seeding
-```bash
-# Seed specific files in order
-./manage.sh --action seed --instance my-client --seed-path ./examples/seeds/real-estate/001_properties.sql
-./manage.sh --action seed --instance my-client --seed-path ./examples/seeds/real-estate/002_leads_contacts.sql
-```
-
-### Verify Seeded Data
-```bash
-# Check tables and data
-./manage.sh --action connect --instance my-client
-# Then run SQL: SELECT COUNT(*) FROM properties;
-```
+- Apply them through the current PostgreSQL resource workflow rather than the old `manage.sh` examples.
+- Execute the files in numeric order within each domain directory.
+- Use the resource [README](../../README.md) and [docs](../../docs/) for the current operator flow.
 
 ## 🎯 Integration with Automation
 
@@ -155,7 +138,4 @@ The seed data automatically works with client templates:
 
 ## 🔗 Related Documentation
 
-- [Client Template Guide](../README.md#client-templates)
-- [Multi-tenant Examples](../multi-tenant.sh)
-- [n8n Integration](../n8n-integration.md)
-- [Node-RED Integration](../node-red-integration.md)
+- [Client Template Guide](../../README.md)

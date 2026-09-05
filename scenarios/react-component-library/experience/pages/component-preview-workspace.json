@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "component-preview-workspace",
+    "title": "Component preview workspace",
+    "routes": ["/assets/:id"],
+    "purpose": "Let a library maintainer inspect a real rendered component specimen and recognize when its preview is loading, usable, or only partially available.",
+    "prd_refs": ["OT-P0-003"]
+  },
+  "priorities": [
+    {
+      "statement": "The current component preview and its usable readiness state are apparent before secondary editor controls."
+    },
+    {
+      "statement": "A failed specimen remains visible with a retry path without hiding other usable previews."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A component detail workspace is open.",
+      "setup": {
+        "route": "/assets/react-component-library%3AButton",
+        "query": { "tab": "preview" }
+      }
+    },
+    {
+      "id": "preview-loading",
+      "description": "The selected component preview is waiting for its harness specimens."
+    },
+    {
+      "id": "preview-ready",
+      "description": "All rendered preview specimens have announced readiness.",
+      "setup": {
+        "route": "/assets/react-component-library%3AButton",
+        "query": { "tab": "preview" }
+      }
+    },
+    {
+      "id": "preview-partial",
+      "description": "At least one specimen failed while another usable preview remains available."
+    }
+  ],
+  "regions": [
+    {
+      "id": "component-preview",
+      "required": true,
+      "purpose": "Render and report the lifecycle of the selected component's real preview specimens.",
+      "component": {
+        "library": { "component": "experience-surface", "version": "1.0.2" }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": ["loading", "ready", "partial", "error"]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "component-preview": {
+        "selector": "[data-experience-surface=\"component-preview\"]"
+      }
+    }
+  }
+}

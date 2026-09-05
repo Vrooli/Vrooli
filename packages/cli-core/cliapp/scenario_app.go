@@ -3,44 +3,136 @@ package cliapp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
+
+var (
+	currentExecutablePath  = os.Executable
+	findScenarioRepoRoot   = repocontract.FindRepoRootFromEnvOrCWD
+	resolveScenarioRoot    = repocontract.ResolveScenarioPath
+	resolveScenarioCLIPath = func(root, scenario string) (string, error) {
+		return repocontract.ResolveScenarioFile(root, scenario, "cli")
+	}
+	// runScenarioLifecycle is the preflight's one seam onto the vrooli CLI:
+	// setup or start, streamed to the operator, no local deadline because a
+	// scenario start is itself a lifecycle orchestration.
+	runScenarioLifecycle = func(verb, name string) error {
+		home, _ := os.UserHomeDir()
+		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		if err != nil {
+			return err
+		}
+		res := cliinvoke.Run(context.Background(), cliinvoke.Invocation{
+			Binary:  binary,
+			Args:    cliinvoke.ScenarioLifecycle(verb, name, false),
+			Timeout: time.Hour,
+			Stdout:  os.Stdout,
+			Stderr:  os.Stderr,
+		})
+		return res.Error()
+	}
+)
+
+func defaultIfEmpty(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
 
 // ScenarioOptions bundles common wiring for scenario CLIs so individual
 // scenarios don't have to repeat config loading, API client setup, stale
 // checking, and configure command plumbing.
 type ScenarioOptions struct {
-	Name               string
-	Version            string
-	Description        string
-	DefaultAPIBase     string
-	APIEnvVars         []string
-	APIPortEnvVars     []string
-	APIPortDetector    func() string
-	ConfigDirEnvVars   []string
-	SourceRootEnvVars  []string
-	ColorEnabled       *bool
-	OnColor            func(enabled bool)
-	Commands           []CommandGroup
-	SubcommandGroups   []SubcommandGroup
-	TokenKeys          []string
-	APIBaseKeys        []string
-	TokenEnvVars       []string
-	Preflight          func(cmd Command, global GlobalOptions, app *ScenarioApp) error
-	BuildFingerprint   string
-	BuildTimestamp     string
-	BuildSourceRoot    string
-	HTTPClientOptions  cliutil.HTTPClientOptions
-	HTTPTimeoutEnvVars []string
-	DefaultHTTPTimeout time.Duration
-	AllowAnonymous     bool
+	Name                  string
+	Version               string
+	Description           string
+	DefaultAPIBase        string
+	APIPrefix             string
+	HealthPath            string
+	LegacyHealthPaths     []string
+	APIEnvVars            []string
+	APIPortEnvVars        []string
+	APIPortDetector       func() string
+	RuntimeStatusDetector func() string
+	ConfigDirEnvVars      []string
+	SourceRootEnvVars     []string
+	ColorEnabled          *bool
+	OnColor               func(enabled bool)
+	Commands              []CommandGroup
+	SubcommandGroups      []SubcommandGroup
+	TokenKeys             []string
+	APIBaseKeys           []string
+	TokenEnvVars          []string
+	Preflight             func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	UnknownCommandHint    func(args []string) string
+	BuildFingerprint      string
+	BuildTimestamp        string
+	BuildSourceRoot       string
+	SourceContextPath     string
+	ManifestSourcePath    string
+	FreshnessInputs       []string
+	HTTPClientOptions     cliutil.HTTPClientOptions
+	HTTPTimeoutEnvVars    []string
+	DefaultHTTPTimeout    time.Duration
+	AllowAnonymous        bool
+	// HealthFetcher, when non-nil, replaces the built-in REST health probe
+	// used by the standard `status` command and `ensureAPIReachable`
+	// preflight. It must return a JSON body matching the legacy health
+	// envelope (status/service/version/readiness/dependencies). Scenarios
+	// whose health domain is served over Connect-RPC supply this hook so
+	// the CLI never hits a phantom REST path.
+	HealthFetcher func() ([]byte, error)
+}
+
+// StandardScenarioOptions provides a higher-level constructor for the common
+// scenario CLI shape: standard env wiring, standard operational commands, and
+// optional custom command registration hooks.
+type StandardScenarioOptions struct {
+	Name                    string
+	Version                 string
+	Description             string
+	DefaultAPIBase          string
+	APIPrefix               string
+	HealthPath              string
+	LegacyHealthPaths       []string
+	ExtraAPIEnvVars         []string
+	ExtraAPIPortEnvVars     []string
+	ExtraConfigDirEnvVars   []string
+	ExtraSourceRootEnvVars  []string
+	ExtraTokenEnvVars       []string
+	ExtraHTTPTimeoutEnvVars []string
+	ColorEnabled            *bool
+	OnColor                 func(enabled bool)
+	Preflight               func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	UnknownCommandHint      func(args []string) string
+	BuildFingerprint        string
+	BuildTimestamp          string
+	BuildSourceRoot         string
+	ManifestSourcePath      string
+	FreshnessInputs         []string
+	HTTPClientOptions       cliutil.HTTPClientOptions
+	DefaultHTTPTimeout      time.Duration
+	AllowAnonymous          bool
+	IncludeStatusCommand    *bool
+	IncludeConfigureCommand *bool
+	ConfigureAPIBaseKeys    []string
+	ConfigureTokenKeys      []string
+	CommandGroups           func(app *ScenarioApp) []CommandGroup
+	SubcommandGroups        func(app *ScenarioApp) []SubcommandGroup
+	// HealthFetcher is forwarded to ScenarioOptions; see ScenarioOptions.HealthFetcher.
+	HealthFetcher func() ([]byte, error)
 }
 
 // ScenarioApp encapsulates the shared CLI scaffolding for a scenario CLI.
@@ -66,6 +158,12 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 	if len(opts.APIBaseKeys) == 0 {
 		opts.APIBaseKeys = []string{"api_base"}
 	}
+	if strings.TrimSpace(opts.APIPrefix) == "" {
+		opts.APIPrefix = "/api/v1"
+	}
+	if strings.TrimSpace(opts.HealthPath) == "" {
+		opts.HealthPath = "/health"
+	}
 	if len(opts.TokenKeys) == 0 {
 		opts.TokenKeys = []string{"token", "api_token"}
 	}
@@ -78,7 +176,7 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 		opts.HTTPTimeoutEnvVars = []string{slug + "_HTTP_TIMEOUT", "VROOLI_HTTP_TIMEOUT"}
 	}
 	if opts.DefaultHTTPTimeout == 0 {
-		opts.DefaultHTTPTimeout = 30 * time.Second
+		opts.DefaultHTTPTimeout = 120 * time.Second
 	}
 
 	configFile, cfg, err := cliutil.LoadAPIConfig(opts.Name, opts.ConfigDirEnvVars...)
@@ -94,6 +192,9 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 		StaleChecker: cliutil.NewStaleChecker(opts.Name, opts.BuildFingerprint, opts.BuildTimestamp, opts.BuildSourceRoot, opts.SourceRootEnvVars...),
 		options:      opts,
 	}
+	app.StaleChecker.SourceContextPath = opts.SourceContextPath
+	app.StaleChecker.ManifestSourcePath = opts.ManifestSourcePath
+	app.StaleChecker.FreshnessInputs = resolveFreshnessInputs(opts.FreshnessInputs, nil)
 	app.tokenSource = func() string {
 		for _, env := range opts.TokenEnvVars {
 			if val := strings.TrimSpace(os.Getenv(env)); val != "" {
@@ -117,6 +218,78 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 	return app, nil
 }
 
+// NewStandardScenarioApp builds the common scenario CLI shape with standard env
+// derivation, standard base commands, and optional custom command hooks.
+func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) {
+	env := StandardScenarioEnv(opts.Name, ScenarioEnvOptions{
+		ExtraAPIEnvVars:         opts.ExtraAPIEnvVars,
+		ExtraAPIPortEnvVars:     opts.ExtraAPIPortEnvVars,
+		ExtraConfigDirEnvVars:   opts.ExtraConfigDirEnvVars,
+		ExtraSourceRootEnvVars:  opts.ExtraSourceRootEnvVars,
+		ExtraTokenEnvVars:       opts.ExtraTokenEnvVars,
+		ExtraHTTPTimeoutEnvVars: opts.ExtraHTTPTimeoutEnvVars,
+	})
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:                  opts.Name,
+		Version:               opts.Version,
+		Description:           opts.Description,
+		DefaultAPIBase:        opts.DefaultAPIBase,
+		APIPrefix:             opts.APIPrefix,
+		HealthPath:            opts.HealthPath,
+		LegacyHealthPaths:     opts.LegacyHealthPaths,
+		APIEnvVars:            env.APIEnvVars,
+		APIPortEnvVars:        env.APIPortEnvVars,
+		APIPortDetector:       cliutil.DetectPortFromVrooli(opts.Name, "API_PORT"),
+		RuntimeStatusDetector: cliutil.DetectScenarioRuntimeStatus(opts.Name),
+		ConfigDirEnvVars:      env.ConfigDirEnvVars,
+		SourceRootEnvVars:     env.SourceRootEnvVars,
+		ColorEnabled:          opts.ColorEnabled,
+		OnColor:               opts.OnColor,
+		TokenEnvVars:          env.TokenEnvVars,
+		Preflight:             opts.Preflight,
+		UnknownCommandHint:    opts.UnknownCommandHint,
+		BuildFingerprint:      opts.BuildFingerprint,
+		BuildTimestamp:        opts.BuildTimestamp,
+		BuildSourceRoot:       opts.BuildSourceRoot,
+		SourceContextPath:     "..",
+		ManifestSourcePath:    defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
+		// api/** is in the default because a scenario CLI that declares
+		// `replace <scenario> => ../api` compiles api code into its own binary.
+		// Watching only cli/** left those edits invisible: the source
+		// fingerprint never moved, no rebuild fired, and the installed CLI
+		// silently served stale behavior. A scenario with no api/ directory is
+		// unaffected — a glob that matches nothing is skipped.
+		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"api/**", "cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
+		HTTPClientOptions:  opts.HTTPClientOptions,
+		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
+		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,
+		AllowAnonymous:     opts.AllowAnonymous,
+		HealthFetcher:      opts.HealthFetcher,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	commands := app.StandardBaseCommandGroups(StandardBaseCommandOptions{
+		IncludeStatusCommand:    opts.IncludeStatusCommand,
+		IncludeConfigureCommand: opts.IncludeConfigureCommand,
+		ConfigureAPIBaseKeys:    opts.ConfigureAPIBaseKeys,
+		ConfigureTokenKeys:      opts.ConfigureTokenKeys,
+	})
+	if opts.CommandGroups != nil {
+		commands = append(commands, opts.CommandGroups(app)...)
+	}
+
+	var subcommandGroups []SubcommandGroup
+	if opts.SubcommandGroups != nil {
+		subcommandGroups = opts.SubcommandGroups(app)
+	}
+
+	app.SetCommandsWithSubgroups(commands, subcommandGroups)
+	return app, nil
+}
+
 // SetCommands rebuilds the CLI with the provided command groups while keeping
 // the shared wiring intact.
 func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
@@ -136,25 +309,19 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 
 	preflight := func(cmd Command, global GlobalOptions) error {
 		a.warnIfRunningScenarioLocalBinary()
+		if global.DryRun {
+			if err := cmd.globalDryRunError(); err != nil {
+				return err
+			}
+		}
+		// All ScenarioApp transports (JSON REST, Connect, and multipart upload)
+		// reuse HTTPClient.ApplyRequestHeaders. Set this before reachability
+		// checks so the actual command invocation has one stable observation id.
+		a.HTTPClient.SetInvocationHeaderSource(cliutil.InvocationHeaders(a.options.Name, cmd.Name))
 
 		if cmd.NeedsAPI {
-			if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
-				// If auto-start is enabled, try to start the scenario
-				if global.AutoStart {
-					if startErr := a.tryAutoStart(); startErr != nil {
-						return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
-					}
-					// Retry API validation after starting
-					if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
-						return fmt.Errorf("%s API still not reachable after auto-start", a.options.Name)
-					}
-				} else {
-					// Provide actionable error with auto-start suggestion
-					return fmt.Errorf("%s API is not reachable.\n\nTo auto-start the scenario:\n  %s --auto-start %s\n\nOr start manually:\n  vrooli scenario start %s", a.options.Name, a.options.Name, cmd.Name, a.options.Name)
-				}
-			}
-			if !a.options.AllowAnonymous && strings.TrimSpace(a.tokenSource()) == "" {
-				return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
+			if err := a.ensureAPIReachable(cmd, global.AutoStart); err != nil {
+				return err
 			}
 		}
 		if global.DryRun {
@@ -167,57 +334,180 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 	}
 
 	a.CLI = NewApp(AppOptions{
-		Name:             a.options.Name,
-		Version:          a.options.Version,
-		Description:      a.options.Description,
-		Commands:         commands,
-		SubcommandGroups: subcommandGroups,
-		APIOverride:      &a.APIOverride,
-		ColorEnabled:     colorEnabled,
-		OnColor:          a.options.OnColor,
-		StaleChecker:     a.StaleChecker,
-		Preflight:        preflight,
+		Name:               a.options.Name,
+		Version:            a.options.Version,
+		Description:        a.options.Description,
+		Commands:           commands,
+		SubcommandGroups:   subcommandGroups,
+		APIOverride:        &a.APIOverride,
+		ColorEnabled:       colorEnabled,
+		OnColor:            a.options.OnColor,
+		StaleChecker:       a.StaleChecker,
+		Preflight:          preflight,
+		UnknownCommandHint: a.options.UnknownCommandHint,
 	})
+	a.CLI.AttachScenario(a)
 }
 
 func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
 	if a.warnedLocal || strings.TrimSpace(os.Getenv("VROOLI_SUPPRESS_CLI_PATH_WARNING")) != "" {
 		return
 	}
-	executablePath, err := os.Executable()
+	executablePath, err := currentExecutablePath()
 	if err != nil {
 		return
 	}
-	if !isScenarioLocalCLIExecutablePath(a.options.Name, executablePath) {
+	_, cliDir, ok := resolveScenarioLocalCLIContext(a.options.Name)
+	if !ok || !sameScenarioPath(filepath.Dir(executablePath), cliDir) {
 		return
 	}
 
 	a.warnedLocal = true
-	relativeScenario := filepath.ToSlash(filepath.Join("scenarios", a.options.Name))
 	fmt.Fprintf(os.Stderr, "Warning: running %s from a scenario-local CLI binary (%s).\n", a.options.Name, executablePath)
 	fmt.Fprintf(os.Stderr, "Install and run the canonical binary instead:\n")
-	fmt.Fprintf(os.Stderr, "  cd %s/cli && ./install.sh\n", relativeScenario)
+	fmt.Fprintf(os.Stderr, "  vrooli scenario setup %s\n", a.options.Name)
 	fmt.Fprintf(os.Stderr, "  %s <command>\n", a.options.Name)
 }
 
 func isScenarioLocalCLIExecutablePath(appName, executablePath string) bool {
-	normalizedName := strings.ToLower(strings.TrimSpace(appName))
-	if normalizedName == "" {
+	_, cliDir, ok := resolveScenarioLocalCLIContext(appName)
+	if !ok {
 		return false
+	}
+	return sameScenarioPath(filepath.Dir(executablePath), cliDir)
+}
+
+func resolveScenarioLocalCLIContext(appName string) (string, string, bool) {
+	normalizedName := strings.TrimSpace(appName)
+	if normalizedName == "" {
+		return "", "", false
 	}
 
-	path := filepath.ToSlash(strings.ToLower(strings.TrimSpace(executablePath)))
-	if path == "" {
+	root, err := findScenarioRepoRoot()
+	if err != nil {
+		return "", "", false
+	}
+	scenarioRoot, err := resolveScenarioRoot(root, normalizedName)
+	if err != nil {
+		return "", "", false
+	}
+	cliDir, err := resolveScenarioCLIPath(root, normalizedName)
+	if err != nil {
+		return "", "", false
+	}
+	relativeScenario, err := filepath.Rel(root, scenarioRoot)
+	if err != nil {
+		return "", "", false
+	}
+	relativeScenario = filepath.ToSlash(relativeScenario)
+	if relativeScenario == "." || strings.HasPrefix(relativeScenario, "../") {
+		return "", "", false
+	}
+	return relativeScenario, cliDir, true
+}
+
+func sameScenarioPath(a, b string) bool {
+	a = filepath.ToSlash(filepath.Clean(strings.TrimSpace(a)))
+	b = filepath.ToSlash(filepath.Clean(strings.TrimSpace(b)))
+	if a == "" || b == "" {
 		return false
 	}
-	needle := "/scenarios/" + normalizedName + "/cli/"
-	return strings.Contains(path, needle)
+	return strings.EqualFold(a, b)
 }
 
 // APIBaseOptions returns the current API base resolution options for use in
 // tests or custom flows.
 func (a *ScenarioApp) APIBaseOptions() cliutil.APIBaseOptions {
 	return a.baseOptions()
+}
+
+// APIPrefix returns the normalized versioned API prefix for scenario routes.
+func (a *ScenarioApp) APIPrefix() string {
+	return normalizeAPIPath(a.options.APIPrefix)
+}
+
+// HealthPath returns the normalized root health endpoint path.
+func (a *ScenarioApp) HealthPath() string {
+	return normalizeAPIPath(a.options.HealthPath)
+}
+
+// APIBase returns the resolved API base. If the configured base is root-level,
+// the scenario API prefix is appended.
+func (a *ScenarioApp) APIBase() string {
+	base := strings.TrimRight(strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())), "/")
+	if base == "" {
+		return ""
+	}
+	prefix := a.APIPrefix()
+	if prefix == "" || prefix == "/" {
+		return base
+	}
+	if strings.HasSuffix(base, prefix) {
+		return base
+	}
+	return base + prefix
+}
+
+// APIRootBase returns the resolved root API base with any configured API
+// prefix removed.
+func (a *ScenarioApp) APIRootBase() string {
+	base := strings.TrimRight(strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())), "/")
+	if base == "" {
+		return ""
+	}
+	prefix := a.APIPrefix()
+	if prefix != "" && prefix != "/" && strings.HasSuffix(base, prefix) {
+		return strings.TrimRight(strings.TrimSuffix(base, prefix), "/")
+	}
+	return base
+}
+
+// APIPath normalizes a versioned API path against the configured API prefix.
+func (a *ScenarioApp) APIPath(path string) string {
+	path = normalizeAPIPath(path)
+	if path == "" {
+		return ""
+	}
+	prefix := a.APIPrefix()
+	if prefix == "" || prefix == "/" {
+		return path
+	}
+	base := strings.TrimRight(strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())), "/")
+	if strings.HasSuffix(base, prefix) {
+		return path
+	}
+	return prefix + path
+}
+
+// APIRootPath normalizes an operational root path such as /health.
+func (a *ScenarioApp) APIRootPath(path string) string {
+	return normalizeAPIPath(path)
+}
+
+// Get performs a GET request against the scenario's versioned API base.
+func (a *ScenarioApp) Get(path string, query url.Values) ([]byte, error) {
+	if a.APIClient == nil {
+		a.APIClient = cliutil.NewAPIClient(a.HTTPClient, a.APIBaseOptions, a.tokenSource)
+	}
+	return a.APIClient.Get(a.APIPath(path), query)
+}
+
+// Request performs an HTTP request against the scenario's versioned API base.
+func (a *ScenarioApp) Request(method, path string, query url.Values, body interface{}) ([]byte, error) {
+	if a.APIClient == nil {
+		a.APIClient = cliutil.NewAPIClient(a.HTTPClient, a.APIBaseOptions, a.tokenSource)
+	}
+	return a.APIClient.Request(method, a.APIPath(path), query, body)
+}
+
+// GetRoot performs a GET request against the scenario's root API base.
+func (a *ScenarioApp) GetRoot(path string, query url.Values) ([]byte, error) {
+	return a.rootRequest("GET", a.APIRootPath(path), query, nil)
+}
+
+// RequestRoot performs an HTTP request against the scenario's root API base.
+func (a *ScenarioApp) RequestRoot(method, path string, query url.Values, body interface{}) ([]byte, error) {
+	return a.rootRequest(method, a.APIRootPath(path), query, body)
 }
 
 // SaveConfig persists the current API config to disk.
@@ -238,6 +528,8 @@ func (a *ScenarioApp) ConfigureCommand(apiBaseKeys, tokenKeys []string) Command 
 		Name:        "configure",
 		NeedsAPI:    false,
 		Description: "View or update CLI settings (api_base, token)",
+		Usage:       fmt.Sprintf("%s configure [<key> <value>]", a.options.Name),
+		HelpText:    "Run without arguments to print the current config. Supported keys include api_base and token.",
 		Run: func(args []string) error {
 			if len(args) == 0 {
 				payload, _ := json.MarshalIndent(a.Config, "", "  ")
@@ -277,6 +569,17 @@ func keyMatch(key string, allowed []string) bool {
 	return false
 }
 
+func normalizeAPIPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
+}
+
 func applyTimeoutOpts(opts ScenarioOptions) cliutil.HTTPClientOptions {
 	clientOpts := opts.HTTPClientOptions
 	if clientOpts.Timeout == 0 {
@@ -285,27 +588,129 @@ func applyTimeoutOpts(opts ScenarioOptions) cliutil.HTTPClientOptions {
 	return clientOpts
 }
 
+type apiRecoveryContext struct {
+	ResolvedAPIBase   string
+	ConfiguredAPIBase string
+	DetectedAPIBase   string
+	Cause             string
+	MissingAPIBase    bool
+	RuntimeStatus     string
+}
+
+func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
+	base, err := cliutil.ValidateAPIBase(a.APIBaseOptions())
+	if err != nil {
+		if autoStart {
+			if startErr := a.tryAutoStart(); startErr != nil {
+				return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
+			}
+			base, err = cliutil.ValidateAPIBase(a.APIBaseOptions())
+		}
+		if err != nil {
+			return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
+				ResolvedAPIBase:   base,
+				ConfiguredAPIBase: strings.TrimSpace(a.Config.APIBase),
+				DetectedAPIBase:   a.detectedAPIBase(),
+				Cause:             err.Error(),
+				MissingAPIBase:    true,
+			})
+		}
+	}
+
+	if !a.options.AllowAnonymous && strings.TrimSpace(a.tokenSource()) == "" {
+		return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
+	}
+
+	probeErr := a.probeAPIHealth()
+	if probeErr == nil {
+		return nil
+	} else if autoStart {
+		if startErr := a.tryAutoStart(); startErr != nil {
+			return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
+		}
+		probeErr = a.probeAPIHealth()
+		if probeErr == nil {
+			return nil
+		}
+		return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
+			ResolvedAPIBase:   strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())),
+			ConfiguredAPIBase: strings.TrimSpace(a.Config.APIBase),
+			DetectedAPIBase:   a.detectedAPIBase(),
+			Cause:             probeErr.Error(),
+		})
+	}
+
+	return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
+		ResolvedAPIBase:   strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())),
+		ConfiguredAPIBase: strings.TrimSpace(a.Config.APIBase),
+		DetectedAPIBase:   a.detectedAPIBase(),
+		Cause:             probeErr.Error(),
+	})
+}
+
+func (a *ScenarioApp) probeAPIHealth() error {
+	_, err := a.fetchHealth()
+	return err
+}
+
+func (a *ScenarioApp) detectedAPIBase() string {
+	if a.options.APIPortDetector == nil {
+		return ""
+	}
+	port := strings.TrimSpace(a.options.APIPortDetector())
+	if port == "" {
+		return ""
+	}
+	return fmt.Sprintf("http://localhost:%s", port)
+}
+
+func (a *ScenarioApp) apiRecoveryError(commandName string, ctx apiRecoveryContext) error {
+	if ctx.DetectedAPIBase == "" && a.options.RuntimeStatusDetector != nil {
+		ctx.RuntimeStatus = strings.TrimSpace(a.options.RuntimeStatusDetector())
+	}
+	report := NewAPIRecoveryReport(APIRecoveryReportOptions{
+		AppName:           a.options.Name,
+		CommandName:       commandName,
+		ResolvedAPIBase:   ctx.ResolvedAPIBase,
+		ConfiguredAPIBase: ctx.ConfiguredAPIBase,
+		DetectedAPIBase:   ctx.DetectedAPIBase,
+		Cause:             ctx.Cause,
+		MissingAPIBase:    ctx.MissingAPIBase,
+		RuntimeStatus:     ctx.RuntimeStatus,
+	})
+	rendered, err := RenderOperationalReportString(report)
+	if err != nil {
+		return fmt.Errorf("render API recovery report: %w", err)
+	}
+	return errors.New(strings.TrimRight(rendered, "\n"))
+}
+
 // tryAutoStart attempts to start the scenario via vrooli and waits for the API to become available.
 func (a *ScenarioApp) tryAutoStart() error {
 	fmt.Printf("Starting %s...\n", a.options.Name)
 
-	// Start the scenario in background
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", a.options.Name)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("vrooli scenario start failed: %w", err)
+	// Scenario start is itself a lifecycle orchestration command. Let it run to
+	// completion instead of imposing an arbitrary local subprocess deadline.
+	if err := runScenarioLifecycle("start", a.options.Name); err != nil {
+		// A copied or newly provisioned node can have a valid scenario manifest
+		// but no component artifact yet. The normal lifecycle start reports that
+		// as an exec failure; one governed setup retry repairs the artifact and
+		// keeps --auto-start useful on cold nodes without ever executing a binary
+		// directly.
+		fmt.Printf("%s is not startable yet; running scenario setup and retrying...\n", a.options.Name)
+		if setupErr := runScenarioLifecycle("setup", a.options.Name); setupErr != nil {
+			return fmt.Errorf("vrooli scenario setup failed after start failure: %w (start: %v)", setupErr, err)
+		}
+		if retryErr := runScenarioLifecycle("start", a.options.Name); retryErr != nil {
+			return fmt.Errorf("vrooli scenario start failed after setup retry: %w (initial start: %v)", retryErr, err)
+		}
 	}
 
 	// Wait for API to become available (poll port detector)
 	fmt.Printf("Waiting for %s API...\n", a.options.Name)
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err == nil {
+		if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err == nil && a.probeAPIHealth() == nil {
 			fmt.Printf("%s API is ready\n", a.options.Name)
 			return nil
 		}
@@ -313,4 +718,38 @@ func (a *ScenarioApp) tryAutoStart() error {
 	}
 
 	return fmt.Errorf("timeout waiting for API to become available")
+}
+
+// DetectedAPIBase reports the API base of the scenario's currently running
+// process, independent of whatever base this CLI is configured to use. It is
+// empty when no running API can be detected.
+func (a *ScenarioApp) DetectedAPIBase() string {
+	return a.detectedAPIBase()
+}
+
+// RebindToDetectedAPI points this CLI at the scenario's currently running API
+// and reports whether the target changed.
+//
+// A scenario's port is assigned at start, so restarting one moves it, while the
+// CLI keeps using the base it resolved (or the one saved in its config, which
+// DetermineAPIBase deliberately prefers over live detection). For a one-shot
+// command that is the right precedence and a stale base is merely an error with
+// good advice. For a command that stays connected across a restart -- polling a
+// long-running server-owned run, say -- it is fatal: every reconnection attempt
+// goes to a port nothing is listening on any more.
+//
+// The new base is applied in memory only. Rebinding is a recovery for the
+// current invocation, not an opinion about what the operator's saved
+// configuration should be; persisting it would silently rewrite their config as
+// a side effect of a restart that may itself have been temporary.
+func (a *ScenarioApp) RebindToDetectedAPI() bool {
+	detected := strings.TrimRight(strings.TrimSpace(a.detectedAPIBase()), "/")
+	if detected == "" {
+		return false
+	}
+	if strings.TrimRight(strings.TrimSpace(a.APIRootBase()), "/") == detected {
+		return false
+	}
+	a.APIOverride = detected
+	return true
 }

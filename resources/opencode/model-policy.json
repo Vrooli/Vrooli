@@ -1,0 +1,27 @@
+{
+  "schema_version": "v1",
+  "runner": "opencode",
+  "provenance": {"source": "OpenCode models listing (opencode 1.17.9; OpenRouter provider catalog; refreshed 2026-08-30)", "observed_at": "2026-08-30"},
+  "billing": {"mode": "unknown", "source": "operator-not-declared"},
+  "live_catalog_mode": "curated",
+  "model_aliases": {
+    "openrouter/deepseek/deepseek-v4-flash-0731": {"canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731", "provider": "openrouter"},
+    "openrouter/deepseek/deepseek-v4-flash": {"canonical_model": "openrouter/deepseek/deepseek-v4-flash", "provider": "openrouter"},
+    "openrouter/deepseek/deepseek-v4-pro": {"canonical_model": "openrouter/deepseek/deepseek-v4-pro", "provider": "openrouter"},
+    "openrouter/anthropic/claude-opus-5": {"canonical_model": "openrouter/anthropic/claude-opus-5", "provider": "openrouter"},
+    "openrouter/anthropic/claude-opus-4.8": {"canonical_model": "openrouter/anthropic/claude-opus-4.8", "provider": "openrouter"},
+    "openrouter/qwen/qwen3.8-max": {"canonical_model": "openrouter/qwen/qwen3.8-max", "provider": "openrouter"},
+    "openrouter/moonshotai/kimi-k3": {"canonical_model": "openrouter/moonshotai/kimi-k3", "provider": "openrouter"}
+  },
+  "roles": {
+    "code.default": {"model": "openrouter/deepseek/deepseek-v4-flash-0731", "canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Balanced OpenCode implementation work.", "capabilities": ["code", "tools"], "challenger": {"model": "openrouter/deepseek/deepseek-v4-pro", "sample_rate": 0.1}},
+    "code.fast": {"model": "openrouter/deepseek/deepseek-v4-flash-0731", "canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Low-latency OpenCode edits.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "openrouter/anthropic/claude-opus-5", "canonical_model": "openrouter/anthropic/claude-opus-5", "fallbacks": ["openrouter/deepseek/deepseek-v4-pro"], "description": "Highest-capability OpenCode reasoning.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "openrouter/deepseek/deepseek-v4-flash-0731", "canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Cost-conscious OpenCode tasks.", "capabilities": ["code", "tools"]},
+    "code.ux": {"model": "openrouter/anthropic/claude-opus-5", "canonical_model": "openrouter/anthropic/claude-opus-5", "fallbacks": ["openrouter/anthropic/claude-opus-4.8"], "description": "User-facing interaction and frontend work where quality matters most.", "capabilities": ["code", "tools", "ux"]},
+    "code.judgment": {"model": "openrouter/anthropic/claude-opus-5", "canonical_model": "openrouter/anthropic/claude-opus-5", "fallbacks": ["openrouter/deepseek/deepseek-v4-pro"], "description": "Fallback for high-level judgment and strategic reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.inspection": {"model": "openrouter/deepseek/deepseek-v4-flash-0731", "canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731", "fallbacks": ["openrouter/deepseek/deepseek-v4-flash"], "description": "Code inspection, reproduction, execution, and evidence gathering.", "capabilities": ["code", "tools"]},
+    "code.longrun": {"model": "openrouter/qwen/qwen3.8-max", "canonical_model": "openrouter/qwen/qwen3.8-max", "fallbacks": ["openrouter/deepseek/deepseek-v4-pro"], "description": "Long-horizon autonomous coding work.", "capabilities": ["code", "tools", "reasoning"]}, 
+    "write.default": {"model": "openrouter/moonshotai/kimi-k3", "canonical_model": "openrouter/moonshotai/kimi-k3", "fallbacks": ["openrouter/anthropic/claude-opus-5"], "description": "Natural-prose writing and editorial work.", "capabilities": ["writing", "tools"]}
+  }
+}

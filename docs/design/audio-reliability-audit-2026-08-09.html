@@ -1,0 +1,1304 @@
+<title>Vrooli Audio Reliability — Audit & Repair Plan</title>
+
+<style>
+  :root {
+    --ground: #FCFCFD;
+    --surface: #F4F5F7;
+    --surface-2: #EAECF0;
+    --ink: #14171C;
+    --ink-2: #434A56;
+    --muted: #6E6874;
+    --hairline: #DEE1E6;
+    --hairline-strong: #C6CBD3;
+    --accent: #B02455;
+    --accent-bright: #D9376E;
+    --accent-wash: rgba(217, 55, 110, 0.09);
+    --ok: #2F7059;
+    --warn: #9A5D0C;
+    --crit: #B02455;
+    --ok-wash: rgba(47, 112, 89, 0.12);
+    --warn-wash: rgba(154, 93, 12, 0.12);
+    --crit-wash: rgba(176, 36, 85, 0.11);
+
+    --display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --measure: 68ch;
+    --wide: 1080px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0D0F13;
+      --surface: #14171D;
+      --surface-2: #1C2029;
+      --ink: #E9EBEF;
+      --ink-2: #B4BAC4;
+      --muted: #8B8894;
+      --hairline: #262B34;
+      --hairline-strong: #39404C;
+      --accent: #F0568B;
+      --accent-bright: #FF6D9D;
+      --accent-wash: rgba(240, 86, 139, 0.13);
+      --ok: #57B392;
+      --warn: #DFA045;
+      --crit: #F0568B;
+      --ok-wash: rgba(87, 179, 146, 0.14);
+      --warn-wash: rgba(223, 160, 69, 0.14);
+      --crit-wash: rgba(240, 86, 139, 0.13);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0D0F13;
+    --surface: #14171D;
+    --surface-2: #1C2029;
+    --ink: #E9EBEF;
+    --ink-2: #B4BAC4;
+    --muted: #8B8894;
+    --hairline: #262B34;
+    --hairline-strong: #39404C;
+    --accent: #F0568B;
+    --accent-bright: #FF6D9D;
+    --accent-wash: rgba(240, 86, 139, 0.13);
+    --ok: #57B392;
+    --warn: #DFA045;
+    --crit: #F0568B;
+    --ok-wash: rgba(87, 179, 146, 0.14);
+    --warn-wash: rgba(223, 160, 69, 0.14);
+    --crit-wash: rgba(240, 86, 139, 0.13);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: var(--wide); margin: 0 auto; }
+  .col { max-width: var(--measure); }
+
+  /* ---- masthead ---- */
+  .masthead {
+    padding: 68px 0 34px;
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: 44px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5.2vw, 3.15rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+    margin: 0 0 20px;
+    max-width: 20ch;
+  }
+  .standfirst {
+    font-size: 1.09rem;
+    color: var(--ink-2);
+    max-width: var(--measure);
+    margin: 0;
+  }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- sections ---- */
+  section { margin: 0 0 68px; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(1.42rem, 3vw, 1.78rem);
+    letter-spacing: -0.012em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 8px;
+  }
+  h3 {
+    font-family: var(--body);
+    font-weight: 650;
+    font-size: 1.02rem;
+    letter-spacing: -0.004em;
+    margin: 34px 0 8px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  p { margin: 0 0 15px; max-width: var(--measure); }
+  ul, ol { max-width: var(--measure); padding-left: 1.15em; margin: 0 0 15px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 620; }
+
+  code, .m {
+    font-family: var(--mono);
+    font-size: 0.855em;
+    background: var(--surface-2);
+    padding: 0.13em 0.36em;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+
+  /* ---- figures ---- */
+  figure {
+    margin: 30px 0;
+    padding: 0;
+  }
+  .fig-frame {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 22px 20px 14px;
+    overflow-x: auto;
+  }
+  figure svg { display: block; max-width: 100%; height: auto; color: var(--ink); }
+  figcaption {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin-top: 11px;
+    max-width: var(--measure);
+    line-height: 1.5;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---- stat strip ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 28px 0 34px;
+  }
+  .stat { background: var(--ground); padding: 16px 17px 15px; }
+  .stat .v {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.42rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    display: block;
+    line-height: 1.15;
+  }
+  .stat .k {
+    font-size: 12.5px;
+    color: var(--muted);
+    display: block;
+    margin-top: 5px;
+    line-height: 1.35;
+  }
+  .stat.is-crit .v { color: var(--crit); }
+  .stat.is-warn .v { color: var(--warn); }
+
+  /* ---- findings ---- */
+  .findings { display: flex; flex-direction: column; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: 4px; overflow: hidden; }
+  .finding {
+    background: var(--ground);
+    display: grid;
+    grid-template-columns: 62px 1fr;
+    gap: 0 16px;
+    padding: 17px 18px 16px;
+    border-left: 3px solid transparent;
+  }
+  .finding.sev-crit { border-left-color: var(--crit); }
+  .finding.sev-warn { border-left-color: var(--warn); }
+  .finding.sev-info { border-left-color: var(--hairline-strong); }
+  .fid {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    padding-top: 2px;
+  }
+  .finding.sev-crit .fid { color: var(--crit); }
+  .finding.sev-warn .fid { color: var(--warn); }
+  .finding h4 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 640;
+    letter-spacing: -0.005em;
+    line-height: 1.38;
+  }
+  .finding p { margin: 0 0 8px; font-size: 15px; color: var(--ink-2); max-width: 74ch; }
+  .finding p:last-child { margin-bottom: 0; }
+  .refs {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.65;
+    word-break: break-word;
+  }
+  .refs::before { content: "↳ "; }
+
+  .group-label {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    padding: 9px 18px;
+  }
+
+  /* ---- phases ---- */
+  .phases { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+  .phase {
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 18px 20px 17px;
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 74px 1fr;
+    gap: 0 18px;
+  }
+  .phase.is-key { border-color: var(--accent); background: var(--accent-wash); }
+  .pid {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding-top: 3px;
+  }
+  .phase.is-key .pid { color: var(--accent); }
+  .phase h4 { margin: 0 0 7px; font-size: 1.02rem; font-weight: 640; letter-spacing: -0.005em; }
+  .phase p { margin: 0 0 9px; font-size: 15px; color: var(--ink-2); max-width: 74ch; }
+  .phase p:last-child { margin-bottom: 0; }
+  .fixes {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .fixes b { color: var(--accent); font-weight: 600; }
+
+  /* ---- table ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 4px; margin: 24px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 620px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .pill.ok { background: var(--ok-wash); color: var(--ok); }
+  .pill.warn { background: var(--warn-wash); color: var(--warn); }
+  .pill.crit { background: var(--crit-wash); color: var(--crit); }
+
+  /* ---- callout ---- */
+  .note {
+    border-left: 3px solid var(--hairline-strong);
+    padding: 3px 0 3px 18px;
+    margin: 26px 0;
+    max-width: var(--measure);
+    color: var(--ink-2);
+    font-size: 15px;
+  }
+  .note b { color: var(--ink); }
+
+  hr.rule { border: 0; border-top: 1px solid var(--hairline); margin: 60px 0; }
+
+  @media (max-width: 600px) {
+    body { font-size: 16px; padding: 0 16px 72px; }
+    .finding, .phase { grid-template-columns: 1fr; gap: 6px; }
+    .fid, .pid { padding-top: 0; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Vrooli · audio stack audit · 2026-08-09</p>
+  <h1>How long can you talk before it breaks?</h1>
+  <p class="standfirst">Three independent ceilings sit between you and a fifteen-minute dictation, and none of them is in the part of the stack that looks fragile. The transcription engine is fine. <strong>The recovery journal is the bug</strong> — it was designed to be compacted by an acknowledgement the server never sends, so it grows for the whole session until it hits a wall, silently.</p>
+</header>
+
+<section>
+  <p class="kicker">The headline</p>
+  <h2>The measured shape of the failure</h2>
+  <p>Every number below is derived from constants in the shipped code, not from a benchmark. The very first thing the plan does is replace these derivations with measurements — but they already explain the symptoms you describe.</p>
+
+  <div class="stats">
+    <div class="stat is-crit">
+      <span class="v">8m 44s</span>
+      <span class="k">Browser journal quota. Capture stops feeding the socket — with no error.</span>
+    </div>
+    <div class="stat is-crit">
+      <span class="v">34m 57s</span>
+      <span class="k">Server ledger quota. Session terminates <code>resource_exhausted</code>.</span>
+    </div>
+    <div class="stat is-warn">
+      <span class="v">~17s</span>
+      <span class="k">Estimated point where per-frame journal writes stop keeping up with capture.</span>
+    </div>
+    <div class="stat is-warn">
+      <span class="v">375/s</span>
+      <span class="k">WebSocket frames sent. One per 2.7&nbsp;ms audio quantum. No batching.</span>
+    </div>
+    <div class="stat">
+      <span class="v">41%</span>
+      <span class="k">Of wire bytes are frame header, not audio.</span>
+    </div>
+    <div class="stat">
+      <span class="v">8ms</span>
+      <span class="k">Longest audio the “long session” test suite has ever pushed.</span>
+    </div>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <svg viewBox="0 0 1000 250" role="img" aria-label="A time axis from zero to sixty minutes. Streaming throughput degrades continuously from about seventeen seconds. A hard ceiling at eight minutes forty-four seconds stops the browser sending audio. A second hard ceiling at thirty-four minutes fifty-seven seconds terminates the server session. The fifteen-minute target sits between the two ceilings.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <linearGradient id="degrade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="var(--warn)" stop-opacity="0.05"/>
+            <stop offset="100%" stop-color="var(--warn)" stop-opacity="0.42"/>
+          </linearGradient>
+        </defs>
+
+        <!-- degradation band: from 17s (x=38) to first ceiling -->
+        <path d="M 38 150 L 200 150 L 200 108 L 38 138 Z" fill="url(#degrade)"/>
+        <text x="104" y="98" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--warn)" text-anchor="middle">throughput deficit grows</text>
+
+        <!-- axis -->
+        <line x1="30" y1="150" x2="960" y2="150" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar)"/>
+
+        <!-- ticks -->
+        <g font-family="ui-monospace, monospace" font-size="11" fill="var(--muted)" text-anchor="middle">
+          <line x1="30" y1="150" x2="30" y2="157" stroke="currentColor" stroke-width="1"/><text x="30" y="172">0</text>
+          <line x1="184" y1="150" x2="184" y2="157" stroke="currentColor" stroke-width="1"/><text x="184" y="172">10m</text>
+          <line x1="338" y1="150" x2="338" y2="157" stroke="currentColor" stroke-width="1"/><text x="338" y="172">20m</text>
+          <line x1="492" y1="150" x2="492" y2="157" stroke="currentColor" stroke-width="1"/><text x="492" y="172">30m</text>
+          <line x1="646" y1="150" x2="646" y2="157" stroke="currentColor" stroke-width="1"/><text x="646" y="172">40m</text>
+          <line x1="800" y1="150" x2="800" y2="157" stroke="currentColor" stroke-width="1"/><text x="800" y="172">50m</text>
+          <line x1="954" y1="150" x2="954" y2="157" stroke="currentColor" stroke-width="1"/><text x="954" y="172">60m</text>
+        </g>
+
+        <!-- ceiling 1 : 8m44s -> x = 30 + 8.733*15.4 = 164 -->
+        <line x1="164" y1="42" x2="164" y2="150" stroke="var(--crit)" stroke-width="2"/>
+        <circle cx="164" cy="150" r="4" fill="var(--crit)"/>
+        <text x="172" y="52" font-size="13" font-weight="600" fill="var(--crit)" font-family="ui-monospace, monospace">8m44s</text>
+        <text x="172" y="68" font-size="12" fill="var(--ink-2)">browser journal quota exhausted</text>
+        <text x="172" y="83" font-size="12" fill="var(--muted)">write chain rejects · socket goes quiet · no error shown</text>
+
+        <!-- ceiling 2 : 34m57s -> x = 30 + 34.95*15.4 = 568 -->
+        <line x1="568" y1="196" x2="568" y2="150" stroke="var(--crit)" stroke-width="2"/>
+        <circle cx="568" cy="150" r="4" fill="var(--crit)"/>
+        <text x="576" y="214" font-size="13" font-weight="600" fill="var(--crit)" font-family="ui-monospace, monospace">34m57s</text>
+        <text x="576" y="230" font-size="12" fill="var(--ink-2)">server ledger quota · terminal <tspan font-family="ui-monospace, monospace">resource_exhausted</tspan></text>
+
+        <!-- target : 15m -> x = 30 + 15*15.4 = 261 -->
+        <line x1="261" y1="150" x2="261" y2="196" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <circle cx="261" cy="150" r="3.5" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <text x="269" y="214" font-size="12.5" font-weight="600" fill="var(--ink)">15m — your stated target</text>
+        <text x="269" y="230" font-size="12" fill="var(--muted)">lands between the two ceilings, after both have already fired</text>
+
+        <!-- 17s marker -->
+        <line x1="34" y1="150" x2="34" y2="126" stroke="var(--warn)" stroke-width="1.5"/>
+        <text x="42" y="120" font-size="11.5" fill="var(--warn)" font-family="ui-monospace, monospace">~17s</text>
+      </svg>
+    </div>
+    <figcaption><b>At the audit baseline, none of the target duration was reachable.</b> The 15-minute mark sat after the browser had already stopped transmitting and before the server’s own ceiling caught it. The degradation band started far earlier than either wall: by roughly 17 seconds of continuous speech, the per-frame journal write was estimated to cost more than the 2.7&nbsp;ms budget a capture quantum allows.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="kicker">Resolution ledger</p>
+  <h2>Finding state after the reliability work</h2>
+  <p>“Resolved” means the implementation and its focused evidence exist. “Partial” means the code or gate exists but a required routed, real-time, or product-path proof is still missing. No row receives credit from a neighboring strategy or from a queued run.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Finding</th><th>State</th><th>Evidence / remaining gap</th></tr></thead>
+      <tbody>
+        <tr><td>F1 silent poisoned capture chain</td><td><span class="pill ok">resolved</span></td><td>Typed write-chain error, diagnostic status, and accelerated zero-silent-terminal evidence; browser long-run telemetry remains a separate product-path gap.</td></tr>
+        <tr><td>F2 quadratic journal persistence</td><td><span class="pill ok">resolved</span></td><td>Incremental browser journal and server ledger persistence; accelerated constant-cost and bounded-retention assertions pass.</td></tr>
+        <tr><td>F3 server whole-session RAM ceiling</td><td><span class="pill ok">resolved</span></td><td>Coverage acknowledgements release retained audio; the 60-minute accelerated lane reports no terminal ceiling.</td></tr>
+        <tr><td>F4 unbatched WebSocket frames</td><td><span class="pill ok">resolved</span></td><td>Browser/server batching evidence reports 10 messages per second.</td></tr>
+        <tr><td>F5 fallback double delivery</td><td><span class="pill ok">resolved</span></td><td>Fallback uses the uncommitted remainder; package regression tests cover committed-prefix recovery.</td></tr>
+        <tr><td>F6 split interim/settled transcript</td><td><span class="pill warn">partial</span></td><td>TranscriptBuffer and composer state plumbing are tested; continuous 15-minute routed rendering is not yet evidenced.</td></tr>
+        <tr><td>F7 overloaded microphone button</td><td><span class="pill warn">partial</span></td><td>RCL 4.0.0 and app-level surfaces exist; rendered seven-state footprint evidence is not complete in both consumers.</td></tr>
+        <tr><td>F8 local button copies bypass RCL</td><td><span class="pill ok">resolved</span></td><td>RCL adoption records for <code>VoiceInputButton@4.0.0</code> are current and clean for both <code>swarm-manager</code> and <code>web-console</code>; their local paths are generated/adopted component shims with provenance headers, not untracked copies.</td></tr>
+        <tr><td>F9 consumer audio drift</td><td><span class="pill warn">partial</span></td><td>Shared-import guard and parity fixtures exist; the full divergent-file inventory has not been reduced to documented shims.</td></tr>
+        <tr><td>F10 missing swarm-manager audio surfaces</td><td><span class="pill warn">partial</span></td><td>Banner parity components and tests exist; routed end-to-end parity is not yet complete.</td></tr>
+        <tr><td>F11 short “long session” suite</td><td><span class="pill ok">resolved</span></td><td>Accelerated 3,600-second lane passes; package tests now cover long-session recovery behavior.</td></tr>
+        <tr><td>F12 package suite absent from gate</td><td><span class="pill ok">resolved</span></td><td>The direct browser package gate passes 9 files/118 tests; a deliberate break-and-restore proof failed exactly 1/118 before restoration. The aggregate <code>make test-packages</code> remains blocked earlier by an unrelated cli-core freshness assertion.</td></tr>
+        <tr><td>F13 missing browser/fault qualification instrument</td><td><span class="pill warn">partial</span></td><td>Routed browser evidence and all eleven handler fault tests exist; the full three-strategy browser fault matrix is incomplete.</td></tr>
+        <tr><td>F14 Docker-only audio resources</td><td><span class="pill warn">partial</span></td><td>The 2026-08-09 no-go was corrected: Whisper now has a native managed-service path and sherpa-onnx owns the native TTS/streaming-STT/speaker/separation adapter. Signed publication and target smoke evidence are still missing, so legacy Docker resources remain present and no unsupported target is promoted.</td></tr>
+        <tr><td>F15 fallback emits no fast partials</td><td><span class="pill warn">partial</span></td><td>Overlap measurements exist and remain diagnostic-only; no qualifying auto-path fast-partial candidate has been promoted.</td></tr>
+        <tr><td>F16 Kyutai pause-only commit policy</td><td><span class="pill ok">resolved</span></td><td>Continuous-speech force-commit and delayed-tail flush are implemented and covered by the resource server tests.</td></tr>
+        <tr><td>F17 Kyutai resource has no tests</td><td><span class="pill ok">resolved</span></td><td><code>make test</code> now runs the 17 dependency-light Python server tests alongside the CLI suite.</td></tr>
+        <tr><td>F18 progress streams overwrite each other</td><td><span class="pill ok">resolved</span></td><td>Partial, VAD, and ordinary-status snapshots have independent coalescing slots; handler regression test passes.</td></tr>
+        <tr><td>F19 wake-word tests outside owning package</td><td><span class="pill warn">partial</span></td><td>Package-owned DTW, MFCC engine, passive-arm, and PassiveListener lease tests now pass, including an accelerated hour of idle listening with one stable lease; repeated wake detections/latency and browser-device soak evidence remain.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">Orientation</p>
+  <h2>What the stack actually is</h2>
+  <p>You asked where a problem could live. There are five layers, and the ownership boundaries are mostly good — the confusion is that two of them contain copies of each other.</p>
+
+  <figure>
+    <div class="fig-frame">
+      <svg viewBox="0 0 1000 470" role="img" aria-label="Layer map of the audio stack. Web console and swarm manager each keep a local audio-integration directory. Those consume the shared audio-capture-browser package. The React component library sits to the side, consumed by nobody. Audio bytes travel over a WebSocket to the audio-tools API, which relays to native managed services and the optional Kyutai resource while native sherpa targets remain unpromoted.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="a2c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--crit)"/>
+          </marker>
+        </defs>
+
+        <!-- Layer 1: consumers -->
+        <text x="18" y="24" font-size="11" font-family="ui-monospace, monospace" letter-spacing="1.4" fill="var(--muted)">CONSUMER SCENARIOS</text>
+        <rect x="18" y="34" width="232" height="66" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="34" y="58" font-size="13.5" font-weight="600" fill="var(--ink)">web-console</text>
+        <text x="34" y="76" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--muted)">ui/src/audio-integration/</text>
+        <text x="34" y="91" font-size="11.5" fill="var(--ok)">5 app-level banners</text>
+
+        <rect x="266" y="34" width="232" height="66" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="282" y="58" font-size="13.5" font-weight="600" fill="var(--ink)">swarm-manager</text>
+        <text x="282" y="76" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--muted)">ui/src/audio-integration/</text>
+        <text x="282" y="91" font-size="11.5" fill="var(--crit)">0 app-level banners</text>
+
+        <!-- drift edge -->
+        <line x1="250" y1="67" x2="266" y2="67" stroke="var(--crit)" stroke-width="1.6" stroke-dasharray="3 2"/>
+        <text x="258" y="118" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--crit)" text-anchor="middle">20 files drifted</text>
+
+        <!-- RCL, orphaned -->
+        <rect x="700" y="34" width="282" height="66" rx="3" fill="none" stroke="var(--hairline-strong)" stroke-width="1.3" stroke-dasharray="5 3"/>
+        <text x="716" y="58" font-size="13.5" font-weight="600" fill="var(--muted)">react-component-library</text>
+        <text x="716" y="76" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--muted)">VoiceInputButton@3.0.0 · 345 lines</text>
+        <text x="716" y="91" font-size="11.5" fill="var(--crit)">imported by nobody — copied, then drifted</text>
+
+        <!-- copy arrows -->
+        <path d="M 700 60 L 510 60" stroke="var(--crit)" stroke-width="1.3" stroke-dasharray="4 3" fill="none" marker-end="url(#a2c)"/>
+        <text x="605" y="52" font-size="11" font-family="ui-monospace, monospace" fill="var(--crit)" text-anchor="middle">copy-paste adoption</text>
+
+        <!-- Layer 2: shared package -->
+        <line x1="134" y1="100" x2="134" y2="148" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+        <line x1="382" y1="100" x2="382" y2="148" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+        <text x="18" y="142" font-size="11" font-family="ui-monospace, monospace" letter-spacing="1.4" fill="var(--muted)">SHARED CAPTURE SUBSTRATE</text>
+        <rect x="18" y="152" width="480" height="78" rx="3" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.4"/>
+        <text x="34" y="176" font-size="13.5" font-weight="600" fill="var(--ink)">packages/audio-capture-browser</text>
+        <text x="34" y="194" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">useVoiceCore · PcmVoiceStreamProvider · TurnJournal</text>
+        <text x="34" y="211" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">pcmCapture · pcm · protocol · tts/*</text>
+        <text x="34" y="226" font-size="11.5" fill="var(--crit)">◆ both hard ceilings live here</text>
+
+        <!-- ws -->
+        <line x1="258" y1="230" x2="258" y2="286" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+        <text x="268" y="256" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">WebSocket · ATV2 binary frames · 375/s</text>
+        <text x="268" y="272" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--muted)">16 kHz mono s16le · 60-byte header each</text>
+
+        <!-- Layer 3: audio-tools -->
+        <text x="18" y="280" font-size="11" font-family="ui-monospace, monospace" letter-spacing="1.4" fill="var(--muted)">AUDIO-TOOLS SCENARIO (Go)</text>
+        <rect x="18" y="290" width="964" height="78" rx="3" fill="none" stroke="currentColor" stroke-width="1.3"/>
+        <text x="34" y="314" font-size="13.5" font-weight="600" fill="var(--ink)">handlers/stt/stream_ws.go → segmenter → strategy → chain</text>
+        <text x="34" y="333" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">session.Ledger (replay + resume) · coalescing writer · tiered provider: local → BYOK → LPBS</text>
+        <text x="34" y="352" font-size="11.5" fill="var(--ok)">well-structured · durable-segment contract · deterministic fault injection already built in</text>
+
+        <!-- Layer 4: resources -->
+        <line x1="500" y1="368" x2="500" y2="404" stroke="currentColor" stroke-width="1.3" marker-end="url(#a2)"/>
+        <text x="18" y="398" font-size="11" font-family="ui-monospace, monospace" letter-spacing="1.4" fill="var(--muted)">RESOURCES — MIXED NATIVE / OPTIONAL DOCKER</text>
+        <g>
+          <rect x="18" y="408" width="228" height="50" rx="3" fill="none" stroke="var(--hairline-strong)" stroke-width="1.2"/>
+          <text x="32" y="429" font-size="12.5" font-weight="600" fill="var(--ink)">kyutai-stt</text>
+          <text x="32" y="447" font-size="11" font-family="ui-monospace, monospace" fill="var(--crit)">optional · CUDA/Linux</text>
+
+          <rect x="262" y="408" width="228" height="50" rx="3" fill="none" stroke="var(--hairline-strong)" stroke-width="1.2"/>
+          <text x="276" y="429" font-size="12.5" font-weight="600" fill="var(--ink)">whisper</text>
+          <text x="276" y="447" font-size="11" font-family="ui-monospace, monospace" fill="var(--ok)">native managed · Linux verified</text>
+
+          <rect x="506" y="408" width="228" height="50" rx="3" fill="none" stroke="var(--hairline-strong)" stroke-width="1.2"/>
+          <text x="520" y="429" font-size="12.5" font-weight="600" fill="var(--ink)">kokoro (TTS)</text>
+          <text x="520" y="447" font-size="11" font-family="ui-monospace, monospace" fill="var(--warn)">sherpa native · targets unpromoted</text>
+
+          <rect x="750" y="408" width="232" height="50" rx="3" fill="none" stroke="var(--hairline-strong)" stroke-width="1.2"/>
+          <text x="764" y="429" font-size="12.5" font-weight="600" fill="var(--ink)">speaker-verification</text>
+          <text x="764" y="447" font-size="11" font-family="ui-monospace, monospace" fill="var(--warn)">sherpa native · targets unpromoted</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>The layer that looks most complicated is the healthiest one.</b> <code>audio-tools</code> already has a replay ledger, resume tokens, a back-pressure-proof egress writer, a three-tier provider chain, and deterministic fault injection. The defects cluster in the shared browser package — and the drift sits above it, where two scenarios each keep a partly-diverged copy of a component library nobody imports.</figcaption>
+  </figure>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">Root cause</p>
+  <h2>One missing edge explains both ceilings</h2>
+  <p>The design is a standard durable-stream protocol: the client keeps captured audio until the server confirms it has processed it, then discards it. That confirmation is called a <em>processed acknowledgement</em>, and both sides implement their half of it correctly.</p>
+  <p>At the audit baseline it was never sent during the session: the event type existed, but the live Kyutai adapter only used its <code>processed_batches</code> signal for transport credits. The current implementation closes that edge. Kyutai maps each backend-confirmed processed batch to its exact chunk identity and emits <code>StreamEventAcknowledgement</code>; the browser ledger compacts only from that event. Providers without a backend cursor retain the generic strategy cursor, while the Passthrough strategy does not double-ack Kyutai.</p>
+
+  <figure>
+    <div class="fig-frame">
+      <svg viewBox="0 0 1000 340" role="img" aria-label="Two side-by-side sequence diagrams. On the left, the audit baseline: audio flows from browser to server and segments flow back, but the processed-acknowledgement edge is missing, so both journals grow for the whole session. On the right, the fix: the server acknowledges processed audio coverage mid-stream, so both journals stay bounded to the unacknowledged window.">
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="a3g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ok)"/>
+          </marker>
+        </defs>
+
+        <!-- ==== LEFT : today ==== -->
+        <text x="18" y="20" font-size="11" font-family="ui-monospace, monospace" letter-spacing="1.4" fill="var(--crit)">TODAY</text>
+
+        <rect x="18" y="34" width="132" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="84" y="56" font-size="12.5" text-anchor="middle" fill="var(--ink)">browser</text>
+        <rect x="308" y="34" width="132" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="374" y="56" font-size="12.5" text-anchor="middle" fill="var(--ink)">audio-tools</text>
+
+        <line x1="84" y1="68" x2="84" y2="284" stroke="var(--hairline-strong)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="374" y1="68" x2="374" y2="284" stroke="var(--hairline-strong)" stroke-width="1" stroke-dasharray="3 3"/>
+
+        <line x1="84" y1="96" x2="374" y2="96" stroke="currentColor" stroke-width="1.2" marker-end="url(#a3)"/>
+        <text x="229" y="90" font-size="11" font-family="ui-monospace, monospace" fill="var(--ink-2)" text-anchor="middle">audio frame ×375/s</text>
+
+        <line x1="374" y1="130" x2="84" y2="130" stroke="currentColor" stroke-width="1.2" marker-end="url(#a3)"/>
+        <text x="229" y="124" font-size="11" font-family="ui-monospace, monospace" fill="var(--ink-2)" text-anchor="middle">segment-final</text>
+
+        <line x1="374" y1="164" x2="84" y2="164" stroke="var(--crit)" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="229" y="158" font-size="11" font-family="ui-monospace, monospace" fill="var(--crit)" text-anchor="middle">processed-ack — NEVER SENT</text>
+        <text x="229" y="180" font-size="16" fill="var(--crit)" text-anchor="middle">✕</text>
+
+        <rect x="18" y="204" width="132" height="62" rx="3" fill="var(--crit-wash)" stroke="var(--crit)" stroke-width="1.2"/>
+        <text x="84" y="224" font-size="11.5" text-anchor="middle" fill="var(--crit)" font-family="ui-monospace, monospace">TurnJournal</text>
+        <text x="84" y="241" font-size="11" text-anchor="middle" fill="var(--ink-2)">grows all session</text>
+        <text x="84" y="257" font-size="11.5" text-anchor="middle" fill="var(--crit)" font-family="ui-monospace, monospace">wall @ 16 MiB</text>
+
+        <rect x="308" y="204" width="132" height="62" rx="3" fill="var(--crit-wash)" stroke="var(--crit)" stroke-width="1.2"/>
+        <text x="374" y="224" font-size="11.5" text-anchor="middle" fill="var(--crit)" font-family="ui-monospace, monospace">session.Ledger</text>
+        <text x="374" y="241" font-size="11" text-anchor="middle" fill="var(--ink-2)">grows all session</text>
+        <text x="374" y="257" font-size="11.5" text-anchor="middle" fill="var(--crit)" font-family="ui-monospace, monospace">wall @ 64 MiB</text>
+
+        <text x="229" y="300" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--crit)" text-anchor="middle">retained = O(session length)</text>
+        <text x="229" y="318" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--crit)" text-anchor="middle">every frame rewrites the whole buffer</text>
+
+        <!-- divider -->
+        <line x1="500" y1="14" x2="500" y2="326" stroke="var(--hairline)" stroke-width="1"/>
+
+        <!-- ==== RIGHT : fixed ==== -->
+        <text x="560" y="20" font-size="11" font-family="ui-monospace, monospace" letter-spacing="1.4" fill="var(--ok)">AFTER P2 + P3</text>
+
+        <rect x="560" y="34" width="132" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="626" y="56" font-size="12.5" text-anchor="middle" fill="var(--ink)">browser</text>
+        <rect x="850" y="34" width="132" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="916" y="56" font-size="12.5" text-anchor="middle" fill="var(--ink)">audio-tools</text>
+
+        <line x1="626" y1="68" x2="626" y2="284" stroke="var(--hairline-strong)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="916" y1="68" x2="916" y2="284" stroke="var(--hairline-strong)" stroke-width="1" stroke-dasharray="3 3"/>
+
+        <line x1="626" y1="96" x2="916" y2="96" stroke="currentColor" stroke-width="1.2" marker-end="url(#a3)"/>
+        <text x="771" y="90" font-size="11" font-family="ui-monospace, monospace" fill="var(--ink-2)" text-anchor="middle">audio frame ×10/s (batched)</text>
+
+        <line x1="916" y1="130" x2="626" y2="130" stroke="currentColor" stroke-width="1.2" marker-end="url(#a3)"/>
+        <text x="771" y="124" font-size="11" font-family="ui-monospace, monospace" fill="var(--ink-2)" text-anchor="middle">segment-final</text>
+
+        <line x1="916" y1="164" x2="626" y2="164" stroke="var(--ok)" stroke-width="1.8" marker-end="url(#a3g)"/>
+        <text x="771" y="158" font-size="11" font-family="ui-monospace, monospace" fill="var(--ok)" text-anchor="middle">processed-ack(seq) — backend coverage</text>
+        <text x="771" y="182" font-size="11" font-family="ui-monospace, monospace" fill="var(--ok)" text-anchor="middle">↓ both sides compact</text>
+
+        <rect x="560" y="204" width="132" height="62" rx="3" fill="var(--ok-wash)" stroke="var(--ok)" stroke-width="1.2"/>
+        <text x="626" y="224" font-size="11.5" text-anchor="middle" fill="var(--ok)" font-family="ui-monospace, monospace">TurnJournal</text>
+        <text x="626" y="241" font-size="11" text-anchor="middle" fill="var(--ink-2)">unacked window</text>
+        <text x="626" y="257" font-size="11.5" text-anchor="middle" fill="var(--ok)" font-family="ui-monospace, monospace">steady ~1 MiB</text>
+
+        <rect x="850" y="204" width="132" height="62" rx="3" fill="var(--ok-wash)" stroke="var(--ok)" stroke-width="1.2"/>
+        <text x="916" y="224" font-size="11.5" text-anchor="middle" fill="var(--ok)" font-family="ui-monospace, monospace">session.Ledger</text>
+        <text x="916" y="241" font-size="11" text-anchor="middle" fill="var(--ink-2)">unacked window</text>
+        <text x="916" y="257" font-size="11.5" text-anchor="middle" fill="var(--ok)" font-family="ui-monospace, monospace">steady ~1 MiB</text>
+
+        <text x="771" y="300" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ok)" text-anchor="middle">retained = O(unacknowledged window)</text>
+        <text x="771" y="318" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ok)" text-anchor="middle">append-only writes · no ceiling at any duration</text>
+      </svg>
+    </div>
+    <figcaption><b>The difference is one message class, sent at the right time.</b> Both journals already implement compaction; the baseline never asked them to compact mid-stream. Backend-confirmed coverage converts retention from “everything you have said” to “the last few seconds not yet processed” — which removes the old session-length ceiling while preserving replay authority.</figcaption>
+  </figure>
+
+  <div class="note">
+    <b>Why it survives review.</b> The client compacts only on acknowledgement. The Kyutai adapter now waits for backend processing confirmation, the resource orders the final processed cursor before terminal <code>done</code>, the writer remains back-pressure-proof, and the resume path is idempotent. Accelerated interval accounting and all eleven deterministic fault controls are now green; the remaining promotion gap is full paced quality for the batch strategies, current routed Swarm Manager product-path credit, native target publication, and target smoke evidence. Automated PipeWire device qualification is already evidenced for Audio Tools; it proves the operating-system capture path, not a specific analog microphone. A bounded-overlap repair and provider-failure retention tests are now in the active validation run; they do not count as qualification until that run finishes.
+  </div>
+
+  <h3>The trap in the obvious fix</h3>
+  <p>The natural implementation is to acknowledge when a segment commits. <strong>That would not work</strong>, and it would fail in a way that looks like success in short tests.</p>
+  <p>A prior investigation on 2026-07-07 measured the live Kyutai path and found that a durable segment committed <em>only</em> after a run of ~1.3&nbsp;s of silence (<code>SILENCE_COMMIT_FRAMES=16</code>) or on an explicit flush. The resource now also force-commits at a word boundary after <code>KYUTAI_STT_MAX_SEGMENT_FRAMES=48</code>, but that text policy is not the retention proof: processed-audio coverage is still emitted independently of segment commit. The remaining question is whether the full browser and real-time evidence exercises that contract without gaps.
+  <p>The acknowledgement must therefore be driven by <strong>processed-audio coverage</strong> — “the provider has consumed samples up to sequence N” — which is knowable continuously and independent of whether any text has settled. Coverage is what the retention invariant is actually about; segment commit is a text event that happens to correlate with it when people pause.</p>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">The two-speed transcript</p>
+  <h2>Yes — there are two streams, and they run at different speeds</h2>
+  <p>Your recollection is accurate, and it is worth being precise about because it changes the fix. The pipeline emits two distinct message classes with genuinely different latency and confidence characteristics:</p>
+  <ul>
+    <li><code>partial</code> — the engine’s <em>current rolling hypothesis</em>. Fast, arrives continuously, and <strong>may revise words it already emitted</strong> as more audio arrives. This is what fed the tooltip.</li>
+    <li><code>segment-final</code> — a <em>committed</em> segment, produced when the active strategy decides a span is settled. Slower, arrives in chunks, never revised. This is what streams into the composer.</li>
+  </ul>
+  <p>So the composer <em>was</em> receiving a live stream — just the settled one, which is why it felt correct but lagged. What is missing is that the fast stream has no representation in the box.</p>
+
+  <h3>Which streams you get depends entirely on the strategy</h3>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Strategy</th><th>When auto selects it</th><th class="mono">fast partials</th><th class="mono">settled segments</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">Passthrough</td>
+          <td>Provider streams natively — Kyutai, Deepgram. <em>First choice.</em></td>
+          <td><span class="pill ok">yes</span></td>
+          <td><span class="pill ok">yes</span></td>
+        </tr>
+        <tr>
+          <td class="mono">VADSegment</td>
+          <td>Batch-only provider — local Whisper. <strong>Today’s effective default.</strong></td>
+          <td><span class="pill crit">none</span></td>
+          <td><span class="pill ok">at each silence</span></td>
+        </tr>
+        <tr>
+          <td class="mono">OverlapAgree</td>
+          <td>Never on auto — explicit <code>overlap</code> preference only</td>
+          <td><span class="pill ok">yes</span></td>
+          <td><span class="pill ok">yes</span></td>
+        </tr>
+        <tr>
+          <td class="mono">BufferedFallback</td>
+          <td>Streaming off, or nothing else fits</td>
+          <td><span class="pill crit">none</span></td>
+          <td><span class="pill warn">one, at the end</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>With Kyutai up you get the two-speed behaviour you remember. When Kyutai is unavailable, auto-selection lands on <code>VADSegment</code>, the tooltip stays blank, and text arrives only at silence boundaries. Nothing “breaks”; the fast lane simply does not exist on the fallback path. The managed Kyutai resource is currently healthy, so the primary path is available for qualification.</p>
+
+  <h3>What I propose to build instead</h3>
+  <p>Your iPhone comparison is the right model, and it is worth doing properly rather than just moving the tooltip’s text into the box. Three pieces:</p>
+
+  <figure>
+    <div class="fig-frame">
+      <svg viewBox="0 0 1000 260" role="img" aria-label="Diagram of the proposed transcript buffer. Fast partial messages replace an interim span wholesale. Settled segment-final messages absorb the prefix of that span into committed text. The composer renders committed text normally and interim text with a dotted underline.">
+        <defs>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="a4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <!-- inputs -->
+        <rect x="18" y="26" width="196" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="34" y="46" font-size="12.5" font-weight="600" fill="var(--ink)">partial</text>
+        <text x="34" y="63" font-size="11" font-family="ui-monospace, monospace" fill="var(--muted)">fast · revisable</text>
+
+        <rect x="18" y="118" width="196" height="46" rx="3" fill="none" stroke="currentColor" stroke-width="1.2"/>
+        <text x="34" y="138" font-size="12.5" font-weight="600" fill="var(--ink)">segment-final</text>
+        <text x="34" y="155" font-size="11" font-family="ui-monospace, monospace" fill="var(--muted)">settled · permanent</text>
+
+        <line x1="214" y1="49" x2="308" y2="70" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+        <text x="262" y="44" font-size="10.5" font-family="ui-monospace, monospace" fill="var(--muted)" text-anchor="middle">replaces</text>
+        <line x1="214" y1="141" x2="308" y2="120" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+        <text x="262" y="160" font-size="10.5" font-family="ui-monospace, monospace" fill="var(--muted)" text-anchor="middle">absorbs prefix</text>
+
+        <!-- buffer -->
+        <rect x="316" y="40" width="256" height="110" rx="3" fill="var(--accent-wash)" stroke="var(--accent)" stroke-width="1.4"/>
+        <text x="332" y="62" font-size="13" font-weight="600" fill="var(--ink)">TranscriptBuffer</text>
+        <text x="332" y="83" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">committed: string</text>
+        <text x="332" y="101" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">interim: string</text>
+        <text x="332" y="124" font-size="11" fill="var(--muted)">one reconcile() — the same math</text>
+        <text x="332" y="139" font-size="11" fill="var(--muted)">uncommittedRemainder already does</text>
+
+        <line x1="572" y1="95" x2="666" y2="95" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#a4a)"/>
+        <text x="619" y="88" font-size="10.5" font-family="ui-monospace, monospace" fill="var(--accent)" text-anchor="middle">renders</text>
+
+        <!-- composer mock -->
+        <rect x="674" y="34" width="308" height="122" rx="4" fill="var(--surface-2)" stroke="var(--hairline-strong)" stroke-width="1.2"/>
+        <text x="692" y="58" font-size="10.5" font-family="ui-monospace, monospace" letter-spacing="1.2" fill="var(--muted)">MESSAGE INPUT</text>
+        <text x="692" y="84" font-size="13" fill="var(--ink)">Let's ship the audio fix this</text>
+        <text x="692" y="106" font-size="13" fill="var(--ink)">week and then</text>
+        <text x="806" y="106" font-size="13" fill="var(--muted)">measure the soak</text>
+        <line x1="806" y1="111" x2="962" y2="111" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="2 2.5"/>
+        <text x="692" y="134" font-size="11" fill="var(--muted)">settled</text>
+        <line x1="734" y1="130" x2="762" y2="130" stroke="var(--ink)" stroke-width="1.3"/>
+        <text x="790" y="134" font-size="11" fill="var(--muted)">unsettled</text>
+        <line x1="848" y1="130" x2="876" y2="130" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="2 2.5"/>
+
+        <!-- degrade note -->
+        <rect x="316" y="186" width="666" height="52" rx="3" fill="none" stroke="var(--hairline-strong)" stroke-width="1.1" stroke-dasharray="4 3"/>
+        <text x="334" y="207" font-size="12" font-weight="600" fill="var(--ink)">Graceful degrade</text>
+        <text x="334" y="226" font-size="11.5" fill="var(--ink-2)">On a strategy with no partials, interim is simply always empty — the composer behaves exactly as it does today, with no special case.</text>
+      </svg>
+    </div>
+    <figcaption><b>One buffer, two write paths, one render.</b> Partials replace the interim span wholesale — which is what makes revision safe. Each committed segment absorbs the prefix of that span it covers, leaving only the genuinely-unsettled tail underlined.</figcaption>
+  </figure>
+
+  <p><strong>Rendering.</strong> A plain <code>&lt;textarea&gt;</code> cannot style a sub-range, and <code>contenteditable</code> would cost us IME, mobile keyboards, and native selection. The robust approach is the standard overlay: a transparent textarea over a mirror layer that draws committed text normally and interim text with the dotted underline. Native input behaviour is untouched.</p>
+  <p><strong>Rules that keep it from fighting you.</strong> Interim text never enters undo history — only commits do. If your caret enters the interim region, that text commits as-is rather than being contested, which is what iOS does. On turn end, any remaining interim is promoted through the <code>uncommittedRemainder</code> path that already exists.</p>
+  <p><strong>And the fast lane needs to exist on the default path.</strong> Underlining unsettled text is worth nothing if the default strategy emits none. That is a measurement question, not a taste question — either bring <code>OverlapAgree</code> back to auto once the harness shows its latency is acceptable (which is precisely why it was parked), or synthesise partials from <code>VADSegment</code>’s in-flight buffer. One more reason the harness comes first.</p>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">Findings</p>
+  <h2>Nineteen defects, by layer</h2>
+  <p>Severity is about your stated goal — uninterrupted long-form dictation that never drops anything — not about general code health.</p>
+
+  <div class="findings">
+
+    <div class="group-label">Reliability · shared capture package</div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F1</div>
+      <div>
+        <h4>Capture stops feeding the socket at 8m44s, silently</h4>
+        <p>Because no acknowledgement arrives (above), <code>TurnJournal.append</code> hits its <span class="num">16&nbsp;MiB</span> quota and throws. The throw lands inside the <code>this.writes</code> promise chain, which has no <code>.catch</code> — so the chain is permanently rejected and <em>every subsequent frame’s callback is skipped</em>. No audio is sent, no <code>done</code> is sent, and no error surfaces to the UI. 16&nbsp;MiB ÷ 32,000&nbsp;B/s = 524&nbsp;s.</p>
+        <p class="refs">turnJournal.ts:76,86 · pcmVoiceStreamProvider.ts:205,262,393,413</p>
+      </div>
+    </div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F2</div>
+      <div>
+        <h4>Both journals rewrite the entire retained buffer on every frame</h4>
+        <p>Client: <code>append()</code> calls <code>persist()</code>, which deep-copies every retained chunk and writes the whole snapshot to IndexedDB — once per capture quantum. Server: <code>stream_ws.go</code> calls <code>PersistContext</code> per chunk; that marshals all retained audio to JSON (base64, ×1.33), creates a temp file and renames it, under a process-global mutex. Cost per frame is proportional to session length, so total work is quadratic. Because both writes are awaited, the deficit does not appear as I/O — it appears as <em>unbounded lag</em> between speaking and transmitting.</p>
+        <p class="refs">turnJournal.ts:83,99–104,112–114 · stream_ws.go:349 · session/registry.go:121,126–166 · session/ledger.go:226–232</p>
+      </div>
+    </div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F3</div>
+      <div>
+        <h4>Server retains the whole session in RAM; terminates at ~35 minutes</h4>
+        <p><code>Ledger.Receive</code> keeps every chunk until acknowledged. With the default <span class="num">64&nbsp;MiB</span> cap that is 2,097 seconds of speech, after which the session ends <code>resource_exhausted</code>. Concurrent sessions multiply the footprint.</p>
+        <p class="refs">session/ledger.go:130–140 · session/registry.go:47</p>
+      </div>
+    </div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F5</div>
+      <div>
+        <h4>The 10-second stop-fallback double-appends the entire transcript</h4>
+        <p><code>stop()</code> arms a fixed 10&nbsp;s timer; if the trailing segment has not arrived, <code>fallback()</code> re-transcribes <strong>all</strong> retained PCM over HTTP and calls <code>onResult</code>. But <code>onResult</code> <em>appends</em>, and every committed segment has already been appended by <code>onSegmentFinal</code>. On a long turn — where the tail legitimately takes more than 10&nbsp;s, and under F2 certainly will — the whole dictation is written into the box twice.</p>
+        <p class="refs">pcmVoiceStreamProvider.ts:362–363,423 · useVoiceCore.ts:1140</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F4</div>
+      <div>
+        <h4>No frame batching: 375 WebSocket messages per second, 41% header</h4>
+        <p>Each AudioWorklet render quantum (128 samples ≈ 2.7&nbsp;ms at 48&nbsp;kHz) becomes one SHA-256, one journal append, one server ledger receive-and-persist, and one WebSocket frame carrying ~86 bytes of audio behind a 60-byte header. Batching to ~100&nbsp;ms cuts message rate 37× and header overhead to under 2%.</p>
+        <p class="refs">pcmCapture.ts:59–66 · pcmVoiceStreamProvider.ts:190–215 · stream_ws.go:45</p>
+      </div>
+    </div>
+
+    <div class="group-label">Product behaviour · consumers &amp; components</div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F6</div>
+      <div>
+        <h4>The fast lane reaches only the tooltip; the settled lane reaches only the composer</h4>
+        <p>Both streams exist and both work — they are just wired to different places, and neither knows about the other. The fast hypothesis (<code>partial</code>) is render-coalesced to one paint per frame and handed to <code>VoiceInputButton</code> as a floating popover. The settled text (<code>segment-final</code>) is appended to the composer. <strong>Nothing merges them</strong>, so the composer can never show unsettled text and the tooltip can never show settled text.</p>
+        <p class="refs">useVoiceCore.ts:1262–1276 (partial → tooltip) · 1140 (final → composer) · SharedVoiceInputButton.tsx:129</p>
+      </div>
+    </div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F15</div>
+      <div>
+        <h4>The default strategy emits no fast partials at all</h4>
+        <p>Auto-selection prefers native streaming (<code>Passthrough</code>, i.e. Kyutai) — which emits both streams. When that provider is unavailable it falls to local Whisper and picks <code>VADSegment</code>, which emits <strong>only</strong> settled segments at each ~1.2&nbsp;s silence boundary. The one batch strategy that does emit partials, <code>OverlapAgree</code>, was deliberately removed from auto (“no longer the auto default while its low-latency UX is being honed”) and is now reachable only by explicit operator preference. The managed <code>kyutai-stt</code> resource is healthy for the current qualification; fallback behavior remains intentionally different and still needs its own product-path evidence.</p>
+        <p class="refs">internal/stt/selector.go:380–396 · strategy/vad_segment.go:229 · strategy/overlap_agree.go:461,498</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F7</div>
+      <div>
+        <h4>The mic button renders five things that are not the button</h4>
+        <p>Inside the control’s own wrapper: an error popover, the partial-transcript tooltip, a “Transcribe anyway” link, and a <code>role="group"</code> action strip with Cancel / Release mic / Stop speech / Export diagnostic. The strip uses <code>mt-1 flex</code> in-flow, so it changes the control’s layout footprint depending on state — exactly the behaviour you described.</p>
+        <p class="refs">SharedVoiceInputButton.tsx:128–138 · upstream: RCL VoiceInputButton@3.0.0</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F8</div>
+      <div>
+        <h4>The component library is not the source of the shipped button</h4>
+        <p>The original audit found untracked RCL 3.0.0 copies. That adoption gap is now repaired: both consumers have current, clean RCL 4.0.0 adoption records with provenance headers, while their scenario-local paths are the generated/adopted integration shims that the scenario UI manifests consume.</p>
+        <p class="refs">react-component-library adoptions list · web-console ui/src/audio-integration/VoiceInputButton.tsx · swarm-manager ui/src/audio-integration/VoiceInputButton.tsx</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F9</div>
+      <div>
+        <h4>Twenty audio files have drifted between the two consumers</h4>
+        <p>Of 46 shared paths, 26 are now clean one-line re-export shims — real progress. The remaining 20 still hold divergent implementations, including <code>api/voice.ts</code> (471 vs 466 lines), <code>api/tts.ts</code> (310 vs 292) and <code>hooks/voice/types.ts</code>, where web-console re-exports 2 lines and swarm-manager still owns a local 185-line copy. A fix verified in one scenario is not a fix in the other.</p>
+        <p class="refs">scenarios/{web-console,swarm-manager}/ui/src/audio-integration/</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F10</div>
+      <div>
+        <h4>swarm-manager has none of the app-level audio UI</h4>
+        <p>web-console reacts to failure with <code>AudioUnavailableBanner</code>, <code>EnableAudioBanner</code>, <code>VoiceRejectionBanner</code>, <code>VoiceCommandSuggestion</code> and <code>AudioPlayerBar</code>. swarm-manager has a mic button. The scenario you want to test against is the one that shows you least about what went wrong.</p>
+        <p class="refs">scenarios/{web-console,swarm-manager}/ui/src/components/</p>
+      </div>
+    </div>
+
+    <div class="group-label">The auto-stop boundary</div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F18</div>
+      <div>
+        <h4>Live text and ring updates share one slot and delete each other</h4>
+        <p><code>wsCoalescingWriter.enqueue</code> keeps exactly <strong>one</strong> progress slot — it assigns <code>w.partial = &amp;mm</code> for every message whose class is <code>DeliveryProgress</code>. And <code>wsMessageDeliveryClass</code> puts <code>partial</code>, <code>vad-state</code> <em>and</em> <code>status</code> in that class. All three overwrite one another. The server emits VAD ticks at ~20&nbsp;Hz during silence; partials arrive at engine cadence. Under any writer backlog — which the quadratic persistence guarantees — <strong>a VAD tick discards your pending live text, and a partial discards your pending ring update.</strong></p>
+        <p>The downstream effect is exactly the reported symptom. <code>useServerVadStateStore</code> states the contract plainly: the ring interpolates server ticks so it completes at the moment the server cuts, and falls back to the <em>client</em> VAD when no tick has arrived within <code>SERVER_VAD_STALE_MS</code> (250&nbsp;ms). Dropped ticks push it past that threshold, so the ring switches clock mid-fill. <code>decideAutoStop</code> switches source at the same threshold — so the ring and the actual stop decision can disagree about the same moment.</p>
+        <p>There is precedent, and it is only half-locked. A 2026-05-17 regression had server VAD at 700&nbsp;ms while the ring showed 1200&nbsp;ms, filling to ~58% before the cut. <code>DefaultVADSilenceMs</code> and two parity tests now lock the <em>value</em>. Nothing locks <em>delivery</em>.</p>
+        <p class="refs">stream_ws.go:117–130,143–148 · voice/useServerVadStateStore.ts · voice/activity.ts:67–70 · voice/autoStopDecision.ts:157</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F19</div>
+      <div>
+        <h4>Wake-word tests live outside the package that owns the wake-word code</h4>
+        <p>The subsystem is ~1,400 lines under <code>packages/audio-capture-browser/src/voice/wakeword/</code>, plus <code>passiveArmDecision</code>, <code>micLifecyclePolicy</code>, and <code>micOwnership</code>. Package-owned DTW, MFCC-engine, passive-arm, and PassiveListener lease/setup tests now run in the package gate, including an accelerated hour of idle listening with one lease. Consumer copies still exist for compatibility; repeated wake detections, detection latency across the hour, and browser-device soak evidence remain.</p>
+        <p class="refs">packages/audio-capture-browser/src/voice/wakeword/** · scenarios/{web-console,swarm-manager}/ui/src/audio-integration/hooks/voice/wakeword/*.test.ts</p>
+      </div>
+    </div>
+
+    <div class="group-label">Testing · the reason none of the above was caught</div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F11</div>
+      <div>
+        <h4>The “long session” suite is eight milliseconds long</h4>
+        <p><code>longSession.test.ts</code> has 15 tests on fake timers. The most audio any of them pushes is one or two <code>Float32Array(128)</code> frames. It proves reconnect budgets and mic-loss transitions — genuinely useful — but exercises no duration, no journal growth, no throughput, no memory, and no backlog. <strong>None of F1–F5 is reachable by any test in the repository.</strong></p>
+        <p class="refs">packages/audio-capture-browser/src/longSession.test.ts:108,131,194,209,224,287,303</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F12</div>
+      <div>
+        <h4>The package suite runs in no gate</h4>
+        <p><code>vrooli package test audio-capture-browser</code> works — 8 files, 106 tests, 1.7&nbsp;s — but <code>make test-packages</code> covers only the three Go packages, and test-genie validates scenarios only. The one suite that owns browser capture reliability is opt-in, so a regression there is invisible until you notice it mid-sentence.</p>
+        <p class="refs">Makefile:11 · packages/audio-capture-browser/package.json</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F13</div>
+      <div>
+        <h4>The right acceptance spec already exists — with no lane that can satisfy it</h4>
+        <p>At the 2026-08-09 audit baseline, the trust-floor rubric already declared the exact ladder: 30&nbsp;s / 1&nbsp;m / 5&nbsp;m / 15&nbsp;m / 60&nbsp;m plus eleven fault profiles, with promotion gated on <code>browser_product_path</code> and <code>device</code> evidence. At that point every real-time run replayed a <em>server-side clip</em>, never the browser capture path, and no harness emitted browser or device evidence. The plan has since added the real-time BAS/PipeWire lane and durable evidence rows; the remaining gap is current Swarm Manager product-path credit, not an absent instrument.</p>
+        <p class="refs">api/internal/qualification/rubric.go:12–27,170,292–296 · docs/internal/PROBLEMS.md</p>
+      </div>
+    </div>
+
+    <div class="finding sev-crit">
+      <div class="fid">F16</div>
+      <div>
+        <h4>Kyutai commits durable text only on a 1.3-second pause — continuous speech stalls</h4>
+        <p>The streaming model’s <code>_commit_segment</code> fires after <code>SILENCE_COMMIT_FRAMES=16</code> (~1.3&nbsp;s) of padding, at a word boundary when the <code>MAX_SEGMENT_FRAMES=48</code> continuous-speech window is reached, or on explicit flush. Processed coverage is a separate transport event and does not wait for text to settle. A 2026-07-07 bench measured compute RTF at 0.13 (7.7× faster than real time), so the remaining trust question is evidence completeness rather than a claimed compute limit.</p>
+        <p class="refs">resources/kyutai-stt server.py <code>_step_token</code> / <code>_commit_segment</code> · prior diagnosis 2026-07-07</p>
+      </div>
+    </div>
+
+    <div class="finding sev-warn">
+      <div class="fid">F17</div>
+      <div>
+        <h4>The Kyutai resource has no tests at all</h4>
+        <p>Flush behaviour, silence-commit policy, and the delayed-streams tail are entirely untested at the resource level — which is why F16 has survived. The one component whose commit policy governs whether long dictation produces text has no coverage.</p>
+        <p class="refs">resources/kyutai-stt/test/</p>
+      </div>
+    </div>
+
+    <div class="group-label">Portability · resources</div>
+
+    <div class="finding sev-info">
+      <div class="fid">F14</div>
+      <div>
+        <h4>At the audit baseline, all four audio resources mandated Docker</h4>
+        <p>At the 2026-08-09 baseline every one was <code>driver: compose-service</code> with <code>bundling: host-required</code>; <code>kyutai-stt</code> was CUDA-only and macOS/Windows were unsupported, and nothing evaluated a native audio runtime. The current state is mixed: Whisper is a checksum-pinned native managed service on verified Linux, and sherpa-onnx contains the Vrooli-owned native adapter and reproducible target-release handoff. Its acquisition targets remain explicitly unsupported until signed artifacts are published and smoke-tested on each target; the old Docker resources therefore remain migration residue rather than a claimed portable solution.</p>
+        <p class="refs">resources/{kyutai-stt,whisper,kokoro,speaker-verification}/resource.json</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">The plan</p>
+  <h2>Build the instrument, then fix what it measures</h2>
+  <p>You have asked about this several times and the fixes have not stuck. The reason is visible in F11 and F13: there has never been a test that could tell a fix from a regression, so every round has been guesswork. So the first two phases are not fixes — they are the harness, run against the current code, expected to fail.</p>
+  <p>The finalized plan is <code>audio-dictation-reliability-v2-2</code>. Its fourteen phases are listed here in execution order.</p>
+
+  <div class="phases">
+    <div class="phase is-key"><div class="pid">1–2</div><div>
+      <h4>The soak harness — two lanes, both permanent</h4>
+      <p><strong>Accelerated lane</strong> (Phase 1, under 60 seconds, runs in every gate): a virtual clock and a synthetic capture source drive the real provider and a real Go <code>StreamWSHandler</code> for a simulated 60 minutes. It asserts what matters — retained bytes bounded, every captured interval present exactly once, no duplicate segments, no silent terminal, flat memory, constant per-frame cost.</p>
+      <p><strong>Real-time lane</strong> (Phase 2, 15 and 60 minutes wall-clock): the same assertions against the genuine browser path via swarm-manager, plus the ones only real time can make — first-partial latency flat across the run, committed-text lag never growing, word error rate steady end to start.</p>
+      <p>Both emit <code>browser_product_path</code> evidence into the trust-floor ledger, so the rubric that already knows what "stable" means finally receives input. <strong>Deliverable: a baseline showing exactly where today's code fails.</strong></p>
+      <div class="fixes">closes <b>F11 F12 F13</b> — and makes every phase below verifiable</div>
+    </div></div>
+
+    <div class="phase is-key"><div class="pid">3</div><div>
+      <h4>Close the durability contract</h4>
+      <p>Emit acknowledgement from <strong>processed coverage</strong>, not segment commit — the trap described above. Add the missing branch to the WebSocket event loop. Batch capture quanta into ~100&nbsp;ms wire frames. Replace whole-snapshot persistence with append-only records on both sides, and narrow the registry mutex to per-session. One change to one contract, verified as a set.</p>
+      <div class="fixes">closes <b>F1 F2 F3 F4</b></div>
+    </div></div>
+
+    <div class="phase is-key"><div class="pid">4</div><div>
+      <h4>VAD boundary correctness and timeout-ring truth</h4>
+      <p>Give each progress class its own latest-wins slot so VAD ticks and live text stop deleting each other. Then prove the boundary: resume 200&nbsp;ms before the timeout, resume 50&nbsp;ms before, stop 50&nbsp;ms after — and assert the ring reaches full within 100&nbsp;ms of the real cut, still true at the 50th repeat in one session.</p>
+      <div class="fixes">closes <b>F18</b></div>
+    </div></div>
+
+    <div class="phase"><div class="pid">5</div><div>
+      <h4>Recovery correctness</h4>
+      <p>Never lose audio, never deliver it twice. Add a <code>.catch</code> that raises a visible typed error instead of silently disabling capture. Scale the stop-fallback timeout to turn length and backlog instead of a flat 10&nbsp;s. Make <code>fallback()</code> deliver only the uncommitted remainder, reusing the cursor the code already has.</p>
+      <div class="fixes">closes <b>F5</b> · makes <b>F1</b>-class failures visible</div>
+    </div></div>
+
+    <div class="phase"><div class="pid">6</div><div>
+      <h4>Kyutai commit policy and its first tests</h4>
+      <p>Add a maximum-segment-duration force-commit so durable text advances during continuous speech rather than waiting for a pause a fluent speaker never gives it. Expose the bound through stream config. Then give the resource its first test suite: flush, silence-commit policy, force-commit bound, delayed-streams tail.</p>
+      <div class="fixes">closes <b>F16 F17</b></div>
+    </div></div>
+
+    <div class="phase"><div class="pid">7</div><div>
+      <h4>Per-strategy maturity to the declared ladder</h4>
+      <p>Take each strategy to what it can support, per the matrix below, and run all eleven fault profiles mid-speech against each. For <code>BufferedFallback</code>, ship the visible refusal past its declared ceiling.</p>
+    </div></div>
+
+    <div class="phase"><div class="pid">8</div><div>
+      <h4>Wake-word and passive-listen reliability</h4>
+      <p>Move the wake-word tests into the package that owns the code and delete the consumer duplicates. Add coverage for arm/disarm, lease preemption, and page transitions. Then prove passive listening across a simulated hour: one lease throughout, flat memory, and detection latency at the 50th trigger matching the 1st.</p>
+      <div class="fixes">closes <b>F19</b></div>
+    </div></div>
+
+    <div class="phase"><div class="pid">9</div><div>
+      <h4>The two-speed transcript in the composer</h4>
+      <p>Introduce <code>TranscriptBuffer</code> — committed text plus an interim span, with one <code>reconcile()</code> generalising the arithmetic <code>uncommittedRemainder</code> already performs. Render it with the textarea-over-mirror overlay: settled plain, unsettled dotted-underlined, interim excluded from undo, caret-into-interim commits rather than contests. Delete the tooltip.</p>
+      <div class="fixes">closes <b>F6</b> · removes half of <b>F7</b></div>
+    </div></div>
+
+    <div class="phase"><div class="pid">10</div><div>
+      <h4>Fast partials on the default strategy</h4>
+      <p>Measure <code>OverlapAgree</code>'s real latency against a <code>VADSegment</code> synthesised-partial prototype, then implement whichever meets the bar — so the fast lane exists on the default path and not only when Kyutai happens to be up. If neither meets it, record the measurement and file the gap rather than shipping a fast lane slower than the settled one.</p>
+      <div class="fixes">closes <b>F15</b></div>
+    </div></div>
+
+    <div class="phase"><div class="pid">11</div><div>
+      <h4>The button becomes only a button</h4>
+      <p>Strip the control to shape, state colour, level fill, timeout ring, glyph. Move error, rejection, and recovery actions to app-level surfaces — web-console already has the components. Ship it as <code>VoiceInputButton@4.0.0</code>, re-adopt into both consumers, and make them import the library rather than hold copies.</p>
+      <div class="fixes">closes <b>F7 F8</b></div>
+    </div></div>
+
+    <div class="phase"><div class="pid">12</div><div>
+      <h4>Collapse the drift, reach consumer parity</h4>
+      <p>Reduce the 20 drifted files to shims, reconciling each difference deliberately rather than by picking a side. Bring swarm-manager to banner parity — which is what lets you keep web-console untouched throughout.</p>
+      <div class="fixes">closes <b>F9 F10</b></div>
+    </div></div>
+
+    <div class="phase is-key"><div class="pid">13</div><div>
+      <h4>Gate everything, drain the list, publish the report</h4>
+      <p>Put the package suite and the accelerated lane in a real gate — then prove the gate works by breaking a test on purpose and watching it fail. Run the loop to exhaustion. Publish the baseline beside the final result for every assertion, naming anything that did not move.</p>
+    </div></div>
+
+    <div class="phase"><div class="pid">14</div><div>
+      <h4>Native audio runtimes — investigation with a named candidate</h4>
+      <p><strong>Decision recorded 2026-08-09: no native promotion.</strong> That was the audit-time decision: the host had no <code>sherpa-onnx</code> binary or Python module, no native sherpa-onnx Kokoro path, and no native speaker-embedding runtime. The current plan superseded the spike with a resource-owned cgo adapter, a signed target-native release boundary, and explicit unsupported acquisition targets until publication. No raw package install was performed.</p>
+      <p>The named <code>whisper.cpp</code> candidate does have a prior host measurement in <code>resources/whisper/docs/whisper-cpp-managed-service-assessment.md</code>: CPU <code>small</code> measured WER 0.00 and 2.35 s latency, CPU <code>large-v3</code> measured WER 0.00 and 15.56 s, while the existing faster-whisper GPU baseline measured WER 0.00 and 0.29 s. CUDA-native whisper.cpp was not measurable because this host has no CUDA Toolkit/<code>nvcc</code>. The prior assessment therefore remains a NO-GO for production migration.</p>
+      <p>Current per-resource outcome: <code>whisper</code> is a native managed service with Linux acquisition and smoke evidence; <code>kokoro</code>, <code>speaker-verification</code>, and native streaming alternatives are owned by the sherpa-onnx adapter boundary, whose Linux candidate is reproducibly staged and signed locally but not externally published. <code>kyutai-stt</code> remains an optional CUDA/Linux resource. These are explicit platform claims: no macOS or Windows adapter is promoted from upstream library availability or cross-build output.</p>
+      <div class="fixes">F14 is partial: native implementation and release handoff exist; signed publication and target smoke remain open</div>
+    </div></div>
+  </div>
+
+  <h3>Sequencing</h3>
+  <p>Phases 1–2 first, alone, with the failing baseline published. Then Phase 3 as one change — acknowledgement, batching, and persistence are a single durability contract and it is cheaper to verify them as a set. Re-run the soak: that is the moment we find out whether the diagnosis is complete. Phases 4–12 are largely independent and can be reordered. Phase 13 is the closing gate and must be last. Phase 14 blocks nothing.</p>
+
+  <h3>What this plan inherits</h3>
+  <p>Substantial prior work is already banked and this plan builds on it rather than repeating it. <code>voice-dictation-and-the-control-system…</code> (13 of 14 phases done) delivered the shared package’s test lifecycle, the <code>ControlBase</code> primitive, the token contract, and the adoption machinery. <code>audio-tools-reliability-fix-live-capture-path…</code> collapsed 26 of 46 integration files to re-export shims. Those are why the substrate is in good enough shape to fix rather than rewrite.</p>
+  <p>What none of them addressed — and what this plan exists for — is duration. Every prior plan measured structure, ownership, and whether the capture path was alive at all. None asked how long it stays alive under continuous load, which is why the acknowledgement gap, the quadratic persistence, and both ceilings survived every one of them. This plan absorbs the two still-open phases that overlap it (shared-package promotion and RCL reconciliation, here Phases 11 and 12) and supersedes nothing else.</p>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">Acceptance</p>
+  <h2>What “solved” will mean, concretely</h2>
+  <p>Not “it seemed fine when I tried it.” The deliverable is a trust-floor report with these rows green, reproducible on demand, and re-run in a gate so it stays green.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Assertion</th>
+          <th class="mono">Lane</th>
+          <th>Today</th>
+          <th>Target</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Every captured sample interval appears exactly once in the transcript</td>
+          <td class="mono">both</td>
+          <td><span class="pill crit">unproven</span></td>
+          <td><span class="pill ok">60 min</span></td>
+        </tr>
+        <tr>
+          <td>Retained bytes bounded — client and server</td>
+          <td class="mono">accelerated</td>
+          <td><span class="pill crit">fails 8m44s / 35m</span></td>
+          <td><span class="pill ok">flat, any duration</span></td>
+        </tr>
+        <tr>
+          <td>Per-frame persistence cost constant over session length</td>
+          <td class="mono">accelerated</td>
+          <td><span class="pill crit">grows linearly</span></td>
+          <td><span class="pill ok">O(1)</span></td>
+        </tr>
+        <tr>
+          <td>First-partial latency flat from minute 1 to minute 60</td>
+          <td class="mono">real-time</td>
+          <td><span class="pill crit">unproven</span></td>
+          <td><span class="pill ok">≤ 1.2× drift</span></td>
+        </tr>
+        <tr>
+          <td>Committed-text lag never grows across the run</td>
+          <td class="mono">real-time</td>
+          <td><span class="pill crit">unproven</span></td>
+          <td><span class="pill ok">bounded</span></td>
+        </tr>
+        <tr>
+          <td>Zero duplicate committed segments</td>
+          <td class="mono">both</td>
+          <td><span class="pill crit">F5 duplicates whole turn</span></td>
+          <td><span class="pill ok">0</span></td>
+        </tr>
+        <tr>
+          <td>Zero silent terminal outcomes</td>
+          <td class="mono">both</td>
+          <td><span class="pill crit">F1 is exactly this</span></td>
+          <td><span class="pill ok">0</span></td>
+        </tr>
+        <tr>
+          <td>Recovery from all 11 declared fault profiles mid-speech</td>
+          <td class="mono">accelerated</td>
+          <td><span class="pill warn">faults exist, unrun at length</span></td>
+          <td><span class="pill ok">11 / 11</span></td>
+        </tr>
+        <tr>
+          <td>WER at end of a 60-minute run ≈ WER at the start</td>
+          <td class="mono">real-time</td>
+          <td><span class="pill warn">server-clip lane only</span></td>
+          <td><span class="pill ok">no drift</span></td>
+        </tr>
+        <tr>
+          <td>Unsettled text visible and underlined in the composer throughout</td>
+          <td class="mono">real-time</td>
+          <td><span class="pill crit">tooltip only</span></td>
+          <td><span class="pill ok">continuous</span></td>
+        </tr>
+        <tr>
+          <td>Fast partials present on the default strategy, not just on Kyutai</td>
+          <td class="mono">real-time</td>
+          <td><span class="pill crit">absent on fallback</span></td>
+          <td><span class="pill ok">all strategies</span></td>
+        </tr>
+        <tr>
+          <td>Every interim span is either committed or superseded — never orphaned</td>
+          <td class="mono">accelerated</td>
+          <td><span class="pill crit">unproven</span></td>
+          <td><span class="pill ok">0 orphans</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>On not gaming it.</b> The interval-accounting assertion is the one that makes this honest: the harness knows exactly which sample ranges it generated, so “every interval accounted for, exactly once” cannot be satisfied by a transcript that looks plausible. It is also already the rubric’s own definition of the proof — <code>QualificationIntervalAccounting</code> exists and is checked; nothing has ever produced it for the browser path.
+  </div>
+
+  <h3>Evidence delta — updated 2026-08-18</h3>
+  <p>This is the baseline/final comparison for the closing gate. “Unproven” is intentional: a deterministic replay, a focused unit test, or a queued run does not receive credit for a real-time, browser, fault, or device assertion.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Assertion</th><th>Baseline</th><th>Final evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Every captured sample interval appears exactly once</td><td>unproven</td><td>Audio Tools continuous and realistic 60-minute real-time artifacts pass exact coverage; current Swarm Manager product-path artifact is still pending.</td></tr>
+        <tr><td>Retained bytes remain bounded</td><td>fails at prior duration ceilings</td><td>Current Audio Tools 60-minute cells pass browser/server retention bounds; the same exact routed Swarm Manager cell remains pending.</td></tr>
+        <tr><td>Per-frame persistence cost is O(1)</td><td>grows linearly</td><td>Current accelerated and 60-minute Audio Tools evidence pass constant-cost checks; the clean pre-change baseline remains dirty and cannot support a clean regression delta.</td></tr>
+        <tr><td>15-minute and 60-minute real-time duration</td><td>server-clip lane only</td><td>Audio Tools continuous `browser-soak-1787058809596672412` and realistic `browser-soak-1787062594020835127` each completed about 3,602 seconds with all current assertions passing; Swarm Manager routed 60-minute evidence is pending.</td></tr>
+        <tr><td>First-partial latency drift</td><td>unproven</td><td>Audio Tools real-time cells measure stable minute checkpoints; current Swarm Manager product-path evidence is pending.</td></tr>
+        <tr><td>Committed-text lag remains bounded</td><td>unproven</td><td>Audio Tools real-time cells pass bounded periodic lag; current Swarm Manager product-path evidence is pending.</td></tr>
+        <tr><td>Zero duplicate committed segments</td><td>F5 duplicates whole turn</td><td>Current accelerated and Audio Tools real-time artifacts report zero duplicate committed segments; Swarm Manager routed evidence is pending.</td></tr>
+        <tr><td>Zero silent terminal outcomes</td><td>F1 is exactly this</td><td>Current accelerated and Audio Tools real-time artifacts report zero silent terminal outcomes; Swarm Manager routed evidence is pending.</td></tr>
+        <tr><td>Recovery from all 11 declared faults</td><td>faults declared, unrun at length</td><td>all eleven profiles pass audio-tools handler integration tests; the full three-strategy browser matrix is not complete</td></tr>
+        <tr><td>60-minute WER does not drift</td><td>server-clip lane only</td><td>Current Audio Tools continuous and realistic cells record WER 0.0089 and 0.1205 respectively with quality assertions passing; current Swarm Manager quality evidence is pending.</td></tr>
+        <tr><td>Unsettled text is continuously visible</td><td>tooltip only</td><td>Audio Tools 60-minute cells pass all 60 rendered interim checkpoints; current Swarm Manager routed rendering evidence is pending.</td></tr>
+        <tr><td>Fast partials appear on the default strategy</td><td>absent on fallback</td><td>Current streaming admission and Audio Tools product-path cells expose interim text; current Swarm Manager product-path qualification is pending.</td></tr>
+        <tr><td>Every interim span is committed or superseded</td><td>unproven</td><td>Current package, accelerated, and Audio Tools real-time checks pass; Swarm Manager routed evidence is pending.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Two session shapes, always</h3>
+  <p>Duration is not the only axis, and a lane that only pushes continuous speech would miss how dictation actually happens. In one-shot mode you speak, pause below the timeout, and resume; the ring shows the time remaining. A realistic hour is therefore <strong>many speech runs separated by sub-timeout pauses</strong> — so a continuous-only lane never exercises the auto-stop boundary at all.</p>
+  <p>Every duration profile runs in both shapes, and neither substitutes for the other. The <strong>realistic shape</strong> is the only one that exercises the boundary, the ring, and the repeated VAD transitions. The <strong>continuous shape</strong> is the only one that breaks commit-driven acknowledgement — the trap named above. Running one without the other hides a different half of this work.</p>
+  <p>Boundary profiles sit at the edge: resume 200&nbsp;ms before the timeout, resume 50&nbsp;ms before it, stop 50&nbsp;ms after it. Then repeat the boundary 50 times in one session and assert ring accuracy at the 50th matches the 1st.</p>
+
+  <h3>Not every strategy earns the same ladder</h3>
+  <p>Testing all four to 60 minutes would be wrong — and testing only the “streaming” ones would miss the default. The dividing line is not streaming versus batch; it is <em>what each strategy is architecturally capable of</em>, and for the one that cannot go the distance the test asserts its <strong>failure mode</strong> rather than its capability.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Strategy</th><th>Duration ladder</th><th>Latency assertions</th><th>Why</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">Passthrough</td>
+          <td><span class="pill ok">full — to 60m</span></td>
+          <td><span class="pill ok">yes</span></td>
+          <td>The primary streaming path. Must hold indefinitely and stay responsive.</td>
+        </tr>
+        <tr>
+          <td class="mono">OverlapAgree</td>
+          <td><span class="pill ok">full — to 60m</span></td>
+          <td><span class="pill ok">yes</span></td>
+          <td>Candidate to return to auto. Its latency is the evidence that decides that.</td>
+        </tr>
+        <tr>
+          <td class="mono">VADSegment</td>
+          <td><span class="pill ok">full — to 60m</span></td>
+          <td><span class="pill warn">reliability only</span></td>
+          <td><strong>Today’s default.</strong> Emits no partials, so latency assertions do not apply — but it must survive a 60-minute dictation without dropping a word.</td>
+        </tr>
+        <tr>
+          <td class="mono">BufferedFallback</td>
+          <td><span class="pill warn">to its declared ceiling</span></td>
+          <td><span class="pill crit">n/a</span></td>
+          <td>Buffers the whole session for one unary call — architecturally incapable of long-form. Test to the documented limit, then assert it <em>refuses visibly</em> beyond it instead of dropping audio.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>That last row is the one that matters most for trust. A strategy that cannot do sixty minutes is acceptable; a strategy that cannot do sixty minutes <em>and does not say so</em> is the bug you have been living with.</p>
+
+  <h3>Scope notes</h3>
+  <ul>
+    <li><strong>swarm-manager is the test surface.</strong> web-console stays untouched while this work runs — P7 exists partly to make swarm-manager a faithful stand-in.</li>
+    <li><strong>Long soak runs use local resources only.</strong> No BYOK keys are burned on 60-minute runs; BYOK and the LPBS subscription tier get contract-level verification only — that the tiering, envelope and decline paths are wired correctly, which I can check without credentials.</li>
+    <li><strong>The device gate is automated and deliberately scoped.</strong> The lane creates a user-owned PipeWire capture device, drives the corpus through the operating-system path, verifies browser enumeration, and records a <code>device</code> row without human confirmation. It proves the operating-system capture path, not a particular microphone’s analog front end.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<section>
+  <p class="kicker">Working agreement</p>
+  <h2>The loop — with four amendments</h2>
+  <p>Your proposed method is right, and it is the thing that has been missing: build the instrument, record the baseline, drain the list one item at a time, re-run, fix regressions before moving on, re-audit, repeat. Four adjustments, because agreeing with all of it uncritically is how the last few rounds went.</p>
+
+  <div class="phases">
+    <div class="phase">
+      <div class="pid">1</div>
+      <div>
+        <h4>Tier the test cadence, or the loop is too slow to actually run</h4>
+        <p>A 60-minute real-time lane cannot run after every change — you would get one iteration per hour. So: the <strong>accelerated lane runs after every single change</strong> (seconds, simulates 60 minutes); the <strong>15-minute real-time lane runs at each phase boundary</strong>; the <strong>60-minute lane runs nightly and before any claim that something is solved</strong>. The accelerated lane is the loop; the real-time lanes are the proof.</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pid">2</div>
+      <div>
+        <h4>P1–P3 is one item, not three</h4>
+        <p>“One thing at a time” is right almost everywhere, and wrong here. The acknowledgement, the batching, and the incremental persistence are one change to the durability contract. Shipping the acknowledgement alone changes the retention window’s shape before the write path is ready for it, and you would spend a day chasing a regression that is really an intermediate state. One change, one verification.</p>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="pid">3</div>
+      <div>
+        <h4>Fix and tidy as two steps, not one</h4>
+        <p>You want the code left more professional than I found it — agreed, and it is overdue. But a commit that both fixes behaviour and restructures the file makes a regression unattributable. So each item is: <em>fix until the test goes green</em>, then <em>clean up while it stays green</em>. You get both, and we never lose the ability to say which change caused what.</p>
+      </div>
+    </div>
+
+    <div class="phase is-key">
+      <div class="pid">4</div>
+      <div>
+        <h4>The loop needs a stopping condition, not just a repeat</h4>
+        <p>“Keep re-auditing and draining until it works” can quietly hide a wrong model — you drain list after list and each one looks like progress. So each round gets recorded, and we watch the <em>shape</em> of the new list: if a round produces mostly <strong>deeper instances of known categories</strong>, the model is right and we keep draining. If it produces mostly <strong>new categories</strong>, the model is wrong, and we stop and re-derive rather than grind. That distinction is the difference between converging and looking busy.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>And one commitment on my side.</b> The baseline gets captured before any fix, including the obvious ones, and every subsequent claim is stated against it. If a phase does not move a number, I will say that it did not move rather than describing the work I did.
+  </div>
+</section>
+
+</div>

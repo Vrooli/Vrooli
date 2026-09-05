@@ -1,0 +1,99 @@
+{
+  "_metadata": {
+    "description": "The headline: branding validation delivered as a first-class test-genie delegated phase via ScenarioValidationService, emitting findings on FINDING_SOURCE_BRANDING with a maturity ladder and deterministic auto-fixes.",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
+    "module": "validation",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VALID-001",
+      "title": "Serve ScenarioValidationService for the test-genie branding phase",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "validation",
+      "criticality": "P0",
+      "description": "The scenario implements ValidateScenario/PreviewFix/ApplyFix from ScenarioValidationService so test-genie can consume branding as a delegated phase over Connect, with findings carrying FINDING_SOURCE_BRANDING.",
+      "tags": [
+        "validation",
+        "test-genie",
+        "delegated-phase"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/validation/service_test.go once ScenarioValidationService is implemented."
+        }
+      ]
+    },
+    {
+      "id": "VALID-002",
+      "title": "Evaluate the branding rule set into severity-gated findings",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "validation",
+      "criticality": "P0",
+      "description": "ValidateScenario runs the branding rule set — identity (has-display-name), visual system (has-color-system, has-typography, custom-font-loaded), assets (has-logo, has-favicon, asset-validity, referenced-assets-exist, svg-asset-safety), accessibility (wcag-aa-contrast, dark-mode-contrast, reduced-motion-support, color-scheme-declared), applied markers (brand-markers-applied), PWA/manifest, cross-surface consistency, social metadata, and CLI/API branding — and returns severity-gated findings for the scenario under test. The registry (api/internal/validation/registry.go) is the single source of truth.",
+      "tags": [
+        "validation",
+        "rules",
+        "findings"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/validation/rules_test.go once the branding rule set is implemented."
+        }
+      ]
+    },
+    {
+      "id": "VALID-003",
+      "title": "Return a branding MaturityAssessment ladder",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "validation",
+      "criticality": "P0",
+      "description": "Validation returns a MaturityAssessment placing the scenario on a branding maturity ladder derived from which rules pass, so progress is measurable across runs.",
+      "tags": [
+        "validation",
+        "maturity"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/validation/maturity_test.go once the maturity ladder is implemented."
+        }
+      ]
+    },
+    {
+      "id": "VALID-004",
+      "title": "Offer deterministic, idempotent branding auto-fixes",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "validation",
+      "criticality": "P0",
+      "description": "PreviewFix proposes deterministic fix candidates for fixable findings and ApplyFix applies them such that a second validation finds no remaining candidates (idempotent auto-fix).",
+      "tags": [
+        "validation",
+        "autofix",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/validation/autofix_test.go once deterministic auto-fix is implemented."
+        }
+      ]
+    }
+  ]
+}

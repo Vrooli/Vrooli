@@ -1,5 +1,10 @@
 import type { Page } from 'rebrowser-playwright';
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import {
+  createMockHttpRequest,
+  createMockHttpResponse,
+  createTestConfig,
+  installFetchMock,
+} from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 
 jest.mock('../../../src/routes/record-mode/recording-frames', () => ({
@@ -57,34 +62,27 @@ describe('recording pages', () => {
   });
 
   describe('emitHistoryCallback', () => {
-    const originalFetch = global.fetch;
-
-    afterEach(() => {
-      global.fetch = originalFetch;
-    });
-
     it('skips callback when url is not configured', async () => {
       const localConfig = createTestConfig({ history: { callbackUrl: '' } });
-      const fetchSpy = jest.fn();
-      global.fetch = fetchSpy;
+      const fetchMock = installFetchMock();
 
       await emitHistoryCallback(localConfig, 'session-1', 'https://example.com', 'Example', 'navigate');
 
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('sends callback and ignores non-ok responses', async () => {
-      const fetchSpy = jest.fn().mockResolvedValue({
+      const fetchMock = installFetchMock();
+      fetchMock.mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Server error',
-      });
-      global.fetch = fetchSpy;
+      } as Response);
 
       await emitHistoryCallback(config, 'session-2', 'https://example.com', 'Example', 'navigate', 'thumb');
 
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toBe('https://history.example.com/callback');
       expect(init.method).toBe('POST');
       expect(init.headers).toEqual({ 'Content-Type': 'application/json' });

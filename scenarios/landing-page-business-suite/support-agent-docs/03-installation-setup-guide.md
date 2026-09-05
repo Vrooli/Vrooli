@@ -33,7 +33,7 @@ Get-FileHash .\Vrooli-Ascension-Setup.exe -Algorithm SHA256
 
 | Component | Requirement |
 |-----------|-------------|
-| OS | Windows 10+, macOS 11+, or Linux (glibc 2.28+) |
+| OS | Windows num[threshold]:10+, macOS num[threshold]:11+, or Linux (glibc 2.28+) |
 | RAM | 4 GB |
 | Disk Space | 500 MB (plus space for recordings) |
 | Display | 1280x720 minimum |
@@ -82,7 +82,7 @@ sudo dpkg -i vrooli-ascension_*.deb
 
 ### Interface Overview
 
-The main window has three areas:
+The main window has num[sot]:three areas:
 
 - **Browser pane:** A full Chromium browser where you work normally
 - **Timeline panel:** Real-time capture of all browser actions
@@ -112,10 +112,9 @@ The main window has three areas:
 2. Enable "Schedule" and set frequency (hourly, daily, weekly, cron)
 3. The workflow runs automatically at specified times
 
-**Via CLI:**
-```bash
-browser-automation-studio workflow execute "my-workflow" --wait
-```
+**Via CLI:** Use the current Browser Automation Studio workflow command shown
+by its built-in help. Command names vary by installed release, so do not copy a
+stale invocation from this guide.
 
 **Via API:**
 ```bash
@@ -148,7 +147,7 @@ One of Vrooli Ascension's key features is retroactive editing—you can modify c
 
 ### Removing Actions
 
-1. Select one or more actions in the timeline
+1. Select num[decision]:one or more actions in the timeline
 2. Press Delete or click "Remove" in the toolbar
 3. Confirm removal
 
@@ -240,23 +239,10 @@ Before exporting, customize the replay appearance:
 
 ### Exporting
 
-**HTML Package:**
-```bash
-browser-automation-studio execution render <execution-id> --output ./replay-folder
-```
-Creates a self-contained HTML file with embedded assets.
-
-**Video (MP4/WEBM):**
-```bash
-browser-automation-studio execution render-video <execution-id> --output ./demo.mp4
-```
-Generates a video file suitable for product demos or marketing.
-
-**JSON Metadata:**
-```bash
-browser-automation-studio execution export <execution-id> --output ./export.json
-```
-Exports structured data for custom processing or integration.
+Use the current Browser Automation Studio help to export an execution as an
+HTML replay, video, or JSON metadata. The export command surface is versioned
+separately from Landing Page Business Suite, so this guide intentionally avoids
+an unverified copy-paste command.
 
 ---
 

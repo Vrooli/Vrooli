@@ -156,10 +156,6 @@
       "testId": "team-editor-execution-policy",
       "selector": "[data-testid=\"team-editor-execution-policy\"]"
     },
-    "teamEditor.decisionMode": {
-      "testId": "team-editor-decision-mode",
-      "selector": "[data-testid=\"team-editor-decision-mode\"]"
-    },
     "runs.list": {
       "testId": "run-list",
       "selector": "[data-testid=\"run-list\"]"
@@ -184,57 +180,193 @@
       "testId": "run-editor-tab-investigation",
       "selector": "[data-testid=\"run-editor-tab-investigation\"]"
     },
+    "world.view": {
+      "testId": "world-view",
+      "selector": "[data-testid=\"world-view\"]"
+    },
     "world.canvas": {
       "testId": "world-canvas",
       "selector": "[data-testid=\"world-canvas\"]"
     },
-    "world.stats": {
-      "testId": "world-stats",
-      "selector": "[data-testid=\"world-stats\"]"
+    "world.diagnostics": {
+      "testId": "world-diagnostics",
+      "selector": "[data-testid=\"world-diagnostics\"]"
     },
-    "settings.button": {
-      "testId": "world-settings-button",
-      "selector": "[data-testid=\"world-settings-button\"]"
+    "world.qualityNotice": {
+      "testId": "world-quality-notice",
+      "selector": "[data-testid=\"world-quality-notice\"]"
     },
-    "settings.popup": {
+    "world.webglBanner": {
+      "testId": "world-webgl-banner",
+      "selector": "[data-testid=\"world-webgl-banner\"]"
+    },
+    "world.webglRetry": {
+      "testId": "world-webgl-retry",
+      "selector": "[data-testid=\"world-webgl-retry\"]"
+    },
+    "world.hud.root": {
+      "testId": "world-hud",
+      "selector": "[data-testid=\"world-hud\"]"
+    },
+    "world.hud.summary": {
+      "testId": "world-hud-summary",
+      "selector": "[data-testid=\"world-hud-summary\"]"
+    },
+    "world.hud.nextHeartbeat": {
+      "testId": "world-hud-next-heartbeat",
+      "selector": "[data-testid=\"world-hud-next-heartbeat\"]"
+    },
+    "world.hud.weather": {
+      "testId": "world-hud-weather",
+      "selector": "[data-testid=\"world-hud-weather\"]"
+    },
+    "world.hud.agentCard": {
+      "testId": "world-hud-agent-card",
+      "selector": "[data-testid=\"world-hud-agent-card\"]"
+    },
+    "world.hud.agentCardClose": {
+      "testId": "world-hud-agent-card-close",
+      "selector": "[data-testid=\"world-hud-agent-card-close\"]"
+    },
+    "world.hud.agentState": {
+      "testId": "world-hud-agent-state",
+      "selector": "[data-testid=\"world-hud-agent-state\"]"
+    },
+    "world.hud.agentNotice": {
+      "testId": "world-hud-agent-notice",
+      "selector": "[data-testid=\"world-hud-agent-notice\"]"
+    },
+    "world.hud.runNow": {
+      "testId": "world-hud-run-now",
+      "selector": "[data-testid=\"world-hud-run-now\"]"
+    },
+    "world.hud.stopRun": {
+      "testId": "world-hud-stop-run",
+      "selector": "[data-testid=\"world-hud-stop-run\"]"
+    },
+    "world.hud.acknowledge": {
+      "testId": "world-hud-acknowledge",
+      "selector": "[data-testid=\"world-hud-acknowledge\"]"
+    },
+    "world.hud.openEditor": {
+      "testId": "world-hud-open-editor",
+      "selector": "[data-testid=\"world-hud-open-editor\"]"
+    },
+    "world.hud.customize": {
+      "testId": "world-hud-customize",
+      "selector": "[data-testid=\"world-hud-customize\"]"
+    },
+    "world.hud.follow": {
+      "testId": "world-hud-follow",
+      "selector": "[data-testid=\"world-hud-follow\"]"
+    },
+    "world.hud.teamPanel": {
+      "testId": "world-hud-team-panel",
+      "selector": "[data-testid=\"world-hud-team-panel\"]"
+    },
+    "world.hud.ticker": {
+      "testId": "world-hud-ticker",
+      "selector": "[data-testid=\"world-hud-ticker\"]"
+    },
+    "world.hud.filters": {
+      "testId": "world-hud-filters",
+      "selector": "[data-testid=\"world-hud-filters\"]"
+    },
+    "world.hud.search": {
+      "testId": "world-hud-search",
+      "selector": "[data-testid=\"world-hud-search\"]"
+    },
+    "world.hud.teamFilter": {
+      "testId": "world-hud-team-filter",
+      "selector": "[data-testid=\"world-hud-team-filter\"]"
+    },
+    "world.hud.onlyFailed": {
+      "testId": "world-hud-only-failed",
+      "selector": "[data-testid=\"world-hud-only-failed\"]"
+    },
+    "world.hud.twoDMode": {
+      "testId": "world-hud-2d-mode",
+      "selector": "[data-testid=\"world-hud-2d-mode\"]"
+    },
+    "world.hud.twoDToggle": {
+      "testId": "world-hud-2d-toggle",
+      "selector": "[data-testid=\"world-hud-2d-toggle\"]"
+    },
+    "world.hud.actorList": {
+      "testId": "world-hud-actor-list",
+      "selector": "[data-testid=\"world-hud-actor-list\"]"
+    },
+    "world.hud.feedStatus": {
+      "testId": "world-hud-feed-status",
+      "selector": "[data-testid=\"world-hud-feed-status\"]"
+    },
+    "world.hud.home": {
+      "testId": "world-hud-home",
+      "selector": "[data-testid=\"world-hud-home\"]"
+    },
+    "world.editor.toolbar": {
+      "testId": "world-editor-toolbar",
+      "selector": "[data-testid=\"world-editor-toolbar\"]"
+    },
+    "world.editor.toggle": {
+      "testId": "world-editor-toggle",
+      "selector": "[data-testid=\"world-editor-toggle\"]"
+    },
+    "world.editor.undo": {
+      "testId": "world-editor-undo",
+      "selector": "[data-testid=\"world-editor-undo\"]"
+    },
+    "world.editor.redo": {
+      "testId": "world-editor-redo",
+      "selector": "[data-testid=\"world-editor-redo\"]"
+    },
+    "world.editor.reset": {
+      "testId": "world-editor-reset",
+      "selector": "[data-testid=\"world-editor-reset\"]"
+    },
+    "world.editor.remove": {
+      "testId": "world-editor-remove",
+      "selector": "[data-testid=\"world-editor-remove\"]"
+    },
+    "world.editor.status": {
+      "testId": "world-editor-status",
+      "selector": "[data-testid=\"world-editor-status\"]"
+    },
+    "world.settings.popup": {
       "testId": "world-settings-popup",
       "selector": "[data-testid=\"world-settings-popup\"]"
     },
-    "settings.camera": {
-      "testId": "world-settings-camera",
-      "selector": "[data-testid=\"world-settings-camera\"]"
-    },
-    "settings.timeSlider": {
-      "testId": "world-settings-time-slider",
-      "selector": "[data-testid=\"world-settings-time-slider\"]"
-    },
-    "settings.realTimeToggle": {
-      "testId": "world-settings-realtime-toggle",
-      "selector": "[data-testid=\"world-settings-realtime-toggle\"]"
-    },
-    "settings.scene": {
+    "world.settings.scene": {
       "testId": "world-settings-scene",
       "selector": "[data-testid=\"world-settings-scene\"]"
     },
-    "settings.graphics": {
+    "world.settings.graphics": {
       "testId": "world-settings-graphics",
       "selector": "[data-testid=\"world-settings-graphics\"]"
     },
-    "settings.customToggle": {
-      "testId": "world-settings-custom-toggle",
-      "selector": "[data-testid=\"world-settings-custom-toggle\"]"
+    "world.settings.qualityAuto": {
+      "testId": "world-settings-quality-auto",
+      "selector": "[data-testid=\"world-settings-quality-auto\"]"
     },
-    "settings.fpsOverlayToggle": {
-      "testId": "world-settings-fps-overlay-toggle",
-      "selector": "[data-testid=\"world-settings-fps-overlay-toggle\"]"
+    "world.settings.period": {
+      "testId": "world-settings-period",
+      "selector": "[data-testid=\"world-settings-period\"]"
     },
-    "settings.fpsTraceToggle": {
-      "testId": "world-settings-fps-trace-toggle",
-      "selector": "[data-testid=\"world-settings-fps-trace-toggle\"]"
+    "world.settings.camera": {
+      "testId": "world-settings-camera",
+      "selector": "[data-testid=\"world-settings-camera\"]"
     },
-    "settings.fpsMaxSelect": {
-      "testId": "world-settings-fps-max-select",
-      "selector": "[data-testid=\"world-settings-fps-max-select\"]"
+    "world.settings.diagnosticsToggle": {
+      "testId": "world-settings-diagnostics-toggle",
+      "selector": "[data-testid=\"world-settings-diagnostics-toggle\"]"
+    },
+    "world.settings.levers": {
+      "testId": "world-settings-levers",
+      "selector": "[data-testid=\"world-settings-levers\"]"
+    },
+    "world.settings.leversReset": {
+      "testId": "world-settings-levers-reset",
+      "selector": "[data-testid=\"world-settings-levers-reset\"]"
     },
     "viewOverlay.stats": {
       "testId": "view-overlay-stats",

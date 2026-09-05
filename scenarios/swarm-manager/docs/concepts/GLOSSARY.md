@@ -1,36 +1,170 @@
 # Glossary
 
 ## Backlog Item
-A git-tracked unit of work stored under `ideas/`, `research/`, `fix/`, or `execute/`.
+The smallest independently reviewable and schedulable work commitment, stored
+under its kind directory (`ideas/`, `research/`, `fix/`, `execute/`,
+`chore/`). Owns its goal, scope, dependencies, status, supporting context, and
+canonical `plan_ref` when executable.
 
 ## Backlog Kind
-The category of backlog work: `idea`, `research`, `fix`, `execute`.
+The category of backlog work: `idea`, `research`, `fix`, `execute`, `chore`.
+Every kind flows through the same plan-workshop, acceptance, execution, and
+review lifecycle.
 
 ## Backlog Status
-Lifecycle state for a backlog item: `backlog`, `researching`, `ready`, `queued`, `in_progress`, `completed`, `archived`.
+Lifecycle state for a backlog item. Non-terminal states cover intake,
+refinement, queueing, execution, and review (`in_review`, `review_pending`);
+the terminal states `completed`, `failed`, and `needs_followup` are reachable
+only through an explicit operator review decision.
+
+**Adding a status is one row.** The vocabulary, each status's classification,
+and its writer policy live in a single table in
+`api/internal/backlogstatus/statuses.go`. Add a row and run `make gen-status` to
+regenerate the UI's mirror (`ui/src/types/backlog-status.generated.ts`); every
+predicate, the valid-value set, and the TypeScript union derive from that table.
+`make check` fails if the mirror is stale, and a guard test fails if a row is
+incomplete, so a new status cannot land unclassified in some consumer's
+`default` branch. The only deliberate manual step is choosing display colors in
+`ui/src/types/constants.ts`, where TypeScript's exhaustiveness check demands one.
+
+Each status belongs to exactly one lifecycle **phase** — intake, planning,
+in_flight, review, terminal — and the phases cover the whole vocabulary, so code
+that switches on phase cannot silently miss a newly added status. Prefer the
+shared predicates (`IsResolved`, `IsTerminal`, `IsInFlight`, `IsPlanning`,
+`IsReview`) over comparing against individual status constants. Where a call
+site genuinely needs a narrower set than a predicate provides, it keeps an
+explicit local set with a comment saying why — see `attentionTerminalStatuses`,
+which excludes `needs_followup` because that is a live attention state.
+
+The proto files deliberately do **not** carry inline status allowlists. Three of
+them used to, they drifted apart, and the server's table validates every write
+anyway.
+
+`dropped` is the fourth terminal and the one exception to the review-decision
+rule: it records that the operator decided not to do the work, or that the work
+stopped being relevant. It carries no verdict about quality, so it needs no run
+and no review round behind it — a PATCH may set it directly from any
+non-review-gated status (items already in `in_review` / `review_pending` still
+route through `backlog review-decide --round N --drop`, which reaches the
+typed `DecideAttempt` mutation and preserves the audit trail).
+
+## Resolved vs Completed
+Two different questions about a finished item, and the distinction the
+dependency graph turns on. *Completed* means the work was achieved. *Resolved*
+(`backlogstatus.IsResolved`) means nothing waiting on the item is still
+waiting — true for both `completed` and `dropped`.
+
+Dependency gates and readiness math must key on **resolved**. Keying them on
+completion alone strands every dependent of an abandoned item in `blocked`
+forever, because an item nobody will ever finish never satisfies its
+dependents. Goal progress reporting keeps the two apart: only `completed`
+counts toward progress, and `dropped` items leave the denominator entirely, so
+a goal can reach 100% without abandoned work being claimed as an achievement.
+
+Failure states are deliberately *not* resolved — a `failed` or
+`needs_followup` item is still live work whose dependents genuinely are
+blocked.
+
+## Next Action
+The server-owned, read-only projection of the single enabled primary operator
+step for one open backlog item or active goal. It carries a stable action ID,
+action tier, labels, typed blockers, target, and any action payload. It is not
+a command endpoint: authorized domain operations remain the mutation boundary.
+The projection reuses the same preflight that gates queueing, so recommendation
+and enforcement cannot disagree.
+
+## Action Tier
+The rank class used by the cross-entity next-action feed: tier 1 is judgment
+(`decide`, `review`), tier 2 is plan structure/acceptance, tier 3 is execution
+or unblocking, and tier 4 is close-out/housekeeping. Within a tier, the feed
+sorts goal priority, backlog rank, then age. Wait states are deliberately not
+inbox entries.
+
+## Follow-up Disposition
+The required execution choice on a typed follow-up instruction: `follow_up_run`
+starts a steered run, `replan` clears acceptance and sends steering to the
+workshop, and `new_items` applies the supplied item specifications. A
+follow-up instruction always includes operator-readable steering text.
+
+## Achieved
+The terminal goal status set only by the operator's close-out decision after
+every milestone is verified-delivered. It is distinct from `archived`, which
+removes a goal from active operation without asserting outcome delivery.
+
+## Goal
+An operator intent statement — a few sentences of higher-level outcome — with
+priority, target items, and owned milestones. A goal's scope is derived truth:
+its targets plus the transitive prerequisite closure of those items. A goal
+carries no plan document; the goal's plan is its graph of milestones and
+items, and goal planning means proposing graph changes.
+
+## Milestone
+An owned sub-object of exactly one goal that partitions the goal's scope and
+carries acceptance criteria (its definition of done) over member backlog
+items. Milestones are presentation and verification structure — two levels
+only (goal → milestone → item), no nesting, no cross-goal sharing. Milestone
+review verifies the acceptance criteria against repository evidence when
+member items complete.
 
 ## Execution Run
-A tracked run record for queued work, with status transitions through pending/scheduled/running/completed/failed/canceled.
+A tracked run record for queued work, with status transitions through
+pending/scheduled/running/completed/failed/canceled.
+
+## Execution Strategy
+A declared way to execute an accepted plan, selected by the operator at queue
+time from the strategy registry (e.g. the phased plan drain). Strategies map
+to Agent Manager workflow declarations; the registry is the single catalog.
 
 ## Execution Policy
-Default execution behavior for new queue actions (`manual`, `scheduled`, `yolo`) and default delay settings.
+Default execution behavior for new queue actions (`manual`, `scheduled`,
+`yolo`) and default delay settings, with queue caps and circuit breakers.
 
 ## Scenario Archive
-Delete operation that preserves selected scenario artifacts by creating an archived backlog item.
-
-## Prompt Manager Team Output
-Findings, plans, and recommendations produced by prompt-manager agent teams (Debug, Feature, QA, Refactor) and deposited into swarm-manager as backlog items. Swarm Manager serves as the staging layer where operators review and refine these plans before approving them for execution. Teams write backlog items via the `swarm-manager-recommendations` skill in prompt-manager.
-
-## Governance Modes
-- `manual`: operator explicitly starts work.
-- `scheduled`: work auto-starts after configured delay.
-- `yolo`: work starts immediately.
+Delete operation that preserves selected scenario artifacts by creating an
+archived backlog item.
 
 ## Agent-Manager
 Execution engine used by swarm-manager to spawn and track autonomous runs.
+All programmatic agent work runs as declared Agent Manager workflows; human
+conversation runs as Agent Sessions over Runs.
+
+## Workflow Transition
+A versioned Swarm declaration that identifies the subject, prerequisites,
+Agent Manager workflow, typed input/output contracts, and exactly-once domain
+apply action.
+
+## Workflow Execution
+Agent Manager's durable execution of a declared workflow. It pins an immutable
+workflow revision and input snapshot while Agent Manager owns prompts, nodes,
+waits, branches, retries, and the execution journal.
+
+## Plan Workshop Session
+A durable Swarm Manager aggregate for one backlog item or milestone. It
+versions review packets containing findings, decision questions, and references
+to Agent Session proposal records; it never owns a second proposal store.
+
+## Plan Acceptance
+An explicit operator authorization for one canonical Plan Manager content hash.
+It records the actor, timestamp, accepted hash, and subject version. Queueing
+requires a fresh acceptance and Plan Manager validity; historical readiness
+scores do not substitute for it. Any plan change clears acceptance.
+
+## Candidate Revision
+A whole-plan proposed revision stored and validated by Plan Manager. Applying
+one retains the canonical plan ID and requires its expected base content hash,
+an explicit quality-impact acknowledgment, and no active bound execution.
+
+## Proposal
+A typed, operator-decidable mutation suggested by an agent (session, workshop
+round, review, or goal workflow): item mutations, milestone operations,
+follow-up runs, corrections, or new backlog items. Proposals are the only path
+by which agent judgment changes the work ledger, and each applies exactly once
+on acceptance.
 
 ## DOC Links
-- [CODE: ui/src/types/domain.ts#BacklogItem]
-- [CODE: ui/src/types/domain.ts#ExecutionRecord]
-- [CODE: api/internal/scenarios/handler.go]
+- [DOC: OPERATOR-JOURNEYS.md]
+- [CODE: api/internal/backlog/types.go]
+- [CODE: api/internal/backlogstatus/statuses.go]
+- [CODE: api/internal/backlog/next_action.go]
+- [CODE: api/internal/goals/model.go]
 - [CODE: api/internal/execution/service.go]

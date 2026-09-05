@@ -1,7 +1,7 @@
 # Seams & Architecture Boundaries
 
 ## Last Updated
-2026-02-08
+2026-05-19
 
 ## Integration Seams
 - **Vector store seam**: `ports.VectorStore` enables Qdrant substitution for testing. [CODE: api/internal/ports/ports.go]
@@ -9,6 +9,11 @@
 - **Metadata seam**: `ports.MetadataStore` isolates Postgres-backed metadata. [CODE: api/internal/ports/ports.go]
 - **Job store seam**: `ports.JobStore` isolates ingest job queue. [CODE: api/internal/ports/ports.go]
 - **Scenario filesystem seam**: doc health service encapsulates filesystem access to scenario docs. [CODE: api/internal/services/dochealth/service.go]
+- **External link probe seam**: `dochealth.Doer` (HTTP client interface) lets tests substitute a fake transport for external link validation; production wires `*http.Client` with timeout from staticConfig. [CODE: api/internal/services/dochealth/httpc.go] [CODE: api/internal/services/dochealth/links.go]
+- **Markdown walk root seam**: validators accept a scenario root path; no `os.Getwd` inside validator code, so tests can drive any directory layout. [CODE: api/internal/services/dochealth/walk.go]
+- **DocHealth Connect-RPC seam**: `KnowledgeObservatoryService.DocHealth` is the single source of truth for documentation health; replaced the legacy REST `GET /scenarios/{name}/docs/health`. [CODE: api/handlers/dochealth/handler.go] (proto schema lives at repo `packages/proto/schemas/knowledge-observatory/v1/api.proto`).
+- **Mermaid parser seam**: `DiagramValidator` batches Mermaid blocks through the exact-pinned Node sidecar. A parser outage falls back to conservative classification but emits `mermaid_unverified` for every affected block; it never silently passes diagrams. `ValidateMarkdownDiagrams` exposes the same parser over Connect for plan authoring and CLI callers. [CODE: api/internal/services/dochealth/mermaid_sidecar.go] [CODE: tools/mermaid-lint/lint.mjs]
+- **Documentation maturity seam**: `.vrooli/maturity.json` owns Knowledge Observatory's provider-local docs-health capability taxonomy and finding mappings. The handler converts native `DocHealthResult` findings into the shared `common.v1.MaturityAssessment`, keeping `assessment.local` for legacy consumers and `assessment.capabilities[]` for capability-aware Test Genie and CLI reports. [CODE: .vrooli/maturity.json] [CODE: api/handlers/dochealth/handler.go]
 - **Documentation search seam**: docsearch service owns file/text/unified search over documentation roots. [CODE: api/internal/services/docsearch/service.go]
 - **Documentation explorer seam**: explorer service builds scenario doc trees with warnings. [CODE: api/internal/services/explorer/tree.go]
 - **Documentation viewer seam**: viewer service owns safe document loading + reset operations. [CODE: api/internal/services/viewer/service.go]
@@ -28,8 +33,8 @@
 - **CLI entry/presentation**: CLI command parsing and output formatting delegates behavior to API endpoints. [CODE: cli/app.go]
 - **Coordination/orchestration**: server wiring + service construction. [CODE: api/server.go]
 - **Domain rules**: ingest/search/graph services, metric calculations. [CODE: api/internal/services/ingest/service.go] [CODE: api/internal/services/search/service.go] [CODE: api/internal/services/graph/service.go]
-- **Documentation standards**: docschema package owns documentation layout validation and reset rules. [CODE: api/internal/docschema/types.go] [CODE: api/internal/docschema/validation.go]
-- **Documentation health API**: handlers and service for scenario validation/reset. [CODE: api/docs_health.go] [CODE: api/internal/services/dochealth/service.go]
+- **Documentation contract seam**: doccontract, doctemplates, docvalidation, and doclogs interpret scenario manifest contracts instead of hardcoding layout rules. [CODE: api/internal/doccontract/manifest.go] [CODE: api/internal/doctemplates/resolver.go] [CODE: api/internal/docvalidation/validation.go] [CODE: api/internal/doclogs/logs.go]
+- **Documentation health API**: Connect-RPC handler + service for the full doc-health suite (structural placement, markdown/mermaid/links/paths, bidirectional refs, command snippets, manifest coverage, and number-marker lint). REST reset stays separate. [CODE: api/handlers/dochealth/handler.go] [CODE: api/internal/services/dochealth/service.go] [CODE: api/docs_reset.go]
 - **Documentation search API**: handlers + docsearch service for file/text/unified search. [CODE: api/docs_search.go] [CODE: api/internal/services/docsearch/service.go]
 - **Documentation explorer API**: handlers + explorer service for scenario listing and doc tree. [CODE: api/docs_explorer.go] [CODE: api/docs_search.go] [CODE: api/internal/services/explorer/tree.go]
 - **Documentation viewer API**: handlers + viewer service for content and reset. [CODE: api/docs_viewer.go] [CODE: api/internal/services/viewer/content.go]
@@ -55,5 +60,13 @@
 - API wiring is centralized in `api/server.go`.
 - Domain services are isolated under `api/internal/services`.
 
+## Architecture Alignment Notes
+
+| Area | Drift | Decision | Follow-up |
+|---|---|---|---|
+| API bootstrap | `api/main.go` previously mixed lifecycle boot, server wiring, handlers, and integration config access. | Keep `api/main.go` minimal and keep runtime wiring/config defaults in `api/server.go`. | Preserve split as new handlers/services are added. |
+| Integration config | Qdrant/Ollama/resource CLI defaults were implicit at call sites. | Centralize integration defaults and wrappers in server/runtime wiring, then expose concrete dependencies through ports/adapters. | Keep new external integrations behind ports or narrow clients. |
+| Resource-qdrant execution | Calls could block indefinitely without request deadlines. | Use the centralized default-timeout wrapper for resource CLI calls. | Move timeout policy into a dedicated integration adapter if more resource CLI calls appear. |
+
 ## Exploration Log
-- 2025-12-16: Split API bootstrap from server wiring; documented in audit. [DOC: docs/internal/SCREAMING_ARCHITECTURE_AUDIT.md]
+- 2025-12-16: Split API bootstrap from server wiring; durable notes now live in `docs/concepts/ARCHITECTURE.md`, this file, and `docs/internal/PROBLEMS.md`.

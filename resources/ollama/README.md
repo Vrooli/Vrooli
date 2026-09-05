@@ -1,238 +1,269 @@
-# Ollama - Local LLM Inference
+# Ollama Resource
 
-Run large language models locally with Ollama. Perfect for privacy-sensitive tasks, offline environments, and cost-effective AI inference.
+Managed Ollama runtime for local model serving and inference workloads.
 
-## 🚀 Quick Start
+## Intent
 
-```bash
-# Install with default models (llama3.1:8b, deepseek-r1:8b, qwen2.5-coder:7b)
-resource-ollama manage install
+- Resource ID: `ollama`
+- Category: `ai`
+- Driver: `managed-service` (checksum-verified native artifact)
+- Portability tier: `build-verified`
 
-# Send a prompt
-resource-ollama generate "llama3.2:3b" "Explain machine learning in simple terms"
+## Use Cases
 
-# Check status and available models
-resource-ollama
-```
+- Serve local models for private or offline scenario workflows.
+- Provide local chat, generation, and embedding endpoints to scenarios.
+- Reduce dependence on hosted AI providers for development and internal tooling.
 
-**Default URL**: http://localhost:11434
+## Architecture
 
-## 📚 Documentation
+This resource follows the `managed-service` structure. Ollama runs under the
+shared Vrooli supervisor from a checksum-verified native artifact; there is no
+host-systemd install, Docker fallback, or `lib/` shell layer.
 
-For comprehensive guides and advanced configuration:
+- `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
+- `model-policy.json` is the declarative authority for Ollama roles, concrete model catalog entries, capacity estimates, and estimate provenance.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the default home for Ollama-specific Go logic when the manifest and shared control plane are not enough.
 
-- **[📖 Full Documentation](docs/README.md)** - Complete guide with all topics
-- **[⚡ Installation Guide](docs/INSTALLATION.md)** - Setup and model installation
-- **[🤖 Models Guide](docs/MODELS.md)** - Available models and selection
-- **[🎨 Model Customization](#-model-customization-with-modelfiles)** - Create specialized models with Modelfiles
-- **[⚙️ Configuration](docs/CONFIGURATION.md)** - Advanced settings and tuning
-- **[💻 API Reference](docs/API.md)** - REST endpoints and examples
+The intended escalation path is:
 
-## 🎯 Key Features
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add Ollama-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
-- **Privacy-first**: All inference runs locally
-- **Multiple models**: 50+ available models for different tasks
-- **Model customization**: Create specialized models via Modelfiles
-- **GPU acceleration**: NVIDIA GPU support for faster inference
-- **Type-aware**: Automatic model selection based on task type
-- **Resource efficient**: Smart memory management and model loading
+Current internal package boundaries:
 
-## 🔧 Common Commands
+- `cli/internal/install`: install/bootstrap helpers unique to Ollama
+- `cli/internal/runtime`: runtime and model-state shaping helpers
+- `cli/internal/status`: richer Ollama status interpretation
+- `cli/internal/health`: Ollama-specific probe helpers
+- `cli/internal/env`: environment export and derived-config helpers
+- `cli/internal/ensure`: model auto-provisioning triggered by scenario dependencies
 
-```bash
-# Model management
-resource-ollama list-models                      # List available models
-resource-ollama pull-model "llama3.1:70b"        # Download specific model
-
-# Text generation with automatic model selection
-resource-ollama generate "codellama:7b" "Write a Python function"
-resource-ollama generate "qwen2.5:7b" "Solve: x² + 5x = 0"
-resource-ollama generate "llama3.2:3b" "Hello, how are you?"
-
-# Advanced generation with custom parameters
-resource-ollama generate \
-  --model "llama3.1:8b" \
-  --temperature 0.3 \
-  "Explain quantum computing"
-
-# Model customization (create specialized models)
-ollama create my-specialist -f my-modelfile     # Create custom model
-ollama list                                     # List all models (including custom)
-ollama show my-specialist                       # View model configuration
-ollama rm my-specialist                         # Delete custom model
-```
-
-## 🎨 Model Customization with Modelfiles
-
-Create specialized AI models without training! Ollama's Modelfile feature lets you customize any base model with domain-specific behavior, custom system prompts, and specialized parameters.
-
-### 🚀 Quick Example: Real Estate Chatbot
+## Usage
 
 ```bash
-# 1. Create a Modelfile
-cat > /tmp/real-estate-specialist << 'EOF'
-FROM llama3.1:8b
+# Install or update the resource contract
+vrooli resource install ollama
 
-SYSTEM """You are an expert real estate chatbot assistant. Your role is to help clients with property inquiries, schedule viewings, and provide comprehensive real estate information.
+# Check status through the shared control plane
+resource-ollama status
 
-Key responsibilities:
-- Answer property-related questions with accurate, helpful information
-- Assist with scheduling property viewings and appointments
-- Provide market insights and neighborhood information
-- Help qualify leads by understanding client needs and budget
-- Maintain a professional, friendly, and knowledgeable tone
-
-When a client inquires about properties, always gather:
-- Budget range and preferred location
-- Property type and bedroom/bathroom requirements
-- Special requirements (pet-friendly, parking, etc.)
-- Timeframe for purchasing/renting
-"""
-
-PARAMETER temperature 0.7
-PARAMETER top_p 0.9
-EOF
-
-# 2. Create the specialized model (use CLI - more reliable than API)
-ollama create real-estate-specialist -f /tmp/real-estate-specialist
-
-# 3. Use your specialized model
-curl -X POST http://localhost:11434/api/generate -d '{
-  "model": "real-estate-specialist",
-  "prompt": "I need a 3-bedroom house under $500k",
-  "stream": false
-}'
+# Default API endpoint
+curl http://localhost:11434/api/tags
 ```
 
-### 🔧 Modelfile Components
+## Model provisioning
 
-```dockerfile
-FROM llama3.1:8b                    # Base model to customize
+`model-policy.json` defines the shared model roles that scenarios should use
+instead of hard-coding concrete model names:
 
-SYSTEM """Your specialized behavior and instructions"""
+| Role | Current model | Purpose |
+|---|---|---|
+| `embedding.default` | `nomic-embed-text:latest` | semantic search embeddings |
+| `chat.small` | `llama3.2:3b` | low-memory local generation |
+| `chat.default` | `qwen3:4b` | default local chat/synthesis |
+| `summarize.default` | `qwen3:4b` | text distillation and summaries |
+| `rerank.llm_fallback` | `qwen3:4b` | fallback reranking when the reranker resource is unavailable |
+| `code.local` | `gemma4:12b` | local code-specialized generation (tool-calling capable) |
 
-PARAMETER temperature 0.7           # Creativity (0.0-1.0)
-PARAMETER top_p 0.9                 # Response diversity
-PARAMETER top_k 40                  # Vocabulary restriction
-PARAMETER repeat_penalty 1.1       # Reduce repetition
+The catalog includes static capacity estimates today. Each estimate carries
+provenance and confidence so later `/api/show`, `/api/ps`, and measured-profile
+ingestion can update the same fields without changing the schema.
 
-TEMPLATE """{{ .System }}{{ .Prompt }}"""  # Custom formatting (optional)
+Scenarios declare the Ollama models they need in their `.vrooli/service.json`
+under the `ollama` dependency block:
+
+```json
+"ollama": {
+  "type": "ollama",
+  "enabled": true,
+  "required": false,
+  "startup_policy": "try_start",
+  "model_roles": [
+    "embedding.default",
+    {"role": "chat.default", "reason": "answer synthesis"}
+  ]
+}
 ```
 
-### 💡 Common Use Cases
+Direct concrete models remain an escape hatch, not the preferred path. Use
+`models` only with exception metadata:
 
-| Specialization | Modelfile Focus | Example System Prompt |
-|---------------|-----------------|----------------------|
-| **Customer Support** | Helpful, policy-aware | "You are a customer service expert for [Company]. Always be helpful and follow company policies..." |
-| **Code Review** | Technical, detailed | "You are a senior software engineer. Review code for bugs, performance, and best practices..." |
-| **Legal Assistant** | Precise, cautious | "You are a legal research assistant. Provide accurate information and always recommend consulting a lawyer..." |
-| **Medical Info** | Careful, factual | "You are a medical information assistant. Provide general health information but always recommend consulting healthcare professionals..." |
-
-### ⚠️ CLI vs API: Important Differences
-
-**✅ Use Ollama CLI for model creation:**
-```bash
-ollama create my-model -f modelfile    # ✅ Reliable, clear errors
-ollama list                            # ✅ View all models
-ollama rm my-model                     # ✅ Delete models
+```json
+"models": [
+  {
+    "name": "gemma4",
+    "tag": "12b",
+    "reason": "code-specialized local generation",
+    "owner": "agent-manager",
+    "review_after": "2026-09-01"
+  }
+]
 ```
 
-**⚠️ API has limitations for model creation:**
-```bash
-curl -X POST /api/create ...           # ❌ Complex, undocumented requirements
-```
+The singular `model` field is deprecated and is kept only so old manifests can
+surface a warning instead of failing abruptly.
 
-**✅ Use REST API for inference:**
-```bash
-curl -X POST /api/generate ...         # ✅ Perfect for applications
-curl -X POST /api/chat ...             # ✅ Conversation interface
-```
+On `vrooli scenario start`, the orchestrator passes the Ollama dependency block
+to `resource-ollama ensure --config-base64 <base64-json>`. The ensure verb:
 
-### 🎯 Pro Tips
+1. Resolves `model_roles` through `model-policy.json`.
+2. Emits warnings for deprecated `model` usage and direct `models` exceptions.
+3. Lists installed tags via `GET /api/tags` (fast, ~10ms).
+4. Computes the missing set.
+5. Streams `POST /api/pull` for each missing model, relaying progress to the
+   lifecycle console.
+6. Exits 0 once every requested model is present (or reports which pulls
+   failed while keeping the scenario start best-effort via the usual
+   `startup_policy` semantics).
 
-1. **Start Simple**: Begin with just a SYSTEM prompt, add parameters later
-2. **Test Iteratively**: Create, test, modify, recreate until perfect
-3. **Use Examples**: Include conversation examples in your SYSTEM prompt
-4. **Parameter Tuning**: Lower temperature (≤0.3) for factual tasks, higher (0.7-0.9) for creative tasks
-5. **Version Control**: Use descriptive model names like `customer-support-v2`
-
-### 🔄 Model Management
+Direct invocation (e.g. while debugging):
 
 ```bash
-# List all your custom models
-ollama list
-
-# Copy a model (for versioning)
-ollama cp real-estate-specialist real-estate-v2
-
-# Show model configuration
-ollama show real-estate-specialist
-
-# Delete old versions
-ollama rm real-estate-v1
+resource-ollama ensure --config-base64 $(echo -n '{"model_roles":["chat.default"]}' | base64)
 ```
 
-**Key Insight**: This approach often outperforms traditional fine-tuning for business applications - it's faster, more controllable, and requires no training data!
+All log lines from the ensure path are prefixed with `ollama-ensure:` so
+`grep` over `vrooli logs` surfaces the auto-provisioning flow cleanly.
 
-## 📋 System Requirements
+## Policy metadata
 
-- **Minimum**: 8GB RAM, 4GB disk space
-- **Recommended**: 16GB+ RAM, 50GB+ disk space  
-- **GPU**: NVIDIA with 8GB+ VRAM (optional but recommended)
-- **Dependencies**: Docker, NVIDIA Container Toolkit (for GPU)
+`resource-ollama policy` is the programmatic interface for role and model facts
+stored in `model-policy.json`. Use it from scripts and shared helpers instead
+of copying dimensions, context windows, or capacity estimates into consumers.
 
-## 🤖 Default Models
-
-| Model | Size | Best For | Download |
-|-------|------|----------|----------|
-| llama3.1:8b | 4.7GB | General chat, Q&A | Auto |
-| deepseek-r1:8b | 4.9GB | Reasoning, math | Auto |
-| qwen2.5-coder:7b | 4.2GB | Code generation | Auto |
-
-See the [Models Guide](docs/MODELS.md) for 50+ additional models.
-
-## 🧪 Testing & Examples
-
-### Individual Resource Tests
-- **Test Location**: `resources/ollama/test/integration-test.sh`
-- **Test Coverage**: Health checks, model listing, text generation, API functionality
-- **Run Test**: `cd resources/ollama && ./test/integration-test.sh`
-
-### Working Examples
-- **Examples Folder**: [examples/](examples/)
-- **Basic Usage**: Simple text generation and API calls
-- **Integration Examples**: Multi-resource workflows combining Ollama with other services
-- **Model Management**: Creating and using custom specialized models
-
-### Integration with Scenarios
-Ollama is used in these business scenarios:
-- **[Research Assistant](../../scenarios/research-assistant/)** - Knowledge management and analysis ($10k-25k projects)  
-- **[Campaign Content Studio](../../scenarios/campaign-content-studio/)** - Content creation workflows ($8k-20k projects)
-- **[Secure Document Processing](../../scenarios/secure-document-processing/)** - Compliant document processing ($20k-40k projects)
-
-### Test Fixtures
-- **Shared Test Data**: `__test/resources/fixtures/documents/` (prompts, text samples)
-- **Audio Fixtures**: `__test/resources/fixtures/audio/` (for multi-modal scenarios)
-
-### Quick Test Commands
 ```bash
-# Test individual Ollama functionality
-./__test/resources/quick-test.sh ollama
-
-# Test in real business scenarios
-cd ./scenarios/research-assistant && ./test.sh
-
-# Run all tests using Ollama
-./scripts/scenarios/tools/test-by-resource.sh --resource ollama
+resource-ollama policy resolve --role embedding.default --json
+resource-ollama policy resolve --role embedding.default --field embedding_dimensions
+resource-ollama policy resolve --model nomic-embed-text:latest --json
+resource-ollama policy roles --json
+resource-ollama policy models --json
+resource-ollama policy constraints --json
 ```
 
-## 🔗 Quick Links
+The JSON form is the stable contract. A resolved role includes the selected
+model, required and provided capabilities, embedding dimensions when the model
+supports embeddings, context-window tokens when the model supports generation,
+capacity estimates, provenance, schema version, and the policy file path. The
+scalar `--field` form is only for simple shell paths.
 
-- **Web UI**: http://localhost:11434
-- **Health Check**: http://localhost:11434/api/tags
-- **Model Examples**: [examples/](examples/README.md)
-- **Official Ollama**: https://ollama.ai
+### Embedding retargeting
 
----
+Embedding roles are stable inputs; resolved model names and dimensions are
+policy facts. When an embedding role changes, stored vectors must be treated as
+stale even if the new model has the same dimension, because equal dimensions do
+not imply the same vector space.
 
-**Need help?** Check the [troubleshooting guide](docs/TROUBLESHOOTING.md) or explore [performance tuning](docs/PERFORMANCE.md).
+Use the dry-run planner before changing production stores:
+
+```bash
+resource-ollama policy retarget-plan \
+  --role embedding.default \
+  --old-model <previous-resolved-model> \
+  --old-dimensions <previous-dimensions> \
+  --old-schema-version <previous-policy-schema-version> \
+  --store qdrant:<collection> \
+  --store postgres:<table>.<embedding_column> \
+  --json
+```
+
+The planner classifies the change as no-op, same-shape re-embed, or
+incompatible shape. Incompatible changes require shadow storage with the new
+dimension, regeneration, validation, and cutover. The command is intentionally
+dry-run only; destructive apply requires store-specific backups and validation.
+
+Postgres-backed pgvector tables should pair each embedding column with
+`embedding_metadata` rows carrying `embedding_role`, `embedding_model`,
+`embedding_dimensions`, `embedding_policy_schema_version`,
+`source_content_hash`, and `generated_at`. SQL schemas must not hard-code
+current Ollama dimensions; the metadata records what generated existing rows
+and lets the retarget planner find stale vectors.
+
+## Resource limits and concurrency
+
+Defaults are tuned for a single-host workstation:
+
+| Setting | Default | Where set | Override path |
+|---|---|---|---|
+| Host memory budget | policy-derived | `requirements` and model policy | Select a smaller model role or adjust the declared policy after measurement |
+| Concurrent requests in-flight | `4` | `managed_service.environment.OLLAMA_NUM_PARALLEL` | Same — edit and restart |
+| Models kept resident | `3` | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS` | Same |
+
+The 12 GiB cap is intended to keep one 7-8B model resident plus headroom; raise
+it on hosts with more RAM, lower it on smaller boxes. Keep `OLLAMA_NUM_PARALLEL`
+in step with the gateway semaphore (see below) — they are deliberately tied.
+
+## Capacity planning
+
+Use the planner before adding a new Ollama dependency or when reviewing model
+churn across scenarios:
+
+```bash
+resource-ollama capacity plan --scenario prompt-manager
+resource-ollama capacity plan --all-scenarios --json
+```
+
+The planner reads scenario `.vrooli/service.json` Ollama dependency blocks,
+resolves `model_roles` through `model-policy.json`, adds documented direct
+model exceptions, samples the shared host inventory, and best-effort reads
+Ollama `/api/tags` plus `/api/ps`. It reports distinct model demand, installed
+and loaded models, estimated disk/RAM/VRAM usage, policy estimate provenance,
+runtime settings, and warnings for direct models, low-confidence estimates, and
+likely unload/reload churn. It exits non-zero when resident model estimates
+exceed the configured runtime or host policy budget.
+
+## Gateway access (callers)
+
+Scenarios MUST reach Ollama through the resource CLI, not by constructing
+`/api/embeddings` / `/api/generate` URLs directly. The CLI fronts the daemon
+with a host-wide cross-process semaphore sized to `OLLAMA_NUM_PARALLEL`, so the
+fleet of scenarios cannot overwhelm the daemon even when individual scenarios
+forget to bound their own fan-out:
+
+```bash
+resource-ollama gateway embed    --role embedding.default --json --input "hello"
+resource-ollama gateway generate --role chat.default      --json --prompt "say hi"
+resource-ollama gateway chat     --role summarize.default --json --system "Be concise" --prompt "summarize this"
+```
+
+Vision callers use the same gateway boundary with a JSON envelope on standard
+input; image bytes never travel in argv or logs:
+
+```bash
+resource-ollama gateway generate --role vision.default --input-json-stdin --json <<'JSON'
+{"prompt":"Describe this image briefly.","images":[{"media_type":"image/png","data_b64":"...base64..."}]}
+JSON
+```
+
+The gateway enforces the selected model's declared image capability and
+bounded image count/size. `--cpu-only` is available for an explicit direct
+model fallback or validation run; it sets Ollama's `num_gpu` option to zero.
+The limits can be tuned with `OLLAMA_GATEWAY_MAX_IMAGES` and
+`OLLAMA_GATEWAY_MAX_IMAGE_BYTES`.
+
+`--role` and `--model` are mutually exclusive. Use `--role` for normal
+scenario runtime calls so model changes stay centralized in `model-policy.json`.
+Keep `--model` only for explicit direct-model exceptions and tests.
+
+If `resource-ollama` is not on `$PATH` or the daemon is unhealthy, the gateway
+fails fast with a structured error. There is no HTTP fallback by design.
+
+The resource readiness probe is intentionally stricter than a process or
+`/api/tags` liveness check: `resource-ollama health-ready` remains unhealthy
+until the daemon has at least one installed model that can serve requests.
+
+## Notes
+
+- Keep `cli/main.go` thin. Do not treat it as the implementation surface for model workflows.
+- Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
+- New logic lands in Go under `cli/internal/...`; deployment and management stay in the shared managed-service driver and `resource.json`.
+- Keep user-facing model and API guidance in the existing docs set, and use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/ollama/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M5 (2026-08-15): the managed-service lifecycle, readiness, platform gates,
+capacity profile, Go CLI tests, and Search Hub consumer evidence are covered by
+the fleet contract. See [the full assessment](docs/maturity-assessment.md) for
+the per-dimension score and deliberately conditional or unsupported targets.

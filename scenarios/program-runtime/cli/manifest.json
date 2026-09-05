@@ -1,0 +1,1177 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "program-runtime",
+  "description": "Governed program execution, persistent sessions, typed bindings, and bounded telemetry.",
+  "groups": [
+    {
+      "name": "space",
+      "flat": true,
+      "description": "Emit the Act coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit the owner-controlled Act coverage-space denominator.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "bindings",
+      "description": "Inspect the typed and governed callable namespace.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List manifest-bound Connect callables.",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario."
+            },
+            {
+              "name": "group",
+              "description": "Filter by binding group."
+            },
+            {
+              "name": "reachable-only",
+              "bool": true,
+              "description": "Only include bindings whose scenario currently resolves."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "ListBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "unbound",
+          "description": "List capabilities with a closed-set unbound reason.",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "ListUnbound"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sweep",
+          "description": "Exercise safe reachable read bindings; dry-run by default.",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario."
+            },
+            {
+              "name": "effect",
+              "description": "Effect filter; defaults to read."
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Plan eligible and skipped bindings without invoking them."
+            },
+            {
+              "name": "execute",
+              "bool": true,
+              "local_only": true,
+              "description": "Run the sweep with operator provenance."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "SweepBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "act",
+          "description": "Resolve Act operation classes against the live registry.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "ResolveActCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Report callable-binding health and unresolved arguments.",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "DoctorBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "condition",
+          "description": "Report per-binding serving, freshness, and exercise condition.",
+          "flags": [
+            {
+              "name": "binding-id",
+              "description": "Filter by canonical binding id."
+            },
+            {
+              "name": "scenario",
+              "description": "Filter by scenario."
+            },
+            {
+              "name": "window-seconds",
+              "description": "Lookback window in seconds."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.bindings.BindingConditionService",
+            "method": "GetBindingCondition"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "intent": "How many measured binding freshness conditions are served for the requested filter.",
+            "questions": [
+              "how many binding freshness conditions are measured",
+              "how many binding conditions",
+              "binding registry freshness"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "freshness_conditions",
+              "summary_template": "{count} measured binding freshness conditions"
+            }
+          }
+        },
+        {
+          "name": "describe",
+          "description": "Describe resolved proto paths for one binding.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Canonical binding id, such as ai-gateway/routing/preview."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "DescribeBinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "resolve-intent",
+          "description": "Resolve natural-language intent to one governed binding or an explicit null verdict.",
+          "flags": [
+            {
+              "name": "intent",
+              "required": true,
+              "description": "Natural-language operation intent."
+            },
+            {
+              "name": "limit",
+              "description": "Maximum candidates, default 20."
+            },
+            {
+              "name": "mode",
+              "description": "Discovery mode: fast, judged, or deep."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BindingRegistryService",
+            "method": "ResolveIntent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "authoring",
+      "description": "Measure first-attempt program authoring against a versioned corpus.",
+      "commands": [
+        {
+          "name": "eval",
+          "description": "Run the authoring corpus and report met, missed, wrong-result, or unavailable without inventing a score.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.programs.ProgramService",
+          "method": "RunAuthoringEval"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {"name": "no-gate", "bool": true, "description": "Report measurements without failing below-floor or unavailable results."}
+          ],
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "intent": "How many authoring corpus cases succeed on the first attempt.",
+            "questions": [
+              "first attempt authoring correctness",
+              "authoring eval met cases"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "met",
+              "unit": "authoring_cases",
+              "summary_template": "{count} first-attempt authoring cases met"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "discovery",
+      "description": "Measure intent discovery against a versioned golden corpus.",
+      "commands": [
+        {
+          "name": "eval",
+          "description": "Run the discovery golden corpus and emit falsifiable counts.",
+          "flags": [
+            {
+              "name": "suite",
+              "description": "Path to the discovery suite JSON."
+            },
+            {
+              "name": "mode",
+              "description": "Discovery mode: fast, judged, or deep.",
+              "default": "judged"
+            },
+            {
+              "name": "no-gate",
+              "bool": true,
+              "description": "Report measurements without failing below-floor or unavailable results."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.programs.ProgramService",
+            "method": "RunDiscoveryEval"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "discovery",
+            "intent": "How many discovery evaluation cases select the expected binding.",
+            "questions": [
+              "discovery evaluation met cases",
+              "first-attempt discovery correctness"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "met",
+              "unit": "discovery_cases",
+              "summary_template": "{count} discovery evaluation cases met"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "library",
+      "description": "Find, read, promote, and select versioned reusable programs.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List declared program contracts and selected callable library programs.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryService",
+            "method": "ListLibrary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "library_program",
+            "intent": "How many versioned reusable library programs are available.",
+            "questions": [
+              "how many reusable library programs are available",
+              "count current library programs",
+              "how large is the program library"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "programs",
+              "unit": "library programs",
+              "summary_template": "{count} reusable library programs"
+            }
+          }
+        },
+        {
+          "name": "search",
+          "description": "Search the local program library by intent and return ranked candidates.",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Intent or terms describing the reusable program."
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum number of results; defaults to 10."
+            },
+            {
+              "name": "kind",
+              "description": "Filter results to contract, callable, or all."
+            }
+          ],
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run one declared contract with validated named inputs.",
+          "positionals": [
+            {"name": "name", "required": true, "description": "Declared contract <scenario>.<program>."}
+          ],
+          "flags": [
+            {"name": "input", "description": "Comma-separated key=value inputs.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryService",
+            "method": "RunDeclaredProgram"
+          },
+          "governance": {"effect": "write", "run_eligible": true},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "get",
+          "description": "Read one library program by name and optional version.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Exact library program name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Optional version; current when omitted."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryService",
+            "method": "GetLibrary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Explicitly promote a succeeded program into a new library version.",
+          "flags": [
+            {
+              "name": "program-id",
+              "required": true,
+              "description": "Succeeded source program id."
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Stable exact library name."
+            },
+            {
+              "name": "description",
+              "required": true,
+              "description": "Retrieval-oriented description."
+            },
+            {
+              "name": "promoted-by",
+              "description": "Operator identity."
+            },
+            {
+              "name": "reason",
+              "description": "Promotion reason."
+            },
+            {
+              "name": "coverage",
+              "description": "Contract coverage statement for the reusable program."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryService",
+            "method": "PromoteLibrary"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "set-current",
+          "description": "Select the version loaded by new sessions.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Exact library name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "required": true,
+              "description": "Version to select."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryService",
+            "method": "SetCurrentLibrary"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "description": "Create and govern persistent program kernel sessions.",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a session with optional grants, sandbox workspace, spend ceilings, and execution budgets.",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Optional human-readable session name."
+            },
+            {
+              "name": "sandbox-workspace",
+              "description": "Optional workspace-sandbox workspace identifier."
+            },
+            {
+              "name": "grants",
+              "description": "Comma-separated explicit grants."
+            },
+            {
+              "name": "inference-ceiling-micros",
+              "description": "Optional per-session inference cost ceiling in USD micros."
+            },
+            {
+              "name": "delegation-ceiling-micros",
+              "description": "Optional per-session delegated-run cost ceiling in USD micros."
+            },
+            {
+              "name": "wall-budget",
+              "description": "Optional wall-clock execution budget, for example 30s.",
+              "bind": {
+                "field": "wall_budget_millis"
+              }
+            },
+            {
+              "name": "cpu-budget",
+              "description": "Optional CPU execution budget, for example 10s.",
+              "bind": {
+                "field": "cpu_budget_millis"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "CreateSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read one session lease.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Session identifier."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "GetSession"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List live sessions.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.sessions.SessionService",
+            "method": "ListSessions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "intent": "How many program sessions are live.",
+            "questions": [
+              "how many program sessions are live",
+              "count live sessions"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "sessions",
+              "summary_template": "{count} live sessions"
+            }
+          }
+        },
+        {
+          "name": "delegations",
+          "description": "List retained delegated session executions.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "ListDelegations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "session_delegations",
+            "intent": "How many delegated session executions are retained.",
+            "questions": [
+              "how many delegated session executions are retained",
+              "count session delegations"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "delegations",
+              "summary_template": "{count} retained session delegations"
+            }
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Reclaim a session with a stated reason.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Session identifier."
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Reason recorded for reclamation."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "DeleteSession"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "grant",
+          "description": "Add an explicit grant to a session.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Session identifier."
+            }
+          ],
+          "flags": [
+            {
+              "name": "grants",
+              "required": true,
+              "description": "Comma-separated grants."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionService",
+            "method": "GrantSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "shapes",
+      "description": "Inspect recurring binding shapes and nominations.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List observed, nominated, and covered shapes.",
+          "flags": [
+            {"name": "uncovered", "bool": true, "description": "Only show uncovered shapes.", "bind": {"field": "uncovered_only"}},
+            {"name": "min-occurrences", "description": "Minimum occurrence count."},
+            {"name": "min-sessions", "description": "Minimum non-test session count."},
+            {"name": "limit", "description": "Maximum number of shapes."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ShapeService", "method": "ListShapes"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "get",
+          "description": "Read one shape by key.",
+          "positionals": [{"name": "shape-key", "required": true, "description": "Sorted binding shape key."}],
+          "binding": {"kind": "connect-rpc", "service": "ShapeService", "method": "GetShape"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "expire",
+          "description": "Expire observed shapes older than the retention window.",
+          "binding": {"kind": "connect-rpc", "service": "ShapeService", "method": "ExpireShapes"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["admin"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
+    },
+    {
+      "name": "programs",
+      "description": "Submit bounded programs and query their provenance-bearing corpus.",
+      "commands": [
+        {
+          "name": "submit",
+          "description": "Submit a program, optionally returning before it finishes.",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session identifier."
+            },
+            {
+              "name": "source",
+              "description": "Python program source; mutually exclusive with source-file."
+            },
+            {
+              "name": "source-file",
+              "description": "Read Python source from a file, or - for standard input; mutually exclusive with source.",
+              "local_only": true
+            },
+            {
+              "name": "provenance",
+              "required": true,
+              "description": "agent or operator provenance."
+            },
+            {
+              "name": "explain",
+              "bool": true,
+              "description": "Return pre-flight name diagnostics without executing the program.",
+              "local_only": true
+            },
+            {
+              "name": "include-materialized",
+              "bool": true,
+              "description": "Permit explicitly materialized output in the response."
+            },
+            {
+              "name": "async",
+              "bool": true,
+              "description": "Return the accepted program immediately and keep the session alive while it runs."
+            },
+            {
+              "name": "wait-timeout",
+              "description": "After async submission, wait for a terminal result for this duration (for example 30s).",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProgramService",
+            "method": "SubmitProgram"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read one program result and failure detail.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Program identifier."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProgramService",
+            "method": "GetProgram"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until a program reaches a terminal state.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Program identifier."
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "How long to block, for example 90s. Converted to timeout_millis; bounded by the runtime ceiling.",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProgramService",
+            "method": "WaitForProgram"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List submitted programs.",
+          "flags": [
+            {
+              "name": "session-id",
+              "description": "Filter by session."
+            },
+            {
+              "name": "include-operator",
+              "bool": true,
+              "description": "Include operator submissions."
+            },
+            {
+              "name": "provenance",
+              "description": "Filter by provenance token."
+            },
+            {
+              "name": "since-seconds",
+              "description": "Only programs created within this many seconds."
+            },
+            {
+              "name": "until",
+              "description": "RFC3339 upper creation-time bound."
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows; zero uses the server default."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProgramService",
+            "method": "ListPrograms"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "mine",
+          "description": "Summarize recurring failure shapes.",
+          "flags": [
+            {
+              "name": "include-operator",
+              "bool": true,
+              "description": "Include operator submissions."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.programs.ProgramService",
+            "method": "MineFailures"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "intent": "How many recurring program failure shapes are recorded.",
+            "questions": [
+              "how many recurring program failure shapes",
+              "count recurring program failures"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "failure_shapes",
+              "summary_template": "{count} recurring failure shapes"
+            }
+          }
+        },
+        {
+          "name": "mine-refusals",
+          "description": "Summarize recurring binding refusals.",
+          "flags": [
+            {
+              "name": "include-operator",
+              "bool": true,
+              "description": "Include operator submissions."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.programs.ProgramService",
+            "method": "MineRefusals"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "mine-unresolved",
+          "description": "Summarize attempted names with no governed binding.",
+          "flags": [
+            {
+              "name": "include-operator",
+              "bool": true,
+              "description": "Include operator submissions."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.program_runtime.v1.programs.ProgramService",
+            "method": "MineUnresolvedBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "governance-share",
+          "description": "Report governed versus observed calls over an explicit window.",
+          "flags": [
+            {"name":"window-seconds","required":true,"description":"Measurement window in seconds."},
+            {"name":"include-operator","bool":true,"description":"Include operator calls."}
+          ],
+          "binding": {"kind":"connect-rpc","service":"vrooli.program_runtime.v1.programs.ProgramService","method":"GovernanceShare"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        }
+      ]
+    },
+    {
+      "name": "telemetry",
+      "description": "Read typed program lifecycle events.",
+      "commands": [
+        {
+          "name": "events",
+          "description": "List typed program-runtime events.",
+          "flags": [
+            {
+              "name": "session-id",
+              "description": "Filter by session."
+            },
+            {
+              "name": "kind",
+              "description": "Optional event kind."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TelemetryService",
+            "method": "ListEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "omitted": [],
+    "domains": [
+      {
+        "domain": "bindings",
+        "stateful": true,
+        "reason": "Binding invocations are persisted in the binding_invocations ledger."
+      },
+      {
+        "domain": "sessions",
+        "stateful": true,
+        "reason": "Live session leases are measured by sessions.list."
+      },
+      {
+        "domain": "programs",
+        "stateful": true,
+        "reason": "The submitted program corpus is measured by programs.mine."
+      },
+      {
+        "domain": "discovery",
+        "stateful": true,
+        "reason": "Discovery outcomes are persisted in the binding registry and projected by discovery measures."
+      },
+      {
+        "domain": "session_delegations",
+        "stateful": true,
+        "reason": "Delegated session executions are retained and measured through the governed agent bridge."
+      },
+      {
+        "domain": "telemetry",
+        "stateful": false,
+        "reason": "Telemetry is a typed event projection owned by the runtime."
+      }
+    ]
+  },
+  "exceptions": [],
+  "omitted": []
+}

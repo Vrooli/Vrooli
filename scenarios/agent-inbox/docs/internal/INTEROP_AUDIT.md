@@ -7,7 +7,7 @@
 | Dependency | Declared | Used in Code | Required/Optional | Status |
 |---|---|---|---|---|
 | agent-manager | Yes (service.json) | Yes (integrations/agent_manager.go, handlers/agent_mode.go) | Optional | OK - graceful degradation |
-| scenario-to-cloud | Yes (service.json) | Yes (via Tool Discovery Protocol / ProtocolHandler) | Optional | OK - graceful degradation |
+| scenario-to-cloud | Yes (service.json) | No direct protocol client; command discovery flows through Search Hub | Optional | OK - graceful degradation |
 | prompt-manager | Yes (service.json) | Yes (services/prompt_sync.go, config/config.go) | Optional | OK - graceful degradation |
 | ollama | Yes (resource) | Yes (integrations/ollama.go, services/skill_suggest.go) | Required | OK - resource dependency |
 | openrouter | Yes (resource) | Yes (integrations/openrouter.go) | Required | OK - resource dependency |
@@ -15,66 +15,49 @@
 ## Contract Findings
 
 ### L0 Schema Contract
-1. **Proto types used correctly for tool manifests**: `scenario_client.go` imports `toolspb` from `packages/proto/gen/go/agent-inbox/v1/domain` and uses `protojson.Unmarshal` for deserializing tool manifests. Good.
-2. **Tool definitions flow through proto types**: `ToolRegistry`, `AsyncTrackerService`, and `domain/tools_proto.go` all use generated proto types. Good.
-3. `AgentManagerClient` uses generated proto types (`apipb.CreateTaskRequest`, `apipb.CreateRunResponse`, `apipb.GetRunResponse`, `apipb.GetRunEventsResponse`, `domainpb.ContinueRunRequest`) with `protojson` marshal/unmarshal for all agent-manager communication. Compile-time type safety for all request/response shapes.
+1. The old provider Tool Discovery Protocol proto types have been removed. Agent Inbox now injects Search Hub command discovery results as completion context instead of loading provider tool manifests.
+2. `AgentManagerClient` uses generated proto types (`apipb.CreateTaskRequest`, `apipb.CreateRunResponse`, `apipb.GetRunResponse`, `apipb.GetRunEventsResponse`, `domainpb.ContinueRunRequest`) with `protojson` marshal/unmarshal for all agent-manager communication. Compile-time type safety for all request/response shapes.
 
 ### L1 Serialization Contract
-1. `scenario_client.go:251`: Uses `protojson.Unmarshal` for manifest parsing. Good.
-2. `domain/tools_proto.go`: Uses `protojson.MarshalOptions{UseProtoNames: true}` for serialization. Good.
-3. `agent_manager.go:28-31`: Module-level `protoMarshalOpts` and `protoUnmarshalOpts` with `UseProtoNames: true` and `DiscardUnknown: true`. Good.
-4. `openrouter.go:283-284`: `ConvertMessages` uses `m["role"].(string)` type assertions on untyped message maps. **Risk: low** - internal-only path, but panics on unexpected input.
+1. `agent_manager.go:28-31`: Module-level `protoMarshalOpts` and `protoUnmarshalOpts` with `UseProtoNames: true` and `DiscardUnknown: true`. Good.
+2. `openrouter.go:283-284`: `ConvertMessages` uses `m["role"].(string)` type assertions on untyped message maps. **Risk: low** - internal-only path, but panics on unexpected input.
 
 ### L2 Envelope & Status Semantics
 1. `reconciliation.go` uses `integrations.ProtoRunStatusToLocal()` and `integrations.IsActiveRunStatus()` from `agent_manager.go` — centralized, proto-driven status mapping.
 2. `GetRunStatus()` uses proto `RunStatus` enum via `ProtoRunStatusToLocal()` — no string normalization needed.
 3. `TranslateProtoEvent` uses typed proto oneof accessors instead of `map[string]interface{}` with camelCase keys. Event type mapping uses proto `RunEventType` enum.
-4. `async_tracker.go:processStatusResult`: Uses configurable `CompletionConditions` from proto for terminal status detection. Good - proto-driven, not hardcoded.
+4. `async_tracker.go:processStatusResult`: Uses configurable runtime `CompletionConditions` for terminal status detection. Good - config-driven, not hardcoded.
 
 ### L3 Discovery & Addressing
 1. `AgentManagerClient` re-resolves URL on connection failure via `reResolveURL()` + `getBaseURL()`. Good.
-2. `ProtocolHandler` accepts `URLResolver` and re-resolves on connection failure. Good.
-3. `PromptSyncService.Sync()` re-resolves prompt-manager URL via `api-core/discovery` on connection failure. Good.
-4. `PromptSyncService` CRUD methods (`CreateSkillInPromptManager`, `UpdateSkillInPromptManager`, `DeleteSkillInPromptManager`, `RecordUsage`) attempt URL re-resolution when URL is empty. Good.
-5. `scenario_client.go:ResolveScenarioURL`: Uses env var + vrooli CLI fallback. Good.
-6. `config/config.go:getPromptManagerURL`: Uses `api-core/discovery.ResolveScenarioURLDefault`. Good.
+2. `PromptSyncService.Sync()` re-resolves prompt-manager URL via `api-core/discovery` on connection failure. Good.
+3. `PromptSyncService` CRUD methods (`CreateSkillInPromptManager`, `UpdateSkillInPromptManager`, `DeleteSkillInPromptManager`, `RecordUsage`) attempt URL re-resolution when URL is empty. Good.
+4. `config/config.go:getPromptManagerURL`: Uses `api-core/discovery.ResolveScenarioURLDefault`. Good.
 
 ### L4 Lifecycle Dependency Contract
 1. All three scenario dependencies (agent-manager, scenario-to-cloud, prompt-manager) are declared in `service.json` with `required: false`. Code matches - all three degrade gracefully when unavailable. Good.
-2. Tool discovery auto-discovers running scenarios dynamically. Declared scenarios serve as fallback. Good.
+2. Search Hub command discovery degrades with diagnostics when Search Hub is unavailable. Good.
 
 ### L5 Runtime Recovery
 1. `AgentManagerClient` re-resolves URL on connection errors (connection refused, DNS failure, dial errors). Good.
 2. `StartAgentChat` run-creation HTTP call re-resolves on connection failure. Good.
-3. `ProtocolHandler` re-resolves via injected `URLResolver` on connection errors. Good.
-4. `PromptSyncService` re-resolves via `api-core/discovery` on sync failure across all code paths (Sync, CRUD, RecordUsage). Good.
-5. `ScenarioClient`: Resolves URL per-request via `URLResolver.ResolveScenarioURL()`. Good - no stale URL risk.
-6. `resilience/` package: Provides retry, circuit breaker, and fallback patterns. Good infrastructure, not yet wired into adapters.
-7. `ReconciliationService`: Creates fresh `AgentManagerClient` per reconciliation cycle. Good.
-8. `AsyncTrackerService`: Recovers operations from database on startup, does fresh status check before resuming polling. Good.
+3. `PromptSyncService` re-resolves via `api-core/discovery` on sync failure across all code paths (Sync, CRUD, RecordUsage). Good.
+4. `resilience/` package: Provides retry, circuit breaker, and fallback patterns. Good infrastructure, not yet wired into adapters.
+5. `ReconciliationService`: Creates fresh `AgentManagerClient` per reconciliation cycle. Good.
+6. `AsyncTrackerService`: Recovers operations from database on startup, does fresh status check before resuming polling. Good.
 
 ## UI↔API Findings
 
-### Hand-Written Interfaces That Duplicate Proto Types
-The following UI interfaces in `ui/src/lib/api.ts` have proto equivalents in `packages/proto/gen/typescript/agent-inbox/v1/domain/`:
-
-| UI Interface | Location | Proto Equivalent | Field Drift |
-|---|---|---|---|
-| `ToolParameters` | api.ts:1143 | `ToolParameters` (tool_pb.ts) | Missing `additional_properties` |
-| `ParameterSchema` | api.ts:1149 | `ParameterSchema` (tool_pb.ts) | Missing `minimum`, `maximum`, `min_length`, `max_length`, `pattern`, `required` |
-| `ToolMetadata` | api.ts:1159 | `ToolMetadata` (tool_pb.ts) | Missing `examples`, `async_behavior`, `modifies_state`, `sensitive_output`, `internal_only` |
-| `ToolCategory` | api.ts:1170 | `ToolCategory` (tool_pb.ts) | Missing `display_order` |
-| `ScenarioInfo` | api.ts:1136 | `ScenarioInfo` (manifest_pb.ts) | Missing `health_endpoint`, `execute_endpoint_template` |
-| `DiscoveredTool` | api.ts:1177 | `ToolDefinition` (tool_pb.ts) | Structural match, different name |
-
-**Risk: Medium** — Proto field additions won't cause UI errors (JSON.parse ignores unknown fields), but new fields are silently unavailable to the UI until hand-written interfaces are manually updated.
+### Hand-Written Interfaces
+The old provider tool manifest interfaces and generated proto equivalents were
+removed with the Tool Discovery Protocol cleanup. Remaining UI interfaces model
+agent-inbox-owned REST/SSE shapes or OpenRouter request/response shapes.
 
 ### Interfaces That Are Legitimately Hand-Written (No Proto Equivalent)
 These types are internal to agent-inbox (SQLite domain) or represent API response shapes constructed by agent-inbox's own handlers:
 - `Chat`, `Message`, `Label`, `ToolCallRecord`, `Attachment`, `ChatWithMessages` — internal domain
 - `StreamingEvent` — SSE protocol definition
-- `ToolCall` — OpenAI function calling format (not the same as proto `ToolDefinition`)
-- `EffectiveTool`, `ToolSet`, `ScenarioStatus`, `ToolConfigUpdate`, `DiscoveryResult` — aggregate response shapes
+- `ToolCall` — OpenAI function calling format
 - `AgentChatConfig`, `AgentModeResponse`, `AgentModeStatus`, `AgentEvent`, `AgentEventsResponse` — agent-inbox translates agent-manager proto types into these before sending to UI
 - `Model`, `ModelPricing`, `ModelArchitecture` — OpenRouter model metadata
 - `Template`, `Skill`, `UsageStats` and related — internal features
@@ -95,7 +78,7 @@ These types are internal to agent-inbox (SQLite domain) or represent API respons
 2. `config.go:139`: Default Ollama URL `http://localhost:11434` is for a resource (not a scenario). Correctly uses env var override. Good.
 
 ## Fixes Applied (Proto Migration Session)
-1. **Full proto migration for AgentManagerClient** (L0+L1/Critical): Replaced all `map[string]interface{}` parsing with proto types + `protojson`. Outbound requests now use correct snake_case keys and nested proto structure (`CreateTaskRequest{Task: ...}`, `CreateRunRequest{ProfileRef: ...}`). Inbound responses parsed via `protojson.Unmarshal` into generated types. Runner type, model, and max turns now flow through `ProfileRef.Defaults` (proto `AgentProfile`).
+1. **Full proto migration for AgentManagerClient** (L0+L1/Critical): Replaced all `map[string]interface{}` parsing with proto types + `protojson`. Outbound requests now use correct snake_case keys and nested proto structure (`CreateTaskRequest{Task: ...}`, `CreateRunRequest{ProfileRef: ...}`). Inbound responses parsed via `protojson.Unmarshal` into generated types. Agent Inbox requests only its reconciled `agent-inbox/default` profile key; Agent Manager resolves the portable role and resource-native model.
 2. **TranslateProtoEvent replaces TranslateEvent** (L1/High): New `TranslateProtoEvent(*domainpb.RunEvent)` uses typed oneof accessors instead of camelCase map lookups. Removed old `TranslateEvent(map[string]interface{})` and `NormalizeRunStatus()`.
 3. **CheckAgentStatus returns `*domainpb.Run`** (L0/High): Changed signature from `(map[string]interface{}, error)` to `(*domainpb.Run, error)`. Reconciliation service updated to use proto field accessors.
 4. **ProtoRunStatusToLocal helper** (L2/Medium): Maps proto `RunStatus` enum to local `RunStatus` string type. Replaces `NormalizeRunStatus()` string munging with canonical enum mapping.

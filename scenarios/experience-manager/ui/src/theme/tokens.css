@@ -1,0 +1,12 @@
+/* Semantic aliases over the canonical generated design token file. */
+
+:root {
+  --surface-app: var(--color-background, #ffffff);
+  --surface-elevated: var(--color-surface, #f7f7f8);
+  --surface-muted: var(--color-surface-muted, #eef0f3);
+  --text-primary: var(--color-foreground, #0f172a);
+  --text-muted: var(--color-muted-foreground, #525866);
+  --border-subtle: var(--color-border, #e2e5ea);
+  --accent: var(--color-primary, #4f46e5);
+  --accent-foreground: var(--color-primary-foreground, #ffffff);
+}

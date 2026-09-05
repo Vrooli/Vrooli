@@ -6,6 +6,7 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '');
+  const isProfile = mode === 'profile';
 
   return {
     base: './',  // Required for universal deployment (proxied scenarios)
@@ -33,8 +34,17 @@ export default defineConfig(({ mode }) => {
         '@services': path.resolve(__dirname, './src/services'),
         '@types': path.resolve(__dirname, './src/types'),
         '@utils': path.resolve(__dirname, './src/utils'),
+        ...(isProfile ? {
+          'react-dom/client': 'react-dom/profiling',
+          'react-dom$': 'react-dom/profiling',
+        } : {}),
       },
     },
+    esbuild: isProfile
+      ? {
+          keepNames: true,
+        }
+      : undefined,
     build: {
       outDir: 'dist',
       sourcemap: true,

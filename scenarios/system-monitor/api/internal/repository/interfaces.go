@@ -1,27 +1,112 @@
 package repository
+
 // DOC: docs/internal/SEAMS.md#repository-interface
 
 import (
 	"context"
 	"time"
 
-	"system-monitor-api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 )
 
 // Repository aggregates all repository interfaces
 type Repository interface {
 	MetricsRepository
+	ProcessSampleRepository
 	InvestigationRepository
 	ReportRepository
 	ThresholdRepository
 	AlertRepository
+	MaintenanceRepository
+}
+
+// ProcessSampleRepository persists and queries per-process samples used for the
+// "top consumers over time, attributed to scenario" timeline. It is additive to
+// the opaque metrics blob storage (MetricsRepository) and never replaces it.
+type ProcessSampleRepository interface {
+	// SaveProcessSamples writes one cycle's worth of per-process rows.
+	SaveProcessSamples(ctx context.Context, samples []ProcessSample) error
+
+	// QueryProcessTimeline returns ranked consumers over the window described by
+	// the query. Rows come from the raw table when available and the per-owner
+	// minute rollups for the older portion of the window.
+	QueryProcessTimeline(ctx context.Context, q ProcessTimelineQuery) ([]ProcessTimelineEntry, error)
+
+	// PruneProcessSamplesBefore deletes raw process rows older than cutoff.
+	PruneProcessSamplesBefore(ctx context.Context, cutoff time.Time) (int64, error)
+
+	// RollupProcessSamples downsamples raw rows in [from, to) into per-owner /
+	// per-minute aggregates, then deletes the raw rows it rolled up. It returns
+	// the number of raw rows consumed so the caller can log what was collapsed.
+	RollupProcessSamples(ctx context.Context, from, to time.Time) (RollupResult, error)
+
+	// PruneProcessRollupsBefore deletes per-minute rollup rows older than cutoff.
+	PruneProcessRollupsBefore(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
+// ProcessSample is one observed process within a single sampling cycle, ready
+// to persist. CPUPct is share-of-one-CPU since the prior sample (may exceed
+// 100 for multi-threaded processes).
+type ProcessSample struct {
+	Timestamp            time.Time
+	PID                  int
+	PPID                 int
+	Comm                 string
+	Cmdline              string
+	Cwd                  string
+	Owner                string
+	CPUPct               float64
+	CPUSeconds           float64
+	CPUSecondsStatus     string
+	CPUSecondsReason     string
+	RSSKB                int64
+	SwapKB               int64
+	MajorFaultsPerSecond float64
+	MetricsStatus        string
+	MetricsReason        string
+	Threads              int
+	GPUVRAMMB            float64
+}
+
+// ProcessTimelineQuery parameterizes a timeline read.
+type ProcessTimelineQuery struct {
+	Start time.Time
+	End   time.Time
+	Owner string // optional scenario filter; "" means all owners
+	Top   int    // optional cap on ranked rows returned; <=0 means a default
+	Rank  string // "cpu" (default), "cpu_seconds", "rss", or "gpu"
+}
+
+// ProcessTimelineEntry is one ranked consumer over the queried window,
+// aggregated across the samples that fell inside it.
+type ProcessTimelineEntry struct {
+	Owner       string
+	Comm        string
+	PID         int  // representative pid; 0 when aggregated across rollups
+	Aggregated  bool // true when the entry spans rollup (per-minute) rows
+	CPUPct      float64
+	MaxCPUPct   float64
+	CPUSeconds  float64
+	RSSKB       int64
+	GPUVRAMMB   float64
+	SampleCount int64
+	FirstSeen   time.Time
+	LastSeen    time.Time
+}
+
+// RollupResult reports the outcome of a downsampling pass.
+type RollupResult struct {
+	RawRowsConsumed int64
+	RollupRows      int64
+	From            time.Time
+	To              time.Time
 }
 
 // MetricsRepository handles metrics data persistence
 type MetricsRepository interface {
-	// SaveMetrics stores metrics data
-	SaveMetrics(ctx context.Context, collectorName string, metrics map[string]interface{}) error
-
+	// SaveMetricCycle persists all collector observations from one logical
+	// collection cycle. CycleID and ObservedAt are caller-owned.
+	SaveMetricCycle(ctx context.Context, cycleID string, observedAt time.Time, observations []MetricObservation) error
 	// GetMetrics retrieves metrics with optional filtering
 	GetMetrics(ctx context.Context, filter MetricsFilter) ([]*models.MetricsResponse, error)
 
@@ -39,6 +124,13 @@ type MetricsRepository interface {
 
 	// GetEarliestMetricTime returns the timestamp of the earliest stored metric
 	GetEarliestMetricTime(ctx context.Context) (time.Time, error)
+}
+
+// MetricObservation is one collector's result inside a logical cycle.
+// Values must retain an explicit status for failed and unsupported readings.
+type MetricObservation struct {
+	CollectorName string
+	Values        map[string]interface{}
 }
 
 // InvestigationRepository handles investigation data persistence
@@ -222,4 +314,30 @@ type AggregationQuery struct {
 	Interval   string // 1m, 5m, 1h, etc.
 	Function   string // avg, sum, max, min, count
 	GroupBy    []string
+}
+
+// DefaultThresholds returns the built-in threshold set used by repository
+// implementations when no thresholds have been configured. Centralising the
+// defaults keeps the in-memory and SQLite repositories in sync.
+func DefaultThresholds() []*models.Threshold {
+	return []*models.Threshold{
+		{
+			MetricName:        "cpu_usage",
+			Min:               0,
+			Max:               100,
+			WarningThreshold:  80,
+			CriticalThreshold: 95,
+			CheckInterval:     60,
+			Enabled:           true,
+		},
+		{
+			MetricName:        "memory_usage",
+			Min:               0,
+			Max:               100,
+			WarningThreshold:  85,
+			CriticalThreshold: 95,
+			CheckInterval:     60,
+			Enabled:           true,
+		},
+	}
 }

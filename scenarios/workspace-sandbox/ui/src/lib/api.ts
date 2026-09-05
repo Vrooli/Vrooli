@@ -4,12 +4,35 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 
 // --- Types matching the Go API ---
 
-export type Status = "creating" | "active" | "stopped" | "approved" | "rejected" | "deleted" | "error";
+export type Status =
+  | "creating"
+  | "active"
+  | "stopped"
+  | "checkpointing"
+  | "checkpointed"
+  | "approved"
+  | "rejected"
+  | "deleted"
+  | "error";
 export type OwnerType = "agent" | "user" | "task" | "system";
 export type ChangeType = "added" | "modified" | "deleted";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type ViewMode = "diff" | "full_diff" | "source";
 export type LineChange = "" | "added" | "deleted";
+
+/** Active-tab statuses: operationally interesting, restartable, actionable. */
+export const ACTIVE_STATUSES: readonly Status[] = ["creating", "active", "stopped", "checkpointing", "checkpointed", "error"] as const;
+
+/** History-tab statuses: terminal, audit-only. */
+export const HISTORY_STATUSES: readonly Status[] = ["approved", "rejected", "deleted"] as const;
+
+/** True when the sandbox lives in the History tab (terminal status). */
+export function isHistoryStatus(s: Status): boolean {
+  return HISTORY_STATUSES.includes(s);
+}
+
+/** Durability state of a diff snapshot. See ARCHIVE_DESIGN.md §3. */
+export type ArchiveState = "complete" | "not_captured";
 
 export interface AnnotatedLine {
   number: number;
@@ -48,7 +71,7 @@ export interface Sandbox {
   stoppedAt?: string;
   approvedAt?: string;
   deletedAt?: string;
-  driver: string;
+  driverId: string;
   driverVersion: string;
   lowerDir?: string;
   upperDir?: string;
@@ -80,17 +103,59 @@ export interface FileChange {
   };
 }
 
+export interface DiffStats {
+  filesChanged: number;
+  filesAdded: number;
+  filesModified: number;
+  filesDeleted: number;
+  linesAdded: number;
+  linesRemoved: number;
+  totalBytes: number;
+}
+
 export interface DiffResult {
   sandboxId: string;
   files: FileChange[];
   unifiedDiff: string;
   generated: string;
-  totalAdded: number;
-  totalDeleted: number;
-  totalModified: number;
+  stats: DiffStats;
   // View mode support
   mode?: ViewMode;
   fileContents?: Record<string, FileViewData>;
+  /**
+   * Distinguishes archive-sourced responses from live ones. Empty (zero
+   * value) means the diff was served from the live overlay; non-empty
+   * values only appear when the response came from a durable archive.
+   *   - undefined      → live overlay (Active/Stopped/Creating/Error)
+   *   - "complete"     → archived snapshot with content blobs
+   *   - "not_captured" → archived row, no blobs (e.g. Error → Deleted)
+   */
+  archiveState?: ArchiveState;
+}
+
+export interface ArchivedFileEntry {
+  path: string;
+  changeType: ChangeType;
+  size: number;
+  fileMode?: number;
+  approvalStatus?: ApprovalStatus;
+  blobSha256?: string;
+}
+
+/** Wire shape for an archived (terminal-status) sandbox diff. */
+export interface DiffArchive {
+  sandboxId: string;
+  snapshotAt: string;
+  archiveState: ArchiveState;
+  /** Terminal status the sandbox transitioned to at snapshot time. */
+  sandboxStatus: Status;
+  files: ArchivedFileEntry[];
+  stats: DiffStats;
+  unifiedDiffSha256?: string;
+  totalBlobBytes: number;
+  projectRoot: string;
+  owner?: string;
+  agentManagerRunId?: string;
 }
 
 export interface HealthResponse {
@@ -110,7 +175,7 @@ export interface HealthResponse {
 
 export interface DriverInfo {
   driver: {
-    type: string;
+    id: string;
     version: string;
     description: string;
     available: boolean;
@@ -216,6 +281,34 @@ export interface ListFilter {
   offset?: number;
 }
 
+/** Filter shape accepted by GET /sandboxes/history. */
+export interface HistoryFilter {
+  /** Subset of {approved, rejected, deleted}; empty means all three. */
+  statuses?: Status[];
+  projectRoot?: string;
+  owner?: string;
+  agentManagerRunId?: string;
+  /** Free-text substring across owner / runId / sandboxId. */
+  search?: string;
+  /** RFC3339 lower bound on snapshot_at. */
+  snapshotAtFrom?: string;
+  /** RFC3339 upper bound on snapshot_at. */
+  snapshotAtTo?: string;
+  /** "snapshot_at" (default) or "total_blob_bytes". */
+  sortBy?: "snapshot_at" | "total_blob_bytes";
+  /** Default true (newest first) when sortBy is snapshot_at. */
+  sortDesc?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface HistoryListResult {
+  archives: DiffArchive[];
+  totalCount: number;
+  limit: number;
+  offset: number;
+}
+
 // --- API Functions ---
 
 async function apiRequest<T>(
@@ -312,6 +405,25 @@ export async function getSandbox(id: string): Promise<Sandbox> {
   return apiRequest<Sandbox>(`/sandboxes/${id}`);
 }
 
+// List archived (History tab) sandboxes.
+export async function listHistory(filter?: HistoryFilter): Promise<HistoryListResult> {
+  const params = new URLSearchParams();
+  filter?.statuses?.forEach((s) => params.append("status", s));
+  if (filter?.projectRoot) params.set("projectRoot", filter.projectRoot);
+  if (filter?.owner) params.set("owner", filter.owner);
+  if (filter?.agentManagerRunId) params.set("agentManagerRunId", filter.agentManagerRunId);
+  if (filter?.search) params.set("search", filter.search);
+  if (filter?.snapshotAtFrom) params.set("snapshotAtFrom", filter.snapshotAtFrom);
+  if (filter?.snapshotAtTo) params.set("snapshotAtTo", filter.snapshotAtTo);
+  if (filter?.sortBy) params.set("sortBy", filter.sortBy);
+  if (filter?.sortDesc) params.set("sortDesc", "true");
+  if (filter?.limit) params.set("limit", String(filter.limit));
+  if (filter?.offset) params.set("offset", String(filter.offset));
+
+  const query = params.toString();
+  return apiRequest<HistoryListResult>(`/sandboxes/history${query ? `?${query}` : ""}`);
+}
+
 // Create sandbox
 export async function createSandbox(req: CreateRequest): Promise<Sandbox> {
   return apiRequest<Sandbox>("/sandboxes", {
@@ -335,6 +447,11 @@ export async function startSandbox(id: string): Promise<Sandbox> {
   return apiRequest<Sandbox>(`/sandboxes/${id}/start`, { method: "POST" });
 }
 
+// Resume sandbox (remount a checkpointed sandbox for the next turn)
+export async function resumeSandbox(id: string): Promise<Sandbox> {
+  return apiRequest<Sandbox>(`/sandboxes/${id}/resume`, { method: "POST" });
+}
+
 // Get diff
 export async function getDiff(id: string, mode: ViewMode = "diff"): Promise<DiffResult> {
   const params = new URLSearchParams();
@@ -343,6 +460,26 @@ export async function getDiff(id: string, mode: ViewMode = "diff"): Promise<Diff
   }
   const query = params.toString();
   return apiRequest<DiffResult>(`/sandboxes/${id}/diff${query ? `?${query}` : ""}`);
+}
+
+// Fetch the raw bytes of a single archived file blob, addressed by path
+// inside the archive's index. Used by DiffViewer for on-demand expansion
+// of large diffs whose per-file content was not embedded in the listing
+// response.
+export async function getArchivedFileContent(
+  sandboxId: string,
+  path: string
+): Promise<string> {
+  const params = new URLSearchParams({ path });
+  const url = buildApiUrl(`/sandboxes/${sandboxId}/diff/file?${params.toString()}`, {
+    baseUrl: API_BASE,
+  });
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(errorBody.error || `Request failed: ${res.status}`);
+  }
+  return res.text();
 }
 
 // Approve changes
@@ -406,6 +543,8 @@ export interface SandboxStats {
   total: number;
   active: number;
   stopped: number;
+  checkpointing: number;
+  checkpointed: number;
   approved: number;
   rejected: number;
   error: number;
@@ -429,6 +568,12 @@ export function computeStats(sandboxes: Sandbox[]): SandboxStats {
         case "stopped":
           acc.stopped++;
           break;
+        case "checkpointing":
+          acc.checkpointing++;
+          break;
+        case "checkpointed":
+          acc.checkpointed++;
+          break;
         case "approved":
           acc.approved++;
           break;
@@ -445,6 +590,8 @@ export function computeStats(sandboxes: Sandbox[]): SandboxStats {
       total: 0,
       active: 0,
       stopped: 0,
+      checkpointing: 0,
+      checkpointed: 0,
       approved: 0,
       rejected: 0,
       error: 0,
@@ -709,6 +856,33 @@ export async function saveProfile(
 export async function deleteProfile(id: string): Promise<void> {
   await apiRequest<void>(`/config/profiles/${id}`, {
     method: "DELETE",
+  });
+}
+
+// --- Diff-archive retention configuration ---
+
+export interface RetentionConfig {
+  /** 0 disables age-based eviction. */
+  maxArchiveAgeDays: number;
+  /** 0 disables global size budget. */
+  maxArchiveSizeBytes: number;
+  /** 0 disables per-project cap. */
+  maxArchivesPerProject: number;
+}
+
+/** Partial PUT — omit a field to leave it unchanged. */
+export type RetentionUpdate = Partial<RetentionConfig>;
+
+export async function fetchRetentionConfig(): Promise<RetentionConfig> {
+  return apiRequest<RetentionConfig>("/config/retention");
+}
+
+export async function updateRetentionConfig(
+  update: RetentionUpdate
+): Promise<RetentionConfig> {
+  return apiRequest<RetentionConfig>("/config/retention", {
+    method: "PUT",
+    body: JSON.stringify(update),
   });
 }
 

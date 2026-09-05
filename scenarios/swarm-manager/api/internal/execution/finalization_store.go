@@ -14,6 +14,7 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 		return err
 	}
 	record := &records[idx]
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusSkipped
 	finalization.Phase = FinalizationPhaseSkipped
@@ -27,12 +28,15 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 	record.FailureReason = ""
 	record.UpdatedAt = nowRFC3339()
 	if item, loadErr := s.loadBacklogItemByRecord(record); loadErr == nil {
-		_ = s.updateBacklogStatus(item, backlogStatusCompleted)
+		// Finalization skipped because the item isn't eligible for post-run
+		// review (research/chore, etc.). No review agent runs, so go straight
+		// to review_pending where the user can decide the terminal status.
+		_ = s.updateBacklogStatus(item, backlogStatusReviewPending)
 	}
 	if err := s.store.Save(records); err != nil {
 		return err
 	}
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 	return nil
 }
 
@@ -45,6 +49,7 @@ func (s *Service) failFinalization(executionID, scenarioName, message string) er
 		return err
 	}
 	record := &records[idx]
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusFailed
 	finalization.Phase = FinalizationPhaseFailed
@@ -70,7 +75,7 @@ func (s *Service) failFinalization(executionID, scenarioName, message string) er
 	if err := s.store.Save(records); err != nil {
 		return err
 	}
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 	return nil
 }
 
@@ -146,6 +151,7 @@ func (s *Service) markFinalizationPhase(executionID, phase string) error {
 		return fmt.Errorf("execution %s was canceled", executionID)
 	}
 
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusRunning
 	finalization.Phase = strings.TrimSpace(phase)
@@ -155,7 +161,7 @@ func (s *Service) markFinalizationPhase(executionID, phase string) error {
 	if err := s.store.Save(records); err != nil {
 		return err
 	}
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 	return nil
 }
 
@@ -197,6 +203,12 @@ func (s *Service) updateScenarioReviewState(executionID, scenarioName string, re
 	})
 }
 
+func (s *Service) updateScenarioBaselineDiff(executionID, scenarioName string, diff *BaselineDiffResult) error {
+	return s.updateScenarioFinalization(executionID, scenarioName, func(scenario *ScenarioFinalization) {
+		scenario.BaselineDiff = diff
+	})
+}
+
 func (s *Service) updateScenarioFinalization(executionID, scenarioName string, mutate func(*ScenarioFinalization)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -232,7 +244,7 @@ func (s *Service) loadScenarioFinalization(executionID, scenarioName string) (Sc
 		return ScenarioFinalization{}, err
 	}
 	record := records[idx]
-	finalization := effectiveFinalization(record)
+	finalization := record.Finalization
 	if finalization == nil {
 		return ScenarioFinalization{}, fmt.Errorf("execution %s has no finalization state", executionID)
 	}

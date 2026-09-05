@@ -322,5 +322,5 @@ curl -X PATCH .../sections/3 -d '{"content": {...}, "order": 1}'
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Variants](variants.md) - Managing variants that contain sections

@@ -1,6 +1,31 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "workspace-sandbox-retention",
+        "name": "Workspace Sandbox retained sandboxes",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "workspace-sandbox",
@@ -37,6 +62,48 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "plugin": {
+    "slug": "workspace-sandbox",
+    "skills": [
+      {
+        "name": "sandbox",
+        "source": "skills/sandbox/SKILL.md",
+        "command_groups": [
+          "sandbox",
+          "change"
+        ]
+      }
+    ],
+    "entitlement_tier": "free",
+    "standalone": {
+      "install_script": "cli/install.sh",
+      "runtime_binaries": [
+        "cli/workspace-sandbox",
+        "cli/standalone-launch.sh",
+        "api/workspace-sandbox-api"
+      ],
+      "resources": []
+    }
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "hostSafeguards": [
+    {
+      "name": "workspace_sandbox_userns",
+      "required": true,
+      "reason": "Allow the default overlayfs-userns driver to restart through the portable launcher after host reboots on Linux AppArmor systems",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Installs/loads the dedicated vrooli-workspace-sandbox AppArmor profile; does not disable AppArmor or kernel.apparmor_restrict_unprivileged_userns globally."
+    }
+  ],
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -46,12 +113,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 36239
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "port": 21239
     }
   },
   "lifecycle": {
@@ -81,120 +143,73 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/workspace-sandbox-api"]
-          },
-          {
-            "type": "cli",
-            "command": "workspace-sandbox"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o workspace-sandbox-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./workspace-sandbox-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/workspace-sandbox-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute workspace-sandbox --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'workspace-sandbox-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "workspace-sandbox"
+    "resources": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "workspace-sandbox",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "workspace-sandbox"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "outputs": [
+          {
+            "entry": "./cmd/workspace-sandbox-launcher",
+            "output": "api/workspace-sandbox-launcher"
+          }
+        ]
+      },
+      "run": {
+        "argv": [
+          "./workspace-sandbox-launcher",
+          "./workspace-sandbox-api"
+        ],
+        "port": "api",
+        "cwd": "api"
       }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Conflict resolution form",
+          "role": "form"
+        },
+        {
+          "kind": "role",
+          "name": "Title resolution",
+          "role": "group"
+        },
+        {
+          "kind": "role",
+          "name": "Remote version for Title",
+          "role": "button"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Conflict choices",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Checking the latest version"
+        }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading comparison",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "choices are still here"
+        }
+      ],
+      "id": "request-error",
+      "mode": "live",
+      "name": "Retryable conflict",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Resolved version ready"
+        },
+        {
+          "kind": "text",
+          "value": "Conflict resolved and saved"
+        }
+      ],
+      "id": "interactive",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Remote version for Title",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "click",
+          "target": {
+            "name": "Save resolved version",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "140"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Interactive resolution",
+      "role": "boundary"
+    }
+  ],
+  "title": "ConflictResolutionFlow"
+}

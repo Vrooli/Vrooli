@@ -1,7 +1,7 @@
 /**
  * BacklogFormDetailsSection
  *
- * Description / Status / Priority / Tags / Initiative / Dependencies /
+ * Description / Status / Priority / Tags / Milestone / Dependencies /
  * Effort / Acceptance fields extracted from BacklogFormDialog.
  */
 
@@ -25,7 +25,7 @@ export interface BacklogFormDetailsSectionProps {
   status: BacklogStatus;
   priority: number;
   tagsInput: string;
-  initiative: string | undefined;
+  milestone: string | undefined;
   dependsOn: string[] | undefined;
   effort: string | undefined;
   acceptanceAllow: string[] | undefined;
@@ -42,7 +42,7 @@ export function BacklogFormDetailsSection({
   status,
   priority,
   tagsInput,
-  initiative,
+  milestone,
   dependsOn,
   effort,
   acceptanceAllow,
@@ -146,21 +146,21 @@ export function BacklogFormDetailsSection({
       </div>
 
       <div>
-        <label htmlFor="backlog-form-initiative" className="text-sm font-medium text-slate-300">
-          Initiative
+        <label htmlFor="backlog-form-milestone" className="text-sm font-medium text-slate-300">
+          Milestone
         </label>
         <Input
-          id="backlog-form-initiative"
-          value={initiative ?? ""}
+          id="backlog-form-milestone"
+          value={milestone ?? ""}
           onChange={(e) => {
-            onFieldChange("initiative", e.target.value);
+            onFieldChange("milestone", e.target.value);
             onClearError();
           }}
           placeholder="e.g. core-billing"
           className="mt-2"
           disabled={isSubmitting}
         />
-        <p className="mt-1 text-xs text-slate-500">Optional initiative grouping.</p>
+        <p className="mt-1 text-xs text-slate-500">Optional milestone grouping.</p>
       </div>
 
       <div>

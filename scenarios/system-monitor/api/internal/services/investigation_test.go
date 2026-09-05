@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/agentmanager"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
-	"system-monitor-api/internal/repository/memory"
-	"system-monitor-api/internal/services/mocks"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/mocks"
 )
 
 func newTestInvestigationService(t *testing.T, clock Clock) *InvestigationService {

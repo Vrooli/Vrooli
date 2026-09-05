@@ -37,6 +37,10 @@ const jsonFetch = async <T>(path: string, init?: RequestInit) => {
     throw new Error(`Request failed (${response.status}): ${response.statusText}`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 };
 
@@ -58,11 +62,11 @@ export interface HealthResponse {
       };
       latency_ms: number;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
-export interface VaultMissingSecret {
+export interface MissingCredential {
   resource_name: string;
   secret_name: string;
   secret_path: string;
@@ -70,7 +74,7 @@ export interface VaultMissingSecret {
   description: string;
 }
 
-export interface VaultResourceStatus {
+export interface CredentialResourceStatus {
   resource_name: string;
   secrets_total: number;
   secrets_found: number;
@@ -80,17 +84,47 @@ export interface VaultResourceStatus {
   last_checked: string;
 }
 
-export interface VaultSecretsStatus {
+export interface CredentialCoverageStatus {
   total_resources: number;
   configured_resources: number;
-  missing_secrets: VaultMissingSecret[];
-  resource_statuses: VaultResourceStatus[];
+  missing_secrets: MissingCredential[];
+  resource_statuses: CredentialResourceStatus[];
   last_updated: string;
+}
+
+export interface CredentialDoctorResponse {
+  provider?: {
+    backend?: string;
+    condition?: string;
+    explanation?: string;
+    fix?: string;
+    write_condition?: string;
+    write_explanation?: string;
+    write_fix?: string;
+    native_storage_caveat?: string;
+  };
+}
+
+export function fetchCredentialDoctor() {
+  return jsonFetch<CredentialDoctorResponse>("/credentials/doctor");
+}
+
+export interface CredentialKeyringReport {
+  path?: string;
+  loadable?: boolean;
+  defects?: Array<{ label?: string; repairable?: boolean }>;
+  repaired?: number;
+  staleDaemon?: boolean;
+  staleDaemonDetail?: string;
+}
+
+export function fetchCredentialKeyringReport() {
+  return jsonFetch<CredentialKeyringReport>("/credentials/keyring/inspect");
 }
 
 export interface ComplianceResponse {
   overall_score: number;
-  vault_secrets_health: number;
+  credential_coverage_health: number;
   vulnerability_summary: Record<string, number>;
   remediation_progress: {
     configured_components: number;
@@ -99,7 +133,7 @@ export interface ComplianceResponse {
     medium_issues: number;
     low_issues: number;
     security_score: number;
-    vault_secrets_health: number;
+    credential_coverage_health: number;
     overall_compliance: number;
   };
   total_resources: number;
@@ -183,8 +217,8 @@ export interface ResourceInsight {
 
 export interface OrientationSummary {
   hero_stats: {
-    vault_configured: number;
-    vault_total: number;
+    credential_configured: number;
+    credential_total: number;
     missing_secrets: number;
     risk_score: number;
     overall_score: number;
@@ -342,12 +376,81 @@ export interface DeploymentReadinessResponse {
 
 export const fetchHealth = () => jsonFetch<HealthResponse>("/health");
 
-export const fetchVaultStatus = (resource?: string) => {
+export const fetchCredentialCoverage = (resource?: string) => {
   const search = resource ? `?resource=${encodeURIComponent(resource)}` : "";
-  return jsonFetch<VaultSecretsStatus>(`/vault/secrets/status${search}`);
+  return jsonFetch<CredentialCoverageStatus>(`/credentials/secrets/status${search}`);
 };
 
 export const fetchCompliance = () => jsonFetch<ComplianceResponse>("/security/compliance");
+
+export interface AllowlistRule {
+  id: string;
+  path_pattern: string;
+  excluded_types: string[];
+  description?: string;
+  enabled: boolean;
+  created_at?: string;
+}
+
+export interface AllowlistRulesResponse {
+  rules: AllowlistRule[];
+  count: number;
+}
+
+export interface UpsertAllowlistRulePayload {
+  path_pattern: string;
+  excluded_types: string[];
+  description?: string;
+  enabled?: boolean;
+}
+
+export const fetchAllowlistRules = () => jsonFetch<AllowlistRulesResponse>("/security/allowlist-rules");
+
+export const createAllowlistRule = (payload: UpsertAllowlistRulePayload) =>
+  jsonFetch<AllowlistRule>("/security/allowlist-rules", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const updateAllowlistRule = (id: string, payload: UpsertAllowlistRulePayload) =>
+  jsonFetch<AllowlistRule>(`/security/allowlist-rules/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+
+export const deleteAllowlistRule = (id: string) =>
+  jsonFetch<void>(`/security/allowlist-rules/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export type WatchlistValueType = "email" | "phone" | "path" | "ssn" | "custom";
+
+export interface WatchlistEntry {
+  id: string;
+  label: string;
+  value_type: WatchlistValueType;
+  created_at: string;
+}
+
+export interface WatchlistResponse {
+  entries: WatchlistEntry[];
+  count: number;
+}
+
+export interface CreateWatchlistEntryPayload {
+  label: string;
+  value: string;
+  value_type: WatchlistValueType;
+}
+
+export const fetchWatchlist = () => jsonFetch<WatchlistResponse>("/security/watchlist");
+
+export const createWatchlistEntry = (payload: CreateWatchlistEntryPayload) =>
+  jsonFetch<WatchlistEntry>("/security/watchlist", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+export const deleteWatchlistEntry = (id: string) =>
+  jsonFetch<void>(`/security/watchlist/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export interface VulnerabilityFilters {
   component?: string;
@@ -385,7 +488,8 @@ export const fetchDeploymentReadiness = (payload: DeploymentManifestRequest) =>
     body: JSON.stringify(payload)
   });
 
-export const fetchResourceDetail = (resource: string) => jsonFetch<ResourceDetail>(`/resources/${resource}`);
+export const fetchResourceDetail = (resource: string) =>
+  jsonFetch<ResourceDetail>(`/resources/${encodeURIComponent(resource)}`);
 
 export interface UpdateResourceSecretPayload {
   classification?: string;
@@ -396,7 +500,7 @@ export interface UpdateResourceSecretPayload {
 }
 
 export const updateResourceSecret = (resource: string, secret: string, payload: UpdateResourceSecretPayload) =>
-  jsonFetch<ResourceSecretDetail>(`/resources/${resource}/secrets/${secret}`, {
+  jsonFetch<ResourceSecretDetail>(`/resources/${encodeURIComponent(resource)}/secrets/${encodeURIComponent(secret)}`, {
     method: "PATCH",
     body: JSON.stringify(payload)
   });
@@ -413,7 +517,7 @@ export interface UpdateSecretStrategyPayload {
 }
 
 export const updateSecretStrategy = (resource: string, secret: string, payload: UpdateSecretStrategyPayload) =>
-  jsonFetch<ResourceSecretDetail>(`/resources/${resource}/secrets/${secret}/strategy`, {
+  jsonFetch<ResourceSecretDetail>(`/resources/${encodeURIComponent(resource)}/secrets/${encodeURIComponent(secret)}/strategy`, {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -424,7 +528,7 @@ export interface UpdateVulnerabilityStatusPayload {
 }
 
 export const updateVulnerabilityStatus = (id: string, payload: UpdateVulnerabilityStatusPayload) =>
-  jsonFetch<{ id: string; status: string }>(`/vulnerabilities/${id}/status`, {
+  jsonFetch<{ id: string; status: string }>(`/vulnerabilities/${encodeURIComponent(id)}/status`, {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -438,14 +542,14 @@ export interface ProvisionSecretsPayload {
 
 export interface ProvisionSecretsResponse {
   success: boolean;
+  resource?: string;
   message?: string;
-  local_stored: number;
-  vault_stored: number;
-  total_provisioned: number;
+  stored_secrets: number;
+  details?: Array<{ env_key: string; logical_id: string; field: string; status: string; error?: string }>;
 }
 
 export const provisionSecrets = (payload: ProvisionSecretsPayload) =>
-  jsonFetch<ProvisionSecretsResponse>("/secrets/provision", {
+  jsonFetch<ProvisionSecretsResponse>("/credentials/secrets/provision", {
     method: "POST",
     body: JSON.stringify(payload)
   });

@@ -1,16 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 )
 
 // Market research functionality
 func (app *App) analyzeMarket(productName string) (*MarketAnalysis, error) {
-	// Use Ollama to analyze market trends
+	// Use resource-ollama gateway to analyze market trends
 	prompt := fmt.Sprintf(`Analyze the market for %s. Provide:
 	1. Market size and growth rate
 	2. Key competitors
@@ -19,21 +17,10 @@ func (app *App) analyzeMarket(productName string) (*MarketAnalysis, error) {
 	5. Potential challenges
 	Format as JSON.`, productName)
 
-	payload := map[string]interface{}{
-		"model":  "llama3.2",
-		"prompt": prompt,
-		"format": "json",
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(app.OllamaURL+"/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	result, err := runOllamaJSONGenerate(prompt)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
 
 	analysis := &MarketAnalysis{
 		ProductName: productName,
@@ -41,7 +28,6 @@ func (app *App) analyzeMarket(productName string) (*MarketAnalysis, error) {
 	}
 
 	if response, ok := result["response"].(string); ok {
-		// Parse the AI response
 		var aiAnalysis map[string]interface{}
 		if err := json.Unmarshal([]byte(response), &aiAnalysis); err == nil {
 			analysis.MarketSize = getString(aiAnalysis, "market_size")
@@ -53,9 +39,7 @@ func (app *App) analyzeMarket(productName string) (*MarketAnalysis, error) {
 		}
 	}
 
-	// Store in database
 	app.storeMarketAnalysis(analysis)
-
 	return analysis, nil
 }
 
@@ -70,21 +54,10 @@ func (app *App) analyzeCompetitor(competitorName string) (*CompetitorAnalysis, e
 	6. Market share estimate
 	Format as JSON.`, competitorName)
 
-	payload := map[string]interface{}{
-		"model":  "llama3.2",
-		"prompt": prompt,
-		"format": "json",
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(app.OllamaURL+"/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	result, err := runOllamaJSONGenerate(prompt)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
 
 	analysis := &CompetitorAnalysis{
 		CompetitorName: competitorName,
@@ -103,24 +76,20 @@ func (app *App) analyzeCompetitor(competitorName string) (*CompetitorAnalysis, e
 		}
 	}
 
-	// Store in database
 	app.storeCompetitorAnalysis(analysis)
-
 	return analysis, nil
 }
 
 // User feedback analysis
 func (app *App) analyzeFeedback(feedbackItems []FeedbackItem) (*FeedbackAnalysis, error) {
-	// Aggregate feedback for analysis
 	feedbackText := ""
 	for _, item := range feedbackItems {
 		feedbackText += item.Content + "\n"
 	}
 
-	// Sentiment analysis
 	sentimentPrompt := fmt.Sprintf(`Analyze the sentiment and key themes in this user feedback:
 	%s
-	
+
 	Provide:
 	1. Overall sentiment (positive/negative/neutral)
 	2. Sentiment score (0-100)
@@ -129,21 +98,10 @@ func (app *App) analyzeFeedback(feedbackItems []FeedbackItem) (*FeedbackAnalysis
 	5. Pain points
 	Format as JSON.`, feedbackText)
 
-	payload := map[string]interface{}{
-		"model":  "llama3.2",
-		"prompt": sentimentPrompt,
-		"format": "json",
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(app.OllamaURL+"/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	result, err := runOllamaJSONGenerate(sentimentPrompt)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
 
 	analysis := &FeedbackAnalysis{
 		TotalItems: len(feedbackItems),
@@ -166,37 +124,27 @@ func (app *App) analyzeFeedback(feedbackItems []FeedbackItem) (*FeedbackAnalysis
 
 // ROI calculation for features
 func (app *App) calculateROI(feature *Feature) (*ROICalculation, error) {
-	// Estimate revenue impact
-	revenueImpact := float64(feature.Reach) * float64(feature.Impact) * 10 // Simple formula
-
-	// Estimate cost
-	costEstimate := float64(feature.Effort) * 1000 // $1000 per effort point
-
-	// Calculate ROI
+	revenueImpact := float64(feature.Reach) * float64(feature.Impact) * 10
+	costEstimate := float64(feature.Effort) * 1000
 	roi := ((revenueImpact - costEstimate) / costEstimate) * 100
-
-	// Payback period in months
 	paybackPeriod := costEstimate / (revenueImpact / 12)
 
 	calculation := &ROICalculation{
-		FeatureID:      feature.ID,
-		RevenueImpact:  revenueImpact,
-		CostEstimate:   costEstimate,
-		ROI:            roi,
-		PaybackPeriod:  paybackPeriod,
-		CalculatedAt:   time.Now(),
-		Assumptions:    []string{"$10 per user impact", "$1000 per effort point"},
+		FeatureID:     feature.ID,
+		RevenueImpact: revenueImpact,
+		CostEstimate:  costEstimate,
+		ROI:           roi,
+		PaybackPeriod: paybackPeriod,
+		CalculatedAt:  time.Now(),
+		Assumptions:   []string{"$10 per user impact", "$1000 per effort point"},
 	}
 
-	// Store calculation
 	app.storeROICalculation(calculation)
-
 	return calculation, nil
 }
 
 // Decision tree analysis
 func (app *App) analyzeDecision(decision *Decision) (*DecisionAnalysis, error) {
-	// Build context for AI analysis
 	optionsText := ""
 	for _, opt := range decision.Options {
 		optionsText += fmt.Sprintf("- %s: %s\n", opt.Name, opt.Description)
@@ -206,7 +154,7 @@ func (app *App) analyzeDecision(decision *Decision) (*DecisionAnalysis, error) {
 	Decision: %s
 	Options:
 	%s
-	
+
 	For each option, provide:
 	1. Pros and cons
 	2. Risk level (low/medium/high)
@@ -216,21 +164,10 @@ func (app *App) analyzeDecision(decision *Decision) (*DecisionAnalysis, error) {
 	6. Recommendation score (0-100)
 	Format as JSON with an array of options.`, decision.Title, optionsText)
 
-	payload := map[string]interface{}{
-		"model":  "llama3.2",
-		"prompt": prompt,
-		"format": "json",
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(app.OllamaURL+"/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	result, err := runOllamaJSONGenerate(prompt)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
 
 	analysis := &DecisionAnalysis{
 		DecisionID: decision.ID,
@@ -259,13 +196,11 @@ func (app *App) analyzeDecision(decision *Decision) (*DecisionAnalysis, error) {
 	}
 
 	analysis.Options = decision.Options
-
 	return analysis, nil
 }
 
 // Sprint planning optimization
 func (app *App) optimizeSprint(capacity int, features []Feature) (*SprintPlan, error) {
-	// Sort features by RICE score
 	sortedFeatures := app.sortFeaturesByRICE(features)
 
 	plan := &SprintPlan{
@@ -276,22 +211,18 @@ func (app *App) optimizeSprint(capacity int, features []Feature) (*SprintPlan, e
 		EstimatedValue: 0,
 	}
 
-	// Greedy algorithm to fill sprint
 	for _, feature := range sortedFeatures {
 		if plan.TotalEffort+feature.Effort <= capacity {
 			plan.Features = append(plan.Features, feature)
 			plan.TotalEffort += feature.Effort
-			plan.EstimatedValue += feature.Score * 1000 // Convert score to value
+			plan.EstimatedValue += feature.Score * 1000
 		}
 	}
 
-	// Calculate velocity and risk
 	plan.Velocity = float64(plan.TotalEffort) / float64(len(plan.Features))
 	plan.RiskLevel = app.calculateSprintRisk(plan.Features)
 
-	// Store sprint plan
 	app.storeSprintPlan(plan)
-
 	return plan, nil
 }
 
@@ -338,12 +269,10 @@ func (app *App) calculateSprintRisk(features []Feature) string {
 }
 
 func (app *App) sortFeaturesByRICE(features []Feature) []Feature {
-	// Calculate RICE scores
 	for i := range features {
 		features[i].Score = app.calculateRICE(&features[i])
 	}
 
-	// Sort by score (bubble sort for simplicity)
 	for i := 0; i < len(features)-1; i++ {
 		for j := 0; j < len(features)-i-1; j++ {
 			if features[j].Score < features[j+1].Score {

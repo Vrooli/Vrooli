@@ -16,10 +16,10 @@ type CreateDownloadAppAdminFn = typeof createDownloadAppAdmin;
 type SaveDownloadAppAdminFn = typeof saveDownloadAppAdmin;
 type DeleteDownloadAppAdminFn = typeof deleteDownloadAppAdmin;
 
-const listDownloadAppsAdminMock = vi.fn<Parameters<ListDownloadAppsAdminFn>, ReturnType<ListDownloadAppsAdminFn>>();
-const createDownloadAppAdminMock = vi.fn<Parameters<CreateDownloadAppAdminFn>, ReturnType<CreateDownloadAppAdminFn>>();
-const saveDownloadAppAdminMock = vi.fn<Parameters<SaveDownloadAppAdminFn>, ReturnType<SaveDownloadAppAdminFn>>();
-const deleteDownloadAppAdminMock = vi.fn<Parameters<DeleteDownloadAppAdminFn>, ReturnType<DeleteDownloadAppAdminFn>>();
+const listDownloadAppsAdminMock = vi.fn<ListDownloadAppsAdminFn>();
+const createDownloadAppAdminMock = vi.fn<CreateDownloadAppAdminFn>();
+const saveDownloadAppAdminMock = vi.fn<SaveDownloadAppAdminFn>();
+const deleteDownloadAppAdminMock = vi.fn<DeleteDownloadAppAdminFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
@@ -142,6 +142,13 @@ describe('useDownloadsForm', () => {
 
       expect(result.current.error).toBe('Network error');
       expect(result.current.forms).toHaveLength(0);
+    });
+
+    it('uses a stable fallback when the app catalog rejects with a non-Error value', async () => {
+      listDownloadAppsAdminMock.mockRejectedValue('offline');
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      expect(result.current.error).toBe('Failed to load download apps');
     });
 
     it('sorts apps by display_order', async () => {
@@ -384,9 +391,24 @@ describe('useDownloadsForm', () => {
       expect(form0.error).toBe('Delete failed');
       expect(result.current.forms).toHaveLength(1);
     });
+
+    it('keeps an existing app editable after a non-Error delete failure', async () => {
+      deleteDownloadAppAdminMock.mockRejectedValue('network lost');
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      await act(async () => { await result.current.handleDelete('test-app'); });
+      expect(result.current.forms[0]).toMatchObject({ key: 'test-app', saving: false, error: 'Failed to delete app' });
+    });
   });
 
   describe('handleSave', () => {
+    it('ignores save requests for forms that no longer exist', async () => {
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      await act(async () => { await result.current.handleSave('missing-app'); });
+      expect(saveDownloadAppAdminMock).not.toHaveBeenCalled();
+      expect(createDownloadAppAdminMock).not.toHaveBeenCalled();
+    });
     it('saves existing app', async () => {
       const { result } = renderHook(() => useDownloadsForm());
 
@@ -485,6 +507,14 @@ describe('useDownloadsForm', () => {
       expect(form0.error).toBe('Save failed');
       expect(form0.saving).toBe(false);
     });
+
+    it('uses a safe error message when an API rejection is not an Error object', async () => {
+      saveDownloadAppAdminMock.mockRejectedValueOnce('offline');
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      await act(async () => { await result.current.handleSave('test-app'); });
+      expect(result.current.forms[0]?.error).toBe('Failed to save app');
+    });
   });
 
   describe('handleSaveAll', () => {
@@ -557,6 +587,21 @@ describe('useDownloadsForm', () => {
       assertDefined(form1, 'forms[1]');
       expect(form1.error).toBe('Second save failed');
     });
+
+    it('keeps a non-Error bulk-save rejection actionable without failing the other form', async () => {
+      listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp, mockApp2] });
+      saveDownloadAppAdminMock.mockResolvedValueOnce(mockApp).mockRejectedValueOnce('connection lost');
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      act(() => {
+        result.current.handleFieldChange('test-app', 'name', 'Saved');
+        result.current.handleFieldChange('test-app-2', 'name', 'Retry later');
+      });
+      await act(async () => { await result.current.handleSaveAll(); });
+      expect(result.current.forms[0]?.error).toBeUndefined();
+      expect(result.current.forms[1]).toMatchObject({ saving: false, error: 'Failed to save app' });
+      expect(result.current.savingAll).toBe(false);
+    });
   });
 
   describe('dirtyCount', () => {
@@ -602,6 +647,21 @@ describe('useDownloadsForm', () => {
   });
 
   describe('drag and drop', () => {
+    it('clears drag state without changing order for same or unknown drag sources', async () => {
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      const event = { dataTransfer: { getData: vi.fn(() => 'test-app'), effectAllowed: '', dropEffect: '', setData: vi.fn() }, preventDefault: vi.fn() } as unknown as React.DragEvent;
+      act(() => { result.current.handleDragStart('test-app')(event); });
+      act(() => { result.current.handleDrop('test-app')(event); });
+      expect(result.current.draggingKey).toBeNull();
+      expect(result.current.forms[0]?.values.appKey).toBe('test-app');
+      const unknownEvent = {
+        dataTransfer: { getData: vi.fn(() => 'unknown'), effectAllowed: '', dropEffect: '', setData: vi.fn() },
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent;
+      act(() => { result.current.handleDrop('test-app')(unknownEvent); });
+      expect(result.current.forms).toHaveLength(1);
+    });
     it('reorders forms on drop', async () => {
       listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp, mockApp2] });
 
@@ -676,6 +736,23 @@ describe('useDownloadsForm', () => {
       });
 
       expect(result.current.draggingKey).toBeNull();
+      expect(result.current.dragOverKey).toBeNull();
+    });
+
+    it('exposes a distinct drag-over target and clears it when the pointer leaves', async () => {
+      listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp, mockApp2] });
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      const preventDefault = vi.fn();
+      const event = {
+        dataTransfer: { effectAllowed: '', dropEffect: '', getData: vi.fn(), setData: vi.fn() },
+        preventDefault,
+      } as unknown as React.DragEvent;
+      act(() => { result.current.handleDragStart('test-app')(event); });
+      act(() => { result.current.handleDragOver('test-app-2')(event); });
+      expect(result.current.dragOverKey).toBe('test-app-2');
+      expect(preventDefault).toHaveBeenCalled();
+      act(() => { result.current.handleDragLeave(); });
       expect(result.current.dragOverKey).toBeNull();
     });
   });

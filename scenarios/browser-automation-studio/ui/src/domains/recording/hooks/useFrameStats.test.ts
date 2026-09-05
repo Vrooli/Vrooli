@@ -37,9 +37,9 @@ describe('useFrameStats', () => {
         result.current.recordFrame(3000);
       });
 
-      // Advance timer to trigger state update (updates every 250ms)
+      // Advance timer to trigger state update (updates every 1000ms)
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       expect(result.current.stats.totalFrames).toBe(3);
@@ -58,7 +58,7 @@ describe('useFrameStats', () => {
 
       // Advance timer to trigger state update
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       expect(result.current.stats.avgFrameSize).toBe(2000);
@@ -77,7 +77,7 @@ describe('useFrameStats', () => {
 
       // Advance to trigger state update
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(500);
       });
 
       // All 10 frames should be within the 1-second window
@@ -106,7 +106,7 @@ describe('useFrameStats', () => {
 
       // Trigger state update
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       // Only the last frame should be in the average (old ones pruned)
@@ -124,7 +124,7 @@ describe('useFrameStats', () => {
       act(() => {
         result.current.recordFrame(1000);
         result.current.recordFrame(2000);
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       // Reset
@@ -145,7 +145,7 @@ describe('useFrameStats', () => {
   });
 
   describe('batched updates', () => {
-    it('batches state updates to 250ms intervals', () => {
+    it('batches state updates to 1000ms intervals', () => {
       const { result } = renderHook(() => useFrameStats());
 
       // Record frames without advancing time
@@ -158,7 +158,7 @@ describe('useFrameStats', () => {
 
       // Advance past update interval
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       // Now stats should be updated

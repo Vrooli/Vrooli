@@ -9,22 +9,27 @@ import (
 	"sync"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" database/sql driver
 
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/api-core/database"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 const schema = `
 CREATE TABLE IF NOT EXISTS metrics (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	cycle_id TEXT NOT NULL,
 	collector_name TEXT NOT NULL,
 	metric_data TEXT NOT NULL,
-	timestamp DATETIME NOT NULL
+	observed_at DATETIME NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp);
+CREATE INDEX IF NOT EXISTS idx_metrics_observed_at ON metrics(observed_at);
 CREATE INDEX IF NOT EXISTS idx_metrics_collector ON metrics(collector_name);
+CREATE INDEX IF NOT EXISTS idx_metrics_cycle ON metrics(cycle_id, observed_at);
 
 CREATE TABLE IF NOT EXISTS investigations (
 	id TEXT PRIMARY KEY,
@@ -97,49 +102,115 @@ CREATE TABLE IF NOT EXISTS threshold_violations (
 	trend TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON threshold_violations(timestamp);
+
+-- Per-process samples (additive to the opaque metrics blob): one row per
+-- process per sampling cycle, the substrate for the attribution timeline.
+CREATE TABLE IF NOT EXISTS process_samples (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	ts DATETIME NOT NULL,
+	pid INTEGER NOT NULL,
+	ppid INTEGER NOT NULL,
+	comm TEXT NOT NULL,
+	cmdline TEXT,
+	cwd TEXT,
+	owner TEXT NOT NULL,
+	cpu_pct REAL NOT NULL,
+	cpu_seconds REAL NOT NULL DEFAULT 0,
+	cpu_seconds_status TEXT NOT NULL DEFAULT 'not_yet_sampled',
+	cpu_seconds_reason TEXT NOT NULL DEFAULT '',
+	rss_kb INTEGER NOT NULL,
+	threads INTEGER NOT NULL,
+	gpu_vram_mb REAL NOT NULL DEFAULT 0,
+	swap_kb INTEGER NOT NULL DEFAULT 0,
+	major_faults_per_second REAL NOT NULL DEFAULT 0,
+	metrics_status TEXT NOT NULL DEFAULT '',
+	metrics_reason TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_process_samples_ts ON process_samples(ts);
+CREATE INDEX IF NOT EXISTS idx_process_samples_owner_ts ON process_samples(owner, ts);
+
+-- Per-owner / per-minute rollups: raw rows older than the raw-retention window
+-- are downsampled here so longer windows stay cheap to query and store.
+CREATE TABLE IF NOT EXISTS process_sample_rollups (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	minute DATETIME NOT NULL,
+	owner TEXT NOT NULL,
+	comm TEXT NOT NULL,
+	avg_cpu_pct REAL NOT NULL,
+	max_cpu_pct REAL NOT NULL,
+	cpu_seconds REAL NOT NULL DEFAULT 0,
+	avg_rss_kb INTEGER NOT NULL,
+	max_rss_kb INTEGER NOT NULL,
+	avg_major_faults_per_second REAL NOT NULL DEFAULT 0,
+	max_major_faults_per_second REAL NOT NULL DEFAULT 0,
+	sample_count INTEGER NOT NULL,
+	UNIQUE(minute, owner, comm)
+);
+CREATE INDEX IF NOT EXISTS idx_process_rollups_minute ON process_sample_rollups(minute);
+CREATE INDEX IF NOT EXISTS idx_process_rollups_owner_minute ON process_sample_rollups(owner, minute);
 `
+
+// Schema returns the SQLite DDL owned by the system-monitor repository.
+func Schema() string {
+	return schema
+}
 
 // Repository implements repository.Repository backed by SQLite.
 type Repository struct {
-	db   *sql.DB
+	db   *database.RoutedDB
 	mu   sync.RWMutex // Serialize SQLite writes
 	thMu sync.RWMutex
 	th   map[string]*models.Threshold
-
-	stopCleanup chan struct{}
 }
 
 // NewRepository opens a SQLite database at dbPath and initializes the schema.
 func NewRepository(dbPath string) (*Repository, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	// Open via api-core/database so the connection gets retry-with-backoff and
+	// jitter (avoids thundering-herd on contended SQLite) instead of a bare
+	// sql.Open. MaxOpenConns=1 preserves the single-writer SQLite discipline.
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dbPath,
+		MaxOpenConns: 1,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	db.SetMaxOpenConns(1)
-
 	// SQLite pragmas for performance and correctness.
+	primary := db.Primary()
 	for _, pragma := range []string{
 		"PRAGMA journal_mode=WAL",
 		"PRAGMA busy_timeout=5000",
 		"PRAGMA synchronous=NORMAL",
 		"PRAGMA foreign_keys=ON",
 	} {
-		if _, err := db.Exec(pragma); err != nil {
+		if _, err := primary.Exec(pragma); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("pragma %s: %w", pragma, err)
 		}
 	}
 
-	if _, err := db.Exec(schema); err != nil {
+	providers := []database.SchemaProvider{database.SchemaProviderFunc(Schema)}
+	providers = append(providers, modules.AllSchemas()...)
+	if err := database.EnsureSchemas(context.Background(), primary, providers...); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
 	}
+	return NewRepositoryFromDB(db), nil
+}
 
+// NewRepositoryFromDB wraps an already-open routed database.
+func NewRepositoryFromDB(db *database.RoutedDB) *Repository {
 	return &Repository{
 		db: db,
 		th: make(map[string]*models.Threshold),
-	}, nil
+	}
+}
+
+// RoutedDB returns the routed database used by this repository.
+func (r *Repository) RoutedDB() *database.RoutedDB {
+	return r.db
 }
 
 // NewInMemoryRepository creates a SQLite repository using an in-memory database.
@@ -148,68 +219,52 @@ func NewInMemoryRepository() (*Repository, error) {
 	return NewRepository("file::memory:?cache=shared")
 }
 
-// Close closes the underlying database connection and stops any retention cleanup.
+// Close closes the underlying database connection.
 func (r *Repository) Close() error {
-	r.StopRetentionCleanup()
 	return r.db.Close()
-}
-
-// StartRetentionCleanup starts a background goroutine that periodically deletes
-// metrics older than maxAge.
-func (r *Repository) StartRetentionCleanup(interval, maxAge time.Duration) {
-	r.stopCleanup = make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				cutoff := time.Now().Add(-maxAge)
-				r.mu.Lock()
-				r.db.Exec("DELETE FROM metrics WHERE timestamp < ?", cutoff) //nolint:errcheck
-				r.mu.Unlock()
-			case <-r.stopCleanup:
-				return
-			}
-		}
-	}()
-}
-
-// StopRetentionCleanup stops the retention cleanup goroutine if running.
-func (r *Repository) StopRetentionCleanup() {
-	if r.stopCleanup != nil {
-		select {
-		case <-r.stopCleanup:
-			// Already closed.
-		default:
-			close(r.stopCleanup)
-		}
-	}
 }
 
 // ---------------------------------------------------------------------------
 // MetricsRepository
 // ---------------------------------------------------------------------------
 
-func (r *Repository) SaveMetrics(_ context.Context, collectorName string, metrics map[string]interface{}) error {
-	data, err := json.Marshal(metrics)
-	if err != nil {
-		return fmt.Errorf("marshal metrics: %w", err)
+func (r *Repository) SaveMetricCycle(ctx context.Context, cycleID string, observedAt time.Time, observations []repository.MetricObservation) error {
+	if cycleID == "" || observedAt.IsZero() {
+		return fmt.Errorf("cycle id and observation time are required")
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err = r.db.Exec(
-		"INSERT INTO metrics (collector_name, metric_data, timestamp) VALUES (?, ?, ?)",
-		collectorName, string(data), time.Now().UTC(),
-	)
-	return err
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	var exists int
+	if err := tx.QueryRowContext(ctx, "SELECT 1 FROM metrics WHERE cycle_id = ? LIMIT 1", cycleID).Scan(&exists); err == nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("metric cycle %q already exists", cycleID)
+	} else if err != sql.ErrNoRows {
+		_ = tx.Rollback()
+		return fmt.Errorf("check metric cycle: %w", err)
+	}
+	for _, observation := range observations {
+		data, err := json.Marshal(observation.Values)
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("marshal metrics: %w", err)
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO metrics (cycle_id, collector_name, metric_data, observed_at) VALUES (?, ?, ?, ?)", cycleID, observation.CollectorName, string(data), observedAt.UTC()); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
-func (r *Repository) GetMetrics(_ context.Context, filter repository.MetricsFilter) ([]*models.MetricsResponse, error) {
+func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFilter) ([]*models.MetricsResponse, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	query := "SELECT collector_name, metric_data, timestamp FROM metrics WHERE 1=1"
+	query := "SELECT cycle_id, collector_name, metric_data, observed_at FROM metrics WHERE 1=1"
 	args := []interface{}{}
 
 	if filter.CollectorName != "" {
@@ -217,23 +272,24 @@ func (r *Repository) GetMetrics(_ context.Context, filter repository.MetricsFilt
 		args = append(args, filter.CollectorName)
 	}
 	if !filter.TimeRange.StartTime.IsZero() {
-		query += " AND timestamp >= ?"
+		query += " AND observed_at >= ?"
 		args = append(args, filter.TimeRange.StartTime.UTC())
 	}
 	if !filter.TimeRange.EndTime.IsZero() {
-		query += " AND timestamp <= ?"
+		query += " AND observed_at <= ?"
 		args = append(args, filter.TimeRange.EndTime.UTC())
 	}
-	query += " ORDER BY timestamp ASC"
+	query += " ORDER BY observed_at ASC"
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	// Group by timestamp like the memory impl does.
+	// Group by explicit cycle identity, never by wall-clock coincidence.
 	type entry struct {
+		CycleID       string
 		CollectorName string
 		Values        map[string]interface{}
 		Timestamp     time.Time
@@ -242,7 +298,7 @@ func (r *Repository) GetMetrics(_ context.Context, filter repository.MetricsFilt
 	for rows.Next() {
 		var e entry
 		var data string
-		if err := rows.Scan(&e.CollectorName, &data, &e.Timestamp); err != nil {
+		if err := rows.Scan(&e.CycleID, &e.CollectorName, &data, &e.Timestamp); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(data), &e.Values); err != nil {
@@ -254,14 +310,18 @@ func (r *Repository) GetMetrics(_ context.Context, filter repository.MetricsFilt
 		return nil, err
 	}
 
-	metricsMap := make(map[time.Time]*models.MetricsResponse)
+	metricsMap := make(map[string]*models.MetricsResponse)
 	for _, e := range entries {
-		resp, exists := metricsMap[e.Timestamp]
-		if !exists {
-			resp = &models.MetricsResponse{Timestamp: e.Timestamp}
-			metricsMap[e.Timestamp] = resp
+		key := e.CycleID
+		if key == "" {
+			key = e.Timestamp.UTC().Format(time.RFC3339Nano)
 		}
-		hydrateMetricsResponse(resp, e.CollectorName, e.Values)
+		resp, exists := metricsMap[key]
+		if !exists {
+			resp = &models.MetricsResponse{CycleID: e.CycleID, Timestamp: e.Timestamp}
+			metricsMap[key] = resp
+		}
+		hydrateMetricsResponse(resp, e.CycleID, e.Timestamp, e.CollectorName, e.Values)
 	}
 
 	var results []*models.MetricsResponse
@@ -278,47 +338,56 @@ func (r *Repository) GetMetrics(_ context.Context, filter repository.MetricsFilt
 	return results, nil
 }
 
-func (r *Repository) GetLatestMetrics(_ context.Context) (*models.MetricsResponse, error) {
+func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsResponse, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	resp := &models.MetricsResponse{Timestamp: time.Now()}
+	resp := &models.MetricsResponse{}
+	seen := false
 
-	for _, collector := range []string{"cpu", "memory", "network", "gpu"} {
-		row := r.db.QueryRow(
-			"SELECT metric_data FROM metrics WHERE collector_name = ? ORDER BY timestamp DESC LIMIT 1",
+	for _, collector := range []string{"cpu", "memory", "network", "gpu", "disk"} {
+		row := r.db.QueryRowContext(ctx,
+			"SELECT cycle_id, observed_at, metric_data FROM metrics WHERE collector_name = ? ORDER BY observed_at DESC, id DESC LIMIT 1",
 			collector,
 		)
 		var data string
-		if err := row.Scan(&data); err != nil {
+		var cycleID string
+		var observedAt time.Time
+		if err := row.Scan(&cycleID, &observedAt, &data); err != nil {
 			continue // No data for this collector.
 		}
 		var values map[string]interface{}
 		if err := json.Unmarshal([]byte(data), &values); err != nil {
 			continue
 		}
-		hydrateMetricsResponse(resp, collector, values)
+		if !seen || observedAt.After(resp.Timestamp) {
+			resp.CycleID, resp.Timestamp, seen = cycleID, observedAt, true
+		}
+		hydrateMetricsResponse(resp, cycleID, observedAt, collector, values)
 	}
 
 	// Check if we got any data at all.
 	var count int
-	if err := r.db.QueryRow("SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
 		return nil, apierrors.NotFound("metrics", "latest")
+	}
+	if resp.Timestamp.IsZero() {
+		resp.Timestamp = time.Now().UTC()
 	}
 
 	return resp, nil
 }
 
-func (r *Repository) GetDetailedMetrics(_ context.Context, _ repository.TimeRange) (*models.DetailedMetrics, error) {
+func (r *Repository) GetDetailedMetrics(ctx context.Context, _ repository.TimeRange) (*models.DetailedMetrics, error) {
 	return &models.DetailedMetrics{Timestamp: time.Now()}, nil
 }
 
-func (r *Repository) GetHistoricalMetrics(_ context.Context, metricName string, timeRange repository.TimeRange) ([]repository.MetricDataPoint, error) {
+func (r *Repository) GetHistoricalMetrics(ctx context.Context, metricName string, timeRange repository.TimeRange) ([]repository.MetricDataPoint, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rows, err := r.db.Query(
-		"SELECT metric_data, timestamp FROM metrics WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC",
+	rows, err := r.db.QueryContext(ctx,
+		"SELECT metric_data, observed_at FROM metrics WHERE observed_at >= ? AND observed_at <= ? ORDER BY observed_at ASC",
 		timeRange.StartTime.UTC(), timeRange.EndTime.UTC(),
 	)
 	if err != nil {
@@ -347,7 +416,7 @@ func (r *Repository) GetHistoricalMetrics(_ context.Context, metricName string, 
 	return points, rows.Err()
 }
 
-func (r *Repository) GetAggregatedMetrics(_ context.Context, _ repository.AggregationQuery) (map[string]interface{}, error) {
+func (r *Repository) GetAggregatedMetrics(ctx context.Context, _ repository.AggregationQuery) (map[string]interface{}, error) {
 	return map[string]interface{}{
 		"average": 50.0,
 		"max":     95.0,
@@ -356,18 +425,18 @@ func (r *Repository) GetAggregatedMetrics(_ context.Context, _ repository.Aggreg
 	}, nil
 }
 
-func (r *Repository) GetEarliestMetricTime(_ context.Context) (time.Time, error) {
+func (r *Repository) GetEarliestMetricTime(ctx context.Context) (time.Time, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	// Check count first to distinguish empty table from parse issues.
 	var count int
-	if err := r.db.QueryRow("SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM metrics").Scan(&count); err != nil || count == 0 {
 		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}
 
 	var raw sql.NullString
-	err := r.db.QueryRow("SELECT MIN(timestamp) FROM metrics").Scan(&raw)
+	err := r.db.QueryRowContext(ctx, "SELECT MIN(observed_at) FROM metrics").Scan(&raw)
 	if err != nil || !raw.Valid || raw.String == "" {
 		return time.Time{}, apierrors.NotFound("metrics", "earliest")
 	}
@@ -382,13 +451,13 @@ func (r *Repository) GetEarliestMetricTime(_ context.Context) (time.Time, error)
 // InvestigationRepository
 // ---------------------------------------------------------------------------
 
-func (r *Repository) CreateInvestigation(_ context.Context, inv *models.Investigation) error {
+func (r *Repository) CreateInvestigation(ctx context.Context, inv *models.Investigation) error {
 	details, _ := json.Marshal(inv.Details)
 	steps, _ := json.Marshal(inv.Steps)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO investigations (id, status, anomaly_id, start_time, end_time, findings, progress, details, steps)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		inv.ID, inv.Status, inv.AnomalyID, inv.StartTime.UTC(), nullTime(inv.EndTime),
@@ -397,21 +466,21 @@ func (r *Repository) CreateInvestigation(_ context.Context, inv *models.Investig
 	return err
 }
 
-func (r *Repository) GetInvestigation(_ context.Context, id string) (*models.Investigation, error) {
+func (r *Repository) GetInvestigation(ctx context.Context, id string) (*models.Investigation, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.scanInvestigation(r.db.QueryRow(
+	return r.scanInvestigation(r.db.QueryRowContext(ctx,
 		"SELECT id, status, anomaly_id, start_time, end_time, findings, progress, details, steps FROM investigations WHERE id = ?", id,
 	))
 }
 
-func (r *Repository) UpdateInvestigation(_ context.Context, inv *models.Investigation) error {
+func (r *Repository) UpdateInvestigation(ctx context.Context, inv *models.Investigation) error {
 	details, _ := json.Marshal(inv.Details)
 	steps, _ := json.Marshal(inv.Steps)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE investigations SET status=?, anomaly_id=?, start_time=?, end_time=?, findings=?, progress=?, details=?, steps=?
 		 WHERE id=?`,
 		inv.Status, inv.AnomalyID, inv.StartTime.UTC(), nullTime(inv.EndTime),
@@ -420,7 +489,7 @@ func (r *Repository) UpdateInvestigation(_ context.Context, inv *models.Investig
 	return err
 }
 
-func (r *Repository) ListInvestigations(_ context.Context, filter repository.InvestigationFilter) ([]*models.Investigation, error) {
+func (r *Repository) ListInvestigations(ctx context.Context, filter repository.InvestigationFilter) ([]*models.Investigation, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -432,7 +501,7 @@ func (r *Repository) ListInvestigations(_ context.Context, filter repository.Inv
 	}
 	query += " ORDER BY start_time DESC"
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -449,20 +518,20 @@ func (r *Repository) ListInvestigations(_ context.Context, filter repository.Inv
 	return results, rows.Err()
 }
 
-func (r *Repository) GetLatestInvestigation(_ context.Context) (*models.Investigation, error) {
+func (r *Repository) GetLatestInvestigation(ctx context.Context) (*models.Investigation, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.scanInvestigation(r.db.QueryRow(
+	return r.scanInvestigation(r.db.QueryRowContext(ctx,
 		"SELECT id, status, anomaly_id, start_time, end_time, findings, progress, details, steps FROM investigations ORDER BY start_time DESC LIMIT 1",
 	))
 }
 
-func (r *Repository) SaveInvestigationStep(_ context.Context, investigationID string, step *models.InvestigationStep) error {
+func (r *Repository) SaveInvestigationStep(ctx context.Context, investigationID string, step *models.InvestigationStep) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	var stepsJSON string
-	err := r.db.QueryRow("SELECT steps FROM investigations WHERE id = ?", investigationID).Scan(&stepsJSON)
+	err := r.db.QueryRowContext(ctx, "SELECT steps FROM investigations WHERE id = ?", investigationID).Scan(&stepsJSON)
 	if err != nil {
 		return apierrors.NotFound("investigation", investigationID)
 	}
@@ -474,7 +543,7 @@ func (r *Repository) SaveInvestigationStep(_ context.Context, investigationID st
 	steps = append(steps, *step)
 
 	newSteps, _ := json.Marshal(steps)
-	_, err = r.db.Exec("UPDATE investigations SET steps = ? WHERE id = ?", string(newSteps), investigationID)
+	_, err = r.db.ExecContext(ctx, "UPDATE investigations SET steps = ? WHERE id = ?", string(newSteps), investigationID)
 	return err
 }
 
@@ -482,12 +551,12 @@ func (r *Repository) SaveInvestigationStep(_ context.Context, investigationID st
 // ReportRepository
 // ---------------------------------------------------------------------------
 
-func (r *Repository) CreateReport(_ context.Context, report *models.Report) error {
+func (r *Repository) CreateReport(ctx context.Context, report *models.Report) error {
 	data, _ := json.Marshal(report.Data)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO reports (id, type, generated_at, time_range_start, time_range_end, time_range_duration, data, format)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		report.ID, report.Type, report.GeneratedAt.UTC(),
@@ -497,13 +566,13 @@ func (r *Repository) CreateReport(_ context.Context, report *models.Report) erro
 	return err
 }
 
-func (r *Repository) GetReport(_ context.Context, id string) (*models.Report, error) {
+func (r *Repository) GetReport(ctx context.Context, id string) (*models.Report, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var report models.Report
 	var data string
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(ctx,
 		"SELECT id, type, generated_at, time_range_start, time_range_end, time_range_duration, data, format FROM reports WHERE id = ?", id,
 	).Scan(&report.ID, &report.Type, &report.GeneratedAt,
 		&report.TimeRange.StartTime, &report.TimeRange.EndTime, &report.TimeRange.Duration,
@@ -516,7 +585,7 @@ func (r *Repository) GetReport(_ context.Context, id string) (*models.Report, er
 	return &report, nil
 }
 
-func (r *Repository) ListReports(_ context.Context, filter repository.ReportFilter) ([]*models.Report, error) {
+func (r *Repository) ListReports(ctx context.Context, filter repository.ReportFilter) ([]*models.Report, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -528,7 +597,7 @@ func (r *Repository) ListReports(_ context.Context, filter repository.ReportFilt
 	}
 	query += " ORDER BY generated_at DESC"
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -587,24 +656,24 @@ func (r *Repository) GetDetailedReport(ctx context.Context, id string) (*models.
 	return nil, apierrors.NotFound("report", id)
 }
 
-func (r *Repository) SaveEnhancedReport(_ context.Context, report *models.EnhancedSystemReport) error {
+func (r *Repository) SaveEnhancedReport(ctx context.Context, report *models.EnhancedSystemReport) error {
 	data, _ := json.Marshal(report)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		"INSERT OR REPLACE INTO enhanced_reports (report_id, type, generated_at, report_data) VALUES (?, ?, ?, ?)",
 		report.ReportID, report.ReportType, report.GeneratedAt.UTC(), string(data),
 	)
 	return err
 }
 
-func (r *Repository) GetEnhancedReport(_ context.Context, id string) (*models.EnhancedSystemReport, error) {
+func (r *Repository) GetEnhancedReport(ctx context.Context, id string) (*models.EnhancedSystemReport, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var data string
-	err := r.db.QueryRow("SELECT report_data FROM enhanced_reports WHERE report_id = ?", id).Scan(&data)
+	err := r.db.QueryRowContext(ctx, "SELECT report_data FROM enhanced_reports WHERE report_id = ?", id).Scan(&data)
 	if err != nil {
 		return nil, apierrors.NotFound("report", id)
 	}
@@ -616,11 +685,11 @@ func (r *Repository) GetEnhancedReport(_ context.Context, id string) (*models.En
 	return &report, nil
 }
 
-func (r *Repository) ListEnhancedReports(_ context.Context) ([]*models.EnhancedSystemReport, error) {
+func (r *Repository) ListEnhancedReports(ctx context.Context) ([]*models.EnhancedSystemReport, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rows, err := r.db.Query("SELECT report_data FROM enhanced_reports ORDER BY generated_at DESC")
+	rows, err := r.db.QueryContext(ctx, "SELECT report_data FROM enhanced_reports ORDER BY generated_at DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -645,7 +714,7 @@ func (r *Repository) ListEnhancedReports(_ context.Context) ([]*models.EnhancedS
 // ThresholdRepository (in-memory)
 // ---------------------------------------------------------------------------
 
-func (r *Repository) GetActiveThresholds(_ context.Context) ([]*models.Threshold, error) {
+func (r *Repository) GetActiveThresholds(ctx context.Context) ([]*models.Threshold, error) {
 	r.thMu.RLock()
 	defer r.thMu.RUnlock()
 
@@ -657,32 +726,13 @@ func (r *Repository) GetActiveThresholds(_ context.Context) ([]*models.Threshold
 	}
 
 	if len(results) == 0 {
-		results = []*models.Threshold{
-			{
-				MetricName:        "cpu_usage",
-				Min:               0,
-				Max:               100,
-				WarningThreshold:  80,
-				CriticalThreshold: 95,
-				CheckInterval:     60,
-				Enabled:           true,
-			},
-			{
-				MetricName:        "memory_usage",
-				Min:               0,
-				Max:               100,
-				WarningThreshold:  85,
-				CriticalThreshold: 95,
-				CheckInterval:     60,
-				Enabled:           true,
-			},
-		}
+		results = repository.DefaultThresholds()
 	}
 
 	return results, nil
 }
 
-func (r *Repository) GetThreshold(_ context.Context, metricName string) (*models.Threshold, error) {
+func (r *Repository) GetThreshold(ctx context.Context, metricName string) (*models.Threshold, error) {
 	r.thMu.RLock()
 	defer r.thMu.RUnlock()
 
@@ -692,7 +742,7 @@ func (r *Repository) GetThreshold(_ context.Context, metricName string) (*models
 	return nil, apierrors.NotFound("threshold", metricName)
 }
 
-func (r *Repository) SaveThreshold(_ context.Context, threshold *models.Threshold) error {
+func (r *Repository) SaveThreshold(ctx context.Context, threshold *models.Threshold) error {
 	r.thMu.Lock()
 	defer r.thMu.Unlock()
 
@@ -700,7 +750,7 @@ func (r *Repository) SaveThreshold(_ context.Context, threshold *models.Threshol
 	return nil
 }
 
-func (r *Repository) DeleteThreshold(_ context.Context, metricName string) error {
+func (r *Repository) DeleteThreshold(ctx context.Context, metricName string) error {
 	r.thMu.Lock()
 	defer r.thMu.Unlock()
 
@@ -708,11 +758,11 @@ func (r *Repository) DeleteThreshold(_ context.Context, metricName string) error
 	return nil
 }
 
-func (r *Repository) SaveThresholdViolation(_ context.Context, violation *models.ThresholdViolation) error {
+func (r *Repository) SaveThresholdViolation(ctx context.Context, violation *models.ThresholdViolation) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO threshold_violations (metric_name, current_value, threshold_value, severity, violation_type, timestamp, duration, previous_value, trend)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		violation.MetricName, violation.CurrentValue, violation.ThresholdValue,
@@ -722,11 +772,11 @@ func (r *Repository) SaveThresholdViolation(_ context.Context, violation *models
 	return err
 }
 
-func (r *Repository) GetThresholdViolations(_ context.Context, timeRange repository.TimeRange) ([]*models.ThresholdViolation, error) {
+func (r *Repository) GetThresholdViolations(ctx context.Context, timeRange repository.TimeRange) ([]*models.ThresholdViolation, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT metric_name, current_value, threshold_value, severity, violation_type, timestamp, duration, previous_value, trend
 		 FROM threshold_violations WHERE timestamp > ? AND timestamp < ? ORDER BY timestamp ASC`,
 		timeRange.StartTime.UTC(), timeRange.EndTime.UTC(),
@@ -754,13 +804,13 @@ func (r *Repository) GetThresholdViolations(_ context.Context, timeRange reposit
 // AlertRepository
 // ---------------------------------------------------------------------------
 
-func (r *Repository) CreateAlert(_ context.Context, alert *models.Alert) error {
+func (r *Repository) CreateAlert(ctx context.Context, alert *models.Alert) error {
 	threshold, _ := json.Marshal(alert.Threshold)
 	details, _ := json.Marshal(alert.Details)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO alerts (id, type, severity, message, metric_name, metric_value, threshold, details, timestamp, acked_at, resolved_at, acked_by)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		alert.ID, alert.Type, alert.Severity, alert.Message,
@@ -770,14 +820,14 @@ func (r *Repository) CreateAlert(_ context.Context, alert *models.Alert) error {
 	return err
 }
 
-func (r *Repository) GetAlert(_ context.Context, id string) (*models.Alert, error) {
+func (r *Repository) GetAlert(ctx context.Context, id string) (*models.Alert, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var alert models.Alert
 	var threshold, details string
 	var ackedAt, resolvedAt sql.NullTime
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(ctx,
 		"SELECT id, type, severity, message, metric_name, metric_value, threshold, details, timestamp, acked_at, resolved_at, acked_by FROM alerts WHERE id = ?", id,
 	).Scan(&alert.ID, &alert.Type, &alert.Severity, &alert.Message,
 		&alert.MetricName, &alert.MetricValue, &threshold, &details,
@@ -811,7 +861,7 @@ func (r *Repository) UpdateAlert(ctx context.Context, alert *models.Alert) error
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	_, err := r.db.Exec(
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE alerts SET type=?, severity=?, message=?, metric_name=?, metric_value=?, threshold=?, details=?, timestamp=?, acked_at=?, resolved_at=?, acked_by=?
 		 WHERE id=?`,
 		alert.Type, alert.Severity, alert.Message,
@@ -822,7 +872,7 @@ func (r *Repository) UpdateAlert(ctx context.Context, alert *models.Alert) error
 	return err
 }
 
-func (r *Repository) ListAlerts(_ context.Context, filter repository.AlertFilter) ([]*models.Alert, error) {
+func (r *Repository) ListAlerts(ctx context.Context, filter repository.AlertFilter) ([]*models.Alert, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -838,7 +888,7 @@ func (r *Repository) ListAlerts(_ context.Context, filter repository.AlertFilter
 	}
 	query += " ORDER BY timestamp DESC"
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -855,11 +905,11 @@ func (r *Repository) ListAlerts(_ context.Context, filter repository.AlertFilter
 	return results, rows.Err()
 }
 
-func (r *Repository) AcknowledgeAlert(_ context.Context, id string, ackedBy string) error {
+func (r *Repository) AcknowledgeAlert(ctx context.Context, id string, ackedBy string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	res, err := r.db.Exec("UPDATE alerts SET acked_at = ?, acked_by = ? WHERE id = ?",
+	res, err := r.db.ExecContext(ctx, "UPDATE alerts SET acked_at = ?, acked_by = ? WHERE id = ?",
 		time.Now().UTC(), ackedBy, id,
 	)
 	if err != nil {
@@ -872,11 +922,11 @@ func (r *Repository) AcknowledgeAlert(_ context.Context, id string, ackedBy stri
 	return nil
 }
 
-func (r *Repository) ResolveAlert(_ context.Context, id string) error {
+func (r *Repository) ResolveAlert(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	res, err := r.db.Exec("UPDATE alerts SET resolved_at = ? WHERE id = ?",
+	res, err := r.db.ExecContext(ctx, "UPDATE alerts SET resolved_at = ? WHERE id = ?",
 		time.Now().UTC(), id,
 	)
 	if err != nil {
@@ -889,11 +939,11 @@ func (r *Repository) ResolveAlert(_ context.Context, id string) error {
 	return nil
 }
 
-func (r *Repository) GetActiveAlerts(_ context.Context) ([]*models.Alert, error) {
+func (r *Repository) GetActiveAlerts(ctx context.Context) ([]*models.Alert, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rows, err := r.db.Query(
+	rows, err := r.db.QueryContext(ctx,
 		"SELECT id, type, severity, message, metric_name, metric_value, threshold, details, timestamp, acked_at, resolved_at, acked_by FROM alerts WHERE resolved_at IS NULL ORDER BY timestamp DESC",
 	)
 	if err != nil {
@@ -932,26 +982,186 @@ func parseTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unparseable time: %s", s)
 }
 
-func hydrateMetricsResponse(resp *models.MetricsResponse, collector string, values map[string]interface{}) {
+func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observedAt time.Time, collector string, values map[string]interface{}) {
+	state := storedMetricState(cycleID, observedAt, collector, values)
 	switch collector {
 	case "cpu":
+		resp.CPUState = state
 		if cpu, ok := values["usage_percent"].(float64); ok {
 			resp.CPUUsage = cpu
 		}
+		resp.CPUContextSwitchesPerSecond = cpuMetricState(cycleID, observedAt, values, "context_switches_per_second")
+		resp.CPUInterruptsPerSecond = cpuMetricState(cycleID, observedAt, values, "interrupts_per_second")
+		resp.CPUNormalizedLoad1 = cpuMetricState(cycleID, observedAt, values, "normalized_load_1")
+		resp.CPUNormalizedLoad5 = cpuMetricState(cycleID, observedAt, values, "normalized_load_5")
+		resp.CPURunQueueDepth = cpuMetricState(cycleID, observedAt, values, "run_queue_depth")
+		resp.CPUCoreImbalanceIndex = cpuMetricState(cycleID, observedAt, values, "core_imbalance_index")
+		resp.CPUModeIowait = cpuModeMetricState(cycleID, observedAt, values, "iowait")
+		resp.CPUModeSteal = cpuModeMetricState(cycleID, observedAt, values, "steal")
 	case "memory":
+		resp.MemoryState = state
 		if mem, ok := values["usage_percent"].(float64); ok {
 			resp.MemoryUsage = mem
 		}
+		// Swap rides along in the memory collector's payload. It is projected
+		// as its own series because memory utilisation can read healthy while
+		// swap fills, and a single memory line cannot show that divergence.
+		if swap, ok := values["swap"].(map[string]interface{}); ok {
+			if percent, ok := swap["percent"].(float64); ok {
+				v := percent
+				resp.SwapUsage = &v
+				swapState := state
+				// The copied state carries the memory reading; swap must
+				// overwrite it or every consumer that reads MetricState.Value
+				// (the typed MetricValue the UI plots) shows memory twice.
+				swapState.Value = percent
+				swapState.Provenance = "system-monitor/memory.swap"
+				swapState.Units = "percent"
+				resp.SwapState = swapState
+			}
+		}
 	case "network":
+		resp.ConnectionsState = state
 		if tcp, ok := values["tcp_connections"].(float64); ok {
 			resp.TCPConnections = int(tcp)
 		}
 	case "gpu":
+		resp.GPUState = state
 		if usage, ok := values["total_usage_percent"].(float64); ok {
 			v := usage
 			resp.GPUUsage = &v
 		}
+	case "disk":
+		resp.DiskState = state
+		if usage, ok := values["usage"].(map[string]interface{}); ok {
+			if percent, ok := usage["percent"].(float64); ok {
+				resp.DiskUsage = percent
+			}
+		}
+	case "pressure":
+		resp.CPUStallSomeAvg10 = pressureMetricState(cycleID, observedAt, collector, values, "cpu_psi_some_avg10", "cpu_psi_status", "cpu_psi_reason")
+		resp.CPUStallFullAvg10 = pressureMetricState(cycleID, observedAt, collector, values, "cpu_psi_full_avg10", "cpu_psi_status", "cpu_psi_reason")
+		resp.SwapTrafficState = pressureMetricState(cycleID, observedAt, collector, values, "swap_traffic_pages_per_second", "swap_traffic_rate_status", "swap_traffic_rate_reason")
+		resp.MajorFaultsState = pressureMetricState(cycleID, observedAt, collector, values, "pgmajfault_per_second", "pgmajfault_rate_status", "pgmajfault_rate_reason")
+		resp.FragmentationIndexState = pressureMetricState(cycleID, observedAt, collector, values, "fragmentation_max_free_order", "fragmentation_status", "fragmentation_reason")
 	}
+}
+
+func cpuMetricState(cycleID string, observedAt time.Time, values map[string]interface{}, key string) models.MetricState {
+	return pressureMetricState(cycleID, observedAt, "cpu", values, key, key+"_status", key+"_reason")
+}
+
+func cpuModeMetricState(cycleID string, observedAt time.Time, values map[string]interface{}, mode string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "CPU mode breakdown has not been sampled", CycleID: cycleID, ObservedAt: observedAt, Provenance: "system-monitor/cpu", Units: "percent"}
+	raw, ok := values["mode_breakdown"].(map[string]interface{})
+	if !ok {
+		if typed, typedOK := values["mode_breakdown"].(map[string]float64); typedOK {
+			if value, exists := typed[mode]; exists {
+				state.Status, state.Value, state.Reason = "measured", value, ""
+				return state
+			}
+		}
+		return state
+	}
+	if value, exists := raw[mode].(float64); exists {
+		state.Status, state.Value, state.Reason = "measured", value, ""
+		return state
+	}
+	return state
+}
+
+func pressureMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}, valueKey, statusKey, reasonKey string) models.MetricState {
+	if _, hasSignalStatus := values[valueKey+"_status"]; hasSignalStatus {
+		statusKey = valueKey + "_status"
+		reasonKey = valueKey + "_reason"
+	}
+	state := models.MetricState{Status: "not_yet_sampled", CycleID: cycleID, ObservedAt: observedAt, Provenance: "system-monitor/" + collector}
+	if status, ok := values[statusKey].(string); ok && status != "" {
+		state.Status = status
+	}
+	if reason, ok := values[reasonKey].(string); ok {
+		state.Reason = reason
+	}
+	if value, ok := values[valueKey].(float64); ok {
+		state.Status, state.Value = "measured", value
+		state.Reason = ""
+	}
+	if state.Status == "unsupported" && state.Reason == "" {
+		state.Reason = "metric unsupported on this platform"
+	}
+	if state.Status == "not_yet_sampled" && state.Reason == "" {
+		state.Reason = "rate has not been sampled"
+	}
+	return state
+}
+
+func storedMetricState(cycleID string, observedAt time.Time, collector string, values map[string]interface{}) models.MetricState {
+	state := models.MetricState{
+		Status:     "failed",
+		Reason:     "collector did not return a measurement",
+		Provenance: "system-monitor/" + collector,
+		Units:      sqliteMetricUnits(collector),
+		CycleID:    cycleID,
+		ObservedAt: observedAt,
+	}
+	if status, _ := values["status"].(string); status != "" {
+		state.Status = status
+	}
+	if reason, _ := values["reason"].(string); reason != "" {
+		state.Reason = reason
+	}
+	if source, _ := values["source"].(string); source != "" {
+		state.Provenance = source
+	}
+	if _, explicitStatus := values["status"].(string); !explicitStatus {
+		measured := false
+		switch collector {
+		case "cpu", "memory":
+			_, measured = values["usage_percent"].(float64)
+		case "network":
+			_, measured = values["tcp_connections"].(float64)
+		case "gpu":
+			_, measured = values["total_usage_percent"].(float64)
+		case "disk":
+			usage, ok := values["usage"].(map[string]interface{})
+			if ok {
+				_, measured = usage["percent"].(float64)
+			}
+		}
+		if measured {
+			state.Status = "measured"
+		}
+	}
+	if state.Status == "" {
+		state.Status = "failed"
+	}
+	if state.Status == "measured" {
+		state.Reason = ""
+		switch collector {
+		case "cpu", "memory":
+			state.Value, _ = values["usage_percent"].(float64)
+		case "network":
+			if value, ok := values["tcp_connections"].(float64); ok {
+				state.Value = value
+			} else if value, ok := values["tcp_connections"].(int); ok {
+				state.Value = float64(value)
+			}
+		case "gpu":
+			state.Value, _ = values["total_usage_percent"].(float64)
+		case "disk":
+			if usage, ok := values["usage"].(map[string]interface{}); ok {
+				state.Value, _ = usage["percent"].(float64)
+			}
+		}
+	}
+	return state
+}
+
+func sqliteMetricUnits(collector string) string {
+	if collector == "network" {
+		return "count"
+	}
+	return "percent"
 }
 
 func nullTime(t *time.Time) interface{} {

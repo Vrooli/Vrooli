@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-scroll-lock",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "2.0.0",
+  "libraryId": "react-component-library:useScrollLock"
+}

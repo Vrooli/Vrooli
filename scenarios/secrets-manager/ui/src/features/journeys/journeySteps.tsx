@@ -5,8 +5,8 @@ export type JourneyId = "orientation" | "configure-secrets" | "fix-vulnerabiliti
 
 interface JourneyStepOptions {
   heroStats?: {
-    vault_configured: number;
-    vault_total: number;
+    credential_configured: number;
+    credential_total: number;
     missing_secrets: number;
     risk_score: number;
   };
@@ -127,7 +127,7 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
                   <ShieldCheck className="h-4 w-4 text-emerald-300" />
                   <p className="text-white/60">Overall Score</p>
                 </div>
-                <p className="text-2xl font-semibold text-white">{heroStats?.vault_configured ?? 0}%</p>
+                <p className="text-2xl font-semibold text-white">{heroStats?.credential_configured ?? 0}%</p>
                 <p className="text-[11px] text-white/50">
                   % of resources with all required secrets configured. &lt;80% → start Configure Secrets now.
                 </p>
@@ -149,12 +149,12 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
                 </div>
                 <p className="text-2xl font-semibold text-white">{heroStats?.missing_secrets ?? 0}</p>
                 <p className="text-[11px] text-white/50">
-                  Required secrets not present in Vault. &gt;0 blocks services from starting.
+                  Required credentials not present in the authority. &gt;0 blocks services from starting.
                 </p>
               </div>
             </div>
             <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/50">
-              {heroStats?.vault_configured ?? 0} of {heroStats?.vault_total ?? 0} resources configured
+              {heroStats?.credential_configured ?? 0} of {heroStats?.credential_total ?? 0} resources configured
             </div>
           </div>
         </div>
@@ -213,7 +213,7 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
                 <span className="text-white/60">Configured</span>
               </div>
-              <p className="text-2xl font-semibold text-white">{heroStats?.vault_configured ?? 0}</p>
+              <p className="text-2xl font-semibold text-white">{heroStats?.credential_configured ?? 0}</p>
               <p className="text-[11px] text-white/50">Resources fully configured. Aim for = total tracked.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -230,8 +230,8 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
                 <span className="text-white/60">Coverage ratio</span>
               </div>
               <p className="text-2xl font-semibold text-white">
-                {heroStats && heroStats.vault_total > 0
-                  ? Math.round((heroStats.vault_configured / heroStats.vault_total) * 100)
+                {heroStats && heroStats.credential_total > 0
+                  ? Math.round((heroStats.credential_configured / heroStats.credential_total) * 100)
                   : 0}
                 %
               </p>
@@ -345,8 +345,8 @@ export const buildJourneySteps = (journeyId: JourneyId | null, options: JourneyS
       description: "Check the compliance summary cards first.",
       content: (
         <div className="space-y-2 text-sm text-white/70">
-          <p>Open the <strong className="text-white">Compliance</strong> tab and look at the overall score and vault health.</p>
-          <p className="text-xs text-white/60">If vault health is low, fix missing secrets before tackling code findings.</p>
+          <p>Open the <strong className="text-white">Compliance</strong> tab and look at the overall score and credential coverage.</p>
+          <p className="text-xs text-white/60">If credential coverage is low, fix missing credentials before tackling code findings.</p>
           <Button size="sm" onClick={() => onNavigateTab?.("compliance")}>
             Jump to compliance overview
           </Button>

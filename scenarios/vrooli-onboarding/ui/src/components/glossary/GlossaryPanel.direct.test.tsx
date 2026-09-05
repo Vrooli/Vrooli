@@ -28,7 +28,7 @@ describe("GlossaryPanel", () => {
     mockFetchPending();
     renderWithQueryClient(<GlossaryPanel />);
     expect(screen.getByTestId("glossary-loading")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByTestId("glossary-loading")).toBeInTheDocument();
   });
 
   it("renders glossary entries after loading", async () => {

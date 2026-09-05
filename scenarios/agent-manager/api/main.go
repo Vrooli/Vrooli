@@ -2,633 +2,379 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/recommendation"
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/database"
+	capabilities "agent-manager/internal/capabilities"
 	agentconfig "agent-manager/internal/config"
-	"agent-manager/internal/database"
-	"agent-manager/internal/domain"
+	"agent-manager/internal/conversationsearch"
+	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
-	"agent-manager/internal/identity"
-	"agent-manager/internal/metrics"
-	"agent-manager/internal/modelregistry"
+	healthstore "agent-manager/internal/health"
+	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/pricing"
-	"agent-manager/internal/pricing/providers"
-	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
-	"agent-manager/internal/toolexecution"
-	"agent-manager/internal/toolregistry"
+	"agent-manager/internal/supervision"
+	"agent-manager/internal/wiring"
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/apihttp"
+	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	corestorage "github.com/vrooli/api-core/storage"
+	searchregister "github.com/vrooli/searchregister-go"
 )
 
-// Config holds runtime configuration
-type Config struct {
-	Port string
+type searchControlTokens struct {
+	mu     sync.RWMutex
+	tokens map[string]string
 }
 
-// Server wires the HTTP router, database, and orchestration service
-type Server struct {
-	config               *Config
-	db                   *database.DB
-	logger               *logrus.Logger
-	router               *mux.Router
-	orchestrator         orchestration.Service
-	statsService         orchestration.StatsService
-	statsRepo            repository.StatsRepository
-	pricingService       pricing.Service
-	wsHub                *handlers.WebSocketHub
-	reconciler           *orchestration.Reconciler
-	recommendationWorker *orchestration.RecommendationWorker
-	toolRegistry         *toolregistry.Registry
-	storage              storage.Service
+func newSearchControlTokens() *searchControlTokens {
+	return &searchControlTokens{tokens: make(map[string]string)}
 }
 
-// NewServer initializes configuration, database, and routes
-func NewServer() (*Server, error) {
-	// Initialize structured logger
-	logger := logrus.New()
-	logger.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-	})
-
-	cfg := &Config{}
-
-	// Database connection - SQLite is required, failure is fatal
-	db, err := database.NewConnection(logger)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+func (h *searchControlTokens) set(providerID, token string) {
+	if h == nil || strings.TrimSpace(providerID) == "" || strings.TrimSpace(token) == "" {
+		return
 	}
+	h.mu.Lock()
+	h.tokens[providerID] = token
+	h.mu.Unlock()
+}
 
-	// Create WebSocket hub for real-time event broadcasting (needed by orchestrator)
+func (h *searchControlTokens) get(providerID string) string {
+	if h == nil {
+		return ""
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.tokens[providerID]
+}
+
+// Server owns lifecycle sequencing around the wiring-owned service graph.
+type Server struct {
+	capabilityRegistry     *capabilities.Registry
+	db                     *database.DB
+	fileRoots              *filerouting.RoutedRoots
+	router                 *mux.Router
+	orchestrator           *orchestration.Orchestrator
+	statsService           orchestration.StatsService
+	statsRepo              repository.StatsRepository
+	pricingService         pricing.Service
+	pricingRepository      pricing.Repository
+	wsHub                  *handlers.WebSocketHub
+	reconciler             *orchestration.Reconciler
+	awaitRegistry          *orchestration.AwaitRegistry
+	workflowNudger         *orchestration.WorkflowNudger
+	transcriptImporter     *orchestration.TranscriptImportScheduler
+	frictionPublisher      *orchestration.FrictionPublishScheduler
+	modelHealthProbe       *healthstore.Probe
+	modelPolicyDrift       *modelpolicydrift.Scheduler
+	rolePolicyState        *rolepolicy.State
+	permissionPolicyState  *permissionpolicy.State
+	permissionPolicy       *permissionpolicy.Service
+	storage                storage.Service
+	statsEngine            *stats.Engine
+	healthStore            *healthstore.Store
+	eventRepo              eventlog.Repository
+	supervisionService     *supervision.Service
+	supervisionScheduler   *supervision.Scheduler
+	watchActionAuthorizer  handlers.WatchActionAuthorizer
+	invocationReadModel    invocationreadmodel.Store
+	conversationSearch     *conversationsearch.Service
+	conversationSemantic   *conversationsearch.SemanticRuntime
+	conversationIndexer    *conversationsearch.Indexer
+	conversationSearchFile string
+	conversationTokens     *searchControlTokens
+	searchRegistrationStop context.CancelFunc
+	workspaceSandbox       interface {
+		IsAvailable(context.Context) (bool, string)
+	}
+}
+
+// databaseConfigFromLevers keeps the production pool aligned with Agent
+// Manager's governed storage settings. SQLite runs in WAL mode, so retaining
+// more than one connection lets conversation reads proceed while incremental
+// projection publication holds the writer connection.
+func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) coredb.Config {
+	return coredb.Config{
+		Driver:          coredb.DriverSQLite,
+		DSN:             dsn,
+		MaxOpenConns:    storage.MaxOpenConns,
+		MaxIdleConns:    storage.MaxIdleConns,
+		ConnMaxLifetime: storage.ConnMaxLifetime,
+	}
+}
+
+// NewServer builds the graph, then starts durable recovery in dependency order.
+func NewServer() (*Server, error) {
+	levers, leversErr := agentconfig.LoadLevers()
+	if levers == nil {
+		defaults := agentconfig.DefaultLevers()
+		levers = &defaults
+	}
+	obs.Init(levers.Observability.LogFormat, levers.Observability.LogLevel)
+	if leversErr != nil {
+		obs.Logger().Warn("config levers failed to load; using defaults", obs.KeyError, leversErr.Error())
+	}
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return nil, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := corestorage.ScenarioNamespace("agent-manager")
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario storage namespace: %w", err)
+	}
+	storagePaths, err := resolver.Resolve(corestorage.Options{ScenarioID: scenarioID})
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(storagePaths)
+	dsn, err := database.SQLiteDSN(logger)
+	if err != nil {
+		return nil, fmt.Errorf("resolve database configuration: %w", err)
+	}
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer dbCancel()
+	databaseConfig := databaseConfigFromLevers(dsn, levers.Storage)
+	databaseConfig.Logger = logger.Printf
+	routedDB, err := coredb.Open(dbCtx, databaseConfig)
+	if err != nil {
+		return nil, fmt.Errorf("connect database: %w", err)
+	}
+	db := database.NewRoutedDB(routedDB, logger)
+	if err := db.InitializeSchema(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize database schema: %w", err)
+	}
+	routedDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.NewDB(sqlx.NewDb(pool, "sqlite"), logger).InitializeSchema()
+	})
+	cursorKey := make([]byte, 32)
+	if _, err := rand.Read(cursorKey); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation search cursor signer: %w", err)
+	}
+	conversationRepository := conversationsearch.NewSQLiteRepository(db)
+	conversationSource, err := conversationsearch.NewSQLiteSource(db, conversationsearch.MustNormalizer(conversationsearch.NormalizerConfig{}))
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation search source: %w", err)
+	}
+	repoRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
+	if repoRoot == "" {
+		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	semanticCtx, semanticCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	conversationSearchFile := filepath.Join(repoRoot, "scenarios", "agent-manager", ".vrooli", "search.json")
+	semanticRuntime, semanticConfigErr := conversationsearch.BuildSemanticRuntime(semanticCtx, conversationsearch.SemanticRuntimeOptions{
+		SearchFilePath: conversationSearchFile,
+		Source:         conversationSource, Projection: conversationRepository,
+	})
+	semanticCancel()
+	if semanticConfigErr != nil {
+		logger.Printf("conversation search semantic configuration invalid; lexical API remains available: %v", semanticConfigErr)
+	} else if semanticRuntime.InitializationError != nil {
+		logger.Printf("conversation search semantic resources degraded; lexical API remains available: %v", semanticRuntime.InitializationError)
+	}
+	var searchOptions []conversationsearch.ServiceOption
+	if semanticRuntime.Retriever != nil {
+		searchOptions = append(searchOptions, conversationsearch.WithSemanticRetriever(semanticRuntime.Retriever))
+	}
+	conversationSearch, err := conversationsearch.NewService(conversationRepository, conversationRepository, conversationRepository, cursorKey, searchOptions...)
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation search: %w", err)
+	}
+	conversationIndexer, err := conversationsearch.NewIndexer(conversationsearch.IndexerOptions{Source: conversationSource, Repository: conversationRepository, Semantic: &semanticRuntime})
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("initialize conversation indexer: %w", err)
+	}
 	wsHub := handlers.NewWebSocketHub()
+	conversationTokens := newSearchControlTokens()
+	conversationTokens.set(conversationsearch.ConversationSearchProviderID, strings.TrimSpace(os.Getenv("AGENT_MANAGER_SEARCH_CONTROL_TOKEN")))
 	go wsHub.Run()
-
-	// Create upload storage service
 	uploadDir := os.Getenv("UPLOAD_DIR")
 	if uploadDir == "" {
 		uploadDir = "/tmp/agent-manager-uploads"
 	}
 	uploadStorage := storage.NewLocalService(uploadDir)
-
-	// Create the orchestrator with appropriate repositories and broadcaster
-	deps := createOrchestrator(db, wsHub, logger, uploadStorage)
-
-	// Create tool registry for tool discovery protocol
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "agent-manager",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Manages coding agents for software engineering tasks. Supports Claude Code, Codex, and OpenCode runners with sandboxed execution and approval workflows.",
+	deps, err := wiring.NewOrchestrator(db, wsHub, logger, uploadStorage, levers, fileRoots)
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("build orchestrator: %w", err)
+	}
+	deps.Orchestrator.SetConversationSearchNotifier(func(ctx context.Context, operation, runID, eventID string) error {
+		return conversationIndexer.Notify(ctx, conversationsearch.ChangeOperation(operation), runID, eventID)
 	})
-	toolReg.RegisterProvider(toolregistry.NewAgentToolProvider())
-
-	// UseEncodedPath tells mux to match routes against the raw URL path (e.g., keeping %2F
-	// as-is instead of decoding to /). This is required for model names containing slashes
-	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
 	srv := &Server{
-		config:               cfg,
-		db:                   db,
-		logger:               logger,
-		router:               mux.NewRouter().UseEncodedPath(),
-		orchestrator:         deps.orchestrator,
-		statsService:         deps.statsService,
-		statsRepo:            deps.statsRepo,
-		pricingService:       deps.pricingService,
-		wsHub:                wsHub,
-		reconciler:           deps.reconciler,
-		recommendationWorker: deps.recommendationWorker,
-		toolRegistry:         toolReg,
-		storage:              uploadStorage,
+		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
+		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher,
+		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
+		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
+		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
+		conversationSearch:     conversationSearch,
+		conversationSemantic:   &semanticRuntime,
+		conversationIndexer:    conversationIndexer,
+		conversationSearchFile: conversationSearchFile,
+		conversationTokens:     conversationTokens,
+		workspaceSandbox:       deps.WorkspaceSandbox,
 	}
-
-	// Start the reconciler for orphan detection and stale run recovery
-	if srv.reconciler != nil {
-		if err := srv.reconciler.Start(context.Background()); err != nil {
-			log.Printf("Warning: Failed to start reconciler: %v", err)
-		}
-	}
-
-	// Start the recommendation worker for passive extraction from investigation runs
-	if srv.recommendationWorker != nil {
-		if err := srv.recommendationWorker.Start(context.Background()); err != nil {
-			log.Printf("Warning: Failed to start recommendation worker: %v", err)
-		}
-	}
-
+	srv.startRecovery()
 	srv.setupRoutes()
 	return srv, nil
 }
 
-// orchestratorDeps holds the orchestrator and related services
-type orchestratorDeps struct {
-	orchestrator         orchestration.Service
-	statsService         orchestration.StatsService
-	statsRepo            repository.StatsRepository
-	pricingService       pricing.Service
-	reconciler           *orchestration.Reconciler
-	recommendationWorker *orchestration.RecommendationWorker
+func (s *Server) startSearchRegistration(parent context.Context) {
+	if s == nil || s.conversationSearchFile == "" || s.conversationTokens == nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(parent)
+	s.searchRegistrationStop = cancel
+	go searchregister.Register(ctx, searchregister.Config{
+		ScenarioID:     "agent-manager",
+		SearchFilePath: s.conversationSearchFile,
+		Logger:         log.Default(),
+		OnControlToken: s.conversationTokens.set,
+		ControlToken:   s.conversationTokens.get,
+	})
 }
 
-// createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger, uploadStorage storage.Service) orchestratorDeps {
-	levers, err := agentconfig.LoadLevers()
-	if err != nil {
-		log.Printf("Warning: failed to load config levers: %v", err)
-	}
+func envOrEmpty(key string) string { return os.Getenv(key) }
 
-	// Create repositories from SQLite database
-	log.Printf("Using SQLite persistence")
-	storageLabel := "sqlite"
-	eventStore := event.NewSQLiteStore(db.DB, logger)
-	repos := database.NewRepositories(db, logger)
-	profileRepo := repos.Profiles
-	taskRepo := repos.Tasks
-	runRepo := repos.Runs
-	checkpointRepo := repos.Checkpoints
-	idempotencyRepo := repos.Idempotency
-	statsRepo := repos.Stats
-	investigationSettingsRepo := repos.InvestigationSettings
-
-	// Create runner registry
-	runnerRegistry := runner.NewRegistry()
-
-	// Register Claude Code runner (uses resource-claude-code)
-	claudeRunner, err := runner.NewClaudeCodeRunner()
-	if err != nil {
-		log.Printf("Warning: Failed to create Claude Code runner: %v", err)
-		if err := runnerRegistry.Register(runner.NewStubRunner(
-			domain.RunnerTypeClaudeCode,
-			fmt.Sprintf("claude-code runner failed to initialize: %v", err),
-		)); err != nil {
-			log.Printf("Warning: Failed to register stub Claude runner: %v", err)
+func (s *Server) startRecovery() {
+	ctx := context.Background()
+	if s.supervisionScheduler != nil {
+		if _, err := s.supervisionService.RecoverActions(ctx); err != nil {
+			obs.Logger().Warn("cohort action recovery failed", obs.KeyError, err.Error())
 		}
+		s.supervisionScheduler.Start(ctx)
+	}
+	if s.conversationIndexer != nil {
+		s.conversationIndexer.Start(ctx)
+	}
+	if s.reconciler != nil {
+		if err := s.reconciler.RecoverInFlightRuns(ctx); err != nil {
+			obs.Logger().Warn("initial run recovery failed", obs.KeyError, err.Error())
+		}
+		if err := s.reconciler.Start(ctx); err != nil {
+			obs.Logger().Warn("reconciler start failed", obs.KeyError, err.Error())
+		}
+	}
+	if err := s.orchestrator.RecoverWorkflowExecutions(ctx); err != nil {
+		obs.Logger().Warn("initial workflow recovery failed", obs.KeyError, err.Error())
+	}
+	if s.workflowNudger != nil {
+		s.workflowNudger.Start()
+	}
+	if s.transcriptImporter != nil {
+		s.transcriptImporter.Start(ctx)
+	}
+	if s.frictionPublisher != nil {
+		s.frictionPublisher.Start(ctx)
+	}
+	repoRoot := os.Getenv("PROJECT_ROOT")
+	if repoRoot == "" {
+		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	summary := s.orchestrator.ReconcileDeclaringScenarios(ctx, repoRoot)
+	obs.Logger().Info("scenario declaration sweep complete", "scanned", summary.Scanned, "declaring", summary.Declaring, "reconciled", summary.Reconciled, "failed", summary.Failed)
+	if result, err := s.orchestrator.ReconcileSelfDeclarations(ctx, repoRoot); err != nil {
+		obs.Logger().Warn("agent-manager self-declaration registration failed", obs.KeyError, err.Error())
 	} else {
-		if err := runnerRegistry.Register(claudeRunner); err != nil {
-			log.Printf("Warning: Failed to register Claude runner: %v", err)
-		}
-		if avail, msg := claudeRunner.IsAvailable(context.Background()); avail {
-			log.Printf("Claude Code runner: available")
-		} else {
-			log.Printf("Claude Code runner: %s", msg)
-		}
+		obs.Logger().Info("agent-manager self-declaration registration complete", "profiles_created", result.ProfilesCreated, "profiles_updated", result.ProfilesUpdated, "workflows_created", result.WorkflowsCreated, "workflows_activated", result.WorkflowsActivated, "failed", result.ProfilesFailed+result.WorkflowsFailed)
 	}
-
-	// Register Codex runner (uses resource-codex)
-	codexRunner, err := runner.NewCodexRunner()
-	if err != nil {
-		log.Printf("Warning: Failed to create Codex runner: %v", err)
-		if err := runnerRegistry.Register(runner.NewStubRunner(
-			domain.RunnerTypeCodex,
-			fmt.Sprintf("codex runner failed to initialize: %v", err),
-		)); err != nil {
-			log.Printf("Warning: Failed to register stub Codex runner: %v", err)
-		}
-	} else {
-		if err := runnerRegistry.Register(codexRunner); err != nil {
-			log.Printf("Warning: Failed to register Codex runner: %v", err)
-		}
-		if avail, msg := codexRunner.IsAvailable(context.Background()); avail {
-			log.Printf("Codex runner: available")
-		} else {
-			log.Printf("Codex runner: %s", msg)
+	wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot)
+	if s.awaitRegistry != nil {
+		if n, err := s.awaitRegistry.RecoverParkedRuns(ctx); err != nil {
+			obs.Logger().Warn("parked-run waiter recovery failed", obs.KeyError, err.Error())
+		} else if n > 0 {
+			obs.Logger().Info("re-spawned waiters for parked runs", "count", n)
 		}
 	}
-
-	// Register OpenCode runner (uses resource-opencode)
-	openCodeRunner, err := runner.NewOpenCodeRunner()
-	if err != nil {
-		log.Printf("Warning: Failed to create OpenCode runner: %v", err)
-		if err := runnerRegistry.Register(runner.NewStubRunner(
-			domain.RunnerTypeOpenCode,
-			fmt.Sprintf("opencode runner failed to initialize: %v", err),
-		)); err != nil {
-			log.Printf("Warning: Failed to register stub OpenCode runner: %v", err)
+	if s.modelHealthProbe != nil {
+		s.modelHealthProbe.Start(ctx)
+	}
+	if s.modelPolicyDrift != nil {
+		s.modelPolicyDrift.Start(ctx)
+	}
+	if s.statsEngine != nil {
+		if err := s.statsEngine.Rebuild(ctx); err != nil {
+			obs.Logger().Warn("stats engine rebuild failed", obs.KeyError, err.Error())
 		}
-	} else {
-		if err := runnerRegistry.Register(openCodeRunner); err != nil {
-			log.Printf("Warning: Failed to register OpenCode runner: %v", err)
-		}
-		if avail, msg := openCodeRunner.IsAvailable(context.Background()); avail {
-			log.Printf("OpenCode runner: available")
-		} else {
-			log.Printf("OpenCode runner: %s", msg)
-		}
-	}
-
-	// Create flag validator for runner-specific CLI flag validation
-	flagValidator := runner.NewRegistryFlagValidator(runnerRegistry)
-
-	// Create workspace-sandbox provider
-	sandboxURL := os.Getenv("WORKSPACE_SANDBOX_URL")
-	if sandboxURL == "" {
-		if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "workspace-sandbox"); err == nil {
-			sandboxURL = resolved
-		}
-	}
-	if sandboxURL == "" {
-		// Try to get from port allocation
-		port := os.Getenv("WORKSPACE_SANDBOX_API_PORT")
-		if port == "" {
-			port = "15427" // Default workspace-sandbox port
-		}
-		sandboxURL = fmt.Sprintf("http://localhost:%s", port)
-	}
-	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
-
-	// Load orchestration settings (file-backed, git-checked-in).
-	orchSettingsPath := agentconfig.ResolveOrchestrationSettingsPath()
-	orchSettingsStore, err := agentconfig.NewOrchestrationSettingsStore(orchSettingsPath)
-	if err != nil {
-		log.Printf("Warning: failed to load orchestration settings from %s: %v", orchSettingsPath, err)
-	}
-
-	// Build terminator config from orchestration settings (or defaults).
-	terminatorCfg := orchestration.DefaultTerminatorConfig()
-	if orchSettingsStore != nil {
-		os := orchSettingsStore.Get()
-		terminatorCfg = orchestration.TerminatorConfig{
-			GracePeriod:      time.Duration(os.ProcessTermination.GracePeriodSeconds) * time.Second,
-			MaxRetries:       os.ProcessTermination.TerminationMaxRetries,
-			BaseBackoff:      500 * time.Millisecond,
-			MaxBackoff:       5 * time.Second,
-			VerifyTimeout:    2 * time.Second,
-			KillProcessGroup: os.ProcessTermination.KillProcessGroup,
-		}
-	}
-
-	// Create terminator for robust process termination (Phase 2)
-	terminator := orchestration.NewTerminator(
-		runRepo,
-		runnerRegistry,
-		terminatorCfg,
-	)
-
-	modelRegistryPath := modelregistry.ResolvePath()
-	modelRegistryStore, err := modelregistry.NewStore(modelRegistryPath)
-	if err != nil {
-		log.Printf("Warning: Failed to load model registry from %s: %v", modelRegistryPath, err)
-	}
-
-	orchConfig := orchestration.DefaultConfig()
-	baseConfig := agentconfig.Load()
-	if baseConfig != nil {
-		orchConfig.DefaultProjectRoot = strings.TrimSpace(baseConfig.Sandbox.ProjectRoot)
-	}
-	if levers != nil {
-		orchConfig.DefaultTimeout = levers.Execution.DefaultTimeout
-		orchConfig.MaxConcurrentRuns = levers.Concurrency.MaxConcurrentRuns
-		orchConfig.RequireSandboxByDefault = levers.Safety.RequireSandboxByDefault
-		if len(levers.Runners.FallbackRunnerTypes) > 0 {
-			seen := make(map[domain.RunnerType]struct{}, len(levers.Runners.FallbackRunnerTypes))
-			for _, runnerType := range levers.Runners.FallbackRunnerTypes {
-				rt := domain.RunnerType(runnerType)
-				if !rt.IsValid() {
-					log.Printf("Warning: skipping invalid fallback runner type: %s", runnerType)
-					continue
-				}
-				if _, exists := seen[rt]; exists {
-					continue
-				}
-				seen[rt] = struct{}{}
-				orchConfig.RunnerFallbackTypes = append(orchConfig.RunnerFallbackTypes, rt)
-			}
-		}
-	}
-
-	// Apply orchestration settings on top of levers (settings file is the primary source).
-	if orchSettingsStore != nil {
-		os := orchSettingsStore.Get()
-		orchConfig.DefaultTimeout = time.Duration(os.RunExecution.RunTimeoutMinutes) * time.Minute
-		orchConfig.MaxConcurrentRuns = os.RunExecution.MaxConcurrentRuns
-		orchConfig.RequireSandboxByDefault = os.SafetyIsolation.RequireSandbox
-	}
-
-	// Create prompt-manager client for investigation prompt skills
-	promptClient := promptmanager.NewHTTPClient()
-
-	// Create recommendation extractor for investigation outputs
-	recommendationExtractor := recommendation.NewOllamaExtractor()
-
-	// Load identity signing secret for agent identity tokens.
-	identitySecret, err := identity.LoadOrCreateSecret(database.DataDir())
-	if err != nil {
-		log.Fatalf("Failed to initialize identity secret: %v", err)
-	}
-
-	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
-	orch := orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
-		orchestration.WithConfig(orchConfig),
-		orchestration.WithEvents(eventStore),
-		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithSandbox(sandboxProvider),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
-		orchestration.WithBroadcaster(wsHub),
-		orchestration.WithTerminator(terminator),
-		orchestration.WithStorageLabel(storageLabel),
-		orchestration.WithModelRegistry(modelRegistryStore),
-		orchestration.WithRecommendationExtractor(recommendationExtractor),
-		orchestration.WithInvestigationSettings(investigationSettingsRepo),
-		orchestration.WithPromptClient(promptClient),
-		orchestration.WithFlagValidator(flagValidator),
-		orchestration.WithAttachmentStorage(uploadStorage),
-		orchestration.WithOrchestrationSettings(orchSettingsStore),
-		orchestration.WithIdentitySecret(identitySecret),
-	)
-
-	// Build reconciler config from orchestration settings (or defaults).
-	reconcilerCfg := orchestration.DefaultReconcilerConfig()
-	if orchSettingsStore != nil {
-		os := orchSettingsStore.Get()
-		reconcilerCfg = orchestration.ReconcilerConfig{
-			Interval:          time.Duration(os.HealthDetection.ReconcilerIntervalSeconds) * time.Second,
-			StaleThreshold:    time.Duration(os.HealthDetection.StaleThresholdSeconds) * time.Second,
-			MaxRecoveryAge:    time.Duration(os.HealthDetection.MaxRecoveryAgeSeconds) * time.Second,
-			OrphanGracePeriod: time.Duration(os.ProcessTermination.OrphanGracePeriodSeconds) * time.Second,
-			MaxStaleRuns:      10,
-			KillOrphans:       os.ProcessTermination.KillOrphans,
-			AutoRecover:       true,
-		}
-	}
-
-	// Create reconciler for orphan detection and stale run recovery (Phase 2)
-	reconciler := orchestration.NewReconciler(
-		runRepo,
-		runnerRegistry,
-		orchestration.WithReconcilerConfig(reconcilerCfg),
-		orchestration.WithReconcilerBroadcaster(wsHub),
-		orchestration.WithReconcilerSandbox(sandboxProvider),
-	)
-
-	// Wire reconciler back to orchestrator for hot-reload propagation.
-	orch.SetReconciler(reconciler)
-
-	// Create recommendation worker for passive extraction from investigation runs
-	// Uses the investigation settings repository for tag allowlist filtering
-	allowlistProvider := orchestration.NewSettingsAllowlistProvider(investigationSettingsRepo)
-	recommendationWorker := orchestration.NewRecommendationWorker(
-		runRepo,
-		eventStore,
-		recommendationExtractor,
-		orchestration.WithRecommendationWorkerConfig(orchestration.RecommendationWorkerConfig{
-			Interval:      30 * time.Second,
-			MaxRetries:    3,
-			RetryBackoff:  1 * time.Minute,
-			MaxConcurrent: 1, // Serial processing to avoid overloading Ollama
-		}),
-		orchestration.WithRecommendationWorkerBroadcaster(wsHub),
-		orchestration.WithRecommendationWorkerAllowlist(allowlistProvider),
-	)
-
-	// Create stats service for analytics
-	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
-
-	// Create pricing service for model pricing management
-	pricingRepo := database.NewPricingRepository(db, logger)
-	openRouterProvider := providers.NewOpenRouterProvider()
-	pricingProviders := []pricing.Provider{openRouterProvider}
-	pricingSvc := pricing.NewService(pricingRepo, pricingProviders, logger)
-
-	log.Printf("Orchestrator initialized (storage: %s, sandbox: %s)", storageLabel, sandboxURL)
-	return orchestratorDeps{
-		orchestrator:         orch,
-		statsService:         statsSvc,
-		statsRepo:            statsRepo,
-		pricingService:       pricingSvc,
-		reconciler:           reconciler,
-		recommendationWorker: recommendationWorker,
 	}
 }
 
 func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-	s.router.Use(corsMiddleware)
-
-	// Health endpoint using api-core/health for standardized response format
-	var rawDB *sql.DB
-	if s.db != nil && s.db.DB != nil {
-		rawDB = s.db.DB.DB // Access underlying *sql.DB from sqlx.DB (which is embedded in database.DB)
-	}
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(rawDB), health.Critical).
-		Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	// Detailed health for UI (includes sandbox + runner dependencies).
-	// Keep /health minimal for infra probes.
-	handler := handlers.New(s.orchestrator, handlers.WithStorage(s.storage))
-	handler.SetWebSocketHub(s.wsHub)
-	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
-
-	// Register all API routes via the handlers package
-	// WebSocket hub was created in NewServer and is shared with orchestrator
-	handler.RegisterRoutes(s.router)
-
-	// Register stats routes
-	if s.statsService != nil {
-		statsHandler := handlers.NewStatsHandler(s.statsService)
-		statsHandler.RegisterRoutes(s.router)
-		log.Printf("Stats endpoints available at /api/v1/stats/*")
-	}
-
-	// Register pricing routes
-	if s.pricingService != nil && s.statsRepo != nil {
-		pricingHandler := handlers.NewPricingHandler(s.pricingService, s.statsRepo)
-		pricingHandler.RegisterRoutes(s.router)
-		log.Printf("Pricing endpoints available at /api/v1/pricing/*")
-	}
-
-	// Register tool discovery routes
-	toolsHandler := handlers.NewToolsHandler(s.toolRegistry)
-	toolsHandler.RegisterRoutes(&muxRouteAdapter{s.router})
-
-	// Register Tool Execution Protocol endpoint
-	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		Orchestrator: s.orchestrator,
+	wiring.SetupRoutes(s.router, wiring.RouteDependencies{
+		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
+		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
+		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
+		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,
+		ModelPolicyDrift: s.modelPolicyDrift, TranscriptImporter: s.transcriptImporter,
+		WorkspaceSandbox:         s.workspaceSandbox,
+		ConversationSearch:       s.conversationSearch,
+		ConversationIndexer:      s.conversationIndexer,
+		ConversationSearchFile:   s.conversationSearchFile,
+		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 	})
-	toolExecHandler := toolexecution.NewHandler(toolExec)
-	s.router.HandleFunc("/api/v1/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
-
-	// Prometheus metrics endpoint
-	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
-
-	log.Printf("Tool discovery endpoint available at /api/v1/tools")
-	log.Printf("Tool execution endpoint available at /api/v1/tools/execute")
-	log.Printf("WebSocket endpoint available at /api/v1/ws")
-	log.Printf("Prometheus metrics available at /metrics")
 }
 
-// muxRouteAdapter adapts mux.Router to the routeRegistrar interface.
-// This enables the ToolsHandler to register routes without depending on mux directly.
-type muxRouteAdapter struct {
-	router *mux.Router
-}
-
-func (a *muxRouteAdapter) HandleFunc(path string, f func(http.ResponseWriter, *http.Request)) handlers.RouteMethoder {
-	return &muxRouteMethoder{route: a.router.HandleFunc(path, f)}
-}
-
-type muxRouteMethoder struct {
-	route *mux.Route
-}
-
-func (m *muxRouteMethoder) Methods(methods ...string) handlers.RouteMethoder {
-	m.route.Methods(methods...)
-	return m
-}
-
-// Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return gorillaHandlers.RecoveryHandler()(s.router)
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, s.db.Routed, s.fileRoots)
+	rootMux.Handle("/", gorillaHandlers.RecoveryHandler()(s.router))
+	return apihttp.TestModeMiddleware(rootMux)
 }
 
-// Cleanup releases resources when the server shuts down
 func (s *Server) Cleanup() error {
-	// Stop the reconciler
-	if s.reconciler != nil {
-		if err := s.reconciler.Stop(); err != nil {
-			s.log("reconciler shutdown failed", map[string]interface{}{"error": err.Error()})
-		}
+	if s.searchRegistrationStop != nil {
+		s.searchRegistrationStop()
 	}
-
-	// Stop the recommendation worker
-	if s.recommendationWorker != nil {
-		if err := s.recommendationWorker.Stop(); err != nil {
-			s.log("recommendation worker shutdown failed", map[string]interface{}{"error": err.Error()})
-		}
+	if s.conversationIndexer != nil {
+		s.conversationIndexer.Stop()
 	}
-
-	// Clean up database connection
-	if s.db != nil {
-		s.db.Close()
-	}
-
-	s.log("server stopped", nil)
+	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.frictionPublisher, s.modelPolicyDrift)
 	return nil
 }
 
-// loggingMiddleware prints simple request logs
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
-	})
-}
-
-// corsMiddleware adds CORS headers with configurable origins
-// Set CORS_ALLOWED_ORIGINS env var to restrict (comma-separated list).
-// Defaults to localhost-based origins for development safety.
-func corsMiddleware(next http.Handler) http.Handler {
-	allowedOrigins := getAllowedOrigins()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin != "" && isOriginAllowed(origin, allowedOrigins) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// getAllowedOrigins returns the list of allowed CORS origins.
-// Reads from CORS_ALLOWED_ORIGINS env var (comma-separated).
-// Defaults to localhost patterns for development safety.
-func getAllowedOrigins() []string {
-	if origins := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS")); origins != "" {
-		var result []string
-		for _, o := range strings.Split(origins, ",") {
-			if trimmed := strings.TrimSpace(o); trimmed != "" {
-				result = append(result, trimmed)
-			}
-		}
-		return result
-	}
-	// Default: allow localhost on common ports for development
-	return []string{
-		"http://localhost:*",
-		"http://127.0.0.1:*",
-	}
-}
-
-// isOriginAllowed checks if the origin matches any allowed pattern.
-// Supports wildcard port matching with http://host:*
-func isOriginAllowed(origin string, allowed []string) bool {
-	for _, pattern := range allowed {
-		if strings.HasSuffix(pattern, ":*") {
-			// Wildcard port pattern: http://localhost:*
-			prefix := strings.TrimSuffix(pattern, "*")
-			if strings.HasPrefix(origin, prefix) {
-				return true
-			}
-		} else if origin == pattern {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		log.Println(msg)
+func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "agent-manager"}) {
 		return
 	}
-	data, _ := json.Marshal(fields)
-	log.Printf("%s | %s", msg, string(data))
-}
-
-func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "agent-manager",
-	}) {
-		return // Process was re-exec'd after rebuild
-	}
-
 	srv, err := NewServer()
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
-
-	if err := server.Run(server.Config{
-		Handler: srv.Router(),
-		// Extended timeouts for LLM-based operations (e.g., recommendation extraction)
-		WriteTimeout: 3 * time.Minute,
-		ReadTimeout:  1 * time.Minute,
-		Cleanup: func(ctx context.Context) error {
-			return srv.Cleanup()
-		},
-	}); err != nil {
+	srv.startSearchRegistration(context.Background())
+	if err := server.Run(server.Config{Handler: srv.Router(), WriteTimeout: 3 * time.Minute, ReadTimeout: time.Minute, Cleanup: func(context.Context) error { return srv.Cleanup() }}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

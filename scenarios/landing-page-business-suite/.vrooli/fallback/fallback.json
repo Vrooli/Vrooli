@@ -93,7 +93,7 @@
           { "title": "Your flows are your tests", "description": "Run the same workflows in CI as end-to-end tests with replay on every failure.", "icon": "shield-check" },
           { "title": "Replay as a movie", "description": "Share fake-browser recordings with smooth cursor motion, zooms, and highlights; export MP4 for docs or marketing.", "icon": "video" },
           { "title": "UX metrics (coming soon)", "description": "See clicks, duration, and visual zig-zag patterns for every flow to spot friction before users do.", "icon": "activity" },
-          { "title": "Agent upgrades (coming soon)", "description": "Future integrations with ecosystem-manager and PRD control tower to auto-fix regressions.", "icon": "cpu" }
+          { "title": "Agent upgrades (coming soon)", "description": "Future integrations with swarm-manager and PRD control tower to auto-fix regressions.", "icon": "cpu" }
         ]
       }
     },
@@ -266,10 +266,8 @@
         "bonus_type": "none",
         "display_weight": 5,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "50 runs/month"},
-            {"stringValue": "Watermarked MP4 exports"},
-            {"stringValue": "Replay viewer"}
+          "features": {"list_value": {"values": [
+            {"string_value": "50 runs/month"}, {"string_value": "Watermarked MP4 exports"}, {"string_value": "Replay viewer"}
           ]}}
         }
       },
@@ -287,11 +285,8 @@
         "bonus_type": "none",
         "display_weight": 20,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "200 runs/month"},
-            {"stringValue": "MP4 exports with watermark"},
-            {"stringValue": "Workflow + test builder"},
-            {"stringValue": "Replay-as-movie sharing"}
+          "features": {"list_value": {"values": [
+            {"string_value": "200 runs/month"}, {"string_value": "MP4 exports with watermark"}, {"string_value": "Workflow + test builder"}, {"string_value": "Replay-as-movie sharing"}
           ]}}
         }
       },
@@ -309,14 +304,10 @@
         "bonus_type": "none",
         "display_weight": 40,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "Unlimited runs"},
-            {"stringValue": "MP4 exports without watermark"},
-            {"stringValue": "CI hooks + failure replays"},
-            {"stringValue": "UX metrics when released"},
-            {"stringValue": "Limited agent loops"}
+          "features": {"list_value": {"values": [
+            {"string_value": "Unlimited runs"}, {"string_value": "MP4 exports without watermark"}, {"string_value": "CI hooks + failure replays"}, {"string_value": "UX metrics when released"}, {"string_value": "Limited agent loops"}
           ]}},
-          "highlight": {"boolValue": true}
+          "highlight": {"bool_value": true}
         }
       },
       {
@@ -333,11 +324,8 @@
         "bonus_type": "none",
         "display_weight": 30,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "Client-safe branding on replays"},
-            {"stringValue": "More agent concurrency"},
-            {"stringValue": "Priority async support"},
-            {"stringValue": "Multi-seat studios"}
+          "features": {"list_value": {"values": [
+            {"string_value": "Client-safe branding on replays"}, {"string_value": "More agent concurrency"}, {"string_value": "Priority async support"}, {"string_value": "Multi-seat studios"}
           ]}}
         }
       },
@@ -355,13 +343,10 @@
         "bonus_type": "none",
         "display_weight": 25,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "Unlimited agent loops"},
-            {"stringValue": "API + webhooks"},
-            {"stringValue": "Higher reliability SLAs"},
-            {"stringValue": "Async onboarding—no calls required"}
+          "features": {"list_value": {"values": [
+            {"string_value": "Unlimited agent loops"}, {"string_value": "API + webhooks"}, {"string_value": "Higher reliability SLAs"}, {"string_value": "Async onboarding—no calls required"}
           ]}},
-          "badge": {"stringValue": "API + webhooks"}
+          "badge": {"string_value": "API + webhooks"}
         }
       }
     ],
@@ -380,10 +365,8 @@
         "bonus_type": "yearly_bonus",
         "display_weight": 15,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "2 months free equivalent"},
-            {"stringValue": "MP4 exports without watermark"},
-            {"stringValue": "CI hooks + failure replays"}
+          "features": {"list_value": {"values": [
+            {"string_value": "2 months free equivalent"}, {"string_value": "MP4 exports without watermark"}, {"string_value": "CI hooks + failure replays"}
           ]}}
         }
       },
@@ -401,10 +384,8 @@
         "bonus_type": "yearly_bonus",
         "display_weight": 20,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "2 months free equivalent"},
-            {"stringValue": "Client-safe branding on replays"},
-            {"stringValue": "More agent concurrency"}
+          "features": {"list_value": {"values": [
+            {"string_value": "2 months free equivalent"}, {"string_value": "Client-safe branding on replays"}, {"string_value": "More agent concurrency"}
           ]}}
         }
       },
@@ -422,10 +403,8 @@
         "bonus_type": "yearly_bonus",
         "display_weight": 10,
         "metadata": {
-          "features": {"listValue": {"values": [
-            {"stringValue": "2 months free equivalent"},
-            {"stringValue": "Unlimited agent loops"},
-            {"stringValue": "API + webhooks"}
+          "features": {"list_value": {"values": [
+            {"string_value": "2 months free equivalent"}, {"string_value": "Unlimited agent loops"}, {"string_value": "API + webhooks"}
           ]}}
         }
       }
@@ -435,7 +414,7 @@
   "downloads": [
     {
       "bundle_key": "business_suite",
-      "app_key": "automation_studio",
+      "app_key": "browser-automation-studio",
       "name": "Vrooli Ascension",
       "tagline": "Desktop workflows, tests, and replay-as-movie exports",
       "description": "Desktop suite for visual workflows, replay-as-movie exports, and back-office automation.",
@@ -449,7 +428,7 @@
       "platforms": [
         {
           "bundle_key": "business_suite",
-          "app_key": "automation_studio",
+          "app_key": "browser-automation-studio",
           "platform": "windows",
           "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
           "release_version": "1.0.0",
@@ -459,7 +438,7 @@
         },
         {
           "bundle_key": "business_suite",
-          "app_key": "automation_studio",
+          "app_key": "browser-automation-studio",
           "platform": "mac",
           "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
           "release_version": "1.0.0",
@@ -469,7 +448,7 @@
         },
         {
           "bundle_key": "business_suite",
-          "app_key": "automation_studio",
+          "app_key": "browser-automation-studio",
           "platform": "linux",
           "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
           "release_version": "1.0.0",
@@ -478,6 +457,39 @@
           "metadata": { "size_mb": 205 }
         }
       ]
+    },
+    {
+      "bundle_key": "business_suite",
+      "app_key": "landing-page-business-suite",
+      "name": "Silent Founder OS",
+      "tagline": "The subscription authority",
+      "description": "The hosted account and entitlement authority for the business suite.",
+      "install_overview": "Hosted service; no local installer.",
+      "install_steps": [],
+      "storefronts": [],
+      "platforms": []
+    },
+    {
+      "bundle_key": "business_suite",
+      "app_key": "web-console",
+      "name": "Vrooli Web Console",
+      "tagline": "The shared Vrooli workspace",
+      "description": "Web console with entitlement-aware voice capabilities.",
+      "install_overview": "Use the hosted web console.",
+      "install_steps": [],
+      "storefronts": [],
+      "platforms": []
+    },
+    {
+      "bundle_key": "business_suite",
+      "app_key": "audio-tools",
+      "name": "Vrooli Audio Tools",
+      "tagline": "Durable voice infrastructure",
+      "description": "Hosted audio capability for long-form dictation, speech synthesis, and speaker services.",
+      "install_overview": "Hosted service; audio-tools is provisioned as part of the Vrooli workspace.",
+      "install_steps": [],
+      "storefronts": [],
+      "platforms": []
     }
   ]
 }

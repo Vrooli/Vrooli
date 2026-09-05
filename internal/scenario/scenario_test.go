@@ -1,0 +1,1355 @@
+//nolint:goconst // test data deliberately reuses stable scenario fixtures.
+package scenario
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=6 | LAST: 2026-04-13
+
+func TestSandboxEnvFromEnv(t *testing.T) {
+	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
+	t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/merged")
+	t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/alpha")
+
+	env := SandboxEnvFromEnv()
+	if env.ID != "sandbox-123" || env.Merged != "/tmp/merged" || env.Scope != "scenarios/alpha" {
+		t.Fatalf("SandboxEnvFromEnv = %+v", env)
+	}
+}
+
+func TestScenarioInScope(t *testing.T) {
+	root := newScenarioRepoFixture(t)
+
+	tests := []struct {
+		name     string
+		scenario string
+		scope    string
+		want     bool
+	}{
+		{name: "whole repo", scenario: "alpha", scope: "", want: true},
+		{name: "scenarios root", scenario: "alpha", scope: "scenarios", want: true},
+		{name: "specific scenario", scenario: "alpha", scope: "scenarios/alpha/api", want: true},
+		{name: "different scenario", scenario: "alpha", scope: "scenarios/beta", want: false},
+		{name: "outside scenarios", scenario: "alpha", scope: "packages/shared", want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ScenarioInScope(root, tc.scenario, tc.scope); got != tc.want {
+				t.Fatalf("ScenarioInScope(%q, %q) = %v, want %v", tc.scenario, tc.scope, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveMergedPath(t *testing.T) {
+	root := newScenarioRepoFixture(t)
+
+	merged := "/tmp/sandbox/merged"
+	if got := ResolveMergedPath(root, "alpha", "scenarios/alpha", merged); got != merged {
+		t.Fatalf("exact scope path = %q", got)
+	}
+	if got := ResolveMergedPath(root, "alpha", "scenarios", merged); got != filepath.Join(merged, "alpha") {
+		t.Fatalf("scenarios scope path = %q", got)
+	}
+	if got := ResolveMergedPath(root, "alpha", "", merged); got != filepath.Join(merged, "scenarios", "alpha") {
+		t.Fatalf("root scope path = %q", got)
+	}
+}
+
+func TestScenarioInScopeUsesContractDefinedScopePrefix(t *testing.T) {
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
+
+	if !ScenarioInScope(root, "alpha", "apps/alpha/api") {
+		t.Fatal("expected contract-defined app scope to match scenario")
+	}
+	if ScenarioInScope(root, "alpha", "scenarios/alpha") {
+		t.Fatal("unexpected legacy scenarios/ scope match under apps contract")
+	}
+}
+
+func TestResolveMergedPathUsesContractDefinedScenarioDir(t *testing.T) {
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
+
+	merged := "/tmp/sandbox/merged"
+	if got := ResolveMergedPath(root, "alpha", "", merged); got != filepath.Join(merged, "apps", "alpha") {
+		t.Fatalf("root scope path = %q", got)
+	}
+	if got := ResolveMergedPath(root, "alpha", "apps", merged); got != filepath.Join(merged, "alpha") {
+		t.Fatalf("apps scope path = %q", got)
+	}
+	if got := ResolveMergedPath(root, "alpha", "apps/alpha", merged); got != merged {
+		t.Fatalf("exact app scope path = %q", got)
+	}
+}
+
+func TestDiscoverIncludesSandboxOnlyScenario(t *testing.T) {
+	root := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Canonical alpha")
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, filepath.Join(merged, "alpha"), "Sandbox alpha")
+	writeScenarioServiceAtPath(t, filepath.Join(merged, "beta"), "Sandbox beta")
+
+	scenarios, err := Discover(root, SandboxEnv{Merged: merged, Scope: "scenarios"})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(scenarios) != 2 {
+		t.Fatalf("scenario count = %d, want 2", len(scenarios))
+	}
+	if scenarios[0].Slug != "alpha" || scenarios[1].Slug != "beta" {
+		t.Fatalf("scenario slugs = %q, %q", scenarios[0].Slug, scenarios[1].Slug)
+	}
+	if scenarios[0].Manifest.Service.Description != "Sandbox alpha" {
+		t.Fatalf("alpha description = %q", scenarios[0].Manifest.Service.Description)
+	}
+}
+
+func TestLoadUsesSandboxScenarioWhenInScope(t *testing.T) {
+	root := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Canonical alpha")
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, merged, "Sandbox alpha")
+
+	loaded, err := Load(root, "alpha", SandboxEnv{Merged: merged, Scope: "scenarios/alpha"})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !loaded.Redirected {
+		t.Fatalf("expected sandbox redirect")
+	}
+	if loaded.Manifest.Service.Description != "Sandbox alpha" {
+		t.Fatalf("description = %q", loaded.Manifest.Service.Description)
+	}
+}
+
+func TestLoadUsesContractDefinedScenarioLayout(t *testing.T) {
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
+	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
+
+	loaded, err := Load(root, "alpha", SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if want := filepath.Join(root, "apps", "alpha"); loaded.Path != want {
+		t.Fatalf("loaded path = %q, want %q", loaded.Path, want)
+	}
+	if want := filepath.Join(root, "apps", "alpha", ".vrooli", "service.json"); loaded.ServicePath != want {
+		t.Fatalf("loaded service path = %q, want %q", loaded.ServicePath, want)
+	}
+}
+
+func TestLoadFallsBackToCanonicalScenarioWhenSandboxPathMissing(t *testing.T) {
+	root := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Canonical alpha")
+
+	loaded, err := Load(root, "alpha", SandboxEnv{Merged: t.TempDir(), Scope: "scenarios/alpha"})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded.Redirected {
+		t.Fatalf("expected canonical path when sandbox scenario is missing")
+	}
+	if loaded.Manifest.Service.Description != "Canonical alpha" {
+		t.Fatalf("description = %q", loaded.Manifest.Service.Description)
+	}
+}
+
+func TestLoadMissingScenarioReturnsNotFound(t *testing.T) {
+	root := t.TempDir()
+
+	if _, err := Load(root, "missing", SandboxEnv{}); err != ErrNotFound {
+		t.Fatalf("Load missing scenario error = %v, want %v", err, ErrNotFound)
+	}
+}
+
+func TestReadServiceParsesHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{{
+			Name:     "docker",
+			Required: true,
+			Reason:   "run containers",
+			When:     []string{"setup"},
+		}},
+		HostSafeguards: []hostreqspec.Declaration{{
+			Name:      "remote_session_protection",
+			Required:  false,
+			Reason:    "protect sessions",
+			Platforms: []string{"linux"},
+		}},
+	})
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+	if len(manifest.HostTools) != 1 || manifest.HostTools[0].Name != "docker" {
+		t.Fatalf("hostTools = %+v", manifest.HostTools)
+	}
+	if len(manifest.HostSafeguards) != 1 || manifest.HostSafeguards[0].Name != "remote_session_protection" {
+		t.Fatalf("hostSafeguards = %+v", manifest.HostSafeguards)
+	}
+}
+
+func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{
+			{Name: "docker", Required: true, Reason: "one"},
+			{Name: "docker", Required: false, Reason: "two"},
+		},
+	})
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "docker"`) {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
+func TestReadServiceRejectsDuplicateCredentialDescriptors(t *testing.T) {
+	servicePath := filepath.Join(t.TempDir(), ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir service directory: %v", err)
+	}
+	if err := os.WriteFile(servicePath, []byte(`{"version":"1.0.0","service":{"name":"alpha"},"credentials":{"descriptors":[{"logical_id":"vrooli/demo"},{"logical_id":"vrooli/demo"}]}}`), 0o600); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "declares credential vrooli/demo:value more than once") {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
+func TestReadServiceAcceptsGoModuleCLIContract(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		CLI: &CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+			SourceBuild: &CLISourceBuildConfig{Kind: "go_module"},
+			Freshness:   &CLIFreshnessCheck{Inputs: []string{"cli/**", ".vrooli/service.json"}},
+		},
+	})
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+	if !manifest.CLIEnabled() {
+		t.Fatal("expected cli to be enabled")
+	}
+	if manifest.CLI.Invoke.Kind != "installed_command" {
+		t.Fatalf("invoke kind = %q, want installed_command", manifest.CLI.Invoke.Kind)
+	}
+	if manifest.CLI.Invoke.Command != "alpha" {
+		t.Fatalf("invoke command = %q, want alpha", manifest.CLI.Invoke.Command)
+	}
+	if manifest.CLI.Artifacts.Manifest.Location != CLIArtifactLocationSibling {
+		t.Fatalf("manifest artifact location = %q, want %q", manifest.CLI.Artifacts.Manifest.Location, CLIArtifactLocationSibling)
+	}
+	if manifest.CLI.Artifacts.BuildMetadata.Location != CLIArtifactLocationSibling {
+		t.Fatalf("build metadata artifact location = %q, want %q", manifest.CLI.Artifacts.BuildMetadata.Location, CLIArtifactLocationSibling)
+	}
+}
+
+func TestReadServiceRejectsEnabledCLIWithoutAdapterContract(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		CLI: &CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: CLIAdapterConfig{
+				Kind: "script",
+			},
+		},
+	})
+
+	_, err := ReadService(servicePath)
+	if err == nil {
+		t.Fatal("expected cli validation error")
+	}
+	if !strings.Contains(err.Error(), "unsupported cli.adapter.kind") {
+		t.Fatalf("unexpected error = %v", err)
+	}
+}
+
+func TestCLIConfigRequiresCompleteGoModuleContract(t *testing.T) {
+	base := CLIConfig{
+		Enabled:     true,
+		Command:     "alpha",
+		Adapter:     CLIAdapterConfig{Kind: "go_module", ModuleDir: "cli"},
+		SourceBuild: &CLISourceBuildConfig{Kind: "go_module"},
+		Invoke:      CLIInvokeConfig{Kind: "installed_command", Command: "alpha"},
+		Freshness:   &CLIFreshnessCheck{Inputs: []string{"cli/**", ".vrooli/service.json"}},
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("Validate() complete contract: %v", err)
+	}
+
+	missingSourceBuild := base
+	missingSourceBuild.SourceBuild = nil
+	if err := missingSourceBuild.Validate(); err == nil || !strings.Contains(err.Error(), "source_build") {
+		t.Fatalf("Validate() missing source_build error = %v", err)
+	}
+
+	mismatchedInvoke := base
+	mismatchedInvoke.Invoke.Command = "beta"
+	if err := mismatchedInvoke.Validate(); err == nil || !strings.Contains(err.Error(), "must match") {
+		t.Fatalf("Validate() mismatched invoke error = %v", err)
+	}
+}
+
+func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
+	root := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Canonical alpha")
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, merged, "Sandbox alpha")
+
+	path, redirected := ResolveScenarioPath(root, "alpha", SandboxEnv{
+		Merged: merged,
+		Scope:  "packages/shared",
+	})
+	if redirected {
+		t.Fatalf("expected out-of-scope sandbox to be ignored")
+	}
+	if want := filepath.Join(root, "scenarios", "alpha"); path != want {
+		t.Fatalf("ResolveScenarioPath = %q, want %q", path, want)
+	}
+}
+
+func TestDiscoverUsesContractDefinedScenarioBase(t *testing.T) {
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
+	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
+	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "beta", "Contract beta")
+
+	scenarios, err := Discover(root, SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(scenarios) != 2 {
+		t.Fatalf("scenario count = %d, want 2", len(scenarios))
+	}
+	if scenarios[0].Path != filepath.Join(root, "apps", "alpha") {
+		t.Fatalf("alpha path = %q", scenarios[0].Path)
+	}
+	if scenarios[1].Path != filepath.Join(root, "apps", "beta") {
+		t.Fatalf("beta path = %q", scenarios[1].Path)
+	}
+}
+
+func TestScenarioPathHelpersUseInjectedContractResolver(t *testing.T) {
+	original := contractPaths
+	t.Cleanup(func() {
+		contractPaths = original
+	})
+
+	contractPaths = fakeScenarioContractPaths{
+		baseDir:     "/repo/apps",
+		scenarioDir: "/repo/apps/alpha",
+		servicePath: "/repo/apps/alpha/.custom/service.json",
+	}
+
+	if got := scenarioBaseDir("/repo"); got != "/repo/apps" {
+		t.Fatalf("scenarioBaseDir = %q", got)
+	}
+	if got := scenarioRootPath("/repo", "alpha"); got != "/repo/apps/alpha" {
+		t.Fatalf("scenarioRootPath = %q", got)
+	}
+	if got := scenarioServicePath("/repo", "alpha", "/repo/apps/alpha"); got != "/repo/apps/alpha/.custom/service.json" {
+		t.Fatalf("scenarioServicePath = %q", got)
+	}
+}
+
+func TestRepoContractPathsFallbacksWithoutContract(t *testing.T) {
+	root := t.TempDir()
+	resolver := repoContractPaths{}
+
+	if got, want := resolver.ScenarioBaseDir(root), filepath.Join(root, "scenarios"); got != want {
+		t.Fatalf("ScenarioBaseDir = %q, want %q", got, want)
+	}
+	if got, want := resolver.ScenarioRootPath(root, "alpha"), filepath.Join(root, "scenarios", "alpha"); got != want {
+		t.Fatalf("ScenarioRootPath = %q, want %q", got, want)
+	}
+	if got, want := resolver.ScenarioServicePath(root, "alpha", filepath.Join(root, "scenarios", "alpha")), filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"); got != want {
+		t.Fatalf("ScenarioServicePath = %q, want %q", got, want)
+	}
+}
+
+func TestEvaluateHealth(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	ports := map[string]int{"API_PORT": extractPort(t, server.URL)}
+	health := &HealthConfig{
+		Checks: []HealthCheck{
+			{
+				Name:     "api",
+				Type:     "http",
+				Target:   "http://127.0.0.1:${API_PORT}/health",
+				Critical: true,
+				Timeout:  1000,
+			},
+		},
+	}
+
+	if got := EvaluateHealth(health, ports); got != "healthy" {
+		t.Fatalf("EvaluateHealth = %q, want healthy", got)
+	}
+	if got := EvaluateHealth(nil, ports); got != "running" {
+		t.Fatalf("EvaluateHealth(nil) = %q, want running", got)
+	}
+}
+
+func TestReadServicePromotesTopLevelHealthConfig(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Health: &HealthConfig{
+			Checks: []HealthCheck{{
+				Name:     "api",
+				Type:     "http",
+				Target:   "http://127.0.0.1:${API_PORT}/health",
+				Critical: true,
+			}},
+		},
+		Lifecycle: Lifecycle{
+			Version: "2.0.0",
+		},
+	})
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+	if manifest.Lifecycle.Health == nil {
+		t.Fatalf("expected lifecycle health to be promoted from top-level health")
+	}
+	if manifest.HealthConfig() == nil {
+		t.Fatalf("expected HealthConfig helper to return promoted health")
+	}
+	if got := manifest.HealthConfig().Checks[0].Target; got != "http://127.0.0.1:${API_PORT}/health" {
+		t.Fatalf("health target = %q", got)
+	}
+}
+
+func TestHealthConfigFallsBackToTopLevelHealth(t *testing.T) {
+	topLevel := &HealthConfig{Description: "top-level"}
+	manifest := ServiceManifest{Health: topLevel}
+
+	if got := manifest.HealthConfig(); got != topLevel {
+		t.Fatalf("HealthConfig fallback = %+v, want %+v", got, topLevel)
+	}
+}
+
+func TestReadServiceRejectsInvalidJSON(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteMalformedJSON(t, servicePath, `{"service":`, 0o644)
+
+	if _, err := ReadService(servicePath); err == nil {
+		t.Fatalf("expected malformed service json to fail")
+	}
+}
+
+func TestLoadServiceManifestToleratesUnknownFields(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	if err := os.WriteFile(servicePath, []byte(`{
+		"version": "1.0.0",
+		"service": {"name": "future-compatible"},
+		"dependencies": {
+			"resources": {
+				"postgres": {
+					"enabled": true,
+					"required": true,
+					"description": "Store application data",
+					"future_dependency_field": {"mode": "new"}
+				}
+			}
+		},
+		"future_manifest_field": {"version": 2}
+	}`), 0o644); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	manifest, err := LoadServiceManifest(servicePath)
+	if err != nil {
+		t.Fatalf("LoadServiceManifest: %v", err)
+	}
+	postgres, ok := manifest.Dependencies.Resources["postgres"]
+	if !ok {
+		t.Fatal("expected postgres dependency to be loaded")
+	}
+	if !postgres.Enabled || !postgres.Required || postgres.Description != "Store application data" {
+		t.Fatalf("postgres dependency = %+v", postgres)
+	}
+}
+
+func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Resources: map[string]Dependency{
+				"postgres": {
+					Enabled:  true,
+					Required: true,
+					Purpose:  "Store application data",
+					Database: "alpha_db",
+				},
+				"redis": {
+					Enabled:     true,
+					Description: "Cache responses",
+				},
+			},
+			Scenarios: map[string]Dependency{
+				"test-genie": {
+					Enabled:     true,
+					Description: "Run extended tests",
+				},
+			},
+		},
+	})
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+
+	postgres, ok := manifest.Dependencies.Resources["postgres"]
+	if !ok {
+		t.Fatalf("expected postgres dependency to be loaded")
+	}
+	if !postgres.Required || !postgres.Enabled {
+		t.Fatalf("postgres flags = %+v", postgres)
+	}
+	if postgres.Type != "resource" {
+		t.Fatalf("postgres type = %q", postgres.Type)
+	}
+	if postgres.Database != "alpha_db" {
+		t.Fatalf("postgres database = %q", postgres.Database)
+	}
+
+	redis, ok := manifest.Dependencies.Resources["redis"]
+	if !ok {
+		t.Fatalf("expected redis dependency to be loaded")
+	}
+	if redis.Required {
+		t.Fatalf("redis should stay optional: %+v", redis)
+	}
+	if !redis.Enabled {
+		t.Fatalf("redis should default to enabled when declared: %+v", redis)
+	}
+	if policy := redis.NormalizedStartupPolicy(); policy != DependencyStartupPolicyTryStart {
+		t.Fatalf("redis policy = %q, want try_start", policy)
+	}
+
+	testGenie, ok := manifest.Dependencies.Scenarios["test-genie"]
+	if !ok {
+		t.Fatalf("expected test-genie scenario dependency to be loaded")
+	}
+	if testGenie.Required {
+		t.Fatalf("test-genie should stay optional: %+v", testGenie)
+	}
+	if !testGenie.Enabled {
+		t.Fatalf("test-genie should default to enabled when declared: %+v", testGenie)
+	}
+	if testGenie.Type != "scenario" {
+		t.Fatalf("test-genie type = %q", testGenie.Type)
+	}
+}
+
+func TestDependencyPreservesExtraConfigKeysRoundTrip(t *testing.T) {
+	input := []byte(`{
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local LLM",
+        "config": {
+          "models": ["qwen3:4b", {"name": "nomic-embed-text"}],
+          "fallback": "openrouter"
+        }
+    }`)
+
+	var got Dependency
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if got.Type != "ollama" || got.StartupPolicy != "try_start" || got.Description != "Local LLM" {
+		t.Fatalf("typed fields corrupted: %+v", got)
+	}
+	if !got.Enabled || got.Required {
+		t.Fatalf("enabled/required wrong: %+v", got)
+	}
+	if len(got.Config) == 0 {
+		t.Fatalf("expected Config to capture extra keys, got empty")
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(got.Config, &cfg); err != nil {
+		t.Fatalf("Config is not a JSON object: %v", err)
+	}
+	if _, ok := cfg["models"]; !ok {
+		t.Errorf("Config missing 'models': %s", got.Config)
+	}
+	if cfg["fallback"] != "openrouter" {
+		t.Errorf("Config missing 'fallback': %s", got.Config)
+	}
+
+	// Round-trip: marshal, unmarshal, confirm extra keys survive.
+	out, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var again Dependency
+	if err := json.Unmarshal(out, &again); err != nil {
+		t.Fatalf("unmarshal round-trip: %v", err)
+	}
+	if again.Type != got.Type || again.StartupPolicy != got.StartupPolicy || again.Description != got.Description {
+		t.Fatalf("typed fields drifted on round-trip: %+v vs %+v", again, got)
+	}
+	if len(again.Config) == 0 {
+		t.Fatalf("Config dropped on round-trip")
+	}
+	var cfgAgain map[string]any
+	if err := json.Unmarshal(again.Config, &cfgAgain); err != nil {
+		t.Fatalf("Config round-trip not JSON: %v", err)
+	}
+	if _, ok := cfgAgain["models"]; !ok {
+		t.Errorf("'models' lost on round-trip: %s", again.Config)
+	}
+	if cfgAgain["fallback"] != "openrouter" {
+		t.Errorf("'fallback' lost on round-trip: %s", again.Config)
+	}
+}
+
+func TestDependencyCapturesLegacyTopLevelConfigKeys(t *testing.T) {
+	input := []byte(`{
+        "type": "ollama",
+        "enabled": true,
+        "models": ["qwen3:4b"]
+    }`)
+
+	var got Dependency
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(got.Config, &cfg); err != nil {
+		t.Fatalf("Config is not JSON: %v", err)
+	}
+	if _, ok := cfg["models"]; !ok {
+		t.Fatalf("expected legacy top-level models key in Config, got %s", got.Config)
+	}
+}
+
+func TestDependencyUnmarshalNoExtraKeysLeavesConfigEmpty(t *testing.T) {
+	input := []byte(`{"type":"postgres","enabled":true,"required":true,"database":"alpha_db"}`)
+	var got Dependency
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(got.Config) != 0 {
+		t.Fatalf("Config should be empty when only typed keys are present, got %s", got.Config)
+	}
+	if got.Database != "alpha_db" {
+		t.Fatalf("database: %q", got.Database)
+	}
+}
+
+func TestScenarioDependencyContractRoundTrip(t *testing.T) {
+	input := []byte(`{
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "versionRange": ">=2.3.0 <3.0.0",
+        "runtime_only": true,
+        "runtime_only_rationale": "Loaded only when the operator enables remote publishing"
+    }`)
+
+	var dependency Dependency
+	if err := json.Unmarshal(input, &dependency); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if err := dependency.Validate("scenarios", "publisher"); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if dependency.VersionRange != ">=2.3.0 <3.0.0" || !dependency.RuntimeOnly || dependency.RuntimeOnlyRationale == "" {
+		t.Fatalf("canonical scenario fields were not decoded: %+v", dependency)
+	}
+
+	encoded, err := json.Marshal(dependency)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var roundTrip Dependency
+	if err := json.Unmarshal(encoded, &roundTrip); err != nil {
+		t.Fatalf("unmarshal round-trip: %v", err)
+	}
+	if roundTrip.VersionRange != dependency.VersionRange || roundTrip.RuntimeOnly != dependency.RuntimeOnly || roundTrip.RuntimeOnlyRationale != dependency.RuntimeOnlyRationale {
+		t.Fatalf("scenario dependency fields drifted: got %+v want %+v", roundTrip, dependency)
+	}
+}
+
+func TestRuntimeOnlyDependencyRequiresRationale(t *testing.T) {
+	err := (Dependency{Enabled: true, RuntimeOnly: true}).Validate("scenarios", "publisher")
+	if err == nil || !strings.Contains(err.Error(), "runtime_only_rationale") {
+		t.Fatalf("Validate() error = %v, want runtime_only_rationale requirement", err)
+	}
+}
+
+func TestDependencyNormalizedStartupPolicyUsesContractDefaults(t *testing.T) {
+	if policy := (Dependency{Enabled: true, Required: true}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyMustStart {
+		t.Fatalf("required dependency policy = %q, want %q", policy, DependencyStartupPolicyMustStart)
+	}
+	if policy := (Dependency{Enabled: true, Required: false}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyTryStart {
+		t.Fatalf("optional dependency policy = %q, want %q", policy, DependencyStartupPolicyTryStart)
+	}
+	if policy := (Dependency{Enabled: false, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
+		t.Fatalf("disabled dependency policy = %q, want %q", policy, DependencyStartupPolicyIgnore)
+	}
+}
+
+func TestDependencyNormalizedFreshnessPolicyDefaults(t *testing.T) {
+	if p := (Dependency{Enabled: true, Required: true}).NormalizedFreshnessPolicy(); p != DependencyFreshnessPolicyRestartWhenStale {
+		t.Fatalf("default freshness policy = %q, want %q", p, DependencyFreshnessPolicyRestartWhenStale)
+	}
+	if p := (Dependency{FreshnessPolicy: DependencyFreshnessPolicyReuseRunning}).NormalizedFreshnessPolicy(); p != DependencyFreshnessPolicyReuseRunning {
+		t.Fatalf("explicit freshness policy = %q, want %q", p, DependencyFreshnessPolicyReuseRunning)
+	}
+}
+
+func TestDependencyFreshnessPolicyRoundTrip(t *testing.T) {
+	dep := Dependency{Enabled: true, Required: true, StartupPolicy: DependencyStartupPolicyMustStart, FreshnessPolicy: DependencyFreshnessPolicyRebuildOnly}
+	data, err := json.Marshal(dep)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(data), `"freshness_policy":"rebuild_only"`) {
+		t.Fatalf("marshaled dependency missing freshness_policy: %s", data)
+	}
+	var got Dependency
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.FreshnessPolicy != DependencyFreshnessPolicyRebuildOnly {
+		t.Fatalf("round-trip freshness_policy = %q", got.FreshnessPolicy)
+	}
+	if len(got.Config) != 0 {
+		t.Fatalf("freshness_policy must not leak into config: %s", got.Config)
+	}
+}
+
+func TestReadServiceRejectsFreshnessPolicyOnIgnoreEdge(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Scenarios: map[string]Dependency{
+				"beta": {
+					StartupPolicy:   DependencyStartupPolicyIgnore,
+					FreshnessPolicy: DependencyFreshnessPolicyReuseRunning,
+				},
+			},
+		},
+	})
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "freshness_policy") {
+		t.Fatalf("ReadService error = %v, want freshness_policy/ignore rejection", err)
+	}
+}
+
+func TestReadServiceRejectsInvalidFreshnessPolicy(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Scenarios: map[string]Dependency{
+				"beta": {
+					Required:        true,
+					StartupPolicy:   DependencyStartupPolicyMustStart,
+					FreshnessPolicy: "bounce_always",
+				},
+			},
+		},
+	})
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "freshness_policy must be one of") {
+		t.Fatalf("ReadService error = %v, want invalid-enum rejection", err)
+	}
+}
+
+func TestReadServiceRejectsRequiredDependencyWithIgnorePolicy(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Resources: map[string]Dependency{
+				"postgres": {
+					Required:      true,
+					StartupPolicy: DependencyStartupPolicyIgnore,
+				},
+			},
+		},
+	})
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "resources.postgres is required") {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
+func TestReadServiceRejectsDisagreementWithoutSupervisionPrecedence(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Scenarios: map[string]Dependency{
+				"beta": {
+					Required:      true,
+					StartupPolicy: DependencyStartupPolicyTryStart,
+				},
+			},
+		},
+	})
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "supervision_precedence") {
+		t.Fatalf("ReadService error = %v, want explicit precedence marker", err)
+	}
+}
+
+func TestDependencySupervisionIntentPrecedenceTable(t *testing.T) {
+	tests := []struct {
+		name string
+		dep  Dependency
+		want string
+	}{
+		{"required must-start", Dependency{Enabled: true, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}, DependencyStartupPolicyMustStart},
+		{"required try-start acknowledged", Dependency{Enabled: true, Required: true, StartupPolicy: DependencyStartupPolicyTryStart, SupervisionPrecedence: DependencySupervisionPrecedenceRequired}, DependencyStartupPolicyMustStart},
+		{"required absent", Dependency{Enabled: true, Required: true}, DependencyStartupPolicyMustStart},
+		{"optional must-start acknowledged", Dependency{Enabled: true, StartupPolicy: DependencyStartupPolicyMustStart, SupervisionPrecedence: DependencySupervisionPrecedenceStartupPolicy}, DependencyStartupPolicyMustStart},
+		{"optional try-start", Dependency{Enabled: true, StartupPolicy: DependencyStartupPolicyTryStart}, DependencyStartupPolicyTryStart},
+		{"optional ignore", Dependency{Enabled: true, StartupPolicy: DependencyStartupPolicyIgnore}, DependencyStartupPolicyIgnore},
+		{"optional absent", Dependency{Enabled: true}, DependencyStartupPolicyTryStart},
+		{"disabled", Dependency{Enabled: false, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}, DependencyStartupPolicyIgnore},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.dep.SupervisionIntent(); got != tt.want {
+				t.Fatalf("SupervisionIntent() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReadServiceDisabledDependencySkipsContradictoryPolicyValidation(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteFile(t, servicePath, `{
+  "version": "1.0.0",
+  "service": {"name": "alpha"},
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": false,
+        "required": true,
+        "startup_policy": "ignore"
+      }
+    },
+    "scenarios": {
+      "beta": {
+        "enabled": false,
+        "required": true,
+        "startup_policy": "try_start"
+      }
+    }
+  }
+}`)
+
+	if _, err := ReadService(servicePath); err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+}
+
+func TestEvaluateHealthDetectsDegradedAndUnhealthyStates(t *testing.T) {
+	healthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer healthyServer.Close()
+
+	failingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failingServer.Close()
+
+	degraded := &HealthConfig{
+		Checks: []HealthCheck{
+			{
+				Name:     "api",
+				Type:     "http",
+				Target:   healthyServer.URL,
+				Critical: true,
+				Timeout:  1000,
+			},
+			{
+				Name:     "ui",
+				Type:     "http",
+				Target:   failingServer.URL,
+				Critical: false,
+				Timeout:  1000,
+			},
+		},
+	}
+	if got := EvaluateHealth(degraded, nil); got != "degraded" {
+		t.Fatalf("EvaluateHealth(degraded) = %q, want degraded", got)
+	}
+
+	unhealthy := &HealthConfig{
+		Checks: []HealthCheck{
+			{
+				Name:     "custom",
+				Type:     "unsupported",
+				Critical: true,
+			},
+		},
+	}
+	if got := EvaluateHealth(unhealthy, nil); got != "unhealthy" {
+		t.Fatalf("EvaluateHealth(unhealthy) = %q, want unhealthy", got)
+	}
+}
+
+func TestPerformHealthCheckPostgresTarget(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	defer listener.Close()
+
+	address := listener.Addr().String()
+	check := HealthCheck{
+		Name:    "db",
+		Type:    "postgres",
+		Target:  fmt.Sprintf("postgres://user:pass@%s/example", address),
+		Timeout: 1000,
+	}
+
+	if err := PerformHealthCheck(check, nil); err != nil {
+		t.Fatalf("PerformHealthCheck postgres: %v", err)
+	}
+}
+
+func TestPerformHealthCheckRejectsInvalidHTTPURL(t *testing.T) {
+	check := HealthCheck{
+		Name:   "api",
+		Type:   "http",
+		Target: "http://[::1",
+	}
+
+	if err := PerformHealthCheck(check, nil); err == nil {
+		t.Fatalf("expected invalid URL to fail health check")
+	}
+}
+
+func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
+	root := newScenarioRepoFixture(t)
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, merged, "Scoped alpha")
+
+	names, err := scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: "scenarios/alpha"})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha" {
+		t.Fatalf("sandbox names = %q, want alpha", got)
+	}
+
+	names, err = scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: "packages/shared"})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames unrelated scope: %v", err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("expected unrelated sandbox scope to contribute no scenarios, got %v", names)
+	}
+}
+
+func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
+	root := newScenarioRepoFixture(t)
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, filepath.Join(merged, "scenarios", "alpha"), "Sandbox alpha")
+
+	names, err := scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: ""})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames repo scope: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha" {
+		t.Fatalf("sandbox names = %q, want alpha", got)
+	}
+}
+
+func TestScanSandboxScenarioNamesUsesContractDefinedScenarioDir(t *testing.T) {
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, filepath.Join(merged, "apps", "alpha"), "Sandbox alpha")
+
+	names, err := scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: ""})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames repo scope: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha" {
+		t.Fatalf("sandbox names = %q, want alpha", got)
+	}
+}
+
+func TestManifestHelpers(t *testing.T) {
+	fixedPort := 5432
+	manifest := ServiceManifest{
+		Ports: map[string]Port{
+			"db": {
+				Description: "Database",
+				Port:        &fixedPort,
+			},
+			"api": {
+				EnvVar:      "API_PORT",
+				Description: "API server",
+				Range:       "15000-19999",
+			},
+		},
+		Lifecycle: Lifecycle{
+			Setup: Phase{
+				Description: "Prepare the scenario",
+				Steps: []PhaseStep{
+					{Name: "install"},
+				},
+			},
+		},
+	}
+
+	ports := manifest.SortedPorts()
+	if len(ports) != 2 {
+		t.Fatalf("port count = %d, want 2", len(ports))
+	}
+	if ports[0].Name != "api" || ports[1].Name != "db" {
+		t.Fatalf("port order = %#v", ports)
+	}
+	if manifest.PortEnvVar("db") != "DB_PORT" {
+		t.Fatalf("PortEnvVar fallback = %q", manifest.PortEnvVar("db"))
+	}
+	if got := strings.Join(manifest.PortEnvVars(), ","); got != "API_PORT,DB_PORT" {
+		t.Fatalf("PortEnvVars = %q", got)
+	}
+	if got := manifest.PortEnvVar("missing"); got != "" {
+		t.Fatalf("PortEnvVar missing = %q, want empty string", got)
+	}
+
+	phases := manifest.PhaseSummaries()
+	if len(phases) != 9 {
+		t.Fatalf("phase count = %d, want 9", len(phases))
+	}
+	if !phases[0].Defined || phases[0].Name != "setup" || phases[0].Steps != 1 {
+		t.Fatalf("setup summary = %#v", phases[0])
+	}
+	if phases[1].Defined {
+		t.Fatalf("develop phase should be undefined, got %#v", phases[1])
+	}
+}
+
+func TestLifecycleMarshalOmitsZeroPhases(t *testing.T) {
+	manifest := ServiceManifest{
+		Service: ServiceMetadata{Name: "declared"},
+		Lifecycle: Lifecycle{
+			Version: "2.0.0",
+			Health:  &HealthConfig{},
+		},
+	}
+	raw, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("decode marshaled manifest: %v", err)
+	}
+	lifecycle, ok := document["lifecycle"].(map[string]any)
+	if !ok {
+		t.Fatalf("lifecycle = %#v, want object", document["lifecycle"])
+	}
+	for _, retiredOrEmpty := range []string{"defaults", "setup", "develop", "build", "deploy", "clean", "test", "backup", "restore", "production", "stop"} {
+		if _, exists := lifecycle[retiredOrEmpty]; exists {
+			t.Fatalf("zero or retired lifecycle field %q was serialized: %s", retiredOrEmpty, raw)
+		}
+	}
+}
+
+func TestDeclaredComponentContractRoundTrips(t *testing.T) {
+	raw := []byte(`{
+  "service": {"name": "browser-automation-studio"},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {"kind": "go_module", "dir": "api"},
+      "run": {"argv": ["{{bin.api}}"], "port": "api", "data_dirs": ["data/workflows"], "readiness": {"type": "http", "path": "/health", "timeout_ms": 30000}}
+    },
+    "playwright-driver": {
+      "role": "sidecar",
+      "build": {"kind": "node_bundle", "dir": "playwright-driver", "output": "playwright-driver/dist/server.js"},
+      "run": {"argv": ["node", "dist/server.js"], "cwd": "playwright-driver", "port": "playwright_driver", "supervised_by": "api", "depends_on": [{"component": "api", "wait": "ready"}]}
+    }
+  },
+  "dependencies": {"scenarios": {"landing-page-business-suite": {"required": true, "startup_policy": "try_start", "degraded_behavior": "Local work remains available.", "bundle_policy": "discover"}}},
+  "lifecycle": {"setup": {"steps": [{"name": "provision", "exec": ["resource-minio", "create-bucket", "test"], "cwd": "api", "env": {"MODE": "test"}, "on_error": "retry", "retry": {"max_attempts": 3, "delay": 50, "backoff": "linear"}, "timeout": 1000}]}}
+}`)
+
+	var manifest ServiceManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got := manifest.Components["playwright-driver"].Run.SupervisedBy; got != "api" {
+		t.Fatalf("supervised_by = %q, want api", got)
+	}
+	dependency := manifest.Dependencies.Scenarios["landing-page-business-suite"]
+	if dependency.BundlePolicy != "discover" {
+		t.Fatalf("dependency contract = %#v", dependency)
+	}
+	step := manifest.Lifecycle.Setup.Steps[0]
+	if step.OnError != "retry" || step.Retry == nil || step.Retry.MaxAttempts != 3 || step.Timeout != 1000 {
+		t.Fatalf("exec step = %#v", step)
+	}
+
+	encoded, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, field := range []string{`"components"`, `"bundle_policy"`, `"exec"`, `"on_error"`} {
+		if !bytes.Contains(encoded, []byte(field)) {
+			t.Fatalf("round-trip output missing %s: %s", field, encoded)
+		}
+	}
+
+	componentType := reflect.TypeOf(Component{})
+	if _, exists := componentType.FieldByName("Secrets"); exists {
+		t.Fatal("Component must not introduce a second credential authority")
+	}
+}
+
+func TestExpandHealthTargetAndParsePostgresAddress(t *testing.T) {
+	expanded, err := ExpandHealthTarget("http://127.0.0.1:${API_PORT}/health?ui=$UI_PORT", map[string]int{
+		"API_PORT": 18080,
+		"UI_PORT":  38080,
+	})
+	if err != nil {
+		t.Fatalf("ExpandHealthTarget: %v", err)
+	}
+	if expanded != "http://127.0.0.1:18080/health?ui=38080" {
+		t.Fatalf("expanded target = %q", expanded)
+	}
+
+	tests := []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{name: "empty", target: "", want: ""},
+		{name: "dsn", target: "postgres://user:pass@db.example.com:5440/app", want: "db.example.com:5440"},
+		{name: "hostport", target: "127.0.0.1:5433", want: "127.0.0.1:5433"},
+		{name: "no port in dsn", target: "postgresql://user:pass@db.example.com/app", want: "db.example.com:5432"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parsePostgresAddress(tc.target)
+			if err != nil {
+				t.Fatalf("parsePostgresAddress(%q): %v", tc.target, err)
+			}
+			if got != tc.want {
+				t.Fatalf("parsePostgresAddress(%q) = %q, want %q", tc.target, got, tc.want)
+			}
+		})
+	}
+
+	if _, err := parsePostgresAddress("[::1"); err == nil {
+		t.Fatalf("expected invalid host:port input to return an error")
+	}
+}
+
+func TestHealthConfigPrefersLifecycleHealth(t *testing.T) {
+	topLevel := &HealthConfig{Description: "top-level"}
+	lifecycle := &HealthConfig{Description: "lifecycle"}
+	manifest := ServiceManifest{
+		Health: topLevel,
+		Lifecycle: Lifecycle{
+			Health: lifecycle,
+		},
+	}
+
+	if got := manifest.HealthConfig(); got != lifecycle {
+		t.Fatalf("HealthConfig should prefer lifecycle health, got %+v", got)
+	}
+}
+
+func TestDiscoverReportContinuesAfterInvalidScenario(t *testing.T) {
+	root := newScenarioRepoFixture(t)
+	writeScenarioService(t, root, "alpha", "Valid alpha")
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "broken", ".vrooli", "service.json"), `{
+  "service": {"name": "broken"},
+  "cli": {
+    "enabled": true,
+    "command": "broken",
+    "adapter": {"kind": "go_module", "module_path": "cli"}
+  }
+}`)
+
+	report, err := DiscoverReport(root, SandboxEnv{})
+	if err != nil {
+		t.Fatalf("DiscoverReport: %v", err)
+	}
+	if len(report.Items) != 1 || report.Items[0].Slug != "alpha" {
+		t.Fatalf("items = %#v", report.Items)
+	}
+	if len(report.Failures) != 1 {
+		t.Fatalf("failures = %#v", report.Failures)
+	}
+	if report.Failures[0].Name != "broken" || report.Failures[0].Kind != "scenario" {
+		t.Fatalf("failure = %#v", report.Failures[0])
+	}
+}
+
+func writeScenarioService(t *testing.T, root, name, description string) {
+	t.Helper()
+	writeScenarioServiceAtPath(t, filepath.Join(root, "scenarios", name), description)
+}
+
+func writeScenarioServiceUnderBase(t *testing.T, baseDir, name, description string) {
+	t.Helper()
+	writeScenarioServiceAtPath(t, filepath.Join(baseDir, name), description)
+}
+
+func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) {
+	t.Helper()
+	name := filepath.Base(scenarioPath)
+	testkitgo.WriteJSON(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{
+			Name:        name,
+			DisplayName: strings.ToUpper(name[:1]) + name[1:],
+			Description: description,
+		},
+		Ports: map[string]Port{
+			"api": {EnvVar: "API_PORT", Range: "15000-19999"},
+		},
+		Lifecycle: Lifecycle{
+			Version: "2.0.0",
+			Develop: Phase{
+				Description: "Run the scenario",
+				Steps: []PhaseStep{{
+					Name:       "start-api",
+					Exec:       []string{"sleep", "10"},
+					Background: true,
+				}},
+			},
+		},
+	})
+}
+
+func newScenarioRepoFixture(t *testing.T, opts ...testkitgo.RepoFixtureOption) string {
+	t.Helper()
+	fixture := testkitgo.NewRepoFixture(t, opts...)
+	fixture.WriteRepoContract(t)
+	return fixture.Root
+}
+
+func extractPort(t *testing.T, rawURL string) int {
+	t.Helper()
+	parts := strings.Split(rawURL, ":")
+	if len(parts) == 0 {
+		t.Fatalf("invalid URL %q", rawURL)
+	}
+	port := parts[len(parts)-1]
+	port = strings.TrimSuffix(port, "/")
+	value, err := strconv.Atoi(port)
+	if err != nil {
+		t.Fatalf("parse port from %q: %v", rawURL, err)
+	}
+	return value
+}
+
+type fakeScenarioContractPaths struct {
+	baseDir     string
+	scenarioDir string
+	servicePath string
+	scenarioKey string
+	scopePrefix string
+}
+
+func (f fakeScenarioContractPaths) ScenarioBaseDir(root string) string {
+	return f.baseDir
+}
+
+func (f fakeScenarioContractPaths) ScenarioRootPath(root, name string) string {
+	return f.scenarioDir
+}
+
+func (f fakeScenarioContractPaths) ScenarioServicePath(root, name, scenarioPath string) string {
+	return f.servicePath
+}
+
+func (f fakeScenarioContractPaths) ScenarioDirName(root string) string {
+	return f.scenarioKey
+}
+
+func (f fakeScenarioContractPaths) ScenarioScopePrefix(root string) string {
+	return f.scopePrefix
+}
+
+func (f fakeScenarioContractPaths) IsFullRepoScope(root, scope string) bool {
+	scope = strings.TrimSpace(strings.TrimSuffix(filepath.ToSlash(scope), "/"))
+	return scope == "" || scope == "." || scope == "/"
+}

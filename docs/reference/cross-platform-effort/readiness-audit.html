@@ -1,0 +1,818 @@
+<title>Vrooli Cross-Platform Readiness Audit</title>
+<style>
+  :root {
+    --ground:#EEF0F3; --surface:#FFFFFF; --surface-2:#F6F7F9;
+    --ink:#14181E; --ink-2:#5A626D; --ink-3:#878F9A;
+    --rule:#D5DAE1; --rule-strong:#B9C1CB;
+    --accent:#1B5A8A; --accent-soft:#E3EDF5;
+    --ok:#2C7A57; --ok-soft:#E0EFE8;
+    --warn:#A96B12; --warn-soft:#F6EBD8;
+    --crit:#A93A2C; --crit-soft:#F7E4E1;
+    --none:#7E8792; --none-soft:#E7EAEE;
+    --shadow:0 1px 2px rgba(20,24,30,.06), 0 8px 24px -16px rgba(20,24,30,.28);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wrap: 1120px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128;
+      --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+      --rule:#262C35; --rule-strong:#37404B;
+      --accent:#74AEDD; --accent-soft:#17293A;
+      --ok:#58BC91; --ok-soft:#12291F;
+      --warn:#DBA24A; --warn-soft:#2B2013;
+      --crit:#E77A68; --crit-soft:#2E1917;
+      --none:#7E8792; --none-soft:#1E232A;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128;
+    --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+    --rule:#262C35; --rule-strong:#37404B;
+    --accent:#74AEDD; --accent-soft:#17293A;
+    --ok:#58BC91; --ok-soft:#12291F;
+    --warn:#DBA24A; --warn-soft:#2B2013;
+    --crit:#E77A68; --crit-soft:#2E1917;
+    --none:#7E8792; --none-soft:#1E232A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px; }
+
+  .masthead { border-bottom:1px solid var(--rule); background:var(--surface); }
+  .masthead .wrap { padding-top:44px; padding-bottom:36px; }
+  .kicker { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent); margin:0 0 18px; }
+  h1 { font-family:var(--mono); font-weight:600; letter-spacing:-.028em;
+       font-size:clamp(27px,3.9vw,41px); line-height:1.1; margin:0 0 18px;
+       text-wrap:balance; max-width:25ch; }
+  .standfirst { font-size:18px; color:var(--ink-2); max-width:68ch; margin:0; }
+  .standfirst strong { color:var(--ink); font-weight:600; }
+  .meta { margin-top:26px; padding-top:18px; border-top:1px solid var(--rule);
+          font-family:var(--mono); font-size:12px; color:var(--ink-3);
+          display:flex; flex-wrap:wrap; gap:8px 26px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1px;
+           background:var(--rule); border:1px solid var(--rule); margin-top:34px; }
+  .stat { background:var(--surface); padding:18px 20px; }
+  .stat .n { font-family:var(--mono); font-size:27px; font-weight:600; letter-spacing:-.03em;
+             font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat .l { font-size:13px; color:var(--ink-2); margin-top:5px; }
+  .stat .s { font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:8px; }
+  .n.ok{color:var(--ok);} .n.warn{color:var(--warn);} .n.crit{color:var(--crit);} .n.acc{color:var(--accent);}
+
+  section { padding:56px 0; border-bottom:1px solid var(--rule); }
+  section:last-of-type { border-bottom:0; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+             color:var(--ink-3); display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .eyebrow::after { content:""; flex:1; height:1px; background:var(--rule); }
+  h2 { font-family:var(--mono); font-weight:600; font-size:clamp(20px,2.3vw,26px);
+       letter-spacing:-.022em; margin:0 0 14px; text-wrap:balance; }
+  h3 { font-family:var(--sans); font-weight:650; font-size:16.5px; margin:30px 0 8px; letter-spacing:-.008em; }
+  p { margin:0 0 14px; max-width:74ch; }
+  .lede { font-size:17px; color:var(--ink-2); max-width:70ch; }
+  ul { margin:0 0 14px; padding-left:20px; max-width:74ch; }
+  li { margin-bottom:7px; }
+  code { font-family:var(--mono); font-size:.875em; background:var(--surface-2);
+         border:1px solid var(--rule); border-radius:3px; padding:1px 5px; color:var(--ink); }
+  .m { font-family:var(--mono); font-size:.9em; }
+
+  .chip { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px;
+          letter-spacing:.04em; text-transform:uppercase; font-weight:600; padding:3px 8px;
+          border-radius:3px; white-space:nowrap; }
+  .chip::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .c-ok{color:var(--ok);background:var(--ok-soft);}
+  .c-wn{color:var(--warn);background:var(--warn-soft);}
+  .c-cr{color:var(--crit);background:var(--crit-soft);}
+  .c-no{color:var(--none);background:var(--none-soft);}
+
+  .scroll { overflow-x:auto; border:1px solid var(--rule); background:var(--surface); margin:20px 0 8px; }
+  table { border-collapse:collapse; width:100%; min-width:660px; font-size:14px; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+             color:var(--ink-3); font-weight:600; background:var(--surface-2);
+             border-bottom:1px solid var(--rule-strong); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.k { font-family:var(--mono); font-size:13px; white-space:nowrap; }
+  .caption { font-size:12.5px; color:var(--ink-3); margin:0 0 4px; max-width:74ch; }
+
+  .callout { border:1px solid var(--rule); border-left:3px solid var(--accent); background:var(--surface);
+             padding:18px 20px; margin:22px 0; box-shadow:var(--shadow); }
+  .callout.crit { border-left-color:var(--crit); }
+  .callout.ok { border-left-color:var(--ok); }
+  .callout.warn { border-left-color:var(--warn); }
+  .callout p:last-child { margin-bottom:0; }
+  .callout .t { font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+                color:var(--ink-3); margin:0 0 8px; }
+
+  .rev { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .rv { background:var(--surface); padding:15px 18px; display:grid; gap:6px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:780px){ .rv{ grid-template-columns:132px minmax(0,1fr); gap:22px; } }
+  .rv .verdict { font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:600; }
+  .rv .verdict.wrong { color:var(--crit); }
+  .rv .verdict.partial { color:var(--warn); }
+  .rv .verdict.stands { color:var(--ok); }
+  .rv .verdict.open { color:var(--accent); }
+  .rv .txt { font-size:14.5px; }
+  .rv .txt b { font-weight:650; }
+  .rv .txt .was { display:block; color:var(--ink-3); font-size:13px; margin-top:4px; }
+
+  /* layer diagram for config model */
+  .layers { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin:22px 0 8px; }
+  .lyr { background:var(--surface); padding:16px 18px; display:grid; gap:8px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:820px){ .lyr{ grid-template-columns:210px 132px minmax(0,1fr); gap:22px; align-items:start; } }
+  .lyr .nm { font-family:var(--mono); font-size:13px; font-weight:600; }
+  .lyr .nm small { display:block; font-family:var(--sans); font-weight:400; font-size:11.5px;
+                   color:var(--ink-3); margin-top:3px; }
+  .lyr .d { font-size:14px; color:var(--ink-2); }
+  .lyr .d b { color:var(--ink); font-weight:650; }
+
+  .ws { border:1px solid var(--rule); background:var(--surface); margin:16px 0; box-shadow:var(--shadow); }
+  .ws > summary { cursor:pointer; padding:16px 20px; display:flex; align-items:center; gap:14px;
+                  list-style:none; font-weight:650; font-size:16px; }
+  .ws > summary::-webkit-details-marker { display:none; }
+  .ws > summary::after { content:"+"; margin-left:auto; font-family:var(--mono); color:var(--ink-3); font-size:18px; line-height:1; }
+  .ws[open] > summary::after { content:"–"; }
+  .ws[open] > summary { border-bottom:1px solid var(--rule); }
+  .ws .tag { font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+             color:var(--accent); background:var(--accent-soft); padding:3px 8px; border-radius:3px;
+             font-weight:600; white-space:nowrap; }
+  .ws .inner { padding:18px 20px 22px; }
+  .ws ol { margin:0; padding-left:22px; max-width:76ch; }
+  .ws ol li { margin-bottom:10px; }
+  .ws summary:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .ws .home { font-size:13.5px; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--rule);
+              padding:10px 12px; margin:0 0 16px; }
+  .ws .home b { color:var(--ink); }
+
+  pre { font-family:var(--mono); font-size:12.5px; line-height:1.6; background:var(--surface-2);
+        border:1px solid var(--rule); padding:14px 16px; overflow-x:auto; margin:14px 0; color:var(--ink); }
+  pre .c { color:var(--ink-3); }
+  pre .g { color:var(--ok); }
+  pre .r { color:var(--crit); }
+
+  .seq { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:22px; }
+  .step { background:var(--surface); padding:18px 20px; display:grid; gap:10px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:760px){ .step{ grid-template-columns:56px 205px minmax(0,1fr); gap:20px; align-items:baseline; } }
+  .step .p { font-family:var(--mono); font-size:24px; font-weight:600; color:var(--ink-3);
+             letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .step .h { font-weight:650; font-size:15.5px; }
+  .step .d { color:var(--ink-2); font-size:14.5px; }
+  .step .d em { color:var(--ink); font-style:normal; font-family:var(--mono); font-size:13px; }
+
+  .accept { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .ac { background:var(--surface); padding:13px 18px; display:flex; gap:14px; align-items:flex-start; }
+  .ac .box { font-family:var(--mono); color:var(--ink-3); font-size:14px; flex:none; margin-top:1px; }
+  .ac .txt { font-size:14.5px; }
+  .ac .txt small { display:block; color:var(--ink-3); font-size:12.5px; margin-top:2px; }
+
+  footer { padding:36px 0 60px; color:var(--ink-3); }
+  footer .wrap { display:flex; flex-wrap:wrap; gap:10px 24px; font-family:var(--mono); font-size:12px; }
+
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Portability audit &middot; rev 4 &middot; measured 2026-08-07 &middot; branch <span class="m">agi</span></p>
+    <h1>Almost every mechanism you need is already built and switched off.</h1>
+    <p class="standfirst">
+      Fourth revision. Three questions this round had the same answer in the code:
+      <strong>the personal-versus-project config split, the scenario-adoption policy for shared test
+      code, and the copy-versus-import distinction are all already designed, schema'd, and disabled by
+      a single field each.</strong> The reason everything feels required is not that a layer is
+      missing — it is that all 19 project tools are declared <code>required: true</code>, which
+      structurally bypasses the opt-in layer that exists.
+    </p>
+    <div class="stats">
+      <div class="stat"><div class="n crit">19&nbsp;/&nbsp;19</div><div class="l">project tools marked required</div><div class="s">opt-in layer unreachable</div></div>
+      <div class="stat"><div class="n warn">7</div><div class="l">names are both tool and resource</div><div class="s">vault is the only mismatched pair</div></div>
+      <div class="stat"><div class="n crit">1</div><div class="l">package with <span class="m">scenario_adoptable:false</span></div><div class="s">it is testkit-go</div></div>
+      <div class="stat"><div class="n ok">113</div><div class="l">scenarios with <span class="m">.vrooli/testing.json</span></div><div class="s">the enforcement substrate exists</div></div>
+    </div>
+    <div class="meta">
+      <span>rev 4 threads: requirements model · tool/resource overlap · remote provisioning · testkit enforcement</span>
+      <span>all findings re-read in source</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <p class="eyebrow">Revision log</p>
+  <h2>What changed this round</h2>
+  <div class="rev">
+    <div class="rv">
+      <div class="verdict stands">You're right</div>
+      <div class="txt">
+        <b>Vault should not be a tool.</b> Confirmed, and the pattern is wider than vault:
+        <b>seven names exist in both <code>internal/tools/</code> and <code>resources/</code></b> —
+        codex, grok, k6, kopia, opencode, vault, and claude/claude-code. Six are consistent
+        <code>external-cli</code> pairs. <b>Vault is the only mismatch</b>: <code>host-required</code>
+        as a tool, <code>vendorable</code> + <code>managed-service</code> as a resource.
+        <span class="was">The tool entry is the stray. My rev-3 "retire the stager" advice was aimed at the wrong artifact.</span>
+      </div>
+    </div>
+    <div class="rv">
+      <div class="verdict open">Answered</div>
+      <div class="txt">
+        <b>"How are tools, safeguards, resources and scenarios configured as required?"</b>
+        There are two layers and the personal one already covers all four kinds —
+        <code>operator-state.json</code> is gitignored, mode 0600, and its schema has
+        <code>host_tools</code>, <code>resources</code>, <code>scenarios</code> and
+        <code>active_profile</code>. Only <code>host_safeguards</code> is actually populated.
+        <span class="was">Full model diagrammed below, with the one line that disables it.</span>
+      </div>
+    </div>
+    <div class="rv">
+      <div class="verdict open">Answered</div>
+      <div class="txt">
+        <b>Can testkit-go be adopted by scenarios?</b> The blocker is not the missing
+        <code>go.mod</code> — it is a governance decision.
+        <code>packages/testkit-go/.vrooli/package.json</code> declares
+        <code>"scenario_adoptable": false</code>. It is <b>the only package in the repo that does</b>.
+        <span class="was">And the schema already models import-vs-copy, which answers your other question too.</span>
+      </div>
+    </div>
+    <div class="rv">
+      <div class="verdict partial">Opinion</div>
+      <div class="txt">
+        <b>Prebuilt bundles pushed over Bridge for a Raspberry Pi.</b> Worth doing, but I would frame
+        it as a <em>portable build cache</em> rather than a new artifact format — and there is a hard
+        asymmetry: it works for Pi and not for macOS credentials.
+        <span class="was">Reasoning and the publish-versus-bridge call below.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Thread 1 · the requirements model</p>
+  <h2>Two layers exist. One is switched off.</h2>
+  <p class="lede">
+    This is the full picture of how something becomes "required," across all four kinds.
+  </p>
+
+  <div class="layers">
+    <div class="lyr">
+      <div class="nm">.vrooli/service.json<small>project layer</small></div>
+      <div><span class="chip c-cr">committed</span></div>
+      <div class="d">Declares <code>hostTools</code> and <code>hostSafeguards</code>, each with
+        <code>required</code>, <code>environments</code> (<span class="m">development / production /
+        minimal</span>) and <code>when</code> (<span class="m">setup / develop / test</span>).
+        <b>All 19 hostTools are <code>required: true</code>.</b></div>
+    </div>
+    <div class="lyr">
+      <div class="nm">.vrooli/operator-state.json<small>personal layer</small></div>
+      <div><span class="chip c-ok">gitignored · 0600</span></div>
+      <div class="d">Schema supports <code>host_tools.&lt;name&gt;.opted_in</code>,
+        <code>resources.&lt;id&gt;.enabled</code>, <code>scenarios.&lt;name&gt;</code> and
+        <code>active_profile</code>. <b>Only <code>host_safeguards</code> is populated today</b> —
+        9 opt-ins on this machine.</div>
+    </div>
+    <div class="lyr">
+      <div class="nm">bootstrapAwareRequirements<small>code override</small></div>
+      <div><span class="chip c-wn">hardcoded</span></div>
+      <div class="d">Forces git and Go required-and-first regardless of declaration, and
+        <b>silently drops docker</b> from the global set even though the project manifest marks it
+        required in all three environments.</div>
+    </div>
+  </div>
+
+  <div class="callout crit">
+    <p class="t">The one line that disables the personal layer</p>
+    <p>
+      The schema for <code>host_tools</code> says it plainly: <em>"Required tools (per the manifest's
+      <code>required: true</code>) bypass this and are always installed."</em>
+      Since <b>every one of the 19 project hostTools is <code>required: true</code></b>, the opt-in
+      map can never apply to any of them. The layer you want already exists — it is just structurally
+      unreachable.
+    </p>
+  </div>
+
+  <h3>What is actually being forced on a new developer</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Environment</th><th>Tools forced</th><th>Read</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="k">minimal</td>
+          <td><span class="m">git, curl, jq, yq, docker, rasdaemon, mcelog, kdump-tools</span></td>
+          <td><span class="chip c-cr">3 are Linux-kernel-only</span></td>
+        </tr>
+        <tr>
+          <td class="k">production</td>
+          <td>same eight</td>
+          <td><span class="chip c-cr">same problem</span></td>
+        </tr>
+        <tr>
+          <td class="k">development</td>
+          <td>those eight plus <span class="m">go, node, pnpm, python, java, quint, buf, protoc, protoc-gen-go, protoc-gen-connect-go, protoc-gen-es</span></td>
+          <td><span class="chip c-wn">11 more, all mandatory</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">
+    <code>rasdaemon</code>, <code>mcelog</code> and <code>kdump-tools</code> are Linux RAS and
+    crash-dump tooling with no macOS or Windows equivalent — and they are required in the
+    <em>minimal</em> profile. A minimal setup on a Mac mini will try to install kernel crash-dump
+    tooling before it does anything else.
+  </p>
+
+  <div class="callout">
+    <p class="t">Answering your instinct directly</p>
+    <p>
+      You said you personally want a lot installed but should not impose that on other developers.
+      <b>That is exactly the split the two layers were designed for, and your preferences are on the
+      wrong side of it.</b> <code>java</code>, <code>quint</code>, <code>python</code> and the four
+      protoc plugins are your working set, declared in the committed manifest as mandatory for
+      everyone. Move them to <code>required: false</code> in <code>service.json</code> and record
+      <code>opted_in: true</code> in your own <code>operator-state.json</code>, and nothing about your
+      machine changes while a new developer stops inheriting your toolbox.
+    </p>
+    <p style="margin-top:12px">
+      Two supporting signals that this is the intended discipline: <b>scenario-level hostTools already
+      do it</b> — 23 declared <code>required: false</code> against 11 true — and
+      <code>active_profile</code> is reserved in the schema with
+      <code>docs/configuration/profiles.md</code> explaining that profiles are deliberately deferred
+      until a second concrete profile exists. <b>A second developer is that second profile.</b>
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Thread 2 · tool / resource overlap</p>
+  <h2>Seven dual declarations, one genuine mismatch</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Name</th><th>As tool</th><th>As resource</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="k">codex</td><td>host-required</td><td>host-required · external-cli</td><td><span class="chip c-wn">consistent, redundant</span></td></tr>
+        <tr><td class="k">grok</td><td>host-required</td><td>host-required · external-cli</td><td><span class="chip c-wn">consistent, redundant</span></td></tr>
+        <tr><td class="k">k6</td><td>host-required</td><td>host-required · external-cli</td><td><span class="chip c-wn">consistent, redundant</span></td></tr>
+        <tr><td class="k">kopia</td><td>host-required</td><td>host-required · external-cli</td><td><span class="chip c-wn">consistent, redundant</span></td></tr>
+        <tr><td class="k">opencode</td><td>host-required</td><td>host-required · external-cli</td><td><span class="chip c-wn">consistent, redundant</span></td></tr>
+        <tr><td class="k">claude → claude-code</td><td>host-required</td><td>host-required · external-cli</td><td><span class="chip c-wn">consistent, name drift</span></td></tr>
+        <tr><td class="k">vault</td><td><b>host-required</b></td><td><b>vendorable · managed-service</b></td><td><span class="chip c-cr">contradiction</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">
+    The six <code>external-cli</code> pairs are not wired to each other — the driver probes the
+    external command directly and each resource ships its own <code>resource-&lt;name&gt;</code> CLI
+    wrapper. They are parallel declarations of the same third-party binary, not a designed pairing.
+    <code>internal/tools/tools.go</code> embeds <code>*/tool.json</code>, so <b>a directory existing
+    is enough to register a tool</b> — nothing had to opt these in.
+  </p>
+
+  <div class="callout ok">
+    <p class="t">Recommendation</p>
+    <p>
+      Delete <code>internal/tools/vault/</code>. It is the stray, and it contradicts the resource that
+      already handles vault correctly. Then decide the general rule for the other six: either the
+      resource registry is the authority for third-party binaries a resource wraps and the tool entries
+      go, or the tool registry stays and the resources reference it — but not two independent
+      declarations that can drift, which is precisely how vault ended up saying two different things.
+    </p>
+    <p style="margin-top:12px">
+      This also corrects my rev-3 advice. The bespoke <b>336-LOC stager in
+      <code>cmd/vrooli-dist/vault_server.go</code> is a separate question</b> and still worth a look —
+      but the resource archetype already implements install-if-missing / use-if-present, so the stager
+      is solving a problem the resource layer solved.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Thread 3 · remote provisioning</p>
+  <h2>Prebuilt bundles for a Pi — my read</h2>
+  <p class="lede">
+    Your idea is good and I would reframe the unit of work. The thing that is slow on a Pi is not
+    "downloading things," it is compiling 275 modules. So the artifact worth shipping is a
+    <em>build result</em>, not a bundle format.
+  </p>
+
+  <h3>Frame it as a portable build cache</h3>
+  <p>
+    Go already gives you the primitive. A build result is fully determined by
+    <code>{GOOS, GOARCH, toolchain version, module graph, build flags}</code> — and
+    <code>packages/api-core/staleness/checker.go</code> already hashes exactly that set
+    (<code>GOOS, GOARCH, CGO_ENABLED, GOFLAGS, GOEXPERIMENT, GOAMD64, GOARM</code>). Cross-compiling
+    for <code>linux/arm64</code> on your workstation and shipping the binaries plus a warmed cache
+    keyed by that digest gets the Pi to a running system without inventing a new distribution format —
+    and my sweep already proved <code>linux/arm64</code> builds clean with zero arch-specific breaks.
+  </p>
+
+  <h3>The transport already exists in two halves</h3>
+  <ul>
+    <li><b>The index and staging half:</b> <code>resource-artifacts-v1.txt</code> plus the installer's
+        verify-and-place loop already ship checksummed per-os/arch binaries into
+        <code>~/.vrooli/artifacts/</code>. Generalising that to scenario binaries is an extension of a
+        working mechanism.</li>
+    <li><b>The delivery half:</b> Bridge dispatches typed <code>{scenario, verb, args}</code> jobs to a
+        node of any OS and never touches a shell. Pushing a payload before running setup fits its
+        existing model.</li>
+  </ul>
+
+  <div class="callout warn">
+    <p class="t">The asymmetry to plan around</p>
+    <p>
+      This works for the Pi and <b>does not work for macOS credentials.</b>
+      <code>internal/resources/securestore/store_darwin.go</code> uses cgo for the Keychain, so a
+      darwin binary cross-compiled from Linux has no credential backend — the code even names the
+      escape hatch <code>AllowMissingDarwinKeychain</code> and says a release must never set it.
+      So: <b>Pi can be provisioned from your workstation; a Mac must build its own credential path
+      locally.</b> Worth knowing before the plan assumes one mechanism covers both.
+    </p>
+  </div>
+
+  <h3>Publish, or keep it Bridge-controlled?</h3>
+  <p>
+    Your instinct is right, and the repo already argues for it. The config space is
+    <b>48 tools × 25 resources × 135 scenarios × per-operator opt-ins</b> — publishing pre-baked
+    bundles across that is not a product, it is a combinatorial explosion. Bridge-controlled per-node
+    provisioning targets exactly one config: the one you chose for that node.
+  </p>
+  <p>
+    There is one future case for publishing, and it is already scoped:
+    <code>docs/configuration/profiles.md</code> defines a profile as "a named bundle of scenario +
+    resource selections," gives three worked examples, and defers the feature until a second concrete
+    profile exists. <b>Publishing makes sense per named profile and only then</b> — the number of
+    artifacts becomes the number of profiles, not the size of the config space. Until profiles ship,
+    Bridge-controlled is the correct and only sane scope.
+  </p>
+</section>
+
+<section>
+  <p class="eyebrow">Thread 4 · testkit adoption</p>
+  <h2>One field forbids it, and the schema already knows the answer</h2>
+
+  <pre><span class="c">// packages/testkit-go/.vrooli/package.json</span>
+"adoption": {
+  "scenario_adoptable": <span class="r">false</span>,          <span class="c">← the only false in the repo</span>
+  "allowed_consumers": ["internal_platform"],
+  "adoption_modes": []
+}</pre>
+
+  <p>
+    Every other package declares <code>scenario_adoptable: true</code>. And the schema already models
+    the distinction you described between your UI component library and a normal Go dependency:
+  </p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Adoption mode</th><th>Meaning</th><th>Packages using it</th></tr></thead>
+      <tbody>
+        <tr><td class="k">go_module_replace</td><td>Import — one shared version, updates flow</td>
+            <td><span class="m">api-core, cli-core, freshness-go, maturity-go, repo-contract-go</span></td></tr>
+        <tr><td class="k">file_dependency</td><td>Copy with attribution — the UI model you built</td>
+            <td><span class="m">api-base, audio-capture-browser, iframe-bridge, vitest-requirement-reporter</span></td></tr>
+        <tr><td class="k">generated_artifact</td><td>Emitted, not authored</td><td><span class="m">proto</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">
+    <code>allowed_consumers</code> is equally specific and already includes
+    <b><code>scenario_test</code></b> as a first-class class — declared today by api-core,
+    freshness-go, maturity-go, proto and vitest-requirement-reporter. The consumer class for exactly
+    this use case exists and testkit-go does not claim it.
+  </p>
+
+  <div class="callout ok">
+    <p class="t">The change</p>
+    <pre>"adoption": {
+  "scenario_adoptable": <span class="g">true</span>,
+  "allowed_consumers": ["internal_platform", <span class="g">"scenario_test"</span>, <span class="g">"template_api"</span>, <span class="g">"template_cli"</span>],
+  "adoption_modes": [<span class="g">"go_module_replace"</span>]
+}</pre>
+    <p>
+      Plus a <code>go.mod</code>, and keeping the four <code>internal/</code>-dependent fixtures
+      (<span class="m">scenariofixture, processfixture, packagefixture, resourcefixture</span>) out of
+      the scenario-facing surface. The root package is already dependency-clean and its
+      <code>doc.go</code> already says that is deliberate.
+    </p>
+  </div>
+
+  <h3>Enforcement without hardcoding — your constraint, and it is satisfiable</h3>
+  <p>
+    You are right to refuse a rule that hardcodes "look for a hand-rolled clock." The substrate to
+    avoid that already exists: <b>113 of 135 scenarios carry a <code>.vrooli/testing.json</code></b>
+    with a <code>unit.policy_profile.policy_classes.&lt;class&gt;</code> structure, and unit-health
+    already projects data-declared rules into checks (<code>projection_report.go</code>) rather than
+    hardcoding them — <code>testutil.production_import_ban</code> is a JSON field, not a Go literal.
+  </p>
+  <p>The derivation should run in this direction:</p>
+  <pre><span class="c">1.</span> testkit-go's <span class="m">.vrooli/package.json</span> declares what it provides
+     <span class="c">→ needs one new schema field, e.g. provides: [{concern, import_path}]</span>
+<span class="c">2.</span> unit-health reads every packages/*/.vrooli/package.json where
+     allowed_consumers includes "scenario_test"
+<span class="c">3.</span> for each declared concern, it checks whether the scenario hand-rolls it
+     <span class="c">→ finding, with the ladder rung driven by adoption %</span>
+<span class="c">4.</span> testkit adds a concern <span class="g">→ the rule extends automatically</span>
+     <span class="c">nothing in unit-health changes, nothing drifts</span></pre>
+  <p>
+    The only new construct is the <code>provides</code> field on the package manifest. Everything else
+    — the manifest layer, the consumer classes, the per-scenario policy file, unit-health's projection
+    machinery, the maturity ladder — is already built. And because the rule reads the manifest rather
+    than a list, it stays correct when testkit grows, which is exactly the property you asked for.
+  </p>
+
+  <h3>What adoption would unify</h3>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Scaffold file</th><th>Copies</th><th>Distinct</th><th>Uniformity</th></tr></thead>
+      <tbody>
+        <tr><td class="k">testutil/assertx/http.go</td><td class="num">46</td><td class="num">1</td><td class="num">100%</td></tr>
+        <tr><td class="k">cli/testutil/server.go</td><td class="num">47</td><td class="num">2</td><td class="num">97%</td></tr>
+        <tr><td class="k">cli/testutil/app.go</td><td class="num">46</td><td class="num">3</td><td class="num">95%</td></tr>
+        <tr><td class="k">testutil/testutil.go</td><td class="num">51</td><td class="num">6</td><td class="num">90%</td></tr>
+        <tr><td class="k">testutil/mocks/clock.go</td><td class="num">48</td><td class="num">6</td><td class="num">88%</td></tr>
+        <tr><td class="k">clock/clock.go</td><td class="num">50</td><td class="num">7</td><td class="num">88%</td></tr>
+        <tr><td class="k">testutil/db/sqlite.go</td><td class="num">48</td><td class="num">15</td><td class="num">70%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="caption">
+    ~336 files, distinct counts measured after normalizing the interpolated module path.
+    Near-total uniformity is the evidence that <code>go_module_replace</code> is right here rather
+    than <code>file_dependency</code> — nobody has customized these, so the reason your UI model
+    exists does not apply.
+  </p>
+</section>
+
+<section>
+  <p class="eyebrow">Carried forward</p>
+  <h2>Build evidence and the platform seam</h2>
+  <p class="lede">Unchanged across four revisions. Measured, and agreed.</p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Target</th><th>Failing</th><th>Minus baseline</th><th>Real regressions</th></tr></thead>
+      <tbody>
+        <tr><td class="k">linux/amd64 (baseline)</td><td class="num">9</td><td class="num">—</td><td class="num">—</td></tr>
+        <tr><td class="k">linux/arm64 (Pi)</td><td class="num">9</td><td class="num">−9</td><td class="num">0</td></tr>
+        <tr><td class="k">darwin/arm64 (Mac mini)</td><td class="num">10</td><td class="num">−9</td><td class="num">1 <span class="m">vrooli-emulator</span></td></tr>
+        <tr><td class="k">windows/amd64</td><td class="num">12</td><td class="num">−9</td><td class="num">3</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ul>
+    <li><b>Nine scenario modules do not compile on Linux today.</b> Still the first fix — they
+        contaminate every measurement until they are green.</li>
+    <li><b>Eight separate process implementations</b>; <b>397</b> inline <code>runtime.GOOS</code>
+        branches; <b>nine</b> <code>internal/host*</code> packages, eight without a package doc.</li>
+    <li><b>Host facts collected well, consumed unevenly.</b> PackageManager 80 sites, SupportsSystemd 50,
+        but IsHeadless 4 and IsWSL 4. <code>runtimesupervisor/service_install_linux.go</code> writes a
+        systemd unit unconditionally without consulting <code>SupportsSystemd</code>.</li>
+    <li><b>Seven platform-support authorities, five vocabularies.</b> <code>runtime_windows.go</code>
+        sets <code>SupportsSetup: true</code> while the README says native Windows setup is
+        unsupported. Nothing can detect the disagreement.</li>
+    <li><b>Bridge is ready.</b> All three modules cross-build clean; <code>"scenario test"</code> is
+        already the first entry in the dispatch allowlist. The gap is that
+        <code>suite_executions</code> has no os/arch/host column.</li>
+  </ul>
+</section>
+
+<section>
+  <p class="eyebrow">Recommendations</p>
+  <h2>Seven workstreams</h2>
+
+  <details class="ws" open>
+    <summary><span class="tag">W1</span> Onboard the Mac mini as the test instrument</summary>
+    <div class="inner">
+      <div class="home">Owner: <b>vrooli-bridge</b> + <b>test-genie</b> · both built, both macOS-aware</div>
+      <ol>
+        <li><b>Bootstrap the Mac mini as a Bridge node.</b> A failed onboard is the next portability bug
+            report, so the attempt is itself the first measurement.</li>
+        <li><b>Add platform provenance to <code>suite_executions</code></b> — os, arch, node identity,
+            host-fact digest. Without it a macOS pass and a Linux pass are indistinguishable.</li>
+        <li><b>Dispatch <code>scenario test</code> at control-plane and package targets first.</b>
+            Already allowlisted, highest platform sensitivity, smallest runtime.</li>
+        <li><b>Reconcile the two Homebrew policies</b> — setup auto-installs it, Bridge deliberately
+            refuses. Record the decision in the host-requirement spec, not in two implementations.</li>
+        <li><b>Fill in the hardware evidence document</b> that <code>platform-support.md</code> already
+            specifies.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details class="ws" open>
+    <summary><span class="tag">W2</span> Unblock the personal-versus-project split</summary>
+    <div class="inner">
+      <div class="home">Owner: <b>structure-health</b> for the contract check · the layer itself already exists</div>
+      <ol>
+        <li><b>Triage all 19 project hostTools</b> into genuinely-required versus operator-preference.
+            My read: git, curl, jq, yq and Go are the real floor. <code>java</code>,
+            <code>quint</code>, <code>python</code> and the four protoc plugins are a working set.</li>
+        <li><b>Move your preferences into <code>operator-state.json</code></b> as
+            <code>host_tools.&lt;name&gt;.opted_in</code>. Nothing about your machine changes; a new
+            developer stops inheriting your toolbox.</li>
+        <li><b>Remove <code>rasdaemon</code>, <code>mcelog</code> and <code>kdump-tools</code> from the
+            minimal profile</b>, or gate them on a Linux host fact. They are kernel RAS tooling with no
+            macOS or Windows equivalent and they are currently mandatory everywhere.</li>
+        <li><b>Reconcile the docker declaration with the code.</b> The manifest marks it required in all
+            three environments; <code>bootstrapAwareRequirements</code> silently drops it. One of the two
+            is wrong.</li>
+        <li><b>Populate <code>resources</code> and <code>scenarios</code> in operator-state</b> — the
+            schema supports both and neither is used, so resource and scenario selection has no personal
+            layer at all today.</li>
+        <li><b>Add a contract check:</b> a project-level <code>required: true</code> needs a written
+            rationale, the same discipline <code>host-required</code> needs. Scenario-level manifests
+            already model optionality properly — 23 false against 11 true — so the discipline exists
+            one level down.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="tag">W3</span> One platform seam, enforced</summary>
+    <div class="inner">
+      <div class="home">Owner: <b>quality-health</b> · already accepts <code>ValidationTargetKind: "project"</code></div>
+      <ol>
+        <li><b>Create one platform package</b> owning process spawn and attributes, signals, process
+            trees, file locking, service installation, elevation, path resolution.</li>
+        <li><b>Migrate all eight implementations onto it</b>, <code>internal/process</code> first.</li>
+        <li><b>Merge the nine <code>host*</code> packages</b> into one tree with a doc comment each.</li>
+        <li><b>Consult the facts already collected</b> — fix <code>service_install_linux.go</code> to gate
+            on <code>SupportsSystemd</code>, then sweep for other collected-but-unused facts.</li>
+        <li><b>Land the foundation rules in quality-health:</b> no <code>syscall.*</code> outside the
+            seam, no <code>exec.Command("bash"|"sh")</code>, no bare <code>runtime.GOOS</code> comparison
+            outside the seam. Exceptions declared in data with a rationale.</li>
+        <li><b>Countable targets:</b> <code>runtime.GOOS</code> 397 → under 50; <code>syscall</code>
+            confined to one package. Both are maturity ladder rungs rather than promises.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="tag">W4</span> Finish testkit-go for scenarios</summary>
+    <div class="inner">
+      <div class="home">Owner: <b>unit-health</b> · charter already covers test architecture; substrate already in 113 scenarios</div>
+      <ol>
+        <li><b>Flip the three governance fields</b> in <code>packages/testkit-go/.vrooli/package.json</code>
+            and give the package a <code>go.mod</code>.</li>
+        <li><b>Keep the four control-plane fixtures out of the scenario-facing surface.</b> The split
+            already exists and matches the package's stated design.</li>
+        <li><b>Add the scaffolding as sibling subpackages</b> — <code>clock</code>, <code>assertx</code>,
+            <code>dbtest</code>, <code>clitest</code>. Start with <code>assertx</code>: 46 copies, one
+            distinct, zero risk, proves the path.</li>
+        <li><b>Reconcile <code>testutil/db/sqlite.go</code> first</b> — the only file with real divergence
+            at 70%.</li>
+        <li><b>Add a <code>provides</code> field to the package manifest schema</b> so unit-health can
+            derive the ban list from what testkit actually exports rather than from a hardcoded list.
+            This is the one genuinely new construct in this workstream.</li>
+        <li><b>Fix the templates</b>, or every new scenario keeps adding to the pile.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="tag">W5</span> One compatibility source of truth</summary>
+    <div class="inner">
+      <div class="home">Owner: <b>structure-health</b> · already covers all eight contract kinds</div>
+      <ol>
+        <li><b>Adopt the evidence-tier vocabulary</b> from <code>platform-support.md</code> as the schema
+            — the only one of the seven authorities that separates "we built it" from "we proved it."</li>
+        <li><b>Collapse the three per-resource axes</b> into one. A resource can currently hold three
+            inconsistent answers and nothing objects.</li>
+        <li><b>Make the code the source and docs a projection.</b>
+            <code>SupportsSetup</code>/<code>SupportsDevelop</code> are runtime facts; the README should
+            be generated from them plus recorded evidence.</li>
+        <li><b>Fail the contract when a claim outruns its evidence</b> — the check that would have caught
+            the Windows contradiction at the commit that introduced it.</li>
+        <li><b>Delete the stale prose.</b> No declaration should be treated as a ceiling on what the
+            project is trying to reach.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="tag">W6</span> Remote provisioning for constrained targets</summary>
+    <div class="inner">
+      <div class="home">Owner: <b>vrooli-bridge</b> + <b>cmd/vrooli-dist</b> · both halves of the transport exist</div>
+      <ol>
+        <li><b>Key the payload on the existing build digest</b> —
+            <code>api-core/staleness/checker.go</code> already hashes GOOS, GOARCH, CGO_ENABLED, GOFLAGS,
+            GOEXPERIMENT, GOAMD64 and GOARM. Reuse it rather than inventing a bundle identity.</li>
+        <li><b>Extend <code>resource-artifacts-v1.txt</code> to carry scenario binaries</b> for a target,
+            reusing the verify-and-stage loop the installer already runs.</li>
+        <li><b>Push before setup over Bridge</b>, then let setup find the artifacts and skip the compile.</li>
+        <li><b>Scope it to Pi-class targets first.</b> The darwin cgo Keychain means a Mac must build its
+            own credential path locally — one mechanism will not cover both, so do not design as if it will.</li>
+        <li><b>Do not publish bundles yet.</b> Bridge-controlled per-node provisioning targets one config;
+            publishing targets a combinatorial space. Revisit when profiles ship and the artifact count
+            becomes the profile count.</li>
+      </ol>
+    </div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="tag">W7</span> Fix what is broken, delete what is stray</summary>
+    <div class="inner">
+      <div class="home">Owner: the owning scenarios · no new infrastructure needed</div>
+      <ol>
+        <li><b>The nine Linux-broken scenario modules</b> first.</li>
+        <li><b>Delete <code>internal/tools/vault/</code></b>, then decide the general rule for the other
+            six dual declarations.</li>
+        <li><code>syscall.Flock</code> (git-control-tower) and <code>SysProcAttr.Setpgid</code>
+            (web-console) → the platform seam.</li>
+        <li><code>livedesktop.NewLinuxBackend</code> (vrooli-emulator) → build-tagged backend registry
+            returning a typed unsupported result.</li>
+        <li><b>Bump go-redis past v9.15.0.</b> Upstream Windows break, not ours.</li>
+        <li><b>Converge <code>modernc.org/sqlite</code></b> — five pinned versions plus two stragglers on
+            cgo <code>mattn/go-sqlite3</code>.</li>
+        <li><b>Delete the 47 inert scenario workflow files.</b> Actions only reads root workflows; they
+            have never run and they imply coverage that does not exist.</li>
+      </ol>
+    </div>
+  </details>
+</section>
+
+<section>
+  <p class="eyebrow">Sequence</p>
+  <h2>Order</h2>
+  <div class="seq">
+    <div class="step">
+      <div class="p">01</div>
+      <div class="h">Stand up the instrument<br><span class="chip c-cr" style="margin-top:6px;">W1 + W7 fixes</span></div>
+      <div class="d">Fix the nine broken modules, onboard the Mac mini, add platform provenance, dispatch
+        <code>scenario test</code> at it. <em>Exit:</em> a macOS verdict exists and the record says so.</div>
+    </div>
+    <div class="step">
+      <div class="p">02</div>
+      <div class="h">Unblock the config split<br><span class="chip c-cr" style="margin-top:6px;">W2</span></div>
+      <div class="d">Triage the 19 required tools, move preferences to operator-state, drop kernel tooling
+        from minimal. <em>Exit:</em> a fresh developer installs a floor, not your toolbox — and the Mac
+        mini stops trying to install kdump.</div>
+    </div>
+    <div class="step">
+      <div class="p">03</div>
+      <div class="h">Build the seam<br><span class="chip c-cr" style="margin-top:6px;">W3</span></div>
+      <div class="d">One platform package, eight implementations migrated, ban rules in quality-health.
+        <em>Exit:</em> <code>syscall</code> lives in one package; a new OS is one directory of work.</div>
+    </div>
+    <div class="step">
+      <div class="p">04</div>
+      <div class="h">Unify declarations<br><span class="chip c-wn" style="margin-top:6px;">W4 + W5</span></div>
+      <div class="d">testkit governance flipped and scaffolding moved, one evidence-tier vocabulary,
+        unit-health deriving rules from manifests. <em>Exit:</em> claims and adoption are both machine-checkable.</div>
+    </div>
+    <div class="step">
+      <div class="p">05</div>
+      <div class="h">Constrained targets<br><span class="chip c-wn" style="margin-top:6px;">W6</span></div>
+      <div class="d">Push prebuilt artifacts over Bridge for Pi-class nodes.
+        <em>Exit:</em> a Pi reaches a running system without a full compile.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Definition of done</p>
+  <h2>What "it runs on the Mac mini" means</h2>
+  <div class="accept">
+    <div class="ac"><span class="box">[~]</span><span class="txt">A bare macOS machine with nothing but curl reaches an installed <code>vrooli</code> CLI.<small>Already true — keep as a regression guard.</small></span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt"><code>vrooli setup --environment minimal</code> completes with no manual intervention and without attempting to install Linux kernel tooling.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt"><code>vrooli develop</code> brings up a working stack, compiling from source.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">The Mac mini is onboarded as a Bridge node and accepts a dispatched <code>scenario test</code> job.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">Test Genie verdicts record the os, arch and node that produced them.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">Control-plane and package target kinds pass on macOS with zero platform-reason skips.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">A new developer's required set is a defensible floor, and every entry above it carries a rationale.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">Linux-only safeguards report a typed <code>unsupported-on-platform</code> result rather than erroring or silently no-oping.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">The runtime supervisor survives a reboot via LaunchAgent on an auto-logged-in headless session.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">Credentials round-trip through the macOS Keychain and the recovery drill passes on hardware.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">Every platform declaration resolves to one vocabulary, and a claim without evidence fails the contract.</span></div>
+    <div class="ac"><span class="box">[ ]</span><span class="txt">The hardware evidence document is recorded and the macOS matrix rows are promoted.</span></div>
+  </div>
+
+  <div class="callout ok">
+    <p class="t">Where four revisions landed</p>
+    <p>
+      The estimate of remaining work went down every round, and the reason is consistent: this project
+      keeps having built the mechanism and left it unwired. The personal config layer exists and no
+      tool can reach it. The adoption-mode vocabulary exists and one package opts out. The artifact
+      index exists and carries one entry. Bridge allowlists the exact verb the Mac mini needs.
+      <b>The genuinely new engineering is one platform package, one <code>provides</code> field, one
+      compatibility schema, and a <code>go.mod</code>.</b> Most of the rest is deciding to turn on what
+      is already there.
+    </p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>revision 4 · after third operator review</span>
+    <span>threads: requirements model · tool/resource overlap · remote provisioning · testkit enforcement</span>
+    <span>no plan authored — findings and recommendations only</span>
+  </div>
+</footer>

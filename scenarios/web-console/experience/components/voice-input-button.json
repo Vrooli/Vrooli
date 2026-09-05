@@ -1,0 +1,49 @@
+{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "voice-input-button",
+    "title": "VoiceInputButton",
+    "purpose": "Expose one fixed-footprint microphone control whose recording, timeout, transcription, and cancellation states remain perceivable.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.1/story.json"
+  },
+  "states": [
+    { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
+    { "id": "preparing", "example": "preparing", "description": "Microphone capture is preparing." },
+    { "id": "recording", "example": "recording", "description": "Capturing microphone input with visible level feedback." },
+    { "id": "recovering", "example": "recovering", "description": "Capture is recovering without changing the control footprint." },
+    { "id": "transcribing", "example": "transcribing", "description": "Transcription is active and can be cancelled inside the same control." },
+    { "id": "unavailable", "example": "unavailable", "description": "Voice input is unavailable." },
+    { "id": "error", "example": "unavailable", "description": "Voice input ended in an error state; the unavailable story is the catalog's boundary specimen for this failure state." },
+    { "id": "timeout", "example": "recording", "description": "Recording approaches its timeout with an in-control progress ring; the catalog recording specimen covers the timeout mode axis." }
+  ],
+  "elements": [
+    { "id": "voice-control", "role": "button", "description": "The only rendered voice-input control." }
+  ],
+  "claims": [
+    {
+      "id": "voice-input-action",
+      "type": "element-present",
+      "statement": "Every lifecycle state exposes exactly one named voice-input control.",
+      "tier": "machine",
+      "elements": ["voice-control"],
+      "states": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error", "timeout"]
+    },
+    {
+      "id": "transcription-cancel-in-control",
+      "type": "element-present",
+      "statement": "The transcribing state exposes cancellation through the same voice-input control.",
+      "tier": "machine",
+      "elements": ["voice-control"],
+      "states": ["transcribing"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "voice-control": {
+        "selector": "[data-rcl-voice-input]",
+        "note": "The RCL VoiceInputButton exposes data-rcl-voice-input on its rendered control in every story state; this provider-owned marker is stable even when the harness rebuilds test-id defaults."
+      }
+    }
+  }
+}

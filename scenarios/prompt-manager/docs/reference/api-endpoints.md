@@ -1,8 +1,64 @@
 # API Reference
 
-Complete documentation for the prompt-manager REST API.
+Prompt Manager's supported programmatic contract is generated Connect-RPC.
+Resolve the live `API_PORT` through the scenario lifecycle; clients must not
+hard-code ports or construct legacy REST paths.
 
-**Base URL:** `http://localhost:{PORT}/api/v1`
+## Generated Connect surface
+
+The schemas live under `packages/proto/schemas/prompt-manager/v1/<domain>` and
+generated clients live under `packages/proto/gen/{go,ts}/prompt-manager/v1`.
+Connect procedures use the standard path
+`/<fully-qualified-service>/<method>` and work with binary protobuf or Connect
+JSON. The API mounts these generated services:
+
+| Domain | Service | RPCs | Responsibility |
+|---|---|---:|---|
+| skills | `SkillsService` | 16 | Skill CRUD, reads, sync, history, variants, ratings |
+| experiments | `ExperimentsService` | 14 | Experiment lifecycle, assignments, evidence, outcomes, promotion |
+| actions | `ActionsService` | 7 | Action authoring, validation, CRUD, governed execution |
+| tags | `TagsService` | 2 | Persisted tag taxonomy |
+| search | `SearchService` | 6 | Deterministic entity/content search |
+| aisearch | `AISearchService` | 8 | Semantic search and index reconciliation |
+| discovery | `DiscoveryService` | 4 | Capability discovery, gaps, telemetry, skill usage |
+| agents | `AgentsService` | 15 | Agent identity, soul, files, membership reads |
+| teams | `TeamsService` | 28 | Team aggregate, membership, roles, files, org, messages, exchange |
+| topics | `TopicsService` | 8 | Topic taxonomy, matching, accumulated skills |
+| templates | `TemplatesService` | 1 | Agent-file templates |
+| testing | `TestingService` | 2 | Skill tests and durable history |
+| metadata | `MetadataService` | 1 | Open Graph metadata lookup |
+| graph | `GraphService` | 13 | Relationship graph, health, config, and node projections |
+| heartbeat | `HeartbeatService` | 52 | Scheduling, runs, queues, prompts, handoffs, tasks, retention, bug intake |
+| memberflow | `MemberflowService` | 14 | Topics, rules, objectives, operating models, drain/orientation evidence |
+| world | `WorldService` | 5 | World config, per-scene layout overrides and the server-streamed swarm feed |
+
+Stable identifiers and method inputs are typed. Heartbeat/memberflow payloads
+whose upstream catalogs intentionally evolve are carried as
+`google.protobuf.Value` behind typed method and identity boundaries; consumers
+must still use the generated clients rather than reconstructing JSON routes.
+
+## Measures substrate
+
+- `GET /measures/declarations` returns the nine registered, read-only measure declarations.
+- `POST /measures/execute` executes a named measure and returns a scalar or table plus mandatory provenance.
+
+The measures endpoint is the fleet-wide `measures-go` contract and is not a
+second business API. Each compute function calls the owning domain's real store
+or telemetry service.
+
+## Remaining HTTP compatibility routes
+
+Only six hand-written registrations remain: `/health`, `/api/v1/health`, and
+the GET/PUT budget and discovery-filter configuration pairs. They are explicit
+compatibility/configuration seams. All former domain REST registrations were
+retired after generated-client consumers migrated.
+
+## Historical REST reference
+
+The material below documents the retired pre-Connect wire surface for migration
+archaeology only. It is not a supported client contract.
+
+**Historical base URL:** `http://localhost:{PORT}/api/v1`
 
 All endpoints return JSON. Error responses follow the format:
 ```json
@@ -278,6 +334,22 @@ Create a new experiment.
   "skillId": "swarm-manager-workshop",
   "name": "Concise vs Detailed Workshop",
   "hypothesis": "Concise prompts produce equal quality with less tokens",
+  "protocol": {
+    "population": "reference workflow",
+    "randomizationUnit": "workflow-node-per-execution",
+    "primaryMetric": "evaluator verdict",
+    "effectThreshold": 0.05,
+    "strata": ["workflowRevision"],
+    "exposurePolicy": "exclude-contaminated",
+    "outcomeCompletenessThreshold": 0.9,
+    "budget": "100 executions",
+    "stoppingRule": "fixed sample",
+    "holdoutRequired": true,
+    "holdoutPopulationHash": "sha256:...",
+    "promotionAuthority": "operator",
+    "evaluatorRubricHash": "sha256:...",
+    "evaluatorAuthor": "independent-evaluator"
+  },
   "arms": [
     {"variantId": "control", "weight": 0.5},
     {"variantId": "concise-v1", "weight": 0.5}
@@ -290,10 +362,11 @@ Create a new experiment.
 - `control` is a reserved variant ID representing the original SKILL.md
 - All non-control variant IDs must exist for the skill
 - Experiment starts in `draft` status
+- The complete protocol is required and is frozen with its hash at start
 
 ### PUT /api/v1/experiments/{eid}
 
-Update a draft experiment (name, hypothesis, arms).
+Update a draft experiment (name, hypothesis, protocol, arms).
 
 **Note:** Only draft experiments can be updated.
 
@@ -307,7 +380,7 @@ Transition experiment from `draft` to `running`.
 
 ### POST /api/v1/experiments/{eid}/conclude
 
-Conclude a running experiment.
+Conclude a running experiment with a recommendation.
 
 **Request:**
 ```json
@@ -319,8 +392,35 @@ Conclude a running experiment.
 
 **Notes:**
 - Winner must be one of the experiment's arms
-- If winner is not `control`, the winner's content is promoted to SKILL.md
-- Previous SKILL.md content is preserved in version history
+- Conclude never changes `SKILL.md`
+- A signed, clear audit receipt matching the frozen protocol is required before a recommendation work item is published
+- A separately authorized, holdout-confirmed promotion is required to apply content
+
+### POST /api/v1/experiments/{eid}/audit-receipt
+
+Persist a server-signed audit receipt for a running experiment. The caller
+supplies sampled assignment identifiers, a findings hash, challenge state, and
+anomaly/gaming counts; Prompt Manager binds the frozen protocol hash and signs
+the canonical receipt. This endpoint requires `PROMPT_MANAGER_EXPERIMENT_AUDIT_SECRET`.
+Provision this value from the deployment secret manager. Use one stable, non-empty
+secret for the lifetime of an experiment because Prompt Manager verifies the
+receipt signature again before it publishes a recommendation or promotes a
+winner. Do not store this value in a workflow, skill, experiment protocol, or
+source-controlled service declaration.
+
+### POST /api/v1/experiments/{eid}/holdout-receipt
+
+Record the separate holdout finding after conclusion. The server signs the
+experiment ID, frozen protocol hash, published work item ID, finding hash, and
+completion time. It requires `findingsHash` and an idempotency key.
+
+### POST /api/v1/experiments/{eid}/promote
+
+Apply a concluded winner only after a signed holdout receipt and the exact
+published `skill-experiment-promotion` work item has status `accepted` in the
+`meta-optimization` team. The caller supplies `{"workItemId":"..."}`; a
+
+caller assertion, topic entry, or different approved work item is insufficient.
 
 ### POST /api/v1/experiments/{eid}/outcomes
 
@@ -347,28 +447,47 @@ List raw outcomes for an experiment.
 
 **Response:** `ExperimentOutcomeResponse[]`
 
+### GET /api/v1/experiments/{eid}/report
+
+Aggregated per-arm report for an experiment. Terminal status and token use are
+guardrail observations only. They are not a primary outcome or a promotion
+metric. Arms with zero records are listed in `zeroDataArms`.
+
+**Response:** `ExperimentReportResponse`
+
 ### Variant-Aware Read (extension to POST /api/v1/skills/read)
 
-When `experimentId` is included in a read request, the first resolved skill's content may be replaced by a variant selected via weighted random sampling.
+Reads participate in controlled experiments only by explicit arming. Include
+`experimentId` in the request. The experiment must be `running` and target the
+resolved skill. An optional `variantId` selects a declared arm deterministically
+for calibration or workflow dispatch. Reads without `experimentId` are
+observational and never receive a treatment arm.
 
-**Additional request field:**
+**Additional request fields:**
 ```json
 {
+  "experimentId": "exp-concise-test",
+  "variantId": "concise-v1",
+  "variantPolicy": "pinned",
+  "source": "agent-manager"
+}
+```
+
+- `variantPolicy: "pinned"` or `"control"` — serve the original SKILL.md and skip experiment sampling (agent-manager sends `pinned` for workflow prompt refs that are not deliberately armed, preserving workflow determinism)
+- `source` — free-form caller label recorded with the serve
+
+**Additional response fields:**
+```json
+{
+  "selectedVariantId": "concise-v1",
   "experimentId": "exp-concise-test"
 }
 ```
 
-**Additional response field:**
-```json
-{
-  "selectedVariantId": "concise-v1"
-}
-```
-
 **Notes:**
-- Experiment must be `running` and target the resolved skill
 - `control` means the original SKILL.md was used (no content replacement)
 - Variable substitution is applied to variant content as normal
+- Controlled evidence is written to prompt-manager's SQLite experiment store with an idempotency key. `GET /api/v1/experiments/{eid}/report` aggregates controlled records only.
 
 ---
 
@@ -409,11 +528,11 @@ Set effectiveness rating for a skill.
 
 [CODE: api/search/handlers.go]
 
-### GET /api/v1/search/skills
+### SearchService.SearchSkills
 
 Full-text search across skills.
 
-**Query Parameters:**
+**Request fields:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `q` | string | Search query (searches name, description, content) |
@@ -446,11 +565,11 @@ Full-text search across skills.
 
 ---
 
-### GET /api/v1/search/skills/content
+### SearchService.SearchSkillContent
 
 Content-only search across skill bodies (line-level matches).
 
-**Query Parameters:**
+**Request fields:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `q` | string | Search query (required) |
@@ -490,7 +609,7 @@ Content-only search across skill bodies (line-level matches).
 
 ## AI Search
 
-### POST /api/v1/search/ai
+### AISearchService.SearchSkills
 
 Semantic search powered by embeddings, with optional combined output formatting.
 
@@ -513,7 +632,7 @@ Semantic search powered by embeddings, with optional combined output formatting.
 {
   "results": [
     {
-      "id": "react-coherence",
+      "id": "ui-health",
       "name": "React Coherence",
       "description": "Architectural patterns for React",
       "folder": "core",
@@ -534,53 +653,230 @@ Semantic search powered by embeddings, with optional combined output formatting.
 }
 ```
 
-### GET /api/v1/search/ai/status
+### AISearchService.GetStatus
 
 Returns AI search availability status.
 
-### POST /api/v1/search/ai/reindex
+### AISearchService.Reconcile
 
-Trigger a full reindex of all skills into the vector store.
+Reconcile the qdrant index with on-disk content. The reconciler uses a
+content-hash diff (`payload_hash`) so unchanged items skip embedding
+entirely; ghost points whose backing files are gone are deleted.
+
+**Request fields:**
+- `collection=skills|agents|teams|topics|actions|all` — restrict to one
+  collection. Defaults to `all`.
+- `dry_run=true` (or `X-Dry-Run: true` header) — return the planned
+  upserts/deletes without mutating qdrant or running embeddings.
+
+**Dry-run response (200):**
+```json
+{
+  "dry_run": true,
+  "plan": {
+    "plannedAt": "2026-05-06T10:00:00Z",
+    "collections": [
+      {
+        "kind": "skill",
+        "toUpsert": [{"kind":"skill","pointId":"...","name":"...","payloadHash":"sha256:..."}],
+        "toDelete": ["pt-orphan"],
+        "unchangedCount": 30,
+        "legacyCount": 0
+      }
+    ]
+  }
+}
+```
+
+**Live response:** the kickoff is asynchronous; use `GetReconcileStatus` for completion.
+
+### AISearchService.GetReconcileStatus
+
+Returns the reconciler's last-known state.
 
 **Response:**
 ```json
 {
-  "status": "started",
-  "startedAt": "2024-01-21T09:00:00Z"
+  "running": false,
+  "startedAt": "2026-05-06T10:00:00Z",
+  "finishedAt": "2026-05-06T10:00:12Z",
+  "lastResult": {
+    "collections": [
+      {"kind":"skill","upserted":2,"deleted":1}
+    ],
+    "errors": []
+  }
 }
 ```
+
+### AISearchService.CancelReconcile
+
+Cancel an in-progress reconcile operation.
+
+**Response:** the same `ReconcileStatus` shape as `/status`, with
+`canceled: true`.
+
+### Environment knobs
+
+- `AI_SEARCH_SYNC_INTERVAL` — periodic reconcile interval (default `5m`).
+- `AI_SEARCH_SYNC_DISABLED=1` — disable the periodic loop entirely.
+- `AI_SEARCH_RECONCILE_PARALLELISM` — concurrent embed/upsert workers
+  (default 4, clamped to [1, 16]).
+
+---
+
+## Actions
+
+Actions are typed wrappers over exactly one Vrooli-controlled CLI command. Storage, CRUD, validation, discovery, graph integration, governed API execution, the thin CLI run wrapper, and the UI run panel are implemented. See [DOC: docs/concepts/ACTIONS.md].
+
+### GET /api/v1/actions
+
+List Actions with optional filtering.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pack` | string | Filter by pack: `core`, `local`, `drafts` |
+| `status` | string | Filter by status: `active`, `draft`, `archived` |
+| `owner` | string | Filter by owning scenario/resource/project |
+| `tag` | string | Filter by tag |
+
+**Response:**
+```json
+[
+  {
+    "id": "scenario.ui.screenshot",
+    "name": "Take Scenario Screenshot",
+    "description": "Capture a screenshot of a running scenario UI.",
+    "status": "active",
+    "owner": {
+      "type": "scenario",
+      "id": "prompt-manager"
+    },
+    "pack": "core",
+    "updatedAt": "2026-04-30T00:00:00Z"
+  }
+]
+```
+
+### GET /api/v1/actions/{id}
+
+Get a single Action contract by ID.
+
+**Response:** Full Action metadata including input schema, output schema, command target, permissions, examples, and validation metadata.
+
+### POST /api/v1/actions
+
+Create a new Action contract.
 
 **Notes:**
-- Returns existing status if reindex is already in progress
+- The API must reject command strings that require shell interpretation.
+- The command target must be a Vrooli-controlled CLI command.
+- Creation should validate input/output schemas and permission declarations.
+- Invalid contracts return `422` with a validation response.
 
-### GET /api/v1/search/ai/reindex/status
+### PUT /api/v1/actions/{id}
 
-Get the current status of reindexing.
+Update an existing Action contract. Updates validate the replacement contract before persistence.
 
-**Response:**
-```json
-{
-  "status": "running",
-  "startedAt": "2024-01-21T09:00:00Z",
-  "processed": 25,
-  "total": 50,
-  "errors": []
-}
-```
+### DELETE /api/v1/actions/{id}
 
-**Status Values:** `idle`, `running`, `completed`, `failed`
+Archive an Action by default. Use `?hard=true` for hard deletion.
 
-### POST /api/v1/search/ai/reindex/cancel
+### POST /api/v1/actions/{id}/validate
 
-Cancel an in-progress reindex operation.
+Validate an Action contract without running its target operation.
 
 **Response:**
 ```json
 {
-  "status": "cancelled",
-  "message": "Reindex cancelled"
+  "valid": true,
+  "actionId": "scenario.ui.screenshot",
+  "checks": [
+    {
+      "name": "command-target",
+      "status": "pass",
+      "message": "Command target is Vrooli-controlled."
+    }
+  ]
 }
 ```
+
+### POST /api/v1/actions/{id}/run
+
+Run an active, runnable Action with typed input through the governed argv-only runtime.
+
+Governance enforced before process start:
+- contract validation and controlled-command resolution
+- declared input type/default validation and placeholder rendering
+- command run-surface eligibility
+- per-Action timeout capped by service maximum
+- process-wide concurrency limit
+- stdout/stderr byte caps with truncation flags
+- bounded `runs.jsonl` audit history
+
+**Request Body:**
+```json
+{
+  "input": {
+    "scenario": "prompt-manager",
+    "viewport": "desktop"
+  }
+}
+```
+
+Use `"dryRun": true` to validate inputs and return the rendered argv without starting the process.
+
+**Response:**
+```json
+{
+  "actionId": "scenario.ui.screenshot",
+  "status": "completed",
+  "exitCode": 0,
+  "durationMs": 1234,
+  "stdout": "{\"imagePath\":\"/tmp/prompt-manager-screenshot.png\"}",
+  "stderr": "",
+  "stdoutTruncated": false,
+  "stderrTruncated": false,
+  "output": {
+    "imagePath": "/tmp/prompt-manager-screenshot.png"
+  }
+}
+```
+
+Safe seed dry-run example:
+
+```json
+{
+  "actionId": "scenario.status.show",
+  "status": "dry-run",
+  "durationMs": 0,
+  "argv": ["vrooli", "scenario", "status", "prompt-manager"],
+  "validation": {
+    "actionId": "scenario.status.show",
+    "valid": true,
+    "runnable": true
+  }
+}
+```
+
+Execution uses the argv-shaped command contract from `action.json`. Branching and implementation logic belong in the owning CLI, not the Action runtime.
+
+Rejected runs return `422` with status `rejected`. Concurrency saturation returns `429` with status `throttled`. Command failures and timeouts return `200` with status `failed` or `timed-out` so callers can inspect captured output and audit context.
+
+### DiscoveryService.Discover
+
+Discover skills, Actions, or both. Omitting `type` preserves the legacy skill-only response shape.
+
+```json
+{
+  "queries": ["take screenshot of scenario UI"],
+  "type": "all",
+  "limit": 10
+}
+```
+
+`type` accepts `skill`, `action`, or `all`. Mixed responses include a result type discriminator so agents can prefer exact Actions for deterministic operations and skills for judgment-heavy work.
 
 ---
 
@@ -702,9 +998,9 @@ Create a new tag.
 
 ### POST /api/v1/skills/{id}/test
 
-Test a skill with Ollama LLM.
+Test a skill with Ollama through `resource-ollama gateway generate`.
 
-**Prerequisites:** Ollama running with model loaded.
+**Prerequisites:** `OLLAMA_ENABLED=true`, `resource-ollama` available on PATH (or `OLLAMA_GATEWAY_BIN` set), and the requested model loaded.
 
 **Request Body:**
 ```json
@@ -853,8 +1149,7 @@ Delete an agent.
 
 ### POST /api/v1/prompt-preview
 
-Preview the fully constructed prompt for an agent. Optionally include a team context to
-match heartbeat execution.
+Preview the fully constructed prompt for an agent. When `teamId` is provided, this matches the flat runtime prompt used by heartbeat execution, including `HEARTBEAT.md`.
 
 **Request Body:**
 ```json
@@ -876,6 +1171,52 @@ match heartbeat execution.
 **Errors:**
 - `400` - Missing agentId or no content available
 - `404` - Agent or team not found
+
+### POST /api/v1/prompt-preview-structured
+
+Preview the same heartbeat prompt as ordered structured sections. This is the preferred UI rendering surface because the backend owns section order.
+
+**Request Body:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering"
+}
+```
+
+**Response:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering",
+  "sections": [
+    {
+      "kind": "operating-policy-team",
+      "label": "Operating Policy (Team)",
+      "sourcePath": "teams/engineering/team.json#operatingContract.members.agent-1",
+      "content": "# Operating Policy (Team)\n\n..."
+    }
+  ]
+}
+```
+
+### GET /api/v1/teams/{id}/prompt-matrix
+
+Return structured prompt sections for every active member of a team. Use this for cross-member prompt audits and drift detection.
+
+**Response:**
+```json
+{
+  "teamId": "engineering",
+  "entries": [
+    {
+      "agentId": "agent-1",
+      "displayName": "Agent One",
+      "sections": []
+    }
+  ]
+}
+```
 
 ## Teams
 
@@ -957,7 +1298,6 @@ Create a new team.
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": true,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -966,13 +1306,21 @@ Create a new team.
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 2
   },
-  "decisionMode": "approval"
+  "operatingContract": {
+    "schemaVersion": 1,
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": []
+    },
+    "knowledgeTopics": {},
+    "members": {}
+  }
 }
 ```
 
-**Required Fields:** `displayName`, `runtime`, `coordination`, `execution`
+**Required Fields:** `displayName`, `runtime`, `coordination`, `execution`, `operatingContract`
 
-**Optional Fields:** `id` (auto-generated from displayName), `mission`, `decisionMode`
+**Optional Fields:** `id` (auto-generated from displayName), `mission`
 
 **runtime.mode Values:** `multi-process` - members run as separate heartbeat processes. `single-process` - one Claude Code lead session coordinates the team.
 
@@ -980,7 +1328,9 @@ Create a new team.
 
 **execution.queuePolicy Values:** `serialized`, `bounded-parallel`
 
-**decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
+**operatingContract.documents.sharedState:** Internal JSON field for team working state. Use final `kind` values such as `charter`, `task-board`, `working-register`, `rolling-snapshot`, `append-only-event-log`, and `operator-input`. Agent-facing prompts render this category as team working state in the Storage Map.
+
+**operatingContract:** Required structured source of truth for team/member operating policy. Heartbeat prompts render member-specific contract data inside the generated `Operating Policy` section alongside runtime, coordination, and execution policy. Prompt rendering fails if required policy is missing or invalid.
 
 **Response:** Created team object with `201 Created`.
 
@@ -1007,7 +1357,6 @@ Update an existing team.
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": true,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -1016,7 +1365,6 @@ Update an existing team.
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
   },
-  "decisionMode": "approval"
 }
 ```
 
@@ -1324,57 +1672,33 @@ Leader-led single-process triggers are validated before enqueueing: the lead mus
 
 ---
 
-## World Scale
+## World
 
-[CODE: api/worldscale/handlers.go]
+[CODE: api/handlers/world/connect_handler.go]
+[CODE: api/internal/world/config.go]
+[CODE: api/internal/world/feed.go]
 
-### GET /api/v1/world-scale
+`WorldService` (`vrooli.prompt_manager.v1.world`) serves the 3D world at
+`/vrooli.prompt_manager.v1.world.WorldService/<Method>` over Connect. Files
+live under `<config root>/world/`.
 
-Get the current object scale configuration.
+| Method | Persists | Notes |
+|---|---|---|
+| `GetWorldConfig` / `SetWorldConfig` | `world/config.json` | scene (`park`, `office`), `qualityProfile` (`low`..`ultra`), `qualityAuto`, `periodMode` (`clock`, `dawn`, `day`, `dusk`, `night`), `twoDMode`, `showDiagnostics`, `scale` (0.25..4). Out-of-range values return `invalid_argument`; a malformed file is an error, never silently replaced. |
+| `GetLayout` / `SetLayout` | `world/layout-<scene>.json` | Per-scene `overrides[]` (`placeId`, optional `position`, optional `rotation`, `removed`) applied over the generated layout by id, plus operator `decor[]` additions. Duplicate ids and out-of-range decor scale are rejected. Agent positions are never persisted. |
+| `StreamWorldFeed` | in-memory ring | Server stream. Opens with a `SNAPSHOT` (active runs from the run registry, upcoming heartbeats from the scheduler), replays buffered events newer than `since_seq`, then streams live `RUN_STARTED`, `RUN_FINISHED`, `RUN_FAILED` (with the error in `message`), `HEARTBEAT_UPCOMING` (`scheduled_at`), `HEARTBEAT_CANCELLED` and `AGENT_MESSAGE`. A subscriber that falls behind the channel depth is closed with `resource_exhausted` and reconnects with `since_seq`. |
 
-**Response:**
-```json
-{
-  "agent": 1.0,
-  "furniture": 1.0,
-  "decoration": 1.0,
-  "overlay": 1.0
-}
-```
-
-**Notes:**
-- Returns default values (all 1.0) if the config file doesn't exist yet
-- Config persists in `store/world-scale.json`
-
-### PUT /api/v1/world-scale
-
-Update the object scale configuration.
-
-**Request Body:**
-```json
-{
-  "agent": 1.2,
-  "furniture": 0.8,
-  "decoration": 1.5,
-  "overlay": 1.0
-}
-```
-
-**Validation:**
-- All values must be between 0.1 and 3.0
-
-**Response:** Updated config object.
-
-**Errors:**
-- `400` - Value out of range or invalid JSON
-
----
+Signal sources: `heartbeat.RunRegistry` reports `RUN_STARTED` on register and
+`RUN_FINISHED` / `RUN_FAILED` on completion (the executor passes the outcome);
+a schedule watcher polls the cron scheduler and announces next runs inside a
+six-hour horizon, and cancellations when a schedule disappears. The UI keeps
+the 5 s `ListRunning` poll as a fallback when the stream is silent or failing.
 
 ## Graph
 
 [CODE: api/graph/handlers.go]
 
-The relationship graph maps connections between teams, agents, skills, and CLI tools. See [Graph Concepts](../concepts/GRAPH.md) for background.
+The relationship graph maps connections between teams, agents, skills, Actions, and CLI tools. See [Graph Concepts](../concepts/GRAPH.md) for background.
 
 ### GET /api/v1/graph
 
@@ -1393,6 +1717,14 @@ Return the full graph index (nodes, edges, health scores).
         "description": "Systematic debugging approach",
         "status": "active",
         "tags": ["debugging"]
+      },
+      {
+        "id": "action:scenario.status.show",
+        "type": "action",
+        "label": "Show Scenario Status",
+        "description": "Show lifecycle status for one scenario",
+        "status": "active",
+        "tags": ["scenario"]
       }
     ],
     "edges": [
@@ -1402,6 +1734,15 @@ Return the full graph index (nodes, edges, health scores).
         "kind": "cli-read",
         "sourceFile": "README.md",
         "lineNumber": 42
+      },
+      {
+        "from": "action:scenario.status.show",
+        "to": "cli:vrooli",
+        "kind": "action-command",
+        "category": "scenario-cli",
+        "command": "vrooli",
+        "subcommand": "scenario",
+        "sourceFile": "action.json"
       }
     ],
     "healthScores": [
@@ -1422,7 +1763,8 @@ Return the full graph index (nodes, edges, health scores).
 
 **Notes:**
 - Lazily generated on first request; cached at `store/indexes/graph.index.json`
-- Auto-invalidated when skills or agents are created, updated, or deleted
+- Auto-invalidated when skills, Actions, or agents are created, updated, or deleted
+- Action graph node IDs are namespaced as `action:<action-id>` to avoid collisions with raw skill/team/agent IDs
 
 ### POST /api/v1/graph/regenerate
 

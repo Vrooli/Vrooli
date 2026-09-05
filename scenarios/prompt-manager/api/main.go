@@ -9,45 +9,271 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"prompt-manager/agents"
-	"prompt-manager/aisearch"
-	"prompt-manager/graph"
-	"prompt-manager/heartbeat"
-	"prompt-manager/metrics"
-	"prompt-manager/ogmeta"
-	"prompt-manager/search"
-	"prompt-manager/skills"
-	"prompt-manager/store"
-	"prompt-manager/tags"
-	"prompt-manager/teams"
-	"prompt-manager/templates"
-	"prompt-manager/testing"
-	"prompt-manager/topics"
-	"prompt-manager/worldscale"
-	"prompt-manager/worldseats"
+	"prompt-manager/handlers/actions"
+	"prompt-manager/handlers/agents"
+	"prompt-manager/handlers/aisearch"
+	discoveryhandlers "prompt-manager/handlers/discovery"
+	"prompt-manager/handlers/experiments"
+	"prompt-manager/handlers/graph"
+	"prompt-manager/handlers/heartbeat"
+	"prompt-manager/handlers/memberflow"
+	"prompt-manager/handlers/metadata"
+	"prompt-manager/handlers/ogmeta"
+	"prompt-manager/handlers/search"
+	"prompt-manager/handlers/skills"
+	skillsetvalidation "prompt-manager/handlers/skillsetvalidation"
+	"prompt-manager/handlers/tags"
+	"prompt-manager/handlers/teams"
+	"prompt-manager/handlers/templates"
+	"prompt-manager/handlers/testing"
+	"prompt-manager/handlers/topics"
+	worldhandlers "prompt-manager/handlers/world"
+	promptmeasures "prompt-manager/internal/measures"
+	"prompt-manager/internal/metrics"
+	localmodules "prompt-manager/internal/modules"
+	"prompt-manager/internal/paths"
+	"prompt-manager/internal/projection"
+	"prompt-manager/internal/sourceledger"
+	"prompt-manager/internal/store"
+	"prompt-manager/internal/world"
 
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/envkit-go"
+	measurelib "github.com/vrooli/measures-go"
+	searchregister "github.com/vrooli/searchregister-go"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 )
 
-// discoverScenarioNames returns the names of all scenario directories.
-// storeDir is expected to be an absolute path like ".../scenarios/prompt-manager/store";
-// we walk up to the "scenarios/" parent and list its subdirectories.
-func discoverScenarioNames(storeDir string) []string {
-	scenariosDir := filepath.Join(storeDir, "..", "..")
+// gorillaMuxAdapter gives api-core's development-only Connect registration a
+// minimal, router-agnostic mount surface without coupling that package to
+// gorilla/mux's fluent Handle return value.
+type gorillaMuxAdapter struct{ router *mux.Router }
+
+type skillUsageOutcomeResolver struct{ client *heartbeat.AgentManagerClient }
+
+func (r skillUsageOutcomeResolver) RunStatus(ctx context.Context, runID string) (string, error) {
+	run, err := r.client.GetRun(ctx, runID)
+	if err != nil {
+		return "", err
+	}
+	if run == nil {
+		return "", fmt.Errorf("run %s not found", runID)
+	}
+	return run.Status, nil
+}
+
+func (m gorillaMuxAdapter) Handle(pattern string, handler http.Handler) {
+	if strings.HasSuffix(pattern, "/") {
+		m.router.PathPrefix(pattern).Handler(handler)
+		return
+	}
+	m.router.Handle(pattern, handler)
+}
+
+func tableMeasure(rows []map[string]string, query string) measurelib.MeasureResult {
+	return measurelib.MeasureResult{
+		Fields:     rows,
+		Provenance: measurelib.Provenance{ExecutedQuery: query},
+	}
+}
+
+func scalarMeasure(value int, query string) measurelib.MeasureResult {
+	return measurelib.MeasureResult{
+		Value:      strconv.Itoa(value),
+		Provenance: measurelib.Provenance{ExecutedQuery: query},
+	}
+}
+
+const heartbeatFunctionalFailureThreshold = 2
+
+type heartbeatFunctionalObservation struct {
+	Enabled             bool
+	HasExecution        bool
+	ConsecutiveFailures int
+	LastError           string
+}
+
+func heartbeatFunctionalStatus(observations []heartbeatFunctionalObservation) health.FunctionalStatus {
+	broken := 0
+	lastError := ""
+	for _, observation := range observations {
+		// Never-fired scheduled members are not failures.
+		if observation.Enabled && observation.HasExecution && observation.ConsecutiveFailures >= heartbeatFunctionalFailureThreshold {
+			broken++
+			if lastError == "" {
+				lastError = observation.LastError
+			}
+		}
+	}
+	if broken < heartbeatFunctionalFailureThreshold {
+		return health.FunctionalStatus{Healthy: true}
+	}
+	reason := fmt.Sprintf("%d enabled heartbeat members cannot create runs", broken)
+	if lastError != "" {
+		reason += ": " + lastError
+	}
+	return health.FunctionalStatus{Healthy: false, Reason: reason}
+}
+
+// securityHeaders applies the API-wide baseline before any route handler runs.
+// Keeping this at the router boundary prevents individual Connect and legacy
+// compatibility handlers from drifting on response hardening.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// parseMeasureWindow accepts the same Go-duration syntax as the existing
+// discovery endpoints and defaults to the bounded 30-day operational window.
+func parseMeasureWindow(raw string) time.Duration {
+	if window, err := time.ParseDuration(strings.TrimSpace(raw)); err == nil && window > 0 {
+		return window
+	}
+	return 30 * 24 * time.Hour
+}
+
+func matchesActionMeasure(pack, status, owner, ownerID string, tags []string, params map[string]string) bool {
+	if value := params["pack"]; value != "" && value != pack {
+		return false
+	}
+	if value := params["status"]; value != "" && value != status {
+		return false
+	}
+	if value := params["owner"]; value != "" && value != owner && value != ownerID {
+		return false
+	}
+	if value := params["tag"]; value != "" {
+		for _, tag := range tags {
+			if tag == value {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error) {
+	type manifestTrustSigning struct {
+		Provider           string `json:"provider"`
+		Identity           string `json:"identity"`
+		Field              string `json:"field"`
+		Address            string `json:"address"`
+		KeyName            string `json:"key_name"`
+		CredentialFile     string `json:"credential_file"`
+		LegacyVaultTransit *struct {
+			Address        string `json:"address"`
+			KeyName        string `json:"key_name"`
+			CredentialFile string `json:"credential_file"`
+		} `json:"legacy_vault_transit"`
+	}
+	type manifest struct {
+		TrustSigning *manifestTrustSigning `json:"trust_signing"`
+	}
+	scenarioDir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR"))
+	if scenarioDir == "" {
+		scenarioDir = filepath.Clean("..")
+	}
+	manifestBytes, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if err == nil {
+		var service manifest
+		if err := json.Unmarshal(manifestBytes, &service); err != nil {
+			return nil, false, fmt.Errorf("parse trust signing lifecycle declaration: %w", err)
+		}
+		if service.TrustSigning != nil {
+			if service.TrustSigning.Provider == "development" {
+				return receiptsigning.NewDevelopmentSigner(), false, nil
+			}
+			if service.TrustSigning.Provider == receiptsigning.ModeCredentialAuthorityEd25519 {
+				config := receiptsigning.RuntimeConfig{
+					Version: receiptsigning.RuntimeConfigVersion,
+					Mode:    receiptsigning.ModeCredentialAuthorityEd25519,
+					CredentialAuthority: &receiptsigning.CredentialAuthorityRuntimeConfig{
+						Identity: service.TrustSigning.Identity,
+						Field:    service.TrustSigning.Field,
+					},
+				}
+				if legacy := service.TrustSigning.LegacyVaultTransit; legacy != nil {
+					config.LegacyVaultTransit = &receiptsigning.VaultTransitRuntimeConfig{Address: legacy.Address, KeyName: legacy.KeyName, CredentialFile: legacy.CredentialFile}
+				}
+				return credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
+			}
+			if service.TrustSigning.Provider != "vault-transit" {
+				return nil, false, fmt.Errorf("unsupported trust signing lifecycle provider %q", service.TrustSigning.Provider)
+			}
+			return receiptsigning.NewSignerFromRuntimeConfig(receiptsigning.RuntimeConfig{Version: receiptsigning.RuntimeConfigVersion, Mode: "vault-transit", VaultTransit: &receiptsigning.VaultTransitRuntimeConfig{Address: service.TrustSigning.Address, KeyName: service.TrustSigning.KeyName, CredentialFile: service.TrustSigning.CredentialFile}})
+		}
+	}
+	// A missing declaration is retained only for old developer checkouts. New
+	// lifecycle manifests must declare trust_signing explicitly.
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return nil, false, fmt.Errorf("create receipt signing storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("prompt-manager")
+	if err != nil {
+		return nil, false, fmt.Errorf("resolve prompt-manager receipt signing namespace: %w", err)
+	}
+	path, err := resolver.Path(storage.Options{ScenarioID: scenarioID}, storage.ClassConfig, "receipt-signing.json")
+	if err != nil {
+		return nil, false, fmt.Errorf("resolve receipt signing runtime config: %w", err)
+	}
+	config, err := receiptsigning.LoadRuntimeConfig(path)
+	if os.IsNotExist(err) {
+		return receiptsigning.NewDevelopmentSigner(), false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("load receipt signing runtime config: %w", err)
+	}
+	var signer receiptsigning.ReceiptSigner
+	var production bool
+	if config.Mode == receiptsigning.ModeCredentialAuthorityEd25519 {
+		signer, production, err = credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
+	} else {
+		signer, production, err = receiptsigning.NewSignerFromRuntimeConfig(config)
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("build receipt signer: %w", err)
+	}
+	return signer, production, nil
+}
+
+// discoverScenarioNames returns the names of every scenario directory
+// under the repo's scenarios/ folder. The scenarios path comes from the
+// repo contract (paths.Roots.ScenariosDir), not from climbing a storage
+// path — the latter conflated source-code location with where mutable
+// data lives, which is precisely the smell this scenario was built to fix.
+func discoverScenarioNames(scenariosDir string) []string {
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		log.Printf("Warning: could not read scenarios dir %s: %v", scenariosDir, err)
@@ -62,6 +288,38 @@ func discoverScenarioNames(storeDir string) []string {
 	return names
 }
 
+type heartbeatPromptSectionProvider struct {
+	executor *heartbeat.Executor
+}
+
+func (p heartbeatPromptSectionProvider) SectionsForMember(ctx context.Context, team, member string) ([]memberflow.OperatingGraphPromptSection, error) {
+	sections, err := p.executor.BuildPromptStructured(ctx, team, member)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]memberflow.OperatingGraphPromptSection, 0, len(sections))
+	for _, section := range sections {
+		out = append(out, memberflow.OperatingGraphPromptSection{
+			Team:       team,
+			Member:     member,
+			Kind:       section.Kind,
+			SourcePath: section.SourcePath,
+			Content:    section.Content,
+			SourceKind: memberflow.OperatingGraphPromptSectionSourceLive,
+		})
+	}
+	return out, nil
+}
+
+// World feed levers: how many events replay on reconnect, how far each
+// subscriber may fall behind, and how the schedule watcher announces runs.
+const (
+	worldFeedRingSize     = 256
+	worldFeedChannelDepth = 64
+	worldScheduleHorizon  = 6 * time.Hour
+	worldScheduleInterval = 30 * time.Second
+)
+
 func main() {
 	// Preflight checks
 	if preflight.Run(preflight.Config{
@@ -71,40 +329,153 @@ func main() {
 	}
 
 	// Configuration from environment
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		log.Println("OLLAMA_URL not provided - skill testing will be disabled")
+	ollamaEnabled, ollamaConfigErr := resolveOllamaEnabled(os.Getenv)
+	if ollamaConfigErr != nil {
+		log.Printf("%v - skill testing will be disabled", ollamaConfigErr)
+	}
+	ollamaGatewayBin := strings.TrimSpace(os.Getenv("OLLAMA_GATEWAY_BIN"))
+	if ollamaGatewayBin == "" {
+		ollamaGatewayBin = "resource-ollama"
+	}
+	if !ollamaEnabled {
+		log.Println("OLLAMA_ENABLED not set to true - skill testing will be disabled")
 	}
 
-	// Storage configuration
-	// The new storage uses store/ directory with per-entity files
-	storeDir := filepath.Join("..", "store")
+	// Storage configuration.
+	//
+	// Config root: the authored, git-tracked store/ tree. Defaults to
+	// ../store relative to the binary's working directory; overridable via
+	// STORE_DIR for development workflows.
+	//
+	// Runtime data + cache roots: resolved by paths.Resolve via
+	// api-core/storage (ProfileAuto). The three roots live on the Roots
+	// struct and are threaded through the FileStore constructor and any
+	// handler that needs a class-aware path.
+	configDir := filepath.Join("..", "store")
 	if envDir := os.Getenv("STORE_DIR"); envDir != "" {
-		storeDir = envDir
+		configDir = envDir
 	}
-
-	// Resolve to absolute path for consistent file path reporting
-	absStoreDir, err := filepath.Abs(storeDir)
+	roots, err := paths.Resolve(configDir)
 	if err != nil {
-		log.Printf("Warning: Could not resolve absolute path for store dir: %v", err)
-		absStoreDir = storeDir
+		log.Fatalf("Storage path resolution failed: %v", err)
+	}
+	// Native runtimes opt into a bounded projection either with one private
+	// target or by asking for every resource-declared shared target. Projection
+	// is fail-open: an unavailable target must never prevent prompt-manager from
+	// serving its canonical corpus.
+	projectSource := filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "packs")
+	projectAll := strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_ALL")), "true")
+	var projectionTargets []projection.Target
+	if projectAll {
+		resourcesDir := strings.TrimSpace(os.Getenv("VROOLI_RESOURCES_DIR"))
+		if resourcesDir == "" {
+			resourcesDir = filepath.Join(roots.RepoRoot, "resources")
+		}
+		targets, targetErr := projection.LoadTargets(resourcesDir, "")
+		if targetErr != nil {
+			log.Printf("skill projection targets unavailable: %v", targetErr)
+		} else {
+			projectionTargets = targets
+			dirs := make([]string, 0, len(targets))
+			for _, target := range targets {
+				dirs = append(dirs, target.Path)
+			}
+			_ = os.Setenv("VROOLI_SKILL_PROJECTION_DIRS", strings.Join(dirs, string(os.PathListSeparator)))
+		}
+	}
+	if target := strings.TrimSpace(os.Getenv("VROOLI_SKILL_PROJECTION_DIR")); target != "" || len(projectionTargets) > 0 {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			pack, packErr := projection.LoadBasePack(filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", "store", "skills", "_base-pack.json"))
+			if packErr != nil {
+				log.Printf("skill projection disabled: %v", packErr)
+				return
+			}
+			select {
+			case <-ctx.Done():
+				log.Printf("skill projection timed out")
+				return
+			default:
+			}
+			if len(projectionTargets) > 0 {
+				results, projectErr := projection.ProjectTargets(projectSource, projectionTargets, pack)
+				if projectErr != nil {
+					log.Printf("skill projection partially unavailable after %d targets: %v", len(results), projectErr)
+					return
+				}
+				log.Printf("skill projection activated: %d targets, %d skills per target", len(results), len(pack.Skills))
+				return
+			}
+			result, projectErr := projection.Project(projectSource, target, pack)
+			if projectErr != nil {
+				log.Printf("skill projection unavailable: %v", projectErr)
+				return
+			}
+			log.Printf("skill projection activated: %d skills, %d resident tokens", len(result.Skills), result.ResidentTokens)
+		}()
 	}
 
-	// Connect to database
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+	// Open SQLite. Bound startup storage work so the lifecycle health gate gets
+	// a clear failure instead of killing a silent retry loop.
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer dbCancel()
+	db, err := database.Open(dbCtx, database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "prompt-manager",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+		Logger:       log.Printf,
 	})
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-
-	// Set search path
-	if _, err = db.Exec("SET search_path TO public"); err != nil {
-		log.Fatal("Failed to set search_path:", err)
+	if err := database.EnsureSchemas(dbCtx, db.Primary(), localmodules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
 	}
+	// A leased test pool starts empty. Initialize its schema before devrouting
+	// makes it visible, so test-mode requests cannot race into an unprepared DB.
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return database.EnsureSchemas(ctx, pool, localmodules.AllSchemas()...)
+	})
+	log.Println("SQLite database connected and schemas initialized")
 
 	// Initialize the new file-based store
-	fileStore := store.NewFileStore(storeDir)
+	fileRoots := filerouting.New(storage.Paths{
+		ConfigDir: roots.Config,
+		DataDir:   roots.RuntimeData,
+		CacheDir:  roots.RuntimeCache,
+	})
+	fileStore, err := store.NewFileStore(roots, fileRoots)
+	if err != nil {
+		log.Fatalf("initialize file store: %v", err)
+	}
+	// source-ledger and vrooli-events are declared dependencies, but the API
+	// must still come up when either is absent: the team store degrades to its
+	// local file seam (nil ledger) and skips event publishing (empty endpoint),
+	// and heartbeat execution re-attempts scope registration per run.
+	ledger, err := sourceledger.New(dbCtx)
+	if err != nil {
+		log.Printf("WARNING: source-ledger unavailable, team memory degrades to local files: %v", err)
+		ledger = nil
+	}
+	eventsBase, err := discovery.ResolveScenarioURLDefault(dbCtx, "vrooli-events")
+	if err != nil {
+		log.Printf("WARNING: vrooli-events unavailable, team event publishing disabled: %v", err)
+		eventsBase = ""
+	}
+	if ledger != nil {
+		teamScopes := []string{"director-swarm", "infra-health", "marketing-crew", "meta-optimization", "monetization", "scenario-qa"}
+		for _, teamID := range teamScopes {
+			if err := ledger.EnsureTeamScope(dbCtx, teamID); err != nil {
+				log.Printf("WARNING: register source-ledger scope %q deferred to heartbeat execution: %v", teamID, err)
+				break
+			}
+		}
+	}
+	fileStore.SetSourceLedger(ledger)
+	fileStore.SetEventsEndpoint(eventsBase)
+	fileStore.SetExperimentStoreDatabase(db)
 
 	// Initialize domain components (seams for testing)
 	// Use the store adapter to bridge new storage to existing handlers
@@ -112,17 +483,21 @@ func main() {
 	metricsRepo := metrics.NewRepository(db)
 	tagsRepo := tags.NewRepository(db)
 	testingRepo := testing.NewRepository(db)
-	ollamaClient := testing.NewOllamaClient(ollamaURL)
+	ollamaClient := testing.NewOllamaClient(ollamaEnabled, ollamaGatewayBin)
 
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
-	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, absStoreDir)
+	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, roots.Config)
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
-	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
+	templateHandlers := templates.NewHandlers(templates.NewStore(roots.Config))
+	actionService := actions.NewService(fileStore.Actions(), actions.NewCLIHealthCommandResolver())
+	actionHandlers := actions.NewHandlers(actionService)
+	actionsConnectPath, actionsConnectHandler := actions.NewConnectMount(actionHandlers)
+	tagsConnectPath, tagsConnectHandler := tags.NewConnectMount(tagsHandlers)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
-	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir, fileStore.Relations(), fileStore.Teams())
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), roots.Config, fileStore.Relations(), fileStore.Teams())
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
@@ -141,10 +516,7 @@ func main() {
 	qdrantURL := resolveQdrantURL()
 	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
 
-	aiSearchCollection := os.Getenv("AI_SEARCH_COLLECTION")
-	if aiSearchCollection == "" {
-		aiSearchCollection = "prompt-manager-skills"
-	}
+	aiSearchCollection := collectionForDomain("AI_SEARCH_COLLECTION", "skills")
 
 	aiSearchThreshold := 0.5
 	if thresholdStr := os.Getenv("AI_SEARCH_THRESHOLD"); thresholdStr != "" {
@@ -153,9 +525,11 @@ func main() {
 		}
 	}
 
-	// Initialize AI search components
-	embedder := aisearch.NewEmbedder(ollamaURL, "nomic-embed-text")
-	vectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, aiSearchCollection, 768)
+	// Initialize AI search components. Qdrant collection dimensions resolve from
+	// the embedding role when each collection is ensured.
+	embeddingRole := "embedding.default"
+	embedder := aisearch.NewEmbedder(embeddingRole)
+	vectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, aiSearchCollection, embeddingRole)
 	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStoreAdapter, searchService, aiSearchThreshold)
 	aiSearchHandlers := aisearch.NewHandlers(aiSearchService)
 
@@ -164,50 +538,97 @@ func main() {
 
 	// Set experiment stores on skill handlers for variant-aware read
 	skillHandlers.SetExperimentStores(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+	skillHandlers.SetIdentityVerifier(skills.NewAgentManagerIdentityVerifier(nil))
 
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
+	skillsConnectPath, skillsConnectHandler := skills.NewConnectMount(skillHandlers, variantHandlers, fileStore.FileSkills())
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+	experimentHandlers.SetWorkPublisher(skills.NewHTTPWorkPublisherFromEnv())
+	// Lifecycle/Secrets Manager writes a standard runtime config into the
+	// scenario config directory. Absent config is explicitly development-only;
+	// production config selects the credential-authority signer without an
+	// environment key.
+	receiptSigner, productionReceiptSigning, err := receiptSignerFromRuntimeConfig()
+	if err != nil {
+		panic(err)
+	}
+	experimentHandlers.SetReceiptSigner(receiptSigner)
+	experimentHandlers.SetProductionReceiptSigningRequired(productionReceiptSigning)
+	experimentsConnectPath, experimentsConnectHandler := experiments.NewConnectMount(experimentHandlers)
 
 	// Agent and team AI search vector stores
-	agentAICollection := os.Getenv("AI_SEARCH_AGENT_COLLECTION")
-	if agentAICollection == "" {
-		agentAICollection = "prompt-manager-agents"
-	}
-	agentVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, agentAICollection, 768)
+	agentAICollection := collectionForDomain("AI_SEARCH_AGENT_COLLECTION", "agents")
+	agentVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, agentAICollection, embeddingRole)
 
-	teamAICollection := os.Getenv("AI_SEARCH_TEAM_COLLECTION")
-	if teamAICollection == "" {
-		teamAICollection = "prompt-manager-teams"
-	}
-	teamVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, teamAICollection, 768)
+	teamAICollection := collectionForDomain("AI_SEARCH_TEAM_COLLECTION", "teams")
+	teamVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, teamAICollection, embeddingRole)
 
-	topicAICollection := os.Getenv("AI_SEARCH_TOPIC_COLLECTION")
-	if topicAICollection == "" {
-		topicAICollection = "prompt-manager-topics"
-	}
-	topicVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, topicAICollection, 768)
+	topicAICollection := collectionForDomain("AI_SEARCH_TOPIC_COLLECTION", "topics")
+	topicVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, topicAICollection, embeddingRole)
+
+	actionAICollection := collectionForDomain("AI_SEARCH_ACTION_COLLECTION", "actions")
+	actionVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, actionAICollection, embeddingRole)
 
 	// Wire agent/team/topic AI search into the service
 	aiSearchService.SetAgentSearch(agentVectorStore, fileStore.Agents().(*store.FileAgentStore), agentSearchService)
 	aiSearchService.SetTeamSearch(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations(), teamSearchService)
 	aiSearchService.SetTopicSearch(topicVectorStore, fileStore.FileTopics())
+	aiSearchService.SetActionSearch(actionVectorStore, fileStore.Actions())
+
+	// Wire the semantic-similarity seam used by `action create` previews to
+	// surface near-duplicate actions (structural + semantic dedup guard).
+	actionService.SetSemanticSearcher(actionSemanticAdapter{svc: aiSearchService})
 
 	// Budget config store
-	budgetConfigStore := aisearch.NewBudgetConfigStore(absStoreDir)
+	budgetConfigStore := aisearch.NewBudgetConfigStore(roots.Config)
 	aiSearchService.SetBudgetConfig(budgetConfigStore)
 	aiSearchHandlers.SetBudgetConfigStore(budgetConfigStore)
 
 	// Discover filter config store
-	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(absStoreDir)
+	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(roots.Config)
 	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
 	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
 
+	// Discover ranking config store (topic gate, high-confidence bar, caps).
+	// The topic gate must exceed the skill similarity threshold, so the store is
+	// constructed with it for validation. Hot-loadable like budgets.json.
+	discoverRankingConfigStore := aisearch.NewDiscoverRankingConfigStore(roots.Config, aiSearchThreshold)
+	aiSearchService.SetDiscoverRankingConfig(discoverRankingConfigStore)
+
+	// Discovery-miss telemetry store. Lives under the runtime-data root (not
+	// the git-tracked store tree) so misses are durable runtime signal, not
+	// source. Resolved via the storage path layer — no hard-coded ~/.vrooli.
+	discoveryMissStore := store.NewDiscoveryMissStore(roots.RuntimeData)
+	aiSearchService.SetDiscoveryMissStore(discoveryMissStore)
+
+	// Per-call discovery telemetry store (sibling of the miss store) records
+	// every discover call so threshold/budget/clipping behavior is measurable.
+	discoveryCallStore := store.NewDiscoveryCallStore(roots.RuntimeData)
+	aiSearchService.SetDiscoveryCallStore(discoveryCallStore)
+
+	// Skill-read telemetry. Recording happens at the read handler, which is the
+	// only point every consumer passes through; the reporter joins those reads
+	// against the discovery calls above so a skill returned often and read
+	// rarely reads as a search-precision defect rather than as demand.
+	skillReadStore := store.NewSkillReadStore(roots.RuntimeData)
+	skillHandlers.SetReadRecorder(skills.NewReadRecorder(skillReadStore, discoveryCallStore, metricsAdapter))
+	usageReporter := skills.NewUsageReporter(skillReadStore, discoveryCallStore)
+	skillHandlers.SetUsageReporter(usageReporter)
+	// Opt-in threshold-clipping probe (default off). DISCOVERY_PROBE_SAMPLE=N
+	// samples 1-in-N calls to re-search at threshold 0 and count clipped hits.
+	if sampleStr := os.Getenv("DISCOVERY_PROBE_SAMPLE"); sampleStr != "" {
+		if parsed, err := strconv.Atoi(sampleStr); err == nil {
+			aiSearchService.SetDiscoveryProbeSample(parsed)
+		}
+	}
+
 	// Set AI indexer on agent and team handlers for CRUD hook integration
 	agentHandlers.SetAIIndexer(aiSearchService)
+	actionHandlers.SetAIIndexer(aiSearchService)
 
 	// Graph detection
-	scenarioNames := discoverScenarioNames(absStoreDir)
+	scenarioNames := discoverScenarioNames(roots.ScenariosDir)
 	cliDetector := graph.NewCLIDetector(scenarioNames)
 	graphScanner := graph.NewScanner(
 		fileStore.Agents().(*store.FileAgentStore),
@@ -215,18 +636,29 @@ func main() {
 		fileStore.FileSkills(),
 		fileStore.Relations(),
 		cliDetector,
+		fileStore.Actions(),
 	)
+	graphScanner.SetRepositoryRoot(roots.RepoRoot)
+	generatedPromptBuilder := heartbeat.NewPromptBuilder(
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
+	)
+	graphScanner.SetGeneratedPromptProvider(func(ctx context.Context, teamID, agentID string) (string, error) {
+		return generatedPromptBuilder.BuildContext(ctx, heartbeat.PromptBuildRequest{TeamID: teamID, AgentID: agentID})
+	})
 	graphBuilder := graph.NewBuilder(
 		fileStore.Agents().(*store.FileAgentStore),
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.FileSkills(),
 		graphScanner,
 		graph.DefaultScoreFns(),
+		fileStore.Actions(),
 	)
-	graphHealthConfigStore := graph.NewHealthConfigStore(absStoreDir)
+	graphHealthConfigStore := graph.NewHealthConfigStore(roots.Config)
 	graphBuilder.SetHealthConfigProvider(graphHealthConfigStore)
 	graphBuilder.SetScenarioHealthProvider(graph.NewScenarioCompletenessCLIProvider(15 * time.Second))
-	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)
+	graphBuilder.SetCommandReferenceValidator(graph.NewCLIHealthCommandValidator())
+	graphIndex := graph.NewIndexStore(roots.RuntimeCache, graphBuilder)
 	// Always regenerate on startup so the index reflects the current detection code.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -239,138 +671,140 @@ func main() {
 
 	// Inject graph invalidator into mutation handlers
 	skillHandlers.SetGraphInvalidator(graphIndex)
+	actionHandlers.SetGraphInvalidator(graphIndex)
 	agentHandlers.SetGraphInvalidator(graphIndex)
 
-	// Log AI search status and trigger startup indexing if available
-	if ollamaURL != "" && qdrantURL != "" {
-		log.Printf("AI Search: Ollama=%s, Qdrant=%s, Collection=%s", ollamaURL, qdrantURL, aiSearchCollection)
-		// Check availability and index if needed (async to not block startup)
+	// AI Search: build the Reconciler + SyncLoop and wire them through the
+	// handlers. The reconciler replaces the old count-based reindex loop with
+	// a hash-driven Plan/Apply pipeline (see scenarios/prompt-manager/docs/...).
+	if qdrantURL != "" {
+		log.Printf("AI Search: Ollama gateway=%s, Qdrant=%s, Collection=%s", ollamaGatewayBin, qdrantURL, aiSearchCollection)
 		go func() {
 			ctx := context.Background()
 			if !aiSearchService.Available(ctx) {
-				log.Println("AI Search: Resources not reachable at startup, skipping initial index")
+				log.Println("AI Search: Resources not reachable at startup, skipping initial reconcile")
 				return
-			}
-			// Ensure collection exists
-			if err := vectorStore.EnsureCollection(ctx); err != nil {
-				log.Printf("AI Search: Failed to ensure collection: %v", err)
-				return
-			}
-			// Check if index is stale (count mismatch between Qdrant and disk)
-			needs, indexed, disk, err := aiSearchService.NeedsReindex(ctx)
-			if err != nil {
-				log.Printf("AI Search: Failed staleness check: %v", err)
-				return
-			}
-			if needs {
-				log.Printf("AI Search: Index out of sync (indexed=%d, on-disk=%d), reindexing...", indexed, disk)
-				status, started := aiSearchService.StartReindex()
-				if started {
-					log.Printf("AI Search: Reindexing started at %s", status.StartedAt)
-				} else {
-					log.Printf("AI Search: Reindex already running (started at %s)", status.StartedAt)
-				}
-			} else {
-				log.Printf("AI Search: Index up-to-date (%d skills)", indexed)
 			}
 
-			// Start periodic sync to catch external file changes and service recovery
-			aiSearchService.StartPeriodicSync(ctx, 5*time.Minute)
+			// Ensure every collection exists before the reconciler scrolls them.
+			for _, vs := range []aisearch.VectorStore{vectorStore, agentVectorStore, teamVectorStore, topicVectorStore, actionVectorStore} {
+				if err := vs.EnsureCollection(ctx); err != nil {
+					log.Printf("AI Search: Failed to ensure collection: %v", err)
+					return
+				}
+			}
+
+			descriptors := []aisearch.CollectionDescriptor{
+				aisearch.NewSkillDescriptor(vectorStore, skillStoreAdapter),
+				aisearch.NewAgentDescriptor(agentVectorStore, fileStore.Agents().(*store.FileAgentStore)),
+				aisearch.NewTeamDescriptor(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations()),
+				aisearch.NewTopicDescriptor(topicVectorStore, fileStore.FileTopics()),
+				aisearch.NewActionDescriptor(actionVectorStore, fileStore.Actions()),
+			}
+			cfg := aisearch.LoadConfigFromEnv()
+			reconciler := aisearch.NewReconciler(embedder, descriptors, cfg.ReconcileParallelism)
+			aiSearchHandlers.SetReconciler(reconciler)
+
+			bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			if _, _, err := reconciler.RunOnce(bootCtx); err != nil && err != aisearch.ErrReconcileBusy {
+				log.Printf("AI Search: boot-time reconcile failed: %v", err)
+			}
+			bootCancel()
+
+			syncLoop := aisearch.NewSyncLoop(reconciler)
+			go syncLoop.Start(ctx)
 		}()
 	} else {
 		log.Println("AI Search: Resources not fully configured (will gracefully degrade to text search)")
 	}
 
+	// Search Hub registration is a best-effort mirror of this scenario's
+	// .vrooli/search.json SSOT. It registers both high-traffic leaves (skills and
+	// actions) and their starter corpora through the shared bridge, so registry
+	// and eval governance see exactly the same boot-owned source of truth.
+	go searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID:     "prompt-manager",
+		SearchFilePath: filepath.Join(roots.RepoRoot, "scenarios", "prompt-manager", ".vrooli", "search.json"),
+		Logger:         log.Default(),
+	})
+
 	// Setup routes
+	searchConnectPath, searchConnectHandler := search.NewConnectMount(searchHandlers)
+	aiSearchConnectPath, aiSearchConnectHandler := aisearch.NewConnectMount(aiSearchHandlers)
+	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers, roots.RepoRoot)
+	skillSetValidationPath, skillSetValidationHandler := skillsetvalidation.NewConnectMount(roots.RepoRoot)
+	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
+	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateHandlers)
+	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)
+	metadataConnectPath, metadataConnectHandler := metadata.NewConnectMount(ogmetaHandlers)
 	router := mux.NewRouter()
+	if !devrouting.RegisterWithFileRoots(gorillaMuxAdapter{router: router}, db, fileRoots) {
+		log.Println("test-mode RoutingService disabled: scenario is not in development mode")
+	}
 
 	// CORS middleware
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
-		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-Vrooli-Attribution", "X-Caller-ID", "X-Agent-Identity-Token", "X-Experiment-Read-Receipt-ID"}),
 	)
 
-	// Health check
-	healthHandler := health.New().Version("2.0.0").Check(health.DB(db), health.Critical).Handler()
+	// Health check. Process and database liveness are not enough for Prompt
+	// Manager: a fleet-wide inability to create Agent Manager runs is a
+	// functional outage even while this API answers normally.
+	healthHandler := health.New().Version("2.0.0").
+		Check(health.DB(db.Primary()), health.Critical).
+		Functional(func(ctx context.Context) health.FunctionalStatus {
+			teams, err := fileStore.Teams().List(ctx)
+			if err != nil {
+				return health.FunctionalStatus{Healthy: false, Reason: "heartbeat roster unavailable: " + err.Error()}
+			}
+			observations := make([]heartbeatFunctionalObservation, 0)
+			for _, team := range teams {
+				if !team.Enabled {
+					continue
+				}
+				configs, listErr := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(ctx, team.ID)
+				if listErr != nil {
+					continue
+				}
+				for _, config := range configs {
+					observation := heartbeatFunctionalObservation{Enabled: config.Enabled, ConsecutiveFailures: config.ConsecutiveFailures}
+					if config.LastExecution != nil {
+						observation.HasExecution = true
+						observation.LastError = config.LastExecution.Error
+					}
+					observations = append(observations, observation)
+				}
+			}
+			return heartbeatFunctionalStatus(observations)
+		}).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/health", healthHandler).Methods("GET")
+	connectx.RegisterServices(
+		router,
+		connectx.ServiceMount{Path: skillsConnectPath, Handler: skillsConnectHandler},
+		connectx.ServiceMount{Path: actionsConnectPath, Handler: actionsConnectHandler},
+		connectx.ServiceMount{Path: tagsConnectPath, Handler: tagsConnectHandler},
+		connectx.ServiceMount{Path: searchConnectPath, Handler: searchConnectHandler},
+		connectx.ServiceMount{Path: aiSearchConnectPath, Handler: aiSearchConnectHandler},
+		connectx.ServiceMount{Path: discoveryConnectPath, Handler: discoveryConnectHandler},
+		connectx.ServiceMount{Path: skillSetValidationPath, Handler: skillSetValidationHandler},
+		connectx.ServiceMount{Path: agentsConnectPath, Handler: agentsConnectHandler},
+		connectx.ServiceMount{Path: templatesConnectPath, Handler: templatesConnectHandler},
+		connectx.ServiceMount{Path: testingConnectPath, Handler: testingConnectHandler},
+		connectx.ServiceMount{Path: metadataConnectPath, Handler: metadataConnectHandler},
+		connectx.ServiceMount{Path: experimentsConnectPath, Handler: experimentsConnectHandler},
+	)
 
-	// Skill routes
-	v1.HandleFunc("/skills", skillHandlers.List).Methods("GET")
-	v1.HandleFunc("/skills/sync", skillHandlers.Sync).Methods("GET")
-	v1.HandleFunc("/skills", skillHandlers.Create).Methods("POST")
-	v1.HandleFunc("/skills/read", skillHandlers.Read).Methods("POST")
-	v1.HandleFunc("/skills/{id}", skillHandlers.Get).Methods("GET")
-	v1.HandleFunc("/skills/{id}", skillHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/skills/{id}", skillHandlers.Delete).Methods("DELETE")
-
-	// Version history routes (part of skills domain)
-	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
-	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
-
-	// Variant routes
-	v1.HandleFunc("/skills/{id}/variants", variantHandlers.ListVariants).Methods("GET")
-	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.GetVariant).Methods("GET")
-	v1.HandleFunc("/skills/{id}/variants", variantHandlers.CreateVariant).Methods("POST")
-	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.UpdateVariant).Methods("PUT")
-	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.DeleteVariant).Methods("DELETE")
-
-	// Skill experiments (list by skill)
-	v1.HandleFunc("/skills/{id}/experiments", experimentHandlers.ListExperimentsBySkill).Methods("GET")
-
-	// Experiment routes
-	v1.HandleFunc("/experiments", experimentHandlers.ListExperiments).Methods("GET")
-	v1.HandleFunc("/experiments/{eid}", experimentHandlers.GetExperiment).Methods("GET")
-	v1.HandleFunc("/experiments", experimentHandlers.CreateExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}", experimentHandlers.UpdateExperiment).Methods("PUT")
-	v1.HandleFunc("/experiments/{eid}", experimentHandlers.DeleteExperiment).Methods("DELETE")
-	v1.HandleFunc("/experiments/{eid}/start", experimentHandlers.StartExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/conclude", experimentHandlers.ConcludeExperiment).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.RecordOutcome).Methods("POST")
-	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.ListOutcomes).Methods("GET")
-
-	// Graph routes
-	v1.HandleFunc("/graph", graphHandlers.GetGraph).Methods("GET")
-	v1.HandleFunc("/graph/regenerate", graphHandlers.Regenerate).Methods("POST")
-	v1.HandleFunc("/graph/orphans", graphHandlers.GetOrphans).Methods("GET")
-	v1.HandleFunc("/graph/skillless", graphHandlers.GetSkillless).Methods("GET")
-	v1.HandleFunc("/graph/empty-teams", graphHandlers.GetEmptyTeams).Methods("GET")
-	v1.HandleFunc("/graph/unaffiliated", graphHandlers.GetUnaffiliated).Methods("GET")
-	v1.HandleFunc("/graph/popular", graphHandlers.GetPopular).Methods("GET")
-	v1.HandleFunc("/graph/cycles", graphHandlers.GetCycles).Methods("GET")
-	v1.HandleFunc("/graph/health", graphHandlers.GetHealthScores).Methods("GET")
-	v1.HandleFunc("/graph/health-config", graphHandlers.GetHealthConfig).Methods("GET")
-	v1.HandleFunc("/graph/health-config", graphHandlers.PutHealthConfig).Methods("PUT")
-	v1.HandleFunc("/graph/nodes/{id}", graphHandlers.GetNode).Methods("GET")
-	v1.HandleFunc("/graph/nodes/{id}/edges", graphHandlers.GetNodeEdges).Methods("GET")
-
-	// Usage tracking routes (part of skills domain)
-	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
-	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
-
-	// Search routes
-	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
-	v1.HandleFunc("/search/skills/content", searchHandlers.ContentSearch).Methods("GET")
-	v1.HandleFunc("/search/agents", searchHandlers.SearchAgents).Methods("GET")
-	v1.HandleFunc("/search/agents/content", searchHandlers.AgentContentSearch).Methods("GET")
-	v1.HandleFunc("/search/teams", searchHandlers.SearchTeams).Methods("GET")
-	v1.HandleFunc("/search/teams/content", searchHandlers.TeamContentSearch).Methods("GET")
-
-	// AI Search routes
-	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
-	v1.HandleFunc("/search/agents/ai", aiSearchHandlers.SearchAgents).Methods("POST")
-	v1.HandleFunc("/search/teams/ai", aiSearchHandlers.SearchTeams).Methods("POST")
-	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
-	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")
-	v1.HandleFunc("/search/ai/reindex/status", aiSearchHandlers.ReindexStatus).Methods("GET")
-	v1.HandleFunc("/search/ai/reindex/cancel", aiSearchHandlers.CancelReindex).Methods("POST")
-
-	// Discovery route (unified topic + skill search)
-	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
+	// Graph Connect-RPC surface. This owns the complete graph contract, including
+	// the health projection consumed by meta-optimization-manager's Guide metric.
+	// See docs/internal/SEAMS.md#graph-connect-handler.
+	graphConnectPath, graphConnectHandler := graph.NewConnectMount(graphIndex, graphHealthConfigStore)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: graphConnectPath, Handler: graphConnectHandler})
 
 	// Budget config routes
 	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
@@ -380,92 +814,147 @@ func main() {
 	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.GetDiscoverFilterConfig).Methods("GET")
 	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.PutDiscoverFilterConfig).Methods("PUT")
 
-	// Tags routes
-	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")
-	v1.HandleFunc("/tags", tagsHandlers.Create).Methods("POST")
-
-	// Testing routes
-	v1.HandleFunc("/skills/{id}/test", testingHandlers.Test).Methods("POST")
-	v1.HandleFunc("/skills/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
-
-	// Agent routes
-	v1.HandleFunc("/agents", agentHandlers.List).Methods("GET")
-	v1.HandleFunc("/agents", agentHandlers.Create).Methods("POST")
-	v1.HandleFunc("/agents/{id}", agentHandlers.Get).Methods("GET")
-	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/agents/{id}/soul", agentHandlers.GetSoul).Methods("GET")
-	v1.HandleFunc("/agents/{id}/soul", agentHandlers.SetSoul).Methods("PUT")
-	v1.HandleFunc("/agents/{id}/files", agentHandlers.ListFiles).Methods("GET")
-	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.GetFile).Methods("GET")
-	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.SetFile).Methods("PUT")
-	v1.HandleFunc("/agents/{id}/files", agentHandlers.CreateFile).Methods("POST")
-	v1.HandleFunc("/agents/{id}/files/rename", agentHandlers.RenameFile).Methods("POST")
-	v1.HandleFunc("/agents/{id}/teams", agentHandlers.ListTeams).Methods("GET")
-	v1.HandleFunc("/agents/{id}/files", agentHandlers.DeleteFile).Methods("DELETE")
-
-	// Agent file templates
-	v1.HandleFunc("/agent-file-templates", templateHandlers.ListAgentFileTemplates).Methods("GET")
-
-	// Team routes
+	// Team services
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
 	teamHandlers.SetGraphInvalidator(graphIndex)
 	teamHandlers.SetAIIndexer(aiSearchService)
-	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
-	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
-	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")
-	v1.HandleFunc("/teams", teamHandlers.List).Methods("GET")
-	v1.HandleFunc("/teams", teamHandlers.Create).Methods("POST")
-	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
-	v1.HandleFunc("/teams/{id}", teamHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/teams/{id}", teamHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/exclusive-members", teamHandlers.GetExclusiveMembers).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members", teamHandlers.AddMember).Methods("POST")
-	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.UpdateMember).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.RemoveMember).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/roles", teamHandlers.GetRoles).Methods("GET")
-	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.ListSharedFiles).Methods("GET")
-	v1.HandleFunc("/teams/{id}/shared/files/content", teamHandlers.GetSharedFile).Methods("GET")
-	v1.HandleFunc("/teams/{id}/shared/files/content", teamHandlers.SetSharedFile).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.CreateSharedFile).Methods("POST")
-	v1.HandleFunc("/teams/{id}/shared/files/rename", teamHandlers.RenameSharedFile).Methods("POST")
-	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.DeleteSharedFile).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/org", teamHandlers.GetOrgChart).Methods("GET")
-	v1.HandleFunc("/teams/{id}/org", teamHandlers.SetOrgChart).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.UpdateOrgChartEdge).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.DeleteOrgChartEdge).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ListTeamMessages).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.SendTeamMessage).Methods("POST")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/export/claude-code", teamHandlers.ExportClaudeCode).Methods("GET")
+	// Member-flow (per-member topics.json) routes — declares each member's
+	// intake/output topic prefixes and feeds the team graph view.
+	// DOC: docs/agent-system/TOPICS_SCHEMA.md
+	memberFlowHandlers := memberflow.NewHandlers(roots.Config, roots.RuntimeData)
+	memberFlowHandlers.SetKnowledgeQuery(
+		newTeamKnowledgeQuery(fileStore.Teams().(*store.FileTeamStore)),
+		memberflow.InboxAgingOptions{},
+	)
+	memberflowConnectPath, memberflowConnectHandler := memberflow.NewConnectMount(memberFlowHandlers, graphHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: memberflowConnectPath, Handler: memberflowConnectHandler})
 
 	// Topic routes
 	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())
 	topicHandlers.SetGraphInvalidator(graphIndex)
 	topicHandlers.SetAIIndexer(aiSearchService)
 	topicHandlers.SetTopicMatchFn(buildTopicMatchFn(aiSearchService, fileStore.Topics()))
-	// Match route must come before /topics/{id} to avoid mux treating "match" as an ID
-	v1.HandleFunc("/topics/match", topicHandlers.Match).Methods("POST")
-	v1.HandleFunc("/topics", topicHandlers.List).Methods("GET")
-	v1.HandleFunc("/topics", topicHandlers.Create).Methods("POST")
-	v1.HandleFunc("/topics/{id}", topicHandlers.Get).Methods("GET")
-	v1.HandleFunc("/topics/{id}", topicHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/topics/{id}", topicHandlers.Delete).Methods("DELETE")
-	v1.HandleFunc("/topics/{id}/skills", topicHandlers.AccumulatedSkills).Methods("GET")
+	topicsConnectPath, topicsConnectHandler := topics.NewConnectMount(topicHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: topicsConnectPath, Handler: topicsConnectHandler})
 
-	// Heartbeat system
-	// Get Vrooli root for working directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		// Default to parent of store dir
-		vrooliRoot, _ = filepath.Abs(filepath.Join(storeDir, ".."))
+	// The uniform measures substrate executes the same domain reads as the
+	// generated RPCs. It is mounted outside /api/v1 because measures-go defines
+	// the fleet-wide /measures/declarations and /measures/execute contract.
+	measureHandler, err := promptmeasures.Handler(map[string]promptmeasures.Provider{
+		"actions.list": func(ctx context.Context, req measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Actions().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				if !matchesActionMeasure(item.Pack, item.Status, item.Owner.Type+":"+item.Owner.ID, item.Owner.ID, item.Tags, req.Params) {
+					continue
+				}
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name, "status": item.Status})
+			}
+			return tableMeasure(rows, "action store list with manifest filters"), nil
+		},
+		"agents.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Agents().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.DisplayName, "status": item.Status})
+			}
+			return tableMeasure(rows, "agent store list"), nil
+		},
+		"aisearch.discovery-metrics": func(_ context.Context, req measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			window := parseMeasureWindow(req.Params["since"])
+			report, err := aiSearchService.DiscoveryMetrics(window, req.Params["type"])
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			return scalarMeasure(report.CallCount, fmt.Sprintf("discovery call telemetry over %s", window)), nil
+		},
+		"graph.health": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			index, err := graphIndex.Get(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(index.Graph.HealthScores))
+			for _, score := range index.Graph.HealthScores {
+				rows = append(rows, map[string]string{"node_id": score.NodeID, "score": strconv.FormatFloat(score.Score, 'f', -1, 64)})
+			}
+			return tableMeasure(rows, "materialized graph health scores"), nil
+		},
+		"metrics.skill-usage": func(_ context.Context, req measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			window := parseMeasureWindow(req.Params["since"])
+			report, err := usageReporter.Report(window)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(report.Rows))
+			for _, item := range report.Rows {
+				rows = append(rows, map[string]string{"skill_id": item.SkillID, "reads": strconv.Itoa(item.Reads), "returned": strconv.Itoa(item.Returned)})
+			}
+			return tableMeasure(rows, fmt.Sprintf("skill read and discovery telemetry over %s", window)), nil
+		},
+		"skills.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.FileSkills().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name, "status": item.Status})
+			}
+			return tableMeasure(rows, "skill store list"), nil
+		},
+		"tags.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := tagsRepo.WithContext(ctx).GetAll()
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name})
+			}
+			return tableMeasure(rows, "tag repository list"), nil
+		},
+		"teams.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Teams().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.DisplayName, "enabled": strconv.FormatBool(item.Enabled)})
+			}
+			return tableMeasure(rows, "team store list"), nil
+		},
+		"topics.list": func(ctx context.Context, _ measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			items, err := fileStore.Topics().List(ctx)
+			if err != nil {
+				return measurelib.MeasureResult{}, err
+			}
+			rows := make([]map[string]string, 0, len(items))
+			for _, item := range items {
+				rows = append(rows, map[string]string{"id": item.ID, "name": item.Name, "status": item.Status})
+			}
+			return tableMeasure(rows, "topic store list"), nil
+		},
+	})
+	if err != nil {
+		log.Fatalf("initialize measure registry: %v", err)
 	}
+	router.PathPrefix("/measures/").Handler(http.StripPrefix("/measures", measureHandler))
+	// Heartbeat system: repo root flows from the repo contract via
+	// paths.Roots (resolved at startup). Empty when paths.Resolve already
+	// failed, but main.go would have log.Fatal'd long before here.
+	vrooliRoot := roots.RepoRoot
 
 	// Initialize heartbeat components
 	agentManagerClient := heartbeat.NewAgentManagerClient(30 * time.Second)
-	runRegistry := heartbeat.NewRunRegistry(absStoreDir)
+	usageReporter.SetOutcomeResolver(skillUsageOutcomeResolver{client: agentManagerClient})
+	runRegistry := heartbeat.NewRunRegistry(roots.RuntimeData)
 	heartbeatExecutor := heartbeat.NewExecutor(
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.Agents().(*store.FileAgentStore),
@@ -474,28 +963,81 @@ func main() {
 		runRegistry,
 		nil, // uses default SentinelExtractor
 	)
+	heartbeatExecutor.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
+		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+		cmd := exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "prompt-manager")
+		cmd.Env = childEnv
+		output, err := cmd.CombinedOutput()
+		fields := strings.Fields(string(output))
+		if err != nil {
+			return "", fmt.Errorf("agent recovery: %w: %s", err, strings.TrimSpace(string(output)))
+		}
+		if len(fields) < 3 {
+			return "", fmt.Errorf("agent recovery returned no request id")
+		}
+		return fields[2], nil
+	})
+	// Routes each member's own open declaration findings into its heartbeat
+	// prompt. Wired on the executor because that builder serves both the real
+	// spawn path and `team prompt-preview`, so the operator previews exactly
+	// what the agent receives.
+	heartbeatExecutor.SetContractFindingsProvider(&heartbeat.MemberflowContractFindings{
+		StoreDir:       roots.Config,
+		RepoRoot:       roots.RepoRoot,
+		RuntimeDataDir: roots.RuntimeData,
+	})
+	memberFlowHandlers.SetPromptSectionProvider(heartbeatPromptSectionProvider{executor: heartbeatExecutor})
+	operatingMapStore, err := graph.NewOperatingMapStore(memberflow.OperatingModelService{
+		RepoRoot:       roots.RepoRoot,
+		StoreDir:       roots.Config,
+		PromptSections: heartbeatPromptSectionProvider{executor: heartbeatExecutor},
+	}, roots.RepoRoot)
+	if err != nil {
+		log.Fatalf("operating map: %v", err)
+	}
+	graphIndex.SetDependentInvalidators(operatingMapStore)
+	graphHandlers.SetOperatingMapStore(operatingMapStore)
 	teamExecStore := heartbeat.NewTeamExecutionStore(
 		fileStore.Teams().(*store.FileTeamStore),
 		heartbeatExecutor,
-		absStoreDir,
+		roots.RuntimeData,
+		agentManagerClient,
 	)
+	heartbeatControlStore := heartbeat.NewHeartbeatControlStore(roots.RuntimeData)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
+	heartbeatExecutor.SetTeamExecStore(teamExecStore)
 	heartbeatScheduler := heartbeat.NewScheduler(
 		heartbeatExecutor,
 		agentManagerClient,
 		fileStore.Teams().(*store.FileTeamStore),
 		teamExecStore,
 	)
-	heartbeatHandlers := heartbeat.NewHandlers(
-		fileStore.Teams().(*store.FileTeamStore),
-		fileStore.Agents().(*store.FileAgentStore),
-		fileStore.Relations(),
-		heartbeatScheduler,
-		heartbeatExecutor,
-		runRegistry,
-		agentManagerClient,
-		teamExecStore,
-	)
+	heartbeatScheduler.SetControlStore(heartbeatControlStore)
+	// World feed: the run registry and scheduler are the only signal sources
+	// the 3D world projects; nothing here invents agent behaviour.
+	worldStore := world.NewStore(roots.Config)
+	worldHub := world.NewHub(worldFeedRingSize, worldFeedChannelDepth, world.LiveSource{Runs: runRegistry, Schedule: heartbeatScheduler})
+	runRegistry.SetObserver(worldHub)
+	go world.NewScheduleWatcher(worldHub, heartbeatScheduler, worldScheduleHorizon).Run(context.Background(), worldScheduleInterval)
+	worldConnectPath, worldConnectHandler := worldhandlers.NewConnectMount(worldStore, worldHub)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: worldConnectPath, Handler: worldConnectHandler})
+	heartbeatHandlers := heartbeat.NewHandlers(heartbeat.HandlersDeps{
+		TeamStore:     fileStore.Teams().(*store.FileTeamStore),
+		AgentStore:    fileStore.Agents().(*store.FileAgentStore),
+		RelationStore: fileStore.Relations(),
+		Scheduler:     heartbeatScheduler,
+		Executor:      heartbeatExecutor,
+		RunRegistry:   runRegistry,
+		AgentClient:   agentManagerClient,
+		TeamExecStore: teamExecStore,
+	})
+	heartbeatHandlers.SetControlStore(heartbeatControlStore)
+	// Teams knowledge is owned by the heartbeat handler because it enforces
+	// runtime attribution and the publication rules for the shared corpus.
+	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers, heartbeatHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
+	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: heartbeatConnectPath, Handler: heartbeatConnectHandler})
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
@@ -514,7 +1056,12 @@ func main() {
 			if !team.Enabled {
 				continue
 			}
-			configs, _ := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(context.Background(), team.ID)
+			teamStore := fileStore.Teams().(*store.FileTeamStore)
+			if err := teamStore.ValidateHeartbeatRoster(context.Background(), team.ID); err != nil {
+				log.Printf("Warning: Refusing to schedule team with heartbeat roster drift: %v", err)
+				continue
+			}
+			configs, _ := teamStore.ListHeartbeatConfigs(context.Background(), team.ID)
 			for _, config := range configs {
 				if config.Enabled {
 					if err := heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
@@ -525,83 +1072,15 @@ func main() {
 		}
 	}()
 
-	// Heartbeat routes - static paths before parameterized
-	v1.HandleFunc("/tasks", heartbeatHandlers.CreateTask).Methods("POST")
-	v1.HandleFunc("/runs", heartbeatHandlers.CreateRun).Methods("POST")
-	v1.HandleFunc("/runs", heartbeatHandlers.ListRuns).Methods("GET")
-	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
-	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")
-	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")
-	v1.HandleFunc("/runs/{runId}/retry", heartbeatHandlers.RetryRun).Methods("POST")
-	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
-	v1.HandleFunc("/runs/{runId}/continue", heartbeatHandlers.ContinueRun).Methods("POST")
-	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
-	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
-	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")
-	v1.HandleFunc("/prompt-preview-structured", heartbeatHandlers.PreviewPromptStructured).Methods("POST")
-	v1.HandleFunc("/teams/{id}/prompt-matrix", heartbeatHandlers.PreviewPromptMatrix).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.CreateHeartbeat).Methods("POST")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.UpdateHeartbeat).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.DeleteHeartbeat).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
-	v1.HandleFunc("/teams/{id}/trigger", heartbeatHandlers.TriggerTeam).Methods("POST")
-	v1.HandleFunc("/teams/{id}/execution-status", heartbeatHandlers.GetTeamExecutionStatus).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/logs", heartbeatHandlers.ListTeamLogs).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
-	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")
-
-	// Member document routes (RESPONSIBILITIES.md and HEARTBEAT.md)
-	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.GetResponsibilities).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.SetResponsibilities).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/context", heartbeatHandlers.GetMemberContext).Methods("GET")
-
-	// Team state routes (handoff, task board, decisions)
-	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.GetLastHandoff).Methods("GET")
-	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.ClearLastHandoff).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.GetHandoffHistory).Methods("GET")
-	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.ClearHandoffHistory).Methods("DELETE")
-	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.GetTaskBoard).Methods("GET")
-	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
-	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
-	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.DeleteTaskHandler).Methods("DELETE")
-	v1.HandleFunc("/decisions/pending", heartbeatHandlers.GetAllPendingDecisions).Methods("GET")
-	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.AddDecision).Methods("POST")
-	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.GetDecisions).Methods("GET")
-	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.UpdateDecisionHandler).Methods("PATCH", "PUT")
-	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.DeleteDecisionHandler).Methods("DELETE")
-
-	// Knowledge log routes
-	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.AddKnowledge).Methods("POST")
-	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.GetKnowledge).Methods("GET")
-	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.UpdateKnowledgeHandler).Methods("PATCH", "PUT")
-	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.DeleteKnowledgeHandler).Methods("DELETE")
-
-	// Retention / prune routes
-	v1.HandleFunc("/teams/{id}/retention", heartbeatHandlers.GetRetention).Methods("GET")
-	v1.HandleFunc("/teams/{id}/prune", heartbeatHandlers.PruneSharedState).Methods("POST")
-
-	// World scale routes
-	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
-	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")
-
-	// World seats routes
-	v1.HandleFunc("/world-seats", worldseats.HandleGet(absStoreDir)).Methods("GET")
-	v1.HandleFunc("/world-seats", worldseats.HandlePut(absStoreDir)).Methods("PUT")
-
-	// OG metadata routes (for link previews)
-	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
-
 	log.Printf("Prompt Manager API v2.0 starting")
-	log.Printf("Store directory: %s", storeDir)
-	if ollamaURL != "" {
-		log.Printf("Ollama: %s", ollamaURL)
+	log.Printf("Config root: %s", roots.Config)
+	log.Printf("Runtime data root: %s", roots.RuntimeData)
+	log.Printf("Runtime cache root: %s", roots.RuntimeCache)
+	if ollamaEnabled {
+		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
 	}
 
-	handler := corsHandler(router)
+	handler := securityHeaders(apihttp.TestModeMiddleware(corsHandler(router)))
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -613,6 +1092,26 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// resolveOllamaEnabled honors an explicit feature override and otherwise uses
+// the resource environment injected by the control plane. This keeps optional
+// Ollama dependencies disabled when absent without requiring scenarios to
+// duplicate resource state in a second environment flag.
+func resolveOllamaEnabled(getenv func(string) string) (bool, error) {
+	if raw := strings.TrimSpace(getenv("OLLAMA_ENABLED")); raw != "" {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false, fmt.Errorf("invalid OLLAMA_ENABLED=%q", raw)
+		}
+		return enabled, nil
+	}
+	for _, key := range []string{"OLLAMA_BASE_URL", "OLLAMA_URL", "OLLAMA_PORT"} {
+		if strings.TrimSpace(getenv(key)) != "" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service
@@ -711,4 +1210,37 @@ func resolveQdrantURL() string {
 		return "http://localhost:" + port
 	}
 	return ""
+}
+
+// collectionForDomain preserves explicit operator overrides while deriving the
+// default from the active storage namespace. Shadow/test-mode processes must
+// never fall back to a live prompt-manager collection name.
+func collectionForDomain(envName, domain string) string {
+	if collection := strings.TrimSpace(os.Getenv(envName)); collection != "" {
+		return collection
+	}
+	collection, err := storage.Collection(domain)
+	if err != nil {
+		log.Fatalf("resolve %s collection: %v", domain, err)
+	}
+	return collection
+}
+
+// actionSemanticAdapter adapts the aisearch service to the actions package's
+// SemanticActionSearcher seam, so create previews can surface semantically
+// similar existing actions without the actions package depending on aisearch.
+type actionSemanticAdapter struct {
+	svc *aisearch.Service
+}
+
+func (a actionSemanticAdapter) SearchSimilarActions(ctx context.Context, query string, limit int) ([]actions.SemanticActionHit, error) {
+	resp, err := a.svc.SearchActions(ctx, query, limit)
+	if err != nil || resp == nil {
+		return nil, err
+	}
+	hits := make([]actions.SemanticActionHit, 0, len(resp.Results))
+	for _, result := range resp.Results {
+		hits = append(hits, actions.SemanticActionHit{ID: result.ID, Name: result.Name, Score: result.Score})
+	}
+	return hits, nil
 }

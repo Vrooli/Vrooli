@@ -35,9 +35,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/retry"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Supported drivers with auto-configuration from environment variables.
@@ -48,8 +50,10 @@ const (
 	// Also checks: POSTGRES_URL, DATABASE_URL (used directly if set)
 	DriverPostgres = "postgres"
 
-	// DriverSQLite reads SQLITE_PATH or SQLITE_DB environment variables and
-	// matches the modernc.org/sqlite driver name used by cross-platform scenarios.
+	// DriverSQLite resolves its database file from Config.Scenario through
+	// api-core/storage and matches the modernc.org/sqlite driver name used by
+	// cross-platform scenarios. It reads NO database-path environment variable;
+	// see buildSQLiteDSN for why.
 	DriverSQLite = "sqlite"
 
 	// DriverSQLiteLegacy remains supported for scenarios that still open the CGO
@@ -63,6 +67,21 @@ type Config struct {
 	// For known drivers, connection parameters are auto-read from environment.
 	// Required.
 	Driver string
+
+	// TestDriver optionally selects a different driver for ephemeral routed test
+	// pools. Production always uses Driver; Test Genie may provide an isolated
+	// SQLite lease even when the primary authority is PostgreSQL.
+	TestDriver string
+
+	// Scenario is the compile-time scenario slug — the scenario naming itself.
+	// It is REQUIRED for the SQLite drivers when DSN is empty, and unused for
+	// PostgreSQL (whose database name is injected per variant as POSTGRES_DB).
+	//
+	// The resolved file is a pure function of this slug and the lifecycle's
+	// variant-aware namespace, so no inherited environment can redirect one
+	// scenario's database at another scenario's file. See
+	// api-core/storage/sqlite.go.
+	Scenario string
 
 	// DSN overrides automatic environment-based configuration.
 	// If set, environment variables are ignored for connection string.
@@ -127,6 +146,9 @@ func Connect(ctx context.Context, cfg Config) (*sql.DB, error) {
 	if cfg.Retry != nil {
 		retryCfg = *cfg.Retry
 	}
+	if retryCfg.Retryable == nil {
+		retryCfg.Retryable = isRetryableConnectionError
+	}
 
 	// Add logging callback if logger provided
 	if cfg.Logger != nil {
@@ -172,6 +194,14 @@ func Connect(ctx context.Context, cfg Config) (*sql.DB, error) {
 	return db, nil
 }
 
+// isRetryableConnectionError rejects configuration failures that no retry can
+// repair. database/sql exposes unknown-driver failures as an error string
+// rather than a public sentinel, so match its stable diagnostic while allowing
+// operational open and ping failures to use the normal retry policy.
+func isRetryableConnectionError(err error) bool {
+	return !strings.Contains(err.Error(), "sql: unknown driver ")
+}
+
 // MustConnect is like Connect but panics on error.
 // Useful for initialization in main() where failure is unrecoverable.
 func MustConnect(ctx context.Context, cfg Config) *sql.DB {
@@ -190,8 +220,8 @@ func buildDSNFromEnv(cfg Config) (string, error) {
 	case DriverPostgres:
 		return buildPostgresDSN(getenv)
 
-		case DriverSQLite, DriverSQLiteLegacy:
-			return buildSQLiteDSN(getenv)
+	case DriverSQLite, DriverSQLiteLegacy:
+		return buildSQLiteDSN(cfg)
 
 	default:
 		return "", fmt.Errorf(
@@ -202,6 +232,14 @@ func buildDSNFromEnv(cfg Config) (string, error) {
 }
 
 // buildPostgresDSN constructs a PostgreSQL connection string from environment.
+//
+// Shadow isolation: POSTGRES_DB is injected by the lifecycle from
+// scenarioruntime.InstanceKey.Namespace().PostgresDB — "vrooli_<scenario>" for
+// the live instance, "vrooli_<scenario>_<variant>" for a shadow. Postgres
+// therefore inherits variant isolation for free; do NOT hardcode the scenario's
+// database name anywhere — that would point a shadow at live's database. See the
+// storage package's variant-aware namespace helpers for the Redis/Qdrant
+// equivalent.
 func buildPostgresDSN(getenv func(string) string) (string, error) {
 	// First check if a complete URL is already set
 	if url := getenv("POSTGRES_URL"); url != "" {
@@ -261,17 +299,52 @@ func buildPostgresDSN(getenv func(string) string) (string, error) {
 	), nil
 }
 
-// buildSQLiteDSN returns the SQLite database file path from environment.
-func buildSQLiteDSN(getenv func(string) string) (string, error) {
-	if path := getenv("SQLITE_PATH"); path != "" {
-		return path, nil
+// ResolvePostgresDSN exposes the canonical lifecycle environment precedence
+// for callers that need to validate or pass a DSN to another subsystem. It
+// keeps URL precedence, component reconstruction, and SSL mode in one seam.
+func ResolvePostgresDSN(getenv func(string) string) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
 	}
-	if path := getenv("SQLITE_DB"); path != "" {
-		return path, nil
+	return buildPostgresDSN(func(key string) string { return strings.TrimSpace(getenv(key)) })
+}
+
+// buildSQLiteDSN resolves a scenario's own SQLite database and returns its DSN.
+//
+// Resolution takes NO path from the environment, and that absence is the point.
+// This function previously read SQLITE_PATH and then SQLITE_DB — generic names,
+// which meant any process that exported one redirected the database of every
+// scenario it went on to start. The supervisor scenario declared SQLITE_PATH in
+// its own manifest and restarted sick scenarios by exec'ing the CLI, so each
+// restarted child inherited the supervisor's value and opened the supervisor's
+// file. Twelve scenarios were observed sharing one 9.35 GB database behind a
+// single writer lock, and no unit test could see it: the defect lived in
+// process environment inheritance, not in a code path a test exercises.
+//
+// The database a scenario opens is now a function of the scenario's own
+// identity. Shadow isolation still works, because it rides on
+// VROOLI_STORAGE_NAMESPACE, which is scenario-agnostic by construction and
+// therefore safe to inherit.
+//
+// A caller needing an explicit path — a test, a migration — sets Config.DSN
+// from storage.SQLiteDSNAt, passing the path as an argument rather than
+// leaving it in the environment for a child process to pick up.
+func buildSQLiteDSN(cfg Config) (string, error) {
+	scenario := strings.TrimSpace(cfg.Scenario)
+	if scenario == "" {
+		return "", fmt.Errorf(
+			"sqlite connection requires Config.Scenario (the scenario's own slug); " +
+				"for an explicit path set Config.DSN from storage.SQLiteDSNAt",
+		)
 	}
-	return "", fmt.Errorf(
-			"sqlite connection requires SQLITE_PATH or SQLITE_DB environment variable",
-	)
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{
+		Scenario: scenario,
+		EnvGet:   cfg.getenv,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve %s sqlite database: %w", scenario, err)
+	}
+	return dsn, nil
 }
 
 // resolvePoolSettings reads pool configuration from environment if not set.

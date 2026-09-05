@@ -6,7 +6,8 @@ import (
 	"context"
 	"time"
 
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // Status represents the result of a health check
@@ -16,6 +17,13 @@ const (
 	StatusOK       Status = "ok"
 	StatusWarning  Status = "warning"
 	StatusCritical Status = "critical"
+	// StatusNotApplicable is an honest platform boundary, not a successful
+	// health observation. It is used when a check's capability does not exist
+	// on the current host (for example, NVIDIA container access on a CPU host).
+	StatusNotApplicable Status = "not-applicable"
+	// StatusUndetermined means the check could not read its source. It is not
+	// a successful observation and remains visible in aggregate readings.
+	StatusUndetermined Status = "undetermined"
 )
 
 // Category groups related health checks for UI organization
@@ -81,22 +89,26 @@ type Info struct {
 
 // Summary provides an aggregate health summary
 type Summary struct {
-	Status     Status    `json:"status"`
-	TotalCount int       `json:"totalCount"`
-	OkCount    int       `json:"okCount"`
-	WarnCount  int       `json:"warningCount"`
-	CritCount  int       `json:"criticalCount"`
-	Checks     []Result  `json:"checks"`
-	Timestamp  time.Time `json:"timestamp"`
+	Status             Status    `json:"status"`
+	TotalCount         int       `json:"totalCount"`
+	OkCount            int       `json:"okCount"`
+	WarnCount          int       `json:"warningCount"`
+	CritCount          int       `json:"criticalCount"`
+	NotApplicableCount int       `json:"notApplicableCount"`
+	UndeterminedCount  int       `json:"undeterminedCount"`
+	Checks             []Result  `json:"checks"`
+	Timestamp          time.Time `json:"timestamp"`
 }
 
 // WorstStatus returns the most severe status between two statuses.
 // Severity order: critical > warning > ok
 func WorstStatus(a, b Status) Status {
-	priority := map[Status]int{
-		StatusOK:       0,
-		StatusWarning:  1,
-		StatusCritical: 2,
+	priority := map[Status]int{StatusNotApplicable: -1, StatusUndetermined: -1, StatusOK: 0, StatusWarning: 1, StatusCritical: 2}
+	if a == StatusUndetermined && priority[b] == 0 {
+		return a
+	}
+	if b == StatusUndetermined && priority[a] == 0 {
+		return b
 	}
 	if priority[a] >= priority[b] {
 		return a
@@ -131,6 +143,10 @@ func ComputeSummary(results []Result) Summary {
 			summary.WarnCount++
 		case StatusCritical:
 			summary.CritCount++
+		case StatusNotApplicable:
+			summary.NotApplicableCount++
+		case StatusUndetermined:
+			summary.UndeterminedCount++
 		}
 	}
 
@@ -148,17 +164,57 @@ type RecoveryAction struct {
 	Available   bool   `json:"available"`   // Can run in current state (e.g., can't start if already running)
 }
 
+// HealTarget is the stable identity of the runtime object an action changes.
+// Different checks may observe the same target (for example, a resource health
+// check and its accelerator-placement check), so check IDs are not target IDs.
+type HealTarget struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+}
+
+// String returns the operator-facing target identity used in refusal records.
+func (t HealTarget) String() string {
+	if t.Kind == "" {
+		return t.Name
+	}
+	return t.Kind + ":" + t.Name
+}
+
+// HealTargetProvider lets a check explicitly declare the object its actions
+// affect. The registry has a conservative check-ID fallback for legacy checks.
+type HealTargetProvider interface {
+	HealTarget() HealTarget
+}
+
+// ActionRefusal is a typed, machine-readable reason an action was not run.
+// It is intentionally separate from Error: callers can distinguish a safety
+// decision from an execution failure without treating the refusal as success.
+type ActionRefusal struct {
+	Kind              string     `json:"kind"`
+	Reason            string     `json:"reason"`
+	Target            HealTarget `json:"target"`
+	SourceCheckID     string     `json:"sourceCheckId"`
+	AttemptingCheckID string     `json:"attemptingCheckId"`
+	SourceActionID    string     `json:"sourceActionId"`
+	SourceTimestamp   time.Time  `json:"sourceTimestamp"`
+	Window            string     `json:"window"`
+}
+
 // ActionResult represents the outcome of executing a recovery action
 // [REQ:HEAL-ACTION-001]
 type ActionResult struct {
-	ActionID  string        `json:"actionId"`
-	CheckID   string        `json:"checkId"`
-	Success   bool          `json:"success"`
-	Message   string        `json:"message"`
-	Output    string        `json:"output,omitempty"` // Command output if any
-	Error     string        `json:"error,omitempty"`  // Error message if failed
-	Timestamp time.Time     `json:"timestamp"`
-	Duration  time.Duration `json:"duration"`
+	ActionID  string             `json:"actionId"`
+	CheckID   string             `json:"checkId"`
+	Success   bool               `json:"success"`
+	TimedOut  bool               `json:"timedOut,omitempty"` // True when the action exceeded its per-action timeout. Distinct from Success=false so callers can retry quickly instead of cooling down on the exponential failure backoff.
+	Message   string             `json:"message"`
+	Warning   string             `json:"warning,omitempty"`
+	Output    string             `json:"output,omitempty"` // Command output if any
+	Error     string             `json:"error,omitempty"`  // Error message if failed
+	Timestamp time.Time          `json:"timestamp"`
+	Duration  time.Duration      `json:"duration"`
+	Elevation *elevation.Outcome `json:"elevation,omitempty"`
+	Refusal   *ActionRefusal     `json:"refusal,omitempty"`
 }
 
 // HealableCheck extends Check with recovery action capabilities
@@ -172,6 +228,15 @@ type HealableCheck interface {
 	ExecuteAction(ctx context.Context, actionID string) ActionResult
 }
 
+// ContextAwareHealableCheck is implemented by checks whose recovery-action
+// discovery performs host probes. Callers should prefer this seam so those
+// probes inherit the request/tick context instead of creating an unbounded
+// root context.
+type ContextAwareHealableCheck interface {
+	HealableCheck
+	RecoveryActionsWithContext(ctx context.Context, lastResult *Result) []RecoveryAction
+}
+
 // ConfigProvider provides check configuration for the registry.
 // This interface decouples the registry from the userconfig package.
 // [REQ:CONFIG-CHECK-001]
@@ -181,7 +246,7 @@ type ConfigProvider interface {
 	// IsAutoHealEnabled returns whether auto-healing is enabled for a check
 	IsAutoHealEnabled(checkID string) bool
 	// GetAutoHealOn returns when auto-heal should trigger for this check.
-	// Valid values: "critical", "warning+critical".
+	// Valid values: "critical", "critical+signature", "warning+critical".
 	GetAutoHealOn(checkID string) string
 }
 
@@ -216,6 +281,14 @@ type PollResult struct {
 // This is used by recovery actions to verify that a fix actually worked.
 // [REQ:HEAL-ACTION-001]
 func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollResult {
+	return PollForResult(ctx, check, config, func(result Result) bool { return result.Status == StatusOK })
+}
+
+// PollForResult repeatedly runs a check until the caller's typed acceptance
+// predicate is satisfied or the timeout expires. This supports domains where
+// a warning can still mean the recovery objective succeeded (for example, a
+// resource that is serving while a non-serving companion is degraded).
+func PollForResult(ctx context.Context, check Check, config PollConfig, accept func(Result) bool) PollResult {
 	start := time.Now()
 	attempts := 0
 
@@ -249,7 +322,7 @@ func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollRes
 		attempts++
 		result := check.Run(ctx)
 
-		if result.Status == StatusOK {
+		if accept(result) {
 			return PollResult{
 				Success:     true,
 				FinalResult: &result,
@@ -290,7 +363,7 @@ func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollRes
 	attempts++
 	result := check.Run(ctx)
 	return PollResult{
-		Success:     result.Status == StatusOK,
+		Success:     accept(result),
 		FinalResult: &result,
 		Attempts:    attempts,
 		Elapsed:     time.Since(start),

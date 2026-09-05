@@ -1,0 +1,154 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "name": "Try again",
+          "role": "button"
+        }
+      ],
+      "id": "error",
+      "mode": "live",
+      "name": "Retryable sync error",
+      "role": "anatomy"
+    },
+    {
+      "id": "with-detail",
+      "name": "The cause is present but collapsed",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The sentence and the dump are for two different readers of the same surface. Collapse is asserted through the disclosure's own open state rather than through paint: a closed <details> hides its children via the UA shadow slot, so getComputedStyle still reports display:block and a visibility assertion would pass on a dump nobody can see.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithDetail"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Re-apply the profile to update it."
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.error-state-disclosure']"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-error-disclosure][open]",
+          "value": "0"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='story-error-action']"
+        }
+      ]
+    },
+    {
+      "id": "detail-opened",
+      "name": "Opening the disclosure reveals the verbatim cause",
+      "role": "boundary",
+      "mode": "live",
+      "description": "A native details element, so the dump is keyboard-reachable and findable by in-page search once open \u2014 both of which matter on a surface that only appears after something else broke.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithDetail"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='feedback.error-state-disclosure'] summary"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-error-disclosure]",
+          "attribute": "open"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.error-state-trace']"
+        },
+        {
+          "kind": "text",
+          "value": "is not in the governed catalog"
+        },
+        {
+          "kind": "text",
+          "value": "run_9f3c1a77e4"
+        }
+      ]
+    },
+    {
+      "id": "correlation-only",
+      "name": "An identifier with no dump behind it",
+      "role": "boundary",
+      "mode": "live",
+      "description": "correlationId is separate from detail because it is worth showing even when there is nothing to collapse, and no disclosure should appear for it alone.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CorrelationOnly"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.error-state-correlation']"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='feedback.error-state-disclosure']",
+          "value": "0"
+        },
+        {
+          "kind": "text",
+          "value": "run_2b8d40c1aa"
+        }
+      ]
+    }
+  ],
+  "title": "ErrorState"
+}

@@ -1,0 +1,146 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "signal-inbox",
+  "generator": "v1.0.0",
+  "manifest_hash": "7627327ab90afe8bdcb7c4428c404f6718c2375f8e163f7f501f00d7a1f7e763",
+  "commands": [
+    {
+      "path": "categories confirm",
+      "group": "categories",
+      "command": "confirm",
+      "binding": "CategoriesService.ConfirmClassification",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "categories create",
+      "group": "categories",
+      "command": "create",
+      "binding": "CategoriesService.CreateCategory",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "categories get-classification",
+      "group": "categories",
+      "command": "get-classification",
+      "binding": "CategoriesService.GetClassification",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "categories list",
+      "group": "categories",
+      "command": "list",
+      "binding": "CategoriesService.ListCategories",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "categories rename",
+      "group": "categories",
+      "command": "rename",
+      "binding": "CategoriesService.RenameCategory",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "categories retire",
+      "group": "categories",
+      "command": "retire",
+      "binding": "CategoriesService.RetireCategory",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "retrieval ambient",
+      "group": "retrieval",
+      "command": "ambient",
+      "binding": "RetrievalService.Ambient",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "retrieval search",
+      "group": "retrieval",
+      "command": "search",
+      "binding": "RetrievalService.Search",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "signals capture",
+      "group": "signals",
+      "command": "capture",
+      "binding": "SignalsService.CaptureSignal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "signals get",
+      "group": "signals",
+      "command": "get",
+      "binding": "SignalsService.GetSignal",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "signals list",
+      "group": "signals",
+      "command": "list",
+      "binding": "SignalsService.ListSignals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "sources import",
+      "group": "sources",
+      "command": "import",
+      "binding": "SourcesService.ImportArchive",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "sources list",
+      "group": "sources",
+      "command": "list",
+      "binding": "SourcesService.ListAdapters",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "sources set-enabled",
+      "group": "sources",
+      "command": "set-enabled",
+      "binding": "SourcesService.SetAdapterEnabled",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "triage annotate",
+      "group": "triage",
+      "command": "annotate",
+      "binding": "TriageService.AddAnnotation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "triage get",
+      "group": "triage",
+      "command": "get",
+      "binding": "TriageService.GetTriage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "triage set-disposition",
+      "group": "triage",
+      "command": "set-disposition",
+      "binding": "TriageService.SetDisposition",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:ResponsivePanel",
+  "version": "1.1.5",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:LayerManager",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useControllableState",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useFocusTrap",
+      "major": 1,
+      "observed": "1.1.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useMediaQuery",
+      "major": 1,
+      "observed": "1.1.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useScrollLock",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    }
+  ]
+}

@@ -1,86 +1,22 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { Check, Code, Copy, Eye, Loader2 } from "lucide-react";
+import { memo, useState } from "react";
+import { Check, Code, Copy, Eye, Loader2, Maximize2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../../../consts/strings";
 import { useCodeCopy } from "../hooks/useCodeCopy";
+import { useMermaidSvg } from "../hooks/useMermaidSvg";
 
 interface MermaidDiagramProps {
   code: string;
-}
-
-// Lazy-loaded mermaid instance (singleton)
-let mermaidPromise: Promise<typeof import("mermaid")["default"]> | null = null;
-
-function getMermaid() {
-  if (!mermaidPromise) {
-    mermaidPromise = import("mermaid")
-      .then((mod) => {
-        const mermaid = mod.default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: "dark",
-          securityLevel: "strict",
-          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace",
-          themeVariables: {
-            primaryColor: "#334155",
-            primaryTextColor: "#e2e8f0",
-            primaryBorderColor: "#475569",
-            lineColor: "#6366f1",
-            secondaryColor: "#1e293b",
-            tertiaryColor: "#0f172a",
-            noteBkgColor: "#1e293b",
-            noteTextColor: "#e2e8f0",
-            noteBorderColor: "#475569",
-          },
-        });
-        return mermaid;
-      })
-      .catch((err) => {
-        mermaidPromise = null;
-        throw err;
-      });
-  }
-  return mermaidPromise;
+  /** Open the diagram in the full-screen zoomable viewer. */
+  onOpenFullscreen?: (code: string) => void;
 }
 
 /** Renders a mermaid diagram from source code with source/diagram toggle. */
-export const MermaidDiagram = memo(function MermaidDiagram({ code }: MermaidDiagramProps) {
-  const [svgHtml, setSvgHtml] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export const MermaidDiagram = memo(function MermaidDiagram({ code, onOpenFullscreen }: MermaidDiagramProps) {
+  const { t } = useTranslation();
+  const { svgHtml, error } = useMermaidSvg(code);
   const [showSource, setShowSource] = useState(false);
   const { copied, copyCode } = useCodeCopy(code);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setError(null);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
-      async function render() {
-        try {
-          const mermaid = await getMermaid();
-          if (cancelled) return;
-
-          const id = `mermaid-${crypto.randomUUID()}`;
-          const { svg } = await mermaid.render(id, code);
-          if (cancelled) return;
-
-          setSvgHtml(svg);
-          setError(null);
-        } catch (err) {
-          if (cancelled) return;
-          setError(err instanceof Error ? err.message : "Failed to render diagram");
-          setSvgHtml(null);
-        }
-      }
-      void render();
-    }, 100);
-
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [code]);
 
   if (!code.trim()) {
     return (
@@ -89,7 +25,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: MermaidDiag
           <span className="text-xs text-wc-text-muted font-mono">mermaid</span>
         </div>
         <div className="bg-wc-surface p-8 flex items-center justify-center">
-          <span className="text-sm text-wc-text-faint italic">Empty diagram</span>
+          <span className="text-sm text-wc-text-faint italic">{t(strings.mermaid.emptyDiagram)}</span>
         </div>
       </div>
     );
@@ -100,28 +36,39 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: MermaidDiag
       <div className="flex items-center justify-between px-4 py-2 bg-wc-surface-base border-b border-wc-default">
         <span className="text-xs text-wc-text-muted font-mono">mermaid</span>
         <div className="flex items-center gap-2">
+          {onOpenFullscreen && (
+            <button
+              onClick={() => onOpenFullscreen(code)}
+              className="flex items-center gap-1.5 text-xs text-wc-text-muted hover:text-wc-text-primary transition-colors"
+              aria-label={t(strings.mermaid.openFullscreen)}
+              title={t(strings.mermaid.openFullscreen)}
+              type="button"
+            >
+              <Maximize2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t(strings.mermaid.expand)}</span>
+            </button>
+          )}
           <button
             onClick={() => setShowSource((prev) => !prev)}
             className="flex items-center gap-1.5 text-xs text-wc-text-muted hover:text-wc-text-primary transition-colors"
-            aria-label={showSource ? "Show diagram" : "Show source"}
+            aria-label={showSource ? t(strings.mermaid.showDiagram) : t(strings.mermaid.showSource)}
             type="button"
           >
             {showSource ? (
-              <><Eye className="h-3.5 w-3.5" /><span>Diagram</span></>
+              <><Eye className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t(strings.mermaid.diagram)}</span></>
             ) : (
-              <><Code className="h-3.5 w-3.5" /><span>Source</span></>
+              <><Code className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t(strings.mermaid.source)}</span></>
             )}
           </button>
           <button
             onClick={copyCode}
             className="flex items-center gap-1.5 text-xs text-wc-text-muted hover:text-wc-text-primary transition-colors"
-            aria-label={copied ? "Copied" : "Copy code"}
+            aria-label={copied ? t(strings.mermaid.copied) : t(strings.mermaid.copy)}
             type="button"
           >
             {copied ? (
-              <><Check className="h-3.5 w-3.5 text-green-400" /><span className="text-green-400">Copied</span></>
+              <><Check className="h-3.5 w-3.5 text-green-400" /><span className="hidden text-green-400 sm:inline">{t(strings.mermaid.copied)}</span></>
             ) : (
-              <><Copy className="h-3.5 w-3.5" /><span>Copy</span></>
+              <><Copy className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t(strings.mermaid.copy)}</span></>
             )}
           </button>
         </div>

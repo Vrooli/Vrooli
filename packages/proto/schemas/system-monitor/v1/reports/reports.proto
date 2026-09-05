@@ -1,0 +1,290 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.reports;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports;reports";
+
+// =============================================================================
+// REPORTS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// System report types for daily/weekly analysis reports.
+//
+// USAGE CONTEXTS:
+//   - API responses for report generation and retrieval
+//   - UI data models (report display, trends)
+//
+// =============================================================================
+
+// SystemReport represents a periodic system analysis report.
+message SystemReport {
+  // Unique report identifier.
+  string id = 1;
+
+  // Report type (daily, weekly, monthly).
+  string type = 2;
+
+  // When the report was generated.
+  google.protobuf.Timestamp generated_at = 3;
+
+  // Start of the reporting period.
+  google.protobuf.Timestamp period_start = 4;
+
+  // End of the reporting period.
+  google.protobuf.Timestamp period_end = 5;
+
+  // Report summary statistics.
+  ReportSummary summary = 6;
+
+  // Metric trend data.
+  ReportMetrics metrics = 7;
+
+  // Alerts during the reporting period.
+  repeated ReportAlert alerts = 8;
+
+  // Recommendations from the analysis.
+  repeated string recommendations = 9;
+}
+
+// ReportSummary contains aggregate statistics for a report.
+message ReportSummary {
+  // Total number of alerts during the period.
+  int32 total_alerts = 1;
+
+  // Average CPU usage percentage.
+  double avg_cpu_usage = 2;
+
+  // Average memory usage percentage.
+  double avg_memory_usage = 3;
+
+  // Maximum TCP connection count.
+  int32 max_tcp_connections = 4;
+
+  // Uptime percentage.
+  double uptime_percentage = 5;
+}
+
+// ReportMetrics contains time-series trend data.
+message ReportMetrics {
+  // CPU usage trend data points.
+  repeated double cpu_trend = 1;
+
+  // Memory usage trend data points.
+  repeated double memory_trend = 2;
+
+  // Network connection trend data points.
+  repeated double network_trend = 3;
+
+  // ISO 8601 timestamps for trend data points.
+  repeated string timestamps = 4;
+}
+
+// ReportAlert represents an alert that occurred during the reporting period.
+message ReportAlert {
+  // When the alert occurred.
+  google.protobuf.Timestamp timestamp = 1;
+
+  // Alert severity (low, medium, high, critical).
+  string severity = 2;
+
+  // Alert category.
+  string category = 3;
+
+  // Alert message.
+  string message = 4;
+
+  // Whether the alert was resolved.
+  bool resolved = 5;
+}
+
+// EnhancedSystemReport is the full report structure returned by the report service.
+message EnhancedSystemReport {
+  // Unique report identifier.
+  string report_id = 1;
+
+  // Report type (daily, weekly).
+  string report_type = 2;
+
+  // When the report was generated.
+  google.protobuf.Timestamp generated_at = 3;
+
+  // Time range for the report.
+  ReportTimeRange time_range = 4;
+
+  // Human-readable actual duration.
+  string actual_duration = 5;
+
+  // Display string for the date range.
+  string date_range_display = 6;
+
+  // Executive summary.
+  EnhancedExecutiveSummary executive_summary = 7;
+
+  // Performance analysis.
+  PerformanceAnalysis performance = 8;
+
+  // Metric trends.
+  repeated Trend trends = 9;
+
+  // Recommendations.
+  repeated string recommendations = 10;
+
+  // Highlights.
+  repeated string highlights = 11;
+
+  // Total metrics analyzed.
+  int32 metrics_count = 12;
+
+  // Total alerts during period.
+  int32 alerts_count = 13;
+
+  // Total investigations during period.
+  int32 investigations_count = 14;
+}
+
+// ReportTimeRange defines start and end for a report period.
+message ReportTimeRange {
+  // Start of the range.
+  google.protobuf.Timestamp start_time = 1;
+
+  // End of the range.
+  google.protobuf.Timestamp end_time = 2;
+}
+
+// EnhancedExecutiveSummary provides a high-level overview.
+message EnhancedExecutiveSummary {
+  // Overall health status.
+  string overall_health = 1;
+
+  // Key findings from analysis.
+  repeated string key_findings = 2;
+
+  // Human-readable time description.
+  string time_description = 3;
+
+  // Number of metrics analyzed.
+  int32 metrics_analyzed = 4;
+}
+
+// PerformanceAnalysis contains statistical analysis of performance metrics.
+message PerformanceAnalysis {
+  // CPU performance statistics.
+  MetricStats cpu = 1;
+
+  // Memory performance statistics.
+  MetricStats memory = 2;
+
+  // Human-readable time range description.
+  string time_range = 3;
+}
+
+// MetricStats contains statistical values for a metric.
+message MetricStats {
+  // Average value.
+  double average = 1;
+
+  // Minimum value.
+  double min = 2;
+
+  // Maximum value.
+  double max = 3;
+
+  // Standard deviation.
+  double std_dev = 4;
+
+  // Peak value.
+  double peak_value = 5;
+
+  // When the peak occurred.
+  google.protobuf.Timestamp peak_time = 6;
+
+  // When the minimum occurred.
+  google.protobuf.Timestamp min_time = 7;
+}
+
+// Trend represents a directional trend in a metric.
+message Trend {
+  // Metric name.
+  string name = 1;
+
+  // Direction (increasing, decreasing, stable).
+  string direction = 2;
+
+  // Absolute change.
+  double change = 3;
+
+  // Change as percentage.
+  double change_percent = 4;
+}
+
+// =============================================================================
+// REPORTS API MESSAGES
+// =============================================================================
+//
+// @stability beta
+//
+// Request/response wrappers for report endpoints.
+//
+// =============================================================================
+
+// GenerateReportRequest specifies the type of report to generate.
+message GenerateReportRequest {
+  // Report type (daily, weekly).
+  string type = 1;
+}
+
+// GenerateReportResponse returns the generated report.
+message GenerateReportResponse {
+  // The generated report.
+  EnhancedSystemReport report = 1;
+}
+
+// ListReportsRequest is empty - no parameters needed.
+message ListReportsRequest {}
+
+// ListReportsResponse returns available reports.
+message ListReportsResponse {
+  // List of reports.
+  repeated EnhancedSystemReport reports = 1;
+
+  // Total count.
+  int32 count = 2;
+}
+
+// GetReportRequest retrieves a specific report.
+message GetReportRequest {
+  // Report ID.
+  string id = 1;
+}
+
+// GetReportResponse returns a single report.
+message GetReportResponse {
+  // The report.
+  EnhancedSystemReport report = 1;
+}
+
+// ReportsService provides the reports RPC surface.
+service ReportsService {
+  // GenerateReport generates a daily or weekly system report.
+  rpc GenerateReport(GenerateReportRequest) returns (GenerateReportResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/reports/generate"
+      body: "*"
+    };
+  }
+
+  // ListReports returns available reports.
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse) {
+    option (google.api.http) = {get: "/api/v1/reports"};
+  }
+
+  // GetReport retrieves a specific report.
+  rpc GetReport(GetReportRequest) returns (GetReportResponse) {
+    option (google.api.http) = {get: "/api/v1/reports/{id}"};
+  }
+}

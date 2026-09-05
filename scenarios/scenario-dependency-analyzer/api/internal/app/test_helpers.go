@@ -2,10 +2,11 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -17,23 +18,35 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	analysisapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/analysis"
+	dependenciesapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencies"
+	dependencygovernanceapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencygovernance"
+	dependencyhealthapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencyhealth"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/modules"
+	proposalapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/proposal"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
+	_ "modernc.org/sqlite"
 )
 
 func ensureTestEnvVars() {
 	if os.Getenv("API_PORT") == "" {
 		os.Setenv("API_PORT", "0")
 	}
-	if os.Getenv("DATABASE_URL") == "" {
-		os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test_db?sslmode=disable")
+	// Storage is isolated by redirecting the class-root tree rather than by
+	// naming a database file: the root is scenario-agnostic, so it isolates
+	// every store this scenario opens instead of only its SQLite file.
+	if os.Getenv("VROOLI_STORAGE_ROOT") == "" {
+		dir, err := os.MkdirTemp("", "sda-test-storage-*")
+		if err == nil {
+			os.Setenv("VROOLI_STORAGE_ROOT", dir)
+		}
 	}
-}
-
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalOutput *os.File
-	cleanup        func()
 }
 
 // setupTestLogger initializes logging for testing with output suppression
@@ -43,7 +56,7 @@ func setupTestLogger() func() {
 
 	// Redirect log output to discard during tests (can be enabled for debugging)
 	originalOutput := log.Writer()
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	return func() {
 		log.SetOutput(originalOutput)
@@ -63,13 +76,30 @@ type TestEnvironment struct {
 type mockGraphService struct{}
 
 func (mockGraphService) GenerateGraph(graphType string) (*types.DependencyGraph, error) {
-	return &types.DependencyGraph{Type: graphType}, nil
+	return &types.DependencyGraph{
+		Type: graphType,
+		Nodes: []types.GraphNode{
+			{ID: "core-a", Type: "scenario", Group: "scenarios"},
+			{ID: "consumer", Type: "scenario", Group: "scenarios"},
+		},
+		Edges: []types.GraphEdge{
+			{Source: "consumer", Target: "core-a", Type: "scenario", Required: true, Weight: 2},
+		},
+	}, nil
+}
+
+func (mockGraphService) GraphCentrality(coreSeeds []string, scenario string) (*types.GraphCentralityReport, error) {
+	graph, err := mockGraphService{}.GenerateGraph("combined")
+	if err != nil {
+		return nil, err
+	}
+	return graphdomain.CalculateCentrality(graph, coreSeeds, scenario), nil
 }
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
 	ensureTestEnvVars()
-	tempDir, err := ioutil.TempDir("", "scenario-dependency-analyzer-test")
+	tempDir, err := os.MkdirTemp("", "scenario-dependency-analyzer-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -82,7 +112,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	// Create test scenarios directory structure
 	scenariosDir := filepath.Join(tempDir, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o750); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create scenarios dir: %v", err)
 	}
@@ -92,7 +122,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		OriginalWD:   originalWD,
 		ScenariosDir: scenariosDir,
 		Cleanup: func() {
-			os.Chdir(originalWD)
+			_ = os.Chdir(originalWD)
 			os.RemoveAll(tempDir)
 		},
 	}
@@ -100,48 +130,29 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 // setupTestDatabase creates an in-memory test database
 func setupTestDatabase(t *testing.T) (*sql.DB, func()) {
-	// Use in-memory SQLite for testing (alternative: use a test PostgreSQL instance)
-	// For now, we'll create a minimal mock that satisfies the interface
-	// In production tests, you'd connect to a real test database
-
-	// Note: This is a simplified version. For full integration tests,
-	// connect to a real PostgreSQL test database
-	testDB, err := sql.Open("postgres", "postgres://test:test@localhost:5432/test_db?sslmode=disable")
+	ensureTestEnvVars()
+	testDB, err := sql.Open("sqlite", "file::memory:?cache=shared&_pragma=foreign_keys(ON)")
 	if err != nil {
-		t.Skipf("Skipping database test - no test database available: %v", err)
-		return nil, func() {}
+		t.Fatalf("open test sqlite database: %v", err)
 	}
-
-	// Try to ping - if it fails, skip the test
 	if err := testDB.Ping(); err != nil {
 		testDB.Close()
-		t.Skipf("Skipping database test - cannot connect to test database: %v", err)
-		return nil, func() {}
+		t.Fatalf("ping test sqlite database: %v", err)
 	}
-
-	// Initialize test schema
-	_, err = testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS scenario_dependencies (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			scenario_name TEXT NOT NULL,
-			dependency_type TEXT NOT NULL,
-			dependency_name TEXT NOT NULL,
-			required BOOLEAN DEFAULT false,
-			purpose TEXT,
-			access_method TEXT,
-			configuration JSONB,
-			discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			last_verified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
+	if err := apidb.EnsureSchemas(context.Background(), testDB, modules.AllSchemas()...); err != nil {
 		testDB.Close()
-		t.Skipf("Skipping database test - cannot create schema: %v", err)
-		return nil, func() {}
+		t.Fatalf("initialize test schema: %v", err)
 	}
+	db = testDB
+	setDefaultRuntime(NewRuntime(loadConfig(), testDB))
 
 	cleanup := func() {
-		testDB.Exec("DROP TABLE IF EXISTS scenario_dependencies")
+		if defaultRuntime != nil && defaultRuntime.DB() == testDB {
+			setDefaultRuntime(nil)
+		}
+		if db == testDB {
+			db = nil
+		}
 		testDB.Close()
 	}
 
@@ -159,34 +170,28 @@ type TestScenario struct {
 // createTestScenario creates a test scenario with service.json and optional files
 func createTestScenario(t *testing.T, env *TestEnvironment, name string, resources map[string]types.Resource) *TestScenario {
 	scenarioPath := filepath.Join(env.ScenariosDir, name)
-	if err := os.MkdirAll(scenarioPath, 0755); err != nil {
+	if err := os.MkdirAll(scenarioPath, 0o750); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
 	// Create .vrooli directory
 	vrooliPath := filepath.Join(scenarioPath, ".vrooli")
-	if err := os.MkdirAll(vrooliPath, 0755); err != nil {
+	if err := os.MkdirAll(vrooliPath, 0o750); err != nil {
 		t.Fatalf("Failed to create .vrooli dir: %v", err)
 	}
 
 	// Create service.json
-	serviceConfig := types.ServiceConfig{
+	serviceConfig := types.Manifest{
 		Schema:  "https://schemas.vrooli.com/service/v2.0.0.json",
 		Version: "2.0.0",
-		Service: struct {
-			Name        string   `json:"name"`
-			DisplayName string   `json:"display_name"`
-			Description string   `json:"description"`
-			Version     string   `json:"version"`
-			Tags        []string `json:"tags"`
-		}{
+		Service: scenariomodel.ServiceMetadata{
 			Name:        name,
 			DisplayName: "Test " + name,
 			Description: "Test scenario for " + name,
 			Version:     "1.0.0",
 			Tags:        []string{"test"},
 		},
-		Resources: resources,
+		Dependencies: scenariomodel.Dependencies{Resources: resources},
 	}
 
 	serviceJSON, err := json.MarshalIndent(serviceConfig, "", "  ")
@@ -195,14 +200,14 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	}
 
 	serviceJSONPath := filepath.Join(vrooliPath, "service.json")
-	if err := ioutil.WriteFile(serviceJSONPath, serviceJSON, 0644); err != nil {
+	if err := os.WriteFile(serviceJSONPath, serviceJSON, 0o600); err != nil {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
 	return &TestScenario{
 		Name: name,
 		ServiceJSON: map[string]interface{}{
-			"resources": resources,
+			"dependencies": map[string]interface{}{"resources": resources},
 		},
 		Files: map[string]string{
 			"service.json": serviceJSONPath,
@@ -241,7 +246,7 @@ func createTestResourceDirs(t *testing.T, env *TestEnvironment, names ...string)
 	base := filepath.Join(filepath.Dir(env.ScenariosDir), "resources")
 	for _, name := range names {
 		path := filepath.Join(base, name)
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o750); err != nil {
 			t.Fatalf("Failed to create resource dir %s: %v", name, err)
 		}
 	}
@@ -273,36 +278,6 @@ func makeHTTPRequest(t *testing.T, router *gin.Engine, method, path string, body
 	router.ServeHTTP(recorder, req)
 
 	return recorder
-}
-
-// assertJSONResponse validates JSON response structure and status code
-func assertJSONResponse(t *testing.T, recorder *httptest.ResponseRecorder, expectedStatus int, expectedFields map[string]interface{}) {
-	if recorder.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Body: %s", expectedStatus, recorder.Code, recorder.Body.String())
-		return
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v. Body: %s", err, recorder.Body.String())
-	}
-
-	for key, expectedValue := range expectedFields {
-		actualValue, exists := response[key]
-		if !exists {
-			t.Errorf("Expected field %s not found in response", key)
-			continue
-		}
-
-		// For string comparisons
-		if expectedStr, ok := expectedValue.(string); ok {
-			if actualStr, ok := actualValue.(string); ok {
-				if actualStr != expectedStr {
-					t.Errorf("Field %s: expected %v, got %v", key, expectedValue, actualValue)
-				}
-			}
-		}
-	}
 }
 
 // assertErrorResponse validates error response
@@ -338,16 +313,21 @@ func setupTestRouter() *gin.Engine {
 	h.services.Graph = mockGraphService{}
 
 	// Add test routes - use same health handler as server.go
-	router.GET("/health", gin.WrapF(health.New().Handler()))
+	router.GET("/health", gin.WrapF(health.New("scenario-dependency-analyzer-api").Handler()))
 	router.GET("/api/v1/health/analysis", h.analysisHealth)
 
 	api := router.Group("/api/v1")
 	{
-		api.GET("/analyze/:scenario", h.analyzeScenario)
-		api.GET("/scenarios/:scenario/dependencies", h.getDependencies)
-		api.GET("/graph/:type", h.getGraph)
-		api.POST("/analyze/proposed", h.analyzeProposed)
+		analysisapi.RegisterHTTPRoutes(api, h.analysisService(), h.scanService())
+		dependenciesapi.RegisterHTTPRoutes(api, h.dependencyService())
+		graphdomain.RegisterHTTPRoutes(api, h.graphService(), h.scenariosDir)
+		proposalapi.RegisterHTTPRoutes(api, h.proposalService())
 	}
+	// Best-effort maturity spec for test routers — absence is non-fatal.
+	repoRoot, _ := repocontract.ResolveRepoRoot()
+	spec, _ := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "scenario-dependency-analyzer"))
+	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec})
+	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	return router
 }
@@ -375,11 +355,10 @@ func insertTestDependency(t *testing.T, testDB *sql.DB, dep types.ScenarioDepend
 	_, err := testDB.Exec(`
 		INSERT INTO scenario_dependencies
 		(id, scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		dep.ID, dep.ScenarioName, dep.DependencyType, dep.DependencyName,
 		dep.Required, dep.Purpose, dep.AccessMethod, string(configJSON),
 	)
-
 	if err != nil {
 		t.Fatalf("Failed to insert test dependency: %v", err)
 	}

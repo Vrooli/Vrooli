@@ -6,17 +6,22 @@
     {
       "id": "portfolio-manager",
       "name": "Portfolio Manager",
-      "description": "Maintains portfolio flow in Swarm Manager, applies approved decisions, and proposes bounded corrective actions."
+      "description": "Maintains portfolio flow in Swarm Manager, applies approved work items, and proposes bounded corrective actions."
     },
     {
-      "id": "outcome-strategy",
-      "name": "Outcome Strategy",
-      "description": "Interprets Command Center metrics and gaps to recommend outcome-driven portfolio shifts."
+      "id": "outcome-strategist",
+      "name": "Outcome Strategist",
+      "description": "Interprets Command Center metrics and gaps, scores matured portfolio predictions, and recommends outcome-driven portfolio shifts."
     },
     {
       "id": "vision-walk-prep",
       "name": "Vision Walk Prep",
       "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk."
+    },
+    {
+      "id": "director-contrarian",
+      "name": "Director Contrarian",
+      "description": "Holds director-swarm against the target operating model and reports deviations without restructuring the team."
     }
   ]
 }

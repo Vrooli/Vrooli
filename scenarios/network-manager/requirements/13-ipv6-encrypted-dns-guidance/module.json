@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "ipv6-encrypted-dns-guidance",
+    "description": "Guidance and checks for IPv6 and encrypted DNS bypasses.",
+    "prd_ref": "OT-P1-004",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-004",
+      "title": "IPv6 and encrypted DNS checks identify bypass paths",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "diagnostics",
+      "criticality": "P1",
+      "description": "The scenario shall diagnose IPv6 resolver bypasses, DoT, DoQ, and DoH risks, then generate manual instructions or adapter-backed changes where supported.",
+      "tags": ["ipv6", "doh", "dot", "doq"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add diagnostics tests tagged [REQ:NM-P1-004] for fake IPv6 and encrypted-DNS bypass evidence."
+        }
+      ]
+    }
+  ]
+}

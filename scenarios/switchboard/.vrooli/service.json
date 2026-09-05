@@ -1,0 +1,242 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "switchboard",
+    "displayName": "Switchboard",
+    "description": "Reaches an owner's agents on the messaging channels people already use, and governs what each may do for whom.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "2.0.0"
+    },
+    "generated_at": "2026-09-01T12:43:24Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "e6d291fecbf85ba6618849d53a3abc72f2845becf5a9aab2ac15ddc5432fa2ed",
+    "content_sha": "05a34e16d8d6f161ac8cc0eedf08c21042313f70bd2798c8f31c54cd0d252669"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "switchboard",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "switchboard"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Thread records and channel state are durable scenario-owned data.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Thread history is bounded by operational retention policy and is not regenerable."
+        }
+      }
+    },
+    "rationale": "Switchboard stores durable conversation state in the scenario-owned data directory."
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "supervision_precedence": "required",
+        "runtime_only": true,
+        "runtime_only_rationale": "Identity is verified locally against the authenticator's published JWKS through packages/api-core/owneridentity. No Go package from that scenario is imported here, so no import-graph edge exists.",
+        "degraded_behavior": "Authenticated surfaces fail closed. Adapters keep receiving and recording inbound messages, but no turn is dispatched for a sender whose identity cannot be attributed.",
+        "description": "Owner identity for every authenticated API, CLI, and UI surface. This scenario issues no API key, stores no password, and owns no profile table."
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "supervision_precedence": "required",
+        "runtime_only": true,
+        "runtime_only_rationale": "Agent descriptors are read over the generated Connect API by identifier. This scenario stores a reference and never a copy, so no Go package is imported and no descriptor is duplicated into local storage.",
+        "degraded_behavior": "Existing bindings keep resolving from the cached agent identifier, but no new binding can be created and no descriptor detail is rendered. Turns for already-bound agents continue with the last known grant.",
+        "description": "The source of truth for agent profiles, skills, actions, and the capability grant that names what an agent may do. Held by reference (OT-P0-008)."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "supervision_precedence": "required",
+        "runtime_only": true,
+        "runtime_only_rationale": "Runs are started over the generated Connect API. Scope attenuation, approvals, and DAG orchestration are enforced inside agent-manager; this scenario passes a resolved scope and receives a result.",
+        "degraded_behavior": "Turns cannot execute. Inbound messages are still de-duplicated and recorded to their thread, and the sender receives a stated unavailable reason rather than silence.",
+        "description": "Run execution, approvals, interactive control, and one-way scope attenuation. This scenario defines no second policy vocabulary (OT-P0-012)."
+      },
+      "tunnel-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "A public origin is requested over the tunnel-manager API. Only channels whose descriptor declares a public_origin requirement consult it.",
+        "degraded_behavior": "Webhook-ingress channels report unavailable with the missing public origin as the stated reason. Poll-ingress and in-app channels are unaffected.",
+        "description": "Stable public origin for inbound webhook delivery. Required in practice once any webhook-ingress channel is activated; optional while only in-app and poll-ingress channels are live (OT-P1-012)."
+      },
+      "vrooli-bridge": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "Host-bound channels dispatch this scenario's own cataloged CLI verb to a remote machine through durable dispatch. The bridge carries the call and never learns what a channel is.",
+        "degraded_behavior": "Host-bound channels such as iMessage on a Mac node are marked unroutable with a reason. Every host-local channel keeps working.",
+        "description": "The reach plane only: which machines exist, whether they are online, and whether this caller may send them anything. Adopted when the iMessage adapter activates (OT-P1-010)."
+      },
+      "notification-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "notification-hub calls this scenario's adapter surface over Connect for the conversational channels it shares. There is no import edge in either direction.",
+        "degraded_behavior": "One-shot notifications keep using notification-hub's own senders. Nothing in this scenario degrades.",
+        "description": "A second caller into the same adapter registry, so a shared channel is never implemented twice. Notifications are never metered (OT-P1-015)."
+      },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "Reached only when an agent's capability grant names a program binding, and only through agent-manager's run, never directly from this scenario.",
+        "degraded_behavior": "A turn whose grant names a program scope refuses that step with a stated reason; the rest of the turn proceeds.",
+        "description": "Governed script execution offered as a grantable capability, not as something this scenario runs."
+      },
+      "audio-tools": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "Speech capture, transcription, and synthesis are consumed over the audio-tools WebSocket and Connect surfaces when call mode is active.",
+        "degraded_behavior": "Voice and call-mode channels report unavailable. Text and media channels are unaffected.",
+        "description": "Local transcription and synthesis behind whisper, kyutai-stt, and kokoro. Consumed only when call mode activates (OT-P2-002)."
+      },
+      "persona": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "The one-time-code retrieval and operator-handoff contracts are called over the persona API during channel provisioning.",
+        "degraded_behavior": "Channels requiring a carrier or platform verification cannot complete provisioning and stay in a stated pending state. Already-provisioned channels are unaffected.",
+        "description": "Declared outward identity and the typed handoff for verification steps no machine may complete, notably A2P 10DLC carrier registration (OT-P2-001)."
+      }
+    }
+  },
+  "credentials": {}
+}

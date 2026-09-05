@@ -1,0 +1,299 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "claude-code",
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Claude Code documents ~/.claude as the cross-project user scope; this resource retains transcripts, settings, plans, and credentials there.",
+        "budget": {
+          "max_bytes": "50GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.claude/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "CLAUDE_CONFIG_DIR",
+          "project_scope": true
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
+  "display_name": "Claude Code CLI",
+  "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
+  "execution": {
+    "runner_type": "claude-code",
+    "codec": "claude",
+    "detection_signal": "CLAUDECODE=1",
+    "hook_surface": "native-permissions"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-claude-code",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-claude-code_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-claude-code"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "model-policy.json",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key",
+        "description": "Optional gateway credential shared with the OpenRouter resource.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/claude-code",
+        "field": "anthropic-api-key",
+        "env": "ANTHROPIC_API_KEY",
+        "label": "Anthropic API key",
+        "description": "Optional credential for Claude models.",
+        "required": false,
+        "obtain_url": "https://console.anthropic.com/settings/keys"
+      },
+      {
+        "logical_id": "vrooli/openai",
+        "field": "api-key",
+        "env": "OPENAI_API_KEY",
+        "label": "OpenAI API key",
+        "description": "Optional credential for OpenAI models.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/api-keys"
+      },
+      {
+        "logical_id": "vrooli/gemini",
+        "field": "api-key",
+        "env": "GEMINI_API_KEY",
+        "label": "Gemini API key",
+        "description": "Optional credential shared with the Gemini resource.",
+        "required": false,
+        "obtain_url": "https://aistudio.google.com/app/apikey"
+      }
+    ]
+  },
+  "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@anthropic-ai/claude-code", "version": "2.1.185", "sha256": "760bfd4b79b04eef2db3297eccf018c4c27e109e398eeb0013499512c66584c9"}
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "claude",
+  "version_args": [
+    "--version"
+  ],
+  "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "claude",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "CLAUDE_CODE_PATH": "claude",
+      "CLAUDE_CODE_URL": "http://localhost:8100"
+    }
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "resource-claude-code",
+        "install-direct"
+      ],
+      "macos": [
+        "resource-claude-code",
+        "install-direct"
+      ]
+    }
+  },
+  "durable_data": {
+    "base": "$HOME/.claude",
+    "entries": {
+      "history": {
+        "path": "history.jsonl",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Prompt history across all Claude Code sessions on this host."
+      },
+      "projects": {
+        "path": "projects",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Full per-project conversation transcripts — the primary record for later analysis."
+      },
+      "file-history": {
+        "path": "file-history",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Per-file edit history Claude Code keeps for restore/undo."
+      },
+      "plans": {
+        "path": "plans",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Authored Claude Code plans."
+      },
+      "credentials": {
+        "path": ".credentials.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Claude Code OAuth credentials — includes live tokens; back up only deliberately."
+      }
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "upstream_cli": {
+    "version_command": [
+      "claude",
+      "--version"
+    ],
+    "version_pinned": "2.1.185",
+    "upstream_release_source": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
+    "docs_source": "https://code.claude.com/docs/en/permissions",
+    "docs_pinned_at": "2026-05-28",
+    "schema_version": 1
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "claude-code",
+      "path": "$USER_HOME/.claude/projects/$WORKSPACE_KEY/memory/MEMORY.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
+}

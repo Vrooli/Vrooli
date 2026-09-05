@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "data-display-data-table",
+    "title": "DataTable",
+    "purpose": "Present dense data as a calm, selectable, keyboard-operable surface whose async states and mobile transformation preserve context.",
+    "storyRef": "../../library/components/DataTable/versions/1.4.2/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A populated, selectable table with sorting, actions, and pagination."
+    },
+    {
+      "id": "refreshing",
+      "example": "refreshing",
+      "description": "The existing table remains visible while freshness is announced."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "Available rows remain useful while incomplete refresh is explicit."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The collection explains what to do next when there are no rows."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "The error is honest and retryable without discarding controls."
+    },
+    {
+      "id": "permission-denied",
+      "example": "permission-denied",
+      "description": "Access limitations are explicit and actionable."
+    }
+  ],
+  "elements": [
+    {
+      "id": "query",
+      "role": "searchbox",
+      "description": "The preserved table query."
+    },
+    {
+      "id": "table",
+      "role": "table",
+      "description": "The semantic desktop presentation."
+    },
+    {
+      "id": "selection",
+      "role": "checkbox",
+      "description": "Row and visible-page selection controls."
+    },
+    {
+      "id": "retry",
+      "role": "button",
+      "description": "The request recovery action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "selection-visible",
+      "type": "element-present",
+      "statement": "Selection is exposed through named checkboxes rather than hover-only affordances.",
+      "tier": "machine",
+      "elements": ["selection"],
+      "states": ["default"]
+    },
+    {
+      "id": "refresh-preserves-content",
+      "type": "element-present",
+      "statement": "Refreshing keeps the table visible while announcing the update state.",
+      "tier": "machine",
+      "elements": ["table"],
+      "states": ["refreshing", "partial"],
+      "viewports": ["desktop"]
+    },
+    {
+      "id": "error-retryable",
+      "type": "element-present",
+      "statement": "Request failure exposes a named retry action and leaves the query controls available.",
+      "tier": "machine",
+      "elements": ["query", "retry"],
+      "states": ["request-error"]
+    },
+    {
+      "id": "mobile-transformation",
+      "type": "manual-review",
+      "statement": "Narrow screens transform each row into a labelled card without changing reading order.",
+      "tier": "manual",
+      "states": ["default", "partial"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "query": { "selector": "[role='searchbox']" },
+      "table": { "selector": "[role='table']" },
+      "selection": { "selector": "[role='checkbox']" },
+      "retry": { "selector": "button" }
+    }
+  }
+}

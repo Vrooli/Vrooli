@@ -1,0 +1,209 @@
+{
+  "_metadata": {
+    "description": "Deterministic remediation, scenario-auditor migration accounting, operator workbench, and Test Genie cutover.",
+    "last_validated_at": "2026-07-06T14:17:52-04:00",
+    "module": "autofix-and-cutover",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-FIX-001",
+      "title": "Fix registry previews before writing",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "autofix",
+      "criticality": "P0",
+      "description": "PreviewFix and ApplyFix are mounted through the shared validation RPC; preview is dry-run, apply requires explicit invocation, and every candidate reports rule_id, file_path, before, after, and applied status.",
+      "tags": [
+        "autofix",
+        "preview",
+        "apply"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented refs: api/internal/validation/fixes_test.go and api/handlers/validation/connect_handler_test.go. Assert dry-run no writes, apply writes expected patches, second apply is idempotent, empty previews report a clear message, and shared Fix RPC candidates expose rule_id/file_path/before/after/applied."
+        }
+      ]
+    },
+    {
+      "id": "APIH-FIX-002",
+      "title": "Only unambiguous repairs are auto-fixable",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "autofix",
+      "criticality": "P0",
+      "description": "Auto fixes are limited to local mechanical edits; design-bearing changes such as endpoint versioning strategy, error envelope redesign, logging architecture, and context propagation remain manual with explicit reasons.",
+      "tags": [
+        "fix-class",
+        "manual-reason"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented refs: .vrooli/maturity.json and api/internal/validation/fixes.go. Mechanical findings with deterministic fixers are marked implemented; lifecycle, health-schema, endpoint-versioning, context, logging, and timeout architecture changes are manual with explicit reasons."
+        }
+      ]
+    },
+    {
+      "id": "APIH-MIG-001",
+      "title": "Scenario-auditor API migration is parity-or-better",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "Each scenario-auditor API rule is accounted for as kept, redesigned, delegated to another provider, deferred, or rejected; migrated findings are compared against fixture scenarios before cutover.",
+      "tags": [
+        "scenario-auditor",
+        "migration",
+        "parity"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented refs: api/internal/migration/ledger_test.go plus docs/reference/scenario-auditor-api-migration.md. Assert every production legacy API rule file appears exactly once in the migration ledger, decisions are valid, and delegated boundary decisions remain explicit."
+        }
+      ]
+    },
+    {
+      "id": "APIH-MIG-002",
+      "title": "Endpoint inventory reconciliation is scoped to API Health",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "Registered handlers, endpoint descriptors, .vrooli/endpoints.json, CLI manifest mappings, and REST exception tags are reconciled for API readiness without taking over proto-health or cli-health ownership.",
+      "tags": [
+        "endpoints",
+        "inventory",
+        "boundaries"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned ref: api/internal/validation/endpoint_inventory_test.go. Fixtures cover missing endpoint descriptors, stale endpoint manifests, REST exception tags, and explicit delegation to cli-health/proto-health."
+        }
+      ]
+    },
+    {
+      "id": "APIH-CUT-001",
+      "title": "Test Genie cutover preserves unrelated standards ownership",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Test Genie can delegate API readiness to API Health while unrelated scenario-auditor standards remain owned by their replacement providers or legacy path until separately migrated.",
+      "tags": [
+        "test-genie",
+        "cutover",
+        "provider"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: scenarios/test-genie/api/internal/orchestrator/phases/api_health_cutover_test.go. Asserts Test Genie registers a dedicated api phase backed by api-health over shared ScenarioValidationService, keeps standards backed by scenario-auditor for remaining non-API rules, orders api before standards, maps API findings into the existing standards source until a dedicated API source exists, and includes api-health in curated presets."
+        }
+      ]
+    },
+    {
+      "id": "APIH-FLEET-001",
+      "title": "Fleet readiness view ranks API debt with as-of stamps",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "reporting",
+      "criticality": "P2",
+      "description": "A future fleet view ranks scenarios by API-readiness debt, stale live-probe evidence, missing health-schema adoption, and fixable finding gaps, with every aggregate carrying captured-at/as-of metadata.",
+      "tags": [
+        "fleet",
+        "reporting",
+        "as-of"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned ref: api/internal/fleet/fleet_test.go. Fixtures cover debt ordering, stale evidence, clean scenarios, and no-run/as-of handling."
+        }
+      ]
+    },
+    {
+      "id": "APIH-PROBE-001",
+      "title": "Contract-aware probe packs are opt-in",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "execution",
+      "criticality": "P2",
+      "description": "Future representative endpoint probes are scenario-declared, safe by default, bounded by budgets, and never inferred from product APIs without an explicit probe-pack contract.",
+      "tags": [
+        "probe-pack",
+        "execution",
+        "budgets"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned ref: api/internal/probe/pack_test.go. Fixtures cover opt-in declaration, unsupported methods, timeout budgets, and disabled execution."
+        }
+      ]
+    },
+    {
+      "id": "APIH-FACT-001",
+      "title": "Cross-provider API facts are published only with consumers",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "API Health may publish normalized API-surface facts for neighboring providers only after a consumer contract exists, preventing speculative data products.",
+      "tags": [
+        "facts",
+        "cross-provider",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned ref: api/internal/facts/export_test.go. Assert exported fact schema stability and consumer-gated registration."
+        }
+      ]
+    },
+    {
+      "id": "APIH-UX-001",
+      "title": "Operator workbench separates static findings from live evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI and human CLI reports group findings by capability, show live probe evidence as timestamped evidence rather than static debt, and provide fix previews without writing by default.",
+      "tags": [
+        "ui",
+        "cli",
+        "workbench"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented refs: ui/src/pages/ValidationPage.tsx, ui/src/api/validation.ts, ui/src/pages/ValidationPage.test.tsx, and ui/src/api/validation.test.ts. Assert provider-backed target summary, capability ladder, findings table, live probe evidence, execution-mode input, and dry-run fix preview candidates render without duplicating validation logic in the UI."
+        }
+      ]
+    }
+  ]
+}

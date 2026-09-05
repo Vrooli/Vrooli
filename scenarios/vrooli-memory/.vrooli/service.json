@@ -1,0 +1,188 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "4GiB",
+          "rationale": "Measured starting ceiling for the append-only memory journal and derived indexes; facet resident budgets and compaction bound active recall pressure. No max_age is declared: the journal is append-only and non-regenerable, and the fleet retention enforcer prunes any budgeted directory entry by age without consulting regenerable, so an age budget here would delete the authority it is meant to protect."
+        },
+        "rationale": "Scenario-owned durable data observed in the canonical data directory."
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "vrooli-memory",
+    "displayName": "Vrooli Memory",
+    "description": "Unified append-only agent memory with semantic recall and pressure-driven compaction, shared across every agent harness",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-07-27T02:27:36Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-memory",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-memory"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "source-ledger": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Owns the append-only source ledger and all semantic recall, facet, forest, and classification engine state.",
+        "degraded_behavior": "Harness projection and durable local run status remain readable, while recall and source-backed writes return typed unavailable errors until source-ledger recovers.",
+        "supervision_precedence": "required"
+      },
+      "vrooli-events": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Provides automatic runtime receipt correlation through api-core when available.",
+        "degraded_behavior": "Memories remain durable without run correlation."
+      },
+      "swarm-manager": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Reserved for the one-time historical work-record migration; it is not needed by normal memory operation.",
+        "degraded_behavior": "Normal memory operation remains available; only historical work-record migration is unavailable until swarm-manager recovers."
+      }
+    }
+  },
+  "environment": {
+    "VROOLI_MEMORY_WORKSPACE_ROOT": "/home/matthalloran8/Vrooli"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/vrooli-memory/SKILL.md",
+      "programs": [
+        "vrooli-memory.scope-bootstrap"
+      ]
+    },
+    "feature": [],
+    "waivers": {
+      "improve": {
+        "reason": "Deferred by the 2026-09-02 inventory: source-ledger declares no measures (measures.domains []) so an improve setpoint would have no measured row; author after measures-adoption lands for entries, facet_recall_stats, pins, and rules.",
+        "declared_at": "2026-09-02"
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "_metadata": {
+    "module": "integration-and-ui",
+    "description": "Test Genie unit-phase delegation and the operator inspection UI.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UH-INT-001",
+      "title": "Serve as the Test Genie unit phase provider",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "Test Genie shells `unit-health validate scenario <name> --json`, maps the shared assessment through maturity metadata into the tests and coverage dimensions, writes a phase pointer with a local maturity summary, and no longer owns an internal unit runner or a separate coverage phase.",
+      "tags": ["test-genie", "delegation", "cutover"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Test Genie phase tests ingest a valid assessment, handle failure severity, and prove the removed coverage phase is rejected."}
+      ]
+    },
+    {
+      "id": "UH-UI-001",
+      "title": "Operator inspection workbench",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI shows scenario test maturity, next-level blockers, the test plan table, execution results, a coverage dashboard, architecture/quality findings, artifact/log links, and global impact grouping with loading, empty, degraded, running, and failed states.",
+      "tags": ["ui", "workbench", "states"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Component tests cover maturity summary, plan table, coverage dashboard, findings groups, and degraded states."}
+      ]
+    }
+  ]
+}

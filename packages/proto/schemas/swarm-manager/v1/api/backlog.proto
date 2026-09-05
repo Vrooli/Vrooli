@@ -1,10 +1,13 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/backlog.proto";
 import "swarm-manager/v1/domain/execution.proto";
+// ImportChange describes a single change from an import operation.
+import "swarm-manager/v1/shared/backlog.proto";
+import "swarm-manager/v1/shared/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -12,9 +15,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // BACKLOG API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports backlog
 // @stability beta
 //
 // HTTP API contracts for Swarm Manager backlog operations.
@@ -37,26 +37,45 @@ message CreateBacklogItemRequest {
   optional string description = 3;
 
   // Optional priority level (1-10).
-  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Optional tags for categorization.
-  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 5 [(buf.validate.field).repeated = {unique: true}];
 
   // Required backlog kind.
-  string kind = 6 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string kind = 6 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
 
   reserved 7; // research_target — removed; research items execute directly.
 
   // Dependencies as "kind/name" references.
   repeated string depends_on = 8;
 
-  // Initiative this item belongs to.
-  optional string initiative = 9;
+  // Owned goal/milestone reference this item belongs to.
+  optional string milestone = 9;
 
   reserved 10; // auto_workshop removed — use settings.auto_initialize_workshop instead.
 
   // Effort estimate: XS, S, M, L, XL.
-  optional string effort = 11 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+  optional string effort = 11 [(buf.validate.field).string = {
+    in: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ]
+  }];
 
   reserved 12; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
@@ -71,6 +90,18 @@ message CreateBacklogItemRequest {
 
   // Personal annotation — a user note for tracking context.
   optional string note = 16;
+
+  // Glob patterns for file paths the work plans to create. Same syntax as
+  // acceptance_allow. Used by the workshop validator to allow forward-looking
+  // paths in acceptance_allow that don't yet exist on disk. Absence means
+  // "no declared new paths."
+  repeated string creates = 17;
+
+  // Canonical plan-manager plan backing this work item.
+  optional shared.PlanRef plan_ref = 18;
+
+  // Typed, stable acceptance criteria present at item creation.
+  repeated shared.BacklogCriterion acceptance_criteria = 19;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -88,33 +119,41 @@ message UpdateBacklogItemRequest {
   optional string description = 2;
 
   // Lifecycle status.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
-  optional string status = 3 [(buf.validate.field).string = { in: [
-    "backlog",
-    "researching",
-    "ready",
-    "queued",
-    "in_progress",
-    "completed",
-    "failed"
-  ] }];
+  //
+  // Not constrained to an inline allowlist — see the note on
+  // domain.BacklogItem.status in domain/backlog.proto. The server's status table is
+  // the single source of truth and rejects unknown values, including the
+  // narrower rule that most statuses are not settable by a client at all.
+  optional string status = 3 [(buf.validate.field).string.min_len = 1];
 
   // Priority level (1-10).
-  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Tags for categorization.
-  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 5 [(buf.validate.field).repeated = {unique: true}];
 
   reserved 6; // research_target — removed; research items execute directly.
 
   // Dependencies as "kind/name" references.
   repeated string depends_on = 7;
 
-  // Initiative this item belongs to. Set to the empty string to clear.
-  optional string initiative = 8;
+  // Owned goal/milestone reference this item belongs to. Set to the empty string to clear.
+  optional string milestone = 8;
 
   // Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
-  optional string effort = 9 [(buf.validate.field).string = { in: ["", "XS", "S", "M", "L", "XL"] }];
+  optional string effort = 9 [(buf.validate.field).string = {
+    in: [
+      "",
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ]
+  }];
 
   reserved 10; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
@@ -129,6 +168,27 @@ message UpdateBacklogItemRequest {
 
   // Personal annotation. Set to empty string to clear.
   optional string note = 14;
+
+  // Glob patterns for file paths the work plans to create. Same syntax as
+  // acceptance_allow. Empty list clears the field.
+  repeated string creates = 15;
+
+  // Canonical plan-manager plan backing this work item. Set empty strings to clear.
+  optional shared.PlanRef plan_ref = 16;
+
+  // Typed, stable acceptance criteria. Supplying this field replaces the
+  // complete criterion list; an empty list explicitly clears it.
+  repeated shared.BacklogCriterion acceptance_criteria = 17;
+}
+
+// UpdateItemRequest identifies an item and preserves PATCH presence through
+// fields. Each entry is a snake_case field name from UpdateBacklogItemRequest;
+// repeated fields may be intentionally empty when named here.
+message UpdateItemRequest {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  UpdateBacklogItemRequest patch = 3 [(buf.validate.field).required = true];
+  repeated string fields = 4 [(buf.validate.field).repeated.min_items = 1];
 }
 
 // A single blocking reason with forceability metadata.
@@ -151,37 +211,267 @@ message ItemBlockingInfo {
 
 // ListBacklogItemsResponse returns all backlog items.
 message ListBacklogItemsResponse {
-  repeated BacklogItem items = 1;
+  repeated domain.BacklogItem items = 1;
   // Per-item blocking state keyed by "kind/name". Only includes items that
   // have dependencies; items without deps are omitted (not blocked).
   map<string, ItemBlockingInfo> blocking = 2;
 }
 
+// ArchivedFilter controls whether archived backlog items are excluded, shown
+// exclusively, or included with active items.
+enum ArchivedFilter {
+  ARCHIVED_FILTER_UNSPECIFIED = 0;
+  ARCHIVED_FILTER_EXCLUDE = 1;
+  ARCHIVED_FILTER_ONLY = 2;
+  ARCHIVED_FILTER_ALL = 3;
+}
+
+// ListBacklogItemsRequest carries every filter supported by the operator list
+// surface. Optional booleans distinguish an omitted filter from false.
+message ListBacklogItemsRequest {
+  repeated string kinds = 1;
+  repeated string statuses = 2;
+  ArchivedFilter archived = 3;
+  repeated string scenarios = 4;
+  optional string spawned_from = 5;
+  optional bool has_plan_ref = 6;
+  optional string plan_ref = 7;
+  optional bool stale = 8;
+  // Verified team-member/profile identity that filed the item.
+  optional string actor_id = 9;
+}
+
+// DeleteBacklogItemRequest identifies one backlog item to delete. Deletion is
+// idempotent: deleting an item that no longer exists succeeds with deleted=false.
+message DeleteBacklogItemRequest {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// DeleteBacklogItemResponse reports whether an item was removed.
+message DeleteBacklogItemResponse {
+  bool deleted = 1;
+}
+
+// ReviewFollowUp is the typed recovery instruction required by a followup
+// decision. It mirrors the durable backlog follow-up record without exposing a
+// free-form JSON envelope.
+message ReviewFollowUp {
+  string steering = 1 [(buf.validate.field).string.min_len = 1];
+  string disposition = 2 [(buf.validate.field).string = {
+    in: [
+      "follow_up_run",
+      "replan",
+      "new_items"
+    ]
+  }];
+  repeated ReviewFollowUpItem items = 3;
+}
+
+message ReviewFollowUpItem {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// DecideAttemptRequest is the common operator decision envelope for a durable
+// transition attempt. subject_kind and subject_ref identify the owning domain;
+// round_num identifies the immutable attempt projection being decided.
+message DecideAttemptRequest {
+  string subject_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string subject_ref = 2 [(buf.validate.field).string.min_len = 1];
+  uint32 round_num = 3 [(buf.validate.field).uint32.gt = 0];
+  string decision = 4 [(buf.validate.field).string = {
+    in: [
+      "accept",
+      "fail",
+      "followup",
+      "drop"
+    ]
+  }];
+  string actor = 5 [(buf.validate.field).string.min_len = 1];
+  string rationale = 6;
+  repeated string accepted_proposal_ids = 7;
+  optional ReviewFollowUp follow_up = 8;
+}
+
+message DecideAttemptResponse {
+  domain.BacklogItem item = 1;
+  string decision = 2;
+  string status = 3;
+  string rationale = 4;
+  string decided_at = 5;
+  optional string record_id = 6;
+}
+
+// VerifyAttemptEvidenceRequest records an operator's evidence verification or
+// revocation against one durable attempt. Both changes require a real actor
+// and reason so the canonical evidence ledger remains auditable.
+message VerifyAttemptEvidenceRequest {
+  string subject_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string subject_ref = 2 [(buf.validate.field).string.min_len = 1];
+  uint32 round_num = 3 [(buf.validate.field).uint32.gt = 0];
+  string evidence_id = 4 [(buf.validate.field).string.min_len = 1];
+  bool verified = 5;
+  string actor = 6 [(buf.validate.field).string.min_len = 1];
+  string reason = 7 [(buf.validate.field).string.min_len = 1];
+}
+
+message VerifyAttemptEvidenceResponse {
+  bool verified = 1;
+}
+
 // BacklogItemResponse returns a single backlog item.
 message BacklogItemResponse {
-  BacklogItem item = 1;
+  domain.BacklogItem item = 1;
+
+  // True when CreateItem returned a pre-existing open item for the same
+  // target + signature instead of creating a duplicate (creation-time dedup).
+  // Always false on read paths (GetItem). Lets feedback-contract consumers tell
+  // the user "this was already filed" rather than implying a fresh report.
+  bool deduped = 2;
+}
+
+// GetBacklogItemRequest identifies a single backlog item by kind + name for the
+// BacklogService.GetItem RPC.
+message GetBacklogItemRequest {
+  // Backlog kind: idea, research, fix, execute, chore.
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Item name (folder name).
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// =============================================================================
+// BACKLOG SERVICE (Connect RPC)
+// =============================================================================
+//
+// Typed contract for the cross-scenario feedback flow: scenarios that detect a
+// problem (triage-class) file a backlog item via CreateItem and poll its status
+// + queue_position via GetItem. The shared generated client is what prevents the
+// per-consumer wire drift that plagued the old hand-rolled issue-tracker
+// clients. Operations migrate only when the typed contract preserves the full
+// operator behavior; the UI may continue to consume the REST surface.
+//
+// @stability beta
+service BacklogService {
+  // ListItems returns the filtered operator backlog projection.
+  rpc ListItems(ListBacklogItemsRequest) returns (ListBacklogItemsResponse);
+
+  // CreateItem files a backlog item, applying creation-time dedup: if an open
+  // item already exists for the same target + signature, the existing item is
+  // returned with deduped=true instead of creating a duplicate.
+  rpc CreateItem(CreateBacklogItemRequest) returns (BacklogItemResponse);
+
+  // GetItem returns a single backlog item with its current status and computed
+  // queue_position (items-ahead in the ranked pending set).
+  rpc GetItem(GetBacklogItemRequest) returns (BacklogItemResponse);
+
+  // UpdateItem applies an explicit field-preserving patch.
+  rpc UpdateItem(UpdateItemRequest) returns (BacklogItemResponse);
+
+  // DeleteItem removes an item and cleans dependent references. It is idempotent.
+  rpc DeleteItem(DeleteBacklogItemRequest) returns (DeleteBacklogItemResponse);
+
+  // DecideAttempt applies an auditable decision to a durable attempt. The
+  // subject-specific domain validates allowed decisions and proposals.
+  rpc DecideAttempt(DecideAttemptRequest) returns (DecideAttemptResponse);
+
+  // VerifyAttemptEvidence records an auditable operator verification change
+  // for evidence attached to the addressed attempt.
+  rpc VerifyAttemptEvidence(VerifyAttemptEvidenceRequest) returns (VerifyAttemptEvidenceResponse);
+}
+
+// AutoFilerService exposes the governed backlog auto-filer operator surface.
+//
+// @stability beta
+service AutoFilerService {
+  // GetStatus returns the current policy settings plus the latest cycle
+  // outcome and brake/cap accounting.
+  rpc GetStatus(AutoFilerStatusRequest) returns (AutoFilerStatusResponse);
+
+  // DismissSuggestion archives a suggested auto-filed item and remembers its
+  // finding_ref so the same finding is not suggested again.
+  rpc DismissSuggestion(DismissAutoFilerSuggestionRequest) returns (DismissAutoFilerSuggestionResponse);
+
+  // RunNow forces one governed auto-filer cycle immediately and returns the
+  // resulting status snapshot.
+  rpc RunNow(AutoFilerRunNowRequest) returns (AutoFilerStatusResponse);
+}
+
+message AutoFilerStatusRequest {}
+
+message AutoFilerRunNowRequest {}
+
+message AutoFilerBrakeState {
+  int32 window_days = 1;
+  int32 minimum = 2;
+  int32 observed = 3;
+  bool braked = 4;
+  string window_start_utc = 5;
+  string window_end_utc = 6;
+}
+
+message AutoFilerStatusResponse {
+  bool enabled = 1;
+  string mode = 2;
+  string strategy = 3;
+  string last_cycle_time = 4;
+  string last_error = 5;
+  int32 candidates = 6;
+  int32 findings = 7;
+  int32 created = 8;
+  int32 skipped_dismissed = 9;
+  int32 open_auto_filed = 10;
+  int32 max_open_auto_filed = 11;
+  int32 remaining_budget = 12;
+  AutoFilerBrakeState brake = 13;
+  int32 dismissal_count = 14;
+  int32 reconciled_closed = 15;
+  int32 reconciled_noted = 16;
+}
+
+message DismissAutoFilerSuggestionRequest {
+  string kind = 1 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  optional string reason = 3;
+}
+
+message DismissAutoFilerSuggestionResponse {
+  domain.BacklogItem item = 1;
+  bool dismissed = 2;
 }
 
 // BacklogFilesResponse returns the file tree for a backlog item.
 message BacklogFilesResponse {
-  repeated BacklogFile files = 1;
+  repeated shared.BacklogFile files = 1;
 }
 
 // BacklogFileResponse returns a single file node.
 message BacklogFileResponse {
-  BacklogFile file = 1;
+  shared.BacklogFile file = 1;
 }
 
 // BacklogFileOperationRequest applies a filesystem operation within a backlog item.
 message BacklogFileOperationRequest {
   // Operation to apply.
   // @constraint one of: rename, move, copy, delete
-  string operation = 1 [(buf.validate.field).string = { in: [
-    "rename",
-    "move",
-    "copy",
-    "delete"
-  ] }];
+  string operation = 1 [(buf.validate.field).string = {
+    in: [
+      "rename",
+      "move",
+      "copy",
+      "delete"
+    ]
+  }];
 
   // Source path relative to backlog item root.
   string source_path = 2 [(buf.validate.field).string.min_len = 1];
@@ -194,7 +484,7 @@ message BacklogFileOperationRequest {
 // BacklogFileOperationResponse reports the result of a file operation.
 message BacklogFileOperationResponse {
   // Result file node for rename/move/copy operations.
-  optional BacklogFile file = 1;
+  optional shared.BacklogFile file = 1;
 
   // Deleted path for delete operations.
   optional string deleted_path = 2;
@@ -203,9 +493,19 @@ message BacklogFileOperationResponse {
 // QueueBacklogItemRequest queues a backlog item for processing.
 message QueueBacklogItemRequest {
   // Optional operation hint for idea processing.
-  optional string operation = 1 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+  optional string operation = 1 [(buf.validate.field).string = {
+    in: [
+      "generator",
+      "improver"
+    ]
+  }];
   // Execution mode override (defaults to policy default).
-  optional string mode = 2 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  optional string mode = 2 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 3;
   // Human or agent identifier that initiated the queue action.
   optional string started_by = 4;
@@ -215,11 +515,18 @@ message QueueBacklogItemRequest {
   // Override queue readiness feedback gates (unanswered questions / pending
   // suggestions). API-level safety checks remain for non-overridable constraints.
   optional bool force = 6;
+  // Declared execution strategy. Omitted selects the sole default strategy.
+  optional string strategy = 7;
+  // Maximum plan slices for this execution, inclusive range 1..6.
+  optional int32 max_slices = 8 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 6
+  }];
 }
 
 // QueueBacklogItemResponse returns queue results.
 message QueueBacklogItemResponse {
-  BacklogItem item = 1;
+  domain.BacklogItem item = 1;
   string task_id = 2;
   string run_id = 3;
   string base_url = 4;
@@ -236,6 +543,9 @@ message QueueBacklogItemResponse {
   int32 unanswered_questions = 10;
   // Number of suggestions still pending user decision.
   int32 pending_suggestions = 11;
+  // Non-blocking advisories surfaced to the caller (e.g. the
+  // fix-before-feature gate in "suggest" mode). The queue still proceeds.
+  repeated string advisories = 12;
 }
 
 // BacklogResearchRequest captures optional fields for spawning a research agent.
@@ -249,14 +559,16 @@ message BacklogResearchRequest {
   optional string project_root = 3;
 
   // Optional research mode.
-  optional string mode = 4 [(buf.validate.field).string = { in: [
-    "clarify",
-    "suggest",
-    "enhance",
-    "finalize",
-    "initialize",
-    "workshop"
-  ] }];
+  optional string mode = 4 [(buf.validate.field).string = {
+    in: [
+      "clarify",
+      "suggest",
+      "enhance",
+      "finalize",
+      "initialize",
+      "workshop"
+    ]
+  }];
 
   reserved 5; // target_kind — removed; research items execute directly.
 
@@ -304,7 +616,10 @@ message ExportBacklogRequest {
   repeated string names = 3;
 
   // Only include items with priority <= this value.
-  optional int32 priority_max = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  optional int32 priority_max = 4 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Only include items with any of these tags.
   repeated string tags = 5;
@@ -326,6 +641,9 @@ message ExportBacklogRequest {
 
   // Whether to include the new-item template in the export (default true).
   optional bool include_template = 11;
+
+  // Include archived records. Archived records are excluded by default.
+  bool include_archived = 12;
 }
 
 // ImportBacklogResponse reports the results of importing an edited markdown export.
@@ -342,8 +660,6 @@ message ImportBacklogResponse {
   // Human-readable summary of the import.
   string summary = 4;
 }
-
-// ImportChange describes a single change from an import operation.
 message ImportChange {
   // Item key (kind/name).
   string item = 1;
@@ -374,7 +690,7 @@ message WorkshopSaveRequest {
 // WorkshopSaveResponse returns the result of saving a workshop round.
 message WorkshopSaveResponse {
   // The saved file node.
-  BacklogFile file = 1;
+  shared.BacklogFile file = 1;
 
   // Auto-advance decision metadata.
   WorkshopAutoAdvance auto_advance = 2;
@@ -396,7 +712,12 @@ message WorkshopAutoAdvance {
   string reason = 4;
 
   // The recommended next mode when manual follow-up is required.
-  optional string next_mode = 5 [(buf.validate.field).string = { in: ["workshop", "finalize"] }];
+  optional string next_mode = 5 [(buf.validate.field).string = {
+    in: [
+      "workshop",
+      "finalize"
+    ]
+  }];
 
   // Whether an advance is pending (countdown active, not yet spawned).
   bool pending = 6;
@@ -406,11 +727,6 @@ message WorkshopAutoAdvance {
 
   // Configured delay in seconds. Set when pending=true.
   int32 delay_seconds = 8;
-}
-
-// WorkshopCancelPendingAdvanceResponse is the response from cancelling a pending advance.
-message WorkshopCancelPendingAdvanceResponse {
-  bool cancelled = 1;
 }
 
 // WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers
@@ -464,7 +780,7 @@ message CreateClarificationRequest {
 
 // CreateClarificationResponse returns the newly created thread.
 message CreateClarificationResponse {
-  ClarificationThread thread = 1;
+  domain.ClarificationThread thread = 1;
 }
 
 // ContinueClarificationRequest sends a follow-up message in an existing thread.
@@ -478,24 +794,26 @@ message ContinueClarificationRequest {
 
 // ContinueClarificationResponse returns the updated thread.
 message ContinueClarificationResponse {
-  ClarificationThread thread = 1;
+  domain.ClarificationThread thread = 1;
 }
 
 // GetClarificationResponse returns an existing clarification thread.
 message GetClarificationResponse {
-  ClarificationThread thread = 1;
+  domain.ClarificationThread thread = 1;
 }
 
 // ClarificationActionRequest applies a post-clarification action.
 message ClarificationActionRequest {
   // Action to apply.
   // @constraint one of: got_it, update_decision, remove_decision, invalidate_round
-  string action = 1 [(buf.validate.field).string = { in: [
-    "got_it",
-    "update_decision",
-    "remove_decision",
-    "invalidate_round"
-  ] }];
+  string action = 1 [(buf.validate.field).string = {
+    in: [
+      "got_it",
+      "update_decision",
+      "remove_decision",
+      "invalidate_round"
+    ]
+  }];
 
   // For update_decision: JSON-encoded updated item (topic, context, options).
   optional string updated_item_json = 2;
@@ -525,7 +843,7 @@ message ClarificationActionResponse {
 
 // ListReviewRoundsResponse returns all review evidence rounds for a backlog item.
 message ListReviewRoundsResponse {
-  repeated swarm_manager.v1.ReviewEvidenceRound rounds = 1;
+  repeated domain.ReviewEvidenceRound rounds = 1;
 }
 
 // VerifyEvidenceRequest marks an evidence item as verified or unverified.

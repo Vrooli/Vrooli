@@ -209,6 +209,8 @@ async function captureRawElementMeta(
           'data-testid',
           'data-test-id',
           'data-cy',
+          'data-experience-surface',
+          'data-experience-state',
         ];
         for (const attr of interestingAttrs) {
           const val = el.getAttribute(attr);

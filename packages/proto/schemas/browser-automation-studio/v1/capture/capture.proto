@@ -1,0 +1,235 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.capture;
+
+import "browser-automation-studio/v1/base/browser_profile.proto";
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture;capture";
+
+// =============================================================================
+// CAPTURE DOMAIN — single-location, multi-artifact UI inspection.
+// =============================================================================
+//
+// @stability beta
+//
+// Capture wraps the workflow engine for the single-location case so agents
+// (and humans) get one ergonomic verb instead of hand-authoring a
+// navigate+wait+screenshot DAG. The same engine still serves multi-step
+// workflows via the workflows domain; this is purely additive.
+//
+// One CaptureService.Capture call may request several artifact types
+// (screenshot, console-logs, network, video, dom, performance) in a single
+// browser session so they share one navigation and one viewport.
+// =============================================================================
+
+service CaptureService {
+  // Capture loads a URL once and produces every requested artifact from
+  // that one session. The response lists every artifact written, with
+  // path + size + a free-form metadata map (e.g. width/height for
+  // screenshots, request-count for network captures).
+  rpc Capture(CaptureRequest) returns (CaptureResponse);
+}
+
+// CaptureType selects which artifacts the session emits. UNSPECIFIED is
+// rejected by validation; callers that omit `captures` get SCREENSHOT
+// applied as the server-side default.
+enum CaptureType {
+  CAPTURE_TYPE_UNSPECIFIED = 0;
+  CAPTURE_TYPE_SCREENSHOT = 1;
+  CAPTURE_TYPE_CONSOLE_LOGS = 2;
+  CAPTURE_TYPE_NETWORK = 3;
+  CAPTURE_TYPE_VIDEO = 4;
+  CAPTURE_TYPE_DOM = 5;
+  CAPTURE_TYPE_PERFORMANCE = 6;
+  // Accessibility-tree JSON snapshot. The driver walks the Chromium
+  // accessibility tree (CDP Accessibility.getFullAXTree) after the page
+  // settles, joins per-node geometry + data-testid, and writes the
+  // result to accessibility.json normalized to the frozen contract
+  // `bas-accessibility-snapshot/v1`. Failure to capture degrades
+  // gracefully (the artifact is absent, the capture still succeeds).
+  CAPTURE_TYPE_ACCESSIBILITY = 7;
+}
+
+// DimensionsPreset names common viewport sizes so callers do not have to
+// remember pixel counts. Explicit width/height in `Dimensions` always
+// overrides a preset.
+enum DimensionsPreset {
+  DIMENSIONS_PRESET_UNSPECIFIED = 0; // server default: desktop
+  DIMENSIONS_PRESET_MOBILE = 1; // 390x844  (iPhone 14 portrait)
+  DIMENSIONS_PRESET_TABLET = 2; // 768x1024 (iPad portrait)
+  DIMENSIONS_PRESET_DESKTOP = 3; // 1440x900 (laptop)
+}
+
+// Dimensions specifies the browser viewport. A caller picks a preset OR
+// supplies width+height; if both are set, explicit values win. The
+// device_scale_factor field is optional and applies to either path.
+message Dimensions {
+  DimensionsPreset preset = 1;
+  optional int32 width = 2 [(buf.validate.field).int32 = {
+    gte: 100
+    lte: 4000
+  }];
+  optional int32 height = 3 [(buf.validate.field).int32 = {
+    gte: 100
+    lte: 4000
+  }];
+  optional double device_scale_factor = 4 [(buf.validate.field).double = {
+    gte: 0.5
+    lte: 4.0
+  }];
+}
+
+// WaitFor controls the readiness condition the executor waits on before
+// emitting capture artifacts. Exactly one variant must be set; if none
+// is provided, the executor falls back to its built-in "page loaded"
+// signal.
+message WaitFor {
+  oneof spec {
+    // CSS selector that must be visible.
+    string selector = 1;
+    // Wait for Playwright's "networkidle" signal.
+    bool networkidle = 2;
+    // Fixed delay in milliseconds.
+    int32 timeout_ms = 3;
+  }
+}
+
+message CaptureRequest {
+  // URL to load. Either a raw http(s) URL or the cross-scenario shorthand
+  // `scenario=<slug>,path=<path>` which the server resolves through the
+  // scenario URL helper. Required.
+  string url = 1 [(buf.validate.field).string = {min_len: 1}];
+
+  // Which artifact types to emit. Empty defaults to [SCREENSHOT].
+  repeated CaptureType captures = 2;
+
+  // Viewport + device pixel ratio.
+  Dimensions dimensions = 3;
+
+  // Readiness condition applied before captures fire.
+  WaitFor wait_for = 4;
+
+  // Server-relative output directory hint. Empty = server allocates a
+  // run-scoped directory under the executor's artifact root.
+  string out_dir = 5;
+
+  // Echoed into the artifact bundle metadata for cross-referencing.
+  string label = 6;
+
+  // When true, the rendered page's outerHTML (post-wait_for) is returned
+  // inline in CaptureResponse.dom_html. This is the remote-friendly way to
+  // consume rendered HTML: artifact paths in CaptureArtifact are
+  // server-filesystem paths, useless to callers on another host. Independent
+  // of the `captures` list. The server caps the inline payload (currently
+  // 2 MiB) and truncates beyond it.
+  bool inline_dom = 7;
+
+  // Optional raw `bas/flows`-shape JSON (a WorkflowDefinitionV2 protojson
+  // body) describing a specific interaction to drive *after* the navigate,
+  // inside the same perf-trace window. Empty = the default navigate+settle
+  // capture. The server compiles this with its standard flow-JSON converter
+  // and splices the interaction's nodes/edges after the navigate node, so a
+  // CAPTURE_TYPE_PERFORMANCE trace spans the interaction (scroll, drag,
+  // click/type sequences). Selector tokens (`@selector/`) resolve server-side
+  // against the executor's manifest root, which is NOT the target scenario on
+  // this path — perf flows must use literal `[data-testid=…]` selectors.
+  string interaction_flow_json = 8;
+
+  // When true, the normalized accessibility-tree snapshot JSON
+  // (bas-accessibility-snapshot/v1) is returned inline in
+  // CaptureResponse.accessibility_json. This is the remote-friendly way to
+  // consume the snapshot: artifact paths in CaptureArtifact are
+  // server-filesystem paths, useless to callers on another host. Mirrors
+  // inline_dom: it independently drives the AX capture (a caller need not
+  // also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
+  // payload (currently 2 MiB) and truncates beyond it.
+  bool inline_accessibility = 9;
+
+  // When true, the accessibility snapshot also includes the resolved CSS
+  // properties requested by the capture producer for every joined DOM node.
+  bool inline_computed_style = 10;
+
+  // Browser context preferences for this capture matrix point. These are
+  // forwarded to the execution session and are independent of viewport size.
+  browser_automation_studio.v1.BrowserProfile browser_profile = 11;
+
+  // Interaction state requested by the capture matrix. The service preserves
+  // this value while constructing the stateful capture flow.
+  string interaction_state = 12;
+
+  // Optional CSS selector for the authoritative screenshot boundary. When
+  // set, BAS captures that element as the primary screenshot while keeping
+  // the rest of the evidence in the same browser session.
+  string screenshot_selector = 13;
+}
+
+message CaptureArtifact {
+  CaptureType type = 1;
+  // Absolute path on the server filesystem where the artifact landed.
+  string path = 2;
+  int64 size_bytes = 3;
+  // Free-form metadata keyed by artifact type — e.g. screenshots emit
+  // {"width": "1440", "height": "900"}; network captures emit
+  // {"request_count": "27"}.
+  map<string, string> metadata = 4;
+  // True only for the final screenshot produced by a successful capture.
+  bool primary = 5;
+  // Opaque, storage-owner-controlled reference to this artifact. Consumers
+  // must use this instead of the server-local path when crossing scenarios.
+  // It is stable for the retained capture bundle and deliberately carries no
+  // filesystem topology or provider URL.
+  string reference = 6;
+}
+
+message CaptureResponse {
+  // Stable id assigned by the executor; reuse with the existing
+  // executions API to fetch full traces.
+  string execution_id = 1;
+  // Resolved output directory holding every emitted artifact.
+  string out_dir = 2;
+  repeated CaptureArtifact artifacts = 3;
+  int64 duration_ms = 4;
+  // True if the request was short-circuited by the X-Dry-Run header —
+  // the response shape is otherwise identical so callers can validate
+  // their request without producing artifacts.
+  bool dry_run = 5;
+
+  // Rendered page outerHTML, populated only when CaptureRequest.inline_dom
+  // was set. Empty on dry-run or when the in-page DOM read failed (the
+  // capture itself still succeeds — callers needing the DOM must treat
+  // empty as a failed fetch). Size-capped server-side (2 MiB); truncation
+  // is silent, which readable-text extractors tolerate by design.
+  string dom_html = 6;
+
+  // Normalized accessibility-tree snapshot JSON
+  // (bas-accessibility-snapshot/v1), populated only when
+  // CaptureRequest.inline_accessibility was set. Empty on dry-run or when
+  // the AX capture failed (the capture itself still succeeds — callers
+  // needing the snapshot must treat empty as a failed capture).
+  // Size-capped server-side (2 MiB); truncation is silent.
+  string accessibility_json = 7;
+
+  // Readiness decision and outcome for this capture. This makes it explicit
+  // whether capture used a caller wait, a declared profile surface, or normal
+  // generic navigation fallback.
+  CaptureReadinessDiagnostics readiness = 8;
+}
+
+message CaptureReadinessDiagnostics {
+  string requested_strategy = 1;
+  string selected_strategy = 2;
+  string outcome = 3;
+  int64 duration_ms = 4;
+  string fallback_reason = 5;
+  string profile_version = 6;
+  string route = 7;
+  repeated string required_surface_ids = 8;
+  // Driver-observed duration of the navigation operation itself. This stays
+  // distinct from readiness so a slow route can be diagnosed without
+  // mistaking navigation timeout policy for functional settling.
+  int64 navigation_duration_ms = 9;
+  // Sum of explicit or declared post-navigation wait steps observed in the
+  // exported execution timeline.
+  int64 readiness_wait_duration_ms = 10;
+}

@@ -1,0 +1,217 @@
+{
+  "name": "landing-page-react-vite",
+  "displayName": "Landing Page (React + Vite)",
+  "description": "Landing page business template with React/Vite UI + Go API, admin portal, A/B variants, metrics, and Stripe-ready seams.",
+  "stack": [
+    "react",
+    "vite",
+    "typescript",
+    "go",
+    "cli"
+  ],
+  "version": "2.0.0",
+  "requiredVars": {
+    "SCENARIO_ID": {
+      "flag": "id",
+      "description": "Scenario slug used for folder names and binaries"
+    },
+    "SCENARIO_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-friendly name shown in dashboards and UI shells"
+    },
+    "SCENARIO_DESCRIPTION": {
+      "flag": "description",
+      "description": "One-sentence summary that appears in service.json and status output"
+    }
+  },
+  "optionalVars": {
+    "SCENARIO_CATEGORY": {
+      "flag": "category",
+      "description": "Service category used in service.json",
+      "default": "business_tools"
+    },
+    "DATABASE_NAME": {
+      "flag": "database",
+      "description": "Default Postgres schema name",
+      "default": "{{SCENARIO_ID}}"
+    },
+    "AUTHOR": {
+      "flag": "author",
+      "description": "Initial progress log author",
+      "default": "Generator Agent"
+    },
+    "DATE": {
+      "flag": "date",
+      "description": "Initial progress log date",
+      "default": "{{CURRENT_DATE}}"
+    }
+  },
+  "docs": {
+    "generatorGuide": "docs/scenarios/getting-started.md",
+    "requirementsGuide": "scenarios/test-genie/docs/phases/business/requirements-sync.md",
+    "templateGuide": "templates/scenarios/landing-page-react-vite/README.md",
+    "designGuide": "docs/design/README.md",
+    "generatedDesignContract": "DESIGN.md"
+  },
+  "design": {
+    "adapter": "react-vite-tailwind",
+    "default": "vrooli-conversion-landing",
+    "required": true
+  },
+  "copyExcludes": [
+    "CHANGELOG.md"
+  ],
+  "orientation": {
+    "version": "1.0.0",
+    "copyTo": ".vrooli/orientation.json",
+    "startDocument": "docs/QUICKSTART.md",
+    "finalize": {
+      "cleanup": [
+        ".vrooli/orientation.json"
+      ],
+      "message": "Landing page adoption complete; use normal scenario lifecycle commands."
+    },
+    "steps": [
+      {
+        "id": "scaffold-health",
+        "title": "Scaffold health",
+        "description": "Confirm the generated landing scaffold starts from a passing baseline before customization expands.",
+        "docs": [
+          "docs/QUICKSTART.md",
+          "docs/TROUBLESHOOTING.md"
+        ],
+        "checks": [
+          {
+            "kind": "command",
+            "exec": ["make", "test"],
+            "timeout": "15m"
+          }
+        ]
+      },
+      {
+        "id": "requirements-registry",
+        "title": "Requirements registry",
+        "description": "Confirm the operational-target requirements registry is linked so requirement sync has real modules to reason about.",
+        "docs": [
+          "requirements/README.md",
+          "requirements/index.json",
+          "PRD.md"
+        ],
+        "checks": [
+          {
+            "kind": "file_exists",
+            "path": "PRD.md"
+          },
+          {
+            "kind": "json_path_exists",
+            "path": "requirements/index.json",
+            "query": "imports"
+          },
+          {
+            "kind": "json_min_entries",
+            "path": "requirements/index.json",
+            "query": "imports",
+            "minCount": 1
+          }
+        ]
+      },
+      {
+        "id": "dependency-decisions",
+        "title": "Dependency decisions",
+        "description": "Confirm resource dependencies (postgres, optional redis/qdrant/agent runner) are intentional before feature work expands.",
+        "docs": [
+          "docs/ARCHITECTURE.md",
+          ".vrooli/service.json"
+        ],
+        "checks": [
+          {
+            "kind": "file_exists",
+            "path": ".vrooli/service.json"
+          },
+          {
+            "kind": "json_path_exists",
+            "path": ".vrooli/service.json",
+            "query": "dependencies.resources"
+          }
+        ]
+      },
+      {
+        "id": "design-language",
+        "title": "Design language",
+        "description": "Confirm the generated scenario carries the conversion-landing design contract before UI customization expands.",
+        "docs": [
+          "docs/DESIGN_SYSTEM.md"
+        ],
+        "checks": [
+          {
+            "kind": "file_exists",
+            "path": "DESIGN.md"
+          }
+        ]
+      },
+      {
+        "id": "brand-and-content",
+        "title": "Brand and content",
+        "description": "Replace the seeded SaaS demo copy and branding with the real product's headline, value proposition, and pricing narrative.",
+        "docs": [
+          "docs/CONTENT_GUIDE.md",
+          "docs/CONFIGURATION_GUIDE.md"
+        ],
+        "checks": [
+          {
+            "kind": "file_exists",
+            "path": "docs/CONTENT_GUIDE.md"
+          },
+          {
+            "kind": "text_absent",
+            "path": "api/templates/saas-landing-page.json",
+            "text": "Build and ship faster with Vrooli"
+          }
+        ]
+      },
+      {
+        "id": "payments-configuration",
+        "title": "Payments configuration",
+        "description": "Replace the placeholder Stripe keys and session secret with scenario-specific values before enabling monetized flows.",
+        "docs": [
+          "docs/CONFIGURATION_GUIDE.md",
+          "docs/SECURITY.md"
+        ],
+        "required": false,
+        "checks": [
+          {
+            "kind": "text_absent",
+            "path": "api/internal/<domain>/configuration/landing-page.env",
+            "text": "sk_test_placeholder"
+          },
+          {
+            "kind": "text_absent",
+            "path": "api/internal/<domain>/configuration/landing-page.env",
+            "text": "dev-session-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6"
+          }
+        ]
+      },
+      {
+        "id": "example-content-removed",
+        "title": "Example demo content removed",
+        "description": "Remove the illustrative SaaS demo content payload once the real product content is live. Run `template-manager detemplate <scenario>` to remove it mechanically.",
+        "docs": [
+          "docs/CONTENT_GUIDE.md"
+        ],
+        "required": false,
+        "checks": [
+          {
+            "kind": "file_absent",
+            "path": "api/templates/saas-landing-page.json"
+          }
+        ]
+      }
+    ]
+  },
+  "exampleDomain": {
+    "marker": "saas-demo",
+    "paths": [
+      "api/templates/saas-landing-page.json"
+    ]
+  }
+}

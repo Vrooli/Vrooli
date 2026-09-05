@@ -31,13 +31,13 @@ describe("ssh contract matrix", () => {
 
   it("matches /ssh/test statuses", () => {
     const endpoint = contract.endpoints["/api/v1/ssh/test"];
-    expect(endpoint).toBeDefined();
+    if (!endpoint) throw new Error("missing /ssh/test endpoint contract");
     expect(toSorted(SSH_TEST_API_STATUSES)).toEqual(toSorted(endpoint.response_statuses ?? []));
   });
 
   it("matches /ssh/copy-key statuses", () => {
     const endpoint = contract.endpoints["/api/v1/ssh/copy-key"];
-    expect(endpoint).toBeDefined();
+    if (!endpoint) throw new Error("missing /ssh/copy-key endpoint contract");
     expect(toSorted(SSH_COPY_KEY_API_STATUSES)).toEqual(toSorted(endpoint.response_statuses ?? []));
   });
 

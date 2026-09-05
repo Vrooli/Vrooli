@@ -38,7 +38,7 @@ export function CreateCampaignDialog({
   const [patterns, setPatterns] = useState("");
   const [errors, setErrors] = useState<{ name?: string; patterns?: string }>({});
 
-  const validateForm = () => {
+  const validateForm = useCallback(() => {
     const newErrors: { name?: string; patterns?: string } = {};
 
     if (!name.trim()) {
@@ -58,7 +58,7 @@ export function CreateCampaignDialog({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [name, patterns]);
 
   const handleSubmit = useCallback(() => {
     if (!validateForm()) {
@@ -76,7 +76,7 @@ export function CreateCampaignDialog({
       description,
       patterns: patternArray
     });
-  }, [name, fromAgent, description, patterns, onSubmit]);
+  }, [name, fromAgent, description, patterns, onSubmit, validateForm]);
 
   const resetForm = () => {
     setName("");
@@ -163,7 +163,7 @@ export function CreateCampaignDialog({
             </div>
             <Input
               id="fromAgent"
-              placeholder="e.g., ux-agent, manual, ecosystem-manager"
+              placeholder="e.g., ux-agent, manual, swarm-manager"
               value={fromAgent}
               onChange={(e) => setFromAgent(e.target.value)}
               disabled={isLoading}

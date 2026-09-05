@@ -1,0 +1,94 @@
+{
+  "description": "Under the DOCS command-reference policy, quoted <...> placeholders are validated against manifest argument slots, enum alternations against the declared vocabulary (manifest values union proto enum values), literal example values against descriptor-derived constraints, and unquoted placeholder groups parse leniently while emitting a style finding carrying a byte-exact quoted autofix.",
+  "module_id": "MOD-P1-010",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [],
+      "description": "Under Request.Policy DOCS, a quoted \"<name>\" placeholder must match the manifest argument slot it fills (positional name, flag name/alias, or bound proto field) with placeholder_name_mismatch emitted as a warning on drift, and a quoted \"<a|b|c>\" alternation must exactly equal the effective vocabulary (manifest values union proto enum values) with enum_placeholder_mismatch emitted as an error naming the expected list. Non-DOCS policies must keep the pre-existing strict behavior bit-for-bit.",
+      "id": "REQ-P1-010",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "DOCS-policy placeholder and enum-alternation validation",
+      "validation": [
+        {
+          "notes": "The implementation-plan-authoring SKILL.md snippet reaches argument_shape_validated with its enum alternation checked.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/docsvalidate_test.go::TestDocsPolicySkillMdSnippetValidates",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A drifted alternation yields enum_placeholder_mismatch naming the expected vocabulary.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/docsvalidate_test.go::TestDocsPolicyEnumPlaceholderMismatch",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Every non-DOCS policy keeps strict parsing and the invalid_arguments code.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/docsvalidate_test.go::TestNonDocsPoliciesUnchanged",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-010"
+      ],
+      "description": "Literal example values in DOCS-policy snippets must be validated against descriptor-derived constraints where they exist — type parse, buf.validate numeric bounds, string length bounds, uuid format, proto enum membership, and manifest values membership — emitting invalid_literal_value naming the violated constraint, and skipped silently when no constraint metadata exists (including when the descriptor image is absent).",
+      "id": "REQ-P1-011",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Descriptor-derived typed literal validation",
+      "validation": [
+        {
+          "notes": "Type, bounds, length, uuid, and enum-membership table including the placeholder-skips-typed-checks case.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/docsvalidate_test.go::TestDocsPolicyTypedLiteralChecks",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-010"
+      ],
+      "description": "Under DOCS policy, a balanced non-nested unquoted <...> group outside quotes must parse leniently as a single placeholder token reaching the same semantic checks as its quoted form, emitting exactly one unquoted_placeholder warning per group whose fix field carries the byte-exact snippet with every group double-quoted. Genuine shell operators outside placeholder groups (pipes, redirects, substitution, chaining) must remain hard unsupported_shell_syntax errors under every policy, and no shipped guidance may recommend TOKEN_VALUE placeholders.",
+      "id": "REQ-P1-012",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Lenient unquoted-placeholder parsing with byte-exact quoted autofix",
+      "validation": [
+        {
+          "notes": "Unquoted groups tokenize with byte-exact fixes; nested/unterminated groups and real operators stay hard errors.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/tokenizer_docs_test.go::TestTokenizeCommandDocsLenientPlaceholders",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "One unquoted_placeholder finding per group, each carrying the identical full-snippet fix.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/tokenizer_docs_test.go::TestDocsPolicyUnquotedPlaceholderFinding",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Redirection guidance recommends quoted placeholders and never TOKEN_VALUE.",
+          "phase": "unit",
+          "ref": "api/internal/commandref/service_test.go::TestValidateRedirectionGuidanceExplainsPlaceholders",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ]
+}

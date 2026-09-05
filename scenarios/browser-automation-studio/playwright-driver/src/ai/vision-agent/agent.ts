@@ -355,7 +355,8 @@ export function createVisionAgent(
             conversationHistory,
             stepNumber,
             navConfig.prompt,
-            elementLabels
+            elementLabels,
+            screenshot
           );
 
           // PERFORMANCE: Trim old conversation history to prevent context overflow
@@ -713,7 +714,8 @@ function updateConversationHistory(
   history: ConversationMessageInterface[],
   stepNumber: number,
   prompt: string,
-  elementLabels: ElementLabel[]
+  elementLabels: ElementLabel[],
+  screenshot: Buffer
 ): void {
   // Add system prompt on first step
   if (stepNumber === 1) {
@@ -734,6 +736,7 @@ function updateConversationHistory(
   history.push({
     role: 'user',
     content: `Current state (step ${stepNumber}):\n\n${elementContext}\n\nWhat action should I take next to achieve the goal?`,
+    screenshot,
   });
 }
 

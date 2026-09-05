@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package vrooli.ui_health.v1.inventory;
+
+import "ui-health/v1/contracts/provenance/provenance.proto";
+import "ui-health/v1/contracts/widget/widget.proto";
+import "ui-health/v1/search/search.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory;inventory_v1";
+
+// =============================================================================
+// INVENTORY DOMAIN — framework-dispatch RPC contract
+// =============================================================================
+//
+// @layer 4  (cross-scenario contract)
+// @domain inventory
+// @stability unstable
+//
+// Defines the InventoryService that ui-health *consumes* and per-framework
+// component-library scenarios *implement*. ui-health resolves the right
+// implementer per scenario by reading the target scenario's service.json
+// generation.template.id and looking up the implementer mapping.
+//
+// Compile-time dependency direction: ui-health defines this service in its
+// proto; component-library scenarios depend on this file and the contracts
+// messages it references. ui-health makes runtime calls over Connect-RPC and
+// has no compile-time dependency on any component-library scenario.
+// =============================================================================
+
+service InventoryService {
+  // ScanScenario walks the named scenario's UI tree, parses framework-specific
+  // markup (e.g. JSDoc blocks on .tsx files for React), and returns the
+  // canonical ComponentProvenance + WidgetDeclaration + indexable SurfaceRecord
+  // values keyed by file path.
+  rpc ScanScenario(ScanScenarioRequest) returns (ScanScenarioResponse);
+  // Scan validates the supplied asset subjects without walking unrelated UI.
+  rpc Scan(ScanRequest) returns (ScanResponse);
+}
+
+message ScanScenarioRequest {
+  // Scenario id (directory name under scenarios/).
+  string scenario = 1;
+}
+
+// SurfaceRecord carries the minimal indexable fields ui-health embeds into
+// the ui-health-surface Qdrant collection. The framework library decides what
+// counts as a surface (component, page, feature, hook, layout) for its
+// ecosystem.
+message SurfaceRecord {
+  string scenario = 1;
+  string slot = 2;
+  vrooli.ui_health.v1.search.SurfaceKind kind = 3;
+  string display_name = 4;
+  string description = 5;
+  string file_path = 6;
+}
+
+message ScanScenarioResponse {
+  string scenario = 1;
+  repeated vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 2;
+  repeated vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widgets = 3;
+  repeated SurfaceRecord surfaces = 4;
+}
+
+message Subject {
+  string kind = 1;
+  string id = 2;
+  string version = 3;
+  string fingerprint = 4;
+}
+
+message ScanRequest {
+  repeated Subject subjects = 1;
+}
+
+message SubjectFindings {
+  Subject subject = 1;
+  repeated vrooli.ui_health.v1.contracts.provenance.ComponentProvenance provenance = 2;
+  repeated vrooli.ui_health.v1.contracts.widget.WidgetDeclaration widgets = 3;
+  repeated SurfaceRecord surfaces = 4;
+}
+
+message ScanResponse {
+  repeated SubjectFindings findings = 1;
+}

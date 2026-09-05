@@ -1,0 +1,242 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "command-center",
+    "displayName": "Command Center",
+    "description": "Director Swarm's instrument: reads the objective set and every team's declared instrument, joins the authored outcome space against what resolves, qualifies each reading on three independent axes, and renders one ranked answer to which sensor is worth building next. Surfaces and ranks; never actuates.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "business-application",
+    "tags": [
+      "instrument",
+      "board",
+      "director-swarm",
+      "outcomes",
+      "observability",
+      "ambient-display",
+      "read-only",
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/command-center"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "command-center",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "command-center"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "swarm-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for agent/backlog throughput metrics (The Forge, Mission Control)"
+      },
+      "landing-page-business-suite": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for subscription, revenue, and web analytics metrics (Ledger, Broadcast)"
+      },
+      "prompt-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Typed objective and team-instrument transmitter"
+      },
+      "offer-desk": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for the release ladder panel"
+      },
+      "deployment-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Source for deployment readiness state"
+      },
+      "source-ledger": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Durable owned morning walk briefings and conditional checkpoint append; unavailable ledger fails explicit walk writes."
+      }
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "label": "LPBS service token",
+        "description": "Optional server-side credential used by Command Center to read the LPBS revenue projection.",
+        "required": false,
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/command-center",
+        "field": "lpbs-production-service-token",
+        "label": "LPBS production service token",
+        "description": "Optional server-side credential used by Command Center to attribute readings from the deployed LPBS origin.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/command-center/SKILL.md",
+      "programs": []
+    },
+    "improve": {
+      "source": "skills/command-center-improve/SKILL.md",
+      "programs": [
+        "command-center.setpoint-read",
+        "command-center.learning-read"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/command-center-vision-walk-prep/SKILL.md",
+        "programs": [
+          "command-center.vision-walk-prep"
+        ]
+      },
+      {
+        "source": "skills/morning-vision-walk/SKILL.md",
+        "programs": []
+      }
+    ],
+    "learning": {
+      "scope": "command-center-usage"
+    },
+    "waivers": {}
+  }
+}

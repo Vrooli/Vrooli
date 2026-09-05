@@ -10,7 +10,18 @@ const (
 	DefaultVerifyDelaySeconds     = 30
 	DefaultMaxRestartAttempts     = 3
 	DefaultRestartCooldownSeconds = 300
-	DefaultHistoryRetentionHours  = 24
+	// DefaultHistoryRetentionHours is the named operational-history window.
+	// The manifest-owned scheduled sweeps for health_results and action_logs
+	// are contract-tested against this value so configuration and enforcement
+	// cannot silently drift apart.
+	DefaultHistoryRetentionHours       = 24
+	DefaultActionTimeoutFastSeconds    = 30
+	DefaultActionTimeoutRestartSeconds = 300
+	DefaultTimeoutRetrySeconds         = 30
+	DefaultHealInterlockSeconds        = 30
+	// DefaultContainStorm is automatic (plan decision D5): agents only, never
+	// a supervisor or a resource.
+	DefaultContainStorm = "automatic"
 
 	// UI defaults
 	DefaultAutoRefreshSeconds = 30
@@ -24,12 +35,17 @@ const (
 // DefaultGlobal returns the default global configuration
 func DefaultGlobal() GlobalConfig {
 	return GlobalConfig{
-		GracePeriodSeconds:     DefaultGracePeriodSeconds,
-		TickIntervalSeconds:    DefaultTickIntervalSeconds,
-		VerifyDelaySeconds:     DefaultVerifyDelaySeconds,
-		MaxRestartAttempts:     DefaultMaxRestartAttempts,
-		RestartCooldownSeconds: DefaultRestartCooldownSeconds,
-		HistoryRetentionHours:  DefaultHistoryRetentionHours,
+		GracePeriodSeconds:          DefaultGracePeriodSeconds,
+		TickIntervalSeconds:         DefaultTickIntervalSeconds,
+		VerifyDelaySeconds:          DefaultVerifyDelaySeconds,
+		MaxRestartAttempts:          DefaultMaxRestartAttempts,
+		RestartCooldownSeconds:      DefaultRestartCooldownSeconds,
+		HistoryRetentionHours:       DefaultHistoryRetentionHours,
+		ActionTimeoutFastSeconds:    DefaultActionTimeoutFastSeconds,
+		ActionTimeoutRestartSeconds: DefaultActionTimeoutRestartSeconds,
+		TimeoutRetrySeconds:         DefaultTimeoutRetrySeconds,
+		HealInterlockSeconds:        DefaultHealInterlockSeconds,
+		ContainStorm:                DefaultContainStorm,
 	}
 }
 
@@ -46,9 +62,19 @@ func DefaultUI() UIConfig {
 // DefaultConfig returns a configuration with all defaults applied
 func DefaultConfig() *Config {
 	return &Config{
-		Version:    DefaultVersion,
-		Global:     DefaultGlobal(),
-		Checks:     make(map[string]Check),
+		Version: DefaultVersion,
+		Global:  DefaultGlobal(),
+		Checks: map[string]Check{
+			// Host-integrity checks are part of the operator-visible contract.
+			// Keep their explicit toggles in the returned config so the API and
+			// CLI expose the same controls that the registry uses.
+			"host-kernel-module-drift":   {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-device-driver-binding": {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-runtime-integrity":     {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-package-state":         {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-kernel-error-signals":  {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+			"host-capability-drift":      {Enabled: boolPtr(true), AutoHeal: boolPtr(false)},
+		},
 		UI:         DefaultUI(),
 		Monitoring: DefaultMonitoring(),
 	}
@@ -57,28 +83,10 @@ func DefaultConfig() *Config {
 // DefaultMonitoring returns the default monitoring configuration
 // This defines which scenarios and resources are monitored by default
 func DefaultMonitoring() MonitoringConfig {
-	return MonitoringConfig{
-		Scenarios: map[string]MonitoredScenario{
-			// Critical scenarios - will report StatusCritical when stopped
-			"app-monitor":       {Critical: true},
-			"ecosystem-manager": {Critical: true},
-			// Non-critical scenarios - will report StatusWarning when stopped
-			"landing-manager":           {Critical: false},
-			"browser-automation-studio": {Critical: false},
-			"test-genie":                {Critical: false},
-			"deployment-manager":        {Critical: false},
-			"git-control-tower":         {Critical: false},
-			"tidiness-manager":          {Critical: false},
-		},
-		Resources: []string{
-			"postgres",
-			"redis",
-			"ollama",
-			"qdrant",
-			"searxng",
-			"browserless",
-		},
-	}
+	// Supervision authority comes exclusively from `vrooli supervision-set`.
+	// Persisted monitoring entries are additive operator overrides, so the
+	// built-in default must remain empty rather than becoming a rival core list.
+	return MonitoringConfig{Scenarios: map[string]MonitoredScenario{}}
 }
 
 // CheckDefaults contains default settings for a check
@@ -150,9 +158,29 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	},
 
 	// System checks
+	"system-stale-service-binary": {
+		Enabled: true,
+		// A supervised service running a replaced binary is exactly the kind of
+		// condition an operator should never have to notice: the fix is a
+		// restart of a unit designed to be restarted, and the restart already
+		// passes through the host-pressure gate that defers it while the
+		// machine is saturated.
+		//
+		// AutoHealOn must be warning+critical. The check reports a warning —
+		// stale code is wrong, not on fire — so the default "critical" trigger
+		// would leave it detected and never acted on.
+		AutoHeal:        true,
+		AutoHealOn:      "warning+critical",
+		IntervalSeconds: 300,
+	},
 	"system-disk": {
-		Enabled:         true,
-		AutoHeal:        false, // Can't auto-heal disk space
+		Enabled: true,
+		// Disk pressure IS auto-healable: the request-cleanup action reports
+		// to storage-manager, which reclaims safe-tier space unattended and
+		// refuses anything above safe tier. This was previously false with the
+		// comment "Can't auto-heal disk space", which is why the 2026-07-31
+		// host filled to 100 percent overnight with nobody awake to act.
+		AutoHeal:        true,
 		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 		Thresholds: &Thresholds{
@@ -160,6 +188,17 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 			CriticalPercent: ptr(90.0),
 			Partitions:      []string{"/", "/home"},
 		},
+	},
+	"system-emergency-watchdog-report": {
+		Enabled: true,
+		// The storm authority (plan decision D5): a sustained fork storm the
+		// watchdog attributes to an agent session scope is frozen from the
+		// auto-heal pass. The action only ever targets a scope under
+		// vrooli-agents.slice, and Global.ContainStorm=propose_only marks it
+		// Dangerous so this pass never selects it.
+		AutoHeal:        true,
+		AutoHealOn:      "critical",
+		IntervalSeconds: 60,
 	},
 	"system-inode": {
 		Enabled:         true,
@@ -208,6 +247,16 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		IntervalSeconds: 3600,
 	},
 
+	// Host-integrity checks are intentionally observable by default, but their
+	// mutations remain operator-approved until each remediation action has an
+	// explicit safety contract.
+	"host-kernel-module-drift":   {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-device-driver-binding": {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-runtime-integrity":     {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-package-state":         {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-kernel-error-signals":  {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+	"host-capability-drift":      {Enabled: true, AutoHeal: false, AutoHealOn: "critical", IntervalSeconds: 300},
+
 	// Resource checks - all enabled with auto-heal by default
 	"resource-postgres": {
 		Enabled:         true,
@@ -239,25 +288,24 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 	},
-	"resource-browserless": {
+	"resource-whisper": {
 		Enabled:         true,
 		AutoHeal:        true,
 		AutoHealOn:      "critical",
-		IntervalSeconds: 120,
+		IntervalSeconds: 60,
 	},
 
-	// Vrooli API check
-	"vrooli-api": {
-		Enabled:         true,
-		AutoHeal:        true,
-		AutoHealOn:      "critical",
-		IntervalSeconds: 30,
-	},
 	"os-watchdog": {
 		Enabled:         true,
 		AutoHeal:        true,
 		AutoHealOn:      "critical",
 		IntervalSeconds: 300,
+	},
+	"vrooli-runtime-supervisor": {
+		Enabled:         true,
+		AutoHeal:        true,
+		AutoHealOn:      "critical",
+		IntervalSeconds: 60,
 	},
 
 	// Vrooli lifecycle checks
@@ -275,6 +323,12 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 	},
 }
 
+// scenarioAutoHealOptOut is deliberately explicit and empty by default. A
+// scenario that must never be restarted can be added here with an operator
+// decision; ordinary scenario checks must not require a hand-maintained allow
+// list to recover from an outage.
+var scenarioAutoHealOptOut = map[string]struct{}{}
+
 // Helper functions for creating pointers
 func ptr(v float64) *float64 {
 	return &v
@@ -291,8 +345,20 @@ func boolPtr(v bool) *bool {
 // GetCheckDefaults returns the default configuration for a check
 // If the check isn't in KnownCheckDefaults, returns generic defaults
 func GetCheckDefaults(checkID string) CheckDefaults {
+	if isScenarioCheck(checkID) && !isScenarioAutoHealOptedOut(checkID) {
+		return CheckDefaults{Enabled: true, AutoHeal: true, AutoHealOn: "critical", IntervalSeconds: 60}
+	}
 	if defaults, ok := KnownCheckDefaults[checkID]; ok {
 		return defaults
+	}
+	// A resource check gets resource defaults from its prefix, exactly as a
+	// scenario check does. Before this, a resource added to the monitored list
+	// without a matching KnownCheckDefaults entry fell through to the generic
+	// default with AutoHeal false and was monitored but never healed — which is
+	// what left resource-reranker logging "auto-heal not enabled for this
+	// check" on every cycle for weeks.
+	if isResourceCheck(checkID) {
+		return CheckDefaults{Enabled: true, AutoHeal: true, AutoHealOn: "critical", IntervalSeconds: 60}
 	}
 	// Generic defaults for unknown checks
 	return CheckDefaults{
@@ -301,4 +367,25 @@ func GetCheckDefaults(checkID string) CheckDefaults {
 		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	}
+}
+
+// isResourceCheck reports whether a check id names a resource check. The
+// mode-drift family shares the prefix, so it inherits the same defaults.
+func isResourceCheck(checkID string) bool {
+	const prefix = "resource-"
+	return len(checkID) > len(prefix) && checkID[:len(prefix)] == prefix
+}
+
+func isScenarioCheck(checkID string) bool {
+	const prefix = "scenario-"
+	return len(checkID) > len(prefix) && checkID[:len(prefix)] == prefix
+}
+
+func isScenarioAutoHealOptedOut(checkID string) bool {
+	const prefix = "scenario-"
+	if !isScenarioCheck(checkID) {
+		return false
+	}
+	_, optedOut := scenarioAutoHealOptOut[checkID[len(prefix):]]
+	return optedOut
 }

@@ -3,6 +3,7 @@ package cliapp
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -11,12 +12,92 @@ import (
 )
 
 // Command represents a runnable CLI command.
+//
+// Two handler shapes are supported:
+//   - Run: the existing func([]string) error path. Used by commands that do
+//     their own arg parsing (typically with stdlib flag.NewFlagSet).
+//   - RunCtx + Args: the declarative path. The Args ArgSchema feeds both the
+//     parser and helpgen; the resulting RunContext is passed to RunCtx.
+//
+// When both are set, RunCtx wins. When neither is set, the dispatcher returns
+// an error. New scenarios should prefer RunCtx + Args.
 type Command struct {
-	Name        string
-	Aliases     []string
-	Description string
-	NeedsAPI    bool
-	Run         func(args []string) error
+	Name            string
+	Aliases         []string
+	Description     string
+	Usage           string
+	HelpText        string
+	LongDescription string
+	NeedsAPI        bool
+	Args            ArgSchema
+	Run             func(args []string) error
+	RunCtx          func(ctx RunContext) error
+	// Architecture declares the command's renderer-separated primitive class
+	// (or an explicit exception class for legitimate special cases). It is
+	// optional and additive: a zero value means "unclassified/legacy" and
+	// carries no behavioral effect. It is the machine-recognizable evidence
+	// cli-health classifies command architecture maturity from, mirrored at
+	// runtime from the manifest's architecture block (see LoadFromManifest).
+	Architecture CommandArchitecture
+	// DryRun declares how this command honors the global --dry-run signal.
+	// The zero value is deliberately unsupported: commands must opt in only
+	// after their no-write behavior is covered by a conformance test.
+	DryRun DryRunPolicy
+	// DryRunAlternative names a command-local preview when global --dry-run is
+	// unsupported (for example, "plans reconcile --dry-run").
+	DryRunAlternative string
+	// primitiveEvidence is the cli-core primitive class that ACTUALLY built the
+	// handler, stamped by construction by the primitive builders (see
+	// PrimitiveHandler / LoadFromManifestPrimitives / WithPrimitive). An empty
+	// value means no machine-verifiable evidence — a legacy or hand-rolled
+	// handler. Unlike Architecture (which a manifest can declare freely),
+	// primitiveEvidence is UNEXPORTED: only a cli-core builder in this package can
+	// set it, so scenario code cannot forge verified maturity through a struct
+	// literal or field assignment (plan decision D3). CLI Health treats a
+	// declaration that matches the observed evidence as verified rather than
+	// self-certified. Read it via PrimitiveEvidence(); see ClassifyPrimitiveEvidence.
+	primitiveEvidence PrimitiveClass
+}
+
+// DryRunPolicy describes the signal a command actually honors. Only
+// DryRunHeader supports cli-core's global --dry-run flag; request-field and
+// command-local policies are recorded so preflight can point at the right
+// alternative without pretending the global header is universally safe.
+type DryRunPolicy string
+
+const (
+	DryRunUnsupported  DryRunPolicy = ""
+	DryRunHeader       DryRunPolicy = "header"
+	DryRunRequestField DryRunPolicy = "request_field"
+	DryRunCommandLocal DryRunPolicy = "command_local"
+)
+
+func (c Command) globalDryRunError() error {
+	if c.DryRun == DryRunHeader {
+		return nil
+	}
+	command := strings.TrimSpace(c.Name)
+	message := fmt.Sprintf("command %q does not support global --dry-run", command)
+	if alternative := strings.TrimSpace(c.DryRunAlternative); alternative != "" {
+		message += "; use '" + alternative + "' instead"
+	}
+	return errors.New(message)
+}
+
+// PrimitiveEvidence returns the cli-core primitive class the command's handler
+// was built from (empty when the handler carries no evidence). Read-only: the
+// evidence can only be stamped by a cli-core primitive builder via WithPrimitive,
+// WithLegacyPrimitive, or LoadFromManifestPrimitives.
+func (c Command) PrimitiveEvidence() PrimitiveClass { return c.primitiveEvidence }
+
+// WithPrimitive wires a PrimitiveHandler onto the command: it sets RunCtx to the
+// handler closure and records the primitive class as observed implementation
+// evidence. Use it for non-manifest RunCtx commands so the evidence travels with
+// the command rather than being restated by scenario code.
+func (c Command) WithPrimitive(ph PrimitiveHandler) Command {
+	c.RunCtx = ph.Run
+	c.primitiveEvidence = ph.primitive
+	return c
 }
 
 // CommandGroup bundles related commands for help output.
@@ -36,6 +117,12 @@ type SubcommandGroup struct {
 	Subcommands []Command
 	// NeedsAPI applies to all subcommands unless overridden
 	NeedsAPI bool
+	// DefaultSubcommand, when non-empty, names the subcommand to invoke when
+	// args[0] is not a known subcommand and not a help token. Lets a group
+	// accept `<group> <free-form args>` as shorthand for
+	// `<group> <default> <free-form args>` — useful when one subcommand is so
+	// dominant that requiring it harms ergonomics (e.g. search).
+	DefaultSubcommand string
 }
 
 // AppOptions configure a CLI application with common behaviors.
@@ -50,6 +137,10 @@ type AppOptions struct {
 	OnColor          func(enabled bool)
 	StaleChecker     *cliutil.StaleChecker
 	Preflight        func(cmd Command, global GlobalOptions) error
+	// UnknownCommandHint, when set, returns extra recovery text for known bad
+	// command shapes. It is advisory only; the dispatcher still returns an
+	// unknown-command error and never executes a replacement command.
+	UnknownCommandHint func(args []string) string
 }
 
 // GlobalOptions holds parsed global flags that all scenario CLIs share.
@@ -58,6 +149,15 @@ type GlobalOptions struct {
 	ColorEnabled    bool
 	AutoStart       bool
 	DryRun          bool
+	// Instance selects which variant of the CLI's own scenario its API calls
+	// target (e.g. "shadow"). Empty means "use the default routing" (ambient
+	// VROOLI_SHADOW_SCENARIOS, else live). An explicit "live" forces live even
+	// when the scenario is ambiently shadowed.
+	Instance string
+	// Node selects a connected node explicitly. Empty always means local; no
+	// environment variable or ambient routing signal can select a node.
+	// When an addressed command also contains a node/ prefix, that prefix wins.
+	Node string
 }
 
 // DefaultColorEnabled derives the default color setting from NO_COLOR.
@@ -72,6 +172,15 @@ type App struct {
 	commands              []Command
 	commandLookup         map[string]Command
 	subcommandGroupLookup map[string]*SubcommandGroup
+	scenario              *ScenarioApp
+	stdout                io.Writer
+	stderr                io.Writer
+}
+
+// AttachScenario records the ScenarioApp so RunCtx-style handlers can call
+// RunContext.Core() to reach the API client. Called by ScenarioApp.SetCommandsWithSubgroups.
+func (a *App) AttachScenario(s *ScenarioApp) {
+	a.scenario = s
 }
 
 // NewApp builds an App with meta commands (help/version) included automatically.
@@ -89,6 +198,28 @@ func NewApp(opts AppOptions) *App {
 
 // Run parses global flags, routes to a command, and triggers stale checks when needed.
 func (a *App) Run(args []string) error {
+	return a.RunWithWriters(args, os.Stdout, os.Stderr)
+}
+
+// RunWithWriters is Run with explicit output streams. It lets an embedding
+// CLI preserve its own output contract while reusing cli-core dispatch. The
+// App is process-local and must not be run concurrently with another call.
+func (a *App) RunWithWriters(args []string, stdout, stderr io.Writer) error {
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	if stderr == nil {
+		stderr = io.Discard
+	}
+	previousStdout, previousStderr := a.stdout, a.stderr
+	a.stdout, a.stderr = stdout, stderr
+	defer func() {
+		a.stdout, a.stderr = previousStdout, previousStderr
+	}()
+	return a.run(args)
+}
+
+func (a *App) run(args []string) error {
 	if len(args) == 0 {
 		a.PrintHelp()
 		return nil
@@ -99,6 +230,10 @@ func (a *App) Run(args []string) error {
 		return err
 	}
 	a.applyColor()
+	// Scope the --instance selection to this CLI's own scenario so its API-base
+	// port detector (Case A) routes to the chosen variant, without affecting how
+	// it resolves unrelated targets.
+	cliutil.SetInstanceOverride(a.opts.Name, a.global.Instance)
 
 	if len(remaining) == 0 {
 		a.PrintHelp()
@@ -112,12 +247,23 @@ func (a *App) Run(args []string) error {
 
 	cmd, ok := a.commandLookup[remaining[0]]
 	if !ok {
-		return fmt.Errorf("Unknown command: %s", remaining[0])
+		// The installed binary may predate a command that now exists in source.
+		// Check freshness before reporting capability absence so an unknown
+		// command gets the same self-healing path as a known API command. This
+		// only adds freshness work to the error path; known non-API commands keep
+		// their existing fast path.
+		if a.checkStaleAndMaybeRebuild(args) {
+			return nil
+		}
+		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), a.unknownCommandHint(remaining))
+	}
+	if wantsHelp(remaining[1:]) {
+		a.printCommandHelp(a.opts.Name, cmd)
+		return nil
 	}
 
-	if cmd.NeedsAPI && a.opts.StaleChecker != nil {
-		a.opts.StaleChecker.ReexecArgs = args
-		if restarted := a.opts.StaleChecker.CheckAndMaybeRebuild(); restarted {
+	if cmd.NeedsAPI {
+		if restarted := a.checkStaleAndMaybeRebuild(args); restarted {
 			return nil
 		}
 	}
@@ -128,12 +274,12 @@ func (a *App) Run(args []string) error {
 		}
 	}
 
-	return cmd.Run(remaining[1:])
+	return a.dispatchCommand(a.opts.Name, cmd, remaining[1:])
 }
 
 // runSubcommand handles dispatch within a subcommand group.
 func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		a.printSubcommandHelp(group)
 		return nil
 	}
@@ -156,39 +302,148 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		}
 	}
 
+	if cmd == nil && group.DefaultSubcommand != "" {
+		for i := range group.Subcommands {
+			if group.Subcommands[i].Name == group.DefaultSubcommand {
+				cmd = &group.Subcommands[i]
+				break
+			}
+		}
+		if cmd == nil {
+			return fmt.Errorf("subcommand group %q declares DefaultSubcommand %q but no such subcommand exists", group.Name, group.DefaultSubcommand)
+		}
+		return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args)
+	}
 	if cmd == nil {
-		return fmt.Errorf("Unknown subcommand: %s %s\nRun '%s %s help' for available subcommands", group.Name, args[0], a.opts.Name, group.Name)
+		// A stale binary can know the group but not a newly added leaf. Rebuild
+		// before returning a false-negative capability result.
+		if a.checkStaleAndMaybeRebuild(originalArgs) {
+			return nil
+		}
+		path := append([]string{group.Name}, args...)
+		return fmt.Errorf("Unknown subcommand: %s %s%s%s\nRun '%s %s help' for available subcommands",
+			group.Name, args[0], suggestSubcommand(group, args[0]), a.unknownCommandHint(path), a.opts.Name, group.Name)
+	}
+	if wantsHelp(args[1:]) {
+		a.printCommandHelp(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd)
+		return nil
 	}
 
 	needsAPI := cmd.NeedsAPI || group.NeedsAPI
-	if needsAPI && a.opts.StaleChecker != nil {
-		a.opts.StaleChecker.ReexecArgs = originalArgs
-		if restarted := a.opts.StaleChecker.CheckAndMaybeRebuild(); restarted {
+	if needsAPI {
+		if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
 			return nil
 		}
 	}
 
 	if a.opts.Preflight != nil {
 		preflightCmd := *cmd
+		preflightCmd.Name = strings.TrimSpace(group.Name + " " + cmd.Name)
 		preflightCmd.NeedsAPI = needsAPI
 		if err := a.opts.Preflight(preflightCmd, a.global); err != nil {
 			return err
 		}
 	}
 
-	return cmd.Run(args[1:])
+	return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args[1:])
+}
+
+func (a *App) checkStaleAndMaybeRebuild(args []string) bool {
+	if a.opts.StaleChecker == nil {
+		return false
+	}
+	a.opts.StaleChecker.ReexecArgs = append([]string(nil), args...)
+	return a.opts.StaleChecker.CheckAndMaybeRebuild()
+}
+
+// dispatchCommand routes a Command's execution through either the declarative
+// RunCtx path (when Args/RunCtx are set) or the legacy Run path. ErrHelpRequested
+// from the parser is caught here and converted to a help print with nil error.
+func (a *App) dispatchCommand(prefix string, cmd Command, cmdArgs []string) error {
+	if cmd.RunCtx != nil {
+		ctx, err := parseArgs(cmd.Args, cmdArgs, a.scenario, a.stdoutWriter(), a.stderrWriter())
+		if err != nil {
+			if errors.Is(err, ErrHelpRequested) {
+				a.printCommandHelp(prefix, cmd)
+				return nil
+			}
+			return err
+		}
+		return renderCommandError(prefix, cmd.RunCtx(ctx))
+	}
+	if cmd.Run != nil {
+		return renderCommandError(prefix, cmd.Run(cmdArgs))
+	}
+	return fmt.Errorf("command %q has no Run or RunCtx handler", cmd.Name)
+}
+
+// renderCommandError keeps the transport error available to callers while
+// making the API's canonical message visible to a human CLI invocation. The
+// API client deliberately returns a typed error so machine callers can inspect
+// status and raw response; the command boundary is the right place to turn
+// that envelope into actionable text.
+func renderCommandError(prefix string, err error) error {
+	if err == nil {
+		return nil
+	}
+	var apiErr *cliutil.APIError
+	if !errors.As(err, &apiErr) {
+		return err
+	}
+	if envelope, ok := DecodeEnvelope(apiErr.RawResponse); ok {
+		return fmt.Errorf("%s: %s: %s", strings.TrimSpace(prefix), envelope.Code, envelope.Message)
+	}
+	return err
 }
 
 // printSubcommandHelp prints help for a subcommand group.
 func (a *App) printSubcommandHelp(group *SubcommandGroup) {
-	fmt.Printf("%s %s - %s\n\n", a.opts.Name, group.Name, group.Description)
-	fmt.Printf("Usage:\n  %s %s <subcommand> [options]\n\n", a.opts.Name, group.Name)
-	fmt.Println("Subcommands:")
+	w := a.stdoutWriter()
+	fmt.Fprintf(w, "%s %s - %s\n\n", a.opts.Name, group.Name, group.Description)
+	fmt.Fprintf(w, "Usage:\n  %s %s <subcommand> [options]\n\n", a.opts.Name, group.Name)
+	fmt.Fprintln(w, "Subcommands:")
 	for _, cmd := range group.Subcommands {
-		fmt.Printf("  %-20s %s\n", cmd.Name, cmd.Description)
+		fmt.Fprintf(w, "  %-20s %s\n", cmd.Name, cmd.Description)
 	}
-	fmt.Println()
-	fmt.Printf("Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
+}
+
+func (a *App) printCommandHelp(prefix string, cmd Command) {
+	if cmd.RunCtx != nil {
+		_ = renderHelp(prefix, cmd, a.stdoutWriter())
+		return
+	}
+
+	w := a.stdoutWriter()
+	fullName := strings.TrimSpace(prefix + " " + cmd.Name)
+	title := strings.TrimSpace(fullName)
+	if cmd.Description != "" {
+		fmt.Fprintf(w, "%s - %s\n\n", title, cmd.Description)
+	} else {
+		fmt.Fprintf(w, "%s\n\n", title)
+	}
+
+	usage := strings.TrimSpace(cmd.Usage)
+	if usage == "" {
+		usage = fullName
+	}
+	fmt.Fprintf(w, "Usage:\n  %s\n", usage)
+
+	if len(cmd.Aliases) > 0 {
+		fmt.Fprintf(w, "\nAliases:\n  %s\n", strings.Join(cmd.Aliases, ", "))
+	}
+
+	if helpText := strings.TrimSpace(cmd.HelpText); helpText != "" {
+		fmt.Fprintf(w, "\n%s\n", helpText)
+	}
+	if cmd.DryRun == DryRunHeader {
+		fmt.Fprintln(w, "\nGlobal --dry-run: supported (canonical X-Dry-Run header).")
+	} else if alternative := strings.TrimSpace(cmd.DryRunAlternative); alternative != "" {
+		fmt.Fprintf(w, "\nGlobal --dry-run: unsupported; preview with '%s'.\n", alternative)
+	} else {
+		fmt.Fprintln(w, "\nGlobal --dry-run: unsupported.")
+	}
 }
 
 // SetStaleChecker overrides the stale checker (useful in tests).
@@ -198,34 +453,51 @@ func (a *App) SetStaleChecker(checker *cliutil.StaleChecker) {
 
 // PrintHelp renders grouped command help plus global options.
 func (a *App) PrintHelp() {
-	fmt.Printf("%s CLI\n\n", a.opts.Name)
-	fmt.Printf("Usage:\n  %s <command> [options]\n\n", a.opts.Name)
+	w := a.stdoutWriter()
+	fmt.Fprintf(w, "%s CLI\n\n", a.opts.Name)
+	fmt.Fprintf(w, "Usage:\n  %s [global options] <command> [options]\n\n", a.opts.Name)
 
-	fmt.Print("Global Options:\n")
-	fmt.Println("  --api-base <url>   Override API base URL (default: auto-detected)")
-	fmt.Println("  --auto-start       Auto-start the scenario if not running")
-	fmt.Println("  --dry-run          Validate without executing mutations")
-	fmt.Println("  --no-color         Disable ANSI color output (or set NO_COLOR)")
-	fmt.Println("  --color            Force-enable ANSI color output")
-	fmt.Println()
+	fmt.Fprint(w, "Global Options (must be placed BEFORE the command):\n")
+	fmt.Fprintln(w, "  --api-base <url>   Override API base URL (default: auto-detected)")
+	fmt.Fprintln(w, "  --instance <name>  Target a scenario variant (e.g. shadow); default: live")
+	fmt.Fprintln(w, "  --node <name>      Target a connected node; address prefix wins; never selected implicitly")
+	fmt.Fprintln(w, "  --auto-start       Auto-start the scenario if not running")
+	fmt.Fprintln(w, "  --dry-run          Request dry-run only for commands that explicitly declare global support")
+	fmt.Fprintln(w, "  --no-color         Disable ANSI color output (or set NO_COLOR)")
+	fmt.Fprintln(w, "  --color            Force-enable ANSI color output")
+	fmt.Fprintln(w)
 
 	// Print subcommand groups first (these are the main features)
 	if len(a.opts.SubcommandGroups) > 0 {
-		fmt.Println("Command Groups (run '<group> help' for details):")
+		fmt.Fprintln(w, "Command Groups (run '<group> help' for details):")
 		for _, group := range a.opts.SubcommandGroups {
-			fmt.Printf("  %-20s %s\n", group.Name, group.Description)
+			fmt.Fprintf(w, "  %-20s %s\n", group.Name, group.Description)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 
-	fmt.Println("Commands:")
+	fmt.Fprintln(w, "Commands:")
 	for _, group := range a.commandGroups() {
-		fmt.Printf("  %s\n", group.Title)
+		fmt.Fprintf(w, "  %s\n", group.Title)
 		for _, cmd := range group.Commands {
-			fmt.Printf("    %-28s %s\n", cmd.Name, cmd.Description)
+			fmt.Fprintf(w, "    %-28s %s\n", cmd.Name, cmd.Description)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
+}
+
+func (a *App) stdoutWriter() io.Writer {
+	if a.stdout != nil {
+		return a.stdout
+	}
+	return os.Stdout
+}
+
+func (a *App) stderrWriter() io.Writer {
+	if a.stderr != nil {
+		return a.stderr
+	}
+	return os.Stderr
 }
 
 func (a *App) commandGroups() []CommandGroup {
@@ -290,6 +562,19 @@ func (a *App) applyColor() {
 	}
 }
 
+// isGlobalFlagName reports whether name (without leading dashes) is a shared
+// global flag. Global flags are parsed only before the subcommand; when one is
+// misplaced after it, the subcommand parser uses this to emit a placement hint
+// instead of a bare "unknown option".
+func isGlobalFlagName(name string) bool {
+	switch name {
+	case "api-base", "instance", "node", "auto-start", "dry-run", "no-color", "color":
+		return true
+	default:
+		return false
+	}
+}
+
 // ParseGlobalFlags extracts shared flags from args, updating global options and an optional API override target.
 func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *string) ([]string, error) {
 	if global == nil {
@@ -298,6 +583,10 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
+		if args[i] == "--" {
+			remaining = append(remaining, args[i:]...)
+			break
+		}
 		switch args[i] {
 		case "--api-base":
 			if i+1 >= len(args) {
@@ -308,6 +597,18 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 				*apiOverrideTarget = args[i+1]
 			}
 			i++
+		case "--instance":
+			if i+1 >= len(args) {
+				return nil, errors.New("missing value for --instance")
+			}
+			global.Instance = args[i+1]
+			i++
+		case "--node":
+			if i+1 >= len(args) {
+				return nil, errors.New("missing value for --node")
+			}
+			global.Node = args[i+1]
+			i++
 		case "--auto-start":
 			global.AutoStart = true
 		case "--dry-run":
@@ -317,10 +618,76 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 		case "--color":
 			global.ColorEnabled = true
 		default:
-			remaining = append(remaining, args[i])
+			remaining = append(remaining, args[i:]...)
+			return remaining, nil
 		}
 	}
 	return remaining, nil
+}
+
+// suggestCommand returns a ` (did you mean "x"?)` fragment naming the nearest
+// command or subcommand group, or "" when nothing is close. Covers the common
+// singular/plural miss (e.g. `record create` → `records create`) so agents get
+// a one-retry correction instead of a dead end.
+func (a *App) suggestCommand(candidate string) string {
+	options := make([]string, 0, len(a.commandLookup)+len(a.subcommandGroupLookup))
+	for name := range a.commandLookup {
+		if !strings.HasPrefix(name, "-") { // skip --help/-v style aliases
+			options = append(options, name)
+		}
+	}
+	for name := range a.subcommandGroupLookup {
+		options = append(options, name)
+	}
+	if nearest := cliutil.NearestString(candidate, options, 2); nearest != "" {
+		return fmt.Sprintf(" (did you mean %q?)", nearest)
+	}
+	return ""
+}
+
+func (a *App) unknownCommandHint(args []string) string {
+	if a.opts.UnknownCommandHint == nil {
+		return ""
+	}
+	hint := strings.TrimSpace(a.opts.UnknownCommandHint(append([]string(nil), args...)))
+	if hint == "" {
+		return ""
+	}
+	return "\n\n" + hint
+}
+
+// suggestSubcommand is suggestCommand scoped to one group's subcommands.
+func suggestSubcommand(group *SubcommandGroup, candidate string) string {
+	options := make([]string, 0, len(group.Subcommands))
+	for _, sub := range group.Subcommands {
+		options = append(options, sub.Name)
+		options = append(options, sub.Aliases...)
+	}
+	if nearest := cliutil.NearestString(candidate, options, 2); nearest != "" {
+		return fmt.Sprintf(" (did you mean %q?)", nearest)
+	}
+	return ""
+}
+
+func isHelpToken(arg string) bool {
+	switch strings.TrimSpace(arg) {
+	case "help", "-h", "--help":
+		return true
+	default:
+		return false
+	}
+}
+
+func wantsHelp(args []string) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			return false
+		}
+		if isHelpToken(arg) {
+			return true
+		}
+	}
+	return false
 }
 
 // SortedCommands returns commands ordered by name (useful for tests).

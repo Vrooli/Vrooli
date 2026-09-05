@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Notification Hub safely.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "states": [{ "id": "default" }]
+}

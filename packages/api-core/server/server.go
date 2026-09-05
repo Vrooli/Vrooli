@@ -48,15 +48,22 @@
 package server
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/provenance"
 )
 
 // Config controls HTTP server behavior and lifecycle.
@@ -68,7 +75,8 @@ type Config struct {
 	// StartServer is a custom function to start the server.
 	// Use this for non-standard servers like Fiber.
 	// When set, Handler is ignored and ShutdownServer must also be set.
-	// The addr parameter is in ":port" format (e.g., ":8080").
+	// The addr parameter contains the configured bind address and port
+	// (e.g., "127.0.0.1:8080").
 	// Optional.
 	StartServer func(addr string) error
 
@@ -82,6 +90,13 @@ type Config struct {
 	// If empty, reads from API_PORT environment variable.
 	// If API_PORT is also empty, defaults to "8080".
 	Port string
+
+	// BindAddress specifies the interface to listen on. An empty value defaults
+	// to loopback so a newly-started scenario is not exposed on the network
+	// before its operator has configured an explicit trust boundary.
+	// Set this explicitly (or use API_BIND_ADDRESS) for a remotely reachable
+	// service that has its own authentication boundary.
+	BindAddress string
 
 	// ReadTimeout is the maximum duration for reading the entire request.
 	// If zero, defaults to 30 seconds.
@@ -153,14 +168,104 @@ func Run(cfg Config) error {
 	if cfg.Handler == nil {
 		return errors.New("server.Config.Handler is required (or provide StartServer/ShutdownServer for custom servers)")
 	}
+	// Standard clients used while handling this request inherit verified identity
+	// forwarding through api-core. Field scenarios do not attach workflow tokens
+	// themselves.
+	provenance.InstallDefaultForwardingTransport()
+	// One platform-owned receipt boundary for every standard server. It is
+	// best-effort and self-disables until lifecycle provides scenario identity.
+	cfg.Handler = eventbus.AutomaticRuntime(cfg.Handler)
+	// Every standard API server recognizes a verified Agent Manager caller. The
+	// middleware is passive without the identity header, so scenarios inherit
+	// request-context capture without custom server wiring. Verification failure
+	// remains an explicit context state rather than a request failure.
+	cfg.Handler = provenance.Middleware(provenance.CLIUtilVerifier{})(cfg.Handler)
+	cfg.Handler = accessLog(cfg.log, cfg.Handler)
+	cfg.Handler = recoverPanics(cfg.log, cfg.Handler)
 
 	return runStandardServer(cfg)
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+	wrote  bool
+}
+
+// Flush preserves streaming (SSE, chunked progress) through the access-log
+// wrapper. Embedding http.ResponseWriter does NOT promote http.Flusher from the
+// wrapped concrete writer, so without this every handler that asserts
+// w.(http.Flusher) fails -- which silently broke server-sent events for every
+// scenario on the standard server.
+func (w *statusWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		if !w.wrote {
+			w.wrote = true
+		}
+		flusher.Flush()
+	}
+}
+
+// Hijack preserves WebSocket upgrades through the wrapper, for the same
+// interface-promotion reason as Flush.
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hijacker.Hijack()
+}
+
+// Unwrap lets net/http helpers reach optional interfaces on the underlying
+// writer as the middleware stack evolves.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *statusWriter) WriteHeader(status int) {
+	if w.wrote {
+		return
+	}
+	w.status = status
+	w.wrote = true
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *statusWriter) Write(data []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(data)
+}
+
+func accessLog(logf func(string, ...interface{}), next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracked := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		started := time.Now()
+		next.ServeHTTP(tracked, r)
+		logf("HTTP access method=%s path=%s status=%d duration=%s", r.Method, r.URL.Path, tracked.status, time.Since(started).Round(time.Millisecond))
+	})
+}
+
+func recoverPanics(logf func(string, ...interface{}), next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tracked := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				logf("HTTP panic method=%s path=%s panic=%v stack=%s", r.Method, r.URL.Path, recovered, debug.Stack())
+				if !tracked.wrote {
+					tracked.Header().Set("Content-Type", "application/json")
+					tracked.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(tracked).Encode(map[string]string{"error": "internal server error"})
+				}
+			}
+		}()
+		next.ServeHTTP(tracked, r)
+	})
 }
 
 // runStandardServer runs a standard net/http server.
 func runStandardServer(cfg Config) error {
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         net.JoinHostPort(cfg.BindAddress, cfg.Port),
 		Handler:      cfg.Handler,
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
@@ -191,12 +296,12 @@ func runStandardServer(cfg Config) error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	return runCleanup(cfg, ctx)
+	return runCleanup(ctx, cfg)
 }
 
 // runCustomServer runs a custom server using the provided callbacks.
 func runCustomServer(cfg Config) error {
-	addr := ":" + cfg.Port
+	addr := net.JoinHostPort(cfg.BindAddress, cfg.Port)
 
 	// Channel for server startup errors
 	errCh := make(chan error, 1)
@@ -222,7 +327,7 @@ func runCustomServer(cfg Config) error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	return runCleanup(cfg, ctx)
+	return runCleanup(ctx, cfg)
 }
 
 // waitForShutdown waits for either a shutdown signal or a startup error.
@@ -243,7 +348,7 @@ func waitForShutdown(cfg Config, errCh <-chan error) error {
 }
 
 // runCleanup runs the cleanup function and logs the server stop message.
-func runCleanup(cfg Config, ctx context.Context) error {
+func runCleanup(ctx context.Context, cfg Config) error {
 	if cfg.Cleanup != nil {
 		if err := cfg.Cleanup(ctx); err != nil {
 			cfg.log("Cleanup error: %v", err)
@@ -262,6 +367,12 @@ func withDefaults(cfg Config) Config {
 	}
 	if cfg.Port == "" {
 		cfg.Port = "8080"
+	}
+	if cfg.BindAddress == "" {
+		cfg.BindAddress = cfg.getenv("API_BIND_ADDRESS")
+	}
+	if cfg.BindAddress == "" {
+		cfg.BindAddress = "127.0.0.1"
 	}
 
 	// Timeouts

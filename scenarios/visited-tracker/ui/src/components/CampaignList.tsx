@@ -63,7 +63,7 @@ export function CampaignList({ onViewCampaign, onCreateClick, onHelpClick }: Cam
 
   const deleteMutation = useMutation({
     mutationFn: deleteCampaign,
-    onSuccess: (_, campaignId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       showToast("Campaign deleted successfully", "success");
     },

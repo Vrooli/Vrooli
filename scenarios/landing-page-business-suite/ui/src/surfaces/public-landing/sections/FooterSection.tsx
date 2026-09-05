@@ -1,4 +1,4 @@
-import { Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { Code2, Linkedin, Mail, MessageCircle } from 'lucide-react';
 
 interface FooterLink {
   label: string;
@@ -70,12 +70,12 @@ export function FooterSection({ content }: FooterSectionProps) {
             <div className="flex gap-3 pt-2">
               {socialLinks.github && (
                 <FooterIcon href={socialLinks.github} label="GitHub">
-                  <Github className="h-5 w-5" />
+                  <Code2 className="h-5 w-5" />
                 </FooterIcon>
               )}
               {socialLinks.twitter && (
                 <FooterIcon href={socialLinks.twitter} label="Twitter">
-                  <Twitter className="h-5 w-5" />
+                  <MessageCircle className="h-5 w-5" />
                 </FooterIcon>
               )}
               {socialLinks.linkedin && (
@@ -106,7 +106,7 @@ export function FooterSection({ content }: FooterSectionProps) {
           ))}
         </div>
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
-          <p>{content.copyright || `© ${new Date().getFullYear()} Silent Founder OS by Vrooli. All rights reserved.`}</p>
+          <p>{content.copyright || `© ${String(new Date().getFullYear())} Silent Founder OS by Vrooli. All rights reserved.`}</p>
           <div className="flex gap-6">
             <a href="/privacy" className="hover:text-white">
               Privacy Policy

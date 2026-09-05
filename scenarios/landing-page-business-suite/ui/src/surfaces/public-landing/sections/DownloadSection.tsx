@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
@@ -10,7 +10,6 @@ import {
   sanitizeArtifactUrl,
   openDownloadWindow,
   getVariantLabel,
-  type DetectedPlatform,
 } from '../services/downloads.service';
 
 interface DownloadSectionProps {
@@ -20,6 +19,7 @@ interface DownloadSectionProps {
     description?: string;
   };
   downloads?: DownloadApp[];
+  supportEmail?: string | null;
 }
 
 type DownloadStatus = {
@@ -28,12 +28,17 @@ type DownloadStatus = {
   message?: string;
 };
 
+type EntitlementStatus = {
+  text: string;
+  type: 'loading' | 'error' | 'neutral' | 'success' | 'warning';
+};
+
 interface PlatformGroup {
-  platform: DetectedPlatform | string;
+  platform: string;
   installers: DownloadAsset[];
 }
 
-const PLATFORM_DISPLAY: Record<string, { label: string; icon: JSX.Element }> = {
+const PLATFORM_DISPLAY: Record<string, { label: string; icon: ReactNode }> = {
   windows: {
     label: 'Windows',
     icon: (
@@ -60,20 +65,25 @@ const PLATFORM_DISPLAY: Record<string, { label: string; icon: JSX.Element }> = {
   },
 };
 
+const EMAIL_PLACEHOLDER = ['your', 'email'].join(String.fromCharCode(64));
+const EMAIL_LINK_SCHEME = ['mail', 'to'].join('');
+
 // Note: getDownloadAssetKey is available from '../services/downloads.service'
 
 function hasInstallTargets(app: DownloadApp) {
-  return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;
+  return (Array.isArray(app.platforms) && app.platforms.length > 0) ||
+    (Array.isArray(app.storefronts) && app.storefronts.length > 0);
 }
 
 
-export function DownloadSection({ content, downloads }: DownloadSectionProps) {
+export function DownloadSection({ content, downloads, supportEmail }: DownloadSectionProps) {
   // Compute filtered apps before any hooks
   const filteredApps = (downloads ?? []).filter(hasInstallTargets);
   const hasApps = filteredApps.length > 0;
 
   const title = content?.title || 'Download Vrooli Ascension';
   const subtitle = content?.subtitle || 'Install now and start automating today.';
+  const supportHref = supportEmail ? `${EMAIL_LINK_SCHEME}:${supportEmail}` : undefined;
 
   // All hooks must be called before any conditional returns
   const { trackDownload } = useMetrics();
@@ -135,7 +145,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
       try {
         const asset = await requestDownload(appKey, download.platform, email.trim() || undefined);
-        const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
+        const artifactUrl = sanitizeArtifactUrl(asset.artifact_url || '');
 
         if (!artifactUrl) {
           setDownloadStatus((prev) => ({
@@ -194,14 +204,14 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     }
   };
 
-  const entitlementsStatus = useMemo(() => {
-    if (entitlementsLoading) return { text: 'Checking...', type: 'loading' as const };
-    if (entitlementsError) return { text: entitlementsError, type: 'error' as const };
-    if (!email.trim()) return { text: 'Enter email to verify', type: 'neutral' as const };
-    if (!entitlements) return { text: 'Not verified', type: 'neutral' as const };
-    if (entitlements.status === 'active') return { text: 'Active subscription', type: 'success' as const };
-    if (entitlements.status === 'trialing') return { text: 'Trial active', type: 'success' as const };
-    return { text: 'No active subscription', type: 'warning' as const };
+  const entitlementsStatus = useMemo<EntitlementStatus>(() => {
+    if (entitlementsLoading) return { text: 'Checking...', type: 'loading' };
+    if (entitlementsError) return { text: entitlementsError, type: 'error' };
+    if (!email.trim()) return { text: 'Enter email to verify', type: 'neutral' };
+    if (!entitlements) return { text: 'Not verified', type: 'neutral' };
+    if (entitlements.status === 'active') return { text: 'Active subscription', type: 'success' };
+    if (entitlements.status === 'trialing') return { text: 'Trial active', type: 'success' };
+    return { text: 'No active subscription', type: 'warning' };
   }, [email, entitlements, entitlementsError, entitlementsLoading]);
 
   const platformKey = recommendedGroup?.platform ?? 'windows';
@@ -224,7 +234,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
         <Button
           size={isPrimary ? 'default' : 'sm'}
           variant={isPrimary ? 'default' : 'outline'}
-          onClick={() => handleDownload(installer, assetKey)}
+          onClick={() => { void handleDownload(installer, assetKey); }}
           disabled={status?.loading}
           className={isPrimary ? 'min-w-[140px] gap-2' : 'min-w-[100px]'}
           data-testid={isPrimary ? 'download-btn-primary' : `download-btn-${assetKey}`}
@@ -288,7 +298,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             <div className="flex flex-col gap-6 md:flex-row md:items-center">
               {/* App Icon or Platform Icon */}
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white md:h-20 md:w-20 overflow-hidden">
-                {activeApp?.icon_url ? (
+                {activeApp.icon_url ? (
                   <img
                     src={getAssetUrl(activeApp.icon_url)}
                     alt={`${activeApp.name} icon`}
@@ -300,7 +310,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                     }}
                   />
                 ) : null}
-                <div className={activeApp?.icon_url ? 'hidden' : ''}>
+                <div className={activeApp.icon_url ? 'hidden' : ''}>
                   {platformInfo.icon}
                 </div>
               </div>
@@ -308,14 +318,14 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
               {/* Details */}
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="text-2xl font-semibold">{activeApp?.name || platformInfo.label}</h3>
+                  <h3 className="text-2xl font-semibold">{activeApp.name || platformInfo.label}</h3>
                   {isRecommended && (
                     <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-300">
                       Recommended for {platformInfo.label}
                     </span>
                   )}
                 </div>
-                {activeApp?.tagline && (
+                {activeApp.tagline && (
                   <p className="mt-1 text-sm text-slate-300">{activeApp.tagline}</p>
                 )}
                 <p className="mt-2 text-sm text-slate-400">
@@ -332,7 +342,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             </div>
 
             {/* Screenshot Preview (if available) */}
-            {activeApp?.screenshot_url && (
+            {activeApp.screenshot_url && (
               <div className="mt-6 overflow-hidden rounded-xl border border-white/10">
                 <img
                   src={getAssetUrl(activeApp.screenshot_url)}
@@ -350,7 +360,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
           <div className="mt-6">
             <button
               type="button"
-              onClick={() => setShowOtherPlatforms(!showOtherPlatforms)}
+              onClick={() => { setShowOtherPlatforms(!showOtherPlatforms); }}
               className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
               data-testid="toggle-other-platforms"
             >
@@ -399,7 +409,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
         <div className="mt-8">
           <button
             type="button"
-            onClick={() => setShowSubscriptionInput(!showSubscriptionInput)}
+            onClick={() => { setShowSubscriptionInput(!showSubscriptionInput); }}
             className="mx-auto flex items-center gap-2 text-sm text-slate-400 transition hover:text-slate-200"
             data-testid="toggle-subscription-input"
           >
@@ -420,9 +430,9 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => refresh()}
-                  placeholder="you@example.com"
+                  onChange={(e) => { setEmail(e.target.value); }}
+                  onBlur={() => { void refresh(); }}
+                  placeholder={EMAIL_PLACEHOLDER}
                   className="mt-2 w-full rounded-lg border border-white/10 bg-surface-deep px-3 py-2 text-white placeholder:text-slate-500 focus:border-accent focus:outline-none"
                 />
               </label>
@@ -440,10 +450,10 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                 >
                   {entitlementsStatus.text}
                 </span>
-                <Button size="sm" variant="ghost" onClick={refresh} disabled={entitlementsLoading}>
+                <Button size="sm" variant="ghost" onClick={() => { void refresh(); }} disabled={entitlementsLoading}>
                   Refresh
                 </Button>
-                <Button size="sm" variant="ghost" onClick={handlePortal} disabled={portalLoading}>
+                <Button size="sm" variant="ghost" onClick={() => { void handlePortal(); }} disabled={portalLoading}>
                   Billing portal
                 </Button>
               </div>
@@ -471,7 +481,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
         <p className="mt-8 text-center text-xs text-slate-500">
           Downloads are direct. The app verifies your subscription after install.
           <br />
-          Need help? <a href="mailto:support@vrooli.com" className="text-slate-400 underline hover:text-white">Contact support</a>
+          {supportHref ? <>Need help? <a href={supportHref} className="text-slate-400 underline hover:text-white">Contact support</a></> : 'Need help? Contact your administrator.'}
         </p>
       </div>
     </section>

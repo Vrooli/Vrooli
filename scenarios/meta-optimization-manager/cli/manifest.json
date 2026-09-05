@@ -1,0 +1,471 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "meta-optimization-manager",
+  "description": "meta-optimization-manager CLI surface. Single source of truth for the command groups (coverage/focus/convergence/trials): schema-validated against cli-manifest/v1 and cross-validated against the proto service descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "coverage",
+      "description": "Readiness scoreboard \u2014 per-projection coverage joined live against the owners",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the readiness scoreboard (per-projection coverage + denominator-confidence + empirical trend)",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Restrict to one projection (answer|validate|guide|act); omit for all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list-cells",
+          "description": "List the denominator grid cells with live status applied",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Filter by projection (answer|validate|guide|act)"
+            },
+            {
+              "name": "status",
+              "description": "Filter by status (now|in_reach|missing)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ListCells"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "explain-cell",
+          "description": "Explain one cell (by namespaced id <projection>/<id>) with its provenance",
+          "positionals": [
+            {
+              "name": "cell-id",
+              "required": true,
+              "description": "Namespaced cell id, e.g. answer/2"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ExplainCell"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate-docs",
+          "description": "Validate the space docs themselves (self-honesty gate, OT-P0-004); exits non-zero on an ERROR issue",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Restrict to one projection (answer|validate|guide|act); omit for all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ValidateBaseDocs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "condition",
+      "description": "Observed serving condition for capability legs already counted as supply",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show observed condition findings sourced from owner telemetry",
+          "binding": {"kind": "connect-rpc", "service": "FocusService", "method": "ListCondition"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "explain-leg",
+          "description": "Explain one provider leg's observed condition and evidence",
+          "positionals": [{"name": "provider-id", "required": true, "description": "Registered provider leaf id"}],
+          "binding": {"kind": "connect-rpc", "service": "FocusService", "method": "ExplainCondition"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "focus",
+      "description": "Ranked next-best gaps \u2014 impact \u00d7 importance across all projections + convergence",
+      "commands": [
+        {
+          "name": "next",
+          "description": "Show the ranked next-best gaps (impact \u00d7 importance) with qualitative context",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Cap the number of items (default 5)"
+            },
+            {
+              "name": "projection",
+              "description": "Restrict to one projection (answer|validate|guide|act)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetFocus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "gaps",
+      "description": "The gaps registry \u2014 list/show known gaps and store explored approaches",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the gaps registry (live-derived non-NOW cells overlaid with the owned registry)",
+          "flags": [
+            {
+              "name": "projection",
+              "description": "Filter by projection (answer|validate|guide|act)"
+            },
+            {
+              "name": "cell",
+              "description": "Filter by source cell id",
+              "bind": {
+                "field": "cell_id"
+              }
+            },
+            {
+              "name": "status",
+              "description": "Filter by status (now|in_reach|missing)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "ListGaps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one gap by id with its full qualitative context",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Gap id, e.g. answer/2"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "GetGap"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "note",
+          "description": "Append an explored-but-unbuilt approach to a gap (the one focus write verb)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Gap id, e.g. answer/2"
+            }
+          ],
+          "flags": [
+            {
+              "name": "add",
+              "description": "The approach / idea to store",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FocusService",
+            "method": "AddGapNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "convergence",
+      "description": "Template & generated-golden fitness \u2014 the four-lens convergence measure + trend",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show per-template four-lens fitness + gold-star generated-golden health across all templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConvergenceService",
+            "method": "GetConvergenceStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fitness",
+          "description": "Show the four-lens fitness counts + advisory tier for one template (or all)",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Restrict to one template (e.g. react-vite); omit for all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConvergenceService",
+            "method": "GetTemplateFitness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "references",
+          "description": "List gold-star generated-golden health + eligibility",
+          "flags": [
+            {
+              "name": "eligibility",
+              "description": "Filter by eligibility (eligible|candidate|ineligible)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConvergenceService",
+            "method": "ListReferences"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "trend",
+          "description": "Show per-replica-cost / coordinated-edit points over the dated fitness-audit records",
+          "flags": [
+            {
+              "name": "template",
+              "description": "Restrict to one template; omit for all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConvergenceService",
+            "method": "GetConvergenceTrend"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "trials",
+      "description": "The empirical local-model gate \u2014 run the Guide-derived suite in a sandbox and track the trend",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the trial task suite (generated from the Guide space)",
+          "flags": [
+            {
+              "name": "suite",
+              "description": "Filter by suite (add-feature|research|comprehend|bugfix|negative)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TrialsService",
+            "method": "ListTrialTasks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Dispatch a single trial (default) through agent-manager's sandboxed runner and evaluate it (explicit invocation; expensive; never auto-runs). Requires --task, --suite, or --all.",
+          "flags": [
+            {
+              "name": "task",
+              "description": "Run a single task by id (the default scope; takes precedence)"
+            },
+            {
+              "name": "suite",
+              "description": "Run a whole suite family (add-feature|research|comprehend|bugfix|negative)"
+            },
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Run the full generated suite (every family). Opt-in \u2014 guards against accidental cost."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TrialsService",
+            "method": "RunTrials"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "history",
+          "description": "Show the success-rate / tokens / wall-time trend over time",
+          "flags": [
+            {
+              "name": "task",
+              "description": "Filter by task id",
+              "bind": {
+                "field": "task_id"
+              }
+            },
+            {
+              "name": "suite",
+              "description": "Filter by suite"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TrialsService",
+            "method": "GetTrialHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one trial run (verdict, sandbox diff, tokens, time)",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Trial run id",
+              "bind": {
+                "field": "id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TrialsService",
+            "method": "GetTrialRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Show the % of Guide-space tasks that have a live empirical gate",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TrialsService",
+            "method": "GetGateCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": []
+}

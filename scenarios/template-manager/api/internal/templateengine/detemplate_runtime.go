@@ -1,0 +1,591 @@
+package templateengine
+
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
+	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
+)
+
+// detemplateTextExtensions are the file types detemplate rewrites in place
+// (fenced doc blocks + registration-line markers). Whole-file example
+// artifacts are deleted via the manifest, not edited.
+var detemplateTextExtensions = map[string]struct{}{
+	".md": {}, ".go": {}, ".ts": {}, ".tsx": {}, ".js": {}, ".jsx": {},
+	".mjs": {}, ".cjs": {}, ".json": {}, ".css": {}, ".scss": {}, ".sql": {},
+	".sh": {}, ".yaml": {}, ".yml": {}, ".proto": {}, ".txt": {}, ".html": {},
+}
+
+// detemplateCodeExtensions are scanned for dangling import references to
+// deleted example code (the refuse-on-dangling-ref guard).
+var detemplateCodeExtensions = map[string]struct{}{
+	".go": {}, ".ts": {}, ".tsx": {}, ".js": {}, ".jsx": {}, ".mjs": {}, ".cjs": {},
+}
+
+// detemplateSkipDirs are never walked when editing scenario files or scanning
+// for residue. `.vrooli` is skipped because the rendered orientation tracker
+// (`.vrooli/orientation.json`) embeds the residue check's own marker text and
+// would otherwise self-trip the gate.
+var detemplateSkipDirs = map[string]struct{}{
+	".git": {}, "node_modules": {}, "dist": {}, "build": {}, ".next": {},
+	"coverage": {}, "vendor": {}, ".turbo": {}, ".vrooli": {},
+}
+
+type detemplateDeletion struct {
+	Display string // scenario-relative, or repo-relative for the relocated proto tree
+	Abs     string
+	IsProto bool
+}
+
+type detemplateEdit struct {
+	Abs     string
+	Content []byte
+	Mode    fs.FileMode
+	Summary templatecontracts.FileMarkerSummary
+}
+
+type detemplateFinalizerPlan struct {
+	Description string
+	Name        string
+	Args        []string
+	Dir         string
+}
+
+type detemplateContext struct {
+	root     string
+	item     scenariomodel.Scenario
+	info     templatecontracts.TemplateInfo
+	example  *templatecontracts.TemplateExampleDomain
+	marker   string
+	template string
+}
+
+func runDetemplate[C any](deps HandlerDeps[C], ctx C, req templatecontracts.DetemplateRequest) (templatecontracts.DetemplateResult, error) {
+	dctx, err := loadDetemplateContext(deps.Root(ctx), req.Name)
+	if err != nil {
+		return templatecontracts.DetemplateResult{}, err
+	}
+	result := templatecontracts.DetemplateResult{
+		Scenario:     dctx.item.Slug,
+		ScenarioPath: dctx.item.Path,
+		Marker:       dctx.marker,
+		DryRun:       req.DryRun,
+	}
+
+	deletions := resolveDetemplateDeletions(dctx.root, dctx.item, dctx.info, dctx.example.Paths)
+	edits, dangling, err := planDetemplateEdits(dctx.item.Path, dctx.marker, deletions)
+	if err != nil {
+		return templatecontracts.DetemplateResult{}, err
+	}
+	if len(dangling) > 0 {
+		return templatecontracts.DetemplateResult{}, &templatecontracts.DetemplateDanglingRefError{Marker: dctx.marker, References: dangling}
+	}
+	jsonEdits, err := planDetemplateJSONPrunes(dctx.item.Path, dctx.example.JSONPrune)
+	if err != nil {
+		return templatecontracts.DetemplateResult{}, err
+	}
+	edits = append(edits, jsonEdits...)
+	sort.Slice(edits, func(i, j int) bool { return edits[i].Summary.Path < edits[j].Summary.Path })
+
+	populateDetemplateSummary(&result, edits, deletions)
+	plans := planDetemplateFinalizers(dctx.root, dctx.item, detemplateTouchesProto(deletions))
+
+	if req.DryRun {
+		populateDryRunDetemplateFinalizers(&result, plans)
+		result.Message = "Dry run: no files were written, deleted, or finalized."
+		return result, nil
+	}
+
+	if len(edits) == 0 && len(deletions) == 0 {
+		result.Message = fmt.Sprintf("No %q example-domain residue found; scenario is already detemplated.", dctx.marker)
+		return result, nil
+	}
+
+	if err := applyDetemplateChanges(edits, deletions); err != nil {
+		return templatecontracts.DetemplateResult{}, err
+	}
+	runDetemplateFinalizers(deps, ctx, &result, plans)
+
+	result.Message = fmt.Sprintf("Removed the %q example domain. Run `template-manager lifecycle orient %s` to confirm the example-domain-removed gate.", dctx.marker, dctx.item.Slug)
+	return result, nil
+}
+
+func loadDetemplateContext(root, name string) (detemplateContext, error) {
+	item, err := scenariomodel.Load(root, name, scenariomodel.SandboxEnvFromEnv())
+	if err != nil {
+		return detemplateContext{}, err
+	}
+	if item.Manifest.Generation == nil || strings.TrimSpace(item.Manifest.Generation.Template.ID) == "" {
+		return detemplateContext{}, fmt.Errorf("scenario %s has no template provenance; cannot determine its example domain", item.Slug)
+	}
+	templateID := item.Manifest.Generation.Template.ID
+	info, err := loadTemplate(root, templateID)
+	if err != nil {
+		return detemplateContext{}, fmt.Errorf("load template %q for scenario %s: %w", templateID, item.Slug, err)
+	}
+	ex := info.Manifest.ExampleDomain
+	if ex == nil || strings.TrimSpace(ex.Marker) == "" {
+		return detemplateContext{}, fmt.Errorf("template %q declares no exampleDomain; nothing to detemplate", templateID)
+	}
+	return detemplateContext{
+		root:     root,
+		item:     item,
+		info:     info,
+		example:  ex,
+		marker:   ex.Marker,
+		template: templateID,
+	}, nil
+}
+
+func populateDetemplateSummary(result *templatecontracts.DetemplateResult, edits []detemplateEdit, deletions []detemplateDeletion) {
+	for _, e := range edits {
+		result.FilesEdited = append(result.FilesEdited, e.Summary)
+		result.BlocksRemoved += e.Summary.BlocksRemoved
+		result.LinesStripped += e.Summary.LinesStripped
+	}
+	for _, d := range deletions {
+		result.PathsDeleted = append(result.PathsDeleted, d.Display)
+	}
+}
+
+func detemplateTouchesProto(deletions []detemplateDeletion) bool {
+	for _, d := range deletions {
+		if d.IsProto {
+			return true
+		}
+	}
+	return false
+}
+
+func populateDryRunDetemplateFinalizers(result *templatecontracts.DetemplateResult, plans []detemplateFinalizerPlan) {
+	for _, p := range plans {
+		result.Finalizers = append(result.Finalizers, templatecontracts.DetemplateFinalizer{
+			Description: p.Description,
+			Command:     p.commandLine(),
+			Ran:         false,
+		})
+	}
+}
+
+func applyDetemplateChanges(edits []detemplateEdit, deletions []detemplateDeletion) error {
+	for _, e := range edits {
+		if err := os.WriteFile(e.Abs, e.Content, e.Mode); err != nil {
+			return fmt.Errorf("rewrite %s: %w", e.Summary.Path, err)
+		}
+	}
+	for _, d := range deletions {
+		if err := os.RemoveAll(d.Abs); err != nil {
+			return fmt.Errorf("delete %s: %w", d.Display, err)
+		}
+	}
+	return nil
+}
+
+func runDetemplateFinalizers[C any](deps HandlerDeps[C], ctx C, result *templatecontracts.DetemplateResult, plans []detemplateFinalizerPlan) {
+	for _, p := range plans {
+		fin := templatecontracts.DetemplateFinalizer{Description: p.Description, Command: p.commandLine()}
+		if deps.RunSubprocess == nil {
+			fin.Message = "skipped (no subprocess runner)"
+			result.Finalizers = append(result.Finalizers, fin)
+			continue
+		}
+		fin.Ran = true
+		if runErr := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+			Name:   p.Name,
+			Args:   p.Args,
+			Dir:    p.Dir,
+			Env:    deps.CommandEnv(ctx),
+			Stdout: deps.Stderr(ctx),
+			Stderr: deps.Stderr(ctx),
+		}); runErr != nil {
+			fin.OK = false
+			fin.Message = runErr.Error()
+		} else {
+			fin.OK = true
+		}
+		result.Finalizers = append(result.Finalizers, fin)
+	}
+}
+
+// resolveDetemplateDeletions maps the manifest's example-domain paths onto
+// absolute paths in the generated scenario. Scenario-local paths join the
+// scenario root; paths under a relocation source (proto/) are mapped through
+// the relocation target, and the corresponding generated proto artifacts are
+// added so no orphan gen residue survives. Only paths that exist are returned,
+// which makes a second run a no-op (idempotent).
+func resolveDetemplateDeletions(root string, item scenariomodel.Scenario, info templatecontracts.TemplateInfo, paths []string) []detemplateDeletion {
+	var out []detemplateDeletion
+	seen := map[string]struct{}{}
+	add := func(abs, display string, isProto bool) {
+		if _, dup := seen[abs]; dup {
+			return
+		}
+		if _, err := os.Stat(abs); err != nil {
+			return
+		}
+		seen[abs] = struct{}{}
+		out = append(out, detemplateDeletion{Display: display, Abs: abs, IsProto: isProto})
+	}
+	for _, p := range paths {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		reloc, rel, ok := matchRelocation(info, p)
+		if !ok {
+			add(filepath.Join(item.Path, filepath.FromSlash(p)), p, false)
+			continue
+		}
+		// Proto schema source, mapped through the relocation target.
+		toBase := strings.ReplaceAll(reloc.To, "{{SCENARIO_ID}}", item.Slug)
+		schemaRel := filepath.Join(filepath.FromSlash(strings.TrimSuffix(toBase, "/")), filepath.FromSlash(rel))
+		add(filepath.Join(root, schemaRel), filepath.ToSlash(schemaRel), true)
+		// Generated proto artifacts for the same module (so make generate only
+		// has to refresh the descriptor, not race orphaned outputs).
+		for _, gen := range generatedProtoDirs(item.Slug, rel) {
+			add(filepath.Join(root, filepath.FromSlash(gen)), gen, true)
+		}
+	}
+	return out
+}
+
+// matchRelocation returns the relocation whose From is a path prefix of p,
+// along with p relative to that From.
+func matchRelocation(info templatecontracts.TemplateInfo, p string) (templatecontracts.TemplateRelocation, string, bool) {
+	for _, r := range info.Manifest.Relocations {
+		from := strings.TrimSuffix(r.From, "/") + "/"
+		if strings.HasPrefix(p, from) {
+			return r, strings.TrimPrefix(p, from), true
+		}
+	}
+	return templatecontracts.TemplateRelocation{}, "", false
+}
+
+// generatedProtoDirs returns the repo-relative generated artifact directories
+// for one relocated proto module (rel is e.g. "v1/notes").
+func generatedProtoDirs(scenarioID, rel string) []string {
+	snake := strings.ReplaceAll(scenarioID, "-", "_")
+	rel = filepath.ToSlash(rel)
+	return []string{
+		"packages/proto/gen/go/" + scenarioID + "/" + rel,
+		"packages/proto/gen/typescript/" + scenarioID + "/" + rel,
+		"packages/proto/gen/typescript/js/" + scenarioID + "/" + rel,
+		"packages/proto/gen/python/" + snake + "/" + rel,
+	}
+}
+
+// planDetemplateEdits walks the scenario tree, computes the rewritten content
+// for every text file carrying example markers, and detects dangling
+// references — kept code files that still import a to-be-deleted example
+// package after marker removal.
+func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDeletion) ([]detemplateEdit, []templatecontracts.DetemplateDanglingRef, error) {
+	deletedAbs := make([]string, 0, len(deletions))
+	for _, d := range deletions {
+		deletedAbs = append(deletedAbs, d.Abs)
+	}
+	tokens := danglingTokens(scenarioRoot, deletions)
+
+	var edits []detemplateEdit
+	var dangling []templatecontracts.DetemplateDanglingRef
+	err := filepath.WalkDir(scenarioRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if _, skip := detemplateSkipDirs[entry.Name()]; skip {
+				return fs.SkipDir
+			}
+			if underDeleted(path, deletedAbs) {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if underDeleted(path, deletedAbs) {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if _, ok := detemplateTextExtensions[ext]; !ok {
+			return nil
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		rel, _ := filepath.Rel(scenarioRoot, path)
+		rel = filepath.ToSlash(rel)
+		out, summary, changed := templatecontracts.StripExampleDomainFile(rel, content, marker)
+		if changed {
+			info, statErr := entry.Info()
+			mode := fs.FileMode(0o644)
+			if statErr == nil {
+				mode = info.Mode().Perm()
+			}
+			edits = append(edits, detemplateEdit{Abs: path, Content: out, Mode: mode, Summary: summary})
+		}
+		// Dangling-ref scan on the post-strip content of kept code files.
+		if _, isCode := detemplateCodeExtensions[ext]; isCode {
+			if len(tokens) > 0 {
+				for _, ref := range danglingReferences(out, tokens) {
+					dangling = append(dangling, templatecontracts.DetemplateDanglingRef{
+						File: rel, Reference: ref, Kind: templatecontracts.DanglingKindImportPath,
+					})
+				}
+			}
+			// Symbol residue: a kept file still using the example domain's
+			// name as live code. Generated files are excluded because a
+			// finalizer rewrites them after this scan runs, so flagging them
+			// would refuse a pass that is about to clean itself up.
+			if !isGeneratedArtifact(rel) {
+				for _, ref := range templatecontracts.ExampleDomainSymbolResidue(out, marker) {
+					dangling = append(dangling, templatecontracts.DetemplateDanglingRef{
+						File: rel, Reference: ref, Kind: templatecontracts.DanglingKindSymbol,
+					})
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Slice(edits, func(i, j int) bool { return edits[i].Summary.Path < edits[j].Summary.Path })
+	sort.Slice(dangling, func(i, j int) bool {
+		if dangling[i].File != dangling[j].File {
+			return dangling[i].File < dangling[j].File
+		}
+		return dangling[i].Reference < dangling[j].Reference
+	})
+	return edits, dangling, nil
+}
+
+// planDetemplateJSONPrunes computes order-preserving prunes for hand-authored
+// JSON files (i18n locales, the CLI manifest) that cannot carry comment
+// markers. Absent files are skipped, which keeps a second run a no-op.
+func planDetemplateJSONPrunes(scenarioRoot string, entries []templatecontracts.TemplateJSONPruneEntry) ([]detemplateEdit, error) {
+	var edits []detemplateEdit
+	for _, e := range entries {
+		abs := filepath.Join(scenarioRoot, filepath.FromSlash(e.File))
+		info, statErr := os.Stat(abs)
+		if statErr != nil {
+			continue
+		}
+		content, readErr := os.ReadFile(abs)
+		if readErr != nil {
+			return nil, readErr
+		}
+		out, removed, pruneErr := templatecontracts.PruneJSON(content, e.Keys, e.ArrayMatch)
+		if pruneErr != nil {
+			return nil, fmt.Errorf("prune %s: %w", e.File, pruneErr)
+		}
+		if removed == 0 {
+			continue
+		}
+		edits = append(edits, detemplateEdit{
+			Abs:     abs,
+			Content: out,
+			Mode:    info.Mode().Perm(),
+			Summary: templatecontracts.FileMarkerSummary{Path: e.File, LinesStripped: removed},
+		})
+	}
+	return edits, nil
+}
+
+func underDeleted(path string, deletedAbs []string) bool {
+	for _, d := range deletedAbs {
+		if path == d || strings.HasPrefix(path, d+string(os.PathSeparator)) {
+			return true
+		}
+	}
+	return false
+}
+
+// danglingTokens builds import-path tokens (last two segments, extension
+// stripped) for scenario-local deletions. Each token always contains a slash,
+// so single-word incidental mentions can't match.
+func danglingTokens(scenarioRoot string, deletions []detemplateDeletion) []*regexp.Regexp {
+	var tokens []*regexp.Regexp
+	seen := map[string]struct{}{}
+	for _, d := range deletions {
+		if d.IsProto {
+			continue
+		}
+		rel := strings.TrimSuffix(filepath.ToSlash(d.Display), filepath.Ext(d.Display))
+		segs := strings.Split(rel, "/")
+		if len(segs) < 2 {
+			continue
+		}
+		token := strings.Join(segs[len(segs)-2:], "/")
+		if _, dup := seen[token]; dup {
+			continue
+		}
+		seen[token] = struct{}{}
+		// Match the token only inside a single-line double-quoted import path.
+		// `[^"\n]` (not `[^"]`) keeps the match on one line so it cannot span
+		// from one quote, across a comment mentioning the deleted package, to
+		// an unrelated later quote — the bucket-3 incidental-comment trap.
+		tokens = append(tokens, regexp.MustCompile(`"[^"\n]*`+regexp.QuoteMeta(token)+`[^"\n]*"`))
+	}
+	return tokens
+}
+
+// generatedArtifactPatterns name files whose contents are rewritten by a
+// detemplate finalizer. The symbol-residue scan skips them: they legitimately
+// still carry example-domain names at scan time, and the finalizer that
+// regenerates them from the already-pruned sources removes those names.
+var generatedArtifactPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(^|/)[^/]*\.generated\.[^/]+$`),
+	regexp.MustCompile(`(^|/)[^/]*\.manifest\.json$`),
+	regexp.MustCompile(`(^|/)[^/]*_gen\.go$`),
+	regexp.MustCompile(`(^|/)[^/]*\.pb\.go$`),
+	regexp.MustCompile(`(^|/)generated/`),
+}
+
+// isGeneratedArtifact reports whether a scenario-relative path is regenerated
+// by a finalizer rather than hand-maintained.
+func isGeneratedArtifact(rel string) bool {
+	for _, re := range generatedArtifactPatterns {
+		if re.MatchString(rel) {
+			return true
+		}
+	}
+	return false
+}
+
+func danglingReferences(content []byte, tokens []*regexp.Regexp) []string {
+	var refs []string
+	for _, re := range tokens {
+		if m := re.Find(content); m != nil {
+			refs = append(refs, strings.Trim(string(m), `"`))
+		}
+	}
+	return refs
+}
+
+// planDetemplateFinalizers lists the post-strip commands that refresh
+// generated artifacts and tidy/format the scenario. Each is conditional on the
+// relevant surface existing, so a CLI-only or UI-only scenario only runs what
+// applies.
+func planDetemplateFinalizers(root string, item scenariomodel.Scenario, protoTouched bool) []detemplateFinalizerPlan {
+	var plans []detemplateFinalizerPlan
+	exists := func(parts ...string) bool {
+		_, err := os.Stat(filepath.Join(parts...))
+		return err == nil
+	}
+	if protoTouched && exists(root, "packages", "proto", "Makefile") {
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Regenerate proto artifacts (make generate)",
+			Name:        "make", Args: []string{"generate"},
+			Dir: filepath.Join(root, "packages", "proto"),
+		})
+	}
+	if exists(item.Path, "ui", "package.json") {
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Regenerate UI strings (pnpm strings:gen)",
+			Name:        "corepack", Args: []string{"pnpm", "run", "strings:gen"},
+			Dir: filepath.Join(item.Path, "ui"),
+		})
+		// The selector manifest is derived from consts/selectors.ts. The strip
+		// deletes the example domain's selector entries from that source, so
+		// without this the manifest keeps advertising selectors that no longer
+		// exist and every `@selector/<example>.*` reference resolves to
+		// nothing.
+		if exists(item.Path, "ui", "scripts", "generate-selector-manifest.mjs") {
+			plans = append(plans, detemplateFinalizerPlan{
+				Description: "Regenerate UI selector manifest (pnpm selector:manifest)",
+				Name:        "corepack", Args: []string{"pnpm", "run", "selector:manifest"},
+				Dir: filepath.Join(item.Path, "ui"),
+			})
+		}
+	}
+	// The BAS playbook registry indexes bas/cases/**. Deleting an example case
+	// leaves a stale entry pointing at a file that no longer exists, so the
+	// registry is rebuilt from what actually survived.
+	if exists(item.Path, "bas", "cases") {
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Rebuild BAS playbook registry (test-genie registry build)",
+			Name:        "test-genie", Args: []string{"registry", "build"},
+			Dir: item.Path,
+		})
+	}
+	if exists(item.Path, "api", "go.mod") {
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Tidy API Go module (go mod tidy)",
+			Name:        "go", Args: []string{"mod", "tidy"},
+			Dir: filepath.Join(item.Path, "api"),
+		})
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Format API Go sources (gofumpt)",
+			Name:        "gofumpt", Args: []string{"-w", "."},
+			Dir: filepath.Join(item.Path, "api"),
+		})
+	}
+	if exists(item.Path, "cli", "go.mod") {
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Tidy CLI Go module (go mod tidy)",
+			Name:        "go", Args: []string{"mod", "tidy"},
+			Dir: filepath.Join(item.Path, "cli"),
+		})
+		plans = append(plans, detemplateFinalizerPlan{
+			Description: "Format CLI Go sources (gofumpt)",
+			Name:        "gofumpt", Args: []string{"-w", "."},
+			Dir: filepath.Join(item.Path, "cli"),
+		})
+	}
+	return plans
+}
+
+func (p detemplateFinalizerPlan) commandLine() string {
+	return strings.TrimSpace(p.Name + " " + strings.Join(p.Args, " "))
+}
+
+// scanTreeForText walks root (text files only, skipping vendored/build dirs)
+// and returns the scenario-relative paths of files containing text. Used by
+// the example-domain residue gate (orient text_absent_tree check) and the
+// deep-validation round-trip.
+func scanTreeForText(root, text string) ([]string, error) {
+	if strings.TrimSpace(text) == "" {
+		return nil, nil
+	}
+	needle := []byte(text)
+	var hits []string
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if _, skip := detemplateSkipDirs[entry.Name()]; skip {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if _, ok := detemplateTextExtensions[ext]; !ok {
+			return nil
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if bytesContains(content, needle) {
+			rel, _ := filepath.Rel(root, path)
+			hits = append(hits, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(hits)
+	return hits, nil
+}
+
+func bytesContains(haystack, needle []byte) bool {
+	return strings.Contains(string(haystack), string(needle))
+}

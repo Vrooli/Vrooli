@@ -1,19 +1,18 @@
 # swarm-manager Interoperability Audit
 
-> Current State (2026-03-28): Active runtime interop is graph-first backlog/scenarios/settings/execution/prompts with agent-manager and optional ecosystem-manager. Any recommendation-endpoint references are historical context.
+> Current State (2026-03-28): Active runtime interop is graph-first backlog/scenarios/settings/execution/prompts with agent-manager and optional swarm-manager. Any recommendation-endpoint references are historical context.
 
 ## Last Updated
-2026-03-28
+2026-05-06
 
 ## Dependency Inventory
 | Dependency | Declared | Used in Code | Required/Optional | Status |
 |---|---|---|---|---|
 | agent-manager | Yes (`service.json`) | `internal/agentmanager/client.go` | Required | Proto-based, discovery per-request, 20s timeout |
-| ecosystem-manager | Yes (`service.json`) | `internal/ecosystem/client.go` | Required | JSON-based (no ecosystem-manager protos), discovery per-request, 20s timeout |
+| swarm-manager | Yes (`service.json`) | `internal/ecosystem/client.go` | Required | JSON-based (no swarm-manager protos), discovery per-request, 20s timeout |
 | knowledge-observatory | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | visited-tracker | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | scenario-completeness-scoring | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
-| app-issue-tracker | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | test-genie | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | prompt-manager | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 
@@ -30,6 +29,12 @@
 3. All UI domain types derive from proto types via `Omit<ProtoMessage<...>, ...>` pattern.
 4. Graph transport no longer uses hand-written DTOs or `Record<string, unknown>` payload maps across the UI↔API boundary.
 5. Proto-contracts type guards centralize status/enum validation for all domains.
+6. Agent session delete is a proto-owned REST exception:
+   `DeleteAgentSessionRequest` / `DeleteAgentSessionResponse` are generated
+   from `packages/proto/schemas/swarm-manager/v1/api/agent_session.proto`,
+   served at `DELETE /api/v1/agent-sessions/{session_id}`, parsed in the UI via
+   `deleteAgentSessionResponseSchema`, and exposed in the CLI through the
+   `sessions delete --id ID --yes` command.
 
 ## UI↔API Findings
 1. All hand-written interfaces in UI are component props, store state, or service interfaces — none duplicate backend graph/backlog/execution proto message shapes.
@@ -38,7 +43,7 @@
 
 ## Discovery/Lifecycle Findings
 1. `agentmanager/client.go`: Uses `discovery.ResolveScenarioURLDefault(ctx, "agent-manager")` via `baseURLResolver` — resolved per-request, not cached at startup.
-2. `ecosystem/client.go`: Uses `discovery.ResolveScenarioURLDefault(ctx, "ecosystem-manager")` — resolved per-request.
+2. `ecosystem/client.go`: Uses `discovery.ResolveScenarioURLDefault(ctx, "swarm-manager")` — resolved per-request.
 3. No hardcoded `localhost:port` in production integration paths.
 4. Both clients use `http.NewRequestWithContext` for context propagation with 20s timeouts.
 5. Dependency parity: all declared `required` dependencies in `service.json` have corresponding adapter code.
@@ -50,6 +55,19 @@
 - **API handler** (`internal/graph/handler.go`, `internal/graph/proto_response.go`, `internal/graph/projection.go`): Replaced raw JSON graph responses and map-based node payloads with typed projection structs encoded into proto `GraphResponse`.
 - **UI graph service/store** (`ui/src/services/graph-service.ts`, `ui/src/surfaces/graph/*`): Removed hand-written graph DTOs, adopted proto schema parsing, centralized graph node typing/helpers, and added shared typed graph test builders to keep store/presentation/canvas tests aligned with the real contract.
 - **Impact**: The graph-first workspace no longer drifts from the API contract and now benefits from compile-time checks across API encoding, UI mapping, clustering, presentation, and renderer tests.
+
+### 2026-05-06: Agent session delete contract
+- **Proto schema** (`swarm-manager/v1/api/agent_session.proto`): Added
+  `DeleteAgentSessionRequest` and `DeleteAgentSessionResponse` for destructive
+  session deletion.
+- **API/UI/CLI consumers**: API handler, UI service/store, session details page,
+  and CLI `sessions delete` all use the same session resource path. The UI
+  parses the response through generated proto descriptors, and CLI deletion
+  requires `--yes`.
+- **Destructive boundary**: The operation deletes only session-owned storage and
+  preserves created backlog items, initiatives, captures, files, and agent
+  activity records. Active Agent Manager runs are stopped before storage
+  deletion; failed stops abort deletion.
 
 ### 2026-02-13: Execution service backlogItem data loss fix
 - **Root cause**: `execution/service.go` defined its own `backlogItem` struct (line 525) missing the `created` and `research_target` fields. When `updateBacklogStatus()` wrote this incomplete struct back to `spec.json` via `storage.WriteJSONAtomic()`, those fields were silently dropped. Any item that went through the execution pipeline (queue, cancel, complete, fail) permanently lost its `created` timestamp and research target.
@@ -90,7 +108,7 @@
 1. **String-to-enum migration**: `scenario.proto`, `backlog.proto`, and `execution.proto` encode lifecycle states as strings with `in:` constraints; full proto enums would be safer but require a deprecation/migration plan.
 2. **Agent-manager `UseProtoNames: false`**: The agent-manager client uses `lowerCamelCase` JSON field names (not proto snake_case) because agent-manager expects camelCase. This is intentional but should be documented/tested to prevent accidental changes.
 3. **File content endpoints**: File read/write endpoints intentionally use raw/streamed responses rather than proto wrappers.
-4. **Ecosystem-manager JSON payloads**: `ecosystem/client.go` uses `encoding/json` with a hand-written `Task` struct because no ecosystem-manager proto schemas exist yet. When ecosystem-manager protos are created, this client should migrate to protojson.
+4. **swarm-manager JSON payloads**: `ecosystem/client.go` uses `encoding/json` with a hand-written `Task` struct because no swarm-manager proto schemas exist yet. When swarm-manager protos are created, this client should migrate to protojson.
 5. **Go inter-scenario retry policy**: Neither `agentmanager` nor `ecosystem` clients implement retry/backoff (single attempt, then error). For required dependencies this fail-fast behavior is acceptable, but bounded retry on transient/transport errors would improve resilience.
 
 ## Proper/Complete Gates

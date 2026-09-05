@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "command-center.setpoint-read",
+  "version": "1",
+  "purpose": "Read external binding condition and outcome-linked preparation learning; retain absent baselines and operator usefulness telemetry as explicit gaps.",
+  "inputs": {},
+  "assumptions": [
+    "Source owners independently report unavailable evidence."
+  ],
+  "invariants": [
+    "No writes.",
+    "No empty learning cohort is reported as successful.",
+    "Targets are never derived from current readings."
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/bindings/condition",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "binding-health, learning, external-friction, briefing-quality, operator-usefulness; each has reading, target, in_band, unavailable and reason."
+    },
+    "errors": {
+      "classes": [
+        "binding_error"
+      ]
+    },
+    "evidence": "External sensor binding ids."
+  },
+  "budget": {
+    "wall_ms": 180000,
+    "async": true,
+    "async_reason": "Independent peer instruments may require slow owner reads; runner waits once.",
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 8,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "Partial only when external reads fail; unmeasured permanent rows do not lower status."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "command-center-improve"
+}

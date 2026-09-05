@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "visited-tracker",
+  "description": "Governance catalog for the visited-tracker CLI command surface.",
+  "groups": [
+    {
+      "name": "tracking",
+      "flat": true,
+      "commands": [
+        {"name": "visit", "description": "Record file visits", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}},
+        {"name": "adjust-visit", "description": "Adjust a file visit count", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "exclude", "description": "Exclude files from a campaign", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "sync", "description": "Sync campaign file structure", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}}
+      ]
+    },
+    {
+      "name": "analytics",
+      "flat": true,
+      "commands": [
+        {"name": "least-visited", "description": "List least visited files", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "most-stale", "description": "List most stale files", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "coverage", "description": "Show campaign coverage statistics", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}}
+      ]
+    },
+    {
+      "name": "campaigns",
+      "commands": [
+        {"name": "list", "description": "List campaigns", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "create", "description": "Create a campaign", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "get", "description": "Get a campaign", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "update", "description": "Update campaign notes", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "note", "description": "Update campaign notes", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "reset", "description": "Reset campaign visits", "binding": {"kind": "local"}, "governance": {"effect": "destructive", "run_eligible": false, "permissions": ["network:internal"]}},
+        {"name": "delete", "description": "Delete a campaign", "binding": {"kind": "local"}, "governance": {"effect": "destructive", "run_eligible": false, "permissions": ["network:internal"]}},
+        {"name": "find-or-create", "description": "Find or create a campaign", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}}
+      ]
+    },
+    {
+      "name": "files",
+      "commands": [
+        {"name": "get-by-path", "description": "Find a tracked file by path", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
+        {"name": "priority", "description": "Set file prioritization", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}}
+      ]
+    }
+  ]
+}

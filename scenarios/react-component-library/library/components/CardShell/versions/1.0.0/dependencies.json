@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:CardShell",
+  "version": "1.0.0",
+  "resolvedAt": "2026-09-03T21:40:28.424Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "major": 1,
+      "observed": "1.0.8",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

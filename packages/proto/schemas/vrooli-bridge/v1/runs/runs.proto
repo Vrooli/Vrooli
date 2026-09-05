@@ -1,0 +1,205 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.runs;
+
+import "google/protobuf/timestamp.proto";
+import "vrooli-bridge/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs;runs_v1";
+
+// =============================================================================
+// RUNS DOMAIN — durable, server-owned remote execution (OT-P0-005)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the RunsService: a dispatched job (dispatch domain) becomes
+// a server-owned durable Run that survives client AND agent disconnect, is
+// re-attachable by id with a block-once wait verb (no polling), and collects
+// the node's streamed exit status, logs, and artifact refs. This reuses
+// test-genie's run-lifecycle philosophy rather than reinventing run management:
+// the control plane owns the run record; the node reports progress against it.
+//
+// Auth audiences are split across this one service (mirroring how the registry
+// vs channel handlers split owner-gated vs node-gated RPCs):
+//   - GetRun / ListRuns / WaitRun / AbortRun / StreamRunEvents are
+//     OWNER-gated operator verbs (the fleet operator drives them).
+//   - ReportRunEvent is NODE-facing: the node-agent calls it (signed with its
+//     per-node Ed25519 credential) to stream RunEvents back. It is omitted from
+//     the CLI manifest — there is no operator `runs report` command.
+//
+// The streamed RunEvent type is reused verbatim from the channel contract so
+// the agent, the channel SSE edge, and this service all speak one vocabulary.
+//
+// Consumed by:
+//   - API: handlers/runs/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/runs/handlers.go via the generated Connect-Go client.
+//   - Agent: agent/internal/exec reports RunEvents via the generated client.
+// =============================================================================
+
+// RunStatus is a run's lifecycle state. QUEUED/RUNNING are non-terminal;
+// PASSED/FAILED/ABORTED are terminal. WaitRun returns once the run reaches a
+// terminal status (or its wait deadline elapses).
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+
+  // The run record exists and the JobPush has been delivered, but the node has
+  // not yet reported it started.
+  RUN_STATUS_QUEUED = 1;
+
+  // The node reported the job is executing.
+  RUN_STATUS_RUNNING = 2;
+
+  // Terminal: the job exited 0.
+  RUN_STATUS_PASSED = 3;
+
+  // Terminal: the job exited non-zero.
+  RUN_STATUS_FAILED = 4;
+
+  // Terminal: the run was aborted (operator AbortRun, timeout, or node loss).
+  RUN_STATUS_ABORTED = 5;
+  RUN_STATUS_PUSHED = 6;
+  RUN_STATUS_ACKED = 7;
+  RUN_STATUS_FAILED_DELIVERY = 8;
+}
+
+// Run is the durable, server-owned record of one dispatched job. Durable fields
+// are persisted by the runs repository; the event stream (logs/status/exit/
+// artifact-refs) is collected from the node's RunEvents and persisted against
+// the run id so a re-attaching client replays the same history.
+message Run {
+  // Server-owned run id, assigned at dispatch and reported against by the node.
+  string id = 1;
+
+  // The node the job runs on (registry id).
+  string node_id = 2;
+
+  // The typed, allowlist-validated job (never a shell string).
+  string scenario = 3;
+  string verb = 4;
+  repeated string args = 5;
+
+  // Current lifecycle status.
+  RunStatus status = 6;
+
+  // Terminal process exit code; meaningful once status is terminal.
+  int32 exit_code = 7;
+
+  // Wall-clock budget after which the node aborts the run.
+  int64 timeout_seconds = 8;
+
+  // When the run was created (dispatch), the node reported it started, and it
+  // reached a terminal status. started_at / finished_at are unset until the
+  // corresponding transition.
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp started_at = 10;
+  google.protobuf.Timestamp finished_at = 11;
+
+  // device-sync-hub references to artifacts the run produced. The bytes never
+  // transit the control-plane store (DATA.md) — only the refs.
+  repeated string artifact_refs = 12;
+}
+
+service RunsService {
+  // GetRun returns one run by id with its full persisted event history (logs,
+  // status transitions, exit, artifact refs). Owner-gated. Re-attaching to a
+  // run after a client disconnect is just calling GetRun again.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+
+  // ListRuns returns runs newest-first, optionally filtered by node. Owner-gated.
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+
+  // WaitRun blocks server-side and returns EXACTLY ONCE when the run reaches a
+  // terminal status, carrying the terminal run. It does not stream. If the
+  // wait deadline (timeout_seconds) elapses first it returns the still-running
+  // run with timed_out=true (the CLI maps that to exit 124). This is the
+  // block-once verb — clients never poll. Owner-gated.
+  rpc WaitRun(WaitRunRequest) returns (WaitRunResponse);
+
+  // AbortRun requests cancellation of a non-terminal run. The control plane
+  // pushes an abort to the node and marks the run ABORTED. Idempotent on an
+  // already-terminal run. Owner-gated.
+  rpc AbortRun(AbortRunRequest) returns (AbortRunResponse);
+
+  // StreamRunEvents replays the run's persisted events in order and then tails
+  // live events until the run is terminal or the client disconnects. This is
+  // the human "follow" verb; agents use WaitRun. Owner-gated.
+  rpc StreamRunEvents(StreamRunEventsRequest) returns (stream RunEventMessage);
+
+  // ReportRunEvent ingests one RunEvent streamed back from the node-agent. It
+  // is NODE-facing (signed with the node's Ed25519 credential), not an operator
+  // verb — omitted from the CLI manifest. A terminal EXIT event flips the run
+  // to its terminal status and wakes any block-once waiters.
+  rpc ReportRunEvent(ReportRunEventRequest) returns (ReportRunEventResponse);
+}
+
+message GetRunRequest {
+  string id = 1;
+}
+
+message GetRunResponse {
+  Run run = 1;
+
+  // The full persisted event history for the run, in sequence order.
+  repeated vrooli.vrooli_bridge.v1.shared.RunEvent events = 2;
+}
+
+message ListRunsRequest {
+  // Optional node filter; empty returns every node's runs.
+  string node_id = 1;
+
+  // Optional cap on the number of runs returned (0 = server default).
+  int32 limit = 2;
+}
+
+message ListRunsResponse {
+  // Runs ordered newest-first by created_at.
+  repeated Run runs = 1;
+}
+
+message WaitRunRequest {
+  string id = 1;
+
+  // How long to block before returning timed_out=true. 0 uses the server's
+  // default wait budget; the call still returns once if the run is terminal.
+  int64 timeout_seconds = 2;
+}
+
+message WaitRunResponse {
+  Run run = 1;
+
+  // True when the wait deadline elapsed before the run reached a terminal
+  // status; the run carried here is the latest non-terminal snapshot.
+  bool timed_out = 2;
+}
+
+message AbortRunRequest {
+  string id = 1;
+
+  // Optional human-readable reason recorded on the run/audit trail.
+  string reason = 2;
+}
+
+message AbortRunResponse {
+  Run run = 1;
+}
+
+message StreamRunEventsRequest {
+  string id = 1;
+}
+
+// RunEventMessage wraps a streamed RunEvent for the server-streaming response.
+message RunEventMessage {
+  vrooli.vrooli_bridge.v1.shared.RunEvent event = 1;
+}
+
+message ReportRunEventRequest {
+  vrooli.vrooli_bridge.v1.shared.RunEvent event = 1;
+}
+
+message ReportRunEventResponse {
+  // True once the event was accepted and persisted. An event for an unknown or
+  // already-terminal run is acknowledged (accepted=false) without error so a
+  // re-sending node never spins.
+  bool accepted = 1;
+}

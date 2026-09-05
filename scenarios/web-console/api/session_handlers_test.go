@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,229 +11,180 @@ import (
 	"testing"
 	"time"
 
+	"web-console/internal/audioports"
+	"web-console/internal/config"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/pty"
+	"web-console/internal/ptyfake"
+	"web-console/session"
+
+	intai "web-console/internal/ai"
+
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+
+	sessionsH "web-console/handlers/sessions"
+	intsessions "web-console/internal/sessions"
+	"web-console/internal/sessionstore"
+	intworkspace "web-console/internal/workspace"
+
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
 
 // newTestServer creates a Server with real PTY processes — use for
 // integration-style tests that need actual shell I/O.
 func newTestServer() *Server {
-	return &Server{
+	sm := newSessionManager()
+	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManager(),
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
-		aiChain:     NewAIProviderChain(),
+		sessions:    sm,
+		hub:         NewConversationHub(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
+		aiChain:     intai.NewChain(),
 		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
+		aiConfig:    intai.NewMemConfigStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
 	}
+	srv.conversations = NewConversationStore()
+	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
+	srv.speechProcessor = audioports.PassthroughSpeechTextProcessor{}
+	srv.summarizeAutoPolicy = defaultSummarizeAutoPolicy()
+	srv.lastTTSBySource = map[string]conversationAppendSnapshot{}
+	srv.lastTTSAckBySrc = map[string]ttsAckSnapshot{}
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
+	return srv
 }
 
 // newFakeTestServer creates a Server with pipe-backed fake PTYs — use for
 // fast, deterministic handler tests that don't need a real shell.
 func newFakeTestServer() *Server {
-	return &Server{
-		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(newFakePTYFactory()),
-		events:      NewEventLogger(100),
-		metrics:     NewMetrics(),
-		aiChain:     NewAIProviderChain(),
-		shortcuts:   NewShortcutProfileStore(),
-		aiConfig:    NewAIProviderConfigStore(),
-		idempotency: newIdempotencyCache(),
-		workspace:   NewMemWorkspaceStore(),
-	}
+	return newFakeTestServerWithFactory(ptyfake.NewFactory())
 }
 
-// [REQ:P0-002a] PTY Session Backend - create endpoint
+// newFakeTestServerWithFactory is newFakeTestServer with control over the
+// PTY factory, for tests that need a backend which fails writes in a
+// specific way.
+func newFakeTestServerWithFactory(factory pty.Factory) *Server {
+	sm := newSessionManagerWithFactory(factory)
+	srv := &Server{
+		router:      mux.NewRouter(),
+		sessions:    sm,
+		hub:         NewConversationHub(),
+		events:      events.NewLogger(100),
+		metrics:     metrics.New(),
+		aiChain:     intai.NewChain(),
+		shortcuts:   NewShortcutProfileStore(),
+		aiConfig:    intai.NewMemConfigStore(),
+		idempotency: intsessions.NewIdempotencyCache(),
+		workspace:   intworkspace.NewMemStore(),
+	}
+	srv.conversations = NewConversationStore()
+	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
+	srv.speechProcessor = audioports.PassthroughSpeechTextProcessor{}
+	srv.summarizeAutoPolicy = defaultSummarizeAutoPolicy()
+	srv.lastTTSBySource = map[string]conversationAppendSnapshot{}
+	srv.lastTTSAckBySrc = map[string]ttsAckSnapshot{}
+	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
+	return srv
+}
+
+// --- Session CRUD happy paths (Connect handler) ---
+
 func TestHandleCreateSession(t *testing.T) {
 	srv := newTestServer()
 
-	body := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	sess, err := callCreate(t, srv, 80, 24, "")
+	if err != nil {
+		t.Fatalf("create: %v", err)
 	}
-
-	var resp SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON response: %v", err)
-	}
-	if resp.ID == "" {
+	if sess.GetId() == "" {
 		t.Error("response ID should not be empty")
 	}
-	if resp.Cols != 80 {
-		t.Errorf("expected cols=80, got %d", resp.Cols)
+	if sess.GetCols() != 80 {
+		t.Errorf("expected cols=80, got %d", sess.GetCols())
 	}
 
-	// Cleanup
-	_ = srv.sessions.Delete(resp.ID)
+	_ = srv.sessions.Delete(context.Background(), sess.GetId())
 }
 
-// Failure path: malformed JSON body returns 400 with structured error
-func TestHandleCreateSession_MalformedJSON(t *testing.T) {
-	srv := newFakeTestServer()
-
-	body := strings.NewReader(`{invalid json}`)
-	req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "invalid_body" {
-		t.Errorf("expected code=invalid_body, got %s", errResp.Code)
-	}
-	if errResp.Error == "" {
-		t.Error("error message should not be empty")
-	}
-}
-
-// Failure path: session limit returns 429 with structured error
 func TestHandleCreateSession_SessionLimit(t *testing.T) {
 	srv := newFakeTestServer()
-	srv.sessions.cfg.MaxSessions = 1
+	srv.sessions.SetConfigField(func(c *config.Config) { c.MaxSessions = 1 })
 
-	// Create one session to hit the limit
-	s1, err := srv.sessions.Create("", 80, 24, "", nil)
+	s1, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("first session create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(s1.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), s1.ID) }()
 
-	// Attempt to create a second session via the handler
-	req := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("expected 429, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "session_limit_reached" {
-		t.Errorf("expected code=session_limit_reached, got %s", errResp.Code)
+	_, err = callCreate(t, srv, 0, 0, "")
+	if got := connectCode(err); got != connect.CodeResourceExhausted {
+		t.Errorf("expected CodeResourceExhausted, got %s (err=%v)", got, err)
 	}
 }
 
-// Failure path: PTY spawn failure returns 500 with structured error
 func TestHandleCreateSession_PTYSpawnFailed(t *testing.T) {
-	failingFactory := func(spec SessionLaunchSpec) (PTY, error) {
+	failingFactory := func(spec pty.LaunchSpec) (pty.PTY, error) {
 		return nil, fmt.Errorf("shell not found: %s", spec.Shell)
 	}
 	srv := &Server{
 		router:      mux.NewRouter(),
-		sessions:    NewSessionManagerWithFactory(failingFactory),
-		idempotency: newIdempotencyCache(),
+		sessions:    newSessionManagerWithFactory(failingFactory),
+		events:      events.NewLogger(10),
+		metrics:     metrics.New(),
+		idempotency: intsessions.NewIdempotencyCache(),
 	}
 
-	req := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{"shell": "/nonexistent"}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleCreateSession(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
+	_, err := callCreate(t, srv, 0, 0, "")
+	if got := connectCode(err); got != connect.CodeInternal {
+		t.Errorf("expected CodeInternal, got %s (err=%v)", got, err)
 	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "pty_spawn_failed" {
-		t.Errorf("expected code=pty_spawn_failed, got %s", errResp.Code)
-	}
-	// Ensure internal details are not leaked
-	if strings.Contains(errResp.Error, "shell not found") {
-		t.Error("error message should not leak internal PTY error details to client")
+	// Internal PTY details must not leak into the error message.
+	if err != nil && strings.Contains(err.Error(), "shell not found") {
+		t.Errorf("error should not leak internal PTY details, got %v", err)
 	}
 }
 
-// Failure path: get/delete not-found returns JSON error
-func TestHandleGetSession_NotFound_JSONError(t *testing.T) {
+func TestHandleGetSession_NotFound_ReturnsNotFound(t *testing.T) {
 	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("GET", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetSession(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
-	}
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("error response should be valid JSON: %v", err)
-	}
-	if errResp.Code != "session_not_found" {
-		t.Errorf("expected code=session_not_found, got %s", errResp.Code)
+	_, err := callGet(t, srv, "nonexistent")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Errorf("expected CodeNotFound, got %s (err=%v)", got, err)
 	}
 }
 
-// DELETE is idempotent: deleting a non-existent session returns 204 with no body.
-func TestHandleDeleteSession_NotFound_Idempotent_NoBody(t *testing.T) {
+func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
 	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteSession(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Errorf("expected 204 (idempotent), got %d", rec.Code)
+	if err := callDelete(t, srv, "nonexistent"); err != nil {
+		t.Errorf("delete unknown session should be idempotent (no error), got %v", err)
 	}
 }
 
-// Verify sentinel errors wrap correctly
 func TestSentinelErrors(t *testing.T) {
-	limitErr := fmt.Errorf("%w (%d)", ErrSessionLimitReached, 5)
-	if !errors.Is(limitErr, ErrSessionLimitReached) {
-		t.Error("wrapped ErrSessionLimitReached should be detectable via errors.Is")
+	limitErr := fmt.Errorf("%w (%d)", session.ErrSessionLimitReached, 5)
+	if !errors.Is(limitErr, session.ErrSessionLimitReached) {
+		t.Error("wrapped session.ErrSessionLimitReached should be detectable via errors.Is")
 	}
 
-	ptyErr := fmt.Errorf("%w: some detail", ErrPTYSpawnFailed)
-	if !errors.Is(ptyErr, ErrPTYSpawnFailed) {
-		t.Error("wrapped ErrPTYSpawnFailed should be detectable via errors.Is")
+	ptyErr := fmt.Errorf("%w: some detail", session.ErrPTYSpawnFailed)
+	if !errors.Is(ptyErr, session.ErrPTYSpawnFailed) {
+		t.Error("wrapped session.ErrPTYSpawnFailed should be detectable via errors.Is")
 	}
 }
 
-// Verify sanitizeID prevents injection and truncates long IDs
 func TestSanitizeID(t *testing.T) {
-	// Normal ID
 	if got := sanitizeID("abc-123"); got != "abc-123" {
 		t.Errorf("normal ID: got %q", got)
 	}
-	// Control characters stripped
 	if got := sanitizeID("abc\x00\ndef"); got != "abcdef" {
 		t.Errorf("control chars: got %q", got)
 	}
-	// Long ID truncated
 	longID := strings.Repeat("x", 100)
 	got := sanitizeID(longID)
-	if len(got) > 44 { // 40 + "..."
+	if len(got) > 44 {
 		t.Errorf("long ID should be truncated, got length %d", len(got))
 	}
 	if !strings.HasSuffix(got, "...") {
@@ -240,7 +192,7 @@ func TestSanitizeID(t *testing.T) {
 	}
 }
 
-// --- writeJSON utility tests ---
+// --- writeJSON utility tests (unchanged — utility still exists) ---
 
 func TestWriteJSON_SetsContentTypeAndStatus(t *testing.T) {
 	rec := httptest.NewRecorder()
@@ -279,9 +231,8 @@ func TestWriteJSON_EncodesSlice(t *testing.T) {
 	}
 }
 
-// --- Error category and recovery tests ---
+// --- Error category / recovery tests (unchanged — catalog remains) ---
 
-// Verify all error responses include category and recovery fields
 func TestErrorResponse_CategoryAndRecovery(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -320,35 +271,6 @@ func TestErrorResponse_CategoryAndRecovery(t *testing.T) {
 	}
 }
 
-// Verify session_limit_reached error is retryable
-func TestErrorResponse_SessionLimit_Retryable(t *testing.T) {
-	srv := newFakeTestServer()
-	srv.sessions.cfg.MaxSessions = 1
-
-	s1, err := srv.sessions.Create("", 80, 24, "", nil)
-	if err != nil {
-		t.Fatalf("first create: %v", err)
-	}
-	defer func() { _ = srv.sessions.Delete(s1.ID) }()
-
-	req := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.handleCreateSession(rec, req)
-
-	var errResp ErrorResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if !errResp.Retry {
-		t.Error("session_limit_reached should be retryable")
-	}
-	if errResp.Category != "resource_limit" {
-		t.Errorf("expected category=resource_limit, got %s", errResp.Category)
-	}
-}
-
-// Verify error catalog covers all known error codes
 func TestErrorCatalog_Completeness(t *testing.T) {
 	expectedCodes := []string{
 		"invalid_body", "session_limit_reached", "pty_spawn_failed",
@@ -362,13 +284,6 @@ func TestErrorCatalog_Completeness(t *testing.T) {
 	}
 }
 
-// --- Change axis invariant tests ---
-// These tests encode structural invariants that must hold when adding
-// new error codes, categories, or recovery hints. They validate the
-// extension point contract rather than specific values.
-
-// Every error catalog entry must have a valid category and non-empty recovery hint.
-// This prevents adding new error codes that silently break the client contract.
 func TestErrorCatalog_StructuralInvariants(t *testing.T) {
 	validCategories := map[string]bool{
 		"validation":     true,
@@ -401,10 +316,6 @@ func TestErrorCatalog_StructuralInvariants(t *testing.T) {
 	}
 }
 
-// writeCatalogError with an unknown code should still return a valid
-// structured error (the fallback path). This ensures new codes can
-// be referenced in handlers before being added to the catalog during
-// development without crashing.
 func TestWriteCatalogError_UnknownCode_Fallback(t *testing.T) {
 	rec := httptest.NewRecorder()
 	writeCatalogError(rec, "new_future_code", "test")
@@ -424,39 +335,35 @@ func TestWriteCatalogError_UnknownCode_Fallback(t *testing.T) {
 	}
 }
 
-// Config variation: multiple session limits should work correctly
 // [REQ:P1-001a] Session Policy Controls
 func TestSessionLimit_VariousLimits(t *testing.T) {
 	limits := []int{1, 3, 5, 10}
 	for _, limit := range limits {
 		t.Run(fmt.Sprintf("limit=%d", limit), func(t *testing.T) {
-			sm := NewSessionManagerWithFactory(newFakePTYFactory())
-			sm.cfg.MaxSessions = limit
+			sm := newSessionManagerWithFactory(ptyfake.NewFactory())
+			sm.SetConfigField(func(c *config.Config) { c.MaxSessions = limit })
 
-			var sessions []*Session
+			var sessions []*session.Session
 			for i := 0; i < limit; i++ {
-				s, err := sm.Create("", 0, 0, "", nil)
+				s, err := sm.Create(context.Background(), "", 0, 0, "", nil)
 				if err != nil {
 					t.Fatalf("session %d: unexpected error: %v", i, err)
 				}
 				sessions = append(sessions, s)
 			}
 
-			// Next one should fail
-			_, err := sm.Create("", 0, 0, "", nil)
+			_, err := sm.Create(context.Background(), "", 0, 0, "", nil)
 			if err == nil {
 				t.Errorf("session %d should be rejected when MaxSessions=%d", limit+1, limit)
 			}
 
-			// Cleanup
 			for _, s := range sessions {
-				_ = sm.Delete(s.ID)
+				_ = sm.Delete(context.Background(), s.ID)
 			}
 		})
 	}
 }
 
-// Verify X-Request-ID header is set by middleware
 func TestRequestIDMiddleware(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
@@ -474,117 +381,367 @@ func TestRequestIDMiddleware(t *testing.T) {
 	}
 }
 
-// --- Session CRUD happy-path tests (use real PTY) ---
+// --- Session CRUD additional Connect-handler tests ---
 
 // [REQ:P0-003a] Session Persistence Store - list endpoint
 func TestHandleListSessions(t *testing.T) {
 	srv := newTestServer()
 
-	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	sess, _ := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
-	req := httptest.NewRequest("GET", "/api/v1/sessions", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleListSessions(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	got, err := callList(t, srv)
+	if err != nil {
+		t.Fatalf("list: %v", err)
 	}
-
-	var sessions []SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &sessions); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if len(sessions) == 0 {
+	if len(got) == 0 {
 		t.Error("expected at least 1 session")
 	}
 }
 
 func TestHandleGetSession(t *testing.T) {
 	srv := newTestServer()
+	sess, _ := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
-	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
-
-	req := httptest.NewRequest("GET", "/api/v1/sessions/"+sess.ID, nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetSession(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+	got, err := callGet(t, srv, sess.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
 	}
-
-	var resp SessionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
-	if resp.ID != sess.ID {
-		t.Errorf("expected ID %s, got %s", sess.ID, resp.ID)
+	if got.GetId() != sess.ID {
+		t.Errorf("expected ID %s, got %s", sess.ID, got.GetId())
 	}
 }
 
 func TestHandleGetSession_NotFound(t *testing.T) {
 	srv := newTestServer()
-
-	req := httptest.NewRequest("GET", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleGetSession(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", rec.Code)
+	_, err := callGet(t, srv, "nonexistent")
+	if got := connectCode(err); got != connect.CodeNotFound {
+		t.Errorf("expected CodeNotFound, got %s", got)
 	}
 }
 
 func TestHandleDeleteSession(t *testing.T) {
 	srv := newTestServer()
+	sess, _ := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 
-	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
-
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/"+sess.ID, nil)
-	req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteSession(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d", rec.Code)
+	if err := callDelete(t, srv, sess.ID); err != nil {
+		t.Errorf("delete: %v", err)
 	}
 
-	_, ok := srv.sessions.Get(sess.ID)
-	if ok {
+	if _, ok := srv.sessions.Get(sess.ID); ok {
 		t.Error("session should not exist after delete")
 	}
 }
 
-// DELETE is idempotent: deleting a non-existent session returns 204 (not 404),
-// so that retries and replays are safe.
-func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
-	srv := newTestServer()
+func TestArchivePreservesTranscriptAndUnarchiveRestoresVisibility(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	srv.sessionStore = store
+	srv.sessions.SetStore(store)
 
-	req := httptest.NewRequest("DELETE", "/api/v1/sessions/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
+	sess, err := srv.sessions.Create(ctx, "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, result := srv.conversations.AppendUserEvent(ctx, sess.ID, "test", "keep this transcript"); !result.Appended {
+		t.Fatalf("append conversation: %+v", result)
+	}
 
-	srv.handleDeleteSession(rec, req)
+	h := sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
+		Manager:            srv.sessions,
+		Store:              store,
+		Idempotency:        srv.idempotency,
+		Events:             srv.events,
+		Metrics:            srv.metrics,
+		Conversations:      srv.conversations,
+		ArchiveGracePeriod: time.Hour,
+	}})
+	if _, err := h.Archive(ctx, connect.NewRequest(&sessionsv1.ArchiveRequest{Id: sess.ID})); err != nil {
+		t.Fatalf("archive: %v", err)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, sess.ID); got != 1 {
+		t.Fatalf("conversation count after archive = %d, want 1", got)
+	}
+	meta, err := store.Get(ctx, sess.ID)
+	if err != nil || meta.ArchivedAt.IsZero() {
+		t.Fatalf("archived session row = %+v, err=%v", meta, err)
+	}
+	if listed, err := h.List(ctx, connect.NewRequest(&sessionsv1.ListRequest{})); err != nil || len(listed.Msg.GetSessions()) != 0 {
+		t.Fatalf("live listing after archive = %+v, err=%v", listed, err)
+	}
 
-	if rec.Code != http.StatusNoContent {
-		t.Errorf("expected 204 (idempotent delete), got %d", rec.Code)
+	if _, err := h.Unarchive(ctx, connect.NewRequest(&sessionsv1.UnarchiveRequest{Id: sess.ID})); err != nil {
+		t.Fatalf("unarchive: %v", err)
+	}
+	meta, err = store.Get(ctx, sess.ID)
+	if err != nil || !meta.ArchivedAt.IsZero() {
+		t.Fatalf("unarchived session row = %+v, err=%v", meta, err)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, sess.ID); got != 1 {
+		t.Fatalf("conversation count after unarchive = %d, want 1", got)
+	}
+	_ = srv.sessions.Delete(ctx, sess.ID)
+}
+
+func TestPermanentDeleteStillDestroysSessionAndTranscript(t *testing.T) { // [REQ:REQ-P0-003a]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	srv.sessionStore = store
+	srv.sessions.SetStore(store)
+	sess, err := srv.sessions.Create(ctx, "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, sess.ID, "test", "delete this transcript"); !result.Appended {
+		t.Fatalf("append conversation: %+v", result)
+	}
+	if err := callDelete(t, srv, sess.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := store.Get(ctx, sess.ID); err == nil {
+		t.Fatal("session row survived permanent deletion")
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, sess.ID); got != 0 {
+		t.Fatalf("conversation count after permanent delete = %d, want 0", got)
+	}
+}
+
+func TestPermanentDeleteDestroysArchivedPersistedSession(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	srv.sessionStore = store
+	srv.sessions.SetStore(store)
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "archived-only", Status: sessionstore.StatusDismissed, ArchivedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, "archived-only", "test", "delete archived transcript"); !result.Appended {
+		t.Fatalf("append conversation: %+v", result)
+	}
+	if err := callDelete(t, srv, "archived-only"); err != nil {
+		t.Fatalf("delete archived: %v", err)
+	}
+	if _, err := store.Get(ctx, "archived-only"); err == nil {
+		t.Fatal("archived session row survived permanent deletion")
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, "archived-only"); got != 0 {
+		t.Fatalf("archived conversation count after permanent delete = %d", got)
+	}
+}
+
+func TestArchivePruneDefaultsToDryRunAndDeletesNothing(t *testing.T) {
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "dry-run-empty", ArchivedAt: old}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "legacy-visible-not-prunable", Status: sessionstore.StatusDismissed, Created: old}); err != nil {
+		t.Fatal(err)
+	}
+	adapter := &sessionsH.Adapter{
+		Manager: srv.sessions, Store: store, Conversations: srv.conversations,
+		Events: srv.events, Metrics: srv.metrics, Workspace: srv.workspace,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			return sessionsH.ArchiveRetentionPolicy{MessageLessAge: 7 * 24 * time.Hour}
+		},
+	}
+
+	result, err := adapter.PruneArchive(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.DryRun || len(result.Actions) != 1 || result.Actions[0].Kind != sessionsH.PruneTranscript {
+		t.Fatalf("dry-run result = %+v", result)
+	}
+	if _, err := store.Get(ctx, "dry-run-empty"); err != nil {
+		t.Fatalf("dry run deleted archived row: %v", err)
+	}
+	snapshot, err := adapter.GetArchiveRetention(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Stats.EntryCount != 2 {
+		t.Fatalf("visible archive count = %d, want explicit + legacy entries", snapshot.Stats.EntryCount)
+	}
+	if _, err := store.Get(ctx, "legacy-visible-not-prunable"); err != nil {
+		t.Fatalf("legacy row was touched: %v", err)
+	}
+}
+
+func TestArchivePruneHomeFirstPreservesConversationAndDecaysRestoreState(t *testing.T) {
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	meta := sessionstore.Metadata{ID: "home-prune", AgentType: sessionstore.AgentCodex, AgentSessionID: "agent-1", ArchivedAt: old}
+	if err := store.Save(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, meta.ID, "test", "preserve me"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	historyPresent := true
+	adapter := &sessionsH.Adapter{
+		Manager: srv.sessions, Store: store, Conversations: srv.conversations,
+		Events: srv.events, Metrics: srv.metrics, Workspace: srv.workspace,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			return sessionsH.ArchiveRetentionPolicy{AgentHomeAge: 7 * 24 * time.Hour}
+		},
+		AgentHistoryPresent: func(sessionstore.Metadata) bool { return historyPresent },
+		AgentHistorySize:    func(sessionstore.Metadata) (int64, error) { return 4096, nil },
+		PruneAgentHistory: func(sessionstore.Metadata) (int64, error) {
+			historyPresent = false
+			return 4096, nil
+		},
+	}
+
+	result, err := adapter.PruneArchive(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.DryRun || len(result.Actions) != 1 || result.Actions[0].Kind != sessionsH.PruneAgentHome || !result.Actions[0].Applied {
+		t.Fatalf("apply result = %+v", result)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, meta.ID); got != 1 {
+		t.Fatalf("conversation count after home prune = %d, want 1", got)
+	}
+	rows, err := adapter.ListArchived(ctx)
+	if err != nil || len(rows) != 1 || rows[0].RestoreState != sessionsH.RestoreStateReadOnly {
+		t.Fatalf("archive after home prune = %+v, err=%v", rows, err)
+	}
+}
+
+func TestArchivePruneDeletesOnlyOldMessageLessTranscripts(t *testing.T) {
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	old := time.Now().UTC().Add(-30 * 24 * time.Hour)
+	for _, id := range []string{"old-empty", "old-with-message"} {
+		if err := store.Save(ctx, sessionstore.Metadata{ID: id, ArchivedAt: old}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, result := srv.conversations.AppendUserEvent(ctx, "old-with-message", "test", "do not delete"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	adapter := &sessionsH.Adapter{
+		Manager: srv.sessions, Store: store, Conversations: srv.conversations,
+		Events: srv.events, Metrics: srv.metrics, Workspace: srv.workspace,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			return sessionsH.ArchiveRetentionPolicy{MessageLessAge: 7 * 24 * time.Hour}
+		},
+	}
+
+	if _, err := adapter.PruneArchive(ctx, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(ctx, "old-empty"); err == nil {
+		t.Fatal("old message-less archive survived apply")
+	}
+	if _, err := store.Get(ctx, "old-with-message"); err != nil {
+		t.Fatalf("message-bearing archive was deleted: %v", err)
+	}
+	if got := srv.conversations.CountSessionEvents(ctx, "old-with-message"); got != 1 {
+		t.Fatalf("message-bearing transcript count = %d, want 1", got)
+	}
+}
+
+func TestListArchivedCollapsesLineageAtNewestRow(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	archivedOld := time.Date(2026, 8, 18, 18, 0, 0, 0, time.UTC)
+	archivedNew := archivedOld.Add(time.Hour)
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "old", AgentType: sessionstore.AgentCodex, RecoveredInto: "new", ArchivedAt: archivedOld}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "new", AgentType: sessionstore.AgentCodex, ArchivedAt: archivedNew, LastRolloutPath: "/history/new"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(ctx, "new", "test", "newest transcript"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	if err := srv.workspace.UpsertPane(ctx, intworkspace.Pane{SessionID: "new", Name: "Newest pane", HeaderColor: "#123456"}); err != nil {
+		t.Fatal(err)
+	}
+	adapter := &sessionsH.Adapter{
+		Store: store, Conversations: srv.conversations, Workspace: srv.workspace,
+		AgentHistoryPresent: func(sessionstore.Metadata) bool { return true },
+	}
+	rows, err := adapter.ListArchived(ctx)
+	if err != nil {
+		t.Fatalf("list archived: %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != "new" || rows[0].MessageCount != 1 || rows[0].PaneName != "Newest pane" {
+		t.Fatalf("collapsed rows = %+v", rows)
+	}
+	if rows[0].RestoreState != sessionsH.RestoreStateReopenable {
+		t.Fatalf("restore state = %q", rows[0].RestoreState)
+	}
+}
+
+func TestListArchivedProjectsHonestNonReopenableStates(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	srv := newFakeTestServer()
+	store := sessionstore.NewInMemory()
+	now := time.Date(2026, 8, 18, 19, 0, 0, 0, time.UTC)
+	_ = store.Save(ctx, sessionstore.Metadata{ID: "claude", AgentType: sessionstore.AgentClaude, ArchivedAt: now})
+	_ = store.Save(ctx, sessionstore.Metadata{ID: "shell", AgentType: sessionstore.AgentNone, ArchivedAt: now.Add(-time.Minute)})
+	if _, result := srv.conversations.AppendUserEvent(ctx, "claude", "test", "preserved"); !result.Appended {
+		t.Fatalf("append: %+v", result)
+	}
+	adapter := &sessionsH.Adapter{Store: store, Conversations: srv.conversations}
+	rows, err := adapter.ListArchived(ctx)
+	if err != nil {
+		t.Fatalf("list archived: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	byID := map[string]sessionsH.ArchivedSession{}
+	for _, row := range rows {
+		byID[row.ID] = row
+	}
+	claude := byID["claude"]
+	if claude.RestoreState != sessionsH.RestoreStateReadOnly || claude.RestoreStateReason != "claude session id is required (resuming the wrong project is unsafe)" {
+		t.Fatalf("claude projection = %+v", claude)
+	}
+	shell := byID["shell"]
+	if shell.RestoreState != sessionsH.RestoreStateNothingToRestore || shell.RestoreStateReason == "" {
+		t.Fatalf("shell projection = %+v", shell)
+	}
+}
+
+func TestListArchivedMarksCrashOrphans(t *testing.T) {
+	ctx := context.Background()
+	store := sessionstore.NewInMemory()
+	if err := store.Save(ctx, sessionstore.Metadata{
+		ID: "crash-orphan", AgentType: sessionstore.AgentCodex,
+		Status: sessionstore.StatusAwaitingRecovery, OrphanedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := (&sessionsH.Adapter{Store: store}).ListArchived(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || !rows[0].AwaitingRecovery {
+		t.Fatalf("archive crash marker = %+v", rows)
 	}
 }
 
 // --- Replay / Idempotency Tests ---
 
-// Deleting the same session twice: first deletes it, second is a no-op 204.
-// Metrics and events should only fire once.
+// Deleting the same session 3 times: only one real delete; metrics + events fire once.
 func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	srv := newFakeTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -592,101 +749,53 @@ func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	deletedBefore := srv.metrics.SessionsDeleted.Load()
 	eventsBefore := srv.events.Count()
 
-	// First delete — actually removes the session
 	for i := 0; i < 3; i++ {
-		req := httptest.NewRequest("DELETE", "/api/v1/sessions/"+sess.ID, nil)
-		req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-		rec := httptest.NewRecorder()
-		srv.handleDeleteSession(rec, req)
-
-		if rec.Code != http.StatusNoContent {
-			t.Fatalf("attempt %d: expected 204, got %d", i+1, rec.Code)
+		if err := callDelete(t, srv, sess.ID); err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
 		}
 	}
 
-	// Metrics should increment exactly once (from the first real delete)
-	deletedAfter := srv.metrics.SessionsDeleted.Load()
-	if got := deletedAfter - deletedBefore; got != 1 {
+	if got := srv.metrics.SessionsDeleted.Load() - deletedBefore; got != 1 {
 		t.Errorf("expected SessionsDeleted to increment by 1, got %d", got)
 	}
-
-	// Only one deletion event should be emitted
-	eventsAfter := srv.events.Count()
-	if got := eventsAfter - eventsBefore; got != 1 {
+	if got := srv.events.Count() - eventsBefore; got != 1 {
 		t.Errorf("expected 1 deletion event, got %d", got)
 	}
 }
 
-// Session creation with idempotency key: same key returns the same session.
 func TestCreateSession_IdempotencyKey_ReturnsCache(t *testing.T) {
 	srv := newFakeTestServer()
-
 	key := "test-idem-key-123"
 
-	// First creation
-	body1 := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req1 := httptest.NewRequest("POST", "/api/v1/sessions", body1)
-	req1.Header.Set("Content-Type", "application/json")
-	req1.Header.Set("X-Idempotency-Key", key)
-	rec1 := httptest.NewRecorder()
-	srv.handleCreateSession(rec1, req1)
-
-	if rec1.Code != http.StatusCreated {
-		t.Fatalf("first create: expected 201, got %d: %s", rec1.Code, rec1.Body.String())
-	}
-	var resp1 SessionResponse
-	if err := json.Unmarshal(rec1.Body.Bytes(), &resp1); err != nil {
-		t.Fatalf("unmarshal first: %v", err)
+	first, err := callCreate(t, srv, 80, 24, key)
+	if err != nil {
+		t.Fatalf("first create: %v", err)
 	}
 
-	// Replay with same key — should return the cached session, no new session
-	body2 := strings.NewReader(`{"cols": 80, "rows": 24}`)
-	req2 := httptest.NewRequest("POST", "/api/v1/sessions", body2)
-	req2.Header.Set("Content-Type", "application/json")
-	req2.Header.Set("X-Idempotency-Key", key)
-	rec2 := httptest.NewRecorder()
-	srv.handleCreateSession(rec2, req2)
-
-	if rec2.Code != http.StatusCreated {
-		t.Fatalf("replay: expected 201, got %d: %s", rec2.Code, rec2.Body.String())
-	}
-	var resp2 SessionResponse
-	if err := json.Unmarshal(rec2.Body.Bytes(), &resp2); err != nil {
-		t.Fatalf("unmarshal replay: %v", err)
+	second, err := callCreate(t, srv, 80, 24, key)
+	if err != nil {
+		t.Fatalf("replay: %v", err)
 	}
 
-	// Same session ID returned
-	if resp1.ID != resp2.ID {
-		t.Errorf("replay should return same session: first=%s, replay=%s", resp1.ID, resp2.ID)
+	if first.GetId() != second.GetId() {
+		t.Errorf("replay should return same session: first=%s, replay=%s", first.GetId(), second.GetId())
 	}
-
-	// Only one session should exist
-	sessions := srv.sessions.List()
-	if len(sessions) != 1 {
+	if sessions := srv.sessions.List(); len(sessions) != 1 {
 		t.Errorf("expected 1 session, got %d", len(sessions))
 	}
-
-	// Metrics should show only 1 creation
 	if got := srv.metrics.SessionsCreated.Load(); got != 1 {
 		t.Errorf("expected SessionsCreated=1, got %d", got)
 	}
 
-	// Cleanup
-	_ = srv.sessions.Delete(resp1.ID)
+	_ = srv.sessions.Delete(context.Background(), first.GetId())
 }
 
-// Without idempotency key, two requests create two sessions.
 func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 	srv := newFakeTestServer()
 
 	for i := 0; i < 2; i++ {
-		body := strings.NewReader(`{}`)
-		req := httptest.NewRequest("POST", "/api/v1/sessions", body)
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		srv.handleCreateSession(rec, req)
-		if rec.Code != http.StatusCreated {
-			t.Fatalf("create %d: expected 201, got %d", i+1, rec.Code)
+		if _, err := callCreate(t, srv, 0, 0, ""); err != nil {
+			t.Fatalf("create %d: %v", i+1, err)
 		}
 	}
 
@@ -694,77 +803,8 @@ func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 	if len(sessions) != 2 {
 		t.Errorf("expected 2 sessions without idempotency key, got %d", len(sessions))
 	}
-
-	// Cleanup
 	for _, s := range sessions {
-		_ = srv.sessions.Delete(s.ID)
-	}
-}
-
-// [REQ:P0-003b] Idempotency cache: expired entries are cleaned up on Get
-func TestIdempotencyCache_TTLExpiry(t *testing.T) {
-	c := &idempotencyCache{
-		entries: make(map[string]idempotencyEntry),
-		ttl:     10 * time.Millisecond, // very short TTL
-	}
-
-	resp := SessionResponse{ID: "s1"}
-	c.Set("key1", resp)
-
-	// Immediately retrievable
-	got, ok := c.Get("key1")
-	if !ok || got.ID != "s1" {
-		t.Fatal("entry should be retrievable immediately after set")
-	}
-
-	// Wait for TTL to expire
-	time.Sleep(15 * time.Millisecond)
-
-	// Should return false and clean up
-	_, ok = c.Get("key1")
-	if ok {
-		t.Error("expired entry should not be returned by Get")
-	}
-
-	// Entry should be deleted from map
-	c.mu.Lock()
-	_, stillThere := c.entries["key1"]
-	c.mu.Unlock()
-	if stillThere {
-		t.Error("expired entry should be removed from cache map after Get")
-	}
-}
-
-// [REQ:P0-003b] Idempotency cache: eviction scan triggered when >100 entries
-func TestIdempotencyCache_EvictionScan(t *testing.T) {
-	c := &idempotencyCache{
-		entries: make(map[string]idempotencyEntry),
-		ttl:     time.Hour,
-	}
-
-	// Pre-populate with 100 expired entries
-	for i := 0; i < 100; i++ {
-		c.entries[fmt.Sprintf("expired-%d", i)] = idempotencyEntry{
-			expiresAt: time.Now().Add(-time.Minute), // already expired
-		}
-	}
-
-	// This Set should trigger eviction scan (>100 entries)
-	c.Set("fresh-key", SessionResponse{ID: "fresh"})
-
-	c.mu.Lock()
-	count := len(c.entries)
-	c.mu.Unlock()
-
-	// All expired entries should be evicted, leaving only "fresh-key"
-	if count != 1 {
-		t.Errorf("expected 1 entry after eviction (fresh-key), got %d", count)
-	}
-
-	// Fresh entry should still be retrievable
-	got, ok := c.Get("fresh-key")
-	if !ok || got.ID != "fresh" {
-		t.Error("fresh entry should survive eviction scan")
+		_ = srv.sessions.Delete(context.Background(), s.ID)
 	}
 }
 
@@ -772,31 +812,28 @@ func TestIdempotencyCache_EvictionScan(t *testing.T) {
 func TestUpdatePolicy_Replay_EventOnlyOnChange(t *testing.T) {
 	srv := newFakeTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	eventsBefore := srv.events.Count()
 
-	// Set policy to "1h" preset — should emit event
 	for i := 0; i < 3; i++ {
-		body := strings.NewReader(`{"mode": "preset", "duration": "1h"}`)
-		req := httptest.NewRequest("PUT", "/api/v1/sessions/"+sess.ID+"/policy", body)
-		req = mux.SetURLVars(req, map[string]string{"id": sess.ID})
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		srv.handleUpdatePolicy(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("attempt %d: expected 200, got %d: %s", i+1, rec.Code, rec.Body.String())
+		if _, err := callUpdatePolicy(t, srv, sess.ID, "preset", "1h"); err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
 		}
 	}
 
-	// Only 1 event should be emitted (first call changes policy, repeats are no-ops)
-	eventsAfter := srv.events.Count()
-	if got := eventsAfter - eventsBefore; got != 1 {
+	if got := srv.events.Count() - eventsBefore; got != 1 {
 		t.Errorf("expected 1 policy event (first change only), got %d", got)
 	}
 }
+
+// guard: the proto type for CreateRequest is referenced so a removed field
+// breaks compilation.
+var (
+	_ = sessionsv1.CreateRequest{}
+	_ = context.Background
+)

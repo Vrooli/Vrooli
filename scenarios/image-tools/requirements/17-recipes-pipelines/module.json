@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-004",
+      "title": "Recipes \u0026 Pipelines",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "category": "feature",
+      "description": "Save/name/replay multi-step op graphs where the UI op-stack and CLI pipeline are one representation; ComfyUI-style chaining without ComfyUI required.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/recipes/recipes_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned (not yet implemented; automated test pending): Recipe serializes, validates, and replays deterministically"
+        },
+        {
+          "type": "manual",
+          "ref": "cli/domains/recipes/recipes_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Planned (not yet implemented; automated test pending): Same recipe runs headless via CLI and in the UI op-stack"
+        }
+      ]
+    }
+  ]
+}

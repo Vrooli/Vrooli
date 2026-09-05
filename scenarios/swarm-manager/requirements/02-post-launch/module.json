@@ -1,0 +1,162 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "last_validated_at": "2026-09-02T21:08:23-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SWM-P1-001",
+      "title": "Goal next-action chaining",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "The system should compute one recommended next action per goal, chaining into the top-priority member item's next action when no goal-level decision is pending",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "No coverage yet: goal-level next-action chaining is not implemented — there is no per-goal recommended-next-action logic in internal/goals. Only item-level next_action_test.go and swarm-level operations/briefing_test.go exist (audit 2026-07-23)."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-002",
+      "title": "Goal progress and velocity",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "The system should report per-goal progress, ETA bands, scope-creep history, and completion velocity against the goal's trajectory",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/goals/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestService_CreateComputesScopeAndBaseline (per-goal progress %), TestService_AttachesETABand (per-goal ETA band), TestService_ScopeCreepRecordedOnDrift (scope-creep history). Completion velocity against the goal's trajectory is NOT tested per-goal (audit 2026-07-23)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/eta/montecarlo_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestEstimateGoal_P50NotAboveP80, TestEstimateGoal_MoreCapacityShortensBand, and TestEstimateGoal_BasisReportsSampleCount back the ETA-band math and confidence labeling."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-003",
+      "title": "Goal-scoped discovery",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "When goal discovery runs, the system should identify missing or at-risk work inside the goal's scope and propose backlog items to close the gaps",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "No coverage yet: goal-scoped discovery (identify missing/at-risk work in a goal's scope and propose backlog items) has no test. Only a 'goal.discover' transition fixture exists in the registry; no behavior test exercises it (audit 2026-07-23)."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-004",
+      "title": "Swarm management sessions",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "The system should provide conversational agent sessions primed with an operator-loop skill that can drive the full create, workshop, accept, execute, review cycle",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/agentsessions/service_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestServiceStartSwarmOperationsUsesOperationsSkillAndPurpose (session primed with the operator-loop skill) and TestServiceStartInitialPromptDeliversFullSkill. The full create/workshop/accept/execute/review cycle is not asserted end-to-end in one test (audit 2026-07-23)."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-005",
+      "title": "One-shot execution strategy",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "The system should offer a one-shot full-plan execution strategy alongside the phased drain in the strategy registry",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "No coverage yet: a one-shot / full-plan execution strategy is not implemented — the registry declares only phased-plan-drain and TestStrategies_ReturnsDeclaredExecutionChoiceWithCost asserts exactly one strategy (audit 2026-07-23)."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-006",
+      "title": "Live execution progress",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "While an execution runs, the system should surface live slice progress, workflow state, and cancellation controls",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/agentmanager/workflow_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestWorkflowServiceProgressReadsLiveTrace (live slice count, current node, cost from the workflow trace), TestGenericWorkflowCommandResultAndControlSurface (signal/cancel controls), TestWorkflowServiceCollectsCanceledCompletion (surfaces cancelled terminal state)."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-007",
+      "title": "Unified work activity feed",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "description": "The system should present one per-item feed spanning runs, reviews, proposals, operator decisions, and status changes",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/agentactivity/handler_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestHandlerList_FiltersAgentActivities (per-item feed retrieval/filter); service TestServiceListRefreshesActiveRunState, TestListReconcilesWorkflowActivityFromWorkflowExecution, and TestServiceStopRunCancelsActiveActivities cover runs, status changes, and operator stop."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/agentactivity/lanes_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestLanes_ReturnsCanonicalOrdering groups run/review/reconcile activities into one lane view. 'Proposals' as a distinct feed item type is not asserted (audit 2026-07-23)."
+        }
+      ]
+    },
+    {
+      "id": "SWM-P1-008",
+      "title": "Execution policy modes",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "description": "The system should enforce manual, scheduled, and yolo execution policies with configurable delays, queue caps, and circuit breakers",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/execution/governance_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestQueueDepthEnforcement (queue cap), TestCircuitBreakerBlocksQueue, TestYoloAtCapacity_LeavesPending; service TestQueueAndStartManualExecution and TestQueueBacklog_YOLORollsBackWhenSpawnFails (manual/yolo). 'scheduled' mode and configurable delays are not implemented ('scheduled' is migrated to manual) and thus untested (audit 2026-07-23)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/circuit_breaker_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestCircuitBreaker_RecordFailureAndTrip and TestCircuitBreaker_CooldownExpiry cover breaker trip/cooldown; settings TestNormalizeIntFields clamps MaxQueueDepth / CircuitBreakerThreshold / CircuitBreakerCooldownMinutes (configurable caps/breakers)."
+        }
+      ]
+    }
+  ]
+}

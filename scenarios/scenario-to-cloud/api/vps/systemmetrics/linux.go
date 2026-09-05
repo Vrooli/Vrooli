@@ -12,7 +12,9 @@ type linuxCollector struct{}
 
 func (linuxCollector) Name() string { return "linux" }
 
-// SystemCommands returns Linux-specific commands used to build SystemState.
+// SystemCommands returns Linux-specific commands to execute on the remote VPS.
+// These are remote snapshot commands, not local host inventory probes.
+// hostinventory:remote-snapshot-parser
 func (linuxCollector) SystemCommands() []CommandSpec {
 	return []CommandSpec{
 		{ID: "df_kb", Command: "df -Pk / 2>/dev/null | tail -1"},
@@ -85,12 +87,6 @@ func parseUptimeMetrics(results map[string]CommandResult, state *domain.SystemSt
 func parseMemoryMetrics(results map[string]CommandResult, state *domain.SystemState) {
 	if meminfoResult, ok := results["meminfo"]; ok && strings.TrimSpace(meminfoResult.Stdout) != "" {
 		parseMeminfo(meminfoResult.Stdout, state)
-		return
-	}
-
-	// Backward-compatible fallback for older snapshots/tests.
-	if freeResult, ok := results["free"]; ok {
-		parseFreeOutput(freeResult.Stdout, state)
 	}
 }
 
@@ -143,60 +139,9 @@ func parseMeminfo(output string, state *domain.SystemState) {
 	}
 }
 
-func parseFreeOutput(output string, state *domain.SystemState) {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		fields := strings.Fields(line)
-		if len(fields) < 4 {
-			continue
-		}
-
-		if strings.HasPrefix(fields[0], "Mem:") {
-			total, _ := strconv.Atoi(fields[1])
-			used, _ := strconv.Atoi(fields[2])
-			free := 0
-			if len(fields) >= 7 {
-				available, _ := strconv.Atoi(fields[6])
-				free = available
-				used = total - available
-				if used < 0 {
-					used = 0
-				}
-			} else {
-				free, _ = strconv.Atoi(fields[3])
-			}
-
-			state.Memory.TotalMB = total
-			state.Memory.UsedMB = used
-			state.Memory.FreeMB = free
-			state.Memory.TotalBytes = int64(total) * 1024 * 1024
-			state.Memory.UsedBytes = int64(used) * 1024 * 1024
-			state.Memory.FreeBytes = int64(free) * 1024 * 1024
-			if total > 0 {
-				state.Memory.UsagePercent = float64(used) / float64(total) * 100
-			}
-		} else if strings.HasPrefix(fields[0], "Swap:") {
-			total, _ := strconv.Atoi(fields[1])
-			used, _ := strconv.Atoi(fields[2])
-			state.Swap.TotalMB = total
-			state.Swap.UsedMB = used
-			if total > 0 {
-				state.Swap.UsagePercent = float64(used) / float64(total) * 100
-			}
-		}
-	}
-}
-
 func parseDiskMetrics(results map[string]CommandResult, state *domain.SystemState) {
 	if dfResult, ok := results["df_kb"]; ok && strings.TrimSpace(dfResult.Stdout) != "" {
-		if parseDiskFromDFKB(dfResult.Stdout, state) {
-			return
-		}
-	}
-
-	// Backward-compatible fallback for older snapshots/tests.
-	if dfResult, ok := results["df"]; ok {
-		parseDiskFromHumanDF(dfResult.Stdout, state)
+		parseDiskFromDFKB(dfResult.Stdout, state)
 	}
 }
 
@@ -224,52 +169,6 @@ func parseDiskFromDFKB(line string, state *domain.SystemState) bool {
 	usage, _ := strconv.ParseFloat(usageStr, 64)
 	state.Disk.UsagePercent = usage
 	return true
-}
-
-func parseDiskFromHumanDF(output string, state *domain.SystemState) {
-	fields := strings.Fields(output)
-	if len(fields) < 5 {
-		return
-	}
-	state.Disk.TotalGB = ParseHumanSizeToGB(fields[1])
-	state.Disk.UsedGB = ParseHumanSizeToGB(fields[2])
-	state.Disk.FreeGB = ParseHumanSizeToGB(fields[3])
-	const gib = int64(1024 * 1024 * 1024)
-	state.Disk.TotalBytes = int64(state.Disk.TotalGB) * gib
-	state.Disk.UsedBytes = int64(state.Disk.UsedGB) * gib
-	state.Disk.FreeBytes = int64(state.Disk.FreeGB) * gib
-
-	usageStr := strings.TrimSuffix(fields[4], "%")
-	usage, _ := strconv.ParseFloat(usageStr, 64)
-	state.Disk.UsagePercent = usage
-}
-
-// ParseHumanSizeToGB converts a human-readable size (e.g., 200G, 1.5T) to GB.
-func ParseHumanSizeToGB(s string) int {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 {
-		return 0
-	}
-
-	unit := s[len(s)-1]
-	numStr := s[:len(s)-1]
-	num, err := strconv.ParseFloat(numStr, 64)
-	if err != nil {
-		return 0
-	}
-
-	switch unit {
-	case 'T', 't':
-		return int(num * 1024)
-	case 'G', 'g':
-		return int(num)
-	case 'M', 'm':
-		return int(num / 1024)
-	case 'K', 'k':
-		return int(num / (1024 * 1024))
-	default:
-		return int(num / (1024 * 1024 * 1024))
-	}
 }
 
 // ParseCPUUsageFromProcStat parses CPU usage from /proc/stat samples.

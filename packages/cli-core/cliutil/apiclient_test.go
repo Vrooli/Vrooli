@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAPIClientAppliesBaseAndToken(t *testing.T) {
@@ -29,6 +30,65 @@ func TestAPIClientAppliesBaseAndToken(t *testing.T) {
 	}
 	if string(body) != `{"ok":true}` {
 		t.Fatalf("unexpected body: %s", string(body))
+	}
+}
+
+// A long maintenance call must not have to choose between finishing and
+// keeping its provenance: the longer-timeout copy has to carry the same token
+// and headers the CLI sends on every other request.
+func TestWithTimeoutPreservesTokenAndHeaders(t *testing.T) {
+	var gotAuth, gotInvocation string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotInvocation = r.Header.Get(HeaderInvocationCommand)
+		fmt.Fprint(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+
+	base := NewHTTPClient(HTTPClientOptions{})
+	base.SetInvocationHeaderSource(func() map[string]string {
+		return map[string]string{HeaderInvocationCommand: "import-sweep"}
+	})
+	client := NewAPIClient(base, func() APIBaseOptions {
+		return APIBaseOptions{DefaultBase: server.URL}
+	}, func() string { return "secret" })
+
+	if _, err := client.WithTimeout(time.Minute).Get("/ping", nil); err != nil {
+		t.Fatalf("api get: %v", err)
+	}
+	if gotAuth != "Bearer secret" {
+		t.Fatalf("authorization = %q", gotAuth)
+	}
+	if gotInvocation != "import-sweep" {
+		t.Fatalf("invocation command header = %q", gotInvocation)
+	}
+}
+
+func TestWithTimeoutLeavesTheReceiverUnchanged(t *testing.T) {
+	base := NewHTTPClient(HTTPClientOptions{Timeout: 30 * time.Second})
+	client := NewAPIClient(base, nil, nil)
+
+	extended := client.WithTimeout(15 * time.Minute)
+
+	if got := extended.client.Timeout(); got != 15*time.Minute {
+		t.Fatalf("clone timeout = %s", got)
+	}
+	if got := base.Timeout(); got != 30*time.Second {
+		t.Fatalf("receiver timeout changed to %s", got)
+	}
+	if extended.client == base {
+		t.Fatal("clone must not share the receiver's HTTP client")
+	}
+}
+
+// A non-positive timeout is a caller mistake, not a request for "no timeout".
+// Returning the receiver keeps the CLI default rather than hanging forever.
+func TestWithTimeoutIgnoresNonPositiveDurations(t *testing.T) {
+	client := NewAPIClient(NewHTTPClient(HTTPClientOptions{Timeout: time.Second}), nil, nil)
+	for _, timeout := range []time.Duration{0, -time.Second} {
+		if got := client.WithTimeout(timeout); got != client {
+			t.Fatalf("timeout %s should return the receiver", timeout)
+		}
 	}
 }
 

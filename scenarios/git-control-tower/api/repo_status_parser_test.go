@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -160,6 +161,45 @@ func TestParsePorcelainV2Status_BranchAndFiles(t *testing.T) {
 	assertContains(t, parsed.Files.Untracked, "untracked.txt")
 	assertContains(t, parsed.Files.Ignored, "ignored.log")
 	assertContains(t, parsed.Files.Conflicts, "conflict.txt")
+}
+
+// TestParsePorcelainV2Status_RenameRecordsOrigin covers the "2 " record: it
+// names only the destination inline and carries the origin as the following
+// NUL-delimited field. The origin is what lets the diff pathspec show git both
+// halves of the pair, so losing it turns a moved file into a whole-file add.
+func TestParsePorcelainV2Status_RenameRecordsOrigin(t *testing.T) {
+	out := []byte(strings.Join([]string{
+		"# branch.head main",
+		"2 R. N... 100644 100644 100644 abcdef1 abcdef2 R100 new/name.go",
+		"old/name.go",
+		"2 .R N... 100644 100644 100644 abcdef1 abcdef2 R090 moved/worktree.go",
+		"staged/worktree.go",
+		"1 M. N... 100644 100644 100644 abcdef1 abcdef2 plain.go",
+		"",
+	}, "\x00"))
+
+	parsed, err := ParsePorcelainV2Status(out)
+	if err != nil {
+		t.Fatalf("ParsePorcelainV2Status failed: %v", err)
+	}
+
+	want := map[string]string{
+		"new/name.go":       "old/name.go",
+		"moved/worktree.go": "staged/worktree.go",
+	}
+	if !reflect.DeepEqual(parsed.Files.Renames, want) {
+		t.Fatalf("renames = %v, want %v", parsed.Files.Renames, want)
+	}
+
+	// The destination is the path the rest of the pipeline works with; the
+	// origin is metadata, not a file in its own right.
+	assertContains(t, parsed.Files.Staged, "new/name.go")
+	assertContains(t, parsed.Files.Unstaged, "moved/worktree.go")
+	for _, path := range append(append([]string{}, parsed.Files.Staged...), parsed.Files.Unstaged...) {
+		if path == "old/name.go" || path == "staged/worktree.go" {
+			t.Errorf("rename origin %q must not be listed as a changed file", path)
+		}
+	}
 }
 
 func TestGetRepoStatus_UsesGitAndDetectsScopes(t *testing.T) {
@@ -346,6 +386,30 @@ func TestGetRepoStatus_UsesConfigCache(t *testing.T) {
 	}
 	if emailGets != 1 {
 		t.Errorf("expected 1 ConfigGet for user.email (cached), got %d", emailGets)
+	}
+}
+
+func TestGetRepoStatus_UsesShortLivedStatusCache(t *testing.T) {
+	fake := NewFakeGitRunner()
+	cache := NewRepoStatusCache(time.Minute)
+	deps := RepoStatusDeps{Git: fake, RepoDir: "/repo", StatusCache: cache}
+	if _, err := GetRepoStatus(context.Background(), deps); err != nil {
+		t.Fatalf("first status: %v", err)
+	}
+	if _, err := GetRepoStatus(context.Background(), deps); err != nil {
+		t.Fatalf("second status: %v", err)
+	}
+	fake.callsMu.Lock()
+	calls := append([]FakeGitCall(nil), fake.Calls...)
+	fake.callsMu.Unlock()
+	count := 0
+	for _, call := range calls {
+		if call.Method == "StatusPorcelainV2" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("status porcelain calls = %d, want one cache fill", count)
 	}
 }
 

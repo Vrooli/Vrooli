@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cli-manifest/v1",
+  "title": "Scenario CLI Manifest",
+  "description": "Declarative contract for a scenario's CLI command surface. Single source of truth for command groups, commands, arg shapes, governance metadata, and bindings: Connect-RPC bindings are registered through cli-core, while explicit local bindings catalog real locally implemented commands. Resolved at scenario.well_known_paths.cli_manifest in .vrooli/repo-contract.json. Consumed by packages/cli-core/cliapp/LoadFromManifest (registers Connect-RPC commands) and by prompt-manager (derives action certainty from governance).",
+  "type": "object",
+  "required": ["name", "groups"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema for editor autocomplete. Has no runtime effect."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Scenario or CLI display name (matches scenarios/<name>)."
+    },
+    "description": {
+      "type": "string"
+    },
+    "groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Group" }
+    },
+    "omitted": {
+      "type": "array",
+      "description": "RPCs intentionally not exposed as CLI commands. Each entry documents one (service, method) pair with a reason. RequireProtoServiceCoverage treats these as covered.",
+      "items": { "$ref": "#/$defs/Omission" }
+    },
+    "exceptions": {
+      "type": "array",
+      "description": "Legitimate special-case CLI commands that are NOT plain manifest-bound proto commands (streaming, upload, passthrough, external delegation, durable runs). These are appended outside the manifest binding path (see register.go) and declared here so CLI Health's command_architecture capability distinguishes a known special case from unknown legacy debt. See scenarios/cli-health/docs/reference/cli-architecture-maturity.md.",
+      "items": { "$ref": "#/$defs/ArchitectureExceptionDecl" }
+    },
+    "measures": { "$ref": "#/$defs/Measures" }
+  },
+  "$defs": {
+    "Group": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "description": { "type": "string" },
+        "flat": { "type": "boolean", "description": "When true, this group dispatches its commands at the CLI top level rather than beneath the group name." },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Command" }
+        },
+        "groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Group" },
+          "description": "Optional nested command groups. A nested group's path is the space-separated path of its non-flat ancestors."
+        }
+      },
+      "anyOf": [
+        { "required": ["commands"] },
+        { "required": ["groups"] }
+      ]
+    },
+    "Command": {
+      "type": "object",
+      "required": ["name", "binding", "governance"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "description": { "type": "string" },
+        "positionals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Positional" }
+        },
+        "flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Flag" }
+        },
+        "binding": { "$ref": "#/$defs/Binding" },
+        "governance": { "$ref": "#/$defs/Governance" },
+        "architecture": { "$ref": "#/$defs/Architecture" },
+        "measure": { "$ref": "#/$defs/Measure" },
+        "semantics": { "$ref": "#/$defs/Semantics" }
+      }
+    },
+    "Semantics": {
+      "type": "object",
+      "description": "Optional generic cross-scenario meaning declaration.",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["query", "verify", "guidance", "mutate"] },
+        "verdict": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "pass": { "type": "string", "minLength": 1 },
+            "fail": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "Architecture": {
+      "type": "object",
+      "description": "Optional command-architecture classification for CLI Health's command_architecture maturity capability. Missing metadata defaults to legacy/unknown maturity, so every existing manifest stays valid. A command declares EITHER a normal primitive class (proto_list/proto_mutation/operational/action) OR, for a proto-bound command that also carries a special lifecycle, an explicit exception — never both, and never a special-case class as a primitive (plan decision D4). This block declares INTENT only; declaring a primitive here is forgeable manifest text and does NOT by itself reach verified maturity (L4). Verified maturity requires matching cli-core primitive evidence: build the handler with the corresponding cli-core primitive builder and register it via cliapp.LoadFromManifestPrimitives, so the observed primitive class is stamped onto the command's evidence by construction (the evidence field is unexported and only a cli-core builder can set it). CLI Health compares the declared primitive to that observed evidence — agreement is verified (L4), a declaration with no evidence is advisory not-yet-verified debt (arch.primitive_unverified, capped at L3), and a disagreement is a gating error (arch.primitive_mismatch). The vocabulary here is the single source of truth mirrored by packages/cli-core/cliapp (DeclarablePrimitiveClasses/ValidExceptionClasses). See scenarios/cli-health/docs/reference/cli-architecture-maturity.md.",
+      "additionalProperties": false,
+      "properties": {
+        "primitive": {
+          "type": "string",
+          "enum": ["proto_list", "proto_mutation", "operational", "action"],
+          "description": "The NORMAL cli-core primitive class this command is built on (declared intent). Only normal command classes are declared here; a special-case lifecycle (upload/passthrough/streaming/durable_run) is declared as an exception (this block's `exception`, or the top-level `exceptions[]`), never as architecture.primitive (plan decision D4). Proto classes (proto_list/proto_mutation/operational) require the command's connect-rpc binding. Reaching verified maturity requires the handler to actually be built from this primitive via cliapp.LoadFromManifestPrimitives; a declaration that disagrees with the observed cli-core primitive is a gating arch.primitive_mismatch. This enum mirrors cliapp.DeclarablePrimitiveClasses."
+        },
+        "exception": {
+          "type": "object",
+          "required": ["class", "reason"],
+          "additionalProperties": false,
+          "description": "Declares a special-case lifecycle on an otherwise proto-bound command. Requires a reason.",
+          "properties": {
+            "class": {
+              "type": "string",
+              "enum": ["streaming", "upload", "passthrough", "external_delegation", "durable_run"]
+            },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        },
+        "primary_field": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$",
+          "description": "Descriptor response field to use as the primary program-runtime Handle rows when a response has multiple repeated fields."
+        }
+      }
+    },
+    "ArchitectureExceptionDecl": {
+      "type": "object",
+      "description": "Declares one legitimate special-case command that lives outside the manifest binding path.",
+      "required": ["command", "class", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The command path as exposed at runtime, e.g. \"execute\" or \"runs follow\" (space-separated group + command)."
+        },
+        "class": {
+          "type": "string",
+          "enum": ["streaming", "upload", "passthrough", "external_delegation", "durable_run"],
+          "description": "The exception class from the closed vocabulary."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why this command legitimately cannot be a plain proto command."
+        }
+      }
+    },
+    "Positional": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z_][a-zA-Z0-9_-]*$" },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "repeated": { "type": "boolean", "default": false },
+        "local_only": { "type": "boolean", "description": "The CLI parses this control but it is not projected into the bound RPC request." },
+		"bind_waiver": { "type": "string", "minLength": 1, "description": "Required explanation when an explicit bind intentionally overrides a semantic binding rule." },
+        "bind": {
+          "type": "object",
+          "description": "Maps the positional value onto a specific proto request field via the named decoding strategy.",
+          "required": ["field"],
+          "additionalProperties": false,
+          "properties": {
+            "field": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+            "kind": { "type": "string", "enum": ["raw_string", "json_inline", "json_file"] }
+          }
+        }
+      }
+    },
+    "Flag": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$" },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$" }
+        },
+        "description": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "repeatable": { "type": "boolean", "default": false, "description": "Accept the flag more than once; equivalent to repeated for CLI compatibility." },
+        "default": { "type": "string" },
+        "bool": { "type": "boolean", "default": false },
+        "local_only": { "type": "boolean", "description": "The CLI parses this control but it is not projected into the bound RPC request." },
+		"bind_waiver": { "type": "string", "minLength": 1, "description": "Required explanation when an explicit bind intentionally overrides a semantic binding rule." },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Closed vocabulary of accepted values for this flag. The runtime parser rejects anything outside values/value_aliases and generated --help renders the choices. Only valid on non-bool flags."
+        },
+        "value_aliases": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "propertyNames": { "minLength": 1 },
+          "description": "Accepted synonyms mapped to a member of values (e.g. \"low\": \"minor\"). The parser accepts the synonym and passes the raw string through; canonicalization stays server-side. Requires values."
+        },
+        "bind": {
+          "type": "object",
+          "description": "Maps the flag's parsed value onto a specific proto request field via the named decoding strategy. Consumed by generic dispatchers (protodispatch) so hand-rolled handlers are not required for file-bearing or JSON-payload flags.",
+          "required": ["field"],
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "description": "snake_case proto field name on the RPC request message."
+            },
+            "kind": {
+              "type": "string",
+              "enum": ["raw_string", "json_inline", "json_file"],
+              "description": "Decoding strategy. raw_string: value used verbatim as a string field. json_inline: value parsed as a JSON literal into the target message field. json_file: value treated as a filesystem path, file contents JSON-decoded into the target message field."
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "bool": { "const": true } }, "required": ["bool"] },
+          "then": {
+            "not": { "required": ["default"], "properties": { "default": { "type": "string", "minLength": 1 } } }
+          }
+        },
+        {
+          "if": { "properties": { "bool": { "const": true } }, "required": ["bool"] },
+          "then": { "not": { "required": ["values"] } }
+        },
+        {
+          "if": { "required": ["value_aliases"] },
+          "then": { "required": ["values"] }
+        }
+      ]
+    },
+    "Binding": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["connect-rpc", "local"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "connect-rpc" } }, "required": ["kind"] },
+          "then": {
+            "required": ["service", "method"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string", "const": "connect-rpc" },
+              "service": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Proto service name, e.g. NotesService. Must match a service in the bound proto descriptor."
+              },
+              "method": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Proto method name, e.g. ListNotes. Must match a method on the named service."
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "local" } }, "required": ["kind"] },
+          "then": {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "local",
+                "description": "A real top-level CLI command implemented locally rather than through a Connect RPC."
+              },
+              "handler": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The owning CLI handler key used when LoadFromManifest constructs a local command."
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Governance": {
+      "type": "object",
+      "required": ["effect", "run_eligible"],
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "type": "string",
+          "enum": ["read", "write", "destructive"],
+          "description": "Side-effect classification. read = no observable mutation; write = mutates state non-destructively; destructive = irreversible mutation or data loss."
+        },
+        "run_eligible": {
+          "type": "boolean",
+          "description": "Whether prompt-manager actions may invoke this command. False = command exists for human/CLI use only."
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "Whether the runner must prompt for confirmation. Defaults to true when effect == destructive."
+        },
+        "permissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal",
+              "network:external",
+              "admin"
+            ]
+          }
+        }
+      }
+    },
+    "Omission": {
+      "type": "object",
+      "required": ["service", "method", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "service": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "Measure": {
+      "type": "object",
+      "description": "Declares the command as a Measure: a named, typed, parameterized analytical query that search-hub can semantically match from a natural-language question, fill deterministically where possible, and (for read-only measures at high confidence) execute and answer directly. Curated prose lives here; param types/enums/bounds are NEVER duplicated — they are derived from the bound proto request message (the descriptor reader in packages/measures-go). A command's governance.effect/run_eligible gate auto-execution.",
+      "required": ["intent", "questions", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-line description of what the measure answers. Used as grounding for semantic matching."
+        },
+        "domain": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "description": "Optional stateful-domain override. Defaults to the command's group name. measures-health uses the domain to grade coverage (one domain ↦ ≥1 measure)."
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Natural-language phrasings this measure answers. These are the embedding key for semantic matching — author several real phrasings.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "params": {
+          "type": "object",
+          "description": "Per-parameter curated overlay keyed by the proto request field name (snake_case). Carries ONLY what the proto descriptor cannot express — a presentation default, a dynamic-enum values_source, or a canonical type annotation. Types/enum membership/numeric bounds come from proto, never here.",
+          "additionalProperties": { "$ref": "#/$defs/MeasureParam" }
+        },
+        "result": { "$ref": "#/$defs/MeasureResult" }
+      }
+    },
+    "MeasureParam": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Optional canonical-convention annotation the proto kind cannot imply. The only legal upgrade is marking a plain string field as a dynamic 'enum' (paired with values_source), or 'time_window' when the proto field is the shared vrooli.measures.v1.TimeWindow. Leave empty to let the proto-derived type stand. cli-health flags an unknown annotation."
+        },
+        "default": {
+          "type": "string",
+          "description": "Fallback token/value used when a question does not name the parameter (e.g. 'this_week' for a time_window)."
+        },
+        "values_source": {
+          "type": "string",
+          "description": "Names a runtime values callback the owning scenario supplies for a dynamic enum (e.g. 'initiative_names' ↦ live initiative names)."
+        }
+      }
+    },
+    "MeasureResult": {
+      "type": "object",
+      "description": "How the measure's answer is shaped and presented.",
+      "required": ["kind", "value_field"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["scalar", "table", "series"],
+          "description": "scalar = a single value (a count); table = a set of rows; series = ordered (time, value) points."
+        },
+        "value_field": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Names the field in the measure result that carries the answer (for scalar) or the primary column (for table/series). Mandatory."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Human label for the value ('items', 'hours'). Optional."
+        },
+        "summary_template": {
+          "type": "string",
+          "description": "One-line answer template with {placeholders} filled from the result + resolved params, e.g. '{count} backlog items completed ({window})'."
+        }
+      }
+    },
+    "Measures": {
+      "type": "object",
+      "description": "Scenario-level measures metadata: the waiver list for stateful domains intentionally not covered by any measure, and an optional statefulness-classification override. measures-health (a later phase) reads these when grading coverage.",
+      "additionalProperties": false,
+      "properties": {
+        "omitted": {
+          "type": "array",
+          "description": "Stateful domains intentionally left without a measure, each with a reason. measures-health treats these as waived (not an ERROR); a waiver pointing at a non-stateful/nonexistent domain is a stale WARNING.",
+          "items": { "$ref": "#/$defs/MeasureOmission" }
+        },
+        "domains": {
+          "type": "array",
+          "description": "Optional statefulness-classification overrides — the escape hatch when domain inference misclassifies. measures-health leads with inference; an entry here forces a domain's stateful flag.",
+          "items": { "$ref": "#/$defs/MeasureDomainOverride" }
+        }
+      }
+    },
+    "MeasureOmission": {
+      "type": "object",
+      "required": ["domain", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "domain": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "MeasureDomainOverride": {
+      "type": "object",
+      "required": ["domain", "stateful"],
+      "additionalProperties": false,
+      "properties": {
+        "domain": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+        "stateful": {
+          "type": "boolean",
+          "description": "Force whether this domain is treated as stateful (countable persisted rows ↦ a measure is expected) or not."
+        },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

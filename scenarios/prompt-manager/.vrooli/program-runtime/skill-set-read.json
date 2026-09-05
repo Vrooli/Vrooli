@@ -1,0 +1,160 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "prompt-manager.skill-set-read",
+  "version": "1",
+  "purpose": "Read one scenario's skill set as prompt-manager's registry sees it: ids registered under the scenario pack, usage and improve presence, token size, and read counts when skill-usage answers.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "default": "program-runtime",
+      "description": "Scenario whose skill set is read."
+    },
+    "usage_id": {
+      "type": "string",
+      "default": "",
+      "description": "Declared usage skill id; defaults to <scenario>."
+    },
+    "improve_id": {
+      "type": "string",
+      "default": "",
+      "description": "Declared improve skill id; defaults to <scenario>-improve."
+    },
+    "feature_ids": {
+      "type": "string",
+      "default": "",
+      "description": "Pipe-separated declared feature skill ids; empty means none."
+    }
+  },
+  "assumptions": [
+    "prompt-manager is running and its skill bindings are reachable from the kernel",
+    "the skill-usage binding returns 500 on the unknown proto field `projected` as of 2026-09-02; the read-counts row reads unreliable:proto_drift_skill_usage (class binding_error) until that is fixed",
+    "an unavailable row is unknown, never zero",
+    "a row with a permanent reason (no_governed_binding, kernel_invoke_budget, read_elsewhere, pending_telemetry) never lowers the status; only a transient scenario_unreachable row or a failed read makes the board partial"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "at most 50 registry rows per filter are read with head",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "prompt-manager/skill/list",
+      "effect": "read"
+    },
+    {
+      "id": "prompt-manager/skill/read",
+      "effect": "read"
+    },
+    {
+      "id": "prompt-manager/skill-usage/skill-usage",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}: registered-under-scenario-pack, usage-id-present, improve-id-present, set-token-size, read-counts; target and in_band are null (pure reads); reason is the closed vocabulary of program-contracts.md",
+      "readable": "count of rows read",
+      "unavailable": "count of rows not readable in-program (permanent and transient)",
+      "registered": "skill ids the registry attributes to the scenario",
+      "usage_present": "true when the declared or conventional usage id is registered",
+      "improve_present": "true when the declared or conventional improve id is registered"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "sensor command names, one per row"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 50
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {
+        "scenario": "program-runtime"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "usage_present": true,
+          "improve_present": true
+        }
+      },
+      "requires": [
+        "prompt-manager"
+      ],
+      "note": "ok is the status this board should produce; partial is accepted only for the read-counts row, which is a failed read (unreliable:proto_drift_skill_usage) until the skill-usage binding stops 500ing on the proto field `projected`."
+    },
+    {
+      "id": "bad-scenario",
+      "inputs": {
+        "scenario": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "stable-plan-skill-ownership",
+      "inputs": {
+        "scenario": "plan-manager",
+        "usage_id": "implementation-plan-authoring",
+        "improve_id": "plan-manager-improve",
+        "feature_ids": "implementation-plan-execution|plan-family-orchestration"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ],
+        "signals": {
+          "usage_present": true,
+          "improve_present": true
+        }
+      },
+      "requires": [
+        "prompt-manager"
+      ],
+      "note": "Pins stable public plan skill names while their authoritative sources remain Plan Manager-owned."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "skill-set-authoring"
+}

@@ -1,0 +1,107 @@
+{
+  "metadata": {
+    "name": "test-genie-remediation-evidence-journey",
+    "description": "Observer journey into the findings-first remediation surface for Test Genie's latest completed execution. The destructive launch and rerun actions remain intentionally outside observer-mode automation.",
+    "requirement": "TESTGENIE-ORCH-P0",
+    "labels": {
+      "reset": "none",
+      "purpose": "remediation-operator-journey"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "test-genie",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Test Genie" }
+      }
+    },
+    {
+      "id": "open-runs",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/tabs.runs" },
+        "metadata": { "label": "Open scenario runs" }
+      }
+    },
+    {
+      "id": "wait-scenarios",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/runs.scenarioTable",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for execution evidence" }
+      }
+    },
+    {
+      "id": "wait-test-genie-evidence-row",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/runs.testGenieScenario",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for Test Genie execution row" }
+      }
+    },
+    {
+      "id": "open-test-genie-evidence",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": { "selector": "@selector/runs.testGenieScenario" },
+        "metadata": { "label": "Open Test Genie latest execution" }
+      }
+    },
+    {
+      "id": "wait-remediation-evidence",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/runs.remediationPanel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Show findings and requirement evidence" }
+      }
+    },
+    {
+      "id": "assert-findings-first-copy",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/runs.remediationPanel",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "Findings-first remediation" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Findings-first remediation evidence did not render"
+        },
+        "metadata": { "label": "Confirm remediation starts from evidence" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-dashboard", "target": "open-runs", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "open-runs", "target": "wait-scenarios", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-scenarios", "target": "wait-test-genie-evidence-row", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "wait-test-genie-evidence-row", "target": "open-test-genie-evidence", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "open-test-genie-evidence", "target": "wait-remediation-evidence", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "wait-remediation-evidence", "target": "assert-findings-first-copy", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

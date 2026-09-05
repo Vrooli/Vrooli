@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>System Monitor</title>
+  <rect width="64" height="64" rx="16" fill="#0b0e0f"/>
+  <path d="M8 35h10l5-13 8 28 7-19 4 8h14" fill="none" stroke="#5fd3a6" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+  <circle cx="50" cy="39" r="4" fill="#e0a542"/>
+</svg>

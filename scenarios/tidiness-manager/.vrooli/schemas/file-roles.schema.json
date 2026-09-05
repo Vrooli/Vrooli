@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/scenarios/tidiness-manager/file-roles.schema.json",
+  "title": "Tidiness Manager File Roles",
+  "description": "Structural file-role declarations. They are classification priors, not suppression allowlists.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["roles"],
+  "properties": {
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["glob", "role"],
+        "properties": {
+          "glob": {"type": "string", "minLength": 1},
+          "role": {
+            "type": "string",
+            "enum": ["production", "test", "test-support", "generated", "composition-root", "declarative-wiring"]
+          }
+        }
+      }
+    }
+  }
+}

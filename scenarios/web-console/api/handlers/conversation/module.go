@@ -1,0 +1,165 @@
+// Package conversation is the HTTP-handler home for the conversation domain.
+// It exposes the generated Connect-RPC ConversationService (proto schema:
+// packages/proto/schemas/web-console/v1/conversation).
+package conversation
+
+import (
+	"context"
+	"log"
+
+	"web-console/internal/module"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+
+	conversationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation/conversation_v1connect"
+)
+
+// Service is the seam the Connect handler depends on. The concrete
+// implementation lives in package main (adapts ConversationStore and the TTS
+// summarizer to satisfy this interface).
+type Service interface {
+	Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
+	// CaptureStatus diagnoses one session's message capture independently of
+	// its events, so callers can explain an empty transcript without a second
+	// round trip.
+	CaptureStatus(ctx context.Context, sessionID string) CaptureStatus
+	Search(sessionID, query string, limit int) ([]SearchMatch, bool, int64, error)
+	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
+	GetRange(sessionID string, from, to int64) (SessionState, error)
+	UpdateCursor(sessionID string, patch CursorPatch) (Cursor, error)
+	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
+}
+type SearchMatch struct {
+	EventID  string
+	Sequence int64
+	Excerpt  string
+}
+
+type ArchivedSearchFilter struct {
+	Query        string
+	Limit        int
+	AgentType    string
+	Role         string
+	CreatedAfter string
+}
+
+type ArchivedSearchMatch struct {
+	EventID   string
+	SessionID string
+	Sequence  int64
+	Role      string
+	CreatedAt string
+	Excerpt   string
+}
+
+type ArchivedSearchResult struct {
+	Matches          []ArchivedSearchMatch
+	Truncated        bool
+	TotalMatches     int64
+	DistinctSessions int64
+}
+
+// Event mirrors the legacy JSON shape of one stored conversation entry.
+type Event struct {
+	ID                       string
+	SessionID                string
+	Source                   string
+	Role                     string
+	Text                     string
+	SpeechParagraphs         []string
+	OriginalSpeechParagraphs []string
+	Summarized               bool
+	CreatedAt                string
+	Sequence                 int64
+	DeliveryState            string
+	TTSState                 string
+	ConsumptionState         string
+}
+
+// Cursor is the transport-neutral cursor shape.
+type Cursor struct {
+	LastSeenSequence     int64
+	LastListenedSequence int64
+}
+
+// SessionState bundles a session's events and current cursor.
+type SessionState struct {
+	SessionID      string
+	Events         []Event
+	Cursor         Cursor
+	HasMore        bool
+	OldestSequence int64
+	NewestSequence int64
+	TotalCount     int64
+	// Capture explains the event list. Callers must not infer meaning from
+	// len(Events) alone: zero events is produced both by a session nobody has
+	// spoken in and by a session whose transcript cannot be read at all.
+	Capture CaptureStatus
+}
+
+// CaptureState classifies whether this session's messages can be recorded.
+type CaptureState string
+
+const (
+	// CaptureUnspecified is the zero value. Handlers treat it as "not yet
+	// computed" and it never reaches a client that asked for a real session.
+	CaptureUnspecified CaptureState = ""
+	// CaptureCapturing means the transcript is being read right now.
+	CaptureCapturing CaptureState = "capturing"
+	// CaptureNotApplicable means the session runs no agent.
+	CaptureNotApplicable CaptureState = "not_applicable"
+	// CapturePending means capture is wired but the agent has not yet produced
+	// anything to bind it to a transcript. It resolves without intervention.
+	CapturePending CaptureState = "pending"
+	// CaptureUnavailable means capture cannot proceed until something changes.
+	CaptureUnavailable CaptureState = "unavailable"
+)
+
+// CaptureStatus is the per-session diagnosis that accompanies every Get. It
+// exists so the Messages view can distinguish "nothing has been said" from
+// "nothing can be read", which were previously the same empty response.
+type CaptureStatus struct {
+	State          CaptureState
+	ReasonCode     string
+	Summary        string
+	Detail         string
+	Remediation    string
+	TranscriptPath string
+	LastCapturedAt string
+}
+
+// CursorPatch carries cursor field overrides; each Has* flag indicates whether
+// the paired field should be applied.
+type CursorPatch struct {
+	LastSeenSequence        int64
+	HasLastSeenSequence     bool
+	LastListenedSequence    int64
+	HasLastListenedSequence bool
+}
+
+// SummarizeResult mirrors the legacy soft-failure response: when Summarized is
+// false, Error carries the user-visible reason (model offline, empty output).
+type SummarizeResult struct {
+	Summarized       bool
+	SpeechParagraphs []string
+	Error            string
+}
+
+// Module wires the conversation domain into the API server.
+func Module(svc Service, logger *log.Logger) module.Module {
+	if logger == nil {
+		logger = log.Default()
+	}
+	connectPath, connectHandler := conversationconnect.NewConversationServiceHandler(NewConnectHandler(Deps{
+		Service: svc,
+		Logger:  logger,
+	}))
+	return module.Module{
+		Name: "conversation",
+		Mount: func(r *mux.Router) {
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+		},
+		Endpoints: Endpoints,
+	}
+}

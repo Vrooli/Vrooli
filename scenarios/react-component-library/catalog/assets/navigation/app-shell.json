@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.app-shell",
+    "name": "AppShell",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The one application frame a generated scenario mounts: brand, a SidebarShell-owned navigation column (resizable sidebar or icon rail), a BottomNav-owned phone tab bar or drawer, an optional header strip, a skip link, and the routed main pane in scroll or fill mode. Navigation is data; the router plugs in through renderLink and onNavigate.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Consumer className merges through the shared helper."
+      },
+      {
+        "asset": "navigation.sidebar",
+        "reason": "The desktop navigation column, drawer, and resize seam are owned by SidebarShell rather than re-drawn here."
+      },
+      {
+        "asset": "navigation.bottom-navigation",
+        "reason": "The phone tab bar is owned by BottomNav; the same item list drives both presentations."
+      },
+      {
+        "asset": "controls.icon-button",
+        "reason": "The drawer's menu control is the governed icon button, so its tap target and focus ring are not re-implemented."
+      },
+      {
+        "asset": "hooks.use-media-query",
+        "reason": "The md breakpoint is the library's, read once, so the shell and its navigation assets agree on where a phone ends."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "chrome-pinned",
+    "safe-area-respected",
+    "responsive-transformation",
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "no-horizontal-overflow"
+  ],
+  "regions": [
+    {
+      "id": "navigation",
+      "purpose": "Primary application navigation in whichever presentation the viewport calls for.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "header",
+      "purpose": "Global toolbar for search, global actions, status, and account controls.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "content",
+      "purpose": "The routed page content mounted beneath the shell.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "aside",
+      "purpose": "Optional persistent workspace panel beside the main content.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ]
+}

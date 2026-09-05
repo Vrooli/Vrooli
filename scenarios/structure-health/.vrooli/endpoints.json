@@ -1,0 +1,277 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.structure_health.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.structure_health.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "fleet_scan_fleet",
+      "path": "/vrooli.structure_health.v1.fleet.FleetService/ScanFleet",
+      "method": "POST",
+      "summary": "Roll up structure conformance across the fleet",
+      "description": "Statically grades every discovered scenario (or the requested subset) through structure-health's engine and returns per-scenario rollups, profile/surface distributions, per-rule conformance, and auto-fixable coverage.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "autofixable_total": "int32",
+          "entries": "array<FleetScenarioEntry>",
+          "errors": "array<FleetScanError>",
+          "missing_freshness_count": "int32",
+          "passing_count": "int32",
+          "profile_distribution": "array<ProfileDistribution>",
+          "rule_conformance": "array<RuleConformance>",
+          "scenario_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Scenario enumeration or grading failure"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.structure_health.v1.validation.ValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's structure and lifecycle wiring",
+      "description": "Reconciles code-facts ground truth against declared service.json intent and returns profile-aware skeleton and lifecycle-wiring findings plus a shared maturity assessment.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "findings": "array<StructureFinding>",
+          "profile": "DetectedProfile",
+          "status": "string",
+          "surfaces": "array<SurfaceReconcile>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix_config",
+      "path": "/vrooli.structure_health.v1.validation.ValidationService/PreviewFixConfig",
+      "method": "POST",
+      "summary": "Preview deterministic structure/service.json fixes",
+      "description": "Returns the format-preserving service.json edits and skeleton files structure-health could apply for the requested rules, without writing anything.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<AutofixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix_config",
+      "path": "/vrooli.structure_health.v1.validation.ValidationService/ApplyFixConfig",
+      "method": "POST",
+      "summary": "Apply deterministic structure/service.json fixes",
+      "description": "Applies the format-preserving service.json edits and skeleton files for the requested rules and reports what changed.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<AutofixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario structure through the shared provider contract",
+      "description": "Runs Structure Health's engine and returns the shared scenario-validation response; the native structure-health ValidateScenarioResponse is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<structure_health.v1.validation.ValidateScenarioResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic structure fixes through the shared provider contract",
+      "description": "Returns the format-preserving service.json edits and skeleton files structure-health could apply for the requested rules, in the shared scenario-validation FixResponse shape, without writing anything.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic structure fixes through the shared provider contract",
+      "description": "Applies the format-preserving service.json edits and skeleton files for the requested rules and reports what changed, in the shared scenario-validation FixResponse shape.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    }
+  ]
+}

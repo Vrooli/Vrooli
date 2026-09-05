@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "ultralytics-yolo",
+  "display_name": "Ultralytics YOLO",
+  "category": "vision",
+  "summary": "Object-detection and vision inference stack for detection, tracking, segmentation, and related computer-vision workflows.",
+  "why_it_matters": "Ultralytics YOLO preserves practical detection capability knowledge, but there is no current validated scenario that justifies maintaining it as an active resource.",
+  "when_to_use": [
+    "A future scenario needs object detection or tracking.",
+    "Operators want local vision inference in media or robotics workflows.",
+    "The workflow depends on structured detections rather than generic image labeling."
+  ],
+  "example_scenarios": [
+    "Camera analytics",
+    "Media processing pipelines",
+    "Perception helpers for robotics"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "Inference can run across platforms, but GPU acceleration, model packaging, and throughput differ substantially by environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Model selection and artifact storage plan",
+    "CPU or GPU runtime expectations",
+    "Defined output schema and downstream consumer workflow"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should validate a concrete detection workflow with representative inputs.",
+    "Keep model lifecycle explicit and version-pinned.",
+    "Do not imply reliable real-time support without benchmarked environments."
+  ],
+  "operational_notes": [
+    "Inference latency and model size materially affect operator experience.",
+    "Validation should run known images or video clips with expected detections.",
+    "GPU claims should stay explicit and narrow."
+  ],
+  "risks": [
+    "Vision-model wrappers drift quickly when not tied to active workflows.",
+    "Portable inference does not imply portable performance."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "ultralytics-yolo"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/ultralytics-yolo"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

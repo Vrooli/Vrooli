@@ -6,12 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"scenario-to-cloud/cli/deployment"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"scenario-to-cloud/cli/deployment"
 )
 
 // Run executes the redeploy workflow: create/update → execute → report.

@@ -1,0 +1,123 @@
+# Asset update flow
+
+An asset change follows one loop: declare intent, open a draft, edit the
+version source, build derived artifacts, run the single-asset check, and
+publish a new immutable version. Never edit a released version directory.
+
+## Run the scenario
+
+Use the scenario lifecycle from the scenario root. It owns ports, resources,
+environment, and the API/UI processes.
+
+```bash
+make setup
+make start
+```
+
+Confirm the API is healthy with `react-component-library status`, then use
+this guide for the asset edit loop. Run `make test` for the scenario-owned
+workflow suite.
+
+## 1. Declare intent
+
+Edit the asset declaration under `catalog/assets/<domain>/`. If the file is
+missing, the catalog gate reports the gap.
+
+Failure: the declaration schema fails. Recovery: fix the reported JSON path
+and rerun `react-component-library catalog build --check`.
+
+## 2. Open and edit a draft
+
+```bash
+react-component-library components draft-begin react-component-library:Button
+```
+
+Edit the returned draft directory. Keep implementation source, `story.tsx`,
+and any co-located `.css` together. Do not modify a released version.
+
+Failure: the draft is not writable or the version is released. Recovery: use
+`components draft-begin` again and discard the abandoned draft through the
+governed lifecycle command.
+
+## 3. Generate derived artifacts
+
+```bash
+react-component-library catalog build
+react-component-library catalog build --check
+```
+
+The generator owns locks, story contracts, package exports, and release
+indexes. A stale-output error means an authored source changed without a
+build; run the first command and inspect the resulting diff.
+
+## 4. Validate only the changed asset
+
+```bash
+react-component-library asset check controls.button
+```
+
+The asset command builds the derived projections, runs every applicable gate
+against the asset closure, reuses or runs component evidence, and emits one
+verdict. A zero-file result is a runner fault, not a pass. Use a named catalog
+gate only when narrowing an investigation.
+
+Failure: a blocking finding remains. Recovery: fix the named authored source,
+rerun the generator, and repeat `asset check`. Do not widen the gate or add an
+allowlist to hide the finding.
+
+## 5. Publish
+
+```bash
+react-component-library components draft-publish react-component-library:Button
+```
+
+Publishing creates a new immutable release and invalidates evidence for the
+asset and its dependents. If publishing is rejected, resolve the reported
+shape, story, dependency, or gate failure in the draft and repeat steps 3–5.
+
+Run the scenario-owned suite for the complete workflow:
+`vrooli scenario test react-component-library`.
+
+## Adoption obligations
+
+Before linking, the target scenario must satisfy seven obligations:
+
+1. A UI manifest declares its generation template.
+2. The target owns a managed design-token region.
+3. The target has a token ramp file for the selected asset.
+4. The locale catalogue exists and has the library provider markers.
+5. The selector registry exists and is generated from the library contract.
+6. The adoption record and pinned package dependency are present.
+7. The component import is present at the generated target path.
+
+Inspect them with `react-component-library adoptions obligations <scenario>
+--json`. `adoptions link` installs the record, package, locale, selector, and
+token obligations together; follow it with `adoptions preflight` to confirm
+the maturity floor and gate verdicts.
+
+Where those files live is the target template's decision, not the library's.
+`link`, `tokens-sync`, `tokens-prune`, `obligations` and the
+`scenario-token-requirements` gate resolve the design-token ramp, the default
+locale catalogue, the selector registry, the library-selectors file and the
+application entry from the template's `ui/manifest.json` `files` section
+(`designTokens`, `localeCatalogue`, `selectorRegistry`, `librarySelectors`,
+`appEntry`), overlaid by the scenario's `.vrooli/ui-manifest.json`. A template
+that declares no `files` gets the react-vite layout
+(`ui/src/design-tokens.css`, `ui/src/i18n/locales/en.json`,
+`ui/src/consts/selectors.ts`, `ui/src/consts/selectors.library.ts`,
+`ui/src/main.tsx`). The obligations report echoes the resolved paths under
+`files`.
+
+## Canonical version shape
+
+Each released version contains one authored entrypoint named after the asset,
+plus `story.tsx`, `story.json`, and `dependencies.json`. A co-located
+`<Asset>.css` or `<Asset>.strings.ts` file is optional. Generated JavaScript,
+declarations, export maps, and release-hash projections belong to package
+tooling and must not be copied into a version directory.
+
+If a shape gate reports an extra file, remove the generated or abandoned file
+from the draft, rerun the catalog build, and repeat the changed-asset gates.
+If a release hash reports drift, inspect the authored file and use the
+explicit migration workflow only when the historical release change is
+intentional and documented.

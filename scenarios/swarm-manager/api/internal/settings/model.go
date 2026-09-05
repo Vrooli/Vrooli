@@ -20,18 +20,43 @@ const (
 	DeleteConfirmStrong DeleteConfirmLevel = "strong"
 )
 
-// DeleteConfirmationSettings holds per-entity-type confirmation levels.
-type DeleteConfirmationSettings struct {
-	Backlog    DeleteConfirmLevel `json:"backlog"`
-	Initiative DeleteConfirmLevel `json:"initiative"`
-	Capture    DeleteConfirmLevel `json:"capture"`
+// Fix-before-feature gate modes.
+const (
+	FixBeforeFeatureOff     = "off"
+	FixBeforeFeatureSuggest = "suggest"
+	FixBeforeFeatureBlock   = "block"
+)
+
+// Backlog auto-filer modes and targeting strategies.
+const (
+	AutoFilerModeSuggest = "suggest"
+	AutoFilerModeAutoAdd = "auto_add"
+
+	AutoFilerStrategyFeaturePending = "feature_pending"
+	AutoFilerStrategyImportance     = "importance"
+)
+
+// deletableEntityDefaults mirrors the UI registry in
+// ui/src/lib/deletable-entities.ts. Keys are the entity-type strings shared
+// with the UI as the delete-confirmation map keys. Keep the two in sync when
+// adding a deletable entity type.
+var deletableEntityDefaults = map[string]DeleteConfirmLevel{
+	"session":     DeleteConfirmSimple,
+	"scenario":    DeleteConfirmStrong,
+	"backlog":     DeleteConfirmSimple,
+	"goal":        DeleteConfirmStrong,
+	"capture":     DeleteConfirmNone,
+	"backlogFile": DeleteConfirmSimple,
 }
 
-// DeleteConfirmationSettingsPatch allows partial updates to delete confirmation.
-type DeleteConfirmationSettingsPatch struct {
-	Backlog    *DeleteConfirmLevel `json:"backlog,omitempty"`
-	Initiative *DeleteConfirmLevel `json:"initiative,omitempty"`
-	Capture    *DeleteConfirmLevel `json:"capture,omitempty"`
+// defaultDeleteConfirmationLevels returns a fresh copy of the registry
+// defaults so callers never mutate the shared map.
+func defaultDeleteConfirmationLevels() map[string]DeleteConfirmLevel {
+	out := make(map[string]DeleteConfirmLevel, len(deletableEntityDefaults))
+	for k, v := range deletableEntityDefaults {
+		out[k] = v
+	}
+	return out
 }
 
 // Settings represents persisted configuration for the scenario.
@@ -44,22 +69,19 @@ type Settings struct {
 	MaxFixupAttempts   int    `json:"max_fixup_attempts"`
 	ReviewAgentEnabled bool   `json:"review_agent_enabled"`
 
-	// Workshop.
-	MaxAutoRounds           int  `json:"max_auto_rounds"`
-	AutoInitializeWorkshop  bool `json:"auto_initialize_workshop"`
-	AutoAdvanceWorkshop     bool `json:"auto_advance_workshop"`
-	AutoCascadeWorkshop     bool `json:"auto_cascade_workshop"`
-	AutoAdvanceDelaySeconds int  `json:"auto_advance_delay_seconds"`
-
 	// Agent behavior.
-	AgentMaxTurns         int  `json:"agent_max_turns"`
-	AgentTimeoutSeconds   int  `json:"agent_timeout_seconds"`
-	AgentRequiresApproval bool `json:"agent_requires_approval"`
+	AgentMaxTurns       int `json:"agent_max_turns"`
+	AgentTimeoutSeconds int `json:"agent_timeout_seconds"`
 
 	// UI preferences.
-	SearchDebounceMs   int                        `json:"search_debounce_ms"`
-	ToastDurationMs    int                        `json:"toast_duration_ms"`
-	DeleteConfirmation DeleteConfirmationSettings `json:"delete_confirmation"`
+	SearchDebounceMs int `json:"search_debounce_ms"`
+	ToastDurationMs  int `json:"toast_duration_ms"`
+	// DeleteConfirmationLevels maps a deletable entity-type string (mirroring
+	// the UI registry: "session", "scenario", "backlog", "goal",
+	// "capture", "backlogFile", ...) to its confirmation level. Missing known
+	// keys are filled from registry defaults on normalize; unknown keys are
+	// preserved for forward-compat with newer UIs.
+	DeleteConfirmationLevels map[string]DeleteConfirmLevel `json:"delete_confirmation_levels"`
 
 	// Review thresholds.
 	ReviewCodeQualityMinScore   float64 `json:"review_code_quality_min_score"`
@@ -70,12 +92,40 @@ type Settings struct {
 	ReviewRequireTests          bool    `json:"review_require_tests"`
 
 	// Concurrency and governance.
-	MaxConcurrentExecutions       int     `json:"max_concurrent_executions"`
-	MaxQueueDepth                 int     `json:"max_queue_depth"`
-	CircuitBreakerThreshold       int     `json:"circuit_breaker_threshold"`
-	CircuitBreakerCooldownMinutes int     `json:"circuit_breaker_cooldown_minutes"`
-	ExecutionCostCapPerRun        float64 `json:"execution_cost_cap_per_run"`
-	CostPerTurnEstimate           float64 `json:"cost_per_turn_estimate"`
+	// LaneConcurrencyLimits caps simultaneous tracked agent activities by
+	// phase-kind lane. Keys are lane names matching agentactivity.Lane /
+	// Phase kinds: "investigate", "execute", "review",
+	// "reconcile". Values <= 0 are clamped to 1 by normalize. Replaces the
+	// pre-P2 single global cap.
+	LaneConcurrencyLimits         map[string]int `json:"lane_concurrency_limits"`
+	MaxQueueDepth                 int            `json:"max_queue_depth"`
+	CircuitBreakerThreshold       int            `json:"circuit_breaker_threshold"`
+	CircuitBreakerCooldownMinutes int            `json:"circuit_breaker_cooldown_minutes"`
+	ExecutionCostCapPerRun        float64        `json:"execution_cost_cap_per_run"`
+	CostPerTurnEstimate           float64        `json:"cost_per_turn_estimate"`
+
+	// Fix-before-feature gate. When a feature item (kind=execute) is queued
+	// onto a scenario that already has open fix/chore items, the gate reacts
+	// per this mode: "off" (silent), "suggest" (advisory in the queue
+	// response), or "block" (forceable BlockingReason). Default "suggest".
+	FixBeforeFeature string `json:"fix_before_feature"`
+
+	// AutoFiler governs automatic maintenance-intake filing.
+	AutoFiler         AutoFilerSettings `json:"auto_filer"`
+	AutonomyGateModes map[string]string `json:"autonomy_gate_modes"`
+}
+
+// AutoFilerSettings controls governed automatic backlog filing for
+// programmatic maintenance findings.
+type AutoFilerSettings struct {
+	Enabled                bool   `json:"enabled"`
+	Mode                   string `json:"mode"`
+	Strategy               string `json:"strategy"`
+	MaxOpenAutoFiled       int    `json:"max_open_auto_filed"`
+	VelocityWindowDays     int    `json:"velocity_window_days"`
+	MinVelocityTransitions int    `json:"min_velocity_transitions"`
+	IntervalMinutes        int    `json:"interval_minutes"`
+	GoalName               string `json:"goal_name"`
 }
 
 // SettingsPatch allows partial updates.
@@ -87,19 +137,15 @@ type SettingsPatch struct {
 	MaxFixupAttempts   *int    `json:"max_fixup_attempts,omitempty"`
 	ReviewAgentEnabled *bool   `json:"review_agent_enabled,omitempty"`
 
-	MaxAutoRounds           *int  `json:"max_auto_rounds,omitempty"`
-	AutoInitializeWorkshop  *bool `json:"auto_initialize_workshop,omitempty"`
-	AutoAdvanceWorkshop     *bool `json:"auto_advance_workshop,omitempty"`
-	AutoCascadeWorkshop     *bool `json:"auto_cascade_workshop,omitempty"`
-	AutoAdvanceDelaySeconds *int  `json:"auto_advance_delay_seconds,omitempty"`
+	AgentMaxTurns       *int `json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds *int `json:"agent_timeout_seconds,omitempty"`
 
-	AgentMaxTurns         *int  `json:"agent_max_turns,omitempty"`
-	AgentTimeoutSeconds   *int  `json:"agent_timeout_seconds,omitempty"`
-	AgentRequiresApproval *bool `json:"agent_requires_approval,omitempty"`
-
-	SearchDebounceMs   *int                             `json:"search_debounce_ms,omitempty"`
-	ToastDurationMs    *int                             `json:"toast_duration_ms,omitempty"`
-	DeleteConfirmation *DeleteConfirmationSettingsPatch `json:"delete_confirmation,omitempty"`
+	SearchDebounceMs *int `json:"search_debounce_ms,omitempty"`
+	ToastDurationMs  *int `json:"toast_duration_ms,omitempty"`
+	// DeleteConfirmationLevels, when non-nil, merges the given entity→level
+	// pairs over the current map (provided keys overwrite; omitted keys and
+	// unknown existing keys are left intact). Pass nil to leave untouched.
+	DeleteConfirmationLevels map[string]DeleteConfirmLevel `json:"delete_confirmation_levels,omitempty"`
 
 	ReviewCodeQualityMinScore   *float64 `json:"review_code_quality_min_score,omitempty"`
 	ReviewTestMinPassRate       *float64 `json:"review_test_min_pass_rate,omitempty"`
@@ -108,12 +154,32 @@ type SettingsPatch struct {
 	ReviewRequireScreenshots    *bool    `json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          *bool    `json:"review_require_tests,omitempty"`
 
-	MaxConcurrentExecutions       *int     `json:"max_concurrent_executions,omitempty"`
-	MaxQueueDepth                 *int     `json:"max_queue_depth,omitempty"`
-	CircuitBreakerThreshold       *int     `json:"circuit_breaker_threshold,omitempty"`
-	CircuitBreakerCooldownMinutes *int     `json:"circuit_breaker_cooldown_minutes,omitempty"`
-	ExecutionCostCapPerRun        *float64 `json:"execution_cost_cap_per_run,omitempty"`
-	CostPerTurnEstimate           *float64 `json:"cost_per_turn_estimate,omitempty"`
+	// LaneConcurrencyLimits, when non-nil, replaces the corresponding lane
+	// caps wholesale. Keys are lane names; values must be >= 1. Pass nil to
+	// leave the existing map untouched. Pass an empty map to reset to
+	// defaults (DefaultSettings()).
+	LaneConcurrencyLimits         map[string]int `json:"lane_concurrency_limits,omitempty"`
+	MaxQueueDepth                 *int           `json:"max_queue_depth,omitempty"`
+	CircuitBreakerThreshold       *int           `json:"circuit_breaker_threshold,omitempty"`
+	CircuitBreakerCooldownMinutes *int           `json:"circuit_breaker_cooldown_minutes,omitempty"`
+	ExecutionCostCapPerRun        *float64       `json:"execution_cost_cap_per_run,omitempty"`
+	CostPerTurnEstimate           *float64       `json:"cost_per_turn_estimate,omitempty"`
+
+	FixBeforeFeature  *string                 `json:"fix_before_feature,omitempty"`
+	AutoFiler         *AutoFilerSettingsPatch `json:"auto_filer,omitempty"`
+	AutonomyGateModes map[string]string       `json:"autonomy_gate_modes,omitempty"`
+}
+
+// AutoFilerSettingsPatch overlays a subset of the auto-filer block.
+type AutoFilerSettingsPatch struct {
+	Enabled                *bool   `json:"enabled,omitempty"`
+	Mode                   *string `json:"mode,omitempty"`
+	Strategy               *string `json:"strategy,omitempty"`
+	MaxOpenAutoFiled       *int    `json:"max_open_auto_filed,omitempty"`
+	VelocityWindowDays     *int    `json:"velocity_window_days,omitempty"`
+	MinVelocityTransitions *int    `json:"min_velocity_transitions,omitempty"`
+	IntervalMinutes        *int    `json:"interval_minutes,omitempty"`
+	GoalName               *string `json:"goal_name,omitempty"`
 }
 
 // Store persists settings on disk.
@@ -129,39 +195,26 @@ var (
 // NewStore creates a settings store. If path is empty, uses the scenario default.
 func NewStore(path string) *Store {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "settings.json")
+		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), "config", "settings.json")
 	}
-	return &Store{path: path}
-}
-
-// StoreForPath creates a settings store at the given path (for use by other packages).
-func StoreForPath(path string) *Store {
 	return &Store{path: path}
 }
 
 // DefaultSettings returns the baseline settings.
 func DefaultSettings() Settings {
 	return Settings{
-		Theme:                   "dark",
-		DefaultMode:             "yolo",
-		AutoFixup:               false,
-		MaxFixupAttempts:        2,
-		ReviewAgentEnabled:      true,
-		MaxAutoRounds:           10,
-		AutoInitializeWorkshop:  true,
-		AutoAdvanceWorkshop:     true,
-		AutoCascadeWorkshop:     true,
-		AutoAdvanceDelaySeconds: 10,
-		AgentMaxTurns:           60,
-		AgentTimeoutSeconds:     3600,
-		AgentRequiresApproval:   true,
-		SearchDebounceMs:        300,
-		ToastDurationMs:         5000,
-		DeleteConfirmation: DeleteConfirmationSettings{
-			Backlog:    DeleteConfirmSimple,
-			Initiative: DeleteConfirmStrong,
-			Capture:    DeleteConfirmNone,
-		},
+		Theme:              "dark",
+		DefaultMode:        "yolo",
+		AutoFixup:          false,
+		MaxFixupAttempts:   2,
+		ReviewAgentEnabled: true,
+		// Per-run turn budget mirrored by the swarm-manager agent profile
+		// in .vrooli/agent-profiles (the canonical source for spawns).
+		AgentMaxTurns:            600,
+		AgentTimeoutSeconds:      3600,
+		SearchDebounceMs:         300,
+		ToastDurationMs:          5000,
+		DeleteConfirmationLevels: defaultDeleteConfirmationLevels(),
 
 		ReviewCodeQualityMinScore:   60,
 		ReviewTestMinPassRate:       1.0,
@@ -170,12 +223,39 @@ func DefaultSettings() Settings {
 		ReviewRequireScreenshots:    true,
 		ReviewRequireTests:          true,
 
-		MaxConcurrentExecutions:       3,
+		// Lane caps: investigate (workshop / clarify / classify / research /
+		// feedback) is the most parallelizable; execute matches today's
+		// global default of 3 to preserve backlog-process semantics; review
+		// is read-mostly so we allow more headroom; reconcile is bounded
+		// since it follows execute and writes to the backlog.
+		LaneConcurrencyLimits: map[string]int{
+			"investigate": 6,
+			"execute":     3,
+			"review":      8,
+			"reconcile":   2,
+		},
 		MaxQueueDepth:                 50,
 		CircuitBreakerThreshold:       3,
 		CircuitBreakerCooldownMinutes: 60,
 		ExecutionCostCapPerRun:        0,
 		CostPerTurnEstimate:           0.10,
+
+		FixBeforeFeature:  FixBeforeFeatureSuggest,
+		AutoFiler:         defaultAutoFilerSettings(),
+		AutonomyGateModes: map[string]string{},
+	}
+}
+
+func defaultAutoFilerSettings() AutoFilerSettings {
+	return AutoFilerSettings{
+		Enabled:                false,
+		Mode:                   AutoFilerModeSuggest,
+		Strategy:               AutoFilerStrategyFeaturePending,
+		MaxOpenAutoFiled:       10,
+		VelocityWindowDays:     7,
+		MinVelocityTransitions: 1,
+		IntervalMinutes:        30,
+		GoalName:               "automated-maintenance",
 	}
 }
 
@@ -239,6 +319,43 @@ func clampFloat(v, min, max float64) float64 {
 	return v
 }
 
+// laneKeys is the canonical set of LaneConcurrencyLimits keys. Mirrors
+// agentactivity.Lanes() but lives here as plain strings to keep the
+// settings package free of agentactivity imports (settings is a leaf used
+// by many adapters).
+var laneKeys = []string{"investigate", "execute", "review", "reconcile"}
+
+// normalizeLaneConcurrencyLimits canonicalizes the lane cap map: every
+// canonical key is present, missing keys are filled from DefaultSettings,
+// values are clamped to [1, 50] (50 is generous; the validator stops well
+// before any realistic system limit), and unknown keys are dropped to
+// keep the wire surface tight.
+func normalizeLaneConcurrencyLimits(raw map[string]int) map[string]int {
+	defaults := defaultLaneConcurrencyLimits()
+	out := make(map[string]int, len(laneKeys))
+	for _, key := range laneKeys {
+		val, ok := raw[key]
+		if !ok || val <= 0 {
+			out[key] = defaults[key]
+			continue
+		}
+		out[key] = clampInt(val, 1, 50)
+	}
+	return out
+}
+
+// defaultLaneConcurrencyLimits returns a fresh copy of the canonical
+// defaults so callers never accidentally mutate the DefaultSettings
+// shared map.
+func defaultLaneConcurrencyLimits() map[string]int {
+	return map[string]int{
+		"investigate": 6,
+		"execute":     3,
+		"review":      8,
+		"reconcile":   2,
+	}
+}
+
 func normalizeDeleteConfirmLevel(level, fallback DeleteConfirmLevel) DeleteConfirmLevel {
 	switch level {
 	case DeleteConfirmNone, DeleteConfirmSimple, DeleteConfirmStrong:
@@ -246,6 +363,29 @@ func normalizeDeleteConfirmLevel(level, fallback DeleteConfirmLevel) DeleteConfi
 	default:
 		return fallback
 	}
+}
+
+// normalizeDeleteConfirmationLevels canonicalizes the per-entity level map:
+// every known registry key is present (missing ones filled from defaults),
+// and any unknown key is preserved (forward-compat with newer UIs) but its
+// value is coerced to a valid level. Known keys with invalid values fall back
+// to the registry default; unknown keys with invalid values fall back to
+// simple confirmation (the safe default).
+func normalizeDeleteConfirmationLevels(raw map[string]DeleteConfirmLevel) map[string]DeleteConfirmLevel {
+	out := make(map[string]DeleteConfirmLevel, len(deletableEntityDefaults))
+	// Fill known keys from defaults, overridden by any valid provided value.
+	for key, def := range deletableEntityDefaults {
+		out[key] = normalizeDeleteConfirmLevel(raw[key], def)
+	}
+	// Preserve unknown keys so an older API does not clobber a newer UI's
+	// entity types; coerce their values to a valid level.
+	for key, val := range raw {
+		if _, known := deletableEntityDefaults[key]; known {
+			continue
+		}
+		out[key] = normalizeDeleteConfirmLevel(val, DeleteConfirmSimple)
+	}
+	return out
 }
 
 func normalizeSettings(settings Settings) Settings {
@@ -263,21 +403,14 @@ func normalizeSettings(settings Settings) Settings {
 	}
 	settings.MaxFixupAttempts = clampInt(settings.MaxFixupAttempts, 0, 5)
 
-	// Workshop.
-	settings.MaxAutoRounds = clampInt(settings.MaxAutoRounds, 0, 50)
-	settings.AutoAdvanceDelaySeconds = clampInt(settings.AutoAdvanceDelaySeconds, 0, 120)
-
 	// Agent behavior.
-	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 200)
+	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 1000)
 	settings.AgentTimeoutSeconds = clampInt(settings.AgentTimeoutSeconds, 60, 3600)
 
 	// UI preferences.
 	settings.SearchDebounceMs = clampInt(settings.SearchDebounceMs, 100, 2000)
 	settings.ToastDurationMs = clampInt(settings.ToastDurationMs, 1000, 30000)
-	defaults := DefaultSettings()
-	settings.DeleteConfirmation.Backlog = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Backlog, defaults.DeleteConfirmation.Backlog)
-	settings.DeleteConfirmation.Initiative = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Initiative, defaults.DeleteConfirmation.Initiative)
-	settings.DeleteConfirmation.Capture = normalizeDeleteConfirmLevel(settings.DeleteConfirmation.Capture, defaults.DeleteConfirmation.Capture)
+	settings.DeleteConfirmationLevels = normalizeDeleteConfirmationLevels(settings.DeleteConfirmationLevels)
 
 	// Review thresholds.
 	settings.ReviewCodeQualityMinScore = clampFloat(settings.ReviewCodeQualityMinScore, 0, 100)
@@ -290,7 +423,7 @@ func normalizeSettings(settings Settings) Settings {
 	}
 
 	// Concurrency and governance.
-	settings.MaxConcurrentExecutions = clampInt(settings.MaxConcurrentExecutions, 1, 20)
+	settings.LaneConcurrencyLimits = normalizeLaneConcurrencyLimits(settings.LaneConcurrencyLimits)
 	settings.MaxQueueDepth = clampInt(settings.MaxQueueDepth, 0, 100)
 	settings.CircuitBreakerThreshold = clampInt(settings.CircuitBreakerThreshold, 1, 10)
 	settings.CircuitBreakerCooldownMinutes = clampInt(settings.CircuitBreakerCooldownMinutes, 5, 1440)
@@ -299,6 +432,71 @@ func normalizeSettings(settings Settings) Settings {
 	}
 	settings.CostPerTurnEstimate = clampFloat(settings.CostPerTurnEstimate, 0, 5)
 
+	// Fix-before-feature gate.
+	switch settings.FixBeforeFeature {
+	case FixBeforeFeatureOff, FixBeforeFeatureSuggest, FixBeforeFeatureBlock:
+		// ok
+	default:
+		settings.FixBeforeFeature = FixBeforeFeatureSuggest
+	}
+	settings.AutoFiler = normalizeAutoFilerSettings(settings.AutoFiler)
+	settings.AutonomyGateModes = normalizeAutonomyGateModes(settings.AutonomyGateModes)
+
+	return settings
+}
+
+func normalizeAutonomyGateModes(modes map[string]string) map[string]string {
+	out := make(map[string]string, len(modes))
+	for id, mode := range modes {
+		id, mode = strings.TrimSpace(id), strings.TrimSpace(mode)
+		if id == "" {
+			continue
+		}
+		switch mode {
+		case "manual", "suggest", "auto":
+			out[id] = mode
+		}
+	}
+	return out
+}
+
+func normalizeAutoFilerSettings(settings AutoFilerSettings) AutoFilerSettings {
+	defaults := defaultAutoFilerSettings()
+	switch settings.Mode {
+	case AutoFilerModeSuggest, AutoFilerModeAutoAdd:
+	default:
+		settings.Mode = defaults.Mode
+	}
+	switch settings.Strategy {
+	case AutoFilerStrategyFeaturePending, AutoFilerStrategyImportance:
+	default:
+		settings.Strategy = defaults.Strategy
+	}
+	if settings.MaxOpenAutoFiled <= 0 {
+		settings.MaxOpenAutoFiled = defaults.MaxOpenAutoFiled
+	} else {
+		settings.MaxOpenAutoFiled = clampInt(settings.MaxOpenAutoFiled, 1, 100)
+	}
+	if settings.VelocityWindowDays <= 0 {
+		settings.VelocityWindowDays = defaults.VelocityWindowDays
+	} else {
+		settings.VelocityWindowDays = clampInt(settings.VelocityWindowDays, 1, 90)
+	}
+	if settings.MinVelocityTransitions <= 0 {
+		settings.MinVelocityTransitions = defaults.MinVelocityTransitions
+	} else {
+		settings.MinVelocityTransitions = clampInt(settings.MinVelocityTransitions, 1, 1000)
+	}
+	if settings.IntervalMinutes <= 0 {
+		settings.IntervalMinutes = defaults.IntervalMinutes
+	} else {
+		settings.IntervalMinutes = clampInt(settings.IntervalMinutes, 1, 1440)
+	}
+	if strings.TrimSpace(settings.GoalName) == "" {
+		settings.GoalName = defaults.GoalName
+	} else {
+		settings.GoalName = strings.TrimSpace(settings.GoalName)
+	}
 	return settings
 }
 
@@ -322,6 +520,16 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.Theme != nil {
 		current.Theme = strings.TrimSpace(*patch.Theme)
 	}
+	applyExecutionPatch(&current, patch)
+	applyAgentPatch(&current, patch)
+	applyUIPatch(&current, patch)
+	applyReviewPatch(&current, patch)
+	applyGovernancePatch(&current, patch)
+	return current
+}
+
+// applyExecutionPatch overlays the execution-default fields.
+func applyExecutionPatch(current *Settings, patch SettingsPatch) {
 	if patch.DefaultMode != nil {
 		current.DefaultMode = strings.TrimSpace(*patch.DefaultMode)
 	}
@@ -334,47 +542,41 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ReviewAgentEnabled != nil {
 		current.ReviewAgentEnabled = *patch.ReviewAgentEnabled
 	}
-	if patch.MaxAutoRounds != nil {
-		current.MaxAutoRounds = *patch.MaxAutoRounds
-	}
-	if patch.AutoInitializeWorkshop != nil {
-		current.AutoInitializeWorkshop = *patch.AutoInitializeWorkshop
-	}
-	if patch.AutoAdvanceWorkshop != nil {
-		current.AutoAdvanceWorkshop = *patch.AutoAdvanceWorkshop
-	}
-	if patch.AutoCascadeWorkshop != nil {
-		current.AutoCascadeWorkshop = *patch.AutoCascadeWorkshop
-	}
-	if patch.AutoAdvanceDelaySeconds != nil {
-		current.AutoAdvanceDelaySeconds = *patch.AutoAdvanceDelaySeconds
-	}
+}
+
+// applyAgentPatch overlays the agent-behavior fields.
+func applyAgentPatch(current *Settings, patch SettingsPatch) {
 	if patch.AgentMaxTurns != nil {
 		current.AgentMaxTurns = *patch.AgentMaxTurns
 	}
 	if patch.AgentTimeoutSeconds != nil {
 		current.AgentTimeoutSeconds = *patch.AgentTimeoutSeconds
 	}
-	if patch.AgentRequiresApproval != nil {
-		current.AgentRequiresApproval = *patch.AgentRequiresApproval
-	}
+}
+
+// applyUIPatch overlays the UI-preference fields, including the
+// delete-confirmation map merge.
+func applyUIPatch(current *Settings, patch SettingsPatch) {
 	if patch.SearchDebounceMs != nil {
 		current.SearchDebounceMs = *patch.SearchDebounceMs
 	}
 	if patch.ToastDurationMs != nil {
 		current.ToastDurationMs = *patch.ToastDurationMs
 	}
-	if patch.DeleteConfirmation != nil {
-		if patch.DeleteConfirmation.Backlog != nil {
-			current.DeleteConfirmation.Backlog = *patch.DeleteConfirmation.Backlog
+	if patch.DeleteConfirmationLevels != nil {
+		if current.DeleteConfirmationLevels == nil {
+			current.DeleteConfirmationLevels = make(map[string]DeleteConfirmLevel, len(patch.DeleteConfirmationLevels))
 		}
-		if patch.DeleteConfirmation.Initiative != nil {
-			current.DeleteConfirmation.Initiative = *patch.DeleteConfirmation.Initiative
-		}
-		if patch.DeleteConfirmation.Capture != nil {
-			current.DeleteConfirmation.Capture = *patch.DeleteConfirmation.Capture
+		// Merge provided keys over current; omitted and unknown existing keys
+		// are left intact. normalize fills/validates afterwards.
+		for k, v := range patch.DeleteConfirmationLevels {
+			current.DeleteConfirmationLevels[k] = v
 		}
 	}
+}
+
+// applyReviewPatch overlays the review-threshold fields.
+func applyReviewPatch(current *Settings, patch SettingsPatch) {
 	if patch.ReviewCodeQualityMinScore != nil {
 		current.ReviewCodeQualityMinScore = *patch.ReviewCodeQualityMinScore
 	}
@@ -393,8 +595,20 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ReviewRequireTests != nil {
 		current.ReviewRequireTests = *patch.ReviewRequireTests
 	}
-	if patch.MaxConcurrentExecutions != nil {
-		current.MaxConcurrentExecutions = *patch.MaxConcurrentExecutions
+}
+
+// applyGovernancePatch overlays the concurrency/governance and
+// fix-before-feature fields, including the lane-cap map replacement.
+func applyGovernancePatch(current *Settings, patch SettingsPatch) {
+	if patch.LaneConcurrencyLimits != nil {
+		// Non-nil patch replaces wholesale (after normalize fills any
+		// missing canonical keys from defaults). Empty map → reset to
+		// defaults via normalize.
+		merged := make(map[string]int, len(patch.LaneConcurrencyLimits))
+		for k, v := range patch.LaneConcurrencyLimits {
+			merged[k] = v
+		}
+		current.LaneConcurrencyLimits = merged
 	}
 	if patch.MaxQueueDepth != nil {
 		current.MaxQueueDepth = *patch.MaxQueueDepth
@@ -410,6 +624,42 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	}
 	if patch.CostPerTurnEstimate != nil {
 		current.CostPerTurnEstimate = *patch.CostPerTurnEstimate
+	}
+	if patch.FixBeforeFeature != nil {
+		current.FixBeforeFeature = strings.TrimSpace(*patch.FixBeforeFeature)
+	}
+	if patch.AutoFiler != nil {
+		current.AutoFiler = applyAutoFilerPatch(current.AutoFiler, *patch.AutoFiler)
+	}
+	if patch.AutonomyGateModes != nil {
+		current.AutonomyGateModes = normalizeAutonomyGateModes(patch.AutonomyGateModes)
+	}
+}
+
+func applyAutoFilerPatch(current AutoFilerSettings, patch AutoFilerSettingsPatch) AutoFilerSettings {
+	if patch.Enabled != nil {
+		current.Enabled = *patch.Enabled
+	}
+	if patch.Mode != nil {
+		current.Mode = strings.TrimSpace(*patch.Mode)
+	}
+	if patch.Strategy != nil {
+		current.Strategy = strings.TrimSpace(*patch.Strategy)
+	}
+	if patch.MaxOpenAutoFiled != nil {
+		current.MaxOpenAutoFiled = *patch.MaxOpenAutoFiled
+	}
+	if patch.VelocityWindowDays != nil {
+		current.VelocityWindowDays = *patch.VelocityWindowDays
+	}
+	if patch.MinVelocityTransitions != nil {
+		current.MinVelocityTransitions = *patch.MinVelocityTransitions
+	}
+	if patch.IntervalMinutes != nil {
+		current.IntervalMinutes = *patch.IntervalMinutes
+	}
+	if patch.GoalName != nil {
+		current.GoalName = strings.TrimSpace(*patch.GoalName)
 	}
 	return current
 }

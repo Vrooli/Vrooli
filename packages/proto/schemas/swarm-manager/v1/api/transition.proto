@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.api;
+
+import "swarm-manager/v1/domain/transition.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+service TransitionService {
+  rpc ListTransitions(ListTransitionsRequest) returns (ListTransitionsResponse);
+  rpc StartTransition(StartTransitionRequest) returns (StartTransitionResponse);
+  rpc ApplyTransition(ApplyTransitionRequest) returns (ApplyTransitionResponse);
+}
+
+message ListTransitionsRequest {}
+
+message ListTransitionsResponse {
+  repeated vrooli.swarm_manager.v1.domain.Transition transitions = 1;
+}
+
+message StartTransitionRequest {
+  string transition_key = 1;
+  SubjectReference subject_ref = 2;
+  map<string, string> operator_inputs = 3;
+}
+
+// SubjectReference keeps the registry subject discriminator adjacent to the
+// opaque locator understood by the owning domain adapter. The service checks
+// subject against the declared transition before invoking the runner.
+message SubjectReference {
+  string subject = 1;
+  string value = 2;
+}
+
+message StartTransitionResponse {
+  string execution_id = 1;
+  string definition_digest = 2;
+  string entity_version = 3;
+  string apply_state = 4;
+  string outcome = 5;
+  string terminal_code = 6;
+}
+
+message ApplyTransitionRequest {
+  string transition_key = 1;
+  string execution_id = 2;
+}
+
+message ApplyTransitionResponse {
+  string execution_id = 1;
+  string transition_key = 2;
+  string subject_ref = 3;
+  string outcome = 4;
+  string terminal_code = 5;
+  string applied_time = 6;
+  string definition_digest = 7;
+  string entity_version = 8;
+  string apply_state = 9;
+}

@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, renderHook } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@/test-utils';
+import { fetchEmptyResponse, installFetchMock, type FetchMock } from '@/test-utils';
 import { ViewportProvider } from './ViewportProvider';
 import { useViewport, useViewportOptional } from './viewportHooks';
 import type { ReactNode } from 'react';
@@ -18,19 +19,18 @@ vi.mock('@/config', () => ({
   }),
 }));
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
-
 describe('ViewportProvider', () => {
+  let fetchMock: FetchMock;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValue({ ok: true });
+    fetchMock = installFetchMock();
+    fetchMock.mockResolvedValue(fetchEmptyResponse());
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   // Helper to create a wrapper with ViewportProvider
@@ -182,7 +182,7 @@ describe('ViewportProvider', () => {
       });
 
       // No sync yet
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
 
       // Wait for debounce
       await act(async () => {
@@ -191,8 +191,8 @@ describe('ViewportProvider', () => {
       });
 
       // Should only sync once with final viewport
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
         'http://test-api/recordings/live/test-session/viewport',
         expect.objectContaining({
           method: 'POST',
@@ -215,7 +215,7 @@ describe('ViewportProvider', () => {
         await Promise.resolve();
       });
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
@@ -460,7 +460,7 @@ describe('ViewportProvider', () => {
         await result.current.forceSync();
       });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -1,16 +1,39 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-01-30T13:13:00-05:00",
+  "defaultScope": "architecture-scope",
+  "description": "Steers a scenario's API toward stable, proto-first, Connect-RPC contracts as the canonical entrypoint into its core logic, consumed by every UI, CLI, and other scenario through generated typed clients.",
+  "entry": "SKILL.md",
   "id": "api-steer",
-  "name": "API Steer",
+  "kind": "skill",
   "modes": [
     "steer",
     "architecture"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
+  "name": "API Steer",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
   "revision": 49,
-  "createdAt": "2026-01-30T13:13:00-05:00",
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "api",
+    "proto",
+    "connect-rpc",
+    "contracts",
+    "steer",
+    "architecture"
+  ],
   "updatedAt": "2026-02-06T23:12:28Z"
 }

@@ -1,320 +1,159 @@
 # Document Manager
 
-AI-powered documentation management SaaS platform for comprehensive analysis and quality maintenance.
+Local-first document ingestion and understanding: tiered parsing, citable anchors, sensitivity-aware routing, and a per-document custody receipt
 
-## Quick Start
+**Two spines, one corpus.** The **read spine** (P0/P1) turns any document
+into citable, re-derivable units. The **write spine** (P2, designed and
+deliberately unscaffolded) runs the same machine backwards: a declarative
+spec plus a template becomes rendered bytes, which are ingested back as
+an ordinary citable document. It renders; it never authors — charts,
+diagrams, images, brand tokens and verified claims stay with their
+existing owners and arrive as references in a spec. See
+[`docs/reference/render-matrix.md`](docs/reference/render-matrix.md) and
+the write-spine rows in
+[`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md).
 
-```bash
-# Start the scenario (auto-starts required resources)
-make run
+This scenario provides
+the standard full-stack Vrooli scenario shape:
 
-# Run tests
-make test
+- Go API (`api/`)
+- React + TypeScript + Vite UI (`ui/`)
+- CLI wrapper (`cli/`)
+- Lifecycle + health wiring (`.vrooli/service.json`)
+- Requirements registry, generated L0 experience contract, and progress log
+  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
-# View logs
-make logs
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
+> owns the first-session initialization protocol — charter, requirements,
+> domain map, design language, placeholder replacement, and first real
+> vertical slice. Run `make orient` for a machine-readable gate status.
 
-# Stop everything
-make stop
-```
+## What's In This Scenario
 
-## Features
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
+  coordinated through generated proto contracts.
+- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
+  metadata, testing config, and CLI install wiring.
+- Domain-first API shape with per-domain service, repository, schema,
+  handler module, mocks, and tests.
+- SQLite by default. Add external resources to `.vrooli/service.json`
+  only when this scenario actually needs them.
+- UI/CLI guardrails for i18n, accessibility, API base resolution,
+  declarative command args, generated Connect clients, and report-shaped
+  output.
+- Baseline PWA/native-readiness metadata: web app manifest,
+  standalone-mode mobile tags, proxy-safe relative install asset URLs,
+  a minimal app-shell service worker, safe-area CSS tokens, and generic
+  placeholder icons ready for scenario-specific replacement.
+- Canonical responsive shell plus adopted-provenance UI primitives from
+  `react-component-library` for common shared surfaces such as buttons,
+  cards, data tables, empty states, inputs, selects, status badges, sidebar
+  shell, and bottom navigation.
+- Root-level `DESIGN.md` plus generated UI token assets from the
+  selected design kit.
+- Generated `experience/` L0 specs for the starter routes. These are UX
+  intent placeholders, not finished claims; grow them as routes become real.
+- A documentation contract in `docs/manifest.json`, with stubs for
+  domains, flows, data, integrations, monetization, deployment,
+  runbooks, observability, security, performance, and durable
+  decisions.
 
-### ✅ Core Functionality (P0 - 100% Complete)
-- **API Health Check**: Sub-2ms response times
-- **Application Management**: Full CRUD operations for tracking multiple repositories
-- **Agent System**: Configure AI agents for documentation tasks
-- **Improvement Queue**: Track and manage documentation improvements by severity
-- **Database Integration**: PostgreSQL for persistent storage
-- **Web Interface**: Professional UI for managing applications and agents
-- **CLI Tool**: Command-line interface for all operations
+## Placeholders vs. Durable Scaffolding
 
-### ✅ Advanced Features (P1 - 100% Complete)
-- **Vector Search**: ✅ Production-ready similarity search with Ollama embeddings (`/api/search` endpoint)
-- **AI Integration**: ✅ Ollama nomic-embed-text model integrated for semantic embeddings (768 dimensions)
-- **Document Indexing**: ✅ POST `/api/index` endpoint for batch document indexing
-- **Data Management**: ✅ DELETE endpoints for applications, agents, and queue items
-- **Real-time Updates**: ✅ Redis pub/sub for live event notifications (graceful degradation if Redis unavailable)
-- **Batch Operations**: ✅ POST `/api/queue/batch` endpoint for bulk approve/reject/delete operations
+The generated scaffold is intentionally not the product. When you build
+the real UX, treat these as **placeholders** to replace:
 
-## Architecture
+- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
+  slice meant to be copied once and then deleted.
+- Starter page content such as the dashboard metric placeholders.
+- The bare-minimum settings surface once your scenario needs more than
+  theme and locale.
 
-```
-┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Web UI        │────▶│   Go API     │────▶│  PostgreSQL  │
-│  (dynamic port) │     │(dynamic port)│     │  (port 5433) │
-└─────────────────┘     └──────────────┘     └──────────────┘
-                              │
-                    ┌─────────┴─────────┐
-                    ▼                   ▼
-              ┌──────────┐       ┌──────────┐
-              │  Qdrant  │       │  Ollama  │
-              │ (port 6333) │     │(port 11434)│
-              └──────────┘       └──────────┘
-```
+Treat these as **durable seams** to preserve, even as you rewrite the
+visual layout:
 
-**Note**: API and UI ports are dynamically allocated by Vrooli. Use `make status` to see current ports.
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
+- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
+  `react-component-library adoptions apply` over hand-rolling a new primitive.
+- The responsive shell floors: full viewport height, overflow-contained main
+  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
+  ownership of locale switching.
+- The feature-folder pattern under `ui/src/features/<name>/`.
+- The proto → API → CLI → UI vertical-slice shape.
 
-## API Endpoints
+**Connect-RPC is the default transport.** Every domain endpoint goes
+through a proto service and generated Connect handlers/clients. If
+you find yourself writing `Path: "/api/v1/..."` as a literal string in
+an `EndpointDescriptor`, stop — use a proto service method instead.
+Codegen rejects literal Paths that lack an explicit `RESTException`
+tag; the four allowed REST reasons (multipart upload, webhook
+receiver, third-party shape, ops probe) are enumerated in
+`api/internal/module/module.go`. The notes attachments endpoint is
+the worked REST example.
 
-### System Status
-- `GET /health` - Service health check
-- `GET /api/system/db-status` - Database connectivity
-- `GET /api/system/vector-status` - Vector database status
-- `GET /api/system/ai-status` - AI model status
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
+workflow in full.
 
-### Applications
-- `GET /api/applications` - List all applications
-- `POST /api/applications` - Create new application
-- `DELETE /api/applications?id={uuid}` - Delete application (cascades to agents and queue items)
-```json
-{
-  "name": "My App",
-  "repository_url": "https://github.com/user/repo",
-  "documentation_path": "/docs",
-  "active": true
-}
-```
-
-### Agents
-- `GET /api/agents` - List all agents
-- `POST /api/agents` - Create new agent
-- `DELETE /api/agents?id={uuid}` - Delete agent (cascades to queue items)
-```json
-{
-  "name": "Doc Analyzer",
-  "type": "documentation_analyzer",
-  "application_id": "uuid",
-  "configuration": "{}",
-  "enabled": true
-}
-```
-
-### Improvement Queue
-- `GET /api/queue` - List improvement items
-- `POST /api/queue` - Add improvement item
-- `DELETE /api/queue?id={uuid}` - Delete queue item
-```json
-{
-  "agent_id": "uuid",
-  "application_id": "uuid",
-  "type": "documentation_improvement",
-  "title": "Fix typo in README",
-  "description": "Description here",
-  "severity": "low",
-  "status": "pending"
-}
-```
-
-### Vector Search & Document Indexing (AI-Powered)
-
-#### Index Documents
-- `POST /api/index` - Index documents into Qdrant for semantic search
-
-**Request:**
-```json
-{
-  "application_id": "uuid-of-application",
-  "documents": [
-    {
-      "id": "doc_readme_001",
-      "path": "/README.md",
-      "content": "Document content here...",
-      "metadata": {"type": "readme", "section": "overview"}
-    }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "indexed": 3,
-  "failed": 0,
-  "errors": []
-}
-```
-
-#### Search Documents
-- `POST /api/search` - Semantic search for similar documentation using Ollama embeddings
-
-**Request:**
-```json
-{
-  "query": "database architecture design patterns",
-  "limit": 10
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "id": "4d92c6d0-c36c-54c1-b050-43ed2f751215",
-      "score": 0.697,
-      "document_id": "doc_setup_001",
-      "content": "To set up Document Manager, first install PostgreSQL...",
-      "metadata": {
-        "application_id": "uuid",
-        "application_name": "Test Application",
-        "type": "setup",
-        "path": "/docs/SETUP.md"
-      },
-      "application_name": "Test Application"
-    }
-  ],
-  "query": "database architecture design patterns",
-  "total": 1
-}
-```
-
-**Features:**
-- **Production AI Integration**: Uses Ollama's nomic-embed-text model for 768-dimensional semantic embeddings
-- **Automatic Collection Management**: Creates Qdrant collections automatically
-- **Deterministic Document IDs**: Uses UUID v5 for consistent document identification
-- **Batch Indexing**: Index multiple documents in a single request
-- **Rich Metadata**: Store and retrieve custom metadata with documents
-- **Real Similarity Search**: Actual Qdrant vector search with cosine similarity scoring
-- **Graceful Fallbacks**: Handles Ollama unavailability with informative errors
-
-### Batch Queue Operations
-- `POST /api/queue/batch` - Perform bulk operations on queue items
-
-**Request:**
-```json
-{
-  "action": "approve",  // or "reject", "delete"
-  "ids": ["uuid1", "uuid2", "uuid3"]
-}
-```
-
-**Response:**
-```json
-{
-  "succeeded": ["uuid1", "uuid2"],
-  "failed": ["uuid3"],
-  "total": 3
-}
-```
-
-**Actions:**
-- `approve`: Bulk approve queue items (sets status to 'approved')
-- `reject`: Bulk reject queue items (sets status to 'denied')
-- `delete`: Bulk delete queue items
-
-**Features:**
-- **Atomic Per-Item**: Each item is processed independently; partial failures don't affect successful operations
-- **Error Tracking**: Clear reporting of which items succeeded vs. failed
-- **Real-time Events**: Publishes batch operation events to Redis for live UI updates
-
-## CLI Usage
+## Running The Scenario
 
 ```bash
-# Install CLI (done automatically by make run)
-cd cli && ./install.sh
+# Build API + UI, install pnpm deps, install scenario CLI
+make setup   # wraps `vrooli scenario setup`
 
-# Basic commands
-document-manager --help
-document-manager status
-document-manager list applications
-document-manager list agents
-document-manager list improvements
-
-# Create resources
-document-manager create app --name "MyApp" --repo "https://github.com/..."
-document-manager create agent --name "Analyzer" --app-id "uuid"
+# Start API + UI in the background
+make start   # wraps `vrooli scenario start`
 ```
 
-## Testing
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-```bash
-# Run all tests
-make test
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke
+`test-genie execute document-manager --preset comprehensive` directly for
+finer-grained presets.
 
-# Run specific test suites
-./test/integration-test.sh     # Integration tests
-./test/security-check.sh        # Security validation
-cd cli && bats document-manager.bats  # CLI tests
-```
+## Documentation Map
 
-## Development
+| Need | Start Here |
+|---|---|
+| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at this scenario's root |
+| Author UX intent | [`experience/README.md`](experience/README.md) |
+| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Know which formats are accepted | [`docs/reference/format-matrix.md`](docs/reference/format-matrix.md) |
+| Know which formats can be produced | [`docs/reference/render-matrix.md`](docs/reference/render-matrix.md) |
+| Cite a passage, or read a citation | [`docs/reference/anchor-uri.md`](docs/reference/anchor-uri.md) |
 
-### Prerequisites
-- Go 1.21+
-- Node.js 18+
-- Docker (for resources)
-- Vrooli CLI
+## Working Rules
 
-### Project Structure
-```
-document-manager/
-├── api/              # Go API server
-├── cli/              # CLI tool
-├── ui/               # Web interface
-├── lib/              # Helper scripts
-├── test/             # Test suites
-├── initialization/   # Database schemas and seeds
-└── .vrooli/         # Service configuration
-```
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
+3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
+5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
+6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+10. **Keep boundaries**: only edit within this scenario's directory.
 
-### Environment Variables
-- `API_PORT` - API server port (auto-assigned)
-- `UI_PORT` - Web UI port (auto-assigned)
-- `POSTGRES_URL` - Database connection
-- `QDRANT_URL` - Vector database URL
-- `OLLAMA_URL` - AI model server
-- `REDIS_URL` - Cache/pub-sub
-- `N8N_URL` - Workflow automation
-- `CORS_ALLOWED_ORIGINS` - CORS allowed origins (defaults to `http://localhost:${UI_PORT}`)
+## pnpm Everywhere
 
-## Production Deployment
+This scenario assumes pnpm. If you run another package manager, convert
+lockfiles yourself before committing. Scripts use `pnpm` directly (no
+`npm` fallbacks) to reduce drift.
 
-### Recommendations
-1. **Add Authentication**: Implement JWT/session auth
-2. **Enable TLS**: Use HTTPS in production
-3. **Add Rate Limiting**: Protect against abuse
-4. **Configure Monitoring**: Set up logging and metrics
-5. **Backup Strategy**: Regular database backups
+## Need Inspiration?
 
-### Revenue Model
-- **Target**: $25,000 - $50,000
-- **Model**: SaaS subscription tiers
-- **Pricing**: Based on applications monitored and agent usage
-
-## Troubleshooting
-
-### Scenario won't start
-```bash
-# Ensure resources are running
-./lib/ensure-resources.sh
-
-# Check logs
-make logs
-```
-
-### Tests failing
-```bash
-# Check API health
-curl http://localhost:17810/health
-
-# Check UI health
-curl http://localhost:38106/ui-health
-```
-
-### Port conflicts
-```bash
-# Stop all processes
-make stop
-
-# Check for lingering processes
-ps aux | grep document-manager
-pkill -f document-manager
-```
-
-## Support
-
-For issues, check:
-1. `PROBLEMS.md` - Known issues and solutions
-2. `PRD.md` - Product requirements and specifications
-3. Logs: `make logs`
+Open `scenarios/browser-automation-studio/` to see the same template
+shape taken to completion.

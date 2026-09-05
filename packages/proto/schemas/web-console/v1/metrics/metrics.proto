@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.metrics;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics;metrics_v1";
+
+// =============================================================================
+// METRICS DOMAIN — operational runtime counters
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain metrics
+// @stability stable
+//
+// Wire contract for MetricsService. Mirrors api/metrics.go
+// MetricsResponse field-for-field with matching JSON-style names so the
+// wire shape is unchanged from the prior REST snapshot at /api/v1/metrics.
+//
+// Adding a counter is a two-step change: extend the matching message
+// below, then surface it from Metrics.Snapshot() in api/metrics.go.
+// =============================================================================
+
+service MetricsService {
+  // Get returns a point-in-time snapshot of all counters and uptime.
+  rpc Get(GetRequest) returns (GetResponse);
+}
+
+message GetRequest {}
+
+message GetResponse {
+  SessionMetrics sessions = 1;
+  ConnectionMetrics connections = 2;
+  MessageMetrics messages = 3;
+  ReattachMetrics reattach = 4;
+  RecoveryMetrics recovery = 5;
+
+  int64 ai_generations = 6;
+  int64 ai_suggestions = 7;
+
+  // /voice/transcribe requests that bypassed speaker verification.
+  int64 voice_skip_verification_total = 9;
+
+  // Process uptime as a Go time.Duration string (e.g., "3h4m5s").
+  string uptime = 10;
+}
+
+message SessionMetrics {
+  int64 created = 1;
+  int64 deleted = 2;
+  int64 active = 3;
+  int64 resizes = 4;
+}
+
+message ConnectionMetrics {
+  int64 total = 1;
+  int64 active = 2;
+}
+
+message MessageMetrics {
+  int64 sent = 1;
+  int64 received = 2;
+}
+
+message ReattachMetrics {
+  int64 attempts = 1;
+  int64 successes = 2;
+  int64 failures = 3;
+}
+
+message RecoveryMetrics {
+  int64 recovered = 1;
+  int64 orphaned_metadata = 2;
+  int64 orphaned_tmux = 3;
+  int64 attach_retries = 4;
+  int64 preserved_for_future_recovery = 5;
+}

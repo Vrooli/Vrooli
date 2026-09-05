@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Safeguard Manifest",
+  "description": "Declares a host safeguard (idempotent machine-state modification) managed by the Vrooli runtime",
+  "type": "object",
+  "required": ["name", "description", "handler", "privilege", "bundling", "deployment", "capability", "capability_role"],
+  "additionalProperties": false,
+  "properties": {
+    "storage": {
+      "$ref": "common.schema.json#/definitions/storageSurface",
+      "description": "Portable declaration of the safeguard's on-disk storage surface."
+    },
+    "invariants": {
+      "type": "array",
+      "description": "OS-neutral capability relationships evaluated by platform providers. Declarations name no package or package manager.",
+      "items": { "$ref": "common.schema.json#/definitions/invariant" }
+    },
+    "retention": {
+      "$ref": "common.schema.json#/definitions/retention",
+      "description": "Declared storage ceilings for the runtime data this safeguard accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
+    },
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Unique safeguard identifier matching the handler registry name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable purpose of the safeguard"
+    },
+    "handler": {
+      "type": "string",
+      "description": "Name of the Go handler that implements Inspect and Apply for this safeguard"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["linux", "macos", "windows"]
+      },
+      "description": "Platforms this safeguard applies to. Omit for all platforms."
+    },
+    "platform_status": {
+      "type": "object",
+      "description": "Per-host-OS implementation status and evidence.",
+      "additionalProperties": false,
+      "properties": {
+        "linux": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "macos": { "$ref": "common.schema.json#/definitions/platformStatus" },
+        "windows": { "$ref": "common.schema.json#/definitions/platformStatus" }
+      }
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "default": "low",
+      "description": "Operator-facing risk indicator. 'low' = no system state changes outside Vrooli's tree (probes, reads); 'medium' = writes config files outside Vrooli's tree or modifies networking rules; 'high' = modifies kernel parameters or requires root in ways that broadly affect host behavior. Used by onboarding to surface risk before opt-in."
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["restore_absent", "reload_live", "boot_critical"],
+      "description": "Operational gate class: restore an absent artifact, reload a live service/session, or change boot-critical state."
+    },
+    "privilege": {
+      "enum": ["none", "user", "elevated"],
+      "description": "Machine-readable privilege gate, distinct from the operator-facing risk label."
+    },
+    "bundling": {
+      "enum": ["vendorable", "host-required", "prohibited"],
+      "description": "Tier 2 bundle policy. Safeguards are normally prohibited."
+    },
+    "capability": {
+      "type": "string",
+      "enum": ["agent-hooks","ai-cli","autoheal-health-monitoring","autoheal-host-integrity","autoheal-service-recovery","autoheal-watchdog","backup-storage","build-toolchain","clock-accuracy","code-analysis","container-runtime","crash-forensics","credential-storage","data-query","developer-utility","evicted-service-reclaim","file-preview","gpu-driver-health","hardware-error-telemetry","headless-gui","host-pressure-detection","load-testing","media-processing","network-host-config","network-transfer","package-management","process-containment","protobuf-toolchain","remote-desktop","runtime-language","service-resource-limits","session-working-dir","source-control","system-monitor-cpu","system-monitor-device-graph","system-monitor-disk","system-monitor-gpu","system-monitor-memory","system-monitor-memory-errors","system-monitor-network","system-monitor-process","system-monitor-storage-health","system-monitor-thermal","terminal-echo-state","terminal-multiplexing","terminal-persistent-tmux","terminal-remote-bridge","terminal-standard-pty","test-execution","web-proxy","workload-disposal","workload-ownership-reconciliation"],
+      "description": "Capability delivered by this safeguard; values are governed by .vrooli/capability-vocabulary.json."
+    },
+    "capability_role": {
+      "type": "string",
+      "enum": ["primary", "peer", "control"],
+      "description": "Whether this is the primary implementation, a platform peer, or a required host control for the capability."
+    },
+    "bundlingReason": {
+      "type": "string",
+      "description": "Required justification when a safeguard is not prohibited from bundles."
+    },
+    "deployment": {
+      "type": "object",
+      "description": "Deployment profile. Safeguards are host-mutating and are unsupported on Tier 2 desktop targets.",
+      "required": ["profiles"],
+      "properties": {
+        "profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "resource.schema.json#/definitions/deploymentProfile"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "verificationCheck": {
+      "$ref": "common.schema.json#/definitions/verificationCheck",
+      "description": "Optional verification that the safeguard's apply step took effect."
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Freeform annotation for maintainers (not shown to users during install)"
+    },
+    "config": {
+      "type": "object",
+      "description": "JSON Schema fragment for typed safeguard parameters. A property's default is used when the operator records no value; operator-state values override those defaults and are validated before reaching the handler.",
+      "additionalProperties": true
+    }
+  }
+}

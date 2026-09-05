@@ -1,20 +1,23 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"connectrpc.com/connect"
+
+	shortcutsH "web-console/handlers/shortcuts"
+
+	shortcutsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts"
 )
 
 // [REQ:P1-002a] Shortcut Profile Storage - store tests
 
 func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 	store := NewShortcutProfileStore()
-	profiles := store.List()
+	profiles := store.List(context.Background())
 	if len(profiles) != 1 {
 		t.Fatalf("expected 1 default profile, got %d", len(profiles))
 	}
@@ -24,8 +27,25 @@ func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 	if profiles[0].Scope != "service" {
 		t.Errorf("expected service scope, got %q", profiles[0].Scope)
 	}
-	if len(profiles[0].Shortcuts) != 2 {
-		t.Errorf("expected 2 default shortcuts, got %d", len(profiles[0].Shortcuts))
+	// One entry per agent. The "(attributed)" duplicates were retired with the
+	// shell functions: the coding_agent_shims safeguard means a plain agent
+	// command is already attributed, so a second hand-rolled set would only
+	// drift from the first.
+	if len(profiles[0].Shortcuts) != 4 {
+		t.Fatalf("expected 4 default shortcuts, got %d", len(profiles[0].Shortcuts))
+	}
+	if got := profiles[0].Shortcuts[0].Command; got != "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
+		t.Errorf("default Claude shortcut = %q, want governed project invocation", got)
+	}
+	// Codex runs as the bare binary; the PATH shim supplies attribution, so a
+	// shortcut must never hand-roll a launcher preflight of its own.
+	if got := profiles[0].Shortcuts[1].Command; got != "codex --yolo" {
+		t.Errorf("default Codex shortcut = %q, want the plain agent command", got)
+	}
+	for _, shortcut := range profiles[0].Shortcuts {
+		if strings.Contains(shortcut.Command, "vrooli-agent-launcher") {
+			t.Errorf("shortcut %q names the launcher directly (%q); the shim makes that redundant", shortcut.Label, shortcut.Command)
+		}
 	}
 }
 
@@ -33,7 +53,7 @@ func TestShortcutProfileStore_Upsert(t *testing.T) {
 	store := NewShortcutProfileStore()
 
 	shortcuts := []ShortcutEntry{{Label: "Test", Command: "echo test"}}
-	profile := store.Upsert("custom", "workspace", "Custom", shortcuts)
+	profile := store.Upsert(context.Background(), "custom", "workspace", "Custom", shortcuts)
 
 	if profile.ID != "custom" {
 		t.Errorf("expected ID 'custom', got %q", profile.ID)
@@ -46,205 +66,195 @@ func TestShortcutProfileStore_Upsert(t *testing.T) {
 	}
 
 	// Update existing
-	updated := store.Upsert("custom", "parent", "Updated", []ShortcutEntry{
+	updated := store.Upsert(context.Background(), "custom", "parent", "Updated", []ShortcutEntry{
 		{Label: "A", Command: "a"},
 		{Label: "B", Command: "b"},
 	})
 	if updated.Scope != "parent" {
-		t.Errorf("expected scope 'parent', got %q", updated.Scope)
+		t.Errorf("expected updated scope 'parent', got %q", updated.Scope)
 	}
 	if len(updated.Shortcuts) != 2 {
 		t.Errorf("expected 2 shortcuts after update, got %d", len(updated.Shortcuts))
 	}
 }
 
-func TestShortcutProfileStore_Delete(t *testing.T) {
-	store := NewShortcutProfileStore()
-
-	if !store.Delete("default") {
-		t.Error("expected delete of default to succeed")
-	}
-	if store.Delete("nonexistent") {
-		t.Error("expected delete of nonexistent to fail")
-	}
-	if len(store.List()) != 0 {
-		t.Errorf("expected 0 profiles after delete, got %d", len(store.List()))
-	}
-}
-
 func TestShortcutProfileStore_Effective(t *testing.T) {
 	store := NewShortcutProfileStore()
 
-	// Default (service scope) should be effective
-	eff := store.Effective()
-	if len(eff) != 2 {
-		t.Fatalf("expected 2 effective shortcuts from default, got %d", len(eff))
+	// Default service profile exists with 4 shortcuts
+	eff := store.Effective(context.Background())
+	if len(eff.Shortcuts) != 4 {
+		t.Fatalf("expected default service profile shortcuts, got %d", len(eff.Shortcuts))
+	}
+	if eff.ProfileID != "default" || eff.Scope != "service" || eff.Name != "Default" {
+		t.Fatalf("effective profile = %q/%q/%q, want default/service/Default", eff.ProfileID, eff.Scope, eff.Name)
 	}
 
-	// Add a workspace-scoped profile — should win over service
-	store.Upsert("ws", "workspace", "Workspace", []ShortcutEntry{
-		{Label: "WS Only", Command: "ws-cmd"},
+	// Add workspace-scope profile — should win over service
+	store.Upsert(context.Background(), "ws", "workspace", "WS", []ShortcutEntry{
+		{Label: "WS1", Command: "ws1"},
 	})
-	eff = store.Effective()
-	if len(eff) != 1 || eff[0].Label != "WS Only" {
-		t.Errorf("expected workspace profile to win, got %v", eff)
+	eff = store.Effective(context.Background())
+	if len(eff.Shortcuts) != 1 || eff.Shortcuts[0].Label != "WS1" {
+		t.Errorf("expected workspace profile to win, got %v", eff.Shortcuts)
+	}
+	// The name travels too: a client writing an edited order back has to send
+	// one, and inventing it would rename the operator's profile.
+	if eff.ProfileID != "ws" || eff.Name != "WS" {
+		t.Errorf("effective profile = %q/%q, want ws/WS", eff.ProfileID, eff.Name)
 	}
 
-	// Add a parent-scoped profile — should win over workspace
-	store.Upsert("par", "parent", "Parent", []ShortcutEntry{
+	// Add parent-scope profile — should win over workspace
+	store.Upsert(context.Background(), "parent", "parent", "P", []ShortcutEntry{
 		{Label: "Parent1", Command: "p1"},
 		{Label: "Parent2", Command: "p2"},
 	})
-	eff = store.Effective()
-	if len(eff) != 2 || eff[0].Label != "Parent1" {
-		t.Errorf("expected parent profile to win, got %v", eff)
+	eff = store.Effective(context.Background())
+	if len(eff.Shortcuts) != 2 || eff.Shortcuts[0].Label != "Parent1" {
+		t.Errorf("expected parent profile to win, got %v", eff.Shortcuts)
+	}
+	if eff.ProfileID != "parent" {
+		t.Errorf("effective profile id = %q, want parent", eff.ProfileID)
 	}
 }
 
 func TestShortcutProfileStore_EffectiveEmpty(t *testing.T) {
 	store := NewShortcutProfileStore()
-	store.Delete("default")
-	eff := store.Effective()
-	if len(eff) != 2 {
-		t.Errorf("expected default shortcuts fallback when no profiles, got %d", len(eff))
+	store.Delete(context.Background(), "default")
+	eff := store.Effective(context.Background())
+	if len(eff.Shortcuts) != 4 {
+		t.Errorf("expected default shortcuts fallback when no profiles, got %d", len(eff.Shortcuts))
+	}
+	// No profile exists, so a client must create one rather than update.
+	if eff.ProfileID != "" {
+		t.Errorf("fallback profile id = %q, want empty", eff.ProfileID)
 	}
 }
 
-func TestValidateShortcutProfile(t *testing.T) {
+// --- adapter validation (replaces the old REST validateShortcutProfile) ---
+
+func TestShortcutsAdapter_UpsertValidation(t *testing.T) {
+	srv := newFakeTestServer()
+	a := newShortcutsAdapter(srv)
+
 	tests := []struct {
 		name    string
-		req     ShortcutProfileRequest
+		req     shortcutsH.UpsertRequest
 		wantErr bool
 	}{
-		{"valid", ShortcutProfileRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: []ShortcutEntry{{Label: "A", Command: "a"}}}, false},
-		{"empty id", ShortcutProfileRequest{Scope: "service", Name: "X"}, true},
-		{"bad scope", ShortcutProfileRequest{ID: "x", Scope: "invalid", Name: "X"}, true},
-		{"empty name", ShortcutProfileRequest{ID: "x", Scope: "service"}, true},
-		{"empty label", ShortcutProfileRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: []ShortcutEntry{{Command: "a"}}}, true},
-		{"empty command", ShortcutProfileRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: []ShortcutEntry{{Label: "A"}}}, true},
-		{"empty shortcuts ok", ShortcutProfileRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: nil}, false},
+		{"valid", shortcutsH.UpsertRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: []shortcutsH.Shortcut{{Label: "A", Command: "a"}}}, false},
+		{"empty id", shortcutsH.UpsertRequest{Scope: "service", Name: "X"}, true},
+		{"bad scope", shortcutsH.UpsertRequest{ID: "x", Scope: "invalid", Name: "X"}, true},
+		{"empty name", shortcutsH.UpsertRequest{ID: "x", Scope: "service"}, true},
+		{"empty label", shortcutsH.UpsertRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: []shortcutsH.Shortcut{{Command: "a"}}}, true},
+		{"empty command", shortcutsH.UpsertRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: []shortcutsH.Shortcut{{Label: "A"}}}, true},
+		{"empty shortcuts ok", shortcutsH.UpsertRequest{ID: "x", Scope: "service", Name: "X", Shortcuts: nil}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := validateShortcutProfile(tt.req)
-			if tt.wantErr && msg == "" {
+			_, err := a.Upsert(context.Background(), tt.req)
+			if tt.wantErr && err == nil {
 				t.Error("expected validation error, got none")
 			}
-			if !tt.wantErr && msg != "" {
-				t.Errorf("unexpected validation error: %s", msg)
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected validation error: %v", err)
+			}
+			if tt.wantErr && err != nil && !errors.Is(err, shortcutsH.ErrInvalidArgument) {
+				t.Errorf("expected ErrInvalidArgument, got %v", err)
 			}
 		})
 	}
 }
 
-// [REQ:P1-002a] Shortcut Profile Storage - handler tests
+// --- Connect handler tests (replace the old REST handler tests) ---
 
-func TestHandleGetEffectiveShortcuts(t *testing.T) {
+func newShortcutsConnectHandler(t *testing.T) (*shortcutsConnectTestHarness, *Server) {
 	srv := newFakeTestServer()
-	req := httptest.NewRequest("GET", "/api/v1/shortcuts", nil)
-	rec := httptest.NewRecorder()
+	h := shortcutsH.NewConnectHandler(shortcutsH.Deps{Service: newShortcutsAdapter(srv)})
+	return &shortcutsConnectTestHarness{h: h}, srv
+}
 
-	srv.handleGetEffectiveShortcuts(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
-	}
-
-	var shortcuts []ShortcutEntry
-	if err := json.Unmarshal(rec.Body.Bytes(), &shortcuts); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(shortcuts) != 2 {
-		t.Errorf("expected 2 shortcuts, got %d", len(shortcuts))
+type shortcutsConnectTestHarness struct {
+	h interface {
+		GetEffective(context.Context, *connect.Request[shortcutsv1.GetEffectiveRequest]) (*connect.Response[shortcutsv1.GetEffectiveResponse], error)
+		ListProfiles(context.Context, *connect.Request[shortcutsv1.ListProfilesRequest]) (*connect.Response[shortcutsv1.ListProfilesResponse], error)
+		UpsertProfile(context.Context, *connect.Request[shortcutsv1.UpsertProfileRequest]) (*connect.Response[shortcutsv1.UpsertProfileResponse], error)
+		DeleteProfile(context.Context, *connect.Request[shortcutsv1.DeleteProfileRequest]) (*connect.Response[shortcutsv1.DeleteProfileResponse], error)
 	}
 }
 
-func TestHandleUpsertShortcutProfile(t *testing.T) {
-	srv := newFakeTestServer()
-
-	body := `{"id":"ws","scope":"workspace","name":"Workspace","shortcuts":[{"label":"Test","command":"echo test"}]}`
-	req := httptest.NewRequest("PUT", "/api/v1/shortcuts/profiles", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpsertShortcutProfile(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+func TestConnect_GetEffective(t *testing.T) {
+	harness, _ := newShortcutsConnectHandler(t)
+	resp, err := harness.h.GetEffective(context.Background(), connect.NewRequest(&shortcutsv1.GetEffectiveRequest{}))
+	if err != nil {
+		t.Fatalf("GetEffective: %v", err)
 	}
-
-	var profile ShortcutProfile
-	if err := json.Unmarshal(rec.Body.Bytes(), &profile); err != nil {
-		t.Fatalf("decode: %v", err)
+	// One entry per agent; the retired "(attributed)" duplicates are gone.
+	if len(resp.Msg.GetShortcuts()) != 4 {
+		t.Fatalf("expected 4 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
 	}
-	if profile.ID != "ws" {
-		t.Errorf("expected ID 'ws', got %q", profile.ID)
+	if got := resp.Msg.GetShortcuts()[0].GetCommand(); got != "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
+		t.Errorf("effective Claude shortcut = %q, want governed project invocation", got)
 	}
 }
 
-func TestHandleUpsertShortcutProfile_Invalid(t *testing.T) {
-	srv := newFakeTestServer()
-
-	body := `{"id":"","scope":"workspace","name":"Workspace"}`
-	req := httptest.NewRequest("PUT", "/api/v1/shortcuts/profiles", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	srv.handleUpsertShortcutProfile(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
+func TestConnect_UpsertProfile(t *testing.T) {
+	harness, _ := newShortcutsConnectHandler(t)
+	resp, err := harness.h.UpsertProfile(context.Background(), connect.NewRequest(&shortcutsv1.UpsertProfileRequest{
+		Id:    "ws",
+		Scope: "workspace",
+		Name:  "Workspace",
+		Shortcuts: []*shortcutsv1.Shortcut{
+			{Label: "Test", Command: "echo test"},
+		},
+	}))
+	if err != nil {
+		t.Fatalf("UpsertProfile: %v", err)
+	}
+	if resp.Msg.GetProfile().GetId() != "ws" {
+		t.Errorf("expected ID 'ws', got %q", resp.Msg.GetProfile().GetId())
 	}
 }
 
-func TestHandleDeleteShortcutProfile(t *testing.T) {
-	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("DELETE", "/api/v1/shortcuts/profiles/default", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "default"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteShortcutProfile(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+func TestConnect_UpsertProfile_Invalid(t *testing.T) {
+	harness, _ := newShortcutsConnectHandler(t)
+	_, err := harness.h.UpsertProfile(context.Background(), connect.NewRequest(&shortcutsv1.UpsertProfileRequest{
+		Id:    "",
+		Scope: "workspace",
+		Name:  "Workspace",
+	}))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var connErr *connect.Error
+	if !errors.As(err, &connErr) || connErr.Code() != connect.CodeInvalidArgument {
+		t.Errorf("expected InvalidArgument, got %v", err)
 	}
 }
 
-// DELETE is idempotent: deleting a non-existent profile returns 204 (not 404),
-// so that retries and replays are safe.
-func TestHandleDeleteShortcutProfile_NotFound_Idempotent(t *testing.T) {
-	srv := newFakeTestServer()
-
-	req := httptest.NewRequest("DELETE", "/api/v1/shortcuts/profiles/nonexistent", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	rec := httptest.NewRecorder()
-
-	srv.handleDeleteShortcutProfile(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected 204 (idempotent delete), got %d", rec.Code)
+func TestConnect_DeleteProfile_Idempotent(t *testing.T) {
+	harness, _ := newShortcutsConnectHandler(t)
+	// Delete existing default
+	_, err := harness.h.DeleteProfile(context.Background(), connect.NewRequest(&shortcutsv1.DeleteProfileRequest{Id: "default"}))
+	if err != nil {
+		t.Fatalf("DeleteProfile (existing): %v", err)
+	}
+	// Delete non-existent — must succeed
+	_, err = harness.h.DeleteProfile(context.Background(), connect.NewRequest(&shortcutsv1.DeleteProfileRequest{Id: "nonexistent"}))
+	if err != nil {
+		t.Fatalf("DeleteProfile (idempotent): %v", err)
 	}
 }
 
-func TestHandleListShortcutProfiles(t *testing.T) {
-	srv := newFakeTestServer()
-	req := httptest.NewRequest("GET", "/api/v1/shortcuts/profiles", nil)
-	rec := httptest.NewRecorder()
-
-	srv.handleListShortcutProfiles(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", rec.Code)
+func TestConnect_ListProfiles(t *testing.T) {
+	harness, _ := newShortcutsConnectHandler(t)
+	resp, err := harness.h.ListProfiles(context.Background(), connect.NewRequest(&shortcutsv1.ListProfilesRequest{}))
+	if err != nil {
+		t.Fatalf("ListProfiles: %v", err)
 	}
-
-	var profiles []*ShortcutProfile
-	if err := json.Unmarshal(rec.Body.Bytes(), &profiles); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(profiles) != 1 {
-		t.Errorf("expected 1 profile, got %d", len(profiles))
+	if len(resp.Msg.GetProfiles()) != 1 {
+		t.Errorf("expected 1 profile, got %d", len(resp.Msg.GetProfiles()))
 	}
 }
 
@@ -255,37 +265,31 @@ func TestProfileUpsert_Replay_TimestampStable(t *testing.T) {
 	store := NewShortcutProfileStore()
 
 	shortcuts := []ShortcutEntry{{Label: "Go", Command: "go run"}}
-	p1 := store.Upsert("replay-test", "workspace", "Test", shortcuts)
+	p1 := store.Upsert(context.Background(), "replay-test", "workspace", "Test", shortcuts)
 	firstUpdated := p1.UpdatedAt
 
 	// Replay with identical content — UpdatedAt should not change
-	p2 := store.Upsert("replay-test", "workspace", "Test", shortcuts)
+	p2 := store.Upsert(context.Background(), "replay-test", "workspace", "Test", shortcuts)
 	if p2.UpdatedAt != firstUpdated {
 		t.Errorf("replay with same content should preserve UpdatedAt: got %s, want %s", p2.UpdatedAt, firstUpdated)
 	}
 
 	// Change content — UpdatedAt should change
-	p3 := store.Upsert("replay-test", "workspace", "Test", []ShortcutEntry{{Label: "Go", Command: "go test"}})
+	p3 := store.Upsert(context.Background(), "replay-test", "workspace", "Test", []ShortcutEntry{{Label: "Go", Command: "go test"}})
 	if p3.UpdatedAt == firstUpdated {
 		t.Error("changed content should update UpdatedAt")
 	}
 }
 
-// Delete replay: deleting the same profile twice returns 204 both times.
+// Delete replay: deleting the same profile three times succeeds each time.
 func TestProfileDelete_Replay_Idempotent(t *testing.T) {
-	srv := newFakeTestServer()
-
-	// Create a profile
-	srv.shortcuts.Upsert("del-test", "workspace", "Del", []ShortcutEntry{{Label: "A", Command: "a"}})
+	harness, srv := newShortcutsConnectHandler(t)
+	srv.shortcuts.Upsert(context.Background(), "del-test", "workspace", "Del", []ShortcutEntry{{Label: "A", Command: "a"}})
 
 	for i := 0; i < 3; i++ {
-		req := httptest.NewRequest("DELETE", "/api/v1/shortcuts/profiles/del-test", nil)
-		req = mux.SetURLVars(req, map[string]string{"id": "del-test"})
-		rec := httptest.NewRecorder()
-		srv.handleDeleteShortcutProfile(rec, req)
-
-		if rec.Code != http.StatusNoContent {
-			t.Fatalf("attempt %d: expected 204, got %d", i+1, rec.Code)
+		_, err := harness.h.DeleteProfile(context.Background(), connect.NewRequest(&shortcutsv1.DeleteProfileRequest{Id: "del-test"}))
+		if err != nil {
+			t.Fatalf("attempt %d: %v", i+1, err)
 		}
 	}
 }
@@ -293,12 +297,18 @@ func TestProfileDelete_Replay_Idempotent(t *testing.T) {
 // [REQ:P1-002a] Performance test - config resolution <50ms
 func BenchmarkEffectiveShortcuts(b *testing.B) {
 	store := NewShortcutProfileStore()
-	// Add profiles at each scope level
-	store.Upsert("ws", "workspace", "WS", []ShortcutEntry{{Label: "A", Command: "a"}})
-	store.Upsert("par", "parent", "PAR", []ShortcutEntry{{Label: "B", Command: "b"}})
+	store.Upsert(context.Background(), "ws", "workspace", "WS", []ShortcutEntry{
+		{Label: "A", Command: "a"},
+		{Label: "B", Command: "b"},
+		{Label: "C", Command: "c"},
+	})
+	store.Upsert(context.Background(), "parent", "parent", "P", []ShortcutEntry{
+		{Label: "X", Command: "x"},
+		{Label: "Y", Command: "y"},
+	})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.Effective()
+		_ = store.Effective(context.Background())
 	}
 }

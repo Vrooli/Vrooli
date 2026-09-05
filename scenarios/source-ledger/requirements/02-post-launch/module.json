@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "last_validated_at": "2026-08-13T01:35:59-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SL-P1-001",
+      "title": "Per-scope vocabulary",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/facets/connect_handler_test.go::TestSetFacetPolicyPersistsScopedRetentionAndResidency",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Transactional facet policy mutation validates scope, retention, compaction eligibility, and residency."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-002",
+      "title": "Federated scope discovery",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Search clients should discover one provider per scope and receive scope-labelled results without duplicate corpus answers.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-002] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-003",
+      "title": "Corpus-first operator surface",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/pages/LedgerPages.tsx::LedgerDashboardPage,ScopeDetailPage,VocabularyPage,SearchPage",
+          "status": "not_implemented",
+          "notes": "Source Ledger live operator pages cover the corpus list, scope detail, timeline, frontier, vocabulary editor, and cross-scope search."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-004",
+      "title": "Append-only migration seam",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "The ledger should support a verified migration that preserves entry bodies and dependent derived data without deleting source rows.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-004] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-005",
+      "title": "Measured recall cost",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "The ledger should measure recall cost and apply a bounded candidate strategy when corpus growth exceeds the recorded latency ceiling.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-005] tag) once the behavior exists."
+        }
+      ]
+    }
+  ]
+}

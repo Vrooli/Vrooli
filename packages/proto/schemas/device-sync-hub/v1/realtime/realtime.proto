@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package vrooli.device_sync_hub.v1.realtime;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/realtime;realtime_v1";
+
+// =============================================================================
+// REALTIME DOMAIN — presence and server-pushed events
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for the events the hub pushes to a trusted device so transfers
+// feel instant and the owner can see which devices are online.
+//
+// There is no Connect service here: the realtime surface is a single
+// server-sent-events (SSE) stream — GET /api/v1/realtime/events — authenticated
+// by the device token (X-Device-Token header / token query param for
+// EventSource). SSE is the right transport for one-directional server->client
+// fan-out: every client action already rides a Connect RPC, so a bidirectional
+// socket would buy nothing. These messages type the SSE `data:` payload; the
+// handler marshals them with protojson so the UI deserializes the same shapes
+// its Connect client uses.
+//
+// Consumed by:
+//   - API: handlers/realtime/sse_handler.go marshals Event into the SSE stream.
+//   - UI:  ui/src/features/realtime/ subscribes via EventSource and refreshes
+//          the receive list / device list / pairing banner on each event.
+// =============================================================================
+
+// EventType tags the kind of server-pushed event so the client can route it.
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  // A new item is available to the receiving device (refresh the receive list).
+  EVENT_TYPE_ITEM_ARRIVED = 1;
+  // An item was deleted/purged (drop it from the receive list).
+  EVENT_TYPE_ITEM_DELETED = 2;
+  // The set of online devices changed (refresh presence indicators).
+  EVENT_TYPE_PRESENCE_CHANGED = 3;
+  // A device is requesting to pair (show the approve/reject banner).
+  EVENT_TYPE_PAIRING_REQUESTED = 4;
+}
+
+// DevicePresence is one device's online state in a presence snapshot.
+message DevicePresence {
+  string device_id = 1;
+  bool online = 2;
+}
+
+// ItemRef is the lightweight pointer carried by item events. The client refers
+// to its existing list / refetches rather than the event carrying the full
+// payload, so a large file never inflates the event stream.
+message ItemRef {
+  string id = 1;
+  // Empty for a broadcast item; set when the item is directed to one device.
+  string target_device_id = 2;
+}
+
+// PairingRequest is the device awaiting approval, surfaced to trusted devices.
+message PairingRequest {
+  string device_id = 1;
+  string name = 2;
+  string kind = 3;
+}
+
+// Event is one server-pushed message. Exactly one of the payload fields is set
+// according to `type`.
+message Event {
+  EventType type = 1;
+  google.protobuf.Timestamp at = 2;
+
+  // Set for ITEM_ARRIVED / ITEM_DELETED.
+  ItemRef item = 3;
+
+  // Set for PRESENCE_CHANGED: the full current snapshot of the trust group.
+  repeated DevicePresence presence = 4;
+
+  // Set for PAIRING_REQUESTED.
+  PairingRequest pairing = 5;
+}

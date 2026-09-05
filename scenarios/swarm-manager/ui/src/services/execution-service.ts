@@ -45,7 +45,7 @@ export interface IExecutionService {
   create(request: CreateExecutionRequest): Promise<ExecutionRecord>;
   start(executionId: string): Promise<ExecutionRecord>;
   cancel(executionId: string): Promise<ExecutionRecord>;
-  retry(executionId: string): Promise<ExecutionRecord>;
+  retry(executionId: string, note?: string): Promise<ExecutionRecord>;
   followUp(executionId: string, request: FollowUpRequest): Promise<ExecutionRecord>;
   triggerReview(executionId: string): Promise<ExecutionRecord>;
 }
@@ -103,8 +103,12 @@ export function createExecutionService(apiClient: IApiClient = defaultApiClient)
       return mutate(API_ENDPOINTS.executionCancel(executionId));
     },
 
-    async retry(executionId: string): Promise<ExecutionRecord> {
-      return mutate(API_ENDPOINTS.executionRetry(executionId));
+    async retry(executionId: string, note?: string): Promise<ExecutionRecord> {
+      const data = await apiClient.post<unknown>(
+        API_ENDPOINTS.executionRetry(executionId),
+        note ? { note } : {},
+      );
+      return parseExecution(data);
     },
 
     async triggerReview(executionId: string): Promise<ExecutionRecord> {

@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
 
+	"scenario-auditor/internal/repocontext"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -35,10 +36,6 @@ func newStackGovernorProvider() externalRuleProvider {
 	return p
 }
 
-func init() {
-	registerExternalProvider(newStackGovernorProvider())
-}
-
 func (p *stackGovernorProvider) ID() string {
 	return "scenario-stack-governor"
 }
@@ -50,15 +47,6 @@ func (p *stackGovernorProvider) Name() string {
 func (p *stackGovernorProvider) Rules() []rulespkg.Rule {
 	return []rulespkg.Rule{
 		{
-			ID:          "GO_CLI_WORKSPACE_INDEPENDENCE",
-			Name:        "Go CLI builds without workspace mode",
-			Description: "Ensures Go-based scenario CLIs build with GOWORK=off (no dependency on repo-level go.work) and flags missing non-transitive replace/wiring.",
-			Category:    "go",
-			Severity:    "high",
-			Enabled:     true,
-			Standard:    "stack-governance",
-		},
-		{
 			ID:          "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
 			Name:        "React/Vite UI installs dependencies correctly",
 			Description: "Ensures lifecycle setup installs ui dependencies deterministically (pnpm install --ignore-workspace) to avoid vite not found during build-ui.",
@@ -68,29 +56,11 @@ func (p *stackGovernorProvider) Rules() []rulespkg.Rule {
 			Standard:    "stack-governance",
 		},
 		{
-			ID:          "MAKEFILE_STRUCTURE",
-			Name:        "Makefile follows canonical structure",
-			Description: "Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure.",
-			Category:    "makefile",
+			ID:          "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION",
+			Name:        "Scenario shared-package adoption follows package governance policy",
+			Description: "Ensures scenario shared-package adoption follows governed package manifests, avoids workspace-star drift, and removes package-propagation postinstall hacks.",
+			Category:    "packages",
 			Severity:    "high",
-			Enabled:     true,
-			Standard:    "stack-governance",
-		},
-		{
-			ID:          "MAKEFILE_LIFECYCLE",
-			Name:        "Makefile lifecycle targets use Vrooli CLI",
-			Description: "Ensures lifecycle targets call the Vrooli CLI with canonical messaging to keep orchestration consistent.",
-			Category:    "makefile",
-			Severity:    "high",
-			Enabled:     true,
-			Standard:    "stack-governance",
-		},
-		{
-			ID:          "MAKEFILE_QUALITY",
-			Name:        "Makefile quality targets have proper guards",
-			Description: "Validates fmt/lint/check targets invoke canonical sub-commands and enforce strict Go formatting/linting logic.",
-			Category:    "makefile",
-			Severity:    "medium",
 			Enabled:     true,
 			Standard:    "stack-governance",
 		},
@@ -124,8 +94,8 @@ type stackGovernorEvidence struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ruleIDs []string) ([]StandardsViolation, error) {
-	cleaned := strings.TrimSpace(scenarioName)
+func (p *stackGovernorProvider) Run(ctx context.Context, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error) {
+	cleaned := strings.TrimSpace(target.Name)
 	if cleaned == "" {
 		return nil, nil
 	}
@@ -134,8 +104,12 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	if err != nil {
 		return nil, err
 	}
+	return p.runAgainstBaseURL(ctx, baseURL, target, ruleIDs)
+}
 
-	payload, _ := json.Marshal(stackGovernorRunRequest{ScenarioName: cleaned})
+func (p *stackGovernorProvider) runAgainstBaseURL(ctx context.Context, baseURL string, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error) {
+	scenarioName := strings.TrimSpace(target.Name)
+	payload, _ := json.Marshal(stackGovernorRunRequest{ScenarioName: scenarioName})
 	endpoint := fmt.Sprintf("%s/api/v1/run", baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
@@ -169,9 +143,21 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	}
 
 	now := time.Now().Format(time.RFC3339)
-	scenarioDir := ""
+	scenarioDir := strings.TrimSpace(target.Path)
 	if parsed.RepoRoot != "" {
-		scenarioDir = filepath.Join(parsed.RepoRoot, "scenarios", cleaned)
+		if scenarioDir != "" {
+			scenarioDir = filepath.Clean(scenarioDir)
+		}
+	}
+	if scenarioDir == "" && parsed.RepoRoot != "" {
+		if repoCtx, err := repocontext.FromRepoRoot(parsed.RepoRoot); err == nil {
+			resolvedPath, err := repoCtx.ResolveScenarioPath(scenarioName)
+			if err == nil {
+				scenarioDir = resolvedPath
+			}
+		} else if resolvedPath, err := filepath.Abs(filepath.Join(parsed.RepoRoot, "scenarios", scenarioName)); err == nil {
+			scenarioDir = resolvedPath
+		}
 	}
 	var violations []StandardsViolation
 	for _, res := range parsed.Results {
@@ -198,7 +184,7 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 
 			violations = append(violations, StandardsViolation{
 				ID:             uuid.New().String(),
-				ScenarioName:   cleaned,
+				ScenarioName:   scenarioName,
 				Type:           res.RuleID,
 				Severity:       severity,
 				Title:          meta.Name,

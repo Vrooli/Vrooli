@@ -4,7 +4,7 @@ import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
 import { extractErrorMessage, protoFetch } from '../../../shared/api/apiFetch';
 import { useToast } from '../../../shared/components/ToastProvider';
-import { parseListScriptsResponse, parseGetScriptResponse } from '../../../shared/api/proto-contracts';
+import { parseListScriptsResponse, parseGetScriptResponse, parseListRunsResponse } from '../../../shared/api/proto-contracts';
 import { ScriptListItem } from './ScriptListItem';
 
 interface InvestigationScriptsPanelProps {
@@ -26,8 +26,9 @@ export const InvestigationScriptsPanel = ({
   const [scripts, setScripts] = useState<InvestigationScript[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [recentRuns, setRecentRuns] = useState<Array<{ id: string; entryId: string; status: string; durationSeconds: number }>>([]);
 
-  const visibleScripts = scripts.filter(script => script.enabled !== false);
+  const visibleScripts = scripts.filter(script => script.enabled);
 
   // Filter scripts based on search
   const filteredScripts = visibleScripts.filter(script => {
@@ -60,8 +61,17 @@ export const InvestigationScriptsPanel = ({
     }
   };
 
+  const loadRuns = async () => {
+    try {
+      const runData = await protoFetch('/investigations/runs?limit=5', parseListRunsResponse);
+      setRecentRuns((runData.runs ?? []).map(run => ({ id: run.id, entryId: run.entryId, status: run.status, durationSeconds: run.durationSeconds })));
+    } catch (error) {
+      showApiError(error);
+    }
+  };
+
   useEffect(() => {
-    loadScripts();
+    void loadScripts();
   }, []);
 
   const showNewScriptDialog = () => {
@@ -92,19 +102,14 @@ export const InvestigationScriptsPanel = ({
 
     if (errorMessage) {
       return (
-        <div style={{
-          textAlign: 'center',
-          color: 'var(--color-warning)',
-          padding: 'var(--spacing-lg)',
-          fontSize: 'var(--text-sm)'
-        }}>
+        <div data-sm-style="sm-style-4e86208a56">
           FAILED TO LOAD SCRIPTS
           <br />
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{errorMessage}</span>
+          <span data-sm-style="sm-style-634e37ebe1">{errorMessage}</span>
           <br />
           <button type="button" className="btn btn-action"
-            onClick={loadScripts}
-            style={{ marginTop: 'var(--spacing-sm)' }}>
+            onClick={() => { void loadScripts(); }}
+            data-sm-style="sm-style-9ed1054ccd">
             <RefreshCw size={14} /> RETRY
           </button>
         </div>
@@ -113,12 +118,7 @@ export const InvestigationScriptsPanel = ({
 
     if (visibleScripts.length === 0) {
       return (
-        <div style={{
-          textAlign: 'center',
-          color: 'var(--color-text-secondary)',
-          padding: 'var(--spacing-lg)',
-          fontSize: 'var(--text-lg)'
-        }}>
+        <div data-sm-style="sm-style-97ea871f93">
           NO SCRIPTS AVAILABLE
         </div>
       );
@@ -131,7 +131,7 @@ export const InvestigationScriptsPanel = ({
             key={script.id}
             script={script}
             isSelected={false}
-            onSelect={openScript}
+            onSelect={(script) => { void openScript(script); }}
           />
         ))}
         {hasMoreScripts && onShowAll && (
@@ -144,12 +144,15 @@ export const InvestigationScriptsPanel = ({
               type="button"
               className="btn btn-secondary"
               onClick={onShowAll}
-              style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+              data-sm-style="sm-style-df8e8add6b"
             >
               Show More Scripts
             </button>
           </div>
         )}
+        {recentRuns.length > 0 && <div className="text-dim-xs" data-sm-style="sm-style-investigation-run-history">
+          Recent runs: {recentRuns.map(run => `${run.entryId} ${run.status} (${run.durationSeconds.toFixed(2)}s)`).join(' · ')}
+        </div>}
       </div>
     );
   };
@@ -164,20 +167,12 @@ export const InvestigationScriptsPanel = ({
 
   return (
     <section className="investigation-scripts-panel card">
-      <div className="panel-header" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--spacing-md)'
-      }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-heading)' }}>
+      <div className="panel-header" data-sm-style="sm-style-88ffe06cf7">
+        <h2 data-sm-style="sm-style-59e966dafb">
           INVESTIGATION SCRIPTS
         </h2>
 
-        <div className="investigation-script-controls" style={{
-          display: 'flex',
-          gap: 'var(--spacing-sm)'
-        }}>
+        <div className="investigation-script-controls" data-sm-style="sm-style-6f5a4005c4">
           <button
             className="btn btn-action"
             onClick={showNewScriptDialog}
@@ -187,11 +182,12 @@ export const InvestigationScriptsPanel = ({
           </button>
           <button
             className="btn btn-action"
-            onClick={loadScripts}
+            onClick={() => { void loadScripts(); }}
           >
             <RefreshCw size={16} />
             REFRESH
           </button>
+          <button className="btn btn-action" onClick={() => { void loadRuns(); }}>HISTORY</button>
           {hasMoreScripts && onShowAll && (
             <button
               type="button"

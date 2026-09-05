@@ -1,0 +1,323 @@
+{
+  "$schema": "https://vrooli.dev/schemas/navigation.v1.json",
+  "schemaVersion": 1,
+  "kind": "navigation",
+  "flowId": "flow-verifier.app.ui",
+  "domain": "app",
+  "description": "Flow Studio navigation: dashboard, scenarios, flows inventory, flow detail, run detail, settings. Local-only tool — no auth.",
+
+  "contexts": {
+    "viewport": {
+      "kind": "enum",
+      "values": ["mobile", "tablet", "desktop"],
+      "default": "desktop"
+    }
+  },
+
+  "routes": [
+    {
+      "id": "dashboard",
+      "path": "/",
+      "page": "ui/src/pages/DashboardPage.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    },
+    {
+      "id": "scenarios",
+      "path": "/scenarios",
+      "page": "ui/src/pages/ScenariosPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "scenario_detail",
+      "path": "/scenarios/:scenarioId",
+      "page": "ui/src/pages/ScenarioDetailPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["scenarios"]
+    },
+    {
+      "id": "flows_inventory",
+      "path": "/flows",
+      "page": "ui/src/pages/InventoryPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "flow_detail",
+      "path": "/flows/:flowId",
+      "page": "ui/src/features/flow-detail/FlowDetailPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["flows_inventory"]
+    },
+    {
+      "id": "run_detail",
+      "path": "/runs/:runId",
+      "page": "ui/src/features/run-detail/RunDetailPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["flows_inventory"]
+    },
+    {
+      "id": "settings",
+      "path": "/settings",
+      "page": "ui/src/pages/SettingsPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
+    },
+    {
+      "id": "not_found",
+      "path": "*",
+      "page": "ui/src/pages/NotFoundPage.tsx",
+      "deep_link": "recoverable",
+      "parents": []
+    }
+  ],
+
+  "containers": [
+    {
+      "id": "sidebar",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=desktop",
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "mobile_nav",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=mobile",
+      "disclosure": "always_visible"
+    },
+    {
+      "id": "mobile_header",
+      "kind": "persistent",
+      "host_routes": ["*"],
+      "show_when": "viewport=mobile",
+      "disclosure": "always_visible"
+    }
+  ],
+
+  "affordances": [
+    {
+      "id": "nav_dashboard",
+      "to": "dashboard",
+      "presentations": [
+        { "in": "sidebar",     "label": "Dashboard", "icon": "gauge-circle",
+          "test_id": "nav-dashboard",        "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_nav",  "label": "Dashboard", "icon": "gauge-circle",
+          "test_id": "mobile-nav-dashboard", "reachable_via": ["mouse", "touch"] }
+      ]
+    },
+    {
+      "id": "nav_scenarios",
+      "to": "scenarios",
+      "presentations": [
+        { "in": "sidebar",     "label": "Scenarios", "icon": "boxes",
+          "test_id": "nav-scenarios",        "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_nav",  "label": "Scenarios", "icon": "boxes",
+          "test_id": "mobile-nav-scenarios", "reachable_via": ["mouse", "touch"] }
+      ]
+    },
+    {
+      "id": "nav_flows",
+      "to": "flows_inventory",
+      "presentations": [
+        { "in": "sidebar",     "label": "All flows", "icon": "layers",
+          "test_id": "nav-flows",        "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_nav",  "label": "All flows", "icon": "layers",
+          "test_id": "mobile-nav-flows", "reachable_via": ["mouse", "touch"] }
+      ]
+    },
+    {
+      "id": "nav_settings",
+      "to": "settings",
+      "presentations": [
+        { "in": "sidebar",        "label": "Settings", "icon": "settings",
+          "test_id": "nav-settings",            "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_nav",     "label": "Settings", "icon": "settings",
+          "test_id": "mobile-nav-settings",     "reachable_via": ["mouse", "touch"] },
+        { "in": "mobile_header",  "label": "Settings", "icon": "settings",
+          "test_id": "mobile-header-settings",  "reachable_via": ["mouse", "touch"] }
+      ]
+    },
+    {
+      "id": "brand_home",
+      "to": "dashboard",
+      "presentations": [
+        { "in": "sidebar",       "label": "Flow Studio",
+          "test_id": "app-brand",           "reachable_via": ["mouse", "keyboard"] },
+        { "in": "mobile_header", "label": "Flow Studio",
+          "test_id": "mobile-header-brand", "reachable_via": ["mouse", "touch"] }
+      ]
+    },
+    {
+      "id": "dashboard_browse_flows",
+      "to": "flows_inventory",
+      "presentations": [
+        { "in": "dashboard", "label": "Browse flows",
+          "test_id": "dashboard-cta-verify", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "dashboard_open_run",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "dashboard", "label": "Open recent run",
+          "test_id": "dashboard-recent-run", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "scenarios_open_detail",
+      "to": "scenario_detail",
+      "presentations": [
+        { "in": "scenarios", "label": "Open scenario",
+          "test_id": "scenario-row-open", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "inventory_open_flow",
+      "to": "flow_detail",
+      "presentations": [
+        { "in": "flows_inventory", "label": "Open flow",
+          "test_id": "inventory-row-open-flow", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "inventory_open_scenario",
+      "to": "scenario_detail",
+      "presentations": [
+        { "in": "flows_inventory", "label": "Open scenario",
+          "test_id": "inventory-row-open-scenario", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "scenario_detail_back",
+      "to": "scenarios",
+      "presentations": [
+        { "in": "scenario_detail", "label": "All scenarios",
+          "test_id": "scenario-detail-back", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "scenario_detail_open_flow",
+      "to": "flow_detail",
+      "presentations": [
+        { "in": "scenario_detail", "label": "Open flow",
+          "test_id": "scenario-detail-open-flow", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "scenario_detail_open_run",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "scenario_detail", "label": "Open run",
+          "test_id": "scenario-detail-open-run", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "flow_detail_back",
+      "to": "flows_inventory",
+      "presentations": [
+        { "in": "flow_detail", "label": "All flows",
+          "test_id": "flow-detail-back", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "flow_detail_open_run",
+      "to": "run_detail",
+      "presentations": [
+        { "in": "flow_detail", "label": "Open run",
+          "test_id": "flow-detail-open-run", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "run_detail_back",
+      "to": "flows_inventory",
+      "presentations": [
+        { "in": "run_detail", "label": "All flows",
+          "test_id": "run-detail-back", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "run_detail_open_flow",
+      "to": "flow_detail",
+      "presentations": [
+        { "in": "run_detail", "label": "Open flow",
+          "test_id": "run-detail-open-flow", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    },
+    {
+      "id": "not_found_home",
+      "to": "dashboard",
+      "presentations": [
+        { "in": "not_found", "label": "Back to dashboard",
+          "test_id": "not-found-home", "reachable_via": ["mouse", "keyboard"] }
+      ]
+    }
+  ],
+
+  "return_paths": [
+    { "from": "scenario_detail", "rule": "history_back", "fallback": "scenarios" },
+    { "from": "flow_detail",     "rule": "history_back", "fallback": "flows_inventory" },
+    { "from": "run_detail",      "rule": "history_back", "fallback": "flows_inventory" }
+  ],
+
+  "reachability_invariants": [
+    {
+      "id": "settings_reachable_quickly",
+      "given": "viewport=desktop",
+      "from": "dashboard",
+      "must_reach": ["settings"],
+      "max_clicks": 1
+    },
+    {
+      "id": "scenarios_reachable_one_click_from_dashboard",
+      "given": "viewport=desktop",
+      "from": "dashboard",
+      "must_reach": ["scenarios"],
+      "max_clicks": 1
+    },
+    {
+      "id": "flows_reachable_one_click_from_dashboard",
+      "given": "viewport=desktop",
+      "from": "dashboard",
+      "must_reach": ["flows_inventory"],
+      "max_clicks": 1
+    },
+    {
+      "id": "scenario_detail_reachable",
+      "given": "viewport=desktop",
+      "from": "dashboard",
+      "must_reach": ["scenario_detail"],
+      "max_clicks": 2
+    },
+    {
+      "id": "flow_detail_reachable",
+      "given": "viewport=desktop",
+      "from": "dashboard",
+      "must_reach": ["flow_detail"],
+      "max_clicks": 2
+    },
+    {
+      "id": "run_detail_reachable_via_inventory",
+      "given": "viewport=desktop",
+      "from": "flows_inventory",
+      "must_reach": ["run_detail"],
+      "max_clicks": 2
+    },
+    {
+      "id": "dashboard_reachable_from_flow_detail",
+      "given": "viewport=desktop",
+      "from": "flow_detail",
+      "must_reach": ["dashboard"],
+      "max_clicks": 1
+    },
+    {
+      "id": "settings_reachable_quickly_on_mobile",
+      "given": "viewport=mobile",
+      "from": "dashboard",
+      "must_reach": ["settings"],
+      "max_clicks": 1
+    }
+  ]
+}

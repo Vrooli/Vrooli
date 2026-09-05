@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { MarkdownRenderer } from "../components/markdown";
 
 // Mock shiki and mermaid to avoid async loading in jsdom
@@ -81,12 +82,98 @@ describe("MarkdownRenderer", () => {
     expect(cells.length).toBe(2);
   });
 
+  it("table cells have minimum width so they don't collapse, and table can horizontally overflow", () => {
+    render(<MarkdownRenderer content={"| A | B | C | D | E |\n|---|---|---|---|---|\n| 1 | 2 | 3 | 4 | 5 |"} />);
+    const cells = document.querySelectorAll("td");
+    expect(cells.length).toBe(5);
+    cells.forEach((cell) => {
+      expect(cell.className).toMatch(/min-w-\[8rem\]/);
+    });
+    const headers = document.querySelectorAll("th");
+    headers.forEach((h) => {
+      expect(h.className).toMatch(/min-w-\[8rem\]/);
+    });
+    const wrapper = document.querySelector("table")?.parentElement;
+    expect(wrapper?.className).toMatch(/overflow-x-auto/);
+    expect(document.querySelector("table")?.className).toMatch(/w-auto/);
+  });
+
   it("renders links with target=_blank", () => {
     render(<MarkdownRenderer content="[Click](https://example.com)" />);
     const link = document.querySelector("a");
     expect(link).not.toBeNull();
     expect(link?.getAttribute("target")).toBe("_blank");
     expect(link?.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("does not force target=_blank on local file-style links", () => {
+    render(<MarkdownRenderer content="[Open](docs/plan.md)" />);
+    const link = document.querySelector("a");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("target")).toBeNull();
+  });
+
+  it("forwards link clicks through onLinkClick", () => {
+    const onLinkClick = vi.fn();
+    render(<MarkdownRenderer content="[Open](docs/plan.md)" onLinkClick={onLinkClick} />);
+    const link = document.querySelector("a");
+    expect(link).not.toBeNull();
+    link?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+    expect(onLinkClick.mock.calls[0]?.[0]).toBe("docs/plan.md");
+  });
+
+  it("auto-links bare file paths in prose with the prose-path treatment", () => {
+    const onLinkClick = vi.fn();
+    render(<MarkdownRenderer content="Edited scenarios/web-console/ui/src/App.tsx:42 in place" onLinkClick={onLinkClick} />);
+    const link = document.querySelector("a[data-prose-path='true']");
+    expect(link).not.toBeNull();
+    expect(link?.textContent).toBe("scenarios/web-console/ui/src/App.tsx:42");
+    expect(link?.getAttribute("href")).toBe("scenarios/web-console/ui/src/App.tsx:42");
+    expect(link?.className).toContain("decoration-dotted");
+    link?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+    expect(onLinkClick.mock.calls[0]?.[0]).toBe("scenarios/web-console/ui/src/App.tsx:42");
+  });
+
+  it("does not auto-link slashed prose or bare module names", () => {
+    render(<MarkdownRenderer content="Use and/or logic on the TCP/IP stack with node.js" />);
+    expect(document.querySelector("a")).toBeNull();
+  });
+
+  it("does not auto-link paths inside inline code or authored links", () => {
+    render(<MarkdownRenderer content="See `src/lib/a.ts` and [b](docs/plan.md)" />);
+    expect(document.querySelector("a[data-prose-path='true']")).toBeNull();
+    // The authored link keeps its normal treatment.
+    const link = document.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("docs/plan.md");
+    expect(link?.className).not.toContain("decoration-dotted");
+  });
+
+  it("auto-links a deep absolute upload path in prose (live regression)", () => {
+    const path =
+      "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/e802040e-8e0a-4fed-a776-34d1eed75bb1/IMG_9951.png";
+    render(<MarkdownRenderer content={`Looks like it’s matching the negatives ${path}`} />);
+    const link = document.querySelector("a[data-prose-path='true']");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href")).toBe(path);
+  });
+
+  it("does not chip non-path inline code like and/or or file://", () => {
+    render(<MarkdownRenderer content="Use `and/or` with `TCP/IP`, `50/50`, `vrooli.com`, `file://`" onFileReferenceClick={() => {}} />);
+    // Chips render a button with an Open title; none of these should get one.
+    expect(document.querySelector("button[title^='Open ']")).toBeNull();
+  });
+
+  it("still chips real paths and plain filenames in inline code", () => {
+    render(<MarkdownRenderer content="See `~/notes/todo.txt` and `README.md`" onFileReferenceClick={() => {}} />);
+    const chips = document.querySelectorAll("button[title^='Open ']");
+    expect(chips).toHaveLength(2);
+  });
+
+  it("does not auto-link inside autolinked URLs", () => {
+    render(<MarkdownRenderer content="Docs at https://example.com/docs/guide.md today" />);
+    expect(document.querySelector("a[data-prose-path='true']")).toBeNull();
   });
 
   it("renders strikethrough text (GFM)", () => {
@@ -114,12 +201,29 @@ describe("MarkdownRenderer", () => {
     expect(container.querySelector(".custom-class")).not.toBeNull();
   });
 
-  it("applies search highlight wrapper when searchQuery is provided", () => {
-    const { container } = render(
-      <MarkdownRenderer content="Hello world" searchQuery="world" isSearchFocused={true} />,
+  it("renders without a search wrapper prop path", () => {
+    const { container } = render(<MarkdownRenderer content="Hello world" />);
+    const wrapper = container.querySelector("[data-search-query]");
+    expect(wrapper).toBeNull();
+  });
+
+  it("renders a Mermaid full-screen control and forwards the exact source", () => {
+    const onMermaidOpen = vi.fn();
+    render(
+      <MarkdownRenderer
+        content={"```mermaid\ngraph TD; A-->B\n```"}
+        onMermaidOpen={onMermaidOpen}
+      />,
     );
-    const wrapper = container.querySelector("[data-search-query='world']");
-    expect(wrapper).not.toBeNull();
+    const openButton = screen.getByLabelText("mermaid.openFullscreen");
+    fireEvent.click(openButton);
+    expect(onMermaidOpen).toHaveBeenCalledTimes(1);
+    expect(onMermaidOpen.mock.calls[0]?.[0]).toContain("graph TD; A-->B");
+  });
+
+  it("omits the Mermaid full-screen control when no handler is provided", () => {
+    render(<MarkdownRenderer content={"```mermaid\ngraph TD; A-->B\n```"} />);
+    expect(screen.queryByLabelText("mermaid.openFullscreen")).toBeNull();
   });
 
   it("falls back to plain text on error via error boundary", () => {

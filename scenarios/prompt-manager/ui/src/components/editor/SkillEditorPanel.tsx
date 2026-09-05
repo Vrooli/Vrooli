@@ -19,38 +19,32 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, ToggleLeft, ToggleRight, MessageSquare, History, GitBranch, FlaskConical } from 'lucide-react'
+import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, MessageSquare, GitBranch, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
-import type { DisplayFormat } from '@/types/world'
 import type { ContentSearchMatch, Reference } from '@/lib/schemas'
 import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
 import { ScopeSelector } from './ScopeSelector'
 import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import { WorldCanvas } from '@/components/world'
-import { WorldSettingsContent } from '@/components/world/WorldSettingsContent'
-import { WorldHelpContent } from '@/components/world/WorldHelpContent'
+import { WorldView } from '@/world'
 import { GraphView } from '@/components/graph/GraphView'
+import { OperatingMapFlow } from '@/components/graph/OperatingMapFlow'
 import { GraphSettingsContent } from '@/components/graph/GraphSettingsContent'
 import { GraphHelpContent } from '@/components/graph/GraphHelpContent'
 import { GraphQueryPanel } from '@/components/graph/GraphQueryPanel'
 import { ViewOverlay } from '../shared/ViewOverlay'
 import { IconSelector } from '../shared/IconSelector'
 import { InlineEditableText } from '../shared/InlineEditableText'
-import { DraftToggle } from '../shared/DraftToggle'
+import { DraftStatusChip } from '../shared/DraftStatusChip'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { CrossReferencePanel } from './CrossReferencePanel'
 import { StartChatDialog } from '../chat/StartChatDialog'
-import { VersionHistoryTab } from './tabs/VersionHistoryTab'
-import { VariantPanel } from './VariantPanel'
-import { ExperimentPanel } from './ExperimentPanel'
+import { LineagePanel, type LineageTab } from './LineagePanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
-import { useIsCompactHeader } from '@/hooks/useMediaQuery'
 
 interface SkillEditorPanelProps {
   // Current state
@@ -83,8 +77,7 @@ interface SkillEditorPanelProps {
   onSaveAll: () => void
   onDiscard: () => void
   onDelete: () => void
-  onSelectSkill?: (skillId: string) => void
-  onDisplaySkills?: (combined: string, format: DisplayFormat) => void
+  onClose?: () => void
 
   // Loading states
   isSaving: boolean
@@ -103,8 +96,10 @@ interface SkillEditorPanelProps {
   onOpenSidebar?: () => void
   onOpenMobileSidebar?: () => void
   /** Notification counts for mobile hamburger badge */
-  pendingDecisionCount?: number
+  pendingWorkCount?: number
   runningAgentCount?: number
+  homeView?: 'world' | 'graph'
+  onHomeViewChange?: (view: 'world' | 'graph') => void
 
   className?: string
 }
@@ -130,8 +125,7 @@ export function SkillEditorPanel({
   onSaveAll,
   onDiscard,
   onDelete,
-  onSelectSkill,
-  onDisplaySkills,
+  onClose,
   isSaving,
   isDeleting,
   isLoadingContent = false,
@@ -141,34 +135,34 @@ export function SkillEditorPanel({
   onNavigateToXRef,
   onOpenSidebar,
   onOpenMobileSidebar,
-  pendingDecisionCount,
+  pendingWorkCount,
   runningAgentCount,
+  homeView = 'world',
+  onHomeViewChange,
   className,
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [showChatDialog, setShowChatDialog] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'history' | 'variants' | 'experiments' | null>(null)
-
-  const togglePanel = (panel: 'history' | 'variants' | 'experiments') => {
-    setRightPanel((prev) => (prev === panel ? null : panel))
+  const [lineageOpen, setLineageOpen] = useState(false)
+  const [lineageTab, setLineageTab] = useState<LineageTab>('history')
+  const [graphProjection, setGraphProjection] = useState<'relationships' | 'flow'>(() =>
+    typeof window !== 'undefined' && localStorage.getItem('pm.graphProjection') === 'flow' ? 'flow' : 'relationships',
+  )
+  const selectGraphProjection = (projection: 'relationships' | 'flow') => {
+    setGraphProjection(projection)
+    localStorage.setItem('pm.graphProjection', projection)
   }
-  const isCompactHeader = useIsCompactHeader()
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
-  // Access the selection store for closing the editor
-  const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
-
-  // Handle close - return to skill tree view
   const handleClose = () => {
     if (onOpenSidebar) {
       onOpenSidebar()
       return
     }
-    setSelectedSkillId(null)
+    onClose?.()
   }
 
-  // Graph view toggle
-  const graphViewActive = useSelectionStore((state) => state.graphViewActive)
+  const graphViewActive = homeView === 'graph'
 
   // Show 3D world or graph view when no skill selected
   if (!currentSkill) {
@@ -176,33 +170,60 @@ export function SkillEditorPanel({
       <div className={cn('relative h-full', className)}>
         {graphViewActive ? (
           <PanelErrorBoundary panelName="Graph View" className="h-full">
-            <GraphView className="h-full" />
+            <div className="h-full">
+              <div
+                data-testid="graph-projection-toggle"
+                className="absolute bottom-32 left-4 z-40 flex gap-1 rounded-lg border bg-background/95 p-1 shadow-sm sm:bottom-auto sm:left-3 sm:top-3"
+              >
+                {(['relationships', 'flow'] as const).map((projection) => (
+                  <button
+                    key={projection}
+                    type="button"
+                    className={cn(
+                      'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      graphProjection === projection
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                    aria-pressed={graphProjection === projection}
+                    onClick={() => selectGraphProjection(projection)}
+                  >
+                    {projection === 'relationships' ? 'Relationships' : 'Flow'}
+                  </button>
+                ))}
+              </div>
+              {graphProjection === 'flow' ? <OperatingMapFlow /> : <GraphView className="h-full" />}
+            </div>
           </PanelErrorBoundary>
         ) : (
           <PanelErrorBoundary panelName="3D World" className="h-full">
-            <WorldCanvas
-              skills={allSkills}
-              onSelectSkill={onSelectSkill}
-              onDisplaySkills={onDisplaySkills}
+            <WorldView
+              onOpenMobileSidebar={onOpenMobileSidebar}
+              pendingWorkCount={pendingWorkCount}
+              runningAgentCount={runningAgentCount}
+              homeView={homeView}
+              onHomeViewChange={onHomeViewChange}
             />
           </PanelErrorBoundary>
         )}
+        {graphViewActive && (
         <ViewOverlay
           onOpenMobileSidebar={onOpenMobileSidebar}
-          pendingDecisionCount={pendingDecisionCount}
+          pendingWorkCount={pendingWorkCount}
           runningAgentCount={runningAgentCount}
-          leftPanelContent={graphViewActive ? (
-            <>
-              <PanelErrorBoundary panelName="Graph Queries">
-                <GraphQueryPanel />
-              </PanelErrorBoundary>
-            </>
-          ) : undefined}
-          settingsContent={graphViewActive ? <GraphSettingsContent /> : <WorldSettingsContent />}
-          settingsTitle={graphViewActive ? 'Graph Settings' : 'World Settings'}
-          helpContent={graphViewActive ? <GraphHelpContent /> : <WorldHelpContent />}
-          helpTitle={graphViewActive ? 'Graph Help' : 'Avatar Environment'}
+          homeView={homeView}
+          onHomeViewChange={onHomeViewChange}
+          leftPanelContent={
+            <PanelErrorBoundary panelName="Graph Queries">
+              <GraphQueryPanel />
+            </PanelErrorBoundary>
+          }
+          settingsContent={<GraphSettingsContent />}
+          settingsTitle="Graph Settings"
+          helpContent={<GraphHelpContent />}
+          helpTitle="Graph Help"
         />
+        )}
       </div>
     )
   }
@@ -218,93 +239,37 @@ export function SkillEditorPanel({
           className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
           data-testid={selectors.editor.header}
         >
-          {/* Row 1: Close, Icon, Name, Draft toggle, Unsaved indicator, Actions */}
+          {/* Row 1: Sidebar/close, icon, title — nothing else so the title gets all remaining space. */}
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleClose}
-                className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor and return to world'}
-                title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
-              >
-                {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
-              </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor and return to world'}
+              title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
+            >
+              {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
+            </button>
 
-              {/* Icon selector */}
-              <IconSelector
-                value={formState.icon}
-                onChange={(v) => onFieldChange('icon', v)}
+            <IconSelector
+              value={formState.icon}
+              onChange={(v) => onFieldChange('icon', v)}
+              isLoading={isLoadingContent}
+              className="flex-shrink-0"
+            />
+
+            <div className="flex-1 min-w-0">
+              <InlineEditableText
+                value={formState.name}
+                onChange={(v) => onFieldChange('name', v)}
+                placeholder="Untitled Skill"
+                error={validation.errors.name}
+                as="h2"
                 isLoading={isLoadingContent}
-                className="flex-shrink-0"
+                className="text-foreground"
+                displayTestId={selectors.editor.nameDisplay}
+                inputTestId={selectors.editor.nameInput}
               />
-
-              {/* Editable name */}
-              <div className="flex-1 min-w-0">
-                <InlineEditableText
-                  value={formState.name}
-                  onChange={(v) => onFieldChange('name', v)}
-                  placeholder="Untitled Skill"
-                  error={validation.errors.name}
-                  as="h2"
-                  isLoading={isLoadingContent}
-                  className="text-foreground"
-                  displayTestId={selectors.editor.nameDisplay}
-                  inputTestId={selectors.editor.nameInput}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Draft toggle */}
-              <DraftToggle
-                isDraft={formState.draft}
-                onChange={(v) => onFieldChange('draft', v)}
-                isLoading={isLoadingContent}
-                className="flex-shrink-0 max-[389px]:hidden"
-              />
-
-              {/* Unsaved indicator */}
-              {isDirty && (
-                <div
-                  className="hidden min-[390px]:flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0"
-                  data-testid={selectors.editor.unsavedIndicator}
-                >
-                  Unsaved
-                </div>
-              )}
-
-              {/* Actions menu */}
-              <ToolbarDropdown
-                icon={<MoreHorizontal className="h-4 w-4" />}
-                label="Skill actions"
-                showChevron={false}
-                align="right"
-                className="h-9 w-9 p-0 rounded-lg"
-                testId={selectors.editor.actionsMenu}
-              >
-                {isCompactHeader && (
-                  <DropdownItem
-                    onClick={() => onFieldChange('draft', !formState.draft)}
-                    icon={formState.draft ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                    label={formState.draft ? 'Set published' : 'Set draft'}
-                  />
-                )}
-                <DropdownItem
-                  onClick={onDiscard}
-                  disabled={!canDiscard}
-                  icon={<RotateCcw className="h-4 w-4" />}
-                  label="Discard changes"
-                  testId={selectors.editor.discardAction}
-                />
-                <DropdownItem
-                  onClick={onDelete}
-                  disabled={!canDelete}
-                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
-                  label={isDeleting ? 'Deleting...' : 'Delete skill'}
-                />
-              </ToolbarDropdown>
             </div>
           </div>
 
@@ -349,6 +314,16 @@ export function SkillEditorPanel({
               className="flex-1 min-w-0"
             />
 
+            {/* Draft status is shown only when it needs attention. Published is the default. */}
+            {formState.draft && (
+              <DraftStatusChip
+                isDraft={formState.draft}
+                onChange={(v) => onFieldChange('draft', v)}
+                isLoading={isLoadingContent}
+                className="flex-shrink-0"
+              />
+            )}
+
             {/* Default scope selector - only show for steer skills */}
             {formState.modes.includes('steer') && (
               <ScopeSelector
@@ -366,64 +341,6 @@ export function SkillEditorPanel({
               className="flex-shrink-0"
             />
 
-            {/* Start agent chat */}
-            <button
-              type="button"
-              onClick={() => setShowChatDialog(true)}
-              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              aria-label="Start agent chat"
-              title="Start agent chat with this skill"
-            >
-              <MessageSquare className="h-4 w-4" />
-            </button>
-
-            {/* Panel toggle group: History, Variants, Experiments */}
-            <div className="flex items-center border border-border/50 rounded-lg overflow-hidden flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => togglePanel('history')}
-                className={cn(
-                  'h-8 w-8 flex items-center justify-center transition-colors',
-                  rightPanel === 'history'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle version history"
-                title="Version history"
-              >
-                <History className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => togglePanel('variants')}
-                className={cn(
-                  'h-8 w-8 flex items-center justify-center border-x border-border/50 transition-colors',
-                  rightPanel === 'variants'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle variants"
-                title="Variants"
-              >
-                <GitBranch className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => togglePanel('experiments')}
-                className={cn(
-                  'h-8 w-8 flex items-center justify-center transition-colors',
-                  rightPanel === 'experiments'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle experiments"
-                title="Experiments"
-              >
-                <FlaskConical className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
             <FilePathMenu
               file={formState.file}
               modes={formState.modes}
@@ -432,14 +349,65 @@ export function SkillEditorPanel({
               onFolderChange={(v) => onFieldChange('folder', v)}
               skillDir={currentSkill.skillDir ?? undefined}
               contentPath={currentSkill.contentPath ?? undefined}
+              triggerIcon={<FolderOpen className="h-4 w-4 text-muted-foreground" />}
               className="flex-shrink-0"
             />
+
+            {/* Lineage button: opens tabbed panel with history, variants, experiments */}
+            <button
+              type="button"
+              onClick={() => setLineageOpen((v) => !v)}
+              className={cn(
+                'h-8 px-2.5 flex items-center gap-1.5 rounded-lg border border-border/50 text-sm transition-colors flex-shrink-0',
+                lineageOpen
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
+              aria-label={lineageOpen ? 'Close lineage panel' : 'Open lineage panel'}
+              aria-expanded={lineageOpen}
+              title="Lineage (history, variants, experiments)"
+              data-testid="lineage-toggle"
+            >
+              <GitBranch className="h-4 w-4" />
+              <span className="hidden sm:inline">Lineage</span>
+            </button>
+
+            {/* More overflow menu: chat, discard, delete */}
+            <span className="relative flex-shrink-0">
+                <ToolbarDropdown
+                  icon={<MoreHorizontal className="h-4 w-4" />}
+                  label="More actions"
+                  showChevron={false}
+                  align="right"
+                  className="h-8 w-8 p-0 rounded-lg"
+                  testId={selectors.editor.actionsMenu}
+                >
+                  <DropdownItem
+                    onClick={() => setShowChatDialog(true)}
+                    icon={<MessageSquare className="h-4 w-4" />}
+                    label="Start agent chat"
+                  />
+                  <DropdownItem
+                    onClick={onDiscard}
+                    disabled={!canDiscard}
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    label="Discard changes"
+                    testId={selectors.editor.discardAction}
+                  />
+                  <DropdownItem
+                    onClick={onDelete}
+                    disabled={!canDelete}
+                    icon={<Trash2 className="h-4 w-4 text-destructive" />}
+                    label={isDeleting ? 'Deleting…' : 'Delete skill'}
+                  />
+                </ToolbarDropdown>
+            </span>
           </div>
         </div>
 
         {/* Content area with optional right sidebar */}
         <div className="flex-1 overflow-hidden flex">
-          <div className={cn('flex-1 overflow-hidden', rightPanel && 'min-w-0')}>
+          <div className={cn('flex-1 overflow-hidden', lineageOpen && 'min-w-0')}>
             <SkillContentEditor
               value={formState.content}
               originalValue={originalContent ?? undefined}
@@ -463,22 +431,17 @@ export function SkillEditorPanel({
             />
           </div>
 
-          {/* Right sidebar panel */}
-          {rightPanel && (
-            <div className="w-72 flex-shrink-0 border-l border-border overflow-y-auto">
-              <PanelErrorBoundary panelName={`${rightPanel} panel`}>
-                {rightPanel === 'history' && (
-                  <VersionHistoryTab skillId={currentSkill.id} />
-                )}
-                {rightPanel === 'variants' && (
-                  <VariantPanel
-                    skillId={currentSkill.id}
-                    currentContent={formState.content}
-                  />
-                )}
-                {rightPanel === 'experiments' && (
-                  <ExperimentPanel skillId={currentSkill.id} />
-                )}
+          {/* Right sidebar: lineage panel with tabs */}
+          {lineageOpen && (
+            <div className="w-72 flex-shrink-0 border-l border-border overflow-hidden flex flex-col">
+              <PanelErrorBoundary panelName="Lineage panel">
+                <LineagePanel
+                  skillId={currentSkill.id}
+                  currentContent={formState.content}
+                  activeTab={lineageTab}
+                  onActiveTabChange={setLineageTab}
+                  className="h-full"
+                />
               </PanelErrorBoundary>
             </div>
           )}

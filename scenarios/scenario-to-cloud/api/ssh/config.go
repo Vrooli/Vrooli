@@ -9,10 +9,11 @@ import (
 
 // Config holds SSH connection parameters.
 type Config struct {
-	Host    string
-	Port    int
-	User    string
-	KeyPath string
+	Host           string
+	Port           int
+	User           string
+	KeyPath        string
+	KnownHostsFile string
 }
 
 // ConfigDefaults provides common default values for SSH connection parameters.
@@ -22,7 +23,7 @@ const (
 )
 
 // NewConfig creates a Config with defaults applied for missing values.
-func NewConfig(host string, port int, user string, keyPath string) Config {
+func NewConfig(host string, port int, user, keyPath string) Config {
 	if port == 0 {
 		port = DefaultPort
 	}
@@ -30,10 +31,11 @@ func NewConfig(host string, port int, user string, keyPath string) Config {
 		user = DefaultUser
 	}
 	return Config{
-		Host:    host,
-		Port:    port,
-		User:    user,
-		KeyPath: strings.TrimSpace(keyPath),
+		Host:           host,
+		Port:           port,
+		User:           user,
+		KeyPath:        strings.TrimSpace(keyPath),
+		KnownHostsFile: scenarioKnownHostsFile(),
 	}
 }
 

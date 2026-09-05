@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
+
+	"github.com/gorilla/mux"
 )
 
 // handleGetHistory returns the deployment history timeline.

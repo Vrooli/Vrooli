@@ -2,18 +2,29 @@ package handlers
 
 import (
 	"context"
+	"time"
 
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/services"
+	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
+	engine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/investigations"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 )
 
 // MonitorQuerier provides read access to system metrics.
 type MonitorQuerier interface {
 	GetCurrentMetrics(ctx context.Context) (*models.MetricsResponse, error)
 	GetCurrentMetricsFresh(ctx context.Context) (*models.MetricsResponse, error)
+	GetPressureSnapshot(ctx context.Context) (*models.PressureSnapshot, error)
+	GetGPUHistory(ctx context.Context, window time.Duration) (*models.GPUHistory, error)
+	GetPressureHistory(ctx context.Context, window time.Duration) (*models.PressureHistory, error)
 	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
+	GetDiskDetail(ctx context.Context) (*models.DiskDetailResponse, error)
 	GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error)
 	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)
+	GetProcessTimeline(ctx context.Context, window time.Duration, owner string, top int) ([]repository.ProcessTimelineEntry, error)
+	GetProcessTimelineRanked(ctx context.Context, window time.Duration, owner string, top int, rank string) ([]repository.ProcessTimelineEntry, error)
 	GetInfrastructureMonitorData(ctx context.Context) (*models.InfrastructureMonitorData, error)
 	IsActive() bool
 }
@@ -35,9 +46,6 @@ type InvestigationManager interface {
 	UpdateTrigger(ctx context.Context, id string, enabled *bool, autoFix *bool, threshold *float64) error
 	GetInvestigationAgentStatus(ctx context.Context, id string) (*models.Investigation, error)
 	StopInvestigationAgent(ctx context.Context, id string) error
-	GetAgentConfig(ctx context.Context) (*services.AgentConfigResponse, error)
-	GetAvailableRunners(ctx context.Context) ([]services.RunnerResponse, error)
-	UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions, requiresSandbox, requiresApproval bool) (*services.AgentConfigResponse, error)
 	GetAgentStatus(ctx context.Context) (*services.AgentStatusResponse, error)
 }
 
@@ -45,7 +53,14 @@ type InvestigationManager interface {
 type ScriptRunner interface {
 	ListScripts() ([]services.ScriptMeta, error)
 	GetScript(id string) (services.ScriptMeta, string, error)
+	UpdateScript(id string, content string) (services.ScriptMeta, string, error)
 	ExecuteScript(ctx context.Context, id string, contentOverride string) (services.ScriptExecution, error)
+}
+
+type InvestigationRunHistory interface {
+	ListRuns(context.Context, string, time.Time, int) ([]investigations.Run, error)
+	GetRun(context.Context, string) (investigations.Run, error)
+	Prune(context.Context, time.Time, bool) (int64, error)
 }
 
 // ReportGenerator provides report operations.
@@ -53,6 +68,25 @@ type ReportGenerator interface {
 	GenerateReport(ctx context.Context, reportType string) (*models.EnhancedSystemReport, error)
 	ListReports(ctx context.Context) ([]*models.EnhancedSystemReport, error)
 	GetReport(ctx context.Context, reportID string) (*models.EnhancedSystemReport, error)
+}
+
+// MaintenanceProvider provides metrics-lifecycle maintenance operations.
+type MaintenanceProvider interface {
+	RetentionPreview(ctx context.Context, retentionDays int) (repository.RetentionEstimate, repository.DatabaseStats, error)
+	RetentionApply(ctx context.Context, retentionDays int, confirm bool) (repository.RetentionResult, repository.DatabaseStats, repository.DatabaseStats, error)
+	CompactionPreview(ctx context.Context) (repository.DatabaseStats, int64, error)
+	CompactionApply(ctx context.Context, confirm bool) (repository.CompactionResult, error)
+}
+
+// CapacityProvider provides read access to the platform capacity ledger plus
+// policy mutation. It reads claims/findings/policy and the live per-GPU
+// contention picture; it never mutates claims (those flow through the broker).
+type CapacityProvider interface {
+	Overview(ctx context.Context) (services.CapacityOverview, error)
+	ListClaims(ctx context.Context, ownerID string, activeOnly bool) ([]capacityapp.ClaimView, error)
+	Reconcile(ctx context.Context) ([]engine.Finding, error)
+	Policy(ctx context.Context) ([]capacityapp.PolicyEntry, error)
+	SetPolicy(ctx context.Context, key, value string) ([]capacityapp.PolicyEntry, error)
 }
 
 // SettingsProvider provides settings management.

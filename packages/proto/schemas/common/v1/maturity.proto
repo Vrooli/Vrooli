@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "common/v1/validation_target.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// SHARED HEALTH MATURITY ASSESSMENT
+// =============================================================================
+//
+// @layer 0
+// @domain common
+// @stability beta
+//
+// MaturityAssessment is the provider-owned health scenario maturity contract.
+// Health scenarios compute local maturity from their domain findings and emit
+// this object alongside their existing provider-specific response. Test Genie
+// and status readers may consume it when present, while maturity-go remains the
+// global authority for turning all findings into the scenario-wide R0-R4 signal.
+// =============================================================================
+
+// GlobalImpact is a stable semantic vocabulary for how one provider finding
+// affects global scenario maturity. It deliberately avoids naming R0/R1/R2
+// directly so the global ladder can evolve without rewriting provider specs.
+enum GlobalImpact {
+  GLOBAL_IMPACT_UNSPECIFIED = 0;
+  GLOBAL_IMPACT_FOUNDATION_BLOCKER = 1;
+  GLOBAL_IMPACT_SAFETY_BLOCKER = 2;
+  GLOBAL_IMPACT_EVOLVABILITY_GAP = 3;
+  GLOBAL_IMPACT_HARDENING_GAP = 4;
+  GLOBAL_IMPACT_CAPABILITY_GAP = 5;
+  GLOBAL_IMPACT_ADVISORY = 6;
+  GLOBAL_IMPACT_UNKNOWN = 7;
+}
+
+// CleanRequirement declares whether a provider finding must be resolved for
+// the provider-local top rung. It is orthogonal to severity, which continues to
+// determine phase pass/fail.
+enum CleanRequirement {
+  CLEAN_REQUIREMENT_UNSPECIFIED = 0;
+  CLEAN_REQUIREMENT_REQUIRED = 1;
+  CLEAN_REQUIREMENT_ADVISORY = 2;
+  CLEAN_REQUIREMENT_UNCHECKABLE = 3;
+}
+
+// LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
+message LocalMaturityLevel {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string entry_criteria = 4;
+  repeated string exit_criteria = 5;
+  string status_label = 6;
+  string capability_summary = 7;
+  string next_unlock = 8;
+}
+
+// FindingMaturity is the maturity metadata attached to one provider finding.
+message FindingMaturity {
+  // Provider-local level blocked by this finding, e.g. "L3".
+  string local_level = 1;
+  GlobalImpact global_impact = 2;
+  // Canonical maturity-go dimension id, e.g. "measures" or "security".
+  string dimension = 3;
+  repeated string recommended_skill_ids = 4;
+  CleanRequirement clean_requirement = 5;
+  // Provider-local capability ladder that owns this finding, when the provider
+  // declares multiple ladders in `.vrooli/maturity.json`.
+  string capability_id = 6;
+}
+
+// AssessmentFinding is the shared finding projection used by the assessment.
+// Provider responses may still expose richer native findings in parallel.
+message AssessmentFinding {
+  string code = 1;
+  string severity = 2;
+  string title = 3;
+  string message = 4;
+  string location = 5;
+  string remediation = 6;
+  FindingMaturity maturity = 7;
+  // True when a provider auto-fix can deterministically remediate this finding.
+  bool autofix_available = 8;
+  // Provider fix classification, e.g. "autofix" or "detection_only".
+  string fix_class = 9;
+  // Target-specific attribution for findings emitted while a provider run
+  // examines more than its own target. Empty means the run's own target.
+  ValidationTarget subject = 10;
+}
+
+// LocalMaturityAssessment explains the provider-local current and next rung.
+message LocalMaturityAssessment {
+  string current_level = 1;
+  string next_level = 2;
+  repeated LocalMaturityLevel levels = 3;
+  repeated string blocking_finding_codes = 4;
+  bool clean = 5;
+  int32 unknown_count = 6;
+}
+
+message CapabilityMaturityAssessment {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  string current_level = 4;
+  string next_level = 5;
+  repeated LocalMaturityLevel levels = 6;
+  string current_summary = 7;
+  string next_unlock = 8;
+  repeated string blocking_finding_codes = 9;
+  bool clean = 10;
+  int32 unknown_count = 11;
+  map<string, int32> findings_by_global_impact = 12;
+  map<string, int32> findings_by_severity = 13;
+  map<string, int32> findings_by_clean_requirement = 14;
+  int32 priority_rank = 15;
+  string priority_reason = 16;
+}
+
+message PriorityFocus {
+  string capability_id = 1;
+  string capability_label = 2;
+  string current_level = 3;
+  string next_level = 4;
+  string reason = 5;
+}
+
+// FixAffordance describes the truthful remediation affordance for a finding
+// rollup. PREVIEW_AVAILABLE means the provider reported a deterministic fixer;
+// a caller must still invoke PreviewFix before advertising an apply operation.
+enum FixAffordance {
+  FIX_AFFORDANCE_UNSPECIFIED = 0;
+  FIX_AFFORDANCE_DETECTION_ONLY = 1;
+  FIX_AFFORDANCE_MANUAL = 2;
+  FIX_AFFORDANCE_PREVIEW_AVAILABLE = 3;
+}
+
+// PhasePresentationFinding is the deterministic code rollup shown inside one
+// capability. The full, ungrouped evidence remains in MaturityAssessment.findings.
+message PhasePresentationFinding {
+  string code = 1;
+  string severity = 2;
+  int32 count = 3;
+  string title = 4;
+  string message = 5;
+  repeated string locations = 6;
+  string remediation = 7;
+  FixAffordance fix_affordance = 8;
+}
+
+// PhaseCapabilityPresentation is the canonical, ordered view of one maturity
+// capability. It is a rendering projection, not a second semantic source.
+message PhaseCapabilityPresentation {
+  string id = 1;
+  string label = 2;
+  string current_level = 3;
+  string current_level_label = 4;
+  string next_level = 5;
+  string current_summary = 6;
+  string next_unlock = 7;
+  bool clean = 8;
+  int32 unknown_count = 9;
+  repeated string blocking_finding_codes = 10;
+  int32 priority_rank = 11;
+  string priority_reason = 12;
+  repeated PhasePresentationFinding findings = 13;
+}
+
+// PhasePresentation is the provider-owned, portable phase story. Consumers
+// render this object unchanged and retain MaturityAssessment.findings for full
+// evidence. contract_version lets consumers explicitly classify historical or
+// un-migrated responses instead of synthesizing a phase story.
+message PhasePresentation {
+  string contract_version = 1;
+  string provider = 2;
+  string phase = 3;
+  string current_level = 4;
+  string current_level_label = 5;
+  string next_level = 6;
+  string ceiling_level = 7;
+  bool clean = 8;
+  int32 unknown_count = 9;
+  repeated string blocking_finding_codes = 10;
+  string next_action = 11;
+  string next_action_reason = 12;
+  string focus_capability_id = 13;
+  string focus_capability_label = 14;
+  string north_star = 15;
+  bool at_maximum = 16;
+  repeated PhaseCapabilityPresentation capabilities = 17;
+  repeated string documentation_topics = 18;
+}
+
+// MaturityAssessment is the single structural object health providers emit.
+message MaturityAssessment {
+  string scenario = 1;
+  string provider = 2;
+  string phase = 3;
+  string version = 4;
+  LocalMaturityAssessment local = 5;
+  repeated AssessmentFinding findings = 6;
+  map<string, int32> findings_by_global_impact = 7;
+  map<string, int32> findings_by_severity = 8;
+  repeated string recommended_skill_ids = 9;
+  map<string, int32> findings_by_clean_requirement = 10;
+  // Number of findings a provider auto-fix can deterministically remediate.
+  int32 autofixable_count = 11;
+  // Total findings considered for auto-fix coverage (the coverage denominator).
+  int32 autofixable_total = 12;
+  repeated CapabilityMaturityAssessment capabilities = 13;
+  PriorityFocus highest_priority_capability = 14;
+  // Deterministic provider-owned presentation derived from this assessment.
+  // Version 1 is required for all newly built assessments.
+  PhasePresentation presentation = 15;
+}

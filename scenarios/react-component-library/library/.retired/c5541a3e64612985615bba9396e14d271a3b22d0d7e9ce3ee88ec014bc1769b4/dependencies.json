@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:useIconMorph",
+  "version": "1.0.0",
+  "resolvedAt": "2026-08-28T01:20:00.000Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:IconGeometry",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "version": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

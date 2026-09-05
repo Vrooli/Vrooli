@@ -1,0 +1,10 @@
+{
+  "claims": [
+    {
+      "id": "custom-machine",
+      "type": "custom",
+      "statement": "This claim has no deterministic evaluator.",
+      "tier": "machine"
+    }
+  ]
+}

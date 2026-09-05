@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.sidebar",
+    "name": "Sidebar",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The persistent navigation or workspace panel with sections, active state, collapse to icons, keyboard traversal, independent scrolling, and stable width.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.surface",
+        "reason": "Background and elevation come from the shared surface primitive rather than per-overlay shadow values."
+      },
+      {
+        "asset": "primitives.scroll-area",
+        "reason": "Independent scrolling with preserved keyboard behavior."
+      },
+      {
+        "asset": "navigation.nav-link",
+        "reason": "Items are shared navigation links with active and pending state."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "All class composition uses the shared Tailwind conflict resolver."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "reading-order-honest",
+    "density-adaptive-layout"
+  ]
+}

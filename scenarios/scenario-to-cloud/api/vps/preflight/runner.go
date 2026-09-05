@@ -349,6 +349,8 @@ func Run(
 		pass(domain.PreflightOutboundNetworkID, "Outbound network", "Outbound HTTPS access looks OK", nil)
 	}
 
+	// Remote VPS snapshot command. Local host inventory probing belongs in internal/hostinventory.
+	// hostinventory:remote-snapshot-parser
 	diskRes, diskErr := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
 	if diskErr != nil || diskRes.ExitCode != 0 {
 		warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
@@ -363,24 +365,26 @@ func Run(
 		for k, v := range requirementData {
 			detailsData[k] = v
 		}
-			if kb > 0 && kb < diskRequiredKB {
-				fail(
-					domain.PreflightDiskFreeID,
-					"Disk free space",
-					fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
-					fmt.Sprintf(
-						"At least %s free space is required for this deployment. "+
-							"First try: sudo apt-get clean && sudo journalctl --vacuum-size=100M. "+
-							"If you have many redeploys, bundle cache may be the culprit; try: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
-						formatBytes(diskRequiredKB), cfg.Host, manifest.Scenario.ID,
-					),
-					detailsData,
-				)
-			} else {
-				pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), detailsData)
-			}
+		if kb > 0 && kb < diskRequiredKB {
+			fail(
+				domain.PreflightDiskFreeID,
+				"Disk free space",
+				fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
+				fmt.Sprintf(
+					"At least %s free space is required for this deployment. "+
+						"First try: sudo apt-get clean && sudo journalctl --vacuum-size=100M. "+
+						"If you have many redeploys, bundle cache may be the culprit; try: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
+					formatBytes(diskRequiredKB), cfg.Host, manifest.Scenario.ID,
+				),
+				detailsData,
+			)
+		} else {
+			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), detailsData)
+		}
 	}
 
+	// Remote VPS snapshot command. Local host inventory probing belongs in internal/hostinventory.
+	// hostinventory:remote-snapshot-parser
 	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`, ssh.DefaultRunOptions())
 	if ramErr != nil || ramRes.ExitCode != 0 {
 		warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
@@ -471,6 +475,7 @@ func Run(
 	}
 
 	// Check: Docker available and running
+	// Remote VPS service check. This is not Docker GPU runtime inventory for the local host.
 	dockerRes, dockerErr := sshRunner.Run(ctx, cfg, "command -v docker && docker info --format '{{.ServerVersion}}'", ssh.DefaultRunOptions())
 	if dockerErr != nil || dockerRes.ExitCode != 0 {
 		warn(domain.PreflightDockerID, "Docker available",

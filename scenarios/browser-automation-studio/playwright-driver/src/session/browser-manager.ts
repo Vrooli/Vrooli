@@ -1,14 +1,20 @@
 /**
  * Browser Manager
  *
- * Manages the shared browser instance lifecycle including:
+ * Manages shared browser instance lifecycles including:
  * - Launch with configuration
  * - Verification (smoke test on startup)
  * - Connection monitoring
  * - Graceful shutdown
  *
+ * BROWSER POOLING:
+ * - One default browser serves ordinary sessions.
+ * - Chromium fake media capture (--use-file-for-fake-audio-capture) is a
+ *   process-wide launch flag, so sessions requesting a fake microphone WAV
+ *   get a dedicated browser instance pooled per distinct WAV path.
+ *
  * CONCURRENCY SAFETY:
- * - Uses browserLaunchPromise lock to prevent concurrent browser launches
+ * - Uses per-key launch-promise locks to prevent concurrent browser launches
  * - Multiple concurrent calls to getBrowser() await the same launch promise
  * - Safe to call from multiple sessions simultaneously
  *
@@ -20,10 +26,21 @@
  * @module session/browser-manager
  */
 
+import { existsSync, statSync } from 'fs';
+import { isAbsolute } from 'path';
 import type { Browser } from 'rebrowser-playwright';
 import { playwrightProvider } from '../playwright';
 import type { Config } from '../config';
 import { logger, metrics } from '../utils';
+import {
+  detectHostAudioCapability,
+  getAudioLaunchArgs,
+  selectAudioStrategy,
+  type AudioStrategy,
+  type HostAudioCapability,
+} from './audio';
+import { BrowserPool } from './browser-pool';
+import { createAndroidCDPProxy } from './android-cdp-proxy';
 
 // =============================================================================
 // Types
@@ -36,33 +53,32 @@ export interface BrowserStatus {
   healthy: boolean;
   error?: string;
   version?: string;
+  audioCapability?: HostAudioCapability;
 }
+
+/** Pool key for the ordinary host-device browser with no fake media. */
+const DEFAULT_BROWSER_KEY = 'host_device\u0000';
 
 // =============================================================================
 // BrowserManager
 // =============================================================================
 
 /**
- * Manages the shared browser instance used by all sessions.
+ * Manages the shared browser instances used by all sessions.
  *
- * The browser is lazily launched on first session creation and kept
+ * Browsers are lazily launched on first matching session creation and kept
  * alive until shutdown. This avoids the startup cost of launching
  * Chromium for each session.
  */
 export class BrowserManager {
-  private browser: Browser | null = null;
+  private readonly pool = new BrowserPool();
   private config: Config;
 
   private browserVerified = false;
   private browserError: string | null = null;
 
-  /**
-   * Lock to prevent concurrent browser launches.
-   * Holds a promise that resolves when browser launch completes.
-   * This prevents the race condition where multiple startSession() calls
-   * could each launch their own browser instance.
-   */
-  private browserLaunchPromise: Promise<Browser> | null = null;
+  private audioCapabilityPromise?: Promise<HostAudioCapability>;
+  private audioCapability?: HostAudioCapability;
 
   constructor(config: Config) {
     this.config = config;
@@ -127,56 +143,69 @@ export class BrowserManager {
       return { healthy: false, error: this.browserError };
     }
 
-    if (this.browser && this.browser.isConnected()) {
-      return { healthy: true, version: this.browser.version() };
+    const defaultBrowser = this.pool.get(DEFAULT_BROWSER_KEY);
+    if (defaultBrowser) {
+      return {
+        healthy: true,
+        version: defaultBrowser.version(),
+        audioCapability: this.audioCapability,
+      };
     }
 
-    return { healthy: true };
+    return { healthy: true, audioCapability: this.audioCapability };
   }
 
   /**
-   * Get or create shared browser instance.
+   * Get or create a shared browser instance.
+   *
+   * @param fakeMicrophoneWav - Optional absolute WAV path to serve as a
+   *   deterministic fake microphone. Sessions requesting fake media get a
+   *   dedicated browser instance pooled per distinct WAV path, because the
+   *   Chromium fake-capture flags are process-wide.
    *
    * Temporal hardening:
-   * - Uses a lock (browserLaunchPromise) to prevent concurrent browser launches
+   * - Uses per-key locks (browserLaunchPromises) to prevent concurrent launches
    * - Multiple concurrent calls will all await the same launch promise
    * - If browser disconnects mid-launch, subsequent calls will retry
    */
-  async getBrowser(): Promise<Browser> {
-    // Fast path: browser already exists and is connected
-    if (this.browser && this.browser.isConnected()) {
-      return this.browser;
+  async getBrowser(
+    fakeMicrophoneWav?: string,
+    audioStrategy: AudioStrategy = 'host_device'
+  ): Promise<Browser> {
+    const wavPath = fakeMicrophoneWav?.trim() ?? '';
+    const key = getBrowserPoolKey(wavPath, audioStrategy);
+    if (wavPath) {
+      this.validateFakeMicrophoneWav(wavPath);
     }
 
-    // If another call is already launching the browser, wait for it
-    if (this.browserLaunchPromise) {
-      logger.debug('browser: waiting for concurrent launch to complete');
-      try {
-        const browser = await this.browserLaunchPromise;
-        // Double-check it's still connected after await
-        if (browser.isConnected()) {
-          return browser;
-        }
-        // Browser disconnected during wait, fall through to launch new one
-      } catch (error) {
-        // Launch failed, fall through to try again
-        logger.debug('browser: concurrent launch failed, will retry', {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    return this.pool.getOrLaunch(key, () => this.launchBrowserInternal(key));
+  }
 
-    // Create the launch promise BEFORE starting the launch
-    // This ensures concurrent calls will await this promise
-    this.browserLaunchPromise = this.launchBrowserInternal();
-
+  /** Connect to a browser owned by a controlled desktop target. */
+  async connectOverCDP(endpoint: string, androidWebView = false): Promise<Browser> {
+    if (!androidWebView) return playwrightProvider.chromium.connectOverCDP(endpoint);
+    const proxy = await createAndroidCDPProxy(endpoint);
     try {
-      this.browser = await this.browserLaunchPromise;
-      return this.browser;
-    } finally {
-      // Clear the promise after launch completes (success or failure)
-      // This allows retry on next call if launch failed
-      this.browserLaunchPromise = null;
+      const browser = await playwrightProvider.chromium.connectOverCDP(proxy.endpoint);
+      browser.on('disconnected', () => { void proxy.close(); });
+      return browser;
+    } catch (error) {
+      await proxy.close();
+      throw error;
+    }
+  }
+
+  /**
+   * Validate a per-session fake microphone WAV request.
+   * The path must be absolute (the API layer resolves workflow-relative
+   * fixture paths against the execution's project root) and readable.
+   */
+  private validateFakeMicrophoneWav(wavPath: string): void {
+    if (!isAbsolute(wavPath)) {
+      throw new Error(`fake_media.microphone_wav must be an absolute path, got "${wavPath}"`);
+    }
+    if (!existsSync(wavPath) || !statSync(wavPath).isFile()) {
+      throw new Error(`fake_media.microphone_wav "${wavPath}" does not exist or is not a file`);
     }
   }
 
@@ -188,18 +217,37 @@ export class BrowserManager {
    * This allows switching between rebrowser-playwright (anti-detection)
    * and standard playwright in the future. See src/playwright/ for details.
    */
-  private async launchBrowserInternal(): Promise<Browser> {
+  private async launchBrowserInternal(poolKey: string): Promise<Browser> {
+    // Per-session fake media wins; the process-level env knob
+    // (BAS_FAKE_MICROPHONE_FILE) remains as the default-browser fallback for
+    // dedicated qualification drivers.
+    const [, fakeMicrophoneKey = ''] = poolKey.split('\u0000', 2);
+    const fakeMicrophoneFile = fakeMicrophoneKey || this.config.browser.fakeMicrophoneFile;
+    const [strategy] = poolKey.split('\u0000', 1) as [AudioStrategy];
+    const args = [...this.config.browser.args, ...getAudioLaunchArgs(strategy)];
+    if (fakeMicrophoneFile) {
+      // Chromium still performs its normal getUserMedia capture path. These
+      // flags only replace the physical device and permission prompt with a
+      // deterministic WAV-backed device for an explicitly configured test run.
+      args.push(
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
+        `--use-file-for-fake-audio-capture=${fakeMicrophoneFile}`
+      );
+    }
     logger.info('browser: launching', {
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || 'auto',
       provider: playwrightProvider.name,
       capabilities: playwrightProvider.capabilities,
+      fakeMicrophone: Boolean(fakeMicrophoneFile),
+      dedicatedFakeMediaBrowser: Boolean(fakeMicrophoneKey),
     });
 
     const browser = await playwrightProvider.chromium.launch({
       headless: this.config.browser.headless,
       executablePath: this.config.browser.executablePath || undefined,
-      args: this.config.browser.args,
+      args,
     });
 
     logger.info('browser: launched', {
@@ -209,26 +257,54 @@ export class BrowserManager {
     return browser;
   }
 
-  /**
-   * Shutdown the browser and cleanup resources.
-   */
-  async shutdown(): Promise<void> {
-    if (this.browser) {
-      await this.browser.close().catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn('Failed to close browser', { error: message });
-        metrics.cleanupFailures.inc({ operation: 'browser_close' });
-      });
-      this.browser = null;
+  /** Measure host output once per driver process and reuse its durable verdict. */
+  async getHostAudioCapability(): Promise<HostAudioCapability> {
+    if (!this.audioCapabilityPromise) {
+      this.audioCapabilityPromise = this.getBrowser()
+        .then(detectHostAudioCapability)
+        .then((capability) => {
+          this.audioCapability = capability;
+          logger.info('browser: host audio capability detected', capability);
+          return capability;
+        });
     }
+    return this.audioCapabilityPromise;
+  }
+
+  async getAudioStrategy(): Promise<AudioStrategy> {
+    return selectAudioStrategy(await this.getHostAudioCapability());
   }
 
   /**
-   * Check if browser is currently connected.
+   * Shutdown all browsers and cleanup resources.
+   */
+  async shutdown(): Promise<void> {
+    await this.pool.closeAll(async (key, browser) => {
+      await browser.close().catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn('Failed to close browser', {
+          error: message,
+          browserKey: key === DEFAULT_BROWSER_KEY ? 'default' : key,
+        });
+        metrics.cleanupFailures.inc({ operation: 'browser_close' });
+      });
+    });
+  }
+
+  /**
+   * Check if the default browser is currently connected.
    */
   isConnected(): boolean {
-    return this.browser?.isConnected() ?? false;
+    return this.pool.get(DEFAULT_BROWSER_KEY) !== undefined;
   }
+}
+
+/** Chromium launch configuration is process-wide, so every launch axis is keyed. */
+export function getBrowserPoolKey(
+  fakeMicrophoneWav = '',
+  strategy: AudioStrategy = 'host_device'
+): string {
+  return `${strategy}\u0000${fakeMicrophoneWav}`;
 }
 
 /**

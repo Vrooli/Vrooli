@@ -5,17 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/persistence"
+
+	"github.com/google/uuid"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // ProgressBroadcaster defines the interface for broadcasting progress events.
@@ -97,21 +96,20 @@ func (s *Service) TriggerInvestigation(ctx context.Context, req TriggerInvestiga
 	}
 
 	// Start background investigation
-	go s.runInvestigation(inv.ID, deployment, req.AutoFix, req.Note, req.IncludeContexts)
+	go s.runInvestigation(context.WithoutCancel(ctx), inv.ID, deployment, req.AutoFix, req.Note, req.IncludeContexts)
 
 	return inv, nil
 }
 
 // runInvestigation executes the investigation in the background.
 func (s *Service) runInvestigation(
+	ctx context.Context,
 	invID string,
 	deployment *domain.Deployment,
 	autoFix bool,
 	note string,
 	includeContexts []string,
 ) {
-	ctx := context.Background()
-
 	// Update status to running
 	if err := s.repo.UpdateInvestigationStatus(ctx, invID, domain.InvestigationStatusRunning); err != nil {
 		log.Printf("[investigation] failed to update status to running: %v", err)
@@ -135,9 +133,10 @@ func (s *Service) runInvestigation(
 	s.broadcastProgress(deployment.ID, invID, "investigation_progress", 10, "Agent executing investigation...")
 
 	// Execute via agent-manager
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	workingDir, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		s.handleInvestigationError(ctx, invID, deployment.ID, fmt.Sprintf("failed to resolve repo root: %v", err))
+		return
 	}
 
 	// Use a timeout context for the agent execution (1 hour - agents can take a while)
@@ -420,20 +419,19 @@ func (s *Service) ApplyFixes(ctx context.Context, req ApplyFixesRequest) (*domai
 	}
 
 	// Start background fix application
-	go s.runFixApplication(fixInv.ID, originalInv, deployment, req)
+	go s.runFixApplication(context.WithoutCancel(ctx), fixInv.ID, originalInv, deployment, req)
 
 	return fixInv, nil
 }
 
 // runFixApplication executes the fix application in the background.
 func (s *Service) runFixApplication(
+	ctx context.Context,
 	fixInvID string,
 	originalInv *domain.Investigation,
 	deployment *domain.Deployment,
 	req ApplyFixesRequest,
 ) {
-	ctx := context.Background()
-
 	// Update status to running
 	if err := s.repo.UpdateInvestigationStatus(ctx, fixInvID, domain.InvestigationStatusRunning); err != nil {
 		log.Printf("[fix-application] failed to update status to running: %v", err)
@@ -457,9 +455,10 @@ func (s *Service) runFixApplication(
 	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 10, "Agent applying fixes...")
 
 	// Execute via agent-manager
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	workingDir, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		s.handleInvestigationError(ctx, fixInvID, deployment.ID, fmt.Sprintf("failed to resolve repo root: %v", err))
+		return
 	}
 
 	// Use a timeout context for the agent execution (1 hour - agents can take a while)

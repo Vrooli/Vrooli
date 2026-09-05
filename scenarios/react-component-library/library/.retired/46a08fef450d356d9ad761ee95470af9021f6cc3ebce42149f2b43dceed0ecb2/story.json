@@ -1,0 +1,134 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Choose status",
+        "kind": "text",
+        "label": "Placeholder",
+        "path": "placeholder"
+      },
+      {
+        "default": [
+          {
+            "label": "Current",
+            "value": "current"
+          },
+          {
+            "label": "Behind",
+            "value": "behind"
+          }
+        ],
+        "kind": "structured",
+        "label": "Options",
+        "path": "options"
+      },
+      {
+        "default": "native",
+        "kind": "text",
+        "label": "Default Value",
+        "path": "defaultValue"
+      },
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "options": [
+          {
+            "label": "Current",
+            "value": "current"
+          },
+          {
+            "label": "Behind",
+            "value": "behind"
+          }
+        ],
+        "placeholder": "Choose status"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox"
+        }
+      ],
+      "id": "with-placeholder",
+      "mode": "pinned",
+      "name": "With Placeholder",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "aria-label": "native",
+        "defaultValue": "native",
+        "options": [
+          {
+            "label": "Native",
+            "value": "native"
+          },
+          {
+            "label": "Compatible",
+            "value": "compatible"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "native",
+          "role": "combobox"
+        }
+      ],
+      "id": "selected",
+      "mode": "pinned",
+      "name": "Selected",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "aria-label": "locked",
+        "defaultValue": "locked",
+        "disabled": true,
+        "options": [
+          {
+            "label": "Locked",
+            "value": "locked"
+          },
+          {
+            "label": "Open",
+            "value": "open"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "name": "disabled",
+          "selector": "select",
+          "value": ""
+        },
+        {
+          "kind": "role",
+          "name": "locked",
+          "role": "combobox"
+        }
+      ],
+      "id": "disabled",
+      "mode": "pinned",
+      "name": "Disabled",
+      "role": "boundary"
+    }
+  ],
+  "title": "Select"
+}

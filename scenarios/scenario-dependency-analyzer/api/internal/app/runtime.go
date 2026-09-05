@@ -3,9 +3,11 @@ package app
 import (
 	"database/sql"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/store"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Package-level state for the analyzer process.
@@ -20,7 +22,7 @@ var (
 
 	// applyDiffsHook is an optional callback invoked during config sync operations.
 	// Used primarily for testing to observe or modify apply behavior.
-	applyDiffsHook func(string, *types.ServiceConfig)
+	applyDiffsHook func(string, *types.Manifest)
 )
 
 // Runtime encapsulates shared state for the analyzer process.
@@ -56,15 +58,6 @@ func setDefaultRuntime(rt *Runtime) {
 // currentRuntime returns the active runtime instance (if any).
 func currentRuntime() *Runtime {
 	return defaultRuntime
-}
-
-// currentDB returns the database handle from the active runtime, or the global fallback.
-// Prefer using currentStore() for new code, but this provides a bridge for legacy code.
-func currentDB() *sql.DB {
-	if rt := currentRuntime(); rt != nil && rt.db != nil {
-		return rt.db
-	}
-	return db
 }
 
 // Analyzer exposes the runtime's analyzer instance.

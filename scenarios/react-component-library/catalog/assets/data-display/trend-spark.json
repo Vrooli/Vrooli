@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.trend-spark",
+    "name": "TrendSpark",
+    "kind": "primitive",
+    "surface": "none",
+    "domain": "data-display",
+    "description": "Accessible compact trend visualization with a text alternative for version history and adoption signals.",
+    "targets": ["react-vite"],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": { "priority": "P1", "maturity": "scaffolded" }
+  },
+  "api": { "variants": {}, "modes": [], "parts": [] },
+  "dependencies": { "requires": [], "suggests": [] },
+  "requiredCapabilities": ["semantic-structure", "accessible-naming", "no-horizontal-overflow"],
+  "requiredStates": ["default"],
+  "rationale": "Shared inline trend primitive for compact history and coverage surfaces."
+}

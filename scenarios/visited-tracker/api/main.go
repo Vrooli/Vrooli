@@ -5,12 +5,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var (
@@ -33,26 +33,10 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Determine project root from VROOLI_ROOT environment variable
-	// This is safer than path traversal and works with lifecycle system
-	projectRoot := os.Getenv("VROOLI_ROOT")
-	if projectRoot == "" {
-		// Fallback: resolve from current directory (API runs from scenarios/visited-tracker/api/)
-		// SECURITY: This uses a hardcoded constant path for initialization, NOT user input.
-		// The literal "../../../" is safe because it's compile-time defined and cannot be
-		// manipulated by external sources. filepath.Clean and filepath.Abs provide additional
-		// safety to resolve to absolute canonical path without symbolic links.
-		// nosemgrep: go.lang.security.audit.path-traversal.path-join-resolve-dir
-		const initializationRelPath = "../../../" // #nosec G304 - Hardcoded initialization path, not user input
-		if absPath, err := filepath.Abs(initializationRelPath); err == nil {
-			projectRoot = filepath.Clean(absPath)
-		} else {
-			fmt.Fprintf(os.Stderr, "❌ Failed to determine project root directory: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		// Sanitize environment variable to prevent path traversal
-		projectRoot = filepath.Clean(projectRoot)
+	projectRoot, err := resolveProjectRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to determine project root directory: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Change working directory to project root for file pattern resolution
@@ -131,11 +115,18 @@ func main() {
 
 	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
 	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)
-	logger.Printf("💾 Data stored in JSON files at: %s", filepath.Join("scenarios", "visited-tracker", dataDir))
+	logger.Printf("💾 Data stored in JSON files at: %s", storageDataPath())
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		logger.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+func resolveProjectRoot() (string, error) {
+	if projectRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); projectRoot != "" {
+		return repocontract.FindRepoRootFromPath(projectRoot)
+	}
+	return repocontract.ResolveRepoRoot()
 }
 
 // corsMiddleware handles Cross-Origin Resource Sharing (CORS) for all requests

@@ -15,6 +15,10 @@
 
 The product is a **command center for scenario lifecycle management**, bridging the gap between "ideas you want to build" and "scenarios that are running."
 
+## Navigation
+
+- **2026-07-22 detail-page audit:** Backlog, goal, and execution detail tabs preserve their URL tab state while sharing the compact icon-tab presentation. Cross-lens navigation is contextual rather than persistent: it appears after the local tab row only from Info/Overview, keeping non-overview detail tasks focused and the sticky header compact. Goal Files now uses the same editable workspace affordance as backlog Files; the floating application sidebar remains an independently dismissible drawer on mobile.
+
 ---
 
 ## Core Personas & Primary Jobs

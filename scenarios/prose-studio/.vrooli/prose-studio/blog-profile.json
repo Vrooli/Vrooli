@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "kind": "profile",
+  "key": "prose-studio/blog-default",
+  "created_by": "prose-studio",
+  "record": {
+    "style_refs": ["prose-studio/blog"],
+    "sampler": {"kind": "direct", "k": 1, "temperature_stance": "ignored", "max_output_tokens": 1024},
+    "selection_policy": "threshold_then_rarest",
+    "gateway_role": "write.default",
+    "budget": {"max_output_tokens": 1024, "max_session_cost_micros": 1000000},
+    "context_policy": {"full_text_token_budget": 4096, "summarize_beyond": 4096}
+  }
+}

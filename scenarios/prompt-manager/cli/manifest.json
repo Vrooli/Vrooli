@@ -1,0 +1,3138 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "prompt-manager",
+  "description": "Governance declarations for prompt-manager's local CLI surface.",
+  "groups": [
+    {
+      "name": "help",
+      "flat": true,
+      "commands": [
+        {
+          "name": "help",
+          "description": "Show prompt-manager help.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "version",
+      "flat": true,
+      "commands": [
+        {
+          "name": "version",
+          "description": "Show prompt-manager version.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "flat": true,
+      "commands": [
+        {
+          "name": "status",
+          "description": "Check prompt-manager health.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "configure",
+      "flat": true,
+      "commands": [
+        {
+          "name": "configure",
+          "description": "View or update CLI configuration.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "skill",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List skills.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ListSkills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "measure": {
+            "domain": "skills",
+            "intent": "How many governed skills are available.",
+            "questions": [
+              "how many skills are available",
+              "count governed skills"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "skills",
+              "unit": "skills",
+              "summary_template": "{count} governed skills"
+            }
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "GetSkill"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "read",
+          "description": "Read a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ReadSkills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "add",
+          "description": "Add a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "CreateSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "UpdateSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "DeleteSkill"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Synchronize the skill catalog.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "SyncSkills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "rate",
+          "description": "Rate a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "RateSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "versions",
+          "description": "List skill versions.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ListSkillVersions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "revert",
+          "description": "Revert a skill.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "RevertSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "variants",
+          "description": "List skill variants.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ListSkillVariants"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "add-variant",
+          "description": "Add a skill variant.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "CreateSkillVariant"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "rm-variant",
+          "description": "Remove a skill variant.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "DeleteSkillVariant"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "topology",
+          "description": "Report skill packs and generated projection residency.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import pinned skill material into quarantine.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ImportSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "review-import",
+          "description": "Record an independent imported-skill review.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ReviewImportedSkill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "import-staleness",
+          "description": "Compare an imported skill with its upstream version.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "ReportImportedSkillStaleness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "activation-hook",
+          "description": "Record native skill activation telemetry fail-open.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "action",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List actions.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "ListActions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "measure": {
+            "domain": "actions",
+            "intent": "How many governed actions are available.",
+            "questions": [
+              "how many actions are available",
+              "count governed actions"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "actions",
+              "unit": "actions",
+              "summary_template": "{count} governed actions"
+            }
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show an action.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "GetAction"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Preview or create an action.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "AuthorAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update an action.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "UpdateAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Archive or delete an action.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "DeleteAction"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate an action.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "ValidateAction"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run an action through the governed runtime.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActionsService",
+            "method": "RunAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "experiment",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List experiments.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "ListExperiments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show an experiment.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "GetExperiment"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an experiment.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "CreateExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start an experiment.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "StartExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "conclude",
+          "description": "Conclude an experiment.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "ConcludeExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "holdout",
+          "description": "Manage experiment holdout.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "RecordHoldoutReceipt"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote an experiment.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "PromoteExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "outcomes",
+          "description": "Show experiment outcomes.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "ListOutcomes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "report",
+          "description": "Report experiment results.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "GetExperimentReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an experiment.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentsService",
+            "method": "DeleteExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "tag",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List tags.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TagsService",
+            "method": "ListTags"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "measure": {
+            "domain": "tags",
+            "intent": "How many persisted tags are available.",
+            "questions": [
+              "how many tags are available",
+              "count persisted tags"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "tags",
+              "unit": "tags",
+              "summary_template": "{count} persisted tags"
+            }
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a tag.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TagsService",
+            "method": "CreateTag"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "member",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List members.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": []
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show a member.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": []
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a member.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": []
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a member.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": []
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a member.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "agent",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List agents.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentsService",
+            "method": "ListAgents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "agents",
+            "intent": "How many persisted agents are available.",
+            "questions": [
+              "how many agents are available",
+              "count persisted agents"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "agents",
+              "unit": "agents",
+              "summary_template": "{count} persisted agents"
+            }
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show an agent.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentsService",
+            "method": "GetAgent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an agent.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentsService",
+            "method": "CreateAgent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update an agent.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentsService",
+            "method": "UpdateAgent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an agent.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentsService",
+            "method": "DeleteAgent"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "soul",
+          "description": "Manage an agent soul.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentsService",
+            "method": "ManageSoul"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Search agents.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "SearchAgents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "team",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List teams.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "ListTeams"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "teams",
+            "intent": "How many persisted teams are available.",
+            "questions": [
+              "how many teams are available",
+              "count persisted teams"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "teams",
+              "unit": "teams",
+              "summary_template": "{count} persisted teams"
+            }
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show a team.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "GetTeam"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a team.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "CreateTeam"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a team.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "UpdateTeam"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a team.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "DeleteTeam"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "add-member",
+          "description": "Add a team member.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "AddMember"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update-member",
+          "description": "Update a team member.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "UpdateMember"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remove-member",
+          "description": "Remove a team member.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "RemoveMember"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "roles",
+          "description": "List team roles.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "GetRoles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retention",
+          "description": "Manage team retention.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetRetention"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prune",
+          "description": "Prune team records.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "PruneSharedState"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import-cc",
+          "description": "Import Claude Code team data.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "ImportClaudeCodeTeam"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "export-cc",
+          "description": "Export Claude Code team data.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TeamsService",
+            "method": "ExportClaudeCodeTeam"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "trigger",
+          "description": "Trigger a team operation.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "TriggerTeam"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Search teams.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "SearchTeams"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "heartbeat-list",
+          "description": "List team heartbeat configurations.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "ListHeartbeats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat",
+          "description": "Read one member heartbeat configuration.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetHeartbeat"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-trigger",
+          "description": "Trigger one member heartbeat.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "TriggerHeartbeat"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-logs",
+          "description": "List one member heartbeat logs.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "ListLogs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-control-status",
+          "description": "Read team heartbeat-control status.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetTeamHeartbeatControl"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-control-pause",
+          "description": "Pause team heartbeat scheduling.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "PauseTeamHeartbeatControl"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-control-resume",
+          "description": "Resume team heartbeat scheduling.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "ResumeTeamHeartbeatControl"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "heartbeat-control-policy-set",
+          "description": "Update team heartbeat-control policy.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "UpdateTeamHeartbeatControlPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "queue-clear",
+          "description": "Clear a stale member entry from the team execution queue.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "ClearTeamQueueRunning"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "prompt-preview",
+          "description": "Render one heartbeat prompt preview.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "PreviewPrompt"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prompt-preview-structured",
+          "description": "Render one structured heartbeat prompt preview.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "PreviewPromptStructured"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prompt-matrix",
+          "description": "Read the team heartbeat prompt matrix.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "PreviewPromptMatrix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "member-context",
+          "description": "Read assembled member context.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetMemberContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "handoff-latest",
+          "description": "Read the latest member handoff.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetLastHandoff"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "handoff-history",
+          "description": "Read team handoff history.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetHandoffHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "task-list",
+          "description": "Read the team task board.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetTaskBoard"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "task-add",
+          "description": "Add a team task.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "AddTask"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "task-update",
+          "description": "Update a team task.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "UpdateTask"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "task-delete",
+          "description": "Delete a team task.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "DeleteTask"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "bug-capture",
+          "description": "Publish a validated Scenario QA bug.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "CaptureBug"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "bug-repair",
+          "description": "Repair and publish a Scenario QA bug draft.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "RepairBug"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "topic",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List topics.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "ListTopics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "topics",
+            "intent": "How many persisted topics are available.",
+            "questions": [
+              "how many topics are available",
+              "count persisted topics"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "topics",
+              "unit": "topics",
+              "summary_template": "{count} persisted topics"
+            }
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show a topic.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "GetTopic"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a topic.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "CreateTopic"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a topic.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "UpdateTopic"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a topic.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "DeleteTopic"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          }
+        },
+        {
+          "name": "skills",
+          "description": "List topic skills.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "GetAccumulatedSkills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Search topics.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "MatchTopics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "tree",
+          "description": "Show topic tree.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TopicsService",
+            "method": "ListTopicTree"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "test",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run skill tests.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TestingService",
+            "method": "RunSkillTest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "history",
+          "description": "Show skill test history.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TestingService",
+            "method": "ListSkillTestHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "metadata",
+      "commands": [
+        {
+          "name": "fetch",
+          "description": "Fetch Open Graph metadata.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetadataService",
+            "method": "FetchOpenGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "flat": true,
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search prompt-manager skills.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "SearchSkills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {
+              "path": "results",
+              "pass": "nonempty",
+              "fail": "empty"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "discover",
+      "flat": true,
+      "commands": [
+        {
+          "name": "discover",
+          "description": "Discover reusable skills and operations.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "Discover"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "semantics": {
+            "kind": "guidance",
+            "verdict": {
+              "path": "results",
+              "pass": "nonempty",
+              "fail": "empty"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "search-status",
+      "flat": true,
+      "commands": [
+        {
+          "name": "search-status",
+          "description": "Check search availability.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "search-reconcile",
+      "flat": true,
+      "commands": [
+        {
+          "name": "search-reconcile",
+          "description": "Reconcile search indexes.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "Reconcile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "search-reconcile-status",
+      "flat": true,
+      "commands": [
+        {
+          "name": "search-reconcile-status",
+          "description": "Check reconciliation status.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "GetReconcileStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "search-reconcile-cancel",
+      "flat": true,
+      "commands": [
+        {
+          "name": "search-reconcile-cancel",
+          "description": "Cancel reconciliation.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AISearchService",
+            "method": "CancelReconcile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "heartbeat-control",
+      "flat": false,
+      "commands": [
+        {
+          "name": "status",
+          "description": "Read global heartbeat-control status.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "GetHeartbeatControl"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "pause",
+          "description": "Pause global heartbeat scheduling.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "PauseHeartbeatControl"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume global heartbeat scheduling.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "ResumeHeartbeatControl"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "policy-set",
+          "description": "Update global heartbeat-control policy.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HeartbeatService",
+            "method": "UpdateHeartbeatControlPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "discovery-gaps",
+      "flat": true,
+      "commands": [
+        {
+          "name": "discovery-gaps",
+          "description": "Show discovery gaps.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "ListDiscoveryGaps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "skill-usage",
+      "flat": true,
+      "commands": [
+        {
+          "name": "skill-usage",
+          "description": "Show skill usage.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "GetSkillUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "measure": {
+            "domain": "metrics",
+            "intent": "How many persisted skill-usage rows are available.",
+            "questions": [
+              "how many skills have usage metrics",
+              "count skill usage rows"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "rows",
+              "unit": "skill usage rows",
+              "summary_template": "{count} persisted skill usage rows"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "discovery-metrics",
+      "flat": true,
+      "commands": [
+        {
+          "name": "discovery-metrics",
+          "description": "Show discovery metrics.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "GetDiscoveryMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "measure": {
+            "domain": "aisearch",
+            "intent": "How many discovery calls are retained in telemetry.",
+            "questions": [
+              "how many discovery calls are recorded",
+              "count discovery calls"
+            ],
+            "result": {
+              "kind": "scalar",
+              "value_field": "call_count",
+              "unit": "discovery calls",
+              "summary_template": "{count} recorded discovery calls"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "graph",
+      "flat": false,
+      "commands": [
+        {
+          "name": "show",
+          "description": "Read the complete relationship graph.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "GetGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "regenerate",
+          "description": "Regenerate and read the relationship graph.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "RegenerateGraph"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "orphaned-skills",
+          "description": "List skills with no incoming references.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ListOrphanedSkills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skillless-agents",
+          "description": "List agents with no skill references.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ListSkilllessAgents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "empty-teams",
+          "description": "List teams with no members.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ListEmptyTeams"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unaffiliated-agents",
+          "description": "List agents with no team membership.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ListUnaffiliatedAgents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "popular",
+          "description": "List the most referenced graph nodes.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ListPopularNodes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "circular-refs",
+          "description": "List circular graph references.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ListCycles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "node",
+          "description": "Read one graph node and its adjacent edges.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "GetNode"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Read graph health scores.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "GetHealthScores"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "graph",
+            "intent": "How many graph nodes carry computed health evidence.",
+            "questions": [
+              "how many graph nodes have health scores",
+              "count graph health scores"
+            ],
+            "result": {
+              "kind": "table",
+              "value_field": "scores",
+              "unit": "graph health scores",
+              "summary_template": "{count} graph nodes with health evidence"
+            }
+          }
+        },
+        {
+          "name": "topics",
+          "description": "Read the memberflow topic graph.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetTopicGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "audit",
+          "description": "Run the composed framework-health graph audit.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "rules",
+          "description": "Read memberflow validation rules.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetRules"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "operating-model-list",
+          "description": "List operating models.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetOperatingModels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "operating-model-validate",
+          "description": "Validate operating models.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "ValidateOperatingModels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "operating-model-diff",
+          "description": "Read operating-model drift.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "DiffOperatingModels"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "operating-model-coverage",
+          "description": "Read operating-model coverage.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetOperatingModelCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "map",
+          "description": "Read the operating-model map.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetOperatingMap"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "objectives",
+          "description": "Read memberflow objectives.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetObjectives"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "orientation-cost",
+          "description": "Read member orientation-cost evidence.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetOrientationCost"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "instruments",
+          "description": "Read memberflow instruments.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetInstruments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "drain-status",
+          "description": "Read memberflow topic drain status.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MemberflowService",
+            "method": "GetDrainStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "space",
+      "flat": true,
+      "commands": [
+        {
+          "name": "space",
+          "description": "Show coverage-space metadata.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "actions",
+        "stateful": true,
+        "reason": "Governed action definitions are persisted and measured by action list."
+      },
+      {
+        "domain": "agents",
+        "stateful": true,
+        "reason": "Agent identities are persisted and measured by agent list."
+      },
+      {
+        "domain": "aisearch",
+        "stateful": true,
+        "reason": "Discovery telemetry and index configuration are durable; discovery-metrics measures retained call telemetry."
+      },
+      {
+        "domain": "graph",
+        "stateful": true,
+        "reason": "The graph index and health configuration are durable; graph health measures materialized node scores."
+      },
+      {
+        "domain": "heartbeat",
+        "stateful": true,
+        "reason": "Heartbeat schedules, runs, queues, handoffs, and task boards are durable operational state."
+      },
+      {
+        "domain": "memberflow",
+        "stateful": true,
+        "reason": "Member topic contracts and operating-model projections are durable governed state."
+      },
+      {
+        "domain": "metrics",
+        "stateful": true,
+        "reason": "Skill usage and ratings are persisted and measured by skill-usage."
+      },
+      {
+        "domain": "skills",
+        "stateful": true,
+        "reason": "Governed skill definitions are persisted and measured by skill list."
+      },
+      {
+        "domain": "tags",
+        "stateful": true,
+        "reason": "Tag taxonomy rows are persisted and measured by tag list."
+      },
+      {
+        "domain": "teams",
+        "stateful": true,
+        "reason": "Team aggregates are persisted and measured by team list."
+      },
+      {
+        "domain": "testing",
+        "stateful": true,
+        "reason": "Skill test results are durable entity-scoped history."
+      },
+      {
+        "domain": "topics",
+        "stateful": true,
+        "reason": "Topic taxonomy rows are persisted and measured by topic list."
+      },
+      {
+        "domain": "worldscale",
+        "stateful": true,
+        "reason": "World rendering scale is persisted user configuration."
+      },
+      {
+        "domain": "worldseats",
+        "stateful": true,
+        "reason": "World seat placement is persisted user configuration."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "heartbeat",
+        "reason": "Heartbeat state is operational and entity-scoped, and its evolving generated contract intentionally returns google.protobuf.Value; there is no stable aggregate field a probe can measure truthfully yet."
+      },
+      {
+        "domain": "memberflow",
+        "reason": "Memberflow catalogs evolve independently behind google.protobuf.Value projections, so no stable scalar or table field exists for a durable probe measure yet."
+      },
+      {
+        "domain": "testing",
+        "reason": "Durable test history is scoped by a required skill identifier; there is no aggregate history RPC that can be probed without fabricating an entity target."
+      },
+      {
+        "domain": "worldscale",
+        "reason": "World scale is a current rendering preference, not a historical or countable business signal; its value is exposed through typed generated clients."
+      },
+      {
+        "domain": "worldseats",
+        "reason": "World seat placement is current layout configuration, not a stable analytical measure; its value is exposed through typed generated clients."
+      },
+      {
+        "domain": "skill_metrics",
+        "reason": "skill_metrics is the persistence substrate behind the declared metrics/skill-usage measure, not a separate operator-facing business domain."
+      }
+    ]
+  },
+  "omitted": [
+    {
+      "service": "ExperimentsService",
+      "method": "AssignExperiment",
+      "reason": "Assignment is a typed cross-scenario operation used by agent-manager; operators inspect assignments through experiment reports rather than invoking assignment directly."
+    },
+    {
+      "service": "ExperimentsService",
+      "method": "RecordAuditReceipt",
+      "reason": "Audit receipts are recorded by governed experiment consumers as execution evidence and are not an operator-authored CLI operation."
+    },
+    {
+      "service": "ExperimentsService",
+      "method": "RecordOutcome",
+      "reason": "Outcomes are submitted by experiment participants such as agent-manager and swarm-manager; the CLI exposes outcome inspection through experiment outcomes."
+    },
+    {
+      "service": "ExperimentsService",
+      "method": "UpdateExperiment",
+      "reason": "Experiment mutations are exposed as intent-specific start, conclude, holdout, and promote commands instead of an unsafe generic update command."
+    },
+    {
+      "service": "GraphService",
+      "method": "GetHealthConfig",
+      "reason": "Graph health configuration is edited through the generated interactive client; graph health is the operator-facing read command."
+    },
+    {
+      "service": "GraphService",
+      "method": "ListNodeEdges",
+      "reason": "The graph node command returns the selected node with its adjacent edges, so a second standalone edge-list command would duplicate that workflow."
+    },
+    {
+      "service": "GraphService",
+      "method": "UpdateHealthConfig",
+      "reason": "Graph health configuration requires structured interactive editing and is intentionally not exposed as an untyped generic CLI update."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ClearHandoffHistory",
+      "reason": "Destructive handoff-history clearing is retained for the generated team editor and has no standalone CLI command."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ClearLastHandoff",
+      "reason": "Destructive latest-handoff clearing is retained for the generated team editor and has no standalone CLI command."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ContinueRun",
+      "reason": "Run continuation is an internal orchestration bridge invoked by the heartbeat runtime, not an operator command."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "CreateHeartbeat",
+      "reason": "The team heartbeat-enable workflow conditionally creates or updates configuration and cannot be represented truthfully as one RPC binding."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "CreateInvestigationApplyRun",
+      "reason": "Investigation apply runs are created by the heartbeat orchestration pipeline and are not directly operator-authored."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "CreateInvestigationRun",
+      "reason": "Investigation runs are created by the heartbeat orchestration pipeline and are not directly operator-authored."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "CreateRun",
+      "reason": "Runs are lifecycle records created by heartbeat orchestration; operators trigger heartbeats rather than constructing run records."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "CreateTask",
+      "reason": "This method creates internal orchestration task records; the operator-facing team task-add command binds the distinct team-board AddTask RPC."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "DeleteHeartbeat",
+      "reason": "The team heartbeat-disable workflow preserves configuration while disabling scheduling, so it intentionally does not map to destructive deletion."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "GetHeartbeatInstructions",
+      "reason": "The team heartbeat-instructions command combines read, write, and file-input modes and cannot be represented truthfully as one RPC binding."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "GetLog",
+      "reason": "Individual structured log retrieval is consumed by the generated UI; the CLI exposes the bounded heartbeat-logs listing workflow."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "GetResponsibilities",
+      "reason": "The team responsibilities command combines read, write, and file-input modes and cannot be represented truthfully as one RPC binding."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "GetRun",
+      "reason": "Individual orchestration runs are inspected through the generated runtime UI; the CLI exposes heartbeat and queue-level operational views."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "GetRunEvents",
+      "reason": "Run event streams are an internal/generated-client diagnostic surface and have no stable standalone CLI command."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "GetTeamExecutionStatus",
+      "reason": "Team execution status is internal queue coordination state used by heartbeat scheduling rather than a stable operator contract."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ListHeartbeatAttempts",
+      "reason": "Attempt records are internal orchestration diagnostics consumed through generated clients rather than a standalone CLI surface."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ListRunning",
+      "reason": "The generated operations UI owns the cross-team running-process view; CLI commands expose bounded team and heartbeat operations."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ListRuns",
+      "reason": "Run history is an internal/generated-client diagnostic surface; CLI users inspect heartbeat logs and handoff history instead."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "ListTeamLogs",
+      "reason": "Cross-member team log aggregation is retained for the generated UI; the CLI heartbeat-logs command is intentionally scoped to one member."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "RetryRun",
+      "reason": "Retry is governed by heartbeat orchestration state and generated operations tooling rather than exposed as an unsafe generic CLI action."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "SetHeartbeatInstructions",
+      "reason": "The team heartbeat-instructions composite command handles both read and update modes, with its write mode documented as a manifest exception."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "SetResponsibilities",
+      "reason": "The team responsibilities composite command handles both read and update modes, with its write mode documented as a manifest exception."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "StopRunning",
+      "reason": "Stopping runtime-owned processes requires generated operations context and is not exposed as an unscoped CLI command."
+    },
+    {
+      "service": "HeartbeatService",
+      "method": "UpdateHeartbeat",
+      "reason": "Heartbeat updates are performed by intent-specific enable, disable, retention, and instruction workflows rather than an unsafe generic update command."
+    },
+    {
+      "service": "MemberflowService",
+      "method": "GetMemberTopics",
+      "reason": "Per-member topic assignment is an interactive team-design surface; the CLI exposes aggregate topic graph and drain-status evidence."
+    },
+    {
+      "service": "MemberflowService",
+      "method": "GetTeamTopics",
+      "reason": "Per-team topic assignment is an interactive team-design surface; the CLI exposes aggregate topic graph and drain-status evidence."
+    },
+    {
+      "service": "MemberflowService",
+      "method": "UpdateMemberTopics",
+      "reason": "Member topic editing is a structured interactive workflow and is intentionally not exposed as a generic CLI mutation."
+    },
+    {
+      "service": "AISearchService",
+      "method": "SearchActions",
+      "reason": "Semantic action search is used by discovery and authoring consumers; the CLI has no standalone action-search command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "CreateFile",
+      "reason": "Agent file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "DeleteFile",
+      "reason": "Agent file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "GetFile",
+      "reason": "Agent file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "GetSoul",
+      "reason": "The combined agent soul command is bound to ManageSoul so one typed method faithfully supports both read and update modes."
+    },
+    {
+      "service": "AgentsService",
+      "method": "ListAgentTeams",
+      "reason": "The UI uses generated agent membership reads; the CLI has no standalone membership-list command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "ListFiles",
+      "reason": "Agent file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "RenameFile",
+      "reason": "Agent file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "SetFile",
+      "reason": "Agent file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "AgentsService",
+      "method": "SetSoul",
+      "reason": "The combined agent soul command is bound to ManageSoul so one typed method faithfully supports both read and update modes."
+    },
+    {
+      "service": "SearchService",
+      "method": "SearchAgentContent",
+      "reason": "Agent content search is the --content mode of agent search, not a standalone command."
+    },
+    {
+      "service": "SearchService",
+      "method": "SearchAgents",
+      "reason": "Deterministic agent search is the --text fallback of agent search, whose governed binding is semantic SearchAgents."
+    },
+    {
+      "service": "SearchService",
+      "method": "SearchSkillContent",
+      "reason": "Skill content search is the --content mode of the consolidated search command, not a standalone command."
+    },
+    {
+      "service": "SearchService",
+      "method": "SearchSkills",
+      "reason": "Deterministic skill search is the --text fallback of the consolidated search command, whose governed binding is semantic SearchSkills."
+    },
+    {
+      "service": "SearchService",
+      "method": "SearchTeamContent",
+      "reason": "Team content search is the --content mode of team search, not a standalone command."
+    },
+    {
+      "service": "SearchService",
+      "method": "SearchTeams",
+      "reason": "Deterministic team search is the --text fallback of team search, whose governed binding is semantic SearchTeams."
+    },
+    {
+      "service": "SkillsService",
+      "method": "GetSkillVariant",
+      "reason": "The API preserves variant detail reads for UI and generated-client consumers; the CLI has no standalone variant-show command."
+    },
+    {
+      "service": "SkillsService",
+      "method": "RecordSkillUsage",
+      "reason": "Usage is recorded as part of skill reads; the retired skill use/copy command is not a distinct runtime operation."
+    },
+    {
+      "service": "SkillsService",
+      "method": "UpdateSkillVariant",
+      "reason": "The API preserves variant updates for UI and generated-client consumers; the CLI intentionally exposes only list, add, and remove variant operations."
+    },
+    {
+      "service": "TeamsService",
+      "method": "ClearMessages",
+      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "CreateSharedFile",
+      "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "DeleteMessage",
+      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "DeleteOrgChartEdge",
+      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "DeleteSharedFile",
+      "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "GetExclusiveMembers",
+      "reason": "Exclusive membership is an editor-side relation aid, not a standalone CLI operation."
+    },
+    {
+      "service": "TeamsService",
+      "method": "GetOrgChart",
+      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "GetSharedFile",
+      "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "ListAvailableClaudeCodeTeams",
+      "reason": "Availability discovery is part of the interactive import flow; team import-cc is the governed CLI operation."
+    },
+    {
+      "service": "TeamsService",
+      "method": "ListMessages",
+      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "ListSharedFiles",
+      "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "RenameSharedFile",
+      "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "SendMessage",
+      "reason": "Team inbox messaging remains an internal heartbeat/UI workflow and is not exposed as a general CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "SetOrgChart",
+      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "SetRoles",
+      "reason": "The team roles CLI command is a read operation; role-set editing remains an interactive generated-client workflow."
+    },
+    {
+      "service": "TeamsService",
+      "method": "SetSharedFile",
+      "reason": "Team shared-file editing is an interactive UI workflow and has no standalone CLI command."
+    },
+    {
+      "service": "TeamsService",
+      "method": "UpdateOrgChartEdge",
+      "reason": "Organization-chart editing is consumed through the generated UI client and has no standalone CLI command."
+    },
+    {
+      "service": "TemplatesService",
+      "method": "ListAgentFileTemplates",
+      "reason": "Agent file templates are consumed by the interactive agent editor; the CLI has no template command."
+    },
+    {
+      "service": "WorldService",
+      "method": "GetWorldConfig",
+      "reason": "World preferences are an interactive UI setting with no CLI command."
+    },
+    {
+      "service": "WorldService",
+      "method": "SetWorldConfig",
+      "reason": "World preferences are an interactive UI setting with no CLI command."
+    },
+    {
+      "service": "WorldService",
+      "method": "GetLayout",
+      "reason": "World layout overrides are edited in the world editor; no CLI command."
+    },
+    {
+      "service": "WorldService",
+      "method": "SetLayout",
+      "reason": "World layout overrides are edited in the world editor; no CLI command."
+    },
+    {
+      "service": "WorldService",
+      "method": "StreamWorldFeed",
+      "reason": "The world feed is a server stream consumed by the UI; the CLI reads runs through heartbeat commands."
+    }
+  ],
+  "exceptions": [
+    {
+      "command": "agent",
+      "class": "passthrough",
+      "reason": "Legacy top-level dispatcher preserves the established agent subcommand UX while every governed leaf uses a generated Connect client."
+    },
+    {
+      "command": "experiment",
+      "class": "passthrough",
+      "reason": "Legacy top-level dispatcher preserves the established experiment subcommand UX while every governed leaf uses a generated Connect client."
+    },
+    {
+      "command": "member",
+      "class": "passthrough",
+      "reason": "Deprecated avatar-oriented member projection remains a local compatibility dispatcher over the canonical generated AgentsService client."
+    },
+    {
+      "command": "metadata",
+      "class": "passthrough",
+      "reason": "Legacy top-level dispatcher preserves the metadata fetch UX while the governed leaf uses a generated Connect client."
+    },
+    {
+      "command": "tag",
+      "class": "passthrough",
+      "reason": "Legacy top-level dispatcher preserves the tag subcommand UX while every governed leaf uses a generated Connect client."
+    },
+    {
+      "command": "team",
+      "class": "passthrough",
+      "reason": "Team is a multi-domain dispatcher spanning teams, heartbeat, and memberflow generated clients; its governed leaves remain separately declared."
+    },
+    {
+      "command": "test",
+      "class": "passthrough",
+      "reason": "Legacy top-level dispatcher preserves skill test run and history UX over the generated TestingService client."
+    },
+    {
+      "command": "topic",
+      "class": "passthrough",
+      "reason": "Legacy top-level dispatcher preserves taxonomy subcommands while every governed leaf uses a generated Connect client."
+    },
+    {
+      "command": "graph",
+      "class": "passthrough",
+      "reason": "The graph dispatcher preserves rich human renderers while its governed read and mutation leaves are declared separately."
+    },
+    {
+      "command": "graph cliless-skills",
+      "class": "passthrough",
+      "reason": "CLI-less skill detection is a local presentation query over the typed graph and does not own a distinct server operation."
+    },
+    {
+      "command": "graph runtime",
+      "class": "passthrough",
+      "reason": "Runtime is a local renderer over the same typed topic graph used by graph topics; it does not own a second RPC."
+    },
+    {
+      "command": "graph audit",
+      "class": "passthrough",
+      "reason": "Audit composes several read-only typed services and writes an optional local artifact, so it is not a single plain RPC command."
+    },
+    {
+      "command": "heartbeat-control",
+      "class": "passthrough",
+      "reason": "The global heartbeat-control dispatcher preserves status, pause, resume, and policy UX while each governed operation is declared separately."
+    },
+    {
+      "command": "team heartbeat-enable",
+      "class": "passthrough",
+      "reason": "Enable conditionally creates or updates a heartbeat after a live existence read, so it cannot truthfully bind to one RPC."
+    },
+    {
+      "command": "team heartbeat-disable",
+      "class": "passthrough",
+      "reason": "Disable is a convenience mutation over UpdateHeartbeat and remains outside the one-binding-per-operation registry."
+    },
+    {
+      "command": "team responsibilities",
+      "class": "passthrough",
+      "reason": "Responsibilities combines read, inline write, and file-backed write modes; those control modes cannot be represented as one safe binding."
+    },
+    {
+      "command": "team heartbeat-instructions",
+      "class": "passthrough",
+      "reason": "Heartbeat instructions combines read, inline write, and file-backed write modes; those control modes cannot be represented as one safe binding."
+    }
+  ]
+}

@@ -1,0 +1,523 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "catalog-asset/v1",
+  "title": "UI Catalog Asset",
+  "description": "The desired-state UI asset catalog, living in `scenarios/react-component-library/catalog/` (config.json + assets/<domain>/<name>.json). One schema covers two document kinds discriminated by the top-level `kind`: `catalog-config` (the vocabularies and per-kind defaults, authored once) and `catalog-asset` (one file per desired asset).\n\nDOCTRINE:\n\n1. THE CATALOG DESCRIBES INTENT; `component.json` DESCRIBES REALITY. Nothing here records whether an asset exists, builds, or passes anything. An entry with no implementation is normal — that is the point. Coverage is computed by joining catalog ids against implementation manifests, which carry a nullable `catalogId` back-reference; an implementation with no catalog entry is a legitimate *supplemental* asset, not an error. Never add `implemented`, `coverage`, or `status` fields here.\n\n2. ONE ASSET, MANY TARGETS. An asset id is language- and framework-neutral. `targets` declares which platforms the asset is *wanted* for; implementations are discovered per target and never recorded here. Coverage is an (asset x target) matrix. This is what lets a future SwiftUI or egui library share this catalog, the experience contract, and the capability registry without sharing a line of source.\n\n3. DEPENDENCIES POINT ONE WAY, AND ONLY `requires` IS COPIED. `kind` carries a dependency rank: foundation < runtime-hook = runtime-service = adapter < primitive < component < pattern < page-template. An asset may `requires` only assets of equal or lower rank; a Button must never know about a form. Adoption copies the transitive `requires` closure and nothing else. `suggests` is offered at adopt time and never copied. `expects` is a port satisfied by the target's existing template `provides` block or an already-adopted asset, so a satisfied port copies nothing — which is what keeps deep layering affordable under copy-adoption.\n\n4. TASTE LIVES ON THE DESIGN KIT, NOT HERE. Benchmarks, art direction, material model, motion character, and content rhythm are kit-level properties. The only per-asset aesthetic fields are `signatureMoment` (the one interaction a user would recognize) and `avoid` (negative constraints, which are more actionable than positive ones and several of which are lintable).\n\n5. CAPABILITIES ARE REFERENCES, NOT PROSE. `requiredCapabilities` and `expects` resolve against experience-capability-registry/v1 — the first against capabilities carrying the `promises` facet, the second against the `port` facet. The parser enforces facet correctness. Whether a required capability is currently provable is derived there, never asserted here.\n\n6. THERE IS NO INDEX FILE. The directory tree is the registry; a flat catalog manifest is a generated artifact. A hand-maintained index of several hundred entries would be wrong within a week.",
+  "oneOf": [
+    { "$ref": "#/$defs/ConfigDocument" },
+    { "$ref": "#/$defs/AssetDocument" }
+  ],
+  "$defs": {
+    "Slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "AssetId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "`<domain>.<name>`, e.g. `overlays.dialog`, `motion.presence`. The domain prefix must match the asset's own `domain` and the directory it lives in (parser-enforced), so the id, the folder, and the catalog sidebar always agree."
+    },
+    "SchemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "ContextKey": {
+      "type": "string",
+      "enum": ["elevation", "density", "tone", "columns", "disabled"]
+    },
+    "ContextValue": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" }
+      ]
+    },
+    "Contract": {
+      "type": "object",
+      "required": ["kind", "schema"],
+      "properties": {
+        "kind": { "type": "string", "const": "ui-catalog" },
+        "schema": { "type": "string", "const": "catalog-asset/v1" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "AssetKind": {
+      "type": "string",
+      "enum": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation",
+        "fixture",
+        "generator"
+      ],
+      "description": "What sort of artifact this is. Carries the dependency rank described in doctrine 3, selects the default quality-gate set from config, and determines which optional blocks are required. `navigation` ranks with `pattern`. `fixture` and `generator` are outside the composition chain: a fixture is data, a generator produces assets rather than composing them, and neither may be the target of a `requires` edge from a composing asset."
+    },
+    "Target": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "A platform an asset is wanted for, matching a template's declared target (e.g. `react-vite`). Open set — new targets appear without a schema bump."
+    },
+
+    "ConfigDocument": {
+      "type": "object",
+      "required": ["kind", "contract", "schemaVersion", "domains", "gates"],
+      "description": "Authored once at catalog/config.json. Holds the vocabularies and per-kind defaults so they are data rather than Go constants.",
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "catalog-config" },
+        "contract": { "$ref": "#/$defs/Contract" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "description": { "type": "string" },
+        "adoptionMaturityFloor": {
+          "type": "string",
+          "enum": ["scaffolded", "implemented", "verified", "production-ready"],
+          "description": "The minimum maturity rung the catalog currently claims as its adoption floor. This is configuration, not an implementation result."
+        },
+        "domains": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "order", "description"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Slug" },
+              "description": { "type": "string", "minLength": 15 },
+              "order": { "type": "integer", "minimum": 0, "description": "Sidebar ordering. Ties break alphabetically." }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "The catalog's organizational vocabulary and the directory structure under assets/. Organization only — a domain never affects placement, dependency rules, or gates."
+        },
+        "gates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "appliesTo", "rung", "blocking", "runner"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Slug" },
+              "description": { "type": "string", "minLength": 15 },
+              "appliesTo": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/AssetKind" },
+                "uniqueItems": true,
+                "description": "Kinds this gate applies to by default. An asset adds more through `qualityGates` and removes them only through `qualityGateOptOuts` with a reason."
+              },
+              "blocking": {
+                "type": "boolean",
+                "default": true,
+                "description": "Whether failing this gate prevents an asset reaching its target maturity. A weighted score may prioritize work; production readiness requires every blocking gate."
+              },
+              "rung": {
+                "type": "string",
+                "enum": ["scaffolded", "implemented", "verified", "production-ready"],
+                "description": "The maturity rung at which this gate becomes applicable. Rungs are inherited upward; every rung at or below an asset target must have an applicable blocking gate."
+              },
+              "runner": {
+                "type": "object",
+                "description": "Per-target command or entrypoint that executes this gate. Keys are target ids. A gate with no runner for a target is unrunnable there, which is reported rather than silently skipped.",
+                "additionalProperties": { "type": "string" },
+                "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+              },
+              "evidenceKinds": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true,
+                "description": "Evidence channels that may substantiate this gate."
+              },
+              "experienceClaimTypes": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true,
+                "description": "Experience claim types that may substantiate this gate."
+              },
+              "runnerConfig": {
+                "type": "object",
+                "properties": {
+                  "minimumViewports": { "type": "integer", "minimum": 1 },
+                  "requiresCapture": { "type": "boolean" }
+                },
+                "additionalProperties": false,
+                "description": "Typed options consumed by the gate runner."
+              }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          }
+        },
+        "avoidVocabulary": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Slug" },
+              "description": { "type": "string", "minLength": 15 },
+              "lintable": { "type": "boolean", "default": false, "description": "Whether this constraint can be checked statically today." }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "Canonical negative constraints assets may cite in `avoid`. Open in the asset document, enumerated here so the common ones stay consistent and the lintable subset is knowable."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "AssetDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "asset"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "catalog-asset" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "asset": { "$ref": "#/$defs/AssetIdentity" },
+        "rationale": { "type": "string", "description": "Why this asset is in the target catalog at all. Most valuable on entries whose necessity is not self-evident." },
+        "budgets": {
+          "type": "object",
+          "description": "Measured render budgets for browser-backed evidence. Omitted mountMs uses the kind default: primitive 8ms, component 16ms, page-template 50ms.",
+          "properties": {
+            "mountMs": { "type": "number", "minimum": 0 }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
+        "dependencies": { "$ref": "#/$defs/Dependencies" },
+        "expects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PortExpectation" },
+          "description": "Ports this asset needs from its host. Each resolves to a capability carrying the `port` facet. A port satisfied by the target's template `provides` block or an already-adopted asset copies nothing into the adoption closure."
+        },
+        "satisfies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Ports this asset supplies to others, resolving to capabilities carrying the `port` facet whose `satisfiedBy` admits `asset` or `template-provides`. This is the other half of `expects`: a port is resolved when some asset in the target declares it here, or when the target's template `provides` block does. Without it a port could be depended on and never claimed by anything, and the closure resolver would have no way to know a dependency is already met."
+        },
+        "provides": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/ContextKey" },
+          "additionalProperties": { "$ref": "#/$defs/ContextValue" },
+          "description": "Shared runtime context values established by a container. Each key is reconciled against at least one consuming asset by the composition-contract gate."
+        },
+        "consumes": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/ContextKey" },
+          "additionalProperties": { "$ref": "#/$defs/ContextValue" },
+          "description": "Shared runtime context values honored by a child. Each value is the standalone fallback used when no provider is present."
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Capabilities this asset must deliver, resolving to entries carrying the `promises` facet. These are what its experience contract is expected to claim, and what its coverage is measured against. Whether each is currently provable is derived in the capability registry, never recorded here."
+        },
+        "requiredStates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Perceivable states from the canonical state vocabulary that an implementation must render and expose as named examples. This is the contract a version's story.json satisfies — the catalog names the states, the story provides the specimens."
+        },
+        "api": { "$ref": "#/$defs/ApiSurface" },
+        "regions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Region" },
+          "description": "Named surfaces where domain content plugs in, for page templates and patterns. Deliberately called regions rather than slots: `slot` already means placement in the UI manifest, and these map onto the experience spec's existing ExperienceRegion concept, reusing its lifecycle model and reconciliation rather than inventing a parallel one."
+        },
+        "fixture": { "$ref": "#/$defs/FixtureSpec" },
+        "qualityGates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Gates that apply IN ADDITION to this kind's defaults from config. Additive only."
+        },
+        "qualityGateOptOuts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["gate", "reason"],
+            "properties": {
+              "gate": { "$ref": "#/$defs/Slug" },
+              "reason": { "type": "string", "minLength": 20 }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "Removes a default gate. Requires a human-readable reason, mirroring the experience spec's floorOptOuts. A blocking gate may not be opted out of without also lowering the asset's target maturity."
+        },
+        "beauty": { "$ref": "#/$defs/Beauty" },
+        "deprecation": {
+          "type": "object",
+          "required": ["reason", "replacedBy"],
+          "properties": {
+            "reason": { "type": "string", "minLength": 20 },
+            "replacedBy": { "$ref": "#/$defs/AssetId" },
+            "migration": { "type": "string", "description": "How consumers move across, or a codemod reference." }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
+        "rationale": { "type": "string", "description": "Why this asset is in the target catalog at all. Most valuable on entries whose necessity is not self-evident." }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "asset": { "properties": { "kind": { "const": "fixture" } }, "required": ["kind"] } }, "required": ["asset"] },
+          "then": { "required": ["fixture"] }
+        },
+        {
+          "if": { "properties": { "asset": { "properties": { "kind": { "const": "page-template" } }, "required": ["kind"] } }, "required": ["asset"] },
+          "then": { "required": ["regions", "requiredStates"] }
+        }
+      ]
+    },
+
+    "AssetIdentity": {
+      "type": "object",
+      "required": ["id", "name", "kind", "domain", "description", "targets", "delivery", "target"],
+      "properties": {
+        "id": { "$ref": "#/$defs/AssetId" },
+        "name": { "type": "string", "minLength": 1, "description": "Display name in the implementation's idiom (e.g. `Dialog`). Not required to be unique across domains." },
+        "kind": { "$ref": "#/$defs/AssetKind" },
+        "surface": {
+          "type": "string",
+          "enum": ["base", "raised", "floating", "overlay", "none"],
+          "description": "The declared elevation level of the rendered asset surface. The surface-discipline gate reconciles this declaration with the static ramp usage and captured computed box-shadow."
+        },
+        "domain": { "$ref": "#/$defs/Slug", "description": "Must match the id prefix and the containing directory, and must be declared in config." },
+        "description": {
+          "type": "string",
+          "minLength": 40,
+          "description": "What a person gets from this asset, written for a reader. State the behavior it owns, not the props it takes — an asset that cannot be described without listing its API usually has no coherent purpose."
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Target" },
+          "uniqueItems": true,
+          "description": "Platforms this asset is wanted for. Never records which exist — coverage discovers that per target."
+        },
+        "kits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Design kits this asset is intended for. Omitted = all. Intent only; an implementation's measured affinity per kit lives on its own manifest."
+        },
+        "slot": {
+          "$ref": "#/$defs/Slug",
+          "description": "The UI-manifest slot role this asset lands in when adopted. Names an architectural role (`reusable-behavior`, `primitive`, `service`), never a framework artifact, so a template maps it to its own idiom and directory."
+        },
+        "delivery": {
+          "type": "string",
+          "enum": ["template-seeded", "adopted", "generated"],
+          "description": "`template-seeded` = shipped by the scenario template at generation and upgradeable in place by adopting a newer version; used for foundations so no closure ever copies them. `adopted` = the default; agent-copied with its requires closure and tracked for drift. `generated` = emitted from a schema into the scenario."
+        },
+        "target": {
+          "type": "object",
+          "required": ["priority", "maturity"],
+          "description": "What we are aiming for, not what exists. Both fields are aspiration; neither is ever updated to reflect reality.",
+          "properties": {
+            "priority": { "type": "string", "enum": ["P0", "P1", "P2"] },
+            "plannedBy": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+            "maturity": {
+              "type": "string",
+              "enum": ["scaffolded", "implemented", "verified", "production-ready", "deprecated"],
+              "description": "The rung this asset should reach. Deliberately defaults to nothing — an unstated target would let a capability that emits nothing report complete."
+            }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "Dependencies": {
+      "type": "object",
+      "description": "Composition edges. Only `requires` is copied at adoption; see doctrine 3.",
+      "properties": {
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["asset"],
+            "properties": {
+              "asset": { "$ref": "#/$defs/AssetId" },
+              "reason": { "type": "string" }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "Hard edges. The asset does not function without these, they travel in the adoption closure, and each must be of equal or lower dependency rank."
+        },
+        "suggests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["asset", "reason"],
+            "properties": {
+              "asset": { "$ref": "#/$defs/AssetId" },
+              "reason": { "type": "string", "minLength": 20, "description": "Why a consumer would want this alongside. Required — an unexplained suggestion is noise at adopt time, which is exactly when the consumer is deciding." }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "Soft edges. Never auto-copied; surfaced at adopt time as available-but-not-taken so a consumer can pull them separately. This is what stops adopting a generated form from dragging in every field component."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "PortExpectation": {
+      "type": "object",
+      "required": ["capability"],
+      "properties": {
+        "capability": { "$ref": "#/$defs/Slug", "description": "A capability id carrying the `port` facet." },
+        "typeArguments": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Bindings for the port's declared type parameters, positionally. A port declaring [\"T\"] needs exactly one argument here — which is what lets a fixture be checked against the data source it stands in for."
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the asset degrades gracefully without the port rather than failing. An optional telemetry port is normal; an optional token port is not."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "ApiSurface": {
+      "type": "object",
+      "description": "The shape of the public interface, declared as intent so an implementation can be checked against it. `variants` is the field that makes exported typed variant maps worth having: it is comparable against what the implementation actually exports.",
+      "properties": {
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["controller", "compound", "convenience"] },
+          "description": "Which of the three interface levels this asset should expose. `convenience` alone is a cage; `controller` alone is unusable for the common case. Complex assets should generally offer all three."
+        },
+        "modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["controlled", "uncontrolled"] }
+        },
+        "variants": {
+          "type": "object",
+          "description": "variant name -> its legal values. Checkable against the implementation's exported variant map, and the source story.json args should be derived from this rather than hand-written.",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "$ref": "#/$defs/Slug" },
+            "uniqueItems": true
+          },
+          "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+        },
+        "parts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Named internal parts of a compound asset (a dialog's title, body, footer). Parts are NOT separate catalog assets and never appear in coverage — only independently consumable units earn an entry."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "Region": {
+      "type": "object",
+      "required": ["id", "purpose", "lifecycle"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Slug" },
+        "purpose": { "type": "string", "minLength": 15 },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "A required region that fails blocks readiness; optional failures aggregate to `partial` while the primary task stays usable."
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": ["async", "static"],
+          "description": "Whether this region resolves asynchronously. The states it can occupy follow from the canonical state vocabulary's region-lifecycle view; they are not re-declared here."
+        },
+        "accepts": {
+          "$ref": "#/$defs/Slug",
+          "description": "Optional constraint naming a domain whose assets may fill this region, for templates that should not accept arbitrary content."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "FixtureSpec": {
+      "type": "object",
+      "required": ["dataShapes"],
+      "description": "Required on fixture assets. The gate that checks these is deterministic against the fixture content itself — no browser, no capture — which makes it one of the cheapest useful gates to build.",
+      "properties": {
+        "dataShapes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Slug" },
+          "description": "Values of the data-shape capture axis this fixture supplies. A fixture covering only `typical` is how a component ends up looking correct in the catalog and failing on real records, so a fixture backing any collection surface should cover `overflow` and `failure` too."
+        },
+        "satisfies": {
+          "$ref": "#/$defs/PortExpectation",
+          "description": "The port this fixture can stand in for, typically a data source. This is what makes a page template independently validatable: with the port filled by a fixture, its loading, empty, partial, and error states are capturable in the catalog with no scenario adopting it."
+        },
+        "recordCount": {
+          "type": "object",
+          "properties": {
+            "typical": { "type": "integer", "minimum": 0 },
+            "volume": { "type": "integer", "minimum": 1, "description": "Enough records to exercise virtualization." }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "Beauty": {
+      "type": "object",
+      "description": "The only per-asset aesthetic fields. Everything else about visual character — benchmarks, art direction, material model, motion character, content rhythm — belongs to the design kit, because at catalog scale per-asset taste vocabularies become thousands of unvalidated strings no checker reads.",
+      "properties": {
+        "signatureMoment": {
+          "type": "object",
+          "required": ["description"],
+          "properties": {
+            "description": {
+              "type": "string",
+              "minLength": 25,
+              "description": "The one interaction a user would recognize without a logo. Most of the value is in forcing the question at authoring time: an asset that cannot name its signature moment usually does not have one."
+            },
+            "required": { "type": "boolean", "default": false, "description": "Whether reaching target maturity requires this moment to be realized and attested." }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
+        "avoid": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Slug" },
+          "uniqueItems": true,
+          "description": "Negative constraints, drawn from config's avoidVocabulary where one fits. Open set — an unlisted value parses and is advisory until promoted."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    }
+  }
+}

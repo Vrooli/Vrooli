@@ -45,6 +45,8 @@ type DocContentRequest struct {
 // DocResetRequest describes a reset operation for a document.
 type DocResetRequest struct {
 	Path           string
+	ScenarioName   string
+	DocID          string
 	MaxAgeDays     int
 	KeepMinEntries int
 	PreviewOnly    bool
@@ -76,7 +78,9 @@ func (r *DocResetRequest) normalize() error {
 		return ErrPathRequired
 	}
 	r.Path = strings.TrimSpace(r.Path)
-	if r.Path == "" {
+	r.ScenarioName = strings.TrimSpace(r.ScenarioName)
+	r.DocID = strings.TrimSpace(r.DocID)
+	if r.Path == "" && (r.ScenarioName == "" || r.DocID == "") {
 		return ErrPathRequired
 	}
 	if r.MaxAgeDays < 0 || r.KeepMinEntries < 0 {

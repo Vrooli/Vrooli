@@ -2,12 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
+
+const defaultEmbeddingRole = "embedding.default"
 
 // QdrantClient handles vector database operations
 type QdrantClient struct {
@@ -151,57 +156,34 @@ func (q *QdrantClient) SearchSimilar(collectionName string, vector []float32, li
 	return response.Result, nil
 }
 
-// GenerateEmbedding generates embeddings using Ollama
+// GenerateEmbedding generates embeddings via the resource-ollama gateway CLI.
 func GenerateEmbedding(text string) ([]float32, error) {
-	// Get Ollama URL from validated configuration
-	ollamaURL := appConfig.OllamaURL
-
-	payload := map[string]interface{}{
-		"model":  "nomic-embed-text",
-		"prompt": text,
-	}
-
-	jsonData, err := json.Marshal(payload)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	vec, err := ollamaGatewayEmbed(ctx, defaultEmbeddingRole, text)
 	if err != nil {
 		return nil, err
 	}
-
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/embeddings", ollamaURL), bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
+	out := make([]float32, len(vec))
+	for i, v := range vec {
+		out[i] = float32(v)
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to generate embedding: %s", string(body))
-	}
-
-	var response struct {
-		Embedding []float32 `json:"embedding"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, err
-	}
-
-	return response.Embedding, nil
+	return out, nil
 }
 
 // InitializeVectorSearch sets up the vector database for injection techniques
 func InitializeVectorSearch() error {
 	client := NewQdrantClient()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	policy, err := sharedsearch.ResolveEmbeddingPolicy(ctx, defaultEmbeddingRole)
+	if err != nil {
+		return fmt.Errorf("resolve embedding policy %s: %w", defaultEmbeddingRole, err)
+	}
+
 	// Create collection if it doesn't exist
-	err := client.CreateCollection("injection_techniques", 768) // nomic-embed-text produces 768-dim vectors
+	err = client.CreateCollection("injection_techniques", policy.Dimensions)
 	if err != nil {
 		logger.Warn("Collection creation issue", map[string]interface{}{
 			"collection": "injection_techniques",

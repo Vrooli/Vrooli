@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
 
@@ -9,12 +9,38 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // ExecutionRecord captures one backlog execution lifecycle entry.
 message ExecutionRecord {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
-  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research", "chore", "spec-sync"] }];
+  string backlog_kind = 2 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "fix",
+      "execute",
+      "research",
+      "chore",
+      "spec-sync"
+    ]
+  }];
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   optional string task_id = 4;
   optional string run_id = 5;
-  string status = 6 [(buf.validate.field).string = { in: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] }];
-  string mode = 7 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string status = 6 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "starting",
+      "running",
+      "needs_review",
+      "validating",
+      "needs_fixup",
+      "completed",
+      "failed",
+      "canceled"
+    ]
+  }];
+  string mode = 7 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 8;
   optional string started_at = 9;
   optional string finished_at = 10;
@@ -201,12 +227,20 @@ message ReviewEvidenceRound {
 
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 message ExecutionPolicy {
-  string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string default_mode = 1 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 2;
   // When true, automatically re-runs execution when review finds issues.
   bool auto_fixup = 3;
   // Maximum number of automatic fixup attempts (0-5).
-  int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5
+  }];
   // When true, spawns a review agent after finalization to gather evidence.
   bool review_agent_enabled = 5;
 }

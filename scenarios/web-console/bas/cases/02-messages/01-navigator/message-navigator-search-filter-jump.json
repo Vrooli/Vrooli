@@ -1,0 +1,334 @@
+{
+  "id": "06d0b69f-1964-47a9-b008-70c5ae461df8",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "message-navigator-search-filter-jump",
+  "folder_path": "/bas/cases/02-messages/01-navigator",
+  "description": "Open the Messages view, search the navigator, filter to user messages, and jump to a seeded message",
+  "metadata": {
+    "name": "message-navigator-search-filter-jump",
+    "description": "Open the Messages view, search the navigator, filter to user messages, and jump to a seeded message",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P0-001a\"]"
+    }
+  },
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"REQ-P0-001a\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.441529116Z",
+  "updated_at": "2026-07-12T19:31:13.441529116Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open workspace"
+          }
+        }
+      },
+      {
+        "id": "hydrate-wait",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1500
+          },
+          "metadata": {
+            "label": "Allow sessions + conversation to hydrate"
+          }
+        }
+      },
+      {
+        "id": "activate-messages-session",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const tabs = Array.from(document.querySelectorAll('[data-testid^=\"tab-\"]')).filter((el) => { const id = el.getAttribute('data-testid') || ''; return id !== 'tab-bar' && id !== 'tab-bar-new' && !id.startsWith('tab-group-') && !id.startsWith('tab-rename-input-'); }); let found = false; for (const tab of tabs) { tab.click(); await sleep(400); const toggle = document.querySelector('[data-testid=\"workspace-toggle-view\"]'); if (toggle instanceof HTMLElement) { found = true; break; } } document.body.setAttribute('data-nav-seed-session-active', found ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Activate the seeded messages-capable session"
+          }
+        }
+      },
+      {
+        "id": "assert-messages-session",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-nav-seed-session-active='true']",
+            "failure_message": "Expected a seeded session that supports the Messages view (seed.sh hook seeding may be unavailable)",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify a messages-capable session is active"
+          }
+        }
+      },
+      {
+        "id": "switch-to-messages",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/workspace.toggleView"
+          },
+          "metadata": {
+            "label": "Switch active pane to Messages view"
+          }
+        }
+      },
+      {
+        "id": "assert-messages-pane",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid^=\"messages-pane-\"]",
+            "failure_message": "Expected the Messages pane to render after toggling view",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify Messages pane rendered"
+          }
+        }
+      },
+      {
+        "id": "open-navigator-search",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/messages.searchTrigger"
+          },
+          "metadata": {
+            "label": "Open the Message Navigator focused on search"
+          }
+        }
+      },
+      {
+        "id": "assert-navigator-open",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/messages.navPanel",
+            "failure_message": "Expected the Message Navigator panel to open",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify navigator panel is open"
+          }
+        }
+      },
+      {
+        "id": "type-search",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/messages.searchInput",
+            "value": "NAVIGATOR_SEED",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Search for the seeded marker text"
+          }
+        }
+      },
+      {
+        "id": "search-wait",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 300
+          },
+          "metadata": {
+            "label": "Allow search results to derive"
+          }
+        }
+      },
+      {
+        "id": "assert-search-results",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-jump-item]",
+            "failure_message": "Expected at least one navigator result for the seeded marker",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify search produced results"
+          }
+        }
+      },
+      {
+        "id": "filter-user",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/messages.chipUser"
+          },
+          "metadata": {
+            "label": "Filter to user messages"
+          }
+        }
+      },
+      {
+        "id": "assert-user-result",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-jump-item][data-role=\"user\"]",
+            "failure_message": "Expected the seeded user prompt to remain after filtering to User",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify a user result is present"
+          }
+        }
+      },
+      {
+        "id": "select-user-result",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const row = document.querySelector('[data-jump-item][data-role=\"user\"]'); if (row instanceof HTMLElement) { row.click(); document.body.setAttribute('data-nav-seed-selected', 'true'); return; } document.body.setAttribute('data-nav-seed-selected', 'false'); })()"
+          },
+          "metadata": {
+            "label": "Select the user result to jump to it"
+          }
+        }
+      },
+      {
+        "id": "assert-navigator-closed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/messages.navPanel",
+            "failure_message": "Expected the navigator to close after selecting a result",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify navigator closed after jump"
+          }
+        }
+      },
+      {
+        "id": "assert-jumped",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-nav-seed-selected='true']",
+            "failure_message": "Expected a user result to have been selected",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify a result was selected (jump invoked)"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "open-workspace",
+        "target": "hydrate-wait",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "hydrate-wait",
+        "target": "activate-messages-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "activate-messages-session",
+        "target": "assert-messages-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "assert-messages-session",
+        "target": "switch-to-messages",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "switch-to-messages",
+        "target": "assert-messages-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "assert-messages-pane",
+        "target": "open-navigator-search",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "open-navigator-search",
+        "target": "assert-navigator-open",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "assert-navigator-open",
+        "target": "type-search",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "type-search",
+        "target": "search-wait",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "search-wait",
+        "target": "assert-search-results",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "assert-search-results",
+        "target": "filter-user",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "filter-user",
+        "target": "assert-user-result",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "assert-user-result",
+        "target": "select-user-result",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "select-user-result",
+        "target": "assert-navigator-closed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "assert-navigator-closed",
+        "target": "assert-jumped",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    :root{
+      --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#020617;color:#f8fafc;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+    a{color:#22d3ee}
+    a:hover{color:#67e8f9}
+    .tok{font-family:var(--mono);color:#fcd34d}
+    .tok::before{content:"\00007B\00007B";opacity:.55}
+    .tok::after{content:"\00007D\00007D";opacity:.55}
+    .tr{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lbl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#64748b}
+    .tab{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;flex-shrink:0;border:1px solid rgba(255,255,255,0.1);background:#1e293b;color:#94a3b8}
+    .sw{width:24px;height:24px;border-radius:999px;flex-shrink:0}
+  </style>
+</helmet>
+
+<div style="width:390px;height:844px;background:#020617;display:flex;flex-direction:column;overflow:hidden">
+
+  <div style="height:26px;flex-shrink:0"></div>
+
+  <div style="display:flex;align-items:center;gap:12px;height:52px;flex-shrink:0;padding:0 14px;border-bottom:1px solid rgba(255,255,255,0.1)">
+    <div style="flex:1;min-width:0;font-size:15px;font-weight:600;color:#f8fafc">Settings</div>
+    <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#94a3b8">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+    </div>
+  </div>
+
+  <!-- Tab rail -->
+  <div style="flex-shrink:0;display:flex;gap:7px;padding:11px 0 11px 14px;overflow:hidden;border-bottom:1px solid rgba(255,255,255,0.06)">
+    <div class="tab">Shortcuts</div>
+    <div class="tab">Templates</div>
+    <div class="tab" style="border-color:rgba(6,182,212,0.4);background:rgba(34,211,238,0.10);color:#22d3ee">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l4 5-4 5H4"></path><path d="M14 9h6"></path><path d="M14 14h6"></path><path d="M4 19h16"></path></svg>
+      Snippets
+    </div>
+    <div class="tab">Handoff</div>
+  </div>
+
+  <div style="flex:1;min-height:0;padding:14px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:15px;font-weight:600;color:#f8fafc">Snippets</div>
+      <div style="font-size:12px;line-height:18px;color:#94a3b8">Message text you reuse. Yours alone, kept on this machine, and safe to delete — nothing else in the console depends on one.</div>
+    </div>
+
+    <!-- List -->
+    <div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#0f172a;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(34,211,238,0.08);border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#38d9c0;flex-shrink:0"></div>
+        <div class="tr" style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#f8fafc">Scientific debug</div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b">24×</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#4dabf7;flex-shrink:0"></div>
+        <div class="tr" style="flex:1;min-width:0;font-size:14px;color:#e2e8f0">Plan handoff</div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b">18×</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#9775fa;flex-shrink:0"></div>
+        <div class="tr" style="flex:1;min-width:0;font-size:14px;color:#e2e8f0">No workarounds</div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b">11×</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px">
+        <div style="width:9px;height:9px;border-radius:999px;background:#ffa94d;flex-shrink:0"></div>
+        <div class="tr" style="flex:1;min-width:0;font-size:14px;color:#e2e8f0">Show the output</div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b">9×</div>
+      </div>
+    </div>
+
+    <!-- Detail -->
+    <div style="border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:#0f172a;padding:13px;display:flex;flex-direction:column;gap:13px">
+
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="lbl">Name</div>
+        <div style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:#1e293b;padding:8px 11px;font-size:14px;color:#f8fafc">Scientific debug</div>
+      </div>
+
+      <div style="display:flex;gap:7px;align-items:center">
+        <div class="sw" style="background:#ff6b6b"></div>
+        <div class="sw" style="background:#ffa94d"></div>
+        <div class="sw" style="background:#ffd43b"></div>
+        <div class="sw" style="background:#69db7c"></div>
+        <div class="sw" style="background:#38d9c0;box-shadow:0 0 0 2px #0f172a,0 0 0 4px #22d3ee"></div>
+        <div class="sw" style="background:#4dabf7"></div>
+        <div class="sw" style="background:#9775fa"></div>
+        <div class="sw" style="background:#f783ac"></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="lbl">Text</div>
+        <div style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:#1e293b;padding:9px 11px;font-size:13px;line-height:20px;color:#e2e8f0">
+          Generate three falsifiable hypotheses for <span class="tok" style="font-size:12px">symptom</span> in <span class="tok" style="font-size:12px">scenario</span>, then design the cheapest experiment that kills two of them. Work from <span class="tok" style="font-size:12px">cwd</span>.
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;padding-top:1px">
+        <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;font-size:13px;font-weight:500">
+          <div style="width:7px;height:7px;border-radius:999px;background:#9775fa"></div>
+          Promote to skill
+        </div>
+        <div style="flex:1"></div>
+        <div style="width:34px;height:34px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;color:#fca5a5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+        </div>
+      </div>
+
+      <div style="font-size:11px;line-height:16px;color:#64748b;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px">
+        Promoting writes a governed skill in prompt-manager and leaves this snippet where it is. Nothing syncs afterwards.
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

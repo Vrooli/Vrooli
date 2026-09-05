@@ -62,6 +62,8 @@ type ManifestSwap struct {
 // ManifestSecret defines a secret in the manifest.
 type ManifestSecret struct {
 	ID          string                 `json:"id"`
+	LogicalID   string                 `json:"logical_id"`
+	Field       string                 `json:"field"`
 	Class       string                 `json:"class"`
 	Description string                 `json:"description"`
 	Format      string                 `json:"format"`
@@ -88,7 +90,7 @@ type ServiceEntry struct {
 	ID           string                   `json:"id"`
 	Type         string                   `json:"type"`
 	Description  string                   `json:"description"`
-	Binaries     map[string]ServiceBinary `json:"binaries"`
+	Binaries     map[string]ServiceBinary `json:"binaries,omitempty"`
 	Build        *BuildConfig             `json:"build,omitempty"`
 	Env          map[string]string        `json:"env,omitempty"`
 	Secrets      []string                 `json:"secrets,omitempty"`

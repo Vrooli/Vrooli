@@ -1,7 +1,4 @@
 // Package deploy provides deploy target management for desktop artifact deployment.
-//
-// Deploy targets are stored in .vrooli/deploy-targets.json and describe which
-// LPBS instance and remote profile to deploy through.
 package deploy
 
 import (
@@ -26,19 +23,19 @@ type deployTargetsFile struct {
 	Targets       map[string]*DeployTarget `json:"targets"`
 }
 
-// TargetRepository reads and writes .vrooli/deploy-targets.json.
+// TargetRepository reads and writes the persisted deploy target file.
 type TargetRepository struct {
-	vrooliRoot string
-	mu         sync.Mutex
+	path string
+	mu   sync.Mutex
 }
 
-// NewTargetRepository creates a repository rooted at the given Vrooli root.
-func NewTargetRepository(vrooliRoot string) *TargetRepository {
-	return &TargetRepository{vrooliRoot: vrooliRoot}
+// NewTargetRepository creates a repository backed by the given storage file.
+func NewTargetRepository(path string) *TargetRepository {
+	return &TargetRepository{path: path}
 }
 
 func (r *TargetRepository) filePath() string {
-	return filepath.Join(r.vrooliRoot, ".vrooli", "deploy-targets.json")
+	return r.path
 }
 
 func (r *TargetRepository) load() (*deployTargetsFile, error) {

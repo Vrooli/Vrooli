@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:PendingSyncBadge",
+  "version": "1.0.5",
+  "resolvedAt": "2026-09-03T13:12:27.528Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:MonetizationAccount",
+      "major": 2,
+      "observed": "2.0.1",
+      "rank": 4
+    }
+  ]
+}

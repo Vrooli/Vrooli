@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "primitives.meter",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.5"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.2",
+    "1.0.3",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.5"
+  ],
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:BoundedMeter"
+}

@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.preview;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview;preview_v1";
+
+// =============================================================================
+// PREVIEW DOMAIN — on-the-fly TSX bundling for the live preview iframe
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @stability stable
+//
+// Stateless service: no tables, no persistence. Given a component id,
+// reads the source via the components ContentStore, transpiles the TSX
+// to an ES module via esbuild, and returns the JS text plus a digest.
+// The accompanying static HTTP routes (/preview/{id}/harness.html and
+// /preview/{id}/bundle.js) wrap this same call so iframes can load it
+// as a URL — see docs/RESEARCH.md for the decision and the externals
+// contract (react / react-dom / react-dom/client via importmap).
+//
+// Consumed by:
+//   - API: handlers/preview/connect_handler.go implements
+//          PreviewServiceHandler. The same handler module mounts the
+//          two iframe-friendly HTTP routes alongside the Connect RPC.
+//   - CLI: cli/domains/preview/handlers.go (Connect-Go client).
+//   - UI:  ui/src/features/components/ComponentEditor.tsx mounts the
+//          harness.html URL in an iframe; cache-busts with the latest
+//          content sha so saves trigger a reload.
+// =============================================================================
+
+service PreviewService {
+  // GetPreviewBundle transpiles the component's source file into an
+  // ES module and returns the JS text. The handler is read-only with
+  // respect to the registry — it does NOT mutate component rows.
+  rpc GetPreviewBundle(GetPreviewBundleRequest) returns (GetPreviewBundleResponse);
+}
+
+message GetPreviewBundleRequest {
+  // Registry id of the component to bundle. Resolve via the
+  // components service first (List/Get/GetByLibraryId).
+  string id = 1;
+}
+
+message GetPreviewBundleResponse {
+  // ES module text. Imports `react` and `react-dom/client` as
+  // externals; the harness HTML resolves those via importmap.
+  string js = 1;
+
+  // Echoed source_path of the file that was transpiled.
+  string source_path = 2;
+
+  // SHA-256 hex digest of the JS bundle text. Used by the host UI as
+  // a cache-buster on the iframe src so a successful save (which
+  // changes the underlying source and therefore the bundle digest)
+  // triggers a reload.
+  string sha256 = 3;
+
+  // Non-fatal warnings from the bundler (e.g., unused import). Fatal
+  // bundler errors surface as Connect InvalidArgument and never
+  // populate this field.
+  repeated string warnings = 4;
+}

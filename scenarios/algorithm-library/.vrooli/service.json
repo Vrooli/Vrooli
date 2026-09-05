@@ -1,10 +1,14 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "algorithm-library",
     "displayName": "Algorithm Library",
-    "description": "Validated multi-language algorithm and data structure reference library with Judge0 execution",
+    "description": "Validated multi-language algorithm and data structure reference library with local multi-language execution",
     "version": "1.0.0",
     "tags": [
       "technical-reference",
@@ -12,7 +16,6 @@
       "data-structures",
       "validation",
       "benchmarking",
-      "judge0",
       "multi-language",
       "ground-truth",
       "postgres-storage",
@@ -50,7 +53,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Algorithm library web interface",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -85,138 +88,11 @@
           "critical": true,
           "timeout": 3000,
           "interval": 60000
-        },
-        {
-          "name": "judge0_availability",
-          "type": "http",
-          "target": "http://localhost:${RESOURCE_PORTS[judge0]}/about",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
         }
       ],
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Algorithm Library with database and initial algorithms",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/algorithm-library-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "algorithm-library",
-            "targets": [
-              "algorithm-library"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React UI"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database with algorithms"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o algorithm-library-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "verify-judge0",
-          "run": "resource-judge0 status || echo 'Warning: Judge0 not running. Install with: resource-judge0 manage install'",
-          "description": "Check Judge0 availability"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Algorithm Library initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: algorithm-library --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Algorithm Library with production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./algorithm-library-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/algorithm-library-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.cjs",
-          "description": "Start Express server with built React app",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Judge0: http://localhost:${RESOURCE_PORTS[judge0]}\\n  CLI: algorithm-library --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for algorithm-library",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute algorithm-library --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"algorithm-library-api\" || true; sleep 1; pkill -9 -f \"algorithm-library-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/algorithm-library.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/algorithm-library.*vite\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -226,46 +102,114 @@
         "enabled": true,
         "required": true,
         "purpose": "Store algorithms, implementations, test cases, and validation results",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
-      },
-      "judge0": {
-        "type": "judge0",
-        "enabled": true,
-        "required": true,
-        "purpose": "Execute and validate algorithm implementations in sandboxed environment"
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Cache frequently accessed algorithms and validation results for performance"
+        "purpose": "Cache frequently accessed algorithms and validation results for performance",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
         "purpose": "Generate algorithm explanations and suggest solutions for problems",
-        "models": [
-          "codellama",
-          "mistral"
-        ]
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "model_roles": [
+          "chat.small"
+        ],
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "algorithm-library",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "algorithm-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.cjs"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

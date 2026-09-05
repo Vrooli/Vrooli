@@ -1,0 +1,267 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "storage-manager",
+    "displayName": "Storage Manager",
+    "description": "Unified, policy-gated storage census, retention, placement, and cleanup orchestration.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "capabilities": [
+      "workload-disposal"
+    ],
+    "platform_capabilities": {
+      "workload-disposal": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "conditional-storage-manager-cleanup-provider",
+          "evidence": "provider preview, approval, disposal, and verification tests"
+        },
+        "macos": {
+          "status": "experimental",
+          "mechanism": "typed-cleanup-provider-with-platform-census-boundary",
+          "evidence": "cross-platform build and provider contract tests"
+        },
+        "windows": {
+          "status": "experimental",
+          "mechanism": "typed-cleanup-provider-with-platform-census-boundary",
+          "evidence": "cross-platform build and provider contract tests"
+        }
+      }
+    },
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "storage": {
+    "entries": {
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "format": "sqlite",
+        "sensitive": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "30d",
+          "rationale": "Durable storage-manager audit and census history."
+        },
+        "rationale": "The manager's own control-plane database.",
+        "subpath": "storage-manager.db"
+      },
+      "database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+        "subpath": "storage-manager.db-wal",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+        "subpath": "storage-manager.db-shm",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "cleanup_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "30d",
+          "rationale": "Durable cleanup policy and audit storage."
+        },
+        "rationale": "The cleanup domain's legacy SQLite database remains a declared control-plane surface.",
+        "subpath": "cleanup-manager.db"
+      },
+      "cleanup_database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+        "subpath": "cleanup-manager.db-wal",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable SQLite sidecar budgeted by age."
+        }
+      },
+      "cleanup_database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+        "subpath": "cleanup-manager.db-shm",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable SQLite sidecar budgeted by age."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "deployment/deployment-report.json",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable deployment status report budgeted by age."
+        },
+        "rationale": "The lifecycle deployment report is written under the scenario data root."
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.0"
+    },
+    "generated_at": "2026-07-08T02:38:38Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "81edaea6d261bb51cb8f6416f0d27b095d92894b62e497526aeb1748e9e0949c",
+    "content_sha": "b9ef831dbb8460e71bcc20a636c74c37f88d6198ac322c1b99500e7b8a173d80"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "storage-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "storage-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 60000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional local model inventory and cleanup provider",
+        "startup_policy": "try_start"
+      }
+    },
+    "scenarios": {
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional code-facts enrichment for storage validation and census attribution.",
+        "degraded_behavior": "Filesystem scanning remains available when code-facts is unavailable."
+      }
+    }
+  },
+  "environment": {
+    "STORAGE_CENSUS_INTERVAL": "30m"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

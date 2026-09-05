@@ -1,3 +1,23 @@
+---
+name: "scenario-readiness-review"
+description: "Assess scenario readiness for commit using the git-control-tower unified review endpoint for code health signals and git state for change coherence"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["review","quality","git","assessment","readiness"]
+  icon: "clipboard-check"
+  status: "active"
+  revision: 2
+  createdAt: "2026-03-20T00:00:00Z"
+  updatedAt: "2026-03-24T00:00:00Z"
+  requires:
+    scenarios: ["git-control-tower", "prompt-manager", "swarm-manager", "test-genie", "vrooli"]
+    commands: ["git-control-tower", "git-control-tower needs", "git-control-tower unified", "prompt-manager decision", "prompt-manager when", "swarm-manager", "swarm-manager backlog", "test-genie", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Scenario Readiness Review
 
 Assess whether a scenario's uncommitted changes are ready to commit by querying the git-control-tower unified review endpoint for code health signals, then reviewing the actual git changes for coherence and intent.
@@ -10,7 +30,7 @@ Assess whether a scenario's uncommitted changes are ready to commit by querying 
 |----------|----------------|
 | Assessing if a scenario's changes are ready for commit | You need to actually commit changes (human responsibility) |
 | Producing a readiness briefing for the director | Debugging a specific bug (use scientific-debugging) |
-| Reviewing quality of recent agent work on a scenario | Building new features (use scenario-feature team) |
+| Reviewing quality of recent agent work on a scenario | Building new features (features emerge as byproducts of director-swarm gap analysis and monetization work — no dedicated feature team) |
 | Auditing what agent runs contributed to current changes | Managing deployments (use scenario-to-cloud) |
 | Checking scenario health before making priority decisions | Running tests directly (use test-genie) |
 
@@ -123,7 +143,7 @@ Combine the review endpoint classification with git state observations:
 When a scenario is classified as **Ready** or **Ready with notes**, use the prompt-manager decision system to request commit approval.
 
 ```bash
-prompt-manager team decision-add director-swarm \
+swarm-manager backlog create director-swarm \
   --by {{AGENT_ID}} \
   --decision "Recommend committing {{SCENARIO}} — {{FILE_COUNT}} files, readiness {{READINESS}}" \
   --rationale "{{REVIEW_SUMMARY_WITH_DETAIL_ITEMS}}" \
@@ -170,7 +190,7 @@ Include specific findings — don't just say "fix quality issues." Cite the exac
 **You must produce:**
 - Structured readiness assessment using the server's classification
 - Specific evidence from detail fields (top violations, test failures, untraced files)
-- A pending decision via prompt-manager when recommending commit
+- A open work item via prompt-manager when recommending commit
 - Honest reporting of unavailable dimensions
 
 **You must NOT:**

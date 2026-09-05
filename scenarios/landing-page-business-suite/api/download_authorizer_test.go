@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 type fakeDownloads struct {
@@ -23,13 +26,13 @@ func (f *fakeDownloads) GetAsset(bundleKey, appKey, platform string) (*DownloadA
 }
 
 type trackingEntitlements struct {
-	payload  *EntitlementPayload
+	payload  *commerce.EntitlementPayload
 	calls    int
 	lastUser string
 	err      error
 }
 
-func (t *trackingEntitlements) GetEntitlements(user string) (*EntitlementPayload, error) {
+func (t *trackingEntitlements) GetEntitlementsContext(_ context.Context, user string) (*commerce.EntitlementPayload, error) {
 	t.calls++
 	t.lastUser = user
 	if t.err != nil {
@@ -45,11 +48,11 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "inactive"},
+		payload: &commerce.EntitlementPayload{Status: "inactive"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	asset, err := authorizer.Authorize("app", "mac", "")
+	asset, err := authorizer.Authorize(context.Background(), "app", "mac", "")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -61,7 +64,8 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 	}
 }
 
-// [REQ:DOWNLOAD-GATE] Download gating enforces entitlement state before granting assets.
+// Download gating enforces entitlement state before granting assets. The canonical
+// requirement evidence lives with the delivery-domain policy test.
 func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{
@@ -69,11 +73,11 @@ func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "trialing"},
+		payload: &commerce.EntitlementPayload{Status: "trialing"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("app", "windows", "user@example.com"); err != nil {
+	if _, err := authorizer.Authorize(context.Background(), "app", "windows", "user@example.com"); err != nil {
 		t.Fatalf("expected access for trialing status, got %v", err)
 	}
 	if entitlements.calls != 1 {
@@ -81,7 +85,7 @@ func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	}
 
 	entitlements.payload.Status = "inactive"
-	if _, err := authorizer.Authorize("app", "windows", "user@example.com"); !errors.Is(err, ErrDownloadRequiresActiveSubscription) {
+	if _, err := authorizer.Authorize(context.Background(), "app", "windows", "user@example.com"); !errors.Is(err, ErrDownloadRequiresActiveSubscription) {
 		t.Fatalf("expected ErrDownloadRequiresActiveSubscription, got %v", err)
 	}
 }
@@ -93,7 +97,7 @@ func TestDownloadAuthorizerAuthorize_PropagatesLookupErrors(t *testing.T) {
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("app", "ios", "user@example.com"); !errors.Is(err, ErrDownloadNotFound) {
+	if _, err := authorizer.Authorize(context.Background(), "app", "ios", "user@example.com"); !errors.Is(err, ErrDownloadNotFound) {
 		t.Fatalf("expected ErrDownloadNotFound, got %v", err)
 	}
 	if entitlements.calls != 0 {
@@ -108,11 +112,11 @@ func TestDownloadAuthorizerAuthorize_RequiresIdentityForGatedAssets(t *testing.T
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "active"},
+		payload: &commerce.EntitlementPayload{Status: "active"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("app", "linux", ""); !errors.Is(err, ErrDownloadIdentityRequired) {
+	if _, err := authorizer.Authorize(context.Background(), "app", "linux", ""); !errors.Is(err, ErrDownloadIdentityRequired) {
 		t.Fatalf("expected ErrDownloadIdentityRequired, got %v", err)
 	}
 	if entitlements.calls != 0 {
@@ -131,7 +135,7 @@ func TestDownloadAuthorizerAuthorize_PropagatesEntitlementErrors(t *testing.T) {
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	_, err := authorizer.Authorize("app", "ios", "user@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "app", "ios", "user@example.com")
 	if err == nil || !strings.Contains(err.Error(), "entitlements offline") {
 		t.Fatalf("expected entitlement error to propagate, got %v", err)
 	}
@@ -145,7 +149,7 @@ func TestDownloadAuthorizerAuthorize_RejectsBlankPlatform(t *testing.T) {
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("app", "   ", "user@example.com"); !errors.Is(err, ErrDownloadPlatformRequired) {
+	if _, err := authorizer.Authorize(testRequestContext, "app", "   ", "user@example.com"); !errors.Is(err, ErrDownloadPlatformRequired) {
 		t.Fatalf("expected ErrDownloadPlatformRequired, got %v", err)
 	}
 }
@@ -159,7 +163,7 @@ func TestDownloadAuthorizerAuthorize_ErrorsOnNilEntitlements(t *testing.T) {
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("app", "android", "user@example.com"); err == nil {
+	if _, err := authorizer.Authorize(testRequestContext, "app", "android", "user@example.com"); err == nil {
 		t.Fatalf("expected error when entitlement provider returns nil")
 	}
 }
@@ -169,7 +173,7 @@ func TestDownloadAuthorizerAuthorize_RequiresAppKey(t *testing.T) {
 	entitlements := &trackingEntitlements{}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	if _, err := authorizer.Authorize("   ", "windows", "user@example.com"); !errors.Is(err, ErrDownloadAppNotFound) {
+	if _, err := authorizer.Authorize(testRequestContext, "   ", "windows", "user@example.com"); !errors.Is(err, ErrDownloadAppNotFound) {
 		t.Fatalf("expected ErrDownloadAppNotFound on blank app key, got %v", err)
 	}
 }
@@ -181,11 +185,11 @@ func TestDownloadAuthorizerAuthorize_TrimsInputsBeforeLookup(t *testing.T) {
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "active"},
+		payload: &commerce.EntitlementPayload{Status: "active"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
-	asset, err := authorizer.Authorize("  app  ", " android ", "  user@example.com ")
+	asset, err := authorizer.Authorize(testRequestContext, "  app  ", " android ", "  user@example.com ")
 	if err != nil {
 		t.Fatalf("expected trimmed inputs to authorize, got %v", err)
 	}

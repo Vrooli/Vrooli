@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	apierrors "vrooli-autoheal/internal/errors"
+	apierrors "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/errors"
 )
 
 // DocsManifest represents the structure of the docs manifest.json file

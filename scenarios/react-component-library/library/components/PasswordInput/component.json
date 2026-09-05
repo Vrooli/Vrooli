@@ -1,0 +1,14 @@
+{
+  "catalogId": "forms.password-input",
+  "deprecatedVersions": [
+    "2.0.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "2.0.0"
+  ],
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:PasswordInput"
+}

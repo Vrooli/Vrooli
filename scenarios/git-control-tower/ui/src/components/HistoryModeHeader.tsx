@@ -1,6 +1,7 @@
 import { GitCommit, History, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import type { CommitCheckRun } from "../lib/api";
 
 export interface ViewingCommit {
   hash: string;
@@ -8,6 +9,7 @@ export interface ViewingCommit {
   files: string[];
   author?: string;
   date?: string;
+  checks?: CommitCheckRun[];
 }
 
 interface HistoryModeHeaderProps {

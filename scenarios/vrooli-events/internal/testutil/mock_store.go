@@ -1,5 +1,7 @@
 // Package testutil provides shared test helpers, mock implementations,
 // and factory functions for vrooli-events tests.
+//
+// DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md
 package testutil
 
 import (

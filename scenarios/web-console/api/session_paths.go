@@ -1,44 +1,47 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/vrooli/api-core/storage"
 )
 
-func resolveSessionStateRoot() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("session-state: storage resolver failed, using fallback: %v", err)
-		return fallbackSessionStateRoot()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("session-state: ensure state dir failed, using fallback: %v", err)
-		return fallbackSessionStateRoot()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "sessions")
-	if err != nil {
-		log.Printf("session-state: resolve path failed, using fallback: %v", err)
-		return fallbackSessionStateRoot()
+// ensureDir mkdirs path (recursive) and returns it. On failure, returns
+// the original path unchanged — callers tolerate non-existent dirs.
+func ensureDir(path string) string {
+	if path == "" {
+		return path
 	}
 	if err := os.MkdirAll(path, 0o755); err != nil {
-		log.Printf("session-state: create directory failed, using fallback: %v", err)
-		return fallbackSessionStateRoot()
+		return path
 	}
 	return path
 }
 
-func fallbackSessionStateRoot() string {
-	exe, _ := os.Executable()
-	path := filepath.Join(filepath.Dir(exe), "..", "store", "sessions")
-	_ = os.MkdirAll(path, 0o755)
-	return path
+// resolveSessionStateRoot returns the root directory for session-scoped state
+// such as per-session CODEX_HOME directories. Tests override this path to keep
+// recovery/tailer runs from reading or deleting the live app's session state.
+func resolveSessionStateRoot() string {
+	if root := strings.TrimSpace(getEnvOrDefault("WC_SESSION_STATE_ROOT", "")); root != "" {
+		return ensureDir(filepath.Clean(root))
+	}
+	return mustResolveScenarioStorageDir(storage.ClassState, "sessions")
+}
+
+// removeSessionAgentHomes removes only the two session-scoped agent roots for
+// one validated session identifier. Shared user homes are never traversed.
+func removeSessionAgentHomes(sessionID string) error {
+	if sessionID == "" || filepath.Base(sessionID) != sessionID {
+		return os.ErrInvalid
+	}
+	var firstErr error
+	for _, agent := range []string{"codex", "grok"} {
+		path := filepath.Join(resolveSessionStateRoot(), agent, sessionID)
+		if err := os.RemoveAll(path); err != nil && !os.IsNotExist(err) && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }

@@ -21,9 +21,6 @@ export class AgentModeError extends Error {
   }
 }
 
-/** Runner types available for agent mode */
-export type RunnerType = "claude-code" | "codex" | "opencode";
-
 /** Run status for agent runs */
 export type AgentRunStatus =
   | "pending"
@@ -38,14 +35,8 @@ export type AgentRunStatus =
 export interface AgentChatConfig {
   /** Initial message to send to the agent */
   message: string;
-  /** Runner to use (claude-code, codex, opencode) */
-  runner_type: RunnerType;
   /** Directory where the agent will operate */
   project_path: string;
-  /** Optional model override */
-  model?: string;
-  /** Optional max turns limit */
-  max_turns?: number;
 }
 
 /** Response from starting agent mode */

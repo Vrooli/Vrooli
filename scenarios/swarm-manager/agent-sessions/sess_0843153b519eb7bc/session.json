@@ -1,0 +1,18 @@
+{
+  "id": "sess_0843153b519eb7bc",
+  "title": "Proposal for Advanced Diff UX for Initiative Proposals",
+  "kind": "swarm_operations",
+  "status": "draft",
+  "skill_id": "swarm-manager-proposals",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-14T12:42:22Z",
+  "updated_at": "2026-07-14T12:42:22Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "proposal_target": {
+    "type": "initiative",
+    "ref": "proposal-advanced-diff-ux",
+    "name": "Advanced Diff UX for Initiative Proposals"
+  }
+}

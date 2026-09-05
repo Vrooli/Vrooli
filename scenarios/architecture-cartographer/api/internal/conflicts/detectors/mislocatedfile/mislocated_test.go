@@ -1,0 +1,115 @@
+package mislocatedfile_test
+
+import (
+	"context"
+	"testing"
+
+	"architecture-cartographer/internal/conflicts"
+	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
+	"architecture-cartographer/internal/domains"
+	"architecture-cartographer/internal/graph"
+)
+
+type stubVerdictProvider struct {
+	v conflicts.Verdict
+}
+
+func (s stubVerdictProvider) VerdictsFor(_ context.Context, _ string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	out := make([]conflicts.Verdict, len(chunks))
+	for i := range chunks {
+		out[i] = s.v
+	}
+	return out, nil
+}
+
+func (s stubVerdictProvider) ContentVerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	return s.VerdictsFor(ctx, scenario, chunks)
+}
+
+func TestDetect_EmitsWhenContentVerdictDisagreesWithDomainMap(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Files: []graph.FileNode{
+			{ID: "file:a", Path: "internal/graph/service.go", PackageID: "pkg:graph"},
+		},
+	}
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
+			{Name: "graph", Paths: []string{"internal/graph/**"}},
+			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
+		},
+	}
+	in := conflicts.DetectInput{
+		Scenario: "demo", Snapshot: snap, DomainMap: m,
+		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{
+			Tier:      "auto_place",
+			TopDomain: "conflicts",
+			TopValue:  0.92,
+		}},
+	}
+	got, err := mislocatedfile.New().Detect(context.Background(), in)
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1 conflict, got %d", len(got))
+	}
+	if got[0].Type != "mislocated_file" {
+		t.Fatalf("unexpected type %s", got[0].Type)
+	}
+	if len(got[0].SuggestedFixes) == 0 || got[0].SuggestedFixes[0].Kind != conflicts.FixKindMoveFile {
+		t.Fatalf("expected move_file fix, got %+v", got[0].SuggestedFixes)
+	}
+}
+
+func TestDetect_NoConflictWhenVerdictMatchesDomainMap(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Files: []graph.FileNode{
+			{ID: "file:a", Path: "internal/graph/service.go"},
+		},
+	}
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{{Name: "graph", Paths: []string{"internal/graph/**"}}},
+	}
+	in := conflicts.DetectInput{
+		Scenario: "demo", Snapshot: snap, DomainMap: m,
+		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{Tier: "auto_place", TopDomain: "graph"}},
+	}
+	got, _ := mislocatedfile.New().Detect(context.Background(), in)
+	if len(got) != 0 {
+		t.Fatalf("expected no conflicts, got %+v", got)
+	}
+}
+
+func TestDetect_SuggestTierEmitsInfoSeverity(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Files: []graph.FileNode{
+			{ID: "file:a", Path: "internal/graph/service.go"},
+		},
+	}
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
+			{Name: "graph", Paths: []string{"internal/graph/**"}},
+			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
+		},
+	}
+	in := conflicts.DetectInput{
+		Scenario: "demo", Snapshot: snap, DomainMap: m,
+		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{Tier: "suggest", TopDomain: "conflicts"}},
+	}
+	got, _ := mislocatedfile.New().Detect(context.Background(), in)
+	if len(got) != 1 {
+		t.Fatalf("suggest tier should emit advisory mislocation, got %+v", got)
+	}
+	if got[0].Severity != conflicts.SeverityInfo {
+		t.Fatalf("suggest tier should be info severity, got %s", got[0].Severity)
+	}
+}
+
+func TestDetect_NilVerdictProviderReturnsNothing(t *testing.T) {
+	got, err := mislocatedfile.New().Detect(context.Background(), conflicts.DetectInput{
+		Snapshot: graph.GraphSnapshot{Files: []graph.FileNode{{ID: "file:a", Path: "x.go"}}},
+	})
+	if err != nil || len(got) != 0 {
+		t.Fatalf("nil provider should be a no-op; got %+v err=%v", got, err)
+	}
+}

@@ -6,6 +6,10 @@ import (
 	"github.com/vrooli/api-core/health"
 )
 
+// DOC: docs/reference/api-endpoints.md
+// setupRoutes wires every HTTP endpoint exposed by git-control-tower.
+// When adding or removing routes here, update docs/reference/api-endpoints.md
+// in the same change so the catalog stays accurate.
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
@@ -29,6 +33,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/stage", s.handleStage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/unstage", s.handleUnstage).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/commit", s.handleCommit).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/precommit", s.handlePrecommitGet).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/precommit", s.handlePrecommitSave).Methods("PUT")
+	s.router.HandleFunc("/api/v1/repo/precommit/run", s.handlePrecommitRun).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/precommit/run/stream", s.handlePrecommitRunStream).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/approved-changes", s.handleApprovedChanges).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/approved-changes/preview", s.handleApprovedChangesPreview).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/provenance", s.handleProvenance).Methods("GET")
@@ -37,8 +45,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/grouping-rules", s.handleGetGroupingRules).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/grouping-rules", s.handleSaveGroupingRules).Methods("PUT")
+	s.router.HandleFunc("/api/v1/repo/groups", s.handleGetRepoGroups).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/gitignore/health", s.handleGitignoreHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/gitignore/move", s.handleGitignoreMove).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/tracked-binaries", s.handleTrackedBinaries).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/tracked-binaries/untrack", s.handleUntrackBinary).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/push", s.handlePush).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/pull", s.handlePull).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/upstream-action", s.handleUpstreamAction).Methods("POST")
@@ -55,6 +66,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/capabilities", s.handleCapabilities).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios", s.handleScenarioList).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{slug}/envelope", s.handleScenarioEnvelope).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{slug}/isolation", s.handleScenarioIsolation).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 
 	// Credentials management endpoints
@@ -75,17 +87,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/visual-captures/{id}", s.handleVisualCaptureDelete).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/repo/visual-capture-storage", s.handleVisualCaptureClearAll).Methods("DELETE")
 
-	// Workflow capture endpoints
-	s.router.HandleFunc("/api/v1/repo/workflow-capture", s.handleWorkflowCapture).Methods("POST")
-	s.router.HandleFunc("/api/v1/repo/workflow-captures", s.handleWorkflowCaptureList).Methods("GET")
-	s.router.HandleFunc("/api/v1/repo/workflow-captures/{id}", s.handleWorkflowCaptureDetail).Methods("GET")
-	s.router.HandleFunc("/api/v1/repo/workflow-captures/{id}/video/{filename}", s.handleWorkflowCaptureVideo).Methods("GET")
-	s.router.HandleFunc("/api/v1/repo/workflow-captures/{id}", s.handleWorkflowCaptureDelete).Methods("DELETE")
-
-	// Test-genie endpoints
-	s.router.HandleFunc("/api/v1/repo/test-execution", s.handleTestExecution).Methods("POST")
-	s.router.HandleFunc("/api/v1/repo/test-executions", s.handleTestExecutionList).Methods("GET")
-	s.router.HandleFunc("/api/v1/repo/test-executions/{id}", s.handleTestExecutionDetail).Methods("GET")
+	// Generic opaque evidence bytes. Metadata and authorization handles come
+	// from EvidenceService; paths never cross this boundary.
+	s.router.HandleFunc("/api/v1/repo/test-runs/{runId}/artifacts/{artifactId}", s.handleRunArtifact).Methods("GET")
 
 	// Tidiness-manager endpoints
 	s.router.HandleFunc("/api/v1/repo/tidiness-score", s.handleTidinessScore).Methods("GET")
@@ -125,4 +129,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/ssh/keys/public", ssh.HandleGetPublicKey(s.sshDeps)).Methods("POST")
 	s.router.HandleFunc("/api/v1/ssh/keys/test", ssh.HandleTestConnection(s.sshDeps)).Methods("POST")
 	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleDeleteKey(s.sshDeps)).Methods("DELETE")
+
+	// Connect-RPC handlers (proto-first surface). Worktree is the first
+	// proto+Connect domain in GCT; see api/connect_wiring.go.
+	s.mountConnectHandlers()
 }

@@ -1,0 +1,217 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "device-control",
+    "displayName": "Device Control",
+    "description": "Control owner-authorized physical and virtual devices through pluggable transports, capability-derived actions, durable identity, auditable sessions, and reusable automation flows.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "vrooli-bridge": {
+        "purpose": "Device reach plane: node and attached-device registry, per-node scopes, allowlisted dispatch, durable runs, and audit.",
+        "required": true,
+        "degraded_behavior": "Every device reports unreachable with 'bridge unavailable' as the reason. No device is assumed present and no verb is dispatched.",
+        "startup_policy": "must_start"
+      },
+      "ai-gateway": {
+        "purpose": "Provider-neutral inference for ai.* flow steps and the vision rung of the target resolution ladder.",
+        "required": false,
+        "degraded_behavior": "ai.* steps report unavailable naming the missing gateway capability. Flows without ai.* steps run unaffected; this scenario never falls back to a direct provider call.",
+        "startup_policy": "try_start"
+      },
+      "agent-manager": {
+        "purpose": "Runtime for goal-directed device runs spawned by agent mode.",
+        "required": false,
+        "degraded_behavior": "Agent mode reports unavailable. Flow authoring and execution are unaffected.",
+        "startup_policy": "try_start"
+      },
+      "prompt-manager": {
+        "purpose": "Hosts the operator skill that teaches an agent this scenario's CLI contract.",
+        "required": false,
+        "degraded_behavior": "Agent mode refuses to start rather than improvising without the skill.",
+        "startup_policy": "try_start"
+      },
+      "browser-automation-studio": {
+        "purpose": "Executes named web-content flows against an attached application WebView for bas.* delegation steps.",
+        "required": false,
+        "degraded_behavior": "bas.* steps report unavailable; every other step kind still runs.",
+        "startup_policy": "try_start"
+      },
+      "audio-tools": {
+        "purpose": "Optional shared voice input and audio output for device-control voice capabilities.",
+        "required": false,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "degraded_behavior": "Voice input and output report unavailable; device discovery, leases, flows, and non-audio verbs remain unaffected.",
+        "startup_policy": "try_start"
+      },
+      "scenario-authenticator": {
+        "purpose": "Authenticates the bridge-backed local control connection.",
+        "required": true,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "degraded_behavior": "Bridge-backed devices report unavailable with an authentication dependency reason; no device verb is dispatched.",
+        "startup_policy": "must_start"
+      }
+    },
+    "resources": {}
+  },
+  "storage": {
+    "entries": {
+      "evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Retained, redacted device-control captures referenced by completed flow runs.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Bound retained evidence while preserving audit references; operators can configure a stricter evidence directory policy."
+        }
+      }
+    },
+    "rationale": "Device-control owns retained evidence bytes and the SQLite audit metadata; consumers receive references only."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-10T13:00:11Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "592f56a3232924a1b0134fb5acec7f8050d92f37d943059dad738db5df2137f5"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "device-control",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "device-control"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/device-control/SKILL.md",
+      "programs": [
+        "device-control.prepare-task",
+        "device-control.replay-flow",
+        "device-control.author-flow"
+      ]
+    },
+    "improve": {
+      "source": "skills/device-control-improve/SKILL.md",
+      "programs": [
+        "device-control.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "device-control-usage"
+    },
+    "waivers": {}
+  }
+}

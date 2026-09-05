@@ -17,12 +17,12 @@ import { useWorkflowStore } from '@stores/workflowStore';
 import { useExecutionExport } from './viewer/useExecutionExport';
 import { useReplayCustomization } from './viewer/useReplayCustomization';
 import { useExportStore } from '@/domains/exports';
-import {
-  ExportDialog,
-  ExportDialogProvider,
-  buildExportDialogContextValue,
-} from '@/domains/executions/export';
+import { ExportDialog } from './export/components/ExportDialog';
+import { ExportDialogProvider } from './export/context/ExportDialogProvider';
+import { buildExportDialogContextValue } from './export/context/ExportDialogContext';
 import { useExecutionEvents } from './hooks/useExecutionEvents';
+import { useExecutionHeartbeat } from './viewer/useExecutionHeartbeat';
+import { selectors } from '@constants/selectors';
 
 type ViewerTab = 'replay' | 'artifacts';
 
@@ -151,11 +151,15 @@ export function InlineExecutionViewer({
   const [logFilter, setLogFilter] = useState<'all' | 'error' | 'warning' | 'info' | 'success'>('all');
   const [artifactSubType, setArtifactSubType] = useState<ArtifactSubType>('screenshots');
   const [isRerunning, setIsRerunning] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   // Get execution from store
   const currentExecution = useExecutionStore((s) => s.currentExecution);
+  const stopExecution = useExecutionStore((s) => s.stopExecution);
   const autoOpenExport = useExecutionStore((s) => s.autoOpenExport);
   const setAutoOpenExport = useExecutionStore((s) => s.setAutoOpenExport);
+  const executionForViewer = currentExecution ?? defaultExecution;
+  const { heartbeatDescriptor } = useExecutionHeartbeat(executionForViewer);
 
   // Subscribe to WebSocket updates for real-time progress
   useExecutionEvents(
@@ -172,7 +176,7 @@ export function InlineExecutionViewer({
   const { createExport } = useExportStore();
   const replayCustomization = useReplayCustomization({ executionId });
   const exportController = useExecutionExport({
-    execution: currentExecution ?? defaultExecution,
+    execution: executionForViewer,
     replayFrames: currentExecution?.timeline ?? [],
     workflowName,
     replayCustomization,
@@ -189,6 +193,16 @@ export function InlineExecutionViewer({
       setIsRerunning(false);
     }
   }, [onRerun]);
+
+  const handleStop = useCallback(async () => {
+    if (!currentExecution || isStopping) return;
+    setIsStopping(true);
+    try {
+      await stopExecution(currentExecution.id);
+    } finally {
+      setIsStopping(false);
+    }
+  }, [currentExecution, isStopping, stopExecution]);
 
   // Extract artifacts data
   const timeline = useMemo(() => currentExecution?.timeline ?? [], [currentExecution?.timeline]);
@@ -207,18 +221,21 @@ export function InlineExecutionViewer({
   }, [autoOpenExport, canExport, exportController, setAutoOpenExport]);
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div data-testid={selectors.executions.viewer.root} className="flex flex-col h-full bg-white dark:bg-gray-900">
       {/* Header */}
       <InlineExecutionHeader
         workflowName={workflowName}
         status={currentExecution?.status}
         onRerun={onRerun ? handleRerun : undefined}
         onExport={canExport ? exportController.openExportDialog : undefined}
+        onStop={handleStop}
         onClose={onClose}
         canRerun={!!onRerun}
         canExport={canExport}
         isExporting={exportController.isExporting}
         isRerunning={isRerunning}
+        isStopping={isStopping}
+        heartbeatLabel={heartbeatDescriptor?.label}
       />
 
       {/* Tab Bar */}
@@ -226,6 +243,7 @@ export function InlineExecutionViewer({
         <button
           type="button"
           onClick={() => setActiveTab('replay')}
+          data-testid={selectors.executions.tabs.replay}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'replay'
               ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-500'
@@ -238,6 +256,7 @@ export function InlineExecutionViewer({
         <button
           type="button"
           onClick={() => setActiveTab('artifacts')}
+          data-testid={selectors.executions.tabs.artifacts}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
             activeTab === 'artifacts'
               ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-500'

@@ -1,0 +1,113 @@
+{
+  "_metadata": {
+    "module": "foundation",
+    "description": "Portal v0 foundation requirements linked to PRD operational targets.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PORTAL-P0-001",
+      "title": "Healthy Portal scaffold",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "foundation",
+      "criticality": "P0",
+      "description": "Portal starts through the Vrooli scenario lifecycle, exposes API/UI/CLI health, and degrades cleanly when optional integrations are unavailable.",
+      "tags": ["lifecycle", "health"],
+      "validation": [
+        {
+          "type": "command",
+          "status": "planned",
+          "notes": "`vrooli scenario restart portal`, `cli-health validate scenario portal --json`, and `ui-health validate scenario portal --json` pass."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P0-002",
+      "title": "Chat-ready contract foundation",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "contracts",
+      "criticality": "P0",
+      "description": "Portal owns typed Connect/proto seams for health, chat, message tree, integration status, and search suggestion behavior.",
+      "tags": ["connect", "proto"],
+      "validation": [
+        {
+          "type": "command",
+          "status": "planned",
+          "notes": "`proto-health validate scenario portal --json` and API/UI typechecks pass after proto generation."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P1-001",
+      "title": "OpenRouter chat path",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "chat",
+      "criticality": "P1",
+      "description": "Portal streams OpenRouter completions with model selection, optional web search, usage capture, and missing-key status instead of boot failure.",
+      "tags": ["openrouter", "streaming"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Live smoke demonstrates a streamed completion when `OPENROUTER_API_KEY` is set and degraded status when it is absent."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P1-002",
+      "title": "Agent-mode bridge",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "agents",
+      "criticality": "P1",
+      "description": "Portal can start and display agent-manager backed conversations without making agent-manager a required boot dependency.",
+      "tags": ["agent-manager", "degradation"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Live smoke starts an agent-mode session when agent-manager is available and reports OFF/degraded status when it is not."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P2-001",
+      "title": "Passive ecosystem search",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "search",
+      "criticality": "P2",
+      "description": "Portal requests search-hub suggestions and PASSIVE search attachments without blocking the LLM send path.",
+      "tags": ["search-hub", "passive-mode"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Live smoke shows the message send path proceeds immediately while search results attach asynchronously."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P2-002",
+      "title": "Readiness ladder controls",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "integrations",
+      "criticality": "P2",
+      "description": "Portal measures optional integration readiness, applies OFF/PASSIVE/FULL-reserved policy, and surfaces override/status controls.",
+      "tags": ["readiness", "integrations"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Live smoke demonstrates PASSIVE-to-OFF degradation and recovery for search-hub with the mode indicator visible."
+        }
+      ]
+    }
+  ]
+}

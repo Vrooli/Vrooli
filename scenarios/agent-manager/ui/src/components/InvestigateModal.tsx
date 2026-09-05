@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
+  Paperclip,
   Search,
   Zap,
   Settings,
@@ -19,14 +20,17 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Label } from "./ui/label";
+import { RoleSelector } from "./RoleSelector";
 import { Textarea } from "./ui/textarea";
 import { ScopePathsManager } from "./ScopePathsManager";
+import { AttachmentPreview } from "./AttachmentPreview";
 import type {
   InvestigationContextFlags,
   InvestigationDepth,
 } from "../types";
 import { DEFAULT_INVESTIGATION_CONTEXT } from "../types";
-import { useInvestigationSettings } from "../hooks/useApi";
+import { useInvestigationSettings, useRolePolicyCatalog } from "../hooks/useApi";
+import { useAttachments } from "../hooks/useAttachments";
 
 interface InvestigateModalProps {
   open: boolean;
@@ -45,7 +49,9 @@ interface InvestigateModalProps {
     depth: InvestigationDepth,
     context?: InvestigationContextFlags,
     projectRoot?: string,
-    scopePaths?: string[]
+    scopePaths?: string[],
+    attachmentIds?: string[],
+    overrides?: { roleRef?: string }
   ) => Promise<void>;
   loading?: boolean;
   error?: string | null;
@@ -140,8 +146,23 @@ export function InvestigateModal({
   const [projectRoot, setProjectRoot] = useState(defaultProjectRoot);
   const [scopePaths, setScopePaths] = useState<string[]>(defaultScopePaths);
 
+  // Empty preserves the investigation profile's catalog-backed default.
+  const [roleOverride, setRoleOverride] = useState<string>("");
+
+  // Image attachments — uploaded eagerly via the shared attachments hook.
+  const {
+    attachments,
+    addAttachment,
+    removeAttachment,
+    clearAttachments,
+    getUploadedIds,
+    isUploading,
+  } = useAttachments();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   // Get default settings
   const { data: settings } = useInvestigationSettings();
+  const rolePolicy = useRolePolicyCatalog({ enabled: open });
 
   // Reset state when modal opens
   useEffect(() => {
@@ -150,8 +171,10 @@ export function InvestigateModal({
       setShowContext(false);
       setProjectRoot(defaultProjectRoot);
       setScopePaths(defaultScopePaths);
+      setRoleOverride("");
+      clearAttachments();
     }
-  }, [open, defaultProjectRoot, defaultScopePaths]);
+  }, [open, defaultProjectRoot, defaultScopePaths, clearAttachments]);
 
   // Apply defaults from settings when they load or modal opens
   useEffect(() => {
@@ -192,13 +215,28 @@ export function InvestigateModal({
     });
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addAttachment(file);
+      e.target.value = "";
+    }
+  };
+
   const handleSubmit = async () => {
+    const attachmentIds = getUploadedIds();
+    const overrides =
+      roleOverride
+        ? { roleRef: roleOverride }
+        : undefined;
     await onSubmit(
       customContext.trim(),
       depth,
       contextFlags,
       projectRoot.trim() || undefined,
-      scopePaths.length > 0 ? scopePaths : undefined
+      scopePaths.length > 0 ? scopePaths : undefined,
+      attachmentIds.length > 0 ? attachmentIds : undefined,
+      overrides
     );
   };
 
@@ -269,34 +307,39 @@ export function InvestigateModal({
                 </div>
               )}
 
+              <RoleSelector
+                catalog={rolePolicy.data?.catalog}
+                value={roleOverride || rolePolicy.data?.catalog?.defaultRole || ""}
+                onChange={setRoleOverride}
+                label="Role override"
+                id="investigate-role-override"
+              />
+
               {/* Context Selection (collapsible) */}
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setShowContext(!showContext)}
-                  className="flex w-full items-center justify-between text-left"
-                >
-                  <Label className="cursor-pointer">Context to Include</Label>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUseDefaults();
-                      }}
-                      className="h-6 text-xs"
-                    >
-                      Use Defaults
-                    </Button>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowContext(!showContext)}
+                    className="flex min-w-0 flex-1 items-center justify-between text-left"
+                  >
+                    <Label className="cursor-pointer">Context to Include</Label>
                     <ChevronDown
                       className={`h-4 w-4 text-muted-foreground transition-transform ${
                         showContext ? "rotate-180" : ""
                       }`}
                     />
-                  </div>
-                </button>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleUseDefaults}
+                    className="h-6 text-xs"
+                  >
+                    Use Defaults
+                  </Button>
+                </div>
 
                 {showContext && (
                   <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3">
@@ -347,6 +390,37 @@ Examples:
                 </p>
               </div>
 
+              {/* Image Attachments */}
+              <div className="space-y-2">
+                <Label>Image Attachments</Label>
+                {attachments.length > 0 && (
+                  <AttachmentPreview
+                    attachments={attachments}
+                    onRemove={removeAttachment}
+                    isUploading={isUploading}
+                  />
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Attach Image
+                </Button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Screenshots of errors, UI states, or diagrams to aid the investigation.
+                </p>
+              </div>
+
               {/* Quick Focus Suggestion Cards */}
               {!hideDepthSelector && (
                 <div className="space-y-2">
@@ -387,9 +461,15 @@ Examples:
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || isUploading}
+            className="gap-2"
+          >
             {loading ? (
               "Starting..."
+            ) : isUploading ? (
+              "Uploading..."
             ) : (
               <>
                 <Search className="h-4 w-4" />

@@ -1,0 +1,406 @@
+[
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "session.meta_orchestration",
+    "subject": "agent-session",
+    "kind": "session",
+    "requires": [
+      "agent-manager"
+    ],
+    "inputContract": "session-input/v1",
+    "terminalOutcomes": [
+      "proposal",
+      "closed",
+      "abstained"
+    ],
+    "applyAction": "apply_session_proposal"
+    ,"session": {"briefRef": "startup_brief/meta_orchestration", "skillId": "swarm-manager-meta-orchestrator", "profileKey": "swarm-manager/session", "proposalTargets": ["backlog", "goal", "milestone"]}
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "session.swarm_operations",
+    "subject": "agent-session",
+    "kind": "session",
+    "requires": [
+      "agent-manager"
+    ],
+    "inputContract": "session-input/v1",
+    "terminalOutcomes": [
+      "proposal",
+      "closed",
+      "abstained"
+    ],
+    "applyAction": "apply_session_proposal"
+    ,"session": {"briefRef": "startup_brief/swarm_operations", "skillId": "swarm-manager-operations-session", "profileKey": "swarm-manager/session", "proposalTargets": ["backlog", "goal", "milestone"]}
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "session.workflow_authoring",
+    "subject": "agent-session",
+    "kind": "session",
+    "requires": [
+      "agent-manager"
+    ],
+    "inputContract": "session-input/v1",
+    "terminalOutcomes": [
+      "proposal",
+      "closed",
+      "abstained"
+    ],
+    "applyAction": "apply_session_proposal"
+    ,"session": {"briefRef": "startup_brief/workflow_authoring", "skillId": "swarm-manager-workflow-authoring", "profileKey": "swarm-manager/session", "proposalTargets": ["transition", "workflow"]}
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "proposal.apply",
+    "subject": "proposal",
+    "kind": "deterministic",
+    "inputContract": "proposal-apply-input/v1",
+    "terminalOutcomes": [
+      "applied",
+      "rejected",
+      "stale"
+    ],
+    "applyAction": "apply_proposal",
+    "humanGates": [{"id": "suggested-to-backlog", "decides": "Accept the suggested proposal into the backlog", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "capture.classify",
+    "subject": "capture",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/capture-classify"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "capture-classification-input/v1",
+    "terminalOutcomes": [
+      "suggested",
+      "research",
+      "discarded",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "apply_capture_classification",
+    "humanGates": [{"id": "capture-to-suggested", "decides": "Accept the capture classification as a suggestion", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "plan.workshop.review",
+    "subject": "plan-workshop-subject",
+    "kind": "workflow",
+    "workflow": {"owner": "swarm-manager", "key": "swarm-manager/plan-workshop-review"},
+    "requires": ["agent-manager", "prompt-manager", "plan-manager"],
+    "inputContract": "plan-workshop-review-input/v1",
+    "terminalOutcomes": ["packet", "needs_attention", "abstained", "failed"],
+    "applyAction": "record_plan_workshop_packet"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "plan.workshop.reconcile",
+    "subject": "plan-workshop-subject",
+    "kind": "workflow",
+    "workflow": {"owner": "swarm-manager", "key": "swarm-manager/plan-workshop-reconcile"},
+    "requires": ["agent-manager", "prompt-manager", "plan-manager"],
+    "inputContract": "plan-workshop-reconcile-input/v1",
+    "terminalOutcomes": ["candidate", "needs_attention", "abstained", "failed"],
+    "applyAction": "record_plan_workshop_candidate"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "plan.author",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/plan-author"
+    },
+    "requires": [
+      "agent-manager",
+      "plan-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "plan-author-input/v1",
+    "terminalOutcomes": [
+      "ready",
+      "needs_attention",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "bind_validated_plan_ref",
+    "humanGates": [{"id": "refining-to-ready", "decides": "Accept the validated plan as ready", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "plan.repair",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/plan-repair"
+    },
+    "requires": [
+      "agent-manager",
+      "plan-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "plan-repair-input/v1",
+    "terminalOutcomes": [
+      "ready",
+      "needs_attention",
+      "abstained",
+      "failed",
+      "budget_exhausted"
+    ],
+    "applyAction": "bind_validated_plan_ref"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "plan.execute",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/phased-plan-drain"
+    },
+    "requires": [
+      "agent-manager",
+      "plan-manager",
+      "test-genie",
+      "git-control-tower"
+    ],
+    "inputContract": "plan-execution-input/v1",
+    "terminalOutcomes": [
+      "complete",
+      "needs_review",
+      "needs_attention",
+      "abstained",
+      "failed",
+      "budget_exhausted",
+      "cancelled"
+    ],
+    "strategies": [
+      {
+        "id": "phased-plan-drain",
+        "displayName": "Phased plan drain",
+        "description": "Executes the accepted plan one verified phase at a time, with review and operator approval where needed.",
+        "whenToUse": "Use for accepted plans that need durable phase-by-phase progress and resumability.",
+        "costBand": "Governed by the configured per-turn estimate and workflow budget."
+      }
+    ],
+    "applyAction": "apply_plan_execution",
+    "humanGates": [{"id": "ready-to-engaged", "decides": "Approve engaging the selected workflow", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}, {"id": "slice-approval", "decides": "Approve the next verified execution slice", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "work.review",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/independent-review"
+    },
+    "requires": [
+      "agent-manager",
+      "test-genie",
+      "git-control-tower"
+    ],
+    "inputContract": "work-review-input/v1",
+    "terminalOutcomes": [
+      "accepted",
+      "changes-requested",
+      "inconclusive",
+      "failed"
+    ],
+    "applyAction": "apply_review_outcome",
+    "humanGates": [{"id": "validating-to-completed", "decides": "Accept the review evidence as complete", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "review.evidence_request",
+    "subject": "review-thread",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/evidence-request"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "review-evidence-request-input/v1",
+    "terminalOutcomes": [
+      "fulfilled",
+      "needs_attention",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "apply_review_evidence_request"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "work.correct",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/work-correct"
+    },
+    "requires": [
+      "agent-manager",
+      "test-genie",
+      "git-control-tower"
+    ],
+    "inputContract": "work-correction-input/v1",
+    "terminalOutcomes": [
+      "corrected",
+      "needs_attention",
+      "abstained",
+      "failed",
+      "budget_exhausted"
+    ],
+    "applyAction": "apply_correction_outcome"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "work.follow_up",
+    "subject": "backlog-item",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/work-follow-up"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "work-follow-up-input/v1",
+    "terminalOutcomes": [
+      "complete",
+      "proposed",
+      "needs_attention",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "apply_follow_up",
+    "humanGates": [{"id": "follow-up-instruction", "decides": "Choose the follow-up instruction for the outcome", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "follow_up.dispatch",
+    "subject": "backlog-item",
+    "kind": "deterministic",
+    "inputContract": "follow-up-dispatch-input/v1",
+    "terminalOutcomes": [
+      "dispatched",
+      "needs_attention"
+    ],
+    "applyAction": "dispatch_follow_up"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "goal.discover",
+    "subject": "goal",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/goal-discover"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "goal-discovery-input/v1",
+    "terminalOutcomes": [
+      "proposed",
+      "needs_attention",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "apply_goal_proposal"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "goal.plan",
+    "subject": "goal",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/goal-plan"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "goal-plan-input/v1",
+    "terminalOutcomes": [
+      "proposed",
+      "needs_attention",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "apply_goal_proposal"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "milestone.review",
+    "subject": "milestone",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/milestone-review"
+    },
+    "requires": [
+      "agent-manager",
+      "test-genie",
+      "git-control-tower"
+    ],
+    "inputContract": "milestone-review-input/v1",
+    "terminalOutcomes": [
+      "delivered",
+      "partial",
+      "failed",
+      "needs_attention"
+    ],
+    "applyAction": "apply_milestone_review"
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "goal.close_out",
+    "subject": "goal",
+    "kind": "deterministic",
+    "inputContract": "goal-close-out-input/v1",
+    "terminalOutcomes": [
+      "achieved",
+      "needs_attention"
+    ],
+    "applyAction": "mark_goal_achieved",
+    "humanGates": [{"id": "goal-close-out", "decides": "Accept goal close-out as achieved", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
+  },
+  {
+    "schemaVersion": "swarm-transition/v1",
+    "key": "scenario.spec_sync",
+    "subject": "scenario",
+    "kind": "workflow",
+    "workflow": {
+      "owner": "swarm-manager",
+      "key": "swarm-manager/scenario-spec-sync"
+    },
+    "requires": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "inputContract": "scenario-spec-sync-input/v1",
+    "terminalOutcomes": [
+      "synced",
+      "needs_attention",
+      "abstained",
+      "failed"
+    ],
+    "applyAction": "apply_scenario_spec_sync"
+  }
+]

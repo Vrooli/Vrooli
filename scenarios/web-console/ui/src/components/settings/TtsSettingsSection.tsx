@@ -1,13 +1,36 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { NumberField } from "@vrooli/react-component-library/NumberField";
 import { Button } from "../ui/button";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
-import { getTTSStatus, getTTSSummarizeConfig, updateTTSSummarizeConfig, toErrorInfo, updateTTSConfig } from "../../lib/api";
-import type { TTSSummarizeConfig } from "../../lib/api";
+import { strings } from "../../consts/strings";
+import { toErrorInfo } from "../../lib/errors";
+import {
+  getTTSConfig,
+  updateTTSConfig,
+} from "../../audio-integration";
+import type { TTSVoiceInfo } from "../../audio-integration";
+import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
-import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+import { SettingsSlider, SettingsToggle } from "./primitives";
+import { useSummarizeSettings } from "./useSummarizeSettings";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+
+// TtsSettingsSection split-of-concerns:
+//   - voice / speed / response-format / summarization knobs → audio-integration
+//     (the audio-tools scenario owns the canonical TTSConfig + summarize knobs).
+//   - autoEnabled / backend preference / startMuted / Claude-hook routing
+//     status → web-console-internal /api/v1/tts-hook/* (Claude-hook routing
+//     is a web-console concern, not an audio-tools concern, as is the
+//     workspace-store preference triple).
+//
+// audio-tools' TTSConfig exposes defaultVoice / defaultSpeed; the UI maps
+// kokoroVoice <-> defaultVoice and kokoroSpeed <-> defaultSpeed for backward
+// compatibility with the workspace-store fields and the existing test seams.
 
 export default function TtsSettingsSection() {
+  const { t } = useTranslation();
   const ttsVoice = useWorkspaceStore((state) => state.ttsVoice);
   const setTtsVoice = useWorkspaceStore((state) => state.setTtsVoice);
   const ttsRate = useWorkspaceStore((state) => state.ttsRate);
@@ -16,6 +39,8 @@ export default function TtsSettingsSection() {
   const setTtsPitch = useWorkspaceStore((state) => state.setTtsPitch);
   const autoTtsEnabled = useWorkspaceStore((state) => state.autoTtsEnabled);
   const setAutoTtsEnabled = useWorkspaceStore((state) => state.setAutoTtsEnabled);
+  const startMutedOnLoad = useWorkspaceStore((state) => state.startMutedOnLoad);
+  const setStartMutedOnLoad = useWorkspaceStore((state) => state.setStartMutedOnLoad);
   const ttsBackendPreference = useWorkspaceStore((state) => state.ttsBackendPreference);
   const setTtsBackendPreference = useWorkspaceStore((state) => state.setTtsBackendPreference);
   const kokoroVoice = useWorkspaceStore((state) => state.kokoroVoice);
@@ -39,9 +64,7 @@ export default function TtsSettingsSection() {
   const [testState, setTestState] = useState<"idle" | "running" | "success" | "error">("idle");
   const [testMessage, setTestMessage] = useState<string | null>(null);
 
-  // Summarization config state
-  const [summarizeConfig, setSummarizeConfig] = useState<TTSSummarizeConfig | null>(null);
-  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+  const summarizeSettings = useSummarizeSettings();
 
   const ttsSettings = useMemo(() => ({
     voice: ttsVoice,
@@ -56,6 +79,7 @@ export default function TtsSettingsSection() {
     backend,
     voices: ttsVoices,
     backendReason,
+    providerId,
     browserAudioReady,
     refresh,
     testSpeak,
@@ -65,75 +89,89 @@ export default function TtsSettingsSection() {
     lastSuccessfulBackend,
   } = useTextToSpeech(ttsSettings, { source: "settings_test" });
 
-  const backendLabel = backend === "kokoro" ? "Kokoro" : backend === "browser" ? "Browser" : "Unavailable";
+  const backendLabel = backend === "kokoro"
+    ? providerId && providerId !== "kokoro-tts" ? providerId : t(strings.settings.voiceOutputSection.backendKokoro)
+    : backend === "browser"
+      ? t(strings.settings.voiceOutputSection.backendBrowser)
+      : t(strings.settings.voiceOutputSection.backendUnavailable);
   const backendColor = backend === "kokoro" ? "text-green-400" : backend === "browser" ? "text-yellow-400" : "text-wc-text-faint";
   const preferenceLabel = ttsBackendPreference === "auto"
-    ? "Auto"
+    ? t(strings.settings.voiceOutputSection.preferenceAuto)
     : ttsBackendPreference === "kokoro"
-      ? "Kokoro only"
-      : "Browser only";
+      ? t(strings.settings.voiceOutputSection.preferenceKokoro)
+      : t(strings.settings.voiceOutputSection.preferenceBrowser);
 
   const loadTtsStatus = useCallback(async () => {
     setStatusLoading(true);
     setStatusError(null);
     try {
-      const status = await getTTSStatus();
-      setAutoTtsEnabled(status.config.autoEnabled);
-      setTtsBackendPreference(status.config.backend);
-      setKokoroVoice(status.config.kokoroVoice);
-      setKokoroSpeed(status.config.kokoroSpeed);
-      setHookRegistered(status.hookRegistered);
-      setHookCode(status.hookCode ?? null);
-      setHookReason(status.hookReason);
-      setHookSettingsPath(status.hookSettingsPath ?? null);
-      setKokoroCapabilityLabel(status.kokoroCapabilityLabel ?? null);
-      setLastHookRoutingSummary(status.lastHookRouting
-        ? `${status.lastHookRouting.appended ? "Appended" : "Skipped"}: ${status.lastHookRouting.reason}`
-        : null);
-      setLastTailerRoutingSummary(status.lastTailerRouting
-        ? `${status.lastTailerRouting.appended ? "Appended" : "Skipped"}: ${status.lastTailerRouting.reason}`
-        : null);
-      setLastHookAckSummary(status.lastHookAck
-        ? `${status.lastHookAck.stage}${status.lastHookAck.backend ? ` via ${status.lastHookAck.backend}` : ""}${status.lastHookAck.message ? `: ${status.lastHookAck.message}` : ""}`
-        : null);
-      setLastTailerAckSummary(status.lastTailerAck
-        ? `${status.lastTailerAck.stage}${status.lastTailerAck.backend ? ` via ${status.lastTailerAck.backend}` : ""}${status.lastTailerAck.message ? `: ${status.lastTailerAck.message}` : ""}`
-        : null);
-      setLastPlaybackSummary(status.lastPlaybackEvent
-        ? `${status.lastPlaybackEvent.stage}${status.lastPlaybackEvent.backend ? ` via ${status.lastPlaybackEvent.backend}` : ""}${status.lastPlaybackEvent.message ? `: ${status.lastPlaybackEvent.message}` : ""}`
-        : null);
-      // Load summarization config alongside TTS status
-      try {
-        const sumCfg = await getTTSSummarizeConfig();
-        setSummarizeConfig(sumCfg);
-      } catch (sumError) {
-        setSummarizeError(toErrorInfo(sumError).message);
+      const [hookStatus, voiceCfg] = await Promise.all([
+        getTTSHookStatus(),
+        getTTSConfig().catch(() => null),
+      ]);
+      setAutoTtsEnabled(hookStatus.config.autoEnabled);
+      setTtsBackendPreference(hookStatus.config.backend);
+      setStartMutedOnLoad(hookStatus.config.startMuted);
+      if (voiceCfg) {
+        if (voiceCfg.defaultVoice) setKokoroVoice(voiceCfg.defaultVoice);
+        if (voiceCfg.defaultSpeed > 0) setKokoroSpeed(voiceCfg.defaultSpeed);
       }
+      setHookRegistered(hookStatus.hookRegistered);
+      setHookCode(hookStatus.hookCode ?? null);
+      setHookReason(hookStatus.hookReason);
+      setHookSettingsPath(hookStatus.hookSettingsPath ?? null);
+      setKokoroCapabilityLabel(hookStatus.audioToolsCapabilityLabel ?? null);
+      setLastHookRoutingSummary(hookStatus.lastHookRouting
+        ? `${hookStatus.lastHookRouting.appended ? t(strings.settings.voiceOutputSection.appended) : t(strings.settings.voiceOutputSection.skipped)}: ${hookStatus.lastHookRouting.reason}`
+        : null);
+      setLastTailerRoutingSummary(hookStatus.lastTailerRouting
+        ? `${hookStatus.lastTailerRouting.appended ? t(strings.settings.voiceOutputSection.appended) : t(strings.settings.voiceOutputSection.skipped)}: ${hookStatus.lastTailerRouting.reason}`
+        : null);
+      setLastHookAckSummary(hookStatus.lastHookAck
+        ? `${hookStatus.lastHookAck.stage}${hookStatus.lastHookAck.backend ? ` via ${hookStatus.lastHookAck.backend}` : ""}${hookStatus.lastHookAck.message ? `: ${hookStatus.lastHookAck.message}` : ""}`
+        : null);
+      setLastTailerAckSummary(hookStatus.lastTailerAck
+        ? `${hookStatus.lastTailerAck.stage}${hookStatus.lastTailerAck.backend ? ` via ${hookStatus.lastTailerAck.backend}` : ""}${hookStatus.lastTailerAck.message ? `: ${hookStatus.lastTailerAck.message}` : ""}`
+        : null);
+      setLastPlaybackSummary(hookStatus.lastPlaybackEvent
+        ? `${hookStatus.lastPlaybackEvent.stage}${hookStatus.lastPlaybackEvent.backend ? ` via ${hookStatus.lastPlaybackEvent.backend}` : ""}${hookStatus.lastPlaybackEvent.message ? `: ${hookStatus.lastPlaybackEvent.message}` : ""}`
+        : null);
     } catch (statusErrorValue) {
       setStatusError(toErrorInfo(statusErrorValue).message);
     } finally {
       setStatusLoading(false);
     }
-  }, [setAutoTtsEnabled, setKokoroSpeed, setKokoroVoice, setTtsBackendPreference]);
+  }, [setAutoTtsEnabled, setKokoroSpeed, setKokoroVoice, setStartMutedOnLoad, setTtsBackendPreference, t]);
 
   useEffect(() => {
     void loadTtsStatus();
   }, [loadTtsStatus]);
 
-  const persistTtsConfig = useCallback(async (patch: Parameters<typeof updateTTSConfig>[0]) => {
+  const persistHookConfig = useCallback(async (patch: { autoEnabled?: boolean; backend?: "auto" | "kokoro" | "browser"; startMuted?: boolean }) => {
     setSaveError(null);
     try {
-      const updated = await updateTTSConfig(patch);
+      const updated = await updateTTSHookConfig(patch);
       setAutoTtsEnabled(updated.autoEnabled);
       setTtsBackendPreference(updated.backend);
-      setKokoroVoice(updated.kokoroVoice);
-      setKokoroSpeed(updated.kokoroSpeed);
+      setStartMutedOnLoad(updated.startMuted);
       await refresh();
       await loadTtsStatus();
     } catch (persistError) {
       setSaveError(toErrorInfo(persistError).message);
     }
-  }, [loadTtsStatus, refresh, setAutoTtsEnabled, setKokoroSpeed, setKokoroVoice, setTtsBackendPreference]);
+  }, [loadTtsStatus, refresh, setAutoTtsEnabled, setStartMutedOnLoad, setTtsBackendPreference]);
+
+  const persistVoiceConfig = useCallback(async (patch: { defaultVoice?: string; defaultSpeed?: number }) => {
+    setSaveError(null);
+    try {
+      const updated = await updateTTSConfig(patch);
+      if (updated.defaultVoice) setKokoroVoice(updated.defaultVoice);
+      if (updated.defaultSpeed > 0) setKokoroSpeed(updated.defaultSpeed);
+      await refresh();
+    } catch (persistError) {
+      setSaveError(toErrorInfo(persistError).message);
+    }
+  }, [refresh, setKokoroSpeed, setKokoroVoice]);
 
   const runTtsTest = useCallback(async () => {
     setTestState("running");
@@ -143,38 +181,35 @@ export default function TtsSettingsSection() {
       await loadTtsStatus();
       await testSpeak();
       setTestState("success");
-      setTestMessage("Test playback succeeded.");
+      setTestMessage(t(strings.settings.voiceOutputSection.testSucceeded));
     } catch (testError) {
       setTestState("error");
       setTestMessage(toErrorInfo(testError).message);
     } finally {
       await loadTtsStatus();
     }
-  }, [loadTtsStatus, refresh, testSpeak]);
+  }, [loadTtsStatus, refresh, testSpeak, t]);
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
-        eyebrow="Speech Synthesis"
-        title="Voice output"
-        description="Choose the playback backend, verify hook status, and tune the current speaking experience."
+    <SettingsList>
+      <SettingsList.Intro
+        eyebrow={t(strings.settings.voiceOutputSection.eyebrow)}
+        title={t(strings.settings.voiceOutputSection.title)}
+        description={t(strings.settings.voiceOutputSection.description)}
       />
 
-      <SettingsCard className="space-y-4">
+      <SettingsList.Group>
         {statusError && (
-          <div className="text-xs text-wc-error-detail">Failed to load TTS status: {statusError}</div>
+          <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.statusLoadFailed, { message: statusError })}</div>
         )}
 
-        <SettingsRow
-          label="Active backend"
-          hint={`Preference: ${preferenceLabel}. ${backendReason}`}
-          control={<span data-testid="tts-backend-indicator" className={`text-xs font-medium ${backendColor}`}>{backendLabel}</span>}
-        />
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.activeBackend)}
+          hint={t(strings.settings.voiceOutputSection.activeBackendHint, { label: preferenceLabel, reason: backendReason })} control="compact">{<span data-testid="tts-backend-indicator" className={`text-xs font-medium ${backendColor}`}>{backendLabel}</span>}</SettingsList.Row>
 
-        <SettingsRow
-          label="Backend preference"
-          hint="Auto picks the best available option for this environment."
-          control={(
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.backendPreference)}
+          hint={t(strings.settings.voiceOutputSection.backendPreferenceHint)} control="wide">{(
             <select
               data-testid="tts-backend-select"
               className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -182,37 +217,46 @@ export default function TtsSettingsSection() {
               onChange={(event) => {
                 const next = event.target.value as "auto" | "kokoro" | "browser";
                 setTtsBackendPreference(next);
-                void persistTtsConfig({ backend: next });
+                void persistHookConfig({ backend: next });
               }}
             >
-              <option value="auto">Auto (best available)</option>
-              <option value="kokoro">Kokoro only</option>
-              <option value="browser">Browser only</option>
+              <option value="auto">{t(strings.settings.voiceOutputSection.backendPreferenceAutoOption)}</option>
+              <option value="kokoro">{t(strings.settings.voiceOutputSection.preferenceKokoro)}</option>
+              <option value="browser">{t(strings.settings.voiceOutputSection.preferenceBrowser)}</option>
             </select>
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
-          label="Auto-speak AI responses"
-          hint="Read assistant responses aloud automatically."
-          control={(
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.autoSpeak)}
+          hint={t(strings.settings.voiceOutputSection.autoSpeakHint)} control="compact">{(
             <SettingsToggle
               testId="auto-tts-toggle"
               checked={autoTtsEnabled}
-              onClick={() => {
-                const next = !autoTtsEnabled;
+              onCheckedChange={(next) => {
                 setAutoTtsEnabled(next);
-                void persistTtsConfig({ autoEnabled: next });
+                void persistHookConfig({ autoEnabled: next });
               }}
             />
-          )}
-        />
+          )}</SettingsList.Row>
+
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.startMuted)}
+          hint={t(strings.settings.voiceOutputSection.startMutedHint)} control="compact">{(
+            <SettingsToggle
+              testId="start-muted-toggle"
+              checked={startMutedOnLoad}
+              onCheckedChange={(next) => {
+                setStartMutedOnLoad(next);
+                void persistHookConfig({ startMuted: next });
+              }}
+            />
+          )}</SettingsList.Row>
 
         <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
-            <div className="text-sm font-medium text-wc-text-secondary">Runtime checks</div>
+            <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.voiceOutputSection.runtimeChecks)}</div>
             <div className="text-[11px] text-wc-text-muted">
-              {statusLoading ? "Refreshing TTS diagnostics…" : "Refresh backend and hook status."}
+              {statusLoading ? t(strings.settings.voiceOutputSection.runtimeChecksRefreshing) : t(strings.settings.voiceOutputSection.runtimeChecksHint)}
             </div>
           </div>
           <Button
@@ -225,16 +269,16 @@ export default function TtsSettingsSection() {
               await loadTtsStatus();
             }}
           >
-            <RefreshCw className="mr-1 h-3.5 w-3.5" />
-            Refresh
+            <RefreshCw className="me-1 h-3.5 w-3.5" />
+            {t(strings.settings.voiceOutputSection.refresh)}
           </Button>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
-            <div className="text-sm font-medium text-wc-text-secondary">Test TTS</div>
+            <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.voiceOutputSection.testTts)}</div>
             <div className="text-[11px] text-wc-text-muted">
-              Play a short sample using the current backend decision.
+              {t(strings.settings.voiceOutputSection.testTtsHint)}
             </div>
           </div>
           <Button
@@ -245,7 +289,7 @@ export default function TtsSettingsSection() {
             disabled={testState === "running" || isSpeaking}
             onClick={() => void runTtsTest()}
           >
-            {testState === "running" || isSpeaking ? "Testing…" : "Test"}
+            {testState === "running" || isSpeaking ? t(strings.settings.voiceOutputSection.testing) : t(strings.settings.voiceOutputSection.test)}
           </Button>
         </div>
 
@@ -256,43 +300,51 @@ export default function TtsSettingsSection() {
         )}
 
         {saveError && (
-          <div className="text-xs text-wc-error-detail">Failed to save TTS settings: {saveError}</div>
+          <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.saveFailed, { message: saveError })}</div>
         )}
 
         {error && (
-          <div className="text-xs text-wc-error-detail">Playback error: {error}</div>
+          <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.playbackError, { message: error })}</div>
         )}
-      </SettingsCard>
+      </SettingsList.Group>
 
-      <SettingsCard className="space-y-2 text-[11px] text-wc-text-faint">
+      <SettingsList.Group className="text-[11px] text-wc-text-faint">
         <div>
-          Claude hook:{" "}
+          {t(strings.settings.voiceOutputSection.claudeHookPrefix)}
           <span className={hookRegistered ? "text-green-400" : "text-wc-error-detail"}>
-            {hookRegistered ? "Registered" : "Not registered"}
+            {hookRegistered ? t(strings.settings.voiceOutputSection.registered) : t(strings.settings.voiceOutputSection.notRegistered)}
           </span>{" "}
           · {hookReason}
         </div>
-        {hookCode && <div>Hook status code: {hookCode}</div>}
-        <div>Kokoro: {kokoroCapabilityLabel ?? "Status unavailable"}</div>
-        <div>Browser audio: {browserAudioReady ? "Ready" : "Blocked until you interact with the page"}</div>
-        <div>Last Claude hook routing: {lastHookRoutingSummary ?? "No Claude hook routing has been recorded yet"}</div>
-        <div>Last Claude terminal ack: {lastHookAckSummary ?? "No Claude terminal acknowledgment has been recorded yet"}</div>
-        <div>Last Codex tailer routing: {lastTailerRoutingSummary ?? "No Codex tailer routing has been recorded yet"}</div>
-        <div>Last Codex terminal ack: {lastTailerAckSummary ?? "No Codex terminal acknowledgment has been recorded yet"}</div>
+        {hookCode && <div>{t(strings.settings.voiceOutputSection.hookStatusCode, { code: hookCode })}</div>}
+        <div>{t(strings.settings.voiceOutputSection.kokoroStatusPrefix, { label: kokoroCapabilityLabel ?? t(strings.settings.voiceOutputSection.kokoroStatusUnavailable) })}</div>
+        <div>{t(strings.settings.voiceOutputSection.browserAudioPrefix)}{browserAudioReady ? t(strings.settings.voiceOutputSection.browserAudioReady) : t(strings.settings.voiceOutputSection.browserAudioBlocked)}</div>
+        <div>{t(strings.settings.voiceOutputSection.lastHookRouting, { summary: lastHookRoutingSummary ?? t(strings.settings.voiceOutputSection.lastHookRoutingNone) })}</div>
+        <div>{t(strings.settings.voiceOutputSection.lastHookAck, { summary: lastHookAckSummary ?? t(strings.settings.voiceOutputSection.lastHookAckNone) })}</div>
+        <div>{t(strings.settings.voiceOutputSection.lastTailerRouting, { summary: lastTailerRoutingSummary ?? t(strings.settings.voiceOutputSection.lastTailerRoutingNone) })}</div>
+        <div>{t(strings.settings.voiceOutputSection.lastTailerAck, { summary: lastTailerAckSummary ?? t(strings.settings.voiceOutputSection.lastTailerAckNone) })}</div>
         <div>
-          Last playback event: {lastPlaybackSummary ?? (lastSuccessfulAt
-            ? `${new Date(lastSuccessfulAt).toLocaleString()} via ${lastSuccessfulBackend === "kokoro" ? "Kokoro" : lastSuccessfulBackend === "browser" ? "Browser" : "Unknown"}`
-            : "None recorded yet")}
+          {t(strings.settings.voiceOutputSection.lastPlayback, {
+            summary: lastPlaybackSummary ?? (lastSuccessfulAt
+              ? t(strings.settings.voiceOutputSection.playbackTimestamp, {
+                time: new Date(lastSuccessfulAt).toLocaleString(),
+                backend: lastSuccessfulBackend === "kokoro"
+                  ? t(strings.settings.voiceOutputSection.backendKokoro)
+                  : lastSuccessfulBackend === "browser"
+                    ? t(strings.settings.voiceOutputSection.backendBrowser)
+                    : t(strings.settings.voiceOutputSection.backendUnknown),
+              })
+              : t(strings.settings.voiceOutputSection.lastPlaybackNone)),
+          })}
         </div>
-        {hookSettingsPath && <div className="break-all">Hook settings file: {hookSettingsPath}</div>}
-      </SettingsCard>
+        {hookSettingsPath && <div className="break-all">{t(strings.settings.voiceOutputSection.hookSettingsPath, { path: hookSettingsPath })}</div>}
+      </SettingsList.Group>
 
       {(backend === "kokoro" || ttsBackendPreference === "kokoro") && (
-        <SettingsCard className="space-y-4">
-          <SettingsRow
-            label="Kokoro voice"
-            hint="Pick the Kokoro voice to use when Kokoro is active."
-            control={(
+        <SettingsList.Group>
+          <SettingsList.Row
+            label={t(strings.settings.voiceOutputSection.kokoroVoice)}
+            hint={t(strings.settings.voiceOutputSection.kokoroVoiceHint)} control="wide">{(
               <select
                 data-testid="kokoro-voice-select"
                 className="max-w-[180px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -300,206 +352,216 @@ export default function TtsSettingsSection() {
                 onChange={(event) => {
                   const next = event.target.value;
                   setKokoroVoice(next);
-                  void persistTtsConfig({ kokoroVoice: next });
+                  void persistVoiceConfig({ defaultVoice: next });
                 }}
               >
-                {ttsVoices.map((voice) => (
+                {ttsVoices.map((voice: TTSVoiceInfo) => (
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
                 ))}
               </select>
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
-            label="Speed"
-            hint="Adjust Kokoro playback speed."
-            control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="kokoro-speed-slider"
-                  type="range"
-                  min="0.5"
-                  max="4"
-                  step="0.1"
-                  value={kokoroSpeed}
-                  onChange={(event) => {
-                    const next = parseFloat(event.target.value);
-                    setKokoroSpeed(next);
-                    void persistTtsConfig({ kokoroSpeed: next });
-                  }}
-                  className="w-24 accent-[rgb(var(--wc-accent))]"
-                />
-                <span className="w-7 text-right text-xs text-wc-text-muted">{kokoroSpeed.toFixed(1)}</span>
-              </div>
-            )}
-          />
-        </SettingsCard>
+          <SettingsList.Row
+            label={t(strings.settings.voiceOutputSection.kokoroSpeed)}
+            hint={t(strings.settings.voiceOutputSection.kokoroSpeedHint)} control="wide">{(
+              <SettingsSlider
+                testId="kokoro-speed-slider"
+                value={kokoroSpeed}
+                onCommit={(next) => {
+                  setKokoroSpeed(next);
+                  void persistVoiceConfig({ defaultSpeed: next });
+                }}
+                min={0.5}
+                max={4}
+                step={0.1}
+                defaultMarker={1}
+                formatValue={(value) => value.toFixed(1)}
+              />
+            )}</SettingsList.Row>
+        </SettingsList.Group>
       )}
 
-      {/* Summarization settings */}
-      <SettingsSectionIntro
-        eyebrow="Summarization"
-        title="Long response summarization"
-        description="Summarize long AI responses via Ollama before TTS playback. Full text is always preserved in the Messages view."
+      {/* Summarization — sourced from / persisted to audio-tools via audio-integration. */}
+      <SettingsList.Intro
+        eyebrow={t(strings.settings.voiceOutputSection.summarizationEyebrow)}
+        title={t(strings.settings.voiceOutputSection.summarizationTitle)}
+        description={t(strings.settings.voiceOutputSection.summarizationDescription)}
       />
 
-      <SettingsCard className="space-y-4">
-        {summarizeError && (
-          <div className="text-xs text-wc-error-detail">Failed to load summarize config: {summarizeError}</div>
+      <SettingsList.Group>
+        {summarizeSettings.error && (
+          <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.summarizationLoadFailed, { message: summarizeSettings.error })}</div>
         )}
 
-        <SettingsRow
-          label="Summarize long responses"
-          hint="When enabled, responses longer than the word threshold are summarized before being read aloud."
-          control={(
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.summarizeToggle)}
+          hint={t(strings.settings.voiceOutputSection.summarizeToggleHint)} control="compact">{(
             <SettingsToggle
               testId="summarize-toggle"
-              checked={summarizeConfig?.enabled ?? false}
-              onClick={() => {
-                const next = !(summarizeConfig?.enabled ?? false);
-                setSummarizeConfig((prev) => prev ? { ...prev, enabled: next } : null);
-                void updateTTSSummarizeConfig({ enabled: next })
-                  .then((updated) => setSummarizeConfig(updated))
-                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+              checked={summarizeSettings.config?.enabled ?? false}
+              onCheckedChange={(next) => {
+                void summarizeSettings.save({ enabled: next });
               }}
             />
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
-          label="Word threshold"
-          hint="Responses with fewer characters than this are read in full (not summarized)."
-          control={(
-            <div className="flex items-center gap-2">
-              <input
-                data-testid="summarize-threshold"
-                type="number"
-                min={100}
-                max={10000}
-                step={100}
-                value={summarizeConfig?.charThreshold ?? 500}
-                onChange={(e) => {
-                  const val = Math.max(100, parseInt(e.target.value, 10) || 500);
-                  setSummarizeConfig((prev) => prev ? { ...prev, charThreshold: val } : null);
-                }}
-                onBlur={() => {
-                  void updateTTSSummarizeConfig({ charThreshold: summarizeConfig?.charThreshold ?? 500 })
-                    .then((updated) => setSummarizeConfig(updated))
-                    .catch((err) => setSummarizeError(toErrorInfo(err).message));
-                }}
-                className="w-24 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-              />
-              <span className="text-xs text-wc-text-faint">chars</span>
-            </div>
-          )}
-        />
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.wordThreshold)}
+          hint={t(strings.settings.voiceOutputSection.wordThresholdHint)} control="compact">{(
+            /* Previously a `type="number"` whose onChange ran
+               `Math.max(100, parseInt(...) || 500)`: the floor was enforced,
+               the declared 10000 ceiling never was, and any draft parsing to 0
+               silently jumped to 500. NumberField enforces both bounds on
+               every path and commits on blur rather than per keystroke. */
+            <NumberField
+              testId="summarize-threshold"
+              label={t(strings.settings.voiceOutputSection.wordThreshold)}
+              value={summarizeSettings.config?.charThreshold ?? 500}
+              onChange={(next) => {
+                summarizeSettings.setConfig((prev) => prev ? { ...prev, charThreshold: next } : null);
+                void summarizeSettings.save({ charThreshold: next });
+              }}
+              min={100}
+              max={10 * 1000}
+              step={100}
+              unit={t(strings.settings.voiceOutputSection.chars)}
+              size="sm"
+            />
+          )}</SettingsList.Row>
 
-        <SettingsRow
-          label="Summarization level"
-          hint="Light preserves more detail; heavy gives a brief spoken overview."
-          control={(
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.summarizationLevel)}
+          hint={t(strings.settings.voiceOutputSection.summarizationLevelHint)} control="wide">{(
             <select
               data-testid="summarize-level-select"
               className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-              value={summarizeConfig?.level ?? "moderate"}
+              value={summarizeSettings.config?.level ?? "moderate"}
               onChange={(e) => {
                 const next = e.target.value as "light" | "moderate" | "heavy";
-                setSummarizeConfig((prev) => prev ? { ...prev, level: next } : null);
-                void updateTTSSummarizeConfig({ level: next })
-                  .then((updated) => setSummarizeConfig(updated))
-                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
+                void summarizeSettings.save({ level: next });
               }}
             >
-              <option value="light">Light (~60% of original)</option>
-              <option value="moderate">Moderate (~40% of original)</option>
-              <option value="heavy">Heavy (2-3 sentences)</option>
+              <option value="light">{t(strings.settings.voiceOutputSection.levelLightOption)}</option>
+              <option value="moderate">{t(strings.settings.voiceOutputSection.levelModerateOption)}</option>
+              <option value="heavy">{t(strings.settings.voiceOutputSection.levelHeavyOption)}</option>
             </select>
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
-          label="Model"
-          hint="Ollama model used for summarization."
-          control={(
-            <input
-              data-testid="summarize-model"
-              type="text"
-              value={summarizeConfig?.model ?? "qwen3:1.7b"}
-              onChange={(e) => {
-                setSummarizeConfig((prev) => prev ? { ...prev, model: e.target.value } : null);
+        <SettingsList.Row
+          label={t(strings.settings.voiceOutputSection.model)}
+          hint={t(strings.settings.voiceOutputSection.modelHint)} control="wide">{(
+            <select
+              data-testid="summarize-model-select"
+              className="max-w-[220px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+              disabled={summarizeSettings.loading || summarizeSettings.saving || summarizeSettings.models.length === 0}
+              value={summarizeSettings.config?.model ?? ""}
+              onChange={(e) => void summarizeSettings.save({ model: e.target.value })}
+            >
+              {summarizeSettings.models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.displayName}{model.installed ? "" : " (not installed)"}{model.reasoning ? " (reasoning)" : ""}
+                </option>
+              ))}
+              {summarizeSettings.config?.model && !summarizeSettings.models.some((model) => model.id === summarizeSettings.config?.model) && (
+                <option value={summarizeSettings.config.model}>{summarizeSettings.config.model}</option>
+              )}
+            </select>
+          )}</SettingsList.Row>
+
+        {summarizeSettings.selectedModel && (
+          <div className="rounded-md border border-wc-default bg-wc-surface-base px-3 py-2 text-[11px] text-wc-text-muted">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium text-wc-text-secondary">{summarizeSettings.selectedModel.statusLabel}</span>
+              {summarizeSettings.selectedModel.parameterSize && (
+                <span className="text-wc-text-faint">{summarizeSettings.selectedModel.parameterSize}</span>
+              )}
+            </div>
+            {summarizeSettings.selectedModel.reasoning && (
+              <div data-testid="summarize-model-reasoning-warning" className="mt-1 flex gap-1.5 text-wc-error-detail">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>Reasoning models are slower and are not recommended for TTS summaries.</span>
+              </div>
+            )}
+            {!summarizeSettings.selectedModel.installed && summarizeSettings.selectedModel.pullCommand && (
+              <div className="mt-1 break-all font-mono text-[10px] text-wc-text-secondary" data-testid="summarize-model-pull-command">
+                {summarizeSettings.selectedModel.pullCommand}
+              </div>
+            )}
+            {summarizeSettings.selectedModel.notes && (
+              <div className="mt-1">{summarizeSettings.selectedModel.notes}</div>
+            )}
+          </div>
+        )}
+
+        <SettingsList.Row
+          label="Timeout"
+          hint="Maximum time to wait for local summarization." control="compact">{(
+            <NumberField
+              testId="summarize-timeout"
+              label="Timeout"
+              value={summarizeSettings.config?.timeoutSeconds ?? 120}
+              onChange={(next) => {
+                summarizeSettings.setConfig((prev) => prev ? { ...prev, timeoutSeconds: next } : null);
+                void summarizeSettings.save({ timeoutSeconds: next });
               }}
-              onBlur={() => {
-                void updateTTSSummarizeConfig({ model: summarizeConfig?.model ?? "qwen3:1.7b" })
-                  .then((updated) => setSummarizeConfig(updated))
-                  .catch((err) => setSummarizeError(toErrorInfo(err).message));
-              }}
-              className="w-36 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
+              min={15}
+              max={300}
+              step={5}
+              unit="sec"
+              size="sm"
             />
-          )}
-        />
-      </SettingsCard>
+          )}</SettingsList.Row>
+      </SettingsList.Group>
 
       {backend === "browser" && (
-        <SettingsCard className="space-y-4">
-          <SettingsRow
-            label="Voice"
-            hint="Choose the browser speech synthesis voice."
-            control={(
+        <SettingsList.Group>
+          <SettingsList.Row
+            label={t(strings.settings.voiceOutputSection.browserVoice)}
+            hint={t(strings.settings.voiceOutputSection.browserVoiceHint)} control="wide">{(
               <select
                 data-testid="tts-voice-select"
                 className="max-w-[180px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
                 value={ttsVoice}
                 onChange={(event) => setTtsVoice(event.target.value)}
               >
-                <option value="">System default</option>
-                {ttsVoices.map((voice) => (
+                <option value="">{t(strings.settings.voiceOutputSection.systemDefault)}</option>
+                {ttsVoices.map((voice: TTSVoiceInfo) => (
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
                 ))}
               </select>
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
-            label="Rate"
-            hint="Adjust browser speech speed."
-            control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="tts-rate-slider"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsRate}
-                  onChange={(event) => setTtsRate(parseFloat(event.target.value))}
-                  className="w-24 accent-[rgb(var(--wc-accent))]"
-                />
-                <span className="w-7 text-right text-xs text-wc-text-muted">{ttsRate.toFixed(1)}</span>
-              </div>
-            )}
-          />
+          <SettingsList.Row
+            label={t(strings.settings.voiceOutputSection.browserRate)}
+            hint={t(strings.settings.voiceOutputSection.browserRateHint)} control="wide">{(
+              <SettingsSlider
+                testId="tts-rate-slider"
+                value={ttsRate}
+                onCommit={setTtsRate}
+                min={0.5}
+                max={2}
+                step={0.1}
+                defaultMarker={1}
+                formatValue={(value) => value.toFixed(1)}
+              />
+            )}</SettingsList.Row>
 
-          <SettingsRow
-            label="Pitch"
-            hint="Adjust browser speech pitch."
-            control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="tts-pitch-slider"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsPitch}
-                  onChange={(event) => setTtsPitch(parseFloat(event.target.value))}
-                  className="w-24 accent-[rgb(var(--wc-accent))]"
-                />
-                <span className="w-7 text-right text-xs text-wc-text-muted">{ttsPitch.toFixed(1)}</span>
-              </div>
-            )}
-          />
-        </SettingsCard>
+          <SettingsList.Row
+            label={t(strings.settings.voiceOutputSection.browserPitch)}
+            hint={t(strings.settings.voiceOutputSection.browserPitchHint)} control="wide">{(
+              <SettingsSlider
+                testId="tts-pitch-slider"
+                value={ttsPitch}
+                onCommit={setTtsPitch}
+                min={0.5}
+                max={2}
+                step={0.1}
+                defaultMarker={1}
+                formatValue={(value) => value.toFixed(1)}
+              />
+            )}</SettingsList.Row>
+        </SettingsList.Group>
       )}
-    </div>
+    </SettingsList>
   );
 }

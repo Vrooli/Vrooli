@@ -95,7 +95,7 @@ func (s *DefaultService) Probe(ctx context.Context, domain string) (ProbeResult,
 	dialer := &net.Dialer{Timeout: s.config.Timeout}
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
 		ServerName:         domain,
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, // #nosec G402 -- this is an explicit certificate-reachability probe, not credential or application traffic; the result is reported as diagnostic evidence.
 	})
 	if err != nil {
 		return ProbeResult{}, err

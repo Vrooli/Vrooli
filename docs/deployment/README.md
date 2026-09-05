@@ -1,89 +1,132 @@
 # Deployment Hub
 
-Vrooli deployment is no longer a single script that pushes containers. Every scenario has to be evaluated for *where* it will live, *which* resources must travel with it, and *how* secrets are provisioned. This hub replaces the legacy "package-and-ship" docs with a tiered model that matches reality today and the system we are building next.
+This is the project-level source of truth for how Vrooli reaches a target
+machine. It explains the deployment model, ownership boundaries, and current
+support status. It does not duplicate scenario-specific build instructions.
 
-## Why a Tiered Model?
+## Start here
 
-We validated during `scenario-to-desktop` that "build an Electron app" is useless unless the UI, API, resources, and CLI dependencies all come along for the ride. That failure exposed three immovable facts:
+| Question | Read |
+| --- | --- |
+| What deployment path is supported today? | [Current support](#current-support) |
+| What happens when a scenario is packaged? | [Deployment flow](#deployment-flow) |
+| How do I produce a desktop application? | [Scenario-to-desktop documentation](../../scenarios/scenario-to-desktop/docs/OVERVIEW.md) |
+| How does deployment-manager decide whether a build may ship? | [deployment-manager documentation](../../scenarios/deployment-manager/docs/README.md) |
+| What may a resource require on a target host? | [Resource deployment contract](../resources/deployment-contract.md) |
+| How are credentials handled? | [Credential configuration](../configuration/secrets.md) |
+| What evidence is required for desktop claims? | [Desktop evidence and communication contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md) |
 
-1. **The current local stack *is* a deployment tier.** Cloudflare tunnels + app-monitor already let us access every running scenario from anywhere.
-2. **Portability demands intelligence.** We have to understand dependency graphs, fitness for each platform, and offer swap suggestions before packaging.
-3. **Secrets behave differently per tier.** Infrastructure credentials cannot leave the mothership, whereas per-install service secrets must be generated anew.
+## Two tier vocabularies
 
-The hub orchestrates these ideas so future automation (deployment-manager) has a clear target.
+Vrooli currently uses “tier” in two different contexts. Documentation must
+qualify the context instead of using a bare number.
 
-## Deployment Tiers
+| Vocabulary | Tier 1 | Tier 2 | Owner |
+| --- | --- | --- | --- |
+| Deployment target | Local Vrooli stack | Portable desktop application | Deployment Hub and deployment-manager |
+| Commercial delivery | Bundle apps | Self-hosted full Vrooli runtime | Monetization plan of record |
 
-| Tier | Description | Current Viability | Doc |
-|------|-------------|-------------------|-----|
-| 1 | Full Vrooli stack running locally or on a dev server, proxied through app-monitor + Cloudflare tunnel | ✅ Production ready for us today | [Local / Developer Stack](tiers/tier-1-local-dev.md) |
-| 2 | Portable desktop bundles (Windows/macOS/Linux) where UI + API + dependencies ship together | ⚠️ Thin client only today | [Desktop](tiers/tier-2-desktop.md) |
-| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Mobile](tiers/tier-3-mobile.md) |
-| 4 | SaaS / Cloud installs (DigitalOcean, AWS, bare metal) | ⚠️ Requires dependency fitness + secret prep | [SaaS / Cloud](tiers/tier-4-saas.md) |
-| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Enterprise / Appliance](tiers/tier-5-enterprise.md) |
+These are different axes. A commercial Tier 1 app can be produced by the
+deployment Tier 2 desktop ramp. Use `deployment Tier 1`, `deployment Tier 2`,
+`commercial Tier 1`, or the descriptive name when the distinction matters.
+The commercial definitions live in [monetization tiers](../monetization/strategy/TIERS.md);
+the technical definitions below are the deployment definitions.
 
-Each tier page captures **current state → gaps → roadmap** so we can coordinate scenario updates.
+## Current support
 
-## Scenario Orchestration Loop
+The current production baseline is the **deployment Tier 1 local stack**:
 
-Deployment is a scenario in its own right:
+- a full Vrooli installation runs on infrastructure the operator controls;
+- scenarios and resources use lifecycle-managed processes;
+- production UI bundles are served during normal operation;
+- app-monitor and other explicitly configured access paths provide remote use;
+- credentials are resolved through the platform credential authority.
 
-1. `deployment-manager` (future) drives the workflow.
-2. It queries `scenario-dependency-analyzer` to pull the full dependency DAG (resources *and* other scenarios) plus their metadata.
-3. It scores fitness for the requested tier, highlighting blockers and suggesting swaps.
-4. It coordinates with `secrets-manager` to classify/create secrets per tier.
-5. It triggers the appropriate `scenario-to-*` packager (desktop/mobile/cloud) to generate installers or remote bundles.
-6. When manual work is required (e.g., swapping Postgres → SQLite), it files `app-issue-tracker` tasks.
+The **deployment Tier 2 desktop ramp** is implemented, but it is not a blanket
+claim that every scenario or platform is production-ready.
 
-That loop is spelled out in the [Scenario Docs](./scenarios) section.
+| Capability | Current status |
+| --- | --- |
+| Electron wrapper generation | Implemented |
+| External-server thin client | Supported as a deployment mode; the target server must be reachable and validated |
+| Bundled private runtime | Implemented for eligible dependency plans; release promotion requires target-specific evidence |
+| Shared Tier 1 resource | Consent and broker lease contract exists; release evidence is fixture/environment dependent |
+| Tier 2 peer route | Implemented for bounded, scoped scenario calls through the authenticated `vrooli-bridge` relay; full peer capability remains evidence-gated |
+| Linux native desktop journey | The primary validated path when the required display and capture tools are available |
+| Windows and macOS | Build/package claims are separate from native runtime claims and require target evidence |
+| Mobile, hosted cloud, and appliance targets | Directional or reference material, not the current universal deployment path |
 
-## Guides
+The words `compile`, `package`, `conditional`, `degraded`, `supported`, and
+`promotable` are not interchangeable. A build can compile without being
+eligible for a target, and an artifact can be useful for validation without
+being promotable.
 
-- [Dependency Swapping](guides/dependency-swapping.md) — use deployment metadata to swap in fitter alternatives.
-- [Fitness Scoring](guides/fitness-scoring.md) — scoring rubric and metadata schema extension for `service.json`.
-- [Secrets Management](guides/secrets-management.md) — infrastructure vs service vs user secrets lineage.
-- [Deployment Checklist](guides/deployment-checklist.md) — per-tier readiness check.
-- [Packaging Matrix](guides/packaging-matrix.md) — what `scenario-to-*` can actually produce today.
-- [Auto-Update Channels](guides/auto-updates.md) — installer formats (MSI/PKG/AppImage), update channel design (dev/beta/stable), and provider configuration (GitHub/self-hosted).
-- **Bundle manifest v0.1** — `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` defines the validated `bundle.json` contract for desktop bundles; sample manifests live in `scenarios/deployment-manager/docs/examples/manifests/` for a plain SQLite build and a Playwright-enabled build.
+## Deployment planes
 
-## Providers & Infrastructure Notes
+Each plane has one responsibility:
 
-Legacy platform-specific instructions were preserved for reference:
+| Plane | Owner | Responsibility |
+| --- | --- | --- |
+| Governance | `deployment-manager` | Profiles, dependency fitness, approvals, release records, and promotion gates |
+| Ramp | `scenario-to-desktop` and other `scenario-to-*` scenarios | Target-specific generation, packaging, signing, publication, and native execution |
+| Dependency intelligence | `scenario-dependency-analyzer` | Dependency graph, resource requirements, target fitness inputs, and swap candidates |
+| Credential authority | `secrets-manager` plus the platform credential packages | Credential declarations, classification, secure storage, recovery, and diagnosis |
+| Evidence | `test-genie`, browser-automation-studio, workflow-health, and the ramp | Machine assertions and reviewer-visible evidence |
+| Reach | `vrooli-bridge` | Execution and artifact transfer on trusted remote machines; it does not define desktop-session evidence |
 
-- [DigitalOcean](providers/digitalocean.md) — VPS/Kubernetes setup details (costing, `doctl`, etc.).
-- [Cloudflare Tunnel](providers/cloudflare-tunnel.md) — Secure Tier 1 remote access via app-monitor.
-- [Hardware Appliance](providers/hardware-appliance.md) — Planning notes for Tier 5 devices.
+The direction of control is from ramp to governance: a ramp asks
+deployment-manager for a decision. deployment-manager does not secretly run a
+packager or grant a release based only on a build result.
 
-These provider notes feed into the SaaS/Enterprise tiers once the deployment-manager can emit infrastructure manifests.
+## Deployment flow
 
-## Examples
+For a target-specific release, the normal flow is:
 
-We document the true experience per tier using real scenarios:
+1. The author declares scenario dependencies and target intent.
+2. Dependency intelligence resolves the scenario/resource graph.
+3. deployment-manager scores target fitness and records required swaps,
+   limitations, host requirements, and secret strategies.
+4. The ramp produces a target manifest and stages only the selected artifacts.
+5. The ramp runs preflight and native smoke journeys on the target.
+6. Evidence is attached to the exact source revision and artifact set.
+7. deployment-manager evaluates the release gate and records the decision.
+8. The ramp publishes only when the gate permits publication.
 
-- [Picker Wheel Desktop](examples/picker-wheel-desktop.md) — thin client reality + bundling gaps.
-- [Picker Wheel Cloud](examples/picker-wheel-cloud.md) — what running the scenario on a VPS entails today.
-- [System Monitor Desktop](examples/system-monitor-desktop.md) — another case study for dependency swapping.
+For desktop, the manifest is the boundary between planning and execution. It
+must state what is bundled, what remains remote, what is conditional, and what
+is unsupported. The desktop runtime must not discover an undeclared dependency
+after installation and silently change the deployment shape.
 
-## Bundled Runtime Expectations (Desktop/Mobile/Cloud)
+## Choosing a desktop mode
 
-- Bundles must be manifest-driven: deployment-manager + scenario-dependency-analyzer emit a `bundle.json` encoding the full DAG, dependency swaps, per-OS binaries/assets, env templates, port ranges, health/readiness, data dirs, and secrets strategy (generate/prompt/remote).
-- A cross-platform runtime executable owns lifecycle, ports, health, logs, telemetry, and shutdown. UI shells (Electron, mobile bridges, cloud runners) only start the runtime and talk to it over a local control channel.
-- Heavy/shared resources must be swapped to bundleable equivalents (e.g., Postgres→SQLite/duckdb, Redis→in-process cache, browserless→bundled Playwright driver/Chromium, Ollama→packaged models) before inclusion.
-- Bundles carry migrations/seed data for swapped stores, keep data/logs under OS app data roots, and include a minimal `vrooli`-compatible shim for essentials like `scenario status/port`.
-- No infrastructure secrets ship in bundles; first-run UX collects or generates only what the manifest flags as local.
+| Mode | Use when | Runtime ownership | Offline claim |
+| --- | --- | --- | --- |
+| Bundled private | The app must work without a Vrooli server and every required dependency has an eligible local route | Desktop supervisor owns only verified private services | Allowed only when every required capability is local and evidenced |
+| External-server thin client | Users connect to a shared Tier 1 server | Tier 1 owns the API, resources, data, and credentials | Not available |
+| Shared resource | A desktop app may reuse a running Tier 1 or authenticated peer provider | Broker owns authorization and leases; desktop does not own provider lifecycle | Depends on the provider |
+| Tier 2 peer | Apps need to call one another through `[node/]scenario[@variant]` | `vrooli-bridge` relay is the intended route for bounded scenario calls; full peer capability awaits the ten-item evidence bar | Not claimable until both-side peer evidence is complete |
 
-## Historical Docs
+The [desktop evidence contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md)
+defines the required assertions and evidence for these modes, including the
+ten-item bar for a full Tier 2 peer claim.
 
-Everything that described the old "package-scenario-deployment.sh" era now lives in [history](history). The content is still useful when we eventually support Kubernetes/SaaS installs, but the guidance is clearly marked as legacy so it doesn't mislead agents.
+## Authoring rules
 
-## Roadmap Snapshot
+Scenario authors should provide:
 
-1. Document current truth (this hub + spokes). ✅
-2. Extend `service.json` with `deployment.platforms` metadata (fitness, requirements, alternatives). 🔄
-3. Upgrade `scenario-dependency-analyzer` to compute resource tallies and cascade fitness scores. 🔄
-4. Build the `deployment-manager` scenario UI (dependency visualization, swap tool, secret prep). 🔜
-5. Teach `scenario-to-desktop/mobile/cloud` to read deployment bundles produced by deployment-manager. 🔜
-6. Close the loop with app-issue-tracker automation for required swaps/migrations. 🔜
+- an honest deployment profile and dependency declarations;
+- `bas/` workflows for the user journeys that matter;
+- target-specific limitations and secret declarations;
+- migrations or documented data compatibility rules for any target swap.
 
-Until the automation exists, the docs act as the contract for how deployment *should* work, preventing another scenario-to-desktop surprise.
+Scenario authors should not add packaging, release gates, or cross-platform
+runtime supervision to the scenario itself. Those responsibilities belong to
+the ramp, deployment-manager, and the shared resource/credential contracts.
+
+## Related references
+
+- [Scenario deployment guidance](../scenarios/DEPLOYMENT.md)
+- [Resource deployment contract](../resources/deployment-contract.md)
+- [Managed release authority](../configuration/release-authority.md)
+- [Server deployment reference](reference/server-deployment.md)
+- [Storage guidance](storage.md)

@@ -84,3 +84,48 @@ func TestDocsHandlers(t *testing.T) {
 		}
 	})
 }
+
+func TestDocsFileAndIconPreviewHandlersEnforcePathBoundaries(t *testing.T) {
+	docsDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(docsDir, "guide.md"), []byte("# Desktop Guide\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(docsDir, "notes.txt"), []byte("plain notes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SCENARIO_TO_DESKTOP_DOCS_DIR", docsDir)
+	server := NewServer(0)
+	t.Cleanup(func() { shutdownServer(t, server) })
+
+	for _, check := range []struct{ path, contentType, body string }{
+		{"/docs/guide.md", "text/markdown; charset=utf-8", "# Desktop Guide\n"},
+		{"/docs/notes.txt", "text/plain; charset=utf-8", "plain notes"},
+	} {
+		req := httptest.NewRequest(http.MethodGet, check.path, nil)
+		response := httptest.NewRecorder()
+		server.docsFileHandler(response, req)
+		if response.Code != http.StatusOK || response.Header().Get("Content-Type") != check.contentType || response.Body.String() != check.body {
+			t.Fatalf("docs file %q = status %d type %q body %q", check.path, response.Code, response.Header().Get("Content-Type"), response.Body.String())
+		}
+	}
+	for _, path := range []string{"/docs/", "/docs/../secrets", "/docs/missing.md"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		server.docsFileHandler(response, req)
+		if response.Code != http.StatusNotFound && response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid docs path %q status = %d", path, response.Code)
+		}
+	}
+	preview := httptest.NewRecorder()
+	server.iconPreviewHandler(preview, httptest.NewRequest(http.MethodGet, "/api/v1/icons/preview?path=scenarios/scenario-to-desktop/ui/public/public/logo.png", nil))
+	if preview.Code != http.StatusOK || preview.Body.Len() == 0 {
+		t.Fatalf("icon preview status=%d size=%d", preview.Code, preview.Body.Len())
+	}
+	for _, query := range []string{"", "?path=README.md", "?path=../../outside.png"} {
+		response := httptest.NewRecorder()
+		server.iconPreviewHandler(response, httptest.NewRequest(http.MethodGet, "/api/v1/icons/preview"+query, nil))
+		if response.Code != http.StatusBadRequest && response.Code != http.StatusForbidden {
+			t.Fatalf("icon query %q status=%d", query, response.Code)
+		}
+	}
+}

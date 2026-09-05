@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -14,14 +13,11 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
-// ExportToFolder exports execution timeline and all related artifacts to a structured folder.
+// ExportToFolder exports execution timeline and all related artifacts to a
+// structured folder. It fetches the timeline, builds a pure ExportPlan via
+// BuildExportPlan, and materializes it via WriteExportPlan — keeping
+// content generation (pure) cleanly separated from I/O.
 func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
-	// Validate and prepare output directory
-	if err := validateAndPrepareOutputDir(outputDir); err != nil {
-		return fmt.Errorf("invalid output directory: %w", err)
-	}
-
-	// Fetch execution data
 	execution, err := s.repo.GetExecution(ctx, executionID)
 	if err != nil {
 		return fmt.Errorf("failed to get execution: %w", err)
@@ -37,116 +33,185 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("failed to get timeline: %w", err)
 	}
 
-	// Export timeline JSON
-	timelineJSON, err := json.MarshalIndent(timeline, "", "  ")
+	plan, err := BuildExportPlan(timeline, workflow.Name, execution.ErrorMessage)
 	if err != nil {
-		return fmt.Errorf("failed to marshal timeline: %w", err)
+		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(outputDir, "timeline.json"), timelineJSON, 0644); err != nil {
-		return fmt.Errorf("failed to write timeline.json: %w", err)
+	if err := WriteExportPlan(ctx, plan, outputDir, storageClient); err != nil {
+		return err
 	}
 
-	// Generate result.json - a simple summary for quick programmatic access
-	result := buildResultSummary(timeline)
-	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	// Performance traces are written by the driver into the execution's
+	// artifact root (not the timeline). Copy them into the export folder so
+	// the capture handler's PerformanceProducer can surface them, and
+	// best-effort upload to object storage alongside other artifacts.
+	if err := s.exportPerformanceArtifacts(ctx, executionID, outputDir, storageClient); err != nil {
+		return fmt.Errorf("export performance artifacts: %w", err)
+	}
+
+	// The accessibility-tree snapshot is likewise driver-written into the
+	// artifact root. Copy it flat into the export folder as accessibility.json
+	// so the capture handler's accessibility fileProducer (and inline read)
+	// can surface it.
+	if err := s.exportAccessibilityArtifacts(ctx, executionID, outputDir, storageClient); err != nil {
+		return fmt.Errorf("export accessibility artifacts: %w", err)
+	}
+
+	return nil
+}
+
+// accessibilitySnapshotFile is the canonical filename the driver emits into
+// the execution's artifacts/accessibility directory, and the flat name the
+// capture handler reads back from the export folder.
+const accessibilitySnapshotFile = "accessibility.json"
+
+// exportAccessibilityArtifacts copies the driver-written AX-tree snapshot from
+// the execution artifact root into outputDir/accessibility.json (flat, matching
+// the accessibility fileProducer) and uploads it to object storage. A missing
+// source is not an error (the run did not request an AX snapshot, or the
+// capture degraded gracefully).
+func (s *WorkflowService) exportAccessibilityArtifacts(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	if strings.TrimSpace(s.executionDataRoot) == "" {
+		return nil
+	}
+	srcPath := filepath.Join(s.executionDataRoot, executionID.String(), "artifacts", "accessibility", accessibilitySnapshotFile)
+	if _, err := os.Stat(srcPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat accessibility snapshot: %w", err)
+	}
+
+	if err := copyFile(srcPath, filepath.Join(outputDir, accessibilitySnapshotFile)); err != nil {
+		return fmt.Errorf("copy accessibility snapshot: %w", err)
+	}
+	if storageClient != nil {
+		if _, err := storageClient.StoreArtifactFromFile(ctx, executionID, "accessibility/accessibility", srcPath, "application/json"); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", executionID).Warn("failed to upload accessibility artifact to storage")
+		}
+	}
+	return nil
+}
+
+// performanceArtifactFiles are the canonical filenames the driver emits into
+// the execution's artifacts/performance directory.
+var performanceArtifactFiles = []string{"performance.json", "performance.web-vitals.json"}
+
+// exportPerformanceArtifacts copies any driver-written performance trace +
+// web-vitals files from the execution artifact root into outputDir/performance
+// and uploads them to object storage. A missing source directory is not an
+// error (the run did not request a perf trace).
+func (s *WorkflowService) exportPerformanceArtifacts(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	if strings.TrimSpace(s.executionDataRoot) == "" {
+		return nil
+	}
+	srcDir := filepath.Join(s.executionDataRoot, executionID.String(), "artifacts", "performance")
+	if _, err := os.Stat(srcDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat performance dir: %w", err)
+	}
+
+	destDir := filepath.Join(outputDir, "performance")
+	for _, name := range performanceArtifactFiles {
+		srcPath := filepath.Join(srcDir, name)
+		info, err := os.Stat(srcPath)
+		if err != nil {
+			// Trace is mandatory; web-vitals is best-effort (absent when the
+			// page emitted no observable metrics). Skip whatever is missing.
+			continue
+		}
+		if err := os.MkdirAll(destDir, 0o755); err != nil {
+			return fmt.Errorf("create performance dir: %w", err)
+		}
+		if err := copyFile(srcPath, filepath.Join(destDir, name)); err != nil {
+			return fmt.Errorf("copy %s: %w", name, err)
+		}
+		if storageClient != nil {
+			label := strings.TrimSuffix(name, filepath.Ext(name))
+			if _, err := storageClient.StoreArtifactFromFile(ctx, executionID, "performance/"+label, srcPath, "application/json"); err != nil && s.log != nil {
+				s.log.WithError(err).WithField("execution_id", executionID).Warn("failed to upload performance artifact to storage")
+			}
+		}
+		_ = info
+	}
+	return nil
+}
+
+// copyFile copies src to dst, truncating dst if it exists.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("failed to marshal result: %w", err)
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
+}
+
+// WriteExportPlan is the I/O half of ExportToFolder: it validates and
+// prepares the output directory, writes every PlannedFile, and best-effort
+// downloads each PlannedScreenshot from storage. A missing screenshot
+// object is skipped (not fatal); a write error fails the export.
+func WriteExportPlan(ctx context.Context, plan *ExportPlan, outputDir string, storageClient storage.StorageInterface) error {
+	if err := validateAndPrepareOutputDir(outputDir); err != nil {
+		return fmt.Errorf("invalid output directory: %w", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(outputDir, "result.json"), resultJSON, 0644); err != nil {
-		return fmt.Errorf("failed to write result.json: %w", err)
-	}
-
-	// Generate markdown files
-	workflowName := workflow.Name
-	if workflowName == "" {
-		workflowName = "Unnamed Workflow"
-	}
-
-	readmeContent := export.GenerateTimelineMarkdown(timeline, workflowName)
-	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(readmeContent), 0644); err != nil {
-		return fmt.Errorf("failed to write README.md: %w", err)
-	}
-
-	summaryContent := export.GenerateExecutionSummaryMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "execution-summary.md"), []byte(summaryContent), 0644); err != nil {
-		return fmt.Errorf("failed to write execution-summary.md: %w", err)
-	}
-
-	consoleContent := export.GenerateConsoleLogsMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "console-logs.md"), []byte(consoleContent), 0644); err != nil {
-		return fmt.Errorf("failed to write console-logs.md: %w", err)
-	}
-
-	networkContent := export.GenerateNetworkActivityMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "network-activity.md"), []byte(networkContent), 0644); err != nil {
-		return fmt.Errorf("failed to write network-activity.md: %w", err)
-	}
-
-	assertionsContent := export.GenerateAssertionsMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "assertions.md"), []byte(assertionsContent), 0644); err != nil {
-		return fmt.Errorf("failed to write assertions.md: %w", err)
-	}
-
-	// Export screenshots
-	screenshotCount := 0
-	for _, frame := range timeline.Frames {
-		if frame.Screenshot != nil {
-			screenshotCount++
+	for _, f := range plan.Files {
+		full := filepath.Join(outputDir, f.RelPath)
+		if dir := filepath.Dir(full); dir != outputDir {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("failed to create directory for %s: %w", f.RelPath, err)
+			}
+		}
+		if err := os.WriteFile(full, f.Content, 0o644); err != nil {
+			return fmt.Errorf("failed to write %s: %w", f.RelPath, err)
 		}
 	}
 
-	// Only export screenshots if we have a storage client and there are screenshots
-	if screenshotCount > 0 && storageClient != nil {
-		screenshotsDir := filepath.Join(outputDir, "screenshots")
-		if err := os.MkdirAll(screenshotsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create screenshots directory: %w", err)
+	if len(plan.Screenshots) == 0 || storageClient == nil {
+		return nil
+	}
+
+	screenshotsDir := filepath.Join(outputDir, "screenshots")
+	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create screenshots directory: %w", err)
+	}
+
+	for _, shot := range plan.Screenshots {
+		// Download from storage (skip if fails - screenshot might be missing).
+		reader, info, err := storageClient.GetScreenshot(ctx, shot.ObjectName)
+		if err != nil {
+			continue
 		}
 
-		// Export each screenshot by downloading from storage
-		for i, frame := range timeline.Frames {
-			if frame.Screenshot == nil || frame.Screenshot.URL == "" {
-				continue
-			}
+		ext := shot.FallbackExt
+		if info != nil && strings.Contains(info.ContentType, "jpeg") {
+			ext = "jpg"
+		}
+		destPath := filepath.Join(outputDir, shot.RelPathNoExt+"."+ext)
 
-			// Extract object name from URL (strip the /api/v1/screenshots/ prefix)
-			objectName := strings.TrimPrefix(frame.Screenshot.URL, "/api/v1/screenshots/")
-
-			// Download screenshot from MinIO (skip if fails - screenshot might not be available)
-			reader, info, err := storageClient.GetScreenshot(ctx, objectName)
-			if err != nil {
-				// Log but don't fail - screenshot might be missing
-				continue
-			}
-
-			// Generate filename: step-{index}-{node-id}.{ext}
-			ext := "png"
-			if frame.Screenshot.ContentType == "image/jpeg" {
-				ext = "jpg"
-			} else if info != nil && strings.Contains(info.ContentType, "jpeg") {
-				ext = "jpg"
-			}
-
-			// Sanitize node ID for filename (use function from replay_renderer.go)
-			nodeID := sanitizeFilename(frame.NodeID)
-			filename := fmt.Sprintf("step-%02d-%s.%s", i+1, nodeID, ext)
-			screenshotPath := filepath.Join(screenshotsDir, filename)
-
-			// Write screenshot to file
-			outFile, err := os.Create(screenshotPath)
-			if err != nil {
-				reader.Close()
-				return fmt.Errorf("failed to create screenshot file %s: %w", filename, err)
-			}
-
-			_, err = io.Copy(outFile, reader)
+		outFile, err := os.Create(destPath)
+		if err != nil {
 			reader.Close()
-			outFile.Close()
+			return fmt.Errorf("failed to create screenshot file %s: %w", destPath, err)
+		}
 
-			if err != nil {
-				return fmt.Errorf("failed to write screenshot %s: %w", filename, err)
-			}
+		_, err = io.Copy(outFile, reader)
+		reader.Close()
+		outFile.Close()
+		if err != nil {
+			return fmt.Errorf("failed to write screenshot %s: %w", destPath, err)
 		}
 	}
 
@@ -195,7 +260,7 @@ func validateAndPrepareOutputDir(outputDir string) error {
 	}
 
 	// Create directory if it doesn't exist (including parents)
-	if err := os.MkdirAll(cleanPath, 0755); err != nil {
+	if err := os.MkdirAll(cleanPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -232,8 +297,10 @@ type ResultSummary struct {
 	Error          string `json:"error,omitempty"`
 }
 
-// buildResultSummary creates a simple summary from the execution timeline.
-func buildResultSummary(timeline *export.ExecutionTimeline) *ResultSummary {
+// buildResultSummary creates a simple summary from the execution timeline. An
+// execution can fail before creating a timeline frame, so the persisted
+// execution error is the authoritative fallback for a zero-step failure.
+func buildResultSummary(timeline *export.ExecutionTimeline, executionError string) *ResultSummary {
 	result := &ResultSummary{
 		Status:      timeline.Status,
 		ExecutionID: timeline.ExecutionID.String(),
@@ -260,6 +327,9 @@ func buildResultSummary(timeline *export.ExecutionTimeline) *ResultSummary {
 				result.Error = frame.Error
 			}
 		}
+	}
+	if result.Error == "" {
+		result.Error = strings.TrimSpace(executionError)
 	}
 
 	return result

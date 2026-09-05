@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "name": "main-action-launcher",
+    "description": "Opens the persistent main-actions launcher at the catalog root and verifies that guided extract, adoption, and component-creation actions are all reachable before any workflow is started.",
+    "requirement": "OT-P0-008",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "main-action-launcher", "requires_confirmation": "true", "routed_isolation": "true", "requirements_json": "[\"OT-P0-008\"]" },
+    "execution_mode": "mutating"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 900 },
+  "nodes": [
+    {
+      "id": "open-catalog",
+      "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open catalog" } }
+    },
+    {
+      "id": "wait-launcher",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/launcher.open", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Main actions available" } }
+    },
+    {
+      "id": "open-main-actions",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/launcher.open" }, "metadata": { "label": "Open main actions" } }
+    },
+    {
+      "id": "assert-action-menu",
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/launcher.menu", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "The persistent main-actions launcher did not open its guided action menu." }, "metadata": { "label": "Action menu visible" } }
+    },
+    {
+      "id": "assert-extract-action",
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/launcher.extract", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Extract into library is not reachable from main actions." }, "metadata": { "label": "Extract action visible" } }
+    },
+    {
+      "id": "assert-adopt-action",
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/launcher.adopt", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Adopt into scenarios is not reachable from main actions." }, "metadata": { "label": "Adopt action visible" } }
+    },
+    {
+      "id": "assert-create-action",
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/launcher.create", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Create component is not reachable from main actions." }, "metadata": { "label": "Create action visible" } }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-catalog", "target": "wait-launcher", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-launcher", "target": "open-main-actions", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "open-main-actions", "target": "assert-action-menu", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-action-menu", "target": "assert-extract-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-extract-action", "target": "assert-adopt-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-adopt-action", "target": "assert-create-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

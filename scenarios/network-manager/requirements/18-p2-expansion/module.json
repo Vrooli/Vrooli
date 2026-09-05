@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "module": "p2-expansion",
+    "description": "Future expansion requirements for advanced DNS, multi-site, roaming, prediction, and topology work.",
+    "prd_ref": "OT-P2-001",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P2-001",
+      "title": "Technitium support is deferred to advanced DNS platform needs",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "resolver",
+      "criticality": "P2",
+      "description": "The scenario shall add Technitium DNS Server support only when advanced recursive, authoritative, local-zone, or business DNS platform needs justify the added complexity.",
+      "tags": ["technitium", "dns", "advanced"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add Technitium adapter tests tagged [REQ:NM-P2-001] when the adapter is implemented."
+        }
+      ]
+    },
+    {
+      "id": "NM-P2-002",
+      "title": "Multi-site management compares network profiles across locations",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "fleet",
+      "criticality": "P2",
+      "description": "The scenario shall manage multiple home, small-office, or client networks with site profiles, site comparisons, and fleet-level reporting.",
+      "tags": ["multi-site", "fleet", "reports"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add multi-site tests tagged [REQ:NM-P2-002] when site management is implemented."
+        }
+      ]
+    },
+    {
+      "id": "NM-P2-003",
+      "title": "Roaming devices can keep network policy off-network",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "roaming",
+      "criticality": "P2",
+      "description": "The scenario shall integrate VPN-back-home or endpoint-local filtering patterns so managed devices can preserve DNS/filtering policy when away from the local network.",
+      "tags": ["roaming", "vpn", "endpoint"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add roaming-device tests tagged [REQ:NM-P2-003] when roaming support is implemented."
+        }
+      ]
+    },
+    {
+      "id": "NM-P2-004",
+      "title": "Predictive recommendations use historical measurement evidence",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "recommendations",
+      "criticality": "P2",
+      "description": "The scenario shall use historical measurements to suggest router placement, ISP escalation evidence, hardware replacement, or policy changes with explicit confidence and supporting evidence.",
+      "tags": ["recommendations", "history", "evidence"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add recommendation tests tagged [REQ:NM-P2-004] once predictive analysis is implemented."
+        }
+      ]
+    },
+    {
+      "id": "NM-P2-005",
+      "title": "Advanced traffic analysis is consent-gated",
+      "status": "planned",
+      "prd_ref": "OT-P2-005",
+      "category": "analysis",
+      "criticality": "P2",
+      "description": "The scenario shall add topology discovery, bandwidth attribution, packet-capture workflows, and security scanning only where operator consent, retention policy, and platform capability support are explicit.",
+      "tags": ["topology", "packet-capture", "security"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add consent and platform-capability tests tagged [REQ:NM-P2-005] before advanced traffic analysis ships."
+        }
+      ]
+    }
+  ]
+}

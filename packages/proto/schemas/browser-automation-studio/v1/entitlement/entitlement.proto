@@ -1,0 +1,259 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.entitlement;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/entitlement;entitlement";
+
+// =============================================================================
+// ENTITLEMENT DOMAIN — subscription status, identity, usage, overrides.
+// =============================================================================
+//
+// @stability beta
+//
+// EntitlementService is BAS's local view of the upstream
+// landing-page-business-suite entitlement service. It owns:
+//   - Tier / status / feature-access readout (Status)
+//   - Stored user identity (email) used to look up entitlements
+//   - Unified credit usage summary + history + per-operation log
+//   - Dev overrides: override tier, alternate API source
+//
+// The UI Settings → Subscription panel and the BAS CLI both consume this
+// service exclusively.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/entitlement/service.go
+//   - UI:   ui/src/api/entitlement.ts (entitlementStore)
+//   - CLI:  bas entitlement status | identity | usage | override | ...
+// =============================================================================
+
+service EntitlementService {
+  // GetStatus returns the current user's entitlement + unified usage snapshot.
+  // When user is empty the server resolves it from middleware context, stored
+  // settings, then falls back to "anonymous".
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+
+  // GetIdentity returns the persisted user identity (email), or empty.
+  rpc GetIdentity(GetIdentityRequest) returns (GetIdentityResponse);
+
+  // SetIdentity persists the user identity and returns the freshly-fetched
+  // entitlement status as if GetStatus were called for that identity.
+  rpc SetIdentity(SetIdentityRequest) returns (GetStatusResponse);
+
+  // ClearIdentity wipes the persisted user identity (logout).
+  rpc ClearIdentity(ClearIdentityRequest) returns (ClearIdentityResponse);
+
+  // RefreshStatus invalidates the cached entitlement for the user and
+  // returns a freshly-fetched status. user is required.
+  rpc RefreshStatus(RefreshStatusRequest) returns (GetStatusResponse);
+
+  // GetUsage returns the unified credit usage summary for the current
+  // billing period. Errors with FailedPrecondition when usage tracking is
+  // unavailable (no credit service wired).
+  rpc GetUsage(GetUsageRequest) returns (UsageSummary);
+
+  // GetUsageHistory returns usage summaries for multiple billing periods.
+  rpc GetUsageHistory(GetUsageHistoryRequest) returns (GetUsageHistoryResponse);
+
+  // GetOperationLog returns a paginated operation log for a single
+  // billing month, optionally filtered by category (ai|execution|export).
+  rpc GetOperationLog(GetOperationLogRequest) returns (OperationLogPage);
+
+  // GetOverride returns the active dev override tier, or "" if unset.
+  rpc GetOverride(GetOverrideRequest) returns (GetOverrideResponse);
+
+  // SetOverride installs a dev override tier. Empty tier clears the override.
+  rpc SetOverride(SetOverrideRequest) returns (SetOverrideResponse);
+
+  // ClearOverride removes any active dev override tier.
+  rpc ClearOverride(ClearOverrideRequest) returns (ClearOverrideResponse);
+
+  // GetApiSource returns the configured entitlement API source.
+  rpc GetApiSource(GetApiSourceRequest) returns (ApiSourceConfig);
+
+  // SetApiSource updates the entitlement API source (production|local|disabled)
+  // and optionally the local LPBS port.
+  rpc SetApiSource(SetApiSourceRequest) returns (ApiSourceConfig);
+
+  // ClearApiSource resets the API source back to the production default.
+  rpc ClearApiSource(ClearApiSourceRequest) returns (ClearApiSourceResponse);
+}
+
+// FeatureAccess describes a single subscription feature and whether the
+// current entitlement grants access to it.
+message FeatureAccess {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  string required_tier = 4;
+  bool has_access = 5;
+}
+
+// EntitlementStatus is the full readout returned by GetStatus / SetIdentity /
+// RefreshStatus. -1 sentinel values denote "unlimited".
+message EntitlementStatus {
+  string user_identity = 1;
+  string status = 2;
+  string tier = 3;
+  bool is_active = 4;
+  repeated string features = 5;
+  repeated FeatureAccess feature_access = 6;
+  int32 monthly_limit = 7;
+  int32 monthly_used = 8;
+  int32 monthly_remaining = 9;
+  bool requires_watermark = 10;
+  bool can_use_ai = 11;
+  bool can_use_recording = 12;
+  bool entitlements_enabled = 13;
+  string override_tier = 14;
+
+  // AI credits mirror the unified pool (kept for UI compatibility).
+  int32 ai_credits_used = 15;
+  int32 ai_credits_limit = 16;
+  int32 ai_credits_remaining = 17;
+  int32 ai_requests_count = 18;
+  // ISO date (YYYY-MM-DD) when the credit period resets. Empty if unknown.
+  string ai_reset_date = 19;
+}
+
+message GetStatusRequest {
+  // Optional. Empty means resolve from context / stored settings / anonymous.
+  string user = 1;
+}
+
+message GetStatusResponse {
+  EntitlementStatus status = 1;
+}
+
+message GetIdentityRequest {}
+
+message GetIdentityResponse {
+  string email = 1;
+}
+
+message SetIdentityRequest {
+  // Email may be empty (treated as anonymous). When non-empty, must contain "@".
+  string email = 1;
+}
+
+message ClearIdentityRequest {}
+
+message ClearIdentityResponse {
+  // Always "cleared" on success.
+  string status = 1;
+}
+
+message RefreshStatusRequest {
+  // Required, non-empty.
+  string user = 1 [(buf.validate.field).string = {min_len: 1}];
+}
+
+// UsageSummary mirrors credits.UsageSummary. by_operation / operation_counts
+// keys are credits.OperationType strings.
+message UsageSummary {
+  string user_identity = 1;
+  string billing_month = 2;
+  int32 total_credits_used = 3;
+  int32 total_operations = 4;
+  map<string, int32> by_operation = 5;
+  map<string, int32> operation_counts = 6;
+  int32 credits_limit = 7;
+  int32 credits_remaining = 8;
+  google.protobuf.Timestamp period_start = 9;
+  google.protobuf.Timestamp period_end = 10;
+  google.protobuf.Timestamp reset_date = 11;
+}
+
+message GetUsageRequest {
+  string user = 1;
+}
+
+message GetUsageHistoryRequest {
+  string user = 1;
+  // Number of months to retrieve. 0 means server default (6).
+  int32 months = 2;
+  // Months to skip from current. >= 0.
+  int32 offset = 3;
+}
+
+message GetUsageHistoryResponse {
+  string user_identity = 1;
+  repeated UsageSummary periods = 2;
+  bool has_more = 3;
+}
+
+// OperationLogEntry mirrors credits.OperationLogEntry. metadata is an
+// open-shape JSON object preserved via google.protobuf.Struct so historical
+// payloads round-trip unchanged.
+message OperationLogEntry {
+  string id = 1;
+  string operation_type = 2;
+  int32 credits_charged = 3;
+  bool success = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Struct metadata = 6;
+  string error_message = 7;
+}
+
+message OperationLogPage {
+  string user_identity = 1;
+  string billing_month = 2;
+  repeated OperationLogEntry operations = 3;
+  int32 total = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+  bool has_more = 7;
+}
+
+message GetOperationLogRequest {
+  string user = 1;
+  // YYYY-MM. Empty means current billing month.
+  string month = 2;
+  // Optional category filter: "ai" | "execution" | "export" | "".
+  string category = 3;
+  int32 limit = 4;
+  int32 offset = 5;
+}
+
+message GetOverrideRequest {}
+
+message GetOverrideResponse {
+  // Active override tier, or empty string when no override is set.
+  string tier = 1;
+}
+
+message SetOverrideRequest {
+  // Empty tier clears the override.
+  string tier = 1;
+}
+
+message SetOverrideResponse {
+  string tier = 1;
+}
+
+message ClearOverrideRequest {}
+
+message ClearOverrideResponse {}
+
+// ApiSourceConfig is the entitlement API source configuration.
+message ApiSourceConfig {
+  // "production" | "local" | "disabled".
+  string source = 1;
+  // Port the local LPBS API listens on. 0 means use server default.
+  int32 local_port = 2;
+}
+
+message GetApiSourceRequest {}
+
+message SetApiSourceRequest {
+  // Must be one of: production | local | disabled.
+  string source = 1 [(buf.validate.field).string = {min_len: 1}];
+  int32 local_port = 2;
+}
+
+message ClearApiSourceRequest {}
+
+message ClearApiSourceResponse {}

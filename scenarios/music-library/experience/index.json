@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": { "kind": "scenario-experience", "schema": "scenario-experience-spec/v1" },
+  "schemaVersion": "1.0.0",
+  "scenario": "music-library",
+  "description": "Experience contract for Music Library. This is a listening application whose distinguishing surface is legibility: the listener can always see why something is playing, what the system believes about their taste, and whether a track was generated. The analytical surfaces are available on demand and never impose themselves on playback.",
+  "pages": [
+    { "id": "player", "path": "pages/player.json", "title": "Now Playing", "status": "active" },
+    { "id": "taste", "path": "pages/taste.json", "title": "Taste Profile", "status": "active" },
+    { "id": "compare", "path": "pages/compare.json", "title": "Compare", "status": "active" },
+    { "id": "library", "path": "pages/library.json", "title": "Library", "status": "active" },
+    { "id": "settings", "path": "pages/settings.json", "title": "Settings", "status": "active" }
+  ],
+  "journeys": []
+}

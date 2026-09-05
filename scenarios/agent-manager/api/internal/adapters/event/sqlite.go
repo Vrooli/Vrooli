@@ -8,13 +8,15 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/sqlcompat"
+
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
@@ -73,14 +75,14 @@ func (t sqliteTime) Time() time.Time {
 // It persists events to the database and maintains in-memory subscribers for
 // real-time streaming.
 type SQLiteStore struct {
-	db          *sqlx.DB
+	db          sqlcompat.DB
 	log         *logrus.Logger
 	mu          sync.RWMutex
 	subscribers map[uuid.UUID][]chan *domain.RunEvent
 }
 
 // NewSQLiteStore creates a new SQLite event store.
-func NewSQLiteStore(db *sqlx.DB, log *logrus.Logger) *SQLiteStore {
+func NewSQLiteStore(db sqlcompat.DB, log *logrus.Logger) *SQLiteStore {
 	return &SQLiteStore{
 		db:          db,
 		log:         log,
@@ -90,88 +92,32 @@ func NewSQLiteStore(db *sqlx.DB, log *logrus.Logger) *SQLiteStore {
 
 // eventRow is the database row representation for run_events.
 type eventRow struct {
-	ID        uuid.UUID  `db:"id"`
-	RunID     uuid.UUID  `db:"run_id"`
-	Sequence  int64      `db:"sequence"`
-	EventType string     `db:"event_type"`
-	Timestamp sqliteTime `db:"timestamp"`
-	Data      []byte     `db:"data"`
+	ID            uuid.UUID  `db:"id"`
+	RunID         uuid.UUID  `db:"run_id"`
+	Sequence      int64      `db:"sequence"`
+	EventType     string     `db:"event_type"`
+	Timestamp     sqliteTime `db:"timestamp"`
+	SchemaVersion int        `db:"schema_version"`
+	Data          []byte     `db:"data"`
 }
 
 func (e *eventRow) toDomain() *domain.RunEvent {
 	evt := &domain.RunEvent{
-		ID:        e.ID,
-		RunID:     e.RunID,
-		Sequence:  e.Sequence,
-		EventType: domain.RunEventType(e.EventType),
-		Timestamp: e.Timestamp.Time(),
+		ID:            e.ID,
+		RunID:         e.RunID,
+		Sequence:      e.Sequence,
+		EventType:     domain.RunEventType(e.EventType),
+		Timestamp:     e.Timestamp.Time(),
+		SchemaVersion: e.SchemaVersion,
 	}
 
-	// Unmarshal based on event type
-	switch domain.RunEventType(e.EventType) {
-	case domain.EventTypeLog:
-		var data domain.LogEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeMessage:
-		var data domain.MessageEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeMessageDeleted:
-		var data domain.MessageDeletedEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeToolCall:
-		var data domain.ToolCallEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeToolResult:
-		var data domain.ToolResultEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeStatus:
-		var data domain.StatusEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeMetric:
-		// Try CostEventData first (common for token usage)
-		var costData domain.CostEventData
-		if err := json.Unmarshal(e.Data, &costData); err == nil && costData.TotalCostUSD > 0 {
-			evt.Data = &costData
-		} else {
-			// Fall back to generic MetricEventData
-			var metricData domain.MetricEventData
-			if err := json.Unmarshal(e.Data, &metricData); err == nil {
-				evt.Data = &metricData
-			}
-		}
-	case domain.EventTypeArtifact:
-		var data domain.ArtifactEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	case domain.EventTypeError:
-		var data domain.ErrorEventData
-		if err := json.Unmarshal(e.Data, &data); err == nil {
-			evt.Data = &data
-		}
-	default:
-		// For unknown types, try legacy format
-		var legacy domain.RunEventData
-		if err := json.Unmarshal(e.Data, &legacy); err == nil {
-			evt.Data = legacy.ToTypedPayload()
-		}
+	if payload, err := domain.DecodeEventPayload(evt.EventType, e.Data); err == nil {
+		evt.Data = payload
 	}
 	return evt
 }
 
-const eventColumns = `id, run_id, sequence, event_type, timestamp, data`
+const eventColumns = `id, run_id, sequence, event_type, timestamp, schema_version, data`
 
 // Append adds events to a run's event stream.
 // Events are assigned sequence numbers automatically and persisted to SQLite.
@@ -180,19 +126,27 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		return nil
 	}
 
-	// Use a transaction for consistency
-	tx, err := s.db.BeginTxx(ctx, nil)
+	conn, err := s.db.Conn(ctx)
 	if err != nil {
-		return dbError("begin_transaction", err)
+		return dbError("get_connection", err)
 	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return dbError("begin_immediate_transaction", err)
+	}
+
+	committed := false
 	defer func() {
-		_ = tx.Rollback()
+		if !committed {
+			_, _ = conn.ExecContext(context.Background(), "ROLLBACK")
+		}
 	}()
 
 	// Get the next sequence number
 	var maxSeq int64
 	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`
-	if err := tx.GetContext(ctx, &maxSeq, query, runID); err != nil {
+	if err := conn.QueryRowContext(ctx, query, runID).Scan(&maxSeq); err != nil {
 		return dbError("get_max_sequence", err)
 	}
 
@@ -215,11 +169,17 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 			return dbError("marshal_event", err)
 		}
 
-		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, data)
-			VALUES (?, ?, ?, ?, ?, ?)`
+		schemaVersion := evt.SchemaVersion
+		if schemaVersion == 0 {
+			schemaVersion = 1
+		}
+		evt.SchemaVersion = schemaVersion
 
-		if _, err := tx.ExecContext(ctx, insertQuery,
-			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), sqliteTime(evt.Timestamp), data); err != nil {
+		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+		if _, err := conn.ExecContext(ctx, insertQuery,
+			evt.ID, evt.RunID, evt.Sequence, string(evt.EventType), sqliteTime(evt.Timestamp), schemaVersion, data); err != nil {
 			return dbError("insert_event", err)
 		}
 
@@ -228,14 +188,58 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		storedEvents = append(storedEvents, &copy)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
 		return dbError("commit_transaction", err)
 	}
+	committed = true
 
 	// Notify subscribers after successful commit
 	s.notifySubscribers(runID, storedEvents)
 
 	return nil
+}
+
+// DeleteBefore removes at most limit rows older than cutoff. Selecting rowids
+// inside the DELETE keeps each transaction bounded on large SQLite databases.
+func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit int) (int, error) {
+	if limit <= 0 {
+		return 0, fmt.Errorf("event retention batch limit must be positive")
+	}
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return 0, dbError("event_retention_connection", err)
+	}
+	defer conn.Close()
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, dbError("begin_event_retention", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
+		SELECT events.rowid FROM run_events events
+		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
+		LEFT JOIN runs run ON run.id = events.run_id
+		WHERE events.timestamp < ?
+		  AND watermark.projection_complete = 1
+		  AND COALESCE(run.execution_mode, '') <> 'imported'
+		ORDER BY events.timestamp ASC LIMIT ?
+	)`, sqliteTime(cutoff), limit)
+	if err != nil {
+		return 0, dbError("delete_expired_events", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, dbError("count_deleted_expired_events", err)
+	}
+	if count > 0 {
+		if _, err := tx.ExecContext(ctx, `UPDATE event_retention_state SET generation=generation+1, floor_rowid=COALESCE((SELECT MIN(rowid) FROM run_events),0), updated_at=? WHERE singleton=1`, sqliteTime(time.Now().UTC())); err != nil {
+			return 0, dbError("advance_event_retention_generation", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, dbError("commit_event_retention", err)
+	}
+	return int(count), nil
 }
 
 // marshalEventData converts event data to JSON for storage.
@@ -338,6 +342,11 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 
 	// Send existing events from the database in a goroutine
 	go func() {
+		defer func() {
+			if v := recover(); v != nil {
+				s.log.WithField("panic", fmt.Sprint(v)).WithField("stack", string(debug.Stack())).Error("historical event stream panic recovered")
+			}
+		}()
 		// Build type filter if needed
 		var typeFilter []domain.RunEventType
 		if len(opts.EventTypes) > 0 {

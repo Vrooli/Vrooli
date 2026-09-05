@@ -7,7 +7,10 @@
  * Computer Use capability. Unlike traditional vision models that parse
  * text for actions, Claude Computer Use uses native tool calls.
  *
- * Key differences from OpenRouter:
+ * This is a deliberately isolated provider exception, not the normal BAS
+ * inference path. The standard vision route is AI Gateway.
+ *
+ * Key differences from AI Gateway:
  * - Uses Anthropic's Messages API directly
  * - Uses the computer_use_20251124 tool type
  * - Actions are returned as structured tool calls
@@ -26,7 +29,6 @@ import type {
   TokenUsage,
 } from './types';
 import { VisionModelError } from './types';
-import { getModelSpec } from './model-registry';
 import type { BrowserAction } from '../action/types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -57,7 +59,7 @@ export interface ClaudeComputerUseClientConfig {
   /** Anthropic API key */
   apiKey: string;
 
-  /** Model ID from registry */
+  /** Reviewed Claude exception identifier. */
   modelId: string;
 
   /** Base URL for Anthropic API (default: https://api.anthropic.com) */
@@ -158,6 +160,11 @@ interface ComputerToolInput {
   duration?: number; // For 'wait' action, in seconds
 }
 
+const CLAUDE_COMPUTER_USE_MODELS: Record<string, string> = {
+  'claude-sonnet-4': 'anthropic/claude-sonnet-4-20250514',
+  'claude-opus-4': 'anthropic/claude-opus-4-20250514',
+};
+
 /**
  * Claude Computer Use Vision Client implementation.
  */
@@ -176,21 +183,27 @@ export class ClaudeComputerUseClient implements VisionModelClient {
       displayHeight: config.displayHeight ?? 800,
     };
 
-    this.modelSpec = getModelSpec(this.config.modelId);
-
-    if (this.modelSpec.provider !== 'anthropic') {
+    const apiModelId = CLAUDE_COMPUTER_USE_MODELS[this.config.modelId];
+    if (!apiModelId) {
       throw new VisionModelError(
-        `Model ${config.modelId} is not an Anthropic model. Provider: ${this.modelSpec.provider}`,
+        `Unsupported Claude computer-use exception model: ${this.config.modelId}`,
         'MODEL_UNAVAILABLE'
       );
     }
 
-    if (!this.modelSpec.supportsComputerUse) {
-      throw new VisionModelError(
-        `Model ${config.modelId} does not support computer use`,
-        'MODEL_UNAVAILABLE'
-      );
-    }
+    // Claude computer-use is a deliberately isolated exception until the
+    // gateway carries tool definitions and coordinate semantics. This small
+    // mapping is the reviewed exception contract, not a general model catalog.
+    this.modelSpec = {
+      id: this.config.modelId,
+      apiModelId,
+      displayName: 'Claude computer-use exception',
+      provider: 'anthropic',
+      supportsComputerUse: true,
+      supportsElementLabels: true,
+      recommended: false,
+      tier: 'exception',
+    };
   }
 
   async analyze(request: VisionAnalysisRequest): Promise<VisionAnalysisResponse> {
@@ -286,7 +299,7 @@ export class ClaudeComputerUseClient implements VisionModelClient {
     messages.push({ role: 'user', content: userContent });
 
     return {
-      model: this.modelSpec.apiModelId,
+      model: this.modelSpec.apiModelId ?? this.config.modelId,
       max_tokens: 1024,
       system: this.buildSystemPrompt(),
       messages,

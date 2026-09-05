@@ -1,4 +1,4 @@
-import { ModelPreset, RunMode, RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+import { RunMode, ExecutionMode } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 // Re-export proto type for reading Task objects from API
 export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/domain/task_pb";
@@ -16,17 +16,22 @@ export interface ContextAttachmentData {
 }
 
 export {
-  RunnerType,
-  ModelPreset,
   NetworkAccess,
+  SandboxMode,
   TaskStatus,
   RunStatus,
+  RunFinalizationStatus,
   ApprovalState,
   RunMode,
+  ExecutionMode,
   RunPhase,
   RunEventType,
   RecoveryAction,
 } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+
+export { StructuredResultStatus } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
+
+export { RunnerType } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
 export type {
   AgentProfile,
@@ -63,32 +68,20 @@ export { HealthStatus } from "@vrooli/proto-types/common/v1/types_pb";
 
 export type ModelOption = string | { id: string; description?: string };
 
-export interface RunnerModelRegistry {
-  models: ModelOption[];
-  presets: Record<string, string>;
-}
-
-export interface ModelRegistry {
-  version: number;
-  fallbackRunnerTypes?: string[];
-  runners: Record<string, RunnerModelRegistry>;
-}
-
 export interface ProfileFormData {
   name: string;
   profileKey?: string;
   description?: string;
-  runnerType: RunnerType;
-  model?: string;
-  modelPreset?: ModelPreset;
+  roleRef: string;
   maxTurns?: number;
   timeoutMinutes?: number;
-  fallbackRunnerTypes?: RunnerType[];
+  effort?: "" | "low" | "medium" | "high" | "xhigh" | "max";
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
-  requiresSandbox?: boolean;
-  requiresApproval?: boolean;
+  // Sandbox mode for the run. Empty preserves the server-side default
+  // (Tracking); "off" disables sandboxing entirely.
+  sandboxMode?: "off" | "tracking" | "protected";
   networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
@@ -111,17 +104,16 @@ export interface RunFormData {
   agentProfileId?: string;
   tag?: string;
   existingSandboxId?: string;
-  runnerType?: RunnerType;
-  model?: string;
-  modelPreset?: ModelPreset;
+  roleRef?: string;
   maxTurns?: number;
   timeoutMinutes?: number;
-  fallbackRunnerTypes?: RunnerType[];
+  effort?: "" | "low" | "medium" | "high" | "xhigh" | "max";
   allowedTools?: string[];
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
-  requiresSandbox?: boolean;
-  requiresApproval?: boolean;
+  // Sandbox mode override for this run. Empty preserves the profile /
+  // server default.
+  sandboxMode?: "off" | "tracking" | "protected";
   networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
@@ -131,7 +123,15 @@ export interface RunFormData {
   extraFlags?: Record<string, string[]>;
   prompt?: string;
   runMode?: RunMode;
+  /** Execution substrate. Interactive launches the real CLI in a live
+   *  web-console session and is rejected for protected/sandboxed runs. Empty
+   *  preserves the server default (codec-pipe). */
+  executionMode?: ExecutionMode;
   idempotencyKey?: string;
+  /** Conversation linkage per Decision D7 of the auditability contract.
+   *  Spawn surfaces SHOULD populate at least one explicitly. */
+  conversationId?: string;
+  parentRunId?: string;
 }
 
 export interface ApproveFormData {
@@ -161,7 +161,11 @@ export interface CreateInvestigationRunRequest {
 
 export interface ApplyInvestigationRunRequest {
   investigationRunId: string;
+  decision: "completed";
+  /** Approved recommendation `text` strings the operator checked. Empty = apply all. */
+  selected: string[];
   customContext?: string;
+  roleRef?: string;
 }
 
 // =============================================================================
@@ -318,57 +322,34 @@ export interface CacheStatusResponse {
 }
 
 // =============================================================================
-// Recommendation Extraction Types
+// Investigation Findings Types (structured result of the agent-manager/investigate
+// workflow; see .vrooli/agent-manager/investigate.json resultSpec.schema)
 // =============================================================================
 
-/** Status of recommendation extraction for investigation runs */
-export type RecommendationStatus =
-  | "none"       // Not applicable (non-investigation run or not yet complete)
-  | "pending"    // Awaiting extraction (queued for background processing)
-  | "extracting" // Extraction in progress
-  | "complete"   // Successfully extracted and cached
-  | "failed";    // Extraction failed after max retries
+export type InvestigationRecommendationSeverity = "Critical" | "Major" | "Gap" | "Minor";
+export type InvestigationPrimaryCategory = "Environment/Tooling" | "Agent Setup" | "Both";
+export type InvestigationConfidence = "High" | "Medium" | "Low";
 
-/** A single recommendation extracted from an investigation */
-export interface Recommendation {
-  id: string;
+/** A single recommendation within an investigation category. */
+export interface InvestigationRecommendation {
   text: string;
-  selected: boolean;
-  /** User-added note (appended inline when serializing) */
-  note?: string;
-  /** Indicates this is a newly added item */
-  isNew?: boolean;
-  /** Indicates text was edited */
-  isEdited?: boolean;
+  severity?: InvestigationRecommendationSeverity;
+  evidence?: string;
 }
 
-/** A category grouping related recommendations */
-export interface RecommendationCategory {
-  id: string;
+/** A category grouping related recommendations. */
+export interface InvestigationRecommendationCategory {
   name: string;
-  recommendations: Recommendation[];
-  /** Indicates this is a newly added category */
-  isNew?: boolean;
-}
-
-/** Result of extracting recommendations from an investigation run */
-export interface ExtractionResult {
-  success: boolean;
-  categories: RecommendationCategory[];
-  rawText: string;
-  extractedFrom: "summary" | "events" | "pending"; // "pending" indicates in-progress
-  error?: string;
+  recommendations: InvestigationRecommendation[];
 }
 
 /**
- * Extended Run type with recommendation extraction fields.
- * The base Run type comes from proto-types, but these fields are added
- * by the backend when returning run data.
+ * Parsed shape of an investigation run's structured result value
+ * (`run.result.structured.value`, when `structured.status` is SUCCESS).
  */
-export interface RunWithRecommendations {
-  recommendationStatus?: RecommendationStatus;
-  recommendationResult?: ExtractionResult;
-  recommendationError?: string;
-  recommendationAttempts?: number;
-  recommendationQueuedAt?: string;
+export interface InvestigationFindings {
+  summary: string;
+  primaryCategory: InvestigationPrimaryCategory;
+  confidence?: InvestigationConfidence;
+  categories: InvestigationRecommendationCategory[];
 }

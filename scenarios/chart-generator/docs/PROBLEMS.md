@@ -102,10 +102,10 @@ Go test coverage is below the recommended 80% threshold.
 
 ## Deferred Improvements
 
-### Browserless Integration
-Currently using fallback Go PNG generation. Browserless integration would improve output quality.
+### browser-automation-studio PNG Integration
+PNG export renders via browser-automation-studio's CaptureService (Connect-RPC screenshot of the chart HTML the API server serves), falling back to Go native generation when BAS is unavailable.
 
-**Next steps**: Ensure browserless resource is available and configure proper endpoints
+**Next steps**: Ensure browser-automation-studio is running for high-fidelity PNG output.
 
 ### Performance Baseline
 No performance testing configured yet.

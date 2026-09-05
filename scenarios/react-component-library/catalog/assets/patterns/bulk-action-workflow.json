@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.bulk-action-workflow",
+    "name": "BulkActionWorkflow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The multi-item action flow explaining scope, validating eligibility, previewing impact, confirming, reporting progress, and recovering from partial failure item by item.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.bulk-action-bar",
+        "reason": "Selection scope and action affordances are shared."
+      },
+      {
+        "asset": "feedback.task-progress",
+        "reason": "Progress reporting is shared."
+      },
+      {
+        "asset": "services.background-task-registry",
+        "reason": "Long work survives navigation by living in the shared task registry."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Progress and outcomes are announced through the one shared live region."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "destructive-confirmation",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "partial",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "rationale": "Partial failure is the whole design problem. Two hundred records where six fail must name those six and offer a path for them, and must never report the operation as simply failed."
+}

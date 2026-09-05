@@ -1,8 +1,14 @@
 {
   "edges": [
     {
-      "id": "call-open-project-to-click-executions-tab",
+      "id": "call-open-project-to-return-to-project",
       "source": "call-open-project",
+      "target": "return-to-project",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "return-to-project-to-click-executions-tab",
+      "source": "return-to-project",
       "target": "click-executions-tab",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -33,17 +39,20 @@
   ],
   "metadata": {
     "description": "Validates execution history tab displays execution list and allows selecting executions to view details",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Execution History View",
+    "version": "1"
   },
   "nodes": [
     {
       "action": {
         "metadata": {
-          "label": "Open Demo project via fixture"
+          "label": "Return to the seeded project history"
         },
         "subflow": {
           "args": {
@@ -51,6 +60,25 @@
             "projectName": "${@params/projectName}"
           },
           "workflow_path": "actions/open-demo-project.json"
+        },
+        "type": "ACTION_TYPE_SUBFLOW"
+      },
+      "id": "return-to-project"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Create a deterministic completed execution via fixture"
+        },
+        "subflow": {
+          "args": {
+            "projectFolder": "${@params/projectFolder}",
+            "projectId": "${@params/projectId}",
+            "projectName": "${@params/projectName}",
+            "workflowId": "${@params/workflowId}",
+            "workflowName": "${@params/workflowName}"
+          },
+          "workflow_path": "actions/execute-demo-workflow.json"
         },
         "type": "ACTION_TYPE_SUBFLOW"
       },
@@ -76,10 +104,10 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/executions.filters.failed"
+          "selector": "@selector/executions.filters.completed"
         },
         "metadata": {
-          "label": "Filter to failed executions"
+          "label": "Filter to completed executions"
         },
         "type": "ACTION_TYPE_CLICK"
       },

@@ -1,19 +1,19 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type HealthHandlers struct {
-	db *sql.DB
+	db *database.RoutedDB
 }
 
-func NewHealthHandlers(db *sql.DB) *HealthHandlers {
+func NewHealthHandlers(db *database.RoutedDB) *HealthHandlers {
 	return &HealthHandlers{db: db}
 }
 
@@ -83,5 +83,5 @@ func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

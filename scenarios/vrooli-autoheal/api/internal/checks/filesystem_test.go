@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // =============================================================================
@@ -16,7 +18,7 @@ import (
 // TestRealFileSystemReaderStatfs verifies Statfs on root filesystem
 func TestRealFileSystemReaderStatfs(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping filesystem test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping filesystem test on non-Linux platform")
 	}
 
 	reader := &RealFileSystemReader{}
@@ -39,7 +41,7 @@ func TestRealFileSystemReaderStatfs(t *testing.T) {
 // TestRealFileSystemReaderStatfsError verifies error handling
 func TestRealFileSystemReaderStatfsError(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping filesystem test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping filesystem test on non-Linux platform")
 	}
 
 	reader := &RealFileSystemReader{}
@@ -65,7 +67,7 @@ func TestDefaultFileSystemReaderExists(t *testing.T) {
 // TestRealProcReaderReadMeminfo verifies reading /proc/meminfo
 func TestRealProcReaderReadMeminfo(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping /proc test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping /proc test on non-Linux platform")
 	}
 
 	reader := &RealProcReader{}
@@ -84,7 +86,7 @@ func TestRealProcReaderReadMeminfo(t *testing.T) {
 // TestRealProcReaderListProcesses verifies listing processes
 func TestRealProcReaderListProcesses(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping /proc test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping /proc test on non-Linux platform")
 	}
 
 	reader := &RealProcReader{}
@@ -114,7 +116,7 @@ func TestRealProcReaderListProcesses(t *testing.T) {
 // TestReadProcessStat verifies reading a single process stat
 func TestReadProcessStat(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping /proc test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping /proc test on non-Linux platform")
 	}
 
 	// Read current process
@@ -135,7 +137,7 @@ func TestReadProcessStat(t *testing.T) {
 // TestReadProcessStatError verifies error handling
 func TestReadProcessStatError(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping /proc test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping /proc test on non-Linux platform")
 	}
 
 	_, err := readProcessStat(999999999)
@@ -159,7 +161,7 @@ func TestDefaultProcReaderExists(t *testing.T) {
 // TestRealPortReaderReadPortStats verifies reading port stats
 func TestRealPortReaderReadPortStats(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping /proc test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping /proc test on non-Linux platform")
 	}
 
 	reader := &RealPortReader{}
@@ -181,7 +183,7 @@ func TestRealPortReaderReadPortStats(t *testing.T) {
 // TestCountPortsFromFile verifies counting ports from /proc/net/tcp
 func TestCountPortsFromFile(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("Skipping /proc test on non-Linux platform")
+		repocontracttest.SkipPlatform(t, "Skipping /proc test on non-Linux platform")
 	}
 
 	used, timeWait := countPortsFromFile("/proc/net/tcp")
@@ -307,13 +309,12 @@ func TestDefaultCacheCheckerExists(t *testing.T) {
 // TestStatfsResultFields verifies struct fields
 func TestStatfsResultFields(t *testing.T) {
 	result := StatfsResult{
-		Blocks:  1000000,
-		Bfree:   500000,
-		Bavail:  400000,
-		Files:   100000,
-		Ffree:   80000,
-		Bsize:   4096,
-		Namemax: 255,
+		Blocks: 1000000,
+		Bfree:  500000,
+		Bavail: 400000,
+		Files:  100000,
+		Ffree:  80000,
+		Bsize:  4096,
 	}
 
 	if result.Blocks != 1000000 {

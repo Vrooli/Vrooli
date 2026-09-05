@@ -1,0 +1,51 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Run an improvement goal against one scenario until every setpoint row reads in band or the operator stops it: read sensors through the scenario's setpoint-read program, route by its improve skill, act or file, journal, record the goal in swarm-manager when it is up, and wake again.",
+  "entry": "SKILL.md",
+  "icon": "repeat",
+  "id": "goal-loop",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "goal-loop",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "program-runtime sessions create",
+      "program-runtime programs submit",
+      "program-runtime sessions delete",
+      "vrooli-memory journal note",
+      "program-runtime sessions get",
+      "swarm-manager goals get",
+      "swarm-manager goals create",
+      "swarm-manager goals targets-add",
+      "swarm-manager milestones create",
+      "swarm-manager milestones assign",
+      "swarm-manager backlog create",
+      "vrooli scenario status"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "program-runtime",
+      "vrooli-memory"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "goal",
+    "loop",
+    "self-improvement",
+    "setpoint",
+    "swarm-manager",
+    "program-runtime",
+    "heartbeat"
+  ],
+  "updatedAt": "2026-09-02T23:00:00Z"
+}

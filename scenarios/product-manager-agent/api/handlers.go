@@ -27,7 +27,7 @@ func (app *App) riceScoreHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"prioritized_features": sortedFeatures,
-		"total": len(sortedFeatures),
+		"total":                len(sortedFeatures),
 	})
 }
 
@@ -69,25 +69,25 @@ func (app *App) roadmapHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(roadmap)
-		
+
 	case "POST":
 		var roadmap Roadmap
 		if err := json.NewDecoder(r.Body).Decode(&roadmap); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		
+
 		roadmap.CreatedAt = time.Now()
 		roadmap.Version = 1
-		
+
 		if err := app.storeRoadmap(&roadmap); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(roadmap)
-		
+
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -374,10 +374,10 @@ func (app *App) generateRoadmap(features []Feature, startDate time.Time, duratio
 				break
 			}
 		}
-		
+
 		roadmap.Features = append(roadmap.Features, feature.ID)
 		currentCapacity += feature.Effort
-		
+
 		// Create milestone every quarter
 		if currentMonth%3 == 0 && currentMonth > 0 {
 			milestone := Milestone{

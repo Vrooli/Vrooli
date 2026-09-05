@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package vrooli.offer_desk.v1.offers;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+import "money-ledger/v1/ledger/ledger.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers;offers_v1";
+
+enum NodeKind { NODE_KIND_UNSPECIFIED = 0; OFFER = 1; VARIANT = 2; CHANNEL = 3; REVENUE_LINE = 4; DELIVERABLE = 5; RAMP = 6; STREAM = 7; AUDIENCE = 8; }
+// PROPOSED is appended to preserve the wire/database values of existing statuses.
+enum Status { STATUS_UNSPECIFIED = 0; IDEA = 1; CANDIDATE = 2; TRIGGER_MET = 3; ACTIVE = 4; SHIPPED = 5; RETIRED = 6; PROPOSED = 7; }
+enum Verdict { VERDICT_UNSPECIFIED = 0; SATISFIED = 1; UNSATISFIED = 2; UNKNOWN = 3; }
+enum SourceMode { SOURCE_MODE_UNSPECIFIED = 0; SOURCE_MODE_FIXTURE = 1; SOURCE_MODE_OPERATOR_SUPPLIED = 2; }
+enum EvaluationResult { EVALUATION_RESULT_UNSPECIFIED = 0; EVALUATION_SUCCEEDED = 1; EVALUATION_FAILED = 2; EVALUATION_NOT_RUN = 3; }
+enum DeliverableClass { DELIVERABLE_CLASS_UNSPECIFIED = 0; MARKETED = 1; ENABLING = 2; }
+enum FinishBar { FINISH_BAR_UNSPECIFIED = 0; CUSTOMER_FACING = 1; OPERATOR_FACING = 2; INTERNAL = 3; }
+
+message Node { string id = 1; NodeKind kind = 2; string name = 3; Status status = 4; string trigger_id = 5; google.protobuf.Timestamp created_at = 6; string actual_account_id = 7; int32 release_rank = 8; DeliverableClass deliverable_class = 9; FinishBar finish_bar = 10; }
+message Edge { string id = 1; string from_id = 2; string to_id = 3; string kind = 4; int64 intended_price_minor = 5; string currency = 6; bool intended_price_declared = 7; }
+enum TriggerComposition { TRIGGER_COMPOSITION_UNSPECIFIED = 0; ALL = 1; ANY = 2; }
+message TriggerClause { string fact_name = 1; string operator = 2; double threshold = 3; }
+message Fact { string name = 1; double value = 2; google.protobuf.Timestamp observed_at = 3; int32 stale_after_days = 4; string dimension = 5; }
+message Trigger { string id = 1; string node_id = 2; string fact_name = 3; string operator = 4; double threshold = 5; string expression = 6; repeated TriggerClause clauses = 7; TriggerComposition composition = 8; }
+message Evaluation { string id = 1; string node_id = 2; Verdict verdict = 3; string fact_name = 4; string explanation = 5; google.protobuf.Timestamp evaluated_at = 6; int64 fact_age_seconds = 7; repeated string fact_names = 8; }
+message ProposalDecline { string actor = 1; string reason = 2; google.protobuf.Timestamp created_at = 3; }
+message Proposal { string id = 1; string node_id = 2; string actor = 3; Status requested_status = 4; string reason = 5; google.protobuf.Timestamp created_at = 6; repeated ProposalDecline decline_history = 7; string evidence_reference = 8; }
+message Availability { string source = 1; string reason = 2; google.protobuf.Timestamp last_success_at = 3; }
+message BoardEntry { string node_id = 1; string title = 2; string rank_reason = 3; Status status = 4; int64 actual_minor = 5; bool actuals_available = 6; repeated Availability availability = 7; }
+message EvaluationCondition { google.protobuf.Timestamp last_run_at = 1; EvaluationResult last_result = 2; int32 nodes_scored = 3; int64 age_seconds = 4; bool degraded = 5; string reason = 6; }
+message BoardResponse { repeated BoardEntry entries = 1; vrooli.money_ledger.v1.ledger.PositionResponse position = 2; repeated Availability availability = 3; EvaluationCondition evaluation = 4; repeated vrooli.money_ledger.v1.ledger.GoalVerdict goals = 5; string default_alive_gap = 6; string posture_source = 7; int64 posture_age_seconds = 8; }
+
+message CreateNodeRequest { NodeKind kind = 1; string name = 2; Status status = 3; string trigger_id = 4; string actual_account_id = 5; DeliverableClass deliverable_class = 6; FinishBar finish_bar = 7; string actor = 8; string reason = 9; }
+message CreateNodeResponse { Node node = 1; }
+message ListNodesRequest { NodeKind kind = 1; Status status = 2; }
+message ListNodesResponse { repeated Node nodes = 1; }
+message TransitionRequest { string node_id = 1; Status status = 2; string actor = 3; }
+// MapAccount attaches an existing node to the Money Ledger account whose
+// postings represent what that node actually earned. Without it the mapping
+// could only be set at CreateNode, so every imported node carried an empty
+// mapping permanently and the actuals join could never fire. Clearing the
+// mapping (empty actual_account_id) is allowed and is an audited change.
+message MapAccountRequest { string node_id = 1; string actual_account_id = 2; string actor = 3; string reason = 4; }
+message MapAccountResponse { Node node = 1; string prior_account_id = 2; }
+message TransitionResponse { Node node = 1; }
+message CreateEdgeRequest { Edge edge = 1 [(buf.validate.field).required = true]; }
+message CreateEdgeResponse { Edge edge = 1; }
+message DeclareTriggerRequest { Trigger trigger = 1 [(buf.validate.field).required = true]; }
+message DeclareTriggerResponse { Trigger trigger = 1; }
+message AddFactRequest { Fact fact = 1 [(buf.validate.field).required = true]; }
+message AddFactResponse { Fact fact = 1; }
+message EvaluateRequest { bool dry_run = 1; }
+message EvaluateResponse { repeated Evaluation evaluations = 1; }
+message PromoteRequest { string node_id = 1; string actor = 2; string role = 3; }
+message PromoteResponse { Proposal proposal = 1; }
+message ListProposalsRequest { string node_id = 1; Status status = 2; }
+message ListProposalsResponse { repeated Proposal proposals = 1; }
+message ListAuditRequest { string node_id = 1; }
+message ListAuditResponse { repeated string entries = 1; }
+message ListEdgesRequest { string node_id = 1; }
+message ListEdgesResponse { repeated Edge edges = 1; }
+message ProjectionRequest { string projection = 1; }
+message ImportCatalogRequest { string source_path = 1; SourceMode source_mode = 2; bool apply = 3; string actor = 4; }
+message ImportFileReport { string path = 1; int32 read = 2; int32 written = 3; int32 findings = 4; string cardinality = 5; NodeKind node_kind = 6; }
+message StatusMapEntry { string path = 1; Status status = 2; bool recognized = 3; int32 line = 4; }
+message ImportFinding { string path = 1; string reason = 2; bool blocking = 3; int32 line = 4; }
+message ImportCatalogResponse { repeated ImportFileReport files = 1; repeated StatusMapEntry status_map = 2; repeated ImportFinding findings = 3; int32 total_findings = 4; bool applied = 5; }
+message MergeNodesRequest {
+  string surviving_id = 1 [(buf.validate.field).string.min_len = 1];
+  string duplicate_id = 2 [(buf.validate.field).string.min_len = 1];
+  string actor = 3;
+  bool dry_run = 4;
+  string reason = 5;
+}
+message MergeNodesResponse {
+  Node surviving = 1;
+  int32 moved_edges = 2;
+  int32 moved_triggers = 3;
+  int32 moved_evaluations = 4;
+  int32 moved_proposals = 5;
+  int32 moved_findings = 6;
+  repeated string collapsed_edge_ids = 7;
+  Node retired = 9;
+}
+message RenameNodeRequest {
+  string node_id = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string actor = 3;
+  string reason = 4;
+}
+message RenameNodeResponse { Node node = 1; string prior_name = 2; }
+message VerifyCatalogRequest { string source_path = 1; SourceMode source_mode = 2; }
+message VerifyFileReport { string path = 1; int32 expected = 2; int32 live = 3; }
+message VerifyCatalogResponse {
+  repeated VerifyFileReport files = 1;
+  repeated string duplicate_identities = 2;
+  repeated string orphan_edge_ids = 3;
+  repeated string extra_node_ids = 4;
+  int32 total_drift = 5;
+  // reconciled reports that every check which could run agreed. It is not a
+  // claim that the source-versus-live count comparison ran: read `comparable`
+  // for that. A compressed source declares no records, so the count comparison
+  // has nothing to compare and is skipped while duplicate-identity and
+  // orphan-edge checks still run.
+  bool reconciled = 6;
+  // comparable reports whether the source-versus-live node-count comparison
+  // actually ran. False means no declared source file yielded a countable
+  // record, which is the expected steady state once sources have been
+  // compressed to judgment-only prose and their state moved into this scenario.
+  bool comparable = 7;
+  // not_comparable_reason states why the count comparison was skipped. Empty
+  // when comparable is true.
+  string not_comparable_reason = 8;
+  repeated string scenario_gaps = 9;
+}
+message SpaceCell { string id = 1; string group = 2; string question = 3; string owner = 4; string status = 5; string notes = 6; }
+message SpaceResponse { string schema_version = 1; string projection = 2; string owner = 3; string denominator_confidence = 4; string confidence_rationale = 5; string source = 6; repeated SpaceCell cells = 7; repeated Availability availability = 8; }
+message ReleaseLadderRequest { bool include_retired = 1; }
+message GoalImpact { string goal_name = 1; string goal_title = 2; string deliverable_name = 3; int32 projected_priority = 4; }
+message ReleaseLadderEntry {
+  Node deliverable = 1;
+  repeated Node unlocked_ramps = 2;
+  repeated Node unlocked_streams = 3;
+  repeated Node audiences = 4;
+  repeated Node cumulative_ramps = 5;
+  repeated PrerequisiteNode enablers = 6;
+  repeated GoalImpact goal_impacts = 7;
+  bool readiness_goal_exists = 8;
+  bool readiness_goal_closed = 9;
+  string readiness_approved_commit = 10;
+}
+message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; repeated Node unscheduled = 7; }
+message SetReleaseRankRequest { string node_id = 1; int32 release_rank = 2; string actor = 3; string reason = 4; }
+message SetReleaseRankResponse { Node node = 1; int32 prior_release_rank = 2; }
+message SetDeliverableClassRequest { string node_id = 1; DeliverableClass deliverable_class = 2; FinishBar finish_bar = 3; string actor = 4; string reason = 5; }
+message SetDeliverableClassResponse { Node node = 1; DeliverableClass prior_class = 2; FinishBar prior_finish_bar = 3; }
+message MeterInventoryRequest {}
+message MeterInventoryEntry { string limit_key = 1; string class = 2; repeated string declared_by = 3; repeated string bundle_keys = 4; bool byok = 5; }
+message MeterInventoryResponse { repeated MeterInventoryEntry meters = 1; repeated string undeclared_streams = 2; repeated string deliverable_meter_gaps = 3; string source = 4; }
+message PrerequisiteWalkRequest { string stream_node_id = 1; int32 max_depth = 2; bool include_shipped = 3; }
+message PrerequisiteNode { Node node = 1; int32 depth = 2; int32 derived_urgency = 3; repeated string path = 4; }
+message PrerequisiteWalkResponse { repeated Node deliverables = 1; repeated Node unshipped = 2; repeated PrerequisiteNode tree = 3; repeated string cycle_path = 4; }
+
+service CatalogService {
+  rpc CreateNode(CreateNodeRequest) returns (CreateNodeResponse);
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc Transition(TransitionRequest) returns (TransitionResponse);
+  rpc CreateEdge(CreateEdgeRequest) returns (CreateEdgeResponse);
+  rpc ListEdges(ListEdgesRequest) returns (ListEdgesResponse);
+  rpc ImportCatalog(ImportCatalogRequest) returns (ImportCatalogResponse);
+  rpc MapAccount(MapAccountRequest) returns (MapAccountResponse);
+  rpc MergeNodes(MergeNodesRequest) returns (MergeNodesResponse);
+  rpc RenameNode(RenameNodeRequest) returns (RenameNodeResponse);
+  rpc VerifyCatalog(VerifyCatalogRequest) returns (VerifyCatalogResponse);
+  rpc SetReleaseRank(SetReleaseRankRequest) returns (SetReleaseRankResponse);
+  rpc SetDeliverableClass(SetDeliverableClassRequest) returns (SetDeliverableClassResponse);
+  rpc GetMeterInventory(MeterInventoryRequest) returns (MeterInventoryResponse);
+}
+service GatesService {
+  rpc DeclareTrigger(DeclareTriggerRequest) returns (DeclareTriggerResponse);
+  rpc AddFact(AddFactRequest) returns (AddFactResponse);
+  rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
+  rpc Promote(PromoteRequest) returns (PromoteResponse);
+  rpc ListProposals(ListProposalsRequest) returns (ListProposalsResponse);
+}
+service BoardService { rpc GetBoard(ProjectionRequest) returns (BoardResponse); }
+service ReleaseLadderService {
+  rpc GetReleaseLadder(ReleaseLadderRequest) returns (ReleaseLadderResponse);
+  rpc GetEnablingDeliverables(ReleaseLadderRequest) returns (ReleaseLadderResponse);
+  rpc GetPrerequisites(PrerequisiteWalkRequest) returns (PrerequisiteWalkResponse);
+}
+service SpaceService { rpc GetProjection(ProjectionRequest) returns (SpaceResponse); }

@@ -1,0 +1,13 @@
+[data-rcl-edge-fade] {
+  position: absolute;
+  inset-block: 0;
+  pointer-events: none;
+  width: var(--edge-fade-width);
+  background: var(--edge-fade);
+}
+[data-rcl-edge-fade][data-side="inline-start"] {
+  inset-inline-start: 0;
+}
+[data-rcl-edge-fade][data-side="inline-end"] {
+  inset-inline-end: 0;
+}

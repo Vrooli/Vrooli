@@ -1,0 +1,15 @@
+{
+  "_metadata": {
+    "auto_sync_enabled": true,
+    "description": "Parent registry linking operational targets to technical requirements. Modules are grouped by owning domain (see docs/concepts/DOMAINS.md), ordered by the domain read graph, so a domain's progress is readable in one place.",
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-bindings/module.json",
+    "02-actspace/module.json",
+    "03-sessions/module.json",
+    "04-programs/module.json",
+    "05-telemetry/module.json",
+    "06-platform/module.json"
+  ]
+}

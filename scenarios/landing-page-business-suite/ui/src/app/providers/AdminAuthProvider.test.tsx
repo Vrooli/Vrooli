@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from '@testing-library/user-event';
 import { AdminAuthProvider } from './AdminAuthProvider';
 import { useAdminAuth } from './useAdminAuth';
 import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
@@ -25,7 +27,7 @@ function TestComponent() {
       <div data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'not-authenticated'}</div>
       <div data-testid="user-email">{user?.email || 'no-user'}</div>
       <div data-testid="reset-flag">{canResetDemoData ? 'reset-enabled' : 'reset-disabled'}</div>
-      <button onClick={() => login('test@example.com', 'password')} data-testid="login-btn">
+      <button onClick={() => { void login('test@example.com', 'password'); }} data-testid="login-btn">
         Login
       </button>
       <button onClick={logout} data-testid="logout-btn">
@@ -40,10 +42,15 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
   const setLocation = (next: Location) => {
     Object.defineProperty(window, 'location', { value: next, writable: true });
   };
+  const createLocation = (pathname: string): Location => {
+    const location = Object.create(originalLocation) as Location;
+    Object.defineProperty(location, 'pathname', { value: pathname, writable: true });
+    return location;
+  };
 
   beforeEach(() => {
     // Mock window.location
-    setLocation({ ...originalLocation, pathname: '/admin/home' } as Location);
+    setLocation(createLocation('/admin/home'));
 
     mockCheckAdminSession.mockResolvedValue({
       authenticated: false,
@@ -59,7 +66,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     vi.clearAllMocks();
   });
 
-  it('[REQ:ADMIN-AUTH] should provide authentication context to children', () => {
+  it('[REQ:ADMIN-AUTH] should provide authentication context to children', async () => {
     render(
       <AdminAuthProvider>
         <TestComponent />
@@ -69,6 +76,10 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
     expect(screen.getByTestId('user-email')).toHaveTextContent('no-user');
     expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-disabled');
+
+    await waitFor(() => {
+      expect(mockCheckAdminSession).toHaveBeenCalled();
+    });
   });
 
   it('[REQ:ADMIN-AUTH] should check session on mount for admin routes', async () => {
@@ -124,7 +135,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     );
 
     const loginBtn = screen.getByTestId('login-btn');
-    loginBtn.click();
+    await userEvent.setup().click(loginBtn);
 
     await waitFor(() => {
       expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password');
@@ -157,7 +168,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
         <div>
           <div data-testid="auth-status">{isAuthenticated ? 'authenticated' : 'not-authenticated'}</div>
           <div data-testid="user-email">{user?.email || 'no-user'}</div>
-          <button onClick={handleLogin} data-testid="login-btn">
+          <button onClick={() => { void handleLogin(); }} data-testid="login-btn">
             Login
           </button>
           <button onClick={logout} data-testid="logout-btn">
@@ -176,7 +187,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     const loginBtn = screen.getByTestId('login-btn');
 
     // Click should trigger login attempt which will fail
-    loginBtn.click();
+    await userEvent.setup().click(loginBtn);
 
     // Wait for fetch to be called with login endpoint
     await waitFor(() => {
@@ -205,7 +216,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     });
 
     const logoutBtn = screen.getByTestId('logout-btn');
-    logoutBtn.click();
+    await userEvent.setup().click(logoutBtn);
 
     await waitFor(() => {
       expect(mockAdminLogout).toHaveBeenCalled();

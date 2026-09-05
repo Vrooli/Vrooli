@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.routes;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/routes;routes_v1";
+
+// =============================================================================
+// ROUTES DOMAIN — exposure manifest (SSOT)
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for RoutesService. The `routes` table is the single source of
+// truth for "which scenario is exposed at which subdomain/port, in which tier,
+// under which lease." Every other domain (exposure, config, audit, tunnel,
+// probes, recovery) reconciles against this manifest; it owns the record, not
+// the ingress (config) or the tiering policy (exposure).
+//
+// Consumed by:
+//   - API: handlers/routes/connect_handler.go implements RoutesServiceHandler.
+//   - CLI: cli/domains/routes/handlers.go renders via cliapp.ListReport.
+//   - UI:  ui/src/features/routes/ via the generated Connect-Web client.
+// =============================================================================
+
+service RoutesService {
+  rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
+  rpc GetRoute(GetRouteRequest) returns (GetRouteResponse);
+  rpc CreateRoute(CreateRouteRequest) returns (CreateRouteResponse);
+  rpc UpdateRoute(UpdateRouteRequest) returns (UpdateRouteResponse);
+  rpc DeleteRoute(DeleteRouteRequest) returns (DeleteRouteResponse);
+}
+
+// Tier classifies why a route exists. CORE routes come from the
+// api-core/coreset closure and are always exposed; LEASED routes back an
+// on-demand lease and auto-expire (see the exposure domain).
+enum Tier {
+  TIER_UNSPECIFIED = 0;
+  TIER_CORE = 1;
+  TIER_LEASED = 2;
+}
+
+// RouteSource distinguishes scenario-backed routes (the local UI port of a
+// known scenario) from external routes that point at an arbitrary
+// service_target. It is ORTHOGONAL to Tier: tiering is an exposure-policy
+// axis, source is a provenance axis. ROUTE_SOURCE_UNSPECIFIED defaults to
+// SCENARIO for rows written before the field existed.
+enum RouteSource {
+  ROUTE_SOURCE_UNSPECIFIED = 0;
+  ROUTE_SOURCE_SCENARIO = 1;
+  ROUTE_SOURCE_EXTERNAL = 2;
+}
+
+// PublicExposure is the per-route override for the /public Access-bypass
+// convention (see docs/concepts/PUBLIC_ASSETS.md). It is ORTHOGONAL to Tier and
+// Source. UNSPECIFIED == INHERIT (defer to the global
+// config.public_exposure_enabled switch); ENABLED forces the <host>/public
+// bypass on, DISABLED forces it off.
+enum PublicExposure {
+  PUBLIC_EXPOSURE_UNSPECIFIED = 0;
+  PUBLIC_EXPOSURE_INHERIT = 1;
+  PUBLIC_EXPOSURE_ENABLED = 2;
+  PUBLIC_EXPOSURE_DISABLED = 3;
+}
+
+// Route is the canonical wire shape for one manifest entry.
+message Route {
+  // Stable identifier assigned by the store on create.
+  string id = 1;
+
+  // DNS-label subdomain (e.g., "agent-manager"). Unique across the manifest.
+  string subdomain = 2;
+
+  // Name of the scenario this route exposes.
+  string scenario = 3;
+
+  // Apex domain the subdomain hangs off (a field, never hardcoded; default
+  // "itsagitime.com"). public_url is derived as https://<subdomain>.<domain>.
+  string domain = 4;
+
+  // Local port the tunnel forwards to. Must match the scenario's fixed UI port.
+  int32 local_port = 5;
+
+  // Exposure tier.
+  Tier tier = 6;
+
+  // Identifier of the lease that created this route when tier == LEASED;
+  // empty for CORE routes.
+  string lease_id = 7;
+
+  // Whether ingress should be active for this route.
+  bool enabled = 8;
+
+  // Health endpoint path probed for liveness (default "/health").
+  string health_path = 9;
+
+  // Derived public URL: https://<subdomain>.<domain>.
+  string public_url = 10;
+
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+
+  // Provenance: scenario-backed or external. Empty/UNSPECIFIED == SCENARIO.
+  RouteSource source = 13;
+
+  // Explicit local service target for external routes (e.g.
+  // http://127.0.0.1:9000). Empty for scenario routes, which derive
+  // http://localhost:<local_port>.
+  string service_target = 14;
+
+  // Per-route override for the /public Access-bypass convention.
+  // UNSPECIFIED == INHERIT.
+  PublicExposure public_exposure = 15;
+}
+
+message ListRoutesRequest {
+  // Optional tier filter; TIER_UNSPECIFIED returns all routes.
+  Tier tier = 1;
+}
+
+message ListRoutesResponse {
+  // Routes ordered by subdomain.
+  repeated Route routes = 1;
+}
+
+message GetRouteRequest {
+  string id = 1;
+}
+
+message GetRouteResponse {
+  Route route = 1;
+}
+
+// CreateRouteRequest is the body accepted by RoutesService.CreateRoute.
+// subdomain, scenario and local_port are required; domain defaults to
+// "itsagitime.com", health_path to "/health", enabled to true, tier to LEASED.
+message CreateRouteRequest {
+  string subdomain = 1;
+  string scenario = 2;
+  string domain = 3;
+  int32 local_port = 4;
+  Tier tier = 5;
+  string lease_id = 6;
+  string health_path = 7;
+  // Tri-state enable flag: unset defaults to true on create.
+  optional bool enabled = 8;
+  // Provenance. EXTERNAL routes require service_target and skip the
+  // scenario/local_port validation scenario routes enforce.
+  RouteSource source = 9;
+  // Explicit local target for an external route.
+  string service_target = 10;
+  // Per-route override for the /public Access-bypass convention
+  // (UNSPECIFIED == INHERIT).
+  PublicExposure public_exposure = 11;
+}
+
+message CreateRouteResponse {
+  Route route = 1;
+}
+
+// UpdateRouteRequest applies a partial update; only set fields change.
+message UpdateRouteRequest {
+  string id = 1;
+  string subdomain = 2;
+  string scenario = 3;
+  string domain = 4;
+  int32 local_port = 5;
+  Tier tier = 6;
+  string health_path = 7;
+  optional bool enabled = 8;
+  // Provenance (UNSPECIFIED leaves it unchanged).
+  RouteSource source = 9;
+  // Explicit local target for an external route (empty leaves it unchanged).
+  string service_target = 10;
+  // Per-route override for the /public Access-bypass convention
+  // (UNSPECIFIED leaves it unchanged).
+  PublicExposure public_exposure = 11;
+}
+
+message UpdateRouteResponse {
+  Route route = 1;
+}
+
+message DeleteRouteRequest {
+  string id = 1;
+}
+
+message DeleteRouteResponse {
+  // True when a row was removed; false when the id did not exist.
+  bool deleted = 1;
+}

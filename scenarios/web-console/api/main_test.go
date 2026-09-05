@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics/metrics_v1connect"
 )
 
 // [REQ:P0-004a] Proxy-Correct Networking - all expected routes are registered
@@ -19,31 +23,17 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 	}{
 		{"GET", "/health"},
 		{"GET", "/api/v1/health"},
-		{"POST", "/api/v1/sessions"},
-		{"GET", "/api/v1/sessions"},
-		{"GET", "/api/v1/sessions/test-id"},
-		{"DELETE", "/api/v1/sessions/test-id"},
-		{"GET", "/api/v1/sessions/test-id/policy"},
-		{"PUT", "/api/v1/sessions/test-id/policy"},
 		{"GET", "/api/v1/sessions/test-id/ws"},
-		{"POST", "/api/v1/ai/generate"},
-		{"POST", "/api/v1/ai/suggest"},
-		{"GET", "/api/v1/shortcuts"},
-		{"GET", "/api/v1/shortcuts/profiles"},
-		{"PUT", "/api/v1/shortcuts/profiles"},
-		{"DELETE", "/api/v1/shortcuts/profiles/test-id"},
-		{"GET", "/api/v1/ai/config"},
-		{"PUT", "/api/v1/ai/config"},
-		{"GET", "/api/v1/ai/health"},
-		{"GET", "/api/v1/metrics"},
-		{"GET", "/api/v1/voice/speaker/config"},
-		{"PUT", "/api/v1/voice/speaker/config"},
-		{"GET", "/api/v1/voice/speaker/status"},
-		{"GET", "/api/v1/voice/speaker/profiles"},
-		{"POST", "/api/v1/voice/speaker/enroll"},
-		{"DELETE", "/api/v1/voice/speaker/profile"},
-		{"POST", "/api/v1/voice/speaker/profile/remove"},
-		{"POST", "/api/v1/voice/speaker/profile/delete"},
+		// NOTE: ai/*, shortcuts/*, files/resolve, files/content,
+		// conversation/*, sessions/*, tts/*, voice/*, events, and
+		// metrics routes have moved to Connect-RPC under
+		// /vrooli.web_console.v1.<domain>.<Service>/<RPC>. Per-RPC
+		// registration is covered by Connect-handler tests in the
+		// matching domain test files; the parity test in
+		// internal/modules ensures registry coverage. The Connect
+		// procedure path constants below are spot-checked here to
+		// guarantee the router actually mounts them.
+		{"POST", metricsconnect.MetricsServiceGetProcedure},
 	}
 
 	for _, rt := range routes {
@@ -52,6 +42,27 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 		if !srv.router.Match(req, &match) {
 			t.Errorf("route not registered: %s %s", rt.method, rt.path)
 		}
+	}
+}
+
+func TestBridgeURLSecurityWarning(t *testing.T) {
+	for _, tc := range []struct {
+		name, raw, want string
+	}{
+		{name: "empty", raw: "", want: ""},
+		{name: "loopback http", raw: "http://127.0.0.1:18767", want: ""},
+		{name: "remote http", raw: "http://bridge.example.test:18767", want: "not encrypted"},
+		{name: "remote https", raw: "https://bridge.example.test:18767", want: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := bridgeURLSecurityWarning(tc.raw)
+			if tc.want == "" && got != "" {
+				t.Fatalf("warning = %q, want none", got)
+			}
+			if tc.want != "" && !strings.Contains(got, tc.want) {
+				t.Fatalf("warning = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -87,13 +98,42 @@ func TestHandler_HealthEndpoint(t *testing.T) {
 	}
 }
 
-// [REQ:P1-004b] Metrics - metrics endpoint responds
+func TestHandler_SecurityHeaders(t *testing.T) {
+	srv := &Server{router: mux.NewRouter()}
+	srv.router.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods(http.MethodGet)
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/health", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	for header, want := range map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "SAMEORIGIN",
+		"X-XSS-Protection":          "0",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+	} {
+		if got := rec.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+}
+
+// [REQ:P1-004b] Metrics - MetricsService.Get responds through the full
+// handler stack (CORS + request-ID middleware + Connect mux).
 func TestHandler_MetricsEndpoint(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
 	handler := srv.Handler()
 
-	req := httptest.NewRequest("GET", "/api/v1/metrics", nil)
+	// Connect's JSON codec accepts an empty body for a request with no
+	// fields. Using application/json keeps the test independent of the
+	// generated protobuf wire format.
+	req := httptest.NewRequest("POST", metricsconnect.MetricsServiceGetProcedure, bytes.NewReader([]byte("{}")))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -132,14 +172,15 @@ func TestGetRequestID_WithoutContext(t *testing.T) {
 	}
 }
 
-// [REQ:P0-004a] Method not allowed returns 405
+// [REQ:P0-004a] Method not allowed returns 405. The terminal WS path is
+// still a raw REST route registered as GET-only, so a PATCH against it is
+// the canonical method-not-allowed probe after the Connect-RPC migration.
 func TestHandler_MethodNotAllowed(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
 	handler := srv.Handler()
 
-	// PATCH is not registered for sessions
-	req := httptest.NewRequest("PATCH", "/api/v1/sessions", nil)
+	req := httptest.NewRequest("PATCH", "/api/v1/sessions/test-id/ws", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/shared;shared_v1";
+
+// =============================================================================
+// COVERAGE MODEL — shared enums
+// =============================================================================
+//
+// @stability stable
+//
+// The cross-domain vocabulary of the readiness model, defined once and shared by
+// the coverage / convergence / focus / trials services. The canonical prose
+// definition lives in docs/concepts/COVERAGE-MODEL.md; these enums are the wire
+// encoding of that model. Keep them in lockstep with that document.
+// =============================================================================
+
+// Projection is one of the readiness projections. Software engineering by a
+// (local) agent is understand -> change -> verify, and every change lands as an
+// effect on the system; each projection is owned by the scenario holding its
+// ground truth. The change itself (code synthesis) is the model's own job and is
+// NOT a projection — it is proven empirically by the trials domain. UNSPECIFIED
+// is used for gaps that are not projection-scoped (e.g. convergence or
+// cross-cutting/global gaps).
+enum Projection {
+  PROJECTION_UNSPECIFIED = 0;
+  PROJECTION_ANSWER = 1; // search-hub — can the project be understood?
+  PROJECTION_VALIDATE = 2; // test-genie — can a change be verified + auto-fixed?
+  PROJECTION_GUIDE = 3; // prompt-manager — is there a skill per SWE task?
+  PROJECTION_ACT = 4; // program-runtime — is each operation programmatically invocable?
+}
+
+// GapAxis distinguishes enumerable declared coverage from observed empirical
+// evidence, which has recurrence and traceability rather than a denominator.
+enum GapAxis {
+  GAP_AXIS_UNSPECIFIED = 0;
+  GAP_AXIS_COVERAGE = 1;
+  GAP_AXIS_EMPIRICAL = 2;
+}
+
+// DenominatorConfidence is how complete we believe a denominator (a space doc)
+// itself is. Every coverage number is reported with it; the honesty is recursive
+// ("X% complete against a Y-confidence denominator") so the board can never imply
+// false completeness.
+enum DenominatorConfidence {
+  DENOMINATOR_CONFIDENCE_UNSPECIFIED = 0;
+  DENOMINATOR_CONFIDENCE_AUTHORITATIVE = 1; // exhaustively enumerated
+  DENOMINATOR_CONFIDENCE_PARTIAL = 2; // major cells enumerated, not swept
+  DENOMINATOR_CONFIDENCE_SKETCH = 3; // first cut, judgment-heavy
+}
+
+// CellStatus is the live status of a single denominator cell.
+enum CellStatus {
+  CELL_STATUS_UNSPECIFIED = 0;
+  CELL_STATUS_NOW = 1; // a live provider / phase / skill answers it today
+  CELL_STATUS_IN_REACH = 2; // substrate exists — build / attest / extend
+  CELL_STATUS_MISSING = 3; // no provider / substrate; a true gap
+}
+
+// The Basis and Sufficiency honesty axes are the shared attestation vocabulary;
+// they live in packages/proto/schemas/common/v1/attestation.proto (common.v1)
+// as the single SSOT for every producer and consumer. Import that file to use
+// them (see coverage.proto).
+
+// Severity grades a base-document-integrity issue.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARN = 2;
+  SEVERITY_ERROR = 3; // an ERROR flips the base-doc gate non-zero
+}

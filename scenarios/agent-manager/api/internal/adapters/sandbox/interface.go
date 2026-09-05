@@ -9,7 +9,9 @@ import (
 	"context"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 )
 
@@ -47,11 +49,31 @@ type Provider interface {
 	// PartialApprove approves only selected files from the sandbox.
 	PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
 
+	// ApplyAtRunEnd is the agent-manager run-end apply path. It carries
+	// run-context metadata (run id, conversation id, cost, run outcome) onto
+	// the workspace-sandbox apply pipeline so provenance is recorded against
+	// the originating run. The workspace-sandbox endpoint validates that
+	// Source == SourceAgentManagerAutoApply; other sources are rejected.
+	//
+	// Apply behaviour is identical regardless of RunOutcome — outcome is
+	// metadata only. Out-of-acceptance files are retained as
+	// state=pending-review on the resulting provenance record.
+	//
+	// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error)
+
+	// TurnCheckpoint applies accepted turn changes and parks the sandbox in a
+	// resumable non-terminal state.
+	TurnCheckpoint(ctx context.Context, req TurnCheckpointRequest) (*TurnCheckpointResult, error)
+
 	// Stop suspends a sandbox (keeps data but releases mount).
 	Stop(ctx context.Context, id uuid.UUID) error
 
 	// Start resumes a stopped sandbox.
 	Start(ctx context.Context, id uuid.UUID) error
+
+	// Resume remounts a checkpointed sandbox for the next turn.
+	Resume(ctx context.Context, id uuid.UUID) (*Sandbox, error)
 
 	// IsAvailable checks if the sandbox provider is operational.
 	IsAvailable(ctx context.Context) (bool, string)
@@ -59,6 +81,15 @@ type Provider interface {
 	// ValidatePath checks whether a path exists, is a directory, and is within
 	// the given project root. Used for early input validation in the UI.
 	ValidatePath(ctx context.Context, path string, projectRoot string) (*PathValidationResult, error)
+
+	// ExecProcess runs a single command synchronously inside a sandbox via
+	// workspace-sandbox /exec. Honors the sandbox's protected-mode
+	// guardrails (git allowlist enforcement, network-mode restrictions).
+	// Used by protected-mode runners to launch the agent process through
+	// workspace-sandbox rather than directly on the host.
+	//
+	// See execute/protected-sandbox-agent-launch.
+	ExecProcess(ctx context.Context, req ExecProcessRequest) (*ExecProcessResult, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -78,7 +109,8 @@ type CreateRequest struct {
 	NoLock *bool
 
 	// ProjectRoot is the root directory of the project.
-	ProjectRoot string
+	ProjectRoot    string
+	AuxiliaryRoots []string
 
 	// Owner identifies who owns this sandbox.
 	Owner string
@@ -98,26 +130,80 @@ type CreateRequest struct {
 
 // Sandbox represents an active or stopped sandbox.
 type Sandbox struct {
-	ID          uuid.UUID         `json:"id"`
-	ScopePath   string            `json:"scopePath"`
-	ProjectRoot string            `json:"projectRoot"`
-	Status      SandboxStatus     `json:"status"`
-	WorkDir     string            `json:"workDir"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID          uuid.UUID     `json:"id"`
+	ScopePath   string        `json:"scopePath"`
+	ProjectRoot string        `json:"projectRoot"`
+	Status      SandboxStatus `json:"status"`
+
+	// WorkDir is the host-side overlay merged dir. It is what host-routed
+	// (tracking-mode) launches chdir into and the base host path the
+	// SandboxLauncher translates onto the agent-visible WorkspacePath. Kept
+	// distinct from WorkspacePath so host-side consumers (diff/apply, host
+	// launches) never accidentally receive the in-namespace illusion path.
+	WorkDir string `json:"workDir"`
+
+	// WorkspacePath is the agent-visible workspace path reported by
+	// workspace-sandbox: "/workspace" when exec containment binds under a
+	// path illusion, else the host merged dir (identity). The single source
+	// of truth for the in-namespace working directory — never inferred from
+	// GOOS or driver id.
+	WorkspacePath string `json:"workspacePath"`
+
+	// PathIllusion is true when WorkspacePath differs from WorkDir because
+	// the containment backend rewrites host paths onto an illusory mount.
+	// false means path translation is identity.
+	PathIllusion bool `json:"pathIllusion"`
+
+	// Containment is the process-containment the sandbox actually enforces
+	// (level, backend, enforcements). Consumed by the launcher selector to
+	// surface degraded protected-mode runs. Nil when the server did not
+	// report it (older workspace-sandbox).
+	Containment *runner.Containment `json:"containment,omitempty"`
+
+	CreatedAt        time.Time         `json:"createdAt"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
+	HomeOverlayState HomeOverlayState  `json:"homeOverlayState"`
+}
+
+// HomeOverlayState mirrors the workspace-sandbox enum
+// (api/internal/types/types.go::HomeOverlayState). Single source of
+// truth for "did this sandbox get a host-$HOME overlay?". Used by the
+// SandboxLauncher to refuse $HOME/.local/... commands when the overlay
+// is missing — without this, a missing overlay manifests as
+// `env: …/claude: No such file or directory` at exec time.
+//
+// DOC: home-overlay seam — agent-manager mirror. See docs/internal/SEAMS.md.
+type HomeOverlayState string
+
+const (
+	HomeOverlayPresent      HomeOverlayState = "present"
+	HomeOverlayAbsent       HomeOverlayState = "absent"
+	HomeOverlayNotRequested HomeOverlayState = "not_requested"
+	HomeOverlayUnsupported  HomeOverlayState = "unsupported"
+)
+
+// IsHomeOverlayPresent reports whether the sandbox's home overlay is
+// usable for $HOME-relative operations. Mirrors the workspace-sandbox
+// policy.IsHomeOverlayPresent helper — kept synchronized via the
+// parity test in home_overlay_policy_test.go.
+//
+// DOC: home-overlay seam — single predicate for state==Present.
+func IsHomeOverlayPresent(state HomeOverlayState) bool {
+	return state == HomeOverlayPresent
 }
 
 // SandboxStatus represents the sandbox lifecycle state.
 type SandboxStatus string
 
 const (
-	SandboxStatusCreating SandboxStatus = "creating"
-	SandboxStatusActive   SandboxStatus = "active"
-	SandboxStatusStopped  SandboxStatus = "stopped"
-	SandboxStatusApproved SandboxStatus = "approved"
-	SandboxStatusRejected SandboxStatus = "rejected"
-	SandboxStatusDeleted  SandboxStatus = "deleted"
-	SandboxStatusError    SandboxStatus = "error"
+	SandboxStatusCreating     SandboxStatus = "creating"
+	SandboxStatusActive       SandboxStatus = "active"
+	SandboxStatusStopped      SandboxStatus = "stopped"
+	SandboxStatusCheckpointed SandboxStatus = "checkpointed"
+	SandboxStatusApproved     SandboxStatus = "approved"
+	SandboxStatusRejected     SandboxStatus = "rejected"
+	SandboxStatusDeleted      SandboxStatus = "deleted"
+	SandboxStatusError        SandboxStatus = "error"
 )
 
 // DiffResult contains the generated diff for a sandbox.
@@ -127,7 +213,30 @@ type DiffResult struct {
 	UnifiedDiff string       `json:"unifiedDiff"`
 	Generated   time.Time    `json:"generated"`
 	Stats       DiffStats    `json:"stats"`
+
+	// ArchiveState distinguishes archive-sourced responses from live
+	// responses. Empty (zero value) means the diff was served from the
+	// live overlay; non-empty values only appear when the response came
+	// from a durable archive captured at terminal-status transition.
+	//   - empty          → live overlay
+	//   - "complete"     → archived snapshot with content blobs
+	//   - "not_captured" → archived row, no blobs (e.g. Error → Deleted)
+	ArchiveState ArchiveState `json:"archiveState,omitempty"`
 }
+
+// ArchiveState mirrors workspace-sandbox's ArchiveState taxonomy.
+type ArchiveState string
+
+const (
+	// ArchiveStateComplete: archived snapshot with content blobs durable
+	// on disk. Live diffs leave ArchiveState empty rather than using
+	// this value.
+	ArchiveStateComplete ArchiveState = "complete"
+	// ArchiveStateNotCaptured: terminal-state sandbox whose snapshot was
+	// deliberately skipped (e.g. Error → Deleted). UI renders "no diff
+	// captured" rather than treating an empty file list as a bug.
+	ArchiveStateNotCaptured ArchiveState = "not_captured"
+)
 
 // FileChange represents a single file modification.
 type FileChange struct {
@@ -178,13 +287,95 @@ type PartialApproveRequest struct {
 
 // ApproveResult contains the outcome of an approval.
 type ApproveResult struct {
-	Success    bool      `json:"success"`
-	Applied    int       `json:"applied"`
-	Remaining  int       `json:"remaining"`
-	IsPartial  bool      `json:"isPartial"`
-	CommitHash string    `json:"commitHash,omitempty"`
-	AppliedAt  time.Time `json:"appliedAt"`
-	ErrorMsg   string    `json:"errorMsg,omitempty"`
+	Success        bool      `json:"success"`
+	Applied        int       `json:"applied"`
+	Remaining      int       `json:"remaining"`
+	IsPartial      bool      `json:"isPartial"`
+	CommitHash     string    `json:"commitHash,omitempty"`
+	AppliedAt      time.Time `json:"appliedAt"`
+	ErrorMsg       string    `json:"errorMsg,omitempty"`
+	TotalSizeBytes int64     `json:"appliedSizeBytes,omitempty"`
+	DiffPath       string    `json:"diffPath,omitempty"`
+}
+
+// ApplyAtRunEndRequest carries run-context metadata onto the workspace-sandbox
+// run-end apply call. The agent-manager seam mirrors the workspace-sandbox
+// types.ApplyAtRunEndRequest shape but does not import workspace-sandbox
+// directly (the adapter owns the wire translation).
+type ApplyAtRunEndRequest struct {
+	SandboxID uuid.UUID
+
+	// RunID is the agent-manager run that produced these changes.
+	RunID string
+
+	// ConversationID is the agent-thread identifier (Decision D7). When
+	// empty, the workspace-sandbox endpoint records nothing for the field.
+	ConversationID string
+
+	// Cost is the total USD cost of the run, recorded on provenance.
+	Cost float64
+
+	// RunOutcome is the contract-canonical outcome ∈ {success, failure,
+	// cancelled, timeout}. Apply behaviour is identical regardless of
+	// outcome (lossy by design); the value is metadata only.
+	RunOutcome string
+
+	// Actor mirrors ApprovalRequest.Actor for attribution policies. Defaults
+	// to "applyAtRunEnd" when empty.
+	Actor string
+
+	// CommitMsg / CreateCommit / Force are forwarded to the apply pipeline.
+	CommitMsg    string
+	CreateCommit bool
+	Force        bool
+}
+
+// ApplyAtRunEndResult mirrors the workspace-sandbox ApprovalResult fields the
+// run executor cares about. IsPartial=true means out-of-acceptance files
+// remain as state=pending-review on the provenance record; the sandbox
+// persists for operator review.
+type ApplyAtRunEndResult struct {
+	Success        bool
+	Applied        int
+	Failed         int
+	Remaining      int
+	IsPartial      bool
+	CommitHash     string
+	AppliedAt      time.Time
+	ErrorMsg       string
+	TotalSizeBytes int64
+	DiffPath       string
+}
+
+type TurnCheckpointRequest struct {
+	SandboxID      uuid.UUID
+	RunID          string
+	ConversationID string
+	TurnID         string
+	TurnSequence   int
+	Cost           float64
+	RunOutcome     string
+	Actor          string
+	CommitMsg      string
+	CreateCommit   bool
+	Force          bool
+}
+
+type TurnCheckpointResult struct {
+	SandboxID      uuid.UUID
+	Status         SandboxStatus
+	Success        bool
+	Applied        int
+	Failed         int
+	Remaining      int
+	IsPartial      bool
+	CommitHash     string
+	BaseCommitHash string
+	CheckpointID   string
+	AppliedAt      time.Time
+	ErrorMsg       string
+	TotalSizeBytes int64
+	DiffPath       string
 }
 
 // PathValidationResult contains the result of a path validation check.
@@ -198,30 +389,53 @@ type PathValidationResult struct {
 	Error             string `json:"error,omitempty"`
 }
 
-// -----------------------------------------------------------------------------
-// Scope Lock Interface
-// -----------------------------------------------------------------------------
+// ExecProcessRequest contains parameters for ExecProcess.
+//
+// Protected-mode runners (claude_code, codex, opencode) populate this when
+// SandboxConfig.Mode == protected so the agent process runs through
+// workspace-sandbox containment rather than directly on the host. The
+// workspace-sandbox handler enforces:
+//   - git verb allowlist (Behavior.Protected.GitAllowlist)
+//   - network mode (none / localhost / full) via bwrap
+//   - resource limits (memory, CPU, processes, open files, timeout)
+type ExecProcessRequest struct {
+	SandboxID      uuid.UUID
+	Command        string
+	Args           []string
+	Env            map[string]string
+	WorkingDir     string
+	WritableMounts []WritableMount
+	NetworkMode    string // "none" | "localhost" | "full"; "" → workspace-sandbox default
 
-// LockManager handles scope-based locking for concurrent runs.
-type LockManager interface {
-	// Acquire attempts to acquire a lock for the given scope.
-	// Returns an error if the scope overlaps with an existing lock.
-	Acquire(ctx context.Context, req LockRequest) (*domain.ScopeLock, error)
-
-	// Release releases a previously acquired lock.
-	Release(ctx context.Context, lockID uuid.UUID) error
-
-	// Check verifies if a scope can be locked without acquiring.
-	Check(ctx context.Context, scopePath, projectRoot string) (bool, []domain.ScopeConflict, error)
-
-	// Refresh extends the expiration time of a lock.
-	Refresh(ctx context.Context, lockID uuid.UUID, extension time.Duration) error
+	MemoryLimitMB int
+	CPUTimeSec    int
+	TimeoutSec    int
+	MaxProcesses  int
+	MaxOpenFiles  int
 }
 
-// LockRequest contains parameters for acquiring a scope lock.
-type LockRequest struct {
-	RunID       uuid.UUID
-	ScopePath   string
-	ProjectRoot string
-	TTL         time.Duration
+// WritableMount declares a directory that the sandbox may bind read-write.
+type WritableMount struct {
+	Path    string `json:"path"`
+	Purpose string `json:"purpose"`
+}
+
+// ExecProcessResult mirrors the workspace-sandbox /exec response.
+type ExecProcessResult struct {
+	ExitCode int
+	Stdout   string
+	Stderr   string
+	PID      int
+	TimedOut bool
+
+	// Blocked reports a structured guardrail denial (e.g. git verb blocked).
+	// When non-nil, the workspace-sandbox returned 403 with a typed body.
+	Blocked *ExecBlocked
+}
+
+// ExecBlocked describes a structured workspace-sandbox guardrail denial.
+type ExecBlocked struct {
+	Error   string // e.g. "git_verb_blocked"
+	Verb    string // e.g. "commit"
+	Message string
 }

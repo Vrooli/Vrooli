@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:InspectorLayout",
+  "deprecatedVersions": [
+    "1.1.0",
+    "1.1.1",
+    "1.1.3",
+    "1.1.2"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.1.3",
+    "1.1.2"
+  ],
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:InspectorLayout"
+}

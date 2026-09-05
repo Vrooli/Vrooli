@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+    "provider_id": "content-desk.editorial-history",
+    "lifecycle": "fixture",
+      "provider_group": "content-desk",
+      "bucket": "BUCKET_KNOW",
+      "type": "editorial-history",
+      "description": "Verified editorial drafts and durable publish history from Content Desk. Use for questions about a draft, an approved claim-bearing post, or a previously published editorial record.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "content-desk",
+          "path": "/vrooli.content_desk.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "content-desk",
+          "path": "/vrooli.content_desk.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "snippet_field": "snippet",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "performance": { "p95_ms": 500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 1 },
+      "tuning": { "engine": "dense", "rerank_enabled": false, "floor": { "max_gap": 0, "hard_floor": 0 } },
+      "tests": {
+        "name": "content desk editorial history — primary",
+        "description": "Live provider checks for editorial draft and publish-history retrieval.",
+        "cases": [
+          { "id": "editorial-draft", "query": "find an editorial draft", "tags": ["strong", "draft"], "expect_ids": ["draft-fixture"], "expect_within_top_k": 10, "status": "candidate" },
+          { "id": "junk", "query": "florbnax editorial nonsense", "tags": ["gibberish"], "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "candidate" }
+        ]
+      }
+    }
+  ]
+}

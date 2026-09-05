@@ -61,6 +61,20 @@ describe("ExecutionPromptTab", () => {
     expect(screen.queryByText("Fallback used")).not.toBeInTheDocument();
   });
 
+  it("labels a synthetic trace as reconstructed context", () => {
+    // Retry/fixup/followup traces are reconstructed caller context; the agent
+    // runs the bound operation's mode prompt, so the trace must be labeled.
+    render(
+      <ExecutionPromptTab trace={makeTrace({ synthetic: true })} isLoading={false} />,
+    );
+    expect(screen.getByText("Reconstructed context")).toBeInTheDocument();
+  });
+
+  it("does not label a non-synthetic trace", () => {
+    render(<ExecutionPromptTab trace={makeTrace({})} isLoading={false} />);
+    expect(screen.queryByText("Reconstructed context")).not.toBeInTheDocument();
+  });
+
   it("shows captured timestamp", () => {
     render(
       <ExecutionPromptTab

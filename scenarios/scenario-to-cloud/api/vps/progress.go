@@ -58,7 +58,8 @@ var StepWeights = map[string]float64{
 	"upload":            16,
 	"cleanup_scenarios": 3, // Remove stale scenario code while preserving declared mutable paths
 	"extract":           5,
-	"setup":             10, // Reduced from 15 (bootstrap handles some work now)
+	"install_vrooli":    5,
+	"setup":             10, // Reduced from 15 (bootstrap + binary install handle part of the work now)
 	"autoheal":          2,
 	"verify_setup":      1, // Reduced from 3
 	"scenario_stop":     3, // Stop existing scenario before deployment

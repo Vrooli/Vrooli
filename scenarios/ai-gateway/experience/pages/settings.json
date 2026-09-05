@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Policies And Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum policy controls needed to operate AI Gateway safely, including routing profiles, retention, privacy defaults, and smoke-test behavior.",
+    "prd_refs": ["OT-P0-006", "OT-P1-004"]
+  },
+  "priorities": [
+    {
+      "statement": "Keep policy controls explicit and reviewable instead of hidden behind provider defaults."
+    },
+    {
+      "statement": "Make privacy and evidence-retention choices clear before they affect production routes."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Policy defaults, theme, and locale controls are visible." }
+  ],
+  "elements": [
+    { "id": "settings-region", "role": "region", "name": "Policies and settings" },
+    { "id": "theme-light", "role": "radio", "name": "Light" },
+    { "id": "locale-en", "role": "radio", "name": "English" }
+  ],
+  "claims": [
+    {
+      "id": "settings-region-present",
+      "type": "element-present",
+      "statement": "Policy settings are exposed as a named operator region.",
+      "tier": "machine",
+      "elements": ["settings-region"],
+      "states": ["default"]
+    },
+    {
+      "id": "display-controls-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Theme and locale controls remain keyboard reachable.",
+      "tier": "machine",
+      "elements": ["theme-light", "locale-en"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "settings-region": { "testid": "page-settings" },
+      "theme-light": { "testid": "page-settings-theme-light" },
+      "locale-en": { "testid": "page-settings-locale-en" }
+    }
+  }
+}

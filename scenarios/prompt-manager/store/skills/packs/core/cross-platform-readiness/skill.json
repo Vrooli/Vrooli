@@ -1,12 +1,30 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "cross-platform-readiness",
-  "name": "Cross-Platform Readiness",
+  "createdAt": "2026-02-03T14:00:00Z",
   "description": "Prepares scenarios for deployment beyond Tier 1 (local stack) by eliminating environment variable dependencies, replacing non-portable resources, adopting api-core/storage for runtime filesystem state, and ensuring build/runtime portability across desktop, mobile, cloud, and enterprise tiers.",
+  "entry": "SKILL.md",
+  "id": "cross-platform-readiness",
+  "kind": "skill",
   "modes": [
     "steer"
   ],
+  "name": "Cross-Platform Readiness",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 30,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "portability",
     "desktop",
@@ -21,9 +39,5 @@
     "electron",
     "cross-compilation"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 29,
-  "createdAt": "2026-02-03T14:00:00Z",
-  "updatedAt": "2026-02-05T00:50:04Z"
+  "updatedAt": "2026-05-04T02:48:26Z"
 }

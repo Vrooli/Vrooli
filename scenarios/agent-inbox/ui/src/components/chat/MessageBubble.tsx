@@ -60,7 +60,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
       setIsSpeaking(false);
       return;
     }
-    if (!window.speechSynthesis) {
+    if (typeof window.speechSynthesis === "undefined") {
       addToast("Text-to-speech not supported in this browser", "error");
       return;
     }
@@ -119,7 +119,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
     if (position === "user") {
       return (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
+          <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={() => { void handleCopy(); }} />
           <ActionButton icon={<Pencil className={iconSize} />} tooltip="Edit" onClick={handleEdit} />
           <ActionButton icon={<Trash2 className={iconSize} />} tooltip="Delete" onClick={handleDelete} />
           <ActionButton
@@ -146,7 +146,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
             />
           )}
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={handleCopy} />
+            <ActionButton icon={<Copy className={iconSize} />} tooltip="Copy" onClick={() => { void handleCopy(); }} />
             <ActionButton
               icon={isSpeaking ? <VolumeX className={iconSize} /> : <Volume2 className={iconSize} />}
               tooltip={isSpeaking ? "Stop reading" : "Read aloud"}

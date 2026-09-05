@@ -1,0 +1,495 @@
+package authoring
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/vrooli/api-core/markedrefs"
+
+	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/readiness"
+)
+
+const referencesGateMessage = "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason"
+
+// boundaryGateMessage is the single message for the change-boundary requirement.
+// The boundary is mandatory but satisfiable by an OPERATOR_ONLY: reason, so its
+// requirement is enforced by this gate (not the generic empty-mandatory message).
+const boundaryGateMessage = "change boundary must declare acceptance_allow paths (one glob per line), or an OPERATOR_ONLY: reason for no-code/operator-only work"
+
+// boundaryGateViolations enforces the change-boundary invariants on a submitted
+// acceptance-boundary section: an allow list (or operator-only reason) is
+// required and no glob may contain an unresolved placeholder.
+func boundaryGateViolations(content string) []StructureViolation {
+	b := planmodel.ParseBoundarySection(content)
+	if b.IsZero() {
+		return []StructureViolation{{SectionKey: SectionAcceptanceBoundary, Message: boundaryGateMessage}}
+	}
+	var out []StructureViolation
+	for _, problem := range planmodel.ValidateBoundary(b, true) {
+		out = append(out, StructureViolation{SectionKey: SectionAcceptanceBoundary, Message: problem})
+	}
+	return out
+}
+
+// anchorPlaceholderViolations rejects unresolved authoring placeholders in the
+// parsed regression-anchor's scenario, allowlist, and derived commands. The
+// HEAD-sha field is exempt: "<captured at execution start>" is intentional intent
+// the executor fills with a real sha when execution begins.
+func anchorPlaceholderViolations(content string) []StructureViolation {
+	if strings.TrimSpace(content) == "" {
+		return nil
+	}
+	anchor := planmodel.ParseRegressionAnchorBlock(content)
+	var out []StructureViolation
+	check := func(field, value string) {
+		if tokens := planmodel.UnresolvedPlaceholders(value); len(tokens) > 0 {
+			out = append(out, StructureViolation{
+				SectionKey: SectionRegressionAnchor,
+				Message:    "regression anchor " + field + " has unresolved placeholder(s) " + strings.Join(tokens, ", "),
+			})
+		}
+	}
+	check("scenario", anchor.Scenario)
+	for _, p := range anchor.AllowlistPaths {
+		check("allowlist", p)
+	}
+	for _, c := range anchor.Commands {
+		check("command", c)
+	}
+	return out
+}
+
+// decisionsGateViolations enforces the pinned-decision line format at submit
+// time: every non-empty line needs `<title>: <statement>` with both sides
+// present, so a rendered D-list is never missing its handle or its content.
+func decisionsGateViolations(content string) []StructureViolation {
+	var out []StructureViolation
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		if line == "" {
+			continue
+		}
+		title, statement, found := strings.Cut(line, ":")
+		if !found || strings.TrimSpace(title) == "" || strings.TrimSpace(statement) == "" {
+			out = append(out, StructureViolation{
+				SectionKey: SectionDecisions,
+				Message:    fmt.Sprintf("decision line %q must be '<title>: <statement>' with both parts present", line),
+			})
+		}
+	}
+	return out
+}
+
+func structureViolations(sections []Section) []StructureViolation {
+	var out []StructureViolation
+	for _, sec := range sections {
+		// References and the change boundary are mandatory, but each owns its gate
+		// (allowing NO_CODE_REFS / OPERATOR_ONLY) — skip the generic empty-mandatory
+		// message to avoid double-reporting.
+		if sec.Key == SectionReferences || sec.Key == SectionAcceptanceBoundary {
+			continue
+		}
+		if sec.Mandatory && strings.TrimSpace(sec.Content) == "" {
+			out = append(out, StructureViolation{
+				SectionKey: sec.Key,
+				Message:    "mandatory section " + string(sec.Key) + " must not be empty",
+			})
+		}
+	}
+	if strings.TrimSpace(contentOf(sections, SectionRegressionAnchor)) == "" &&
+		!hasMandatoryViolation(out, SectionRegressionAnchor) {
+		out = append(out, StructureViolation{
+			SectionKey: SectionRegressionAnchor,
+			Message:    "regression anchor must be captured before finalizing",
+		})
+	}
+	return out
+}
+
+func sessionViolations(sess Session) []StructureViolation {
+	out := structureViolations(sess.Sections)
+	refsContent := contentOf(sess.Sections, SectionReferences)
+	if !hasReferencesOrNoCodeReason(refsContent) {
+		out = append(out, StructureViolation{SectionKey: SectionReferences, Message: "add [CODE:]/[DOC:]/[REQ:] references, run search-hub directly and submit useful locators, or record NO_CODE_REFS: <reason>"})
+	}
+	out = append(out, referencesContentKindViolations(refsContent)...)
+	out = append(out, boundaryGateViolations(contentOf(sess.Sections, SectionAcceptanceBoundary))...)
+	out = append(out, anchorPlaceholderViolations(contentOf(sess.Sections, SectionRegressionAnchor))...)
+	out = append(out, postureConflictViolations(sess)...)
+	for _, phase := range sess.PhaseDrafts {
+		out = append(out, phaseViolations(phase)...)
+	}
+	return out
+}
+
+func (s *service) readinessViolations(ctx context.Context, sess Session) []StructureViolation {
+	violations, _ := s.readinessAssessment(ctx, sess)
+	return violations
+}
+
+// readinessAssessment pairs the deterministic finalization gate with an
+// intentionally bounded GCT advisory. Advisory failures are visible in the
+// guided step but never convert a dependency outage into a readiness failure.
+func (s *service) readinessAssessment(ctx context.Context, sess Session) ([]StructureViolation, []string) {
+	out := sessionViolations(sess)
+	if len(out) > 0 {
+		return out, nil
+	}
+	draft, err := sessionToPlan(sess)
+	if err != nil {
+		return append(out, StructureViolation{SectionKey: SectionPhases, Message: err.Error()}), nil
+	}
+	if s.posture != nil {
+		draft = s.posture.PreparePosture(ctx, draft)
+	}
+	result := readiness.Evaluate(ctx, draft, readiness.Options{
+		Mode: readiness.DeterministicMode(),
+	})
+	for _, finding := range result.Findings {
+		if finding.Severity != readiness.SeverityFail {
+			continue
+		}
+		out = append(out, StructureViolation{
+			SectionKey: sectionForQualityLocation(finding.Location),
+			Message:    fmt.Sprintf("readiness %s at %s: %s", finding.Code, finding.Location, finding.Message),
+		})
+	}
+	if len(out) > 0 {
+		return out, nil
+	}
+	return out, s.sourceEvidenceAdvisory(ctx, draft.ChangeBoundary.RepoPaths())
+}
+
+func (s *service) sourceEvidenceAdvisory(ctx context.Context, repoPaths []string) []string {
+	if s.sourceEvidence == nil || len(repoPaths) == 0 {
+		return nil
+	}
+	advisoryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	advisory, err := s.sourceEvidence.AdviseSourceEvidence(advisoryCtx, repoPaths)
+	if err != nil {
+		return []string{fmt.Sprintf("WARNING source_evidence_advisory_unavailable: %v. Deterministic readiness remains valid; retry validation before execution.", err)}
+	}
+	var out []string
+	for _, issue := range advisory.Issues {
+		out = append(out, fmt.Sprintf("SOURCE EVIDENCE %s %s: %s", strings.ToUpper(issue.Severity), issue.Code, issue.Detail))
+	}
+	if advisory.RepairRequired && len(advisory.Issues) == 0 {
+		out = append(out, "SOURCE EVIDENCE REPAIR REQUIRED: narrow the source selection before execution baseline capture.")
+	}
+	for _, recommendation := range advisory.Recommendations {
+		out = append(out, fmt.Sprintf("Source-evidence recommendation: use %q (%s).", recommendation.Selection, recommendation.Reason))
+	}
+	return out
+}
+
+func appendSourceEvidenceAdvisory(step GuidedStep, advisory []string) GuidedStep {
+	if len(advisory) == 0 {
+		return step
+	}
+	step.Instructions = append(advisory, step.Instructions...)
+	return step
+}
+
+func sectionForQualityLocation(location string) SectionKey {
+	switch {
+	case strings.HasPrefix(location, "plan.purpose"):
+		return SectionPurpose
+	case strings.HasPrefix(location, "plan.problem_statement"):
+		return SectionProblemStatement
+	case strings.HasPrefix(location, "plan.target_outcome"):
+		return SectionTargetOutcome
+	case strings.HasPrefix(location, "plan.scope"):
+		return SectionScope
+	case strings.HasPrefix(location, "plan.technical_approach"):
+		return SectionTechnicalApproach
+	case strings.HasPrefix(location, "plan.validation_strategy"):
+		return SectionValidationStrategy
+	case strings.HasPrefix(location, "plan.definition_of_done"):
+		return SectionDefinitionOfDone
+	case strings.HasPrefix(location, "plan.change_boundary"):
+		return SectionAcceptanceBoundary
+	case strings.HasPrefix(location, "plan.regression_anchor"):
+		return SectionRegressionAnchor
+	case strings.HasPrefix(location, "plan.references"):
+		return SectionReferences
+	case strings.HasPrefix(location, "plan.relevant_context"):
+		return SectionRelevantContext
+	case strings.HasPrefix(location, "phase."):
+		return SectionPhases
+	default:
+		return SectionPhases
+	}
+}
+
+// greenfieldContradictions are tokens an author should never put in a greenfield
+// plan's constraints/prohibited approaches — the posture already forbids them, so
+// authoring them is a contradiction the renderer must not echo (the Greenfield
+// block is injected by posture, not authored). The default posture is greenfield,
+// so this is the conservative check until a brownfield override exists.
+var greenfieldContradictions = []string{
+	"compatibility shim", "compat shim", "backward compat", "backwards compat",
+	"legacy wrapper", "compatibility layer",
+}
+
+// postureConflictViolations flags authored constraints/prohibited-approaches that
+// contradict the default greenfield posture, so the rendered plan never shows
+// guidance that fights the injected Greenfield block.
+func postureConflictViolations(sess Session) []StructureViolation {
+	var out []StructureViolation
+	for _, key := range []SectionKey{SectionConstraints, SectionProhibitedApproaches} {
+		lower := strings.ToLower(contentOf(sess.Sections, key))
+		if strings.TrimSpace(lower) == "" {
+			continue
+		}
+		for _, token := range greenfieldContradictions {
+			if strings.Contains(lower, token) {
+				out = append(out, StructureViolation{
+					SectionKey: key,
+					Message:    "section " + string(key) + " contradicts the greenfield work posture (mentions \"" + token + "\"); greenfield plans forbid compatibility shims/legacy wrappers — remove it or record a brownfield override",
+				})
+				break
+			}
+		}
+	}
+	return out
+}
+
+// normalizeForCompare lowercases, trims, and collapses internal whitespace so two
+// strings that differ only cosmetically compare equal (used to reject a phase
+// acceptance that merely restates its validation).
+func normalizeForCompare(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
+}
+
+func phaseViolations(phase PhaseDraft) []StructureViolation {
+	var out []StructureViolation
+	prefix := "phase"
+	if phase.Order > 0 {
+		prefix = fmt.Sprintf("phase %d", phase.Order)
+	}
+	if strings.TrimSpace(phase.Title) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " title must not be empty"})
+	}
+	if strings.TrimSpace(phase.Intent) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " intent must not be empty"})
+	}
+	if len(phase.Steps) == 0 {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " must include at least one ordered implementation step"})
+	}
+	if strings.TrimSpace(phase.Validation) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " must include phase validation (the method of checking it)"})
+	}
+	if strings.TrimSpace(phase.Acceptance) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " acceptance must not be empty"})
+	}
+	if a, v := normalizeForCompare(phase.Acceptance), normalizeForCompare(phase.Validation); a != "" && a == v {
+		out = append(out, StructureViolation{
+			SectionKey: SectionPhases,
+			Message:    prefix + " acceptance must not be identical to its validation: acceptance is the outcome gate, validation is the checking method",
+		})
+	}
+	if len(phase.References) == 0 && strings.TrimSpace(phase.NoCodeRefsReason) == "" {
+		out = append(out, StructureViolation{
+			SectionKey: SectionPhases,
+			Message:    prefix + " must include references or a no_code_refs_reason",
+		})
+	}
+	out = append(out, phaseReferenceKindViolations(phase.References, prefix)...)
+	if !hasPhaseContextOrNoContextReason(phase) {
+		out = append(out, StructureViolation{
+			SectionKey: SectionPhases,
+			Message:    prefix + " must include phase relevant_context or a NO_CONTEXT: reason",
+		})
+	}
+	return out
+}
+
+// violationsForSection returns the gate violations specific to one submitted
+// section (empty when it passes). A mandatory or regression-anchor section with
+// empty content fails.
+func violationsForSection(sec Section) []StructureViolation {
+	var out []StructureViolation
+	empty := strings.TrimSpace(sec.Content) == ""
+	if sec.Key == SectionReferences {
+		// References uses its own gate (which allows a NO_CODE_REFS: reason)
+		// rather than the generic empty-mandatory message.
+		if !hasReferencesOrNoCodeReason(sec.Content) {
+			out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
+		}
+		// Semantic kind/path gate: a docs path tagged [CODE:] (or vice versa) is
+		// rejected at submit time, not silently accepted into session state.
+		out = append(out, referencesContentKindViolations(sec.Content)...)
+		return out
+	}
+	if sec.Key == SectionAcceptanceBoundary {
+		// The boundary uses its own gate (which allows an OPERATOR_ONLY: reason and
+		// rejects unresolved placeholders) rather than the generic empty message.
+		return boundaryGateViolations(sec.Content)
+	}
+	if sec.Key == SectionDecisions {
+		return decisionsGateViolations(sec.Content)
+	}
+	if sec.Key == SectionDefinitions {
+		return definitionsGateViolations(sec.Content)
+	}
+	if sec.Mandatory && empty {
+		out = append(out, StructureViolation{
+			SectionKey: sec.Key,
+			Message:    "mandatory section " + string(sec.Key) + " must not be empty",
+		})
+	}
+	if sec.Key == SectionRegressionAnchor && empty && !sec.Mandatory {
+		out = append(out, StructureViolation{
+			SectionKey: SectionRegressionAnchor,
+			Message:    "regression anchor must be captured before finalizing",
+		})
+	}
+	return out
+}
+
+func definitionsGateViolations(content string) []StructureViolation {
+	var out []StructureViolation
+	for lineNumber, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "-"))
+		if line == "" {
+			continue
+		}
+		term, meaning, found := cutDefinitionSeparator(line)
+		if !found || term == "" || meaning == "" {
+			out = append(out, StructureViolation{SectionKey: SectionDefinitions, Message: fmt.Sprintf("definition line %d %q must be 'Term — meaning' or 'Term: meaning' with both parts present", lineNumber+1, line)})
+		}
+	}
+	return out
+}
+
+func (s *service) commandViolationsForSections(ctx context.Context, sections []Section) []StructureViolation {
+	var out []StructureViolation
+	for _, sec := range sections {
+		out = append(out, s.commandViolationsForSection(ctx, sec)...)
+	}
+	return out
+}
+
+type DiagramValidationResult struct {
+	Findings   []DiagramFinding
+	Unverified bool
+}
+type DiagramFinding struct {
+	Code, Message string
+	Line          int
+}
+type DiagramValidator interface {
+	ValidateMarkdownDiagrams(context.Context, string, string) (DiagramValidationResult, error)
+}
+
+func (s *service) diagramViolationsForSections(ctx context.Context, sections []Section) []StructureViolation {
+	var out []StructureViolation
+	for _, sec := range sections {
+		if !strings.Contains(sec.Content, "```mermaid") && !strings.Contains(sec.Content, "~~~mermaid") {
+			continue
+		}
+		if s.diagrams == nil {
+			out = append(out, StructureViolation{SectionKey: sec.Key, Message: "diagram validation unavailable: knowledge-observatory validator is not configured"})
+			continue
+		}
+		result, err := s.diagrams.ValidateMarkdownDiagrams(ctx, sec.Content, string(sec.Key))
+		if err != nil {
+			out = append(out, StructureViolation{SectionKey: sec.Key, Message: fmt.Sprintf("diagram could not be validated through knowledge-observatory: %v", err)})
+			continue
+		}
+		if result.Unverified {
+			out = append(out, StructureViolation{SectionKey: sec.Key, Message: "diagram could not be validated: knowledge-observatory Mermaid engine is unavailable"})
+			continue
+		}
+		for _, finding := range result.Findings {
+			if finding.Code == "mermaid_invalid" {
+				out = append(out, StructureViolation{SectionKey: sec.Key, Message: fmt.Sprintf("Mermaid diagram line %d: %s", finding.Line, finding.Message)})
+			}
+		}
+	}
+	return out
+}
+
+func (s *service) commandViolationsForSection(ctx context.Context, sec Section) []StructureViolation {
+	if strings.TrimSpace(sec.Content) == "" {
+		return nil
+	}
+	refs := commandRefsInSection(sec)
+	if len(refs) == 0 {
+		return nil
+	}
+	if s.commands == nil {
+		return []StructureViolation{{
+			SectionKey: sec.Key,
+			Message:    "command reference validation unavailable: CLI Health command validator is not configured",
+		}}
+	}
+	var out []StructureViolation
+	for _, ref := range refs {
+		if !markedrefs.RequiresExistence(ref) {
+			continue
+		}
+		result, err := s.commands.ValidateCommandReference(ctx, CommandReferenceRequest{
+			CommandText: ref.Value,
+			Qualifiers:  append([]string(nil), ref.Qualifiers...),
+		})
+		if err != nil {
+			out = append(out, StructureViolation{
+				SectionKey: sec.Key,
+				Message:    fmt.Sprintf("command reference %q could not be validated through CLI Health: %v", ref.Value, err),
+			})
+			continue
+		}
+		switch strings.ToLower(result.Verdict) {
+		case "valid", "partial", "skipped":
+			continue
+		default:
+			out = append(out, StructureViolation{
+				SectionKey: sec.Key,
+				Message:    commandReferenceViolationMessage(ref.Value, result),
+			})
+		}
+	}
+	return out
+}
+
+func commandRefsInSection(sec Section) []markedrefs.Reference {
+	var out []markedrefs.Reference
+	for lineNumber, line := range strings.Split(sec.Content, "\n") {
+		for _, ref := range markedrefs.ParseInlineCode(line, lineNumber+1) {
+			if ref.Marker == markedrefs.MarkerCLI {
+				out = append(out, ref)
+			}
+		}
+	}
+	return out
+}
+
+func commandReferenceViolationMessage(command string, result CommandReferenceResult) string {
+	var parts []string
+	for _, issue := range result.Issues {
+		if issue.Code != "" && issue.Message != "" {
+			parts = append(parts, issue.Code+": "+issue.Message)
+		} else if issue.Message != "" {
+			parts = append(parts, issue.Message)
+		}
+	}
+	for _, suggestion := range result.Suggestions {
+		if suggestion != "" {
+			parts = append(parts, "suggestion: "+suggestion)
+		}
+	}
+	parts = append(parts, result.Guidance...)
+	if len(parts) == 0 {
+		detail := strings.TrimSpace(strings.Join([]string{result.Verdict, result.ValidationLevel}, " "))
+		if detail == "" {
+			detail = "CLI Health returned no validation detail"
+		}
+		parts = append(parts, detail)
+	}
+	return fmt.Sprintf("command reference %q is not a valid current command: %s", command, strings.Join(parts, "; "))
+}

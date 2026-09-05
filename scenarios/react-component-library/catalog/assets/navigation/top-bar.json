@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.top-bar",
+    "name": "TopBar",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The application-level toolbar for navigation, search, global actions, status, and account controls, with responsive overflow and single-line chrome discipline.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "deprecated"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.inline",
+        "reason": "Layout uses the shared spacing ramp."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.command-palette",
+        "reason": "A search affordance in the bar usually opens the palette, though a local filter may not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "chrome-pinned",
+    "responsive-transformation",
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "safe-area-respected",
+    "no-horizontal-overflow"
+  ],
+  "deprecation": {
+    "reason": "An inline-style placeholder whose only job in generated scenarios was to hold a theme select; AppShell 2 has an optional header slot for products that need a strip and spends no chrome otherwise.",
+    "replacedBy": "navigation.app-shell",
+    "migration": "Move header content into AppShell 2's header prop, or delete the strip and put preferences in Settings."
+  }
+}

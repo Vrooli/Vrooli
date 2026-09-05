@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Choose the active brand, set execution preferences, and see honestly what this machine can currently do. Owns locale switching per the template's responsive shell contract.",
+    "prd_refs": ["OT-P0-005", "OT-P0-016", "OT-P0-018"]
+  },
+  "priorities": [
+    {
+      "statement": "The active brand is a first-class setting, because it changes every specimen on every surface.",
+      "notes": "Switching brand re-renders the catalog. The setting shows which palette slots the selected brand defines, so an unresolvable style is predictable rather than discovered at compose time."
+    },
+    {
+      "statement": "Host capability is reported plainly, including what is unavailable.",
+      "notes": "image-tools probes CPU, memory, GPU and VRAM to choose a model tier. Surfacing that here tells the operator why model-backed styles are slow, degraded, or refused — rather than leaving them to guess. Unknown VRAM is reported as unknown, never as zero."
+    },
+    {
+      "statement": "The free and metered boundary is stated, not implied.",
+      "notes": "Which lanes cost money, and whether inference routes through a configured gateway or the operator's own keys, belongs where the operator can read it before spending."
+    }
+  ],
+  "states": [
+    { "id": "loading", "description": "Settings load without hiding the active theme and locale controls.", "setup": { "route": "/settings" } },
+    { "id": "stale", "description": "Known settings remain visible with a freshness notice.", "setup": { "route": "/settings" } },
+    { "id": "request-error", "description": "Settings failure names the unavailable service and offers retry.", "setup": { "route": "/settings" } },
+    { "id": "partial", "description": "Available preferences remain editable while optional configuration is pending.", "setup": { "route": "/settings" } },
+    { "id": "empty", "description": "No optional configuration is present and the defaults are explained.", "setup": { "route": "/settings" } },
+    {
+      "id": "default",
+      "description": "Brand, locale, theme, execution preference, and a host capability summary.",
+      "setup": { "route": "/settings" }
+    },
+    {
+      "id": "no-brand-configured",
+      "description": "No brand is available from brand-manager. States that every style holding a palette slot will refuse to render, and routes to brand setup — rather than presenting an empty select.",
+      "setup": { "route": "/settings" }
+    },
+    {
+      "id": "local-capable",
+      "description": "The host can serve model-backed work locally. Reports the detected GPU and the model tier that would be selected.",
+      "setup": { "route": "/settings" }
+    },
+    {
+      "id": "local-insufficient",
+      "description": "The host cannot serve model-backed work. States that image-tools will route onward if a gateway route is configured, and that procedural styles are unaffected.",
+      "setup": { "route": "/settings" }
+    },
+    {
+      "id": "no-inference-available",
+      "description": "Neither local hardware nor a configured route can serve inference. States plainly that the procedural catalog still works in full, so the product is understood as usable rather than broken.",
+      "setup": { "route": "/settings" }
+    }
+  ]
+}

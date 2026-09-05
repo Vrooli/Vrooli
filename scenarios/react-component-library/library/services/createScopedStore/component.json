@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-service",
+  "catalogId": "services.create-scoped-store",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:createScopedStore"
+}

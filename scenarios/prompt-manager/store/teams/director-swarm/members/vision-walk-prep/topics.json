@@ -1,0 +1,31 @@
+{
+  "required_read": [
+    {
+      "prefix": "vision-walk-record/<date>/<slug>"
+    }
+  ],
+  "output": [
+    {
+      "prefix": "research-inbox/*",
+      "destination_kind": "knowledge",
+      "destination_team": "marketing-crew"
+    },
+    {
+      "prefix": "opportunity-inbox/*",
+      "destination_kind": "knowledge",
+      "destination_team": "monetization"
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "destination_kind": "knowledge",
+      "destination_team": "monetization"
+    },
+    {
+      "prefix": "vision-walk-record/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "external_producers": [
+    "operator"
+  ]
+}

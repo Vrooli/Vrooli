@@ -1,15 +1,55 @@
 package main
 
 import (
-	"io"
+	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
+
+	"web-console/backends/claude"
+	"web-console/backends/codex"
+	"web-console/internal/pty"
+	"web-console/internal/ptyfake"
 )
+
+func TestDefaultPTYFactory_HonoursLaunchWorkingDir(t *testing.T) {
+	requireLocalPTY(t)
+	dir := t.TempDir()
+	p, err := defaultPTYFactory(pty.LaunchSpec{Shell: "/bin/sh", Cols: 80, Rows: 24, WorkingDir: dir})
+	if err != nil {
+		t.Fatalf("defaultPTYFactory: %v", err)
+	}
+	defer p.Close()
+	defer p.Kill()
+	real, ok := p.(*realPTY)
+	if !ok {
+		t.Fatalf("factory returned %T, want *realPTY", p)
+	}
+	got, err := real.CurrentDir(context.Background())
+	if err != nil {
+		t.Fatalf("CurrentDir: %v", err)
+	}
+	if filepath.Clean(got) != filepath.Clean(dir) {
+		t.Fatalf("working directory = %q, want %q", got, dir)
+	}
+}
+
+func TestExitCodeOnce_IsSafeAfterProcessExit(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "exit 7")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if got := exitCodeOnce(cmd); got != 7 {
+		t.Fatalf("first exit code = %d, want 7", got)
+	}
+	if got := exitCodeOnce(cmd); got != 7 {
+		t.Fatalf("second exit code = %d, want 7", got)
+	}
+}
 
 // --- ensureTermEnv tests ---
 
@@ -73,7 +113,7 @@ func TestFilterClaudeEnv_RemovesCLAUDECODE(t *testing.T) {
 		"CLAUDECODE=1",
 		"PATH=/usr/bin",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	for _, v := range got {
 		if v == "CLAUDECODE=1" {
@@ -95,7 +135,7 @@ func TestFilterClaudeEnv_RemovesAllClaudeVars(t *testing.T) {
 		"CLAUDE_CODE_ENTRYPOINT=sdk-cli",
 		"PATH=/usr/bin",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	for _, v := range got {
 		if strings.HasPrefix(v, "CLAUDE") {
@@ -116,7 +156,7 @@ func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
 		"SHELL=/bin/bash",
 		"LANGUAGE=en_US",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	expected := map[string]bool{
 		"HOME=/home/user":     true,
@@ -138,7 +178,7 @@ func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
 
 func TestFilterClaudeEnv_HandlesEmptyEnv(t *testing.T) {
 	env := []string{}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	if len(got) != 0 {
 		t.Errorf("expected empty result, got %v", got)
@@ -153,7 +193,7 @@ func TestFilterClaudeEnv_RemovesBashFuncClaudeCode(t *testing.T) {
 		"BASH_FUNC_normal_func%%=() { echo test; }",
 		"PATH=/usr/bin",
 	}
-	got := filterClaudeEnv(env)
+	got := claude.FilterEnv(env)
 
 	for _, v := range got {
 		if strings.Contains(v, "claude_code::") {
@@ -227,6 +267,54 @@ func TestFilterServiceEnv_HandlesEmptyEnv(t *testing.T) {
 	}
 }
 
+func TestFilterServiceEnv_RemovesHostTerminalVars(t *testing.T) {
+	// REGRESSION: web-console-api typically runs inside the user's own
+	// terminal (often tmux). Without this filter, every standard-backend
+	// shell inherits TMUX/TMUX_PANE/TERM_PROGRAM pointing at a tmux session
+	// that the shell is *not* actually inside. Programs like Claude Code
+	// then think they're in tmux, emit tmux DCS passthrough escapes, and
+	// hang silently before rendering any UI.
+	env := []string{
+		"HOME=/home/user",
+		"TMUX=/tmp/tmux-1000/wc,1564421,0",
+		"TMUX_PANE=%0",
+		"TERM_PROGRAM=tmux",
+		"TERM_PROGRAM_VERSION=3.4",
+		"NO_COLOR=1",
+		"PATH=/usr/bin",
+	}
+	got := filterServiceEnv(env)
+
+	for _, v := range got {
+		name, _, _ := strings.Cut(v, "=")
+		switch name {
+		case "TMUX", "TMUX_PANE", "TERM_PROGRAM", "TERM_PROGRAM_VERSION", "NO_COLOR":
+			t.Errorf("host-terminal var should be filtered out: %s", v)
+		}
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 env vars (HOME, PATH), got %d: %v", len(got), got)
+	}
+}
+
+func TestBuildSessionEnv_AllowsChildColors(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	t.Setenv("TERM", "dumb")
+
+	got := buildSessionEnv(pty.LaunchSpec{})
+	for _, entry := range got {
+		name, value, _ := strings.Cut(entry, "=")
+		switch name {
+		case "NO_COLOR":
+			t.Fatalf("NO_COLOR leaked into child environment: %q", entry)
+		case "TERM":
+			if value != "xterm-256color" {
+				t.Fatalf("TERM = %q, want xterm-256color", value)
+			}
+		}
+	}
+}
+
 func TestFilterServiceEnv_RemovesLifecycleVars(t *testing.T) {
 	// REGRESSION: The tmux server inherited VROOLI_LIFECYCLE_MANAGED from the
 	// API process. The autoheal orphan checker then detected the tmux server as
@@ -252,106 +340,16 @@ func TestFilterServiceEnv_RemovesLifecycleVars(t *testing.T) {
 	}
 }
 
-// fakePTY is a pipe-based PTY substitute for fast, deterministic tests.
-// It satisfies the PTY interface without spawning real shell processes.
-// Use fakePTYWithOutput when you need to simulate PTY stdout.
-type fakePTY struct {
-	stdoutReader *io.PipeReader // Read() reads from this (simulates PTY output)
-	stdinWriter  *io.PipeWriter // Write() writes to this (simulates keyboard input)
-	mu           sync.Mutex
-	cols         uint16
-	rows         uint16
-	killed       bool
-	closed       bool
-	exitCode     int
-	setSizeCalls int // tracks SetSize invocations for test assertions
-}
-
-func (f *fakePTY) Read(p []byte) (int, error)  { return f.stdoutReader.Read(p) }
-func (f *fakePTY) Write(p []byte) (int, error) { return f.stdinWriter.Write(p) }
-
-func (f *fakePTY) SetSize(cols, rows uint16) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.cols = cols
-	f.rows = rows
-	f.setSizeCalls++
-	return nil
-}
-
-func (f *fakePTY) Close() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.closed {
-		return nil
-	}
-	f.closed = true
-	f.stdoutReader.Close()
-	f.stdinWriter.Close()
-	return nil
-}
-
-func (f *fakePTY) Kill() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.killed = true
-	return nil
-}
-
-func (f *fakePTY) ExitCode() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.exitCode
-}
-
-func (f *fakePTY) HasChildProcess() bool {
-	return false
-}
-
-func (f *fakePTY) SetExitCode(code int) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.exitCode = code
-}
-
-// fakePTYWithOutput extends fakePTY with a writable stdout pipe so tests
-// can inject output that the session's readLoop will broadcast to subscribers.
-type fakePTYWithOutput struct {
-	fakePTY
-	outW *io.PipeWriter
-}
-
-func newFakePTYWithOutput() *fakePTYWithOutput {
-	stdoutR, stdoutW := io.Pipe()
-	_, stdinW := io.Pipe()
-	return &fakePTYWithOutput{
-		fakePTY: fakePTY{
-			stdoutReader: stdoutR,
-			stdinWriter:  stdinW,
-		},
-		outW: stdoutW,
-	}
-}
-
-func (f *fakePTYWithOutput) Close() error {
-	f.outW.Close()
-	f.stdinWriter.Close()
-	return nil
-}
-
-// fakePTYFactory returns a PTYFactory that always returns the same PTY instance.
-// Use when a test needs to inspect or control the exact PTY a session uses.
-func fakePTYFactory(p PTY) PTYFactory {
-	return func(spec SessionLaunchSpec) (PTY, error) {
-		return p, nil
-	}
-}
-
-// newFakePTYFactory returns a PTYFactory that creates a fresh fakePTYWithOutput
-// for each session. Useful for tests that create multiple sessions.
-func newFakePTYFactory() PTYFactory {
-	return func(spec SessionLaunchSpec) (PTY, error) {
-		return newFakePTYWithOutput(), nil
+// TestRealPTY_ProbeReady_Synchronous exercises the standard PTY's
+// ProbeReady, which must return immediately so the WebSocket input loop
+// can emit session_ready without an extra round-trip.
+func TestRealPTY_ProbeReady_Synchronous(t *testing.T) {
+	requireLocalPTY(t)
+	p := &realPTY{}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if err := p.ProbeReady(ctx); err != nil {
+		t.Fatalf("standard PTY ProbeReady must be a no-op: %v", err)
 	}
 }
 
@@ -370,7 +368,7 @@ func TestPrepareCodexSessionHome_SharesAuthAndConfig(t *testing.T) {
 	}
 
 	sessionHome := filepath.Join(t.TempDir(), "session-home")
-	got := prepareCodexSessionHome(sessionHome, sharedHome)
+	got := codex.PrepareSessionHome(sessionHome, sharedHome)
 	if got != sessionHome {
 		t.Fatalf("expected session home %q, got %q", sessionHome, got)
 	}
@@ -404,9 +402,10 @@ func TestPrepareCodexSessionHome_SharesAuthAndConfig(t *testing.T) {
 	}
 }
 
-func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testing.T) {
+func TestSessionManagerCreate_DoesNotMaterializeAgentHomeForPlainShell(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	stateRoot := useIsolatedSessionState(t)
 	if err := os.MkdirAll(filepath.Join(home, ".codex"), 0o755); err != nil {
 		t.Fatalf("mkdir shared codex dir: %v", err)
 	}
@@ -414,13 +413,13 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 		t.Fatalf("write shared codex auth: %v", err)
 	}
 
-	var captured SessionLaunchSpec
-	sm := NewSessionManagerWithFactory(func(spec SessionLaunchSpec) (PTY, error) {
+	var captured pty.LaunchSpec
+	sm := newSessionManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
 		captured = spec
-		return newFakePTYWithOutput(), nil
+		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -431,16 +430,17 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 	if _, ok := captured.Env["CLAUDE_SESSIONS_DIR"]; ok {
 		t.Fatalf("did not expect CLAUDE_SESSIONS_DIR override")
 	}
-	codexHome := captured.Env["CODEX_HOME"]
-	if !strings.Contains(codexHome, sess.ID) {
-		t.Fatalf("expected session CODEX_HOME to contain %q, got %q", sess.ID, codexHome)
+	if _, ok := captured.Env["CODEX_HOME"]; ok {
+		t.Fatal("plain shell must not receive CODEX_HOME")
 	}
-	info, err := os.Lstat(filepath.Join(codexHome, "auth.json"))
-	if err != nil {
-		t.Fatalf("expected shared codex auth symlink: %v", err)
+	if _, ok := captured.Env["GROK_HOME"]; ok {
+		t.Fatal("plain shell must not receive GROK_HOME")
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
-		t.Fatalf("expected session CODEX_HOME auth.json to be a symlink")
+	if got := captured.Env["WC_SESSION_STATE_ROOT"]; got != stateRoot {
+		t.Fatalf("WC_SESSION_STATE_ROOT = %q, want %q", got, stateRoot)
+	}
+	if _, err := os.Lstat(filepath.Join(stateRoot, "codex", sess.ID)); !os.IsNotExist(err) {
+		t.Fatalf("plain shell materialized agent home: %v", err)
 	}
 }
 
@@ -448,10 +448,7 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 // on the attach command, preventing "terminal does not support clear" failures
 // when the server process has TERM=dumb (common for non-interactive lifecycle).
 func TestTmuxAttach_SetsTermEnv(t *testing.T) {
-	// Skip when tmux is not installed
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
 	sessionName := tmuxSessionPrefix + "test-term-env"
 	// Create a detached tmux session on the dedicated wc socket
@@ -500,11 +497,11 @@ func TestTmuxAttach_SetsTermEnv(t *testing.T) {
 
 // [REQ:P0-002a] PTY Session Backend - fast session tests via fake PTY seam
 func TestFakePTY_CreateAndGet(t *testing.T) {
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 100, 50, "", nil)
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
+	sess, err := sm.Create(context.Background(), "/fake/shell", 100, 50, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -530,21 +527,21 @@ func TestFakePTY_CreateAndGet(t *testing.T) {
 
 // [REQ:P0-002b] WebSocket I/O Streaming - broadcast via fake PTY
 func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write output from fake PTY
 	testData := []byte("hello from fake")
 	go func() {
-		_, _ = fake.outW.Write(testData)
+		_, _ = fake.OutW.Write(testData)
 	}()
 
 	select {
@@ -561,33 +558,25 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 	<-sess.Done()
 }
 
-// [REQ:P0-003b] Reconnect State Restoration - offline buffer via fake PTY
-func TestFakePTY_OfflineBuffer(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+// [REQ:P0-003b] Reconnect State Restoration — snapshot replay via fake PTY.
+func TestFakePTY_OfflineSnapshot(t *testing.T) {
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	// Write output while no subscribers connected
-	_, _ = fake.outW.Write([]byte("offline data"))
+	if _, err := fake.OutW.Write([]byte("offline data")); err != nil {
+		t.Fatalf("write fake pty: %v", err)
+	}
 	time.Sleep(50 * time.Millisecond)
 
-	// Subscribe and expect buffered data (prefixed with SGR reset)
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
-
-	select {
-	case data := <-sub.OutputCh:
-		// Subscribe prepends SGR reset (\x1b[0m) to replayed history
-		expected := "\x1b[0m" + "offline data"
-		if string(data) != expected {
-			t.Errorf("expected %q, got %q", expected, string(data))
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for offline buffer")
+	if !bytes.Contains(sub.Snapshot, []byte("offline data")) {
+		t.Fatalf("snapshot missing offline data; got=%q", sub.Snapshot)
 	}
 
 	fake.Close()
@@ -596,19 +585,22 @@ func TestFakePTY_OfflineBuffer(t *testing.T) {
 
 // [REQ:P0-002c] Terminal Resize Handling - resize delegates to PTY interface
 func TestFakePTY_Resize(t *testing.T) {
-	fake := newFakePTYWithOutput()
+	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
-	sess.Resize(200, 60)
+	sess.DeclareSize(sub.OutputCh, 200, 60)
+	if err := sess.Resize(sub.OutputCh, 200, 60); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
 
 	got, _ := sm.Get(sess.ID)
 	if got.Cols != 200 {
@@ -619,32 +611,32 @@ func TestFakePTY_Resize(t *testing.T) {
 	}
 
 	// Verify the PTY seam received the resize
-	fake.mu.Lock()
-	if fake.cols != 200 || fake.rows != 60 {
-		t.Errorf("fake PTY should have received resize: cols=%d rows=%d", fake.cols, fake.rows)
+	fake.Mu.Lock()
+	if fake.Cols != 200 || fake.Rows != 60 {
+		t.Errorf("fake PTY should have received resize: cols=%d rows=%d", fake.Cols, fake.Rows)
 	}
-	fake.mu.Unlock()
+	fake.Mu.Unlock()
 }
 
 // [REQ:P0-002a] PTY Session Backend - delete calls Kill + Close on PTY
 func TestFakePTY_DeleteCleanup(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	if err := sm.Delete(sess.ID); err != nil {
+	if err := sm.Delete(context.Background(), sess.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
-	fake.mu.Lock()
-	if !fake.killed {
+	fake.Mu.Lock()
+	if !fake.Killed {
 		t.Error("Delete should call Kill on PTY")
 	}
-	fake.mu.Unlock()
+	fake.Mu.Unlock()
 
 	_, ok := sm.Get(sess.ID)
 	if ok {
@@ -654,17 +646,17 @@ func TestFakePTY_DeleteCleanup(t *testing.T) {
 
 // [REQ:P0-002b] WebSocket I/O Streaming - exit code forwarding via fake PTY
 func TestFakePTY_ExitCodeForwarding(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
 	// Set a non-zero exit code and close to simulate process exit
 	fake.SetExitCode(42)
-	fake.outW.Close()
+	fake.OutW.Close()
 
 	select {
 	case <-sess.Done():
@@ -679,16 +671,16 @@ func TestFakePTY_ExitCodeForwarding(t *testing.T) {
 
 // [REQ:P0-002a] PTY Session Backend - exit signal via fake PTY
 func TestFakePTY_ExitSignal(t *testing.T) {
-	fake := newFakePTYWithOutput()
-	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
+	fake := ptyfake.NewFakePTYWithOutput()
+	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
 	// Close the output pipe to simulate process exit
-	fake.outW.Close()
+	fake.OutW.Close()
 
 	select {
 	case <-sess.Done():
@@ -701,7 +693,7 @@ func TestFakePTY_ExitSignal(t *testing.T) {
 		t.Error("session should be dead after PTY close")
 	}
 
-	// SessionManager should auto-remove the session
+	// session.Manager should auto-remove the session
 	time.Sleep(50 * time.Millisecond)
 	_, ok := sm.Get(sess.ID)
 	if ok {

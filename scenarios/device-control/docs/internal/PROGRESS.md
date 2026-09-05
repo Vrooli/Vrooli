@@ -1,0 +1,154 @@
+# Progress — Device Control
+
+Lifecycle log for meaningful scenario changes. Future agents read this
+file to understand what changed without reconstructing history from git.
+
+This file ships empty in newly generated scenarios. Append entries when
+work lands, not while work is still speculative.
+
+## Progress Log
+
+| Date | Author | Status | Summary |
+|---|---|---|---|
+| 2026-08-18 | codex | partial | Closed the locally actionable agent and documentation gaps: bounded multi-iteration planning now records typed world models and per-step evidence, supports planner goal completion and dry-run, and promotion creates a deterministic flow consumed by the existing export path. Added conformance coverage for frameless/pairing transports and corrected stale floor, recording, agent-runtime, and discovery-seam documentation. Full API/race/lint, mDNS live, Cast live, UI, requirements, and independent Avahi checks pass; owner-present PIN/event/UI walkthroughs and the provider-owned Test Genie/baseline gate remain deferred. |
+| 2026-08-18 | codex | partial | Closed additional plan-level gaps: `packages/mdns-go` now exposes the typed `Browse(ctx, []string, Options)` contract, the required README, IPv4/IPv6 multicast joins, address-family queries, and cancellation-preserved observations. Corrected Google Cast to use the required protobuf `CastMessage` envelope, required payload type, application session routing, heartbeat replies, and real status parsing. The gated operator-LAN Cast test now discovers the SmartTV, reads YouTube state, exercises absolute volume, and launches YouTube successfully; owner-present Remote pairing, lease-owned CLI actuation, external event proof, and Test Genie/baseline gates remain open. |
+| 2026-08-18 | codex | partial | Repaired the generic mDNS browser's Linux shared-port fallback, canonical DNS-SD queries, section-aware unknown-record skipping, and requested-service PTR filtering. The package suite and gated operator-LAN test now pass for Android TV Remote and Google Cast, resolving the real TV at `192.168.1.158` with Remote port `6466`, Cast port `8009`, Cast ID `3bc013548481e743aa769f04a9a9ba0b`, and Remote Bluetooth MAC `E0:D8:C4:C1:2D:B1`. Full Test Genie evidence, owner-present PIN pairing, and real Cast actuation remain open. |
+| 2026-08-18 | codex | partial | Completed targeted implementation validation for the reachable non-mobile device plan: API/CLI/mDNS suites, focused race checks, gofumpt, golangci-lint, UI 183 tests/type-check/lint/coverage, requirements/business-health validation, and experience-contract validation pass. Added regression coverage for UI discovery/pairing, canonical Android TV pairing IDs, degraded multi-service discovery, generic polling observation, and frameless agent dry-run. The running Test Genie target remains pre-change/stalled and owner-present PIN pairing/Cast actuation walkthroughs remain unproven; independent Avahi evidence still sees the real LAN services. |
+| 2026-08-17 | codex | partial | Fresh runs `20260817-144148-3bac8ee7`, `20260817-145412-e5861f38`, and `20260817-150319-4b2d8e82` executed all 22 phases with 20 passing. The bounded API fallback remains healthy and device-control API/UI/build checks pass; the remaining failures are the shared `@scenario/self` workflow resolver and repeated UI-health chrome captures. Tested the owning CSS/meta paths, including surface-aligned safe-area pixels and media-aware theme declarations; the shared capture still reports `visual_status_bar_color_mismatch`, so no visual pass is claimed. |
+| 2026-08-17 | codex | partial | Added bounded timeouts and graceful cached/in-memory fallbacks around the shared device inventory and session queries. After a lifecycle-managed restart, `/api/v1/devices` returns HTTP 200 in 2.0s and `/api/v1/sessions` in 2ms under the degraded shared bridge. Synchronized the resolved-theme attribute with the generated token selector; a fresh targeted Lighthouse run now scores performance `0.94`, accessibility `1.00`, best-practices `1.00`, and SEO `0.91`. The integrated run `20260817-134652-0046615c` remains open because its status-bar capture and earlier `0.54` score require repaired Test Genie evidence. |
+| 2026-08-17 | codex | partial | Closed the scenario-owned lazy-chunk recovery gap by installing the shared `@vrooli/api-base` chunk-reload guard at UI startup. Cleaned the affected i18n/test assertions and verified device-control UI tests `174/174`, production build, and ESLint (`0` errors; two existing Fast Refresh warnings). `quality-health audit run device-control` now passes with no `UI_LAZY_CHUNK_RECOVERY` or error findings. The fresh integrated run `20260817-134652-0046615c` still has shared workflow-provider failures plus visual status-bar/performance findings, so those are not claimed resolved. |
+| 2026-08-17 | codex | partial | Fresh Phase 9 run `20260817-112516-aad4c0fe` exposed a real Lighthouse performance regression (`0.54`), a light status-bar mismatch, a mobile text-entry zoom risk, and an absolute docs path. Fixed those scenario-owned causes: route pages now lazy-load, chrome declarations match `--color-background`, the flow editor uses a 16px-equivalent text size, and the docs use portable references. Targeted Lighthouse now scores `0.89`; device-control UI tests pass `174/174`, the production build passes, and API tests, vet, and lint remain green. The only remaining integrated failure from that run is the shared BAS `@scenario/self` workflow resolver. |
+| 2026-08-17 | codex | partial | Cleared the remaining local Go quality floor: four pre-existing gofumpt findings were normalized, and the full device-control API suite, `go vet ./...`, and `golangci-lint run --timeout=5m` now pass. |
+| 2026-08-17 | codex | partial | Android capability probing now verifies `network-control` through the read-only `adb shell cmd connectivity airplane-mode` fallback when `svc wifi` is unsupported, with regression coverage. Live catalog inspection reports network-control available on both the Galaxy A03s and governed `vrooli-api36` emulator; the final Android matrix used this provider-owned capability evidence. |
+| 2026-08-17 | codex | partial | Device-control’s current UI/experience scope is now honest: aspirational pages and journeys remain draft until routes, BAS cases, and stable selectors exist; the direct experience contract passes. Retained run `20260817-044920-e9b29908` reflects pre-run status-bar/docs state and the shared workflow-provider failure, so fresh integrated evidence remains pending. |
+| 2026-08-17 | codex | partial | A fresh 22-phase Phase 9 run `20260817-090402-bb45848c` was created but remained queued for 45 minutes with no progress; the local waiter was interrupted without aborting the server-owned run and one durable status read confirmed `queued`. Targeted device-control evidence and retained Galaxy A03s artifacts remain valid; no fresh integrated PASS is claimed. |
+| 2026-08-17 | codex | partial | Fresh run `20260817-043745-9c1d041b` proved the REST payload-declaration repair: the proto phase passed and the focused API suite remains green. The run still reports owned UI/docs maturity debt, draft-vs-active experience reconciliation, one invalid performance-action schema (being corrected), and the shared BAS `@scenario/self` runtime-resolution failure. Unimplemented device-detail, fleet, strategies, session, run-review, agent, and settings contracts are now draft in `experience/index.json`; only the implemented flows route remains active. |
+| 2026-08-17 | codex | partial | Added explicit JSON request/response/error intent to device-control's hand-rolled REST endpoints, regenerated `.vrooli/endpoints.json`, and marked the performance helper as a mutating routed-isolation asset. `env GOWORK=off go test ./...`, endpoint generation, JSON validation, and diff checks pass. |
+| 2026-08-17 | codex | partial | Closed two local experience-contract mismatches: Android ADB UIAutomator probes now write to `/dev/stdout` rather than the conservative `/dev/tty` boundary, and the unimplemented agent/settings surfaces are explicitly draft. The experience validator now passes with only route-coverage warnings; API tests, UI build, requirements validation, and JSON/diff checks pass. Performance example actions/flows now carry mutating confirmation and routed-isolation metadata, while fresh Test Genie run `20260817-035511-16157988` remains queued without a terminal verdict. |
+| 2026-08-17 | codex | partial | Repaired the UI test provider harness and route providers, expanded focused coverage, and declared the `agents_list` REST projection explicitly as an external JSON shape. The targeted UI suite passes 174/174 with 97.29% statements, 85.02% branches, 95.89% functions, and 97.29% lines; UI build, API Go tests, and requirements validation pass. Fresh server-owned run `20260817-035511-16157988` remains queued in Test Genie without a terminal verdict, so no integrated PASS is claimed. |
+| 2026-08-16 | codex | partial | Investigated black bars in Android evidence. The raw stored PNGs and MP4 were affected before web-console display: producer redaction painted the entire top quarter whenever notification protection was enabled. Replaced the fixed quarter-screen mask with a bounded status-bar mask, added portrait image/native-video regression tests, and documented detector-supplied sensitive regions. Final managed physical screenshot flow `98fdca8f-13ce-4117-94f5-b95928e4edc2` passed after deployment and retained screenshot evidence `4f3ff631-e5a3-40bf-86bc-84daa1aa1caf` at 720x1600 with only the declared `status_bar_identifiers` rule; the remaining narrow black band is the intentional status-bar privacy mask, not a geometry bar. |
+| 2026-08-15 | codex | partial | Hardened Android state restoration with bounded keyguard confirmation after asynchronous power transitions, and fixed the share verb's ADB argument ordering/quoting so multi-word SEND extras cannot become an accidental package token. Focused strategy/control tests pass. Physical flow `02a5358d-44c8-4031-baab-c8282e5321b2` passed on the Galaxy A03s, including active-profile unlock, Android resolver screenshot evidence `818edea8-760c-4a20-a649-0ffc99f4d9c8`, resolver log evidence `0a9b265c-794b-478b-a9b7-6aaf8d2f86ec`, uninstall cleanup, and locked-state restoration. |
+| 2026-08-15 | codex | partial | Fixed the device-control CLI reconnect manifest binding (`id` → `device_id`) exposed by the server-owned suite, regenerated primitive evidence, and verified CLI tests plus CLI Health with zero errors. The remaining architecture warnings are pre-existing manifest maturity debt, not binding errors. |
+| 2026-08-15 | codex | partial | Removed the resolved visual-understanding route and strategy-floor entries from the problem register; the live vision route and producer evidence verifier remain documented in the progress and architecture records, while black capture and operator-unlocked physical proof remain active constraints. |
+| 2026-08-15 | codex | partial | Mounted the production target-resolution API, wired its resolver through the generated `ai-gateway` client, and verified a live `locate.visual` response from the running services (`rung=vision`, provider `ollama`, model `qwen3-vl:4b`). Added producer-owned absolute review-recording path reporting while keeping cross-scenario evidence references path-free. The Galaxy A03s physical journey remains open because the operator-unlocked surface is still unavailable. |
+| 2026-08-13 | codex | partial | Completed the plan's traceability and documentation pass, including structural redaction verification, evidence classes, the bridge device-lease dispatch gate, and deleted resolved problem entries. A governed Device Control flow on Galaxy A03s serial `R9TT608Q6MH` now produces a native, redaction-verified recording: run `5773894d-000c-42d1-9e26-be783e96fa08`, 20,856 bytes, SHA-256 `fee5429cca21fc6fb78478b2743850349ae7011121e11afd37523515be784113`, effective 30.92 FPS against a 15 FPS animation minimum, with device-state restoration passed. Targeted Go/API/CLI tests and UI type-check pass; full Test Genie/baseline and browser experience gates remain infrastructure-degraded and are not claimed as passing. |
+| 2026-08-13 | codex | partial | Follow-up live validation found the Galaxy A03s `screenrecord` path can produce a valid H.264 container whose display body is uniformly black even while ADB screenshot/state probes report an awake launcher. Added bounded decoded-content validation at the evidence boundary; flow `8f60f7cb-57c2-4739-ae88-eb3074035fb4` now fails at recording-stop with `video body is uniformly near black` and publishes no evidence. The underlying Android capture path remains open for repair; black media is no longer accepted as proof. |
+| 2026-08-13 | codex | partial | Resumed secure-authentication validation: added safe unlock audit metadata and SQLite migration coverage, repaired the DVC-P0-013 to OT-P0-013 traceability link, refreshed stale architecture/error-handling documentation, and re-ran API/CLI/requirements checks. The governed Galaxy A03s reconnect still reports no USB device, so locked-to-unlocked authentication acceptance remains open. |
+
+## Entry Template
+
+Use this table shape when appending entries.
+
+```markdown
+| YYYY-MM-DD | author | done | Concise summary of the completed change |
+```
+
+## Cross-references
+
+- [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
+- [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map
+
+
+## Agent usage and improvement implementation — 2026-09-04
+
+### Summary
+
+Implemented scenario-owned usage and improvement skills with bounded programs,
+explicit workflow selection, verified promotion, preserved repair contracts,
+and outcome-linked learning. Speed targets remain pending a comparable operator
+baseline. Test evidence establishes implementation behavior, not household-device
+coverage or a measured agent speedup.
+
+Device programs are `prepare-task`, `replay-flow`, `author-flow`, and
+`setpoint-read`. The FlowService owns a durable SQLite revision library, exact
+device/context selection, atomic expected-version saves, idempotent retry, and
+retained validation receipts. Candidate promotion requires every step to pass,
+an explicit terminal assertion, and deterministic targeting. Dry-runs and vision
+resolution cannot qualify. `property-assert` validates an adapter-observed value
+without requiring a screen. Repair preflight uses the exact device adapter.
+The old prompt-manager local-pack skill was retired in favor of the scenario source.
+
+Shared changes: Memory accepts optional first-action, tool-round-trip,
+visual-reasoning and workflow-reuse observations. Missing values remain absent;
+ambiguous or retry-only histories cannot earn first-action timing. Test attempts
+are excluded from operator metrics. Program Runtime captures nested contract
+envelopes without leaking child stdout and refreshes declared source for each
+new kernel; refresh scans program directories rather than the entire source tree.
+
+### Findings
+
+| Capability | Primary path | Verification | Failure path |
+|---|---|---|---|
+| Orientation and selection | Usage skill and discovery program | Exact identity and context | Refuse ambiguity; inspect owner inventory |
+| Workflow reuse | Exact saved revision | Owner terminal result and evidence ID | Preserve failed result; no speculative alternate |
+| Candidate promotion | author-flow | Assertions, complete execution, durable identity | Failed/pending candidate remains unsaved |
+| Repair | author-flow plus expected revision | Existing checks preserved | Refuse stale or weakened baseline |
+| Improvement | Improve skill and learning sensor | Comparable windows and sample counts | Missing/unreliable evidence cannot meet a target |
+
+### Divergence probe
+
+| Instruction | Possible divergent reading | Resolution and evidence |
+|---|---|---|
+| Select a matching workflow | Execute the first fuzzy result | Explicit identity/version required; search-only probe performs no execution |
+| Save a successful candidate | Treat pending, dry-run or AI completion as verified | Owner gate and negative promotion probes refuse these paths |
+| Repair while preserving checks | Drop an assertion to make the repair pass | Owner regression and live BAS refusal preserve the acceptance contract |
+| Reduce time to first action | Count retries or missing timestamps as faster samples | Memory tests exclude retry-only/ambiguous histories and preserve missing values |
+| Run an improvement goal | Repeatedly file work without implementing | Improve skill explicitly routes implementation under existing task authority |
+
+No divergence remains on these probed instructions. This is a bounded probe,
+not a claim that every possible user task has been tested.
+
+### Contract integrity and prose retirement map
+
+Routine leaves use owning CLIs; programs use registered typed bindings. Structured
+Attempt JSON and typed workflow JSON are necessary inputs, not output-parsing
+workarounds. No raw ADB, browser-driver endpoint, database access, or shell-based
+device control is part of the usage path. Ordinary usage invokes registered
+programs; temporary sessions are used only by program validation.
+
+| Repeated agent work retired | Durable replacement | Verification |
+|---|---|---|
+| Reconstructing orientation joins | Bounded discovery/prepare program | Ambiguous-target probes and live read |
+| Hand-copying a successful draft into storage | Owner promotion plus author-flow | Persistence/replay regression and live browser test |
+| Overwriting a broken saved flow | Revision-preserving owner update | Stale/weakened repair refusal |
+| Informal claims that reuse is faster | Outcome-linked Memory cohorts | Optional-field and test-exclusion checks |
+| Parsing nested program prints | Runtime returns a bounded envelope Handle | Kernel regression tests |
+
+### Validation
+
+- All 24 declared fixtures across both scenarios passed in fresh test-provenance
+  sessions, with a preflight explain call for each fixture.
+- All 11 program behavior probes passed. The owning Go tests invoke these probes.
+- Device API `go test ./...`, device CLI control tests, BAS workflow handler and
+  service tests, Memory learning tests, Runtime contract-index tests, and all 30
+  kernel Handle tests passed.
+- Live BAS: create/execute/save, exact replay, revision-2 repair, stale-revision
+  refusal, weakened-assertion refusal, and original-revision replay all passed.
+- Live device orientation read succeeded. A deterministic property adapter proved
+  execution, assertion failure, durable restart/read, and saved revision replay.
+- Memory accepted the new effort fields, returned the same entry on exact retry,
+  and excluded the test attempt from operator measurements.
+- Both scenario Test Genie program and skill-set phases passed. Broader unit
+  runs have provider/UI failures; device business checks also report older
+  unearned completion claims. These runs are not represented as green.
+
+Machine-readable program IDs and live evidence are retained in
+`.vrooli/program-runtime/tests/validation-evidence.json`. Behavioral probes are
+in `.vrooli/program-runtime/tests/test_workflows.py`.
+
+### Recommendations
+
+A (recommended): use the registered usage skill for authorized real tasks and
+capture comparable operator attempts; then use the improve skill to move the
+first measured bottleneck through its owning implementation workflow.
+B: continue fixture validation for an unavailable device or environment, retaining
+that evidence class separately. This can improve correctness but cannot earn a
+physical-device claim or operator speed baseline.
+
+### Notes
+
+No physical device was actuated for this implementation validation. Exact
+screen/transport/app coverage and earned latency targets require authorized
+representative device tasks. The self-improvement skills can guide sustained
+implementation; they do not turn missing evidence into a completion claim.

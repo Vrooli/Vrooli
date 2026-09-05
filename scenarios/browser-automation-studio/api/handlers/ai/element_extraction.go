@@ -232,7 +232,7 @@ func (h *ElementAnalysisHandler) extractPageElements(ctx context.Context, url st
 			if !outcome.Success {
 				return nil, PageContext{}, "", fmt.Errorf("element extraction failed: %s", failureMessage(outcome.Failure))
 			}
-			value := outcome.ExtractedData["value"]
+			value := outcome.ExtractedData["result"]
 			payloadBytes, marshalErr := json.Marshal(value)
 			if marshalErr != nil {
 				return nil, PageContext{}, "", fmt.Errorf("failed to encode element extraction: %w", marshalErr)

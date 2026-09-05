@@ -92,7 +92,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", dir)
 	writeResourcesFile(t, dir, []map[string]string{testResPostgres})
 
-	srv := NewServer(nil)
+	srv := NewServer()
 	handler := srv.Handler()
 
 	// Inject a panicking route for testing
@@ -106,5 +106,23 @@ func TestRecoveryMiddleware(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("panic recovery: status = %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestSecurityHeadersMiddleware(t *testing.T) {
+	srv := NewServer()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	response := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(response, req)
+
+	for name, want := range map[string]string{
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "DENY",
+		"X-XSS-Protection":          "0",
+	} {
+		if got := response.Header().Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
 	}
 }

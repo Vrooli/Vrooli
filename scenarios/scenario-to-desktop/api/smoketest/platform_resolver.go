@@ -65,6 +65,7 @@ func (r *DefaultPlatformResolver) effectivePlatform() string {
 
 // ResolveCommand determines the command, args, and display string for running a smoke test.
 func (r *DefaultPlatformResolver) ResolveCommand(platform, artifactPath string) (string, []string, string, error) {
+	platform = smokeTestPlatform(platform)
 	switch platform {
 	case "linux":
 		return r.resolveLinuxCommand(artifactPath)
@@ -74,6 +75,27 @@ func (r *DefaultPlatformResolver) ResolveCommand(platform, artifactPath string) 
 		return r.resolveMacCommand(artifactPath)
 	default:
 		return "", nil, "", fmt.Errorf("unsupported platform for smoke test: %s", platform)
+	}
+}
+
+// smokeTestPlatform accepts the concrete target identifiers carried by the
+// desktop pipeline while keeping the OS-only command resolver contract. The
+// architecture remains part of artifact selection and status identity; it is
+// not a command-launch distinction.
+func smokeTestPlatform(platform string) string {
+	platform = strings.ToLower(strings.TrimSpace(platform))
+	if before, _, found := strings.Cut(platform, "-"); found {
+		platform = before
+	}
+	switch platform {
+	case "linux":
+		return "linux"
+	case "win", "windows":
+		return "win"
+	case "mac", "macos", "darwin":
+		return "mac"
+	default:
+		return platform
 	}
 }
 
@@ -109,20 +131,16 @@ func (r *DefaultPlatformResolver) resolveLinuxCommand(artifactPath string) (stri
 		return "", nil, "", fmt.Errorf("failed to set AppImage executable bit: %w", err)
 	}
 
-	// Prefer an extract+run fallback to avoid relying on FUSE. Some environments (containers,
-	// restricted sandboxes) cannot mount AppImages even when the artifact is otherwise valid.
-	//
-	// We try direct execution first to keep the fast path, then fall back to:
-	//   <AppImage> --appimage-extract  (into a temp dir)
-	//   ./squashfs-root/AppRun --smoke-test
-	//
-	// This keeps smoke tests viable without requiring system-level FUSE configuration.
+	// Smoke tests must be deterministic in headless CI, where a direct AppImage
+	// launch can hang indefinitely while trying to mount FUSE. AppImage's
+	// extract-and-run mode skips that mount and still exercises the packaged
+	// application. Keep an explicit extraction fallback for older AppImages.
 	script := `set -eu
 APPIMAGE="$1"
 shift
 
-# Fast path (uses FUSE mount when available)
-"$APPIMAGE" "$@" && exit 0
+# Avoid a FUSE mount, which is unavailable or can hang in CI/sandboxes.
+APPIMAGE_EXTRACT_AND_RUN=1 "$APPIMAGE" "$@" && exit 0
 
 # Fallback path (no FUSE required)
 tmp="$(mktemp -d)"

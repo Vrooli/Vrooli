@@ -20,7 +20,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { useDashboardStore, type RecentWorkflow, type FavoriteWorkflow } from '@stores/dashboardStore';
-import { useExecutionStore } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
 import { useAICapability } from '@stores/aiCapabilityStore';
 import { formatDistanceToNow } from 'date-fns';
 import { TemplatesGallery } from './widgets/TemplatesGallery';
@@ -61,8 +61,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     clearLastEdited,
   } = useDashboardStore();
 
-  // Track validated last edited workflow (null if validation pending or failed)
-  const [validatedLastEdited, setValidatedLastEdited] = useState<typeof lastEditedWorkflow>(null);
+  // Start from the locally remembered workflow so the hero is stable on the
+  // first paint. The effect below still verifies it and removes stale state
+  // after the dashboard is interactive.
+  const [validatedLastEdited, setValidatedLastEdited] = useState<typeof lastEditedWorkflow>(
+    lastEditedWorkflow,
+  );
 
   // Validate lastEditedWorkflow exists on mount and when it changes
   useEffect(() => {
@@ -74,22 +78,22 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     // Check if the workflow and project still exist
     const validateWorkflow = async () => {
       try {
-        const { getConfig } = await import('@/config');
-        const config = await getConfig();
+        const { fetchProject } = await import('@/domains/projects/services/projectApi');
 
         // Check if project exists
-        const projectResponse = await fetch(`${config.API_URL}/projects/${lastEditedWorkflow.projectId}`);
-        if (!projectResponse.ok) {
+        const project = await fetchProject(lastEditedWorkflow.projectId).catch(() => null);
+        if (!project) {
           // Project doesn't exist, clear last edited
           clearLastEdited();
           setValidatedLastEdited(null);
           return;
         }
 
-        // Check if workflow exists
-        const workflowResponse = await fetch(`${config.API_URL}/workflows/${lastEditedWorkflow.id}`);
-        if (!workflowResponse.ok) {
-          // Workflow doesn't exist, clear last edited
+        // Check if workflow exists via Connect-RPC.
+        try {
+          const { getWorkflowViaApi } = await import('@/domains/workflows/services/workflowApi');
+          await getWorkflowViaApi(lastEditedWorkflow.id);
+        } catch {
           clearLastEdited();
           setValidatedLastEdited(null);
           return;

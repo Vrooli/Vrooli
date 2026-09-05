@@ -4,12 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 
-	"scenario-dependency-analyzer/internal/app/services"
-	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/detection"
-	"scenario-dependency-analyzer/internal/seams"
-	"scenario-dependency-analyzer/internal/store"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/services"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/detection"
+	graphdomain "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Analyzer coordinates scenario analysis capabilities and shared state.
@@ -97,10 +100,6 @@ func (a *Analyzer) generateGraphWithSeams(graphType string, deps *seams.Dependen
 	if a == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
-	builder := graphBuilder{
-		store:   a.store,
-		catalog: a.detector,
-		seams:   deps,
-	}
+	builder := graphdomain.NewBuilder(a.store, a.detector, deps)
 	return builder.Generate(graphType)
 }

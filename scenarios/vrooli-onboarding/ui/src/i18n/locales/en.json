@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
+  "asset": "preview.showcase",
+  "axis": "tone",
+  "children": "Try again",
+  "default": "Save changes",
+  "detail": "The generic harness supplies context; Button remains the subject.",
+  "export": "ErrorRecoveryStory",
+  "format": "renderable-text",
+  "forms": {
+    "search-input": {
+      "search": "Search"
+    }
+  },
+  "iconName": "arrowEnd",
+  "id": "default",
+  "kind": "visible",
+  "label": "Disabled",
+  "libraryId": "react-component-library:useLocale",
+  "mode": "live",
+  "module": "./story.tsx",
+  "name": "Default",
+  "path": "disabled",
+  "react": "^18",
+  "resolvedAt": "2026-08-31T05:06:04Z",
+  "role": "anatomy",
+  "selector": "body",
+  "size": "lg",
+  "status": "alert",
+  "title": "Button 2.2",
+  "tone": "danger",
+  "value": "1",
+  "variant": "primary",
+  "version": "1.1.1"
+}

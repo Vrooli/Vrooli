@@ -1,0 +1,98 @@
+{
+  "_metadata": {
+    "description": "OT-P0-001 — structured plan + phase record persisted to a durable, scenario-independent home store.",
+    "last_validated_at": "2026-07-02T21:19:14-04:00",
+    "module": "plan-store",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-STORE-001",
+      "title": "A plan is a first-class structured record with ordered first-class phases",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "plans",
+      "description": "A plan is stored as a structured record (meta + global sections + ordered phases; each phase owns relevant context, reminders, baseline scope, acceptance, and status) and exposes CRUD plus a rendered markdown view. Persistence is rooted at the scenario-independent ~/.vrooli home store so plans remain readable when the plan-manager server is down.",
+      "tags": [
+        "plans",
+        "storage",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestRepositorySaveGetRoundTrip",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Plan + phase round-trip through the SQLite repository."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestRenderMarkdownDeterministic",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Structured plans render to deterministic markdown with machine-readable references."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestImportAndMigrate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Plans can be imported and migrated through the store-backed service seam."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestPersistedContextRepairMutatesStructuredPlanAndRepublishesMirror",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Finalized plans can list/update/remove structured relevant context while preserving the structured record and republishing the mirror."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestPersistedReferenceRepairMutatesStructuredPlanAndPreservesPhaseIdentity",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Finalized plans can update/remove structured references, clear computed validation annotations, and preserve phase identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestPatchPhaseExecutionGradeRegressionRequiresAcknowledgement",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Field-mask patches preserve omitted fields and guard active execution-grade quality regressions unless explicitly acknowledged."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestAuthoredRepairAddsAssignStableServerOwnedIDs",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Finalized plans can add authored context and references with durable server-owned identities."
+        }
+      ]
+    },
+    {
+      "id": "PM-STORE-002",
+      "title": "Phase status is a computed runtime transition, never agent-edited markdown",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "plans",
+      "description": "Phase status (todo / active / done / blocked) changes only through a typed state transition (or inference from acceptance/validation passing). The rendered markdown view reflects status but is never the source of truth, so an agent cannot corrupt plan state by editing prose.",
+      "tags": [
+        "plans",
+        "phases",
+        "state"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestStatusTransitionLegality",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Typed phase transitions compute plan status and archive remains terminal."
+        }
+      ]
+    }
+  ]
+}

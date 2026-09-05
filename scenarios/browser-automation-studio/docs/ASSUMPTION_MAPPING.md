@@ -51,9 +51,9 @@ type PlaywrightDriverError struct {
 
 **Test Cases**:
 ```bash
-# Test 1: Driver not running
-pkill -f playwright-driver && curl localhost:39410/health
-# Expected: API returns unhealthy, clear error message
+# Test 1: Driver unavailable without mutating an owned runtime
+PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:1 make test-integration
+# Expected: Clear error about connection refused
 
 # Test 2: Driver unreachable
 PLAYWRIGHT_DRIVER_URL=http://invalid:9999 make test-integration

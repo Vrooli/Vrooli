@@ -1,0 +1,242 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable SQLite session, telemetry, and program provenance data resolved beneath the cross-platform data root.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable program-runtime state is retained for agent provenance and session governance; the ceiling prevents unbounded growth without authorizing automatic deletion."
+        }
+      }
+    },
+    "rationale": "Program Runtime owns its durable data directory; temporary session workspaces and external event resources remain outside this storage declaration."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "program-runtime",
+    "displayName": "Program Runtime",
+    "description": "Persistent programmatic execution surface where agents submit programs that invoke governed Vrooli operations as typed calls.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-06T07:17:41Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "7c6abefa15a33669b5aff750d0a01da11c8b4beac70d1bd069c45e012f4ab898"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "program-runtime",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "program-runtime"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "uv",
+      "required": true,
+      "reason": "Provision the pinned, isolated CPython environment used by the program-runtime kernel.",
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "notes": "If uv is unavailable, the kernel fails closed with an install remediation and never falls back to host python3."
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional typed telemetry bus for program lifecycle events.",
+        "degraded_behavior": "Program execution remains available; events persist in the local outbox and are retried until vrooli-events returns, with aged failures dead-lettered."
+      },
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional copy-on-write workspace binding for session kernels.",
+        "degraded_behavior": "Sessions without a declared workspace continue with a private scratch directory. Declared workspace identifiers are rejected while workspace-sandbox is unavailable; explicit absolute paths use local validation only and do not provide copy-on-write isolation."
+      },
+      "ai-gateway": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime reaches ai-gateway through its governed Connect binding boundary; no source-level package import is expected.",
+        "startup_policy": "try_start",
+        "description": "Optional typed inference provider for governed classify, extract, and judge calls.",
+        "degraded_behavior": "Program execution and non-inference bindings remain available; inference calls fail closed with an explicit provider-unavailable error."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime reaches agent-manager through its governed delegated-run Connect boundary; no source-level package import is expected.",
+        "startup_policy": "try_start",
+        "description": "Optional delegated-agent workflow provider for bounded program handles.",
+        "degraded_behavior": "Direct governed bindings remain available; delegated runs fail closed with an explicit agent-manager-unavailable error."
+      },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime reaches search-hub through service discovery and its intent-search boundary; no source-level package import is expected.",
+        "startup_policy": "try_start",
+        "description": "Optional intent-search provider for discovering governed bindings.",
+        "degraded_behavior": "Intent resolution falls back to the local manifest registry and reports the fallback provenance."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/program-runtime/SKILL.md",
+      "programs": [
+        "program-runtime.fleet-fanout",
+        "program-runtime.concurrent-fanout",
+        "program-runtime.typed-inference",
+        "program-runtime.batch-inference",
+        "program-runtime.handle-shaping",
+        "program-runtime.delegated-run",
+        "program-runtime.watch-set",
+        "program-runtime.failure-triage",
+        "program-runtime.registry-sweep"
+      ]
+    },
+    "improve": {
+      "source": "skills/program-runtime-improve/SKILL.md",
+      "programs": [
+        "program-runtime.setpoint-read",
+        "program-runtime.improve-cycle",
+        "program-runtime.library-curate"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "program-runtime-usage"
+    },
+    "waivers": {}
+  }
+}

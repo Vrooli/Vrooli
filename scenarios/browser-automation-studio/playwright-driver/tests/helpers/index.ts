@@ -15,6 +15,9 @@ export {
   waitForResponse,
 } from './http-mocks';
 
+// Fetch mocks
+export * from './fetch-mocks';
+
 // Playwright mock versions
 export { createMockRequest, createMockResponse } from './playwright-mocks';
 

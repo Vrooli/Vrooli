@@ -1,15 +1,17 @@
-# UI Smoke Testing Guide
+# iframe-bridge Handshake & UI Render Debugging Guide
 
-**Status**: Active
-**Last Updated**: 2025-12-03
+**Status**: Active (debugging reference)
+**Last Updated**: 2026-06-23
+
+> **Moved:** The native `smoke` test-genie phase and the standalone `vrooli scenario ui-smoke` command were **retired**. BAS-driven UI render + iframe-bridge handshake validation now runs inside the **[ui-health phase](../ui-health/README.md)** (execution mode) — see `ui-health validate scenario <name>`. Workflow validation now delegates to workflow-health. This guide is retained as the iframe-bridge handshake / render-failure **debugging reference** that those phases' remediation messages point at; the legacy `.vrooli/testing.json` `structure.ui_smoke` config knob below is preserved where still honored.
 
 ---
 
 ## Overview
 
-UI smoke testing validates that a scenario's UI is accessible, renders correctly, integrates with the iframe-bridge, and has no critical JavaScript errors. It runs during the **structure** phase as a fast sanity check before deeper testing.
+UI render validation checks that a scenario's UI is accessible, renders correctly, integrates with the iframe-bridge, and has no critical JavaScript errors.
 
-The UI smoke test is implemented as a Go-native orchestrator that loads the scenario's UI in an iframe via Browserless, validates the iframe-bridge handshake, and captures artifacts.
+It is driven through the **Browser Automation Studio (BAS)** workflow engine: the ui-health phase embeds the scenario's UI in a host iframe shell, validates the iframe-bridge handshake, and captures artifacts. Workflow validation is delegated to workflow-health.
 
 ## Quick Start
 
@@ -33,11 +35,14 @@ UI smoke testing is **enabled by default** for scenarios with a `ui/` directory.
 ### Run Smoke Tests
 
 ```bash
-# Run structure phase (includes UI smoke)
-test-genie execute my-scenario --phases structure
+# Run the ui-health phase (static UI checks + BAS render/handshake in execution mode)
+test-genie execute my-scenario ui-health
 
-# Check test artifacts
-ls coverage/ui-smoke/
+# Or invoke ui-health directly
+ui-health validate scenario my-scenario
+
+# Check render artifacts
+ls coverage/runs/<run-id>/ui-smoke/pages/
 ```
 
 ## Configuration Reference
@@ -104,17 +109,18 @@ Signal patterns supported:
 
 ## Prerequisites
 
-### 1. Browserless Resource
+### 1. Browser Automation Studio (BAS)
 
-The UI smoke test requires Browserless to be running:
+The UI smoke test drives its capture on the BAS workflow engine, so the
+`browser-automation-studio` scenario must be running:
 
 ```bash
-# Check status
-resource-browserless manage status
-
-# Start if needed
-resource-browserless manage start
+# Start if needed (idempotent)
+vrooli scenario start browser-automation-studio
 ```
+
+When BAS is unreachable, the runnability gate **skips or degrades**
+BAS-dependent validation (resource unavailable) rather than failing it hard.
 
 ### 2. iframe-bridge Dependency
 
@@ -123,7 +129,7 @@ Your UI must have `@vrooli/iframe-bridge` as a dependency in `ui/package.json`:
 ```json
 {
   "dependencies": {
-    "@vrooli/iframe-bridge": "workspace:*"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   }
 }
 ```
@@ -136,7 +142,7 @@ The `@vrooli/iframe-bridge` package provides communication utilities between Vro
 - **Message passing**: Enables secure cross-origin communication between host and iframe
 - **Storage shimming**: Patches localStorage/sessionStorage for iframe compatibility
 
-When a UI smoke test runs, Browserless loads your UI in a headless browser and waits for the iframe-bridge to signal that the app is ready. If the bridge never signals ready, the test fails.
+When a UI smoke test runs, the BAS workflow engine embeds your UI in a host iframe shell inside a headless browser and waits for the iframe-bridge to signal that the app is ready (via the bridge's READY/HELLO postMessage or a window-property readiness signal). If the bridge never signals ready, the test fails.
 
 For detailed implementation guidance, see the [iframe-bridge README](/packages/iframe-bridge/README.md).
 
@@ -160,15 +166,15 @@ Your scenario should define a UI port in `.vrooli/service.json`:
 The UI smoke test follows this sequence:
 
 1. **Check UI directory exists** - Skip if no `ui/` directory
-2. **Check Browserless health** - Block if Browserless is offline
-3. **Check bundle freshness** - Block if source files are newer than dist
-4. **Check UI port defined** - Determine if scenario expects a UI
-5. **Discover UI port** - Find the running UI server port
-6. **Check iframe-bridge dependency** - Fail if missing
-7. **Execute browser session** - Load UI in iframe via Browserless
-8. **Evaluate handshake** - Wait for bridge readiness signal
-9. **Write artifacts** - Save screenshot, console logs, etc.
-10. **Build result** - Determine pass/fail status
+2. **Check bundle freshness** - Block if source files are newer than dist
+3. **Discover UI port** - Find the running UI server port (or skip when no UI port is defined; auto-start when requested)
+4. **Check iframe-bridge dependency** - Fail if missing
+5. **Capture via BAS** - Run the inline smoke workflow (navigate host shell → inject iframe + arm handshake listener → assert the readiness marker → screenshot the frame)
+6. **Analyze evidence** - The shared `internal/evidence` analyzer decides the verdict (handshake hard-fail, then network failures, then page errors; console errors counted, console warnings surfaced)
+7. **Write artifacts** - Save screenshot, console logs, network failures, raw evidence
+8. **Build result** - Determine pass/fail status
+
+> BAS reachability is decided up front by the runnability gate, not inside this flow: when BAS is down the phase is skipped before step 1.
 
 ## Test Results
 
@@ -179,7 +185,7 @@ The UI smoke test follows this sequence:
 | `passed` | UI loaded successfully with handshake |
 | `failed` | Test encountered errors (JS errors, network failures, no handshake) |
 | `skipped` | Test was skipped (no UI directory or no UI port defined) |
-| `blocked` | Precondition failed (Browserless offline, bundle stale, port not running) |
+| `blocked` | Precondition failed (bundle stale, or UI port defined but not running) |
 
 ### Result JSON
 
@@ -202,7 +208,6 @@ Results are stored in `coverage/ui-smoke/latest.json`:
     "screenshot": "coverage/ui-smoke/screenshot.png",
     "console": "coverage/ui-smoke/console.json",
     "network": "coverage/ui-smoke/network.json",
-    "html": "coverage/ui-smoke/dom.html",
     "raw": "coverage/ui-smoke/raw.json"
   }
 }
@@ -216,21 +221,21 @@ All artifacts are stored in `coverage/ui-smoke/`:
 |------|--------|---------|
 | `screenshot.png` | PNG | UI screenshot at test completion |
 | `console.json` | JSON | All console messages (log/warn/error/info) |
-| `network.json` | JSON | Failed network requests (4xx/5xx/timeouts) |
-| `dom.html` | HTML | Complete DOM snapshot |
-| `raw.json` | JSON | Full Browserless response (minus screenshot) |
+| `network.json` | JSON | Failed network requests (4xx/5xx/transport errors) |
+| `raw.json` | JSON | Raw engine-agnostic evidence (minus screenshot bytes) |
 | `latest.json` | JSON | Complete result object with metadata |
 | `README.md` | Markdown | Human-readable summary with troubleshooting |
 
 ## Troubleshooting
 
-### Browserless Offline
+### BAS Unavailable
 
-**Symptom**: Test blocked with "Browserless resource is offline"
+**Symptom**: Smoke phase **skipped** with a "requires unavailable resource(s):
+browser-automation-studio" reason.
 
 **Solution**:
 ```bash
-resource-browserless manage start
+vrooli scenario start browser-automation-studio
 ```
 
 ### Bundle Stale
@@ -347,7 +352,7 @@ For more information about iframe-bridge, see the [iframe-bridge README](/packag
 **Solutions**:
 1. Increase `handshake_timeout_ms` to give more time for rendering
 2. Check `console.json` for errors
-3. Check `dom.html` to see actual DOM state
+3. Check `screenshot.png` and `network.json` to see the actual rendered state and failed requests
 
 ## Storage Shim
 
@@ -389,5 +394,5 @@ Unhandled JavaScript errors will cause the test to fail. Ensure your app has pro
 ## See Also
 
 - [Structure Phase](README.md) - Structure phase overview
-- [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing
+- [Workflow Phase](../workflow/README.md) - BAS workflow validation
 - [Phases Overview](../README.md) - Phase architecture

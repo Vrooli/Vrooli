@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"git-control-tower/internal/testutil/fixtures"
+
+	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -30,8 +33,7 @@ func TestAgentManagerClient_ListProfiles(t *testing.T) {
 			"total": 2,
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -64,8 +66,7 @@ func TestAgentManagerClient_CreateTaskAndRun(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/tasks", handleFakeTaskCreate(t))
 	mux.HandleFunc("/api/v1/runs", handleFakeRunCreate(t))
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := newTestAgentManagerClient(server.URL)
 
@@ -97,6 +98,29 @@ func TestAgentManagerClient_CreateTaskAndRun(t *testing.T) {
 			t.Errorf("expected run ID run-001, got %s", runResp.Run.ID)
 		}
 	})
+}
+
+func TestBuildAgentTaskDataUsesContractBackedScenarioScope(t *testing.T) {
+	t.Parallel()
+
+	repoDir := t.TempDir()
+	fixtures.WriteRepoContract(t, repoDir)
+
+	task := buildAgentTaskData(repoDir, AgentRunRequest{
+		ScenarioSlug:  "my-app",
+		Prompt:        "Review this scenario",
+		AttachmentIDs: []string{"att-1"},
+	})
+
+	if task.ScopePath != "scenarios/my-app/" {
+		t.Fatalf("ScopePath = %q, want %q", task.ScopePath, "scenarios/my-app/")
+	}
+	if task.Title != "GCT review: my-app" {
+		t.Fatalf("Title = %q", task.Title)
+	}
+	if len(task.ContextAttachments) != 1 || task.ContextAttachments[0].AttachmentID != "att-1" {
+		t.Fatalf("ContextAttachments = %#v", task.ContextAttachments)
+	}
 }
 
 func handleFakeTaskCreate(t *testing.T) http.HandlerFunc {
@@ -151,7 +175,7 @@ func handleFakeRunCreate(t *testing.T) http.HandlerFunc {
 func newTestAgentManagerClient(serverURL string) *AgentManagerClient {
 	return &AgentManagerClient{
 		BaseClient: BaseClient{
-			httpClient:  &http.Client{Timeout: 5 * time.Second},
+			httpClient:  httpx.TestClient(),
 			resolver:    discovery.NewStaticResolver(serverURL),
 			serviceName: "agent-manager",
 		},
@@ -188,8 +212,7 @@ func TestAgentManagerClient_GetRun(t *testing.T) {
 			},
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -252,8 +275,7 @@ func TestAgentManagerClient_GetRunEvents(t *testing.T) {
 			},
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -296,8 +318,7 @@ func TestAgentManagerClient_GetRunDiff(t *testing.T) {
 			},
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -335,8 +356,7 @@ func TestAgentManagerClient_ServerError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "internal failure"})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -378,8 +398,7 @@ func TestAgentManagerClient_ContinueRun(t *testing.T) {
 			},
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -416,8 +435,7 @@ func TestAgentManagerClient_StopRun(t *testing.T) {
 			"status": "stopped",
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -510,6 +528,7 @@ func TestWireRunToAPI(t *testing.T) {
 		ErrorMsg:        "",
 		SessionID:       "sess-789",
 		ApprovalState:   "APPROVAL_STATE_PENDING",
+		CommitHash:      "abc123def",
 		Summary: &wireRunSummary{
 			FilesModified: []string{"a.go", "b.go"},
 			FilesCreated:  []string{"c.go"},
@@ -533,6 +552,7 @@ func TestWireRunToAPI(t *testing.T) {
 	assertStringField(t, "Phase", got.Phase, "reviewing")
 	assertStringField(t, "SessionID", got.SessionID, "sess-789")
 	assertStringField(t, "ApprovalState", got.ApprovalState, "pending")
+	assertStringField(t, "CommitHash", got.CommitHash, "abc123def")
 
 	if got.Summary == nil {
 		t.Fatal("Summary is nil")
@@ -652,16 +672,15 @@ func TestWireProfileToAPI(t *testing.T) {
 		ID:          "p1",
 		ProfileKey:  "default",
 		Name:        "Default",
-		RunnerType:  "RUNNER_TYPE_CLAUDE_CODE",
+		RoleRef:     "code.default",
 		Description: "desc",
-		Model:       "claude-3",
 	}
 	got := wireProfileToAPI(&w)
 	if got.Key != "default" {
 		t.Errorf("Key: got %s", got.Key)
 	}
-	if got.RunnerType != "claude-code" {
-		t.Errorf("RunnerType: got %s, want claude-code", got.RunnerType)
+	if got.RoleRef != "code.default" {
+		t.Errorf("RoleRef: got %s, want code.default", got.RoleRef)
 	}
 }
 
@@ -686,8 +705,7 @@ func TestRetryOnTransportError(t *testing.T) {
 			"total":    0,
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -721,8 +739,7 @@ func TestNoRetryOn4xx(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"error":"bad request"}`))
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{
@@ -755,8 +772,7 @@ func TestReResolveOnTransportFailure(t *testing.T) {
 			"total":    0,
 		})
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	server := httpx.NewHandlerServer(t, mux)
 
 	client := &AgentManagerClient{
 		BaseClient: BaseClient{

@@ -1,0 +1,28 @@
+{
+  "createdAt": "2026-07-18T03:05:26Z",
+  "description": "Typed continuation prompt for independent-review correction.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-phased-plan-correction",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "swarm-manager-workflow-phased-plan-correction",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [],
+    "scenarios": []
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "agent-manager",
+    "workflow",
+    "prompt-contract"
+  ],
+  "updatedAt": "2026-07-18T03:05:26Z"
+}

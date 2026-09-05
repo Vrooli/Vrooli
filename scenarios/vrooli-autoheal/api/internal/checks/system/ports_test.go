@@ -6,7 +6,9 @@ import (
 	"context"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // =============================================================================
@@ -16,7 +18,7 @@ import (
 // TestPortCheckRunWithMock_Healthy tests healthy port usage
 // [REQ:SYSTEM-PORTS-001] [REQ:TEST-SEAM-001]
 func TestPortCheckRunWithMock_Healthy(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	mockReader.PortInfo = &checks.PortInfo{
 		UsedPorts:   1000,
 		TotalPorts:  28232,
@@ -44,7 +46,7 @@ func TestPortCheckRunWithMock_Healthy(t *testing.T) {
 
 // TestPortCheckRunWithMock_Warning tests warning threshold
 func TestPortCheckRunWithMock_Warning(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	mockReader.PortInfo = &checks.PortInfo{
 		UsedPorts:   20000,
 		TotalPorts:  28232,
@@ -62,7 +64,7 @@ func TestPortCheckRunWithMock_Warning(t *testing.T) {
 
 // TestPortCheckRunWithMock_Critical tests critical threshold
 func TestPortCheckRunWithMock_Critical(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	mockReader.PortInfo = &checks.PortInfo{
 		UsedPorts:   24000,
 		TotalPorts:  28232,
@@ -80,7 +82,7 @@ func TestPortCheckRunWithMock_Critical(t *testing.T) {
 
 // TestPortCheckRunWithMock_CustomThresholds tests custom thresholds
 func TestPortCheckRunWithMock_CustomThresholds(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	mockReader.PortInfo = &checks.PortInfo{
 		UsedPorts:   15000,
 		TotalPorts:  28232,
@@ -101,8 +103,8 @@ func TestPortCheckRunWithMock_CustomThresholds(t *testing.T) {
 
 // TestPortCheckRunWithMock_ReadError tests error handling
 func TestPortCheckRunWithMock_ReadError(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
-	mockReader.Error = checks.ErrFileNotFound
+	mockReader := testutil.NewMockPortReader()
+	mockReader.Error = testutil.ErrFileNotFound
 
 	check := NewPortCheck(WithPortReader(mockReader))
 	result := check.Run(context.Background())
@@ -117,7 +119,7 @@ func TestPortCheckRunWithMock_ReadError(t *testing.T) {
 
 // TestPortCheckMetrics tests health metrics calculation
 func TestPortCheckMetrics(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	mockReader.PortInfo = &checks.PortInfo{
 		UsedPorts:   5000,
 		TotalPorts:  28232,
@@ -241,8 +243,8 @@ func TestPortCheckRecoveryActionsDangerous(t *testing.T) {
 
 // TestPortCheckExecuteAction_Analyze tests analyze action
 func TestPortCheckExecuteAction_Analyze(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["ss -tunap"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["ss -tunap"] = testutil.MockResponse{
 		Output: []byte("Netid  State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port\ntcp    ESTAB  0       0       127.0.0.1:8080      127.0.0.1:54321"),
 		Error:  nil,
 	}
@@ -263,14 +265,14 @@ func TestPortCheckExecuteAction_Analyze(t *testing.T) {
 
 // TestPortCheckExecuteAction_AnalyzeFallback tests analyze fallback to netstat
 func TestPortCheckExecuteAction_AnalyzeFallback(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
+	mockExec := testutil.NewMockExecutor()
 	// ss fails
-	mockExec.Responses["ss -tunap"] = checks.MockResponse{
+	mockExec.Responses["ss -tunap"] = testutil.MockResponse{
 		Output: []byte(""),
-		Error:  checks.ErrCommandNotFound,
+		Error:  testutil.ErrCommandNotFound,
 	}
 	// netstat succeeds
-	mockExec.Responses["netstat -tunp"] = checks.MockResponse{
+	mockExec.Responses["netstat -tunp"] = testutil.MockResponse{
 		Output: []byte("Active Internet connections\ntcp  0  0 127.0.0.1:8080  127.0.0.1:54321  ESTABLISHED"),
 		Error:  nil,
 	}
@@ -285,8 +287,8 @@ func TestPortCheckExecuteAction_AnalyzeFallback(t *testing.T) {
 
 // TestPortCheckExecuteAction_TimeWait tests time-wait action
 func TestPortCheckExecuteAction_TimeWait(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["ss -tan state time-wait"] = checks.MockResponse{
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["ss -tan state time-wait"] = testutil.MockResponse{
 		Output: []byte("State  Recv-Q  Send-Q  Local Address:Port  Peer Address:Port\nTIME-WAIT  0  0  127.0.0.1:8080  127.0.0.1:54321\nTIME-WAIT  0  0  127.0.0.1:8081  127.0.0.1:54322"),
 		Error:  nil,
 	}
@@ -357,7 +359,7 @@ func TestPortCheckInterface(t *testing.T) {
 
 // TestPortCheckReaderInjection verifies port reader is properly injected
 func TestPortCheckReaderInjection(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	check := NewPortCheck(WithPortReader(mockReader))
 
 	if check.portReader != mockReader {
@@ -376,7 +378,7 @@ func TestPortCheckDefaultReader(t *testing.T) {
 
 // TestPortCheckMockCallsVerified verifies mock reader was called
 func TestPortCheckMockCallsVerified(t *testing.T) {
-	mockReader := checks.NewMockPortReader()
+	mockReader := testutil.NewMockPortReader()
 	mockReader.PortInfo = &checks.PortInfo{
 		UsedPorts:   1000,
 		TotalPorts:  28232,

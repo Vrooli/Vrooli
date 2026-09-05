@@ -1,0 +1,280 @@
+{
+  "$schema": "../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.1.0",
+  "scenario": "react-component-library",
+  "description": "Experience contracts for reusable catalog primitives and the live component-preview workspace that composes them.",
+  "pages": [
+    {
+      "id": "catalog-workspace",
+      "path": "pages/catalog-workspace.json",
+      "title": "Component catalog workspace",
+      "status": "active"
+    },
+    {
+      "id": "component-preview-workspace",
+      "path": "pages/component-preview-workspace.json",
+      "title": "Component preview workspace",
+      "status": "active"
+    },
+    {
+      "id": "component-harness",
+      "path": "pages/component-harness.json",
+      "title": "Component specimen harness",
+      "status": "active"
+    }
+  ],
+  "journeys": [],
+  "components": [
+    {
+      "id": "button",
+      "path": "components/button.json",
+      "title": "Button",
+      "status": "active"
+    },
+    {
+      "id": "app-shell",
+      "path": "components/app-shell.json",
+      "title": "AppShell",
+      "status": "active"
+    },
+    {
+      "id": "control-base",
+      "path": "components/control-base.json",
+      "title": "ControlBase",
+      "status": "active"
+    },
+    {
+      "id": "navigation-tabs",
+      "path": "components/tabs.json",
+      "title": "Tabs",
+      "status": "active"
+    },
+    {
+      "id": "drawer-shell",
+      "path": "components/drawer-shell.json",
+      "title": "DrawerShell",
+      "status": "active"
+    },
+    {
+      "id": "input",
+      "path": "components/input.json",
+      "title": "Input",
+      "status": "active"
+    },
+    {
+      "id": "icon-button",
+      "path": "components/icon-button.json",
+      "title": "IconButton",
+      "status": "active"
+    },
+    {
+      "id": "voice-input-button",
+      "path": "components/voice-input-button.json",
+      "title": "VoiceInputButton",
+      "status": "active"
+    },
+    {
+      "id": "use-voice-input",
+      "path": "components/use-voice-input.json",
+      "title": "useVoiceInput",
+      "status": "active"
+    },
+    {
+      "id": "app-navigation",
+      "path": "components/app-navigation.json",
+      "title": "AppNavigation",
+      "status": "active"
+    },
+    {
+      "id": "navigation-tree",
+      "path": "components/navigation-tree.json",
+      "title": "NavigationTree",
+      "status": "active"
+    },
+    {
+      "id": "nav-link",
+      "path": "components/nav-link.json",
+      "title": "NavLink",
+      "status": "active"
+    },
+    {
+      "id": "sidebar-shell",
+      "path": "components/sidebar-shell.json",
+      "title": "SidebarShell",
+      "status": "active"
+    },
+    {
+      "id": "asset-detail-shell",
+      "path": "components/asset-detail-shell.json",
+      "title": "Asset Detail Shell",
+      "status": "active"
+    },
+    {
+      "id": "async-panel",
+      "path": "components/async-panel.json",
+      "title": "Async Panel",
+      "status": "active"
+    },
+    {
+      "id": "command-center-shell",
+      "path": "components/command-center-shell.json",
+      "title": "Command Center Shell",
+      "status": "active"
+    },
+    {
+      "id": "experience-surface",
+      "path": "components/experience-surface.json",
+      "title": "Experience Surface",
+      "status": "active"
+    },
+    {
+      "id": "inspector-layout",
+      "path": "components/inspector-layout.json",
+      "title": "Inspector Layout",
+      "status": "active"
+    },
+    {
+      "id": "stat-card",
+      "path": "components/stat-card.json",
+      "title": "Stat Card",
+      "status": "active"
+    },
+    {
+      "id": "bottom-nav",
+      "path": "components/bottom-nav.json",
+      "title": "Bottom Navigation",
+      "status": "active"
+    },
+    {
+      "id": "data-display-data-table",
+      "path": "components/data-table.json",
+      "title": "Data Table",
+      "status": "active"
+    },
+    {
+      "id": "data-display-tree-view",
+      "path": "components/tree-view.json",
+      "title": "Tree View",
+      "status": "active"
+    },
+    {
+      "id": "undoable-destructive-action",
+      "path": "components/undoable-destructive-action.json",
+      "title": "Undoable Destructive Action",
+      "status": "active"
+    },
+    {
+      "id": "empty-state",
+      "path": "components/empty-state.json",
+      "title": "Empty State",
+      "status": "active"
+    },
+    {
+      "id": "status-badge",
+      "path": "components/status-badge.json",
+      "title": "Status Badge",
+      "status": "active"
+    },
+    {
+      "id": "pressable",
+      "path": "components/pressable.json",
+      "title": "Pressable",
+      "status": "active"
+    },
+    {
+      "id": "icon",
+      "path": "components/icon.json",
+      "title": "Icon",
+      "status": "active"
+    },
+    {
+      "id": "text",
+      "path": "components/text.json",
+      "title": "Text",
+      "status": "active"
+    },
+    {
+      "id": "drawer",
+      "path": "components/drawer.json",
+      "title": "Drawer",
+      "status": "active"
+    },
+    {
+      "id": "cartesian-charts",
+      "path": "components/cartesian-charts.json",
+      "title": "Cartesian Charts",
+      "status": "active"
+    },
+    {
+      "id": "relationships-panel",
+      "path": "components/relationships-panel.json",
+      "title": "Catalog Relationships Panel",
+      "status": "active"
+    },
+    {
+      "id": "structure-panel",
+      "path": "components/structure-panel.json",
+      "title": "Catalog Structure Panel",
+      "status": "active"
+    },
+    {
+      "id": "measurement-bar",
+      "path": "components/measurement-bar.json",
+      "title": "Measurement Bar",
+      "status": "active"
+    },
+    {
+      "id": "finding-list",
+      "path": "components/finding-list.json",
+      "title": "Finding List",
+      "status": "active"
+    },
+    {
+      "id": "evidence-carousel",
+      "path": "components/evidence-carousel.json",
+      "title": "Evidence Carousel",
+      "status": "active"
+    },
+    {
+      "id": "overlay-canvas",
+      "path": "components/overlay-canvas.json",
+      "title": "Overlay Canvas",
+      "status": "active"
+    },
+    {
+      "id": "budget-bar",
+      "path": "components/budget-bar.json",
+      "title": "Budget Bar",
+      "status": "active"
+    },
+    {
+      "id": "quarantine-badge",
+      "path": "components/quarantine-badge.json",
+      "title": "Quarantine Badge",
+      "status": "active"
+    },
+    {
+      "id": "verdict-summary",
+      "path": "components/verdict-summary.json",
+      "title": "Verdict Summary",
+      "status": "active"
+    },
+    {
+      "id": "bounded-meter",
+      "path": "components/bounded-meter.json",
+      "title": "Bounded Meter",
+      "status": "active"
+    },
+    {
+      "id": "primitives-card",
+      "path": "components/card.json",
+      "title": "Card",
+      "status": "active"
+    }
+  ]
+}

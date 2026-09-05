@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.surface",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "draft": "",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:Surface"
+}

@@ -1,0 +1,130 @@
+@import "./design-tokens.css";
+@import "./theme/tokens.css";
+@import "./theme/annunciator.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
+}
+
+body {
+  /* The shell colour, not the page ground: body padding fills the safe-area
+     band that sits ABOVE the top chrome, and it must continue the chrome
+     rather than introduce a second colour under the status bar. The content
+     area paints `--color-background` on the app-shell element itself. */
+  background: var(--color-shell);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
+}
+
+.instrument-triple,
+.ratio-confidence {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  padding: var(--space-sm);
+}
+
+.instrument-triple__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.instrument-triple__denominator,
+.ratio-confidence__rationale {
+  color: var(--color-muted-foreground);
+  font-size: var(--text-body-sm-size);
+  margin-top: var(--space-2xs);
+}
+
+.status-token {
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  white-space: nowrap;
+}
+
+.status-token--valid,
+.status-token--in-band { color: var(--instrument-valid); }
+.status-token--ghost { color: var(--instrument-ghost); }
+.status-token--saturated,
+.status-token--pending-sustain { color: var(--instrument-saturated); }
+.status-token--shelved,
+.status-token--unavailable { color: var(--instrument-shelved); }
+.status-token--unit-mismatch,
+.status-token--out-of-band { color: var(--instrument-out-of-band); }
+.status-token--untrusted,
+.status-token--not-evaluated { color: var(--instrument-untrusted); border-style: dashed; }
+.status-token--needs-baseline { color: var(--instrument-needs-baseline); border-style: double; }
+
+.ratio-confidence {
+  align-items: baseline;
+  display: grid;
+  gap: var(--space-2xs);
+  grid-template-columns: auto auto;
+}
+
+.ratio-confidence__ratio { font-size: var(--text-title-size); }
+.ratio-confidence__rationale { grid-column: 1 / -1; }
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--signal-covered);
+  outline-offset: 3px;
+  border-radius: var(--radius-control);
+}
+
+@layer utilities {
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .pt-safe {
+    padding-top: var(--safe-area-inset-top);
+  }
+
+  .pr-safe {
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  /*
+   * The bottom nav is `fixed ... bottom-safe`, and this utility is what makes
+   * `bottom-safe` mean something. Without it the class resolves to nothing, the
+   * fixed element inherits `bottom: auto`, and it renders at its static
+   * position — which on a short page puts the mobile nav over the top chrome
+   * instead of pinning it to the viewport bottom.
+   */
+  .bottom-safe {
+    bottom: var(--safe-area-inset-bottom, 0px);
+  }
+
+  .pl-safe {
+    padding-left: var(--safe-area-inset-left);
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-service",
+  "catalogId": "services.selection-store",
+  "deprecatedVersions": [],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "2.0.0",
+  "libraryId": "react-component-library:SelectionStore"
+}

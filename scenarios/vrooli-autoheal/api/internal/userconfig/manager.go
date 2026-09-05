@@ -9,11 +9,12 @@ import (
 
 // Manager handles loading, saving, and accessing configuration
 type Manager struct {
-	mu         sync.RWMutex
-	config     *Config
-	configPath string
-	schemaPath string
-	io         configIO
+	mu               sync.RWMutex
+	config           *Config
+	configPath       string
+	schemaPath       string
+	io               configIO
+	supervisedChecks map[string]string
 }
 
 // NewManager creates a new configuration manager
@@ -25,10 +26,11 @@ func NewManager(configPath, schemaPath string) *Manager {
 
 func newManagerWithIO(configPath, schemaPath string, io configIO) *Manager {
 	return &Manager{
-		configPath: configPath,
-		schemaPath: schemaPath,
-		config:     DefaultConfig(),
-		io:         io,
+		configPath:       configPath,
+		schemaPath:       schemaPath,
+		config:           DefaultConfig(),
+		io:               io,
+		supervisedChecks: make(map[string]string),
 	}
 }
 
@@ -136,7 +138,10 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 		},
 	}
 	if result.Settings.AutoHealOn == "" {
-		result.Settings.AutoHealOn = "critical"
+		// "critical+signature" rather than bare "critical": a check that
+		// positively identified a root cause and named its repair should be
+		// allowed to act on a warning. Bare warnings still do not heal.
+		result.Settings.AutoHealOn = "critical+signature"
 	}
 
 	// Copy default thresholds if present
@@ -176,8 +181,37 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 			}
 		}
 	}
+	// The computed supervision set is the platform recovery floor. It cannot be
+	// disabled by stale or hand-edited user config. The controller replaces this
+	// map atomically whenever `vrooli supervision-set` changes.
+	if intent, supervised := m.supervisedChecks[checkID]; supervised {
+		result.Enabled = true
+		result.AutoHeal = true
+		if intent == "try_start" {
+			result.Settings.AutoHealOn = "warning+critical"
+		} else {
+			// The platform recovery floor is at least as sensitive for
+			// must-start members as it is for best-effort members. Critical
+			// scenarios therefore receive the same warning coverage, ensuring a
+			// running-but-refusing service cannot remain invisible.
+			result.Settings.AutoHealOn = "warning+critical"
+		}
+	}
 
 	return result
+}
+
+// SetSupervisedChecks installs the current computed supervision floor. The
+// caller passes check IDs to keep the config package independent of core-set
+// transport types.
+func (m *Manager) SetSupervisedChecks(supervised map[string]string) {
+	copyOf := make(map[string]string, len(supervised))
+	for id, intent := range supervised {
+		copyOf[id] = intent
+	}
+	m.mu.Lock()
+	m.supervisedChecks = copyOf
+	m.mu.Unlock()
 }
 
 // CheckConfig is the resolved configuration for a check (with defaults applied)
@@ -201,11 +235,18 @@ func (m *Manager) IsAutoHealEnabled(checkID string) bool {
 }
 
 // GetAutoHealOn returns the status threshold that triggers auto-heal.
-// Valid values: "critical", "warning+critical".
+// Valid values: "critical", "critical+signature", "warning+critical".
+//
+// The default is "critical+signature": critical results always heal, and so do
+// warnings a check positively classified with a root cause and a named
+// recovery action. Before this, a scenario running with a dead UI produced a
+// warning that nothing ever acted on, because the only widening available was
+// "warning+critical" -- which would have let every soft signal restart a
+// scenario. Set "critical" explicitly to restore the narrowest behaviour.
 func (m *Manager) GetAutoHealOn(checkID string) string {
 	cfg := m.GetCheck(checkID)
 	if cfg.Settings.AutoHealOn == "" {
-		return "critical"
+		return "critical+signature"
 	}
 	return cfg.Settings.AutoHealOn
 }
@@ -274,14 +315,24 @@ func (m *Manager) SetScenarioCritical(name string, critical bool) error {
 // AddResource adds a resource to monitoring
 func (m *Manager) AddResource(name string) error {
 	m.mu.Lock()
-	// Check if already exists
+	checkID := "resource-" + name
+	if m.config.Checks == nil {
+		m.config.Checks = make(map[string]Check)
+	}
+	check := m.config.Checks[checkID]
+	check.Enabled = boolPtr(true)
+	m.config.Checks[checkID] = check
+
+	exists := false
 	for _, r := range m.config.Monitoring.Resources {
 		if r == name {
-			m.mu.Unlock()
-			return nil // Already exists
+			exists = true
+			break
 		}
 	}
-	m.config.Monitoring.Resources = append(m.config.Monitoring.Resources, name)
+	if !exists {
+		m.config.Monitoring.Resources = append(m.config.Monitoring.Resources, name)
+	}
 	m.mu.Unlock()
 	return m.Save()
 }
@@ -289,6 +340,14 @@ func (m *Manager) AddResource(name string) error {
 // RemoveResource removes a resource from monitoring
 func (m *Manager) RemoveResource(name string) error {
 	m.mu.Lock()
+	checkID := "resource-" + name
+	if m.config.Checks == nil {
+		m.config.Checks = make(map[string]Check)
+	}
+	check := m.config.Checks[checkID]
+	check.Enabled = boolPtr(false)
+	m.config.Checks[checkID] = check
+
 	var filtered []string
 	for _, r := range m.config.Monitoring.Resources {
 		if r != name {
@@ -409,6 +468,30 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 			Message: "must be between 1 and 168",
 		})
 	}
+	if config.Global.ActionTimeoutFastSeconds < 5 || config.Global.ActionTimeoutFastSeconds > 120 {
+		errors = append(errors, ValidationError{
+			Path:    "global.actionTimeoutFastSeconds",
+			Message: "must be between 5 and 120",
+		})
+	}
+	if config.Global.ActionTimeoutRestartSeconds < 60 || config.Global.ActionTimeoutRestartSeconds > 1800 {
+		errors = append(errors, ValidationError{
+			Path:    "global.actionTimeoutRestartSeconds",
+			Message: "must be between 60 and 1800",
+		})
+	}
+	if config.Global.TimeoutRetrySeconds < 5 || config.Global.TimeoutRetrySeconds > 600 {
+		errors = append(errors, ValidationError{
+			Path:    "global.timeoutRetrySeconds",
+			Message: "must be between 5 and 600",
+		})
+	}
+	if config.Global.HealInterlockSeconds != 0 && (config.Global.HealInterlockSeconds < 5 || config.Global.HealInterlockSeconds > 300) {
+		errors = append(errors, ValidationError{
+			Path:    "global.healInterlockSeconds",
+			Message: "must be between 5 and 300",
+		})
+	}
 
 	// Validate UI config
 	if config.UI.AutoRefreshSeconds < 5 || config.UI.AutoRefreshSeconds > 300 {
@@ -461,10 +544,12 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 			}
 		}
 		if check.Settings != nil && check.Settings.AutoHealOn != "" {
-			if check.Settings.AutoHealOn != "critical" && check.Settings.AutoHealOn != "warning+critical" {
+			switch check.Settings.AutoHealOn {
+			case "critical", "critical+signature", "warning+critical":
+			default:
 				errors = append(errors, ValidationError{
 					Path:    fmt.Sprintf("checks.%s.settings.autoHealOn", checkID),
-					Message: "must be 'critical' or 'warning+critical'",
+					Message: "must be 'critical', 'critical+signature', or 'warning+critical'",
 				})
 			}
 		}
@@ -535,6 +620,18 @@ func (m *Manager) mergeConfig(file *Config) {
 	if file.Global.HistoryRetentionHours != 0 {
 		m.config.Global.HistoryRetentionHours = file.Global.HistoryRetentionHours
 	}
+	if file.Global.ActionTimeoutFastSeconds != 0 {
+		m.config.Global.ActionTimeoutFastSeconds = file.Global.ActionTimeoutFastSeconds
+	}
+	if file.Global.ActionTimeoutRestartSeconds != 0 {
+		m.config.Global.ActionTimeoutRestartSeconds = file.Global.ActionTimeoutRestartSeconds
+	}
+	if file.Global.TimeoutRetrySeconds != 0 {
+		m.config.Global.TimeoutRetrySeconds = file.Global.TimeoutRetrySeconds
+	}
+	if file.Global.HealInterlockSeconds != 0 {
+		m.config.Global.HealInterlockSeconds = file.Global.HealInterlockSeconds
+	}
 
 	// Checks - merge each check
 	if file.Checks != nil {
@@ -558,11 +655,30 @@ func (m *Manager) mergeConfig(file *Config) {
 		m.config.UI.DefaultTab = file.UI.DefaultTab
 	}
 
-	// Monitoring config - if file has monitoring config, use it entirely
-	// (don't merge partially - either use file config or defaults)
+	// Monitoring config contains additive operator overrides only. Canonical
+	// membership is loaded separately from `vrooli supervision-set`.
 	if file.Monitoring.Scenarios != nil || file.Monitoring.Resources != nil {
-		m.config.Monitoring = file.Monitoring
+		m.config.Monitoring = m.mergeMonitoringConfig(file.Monitoring)
 	}
+}
+
+func (m *Manager) mergeMonitoringConfig(file MonitoringConfig) MonitoringConfig {
+	merged := m.config.Monitoring
+
+	if file.Scenarios != nil {
+		if merged.Scenarios == nil {
+			merged.Scenarios = make(map[string]MonitoredScenario)
+		}
+		for name, cfg := range file.Scenarios {
+			merged.Scenarios[name] = cfg
+		}
+	}
+
+	if file.Resources != nil {
+		merged.Resources = append([]string(nil), file.Resources...)
+	}
+
+	return merged
 }
 
 // mergeThresholds merges user threshold overrides into defaults

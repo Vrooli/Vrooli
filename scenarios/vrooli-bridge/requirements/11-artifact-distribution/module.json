@@ -1,0 +1,36 @@
+{
+  "_metadata": {
+    "description": "Ship non-git artifacts (built installers, large fixtures) to a node via device-sync-hub directed delivery; never reinvent transport.",
+    "last_validated_at": "2026-08-24T17:40:20-04:00",
+    "module": "artifact-distribution",
+    "prd_ref": "OT-P1-003",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P1-003",
+      "title": "Build-Artifact Distribution via device-sync-hub",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "integration",
+      "description": "When a job needs a non-git artifact on a node (a built desktop installer, a large fixture), bridge ships it through device-sync-hub's directed delivery rather than reinventing file transport — 'bridge orchestrates, device-sync-hub moves the bytes.'",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/artifacts/distribute_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Artifact distribution delegates to a device-sync-hub directed-delivery seam; bridge implements no byte-transport of its own."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/artifacts/devicesync_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "An installer artifact reaches the target node via device-sync-hub and is available to the job."
+        }
+      ]
+    }
+  ]
+}

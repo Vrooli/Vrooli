@@ -1,0 +1,72 @@
+{
+  "description": "Surface cartographer docs through the existing doc-health validation pattern; expose cartographer findings to ui-health where useful without duplicating its React parsing logic.",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-002"
+      ],
+      "description": "Cartographer's documentation surface must be registered with the knowledge-observatory doc-health validation pattern (AC-INTEGRATION-KO) so that doc coverage and freshness are tracked alongside other scenario docs. Cartographer findings must be exposed to ui-health where useful (AC-INTEGRATION-UH), without duplicating ui-health's React parsing logic. Both integrations must operate without introducing runtime dependencies between cartographer and these external scenarios.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "knowledge-observatory and ui-health Integration",
+      "validation": [
+        {
+          "notes": "AC-INTEGRATION-KO: Cartographer doc manifest entries are parseable by knowledge-observatory's manifest-driven validation logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-INTEGRATION-UH: Cartographer findings export format matches the contract expected by ui-health's findings consumer without React-specific parsing",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "knowledge-observatory doc-health smoke test: cartographer docs surface registers successfully and doc-health reports no missing entries",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health integration smoke test: cartographer findings are visible in ui-health dashboard without errors",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Removing cartographer does not break knowledge-observatory or ui-health runtime behavior",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cartographer docs appear in the organization's doc-health dashboard alongside other scenarios",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health consumers see architecture conflict findings without needing to run cartographer directly",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "knowledge-observatory + ui-health Integration"
+}

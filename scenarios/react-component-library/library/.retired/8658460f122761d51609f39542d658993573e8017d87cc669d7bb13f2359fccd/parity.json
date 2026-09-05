@@ -1,0 +1,10 @@
+{
+  "originFiles": ["MermaidDiagram.tsx", "useCodeCopy.ts", "useMermaidSvg.ts"],
+  "harvestedFiles": [
+    "MermaidDiagram.tsx",
+    "useCodeCopy.ts",
+    "useMermaidSvg.ts"
+  ],
+  "findings": null,
+  "acknowledged": false
+}

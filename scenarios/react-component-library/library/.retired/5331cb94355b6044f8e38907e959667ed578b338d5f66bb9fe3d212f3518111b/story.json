@@ -1,0 +1,98 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Present",
+        "path": "present"
+      },
+      {
+        "default": "Ready to continue",
+        "kind": "text",
+        "label": "Content",
+        "path": "children"
+      },
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Animate initial mount",
+        "path": "initial"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Keep exit boundary mounted",
+        "path": "keepMounted"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Ready to continue",
+        "initial": true,
+        "present": true
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PresenceAnatomy"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Ready to continue"
+        }
+      ],
+      "id": "present",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Entering and entered",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Ready to continue",
+        "initial": true,
+        "keepMounted": true,
+        "present": false
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PresenceBoundary"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-presence-hidden",
+          "kind": "attribute",
+          "selector": "[data-rcl-presence]",
+          "value": "true"
+        }
+      ],
+      "id": "absent",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Unmounted after exit",
+      "role": "boundary"
+    }
+  ],
+  "title": "Presence"
+}

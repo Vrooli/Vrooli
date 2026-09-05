@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "name": "onboarding-accessibility-all-steps",
+    "description": "Capture every onboarding route in a real browser so accessibility and visual review cover the complete nine-step operator surface.",
+    "requirement": "ONB-UX-WCAG-AA",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "experience-onboarding", "routed_isolation": "true" },
+    "execution_mode": "observer"
+  },
+  "id": "00000000-0000-4000-8000-000000000011",
+  "project_id": "00000000-0000-4000-8000-000000000000",
+  "name": "onboarding-accessibility-all-steps",
+  "folder_path": "/bas/cases/accessibility",
+  "description": "Visit each onboarding route and capture browser evidence for accessibility review.",
+  "tags": ["reset:none", "evidence_lane:accessibility"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1280, "viewport_height": 800 },
+    "nodes": [
+      { "id": "welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/welcome", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open welcome" } } },
+      { "id": "capture-welcome", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture welcome accessibility evidence" } } },
+      { "id": "scenarios", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/scenarios", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open scenarios" } } },
+      { "id": "capture-scenarios", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture scenarios accessibility evidence" } } },
+      { "id": "resources", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/resources", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open resources" } } },
+      { "id": "capture-resources", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture resources accessibility evidence" } } },
+      { "id": "credentials", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/credentials", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open credentials" } } },
+      { "id": "capture-credentials", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture credentials accessibility evidence" } } },
+      { "id": "integrations", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/integrations", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open integrations" } } },
+      { "id": "capture-integrations", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture integrations accessibility evidence" } } },
+      { "id": "host", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/host", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open host requirements" } } },
+      { "id": "capture-host", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture host accessibility evidence" } } },
+      { "id": "operating-mode", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/operating-mode", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open operating mode" } } },
+      { "id": "capture-operating-mode", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture operating mode accessibility evidence" } } },
+      { "id": "apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open apply" } } },
+      { "id": "capture-apply", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture apply accessibility evidence" } } },
+      { "id": "validation", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/validation", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open validation" } } },
+      { "id": "capture-validation", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture validation accessibility evidence" } } }
+    ],
+    "edges": [
+      { "source": "welcome", "target": "capture-welcome" }, { "source": "capture-welcome", "target": "scenarios" }, { "source": "scenarios", "target": "capture-scenarios" }, { "source": "capture-scenarios", "target": "resources" }, { "source": "resources", "target": "capture-resources" }, { "source": "capture-resources", "target": "credentials" }, { "source": "credentials", "target": "capture-credentials" }, { "source": "capture-credentials", "target": "integrations" }, { "source": "integrations", "target": "capture-integrations" }, { "source": "capture-integrations", "target": "host" }, { "source": "host", "target": "capture-host" }, { "source": "capture-host", "target": "operating-mode" }, { "source": "operating-mode", "target": "capture-operating-mode" }, { "source": "capture-operating-mode", "target": "apply" }, { "source": "apply", "target": "capture-apply" }, { "source": "capture-apply", "target": "validation" }, { "source": "validation", "target": "capture-validation" }
+    ]
+  }
+}

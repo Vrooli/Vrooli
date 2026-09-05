@@ -1,9 +1,9 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { ViewMode } from "../lib/api";
 
-export type ReviewTab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
+export type ReviewTab = "overview" | "baselines" | "metrics" | "screenshots" | "workflows" | "tests" | "ai-provenance" | "agent";
 
-const VALID_REVIEW_TABS: readonly string[] = ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "rules", "ai-provenance", "agent"];
+export const VALID_REVIEW_TABS: readonly ReviewTab[] = ["overview", "baselines", "metrics", "screenshots", "workflows", "tests", "ai-provenance", "agent"];
 
 /**
  * URL state parameters for deep linking
@@ -76,7 +76,7 @@ export function parseUrlState(search: string): UrlState {
   }
 
   const reviewTab = params.get("reviewTab");
-  if (reviewTab && VALID_REVIEW_TABS.includes(reviewTab)) {
+  if (reviewTab && VALID_REVIEW_TABS.includes(reviewTab as ReviewTab)) {
     state.reviewTab = reviewTab as ReviewTab;
   }
 

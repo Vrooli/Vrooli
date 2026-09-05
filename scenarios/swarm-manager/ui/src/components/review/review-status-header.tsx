@@ -6,21 +6,23 @@
  * - "Review" opens the launch sheet for Full Review / Gather Evidence
  * - "Stop Review" when finalization is in progress
  *
- * Follow-up / Fix Issues / Archive actions are in the ReviewFlow footer
+ * Follow-up and evidence actions are presented from the Activity decision card.
  * (below the evidence panel) so users see them after reviewing evidence.
  */
 
-import { Eye, Loader2, Square } from "lucide-react";
+import { ExternalLink, Eye, Loader2, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn, formatRelativeTime, canRunPostRunChecks } from "../../lib";
 import { resolvePostRunExecution } from "../../lib/finalization";
 import { EXECUTION_STATUS_COLORS, formatExecutionStatus } from "../../types";
 import { selectors } from "../../consts/selectors";
-import type { ExecutionRecord, ExecutionStatus } from "../../types";
+import { buildAgentRunUrl } from "../../services/external-links";
+import type { ExecutionRecord } from "../../types";
 
 export interface ReviewStatusHeaderProps {
   execution: ExecutionRecord | undefined;
   isActive: boolean;
+  agentManagerUiUrl: string | null;
   isTriggering: boolean;
   isTriggeringEvidence: boolean;
   isCancelling: boolean;
@@ -61,6 +63,7 @@ function resolvePrimaryAction(
 export function ReviewStatusHeader({
   execution,
   isActive,
+  agentManagerUiUrl,
   isTriggering,
   isTriggeringEvidence,
   isCancelling,
@@ -70,15 +73,16 @@ export function ReviewStatusHeader({
   if (!execution) return null;
   if (isActive) return null; // Active run display is handled by LatestExecutionSummary
 
-  const statusColor = EXECUTION_STATUS_COLORS[execution.status as ExecutionStatus] ?? "bg-slate-500";
+  const statusColor = EXECUTION_STATUS_COLORS[execution.status] ?? "bg-slate-500";
   const action = resolvePrimaryAction(execution, isActive, isTriggering, isTriggeringEvidence);
+  const runUrl = buildAgentRunUrl(agentManagerUiUrl, execution.runId);
 
   return (
     <div className="py-3" data-testid={selectors.review.statusHeader}>
       <div className="flex items-center gap-2">
         <span className={cn("inline-block h-2 w-2 shrink-0 rounded-full", statusColor)} />
         <span className="text-xs font-medium capitalize text-slate-200">
-          {formatExecutionStatus(execution.status as ExecutionStatus)}
+          {formatExecutionStatus(execution.status)}
         </span>
         {execution.operation && (
           <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">
@@ -90,8 +94,21 @@ export function ReviewStatusHeader({
         </span>
 
         <div className="ml-auto flex items-center gap-2">
+          {runUrl && (
+            <a href={runUrl} target="_blank" rel="noopener noreferrer">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs"
+                data-testid={selectors.review.statusHeaderRunLink}
+              >
+                <ExternalLink className="mr-1 h-3 w-3" />
+                View Run
+              </Button>
+            </a>
+          )}
           {/* Primary action */}
-	          {action.kind === "review" && (
+          {action.kind === "review" && (
             <Button
               size="sm"
               variant="outline"

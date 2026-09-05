@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-review-evidence",
+  "profileKey": "swarm-manager/review-evidence",
+  "description": "Read-only profile for independent evidence gathering through registered capture actions.",
+  "roleRef": "code.default",
+  "maxTurns": 450,
+  "timeout": "2700s",
+  "allowedTools": ["read", "glob", "grep", "shell"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "spawnPolicy": {"axisOrder": ["sandboxMode", "executionMode"], "sandboxMode": {"prefer": ["protected", "tracking", "off"]}, "executionMode": {"prefer": ["codec_pipe", "interactive"]}, "require": []},
+  "createdBy": "swarm-manager",
+  "effort": "medium"
+}

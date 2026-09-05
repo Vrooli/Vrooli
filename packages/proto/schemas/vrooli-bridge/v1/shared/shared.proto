@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+import "vrooli-bridge/v1/session/session.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1";
+
+// Cross-domain wire values shared by the channel, presence, and runs services.
+
+enum CompatibilityStatus {
+  COMPATIBILITY_STATUS_UNSPECIFIED = 0;
+  COMPATIBILITY_STATUS_OK = 1;
+  COMPATIBILITY_STATUS_NEEDS_UPDATE = 2;
+  COMPATIBILITY_STATUS_INCOMPATIBLE = 3;
+}
+
+enum RunEventKind {
+  RUN_EVENT_KIND_UNSPECIFIED = 0;
+  RUN_EVENT_KIND_LOG = 1;
+  RUN_EVENT_KIND_STATUS = 2;
+  RUN_EVENT_KIND_EXIT = 3;
+  RUN_EVENT_KIND_ARTIFACT_REF = 4;
+}
+
+message HealthSnapshot {
+  bool toolchain_present = 1;
+  int64 disk_headroom_bytes = 2;
+  bool container_runtime_up = 3;
+  map<string, string> details = 4;
+  google.protobuf.Timestamp reported_at = 5;
+  // Capability observations are sampled on the node, not inferred by the
+  // control plane. They are intentionally additive to the transport health
+  // fields above.
+  repeated CapabilityObservation capabilities = 6;
+}
+
+enum CapabilityObservationState {
+  CAPABILITY_OBSERVATION_STATE_UNSPECIFIED = 0;
+  CAPABILITY_OBSERVATION_STATE_READY = 1;
+  CAPABILITY_OBSERVATION_STATE_MISSING = 2;
+  CAPABILITY_OBSERVATION_STATE_NOT_APPLICABLE = 3;
+  CAPABILITY_OBSERVATION_STATE_UNKNOWN = 4;
+}
+
+message CapabilityObservation {
+  string capability = 1;
+  string id = 2;
+  string label = 3;
+  CapabilityObservationState state = 4;
+  string path = 5;
+  string version = 6;
+  google.protobuf.Timestamp probed_at = 7;
+  string detail = 8;
+}
+
+message Heartbeat {
+  string node_id = 1;
+  uint64 sequence = 2;
+  HealthSnapshot health = 3;
+  google.protobuf.Timestamp sent_at = 4;
+  uint64 rejected_credential_pushes = 5;
+}
+
+message RunEvent {
+  string run_id = 1;
+  RunEventKind kind = 2;
+  uint64 sequence = 3;
+  string log_chunk = 4;
+  string status = 5;
+  int32 exit_code = 6;
+  string artifact_ref = 7;
+  google.protobuf.Timestamp emitted_at = 8;
+}
+
+// DeliveryAck is emitted by a node immediately after it receives and verifies
+// a pushed frame. It is shared by the channel transport and presence RPC so
+// the receipt has one canonical wire type across domains.
+message DeliveryAck {
+  string frame_id = 1;
+  string run_id = 2;
+  string op_id = 3;
+  google.protobuf.Timestamp received_at = 4;
+}
+
+// RelayResponse is one bounded response chunk or terminal outcome for the
+// channel relay. It lives in shared because the channel envelope and the
+// presence response RPC both carry the same authenticated payload.
+enum RelayResponseKind {
+  RELAY_RESPONSE_KIND_UNSPECIFIED = 0;
+  RELAY_RESPONSE_KIND_ACCEPTED = 1;
+  RELAY_RESPONSE_KIND_DATA = 2;
+  RELAY_RESPONSE_KIND_COMPLETED = 3;
+  RELAY_RESPONSE_KIND_FAILED = 4;
+  RELAY_RESPONSE_KIND_TERMINATED = 5;
+}
+
+message RelayResponse {
+  string correlation_id = 1;
+  RelayResponseKind kind = 2;
+  uint64 sequence = 3;
+  bytes data = 4;
+  string reason = 5;
+  int32 exit_code = 6;
+  uint64 total_bytes = 7;
+
+  reserved 8 to 15;
+}
+
+// SessionFrame is the node-facing envelope shared by the channel push and
+// presence report domains. The byte-transparent session.Frame remains owned
+// by the session contract; this envelope carries its authenticated identity
+// across both transports.
+message SessionFrame {
+  string session_id = 1;
+  vrooli.vrooli_bridge.v1.session.Frame frame = 2;
+}

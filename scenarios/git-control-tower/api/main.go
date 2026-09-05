@@ -7,8 +7,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"git-control-tower/internal/baseline"
+	"git-control-tower/internal/config"
+	"git-control-tower/ssh"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -16,9 +21,9 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
-
-	"git-control-tower/ssh"
 )
 
 // Config holds minimal runtime configuration
@@ -29,6 +34,7 @@ type Config struct {
 // Server wires the HTTP router and database connection
 type Server struct {
 	config               *Config
+	policy               config.Config
 	db                   *sql.DB
 	router               *mux.Router
 	git                  GitRunner
@@ -38,12 +44,16 @@ type Server struct {
 	capabilities         *CapabilityRegistry
 	sshDeps              ssh.SSHDeps
 	repos                *RepoService
+	precommit            *PrecommitService
+	commitChecks         *CommitCheckStore
 	credStore            *CredentialsStore
 	storageResolver      *storage.Resolver
 	basClient            *BrowserAutomationClient
 	visualCaptureStorage *VisualCaptureStorage
 	periodicCapture      *PeriodicCapture
 	testGenieClient      *TestGenieClient
+	testGenieEligibility *TestGenieEligibilityClient
+	isolationCache       *IsolationCache
 	tidinessClient       *TidinessManagerClient
 	agentManagerClient   *AgentManagerClient
 	auditorClient        *AuditorClient
@@ -51,6 +61,8 @@ type Server struct {
 	envelopeCache        *EnvelopeCache
 	reviewJobStore       *ReviewJobStore
 	configCache          *GitConfigCache
+	statusCache          *RepoStatusCache
+	baselineService      *baseline.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -64,19 +76,33 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	// Agent-access policy config (from <scenarioDir>/.vrooli/config.json
+	// `policy` block). Missing file / missing key falls back to
+	// DefaultConfig (confirm + broad + standard override flag).
+	policyCfg, err := loadPolicyConfig()
+	if err != nil {
+		return nil, fmt.Errorf("load policy config: %w", err)
+	}
+
 	srv := &Server{
 		config:       cfg,
+		policy:       policyCfg,
 		db:           db,
 		router:       mux.NewRouter(),
 		git:          &ExecGitRunner{GitPath: "git"},
 		repoLock:     NewRepoLock(),
 		audit:        auditLogger,
 		sandbox:      NewWorkspaceSandboxClient(5 * time.Second),
-		capabilities: NewCapabilityRegistry(knownCapabilities, newStatusCheckers(), 30*time.Second),
+		capabilities: NewCapabilityRegistry(projectedCapabilities(), newStatusCheckers(), 30*time.Second),
 		sshDeps:      ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 	srv.repos = NewRepoService(NewSQLiteRepoStore(db), srv.git)
+	srv.precommit = NewPrecommitService(db)
+	srv.commitChecks = NewCommitCheckStore(db)
 	srv.configCache = NewGitConfigCache(60 * time.Second)
+	srv.statusCache = NewRepoStatusCache(5 * time.Second)
+	srv.repos.SetStatusCache(srv.statusCache)
+	SetDefaultRepoStatusCache(srv.statusCache)
 
 	if err := srv.initClients(); err != nil {
 		return nil, err
@@ -85,6 +111,27 @@ func NewServer() (*Server, error) {
 	srv.initServices()
 	srv.setupRoutes()
 	return srv, nil
+}
+
+func projectedCapabilities() []CapabilityDef {
+	overlays := make(map[string]capabilityregistry.Overlay, len(capabilityFeatures))
+	for id, features := range capabilityFeatures {
+		overlays[id] = capabilityregistry.Overlay{ID: id, Features: append([]string(nil), features...)}
+	}
+	defs, err := capabilityregistry.ProjectManifest(filepath.Join("..", ".vrooli", "service.json"), overlays)
+	if err != nil {
+		panic("git-control-tower capability manifest invalid: " + err.Error())
+	}
+	return defs
+}
+
+var capabilityFeatures = map[string][]string{
+	"workspace-sandbox":         {"Approved changes panel", "Commit preview filtering"},
+	"browser-automation-studio": {"Visual capture", "Screenshot history", "Periodic snapshots"},
+	"test-genie":                {"Test execution", "Test history", "Phase-based testing"},
+	"tidiness-manager":          {"Code quality score", "Lint/type issues", "File metrics", "Light scanning"},
+	"agent-manager":             {"Agent runs", "Multi-turn conversations", "Change approval"},
+	"scenario-auditor":          {"Standards checks", "Rule violations", "Automated fixes", "Multi-source rules"},
 }
 
 func initDatabase() (*sql.DB, AuditLogger, error) {
@@ -156,6 +203,8 @@ func (s *Server) initClients() error {
 
 	s.basClient = NewBrowserAutomationClient(30 * time.Second)
 	s.testGenieClient = NewTestGenieClient(600 * time.Second)
+	s.testGenieEligibility = NewTestGenieEligibilityClient(15 * time.Second)
+	s.isolationCache = NewIsolationCache(30 * time.Second)
 	s.tidinessClient = NewTidinessManagerClient(30 * time.Second)
 	s.agentManagerClient = NewAgentManagerClient(120 * time.Second)
 	s.auditorClient = NewAuditorClient(120 * time.Second)
@@ -163,14 +212,19 @@ func (s *Server) initClients() error {
 }
 
 func (s *Server) initServices() {
-	// Best-effort: ensure the default agent profile exists once agent-manager is reachable.
+	// One durable baseline service is shared by request handlers and the
+	// background projector, so completion does not depend on a client issuing a
+	// wait/status command after Test Genie reaches terminal state.
+	s.baselineService = s.newBaselineService()
+	s.startBaselineCollectionReconciler()
+	// Best-effort: reconcile the manifest-declared agent profile once reachable.
 	go func() {
 		for i := 0; i < 10; i++ {
 			time.Sleep(time.Duration(i*5+5) * time.Second)
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			if s.capabilities.IsAvailable(ctx, "agent-manager") {
-				if _, err := s.agentManagerClient.EnsureDefaultProfile(ctx); err != nil {
-					log.Printf("warn: ensure default agent profile: %v", err)
+				if err := s.agentManagerClient.ReconcileProfiles(ctx); err != nil {
+					log.Printf("warn: reconcile agent profile: %v", err)
 				} else {
 					cancel()
 					return
@@ -185,10 +239,46 @@ func (s *Server) initServices() {
 	s.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	s.envelopeCache = NewEnvelopeCache(60 * time.Second)
 	s.visualCaptureStorage = NewVisualCaptureStorage(s.storageResolver, OSFileIO{})
+	// One-shot, idempotent removal of the legacy workflow-captures data trees
+	// the deleted workflow-capture stack left behind (Plan B Decision 5).
+	cleanupOrphanedWorkflowCaptures(s.visualCaptureStorage)
 	s.periodicCapture = NewPeriodicCapture(PeriodicCaptureConfig{
 		Interval: 1 * time.Hour, MaxSnapshots: 10,
 	}, s.capabilities, s.basClient, s.visualCaptureStorage, s.repos, s.git)
 	s.periodicCapture.Start()
+}
+
+const baselineCollectionReconcileInterval = 30 * time.Second
+
+func (s *Server) startBaselineCollectionReconciler() {
+	if s.baselineService == nil || s.repos == nil {
+		return
+	}
+	go func() {
+		reconcile := func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			repos, _, err := s.repos.List(ctx)
+			if err != nil {
+				log.Printf("warn: list repositories for collection-diff reconciliation: %v", err)
+				return
+			}
+			for _, repo := range repos {
+				if err := s.baselineService.ReconcileCollectionCaptures(ctx, repo.ID); err != nil {
+					log.Printf("warn: reconcile collection captures for repo %d: %v", repo.ID, err)
+				}
+				if err := s.baselineService.ReconcileCollectionDiffOperations(ctx, repo.ID); err != nil {
+					log.Printf("warn: reconcile collection diffs for repo %d: %v", repo.ID, err)
+				}
+			}
+		}
+		reconcile()
+		ticker := time.NewTicker(baselineCollectionReconcileInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			reconcile()
+		}
+	}()
 }
 
 // Router returns the HTTP handler for use with server.Run
@@ -207,6 +297,24 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
+}
+
+// loadPolicyConfig resolves the GCT scenario directory and loads its
+// `.vrooli/config.json` `policy` block. Greenfield: missing file or
+// missing key resolves to DefaultConfig; only malformed JSON or invalid
+// values bubble up.
+func loadPolicyConfig() (config.Config, error) {
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		// Without a repo root we can't find the scenario dir; fall
+		// back to defaults rather than failing boot.
+		return config.DefaultConfig(), nil
+	}
+	scenarioDir, err := repocontract.ResolveScenarioPath(repoRoot, "git-control-tower")
+	if err != nil {
+		return config.DefaultConfig(), nil
+	}
+	return config.Load(scenarioDir)
 }
 
 func requireEnv(key string) string {
@@ -231,8 +339,11 @@ func main() {
 	}
 
 	if err := server.Run(server.Config{
-		Handler:      srv.Router(),
-		WriteTimeout: 5 * time.Minute, // workflow captures poll BAS and can take several minutes
+		Handler: srv.Router(),
+		// Baseline CLI attachments have a 30m transport ceiling. Durable intents
+		// survive longer queue/execution time; this margin prevents net/http from
+		// manufacturing an EOF before the bounded attachment can return state.
+		WriteTimeout: 31 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			srv.periodicCapture.Stop()
 			return srv.db.Close()

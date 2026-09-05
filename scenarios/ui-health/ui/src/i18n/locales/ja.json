@@ -1,0 +1,402 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: UI Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "UI Health",
+    "brand": "UI Health",
+    "brandInitials": "UH",
+    "eyebrow": "運用コンソール"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メイン",
+    "mobileHeaderLabel": "トップバー",
+    "drawerLabel": "ナビゲーションドロワー",
+    "openDrawer": "ナビゲーションを開く",
+    "closeDrawer": "ナビゲーションを閉じる",
+    "skipToContent": "メインコンテンツへスキップ",
+    "main": "メインコンテンツ",
+      "nav": {
+        "dashboard": "ダッシュボード",
+        "validation": "検証",
+        "captures": "キャプチャ",
+        "search": "検索",
+        "inventory": "インベントリ",
+        "reindex": "再インデックス",
+      "settings": "設定"
+    }
+  },
+  "route": {
+    "loading": "読み込み中…"
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "light": "ライトテーマ",
+    "dark": "ダークテーマ",
+    "system": "システムテーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "inspector": {
+    "close": "インスペクタを閉じる"
+  },
+  "common": {
+    "code": {
+      "copy": "Copy code",
+      "copied": "Copied!",
+      "copyShort": "Copy"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "検証、サーフェスインデックス、再インデックスのスナップショット。",
+      "stats": {
+        "scenariosValidated": "検証済みシナリオ",
+        "surfacesIndexed": "インデックス済みサーフェス",
+        "openIssues": "未解決の問題"
+      },
+      "activity": {
+        "heading": "Recent activity",
+        "empty": "No recent activity. Trigger a validation or reindex to populate this feed.",
+        "kindValidation": "Validation",
+        "kindReindex": "Reindex",
+        "validationPassed": "passed",
+        "validationFailed": "failed",
+        "errorsLabel": "{{count}} error(s)",
+        "warningsLabel": "{{count}} warning(s)",
+        "openValidation": "Open validation for {{scenario}}",
+        "openJob": "Open job {{jobId}}"
+      },
+      "quickActions": {
+        "heading": "Quick actions",
+        "search": "Search surfaces",
+        "validate": "Validate a scenario",
+        "reindex": "Reindex now",
+        "inventory": "Inventory"
+      },
+      "apiStatus": {
+        "heading": "API status",
+        "service": "Service",
+        "version": "Version",
+        "uptime": "Uptime",
+        "uptimeSeconds": "{{seconds}}s",
+        "readiness": "Readiness",
+        "ready": "Ready",
+        "notReady": "Not ready",
+        "dependencies": "Dependencies",
+        "noDependencies": "No dependencies reported.",
+        "latency": "{{ms}} ms",
+        "loading": "Loading status…",
+        "error": "Status unavailable: {{message}}",
+        "indexedSurfaces": "Indexed surfaces"
+      }
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    },
+    "validation": {
+      "title": "Validation",
+      "description": "Manifest validation results across scenarios.",
+      "form": {
+        "heading": "Run validation",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health",
+        "scenarioHelp": "Name of any scenario under scenarios/. Example: flow-verifier.",
+        "submit": "Validate",
+        "submitting": "Validating…"
+      },
+      "recent": {
+        "heading": "Recent runs",
+        "empty": "No runs yet. Validate a scenario to see results here.",
+        "columns": {
+          "scenario": "Scenario",
+          "status": "Status",
+          "errors": "Errors",
+          "warnings": "Warnings",
+          "ranAt": "Last run"
+        },
+        "clear": "Clear history",
+        "open": "Open results for {{scenario}}"
+      },
+      "status": {
+        "passed": "Passed",
+        "failed": "Failed"
+      },
+      "summary": {
+        "heading": "Summary",
+        "errors": "Errors",
+        "warnings": "Warnings",
+        "infos": "Infos",
+        "ranAt": "Ran at"
+      },
+      "filters": {
+        "heading": "Filter findings",
+        "all": "All",
+        "error": "Errors",
+        "warning": "Warnings",
+        "info": "Info"
+      },
+      "findings": {
+        "heading": "Findings",
+        "empty": "No findings — manifest looks clean.",
+        "noneForFilter": "No findings match this filter.",
+        "code": "Code",
+        "location": "Location",
+        "suggestion": "Suggestion"
+      },
+      "presentation": {
+        "heading": "Capability presentation",
+        "contract": "Contract {{version}}",
+        "northStar": "North Star:",
+        "maximum": "Maximum maturity reached.",
+        "next": "Next:",
+        "unlock": "Unlock:",
+        "codeRollup": "{{code}} ×{{count}} · {{state}}",
+        "docs": "Docs: {{topics}}"
+      },
+      "loading": "Running validation…",
+      "error": "Validation failed: {{message}}",
+      "revalidate": "Revalidate",
+      "back": "Back to validation"
+    },
+    "captures": {
+      "title": "Capture Gallery",
+      "description": "Captured pages with chrome deltas and violation overlays.",
+      "filters": {
+        "scenario": "Scenario",
+        "allScenarios": "All scenarios"
+      },
+      "status": {
+        "clean": "Clean",
+        "findings": "{{count}} finding(s)"
+      },
+      "chrome": {
+        "statusBar": "Status bar",
+        "safeArea": "Safe area",
+        "declared": "Declared",
+        "captured": "Captured"
+      },
+      "violations": {
+        "empty": "No visual violations for this capture.",
+        "edge": "{{edge}} edge"
+      },
+      "empty": "No captures match this filter."
+    },
+    "search": {
+      "title": "Search",
+      "description": "Semantic search over the UI surface catalog.",
+      "placeholder": "Search surfaces, components, hooks…",
+      "input": {
+        "label": "Search surfaces",
+        "clear": "Clear search"
+      },
+      "filters": {
+        "heading": "Filter by surface kind"
+      },
+      "kind": {
+        "all": "All",
+        "component": "Component",
+        "page": "Page",
+        "feature": "Feature",
+        "hook": "Hook",
+        "layout": "Layout",
+        "other": "Other",
+        "unspecified": "Unspecified"
+      },
+      "provenance": {
+        "custom": "Custom",
+        "adoptedUnmodified": "Adopted",
+        "adoptedModified": "Adopted · drift",
+        "unknown": "Unknown",
+        "unspecified": "Unspecified"
+      },
+      "loading": "Searching…",
+      "error": "Search failed: {{message}}",
+      "shortQuery": "Type at least 2 characters to search.",
+      "empty": {
+        "title": "Search the surface catalog",
+        "description": "Find components, pages, features, and hooks across every indexed scenario."
+      },
+      "noResults": {
+        "title": "No results for “{{query}}”",
+        "description": "Try a shorter or more general query, or pick a different filter."
+      },
+      "noResultsForFilter": "No results match this filter.",
+      "results": {
+        "summary": "{{count}} result(s) for “{{query}}”",
+        "listLabel": "Search results",
+        "score": "Score {{score}}",
+        "path": "Path",
+        "openInInventory": "Open in inventory"
+      }
+    },
+    "inventory": {
+      "title": "Inventory",
+      "description": "Indexed UI surfaces for a scenario.",
+      "form": {
+        "heading": "Scan a scenario",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health",
+        "scenarioHelp": "Name of any scenario under scenarios/. Example: flow-verifier.",
+        "submit": "Scan",
+        "submitting": "Scanning…"
+      },
+      "filters": {
+        "heading": "Filter by kind"
+      },
+      "loading": "Scanning surfaces…",
+      "error": "Scan failed: {{message}}",
+      "empty": {
+        "title": "No scenario scanned yet",
+        "description": "Enter a scenario name above and press Scan to inventory its UI surfaces."
+      },
+      "noSurfaces": {
+        "title": "No surfaces found in “{{scenario}}”",
+        "description": "The scanner walked the scenario but found no UI surfaces to inventory."
+      },
+      "noResultsForFilter": "No surfaces match this filter.",
+      "summary": "{{count}} surface(s) in {{scenario}} (scanned {{scannedAt}})",
+      "columns": {
+        "displayName": "Name",
+        "kind": "Kind",
+        "slot": "Slot",
+        "filePath": "File"
+      },
+      "detail": {
+        "title": "Surface detail",
+        "back": "Back to inventory",
+        "scenario": "Scenario",
+        "slot": "Slot",
+        "kind": "Kind",
+        "filePath": "File path",
+        "description": "Description",
+        "provenance": {
+          "heading": "Provenance",
+          "empty": "No provenance entries for this scenario.",
+          "library": "Library",
+          "libraryVersion": "Library version",
+          "adoptionId": "Adoption id"
+        },
+        "widgets": {
+          "heading": "Widgets",
+          "empty": "No widget declarations.",
+          "propsSchema": "Props schema"
+        },
+        "loading": "Loading surface…",
+        "error": "Failed to load surface: {{message}}",
+        "notFound": {
+          "title": "Surface not found",
+          "description": "“{{slot}}” isn't in the {{scenario}} inventory. It may have been removed since the last scan."
+        }
+      }
+    },
+    "reindex": {
+      "title": "Reindex",
+      "description": "Trigger and monitor reindex jobs for the surface catalog.",
+      "form": {
+        "heading": "Trigger reindex",
+        "scenarioLabel": "Scenario name",
+        "scenarioPlaceholder": "e.g. ui-health (leave blank for all scenarios)",
+        "scenarioHelp": "Leave empty to reindex every scenario, or enter a name to scope.",
+        "dryRunLabel": "Dry run",
+        "dryRunHelp": "Plan upserts/deletes without writing to Qdrant.",
+        "submit": "Trigger reindex",
+        "submitting": "Triggering…"
+      },
+      "error": "Trigger failed: {{message}}",
+      "confirm": {
+        "title": "Reindex all scenarios?",
+        "description": "Running reindex with an empty scenario name will scan and write surface records for every scenario. This is safe but may take a while.",
+        "accept": "Reindex everything",
+        "cancel": "Cancel",
+        "close": "Close dialog",
+        "backdrop": "Close dialog"
+      },
+      "jobs": {
+        "heading": "Jobs",
+        "emptyTitle": "No jobs yet",
+        "emptyDescription": "Trigger a reindex above to populate this list. Tracked jobs persist across reloads.",
+        "clearTerminal": "Clear completed",
+        "columns": {
+          "progress": "Progress",
+          "dryRun": "Dry run"
+        },
+        "open": "Open job {{jobId}}",
+        "allScenarios": "All scenarios"
+      },
+      "state": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
+      },
+      "job": {
+        "title": "Job detail",
+        "back": "Back to reindex",
+        "meta": {
+          "scenario": "Scenario",
+          "state": "State",
+          "triggeredAt": "Triggered",
+          "dryRun": "Dry run",
+          "processed": "Processed",
+          "total": "Total"
+        },
+        "progress": "Indexing progress",
+        "error": "Job error: {{message}}",
+        "cancel": "Cancel job",
+        "cancelling": "Cancelling…",
+        "loading": "Loading job…",
+        "loadError": "Failed to load job: {{message}}",
+        "notFound": {
+          "title": "Job not found",
+          "description": "Job “{{jobId}}” is no longer tracked. Trigger a new reindex from the reindex page."
+        }
+      }
+    },
+    "notFound": {
+      "title": "ページが見つかりません",
+      "description": "リクエストされたページは存在しません。",
+      "back": "ダッシュボードへ戻る"
+    }
+  },
+  "health": {
+    "pill": {
+      "ok": "API は正常です",
+      "error": "API はオフラインです",
+      "loading": "API を確認中…"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

@@ -47,7 +47,9 @@ export function PipelineErrorDisplay({
   }, [errorMessage, onCopy]);
 
   return (
-    <div className={`space-y-2 rounded-lg border border-red-900 bg-red-950/20 p-3 text-xs text-red-200 ${className}`}>
+    <div
+      className={`space-y-2 rounded-lg border border-red-900 bg-red-950/20 p-3 text-xs text-red-200 ${className}`}
+    >
       <div className="flex items-center gap-2 text-red-300">
         <XCircle className="h-3 w-3" />
         <span>{title}</span>
@@ -57,7 +59,14 @@ export function PipelineErrorDisplay({
       </pre>
       {suggestion && <p className="text-yellow-200">{suggestion}</p>}
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void handleCopy();
+          }}
+          className="gap-1"
+        >
           <Copy className="h-3 w-3" />
           Copy error
         </Button>
@@ -120,7 +129,10 @@ export function PipelineErrorRecovery({
   }, [errorInfo.suggestions, errorInfo.category]);
 
   const handleCopy = useCallback(async () => {
-    const fullMessage = `Error: ${errorInfo.message}\nCategory: ${errorInfo.category ?? "unknown"}\nSuggestions:\n${suggestions.map((s) => `- ${s}`).join("\n")}`;
+    const detailText = errorInfo.details
+      ? `\nDetails:\n${JSON.stringify(errorInfo.details, null, 2)}`
+      : "";
+    const fullMessage = `Error: ${errorInfo.message}\nCategory: ${errorInfo.category ?? "unknown"}\nSuggestions:\n${suggestions.map((s) => `- ${s}`).join("\n")}${detailText}`;
     await writeToClipboard(fullMessage);
   }, [errorInfo, suggestions]);
 
@@ -134,7 +146,9 @@ export function PipelineErrorRecovery({
         <div className="flex-1 space-y-1">
           <p className="font-medium text-red-200">{errorInfo.message}</p>
           {errorInfo.category && (
-            <p className="text-xs text-red-300/60">Error category: {errorInfo.category}</p>
+            <p className="text-xs text-red-300/60">
+              Error category: {errorInfo.category}
+            </p>
           )}
         </div>
       </div>
@@ -172,7 +186,9 @@ export function PipelineErrorRecovery({
         <Button
           variant="ghost"
           size="sm"
-          onClick={handleCopy}
+          onClick={() => {
+            void handleCopy();
+          }}
           className="gap-1.5 text-red-300/70 hover:text-red-200"
         >
           <Copy className="h-3 w-3" />

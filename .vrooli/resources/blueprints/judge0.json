@@ -1,0 +1,69 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "judge0",
+  "display_name": "Judge0",
+  "category": "development",
+  "summary": "Candidate capability for sandboxed, multi-language execution of untrusted code.",
+  "why_it_matters": "A future scenario may need isolated compilation and execution rather than the algorithm-library's current local fallback. This blueprint preserves the integration knowledge without claiming that the retired implementation is usable.",
+  "when_to_use": [
+    "A concrete owning scenario must execute untrusted or generated code across multiple languages.",
+    "The owner requires a sandboxed execution boundary and cannot safely use a local process executor."
+  ],
+  "example_scenarios": [
+    "Algorithm implementation validation",
+    "Programming education exercises",
+    "Generated-code verification"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The retired Judge0 CE 1.13.1 implementation was API-healthy but could not execute a sandboxed program on the current Docker host. A future implementation must validate the actual execution path on every supported host; container health alone is insufficient.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "A concrete owning scenario and a supported-use decision.",
+    "A dedicated isolate-compatible Linux execution environment that passes an end-to-end sandboxed submission check.",
+    "An explicit security, data-retention, backup, and platform-support design."
+  ],
+  "dependencies": [
+    "postgres",
+    "redis"
+  ],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Do not restore the retired Judge0 1.13.1 Docker Compose stack unchanged: its embedded isolate 1.8.1 failed at runtime with 'Cannot run proxy, clone failed: Operation not permitted' on the verified host.",
+    "A source-pinned current isolate build was also evaluated. Judge0 1.13.1 is based on Debian Buster, whose kernel headers cannot compile current isolate (missing io_uring syscall definitions); do not paper over that incompatibility with an unmaintained derivative.",
+    "Choose a currently supported execution backend and base image, then prove successful sandboxed execution before publishing a resource implementation.",
+    "Do not disable the sandbox merely to make execution succeed."
+  ],
+  "operational_notes": [
+    "Health and language-list endpoints prove only API availability. Gate readiness on a real compile/run submission that returns an accepted result.",
+    "Treat submissions as retained execution data and define cleanup/backup policy before accepting real workload data.",
+    "The prior implementation accumulated 1,639 submissions but had no caller attribution, so operational telemetry must identify consumers before reintroduction."
+  ],
+  "risks": [
+    "No active consumer currently justifies maintenance cost; algorithm-library intentionally uses its local executor.",
+    "Sandbox isolation depends on Docker, kernel namespaces, seccomp, cgroups, and image compatibility; these cannot be inferred from container health.",
+    "Executing untrusted code without a verified sandbox creates an unacceptable host-security risk."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "judge0"
+  ],
+  "references": [
+    {
+      "kind": "scenario",
+      "value": "scenarios/algorithm-library"
+    },
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-blueprint-archival.md"
+    },
+    {
+      "kind": "note",
+      "value": "Retired 2026-07-21 after verified Docker-host sandbox failure and no active consumer."
+    }
+  ],
+  "last_reviewed": "2026-07-21"
+}

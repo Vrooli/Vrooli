@@ -1,0 +1,270 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "vrooli-memory",
+  "generator": "v1.0.0",
+  "manifest_hash": "1e4046c2f4d9c59eeadf8ab93cfbf107ef5c9e2ba3342072557dded9d4132b6b",
+  "commands": [
+    {
+      "path": "facets candidates",
+      "group": "facets",
+      "command": "candidates",
+      "binding": "FacetsService.ListPinCandidates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facets correct",
+      "group": "facets",
+      "command": "correct",
+      "binding": "FacetsService.AssignFacet",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets list",
+      "group": "facets",
+      "command": "list",
+      "binding": "FacetsService.ListFacets",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facets pin",
+      "group": "facets",
+      "command": "pin",
+      "binding": "FacetsService.SetPin",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets proposals",
+      "group": "facets",
+      "command": "proposals",
+      "binding": "FacetsService.ListPinProposals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facets resolve-proposal",
+      "group": "facets",
+      "command": "resolve-proposal",
+      "binding": "FacetsService.ResolvePinProposal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets resolve-thread",
+      "group": "facets",
+      "command": "resolve-thread",
+      "binding": "FacetsService.ResolveThread",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets supersede",
+      "group": "facets",
+      "command": "supersede",
+      "binding": "FacetsService.MarkSuperseded",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forest compact",
+      "group": "forest",
+      "command": "compact",
+      "binding": "ForestService.RunCompactionPass",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forest frontier",
+      "group": "forest",
+      "command": "frontier",
+      "binding": "ForestService.GetFrontier",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "forest rebuild-forest",
+      "group": "forest",
+      "command": "rebuild-forest",
+      "binding": "ForestService.RebuildForest",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "harness capture",
+      "group": "harness",
+      "command": "capture",
+      "binding": "HarnessService.CaptureWrite",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "harness hook",
+      "group": "harness",
+      "command": "hook",
+      "binding": "."
+    },
+    {
+      "path": "harness hooks",
+      "group": "harness",
+      "command": "hooks",
+      "binding": "."
+    },
+    {
+      "path": "harness import",
+      "group": "harness",
+      "command": "import",
+      "binding": "HarnessService.RunImport",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "harness import-status",
+      "group": "harness",
+      "command": "import-status",
+      "binding": "HarnessService.GetImportStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "harness maintenance-status",
+      "group": "harness",
+      "command": "maintenance-status",
+      "binding": "HarnessService.GetMaintenanceStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "harness project",
+      "group": "harness",
+      "command": "project",
+      "binding": "HarnessService.RefreshProjection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "journal note",
+      "group": "journal",
+      "command": "note",
+      "binding": "JournalService.AppendEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "journal retry-classifications",
+      "group": "journal",
+      "command": "retry-classifications",
+      "binding": "JournalService.ProcessClassificationRetries",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "journal retry-embeddings",
+      "group": "journal",
+      "command": "retry-embeddings",
+      "binding": "JournalService.ProcessEmbeddingRetries",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "recall recall",
+      "group": "recall",
+      "command": "recall",
+      "binding": "RecallService.Recall",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "recall siblings",
+      "group": "recall",
+      "command": "siblings",
+      "binding": "RecallService.ListSiblingEvents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "recall wake",
+      "group": "recall",
+      "command": "wake",
+      "binding": "RecallService.Wake",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules create",
+      "group": "rules",
+      "command": "create",
+      "binding": "ClassificationRulesService.CreateRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules dry-run",
+      "group": "rules",
+      "command": "dry-run",
+      "binding": "ClassificationRulesService.DryRunRule",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules enable",
+      "group": "rules",
+      "command": "enable",
+      "binding": "ClassificationRulesService.EnableRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules list",
+      "group": "rules",
+      "command": "list",
+      "binding": "ClassificationRulesService.ListRules",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules measure-distribution",
+      "group": "rules",
+      "command": "measure-distribution",
+      "binding": "ClassificationRulesService.MeasureDistribution",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules refacet",
+      "group": "rules",
+      "command": "refacet",
+      "binding": "ClassificationRulesService.RefacetCorpus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules revert",
+      "group": "rules",
+      "command": "revert",
+      "binding": "ClassificationRulesService.RevertRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scopes create",
+      "group": "scopes",
+      "command": "create",
+      "binding": "ScopesService.CreateScope",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scopes list",
+      "group": "scopes",
+      "command": "list",
+      "binding": "ScopesService.ListScopes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "_metadata": {
+    "description": "Account, BYOK, and trusted metered inference obligations.",
+    "module": "account-and-paid-inference",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The account surface may connect the device-scoped subscription session or remain signed out without blocking local terminal use.",
+      "id": "WEBCONSO-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "complete",
+      "title": "Optional Subscription Account",
+      "validation": [
+        { "notes": "Account routes and the first settings tab are covered by API and UI targeted tests.", "status": "passed", "type": "automated" }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "An OpenRouter BYOK value must be declaration-checked, stored by the credential authority, and absent from browser responses and storage.",
+      "id": "WEBCONSO-P0-010",
+      "prd_ref": "OT-P0-009",
+      "status": "complete",
+      "title": "Credential Authority BYOK",
+      "validation": [
+        { "notes": "Credential handler tests prove declaration allowlisting, same-origin protection, and metadata-only output.", "status": "passed", "type": "automated" }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Subscription-backed inference must carry the consumer token to ai-gateway while local and BYOK paths remain unmetered.",
+      "id": "WEBCONSO-P0-011",
+      "prd_ref": "OT-P0-005",
+      "status": "complete",
+      "title": "Trusted Metered Inference Routing",
+      "validation": [
+        { "notes": "AI provider package tests and monetization conformance cover the routed provider contract.", "status": "passed", "type": "automated" }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A fresh profile emits activation.first_command_run once after the first successful command execution.",
+      "id": "WEBCONSO-P1-012",
+      "prd_ref": "OT-P0-009",
+      "status": "complete",
+      "title": "First Command Activation",
+      "validation": [
+        { "notes": "Durable activation event emission is covered by API tests; lifecycle/browser observation remains in Workflow Health evidence.", "status": "passed", "type": "automated" }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "A fresh profile emits activation.first_ai_command_accepted once after the first successful AI command response.",
+      "id": "WEBCONSO-P1-013",
+      "prd_ref": "OT-P0-009",
+      "status": "complete",
+      "title": "First AI Command Activation",
+      "validation": [
+        { "notes": "AI success invokes the durable activation emitter; lifecycle/browser observation remains in Workflow Health evidence.", "status": "passed", "type": "automated" }
+      ]
+    }
+  ]
+}

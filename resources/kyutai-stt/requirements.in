@@ -1,0 +1,22 @@
+# Kyutai STT managed-service wheel requirements (direct dependencies only).
+#
+# The resolved, hash-pinned closure lives in requirements.lock and is what the
+# control plane installs. Regenerate the lock after editing this file:
+#
+#   uv pip compile resources/kyutai-stt/requirements.in \
+#     --python-version 3.12 --python-platform x86_64-unknown-linux-gnu \
+#     --generate-hashes --index-strategy unsafe-best-match \
+#     --index-url https://download.pytorch.org/whl/cu124 \
+#     --extra-index-url https://pypi.org/simple \
+#     --output-file resources/kyutai-stt/requirements.lock
+#
+# The CUDA index is deliberate: this resource declares acceleration.backends
+# cuda, and a PyPI-default torch would satisfy the lock while running on CPU.
+torch==2.5.1+cu124
+moshi==0.2.6
+numpy==1.26.4
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+websockets==14.1
+huggingface-hub==0.27.0
+sentencepiece==0.2.0

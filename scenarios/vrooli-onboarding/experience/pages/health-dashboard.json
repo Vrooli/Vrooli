@@ -1,0 +1,135 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "health-dashboard",
+    "title": "Health",
+    "routes": [
+      "/health-dashboard"
+    ],
+    "purpose": "Show the live state of the resources this install depends on, and route the operator to the setup step that fixes a gap.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "An unhealthy resource is identifiable at a glance."
+    },
+    {
+      "statement": "A gap here leads back to the decision that caused it."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Health is being probed.",
+      "setup": {
+        "route": "/health-dashboard"
+      }
+    },
+    {
+      "id": "default",
+      "description": "Resource health rendered.",
+      "setup": {
+        "route": "/health-dashboard"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "Nothing is configured yet; setup is offered as the way forward."
+    },
+    {
+      "id": "error",
+      "description": "Health could not be read; the cause is named with a retry."
+    }
+  ],
+  "elements": [
+    {
+      "id": "health-card",
+      "role": "status",
+      "description": "One resource with its availability."
+    },
+    {
+      "id": "last-checked",
+      "role": "status",
+      "description": "When the state was last probed."
+    },
+    {
+      "id": "refresh",
+      "role": "button",
+      "description": "Re-probes health.",
+      "name": "Refresh"
+    },
+    {
+      "id": "setup-cta",
+      "role": "link",
+      "description": "Routes to the setup wizard.",
+      "name": "Go to setup"
+    }
+  ],
+  "claims": [
+    {
+      "id": "state-is-glanceable",
+      "type": "element-present",
+      "statement": "Each resource shows its availability without expanding a row.",
+      "tier": "machine",
+      "elements": [
+        "health-card"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "freshness-is-stated",
+      "type": "element-present",
+      "statement": "The report states when it was last probed.",
+      "tier": "machine",
+      "elements": [
+        "last-checked"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "empty-routes-forward",
+      "type": "state-covered",
+      "statement": "An unconfigured install offers setup rather than an empty list.",
+      "tier": "aspirational",
+      "elements": [
+        "setup-cta"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "error-is-recoverable",
+      "type": "state-covered",
+      "statement": "A failed read names the cause and offers a retry.",
+      "tier": "aspirational",
+      "states": [
+        "error"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "health-card": {
+        "testid": "health-card"
+      },
+      "last-checked": {
+        "testid": "health-last-checked"
+      },
+      "refresh": {
+        "testid": "health-refresh"
+      },
+      "setup-cta": {
+        "testid": "health-go-to-wizard"
+      }
+    }
+  }
+}

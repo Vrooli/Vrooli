@@ -2,118 +2,65 @@ package execution
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/google/uuid"
+	"time"
 
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/queue"
-	"test-genie/internal/shared"
+
+	"github.com/google/uuid"
 )
 
-// ErrSuiteRequestNotFound indicates the linked suite request does not exist.
-var ErrSuiteRequestNotFound = errors.New("suite request not found")
-
 type suiteExecutionEngine interface {
-	Execute(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*orchestrator.SuiteExecutionResult, error)
 	ExecuteWithEvents(ctx context.Context, req orchestrator.SuiteExecutionRequest, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
-}
-
-type suiteRequestManager interface {
-	Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error)
-	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 }
 
 type suiteExecutionRecorder interface {
 	Create(ctx context.Context, record *SuiteExecutionRecord) error
 }
 
-// SuiteExecutionInput encapsulates the orchestration request plus optional linkage to a queued suite.
+// SuiteExecutionInput encapsulates a server-owned orchestration request.
 type SuiteExecutionInput struct {
-	Request        orchestrator.SuiteExecutionRequest
-	SuiteRequestID *uuid.UUID
+	Request orchestrator.SuiteExecutionRequest
 }
 
-// SuiteExecutionService coordinates the orchestrator, queue state transitions, and execution persistence.
+// SuiteExecutionService coordinates the orchestrator and execution persistence.
 type SuiteExecutionService struct {
-	engine        suiteExecutionEngine
-	executions    suiteExecutionRecorder
-	suiteRequests suiteRequestManager
+	engine           suiteExecutionEngine
+	executions       suiteExecutionRecorder
+	collectRetention func(context.Context, string)
 }
 
-func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder, suiteRequests suiteRequestManager) *SuiteExecutionService {
-	return &SuiteExecutionService{
-		engine:        engine,
-		executions:    executions,
-		suiteRequests: suiteRequests,
+func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder) *SuiteExecutionService {
+	return &SuiteExecutionService{engine: engine, executions: executions}
+}
+
+// SetRetentionCollector wires the post-persistence lifecycle trigger. The
+// callback is injected by bootstrap so execution remains storage-agnostic;
+// retention runs only after the SQLite row and durable run evidence agree on a
+// completed run.
+func (s *SuiteExecutionService) SetRetentionCollector(collect func(context.Context, string)) {
+	if s != nil {
+		s.collectRetention = collect
 	}
 }
 
-// Execute runs the suite, persists the result, and keeps queue state in sync.
+// Execute runs the suite and persists the result.
 func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
-	if s.engine == nil {
-		return nil, fmt.Errorf("suite execution engine is not configured")
-	}
-	if s.executions == nil {
-		return nil, fmt.Errorf("suite execution repository is not configured")
-	}
-
-	var suiteID *uuid.UUID
-	if input.SuiteRequestID != nil {
-		suiteID = input.SuiteRequestID
-		if err := s.loadAndMarkSuiteRequest(ctx, *suiteID, input.Request.ScenarioName); err != nil {
-			return nil, err
-		}
-	}
-
-	result, err := s.engine.Execute(ctx, input.Request)
-	if err != nil {
-		s.markSuiteFailed(ctx, suiteID)
-		return nil, err
-	}
-	if result == nil {
-		s.markSuiteFailed(ctx, suiteID)
-		return nil, errors.New("suite execution engine returned no result")
-	}
-
-	record := &SuiteExecutionRecord{
-		ID:                  uuid.New(),
-		SuiteRequestID:      suiteID,
-		ScenarioName:        result.ScenarioName,
-		PresetUsed:          result.PresetUsed,
-		RequestedPreset:     result.RequestedPreset,
-		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
-		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
-		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
-		FailFast:            result.FailFast,
-		Success:             result.Success,
-		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:           result.StartedAt,
-		CompletedAt:         result.CompletedAt,
-	}
-
-	if err := s.executions.Create(ctx, record); err != nil {
-		s.markSuiteFailed(ctx, suiteID)
-		return nil, err
-	}
-
-	if suiteID != nil {
-		if err := s.finalizeSuiteRequest(ctx, *suiteID, result.Success); err != nil {
-			return nil, err
-		}
-		result.SuiteRequestID = suiteID
-	}
-
-	result.ExecutionID = record.ID
-	return result, nil
+	return s.run(ctx, input, nil)
 }
 
 // ExecuteWithEvents runs the suite with streaming events via callback.
 func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	return s.run(ctx, input, emit)
+}
+
+// run is the single execute implementation. The orchestrator's own per-phase
+// writer no-ops a nil emit, so streaming and non-streaming callers share one
+// execution and persistence path.
+func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	if s.engine == nil {
 		return nil, fmt.Errorf("suite execution engine is not configured")
 	}
@@ -121,93 +68,165 @@ func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input Sui
 		return nil, fmt.Errorf("suite execution repository is not configured")
 	}
 
-	var suiteID *uuid.UUID
-	if input.SuiteRequestID != nil {
-		suiteID = input.SuiteRequestID
-		if err := s.loadAndMarkSuiteRequest(ctx, *suiteID, input.Request.ScenarioName); err != nil {
-			return nil, err
-		}
-	}
-
+	startedAt := time.Now().UTC()
+	host := currentHostEvidence()
 	result, err := s.engine.ExecuteWithEvents(ctx, input.Request, emit)
 	if err != nil {
-		s.markSuiteFailed(ctx, suiteID)
+		s.recordTerminalOutcome(ctx, input, startedAt, classifyTerminalError(ctx, err))
 		return nil, err
 	}
 	if result == nil {
-		s.markSuiteFailed(ctx, suiteID)
+		s.recordTerminalOutcome(ctx, input, startedAt, classifyTerminalError(ctx, nil))
 		return nil, errors.New("suite execution engine returned no result")
 	}
 
 	record := &SuiteExecutionRecord{
-		ID:                  uuid.New(),
-		SuiteRequestID:      suiteID,
-		ScenarioName:        result.ScenarioName,
-		PresetUsed:          result.PresetUsed,
-		RequestedPreset:     result.RequestedPreset,
-		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
-		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
-		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
-		FailFast:            result.FailFast,
-		Success:             result.Success,
-		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:           result.StartedAt,
-		CompletedAt:         result.CompletedAt,
+		ID:                       uuid.New(),
+		RunID:                    result.RunID,
+		ScenarioName:             result.ScenarioName,
+		TargetKind:               result.TargetKind,
+		TargetID:                 result.TargetID,
+		PresetUsed:               result.PresetUsed,
+		RequestedPreset:          result.RequestedPreset,
+		RequestedPhases:          append([]string(nil), result.RequestedPhases...),
+		RequestedSkipPhases:      append([]string(nil), result.RequestedSkipPhases...),
+		PlannedPhases:            append([]string(nil), result.PlannedPhases...),
+		PhaseSetDigest:           result.PhaseSetDigest,
+		DescriptorSnapshotDigest: result.DescriptorSnapshotDigest,
+		ConfigurationFingerprint: result.ConfigurationFingerprint,
+		HostOS:                   host.OS,
+		HostArch:                 host.Arch,
+		HostNode:                 host.Node,
+		HostFactDigest:           host.FactDigest,
+		FailFast:                 result.FailFast,
+		SchedulerDecision:        result.SchedulerDecision,
+		Success:                  result.Success,
+		Phases:                   compactPhaseResults(result.Phases),
+		PreparationStages:        compactPreparationStages(result.PreparationStages),
+		RequestedAt:              result.RequestedAt,
+		StartedAt:                result.StartedAt,
+		CompletedAt:              result.CompletedAt,
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {
-		s.markSuiteFailed(ctx, suiteID)
 		return nil, err
 	}
-
-	if suiteID != nil {
-		if err := s.finalizeSuiteRequest(ctx, *suiteID, result.Success); err != nil {
-			return nil, err
-		}
-		result.SuiteRequestID = suiteID
+	if s.collectRetention != nil && result.ScenarioName != "" {
+		go s.collectRetention(context.Background(), result.ScenarioName)
 	}
 
 	result.ExecutionID = record.ID
 	return result, nil
 }
 
-func (s *SuiteExecutionService) loadAndMarkSuiteRequest(ctx context.Context, suiteID uuid.UUID, scenario string) error {
-	if s.suiteRequests == nil {
-		return fmt.Errorf("suite request service is not configured")
+// compactPreparationStages keeps historical execution timing bounded without
+// mixing orchestration spans into the phase-history projection.
+func compactPreparationStages(stages []orchestrator.PreparationStage) []orchestrator.PreparationStage {
+	if len(stages) == 0 {
+		return []orchestrator.PreparationStage{}
 	}
-	req, err := s.suiteRequests.Get(ctx, suiteID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrSuiteRequestNotFound
+	out := make([]orchestrator.PreparationStage, 0, len(stages))
+	for _, stage := range stages {
+		if stage.Name == "" {
+			continue
 		}
-		return err
+		stage.DurationMilliseconds = maxInt64(0, stage.DurationMilliseconds)
+		out = append(out, stage)
 	}
-	if !strings.EqualFold(req.ScenarioName, scenario) {
-		return shared.NewValidationError("suiteRequestId does not match scenarioName")
-	}
-	if err := s.suiteRequests.UpdateStatus(ctx, suiteID, queue.StatusRunning); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrSuiteRequestNotFound
-		}
-		return err
-	}
-	return nil
+	return out
 }
 
-func (s *SuiteExecutionService) finalizeSuiteRequest(ctx context.Context, suiteID uuid.UUID, success bool) error {
-	if s.suiteRequests == nil {
-		return fmt.Errorf("suite request service is not configured")
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
 	}
-	status := queue.StatusFailed
-	if success {
-		status = queue.StatusCompleted
-	}
-	return s.suiteRequests.UpdateStatus(ctx, suiteID, status)
+	return b
 }
 
-func (s *SuiteExecutionService) markSuiteFailed(ctx context.Context, suiteID *uuid.UUID) {
-	if suiteID == nil || s.suiteRequests == nil {
+// compactPhaseResults is the execution-history persistence boundary. Detailed
+// observations, normalized findings, provider metrics, and log payloads belong
+// to immutable run evidence; SQLite retains only the compact history projection
+// needed for list, timing, reliability, and phase standing queries.
+func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionResult {
+	if len(results) == 0 {
+		return []phases.ExecutionResult{}
+	}
+	compact := make([]phases.ExecutionResult, 0, len(results))
+	for _, result := range results {
+		compact = append(compact, phases.ExecutionResult{
+			Name:                          result.Name,
+			Status:                        result.Status,
+			StartedAt:                     result.StartedAt,
+			CompletedAt:                   result.CompletedAt,
+			DurationSeconds:               result.DurationSeconds,
+			DurationMilliseconds:          result.DurationMilliseconds,
+			PredictedDurationMilliseconds: result.PredictedDurationMilliseconds,
+			Error:                         result.Error,
+			Classification:                result.Classification,
+			Remediation:                   result.Remediation,
+			RunnabilityVerdict:            result.RunnabilityVerdict,
+			RunnabilityReason:             result.RunnabilityReason,
+			FindingSource:                 result.FindingSource,
+			PhasePresentation:             result.PhasePresentation,
+			FindingsSummary:               result.FindingsSummary,
+			Metrics:                       result.Metrics,
+			CacheHit:                      result.CacheHit,
+			CacheSourceRunID:              result.CacheSourceRunID,
+			CacheAudit:                    result.CacheAudit,
+			CacheAuditMismatch:            result.CacheAuditMismatch,
+			CacheNoSaving:                 result.CacheNoSaving,
+		})
+	}
+	return compact
+}
+
+// recordTerminalOutcome persists a minimal suite_executions row for a
+// catastrophic run that never produced a result (engine error, nil result,
+// abort, or timeout). Without it, availability denominators silently omit these
+// outcomes. Best-effort: a persistence failure here must not mask the original
+// execution error, so it is logged-by-omission (the caller already returns the
+// real error). The write uses a detached context because the request context
+// may already be cancelled (the very condition we are recording).
+func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input SuiteExecutionInput, startedAt time.Time, outcome TerminalOutcome) {
+	if s.executions == nil {
 		return
 	}
-	_ = s.suiteRequests.UpdateStatus(ctx, *suiteID, queue.StatusFailed)
+	writeCtx := context.WithoutCancel(ctx)
+	host := currentHostEvidence()
+	record := &SuiteExecutionRecord{
+		ID:              uuid.New(),
+		RunID:           input.Request.RunID,
+		ScenarioName:    input.Request.ScenarioName,
+		TargetKind:      requestTargetKind(input.Request),
+		TargetID:        requestTargetID(input.Request),
+		HostOS:          host.OS,
+		HostArch:        host.Arch,
+		HostNode:        host.Node,
+		HostFactDigest:  host.FactDigest,
+		Success:         false,
+		TerminalOutcome: outcome,
+		// Empty (non-nil) so it marshals to a valid JSON "[]" for the
+		// NOT NULL / json_valid(phases) column constraint.
+		Phases:      []phases.ExecutionResult{},
+		StartedAt:   startedAt,
+		CompletedAt: time.Now().UTC(),
+	}
+	_ = s.executions.Create(writeCtx, record)
+}
+
+func requestTargetKind(req orchestrator.SuiteExecutionRequest) string {
+	if strings.TrimSpace(req.Target) == "" {
+		return "scenario"
+	}
+	if kind, _, ok := strings.Cut(req.Target, ":"); ok && strings.TrimSpace(kind) != "" {
+		return strings.TrimSpace(kind)
+	}
+	return "scenario"
+}
+
+func requestTargetID(req orchestrator.SuiteExecutionRequest) string {
+	if kind, id, ok := strings.Cut(strings.TrimSpace(req.Target), ":"); ok && strings.TrimSpace(kind) != "" && strings.TrimSpace(id) != "" {
+		return strings.TrimSpace(id)
+	}
+	return strings.TrimSpace(req.ScenarioName)
 }

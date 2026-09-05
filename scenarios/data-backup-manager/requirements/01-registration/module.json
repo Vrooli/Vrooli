@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "module": "registration",
+    "description": "Scenarios self-register the backup targets they own, idempotently and reconstructably.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DBM-REG-001",
+      "title": "Idempotent target registration keyed by owner+name",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "registration",
+      "criticality": "P0",
+      "description": "RegisterTarget upserts a target spec keyed by (owner, name). Re-registering with the same key updates the spec to the new desired state rather than creating a duplicate; an unchanged re-register is a no-op.",
+      "tags": ["registration", "idempotent", "desired-state"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/targets/service_test.go::TestRegisterTarget_Idempotent",
+          "notes": "Register, re-register identical (no-op), re-register changed (update); assert single row and latest spec."
+        }
+      ]
+    },
+    {
+      "id": "DBM-REG-002",
+      "title": "Deregistration and reconstructable catalog",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "registration",
+      "criticality": "P0",
+      "description": "DeregisterTarget removes a target; orphan targets (owner no longer present) are detectable. The catalog is reconstructable because owning scenarios re-register on boot, so the manager DB is a cache + run history, not a single source of truth.",
+      "tags": ["registration", "deregister", "orphan", "reconstructable"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/targets/service_test.go::TestDeregisterAndReconstruct",
+          "notes": "Deregister removes target; rebuild catalog from a fresh re-register sequence and assert equivalence."
+        }
+      ]
+    }
+  ]
+}

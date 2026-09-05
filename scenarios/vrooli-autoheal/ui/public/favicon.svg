@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Vrooli Autoheal</title>
+  <rect width="64" height="64" rx="14" fill="#0b1220"/>
+  <path d="M32 12 49 19v13c0 10-6.7 17-17 21-10.3-4-17-11-17-21V19l17-7Z" fill="#38bdf8"/>
+  <path d="m24 33 5 5 11-12" fill="none" stroke="#0b1220" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+</svg>

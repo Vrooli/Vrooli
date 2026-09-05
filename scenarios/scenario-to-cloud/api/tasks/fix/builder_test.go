@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestBuildPromptAndContext_Validation(t *testing.T) {
@@ -72,6 +72,57 @@ func TestBuildPromptAndContext_IncludesIterationStateAndSourceFindings(t *testin
 	}
 	if vpsAtt.Priority != "high" {
 		t.Fatalf("expected elevated vps-connection priority high, got %q", vpsAtt.Priority)
+	}
+}
+
+func TestBuildPromptAndContext_UsesDeploymentLocalNativeCLIInSSHExamples(t *testing.T) {
+	input := validFixInput()
+
+	out, err := BuildPromptAndContext(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out.Prompt, "source resources/") {
+		t.Fatalf("prompt should not mention legacy bash setup paths: %q", out.Prompt)
+	}
+	if strings.Contains(out.Prompt, " cd /root/Vrooli && vrooli ") {
+		t.Fatalf("prompt should not emit bare global vrooli commands: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "bash -lc") {
+		t.Fatalf("prompt should wrap SSH examples with bash -lc: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "/root/Vrooli/.vrooli/bin/vrooli") {
+		t.Fatalf("prompt should reference deployment-local vrooli binary: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "scenario stop") || !strings.Contains(out.Prompt, "landing-page-business-suite") {
+		t.Fatalf("prompt should use native scenario stop command: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "scenario start") {
+		t.Fatalf("prompt should use native scenario start command: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "scenario status") {
+		t.Fatalf("prompt should use native scenario status command: %q", out.Prompt)
+	}
+}
+
+func TestBuildPromptAndContext_UsesContractNeutralPathGuidance(t *testing.T) {
+	out, err := BuildPromptAndContext(validFixInput())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, key := range []string{"focus-harness-fix", "focus-subject-fix"} {
+		att := getAttachment(out.Attachments, key)
+		if att == nil {
+			t.Fatalf("missing attachment %q", key)
+		}
+		if strings.Contains(att.Content, "~/Vrooli/scenarios/") {
+			t.Fatalf("%s should not mention legacy ~/Vrooli scenario paths: %q", key, att.Content)
+		}
+		if !strings.Contains(att.Content, "repo contract") && !strings.Contains(att.Content, "contract-defined") {
+			t.Fatalf("%s should reference contract-backed path guidance: %q", key, att.Content)
+		}
 	}
 }
 

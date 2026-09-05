@@ -3,8 +3,9 @@ package storage
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
@@ -16,20 +17,24 @@ const (
 	envStateRoot   = "VROOLI_STATE_ROOT"
 )
 
+// runtimeHomeEntryPath resolves a well-known runtime-home entry path through the
+// repo-contract authority. It is a package var so tests can inject contract-load
+// failures; production always uses
+// the real authority.
+var runtimeHomeEntryPath = repocontract.RuntimeHomeEntryPath
+
 type classRoots struct {
-	config string
-	data   string
-	cache  string
-	logs   string
-	state  string
+	config   string
+	data     string
+	cache    string
+	logs     string
+	state    string
+	testRuns string
 }
 
 type env struct {
-	get           func(string) string
-	os            string
-	userHomeDir   func() (string, error)
-	userConfigDir func() (string, error)
-	userCacheDir  func() (string, error)
+	get         func(string) string
+	userHomeDir func() (string, error)
 }
 
 func newEnv(cfg ResolverConfig) env {
@@ -37,23 +42,11 @@ func newEnv(cfg ResolverConfig) env {
 	if get == nil {
 		get = os.Getenv
 	}
-	osName := cfg.RuntimeOS
-	if osName == "" {
-		osName = runtime.GOOS
-	}
 	home := cfg.UserHomeDir
 	if home == nil {
 		home = os.UserHomeDir
 	}
-	configDir := cfg.UserConfigDir
-	if configDir == nil {
-		configDir = os.UserConfigDir
-	}
-	cacheDir := cfg.UserCacheDir
-	if cacheDir == nil {
-		cacheDir = os.UserCacheDir
-	}
-	return env{get: get, os: osName, userHomeDir: home, userConfigDir: configDir, userCacheDir: cacheDir}
+	return env{get: get, userHomeDir: home}
 }
 
 func resolveClassRoots(profile Profile, e env, rootOverride string) (classRoots, error) {
@@ -63,11 +56,12 @@ func resolveClassRoots(profile Profile, e env, rootOverride string) (classRoots,
 			return classRoots{}, &Error{Kind: ErrInvalidInput, Message: "root override must be absolute", Details: rootOverride}
 		}
 		return classRoots{
-			config: filepath.Join(rootOverride, string(ClassConfig)),
-			data:   filepath.Join(rootOverride, string(ClassData)),
-			cache:  filepath.Join(rootOverride, string(ClassCache)),
-			logs:   filepath.Join(rootOverride, string(ClassLogs)),
-			state:  filepath.Join(rootOverride, string(ClassState)),
+			config:   filepath.Join(rootOverride, string(ClassConfig)),
+			data:     filepath.Join(rootOverride, string(ClassData)),
+			cache:    filepath.Join(rootOverride, string(ClassCache)),
+			logs:     filepath.Join(rootOverride, string(ClassLogs)),
+			state:    filepath.Join(rootOverride, string(ClassState)),
+			testRuns: filepath.Join(rootOverride, string(ClassTestRuns)),
 		}, nil
 	}
 
@@ -76,11 +70,12 @@ func resolveClassRoots(profile Profile, e env, rootOverride string) (classRoots,
 			return classRoots{}, &Error{Kind: ErrInvalidInput, Message: envStorageRoot + " must be absolute", Details: global}
 		}
 		return classRoots{
-			config: filepath.Join(global, string(ClassConfig)),
-			data:   filepath.Join(global, string(ClassData)),
-			cache:  filepath.Join(global, string(ClassCache)),
-			logs:   filepath.Join(global, string(ClassLogs)),
-			state:  filepath.Join(global, string(ClassState)),
+			config:   filepath.Join(global, string(ClassConfig)),
+			data:     filepath.Join(global, string(ClassData)),
+			cache:    filepath.Join(global, string(ClassCache)),
+			logs:     filepath.Join(global, string(ClassLogs)),
+			state:    filepath.Join(global, string(ClassState)),
+			testRuns: filepath.Join(global, string(ClassTestRuns)),
 		}, nil
 	}
 
@@ -129,68 +124,47 @@ func defaultClassRoots(profile Profile, e env) (classRoots, error) {
 		return defaultUserClassRoots(e)
 	case ProfileVPS:
 		return classRoots{
-			config: "/etc",
-			data:   "/var/lib",
-			cache:  "/var/cache",
-			logs:   "/var/log",
-			state:  "/var/lib/vrooli-state",
+			config:   "/etc",
+			data:     "/var/lib",
+			cache:    "/var/cache",
+			logs:     "/var/log",
+			state:    "/var/lib/vrooli-state",
+			testRuns: "/var/lib/vrooli-test-runs",
 		}, nil
 	default:
 		return classRoots{}, &Error{Kind: ErrInvalidInput, Message: "unknown storage profile", Details: string(profile)}
 	}
 }
 
+// defaultUserClassRoots resolves the user-profile class roots under the operator
+// runtime home (~/.vrooli/{config,data,cache,logs,state}) via the repo-contract
+// runtime_home authority. The roots are OS-agnostic by design: the runtime home
+// is operator-home-shaped, so there is no XDG/darwin/windows branching here. A
+// contract that cannot be loaded is a hard error (no silent fallback), matching
+// docs/repo-contract.md's "no fallback" stance.
 func defaultUserClassRoots(e env) (classRoots, error) {
-	configDir, err := e.userConfigDir()
-	if err != nil {
-		return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve user config dir", Err: err}
-	}
-	cacheDir, err := e.userCacheDir()
-	if err != nil {
-		return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve user cache dir", Err: err}
-	}
-	homeDir, err := e.userHomeDir()
+	home, err := e.userHomeDir()
 	if err != nil {
 		return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve user home dir", Err: err}
 	}
 
-	switch e.os {
-	case "windows":
-		localAppData := strings.TrimSpace(e.get("LOCALAPPDATA"))
-		if localAppData == "" {
-			localAppData = filepath.Join(homeDir, "AppData", "Local")
+	roots := classRoots{}
+	for _, m := range []struct {
+		key string
+		dst *string
+	}{
+		{repocontract.HomeKeyConfig, &roots.config},
+		{repocontract.HomeKeyData, &roots.data},
+		{repocontract.HomeKeyCache, &roots.cache},
+		{repocontract.HomeKeyLogs, &roots.logs},
+		{repocontract.HomeKeyState, &roots.state},
+		{repocontract.HomeKeyTestRuns, &roots.testRuns},
+	} {
+		path, err := runtimeHomeEntryPath(home, m.key)
+		if err != nil {
+			return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve runtime-home class root", Details: m.key, Err: err}
 		}
-		return classRoots{
-			config: configDir,
-			data:   configDir,
-			cache:  cacheDir,
-			logs:   filepath.Join(localAppData, "Logs"),
-			state:  filepath.Join(localAppData, "State"),
-		}, nil
-	case "darwin":
-		library := filepath.Join(homeDir, "Library")
-		return classRoots{
-			config: filepath.Join(library, "Application Support"),
-			data:   filepath.Join(library, "Application Support"),
-			cache:  filepath.Join(library, "Caches"),
-			logs:   filepath.Join(library, "Logs"),
-			state:  filepath.Join(library, "Application Support", "State"),
-		}, nil
-	default:
-		dataHome := strings.TrimSpace(e.get("XDG_DATA_HOME"))
-		if dataHome == "" {
-			dataHome = filepath.Join(homeDir, ".local", "share")
-		}
-		stateHome := strings.TrimSpace(e.get("XDG_STATE_HOME"))
-		if stateHome == "" {
-			stateHome = filepath.Join(homeDir, ".local", "state")
-		}
-		return classRoots{
-			config: configDir,
-			data:   dataHome,
-			cache:  cacheDir,
-			logs:   filepath.Join(stateHome, "logs"),
-			state:  stateHome,
-		}, nil
+		*m.dst = path
 	}
+	return roots, nil
 }

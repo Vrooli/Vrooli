@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"scenario-to-cloud/cli/deployment"
 	"strconv"
 	"strings"
-
-	"scenario-to-cloud/cli/deployment"
 )
 
 type targetContext struct {

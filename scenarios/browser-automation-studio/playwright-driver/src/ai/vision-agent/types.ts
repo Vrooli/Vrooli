@@ -24,11 +24,8 @@ export interface NavigationConfig {
   /** Maximum steps before stopping */
   maxSteps: number;
 
-  /** Model identifier (e.g., "qwen3-vl-30b") */
+  /** Provider-neutral AI Gateway route profile. */
   model: string;
-
-  /** API key for the model provider */
-  apiKey: string;
 
   /** Callback invoked after each step */
   onStep: (step: NavigationStep) => Promise<void>;
@@ -287,16 +284,14 @@ export interface VisionAnalysisResponseInterface {
 
 export interface VisionModelSpecInterface {
   id: string;
-  apiModelId: string;
   displayName: string;
-  provider: 'openrouter' | 'anthropic' | 'ollama';
-  inputCostPer1MTokens: number;
-  outputCostPer1MTokens: number;
-  maxContextTokens: number;
+  provider: 'ai-gateway' | 'anthropic' | 'ollama' | 'mock';
+  apiModelId?: string;
+  maxContextTokens?: number;
   supportsComputerUse: boolean;
   supportsElementLabels: boolean;
   recommended: boolean;
-  tier: 'budget' | 'standard' | 'premium';
+  tier: 'local' | 'remote' | 'mock' | 'exception';
 }
 
 export interface ConversationMessageInterface {

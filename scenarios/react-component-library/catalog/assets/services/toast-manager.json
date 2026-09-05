@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.toast-manager",
+    "name": "Toast Manager",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The notification service that queues, deduplicates, updates, dismisses, limits, and announces transient feedback through one application surface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "Queue state is a scoped store rather than a module singleton."
+      },
+      {
+        "asset": "services.live-announcer",
+        "reason": "Toast content must be announced through the shared region."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "status-announced"
+  ],
+  "beauty": {
+    "avoid": [
+      "toast-as-only-error-record"
+    ]
+  }
+}

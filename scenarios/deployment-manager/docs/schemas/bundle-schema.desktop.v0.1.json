@@ -28,6 +28,10 @@
       "type": "array",
       "items": { "$ref": "#/definitions/swap" }
     },
+    "peers": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/peer" }
+    },
     "secrets": {
       "type": "array",
       "items": { "$ref": "#/definitions/secret" }
@@ -46,7 +50,8 @@
       "properties": {
         "name": { "type": "string", "minLength": 1 },
         "version": { "type": "string", "minLength": 1 },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "scenario": { "type": "string", "minLength": 1 }
       }
     },
     "ipc": {
@@ -55,7 +60,7 @@
       "properties": {
         "mode": { "type": "string", "enum": ["loopback-http"] },
         "host": { "type": "string", "minLength": 1 },
-        "port": { "type": "integer", "minimum": 1 },
+        "port": { "type": "integer", "minimum": 0 },
         "auth_token_path": { "type": "string", "minLength": 1 }
       }
     },
@@ -93,6 +98,30 @@
         "replacement": { "type": "string", "minLength": 1 },
         "reason": { "type": "string" },
         "limitations": { "type": "string" }
+      }
+    },
+    "peer": {
+      "type": "object",
+      "required": ["scenario", "bundle_policy", "bindings"],
+      "properties": {
+        "scenario": { "type": "string", "minLength": 1 },
+        "bundle_policy": { "type": "string", "enum": ["embed", "discover", "either"] },
+        "startup_policy": { "type": "string" },
+        "degraded_behavior": { "type": "string" },
+        "bindings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/peer_binding" }
+        }
+      }
+    },
+    "peer_binding": {
+      "type": "object",
+      "required": ["env_var", "form", "port", "when_unavailable"],
+      "properties": {
+        "env_var": { "type": "string", "minLength": 1 },
+        "form": { "type": "string", "enum": ["http_base_url", "ws_base_url", "host_port", "port_number"] },
+        "port": { "type": "string", "minLength": 1 },
+        "when_unavailable": { "type": "string", "enum": ["omit", "fail"] }
       }
     },
     "secret": {
@@ -135,12 +164,25 @@
     },
     "service": {
       "type": "object",
-      "required": ["id", "type", "binaries", "health", "readiness"],
+      "required": ["id", "type", "health", "readiness"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "embedded-storage" }
+            }
+          },
+          "then": {},
+          "else": {
+            "required": ["binaries"]
+          }
+        }
+      ],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "type": {
           "type": "string",
-          "enum": ["ui-bundle", "api-binary", "worker", "resource"]
+          "enum": ["ui-bundle", "api-binary", "worker", "resource", "embedded-storage"]
         },
         "description": { "type": "string" },
         "binaries": {
@@ -177,6 +219,7 @@
           "type": "array",
           "items": { "$ref": "#/definitions/asset" }
         },
+        "dist_root": { "type": "string" },
         "gpu": { "$ref": "#/definitions/gpu" },
         "critical": { "type": "boolean" },
         "metadata": { "type": "object" }

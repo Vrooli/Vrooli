@@ -1,0 +1,51 @@
+syntax = "proto3";
+package vrooli.vrooli_memory.v1.recall;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall;recall_v1";
+service RecallService {
+  rpc Recall(RecallRequest) returns (RecallResponse);
+  rpc Wake(WakeRequest) returns (WakeResponse);
+  rpc Zoom(ZoomRequest) returns (ZoomResponse);
+  rpc ListSiblingEvents(ListSiblingEventsRequest) returns (ListSiblingEventsResponse);
+}
+message RecallHit {
+  string entry_id = 1;
+  string facet_id = 2;
+  string text = 3;
+  double score = 4;
+  int32 depth = 5;
+  string node_id = 6;
+  bool summary = 7;
+  int32 span = 8;
+}
+message RecallRequest {
+  string query = 1;
+  int32 limit = 2;
+  string scope = 3;
+}
+message RecallResponse {
+  repeated RecallHit hits = 1;
+}
+message WakeRequest {
+  // Counts rendered text lines selected for the ambient view, not tokens.
+  int32 line_budget = 1;
+  string scope = 2;
+}
+message WakeResponse {
+  repeated RecallHit hits = 1;
+  bool overflow = 2;
+}
+message ZoomRequest {
+  string node_id = 1;
+  string scope = 2;
+}
+message ZoomResponse {
+  repeated RecallHit constituents = 1;
+}
+message ListSiblingEventsRequest {
+  string entry_id = 1;
+  string scope = 2;
+}
+message ListSiblingEventsResponse {
+  repeated RecallHit entries = 1;
+}

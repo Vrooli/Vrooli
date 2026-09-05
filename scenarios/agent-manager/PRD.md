@@ -5,7 +5,7 @@ Purpose: Central orchestration and governance layer for running AI agents agains
 
 Target users:
 - Developers requiring safe multi-agent codebase operations
-- Vrooli ecosystem scenarios (agent-inbox, app-issue-tracker, ecosystem-manager)
+- Vrooli ecosystem scenarios (agent-inbox, app-issue-tracker, swarm-manager)
 - CI/CD pipeline operators
 
 Deployment surfaces: API, CLI, Web UI
@@ -15,7 +15,7 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | AgentProfile Management | Create and manage agent profiles with runner configurations and permissions
+- [ ] OT-P0-001 | AgentProfile Management | Create and reconcile portable role-based agent profiles with runner-neutral controls and permission posture
 - [ ] OT-P0-002 | Task Management | Implement CRUD operations for tasks with status tracking
 - [ ] OT-P0-003 | Run Creation | Enable run creation with sandbox allocation and mode selection
 - [ ] OT-P0-004 | Run Status Tracking | Track and update run status with timestamps
@@ -26,6 +26,9 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 - [ ] OT-P0-009 | Diff Collection | Generate and store diffs from sandbox changes
 - [ ] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
 - [ ] OT-P0-011 | Health Check API | Provide health monitoring endpoint
+- [ ] OT-P0-012 | Durable Run Analytics | The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability
+- [ ] OT-P0-013 | Attributable Conversation Recall | The system shall make imported runner conversations discoverable without a known run ID through privacy-aware API, CLI, UI, and Search Hub surfaces while preserving provenance, deletion, and useful lexical operation during semantic-resource degradation
+- [ ] OT-P0-014 | Durable Plan-Family Supervision | When a plan family executes, Agent Manager shall durably supervise its cohort with bounded cursors, restart-safe parent parking and wake-up, authorized interventions, deterministic-first evaluation, and immutable governed policy evidence
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Scope Locks | Implement path-scoped exclusive locks
@@ -46,7 +49,6 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 - [ ] OT-P2-005 | Webhook Notifications | Add external system notifications
 - [ ] OT-P2-006 | Batch Operations | Enable multi-task batch management
 - [ ] OT-P2-007 | UI Dashboard | Build web interface for management
-- [ ] OT-P2-008 | Run Analytics | Implement historical run data analysis
 
 ## 🧱 Tech Direction Snapshot
 Preferred stacks:

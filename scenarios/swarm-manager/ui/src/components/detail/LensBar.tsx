@@ -8,13 +8,13 @@
  */
 
 import { cn } from "../../lib/utils";
-import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
+import type { AppGraphLens } from "../../app/routes/route-paths";
 import type { LensOption } from "./lens-options";
 
 interface LensBarProps {
   nodeId: string;
   lenses: LensOption[];
-  onDrillToLens: (nodeId: string, lens: GraphLens) => void;
+  onDrillToLens: (nodeId: string, lens: AppGraphLens) => void;
   className?: string;
 }
 

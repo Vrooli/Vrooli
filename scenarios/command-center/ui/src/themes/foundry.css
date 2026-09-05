@@ -1,0 +1,12 @@
+[data-theme="foundry"] {
+  --color-background: #140803;
+  --color-background-deep: #060200;
+  --color-surface: rgba(44, 20, 8, 0.72);
+  --color-foreground: #fbeadb;
+  --color-muted-foreground: #c69a72;
+  --color-primary: #ff9b3d;
+  --color-accent: #ffd27a;
+  --color-glow: rgba(255, 155, 61, 0.5);
+  --color-border: rgba(255, 155, 61, 0.24);
+  --color-gap: #d6b3ff;
+}

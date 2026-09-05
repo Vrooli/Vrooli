@@ -15,7 +15,7 @@
 ## Key Decisions (P0)
 
 - VPS-first, Ubuntu-only, SSH + scp tarball deploy.
-- Native resources (no Docker) via “mini Vrooli” bundle + `./scripts/manage.sh setup`.
+- Native resources (no Docker) via a “mini Vrooli” bundle plus a deployment-local native `vrooli` binary that runs setup on the VPS.
 - Edge via Caddy + Let’s Encrypt; DNS is manual prerequisite.
 - Fixed ports on VPS: UI 3000, API 3001, WS 3002 (overridden at start time).
 

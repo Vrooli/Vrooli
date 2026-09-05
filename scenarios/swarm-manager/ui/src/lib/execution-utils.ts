@@ -165,4 +165,9 @@ export const canCancelExecution = (status: ExecutionStatus): boolean =>
 export const canFollowUpExecution = (status: ExecutionStatus): boolean =>
   status === "completed" || status === "failed" || status === "needs_fixup" || status === "canceled";
 
-export const canRetryExecution = (status: ExecutionStatus): boolean => status === "failed";
+// Retry is allowed from any terminal-or-effectively-terminal state. The user
+// is asserting "the prior attempt is done; re-dispatch with the same scope" —
+// completed runs can be retried for "world changed" cases (dep upgrade, env
+// fix), not just failures. Mirrors canFollowUpExecution.
+export const canRetryExecution = (status: ExecutionStatus): boolean =>
+  status === "completed" || status === "failed" || status === "needs_fixup" || status === "canceled";

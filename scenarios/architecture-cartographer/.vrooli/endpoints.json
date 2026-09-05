@@ -1,0 +1,729 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.architecture_cartographer.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.architecture_cartographer.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "analytics.list-events",
+      "path": "/vrooli.architecture_cartographer.v1.analytics.AnalyticsService/ListEvents",
+      "method": "POST",
+      "summary": "List append-only events",
+      "description": "Cursor-paginated event log with optional kind + since filters.",
+      "category": "analytics"
+    },
+    {
+      "id": "analytics.get-stats",
+      "path": "/vrooli.architecture_cartographer.v1.analytics.AnalyticsService/GetStats",
+      "method": "POST",
+      "summary": "Get stats roll-up",
+      "description": "Returns counts + verdict success rate with N<5 suppression.",
+      "category": "analytics"
+    },
+    {
+      "id": "analytics.list-placements",
+      "path": "/vrooli.architecture_cartographer.v1.analytics.AnalyticsService/ListPlacements",
+      "method": "POST",
+      "summary": "List placement outcomes",
+      "description": "Cursor-paginated placement rows for a scenario.",
+      "category": "analytics"
+    },
+    {
+      "id": "analytics.record-override",
+      "path": "/vrooli.architecture_cartographer.v1.analytics.AnalyticsService/RecordOverride",
+      "method": "POST",
+      "summary": "Record an operator override",
+      "description": "Appends an Override row. Honors Idempotency-Key and X-Dry-Run.",
+      "category": "analytics"
+    },
+    {
+      "id": "apply.plan",
+      "path": "/vrooli.architecture_cartographer.v1.apply.ApplyService/PlanApply",
+      "method": "POST",
+      "summary": "Plan a per-domain apply",
+      "description": "Deterministically derives the operation list from resolved/validated conflicts. v0.1 returns the plan envelope; RunApply is unimplemented.",
+      "category": "apply"
+    },
+    {
+      "id": "apply.run",
+      "path": "/vrooli.architecture_cartographer.v1.apply.ApplyService/RunApply",
+      "method": "POST",
+      "summary": "Run an apply plan (v0.1: unimplemented)",
+      "description": "Executes the supplied plan. v0.1 surfaces CodeUnimplemented; v0.2 wires the executor.",
+      "category": "apply"
+    },
+    {
+      "id": "apply.list-history",
+      "path": "/vrooli.architecture_cartographer.v1.apply.ApplyService/ListApplyHistory",
+      "method": "POST",
+      "summary": "List apply runs",
+      "description": "Cursor-paginated history of apply runs (empty in v0.1).",
+      "category": "apply"
+    },
+    {
+      "id": "apply.get-build-baseline",
+      "path": "/vrooli.architecture_cartographer.v1.apply.ApplyService/GetBuildBaseline",
+      "method": "POST",
+      "summary": "Get the current build baseline",
+      "description": "Returns the toolchain build-green snapshot. v0.1 returns an empty baseline.",
+      "category": "apply"
+    },
+    {
+      "id": "apply.write-suppression",
+      "path": "/vrooli.architecture_cartographer.v1.apply.ApplyService/WriteSuppression",
+      "method": "POST",
+      "summary": "Write an in-repo suppression marker",
+      "description": "Inserts a durable `// arch:allow` marker into a source file, sanctioning a finding as intentional. Safe, non-destructive (comment-only) write.",
+      "category": "apply"
+    },
+    {
+      "id": "audit.run",
+      "path": "/vrooli.architecture_cartographer.v1.audit.AuditService/Run",
+      "method": "POST",
+      "summary": "Run a CI-shaped drift audit",
+      "description": "Orchestrates graph extract (if needed), domains derivation, and conflicts detection; applies severity / type filters; returns a deterministic summary and exit code mapping.",
+      "category": "audit"
+    },
+    {
+      "id": "audit.run-all",
+      "path": "/vrooli.architecture_cartographer.v1.audit.AuditService/RunAll",
+      "method": "POST",
+      "summary": "Sweep every discoverable scenario",
+      "description": "Walks scenarios/*/.vrooli/service.json, runs Audit on each, and returns per-scenario reports plus a totals rollup. Honors include_scenarios / exclude_scenarios filters.",
+      "category": "audit"
+    },
+    {
+      "id": "validation.validate-scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate architecture posture",
+      "description": "Runs the architecture audit in advisory mode and returns the shared scenario-validation response; the native AuditRunResponse is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<architecture_cartographer.v1.audit.AuditRunResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing or invalid"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate architecture",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation.preview-fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview architecture autofixes",
+      "description": "Part of the shared ScenarioValidationService contract. Architecture findings are advisory and have no format-preserving autofix, so this returns an empty candidate set (unimplemented).",
+      "category": "validation",
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Architecture findings have no autofix"
+        }
+      ]
+    },
+    {
+      "id": "validation.apply-fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply architecture autofixes",
+      "description": "Part of the shared ScenarioValidationService contract. Architecture findings are advisory and have no format-preserving autofix, so this applies nothing (unimplemented).",
+      "category": "validation",
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Architecture findings have no autofix"
+        }
+      ]
+    },
+    {
+      "id": "campaign.create",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/CreateCampaign",
+      "method": "POST",
+      "summary": "Open a campaign and ingest findings",
+      "description": "Opens a tracked scenario-improvement campaign and ingests the initial ArchitectureFinding set (all start detected).",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.list",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ListCampaigns",
+      "method": "POST",
+      "summary": "List a scenario's campaigns",
+      "description": "Returns the campaign headers for a scenario (newest first), or every campaign when scenario is empty.",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.status",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/GetCampaignStatus",
+      "method": "POST",
+      "summary": "Get campaign status",
+      "description": "Returns the campaign plus every tracked item and rollup counts.",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.next",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/NextCampaignStep",
+      "method": "POST",
+      "summary": "Get the next worklist chunk",
+      "description": "Returns the profile-ranked worklist of open items (fast / balanced / long-term).",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.resolve",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ResolveItem",
+      "method": "POST",
+      "summary": "Mark an item resolved",
+      "description": "Records that the agent fixed an item by hand, with an operator note.",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.apply",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ApplyItem",
+      "method": "POST",
+      "summary": "Apply an item fix (status-only)",
+      "description": "Records a hand-fix as a status-only transition. Auto-execution of file-op fixes stays deferred to the apply-execution plan.",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.reaudit",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/ReauditCampaign",
+      "method": "POST",
+      "summary": "Reconcile a re-audit",
+      "description": "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
+      "category": "campaign"
+    },
+    {
+      "id": "campaign.close",
+      "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/CloseCampaign",
+      "method": "POST",
+      "summary": "Close a campaign",
+      "description": "Marks the campaign closed.",
+      "category": "campaign"
+    },
+    {
+      "id": "conflicts.detect",
+      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/DetectConflicts",
+      "method": "POST",
+      "summary": "Detect conflicts",
+      "description": "Runs every registered Detector against a scenario's graph snapshot + manifest, persists the resulting Conflict envelopes, and emits one analytics event per detection.",
+      "category": "conflicts"
+    },
+    {
+      "id": "conflicts.list",
+      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ListConflicts",
+      "method": "POST",
+      "summary": "List persisted conflicts",
+      "description": "Cursor-paginated list of stored conflicts, filterable by scenario and type.",
+      "category": "conflicts"
+    },
+    {
+      "id": "conflicts.get",
+      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/GetConflict",
+      "method": "POST",
+      "summary": "Get one conflict",
+      "description": "Returns the Conflict envelope for the supplied id.",
+      "category": "conflicts"
+    },
+    {
+      "id": "conflicts.validate",
+      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ValidateConflicts",
+      "method": "POST",
+      "summary": "Validate cartographer-clean closure",
+      "description": "Returns outstanding conflicts and a clean=true gate when zero error-severity rows remain. Used by the dogfood test.",
+      "category": "conflicts"
+    },
+    {
+      "id": "conflicts.list-detectors",
+      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ListDetectors",
+      "method": "POST",
+      "summary": "List registered detectors",
+      "description": "Returns the set of Detector plug-ins compiled into this binary.",
+      "category": "conflicts"
+    },
+    {
+      "id": "conflicts.list-resolvers",
+      "path": "/vrooli.architecture_cartographer.v1.conflicts.ConflictsService/ListResolvers",
+      "method": "POST",
+      "summary": "List registered resolvers",
+      "description": "Returns the set of Resolver plug-ins compiled into this binary.",
+      "category": "conflicts"
+    },
+    {
+      "id": "domains.extract",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/ExtractDomains",
+      "method": "POST",
+      "summary": "Derive the domain map for a scenario",
+      "description": "Walks the domain-extraction ladder (DOMAINS.md → api/internal folders → cli groups) and returns the canonical derived domain map with per-source provenance.",
+      "category": "domains"
+    },
+    {
+      "id": "domains.show",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/GetDomainMap",
+      "method": "POST",
+      "summary": "Show the derived domain map",
+      "description": "Returns the derived domain map for a scenario (re-derived per call; deterministic).",
+      "category": "domains"
+    },
+    {
+      "id": "domains.convergence",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/ConvergenceReport",
+      "method": "POST",
+      "summary": "Report cross-surface domain convergence",
+      "description": "Reports where a scenario's surfaces (DOMAINS.md, api folders, cli groups, ui features) disagree on the domain set. Advisory, never a hard gate.",
+      "category": "domains"
+    },
+    {
+      "id": "domains.draft",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/DraftDomains",
+      "method": "POST",
+      "summary": "Draft a DOMAINS.md inventory",
+      "description": "Proposes a docs/concepts/DOMAINS.md inventory from extracted evidence without writing authority to disk.",
+      "category": "domains"
+    },
+    {
+      "id": "graph.extract",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/ExtractGraph",
+      "method": "POST",
+      "summary": "Extract and persist a graph snapshot",
+      "description": "Delegates to the language code-graph adapter(s), normalizes, dedupes, and persists the resulting snapshot.",
+      "category": "graph"
+    },
+    {
+      "id": "graph.get",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/GetGraphSnapshot",
+      "method": "POST",
+      "summary": "Get a persisted snapshot by id",
+      "description": "Returns the canonical-form GraphSnapshot for the supplied id.",
+      "category": "graph"
+    },
+    {
+      "id": "graph.list",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/ListGraphSnapshots",
+      "method": "POST",
+      "summary": "List persisted snapshots",
+      "description": "Cursor-paginated list of persisted snapshots, optionally filtered by scenario.",
+      "category": "graph"
+    },
+    {
+      "id": "graph.clear",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/ClearGraphSnapshots",
+      "method": "POST",
+      "summary": "Clear cached snapshots",
+      "description": "Removes cached snapshots for the scenario. Honors X-Dry-Run.",
+      "category": "graph"
+    },
+    {
+      "id": "graph.export",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/ExportGraph",
+      "method": "POST",
+      "summary": "Export snapshot bytes",
+      "description": "Returns the persisted snapshot serialized as canonical-form JSON bytes for offline analysis or fixture authoring.",
+      "category": "graph"
+    },
+    {
+      "id": "zones.show",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/GetZoneMap",
+      "method": "POST",
+      "summary": "Show the template-derived zone map",
+      "description": "Classifies graph packages into manifest-backed code-layout zones and returns layering cross-check violations.",
+      "category": "zones"
+    },
+    {
+      "id": "slice.show",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/GetSlice",
+      "method": "POST",
+      "summary": "Show the implementation slice for one domain",
+      "description": "Returns proto, handler, internal, CLI, and UI rungs with per-rung evidence for a derived domain.",
+      "category": "slice"
+    },
+    {
+      "id": "archetype.infer",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/InferArchetype",
+      "method": "POST",
+      "summary": "Infer and converge each domain's archetype (Q20)",
+      "description": "Infers each domain's archetype from graph signals and converges it against the declared DOMAINS.md value, reporting drift without overriding the declared archetype.",
+      "category": "archetype"
+    },
+    {
+      "id": "search_query",
+      "path": "/vrooli.architecture_cartographer.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search scenario domains across the fleet",
+      "description": "Term-agnostic semantic (AI) and text-fallback search over the derived domain map of every scenario (e.g. \"how does authoring work in plan-manager\").",
+      "category": "search",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "mode": "Mode",
+          "query": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "mode_used": "Mode",
+          "reranker": "string",
+          "results": "array<SearchResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when no search backend is configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Search",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.architecture_cartographer.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"how does authoring work in plan-manager\",\"limit\":10}'"
+        }
+      ]
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.architecture_cartographer.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report search backend availability",
+      "description": "Reports whether ollama and qdrant are reachable, indexed domain count, and the most recent reconcile outcome.",
+      "category": "search",
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "boolean",
+          "indexed_count": "int32",
+          "last_reconcile_at": "string",
+          "last_reconcile_outcome": "string",
+          "ollama": "boolean",
+          "qdrant": "boolean",
+          "reranker": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when no search backend is configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.architecture_cartographer.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_reindex",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+      "method": "POST",
+      "summary": "Start a reindex job (token-gated)",
+      "description": "Queues a reconcile job that upserts/deletes domain points in Qdrant. Requires the provider's control token.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "dry_run": "boolean",
+          "scope": "string (optional provider sub-scope; empty means the whole corpus)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "job_id": "string",
+          "planned_deletes": "int32",
+          "planned_upserts": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when no reindex backend is configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Reindex (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true,\"control_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_reindex_status",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/ReindexStatus",
+      "method": "POST",
+      "summary": "Poll reindex job status (token-gated)",
+      "description": "Returns the progress, state, and (on failure) error for a previously-started reindex job.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "job_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "job_id": "string",
+          "processed": "int32",
+          "state": "string",
+          "total": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No reindex job with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Job status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_reindex_cancel",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/ReindexCancel",
+      "method": "POST",
+      "summary": "Cancel a reindex job (token-gated)",
+      "description": "Requests cooperative cancellation of an in-flight job. Idempotent: cancelling a terminal job returns cancelled=false.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "job_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cancelled": "boolean",
+          "job_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Cancel job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_write_config",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+      "method": "POST",
+      "summary": "Write a tuning block back to search.json (token-gated)",
+      "description": "Validates a new tuning block and atomically rewrites the provider's search.json, triggering a reindex when an index-time factor changed. The search-hub sweep's write-back verb.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "dry_run": "boolean (validate + diff without writing)",
+          "provider_id": "string (required; the leaf whose tuning is rewritten)",
+          "tuning": "object (full replacement tuning block)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective": "object (tuning now in effect)",
+          "reindex_job_id": "string",
+          "reindex_triggered": "boolean",
+          "written": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing provider_id or invalid tuning factor"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "provider_id not present in search.json"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Write config (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteConfig -H 'Content-Type: application/json' -d '{\"provider_id\":\"architecture-cartographer.domain-map\",\"dry_run\":true,\"control_token\":\"<token>\",\"tuning\":{\"engine\":\"dense\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_write_corpus",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus",
+      "method": "POST",
+      "summary": "Write an evaluation corpus back to search.json (token-gated)",
+      "description": "Validates a new evaluation corpus (the tests block, carried as an eval EvalSuite) and atomically rewrites ONLY that block in the provider's search.json. The search-hub optimizer's corpus write-back verb. Never triggers a reindex.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "corpus": "object (full replacement tests block, as an eval EvalSuite)",
+          "dry_run": "boolean (validate + diff without writing)",
+          "provider_id": "string (required; the leaf whose corpus is rewritten)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective": "object (corpus now in effect, as an eval EvalSuite)",
+          "written": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing provider_id or a malformed corpus (case missing id/query, duplicate id)"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "provider_id not present in search.json"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Write corpus (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus -H 'Content-Type: application/json' -d '{\"provider_id\":\"architecture-cartographer.domain-map\",\"dry_run\":true,\"control_token\":\"<token>\",\"corpus\":{\"suite_id\":\"architecture-cartographer.domain-map.primary\",\"cases\":[]}}'"
+        }
+      ]
+    },
+    {
+      "id": "signals.score",
+      "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/ScoreChunk",
+      "method": "POST",
+      "summary": "Score a chunk",
+      "description": "Runs every registered Signal on the chunk and aggregates them into a Verdict (auto_place / suggest / conflict).",
+      "category": "signals"
+    },
+    {
+      "id": "signals.explain",
+      "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/ExplainVerdict",
+      "method": "POST",
+      "summary": "Explain a verdict",
+      "description": "Returns the same Verdict shape as ScoreChunk with full per-signal evidence so operators can inspect the placement decision.",
+      "category": "signals"
+    },
+    {
+      "id": "signals.list",
+      "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/ListSignals",
+      "method": "POST",
+      "summary": "List registered signals",
+      "description": "Returns the set of Signal plug-ins, their default weights, and per-scenario manifest-overlaid weights when scenario is supplied.",
+      "category": "signals"
+    },
+    {
+      "id": "signals.boundaries",
+      "path": "/vrooli.architecture_cartographer.v1.signals.SignalsService/BoundaryHealth",
+      "method": "POST",
+      "summary": "Domain boundary-health scores",
+      "description": "Computes per-domain coupling metrics (efferent/afferent, instability, fan-out, stable-kernel) and a graded boundary-health score with advisory smells.",
+      "category": "signals"
+    }
+  ]
+}

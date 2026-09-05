@@ -1,0 +1,479 @@
+// Package providers is the descriptor→unified-result adapter runtime. It holds
+// the ONE generic mapping path that turns any provider's heterogeneous JSON
+// response into the router's unified SearchHit shape, driven entirely by the
+// declarative ResultMapping on the provider descriptor.
+//
+// This package is what makes the router's no-conditional-monolith invariant
+// true: there is zero provider-specific code here. Adding a provider is a
+// registry row carrying its ResultMapping; this code never changes. Phase 4
+// wires the live fan-out (call endpoint → MapResults); Phase 3 ships and tests
+// the mapping path itself against captured fixtures.
+package providers
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+// MappedResponse retains both mapped hits and provider response-level evidence.
+// The router transports these fields without interpreting provider-specific
+// values; ResultMapping remains the only per-provider configuration.
+type MappedResponse struct {
+	Hits         []*routingv1.SearchHit
+	Coverage     *routingv1.ProviderCoverage
+	Degradations []*routingv1.ProviderDegradation
+	NextCursor   string
+}
+
+// MapResponse maps a provider response including its response-level coverage,
+// degradation, and continuation cursor. MapResults remains the compatibility
+// surface for callers that need only hits.
+func MapResponse(d *registryv1.ProviderDescriptor, body []byte) (MappedResponse, error) {
+	hits, err := MapResults(d, body)
+	if err != nil {
+		return MappedResponse{}, err
+	}
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil {
+		return MappedResponse{}, fmt.Errorf("provider %q: decode response evidence: %w", d.GetProviderId(), err)
+	}
+	m := d.GetResultMapping()
+	return MappedResponse{
+		Hits:         hits,
+		Coverage:     decodeCoverage(root, m.GetCoverageField()),
+		Degradations: decodeDegradations(root, m.GetDegradationsField()),
+		NextCursor:   stringField(root, m.GetNextCursorField()),
+	}, nil
+}
+
+// MapResults applies the descriptor's ResultMapping to a provider's raw JSON
+// response body and returns unified SearchHits tagged with the leaf's
+// provenance (provider_id, provider_group, type). Scores are normalized to the
+// [0,1] band per the mapping's score_scale so they are comparable before
+// rerank. When filter_field/filter_value are set, only items whose filter_field
+// equals filter_value are kept (the multi-leaf-on-one-endpoint case). When
+// presence_field is set, only items where that field is populated are kept (the
+// presence-discriminated case, e.g. ui-health surfaces that carry a `widget`).
+//
+// It returns an error only on malformed JSON or a results_path that does not
+// resolve to an array; individual items with missing fields degrade gracefully
+// (empty string / zero score) rather than failing the whole response, so one
+// odd row never sinks a query.
+func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.SearchHit, error) {
+	m := d.GetResultMapping()
+	if m == nil {
+		return nil, fmt.Errorf("provider %q: nil result_mapping", d.GetProviderId())
+	}
+
+	var root any
+	if err := json.Unmarshal(body, &root); err != nil {
+		return nil, fmt.Errorf("provider %q: decode response: %w", d.GetProviderId(), err)
+	}
+
+	rawResults := lookupPath(root, m.GetResultsPath())
+	// An absent or JSON-null results array is an honest "no matches", not a
+	// mapping failure: many providers (e.g. ui-health) omit the `results` key
+	// entirely on a zero-result query. Map that to an empty hit set so the leaf
+	// reports an honest empty group rather than degrading. Only a results_path
+	// that resolves to a *present, non-array* value is a real mapping error.
+	if rawResults == nil {
+		return []*routingv1.SearchHit{}, nil
+	}
+	items, ok := rawResults.([]any)
+	if !ok {
+		return nil, fmt.Errorf("provider %q: results_path %q did not resolve to an array", d.GetProviderId(), m.GetResultsPath())
+	}
+
+	filterField := strings.TrimSpace(m.GetFilterField())
+	presenceField := strings.TrimSpace(m.GetPresenceField())
+	measureField := strings.TrimSpace(m.GetMeasureField())
+	attestationField := strings.TrimSpace(m.GetAttestationField())
+	confidenceField := strings.TrimSpace(m.GetConfidenceField())
+	locationsField := strings.TrimSpace(m.GetLocationsField())
+	hits := make([]*routingv1.SearchHit, 0, len(items))
+	for _, raw := range items {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue // skip non-object entries rather than failing the batch
+		}
+		if filterField != "" {
+			if stringField(item, filterField) != m.GetFilterValue() {
+				continue
+			}
+		}
+		if presenceField != "" && !isPresent(lookupPath(item, presenceField)) {
+			continue // keep only items where the presence_field is populated
+		}
+		locations := stringSliceField(item, locationsField)
+		path := stringField(item, m.GetPathField())
+		if path == "" && len(locations) > 0 {
+			path = locations[0]
+		}
+		hits = append(hits, &routingv1.SearchHit{
+			ProviderId:    d.GetProviderId(),
+			ProviderGroup: d.GetProviderGroup(),
+			Type:          d.GetType(),
+			Id:            stringField(item, m.GetIdField()),
+			Title:         stringField(item, m.GetTitleField()),
+			Snippet:       stringField(item, m.GetSnippetField()),
+			Path:          path,
+			Score:         normalizeScore(numberField(item, m.GetScoreField()), m.GetScoreScale()),
+			Locations:     locations,
+			// Measure carrier: nil for every retrieval provider (measure_field
+			// unset); populated only for the measures provider, generically.
+			Measure: decodeMeasureHit(item, measureField),
+			// Attestation carrier: nil for ordinary retrieval providers
+			// (attestation_field unset); populated only by architectural
+			// providers, generically. A non-conformant attested answer (e.g.
+			// DERIVED with no citations) is dropped, not trusted.
+			Attestation: decodeAttestation(item, attestationField),
+			// Confidence carrier: populated from a structured object when present,
+			// or from bare weak/regime fields for legacy provider responses.
+			Confidence: decodeConfidence(item, confidenceField, m.GetWeakField(), m.GetRegimeField()),
+			Metadata:   decodeMetadata(item, m.GetMetadataFields()),
+			RankEvidence: decodeRankEvidence(
+				item, m.GetRankEvidenceField(),
+			),
+		})
+	}
+	return hits, nil
+}
+
+func decodeMetadata(item map[string]any, fields map[string]string) *structpb.Struct {
+	if len(fields) == 0 {
+		return nil
+	}
+	selected := make(map[string]any, len(fields))
+	for key, path := range fields {
+		if value := lookupPath(item, path); value != nil {
+			selected[key] = value
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	value, err := structpb.NewStruct(selected)
+	if err != nil {
+		return nil
+	}
+	return value
+}
+
+func decodeRankEvidence(item map[string]any, path string) []*routingv1.ProviderRankEvidence {
+	values, ok := lookupPath(item, path).([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]*routingv1.ProviderRankEvidence, 0, len(values))
+	for _, value := range values {
+		entry, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, &routingv1.ProviderRankEvidence{
+			Leg:         coerceString(entry["leg"]),
+			Rank:        int32(coerceUint64(entry["rank"])),
+			Score:       coerceNumber(entry["score"]),
+			Explanation: coerceString(entry["explanation"]),
+		})
+	}
+	return out
+}
+
+func decodeCoverage(root map[string]any, path string) *routingv1.ProviderCoverage {
+	value, ok := lookupPath(root, path).(map[string]any)
+	if !ok || len(value) == 0 {
+		return nil
+	}
+	coverage := &routingv1.ProviderCoverage{
+		CanonicalVisibleMessages: coerceUint64(firstValue(value, "canonicalVisibleMessages", "canonical_visible_messages")),
+		CatalogDocuments:         coerceUint64(firstValue(value, "catalogDocuments", "catalog_documents")),
+		LexicalDocuments:         coerceUint64(firstValue(value, "lexicalDocuments", "lexical_documents")),
+		SemanticDocuments:        coerceUint64(firstValue(value, "semanticDocuments", "semantic_documents")),
+		PendingDocuments:         coerceUint64(firstValue(value, "pendingDocuments", "pending_documents")),
+		DeletedDocuments:         coerceUint64(firstValue(value, "deletedDocuments", "deleted_documents")),
+		LexicalRatio:             coerceNumber(firstValue(value, "lexicalRatio", "lexical_ratio")),
+		SemanticRatio:            coerceNumber(firstValue(value, "semanticRatio", "semantic_ratio")),
+		SourceCheckpoint:         coerceString(firstValue(value, "sourceCheckpoint", "source_checkpoint")),
+		OrphanDocuments:          coerceUint64(firstValue(value, "orphanDocuments", "orphan_documents")),
+		FreshnessLagMs:           coerceUint64(firstValue(value, "freshnessLagMs", "freshness_lag_ms")),
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, coerceString(firstValue(value, "lastReconciledAt", "last_reconciled_at"))); err == nil {
+		coverage.LastReconciledAt = timestamppb.New(parsed)
+	}
+	return coverage
+}
+
+func decodeDegradations(root map[string]any, path string) []*routingv1.ProviderDegradation {
+	values, ok := lookupPath(root, path).([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]*routingv1.ProviderDegradation, 0, len(values))
+	for _, value := range values {
+		entry, ok := value.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, &routingv1.ProviderDegradation{
+			Reason:    coerceString(entry["reason"]),
+			Leg:       coerceString(entry["leg"]),
+			Detail:    coerceString(entry["detail"]),
+			Retryable: coerceBool(entry["retryable"]),
+		})
+	}
+	return out
+}
+
+func firstValue(values map[string]any, keys ...string) any {
+	for _, key := range keys {
+		if value, ok := values[key]; ok {
+			return value
+		}
+	}
+	return nil
+}
+
+// decodeConfidence decodes either a structured confidence object or bare
+// weak/regime fields from a result item. It returns nil when no confidence
+// mapping is configured so providers without this capability remain compatible.
+func decodeConfidence(item map[string]any, confidencePath, weakPath, regimePath string) *commonv1.Confidence {
+	if confidencePath != "" {
+		if obj, ok := lookupPath(item, confidencePath).(map[string]any); ok && len(obj) > 0 {
+			return &commonv1.Confidence{
+				Weak:   coerceBool(obj["weak"]),
+				Regime: coerceString(obj["regime"]),
+			}
+		}
+	}
+	weakPath = strings.TrimSpace(weakPath)
+	regimePath = strings.TrimSpace(regimePath)
+	if weakPath == "" && regimePath == "" {
+		return nil
+	}
+	return &commonv1.Confidence{
+		Weak:   coerceBool(lookupPath(item, weakPath)),
+		Regime: coerceString(lookupPath(item, regimePath)),
+	}
+}
+
+// decodeMeasureHit decodes the per-item measure object at `path` into a
+// SearchHit.MeasureHit, following the fixed contract keys the measures provider
+// emits (measure_id, scenario, params, answer, needs, effect, executed_query,
+// confidence). It returns nil when `path` is empty (every non-measure provider)
+// or resolves to no object — so the field stays unset for retrieval hits. This
+// is the generic carrier: there is still zero provider-specific code here, the
+// descriptor's measure_field is the only switch.
+func decodeMeasureHit(item map[string]any, path string) *routingv1.MeasureHit {
+	if path == "" {
+		return nil
+	}
+	obj, ok := lookupPath(item, path).(map[string]any)
+	if !ok || len(obj) == 0 {
+		return nil
+	}
+	mh := &routingv1.MeasureHit{
+		MeasureId:     coerceString(obj["measure_id"]),
+		Scenario:      coerceString(obj["scenario"]),
+		Answer:        coerceString(obj["answer"]),
+		Effect:        coerceString(obj["effect"]),
+		ExecutedQuery: coerceString(obj["executed_query"]),
+		Confidence:    coerceNumber(obj["confidence"]),
+	}
+	if pm, ok := obj["params"].(map[string]any); ok && len(pm) > 0 {
+		mh.Params = make(map[string]string, len(pm))
+		for k, v := range pm {
+			mh.Params[k] = coerceString(v)
+		}
+	}
+	if needs, ok := obj["needs"].([]any); ok {
+		for _, n := range needs {
+			if s := coerceString(n); s != "" {
+				mh.Needs = append(mh.Needs, s)
+			}
+		}
+	}
+	return mh
+}
+
+// normalizeScore maps a provider's raw score onto the comparable [0,1] band per
+// its declared scale. COSINE values are clamped; PERCENT values are divided by
+// 100 then clamped; RAW/UNSPECIFIED values pass through unchanged (the router
+// cannot normalize an unbounded scale without provider-side min/max — rerank,
+// not this step, makes raw scores comparable).
+func normalizeScore(v float64, scale registryv1.ScoreScale) float64 {
+	switch scale {
+	case registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1:
+		return clamp01(v)
+	case registryv1.ScoreScale_SCORE_SCALE_PERCENT_0_100:
+		return clamp01(v / 100.0)
+	default:
+		return v
+	}
+}
+
+func clamp01(v float64) float64 {
+	switch {
+	case v < 0:
+		return 0
+	case v > 1:
+		return 1
+	default:
+		return v
+	}
+}
+
+// lookupPath descends a decoded JSON value along a dot-separated path
+// (e.g. "results", "payload.title", or "rankEvidence.0.score"). Numeric
+// segments index arrays. An empty path returns the node itself. A missing,
+// type-mismatched, or out-of-range intermediate yields nil.
+func lookupPath(node any, path string) any {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return node
+	}
+	cur := node
+	for _, seg := range strings.Split(path, ".") {
+		switch value := cur.(type) {
+		case map[string]any:
+			cur = value[seg]
+		case []any:
+			index, err := strconv.Atoi(seg)
+			if err != nil || index < 0 || index >= len(value) {
+				return nil
+			}
+			cur = value[index]
+		default:
+			return nil
+		}
+	}
+	return cur
+}
+
+// stringField extracts a string at the given dot path within one result item.
+// Non-string scalars are coerced to their natural string form so a numeric id
+// still renders; missing fields and empty paths yield "".
+func stringField(item map[string]any, path string) string {
+	if strings.TrimSpace(path) == "" {
+		return ""
+	}
+	return coerceString(lookupPath(item, path))
+}
+
+// coerceString renders a decoded JSON value as a string (string verbatim,
+// number/bool in natural form, nil as ""). Shared by the path-based field
+// extractor and the measure-object decoder.
+func coerceString(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(t)
+	case nil:
+		return ""
+	default:
+		return fmt.Sprintf("%v", t)
+	}
+}
+
+// coerceBool renders a decoded JSON value as a bool. Strings accept the same
+// values as strconv.ParseBool; missing or invalid values yield false.
+func coerceBool(v any) bool {
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		if b, err := strconv.ParseBool(t); err == nil {
+			return b
+		}
+	}
+	return false
+}
+
+// coerceNumber renders a decoded JSON value as a float (number verbatim, numeric
+// string parsed; otherwise 0). Shared by numberField and the measure decoder.
+func coerceNumber(v any) float64 {
+	switch t := v.(type) {
+	case float64:
+		return t
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f
+		}
+	}
+	return 0
+}
+
+func coerceUint64(v any) uint64 {
+	switch t := v.(type) {
+	case float64:
+		if t >= 0 {
+			return uint64(t)
+		}
+	case string:
+		if n, err := strconv.ParseUint(t, 10, 64); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
+// isPresent reports whether a JSON value (from lookupPath) counts as "present"
+// for a presence_field filter: a non-nil value that isn't an empty
+// string/object/array. A populated nested object (e.g. ui-health's `widget`
+// WidgetDeclaration) is present; an omitted field (nil) or an empty container
+// is not. Scalar non-strings (numbers, bools) are always present.
+func isPresent(v any) bool {
+	switch t := v.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(t) != ""
+	case map[string]any:
+		return len(t) > 0
+	case []any:
+		return len(t) > 0
+	default:
+		return true
+	}
+}
+
+// numberField extracts a numeric score at the given dot path. JSON numbers
+// decode to float64; a numeric string is parsed as a fallback. Missing or
+// non-numeric fields yield 0.
+func numberField(item map[string]any, path string) float64 {
+	if strings.TrimSpace(path) == "" {
+		return 0
+	}
+	return coerceNumber(lookupPath(item, path))
+}
+
+// stringSliceField extracts a repeated string field at the given dot path.
+// Non-string scalars inside the array are coerced the same way stringField does.
+func stringSliceField(item map[string]any, path string) []string {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	raw, ok := lookupPath(item, path).([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if s := strings.TrimSpace(coerceString(v)); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}

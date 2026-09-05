@@ -1,0 +1,179 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Open",
+        "path": "open"
+      },
+      {
+        "default": "Archive component",
+        "kind": "text",
+        "label": "Title",
+        "path": "title"
+      },
+      {
+        "default": "This keeps prior versions available for audit.",
+        "kind": "text",
+        "label": "Description",
+        "path": "description"
+      },
+      {
+        "default": "Archive Button v1.0.0?",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
+      },
+      {
+        "default": "Content",
+        "kind": "structured",
+        "label": "Footer",
+        "path": "footer"
+      },
+      {
+        "default": null,
+        "kind": "structured",
+        "label": "On Close",
+        "path": "onClose"
+      },
+      {
+        "default": "Close dialog",
+        "kind": "text",
+        "label": "Close Label",
+        "path": "closeLabel"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Archive Button v1.0.0?",
+        "closeLabel": "Close dialog",
+        "description": "This keeps prior versions available for audit.",
+        "open": false,
+        "title": "Archive component"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ConfirmOpen"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Archive component",
+          "role": "dialog"
+        },
+        {
+          "kind": "text",
+          "value": "Archive Button v1.0.0?"
+        }
+      ],
+      "id": "confirm-open",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Open dialog",
+            "role": "button"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Confirm Open",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Used by 14 scenarios",
+        "closeLabel": "Close details",
+        "open": true,
+        "title": "Component details"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "DetailsOpen"
+        }
+      },
+      "expect": [
+        {
+          "kind": "notVisible",
+          "name": "Component details",
+          "role": "dialog"
+        }
+      ],
+      "id": "details-open",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Open dialog",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "click",
+          "target": {
+            "name": "Close details",
+            "role": "button"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Details Open",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Short confirmation copy",
+        "closeLabel": "Close",
+        "open": true,
+        "title": "Minimal dialog"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "MinimalOpen"
+        }
+      },
+      "expect": [
+        {
+          "kind": "notVisible",
+          "name": "Minimal dialog",
+          "role": "dialog"
+        }
+      ],
+      "id": "minimal-open",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Open dialog",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "key",
+          "target": {
+            "name": "Minimal dialog",
+            "role": "dialog"
+          },
+          "text": "Escape"
+        }
+      ],
+      "mode": "live",
+      "name": "Minimal Open",
+      "role": "boundary"
+    }
+  ],
+  "title": "Dialog"
+}

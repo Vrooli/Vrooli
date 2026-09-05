@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.lightbox",
+    "name": "Lightbox",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The immersive media overlay with shared-element entry, keyboard and gesture navigation, zoom, metadata, progressive loading, and focus restoration to the originating thumbnail.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.dialog",
+        "reason": "Modal lifecycle and focus handling are shared."
+      },
+      {
+        "asset": "motion.shared-element-transition",
+        "reason": "Entry carries the thumbnail into the full view so the object keeps its identity."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "media.image-viewer",
+        "reason": "Zoom and pan behavior is needed only for inspectable imagery, not for simple galleries."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "gesture-alternative",
+    "viewport-fill"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

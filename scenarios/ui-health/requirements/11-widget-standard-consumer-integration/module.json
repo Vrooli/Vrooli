@@ -1,0 +1,65 @@
+{
+  "description": "Agent-inbox unified retrieval (or successor) consumes `WidgetDeclaration` to render component widgets inline. ui-health remains contract + index only; runtime ownership lives downstream.",
+  "module_id": "MOD-P2-011",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P1-004",
+        "REQ-P0-004"
+      ],
+      "description": "The agent-inbox unified retrieval system (or successor) must be able to consume `WidgetDeclaration` proto messages from the ui-health index to render component widgets inline. ui-health's responsibility is limited to defining the contract and maintaining the index; runtime rendering ownership lives in the downstream consumer. This requirement documents the interface contract that agent-inbox must honor when implementing consumption.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "WidgetDeclaration Consumer Integration Contract",
+      "validation": [
+        {
+          "notes": "WidgetDeclaration proto messages stored in the ui-health index are queryable by widget metadata fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health exposes no runtime rendering code; all widget rendering logic resides in the consuming system",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Agent-inbox (or mock consumer) can retrieve WidgetDeclaration records from the ui-health index via the defined query interface",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A WidgetDeclaration record round-trips from ui-health index to consumer without field loss",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The separation of concerns is documented: ui-health owns contract + index, agent-inbox owns runtime widget rendering",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Future framework widget integrations require only a new `@vrooliWidget` annotation and reindex; no ui-health code changes are needed",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Widget standard consumer integration"
+}

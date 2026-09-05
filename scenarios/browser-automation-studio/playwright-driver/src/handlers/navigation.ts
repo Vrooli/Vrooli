@@ -3,6 +3,9 @@ import type { HandlerInstruction } from '../types';
 import { getNavigateParams } from '../types';
 import { normalizeError } from '../utils';
 import { resolveTimeoutFromContext } from './behavior-utils';
+import type { AppTargetSpec } from '../types/session';
+import path from 'node:path';
+import { applyInteractionState } from '../session/interaction-state';
 
 // =============================================================================
 // URL VALIDATION - Decision Boundary for Navigation Security
@@ -59,7 +62,10 @@ export interface UrlValidationResult {
  * @param url - The URL to validate
  * @returns Validation result with normalized URL if valid
  */
-export function validateNavigationUrl(url: string): UrlValidationResult {
+export function validateNavigationUrl(
+  url: string,
+  electronTarget?: AppTargetSpec
+): UrlValidationResult {
   // CHECK 1: Empty URL
   const trimmedUrl = url.trim();
   if (!trimmedUrl) {
@@ -80,7 +86,9 @@ export function validateNavigationUrl(url: string): UrlValidationResult {
     const parsed = new URL(trimmedUrl);
 
     // Protocol allowlist check
-    if (!ALLOWED_PROTOCOLS.includes(parsed.protocol)) {
+    const admittedFileRenderer =
+      parsed.protocol === 'file:' && isAdmittedFileRenderer(parsed.href, electronTarget);
+    if (!ALLOWED_PROTOCOLS.includes(parsed.protocol) && !admittedFileRenderer) {
       return {
         valid: false,
         error: `Disallowed URL protocol: ${parsed.protocol}. Allowed: ${ALLOWED_PROTOCOLS.join(', ')}`,
@@ -111,6 +119,21 @@ export function validateNavigationUrl(url: string): UrlValidationResult {
   return { valid: true, normalized: trimmedUrl };
 }
 
+function isAdmittedFileRenderer(url: string, target?: AppTargetSpec): boolean {
+  if (!target || !target.renderer_url.startsWith('file:')) return false;
+  try {
+    const admitted = new URL(target.renderer_url);
+    const requested = new URL(url);
+    if (admitted.protocol !== 'file:' || requested.protocol !== 'file:') return false;
+    const directory = path.posix.dirname(admitted.pathname);
+    return (
+      requested.pathname === admitted.pathname || requested.pathname.startsWith(`${directory}/`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 // =============================================================================
 // NAVIGATION HANDLER
 // =============================================================================
@@ -125,10 +148,7 @@ export class NavigationHandler extends BaseHandler {
     return ['navigate'];
   }
 
-  async execute(
-    instruction: HandlerInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult> {
+  async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
     const { page, logger } = context;
 
     try {
@@ -151,7 +171,7 @@ export class NavigationHandler extends BaseHandler {
       }
 
       // Validate URL format and protocol
-      const urlValidation = validateNavigationUrl(url);
+      const urlValidation = validateNavigationUrl(url, context.electronTarget);
       if (!urlValidation.valid) {
         logger.warn('instruction: navigate rejected - invalid URL', {
           url,
@@ -171,8 +191,16 @@ export class NavigationHandler extends BaseHandler {
       const normalizedUrl = urlValidation.normalized || url;
       // DECISION: Use 'navigation' category - networks can be slow, need longer timeout
       const timeout = resolveTimeoutFromContext(params.timeoutMs, context, 'navigation');
-      // DECISION: Use 'domcontentloaded' as default - 'networkidle' times out on ad-heavy sites
-      const waitUntil = (params.waitUntil || 'domcontentloaded') as 'load' | 'domcontentloaded' | 'networkidle' | 'commit';
+      // Navigation establishes a document boundary only. Readiness is a
+      // separate post-navigation operation so caller waits cannot be confused
+      // with page.goto's timeout.
+      const requestedWaitUntil = params.waitUntil as
+        | 'load'
+        | 'domcontentloaded'
+        | 'networkidle'
+        | 'commit'
+        | undefined;
+      const waitUntil = 'domcontentloaded' as const;
 
       logger.debug('instruction: navigate starting', {
         targetUrl: normalizedUrl,
@@ -185,6 +213,18 @@ export class NavigationHandler extends BaseHandler {
         timeout,
         waitUntil,
       });
+
+      if (requestedWaitUntil === 'load' || requestedWaitUntil === 'networkidle') {
+        await page.waitForLoadState(requestedWaitUntil, { timeout });
+      }
+
+      if (params.waitForSelector) {
+        await page.waitForSelector(params.waitForSelector, { timeout, state: 'visible' });
+      }
+
+      if (context.interactionState && context.interactionState !== 'rest') {
+        await applyInteractionState(page, context.interactionState, timeout);
+      }
 
       const finalUrl = page.url();
 
@@ -214,7 +254,7 @@ export class NavigationHandler extends BaseHandler {
     } catch (error) {
       const driverError = normalizeError(error);
       logger.warn('instruction: navigate failed', {
-        targetUrl: instruction.params.url,
+        targetUrl: getNavigateParams(instruction.action)?.url,
         errorCode: driverError.code,
         errorMessage: driverError.message,
         retryable: driverError.retryable,

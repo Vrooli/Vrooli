@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.icon-registry",
+  "deprecatedVersions": [],
+  "draft": "",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:IconRegistry"
+}

@@ -20,7 +20,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
   const showTabs = currentView && onNavigate && currentView !== "wizard";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-full bg-slate-950 text-slate-50">
       {/* Header */}
       <header className="border-b border-white/10 bg-slate-900/50 backdrop-blur-lg sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,6 +41,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
               <nav className="flex items-center gap-1">
                 <button
                   onClick={() => onNavigate("dashboard")}
+                  aria-label="Dashboard"
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     currentView === "dashboard"
@@ -53,6 +54,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                 </button>
                 <button
                   onClick={() => onNavigate("deployments")}
+                  aria-label="Deployments"
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     currentView === "deployments"
@@ -65,6 +67,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
                 </button>
                 <button
                   onClick={() => onNavigate("docs")}
+                  aria-label="Documentation"
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                     currentView === "docs"

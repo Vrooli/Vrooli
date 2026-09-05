@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "routes": ["/"],
+    "purpose": "Give the operator the first useful view of Content Desk and make the primary next action clear.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The draft queue, evidence inspector, review history, and approval controls are available."
+    },
+    {
+      "id": "evidence-blocked",
+      "description": "A selected draft has cited claims that still need verification or a passing review."
+    },
+    {
+      "id": "approval-ready",
+      "description": "The selected draft has cleared evidence and review checks and awaits an operator decision."
+    }
+  ]
+}

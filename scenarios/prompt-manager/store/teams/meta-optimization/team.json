@@ -3,22 +3,38 @@
   "schemaVersion": 1,
   "id": "meta-optimization",
   "displayName": "Meta Optimization Team",
-  "mission": "Ensure the health of Vrooli's development capability chain and optimize skills, agents, and teams for maximum compound impact.",
-  "enabled": false,
+  "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer — toolchain, skills, agents, teams, and recent agent runs — so the system gets measurably sharper, cheaper, and more programmatic over time.",
+  "objectivesServed": [
+    {
+      "id": "I2",
+      "acknowledgedRevision": "5de27857cc63"
+    }
+  ],
+  "instrument": {
+    "status": "live",
+    "scenario": "meta-optimization-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "search-hub",
+      "test-genie",
+      "prompt-manager",
+      "program-runtime",
+      "agent-manager"
+    ]
+  },
+  "enabled": true,
   "runtime": {
     "mode": "multi-process"
   },
   "coordination": {
-    "pattern": "leader-led",
-    "leadAgentId": "meta-lead",
-    "reportingMode": "leader",
-    "messagingMode": "async-inbox",
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
     "capabilities": {
-      "showOrgContext": true,
-      "injectInbox": true,
+      "showOrgContext": false,
+      "injectInbox": false,
       "allowPeerTriggers": false,
-      "showTaskBoardGuidance": true,
-      "showDecisionLogGuidance": true,
+      "showTaskBoardGuidance": false,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -27,12 +43,610 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 2,
+  "revision": 6,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-03-11T00:00:00Z"
+  "updatedAt": "2026-05-03T00:00:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "friction-inbox/<scope>/<slug>",
+      "status": "live",
+      "purpose": "Universal-source friction intake written by any team through the report-friction skill and drained by friction-curator."
+    },
+    {
+      "prefix": "friction-triage-record/<YYYY-MM-DD>",
+      "status": "live",
+      "purpose": "Daily snapshot of friction-inbox throughput, routing, dropped/reclassified entries, overflow, and by-scope counts."
+    },
+    {
+      "prefix": "friction-report/toolchain/<YYYY-MM-DD>/<slug>",
+      "status": "live",
+      "purpose": "Routed friction showing toolchain, CLI, Action, or manual-fallback pain that should feed toolchain validation."
+    },
+    {
+      "prefix": "friction-report/run-execution/<YYYY-MM-DD>/<slug>",
+      "status": "live",
+      "purpose": "Routed friction from agent run execution: retries, slowness, brittle sequences, missing observability, or repeated run failures."
+    },
+    {
+      "prefix": "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>",
+      "status": "live",
+      "purpose": "Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure."
+    },
+    {
+      "prefix": "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>",
+      "status": "live",
+      "purpose": "Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement."
+    },
+    {
+      "prefix": "toolchain-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities."
+    },
+    {
+      "prefix": "self-health/test-genie/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`."
+    },
+    {
+      "prefix": "run-lesson-report/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions."
+    },
+    {
+      "prefix": "team-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture."
+    },
+    {
+      "prefix": "agent-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift."
+    },
+    {
+      "prefix": "framework-health-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value."
+    },
+    {
+      "prefix": "team-visited/<team-id>",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same team before the rotation completes."
+    },
+    {
+      "prefix": "agent-visited/<agent-id>",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same agent before the rotation completes."
+    },
+    {
+      "prefix": "skill-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of skill drift, usage, promotion-ladder readiness, and improvement/deprecation candidates."
+    },
+    {
+      "prefix": "skill-visited/<skill-id>",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes."
+    },
+    {
+      "prefix": "action-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities."
+    },
+    {
+      "prefix": "action-visited/<action-id>",
+      "status": "live",
+      "purpose": "Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes."
+    },
+    {
+      "prefix": "skill-experiment/<skill-id>/<experiment-id>",
+      "status": "live",
+      "purpose": "Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence."
+    },
+    {
+      "prefix": "debt-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement."
+    }
+  ],
+  "operatingContract": {
+    "schemaVersion": 1,
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "agent-system-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/agent-system/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/"
+            }
+          ],
+          "posture": "canon",
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "promotionContext": "meta-self-improvement",
+          "consumers": [
+            "meta-optimization",
+            "marketing-crew",
+            "monetization",
+            "director-swarm",
+            "infra-health",
+            "scenario-qa"
+          ],
+          "rationale": "Canonical home for the prompt-manager self-improvement framework: definitions, layer model, promotion ladder, intake pipeline, skill authoring rules, deprecation policy, reference scenarios, the operating-model contract, the three topic-validation pillars, framework-health targets, and the template-convergence loop. Every team's audit and skill work cites this hub. Declared as a root (trailing slash), not a file list: every .md under the folder counts toward orientation cost, so a canon file added here is charged the moment it lands and no second list can drift out of sync. Generated projections count too — a folder is charged for what it contains, so put generated bulk where it belongs rather than in canon.",
+          "useFor": "framework canon — definitions of skill/agent/team/PoR/Action/CLI, the layering rule, the promotion ladder, the 10-layer team-member architecture, the intake-collection-analysis-promotion pipeline, the operating-graph contract, topics.json / prose-scan / runtime-attribution validation, and the template-convergence loop"
+        },
+        {
+          "id": "meta-optimization-operating-model",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/meta-optimization/operating/OPERATING_MODEL.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/operating/OPERATING_MODEL.md"
+            }
+          ],
+          "posture": "canon",
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "promotionContext": "meta-self-improvement",
+          "consumers": [
+            "meta-optimization",
+            "marketing-crew",
+            "monetization",
+            "director-swarm",
+            "infra-health",
+            "scenario-qa"
+          ],
+          "rationale": "Team-level operating contract for the meta-optimization team: operating graph, topic catalog, work item catalog, external inputs, downstream outputs, and recursive improvement loop.",
+          "useFor": "meta-optimization team architecture, topic-flow validation, work item-surface validation target, and heartbeat prompt contract"
+        },
+        {
+          "id": "meta-optimization-friction-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/meta-optimization/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/meta-optimization/taxonomies/friction-report/README.md"
+            }
+          ],
+          "posture": "canon",
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "promotionContext": "meta-self-improvement",
+          "consumers": [
+            "meta-optimization",
+            "marketing-crew",
+            "monetization",
+            "director-swarm",
+            "infra-health",
+            "scenario-qa"
+          ],
+          "rationale": "Strategic canon for cross-team friction observation: the friction-report taxonomy (scopes, severities, schemas, action-selection, what-is-NOT-friction guard) and the team-level overview of the universal-source friction-inbox flow. Cited by friction-curator/topics.json (intake taxonomy) and report-friction skill (required reading).",
+          "useFor": "friction-report taxonomy, friction routing rules, cross-team flow diagram, the second instance of the universal observation flow primitive (mirror of bug-inbox)"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "agent-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "AGENT_AUDIT.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "deprecation-queue-md",
+          "path": {
+            "base": "team-shared",
+            "path": "DEPRECATION_QUEUE.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "action-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "ACTION_AUDIT.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "action-conversion-queue-md",
+          "path": {
+            "base": "team-shared",
+            "path": "ACTION_CONVERSION_QUEUE.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "run-lessons-md",
+          "path": {
+            "base": "team-shared",
+            "path": "RUN_LESSONS.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "skill-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "SKILL_AUDIT.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        },
+        {
+          "id": "team-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM_AUDIT.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "toolchain-audit-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TOOLCHAIN_AUDIT.md"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "skill-audit/YYYY-MM-DD": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "skill-visited/<skill-id>": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "action-audit/YYYY-MM-DD": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "action-visited/<action-id>": {
+        "ownerMemberId": "skill-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "team-audit/YYYY-MM-DD": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "agent-audit/YYYY-MM-DD": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "team-visited/<team-id>": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "agent-visited/<agent-id>": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": true,
+        "retention": "visited-tracker"
+      },
+      "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "team-agent-optimizer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "run-lesson-report/YYYY-MM-DD": {
+        "ownerMemberId": "run-introspector",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "friction-report/run-execution/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "run-introspector",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "toolchain-audit/YYYY-MM-DD": {
+        "ownerMemberId": "toolchain-validator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "self-health/test-genie/YYYY-MM-DD": {
+        "ownerMemberId": "toolchain-validator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "friction-report/toolchain/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "toolchain-validator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "debt-scan/YYYY-MM-DD": {
+        "ownerMemberId": "debt-curator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>": {
+        "ownerMemberId": "debt-curator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "friction-inbox/<scope>/<slug>": {
+        "ownerMemberId": "friction-curator",
+        "supersedesPrevious": false,
+        "retention": "drained-on-close",
+        "comment": "Universal-source intake (source_team: \"*\") — any team's members may write via the report-friction skill. The friction-curator drains, classifies the scope, and routes to friction-report/<scope>/<date>/<slug> on the owning sub-member's behalf."
+      },
+      "friction-triage-record/<YYYY-MM-DD>": {
+        "ownerMemberId": "friction-curator",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "Daily snapshot of friction-inbox throughput: counts received/routed/dropped/reclassified/handoffs, by-scope and by-reporter-team breakdown, overflow flag. supersedesPrevious=true within a day; each heartbeat overwrites the day's snapshot."
+      }
+    },
+    "members": {
+      "toolchain-validator": {
+        "lane": "Validate whether agents are using programmatic toolchains instead of manual fallback work.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "skill-optimizer": {
+        "lane": "Convert repeated lessons into skill improvements, Action candidates, Action improvements, or deprecations.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "actionProposalRequirements": [
+            "exact Vrooli-controlled CLI command",
+            "owner type and id",
+            "input/output contract summary",
+            "permission declarations",
+            "validation result or blocked reason",
+            "runEligible recommendation",
+            "baseline token/manual-work cost",
+            "expected delta and measurement plan"
+          ],
+          "actionDiscoveryCommands": [
+            "prompt-manager discover \"<what you need>\" --type all",
+            "prompt-manager action show <action-id>",
+            "prompt-manager action validate <action-id>",
+            "prompt-manager action run <action-id> --dry-run"
+          ]
+        }
+      },
+      "team-agent-optimizer": {
+        "lane": "Improve or retire agent and team structures based on observed performance, including capability architecture gaps across identity, ownership, docs, skills, intake, collection, analysis, promotion, and feedback loops.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "run-introspector": {
+        "lane": "Extract durable lessons from recent agent runs, including repeated deterministic operations that should use or become Actions.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "actionOpportunitySignals": [
+            "run repeats a deterministic manual CLI sequence",
+            "run searches prose for a command that an Action could expose",
+            "run uses an existing CLI operation that is not discoverable as an Action",
+            "run fails because a missing CLI forces manual fallback"
+          ],
+          "actionOpportunityDisposition": [
+            "existing-action-usage",
+            "new-action-candidate",
+            "cli-backlog",
+            "capability work item",
+            "no-action"
+          ]
+        }
+      },
+      "meta-contrarian": {
+        "lane": "Challenge stale, weak, or excessive open work items. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "actionReviewFailureModes": [
+            "unsafe command boundary",
+            "missing CLI ownership",
+            "premature Action before CLI exists",
+            "Action without baseline or measurement",
+            "Action sprawl when an existing Action could be improved",
+            "proposal-only member implemented permanent structure directly"
+          ]
+        }
+      },
+      "debt-curator": {
+        "lane": "Promote or retire mature meta-optimization synthesis from typed evidence topics. Propose updates to `docs/agent-system/` canon when patterns stabilize. Never edits canon directly.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/agent-system/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/skills/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/agents/"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/prompt-manager/store/teams/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Propose only. Never implement.",
+          "Do not synthesize other members' proposals into strategy.",
+          "Route accepted implementation to the owning lane."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "promotabilityCriteria": [
+            "repeated >=3 separate entries",
+            "stabilized >=7 heartbeats without revision or contradiction",
+            "permanent solution now possible"
+          ],
+          "promotionDirections": [
+            "plan-of-record",
+            "skill",
+            "action",
+            "cli-backlog",
+            "team-structure-change",
+            "capability work item",
+            "retirement"
+          ],
+          "maxCandidatesSelected": 1
+        }
+      },
+      "friction-curator": {
+        "lane": "Drain friction-inbox/* (universal-source — any team's members may file via report-friction). Classify scope, route by writing to the appropriate friction-report/<scope>/<date>/<slug> topic on the owning sub-member's behalf, or handoff to debt-curator when classification fails. Maintain daily friction-triage-record/<YYYY-MM-DD> snapshot. Router, not analyst.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [
+          "Never originate friction-report/<scope>/* content from your own observations; writes to those topics are only valid when delivering a routed friction-inbox entry.",
+          "Never silently delete a friction-inbox entry; every drained entry leaves a record in friction-triage-record/<YYYY-MM-DD> (routed, dropped, reclassified, or handed off).",
+          "Reclassify unknown-scope entries before routing; if reclassification fails after one heartbeat, handoff to debt-curator — never direct-edit friction-report/recurring-workaround/* from unknown.",
+          "Cap daily inbox drain at dailyInboxDrainCap; above that, emit inbox-overflow triage entry, handoff to debt-curator, and pause further routing this heartbeat."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "dailyInboxDrainCap": 25,
+          "newRoutingsPerHeartbeat": 5,
+          "scopes": [
+            "toolchain",
+            "run-execution",
+            "prompt-team-agent-storage",
+            "recurring-workaround",
+            "unknown"
+          ],
+          "severities": [
+            "blocking",
+            "recurring",
+            "one-off"
+          ],
+          "actionSelection": [
+            "route",
+            "drop",
+            "reclassify",
+            "handoff-debt-curator",
+            "overflow-flag"
+          ]
+        }
+      }
+    }
+  },
+  "attributionValidFrom": "2026-05-04"
 }

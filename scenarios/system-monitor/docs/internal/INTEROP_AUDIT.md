@@ -1,6 +1,6 @@
 # Interoperability Audit: system-monitor
 
-**Date**: 2026-02-17 (updated 2026-02-17, scripts steer)
+**Date**: 2026-02-17 (updated 2026-06-25, bright-window closure)
 **Scenario**: system-monitor
 **Dependencies**: agent-manager (required)
 
@@ -9,11 +9,66 @@
 | Path | Protocol | Status |
 |------|----------|--------|
 | API → agent-manager | HTTP + protojson | Good |
-| UI → API | HTTP + JSON | Hardened (this audit) |
+| UI → API | Connect JSON for proto-owned calls + REST exceptions | Good |
+| CLI → API | Generated Connect clients + manifest bindings | Good |
+| API public contract | Generated Connect handlers on `http.ServeMux` + explicit REST exceptions | Good |
 
 ## Findings
 
+### Bright-window final route/proto state (2026-06-25)
+
+The proto layer is authored and generated for 8 services, and every proto-owned
+domain is mounted through generated Connect handlers:
+
+- `HealthService`
+- `MetricsService`
+- `ReportsService`
+- `SettingsService`
+- `CapacityService`
+- `MaintenanceService`
+- `InvestigationsService`
+- `ScriptsService`
+
+The API router now uses the standard library `http.ServeMux`; gorilla/mux is no
+longer a dependency. Manual REST routes for proto-owned metrics, reports,
+settings, capacity, maintenance, investigations, and scripts were removed. A
+live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics` succeeds.
+
+#### Resolved in bright-window
+
+- **Metrics process timeline was code-ahead-of-proto**: `GetProcessTimeline`
+  was added to `MetricsService`, generated, implemented, mounted, bound in the
+  CLI manifest, and migrated to the generated CLI client.
+- **Cooldown mutations and agent stop were route-ahead-of-proto**:
+  `ResetCooldown`, `UpdateCooldownPeriod`, and `StopAgent` now have explicit
+  `InvestigationsService` RPCs.
+- **CLI raw calls were removed**: `metrics`, `reports`, `settings`, `capacity`,
+  `maintenance`, `investigations`, and `overview` use generated Connect clients.
+- **UI proto-owned calls no longer rely on legacy REST routes**:
+  `protoFetch()` maps existing hook paths to Connect JSON procedure paths while
+  preserving raw REST exceptions for logs/forensics/tools.
+
+#### Remaining intentional REST exceptions
+
+| Surface | Runtime path | Reason |
+|---|---|---|
+| Health probes | `/health`, `/api/v1/health` | Ops/lifecycle probes should remain simple HTTP GETs. |
+| Development profiling | `/debug/pprof/*` | Dev-only diagnostics, disabled in production. |
+| Forensics | `/api/v1/forensics/*` | Raw host diagnostics, not a typed scenario-domain contract. |
+| Logs | `/api/v1/logs*` | Raw log browsing/stream-like shapes, not covered by current proto services. |
+
+#### Remaining non-blocking drift
+
+| Drift | Current state | Decision |
+|---|---|---|
+| Process kill | UI references `POST /processes/{pid}/kill`, but no API route exists. | Keep as follow-up safety design work. |
+
 ### Resolved
+
+#### F0: Disk detail Connect method implemented (LOW)
+- **Handler** (`api/internal/handlers/metrics.go`): `MetricsService.GetDiskDetail` now returns read-only partition/detail data.
+- **Boundary**: Response notes point remediation to storage-manager plan/apply; system-monitor still observes only and does not mutate disk state.
 
 #### F1: Hardcoded `localhost:port` in investigation prompt and handler response (HIGH)
 - **Handler** (`api/internal/handlers/investigations.go`): `resolveAPIBaseURL()` derives URL from forwarded headers (resolved 2026-02-17).
@@ -43,8 +98,6 @@
 - **Files fixed**:
   - `services/investigation.go`: `"pending"` → `models.StatusQueued` (bug fix)
   - `services/report.go`: `"completed"` → `models.StatusCompleted`
-  - `toolexecution/executor.go`: `"stopped"` → `models.StatusStopped`
-  - `toolregistry/investigation_tools.go`: 3 literal arrays → `models.Status*` constants
 
 #### F8: Go handlers use encoding/json, not protojson (HIGH → RESOLVED)
 - All handler files used `respondWithJSON`/`respondWithError` (defined in `health.go`) or raw `json.NewEncoder(w).Encode()` and `http.Error()`.
@@ -124,7 +177,7 @@
 - **useInvestigationAgents.ts**: 4 raw `fetch()` calls replaced:
   - `GET /investigations/agent/current` → `protoFetch` + `parseInvestigation`
   - `POST /investigations/agent/spawn` → `protoFetch` + `parseTriggerInvestigationResponse`
-  - `POST /investigations/agent/{id}/stop` → `apiFetch`
+  - `POST /investigations/agent/{id}/stop` → `protoFetch` + `InvestigationsService.StopAgent`
   - `GET /investigations/agent/{id}/status` → `protoFetch` + `parseInvestigation`
 - **Fragile multi-shape response parsing eliminated**: `extractAgents()` tried 4+ response shapes (array, `{agents:[]}`, `{agent:{}}`, bare object with `id`/`investigation_id`). Replaced with direct `protoFetch` + `protoToAgentState()` — single code path, proto-validated.
 - **AutomaticTriggersSection.tsx**: 5 raw `fetch()` calls replaced with `apiFetch`:
@@ -154,7 +207,7 @@
   - `UpdateTrigger` → `UpdateTriggerRequest`
   - `ExecuteScript` → `ExecuteScriptRequest`
   - `GenerateReport` → `GenerateReportRequest`
-- Handlers without matching proto types kept as-is: `UpdateCooldownPeriod`, `UpdateTriggerThreshold`, `UpdateAgentConfig`.
+- Handlers without matching proto types kept as-is: `UpdateCooldownPeriod`, `UpdateTriggerThreshold`.
 
 #### F22: Response envelope inconsistency — map[string]string instead of proto types (MEDIUM → RESOLVED)
 - Replaced `httputil.JSON(w, map[string]string{"status": "..."})` with proto response types:
@@ -163,7 +216,7 @@
   - `UpdateInvestigationProgress` → `UpdateInvestigationProgressResponse`
   - `AddInvestigationStep` → `AddInvestigationStepResponse`
   - `UpdateTrigger` → `UpdateTriggerResponse`
-- Endpoints without proto response types kept as-is: `ResetCooldown`, `UpdateCooldownPeriod`, `UpdateTriggerThreshold`, `StopAgent`.
+- Endpoints without proto response types kept as-is: `UpdateTriggerThreshold`.
 
 #### F23: UI scripts hooks use apiFetch with unsafe casts instead of protoFetch (MEDIUM → RESOLVED)
 - `InvestigationScriptsPage.tsx`: `apiFetch<{ scripts?: InvestigationScript[] }>` replaced with `protoFetch + parseListScriptsResponse`. Script content fetch replaced with `protoFetch + parseGetScriptResponse`.
@@ -176,7 +229,7 @@
 ### Documented (no code change)
 
 #### F5: Resource URLs use hardcoded localhost defaults (LOW)
-- `api/internal/config/config.go:141-146` — resource URLs (Postgres, Redis, QuestDB) default to `localhost:<port>`.
+- `api/internal/config/config.go:141-146` — resource URLs (Postgres and Redis) default to `localhost:<port>`.
 - These are **resources** (not scenarios), so discovery doesn't apply. Defaults are correct for local dev; production overrides via env vars.
 
 #### F6: Health endpoint self-reference uses hardcoded localhost (LOW)

@@ -4,8 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+	"sort"
 	"strings"
+	"time"
 
+	"agent-manager/cli/internal/support"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
 
@@ -13,13 +18,12 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-// =============================================================================
-// Run Command Dispatcher
-// =============================================================================
-
 func (a *App) cmdRun(args []string) error {
 	if len(args) == 0 {
-		return a.runHelp()
+		return nil
+	}
+	if err := rejectRunIdentityLifecycleCommand(args[0]); err != nil {
+		return err
 	}
 
 	switch args[0] {
@@ -27,6 +31,68 @@ func (a *App) cmdRun(args []string) error {
 		return a.runList(args[1:])
 	case "get":
 		return a.runGet(args[1:])
+	case "report":
+		return a.runReport(args[1:])
+	case "attach":
+		return a.runAttach(args[1:])
+	case "detach":
+		return a.runDetach(args[1:])
+	case "recent":
+		return a.runRecent(args[1:])
+	case "cohort-report":
+		return a.runCohortReport(args[1:])
+	case "goal-cohort":
+		return a.runGoalCohort(args[1:])
+	case "cohort-compare":
+		return a.runCohortCompare(args[1:])
+	case "invocation-facts":
+		return a.runInvocationFacts(args[1:])
+	case "episodes":
+		return a.runEpisodes(args[1:])
+	case "messages-friction":
+		return a.runMessageFriction(args[1:])
+	case "episode-cohort":
+		return a.runEpisodeCohort(args[1:])
+	case "episode-trend":
+		return a.runEpisodeTrend(args[1:])
+	case "publish-recurring-friction":
+		return a.runPublishRecurringFriction(args[1:])
+	case "ledger":
+		return a.runLedger(args[1:])
+	case "import-transcript":
+		return a.runImportTranscript(args[1:])
+	case "import-session-corpus":
+		return a.runImportSessionCorpus(args[1:])
+	case "import-sweep":
+		return a.runImportSweep(args[1:])
+	case "backfill-labels":
+		return a.runBackfillLabels(args[1:])
+	case "backfill-subjects":
+		return a.runBackfillSubjects(args[1:])
+	case "mine-self-report-vocabulary":
+		return a.runMineSelfReportVocabulary(args[1:])
+	case "replay-invocation-facts":
+		return a.runReplayInvocationFacts(args[1:])
+	case "refresh-invocation-facts":
+		return a.runRefreshInvocationFacts(args[1:])
+	case "replay-invocation-corpus":
+		return a.runReplayInvocationCorpus(args[1:])
+	case "invocation-aggregate":
+		return a.runAggregateInvocationFacts(args[1:])
+	case "invocation-cohort":
+		return a.runSelectInvocationCohort(args[1:])
+	case "invocation-metrics":
+		return a.runInvocationMetrics(args[1:])
+	case "stats":
+		return a.runStats(args[1:])
+	case "result":
+		return a.runResult(args[1:])
+	case "tools":
+		return a.runTools(args[1:])
+	case "messages":
+		return a.runMessages(args[1:])
+	case "receipts":
+		return a.runReceipts(args[1:])
 	case "get-by-tag":
 		return a.runGetByTag(args[1:])
 	case "create":
@@ -39,18 +105,24 @@ func (a *App) cmdRun(args []string) error {
 		return a.runStopByTag(args[1:])
 	case "stop-all":
 		return a.runStopAll(args[1:])
+	case "quiesce":
+		return a.runQuiesce(args[1:])
 	case "continue":
 		return a.runContinue(args[1:])
+	case "park":
+		return a.runPark(args[1:])
+	case "wake":
+		return a.runWake(args[1:])
+	case "await-result":
+		return a.runAwaitResult(args[1:])
+	case "recover":
+		return a.runRecover(args[1:])
 	case "investigate":
 		return a.runInvestigate(args[1:])
 	case "apply-investigation":
 		return a.runApplyInvestigation(args[1:])
 	case "sandbox-sync":
 		return a.runSandboxSync(args[1:])
-	case "extract-recommendations":
-		return a.runExtractRecommendations(args[1:])
-	case "regenerate-recommendations":
-		return a.runRegenerateRecommendations(args[1:])
 	case "approve":
 		return a.runApprove(args[1:])
 	case "reject":
@@ -60,62 +132,15 @@ func (a *App) cmdRun(args []string) error {
 	case "events":
 		return a.runEvents(args[1:])
 	case "help", "-h", "--help":
-		return a.runHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown run subcommand: %s\n\nRun 'agent-manager run help' for usage", args[0])
 	}
 }
 
-func (a *App) runHelp() error {
-	fmt.Println(`Usage: agent-manager run <subcommand> [options]
-
-Subcommands:
-  list                        List runs (with optional filters)
-  get <id>                    Get run details by UUID
-  get-by-tag <tag>            Get run details by custom tag
-  create                      Create and start a new run
-  delete <id>                 Delete a run
-  stop <id>                   Stop a run by UUID
-  stop-by-tag <tag>           Stop a run by custom tag
-  stop-all                    Stop all running runs
-  continue <id>               Continue a run with a follow-up message
-  investigate                 Create an investigation run from existing runs
-  apply-investigation <id>    Apply investigation recommendations
-  sandbox-sync <id>           Sync run state from sandbox
-  extract-recommendations <id>     Extract recommendations from investigation run
-  regenerate-recommendations <id>  Regenerate recommendations for investigation run
-  approve <id>                Approve run changes
-  reject <id>                 Reject run changes
-  diff <id>                   Show sandbox diff
-  events <id>                 Get run events (--follow for streaming)
-
-Filters (for 'list'):
-  --task-id         Filter by task ID
-  --profile-id      Filter by profile ID
-  --status          Filter by status (running, pending, complete, etc.)
-  --tag-prefix      Filter by tag prefix (e.g., "ecosystem-")
-
-Options:
-  --json            Output raw JSON
-  --quiet           Output only IDs (for piping)
-
-Examples:
-  agent-manager run list
-  agent-manager run list --status running
-  agent-manager run create --task-id abc123 --profile-id def456
-  agent-manager run delete abc123 --force
-  agent-manager run continue abc123 --message "Also update tests"
-  agent-manager run investigate --run-ids id1,id2 --depth standard
-  agent-manager run apply-investigation abc123
-  agent-manager run extract-recommendations abc123
-  agent-manager run events xyz789 --follow`)
-	return nil
-}
-
 // =============================================================================
 // Run List
 // =============================================================================
-
 func (a *App) runList(args []string) error {
 	fs := flag.NewFlagSet("run list", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -126,21 +151,17 @@ func (a *App) runList(args []string) error {
 	profileID := fs.String("profile-id", "", "Filter by profile ID")
 	status := fs.String("status", "", "Filter by status")
 	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
-
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-
 	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix)
 	if err != nil {
 		return err
 	}
-
 	if *jsonOutput {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-
 	if runs == nil {
 		cliutil.PrintJSON(body)
 		return nil
@@ -158,9 +179,16 @@ func (a *App) runList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", "ID", "STATUS", "PHASE", "PROG", "UPDATED")
-	fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 4), strings.Repeat("-", 20))
+	fmt.Printf("%-36s  %-28s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", "ID", "LABEL", "STATUS", "PHASE", "EXEC", "PROG", "SOURCE", "SESSION", "UPDATED")
+	fmt.Printf("%-36s  %-28s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 28), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 11), strings.Repeat("-", 4), strings.Repeat("-", 10), strings.Repeat("-", 18), strings.Repeat("-", 20))
 	for _, r := range runs {
+		label := r.Label
+		if label == "" {
+			label = "-"
+		}
+		if len(label) > 28 {
+			label = label[:25] + "..."
+		}
 		phase := formatEnumValue(r.Phase, "RUN_PHASE_", "_")
 		if len(phase) > 18 {
 			phase = phase[:15] + "..."
@@ -171,7 +199,29 @@ func (a *App) runList(args []string) error {
 		}
 		progress := fmt.Sprintf("%d%%", r.ProgressPercent)
 		status := formatEnumValue(r.Status, "RUN_STATUS_", "_")
-		fmt.Printf("%-36s  %-12s  %-18s  %-4s  %-20s\n", r.Id, status, phase, progress, updated)
+		exec := formatEnumValue(r.ExecutionMode, "EXECUTION_MODE_", "_")
+		if exec == "" || exec == "unspecified" {
+			exec = "codec_pipe"
+		}
+		source := "native"
+		session := "-"
+		if exec == "imported" {
+			source = r.ImportSourceHarness
+			if source == "" {
+				source = "imported"
+			}
+			session = r.ImportSourceSessionId
+			if session == "" {
+				session = "-"
+			}
+		}
+		if len(source) > 10 {
+			source = source[:10]
+		}
+		if len(session) > 18 {
+			session = session[:18]
+		}
+		fmt.Printf("%-36s  %-28s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", r.Id, label, status, phase, exec, progress, source, session, updated)
 	}
 
 	return nil
@@ -215,6 +265,12 @@ func (a *App) runGet(args []string) error {
 
 	fmt.Printf("ID:              %s\n", run.Id)
 	fmt.Printf("Task ID:         %s\n", run.TaskId)
+	if run.Label != "" {
+		fmt.Printf("Label:           %s\n", run.Label)
+		if run.LabelSource != "" {
+			fmt.Printf("Label Source:    %s\n", run.LabelSource)
+		}
+	}
 	if run.AgentProfileId != nil {
 		fmt.Printf("Profile ID:      %s\n", run.GetAgentProfileId())
 	}
@@ -222,6 +278,13 @@ func (a *App) runGet(args []string) error {
 	fmt.Printf("Phase:           %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
 	fmt.Printf("Progress:        %d%%\n", run.ProgressPercent)
 	fmt.Printf("Run Mode:        %s\n", formatEnumValue(run.RunMode, "RUN_MODE_", "_"))
+	fmt.Printf("Execution Mode:  %s\n", formatEnumValue(run.ExecutionMode, "EXECUTION_MODE_", "_"))
+	if run.WebConsoleSessionId != "" {
+		fmt.Printf("Live Session:    %s\n", run.WebConsoleSessionId)
+		if run.WebConsoleSessionUrl != "" {
+			fmt.Printf("Live Session URL: %s\n", run.WebConsoleSessionUrl)
+		}
+	}
 	if run.SandboxId != nil && run.GetSandboxId() != "" {
 		fmt.Printf("Sandbox ID:      %s\n", run.GetSandboxId())
 	}
@@ -255,6 +318,23 @@ func (a *App) runGet(args []string) error {
 			fmt.Printf("  Cost Estimate: $%.4f\n", run.Summary.CostEstimate)
 		}
 	}
+	if run.Result != nil {
+		if run.Result.Selection != nil {
+			fmt.Printf("Result Selection: %s\n", formatEnumValue(run.Result.Selection.Status, "FINAL_OUTPUT_SELECTION_STATUS_", "_"))
+		} else {
+			fmt.Println("Result Selection: unavailable")
+		}
+		if run.Result.Structured != nil {
+			fmt.Printf("Structured:      %s", formatEnumValue(run.Result.Structured.Status, "STRUCTURED_RESULT_STATUS_", "_"))
+			if run.Result.Structured.Method != "" {
+				fmt.Printf(" (%s)", run.Result.Structured.Method)
+			}
+			fmt.Println()
+			if len(run.Result.Structured.Value) > 0 {
+				fmt.Printf("Structured Value: %s\n", string(run.Result.Structured.Value))
+			}
+		}
+	}
 	if run.ErrorMsg != "" {
 		fmt.Printf("Error:           %s\n", run.ErrorMsg)
 	}
@@ -269,6 +349,91 @@ func (a *App) runGet(args []string) error {
 }
 
 // =============================================================================
+// Run Attach / Detach
+// =============================================================================
+
+func (a *App) runAttach(args []string) error {
+	fs := flag.NewFlagSet("run attach", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	harnessKind := fs.String("harness-kind", "", "Stable harness kind, such as claude-code or codex")
+	harnessSessionID := fs.String("harness-session-id", "", "Harness-owned session identifier")
+	taskID := fs.String("task-id", "", "Optional task UUID to associate with the session")
+	processID := fs.Int("process-id", 0, "Optional harness process ID")
+	harnessTitle := fs.String("harness-title", "", "Optional title from harness transcript metadata")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*harnessKind) == "" || strings.TrimSpace(*harnessSessionID) == "" {
+		return fmt.Errorf("usage: agent-manager run attach --harness-kind kind --harness-session-id id [--task-id uuid] [--process-id pid] [--harness-title title]")
+	}
+	if *processID < 0 {
+		return fmt.Errorf("--process-id must be positive when provided")
+	}
+	req := &apipb.AttachRunRequest{
+		HarnessKind:      *harnessKind,
+		HarnessSessionId: *harnessSessionID,
+	}
+	if *taskID != "" {
+		req.TaskId = proto.String(*taskID)
+	}
+	if *processID > 0 {
+		value := int32(*processID)
+		req.ProcessId = &value
+	}
+	if *harnessTitle != "" {
+		req.HarnessTitle = proto.String(*harnessTitle)
+	}
+	body, response, err := a.services.Runs.Attach(req)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput || response == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	runID := ""
+	if response.Run != nil {
+		runID = response.Run.Id
+	}
+	fmt.Printf("Attached run: %s\nIdentity token: %s\n", runID, response.IdentityToken)
+	if response.ExpiresAt != nil {
+		fmt.Printf("Token expires: %s\n", response.ExpiresAt.AsTime().Format(time.RFC3339))
+	}
+	return nil
+}
+
+func (a *App) runDetach(args []string) error {
+	fs := flag.NewFlagSet("run detach", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	reason := fs.String("reason", "", "Optional operator reason for detaching the session")
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run detach <id> [--reason text]")
+	}
+	body, response, err := a.services.Runs.Detach(id, *reason)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput || response == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	status := "terminal"
+	if response.Run != nil {
+		status = formatEnumValue(response.Run.Status, "RUN_STATUS_", "_")
+	}
+	fmt.Printf("Detached run: %s\nStatus: %s\n", id, status)
+	return nil
+}
+
+// =============================================================================
 // Run Create
 // =============================================================================
 
@@ -279,6 +444,7 @@ func (a *App) runCreate(args []string) error {
 	profileID := fs.String("profile-id", "", "Agent profile ID (required)")
 	prompt := fs.String("prompt", "", "Optional override prompt")
 	runMode := fs.String("run-mode", "", "Run mode (sandboxed or in_place)")
+	executionMode := fs.String("execution-mode", "", "Execution mode (codec_pipe or interactive); interactive launches the real CLI in a live web-console session, supports sandbox tracking, and rejects protected sandbox mode")
 	forceInPlace := fs.Bool("force-in-place", false, "Force in-place execution")
 	idempotencyKey := fs.String("idempotency-key", "", "Idempotency key for safe retries")
 	existingSandboxID := fs.String("existing-sandbox-id", "", "Reuse an existing sandbox ID (sandboxed runs only)")
@@ -286,6 +452,14 @@ func (a *App) runCreate(args []string) error {
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
 	sandboxRetentionTTL := fs.String("sandbox-retention-ttl", "", "Sandbox retention TTL (e.g., 2h, 30m)")
+	resultSchema := fs.String("result-schema", "", "JSON Schema for the canonical structured result")
+	resultSchemaFile := fs.String("result-schema-file", "", "Path to a JSON Schema for the canonical structured result")
+	classify := fs.String("classify", "", "Comma-separated classification values (convenience ResultSpec)")
+	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
+	model := fs.String("model", "", "Per-run model override")
+	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
+	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -323,6 +497,43 @@ func (a *App) runCreate(args []string) error {
 		mode := domainpb.RunMode_RUN_MODE_IN_PLACE
 		req.RunMode = &mode
 	}
+	if *executionMode != "" {
+		mode := parseExecutionMode(*executionMode)
+		if mode == domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+			return fmt.Errorf("invalid execution mode: %s (want codec_pipe or interactive)", *executionMode)
+		}
+		req.ExecutionMode = &mode
+	}
+	spec, err := parseResultSpec(*resultSchema, *resultSchemaFile, *classify, *structuredExtraction)
+	if err != nil {
+		return err
+	}
+	if spec != nil {
+		req.InlineConfig = &domainpb.RunConfigOverrides{ResultSpec: spec}
+	}
+	if *effort != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Effort = protoString(*effort)
+	}
+	if *model != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Model = protoString(*model)
+	}
+	if *workloadKey != "" || *workloadKind != "" {
+		if req.Environment == nil {
+			req.Environment = map[string]string{}
+		}
+		if *workloadKey != "" {
+			req.Environment["VROOLI_WORKLOAD_KEY"] = *workloadKey
+		}
+		if *workloadKind != "" {
+			req.Environment["VROOLI_WORKLOAD_KIND"] = *workloadKind
+		}
+	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
 	} else {
@@ -331,15 +542,16 @@ func (a *App) runCreate(args []string) error {
 			return err
 		}
 		if cfg != nil {
-			req.InlineConfig = &domainpb.RunConfigOverrides{
-				SandboxConfig: cfg,
+			if req.InlineConfig == nil {
+				req.InlineConfig = &domainpb.RunConfigOverrides{}
 			}
+			req.InlineConfig.SandboxConfig = cfg
 		}
 	}
 
 	body, run, err := a.services.Runs.Create(req)
 	if err != nil {
-		return err
+		return apiError(body, err)
 	}
 
 	if *jsonOutput || run == nil {
@@ -350,7 +562,66 @@ func (a *App) runCreate(args []string) error {
 	fmt.Printf("Created run: %s\n", run.Id)
 	fmt.Printf("Status: %s\n", formatEnumValue(run.Status, "RUN_STATUS_", "_"))
 	fmt.Printf("Phase: %s\n", formatEnumValue(run.Phase, "RUN_PHASE_", "_"))
+	fmt.Printf("Execution Mode: %s\n", formatEnumValue(run.ExecutionMode, "EXECUTION_MODE_", "_"))
+	if run.WebConsoleSessionId != "" {
+		fmt.Printf("Live Session: %s\n", run.WebConsoleSessionId)
+		if run.WebConsoleSessionUrl != "" {
+			fmt.Printf("Live Session URL: %s\n", run.WebConsoleSessionUrl)
+		}
+	}
 	return nil
+}
+
+func parseResultSpec(schemaText, schemaFile, classification string, extraction bool) (*domainpb.ResultSpec, error) {
+	configured := 0
+	if strings.TrimSpace(schemaText) != "" {
+		configured++
+	}
+	if strings.TrimSpace(schemaFile) != "" {
+		configured++
+	}
+	if strings.TrimSpace(classification) != "" {
+		configured++
+	}
+	if configured == 0 {
+		return nil, nil
+	}
+	if configured > 1 {
+		return nil, fmt.Errorf("use exactly one of --result-schema, --result-schema-file, or --classify")
+	}
+	mode := domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY
+	role := ""
+	if extraction {
+		mode = domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK
+		role = "extract.structured"
+	}
+	spec := &domainpb.ResultSpec{Version: "result-spec/v1", ExtractionMode: mode, ExtractionRole: role}
+	if strings.TrimSpace(classification) != "" {
+		spec.Kind = domainpb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION
+		for _, value := range strings.Split(classification, ",") {
+			if value = strings.TrimSpace(value); value != "" {
+				spec.ClassificationValues = append(spec.ClassificationValues, value)
+			}
+		}
+		if len(spec.ClassificationValues) == 0 {
+			return nil, fmt.Errorf("--classify must contain at least one non-empty value")
+		}
+		return spec, nil
+	}
+	raw := []byte(schemaText)
+	if strings.TrimSpace(schemaFile) != "" {
+		var err error
+		raw, err = os.ReadFile(schemaFile)
+		if err != nil {
+			return nil, fmt.Errorf("read result schema: %w", err)
+		}
+	}
+	if !json.Valid(raw) {
+		return nil, fmt.Errorf("result schema is not valid JSON")
+	}
+	spec.Kind = domainpb.ResultSpecKind_RESULT_SPEC_KIND_JSON_SCHEMA
+	spec.Schema = raw
+	return spec, nil
 }
 
 // =============================================================================
@@ -376,7 +647,7 @@ func (a *App) runStop(args []string) error {
 		return fmt.Errorf("usage: agent-manager run stop <id>")
 	}
 
-	body, err := a.services.Runs.Stop(id)
+	body, resp, err := a.services.Runs.Stop(id)
 	if err != nil {
 		return err
 	}
@@ -386,13 +657,24 @@ func (a *App) runStop(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Stopped run: %s\n", id)
-	return nil
-}
+	changes := []string{fmt.Sprintf("run_id=%s", id)}
+	nextCommandID := id
+	if resp != nil && resp.Run != nil {
+		nextCommandID = resp.Run.Id
+		changes = append(changes,
+			fmt.Sprintf("status=%s", formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_")),
+			fmt.Sprintf("phase=%s", formatEnumValue(resp.Run.Phase, "RUN_PHASE_", "_")),
+		)
+	} else if resp != nil && resp.Status != "" {
+		changes = append(changes, fmt.Sprintf("status=%s", resp.Status))
+	}
 
-// =============================================================================
-// Run Get By Tag
-// =============================================================================
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{"Run stop requested"},
+		Changes:     changes,
+		NextCommand: []string{fmt.Sprintf("agent-manager run get %s", nextCommandID)},
+	})
+}
 
 func (a *App) runGetByTag(args []string) error {
 	fs := flag.NewFlagSet("run get-by-tag", flag.ContinueOnError)
@@ -462,7 +744,7 @@ func (a *App) runStopByTag(args []string) error {
 		return fmt.Errorf("usage: agent-manager run stop-by-tag <tag>")
 	}
 
-	body, err := a.services.Runs.StopByTag(tag)
+	body, resp, err := a.services.Runs.StopByTag(tag)
 	if err != nil {
 		return err
 	}
@@ -472,8 +754,24 @@ func (a *App) runStopByTag(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Stopped run with tag: %s\n", tag)
-	return nil
+	changes := []string{fmt.Sprintf("tag=%s", tag)}
+	nextCommand := fmt.Sprintf("agent-manager run get-by-tag %s", tag)
+	if resp != nil && resp.Run != nil {
+		changes = append(changes,
+			fmt.Sprintf("run_id=%s", resp.Run.Id),
+			fmt.Sprintf("status=%s", formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_")),
+			fmt.Sprintf("phase=%s", formatEnumValue(resp.Run.Phase, "RUN_PHASE_", "_")),
+		)
+		nextCommand = fmt.Sprintf("agent-manager run get %s", resp.Run.Id)
+	} else if resp != nil && resp.Status != "" {
+		changes = append(changes, fmt.Sprintf("status=%s", resp.Status))
+	}
+
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{"Run stop requested"},
+		Changes:     changes,
+		NextCommand: []string{nextCommand},
+	})
 }
 
 // =============================================================================
@@ -519,6 +817,68 @@ func (a *App) runStopAll(args []string) error {
 				fmt.Printf("Failed IDs: %v\n", failedIDs)
 			}
 		}
+	}
+	return nil
+}
+
+// =============================================================================
+// Run Quiesce (Baseline Modes promote drain)
+// =============================================================================
+
+func (a *App) runQuiesce(args []string) error {
+	fs := flag.NewFlagSet("run quiesce", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	scenario := fs.String("scenario", "", "Target scenario slug to quiesce (required)")
+	scopePrefix := fs.String("scope-prefix", "", "Override the working-tree scope (default scenarios/<scenario>)")
+	tagPrefix := fs.String("tag-prefix", "", "Also enumerate in-flight runs by this tag prefix (whole-repo runs)")
+	excludeRun := fs.String("exclude-run", "", "The promoting run's own ID, excluded from the drain set")
+	timeout := fs.String("timeout", "", "Max wait for in-flight runs to terminate (e.g. 5m)")
+	force := fs.Bool("force", false, "On timeout, cancel survivors instead of aborting")
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *scenario == "" {
+		return fmt.Errorf("--scenario is required")
+	}
+
+	req := &apipb.QuiesceScenarioRequest{Scenario: *scenario, Force: *force}
+	if *scopePrefix != "" {
+		req.ScopePrefix = protoString(*scopePrefix)
+	}
+	if *tagPrefix != "" {
+		req.TagPrefix = protoString(*tagPrefix)
+	}
+	if *excludeRun != "" {
+		req.ExcludeRunId = protoString(*excludeRun)
+	}
+	if *timeout != "" {
+		req.Timeout = protoString(*timeout)
+	}
+
+	body, result, err := a.services.Runs.Quiesce(req)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput || result == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if result.Drained {
+		fmt.Printf("✓ %s drained — safe to promote\n", result.Scenario)
+	} else if result.Aborted {
+		fmt.Printf("✗ %s NOT drained — %d run(s) still in-flight\n", result.Scenario, len(result.InFlight))
+	}
+	if len(result.Cancelled) > 0 {
+		fmt.Printf("Cancelled: %d run(s)\n", len(result.Cancelled))
+	}
+	for _, ref := range result.InFlight {
+		fmt.Printf("  in-flight: %s [%s] %s\n", ref.Id, ref.Status, ref.Tag)
+	}
+	if result.Reason != "" {
+		fmt.Printf("→ %s\n", result.Reason)
 	}
 	return nil
 }
@@ -633,12 +993,9 @@ func (a *App) runReject(args []string) error {
 	return nil
 }
 
-// =============================================================================
-// Run Diff
-// =============================================================================
-
 func (a *App) runDiff(args []string) error {
 	fs := flag.NewFlagSet("run diff", flag.ContinueOnError)
+	stat := fs.Bool("stat", false, "Show changed-file statistics without unified diff content")
 
 	// Parse with positional ID first
 	var id string
@@ -652,12 +1009,22 @@ func (a *App) runDiff(args []string) error {
 	}
 
 	if id == "" {
-		return fmt.Errorf("usage: agent-manager run diff <id>")
+		return fmt.Errorf("usage: agent-manager run diff <id> [--stat]")
 	}
 
 	body, diff, err := a.services.Runs.GetDiff(id)
 	if err != nil {
 		return err
+	}
+	if *stat && diff != nil {
+		additions, deletions := int64(0), int64(0)
+		for _, file := range diff.Files {
+			additions += int64(file.Additions)
+			deletions += int64(file.Deletions)
+		}
+		fmt.Printf("Files: %d | additions: %d | deletions: %d\n", len(diff.Files), additions, deletions)
+		support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run diff %s", id))
+		return nil
 	}
 
 	// Just print the diff output directly
@@ -671,18 +1038,18 @@ func (a *App) runDiff(args []string) error {
 	} else {
 		fmt.Println(string(body))
 	}
+	support.NextSteps(fmt.Sprintf("agent-manager run diff %s --stat", id), fmt.Sprintf("agent-manager run report %s", id))
 	return nil
 }
-
-// =============================================================================
-// Run Events
-// =============================================================================
 
 func (a *App) runEvents(args []string) error {
 	fs := flag.NewFlagSet("run events", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	follow := fs.Bool("follow", false, "Stream events in real-time (WebSocket)")
 	limit := fs.Int("limit", 0, "Maximum number of events to return")
+	afterSequence := fs.Int64("after-sequence", -1, "Only return events with sequence greater than this value")
+	stats := fs.Bool("stats", false, "Show an event-type summary instead of event payloads")
+	failed := fs.Bool("failed", false, "Only show failed tool-result events")
 
 	// Parse with positional ID first
 	var id string
@@ -696,14 +1063,18 @@ func (a *App) runEvents(args []string) error {
 	}
 
 	if id == "" {
-		return fmt.Errorf("usage: agent-manager run events <id> [--follow]")
+		return fmt.Errorf("usage: agent-manager run events <id> [--follow] [--stats] [--failed] [--after-sequence N] [--limit N]")
 	}
 
 	if *follow {
 		return a.streamEvents(id)
 	}
 
-	body, events, err := a.services.Runs.GetEvents(id, *limit)
+	var after *int64
+	if *afterSequence >= 0 {
+		after = afterSequence
+	}
+	body, events, err := a.services.Runs.GetEvents(id, *limit, after)
 	if err != nil {
 		return err
 	}
@@ -722,10 +1093,30 @@ func (a *App) runEvents(args []string) error {
 		fmt.Println("No events found")
 		return nil
 	}
+	if *stats {
+		counts := map[string]int{}
+		for _, event := range events {
+			counts[formatEnumValue(event.EventType, "RUN_EVENT_TYPE_", "_")]++
+		}
+		keys := make([]string, 0, len(counts))
+		for key := range counts {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			fmt.Printf("%s=%d ", key, counts[key])
+		}
+		fmt.Println()
+		support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id))
+		return nil
+	}
 
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", "SEQ", "TYPE", "TIMESTAMP", "DATA")
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", strings.Repeat("-", 6), strings.Repeat("-", 12), strings.Repeat("-", 24), strings.Repeat("-", 40))
 	for _, e := range events {
+		if *failed && (e.GetToolResult() == nil || e.GetToolResult().GetSuccess()) {
+			continue
+		}
 		dataStr := runEventDataString(e)
 		if len(dataStr) > 60 {
 			dataStr = dataStr[:57] + "..."
@@ -737,11 +1128,10 @@ func (a *App) runEvents(args []string) error {
 		eventType := formatEnumValue(e.EventType, "RUN_EVENT_TYPE_", "_")
 		fmt.Printf("%-6d  %-12s  %-24s  %s\n", e.Sequence, eventType, timestamp, dataStr)
 	}
+	support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id))
 
 	return nil
 }
-
-// streamEvents is implemented in cmd_events.go
 
 func runEventDataString(event *domainpb.RunEvent) string {
 	if event == nil {
@@ -754,6 +1144,8 @@ func runEventDataString(event *domainpb.RunEvent) string {
 		payload = data.Log
 	case *domainpb.RunEvent_Message:
 		payload = data.Message
+	case *domainpb.RunEvent_MessageDeleted:
+		payload = data.MessageDeleted
 	case *domainpb.RunEvent_ToolCall:
 		payload = data.ToolCall
 	case *domainpb.RunEvent_ToolResult:
@@ -772,16 +1164,14 @@ func runEventDataString(event *domainpb.RunEvent) string {
 		payload = data.Cost
 	case *domainpb.RunEvent_RateLimit:
 		payload = data.RateLimit
+	case *domainpb.RunEvent_Compaction:
+		payload = data.Compaction
 	default:
 		return ""
 	}
 
 	return marshalProtoJSON(payload)
 }
-
-// =============================================================================
-// Run Delete
-// =============================================================================
 
 func (a *App) runDelete(args []string) error {
 	fs := flag.NewFlagSet("run delete", flag.ContinueOnError)
@@ -805,7 +1195,7 @@ func (a *App) runDelete(args []string) error {
 	if !*force {
 		fmt.Printf("Delete run %s? [y/N]: ", id)
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
 			fmt.Println("Cancelled")
 			return nil
@@ -867,6 +1257,189 @@ func (a *App) runContinue(args []string) error {
 	return nil
 }
 
+// runPark parks a run on externally-owned async work. Invoked from inside an
+// agent-manager-controlled run; it authenticates with the run's identity token
+// (VROOLI_AGENT_IDENTITY_TOKEN by default) so the server can confirm the caller
+// owns the run it is parking.
+func (a *App) runPark(args []string) error {
+	fs := flag.NewFlagSet("run park", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	producer := fs.String("producer", "", "Producer that resolves the await (e.g. test-genie, git-control-tower) (required)")
+	key := fs.String("key", "", "Producer-scoped identifier of the awaited work (required)")
+	deadlineUnix := fs.Int64("deadline-unix", 0, "Optional wait deadline as a Unix timestamp (seconds); 0 = default TTL")
+	identityToken := fs.String("identity-token", "", "Owning run's identity token (defaults to $"+cliutil.EnvIdentityToken+")")
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run park <id> --producer <p> --key <k>")
+	}
+	if *producer == "" || *key == "" {
+		return fmt.Errorf("--producer and --key are required")
+	}
+
+	token := *identityToken
+	if token == "" {
+		token = os.Getenv(cliutil.EnvIdentityToken)
+	}
+	if token == "" {
+		return fmt.Errorf("no identity token: set --identity-token or run inside an agent-manager run ($%s)", cliutil.EnvIdentityToken)
+	}
+
+	req := &domainpb.ParkRunRequest{
+		RunId:         id,
+		Producer:      *producer,
+		Key:           *key,
+		DeadlineUnix:  *deadlineUnix,
+		IdentityToken: token,
+	}
+
+	body, resp, err := a.services.Runs.Park(id, req)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	// The message is the clean turn-ending tool-result the agent should see.
+	fmt.Println(resp.Message)
+	return nil
+}
+
+// runWake wakes a parked run with a result injected as its next turn. This is an
+// ops/manual-recovery verb; normal wake is driven by agent-manager's waiter.
+func (a *App) runWake(args []string) error {
+	fs := flag.NewFlagSet("run wake", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	result := fs.String("result", "", "Awaited result injected as the next turn")
+	timedOut := fs.Bool("timed-out", false, "Frame the result as a park-deadline timeout")
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run wake <id> [--result <r>] [--timed-out]")
+	}
+
+	req := &domainpb.WakeRunRequest{
+		RunId:    id,
+		Result:   *result,
+		TimedOut: *timedOut,
+	}
+
+	body, resp, err := a.services.Runs.Wake(id, req)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if !resp.Success {
+		fmt.Println("Run was not parked (no-op); wake is idempotent")
+		return nil
+	}
+	if resp.Run != nil {
+		fmt.Printf("Woke run: %s (status: %s)\n", resp.Run.Id, formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_"))
+	} else {
+		fmt.Println("Wake requested")
+	}
+	return nil
+}
+
+// runAwaitResult re-fetches a run's most recently resolved await result without
+// re-running the blocking producer. This is the deterministic retrieval path a
+// woken agent uses if it did not receive — or wants to re-read — the result.
+func (a *App) runAwaitResult(args []string) error {
+	fs := flag.NewFlagSet("run await-result", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run await-result <id>")
+	}
+
+	body, resp, err := a.services.Runs.AwaitResult(id)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if !resp.Found {
+		fmt.Println("No awaited result recorded for this run.")
+		return nil
+	}
+	if resp.Key != "" {
+		fmt.Printf("Awaited: %s\n", resp.Key)
+	}
+	if resp.ResolvedAt != "" {
+		fmt.Printf("Resolved at: %s\n", resp.ResolvedAt)
+	}
+	fmt.Printf("\nResult:\n%s\n", resp.Result)
+	return nil
+}
+
+func (a *App) runRecover(args []string) error {
+	fs := flag.NewFlagSet("run recover", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run recover <id>")
+	}
+
+	body, resp, err := a.services.Runs.Recover(id)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Recovered:       %t\n", resp.Recovered)
+	fmt.Printf("Idempotent:      %t\n", resp.Idempotent)
+	if resp.Message != "" {
+		fmt.Printf("Message:         %s\n", resp.Message)
+	}
+	if resp.Run != nil {
+		fmt.Printf("Run ID:          %s\n", resp.Run.Id)
+		fmt.Printf("Status:          %s\n", formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_"))
+	}
+	return nil
+}
+
 // =============================================================================
 // Run Investigate
 // =============================================================================
@@ -875,6 +1448,8 @@ func (a *App) runInvestigate(args []string) error {
 	fs := flag.NewFlagSet("run investigate", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	runIDs := fs.String("run-ids", "", "Comma-separated run IDs to investigate (required)")
+	filterJSON := fs.String("filter-json", "", "Cohort filter JSON; selects runs without manually listing IDs")
+	goalID := fs.String("goal-id", "", "Durable imported-session goal ID; selects all of its projected runs")
 	customContext := fs.String("context", "", "Custom context for investigation")
 	depth := fs.String("depth", "standard", "Investigation depth: quick, standard, deep")
 	projectRoot := fs.String("project-root", "", "Project root directory")
@@ -884,17 +1459,37 @@ func (a *App) runInvestigate(args []string) error {
 		return err
 	}
 
-	if *runIDs == "" {
-		return fmt.Errorf("--run-ids is required")
+	selected := 0
+	if strings.TrimSpace(*runIDs) != "" {
+		selected++
+	}
+	if strings.TrimSpace(*filterJSON) != "" {
+		selected++
+	}
+	if strings.TrimSpace(*goalID) != "" {
+		selected++
+	}
+	if selected != 1 {
+		return fmt.Errorf("provide exactly one of --run-ids, --filter-json, or --goal-id")
 	}
 
-	ids := strings.Split(*runIDs, ",")
-	for i, id := range ids {
-		ids[i] = strings.TrimSpace(id)
+	req := map[string]interface{}{}
+	if strings.TrimSpace(*runIDs) != "" {
+		ids := strings.Split(*runIDs, ",")
+		for i, id := range ids {
+			ids[i] = strings.TrimSpace(id)
+		}
+		req["runIds"] = ids
 	}
-
-	req := map[string]interface{}{
-		"runIds": ids,
+	if strings.TrimSpace(*filterJSON) != "" {
+		var filter map[string]interface{}
+		if err := json.Unmarshal([]byte(*filterJSON), &filter); err != nil {
+			return fmt.Errorf("--filter-json must be a JSON cohort filter: %w", err)
+		}
+		req["selector"] = map[string]interface{}{"filter": filter}
+	}
+	if strings.TrimSpace(*goalID) != "" {
+		req["goalId"] = strings.TrimSpace(*goalID)
 	}
 	if *customContext != "" {
 		req["customContext"] = *customContext
@@ -929,201 +1524,5 @@ func (a *App) runInvestigate(args []string) error {
 	}
 
 	fmt.Printf("Created investigation run: %s\n", run.Id)
-	return nil
-}
-
-// =============================================================================
-// Run Apply Investigation
-// =============================================================================
-
-func (a *App) runApplyInvestigation(args []string) error {
-	fs := flag.NewFlagSet("run apply-investigation", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	customContext := fs.String("context", "", "Custom context for apply run")
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run apply-investigation <investigation-run-id>")
-	}
-
-	req := map[string]interface{}{
-		"investigationRunId": id,
-	}
-	if *customContext != "" {
-		req["customContext"] = *customContext
-	}
-
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-
-	body, run, err := a.services.Runs.InvestigationApply(payload)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput || run == nil {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Created apply run: %s\n", run.Id)
-	return nil
-}
-
-// =============================================================================
-// Run Sandbox Sync
-// =============================================================================
-
-func (a *App) runSandboxSync(args []string) error {
-	fs := flag.NewFlagSet("run sandbox-sync", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	status := fs.String("status", "", "Status to sync (required)")
-	sandboxID := fs.String("sandbox-id", "", "Sandbox ID")
-	actor := fs.String("actor", "", "Actor identifier")
-	reason := fs.String("reason", "", "Reason for sync")
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run sandbox-sync <id> --status <status>")
-	}
-
-	if *status == "" {
-		return fmt.Errorf("--status is required")
-	}
-
-	req := map[string]interface{}{
-		"runId":  id,
-		"status": *status,
-	}
-	if *sandboxID != "" {
-		req["sandboxId"] = *sandboxID
-	}
-	if *actor != "" {
-		req["actor"] = *actor
-	}
-	if *reason != "" {
-		req["reason"] = *reason
-	}
-
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-
-	body, err := a.services.Runs.SandboxSync(id, payload)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Synced run: %s\n", id)
-	return nil
-}
-
-// =============================================================================
-// Run Extract Recommendations
-// =============================================================================
-
-func (a *App) runExtractRecommendations(args []string) error {
-	fs := flag.NewFlagSet("run extract-recommendations", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run extract-recommendations <id>")
-	}
-
-	body, err := a.services.Runs.ExtractRecommendations(id)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	// Pretty print the JSON result
-	var prettyJSON interface{}
-	if err := json.Unmarshal(body, &prettyJSON); err == nil {
-		formatted, _ := json.MarshalIndent(prettyJSON, "", "  ")
-		fmt.Println(string(formatted))
-	} else {
-		cliutil.PrintJSON(body)
-	}
-
-	return nil
-}
-
-// =============================================================================
-// Run Regenerate Recommendations
-// =============================================================================
-
-func (a *App) runRegenerateRecommendations(args []string) error {
-	fs := flag.NewFlagSet("run regenerate-recommendations", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run regenerate-recommendations <id>")
-	}
-
-	body, err := a.services.Runs.RegenerateRecommendations(id)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Regenerating recommendations for run: %s\n", id)
 	return nil
 }

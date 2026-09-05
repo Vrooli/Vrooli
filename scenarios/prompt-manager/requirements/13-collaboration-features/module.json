@@ -12,7 +12,7 @@
       "description": "Implement multi-user collaboration features including sharing and commenting",
       "id": "REQ-P2-002",
       "prd_ref": "prompt-manager-nice-to-have-collaboration-features",
-      "status": "draft",
+      "status": "planned",
       "title": "Collaboration Features",
       "validation": [
         {

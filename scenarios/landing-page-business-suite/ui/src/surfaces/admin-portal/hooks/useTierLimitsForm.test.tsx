@@ -18,8 +18,8 @@ function assertDefined<T>(value: T | undefined, name: string): asserts value is 
 type FetchAllTierLimitsFn = typeof fetchAllTierLimits;
 type SaveTierLimitFn = typeof saveTierLimit;
 
-const fetchAllTierLimitsMock = vi.fn<Parameters<FetchAllTierLimitsFn>, ReturnType<FetchAllTierLimitsFn>>();
-const saveTierLimitMock = vi.fn<Parameters<SaveTierLimitFn>, ReturnType<SaveTierLimitFn>>();
+const fetchAllTierLimitsMock = vi.fn<FetchAllTierLimitsFn>();
+const saveTierLimitMock = vi.fn<SaveTierLimitFn>();
 
 vi.mock('../services/tiers.service', async () => {
   const actual = await vi.importActual<typeof import('../services/tiers.service')>(
@@ -112,13 +112,17 @@ describe('useTierLimitsForm', () => {
   });
 
   describe('initial state', () => {
-    it('starts with loading state', () => {
+    it('starts with loading state', async () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.loading).toBe(true);
       expect(result.current.limits).toEqual({});
       expect(result.current.saving).toBeNull();
       expect(result.current.editedValues).toEqual({});
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('loads limits on mount', async () => {
@@ -427,14 +431,12 @@ describe('useTierLimitsForm', () => {
       });
 
       act(() => {
-        result.current.handleSave('solo', soloLimit);
+        void result.current.handleSave('solo', soloLimit);
       });
 
       expect(result.current.saving).toBe('solo:ai_credits');
 
-      await act(async () => {
-        resolveSave!();
-      });
+      act(() => { resolveSave!(); });
 
       await waitFor(() => {
         expect(result.current.saving).toBeNull();
@@ -568,12 +570,20 @@ describe('useTierLimitsForm', () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.getEditKey('solo', 'ai_credits')).toBe('solo:ai_credits');
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('exposes getTierLabel function', async () => {
       const { result } = renderHook(() => useTierLimitsForm());
 
       expect(result.current.getTierLabel('solo')).toBe('Solo');
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('exposes getTierColor function', async () => {
@@ -581,6 +591,10 @@ describe('useTierLimitsForm', () => {
 
       expect(result.current.getTierColor('solo')).toBe('text-blue-400');
       expect(result.current.getTierColor('pro')).toBe('text-purple-400');
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('exposes isUnlimitedValue function', async () => {
@@ -589,6 +603,10 @@ describe('useTierLimitsForm', () => {
       expect(result.current.isUnlimitedValue(-1)).toBe(true);
       expect(result.current.isUnlimitedValue(0)).toBe(false);
       expect(result.current.isUnlimitedValue(100)).toBe(false);
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
 
     it('exposes findAICreditsLimit function', async () => {
@@ -629,6 +647,10 @@ describe('useTierLimitsForm', () => {
       expect(result.current.TIER_OPTIONS).toBeDefined();
       expect(Array.isArray(result.current.TIER_OPTIONS)).toBe(true);
       expect(result.current.TIER_OPTIONS.some((t) => t.value === 'solo')).toBe(true);
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
     });
   });
 

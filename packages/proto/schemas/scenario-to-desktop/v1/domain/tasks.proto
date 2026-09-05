@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+enum TaskType {
+  TASK_TYPE_UNSPECIFIED = 0;
+  TASK_TYPE_INVESTIGATE = 1;
+  TASK_TYPE_FIX = 2;
+}
+
+enum InvestigationEffort {
+  INVESTIGATION_EFFORT_UNSPECIFIED = 0;
+  INVESTIGATION_EFFORT_CHECKS = 1;
+  INVESTIGATION_EFFORT_LOGS = 2;
+  INVESTIGATION_EFFORT_TRACE = 3;
+}
+
+enum InvestigationStatus {
+  INVESTIGATION_STATUS_UNSPECIFIED = 0;
+  INVESTIGATION_STATUS_PENDING = 1;
+  INVESTIGATION_STATUS_RUNNING = 2;
+  INVESTIGATION_STATUS_COMPLETED = 3;
+  INVESTIGATION_STATUS_FAILED = 4;
+  INVESTIGATION_STATUS_CANCELLED = 5;
+}
+
+message TaskFocus {
+  bool harness = 1;
+  bool subject = 2;
+}
+message FixPermissions {
+  bool immediate = 1;
+  bool permanent = 2;
+  bool prevention = 3;
+}
+
+message CreateTaskRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  TaskType task_type = 2;
+  TaskFocus focus = 3;
+  optional string note = 4;
+  InvestigationEffort effort = 5;
+  FixPermissions permissions = 6;
+  optional string source_investigation_id = 7;
+  optional int32 max_iterations = 8;
+  repeated string include_contexts = 9;
+}
+
+message Investigation {
+  string id = 1;
+  string pipeline_id = 2;
+  InvestigationStatus status = 3;
+  optional string findings = 4;
+  int32 progress = 5;
+  optional google.protobuf.Struct details = 6;
+  optional string agent_run_id = 7;
+  optional string error_message = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+}
+
+message InvestigationSummary {
+  string id = 1;
+  string pipeline_id = 2;
+  InvestigationStatus status = 3;
+  int32 progress = 4;
+  bool has_findings = 5;
+  optional string error_message = 6;
+  optional string source_investigation_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  optional google.protobuf.Timestamp completed_at = 9;
+}
+
+message CreateTaskResponse {
+  Investigation task = 1;
+}
+message GetTaskRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+message GetTaskResponse {
+  Investigation task = 1;
+}
+message ListTasksRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional int32 limit = 2;
+}
+message ListTasksResponse {
+  repeated InvestigationSummary tasks = 1;
+}
+message StopTaskRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+message StopTaskResponse {
+  bool success = 1;
+  string message = 2;
+}
+message AgentManagerStatusRequest {}
+message AgentManagerStatusResponse {
+  bool available = 1;
+  optional string url = 2;
+  optional string reason = 3;
+}
+
+service TaskService {
+  rpc GetAgentManagerStatus(AgentManagerStatusRequest) returns (AgentManagerStatusResponse);
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc StopTask(StopTaskRequest) returns (StopTaskResponse);
+}

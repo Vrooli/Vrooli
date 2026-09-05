@@ -747,15 +747,15 @@ func HandleRequest() {
 
 	for _, file := range files {
 		path := filepath.Join(dir, file.path)
-		os.MkdirAll(filepath.Dir(path), 0755)
-		os.WriteFile(path, []byte(file.content), 0644)
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		os.WriteFile(path, []byte(file.content), 0o644)
 	}
 }
 
 func setupLargeTestScenario(t *testing.T, dir string) {
 	for i := 0; i < 100; i++ {
 		subDir := filepath.Join(dir, fmt.Sprintf("module%d", i))
-		os.MkdirAll(subDir, 0755)
+		os.MkdirAll(subDir, 0o755)
 
 		for j := 0; j < 10; j++ {
 			file := filepath.Join(subDir, fmt.Sprintf("file%d.go", j))
@@ -764,7 +764,7 @@ func setupLargeTestScenario(t *testing.T, dir string) {
 func Function%d() {
 	// Some code here
 }`, i, j)
-			os.WriteFile(file, []byte(content), 0644)
+			os.WriteFile(file, []byte(content), 0o644)
 		}
 	}
 }

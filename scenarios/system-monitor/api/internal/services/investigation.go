@@ -1,4 +1,5 @@
 package services
+
 // DOC: docs/concepts/ARCHITECTURE.md#investigation-flow
 
 import (
@@ -8,19 +9,18 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"system-monitor-api/internal/agentmanager"
-	"system-monitor-api/internal/apierrors"
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // InvestigationService handles anomaly investigations
@@ -117,7 +117,7 @@ func (s *InvestigationService) initializeAgentProfile() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := s.agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
+	if err := s.agentSvc.Initialize(ctx); err != nil {
 		s.log.Warn("failed to initialize agent profile", "error", err)
 	}
 }
@@ -177,11 +177,18 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	// Update last trigger time only after successful creation
 	s.lastTrigger = now
 
-	// Start investigation in background with panic recovery
-	go func() {
+	// Start investigation in background with panic recovery. The goroutine is
+	// scoped to the service shutdown context so an in-flight investigation is
+	// cancelled cleanly when the server drains.
+	// The worker is bound to the service shutdown context (passed in) so it is
+	// cancelled cleanly on drain; runInvestigation derives its deadline from the
+	// same s.shutdownCtx.
+	go func(_ context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				s.log.Error("investigation panicked", "investigation_id", investigationID, "panic", r)
+				// Best-effort persistence of the failure even if the context is
+				// already cancelled by shutdown.
 				bgCtx := context.Background()
 				_ = s.UpdateInvestigationStatus(bgCtx, investigationID, models.StatusFailed)
 				_ = s.UpdateInvestigationFindings(bgCtx, investigationID,
@@ -189,7 +196,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 			}
 		}()
 		s.runInvestigation(investigationID, autoFix, note)
-	}()
+	}(s.shutdownCtx)
 
 	return investigation, nil
 }
@@ -523,27 +530,26 @@ func resolveInvestigationWorkingDir() string {
 		}
 	}
 
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	if scenarioRoot, err := resolveSystemMonitorScenarioRoot(); err == nil {
+		if info, statErr := os.Stat(scenarioRoot); statErr == nil && info.IsDir() {
+			return scenarioRoot
 		}
 	}
-
-	if vrooliRoot == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			vrooliRoot = cwd
-		} else {
-			return "."
-		}
+	if repoRoot, err := repocontract.ResolveRepoRoot(); err == nil {
+		return repoRoot
 	}
+	return ""
+}
 
-	scenarioPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor")
-	if info, err := os.Stat(scenarioPath); err == nil && info.IsDir() {
-		return scenarioPath
+// resolveSystemMonitorScenarioRoot is retained only for the agent's optional
+// working-directory seam. Catalog, config, prompt, and run-history resolution
+// never call it; those product surfaces are storage-owned or embedded.
+func resolveSystemMonitorScenarioRoot() (string, error) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return "", err
 	}
-
-	return vrooliRoot
+	return repocontract.ResolveScenarioPath(repoRoot, "system-monitor")
 }
 
 func truncateAgentLog(raw string, limit int) string {
@@ -843,188 +849,14 @@ func (s *InvestigationService) loadTriggersFromConfig() error {
 // Agent Configuration Methods
 // =============================================================================
 
-// AgentConfigResponse represents the current agent configuration.
-type AgentConfigResponse struct {
-	Enabled          bool     `json:"enabled"`
-	ProfileID        string   `json:"profile_id,omitempty"`
-	ProfileName      string   `json:"profile_name"`
-	RunnerType       string   `json:"runner_type"`
-	Model            string   `json:"model"`
-	MaxTurns         int32    `json:"max_turns"`
-	TimeoutSeconds   int32    `json:"timeout_seconds"`
-	AllowedTools     []string `json:"allowed_tools"`
-	SkipPermissions  bool     `json:"skip_permissions"`
-	RequiresSandbox  bool     `json:"requires_sandbox"`
-	RequiresApproval bool     `json:"requires_approval"`
-}
-
-// RunnerResponse represents an available runner.
-type RunnerResponse struct {
-	Type            string   `json:"type"`
-	Name            string   `json:"name"`
-	Available       bool     `json:"available"`
-	Message         string   `json:"message,omitempty"`
-	InstallHint     string   `json:"install_hint,omitempty"`
-	SupportedModels []string `json:"supported_models,omitempty"`
-}
-
 // AgentStatusResponse represents the agent-manager status.
 type AgentStatusResponse struct {
-	Enabled      bool             `json:"enabled"`
-	Available    bool             `json:"available"`
-	ProfileID    string           `json:"profile_id,omitempty"`
-	ActiveRuns   int              `json:"active_runs"`
-	RunnerStatus []RunnerResponse `json:"runners,omitempty"`
-	AgentManager string           `json:"agent_manager_url,omitempty"`
-	LastError    string           `json:"last_error,omitempty"`
-}
-
-// GetAgentConfig returns the current agent configuration.
-func (s *InvestigationService) GetAgentConfig(ctx context.Context) (*AgentConfigResponse, error) {
-	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		// Return defaults when agent-manager is not enabled
-		defaultCfg := agentmanager.DefaultProfileConfig()
-		return &AgentConfigResponse{
-			Enabled:          false,
-			ProfileName:      s.config.AgentManager.ProfileName,
-			RunnerType:       runnerTypeToString(defaultCfg.RunnerType),
-			Model:            defaultCfg.Model,
-			MaxTurns:         defaultCfg.MaxTurns,
-			TimeoutSeconds:   defaultCfg.TimeoutSeconds,
-			AllowedTools:     defaultCfg.AllowedTools,
-			SkipPermissions:  defaultCfg.SkipPermissions,
-			RequiresSandbox:  defaultCfg.RequiresSandbox,
-			RequiresApproval: defaultCfg.RequiresApproval,
-		}, nil
-	}
-
-	profile, err := s.agentSvc.GetProfile(ctx)
-	if err != nil {
-		// Return defaults with error context
-		defaultCfg := agentmanager.DefaultProfileConfig()
-		return &AgentConfigResponse{
-			Enabled:          true,
-			ProfileName:      s.config.AgentManager.ProfileName,
-			RunnerType:       runnerTypeToString(defaultCfg.RunnerType),
-			Model:            defaultCfg.Model,
-			MaxTurns:         defaultCfg.MaxTurns,
-			TimeoutSeconds:   defaultCfg.TimeoutSeconds,
-			AllowedTools:     defaultCfg.AllowedTools,
-			SkipPermissions:  defaultCfg.SkipPermissions,
-			RequiresSandbox:  defaultCfg.RequiresSandbox,
-			RequiresApproval: defaultCfg.RequiresApproval,
-		}, nil
-	}
-
-	timeoutSecs := int32(600)
-	if profile.Timeout != nil {
-		timeoutSecs = int32(profile.Timeout.AsDuration().Seconds())
-	}
-
-	return &AgentConfigResponse{
-		Enabled:          true,
-		ProfileID:        profile.Id,
-		ProfileName:      profile.Name,
-		RunnerType:       runnerTypeToString(profile.RunnerType),
-		Model:            profile.Model,
-		MaxTurns:         profile.MaxTurns,
-		TimeoutSeconds:   timeoutSecs,
-		AllowedTools:     profile.AllowedTools,
-		SkipPermissions:  profile.SkipPermissionPrompt,
-		RequiresSandbox:  profile.RequiresSandbox,
-		RequiresApproval: profile.RequiresApproval,
-	}, nil
-}
-
-// GetAvailableRunners returns available runners from agent-manager.
-func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]RunnerResponse, error) {
-	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		// Agent-manager is required; return a disabled placeholder
-		return []RunnerResponse{
-			{
-				Type:      "agent-manager",
-				Name:      "agent-manager",
-				Available: false,
-				Message:   "agent-manager is required for investigations",
-			},
-		}, nil
-	}
-
-	runners, err := s.agentSvc.GetAvailableRunners(ctx)
-	if err != nil {
-		return nil, apierrors.Internal("Unable to retrieve available runners", err)
-	}
-
-	result := make([]RunnerResponse, 0, len(runners))
-	for _, r := range runners {
-		result = append(result, RunnerResponse{
-			Type:            r.Name,
-			Name:            r.Name,
-			Available:       r.Available,
-			Message:         r.Message,
-			InstallHint:     r.InstallHint,
-			SupportedModels: r.SupportedModels,
-		})
-	}
-
-	return result, nil
-}
-
-// UpdateAgentConfig updates the agent profile configuration.
-func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions, requiresSandbox, requiresApproval bool) (*AgentConfigResponse, error) {
-	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		return nil, apierrors.Unavailable("agent-manager")
-	}
-
-	cfg := &agentmanager.ProfileConfig{
-		RunnerType:       stringToRunnerType(runnerType),
-		Model:            model,
-		MaxTurns:         maxTurns,
-		TimeoutSeconds:   timeoutSeconds,
-		AllowedTools:     allowedTools,
-		SkipPermissions:  skipPermissions,
-		RequiresSandbox:  requiresSandbox,
-		RequiresApproval: requiresApproval,
-	}
-
-	// Apply defaults if not provided
-	defaultCfg := agentmanager.DefaultProfileConfig()
-	if cfg.Model == "" {
-		cfg.Model = defaultCfg.Model
-	}
-	if cfg.MaxTurns == 0 {
-		cfg.MaxTurns = defaultCfg.MaxTurns
-	}
-	if cfg.TimeoutSeconds == 0 {
-		cfg.TimeoutSeconds = defaultCfg.TimeoutSeconds
-	}
-	if len(cfg.AllowedTools) == 0 {
-		cfg.AllowedTools = defaultCfg.AllowedTools
-	}
-
-	profile, err := s.agentSvc.UpdateProfile(ctx, cfg)
-	if err != nil {
-		return nil, apierrors.Internal("Failed to update agent configuration", err)
-	}
-
-	timeoutSecs := int32(600)
-	if profile.Timeout != nil {
-		timeoutSecs = int32(profile.Timeout.AsDuration().Seconds())
-	}
-
-	return &AgentConfigResponse{
-		Enabled:          true,
-		ProfileID:        profile.Id,
-		ProfileName:      profile.Name,
-		RunnerType:       runnerTypeToString(profile.RunnerType),
-		Model:            profile.Model,
-		MaxTurns:         profile.MaxTurns,
-		TimeoutSeconds:   timeoutSecs,
-		AllowedTools:     profile.AllowedTools,
-		SkipPermissions:  profile.SkipPermissionPrompt,
-		RequiresSandbox:  profile.RequiresSandbox,
-		RequiresApproval: profile.RequiresApproval,
-	}, nil
+	Enabled      bool   `json:"enabled"`
+	Available    bool   `json:"available"`
+	ProfileID    string `json:"profile_id,omitempty"`
+	ActiveRuns   int    `json:"active_runs"`
+	AgentManager string `json:"agent_manager_url,omitempty"`
+	LastError    string `json:"last_error,omitempty"`
 }
 
 // GetAgentStatus returns the current agent-manager status.
@@ -1052,51 +884,7 @@ func (s *InvestigationService) GetAgentStatus(ctx context.Context) (*AgentStatus
 		status.ActiveRuns = len(runs)
 	}
 
-	// Get runner status
-	runners, err := s.agentSvc.GetAvailableRunners(ctx)
-	if err == nil {
-		for _, r := range runners {
-			status.RunnerStatus = append(status.RunnerStatus, RunnerResponse{
-				Type:            r.Name,
-				Name:            r.Name,
-				Available:       r.Available,
-				Message:         r.Message,
-				SupportedModels: r.SupportedModels,
-			})
-		}
-	} else {
-		status.LastError = err.Error()
-	}
-
 	return status, nil
-}
-
-// runnerTypeToString converts RunnerType enum to string.
-func runnerTypeToString(rt domainpb.RunnerType) string {
-	switch rt {
-	case domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE:
-		return "claude-code"
-	case domainpb.RunnerType_RUNNER_TYPE_CODEX:
-		return "codex"
-	case domainpb.RunnerType_RUNNER_TYPE_OPENCODE:
-		return "opencode"
-	default:
-		return "unknown"
-	}
-}
-
-// stringToRunnerType converts string to RunnerType enum.
-func stringToRunnerType(s string) domainpb.RunnerType {
-	switch strings.ToLower(s) {
-	case "claude-code", "claude_code":
-		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
-	case "codex":
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	case "opencode":
-		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
-	default:
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	}
 }
 
 // saveTriggersToConfig saves trigger configuration to JSON file

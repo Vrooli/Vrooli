@@ -1,7 +1,5 @@
-// Package domain defines the core domain entities for agent-manager.
-//
-// This package contains the central concepts that agent-manager operates on:
-// - AgentProfile: defines HOW an agent runs (runner config, permissions)
+// Package domain contains the central concepts that agent-manager operates on:
+// - AgentProfile: defines HOW an agent runs (portable role, permissions)
 // - Task: defines WHAT needs to be done (scope, context, requirements)
 // - Run: a concrete execution linking Task to AgentProfile within a sandbox
 // - RunEvent: append-only event stream capturing all agent activity
@@ -9,8 +7,11 @@
 package domain
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
+
+	"agent-manager/internal/tokenaccounting"
 
 	"github.com/google/uuid"
 )
@@ -27,18 +28,21 @@ type AgentProfile struct {
 	ProfileKey  string    `json:"profileKey" db:"profile_key"`
 	Description string    `json:"description,omitempty" db:"description"`
 
-	// Runner configuration
-	RunnerType  RunnerType    `json:"runnerType" db:"runner_type"`
-	Model       string        `json:"model,omitempty" db:"model"`
-	ModelPreset ModelPreset   `json:"modelPreset,omitempty" db:"model_preset"`
-	MaxTurns    int           `json:"maxTurns,omitempty" db:"max_turns"`
-	Timeout     time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
-	// Ordered runner fallback list (used when primary runner is unavailable)
-	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty" db:"fallback_runner_types"`
+	// RoleRef is portable desired intent. Concrete runner/model selections are
+	// captured only in a run's immutable PolicySnapshot.
+	RoleRef string `json:"roleRef,omitempty" db:"role_ref"`
+	// RoleReason is declaration-only context explaining why the flagship role
+	// is appropriate. It is intentionally not part of the persisted execution
+	// contract; policy snapshots remain the source of run provenance.
+	RoleReason string        `json:"roleReason,omitempty" db:"-"`
+	MaxTurns   int           `json:"maxTurns,omitempty" db:"max_turns"`
+	Timeout    time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
+	Effort     Effort        `json:"effort,omitempty" db:"effort"`
 
 	// Tool permissions
-	AllowedTools []string `json:"allowedTools,omitempty" db:"allowed_tools"`
-	DeniedTools  []string `json:"deniedTools,omitempty" db:"denied_tools"`
+	AllowedTools          []string              `json:"allowedTools,omitempty" db:"allowed_tools"`
+	DeniedTools           []string              `json:"deniedTools,omitempty" db:"denied_tools"`
+	ToolRestrictionPolicy ToolRestrictionPolicy `json:"toolRestrictionPolicy,omitempty" db:"tool_restriction_policy"`
 
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty" db:"skip_permission_prompt"`
@@ -50,38 +54,143 @@ type AgentProfile struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty" db:"extra_flags"`
 
 	// Default policies (can be overridden per task)
-	RequiresSandbox  bool          `json:"requiresSandbox" db:"requires_sandbox"`
-	RequiresApproval bool          `json:"requiresApproval" db:"requires_approval"`
-	NetworkAccess    NetworkAccess `json:"networkAccess" db:"network_access"`
+	NetworkAccess NetworkAccess `json:"networkAccess" db:"network_access"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
+	SpawnPolicy   *SpawnPolicy   `json:"spawnPolicy,omitempty" db:"-"`
 
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty" db:"allowed_paths"`
 	DeniedPaths  []string `json:"deniedPaths,omitempty" db:"denied_paths"`
+	// DeclaredScopes is an optional profile ceiling for delegated identity
+	// tokens. Empty/nil preserves the account's full scope by default.
+	DeclaredScopes []string `json:"declaredScopes,omitempty" db:"declared_scopes"`
+	// SkillPack names the prompt-manager skills projected into this profile's
+	// private run scope. It is an allow-list of identifiers, never a path.
+	SkillPack         []string `json:"skillPack,omitempty" db:"skill_pack"`
+	SkillExperimentID string   `json:"skillExperimentId,omitempty" db:"skill_experiment_id"`
 
 	// Metadata
-	CreatedBy string    `json:"createdBy,omitempty" db:"created_by"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
+	CreatedBy       string    `json:"createdBy,omitempty" db:"created_by"`
+	OwnerScenario   string    `json:"ownerScenario,omitempty" db:"owner_scenario"`
+	SourcePath      string    `json:"sourcePath,omitempty" db:"source_path"`
+	SourceHash      string    `json:"sourceHash,omitempty" db:"source_hash"`
+	LastAppliedHash string    `json:"lastAppliedHash,omitempty" db:"last_applied_hash"`
+	SourceUpdatedAt time.Time `json:"sourceUpdatedAt,omitempty" db:"source_updated_at"`
+	LocalOverride   bool      `json:"localOverride,omitempty" db:"local_override"`
+	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// SpawnPolicy is declaration-only preference data. Runtime selection must
+// intersect it with runner-published capabilities before choosing a substrate.
+type SpawnPolicy struct {
+	AxisOrder     []string           `json:"axisOrder,omitempty"`
+	ExecutionMode PreferenceAxis     `json:"executionMode"`
+	SandboxMode   PreferenceAxis     `json:"sandboxMode"`
+	Require       []SpawnCombination `json:"require,omitempty"`
+}
+
+type PreferenceAxis struct {
+	Prefer []string `json:"prefer"`
+}
+type SpawnCombination struct {
+	ExecutionMode string `json:"executionMode"`
+	SandboxMode   string `json:"sandboxMode"`
+}
+
+// CanonicalTool is the runner-neutral vocabulary used by profile tool
+// restrictions. Codecs translate these coarse capabilities to their native
+// command names at launch time.
+type CanonicalTool string
+
+const (
+	CanonicalToolRead      CanonicalTool = "read"
+	CanonicalToolWrite     CanonicalTool = "write"
+	CanonicalToolEdit      CanonicalTool = "edit"
+	CanonicalToolGlob      CanonicalTool = "glob"
+	CanonicalToolGrep      CanonicalTool = "grep"
+	CanonicalToolShell     CanonicalTool = "shell"
+	CanonicalToolWebSearch CanonicalTool = "web_search"
+	CanonicalToolWebFetch  CanonicalTool = "web_fetch"
+)
+
+// CanonicalTools returns the complete, stable profile tool vocabulary.
+func CanonicalTools() []CanonicalTool {
+	return []CanonicalTool{
+		CanonicalToolRead, CanonicalToolWrite, CanonicalToolEdit, CanonicalToolGlob,
+		CanonicalToolGrep, CanonicalToolShell, CanonicalToolWebSearch, CanonicalToolWebFetch,
+	}
+}
+
+// ToolRestrictionPolicy determines what happens when the selected runner
+// cannot enforce a non-empty allowedTools restriction.
+type ToolRestrictionPolicy string
+
+const (
+	ToolRestrictionPolicyEnforced ToolRestrictionPolicy = "enforced"
+	ToolRestrictionPolicyAdvisory ToolRestrictionPolicy = "advisory"
+)
+
+func (p ToolRestrictionPolicy) IsValid() bool {
+	return p == "" || p == ToolRestrictionPolicyEnforced || p == ToolRestrictionPolicyAdvisory
+}
+
+// Effort is the canonical reasoning-effort scale shared by runner codecs.
+// Empty leaves the runner default unchanged.
+type Effort string
+
+const (
+	EffortLow    Effort = "low"
+	EffortMedium Effort = "medium"
+	EffortHigh   Effort = "high"
+	EffortXHigh  Effort = "xhigh"
+	EffortMax    Effort = "max"
+)
+
+func (e Effort) IsValid() bool {
+	switch e {
+	case "", EffortLow, EffortMedium, EffortHigh, EffortXHigh, EffortMax:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p ToolRestrictionPolicy) Effective() ToolRestrictionPolicy {
+	if p == "" {
+		return ToolRestrictionPolicyEnforced
+	}
+	return p
+}
+
+// IsValid reports whether the tool belongs to the canonical profile vocabulary.
+func (t CanonicalTool) IsValid() bool {
+	for _, valid := range CanonicalTools() {
+		if t == valid {
+			return true
+		}
+	}
+	return false
 }
 
 // RunnerType identifies which agent runner to use.
 type RunnerType string
 
 const (
-	RunnerTypeClaudeCode RunnerType = "claude-code"
-	RunnerTypeCodex      RunnerType = "codex"
-	RunnerTypeOpenCode   RunnerType = "opencode"
+	RunnerTypeClaudeCode  RunnerType = "claude-code"
+	RunnerTypeCodex       RunnerType = "codex"
+	RunnerTypeOpenCode    RunnerType = "opencode"
+	RunnerTypeGrok        RunnerType = "grok"
+	RunnerTypeAntigravity RunnerType = "antigravity"
 )
 
 // ValidRunnerTypes returns all valid runner types.
 func ValidRunnerTypes() []RunnerType {
 	return []RunnerType{
-		RunnerTypeClaudeCode,
-		RunnerTypeCodex,
-		RunnerTypeOpenCode,
+		RunnerTypeClaudeCode, RunnerTypeCodex, RunnerTypeOpenCode,
+		RunnerTypeGrok, RunnerTypeAntigravity,
 	}
 }
 
@@ -95,24 +204,184 @@ func (r RunnerType) IsValid() bool {
 	return false
 }
 
-// ModelPreset describes a high-level model selection preset.
-type ModelPreset string
+// ModelSelectionType makes runner-default selection explicit in persisted run
+// snapshots. Empty model strings are not sentinels in this contract.
+type ModelSelectionType string
 
 const (
-	ModelPresetUnspecified ModelPreset = ""
-	ModelPresetFast        ModelPreset = "FAST"
-	ModelPresetCheap       ModelPreset = "CHEAP"
-	ModelPresetSmart       ModelPreset = "SMART"
+	ModelSelectionTypeModel         ModelSelectionType = "model"
+	ModelSelectionTypeRunnerDefault ModelSelectionType = "runner_default"
 )
 
-// IsValid reports whether the preset is a supported value.
-func (p ModelPreset) IsValid() bool {
-	switch p {
-	case ModelPresetUnspecified, ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
+// ChallengerConfig describes an optional sampled model comparison. It is
+// copied into the immutable execution snapshot; mutable catalog state is
+// never consulted while a run executes or resumes.
+type ChallengerConfig struct {
+	Model      string  `json:"model"`
+	SampleRate float64 `json:"sample_rate"`
+}
+
+// ExecutionCandidate is one immutable runner/model attempt in resolved order.
+type ExecutionCandidate struct {
+	RunnerType           RunnerType            `json:"runnerType"`
+	SelectionType        ModelSelectionType    `json:"selectionType"`
+	Model                string                `json:"model,omitempty"`
+	CanonicalModel       string                `json:"canonicalModel,omitempty"`
+	ResourceRole         string                `json:"resourceRole,omitempty"`
+	Fallbacks            []string              `json:"fallbacks,omitempty"`
+	Available            bool                  `json:"available"`
+	FailureCode          string                `json:"failureCode,omitempty"`
+	Failure              string                `json:"failure,omitempty"`
+	Provenance           ResourceProvenance    `json:"provenance,omitempty"`
+	Enforcement          PermissionEnforcement `json:"enforcement,omitempty"`
+	PolicyPath           string                `json:"policyPath,omitempty"`
+	PolicyDigest         string                `json:"policyDigest,omitempty"`
+	Billing              BillingSnapshot       `json:"billing,omitempty"`
+	ChallengerModel      string                `json:"challengerModel,omitempty"`
+	ChallengerSampleRate float64               `json:"challengerSampleRate,omitempty"`
+	CanaryArm            string                `json:"canaryArm,omitempty"`
+}
+
+type BillingMode string
+
+const (
+	BillingModeMetered      BillingMode = "metered"
+	BillingModeSubscription BillingMode = "subscription"
+	BillingModeLocal        BillingMode = "local"
+	BillingModeUnknown      BillingMode = "unknown"
+)
+
+// BillingSnapshot is stamped at run creation and never re-read from mutable
+// resource policy. It preserves the accounting context used by a run.
+type BillingSnapshot struct {
+	Basis              ChargeBasis `json:"basis,omitempty"`
+	Mode               BillingMode `json:"mode"`
+	Provider           string      `json:"provider,omitempty"`
+	AccountRef         string      `json:"account_ref,omitempty"`
+	PlanRef            string      `json:"plan_ref,omitempty"`
+	PlanID             string      `json:"plan_id,omitempty"`
+	PlanLabel          string      `json:"plan_label,omitempty"`
+	QuotaWindow        string      `json:"quota_window,omitempty"`
+	SubscriptionPeriod string      `json:"subscription_period,omitempty"`
+	ObservedAt         time.Time   `json:"observed_at,omitempty"`
+	Source             string      `json:"source,omitempty"`
+	PolicyDigest       string      `json:"policy_digest,omitempty"`
+}
+
+func (b BillingSnapshot) EffectiveBasis() ChargeBasis {
+	if b.Basis != "" {
+		return b.Basis
+	}
+	switch b.Mode {
+	case BillingModeMetered:
+		return ChargeBasisMetered
+	case BillingModeSubscription:
+		return ChargeBasisSubscription
+	case BillingModeLocal:
+		return ChargeBasisLocal
+	default:
+		return ChargeBasisUnknown
+	}
+}
+
+type SubscriptionPeriod struct {
+	ID             string    `json:"id"`
+	Provider       string    `json:"provider"`
+	PlanRef        string    `json:"planRef"`
+	StartsAt       time.Time `json:"startsAt"`
+	EndsAt         time.Time `json:"endsAt"`
+	AmountMicroUSD int64     `json:"amountMicroUsd"`
+	QuotaTokens    int64     `json:"quotaTokens,omitempty"`
+}
+
+type WorkloadRef struct {
+	Kind     WorkloadKind `json:"kind"`
+	Key      string       `json:"key"`
+	Instance string       `json:"instance,omitempty"`
+}
+
+type WorkloadKind string
+
+const (
+	WorkloadKindWorkflowNode WorkloadKind = "workflow_node"
+	WorkloadKindScheduled    WorkloadKind = "scheduled"
+	WorkloadKindInteractive  WorkloadKind = "interactive"
+	WorkloadKindAdhoc        WorkloadKind = "adhoc"
+	WorkloadKindImported     WorkloadKind = "imported"
+)
+
+func (k WorkloadKind) IsValid() bool {
+	switch k {
+	case WorkloadKindWorkflowNode, WorkloadKindScheduled, WorkloadKindInteractive, WorkloadKindAdhoc, WorkloadKindImported:
 		return true
 	default:
 		return false
 	}
+}
+
+// WorkloadFromHistoricalTag recovers only the unambiguous workflow tag shape
+// used before workload identity was persisted separately.
+func WorkloadFromHistoricalTag(tag string) (WorkloadRef, bool) {
+	const prefix = "workflow-"
+	if strings.HasPrefix(tag, "agent-manager-imported-") {
+		return WorkloadRef{Kind: WorkloadKindImported, Key: strings.TrimPrefix(tag, "agent-manager-imported-")}, true
+	}
+	if !strings.HasPrefix(tag, prefix) {
+		return WorkloadRef{}, false
+	}
+	remainder := strings.TrimPrefix(tag, prefix)
+	if len(remainder) < 36 || remainder[36] != '-' {
+		return WorkloadRef{}, false
+	}
+	instance, err := uuid.Parse(remainder[:36])
+	if err != nil || remainder[37:] == "" {
+		return WorkloadRef{}, false
+	}
+	return WorkloadRef{Kind: WorkloadKindWorkflowNode, Key: remainder[37:], Instance: instance.String()}, true
+}
+
+// ResourceProvenance pins where a resource-owned role decision came from.
+type ResourceProvenance struct {
+	Source     string `json:"source,omitempty"`
+	ObservedAt string `json:"observedAt,omitempty"`
+}
+
+// PermissionEnforcement reports the resource's actual enforcement posture.
+type PermissionEnforcement struct {
+	Permissions string   `json:"permissions,omitempty"`
+	Caveats     []string `json:"caveats,omitempty"`
+}
+
+// CandidatePreflight records the creation-time availability evidence used to
+// select the initial candidate. Runtime failures remain separate attempt events.
+type CandidatePreflight struct {
+	Index     int                `json:"index"`
+	Candidate ExecutionCandidate `json:"candidate"`
+	Available bool               `json:"available"`
+	Reason    string             `json:"reason,omitempty"`
+}
+
+// PolicyResolutionExplanation records why a run received its candidate
+// sequence. It is persisted with the run so operators never need to reconstruct
+// precedence from the current profile or catalog.
+type PolicyResolutionExplanation struct {
+	Source           string               `json:"source"`
+	Summary          string               `json:"summary"`
+	RequestedRoleRef string               `json:"requestedRoleRef,omitempty"`
+	Preflight        []CandidatePreflight `json:"preflight,omitempty"`
+}
+
+// ExecutionPolicySnapshot is the immutable model/runner decision attached to a
+// run at creation. Execution must consume Candidates from this snapshot rather
+// than rereading the active role-policy catalog.
+type ExecutionPolicySnapshot struct {
+	CatalogDigest     string                      `json:"catalogDigest"`
+	RoleRef           string                      `json:"roleRef,omitempty"`
+	Candidates        []ExecutionCandidate        `json:"candidates"`
+	SelectedIndex     int                         `json:"selectedIndex"`
+	SelectedCandidate ExecutionCandidate          `json:"selectedCandidate"`
+	Explanation       PolicyResolutionExplanation `json:"explanation"`
+	CanaryArm         string                      `json:"canaryArm,omitempty"`
 }
 
 // NetworkAccess controls the level of network access granted to an agent during execution.
@@ -120,7 +389,7 @@ type NetworkAccess string
 
 const (
 	// NetworkAccessNone blocks all network access.
-	// Codex: maps to --full-auto.
+	// Codex: maps to --sandbox workspace-write.
 	NetworkAccessNone NetworkAccess = "none"
 
 	// NetworkAccessLocalhost allows access to localhost only (local scenario APIs).
@@ -155,20 +424,24 @@ func (n NetworkAccess) Effective() NetworkAccess {
 type SandboxLifecycleEvent string
 
 const (
-	SandboxLifecycleRunCompleted SandboxLifecycleEvent = "run_completed"
-	SandboxLifecycleRunFailed    SandboxLifecycleEvent = "run_failed"
-	SandboxLifecycleRunCancelled SandboxLifecycleEvent = "run_cancelled"
-	SandboxLifecycleApproved     SandboxLifecycleEvent = "approved"
-	SandboxLifecycleRejected     SandboxLifecycleEvent = "rejected"
-	SandboxLifecycleTerminal     SandboxLifecycleEvent = "terminal"
+	SandboxLifecycleTurnCompleted SandboxLifecycleEvent = "turn_completed"
+	SandboxLifecycleTurnFailed    SandboxLifecycleEvent = "turn_failed"
+	SandboxLifecycleTurnCancelled SandboxLifecycleEvent = "turn_cancelled"
+	SandboxLifecycleRunCompleted  SandboxLifecycleEvent = "run_completed"
+	SandboxLifecycleRunFailed     SandboxLifecycleEvent = "run_failed"
+	SandboxLifecycleRunCancelled  SandboxLifecycleEvent = "run_cancelled"
+	SandboxLifecycleApproved      SandboxLifecycleEvent = "approved"
+	SandboxLifecycleRejected      SandboxLifecycleEvent = "rejected"
+	SandboxLifecycleTerminal      SandboxLifecycleEvent = "terminal"
 )
 
 // SandboxLifecycleConfig controls sandbox stop/delete behavior.
 type SandboxLifecycleConfig struct {
-	StopOn      []SandboxLifecycleEvent `json:"stopOn,omitempty"`
-	DeleteOn    []SandboxLifecycleEvent `json:"deleteOn,omitempty"`
-	TTL         time.Duration           `json:"ttl,omitempty"`
-	IdleTimeout time.Duration           `json:"idleTimeout,omitempty"`
+	CheckpointOn []SandboxLifecycleEvent `json:"checkpointOn,omitempty"`
+	StopOn       []SandboxLifecycleEvent `json:"stopOn,omitempty"`
+	DeleteOn     []SandboxLifecycleEvent `json:"deleteOn,omitempty"`
+	TTL          time.Duration           `json:"ttl,omitempty"`
+	IdleTimeout  time.Duration           `json:"idleTimeout,omitempty"`
 }
 
 // SandboxFileCriteria defines allow/deny matchers for acceptance filtering.
@@ -202,26 +475,217 @@ type SandboxFileCriteria struct {
 // This way the agent can restart the scenario to see its UI changes rendered,
 // but any accidental API modifications are caught during approval review.
 type SandboxAcceptanceConfig struct {
-	Mode                      string              `json:"mode,omitempty"` // "allowlist" (default)
-	Allow                     SandboxFileCriteria `json:"allow,omitempty"`
-	Deny                      SandboxFileCriteria `json:"deny,omitempty"`
-	IgnoreBinary              bool                `json:"ignoreBinary,omitempty"`
-	AutoApprove               bool                `json:"autoApprove,omitempty"`
-	AutoReject                bool                `json:"autoReject,omitempty"`
-	DisableAutoApproveIfEmpty bool                `json:"disableAutoApproveIfEmpty,omitempty"`
+	Mode         string              `json:"mode,omitempty"` // "allowlist" (default)
+	Allow        SandboxFileCriteria `json:"allow,omitempty"`
+	Deny         SandboxFileCriteria `json:"deny,omitempty"`
+	IgnoreBinary bool                `json:"ignoreBinary,omitempty"`
+}
+
+// SandboxMode names the per-run sandbox execution mode from the
+// auditability contract. The default produced by [DefaultSandboxConfig]
+// is [SandboxModeProtected]: the agent process tree itself runs inside
+// workspace-sandbox (bwrap isolation, NetworkMode translation, git
+// allowlist enforcement on /processes and /exec). Runs that request
+// Protected without a configured SandboxLauncherFactory fall back to host
+// execution with an explicit warn event so misconfigured environments
+// are visible rather than silent. [SandboxModeTracking] is the
+// documented operator opt-out for runs that legitimately need full host
+// capability — set explicitly per-spawn; nothing defaults to it.
+// [SandboxModeOff] is the explicit "no sandbox at all" choice — used
+// only for runs that legitimately have no auditability requirement
+// (e.g. agent-manager developing itself). It is the single switch that
+// controls whether the orchestrator allocates a sandbox for the run;
+// see [DeriveRunMode] in package orchestration.
+type SandboxMode string
+
+const (
+	// SandboxModeUnspecified means the SandboxConfig did not pick a mode
+	// explicitly. Treated as SandboxModeProtected by [SandboxMode.Effective]
+	// — the safe routing target for code paths that construct a
+	// zero-valued SandboxConfig directly. Spawn surfaces should clone
+	// [DefaultSandboxConfig] (which sets Mode=Protected) instead of
+	// zero-initialising, so the unspecified→protected fallback only fires
+	// for legacy or test code paths.
+	SandboxModeUnspecified SandboxMode = ""
+
+	// SandboxModeOff disables sandboxing for the run entirely. The
+	// orchestrator skips workspace-sandbox allocation, the runner edits
+	// the canonical repo directly, and no provenance record is written.
+	// Reserved for runs where auditability is genuinely irrelevant
+	// (e.g. agent-manager developing itself, in-place tests). This is
+	// the *only* value that produces RunModeInPlace; every other Mode
+	// produces RunModeSandboxed.
+	SandboxModeOff SandboxMode = "off"
+
+	// SandboxModeTracking is the host-tracked auditability mode: the
+	// agent runs on the host and the sandbox merely tracks file changes
+	// for accountability/provenance. Used as the explicit operator
+	// opt-out for runs that need full host capability (e.g. git push
+	// after review, scraping a remote URL). Locked defaults when chosen:
+	// ManualReview=false, AutoApply=true, ApplyOnFailure=true,
+	// NoLock=true (lock=false), NetworkMode=localhost.
+	SandboxModeTracking SandboxMode = "tracking"
+
+	// SandboxModeProtected runs the agent process tree itself inside the
+	// workspace-sandbox container — bwrap isolation, network mode, and
+	// git allowlist are enforced on the agent process, not just on its
+	// merged-overlay output. This is the production default. Whether a
+	// protected-mode request actually launches in the sandbox or falls
+	// back to host execution depends on the runner having a
+	// SandboxLauncherFactory wired at runtime; in production main.go
+	// always wires this.
+	//
+	// See execute/protected-sandbox-agent-launch and
+	// scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md.
+	SandboxModeProtected SandboxMode = "protected"
+)
+
+// IsValid reports whether m is a recognised mode name (not whether it is
+// currently implemented — see Validate for the runtime gate).
+func (m SandboxMode) IsValid() bool {
+	switch m {
+	case SandboxModeUnspecified, SandboxModeOff, SandboxModeTracking, SandboxModeProtected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Effective returns the mode value, defaulting empty to SandboxModeProtected.
+// SandboxModeOff is preserved as-is (it is an explicit, intentional choice).
+func (m SandboxMode) Effective() SandboxMode {
+	if m == SandboxModeUnspecified {
+		return SandboxModeProtected
+	}
+	return m
+}
+
+// strictnessRank orders sandbox modes from least to most strict, so a
+// "minimum-mode" policy can be expressed as a numeric ≥ comparison.
+// SandboxModeUnspecified is treated as Protected (matches Effective).
+//
+//	Off (0) < Tracking (1) < Protected (2)
+//
+// The values are an internal implementation detail of [SandboxMode.AtLeast];
+// callers should not depend on the integers.
+func (m SandboxMode) strictnessRank() int {
+	switch m.Effective() {
+	case SandboxModeOff:
+		return 0
+	case SandboxModeTracking:
+		return 1
+	case SandboxModeProtected:
+		return 2
+	default:
+		// Unknown values fall back to "off" so an invalid mode never
+		// silently satisfies a strictness requirement.
+		return 0
+	}
+}
+
+// AtLeast reports whether m is at least as strict as required. It is the
+// canonical comparison used by the orchestrator when validating that a
+// resolved SandboxConfig.Mode satisfies a policy-declared minimum.
+// SandboxModeUnspecified on either side is normalised via Effective().
+func (m SandboxMode) AtLeast(required SandboxMode) bool {
+	return m.strictnessRank() >= required.strictnessRank()
 }
 
 // SandboxConfig holds lifecycle + acceptance settings for a sandbox.
 //
 // Design note: SandboxConfig controls sandbox BEHAVIOR (when to clean up,
-// which files to accept). It does NOT control the sandbox's filesystem
-// SCOPE — that comes from Task.ScopePath, which determines what directory
-// the overlay covers. See the ScopePath vs Acceptance distinction documented
-// on SandboxAcceptanceConfig.
+// which files to accept, when to apply). It does NOT control the sandbox's
+// filesystem SCOPE — that comes from Task.ScopePath, which determines what
+// directory the overlay covers. See the ScopePath vs Acceptance distinction
+// documented on SandboxAcceptanceConfig.
+//
+// The Mode / ManualReview / AutoApply / ApplyOnFailure / NetworkMode fields
+// encode the auditability contract — see
+// scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+// DefaultSandboxConfig returns the locked defaults; spawn surfaces should
+// compose against those rather than zero-initialising.
 type SandboxConfig struct {
 	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
-	NoLock     bool                    `json:"noLock,omitempty"` // Disable mutual exclusion locking (for investigative/read-only sandboxes)
+
+	// Mode selects the auditability mode. Empty defaults to "tracking".
+	Mode SandboxMode `json:"mode,omitempty"`
+
+	// ManualReview defers apply at run end until an operator approves via
+	// one of the three viewing surfaces (git-control-tower, agent-manager,
+	// workspace-sandbox). When true, the sandbox persists past run end.
+	// Default: false.
+	ManualReview bool `json:"manualReview,omitempty"`
+
+	// AutoApply controls whether in-acceptance changes apply to the canonical
+	// repo at run end. Stored as a pointer so the zero-value of an unset
+	// SandboxConfig is unambiguous; nil is treated as the contract default
+	// (true). Use GetAutoApply for the resolved value.
+	AutoApply *bool `json:"autoApply,omitempty"`
+
+	// ApplyOnFailure controls whether apply runs identically when the run
+	// outcome is failure / cancelled / timeout. nil ↔ contract default true.
+	// Run outcome is recorded as metadata on the resulting provenance record
+	// but does not gate apply behaviour.
+	ApplyOnFailure *bool `json:"applyOnFailure,omitempty"`
+
+	// NetworkMode mirrors NetworkAccess for sandboxed execution. Empty
+	// defaults to NetworkAccessLocalhost.
+	NetworkMode NetworkAccess `json:"networkMode,omitempty"`
+
+	// NoLock disables mutual exclusion locking. The contract makes locking
+	// and acceptance orthogonal: NoLock does not bypass acceptance.
+	// (Contract framing names this "lock"; lock=false ↔ NoLock=true.)
+	NoLock bool `json:"noLock,omitempty"`
+}
+
+// GetAutoApply resolves AutoApply, defaulting to the contract value (true)
+// when the pointer is nil. Safe to call on a nil receiver.
+func (c *SandboxConfig) GetAutoApply() bool {
+	if c == nil || c.AutoApply == nil {
+		return true
+	}
+	return *c.AutoApply
+}
+
+// GetApplyOnFailure resolves ApplyOnFailure, defaulting to the contract
+// value (true) when the pointer is nil. Safe to call on a nil receiver.
+func (c *SandboxConfig) GetApplyOnFailure() bool {
+	if c == nil || c.ApplyOnFailure == nil {
+		return true
+	}
+	return *c.ApplyOnFailure
+}
+
+// DefaultSandboxConfig returns the auditability-contract defaults. Spawn
+// surfaces should clone this and apply overrides on top, rather than
+// zero-initialising.
+//
+// Mode defaults to SandboxModeProtected: the agent process tree itself
+// runs inside the workspace-sandbox (bwrap isolation, NetworkMode
+// translation, git allowlist enforcement on /processes and /exec). Slices
+// 1–3 of execute/protected-sandbox-agent-launch wired all three runners
+// (claude_code, codex, opencode) and both Execute and Continue paths
+// through the launcher seam, so this default is now safe.
+//
+// Tracking mode (SandboxModeTracking) remains as the documented operator
+// opt-out for runs that legitimately need full host capability — e.g.,
+// a `git push` after review, scraping a remote URL, or self-modifying
+// scenarios. Operators set it explicitly per-spawn; nothing defaults to
+// it. RunMode.IN_PLACE remains the full-bypass mode for the rare cases
+// where even tracking-mode auditability is wrong (e.g., agent-manager
+// developing itself).
+func DefaultSandboxConfig() *SandboxConfig {
+	autoApply := true
+	applyOnFailure := true
+	return &SandboxConfig{
+		Mode:           SandboxModeProtected,
+		ManualReview:   false,
+		AutoApply:      &autoApply,
+		ApplyOnFailure: &applyOnFailure,
+		NetworkMode:    NetworkAccessLocalhost,
+		NoLock:         true,
+	}
 }
 
 // FeatureFlags contains well-known typed feature flags.
@@ -320,25 +784,77 @@ type ContextAttachment struct {
 // Run - A concrete execution attempt
 // -----------------------------------------------------------------------------
 
+// RunLabelSource records how the human-readable run label was obtained.
+// Empty is retained only for legacy rows; new runs must set both Label and
+// LabelSource.
+type RunLabelSource string
+
+const (
+	// RunLabelSourceHarness is the title the coding-agent harness itself wrote
+	// (claude's ai-title record, for example).
+	RunLabelSourceHarness RunLabelSource = "harness"
+	// RunLabelSourceDerived is taken verbatim from session content, such as the
+	// first non-injected user prompt.
+	RunLabelSourceDerived RunLabelSource = "derived"
+	// RunLabelSourceGenerated means an inference provider wrote the label from
+	// session content. It must never be applied to a deterministic fallback:
+	// consumers filter on it expecting prose about the work.
+	RunLabelSourceGenerated RunLabelSource = "generated"
+	// RunLabelSourcePlaceholder means nothing named the work — no harness
+	// title, no usable session content, and no successful generation. The label
+	// identifies the run but says nothing about it, so analysis that needs a
+	// subject must treat these as unlabelled rather than as generated prose.
+	RunLabelSourcePlaceholder RunLabelSource = "placeholder"
+	// RunLabelSourceManual is an operator-supplied label.
+	RunLabelSourceManual RunLabelSource = "manual"
+)
+
 // Run represents a single execution attempt of a task using a specific agent profile.
 type Run struct {
 	ID             uuid.UUID  `json:"id" db:"id"`
-	TaskID         uuid.UUID  `json:"taskId" db:"task_id"`
+	TaskID         uuid.UUID  `json:"taskId,omitempty" db:"task_id"`
 	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
-	Tag string `json:"tag,omitempty" db:"tag"`
-
+	Tag             string          `json:"tag,omitempty" db:"tag"`
+	Label           string          `json:"label,omitempty" db:"label"`
+	LabelSource     RunLabelSource  `json:"labelSource,omitempty" db:"label_source"`
+	Subject         []string        `json:"subject,omitempty" db:"subject"`
+	OwnerSubject    string          `json:"ownerSubject,omitempty" db:"owner_subject"`
+	OwnerScopes     []string        `json:"ownerScopes,omitempty" db:"owner_scopes"`
+	RequestedScopes []string        `json:"requestedScopes,omitempty" db:"requested_scopes"`
+	Workload        WorkloadRef     `json:"workload,omitempty" db:"workload"`
+	Billing         BillingSnapshot `json:"billing,omitempty" db:"billing"`
 	// Sandbox integration
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
 	RunMode       RunMode        `json:"runMode" db:"run_mode"`
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
+	// ExecutionMode selects the CLI-driving substrate; empty defaults to codec-pipe. Orthogonal to RunMode.
+	ExecutionMode    ExecutionMode `json:"executionMode,omitempty" db:"execution_mode"`
+	HarnessKind      string        `json:"harnessKind,omitempty" db:"harness_kind"`
+	HarnessSessionID string        `json:"harnessSessionId,omitempty" db:"harness_session_id"`
+
+	// WebConsoleSessionID is the id of the web-console session hosting the
+	// interactive agent CLI, set only for ExecutionModeInteractive runs. It
+	// backs the run-detail deep link to the live session and routes the
+	// interactive Continue/Stop terminal input + session teardown.
+	WebConsoleSessionID string `json:"webConsoleSessionId,omitempty" db:"web_console_session_id"`
+
+	// WebConsoleSessionURL is the resolved deep link to the live web-console
+	// session (computed at read time from WebConsoleSessionID + the web-console
+	// UI base, not persisted). Empty for non-interactive runs and when the
+	// web-console UI base cannot be resolved server-side.
+	WebConsoleSessionURL string `json:"webConsoleSessionUrl,omitempty"`
 
 	// Execution state
 	Status    RunStatus  `json:"status" db:"status"`
 	StartedAt *time.Time `json:"startedAt,omitempty" db:"started_at"`
 	EndedAt   *time.Time `json:"endedAt,omitempty" db:"ended_at"`
+
+	// GoalID is retained as a stable historical cohort key. The degenerate
+	// self-reported goal status field is intentionally not part of Run.
+	GoalID string `json:"goalId,omitempty" db:"goal_id"`
 
 	// Progress tracking (for resumption and visibility)
 	Phase            RunPhase   `json:"phase" db:"phase"`
@@ -350,6 +866,10 @@ type Run struct {
 	IdempotencyKey string `json:"idempotencyKey,omitempty" db:"idempotency_key"`
 
 	// Results
+	// Result is the canonical, provenance-bearing terminal output projection.
+	// Summary is a compatibility view derived from Result and must never be
+	// independently authored for new runner completions.
+	Result   *RunResult  `json:"result,omitempty" db:"run_result"`
 	Summary  *RunSummary `json:"summary,omitempty" db:"summary"`
 	ErrorMsg string      `json:"errorMsg,omitempty" db:"error_msg"`
 	ExitCode *int        `json:"exitCode,omitempty" db:"exit_code"`
@@ -359,6 +879,13 @@ type Run struct {
 	ApprovedBy    string        `json:"approvedBy,omitempty" db:"approved_by"`
 	ApprovedAt    *time.Time    `json:"approvedAt,omitempty" db:"approved_at"`
 
+	// Post-run sandbox finalization. This tracks apply/checkpoint effects
+	// separately from the runner turn status so infrastructure cleanup cannot
+	// make a completed turn appear to still be running.
+	FinalizationStatus RunFinalizationStatus `json:"finalizationStatus" db:"finalization_status"`
+	FinalizationError  string                `json:"finalizationError,omitempty" db:"finalization_error"`
+	FinalizedAt        *time.Time            `json:"finalizedAt,omitempty" db:"finalized_at"`
+
 	// Inline config (used when no profile provided, or to store resolved config)
 	ResolvedConfig *RunConfig `json:"resolvedConfig,omitempty" db:"resolved_config"`
 
@@ -367,6 +894,7 @@ type Run struct {
 	LogPath        string `json:"logPath,omitempty" db:"log_path"`
 	ChangedFiles   int    `json:"changedFiles" db:"changed_files"`
 	TotalSizeBytes int64  `json:"totalSizeBytes" db:"total_size_bytes"`
+	CommitHash     string `json:"commitHash,omitempty" db:"commit_hash"`
 
 	// Session continuation support
 	// Stores the runner-specific session identifier for conversation resumption.
@@ -375,23 +903,106 @@ type Run struct {
 	// For OpenCode: sessionID from stream events
 	SessionID string `json:"sessionId,omitempty" db:"session_id"`
 
+	// Transcript recovery metadata for restart-safe run reconciliation.
+	RunnerPID         int    `json:"runnerPid,omitempty" db:"runner_pid"`
+	RunnerPGID        int    `json:"runnerPgid,omitempty" db:"runner_pgid"`
+	TranscriptPath    string `json:"transcriptPath,omitempty" db:"transcript_path"`
+	TranscriptCursor  int64  `json:"transcriptCursor,omitempty" db:"transcript_cursor"`
+	TranscriptLastSeq int64  `json:"transcriptLastSeq,omitempty" db:"transcript_last_seq"`
+
+	// Import provenance is populated for read-only transcripts adopted from an
+	// external runner store. Source harness plus source session is a stable,
+	// runner-qualified identity used to make corpus imports idempotent. The
+	// harness half must be compared through [NormalizeImportHarness] — see that
+	// function for why the raw label is descriptive, not identifying.
+	ImportSourceHarness   string     `json:"importSourceHarness,omitempty" db:"import_source_harness"`
+	ImportSourceSessionID string     `json:"importSourceSessionId,omitempty" db:"import_source_session_id"`
+	ImportedAt            *time.Time `json:"importedAt,omitempty" db:"imported_at"`
+
+	// Model provenance — requested is the first concrete entry the preset chain expanded to
+	// when the run was created; actual is the model the CLI actually executed with once
+	// model-fallback (if any) converged. When they differ the run degraded through the chain.
+	RequestedModel string `json:"requestedModel,omitempty" db:"requested_model"`
+	ActualModel    string `json:"actualModel,omitempty" db:"actual_model"`
+	// CanaryArm is duplicated for operator ergonomics; the immutable policy
+	// snapshot remains the authoritative replay record.
+	CanaryArm string `json:"canaryArm,omitempty" db:"canary_arm"`
+
 	// Investigation lineage fields
 	// SourceRunIDs links investigation runs back to the run(s) being investigated.
 	SourceRunIDs []uuid.UUID `json:"sourceRunIds,omitempty" db:"source_run_ids"`
 	// SourceInvestigationRunID links apply runs back to the investigation run they apply.
 	SourceInvestigationRunID *uuid.UUID `json:"sourceInvestigationRunId,omitempty" db:"source_investigation_run_id"`
 
-	// Recommendation extraction state (for investigation runs)
-	// Recommendations are extracted passively after investigation runs complete.
-	RecommendationStatus   RecommendationStatus `json:"recommendationStatus,omitempty" db:"recommendation_status"`
-	RecommendationResult   *ExtractionResult    `json:"recommendationResult,omitempty" db:"recommendation_result"`
-	RecommendationAttempts int                  `json:"recommendationAttempts,omitempty" db:"recommendation_attempts"`
-	RecommendationError    string               `json:"recommendationError,omitempty" db:"recommendation_error"`
-	RecommendationQueuedAt *time.Time           `json:"recommendationQueuedAt,omitempty" db:"recommendation_queued_at"`
+	// ParentRunID is the generic "parent run" link for conversation continuity.
+	// When a spawner is creating a follow-up run as a continuation of an
+	// existing agent thread (e.g. swarm-manager queue resuming a swarm,
+	// agent-manager UI "continue conversation"), it sets ParentRunID to the
+	// originating run. The run-creation path uses ParentRunID to inherit
+	// ConversationID — see ResolveConversationID.
+	//
+	// ParentRunID is a separate concept from SourceInvestigationRunID
+	// (apply-from-investigation linkage) and SourceRunIDs (investigation
+	// targets); a run can have any combination of those plus ParentRunID.
+	ParentRunID *uuid.UUID `json:"parentRunId,omitempty" db:"parent_run_id"`
+
+	// ConversationID groups runs that belong to the same agent thread for
+	// auditability. One ID per agent-thread; child runs inherit from
+	// ParentRunID's run when set, otherwise the run-creation path generates
+	// a fresh UUID. Spawn surfaces that already know they are continuing a
+	// thread (e.g. swarm-manager queue resuming a swarm) populate this value
+	// directly; standalone runs get a new ID. See
+	// scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md Finding 2.
+	//
+	// IMPORTANT: this is NOT the same as Run.SessionID, which is a
+	// runner-specific resume token (Claude Code session_id, Codex thread_id,
+	// etc.) with an unrelated lifetime.
+	ConversationID string `json:"conversationId,omitempty" db:"conversation_id"`
 
 	// Identity token fields
 	IdentityTokenHash      string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
 	IdentityTokenRevokedAt *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
+
+	// CustomEnv holds the caller-supplied VROOLI_-prefixed environment
+	// variables passed at run creation (CreateRunRequest.Environment).
+	// Persisted so the continue/wake path can re-inject them: a continued
+	// turn that bypassed this would silently drop scenario-injected custom
+	// env (the latent bug Phase 0 of the park/resume work fixes). Values are
+	// VROOLI_*-validated at the API boundary (≤20 entries / ≤4096 bytes).
+	CustomEnv map[string]string `json:"customEnv,omitempty" db:"custom_env"`
+
+	// AwaitHandle describes the externally-owned async work a parked run is
+	// waiting on. It is set when the run transitions running→parked and cleared
+	// on wake (parked→running) or cancel (parked→cancelled). Persisted (JSON
+	// column) so an agent-manager restart can re-spawn the waiter for every
+	// parked run (one open handle per run — a second park while parked is
+	// rejected). Nil for every non-parked run.
+	AwaitHandle *AwaitHandle `json:"awaitHandle,omitempty" db:"await_handle"`
+
+	// LastAwaitKey / LastAwaitResult / LastAwaitResolvedAt record the most
+	// recently RESOLVED await: the producer:key, the full result string that was
+	// injected into the woken turn, and when it resolved. They are the durable
+	// SSOT behind the re-fetch path (GET /runs/{id}/await-result): a woken agent
+	// that did not see — or wants to re-read — the result can retrieve it cheaply
+	// without re-running the blocking producer. Set on wake (parked→running),
+	// retained across subsequent turns until the next await resolves.
+	LastAwaitKey        string     `json:"lastAwaitKey,omitempty" db:"last_await_key"`
+	LastAwaitResult     string     `json:"lastAwaitResult,omitempty" db:"last_await_result"`
+	LastAwaitResolvedAt *time.Time `json:"lastAwaitResolvedAt,omitempty" db:"last_await_resolved_at"`
+
+	// LastWakeSeq snapshots TranscriptLastSeq at the moment of the last wake. The
+	// no-progress re-park guard compares it against the live TranscriptLastSeq to
+	// best-effort detect whether the agent did any work since being woken before
+	// it tries to park again.
+	LastWakeSeq int64 `json:"lastWakeSeq,omitempty" db:"last_wake_seq"`
+
+	// SameKeyParkStreak counts how many times in a row this run has tried to park
+	// on the SAME await key without forward progress in between. It is the
+	// timing-independent backstop the re-park guard uses to refuse a degenerate
+	// "wake → immediately re-run the same blocking command → re-park" loop (the
+	// coding-agent limitation park exists to absorb). Reset to 0 on a different-key
+	// park or on detected progress.
+	SameKeyParkStreak int `json:"sameKeyParkStreak,omitempty" db:"same_key_park_streak"`
 
 	// First ~120 chars of the associated task description (computed, not persisted).
 	PromptPreview string `json:"promptPreview,omitempty"`
@@ -416,7 +1027,7 @@ func (r *Run) GetTag() string {
 func (r *Run) IsResumable() bool {
 	// Can only resume runs that are in a non-terminal state
 	switch r.Status {
-	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return false
 	}
 	// Check if the phase supports resumption
@@ -459,6 +1070,47 @@ const (
 	RunModeInPlace   RunMode = "in_place"
 )
 
+// ExecutionMode indicates how agent-manager drives the agent CLI for a run.
+// It is orthogonal to [RunMode] (sandbox isolation): a run picks an execution
+// substrate independently of whether it is sandboxed.
+//
+//   - ExecutionModeCodecPipe (default): agent-manager owns the CLI process and
+//     reads events off its stdout pipe via the codec decoders. This is the
+//     historical path and the only path for protected (sandboxed) runs.
+//   - ExecutionModeInteractive: agent-manager launches the real interactive
+//     agent CLI inside a web-console (persistent/tmux) session and reads events
+//     by tailing the agent-owned on-disk transcript. Allowed only for
+//     non-protected (in-place) runs.
+type ExecutionMode string
+
+const (
+	ExecutionModeCodecPipe   ExecutionMode = "codec_pipe"
+	ExecutionModeInteractive ExecutionMode = "interactive"
+	// ExecutionModeImported marks a terminal, read-only run adopted from an external harness transcript.
+	ExecutionModeImported ExecutionMode = "imported"
+	ExecutionModeAttached ExecutionMode = "attached"
+)
+
+// Normalized returns the mode with the empty value defaulted to
+// ExecutionModeCodecPipe, so rows written before the column existed (and
+// callers that leave the field unset) behave as codec-pipe runs.
+func (m ExecutionMode) Normalized() ExecutionMode {
+	if m == "" {
+		return ExecutionModeCodecPipe
+	}
+	return m
+}
+
+// IsValid reports whether the mode is one of the known execution modes.
+func (m ExecutionMode) IsValid() bool {
+	switch m {
+	case ExecutionModeCodecPipe, ExecutionModeInteractive, ExecutionModeImported, ExecutionModeAttached:
+		return true
+	default:
+		return false
+	}
+}
+
 // RunStatus represents the current state of a run.
 type RunStatus string
 
@@ -470,6 +1122,56 @@ const (
 	RunStatusComplete    RunStatus = "complete"
 	RunStatusFailed      RunStatus = "failed"
 	RunStatusCancelled   RunStatus = "cancelled"
+	// RunStatusParked: the run is suspended waiting on externally-owned async
+	// work (a test-genie run, a git-control-tower baseline diff). The agent
+	// process has exited (zero tokens burned) but the run is NOT terminal — its
+	// sandbox is preserved and agent-manager re-spawns ("wakes") the conversation
+	// with the awaited result injected once it resolves. Modeled on needs_review
+	// (process-exited, non-terminal, resume-with-injected-message) but for
+	// infrastructure-driven waiting rather than operator review. See
+	// scenarios/agent-manager/docs/internal/SEAMS.md (park/wake) and the
+	// LivenessPolicy table in decisions.go (parked is scanned but never
+	// heartbeat-reaped).
+	RunStatusParked RunStatus = "parked"
+	// RunStatusUnknown means historical evidence did not contain a trustworthy
+	// terminal signal. It is distinct from a provider failure.
+	RunStatusUnknown RunStatus = "unknown"
+)
+
+// AwaitHandle identifies the externally-owned async work a parked run is
+// blocked on. agent-manager (which owns the agent process) performs the
+// blocking wait on the agent's behalf via a per-producer Waiter seam and wakes
+// the run when the handle resolves. The handle is the unit persisted for
+// restart recovery and the key the waiter de-duplicates on so wake is
+// idempotent (a double-resolve must not double-wake).
+type AwaitHandle struct {
+	// Producer identifies which Waiter resolves this handle (e.g. "test-genie",
+	// "git-control-tower"). The await-handle registry (Phase 3) maps it to a
+	// concrete Waiter implementation.
+	Producer string `json:"producer"`
+	// Key is the producer-scoped identifier of the awaited work (e.g. a
+	// test-genie run ID, a baseline diff request key). Producer+Key together
+	// uniquely identify the work being awaited.
+	Key string `json:"key"`
+	// Deadline bounds the wait. When it elapses agent-manager wakes the run with
+	// a typed "timed-out / unknown" result rather than hanging forever. Nil ⇒
+	// the orchestrator default ParkTTL is applied at park time, so a persisted
+	// handle always carries a concrete deadline.
+	Deadline *time.Time `json:"deadline,omitempty"`
+	// RegisteredAt records when the park happened (for observability / ETA).
+	RegisteredAt time.Time `json:"registeredAt"`
+}
+
+// RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
+type RunFinalizationStatus string
+
+const (
+	RunFinalizationStatusNone      RunFinalizationStatus = "none"
+	RunFinalizationStatusPending   RunFinalizationStatus = "pending"
+	RunFinalizationStatusRunning   RunFinalizationStatus = "running"
+	RunFinalizationStatusSucceeded RunFinalizationStatus = "succeeded"
+	RunFinalizationStatusFailed    RunFinalizationStatus = "failed"
+	RunFinalizationStatusSkipped   RunFinalizationStatus = "skipped"
 )
 
 // ApprovalState represents the approval workflow state.
@@ -481,26 +1183,6 @@ const (
 	ApprovalStatePartiallyApproved ApprovalState = "partially_approved"
 	ApprovalStateApproved          ApprovalState = "approved"
 	ApprovalStateRejected          ApprovalState = "rejected"
-)
-
-// RecommendationStatus represents the state of recommendation extraction for investigation runs.
-type RecommendationStatus string
-
-const (
-	// RecommendationStatusNone - Not applicable (non-investigation run or not yet complete)
-	RecommendationStatusNone RecommendationStatus = "none"
-
-	// RecommendationStatusPending - Awaiting extraction (queued for background processing)
-	RecommendationStatusPending RecommendationStatus = "pending"
-
-	// RecommendationStatusExtracting - Extraction in progress
-	RecommendationStatusExtracting RecommendationStatus = "extracting"
-
-	// RecommendationStatusComplete - Successfully extracted and cached
-	RecommendationStatusComplete RecommendationStatus = "complete"
-
-	// RecommendationStatusFailed - Extraction failed after max retries
-	RecommendationStatusFailed RecommendationStatus = "failed"
 )
 
 // RunSummary contains the structured summary from an agent run.
@@ -515,21 +1197,170 @@ type RunSummary struct {
 	ContextTokens int      `json:"contextTokens,omitempty"`
 }
 
+// FinalOutputSelectionStatus describes whether terminal evidence identifies a
+// unique final assistant handoff. Historical runs may have no RunResult at all;
+// a present result always carries one of these explicit outcomes.
+type FinalOutputSelectionStatus string
+
+const (
+	FinalOutputSelectionSelected    FinalOutputSelectionStatus = "selected"
+	FinalOutputSelectionAmbiguous   FinalOutputSelectionStatus = "ambiguous"
+	FinalOutputSelectionUnavailable FinalOutputSelectionStatus = "unavailable"
+)
+
+// FinalOutputCandidate is an immutable projection of one assistant message
+// considered by the final-output resolver.
+type FinalOutputCandidate struct {
+	ID                string `json:"id"`
+	EventID           string `json:"eventId,omitempty"`
+	Sequence          int64  `json:"sequence,omitempty"`
+	Content           string `json:"content"`
+	MessageID         string `json:"messageId,omitempty"`
+	ConversationID    string `json:"conversationId,omitempty"`
+	TurnID            string `json:"turnId,omitempty"`
+	ProviderOrigin    string `json:"providerOrigin,omitempty"`
+	CompletionReason  string `json:"completionReason,omitempty"`
+	Terminal          bool   `json:"terminal,omitempty"`
+	ParentMessageID   string `json:"parentMessageId,omitempty"`
+	ProviderEventType string `json:"providerEventType,omitempty"`
+	RawEvidenceRef    string `json:"rawEvidenceRef,omitempty"`
+	EvidenceTier      int    `json:"evidenceTier"`
+}
+
+// FinalOutputSelection records the deterministic resolver decision and the
+// exact rule/version needed to explain or reproduce it.
+type FinalOutputSelection struct {
+	Status              FinalOutputSelectionStatus `json:"status"`
+	SelectedCandidateID string                     `json:"selectedCandidateId,omitempty"`
+	Rule                string                     `json:"rule"`
+	AlgorithmVersion    string                     `json:"algorithmVersion"`
+	Evidence            []string                   `json:"evidence,omitempty"`
+}
+
+// RunResult is the canonical terminal result for one execute or continue turn.
+// It intentionally remains useful when selection is ambiguous/unavailable.
+type RunResult struct {
+	FinalOutput    string                 `json:"finalOutput,omitempty"`
+	Selection      FinalOutputSelection   `json:"selection"`
+	Candidates     []FinalOutputCandidate `json:"candidates,omitempty"`
+	Success        bool                   `json:"success"`
+	ExitCode       int                    `json:"exitCode"`
+	TerminalReason string                 `json:"terminalReason,omitempty"`
+	Structured     *StructuredResult      `json:"structured,omitempty"`
+}
+
+// ResultSpecKind selects the one canonical typed-result contract. Enum
+// classification is represented as a schema-shaped ResultSpec rather than a
+// separate classifier persistence model.
+type ResultSpecKind string
+
+const (
+	ResultSpecKindNone           ResultSpecKind = "none"
+	ResultSpecKindJSONSchema     ResultSpecKind = "json_schema"
+	ResultSpecKindClassification ResultSpecKind = "classification"
+)
+
+// StructuredExtractionMode controls whether deterministic parsing may fall
+// back to the portable extraction seam. The fallback is never trusted without
+// the same local schema validation as deterministic candidates.
+type StructuredExtractionMode string
+
+const (
+	StructuredExtractionDeterministic StructuredExtractionMode = "deterministic_only"
+	StructuredExtractionConstrained   StructuredExtractionMode = "constrained_fallback"
+)
+
+// ResultSpec is the versioned request for a typed result. Schema contains
+// canonical JSON bytes after creation-time normalization. ClassificationValues
+// is a create-surface convenience that is compiled into Schema and then
+// cleared, keeping Schema as the sole persisted validation authority.
+type ResultSpec struct {
+	Version              string                   `json:"version"`
+	Kind                 ResultSpecKind           `json:"kind"`
+	Schema               json.RawMessage          `json:"schema,omitempty"`
+	SchemaDigest         string                   `json:"schemaDigest,omitempty"`
+	ClassificationValues []string                 `json:"classificationValues,omitempty"`
+	ExtractionMode       StructuredExtractionMode `json:"extractionMode,omitempty"`
+	ExtractionRole       string                   `json:"extractionRole,omitempty"`
+	// SchemaRepairAttempts is nil for the safe workflow default of one repair,
+	// zero to disable repair, and one to request the single bounded correction.
+	SchemaRepairAttempts *int `json:"schemaRepairAttempts,omitempty"`
+}
+
+// StructuredResultStatus separates all honest terminal outcomes. Only
+// StructuredResultSuccess may carry Value.
+type StructuredResultStatus string
+
+const (
+	StructuredResultSuccess     StructuredResultStatus = "success"
+	StructuredResultUnavailable StructuredResultStatus = "unavailable"
+	StructuredResultInvalid     StructuredResultStatus = "invalid"
+	StructuredResultAmbiguous   StructuredResultStatus = "ambiguous"
+	StructuredResultAbstained   StructuredResultStatus = "abstained"
+)
+
+// StructuredDiagnostic is bounded, normalized, and safe to expose. It never
+// includes source output or schema fragments, which prevents secret-bearing
+// agent text from leaking through validation errors.
+type StructuredDiagnostic struct {
+	Code    string `json:"code"`
+	Path    string `json:"path,omitempty"`
+	Message string `json:"message"`
+}
+
+// StructuredExtractionProvenance explains how a fallback candidate was
+// produced without making provider output authoritative.
+type StructuredExtractionProvenance struct {
+	RoleRef        string                   `json:"roleRef,omitempty"`
+	Provider       string                   `json:"provider,omitempty"`
+	Model          string                   `json:"model,omitempty"`
+	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+}
+
+// StructuredResult is the locally validated typed projection attached to the
+// canonical RunResult. Requested schema digest, method, and diagnostics remain
+// durable even when resolution abstains or fails.
+type StructuredResult struct {
+	Status            StructuredResultStatus          `json:"status"`
+	SpecKind          ResultSpecKind                  `json:"specKind"`
+	SchemaDigest      string                          `json:"schemaDigest"`
+	Value             json.RawMessage                 `json:"value,omitempty"`
+	Method            string                          `json:"method,omitempty"`
+	SourceCandidateID string                          `json:"sourceCandidateId,omitempty"`
+	Extractor         *StructuredExtractionProvenance `json:"extractor,omitempty"`
+	Diagnostics       []StructuredDiagnostic          `json:"diagnostics,omitempty"`
+}
+
 // RunConfig contains the resolved configuration for a run.
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
 	// Runner configuration
-	RunnerType  RunnerType    `json:"runnerType"`
-	Model       string        `json:"model,omitempty"`
-	ModelPreset ModelPreset   `json:"modelPreset,omitempty"`
-	MaxTurns    int           `json:"maxTurns,omitempty"`
-	Timeout     time.Duration `json:"timeout,omitempty"`
-	// Ordered runner fallback list (used when primary runner is unavailable)
-	FallbackRunnerTypes []RunnerType `json:"fallbackRunnerTypes,omitempty"`
+	RunnerType RunnerType `json:"runnerType"`
+	// ManifestIndexSnapshot pins the CLI catalog index used by an imported
+	// transcript. Imported episode attribution remains historical evidence.
+	ManifestIndexSnapshot string        `json:"manifestIndexSnapshot,omitempty"`
+	TranscriptCodec       string        `json:"transcriptCodec,omitempty"`
+	TranscriptCodecScore  float64       `json:"transcriptCodecScore,omitempty"`
+	Until                 string        `json:"until,omitempty"`
+	Model                 string        `json:"model,omitempty"`
+	RoleRef               string        `json:"roleRef,omitempty"`
+	MaxTurns              int           `json:"maxTurns,omitempty"`
+	Timeout               time.Duration `json:"timeout,omitempty"`
+	Effort                Effort        `json:"effort,omitempty"`
+
+	// PolicySnapshot pins the exact active catalog revision and ordered
+	// candidate sequence selected before this run was persisted.
+	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+	Billing        BillingSnapshot          `json:"billing,omitempty"`
+
+	// ResultSpec is normalized before the run is persisted. Nil/none preserves
+	// the historical unstructured behavior.
+	ResultSpec *ResultSpec `json:"resultSpec,omitempty"`
 
 	// Tool permissions
-	AllowedTools []string `json:"allowedTools,omitempty"`
-	DeniedTools  []string `json:"deniedTools,omitempty"`
+	AllowedTools          []string              `json:"allowedTools,omitempty"`
+	DeniedTools           []string              `json:"deniedTools,omitempty"`
+	ToolRestrictionPolicy ToolRestrictionPolicy `json:"toolRestrictionPolicy,omitempty"`
 
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty"`
@@ -541,16 +1372,28 @@ type RunConfig struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty"`
 
 	// Policy flags
-	RequiresSandbox  bool          `json:"requiresSandbox"`
-	RequiresApproval bool          `json:"requiresApproval"`
-	NetworkAccess    NetworkAccess `json:"networkAccess"`
+	NetworkAccess NetworkAccess `json:"networkAccess"`
 
-	// Sandbox behavior settings
+	// PreambleInjectedTokens is the estimator result recorded at run creation
+	// for the instructions Agent Manager injects into the provider context.
+	// It is metadata about this run, not a runner-selection input.
+	PreambleInjectedTokens int64                 `json:"preambleInjectedTokens,omitempty"`
+	PreambleTokenBasis     tokenaccounting.Basis `json:"preambleTokenBasis,omitempty"`
+
+	// Sandbox behavior settings.
+	//
+	// SandboxConfig.Mode is the single source of truth for whether the
+	// run is sandboxed. See [orchestration.DeriveRunMode]. A nil
+	// SandboxConfig is treated as "unspecified" — orchestration spawn
+	// surfaces clone [DefaultSandboxConfig] before resolving so the
+	// nil case only arises in legacy tests.
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
 
 	// Path restrictions
-	AllowedPaths []string `json:"allowedPaths,omitempty"`
-	DeniedPaths  []string `json:"deniedPaths,omitempty"`
+	AllowedPaths      []string `json:"allowedPaths,omitempty"`
+	DeniedPaths       []string `json:"deniedPaths,omitempty"`
+	SkillPack         []string `json:"skillPack,omitempty"`
+	SkillExperimentID string   `json:"skillExperimentId,omitempty"`
 }
 
 // ApplyProfile applies values from an AgentProfile as the base configuration.
@@ -558,16 +1401,13 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	if profile == nil {
 		return
 	}
-	c.RunnerType = profile.RunnerType
-	c.Model = profile.Model
-	c.ModelPreset = profile.ModelPreset
+	c.RoleRef = profile.RoleRef
 	c.MaxTurns = profile.MaxTurns
 	c.Timeout = profile.Timeout
-	if len(profile.FallbackRunnerTypes) > 0 {
-		c.FallbackRunnerTypes = append([]RunnerType(nil), profile.FallbackRunnerTypes...)
-	}
+	c.Effort = profile.Effort
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
+	c.ToolRestrictionPolicy = profile.ToolRestrictionPolicy.Effective()
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
 	c.Features = profile.Features
 	if len(profile.ExtraFlags) > 0 {
@@ -576,23 +1416,36 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 			c.ExtraFlags[rt] = append([]string(nil), flags...)
 		}
 	}
-	c.RequiresSandbox = profile.RequiresSandbox
-	c.RequiresApproval = profile.RequiresApproval
 	c.NetworkAccess = profile.NetworkAccess
-	c.SandboxConfig = profile.SandboxConfig
+	// Only overwrite SandboxConfig when the profile actually provides
+	// one. A nil profile.SandboxConfig means "use the run-config
+	// default"; copying it would silently clobber DefaultSandboxConfig
+	// and reintroduce the zero-value-bool bypass class of bug.
+	if profile.SandboxConfig != nil {
+		c.SandboxConfig = profile.SandboxConfig
+	}
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
+	c.SkillPack = append([]string(nil), profile.SkillPack...)
+	c.SkillExperimentID = profile.SkillExperimentID
 }
 
 // DefaultRunConfig returns sensible defaults for run configuration.
+//
+// The auditability-contract apply defaults (ManualReview=false,
+// AutoApply=true, ApplyOnFailure=true, Mode=Protected) live on
+// SandboxConfig — see DefaultSandboxConfig. Embedding the default
+// SandboxConfig here is what makes the "sandbox by default" invariant
+// hold even when callers ApplyProfile a profile with no SandboxConfig
+// of its own.
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		RunnerType:       RunnerTypeClaudeCode,
-		MaxTurns:         30,
-		Timeout:          60 * time.Minute,
-		RequiresSandbox:  true,
-		RequiresApproval: true,
-		NetworkAccess:    NetworkAccessLocalhost,
+		RunnerType:            RunnerTypeClaudeCode,
+		MaxTurns:              30,
+		Timeout:               60 * time.Minute,
+		NetworkAccess:         NetworkAccessLocalhost,
+		ToolRestrictionPolicy: ToolRestrictionPolicyEnforced,
+		SandboxConfig:         DefaultSandboxConfig(),
 	}
 }
 
@@ -612,13 +1465,21 @@ func DefaultRunConfig() *RunConfig {
 //   if log, ok := event.Data.(*LogEventData); ok { ... }
 
 // RunEvent represents a single event in a run's event stream.
+//
+// SchemaVersion identifies the on-wire shape of Data for typed events. It is
+// recorded as a column on run_events (not embedded in the JSON body) so the
+// event-log dispatch table can route old payloads to old payload types
+// indefinitely while new payloads use the current types. The default is 1;
+// the eventlog package is the source of truth for which versions are
+// registered for which event types.
 type RunEvent struct {
-	ID        uuid.UUID    `json:"id" db:"id"`
-	RunID     uuid.UUID    `json:"runId" db:"run_id"`
-	Sequence  int64        `json:"sequence" db:"sequence"`
-	EventType RunEventType `json:"eventType" db:"event_type"`
-	Timestamp time.Time    `json:"timestamp" db:"timestamp"`
-	Data      EventPayload `json:"data" db:"data"`
+	ID            uuid.UUID    `json:"id" db:"id"`
+	RunID         uuid.UUID    `json:"runId" db:"run_id"`
+	Sequence      int64        `json:"sequence" db:"sequence"`
+	EventType     RunEventType `json:"eventType" db:"event_type"`
+	Timestamp     time.Time    `json:"timestamp" db:"timestamp"`
+	SchemaVersion int          `json:"schemaVersion,omitempty" db:"schema_version"`
+	Data          EventPayload `json:"data" db:"data"`
 }
 
 // RunEventType categorizes the event.
@@ -635,937 +1496,31 @@ const (
 	EventTypeArtifact       RunEventType = "artifact"
 	EventTypeError          RunEventType = "error"
 	EventTypeCompaction     RunEventType = "compaction"
+	EventTypeLifecycle      RunEventType = "lifecycle"
+
+	// Typed operational events.
+	//
+	// These replace freeform LogEventData strings for operationally-significant
+	// signals (fallback walks, sandbox ops, heartbeat misses, checkpoint
+	// failures, model/runner health transitions). Payload structs and emit
+	// helpers live in the eventlog package; the dispatch table there is the
+	// authoritative (event_type, schema_version) → payload-type registry.
+	EventTypeRunnerFallbackAttempted RunEventType = "runner.fallback.attempted"
+	EventTypeRunnerFallbackExhausted RunEventType = "runner.fallback.exhausted"
+	EventTypeModelFallbackAttempted  RunEventType = "model.fallback.attempted"
+	EventTypeModelFallbackExhausted  RunEventType = "model.fallback.exhausted"
+	EventTypePolicyCandidateAttempt  RunEventType = "policy.candidate.attempt"
+	EventTypeModelHealthTransition   RunEventType = "model.health.transition"
+	EventTypeRunnerHealthTransition  RunEventType = "runner.health.transition"
+	EventTypeSandboxOperation        RunEventType = "sandbox.operation"
+	EventTypeHeartbeatMiss           RunEventType = "heartbeat.miss"
+	EventTypeCheckpointFailure       RunEventType = "checkpoint.failure"
+	EventTypeRetryAttempt            RunEventType = "retry.attempt"
 )
 
-// =============================================================================
-// EVENT PAYLOAD INTERFACE (Tagged Union)
-// =============================================================================
-
-// EventPayload is the interface for all event-specific data.
-// Each event type has a corresponding struct implementing this interface.
-type EventPayload interface {
-	// EventType returns the type of this payload for serialization.
-	EventType() RunEventType
-
-	// isEventPayload is a marker method to prevent external implementations.
-	isEventPayload()
-}
-
-// =============================================================================
-// LOG EVENT
-// =============================================================================
-
-// LogEventData contains data for log events (debug, info, warn, error messages).
-type LogEventData struct {
-	Level   string `json:"level"`   // debug, info, warn, error
-	Message string `json:"message"` // The log message
-}
-
-func (d *LogEventData) EventType() RunEventType { return EventTypeLog }
-func (d *LogEventData) isEventPayload()         {}
-
-// NewLogEvent creates a new log event.
-func NewLogEvent(runID uuid.UUID, level, message string) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeLog,
-		Timestamp: time.Now(),
-		Data:      &LogEventData{Level: level, Message: message},
-	}
-}
-
-// =============================================================================
-// MESSAGE EVENT
-// =============================================================================
-
-// MessageEventData contains data for conversation messages (user, assistant, system).
-type MessageEventData struct {
-	Role        string                  `json:"role"`                  // user, assistant, system
-	Content     string                  `json:"content"`               // Message content
-	Attachments []MessageAttachmentInfo `json:"attachments,omitempty"` // Image/file attachments
-}
-
-// MessageAttachmentInfo stores metadata about attachments included with a message.
-// Used by the UI to render image thumbnails inline.
-type MessageAttachmentInfo struct {
-	ID          string `json:"id"`
-	FileName    string `json:"file_name"`
-	ContentType string `json:"content_type"`
-	URL         string `json:"url"` // Serving URL relative to API base
-}
-
-func (d *MessageEventData) EventType() RunEventType { return EventTypeMessage }
-func (d *MessageEventData) isEventPayload()         {}
-
-// NewMessageEvent creates a new message event.
-func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeMessage,
-		Timestamp: time.Now(),
-		Data:      &MessageEventData{Role: role, Content: content},
-	}
-}
-
-// NewMessageEventWithAttachments creates a message event that includes attachment metadata.
-func NewMessageEventWithAttachments(runID uuid.UUID, role, content string, attachments []MessageAttachmentInfo) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeMessage,
-		Timestamp: time.Now(),
-		Data:      &MessageEventData{Role: role, Content: content, Attachments: attachments},
-	}
-}
-
-// =============================================================================
-// MESSAGE DELETED EVENT
-// =============================================================================
-
-// MessageDeletedEventData marks a message event as deleted/redacted.
-type MessageDeletedEventData struct {
-	TargetEventID string `json:"targetEventId"`
-}
-
-func (d *MessageDeletedEventData) EventType() RunEventType { return EventTypeMessageDeleted }
-func (d *MessageDeletedEventData) isEventPayload()         {}
-
-// NewMessageDeletedEvent creates a new message deletion event.
-func NewMessageDeletedEvent(runID uuid.UUID, targetEventID string) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeMessageDeleted,
-		Timestamp: time.Now(),
-		Data:      &MessageDeletedEventData{TargetEventID: targetEventID},
-	}
-}
-
-// =============================================================================
-// TOOL CALL EVENT
-// =============================================================================
-
-// ToolCallEventData contains data for tool invocation events.
-type ToolCallEventData struct {
-	ToolName   string                 `json:"toolName"`             // Name of the tool being called
-	ToolCallID string                 `json:"toolCallId,omitempty"` // Correlation ID linking to the tool_result
-	Input      map[string]interface{} `json:"input"`                // Tool input parameters
-}
-
-func (d *ToolCallEventData) EventType() RunEventType { return EventTypeToolCall }
-func (d *ToolCallEventData) isEventPayload()         {}
-
-// NewToolCallEvent creates a new tool call event.
-// toolCallID is the correlation ID (e.g. "toolu_01GXZ...") that links this call to its result.
-func NewToolCallEvent(runID uuid.UUID, toolName, toolCallID string, input map[string]interface{}) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeToolCall,
-		Timestamp: time.Now(),
-		Data:      &ToolCallEventData{ToolName: toolName, ToolCallID: toolCallID, Input: input},
-	}
-}
-
-// =============================================================================
-// TOOL RESULT EVENT
-// =============================================================================
-
-// ToolResultEventData contains data for tool result events.
-type ToolResultEventData struct {
-	ToolName   string `json:"toolName"`             // Display name of the tool (e.g., "Write", "bash")
-	ToolCallID string `json:"toolCallId,omitempty"` // Tool invocation ID (e.g., "toolu_01GXZ...")
-	Output     string `json:"output"`               // Tool output (success)
-	Error      string `json:"error,omitempty"`      // Error message (if failed)
-	Success    bool   `json:"success"`              // Whether the tool call succeeded
-}
-
-func (d *ToolResultEventData) EventType() RunEventType { return EventTypeToolResult }
-func (d *ToolResultEventData) isEventPayload()         {}
-
-// NewToolResultEvent creates a new tool result event.
-// toolName is the display name (e.g., "Write"), toolCallID is the invocation ID.
-func NewToolResultEvent(runID uuid.UUID, toolName, toolCallID, output string, err error) *RunEvent {
-	data := &ToolResultEventData{
-		ToolName:   toolName,
-		ToolCallID: toolCallID,
-		Output:     output,
-		Success:    err == nil,
-	}
-	if err != nil {
-		data.Error = err.Error()
-	}
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeToolResult,
-		Timestamp: time.Now(),
-		Data:      data,
-	}
-}
-
-// =============================================================================
-// STATUS EVENT
-// =============================================================================
-
-// StatusEventData contains data for status transition events.
-type StatusEventData struct {
-	OldStatus string `json:"oldStatus"`        // Previous status
-	NewStatus string `json:"newStatus"`        // New status
-	Reason    string `json:"reason,omitempty"` // Why the transition happened
-}
-
-func (d *StatusEventData) EventType() RunEventType { return EventTypeStatus }
-func (d *StatusEventData) isEventPayload()         {}
-
-// NewStatusEvent creates a new status change event.
-func NewStatusEvent(runID uuid.UUID, oldStatus, newStatus, reason string) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeStatus,
-		Timestamp: time.Now(),
-		Data:      &StatusEventData{OldStatus: oldStatus, NewStatus: newStatus, Reason: reason},
-	}
-}
-
-// =============================================================================
-// METRIC EVENT
-// =============================================================================
-
-// MetricEventData contains data for metric/telemetry events.
-type MetricEventData struct {
-	Name  string            `json:"name"`           // Metric name (e.g., "tokens_used")
-	Value float64           `json:"value"`          // Metric value
-	Unit  string            `json:"unit,omitempty"` // Unit (e.g., "tokens", "ms", "bytes")
-	Tags  map[string]string `json:"tags,omitempty"` // Additional tags for grouping
-}
-
-func (d *MetricEventData) EventType() RunEventType { return EventTypeMetric }
-func (d *MetricEventData) isEventPayload()         {}
-
-// NewMetricEvent creates a new metric event.
-func NewMetricEvent(runID uuid.UUID, name string, value float64, unit string) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeMetric,
-		Timestamp: time.Now(),
-		Data:      &MetricEventData{Name: name, Value: value, Unit: unit},
-	}
-}
-
-// =============================================================================
-// ARTIFACT EVENT
-// =============================================================================
-
-// ArtifactEventData contains data for artifact creation events.
-type ArtifactEventData struct {
-	Type     string `json:"type"`               // Artifact type (diff, log, screenshot, etc.)
-	Path     string `json:"path"`               // Path to the artifact
-	Size     int64  `json:"size,omitempty"`     // Size in bytes
-	MimeType string `json:"mimeType,omitempty"` // MIME type
-}
-
-func (d *ArtifactEventData) EventType() RunEventType { return EventTypeArtifact }
-func (d *ArtifactEventData) isEventPayload()         {}
-
-// NewArtifactEvent creates a new artifact event.
-func NewArtifactEvent(runID uuid.UUID, artifactType, path string, size int64) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeArtifact,
-		Timestamp: time.Now(),
-		Data:      &ArtifactEventData{Type: artifactType, Path: path, Size: size},
-	}
-}
-
-// =============================================================================
-// ERROR EVENT
-// =============================================================================
-
-// ErrorEventData contains data for error events.
-type ErrorEventData struct {
-	Code       string                 `json:"code"`                 // Machine-readable error code
-	Message    string                 `json:"message"`              // Human-readable error message
-	Retryable  bool                   `json:"retryable"`            // Whether the error is retryable
-	Recovery   RecoveryAction         `json:"recovery,omitempty"`   // Suggested recovery action
-	StackTrace string                 `json:"stackTrace,omitempty"` // Optional stack trace
-	Details    map[string]interface{} `json:"details,omitempty"`    // Structured error details (e.g., conflicting sandboxes)
-}
-
-// =============================================================================
-// RATE LIMIT EVENT
-// =============================================================================
-
-// RateLimitEventData contains data for rate limit events.
-type RateLimitEventData struct {
-	LimitType   string     `json:"limitType"`             // Type of limit: "5_hour", "daily", "weekly", "token"
-	ResetTime   *time.Time `json:"resetTime,omitempty"`   // When the limit resets
-	RetryAfter  int        `json:"retryAfter,omitempty"`  // Seconds until retry is safe
-	CurrentUsed int        `json:"currentUsed,omitempty"` // Current usage count
-	Limit       int        `json:"limit,omitempty"`       // The limit that was hit
-	Message     string     `json:"message"`               // Human-readable message
-}
-
-func (d *RateLimitEventData) EventType() RunEventType { return EventTypeError }
-func (d *RateLimitEventData) isEventPayload()         {}
-
-// NewRateLimitEvent creates a new rate limit event.
-func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *time.Time, retryAfter int) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeError,
-		Timestamp: time.Now(),
-		Data: &RateLimitEventData{
-			LimitType:  limitType,
-			ResetTime:  resetTime,
-			RetryAfter: retryAfter,
-			Message:    message,
-		},
-	}
-}
-
-// =============================================================================
-// COST EVENT
-// =============================================================================
-
-// CostEventData contains data for cost/usage tracking events.
-type CostEventData struct {
-	InputTokens           int        `json:"inputTokens"`
-	OutputTokens          int        `json:"outputTokens"`
-	CacheCreationTokens   int        `json:"cacheCreationTokens,omitempty"`
-	CacheReadTokens       int        `json:"cacheReadTokens,omitempty"`
-	InputCostUSD          float64    `json:"inputCostUsd,omitempty"`
-	OutputCostUSD         float64    `json:"outputCostUsd,omitempty"`
-	CacheCreationCostUSD  float64    `json:"cacheCreationCostUsd,omitempty"`
-	CacheReadCostUSD      float64    `json:"cacheReadCostUsd,omitempty"`
-	TotalCostUSD          float64    `json:"totalCostUsd"`
-	ServiceTier           string     `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
-	Model                 string     `json:"model,omitempty"`
-	CostSource            string     `json:"costSource,omitempty"`
-	PricingProvider       string     `json:"pricingProvider,omitempty"`
-	PricingModel          string     `json:"pricingModel,omitempty"`
-	PricingFetchedAt      *time.Time `json:"pricingFetchedAt,omitempty"`
-	PricingVersion        string     `json:"pricingVersion,omitempty"`
-	WebSearchRequests     int        `json:"webSearchRequests,omitempty"`
-	ServerToolUseRequests int        `json:"serverToolUseRequests,omitempty"`
-}
-
-func (d *CostEventData) EventType() RunEventType { return EventTypeMetric }
-func (d *CostEventData) isEventPayload()         {}
-
-// Cost source identifiers for cost provenance tracking.
-const (
-	CostSourceRunnerReported       = "runner_reported"
-	CostSourceProviderUsageAPI     = "provider_usage_api"
-	CostSourcePricingTableEstimate = "pricing_table_estimate"
-	CostSourceUnknown              = "unknown"
-)
-
-// NewCostEvent creates a new cost tracking event.
-func NewCostEvent(runID uuid.UUID, inputTokens, outputTokens int, costUSD float64) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeMetric,
-		Timestamp: time.Now(),
-		Data: &CostEventData{
-			InputTokens:  inputTokens,
-			OutputTokens: outputTokens,
-			TotalCostUSD: costUSD,
-			CostSource:   CostSourceUnknown,
-		},
-	}
-}
-
-// =============================================================================
-// PROGRESS EVENT
-// =============================================================================
-
-// ProgressEventData contains data for progress tracking events.
-type ProgressEventData struct {
-	Phase              RunPhase `json:"phase"`
-	PercentComplete    int      `json:"percentComplete"`
-	CurrentAction      string   `json:"currentAction,omitempty"`
-	TurnsCompleted     int      `json:"turnsCompleted,omitempty"`
-	TurnsTotal         int      `json:"turnsTotal,omitempty"` // 0 means unlimited
-	TokensUsed         int      `json:"tokensUsed,omitempty"`
-	ElapsedSeconds     float64  `json:"elapsedSeconds,omitempty"`
-	EstimatedRemaining float64  `json:"estimatedRemaining,omitempty"` // seconds, -1 if unknown
-}
-
-func (d *ProgressEventData) EventType() RunEventType { return EventTypeStatus }
-func (d *ProgressEventData) isEventPayload()         {}
-
-// NewProgressEvent creates a new progress tracking event.
-func NewProgressEvent(runID uuid.UUID, phase RunPhase, percent int, action string) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeStatus,
-		Timestamp: time.Now(),
-		Data: &ProgressEventData{
-			Phase:           phase,
-			PercentComplete: percent,
-			CurrentAction:   action,
-		},
-	}
-}
-
-func (d *ErrorEventData) EventType() RunEventType { return EventTypeError }
-func (d *ErrorEventData) isEventPayload()         {}
-
-// NewErrorEvent creates a new error event.
-func NewErrorEvent(runID uuid.UUID, code, message string, retryable bool) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeError,
-		Timestamp: time.Now(),
-		Data:      &ErrorEventData{Code: code, Message: message, Retryable: retryable},
-	}
-}
-
-// NewErrorEventFromDomainError creates an error event from a DomainError.
-func NewErrorEventFromDomainError(runID uuid.UUID, err DomainError) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeError,
-		Timestamp: time.Now(),
-		Data: &ErrorEventData{
-			Code:      string(err.Code()),
-			Message:   err.Error(),
-			Retryable: err.Retryable(),
-			Recovery:  err.Recovery(),
-			Details:   err.Details(),
-		},
-	}
-}
-
-// =============================================================================
-// COMPACTION EVENT
-// =============================================================================
-
-// CompactionEventData represents a context compaction/summarization event.
-type CompactionEventData struct {
-	Summary           string `json:"summary"`
-	Trigger           string `json:"trigger"`         // "manual" or "auto"
-	Focus             string `json:"focus,omitempty"` // Optional focus instruction
-	MessagesCompacted int64  `json:"messagesCompacted"`
-	TokensBefore      int64  `json:"tokensBefore"`
-	TokensAfter       int64  `json:"tokensAfter"`
-	OriginalCommand   string `json:"originalCommand,omitempty"`
-}
-
-func (d *CompactionEventData) EventType() RunEventType { return EventTypeCompaction }
-func (d *CompactionEventData) isEventPayload()         {}
-
-// NewCompactionEvent creates a new compaction event.
-// trigger should be "manual" or "auto".
-// focus is optional (empty string if not specified).
-func NewCompactionEvent(
-	runID uuid.UUID,
-	summary string,
-	trigger string,
-	focus string,
-	messagesCompacted int64,
-	tokensBefore int64,
-	tokensAfter int64,
-	originalCommand string,
-) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeCompaction,
-		Timestamp: time.Now(),
-		Data: &CompactionEventData{
-			Summary:           summary,
-			Trigger:           trigger,
-			Focus:             focus,
-			MessagesCompacted: messagesCompacted,
-			TokensBefore:      tokensBefore,
-			TokensAfter:       tokensAfter,
-			OriginalCommand:   originalCommand,
-		},
-	}
-}
-
-// =============================================================================
-// LEGACY SUPPORT (RunEventData)
-// =============================================================================
-// RunEventData is kept for backward compatibility during migration.
-// New code should use the specific event data types above.
-
-// RunEventData contains the event-specific payload (DEPRECATED: use specific types).
-// This struct is retained for JSON unmarshaling compatibility with existing data.
-type RunEventData struct {
-	// For log events
-	Level   string `json:"level,omitempty"`
-	Message string `json:"message,omitempty"`
-
-	// For message events
-	Role    string `json:"role,omitempty"`
-	Content string `json:"content,omitempty"`
-
-	// For tool_call and tool_result events
-	ToolName   string                 `json:"toolName,omitempty"`
-	ToolCallID string                 `json:"toolCallId,omitempty"` // Correlation ID (shared by tool_call and tool_result)
-	ToolInput  map[string]interface{} `json:"toolInput,omitempty"`
-
-	// For tool_result events
-	ToolOutput string `json:"toolOutput,omitempty"`
-	ToolError  string `json:"toolError,omitempty"`
-
-	// For status events
-	OldStatus string `json:"oldStatus,omitempty"`
-	NewStatus string `json:"newStatus,omitempty"`
-
-	// For metric events
-	MetricName  string  `json:"metricName,omitempty"`
-	MetricValue float64 `json:"metricValue,omitempty"`
-
-	// For artifact events
-	ArtifactType string `json:"artifactType,omitempty"`
-	ArtifactPath string `json:"artifactPath,omitempty"`
-
-	// For error events
-	ErrorCode    string `json:"errorCode,omitempty"`
-	ErrorMessage string `json:"errorMessage,omitempty"`
-}
-
-// Implement EventPayload interface for backward compatibility
-func (d RunEventData) EventType() RunEventType {
-	// Infer type from which fields are populated
-	if d.Level != "" || (d.Message != "" && d.Role == "") {
-		return EventTypeLog
-	}
-	if d.Role != "" {
-		return EventTypeMessage
-	}
-	if d.ToolName != "" && d.ToolInput != nil {
-		return EventTypeToolCall
-	}
-	if d.ToolOutput != "" || d.ToolError != "" {
-		return EventTypeToolResult
-	}
-	if d.OldStatus != "" || d.NewStatus != "" {
-		return EventTypeStatus
-	}
-	if d.MetricName != "" {
-		return EventTypeMetric
-	}
-	if d.ArtifactType != "" {
-		return EventTypeArtifact
-	}
-	if d.ErrorCode != "" || d.ErrorMessage != "" {
-		return EventTypeError
-	}
-	return EventTypeLog // default fallback
-}
-func (d RunEventData) isEventPayload() {}
-
-// ToTypedPayload converts legacy RunEventData to the appropriate typed payload.
-func (d RunEventData) ToTypedPayload() EventPayload {
-	switch d.EventType() {
-	case EventTypeLog:
-		return &LogEventData{Level: d.Level, Message: d.Message}
-	case EventTypeMessage:
-		return &MessageEventData{Role: d.Role, Content: d.Content}
-	case EventTypeToolCall:
-		return &ToolCallEventData{ToolName: d.ToolName, ToolCallID: d.ToolCallID, Input: d.ToolInput}
-	case EventTypeToolResult:
-		var err string
-		if d.ToolError != "" {
-			err = d.ToolError
-		}
-		return &ToolResultEventData{ToolName: d.ToolName, ToolCallID: d.ToolCallID, Output: d.ToolOutput, Error: err, Success: err == ""}
-	case EventTypeStatus:
-		return &StatusEventData{OldStatus: d.OldStatus, NewStatus: d.NewStatus}
-	case EventTypeMetric:
-		return &MetricEventData{Name: d.MetricName, Value: d.MetricValue}
-	case EventTypeArtifact:
-		return &ArtifactEventData{Type: d.ArtifactType, Path: d.ArtifactPath}
-	case EventTypeError:
-		return &ErrorEventData{Code: d.ErrorCode, Message: d.ErrorMessage}
-	default:
-		return &LogEventData{Message: d.Message}
-	}
-}
-
-// -----------------------------------------------------------------------------
-// Policy - Rules governing execution
-// -----------------------------------------------------------------------------
-
-// Policy defines rules for agent execution, approval, and resource access.
-type Policy struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description,omitempty" db:"description"`
-	Priority    int       `json:"priority" db:"priority"` // Higher priority wins
-
-	// Scope matching
-	ScopePattern string `json:"scopePattern,omitempty" db:"scope_pattern"` // Glob pattern
-
-	// Execution rules
-	Rules PolicyRules `json:"rules" db:"rules"`
-
-	// Metadata
-	CreatedBy string    `json:"createdBy,omitempty" db:"created_by"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
-	Enabled   bool      `json:"enabled" db:"enabled"`
-}
-
-// PolicyRules contains the actual policy constraints.
-type PolicyRules struct {
-	// Sandbox requirements
-	RequireSandbox          *bool `json:"requireSandbox,omitempty"`
-	AllowInPlace            *bool `json:"allowInPlace,omitempty"`
-	InPlaceRequiresApproval *bool `json:"inPlaceRequiresApproval,omitempty"`
-
-	// Approval requirements
-	RequireApproval     *bool    `json:"requireApproval,omitempty"`
-	AutoApprovePatterns []string `json:"autoApprovePatterns,omitempty"`
-
-	// Concurrency limits
-	MaxConcurrentRuns     *int `json:"maxConcurrentRuns,omitempty"`
-	MaxConcurrentPerScope *int `json:"maxConcurrentPerScope,omitempty"`
-
-	// Resource limits
-	MaxFilesChanged    *int   `json:"maxFilesChanged,omitempty"`
-	MaxTotalSizeBytes  *int64 `json:"maxTotalSizeBytes,omitempty"`
-	MaxExecutionTimeMs *int64 `json:"maxExecutionTimeMs,omitempty"`
-
-	// Runner restrictions
-	AllowedRunners []RunnerType `json:"allowedRunners,omitempty"`
-	DeniedRunners  []RunnerType `json:"deniedRunners,omitempty"`
-}
-
-// -----------------------------------------------------------------------------
-// ScopeLock - Concurrency control
-// -----------------------------------------------------------------------------
-
-// ScopeLock represents an exclusive lock on a path scope.
-type ScopeLock struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	RunID       uuid.UUID `json:"runId" db:"run_id"`
-	ScopePath   string    `json:"scopePath" db:"scope_path"`
-	ProjectRoot string    `json:"projectRoot" db:"project_root"`
-	AcquiredAt  time.Time `json:"acquiredAt" db:"acquired_at"`
-	ExpiresAt   time.Time `json:"expiresAt" db:"expires_at"`
-}
-
-// =============================================================================
-// IDEMPOTENCY & REPLAY SAFETY
-// =============================================================================
-// These types enable safe retries, resumption, and replay of operations.
-// See: idempotency-replay-safety-hardening.md
-
-// IdempotencyRecord tracks whether an operation has been performed.
-// This prevents duplicate work when operations are retried.
-type IdempotencyRecord struct {
-	// Key uniquely identifies the operation (e.g., "run-create:task-{taskID}:profile-{profileID}:ts-{timestamp}")
-	Key string `json:"key" db:"key"`
-
-	// Status indicates the operation outcome
-	Status IdempotencyStatus `json:"status" db:"status"`
-
-	// EntityID is the ID of the created/affected entity (if applicable)
-	EntityID *uuid.UUID `json:"entityId,omitempty" db:"entity_id"`
-
-	// EntityType identifies what was created (e.g., "Run", "Task")
-	EntityType string `json:"entityType,omitempty" db:"entity_type"`
-
-	// CreatedAt is when this record was created
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-
-	// ExpiresAt is when this record can be garbage collected
-	ExpiresAt time.Time `json:"expiresAt" db:"expires_at"`
-
-	// Response contains the cached response (JSON) for successful operations
-	Response []byte `json:"response,omitempty" db:"response"`
-}
-
-// IdempotencyStatus indicates the state of an idempotent operation.
-type IdempotencyStatus string
-
-const (
-	// IdempotencyStatusPending - Operation started but not completed
-	IdempotencyStatusPending IdempotencyStatus = "pending"
-
-	// IdempotencyStatusComplete - Operation completed successfully
-	IdempotencyStatusComplete IdempotencyStatus = "complete"
-
-	// IdempotencyStatusFailed - Operation failed (may be retried)
-	IdempotencyStatusFailed IdempotencyStatus = "failed"
-)
-
-// =============================================================================
-// PROGRESS & CHECKPOINT TRACKING
-// =============================================================================
-// These types enable safe interruption and resumption of runs.
-// See: progress-continuity-interruption-resilience.md
-
-// RunPhase represents the current phase of run execution.
-// This enables resumption from the correct point after interruption.
-type RunPhase string
-
-const (
-	// RunPhaseQueued - Run created but not started
-	RunPhaseQueued RunPhase = "queued"
-
-	// RunPhaseInitializing - Setting up workspace and acquiring resources
-	RunPhaseInitializing RunPhase = "initializing"
-
-	// RunPhaseSandboxCreating - Creating sandbox (if sandboxed mode)
-	RunPhaseSandboxCreating RunPhase = "sandbox_creating"
-
-	// RunPhaseRunnerAcquiring - Acquiring and validating runner
-	RunPhaseRunnerAcquiring RunPhase = "runner_acquiring"
-
-	// RunPhaseExecuting - Agent is actively executing
-	RunPhaseExecuting RunPhase = "executing"
-
-	// RunPhaseCollectingResults - Gathering results and artifacts
-	RunPhaseCollectingResults RunPhase = "collecting_results"
-
-	// RunPhaseAwaitingReview - Execution complete, awaiting approval
-	RunPhaseAwaitingReview RunPhase = "awaiting_review"
-
-	// RunPhaseApplying - Applying approved changes
-	RunPhaseApplying RunPhase = "applying"
-
-	// RunPhaseCleaningUp - Releasing resources and cleaning up
-	RunPhaseCleaningUp RunPhase = "cleaning_up"
-
-	// RunPhaseCompleted - Run is finished (terminal)
-	RunPhaseCompleted RunPhase = "completed"
-)
-
-// CanResumeFromPhase returns whether a run can be resumed from this phase.
-func (p RunPhase) CanResumeFromPhase() bool {
-	switch p {
-	case RunPhaseQueued, RunPhaseInitializing, RunPhaseSandboxCreating,
-		RunPhaseRunnerAcquiring, RunPhaseExecuting:
-		return true
-	default:
-		return false
-	}
-}
-
-// IsTerminal returns whether this phase represents a completed run.
-func (p RunPhase) IsTerminal() bool {
-	return p == RunPhaseCompleted
-}
-
-// RunCheckpoint captures the state needed to resume a run.
-type RunCheckpoint struct {
-	// RunID is the run this checkpoint belongs to
-	RunID uuid.UUID `json:"runId" db:"run_id"`
-
-	// Phase is the current execution phase
-	Phase RunPhase `json:"phase" db:"phase"`
-
-	// StepWithinPhase tracks progress within a phase (0-indexed)
-	StepWithinPhase int `json:"stepWithinPhase" db:"step_within_phase"`
-
-	// SandboxID is set after sandbox creation
-	SandboxID *uuid.UUID `json:"sandboxId,omitempty" db:"sandbox_id"`
-
-	// WorkDir is set after workspace setup
-	WorkDir string `json:"workDir,omitempty" db:"work_dir"`
-
-	// LockID is set after acquiring scope lock
-	LockID *uuid.UUID `json:"lockId,omitempty" db:"lock_id"`
-
-	// LastEventSequence is the last event sequence number persisted
-	LastEventSequence int64 `json:"lastEventSequence" db:"last_event_sequence"`
-
-	// LastHeartbeat is when we last confirmed progress
-	LastHeartbeat time.Time `json:"lastHeartbeat" db:"last_heartbeat"`
-
-	// RetryCount tracks how many times this phase has been retried
-	RetryCount int `json:"retryCount" db:"retry_count"`
-
-	// SavedAt is when this checkpoint was created
-	SavedAt time.Time `json:"savedAt" db:"saved_at"`
-
-	// Metadata contains phase-specific state that may be needed for resumption
-	Metadata map[string]string `json:"metadata,omitempty" db:"metadata"`
-}
-
-// NewCheckpoint creates a checkpoint for the current run state.
-func NewCheckpoint(runID uuid.UUID, phase RunPhase) *RunCheckpoint {
-	now := time.Now()
-	return &RunCheckpoint{
-		RunID:         runID,
-		Phase:         phase,
-		LastHeartbeat: now,
-		SavedAt:       now,
-		Metadata:      make(map[string]string),
-	}
-}
-
-// Update creates an updated checkpoint with new phase information.
-func (c *RunCheckpoint) Update(phase RunPhase, step int) *RunCheckpoint {
-	now := time.Now()
-	return &RunCheckpoint{
-		RunID:             c.RunID,
-		Phase:             phase,
-		StepWithinPhase:   step,
-		SandboxID:         c.SandboxID,
-		WorkDir:           c.WorkDir,
-		LockID:            c.LockID,
-		LastEventSequence: c.LastEventSequence,
-		LastHeartbeat:     now,
-		RetryCount:        c.RetryCount,
-		SavedAt:           now,
-		Metadata:          c.Metadata,
-	}
-}
-
-// WithSandbox adds sandbox information to the checkpoint.
-func (c *RunCheckpoint) WithSandbox(sandboxID uuid.UUID, workDir string) *RunCheckpoint {
-	cp := *c
-	cp.SandboxID = &sandboxID
-	cp.WorkDir = workDir
-	cp.SavedAt = time.Now()
-	return &cp
-}
-
-// WithLock adds lock information to the checkpoint.
-func (c *RunCheckpoint) WithLock(lockID uuid.UUID) *RunCheckpoint {
-	cp := *c
-	cp.LockID = &lockID
-	cp.SavedAt = time.Now()
-	return &cp
-}
-
-// WithEventSequence updates the last persisted event sequence.
-func (c *RunCheckpoint) WithEventSequence(seq int64) *RunCheckpoint {
-	cp := *c
-	cp.LastEventSequence = seq
-	cp.SavedAt = time.Now()
-	return &cp
-}
-
-// IncrementRetry increments the retry count for the current phase.
-func (c *RunCheckpoint) IncrementRetry() *RunCheckpoint {
-	cp := *c
-	cp.RetryCount++
-	cp.SavedAt = time.Now()
-	return &cp
-}
-
-// =============================================================================
-// TEMPORAL FLOW & HEARTBEAT
-// =============================================================================
-// These types support time-based coordination and health monitoring.
-// See: temporal-flow-audit.md
-
-// HeartbeatConfig defines heartbeat behavior for long-running operations.
-type HeartbeatConfig struct {
-	// Interval is how often to send heartbeats
-	Interval time.Duration `json:"interval"`
-
-	// Timeout is how long without a heartbeat before considering dead
-	Timeout time.Duration `json:"timeout"`
-
-	// MaxMissedBeats is the number of missed heartbeats before termination
-	MaxMissedBeats int `json:"maxMissedBeats"`
-}
-
-// DefaultHeartbeatConfig returns sensible defaults for heartbeat monitoring.
-func DefaultHeartbeatConfig() HeartbeatConfig {
-	return HeartbeatConfig{
-		Interval:       30 * time.Second,
-		Timeout:        2 * time.Minute,
-		MaxMissedBeats: 3,
-	}
-}
-
-// RunProgress represents the current progress of a run for display.
-type RunProgress struct {
-	// Phase is the current execution phase
-	Phase RunPhase `json:"phase"`
-
-	// PhaseDescription is a human-readable description
-	PhaseDescription string `json:"phaseDescription"`
-
-	// PercentComplete is an estimate of overall progress (0-100)
-	PercentComplete int `json:"percentComplete"`
-
-	// CurrentAction describes what's happening now
-	CurrentAction string `json:"currentAction,omitempty"`
-
-	// ElapsedTime is how long the run has been active
-	ElapsedTime time.Duration `json:"elapsedTime"`
-
-	// EstimatedRemaining is an estimate of time left (if known)
-	EstimatedRemaining *time.Duration `json:"estimatedRemaining,omitempty"`
-
-	// LastUpdate is when progress was last reported
-	LastUpdate time.Time `json:"lastUpdate"`
-}
-
-// PhaseToProgress converts a phase to approximate progress percentage.
-func PhaseToProgress(phase RunPhase) int {
-	switch phase {
-	case RunPhaseQueued:
-		return 0
-	case RunPhaseInitializing:
-		return 5
-	case RunPhaseSandboxCreating:
-		return 15
-	case RunPhaseRunnerAcquiring:
-		return 25
-	case RunPhaseExecuting:
-		return 50 // This phase takes most of the time
-	case RunPhaseCollectingResults:
-		return 85
-	case RunPhaseAwaitingReview:
-		return 90
-	case RunPhaseApplying:
-		return 95
-	case RunPhaseCleaningUp:
-		return 98
-	case RunPhaseCompleted:
-		return 100
-	default:
-		return 0
-	}
-}
-
-// PhaseDescription returns a human-readable description of the phase.
-func (p RunPhase) Description() string {
-	switch p {
-	case RunPhaseQueued:
-		return "Waiting to start"
-	case RunPhaseInitializing:
-		return "Initializing execution environment"
-	case RunPhaseSandboxCreating:
-		return "Creating isolated workspace"
-	case RunPhaseRunnerAcquiring:
-		return "Acquiring agent runner"
-	case RunPhaseExecuting:
-		return "Agent is executing"
-	case RunPhaseCollectingResults:
-		return "Collecting results and artifacts"
-	case RunPhaseAwaitingReview:
-		return "Awaiting approval"
-	case RunPhaseApplying:
-		return "Applying approved changes"
-	case RunPhaseCleaningUp:
-		return "Cleaning up resources"
-	case RunPhaseCompleted:
-		return "Completed"
-	default:
-		return "Unknown phase"
-	}
-}
+// IsTypedOperationalEvent reports whether t is one of the typed-operational
+// event categories whose payload shape is owned by the eventlog package.
+//
+// The SQLite event store consults this so it can deserialize the payload
+// through the eventlog dispatch table instead of trying to decode it as a
+// legacy tagged-union shape.

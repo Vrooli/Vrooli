@@ -1,15 +1,49 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "scenario-generation",
-  "name": "Scenario Generation",
-  "description": "Operational knowledge for creating and improving Vrooli scenarios: scaffolding, PRD/requirements generation via prd-control-tower, ecosystem-manager integration, and steering strategy selection",
-  "modes": ["tools"],
-  "tags": ["vrooli", "scenario", "generation", "idea", "scaffold"],
-  "topics": ["scenario creation", "scenario generation", "new scenario", "idea execution"],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
   "createdAt": "2026-03-26T00:00:00Z",
-  "updatedAt": "2026-03-26T00:00:00Z"
+  "description": "Guide an approved scenario idea through template selection, scaffold onboarding, phased-plan development, and evidence-driven maintenance.",
+  "entry": "SKILL.md",
+  "id": "scenario-generation",
+  "kind": "skill",
+  "modes": [
+    "tools"
+  ],
+  "name": "Scenario Generation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager discover",
+      "prompt-manager discovery",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager applies",
+      "swarm-manager execution",
+      "swarm-manager phased",
+      "vrooli",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 4,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "vrooli",
+    "scenario",
+    "generation",
+    "idea",
+    "scaffold"
+  ],
+  "topics": [
+    "scenario creation",
+    "scenario generation",
+    "new scenario",
+    "idea execution"
+  ],
+  "updatedAt": "2026-07-27T00:00:00Z"
 }

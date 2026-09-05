@@ -385,7 +385,7 @@ function App() {
                   </span>
                 </div>
                 {isCompactView ? (
-                  <ul className="results-list" role="list">
+                  <ul className="results-list">
                     {searchResults.map((api) => (
                       <li key={api.id} className="results-list-item">
                         <button

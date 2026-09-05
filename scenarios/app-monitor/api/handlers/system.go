@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -17,8 +16,17 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	repocontract "github.com/vrooli/repo-contract-go"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	"gopkg.in/yaml.v3"
 )
+
+// cliClient is the shared typed Vrooli CLI client for the handlers package
+// (resource + scenario discovery, status, and lifecycle). It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error rather than a silently broken panel.
+var cliClient = vroolicli.New()
 
 // resourceCache caches resource status to prevent excessive command execution
 type resourceCache struct {
@@ -68,31 +76,11 @@ type ResourceDetailResponse struct {
 }
 
 func findRepoRoot() (string, error) {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root, nil
-	}
-	if root := os.Getenv("APP_ROOT"); root != "" {
-		return root, nil
-	}
-	wd, err := os.Getwd()
+	root, err := repocontract.ResolveRepoRoot()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("repository root not found: %w", err)
 	}
-	dir := wd
-	for {
-		if dir == "" || dir == string(filepath.Separator) {
-			break
-		}
-		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "", fmt.Errorf("repository root not found from %s", wd)
+	return root, nil
 }
 
 func toRelativePath(root, target string) string {
@@ -277,129 +265,80 @@ func (h *SystemHandler) upsertResourceCache(resource map[string]interface{}) {
 	h.resourceCache.timestamp = time.Now()
 }
 
-func (h *SystemHandler) transformResource(raw map[string]interface{}) (map[string]interface{}, bool) {
-	name := stringValue(lookupValue(raw, "Name"))
-	if name == "" {
-		return nil, false
-	}
-
-	enabled, enabledKnown := parseBool(lookupValue(raw, "Enabled"))
-	running, _ := parseBool(lookupValue(raw, "Running"))
-	statusDetail := stringValue(lookupValue(raw, "Status"))
-	normalizedStatus := strings.ToLower(statusDetail)
-	typeValue := stringValue(lookupValue(raw, "Type"))
-	if typeValue == "" {
-		typeValue = name
-	}
-
-	status := "offline"
-	switch {
-	case strings.Contains(normalizedStatus, "unregistered"):
-		status = "unregistered"
-	case strings.Contains(normalizedStatus, "error") || strings.Contains(normalizedStatus, "failed"):
-		status = "error"
-	case running:
-		status = "online"
-	case enabled && enabledKnown:
-		status = "stopped"
-	case !enabledKnown && !running:
-		status = "unknown"
-	}
-
+// resourceStatusToMap projects the typed cliv1.ResourceStatus onto the
+// UI-facing resource map (the shape the /resources cache and frontend consume).
+// Every key is populated from real contract data: `type` carries the backing
+// driver, `status` is derived from runtime/registration/health, and
+// `enabled_known` is always true now that the contract reports enablement
+// directly (no more tri-state guessing).
+func resourceStatusToMap(rs *cliv1.ResourceStatus) map[string]interface{} {
+	res := rs.GetResource()
 	return map[string]interface{}{
-		"id":            name,
-		"name":          name,
-		"type":          typeValue,
-		"status":        status,
-		"enabled":       enabled,
-		"enabled_known": enabledKnown,
-		"running":       running,
-		"status_detail": statusDetail,
-	}, true
+		"id":            res.GetName(),
+		"name":          res.GetName(),
+		"type":          res.GetDriver(),
+		"status":        deriveResourceStatus(rs),
+		"enabled":       res.GetEnabled(),
+		"enabled_known": true,
+		"running":       rs.GetRunning(),
+		"status_detail": rs.GetMessage(),
+	}
+}
+
+// deriveResourceStatus collapses the runtime/registration/health flags into the
+// UI status token. Health failures win over plain running/stopped state.
+func deriveResourceStatus(rs *cliv1.ResourceStatus) string {
+	res := rs.GetResource()
+	switch {
+	case !res.GetRegistered():
+		return "unregistered"
+	case strings.Contains(strings.ToLower(rs.GetStatusCode()), "error"),
+		strings.Contains(strings.ToLower(rs.GetMessage()), "error"),
+		strings.Contains(strings.ToLower(rs.GetMessage()), "failed"),
+		rs.GetProbeError() != "":
+		return "error"
+	case rs.GetRunning():
+		return "online"
+	case res.GetEnabled():
+		return "stopped"
+	default:
+		return "offline"
+	}
+}
+
+// rawDriverPayload returns the driver's raw status payload as a generic map,
+// which backs the UI's `cliStatus` view (endpoints, metrics, container, etc.).
+func rawDriverPayload(rs *cliv1.ResourceStatus) map[string]interface{} {
+	if raw := rs.GetRaw(); raw != nil {
+		if m, ok := raw.AsInterface().(map[string]interface{}); ok {
+			return m
+		}
+	}
+	return map[string]interface{}{}
 }
 
 func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (map[string]interface{}, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", name, "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ResourceStatus(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-
-	var parsed interface{}
-	if err := json.Unmarshal(output, &parsed); err != nil {
-		return nil, err
+	rs := resp.GetResource()
+	if rs.GetResource().GetName() == "" {
+		return nil, fmt.Errorf("resource %s not found", name)
 	}
-
-	switch value := parsed.(type) {
-	case []interface{}:
-		for _, item := range value {
-			if typed, ok := item.(map[string]interface{}); ok {
-				if transformed, valid := h.transformResource(typed); valid {
-					return transformed, nil
-				}
-			}
-		}
-	case map[string]interface{}:
-		if transformed, valid := h.transformResource(value); valid {
-			return transformed, nil
-		}
-	}
-
-	return nil, fmt.Errorf("resource %s not found", name)
+	return resourceStatusToMap(rs), nil
 }
+
 func (h *SystemHandler) fetchResourceDetail(ctx context.Context, name string) (map[string]interface{}, map[string]interface{}, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", name, "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ResourceStatus(ctx, name)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	var parsed interface{}
-	if err := json.Unmarshal(output, &parsed); err != nil {
-		return nil, nil, err
-	}
-
-	var candidate map[string]interface{}
-	switch value := parsed.(type) {
-	case []interface{}:
-		for _, item := range value {
-			typed, ok := item.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			resourceName := stringValue(lookupValue(typed, "Name"))
-			if resourceName == "" {
-				resourceName = stringValue(lookupValue(typed, "name"))
-			}
-			if resourceName != "" && strings.EqualFold(resourceName, name) {
-				candidate = typed
-				break
-			}
-		}
-		if candidate == nil {
-			for _, item := range value {
-				typed, ok := item.(map[string]interface{})
-				if ok {
-					candidate = typed
-					break
-				}
-			}
-		}
-	case map[string]interface{}:
-		candidate = value
-	default:
-		return nil, nil, fmt.Errorf("unexpected response for resource %s", name)
-	}
-
-	if candidate == nil {
+	rs := resp.GetResource()
+	if rs.GetResource().GetName() == "" {
 		return nil, nil, fmt.Errorf("resource %s not found", name)
 	}
-
-	if transformed, valid := h.transformResource(candidate); valid {
-		return candidate, transformed, nil
-	}
-
-	return nil, nil, fmt.Errorf("resource %s response missing required fields", name)
+	return rawDriverPayload(rs), resourceStatusToMap(rs), nil
 }
 
 func parseBool(value interface{}) (bool, bool) {
@@ -482,37 +421,20 @@ func getQuickSystemStatus(ctx context.Context) (appCount int, resourceCount int,
 	timeoutCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(timeoutCtx, "vrooli", "status", "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.Status(timeoutCtx)
 	if err != nil {
-		// Log error for debugging but don't expose details to API response
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			fmt.Fprintf(os.Stderr, "vrooli status command failed: %s\n", string(exitErr.Stderr))
-		}
-		// If status command fails, return degraded status with zero counts
+		// Log error for debugging but don't expose details to API response.
+		fmt.Fprintf(os.Stderr, "vrooli status command failed: %v\n", err)
+		// If status command fails, return degraded status with zero counts.
 		return 0, 0, nil, "degraded"
 	}
 
-	// Parse unified status response
-	var statusData struct {
-		ScenariosTotal   int    `json:"scenarios_total"`
-		ResourcesEnabled int    `json:"resources_enabled"`
-		HealthStatus     string `json:"health_status"`
-	}
-
-	if err := json.Unmarshal(output, &statusData); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to parse vrooli status response: %v\n", err)
-		return 0, 0, nil, "degraded"
-	}
-
-	appCount = statusData.ScenariosTotal
-	resourceCount = statusData.ResourcesEnabled
-	status = statusData.HealthStatus
-
-	// Normalize status value to expected format
-	if status == "" {
-		status = "healthy"
-	}
+	// The counts live under status.summary; overall health is derived from it
+	// (the CLI does not emit a single health field).
+	summary := resp.GetStatus().GetSummary()
+	appCount = int(summary.GetScenariosTotal())
+	resourceCount = int(summary.GetResourcesEnabled())
+	status = summaryHealth(summary)
 
 	// Get orchestrator uptime separately (quick operation with 500ms timeout)
 	quickCtx, quickCancel := context.WithTimeout(ctx, 500*time.Millisecond)
@@ -524,6 +446,15 @@ func getQuickSystemStatus(ctx context.Context) (appCount int, resourceCount int,
 	// Note: uptime failure doesn't change status - status comes from vrooli status command
 
 	return appCount, resourceCount, uptimeSeconds, status
+}
+
+// summaryHealth derives an overall health label from the status summary. The
+// system is healthy unless a running resource is reporting unhealthy.
+func summaryHealth(s *cliv1.StatusSummary) string {
+	if s.GetResourcesRunning() > 0 && s.GetResourcesHealthy() < s.GetResourcesRunning() {
+		return "degraded"
+	}
+	return "healthy"
 }
 
 func getOrchestratorUptime(ctx context.Context) (float64, error) {
@@ -568,13 +499,12 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 		h.resourceCache.mu.Unlock()
 	}()
 
-	// Execute vrooli resource status --json with timeout (use --fast to skip health checks)
-	// 30 second timeout to account for slow resources that need attention
+	// Fetch every resource's runtime status via the typed CLI client.
+	// 30 second timeout to account for slow resources that need attention.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ResourceStatuses(ctx)
 	if err != nil {
 		// Return cached data if available on error
 		h.resourceCache.mu.RLock()
@@ -592,21 +522,13 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 		return
 	}
 
-	// Parse the JSON response
-	var resources []map[string]interface{}
-	if err := json.Unmarshal(output, &resources); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to parse resource response",
-		})
-		return
-	}
-
 	// Transform resource data for frontend
-	transformedResources := make([]map[string]interface{}, 0, len(resources))
-	for _, resource := range resources {
-		if transformed, valid := h.transformResource(resource); valid {
-			transformedResources = append(transformedResources, transformed)
+	transformedResources := make([]map[string]interface{}, 0, len(resp.GetResources()))
+	for _, rs := range resp.GetResources() {
+		if rs.GetResource().GetName() == "" {
+			continue
 		}
+		transformedResources = append(transformedResources, resourceStatusToMap(rs))
 	}
 
 	// Update cache
@@ -631,16 +553,10 @@ func (h *SystemHandler) handleResourceAction(c *gin.Context, action string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", action, name)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		errMsg := strings.TrimSpace(string(output))
-		if errMsg == "" {
-			errMsg = err.Error()
-		}
+	if _, err := cliClient.Output(ctx, "resource", action, name); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   fmt.Sprintf("Failed to %s resource %s: %s", action, name, errMsg),
+			"error":   fmt.Sprintf("Failed to %s resource %s: %v", action, name, err),
 		})
 		return
 	}

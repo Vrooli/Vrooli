@@ -1,0 +1,298 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "opencode",
+  "storage": {
+    "entries": {
+      "config": {
+        "rung": "owned",
+        "path": "$USER_HOME/.config/opencode",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "OpenCode uses the XDG config directory for operator configuration and permissions."
+      },
+      "storage": {
+        "rung": "owned",
+        "path": "$USER_HOME/.local/share/opencode/storage",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "OpenCode stores sessions and messages in its XDG data storage directory.",
+        "budget": {
+          "max_bytes": "50GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.config/opencode/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "OPENCODE_CONFIG_DIR",
+          "project_scope": false
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
+  "display_name": "OpenCode",
+  "description": "OpenCode CLI resource: a thin Go entrypoint wiring lifecycle, governed permissions, and an upstream update-check; agent-manager invokes the raw opencode binary directly.",
+  "execution": {
+    "runner_type": "opencode",
+    "codec": "opencode",
+    "detection_signal": "OPENCODE_PID matches a calling-process ancestor",
+    "hook_surface": "native-permissions"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-opencode",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-opencode_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-opencode"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "model-policy.json",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key",
+        "description": "Optional gateway credential shared with the OpenRouter resource.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-api-token",
+        "env": "CLOUDFLARE_API_TOKEN",
+        "label": "Cloudflare AI Gateway token",
+        "description": "Optional token for Cloudflare AI Gateway.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-account-id",
+        "env": "CLOUDFLARE_ACCOUNT_ID",
+        "label": "Cloudflare account ID",
+        "description": "Optional Cloudflare account identifier for an AI Gateway.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-gateway-slug",
+        "env": "CLOUDFLARE_AI_GATEWAY_SLUG",
+        "label": "Cloudflare AI Gateway slug",
+        "description": "Optional AI Gateway slug.",
+        "required": false
+      }
+    ]
+  },
+  "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"}
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "opencode",
+  "version_args": [
+    "--version"
+  ],
+  "category": "development",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "development",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "opencode",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "OPENCODE_PATH": "opencode"
+    },
+    "derived": {
+      "OPENCODE_CONFIG_DIR": {
+        "template": "${RESOURCE_CONFIG_DIR}"
+      },
+      "OPENCODE_DATA_DIR": {
+        "template": "${RESOURCE_DATA_DIR}"
+      },
+      "OPENCODE_CACHE_DIR": {
+        "template": "${RESOURCE_CACHE_DIR}"
+      },
+      "OPENCODE_LOG_DIR": {
+        "template": "${RESOURCE_LOGS_DIR}"
+      },
+      "OPENCODE_STATE_DIR": {
+        "template": "${RESOURCE_STATE_DIR}"
+      },
+      "OPENCODE_XDG_CONFIG_HOME": {
+        "template": "${OPENCODE_CONFIG_DIR}/xdg-config"
+      },
+      "OPENCODE_XDG_DATA_HOME": {
+        "template": "${OPENCODE_DATA_DIR}/xdg-data"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 390,
+    "startup_timeout_seconds": 25,
+    "startup_time_estimate": "8-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "resource-opencode",
+        "install-direct"
+      ],
+      "macos": [
+        "resource-opencode",
+        "install-direct"
+      ]
+    }
+  },
+  "durable_data": {
+    "base": "$HOME",
+    "entries": {
+      "config": {
+        "path": ".config/opencode",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "OpenCode configuration (standalone XDG config home)."
+      },
+      "storage": {
+        "path": ".local/share/opencode/storage",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "OpenCode session/message storage (standalone XDG data home)."
+      }
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "upstream_cli": {
+    "version_command": [
+      "opencode",
+      "--version"
+    ],
+    "version_pinned": "1.17.9",
+    "upstream_release_source": "https://api.github.com/repos/sst/opencode/releases/latest",
+    "docs_source": "https://opencode.ai/docs/permissions/",
+    "docs_pinned_at": "2026-06-22",
+    "schema_version": 1
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

@@ -140,17 +140,13 @@
       "testId": "execution-tab-executions",
       "selector": "[data-testid=\"execution-tab-executions\"]"
     },
-    "executions.tabs.logs": {
-      "testId": "execution-tab-logs",
-      "selector": "[data-testid=\"execution-tab-logs\"]"
-    },
     "executions.tabs.replay": {
       "testId": "execution-tab-replay",
       "selector": "[data-testid=\"execution-tab-replay\"]"
     },
-    "executions.tabs.screenshots": {
-      "testId": "execution-tab-screenshots",
-      "selector": "[data-testid=\"execution-tab-screenshots\"]"
+    "executions.tabs.artifacts": {
+      "testId": "execution-tab-artifacts",
+      "selector": "[data-testid=\"execution-tab-artifacts\"]"
     },
     "executions.filters.all": {
       "testId": "execution-filter-all",
@@ -480,6 +476,14 @@
       "testId": "project-edit-button",
       "selector": "[data-testid=\"project-edit-button\"]"
     },
+    "projects.moreMenuButton": {
+      "testId": "project-more-menu-button",
+      "selector": "[data-testid=\"project-more-menu-button\"]"
+    },
+    "projects.resyncFilesButton": {
+      "testId": "project-resync-files-button",
+      "selector": "[data-testid=\"project-resync-files-button\"]"
+    },
     "projects.fileTree.root": {
       "testId": "project-file-tree-root",
       "selector": "[data-testid=\"project-file-tree-root\"]"
@@ -747,6 +751,22 @@
     "workflows.card": {
       "testId": "workflow-card",
       "selector": "[data-testid=\"workflow-card\"]"
+    },
+    "workflows.cardViewToggle": {
+      "testId": "workflow-card-view-toggle",
+      "selector": "[data-testid=\"workflow-card-view-toggle\"]"
+    },
+    "workflows.creation.aiAssisted": {
+      "testId": "workflow-creation-ai-assisted",
+      "selector": "[data-testid=\"workflow-creation-ai-assisted\"]"
+    },
+    "workflows.creation.visualBuilder": {
+      "testId": "workflow-creation-visual-builder",
+      "selector": "[data-testid=\"workflow-creation-visual-builder\"]"
+    },
+    "workflows.creation.dialog": {
+      "testId": "workflow-creation-dialog",
+      "selector": "[data-testid=\"workflow-creation-dialog\"]"
     },
     "workflows.newButton": {
       "testId": "new-workflow-button",

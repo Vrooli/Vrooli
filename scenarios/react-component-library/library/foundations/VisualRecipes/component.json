@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.visual-recipes",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:VisualRecipes"
+}

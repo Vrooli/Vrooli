@@ -234,13 +234,13 @@ func (c *PrerequisiteChecker) checkWindowsFileCertificate(ctx context.Context, c
 	}
 
 	// Get password from environment if available
-	password := ""
+	certificatePassphrase := ""
 	if config.CertificatePasswordEnv != "" {
-		password = c.env.GetEnv(config.CertificatePasswordEnv)
+		certificatePassphrase = c.env.GetEnv(config.CertificatePasswordEnv)
 	}
 
 	// Parse the PKCS#12 certificate
-	certInfo, err := c.parsePKCS12Certificate(certData, password)
+	certInfo, err := c.parsePKCS12Certificate(certData, certificatePassphrase)
 	if err != nil {
 		if strings.Contains(err.Error(), "password") {
 			addWarning(result, types.ValidationWarning{

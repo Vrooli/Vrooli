@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "scenario-boundary",
+    "description": "Documentation, scope, and scenario boundary requirements for Quality Health.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "QH-FOUND-001",
+      "title": "Document Quality Health ownership boundary",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "documentation",
+      "criticality": "P0",
+      "description": "Foundation docs define Quality Health as the static-quality authority, Code Facts as the discovery source, Test Genie as orchestrator, Tidiness Manager as maintainability owner, and Scenario Auditor as owner of remaining non-quality standards.",
+      "tags": ["docs", "architecture", "boundary"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Review PRD.md, docs/concepts/ARCHITECTURE.md, docs/concepts/DOMAINS.md, and docs/internal/SEAMS.md for the ownership boundary."
+        }
+      ]
+    },
+    {
+      "id": "QH-FOUND-002",
+      "title": "Preserve Phase 0 rule-parity decisions",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "documentation",
+      "criticality": "P0",
+      "description": "Scenario reference docs carry forward every migrated rule ID, existing rule behavior, protective comment requirement, finding shape, and autofix safety decision from the Phase 0 handoff.",
+      "tags": ["rule-parity", "contracts", "docs"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Compare docs/reference/quality-contracts.md, docs/reference/finding-schema.md, and docs/reference/autofix.md to the user plan store quality-health-phase0 handoff."
+        }
+      ]
+    }
+  ]
+}

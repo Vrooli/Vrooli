@@ -1,0 +1,965 @@
+{
+  "$schema": "../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-config",
+  "contract": {
+    "kind": "ui-catalog",
+    "schema": "catalog-asset/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "adoptionMaturityFloor": "scaffolded",
+  "description": "Vocabularies and per-kind defaults for the desired-state UI asset catalog. Domains organize; kinds carry dependency rank and select gates. Nothing here records what exists.",
+  "domains": [
+    {
+      "id": "foundations",
+      "order": 10,
+      "description": "Tokens, themes, recipes, providers, base styles, icon registry, and capability detection — the layer every other asset styles and composes against."
+    },
+    {
+      "id": "hooks",
+      "order": 20,
+      "description": "Reusable behavior primitives for state, async work, DOM measurement, interaction, and accessibility."
+    },
+    {
+      "id": "services",
+      "order": 30,
+      "description": "Scoped stores and global coordinators: layers, toasts, commands, background tasks, announcements, selection, and undo."
+    },
+    {
+      "id": "primitives",
+      "order": 40,
+      "description": "Layout, surface, typography, and small visual building blocks with no domain knowledge."
+    },
+    {
+      "id": "motion",
+      "order": 50,
+      "description": "Presence, transition, and layout-animation primitives that render the kit's declared transition classes."
+    },
+    {
+      "id": "controls",
+      "order": 60,
+      "description": "Interactive controls: buttons, toggles, sliders, steppers, toolbars, and pagination."
+    },
+    {
+      "id": "forms",
+      "order": 70,
+      "description": "Fields, form coordination, validation presentation, and schema-driven form generation."
+    },
+    {
+      "id": "overlays",
+      "order": 80,
+      "description": "Floating and modal surfaces: popovers, tooltips, menus, dialogs, drawers, sheets, and command palettes."
+    },
+    {
+      "id": "navigation",
+      "order": 90,
+      "description": "Application shell, navigation surfaces, tabs, breadcrumbs, and structural layout."
+    },
+    {
+      "id": "feedback",
+      "order": 100,
+      "description": "Alerts, toasts, progress, async boundaries, and the empty, error, offline, and permission state compositions."
+    },
+    {
+      "id": "data-display",
+      "order": 110,
+      "description": "Lists, trees, tables, grids, filters, and collection presentation."
+    },
+    {
+      "id": "visualization",
+      "order": 120,
+      "description": "Charts and data-visualization families, lazily loaded and adapter-backed."
+    },
+    {
+      "id": "media",
+      "order": 130,
+      "description": "Galleries, players, viewers, and file preview surfaces."
+    },
+    {
+      "id": "manipulation",
+      "order": 140,
+      "description": "Direct-manipulation interactions: drag, sort, resize, selection tools, and spatial canvases."
+    },
+    {
+      "id": "ai",
+      "order": 150,
+      "description": "Agent-interface surfaces: conversation, streaming, tool activity, approvals, plans, artifacts, and citations."
+    },
+    {
+      "id": "patterns",
+      "order": 160,
+      "description": "Behavior-complete workflows that own state coordination, responsive behavior, async feedback, and recovery."
+    },
+    {
+      "id": "templates",
+      "order": 170,
+      "description": "Controller-driven route-level surfaces that own their generic states and expose regions for domain content."
+    },
+    {
+      "id": "fixtures",
+      "order": 180,
+      "description": "Reusable adversarial mock data that stands in for a data source so surfaces can be validated without a scenario."
+    },
+    {
+      "id": "generators",
+      "order": 190,
+      "description": "Schema-to-UI compilers that emit configurations using the same public assets a human would use."
+    },
+    {
+      "id": "adapters",
+      "order": 200,
+      "description": "Ports to replaceable implementations: router, validation, icons, motion, positioning, virtualization, editors, storage, and telemetry."
+    }
+  ],
+  "gates": [
+    {
+      "id": "graph-reconciled", "reads": "closure",
+      "rung": "implemented",
+      "description": "Reports catalog, manifest, and TypeScript import dependency drift without repairing manifests.",
+      "appliesTo": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "generator",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates graph-reconciled"
+      }
+    },
+    {
+      "id": "dependency-rank", "reads": "closure",
+      "rung": "implemented",
+      "description": "Generated dependency locks obey the library composition rank and never target fixtures or generators.",
+      "appliesTo": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "primitive",
+        "component",
+        "pattern",
+        "navigation",
+        "page-template"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates dependency-rank"
+      }
+    },
+    {
+      "id": "self-hosting", "reads": "corpus",
+      "rung": "production-ready",
+      "description": "The catalog application consumes the published library surface and reports uncovered assets explicitly.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "navigation",
+        "page-template"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates self-hosting"
+      }
+    },
+    {
+      "id": "bas-genericity", "reads": "corpus",
+      "rung": "verified",
+      "description": "Browser workflows select assets through generic capabilities and runner parameters, never embedded component names or versions.",
+      "appliesTo": ["foundation", "primitive", "component", "pattern", "navigation", "page-template"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates bas-genericity"
+      }
+    },
+    {
+      "id": "token-vocabulary", "reads": "asset",
+      "rung": "implemented",
+      "description": "Active library source uses the single retained CSS custom-property vocabulary.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates token-vocabulary"
+      }
+    },
+    {
+      "id": "fallback-parity", "reads": "closure",
+      "rung": "implemented",
+      "description": "Authored fallbacks for shared design properties equal the canonical base values.",
+      "appliesTo": ["component"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates fallback-parity"
+      }
+    },
+    {
+      "id": "kit-compatibility", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Every active component token contract is satisfiable by at least one registered design kit.",
+      "appliesTo": ["component"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates kit-compatibility"
+      }
+    },
+    {
+      "id": "affinity-compatible", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Authored kit affinity never claims a kit outside the component's derived compatibility set.",
+      "appliesTo": ["component"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates affinity-compatible"
+      }
+    },
+    {
+      "id": "token-ramp-complete", "reads": "closure",
+      "rung": "implemented",
+      "description": "Every externally required literal custom property is published by the canonical reference ramp.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates token-ramp-complete"
+      }
+    },
+    {
+      "id": "scenario-token-requirements", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Every scenario managed token region covers the active React Component Library releases imported by that scenario, excluding host-owned Contract-tier properties.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates scenario-token-requirements"
+      }
+    },
+    {
+      "id": "scenario-canonical-layer", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Every scenario that imports React Component Library assets mounts the canonical BaseStyles provider at its application root.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates scenario-canonical-layer"
+      }
+    },
+    {
+      "id": "released-version-immutable", "reads": "corpus",
+      "rung": "verified",
+      "description": "Every indexed released version still matches its on-disk source bytes.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "navigation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "page-template",
+        "generator",
+        "fixture"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates released-version-immutable"
+      }
+    },
+    {
+      "id": "release-provenance", "reads": "corpus",
+      "rung": "verified",
+      "description": "Every materialized release was published from a draft or carries an explicit historical backfill marker.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates release-provenance"
+      }
+    },
+    {
+      "id": "version-mirror-integrity", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Every evicted version retains readable file-mirror bytes for safe retention and restoration.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates version-mirror-integrity"}
+    },
+    {
+      "id": "version-liveness", "reads": "closure",
+      "rung": "verified",
+      "description": "Every live library import resolves to a surviving published version entry and no source edge crosses directly into another version directory.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates version-liveness"
+      }
+    },
+    {
+      "id": "specifier-shape", "reads": "asset",
+      "rung": "implemented",
+      "description": "Newly published intra-library imports use major-line selectors and keep exact resolution in dependencies.json.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates specifier-shape"}
+    },
+    {
+      "id": "version-shape", "reads": "asset",
+      "rung": "implemented",
+      "description": "Newly published versions contain only the declared authored and generated files.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates version-shape"}
+    },
+    {
+      "id": "field-ownership", "reads": "corpus",
+      "rung": "implemented",
+      "description": "Catalog-owned metadata is not duplicated in generated manifests or source headers.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates field-ownership"}
+    },
+    {
+      "id": "types", "reads": "asset",
+      "rung": "scaffolded",
+      "description": "Strict compilation with exported public types, no accidental any, and a stable entrypoint.",
+      "appliesTo": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation",
+        "fixture",
+        "generator"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "pnpm run catalog:check"
+      }
+    },
+    {
+      "id": "api", "reads": "asset",
+      "rung": "implemented",
+      "description": "Declared variants, modes, and parts match what the implementation actually exports.",
+      "appliesTo": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "generator",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates api"
+      }
+    },
+    {
+      "id": "unit", "reads": "asset",
+      "rung": "implemented",
+      "description": "Pure logic, state transitions, parsing, formatting, and edge cases.",
+      "appliesTo": [
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation",
+        "generator"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library componenttests run"
+      }
+    },
+    {
+      "id": "interaction", "reads": "asset",
+      "rung": "implemented",
+      "description": "Pointer, touch, keyboard, interruption, cancellation, nested use, and disabled behavior.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library componenttests run"
+      }
+    },
+    {
+      "id": "accessibility", "reads": "asset",
+      "rung": "verified",
+      "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "vrooli scenario test react-component-library --phase experience"
+      },
+      "experienceClaimTypes": [
+        "element-present",
+        "element-absent",
+        "keyboard-reachable",
+        "affordance-present",
+        "reading-order",
+        "state-covered"
+      ]
+    },
+    {
+      "id": "responsive", "reads": "asset",
+      "rung": "verified",
+      "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "vrooli scenario test react-component-library --phase experience"
+      },
+      "experienceClaimTypes": [
+        "visible-without-scroll",
+        "reading-order",
+        "size-parity"
+      ],
+      "runnerConfig": { "minimumViewports": 2 }
+    },
+    {
+      "id": "visual", "reads": "asset",
+      "rung": "verified",
+      "description": "Approved fixture matrix and screenshot regression coverage in light and dark.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog evidence capture all --all --json"
+      },
+      "experienceClaimTypes": [
+        "single-dominant-action",
+        "visible-without-scroll",
+        "spacing",
+        "state-contrast",
+        "size-parity"
+      ],
+      "runnerConfig": { "requiresCapture": true }
+    },
+    {
+      "id": "rtl", "reads": "asset",
+      "rung": "verified",
+      "description": "Direction-aware layout, keyboard movement, gestures, icon direction, and transitions.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog gates rtl"
+      },
+      "evidenceKinds": [
+        "bounds"
+      ]
+    },
+    {
+      "id": "reduced-motion", "reads": "asset",
+      "rung": "verified",
+      "description": "Reduced or disabled motion with no meaning lost and no broken lifecycle.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog gates reduced-motion"
+      },
+      "evidenceKinds": [
+        "computed-style"
+      ]
+    },
+    {
+      "id": "performance", "reads": "asset",
+      "rung": "production-ready",
+      "description": "Bundle profile, render benchmark, interaction latency, layout stability, and listener cleanup.",
+      "appliesTo": [
+        "runtime-service",
+        "component",
+        "pattern",
+        "page-template",
+        "generator"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates performance"
+      },
+      "evidenceKinds": [
+        "performance"
+      ]
+    },
+    {
+      "id": "console-clean", "reads": "asset",
+      "rung": "production-ready",
+      "description": "Successful story renders emit no console errors, uncaught page errors, or failed network requests.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates console-clean"
+      },
+      "evidenceKinds": [
+        "console"
+      ]
+    },
+    {
+      "id": "surface-discipline", "reads": "asset",
+      "rung": "production-ready",
+      "description": "Declared surface elevation agrees with both static ramp usage and captured computed box-shadow.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog gates surface-discipline"
+      },
+      "evidenceKinds": [
+        "computed-style"
+      ]
+    },
+    {
+      "id": "composition", "reads": "asset",
+      "rung": "production-ready",
+      "description": "Scores the stamped rendered tree on shared composition and records explicitly reasoned bespoke escapes.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog gates composition"
+      }
+    },
+    {
+      "id": "composition-contract", "reads": "asset",
+      "rung": "implemented",
+      "description": "Reconciles declared shared context providers and consumers and rejects hard-coded context values.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates composition-contract"
+      }
+    },
+    {
+      "id": "documentation", "reads": "asset",
+      "rung": "production-ready",
+      "description": "Description, usage, API, behavior, accessibility, performance notes, and anti-patterns.",
+      "appliesTo": [
+        "foundation",
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation",
+        "generator"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog gates documentation"
+      }
+    },
+    {
+      "id": "examples", "reads": "asset",
+      "rung": "production-ready",
+      "description": "Named specimens covering every required state, authored as story contract data.",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates examples"
+      }
+    },
+    {
+      "id": "fixture-adversarial", "reads": "corpus",
+      "rung": "verified",
+      "description": "The fixture supplies its declared data shapes and includes overflowing text, absent optional fields, at least one RTL string, a failure record where status is modeled, and a volume variant.",
+      "appliesTo": [
+        "fixture"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates fixture-adversarial"
+      }
+    },
+    {
+      "id": "tokens", "reads": "asset",
+      "rung": "verified",
+      "description": "Every declared design ramp is present, spacing values stay on the approved grid, contrast pairs meet their floor, and component source does not bypass an available token.",
+      "appliesTo": [
+        "foundation"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates tokens"
+      }
+    },
+    {
+      "id": "conformance", "reads": "corpus",
+      "rung": "verified",
+      "description": "Reports design-system type scale, ramp adherence, icon scale, and elevation/radius conformance separately from defect floors.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "pattern",
+        "page-template"
+      ],
+      "blocking": false,
+      "runner": {
+        "react-vite": "react-component-library catalog gates conformance"
+      }
+    },
+    {
+      "id": "lifecycle", "reads": "asset",
+      "rung": "verified",
+      "description": "Hooks and services clean up listeners and observers, abort superseded work, and access browser capabilities safely during SSR.",
+      "appliesTo": [
+        "runtime-hook",
+        "runtime-service",
+        "adapter",
+        "generator"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates lifecycle"
+      }
+    },
+    {
+      "rung": "implemented",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "id": "i18n", "reads": "asset",
+      "description": "Requires user-facing library strings to resolve through the host locale bridge.",
+      "runner": {
+        "react-vite": "react-component-library catalog gates i18n"
+      }
+    },
+    {
+      "rung": "implemented",
+      "appliesTo": [
+        "primitive",
+        "component",
+        "pattern",
+        "page-template",
+        "navigation"
+      ],
+      "blocking": true,
+      "id": "selector-coverage", "reads": "asset",
+      "description": "Requires native interactive elements to expose selectors rooted at their catalog asset id.",
+      "runner": {
+        "react-vite": "react-component-library catalog gates selector-coverage"
+      }
+    },
+    {
+      "id": "restyle-contract", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Every published component exposes a consumer-winning className pass-through contract.",
+      "runner": { "react-vite": "react-component-library catalog gates restyle-contract" }
+    },
+    {
+      "id": "manifest-identity", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every library manifest declares a stable catalog identity.",
+      "runner": { "react-vite": "react-component-library catalog gates manifest-identity" }
+    },
+    {
+      "id": "manifest-metadata", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every library manifest has a usable description and no transitional supplemental or self-referential catalog metadata.",
+      "runner": { "react-vite": "react-component-library catalog gates manifest-metadata" }
+    },
+    {
+      "id": "declaration-coverage", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every implemented library asset has a matching catalog declaration.",
+      "runner": { "react-vite": "react-component-library catalog gates declaration-coverage" }
+    },
+    {
+      "id": "overlay-surface-composition", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["component", "pattern"],
+      "blocking": true,
+      "description": "Overlay dialog, alertdialog, and menu roles compose the shared overlay behavior substrate or carry a reviewed opt-out reason.",
+      "runner": { "react-vite": "react-component-library catalog gates overlay-surface-composition" }
+    },
+    {
+      "id": "shared-style-ownership", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Cross-cutting focus, motion, forced-colors, and visually-hidden rules belong to the shared foundation.",
+      "runner": { "react-vite": "react-component-library catalog gates shared-style-ownership" }
+    },
+    {
+      "id": "style-injection", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Library components use the idempotent head-mounted stylesheet injector.",
+      "runner": { "react-vite": "react-component-library catalog gates style-injection" }
+    },
+    {
+      "id": "style-ownership", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Runtime source may import only an authored local CSS companion; the package generator inlines it into the emitted module.",
+      "runner": { "react-vite": "react-component-library catalog gates style-ownership" }
+    },
+    {
+      "id": "foreign-token-classes", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Published assets do not emit consumer-specific palette classes.",
+      "runner": { "react-vite": "react-component-library catalog gates foreign-token-classes" }
+    },
+    {
+      "id": "utility-class", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Published assets emit no library-owned utility classes; temporary debt is bounded by a shrink-only allowlist.",
+      "runner": { "react-vite": "react-component-library catalog gates utility-class" }
+    },
+    {
+      "id": "consumer-pin", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every scenario pin resolves to a present, supported, portable library version.",
+      "runner": { "react-vite": "react-component-library catalog gates consumer-pin" }
+    },
+    {
+      "id": "deprecated-import", "reads": "closure",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Library source does not pin a dependency to its deprecated version.",
+      "runner": { "react-vite": "react-component-library catalog gates deprecated-import" }
+    },
+    {
+      "id": "provenance-stamp", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Component source stamps identify the asset actually owned or adopted by the file.",
+      "runner": { "react-vite": "react-component-library catalog gates provenance-stamp" }
+    },
+    {
+      "id": "story-grammar", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Story contracts reject tag names encoded as text and preserve the typed composition grammar.",
+      "runner": { "react-vite": "react-component-library catalog gates story-grammar" }
+    },
+    {
+      "id": "story-distinctness", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Sibling story frames answer distinct rendered questions instead of duplicating one specimen.",
+      "runner": { "react-vite": "react-component-library catalog gates story-distinctness" }
+    },
+    {
+      "id": "dist-resolution", "reads": "closure",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "primitive", "component", "pattern", "page-template", "navigation", "runtime-hook", "runtime-service", "adapter"],
+      "blocking": true,
+      "description": "Every published bundle import resolves through the package manifest or exports map.",
+      "runner": { "react-vite": "react-component-library catalog gates dist-resolution" }
+    },
+    {
+      "id": "harness-manifest", "reads": "corpus",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Preview harness registrations, implementations, and story references remain valid and side-effect free.",
+      "runner": { "react-vite": "react-component-library catalog gates harness-manifest" }
+    },
+    {
+      "id": "evidence-freshness", "reads": "asset",
+      "rung": "implemented",
+      "appliesTo": ["primitive", "component", "pattern", "page-template"],
+      "blocking": true,
+      "description": "Every live version has non-blocked test evidence newer than its story contract.",
+      "runner": { "react-vite": "react-component-library catalog gates evidence-freshness" }
+    }
+  ],
+  "avoidVocabulary": [
+    {
+      "id": "uniform-card-grid",
+      "lintable": false,
+      "description": "Every item wrapped in an identical rounded rectangle, where alignment and typography would carry the structure better."
+    },
+    {
+      "id": "card-wrapping-page-sections",
+      "lintable": true,
+      "description": "Whole page sections framed as floating cards, which DESIGN.md forbids in every kit."
+    },
+    {
+      "id": "modal-for-routine-inspection",
+      "lintable": false,
+      "description": "A modal used for inspecting an item the user inspects constantly, where a contextual panel preserves position and flow."
+    },
+    {
+      "id": "color-without-semantic-purpose",
+      "lintable": false,
+      "description": "Color applied decoratively rather than to carry status, selection, or hierarchy."
+    },
+    {
+      "id": "decorative-gradient-background",
+      "lintable": true,
+      "description": "Gradient blobs, bokeh, or atmospheric backgrounds as default visual identity."
+    },
+    {
+      "id": "hover-only-affordance",
+      "lintable": true,
+      "description": "An action discoverable only on hover, unreachable on touch."
+    },
+    {
+      "id": "ambient-motion-competing-with-status",
+      "lintable": false,
+      "description": "Background animation that draws attention away from live operational state."
+    },
+    {
+      "id": "toast-as-only-error-record",
+      "lintable": false,
+      "description": "A blocking failure recorded only in a transient toast the user can miss entirely."
+    },
+    {
+      "id": "icon-without-accessible-name",
+      "lintable": true,
+      "description": "An icon-only control whose meaning exists solely in the glyph."
+    }
+  ]
+}

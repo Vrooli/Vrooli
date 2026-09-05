@@ -3,9 +3,10 @@ syntax = "proto3";
 package knowledge_observatory.v1;
 
 import "buf/validate/validate.proto";
+import "common/v1/maturity.proto";
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge_observatory/v1;knowledgeobservatoryv1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1;knowledgeobservatoryv1";
 
 // =============================================================================
 // KNOWLEDGE OBSERVATORY API
@@ -59,11 +60,17 @@ message SearchRequest {
 
   // Maximum number of results to return.
   // @constraint 1-100
-  optional int32 limit = 8 [(buf.validate.field).int32 = { gte: 1, lte: 100 }];
+  optional int32 limit = 8 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
 
   // Minimum similarity threshold (0-1).
   // @constraint 0-1
-  optional double threshold = 9 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  optional double threshold = 9 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
 }
 
 // SearchResult represents a single semantic match.
@@ -196,4 +203,247 @@ message KnowledgeHealthResponse {
   // Timestamp of the health snapshot.
   // @format rfc3339
   string timestamp = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+// =============================================================================
+// DOCUMENTATION HEALTH
+// =============================================================================
+//
+// DocHealth is the single source of truth for scenario documentation
+// validation: structural placement + content checks (markdown, mermaid, links,
+// absolute paths) + bidirectional reference audits + manifest coverage.
+//
+// Callers (knowledge-observatory CLI, test-genie docs phase, CI hooks) all
+// receive the same combined result — see
+// plans/consolidate-docs-validation-into-knowledge-observatory.
+
+// Severity classifies the impact of a documentation finding.
+enum DocHealthSeverity {
+  DOC_HEALTH_SEVERITY_UNSPECIFIED = 0;
+  DOC_HEALTH_SEVERITY_INFO = 1;
+  DOC_HEALTH_SEVERITY_WARNING = 2;
+  DOC_HEALTH_SEVERITY_FAILURE = 3;
+}
+
+// DocHealthFinding is a single observation produced by a validator.
+//
+// Used uniformly across structural, content, link, mermaid, path, reference,
+// and manifest-coverage validators. Fields not relevant to a finding's family
+// may be empty.
+message DocHealthFinding {
+  // Stable machine code (e.g. "broken_local_link", "absolute_path",
+  // "missing_doc"). @constraint Must be non-empty.
+  string code = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Severity bucket.
+  DocHealthSeverity severity = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+
+  // Human-readable summary of the finding.
+  string message = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Repo-relative path of the offending file, if applicable.
+  optional string path = 4;
+
+  // Optional doc type identifier (when the finding maps to a known contract
+  // document — e.g. "architecture", "seams").
+  optional string doc_type = 5;
+
+  // Optional line number within `path`.
+  optional int32 line = 6;
+
+  // Optional target referenced by the finding (e.g. broken link href,
+  // referenced code path).
+  optional string target = 7;
+}
+
+// DocHealthMisplacedDoc describes a documentation file located outside its
+// contract-expected path.
+message DocHealthMisplacedDoc {
+  string actual_path = 1 [(buf.validate.field).string.min_len = 1];
+  string expected_path = 2 [(buf.validate.field).string.min_len = 1];
+  DocHealthSeverity severity = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional string doc_type = 4;
+  optional string message = 5;
+}
+
+// DocHealthMissingDoc describes a contract-required document that is absent.
+message DocHealthMissingDoc {
+  string doc_type = 1 [(buf.validate.field).string.min_len = 1];
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+  DocHealthSeverity severity = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  optional string completion = 4;
+  repeated string required_by = 5;
+}
+
+// DocHealthCounts aggregates raw metric counts produced by content/link/refs
+// validators. Mirrors the legacy test-genie Summary so phase reporting keeps
+// its existing shape after the migration.
+message DocHealthCounts {
+  // Markdown / file-level totals.
+  int32 files_checked = 1;
+  int32 markdown_warnings = 2;
+  int32 markdown_failures = 3;
+
+  // Link totals.
+  int32 local_links = 4;
+  int32 external_links = 5;
+  int32 broken_links = 6;
+  int32 external_warnings = 7;
+  int32 external_failures = 8;
+
+  // Mermaid totals.
+  int32 mermaid_validated = 9;
+  int32 mermaid_failures = 10;
+
+  // Absolute-path totals.
+  int32 absolute_path_hits = 11;
+  int32 absolute_failures = 12;
+
+  // Bidirectional reference totals.
+  int32 code_files_scanned = 13;
+  int32 code_refs_found = 14;
+  int32 code_refs_broken = 15;
+  int32 doc_refs_found = 16;
+  int32 doc_refs_broken = 17;
+  int32 marked_refs_found = 18;
+  int32 marked_refs_broken = 19;
+  int32 marked_refs_skipped = 20;
+  int32 marked_refs_unknown = 21;
+
+  // Manifest coverage totals.
+  int32 docs_in_manifest = 22;
+  int32 docs_not_in_manifest = 23;
+
+  // Derived-number / drift-prone count lint totals.
+  int32 numbers_flagged = 24;
+}
+
+// DocHealthRequest invokes a full documentation-health check for a single
+// scenario.
+//
+// @usage rpc DocHealth on KnowledgeObservatoryService
+message DocHealthRequest {
+  // Name of the scenario directory (under the scenarios root). Required for the
+  // default (scenario) scope; leave empty when scope = "path".
+  // @constraint When set, contains no path separators.
+  string scenario_name = 1 [(buf.validate.field).string = {
+    max_len: 256
+    pattern: "^([A-Za-z0-9][A-Za-z0-9._-]*)?$"
+  }];
+
+  // When true, external (http/https) links cause failures rather than
+  // warnings. When unset, server default applies.
+  optional bool strict_external_links = 2;
+
+  // When true, every doc file under the scenario must be registered in
+  // docs/manifest.json (orphaned docs become failures). When unset, server
+  // default applies.
+  optional bool require_all_docs_registered = 3;
+
+  // When true, external link probing is skipped entirely (offline mode).
+  optional bool skip_external_links = 4;
+
+  // Target scope: "" or "scenario" (default; resolved from scenario_name) or
+  // "path" (scan `path` directly). A path that resolves inside a scenario is
+  // promoted to that scenario (all checks); a project-level path runs only
+  // generic checks.
+  optional string scope = 5;
+
+  // Path to scan when scope = "path". Absolute, or relative to the repo root.
+  optional string path = 6;
+
+  // Narrow the run to these check names (see the check registry: structure,
+  // content, links, refs, manifest, numbers). Empty = all checks applicable to
+  // the target.
+  repeated string checks = 7;
+}
+
+// DocHealthResponse is the combined result of every validator family.
+//
+// @usage rpc DocHealth on KnowledgeObservatoryService
+message DocHealthResponse {
+  // Echoed scenario name.
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Source template identifier (e.g. "go-api", "react-vite"), if resolved.
+  optional string source_template_id = 2;
+
+  // Repo-relative path to the docs manifest used for the run.
+  optional string manifest_path = 3;
+
+  // Manifest status: "present" | "template-fallback" | "missing".
+  optional string manifest_status = 4;
+
+  // Aggregate health score in [0, 1]. 1 = clean, 0 = unrecoverable.
+  // @constraint 0-1
+  double health_score = 5 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+
+  // Total documentation files discovered under the scenario.
+  int32 total_docs = 6;
+
+  // Structural findings.
+  repeated DocHealthMisplacedDoc misplaced_docs = 7;
+  repeated DocHealthMissingDoc missing_docs = 8;
+  repeated string extra_docs = 9;
+  repeated string temporary_docs = 10;
+
+  // Contract findings emitted by docs manifest resolution.
+  repeated DocHealthFinding contract_findings = 11;
+
+  // Findings from content-level validators (markdown, mermaid, paths, links).
+  repeated DocHealthFinding content_findings = 12;
+
+  // Findings from bidirectional reference audits ([CODE:], // DOC:, [PATH:],
+  // [DOC:]).
+  repeated DocHealthFinding reference_findings = 13;
+
+  // Findings from docs/manifest.json coverage audit (orphaned docs, missing
+  // registrations).
+  repeated DocHealthFinding manifest_findings = 14;
+
+  // Aggregate metric counts mirroring the legacy test-genie Summary.
+  DocHealthCounts counts = 15;
+
+  // Time the check was performed.
+  // @format rfc3339
+  string timestamp = 16 [(buf.validate.field).string.min_len = 1];
+
+  // Provider-owned local maturity assessment for Test Genie docs phase
+  // aggregation and fleet-level health comparison.
+  common.v1.MaturityAssessment assessment = 17;
+}
+
+// ValidateMarkdownDiagramsRequest validates Mermaid fences in arbitrary Markdown.
+message ValidateMarkdownDiagramsRequest {
+  string content = 1;
+  optional string source_label = 2;
+}
+
+// ValidateMarkdownDiagramsResponse contains Mermaid-only findings.
+message ValidateMarkdownDiagramsResponse {
+  repeated DocHealthFinding findings = 1;
+  string engine = 2;
+  bool unverified = 3;
+}
+
+// KnowledgeObservatoryService is the Connect-RPC entry point for the
+// knowledge-observatory scenario. The service starts with documentation
+// health; remaining REST endpoints will migrate here in follow-up plans.
+service KnowledgeObservatoryService {
+  // DocHealth runs the full documentation-health suite for a scenario and
+  // returns the combined result.
+  rpc DocHealth(DocHealthRequest) returns (DocHealthResponse);
+  rpc ValidateMarkdownDiagrams(ValidateMarkdownDiagramsRequest) returns (ValidateMarkdownDiagramsResponse);
 }

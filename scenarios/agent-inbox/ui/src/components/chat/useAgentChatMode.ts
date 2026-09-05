@@ -31,7 +31,7 @@ export function useAgentChatMode({
   onSendLlmMessage,
 }: UseAgentChatModeOptions) {
   const { settings: agentSettings } = useAgentSettings();
-  const [chatMode, setChatMode] = useState<ChatMode>(chatData?.chat?.chat_mode || "llm");
+  const [chatMode, setChatMode] = useState<ChatMode>(chatData?.chat.chat_mode || "llm");
   const [isStartingAgent, setIsStartingAgent] = useState(false);
   const [showAgentStartModal, setShowAgentStartModal] = useState(false);
   const [pendingAgentMessage, setPendingAgentMessage] = useState("");
@@ -42,12 +42,12 @@ export function useAgentChatMode({
 
   // Sync chatMode with server state
   useEffect(() => {
-    if (chatData?.chat?.chat_mode) {
+    if (chatData?.chat.chat_mode) {
       setChatMode(chatData.chat.chat_mode as ChatMode);
     }
-  }, [chatData?.chat?.chat_mode]);
+  }, [chatData?.chat.chat_mode]);
 
-  const isAgentActive = chatData?.chat?.chat_mode === "agent" && !!chatData?.chat?.agent_run_id;
+  const isAgentActive = chatData?.chat.chat_mode === "agent" && !!chatData.chat.agent_run_id;
 
   const handleAgentStatusChange = useCallback((newStatus: import("../../lib/api").AgentModeStatus) => {
     if (["complete", "failed", "cancelled"].includes(newStatus.status || "")) {
@@ -62,8 +62,8 @@ export function useAgentChatMode({
     error: _agentWsError,
     refresh: refreshAgentEvents,
   } = useAgentWebSocket({
-    chatId: chatData?.chat?.id || null,
-    runId: chatData?.chat?.agent_run_id || null,
+    chatId: chatData?.chat.id || null,
+    runId: chatData?.chat.agent_run_id || null,
     enabled: isAgentActive,
     onStatusChange: handleAgentStatusChange,
   });
@@ -72,7 +72,7 @@ export function useAgentChatMode({
     && ["pending", "starting", "running"].includes(agentStatus.status);
 
   const agentMetrics = useMemo((): AgentMetric[] => {
-    if (!agentEvents || agentEvents.length === 0) return [];
+    if (agentEvents.length === 0) return [];
     const metrics: AgentMetric[] = [];
     for (const ev of agentEvents) {
       if (ev.type !== "metric" || !ev.raw_data) continue;
@@ -92,16 +92,13 @@ export function useAgentChatMode({
   }, [agentEvents]);
 
   const handleStartAgent = useCallback(async (config: import("./AgentStartModal").AgentStartConfig) => {
-    if (!chatData?.chat?.id || !pendingAgentMessage) return;
+    if (!chatData?.chat.id || !pendingAgentMessage) return;
     setIsStartingAgent(true);
     setAgentError(null);
     try {
       const agentConfig: AgentChatConfig = {
         message: pendingAgentMessage,
-        runner_type: config.runner_type,
         project_path: config.project_path,
-        model: config.model || undefined,
-        max_turns: config.max_turns || undefined,
       };
       await startAgentMode(chatData.chat.id, agentConfig);
       setShowAgentStartModal(false);
@@ -113,10 +110,10 @@ export function useAgentChatMode({
     } finally {
       setIsStartingAgent(false);
     }
-  }, [chatData?.chat?.id, pendingAgentMessage, onRefreshChat]);
+  }, [chatData?.chat.id, pendingAgentMessage, onRefreshChat]);
 
   const handleSendAgentMessage = useCallback(async (message: string, attachmentIds?: string[]) => {
-    if (!chatData?.chat?.id) return;
+    if (!chatData?.chat.id) return;
     if (!isAgentActive) {
       setPendingAgentMessage(message);
       setShowAgentStartModal(true);
@@ -125,23 +122,23 @@ export function useAgentChatMode({
     try {
       setAgentError(null);
       await sendAgentMessage(chatData.chat.id, message, attachmentIds);
-      refreshAgentEvents();
+      void refreshAgentEvents();
     } catch (e) {
       if (e instanceof AgentModeError) setAgentError({ message: e.message, recovery: e.recovery });
       else setAgentError({ message: e instanceof Error ? e.message : "Failed to send message" });
     }
-  }, [chatData?.chat?.id, isAgentActive, refreshAgentEvents]);
+  }, [chatData?.chat.id, isAgentActive, refreshAgentEvents]);
 
   useEffect(() => {
     if (!agentBusy && queuedMessage) {
       const payload = queuedMessage;
       setQueuedMessage(null);
-      handleSendAgentMessage(payload.content, payload.attachmentIds);
+      void handleSendAgentMessage(payload.content, payload.attachmentIds);
     }
   }, [agentBusy, queuedMessage, handleSendAgentMessage]);
 
   const handleStopAgent = useCallback(async () => {
-    if (!chatData?.chat?.id) return;
+    if (!chatData?.chat.id) return;
     try {
       await stopAgentMode(chatData.chat.id);
       onRefreshChat?.();
@@ -149,10 +146,10 @@ export function useAgentChatMode({
       if (e instanceof AgentModeError) setAgentError({ message: e.message, recovery: e.recovery });
       else setAgentError({ message: e instanceof Error ? e.message : "Failed to stop agent" });
     }
-  }, [chatData?.chat?.id, onRefreshChat]);
+  }, [chatData?.chat.id, onRefreshChat]);
 
   const handleAttachRun = useCallback(async (run: AgentRunSummary) => {
-    if (!chatData?.chat?.id) return;
+    if (!chatData?.chat.id) return;
     setIsAttaching(true);
     setAgentError(null);
     try {
@@ -165,12 +162,12 @@ export function useAgentChatMode({
     } finally {
       setIsAttaching(false);
     }
-  }, [chatData?.chat?.id, onRefreshChat]);
+  }, [chatData?.chat.id, onRefreshChat]);
 
   const handleSendMessage = useCallback((payload: MessagePayload) => {
     if (chatMode === "agent") {
       if (agentBusy) setQueuedMessage(payload);
-      else handleSendAgentMessage(payload.content, payload.attachmentIds);
+      else void handleSendAgentMessage(payload.content, payload.attachmentIds);
     } else {
       onSendLlmMessage(payload);
     }

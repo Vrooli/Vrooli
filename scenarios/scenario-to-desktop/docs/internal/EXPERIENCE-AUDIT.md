@@ -1,7 +1,7 @@
 # Experience Audit
 
 ## Last Updated
-2026-04-06
+2026-07-30
 
 ## Persona Map
 
@@ -37,7 +37,7 @@ App uses `useUrlState` for routing with three view modes in [CODE: ui/src/App.ts
 | Friction | Severity | Persona Affected | Notes |
 |----------|----------|-------------------|-------|
 | Pipeline stages are sequential with no skip option | Low | Developer | By design — each stage depends on prior output |
-| Build failures show logs but no structured "fix it" guidance | Medium | Developer | Error recovery hints exist in API but aren't surfaced prominently in UI |
+| Build failures can still require reading detailed logs | Low | Developer | Structured API recovery hints are combined into the UI error message; the pipeline error display still exposes raw diagnostics for advanced investigation |
 | Code signing setup requires external certificates | Medium | Admin | P1 roadmap item — manual process today |
 | No visual diff between template types before selection | Low | Developer | Template summaries shown; no live preview |
 
@@ -49,10 +49,10 @@ App uses `useUrlState` for routing with three view modes in [CODE: ui/src/App.ts
 | Keyboard navigation | Partial | `tabIndex` management on buttons; drawers support Escape to close |
 | Semantic HTML | Good | Proper heading hierarchy, form labels |
 | Color contrast | Good | Dark theme with high-contrast text |
-| Screen reader support | Partial | Component descriptions present; pipeline status changes could use live regions |
+| Screen reader support | Improved | Component descriptions remain present; the fixed pipeline-status badge now uses `aria-live="polite"` so build transitions are announced |
 
 ## Recommendations
 
-1. **Surface recovery hints in UI** — error responses include `recovery_hint` but the UI doesn't prominently display them
-2. **Add `aria-live` region** for pipeline status updates so screen readers announce stage transitions
-3. **Template preview** — show a visual preview or side-by-side comparison of template types during selection
+1. **Improve structured recovery presentation** — recovery hints now reach the user-facing error message; retain a dedicated, visually distinct remediation panel as a future UX refinement.
+2. **Keep pipeline announcements concise** — the current polite live region announces status changes; test with screen-reader users before adding more announcements.
+3. **Template preview** — show a visual preview or side-by-side comparison of template types during selection.

@@ -1,0 +1,87 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-003",
+      "title": "Research-and-Reconcile Loop — Librarian Gather and Reconcile Phases",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "description": "Configure the L3 agent to execute a two-phase loop: (1) Gather phase reads semantically near existing findings first (bounded sweep over the findings store) before initiating any web searches, to ground the run in prior knowledge and avoid redundant external queries; (2) Reconcile phase writes new findings, supersedes outdated findings (with provenance), and flags contradictions. Budget ordering ensures the user receives an answer first, followed by a bounded post-step curation pass that reconciles the findings store.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestRunResearchCycleAnswerFirstOrdering",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Gather phase issues a semantic query against the findings store before any web search call in the controlled test fixture"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestGatherRelatedFindingsConfigurableCap",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Gather phase sweep is bounded: it processes at most N semantically near findings (configurable max, default 20) before proceeding"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/l3_test.go::TestReconcileConfidenceGate",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Reconcile phase correctly identifies a new finding that contradicts an existing active finding and flags it as disputed"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/l3_test.go::TestReconcileGateConfigurable",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Reconcile phase supersedes an existing finding when the new evidence confidence exceeds the old finding's confidence by the configured threshold"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestResearchCycleEndToEndSeededFindings",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "End-to-end research run on a topic with pre-seeded related findings: verify Gather phase reads prior findings, answer is returned to user before reconcile completes, and Reconcile phase updates finding statuses in the database"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestRunResearchCycleAnswerBeforeReconcileMutation",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify that the post-step reconcile phase does not block the user-facing answer delivery (answer arrives before reconcile log entry appears)"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestGatherBoundedSweepWithinBudget",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Gather phase bounded sweep must complete within 500ms for up to 20 findings"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/l3_test.go::TestReconcilePostStepWithinBudget",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Post-step reconcile pass must complete within 30 seconds for a typical run producing up to 10 new findings"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestSuccessiveResearchCyclesCurateStore",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The findings store improves incrementally with each research run as outdated findings are superseded and contradictions are flagged for review"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/gather_test.go::TestRunResearchCycleAnswerSurvivesReconcileFailure",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Users receive answers immediately without waiting for the full reconcile curation pass"
+        }
+      ]
+    }
+  ]
+}

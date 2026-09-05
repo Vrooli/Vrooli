@@ -8,6 +8,8 @@ import { useProfileBreakdown } from "../../hooks/useProfileBreakdown";
 import { useModelBreakdown } from "../../hooks/useModelBreakdown";
 import { useToolUsage } from "../../hooks/useToolUsage";
 import { useTimeWindow, getPresetLabel } from "../../hooks/useTimeWindow";
+import { useQuery } from "@tanstack/react-query";
+import { fetchDurableRunCost, statsQueryKeys } from "../../api/statsClient";
 
 interface ExportButtonProps {
   disabled?: boolean;
@@ -15,7 +17,8 @@ interface ExportButtonProps {
 
 export function ExportButton({ disabled }: ExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
-  const { preset, filter: _filter } = useTimeWindow();
+  const { preset, filter } = useTimeWindow();
+  const { data: costData } = useQuery({ queryKey: [...statsQueryKeys.cost(filter), "export"], queryFn: () => fetchDurableRunCost(filter) });
 
   // Fetch all data for export
   const { data: summaryData } = useStatsSummary();
@@ -61,22 +64,29 @@ export function ExportButton({ disabled }: ExportButtonProps) {
         csv.push("");
 
         csv.push("=== Cost Stats ===");
-        csv.push(`Total Cost (USD),${s.cost.totalCostUsd.toFixed(2)}`);
+        csv.push(`Total Cost (legacy USD),${s.cost.totalCostUsd.toFixed(2)}`);
         csv.push(`Avg Cost (USD),${s.cost.avgCostUsd.toFixed(4)}`);
         csv.push(`Input Tokens,${s.cost.inputTokens}`);
         csv.push(`Output Tokens,${s.cost.outputTokens}`);
         csv.push(`Cache Read Tokens,${s.cost.cacheReadTokens}`);
         csv.push(`Total Tokens,${s.cost.totalTokens}`);
+        if (costData) {
+          csv.push(`Validity,${costData.validity.state}`);
+          csv.push(`Charge (micro-USD),${costData.totalChargeMicroUsd}`);
+          csv.push(`Unpriced Tokens,${costData.unpricedTokenCount}`);
+          csv.push("Charge Basis,Run Count,Charge (micro-USD),Tokens,Reason");
+          for (const charge of costData.chargeByBasis) csv.push(`${charge.basis},${charge.runCount},${charge.chargeMicroUsd},${charge.tokenCount},"${charge.chargeReason}"`);
+        }
         csv.push("");
       }
 
       // Runner Breakdown
       if (runnerData?.runners && runnerData.runners.length > 0) {
         csv.push("=== Runner Breakdown ===");
-        csv.push("Runner Type,Runs,Success Count,Failed Count,Success Rate,Total Cost (USD),Avg Duration (ms)");
+        csv.push("Runner Type,Runs,Success Count,Failed Count,Success Rate,Tokens,Charge (micro-USD),Total Cost (USD),Avg Duration (ms),Validity");
         for (const r of runnerData.runners) {
           const successRate = r.runCount > 0 ? ((r.successCount / r.runCount) * 100).toFixed(1) : "0.0";
-          csv.push(`${r.runnerType},${r.runCount},${r.successCount},${r.failedCount},${successRate}%,${r.totalCostUsd.toFixed(2)},${r.avgDurationMs}`);
+          csv.push(`${r.runnerType},${r.runCount},${r.successCount},${r.failedCount},${successRate}%,${r.totalTokens ?? ""},${r.totalChargeMicroUsd ?? ""},${r.totalCostUsd.toFixed(2)},${r.avgDurationMs},${runnerData.measure?.validity.state ?? "unavailable"}`);
         }
         csv.push("");
       }
@@ -84,10 +94,10 @@ export function ExportButton({ disabled }: ExportButtonProps) {
       // Profile Breakdown
       if (profileData?.profiles && profileData.profiles.length > 0) {
         csv.push("=== Profile Breakdown ===");
-        csv.push("Profile Name,Profile ID,Runs,Success Count,Failed Count,Success Rate,Total Cost (USD)");
+        csv.push("Profile Name,Profile ID,Runs,Success Count,Failed Count,Success Rate,Tokens,Charge (micro-USD),Total Cost (USD),Validity");
         for (const p of profileData.profiles) {
           const successRate = p.runCount > 0 ? ((p.successCount / p.runCount) * 100).toFixed(1) : "0.0";
-          csv.push(`"${p.profileName}",${p.profileId},${p.runCount},${p.successCount},${p.failedCount},${successRate}%,${p.totalCostUsd.toFixed(2)}`);
+          csv.push(`"${p.profileName}",${p.profileId},${p.runCount},${p.successCount},${p.failedCount},${successRate}%,${p.totalTokens ?? ""},${p.totalChargeMicroUsd ?? ""},${p.totalCostUsd.toFixed(2)},${profileData.measure?.validity.state ?? "unavailable"}`);
         }
         csv.push("");
       }

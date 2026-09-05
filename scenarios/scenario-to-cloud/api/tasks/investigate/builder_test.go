@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestBuildPromptAndContext_Validation(t *testing.T) {
@@ -87,6 +87,20 @@ func TestBuildPromptAndContext_EffortDrivesContextSelection(t *testing.T) {
 	if !hasAttachmentKey(traceOut.Attachments, "focus-harness") || !hasAttachmentKey(traceOut.Attachments, "focus-subject") {
 		t.Fatal("expected both focus attachments when focus.harness and focus.subject are true")
 	}
+
+	harness := attachmentByKey(traceOut.Attachments, "focus-harness")
+	subject := attachmentByKey(traceOut.Attachments, "focus-subject")
+	for key, att := range map[string]*domainpb.ContextAttachment{
+		"focus-harness": harness,
+		"focus-subject": subject,
+	} {
+		if att == nil {
+			t.Fatalf("missing attachment %q", key)
+		}
+		if strings.Contains(att.Content, "~/Vrooli/scenarios/") {
+			t.Fatalf("%s should not mention legacy ~/Vrooli scenario paths: %q", key, att.Content)
+		}
+	}
 }
 
 func validInvestigateInput(effort domain.InvestigationEffort) shared.TaskInput {
@@ -127,10 +141,14 @@ func validInvestigateInput(effort domain.InvestigationEffort) shared.TaskInput {
 }
 
 func hasAttachmentKey(atts []*domainpb.ContextAttachment, key string) bool {
+	return attachmentByKey(atts, key) != nil
+}
+
+func attachmentByKey(atts []*domainpb.ContextAttachment, key string) *domainpb.ContextAttachment {
 	for _, a := range atts {
 		if a != nil && a.Key == key {
-			return true
+			return a
 		}
 	}
-	return false
+	return nil
 }

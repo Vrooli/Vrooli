@@ -1,0 +1,108 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.batch-inference",
+  "version": "1",
+  "purpose": "Classify up to 32 texts in one ordered ai.batch call with the classify.fast role and report labels in input order; the batch-inference construction pattern.",
+  "inputs": {
+    "corpus": {
+      "type": "array",
+      "description": "Texts to classify, 1 to 32. Default: three failure sentences."
+    },
+    "labels": {
+      "type": "array",
+      "default": [
+        "infra",
+        "user"
+      ],
+      "description": "Closed label set rendered into the enum schema."
+    }
+  },
+  "assumptions": [
+    "ai-gateway is running with a provider that serves classify.fast"
+  ],
+  "invariants": [
+    "exactly one inference call",
+    "results are read in input order: run-batch rows are the per-item RunResponse records, read with head(len(corpus)); nothing beyond the corpus length is materialized",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "ai-gateway/inference/run-batch",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "ai.batch"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "labels": "one label per text in corpus order",
+      "by_label": "label -> count",
+      "validated": "count of results the gateway validated against the schema"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "the call count sentence"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 32
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "empty-corpus",
+      "inputs": {
+        "corpus": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

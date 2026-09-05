@@ -105,13 +105,13 @@ All major issues have been resolved. The scenario is fully functional and produc
 - **Priority**: Low - does not affect core chart generation capabilities
 - **Note**: Addressed in 2025-10-12 session through proper lifecycle restart
 
-### 5. Browserless Integration (Optional Enhancement)
-- **Status**: Browserless resource returns 404 on screenshot endpoint
-- **Impact**: None - fallback Go PNG generation works correctly
-- **Current Behavior**: API automatically falls back to native Go image generation
+### 5. PNG Rendering Backend (Optional Enhancement)
+- **Status**: PNG export renders through browser-automation-studio's CaptureService (migrated off the deleted browserless resource, 2026-07)
+- **Impact**: None - fallback Go PNG generation works correctly when BAS is unavailable
+- **Current Behavior**: The renderer serves chart HTML over its own HTTP surface and calls BAS via Connect-RPC to screenshot it; on any failure it falls back to native Go image generation
 - **Performance**: Fallback generation is fast and produces correct output
 - **Priority**: Very Low - fallback mechanism fully functional
-- **Note**: Browserless is an optional enhancement, not required for core functionality
+- **Note**: browser-automation-studio is an optional enhancement, not required for core functionality
 
 ## Session 13 Validation (2025-10-11)
 

@@ -1,0 +1,1177 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "vrooli-memory",
+  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "scopes",
+      "description": "Register isolated memory ledgers",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a scope with its vocabulary and budgets",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Scope id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "label",
+              "description": "Human-readable label"
+            },
+            {
+              "name": "frontier-target",
+              "description": "Compaction frontier target",
+              "default": "16"
+            },
+            {
+              "name": "wake-budget",
+              "description": "Ambient wake line budget",
+              "default": "96"
+            },
+            {
+              "name": "max-entry-lines",
+              "description": "Maximum lines per wake entry",
+              "default": "2"
+            },
+            {
+              "name": "facets-json",
+              "description": "Facet vocabulary as a JSON array",
+              "bind": {
+                "field": "scope"
+              },
+              "bind_waiver": "facets-json is CLI-local JSON decoded by the custom ScopesService.CreateScope handler into Scope.Facets"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScopesService",
+            "method": "CreateScope"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List registered scopes and budgets",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScopesService",
+            "method": "ListScopes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "journal",
+      "description": "Write durable shared memories",
+      "commands": [
+        {
+          "name": "note",
+          "description": "Append an immutable memory entry",
+          "positionals": [
+            {
+              "name": "body",
+              "required": true,
+              "description": "Memory prose"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "kind",
+              "description": "Entry kind"
+            },
+            {
+              "name": "trigger",
+              "description": "Work-record trigger"
+            },
+            {
+              "name": "approach",
+              "description": "Work-record approach"
+            },
+            {
+              "name": "evidence",
+              "description": "Work-record evidence"
+            },
+            {
+              "name": "outcome",
+              "description": "Work-record outcome"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "AppendEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "retry-classifications",
+          "description": "Replay queued classification failures through append-only facet assignments",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum queue items (up to 500)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "ProcessClassificationRetries"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "retry-embeddings",
+          "description": "Replay queued embedding failures",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum queue items (up to 500)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "ProcessEmbeddingRetries"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "harness",
+      "description": "Import and inspect coding-agent memory",
+      "commands": [
+        {
+          "name": "import",
+          "description": "Start an observable, replay-safe harness import",
+          "flags": [
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            },
+            {
+              "name": "dry-run",
+              "description": "Read and validate sources without writing journal entries"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "RunImport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "import-status",
+          "description": "Show persisted import progress or final result",
+          "flags": [
+            {
+              "name": "run-id",
+              "description": "Specific import run ID"
+            },
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "GetImportStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "project",
+          "description": "Render or refresh a one-directional harness memory projection",
+          "flags": [
+            {
+              "name": "harness",
+              "description": "Harness runtime",
+              "default": "claude-code",
+              "bind": {
+                "field": "runtime"
+              }
+            },
+            {
+              "name": "dry-run",
+              "description": "Render without writing the harness file"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "RefreshProjection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture",
+          "description": "Capture a native harness memory write",
+          "flags": [
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            },
+            {
+              "name": "source-path",
+              "description": "Native source path"
+            },
+            {
+              "name": "content",
+              "description": "Native memory content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "CaptureWrite"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+    {
+      "name": "maintenance-status",
+          "description": "Show the last automatic import and projection run",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "GetMaintenanceStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+      "architecture": {
+        "primitive": "proto_list"
+      }
+    },
+    {
+      "name": "hook",
+      "description": "Capture a native memory write from a harness hook",
+      "binding": { "kind": "local" },
+      "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+    },
+    {
+      "name": "hooks",
+      "description": "Install or remove native memory capture hooks",
+      "binding": { "kind": "local" },
+      "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:write"] }
+    }
+      ]
+    },
+    {
+      "name": "forest",
+      "description": "Operate the derived compaction forest",
+      "commands": [
+        {
+          "name": "compact",
+          "description": "Compact eligible memory frontier",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "RunCompactionPass"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "frontier",
+          "description": "Inspect current forest frontier",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum frontier nodes to show"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "GetFrontier"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "rebuild-forest",
+          "description": "Rebuild derived memory forest",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "RebuildForest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recall",
+      "description": "Retrieve shared memories",
+      "commands": [
+        {
+          "name": "recall",
+          "description": "Semantically recall memories",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Semantic query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum hits"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "Recall"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "wake",
+          "description": "Render bounded ambient memory",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "budget",
+              "description": "Line budget",
+              "bind": {
+                "field": "line_budget"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "Wake"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "siblings",
+          "description": "List memories from the same agent run",
+          "positionals": [
+            {
+              "name": "entry-id",
+              "required": true,
+              "description": "Memory entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "ListSiblingEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "facets",
+      "description": "Correct facets, pins, and supersession state",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List facet policies",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ListFacets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "correct",
+          "description": "Append a facet correction",
+          "positionals": [
+            {
+              "name": "entry-id",
+              "required": true,
+              "description": "Memory entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "facet",
+              "description": "New facet id",
+              "bind": {
+                "field": "facet_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "AssignFacet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "pin",
+          "description": "Pin or unpin a memory for guaranteed wake recall",
+          "positionals": [
+            {
+              "name": "entry-id",
+              "required": true,
+              "description": "Memory entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "unpin",
+              "description": "Remove the pin",
+              "bind": {
+                "field": "pinned"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "SetPin"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "candidates",
+          "description": "List ranked standing-rule pin candidates",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum candidates",
+              "default": "20"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ListPinCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "proposals",
+          "description": "List redundant pin proposals",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ListPinProposals"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "resolve-proposal",
+          "description": "Resolve a pin proposal",
+          "positionals": [
+            {
+              "name": "proposal-id",
+              "required": true,
+              "description": "Proposal id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "accept",
+              "description": "Accept the recommended canonical pin"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ResolvePinProposal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "supersede",
+          "description": "Append a supersession mark",
+          "positionals": [
+            {
+              "name": "entry-id",
+              "required": true,
+              "description": "Original memory id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "replacement-entry-id",
+              "description": "Replacement memory id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "MarkSuperseded"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "resolve-thread",
+          "description": "Resolve a thread so it leaves ambient frontier",
+          "positionals": [
+            {
+              "name": "entry-id",
+              "required": true,
+              "description": "Thread entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FacetsService",
+            "method": "ResolveThread"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "rules",
+      "description": "Manage declarative facet classification rules",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List classification rules",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "ListRules"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a disabled classification rule",
+          "flags": [
+            {
+              "name": "id",
+              "description": "Rule id"
+            },
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "priority",
+              "description": "Ascending priority",
+              "default": "100"
+            },
+            {
+      "name": "facet",
+      "description": "Target facet",
+      "local_only": true
+            },
+            {
+              "name": "source-runtime",
+              "description": "Source runtime condition"
+            },
+            {
+              "name": "kind",
+              "description": "Entry kind condition"
+            },
+            {
+      "name": "source-path",
+      "description": "Source path glob condition",
+      "local_only": true
+            },
+            {
+              "name": "body-pattern",
+              "description": "Body regex condition"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "CreateRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "dry-run",
+          "description": "Preview rule matches against the current corpus",
+          "positionals": [
+            {
+              "name": "rule-id",
+              "required": true,
+              "description": "Rule id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "DryRunRule"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Enable a rule after a current-corpus dry run",
+          "positionals": [
+            {
+              "name": "rule-id",
+              "required": true,
+              "description": "Rule id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "EnableRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revert",
+          "description": "Append prior assignments for entries decided by a rule",
+          "positionals": [
+            {
+              "name": "rule-id",
+              "required": true,
+              "description": "Rule id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "RevertRule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "refacet",
+          "description": "Re-facet the immutable corpus using current rules and classifier",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            },
+            {
+              "name": "batch-size",
+              "description": "Entries per resumable server request (1-500)",
+              "default": "200",
+              "bind": {
+                "field": "after_entry_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "RefacetCorpus"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "measure-distribution",
+          "description": "Measure deterministic rule coverage separately from classifier-tail balance",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Policy scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClassificationRulesService",
+            "method": "MeasureDistribution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "JournalService",
+      "method": "GetEntry",
+      "reason": "Entry inspection is an API capability until the recall and zoom CLI surface is introduced."
+    },
+    {
+      "service": "JournalService",
+      "method": "ListEntries",
+      "reason": "Timeline browsing is introduced with the agent and operator surfaces, not as a raw journal command."
+    },
+    {
+      "service": "FacetsService",
+      "method": "ListFacets",
+      "reason": "The operator facet command group is introduced with the agent surface phase."
+    },
+    {
+      "service": "FacetsService",
+      "method": "AssignFacet",
+      "reason": "Operator re-faceting is exposed after the write and recall command surface exists."
+    },
+    {
+      "service": "FacetsService",
+      "method": "SetPin",
+      "reason": "Pin curation is intentionally deferred to the operator surface phase."
+    },
+    {
+      "service": "FacetsService",
+      "method": "ListPinProposals",
+      "reason": "Pin proposal review belongs to the later operator surface."
+    },
+    {
+      "service": "FacetsService",
+      "method": "ResolvePinProposal",
+      "reason": "Pin proposal review belongs to the later operator surface."
+    },
+    {
+      "service": "FacetsService",
+      "method": "MarkSuperseded",
+      "reason": "Supersession is an API capability until the operator correction surface is delivered."
+    },
+    {
+      "service": "ForestService",
+      "method": "RunCompactionPass",
+      "reason": "Compaction has no safe operator surface until the forest domain is implemented."
+    },
+    {
+      "service": "ForestService",
+      "method": "GetFrontier",
+      "reason": "Frontier inspection is deferred to the operator tree surface."
+    },
+    {
+      "service": "ForestService",
+      "method": "GetNode",
+      "reason": "Node inspection is deferred to the operator tree surface."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "Reindex",
+      "reason": "Federation is not yet implemented and reindex remains API-only."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteConfig",
+      "reason": "Search configuration is not exposed to agents until federation governance is implemented."
+    },
+    {
+      "service": "RecallService",
+      "method": "Zoom",
+      "reason": "Tree exploration is introduced with the operator surface phase."
+    },
+    {
+      "service": "HarnessService",
+      "method": "RefreshProjection",
+      "reason": "Projection is implemented after import to preserve the corpus source."
+    },
+    {
+      "service": "HarnessService",
+      "method": "CaptureWrite",
+      "reason": "Native write capture is implemented after projection and hooks are ready."
+    }
+  ]
+}

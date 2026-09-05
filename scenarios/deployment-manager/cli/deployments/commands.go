@@ -11,6 +11,7 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -89,83 +90,6 @@ func (c *Commands) deploymentStatus(args []string) error {
 		return err
 	}
 	cmdutil.PrintByFormat(*format, body)
-	return nil
-}
-
-// Packagers
-
-func (c *Commands) Packagers(args []string) error {
-	fs := flag.NewFlagSet("packagers", flag.ContinueOnError)
-	format := fs.String("format", "", "output format (json)")
-	_ = cliutil.ParseInterspersed(fs, args)
-
-	message := "Packager discovery is deprecated here; use deploy-desktop or scenario-to-* CLIs directly."
-	packagers := []string{
-		"scenario-to-desktop (desktop bundler)",
-		"scenario-to-ios (stub)",
-		"scenario-to-cloud (stub)",
-	}
-
-	resolvedFormat := cmdutil.ResolveFormat(*format)
-	if strings.ToLower(resolvedFormat) == "json" {
-		payload := map[string]interface{}{
-			"status":    "stubbed",
-			"message":   message,
-			"packagers": packagers,
-		}
-		data, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		cmdutil.PrintByFormat(resolvedFormat, data)
-		return nil
-	}
-
-	fmt.Println(message)
-	fmt.Println("Available packagers (stubbed):")
-	for _, p := range packagers {
-		fmt.Printf(" - %s\n", p)
-	}
-	return nil
-}
-
-func (c *Commands) PackageProfile(args []string) error {
-	fs := flag.NewFlagSet("package", flag.ContinueOnError)
-	packager := fs.String("packager", "", "packager name")
-	dryRun := fs.Bool("dry-run", false, "dry run")
-	format := fs.String("format", "", "output format (json)")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	remaining := fs.Args()
-	if len(remaining) == 0 {
-		return errors.New("profile id is required")
-	}
-	if *packager == "" {
-		return errors.New("--packager is required")
-	}
-	id := remaining[0]
-
-	resolvedFormat := cmdutil.ResolveFormat(*format)
-	response := map[string]interface{}{
-		"status":     "stubbed",
-		"profile_id": id,
-		"packager":   *packager,
-		"dry_run":    *dryRun,
-		"message":    "Package command is legacy-only; use deploy-desktop for end-to-end bundling.",
-	}
-	data, err := json.Marshal(response)
-	if err != nil {
-		return fmt.Errorf("failed to marshal package response: %w", err)
-	}
-
-	if strings.ToLower(resolvedFormat) == "json" {
-		cmdutil.PrintByFormat(resolvedFormat, data)
-		return nil
-	}
-
-	fmt.Fprintf(os.Stdout, "Packager hand-off is deprecated; use deploy-desktop instead.\n")
-	fmt.Fprintf(os.Stdout, "Stubbed package request for profile %s via %s (dry-run=%t)\n", id, *packager, *dryRun)
 	return nil
 }
 
@@ -412,32 +336,40 @@ Build configuration is read from each service's "build" field in the manifest:
 }
 
 func printBuildResults(resp BuildResponse) {
-	fmt.Printf("Build %s for %s\n", resp.Status, resp.Scenario)
+	report := cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Build %s for %s", resp.Status, resp.Scenario),
+		},
+	}
 	if resp.Duration != "" {
-		fmt.Printf("Duration: %s\n", resp.Duration)
+		report.Result = append(report.Result, fmt.Sprintf("Duration: %s", resp.Duration))
 	}
 	if resp.Message != "" {
-		fmt.Printf("Message: %s\n", resp.Message)
+		report.Result = append(report.Result, fmt.Sprintf("Message: %s", resp.Message))
 	}
-	fmt.Println()
 
 	for _, svcResult := range resp.Results {
-		allOk := "✓"
+		allOK := "success"
 		if !svcResult.AllSucceeded {
-			allOk = "✗"
+			allOK = "partial-failure"
 		}
-		fmt.Printf("%s Service: %s\n", allOk, svcResult.ServiceID)
+		report.Changes = append(report.Changes, fmt.Sprintf("Service %s: %s", svcResult.ServiceID, allOK))
 
 		for _, r := range svcResult.Results {
-			status := "✓"
+			status := "success"
 			if !r.Success {
-				status = "✗"
+				status = "failed"
 			}
-			fmt.Printf("  %s %-14s %s\n", status, r.Platform, r.OutputPath)
+			line := fmt.Sprintf("%s %s output=%s", r.Platform, status, r.OutputPath)
 			if r.Error != "" {
-				fmt.Printf("    Error: %s\n", r.Error)
+				line += fmt.Sprintf(" error=%s", r.Error)
 			}
+			report.Changes = append(report.Changes, line)
 		}
-		fmt.Println()
 	}
+	report.NextCommand = []string{
+		"deployment-manager bundle assemble --profile <profile-id>",
+		"deployment-manager deploy-desktop --profile <profile-id>",
+	}
+	_ = cliapp.RenderMutationReport(os.Stdout, report)
 }

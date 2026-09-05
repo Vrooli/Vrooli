@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "backdrops",
+    "title": "Released Backdrops",
+    "routes": ["/backdrops", "/backdrops/:backdropId"],
+    "purpose": "The consumer-facing library: what has been released, where it is used, and the identifier another scenario references it by.",
+    "prd_refs": ["OT-P0-013", "OT-P0-014", "OT-P0-015", "OT-P1-006"]
+  },
+  "priorities": [
+    {
+      "statement": "The stable identifier is the primary affordance.",
+      "notes": "This surface exists so a consuming scenario can reference a backdrop. The identifier should be visible and copyable without opening a detail view."
+    },
+    {
+      "statement": "Disclosure state is shown and is visibly derived.",
+      "notes": "The AI-generated flag displays alongside the strategy that produced it, so a reader can see it was derived rather than asserted. It is not editable here."
+    },
+    {
+      "statement": "Deleting a release is treated as breaking a live surface.",
+      "notes": "Consumers hold stable identifiers. Removal requires confirmation naming the consumers known to reference it."
+    }
+  ],
+  "states": [
+    { "id": "loading", "description": "Released backdrops load with stable specimen geometry.", "setup": { "route": "/backdrops" } },
+    { "id": "stale", "description": "Previously loaded releases remain visible with an explicit freshness notice.", "setup": { "route": "/backdrops" } },
+    { "id": "request-error", "description": "The release service explains the failure and offers a retry while preserving known results.", "setup": { "route": "/backdrops" } },
+    { "id": "partial", "description": "Known releases remain usable while one or more references are unavailable.", "setup": { "route": "/backdrops" } },
+    {
+      "id": "empty",
+      "description": "Nothing released yet. Explains what release means and routes to the catalog.",
+      "setup": { "route": "/backdrops" }
+    },
+    {
+      "id": "populated",
+      "description": "Released backdrops with identifier, placement, measured contrast, disclosure state, and originating style version.",
+      "setup": { "route": "/backdrops" }
+    },
+    {
+      "id": "detail",
+      "description": "One backdrop with its variants, per-variant verdicts, alt text, full provenance, and the reserved regions a consumer will receive.",
+      "setup": { "route": "/backdrops/bd-1" }
+    },
+    {
+      "id": "ai-disclosed",
+      "description": "A model-backed release showing its disclosure state, the strategy it derives from, and its asset-studio provenance reference.",
+      "setup": { "route": "/backdrops/bd-2" }
+    },
+    {
+      "id": "variant-failing",
+      "description": "A derived variant failed its own contrast verdict and is marked unreleasable while its siblings remain available.",
+      "setup": { "route": "/backdrops/bd-3" }
+    },
+    {
+      "id": "referenced",
+      "description": "A backdrop in use by one or more consumers, listing them, with removal gated behind explicit confirmation.",
+      "setup": { "route": "/backdrops/bd-1", "hash": "consumers" }
+    }
+  ]
+}

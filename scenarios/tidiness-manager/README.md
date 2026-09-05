@@ -6,11 +6,16 @@
 
 Tidiness Manager prevents scenarios from decaying into unmaintainable chaos through:
 
-- **Light Scanning**: Fast, cheap static analysis via `make lint` and `make type` integration
+- **Tidiness Scanning**: Fast maintainability findings for long files, complexity, duplication, technical debt, and coupling
+- **Light Scanning**: Backward-compatible metrics collection and parser support for stored issue workflows
 - **Smart Scanning**: AI-powered deep analysis using resource-claude-code for refactoring suggestions
 - **Campaign Management**: Automatic, progressive tidiness campaigns using visited-tracker
 - **Agent API**: HTTP/CLI interface for other agents to request tidiness recommendations
 - **Human Dashboard**: React UI for managing campaigns, viewing issues, and triggering scans
+
+## What You Get
+
+Tidiness Manager gives agents and maintainers a focused maintainability system: scan endpoints, CLI commands, stored issues, prioritization, campaign workflows, and a dashboard for inspecting cleanup work. It does not own lint, type, or static-quality policy; Quality Health owns that contract.
 
 ## Quick Start
 
@@ -25,7 +30,7 @@ make dev
 tidiness-manager status
 
 # Scan a scenario for tidiness issues
-tidiness-manager scan browser-automation-studio --type light
+tidiness-manager scan browser-automation-studio --type tidiness
 
 # List issues
 tidiness-manager issues browser-automation-studio --limit 10
@@ -44,17 +49,21 @@ tidiness-manager/
 ├── ui/                    # React dashboard
 │   ├── src/pages/        # Dashboard, scenario detail, campaign manager
 │   └── src/components/   # File tables, issue viewers, scan controls
-├── requirements/         # Requirements registry (8 modules, 58 requirements)
-└── docs/                # PROGRESS, PROBLEMS, RESEARCH
+├── requirements/         # Requirements registry
+└── docs/                # Concepts, reference, operations, and internal ledgers
 ```
 
 ## Core Capabilities
 
 ### Light Scanning
-- Executes `make lint` and `make type` for scenarios with Makefiles
-- Parses outputs into structured issues (file, line, message, tool)
+- Collects file metrics and supports legacy parser workflows
 - Computes per-file line counts and flags files exceeding thresholds
 - Completes in <60s for small scenarios, <120s for medium scenarios
+
+### Tidiness Scanning
+- Reports normalized maintainability findings from file size, TODO/FIXME/HACK density, coupling, complexity, and duplication metrics
+- Emits agent guidance fields: why the issue matters, recommended remediation, and campaign grouping hints
+- Excludes lint/type/static-quality contract findings; those belong to quality-health and Test Genie's `quality` phase
 
 ### Smart Scanning
 - Uses resource-claude-code/resource-codes for AI analysis
@@ -88,7 +97,6 @@ tidiness-manager/
 - **redis** (optional): Caching for expensive operations
 - **resource-claude-code** (optional): AI-powered analysis
 - **visited-tracker** (optional): Campaign-based file tracking
-- **code-smell** (optional): Pattern-based smell detection
 
 ### Consumers
 - Development agents needing refactor guidance
@@ -100,8 +108,7 @@ tidiness-manager/
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `API_PORT` | Go API server port | Assigned by lifecycle (15000-19999) |
-| `UI_PORT` | React UI port | Assigned by lifecycle (35000-39999) |
-| `WS_PORT` | WebSocket channel port | Assigned by lifecycle (25000-29999) |
+| `UI_PORT` | React UI port | Assigned by lifecycle (20000-24999) |
 | `DATABASE_URL` | PostgreSQL connection | From postgres resource |
 | `REDIS_URL` | Redis connection (optional) | From redis resource |
 | `CLAUDE_CODE_CLI` | Path to resource-claude-code CLI | Auto-detected |
@@ -112,7 +119,10 @@ tidiness-manager/
 # Check API health
 tidiness-manager status
 
-# Trigger light scan (fast, static analysis)
+# Trigger tidiness scan (default maintainability audit)
+tidiness-manager scan <scenario> --type tidiness
+
+# Trigger light scan (legacy metrics/parser path)
 tidiness-manager scan <scenario> --type light [--wait]
 
 # Trigger smart scan (slow, AI-powered)
@@ -153,13 +163,25 @@ make test-performance   # Scan timing, Lighthouse scores
 
 See `requirements/README.md` for requirement tracking and validation strategy.
 
+## Documentation Map
+
+- [Start Here](docs/START-HERE.md) - orientation for agents and maintainers
+- [Architecture](docs/concepts/ARCHITECTURE.md) - surfaces, boundaries, and data flow
+- [Domains](docs/concepts/DOMAINS.md) - bounded contexts and ownership
+- [API Endpoints](docs/reference/api-endpoints.md) - HTTP contract
+- [CLI Commands](docs/reference/cli-commands.md) - installed command surface
+- [Configuration](docs/reference/configuration.md) - lifecycle, env, and scenario contracts
+- [Runbook](docs/operations/RUNBOOK.md) - operational commands and triage
+- [Problems](docs/internal/PROBLEMS.md) - known issues and deferred work
+- [Progress](docs/internal/PROGRESS.md) - historical implementation record
+
 ## Development Workflow
 
 1. **Read the PRD** (`PRD.md`) to understand operational targets
 2. **Check requirements** (`requirements/`) for detailed technical specs
 3. **Start with light scanning** (foundation for all other modules)
 4. **Tag tests** with `[REQ:TM-XX-NNN]` to link to requirements
-5. **Update PROGRESS.md** when completing modules
+5. **Update docs/internal/PROGRESS.md** when completing modules
 
 ## Configuration
 
@@ -177,14 +199,24 @@ Stored in postgres `config` table; UI provides management interface.
 - **PRD**: [PRD.md](PRD.md) - Operational targets and technical direction
 - **Requirements**: [requirements/](requirements/) - 8 modules, 58 requirements
 - **Research**: [docs/RESEARCH.md](docs/RESEARCH.md) - Uniqueness analysis
-- **Progress**: [docs/PROGRESS.md](docs/PROGRESS.md) - Development log
-- **Problems**: [docs/PROBLEMS.md](docs/PROBLEMS.md) - Known issues
+- **Progress**: [docs/internal/PROGRESS.md](docs/internal/PROGRESS.md) - Development log
+- **Problems**: [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md) - Known issues
+
+## Customize Safely
+
+- Keep lint, type checking, static-quality contracts, and protective config comments aligned with Quality Health.
+- Keep Tidiness Manager changes focused on maintainability scans, issue workflows, recommendations, and campaigns.
+- Use lifecycle commands rather than direct process execution.
+- Update docs and requirements whenever API, CLI, persistence, or campaign behavior changes.
 
 ## Comparison to Related Scenarios
 
 - **scenario-auditor**: Standards compliance (security, schema) vs. code cleanliness (length, organization)
-- **code-smell**: Pattern violations vs. structural issues - complementary, can integrate
 - **visited-tracker**: Provides file tracking; tidiness-manager is a consumer
+
+> The `code-smell` scenario was retired on 2026-08-18 as abandoned. It owned pattern/anti-pattern
+> detection and auto-fix — capabilities Tidiness Manager deliberately does not cover. Both are
+> currently unowned; see the non-goals note in [PRD.md](PRD.md).
 
 ## Notes for Implementers
 

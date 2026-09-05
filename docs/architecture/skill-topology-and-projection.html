@@ -1,0 +1,944 @@
+<title>Where Skills Should Live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #F1F4F2;
+    --surface:   #FFFFFF;
+    --surface-2: #E7ECE9;
+    --ink:       #131C1A;
+    --ink-2:     #3D4B48;
+    --muted:     #66766F;
+    --rule:      #CBD5D0;
+    --accent:    #175E56;
+    --accent-sf: #DCEBE6;
+    --warn:      #8A5A12;
+    --warn-sf:   #F6EBD8;
+    --crit:      #A03225;
+    --crit-sf:   #F8E4E0;
+    --ok:        #2C6640;
+    --ok-sf:     #DDEBE0;
+    --shadow:    0 1px 2px rgba(19,28,26,.06), 0 8px 24px -16px rgba(19,28,26,.28);
+
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans:  "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0E1413;
+      --surface:   #161F1D;
+      --surface-2: #1E2A27;
+      --ink:       #E7EEEB;
+      --ink-2:     #C0CDC8;
+      --muted:     #8B9C96;
+      --rule:      #2C3B37;
+      --accent:    #63C4B2;
+      --accent-sf: #17322D;
+      --warn:      #D6A253;
+      --warn-sf:   #33270F;
+      --crit:      #E28A7B;
+      --crit-sf:   #3A1D18;
+      --ok:        #79BC8C;
+      --ok-sf:     #16301E;
+      --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:        #0E1413;
+    --surface:   #161F1D;
+    --surface-2: #1E2A27;
+    --ink:       #E7EEEB;
+    --ink-2:     #C0CDC8;
+    --muted:     #8B9C96;
+    --rule:      #2C3B37;
+    --accent:    #63C4B2;
+    --accent-sf: #17322D;
+    --warn:      #D6A253;
+    --warn-sf:   #33270F;
+    --crit:      #E28A7B;
+    --crit-sf:   #3A1D18;
+    --ok:        #79BC8C;
+    --ok-sf:     #16301E;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 24px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .col  { max-width: 660px; }
+
+  header.masthead {
+    padding: 72px 0 40px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 8px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: clamp(38px, 6vw, 60px);
+    line-height: 1.02;
+    letter-spacing: -.022em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 640px;
+    margin: 0 0 28px;
+  }
+  .byline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: .02em;
+  }
+
+  section { padding: 56px 0 8px; border-bottom: 1px solid var(--rule); }
+  section:last-of-type { border-bottom: none; }
+
+  .sec-head { display: flex; gap: 20px; align-items: baseline; margin-bottom: 26px; }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    flex: none;
+    width: 34px;
+    padding-top: 6px;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: clamp(25px, 3.4vw, 33px);
+    letter-spacing: -.017em;
+    line-height: 1.12;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: -.008em;
+    margin: 40px 0 10px;
+  }
+  h4 {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 12.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 32px 0 10px;
+  }
+  p { margin: 0 0 18px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+  code {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+  strong { font-weight: 600; }
+  ul, ol { margin: 0 0 18px; padding-left: 22px; }
+  li { margin-bottom: 9px; }
+  li::marker { color: var(--muted); }
+
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 4px 0 34px;
+  }
+  .fig-cell { background: var(--surface); padding: 18px 16px 16px; }
+  .fig-n {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: -.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .fig-cell.is-bad  .fig-n { color: var(--crit); }
+  .fig-cell.is-warn .fig-n { color: var(--warn); }
+  .fig-cell.is-ok   .fig-n { color: var(--ok); }
+  .fig-l { font-family: var(--mono); font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+
+  figure {
+    margin: 34px 0;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 26px 22px 18px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; max-width: 100%; height: auto; color: var(--ink); }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+  }
+  .svg-box   { fill: var(--surface-2); stroke: var(--rule); }
+  .svg-box-a { fill: var(--accent-sf); stroke: var(--accent); }
+  .svg-box-o { fill: var(--ok-sf);     stroke: var(--ok); }
+  .svg-box-x { fill: var(--crit-sf);   stroke: var(--crit); }
+  .svg-t     { fill: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+  .svg-t-s   { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .svg-t-a   { fill: var(--accent); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .svg-t-o   { fill: var(--ok); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .svg-t-x   { fill: var(--crit); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .svg-line  { stroke: var(--ink-2); fill: none; }
+  .svg-dash  { stroke: var(--crit); fill: none; stroke-dasharray: 5 4; }
+  .svg-acc   { stroke: var(--accent); fill: none; }
+  .svg-ok    { stroke: var(--ok); fill: none; }
+
+  .call {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-sf);
+    padding: 18px 20px;
+    margin: 26px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .call.warn { border-left-color: var(--warn); background: var(--warn-sf); }
+  .call.crit { border-left-color: var(--crit); background: var(--crit-sf); }
+  .call.ok   { border-left-color: var(--ok);   background: var(--ok-sf); }
+  .call p:last-child { margin-bottom: 0; }
+  .call .lbl {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 7px;
+    color: var(--accent);
+  }
+  .call.warn .lbl { color: var(--warn); }
+  .call.crit .lbl { color: var(--crit); }
+  .call.ok   .lbl { color: var(--ok); }
+
+  .tw { overflow-x: auto; margin: 26px 0; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 12px 15px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--mono); font-size: 12.5px; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .p-crit { color: var(--crit); }
+  .p-warn { color: var(--warn); }
+  .p-ok   { color: var(--ok); }
+  .p-acc  { color: var(--accent); }
+
+  .issue { margin: 0 0 42px; }
+  .issue-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+  .issue-head h3 { margin: 0; }
+
+  .planes { display: grid; gap: 14px; margin: 28px 0; }
+  @media (min-width: 800px) { .planes { grid-template-columns: repeat(2, 1fr); } }
+  .plane {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--accent);
+    border-radius: 0 0 4px 4px;
+    padding: 18px 20px 16px;
+  }
+  .plane.done { border-top-color: var(--ok); }
+  .plane .pn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .plane h3 { margin: 0 0 8px; font-size: 17px; }
+  .plane p { font-size: 15px; margin-bottom: 0; color: var(--ink-2); }
+
+  .sources { font-size: 14.5px; }
+  .sources li { margin-bottom: 7px; }
+
+  @media (max-width: 640px) {
+    body { font-size: 16.5px; padding: 0 18px 90px; }
+    .sec-head { gap: 12px; }
+    .sec-num { width: 26px; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Architecture review · Vrooli skills · rev 2</p>
+  <h1>Where Skills Should Live</h1>
+  <p class="standfirst">Vrooli skills use one spec-conformant source format with several governed surfaces: scenario-owned sources, prompt-manager practice packs, quarantined vendor sources, native runtime projection, and signed scenario-to-plugin publication.</p>
+  <div class="byline">
+    <span>rev 2 · 2026-08-23</span>
+    <span>branch: agi</span>
+    <span>projection verified on hardware</span>
+  </div>
+</header>
+
+<div class="figures">
+  <div class="fig-cell"><span class="fig-n">143</span><span class="fig-l">authored skills in<br>prompt-manager</span></div>
+  <div class="fig-cell is-ok"><span class="fig-n">143</span><span class="fig-l">of those with<br>spec frontmatter</span></div>
+  <div class="fig-cell is-ok"><span class="fig-n">12</span><span class="fig-l">scenario-owned,<br>spec-conformant</span></div>
+  <div class="fig-cell is-warn"><span class="fig-n">106</span><span class="fig-l">reference internal<br>Vrooli CLIs</span></div>
+  <div class="fig-cell is-warn"><span class="fig-n">61</span><span class="fig-l">cross-skill<br>read edges</span></div>
+  <div class="fig-cell is-bad"><span class="fig-n">0</span><span class="fig-l">import lane /<br>origin records</span></div>
+</div>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">01</span>
+    <h2>What the ramp already shipped</h2>
+  </div>
+  <div class="col">
+    <p>The <code>scenario-to-plugin</code> plan completed, and it moved more of this problem than I expected. Verified in the working tree:</p>
+    <ul>
+      <li><strong>The top-level <code>skills/</code> tree is gone</strong>, along with <code>docs/skills/</code> and the dead <code>scenario-to-mcp</code> scenario. The publication doctrine now lives inside the ramp at <code>scenarios/scenario-to-plugin/docs/concepts/SKILL-PUBLICATION.md</code>.</li>
+      <li><strong>The plugin declaration schema exists.</strong> <code>.vrooli/schemas/service.schema.json</code> now carries a <code>plugin</code> key: <em>"Absence means this scenario is not publishable."</em> That is the scenario↔skill link that was missing everywhere.</li>
+      <li><strong>Scenarios now own their skills.</strong> <code>scenarios/hello-plugin/skills/hello/SKILL.md</code> and <code>scenarios/workspace-sandbox/skills/sandbox/SKILL.md</code> both exist — one folder per skill, <strong>with valid YAML frontmatter</strong>, in the location the Agent Skills spec expects.</li>
+      <li><strong>The drift gate is real code.</strong> <code>api/handlers/pipeline/conformance.go</code> reads the wrapped scenario's <code>cli/manifest.json</code>, resolves every command in the skill body against it, and emits <code>PLG-CONF-DRIFT</code> when a command — or even a flag — is absent, pinned to a recorded manifest revision.</li>
+    </ul>
+    <div class="call ok">
+      <span class="lbl">Recommendation already delivered</span>
+      <p>Rev 1 of this review argued that the separate <code>skills/</code> publication tree should collapse into the ramp, and that skills should live with the scenario they describe in spec format. Both are now the shipped convention. Everything below builds on that rather than proposing it.</p>
+    </div>
+    <p>The publication doctrine now describes the shipped topology: scenario-owned <code>scenarios/&lt;slug&gt;/skills/&lt;id&gt;/SKILL.md</code> sources, prompt-manager's governed packs, the inactive vendor pack, registry resolution, bounded native projection, and signed publication. It is one skill format with several governed surfaces, not two competing skill systems.</p>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">02</span>
+    <h2>What remains governed</h2>
+  </div>
+  <div class="col">
+    <p>The authored corpus is <strong>spec-format files, not database rows</strong> — prompt-manager practice packs and scenario-owned <code>skills/&lt;id&gt;/SKILL.md</code> folders. SQLite is an index over them. <code>skill.json</code> is generated compatibility metadata, not a second authored source.</p>
+    <p>All 143 authored prompt-manager skills now carry the same specification frontmatter as scenario-owned skills. The open <a href="https://agentskills.io/specification">Agent Skills specification</a> fields (<code>name</code>, <code>description</code>, <code>license</code>, and optional runtime fields) are at the top level; Vrooli-private fields remain under <code>metadata</code> (<code>modes</code>, <code>targetDimensions</code>, <code>programmaticHome</code>, <code>writes_to</code>). The generated <code>skill.json</code> sidecar preserves compatibility for existing registry consumers.</p>
+    <p>The remaining distinction is ownership and governance, not format: scenario-owned skills travel with their scenario, repo-wide practice skills remain in prompt-manager, imported skills stay quarantined until review, and native projection exposes only the bounded pack selected for a runtime.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 340" role="img" aria-label="One spec-conformant skill system in the repo: scenario-owned and prompt-manager sources indexed by a registry, projected to native runtime directories, and published through the delivery ramp.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <text class="svg-t-s" x="30" y="20">PROMPT-MANAGER SOURCE — repo-wide practice</text>
+      <rect class="svg-box-a" x="30" y="34" width="238" height="112" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="48" y="60" font-weight="600">prompt-manager/store/skills</text>
+      <text class="svg-t-s" x="48" y="80">143 authored skills · packs core/local</text>
+      <text class="svg-t-x" x="48" y="98">spec frontmatter · generated skill.json sidecar</text>
+      <text class="svg-t-s" x="48" y="116">106 name internal CLIs</text>
+      <text class="svg-t-s" x="48" y="134">61 cross-skill read edges</text>
+
+      <rect class="svg-box" x="336" y="56" width="150" height="60" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="356" y="82" font-weight="600">skill read</text>
+      <text class="svg-t-s" x="356" y="100">CLI, one at a time</text>
+      <line class="svg-line" x1="268" y1="88" x2="330" y2="88" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <rect class="svg-box" x="554" y="56" width="176" height="60" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="574" y="82" font-weight="600">coding agent</text>
+      <text class="svg-t-s" x="574" y="100">reads on instruction</text>
+      <line class="svg-line" x1="486" y1="88" x2="548" y2="88" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <rect class="svg-box-x" x="554" y="152" width="176" height="56" rx="4" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text class="svg-t-x" x="574" y="176" font-weight="600">.agents/skills/</text>
+      <text class="svg-t-x" x="574" y="194">never written · lookup misses</text>
+      <path class="svg-dash" d="M642 146 L642 116" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <text class="svg-t-s" x="30" y="242">SCENARIO-OWNED SOURCE — interface guidance</text>
+      <rect class="svg-box-o" x="30" y="256" width="238" height="66" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="48" y="280" font-weight="600">scenarios/&lt;slug&gt;/skills/</text>
+      <text class="svg-t-o" x="48" y="298">2 skills · valid frontmatter</text>
+      <text class="svg-t-s" x="48" y="314">hello-plugin · workspace-sandbox</text>
+
+      <rect class="svg-box-o" x="336" y="256" width="150" height="66" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="356" y="280" font-weight="600">drift gate</text>
+      <text class="svg-t-s" x="356" y="298">cli/manifest.json</text>
+      <text class="svg-t-o" x="356" y="314">PLG-CONF-DRIFT</text>
+      <line class="svg-ok" x1="268" y1="289" x2="330" y2="289" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <rect class="svg-box-o" x="554" y="256" width="176" height="66" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="574" y="280" font-weight="600">scenario-to-plugin</text>
+      <text class="svg-t-s" x="574" y="298">sign · attest · rehearse</text>
+      <text class="svg-t-o" x="574" y="314">ghcr.io</text>
+      <line class="svg-ok" x1="486" y1="289" x2="548" y2="289" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <line class="svg-line" x1="786" y1="34" x2="786" y2="322" stroke-width="1" opacity=".25" stroke-dasharray="3 4"/>
+      <text class="svg-t-s" x="798" y="90">agents</text>
+      <text class="svg-t-s" x="798" y="292">registries</text>
+    </svg>
+    <figcaption>System B is new and correct. System A holds 98.7% of the corpus in a format nothing outside Vrooli can read. The dashed red edge is the friction you noticed: the agent's native lookup misses because nothing writes there.</figcaption>
+  </figure>
+
+  <div class="col">
+    <div class="issue">
+      <div class="issue-head">
+        <h3>No import lane, and importing is the dangerous part</h3>
+        <span class="pill p-crit">still unbuilt</span>
+      </div>
+      <p><code>prompt-manager skill</code> exposes <code>list · show · read · add · update · delete · sync · rate · versions · revert · variants</code>. There is no <code>import</code>, and nothing in <code>skill.json</code> can record where a skill came from — no source URL, no commit, no license, no checksum, no importer, no review verdict. An imported skill would be indistinguishable from one you wrote.</p>
+      <p>The external evidence says that gap is the whole game. Snyk's <a href="https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/">ToxicSkills audit</a> scanned 3,984 registry skills: 36.8% carried at least one security flaw, 13.4% a critical one, 76 confirmed malicious payloads. ClawHavoc poisoned 1,184 skills before remediation began. And Trail of Bits bypassed every public skill scanner inside an hour — one researcher-built malicious skill reached 26,000 agents while every scanner cleared it.</p>
+      <div class="call crit">
+        <span class="lbl">Design consequence</span>
+        <p>Scanners are a filter, never a gate. An import lane whose safety story is "we scan it" is not safe. The gate has to be <em>quarantine by default</em>: imports land inactive, are never projected into a session, and require a recorded human verdict against an immutable origin record before activation.</p>
+      </div>
+      <p>The ramp's <code>SECURITY-POSTURE.md</code> now owns the outbound posture. Inbound has no owner at all, and it is the higher-risk direction — outbound risk is your reputation, inbound risk is your host.</p>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <h3>The corpus rides along with any distribution</h3>
+        <span class="pill p-warn">monetization blocker</span>
+      </div>
+      <p>Because the 143 authored skills are git-tracked files inside prompt-manager, a tier-2 install could ship all of them. <strong>106 reference <code>vrooli scenario</code>, <code>swarm-manager</code>, <code>test-genie</code>, or <code>prompt-manager skill read</code></strong> — commands a standalone buyer does not have. And 61 distinct cross-skill <code>skill read &lt;id&gt;</code> edges mean shipping a subset is not a matter of deleting folders; you would break references.</p>
+      <p>The fix is now cheap, because the mechanism exists: <code>conformance.go</code> already resolves documented commands against a target's <code>cli/manifest.json</code>. Point that same check at a tier-2 bundle's CLI surface and "which skills may ship?" stops being a judgment call. This is the same failure mode <a href="https://arxiv.org/abs/2607.01136">Skills Are Not Islands</a> measures at registry scale — dependency-bearing artifacts with implicit provenance. Your corpus has the dependency graph; it just isn't declared.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">03</span>
+    <h2>Projection: does it actually cost context?</h2>
+  </div>
+  <div class="col">
+    <p>You were right to push on this. The answer is <strong>yes, but only the descriptions</strong> — and it is consistent across the harnesses that matter, because they all implement the same three-tier progressive disclosure the spec defines.</p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Runtime</th><th>At startup</th><th>On activation</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Claude Code</td><td>Scans every skill dir, loads <code>name</code> + <code>description</code> only — ~100 tokens each</td><td>Full body, &lt;5k tokens</td></tr>
+          <tr><td class="mono">Codex CLI</td><td>Discovers <code>.agents/skills</code>, keeps descriptions in context for matching</td><td>Body, lazily</td></tr>
+          <tr><td class="mono">Spec baseline</td><td><code>name</code> + <code>description</code> for all skills</td><td>Instructions, then resources</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>There is direct evidence in this session, which you can check yourself: my own system prompt carries an enumerated list of available skills, each with a one-line description, none with a body. That is the startup tier, visible in the wild. It is not a "list them when asked" tool — the descriptions are resident so the model can match without a round trip.</p>
+
+    <p>Which makes the arithmetic decisive:</p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Projection scope</th><th class="num">Skills</th><th class="num">Resident cost</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td>Whole authored <code>core</code> pack</td><td class="num">143</td><td class="num">≈14,300 tok</td><td><span class="pill p-crit">no</span> — every session pays for a corpus it will not use</td></tr>
+          <tr><td>Always-on base pack</td><td class="num">8–15</td><td class="num">≈0.8–1.5k</td><td><span class="pill p-ok">yes</span> — the reflexes every session needs</td></tr>
+          <tr><td>+ per-run profile pack</td><td class="num">10–25</td><td class="num">≈1–2.5k</td><td><span class="pill p-ok">yes</span> — scoped to the work</td></tr>
+          <tr><td>Everything else</td><td class="num">~120</td><td class="num">0</td><td><span class="pill p-acc">CLI</span> — <code>skill read</code> stays the long tail</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>So your instinct — a few always-projected, the rest per-profile — is the right shape, and it is the shape the token math independently arrives at.</p>
+
+    <h3>Per-run projection is an env problem, not a directory problem</h3>
+    <p>You worried this would mean hooking each harness's skill-reading command. It doesn't — there is no read to intercept, only a filesystem to prepare. But <em>which</em> filesystem is the whole design, and Vrooli's setup rules out the obvious answer.</p>
+    <p>Both harnesses read two scopes. Claude Code's order is enterprise → personal (<code>~/.claude/skills</code>) → project (<code>.claude/skills</code>) → plugin; Codex reads repo <code>.agents/skills</code> alongside the home equivalent. The tempting move is to write each run's pack into the project scope, since <code>agent-manager</code> already launches every run with a <code>WorkingDir</code>.</p>
+    <div class="call crit">
+      <span class="lbl">Why that fails here</span>
+      <p>Vrooli runs many agents concurrently in one checkout, without worktrees. Both discoverable scopes are therefore <strong>shared</strong>: one project directory, one home directory, many sessions. Writing a per-run pack into either means the last writer wins and every other live agent silently sees another agent's skill set. Hot-reload makes this worse rather than better — it removes the process-start boundary that would otherwise contain the damage, so a mid-run injection reaches every concurrent session within seconds. Any design that scopes skills by filesystem <em>location</em> is wrong for this setup.</p>
+    </div>
+    <p>The scope has to move with the process instead. Both runtimes root their user scope at an env-var-controlled directory: Codex resolves everything under <code>CODEX_HOME</code> (your own <code>resources/codex/resource.json</code> already documents this — "state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME"), and Claude Code honours <code>CLAUDE_CONFIG_DIR</code> to relocate <code>~/.claude</code> wholesale. Give each run its own config dir and each run gets its own user scope, on the same checkout, with no worktree.</p>
+    <p>That seam already exists. <code>phases.AssembleRunEnv</code> merges custom, sandbox, and identity env per run — and system vars deliberately override custom ones, which is exactly the precedence a skill scope needs, since a run must not be able to widen its own. Adding a skill-scope source there is a small change to a mechanism agent-manager already relies on.</p>
+    <div class="call ok">
+      <span class="lbl">Measured, not assumed — Claude Code 2.1.241, 2026-08-23</span>
+      <p>I ran the experiment rather than leaving it as a risk. Four canary skills across two config directories and one project directory, five headless runs. All three properties the design depends on hold.</p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Check</th><th>Method</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Skills follow the relocated config dir</strong></td>
+            <td>Canary at <code>$CFG/skills/zzprobe-canary-alpha/</code>, asked a headless run to enumerate its skills</td>
+            <td><span class="pill p-ok">yes</span> — canary listed with <code>CLAUDE_CONFIG_DIR</code> set, absent from the otherwise-identical control</td>
+          </tr>
+          <tr>
+            <td><strong>Concurrent runs stay isolated</strong></td>
+            <td>Two config dirs, two different canaries, launched simultaneously from the <em>same</em> working directory</td>
+            <td><span class="pill p-ok">yes</span> — each run saw only its own canary, neither saw the other's</td>
+          </tr>
+          <tr>
+            <td><strong>Shared project scope still layers</strong></td>
+            <td>Project canary at <code>&lt;cwd&gt;/.claude/skills/</code> with the config dir relocated</td>
+            <td><span class="pill p-ok">yes</span> — both the private and the shared canary were visible in one run</td>
+          </tr>
+          <tr>
+            <td><strong>Mid-session hot-reload in a private scope</strong></td>
+            <td>—</td>
+            <td><span class="pill p-warn">untested</span> — headless <code>-p</code> is one-shot, so an in-flight rescan cannot be observed this way</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>That third row is the one that matters most: the two-tier model is not a theory. A base pack in the shared project scope and a profile pack in a per-run config dir compose, and the per-run half is invisible to every other agent on the same checkout.</p>
+
+    <div class="call warn">
+      <span class="lbl">What else moves — answered the hard way</span>
+      <p>The first run failed with <code>Not logged in · Please run /login</code>. <strong>Credentials relocate with the config dir</strong>, and so does session state: the runs created <code>projects/</code>, <code>sessions/</code>, and <code>backups/</code> inside the relocated directory, with each transcript written under <code>$CFG/projects/&lt;encoded-cwd&gt;/&lt;uuid&gt;.jsonl</code>. Two consequences for agent-manager. It must seed or link <code>.credentials.json</code> into every per-run dir, or every run starts logged out. And its transcript-import path must read from the run's own config dir, because transcripts no longer land in <code>~/.claude/projects</code> — a per-run scope silently breaks transcript import otherwise.</p>
+    </div>
+
+    <h3>A scenario's <code>skills/</code> folder is not a discovery path</h3>
+    <p>Worth being precise, because it is easy to assume otherwise: <code>scenarios/&lt;slug&gt;/skills/</code> is <em>package source</em>. It matches the layout Agent Plugins expects inside a plugin (<code>plugin.json</code> + <code>skills/</code>), which is why the ramp puts it there. No harness discovers it, at any working directory. The discovery paths are <code>.claude/skills</code> and <code>.agents/skills</code>, and a bare <code>skills/</code> is neither.</p>
+    <p>Claude Code does document nested discovery — editing a file in <code>packages/frontend/</code> triggers a scan of <code>packages/frontend/.claude/skills/</code> — so a per-scenario runtime scope is theoretically reachable at <code>scenarios/&lt;slug&gt;/.claude/skills/</code>. But it is on-demand rather than upfront, and there are open issues reporting it silently skips subdirectories even after files there are read and edited. Treat nested discovery as a bonus, not a mechanism: project into the project-root scope, which is reliable, and let per-scenario scopes be an opportunistic addition once the base works.</p>
+
+    <h3>Hot-reload: a liability in a shared scope, an asset in a private one</h3>
+    <p><strong>Claude Code 2.1.0 added automatic skill hot-reload</strong> — skills created or modified in <code>~/.claude/skills</code> or <code>.claude/skills</code> become available mid-session with no restart. Whether that helps depends entirely on the scope decision above, and it cuts both ways:</p>
+    <ul>
+      <li>Against a <strong>shared</strong> scope it is a hazard, and the reason the project-directory approach cannot simply be accepted with a warning. Without hot-reload, a stray write only affects sessions started afterwards; with it, the write lands in every running agent.</li>
+      <li>Against a <strong>per-run</strong> scope it is exactly the mechanism the heartbeat case needs. A member heartbeat that decides its member now needs a skill writes into that run's own config dir, and only that run picks it up.</li>
+    </ul>
+    <p>So hot-reload doesn't change the recommendation — it raises the cost of getting the scope wrong and raises the payoff for getting it right. Two caveats bound it either way: skills delivered <em>as a plugin</em> are reported not to reload, and there is an open bug where available-skills context is not re-injected after a plugin upgrade — so injected skills should be plain directories, not plugin packages. And it is a Claude Code capability, not a cross-harness guarantee, so the launch-time pack must still be correct for runtimes that scan once.</p>
+
+    <h3>The precedent works, and shows exactly what to fix</h3>
+    <p><code>vrooli-memory</code> already does this for memory, and the seam is well-shaped: <code>api/internal/harness/projection.go</code> holds a <code>Projector</code> with a per-runtime target table — path, byte cap, line cap, section markers — and a <code>Project(ctx, runtime, dryRun)</code> entry point covering <code>claude-code</code>, <code>codex</code>, <code>gemini</code>, <code>grok</code>, and <code>antigravity</code>. Skill projection is the same operation against a directory instead of a file.</p>
+    <p>Two things it gets right and one it gets wrong, and the wrong one is precisely your concern:</p>
+    <ul>
+      <li><span class="pill p-ok">right</span> The curated-instruction topology is data-driven — <code>curated-files.json</code>, embedded, with canonical <code>AGENTS.md</code> plus workspace and home aliases.</li>
+      <li><span class="pill p-ok">right</span> Projected regions are marked and generated (<code>vrooli-memory:wake:start/end</code>), so hand edits and generated content never fight.</li>
+      <li><span class="pill p-crit">wrong</span> The <em>projection target map is hardcoded in Go</em> — and one entry contains the literal path <code>~/.claude/projects/-home-matthalloran8-Vrooli/memory/MEMORY.md</code>. A machine-specific string compiled into a scenario binary.</li>
+    </ul>
+    <p>So build the skill projector on this pattern, and take the target map out of Go. The natural home is the coding-agent resources, which already declare exactly this: <code>resources/claude-code/resource.json</code> declares <code>$USER_HOME/.claude</code> as the runtime home with a typed path table beneath it, and <code>resources/codex/resource.json</code> does the same for <code>$USER_HOME/.codex</code>. Five such resources exist — <code>claude-code</code>, <code>codex</code>, <code>opencode</code>, <code>antigravity</code>, <code>grok</code>. Adding a <code>skills</code> path entry per resource gives you the data-driven projection map you described, makes a new harness a data change rather than a code change, and gives <code>vrooli-memory</code> somewhere to retire its hardcoded table to.</p>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">04</span>
+    <h2>The target: one source, four planes</h2>
+  </div>
+  <div class="col">
+    <p>Separate four things that "the skills folder in prompt-manager" currently fuses: where a skill is <strong>authored</strong>, what <strong>indexes and governs</strong> it, where a runtime <strong>reads</strong> it, and what gets <strong>published</strong>. Storage is the authoring plane only. Everything else is generated, never hand-maintained.</p>
+  </div>
+
+  <div class="planes">
+    <div class="plane">
+      <span class="pn"><span>Plane 1 · Authoring</span><span class="pill p-warn">partly done</span></span>
+      <h3>Skills live next to what they steer</h3>
+      <p>Now the shipped convention for publishable skills. Extend it inward: a skill about a scenario's interface moves to <code>scenarios/&lt;slug&gt;/skills/&lt;id&gt;/</code> so it versions with the code it describes. Repo-wide practice skills — triage, writing standards, planning — have no owner scenario and stay in prompt-manager. Imports land in a separate vendor root, never edited in place.</p>
+    </div>
+    <div class="plane">
+      <span class="pn"><span>Plane 2 · Registry</span><span class="pill p-acc">to build</span></span>
+      <h3>prompt-manager indexes roots, stops owning bytes</h3>
+      <p>It keeps what makes it valuable — search, variants, experiments, ratings, telemetry, the authoring quality bars — and gains a multi-root scan. Smaller than it sounds: <code>memberflow/prose_scan.go</code> already walks <code>&lt;configDir&gt;/skills/packs/**</code> across scan roots.</p>
+    </div>
+    <div class="plane">
+      <span class="pn"><span>Plane 3 · Projection</span><span class="pill p-acc">to build</span></span>
+      <h3>Generate skill dirs per scope</h3>
+      <p>An always-on base pack in the shared scope, plus a per-run profile pack in a private config dir the run's env points at — because many agents share one checkout, the scope must travel with the process, not the path. Targets come from the coding-agent resources, not from Go. Generated, gitignored, rebuilt on change.</p>
+    </div>
+    <div class="plane done">
+      <span class="pn"><span>Plane 4 · Publication</span><span class="pill p-ok">shipped</span></span>
+      <h3><code>scenario-to-plugin</code> packages what the scenario owns</h3>
+      <p>Declaration schema, composition, drift gate, attestation, clean-room rehearsal, gate-bound publication. Because the skill already sits in the scenario in spec format, composition is a copy plus a manifest.</p>
+    </div>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 430" role="img" aria-label="Target topology: skills authored in scenarios, prompt-manager, and a quarantined vendor root; indexed by a multi-root registry; projected to a base pack and per-run profile packs; and published through the delivery ramp.">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <text class="svg-t-s" x="30" y="22">AUTHORING</text>
+      <text class="svg-t-s" x="330" y="22">REGISTRY</text>
+      <text class="svg-t-s" x="620" y="22">PROJECTION + PUBLICATION</text>
+      <line class="svg-line" x1="30" y1="32" x2="870" y2="32" stroke-width="1" opacity=".3"/>
+
+      <rect class="svg-box-o" x="30" y="54" width="226" height="58" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="46" y="78" font-weight="600">scenarios/&lt;slug&gt;/skills/</text>
+      <text class="svg-t-o" x="46" y="97">shipped convention · spec format</text>
+
+      <rect class="svg-box-a" x="30" y="126" width="226" height="58" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="46" y="150" font-weight="600">scenarios/prompt-manager/store/skills/</text>
+      <text class="svg-t-s" x="46" y="169">repo-wide practice · no owner</text>
+
+      <rect class="svg-box" x="30" y="198" width="226" height="72" rx="4" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text class="svg-t" x="46" y="222" font-weight="600">vendor/ (imported)</text>
+      <text class="svg-t-s" x="46" y="241">origin record · immutable</text>
+      <text class="svg-t-x" x="46" y="259">inactive until human verdict</text>
+
+      <rect class="svg-box-a" x="330" y="98" width="196" height="126" rx="4" stroke-width="2"/>
+      <text class="svg-t" x="348" y="124" font-weight="600">prompt-manager</text>
+      <text class="svg-t" x="348" y="142" font-weight="600">registry</text>
+      <text class="svg-t-s" x="348" y="164">multi-root index</text>
+      <text class="svg-t-s" x="348" y="182">search · variants</text>
+      <text class="svg-t-s" x="348" y="200">experiments · ratings</text>
+      <text class="svg-t-a" x="348" y="218">indexes, owns no bytes</text>
+
+      <line class="svg-line" x1="256" y1="83"  x2="324" y2="132" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line class="svg-line" x1="256" y1="155" x2="324" y2="160" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line class="svg-line" x1="256" y1="234" x2="324" y2="192" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+      <rect class="svg-box" x="330" y="262" width="196" height="60" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="348" y="286" font-weight="600">drift gate</text>
+      <text class="svg-t-s" x="348" y="305">commands ⊆ target manifest</text>
+      <line class="svg-acc" x1="428" y1="224" x2="428" y2="256" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+      <rect class="svg-box-a" x="620" y="46" width="250" height="62" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="638" y="70" font-weight="600">base pack → shared scope</text>
+      <text class="svg-t-s" x="638" y="89">8–15 always-on · identical for all runs</text>
+
+      <rect class="svg-box-a" x="620" y="120" width="250" height="72" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="638" y="144" font-weight="600">profile pack → per-run CONFIG_DIR</text>
+      <text class="svg-t-s" x="638" y="163">private scope · concurrency-safe</text>
+      <text class="svg-t-a" x="638" y="181">env from AssembleRunEnv</text>
+
+      <rect class="svg-box" x="620" y="204" width="250" height="52" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="638" y="228" font-weight="600">skill read</text>
+      <text class="svg-t-s" x="638" y="246">the ~120-skill long tail</text>
+
+      <rect class="svg-box-o" x="620" y="286" width="250" height="82" rx="4" stroke-width="1.5"/>
+      <text class="svg-t" x="638" y="310" font-weight="600">scenario-to-plugin</text>
+      <text class="svg-t-s" x="638" y="329">sign · attest · rehearse · gate</text>
+      <text class="svg-t-o" x="638" y="348">registries · tier-2 bundles</text>
+
+      <line class="svg-acc" x1="526" y1="132" x2="614" y2="82"  stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line class="svg-acc" x1="526" y1="152" x2="614" y2="152" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line class="svg-line" x1="526" y1="180" x2="614" y2="226" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line class="svg-ok"  x1="526" y1="296" x2="614" y2="320" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+      <text class="svg-t-s" x="620" y="400">both outbound paths cross the same gate</text>
+    </svg>
+    <figcaption>Green is shipped. One authored copy per skill in spec format; the registry indexes roots rather than storing bytes; projection is scoped in two tiers; and both outbound paths — a native skill directory and a published plugin — cross the same drift gate, so a skill can never document a command its target does not have.</figcaption>
+  </figure>
+
+  <div class="col">
+    <h3>Format: adopt the spec, keep your extras where they belong</h3>
+    <p>Frontmatter is the single source of metadata truth, matching the 12 scenario-owned skills currently in the tree. Spec fields (<code>name</code>, <code>description</code>, <code>license</code>, <code>allowed-tools</code>, <code>compatibility</code>) are at the top level; everything Vrooli-specific stays under <code>metadata:</code>, which the spec leaves open and conformant runtimes ignore safely. <code>skill.json</code> is generated compatibility metadata, not authored source.</p>
+    <p>Two additions to <code>metadata</code> pay for themselves immediately:</p>
+    <ul>
+      <li><code>requires:</code> — the scenario slugs and CLI commands this skill needs. This is what feeds the existing drift gate and turns "which skills may ship to tier 2" into a query.</li>
+      <li><code>origin:</code> — for vendored skills: source URL, commit SHA, SPDX license id, checksum, importer, review verdict, upstream version. Immutable. This is your attribution and provenance record, and also your freshness record — when upstream moves you can tell which vendored skills went stale.</li>
+    </ul>
+    <p>Local changes to a vendored skill should be an overlay or patch, not an edit; otherwise the next upstream update forces a manual three-way merge and, in practice, never happens.</p>
+
+    <h3>On moving skills into scenarios — mostly yes, and it is a spectrum</h3>
+    <p>Move a skill when its content is about a scenario's interface. Roughly 11 <code>core</code> skills are already named for one (<code>api-steer</code>, <code>storage-steer</code>, <code>cli-steer</code>, <code>knowledge-observatory-tools</code>, <code>visited-tracker-tools</code>, <code>swarm-manager-backlog-tools</code>…), and the 106 that name internal CLIs are the population to triage. Skills that encode judgment rather than an interface — triage methodology, skill authoring, systematic exploration — have no owner scenario and should stay central. Forced ownership is worse than none.</p>
+    <p>The 61 cross-skill edges are the migration hazard. They resolve today only because everything shares one namespace. Before moving anything, those references must resolve through the registry by skill id rather than by storage location — which is also what makes projection and publication possible.</p>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">05</span>
+    <h2>Six decisions the plan needs</h2>
+  </div>
+  <div class="col">
+    <p>Each of these was open before writing the plan. Each is now investigated, with a recommendation and the evidence behind it.</p>
+
+    <h3>D1 · The frontmatter schema carries everything</h3>
+    <p>I checked whether the migration is a chance to prune. It is not: <strong>every one of the 19 on-disk keys is read by at least two non-test Go files</strong> — <code>kind</code> by 13, <code>status</code> by 20, down to <code>writes_to</code>, <code>defaultScope</code>, <code>targetDimensions</code>, and <code>programmaticHome</code> at 2 each. Nothing is vestigial.</p>
+    <p><strong>Decide:</strong> spec fields at the top level (<code>name</code>, <code>description</code>, <code>license</code>, <code>allowed-tools</code>); every existing Vrooli key moves under <code>metadata:</code> <em>keeping its current name</em>; add <code>requires</code> and <code>origin</code>. Do not rename anything during the migration — a rename is a separate, revertible change, and bundling it into the authored-corpus rewrite makes both harder to review. <code>entry</code> is the single deletable key, since the spec fixes the body at <code>SKILL.md</code>.</p>
+
+    <h3>D2 · Generate <code>skill.json</code>, don't delete it</h3>
+    <p>17 non-test Go files read the current shape, and all their fields stay live. <strong>Decide:</strong> during migration, write frontmatter as the source of truth and <em>generate</em> <code>skill.json</code> from it, so all 17 consumers keep working untouched. Retire the sidecar per-consumer afterwards. This turns one large irreversible change into a safe change plus an unhurried cleanup lane, and it means step 1 can land without coordinating 17 call sites.</p>
+
+    <h3>D3 · The real risk is telemetry, not variants</h3>
+    <p>I had this wrong, and the correction matters. Variants are <em>not</em> endangered by projection: <code>read.go</code> gates variant selection behind an explicit experiment ID, with the comment "Organic reads remain observational and must never be silently assigned treatment." Experiments pass IDs deliberately and can keep using the CLI. Nothing breaks.</p>
+    <p>What breaks is counting. <strong>The read is the telemetry point.</strong> Every <code>skill read</code> fires <code>ReadRecorder.Record</code> → <code>RecordUsage</code>, writes <code>skill_reads</code> and <code>discovery_calls</code>, and records exposure receipts with run, execution, node, and attempt attribution. The header comment on <code>read_telemetry.go</code> says why it exists: <code>UsageCount</code> was previously incremented only by an explicit command, so it undercounted, and <em>skill-optimizer's "high usage" selection rung was unpowered.</em></p>
+    <div class="call crit">
+      <span class="lbl">Projection reintroduces a bug you already fixed</span>
+      <p>A projected skill is read off disk by the agent. prompt-manager never sees it. Usage counts stop incrementing, discovery attribution goes dark, and skill-optimizer's high-usage rung is unpowered again — precisely for the base-pack skills, because you project the ones that get used most. Worse than the original bug: those skills will report <em>zero</em> reads, which reads as "unused" rather than "uncounted", and the natural response to an unused skill is to retire it.</p>
+    </div>
+    <p><strong>Decide:</strong> ship an activation hook in the same step as the first projection, not later. Skill activation is a tool call, so a <code>PreToolUse</code> hook matching the skill tool can report it to prompt-manager. The infrastructure already exists on this host — <code>~/.claude/settings.json</code> carries <code>PreToolUse</code> hooks with <code>Bash</code> and <code>*</code> matchers, and <code>~/.claude/.vrooli-hooks/</code> holds a working hook script. This is an addition to a running system, not a new one. Until the hook exists, mark projected skills in the usage report so nobody reads a zero as a verdict.</p>
+    <p>The hook must be <strong>fail-open and time-boxed</strong>. It sits in front of every skill activation; a prompt-manager that is slow or down must degrade to "no telemetry", never to "the agent waits" or "the activation fails". Telemetry is worth a best-effort call, never a blocked turn.</p>
+
+    <h3>D3b · Resolve experiments at pack composition, not at read</h3>
+    <p>The tempting extension is to use the same hook to <em>substitute</em> content — serve a variant to 30% of reads. It is mechanically possible: <code>PreToolUse</code> can return <code>hookSpecificOutput.updatedInput</code> to rewrite tool arguments and <code>additionalContext</code> to inject text (<code>PostToolUse</code> cannot — it observes a completed call and cannot replace its result). But it is the wrong unit, and prompt-manager's own schema says so.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Question</th><th>Substitute at read</th><th>Resolve at composition</th></tr></thead>
+        <tbody>
+          <tr><td>Randomization unit</td><td>Each read — one agent can see control and treatment in a single session</td><td>The run, matching <code>experiment_assignments</code>' own key</td></tr>
+          <tr><td>Hot path</td><td>Every activation waits on a local call</td><td>Once, at launch, before the process starts</td></tr>
+          <tr><td>If prompt-manager is down</td><td>Silent reversion to control mid-experiment, unevenly</td><td>Launch fails loudly or proceeds with the base pack</td></tr>
+          <tr><td>Reproducibility</td><td>A rerun can draw differently</td><td>Assignment and content hash are recorded up front</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>experiment_assignments</code> is keyed on <code>execution_id</code>, <code>node_id</code>, and <code>attempt_key</code> — not on a read — and it stores <code>content</code> and <code>content_hash</code> at assignment time. The design already decided that a variant is assigned to a <em>run</em> and frozen. Per-read substitution would contradict the table it is meant to populate.</p>
+    <p><strong>Decide:</strong> the projector asks prompt-manager for the run's assignment when it composes the pack, and writes the assigned content into the run's private scope. A 30% exposure rate means 30% of runs, not 30% of reads — same rate, clean units, no service in the hot path. And the long tail keeps working unchanged: skills read through the CLI already resolve variants server-side, so the only set needing pre-resolution is the projected set, which is exactly the set you can resolve in advance.</p>
+
+    <h3>D3c · The assignment seam you described is already built — for prompts</h3>
+    <p>Your instinct is right, and it is better than a hash. agent-manager's workflow runtime already carries this exact shape:</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Piece</th><th>Where it lives</th></tr></thead>
+        <tbody>
+          <tr><td><code>PromptAssignmentIdentity{ExecutionID, NodeID, AttemptKey, IdempotencyKey}</code></td><td><code>workflowruntime/engine.go</code></td></tr>
+          <tr><td><code>PromptResolver.Resolve(ctx, ref, assignment)</code> → <code>PromptResolution{ExperimentID, VariantID, Content, ContentHash}</code></td><td>same</td></tr>
+          <tr><td>Resolution frozen onto the attempt, then passed to the child as <code>VROOLI_WORKFLOW_{EXPERIMENT,VARIANT}_ID</code></td><td><code>orchestration/workflow_execution.go</code></td></tr>
+          <tr><td><code>experiment_assignments(experiment_id, skill_id, variant_id, execution_id, node_id, attempt_key, idempotency_key, content, content_hash)</code></td><td>prompt-manager SQLite</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Note what that is: not a deterministic hash but an <strong>idempotency-keyed assignment record</strong>. Ask once, store the answer, and every re-ask returns the stored answer rather than recomputing. That beats hashing on three counts — arm weights can change mid-experiment without re-bucketing units already assigned; the served <em>content</em> is frozen alongside the choice, so editing a variant mid-run cannot change what a running agent was given; and it is auditable, because you can read what was served instead of recomputing what should have been.</p>
+
+    <div class="call warn">
+      <span class="lbl">Two experiment surfaces exist, and they disagree</span>
+      <p>The mature one arms a <em>prompt</em> on a workflow node: assignment-keyed, frozen, agent-manager-driven. The immature one lives in <code>skills/read.go</code> and fires a <code>rand.Float64()</code> weighted draw per call, with no assignment record — so two reads in one session can legitimately land on different arms. <code>experiment_assignments</code> has <strong>0 rows</strong>; the durable half has never been exercised. This is why skill experimentation feels unclear: the skill path is a second, weaker design sitting beside a finished one.</p>
+    </div>
+    <p><strong>Decide:</strong> the skill surface adopts the prompt surface's model rather than inventing a third. Generalize <code>PromptAssignmentIdentity</code> to an assignment identity that also covers non-workflow runs (where the key degrades to the run id), have pack composition call that same seam, and write the <code>experiment_assignments</code> row with frozen content. Then remove the per-call random draw from the read path, or restrict it to an explicitly requested one-off read. Projection makes this natural rather than harder: composing a pack happens at precisely the boundary where <code>PromptResolver.Resolve</code> already runs.</p>
+    <p>"30% of the time" then means 30% of assignment units — the draw happens once, when the unit is assigned, and every read by that agent returns the stored arm.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 210" role="img" aria-label="Experiment lifecycle: assignment drawn once at launch and frozen, exposures recorded per read during the run, outcome attached to the same assignment key at the end.">
+        <defs>
+          <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,0 10,5 0,10" fill="currentColor"/>
+          </marker>
+        </defs>
+        <text class="svg-t-s" x="30" y="20">ONCE, AT LAUNCH</text>
+        <text class="svg-t-s" x="336" y="20">MANY TIMES, DURING THE RUN</text>
+        <text class="svg-t-s" x="700" y="20">ONCE, AT THE END</text>
+        <line class="svg-line" x1="30" y1="30" x2="870" y2="30" stroke-width="1" opacity=".25"/>
+
+        <rect class="svg-box-a" x="30" y="50" width="256" height="96" rx="4" stroke-width="1.5"/>
+        <text class="svg-t" x="48" y="74" font-weight="600">assign</text>
+        <text class="svg-t-s" x="48" y="94">weighted draw, exactly once</text>
+        <text class="svg-t-s" x="48" y="112">key: execution · node · attempt</text>
+        <text class="svg-t-a" x="48" y="132">content + hash frozen here</text>
+
+        <rect class="svg-box" x="336" y="50" width="286" height="96" rx="4" stroke-width="1.5"/>
+        <text class="svg-t" x="354" y="74" font-weight="600">expose</text>
+        <text class="svg-t-s" x="354" y="94">agent reads the projected pack</text>
+        <text class="svg-t-s" x="354" y="112">hook reports each activation</text>
+        <text class="svg-t-s" x="354" y="132">no draw, no substitution</text>
+
+        <rect class="svg-box-a" x="672" y="50" width="198" height="96" rx="4" stroke-width="1.5"/>
+        <text class="svg-t" x="690" y="74" font-weight="600">attribute</text>
+        <text class="svg-t-s" x="690" y="94">outcome joins on the</text>
+        <text class="svg-t-s" x="690" y="112">same assignment key</text>
+
+        <line class="svg-acc" x1="286" y1="98" x2="330" y2="98" stroke-width="1.5" marker-end="url(#ar3)"/>
+        <line class="svg-acc" x1="622" y1="98" x2="666" y2="98" stroke-width="1.5" marker-end="url(#ar3)"/>
+        <text class="svg-t-a" x="292" y="176">the arm is decided before the agent starts, so every read agrees</text>
+      </svg>
+      <figcaption>One draw per unit, not per read. The run's arm is fixed and its content frozen before the process starts; reads only record that an assigned agent saw a skill; the outcome joins back on the same key. Per-read substitution would put a second draw inside the middle box and break the join.</figcaption>
+    </figure>
+
+    <h3>D4 · Split the projector on what each scenario already owns</h3>
+    <p><strong>Decide:</strong> prompt-manager composes packs — it owns the corpus, the telemetry, the variants, and the quality bars. agent-manager writes a pack into the run's scope and owns the env that points at it, since it already owns <code>AssembleRunEnv</code> and the run lifecycle. The path map lives in the coding-agent resources. The write mechanics are shared with <code>vrooli-memory/harness</code>, which is the same operation against a directory instead of a file. Neither scenario has to learn the other's domain.</p>
+
+    <h3>D5 · Whoever creates a per-run config dir deletes it</h3>
+    <p><strong>Decide:</strong> agent-manager owns the lifecycle, so agent-manager reaps — removal bound to the run reaching a terminal state, plus a sweep for orphans left by crashes. This is not hypothetical bookkeeping: this host has reached 100% disk once, and <code>~/.vrooli/bin</code> is append-only in practice because nothing was ever given the job. A per-run directory holding transcripts and session state, created once per run with no owner, is the same shape of debt. Give it an owner in the plan.</p>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">06</span>
+    <h2>Sequence</h2>
+  </div>
+  <div class="col">
+    <p>Reordered for what the ramp already landed. Steps 1 and 2 are where I would start: cheap, prerequisite to everything else, and step 2 alone removes the friction you noticed.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th class="num">#</th><th>Step</th><th>Unblocks</th><th>Size</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num mono">1</td>
+          <td><strong>Convert the authored prompt-manager corpus to spec frontmatter.</strong> Mechanical: <code>skill.json</code> → YAML frontmatter, Vrooli fields under <code>metadata</code>. Add a lint rejecting a <code>SKILL.md</code> without valid frontmatter, so every governed source stays conformant. <strong>17 non-test Go files</strong> read the current <code>skill.json</code> / <code>SKILL.md</code> shape — across <code>skills/</code>, <code>store/</code>, <code>graph/</code>, and <code>memberflow/</code> — so settle the target schema before the first file moves; this migration is not cheap to run twice.</td>
+          <td>Everything below</td>
+          <td><span class="pill p-ok">S</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">2</td>
+          <td><strong>Declare projection targets in the coding-agent resources</strong> and project an always-on base pack. Add a <code>skills</code> path to each of the 5 <code>resource.json</code> files; build the projector on the <code>vrooli-memory/harness</code> pattern with the map read from data, not compiled in. <strong>Retire <code>vrooli-memory</code>'s hardcoded target map onto the same source</strong> in the same change — it is the only way the machine-specific path stops being compiled into a binary, and doing it later means writing the data layer twice.</td>
+          <td>Native-read friction</td>
+          <td><span class="pill p-ok">S</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">3</td>
+          <td><strong>Per-run config dirs, then profile packs and heartbeat injection.</strong> <code>AssembleRunEnv</code> emits a per-run <code>CLAUDE_CONFIG_DIR</code> / <code>CODEX_HOME</code>; the dir is seeded with linked credentials; the profile pack is written there at launch; member heartbeats add or remove skills mid-run against that private scope. Repoint transcript import at the run's own config dir in the same change. Nothing per-run is ever written to the shared project directory.</td>
+          <td>Scoped context · heartbeats</td>
+          <td><span class="pill p-warn">M</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">4</td>
+          <td><strong>Declare <code>requires:</code> and resolve cross-skill references by id.</strong> The dependency graph stops being implicit; references stop depending on storage location.</td>
+          <td>Steps 5, 6, 7</td>
+          <td><span class="pill p-warn">M</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">5</td>
+          <td><strong>Multi-root registry.</strong> prompt-manager indexes scenario skill roots alongside its own — including the two that already exist. Then migrate interface-specific skills into their scenarios one at a time, behind the registry.</td>
+          <td>Scenario ownership</td>
+          <td><span class="pill p-warn">M</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">6</td>
+          <td><strong>Import lane with origin records.</strong> <code>skill import</code> writes an immutable <code>origin</code> block, lands the skill inactive in <code>vendor</code>, requires a recorded human verdict to activate, and is never projected while quarantined. Scanners advise; they do not gate.</td>
+          <td>External skills</td>
+          <td><span class="pill p-warn">M</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">7</td>
+          <td><strong>Point the drift gate at tier-2 bundles.</strong> Reuse <code>conformance.go</code>'s command resolution to filter what any distribution carries, so 106 CLI-coupled skills can never ship to a buyer who lacks the CLI.</td>
+          <td>Monetization</td>
+          <td><span class="pill p-warn">M</span></td>
+        </tr>
+        <tr>
+          <td class="num mono">8</td>
+          <td><strong>Keep <code>SKILL-PUBLICATION.md</code> aligned.</strong> It describes scenario-owned sources, prompt-manager registry governance, native projection, vendor quarantine, and the publication gate that ships beneath it.</td>
+          <td>Doctrine accuracy</td>
+          <td><span class="pill p-ok">S</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="call warn">
+      <span class="lbl">The one thing I would not do</span>
+      <p>Do not start by moving skills into scenarios. It is the most visible change and the most dangerous: 61 cross-skill references currently resolve by shared location, and relocating files before references resolve by id turns a clean migration into a scavenger hunt. Format first, projection second, references third, relocation fourth.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">07</span>
+    <h2>What I could not settle</h2>
+  </div>
+  <div class="col">
+    <ul>
+      <li><strong>Whether mid-session hot-reload works inside a per-run config dir.</strong> The one property the experiment could not reach, because headless runs are one-shot. It only affects heartbeat injection into a <em>live</em> run — the launch-time pack works regardless — so it can be settled during step 3 rather than before it.</li>
+      <li><strong>Which parts of the config dir stay shared.</strong> Credentials must be linked in or every run starts logged out. Transcripts, sessions, and backups now land per-run, which is arguably an improvement for attribution but changes what agent-manager reads. Settings and plugins are a genuine choice: shared keeps behavior uniform, per-run allows profile-specific permissions.</li>
+      <li><strong>Whether <code>CODEX_HOME</code> behaves the same way.</strong> The Claude Code result is measured; the Codex equivalent is inferred from its documented rooting. Same experiment, second runtime — cheap, and worth doing before the resource-declared map claims to cover both.</li>
+      <li><strong>Whether per-scenario runtime scopes are worth chasing.</strong> A <code>scenarios/&lt;slug&gt;/.claude/skills/</code> scope would let an agent working inside a scenario see that scenario's skills automatically — but nested discovery is on-demand and has open reliability issues. Cheap to try after the base pack works; not something to design around.</li>
+      <li><strong>What belongs in the always-on base pack.</strong> The token math says 8–15. Which ones is a judgment about which reflexes must fire without being asked — the situational-loading table in <code>AGENTS.md</code> is the obvious starting list.</li>
+      <li><strong>Whether the registry caches scenario-owned skills or only indexes them.</strong> Indexing is cleaner; caching is faster and survives a scenario being absent. I lean toward indexing with a rebuildable cache.</li>
+      <li><strong>Licensing for your own published skills.</strong> The forming norm is CC BY 4.0 for prose plus a code license for bundled scripts. Worth deciding before the first curated-registry submission, not after.</li>
+      <li><strong>Agent Plugins durability.</strong> The ramp's own decisions flag it: the standard is weeks old, Anthropic is not on its steering committee, and Claude Code keeps an incompatible <code>.claude-plugin/plugin.json</code>. The pluggable distributor seam is the right hedge and is already in the contract.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================= -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">08</span>
+    <h2>Sources</h2>
+  </div>
+  <div class="col sources">
+    <h4>Standards</h4>
+    <ul>
+      <li><a href="https://agentskills.io/specification">Agent Skills Specification</a> — frontmatter fields, progressive disclosure, 5,000-token instruction guidance</li>
+      <li><a href="https://github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md">Agent Plugins Specification 1.0.0</a> and <a href="https://agent-plugins.org/specification">agent-plugins.org</a></li>
+      <li><a href="https://code.claude.com/docs/en/skills">Claude Code: Extend Claude with skills</a> and <a href="https://code.claude.com/docs/en/plugins-reference">Plugins reference</a> — scopes and precedence</li>
+    </ul>
+    <h4>Projection and context cost</h4>
+    <ul>
+      <li><a href="https://codex.danielvaughan.com/2026/03/27/codex-cli-skills-ecosystem/">Codex CLI skills ecosystem</a> — discovery in <code>.agents/skills</code>, descriptions resident, bodies lazy</li>
+      <li><a href="https://mcp.directory/blog/cross-agent-skills-cursor-codex-cline-antigravity-gemini-mastra-portability">Cross-Agent Skills: Portability in 2026</a> — <code>.agents/skills/</code> as the shared path</li>
+      <li><a href="https://codylindley.github.io/ai-harness-engineering-compatibility-matrix/">AI Harness Engineering Compatibility Matrix</a> — per-runtime discovery paths</li>
+      <li><a href="https://claudelog.com/faqs/what-is-skill-hot-reload-in-claude-code/">Skill hot-reload in Claude Code</a> (CLI 2.1.0) and <a href="https://github.com/anthropics/claude-code/issues/82732">issue #82732</a> — plugin-delivered skills do not reload</li>
+      <li><a href="https://claudelog.com/faqs/what-is-nested-skills-discovery-in-claude-code/">Nested skills discovery</a>, with <a href="https://github.com/anthropics/claude-code/issues/39787">#39787</a> and <a href="https://github.com/anthropics/claude-code/issues/40640">#40640</a> reporting it skips subdirectories</li>
+      <li><code>CLAUDE_CONFIG_DIR</code>: <a href="https://github.com/anthropics/claude-code/issues/33430">#33430</a> (undocumented) and <a href="https://github.com/anthropics/claude-code/issues/3833">#3833</a> (still creates local <code>.claude/</code>); <a href="https://blog.shukebeta.com/2026/05/14/run-multiple-claude-code-instances-with-separate-configs">running multiple instances with separate configs</a></li>
+    </ul>
+    <h4>Security and supply chain</h4>
+    <ul>
+      <li><a href="https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub/">Snyk ToxicSkills</a> — 3,984 skills scanned; 13.4% critical; 76 confirmed malicious payloads</li>
+      <li><a href="https://labs.cloudsecurityalliance.org/research/csa-research-note-skill-md-agent-context-poisoning-20260506/">CSA: SKILL.md and the New AI Supply Chain Attack Surface</a></li>
+      <li><a href="https://arxiv.org/abs/2607.01136">Skills Are Not Islands</a> — dependency-bearing artifacts, implicit provenance</li>
+      <li><a href="https://jfrog.com/blog/agent-skills-new-ai-packages/">JFrog: Agent Skills are the New Packages of AI</a></li>
+      <li><a href="https://github.com/agentskills/agentskills/discussions/379">agentskills #379: Skill licensing and attribution</a></li>
+    </ul>
+    <h4>Repo evidence (verified 2026-08-23)</h4>
+    <ul>
+      <li><strong>Config-dir experiment</strong>, this host, Claude Code 2.1.241 — 5 headless runs, 4 canary skills, 2 config dirs, 1 shared working directory; probe directories removed afterwards</li>
+      <li><code>~/.vrooli/plans/scenario-to-plugin-the-agent-runtime-delivery-ramp-proven.md</code> — status complete</li>
+      <li><code>.vrooli/schemas/service.schema.json</code> → <code>plugin</code> / <code>pluginDeclaration</code></li>
+      <li><code>scenarios/hello-plugin/skills/hello/SKILL.md</code>, <code>scenarios/workspace-sandbox/skills/sandbox/SKILL.md</code> — spec frontmatter</li>
+      <li><code>scenarios/scenario-to-plugin/api/handlers/pipeline/conformance.go</code> — <code>PLG-CONF-DRIFT</code> against <code>cli/manifest.json</code></li>
+      <li><code>scenarios/vrooli-memory/api/internal/harness/{projection.go,topology.go,curated-files.json}</code> — the projection precedent and its hardcoded target map</li>
+      <li><code>scenarios/agent-manager/api/internal/orchestration/phases/env.go</code> — <code>AssembleRunEnv</code>, per-run env with system-over-custom precedence</li>
+      <li><code>resources/{claude-code,codex,opencode,antigravity,grok}/resource.json</code> — declared runtime homes and path tables</li>
+      <li><code>scenarios/prompt-manager/store/skills/packs/</code> — 143 authored skills, all with specification frontmatter; relocated scenario records remain non-authored compatibility entries</li>
+    </ul>
+  </div>
+</section>
+
+</div>

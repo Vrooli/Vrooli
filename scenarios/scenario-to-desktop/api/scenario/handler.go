@@ -3,19 +3,15 @@ package scenario
 import (
 	"encoding/json"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/gorilla/mux"
-
-	httputil "scenario-to-desktop-api/shared/http"
 	pathutil "scenario-to-desktop-api/shared/path"
 )
 
-// Handler provides HTTP handlers for scenario endpoints.
+// Handler owns scenario desktop-status discovery for the generated OperationsService.
 type Handler struct {
 	vrooliRoot string
 	records    RecordStore
@@ -31,13 +27,8 @@ func NewHandler(vrooliRoot string, records RecordStore, logger *slog.Logger) *Ha
 	}
 }
 
-// RegisterRoutes registers scenario routes on the given router.
-func (h *Handler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/v1/scenarios/desktop-status", h.DesktopStatusHandler).Methods("GET", "OPTIONS")
-}
-
-// DesktopStatusHandler discovers all scenarios and their desktop deployment status.
-func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
+// ListDesktopStatus discovers all scenarios and their desktop deployment status.
+func (h *Handler) ListDesktopStatus() (*ListResponse, error) {
 	vrooliRoot := h.vrooliRoot
 	if vrooliRoot == "" {
 		vrooliRoot = pathutil.DetectVrooliRoot()
@@ -46,11 +37,7 @@ func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
 	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
 	entries, err := os.ReadDir(scenariosPath)
 	if err != nil {
-		h.logger.Error("failed to read scenarios directory",
-			"path", scenariosPath,
-			"error", err)
-		http.Error(w, "Failed to read scenarios directory", http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
 	var scenarios []ScenarioDesktopStatus
@@ -62,10 +49,10 @@ func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
 		scenarios = append(scenarios, status)
 	}
 
-	httputil.WriteJSON(w, http.StatusOK, ListResponse{
+	return &ListResponse{
 		Scenarios: scenarios,
 		Stats:     computeStats(scenarios),
-	})
+	}, nil
 }
 
 // buildScenarioStatus assembles the desktop status for a single scenario directory.

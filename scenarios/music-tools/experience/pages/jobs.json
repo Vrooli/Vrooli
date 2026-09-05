@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "jobs",
+    "title": "Jobs",
+    "routes": ["/jobs"],
+    "purpose": "Make long-running, server-owned work legible: what is queued, what is running, why something is waiting, and what profile rung it was admitted at.",
+    "prd_refs": ["OT-P0-005", "OT-P0-003"]
+  },
+  "priorities": [
+    { "statement": "Waiting is explained. A queued job names what it is waiting for — a GPU lease, a model load, or another job." },
+    { "statement": "A job that was admitted at a reduced rung says so on its result, so degraded output is never mistaken for full-quality output." },
+    { "statement": "Closing the page does not affect the run; the work is server-owned." }
+  ],
+  "states": [
+    { "id": "queued", "example": "queued", "description": "Admitted but waiting on a lease." },
+    { "id": "running", "example": "running", "description": "Executing with live progress." },
+    { "id": "degraded-complete", "example": "degraded", "description": "Completed at a reduced profile rung." },
+    { "id": "succeeded", "example": "succeeded", "description": "Completed at the requested rung." },
+    { "id": "failed", "example": "failed", "description": "Terminal failure with a recovery classification." }
+  ],
+  "elements": [
+    { "id": "job-row", "role": "listitem", "description": "One job." },
+    { "id": "progress", "role": "progressbar", "description": "Live progress for a running job." },
+    { "id": "wait-reason", "role": "status", "description": "What a queued job is waiting for." },
+    { "id": "rung-badge", "role": "status", "description": "Profile rung the job was admitted at." },
+    { "id": "failure-recovery", "role": "status", "description": "Failure classification and recovery guidance." }
+  ],
+  "claims": [
+    {
+      "id": "queued-jobs-name-their-blocker",
+      "type": "element-present",
+      "statement": "A queued job displays what it is waiting for.",
+      "tier": "machine",
+      "elements": ["wait-reason"],
+      "states": ["queued"]
+    },
+    {
+      "id": "degraded-results-are-labelled",
+      "type": "element-present",
+      "statement": "A job completed at a reduced rung is labelled with that rung.",
+      "tier": "machine",
+      "elements": ["rung-badge"],
+      "states": ["degraded-complete"]
+    },
+    {
+      "id": "failures-carry-recovery",
+      "type": "element-present",
+      "statement": "A failed job surfaces a recovery classification rather than a bare error.",
+      "tier": "machine",
+      "elements": ["failure-recovery"],
+      "states": ["failed"]
+    },
+    {
+      "id": "running-jobs-report-progress",
+      "type": "element-present",
+      "statement": "A running job exposes progress to assistive technology.",
+      "tier": "machine",
+      "elements": ["progress"],
+      "states": ["running"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "job-row": { "testid": "job-row" },
+      "progress": { "testid": "job-progress" },
+      "wait-reason": { "testid": "job-wait-reason" },
+      "rung-badge": { "testid": "job-rung-badge" },
+      "failure-recovery": { "testid": "job-failure-recovery" }
+    }
+  }
+}

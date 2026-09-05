@@ -53,6 +53,7 @@ interface TreeNodeProps {
   // Context menu props
   onCategoryContextMenu?: (node: TreeNodeType, x: number, y: number) => void
   onSkillContextMenu?: (skillId: string, skillName: string, x: number, y: number) => void
+  renderChildren?: boolean
 }
 
 /**
@@ -108,6 +109,7 @@ function TreeNodeComponentImpl({
   healthScoreMap,
   onCategoryContextMenu,
   onSkillContextMenu,
+  renderChildren = true,
 }: TreeNodeProps) {
   const isExpanded = expandedNodes.has(node.id)
   const paddingLeft = `${node.depth * 12 + 8}px`
@@ -157,9 +159,10 @@ function TreeNodeComponentImpl({
             />
           )}
         </button>
-        {isExpanded && (
+        {renderChildren && isExpanded && (
           <div>
             {node.children.map((child) => (
+              // eslint-disable-next-line @typescript-eslint/no-use-before-define -- recursive memo component; only read at render time, after module evaluation
               <TreeNodeComponent
                 key={child.id}
                 node={child}
@@ -179,6 +182,7 @@ function TreeNodeComponentImpl({
                 healthScoreMap={healthScoreMap}
                 onCategoryContextMenu={onCategoryContextMenu}
                 onSkillContextMenu={onSkillContextMenu}
+                renderChildren={renderChildren}
               />
             ))}
           </div>
@@ -294,6 +298,7 @@ function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
   if (prev.onCheckboxChange !== next.onCheckboxChange) return false
   if (prev.onCategoryContextMenu !== next.onCategoryContextMenu) return false
   if (prev.onSkillContextMenu !== next.onSkillContextMenu) return false
+  if (prev.renderChildren !== next.renderChildren) return false
 
   const wasExpanded = prev.expandedNodes.has(prev.node.id)
   const isExpanded = next.expandedNodes.has(next.node.id)

@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "readiness-policy.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "items"],
+  "properties": {
+    "version": {"const": 2},
+    "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/item"}}
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "category", "owner", "applicability", "requirement", "global_impact", "freshness", "acceptance", "remediation", "waiver"],
+      "oneOf": [
+        {"required": ["producer"], "not": {"required": ["human_review"]}},
+        {"required": ["human_review"], "not": {"required": ["producer"]}}
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "title": {"type": "string", "minLength": 1},
+        "category": {"type": "string", "minLength": 1}, "owner": {"type": "string", "minLength": 1},
+        "applicability": {"type": "string", "minLength": 1},
+        "requirement": {"enum": ["required", "advisory", "human_review"]},
+        "global_impact": {"enum": ["foundation_blocker", "safety_blocker", "capability_gap", "hardening_gap", "advisory", "unknown"]},
+        "freshness": {"type": "object", "additionalProperties": false, "required": ["basis"], "properties": {"basis": {"enum": ["candidate_identity", "max_age"]}, "max_age_seconds": {"type": "integer", "minimum": 1}}},
+        "producer": {"type": "object", "additionalProperties": false, "required": ["binding"], "properties": {"binding": {"type": "string", "pattern": "^[a-z0-9_-]+\\.[a-z0-9_.-]+$"}}},
+        "human_review": {"type": "object", "additionalProperties": false, "required": ["kind"], "properties": {"kind": {"type": "string", "minLength": 1}}},
+        "acceptance": {"type": "object", "additionalProperties": false, "required": ["given", "when", "then"], "properties": {"given": {"type": "string", "minLength": 1}, "when": {"type": "string", "minLength": 1}, "then": {"type": "string", "minLength": 1}}},
+        "remediation": {"type": "object", "additionalProperties": false, "required": ["skill", "topic"], "properties": {"skill": {"type": "string", "minLength": 1}, "topic": {"type": "string", "minLength": 1}}},
+        "waiver": {"type": "object", "additionalProperties": false, "required": ["eligible"], "properties": {"eligible": {"type": "boolean"}, "max_age_seconds": {"type": "integer", "minimum": 1}}}
+      }
+    }
+  }
+}

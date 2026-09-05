@@ -1,0 +1,1 @@
+Capture note: no raw pre-change setup transcript was preserved before implementation. The immutable source/test baseline is `20260824-221341-9741ddda`; this file deliberately does not fabricate the historical xdg-open failure transcript.

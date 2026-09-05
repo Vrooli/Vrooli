@@ -1,20 +1,33 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "cognitive-load-reduction",
-  "name": "Cognitive Load Reduction",
+  "createdAt": "2025-01-15T00:00:00Z",
   "description": "Simplify code to reduce mental overhead for developers",
+  "entry": "SKILL.md",
+  "icon": "brain",
+  "id": "cognitive-load-reduction",
+  "kind": "skill",
   "modes": [
     "steer",
     "simplification"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "brain",
-  "status": "active",
-  "entry": "SKILL.md",
+  "name": "Cognitive Load Reduction",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
   "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
   "updatedAt": "2026-02-04T13:13:54Z"
 }

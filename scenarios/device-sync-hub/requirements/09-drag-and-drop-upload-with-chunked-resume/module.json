@@ -1,0 +1,170 @@
+{
+  "description": "The Send pane accepts drag-and-drop with per-file progress indicators; large files use chunked, resumable upload so a network interruption does not require restarting from zero.",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-011"
+      ],
+      "description": "The Send pane accepts files via drag-and-drop in addition to the standard file picker. A visual drop zone is displayed when files are dragged over the pane. Each staged file displays a per-file progress bar updated in real time as bytes are transmitted. Progress is tracked on the server side and reported back to the client via the upload response stream or polling endpoint. Progress indicators correctly reflect paused, uploading, completed, and error states.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Drag-and-Drop Upload with Per-File Progress Indicators",
+      "validation": [
+        {
+          "notes": "Vitest: SendPane renders drop zone overlay with aria-label='Drop files here' when dragover event fires on the pane",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: per-file progress bar renders with correct percentage value and aria-valuenow attribute",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: progress bar transitions through 0%, 50%, and 100% states correctly given simulated progress events",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: error state on a single file does not block progress display of other staged files",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: simulate drag-and-drop of a file onto the Send pane; assert file appears in staged list with progress bar at 0%",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: complete upload; assert progress bar reaches 100% and item appears in Receive pane",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Progress bar updates at most every 250 ms to avoid excessive re-renders",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: drag a file onto Send pane; confirm drop zone visual feedback; confirm progress bar animates; confirm item appears in Receive pane on completion",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accessibility: drop zone exposes role='region' and aria-label; progress bar exposes role='progressbar'",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-012",
+        "REQ-P1-001"
+      ],
+      "description": "Large file uploads use a chunked, resumable protocol. The client splits the file into fixed-size chunks (configurable, default 5 MB) and uploads each chunk to a dedicated upload session endpoint. The server tracks received chunks in the relational metadata store. On network interruption, the client can query the server for the list of received chunks and resume from the last unacknowledged chunk without retransmitting completed chunks. A completed upload session triggers the same ingest pipeline (thumbnail generation, retention assignment, relay delivery) as a standard upload.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Chunked Resumable Upload for Large Files",
+      "validation": [
+        {
+          "notes": "Unit test: upload session creation returns a session_id and expected chunk count",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: chunk receipt handler records chunk index and byte range in the session record",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: resume query returns the sorted list of missing chunk indices for a partially uploaded session",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: session completion is triggered exactly when all chunks are received and triggers the ingest pipeline",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: orphaned upload sessions older than configurable TTL are cleaned up by a background job",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: upload a 50 MB file in 5 MB chunks; simulate connection drop after chunk 5; resume from chunk 6; assert file is correctly assembled and delivered",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: assert only missing chunks are requested on resume (chunks 1-5 are not re-transmitted)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: completed chunked upload triggers thumbnail generation and relay delivery identically to a standard upload",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Resumable upload overhead (session creation + chunk tracking) adds less than 5% total transfer time compared to a non-chunked upload of the same file",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: simulate a large file upload; throttle the network mid-upload; confirm progress bar pauses and resumes without restarting from 0%",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Drag-and-Drop Upload with Chunked Resume"
+}

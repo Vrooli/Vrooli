@@ -2,7 +2,7 @@
 // Auditor — Types + API Functions
 // ============================================================================
 
-import { API_BASE, buildRepoHeaders, buildApiUrl } from "./api-internals";
+import { API_BASE, buildRepoHeaders, buildApiUrl, handleResponse } from "./api-internals";
 
 // ── Auditor Types ──────────────────────────────────────────────────────
 
@@ -125,24 +125,21 @@ export async function startAuditorCheck(scenarioName: string, checkType = "full"
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify({ scenario_name: scenarioName, check_type: checkType }),
   });
-  if (!res.ok) throw new Error(`Start check failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<AuditorCheckJobResponse>(res);
 }
 
 export async function pollAuditorJob(jobId: string, repoId?: string): Promise<AuditorJobStatus> {
   const res = await fetch(buildApiUrl(`/repo/rules-job/${encodeURIComponent(jobId)}`, { baseUrl: API_BASE }), {
     headers: buildRepoHeaders(repoId),
   });
-  if (!res.ok) throw new Error(`Poll job failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<AuditorJobStatus>(res);
 }
 
 export async function fetchAuditorRules(repoId?: string): Promise<AuditorRulesListResponse> {
   const res = await fetch(buildApiUrl("/repo/rules", { baseUrl: API_BASE }), {
     headers: buildRepoHeaders(repoId),
   });
-  if (!res.ok) throw new Error(`Fetch rules failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<AuditorRulesListResponse>(res);
 }
 
 export async function applyAuditorFix(req: AuditorFixRequest, repoId?: string): Promise<AuditorFixResponse> {
@@ -151,8 +148,7 @@ export async function applyAuditorFix(req: AuditorFixRequest, repoId?: string): 
     headers: buildRepoHeaders(repoId),
     body: JSON.stringify(req),
   });
-  if (!res.ok) throw new Error(`Apply fix failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<AuditorFixResponse>(res);
 }
 
 export async function fetchAuditorViolations(scenarioName: string, repoId?: string): Promise<AuditorViolation[]> {
@@ -160,7 +156,6 @@ export async function fetchAuditorViolations(scenarioName: string, repoId?: stri
   const res = await fetch(buildApiUrl(`/repo/rules-violations?${params}`, { baseUrl: API_BASE }), {
     headers: buildRepoHeaders(repoId),
   });
-  if (!res.ok) throw new Error(`Fetch violations failed: ${res.statusText}`);
-  const data = await res.json();
-  return data.violations ?? data;
+  const data = await handleResponse<{ violations?: AuditorViolation[] } | AuditorViolation[]>(res);
+  return Array.isArray(data) ? data : (data.violations ?? []);
 }

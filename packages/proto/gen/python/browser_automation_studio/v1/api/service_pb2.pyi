@@ -2,10 +2,12 @@ import datetime
 
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
+from browser_automation_studio.v1.evidence import evidence_pb2 as _evidence_pb2
 from browser_automation_studio.v1.execution import execution_pb2 as _execution_pb2
+from browser_automation_studio.v1.timeline import container_pb2 as _container_pb2
 from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2
 from buf.validate import validate_pb2 as _validate_pb2
-from google.api import annotations_pb2 as _annotations_pb2
+from common.v1 import types_pb2 as _types_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -178,16 +180,18 @@ class DeleteWorkflowResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., workflow_id: _Optional[str] = ...) -> None: ...
 
 class ExecuteWorkflowRequest(_message.Message):
-    __slots__ = ("wait_for_completion", "workflow_id", "workflow_version", "parameters")
+    __slots__ = ("wait_for_completion", "workflow_id", "workflow_version", "parameters", "options")
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
     wait_for_completion: bool
     workflow_id: str
     workflow_version: int
     parameters: _execution_pb2.ExecutionParameters
-    def __init__(self, wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., parameters: _Optional[_Union[_execution_pb2.ExecutionParameters, _Mapping]] = ...) -> None: ...
+    options: _execution_pb2.ExecuteWorkflowOptions
+    def __init__(self, wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., parameters: _Optional[_Union[_execution_pb2.ExecutionParameters, _Mapping]] = ..., options: _Optional[_Union[_execution_pb2.ExecuteWorkflowOptions, _Mapping]] = ...) -> None: ...
 
 class ExecuteWorkflowResponse(_message.Message):
     __slots__ = ("execution_id", "status", "completed_at", "error")
@@ -202,26 +206,51 @@ class ExecuteWorkflowResponse(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
 
 class ListExecutionsRequest(_message.Message):
-    __slots__ = ("workflow_id", "status", "limit", "offset")
+    __slots__ = ("workflow_id", "status", "limit", "offset", "project_id", "include_exportability")
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_EXPORTABILITY_FIELD_NUMBER: _ClassVar[int]
     workflow_id: str
     status: _shared_pb2.ExecutionStatus
     limit: int
     offset: int
-    def __init__(self, workflow_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    project_id: str
+    include_exportability: bool
+    def __init__(self, workflow_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., project_id: _Optional[str] = ..., include_exportability: _Optional[bool] = ...) -> None: ...
 
 class ListExecutionsResponse(_message.Message):
-    __slots__ = ("executions", "total", "has_more")
+    __slots__ = ("executions", "total", "has_more", "exportability")
+    class ExportabilityEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ExecutionExportability
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ExecutionExportability, _Mapping]] = ...) -> None: ...
     EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     HAS_MORE_FIELD_NUMBER: _ClassVar[int]
+    EXPORTABILITY_FIELD_NUMBER: _ClassVar[int]
     executions: _containers.RepeatedCompositeFieldContainer[_execution_pb2.Execution]
     total: int
     has_more: bool
-    def __init__(self, executions: _Optional[_Iterable[_Union[_execution_pb2.Execution, _Mapping]]] = ..., total: _Optional[int] = ..., has_more: _Optional[bool] = ...) -> None: ...
+    exportability: _containers.MessageMap[str, ExecutionExportability]
+    def __init__(self, executions: _Optional[_Iterable[_Union[_execution_pb2.Execution, _Mapping]]] = ..., total: _Optional[int] = ..., has_more: _Optional[bool] = ..., exportability: _Optional[_Mapping[str, ExecutionExportability]] = ...) -> None: ...
+
+class ExecutionExportability(_message.Message):
+    __slots__ = ("has_timeline", "has_screenshots", "has_recorded_video", "is_exportable")
+    HAS_TIMELINE_FIELD_NUMBER: _ClassVar[int]
+    HAS_SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
+    HAS_RECORDED_VIDEO_FIELD_NUMBER: _ClassVar[int]
+    IS_EXPORTABLE_FIELD_NUMBER: _ClassVar[int]
+    has_timeline: bool
+    has_screenshots: bool
+    has_recorded_video: bool
+    is_exportable: bool
+    def __init__(self, has_timeline: _Optional[bool] = ..., has_screenshots: _Optional[bool] = ..., has_recorded_video: _Optional[bool] = ..., is_exportable: _Optional[bool] = ...) -> None: ...
 
 class GetExecutionRequest(_message.Message):
     __slots__ = ("execution_id",)
@@ -310,3 +339,204 @@ class RestoreWorkflowVersionResponse(_message.Message):
     workflow: WorkflowSummary
     restored_version: WorkflowVersion
     def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., restored_version: _Optional[_Union[WorkflowVersion, _Mapping]] = ...) -> None: ...
+
+class ListWorkflowVersionsRequest(_message.Message):
+    __slots__ = ("workflow_id",)
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    workflow_id: str
+    def __init__(self, workflow_id: _Optional[str] = ...) -> None: ...
+
+class GetWorkflowVersionRequest(_message.Message):
+    __slots__ = ("workflow_id", "version")
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    workflow_id: str
+    version: int
+    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ...) -> None: ...
+
+class RestoreWorkflowVersionRequest(_message.Message):
+    __slots__ = ("workflow_id", "version", "change_description")
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    workflow_id: str
+    version: int
+    change_description: str
+    def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., change_description: _Optional[str] = ...) -> None: ...
+
+class ModifyWorkflowRequest(_message.Message):
+    __slots__ = ("workflow_id", "modification_prompt", "current_flow")
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    MODIFICATION_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_FLOW_FIELD_NUMBER: _ClassVar[int]
+    workflow_id: str
+    modification_prompt: str
+    current_flow: _definition_pb2.WorkflowDefinitionV2
+    def __init__(self, workflow_id: _Optional[str] = ..., modification_prompt: _Optional[str] = ..., current_flow: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
+
+class GetExecutionTimelineRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class StopExecutionRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class StopExecutionResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class ResumeExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "parameters", "resume_url")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    RESUME_URL_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    parameters: _types_pb2.JsonObject
+    resume_url: str
+    def __init__(self, execution_id: _Optional[str] = ..., parameters: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ..., resume_url: _Optional[str] = ...) -> None: ...
+
+class ResumeExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: _execution_pb2.Execution
+    def __init__(self, execution: _Optional[_Union[_execution_pb2.Execution, _Mapping]] = ...) -> None: ...
+
+class GetExecutionScreenshotsRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class GetExecutionArtifactsRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class ExecutionFileArtifact(_message.Message):
+    __slots__ = ("artifact_id", "storage_url", "content_type", "label", "size_bytes", "payload")
+    ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_URL_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    artifact_id: str
+    storage_url: str
+    content_type: str
+    label: str
+    size_bytes: int
+    payload: _types_pb2.JsonObject
+    def __init__(self, artifact_id: _Optional[str] = ..., storage_url: _Optional[str] = ..., content_type: _Optional[str] = ..., label: _Optional[str] = ..., size_bytes: _Optional[int] = ..., payload: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
+
+class GetExecutionVideosResponse(_message.Message):
+    __slots__ = ("execution_id", "videos")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    VIDEOS_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    videos: _containers.RepeatedCompositeFieldContainer[ExecutionFileArtifact]
+    def __init__(self, execution_id: _Optional[str] = ..., videos: _Optional[_Iterable[_Union[ExecutionFileArtifact, _Mapping]]] = ...) -> None: ...
+
+class GetExecutionTracesResponse(_message.Message):
+    __slots__ = ("execution_id", "traces")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    TRACES_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    traces: _containers.RepeatedCompositeFieldContainer[ExecutionFileArtifact]
+    def __init__(self, execution_id: _Optional[str] = ..., traces: _Optional[_Iterable[_Union[ExecutionFileArtifact, _Mapping]]] = ...) -> None: ...
+
+class GetExecutionHarResponse(_message.Message):
+    __slots__ = ("execution_id", "har_files")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    HAR_FILES_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    har_files: _containers.RepeatedCompositeFieldContainer[ExecutionFileArtifact]
+    def __init__(self, execution_id: _Optional[str] = ..., har_files: _Optional[_Iterable[_Union[ExecutionFileArtifact, _Mapping]]] = ...) -> None: ...
+
+class ScheduleSeedCleanupRequest(_message.Message):
+    __slots__ = ("execution_id", "cleanup_token", "seed_scenario")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    SEED_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    cleanup_token: str
+    seed_scenario: str
+    def __init__(self, execution_id: _Optional[str] = ..., cleanup_token: _Optional[str] = ..., seed_scenario: _Optional[str] = ...) -> None: ...
+
+class ScheduleSeedCleanupResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class ExecutionArtifactRetentionRequest(_message.Message):
+    __slots__ = ("max_age_days", "keep_latest", "workflow_id", "project_id", "status", "confirm")
+    MAX_AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    KEEP_LATEST_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    max_age_days: int
+    keep_latest: int
+    workflow_id: str
+    project_id: str
+    status: _shared_pb2.ExecutionStatus
+    confirm: bool
+    def __init__(self, max_age_days: _Optional[int] = ..., keep_latest: _Optional[int] = ..., workflow_id: _Optional[str] = ..., project_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., confirm: _Optional[bool] = ...) -> None: ...
+
+class ExecutionRetentionItem(_message.Message):
+    __slots__ = ("execution_id", "status", "workflow_id", "started_at", "completed_at", "result_path", "artifact_dir", "estimated_bytes", "reason")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESULT_PATH_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DIR_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    status: _shared_pb2.ExecutionStatus
+    workflow_id: str
+    started_at: _timestamp_pb2.Timestamp
+    completed_at: _timestamp_pb2.Timestamp
+    result_path: str
+    artifact_dir: str
+    estimated_bytes: int
+    reason: str
+    def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., workflow_id: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_path: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class ExecutionArtifactRetentionResponse(_message.Message):
+    __slots__ = ("dry_run", "removed", "skipped", "estimated_bytes", "removed_count", "skipped_count", "error_count", "removed_by_status")
+    class RemovedByStatusEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    REMOVED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    REMOVED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REMOVED_BY_STATUS_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    removed: _containers.RepeatedCompositeFieldContainer[ExecutionRetentionItem]
+    skipped: _containers.RepeatedCompositeFieldContainer[ExecutionRetentionItem]
+    estimated_bytes: int
+    removed_count: int
+    skipped_count: int
+    error_count: int
+    removed_by_status: _containers.ScalarMap[str, int]
+    def __init__(self, dry_run: _Optional[bool] = ..., removed: _Optional[_Iterable[_Union[ExecutionRetentionItem, _Mapping]]] = ..., skipped: _Optional[_Iterable[_Union[ExecutionRetentionItem, _Mapping]]] = ..., estimated_bytes: _Optional[int] = ..., removed_count: _Optional[int] = ..., skipped_count: _Optional[int] = ..., error_count: _Optional[int] = ..., removed_by_status: _Optional[_Mapping[str, int]] = ...) -> None: ...

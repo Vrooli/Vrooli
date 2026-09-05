@@ -1,0 +1,424 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "whisper",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/whisper/models",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/models",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/models"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "WHISPER_MODELS_DIR",
+          "scope": "container"
+        },
+        "rationale": "Whisper model files are re-downloadable and read directly by the supervised native server.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "uploads": {
+        "rung": "owned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/whisper/uploads",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/uploads",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/uploads"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Uploaded audio is operator input and remains until explicitly removed by the resource workflow.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      }
+    }
+  },
+  "display_name": "Whisper",
+  "description": "Managed native whisper.cpp speech-to-text service with checksum-pinned server and model artifacts.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-whisper",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-whisper_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-whisper"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/whisper",
+      "version": "1.9.2",
+      "layout": "dir",
+      "entry_path": "whisper-bin-ubuntu-x64/whisper-server",
+      "sha256_by_platform": {
+        "linux-amd64": "d6cc0fd540ecd2b29c3eb2307cd9cdddbc4fff87e1e95626b03d4a99843dd8e7",
+        "linux-arm64": "8a970c63a3b630fdb642cec7364517f42fc07aa0cd50c30e5f4aa519caae3811",
+        "windows-amd64": "b2bbecf44cb279d42c7b14435ed2bb421e22fb0090b18771fbeb857729e70eb1"
+      },
+      "bundle_artifact": "whisper_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "MIT; whisper.cpp and Whisper model weights",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "accel.backends": "has:vulkan"
+          },
+          "kind": "oci-image",
+          "image": "ghcr.io/ggml-org/whisper.cpp@sha256:4ebde8b234bbca79f304ffd482cbb252c55f8eb0bce18c5d502adcc78047419e",
+          "artifact_sha256": "d6cc0fd540ecd2b29c3eb2307cd9cdddbc4fff87e1e95626b03d4a99843dd8e7",
+          "layout": "dir",
+          "bin_path": "/app/build/bin/whisper-server",
+          "mode": "0755",
+          "runtime_env": {
+            "LD_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/app/build/bin:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu"
+          }
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-ubuntu-x64.tar.gz",
+          "sha256": "46811a3ecf584307480a220b9ef5ff81b7b22dc41577cbc274ce3afc61f753b1",
+          "artifact_sha256": "b4e642e9672dc58d3cfcd28acdd0997c8f57bdb61b459308a1a6b88510b65a30",
+          "archive": "tar.gz",
+          "layout": "dir",
+          "bin_path": "whisper-bin-ubuntu-x64/whisper-server",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-ubuntu-arm64.tar.gz",
+          "sha256": "7e26fa6a36d9174d5c0bf033ccbc026c3b5e569e2ee787058241346ef5392719",
+          "artifact_sha256": "8a970c63a3b630fdb642cec7364517f42fc07aa0cd50c30e5f4aa519caae3811",
+          "archive": "tar.gz",
+          "layout": "dir",
+          "bin_path": "whisper-bin-ubuntu-arm64/whisper-server",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=8.9"
+          },
+          "url": "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-cublas-12.4.0-bin-x64.zip",
+          "sha256": "443110ddaad70d4290ab2e77179e31cf712035bbc4fad56bb4519a90c917b39c",
+          "artifact_sha256": "6e4f4fd32f7fc7575542a9c391a8fa1cb5b066893b0aa7f3192c93f972b5aa90",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "Release/whisper-server.exe",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-x64.zip",
+          "sha256": "49dcc16de826f20bd53d44f947a1ae49dfa81f86cad67a64d80820cb192d674a",
+          "artifact_sha256": "b2bbecf44cb279d42c7b14435ed2bb421e22fb0090b18771fbeb857729e70eb1",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "Release/whisper-server.exe",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "whisper.cpp v1.9.2 publishes an Apple XCFramework, not a native whisper-server executable; a signed macOS server build and smoke evidence are still required"
+        }
+      ]
+    },
+    "attach_health_path": "/",
+    "data_artifacts": [
+      {
+        "name": "medium-model",
+        "path": "models/ggml-medium.bin",
+        "acquisition": {
+          "kind": "url",
+          "license": "MIT; OpenAI Whisper model weights",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
+              "sha256": "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ],
+    "arguments": [
+      "-m",
+      "${WHISPER_MODEL_PATH}",
+      "-t",
+      "12",
+      "--suppress-nst",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_UPSTREAM}",
+      "--inference-path",
+      "/inference"
+    ],
+    "environment": {
+      "WHISPER_MODEL_PATH": "${RESOURCE_DATA_DIR}/models/ggml-medium.bin"
+    },
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Native whisper.cpp server and medium model are checksum-pinned; Linux hosts with a reported Vulkan backend resolve the digest-pinned OCI tree, while other hosts use the CPU release archive."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The upstream XCFramework is not a server executable; a signed macOS native server build and smoke evidence remain pending."
+          ],
+          "evidence": [
+            "manifest-validation"
+          ],
+          "reason": "No native macOS whisper-server executable is currently staged; see scenarios/audio-tools/docs/reference/macos-speech-qualification.md."
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Native upstream Windows x64 server archive is checksum-pinned; target smoke evidence remains pending on this Linux operator."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        }
+      }
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "vulkan",
+      "cpu"
+    ],
+    "require": "preferred",
+    "cpu": {},
+    "vulkan": {}
+  },
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-whisper",
+      "args": [
+        "activity-proxy",
+        "--native"
+      ],
+      "port": 8090,
+      "required": true
+    }
+  ],
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 4096,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "build-verified"
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Enable local audio format conversion before transcription when source media is not already Whisper-ready",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Whisper can run without ffmpeg, but conversion workflows are limited"
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares an accelerator backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them; without all three the resource starts and silently falls back to the CPU.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because a CPU fallback is a supported, reported state rather than a start-time failure; a resource that must have an accelerator declares acceleration.require = required instead."
+    }
+  ],
+  "ports": [
+    {
+      "name": "http",
+      "container": 9000,
+      "host": 8090
+    },
+    {
+      "name": "upstream",
+      "container": 9000,
+      "host": 18090
+    }
+  ],
+  "orchestration": {
+    "startup_order": 550,
+    "startup_timeout_seconds": 45,
+    "startup_time_estimate": "15-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "WHISPER_HOST": "localhost",
+      "AUDIO_WHISPER_MODEL": "medium"
+    },
+    "from_ports": {
+      "WHISPER_PORT": "http",
+      "WHISPER_UPSTREAM_PORT": "upstream"
+    },
+    "derived": {
+      "WHISPER_URL": {
+        "template": "http://${WHISPER_HOST}:${WHISPER_PORT}"
+      },
+      "WHISPER_BASE_URL": {
+        "template": "${WHISPER_URL}"
+      },
+      "WHISPER_STT_URL": {
+        "template": "${WHISPER_URL}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8090/",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8090/",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
+}

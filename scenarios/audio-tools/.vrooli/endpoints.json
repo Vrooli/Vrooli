@@ -1,0 +1,820 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational liveness/readiness probe; load balancers and `curl` must reach it without a Connect client."
+      }
+    },
+    {
+      "id": "health_status.get_provider_health",
+      "path": "/vrooli.audio_tools.v1.health_status.HealthStatusService/GetProviderHealth",
+      "method": "POST",
+      "summary": "Return the cached per-capability provider-health rollup",
+      "description": "",
+      "category": "health_status"
+    },
+    {
+      "id": "health_status.refresh_provider_health",
+      "path": "/vrooli.audio_tools.v1.health_status.HealthStatusService/RefreshProviderHealth",
+      "method": "POST",
+      "summary": "Re-run every provider checker and return the fresh rollup",
+      "description": "",
+      "category": "health_status"
+    },
+    {
+      "id": "health_status.stream_provider_health",
+      "path": "/vrooli.audio_tools.v1.health_status.HealthStatusService/StreamProviderHealth",
+      "method": "POST",
+      "summary": "Server-streaming feed of provider-health rollups (one event per registry tick)",
+      "description": "",
+      "category": "health_status"
+    },
+    {
+      "id": "provider_lifecycle.list_local_providers",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/ListLocalProviders",
+      "method": "POST",
+      "summary": "List local-tier providers, their process_state, and supported lifecycle actions",
+      "description": "",
+      "category": "provider_lifecycle"
+    },
+    {
+      "id": "provider_lifecycle.start_provider",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/StartProvider",
+      "method": "POST",
+      "summary": "Start a local provider (wraps `vrooli resource start <slug>`); honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle"
+    },
+    {
+      "id": "provider_lifecycle.stop_provider",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/StopProvider",
+      "method": "POST",
+      "summary": "Stop a local provider (wraps `vrooli resource stop <slug>`); honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle"
+    },
+    {
+      "id": "provider_lifecycle.restart_provider",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/RestartProvider",
+      "method": "POST",
+      "summary": "Restart a local provider (wraps `vrooli resource restart <slug>`); honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle"
+    },
+    {
+      "id": "provider_lifecycle.pull_model",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/PullModel",
+      "method": "POST",
+      "summary": "Pull a model on the ollama provider; honors X-Dry-Run",
+      "description": "",
+      "category": "provider_lifecycle"
+    },
+    {
+      "id": "provider_lifecycle.get_provider_logs",
+      "path": "/vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService/GetProviderLogs",
+      "method": "POST",
+      "summary": "Stream stdout/stderr lines from a local provider's backing resource",
+      "description": "",
+      "category": "provider_lifecycle"
+    },
+    {
+      "id": "audio.transcode",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode",
+      "method": "POST",
+      "summary": "Transcode audio (Connect-RPC)",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.transcode_multipart",
+      "path": "/api/v1/audio/transcode",
+      "method": "POST",
+      "summary": "Multipart audio transcode",
+      "description": "",
+      "category": "audio",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Audio bytes via multipart form-data.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.audio_tools.v1.audio.TranscodeRequest",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.audio_tools.v1.audio.TranscodeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "audio.trim",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Trim",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.merge",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Merge",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.split",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Split",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.fade",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Fade",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.volume",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Volume",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.normalize",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Normalize",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "audio.extract_metadata",
+      "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/ExtractMetadata",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "audio"
+    },
+    {
+      "id": "corpus.create_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/CreateClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.list_clips",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/ListClips",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.get_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.get_clip_audio",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClipAudio",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.delete_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/DeleteClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "diagnostics.run_suite",
+      "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/RunSuite",
+      "method": "POST",
+      "summary": "Run the audio-tools capability suite end-to-end against bundled fixtures",
+      "description": "",
+      "category": "diagnostics"
+    },
+    {
+      "id": "diagnostics.get_last_run",
+      "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/GetLastRun",
+      "method": "POST",
+      "summary": "Return the most recent RunSuite result, or an empty envelope when no run has executed",
+      "description": "",
+      "category": "diagnostics"
+    },
+    {
+      "id": "diagnostics.list_fixtures",
+      "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/ListFixtures",
+      "method": "POST",
+      "summary": "Describe the bundled diagnostics fixtures",
+      "description": "",
+      "category": "diagnostics"
+    },
+    {
+      "id": "experiment.start",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StartExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.get",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.wait",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/WaitExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.list",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.cancel",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CancelExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.delete",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/DeleteExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.stream",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StreamExperimentEvents",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.report",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperimentReport",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.compare",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CompareExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.evidence.record",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/RecordQualificationEvidence",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.evidence.list",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListQualificationEvidence",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "session.open",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/OpenSession",
+      "method": "POST",
+      "summary": "Open a voice session",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.close",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/CloseSession",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.send_text",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/SendText",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.send_cancel",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/SendCancel",
+      "method": "POST",
+      "summary": "Explicit barge-in",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "session.subscribe",
+      "path": "/vrooli.audio_tools.v1.session.SessionService/Subscribe",
+      "method": "POST",
+      "summary": "Server-streaming session events",
+      "description": "",
+      "category": "session"
+    },
+    {
+      "id": "settings.get_provider_config",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/GetProviderConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.update_provider_config",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/UpdateProviderConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.list_byok_credentials",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/ListBYOKCredentials",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.upsert_byok_credential",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/UpsertBYOKCredential",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.delete_byok_credential",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/DeleteBYOKCredential",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.get_voice_overrides",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/GetVoiceOverrides",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "settings.set_voice_override",
+      "path": "/vrooli.audio_tools.v1.settings.SettingsService/SetVoiceOverride",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "settings"
+    },
+    {
+      "id": "stt.transcribe",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/Transcribe",
+      "method": "POST",
+      "summary": "Transcribe audio via STT provider chain (Connect-RPC)",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.transcribe_stream",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream",
+      "method": "POST",
+      "summary": "Bidi-stream Connect mirror of /api/v1/voice/stream for non-browser consumers",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.transcribe_multipart",
+      "path": "/api/v1/voice/transcribe",
+      "method": "POST",
+      "summary": "Multipart upload variant of Transcribe",
+      "description": "",
+      "category": "stt",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeRequest",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "stt.stream_ws",
+      "path": "/api/v1/voice/stream",
+      "method": "GET",
+      "summary": "Browser-voice WebSocket transport",
+      "description": "",
+      "category": "stt",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "WebSocket transport - see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO).",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "stt.get_supported_formats",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats",
+      "method": "POST",
+      "summary": "Report the STT ingress audio-format capability matrix",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.list_engines",
+      "path": "/vrooli.audio_tools.v1.stt.STTService/ListEngines",
+      "method": "POST",
+      "summary": "List selectable STT engines (manifest-derived) with availability",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_stream_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/GetStreamConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.update_stream_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/UpdateStreamConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_engine_switch_impact",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/GetEngineSwitchImpact",
+      "method": "POST",
+      "summary": "Report shared-resource impact of switching the active engine",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_wakeword_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/GetWakeWordConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.update_wakeword_template",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/UpdateWakeWordTemplate",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.delete_wakeword_template",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/DeleteWakeWordTemplate",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_speaker_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/GetSpeakerConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.update_speaker_config",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/UpdateSpeakerConfig",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.get_speaker_status",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/GetSpeakerStatus",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.list_speaker_profiles",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/ListSpeakerProfiles",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.enroll_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/EnrollSpeakerProfile",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.clear_speaker_profile_binding",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/ClearSpeakerProfileBinding",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.unbind_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/UnbindSpeakerProfile",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.delete_speaker_profile",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/DeleteSpeakerProfile",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.list_speaker_profile_clips",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/ListSpeakerProfileClips",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "stt.delete_speaker_profile_clip",
+      "path": "/vrooli.audio_tools.v1.stt.STTAdminService/DeleteSpeakerProfileClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "stt"
+    },
+    {
+      "id": "summarize.summarize",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/Summarize",
+      "method": "POST",
+      "summary": "Summarize text via the summarization provider chain",
+      "description": "",
+      "category": "summarize"
+    },
+    {
+      "id": "summarize.get_config",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/GetSummarizeConfig",
+      "method": "POST",
+      "summary": "Get the persisted summarizer configuration",
+      "description": "",
+      "category": "summarize"
+    },
+    {
+      "id": "summarize.update_config",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/UpdateSummarizeConfig",
+      "method": "POST",
+      "summary": "Update the persisted summarizer configuration",
+      "description": "",
+      "category": "summarize"
+    },
+    {
+      "id": "summarize.list_models",
+      "path": "/vrooli.audio_tools.v1.summarize.SummarizeService/ListSummarizeModels",
+      "method": "POST",
+      "summary": "List local and recommended summarizer models",
+      "description": "",
+      "category": "summarize"
+    },
+    {
+      "id": "tts.synthesize",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",
+      "method": "POST",
+      "summary": "Synthesize speech audio via the TTS provider chain",
+      "description": "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.synthesize_stream",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/SynthesizeStream",
+      "method": "POST",
+      "summary": "Stream synthesized audio frames via the TTS provider chain",
+      "description": "Server-streaming variant of Synthesize. Streaming-capable providers (future) emit incremental frames; non-streaming providers emit a single is_final=true frame with the full audio. Provider trace fields are populated only on the final frame.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.list_voices",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/ListVoices",
+      "method": "POST",
+      "summary": "List canonical voices",
+      "description": "Returns the five canonical voice IDs with their human labels.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_cache",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetCache",
+      "method": "POST",
+      "summary": "Look up cached TTS audio",
+      "description": "Direct content-addressable lookup via content_hash, OR event_id-based lookup for consumer glue.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_config",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetConfig",
+      "method": "POST",
+      "summary": "Read TTS default config",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.update_config",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/UpdateConfig",
+      "method": "POST",
+      "summary": "Update TTS default config",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_status",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetStatus",
+      "method": "POST",
+      "summary": "TTS service status snapshot",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.get_supported_formats",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/GetSupportedFormats",
+      "method": "POST",
+      "summary": "Report the TTS egress audio-format capability matrix",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.record_playback_event",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/RecordPlaybackEvent",
+      "method": "POST",
+      "summary": "Consumer playback ack",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "tts.normalize_for_speech",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/NormalizeForSpeech",
+      "method": "POST",
+      "summary": "Normalize text for TTS",
+      "description": "Pure helper. Consumers call this across the scenario boundary; no shared packages.",
+      "category": "tts"
+    },
+    {
+      "id": "tts.split_paragraphs",
+      "path": "/vrooli.audio_tools.v1.tts.TTSService/SplitParagraphs",
+      "method": "POST",
+      "summary": "Split long text into speech-sized paragraphs",
+      "description": "",
+      "category": "tts"
+    },
+    {
+      "id": "usage.list_recent",
+      "path": "/vrooli.audio_tools.v1.usage.UsageService/ListRecent",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "usage"
+    },
+    {
+      "id": "usage.get_summary",
+      "path": "/vrooli.audio_tools.v1.usage.UsageService/GetSummary",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "usage"
+    },
+    {
+      "id": "validation.soak",
+      "path": "/api/v1/validation/soak",
+      "method": "POST",
+      "summary": "Drive Dictation Studio through the real browser capture and ledger path",
+      "description": "Leased test-only endpoint. Returns one conformance.Run document and never stores audio or transcript payloads.",
+      "category": "validation",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Out-of-band qualification coordination endpoint; the request and response are owned JSON transport for the existing conformance.Run schema.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "none"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,21 +1,36 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "code-cleanup",
-  "name": "Code Cleanup",
+  "createdAt": "2025-01-14T00:00:00Z",
+  "defaultScope": "refactor-scope",
   "description": "Remove dead code, unused imports, and obsolete patterns",
+  "entry": "SKILL.md",
+  "icon": "trash2",
+  "id": "code-cleanup",
+  "kind": "skill",
   "modes": [
     "steer",
     "cleanup"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "trash2",
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "refactor-scope",
+  "name": "Code Cleanup",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
   "revision": 46,
-  "createdAt": "2025-01-14T00:00:00Z",
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
   "updatedAt": "2026-02-06T14:33:21Z"
 }

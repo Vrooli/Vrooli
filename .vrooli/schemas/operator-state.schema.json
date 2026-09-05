@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/operator-state.schema.json",
+  "title": "Operator State",
+  "description": "Mutable per-install operator choices written by vrooli-onboarding (and editable by hand). Manifest data — what scenarios/resources/tools/safeguards exist and what they declare — lives in scenario service.json, resource.json, tool.json, and safeguard.json files. This file holds *what was selected on this install*: enabled flags, per-scenario auto-restart overrides, host-tool and safeguard opt-ins, and typed safeguard config values. Fields are optional; a missing config value falls back to the manifest's declared default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "updated_at"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver",
+      "description": "Schema version of this operator-state document."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the last write. Onboarding updates this on every save."
+    },
+    "trust_posture": {
+      "type": "string",
+      "enum": ["personal", "shared", "hosted"],
+      "default": "personal",
+      "description": "Per-install operator-selected trust stance. It selects token, break-glass, node-execution, and JWKS-cache defaults; it never disables identity verification. Missing means personal."
+    },
+    "host_workload_posture": {
+      "type": "string",
+      "enum": ["whole_host", "vrooli_only"],
+      "default": "vrooli_only",
+      "description": "Operator-declared scope for workload reporting. It changes reporting, grading, and recorded detail, but never how declared, unmanaged, or abandoned workloads are classified. It is independent of trust_posture, which selects credential and node-execution defaults. Missing means vrooli_only."
+    },
+    "update_control": {
+      "type": "string",
+      "enum": ["observe", "guard", "own"],
+      "default": "observe",
+      "description": "Operator-selected host update policy. observe records drift, guard preserves declared coupled sets, and own is reserved for a future typed implementation."
+    },
+    "operator_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identity reference returned by enrollment; never an access token."
+    },
+    "identity_provider": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The authority used during enrollment, such as scenario-authenticator."
+    },
+    "session_mode": {
+      "type": "string",
+      "enum": ["personal", "shared", "hosted"],
+      "description": "Local session policy selected at enrollment."
+    },
+    "enrollment_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque enrollment reference; it is not a bearer credential."
+    },
+    "enrolled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "core": {
+      "type": "object",
+      "description": "Operator-granted core-set authority used by control-plane fallback paths.",
+      "additionalProperties": false,
+      "required": ["seed", "trusted_base"],
+      "properties": {
+        "seed": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "trusted_base": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "active_profile": {
+      "type": ["string", "null"],
+      "description": "Optional named profile this state was derived from (e.g. 'engineering', 'marketing'). Reserved for future use; null today. Profiles themselves are deferred — see docs/configuration/profiles.md."
+    },
+    "scenarios": {
+      "type": "object",
+      "description": "Per-scenario operator choices. Keyed by scenario name. A scenario absent from this map falls back to its manifest's `service.system_required` and `runtime.auto_restart_default` defaults.",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Operator-selected enabled state. Overrides manifest defaults except where `service.system_required: true`, in which case this field is ignored (system-required scenarios are always enabled)."
+            },
+            "auto_restart": {
+              "type": "boolean",
+              "description": "Operator override for runtime.auto_restart_default. When absent, the manifest default applies."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "resources": {
+      "type": "object",
+      "description": "Per-resource operator choices. Keyed by resource id (e.g. 'postgres', 'vault').",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether the operator wants this resource installed and running on this host."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "host_tools": {
+      "type": "object",
+      "description": "Per-tool operator opt-ins. Keyed by tool name as it appears in tool.json manifests.",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9_-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "opted_in": {
+              "type": "boolean",
+              "description": "Whether the operator has consented to install this host tool. Required tools (per the manifest's `required: true`) bypass this and are always installed."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "host_safeguards": {
+      "type": "object",
+      "description": "Per-safeguard operator opt-ins. Keyed by safeguard name as it appears in safeguard.json manifests. Safeguards modify host state, so opt-in is explicit; risk level (low/medium/high) on the manifest informs the operator's choice.",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9_-]*[a-z0-9]$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "opted_in": {
+              "type": "boolean",
+              "description": "Whether the operator has consented to apply this safeguard to the host."
+            },
+            "config": {
+              "type": "object",
+              "description": "Operator-selected values validated against the safeguard manifest's config schema.",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "completion": {
+      "type": "object",
+      "description": "Durable evidence that the committed selection was applied successfully.",
+      "additionalProperties": false,
+      "required": ["selection_digest", "applied_at"],
+      "properties": {
+        "selection_digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "applied_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "degraded_acknowledgement": {
+          "type": "object",
+          "description": "Durable record that the operator accepted a specific set of degraded optional items. The digest names the exact set that was acknowledged, so an acknowledgement cannot authorise completion over a different gap later.",
+          "additionalProperties": false,
+          "required": ["readiness_digest", "acknowledged_at"],
+          "properties": {
+            "readiness_digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "acknowledged_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "description": "Durable onboarding wizard pointer shared by UI and headless surfaces.",
+      "additionalProperties": false,
+      "required": ["step"],
+      "properties": {
+        "step": {"type": "integer", "minimum": 0, "maximum": 8}
+      }
+    }
+  }
+}

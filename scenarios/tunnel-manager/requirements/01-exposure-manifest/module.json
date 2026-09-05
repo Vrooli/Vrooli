@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "module": "routes",
+    "description": "Exposure manifest (SSOT): SQLite-backed record of what is publicly exposed at which subdomain/port, tier, lease, and enabled state. Every other domain reconciles against this manifest.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EXPOSE-001",
+      "title": "Persist routes in a SQLite-backed exposure manifest",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "routes",
+      "criticality": "P0",
+      "description": "A route record persists subdomain, scenario, domain (a field, default itsagitime.com), local UI port, tier (core|leased), lease_id (nullable), enabled flag, and health_path in SQLite, and survives process restart.",
+      "tags": [
+        "manifest",
+        "sqlite",
+        "ssot"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/routes/sqlite_test.go"
+        }
+      ]
+    },
+    {
+      "id": "EXPOSE-002",
+      "title": "Reject a route whose subdomain is not a valid DNS label",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "routes",
+      "criticality": "P0",
+      "description": "Route creation validates the subdomain against DNS label rules (lowercase alphanumeric and hyphens, no leading/trailing hyphen, <=63 chars) and rejects invalid labels with a validation error.",
+      "tags": [
+        "validation",
+        "dns"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/routes/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "EXPOSE-003",
+      "title": "Enforce one route per subdomain",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "routes",
+      "criticality": "P0",
+      "description": "Attempting to create a second route for an already-used subdomain is rejected (unique constraint), preventing ambiguous ingress targets.",
+      "tags": [
+        "validation",
+        "uniqueness"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/routes/sqlite_test.go"
+        }
+      ]
+    },
+    {
+      "id": "EXPOSE-004",
+      "title": "Derive public_url from subdomain and domain",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "routes",
+      "criticality": "P0",
+      "description": "A route exposes a computed public_url of https://<subdomain>.<domain> derived from its fields rather than a stored constant, so changing the domain field changes the URL.",
+      "tags": [
+        "derivation",
+        "url"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/routes/service_test.go"
+        }
+      ]
+    }
+  ]
+}

@@ -20,6 +20,7 @@
 | 2025-12-04 | Claude | Auto-Heal Verification | Added post-action verification to all recovery actions - restarts now confirm success by re-running checks |
 | 2026-02-18 | Codex | Seam Enforcement (Watchdog Installer) | Routed watchdog install/uninstall side effects through `detectorProbe` (commands, privileged writes, fs mutations, temp-file writes) and added seam-focused unit tests |
 | 2026-02-18 | Codex | Seam Enforcement (User Config I/O) | Added `configIO` seam for `userconfig.Manager` file/home-dir interactions (load/save/schema/default-path), plus seam-focused tests for missing-config behavior, temp-file cleanup on atomic-save failure, and default-path fallback when home resolution fails |
+| 2026-08-25 | Codex | Host capability coupling and notification reach | Added invariant-backed host verdicts, transition-only incident facts, live notification approval verification, one-time remediation authorization records, evidence-backed incident disposition, and remediation/delivery reach sensors. Focused Go suites pass; broad scenario gates still report unrelated maturity debt. |
 
 ## Completed Features
 
@@ -76,7 +77,8 @@
 
 ### Database Schema (PERSIST-*)
 - `health_results` table for check history
-- `autoheal_actions` table for auto-heal log
+- `action_logs` is the sole action ledger; the never-written
+  `autoheal_actions` duplicate was retired in 2026-08
 - `autoheal_config` table for settings
 - Cleanup function for 24-hour retention
 
@@ -196,8 +198,8 @@ Key decision points are extracted into named, testable functions:
 - `CLIStatusToCheckStatus(cliStatus, isCritical)` → Maps CLI status to health check status
 - Stopped indicators checked first (handles "not running" containing "running")
 
-### RDP Service Selection (`infra/rdp.go`)
-- `SelectRDPService(caps)` → Decides which RDP service to check based on platform
+### RDP Service Detection (`infra/rdp_service.go`)
+- `detectRDPService(ctx)` → Detects the configured RDP provider using the shared executor seam
 - Linux with systemd → xrdp service
 - Windows → TermService
 - Other → not checkable
@@ -263,18 +265,17 @@ All errors are logged with structured format:
 ### Test Suite Summary
 - **Go Unit Tests**: 111 tests (69.6% coverage)
 - **UI Tests**: 38 tests (vitest with jest-dom)
-- **CLI Tests**: 17 BATS tests across 4 files
-- **Total**: 166 tests
+- **CLI Tests**: Go tests under `cli/` (app + loop), `[REQ:xxx]` tagged
+- **Total**: 149 tests
 
 ### Test Files by Type
 - `api/**/*_test.go` - Go unit tests for platform, registry, checks
+- `cli/**/*_test.go` - Go tests for CLI commands and loop
 - `ui/src/**/*.test.{ts,tsx}` - React component tests
-- `cli/*.bats` - CLI integration tests with REQ tags
 
 ### Coverage Tracking
 - UI tests use `[REQ:xxx]` tags in test descriptions for auto-sync
-- CLI tests use `[REQ:xxx]` in test names for tracking
-- Go tests have REQ comments (manual sync needed)
+- Go tests use `[REQ:xxx]` tags in test names/comments for tracking
 
 ### Completeness Score: 17/100
 - 12/74 requirements passing (16%)

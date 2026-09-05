@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"scenario-auditor/internal/audits"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -24,6 +26,7 @@ import (
 	"github.com/vrooli/api-core/pathfilter"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 const (
@@ -170,32 +173,45 @@ type VrooliScenario struct {
 	Path        string   `json:"path"`
 }
 
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+var cliClient = vroolicli.New()
+
 // Global database connection
 var db *sql.DB
 
 // Global agent manager (used by Claude Fix and Automated Fix features)
 var agentManager = NewAgentManager()
 
-// getVrooliScenarios calls the Vrooli CLI to get real scenario information
+// getVrooliScenarios calls the Vrooli CLI to get real scenario information,
+// mapping the typed vrooli.cli.v1 scenario-list contract onto the auditor's
+// view model.
 func getVrooliScenarios() (*VrooliScenarioResponse, error) {
-	cmd := exec.Command("vrooli", "scenario", "list", "--json")
-
-	// Set timeout for the command
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd = exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
 
-	output, err := cmd.Output()
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute vrooli command: %w", err)
+		return nil, fmt.Errorf("failed to list vrooli scenarios: %w", err)
 	}
 
-	var response VrooliScenarioResponse
-	if err := json.Unmarshal(output, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse vrooli response: %w", err)
+	response := &VrooliScenarioResponse{Success: resp.GetSuccess()}
+	response.Summary.TotalScenarios = int(resp.GetSummary().GetTotalScenarios())
+	response.Summary.Running = int(resp.GetSummary().GetRunning())
+	response.Summary.Available = int(resp.GetSummary().GetAvailable())
+	for _, s := range resp.GetScenarios() {
+		response.Scenarios = append(response.Scenarios, VrooliScenario{
+			Name:        s.GetName(),
+			Description: s.GetDescription(),
+			Version:     s.GetVersion(),
+			Status:      s.GetStatus(),
+			Tags:        s.GetTags(),
+			Path:        s.GetPath(),
+		})
 	}
 
-	return &response, nil
+	return response, nil
 }
 
 func countScenarioEndpoints(scenarioPath string) int {
@@ -278,6 +294,14 @@ func main() {
 
 	logger.Info(fmt.Sprintf("Starting %s v%s", serviceName, apiVersion))
 	fmt.Fprintf(os.Stderr, "[STARTUP] Logger initialized\n")
+
+	initializeScenarioAuditorRuntime()
+
+	if _, err := initRepoContext(); err != nil {
+		logger.Error("Failed to initialize repo context", err)
+		fmt.Fprintf(os.Stderr, "[STARTUP] Repo context initialization FAILED: %v\n", err)
+		return
+	}
 
 	// Initialize database
 	fmt.Fprintf(os.Stderr, "[STARTUP] Initializing database...\n")
@@ -374,22 +398,13 @@ func main() {
 	api.HandleFunc("/claude/fix/preview", previewClaudeFixHandler).Methods("POST")
 	api.HandleFunc("/claude/fix/{fixId}/status", getClaudeFixStatusHandler).Methods("GET")
 
-	// DEPRECATED: Agent management endpoints (replaced by app-issue-tracker integration)
-	// api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
-	// api.HandleFunc("/agents", startAgentHandler).Methods("POST")
-	// api.HandleFunc("/rules/{ruleId}/agents", startAgentHandler).Methods("POST")
-	// api.HandleFunc("/agents/{agentId}/stop", stopAgentHandler).Methods("POST")
-	// api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
-
-	// NEW: Rules management endpoints for scenario-auditor
+	// Rules management endpoints for scenario-auditor
 	// IMPORTANT: Specific routes must come before parameterized routes to avoid conflicts
 	api.HandleFunc("/rules", getRulesHandler).Methods("GET")
 	api.HandleFunc("/rules/test-cache", clearTestCacheHandler).Methods("DELETE")
 	api.HandleFunc("/rules/test-coverage", getTestCoverageHandler).Methods("GET")
 	api.HandleFunc("/rules/categories", getRuleCategoriesHandler).Methods("GET")
-	api.HandleFunc("/rules/create", createRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/ai/edit/{ruleId}", editRuleWithAIHandler).Methods("POST")
-	api.HandleFunc("/rules/report-issue", reportIssueHandler).Methods("POST")
 	// Parameterized routes come last
 	api.HandleFunc("/rules/{ruleId}", getRuleHandler).Methods("GET")
 	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")
@@ -446,9 +461,17 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	return database.Connect(context.Background(), database.Config{
+	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
 	})
+	if err != nil {
+		return nil, err
+	}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(audits.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
+	}
+	return db, nil
 }
 
 // NOTE: The old healthHandler with detailed dependency checks has been replaced by
@@ -642,14 +665,18 @@ func checkFilesystemHealth() map[string]any {
 		"checks": map[string]any{},
 	}
 
-	// Check VROOLI_ROOT
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	ctx, err := repoContext()
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]any{
+			"code":      "SCENARIOS_DIR_NOT_ACCESSIBLE",
+			"message":   "Cannot resolve scenarios directory: " + err.Error(),
+			"category":  "configuration",
+			"retryable": false,
+		}
+		return health
 	}
-
-	// Check scenarios directory
-	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+	scenariosDir := ctx.ScenariosRoot()
 	if info, err := os.Stat(scenariosDir); err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]any{
@@ -723,84 +750,29 @@ func checkOllamaHealth() map[string]any {
 		"checks": map[string]any{},
 	}
 
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		// Ollama is optional - if not configured, AI features are disabled
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-
-	// Test Ollama connectivity
+	// Probe via the resource-ollama CLI. Per-model availability is no longer
+	// enumerated here — `resource-ollama status` reports daemon health, and the
+	// dependency manifest in .vrooli/service.json is authoritative for
+	// required models (auto-pulled at scenario start).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", ollamaURL+"/api/tags", nil)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		health["status"] = "not_configured"
-		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
-		return health
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		health["status"] = "healthy"
-		health["checks"].(map[string]any)["connectivity"] = "ok"
-
-		// Parse response to check available models
-		var response struct {
-			Models []struct {
-				Name string `json:"name"`
-			} `json:"models"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
-			health["checks"].(map[string]any)["available_models"] = len(response.Models)
-
-			// Check for required models for API analysis
-			requiredModels := []string{"llama3.1:8b", "nomic-embed-text"}
-			availableModels := make(map[string]bool)
-			for _, model := range response.Models {
-				availableModels[model.Name] = true
-			}
-
-			missingModels := []string{}
-			for _, required := range requiredModels {
-				if !availableModels[required] {
-					missingModels = append(missingModels, required)
-				}
-			}
-
-			if len(missingModels) > 0 {
-				health["status"] = "degraded"
-				health["error"] = map[string]any{
-					"code":      "OLLAMA_MODELS_MISSING",
-					"message":   fmt.Sprintf("Missing required models for API analysis: %v", missingModels),
-					"category":  "configuration",
-					"retryable": false,
-				}
-			} else {
-				health["checks"].(map[string]any)["required_models"] = "available"
-				health["checks"].(map[string]any)["ai_analysis"] = "enabled"
-			}
-		}
-	} else {
+	cmd := exec.CommandContext(ctx, "resource-ollama", "status")
+	if err := cmd.Run(); err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]any{
 			"code":      "OLLAMA_UNHEALTHY",
-			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
+			"message":   fmt.Sprintf("resource-ollama status failed: %v", err),
 			"category":  "resource",
 			"retryable": true,
 		}
+		health["checks"].(map[string]any)["ai_analysis"] = "disabled"
+		return health
 	}
 
+	health["status"] = "healthy"
+	health["checks"].(map[string]any)["connectivity"] = "ok"
+	health["checks"].(map[string]any)["ai_analysis"] = "enabled"
 	return health
 }
 
@@ -1533,17 +1505,15 @@ func applyAutomatedFixWithSafetyHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	scenarioRoot := getScenarioRoot()
-	scenariosDir := filepath.Clean(filepath.Join(scenarioRoot, ".."))
-	absBase, err := filepath.Abs(scenariosDir)
+	ctx, err := repoContext()
 	if err != nil {
-		HTTPError(w, "Failed to resolve scenarios root", http.StatusInternalServerError, err)
+		HTTPError(w, "Failed to resolve repo context", http.StatusInternalServerError, err)
 		return
 	}
 
-	scenarioPath := filepath.Clean(filepath.Join(absBase, scenarioName))
-	if !isSubpath(absBase, scenarioPath) {
-		HTTPError(w, "scenario name resolved outside of scenarios directory", http.StatusBadRequest, nil)
+	scenarioPath, err := ctx.ResolveScenarioPath(scenarioName)
+	if err != nil {
+		HTTPError(w, "Failed to resolve scenario path", http.StatusBadRequest, err)
 		return
 	}
 

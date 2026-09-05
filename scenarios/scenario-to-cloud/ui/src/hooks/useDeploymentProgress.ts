@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { buildApiUrl } from "@vrooli/api-base";
 import {
   type DeploymentProgress,
   type ProgressEvent,
@@ -7,8 +7,7 @@ import {
   getInitialSteps,
   updateStepStatus,
 } from "../types/progress";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
+import { API_BASE } from "../lib/api";
 
 export interface UseDeploymentProgressOptions {
   onComplete?: (success: boolean, error?: string) => void;

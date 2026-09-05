@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-icon-morph",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0",
+    "1.1.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0",
+    "1.0.0",
+    "1.1.1"
+  ],
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:useIconMorph"
+}

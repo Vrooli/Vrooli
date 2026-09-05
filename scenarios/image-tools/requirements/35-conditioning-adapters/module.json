@@ -1,0 +1,103 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-CN-001",
+      "title": "Conditioning-adapter catalog + resolution",
+      "status": "in_progress",
+      "prd_ref": "Functional Requirements \u003e Conditioning Adapters",
+      "category": "feature.conditioning",
+      "description": "A first-class adapter catalog (internal/adapters) of LoRA / ControlNet / IP-Adapter entries that modify an existing operation on a compatible base model. Adapters carry a single compatible architecture, a consent weight, a scale range, and a Ready gate; compatibility is data (adapter.architecture == model.architecture). A generation request carries a typed, ordered adapter stack; the resolver validates each adapter (architecture, enabled, installed, Ready), orders the stack LoRA→ControlNet→IP-Adapter, elevates the consent weight to max(op, adapters...), and fails closed on an incompatible / not-Ready / uninstalled adapter or a missing required reference image. No vaporware: every adapter ships Ready=false until an attended GPU run proves its kind×architecture.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/adapters/adapters_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Adapter catalog load/parse/validate, compatibility rule, scale clamp, seed license + no-vaporware (Ready=false) invariants."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/adapters/conditioning_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ResolveConditioning fail-closed matrix (unknown/incompatible/disabled/not-Ready/uninstalled/missing-ref/dup), canonical ordering, EffectiveWeight = max(op, adapters...) (C4)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/technique/technique_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Pure arg-builders: LoRAArgs / ControlNetArgs / IPAdapterArgs flag assembly, skip-by-kind, fail-closed on missing weight/image; txt2img+img2img thread the whole stack (TestDiffusersBuildersEmitConditioning)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ai/engine_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Engine materializes each adapter's conditioning/reference image blob to a local path and rewrites the key (TestMaterializeAdapterImages); fails closed on a missing blob."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/models/families_conformance_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Go↔Python wire-format parity for the LoRA / ControlNet / IP-Adapter specs (TestLoRASpecParityPython, TestConditioningSpecParityPython) and the diffusers adapter contract module (TestDiffusersSidecarContract)."
+        }
+      ]
+    },
+    {
+      "id": "IMG-CN-E2E-LORA",
+      "title": "Attended GPU E2E — LoRA",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Conditioning Adapters",
+      "category": "feature.conditioning.e2e",
+      "description": "SD1.5 + an LCM-LoRA at 512px with sequential offload produces non-empty, visibly LoRA-influenced output that fits ~7-8 GB VRAM. Proven on the GPU host via `make gpu-e2e-lora`; on success the operator flips lcm-lora-sdv1-5 Ready=true in adapters.seed.json and stamps last_validated_at. The make target skips gracefully off-GPU and is excluded from the default test run.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Makefile:gpu-e2e-lora",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Attended GPU run PROVEN on this host (RTX 4070 Ti SUPER): SD1.5 + LCM-LoRA @512 sequential offload → real output; lcm-lora-sdv1-5 Ready=true. `make gpu-e2e-lora`. Re-prove within the 90-day window."
+        }
+      ]
+    },
+    {
+      "id": "IMG-CN-E2E-CONTROLNET",
+      "title": "Attended GPU E2E — ControlNet (canny/depth/pose)",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Conditioning Adapters",
+      "category": "feature.conditioning.e2e",
+      "description": "SD1.5 + a ControlNet at 512px (canny deterministic preprocess; depth reuses depth_map) produces output whose structure tracks the control map. Proven via `make gpu-e2e-controlnet` with a control-image blob key; on success the operator flips the controlnet-*-sd15 Ready=true and stamps last_validated_at. One e2e per shipped preprocessor.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Makefile:gpu-e2e-controlnet",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Attended GPU run PROVEN on this host: SD1.5 + Canny ControlNet @512 (control-image blob) → real output; controlnet-canny-sd15 Ready=true (revision pinned). depth/pose-sd15 + SDXL ControlNets remain Ready=false pending their own attended runs. `make gpu-e2e-controlnet`."
+        }
+      ]
+    },
+    {
+      "id": "IMG-CN-E2E-IPADAPTER",
+      "title": "Attended GPU E2E — IP-Adapter",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Conditioning Adapters",
+      "category": "feature.conditioning.e2e",
+      "description": "SD1.5 + IP-Adapter + a reference image at 512px produces output reflecting the reference style/subject. Proven via `make gpu-e2e-ipadapter` with a reference-image blob key; on success the operator flips ip-adapter-sd15 Ready=true and stamps last_validated_at.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Makefile:gpu-e2e-ipadapter",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Attended GPU run PROVEN on this host: SD1.5 + IP-Adapter @512 (reference-image blob, CLIP image encoder loaded) → real output; ip-adapter-sd15 Ready=true. `make gpu-e2e-ipadapter`."
+        }
+      ]
+    }
+  ]
+}

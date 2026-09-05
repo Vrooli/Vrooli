@@ -1,264 +1,74 @@
 import { create } from "zustand";
-import type { DashboardTabKey, RunsSubtabKey, ScenarioDetailTabKey, QueueFormState, ExecutionFormState } from "../types";
+import type { DashboardTabKey, ExecutionFormState, RunsSubtabKey, ScenarioDetailTabKey } from "../types";
 
-const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
-const dashboardTabSet = new Set(["dashboard", "runs", "generate", "docs", "settings"]);
+const dashboardTabSet = new Set(["dashboard", "runs", "docs", "health"]);
 const runsSubtabSet = new Set(["scenarios", "history"]);
 
-const initialQueueForm: QueueFormState = {
-  scenarioName: "",
-  requestedTypes: DEFAULT_REQUEST_TYPES,
-  coverageTarget: 95,
-  priority: "normal",
-  notes: ""
-};
-
-const initialExecutionForm: ExecutionFormState = {
-  scenarioName: "",
-  preset: "quick",
-  failFast: true,
-  suiteRequestId: ""
-};
+export const initialExecutionForm: ExecutionFormState = { scenarioName: "", preset: "quick", failFast: true };
 
 interface UIState {
-  // Navigation state
   activeTab: DashboardTabKey;
   runsSubtab: RunsSubtabKey;
   selectedScenario: string | null;
   scenarioDetailTab: ScenarioDetailTabKey;
-
-  // Focus state
   focusScenario: string;
-
-  // Form states
-  queueForm: QueueFormState;
   executionForm: ExecutionFormState;
-
-  // Feedback
-  queueFeedback: string | null;
   executionFeedback: string | null;
-
-  // Search states
   scenarioSearch: string;
   docsSearch: string;
-
-  // URL hash sync
   urlHash: string;
-
-  // Actions
-  setActiveTab: (tab: DashboardTabKey) => void;
-  setRunsSubtab: (subtab: RunsSubtabKey) => void;
-  setSelectedScenario: (scenario: string | null) => void;
-  setScenarioDetailTab: (tab: ScenarioDetailTabKey) => void;
-  setFocusScenario: (scenario: string) => void;
-  clearFocusScenario: () => void;
-  applyFocusScenario: (scenario: string) => void;
-
-  setQueueForm: (form: Partial<QueueFormState> | ((prev: QueueFormState) => QueueFormState)) => void;
-  setExecutionForm: (form: Partial<ExecutionFormState> | ((prev: ExecutionFormState) => ExecutionFormState)) => void;
-  resetQueueForm: () => void;
-  resetExecutionForm: () => void;
-  toggleRequestedType: (type: string) => void;
-
-  setQueueFeedback: (feedback: string | null) => void;
-  setExecutionFeedback: (feedback: string | null) => void;
-
-  setScenarioSearch: (search: string) => void;
-  setDocsSearch: (search: string) => void;
-
-  // Navigation helpers
-  navigateToScenarioDetail: (scenarioName: string) => void;
-  navigateBack: () => void;
-  syncFromHash: () => void;
-  updateHash: () => void;
+  setActiveTab(tab: DashboardTabKey): void;
+  setRunsSubtab(tab: RunsSubtabKey): void;
+  setSelectedScenario(scenario: string | null): void;
+  setScenarioDetailTab(tab: ScenarioDetailTabKey): void;
+  setFocusScenario(scenario: string): void;
+  clearFocusScenario(): void;
+  applyFocusScenario(scenario: string): void;
+  setExecutionForm(form: Partial<ExecutionFormState> | ((prev: ExecutionFormState) => ExecutionFormState)): void;
+  resetExecutionForm(): void;
+  setExecutionFeedback(feedback: string | null): void;
+  setScenarioSearch(search: string): void;
+  setDocsSearch(search: string): void;
+  navigateToScenarioDetail(scenarioName: string): void;
+  navigateBack(): void;
+  syncFromHash(): void;
+  updateHash(): void;
 }
 
-function isDashboardTabKey(value: string): value is DashboardTabKey {
-  return dashboardTabSet.has(value);
-}
-
-function isRunsSubtabKey(value: string): value is RunsSubtabKey {
-  return runsSubtabSet.has(value);
-}
-
-// Parse URL hash to extract state
 function parseHash(hash: string): Partial<Pick<UIState, "activeTab" | "runsSubtab" | "selectedScenario">> {
-  const cleanHash = hash.replace(/^#/, "");
-  const parts = cleanHash.split("/").filter(Boolean);
-
-  const result: Partial<Pick<UIState, "activeTab" | "runsSubtab" | "selectedScenario">> = {};
-
-  if (parts.length > 0) {
-    const tab = parts[0];
-    if (tab && isDashboardTabKey(tab)) {
-      result.activeTab = tab;
-    }
-  }
-
-  if (parts.length > 1 && parts[0] === "runs") {
-    const subtab = parts[1];
-    if (subtab && isRunsSubtabKey(subtab)) {
-      result.runsSubtab = subtab;
-    }
-    const selectedScenario = parts[2];
-    if (selectedScenario) {
-      result.selectedScenario = decodeURIComponent(selectedScenario);
-    }
-  }
-
-  return result;
+  const parts = hash.replace(/^#/, "").split("/").filter(Boolean);
+  const parsed: Partial<Pick<UIState, "activeTab" | "runsSubtab" | "selectedScenario">> = {};
+  if (parts[0] && dashboardTabSet.has(parts[0])) parsed.activeTab = parts[0] as DashboardTabKey;
+  if (parts[0] === "runs") { if (parts[1] && runsSubtabSet.has(parts[1])) parsed.runsSubtab = parts[1] as RunsSubtabKey; if (parts[2]) parsed.selectedScenario = decodeURIComponent(parts[2]); }
+  return parsed;
 }
 
-// Build URL hash from state
 function buildHash(state: Pick<UIState, "activeTab" | "runsSubtab" | "selectedScenario">): string {
-  const parts: string[] = [state.activeTab];
-
-  if (state.activeTab === "runs") {
-    parts.push(state.runsSubtab);
-    if (state.selectedScenario) {
-      parts.push(encodeURIComponent(state.selectedScenario));
-    }
-  }
-
-  return parts.join("/");
+  if (state.activeTab !== "runs") return state.activeTab;
+  return ["runs", state.runsSubtab, state.selectedScenario ? encodeURIComponent(state.selectedScenario) : ""].filter(Boolean).join("/");
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
-  // Initial state
-  activeTab: "dashboard",
-  runsSubtab: "scenarios",
-  selectedScenario: null,
-  scenarioDetailTab: "overview",
-  focusScenario: "",
-  queueForm: initialQueueForm,
-  executionForm: initialExecutionForm,
-  queueFeedback: null,
-  executionFeedback: null,
-  scenarioSearch: "",
-  docsSearch: "",
-  urlHash: "",
-
-  // Navigation actions
-  setActiveTab: (tab) => {
-    set({ activeTab: tab, selectedScenario: null });
-    get().updateHash();
-  },
-
-  setRunsSubtab: (subtab) => {
-    set({ runsSubtab: subtab, selectedScenario: null });
-    get().updateHash();
-  },
-
-  setSelectedScenario: (scenario) => {
-    set({ selectedScenario: scenario, scenarioDetailTab: "overview" });
-    get().updateHash();
-  },
-
-  setScenarioDetailTab: (tab) => {
-    set({ scenarioDetailTab: tab });
-  },
-
-  // Focus actions
-  setFocusScenario: (scenario) => set({ focusScenario: scenario }),
-
-  clearFocusScenario: () => {
-    set({
-      focusScenario: "",
-      queueForm: { ...get().queueForm, scenarioName: "" },
-      executionForm: { ...get().executionForm, scenarioName: "" }
-    });
-  },
-
-  applyFocusScenario: (scenario) => {
-    const trimmed = scenario.trim();
-    set({
-      focusScenario: trimmed,
-      queueForm: { ...get().queueForm, scenarioName: trimmed },
-      executionForm: { ...get().executionForm, scenarioName: trimmed }
-    });
-  },
-
-  // Form actions
-  setQueueForm: (form) => {
-    if (typeof form === "function") {
-      set((state) => ({ queueForm: form(state.queueForm) }));
-    } else {
-      set((state) => ({ queueForm: { ...state.queueForm, ...form } }));
-    }
-  },
-
-  setExecutionForm: (form) => {
-    if (typeof form === "function") {
-      set((state) => ({ executionForm: form(state.executionForm) }));
-    } else {
-      set((state) => ({ executionForm: { ...state.executionForm, ...form } }));
-    }
-  },
-
-  resetQueueForm: () => set({ queueForm: initialQueueForm }),
+  activeTab: "dashboard", runsSubtab: "scenarios", selectedScenario: null, scenarioDetailTab: "overview", focusScenario: "", executionForm: initialExecutionForm, executionFeedback: null, scenarioSearch: "", docsSearch: "", urlHash: "",
+  setActiveTab: (activeTab) => { set({ activeTab, selectedScenario: null }); get().updateHash(); },
+  setRunsSubtab: (runsSubtab) => { set({ runsSubtab, selectedScenario: null }); get().updateHash(); },
+  setSelectedScenario: (selectedScenario) => { set({ selectedScenario, scenarioDetailTab: "overview" }); get().updateHash(); },
+  setScenarioDetailTab: (scenarioDetailTab) => set({ scenarioDetailTab }),
+  setFocusScenario: (focusScenario) => set({ focusScenario }),
+  clearFocusScenario: () => set({ focusScenario: "", executionForm: { ...get().executionForm, scenarioName: "" } }),
+  applyFocusScenario: (scenario) => { const focusScenario = scenario.trim(); set({ focusScenario, executionForm: { ...get().executionForm, scenarioName: focusScenario } }); },
+  setExecutionForm: (form) => set((state) => ({ executionForm: typeof form === "function" ? form(state.executionForm) : { ...state.executionForm, ...form } })),
   resetExecutionForm: () => set({ executionForm: initialExecutionForm }),
-
-  toggleRequestedType: (type) => {
-    set((state) => {
-      const exists = state.queueForm.requestedTypes.includes(type);
-      const nextTypes = exists
-        ? state.queueForm.requestedTypes.filter((t) => t !== type)
-        : [...state.queueForm.requestedTypes, type];
-      return { queueForm: { ...state.queueForm, requestedTypes: nextTypes } };
-    });
-  },
-
-  // Feedback actions
-  setQueueFeedback: (feedback) => set({ queueFeedback: feedback }),
-  setExecutionFeedback: (feedback) => set({ executionFeedback: feedback }),
-
-  // Search actions
-  setScenarioSearch: (search) => set({ scenarioSearch: search }),
-  setDocsSearch: (search) => set({ docsSearch: search }),
-
-  // Navigation helpers
-  navigateToScenarioDetail: (scenarioName) => {
-    set({
-      activeTab: "runs",
-      runsSubtab: "scenarios",
-      selectedScenario: scenarioName
-    });
-    get().updateHash();
-  },
-
-  navigateBack: () => {
-    set({ selectedScenario: null, scenarioDetailTab: "overview" });
-    get().updateHash();
-  },
-
-  syncFromHash: () => {
-    if (typeof window === "undefined") return;
-    const parsed = parseHash(window.location.hash);
-    set(parsed);
-  },
-
-  updateHash: () => {
-    if (typeof window === "undefined") return;
-    const state = get();
-    const hash = buildHash(state);
-    if (hash !== state.urlHash) {
-      window.history.replaceState(null, "", `#${hash}`);
-      set({ urlHash: hash });
-    }
-  }
+  setExecutionFeedback: (executionFeedback) => set({ executionFeedback }),
+  setScenarioSearch: (scenarioSearch) => set({ scenarioSearch }),
+  setDocsSearch: (docsSearch) => set({ docsSearch }),
+  navigateToScenarioDetail: (selectedScenario) => { set({ activeTab: "runs", runsSubtab: "scenarios", selectedScenario }); get().updateHash(); },
+  navigateBack: () => { set({ selectedScenario: null, scenarioDetailTab: "overview" }); get().updateHash(); },
+  syncFromHash: () => { if (typeof window !== "undefined") set(parseHash(window.location.hash)); },
+  updateHash: () => { if (typeof window === "undefined") return; const hash = buildHash(get()); if (hash !== get().urlHash) { window.history.replaceState(null, "", `#${hash}`); set({ urlHash: hash }); } }
 }));
 
-// Initialize from URL hash on load
 if (typeof window !== "undefined") {
-  const initialParsed = parseHash(window.location.hash);
-  if (Object.keys(initialParsed).length > 0) {
-    useUIStore.setState(initialParsed);
-  }
-
-  // Listen for hash changes
-  window.addEventListener("hashchange", () => {
-    useUIStore.getState().syncFromHash();
-  });
+  useUIStore.setState(parseHash(window.location.hash));
+  window.addEventListener("hashchange", () => useUIStore.getState().syncFromHash());
 }
-
-export { DEFAULT_REQUEST_TYPES, initialQueueForm, initialExecutionForm };

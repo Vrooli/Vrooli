@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "docs",
+    "title": "Documentation",
+    "routes": ["/docs", "/docs/*"],
+    "purpose": "Provide the operator-facing explanation of capabilities, configuration, limitations, and recovery behavior.",
+    "prd_refs": []
+  }
+}

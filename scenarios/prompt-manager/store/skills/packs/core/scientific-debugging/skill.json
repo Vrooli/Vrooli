@@ -1,22 +1,41 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "scientific-debugging",
-  "name": "Scientific Debugging",
+  "createdAt": "2026-02-03T02:40:00Z",
   "description": "Hypothesis-driven debugging methodology: generate falsifiable hypotheses, design experiments to validate them, and systematically narrow to root cause. Produces regression tests and documented findings.",
+  "entry": "SKILL.md",
+  "icon": "bug",
+  "id": "scientific-debugging",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Scientific Debugging",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager ai-search",
+      "swarm-manager backlog",
+      "swarm-manager record",
+      "swarm-manager records",
+      "swarm-manager scenarios"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 28,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "debugging",
     "testing",
-    "methodology"
+    "methodology",
+    "investigation-technique"
   ],
-  "icon": "bug",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 28,
-  "createdAt": "2026-02-03T02:40:00Z",
   "updatedAt": "2026-02-04T13:13:54Z"
 }

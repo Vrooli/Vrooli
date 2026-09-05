@@ -1,0 +1,70 @@
+{
+  "shortNames": {
+    "external:operator": "OP",
+    "external:swarm-manager-work": "SWARM",
+    "instrument:infrastructure-manager": "INSTR",
+    "member:infra-contrarian": "IC",
+    "member:platform-code-auditor": "PCA",
+    "member:runtime-health-scanner": "RHS",
+    "por:docs/infra-health/README.md": "DOCSINFRAHEA",
+    "por:docs/infra-health/evidence/README.md": "DOCSINFRAHEA4",
+    "por:docs/infra-health/governance/adoption-validation.md": "DOCSINFRAHEA5",
+    "por:docs/infra-health/governance/changelog.md": "DOCSINFRAHEA6",
+    "por:docs/infra-health/governance/editing.md": "DOCSINFRAHEA7",
+    "por:docs/infra-health/operating/OPERATING_MODEL.md": "DOCSINFRAHEA8",
+    "por:docs/infra-health/operating/README.md": "DOCSINFRAHEA9",
+    "por:docs/infra-health/strategy/README.md": "DOCSINFRAHEA10",
+    "process:operator-approval": "APPROVAL",
+    "process:operator-curated-canon": "CANON",
+    "topic:contrarian-scan/*": "CONTRARIANSC",
+    "topic:contrarian-scan/YYYY-MM-DD": "CS",
+    "topic:platform-code-audit/*": "PLATFORMCODE",
+    "topic:platform-code-audit/YYYY-MM-DD": "PCAUD",
+    "topic:runtime-health-audit/*": "RUNTIMEHEALT",
+    "topic:runtime-health-audit/YYYY-MM-DD": "RHA"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:swarm-manager-work": "Swarm Manager work",
+    "instrument:infrastructure-manager": "infrastructure-manager instrument",
+    "member:infra-contrarian": "Infra Contrarian",
+    "member:platform-code-auditor": "Platform Code Auditor",
+    "member:runtime-health-scanner": "Runtime Health Scanner",
+    "process:operator-approval": "Operator approval",
+    "process:operator-curated-canon": "Operator-curated canon"
+  },
+  "nodeOrder": [
+    "process:operator-approval",
+    "process:operator-curated-canon",
+    "topic:contrarian-scan/*",
+    "topic:contrarian-scan/YYYY-MM-DD",
+    "por:docs/infra-health/README.md",
+    "por:docs/infra-health/strategy/README.md",
+    "por:docs/infra-health/evidence/README.md",
+    "por:docs/infra-health/governance/adoption-validation.md",
+    "por:docs/infra-health/governance/changelog.md",
+    "por:docs/infra-health/governance/editing.md",
+    "por:docs/infra-health/operating/OPERATING_MODEL.md",
+    "por:docs/infra-health/operating/README.md",
+    "member:infra-contrarian",
+    "instrument:infrastructure-manager",
+    "external:operator",
+    "member:platform-code-auditor",
+    "topic:platform-code-audit/YYYY-MM-DD",
+    "topic:platform-code-audit/*",
+    "topic:runtime-health-audit/YYYY-MM-DD",
+    "member:runtime-health-scanner",
+    "topic:runtime-health-audit/*",
+    "external:swarm-manager-work"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "process:operator-approval",
+      "to": "external:swarm-manager-work"
+    },
+    {
+      "from": "process:operator-approval",
+      "to": "process:operator-curated-canon"
+    }
+  ]
+}

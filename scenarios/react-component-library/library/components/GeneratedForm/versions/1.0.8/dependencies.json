@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:GeneratedForm",
+  "version": "1.0.8",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ArrayField",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:ComputedField",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ConditionalField",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Form",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:FormActions",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:FormField",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:FormSection",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:FormStore",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:ObjectField",
+      "major": 1,
+      "observed": "1.0.8",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:ValidationSummary",
+      "major": 1,
+      "observed": "1.0.8",
+      "rank": 4
+    }
+  ]
+}

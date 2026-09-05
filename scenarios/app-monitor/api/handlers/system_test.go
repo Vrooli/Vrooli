@@ -9,6 +9,7 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 func TestNewSystemHandler(t *testing.T) {
@@ -334,61 +335,51 @@ func TestLookupValue(t *testing.T) {
 	})
 }
 
-func TestTransformResource(t *testing.T) {
-	handler := NewSystemHandler(nil)
-
-	t.Run("ValidResource", func(t *testing.T) {
-		raw := map[string]interface{}{
-			"Name":    "postgres",
-			"Type":    "database",
-			"Enabled": "true",
-			"Running": "true",
-			"Status":  "online",
+func TestResourceStatusToMap(t *testing.T) {
+	t.Run("OnlineResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{
+			Resource: &cliv1.Resource{Name: "postgres", Driver: "compose-service", Registered: true, Enabled: true},
+			Running:  true,
 		}
-
-		transformed, valid := handler.transformResource(raw)
-
-		if !valid {
-			t.Fatal("Expected valid transformation")
+		m := resourceStatusToMap(rs)
+		if m["id"] != "postgres" || m["name"] != "postgres" {
+			t.Errorf("Expected id/name 'postgres', got %v", m)
 		}
-
-		if transformed["id"] != "postgres" {
-			t.Errorf("Expected id 'postgres', got %v", transformed["id"])
+		if m["type"] != "compose-service" {
+			t.Errorf("Expected type to carry the driver, got %v", m["type"])
 		}
-
-		if transformed["status"] != "online" {
-			t.Errorf("Expected status 'online', got %v", transformed["status"])
+		if m["status"] != "online" {
+			t.Errorf("Expected status 'online', got %v", m["status"])
+		}
+		if m["enabled"] != true || m["running"] != true || m["enabled_known"] != true {
+			t.Errorf("Expected enabled/running/enabled_known true, got %v", m)
 		}
 	})
 
-	t.Run("MissingName", func(t *testing.T) {
-		raw := map[string]interface{}{
-			"Type": "database",
+	t.Run("StoppedResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{
+			Resource: &cliv1.Resource{Name: "redis", Registered: true, Enabled: true},
+			Running:  false,
 		}
-
-		_, valid := handler.transformResource(raw)
-
-		if valid {
-			t.Error("Expected invalid transformation for missing name")
+		if got := resourceStatusToMap(rs)["status"]; got != "stopped" {
+			t.Errorf("Expected status 'stopped', got %v", got)
 		}
 	})
 
-	t.Run("OfflineResource", func(t *testing.T) {
-		raw := map[string]interface{}{
-			"Name":    "redis",
-			"Enabled": "true",
-			"Running": "false",
-			"Status":  "stopped",
+	t.Run("UnregisteredResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "ghost", Registered: false}}
+		if got := resourceStatusToMap(rs)["status"]; got != "unregistered" {
+			t.Errorf("Expected status 'unregistered', got %v", got)
 		}
+	})
 
-		transformed, valid := handler.transformResource(raw)
-
-		if !valid {
-			t.Fatal("Expected valid transformation")
+	t.Run("ErrorResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{
+			Resource:   &cliv1.Resource{Name: "broken", Registered: true, Enabled: true},
+			ProbeError: "boom",
 		}
-
-		if transformed["status"] != "stopped" {
-			t.Errorf("Expected status 'stopped', got %v", transformed["status"])
+		if got := resourceStatusToMap(rs)["status"]; got != "error" {
+			t.Errorf("Expected status 'error', got %v", got)
 		}
 	})
 }

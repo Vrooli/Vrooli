@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // BuildPromptAndContext generates the fix prompt and context attachments for one iteration.
@@ -97,9 +97,9 @@ func buildIterationPrompt(input shared.TaskInput) string {
 	sb.WriteString("## Build Commands\n\n")
 	sb.WriteString("### To trigger a full rebuild (after permanent fixes):\n")
 	sb.WriteString("```bash\n")
-	sb.WriteString(fmt.Sprintf("curl -X POST http://localhost:15020/api/v1/pipeline -H 'Content-Type: application/json' -d '{\"scenario_name\": \"%s\"}'\n", input.Pipeline.ScenarioName))
+	sb.WriteString(fmt.Sprintf("scenario-to-desktop pipeline run %s\n", input.Pipeline.ScenarioName))
 	sb.WriteString("# Poll for completion:\n")
-	sb.WriteString(fmt.Sprintf("curl -s http://localhost:15020/api/v1/pipeline/%s | jq .status\n", input.Pipeline.PipelineID))
+	sb.WriteString(fmt.Sprintf("scenario-to-desktop pipeline status %s --json\n", input.Pipeline.PipelineID))
 	sb.WriteString("```\n\n")
 
 	sb.WriteString("### To rebuild just the desktop app (for immediate fixes):\n")
@@ -118,7 +118,7 @@ func buildIterationPrompt(input shared.TaskInput) string {
 	sb.WriteString("# Check for expected outputs (dmg, exe, AppImage)\n")
 	sb.WriteString("find <desktop-output-dir>/dist -name '*.dmg' -o -name '*.exe' -o -name '*.AppImage'\n\n")
 	sb.WriteString("# Run smoke test if available\n")
-	sb.WriteString("curl -X POST http://localhost:15020/api/v1/smoketest/run -H 'Content-Type: application/json' -d '{\"desktop_path\": \"<desktop-output-dir>\"}'\n")
+	sb.WriteString(fmt.Sprintf("curl -X POST %s/api/v1/smoketest/run -H 'Content-Type: application/json' -d '{\"desktop_path\": \"<desktop-output-dir>\"}'\n", input.PipelineAPIURL))
 	sb.WriteString("```\n\n")
 
 	// Required output format

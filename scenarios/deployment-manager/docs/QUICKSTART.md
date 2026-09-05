@@ -1,180 +1,82 @@
-# Desktop Deployment Quickstart
+# Desktop deployment quickstart
 
-> **Deploy a scenario as a standalone desktop app in under 5 minutes.**
-
-This guide walks you through deploying a scenario as a bundled desktop application using the deployment-manager CLI.
+Use this page to run the deployment-manager governance path for a desktop
+target. The target-specific build, runtime, secrets, and evidence behavior is
+owned by [scenario-to-desktop](../../scenario-to-desktop/docs/OVERVIEW.md).
 
 ## Prerequisites
 
-1. **deployment-manager running**: `vrooli scenario start deployment-manager`
-2. **scenario-to-desktop running**: `vrooli scenario start scenario-to-desktop`
-3. **Your scenario has a built UI**: `cd scenarios/<your-scenario>/ui && pnpm run build`
+- `deployment-manager` and `scenario-to-desktop` are running through the
+  lifecycle manager;
+- the scenario has an honest dependency declaration and a built UI;
+- the selected target has the required build and native-validation tools.
 
-## Reference Implementation
+The `--tier 2` examples mean **technical deployment Tier 2: desktop**. They do
+not refer to the commercial monetization tiers.
 
-Use **`hello-desktop`** as the reference scenario for desktop deployment. It has:
-- Zero external dependencies (no postgres, redis, ollama)
-- Minimal Go API + static HTML UI
-- Pre-configured desktop deployment metadata
-
-```bash
-# Quick validation that the pipeline works
-deployment-manager profile create test-profile hello-desktop --tier 2
-deployment-manager deploy-desktop --profile test-profile --dry-run
-```
-
-## Step 1: Create a Deployment Profile (30 seconds)
+## Run the path
 
 ```bash
-# Create a profile for your scenario targeting desktop
-deployment-manager profile create my-desktop-profile <scenario-name> --tier 2
-```
-
-**Example:**
-```bash
-deployment-manager profile create picker-wheel-desktop picker-wheel --tier 2
-```
-
-## Step 2: Check Fitness & Apply Swaps (60 seconds)
-
-```bash
-# Check if your scenario is ready for desktop
-deployment-manager fitness <scenario-name> --tier 2
-
-# If fitness < 0.8, check what swaps are needed
-deployment-manager swaps list <scenario-name>
-
-# Apply recommended swaps
-deployment-manager swaps apply <profile-id> postgres sqlite
-deployment-manager swaps apply <profile-id> redis memory-cache
-```
-
-**Common Desktop Swaps:**
-| From | To | When to use |
-|------|-----|-------------|
-| postgres | sqlite | Single-user file-based storage |
-| redis | memory-cache | In-process caching |
-| ollama | packaged-model | Offline AI (larger bundle) |
-
-## Step 3: Deploy to Desktop (3 minutes)
-
-```bash
-# Full end-to-end deployment (manifest + binaries + Electron + installers)
-deployment-manager deploy-desktop --profile my-desktop-profile --timeout 10m
-```
-
-**Options:**
-```bash
-# Specific platforms only
-deployment-manager deploy-desktop --profile my-desktop-profile --platforms win,mac  # expands to mac x64+arm64
-
-# Skip installer builds (faster iteration)
-deployment-manager deploy-desktop --profile my-desktop-profile --skip-installers
-
-# Thin client mode (connects to server, no bundled services)
-deployment-manager deploy-desktop --profile my-desktop-profile --mode external-server
-
-# Preview without executing
-deployment-manager deploy-desktop --profile my-desktop-profile --dry-run
-
-# Notes
-# - pnpm is used for Electron builds by default (falls back to npm if pnpm is missing)
-# - Default platforms: win, mac (x64+arm64), linux (x64+arm64)
-# - Increase --timeout for heavier builds (default 10m)
-```
-
-## Step 4: Get Your Installers
-
-On success, you'll see:
-
-```
-✓ Desktop Deployment: success
-  Profile:  picker-wheel-desktop
-  Scenario: picker-wheel
-  Duration: 4m32s
-
-Steps:
-  ✓ Load profile - loaded profile for scenario picker-wheel
-  ✓ Validate profile - profile validation passed
-  ✓ Assemble manifest - assembled manifest with 2 swaps
-  ✓ Export manifest - wrote manifest to /home/.../platforms/electron/bundle/bundle.json
-  ✓ Build binaries - built 2 service(s) for 3 platform(s)
-  ✓ Generate desktop wrapper - generated Electron wrapper at /home/.../platforms/electron
-  ✓ Build platform installers - built installers for 3 platform(s)
-
-Installers:
-  win:     /home/.../platforms/electron/dist-electron/picker-wheel-1.0.0.msi
-  mac:     /home/.../platforms/electron/dist-electron/picker-wheel-1.0.0.pkg
-  linux:   /home/.../platforms/electron/dist-electron/picker-wheel-1.0.0.AppImage
-```
-
-## Deployment Modes
-
-| Mode | Use Case | Bundle Size |
-|------|----------|-------------|
-| `bundled` | Offline standalone app | Large (100MB+) |
-| `external-server` | Thin client connecting to Vrooli server | Small (~50MB) |
-| `cloud-api` | UI connecting to cloud-hosted API | Small (~50MB) |
-
-## Troubleshooting
-
-### "scenario-to-desktop not available"
-Start the scenario-to-desktop service:
-```bash
-vrooli scenario start scenario-to-desktop
-```
-
-### "fitness score too low"
-Apply dependency swaps to make the scenario desktop-compatible:
-```bash
-deployment-manager swaps list <scenario>
-deployment-manager swaps apply <profile> postgres sqlite
-```
-
-### Build failures
-Check the build logs:
-```bash
-deployment-manager logs <profile> --level error
-```
-
-### Missing UI
-Build the UI first:
-```bash
-cd scenarios/<scenario>/ui && pnpm run build
-```
-
-## Full Workflow Example
-
-```bash
-# 1. Start required services
+# Start the governance and target ramps
 vrooli scenario start deployment-manager
 vrooli scenario start scenario-to-desktop
 
-# 2. Create profile
-deployment-manager profile create myapp-desktop my-scenario --tier 2
-
-# 3. Check and fix fitness
+# Create and inspect a desktop profile
+deployment-manager profile create my-profile my-scenario --tier 2
+deployment-manager analyze my-scenario
 deployment-manager fitness my-scenario --tier 2
-deployment-manager swaps apply myapp-desktop postgres sqlite
 
-# 4. Deploy
-deployment-manager deploy-desktop --profile myapp-desktop
+# Apply a declared, reviewed swap when the target plan requires one
+deployment-manager swaps list my-scenario
+deployment-manager swaps apply <profile-id> postgres sqlite
 
-# 5. Test the installer
-# On Linux:
-./scenarios/my-scenario/platforms/electron/dist-electron/my-scenario-1.0.0.AppImage
-
-# On macOS:
-open ./scenarios/my-scenario/platforms/electron/dist-electron/my-scenario-1.0.0.pkg
-
-# On Windows:
-msiexec /i scenarios\my-scenario\platforms\electron\dist-electron\my-scenario-1.0.0.msi
+# Validate and build the primary Linux target
+deployment-manager validate my-profile --verbose
+deployment-manager deploy-desktop \
+  --profile my-profile \
+  --platforms linux \
+  --timeout 20m
 ```
 
-## Next Steps
+Use `--dry-run` to inspect the plan without building. Add `win` or `mac` only
+when the corresponding artifact and native-validation environment are
+available. A generated package is not proof that the application works on the
+target.
 
-- [Full CLI Reference](cli/deployment-commands.md)
-- [Bundle Manifest Schema](guides/bundle-manifest-schema.md)
-- [Dependency Swapping Guide](guides/dependency-swapping.md)
-- [Telemetry & Analytics](api/telemetry.md)
-- [Troubleshooting Guide](workflows/troubleshooting.md)
+## Choose the deployment mode
+
+| Mode | Use when | Offline claim |
+| --- | --- | --- |
+| `bundled` | Every required dependency has an eligible private artifact | Only after native dependency evidence passes |
+| `external-server` | The desktop shell calls a configured Tier 1 scenario API | No |
+| `cloud-api` | A future cloud API integration is explicitly being developed | Not currently claimable |
+
+For bundled mode, an unsupported required resource is a named blocker. Do not
+omit it to improve a score. For thin-client mode, validate the real route and
+show server-unavailable and authentication states.
+
+## What to inspect before release
+
+1. The target plan identifies every bundled, remote, conditional, and
+   unsupported dependency.
+2. Secret classifications and provisioning routes are explicit; values are
+   never printed into manifests, logs, or evidence.
+3. The artifact, trust metadata, source revision, and target platform match.
+4. Native launch, dependency operation, communication, fallback, and shutdown
+   evidence are attached to the exact artifact.
+5. The release gate records `pass`, `failed`, `degraded`, `unavailable`,
+   `unsupported`, or `not_run` rather than converting missing evidence into a
+   pass.
+
+## Troubleshooting
+
+```bash
+deployment-manager logs <profile-id> --level error
+deployment-manager secrets identify <profile-id>
+deployment-manager secrets validate <profile-id>
+```
+
+For target-specific failures, continue with the [desktop workflow](workflows/desktop-deployment.md),
+the [scenario-to-desktop quickstart](../../scenario-to-desktop/docs/QUICKSTART.md),
+and the [troubleshooting guide](workflows/troubleshooting.md).
+

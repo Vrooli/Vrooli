@@ -30,10 +30,9 @@ import {
 import { useViewportSyncManager } from '../utils/ViewportSyncManager';
 import type {
   ViewportDimensions,
-  ViewportSyncState,
-  ActualViewportOptional,
 } from '../types/viewport';
 import { ViewportContext } from './viewportContext';
+import type { ActualViewportWithSource, ViewportContextValue } from './viewportContext';
 
 // Re-export types for backward compatibility
 export type { ViewportDimensions, ViewportSyncState } from '../types/viewport';
@@ -42,77 +41,11 @@ export type { ViewportDimensions, ViewportSyncState } from '../types/viewport';
  * Viewport with source attribution from the driver.
  * Alias for ActualViewportOptional (width, height, optional source/reason).
  */
-export type ActualViewportWithSource = ActualViewportOptional;
+export type { ActualViewportWithSource, ViewportContextActions, ViewportContextState, ViewportContextValue } from './viewportContext';
 
 // =============================================================================
 // Types
 // =============================================================================
-
-export interface ViewportContextState {
-  /**
-   * Current browser viewport (from container bounds, synced to Playwright).
-   * This is the "source of truth" for what Playwright uses.
-   */
-  browserViewport: ViewportDimensions | null;
-
-  /**
-   * Actual viewport reported by Playwright driver with source attribution.
-   * May differ from browserViewport due to session profile overrides.
-   * Includes `source` and `reason` fields for attribution.
-   */
-  actualViewport: ActualViewportWithSource | null;
-
-  /**
-   * Whether there's a mismatch between requested and actual viewport.
-   */
-  hasMismatch: boolean;
-
-  /**
-   * Reason for viewport mismatch (if any).
-   */
-  mismatchReason: string | null;
-
-  /**
-   * Sync status from ViewportSyncManager.
-   */
-  syncState: ViewportSyncState;
-
-  /**
-   * Session ID being managed.
-   */
-  sessionId: string | null;
-}
-
-export interface ViewportContextActions {
-  /**
-   * Update viewport from container bounds (triggers debounced sync).
-   * Call this from ResizeObserver callbacks.
-   */
-  updateFromBounds: (bounds: ViewportDimensions) => void;
-
-  /**
-   * Set the actual viewport reported by the driver.
-   * Call this when session creation or viewport update returns actual dimensions.
-   */
-  setActualViewport: (viewport: ViewportDimensions | null) => void;
-
-  /**
-   * Force immediate sync to backend (bypasses debounce).
-   */
-  forceSync: () => Promise<void>;
-
-  /**
-   * Reset all viewport state (call on session change).
-   */
-  reset: () => void;
-
-  /**
-   * Get clamped viewport dimensions.
-   */
-  getClampedViewport: (bounds: ViewportDimensions) => ViewportDimensions;
-}
-
-export interface ViewportContextValue extends ViewportContextState, ViewportContextActions {}
 
 // =============================================================================
 // Context

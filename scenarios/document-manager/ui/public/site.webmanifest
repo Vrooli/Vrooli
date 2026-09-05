@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Document Manager",
+  "short_name": "document-manager",
+  "description": "Local-first document ingestion and understanding: tiered parsing, citable anchors, sensitivity-aware routing, and a per-document custody receipt",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

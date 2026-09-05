@@ -1,0 +1,232 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Web Search のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Web Search"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "search": "検索",
+      "findings": "発見事項",
+      "ops": "運用",
+      "settings": "設定",
+      "disputes": "係争"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    },
+    "search": {
+      "title": "検索",
+      "description": "ライブウェブまたはキュレーションされた学習コーパスを検索します。"
+    },
+    "findings": {
+      "title": "発見事項",
+      "description": "自己キュレーションされる引用付きナレッジストアを管理します。"
+    },
+    "disputes": {
+      "title": "係争",
+      "description": "ソースが矛盾する係争中の発見事項を確認し解決します。"
+    },
+    "ops": {
+      "title": "運用",
+      "description": "依存関係のステータスとライブ検索のヘルスシグナル。"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "search": {
+    "placeholder": "ウェブまたは学習を検索…",
+    "submit": "検索",
+    "modeLabel": "ソース",
+    "modeLive": "ライブウェブ",
+    "modeLearnings": "学習",
+    "synthesizeLabel": "回答を合成する",
+    "loading": "検索中…",
+    "error": "検索に失敗しました: {{message}}",
+    "empty": "結果がありません。",
+    "emptyLearnings": "一致する学習がありません。",
+    "method": "メソッド: {{method}}",
+    "cached": "キャッシュされた結果",
+    "fresh": "ライブ結果",
+    "weak": "弱い一致",
+    "resultScore": "スコア {{score}}",
+    "resultEngine": "{{engine}} 経由",
+    "openResult": "結果を新しいタブで開く",
+    "degraded": "ライブ検索が劣化しました: {{reason}}",
+    "engineWarning": "{{count}} 件の検索エンジンが応答していません（{{engines}}）— 結果が不完全な可能性があります。",
+    "synthesisHeading": "合成された回答",
+    "synthesisAbstained": "ソースが不十分か矛盾していたため、回答は合成されませんでした。",
+    "synthesisCitations": "ソース"
+  },
+  "history": {
+    "title": "最近の検索",
+    "empty": "最近の検索はまだありません。検索を実行して履歴を作成してください。",
+    "replay": "この検索を再実行",
+    "clear": "履歴を消去",
+    "modeLive": "ライブ",
+    "modeLearnings": "学習"
+  },
+  "ops": {
+    "dependenciesHeading": "依存関係",
+    "dependenciesLoading": "依存関係を確認中…",
+    "dependenciesError": "依存関係のステータスを読み込めません。",
+    "dependencyConnected": "接続済み",
+    "dependencyDisconnected": "到達不能",
+    "dependencyLatency": "{{latency}} ミリ秒",
+    "noDependencies": "依存関係は報告されていません。",
+    "lastQueryHeading": "直近のライブ検索のヘルス",
+    "lastQueryEmpty": "ライブウェブ検索を実行してこれらのシグナルを表示します。",
+    "lastQueryLabel": "クエリ:",
+    "cachedLabel": "キャッシュ:",
+    "cachedYes": "キャッシュから提供",
+    "cachedNo": "ライブで取得",
+    "degradedLabel": "ステータス:",
+    "degradedYes": "劣化",
+    "degradedNo": "正常",
+    "degradedReasonLabel": "理由:",
+    "resultCountLabel": "結果:"
+  },
+  "findings": {
+    "filterLabel": "フィルター",
+    "filterAll": "すべて",
+    "filterActive": "アクティブ",
+    "filterDisputed": "係争中",
+    "filterSuperseded": "置換済み",
+    "includeArchivedLabel": "置換済みを含む",
+    "loading": "発見事項を読み込み中…",
+    "error": "発見事項を読み込めません: {{message}}",
+    "empty": "このフィルターに一致する発見事項はありません。",
+    "statusActive": "アクティブ",
+    "statusDisputed": "係争中",
+    "statusSuperseded": "置換済み",
+    "statusUnspecified": "不明",
+    "confidenceLabel": "信頼度 {{value}}",
+    "queryLabel": "クエリ: {{query}}",
+    "citationsLabel": "引用",
+    "disputeNoteLabel": "係争メモ: {{note}}",
+    "supersededByLabel": "{{id}} により置換",
+    "ageLabel": "取得: {{age}}",
+    "addHeading": "発見事項を追加",
+    "addClaimLabel": "主張",
+    "addClaimPlaceholder": "この発見事項が主張する内容…",
+    "addConfidenceLabel": "信頼度 (0〜1)",
+    "addQueryLabel": "クエリ",
+    "addQueryPlaceholder": "これを浮上させたクエリ…",
+    "addCitationUrlPlaceholder": "引用 URL",
+    "addCitationTitlePlaceholder": "引用タイトル",
+    "addCitationRow": "引用を追加",
+    "addCitationRemove": "引用を削除",
+    "addSubmit": "発見事項を追加",
+    "addError": "発見事項を追加できませんでした: {{message}}",
+    "claimRequired": "主張は必須です。",
+    "editAction": "編集",
+    "editSave": "保存",
+    "editCancel": "キャンセル",
+    "editClaimLabel": "主張",
+    "editConfidenceLabel": "信頼度 (0〜1)",
+    "editError": "保存できませんでした: {{message}}",
+    "supersedeAction": "置換",
+    "supersedeReplacementPlaceholder": "置換する発見事項 ID",
+    "supersedeReasonPlaceholder": "理由",
+    "supersedeSubmit": "置換",
+    "supersedeError": "置換できませんでした: {{message}}",
+    "flagAction": "フラグ",
+    "flagReasonPlaceholder": "なぜ係争中ですか？",
+    "flagSubmit": "係争中としてフラグ",
+    "flagError": "フラグを付けられませんでした: {{message}}",
+    "cancel": "キャンセル",
+    "pruneHeading": "置換済みを整理",
+    "pruneDryRun": "整理をプレビュー",
+    "pruneApply": "今すぐ整理",
+    "pruneError": "整理に失敗しました: {{message}}",
+    "pruneDryRunResult": "{{count}} 件の発見事項が整理されます。",
+    "pruneApplied": "{{count}} 件の発見事項が整理されました。",
+    "effectivenessHeading": "利用効果",
+    "effectivenessHint": "有効スコア = 経年減衰した信頼度 × 利用係数。一度も表示されず完全に減衰した発見事項はGCの置き換え候補です。",
+    "effectivenessLoading": "効果を読み込み中…",
+    "effectivenessError": "効果を読み込めませんでした: {{message}}",
+    "effectivenessEmpty": "まだランク付けする発見事項がありません。",
+    "effectivenessSurfaced": "表示 {{count}} 回",
+    "effectivenessUsed": "使用 {{count}} 回",
+    "effectivenessNeverSurfaced": "未表示",
+    "effectivenessLastSurfaced": "最終表示 {{when}}",
+    "effectivenessScore": "スコア {{value}}"
+  },
+  "disputes": {
+    "loading": "係争を読み込み中…",
+    "error": "係争を読み込めませんでした: {{message}}",
+    "empty": "係争中の発見事項はありません。ナレッジストアは一致しています。",
+    "noteLabel": "ソースの矛盾: {{note}}",
+    "resolveAction": "解決",
+    "resolutionLabel": "解決方法",
+    "resolutionKeep": "保持（アクティブに戻す）",
+    "resolutionSupersede": "置き換え",
+    "replacementPlaceholder": "置き換える発見事項のID",
+    "reasonPlaceholder": "解決の理由",
+    "resolveSubmit": "解決を適用",
+    "cancel": "キャンセル",
+    "resolveError": "解決できませんでした: {{message}}",
+    "dismissAction": "却下",
+    "dismissError": "却下できませんでした: {{message}}",
+    "reresearchAction": "再調査",
+    "reresearchStarted": "L3 実行を開始しました: {{runId}}",
+    "reresearchError": "再調査を開始できませんでした: {{message}}"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

@@ -1,0 +1,582 @@
+package audit
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+
+	"connectrpc.com/connect"
+
+	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
+	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit/audit_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
+
+	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
+)
+
+// Exit codes (per L5-readiness plan §7 phase 3 step 4).
+const (
+	ExitClean      = 0
+	ExitFindings   = 1
+	ExitToolError  = 2
+	ExitUsageError = 3
+)
+
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client auditconnect.AuditServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		core:   core,
+		client: auditconnect.NewAuditServiceClient(httpClient, baseURL),
+	}
+}
+
+// run orchestrates an audit and translates the response outcome into
+// a process exit code. On a successful RPC, this function calls
+// os.Exit directly with one of {0,1,2}; it returns an error (which
+// the CLI runtime translates to exit 1) only on a transport-level
+// failure where we have no Outcome to map. Usage errors (invalid
+// flag values) bypass the RPC and exit 3.
+func (h *handlers) run(ctx cliapp.RunContext) error {
+	scenario := strings.TrimSpace(ctx.Positional("scenario"))
+	if scenario == "" {
+		fmt.Fprintln(os.Stderr, "audit run: <scenario> is required")
+		os.Exit(ExitUsageError)
+	}
+	failOnStr := strings.ToLower(strings.TrimSpace(ctx.Flag("fail-on")))
+	failOn, ok := parseFailOn(failOnStr)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "audit run: invalid --fail-on=%q (want info|warn|error|blocker)\n", failOnStr)
+		os.Exit(ExitUsageError)
+	}
+	includeTypes := splitCSV(ctx.Flag("include-types"))
+	excludeTypes := splitCSV(ctx.Flag("exclude-types"))
+	asJSON := ctx.JSON()
+	allowLow := ctx.BoolFlag("allow-low-authority")
+
+	skipTS := ctx.BoolFlag("skip-ts")
+	resp, err := h.client.Run(context.Background(), connect.NewRequest(&auditv1.AuditRunRequest{
+		Scenario:          scenario,
+		FailOn:            failOn,
+		IncludeTypes:      includeTypes,
+		ExcludeTypes:      excludeTypes,
+		AllowLowAuthority: allowLow,
+		SkipTs:            skipTS,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("audit %q", scenario), err, nil)
+	}
+	msg := resp.Msg
+
+	if asJSON {
+		out, mErr := json.MarshalIndent(jsonReport(msg), "", "  ")
+		if mErr != nil {
+			return fmt.Errorf("marshal audit report: %w", mErr)
+		}
+		fmt.Println(string(out))
+	} else {
+		renderHuman(msg)
+	}
+
+	os.Exit(exitCodeFor(msg.GetOutcome()))
+	return nil // unreachable
+}
+
+// runAll executes a multi-scenario sweep. Exit codes:
+//
+//	0 — every scenario clean.
+//	1 — at least one scenario reported findings.
+//	2 — at least one scenario reported tool_error (and none reported findings).
+//	3 — invalid flag value (handled before the RPC call).
+func (h *handlers) runAll(ctx cliapp.RunContext) error {
+	failOnStr := strings.ToLower(strings.TrimSpace(ctx.Flag("fail-on")))
+	failOn, ok := parseFailOn(failOnStr)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "audit run-all: invalid --fail-on=%q (want info|warn|error|blocker)\n", failOnStr)
+		os.Exit(ExitUsageError)
+	}
+	concurrency := 0
+	if v := strings.TrimSpace(ctx.Flag("concurrency")); v != "" {
+		if _, err := fmt.Sscanf(v, "%d", &concurrency); err != nil || concurrency < 0 {
+			fmt.Fprintf(os.Stderr, "audit run-all: invalid --concurrency=%q\n", v)
+			os.Exit(ExitUsageError)
+		}
+	}
+	asJSON := ctx.JSON()
+	allowLow := ctx.BoolFlag("allow-low-authority")
+
+	resp, err := h.client.RunAll(context.Background(), connect.NewRequest(&auditv1.AuditRunAllRequest{
+		FailOn:                     failOn,
+		IncludeTypes:               splitCSV(ctx.Flag("include-types")),
+		ExcludeTypes:               splitCSV(ctx.Flag("exclude-types")),
+		IncludeScenarios:           splitCSV(ctx.Flag("include-scenarios")),
+		ExcludeScenarios:           splitCSV(ctx.Flag("exclude-scenarios")),
+		AllowLowAuthority:          allowLow,
+		AllowLowAuthorityScenarios: splitCSV(ctx.Flag("allow-low-authority-scenarios")),
+		Concurrency:                int32(concurrency),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("audit run-all", err, nil)
+	}
+	msg := resp.Msg
+
+	if asJSON {
+		out, mErr := json.MarshalIndent(sweepJSON(msg), "", "  ")
+		if mErr != nil {
+			return fmt.Errorf("marshal sweep: %w", mErr)
+		}
+		fmt.Println(string(out))
+	} else {
+		renderSweepHuman(msg)
+	}
+
+	os.Exit(sweepExitCode(msg))
+	return nil
+}
+
+func sweepExitCode(msg *auditv1.AuditRunAllResponse) int {
+	hasFindings := false
+	hasTool := false
+	for _, r := range msg.GetReports() {
+		switch r.GetOutcome() {
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
+			hasFindings = true
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+			hasTool = true
+		}
+	}
+	if hasFindings {
+		return ExitFindings
+	}
+	if hasTool {
+		return ExitToolError
+	}
+	return ExitClean
+}
+
+func renderSweepHuman(msg *auditv1.AuditRunAllResponse) {
+	fmt.Printf("Sweep — scenarios=%d findings=%d suppressed=%d duration=%s\n",
+		msg.GetTotalScenarios(), msg.GetTotalFindings(), msg.GetTotalSuppressed(),
+		msg.GetDuration().AsDuration())
+	if bo := msg.GetByOutcome(); len(bo) > 0 {
+		fmt.Print("  by outcome:")
+		for _, k := range []string{"clean", "findings", "tool_error"} {
+			if c := bo[k]; c > 0 {
+				fmt.Printf(" %s=%d", k, c)
+			}
+		}
+		fmt.Println()
+	}
+	if bs := msg.GetBySeverity(); len(bs) > 0 {
+		fmt.Print("  by severity:")
+		for _, sev := range []string{"blocker", "error", "warn", "info"} {
+			if c := bs[sev]; c > 0 {
+				fmt.Printf(" %s=%d", sev, c)
+			}
+		}
+		fmt.Println()
+	}
+	for _, r := range msg.GetReports() {
+		marker := ""
+		switch r.GetOutcome() {
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
+			marker = "✗"
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+			marker = "!"
+		case auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+			marker = "~"
+		default:
+			marker = "✓"
+		}
+		fmt.Printf("  %s %s outcome=%s findings=%d\n",
+			marker, r.GetScenario(), outcomeName(r.GetOutcome()), r.GetTotalFindings())
+		if r.GetError() != "" {
+			fmt.Printf("      error: %s\n", r.GetError())
+		}
+	}
+}
+
+type sweepJSONT struct {
+	TotalScenarios  int32            `json:"total_scenarios"`
+	TotalFindings   int32            `json:"total_findings"`
+	TotalSuppressed int32            `json:"total_suppressed,omitempty"`
+	BySeverity      map[string]int32 `json:"by_severity,omitempty"`
+	ByOutcome       map[string]int32 `json:"by_outcome,omitempty"`
+	DurationMS      int64            `json:"duration_ms"`
+	Reports         []jsonReportT    `json:"reports,omitempty"`
+}
+
+func sweepJSON(msg *auditv1.AuditRunAllResponse) sweepJSONT {
+	out := sweepJSONT{
+		TotalScenarios:  msg.GetTotalScenarios(),
+		TotalFindings:   msg.GetTotalFindings(),
+		TotalSuppressed: msg.GetTotalSuppressed(),
+		BySeverity:      msg.GetBySeverity(),
+		ByOutcome:       msg.GetByOutcome(),
+		DurationMS:      msg.GetDuration().AsDuration().Milliseconds(),
+	}
+	for _, r := range msg.GetReports() {
+		out.Reports = append(out.Reports, jsonReport(r))
+	}
+	return out
+}
+
+func exitCodeFor(o auditv1.AuditOutcome) int {
+	switch o {
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN,
+		auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+		// PARTIAL exits 0 with a warning banner — at least one analysis
+		// layer was skipped but the remaining layers were clean.
+		return ExitClean
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
+		return ExitFindings
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+		return ExitToolError
+	default:
+		return ExitToolError
+	}
+}
+
+func parseFailOn(in string) (sharedv1.Severity, bool) {
+	switch in {
+	case "", "warn":
+		return sharedv1.Severity_SEVERITY_WARN, true
+	case "info":
+		return sharedv1.Severity_SEVERITY_INFO, true
+	case "error":
+		return sharedv1.Severity_SEVERITY_ERROR, true
+	case "blocker":
+		return sharedv1.Severity_SEVERITY_BLOCKER, true
+	default:
+		return sharedv1.Severity_SEVERITY_UNSPECIFIED, false
+	}
+}
+
+func splitCSV(in string) []string {
+	in = strings.TrimSpace(in)
+	if in == "" {
+		return nil
+	}
+	parts := strings.Split(in, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func renderHuman(msg *auditv1.AuditRunResponse) {
+	fmt.Printf("Audit %s — outcome=%s findings=%d duration=%s\n",
+		msg.GetScenario(), outcomeName(msg.GetOutcome()), msg.GetTotalFindings(), msg.GetDuration().AsDuration())
+	if reason := msg.GetOutcomeReason(); reason != "" {
+		fmt.Printf("  reason: %s\n", reason)
+	}
+	if msg.GetError() != "" {
+		fmt.Printf("  error: %s\n", msg.GetError())
+		return
+	}
+	g := msg.GetGraph()
+	d := msg.GetDomains()
+	fmt.Printf("  graph: snapshot=%s files=%d packages=%d imports=%d freshness=%s\n",
+		g.GetSnapshotId(), g.GetFileCount(), g.GetPackageCount(), g.GetImportEdgeCount(),
+		freshnessName(msg.GetSnapshotFreshness()))
+	fmt.Printf("  domains: authority=%s confidence=%s count=%d\n",
+		d.GetAuthority(), d.GetConfidence(), d.GetDomainCount())
+	if c := msg.GetCoverage(); c != nil {
+		fmt.Printf("  coverage: files=%d auto_place=%d(%.1f%%) suggest=%d(%.1f%%) conflict=%d(%.1f%%) all_abstained=%d(%.1f%%) authority=%s\n",
+			c.GetTotalFiles(),
+			c.GetAutoPlace().GetCount(), c.GetAutoPlace().GetPercent(),
+			c.GetSuggest().GetCount(), c.GetSuggest().GetPercent(),
+			c.GetConflict().GetCount(), c.GetConflict().GetPercent(),
+			c.GetAllAbstained().GetCount(), c.GetAllAbstained().GetPercent(),
+			c.GetAuthorityConfidence())
+	}
+	if s := msg.GetSuppressedFindings(); s > 0 {
+		fmt.Printf("  suppressed: %d (sanctioned by // arch:allow)\n", s)
+	}
+	if len(msg.GetBySeverity()) > 0 {
+		fmt.Print("  by severity:")
+		for _, sev := range []string{"blocker", "error", "warn", "info"} {
+			if c := msg.GetBySeverity()[sev]; c > 0 {
+				fmt.Printf(" %s=%d", sev, c)
+			}
+		}
+		fmt.Println()
+	}
+	if bd := msg.GetByDomain(); len(bd) > 0 {
+		fmt.Print("  by domain:")
+		keys := make([]string, 0, len(bd))
+		for k := range bd {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Printf(" %s=%d", k, bd[k])
+		}
+		fmt.Println()
+	}
+	if maturity := maturityreport.BuildMaturityListReport(msg.GetAssessment()); len(maturity.Summary) > 0 {
+		for _, line := range maturity.Summary {
+			fmt.Printf("  %s\n", line)
+		}
+	}
+	renderCategoryMatrix(msg.GetCategories())
+	for _, f := range msg.GetFindings() {
+		sid := f.GetStableId()
+		if sid == "" {
+			sid = f.GetId()
+		}
+		fmt.Printf("  [%s/%s] %s %s — %s\n", severityName(f.GetSeverity()), findingClassName(f.GetFindingClass()), sid, f.GetType(), f.GetHeadline())
+	}
+}
+
+func renderCategoryMatrix(categories []*auditv1.AuditCategory) {
+	if len(categories) == 0 {
+		return
+	}
+	fmt.Println("  score matrix:")
+	for _, category := range categories {
+		fmt.Printf("    %-22s %s %.0f%%\n", category.GetLabel(), progressBar(category.GetScore(), 16), category.GetScore()*100)
+	}
+	var advisory []string
+	for _, category := range categories {
+		for _, item := range category.GetTopItems() {
+			advisory = append(advisory, fmt.Sprintf("%s: [%s/%s] %s",
+				category.GetLabel(), severityName(item.GetSeverity()), findingClassName(item.GetFindingClass()), item.GetHeadline()))
+			if len(advisory) == 5 {
+				break
+			}
+		}
+		if len(advisory) == 5 {
+			break
+		}
+	}
+	if len(advisory) == 0 {
+		return
+	}
+	fmt.Println("  top things to consider:")
+	for _, item := range advisory {
+		fmt.Printf("    - %s\n", item)
+	}
+}
+
+func progressBar(score float64, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if score < 0 {
+		score = 0
+	}
+	if score > 1 {
+		score = 1
+	}
+	filled := int(score*float64(width) + 0.5)
+	if filled > width {
+		filled = width
+	}
+	return "[" + strings.Repeat("#", filled) + strings.Repeat("-", width-filled) + "]"
+}
+
+func freshnessName(f auditv1.SnapshotFreshness) string {
+	switch f {
+	case auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_CACHED:
+		return "cached"
+	case auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_RE_EXTRACTED:
+		return "re-extracted"
+	case auditv1.SnapshotFreshness_SNAPSHOT_FRESHNESS_FRESH:
+		return "fresh"
+	default:
+		return "unspecified"
+	}
+}
+
+func outcomeName(o auditv1.AuditOutcome) string {
+	switch o {
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN:
+		return "clean"
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS:
+		return "findings"
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+		return "tool_error"
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+		return "partial"
+	default:
+		return "unspecified"
+	}
+}
+
+func severityName(s sharedv1.Severity) string {
+	switch s {
+	case sharedv1.Severity_SEVERITY_BLOCKER:
+		return "blocker"
+	case sharedv1.Severity_SEVERITY_ERROR:
+		return "error"
+	case sharedv1.Severity_SEVERITY_WARN:
+		return "warn"
+	case sharedv1.Severity_SEVERITY_INFO:
+		return "info"
+	default:
+		return "unspecified"
+	}
+}
+
+func findingClassName(c sharedv1.FindingClass) string {
+	switch c {
+	case sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC:
+		return "deterministic"
+	case sharedv1.FindingClass_FINDING_CLASS_HEURISTIC:
+		return "heuristic"
+	default:
+		return "unspecified"
+	}
+}
+
+// jsonReport renders the proto message into a stable-field-name struct
+// for --json consumers (CI pipelines, scripts). Avoids leaking proto
+// camelCase field names by hand-mapping the user-visible shape.
+type jsonReportT struct {
+	Scenario           string           `json:"scenario"`
+	Outcome            string           `json:"outcome"`
+	OutcomeReason      string           `json:"outcome_reason,omitempty"`
+	Error              string           `json:"error,omitempty"`
+	TotalFindings      int32            `json:"total_findings"`
+	SuppressedFindings int32            `json:"suppressed_findings,omitempty"`
+	SnapshotFreshness  string           `json:"snapshot_freshness,omitempty"`
+	BySeverity         map[string]int32 `json:"by_severity,omitempty"`
+	ByType             map[string]int32 `json:"by_type,omitempty"`
+	ByDomain           map[string]int32 `json:"by_domain,omitempty"`
+	Findings           []jsonFinding    `json:"findings,omitempty"`
+	Domains            map[string]any   `json:"domains"`
+	Graph              map[string]any   `json:"graph"`
+	Coverage           map[string]any   `json:"coverage,omitempty"`
+	Categories         []jsonCategory   `json:"categories,omitempty"`
+	Assessment         any              `json:"assessment,omitempty"`
+	DurationMS         int64            `json:"duration_ms"`
+}
+
+type jsonCategory struct {
+	Key      string             `json:"key"`
+	Label    string             `json:"label"`
+	Score    float64            `json:"score"`
+	TopItems []jsonCategoryItem `json:"top_items,omitempty"`
+}
+
+type jsonCategoryItem struct {
+	ID           string   `json:"id"`
+	StableID     string   `json:"stable_id,omitempty"`
+	Type         string   `json:"type"`
+	Subtype      string   `json:"subtype,omitempty"`
+	Severity     string   `json:"severity"`
+	FindingClass string   `json:"finding_class"`
+	Locations    []string `json:"locations,omitempty"`
+	Headline     string   `json:"headline"`
+}
+
+type jsonFinding struct {
+	ID         string   `json:"id"`
+	StableID   string   `json:"stable_id,omitempty"`
+	InstanceID string   `json:"instance_id,omitempty"`
+	Detector   string   `json:"detector"`
+	Type       string   `json:"type"`
+	Subtype    string   `json:"subtype,omitempty"`
+	Severity   string   `json:"severity"`
+	Class      string   `json:"finding_class"`
+	Locations  []string `json:"locations,omitempty"`
+	Domains    []string `json:"domains,omitempty"`
+	Headline   string   `json:"headline"`
+}
+
+func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
+	out := jsonReportT{
+		Scenario:           msg.GetScenario(),
+		Outcome:            outcomeName(msg.GetOutcome()),
+		OutcomeReason:      msg.GetOutcomeReason(),
+		Error:              msg.GetError(),
+		TotalFindings:      msg.GetTotalFindings(),
+		SuppressedFindings: msg.GetSuppressedFindings(),
+		SnapshotFreshness:  freshnessName(msg.GetSnapshotFreshness()),
+		BySeverity:         msg.GetBySeverity(),
+		ByType:             msg.GetByType(),
+		ByDomain:           msg.GetByDomain(),
+		DurationMS:         msg.GetDuration().AsDuration().Milliseconds(),
+		Domains: map[string]any{
+			"authority":    msg.GetDomains().GetAuthority(),
+			"confidence":   msg.GetDomains().GetConfidence(),
+			"domain_count": msg.GetDomains().GetDomainCount(),
+		},
+		Graph: map[string]any{
+			"snapshot_id":       msg.GetGraph().GetSnapshotId(),
+			"file_count":        msg.GetGraph().GetFileCount(),
+			"package_count":     msg.GetGraph().GetPackageCount(),
+			"import_edge_count": msg.GetGraph().GetImportEdgeCount(),
+		},
+		Assessment: msg.GetAssessment(),
+	}
+	if c := msg.GetCoverage(); c != nil {
+		out.Coverage = map[string]any{
+			"total_files":          c.GetTotalFiles(),
+			"authority_confidence": c.GetAuthorityConfidence(),
+			"auto_place":           coverageBucketJSON(c.GetAutoPlace()),
+			"suggest":              coverageBucketJSON(c.GetSuggest()),
+			"conflict":             coverageBucketJSON(c.GetConflict()),
+			"all_abstained":        coverageBucketJSON(c.GetAllAbstained()),
+		}
+	}
+	for _, f := range msg.GetFindings() {
+		out.Findings = append(out.Findings, jsonFinding{
+			ID:         f.GetId(),
+			StableID:   f.GetStableId(),
+			InstanceID: f.GetInstanceId(),
+			Detector:   f.GetDetector(),
+			Type:       f.GetType(),
+			Subtype:    f.GetSubtype(),
+			Severity:   severityName(f.GetSeverity()),
+			Class:      findingClassName(f.GetFindingClass()),
+			Locations:  f.GetLocations(),
+			Domains:    f.GetDomains(),
+			Headline:   f.GetHeadline(),
+		})
+	}
+	for _, category := range msg.GetCategories() {
+		out.Categories = append(out.Categories, categoryJSON(category))
+	}
+	return out
+}
+
+func categoryJSON(category *auditv1.AuditCategory) jsonCategory {
+	out := jsonCategory{
+		Key:   category.GetKey(),
+		Label: category.GetLabel(),
+		Score: category.GetScore(),
+	}
+	for _, item := range category.GetTopItems() {
+		out.TopItems = append(out.TopItems, jsonCategoryItem{
+			ID:           item.GetId(),
+			StableID:     item.GetStableId(),
+			Type:         item.GetType(),
+			Subtype:      item.GetSubtype(),
+			Severity:     severityName(item.GetSeverity()),
+			FindingClass: findingClassName(item.GetFindingClass()),
+			Locations:    item.GetLocations(),
+			Headline:     item.GetHeadline(),
+		})
+	}
+	return out
+}
+
+func coverageBucketJSON(b *auditv1.CoverageBucket) map[string]any {
+	return map[string]any{
+		"count":   b.GetCount(),
+		"percent": b.GetPercent(),
+	}
+}

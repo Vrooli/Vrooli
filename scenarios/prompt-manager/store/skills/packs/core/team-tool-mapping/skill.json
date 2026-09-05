@@ -1,12 +1,32 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "team-tool-mapping",
-  "name": "Team Tool Mapping",
+  "createdAt": "2026-03-19T00:00:00Z",
   "description": "Governance for equipping teams with scenario-based tool skills using lazy evaluation to generate honest demand signals for development prioritization",
+  "entry": "SKILL.md",
+  "icon": "link",
+  "id": "team-tool-mapping",
+  "kind": "skill",
   "modes": [
     "meta"
   ],
+  "name": "Team Tool Mapping",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager graph",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager backlog"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "skill",
     "governance",
@@ -14,10 +34,5 @@
     "tools",
     "demand-signals"
   ],
-  "icon": "link",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-03-19T00:00:00Z",
   "updatedAt": "2026-03-19T00:00:00Z"
 }

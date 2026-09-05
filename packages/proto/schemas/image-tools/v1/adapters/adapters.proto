@@ -1,0 +1,289 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.adapters;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/adapters;adapters_v1";
+
+// =============================================================================
+// ADAPTERS DOMAIN — declarative conditioning-adapter catalog (LoRA / ControlNet
+// / IP-Adapter)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for AdaptersService: the read, enable/disable, install, and
+// guided-import surface over the conditioning-adapter catalog
+// (api/internal/adapters) — the sibling of the model catalog. An adapter MODIFIES
+// an existing operation on a compatible base model (it serves no operation of its
+// own); compatibility is data (adapter.architecture == model.architecture). The
+// seed (adapters.seed.json) is the read-only baseline; enabled/install/custom
+// state is overlaid from SQLite.
+//
+// No vaporware: every adapter is Ready=false until an attended GPU run proves its
+// kind×architecture (plan Phases 4–6); the resolver/picker never offer a non-Ready
+// adapter for execution. This service exposes the catalog; execution wiring lands
+// with the request/resolver conditioning work (plan Phase 3+).
+//
+// Consumed by:
+//   - API: handlers/adapters/connect_handler.go implements AdaptersServiceHandler.
+//   - CLI: cli/domains/adapters calls the generated Connect-Go client
+//          (`adapters list/get/install/remove/import/doctor/compatible`).
+//   - UI:  the import wizard reuses the model-import flow, kind-aware.
+// =============================================================================
+
+service AdaptersService {
+  // ListAdapters returns catalog entries, optionally filtered by kind and/or
+  // compatible architecture.
+  rpc ListAdapters(ListAdaptersRequest) returns (ListAdaptersResponse);
+
+  // GetAdapter returns one catalog entry by id.
+  rpc GetAdapter(GetAdapterRequest) returns (GetAdapterResponse);
+
+  // SetAdapterEnabled toggles an adapter's runtime-enabled state (persisted in
+  // the SQLite overlay) and returns the updated entry.
+  rpc SetAdapterEnabled(SetAdapterEnabledRequest) returns (SetAdapterEnabledResponse);
+
+  // InstallAdapter downloads an adapter's weights as a durable job (checksum
+  // pinned on first download, disk space checked first). Returns the job id +
+  // ETA; the caller blocks once on JobsService.WaitJob. An already-installed
+  // adapter returns already_installed=true with no job.
+  rpc InstallAdapter(InstallAdapterRequest) returns (InstallAdapterResponse);
+
+  // RemoveAdapter deletes an adapter's downloaded weights and clears its install
+  // record. A local adapter is unlinked; its referenced path is never deleted.
+  rpc RemoveAdapter(RemoveAdapterRequest) returns (RemoveAdapterResponse);
+
+  // InspectAdapterSource dry-runs a guided import: it inspects a HuggingFace repo
+  // id (or a direct weight URL / local path) WITHOUT installing anything, and
+  // returns the inferred kind, the inferred compatible architecture
+  // (+confidence/evidence the user confirms), license/NSFW, approximate size, and
+  // the proposed catalog entry.
+  rpc InspectAdapterSource(InspectAdapterSourceRequest) returns (InspectAdapterSourceResponse);
+
+  // ImportAdapter composes inspect → operator-confirmed fields (kind/architecture/
+  // preprocessor/attestation) → an add-only custom entry → a durable install job
+  // (mirrors InstallAdapter). Imports default to local tier with a user-imported
+  // provenance label; public/BYOK serving requires attest_commercial_rights.
+  rpc ImportAdapter(ImportAdapterRequest) returns (ImportAdapterResponse);
+
+  // ListCompatibleAdapters returns every catalog adapter compatible with a base
+  // model (by architecture), annotated with enabled/installed/ready state so the
+  // picker can show why an adapter is or is not yet offerable. Until a kind×arch
+  // is proven (plan Phase 4+) every entry is ready=false.
+  rpc ListCompatibleAdapters(ListCompatibleAdaptersRequest) returns (ListCompatibleAdaptersResponse);
+
+  // DoctorCatalog checks adapter-catalog integrity: enabled adapters must be
+  // installable (a concrete fetch strategy; repo sources pinned), conditional-
+  // commercial adapters must not be enabled, and checksum metadata must cohere.
+  rpc DoctorCatalog(DoctorCatalogRequest) returns (DoctorCatalogResponse);
+}
+
+// CommercialUse classifies an adapter's commercial-use license posture (mirrors
+// the model catalog's enum).
+enum CommercialUse {
+  COMMERCIAL_USE_UNSPECIFIED = 0;
+  COMMERCIAL_USE_YES = 1;
+  COMMERCIAL_USE_NO = 2;
+  COMMERCIAL_USE_CONDITIONAL = 3;
+}
+
+// CapabilityLabels carries the safety/license metadata surfaced to operators.
+message CapabilityLabels {
+  bool nsfw_capable = 1;
+  string license = 2;
+  CommercialUse commercial_use = 3;
+  string commercial_use_notes = 4;
+  string base_model_lineage = 5;
+  string known_risks = 6;
+  // provenance records how the entry entered the catalog ("" for seed,
+  // "user-imported" for guided-import entries).
+  string provenance = 7;
+}
+
+// ScaleRange bounds an adapter's conditioning strength + its default.
+message ScaleRange {
+  double min = 1;
+  double max = 2;
+  double default = 3;
+}
+
+// InstallState is an adapter's on-disk weight status.
+message InstallState {
+  bool installed = 1;
+  string path = 2;
+  string checksum = 3;
+  uint64 size_bytes = 4;
+  string installed_at = 5;
+}
+
+// Adapter is one catalog entry: a conditioning modifier compatible with exactly
+// one base architecture. Mirrors api/internal/adapters.Adapter.
+message Adapter {
+  string id = 1;
+  string name = 2;
+  // kind is "lora" | "controlnet" | "ip-adapter".
+  string kind = 3;
+  // architecture is the single base architecture this adapter conditions
+  // (compatibility is architecture equality with the chosen model).
+  string architecture = 4;
+  // weight is the consent weight this adapter contributes (none|low|high); the
+  // effective op weight is max(op, adapters...).
+  string weight = 5;
+  // preprocessor is the ControlNet control-image derivation
+  // (canny|depth|pose|segment|none); empty for non-ControlNet kinds.
+  string preprocessor = 6;
+  ScaleRange scale_range = 7;
+  int32 size_mb_approx = 8;
+  CapabilityLabels capability_labels = 9;
+  // ready: execution proven on this architecture by an attended GPU run. Until
+  // then the resolver/picker never offer it (no vaporware).
+  bool ready = 10;
+  // pending explains, for a not-ready adapter, what blocks proving it.
+  string pending = 11;
+  // enabled is the effective enabled state (SQLite overlay over the seed default).
+  bool enabled = 12;
+  // install is the on-disk weight status.
+  InstallState install = 13;
+  // custom is true for operator-registered / imported entries (not in the seed).
+  bool custom = 14;
+}
+
+message ListAdaptersRequest {
+  // Optional kind filter ("lora" | "controlnet" | "ip-adapter"); empty = all.
+  string kind = 1;
+  // Optional architecture filter (e.g. "sd15", "sdxl"); empty = all.
+  string architecture = 2;
+}
+
+message ListAdaptersResponse {
+  repeated Adapter adapters = 1;
+}
+
+message GetAdapterRequest {
+  string id = 1;
+}
+
+message GetAdapterResponse {
+  Adapter adapter = 1;
+}
+
+message SetAdapterEnabledRequest {
+  string id = 1;
+  bool enabled = 2;
+}
+
+message SetAdapterEnabledResponse {
+  Adapter adapter = 1;
+}
+
+message InstallAdapterRequest {
+  string id = 1;
+}
+
+message InstallAdapterResponse {
+  string job_id = 1;
+  int32 eta_seconds = 2;
+  int32 size_mb_approx = 3;
+  bool already_installed = 4;
+}
+
+message RemoveAdapterRequest {
+  string id = 1;
+}
+
+message RemoveAdapterResponse {
+  bool removed = 1;
+}
+
+// KindInference is the proposed adapter kind for an inspected source.
+message KindInference {
+  // kind is "lora" | "controlnet" | "ip-adapter", or "" when unrecognizable
+  // (the wizard then requires an explicit pick).
+  string kind = 1;
+  string evidence = 2;
+}
+
+// ArchitectureInference is the proposed compatible architecture for a source.
+message ArchitectureInference {
+  string architecture = 1;
+  // confidence: "none" | "low" | "medium" | "high".
+  string confidence = 2;
+  string evidence = 3;
+}
+
+message InspectAdapterSourceRequest {
+  // A HuggingFace repo id ("org/name"), a direct weight URL, or a local path.
+  string source = 1;
+}
+
+message InspectAdapterSourceResponse {
+  string source = 1;
+  string repo_id = 2;
+  string revision = 3;
+  KindInference kind = 4;
+  ArchitectureInference architecture = 5;
+  string license = 6;
+  bool nsfw = 7;
+  uint64 size_bytes = 8;
+  // The catalog entry that WOULD be added (pre-confirmation).
+  Adapter proposed = 9;
+}
+
+message ImportAdapterRequest {
+  string source = 1;
+  // Operator-confirmed id for the new entry (must not collide with a seed adapter).
+  string id = 2;
+  string name = 3;
+  // Operator-confirmed kind. REQUIRED when inference is ambiguous; overrides it
+  // otherwise.
+  string kind = 4;
+  // Operator-confirmed compatible architecture. REQUIRED when inference returned
+  // "none"; overrides it otherwise.
+  string architecture = 5;
+  // ControlNet preprocessor (ignored for other kinds).
+  string preprocessor = 6;
+  // Attest commercial rights to allow public/BYOK serving (decision D4).
+  bool attest_commercial_rights = 7;
+}
+
+message ImportAdapterResponse {
+  Adapter adapter = 1;
+  string job_id = 2;
+  int32 eta_seconds = 3;
+  bool already_installed = 4;
+}
+
+message ListCompatibleAdaptersRequest {
+  // model_id resolves the model's architecture; compatible adapters are returned.
+  string model_id = 1;
+  // architecture is an alternative to model_id (one of the two must be set).
+  string architecture = 2;
+}
+
+message ListCompatibleAdaptersResponse {
+  // The architecture compatibility was computed against.
+  string architecture = 1;
+  repeated Adapter adapters = 2;
+}
+
+// CatalogFindingSeverity classifies a catalog doctor finding.
+enum CatalogFindingSeverity {
+  CATALOG_FINDING_SEVERITY_UNSPECIFIED = 0;
+  CATALOG_FINDING_SEVERITY_ERROR = 1;
+  CATALOG_FINDING_SEVERITY_WARNING = 2;
+}
+
+// CatalogFinding is one actionable adapter-catalog integrity finding.
+message CatalogFinding {
+  CatalogFindingSeverity severity = 1;
+  string code = 2;
+  string adapter_id = 3;
+  string message = 4;
+}
+
+message DoctorCatalogRequest {}
+
+message DoctorCatalogResponse {
+  bool ok = 1;
+  repeated CatalogFinding findings = 2;
+}

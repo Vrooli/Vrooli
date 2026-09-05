@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page cpu.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "cpu",
+      "surface": "experience-cpu"
+    },
+    "name": "experience-cpu-spec-smoke",
+    "requirement": "OT-P0-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open CPU Metrics"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "system-monitor",
+          "scenario_path": "/metrics/cpu",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-cpu"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/cpu",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-cpu-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Mode breakdown visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/cpu-mode-breakdown", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      },
+      "id": "wait-cpu-mode-breakdown"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Stall panel visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/cpu-stall-panel", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      },
+      "id": "wait-cpu-stall-panel"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Attribution panel visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/cpu-attribution-panel", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      },
+      "id": "wait-cpu-attribution-panel"
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

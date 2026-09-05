@@ -49,6 +49,7 @@ import {
   type AgentRunEvent,
   type RepoFileStats,
 } from "../lib/api";
+import { fetchExternalUrl } from "../lib/api-internals";
 import { buildChatMessages } from "./AgentTabTypes";
 
 const AGENT_PROFILE_KEY = "gct.agent.defaultProfileId";
@@ -121,11 +122,10 @@ export function AgentTab({
   useEffect(() => {
     if (!agentManagerAvailable) return;
     let cancelled = false;
-    fetch(`/embedded/agent-manager/external-url`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!cancelled && data?.url) {
-          setAgentManagerBaseUrl(data.url as string);
+    fetchExternalUrl(`/embedded/agent-manager/external-url`)
+      .then((url) => {
+        if (!cancelled && url) {
+          setAgentManagerBaseUrl(url);
         }
       })
       .catch(() => { /* keep fallback */ });
@@ -137,11 +137,10 @@ export function AgentTab({
   useEffect(() => {
     if (!workspaceSandboxAvailable) return;
     let cancelled = false;
-    fetch(`/embedded/workspace-sandbox/external-url`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!cancelled && data?.url) {
-          setWorkspaceSandboxBaseUrl(data.url as string);
+    fetchExternalUrl(`/embedded/workspace-sandbox/external-url`)
+      .then((url) => {
+        if (!cancelled && url) {
+          setWorkspaceSandboxBaseUrl(url);
         }
       })
       .catch(() => { /* keep fallback */ });
@@ -185,7 +184,7 @@ export function AgentTab({
       );
       if (active) setActiveRunId(active.id);
     }
-  }, [activeRunId, runs.data]);
+  }, [activeRunId, runs.data, setActiveRunId]);
 
   // Reset events when switching runs (handles all paths: auto-detect, history, parent change)
   const prevRunIdRef = useRef<string | null | undefined>(activeRunId);
@@ -264,7 +263,7 @@ export function AgentTab({
     const prompt = composePrompt(message, resolvedItems, envelope);
     if (!prompt.trim()) return;
 
-    const profileKey = selectedProfileId ? undefined : "git-control-tower-reviewer";
+    const profileKey = selectedProfileId ? undefined : "git-control-tower/reviewer";
     const uploadedIds = getUploadedIds();
 
     createRun.mutate(
@@ -647,6 +646,7 @@ export function AgentTab({
               variant="default"
               size="sm"
               onClick={handleInputSend}
+              aria-label={canContinue ? "Send follow-up" : "Send message"}
               disabled={inputDisabled || isUploading || (!message.trim() && contextItems.length === 0 && attachments.length === 0)}
               className="h-9 w-9 p-0 shrink-0"
             >

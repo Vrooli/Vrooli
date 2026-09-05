@@ -1,16 +1,25 @@
 {
-  "version": "1.0.0",
+  "$schema": "../../.vrooli/schemas/scenario-docs-manifest.schema.json",
+  "version": "2.0.0",
   "title": "Scenario-to-Cloud Documentation",
   "description": "Deploy Vrooli scenarios to VPS with HTTPS and automatic configuration",
   "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable scenario document here. Keep concepts in docs/concepts, procedures in docs/guides, stable lookup material in docs/reference, and engineering memory in docs/internal."
+  },
   "sections": [
     {
       "id": "getting-started",
       "title": "Getting Started",
       "icon": "rocket",
       "documents": [
-        { "path": "QUICKSTART.md", "title": "Quick Start", "description": "Get up and running with Scenario-to-Cloud" },
-        { "path": "concepts/GLOSSARY.md", "title": "Glossary", "description": "Key terms and concepts" }
+        { "path": "QUICKSTART.md", "docType": "quickstart", "title": "Quick Start", "description": "Get up and running with Scenario-to-Cloud", "maturity": "active", "requiredBy": ["generated"], "completion": "required" },
+        { "path": "concepts/GLOSSARY.md", "docType": "glossary", "title": "Glossary", "description": "Key terms and concepts", "maturity": "active", "requiredBy": ["oriented"], "completion": "required" }
       ]
     },
     {
@@ -19,10 +28,10 @@
       "icon": "book",
       "description": "Step-by-step deployment guides",
       "documents": [
-        { "path": "guides/manifest-reference.md", "title": "Manifest Reference", "description": "Complete manifest configuration guide" },
-        { "path": "guides/dns-setup.md", "title": "DNS Setup", "description": "DNS patterns for VPS deployments (with or without OG Worker)" },
-        { "path": "guides/vps-setup.md", "title": "VPS Setup", "description": "Prepare your VPS for deployments" },
-        { "path": "guides/troubleshooting.md", "title": "Troubleshooting", "description": "Common issues and solutions" }
+        { "path": "guides/manifest-reference.md", "docType": "manifest-reference", "title": "Manifest Reference", "description": "Complete manifest configuration guide", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "guides/dns-setup.md", "docType": "dns-guide", "title": "DNS Setup", "description": "DNS patterns for VPS deployments (with or without OG Worker)", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "guides/vps-setup.md", "docType": "vps-guide", "title": "VPS Setup", "description": "Prepare your VPS for deployments", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "guides/troubleshooting.md", "docType": "troubleshooting", "title": "Troubleshooting", "description": "Common issues and solutions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" }
       ]
     },
     {
@@ -31,9 +40,9 @@
       "icon": "code",
       "description": "Technical reference documentation",
       "documents": [
-        { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
-        { "path": "reference/deployment-lifecycle.md", "title": "Deployment Lifecycle", "description": "Stages and status transitions" },
-        { "path": "reference/configuration.md", "title": "SSH Configuration", "description": "SSH options, presets, error categories, and step configuration" }
+        { "path": "reference/api-endpoints.md", "docType": "api-reference", "title": "API Reference", "description": "REST API endpoint documentation", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "reference/deployment-lifecycle.md", "docType": "deployment-lifecycle", "title": "Deployment Lifecycle", "description": "Stages and status transitions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "reference/configuration.md", "docType": "configuration-reference", "title": "SSH Configuration", "description": "SSH options, presets, error categories, and step configuration", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" }
       ]
     },
     {
@@ -42,8 +51,8 @@
       "icon": "lightbulb",
       "description": "Architecture and design concepts",
       "documents": [
-        { "path": "concepts/architecture.md", "title": "Architecture", "description": "System design and components" },
-        { "path": "concepts/bundle-system.md", "title": "Bundle System", "description": "How mini-Vrooli bundles work" }
+        { "path": "concepts/architecture.md", "docType": "architecture", "title": "Architecture", "description": "System design and components", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "concepts/bundle-system.md", "docType": "bundle-system", "title": "Bundle System", "description": "How mini-Vrooli bundles work", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" }
       ]
     },
     {
@@ -53,10 +62,10 @@
       "visibility": "developers-only",
       "description": "Internal development documentation",
       "documents": [
-        { "path": "internal/SEAMS.md", "title": "Architectural Seams", "description": "Responsibility boundaries and testability seams" },
-        { "path": "internal/PROBLEMS.md", "title": "Problems & Risks", "description": "Open issues and deferred items" },
-        { "path": "internal/PROGRESS.md", "title": "Progress Log", "description": "Development progress tracking" },
-        { "path": "internal/RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
+        { "path": "internal/SEAMS.md", "docType": "seams", "title": "Architectural Seams", "description": "Responsibility boundaries and testability seams", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "internal/PROBLEMS.md", "docType": "problems", "title": "Problems & Risks", "description": "Open issues and deferred items", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "internal/PROGRESS.md", "docType": "progress", "title": "Progress Log", "description": "Development progress tracking", "maturity": "active", "requiredBy": ["implemented"], "completion": "required" },
+        { "path": "internal/RESEARCH.md", "docType": "research", "title": "Research", "description": "Research notes and findings", "maturity": "active", "requiredBy": ["oriented"], "completion": "required" }
       ]
     },
     {
@@ -65,10 +74,7 @@
       "icon": "map",
       "visibility": "developers-only",
       "description": "Architecture plans and refactoring proposals",
-      "documents": [
-        { "path": "plans/screaming-architecture-refactor.md", "title": "Screaming Architecture Refactor", "description": "Import graph restructuring plan" },
-        { "path": "plans/ssh-identity-greenfield-implementation-plan.md", "title": "SSH Identity Greenfield Plan", "description": "Canonical SSH identity architecture and implementation plan (no legacy compatibility paths)" }
-      ]
+      "documents": []
     }
   ],
   "navigation": {

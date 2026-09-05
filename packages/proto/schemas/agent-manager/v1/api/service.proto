@@ -7,9 +7,12 @@ import "agent-manager/v1/domain/profile.proto";
 import "agent-manager/v1/domain/run.proto";
 import "agent-manager/v1/domain/task.proto";
 import "agent-manager/v1/domain/types.proto";
+import "agent-manager/v1/domain/workflow.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api;api";
 
@@ -20,7 +23,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manage
 // @layer 3
 // @domain agent-manager
 // @imports common, domain/*
-// @stability stable
+// @stability experimental
 //
 // gRPC service definition for Agent Manager operations.
 // Defines CRUD operations for profiles, tasks, and runs, plus execution control.
@@ -67,6 +70,155 @@ service AgentManagerService {
   rpc EnsureProfile(EnsureProfileRequest) returns (EnsureProfileResponse) {
     option (google.api.http) = {
       post: "/api/v1/profiles/ensure"
+      body: "*"
+    };
+  }
+
+  // ReconcileScenarioProfiles resolves all profile sources declared by a scenario.
+  rpc ReconcileScenarioProfiles(ReconcileScenarioProfilesRequest) returns (ReconcileScenarioProfilesResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/profiles/reconcile-scenario"
+      body: "*"
+    };
+  }
+
+  // ValidateWorkflow validates and canonicalizes one workflow without writes.
+  rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/validate"
+      body: "*"
+    };
+  }
+
+  // ReconcileScenarioWorkflows atomically reloads scenario-owned sources.
+  rpc ReconcileScenarioWorkflows(ReconcileScenarioWorkflowsRequest) returns (ReconcileScenarioWorkflowsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/reconcile-scenario"
+      body: "*"
+    };
+  }
+
+  // PlanScenarioWorkflows validates every source but never changes the catalog.
+  rpc PlanScenarioWorkflows(ReconcileScenarioWorkflowsRequest) returns (ReconcileScenarioWorkflowsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/plan"
+      body: "*"
+    };
+  }
+
+  // ReconcileScenarioDeclarations reconciles a scenario's unified declaration
+  // block (profiles and workflows) in one call, fanning out per source by
+  // schemaVersion while preserving each kind's lifecycle semantics.
+  rpc ReconcileScenarioDeclarations(ReconcileScenarioDeclarationsRequest) returns (ReconcileScenarioDeclarationsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/declarations/reconcile-scenario"
+      body: "*"
+    };
+  }
+
+  // PlanScenarioDeclarations validates every declaration source but never
+  // changes profile or workflow state.
+  rpc PlanScenarioDeclarations(ReconcileScenarioDeclarationsRequest) returns (ReconcileScenarioDeclarationsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/declarations/plan"
+      body: "*"
+    };
+  }
+
+  rpc ListWorkflowRevisions(ListWorkflowRevisionsRequest) returns (ListWorkflowRevisionsResponse) {
+    option (google.api.http) = {get: "/api/v1/workflows"};
+  }
+
+  rpc GetWorkflowRevision(GetWorkflowRevisionRequest) returns (GetWorkflowRevisionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflows/{key}"};
+  }
+
+  rpc ReloadScenarioWorkflows(ReconcileScenarioWorkflowsRequest) returns (ReconcileScenarioWorkflowsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/reload"
+      body: "*"
+    };
+  }
+
+  rpc ExplainWorkflow(GetWorkflowRevisionRequest) returns (GetWorkflowRevisionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflows/{key}/explain"};
+  }
+
+  rpc StartWorkflowExecution(StartWorkflowExecutionRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions"
+      body: "*"
+    };
+  }
+
+  // ListWorkflowExecutions returns bounded, metadata-only execution history.
+  rpc ListWorkflowExecutions(ListWorkflowExecutionsRequest) returns (ListWorkflowExecutionsResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions"};
+  }
+
+  rpc GetWorkflowExecution(GetWorkflowExecutionRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}"};
+  }
+
+  // GetWorkflowExecutionResult is the explicit payload-bearing inspection path.
+  rpc GetWorkflowExecutionResult(GetWorkflowExecutionResultRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/result"};
+  }
+
+  rpc AdvanceWorkflowExecution(GetWorkflowExecutionRequest) returns (WorkflowExecutionResponse) {
+    option (google.api.http) = {post: "/api/v1/workflow-executions/{execution_id}/advance"};
+  }
+
+  // WaitWorkflowExecution long-polls until the execution is terminal or the
+  // deadline passes. Canceling the waiter never cancels the execution.
+  rpc WaitWorkflowExecution(WaitWorkflowExecutionRequest) returns (WaitWorkflowExecutionResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/wait"
+      body: "*"
+    };
+  }
+
+  rpc GetWorkflowExecutionTrace(GetWorkflowExecutionTraceRequest) returns (GetWorkflowExecutionTraceResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/trace"};
+  }
+
+  // ListWorkflowExecutionRuns projects durable node attempts for one execution.
+  // Consumers use it instead of scanning a full trace to find dispatched Runs.
+  rpc ListWorkflowExecutionRuns(ListWorkflowExecutionRunsRequest) returns (ListWorkflowExecutionRunsResponse) {
+    option (google.api.http) = {get: "/api/v1/workflow-executions/{execution_id}/runs"};
+  }
+
+  rpc SignalWorkflowExecution(SignalWorkflowExecutionRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/signals"
+      body: "*"
+    };
+  }
+
+  rpc CancelWorkflowExecution(WorkflowExecutionOperationRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/cancel"
+      body: "*"
+    };
+  }
+
+  rpc RetryWorkflowExecution(WorkflowExecutionOperationRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/retry"
+      body: "*"
+    };
+  }
+
+  rpc ResumeWorkflowExecution(WorkflowExecutionOperationRequest) returns (WorkflowExecutionOperationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflow-executions/{execution_id}/resume"
+      body: "*"
+    };
+  }
+
+  rpc SimulateWorkflow(SimulateWorkflowRequest) returns (SimulateWorkflowResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/workflows/simulate"
       body: "*"
     };
   }
@@ -146,9 +298,25 @@ service AgentManagerService {
     };
   }
 
+  // AttachRun identifies an operator-started harness session without taking
+  // ownership of its process or transcript.
+  rpc AttachRun(AttachRunRequest) returns (AttachRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/attach"
+      body: "*"
+    };
+  }
+
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
+  }
+
+  // GetRunReport returns the bounded diagnostic projection used by CLI, UI,
+  // and investigation workflows. Bulk payloads remain on their dedicated
+  // progressive-disclosure endpoints.
+  rpc GetRunReport(GetRunReportRequest) returns (RunReport) {
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}/report"};
   }
 
   // GetRunByTag retrieves a run by its custom tag.
@@ -182,6 +350,26 @@ service AgentManagerService {
       post: "/api/v1/runs/stop-all"
       body: "*"
     };
+  }
+
+  // DetachRun closes an attached run without touching the harness process.
+  rpc DetachRun(DetachRunRequest) returns (DetachRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/detach"};
+  }
+
+  // QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
+  // Modes promote can re-point and restart its live instance without killing
+  // in-flight agent work.
+  rpc QuiesceScenario(QuiesceScenarioRequest) returns (QuiesceScenarioResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/quiesce"
+      body: "*"
+    };
+  }
+
+  // RecoverRun drains a durable transcript and reconciles the run outcome.
+  rpc RecoverRun(RecoverRunRequest) returns (RecoverRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/recover"};
   }
 
   // ==========================================================================
@@ -230,6 +418,75 @@ service AgentManagerService {
   // ProbeRunner sends a test request to verify runner connectivity.
   rpc ProbeRunner(ProbeRunnerRequest) returns (ProbeRunnerResponse) {
     option (google.api.http) = {post: "/api/v1/runners/{runner_type}/probe"};
+  }
+
+  // GetRolePolicyStatus returns activation state and the latest diagnostic.
+  rpc GetRolePolicyStatus(GetRolePolicyStatusRequest) returns (GetRolePolicyStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/role-policy/status"};
+  }
+
+  // GetRolePolicyCatalog returns the active, immutable declared catalog.
+  rpc GetRolePolicyCatalog(GetRolePolicyCatalogRequest) returns (GetRolePolicyCatalogResponse) {
+    option (google.api.http) = {get: "/api/v1/role-policy/catalog"};
+  }
+
+  // ValidateRolePolicyCatalog validates the configured catalog without activation.
+  rpc ValidateRolePolicyCatalog(ValidateRolePolicyCatalogRequest) returns (ValidateRolePolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/role-policy/validate"};
+  }
+
+  // ReloadRolePolicyCatalog validates and atomically activates declared state.
+  rpc ReloadRolePolicyCatalog(ReloadRolePolicyCatalogRequest) returns (ReloadRolePolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/role-policy/reload"};
+  }
+
+  // ExplainRolePolicy explains current profile resolution or a persisted run snapshot.
+  rpc ExplainRolePolicy(ExplainRolePolicyRequest) returns (ExplainRolePolicyResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/role-policy/explain"
+      body: "*"
+    };
+  }
+
+  // GetPermissionPolicyStatus returns desired-permission activation state and
+  // the last persisted reconcile outcome.
+  rpc GetPermissionPolicyStatus(GetPermissionPolicyStatusRequest) returns (GetPermissionPolicyStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/permission-policy/status"};
+  }
+
+  // GetPermissionPolicyCatalog returns the active portable desired state.
+  rpc GetPermissionPolicyCatalog(GetPermissionPolicyCatalogRequest) returns (GetPermissionPolicyCatalogResponse) {
+    option (google.api.http) = {get: "/api/v1/permission-policy/catalog"};
+  }
+
+  // ValidatePermissionPolicyCatalog validates declared state without activation.
+  rpc ValidatePermissionPolicyCatalog(ValidatePermissionPolicyCatalogRequest) returns (ValidatePermissionPolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/validate"};
+  }
+
+  // ReloadPermissionPolicyCatalog validates and atomically activates declared state.
+  rpc ReloadPermissionPolicyCatalog(ReloadPermissionPolicyCatalogRequest) returns (ReloadPermissionPolicyCatalogResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/reload"};
+  }
+
+  // PlanPermissionPolicy reports resource-owned native projection drift.
+  rpc PlanPermissionPolicy(PlanPermissionPolicyRequest) returns (PlanPermissionPolicyResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/plan"};
+  }
+
+  // ReconcilePermissionPolicy applies one whole desired document through each
+  // owning resource after an explicit human authorization signal.
+  rpc ReconcilePermissionPolicy(ReconcilePermissionPolicyRequest) returns (ReconcilePermissionPolicyResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/permission-policy/reconcile"
+      body: "*"
+    };
+  }
+
+  // DoctorPermissionPolicy summarizes catalog readiness and resource planning
+  // without changing native resource files.
+  rpc DoctorPermissionPolicy(DoctorPermissionPolicyRequest) returns (DoctorPermissionPolicyResponse) {
+    option (google.api.http) = {post: "/api/v1/permission-policy/doctor"};
   }
 
   // ==========================================================================
@@ -318,6 +575,310 @@ message EnsureProfileResponse {
   bool updated = 3;
 }
 
+// ReconcileScenarioProfilesRequest reconciles profile sources declared by a scenario.
+message ReconcileScenarioProfilesRequest {
+  // Scenario slug whose service manifest declares agent-manager profile sources.
+  string scenario = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+
+  // When true, validates and reports actions without writing to the database.
+  bool dry_run = 2;
+}
+
+// ProfileReconcileStatus classifies the reconciliation result for one profile.
+enum ProfileReconcileStatus {
+  PROFILE_RECONCILE_STATUS_UNSPECIFIED = 0;
+  PROFILE_RECONCILE_STATUS_CREATED = 1;
+  PROFILE_RECONCILE_STATUS_UPDATED = 2;
+  PROFILE_RECONCILE_STATUS_UNCHANGED = 3;
+  PROFILE_RECONCILE_STATUS_SKIPPED = 4;
+  PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE = 5;
+  PROFILE_RECONCILE_STATUS_FAILED_VALIDATION = 6;
+}
+
+// ProfileReconcileResult reports the outcome for one source profile.
+message ProfileReconcileResult {
+  string profile_key = 1;
+  string source_path = 2;
+  string source_hash = 3;
+  string profile_id = 4;
+  ProfileReconcileStatus status = 5;
+  string message = 6;
+  repeated WorkflowDiagnostic diagnostics = 7;
+}
+
+// ReconcileScenarioProfilesResponse returns the full scenario reconciliation report.
+message ReconcileScenarioProfilesResponse {
+  string scenario = 1;
+  repeated ProfileReconcileResult results = 2;
+  int32 created = 3;
+  int32 updated = 4;
+  int32 unchanged = 5;
+  int32 skipped = 6;
+  int32 conflicted = 7;
+  int32 failed = 8;
+  bool dry_run = 9;
+}
+
+message ValidateWorkflowRequest {
+  google.protobuf.Struct definition = 1 [(buf.validate.field).required = true];
+}
+
+message ValidateWorkflowResponse {
+  bool valid = 1;
+  string digest = 2;
+  google.protobuf.Struct definition = 3;
+  repeated WorkflowDiagnostic diagnostics = 4;
+}
+
+message ReconcileScenarioWorkflowsRequest {
+  string scenario = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  bool dry_run = 2;
+  bool validate_only = 3;
+}
+
+enum WorkflowReconcileStatus {
+  WORKFLOW_RECONCILE_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_RECONCILE_STATUS_CREATED = 1;
+  WORKFLOW_RECONCILE_STATUS_ACTIVATED = 2;
+  WORKFLOW_RECONCILE_STATUS_UNCHANGED = 3;
+  WORKFLOW_RECONCILE_STATUS_SKIPPED = 4;
+  WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION = 5;
+}
+
+message WorkflowReconcileResult {
+  string workflow_key = 1;
+  string version = 2;
+  string digest = 3;
+  string source_path = 4;
+  WorkflowReconcileStatus status = 5;
+  string message = 6;
+  repeated WorkflowDiagnostic diagnostics = 7;
+}
+
+message ReconcileScenarioWorkflowsResponse {
+  string scenario = 1;
+  repeated WorkflowReconcileResult results = 2;
+  int32 created = 3;
+  int32 activated = 4;
+  int32 unchanged = 5;
+  int32 skipped = 6;
+  int32 failed = 7;
+  bool dry_run = 8;
+  bool validate_only = 9;
+}
+
+// ReconcileScenarioDeclarationsRequest reconciles a scenario's unified
+// declaration block (profiles and workflows) in one call.
+message ReconcileScenarioDeclarationsRequest {
+  string scenario = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  bool dry_run = 2;
+  bool validate_only = 3;
+}
+
+// ReconcileScenarioDeclarationsResponse aggregates the per-kind reconciliation
+// outcomes; the legacy profile/workflow responses project their halves from it.
+message ReconcileScenarioDeclarationsResponse {
+  string scenario = 1;
+  repeated ProfileReconcileResult profile_results = 2;
+  repeated WorkflowReconcileResult workflow_results = 3;
+  int32 profiles_created = 4;
+  int32 profiles_updated = 5;
+  int32 profiles_unchanged = 6;
+  int32 profiles_skipped = 7;
+  int32 profiles_conflicted = 8;
+  int32 profiles_failed = 9;
+  int32 workflows_created = 10;
+  int32 workflows_activated = 11;
+  int32 workflows_unchanged = 12;
+  int32 workflows_skipped = 13;
+  int32 workflows_failed = 14;
+  bool dry_run = 15;
+  bool validate_only = 16;
+}
+
+message ListWorkflowRevisionsRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string key = 2;
+  int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000
+  }];
+  int32 offset = 4 [(buf.validate.field).int32.gte = 0];
+}
+
+message ListWorkflowRevisionsResponse {
+  repeated WorkflowRevision revisions = 1;
+}
+
+message GetWorkflowRevisionRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string key = 2;
+  string digest = 3;
+}
+
+message GetWorkflowRevisionResponse {
+  WorkflowRevision revision = 1;
+}
+
+message StartWorkflowExecutionRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string workflow_key = 2;
+  string definition_digest = 3;
+  google.protobuf.Value input = 4 [(buf.validate.field).required = true];
+  string idempotency_key = 5 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+}
+
+message GetWorkflowExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetWorkflowExecutionResultRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // The dedicated RPC still requires an explicit caller assertion so routine
+  // tooling cannot reveal workflow input or output accidentally.
+  bool explicitly_authorized = 2;
+}
+
+message WorkflowExecutionResponse {
+  WorkflowExecution execution = 1;
+}
+
+message WaitWorkflowExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // timeout_seconds bounds the server-side wait. 0 blocks until the execution
+  // is terminal (or the caller disconnects).
+  int32 timeout_seconds = 2 [(buf.validate.field).int32.gte = 0];
+}
+
+message WaitWorkflowExecutionResponse {
+  WorkflowExecution execution = 1;
+  // timed_out is true when the wait deadline elapsed before the execution
+  // reached a terminal status. The execution keeps running regardless.
+  bool timed_out = 2;
+}
+
+message ListWorkflowExecutionsRequest {
+  string owner = 1 [(buf.validate.field).string.max_len = 255];
+  string workflow_key = 2 [(buf.validate.field).string.max_len = 255];
+  WorkflowExecutionStatus status = 3;
+  int32 limit = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  int32 offset = 5 [(buf.validate.field).int32.gte = 0];
+}
+
+message ListWorkflowExecutionsResponse {
+  repeated WorkflowExecution executions = 1;
+}
+
+message GetWorkflowExecutionTraceRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  int64 after_sequence = 2 [(buf.validate.field).int64.gte = 0];
+  int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000
+  }];
+}
+
+message GetWorkflowExecutionTraceResponse {
+  WorkflowExecution execution = 1;
+  repeated WorkflowNodeAttempt attempts = 2;
+  repeated WorkflowJournalEntry journal = 3;
+}
+
+message ListWorkflowExecutionRunsRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListWorkflowExecutionRunsResponse {
+  repeated WorkflowNodeAttempt attempts = 1;
+}
+
+message SignalWorkflowExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  string signal = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+  google.protobuf.Value payload = 3 [(buf.validate.field).required = true];
+  string idempotency_key = 4 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  int64 expected_version = 5 [(buf.validate.field).int64.gte = 0];
+}
+
+message WorkflowExecutionOperationRequest {
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  string idempotency_key = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  int64 expected_version = 3 [(buf.validate.field).int64.gte = 0];
+  string reason = 4 [(buf.validate.field).string.max_len = 1024];
+}
+
+message WorkflowExecutionOperationResponse {
+  WorkflowExecution execution = 1;
+  bool idempotent = 2;
+}
+
+message SimulateWorkflowRequest {
+  string owner = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
+  string workflow_key = 2;
+  string definition_digest = 3;
+  google.protobuf.Value input = 4 [(buf.validate.field).required = true];
+}
+
+message WorkflowNodePlan {
+  string node_id = 1;
+  string kind = 2;
+  string execution_strategy = 3;
+  string profile_key = 4;
+  string role_ref = 5;
+  string continuation_source = 6;
+  string child_workflow_key = 7;
+  string child_workflow_version = 8;
+  string wait_signal = 9;
+  int32 wait_timeout_seconds = 10;
+  string join_strategy = 11;
+  int32 join_quorum = 12;
+  bool parallel = 13;
+}
+
+message SimulateWorkflowResponse {
+  bool valid = 1;
+  string definition_digest = 2;
+  repeated WorkflowNodePlan nodes = 3;
+  repeated string possible_terminal_nodes = 4;
+  repeated WorkflowDiagnostic diagnostics = 5;
+}
+
 // GetProfileRequest identifies a profile to retrieve.
 message GetProfileRequest {
   // Profile ID.
@@ -325,48 +886,24 @@ message GetProfileRequest {
   string profile_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
-// AvailableModel describes a model option resolved for a profile.
-message AvailableModel {
-  // Model identifier.
-  string id = 1;
-
-  // Short label for display.
-  string label = 2;
-
-  // Optional description from the registry.
-  string description = 3;
-
-  // Provider inferred from the model id (when present).
-  string provider = 4;
-
-  // Sources that confirmed availability (e.g., registry, capabilities).
-  repeated string sources = 5;
-}
-
 // GetProfileResponse returns a single profile.
 message GetProfileResponse {
   // The profile.
   AgentProfile profile = 1;
 
-  // Available models for the profile's runner.
-  repeated AvailableModel available_models = 2;
-
-  // Preset-to-model mappings for the profile's runner (filtered to available models).
-  map<string, string> model_presets = 3;
+  reserved 2, 3;
+  reserved "available_models", "policy_models";
 }
 
 // ListProfilesRequest filters and paginates profile listings.
 message ListProfilesRequest {
-  // Filter by runner type.
-  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
+  reserved 1;
+  reserved "runner_type";
 
-  // Pagination limit (default: 50, max: 100).
+  // Pagination limit (default: 50, max: 5000).
   optional int32 limit = 2 [(buf.validate.field).int32 = {
     gte: 1
-    lte: 100
+    lte: 5000
   }];
 
   // Pagination offset.
@@ -532,6 +1069,12 @@ message ProfileRef {
 
   // Default profile settings to use if the profile does not exist.
   AgentProfile defaults = 2;
+
+  // When true, overwrite an existing profile row with the supplied defaults
+  // on every dispatch. Use this when the caller treats its code-declared
+  // profile as authoritative; otherwise the existing row wins and the
+  // `defaults` field is only consulted on first creation.
+  bool update_existing = 3;
 }
 
 // CreateRunRequest starts a new run.
@@ -578,6 +1121,68 @@ message CreateRunRequest {
   // Keys must start with "VROOLI_" prefix. Merged with sandbox env vars;
   // sandbox variables take precedence on conflict.
   map<string, string> environment = 11;
+
+  // Conversation/parent linking per Decision D7 of the auditability
+  // contract. Spawn surfaces SHOULD populate these explicitly so
+  // provenance readers can group by conversation without reverse-walking
+  // the run graph. When parent_run_id is set and conversation_id is empty,
+  // agent-manager inherits the parent's conversation_id; when both are
+  // empty, agent-manager mints a fresh UUID.
+  optional string conversation_id = 12;
+  // @format uuid
+  optional string parent_run_id = 13;
+
+  // Substrate to drive the agent CLI (codec-pipe vs interactive web-console
+  // session). Omitted defaults to codec-pipe. Interactive mode is rejected for
+  // protected (sandboxed) runs at run-validation time with a clear error.
+  optional ExecutionMode execution_mode = 14 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// AttachRunRequest identifies an operator-started coding-agent session.
+message AttachRunRequest {
+  // Optional task to associate with the session. When absent, the run has no
+  // task rather than receiving a synthetic placeholder.
+  optional string task_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Stable harness/resource kind, for example "claude-code" or "codex".
+  string harness_kind = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
+
+  // Harness-owned session identifier.
+  string harness_session_id = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 512
+  }];
+
+  // Optional PID for harnesses that can report it. The token-bearing process
+  // environment remains the primary liveness signal.
+  optional int32 process_id = 4 [(buf.validate.field).int32.gt = 0];
+
+  // Optional title already present in the harness transcript metadata.
+  optional string harness_title = 5 [(buf.validate.field).string.max_len = 512];
+}
+
+// AttachRunResponse returns the attached run and its one-time plaintext token.
+message AttachRunResponse {
+  Run run = 1;
+  string identity_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// DetachRunRequest identifies an attached run to close.
+message DetachRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string reason = 2 [(buf.validate.field).string.max_len = 512];
+}
+
+// DetachRunResponse returns the terminal attached run.
+message DetachRunResponse {
+  Run run = 1;
 }
 
 // DeleteRunRequest identifies a run to delete.
@@ -593,10 +1198,27 @@ message DeleteRunResponse {
   bool success = 1;
 }
 
-// CreateRunResponse returns the created run.
+// CreateRunResponse returns the created run plus a snapshot of the
+// spawn-dispatcher state taken just after Enqueue. The dispatcher
+// fields surface backpressure to UI/CLI callers without a separate
+// stats endpoint — operators see "you're queued behind N runs" in the
+// same response that confirmed the run was accepted.
 message CreateRunResponse {
   // The created run.
   Run run = 1;
+
+  // Number of runs currently waiting in the spawn-dispatcher queue
+  // (not yet acquired a startup slot). Includes this run if it was
+  // enqueued behind the MaxStartingConcurrency cap.
+  int32 queue_depth = 2;
+
+  // Total runs currently tracked by the spawn dispatcher (queued +
+  // in startup window + executing).
+  int32 active_count = 3;
+
+  // Number of runs currently holding a startup slot (in the codex
+  // bootstrap window). Bounded by Spawn.MaxStartingConcurrency.
+  int32 starting_count = 4;
 }
 
 // GetRunRequest identifies a run to retrieve.
@@ -610,6 +1232,93 @@ message GetRunRequest {
 message GetRunResponse {
   // The run.
   Run run = 1;
+}
+
+// GetRunReportRequest identifies the run whose bounded diagnostic projection
+// is requested.
+message GetRunReportRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// RunReport is the shared, cheap-to-read diagnosis surface for one run.
+message RunReport {
+  string run_id = 1;
+  string status = 2;
+  optional int32 exit_code = 3;
+  string error = 4;
+  int64 duration_ms = 5;
+  int64 heartbeat_gap_ms = 6;
+  int32 turns = 7;
+  int32 tokens = 8;
+  double cost_usd = 9;
+  RunReportResult result = 10;
+  map<string, int32> event_counts = 11;
+  repeated RunReportTool tools = 12;
+  int32 project_owned_tool_calls = 13;
+  int32 external_tool_calls = 14;
+  string requested_model = 15;
+  string actual_model = 16;
+  int32 fallback_count = 17;
+  RunReportDiff diff = 18;
+  RunReportAvailability events_availability = 19;
+  RunReportAvailability receipts_availability = 20;
+  int32 receipt_count = 21;
+  int32 repeated_tool_calls = 22;
+  int64 longest_event_gap_ms = 23;
+  int32 files_read_more_than_once = 24;
+  RunTimeAccounting time_accounting = 25;
+  RunGoalOutcome goal_outcome = 26;
+}
+
+// RunGoalOutcome is copied from Codex's rolling external goal store when a
+// transcript is imported, so this report remains historically stable.
+message RunGoalOutcome {
+  string goal_id = 1;
+  string status = 2;
+  optional int64 token_budget = 3;
+  int64 tokens_used = 4;
+  int64 time_used_seconds = 5;
+}
+
+message RunTimeAccounting {
+  int64 model_generating_ms = 1;
+  int64 tool_executing_ms = 2;
+  int64 idle_waiting_ms = 3;
+  int64 awaiting_human_ms = 4;
+  int64 unattributable_ms = 5;
+  int64 model_tokens = 6;
+  int64 tool_tokens = 7;
+  int64 idle_tokens = 8;
+  int64 human_tokens = 9;
+  int64 unattributable_tokens = 10;
+}
+
+message RunReportResult {
+  string selection_status = 1;
+  string selection_rule = 2;
+  int32 candidate_count = 3;
+  string structured_status = 4;
+  string structured_method = 5;
+  repeated string diagnostic_codes = 6;
+}
+
+message RunReportTool {
+  string name = 1;
+  int32 calls = 2;
+  int32 successes = 3;
+  int32 failures = 4;
+  int32 unresolved = 5;
+}
+
+message RunReportDiff {
+  int32 files = 1;
+  int64 bytes = 2;
+  RunReportAvailability available = 3;
+}
+
+message RunReportAvailability {
+  string state = 1;
+  string reason = 2;
 }
 
 // GetRunByTagRequest identifies a run by tag.
@@ -640,10 +1349,10 @@ message ListRunsRequest {
   // Filter by tag prefix.
   optional string tag_prefix = 4;
 
-  // Pagination limit (default: 50, max: 100).
+  // Pagination limit (default: 50, max: 5000).
   optional int32 limit = 5 [(buf.validate.field).int32 = {
     gte: 1
-    lte: 100
+    lte: 5000
   }];
 
   // Pagination offset.
@@ -673,6 +1382,9 @@ message StopRunRequest {
 message StopRunResponse {
   // Status after stopping.
   string status = 1;
+
+  // Updated run after stopping, including hydrated action flags.
+  Run run = 2;
 }
 
 // StopRunByTagRequest stops a run by tag.
@@ -688,6 +1400,9 @@ message StopRunByTagResponse {
 
   // Tag that was stopped.
   string tag = 2;
+
+  // Updated run after stopping, including hydrated action flags.
+  Run run = 3;
 }
 
 // StopAllRunsRequest stops multiple runs.
@@ -703,6 +1418,86 @@ message StopAllRunsRequest {
 message StopAllRunsResponse {
   // Result details.
   StopAllResult result = 1;
+}
+
+// QuiesceScenarioRequest drains in-flight runs targeting a scenario before a
+// Baseline Modes promote re-points and restarts its live instance.
+message QuiesceScenarioRequest {
+  // Target scenario slug (drives scope, self-guard, and messaging).
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Override the working-tree scope used to find runs targeting the scenario.
+  // Empty ⇒ "scenarios/<scenario>".
+  optional string scope_prefix = 2;
+
+  // Also enumerate runs by tag prefix — catches whole-repo orchestrator runs
+  // whose task scope is the repo root rather than scenarios/<scenario>.
+  optional string tag_prefix = 3;
+
+  // The promoting run's own ID, excluded from the drain set. If it is itself
+  // active against the scenario, the promote is rejected (self-deadlock guard).
+  // @format uuid
+  optional string exclude_run_id = 4;
+
+  // Max wait for in-flight runs to terminate, as a Go duration string (e.g.
+  // "5m"). Empty ⇒ the server default.
+  optional string timeout = 5;
+
+  // On timeout, cancel survivors via the graceful StopRun instead of aborting.
+  bool force = 6;
+}
+
+// QuiesceScenarioResponse returns the outcome of a promote-quiesce drain.
+message QuiesceScenarioResponse {
+  QuiesceResult result = 1;
+}
+
+// QuiesceResult reports the outcome of a promote-quiesce drain.
+message QuiesceResult {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Scenario is now quiet (no in-flight runs target it).
+  bool drained = 2;
+
+  // Timed out without force; in-flight work was left untouched.
+  bool aborted = 3;
+
+  // In-flight count when the drain started (after excluding the promoter).
+  int32 initial = 4;
+
+  // Runs still active at the end (abort case).
+  repeated QuiesceRunRef in_flight = 5;
+
+  // Runs force-cancelled.
+  repeated QuiesceRunRef cancelled = 6;
+
+  // Wall-clock spent waiting, in milliseconds.
+  int64 waited_ms = 7;
+
+  // Human-facing guidance / recommended next action.
+  string reason = 8;
+}
+
+// QuiesceRunRef is a compact description of one run in the drain set.
+message QuiesceRunRef {
+  string id = 1;
+  string tag = 2;
+  string status = 3;
+  string scope_path = 4;
+}
+
+message RecoverRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RecoverRunResponse {
+  Run run = 1;
+  bool recovered = 2;
+  bool idempotent = 3;
+  string message = 4;
 }
 
 // =============================================================================
@@ -843,6 +1638,253 @@ message ProbeRunnerRequest {
 message ProbeRunnerResponse {
   // Probe result.
   ProbeResult result = 1;
+}
+
+// RolePolicyDiagnostic preserves the actionable cause of validation failure.
+message RolePolicyDiagnostic {
+  string code = 1;
+  string message = 2;
+  string cause = 3;
+}
+
+message RolePolicyRequirement {
+  bool required = 1;
+  string reason = 2;
+}
+
+message RolePolicyReloadAttempt {
+  google.protobuf.Timestamp attempted_at = 1;
+  bool succeeded = 2;
+  string digest = 3;
+  RolePolicyDiagnostic diagnostic = 4;
+}
+
+// RolePolicyStatus is the operator-facing activation state.
+message RolePolicyStatus {
+  string path = 1;
+  RolePolicyRequirement requirement = 2;
+  bool ready = 3;
+  string active_digest = 4;
+  google.protobuf.Timestamp activated_at = 5;
+  RolePolicyReloadAttempt last_reload_attempt = 6;
+}
+
+message RolePolicyCatalogMetadata {
+  string catalog_id = 1;
+  string updated_at = 2;
+}
+
+message RolePolicyCandidate {
+  RunnerType runner_type = 1;
+  string resource_role = 2;
+}
+
+message RolePolicyDefinition {
+  string role_ref = 1;
+  string intent = 2;
+  string description = 3;
+  repeated RolePolicyCandidate candidates = 4;
+}
+
+// RolePolicyCatalog is the read-only portable desired-state view. Concrete
+// runner/model selections are available only in immutable execution snapshots.
+message RolePolicyCatalog {
+  int32 schema_version = 1;
+  RolePolicyCatalogMetadata metadata = 2;
+  string default_role = 3;
+  repeated RolePolicyDefinition roles = 4;
+}
+
+message GetRolePolicyStatusRequest {}
+
+message GetRolePolicyStatusResponse {
+  RolePolicyStatus status = 1;
+}
+
+message GetRolePolicyCatalogRequest {}
+
+message GetRolePolicyCatalogResponse {
+  RolePolicyStatus status = 1;
+  RolePolicyCatalog catalog = 2;
+}
+
+message ValidateRolePolicyCatalogRequest {}
+
+message ValidateRolePolicyCatalogResponse {
+  bool valid = 1;
+  string candidate_digest = 2;
+  string active_digest = 3;
+  RolePolicyDiagnostic diagnostic = 4;
+}
+
+message ReloadRolePolicyCatalogRequest {}
+
+message ReloadRolePolicyCatalogResponse {
+  bool activated = 1;
+  RolePolicyStatus status = 2;
+  RolePolicyDiagnostic diagnostic = 3;
+}
+
+message ExplainRolePolicyRequest {
+  oneof target {
+    string profile_id = 1 [(buf.validate.field).string.uuid = true];
+    string run_id = 2 [(buf.validate.field).string.uuid = true];
+  }
+}
+
+message ExplainRolePolicyResponse {
+  string target_type = 1;
+  string target_id = 2;
+  ExecutionPolicySnapshot snapshot = 3;
+  string summary = 4;
+  bool historical_without_snapshot = 5;
+}
+
+message PermissionPolicyDiagnostic {
+  string code = 1;
+  string message = 2;
+  string cause = 3;
+}
+
+message PermissionPolicyRequirement {
+  bool required = 1;
+  string reason = 2;
+}
+
+message PermissionPolicyReloadAttempt {
+  google.protobuf.Timestamp attempted_at = 1;
+  bool succeeded = 2;
+  string digest = 3;
+  PermissionPolicyDiagnostic diagnostic = 4;
+}
+
+message PermissionPolicyStatus {
+  string path = 1;
+  PermissionPolicyRequirement requirement = 2;
+  bool ready = 3;
+  string active_digest = 4;
+  google.protobuf.Timestamp activated_at = 5;
+  PermissionPolicyReloadAttempt last_reload_attempt = 6;
+}
+
+message PermissionPolicyCatalogMetadata {
+  string catalog_id = 1;
+  string updated_at = 2;
+}
+
+message PermissionPolicyMatcher {
+  string kind = 1;
+  string pattern = 2;
+}
+
+message PermissionPolicyRule {
+  string id = 1;
+  string action = 2;
+  PermissionPolicyMatcher matcher = 3;
+  string rationale = 4;
+  string owner = 5;
+  string target_scope = 6;
+  bool requires_hard_enforcement = 7;
+}
+
+message PermissionPolicyCatalog {
+  int32 schema_version = 1;
+  PermissionPolicyCatalogMetadata metadata = 2;
+  repeated string target_scopes = 3;
+  repeated PermissionPolicyRule rules = 4;
+}
+
+message PermissionPolicyEnforcement {
+  string permissions = 1;
+  repeated string caveats = 2;
+}
+
+message PermissionPolicyResourceResult {
+  RunnerType runner_type = 1;
+  string scope = 2;
+  bool installed = 3;
+  string status = 4;
+  string error = 5;
+  string desired_digest = 6;
+  string desired_fingerprint = 7;
+  string live_fingerprint = 8;
+  bool drift = 9;
+  repeated string changes = 10;
+  repeated string native_paths = 11;
+  PermissionPolicyEnforcement enforcement = 12;
+  repeated PermissionPolicyMatcher unsupported_matchers = 13;
+}
+
+message PermissionPolicyPlan {
+  string catalog_digest = 1;
+  repeated PermissionPolicyResourceResult resources = 2;
+  bool hard_enforcement_satisfied = 3;
+  repeated string missing_hard_enforcement_rule_ids = 4;
+}
+
+message PermissionPolicyReconcileResult {
+  string catalog_digest = 1;
+  google.protobuf.Timestamp started_at = 2;
+  google.protobuf.Timestamp finished_at = 3;
+  bool explicitly_authorized = 4;
+  bool success = 5;
+  bool hard_enforcement_satisfied = 6;
+  repeated string missing_hard_enforcement_rule_ids = 7;
+  repeated PermissionPolicyResourceResult resources = 8;
+}
+
+message GetPermissionPolicyStatusRequest {}
+
+message GetPermissionPolicyStatusResponse {
+  PermissionPolicyStatus status = 1;
+  PermissionPolicyReconcileResult last_reconcile = 2;
+}
+
+message GetPermissionPolicyCatalogRequest {}
+
+message GetPermissionPolicyCatalogResponse {
+  PermissionPolicyStatus status = 1;
+  PermissionPolicyCatalog catalog = 2;
+}
+
+message ValidatePermissionPolicyCatalogRequest {}
+
+message ValidatePermissionPolicyCatalogResponse {
+  bool valid = 1;
+  string candidate_digest = 2;
+  string active_digest = 3;
+  PermissionPolicyDiagnostic diagnostic = 4;
+}
+
+message ReloadPermissionPolicyCatalogRequest {}
+
+message ReloadPermissionPolicyCatalogResponse {
+  bool activated = 1;
+  PermissionPolicyStatus status = 2;
+  PermissionPolicyDiagnostic diagnostic = 3;
+}
+
+message PlanPermissionPolicyRequest {}
+
+message PlanPermissionPolicyResponse {
+  PermissionPolicyPlan plan = 1;
+}
+
+message ReconcilePermissionPolicyRequest {
+  bool explicitly_authorized = 1;
+}
+
+message ReconcilePermissionPolicyResponse {
+  PermissionPolicyReconcileResult result = 1;
+}
+
+message DoctorPermissionPolicyRequest {}
+
+message DoctorPermissionPolicyResponse {
+  PermissionPolicyStatus status = 1;
+  PermissionPolicyPlan plan = 2;
+  bool healthy = 3;
+  string summary = 4;
 }
 
 // =============================================================================

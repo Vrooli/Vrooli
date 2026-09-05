@@ -1,0 +1,73 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P2-002",
+      "title": "Classifier Auto-Routing of Web-Shaped Queries to Live Web Provider",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-002",
+      "category": "core",
+      "description": "Configure a query classifier (within the search-hub routing layer) to detect queries that are 'web-shaped' (e.g., contain current events indicators, explicit URL references, recency signals) and automatically include web-search.live in the federated provider set for those queries. This routing expansion is always gated behind the proven cache and budget governor to manage rate-limit risk, and behind the default-OFF SEARCH_HUB_AUTO_ROUTE_EXTERNAL operator opt-in. Classifier decisions must be logged for auditability.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestAutoRouteExternalFoldsInWebShaped",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Classifier returns web-shaped=true for a query containing a current-events indicator (e.g., 'latest', 'today', 'breaking') [covering test lives in search-hub — OT-P2-002 auto-route fold-in; the web-shaped=true judgment for a 'latest news' query folds web-search.live into the fan-out; the web_shaped decode contract is pinned by classifier_internal_test.go::TestParseClassifierResponse_WebShaped]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestAutoRouteExternalNotWebShapedWithholds",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Classifier returns web-shaped=false for a general knowledge query with no recency signals [covering test lives in search-hub — OT-P2-002 auto-route fold-in; a non-web-shaped general query keeps the external provider withheld even with the flag ON]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceGovernorExhaustionDegradesWithoutClient",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-routing to live-web is blocked when budget governor reports exhausted state, even for web-shaped queries"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/telemetry_status_test.go::TestQueryRecordsTelemetry",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Classifier routing decision is recorded in routing telemetry with query hash and decision [covering test lives in search-hub — every query records one TelemetrySample carrying QueryHash (raw text never stored) plus the AutoRoutedExternal/Escalated decision flags, asserted across TestQueryRecordsTelemetry and the auto_external tests. As-built gap: classifier CONFIDENCE is not recorded in the sample — tracked in PROBLEMS.md and filed as a search-hub bug]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestAutoRouteExternalFoldsInWebShaped",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Issue a recency-signaled query against the classifier-enabled routing; verify web-search.live is included in the provider set and a SearXNG call is made (within budget) [covering test lives in search-hub — OT-P2-002 auto-route fold-in]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestEscalationDegradesGracefullyOnGovernorReject",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Exhaust the budget governor, then issue a web-shaped query; verify no SearXNG call is made and the rate-limited response is returned [covering test lives in search-hub — OT-P2-002 auto-route fold-in; the router degrades gracefully on the 429 rate-limited leaf; web-search's own TestServiceGovernorExhaustionDegradesWithoutClient pins that exhaustion never calls SearXNG]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/classifier_perf_test.go::TestClassifierWarmLatencyBudget",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Classifier inference adds at most 2s p95 to the routing decision path, measured WARM (model loaded, thinking suppressed via /no_think); cold-start exempt [criterion restated 2026-06-10 from the auto-generated 50ms figure: the classifier is an LLM call (qwen3:1.7b) so 50ms was never meetable; an embedding fast-path was considered and deferred. Measured 2026-06-10 on CPU-resident ollama (GPU fully occupied): p95 1.2s after constraining the reply's reason field to \u003c8 words (was ~3s with verbose reasons — decode tokens dominated). Covering test lives in search-hub, live-Ollama-gated]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/auto_external_test.go::TestAutoRouteExternalFoldsInWebShaped",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Users asking time-sensitive questions automatically receive live web results without needing to explicitly use --type web [covering test lives in search-hub — OT-P2-002 auto-route fold-in; the query carries no explicit type selector, the web-shaped judgment alone folds web-search.live in]"
+        }
+      ]
+    }
+  ]
+}

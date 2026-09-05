@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "name": "breakpoint-state-loss-broken",
+    "description": "CALIBRATION: plants a responsive surface that discards typed state during breakpoint transformation.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "overlay-composition-calibration",
+      "calibration": "expected-failure",
+      "assertion_class": "breakpoint-state-loss-broken",
+      "requirements_json": "[\"OVERLAY-COMPOSITION\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open calibration host"
+        }
+      }
+    },
+    {
+      "id": "plant-broken-fixture",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { document.body.innerHTML='<div id=\"surface\" data-presentation=\"sheet\"><input value=\"preserved\"></div>'; document.querySelector('#surface').remove(); document.body.dataset.calibrationOk=document.querySelector('#surface input')?.value==='preserved'?'yes':'no'; return {surfacePresent:!!document.querySelector('#surface')}; })()",
+          "store_result": "plantedEvidence"
+        },
+        "metadata": {
+          "label": "Plant the deliberately broken fixture"
+        }
+      }
+    },
+    {
+      "id": "assert-calibration",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-calibration-ok=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 1000,
+          "failure_message": "EXPECTED CALIBRATION FAILURE: planted breakpoint transformation unmounted the surface and lost input state."
+        },
+        "metadata": {
+          "label": "Expected failure discriminator"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "plant-broken-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "plant-broken-fixture",
+      "target": "assert-calibration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

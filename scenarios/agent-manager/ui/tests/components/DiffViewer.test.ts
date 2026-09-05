@@ -1,6 +1,11 @@
-import test from "node:test";
+import { test, vi } from "vitest";
 import assert from "node:assert/strict";
+import { fireEvent, screen } from "@testing-library/react";
+import { createElement } from "react";
+import { DiffViewer } from "../../src/components/DiffViewer.js";
 import { parseHunks } from "../../src/lib/diffHunks.js";
+import { renderWithProviders } from "../../src/test-utils/index.js";
+import type { RunDiff } from "../../src/types.js";
 
 test("parseHunks returns empty array for empty input", () => {
   assert.deepEqual(parseHunks(""), []);
@@ -132,4 +137,45 @@ test("parseHunks ignores diff metadata before the first header", () => {
   const hunks = parseHunks(patch);
   assert.equal(hunks.length, 1);
   assert.equal(hunks[0]?.lines.length, 2);
+});
+
+test("DiffViewer renders file summary and parsed patch content", () => {
+  renderWithProviders(
+    createElement(DiffViewer, {
+      diff: {
+        files: [
+          {
+            path: "src/example.ts",
+            changeType: "modified",
+            additions: 1,
+            deletions: 1,
+            patch: ["@@ -1,1 +1,1 @@", "-old value", "+new value"].join("\n"),
+          },
+        ],
+      } as RunDiff,
+    }),
+  );
+
+  assert.equal(screen.getAllByText("src/example.ts").length, 2);
+  assert.equal(screen.getByText("1 file").textContent, "1 file");
+  assert.equal(screen.getByText("old value").textContent, "old value");
+  assert.equal(screen.getByText("new value").textContent, "new value");
+});
+
+test("DiffViewer supports selection, binary/no-change states, and all-file collapse/expand", () => {
+  const select = vi.fn();
+  renderWithProviders(createElement(DiffViewer, {
+    selectable: true, selectedFiles: new Set(["binary.png"]), onFileSelectionChange: select,
+    diff: { files: [
+      { path: "binary.png", changeType: "added", additions: 0, deletions: 0, isBinary: true, patch: "" },
+      { path: "empty.txt", changeType: "deleted", additions: 0, deletions: 2, patch: "" },
+    ] } as RunDiff,
+  }));
+  assert.ok(screen.getByText("2 files")); assert.ok(screen.getByText("Binary file")); assert.ok(screen.getByText("No changes"));
+  fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
+  assert.equal(screen.queryByText("Binary file"), null);
+  fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+  const checks = screen.getAllByRole("checkbox");
+  fireEvent.click(checks[1]!);
+  assert.deepEqual(select.mock.calls, [["empty.txt", true]]);
 });

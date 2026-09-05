@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // FileReader abstracts file system operations for testing.
@@ -504,7 +504,8 @@ func (c *CertificateCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.executeRenewCloudflared(ctx, result, start)
 
 	case "restart-cloudflared":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "cloudflared")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "cloudflared")
+		result.Elevation = &outcome
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -554,7 +555,7 @@ func (c *CertificateCheck) executeRenewCloudflared(ctx context.Context, result c
 	outputBuilder.WriteString("  cloudflared tunnel login\n")
 	outputBuilder.WriteString("\nThis will open a browser for authentication.\n")
 	outputBuilder.WriteString("After authentication, run:\n")
-	outputBuilder.WriteString("  sudo systemctl restart cloudflared\n")
+	outputBuilder.WriteString("  run the declared native service-manager restart action for cloudflared\n")
 
 	// Note: We can't run cloudflared tunnel login non-interactively
 	// So we provide instructions instead

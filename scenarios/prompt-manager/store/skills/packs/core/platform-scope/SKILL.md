@@ -1,6 +1,25 @@
+---
+name: "platform-scope"
+description: "Session constraints for shared packages/platform code: compatibility-first, brownfield-safe, no breaking changes by default."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  tags: ["scope","platform","constraints"]
+  modes: ["scope"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Platform Scope
 
-Session constraints for work on shared platform code (for example `packages/*`, shared templates, shared contracts). These boundaries keep changes brownfield-safe and compatible with downstream scenarios.
+Session constraints for work on shared platform code (for example `path:packages/*`, shared templates, shared contracts). These boundaries keep changes brownfield-safe and compatible with downstream scenarios.
 
 ## Session Boundaries
 

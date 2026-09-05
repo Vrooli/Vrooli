@@ -19,17 +19,24 @@ export interface ValidationErrorsProps {
   className?: string;
 }
 
-export function ValidationErrors({ errors, onDismiss, className = "" }: ValidationErrorsProps) {
+export function ValidationErrors({
+  errors,
+  onDismiss,
+  className = "",
+}: ValidationErrorsProps) {
   if (errors.length === 0) return null;
 
   return (
-    <div className={`rounded-lg border border-red-800/60 bg-red-950/30 p-4 ${className}`}>
+    <div
+      className={`rounded-lg border border-red-800/60 bg-red-950/30 p-4 ${className}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-2">
             <p className="text-sm font-medium text-red-200">
-              Please fix the following {errors.length === 1 ? "issue" : "issues"} before generating:
+              Please fix the following{" "}
+              {errors.length === 1 ? "issue" : "issues"} before generating:
             </p>
             <ul className="space-y-1 text-sm text-red-300">
               {errors.map((error) => (

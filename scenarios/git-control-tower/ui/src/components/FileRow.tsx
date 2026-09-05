@@ -8,15 +8,15 @@ import {
   EyeOff,
   Binary,
   Loader2,
-  ShieldCheck,
   MoreVertical,
   Square,
   CheckSquare,
   BarChart3,
 } from "lucide-react";
 import { useLongPress } from "../hooks";
-import { resolveGroupForFile } from "../lib/grouping";
 import { MobileContext, type FileRowProps } from "./FileListTypes";
+import { runHue } from "../lib/runAttribution";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 export const FileRow = memo(function FileRow({
   file,
@@ -29,7 +29,8 @@ export const FileRow = memo(function FileRow({
   isDiscarding,
   isIgnoring,
   isBinary,
-  isApproved,
+  runAttribution,
+  onOpenRun,
   itemTestId,
   actionTestId,
   discardTestId,
@@ -44,7 +45,7 @@ export const FileRow = memo(function FileRow({
   onConfirmIgnore,
   confirmingDiscard,
   confirmingIgnore,
-  groupingRules,
+  resolvedGroups,
   onOpenMobileActions,
   onContextMenu,
   mobileSelectionMode,
@@ -109,6 +110,21 @@ export const FileRow = memo(function FileRow({
           )}
         </span>
       )}
+      {runAttribution ? (
+        <button
+          type="button"
+          className="h-full w-[3px] shrink-0 self-stretch cursor-pointer border-0 p-0"
+          style={{ backgroundColor: runHue(runAttribution.runId) }}
+          aria-label={`Show agent run ${runAttribution.runId}`}
+          title={`Show agent run ${runAttribution.runId}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenRun?.(runAttribution.runId);
+          }}
+        />
+      ) : (
+        <span className="h-full w-[3px] shrink-0 self-stretch" aria-hidden="true" />
+      )}
       {badge && (isMobile ? (
         <span
           className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
@@ -152,18 +168,17 @@ export const FileRow = memo(function FileRow({
         </span>
       )}
 
-      {isApproved && (
-        <span
-          className={`flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300 ${isMobile ? "text-xs" : "text-[10px]"}`}
-          title="Sandbox-approved change"
-        >
-          <ShieldCheck className="h-3 w-3" />
-          approved
-        </span>
+      {runAttribution && (
+        <button type="button" className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] text-slate-100" style={{ backgroundColor: runHue(runAttribution.runId) }} data-testid={`run-chip-${runAttribution.runId.slice(0, 8)}`} title={`From agent run ${runAttribution.runId}`} onClick={(event) => { event.stopPropagation(); onOpenRun?.(runAttribution.runId); }}>
+          ◆ {runAttribution.runId.slice(0, 8)}
+        </button>
       )}
 
+
       {isConfirmingIgnore && onConfirmIgnore && onIgnore && (() => {
-        const group = groupingRules ? resolveGroupForFile(file, groupingRules) : null;
+        const group = resolvedGroups?.find((candidate) =>
+          candidate.source !== "builtin" && candidate.files.includes(file),
+        );
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             {group ? (
@@ -179,11 +194,11 @@ export const FileRow = memo(function FileRow({
                 </button>
                 <button
                   className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
-                  onClick={() => { onIgnore(file, "group", group.groupDir); onConfirmIgnore(null); }}
+                  onClick={() => { onIgnore(file, "group", group.root ?? ""); onConfirmIgnore(null); }}
                   disabled={isIgnoring}
                   data-testid="confirm-ignore-group"
                 >
-                  {group.groupLabel}
+                  {group.label}
                 </button>
                 <button
                   className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
@@ -249,8 +264,11 @@ export const FileRow = memo(function FileRow({
           {/* Desktop: hover-to-reveal actions */}
           {!isMobile && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-              <button
-                className="p-1 rounded hover:bg-slate-700 transition-all"
+              <IconButton
+                size="xs"
+                surface="ghost"
+                denseTapTarget
+                className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAction(file);
@@ -258,31 +276,40 @@ export const FileRow = memo(function FileRow({
                 disabled={isLoading || isIgnoring}
                 title={actionLabel}
                 data-testid={actionTestId}
+                aria-label={actionLabel ?? "Perform file action"}
               >
                 {isLoading ? (
                   <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
                 ) : (
                   actionIcon
                 )}
-              </button>
+              </IconButton>
               {onViewMetrics && (
-                <button
-                  className="p-1 rounded hover:bg-slate-700 transition-all"
+                <IconButton
+                  size="xs"
+                  surface="ghost"
+                  denseTapTarget
+                  className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
                   onClick={(e) => { e.stopPropagation(); if (category) onViewMetrics(file, category); }}
                   title="View file metrics"
+                  aria-label="View file metrics"
                 >
                   <BarChart3 className="h-3 w-3 text-slate-400" />
-                </button>
+                </IconButton>
               )}
               {onConfirmIgnore && onIgnore && (
-                <button
-                  className="p-1 rounded hover:bg-amber-900/40 transition-all"
+                <IconButton
+                  size="xs"
+                  surface="ghost"
+                  denseTapTarget
+                  className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
                   onClick={(e) => {
                     e.stopPropagation();
                     onConfirmIgnore(file);
                   }}
                   disabled={isIgnoring}
                   title="Ignore file"
+                  aria-label="Ignore file"
                   data-testid={ignoreTestId}
                 >
                   {isIgnoring ? (
@@ -290,17 +317,21 @@ export const FileRow = memo(function FileRow({
                   ) : (
                     <EyeOff className="h-3 w-3 text-amber-300" />
                   )}
-                </button>
+                </IconButton>
               )}
               {canDiscard && onConfirmDiscard && (
-                <button
-                  className="p-1 rounded hover:bg-red-900/50 transition-all"
+                <IconButton
+                  size="xs"
+                  surface="ghost"
+                  denseTapTarget
+                  className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
                   onClick={(e) => {
                     e.stopPropagation();
                     onConfirmDiscard(file);
                   }}
                   disabled={isDiscarding || isIgnoring}
                   title="Discard changes"
+                  aria-label="Discard changes"
                   data-testid={discardTestId}
                 >
                   {isDiscarding ? (
@@ -308,7 +339,7 @@ export const FileRow = memo(function FileRow({
                   ) : (
                     <Trash2 className="h-3 w-3 text-red-400" />
                   )}
-                </button>
+                </IconButton>
               )}
             </div>
           )}
@@ -317,8 +348,11 @@ export const FileRow = memo(function FileRow({
           {isMobile && (
             <div className="flex items-center gap-1">
               {/* Primary action (stage/unstage) - always visible */}
-              <button
-                className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
+              <IconButton
+                size="xs"
+                surface="ghost"
+                denseTapTarget
+                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAction(file);
@@ -326,27 +360,32 @@ export const FileRow = memo(function FileRow({
                 disabled={isLoading || isIgnoring}
                 title={actionLabel}
                 data-testid={actionTestId}
+                aria-label={actionLabel ?? "Perform file action"}
               >
                 {isLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                 ) : (
                   <span className="[&>svg]:h-5 [&>svg]:w-5">{actionIcon}</span>
                 )}
-              </button>
+              </IconButton>
 
               {/* More actions button - opens bottom sheet */}
               {(onConfirmIgnore || canDiscard || onViewMetrics) && onOpenMobileActions && (
-                <button
-                  className="p-2 rounded-lg hover:bg-slate-700 active:bg-slate-600 transition-all touch-target"
+                <IconButton
+                  size="xs"
+                  surface="ghost"
+                  denseTapTarget
+                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenMobileActions(file);
                   }}
                   title="More actions"
+                  aria-label="More actions"
                   data-testid={`${itemTestId}-more-actions`}
                 >
                   <MoreVertical className="h-5 w-5 text-slate-400" />
-                </button>
+                </IconButton>
               )}
             </div>
           )}
@@ -355,4 +394,3 @@ export const FileRow = memo(function FileRow({
     </li>
   );
 });
-

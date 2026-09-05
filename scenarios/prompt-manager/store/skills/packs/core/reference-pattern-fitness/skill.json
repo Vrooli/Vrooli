@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-05-04T00:00:00Z",
+  "description": "Audit lens for artifacts that exist to be copied (templates, reference scenarios, canonical examples). Composes with single-instance audit lenses; surfaces multiplier-aware findings the others miss.",
+  "entry": "SKILL.md",
+  "icon": "git-branch",
+  "id": "reference-pattern-fitness",
+  "kind": "skill",
+  "modes": [
+    "steer",
+    "meta-optimization",
+    "audits"
+  ],
+  "name": "Reference-Pattern Fitness",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "test-genie"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "test-genie"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "template-fitness"
+  ],
+  "targetToolId": "run-agent",
+  "updatedAt": "2026-05-04T00:00:00Z"
+}

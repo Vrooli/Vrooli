@@ -2,44 +2,60 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"log"
+	"fmt"
 	"net/http"
-	"time"
+	"os"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 )
 
-// Server wires the HTTP router and database connection
+// Server wires the HTTP router.
 type Server struct {
-	db     *sql.DB
 	router *mux.Router
+	roots  Roots
+	bridge *nodereach.Client
 }
 
-// NewServer initializes database and routes
-func NewServer(db *sql.DB) *Server {
+// routingMuxAdapter adapts gorilla/mux's fluent Handle signature to the small
+// dev-routing interface without coupling api-core to this router package.
+type routingMuxAdapter struct{ router *mux.Router }
+
+func (m routingMuxAdapter) Handle(pattern string, handler http.Handler) {
+	// Connect handlers own a procedure subtree. Gorilla's Handle is exact,
+	// unlike net/http.ServeMux, so preserve devrouting's trailing-slash
+	// subtree contract explicitly.
+	m.router.PathPrefix(pattern).Handler(handler)
+}
+
+// NewServer initializes routes.
+func NewServer() *Server {
+	roots, _ := resolveRoots()
 	srv := &Server{
-		db:     db,
 		router: mux.NewRouter(),
+		roots:  roots,
+		bridge: nodereach.New(nodereach.Config{}),
 	}
 	srv.setupRoutes()
 	return srv
 }
 
 func (s *Server) setupRoutes() {
+	s.router.Use(securityHeadersMiddleware)
 	s.router.Use(loggingMiddleware)
+	s.router.Use(s.targetProxyMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	// Uses api-core/health for standardized response format
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(s.db), health.Critical).
-		Handler()
+	healthHandler := health.New().Version("2.0.0").Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
@@ -48,20 +64,50 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/resources", s.handleListResources).Methods("GET")
 	s.router.HandleFunc("/api/v1/resources/{name}", s.handleGetResource).Methods("GET")
 
-	// Onboarding progress endpoints
-	s.router.HandleFunc("/api/v1/progress", s.handleGetProgress).Methods("GET")
-	s.router.HandleFunc("/api/v1/progress", s.handleUpdateProgress).Methods("PUT")
-
-	// Config endpoints
-	s.router.HandleFunc("/api/v1/config/generate", s.handleConfigGenerate).Methods("POST")
-	s.router.HandleFunc("/api/v1/config/validate", s.handleConfigValidate).Methods("POST")
-	s.router.HandleFunc("/api/v1/config/export", s.handleConfigExport).Methods("POST")
-
-	// Setup order endpoint
-	s.router.HandleFunc("/api/v1/setup-order", s.handleSetupOrder).Methods("GET")
+	// Operator state is the sole authority for onboarding choices.
+	s.router.HandleFunc("/api/v1/operator-state", s.handleOperatorState).Methods("GET")
+	s.router.Handle("/api/v2/operator-state", onboardingMutationAuth(http.HandlerFunc(s.handleOperatorState))).Methods("PATCH")
+	s.router.HandleFunc("/api/v2/scenarios", s.handleV2Scenarios).Methods("GET")
+	s.router.HandleFunc("/api/v2/core-set", s.handleV2CoreSet).Methods("GET")
+	s.router.HandleFunc("/api/v2/recommendation", s.handleV2Recommendation).Methods("GET")
+	s.router.HandleFunc("/api/v2/resources", s.handleV2Resources).Methods("GET")
+	s.router.HandleFunc("/api/v2/closure", s.handleV2Closure).Methods("GET")
+	s.router.HandleFunc("/api/v2/union", s.handleV2Union).Methods("GET")
+	s.router.HandleFunc("/api/v2/credentials", s.handleV2Credentials).Methods("GET")
+	s.router.HandleFunc("/api/v2/handoff", s.handleV2Handoff).Methods("POST")
+	s.router.Handle("/api/v2/apply", onboardingMutationAuth(http.HandlerFunc(s.handleV2Apply))).Methods("POST")
+	s.router.HandleFunc("/api/v2/apply/plan", s.handleV2ApplyPlan).Methods("GET")
+	s.router.HandleFunc("/api/v2/apply/{run_id}", s.handleV2ApplyStatus).Methods("GET")
+	s.router.HandleFunc("/api/v2/session", s.handleV2Session).Methods("GET")
+	s.router.HandleFunc("/api/v2/session/step", s.handleV2Session).Methods("POST")
+	s.router.HandleFunc("/api/v2/steps", s.handleV2Steps).Methods("GET")
+	s.router.HandleFunc("/api/v2/operator-inputs", s.handleV2OperatorInputs).Methods("GET")
+	s.router.HandleFunc("/api/v2/targets", s.handleV2Targets).Methods("GET")
+	s.router.Handle("/api/v2/operator-inputs/resolve", onboardingMutationAuth(http.HandlerFunc(s.handleV2OperatorInputsResolve))).Methods("POST")
+	s.router.HandleFunc("/api/v2/capabilities", s.handleV2Capabilities).Methods("GET")
+	s.router.HandleFunc("/api/v2/capabilities/status", s.handleV2Capabilities).Methods("GET")
+	s.router.Handle("/api/v2/capabilities/preview", onboardingMutationAuth(http.HandlerFunc(s.handleV2CapabilityPreview))).Methods("POST")
+	s.router.Handle("/api/v2/capabilities/apply", onboardingMutationAuth(http.HandlerFunc(s.handleV2CapabilityApply))).Methods("POST")
+	s.router.HandleFunc("/api/v2/host-requirements", s.handleV2HostRequirements).Methods("GET")
+	s.router.HandleFunc("/api/v2/readiness", s.handleV2Readiness).Methods("GET")
+	s.router.Handle("/api/v2/credentials/provision", onboardingMutationAuth(http.HandlerFunc(s.handleV2CredentialProvision))).Methods("POST")
+	s.router.HandleFunc("/api/v2/credentials/doctor", s.handleV2CredentialDoctor).Methods("GET")
+	s.router.Handle("/api/v2/readiness/degraded-acknowledgement", onboardingMutationAuth(http.HandlerFunc(s.handleV2DegradedAcknowledgement))).Methods("POST")
 
 	// Glossary endpoint
 	s.router.HandleFunc("/api/v1/glossary", s.handleGlossary).Methods("GET")
+}
+
+// securityHeadersMiddleware applies the baseline browser-facing API policy at
+// one boundary so every handler, including errors and health probes, is safe.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Handler returns the HTTP handler with recovery middleware
@@ -69,38 +115,75 @@ func (s *Server) Handler() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
 }
 
+// onboardingScenarioName is this API's own scenario. The apply executor needs
+// it to recognise itself in a plan: starting this scenario from inside a
+// request it is serving stops the process mid-run.
+const onboardingScenarioName = "vrooli-onboarding"
+
 // loggingMiddleware prints simple request logs
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
 }
 
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
-		ScenarioName: "vrooli-onboarding",
+		ScenarioName: onboardingScenarioName,
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Connect to database with automatic retry and backoff
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: database.DriverPostgres,
-	})
-	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+	if err := configureOperatorStateRoots(); err != nil {
+		panic("configure operator state roots: " + err.Error())
 	}
 
-	srv := NewServer(db)
+	// Runner mode executes one accepted apply run and exits. It is deliberately
+	// ahead of every server concern below: a runner opens no listener, claims
+	// no port, and registers no routes, so an apply in flight never competes
+	// with the API it was spawned from.
+	if id, ok := applyRunnerRequest(os.Args[1:]); ok {
+		if err := runApplyRunner(context.Background(), id); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "apply runner: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if err := prepareApplyRunnerExecutable(); err != nil {
+		panic("prepare apply runner executable: " + err.Error())
+	}
+	// Keep the file-only API inside api-core's routed storage contract. The
+	// operatorstate service performs the actual request-scoped selection; this
+	// startup probe makes the seam explicit to storage-manager's static checker.
+	ctx := context.Background()
+	if _, err := operatorStateRoots.Pick(ctx, storage.ClassConfig); err != nil {
+		panic("route operator state roots: " + err.Error())
+	}
+	// The onboarding API is file-authoritative, but test-genie still needs the
+	// standard routed control surface to prove destructive workflows cannot use
+	// a live pool. This private in-memory pool stores no onboarding state.
+	routingDB, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          "file:vrooli-onboarding-routing?mode=memory&cache=shared",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		panic("configure onboarding test routing: " + err.Error())
+	}
+	if err := database.EnsureSchemas(ctx, routingDB.Primary()); err != nil {
+		panic("configure onboarding test schemas: " + err.Error())
+	}
+	srv := NewServer()
+	devrouting.RegisterWithFileRoots(routingMuxAdapter{router: srv.router}, routingDB, operatorStateRoots)
+	handler := apihttp.TestModeMiddleware(srv.Handler())
 
 	// Start server with graceful shutdown (port from API_PORT env var)
 	if err := server.Run(server.Config{
-		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler: handler,
+		Cleanup: func(context.Context) error { return routingDB.Close() },
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		panic("onboarding server failed: " + err.Error())
 	}
 }

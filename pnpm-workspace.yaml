@@ -1,10 +1,25 @@
-# Workspace configuration for shared packages only
-# IMPORTANT: Do NOT add scenarios/**/ui here!
-# Scenarios must remain completely isolated to prevent dependency conflicts.
-# Each scenario uses postinstall symlinks to access packages/* (e.g., @vrooli/iframe-bridge)
-# This ensures we can scale to thousands of independent scenarios.
-packageManager: "pnpm@10.14.0"
-link-workspace-packages: false
-shared-workspace-lockfile: false
+# Root workspace configuration - shared packages only (packages/*).
+# IMPORTANT: Do NOT add scenarios/**/ui or any scenarios/* path here.
+# Scenarios must stay fully isolated to prevent dependency conflicts; each
+# scenario ui/ carries its own pnpm-workspace.yaml BOUNDARY file (react-vite
+# template >= 1.1.0) that stops pnpm's upward workspace walk, so a plain
+# "pnpm install" there never joins this workspace ("--ignore-workspace" stays
+# equivalent and is what lifecycle commands pass). A pnpm-lock.yaml must never
+# exist at the repo root - it means an install ran in root-workspace scope.
+# Shared-package adoption is governed by "vrooli package ..." plus package
+# manifests under packages/*/.vrooli/package.json.
+# This file is the single source of truth for root workspace settings; do not
+# reintroduce a root .npmrc. pnpm rewrites this file and strips these comments;
+# run "vrooli hygiene --fix-safe" to restore them. Enforced by "vrooli hygiene".
+
 packages:
   - packages/*
+
+autoInstallPeers: false
+link-workspace-packages: false
+shared-workspace-lockfile: false
+packageManager: pnpm@10.19.0
+minimumReleaseAge: 10080
+public-hoist-pattern:
+  - "*eslint*"
+  - "*prettier*"

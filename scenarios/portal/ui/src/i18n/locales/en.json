@@ -1,0 +1,173 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Portal are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Vrooli Portal"
+  },
+  "layout": {
+    "sidebarLabel": "Desktop navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Portal",
+      "description": "Chat with OpenRouter models or coding agents while Portal passively surfaces ecosystem context."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "integrations": {
+    "mode": {
+      "label": "Search mode",
+      "loading": "checking",
+      "off": "off",
+      "passive": "passive",
+      "full": "full",
+      "unknown": "unknown"
+    },
+    "settings": {
+      "title": "Integrations",
+      "description": "Portal measures optional dependencies from its own calls and uses those measurements to choose the active search behavior.",
+      "overrideLabel": "Behavior override",
+      "overrideAuto": "Auto",
+      "overrideForceOff": "Force off",
+      "overrideForcePassive": "Force passive",
+      "nameHeader": "Integration",
+      "stateHeader": "State",
+      "latencyHeader": "P95 latency",
+      "samplesHeader": "Samples",
+      "reasonHeader": "Reason",
+      "empty": "No integration measurements yet.",
+      "error": "Unable to load integration status."
+    },
+    "state": {
+      "available": "available",
+      "degraded": "degraded",
+      "unavailable": "unavailable",
+      "unknown": "unknown",
+      "unspecified": "unspecified"
+    }
+  },
+  "search": {
+    "omnibox": {
+      "title": "Ecosystem omnibox",
+      "description": "Type to surface scenarios, docs, records, skills, and commands from search-hub without blocking chat.",
+      "inputLabel": "Draft",
+      "placeholder": "Ask about Vrooli capabilities, commands, docs, or prior work",
+      "loading": "Searching ecosystem context…",
+      "empty": "No ecosystem suggestions found.",
+      "degraded": "Search suggestions are degraded."
+    }
+  },
+  "chat": {
+    "title": "Chats",
+    "sidebar": {
+      "label": "Conversation list",
+      "description": "Grouped chats share the same LLM and agent workspace.",
+      "newChat": "LLM",
+      "newAgent": "Agent",
+      "newGroup": "New group",
+      "newChatTitle": "New LLM chat",
+      "newAgentTitle": "New agent chat",
+      "newGroupTitle": "New group",
+      "ungrouped": "Ungrouped",
+      "empty": "Create an LLM or agent chat to begin."
+    },
+    "controls": {
+      "mode": "Mode",
+      "modeLlm": "LLM",
+      "modeAgent": "Agent",
+      "model": "Model",
+      "modelFast": "Fast model",
+      "modelReasoning": "Reasoning model",
+      "agentHarness": "Agent",
+      "harnessClaude": "Claude Code",
+      "harnessCodex": "Codex",
+      "harnessOpencode": "OpenCode",
+      "harnessGrok": "Grok",
+      "webSearch": "Passive search"
+    },
+    "empty": {
+      "description": "Start a chat from the sidebar, then send a message. Search results attach in the background when search-hub is available."
+    },
+    "message": {
+      "roleUser": "You",
+      "roleAssistant": "Assistant",
+      "roleAgent": "Agent",
+      "branchCount": "{{current}} of {{total}}",
+      "previousBranch": "Previous branch",
+      "nextBranch": "Next branch",
+      "edit": "Edit message",
+      "editPrompt": "Edit message",
+      "regenerate": "Regenerate",
+      "searchAttachments": "Ecosystem results",
+      "agentActivity": "Agent activity",
+      "streaming": "Streaming"
+    },
+    "composer": {
+      "label": "Message",
+      "placeholder": "Ask Portal to reason, build, explain, or search across Vrooli.",
+      "skills": "Skill IDs",
+      "skillsPlaceholder": "Comma-separated prompt-manager skill IDs",
+      "send": "Send",
+      "stop": "Stop"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

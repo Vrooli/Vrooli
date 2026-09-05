@@ -12,9 +12,9 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/main_test.go"
         }
       ],
       "notes": "Required for lifecycle system health monitoring",
@@ -74,12 +74,6 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "description": "API endpoints documented with request/response schemas and example usage",
       "validation": [
-        {
-          "type": "test",
-          "phase": "structure",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
-        }
       ],
       "notes": "Enable other scenarios to integrate without reading source code",
       "status": "pending"

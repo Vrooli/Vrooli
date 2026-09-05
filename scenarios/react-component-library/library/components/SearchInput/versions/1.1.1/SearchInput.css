@@ -1,0 +1,10 @@
+[data-rcl-search-input] { display: grid; gap: 6px; width: min(100%, 360px); }
+[data-rcl-search-input-label] { color: var(--color-muted-foreground, #64748b); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+[data-rcl-search-input-field] { box-sizing: border-box; min-height: 44px; width: 100%; border: 1px solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .5rem); background: var(--color-field, var(--color-surface, #fff)); color: var(--color-foreground, #0f172a); padding-inline: 16px; font: inherit; }
+
+/* The "mobile-safe font sizing" the field family advertises. iOS zooms the
+   whole viewport when a text control under 16px takes focus. Held at the
+   component's own weight so a consumer that states a size still wins. */
+@media (pointer: coarse) {
+  [data-rcl-search-input-field] { font-size: max(16px, 1em); }
+}

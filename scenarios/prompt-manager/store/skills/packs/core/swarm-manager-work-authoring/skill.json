@@ -1,0 +1,32 @@
+{
+  "createdAt": "2026-07-25T00:00:00Z",
+  "description": "How to write backlog item, goal, and milestone text so it stays true as the code moves: outcome statement plus Gherkin done-condition.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-work-authoring",
+  "kind": "skill",
+  "modes": [
+    "tools"
+  ],
+  "name": "Swarm Manager Work Authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "vrooli"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "swarm-manager",
+    "backlog",
+    "goals",
+    "writing"
+  ],
+  "updatedAt": "2026-07-25T00:00:00Z"
+}

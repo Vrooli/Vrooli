@@ -1,0 +1,482 @@
+{
+  "selectors": {
+    "library.forms.search-input.root": {
+      "testId": "forms.search-input",
+      "selector": "[data-testid=\"forms.search-input\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.react-component-library:StatusBadge.root": {
+      "testId": "react-component-library:StatusBadge",
+      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
+    },
+    "app.skipToContent": {
+      "testId": "skip-to-content",
+      "selector": "[data-testid=\"skip-to-content\"]"
+    },
+    "app.nav": {
+      "testId": "app-nav",
+      "selector": "[data-testid=\"app-nav\"]"
+    },
+    "nav.wizard": {
+      "testId": "nav-wizard",
+      "selector": "[data-testid=\"nav-wizard\"]"
+    },
+    "nav.wizardBadge": {
+      "testId": "nav-wizard-badge",
+      "selector": "[data-testid=\"nav-wizard-badge\"]"
+    },
+    "nav.dashboard": {
+      "testId": "nav-dashboard",
+      "selector": "[data-testid=\"nav-dashboard\"]"
+    },
+    "nav.glossary": {
+      "testId": "nav-glossary",
+      "selector": "[data-testid=\"nav-glossary\"]"
+    },
+    "wizard.shell": {
+      "testId": "wizard-shell",
+      "selector": "[data-testid=\"wizard-shell\"]"
+    },
+    "wizard.stepsDesktop": {
+      "testId": "wizard-steps-desktop",
+      "selector": "[data-testid=\"wizard-steps-desktop\"]"
+    },
+    "wizard.progressBar": {
+      "testId": "progress-bar",
+      "selector": "[data-testid=\"progress-bar\"]"
+    },
+    "wizard.prev": {
+      "testId": "wizard-prev",
+      "selector": "[data-testid=\"wizard-prev\"]"
+    },
+    "wizard.next": {
+      "testId": "wizard-next",
+      "selector": "[data-testid=\"wizard-next\"]"
+    },
+    "wizard.welcome": {
+      "testId": "step-welcome",
+      "selector": "[data-testid=\"step-welcome\"]"
+    },
+    "wizard.scenarios": {
+      "testId": "step-select-scenarios",
+      "selector": "[data-testid=\"step-select-scenarios\"]"
+    },
+    "wizard.integrations": {
+      "testId": "step-integrations-deferred",
+      "selector": "[data-testid=\"step-integrations-deferred\"]"
+    },
+    "wizard.operatingMode": {
+      "testId": "step-operating-mode",
+      "selector": "[data-testid=\"step-operating-mode\"]"
+    },
+    "wizard.resources": {
+      "testId": "step-derived-resources",
+      "selector": "[data-testid=\"step-derived-resources\"]"
+    },
+    "wizard.scenarioSearch": {
+      "testId": "scenario-search",
+      "selector": "[data-testid=\"scenario-search\"]"
+    },
+    "wizard.scenarioFilter": {
+      "testId": "scenario-filter",
+      "selector": "[data-testid=\"scenario-filter\"]"
+    },
+    "wizard.host": {
+      "testId": "step-host-requirements",
+      "selector": "[data-testid=\"step-host-requirements\"]"
+    },
+    "wizard.readiness": {
+      "testId": "step-readiness",
+      "selector": "[data-testid=\"step-readiness\"]"
+    },
+    "wizard.selectResources": {
+      "testId": "step-select-resources",
+      "selector": "[data-testid=\"step-select-resources\"]"
+    },
+    "wizard.review": {
+      "testId": "step-review",
+      "selector": "[data-testid=\"step-review\"]"
+    },
+    "wizard.complete": {
+      "testId": "step-complete",
+      "selector": "[data-testid=\"step-complete\"]"
+    },
+    "wizard.resumePrompt": {
+      "testId": "resume-prompt",
+      "selector": "[data-testid=\"resume-prompt\"]"
+    },
+    "wizard.resumeButton": {
+      "testId": "resume-button",
+      "selector": "[data-testid=\"resume-button\"]"
+    },
+    "wizard.setupOrderHint": {
+      "testId": "setup-order-hint",
+      "selector": "[data-testid=\"setup-order-hint\"]"
+    },
+    "wizard.resourcesLoading": {
+      "testId": "step-resources-loading",
+      "selector": "[data-testid=\"step-resources-loading\"]"
+    },
+    "wizard.resourcesError": {
+      "testId": "step-resources-error",
+      "selector": "[data-testid=\"step-resources-error\"]"
+    },
+    "wizard.validationLoading": {
+      "testId": "validation-loading",
+      "selector": "[data-testid=\"validation-loading\"]"
+    },
+    "wizard.validationError": {
+      "testId": "validation-error",
+      "selector": "[data-testid=\"validation-error\"]"
+    },
+    "wizard.validationSuccess": {
+      "testId": "validation-success",
+      "selector": "[data-testid=\"validation-success\"]"
+    },
+    "wizard.validationInvalid": {
+      "testId": "validation-invalid",
+      "selector": "[data-testid=\"validation-invalid\"]"
+    },
+    "wizard.configLoading": {
+      "testId": "config-loading",
+      "selector": "[data-testid=\"config-loading\"]"
+    },
+    "wizard.configError": {
+      "testId": "config-error",
+      "selector": "[data-testid=\"config-error\"]"
+    },
+    "wizard.configOutput": {
+      "testId": "config-output",
+      "selector": "[data-testid=\"config-output\"]"
+    },
+    "wizard.copyConfig": {
+      "testId": "copy-config",
+      "selector": "[data-testid=\"copy-config\"]"
+    },
+    "wizard.downloadConfig": {
+      "testId": "download-config",
+      "selector": "[data-testid=\"download-config\"]"
+    },
+    "wizard.startOver": {
+      "testId": "start-over",
+      "selector": "[data-testid=\"start-over\"]"
+    },
+    "wizard.resourceSearch": {
+      "testId": "resource-search",
+      "selector": "[data-testid=\"resource-search\"]"
+    },
+    "wizard.resourceSearchClear": {
+      "testId": "resource-search-clear",
+      "selector": "[data-testid=\"resource-search-clear\"]"
+    },
+    "wizard.resourceFilterCount": {
+      "testId": "resource-filter-count",
+      "selector": "[data-testid=\"resource-filter-count\"]"
+    },
+    "wizard.resourceNoResults": {
+      "testId": "resource-no-results",
+      "selector": "[data-testid=\"resource-no-results\"]"
+    },
+    "wizard.startOverConfirm": {
+      "testId": "start-over-confirm",
+      "selector": "[data-testid=\"start-over-confirm\"]"
+    },
+    "wizard.startOverCancel": {
+      "testId": "start-over-cancel",
+      "selector": "[data-testid=\"start-over-cancel\"]"
+    },
+    "wizard.reviewEmptyState": {
+      "testId": "review-empty-state",
+      "selector": "[data-testid=\"review-empty-state\"]"
+    },
+    "wizard.reviewGoBack": {
+      "testId": "review-go-back",
+      "selector": "[data-testid=\"review-go-back\"]"
+    },
+    "wizard.stepAnnouncement": {
+      "testId": "step-announcement",
+      "selector": "[data-testid=\"step-announcement\"]"
+    },
+    "apply.plan": {
+      "testId": "apply-plan",
+      "selector": "[data-testid=\"apply-plan\"]"
+    },
+    "apply.privilegeWarning": {
+      "testId": "privilege-warning",
+      "selector": "[data-testid=\"privilege-warning\"]"
+    },
+    "apply.confirm": {
+      "testId": "apply-confirm",
+      "selector": "[data-testid=\"apply-confirm\"]"
+    },
+    "apply.progress": {
+      "testId": "apply-progress",
+      "selector": "[data-testid=\"apply-progress\"]"
+    },
+    "apply.report": {
+      "testId": "apply-report",
+      "selector": "[data-testid=\"apply-report\"]"
+    },
+    "apply.skippedNote": {
+      "testId": "skipped-note",
+      "selector": "[data-testid=\"skipped-note\"]"
+    },
+    "apply.retry": {
+      "testId": "retry",
+      "selector": "[data-testid=\"retry\"]"
+    },
+    "readiness.summary": {
+      "testId": "readiness-summary",
+      "selector": "[data-testid=\"readiness-summary\"]"
+    },
+    "readiness.item": {
+      "testId": "readiness-item",
+      "selector": "[data-testid=\"readiness-item\"]"
+    },
+    "readiness.remediation": {
+      "testId": "remediation",
+      "selector": "[data-testid=\"remediation\"]"
+    },
+    "readiness.recheck": {
+      "testId": "recheck",
+      "selector": "[data-testid=\"recheck\"]"
+    },
+    "readiness.continueDegraded": {
+      "testId": "readiness-continue-degraded",
+      "selector": "[data-testid=\"readiness-continue-degraded\"]"
+    },
+    "host.tools": {
+      "testId": "host-tools",
+      "selector": "[data-testid=\"host-tools\"]"
+    },
+    "host.safeguards": {
+      "testId": "host-safeguards",
+      "selector": "[data-testid=\"host-safeguards\"]"
+    },
+    "host.requirementEntry": {
+      "testId": "requirement-entry",
+      "selector": "[data-testid=\"requirement-entry\"]"
+    },
+    "host.riskIndicator": {
+      "testId": "risk-indicator",
+      "selector": "[data-testid=\"risk-indicator\"]"
+    },
+    "host.privilegeIndicator": {
+      "testId": "privilege-indicator",
+      "selector": "[data-testid=\"privilege-indicator\"]"
+    },
+    "host.changeSummary": {
+      "testId": "change-summary",
+      "selector": "[data-testid=\"change-summary\"]"
+    },
+    "credentials.card": {
+      "testId": "credential-card",
+      "selector": "[data-testid=\"credential-card\"]"
+    },
+    "credentials.purpose": {
+      "testId": "credential-purpose",
+      "selector": "[data-testid=\"credential-purpose\"]"
+    },
+    "credentials.status": {
+      "testId": "credential-status",
+      "selector": "[data-testid=\"credential-status\"]"
+    },
+    "credentials.input": {
+      "testId": "credential-input",
+      "selector": "[data-testid=\"credential-input\"]"
+    },
+    "credentials.save": {
+      "testId": "credential-save",
+      "selector": "[data-testid=\"credential-save\"]"
+    },
+    "credentials.obtainLink": {
+      "testId": "credential-obtain-link",
+      "selector": "[data-testid=\"credential-obtain-link\"]"
+    },
+    "capabilities.actions": {
+      "testId": "capability-actions",
+      "selector": "[data-testid=\"capability-actions\"]"
+    },
+    "scenario.list": {
+      "testId": "scenario-list",
+      "selector": "[data-testid=\"scenario-list\"]"
+    },
+    "scenario.cascadeNote": {
+      "testId": "cascade-note",
+      "selector": "[data-testid=\"cascade-note\"]"
+    },
+    "scenario.resourceRollup": {
+      "testId": "resource-rollup",
+      "selector": "[data-testid=\"resource-rollup\"]"
+    },
+    "scenario.catalogError": {
+      "testId": "catalog-error",
+      "selector": "[data-testid=\"catalog-error\"]"
+    },
+    "scenario.lockedBadge": {
+      "testId": "locked-badge",
+      "selector": "[data-testid=\"locked-badge\"]"
+    },
+    "dashboard.root": {
+      "testId": "health-dashboard",
+      "selector": "[data-testid=\"health-dashboard\"]"
+    },
+    "dashboard.summary": {
+      "testId": "health-summary",
+      "selector": "[data-testid=\"health-summary\"]"
+    },
+    "dashboard.grid": {
+      "testId": "health-grid",
+      "selector": "[data-testid=\"health-grid\"]"
+    },
+    "dashboard.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "dashboard.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "dashboard.lastChecked": {
+      "testId": "health-last-checked",
+      "selector": "[data-testid=\"health-last-checked\"]"
+    },
+    "dashboard.goToWizard": {
+      "testId": "health-go-to-wizard",
+      "selector": "[data-testid=\"health-go-to-wizard\"]"
+    },
+    "glossary.root": {
+      "testId": "glossary-panel",
+      "selector": "[data-testid=\"glossary-panel\"]"
+    },
+    "glossary.search": {
+      "testId": "glossary-search",
+      "selector": "[data-testid=\"glossary-search\"]"
+    },
+    "glossary.clearSearch": {
+      "testId": "glossary-clear-search",
+      "selector": "[data-testid=\"glossary-clear-search\"]"
+    },
+    "glossary.debounceIndicator": {
+      "testId": "glossary-debounce-indicator",
+      "selector": "[data-testid=\"glossary-debounce-indicator\"]"
+    },
+    "glossary.count": {
+      "testId": "glossary-count",
+      "selector": "[data-testid=\"glossary-count\"]"
+    },
+    "glossary.loading": {
+      "testId": "glossary-loading",
+      "selector": "[data-testid=\"glossary-loading\"]"
+    },
+    "glossary.empty": {
+      "testId": "glossary-empty",
+      "selector": "[data-testid=\"glossary-empty\"]"
+    },
+    "glossary.list": {
+      "testId": "glossary-list",
+      "selector": "[data-testid=\"glossary-list\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "wizard.stepIndicator": {
+      "description": "Step indicator circle by index",
+      "selectorPattern": "[data-testid=\"step-indicator-${index}\"]",
+      "testIdPattern": "step-indicator-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "wizard.scenarioCard": {
+      "description": "Scenario card by scenario name",
+      "selectorPattern": "[data-testid=\"scenario-card-${name}\"]",
+      "testIdPattern": "scenario-card-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "wizard.resourceCard": {
+      "description": "Resource card by name",
+      "selectorPattern": "[data-testid=\"resource-card-${name}\"]",
+      "testIdPattern": "resource-card-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "wizard.categoryToggle": {
+      "description": "Select All / Deselect All toggle per category",
+      "selectorPattern": "[data-testid=\"category-toggle-${category}\"]",
+      "testIdPattern": "category-toggle-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "string"
+        }
+      ]
+    },
+    "wizard.removeResource": {
+      "description": "Remove resource chip button in review step",
+      "selectorPattern": "[data-testid=\"remove-resource-${name}\"]",
+      "testIdPattern": "remove-resource-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "dashboard.healthCard": {
+      "description": "Health card by resource name",
+      "selectorPattern": "[data-testid=\"health-card-${name}\"]",
+      "testIdPattern": "health-card-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "dashboard.statusIndicator": {
+      "description": "Status indicator by resource name",
+      "selectorPattern": "[data-testid=\"status-indicator-${name}\"]",
+      "testIdPattern": "status-indicator-${name}",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "glossary.entry": {
+      "description": "Glossary entry by term",
+      "selectorPattern": "[data-testid=\"glossary-entry-${term}\"]",
+      "testIdPattern": "glossary-entry-${term}",
+      "params": [
+        {
+          "name": "term",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

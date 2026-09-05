@@ -6,22 +6,24 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
+
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apicoreserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 
+	"workspace-sandbox/internal/audit"
+	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/gc"
 	"workspace-sandbox/internal/handlers"
 	"workspace-sandbox/internal/logging"
@@ -30,9 +32,13 @@ import (
 	"workspace-sandbox/internal/policy"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
+	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
-	"workspace-sandbox/internal/toolexecution"
-	"workspace-sandbox/internal/toolregistry"
+	"workspace-sandbox/internal/server"
+
+	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace/workspaceconnect"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // Server wires the HTTP router, database, and services.
@@ -43,14 +49,11 @@ type Server struct {
 	driver           driver.Driver
 	handlers         *handlers.Handlers
 	logger           *logging.Logger
+	clock            schedule.Clock   // Wall-clock seam (Round 4 Phase 2). Threads through middleware.
 	processTracker   *process.Tracker // OT-P0-008: Process/Session Tracking
 	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
-	lifecycleRecon   *sandbox.LifecycleReconciler
+	lifecycleRecon   *sandbox.Runner
 	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
-
-	// Tool Discovery Protocol support
-	toolRegistry *toolregistry.Registry
-	toolHandler  *toolexecution.Handler
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -61,45 +64,82 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	// Include search_path in DSN so all pooled connections use the correct schema.
-	dsn, err := buildDSNWithSearchPath("workspace_sandbox")
+	// Wall-clock seam (Round 4 Phase 2). Production wires
+	// schedule.System() once and threads it through every constructor that
+	// needs time. Tests construct equivalents with a FakeClock.
+	clk := schedule.System()
+
+	// Process exec seam (Round 4 Phase 7). OSExecStarter wraps os/exec
+	// for every external-command invocation in driver, namespace,
+	// fsmount, diff, policy hooks, and interactive handlers.
+	starter := process.NewOSExecStarter()
+
+	// Mount seam (Round 4 Phase 7). SystemMounter wraps syscall.Mount /
+	// syscall.Unmount and the fuse-overlayfs subprocess; it depends on
+	// starter for binary lookups and userspace fallbacks.
+	mounter := fsmount.NewSystemMounter(starter)
+
+	// driverDeps bundles the three seam dependencies every driver
+	// constructor needs. Pass-through for SelectDriver, NewDriverFor,
+	// and SwitchDriver so downstream code never sees raw nils.
+	driverDeps := driver.Deps{Clock: clk, Mounter: mounter, Starter: starter}
+
+	// Resolve the embedded SQLite database path through the authoritative
+	// api-core/storage contract. Application-level path overrides are not
+	// accepted, so every process uses the same service-owned location.
+	dsn, err := resolveSQLiteDSN()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build database DSN: %w", err)
+		return nil, fmt.Errorf("failed to resolve SQLite path: %w", err)
 	}
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver: database.DriverSQLite,
 		DSN:    dsn,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Run automatic migrations
-	if err := ensureSchema(db); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	// SQLite serializes writes; cap the pool to a single connection so the
+	// pragmas applied by the DSN govern every transaction.
+	db.SetMaxOpenConns(1)
+
+	// Apply the embedded schema and run forward-only legacy migrations.
+	// EnsureSchema is the single startup entry point for DDL: it applies
+	// the idempotent CREATE TABLE statements, runs the driver_id rename
+	// and home_overlay_state column-add migrations, and stamps the
+	// schema_version row. Refuses to start if the persisted version
+	// drifts from repository.ExpectedSchemaVersion (Round 4 Phase 9).
+	if err := repository.EnsureSchema(context.Background(), db, clk); err != nil {
+		return nil, fmt.Errorf("failed to ensure schema: %w", err)
 	}
 
 	// Initialize driver with automatic selection and fallback
 	// Respects saved preference if available, otherwise:
 	// Priority: native overlayfs (in user namespace) > fuse-overlayfs > copy driver
 	driverCfg := driver.Config{
-		BaseDir:          cfg.Driver.BaseDir,
-		MaxSandboxes:     cfg.Limits.MaxSandboxes,
-		MaxSizeMB:        cfg.Limits.MaxSandboxSizeMB,
-		UseFuseOverlayfs: cfg.Driver.UseFuseOverlayfs,
+		BaseDir:            cfg.Driver.BaseDir,
+		HomeOverlayBaseDir: cfg.Driver.HomeOverlayBaseDir,
+		MaxSandboxes:       cfg.Limits.MaxSandboxes,
+		MaxSizeMB:          cfg.Limits.MaxSandboxSizeMB,
 	}
-	initialDriver, err := driver.SelectDriverWithPreference(context.Background(), driverCfg)
+	initialDriver, selectionReport, err := driver.SelectDriverWithPreference(context.Background(), driverCfg, driverDeps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize driver: %w", err)
 	}
-	// Wrap in Manager for hot-swap support
-	driverManager := driver.NewManager(initialDriver, driverCfg)
-	log.Printf("driver selected | type=%s version=%s", driverManager.Type(), driverManager.Version())
+	driver.LogSelectionReport(selectionReport)
+	// Boot-time self-check: kernel overlayfs requires the launcher to place
+	// the API inside a user namespace before main runs. Without that launch
+	// shape, Mount() would fail at runtime; failing fatally at boot makes the
+	// deployment-shape contract explicit.
+	if initialDriver.ID() == driver.DriverOverlayfsUserNS && !driver.InUserNamespace() {
+		log.Fatalf("driver overlayfs-userns selected but API is not running inside a user namespace; start through workspace-sandbox-launcher and ensure the workspace_sandbox_userns safeguard is satisfied")
+	}
+	// Hold the driver in an atomic.Pointer-backed slot so /api/v1/driver/select
+	// can hot-swap without locking every Driver() call.
+	driverSlot := driver.NewSlot(initialDriver)
+	log.Printf("driver selected | id=%s version=%s", initialDriver.ID(), initialDriver.Version())
 
 	// Initialize policies
-	approvalPolicy := policy.NewDefaultApprovalPolicy(cfg.Policy)
 	attributionPolicy, err := policy.NewDefaultAttributionPolicy(cfg.Policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attribution policy: %w", err)
@@ -119,7 +159,7 @@ func NewServer() (*Server, error) {
 				Required:    h.Required,
 			}
 		}
-		validationPolicy = policy.NewHookValidationPolicy(hooks,
+		validationPolicy = policy.NewHookValidationPolicy(starter, hooks,
 			policy.WithGlobalTimeout(cfg.Policy.ValidationTimeout),
 		)
 		log.Printf("validation hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.ValidationTimeout)
@@ -143,7 +183,7 @@ func NewServer() (*Server, error) {
 				Timeout:     h.Timeout,
 			}
 		}
-		teardownPolicy = policy.NewHookTeardownPolicy(hooks,
+		teardownPolicy = policy.NewHookTeardownPolicy(starter, hooks,
 			policy.WithTeardownGlobalTimeout(cfg.Policy.TeardownTimeout),
 		)
 		log.Printf("teardown hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.TeardownTimeout)
@@ -152,48 +192,114 @@ func NewServer() (*Server, error) {
 	}
 
 	// Initialize repository and service
-	repo := repository.NewSandboxRepository(db)
-	svcCfg := sandbox.ServiceConfig{
-		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
-		MaxSandboxes:            cfg.Limits.MaxSandboxes,
-		DefaultTTL:              cfg.Lifecycle.DefaultTTL,
-		DefaultNoLock:           cfg.Policy.DefaultNoLock,
-		AgentManagerURL:         cfg.Integration.AgentManagerURL,
-		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
-		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
+	repo := repository.NewSandboxRepository(db, clk)
+	archiveRepo := repository.NewArchiveRepository(db, clk)
+
+	// Diff-archive blob store. Resolves under api-core/storage's
+	// ClassData root, sharing the same data tree as the SQLite database
+	// so archive metadata + content travel together for backup/restore.
+	blobsResolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blobstore resolver: %w", err)
 	}
-	svc := sandbox.NewService(repo, driverManager, svcCfg,
-		sandbox.WithApprovalPolicy(approvalPolicy),
+	blobs, err := blobstore.New(blobsResolver)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize blobstore: %w", err)
+	}
+
+	// Audit emitter — single seam for sandbox audit-log writes (Round
+	// 4 Phase 6). Wraps repo.LogAuditEvent and stamps EventTime via the
+	// shared clock so reconcilers, GC, and the Service all share a
+	// deterministic timestamp source.
+	auditEmitter := audit.NewRepoEmitter(repo.LogAuditEvent, clk)
+	svcCfg := sandbox.ServiceConfig{
+		DefaultProjectRoot:            cfg.Driver.ProjectRoot,
+		MaxSandboxes:                  cfg.Limits.MaxSandboxes,
+		DefaultTTL:                    cfg.Lifecycle.DefaultTTL,
+		DefaultNoLock:                 cfg.Policy.DefaultNoLock,
+		AgentManagerURL:               cfg.Integration.AgentManagerURL,
+		AgentManagerSyncEnabled:       cfg.Integration.AgentManagerSyncEnabled,
+		AgentManagerSyncTimeout:       cfg.Integration.AgentManagerSyncTimeout,
+		CommitResolutionBatchLimit:    cfg.Lifecycle.CommitResolutionBatchLimit,
+		CommitResolutionHorizon:       cfg.Lifecycle.CommitResolutionHorizon,
+		UnresolvedProvenanceRetention: cfg.Lifecycle.UnresolvedProvenanceRetention,
+	}
+	// Metrics collector is constructed here so the Service can record
+	// daemon-reaped events via WithMetrics; handlers reuse the same
+	// instance below, exposing it on /metrics.
+	metricsCollector := metrics.NewCollector()
+
+	svc := sandbox.NewService(repo, driverSlot, svcCfg, clk, auditEmitter, starter,
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
+		sandbox.WithMetrics(metricsCollector),
+		sandbox.WithArchive(archiveRepo, blobs),
 	)
 	healCfg := sandbox.HealConfig{
 		IdleGracePeriod:        cfg.Lifecycle.AutoHealIdleGrace,
 		MaxConsecutiveFailures: cfg.Lifecycle.AutoHealMaxRetries,
 		BaseBackoff:            cfg.Lifecycle.AutoHealBaseBackoff,
 	}
-	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval, healCfg)
+
+	// Diff-archive retention store. Seeds from the env-derived defaults
+	// so first-boot retention matches Default()/LoadFromEnv; subsequent
+	// runtime PUTs to /config/retention persist to a JSON file under
+	// ClassConfig that takes over as the source of truth on next boot.
+	retentionStore, err := config.NewFileRetentionStore(cfg.Retention)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize retention store: %w", err)
+	}
+	retentionProvider := func() sandbox.RetentionPolicy {
+		rc := retentionStore.Get()
+		return sandbox.RetentionPolicy{
+			MaxArchiveAgeDays:     rc.MaxArchiveAgeDays,
+			MaxArchiveSizeBytes:   rc.MaxArchiveSizeBytes,
+			MaxArchivesPerProject: rc.MaxArchivesPerProject,
+		}
+	}
+
+	lifecycleRecon := sandbox.DefaultRunner(svc, cfg.Lifecycle.GCInterval, cfg.Lifecycle.ManualReviewTTL, cfg.Lifecycle.CommitReconcileInterval, healCfg, retentionProvider)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
 		GracePeriod: cfg.Lifecycle.ProcessGracePeriod,
 		KillWait:    cfg.Lifecycle.ProcessKillWait,
-	})
+	}, clk)
 
 	// Initialize process logger (Phase 2)
-	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir))
+	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir), clk)
 
-	// Initialize profile store for isolation profiles
-	// Determine scenario base directory from VROOLI_ROOT
-	scenarioDir := os.Getenv("VROOLI_ROOT")
-	if scenarioDir != "" {
-		scenarioDir = filepath.Join(scenarioDir, "scenarios", "workspace-sandbox")
-	} else {
-		// Fallback to current directory
-		scenarioDir, _ = os.Getwd()
+	// Initialize profile store for isolation profiles.
+	scenarioDir, err := resolveWorkspaceSandboxScenarioDir()
+	if err != nil {
+		return nil, err
 	}
-	profileStore := config.NewFileProfileStore(scenarioDir)
+	profileStore, err := config.NewFileProfileStore(scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize profile store: %w", err)
+	}
+
+	// Behavior is loaded from <scenarioDir>/.vrooli/config.json's `behavior`
+	// key. Missing file or missing key resolves to DefaultBehavior() — the
+	// runtime evaluator falls back to its hardcoded messages in that case.
+	// A malformed config is a startup error so the operator sees it loudly.
+	behavior, err := config.LoadBehavior(scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load behavior config: %w", err)
+	}
+	// Snapshot the profile registry once at startup so the request-path
+	// resolver is detached from the underlying file (Round 4 Phase 9).
+	// Admin Save/Delete handlers refresh the snapshot via
+	// Handlers.RefreshProfileSnapshot — file-system mutations to
+	// profiles.json are intentionally ignored after boot.
+	profileSnapshot, err := runtime.LoadProfiles(profileStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load profile snapshot: %w", err)
+	}
 
 	// Initialize GC service (OT-P1-003)
 	gcCfg := gc.Config{
@@ -203,86 +309,57 @@ func NewServer() (*Server, error) {
 		DefaultLimit:         100,
 		MaxTotalSizeBytes:    cfg.Limits.MaxTotalSizeMB * 1024 * 1024,
 	}
-	gcService := gc.NewService(repo, driverManager, gcCfg)
+	gcService := gc.NewService(repo, driverSlot, gcCfg, clk, auditEmitter)
 
-	// Check if we're in a user namespace
-	inUserNS := namespace.Check().InUserNamespace
+	// Check if we're in a user namespace via /proc/self/uid_map.
+	// driver.InUserNamespace is the canonical probe; it agrees with the
+	// boot-time self-check above so the handlers and the driver layer
+	// see the same answer.
+	inUserNS := driver.InUserNamespace()
 
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
 		Service:         svc,
-		DriverManager:   driverManager,
+		DriverSlot:      driverSlot,
 		DB:              db,
 		Config:          cfg,
+		Behavior:        behavior,
 		StatsGetter:     repo, // Repository implements StatsGetter
 		ProcessTracker:  processTracker,
 		ProcessLogger:   processLogger,
 		GCService:       gcService,
 		ProfileStore:    profileStore,
 		InUserNamespace: inUserNS,
+		Reconcilers:     lifecycleRecon,
+		RetentionStore:  retentionStore,
+		Clock:           clk,
+		Mounter:         mounter,
+		Starter:         starter,
 	}
+	h.SetProfileSnapshot(profileSnapshot)
 
 	// Initialize structured logger
-	logger := logging.New("workspace-sandbox-api")
-
-	// Initialize metrics collector [OT-P1-008]
-	metricsCollector := metrics.NewCollector()
-
-	// --- Tool Discovery Protocol support ---
-	// Initialize tool registry with all providers
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "workspace-sandbox",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Isolated workspace management with CoW filesystems for safe agent development",
-	})
-
-	// Register all tool providers (4 tiers)
-	toolReg.RegisterProvider(toolregistry.NewSandboxToolProvider())   // Tier 1: Sandbox lifecycle
-	toolReg.RegisterProvider(toolregistry.NewExecutionToolProvider()) // Tier 2: Command execution
-	toolReg.RegisterProvider(toolregistry.NewFileToolProvider())      // Tier 3: File operations
-	toolReg.RegisterProvider(toolregistry.NewDiffToolProvider())      // Tier 4: Diff/approval
-
-	// Create adapters for tool execution
-	processExecutor := toolexecution.NewProcessExecutorAdapter(toolexecution.ProcessExecutorConfig{
-		SandboxService: svc,
-		Driver:         driverManager,
-		ProcessTracker: processTracker,
-		ProcessLogger:  processLogger,
-		ProfileStore:   profileStore,
-		ExecConfig:     cfg.Execution,
-	})
-	fileOperator := toolexecution.NewFileOperatorAdapter(svc)
-
-	// Create tool executor and handler
-	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		SandboxService:  svc,
-		ProcessExecutor: processExecutor,
-		FileOperator:    fileOperator,
-	})
-	toolHandler := toolexecution.NewHandler(toolExecutor)
-
-	log.Printf("tool discovery protocol enabled | providers=%d", toolReg.ProviderCount())
+	logger := logging.New("workspace-sandbox-api", logging.WithClock(clk))
 
 	srv := &Server{
 		config:           cfg,
 		db:               db,
 		router:           mux.NewRouter(),
-		driver:           driverManager,
+		driver:           driverSlot,
 		handlers:         h,
 		logger:           logger,
+		clock:            clk,
 		processTracker:   processTracker,
 		gcService:        gcService,
 		lifecycleRecon:   lifecycleRecon,
 		metricsCollector: metricsCollector,
-		toolRegistry:     toolReg,
-		toolHandler:      toolHandler,
 	}
 
 	srv.setupRoutes()
 
 	logger.Info("server.initialized", "Server initialized successfully", map[string]interface{}{
 		"port":         cfg.Server.Port,
-		"driver":       driverManager.Type(),
+		"driver":       driverSlot.ID(),
 		"maxSandboxes": cfg.Limits.MaxSandboxes,
 	})
 
@@ -290,9 +367,15 @@ func NewServer() (*Server, error) {
 }
 
 func (s *Server) setupRoutes() {
-	// Apply middleware
-	s.router.Use(s.structuredLoggingMiddleware)
-	s.router.Use(s.corsMiddleware)
+	// Apply cross-cutting middleware. Round 4 Phase 3 extracted these
+	// into internal/server so the live-HTTP test harness exercises the
+	// exact same wrappers — closing the gap that let the 2026-04-28 SSE
+	// flusher bug ship.
+	server.Middleware{
+		Logger:             s.logger,
+		Clock:              s.clock,
+		CORSAllowedOrigins: s.config.Server.CORSAllowedOrigins,
+	}.Apply(s.router)
 
 	// Health endpoint using api-core/health for standardized response format
 	healthHandler := health.New().
@@ -301,14 +384,8 @@ func (s *Server) setupRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-
-	// Tool Discovery Protocol routes (agent-inbox integration)
-	// GET /api/v1/tools - Get tool manifest with all available tools
-	// GET /api/v1/tools/{name} - Get a specific tool definition
-	// POST /api/v1/tools/execute - Execute a tool
-	s.router.HandleFunc("/api/v1/tools", s.toolRegistry.HandleGetManifest).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/tools/{name}", s.toolRegistry.HandleGetTool).Methods("GET", "OPTIONS")
-	s.router.HandleFunc("/api/v1/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
+	connectPath, connectHandler := workspaceconnect.NewWorkspaceSandboxServiceHandler(handlers.NewConnectHandler(s.handlers.Service))
+	connectx.RegisterServices(s.router, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 
 	// Delegate remaining route registration to handlers package
 	// This centralizes route knowledge with the handlers and makes the API surface explicit
@@ -338,399 +415,52 @@ func (s *Server) Cleanup() error {
 	return nil
 }
 
-// responseWriter wraps http.ResponseWriter to capture status code.
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
-// structuredLoggingMiddleware logs HTTP requests with structured JSON output.
-func (s *Server) structuredLoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		// Wrap response writer to capture status
-		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-
-		// Add logger to context for handlers
-		ctx := logging.WithLogger(r.Context(), s.logger)
-		r = r.WithContext(ctx)
-
-		next.ServeHTTP(wrapped, r)
-
-		duration := time.Since(start)
-		s.logger.APIRequest(r.Method, r.RequestURI, wrapped.statusCode, float64(duration.Milliseconds()))
+// resolveSQLiteDSN returns the DSN for workspace-sandbox's own database.
+//
+// _txlock=immediate is the one deviation that matters here: BeginTx takes the
+// SQLite reserved lock up front, so the write-ordered Create +
+// CheckScopeOverlap flow cannot upgrade a read transaction mid-flight and lose
+// the race under contention.
+//
+// This also picks up variant-aware scoping, which the previous hand-rolled
+// resolution lacked — it passed the bare slug as the scenario ID, so a shadow
+// instance would have opened live's database.
+func resolveSQLiteDSN() (string, error) {
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{
+		Scenario: "workspace-sandbox",
+		Tuning:   storage.SQLiteTuning{TxLock: "immediate"},
 	})
-}
-
-// corsMiddleware returns a handler that adds CORS headers based on config.
-// If CORSAllowedOrigins is empty, it allows the UI port origin for local dev.
-// Otherwise, it checks the Origin header against the allowed list.
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-
-		allowedOrigins := s.config.Server.CORSAllowedOrigins
-		if len(allowedOrigins) == 0 {
-			// Default: allow local UI port for development
-			// This is more secure than "*" while still supporting local dev
-			uiPort := os.Getenv("UI_PORT")
-			if uiPort != "" {
-				allowedOrigins = []string{
-					"http://localhost:" + uiPort,
-					"http://127.0.0.1:" + uiPort,
-				}
-			}
-		}
-
-		// Check if origin is allowed
-		originAllowed := false
-		for _, allowed := range allowedOrigins {
-			if origin == allowed {
-				originAllowed = true
-				break
-			}
-		}
-
-		if originAllowed && origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// ensureSchema runs automatic migrations to ensure required tables exist.
-// This is idempotent and safe to run on every startup.
-func ensureSchema(db *sql.DB) error {
-	// Create and use scenario-specific PostgreSQL schema to avoid conflicts
-	schemaName := "workspace_sandbox"
-	if _, err := db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
-		return fmt.Errorf("failed to create schema: %w", err)
-	}
-	if _, err := db.Exec(fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
-		return fmt.Errorf("failed to set search_path: %w", err)
-	}
-	log.Printf("using PostgreSQL schema: %s", schemaName)
-
-	// Ensure core schema exists (sandboxes table).
-	var sandboxesExists bool
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = 'sandboxes' AND table_schema = $1
-		)
-	`, schemaName).Scan(&sandboxesExists)
 	if err != nil {
-		return fmt.Errorf("failed to check sandboxes table: %w", err)
+		return "", err
 	}
-
-	if !sandboxesExists {
-		log.Println("running migration: initializing workspace-sandbox schema")
-		schemaSQL, err := loadSchemaSQL()
-		if err != nil {
-			return fmt.Errorf("failed to load schema.sql: %w", err)
-		}
-		if _, err := db.Exec(schemaSQL); err != nil {
-			return fmt.Errorf("failed to apply schema.sql: %w", err)
-		}
-		log.Println("migration complete: schema.sql applied")
-	}
-
-	// Check if applied_changes table exists
-	var exists bool
-	err = db.QueryRow(`
-		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = 'applied_changes' AND table_schema = $1
-		)
-	`, schemaName).Scan(&exists)
-	if err != nil {
-		return fmt.Errorf("failed to check applied_changes table: %w", err)
-	}
-
-	if !exists {
-		log.Println("running migration: creating applied_changes table")
-		_, err = db.Exec(`
-			CREATE TABLE applied_changes (
-				id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-				sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
-				sandbox_owner TEXT,
-				sandbox_owner_type TEXT,
-				file_path TEXT NOT NULL,
-				project_root TEXT NOT NULL,
-				change_type TEXT NOT NULL,
-				file_size BIGINT DEFAULT 0,
-				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				committed_at TIMESTAMPTZ,
-				commit_hash TEXT,
-				commit_message TEXT,
-				CONSTRAINT valid_applied_change_type CHECK (change_type IN ('added', 'modified', 'deleted'))
-			);
-			CREATE INDEX idx_applied_changes_sandbox_id ON applied_changes(sandbox_id);
-			CREATE INDEX idx_applied_changes_file_path ON applied_changes(file_path);
-			CREATE INDEX idx_applied_changes_project_root ON applied_changes(project_root);
-			CREATE INDEX idx_applied_changes_pending ON applied_changes(committed_at) WHERE committed_at IS NULL;
-		`)
-		if err != nil {
-			return fmt.Errorf("failed to create applied_changes table: %w", err)
-		}
-		log.Println("migration complete: applied_changes table created")
-	}
-
-	// --- agent_manager_run_id on applied_changes ---
-	if _, err := db.Exec(`ALTER TABLE applied_changes ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT`); err != nil {
-		return fmt.Errorf("failed to add agent_manager_run_id column: %w", err)
-	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_applied_changes_run_id ON applied_changes(agent_manager_run_id)`); err != nil {
-		return fmt.Errorf("failed to create agent_manager_run_id index: %w", err)
-	}
-
-	// --- reserved_path support (soft safety reserved directory) ---
-	// Add column if missing (idempotent).
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS reserved_path TEXT`); err != nil {
-		return fmt.Errorf("failed to add reserved_path column: %w", err)
-	}
-
-	// Add reserved_paths array for multi-reserve support (idempotent).
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS reserved_paths TEXT[] DEFAULT '{}'`); err != nil {
-		return fmt.Errorf("failed to add reserved_paths column: %w", err)
-	}
-
-	// Add no_lock flag for lockless sandboxes (idempotent).
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS no_lock BOOLEAN NOT NULL DEFAULT FALSE`); err != nil {
-		return fmt.Errorf("failed to add no_lock column: %w", err)
-	}
-
-	// Backfill reserved_path for existing rows to preserve legacy behavior.
-	if _, err := db.Exec(`UPDATE sandboxes SET reserved_path = scope_path WHERE reserved_path IS NULL AND no_lock = false`); err != nil {
-		return fmt.Errorf("failed to backfill reserved_path: %w", err)
-	}
-
-	// Backfill reserved_paths when empty or NULL to align with reserved_path/scope_path.
-	if _, err := db.Exec(`
-		UPDATE sandboxes
-		SET reserved_paths = ARRAY[COALESCE(reserved_path, scope_path)]
-		WHERE (reserved_paths IS NULL OR array_length(reserved_paths, 1) IS NULL OR array_length(reserved_paths, 1) = 0)
-		  AND no_lock = false
-	`); err != nil {
-		return fmt.Errorf("failed to backfill reserved_paths: %w", err)
-	}
-
-	// Index for reserved_path overlap queries and UI filtering.
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_sandboxes_reserved_path ON sandboxes(reserved_path)`); err != nil {
-		return fmt.Errorf("failed to create idx_sandboxes_reserved_path: %w", err)
-	}
-
-	// --- sandbox behavior (lifecycle + acceptance) ---
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS behavior JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
-		return fmt.Errorf("failed to add behavior column: %w", err)
-	}
-	if _, err := db.Exec(`UPDATE sandboxes SET behavior = '{}'::jsonb WHERE behavior IS NULL`); err != nil {
-		return fmt.Errorf("failed to backfill behavior column: %w", err)
-	}
-
-	// Update overlap check function to use reserved_paths when present.
-	// Note: We keep the function name/signature for backwards compatibility.
-	if _, err := db.Exec(`
-		CREATE OR REPLACE FUNCTION check_scope_overlap(
-			new_scope TEXT,
-			new_project TEXT,
-			exclude_id UUID DEFAULT NULL
-		) RETURNS TABLE(id UUID, scope_path TEXT, status sandbox_status) AS $$
-		BEGIN
-			RETURN QUERY
-			SELECT s.id, existing_prefix, s.status
-			FROM sandboxes s,
-			     LATERAL unnest(
-			        CASE
-			            WHEN s.reserved_paths IS NOT NULL AND array_length(s.reserved_paths, 1) > 0 THEN s.reserved_paths
-			            ELSE ARRAY[COALESCE(s.reserved_path, s.scope_path)]
-			        END
-			     ) AS existing_prefix
-			WHERE s.project_root = new_project
-			  AND s.no_lock = false
-			  AND s.status IN ('creating', 'active')
-			  AND (exclude_id IS NULL OR s.id != exclude_id)
-			  AND (
-			      existing_prefix LIKE new_scope || '/%'
-			      OR existing_prefix = new_scope
-			      OR new_scope LIKE existing_prefix || '/%'
-			  );
-		END;
-		$$ LANGUAGE plpgsql;
-	`); err != nil {
-		return fmt.Errorf("failed to update check_scope_overlap function: %w", err)
-	}
-
-	return nil
-}
-
-func loadSchemaSQL() (string, error) {
-	candidates := []string{}
-
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		candidates = append(candidates, filepath.Join(root, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql"))
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(cwd, "initialization", "postgres", "schema.sql"))
-		candidates = append(candidates, filepath.Join(cwd, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql"))
-	}
-
-	for _, path := range candidates {
-		if path == "" {
-			continue
-		}
-		if _, err := os.Stat(path); err == nil {
-			bytes, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return "", readErr
-			}
-			return string(bytes), nil
-		}
-	}
-
-	return "", fmt.Errorf("schema.sql not found (checked %s)", strings.Join(candidates, ", "))
-}
-
-// buildDSNWithSearchPath constructs a PostgreSQL DSN from environment variables
-// with the search_path option included. This ensures all connections from the
-// connection pool use the correct schema, avoiding issues where SET search_path
-// only affects the current session/connection.
-func buildDSNWithSearchPath(schema string) (string, error) {
-	// Check for complete URL first
-	if url := os.Getenv("POSTGRES_URL"); url != "" {
-		return appendSearchPath(url, schema), nil
-	}
-	if url := os.Getenv("DATABASE_URL"); url != "" {
-		return appendSearchPath(url, schema), nil
-	}
-
-	// Build from individual components
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-	user := os.Getenv("POSTGRES_USER")
-	pass := os.Getenv("POSTGRES_PASSWORD")
-	dbname := os.Getenv("POSTGRES_DB")
-	sslmode := os.Getenv("POSTGRES_SSLMODE")
-
-	// Validate required fields
-	var missing []string
-	if host == "" {
-		missing = append(missing, "POSTGRES_HOST")
-	}
-	if port == "" {
-		missing = append(missing, "POSTGRES_PORT")
-	}
-	if user == "" {
-		missing = append(missing, "POSTGRES_USER")
-	}
-	if dbname == "" {
-		missing = append(missing, "POSTGRES_DB")
-	}
-
-	if len(missing) > 0 {
-		return "", fmt.Errorf(
-			"postgres connection requires environment variables: %v (are you running through the Vrooli lifecycle system?)",
-			missing,
-		)
-	}
-
-	// Default sslmode
-	if sslmode == "" {
-		sslmode = "disable"
-	}
-
-	// Build URL with search_path option
-	// The options parameter sets PostgreSQL configuration for all connections
-	// Must be URL-encoded because it contains special characters (spaces, commas)
-	searchPathOption := url.QueryEscape(fmt.Sprintf("-c search_path=%s,public", schema))
-	if pass != "" {
-		return fmt.Sprintf(
-			"postgres://%s:%s@%s:%s/%s?sslmode=%s&options=%s",
-			user, pass, host, port, dbname, sslmode, searchPathOption,
-		), nil
-	}
-
-	return fmt.Sprintf(
-		"postgres://%s@%s:%s/%s?sslmode=%s&options=%s",
-		user, host, port, dbname, sslmode, searchPathOption,
-	), nil
-}
-
-// appendSearchPath adds the search_path option to an existing PostgreSQL URL.
-func appendSearchPath(dsn, schema string) string {
-	searchPathOption := url.QueryEscape(fmt.Sprintf("-c search_path=%s,public", schema))
-	if strings.Contains(dsn, "?") {
-		return dsn + "&options=" + searchPathOption
-	}
-	return dsn + "?options=" + searchPathOption
+	log.Printf("workspace-sandbox: using SQLite database %s", dsn)
+	return dsn, nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
+	standalone := os.Getenv("WORKSPACE_SANDBOX_STANDALONE") == "1"
+	// Preflight checks - must be first, before any initialization. The
+	// rlimit-exec self-exec shim intercepts in init() (rlimit_shim.go) and
+	// exec-replaces the process before this runs, so the shim never reaches
+	// preflight's staleness rebuild or lifecycle guard.
 	if preflight.Run(preflight.Config{
-		ScenarioName: "workspace-sandbox",
+		ScenarioName:          "workspace-sandbox",
+		DisableStaleness:      standalone,
+		DisableLifecycleGuard: standalone,
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Decide whether to enter user namespace based on driver strategy.
-	//
-	// Key insight: fuse-overlayfs is already unprivileged (uses FUSE, not kernel mount).
-	// If we enter a user namespace with private mount propagation, the fuse-overlayfs
-	// mount becomes invisible to processes outside the namespace (like agent shells).
-	//
-	// Default behavior (optimized for agent integration):
-	// - If fuse-overlayfs is available → stay in host namespace (mounts visible)
-	// - If fuse-overlayfs unavailable → enter user namespace for native overlayfs
-	//
-	// Override with WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS=true to force user
-	// namespace even when fuse-overlayfs is available (better performance, isolated mounts).
-	preferNativeOverlayfs := os.Getenv("WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS") == "true" ||
-		os.Getenv("WORKSPACE_SANDBOX_PREFER_NATIVE_OVERLAYFS") == "1"
-	fuseAvailable, _, _ := driver.IsFuseOverlayfsAvailable()
-
-	nsStatus := namespace.Check()
-
-	// Decision logic:
-	// 1. If already in namespace → continue (re-exec completed)
-	// 2. If fuse available AND not preferring native → stay in host namespace
-	// 3. If can create namespace AND (prefer native OR fuse unavailable) → enter namespace
-	// 4. Otherwise → use fallback (copy driver)
-	if nsStatus.InUserNamespace {
-		log.Printf("running in user namespace | kernel=%s overlayfs=%v",
-			nsStatus.KernelVersion, nsStatus.CanMountOverlayfs)
-	} else if fuseAvailable && !preferNativeOverlayfs {
-		// Best for agent integration: fuse-overlayfs in host namespace
-		// Mounts are visible to all processes (agents, shells, file managers)
-		log.Printf("using fuse-overlayfs in host namespace | mounts visible to all processes | kernel=%s",
-			nsStatus.KernelVersion)
-	} else if nsStatus.CanCreateUserNamespace {
-		// Enter user namespace for native overlayfs (better performance, isolated mounts)
-		log.Printf("entering user namespace for native overlayfs | kernel=%s | preferNative=%v fuseAvailable=%v",
-			nsStatus.KernelVersion, preferNativeOverlayfs, fuseAvailable)
-		if err := namespace.EnterUserNamespace(); err != nil {
-			// EnterUserNamespace only returns on error; success replaces the process
-			log.Printf("warning: failed to enter user namespace: %v (will use fallback driver)", err)
-		}
+	// User namespace + driver selection are decoupled from main's process
+	// model. The portable launcher is responsible for placing the API inside
+	// a user namespace when the saved/default driver requires it. NewServer's
+	// boot self-check fails fatally if that launch shape is misconfigured, so
+	// main never tries to re-exec itself.
+	bootStarter := process.NewOSExecStarter()
+	if driver.InUserNamespace() {
+		log.Printf("running in user namespace | kernel=%s", namespace.Check(bootStarter).KernelVersion)
 	} else {
-		log.Printf("no overlayfs available | kernel=%s reason=%s (will use copy driver)",
-			nsStatus.KernelVersion, nsStatus.Reason)
+		log.Printf("running in host namespace | kernel=%s", namespace.Check(bootStarter).KernelVersion)
 	}
 
 	srv, err := NewServer()
@@ -741,8 +471,17 @@ func main() {
 	// Start background services before HTTP server
 	srv.StartServices()
 
-	if err := server.Run(server.Config{
-		Handler: srv.Router(),
+	// Forward server.* timeouts from local config so the SSE log-stream
+	// endpoint isn't capped by api-core's 30s WriteTimeout default.
+	// WriteTimeout is intentionally 0 (disabled) for this service —
+	// see config.Default for the rationale.
+	if err := apicoreserver.Run(apicoreserver.Config{
+		Handler:         srv.Router(),
+		Port:            srv.config.Server.Port,
+		ReadTimeout:     srv.config.Server.ReadTimeout,
+		WriteTimeout:    srv.config.Server.WriteTimeout,
+		IdleTimeout:     srv.config.Server.IdleTimeout,
+		ShutdownTimeout: srv.config.Server.ShutdownTimeout,
 		Cleanup: func(ctx context.Context) error {
 			return srv.Cleanup()
 		},

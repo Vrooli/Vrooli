@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.landing_page_business_suite.v1.shared;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1";
+
+// Download catalog value objects are shared by the download service and the
+// aggregate landing configuration response.
+message DownloadStorefront {
+  string store = 1;
+  string label = 2;
+  string url = 3;
+  string badge = 4;
+}
+
+message DownloadAsset {
+  int64 id = 1;
+  string bundle_key = 2;
+  string app_key = 3;
+  string platform = 4;
+  string artifact_url = 5;
+  string release_version = 6;
+  string release_notes = 7;
+  string checksum = 8;
+  bool requires_entitlement = 9;
+  google.protobuf.Struct metadata = 10;
+  string artifact_source = 11;
+  optional int64 artifact_id = 12;
+  string variant_key = 13;
+  string artifact_filename = 14;
+  int64 artifact_size_bytes = 15;
+  int32 artifact_count = 16;
+}
+
+message DownloadApp {
+  string bundle_key = 1;
+  string app_key = 2;
+  string name = 3;
+  string tagline = 4;
+  string description = 5;
+  string install_overview = 6;
+  repeated string install_steps = 7;
+  repeated DownloadStorefront storefronts = 8;
+  google.protobuf.Struct metadata = 9;
+  int32 display_order = 10;
+  repeated DownloadAsset platforms = 11;
+  int64 id = 12;
+  string icon_url = 13;
+  string screenshot_url = 14;
+  string update_api_key = 15;
+  google.protobuf.Struct update_policy = 16;
+}

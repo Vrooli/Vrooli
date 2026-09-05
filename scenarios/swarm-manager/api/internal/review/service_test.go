@@ -3,319 +3,399 @@ package review
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// capturingSpawner records the BacklogSpawnRequest for inspection.
+// capturingSpawner supplies agent availability and run inspection for workflow tests.
 type capturingSpawner struct {
 	enabled  bool
-	captured *agentmanager.BacklogSpawnRequest
 	runState agentmanager.RunState
 	stateErr error
 }
 
 func (s *capturingSpawner) IsEnabled() bool { return s.enabled }
 
-func (s *capturingSpawner) SpawnBacklog(_ context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
-	s.captured = &req
-	return agentmanager.RunResult{RunID: "test-run-id"}, nil
-}
-
 func (s *capturingSpawner) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	return s.runState, s.stateErr
 }
 
+type fakeReviewWorkflow struct {
+	calls      int
+	invocation agentmanager.Invocation
+	completion agentmanager.InvocationCompletion
+	collects   int
+	start      agentmanager.WorkflowStart
+}
+
+func (f *fakeReviewWorkflow) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
+	f.calls++
+	f.invocation = invocation
+	if f.start.ExecutionID != "" {
+		return f.start, nil
+	}
+	return agentmanager.WorkflowStart{ExecutionID: "review-workflow", RunID: "test-run-id", DefinitionDigest: "sha256:review"}, nil
+}
+
+func (f *fakeReviewWorkflow) CollectWorkflow(context.Context, string) (agentmanager.InvocationCompletion, error) {
+	f.collects++
+	return f.completion, nil
+}
+
 func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 	svc := &Service{
-		rootDir:       "/tmp/test-backlog",
-		agentService:  spawner,
+		dataRoot:      "/tmp/test-backlog",
 		inspector:     spawner,
 		promptClient:  &promptmanager.MockClient{Result: promptResult},
 		itemDirFn:     func(_, _ string) string { return "/tmp/test-backlog/tasks/test-item" },
 		loadItemTitle: func(_, _ string) (string, error) { return "Loaded Title", nil },
-		activeRounds:  make(map[string]activeRound),
+		planContentResolver: func(_ context.Context, kind, _, itemDir string) (string, error) {
+			if kind == "research" {
+				return "", nil
+			}
+			return "# Test Plan\nDo the thing from plan-manager.", nil
+		},
+		// Disable the abandoned-round age backstop by default so tests that use
+		// fixed placeholder timestamps aren't force-failed by it. Tests that
+		// exercise the backstop set roundMaxAge + clock explicitly.
+		roundMaxAge: 100 * 365 * 24 * time.Hour,
 	}
+	setTestReviewRunner(nil, svc, &fakeReviewWorkflow{})
 	return svc
 }
 
-// setupItemDir creates a temporary backlog item directory with the expected
-// deliverable for the given kind.
-func setupItemDir(t *testing.T, kind string) string {
-	t.Helper()
+func TestListRoundsUsesAuthoritativeVerificationProjection(t *testing.T) {
 	dir := t.TempDir()
-	deliverable := "plan.md"
-	content := "# Test Plan\nDo the thing."
-	if kind == "research" {
-		deliverable = "conclusion.md"
-		content = "# Test Conclusion\nResearch findings."
-	}
-	if err := os.WriteFile(filepath.Join(dir, deliverable), []byte(content), 0o644); err != nil {
+	svc := newTestService(nil, "")
+	svc.itemDirFn = func(_, _ string) string { return dir }
+	if err := saveRound(dir, Round{RoundNum: 1, Status: RoundStatusComplete, Evidence: []EvidenceItem{{ID: "proof", Verified: true}, {ID: "other", Verified: false}}}); err != nil {
 		t.Fatal(err)
 	}
-	return dir
-}
-
-func findAttachment(req *agentmanager.BacklogSpawnRequest, key string) *domainpb.ContextAttachment {
-	for _, attachment := range req.ContextAttachments {
-		if attachment.Key == key {
-			return attachment
-		}
+	svc.SetEvidenceVerificationProjection(func(context.Context, string, string, Round) (map[string]bool, bool, error) {
+		return map[string]bool{"other": true}, true, nil
+	})
+	rounds, err := svc.ListRounds("execute", "item")
+	if err != nil {
+		t.Fatal(err)
 	}
-	return nil
+	if rounds[0].Evidence[0].Verified || !rounds[0].Evidence[1].Verified {
+		t.Fatalf("verification projection = %#v", rounds[0].Evidence)
+	}
 }
 
-func TestStartReview_ContextAttachments(t *testing.T) {
+func TestVerifyEvidenceRecordsAppendOnlyVerificationAndRevocation(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestService(nil, "")
+	svc.itemDirFn = func(_, _ string) string { return dir }
+	if err := saveRound(dir, Round{RoundNum: 1, Status: RoundStatusComplete, Evidence: []EvidenceItem{{ID: "proof", Title: "Proof"}}}); err != nil {
+		t.Fatal(err)
+	}
+	var events []bool
+	svc.SetEvidenceVerificationRecorder(func(_ context.Context, _, _ string, _ Round, evidence EvidenceItem, verified bool, actor, reason string) error {
+		if evidence.ID != "proof" || actor != "operator@example.test" || reason != "Rechecked evidence." {
+			t.Fatalf("unexpected recorder input: evidence=%+v verified=%v actor=%q reason=%q", evidence, verified, actor, reason)
+		}
+		events = append(events, verified)
+		return nil
+	})
+	if err := svc.VerifyEvidenceWithActor(context.Background(), "execute", "item", 1, "proof", true, "exec-1", "operator@example.test", "Rechecked evidence."); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := svc.VerifyEvidenceWithActor(context.Background(), "execute", "item", 1, "proof", false, "exec-1", "operator@example.test", "Rechecked evidence."); err != nil {
+		t.Fatalf("unverify: %v", err)
+	}
+	if got, want := fmt.Sprint(events), "[true false]"; got != want {
+		t.Fatalf("verification events = %s, want %s", got, want)
+	}
+	if err := svc.VerifyEvidenceWithActor(context.Background(), "execute", "item", 1, "proof", true, "exec-1", "operator@example.test", ""); err == nil {
+		t.Fatal("expected actor/reason validation")
+	}
+}
+
+func TestValidateRoundEvidenceRejectsUnboundAndDishonestGaps(t *testing.T) {
+	criteria := map[string]struct{}{"criterion-1": {}}
+	for _, tc := range []struct {
+		name     string
+		evidence EvidenceItem
+	}{
+		{name: "unknown criterion", evidence: EvidenceItem{ID: "e1", CriterionID: "missing", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "observed", Settlement: "settled"}},
+		{name: "unavailable without reason", evidence: EvidenceItem{ID: "e1", CriterionID: "criterion-1", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "reported", Settlement: "unavailable", AttemptedProducer: "command"}},
+		{name: "unavailable without attempted producer", evidence: EvidenceItem{ID: "e1", CriterionID: "criterion-1", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "reported", Settlement: "unavailable", UnavailableReason: "runner unavailable"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateRoundEvidence([]EvidenceItem{tc.evidence}, criteria); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+	valid := EvidenceItem{ID: "e1", CriterionID: "criterion-1", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "reported", Settlement: "unavailable", UnavailableReason: "runner unavailable", AttemptedProducer: "command"}
+	if err := validateRoundEvidence([]EvidenceItem{valid}, criteria); err != nil {
+		t.Fatalf("valid unavailable evidence rejected: %v", err)
+	}
+}
+
+func TestValidateCriterionVerdictsRequireCompleteBoundEvidence(t *testing.T) {
+	criteria := map[string]struct{}{"criterion-1": {}, "criterion-2": {}}
+	evidence := []EvidenceItem{{ID: "e1"}, {ID: "e2"}}
+	if err := validateCriterionVerdicts([]CriterionVerdict{{CriterionID: "criterion-1", Settlement: "settled", EvidenceIDs: []string{"e1"}}}, criteria, evidence); err == nil {
+		t.Fatal("expected incomplete criterion verdict rejection")
+	}
+	if err := validateCriterionVerdicts([]CriterionVerdict{{CriterionID: "criterion-1", Settlement: "settled", EvidenceIDs: []string{"e1"}}, {CriterionID: "criterion-2", Settlement: "unavailable", EvidenceIDs: []string{"missing"}}}, criteria, evidence); err == nil {
+		t.Fatal("expected unknown evidence rejection")
+	}
+	valid := []CriterionVerdict{{CriterionID: "criterion-1", Settlement: "settled", EvidenceIDs: []string{"e1"}}, {CriterionID: "criterion-2", Settlement: "unavailable", EvidenceIDs: []string{"e2"}}}
+	if err := validateCriterionVerdicts(valid, criteria, evidence); err != nil {
+		t.Fatalf("valid criterion verdicts rejected: %v", err)
+	}
+}
+
+func TestSettledEvidenceForExecutionCarriesOnlyFulfilledRequestEvidence(t *testing.T) {
+	dir := t.TempDir()
+	if err := saveRound(dir, Round{
+		RoundNum:              1,
+		AgentWorkflowSnapshot: json.RawMessage(`{"executionId":"exec-1"}`),
+		Evidence: []EvidenceItem{
+			{ID: "review-derived", Settlement: "settled"},
+			{ID: "requested", Settlement: "settled"},
+			{ID: "unavailable", Settlement: "unavailable"},
+		},
+		RequestThreads: []RequestThread{{
+			ID:     "thread-1",
+			Status: "fulfilled",
+			Messages: []RequestMessage{{
+				Role:             "assistant",
+				AddedEvidenceIDs: []string{"requested", "unavailable"},
+			}},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveRound(dir, Round{
+		RoundNum:              2,
+		AgentWorkflowSnapshot: json.RawMessage(`{"executionId":"exec-2"}`),
+		Evidence:              []EvidenceItem{{ID: "other-execution", Settlement: "settled"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := settledEvidenceForExecution(dir, "exec-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(evidence) != 1 || evidence[0].ID != "requested" {
+		t.Fatalf("settled evidence = %#v", evidence)
+	}
+}
+
+func setTestReviewRunner(t *testing.T, svc *Service, workflow *fakeReviewWorkflow) {
+	if t != nil {
+		t.Helper()
+	}
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		panic(err)
+	}
+	runner := transitionrunner.New(registry, workflow, transitionrun.NewFileStore(filepath.Join(os.TempDir(), "review-transition-tests", fmt.Sprintf("%d", time.Now().UnixNano()))), nil)
+	svc.RegisterTransitionAdapter(runner)
+	svc.SetTransitionRunner(runner)
+}
+
+// TestRefreshGatheringRounds_InvokesOnRoundTerminal verifies that when a
+// gathering round transitions to a terminal status, the OnRoundTerminal
+// callback is fired with the item's kind, name, and final round state.
+// This is the hook the backlog layer uses to flip items from in_review to
+// review_pending.
+// setupItemDir creates a temporary backlog item directory. Every backlog kind
+// resolves its actionable plan through planContentResolver.
+func setupItemDir(t *testing.T, kind string) string {
+	t.Helper()
+	return t.TempDir()
+}
+
+func TestStartReview_StartsDeclaredWorkflowAndWritesRound(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "review instructions here")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
-
-	itemDir := svc.resolveItemDir("task", "test-item")
+	itemDir := setupItemDir(t, "task")
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	workflow := &fakeReviewWorkflow{}
+	setTestReviewRunner(t, svc, workflow)
 
 	err := svc.startReview(context.Background(), startReviewParams{
-		ExecutionID:       "exec-123",
-		BacklogKind:       "task",
-		BacklogName:       "test-item",
-		ItemTitle:         "Test Item",
-		ItemDir:           itemDir,
-		AffectedScenarios: []string{"scenario-a", "scenario-b"},
-		ChangedPathsByScenario: map[string][]string{
-			"scenario-a": {"api/main.go", "api/handler.go"},
-			"scenario-b": {"ui/src/App.tsx"},
-		},
-		GCTResultsJSON: `{"scenario-a":{"classification":"ready"}}`,
+		ExecutionID: "exec-123",
+		BacklogKind: "task",
+		BacklogName: "test-item",
+		ItemTitle:   "Test Item",
+		ItemDir:     itemDir,
 	})
 	if err != nil {
 		t.Fatalf("startReview failed: %v", err)
 	}
 
-	if spawner.captured == nil {
-		t.Fatal("SpawnBacklog was not called")
+	if workflow.calls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/independent-review" {
+		t.Fatalf("expected one independent-review workflow invocation, got calls=%d key=%q", workflow.calls, workflow.invocation.WorkflowKey)
 	}
 
-	req := spawner.captured
-	atts := req.ContextAttachments
-	if len(atts) == 0 {
-		t.Fatal("expected context attachments, got none")
+	round, err := LoadRound(itemDir, 1)
+	if err != nil || round == nil {
+		t.Fatalf("expected round 1 on disk: err=%v round=%v", err, round)
 	}
-
-	// Verify expected attachment keys.
-	wantKeys := map[string]bool{
-		"plan-content":       false,
-		"diff-summary":       false,
-		"changed-paths":      false,
-		"affected-scenarios": false,
-		"gct-review-results": false,
+	if round.Status != RoundStatusGathering {
+		t.Errorf("round status = %q, want gathering", round.Status)
 	}
-	for _, att := range atts {
-		if _, ok := wantKeys[att.Key]; ok {
-			wantKeys[att.Key] = true
-		}
-		if att.Type != "note" {
-			t.Errorf("attachment %q has type %q, want %q", att.Key, att.Type, "note")
-		}
-	}
-	for key, found := range wantKeys {
-		if !found {
-			t.Errorf("missing expected attachment with key %q", key)
-		}
-	}
-
-	// user-request should NOT be present in initial review.
-	for _, att := range atts {
-		if att.Key == "user-request" {
-			t.Error("user-request attachment should not be present in initial review")
-		}
+	if round.RunID != "test-run-id" {
+		t.Errorf("round RunID = %q, want test-run-id", round.RunID)
 	}
 }
 
-func TestStartReview_InstructionsOnly(t *testing.T) {
-	spawner := &capturingSpawner{enabled: true}
-	svc := newTestService(spawner, "pure review instructions")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
-
-	itemDir := svc.resolveItemDir("task", "test-item")
-
-	err := svc.startReview(context.Background(), startReviewParams{
-		ExecutionID:       "exec-456",
-		BacklogKind:       "task",
-		BacklogName:       "test-item",
-		ItemTitle:         "Test Item",
-		ItemDir:           itemDir,
-		AffectedScenarios: []string{"my-scenario"},
-		ChangedPathsByScenario: map[string][]string{
-			"my-scenario": {"api/main.go"},
-		},
-		GCTResultsJSON: `{"my-scenario":{"classification":"needs_work","dimensions":[{"name":"codeQuality","status":"yellow"}]}}`,
-	})
-	if err != nil {
-		t.Fatalf("startReview failed: %v", err)
+func TestStartReviewPersistsTypedCriteriaInImmutableSnapshot(t *testing.T) {
+	svc := newTestService(&capturingSpawner{enabled: true}, "instructions")
+	itemDir := t.TempDir()
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	svc.loadReviewContract = func(_, _ string) (ReviewContract, error) {
+		return ReviewContract{Description: "Outcome statement", Criteria: []map[string]any{{"id": "criterion-1", "gherkin": "Given work When reviewed Then evidence exists"}}}, nil
 	}
-
-	req := spawner.captured
-	// Prompt should contain instructions, NOT raw GCT JSON or plan content.
-	if req.Prompt != "pure review instructions" {
-		t.Errorf("Prompt should be rendered instructions only, got %q", req.Prompt)
+	setTestReviewRunner(t, svc, &fakeReviewWorkflow{})
+	if err := svc.startReview(context.Background(), startReviewParams{ExecutionID: "exec-criteria", BacklogKind: "execute", BacklogName: "criteria-item", ItemTitle: "Criteria", ItemDir: itemDir}); err != nil {
+		t.Fatal(err)
 	}
-	if req.Description != "pure review instructions" {
-		t.Errorf("Description should be rendered instructions only, got %q", req.Description)
+	round, err := LoadRound(itemDir, 1)
+	if err != nil || round == nil {
+		t.Fatalf("load round: %v", err)
+	}
+	var snapshot map[string]any
+	if err := json.Unmarshal(round.AgentWorkflowSnapshot, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot["itemDescription"] != "Outcome statement" {
+		t.Fatalf("description missing from snapshot: %#v", snapshot)
+	}
+	if snapshot["planContent"] != "# Test Plan\nDo the thing from plan-manager." {
+		t.Fatalf("plan content missing from snapshot: %#v", snapshot)
+	}
+	criteria, ok := snapshot["acceptanceCriteria"].([]any)
+	if !ok || len(criteria) != 1 {
+		t.Fatalf("criteria missing from snapshot: %#v", snapshot)
 	}
 }
 
-func TestStartReview_NoGCT(t *testing.T) {
+func TestStartReview_RequiresWorkflow(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "instructions")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
-
-	itemDir := svc.resolveItemDir("task", "test-item")
-
-	err := svc.startReview(context.Background(), startReviewParams{
-		ExecutionID:       "exec-789",
-		BacklogKind:       "task",
-		BacklogName:       "test-item",
-		ItemTitle:         "Test Item",
-		ItemDir:           itemDir,
-		AffectedScenarios: []string{"scenario-a"},
-		ChangedPathsByScenario: map[string][]string{
-			"scenario-a": {"api/main.go"},
-		},
-		GCTResultsJSON: "", // empty
-	})
-	if err != nil {
-		t.Fatalf("startReview failed: %v", err)
-	}
-
-	for _, att := range spawner.captured.ContextAttachments {
-		if att.Key == "gct-review-results" {
-			t.Error("gct-review-results attachment should be absent when GCTResultsJSON is empty")
-		}
-	}
-}
-
-func TestStartReview_ResearchUsesConclusionDeliverable(t *testing.T) {
-	spawner := &capturingSpawner{enabled: true}
-	svc := newTestService(spawner, "review instructions here")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "research") }
-
-	itemDir := svc.resolveItemDir("research", "test-item")
+	svc.transitionRunner = nil
+	itemDir := setupItemDir(t, "task")
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
 
 	err := svc.startReview(context.Background(), startReviewParams{
-		ExecutionID:       "exec-research",
-		BacklogKind:       "research",
-		BacklogName:       "test-item",
-		ItemTitle:         "Research Item",
-		ItemDir:           itemDir,
-		AffectedScenarios: []string{"scenario-a"},
+		ExecutionID: "exec-x",
+		BacklogKind: "task",
+		BacklogName: "test-item",
+		ItemDir:     itemDir,
 	})
+	if err == nil || !strings.Contains(err.Error(), "transition runner is not configured") {
+		t.Fatalf("expected workflow-unavailable error, got %v", err)
+	}
+}
+
+// [REQ:SWM-P0-007] independent post-run review verdict projected into terminal round
+func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
+	itemDir := t.TempDir()
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "task", "name": "item", "executionId": "exec-1", "version": "sha256:snapshot"}, "snapshot": map[string]any{}})
 	if err != nil {
-		t.Fatalf("startReview failed: %v", err)
+		t.Fatal(err)
 	}
-
-	attachment := findAttachment(spawner.captured, "plan-content")
-	if attachment == nil {
-		t.Fatal("expected deliverable attachment")
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "accepted", "handoff": map[string]any{"verdict": "ready", "agent_assessment": "verified", "evidence": []any{}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "ready", "disposition": map[string]any{"kind": "archive", "rationale": "Evidence is sufficient", "confidence": "high"}}}})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(attachment.Content, "# Test Conclusion") {
-		t.Fatalf("expected research review to use conclusion.md, got %q", attachment.Content)
+	workflow := &fakeReviewWorkflow{start: agentmanager.WorkflowStart{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def"}, completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
+	svc := newTestService(&capturingSpawner{enabled: true}, "")
+	setTestReviewRunner(t, svc, workflow)
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	// Persist the round with its request snapshot first, then start through the
+	// registered builder — the same order production uses, so the version the
+	// correlation pins is the version the apply-time rebuild recomputes.
+	requestSnapshot := []byte(`{"executionId":"exec-1","backlogKind":"task","backlogName":"item"}`)
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot}); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestBuildReviewAttachments_UserRequest(t *testing.T) {
-	atts := buildReviewAttachments("plan text", []string{"a.go"}, []string{"scen"}, "", "show me the logs")
-
-	var found bool
-	for _, att := range atts {
-		if att.Key == "user-request" {
-			found = true
-			if att.Content != "show me the logs" {
-				t.Errorf("user-request content = %q, want %q", att.Content, "show me the logs")
-			}
-			if att.Priority != "high" {
-				t.Errorf("user-request priority = %q, want %q", att.Priority, "high")
-			}
+	if _, err := svc.transitionRunner.StartWith(context.Background(), "work.review", reviewSubject("task", "item", 1), transitionrunner.PreparedInput{}); err != nil {
+		t.Fatal(err)
+	}
+	observed := 0
+	svc.SetRoundTerminalObserver(func(_ context.Context, kind, name string, round Round) {
+		observed++
+		if kind != "task" || name != "item" || round.Disposition == nil || round.Disposition.Kind != "archive" {
+			t.Fatalf("unexpected terminal projection: %s/%s %#v", kind, name, round)
 		}
+	})
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot}); err != nil {
+		t.Fatal(err)
 	}
-	if !found {
-		t.Error("expected user-request attachment")
+	first, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
+	if err != nil || replay || first.Status != RoundStatusComplete || first.Classification != "ready" {
+		t.Fatalf("first apply = %#v replay=%v err=%v", first, replay, err)
 	}
-}
-
-func TestBuildReviewAttachments_NoUserRequest(t *testing.T) {
-	atts := buildReviewAttachments("plan", nil, nil, "", "")
-	for _, att := range atts {
-		if att.Key == "user-request" {
-			t.Error("user-request should be absent when empty")
-		}
+	if observed != 1 {
+		t.Fatalf("terminal observer calls = %d, want 1", observed)
 	}
-}
-
-func TestBuildReviewAttachments_NonSandboxDiffSummary(t *testing.T) {
-	// When there are 0 changed paths (non-sandbox execution), the diff-summary
-	// should explain that changes may exist but weren't tracked.
-	atts := buildReviewAttachments("plan", nil, nil, "", "")
-
-	for _, att := range atts {
-		if att.Key == "diff-summary" {
-			if att.Content == "Changed 0 files across 0 scenarios" {
-				t.Error("diff-summary should include non-sandbox explanation when 0 changed paths")
-			}
-			if !strings.Contains(att.Content, "without sandbox mode") {
-				t.Error("diff-summary should mention non-sandbox mode")
-			}
-			if !strings.Contains(att.Content, "examining the codebase directly") {
-				t.Error("diff-summary should instruct agent to examine codebase directly")
-			}
-			return
-		}
-	}
-	t.Error("expected diff-summary attachment")
-}
-
-func TestBuildReviewAttachments_SandboxDiffSummary(t *testing.T) {
-	// When there ARE changed paths, the diff-summary should NOT include the non-sandbox note.
-	atts := buildReviewAttachments("plan", []string{"a.go", "b.go"}, []string{"scen"}, "", "")
-
-	for _, att := range atts {
-		if att.Key == "diff-summary" {
-			if strings.Contains(att.Content, "without sandbox mode") {
-				t.Error("diff-summary should NOT mention non-sandbox mode when changes are present")
-			}
-			if !strings.Contains(att.Content, "Changed 2 files across 1 scenarios") {
-				t.Errorf("unexpected diff-summary content: %q", att.Content)
-			}
-			return
-		}
-	}
-	t.Error("expected diff-summary attachment")
-}
-
-func TestBuildReviewAttachments_Priorities(t *testing.T) {
-	atts := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, `{"s":"ready"}`, "")
-
-	priorities := make(map[string]string)
-	for _, att := range atts {
-		priorities[att.Key] = att.Priority
-	}
-
-	highKeys := []string{"plan-content", "diff-summary", "changed-paths", "gct-review-results"}
-	for _, key := range highKeys {
-		if priorities[key] != "high" {
-			t.Errorf("attachment %q priority = %q, want %q", key, priorities[key], "high")
-		}
-	}
-	if priorities["affected-scenarios"] != "medium" {
-		t.Errorf("affected-scenarios priority = %q, want %q", priorities["affected-scenarios"], "medium")
+	second, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
+	if err != nil || !replay || second.Status != RoundStatusComplete || workflow.collects != 1 {
+		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
 	}
 }
 
-// --- Polling / RefreshGatheringRounds tests ---
+func TestApplyEvidenceRequestWorkflow_ExactlyOnce(t *testing.T) {
+	itemDir := t.TempDir()
+	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "task", "name": "item", "executionId": "exec-1/thread-1", "version": "sha256:snapshot"}, "snapshot": map[string]any{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "fulfilled", "summary": "Evidence gathered", "evidence": []any{map[string]any{"id": "evidence-1", "type": "log", "title": "Test log", "description": "The requested evidence."}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := &fakeReviewWorkflow{start: agentmanager.WorkflowStart{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def"}, completion: agentmanager.InvocationCompletion{ExecutionID: "workflow-1", DefinitionDigest: "sha256:def", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: input, Output: output}}
+	svc := newTestService(&capturingSpawner{enabled: true}, "")
+	setTestReviewRunner(t, svc, workflow)
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	// Save the thread before starting so the registered builder can reproject it,
+	// then reuse that same projection for the stored version.
+	thread := RequestThread{ID: "thread-1", Status: "pending", Messages: []RequestMessage{{Role: "user", Content: "please gather", Timestamp: time.Now().UTC().Format(time.RFC3339)}}}
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, RequestThreads: []RequestThread{thread}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.transitionRunner.StartWith(context.Background(), "review.evidence_request", reviewThreadSubject("task", "item", 1, "thread-1"), transitionrunner.PreparedInput{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.buildEvidenceRequestInput(context.Background(), reviewThreadSubject("task", "item", 1, "thread-1")); err != nil {
+		t.Fatal(err)
+	}
+
+	first, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
+	// Two messages: the operator request the thread was created with, and the
+	// agent reply the apply appended.
+	if err != nil || replay || len(first.Evidence) != 1 || first.RequestThreads[0].Status != "fulfilled" || len(first.RequestThreads[0].Messages) != 2 {
+		t.Fatalf("first apply = %#v replay=%v err=%v", first, replay, err)
+	}
+	second, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
+	if err != nil || !replay || second.RequestThreads[0].Status != "fulfilled" || workflow.collects != 1 {
+		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
+	}
+}
+
+// --- Explicit liveness-recovery tests ---
 
 func writeRound(t *testing.T, itemDir string, round Round) {
 	t.Helper()
@@ -329,158 +409,6 @@ func writeRound(t *testing.T, itemDir string, round Round) {
 	}
 	if err := os.WriteFile(filepath.Join(reviewDir, RoundFilename(round.RoundNum)), data, 0o644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestRefreshGatheringRounds_CompletesRound(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
-		Status:      RoundStatusGathering,
-		RunID:       "run-abc",
-		Evidence:    []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-abc",
-			Status: "complete",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-abc", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	// Verify round status was updated on disk.
-	round, err := LoadRound(itemDir, 1)
-	if err != nil {
-		t.Fatalf("LoadRound: %v", err)
-	}
-	if round.Status != RoundStatusFailed {
-		t.Errorf("round status = %q, want %q", round.Status, RoundStatusFailed)
-	}
-	if !strings.Contains(round.FailureReason, "agent_assessment") {
-		t.Fatalf("expected missing assessment failure reason, got %q", round.FailureReason)
-	}
-
-	// Verify it was removed from active tracking.
-	svc.mu.Lock()
-	remaining := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if remaining != 0 {
-		t.Errorf("expected 0 active rounds after completion, got %d", remaining)
-	}
-}
-
-func TestRefreshGatheringRounds_FailedRound(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-2",
-		Status:      RoundStatusGathering,
-		RunID:       "run-fail",
-		Evidence:    []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-fail",
-			Status: "failed",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-fail", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	round, err := LoadRound(itemDir, 1)
-	if err != nil {
-		t.Fatalf("LoadRound: %v", err)
-	}
-	if round.Status != RoundStatusFailed {
-		t.Errorf("round status = %q, want %q", round.Status, RoundStatusFailed)
-	}
-}
-
-func TestRefreshGatheringRounds_StillRunning(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-3",
-		Status:      RoundStatusGathering,
-		RunID:       "run-running",
-		Evidence:    []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-running",
-			Status: "running",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-running", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	// Round should still be gathering.
-	round, err := LoadRound(itemDir, 1)
-	if err != nil {
-		t.Fatalf("LoadRound: %v", err)
-	}
-	if round.Status != RoundStatusGathering {
-		t.Errorf("round status = %q, want %q (should remain gathering)", round.Status, RoundStatusGathering)
-	}
-
-	// Should still be tracked.
-	svc.mu.Lock()
-	remaining := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if remaining != 1 {
-		t.Errorf("expected 1 active round while still running, got %d", remaining)
-	}
-}
-
-func TestRefreshGatheringRounds_AlreadyComplete(t *testing.T) {
-	itemDir := t.TempDir()
-	// Round was already marked complete (e.g. agent wrote the file itself).
-	writeRound(t, itemDir, Round{
-		RoundNum:        1,
-		GeneratedAt:     "2026-04-02T00:00:00Z",
-		ExecutionID:     "exec-4",
-		Status:          RoundStatusComplete,
-		RunID:           "run-done",
-		AgentAssessment: "Looks good.",
-		Classification:  "ready",
-		Evidence:        []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-done",
-			Status: "complete",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-done", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	// Should be removed from tracking without re-saving.
-	svc.mu.Lock()
-	remaining := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if remaining != 0 {
-		t.Errorf("expected 0 active rounds, got %d", remaining)
 	}
 }
 
@@ -505,47 +433,11 @@ func TestMapRunStatusToRoundStatus(t *testing.T) {
 	}
 }
 
-func TestStartReview_TracksActiveRound(t *testing.T) {
-	spawner := &capturingSpawner{enabled: true}
-	svc := newTestService(spawner, "instructions")
-	svc.itemDirFn = func(_, _ string) string { return setupItemDir(t, "task") }
-
-	itemDir := svc.resolveItemDir("task", "test-item")
-
-	err := svc.startReview(context.Background(), startReviewParams{
-		ExecutionID:       "exec-track",
-		BacklogKind:       "task",
-		BacklogName:       "test-item",
-		ItemTitle:         "Test",
-		ItemDir:           itemDir,
-		AffectedScenarios: []string{"s"},
-		ChangedPathsByScenario: map[string][]string{
-			"s": {"a.go"},
-		},
-	})
-	if err != nil {
-		t.Fatalf("startReview: %v", err)
-	}
-
-	svc.mu.Lock()
-	count := len(svc.activeRounds)
-	_, tracked := svc.activeRounds["test-run-id"]
-	svc.mu.Unlock()
-
-	if count != 1 {
-		t.Errorf("expected 1 active round, got %d", count)
-	}
-	if !tracked {
-		t.Error("expected run-id 'test-run-id' to be tracked")
-	}
-}
-
 func TestListRounds_InlineRefresh(t *testing.T) {
 	itemDir := t.TempDir()
 	writeRound(t, itemDir, Round{
 		RoundNum:        1,
 		GeneratedAt:     "2026-04-02T00:00:00Z",
-		ExecutionID:     "exec-list",
 		Status:          RoundStatusGathering,
 		RunID:           "run-inline",
 		AgentAssessment: "Looks good.",
@@ -581,11 +473,48 @@ func TestListRounds_InlineRefresh(t *testing.T) {
 	}
 }
 
-func TestTriggerReviewAgent_RebuildsContextFromExecution(t *testing.T) {
+func TestListRounds_ExposesCurrentRunStatusForNeedsReview(t *testing.T) {
+	itemDir := t.TempDir()
+	writeRound(t, itemDir, Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-04-02T00:00:00Z",
+		Status:      RoundStatusGathering,
+		RunID:       "run-awaiting-review",
+		Evidence:    []EvidenceItem{},
+	})
+
+	spawner := &capturingSpawner{
+		enabled: true,
+		runState: agentmanager.RunState{
+			RunID:  "run-awaiting-review",
+			Status: "needs_review",
+		},
+	}
+	svc := newTestService(spawner, "")
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+
+	rounds, err := svc.ListRounds("task", "test")
+	if err != nil {
+		t.Fatalf("ListRounds: %v", err)
+	}
+	if len(rounds) != 1 {
+		t.Fatalf("expected 1 round, got %d", len(rounds))
+	}
+	if rounds[0].Status != RoundStatusGathering {
+		t.Fatalf("round status = %q, want %q", rounds[0].Status, RoundStatusGathering)
+	}
+	if rounds[0].CurrentRunStatus != "needs_review" {
+		t.Fatalf("current run status = %q, want needs_review", rounds[0].CurrentRunStatus)
+	}
+}
+
+func TestTriggerReviewAgent_RoutesToDeclaredWorkflow(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "review instructions here")
 	itemDir := setupItemDir(t, "research")
 	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	workflow := &fakeReviewWorkflow{}
+	setTestReviewRunner(t, svc, workflow)
 	svc.loadExecutionContext = func(_ context.Context, executionID string) (*ExecutionContext, error) {
 		if executionID != "exec-rebuild" {
 			t.Fatalf("unexpected execution id: %s", executionID)
@@ -595,11 +524,6 @@ func TestTriggerReviewAgent_RebuildsContextFromExecution(t *testing.T) {
 			BacklogName:       "test-item",
 			ItemTitle:         "Research Item",
 			AffectedScenarios: []string{"scenario-b", "scenario-a"},
-			ChangedPathsByScenario: map[string][]string{
-				"scenario-a": {"api/main.go"},
-				"scenario-b": {"ui/src/App.tsx"},
-			},
-			GCTResultsJSON: `{"scenario-a":{"classification":"ready"}}`,
 		}, nil
 	}
 
@@ -607,26 +531,15 @@ func TestTriggerReviewAgent_RebuildsContextFromExecution(t *testing.T) {
 		t.Fatalf("TriggerReviewAgent failed: %v", err)
 	}
 
-	if spawner.captured == nil {
-		t.Fatal("expected SpawnBacklog to be called")
-	}
-	if spawner.captured.Kind != "research" || spawner.captured.Name != "test-item" {
-		t.Fatalf("expected research/test-item, got %s/%s", spawner.captured.Kind, spawner.captured.Name)
-	}
-	if spawner.captured.Title != "Review: Research Item" {
-		t.Fatalf("unexpected title: %s", spawner.captured.Title)
+	if workflow.calls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/independent-review" {
+		t.Fatalf("expected independent-review invocation, got calls=%d key=%q", workflow.calls, workflow.invocation.WorkflowKey)
 	}
 
-	paths := findAttachment(spawner.captured, "changed-paths")
-	if paths == nil || !strings.Contains(paths.Content, "api/main.go") || !strings.Contains(paths.Content, "ui/src/App.tsx") {
-		t.Fatalf("expected changed-paths attachment, got %#v", paths)
+	round, err := LoadRound(itemDir, 1)
+	if err != nil || round == nil {
+		t.Fatalf("expected round 1 on disk: err=%v round=%v", err, round)
 	}
-	scenarios := findAttachment(spawner.captured, "affected-scenarios")
-	if scenarios == nil || scenarios.Content != "scenario-a\nscenario-b" {
-		t.Fatalf("expected sorted affected scenarios, got %#v", scenarios)
-	}
-	gct := findAttachment(spawner.captured, "gct-review-results")
-	if gct == nil || !strings.Contains(gct.Content, "\"classification\":\"ready\"") {
-		t.Fatalf("expected gct review attachment, got %#v", gct)
+	if round.RunID != "test-run-id" {
+		t.Errorf("round missing workflow association: %#v", round)
 	}
 }

@@ -1,0 +1,39 @@
+---
+name: "investigating-agent-runs"
+description: "Practice method for diagnosing agent runs from the shared bounded report and CLI drill-downs."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["agent-manager","investigation","reliability"]
+  icon: "search"
+  status: "active"
+  revision: 2
+  createdAt: "2026-02-17T00:00:00Z"
+  updatedAt: "2026-09-02T00:00:00Z"
+  requires:
+    scenarios: ["agent-manager"]
+    commands: ["agent-manager run report", "agent-manager run tools", "agent-manager run events", "agent-manager run result", "agent-manager run messages", "agent-manager run diff"]
+  origin:
+    kind: "authored"
+---
+## Investigating agent runs
+
+Start with `agent-manager run report <id>`. It supplies status, costs, result
+provenance, event/tool failure counts, model fallback, and diff statistics.
+Use its `Next:` commands only when a discriminator requires payload evidence.
+
+| Discriminator | Drill-down | Attribution |
+| --- | --- | --- |
+| Tool failure, unavailable CLI, or non-zero exit | `run tools`, `run events` | Environment/Tooling |
+| Invalid or abstained structured result | `run result`, `run messages` | Agent Setup unless the source shows a platform error |
+| Requested/actual model mismatch or fallback | `run events` | Environment/Tooling |
+| High turns/tokens with no terminal result | `run messages`, `run events` | Agent Setup or Both |
+| Diff exists but result is unavailable | `run diff`, `run result` | Both |
+
+Attribute to the lowest layer proven by durable evidence: CLI/tool output,
+capability, skill design, docs/discovery, process/policy, then intent/inputs.
+Severity is Critical for delivery/safety blockers, Major for repeated retries
+or forced guessing, Gap for implied-but-unavailable capability, and Minor for
+low-risk clarity work. Prefer fixes that eliminate recurring interpretation.

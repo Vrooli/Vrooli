@@ -23,9 +23,12 @@ import {
   testSSHConnection,
   deleteSSHKey,
   fetchGroupingRules,
+  fetchRepoGroups,
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
+  fetchTrackedBinaries,
+  untrackBinary,
 } from "./api";
 import type {
   CapabilitiesResponse,
@@ -42,7 +45,10 @@ import type {
   SSHTestConnectionRequest,
   SSHDeleteKeyRequest,
   GroupingRulesConfig,
+  RepoGroupsResponse,
   GitignoreHealthResponse,
+  TrackedBinariesResponse,
+  UntrackBinaryRequest,
   GitignoreMoveRequest,
 } from "./api";
 
@@ -215,6 +221,15 @@ export function useGroupingRules(repoId?: string | null) {
   });
 }
 
+export function useRepoGroups(repoId?: string | null) {
+  return useQuery<RepoGroupsResponse, Error>({
+    queryKey: queryKeys.repoGroups(repoId),
+    queryFn: () => fetchRepoGroups(repoId ?? undefined),
+    enabled: Boolean(repoId),
+    refetchInterval: 5_000,
+  });
+}
+
 export function useSaveGroupingRules(repoId?: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -244,4 +259,48 @@ export function useGitignoreMove(repoId?: string | null) {
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     },
   });
+}
+
+// ── Tracked Binaries ───────────────────────────────────────────────────
+
+export function useTrackedBinaries(repoId?: string | null) {
+  return useQuery<TrackedBinariesResponse, Error>({
+    queryKey: queryKeys.trackedBinaries(repoId),
+    queryFn: () => fetchTrackedBinaries(repoId ?? undefined),
+    enabled: Boolean(repoId),
+    // Scanning every tracked file is not free, and committed binaries do not
+    // appear mid-session. Refetching on every settings open would be waste.
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUntrackBinary(repoId?: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: UntrackBinaryRequest) => untrackBinary(request, repoId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trackedBinaries(repoId) });
+      // Untracking stages a deletion, so the working-tree status changes too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+    },
+  });
+}
+
+// ── Health Notification Count ──────────────────────────────────────────
+
+/**
+ * Number of health findings that have a remediation the user can act on.
+ *
+ * Counts ONLY actionable items. Informational findings are excluded on purpose:
+ * cross-group .gitignore patterns are permanently non-empty in a real repo, so
+ * including them would pin the badge to a constant non-zero value and train the
+ * user to ignore it. A badge that is always lit carries no signal.
+ */
+export function useHealthIssueCount(repoId?: string | null): number {
+  const gitignore = useGitignoreHealth(repoId);
+  const binaries = useTrackedBinaries(repoId);
+
+  const movable = (gitignore.data?.suggestions ?? []).filter(s => s.type === "single_group").length;
+  const trackedBinaries = binaries.data?.binaries?.length ?? 0;
+  return movable + trackedBinaries;
 }

@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "conversation-friction-analysis",
-  "name": "Conversation Friction Analysis",
+  "createdAt": "2026-02-09T00:00:00Z",
   "description": "Analyze a goal-oriented conversation to identify friction points, attribute root causes, and recommend high-leverage fixes across skills, tooling, docs, and process policy.",
+  "entry": "SKILL.md",
+  "icon": "lightbulb",
+  "id": "conversation-friction-analysis",
+  "kind": "skill",
   "modes": [
     "meta"
   ],
+  "name": "Conversation Friction Analysis",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "conversation",
     "retrospective",
@@ -15,10 +32,5 @@
     "cli",
     "process-improvement"
   ],
-  "icon": "lightbulb",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-02-09T00:00:00Z",
   "updatedAt": "2026-02-09T00:00:00Z"
 }

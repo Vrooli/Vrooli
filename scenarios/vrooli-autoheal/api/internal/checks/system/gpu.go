@@ -6,12 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // GPUInfo contains information about a single GPU
@@ -33,13 +33,17 @@ type GPUInfo struct {
 }
 
 // GPUCheck monitors NVIDIA GPU health and utilization.
-// Uses nvidia-smi to gather metrics. Falls back gracefully if no GPU present.
 type GPUCheck struct {
 	memoryWarning  int // Memory usage percentage to warn
 	memoryCritical int // Memory usage percentage to go critical
 	tempWarning    int // Temperature (C) to warn
 	tempCritical   int // Temperature (C) to go critical
+	hostCollector  hostSnapshotCollector
 	executor       checks.CommandExecutor
+	// placement answers whether the resources that asked for this card are
+	// actually on it. nil leaves the check thresholds-only, which is what it
+	// was before: a healthy card and an unused card looked identical.
+	placement PlacementReporter
 }
 
 // GPUCheckOption configures a GPUCheck.
@@ -63,15 +67,31 @@ func WithGPUExecutor(executor checks.CommandExecutor) GPUCheckOption {
 	}
 }
 
-// NewGPUCheck creates a GPU health check.
-// Default thresholds: memory warning 80%, critical 95%, temp warning 75C, critical 85C
+// WithGPUPlacementReporter supplies the accelerator placement source.
+func WithGPUPlacementReporter(reporter PlacementReporter) GPUCheckOption {
+	return func(c *GPUCheck) {
+		c.placement = reporter
+	}
+}
+
+func WithGPUHostCollector(collector hostSnapshotCollector) GPUCheckOption {
+	return func(c *GPUCheck) {
+		c.hostCollector = collector
+	}
+}
+
+// NewGPUCheck creates a GPU health check. Supply WithGPUPlacementReporter to
+// make it answer the question a device-threshold check cannot: are the
+// resources that asked for this card actually on it?
 func NewGPUCheck(opts ...GPUCheckOption) *GPUCheck {
 	c := &GPUCheck{
 		memoryWarning:  80,
 		memoryCritical: 95,
 		tempWarning:    75,
 		tempCritical:   85,
+		hostCollector:  defaultHostSnapshotCollector{},
 		executor:       checks.DefaultExecutor,
+		placement:      CLIPlacementReporter{Executor: checks.DefaultExecutor},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -82,11 +102,11 @@ func NewGPUCheck(opts ...GPUCheckOption) *GPUCheck {
 func (c *GPUCheck) ID() string    { return "system-gpu" }
 func (c *GPUCheck) Title() string { return "GPU Health" }
 func (c *GPUCheck) Description() string {
-	return "Monitors NVIDIA GPU memory, temperature, and utilization for AI/ML workloads"
+	return "Monitors NVIDIA GPU memory, temperature and utilization, and reports every resource that declared an accelerator and is not on it"
 }
 
 func (c *GPUCheck) Importance() string {
-	return "GPU health affects AI model performance - overheating or memory exhaustion degrades ML inference"
+	return "GPU health affects AI model performance, and an idle healthy card says nothing about whether the resources that asked for it are using it: a fleet on the CPU passes every threshold this check applies to the device itself"
 }
 func (c *GPUCheck) Category() checks.Category  { return checks.CategorySystem }
 func (c *GPUCheck) IntervalSeconds() int       { return 30 } // Check every 30 seconds for GPU
@@ -97,39 +117,34 @@ func (c *GPUCheck) Run(ctx context.Context) checks.Result {
 		CheckID: c.ID(),
 		Details: make(map[string]interface{}),
 	}
+	if checkOS != "linux" {
+		result.Status = checks.StatusNotApplicable
+		result.Message = "NVIDIA GPU check is not implemented on this platform"
+		result.Details["platform"] = checkOS
+		return result
+	}
 
-	// Check if nvidia-smi is available
-	_, err := c.executor.Output(ctx, "which", "nvidia-smi")
+	collector := c.hostCollector
+	if collector == nil {
+		collector = defaultHostSnapshotCollector{}
+	}
+	snap, err := collector.Collect(ctx)
 	if err != nil {
+		result.Status = checks.StatusWarning
+		result.Message = "Failed to collect host GPU inventory"
+		result.Details["error"] = err.Error()
+		return result
+	}
+
+	if !snap.HasNvidiaGPU() {
 		result.Status = checks.StatusOK
-		result.Message = "No NVIDIA GPU detected (nvidia-smi not found)"
+		result.Message = "No NVIDIA GPU detected"
 		result.Details["hasGPU"] = false
 		result.Details["note"] = "This is normal for systems without NVIDIA GPUs"
 		return result
 	}
 
-	// Query GPU information using nvidia-smi JSON format
-	output, err := c.executor.Output(ctx, "nvidia-smi",
-		"--query-gpu=index,name,memory.total,memory.used,memory.free,temperature.gpu,utilization.gpu,utilization.memory,power.draw,power.limit,fan.speed,driver_version,compute_cap",
-		"--format=csv,noheader,nounits")
-	if err != nil {
-		result.Status = checks.StatusWarning
-		result.Message = "Failed to query GPU information"
-		result.Details["error"] = err.Error()
-		result.Details["hasGPU"] = true
-		return result
-	}
-
-	// Parse GPU information
-	gpus, parseErr := c.parseGPUOutput(string(output))
-	if parseErr != nil {
-		result.Status = checks.StatusWarning
-		result.Message = "Failed to parse GPU information"
-		result.Details["error"] = parseErr.Error()
-		result.Details["rawOutput"] = string(output)
-		return result
-	}
-
+	gpus := gpuInfoFromSnapshot(snap)
 	if len(gpus) == 0 {
 		result.Status = checks.StatusOK
 		result.Message = "No GPUs found"
@@ -228,72 +243,7 @@ func (c *GPUCheck) Run(ctx context.Context) checks.Result {
 		result.Message = worstMessage
 	}
 
-	return result
-}
-
-// parseGPUOutput parses nvidia-smi CSV output into GPUInfo structs
-func (c *GPUCheck) parseGPUOutput(output string) ([]GPUInfo, error) {
-	var gpus []GPUInfo
-
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Split(line, ", ")
-		if len(fields) < 13 {
-			continue
-		}
-
-		gpu := GPUInfo{}
-
-		// Parse each field with error handling
-		if idx, err := strconv.Atoi(strings.TrimSpace(fields[0])); err == nil {
-			gpu.Index = idx
-		}
-		gpu.Name = strings.TrimSpace(fields[1])
-
-		if v, err := strconv.ParseUint(strings.TrimSpace(fields[2]), 10, 64); err == nil {
-			gpu.MemoryTotal = v
-		}
-		if v, err := strconv.ParseUint(strings.TrimSpace(fields[3]), 10, 64); err == nil {
-			gpu.MemoryUsed = v
-		}
-		if v, err := strconv.ParseUint(strings.TrimSpace(fields[4]), 10, 64); err == nil {
-			gpu.MemoryFree = v
-		}
-		if v, err := strconv.Atoi(strings.TrimSpace(fields[5])); err == nil {
-			gpu.Temperature = v
-		}
-		if v, err := strconv.Atoi(strings.TrimSpace(fields[6])); err == nil {
-			gpu.UtilizationGPU = v
-		}
-		if v, err := strconv.Atoi(strings.TrimSpace(fields[7])); err == nil {
-			gpu.UtilizationMem = v
-		}
-		if v, err := strconv.ParseFloat(strings.TrimSpace(fields[8]), 64); err == nil {
-			gpu.PowerDraw = v
-		}
-		if v, err := strconv.ParseFloat(strings.TrimSpace(fields[9]), 64); err == nil {
-			gpu.PowerLimit = v
-		}
-		if v, err := strconv.Atoi(strings.TrimSpace(fields[10])); err == nil {
-			gpu.FanSpeed = v
-		}
-		gpu.DriverVersion = strings.TrimSpace(fields[11])
-		gpu.ComputeCapacity = strings.TrimSpace(fields[12])
-
-		// Calculate memory usage percentage
-		if gpu.MemoryTotal > 0 {
-			gpu.MemoryUsedPct = int((gpu.MemoryUsed * 100) / gpu.MemoryTotal)
-		}
-
-		gpus = append(gpus, gpu)
-	}
-
-	return gpus, nil
+	return applyPlacement(ctx, c.placement, result)
 }
 
 // RecoveryActions returns available recovery actions for GPU issues.
@@ -321,13 +271,6 @@ func (c *GPUCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 			Dangerous:   false,
 			Available:   hasGPU,
 		},
-		{
-			ID:          "gpu-reset",
-			Name:        "Reset GPU",
-			Description: "Reset GPU to recover from errors (requires root, may interrupt workloads)",
-			Dangerous:   true,
-			Available:   hasGPU,
-		},
 	}
 }
 
@@ -348,9 +291,6 @@ func (c *GPUCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 	case "gpu-processes":
 		return c.executeGPUProcesses(ctx, start)
 
-	case "gpu-reset":
-		return c.executeGPUReset(ctx, start)
-
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
@@ -370,8 +310,7 @@ func (c *GPUCheck) executeGPUStatus(ctx context.Context, start time.Time) checks
 	var outputBuilder strings.Builder
 	outputBuilder.WriteString("=== GPU Status ===\n\n")
 
-	// Full nvidia-smi output
-	output, err := c.executor.CombinedOutput(ctx, "nvidia-smi")
+	snap, err := c.collectHostSnapshot(ctx)
 	if err != nil {
 		result.Duration = time.Since(start)
 		result.Success = false
@@ -379,13 +318,18 @@ func (c *GPUCheck) executeGPUStatus(ctx context.Context, start time.Time) checks
 		result.Message = "Failed to get GPU status"
 		return result
 	}
-	outputBuilder.Write(output)
-
-	// Also get JSON format for programmatic access
-	outputBuilder.WriteString("\n\n=== GPU Details (JSON) ===\n")
-	jsonOutput, err := c.executor.Output(ctx, "nvidia-smi", "--query-gpu=timestamp,name,memory.total,memory.used,memory.free,utilization.gpu,utilization.memory,temperature.gpu,power.draw,power.limit,clocks.gr,clocks.mem,pstate", "--format=csv")
-	if err == nil {
-		outputBuilder.Write(jsonOutput)
+	payload := struct {
+		GPUs         []sharedhost.GPU        `json:"gpus"`
+		GPUProcesses []sharedhost.GPUProcess `json:"gpu_processes,omitempty"`
+		Statuses     map[string]string       `json:"probe_statuses,omitempty"`
+	}{
+		GPUs:         snap.GPUs,
+		GPUProcesses: snap.GPUProcesses,
+		Statuses:     snap.ProbeStatuses,
+	}
+	if encoded, err := json.MarshalIndent(payload, "", "  "); err == nil {
+		outputBuilder.Write(encoded)
+		outputBuilder.WriteString("\n")
 	}
 
 	result.Duration = time.Since(start)
@@ -406,20 +350,20 @@ func (c *GPUCheck) executeGPUProcesses(ctx context.Context, start time.Time) che
 	var outputBuilder strings.Builder
 	outputBuilder.WriteString("=== GPU Processes ===\n\n")
 
-	// Get compute processes
-	output, err := c.executor.CombinedOutput(ctx, "nvidia-smi", "pmon", "-c", "1")
+	snap, err := c.collectHostSnapshot(ctx)
 	if err != nil {
-		// Try alternative approach
-		output, err = c.executor.CombinedOutput(ctx, "nvidia-smi", "--query-compute-apps=pid,used_memory,gpu_name,process_name", "--format=csv")
-		if err != nil {
-			result.Duration = time.Since(start)
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to list GPU processes"
-			return result
-		}
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Failed to list GPU processes"
+		return result
 	}
-	outputBuilder.Write(output)
+	if len(snap.GPUProcesses) == 0 {
+		outputBuilder.WriteString("No GPU processes reported by host inventory\n")
+	} else if encoded, err := json.MarshalIndent(snap.GPUProcesses, "", "  "); err == nil {
+		outputBuilder.Write(encoded)
+		outputBuilder.WriteString("\n")
+	}
 
 	result.Duration = time.Since(start)
 	result.Output = outputBuilder.String()
@@ -428,41 +372,57 @@ func (c *GPUCheck) executeGPUProcesses(ctx context.Context, start time.Time) che
 	return result
 }
 
-// executeGPUReset attempts to reset the GPU
-func (c *GPUCheck) executeGPUReset(ctx context.Context, start time.Time) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID:  "gpu-reset",
-		CheckID:   c.ID(),
-		Timestamp: start,
-	}
-
-	var outputBuilder strings.Builder
-	outputBuilder.WriteString("=== GPU Reset ===\n\n")
-
-	// Try nvidia-smi --gpu-reset (requires root)
-	output, err := c.executor.CombinedOutput(ctx, "sudo", "nvidia-smi", "--gpu-reset")
-	outputBuilder.Write(output)
-
-	if err != nil {
-		result.Duration = time.Since(start)
-		result.Output = outputBuilder.String()
-		result.Success = false
-		result.Error = err.Error()
-		result.Message = "GPU reset failed (may require root privileges or GPU to be idle)"
-		return result
-	}
-
-	result.Duration = time.Since(start)
-	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = "GPU reset completed"
-	return result
-}
-
 // MarshalJSON implements custom JSON marshaling for GPUInfo
 func (g GPUInfo) MarshalJSON() ([]byte, error) {
 	type Alias GPUInfo
 	return json.Marshal(Alias(g))
+}
+
+func gpuInfoFromSnapshot(snap sharedhost.Snapshot) []GPUInfo {
+	gpus := make([]GPUInfo, 0, len(snap.GPUs))
+	for _, gpu := range snap.GPUs {
+		if gpu.Source != "nvidia-smi" {
+			continue
+		}
+		info := GPUInfo{
+			Index:           gpu.Index,
+			Name:            gpu.Name,
+			MemoryTotal:     gpu.VRAMBytes / 1024 / 1024,
+			MemoryUsed:      gpu.VRAMUsedBytes / 1024 / 1024,
+			UtilizationGPU:  int(gpu.UtilizationPercent),
+			UtilizationMem:  int(gpu.MemoryUtilizationPercent),
+			DriverVersion:   gpu.DriverVersion,
+			ComputeCapacity: "",
+		}
+		if info.MemoryTotal >= info.MemoryUsed {
+			info.MemoryFree = info.MemoryTotal - info.MemoryUsed
+		}
+		if info.MemoryTotal > 0 {
+			info.MemoryUsedPct = int((info.MemoryUsed * 100) / info.MemoryTotal)
+		}
+		if gpu.TemperatureC != nil {
+			info.Temperature = int(*gpu.TemperatureC)
+		}
+		if gpu.PowerDrawW != nil {
+			info.PowerDraw = *gpu.PowerDrawW
+		}
+		if gpu.PowerLimitW != nil {
+			info.PowerLimit = *gpu.PowerLimitW
+		}
+		if gpu.FanSpeedPercent != nil {
+			info.FanSpeed = int(*gpu.FanSpeedPercent)
+		}
+		gpus = append(gpus, info)
+	}
+	return gpus
+}
+
+func (c *GPUCheck) collectHostSnapshot(ctx context.Context) (sharedhost.Snapshot, error) {
+	collector := c.hostCollector
+	if collector == nil {
+		collector = defaultHostSnapshotCollector{}
+	}
+	return collector.Collect(ctx)
 }
 
 // Ensure GPUCheck implements HealableCheck

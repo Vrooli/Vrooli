@@ -1,0 +1,693 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "test-genie",
+  "description": "Authoritative CLI contract for Test Genie. Normal Connect-RPC commands are declared here; durable or streaming lifecycle commands are declared in exceptions[] until they can be represented by a normal primitive.",
+  "groups": [
+    {
+      "name": "runs",
+      "description": "Inspect and manage recorded and live Test Genie runs",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recorded test runs",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "status",
+              "description": "Optional run status filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {
+              "path": "runs",
+              "pass": "nonempty",
+              "fail": "empty"
+            }
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one recorded test run",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "verify",
+            "verdict": {
+              "path": "status",
+              "pass": "passed",
+              "fail": "failed"
+            }
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a recorded test run",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Delete even if pinned"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "DeleteRun"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "pin",
+          "description": "Pin a recorded test run for comparison",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "by",
+              "required": true,
+              "description": "Pin owner identifier",
+              "bind": {
+                "field": "pinned_by"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Reason for the pin"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "PinRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "unpin",
+          "description": "Remove a pin from a recorded test run",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "by",
+              "required": true,
+              "description": "Pin owner identifier",
+              "bind": {
+                "field": "pinned_by"
+              }
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "UnpinRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "compare",
+          "description": "Compare two recorded test runs",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "phase",
+              "description": "Restrict comparison to one phase"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "left_run_id",
+              "required": true,
+              "description": "Baseline run id",
+              "bind": {
+                "field": "run_id_a"
+              }
+            },
+            {
+      "name": "right_run_id",
+      "required": true,
+      "description": "Candidate run id",
+      "bind": {
+        "field": "run_id_b"
+      }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "CompareRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "cost",
+          "description": "Show measured phase cost and reliability exclusions",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Optional scenario id"
+            },
+            {
+              "name": "window",
+              "description": "Look-back duration (for example 168h or 7d)",
+              "bind": {
+                "field": "window_seconds"
+              }
+            },
+            {
+              "name": "compare-window",
+              "description": "Optional preceding comparison duration",
+              "bind": {
+                "field": "compare_window_seconds"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetCostReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "freshness",
+          "description": "Check whether a scenario changed since its last relevant run",
+          "flags": [
+            {
+      "name": "scenario",
+      "description": "Scenario id",
+      "local_only": true
+            },
+            {
+              "name": "phases",
+              "description": "Comma-separated phases to check"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "scenario_arg",
+              "description": "Scenario id",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "CheckFreshness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "findings",
+          "description": "Show the per-phase maturity standing (Phase Capability Contract) from a run's findings.json",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "description": "Run id (defaults to the latest run)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRunFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "self-health",
+          "description": "Show Test Genie self-health",
+          "flags": [
+            {
+              "name": "window-days",
+              "description": "Reliability ledger look-back window in days"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetSelfHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "fleet-health",
+          "description": "Show fleet-wide health over stored runs",
+          "flags": [
+            {
+              "name": "window-days",
+              "description": "Fleet aggregation look-back window in days"
+            },
+            {
+              "name": "roster",
+              "bool": true,
+              "description": "Include fleet roster details",
+              "bind": {
+                "field": "include_roster"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetFleetHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "abort",
+          "description": "Abort a live server-owned run",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "AbortRun"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show live status for a server-owned run",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRunStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "artifacts",
+          "description": "List the typed, opaque artifact catalog for a run",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "kinds",
+              "description": "Optional comma-separated artifact kinds"
+            },
+            {
+              "name": "phase",
+              "description": "Optional producing phase",
+              "bind": {
+                "field": "producing_phase"
+              }
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListRunArtifacts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "artifact",
+          "description": "Show typed metadata and opaque access path for one run artifact",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            },
+            {
+              "name": "artifact_id",
+              "required": true,
+              "description": "Opaque artifact id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRunArtifact"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "eligibility",
+      "description": "Check routed test database eligibility",
+      "commands": [
+        {
+          "name": "check",
+          "description": "Check whether a scenario qualifies for routed test-db execution",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EligibilityService",
+            "method": "Check"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "provider-contract",
+      "description": "Run provider contract checks",
+      "commands": [
+        {
+          "name": "check",
+          "description": "Check provider contract coverage",
+          "positionals": [
+            {"name": "phase_or_provider", "required": true, "description": "Phase or provider"},
+            {"name": "scenario", "required": true, "description": "Target scenario"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "RunsService",
+      "method": "GetPhaseArtifact",
+      "reason": "artifact download surface; retained in the local runs command until upload/download primitives cover binary payloads"
+    },
+    {
+      "service": "RunsService",
+      "method": "ListRunVideos",
+      "reason": "visual artifact browsing surface; retained in the local runs command pending generated proto-list registration"
+    },
+    {
+      "service": "RunsService",
+      "method": "ListRunVisuals",
+      "reason": "visual artifact browsing surface; retained in the local runs command pending generated proto-list registration"
+    },
+    {
+      "service": "RunsService",
+      "method": "CompareRunVisuals",
+      "reason": "visual artifact comparison surface; retained in the local runs command pending generated proto-list registration"
+    },
+    {
+      "service": "RunsService",
+      "method": "FindRun",
+      "reason": "internal run lookup helper used by durable reattach flows, not a stable user-facing command"
+    },
+    {
+      "service": "RunsService",
+      "method": "StartRun",
+      "reason": "covered by the top-level execute durable_run exception"
+    },
+    {
+      "service": "RunsService",
+      "method": "FollowRun",
+      "reason": "covered by execute/runs wait durable follow semantics; streaming commands require explicit special-case evidence"
+    },
+    {
+      "service": "RunsService",
+      "method": "WaitRun",
+      "reason": "covered by execute/runs wait durable wait semantics; retained in the local runs command until streaming/durable subcommands are migrated"
+    }
+  ],
+  "exceptions": [
+    {
+      "command": "execute",
+      "class": "durable_run",
+      "reason": "owns a server-owned start -> follow/wait/reattach lifecycle; human, --json, and --jsonl share one durable start path and differ only by renderer"
+    },
+    {
+      "command": "runs wait",
+      "class": "durable_run",
+      "reason": "waits on an existing server-owned durable run and maps terminal state to the command exit code"
+    },
+    {
+      "command": "runs wait-all",
+      "class": "durable_run",
+      "reason": "waits on multiple existing server-owned durable runs and maps aggregate terminal state to the command exit code"
+    },
+    {
+      "command": "runs follow",
+      "class": "streaming",
+      "reason": "owns a long-lived server-stream follow lifecycle rather than a single unary RPC call"
+    }
+  ]
+}

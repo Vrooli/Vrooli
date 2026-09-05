@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "configuration",
+    "title": "Configuration",
+    "routes": ["/configuration"],
+    "purpose": "Expose provider and local-runtime configuration with honest availability and precedence information.",
+    "prd_refs": ["OT-P1-001"]
+  }
+}

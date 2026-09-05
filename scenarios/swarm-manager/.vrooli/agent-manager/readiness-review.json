@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/readiness-review",
+  "version": "1.0.0",
+  "description": "Review one deployment readiness checklist item using substance, correspondence, and unanchored evidence disciplines.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "scenario": { "type": "string", "minLength": 1 },
+      "commit": { "type": "string", "minLength": 1 },
+      "checklist_item": { "type": "string", "minLength": 1 },
+      "acceptance_criteria": { "type": "string", "minLength": 1 },
+      "snapshot": { "type": "object", "additionalProperties": true }
+    },
+    "required": ["scenario", "commit", "checklist_item", "acceptance_criteria", "snapshot"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["passed", "failed", "unavailable", "unknown"] },
+          "severity": { "type": "string", "enum": ["error", "advisory", "unknown"] },
+          "checklist_item": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "detail": { "type": "string", "minLength": 1 }
+        },
+        "required": ["status", "severity", "checklist_item", "evidence", "detail"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["result"],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "review",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/analysis",
+        "prompt": "Read docs/scenario-qa/methods/readiness and the deployment-manager checklist before judging. Review the three jobs separately: substance, correspondence, and unanchored observation. Return exactly the result schema. A pass requires an evidence identifier and checksum in evidence. Never infer a pass from a declaration alone.\n\nScenario: {{scenario}}\nCommit: {{commit}}\nChecklist item: {{checklist_item}}\nAcceptance criteria: {{acceptance_criteria}}\nSnapshot: {{snapshot}}"
+      }
+    }
+  ],
+  "edges": []
+}

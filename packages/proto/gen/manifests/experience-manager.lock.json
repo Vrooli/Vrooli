@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "scenario": "experience-manager",
+  "input_digest": "sha256:a99d563f45ea73a3094dbbbd01c112ecefbcbe88e709b9c2db30b563e90fdd71",
+  "input_files": [
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto",
+    "schemas/experience-manager/v1/capabilities/capabilities.proto",
+    "schemas/experience-manager/v1/contract/contract.proto",
+    "schemas/experience-manager/v1/shared/errors.proto",
+    "schemas/experience-manager/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/experience-manager/v1/capabilities/capabilities.pb.go": "sha256:0b5658faf635d8ea9244eebe891fadadb4b1bab35ec343b8aa0c6b6ba0054c80",
+    "gen/go/experience-manager/v1/capabilities/capabilities_v1connect/capabilities.connect.go": "sha256:ed639aa051a1a2bd6dca79d02e1146a707a1c09a93a8148ee4d79452bc150f3d",
+    "gen/go/experience-manager/v1/contract/contract.pb.go": "sha256:d46edfd6ac9d71b9f59c5ac36d0165c005216485c8b29bc3b7a970e8102d0f8c",
+    "gen/go/experience-manager/v1/contract/contract_v1connect/contract.connect.go": "sha256:d9c0c5275e4b54082123faa48c09235277dfa63ad6f1aef270ddbfcc11e72c7b",
+    "gen/go/experience-manager/v1/shared/errors.pb.go": "sha256:dc8fb4744bb6a50966aa49f202d4f378e670eebaf6dc70cfac79fbb24d12a6e4",
+    "gen/go/experience-manager/v1/shared/health.pb.go": "sha256:e46bca5efb895532941f0aab48b05d236584b20068dbdc53e21c3e210903f0a7",
+    "gen/python/experience_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/experience_manager/v1/capabilities/capabilities_pb2.py": "sha256:a949cccdb8202528a27e2ebc9c27c9da0658aa25308b05f244caecd155bdd62c",
+    "gen/python/experience_manager/v1/capabilities/capabilities_pb2.pyi": "sha256:40cc1a43892961ac4f87065e52f67a6715176ac3bf6ae3c42d8ec1cc911c0985",
+    "gen/python/experience_manager/v1/capabilities/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/experience_manager/v1/contract/contract_pb2.py": "sha256:ef2d105d4f247390ea9914de8134146cee0307aa7f9d4a9a0990ebff4596eea5",
+    "gen/python/experience_manager/v1/contract/contract_pb2.pyi": "sha256:ab3f8a5c5bbcfdbf8d247440272e719ea7074ce9e7d628be13ae65d2427768cc",
+    "gen/python/experience_manager/v1/contract/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/experience_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/experience_manager/v1/shared/errors_pb2.py": "sha256:6a2f87ebb723c2ceae9908bc60d73e0292f909788d6fc7b5c6b530234c2d30b7",
+    "gen/python/experience_manager/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/experience_manager/v1/shared/health_pb2.py": "sha256:11ee1f654458c47dd0c235f8b0a42446b8557367393587b3bc785dffab41b2d8",
+    "gen/python/experience_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/experience_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/experience-manager/v1/capabilities/capabilities_pb.ts": "sha256:d3de779f864a635889b88ad134e309b04b3f2d8dd72d99d5d20043441dff5d01",
+    "gen/typescript/experience-manager/v1/contract/contract_pb.ts": "sha256:26f1b6f353decb56c1fcf534eeeedea30c03dc14a892986b564ff7e7f729b91c",
+    "gen/typescript/experience-manager/v1/shared/errors_pb.ts": "sha256:57a196c232a64bd1bfbbc605de111a7903648eaaac67077a83d4d2eb51b44539",
+    "gen/typescript/experience-manager/v1/shared/health_pb.ts": "sha256:92ce3c15f2faa183249dfcac67b91bcdf4c21531a998aaf674f578030abc90e8"
+  }
+}

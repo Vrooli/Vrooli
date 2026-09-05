@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "name": "operator-approval-keyboard",
+    "description": "Attended-only proof template that an operator can authenticate, read and approve a pre-seeded queued charge without a pointer. It is intentionally outside bas/ because it mutates live operator state and requires an ephemeral credential.",
+    "requirement": "OT-P0-006",
+    "version": "1",
+    "labels": {"reset": "none", "surface": "operator-approvals", "input": "keyboard-only", "attended_only": "true", "requires_confirmation": "true"},
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 1280, "viewport_height": 800},
+  "nodes": [
+    {"id": "navigate", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "treasury", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000}, "metadata": {"label": "Open approval queue"}}},
+    {"id": "wait-auth", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "@selector/approvals.tokenInput", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": {"label": "Operator token field visible"}}},
+    {"id": "tab-theme", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Tab to theme control"}}},
+    {"id": "tab-nav-approvals", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Tab to approvals navigation"}}},
+    {"id": "tab-nav-settings", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Tab to settings navigation"}}},
+    {"id": "tab-token", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Tab to operator token"}}},
+    {"id": "assert-token-focus", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='approvals-token-input']:focus", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Keyboard traversal did not visibly focus the operator token field."}, "metadata": {"label": "Operator token has keyboard focus"}}},
+    {"id": "type-token", "action": {"type": "ACTION_TYPE_INPUT", "input": {"selector": "@selector/approvals.tokenInput", "value": "phase10-attended", "is_sensitive": true}, "metadata": {"label": "Type ephemeral operator token"}}},
+    {"id": "tab-open", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Tab to open queue"}}},
+    {"id": "assert-open-focus", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='approvals-open-queue']:focus", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Keyboard traversal did not visibly focus Open approval queue."}, "metadata": {"label": "Open queue has keyboard focus"}}},
+    {"id": "open", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Enter"]}, "metadata": {"label": "Open queue with Enter"}}},
+    {"id": "wait-approval", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='approval-phase10-approval-keyboard']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": {"label": "Pending charge visible"}}},
+    {"id": "tab-after-open", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Continue after the submitted control leaves the DOM"}}},
+    {"id": "tab-decline", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Traverse the separate decline control"}}},
+    {"id": "tab-approve", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Tab"]}, "metadata": {"label": "Tab to the approve control"}}},
+    {"id": "stabilize-approve-focus", "action": {"type": "ACTION_TYPE_FOCUS", "focus": {"selector": "[data-testid='approval-phase10-approval-keyboard-approve']"}, "metadata": {"label": "Reassert recorder focus on the already keyboard-focused control"}}},
+    {"id": "approve", "action": {"type": "ACTION_TYPE_KEYBOARD", "keyboard": {"keys": ["Enter"]}, "metadata": {"label": "Approve with Enter"}}},
+    {"id": "assert-removed", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='approval-phase10-approval-keyboard']", "mode": "ASSERTION_MODE_NOT_EXISTS", "timeout_ms": 15000, "failure_message": "Approved charge remained in the pending queue."}, "metadata": {"label": "Resolved charge leaves pending queue"}}}
+  ],
+  "edges": [
+    {"id":"e01","source":"navigate","target":"wait-auth"},
+    {"id":"e02","source":"wait-auth","target":"tab-theme"},
+    {"id":"e03","source":"tab-theme","target":"tab-nav-approvals"},
+    {"id":"e04","source":"tab-nav-approvals","target":"tab-nav-settings"},
+    {"id":"e05","source":"tab-nav-settings","target":"tab-token"},
+    {"id":"e06","source":"tab-token","target":"assert-token-focus"},
+    {"id":"e07","source":"assert-token-focus","target":"type-token"},
+    {"id":"e08","source":"type-token","target":"tab-open"},
+    {"id":"e09","source":"tab-open","target":"assert-open-focus"},
+    {"id":"e10","source":"assert-open-focus","target":"open"},
+    {"id":"e11","source":"open","target":"wait-approval"},
+    {"id":"e12","source":"wait-approval","target":"tab-after-open"},
+    {"id":"e13","source":"tab-after-open","target":"tab-decline"},
+    {"id":"e14","source":"tab-decline","target":"tab-approve"},
+    {"id":"e15","source":"tab-approve","target":"stabilize-approve-focus"},
+    {"id":"e16","source":"stabilize-approve-focus","target":"approve"},
+    {"id":"e17","source":"approve","target":"assert-removed"}
+  ]
+}

@@ -271,7 +271,6 @@ func buildProcessState(
 		"redis":        "redis",
 		"qdrant":       "qdrant",
 		"ollama":       "ollama",
-		"browserless":  "browserless",
 		"minio":        "minio",
 	}
 
@@ -752,18 +751,6 @@ func parseCaddyState(caddyfileContent, runningStatus, expectedDomain string) dom
 	}
 
 	return state
-}
-
-// parseCPUUsageFromTop is a compatibility wrapper used by existing tests.
-// New code should use systemmetrics.ParseCPUUsageFromProcStat directly.
-func parseCPUUsageFromTop(output string) float64 {
-	return systemmetrics.ParseCPUUsageFromProcStat(output)
-}
-
-// parseHumanSize is a compatibility wrapper used by existing tests.
-// New code should use systemmetrics.ParseHumanSizeToGB directly.
-func parseHumanSize(s string) int {
-	return systemmetrics.ParseHumanSizeToGB(s)
 }
 
 // parseCaddyRoutes extracts routes from a Caddyfile.

@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// ADMIN DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Admin session authentication (email/password against admin_users, backed by
+// a signed session cookie) and the guarded demo-data reset. Login sets the
+// session cookie via response headers; Logout expires it. Reset is gated by an
+// environment flag and TRUNCATEs + reseeds demo tables.
+//
+// =============================================================================
+
+// LoginRequest authenticates an admin by email and password.
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+// AdminSessionResponse reports the current admin session state. Returned by
+// Login (on success), and Session (session probe).
+message AdminSessionResponse {
+  string email = 1;
+  bool authenticated = 2;
+  // Whether the demo-reset capability is enabled on this deployment.
+  bool reset_enabled = 3;
+  // Opaque server-side session identifier for trusted federation clients.
+  // Browser clients continue to use the HttpOnly cookie and must not persist it.
+  optional string session_id = 4;
+}
+
+// LogoutRequest ends the current admin session.
+message LogoutRequest {}
+
+// LogoutResponse acknowledges logout.
+message LogoutResponse {
+  bool success = 1;
+}
+
+// SessionRequest probes the current admin session.
+message SessionRequest {}
+
+// AdminAuthService handles admin login/logout/session. The session cookie is
+// read/written through a Connect interceptor rather than a body field.
+service AdminAuthService {
+  // Authenticates an admin and establishes a session.
+  rpc Login(LoginRequest) returns (AdminSessionResponse);
+  // Ends the current admin session.
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // Reports the current admin session state.
+  rpc Session(SessionRequest) returns (AdminSessionResponse);
+}
+
+// ResetDemoDataRequest triggers a demo-data reset (admin, env-gated).
+message ResetDemoDataRequest {}
+
+// ResetDemoDataResponse reports the reset outcome.
+message ResetDemoDataResponse {
+  bool reset = 1;
+  // RFC3339 timestamp of the reset.
+  string timestamp = 2;
+}
+
+// AdminResetService performs the guarded demo-data reset.
+service AdminResetService {
+  // TRUNCATEs and reseeds demo tables (admin, env-gated).
+  rpc ResetDemoData(ResetDemoDataRequest) returns (ResetDemoDataResponse);
+}
+
+// AdminProfile contains the display-safe administrator account state. Password
+// hashes and other credentials are intentionally never transported.
+message AdminProfile {
+  string email = 1;
+  bool is_default_email = 2;
+  bool is_default_password = 3;
+}
+
+message GetAdminProfileRequest {}
+
+message GetAdminProfileResponse {
+  AdminProfile profile = 1;
+}
+
+// UpdateAdminProfileRequest changes one or both administrator credentials.
+// current_password is always required to make the sensitive change explicit.
+message UpdateAdminProfileRequest {
+  string current_password = 1;
+  string new_email = 2;
+  string new_password = 3;
+}
+
+message UpdateAdminProfileResponse {
+  AdminProfile profile = 1;
+}
+
+// AdminProfileService owns the authenticated administrator identity settings.
+service AdminProfileService {
+  rpc GetAdminProfile(GetAdminProfileRequest) returns (GetAdminProfileResponse);
+  rpc UpdateAdminProfile(UpdateAdminProfileRequest) returns (UpdateAdminProfileResponse);
+}
+
+// APIKey records encrypted provider-credential metadata. It never contains the
+// credential value; callers receive only the display-safe key hint.
+message APIKey {
+  string id = 1;
+  string provider = 2;
+  string key_hint = 3;
+  bool is_active = 4;
+  string last_verified_at = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message ListAPIKeysRequest {}
+
+message ListAPIKeysResponse {
+  repeated APIKey keys = 1;
+}
+
+message CreateAPIKeyRequest {
+  string provider = 1;
+  // The raw value is accepted only to encrypt and persist it. It is never
+  // returned, logged, or included in another message.
+  string key = 2;
+}
+
+message CreateAPIKeyResponse {
+  APIKey key = 1;
+}
+
+message DeleteAPIKeyRequest {
+  string provider = 1;
+}
+
+message DeleteAPIKeyResponse {}
+
+message TestAPIKeyRequest {
+  string provider = 1;
+}
+
+message TestAPIKeyResponse {
+  bool success = 1;
+  string message = 2;
+  string provider = 3;
+}
+
+message SetAPIKeyActiveRequest {
+  string provider = 1;
+  bool active = 2;
+}
+
+message SetAPIKeyActiveResponse {}
+
+// AdministrationService owns privileged administration operations that do not
+// belong to a more specific commerce, delivery, or content domain.
+service AdministrationService {
+  rpc ListAPIKeys(ListAPIKeysRequest) returns (ListAPIKeysResponse);
+  rpc CreateAPIKey(CreateAPIKeyRequest) returns (CreateAPIKeyResponse);
+  rpc DeleteAPIKey(DeleteAPIKeyRequest) returns (DeleteAPIKeyResponse);
+  rpc TestAPIKey(TestAPIKeyRequest) returns (TestAPIKeyResponse);
+  rpc SetAPIKeyActive(SetAPIKeyActiveRequest) returns (SetAPIKeyActiveResponse);
+}

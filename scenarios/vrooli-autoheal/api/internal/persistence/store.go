@@ -5,19 +5,42 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
 
 // Store handles database operations for health check data.
 type Store struct {
-	db *sql.DB
+	db storeDB
+}
+
+// storeDB is the small database surface used by the persistence layer. Both
+// *sql.DB (isolated unit tests) and api-core's RoutedDB (runtime/test-genie
+// routing) satisfy it.
+type storeDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	PingContext(context.Context) error
+	Close() error
 }
 
 // NewStore creates a new SQLite-backed persistence store.
-func NewStore(db *sql.DB) *Store {
-	return &Store{db: db}
+func NewStore(db storeDB) *Store {
+	store := &Store{db: db}
+	_ = store.ensureIncidentContractColumns(context.Background())
+	_ = store.ensureIncidentTypeConstraint(context.Background())
+	_ = store.ensureHostInventorySnapshotColumns(context.Background())
+	_ = store.ensureHealTrackerColumns(context.Background())
+	return store
 }
 
 // Ping checks database connectivity.
@@ -43,6 +66,34 @@ func (s *Store) GetRecentResults(ctx context.Context, checkID string, limit int)
 // CleanupOldResults removes health check results older than the retention period.
 func (s *Store) CleanupOldResults(ctx context.Context, retentionHours int) (int64, error) {
 	return s.cleanupOldResultsSQLite(ctx, retentionHours)
+}
+
+// RetentionResult reports a bounded operational-history prune. Counts are
+// deliberately per data class so callers can surface retention work rather
+// than silently shrinking forensic history.
+type RetentionResult struct {
+	HealthResults int64 `json:"health_results"`
+	ActionLogs    int64 `json:"action_logs"`
+	SystemEvents  int64 `json:"system_events"`
+}
+
+// RetentionStatus is a read-only operational summary used by status surfaces.
+// It deliberately reports metadata rather than scanning retained evidence.
+type RetentionStatus struct {
+	DatabaseBytes int64      `json:"databaseBytes"`
+	OldestAt      *time.Time `json:"oldestAt,omitempty"`
+	NewestAt      *time.Time `json:"newestAt,omitempty"`
+}
+
+func (s *Store) OperationalRetentionStatus(ctx context.Context) (RetentionStatus, error) {
+	return s.operationalRetentionStatusSQLite(ctx)
+}
+
+// PruneOperationalHistory removes at most batchSize old rows from each
+// high-volume operational table. Incident records are intentionally retained:
+// they are the compact forensic rollup that survives raw-history pruning.
+func (s *Store) PruneOperationalHistory(ctx context.Context, before time.Time, batchSize int) (RetentionResult, error) {
+	return s.pruneOperationalHistorySQLite(ctx, before, batchSize)
 }
 
 // Close closes the database connection.
@@ -126,8 +177,8 @@ func (s *Store) GetCheckTrends(ctx context.Context, windowHours int) (*CheckTren
 	return s.getCheckTrendsSQLite(ctx, windowHours)
 }
 
-// Incident represents a status transition event.
-type Incident struct {
+// Transition represents a status transition event.
+type Transition struct {
 	Timestamp  string `json:"timestamp"`
 	CheckID    string `json:"checkId"`
 	FromStatus string `json:"fromStatus"`
@@ -135,16 +186,107 @@ type Incident struct {
 	Message    string `json:"message"`
 }
 
-// IncidentsResponse contains all incidents.
-type IncidentsResponse struct {
-	Incidents   []Incident `json:"incidents"`
-	WindowHours int        `json:"windowHours"`
-	Total       int        `json:"total"`
+// TransitionsResponse contains status transitions.
+type TransitionsResponse struct {
+	Transitions []Transition `json:"transitions"`
+	WindowHours int          `json:"windowHours"`
+	Total       int          `json:"total"`
 }
 
-// GetIncidents returns status transition events over the time window.
-func (s *Store) GetIncidents(ctx context.Context, windowHours, limit int) (*IncidentsResponse, error) {
-	return s.getIncidentsSQLite(ctx, windowHours, limit)
+// GetTransitions returns status transition events over the time window.
+func (s *Store) GetTransitions(ctx context.Context, windowHours, limit int) (*TransitionsResponse, error) {
+	return s.getTransitionsSQLite(ctx, windowHours, limit)
+}
+
+func (s *Store) UpsertSystemEvents(ctx context.Context, events []systemevents.Event) (int, int, error) {
+	return s.upsertSystemEventsSQLite(ctx, events)
+}
+
+func (s *Store) UpsertSystemEventSource(ctx context.Context, source systemevents.SourceStatus) error {
+	return s.upsertSystemEventSourceSQLite(ctx, source)
+}
+
+func (s *Store) ListSystemEvents(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error) {
+	return s.listSystemEventsSQLite(ctx, filters)
+}
+
+func (s *Store) GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error) {
+	return s.getSystemEventSourcesSQLite(ctx)
+}
+
+// GetJournalCursor returns the persisted incremental-ingest cursor for the
+// given logical source key (empty state if none recorded).
+func (s *Store) GetJournalCursor(ctx context.Context, sourceKey string) (systemevents.CursorState, error) {
+	return s.getJournalCursorSQLite(ctx, sourceKey)
+}
+
+// SetJournalCursor persists the incremental-ingest cursor for the source key.
+func (s *Store) SetJournalCursor(ctx context.Context, sourceKey string, state systemevents.CursorState) error {
+	return s.setJournalCursorSQLite(ctx, sourceKey, state)
+}
+
+// IsBootScanned reports whether the (sourceKey, bootID) pair has already been
+// scanned to completion.
+func (s *Store) IsBootScanned(ctx context.Context, sourceKey, bootID string) (bool, error) {
+	return s.isBootScannedSQLite(ctx, sourceKey, bootID)
+}
+
+// MarkBootScanned records that (sourceKey, bootID) has been scanned.
+func (s *Store) MarkBootScanned(ctx context.Context, sourceKey, bootID string) error {
+	return s.markBootScannedSQLite(ctx, sourceKey, bootID)
+}
+
+func (s *Store) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {
+	return s.saveHostInventorySnapshotSQLite(ctx, inv)
+}
+
+func (s *Store) GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
+	return s.getLatestHostInventorySnapshotSQLite(ctx)
+}
+
+func (s *Store) GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error) {
+	return s.getRecentHostInventoryChangesSQLite(ctx, limit)
+}
+
+func (s *Store) UpsertIncident(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error) {
+	return s.upsertIncidentSQLite(ctx, input)
+}
+
+func (s *Store) ListIncidents(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {
+	return s.listIncidentsSQLite(ctx, filters)
+}
+
+func (s *Store) GetIncident(ctx context.Context, id string) (*incidents.Incident, error) {
+	return s.getIncidentSQLite(ctx, id)
+}
+
+func (s *Store) ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error) {
+	return s.listIncidentObservationsSQLite(ctx, incidentID, limit)
+}
+
+func (s *Store) UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
+	return s.updateIncidentStatusSQLite(ctx, incidentID, status, note)
+}
+
+func (s *Store) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
+	return s.recordIncidentRemediationArtifactSQLite(ctx, incidentID, artifact)
+}
+
+func (s *Store) RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error) {
+	return s.recordIncidentRemediationOutcomeSQLite(ctx, incidentID, outcome)
+}
+
+// RecordRemediationAuthorisation persists the exact ask-to-incident binding
+// that was verified by notification-hub. The ask id is unique, so an answer
+// cannot authorize two executions.
+func (s *Store) RecordRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID, approvedBy string, approvedAt time.Time) error {
+	return s.recordRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, approvedBy, approvedAt)
+}
+
+// ClaimRemediationAuthorisation makes an approved ask single-use. A false
+// result means the authorization was absent, mismatched, or already consumed.
+func (s *Store) ClaimRemediationAuthorisation(ctx context.Context, askID, incidentID, fingerprint, remediationID string, consumedAt time.Time) (bool, error) {
+	return s.claimRemediationAuthorisationSQLite(ctx, askID, incidentID, fingerprint, remediationID, consumedAt)
 }
 
 // ActionLog represents a logged recovery action execution.
@@ -153,6 +295,7 @@ type ActionLog struct {
 	CheckID    string `json:"checkId"`
 	ActionID   string `json:"actionId"`
 	Success    bool   `json:"success"`
+	TimedOut   bool   `json:"timedOut,omitempty"`
 	Message    string `json:"message"`
 	Output     string `json:"output,omitempty"`
 	Error      string `json:"error,omitempty"`
@@ -166,9 +309,42 @@ type ActionLogsResponse struct {
 	Total int         `json:"total"`
 }
 
+// OutageRecord is one continuous interval during which a supervised member
+// was observed unavailable. An empty ClosedAt means the outage is ongoing.
+type OutageRecord struct {
+	ID       int64      `json:"id"`
+	MemberID string     `json:"memberId"`
+	Cause    string     `json:"cause"`
+	OpenedAt time.Time  `json:"openedAt"`
+	ClosedAt *time.Time `json:"closedAt,omitempty"`
+}
+
+// OutageSummary reports interval-weighted unavailability for one member. An
+// open interval is measured through WindowEnd without mutating the record.
+type OutageSummary struct {
+	MemberID                string    `json:"memberId"`
+	WindowStart             time.Time `json:"windowStart"`
+	WindowEnd               time.Time `json:"windowEnd"`
+	TotalUnavailableSeconds float64   `json:"totalUnavailableSeconds"`
+	DistinctOutageCount     int       `json:"distinctOutageCount"`
+	OpenOutageCount         int       `json:"openOutageCount"`
+}
+
+func (s *Store) ObserveSupervisedAvailability(ctx context.Context, result checks.Result) error {
+	return s.observeSupervisedAvailabilitySQLite(ctx, result)
+}
+
+func (s *Store) GetOutageSummary(ctx context.Context, memberID string, from, to time.Time) (*OutageSummary, error) {
+	return s.getOutageSummarySQLite(ctx, memberID, from, to)
+}
+
+func (s *Store) ListOutageRecords(ctx context.Context, memberID string, limit int) ([]OutageRecord, error) {
+	return s.listOutageRecordsSQLite(ctx, memberID, limit)
+}
+
 // SaveActionLog persists a recovery action execution to the database.
-func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
-	return s.saveActionLogSQLite(ctx, checkID, actionID, success, message, output, errMsg, durationMs)
+func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
+	return s.saveActionLogSQLite(ctx, checkID, actionID, success, timedOut, message, output, errMsg, durationMs)
 }
 
 // GetActionLogs retrieves recent action logs.
@@ -186,6 +362,13 @@ func (s *Store) SaveHealTracker(ctx context.Context, checkID string, tracker *ch
 	return s.saveHealTrackerSQLite(ctx, checkID, tracker)
 }
 
+// SaveHealTrackers persists a reconciliation set in one transaction. Startup
+// classification can touch many legacy rows; one commit avoids turning a busy
+// database into a partially durable disposition map.
+func (s *Store) SaveHealTrackers(ctx context.Context, trackers map[string]checks.HealTracker) error {
+	return s.saveHealTrackersSQLite(ctx, trackers)
+}
+
 // GetAllHealTrackers retrieves all heal tracker states from the database.
 func (s *Store) GetAllHealTrackers(ctx context.Context) (map[string]*checks.HealTracker, error) {
 	return s.getAllHealTrackersSQLite(ctx)
@@ -194,4 +377,72 @@ func (s *Store) GetAllHealTrackers(ctx context.Context) (map[string]*checks.Heal
 // DeleteHealTracker removes a heal tracker from the database.
 func (s *Store) DeleteHealTracker(ctx context.Context, checkID string) error {
 	return s.deleteHealTrackerSQLite(ctx, checkID)
+}
+
+type CheckShelf struct {
+	CheckID   string    `json:"checkId"`
+	Reason    string    `json:"reason"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	SetBy     string    `json:"setBy"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func (s *Store) CreateCheckShelf(ctx context.Context, shelf CheckShelf) error {
+	if shelf.CheckID == "" || shelf.Reason == "" || shelf.SetBy == "" || shelf.ExpiresAt.IsZero() || !shelf.ExpiresAt.After(time.Now().UTC()) {
+		return fmt.Errorf("check shelf requires check_id, reason, set_by, and a future expiry")
+	}
+	if shelf.CreatedAt.IsZero() {
+		shelf.CreatedAt = time.Now().UTC()
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO check_shelves (check_id, reason, expires_at, set_by, created_at)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT(check_id) DO UPDATE SET reason=excluded.reason, expires_at=excluded.expires_at, set_by=excluded.set_by, created_at=excluded.created_at
+	`, shelf.CheckID, shelf.Reason, shelf.ExpiresAt.UTC().Format(time.RFC3339Nano), shelf.SetBy, shelf.CreatedAt.UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func (s *Store) ListCheckShelves(ctx context.Context, includeExpired bool) ([]CheckShelf, error) {
+	query := `SELECT check_id, reason, expires_at, set_by, created_at FROM check_shelves`
+	args := []any{}
+	if !includeExpired {
+		query += ` WHERE expires_at > ?`
+		args = append(args, time.Now().UTC().Format(time.RFC3339Nano))
+	}
+	query += ` ORDER BY check_id`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var shelves []CheckShelf
+	for rows.Next() {
+		var shelf CheckShelf
+		var expiresAt, createdAt string
+		if err := rows.Scan(&shelf.CheckID, &shelf.Reason, &expiresAt, &shelf.SetBy, &createdAt); err != nil {
+			return nil, err
+		}
+		if shelf.ExpiresAt, err = time.Parse(time.RFC3339Nano, expiresAt); err != nil {
+			return nil, err
+		}
+		if shelf.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); err != nil {
+			return nil, err
+		}
+		shelves = append(shelves, shelf)
+	}
+	return shelves, rows.Err()
+}
+
+func (s *Store) IsCheckShelved(ctx context.Context, checkID string) (bool, error) {
+	var exists int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM check_shelves WHERE check_id = ? AND expires_at > ?`, checkID, time.Now().UTC().Format(time.RFC3339Nano)).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil && exists == 1, err
+}
+
+func (s *Store) DeleteCheckShelf(ctx context.Context, checkID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM check_shelves WHERE check_id = ?`, checkID)
+	return err
 }

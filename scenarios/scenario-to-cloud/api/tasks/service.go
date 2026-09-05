@@ -5,20 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/tasks/fix"
 	"scenario-to-cloud/tasks/investigate"
 	"scenario-to-cloud/tasks/shared"
+
+	"github.com/google/uuid"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // Service orchestrates task execution for both investigation and fix workflows.
@@ -128,21 +127,20 @@ func (s *Service) TriggerTask(ctx context.Context, req domain.CreateTaskRequest)
 	}
 
 	// Start background task
-	go s.runTask(inv.ID, deployment, &req, handler, sourceFindings)
+	go s.runTask(context.WithoutCancel(ctx), inv.ID, deployment, &req, handler, sourceFindings)
 
 	return inv, nil
 }
 
 // runTask executes the task in the background.
 func (s *Service) runTask(
+	ctx context.Context,
 	invID string,
 	deployment *domain.Deployment,
 	req *domain.CreateTaskRequest,
 	handler TaskHandler,
 	sourceFindings *string,
 ) {
-	ctx := context.Background()
-
 	// Update status to running
 	if err := s.repo.UpdateInvestigationStatus(ctx, invID, domain.InvestigationStatusRunning); err != nil {
 		log.Printf("[task] failed to update status to running: %v", err)
@@ -309,9 +307,9 @@ func (s *Service) executeAgent(
 	invID, tag, prompt string,
 	attachments []*domainpb.ContextAttachment,
 ) (*AgentResult, error) {
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	workingDir, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve repo root: %w", err)
 	}
 
 	// Use a timeout context (1 hour)

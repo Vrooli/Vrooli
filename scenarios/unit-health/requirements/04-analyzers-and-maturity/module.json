@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "module": "analyzers-and-maturity",
+    "description": "Coverage, test architecture, test quality, and diagnostics analyzers feeding the local maturity assessor.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UH-ANALYZE-001",
+      "title": "Own coverage analysis",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Versioned adapters parse their declared coverage artifacts into normalized per-surface and per-file coverage, and Unit Health emits low-coverage and coverage-absent findings as hardening gaps within the delegated unit phase.",
+      "tags": ["coverage", "lcov", "vitest"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixture profiles produce deterministic per-target percentages and threshold findings; absent artifacts produce coverage_absent."}
+      ]
+    },
+    {
+      "id": "UH-ANALYZE-002",
+      "title": "Analyze test architecture",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "The architecture analyzer reports co-location, shared test utilities (internal/testutil, src/test-utils), no-helper-from-production, fixture/mock placement, and injectable-seam usage for time/env/http/logger/repository where inferable from Code Facts.",
+      "tags": ["architecture", "seams", "testutil"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixtures cover co-located vs separated tests, missing testutil, and a production import of a test helper."}
+      ]
+    },
+    {
+      "id": "UH-ANALYZE-003",
+      "title": "Analyze test quality",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "The quality analyzer reports skipped/only tests, no/weak assertions, generic render-only tests, excessive snapshots, missing positive/negative/boundary cases, and untagged requirement validation where requirements expect test references.",
+      "tags": ["quality", "assertions", "edge-cases"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixtures cover skipped tests, assertion-free tests, render-only tests, and snapshot overuse."}
+      ]
+    },
+    {
+      "id": "UH-ANALYZE-004",
+      "title": "Diagnose flake and runtime risk",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "api",
+      "criticality": "P2",
+      "description": "The diagnostics analyzer surfaces command-duration history, runtime growth, inconsistent retry outcomes when diagnostic rerun is enabled, and the likely hang culprit from the no-output timeout plus last log lines.",
+      "tags": ["flake", "runtime", "history"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixture timing series produces a runtime-growth finding; a no-output stall produces a hang-culprit diagnostic."}
+      ]
+    },
+    {
+      "id": "UH-ANALYZE-005",
+      "title": "Assess local maturity",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The maturity assessor loads .vrooli/maturity.json, maps every finding to a local level and global semantic impact, computes the current and next Unit Health level, and fails closed if any emitted finding code lacks a mapping.",
+      "tags": ["maturity", "assessor", "maturity-go"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Tests assert level computation from a finding set and an error when an unmapped code is emitted."}
+      ]
+    }
+  ]
+}

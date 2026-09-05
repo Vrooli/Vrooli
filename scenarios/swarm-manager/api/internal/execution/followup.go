@@ -2,18 +2,13 @@ package execution
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/workshop"
 )
 
 // handleSpecSyncComplete performs the archive after a successful spec-sync run.
@@ -53,26 +48,6 @@ func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
 
 func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
 	now := nowRFC3339()
-	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverablePath := deliverableForKind(item.Kind)
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
-	if handoffErr != nil {
-		slog.Warn("failed to build idea handoff for fixup", "kind", item.Kind, "name", item.Name, "err", handoffErr)
-	}
-
-	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:               item.Kind,
-		Name:               item.Name,
-		Title:              item.Title,
-		ItemFolder:         itemDir,
-		RunType:            "fixup",
-		DeliverablePath:    deliverablePath,
-		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
-		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*record)),
-		IdeaHandoff:        ideaHandoff,
-		SuggestedSkills:    item.SuggestedSkills,
-	})
-
 	fixupRecord := Record{
 		ExecutionID:       idgen.Generate(),
 		BacklogKind:       record.BacklogKind,
@@ -84,15 +59,13 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		Operation:         "fixup",
 		ParentExecutionID: record.ExecutionID,
 		FixupAttempt:      record.FixupAttempt + 1,
-		PromptTrace: &PromptTrace{
-			Purpose:        "fixup",
-			Prompt:         prompt,
-			PromptRevision: promptRevision(prompt),
-			UsedFallback:   false,
-			CapturedAt:     now,
-		},
-		CreatedAt: now,
-		UpdatedAt: now,
+		// No per-record engagement inheritance (plan P-b): engagements are owned by
+		// the backlog item (ownerKeyFor), and a fixup shares the parent's
+		// kind/name, so it transparently sees the same EngagementStore set. The
+		// fixup's own pre-merge hold expands the set if it touches new scenarios.
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		OperatorNote: buildFinalizationFeedback(record.Finalization),
 	}
 
 	records, loadErr := s.store.Load()
@@ -101,42 +74,25 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		return
 	}
 	records = append(records, fixupRecord)
+	// Persist before starting. The runner's input builder reads the durable
+	// record, so an unsaved fixup would build an empty snapshot here and a
+	// different one at apply time.
+	if saveErr := s.store.Save(records); saveErr != nil {
+		slog.Error("failed to persist fixup record before start", "err", saveErr)
+		return
+	}
 
-	activityCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-		item,
-		fixupRecord.ExecutionID,
-		agentactivity.PurposeFixup,
-		"swarm-manager:fixup",
-		map[string]string{
-			"entrypoint": "execution.fixup",
-			"attempt":    fmt.Sprintf("%d", fixupRecord.FixupAttempt),
-		},
-	))
-
-	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:            item.Kind,
-		Name:            item.Name,
-		Title:           fmt.Sprintf("Fix-up: %s/%s (attempt %d)", item.Kind, item.Name, fixupRecord.FixupAttempt),
-		Description:     prompt,
-		Prompt:          prompt,
-		ScopePath:       ".",
-		ProjectRoot:     ".",
-		CreatedBy:       "swarm-manager:fixup",
-		Purpose:         "fixup",
-		AcceptanceAllow: item.AcceptanceAllow,
-		AcceptanceDeny:  item.AcceptanceDeny,
-		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
-	})
-	if err != nil {
-		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
-			slog.Warn("fixup spawn skipped: agent already active", "kind", item.Kind, "name", item.Name)
-		} else {
-			slog.Error("failed to spawn fixup run", "err", err)
+	res, _, startErr := s.startWorkWorkflow(ctx, fixupRecord, "fixup")
+	if startErr != nil || strings.TrimSpace(res.ExecutionID) == "" {
+		failureReason := "fixup workflow returned no execution id"
+		if startErr != nil {
+			slog.Error("failed to start fixup workflow", "err", startErr)
+			failureReason = fmt.Sprintf("start failed: %v", startErr)
 		}
 		for i := range records {
 			if records[i].ExecutionID == fixupRecord.ExecutionID {
 				records[i].Status = StatusFailed
-				records[i].FailureReason = fmt.Sprintf("spawn failed: %v", err)
+				records[i].FailureReason = failureReason
 				records[i].FinishedAt = now
 				break
 			}
@@ -153,8 +109,8 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 
 	for i := range records {
 		if records[i].ExecutionID == fixupRecord.ExecutionID {
-			records[i].TaskID = runResult.TaskID
-			records[i].RunID = runResult.RunID
+			records[i].RunID = res.RunID
+			records[i].TaskID = res.ExecutionID
 			records[i].Status = StatusStarting
 			records[i].StartedAt = now
 			break
@@ -179,7 +135,23 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	}
 }
 
-// FollowUp creates a follow-up execution from a completed/failed/needs_fixup execution.
+// FollowUp creates a new execution run from a completed/failed/needs_fixup
+// parent run. User-initiated only: invoked through
+// `POST /api/v1/execution/{id}/follow-up`.
+//
+// NOT to be confused with the backlog.StatusNeedsFollowup terminal status:
+//   - StatusNeedsFollowup (item level) is a signal from review-decide that
+//     the *item* needs more work. It does not auto-open any execution.
+//   - FollowUp (run level) spawns another *run* against the same item when
+//     the user asks for one, regardless of the item's status. It may be
+//     invoked against a `needs_followup` item, a `failed` item, or any
+//     other item whose last execution reached completed / failed /
+//     needs_fixup.
+//
+// There is no auto-FollowUp path — production code never calls this from
+// finalization or polling. If you add one, reconsider: the W1 plan routed
+// post-run state through `in_review` / `review_pending` specifically so
+// the user decides whether a follow-up is warranted.
 func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -193,6 +165,16 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		return Record{}, err
 	}
 	parent := &records[idx]
+	// A policy or observer retry must not start a second run for the same
+	// evidence-backed proposal. Manual follow-ups intentionally leave this key
+	// empty and retain their existing repeatable behavior.
+	if sourceProposalID := strings.TrimSpace(req.SourceProposalID); sourceProposalID != "" {
+		for _, record := range records {
+			if record.ParentExecutionID == parent.ExecutionID && record.FollowUpSourceProposalID == sourceProposalID {
+				return record, nil
+			}
+		}
+	}
 
 	// Only allow follow-up from terminal or needs_fixup states.
 	switch parent.Status {
@@ -202,127 +184,66 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 		return Record{}, apierr.BadRequest("cannot follow up execution in %q state", parent.Status)
 	}
 
-	// Load backlog item for context.
-	item, loadErr := s.loadBacklogItemByRecord(parent)
-	if loadErr != nil {
+	// Confirm the backlog item still resolves before creating a record for it.
+	// The snapshot itself is built by the runner's registered input builder.
+	if _, loadErr := s.loadBacklogItemByRecord(parent); loadErr != nil {
 		return Record{}, fmt.Errorf("cannot follow up: %w", loadErr)
 	}
 
-	// Build the unified execution prompt.
-	itemDir := s.itemDir(item.Kind, item.Name)
 	runType := req.FollowUpType
 	if runType == "" {
 		runType = "followup"
 	}
-	deliverablePath := deliverableForKind(item.Kind)
-	ideaHandoff, handoffErr := s.buildIdeaHandoffPackage(item, itemDir, s.processPreflightForItem(item, false))
-	if handoffErr != nil {
-		slog.Warn("failed to build idea handoff for follow-up", "kind", item.Kind, "name", item.Name, "err", handoffErr)
-	}
-	prompt := buildExecutionPrompt(executionPromptParams{
-		Kind:               item.Kind,
-		Name:               item.Name,
-		Title:              item.Title,
-		ItemFolder:         itemDir,
-		RunType:            runType,
-		DeliverablePath:    deliverablePath,
-		DeliverableContent: workshop.LoadPlanContentByName(itemDir, deliverablePath),
-		ReviewFeedback:     buildFinalizationFeedback(effectiveFinalization(*parent)),
-		FollowUpNote:       strings.TrimSpace(req.Context),
-		IdeaHandoff:        ideaHandoff,
-		SuggestedSkills:    item.SuggestedSkills,
-	})
 
 	now := nowRFC3339()
 	followUpRecord := Record{
-		ExecutionID:       idgen.Generate(),
-		BacklogKind:       parent.BacklogKind,
-		BacklogName:       parent.BacklogName,
-		PreviousStatus:    string(parent.Status),
-		Status:            StatusPending,
-		Mode:              ModeYOLO,
-		StartedBy:         "swarm-manager:follow-up",
-		Operation:         req.FollowUpType,
-		ParentExecutionID: parent.ExecutionID,
-		PromptTrace: &PromptTrace{
-			Purpose:        runType,
-			Prompt:         prompt,
-			PromptRevision: promptRevision(prompt),
-			UsedFallback:   false,
-			CapturedAt:     now,
-		},
-		CreatedAt: now,
-		UpdatedAt: now,
+		ExecutionID:              idgen.Generate(),
+		BacklogKind:              parent.BacklogKind,
+		BacklogName:              parent.BacklogName,
+		PreviousStatus:           string(parent.Status),
+		Status:                   StatusPending,
+		Mode:                     ModeYOLO,
+		StartedBy:                "swarm-manager:follow-up",
+		Operation:                req.FollowUpType,
+		ParentExecutionID:        parent.ExecutionID,
+		FollowUpSourceProposalID: strings.TrimSpace(req.SourceProposalID),
+		FollowUpSourceReviewRef:  strings.TrimSpace(req.SourceReviewRef),
+		CreatedAt:                now,
+		UpdatedAt:                now,
+		OperatorNote:             req.Context,
 	}
 	if req.FollowUpType == "fixup" {
 		followUpRecord.FixupAttempt = parent.FixupAttempt + 1
 	}
 
-	if req.RunMode == "continue" && strings.TrimSpace(parent.RunID) != "" {
-		// Continue existing agent-manager session.
-		if s.continuer == nil {
-			return Record{}, fmt.Errorf("cannot follow up: run continuation not available")
-		}
-		continueCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-			item,
-			followUpRecord.ExecutionID,
-			executionActivityPurpose(runType),
-			followUpRecord.StartedBy,
-			map[string]string{
-				"entrypoint":       "execution.follow_up",
-				"follow_up_type":   runType,
-				"run_mode":         req.RunMode,
-				"parent_execution": parent.ExecutionID,
-			},
-		))
-		if err := s.continuer.ContinueRun(continueCtx, parent.RunID, prompt); err != nil {
-			if strings.Contains(err.Error(), "session_expired") || strings.Contains(err.Error(), "continuation_not_supported") {
-				return Record{}, apierr.Wrap(apierr.ErrSessionExpired, http.StatusConflict, "agent session expired; retry with run_mode=new")
-			}
-			return Record{}, fmt.Errorf("continue run failed: %w", err)
-		}
-		followUpRecord.RunID = parent.RunID
-		followUpRecord.TaskID = parent.TaskID
-		followUpRecord.Status = StatusRunning
-		followUpRecord.StartedAt = now
-	} else {
-		// Spawn a fresh run.
-		spawnCtx := agentactivity.WithSpec(ctx, backlogActivitySpec(
-			item,
-			followUpRecord.ExecutionID,
-			executionActivityPurpose(runType),
-			followUpRecord.StartedBy,
-			map[string]string{
-				"entrypoint":       "execution.follow_up",
-				"follow_up_type":   runType,
-				"run_mode":         req.RunMode,
-				"parent_execution": parent.ExecutionID,
-			},
-		))
-		runResult, spawnErr := s.agentService.SpawnBacklog(spawnCtx, agentmanager.BacklogSpawnRequest{
-			Kind:            item.Kind,
-			Name:            item.Name,
-			Title:           fmt.Sprintf("Follow-up: %s/%s", item.Kind, item.Name),
-			Description:     prompt,
-			Prompt:          prompt,
-			ScopePath:       ".",
-			ProjectRoot:     ".",
-			CreatedBy:       "swarm-manager:follow-up",
-			Purpose:         req.FollowUpType,
-			AcceptanceAllow: item.AcceptanceAllow,
-			AcceptanceDeny:  item.AcceptanceDeny,
-			Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
-		})
-		if spawnErr != nil {
-			return Record{}, wrapAgentError(fmt.Errorf("spawn follow-up failed: %w", spawnErr))
-		}
-		followUpRecord.TaskID = runResult.TaskID
-		followUpRecord.RunID = runResult.RunID
-		followUpRecord.Status = StatusStarting
-		followUpRecord.StartedAt = now
+	// Persist before starting. The runner's input builder reads the durable
+	// record, so the operator note has to be on disk before the snapshot is
+	// built — and before the apply-time rebuild has to reproduce it.
+	records = append(records, followUpRecord)
+	if err := s.store.Save(records); err != nil {
+		return Record{}, fmt.Errorf("failed to save follow-up record: %w", err)
 	}
 
-	records = append(records, followUpRecord)
+	// The declared workflow owns the prompt, run lifecycle, and structured
+	// result. This adapter supplies only an immutable domain snapshot.
+	res, _, startErr := s.startWorkWorkflow(ctx, followUpRecord, runType)
+	if startErr != nil {
+		return Record{}, wrapAgentError(startErr)
+	}
+	if strings.TrimSpace(res.ExecutionID) == "" {
+		return Record{}, apierr.BadGateway("work workflow started but returned no execution id")
+	}
+	followUpRecord.RunID = res.RunID
+	followUpRecord.TaskID = res.ExecutionID
+	followUpRecord.Status = StatusStarting
+	followUpRecord.StartedAt = now
+
+	for i := range records {
+		if records[i].ExecutionID == followUpRecord.ExecutionID {
+			records[i] = followUpRecord
+			break
+		}
+	}
 	if err := s.store.Save(records); err != nil {
 		return Record{}, fmt.Errorf("failed to save follow-up record: %w", err)
 	}

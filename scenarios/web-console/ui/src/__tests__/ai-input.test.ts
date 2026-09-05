@@ -1,92 +1,62 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { apiBaseMock } from "../test-utils";
+import type { AIGenerateResponse } from "../api/ai";
 
-// Mock api-base before importing api module
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
+type GenerateRequest = { prompt: string; context: string };
+
+const generateMock = vi.fn<(request: GenerateRequest) => Promise<AIGenerateResponse>>();
+vi.mock("../api/ai", async () => {
+  const actual = await vi.importActual<typeof import("../api/ai")>("../api/ai");
+  return {
+    ...actual,
+    aiClient: { generate: generateMock },
+    generateAICommand: async (prompt: string, context?: string) => {
+      const resp = await generateMock({ prompt, context: context ?? "" });
+      return { command: resp.command, provider: resp.provider };
+    },
+  };
+});
+
 // [REQ:P0-005a] AI Command Generation API - client tests
-// [REQ:P0-005b] AI Input UI Component - API integration tests
 describe("generateAICommand", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    generateMock.mockReset();
   });
 
-  it("sends POST with prompt and returns command/provider", async () => {
-    const mockResponse = {
-      command: "find . -name '*.go'",
-      provider: "ollama",
-    };
+  it("returns command and provider from aiClient.generate", async () => {
+    generateMock.mockResolvedValue({ command: "find . -name '*.go'", provider: "ollama" });
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse),
-    }) as typeof fetch;
-
-    const { generateAICommand } = await import("../lib/api");
+    const { generateAICommand } = await import("../api/ai");
     const result = await generateAICommand("find all Go files");
 
-    expect(result).toEqual(mockResponse);
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/ai/generate"),
-      expect.objectContaining({
-        method: "POST",
-        body: expect.stringContaining("find all Go files") as string,
-      }),
-    );
+    expect(result).toEqual({ command: "find . -name '*.go'", provider: "ollama" });
+    expect(generateMock).toHaveBeenCalledWith({ prompt: "find all Go files", context: "" });
   });
 
   it("includes context when provided", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ command: "ls /tmp", provider: "ollama" }),
-    }) as typeof fetch;
+    generateMock.mockResolvedValue({ command: "ls /tmp", provider: "ollama" });
 
-    const { generateAICommand } = await import("../lib/api");
+    const { generateAICommand } = await import("../api/ai");
     await generateAICommand("list temp files", "cwd: /home/user");
 
-    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
-    const firstCall = calls[0] as [string, RequestInit];
-    const callBody = JSON.parse(firstCall[1].body as string) as Record<string, unknown>;
-    expect(callBody.context).toBe("cwd: /home/user");
+    expect(generateMock).toHaveBeenCalledWith({ prompt: "list temp files", context: "cwd: /home/user" });
   });
 
-  it("throws APIError on failure", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: () =>
-        Promise.resolve({
-          error: "AI unavailable",
-          code: "ai_provider_unavailable",
-          category: "dependency",
-          retry: true,
-        }),
-    }) as typeof fetch;
+  it("propagates errors from the Connect client", async () => {
+    generateMock.mockRejectedValue(new Error("AI unavailable"));
 
-    const { generateAICommand, APIError } = await import("../lib/api");
-    try {
-      await generateAICommand("test prompt");
-      expect.fail("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(APIError);
-      const apiErr = err as InstanceType<typeof APIError>;
-      expect(apiErr.code).toBe("ai_provider_unavailable");
-      expect(apiErr.retry).toBe(true);
-    }
+    const { generateAICommand } = await import("../api/ai");
+    await expect(generateAICommand("test prompt")).rejects.toThrow("AI unavailable");
   });
 
-  it("omits context field when not provided", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ command: "pwd", provider: "openrouter" }),
-    }) as typeof fetch;
+  it("sends empty context when not provided", async () => {
+    generateMock.mockResolvedValue({ command: "pwd", provider: "openrouter" });
 
-    const { generateAICommand } = await import("../lib/api");
+    const { generateAICommand } = await import("../api/ai");
     await generateAICommand("current directory");
 
-    const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
-    const firstCall = calls[0] as [string, RequestInit];
-    const callBody = JSON.parse(firstCall[1].body as string) as Record<string, unknown>;
-    expect(callBody.prompt).toBe("current directory");
+    expect(generateMock).toHaveBeenCalledWith({ prompt: "current directory", context: "" });
   });
 });

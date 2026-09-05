@@ -216,16 +216,16 @@ func TestRecordAppView(t *testing.T) {
 	})
 }
 
-func TestReportAppIssue(t *testing.T) {
+func TestReportAppFix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)
 	handler := NewAppHandler(appService)
 
 	t.Run("MissingBody", func(t *testing.T) {
 		router := setupTestRouter()
-		router.POST("/apps/:id/report", handler.ReportAppIssue)
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
 
-		req := httptest.NewRequest("POST", "/apps/test-app/report", nil)
+		req := httptest.NewRequest("POST", "/apps/test-app/fixes/report", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 

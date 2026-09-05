@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-collection",
+  "deprecatedVersions": [],
+  "draft": "",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:useCollection"
+}

@@ -4,21 +4,27 @@
 
 import type {
   BacklogItem as ProtoBacklogItem,
-  BacklogFile as ProtoBacklogFile,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
+import type { BacklogCriterion, BacklogFile as ProtoBacklogFile } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
 import type { ProtoMessage } from "./shared";
+import type { PlanRef } from "./shared";
+import type { AgentSessionAttribution } from "./agent-session";
 
 /**
- * Valid lifecycle states for a backlog item
+ * Valid lifecycle states for a backlog item.
+ *
+ * Lifecycle:
+ *   backlog/researching/ready → queued → in_progress → in_review → review_pending
+ *     → completed | failed | needs_followup | dropped
+ *
+ * The union and the lifecycle-ordered status lists are generated from the
+ * server's SSOT table (api/internal/backlogstatus/statuses.go) — re-exported
+ * here so existing imports of `BacklogStatus` from this module keep working.
+ * Add a status there, not here.
  */
-export type BacklogStatus =
-  | "backlog"
-  | "researching"
-  | "ready"
-  | "queued"
-  | "in_progress"
-  | "completed"
-  | "failed";
+import type { BacklogStatus } from "./backlog-status.generated";
+
+export type { BacklogStatus };
 
 
 /**
@@ -29,7 +35,7 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "milestone" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "creates" | "createdBy" | "stale"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -38,12 +44,29 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   kind: BacklogKind;
   /** Items this depends on, as "kind/name" refs. Empty array from API, optional in client code. */
   dependsOn?: string[];
-  /** Initiative this item belongs to. */
-  initiative?: string;
+  /** Milestone this item belongs to. */
+  milestone?: string;
   /** Glob patterns for expected file modifications. */
   acceptanceAllow?: string[];
   /** Glob patterns for forbidden file modifications. */
   acceptanceDeny?: string[];
+  /** Stable, criterion-bound definition of done. Absent on legacy items. */
+  acceptanceCriteria?: BacklogCriterion[];
+  /** Glob patterns for paths the work plans to create (forward-looking acceptance). */
+  creates?: string[];
+  /** Verified provenance for the actor/session that created this item. */
+  createdBy?: AgentSessionAttribution;
+  /** Canonical plan-manager plan backing this work item. */
+  planRef?: PlanRef;
+  /** Explicit authorization for the currently bound canonical plan revision. */
+  planAcceptance?: {
+    actor: string;
+    acceptedAt: string;
+    planContentHash: string;
+    subjectVersion: string;
+  };
+  /** Read-time lifecycle signal; never persisted in an item spec. */
+  stale?: boolean;
 };
 
 /**
@@ -58,7 +81,7 @@ export interface BacklogFormValues {
   tags: string[];
   kind: BacklogKind;
   dependsOn?: string[];
-  initiative?: string;
+  milestone?: string;
   effort?: string;
   acceptanceAllow?: string[];
   acceptanceDeny?: string[];
@@ -69,6 +92,8 @@ export interface BacklogFormValues {
  * Mirrors the proto BlockingReason message.
  */
 export interface BlockingReason {
+  /** Stable server-owned category; display text is carried separately. */
+  code?: string;
   message: string;
   forceable: boolean;
 }

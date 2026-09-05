@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "deployment-manager.setpoint-read",
+  "version": "1",
+  "purpose": "Read the currently governed Deployment Manager readiness and capability-loop sensors without estimating unavailable measures.",
+  "inputs": {},
+  "assumptions": [
+    "the caller routes pending_telemetry rows to durable measure adoption"
+  ],
+  "invariants": [
+    "read-only",
+    "unavailable is never zero",
+    "every row has the fleet setpoint shape",
+    "one envelope is printed on every path",
+    "Learning rows preserve per-context cohorts and missing denominators; targets remain null until comparable baselines exist."
+  ],
+  "bindings": [
+    {
+      "id": "deployment-manager/readiness-reviews/policy-check",
+      "effect": "read"
+    },
+    {
+      "id": "deployment-manager/profiles/list",
+      "effect": "read"
+    },
+    {
+      "id": "deployment-manager/readiness-reviews/list",
+      "effect": "read"
+    },
+    {
+      "id": "deployment-manager/readiness-review-waivers/list",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} Includes learning-failure-recurrence, learning-success-effort, learning-advice-outcomes.",
+      "readable": "available sensor rows",
+      "unavailable": "unimplemented timestamped measures"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "sensor binding ids"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 110
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager",
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "deployment-manager-improve"
+}

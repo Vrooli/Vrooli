@@ -1,3 +1,22 @@
+---
+name: "knowledge-observatory-tools"
+description: "Use knowledge-observatory docs to read, write, search, and maintain scenario documentation through the CLI."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["knowledge-observatory","documentation","docs","workflow"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-05T00:00:00Z"
+  updatedAt: "2026-02-05T00:00:00Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Knowledge Observatory Tools
 
 Use `knowledge-observatory docs` to read, write, search, and maintain scenario documentation through a single CLI.

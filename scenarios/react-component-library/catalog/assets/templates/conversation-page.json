@@ -1,0 +1,124 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.conversation-page",
+    "name": "ConversationPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The conversational surface with history, streaming, composer, available context, artifacts, agent activity, approvals, responsive panels, and scroll management.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "ai.conversation-shell",
+        "reason": "Transcript, composer, context, and workbench coordination are the shared shell."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TMessage"
+      ]
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "transition-non-blocking",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry",
+    "submitting"
+  ],
+  "regions": [
+    {
+      "id": "transcript",
+      "purpose": "Conversation history with streaming and branching.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "composer",
+      "purpose": "Message entry with attachments and generation controls.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "workbench",
+      "purpose": "Artifacts, plans, activity, and approvals beside the conversation.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ]
+}

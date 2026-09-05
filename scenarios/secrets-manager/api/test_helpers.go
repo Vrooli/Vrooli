@@ -1,21 +1,15 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 )
 
 // setupTestLogger initializes the logger for testing
@@ -26,7 +20,7 @@ func setupTestLogger() func() {
 	}
 	// Save original logger output and redirect to discard during tests
 	originalOutput := log.Writer()
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	return func() {
 		log.SetOutput(originalOutput)
 	}
@@ -41,7 +35,7 @@ type TestEnvironment struct {
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "secrets-manager-test")
+	tempDir, err := os.MkdirTemp("", "secrets-manager-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -59,8 +53,8 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	}
 
 	for _, dir := range testDirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			os.RemoveAll(tempDir)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			_ = os.RemoveAll(tempDir)
 			t.Fatalf("Failed to create test directory %s: %v", dir, err)
 		}
 	}
@@ -69,97 +63,9 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		TempDir:    tempDir,
 		OriginalWD: originalWD,
 		Cleanup: func() {
-			os.Chdir(originalWD)
-			os.RemoveAll(tempDir)
+			_ = os.Chdir(originalWD)
+			_ = os.RemoveAll(tempDir)
 		},
-	}
-}
-
-// HTTPTestRequest represents a test HTTP request
-type HTTPTestRequest struct {
-	Method  string
-	Path    string
-	Body    interface{}
-	Headers map[string]string
-	URLVars map[string]string
-}
-
-// makeHTTPRequest creates and executes an HTTP test request
-func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, error) {
-	var bodyReader io.Reader
-	if req.Body != nil {
-		bodyBytes, err := json.Marshal(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal request body: %v", err)
-		}
-		bodyReader = bytes.NewReader(bodyBytes)
-	}
-
-	httpReq, err := http.NewRequest(req.Method, req.Path, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
-	}
-
-	// Set headers
-	if req.Headers != nil {
-		for key, value := range req.Headers {
-			httpReq.Header.Set(key, value)
-		}
-	}
-
-	// Set default Content-Type if not specified
-	if httpReq.Header.Get("Content-Type") == "" && req.Body != nil {
-		httpReq.Header.Set("Content-Type", "application/json")
-	}
-
-	// Set URL vars for mux
-	if req.URLVars != nil {
-		httpReq = mux.SetURLVars(httpReq, req.URLVars)
-	}
-
-	w := httptest.NewRecorder()
-	return w, nil
-}
-
-// assertJSONResponse validates a JSON response
-func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedFields ...string) map[string]interface{} {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-		t.Fatalf("Failed to parse JSON response: %v. Body: %s", err, w.Body.String())
-	}
-
-	for _, field := range expectedFields {
-		if _, exists := result[field]; !exists {
-			t.Errorf("Expected field '%s' in JSON response, but it was missing. Response: %v", field, result)
-		}
-	}
-
-	return result
-}
-
-// assertErrorResponse validates an error response
-func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int) {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected error status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-		// Error responses might be plain text
-		if !strings.Contains(w.Body.String(), "error") && !strings.Contains(w.Body.String(), "invalid") {
-			t.Logf("Warning: Error response is not JSON and doesn't contain error keywords: %s", w.Body.String())
-		}
-		return
-	}
-
-	if _, hasError := result["error"]; !hasError {
-		if _, hasMessage := result["message"]; !hasMessage {
-			t.Errorf("Error response missing 'error' or 'message' field: %v", result)
-		}
 	}
 }
 
@@ -201,21 +107,10 @@ func createTestScanResult(scanType string, resourcesScanned []string, secretsFou
 	}
 }
 
-// createTestVaultSecret creates a test vault secret
-func createTestVaultSecret(name string, required bool) VaultSecret {
-	return VaultSecret{
-		Name:        name,
-		Description: fmt.Sprintf("Test vault secret: %s", name),
-		Required:    required,
-		Configured:  false,
-		SecretType:  "api_key",
-	}
-}
-
 // createTestFile creates a test file with content
 func createTestFile(t *testing.T, dir, filename, content string) string {
 	filePath := filepath.Join(dir, filename)
-	if err := ioutil.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file %s: %v", filePath, err)
 	}
 	return filePath
@@ -224,7 +119,7 @@ func createTestFile(t *testing.T, dir, filename, content string) string {
 // createTestResourceDir creates a test resource directory structure
 func createTestResourceDir(t *testing.T, baseDir, resourceName string, files map[string]string) string {
 	resourceDir := filepath.Join(baseDir, "resources", resourceName)
-	if err := os.MkdirAll(resourceDir, 0755); err != nil {
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 		t.Fatalf("Failed to create resource directory %s: %v", resourceDir, err)
 	}
 
@@ -233,40 +128,6 @@ func createTestResourceDir(t *testing.T, baseDir, resourceName string, files map
 	}
 
 	return resourceDir
-}
-
-// createTestScenarioDir creates a test scenario directory structure
-func createTestScenarioDir(t *testing.T, baseDir, scenarioName string, files map[string]string) string {
-	scenarioDir := filepath.Join(baseDir, "scenarios", scenarioName)
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
-		t.Fatalf("Failed to create scenario directory %s: %v", scenarioDir, err)
-	}
-
-	for filename, content := range files {
-		createTestFile(t, scenarioDir, filename, content)
-	}
-
-	return scenarioDir
-}
-
-// mockVaultCLIOutput returns mock vault CLI output for testing
-func mockVaultCLIOutput(resourceName string, configured bool) string {
-	if configured {
-		return fmt.Sprintf(`Resource: %s
-Status: Configured
-Secrets Found: 3
-- API_KEY (configured)
-- ENDPOINT (configured)
-- SECRET_TOKEN (configured)
-`, resourceName)
-	}
-	return fmt.Sprintf(`Resource: %s
-Status: Missing
-Missing Secrets:
-- API_KEY (required)
-- ENDPOINT (required)
-- SECRET_TOKEN (optional)
-`, resourceName)
 }
 
 // validateSecretType checks if a secret type is valid
@@ -293,4 +154,42 @@ func validateValidationStatus(status string) bool {
 		"error":   true,
 	}
 	return validStatuses[status]
+}
+
+func liveRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+}
+
+func newContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := liveRepoRoot(t)
+
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/secrets-manager-test\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	return root
 }

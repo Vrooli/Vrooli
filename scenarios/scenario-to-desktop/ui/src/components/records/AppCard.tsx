@@ -1,11 +1,17 @@
 import { type KeyboardEvent } from "react";
-import { Monitor, ChevronRight, CheckCircle2, AlertCircle, Clock } from "lucide-react";
-import type { DesktopRecordResponse } from "../../lib/api";
+import {
+  Monitor,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+} from "lucide-react";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { SigningBadge } from "./SigningBadge";
+import type { DesktopRecordItemView } from "./recordPresentation";
 
-type RecordItem = DesktopRecordResponse["records"][number];
+type RecordItem = DesktopRecordItemView;
 
 interface AppCardProps {
   item: RecordItem;
@@ -73,9 +79,13 @@ export function AppCard({ item, onClick }: AppCardProps) {
             <h4 className="text-base font-semibold text-slate-50 truncate">
               {rec.app_display_name || rec.scenario_name}
             </h4>
-            <p className="text-xs text-slate-400 truncate">{rec.scenario_name}</p>
+            <p className="text-xs text-slate-400 truncate">
+              {rec.scenario_name}
+            </p>
             <div className="flex flex-wrap items-center gap-1.5">
-              <BuildBadge state={item.build_state || item.build_status?.status} />
+              <BuildBadge
+                state={item.build_state || item.build_status?.status}
+              />
               <SigningBadge scenarioName={rec.scenario_name} />
             </div>
           </div>

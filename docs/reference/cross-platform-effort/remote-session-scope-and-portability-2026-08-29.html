@@ -1,0 +1,2558 @@
+<title>The Missing Session Scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:      #f1f4f4;
+    --surface:     #ffffff;
+    --surface-2:   #e7edee;
+    --rule:        #ccd8da;
+    --rule-soft:   #e0e8e9;
+    --ink:         #0d1418;
+    --ink-2:       #33474d;
+    --muted:       #5d7076;
+    --accent:      #0a7383;
+    --accent-soft: #d9ecef;
+    --critical:    #a8372f;
+    --crit-soft:   #f6e2e0;
+    --warn:        #86620f;
+    --warn-soft:   #f7ecd5;
+    --good:        #2b6f50;
+    --good-soft:   #dcefe4;
+
+    --measure: 66ch;
+    --step--1: 0.815rem;
+    --step-0:  1.075rem;
+    --step-1:  1.32rem;
+    --step-2:  1.72rem;
+    --step-3:  2.3rem;
+    --step-4:  3.1rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0b1317;
+      --surface:     #131f24;
+      --surface-2:   #1a272d;
+      --rule:        #2a3a41;
+      --rule-soft:   #1e2c32;
+      --ink:         #e0e9ea;
+      --ink-2:       #b3c4c8;
+      --muted:       #8399a0;
+      --accent:      #4bc0d0;
+      --accent-soft: #16333a;
+      --critical:    #f0897e;
+      --crit-soft:   #35201e;
+      --warn:        #e0ae4d;
+      --warn-soft:   #33280f;
+      --good:        #6ac396;
+      --good-soft:   #16301f;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0b1317;
+    --surface:     #131f24;
+    --surface-2:   #1a272d;
+    --rule:        #2a3a41;
+    --rule-soft:   #1e2c32;
+    --ink:         #e0e9ea;
+    --ink-2:       #b3c4c8;
+    --muted:       #8399a0;
+    --accent:      #4bc0d0;
+    --accent-soft: #16333a;
+    --critical:    #f0897e;
+    --crit-soft:   #35201e;
+    --warn:        #e0ae4d;
+    --warn-soft:   #33280f;
+    --good:        #6ac396;
+    --good-soft:   #16301f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: var(--step-0);
+    line-height: 1.62;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  code, kbd, .mono {
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.855em;
+    font-variant-ligatures: none;
+  }
+
+  p code, li code, td code, dd code, figcaption code, .note code {
+    background: var(--surface-2);
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    padding: 0.05em 0.32em;
+    white-space: nowrap;
+  }
+  .kicker code {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: 1em;
+    white-space: normal;
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* ── page grid: text column with wide and full break-outs ───────────── */
+  main {
+    display: grid;
+    grid-template-columns:
+      [full-start] minmax(1.15rem, 1fr)
+      [wide-start] minmax(0, 175px)
+      [text-start] min(var(--measure), calc(100% - 2.3rem))
+      [text-end] minmax(0, 175px)
+      [wide-end] minmax(1.15rem, 1fr)
+      [full-end];
+    row-gap: 0;
+    padding-bottom: 6rem;
+  }
+  main > * { grid-column: text; }
+  .wide { grid-column: wide; }
+  .full { grid-column: full; }
+
+  main > p, main > ul, main > ol, main > dl, main > blockquote {
+    margin: 0 0 1.05em;
+  }
+  main > ul, main > ol { padding-inline-start: 1.35em; }
+  li { margin-bottom: 0.42em; }
+  li::marker { color: var(--muted); }
+
+  /* ── masthead ───────────────────────────────────────────────────────── */
+  .masthead {
+    grid-column: full;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 3.4rem 1.15rem 0;
+    margin-bottom: 2.6rem;
+  }
+  .masthead-inner {
+    max-width: 1090px;
+    margin: 0 auto;
+  }
+  .kicker {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 1.1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1.1rem;
+    align-items: baseline;
+  }
+  .kicker .sep { color: var(--rule); }
+  .kicker .dim { color: var(--muted); }
+
+  .masthead h1 {
+    font-size: clamp(2.1rem, 6.2vw, var(--step-4));
+    max-width: 17ch;
+    margin-bottom: 1.15rem;
+  }
+  .standfirst {
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 54ch;
+    margin: 0 0 2.4rem;
+  }
+
+  /* ── scoreboard ─────────────────────────────────────────────────────── */
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    margin: 0;
+  }
+  .score {
+    padding: 1.15rem 1.15rem 1.3rem 0;
+    border-inline-end: 1px solid var(--rule-soft);
+  }
+  .score:last-child { border-inline-end: 0; }
+  .score dt {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    line-height: 1.35;
+  }
+  .score dd {
+    margin: 0;
+    font-family: Archivo, sans-serif;
+    font-weight: 700;
+    font-size: 1.9rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .score dd .unit {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    display: block;
+    margin-top: 0.45rem;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .score.is-bad dd { color: var(--critical); }
+  .score.is-warn dd { color: var(--warn); }
+
+  /* ── section headers ────────────────────────────────────────────────── */
+  .sec {
+    grid-column: wide;
+    margin: 4rem 0 1.7rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--ink);
+    display: grid;
+    gap: 0.6rem;
+  }
+  .sec .label {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .sec h2 {
+    font-size: clamp(1.55rem, 4vw, var(--step-3));
+    max-width: 22ch;
+  }
+  .sec p {
+    margin: 0.2rem 0 0;
+    color: var(--ink-2);
+    max-width: 58ch;
+    font-size: var(--step-0);
+  }
+
+  h3 {
+    font-size: var(--step-1);
+    margin: 2.5rem 0 0.75rem;
+  }
+  h4 {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 2rem 0 0.7rem;
+  }
+
+  /* ── evidence block ─────────────────────────────────────────────────── */
+  .evidence {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: 2px;
+    padding: 1.15rem 1.3rem;
+    margin: 1.6rem 0 1.9rem;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.775rem;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+  .evidence .cmd { color: var(--muted); }
+  .evidence .hit { color: var(--critical); font-weight: 700; }
+  .evidence .ok  { color: var(--good); font-weight: 700; }
+  .evidence pre { margin: 0; white-space: pre; }
+
+  /* ── figures ────────────────────────────────────────────────────────── */
+  figure {
+    margin: 2.4rem 0 2.6rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.5rem 1.5rem 1.15rem;
+    overflow-x: auto;
+  }
+  figure svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-width: 560px;
+    color: var(--ink);
+  }
+  figcaption {
+    font-size: 0.845rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-top: 1.15rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--rule-soft);
+    max-width: 74ch;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 600; }
+
+  .svg-box    { fill: var(--surface-2); stroke: var(--rule); stroke-width: 1.25; }
+  .svg-box-hi { fill: var(--crit-soft); stroke: var(--critical); stroke-width: 1.5; }
+  .svg-box-ok { fill: var(--good-soft); stroke: var(--good); stroke-width: 1.5; }
+  .svg-box-ac { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .svg-t {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    fill: currentColor;
+  }
+  .svg-t.sm  { font-size: 10.5px; }
+  .svg-t.xs  { font-size: 9.5px; letter-spacing: 0.06em; }
+  .svg-t.bold { font-weight: 700; }
+  .svg-t.mut { fill: var(--muted); }
+  .svg-t.crit { fill: var(--critical); }
+  .svg-t.good { fill: var(--good); }
+  .svg-t.acc { fill: var(--accent); }
+  .svg-line { stroke: currentColor; stroke-width: 1.4; fill: none; }
+  .svg-line.crit { stroke: var(--critical); stroke-width: 1.8; }
+  .svg-line.good { stroke: var(--good); stroke-width: 1.8; }
+  .svg-line.dash { stroke-dasharray: 5 4; opacity: 0.55; }
+  .svg-rule { stroke: var(--rule); stroke-width: 1; fill: none; }
+  .svg-ghost { fill: none; stroke: var(--muted); stroke-width: 1.25; stroke-dasharray: 5 4; opacity: 0.5; }
+  .svg-f-crit { fill: var(--critical); }
+  .svg-f-warn { fill: var(--warn); }
+  .svg-f-good { fill: var(--good); }
+  .svg-f-band { fill: var(--crit-soft); }
+  .svg-dot-crit { fill: var(--crit-soft); stroke: var(--critical); stroke-width: 1.5; }
+
+  /* ── finding cards ──────────────────────────────────────────────────── */
+  .findings { display: grid; gap: 0.85rem; margin: 1.7rem 0 2rem; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-inline-start: 4px solid var(--muted);
+    border-radius: 2px;
+    padding: 1.05rem 1.25rem 1.15rem;
+  }
+  .finding.sev-block { border-inline-start-color: var(--critical); }
+  .finding.sev-wrong { border-inline-start-color: var(--warn); }
+  .finding.sev-debt  { border-inline-start-color: var(--accent); }
+
+  .finding-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.55rem 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .finding-head .id {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .finding-head h4 {
+    font-family: Archivo, sans-serif;
+    font-size: 1.03rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--ink);
+    margin: 0;
+    flex: 1 1 16ch;
+  }
+  .pill {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.615rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.24em 0.55em;
+    border-radius: 2px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .pill.block { background: var(--crit-soft); color: var(--critical); border-color: var(--critical); }
+  .pill.wrong { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .pill.debt  { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .pill.good  { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+
+  .finding p { margin: 0 0 0.6rem; font-size: 0.98rem; line-height: 1.55; }
+  .finding p:last-child { margin-bottom: 0; }
+  .loc {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.715rem;
+    color: var(--muted);
+    display: block;
+    margin-top: 0.6rem;
+    word-break: break-all;
+  }
+
+  /* ── two-column compare ─────────────────────────────────────────────── */
+  .compare {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: 1rem;
+    margin: 1.7rem 0 2rem;
+  }
+  .compare > div {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1.1rem 1.25rem 1.25rem;
+  }
+  .compare .now { border-top: 3px solid var(--critical); }
+  .compare .next { border-top: 3px solid var(--good); }
+  .compare h4 { margin-top: 0; }
+  .compare ul { margin: 0; padding-inline-start: 1.15em; font-size: 0.94rem; line-height: 1.5; }
+  .compare li { margin-bottom: 0.45em; }
+
+  /* ── tables ─────────────────────────────────────────────────────────── */
+  .tablewrap { overflow-x: auto; margin: 1.7rem 0 2rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    min-width: 560px;
+    background: var(--surface);
+  }
+  caption {
+    text-align: start;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 0.7rem;
+  }
+  th, td {
+    text-align: start;
+    padding: 0.62rem 0.85rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.45;
+  }
+  thead th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ── ordered remediation ────────────────────────────────────────────── */
+  .phases { display: grid; gap: 1rem; margin: 1.8rem 0 2rem; counter-reset: phase; }
+  .phase {
+    display: grid;
+    grid-template-columns: 3.1rem 1fr;
+    gap: 0 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1.15rem 1.3rem 1.25rem;
+  }
+  .phase .n {
+    font-family: Archivo, sans-serif;
+    font-weight: 700;
+    font-size: 1.55rem;
+    line-height: 1;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    padding-top: 0.1rem;
+  }
+  .phase h4 {
+    font-family: Archivo, sans-serif;
+    font-size: 1.06rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin: 0 0 0.15rem;
+  }
+  .phase .gate {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin: 0 0 0.6rem;
+  }
+  .phase ul { margin: 0.55rem 0 0; padding-inline-start: 1.15em; font-size: 0.94rem; line-height: 1.5; }
+  .phase > p, .phase > ul, .phase > .gate { grid-column: 2; }
+  .phase > h4 { grid-column: 2; }
+  .phase > .n { grid-row: 1 / -1; grid-column: 1; }
+  .phase p { margin: 0; font-size: 0.96rem; line-height: 1.55; }
+
+  /* ── checklists ─────────────────────────────────────────────────────── */
+  .checklist {
+    list-style: none;
+    margin: 1.2rem 0 1.8rem;
+    padding: 0;
+    display: grid;
+    gap: 0.05rem;
+  }
+  .checklist li {
+    display: grid;
+    grid-template-columns: 1.55rem 1fr;
+    gap: 0.7rem;
+    align-items: start;
+    padding: 0.72rem 0.9rem 0.72rem 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    font-size: 0.955rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .checklist li::before {
+    content: "";
+    display: block;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0.16rem;
+    border: 1.5px solid var(--muted);
+    border-radius: 2px;
+    background: var(--ground);
+  }
+  .checklist li .ev {
+    display: block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.32rem;
+    word-break: break-word;
+  }
+
+  .deliverables { display: grid; gap: 0.9rem; margin: 1.6rem 0 2rem; }
+  .deliv {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 1rem 1.2rem 1.1rem;
+  }
+  .deliv h4 { margin: 0 0 0.55rem; color: var(--accent); }
+  .deliv ul { margin: 0; padding-inline-start: 1.15em; font-size: 0.94rem; line-height: 1.5; }
+  .deliv li { margin-bottom: 0.35em; }
+
+  .note {
+    border-inline-start: 3px solid var(--warn);
+    background: var(--warn-soft);
+    padding: 0.95rem 1.2rem;
+    margin: 1.6rem 0 1.9rem;
+    font-size: 0.96rem;
+    line-height: 1.55;
+    border-radius: 0 2px 2px 0;
+  }
+  .note strong { font-weight: 600; }
+
+  footer.pagefoot {
+    grid-column: wide;
+    margin-top: 4.5rem;
+    padding-top: 1.4rem;
+    border-top: 2px solid var(--ink);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  @media (max-width: 640px) {
+    .score { padding-inline-end: 0.8rem; }
+    .phase { grid-template-columns: 2.4rem 1fr; }
+    figure { padding: 1rem 1rem 0.9rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<main>
+
+<div style="margin:16px auto;max-width:980px;padding:12px 16px;border:2px solid #0a6d78;background:#eefbfc;color:#0a6d78;font-family:IBM Plex Sans,sans-serif">
+  <strong>IMPLEMENTATION UPDATE — 2026-08-29.</strong> Every defect, diagram, code quote,
+  and checklist below that describes <code>vrooli-bridge:session</code> is a historical
+  baseline observation retained for traceability, not a current contract. The shipped implementation now uses
+  <code>vrooli-bridge:write</code> for interactive sessions, typed <code>WC_BRIDGE_URL</code>
+  configuration, and console/node portability pairs. Current evidence is indexed by the
+  plan execution and includes the Darwin proof attempt.
+</div>
+
+  <!-- ══════════════════════════════════════ MASTHEAD ══════════════════ -->
+  <header class="masthead">
+    <div class="masthead-inner">
+      <p class="kicker">
+        <span>Vrooli · web-console × vrooli-bridge</span>
+        <span class="sep">/</span>
+        <span class="dim">Remote session investigation</span>
+        <span class="sep">/</span>
+        <span class="dim">branch <code>agi</code> · 2026-08-28</span>
+      </p>
+
+      <h1>The remote terminal is gated on a permission nothing can grant.</h1>
+
+      <p class="standfirst">
+        The session channel demands <code>vrooli-bridge:session</code> — a scope the
+        catalog cannot produce and no preset can grant. Bridge's other remote transport
+        already solved this by reusing the effect namespace. Two transports, two
+        conventions, and only one of them is grantable. Every readiness signal
+        reports green and the failure arrives as <code>websocket: bad handshake</code>.
+      </p>
+
+      <dl class="scoreboard">
+        <div class="score is-bad">
+          <dt>Scopes held by minimouse</dt>
+          <dd>153<span class="unit">0 grant the session channel</span></dd>
+        </div>
+        <div class="score is-bad">
+          <dt>Presets that can grant it</dt>
+          <dd>0<span class="unit">of 3, incl. full-control</span></dd>
+        </div>
+        <div class="score is-warn">
+          <dt>Bridge doctor verdict</dt>
+          <dd>PASS<span class="unit">on an unusable node</span></dd>
+        </div>
+        <div class="score is-bad">
+          <dt>Session tests on the<br>production code path</dt>
+          <dd>0<span class="unit">of 4 · all use registry: nil</span></dd>
+        </div>
+        <div class="score">
+          <dt>Remote address grammar<br>verified live today</dt>
+          <dd>WORKS<span class="unit">node/scenario@variant · relay OK</span></dd>
+        </div>
+        <div class="score is-bad">
+          <dt>Platform cells proven<br>on real hardware</dt>
+          <dd>0<span class="unit">of 75 declared · all “build-verified”</span></dd>
+        </div>
+        <div class="score is-warn">
+          <dt>Transport legs that<br>survive a network blip</dt>
+          <dd>2<span class="unit">of 3 · the browser leg does not</span></dd>
+        </div>
+      </dl>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════ 1. WHAT HAPPENED ═════════ -->
+  <div class="sec">
+    <span class="label">Reproduction</span>
+    <h2>What actually failed</h2>
+    <p>Three symptoms, one root cause and two independent UI defects that hid it.</p>
+  </div>
+
+  <p>
+    You selected <b>minimouse</b> in the machine picker, chose <b>Empty Shell</b>, and got
+    <code>[internal] PTY spawn failed: node client transport node="25c7e426…" websocket: bad handshake</code>
+    — rendered behind the New Terminal sheet, greyed out by its own scrim.
+  </p>
+
+  <p>
+    That message carries almost no information, so I queried the live control plane
+    directly. The node is healthy on every dimension Bridge measures, and is missing
+    exactly one thing:
+  </p>
+
+  <div class="evidence">
+<pre><span class="cmd">$ vrooli-bridge nodes list --json | jq …</span>
+minimouse [25c7e426-c76c-421a-8351-aaf964589802]
+  online          <span class="ok">true</span>
+  channelHeld     <span class="ok">true</span>
+  dispatchable    <span class="ok">true</span>
+  scopes          153
+  bridge scopes   ["vrooli-bridge:read", "vrooli-bridge:write"]
+  <span class="hit">vrooli-bridge:session   FALSE   ← the session channel requires this</span>
+
+<span class="cmd">$ vrooli-bridge nodes doctor 25c7e426-…</span>
+  Node readiness: <span class="ok">PASS</span>
+  "The node is dispatchable; use `nodes list` for the fleet."</pre>
+  </div>
+
+  <p>
+    <code>scenarios/vrooli-bridge/api/handlers/channel/session_ws.go:63</code> reads the
+    node's grants from the registry and hands them to
+    <code>session.Manager.Open</code>, which returns <code>ErrScopeDenied</code> unless the
+    list contains <code>vrooli-bridge:session</code>
+    (<code>internal/session/types.go:171</code>). The handler answers <code>403</code>
+    before the WebSocket upgrade. Gorilla reports any non-101 response as
+    <code>websocket: bad handshake</code> — and the client throws away the response that
+    would have said why.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 920 264" role="img" aria-label="Request flow from browser through web-console and nodeclient to the Bridge session channel, where a node-scope gate returns 403 before the WebSocket upgrade, never reaching the node agent PTY.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+        <marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--critical)"/>
+        </marker>
+      </defs>
+
+      <text class="svg-t xs mut" x="8" y="16">REQUEST PATH</text>
+
+      <!-- boxes -->
+      <rect class="svg-box" x="8"   y="30" width="150" height="52" rx="2"/>
+      <text class="svg-t bold" x="83" y="52" text-anchor="middle">Browser</text>
+      <text class="svg-t sm mut" x="83" y="68" text-anchor="middle">launcher</text>
+
+      <rect class="svg-box" x="196" y="30" width="150" height="52" rx="2"/>
+      <text class="svg-t bold" x="271" y="52" text-anchor="middle">web-console API</text>
+      <text class="svg-t sm mut" x="271" y="68" text-anchor="middle">CreateRemote</text>
+
+      <rect class="svg-box" x="384" y="30" width="150" height="52" rx="2"/>
+      <text class="svg-t bold" x="459" y="52" text-anchor="middle">nodeclient.Open</text>
+      <text class="svg-t sm mut" x="459" y="68" text-anchor="middle">ws dial</text>
+
+      <rect class="svg-box-hi" x="572" y="30" width="150" height="52" rx="2"/>
+      <text class="svg-t bold" x="647" y="52" text-anchor="middle">Bridge</text>
+      <text class="svg-t sm mut" x="647" y="68" text-anchor="middle">/channel/session</text>
+
+      <rect class="svg-box svg-line dash" x="760" y="30" width="150" height="52" rx="2" fill="none" stroke-dasharray="5 4" opacity="0.5"/>
+      <text class="svg-t mut" x="835" y="52" text-anchor="middle">node agent</text>
+      <text class="svg-t sm mut" x="835" y="68" text-anchor="middle">PTY · never reached</text>
+
+      <!-- forward arrows -->
+      <line class="svg-line" x1="158" y1="56" x2="190" y2="56" marker-end="url(#ar)"/>
+      <line class="svg-line" x1="346" y1="56" x2="378" y2="56" marker-end="url(#ar)"/>
+      <line class="svg-line" x1="534" y1="56" x2="566" y2="56" marker-end="url(#ar)"/>
+      <line class="svg-line dash" x1="722" y1="56" x2="754" y2="56" marker-end="url(#ar)"/>
+
+      <!-- gate -->
+      <line class="svg-line crit" x1="647" y1="82" x2="647" y2="112" marker-end="url(#arc)"/>
+      <rect class="svg-box-hi" x="500" y="116" width="294" height="56" rx="2"/>
+      <text class="svg-t bold crit" x="647" y="138" text-anchor="middle">node.Scopes ∋ "vrooli-bridge:session"?</text>
+      <text class="svg-t sm crit" x="647" y="156" text-anchor="middle">NO → ErrScopeDenied → 403 Forbidden</text>
+
+      <!-- return -->
+      <path class="svg-line crit" d="M 500 144 L 459 144 L 459 200 L 90 200 L 83 200" marker-end="url(#arc)"/>
+      <text class="svg-t sm crit" x="470" y="218" text-anchor="end">403 arrives as “websocket: bad handshake” — status and reason discarded at client.go:455</text>
+
+      <line class="svg-rule" x1="8" y1="240" x2="912" y2="240"/>
+      <text class="svg-t xs mut" x="8" y="257">EVERY READINESS SIGNAL ON THIS PATH REPORTS GREEN · registry ✓  heartbeat ✓  channel ✓  protocol ✓  dispatchable ✓</text>
+    </svg>
+    <figcaption>
+      <b>The gate sits one hop past every check anyone measures.</b> Bridge's
+      <code>Dispatchable</code> means online + heartbeat-fresh + protocol-compatible
+      (<code>handlers/registry/adapter.go:34</code>) — it never consults scopes. So the
+      picker, the server preflight and <code>nodes doctor</code> all clear a node that the
+      session handler will refuse.
+    </figcaption>
+  </figure>
+
+  <!-- ══════════════════════════════════════ 2. GOVERNANCE GAP ════════ -->
+  <div class="sec">
+    <span class="label">Root cause</span>
+    <h2>Supply and demand never met</h2>
+    <p>The scope the handler enforces is not a value the grant model can produce.</p>
+  </div>
+
+  <p>
+    Node grants come from pairing presets. Presets are derived from the CLI scope catalog,
+    and the catalog mints exactly one shape of value:
+    <code>Value: scenario + ":" + string(effect)</code>
+    (<code>packages/api-core/scopecatalog/catalog.go:368</code>). Effect is one of
+    <code>read</code>, <code>write</code>, <code>destructive</code>. There is no path from
+    a CLI manifest to the string <code>vrooli-bridge:session</code>, so
+    <b>full-control is as powerless here as read-only</b>.
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 920 430" role="img" aria-label="Current state: the scope catalog derives only scenario-colon-effect values, so presets can never contain vrooli-bridge:session and the demand edge is broken. Target state: a capability grant register feeds the presets, closing the edge.">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+        <marker id="ar2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--good)"/>
+        </marker>
+      </defs>
+
+      <!-- ── CURRENT ── -->
+      <text class="svg-t xs crit" x="8" y="16">CURRENT — THE EDGE DOES NOT EXIST</text>
+
+      <rect class="svg-box" x="8" y="30" width="146" height="54" rx="2"/>
+      <text class="svg-t" x="81" y="52" text-anchor="middle">CLI manifests</text>
+      <text class="svg-t sm mut" x="81" y="68" text-anchor="middle">governance.effect</text>
+
+      <rect class="svg-box" x="196" y="30" width="176" height="54" rx="2"/>
+      <text class="svg-t" x="284" y="50" text-anchor="middle">scopecatalog</text>
+      <text class="svg-t sm mut" x="284" y="67" text-anchor="middle">&lt;scenario&gt;:&lt;effect&gt; only</text>
+
+      <rect class="svg-box" x="414" y="30" width="176" height="54" rx="2"/>
+      <text class="svg-t" x="502" y="50" text-anchor="middle">3 presets</text>
+      <text class="svg-t sm mut" x="502" y="67" text-anchor="middle">read · operate · full</text>
+
+      <rect class="svg-box" x="632" y="30" width="176" height="54" rx="2"/>
+      <text class="svg-t" x="720" y="50" text-anchor="middle">node grant</text>
+      <text class="svg-t sm mut" x="720" y="67" text-anchor="middle">153 scopes stored</text>
+
+      <line class="svg-line" x1="154" y1="57" x2="190" y2="57" marker-end="url(#ar2)"/>
+      <line class="svg-line" x1="372" y1="57" x2="408" y2="57" marker-end="url(#ar2)"/>
+      <line class="svg-line" x1="590" y1="57" x2="626" y2="57" marker-end="url(#ar2)"/>
+      <text class="svg-t xs mut" x="502" y="24" text-anchor="middle">derives</text>
+      <text class="svg-t xs mut" x="720" y="24" text-anchor="middle">SetScopes · replaces</text>
+
+      <!-- demand -->
+      <rect class="svg-box-hi" x="632" y="130" width="176" height="54" rx="2"/>
+      <text class="svg-t bold crit" x="720" y="150" text-anchor="middle">session handler</text>
+      <text class="svg-t sm crit" x="720" y="167" text-anchor="middle">demands :session</text>
+
+      <line class="svg-line crit dash" x1="720" y1="126" x2="720" y2="90"/>
+      <circle class="svg-dot-crit" cx="720" cy="108" r="9"/>
+      <path class="svg-line crit" d="M 716 104 L 724 112 M 724 104 L 716 112"/>
+      <text class="svg-t sm crit" x="702" y="112" text-anchor="end">no supplier for this value</text>
+
+      <text class="svg-t sm mut" x="8" y="150">Only <tspan class="svg-t sm" font-weight="700">nodes update --scopes</tspan> can inject the value, by</text>
+      <text class="svg-t sm mut" x="8" y="167">restating all 153 — and the drawer's next preset save</text>
+      <text class="svg-t sm mut" x="8" y="184">strips it, because SetScopes replaces the whole list.</text>
+
+      <line class="svg-rule" x1="8" y1="220" x2="912" y2="220"/>
+
+      <!-- ── TARGET ── -->
+      <text class="svg-t xs good" x="8" y="252">TARGET — THE SESSION CHANNEL ADOPTS THE CONVENTION THE RELAY PATH ALREADY USES</text>
+
+      <rect class="svg-box" x="8" y="266" width="146" height="54" rx="2"/>
+      <text class="svg-t" x="81" y="288" text-anchor="middle">CLI manifests</text>
+      <text class="svg-t sm mut" x="81" y="304" text-anchor="middle">governance.effect</text>
+
+      <rect class="svg-box" x="196" y="266" width="176" height="54" rx="2"/>
+      <text class="svg-t" x="284" y="286" text-anchor="middle">scopecatalog</text>
+      <text class="svg-t sm mut" x="284" y="303" text-anchor="middle">&lt;scenario&gt;:&lt;effect&gt;</text>
+
+      <rect class="svg-box-ok" x="414" y="266" width="176" height="54" rx="2"/>
+      <text class="svg-t" x="502" y="286" text-anchor="middle">3 presets</text>
+      <text class="svg-t sm good" x="502" y="303" text-anchor="middle">unchanged</text>
+
+      <rect class="svg-box-ok" x="632" y="266" width="176" height="54" rx="2"/>
+      <text class="svg-t" x="720" y="286" text-anchor="middle">node grant</text>
+      <text class="svg-t sm good" x="720" y="303" text-anchor="middle">153 scopes · unchanged</text>
+
+      <line class="svg-line" x1="154" y1="293" x2="190" y2="293" marker-end="url(#ar2)"/>
+      <line class="svg-line good" x1="372" y1="293" x2="408" y2="293" marker-end="url(#ar2g)"/>
+      <line class="svg-line good" x1="590" y1="293" x2="626" y2="293" marker-end="url(#ar2g)"/>
+
+      <rect class="svg-box-ok" x="450" y="336" width="358" height="54" rx="2"/>
+      <text class="svg-t bold good" x="629" y="356" text-anchor="middle">both transports demand "vrooli-bridge:&lt;effect&gt;"</text>
+      <text class="svg-t sm good" x="629" y="373" text-anchor="middle">relay: already does · session: one-line change → 101</text>
+      <line class="svg-line good" x1="720" y1="320" x2="720" y2="332" marker-end="url(#ar2g)"/>
+      <text class="svg-t sm good" x="828" y="330">already held</text>
+
+      <text class="svg-t sm mut" x="8" y="352">No new machinery. No new</text>
+      <text class="svg-t sm mut" x="8" y="369">preset. No new scope value.</text>
+      <text class="svg-t sm mut" x="8" y="386">minimouse already qualifies.</text>
+    </svg>
+    <figcaption>
+      <b>The catalog mints one shape of value, and the session channel asked for a
+      different one.</b> Effect-derived scopes describe <i>what a command does</i>; a
+      transport capability is not a command, so <code>:session</code> can never appear.
+    </figcaption>
+  </figure>
+
+  <h3>The convention already existed — on the other transport</h3>
+
+  <p>
+    This is the part that changes the fix. Bridge's <b>relay</b> path solved this exact
+    problem, and solved it well. <code>discovery.ResolveScenario</code> admits a remote
+    command like this:
+  </p>
+
+  <div class="evidence">
+<pre>packages/api-core/discovery/transport.go:113-121
+
+  required, ok := r.commandScope(command)              <span class="cmd">// what the verb costs</span>
+  if !scopecatalog.Resolve(target.Scopes, required) { … }
+  _, effect, concrete := strings.Cut(required, ":")
+  <span class="ok">transportScope := "vrooli-bridge:" + effect</span>          <span class="cmd">// transport authority</span>
+  if !scopecatalog.Resolve(target.Scopes, transportScope) { … }
+
+scenarios/vrooli-bridge/api/internal/dispatch/allowlist.go
+
+  <span class="cmd">// A node must hold both the namespace-and-effect grant and Bridge's</span>
+  <span class="cmd">// transport-level effect capability.</span></pre>
+  </div>
+
+  <p>
+    So the fleet already has a working rule for “may this node be reached over this
+    transport”: <b>reuse the effect namespace</b>. <code>vrooli-bridge:read</code> and
+    <code>vrooli-bridge:write</code> are values the catalog produces, the presets grant,
+    and your node already holds. The relay path works today because it followed that rule.
+  </p>
+
+  <p>
+    The session channel didn't. It introduced <code>vrooli-bridge:session</code> — a
+    fourth effect, outside the catalog's vocabulary, with no producer. <b>The root cause is
+    not that nobody considered transport authority; it is that two transports on the same
+    control plane chose two different conventions, and only one of them is grantable.</b>
+  </p>
+
+  <div class="compare">
+    <div class="next">
+      <h4>What I now recommend</h4>
+      <ul>
+        <li>Make the session channel require <code>vrooli-bridge:write</code>, exactly as the relay path derives its transport scope</li>
+        <li>Zero new machinery: <code>operate</code> and <code>full-control</code> already grant it, and <b>minimouse already holds it</b></li>
+        <li>One convention across both transports, so the next one cannot diverge</li>
+      </ul>
+    </div>
+    <div class="now">
+      <h4>The one decision this needs</h4>
+      <ul>
+        <li>An interactive shell is unbounded authority — a case exists for <code>vrooli-bridge:destructive</code> as the floor instead</li>
+        <li><code>write</code> matches the preset labels and operator expectation: “operate” should mean you can get a shell</li>
+        <li>Either way it is a one-line change to the same mechanism — but the plan must state which, and why</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>
+    This supersedes the capability-register idea in an earlier draft of this page. A
+    register would have been new machinery to admit a value that never needed to exist.
+  </p>
+
+  <div class="note">
+    <strong>Corroboration that this shipped unseen.</strong>
+    <code>scenarios/vrooli-bridge/requirements/04-job-dispatch/module.json:17</code> still
+    states that <code>vrooli-bridge:session</code> “is reserved for a future interactive
+    protocol and is not implemented here.” The protocol shipped; the requirement never
+    moved, so nothing ever pulled the scope into the grant model.
+  </div>
+
+  <h3>The governance rule that should have caught it — and why it couldn't</h3>
+
+  <p>
+    This is not a case of nobody checking. structure-health runs a repo-wide rule,
+    <code>PROJECT_SCOPE_VOCABULARY</code>, whose entire job is to fail any relying party
+    that enforces a concrete scope the catalog does not know. It missed this on
+    <b>two independent axes, either of which alone would have caught it</b>:
+  </p>
+
+  <div class="compare">
+    <div class="now">
+      <h4>Axis 1 — its grammar</h4>
+      <ul>
+        <li>The matcher is <code>\b[a-z0-9][a-z0-9-]*:(?:read|write|destructive)\b</code></li>
+        <li><code>vrooli-bridge:session</code> cannot match it</li>
+        <li>The comment is explicit: “Wildcard grants and <b>transport capabilities</b> are deliberately outside this concrete-scope rule”</li>
+      </ul>
+    </div>
+    <div class="now">
+      <h4>Axis 2 — its reach</h4>
+      <ul>
+        <li>It walks four hardcoded directories, not the repo</li>
+        <li><code>api-core/discovery</code>, <code>agent-manager/…/phases</code>, <code>vrooli-bridge/…/dispatch</code>, <code>vrooli-bridge/…/registry</code></li>
+        <li><code>vrooli-bridge/api/internal/session</code> — where the scope is actually declared and enforced — <b>is not in the list</b></li>
+      </ul>
+    </div>
+  </div>
+
+  <p>
+    That reframes the fix. It is not “remember to add a preset”; it is
+    <b>make transport capabilities first-class members of the vocabulary</b> so the rule
+    that already exists can see them, and replace the hardcoded directory list with a
+    repo-wide walk so the next enforcement site is not invisible by omission.
+  </p>
+
+  <span class="loc">scenarios/structure-health/api/internal/packs/targetpack/scope_vocabulary.go:19,22,33-38</span>
+
+  <!-- ══════════════════════════════════════ 3. READINESS ═════════════ -->
+  <div class="sec">
+    <span class="label">Why the UI offered it</span>
+    <h2>A readiness ladder missing its top rung</h2>
+    <p>The check that would have caught this is already named, already worded, and emitted by nothing.</p>
+  </div>
+
+  <p>
+    <code>packages/api-core/targetmodel/model.go:62</code> declares
+    <code>ReadinessSessionSupport</code>, gives it the label “Session support” and the
+    recovery line “Enable session support on the node.” Nothing in the repository emits
+    it. The same is true of <code>ReadinessAgentCLI</code>. Two identities with recovery
+    copy written, zero producers.
+  </p>
+
+  <p>
+    What <i>is</i> emitted is <code>ReadinessBridgeScope</code>, which passes on
+    <code>len(node.GetScopes()) &gt; 0</code> — any scope at all
+    (<code>target_catalog.go:105</code>).
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 920 384" role="img" aria-label="Left: today's six readiness rungs all pass, the machine is offered, and the session then fails with 403. Right: adding the session-support rung fails closed, the option is disabled and the operator is routed to Manage machines.">
+      <defs>
+        <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <text class="svg-t xs crit" x="8" y="16">TODAY — 6 RUNGS EMITTED</text>
+      <text class="svg-t xs good" x="480" y="16">TARGET — 7 RUNGS, THE LAST ONE DECIDES</text>
+
+      <line class="svg-rule" x1="452" y1="0" x2="452" y2="384"/>
+
+      <!-- left rungs -->
+      <rect class="svg-box-ok" x="8" y="30" width="410" height="26" rx="2"/>
+      <text class="svg-t sm good" x="20" y="47">✓  registry_record</text>
+      <rect class="svg-box-ok" x="8" y="62" width="410" height="26" rx="2"/>
+      <text class="svg-t sm good" x="20" y="79">✓  heartbeat_fresh</text>
+      <rect class="svg-box-ok" x="8" y="94" width="410" height="26" rx="2"/>
+      <text class="svg-t sm good" x="20" y="111">✓  channel_held</text>
+      <rect class="svg-box-ok" x="8" y="126" width="410" height="26" rx="2"/>
+      <text class="svg-t sm good" x="20" y="143">✓  protocol_compatible</text>
+      <rect class="svg-box-ok" x="8" y="158" width="410" height="26" rx="2"/>
+      <text class="svg-t sm good" x="20" y="175">✓  dispatchable</text>
+      <rect class="svg-box-ok" x="8" y="190" width="410" height="26" rx="2"/>
+      <text class="svg-t sm good" x="20" y="207">✓  bridge_scope</text>
+      <text class="svg-t xs mut" x="410" y="207" text-anchor="end">passes on len(scopes) &gt; 0</text>
+
+      <rect class="svg-box svg-line dash" x="8" y="222" width="410" height="26" rx="2" fill="none" stroke-dasharray="5 4" opacity="0.45"/>
+      <text class="svg-t sm mut" x="20" y="239">·   session_support — declared, never emitted</text>
+
+      <line class="svg-line" x1="213" y1="252" x2="213" y2="278" marker-end="url(#ar3)"/>
+      <rect class="svg-box" x="8" y="282" width="410" height="42" rx="2"/>
+      <text class="svg-t bold" x="213" y="300" text-anchor="middle">Available = true → option selectable</text>
+      <text class="svg-t sm mut" x="213" y="316" text-anchor="middle">picker · server preflight · nodes doctor all agree</text>
+
+      <line class="svg-line crit" x1="213" y1="326" x2="213" y2="344" marker-end="url(#arc)"/>
+      <text class="svg-t sm crit bold" x="213" y="362" text-anchor="middle">…then 403 at open time</text>
+
+      <!-- right rungs -->
+      <rect class="svg-box-ok" x="480" y="30" width="432" height="26" rx="2"/>
+      <text class="svg-t sm good" x="492" y="47">✓  registry_record</text>
+      <rect class="svg-box-ok" x="480" y="62" width="432" height="26" rx="2"/>
+      <text class="svg-t sm good" x="492" y="79">✓  heartbeat_fresh</text>
+      <rect class="svg-box-ok" x="480" y="94" width="432" height="26" rx="2"/>
+      <text class="svg-t sm good" x="492" y="111">✓  channel_held</text>
+      <rect class="svg-box-ok" x="480" y="126" width="432" height="26" rx="2"/>
+      <text class="svg-t sm good" x="492" y="143">✓  protocol_compatible</text>
+      <rect class="svg-box-ok" x="480" y="158" width="432" height="26" rx="2"/>
+      <text class="svg-t sm good" x="492" y="175">✓  dispatchable</text>
+      <rect class="svg-box-ok" x="480" y="190" width="432" height="26" rx="2"/>
+      <text class="svg-t sm good" x="492" y="207">✓  bridge_scope — summary only, list moved out</text>
+      <rect class="svg-box-hi" x="480" y="222" width="432" height="26" rx="2"/>
+      <text class="svg-t sm crit bold" x="492" y="239">✗  session_support — node lacks vrooli-bridge:session</text>
+
+      <line class="svg-line" x1="696" y1="252" x2="696" y2="278" marker-end="url(#ar3)"/>
+      <rect class="svg-box-ac" x="480" y="282" width="432" height="60" rx="2"/>
+      <text class="svg-t bold acc" x="696" y="301" text-anchor="middle">Available = false → option disabled, reason shown</text>
+      <text class="svg-t sm acc" x="696" y="318" text-anchor="middle">“Grant the required Bridge scope” → Manage machines</text>
+      <text class="svg-t sm mut" x="696" y="335" text-anchor="middle">same predicate fixes picker, preflight and doctor at once</text>
+      <text class="svg-t sm good bold" x="696" y="362" text-anchor="middle">no 403 is ever reachable from the UI</text>
+    </svg>
+    <figcaption>
+      <b>One predicate, three consumers.</b> The picker, the server-side
+      <code>Create</code> preflight and <code>nodes doctor</code> each compute
+      “can this host a session?” separately today, and all three are wrong the same way.
+      A single <code>CanHostSession(node)</code> emitted as a readiness fact corrects
+      every surface from one place.
+    </figcaption>
+  </figure>
+
+  <!-- ══════════════════════════════════════ 4. ERROR FIDELITY ════════ -->
+  <div class="sec">
+    <span class="label">Diagnosability</span>
+    <h2>Four hops, four losses</h2>
+    <p>Bridge knows precisely what went wrong. Nothing that reaches you does.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 920 300" role="img" aria-label="A precise 403 reason from Bridge degrades across four hops: the client discards the HTTP response, the session manager wraps with percent-v instead of percent-w, and the remote branch skips error mapping, leaving an untyped internal string in the browser.">
+      <text class="svg-t xs mut" x="8" y="16">WHAT EACH HOP STILL KNOWS</text>
+
+      <!-- hop 1 -->
+      <rect class="svg-box-ok" x="8" y="30" width="212" height="86" rx="2"/>
+      <text class="svg-t bold" x="20" y="50">1 · Bridge handler</text>
+      <text class="svg-t sm mut" x="20" y="68">403 Forbidden</text>
+      <text class="svg-t sm good" x="20" y="85">“node scope denied:</text>
+      <text class="svg-t sm good" x="20" y="100">vrooli-bridge:session”</text>
+
+      <!-- hop 2 -->
+      <rect class="svg-box-hi" x="244" y="30" width="212" height="86" rx="2"/>
+      <text class="svg-t bold" x="256" y="50">2 · nodeclient dial</text>
+      <text class="svg-t sm crit" x="256" y="68">conn, _, err := Dial(…)</text>
+      <text class="svg-t sm mut" x="256" y="85">status + body dropped</text>
+      <text class="svg-t sm crit" x="256" y="100">“websocket: bad handshake”</text>
+
+      <!-- hop 3 -->
+      <rect class="svg-box-hi" x="480" y="30" width="212" height="86" rx="2"/>
+      <text class="svg-t bold" x="492" y="50">3 · session manager</text>
+      <text class="svg-t sm crit" x="492" y="68">Errorf("%w: %v", …)</text>
+      <text class="svg-t sm mut" x="492" y="85">*nodeclient.Error kind</text>
+      <text class="svg-t sm mut" x="492" y="100">no longer unwrappable</text>
+
+      <!-- hop 4 -->
+      <rect class="svg-box-hi" x="716" y="30" width="196" height="86" rx="2"/>
+      <text class="svg-t bold" x="728" y="50">4 · remote branch</text>
+      <text class="svg-t sm crit" x="728" y="68">returns err unmapped</text>
+      <text class="svg-t sm mut" x="728" y="85">no category, recovery</text>
+      <text class="svg-t sm mut" x="728" y="100">or retry metadata</text>
+
+      <line class="svg-line" x1="220" y1="73" x2="238" y2="73" marker-end="url(#ar)"/>
+      <line class="svg-line" x1="456" y1="73" x2="474" y2="73" marker-end="url(#ar)"/>
+      <line class="svg-line" x1="692" y1="73" x2="710" y2="73" marker-end="url(#ar)"/>
+
+      <!-- fidelity bars -->
+      <text class="svg-t xs mut" x="8" y="150">DIAGNOSTIC VALUE REMAINING</text>
+      <rect x="8"   y="162" width="212" height="14" rx="1" fill="var(--good)"/>
+      <rect x="244" y="162" width="53"  height="14" rx="1" fill="var(--warn)"/>
+      <rect x="244" y="162" width="212" height="14" rx="1" fill="none" stroke="var(--rule)"/>
+      <rect x="480" y="162" width="21"  height="14" rx="1" fill="var(--critical)"/>
+      <rect x="480" y="162" width="212" height="14" rx="1" fill="none" stroke="var(--rule)"/>
+      <rect x="716" y="162" width="196" height="14" rx="1" fill="none" stroke="var(--rule)"/>
+      <text class="svg-t xs mut" x="8"   y="192">actionable</text>
+      <text class="svg-t xs mut" x="244" y="192">“some transport thing”</text>
+      <text class="svg-t xs mut" x="480" y="192">untyped</text>
+      <text class="svg-t xs mut" x="716" y="192">nothing</text>
+
+      <line class="svg-rule" x1="8" y1="214" x2="912" y2="214"/>
+
+      <rect class="svg-box-hi" x="8" y="232" width="904" height="52" rx="2"/>
+      <text class="svg-t sm crit" x="24" y="252">WHAT YOU SAW:</text>
+      <text class="svg-t sm" x="130" y="252">[internal] PTY spawn failed: node client transport node="25c7e426-c76c-421a-8351-aaf964589802" websocket: bad handshake</text>
+      <text class="svg-t xs mut" x="24" y="272">…rendered behind the New Terminal sheet, then auto-dismissed after 8 seconds.</text>
+    </svg>
+    <figcaption>
+      <b>Every distinct failure collapses into one string.</b> Wrong scope, missing
+      re-authentication, unknown node and offline node are indistinguishable to the
+      operator today. Capturing the handshake response at
+      <code>packages/nodeclient/client.go:455</code> is the single highest-leverage
+      change on this list: it makes every <i>future</i> remote-session failure
+      self-diagnosing.
+    </figcaption>
+  </figure>
+
+  <h3>The same loss happens again after the session opens</h3>
+
+  <p>
+    <code>nodeclient.Session</code> has a one-shot ready channel.
+    <code>readyCh</code> is created with capacity 1 and read exactly once, inside
+    <code>Open</code> at line 466. Every later <code>signalReady</code> call — a transport
+    error at 484, a decode failure at 492, and <b>the close reason Bridge or the node
+    sends at 507</b> — writes into a buffer nothing ever drains again.
+  </p>
+
+  <p>
+    So when the node agent refuses a shell it does not recognise and reports
+    <code>Close{Reason: "shell_not_allowed"}</code>, that reason lands in a dead channel
+    and <code>Session.Read</code> returns a bare <code>io.EOF</code>. Every mid-session
+    termination — idle timeout, lifetime cap, policy close, node exit, refused shell —
+    reaches the operator as a terminal that closed by itself, with no reason attached.
+  </p>
+
+  <span class="loc">packages/nodeclient/client.go:463, 466, 484, 492, 507</span>
+
+  <!-- ══════════════════════════════════════ 5. STACKING ══════════════ -->
+  <div class="sec">
+    <span class="label">Why the banner hid</span>
+    <h2>Three stacking vocabularies, no shared order</h2>
+    <p>Every library surface outranks every app surface, unconditionally.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 900 392" role="img" aria-label="One shared z-index axis. Every web-console Tailwind token sits between 10 and 90, while the component library's layer scale runs 100 to 700 with the launcher dialog at 400. The banner region declares no z-index at all, so it sits at the floor and the dialog paints over it.">
+      <text class="svg-t xs mut" x="8" y="16">ONE AXIS · HIGHER PAINTS OVER LOWER</text>
+
+      <!-- axis: y = 348 - v * 0.4286 -->
+      <line class="svg-rule" x1="118" y1="36" x2="118" y2="352"/>
+      <text class="svg-t sm mut" x="106" y="52"  text-anchor="end">700</text>
+      <text class="svg-t sm mut" x="106" y="95"  text-anchor="end">600</text>
+      <text class="svg-t sm mut" x="106" y="138" text-anchor="end">500</text>
+      <text class="svg-t sm mut" x="106" y="181" text-anchor="end">400</text>
+      <text class="svg-t sm mut" x="106" y="224" text-anchor="end">300</text>
+      <text class="svg-t sm mut" x="106" y="266" text-anchor="end">200</text>
+      <text class="svg-t sm mut" x="106" y="309" text-anchor="end">100</text>
+      <text class="svg-t sm mut" x="106" y="352" text-anchor="end">0</text>
+      <line class="svg-rule" x1="112" y1="48"  x2="118" y2="48"/>
+      <line class="svg-rule" x1="112" y1="91"  x2="118" y2="91"/>
+      <line class="svg-rule" x1="112" y1="134" x2="118" y2="134"/>
+      <line class="svg-rule" x1="112" y1="177" x2="118" y2="177"/>
+      <line class="svg-rule" x1="112" y1="220" x2="118" y2="220"/>
+      <line class="svg-rule" x1="112" y1="262" x2="118" y2="262"/>
+      <line class="svg-rule" x1="112" y1="305" x2="118" y2="305"/>
+      <line class="svg-rule" x1="112" y1="348" x2="118" y2="348"/>
+
+      <!-- the paint-over line at 400 -->
+      <line class="svg-line crit dash" x1="118" y1="177" x2="892" y2="177"/>
+      <text class="svg-t sm crit bold" x="892" y="170" text-anchor="end">everything below this line is painted over by the New Terminal sheet</text>
+
+      <!-- track A: web-console tailwind -->
+      <text class="svg-t xs mut" x="150" y="372">web-console · z-wc-*</text>
+      <rect class="svg-box" x="150" y="309" width="196" height="39" rx="2"/>
+      <text class="svg-t sm bold" x="248" y="325" text-anchor="middle">all 9 tokens: 10 – 90</text>
+      <text class="svg-t sm mut" x="248" y="340" text-anchor="middle">incl. z-wc-tooltip “always visible”</text>
+
+      <!-- banner -->
+      <rect class="svg-box-hi" x="150" y="264" width="196" height="38" rx="2"/>
+      <text class="svg-t sm crit bold" x="248" y="280" text-anchor="middle">BannerRegion</text>
+      <text class="svg-t sm crit" x="248" y="295" text-anchor="middle">no z-index · in flow · auto</text>
+      <line class="svg-line crit" x1="248" y1="302" x2="248" y2="344" marker-end="url(#arc)"/>
+      <text class="svg-t xs crit" x="256" y="330">floor</text>
+
+      <!-- track B: RCL -->
+      <text class="svg-t xs mut" x="400" y="372">React Component Library · --layer-*</text>
+      <rect class="svg-box" x="400" y="38" width="188" height="22" rx="2"/>
+      <text class="svg-t sm" x="410" y="53">700 alert</text>
+      <rect class="svg-box" x="400" y="64" width="188" height="22" rx="2"/>
+      <text class="svg-t sm" x="410" y="79">610 menu</text>
+      <rect class="svg-box" x="400" y="90" width="188" height="22" rx="2"/>
+      <text class="svg-t sm" x="410" y="105">600 tooltip</text>
+      <rect class="svg-box" x="400" y="127" width="188" height="22" rx="2"/>
+      <text class="svg-t sm" x="410" y="142">500 toast</text>
+      <rect class="svg-box-hi" x="400" y="166" width="188" height="22" rx="2"/>
+      <text class="svg-t sm crit bold" x="410" y="181">400 modal ← the launcher</text>
+      <rect class="svg-box" x="400" y="209" width="188" height="22" rx="2"/>
+      <text class="svg-t sm mut" x="410" y="224">300 overlay</text>
+      <rect class="svg-box" x="400" y="252" width="188" height="22" rx="2"/>
+      <text class="svg-t sm mut" x="410" y="267">200 dropdown</text>
+      <rect class="svg-box" x="400" y="294" width="188" height="22" rx="2"/>
+      <text class="svg-t sm mut" x="410" y="309">100 sticky</text>
+
+      <!-- gap bracket -->
+      <path class="svg-line crit" d="M 366 305 L 358 305 L 358 60 L 366 60"/>
+      <text class="svg-t sm crit bold" x="352" y="150" text-anchor="end">no app surface</text>
+      <text class="svg-t sm crit bold" x="352" y="166" text-anchor="end">reaches this band</text>
+
+      <!-- track C: third vocabulary -->
+      <text class="svg-t xs mut" x="640" y="372">web-console's own --layer-* (partial copy)</text>
+      <rect class="svg-box" x="640" y="209" width="252" height="139" rx="2"/>
+      <text class="svg-t sm" x="652" y="230">400 modal    ✓ agrees</text>
+      <text class="svg-t sm" x="652" y="249">200 popover  ✗ RCL calls 200 “dropdown”</text>
+      <text class="svg-t sm" x="652" y="268">150 raised   ✗ absent from RCL</text>
+      <text class="svg-t sm crit" x="652" y="291">missing: overlay, menu,</text>
+      <text class="svg-t sm crit" x="652" y="310">tooltip, alert</text>
+      <text class="svg-t xs mut" x="652" y="333">library surfaces survive only on their</text>
+      <text class="svg-t xs mut" x="652" y="345">own inline fallback values</text>
+    </svg>
+    <figcaption>
+      <b>The banner did not lose a stacking fight; it never entered one.</b>
+      <code>BannerRegion</code> renders inline under <code>TopSafeArea</code>
+      (<code>Workspace.tsx:1869</code>) with no stacking context, while
+      <code>ResponsiveDialog</code> portals at <code>var(--layer-modal, 400)</code>. The
+      third column is the quiet hazard: web-console redefines part of the library's scale
+      under different names, so the two only agree by accident.
+    </figcaption>
+  </figure>
+
+  <!-- ══════════════════════════════════════ 6. DEAD PLUMBING ═════════ -->
+  <div class="sec">
+    <span class="label">The wall behind the wall</span>
+    <h2>Even with the scope granted, the agent never starts</h2>
+    <p>Two more defects sit directly behind the one you hit.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 920 210" role="img" aria-label="LaunchCommand is carried through three hops into the PTY launch spec and then never read by the bridge PTY factory, while the remote branch returns before the code that pastes the command and records session metadata.">
+      <text class="svg-t xs mut" x="8" y="16">“CLAUDE CODE” ON A REMOTE MACHINE</text>
+
+      <rect class="svg-box" x="8" y="30" width="180" height="46" rx="2"/>
+      <text class="svg-t sm" x="98" y="50" text-anchor="middle">CreateInput</text>
+      <text class="svg-t sm mut" x="98" y="66" text-anchor="middle">launch_command</text>
+
+      <rect class="svg-box" x="222" y="30" width="180" height="46" rx="2"/>
+      <text class="svg-t sm" x="312" y="50" text-anchor="middle">RemoteLaunch</text>
+      <text class="svg-t sm mut" x="312" y="66" text-anchor="middle">LaunchCommand</text>
+
+      <rect class="svg-box" x="436" y="30" width="180" height="46" rx="2"/>
+      <text class="svg-t sm" x="526" y="50" text-anchor="middle">pty.LaunchSpec</text>
+      <text class="svg-t sm mut" x="526" y="66" text-anchor="middle">LaunchCommand</text>
+
+      <rect class="svg-box-hi" x="650" y="30" width="262" height="46" rx="2"/>
+      <text class="svg-t sm crit bold" x="781" y="50" text-anchor="middle">bridgePTYFactory</text>
+      <text class="svg-t sm crit" x="781" y="66" text-anchor="middle">reads NodeID, Shell, Dir, Cols, Rows — not this</text>
+
+      <line class="svg-line" x1="188" y1="53" x2="216" y2="53" marker-end="url(#ar)"/>
+      <line class="svg-line" x1="402" y1="53" x2="430" y2="53" marker-end="url(#ar)"/>
+      <line class="svg-line crit" x1="616" y1="53" x2="644" y2="53" marker-end="url(#arc)"/>
+      <text class="svg-t xs crit" x="781" y="94" text-anchor="middle">dropped after three hops of plumbing</text>
+
+      <line class="svg-rule" x1="8" y1="112" x2="912" y2="112"/>
+
+      <rect class="svg-box" x="8" y="130" width="290" height="46" rx="2"/>
+      <text class="svg-t sm" x="153" y="150" text-anchor="middle">adapter.Create — remote branch</text>
+      <text class="svg-t sm crit" x="153" y="166" text-anchor="middle">return created, nil  (line 123)</text>
+
+      <rect class="svg-box svg-line dash" x="336" y="130" width="270" height="46" rx="2" fill="none" stroke-dasharray="5 4" opacity="0.5"/>
+      <text class="svg-t sm mut" x="471" y="150" text-anchor="middle">Store.Save — agent type, transcript key</text>
+      <text class="svg-t sm mut" x="471" y="166" text-anchor="middle">line 151 · never reached</text>
+
+      <rect class="svg-box svg-line dash" x="644" y="130" width="268" height="46" rx="2" fill="none" stroke-dasharray="5 4" opacity="0.5"/>
+      <text class="svg-t sm mut" x="778" y="150" text-anchor="middle">SendInput — paste the command</text>
+      <text class="svg-t sm mut" x="778" y="166" text-anchor="middle">line 179 · never reached</text>
+
+      <line class="svg-line dash" x1="298" y1="153" x2="330" y2="153" marker-end="url(#ar)"/>
+      <line class="svg-line dash" x1="606" y1="153" x2="638" y2="153" marker-end="url(#ar)"/>
+      <text class="svg-t xs crit" x="8" y="200">Result once the scope is granted: a bare shell with no agent, and no transcript identity recorded.</text>
+    </svg>
+    <figcaption>
+      <b>Dead plumbing reads as a working feature.</b> The field exists on three types and
+      is passed at every seam, so a reader scanning the code concludes remote agent launch
+      is implemented. Only the final consumer reveals it never was.
+    </figcaption>
+  </figure>
+
+  <p>
+    The second is host-state leakage: <code>session_manager.go:325</code> defaults the
+    working directory to <code>config.ResolveWorkingDir()</code> — the <i>Web Console
+    host's</i> cwd — and sends it verbatim to the remote node. On a darwin node,
+    <code>/home/matthalloran8/…</code> does not exist and the remote PTY start fails.
+    <code>resolveShell()</code> has the same shape: it runs <code>exec.LookPath</code> on
+    the local machine and ships the resulting absolute path to a different operating
+    system.
+  </p>
+
+  <!-- ══════════════════════════════════════ 7. DISCOVERY ═════════════ -->
+  <div class="sec">
+    <span class="label">Correction</span>
+    <h2>What discovery actually does</h2>
+    <p>An earlier revision of this page said discovery forks the CLI and cannot address another machine. Both claims were wrong. Here is the accurate picture, and the real defect underneath it.</p>
+  </div>
+
+  <div class="note">
+    <strong>Two corrections, stated plainly.</strong>
+    <b>(1)</b> The default port lookup does <i>not</i> fork — it reads a peer record
+    in-process, and the CLI fork is the third fallback.
+    <b>(2)</b> The <code>node/scenario@variant</code> address grammar exists, is
+    implemented, and <b>works live against minimouse right now</b>. The fork-storm and
+    remote-addressing work you remember is real and in the tree.
+  </div>
+
+  <h3>The port lookup is a three-tier ladder, and tier one is a file read</h3>
+
+  <p>
+    <code>DefaultResolver()</code> constructs with an empty config, which sets
+    <code>sharedLookup: cfg.CommandRunner == nil &amp;&amp; cfg.VrooliPath == ""</code> —
+    true. That routes every default call through
+    <code>cliutil.LookupScenarioPort</code>, which tries three sources in order:
+  </p>
+
+  <div class="tablewrap wide">
+    <table>
+      <caption>packages/cli-core/cliutil/port_detector.go:145-151</caption>
+      <thead><tr><th>Tier</th><th>Source</th><th>Cost</th><th>When it runs</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><code>lookupPeerRecord</code> — <code>os.ReadFile</code> on <code>~/.vrooli/peers/&lt;target&gt;.json</code></td><td class="num">in-process</td><td>always first</td></tr>
+        <tr><td class="num">2</td><td><code>lookupRuntimeRegistry</code> — sqlite3, kept behind a subprocess to avoid a CGO dependency for every CLI consumer</td><td class="num">subprocess</td><td>peer-record miss</td></tr>
+        <tr><td class="num">3</td><td><code>runScenarioPortCommand</code> — <code>vrooli scenario port</code></td><td class="num">fork</td><td>last resort</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    On top of that sit a per-key mutex that collapses concurrent lookups onto one
+    resolution, and positive and negative TTL caches at <i>both</i> the cliutil and
+    resolver layers — the negative cache specifically documented as suppressing “a fork
+    stampede against a stopped scenario.” <b>I described tier three as though it were tier
+    one.</b> The anti-fork-storm work is in place and working as you remembered.
+  </p>
+
+  <h3>The node axis exists, and it answers</h3>
+
+  <p>
+    <code>cliutil.SplitAddress</code> parses <code>node/scenario@variant</code> exactly as
+    you described: bare slug is local and live, <code>@variant</code> selects a shadow or
+    other instance, and a <code>node/</code> prefix selects a machine.
+    <code>discovery.ResolveScenario</code> then resolves the target, rejects revoked or
+    offline nodes, derives the required scope from the catalog, checks both the command
+    scope and the transport scope, and relays. This is not aspirational:
+  </p>
+
+  <div class="evidence">
+<pre><span class="cmd">$ vrooli scenario status minimouse/system-monitor</span>
+Scenario: system-monitor
+Status: running
+<span class="ok">Path: /Users/matthalloran8/vrooli/scenarios/system-monitor</span>   <span class="cmd">← the Mac answered</span>
+Ports: API_PORT=16914, UI_PORT=21232
+
+<span class="cmd">$ vrooli-bridge relay call --node-id 25c7e426… \
+    --scenario system-monitor --command "system-monitor metrics current"</span>
+{ "outcome": <span class="ok">"RELAY_CALL_OUTCOME_COMPLETED"</span>, "total_bytes": "420" }</pre>
+  </div>
+
+  <p>
+    That second call is worth noting on its own: the
+    <b>Bridge Reach Map</b> audit of 2026-08-26 recorded it failing with
+    <code>exit_code 127</code>, <code>executable file not found in $PATH</code>, and the
+    “Reaching minimouse” plan treats it as a blocker. <b>It is fixed.</b> Scenario-owned
+    verbs now relay successfully. The documentation is three days stale in the direction
+    of under-reporting progress.
+  </p>
+
+  <h3>What remains true — and it is a narrower, sharper thing</h3>
+
+  <figure>
+    <svg viewBox="0 0 920 372" role="img" aria-label="Discovery has two paths. The URL path resolves a local scenario address through a three-tier lookup and is used by 459 call sites. The node path parses a node-slash-scenario address, admits it against the scope catalog and relays a command, returning a response rather than a URL; it has zero production callers because the only transport that could fill its relay seam sits in a module above it.">
+      <text class="svg-t xs mut" x="8" y="16">TWO PATHS THROUGH ONE PACKAGE</text>
+
+      <rect class="svg-box-ok" x="8" y="30" width="440" height="30" rx="2"/>
+      <text class="svg-t sm bold good" x="20" y="50">ResolveScenarioURL — the local address path</text>
+      <rect class="svg-box" x="8" y="66" width="440" height="86" rx="2"/>
+      <text class="svg-t sm" x="20" y="86">peer record → runtime registry → CLI fork</text>
+      <text class="svg-t sm mut" x="20" y="105">returns http://localhost:&lt;port&gt;</text>
+      <text class="svg-t sm good" x="20" y="126">459 call sites · cached · fork-storm guarded</text>
+      <text class="svg-t sm good" x="20" y="145">WORKS</text>
+
+      <rect class="svg-box-ac" x="472" y="30" width="440" height="30" rx="2"/>
+      <text class="svg-t sm bold acc" x="484" y="50">ResolveScenario — the node address path</text>
+      <rect class="svg-box" x="472" y="66" width="440" height="86" rx="2"/>
+      <text class="svg-t sm" x="484" y="86">SplitAddress → target → scope admission → relay</text>
+      <text class="svg-t sm mut" x="484" y="105">returns a RelayResponse, deliberately no URL</text>
+      <text class="svg-t sm crit" x="484" y="126">0 production callers · seams nil everywhere</text>
+      <text class="svg-t sm crit" x="484" y="145">BUILT · TESTED · UNWIRED</text>
+
+      <text class="svg-t sm mut" x="8" y="182">“A remote resolution intentionally has no URL: nodes dial out, so inventing an inbound endpoint</text>
+      <text class="svg-t sm mut" x="8" y="199">would violate the bridge contract.”  — transport.go:47</text>
+
+      <line class="svg-rule" x1="8" y1="220" x2="912" y2="220"/>
+      <text class="svg-t xs crit" x="8" y="242">WHY THE SEAM IS NIL — A MODULE BOUNDARY, NOT AN OVERSIGHT</text>
+
+      <rect class="svg-box" x="8" y="256" width="270" height="60" rx="2"/>
+      <text class="svg-t sm bold" x="143" y="278" text-anchor="middle">api-core/discovery</text>
+      <text class="svg-t sm mut" x="143" y="296" text-anchor="middle">needs a RelayTransport</text>
+
+      <rect class="svg-box" x="642" y="256" width="270" height="60" rx="2"/>
+      <text class="svg-t sm bold" x="777" y="278" text-anchor="middle">packages/nodeclient</text>
+      <text class="svg-t sm mut" x="777" y="296" text-anchor="middle">Call() is exactly that</text>
+
+      <line class="svg-line good" x1="642" y1="276" x2="284" y2="276" marker-end="url(#ar2g)"/>
+      <text class="svg-t sm good" x="463" y="270" text-anchor="middle">nodeclient imports api-core</text>
+
+      <line class="svg-line crit" x1="284" y1="300" x2="636" y2="300" marker-end="url(#arc)"/>
+      <text class="svg-t sm crit" x="460" y="318" text-anchor="middle">api-core cannot import nodeclient — separate modules, this would be a cycle</text>
+
+      <text class="svg-t sm mut" x="8" y="350">The relay seam is nil because the only thing in the repository that can fill it sits in a module above it.</text>
+      <text class="svg-t sm mut" x="8" y="366">A prior audit records this seam as “default-wired”; NewResolver and NewStaticResolver wire neither field.</text>
+    </svg>
+    <figcaption>
+      <b>The remote path returns an answer, not an address — and that is correct.</b> Nodes
+      dial out and have no inbound endpoint, so there is nothing to point a URL at. Remote
+      reach is command relay by design. That is why “replace the legacy untyped endpoint
+      variable with discovery” does not transfer: the old variable names the <i>hub</i>, which is
+      a local sibling scenario, not a remote node.
+    </figcaption>
+  </figure>
+
+  <h3>The conflicts worth resolving</h3>
+
+  <div class="findings">
+    <div class="finding sev-block">
+      <div class="finding-head">
+        <span class="id">D1</span>
+        <h4>Two designs both claim to be “the shared node client”</h4>
+        <span class="pill block">Architecture</span>
+      </div>
+      <p>
+        <code>packages/nodeclient</code> exposes <code>List</code>, <code>Call</code>,
+        <code>Dispatch</code> and <code>Open</code> — precisely the four verbs the Bridge
+        Reach Map's target state asks someone to build — and has four real consumers.
+        <code>api-core/discovery.ResolveScenario</code> owns the address grammar and
+        admission, and has none. <b>Neither package references the other</b>, and the audit
+        mentions nodeclient twice while proposing to build what it already is.
+      </p>
+      <p>
+        This is the likeliest source of the confusion: the docs point at one design, the
+        code uses the other, and the two are one import edge apart — an edge the module
+        layout currently forbids.
+      </p>
+      <span class="loc">packages/nodeclient/client.go:177,240,278,412 · packages/api-core/discovery/transport.go:64</span>
+    </div>
+
+    <div class="finding sev-wrong">
+      <div class="finding-head">
+        <span class="id">D2</span>
+        <h4>The audit says the node seam is default-wired; it is not</h4>
+        <span class="pill wrong">Doc vs code</span>
+      </div>
+      <p>
+        The Bridge Reach Map states <code>ResolveScenario</code> “even wires its own Bridge
+        adapters by default.” <code>NewResolver</code> and <code>NewStaticResolver</code>
+        are the only constructors, and neither sets <code>TargetResolver</code>,
+        <code>Relay</code> or <code>CommandScope</code>. The only configurations anywhere
+        in the repository are in <code>transport_test.go</code>.
+      </p>
+      <span class="loc">docs/reference/cross-platform-effort/bridge-reach-map-2026-08-26.html · packages/api-core/discovery/resolve.go:175,236</span>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head">
+        <span class="id">D3</span>
+        <h4>The audit is stale in the other direction too</h4>
+        <span class="pill debt">Doc vs code</span>
+      </div>
+      <p>
+        Its headline blocking finding — scenario-owned verbs failing over relay with
+        <code>exit 127</code> because <code>BuildArgv</code> discards the configured binary
+        path — no longer reproduces. The same command now returns
+        <code>RELAY_CALL_OUTCOME_COMPLETED</code>. A three-day-old HTML audit is being read
+        as current state by anyone who finds it, in both directions.
+      </p>
+      <span class="loc">verified live 2026-08-29 against node 25c7e426…</span>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head">
+        <span class="id">D4</span>
+        <h4>Four environment namespaces name one fixed port</h4>
+        <span class="pill debt">Config sprawl</span>
+      </div>
+      <p>
+        Bridge's own manifest fixes its API port at <b>18767</b> — “fixed Bridge
+        control-plane port for LAN admission” — while every other scenario draws a dynamic
+        port from a range. So locating the hub is the easiest resolution in the system, and
+        it has accumulated four separate environment namespaces anyway
+        (the old untyped endpoint variable, <code>VROOLI_BRIDGE_*</code>,
+        <code>BRIDGE_CONTROL_PLANE_URL</code>, <code>PROGRAM_RUNTIME_*_BRIDGE_URL</code>).
+        The reach map reached the same conclusion independently: the env var “is solving a
+        problem that does not exist.”
+      </p>
+      <span class="loc">scenarios/vrooli-bridge/.vrooli/service.json · ports.api = 18767</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ 8. PORTABILITY ═══════════ -->
+  <div class="sec">
+    <span class="label">Machine-agnostic operation</span>
+    <h2>Portability: compiles everywhere, proven nowhere</h2>
+    <p>The cross-compilation half of this is genuinely solid. Everything above that rung is either undeclared, unmeasured, or inexpressible in the schema.</p>
+  </div>
+
+  <h4>What is already good — say it plainly</h4>
+  <p>
+    <code>vrooli capability conformance</code> probes <b>1,638 targets</b> (code root ×
+    OS × arch) and returns 80 findings across 14 code roots.
+    <b>web-console, vrooli-bridge, nodeclient and session-core contribute zero of
+    them</b> — all four build and vet cleanly for linux, macOS and Windows on both amd64
+    and arm64. The node agent goes further: its Makefile pins a six-platform matrix built
+    <code>CGO_ENABLED=0</code>, with per-OS service managers, per-OS privilege separation
+    and a documented pipe fallback where ConPTY cannot give a real terminal. Node→Bridge
+    is dial-out, so a node never needs an inbound port or a public address.
+  </p>
+
+  <div class="note">
+    <strong>One caveat on that number.</strong> The conformance gate exits <code>0</code>
+    with 80 findings — it reports rather than enforces. A cross-compile regression in any
+    of these four components would be visible but not blocking.
+  </div>
+
+  <h3>Gap 1 — the proof ladder stops one rung short, everywhere</h3>
+
+  <p>
+    The repo has a genuinely good vocabulary for this. <code>internal/deployability</code>
+    defines eight platform statuses, and it is honest about what each means:
+    <code>build-verified</code> is documented as “code that cross-compiles and passes
+    fixtures but <b>has never run on real hardware of that platform</b>.” Above it sits
+    <code>supported</code>, which maps to <code>QualificationQualified</code>.
+  </p>
+
+  <div class="tablewrap wide">
+    <table>
+      <caption>Every platform-capability cell declared by any scenario</caption>
+      <thead><tr><th>Status</th><th>Meaning</th><th class="num">Cells</th></tr></thead>
+      <tbody>
+        <tr><td><code>supported</code></td><td>Qualified — run on real hardware of that platform</td><td class="num">0</td></tr>
+        <tr><td><code>build-verified</code></td><td>Cross-compiles and passes fixtures; never run there</td><td class="num">54</td></tr>
+        <tr><td><code>experimental</code></td><td>Wired, behaviour unproven</td><td class="num">14</td></tr>
+        <tr><td><code>unsupported</code></td><td>Not claimed</td><td class="num">3</td></tr>
+        <tr><td><code>unqualified</code></td><td>Wired, unproven</td><td class="num">2</td></tr>
+        <tr><td><code>not_applicable</code></td><td>Closed work — cannot exist there</td><td class="num">2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    <b>Zero cells in the entire repository have ever reached <code>supported</code>.</b>
+    The evidence strings say so in their own words — web-console's macOS tmux entry reads
+    “go build and go vet darwin matrix; <i>no real-host tmux run</i>.” The ladder exists,
+    it is well designed, and nothing has ever climbed its top rung.
+  </p>
+
+  <p>
+    Two structural facts compound it. Only <b>5 of 120</b> scenarios declare
+    <code>platform_capabilities</code> at all — and <b>vrooli-bridge, the one scenario
+    whose entire purpose is spanning machines, now declares its transport surfaces</b>. The implementation
+    now declares Bridge's node channel, relay, and session transports, and web-console's
+    <code>terminal-remote-bridge</code> capability is represented as console/node pairs.
+    The Linux-console to Darwin-node cell remains build-verified pending a refreshed agent
+    and a recorded live session; the failed proof attempt is preserved in
+    <code>evidence/remote-session-plan-live-attempt-2026-08-29.md</code>.
+  </p>
+
+  <h3>Gap 2 — the declaration has one axis; a remote session spans two machines</h3>
+
+  <figure>
+    <svg viewBox="0 0 920 372" role="img" aria-label="The platform capability schema declares one OS axis with three cells, but a remote session spans a console operating system and a node operating system, a nine-cell matrix of which only one pairing has ever been exercised.">
+      <text class="svg-t xs mut" x="8" y="16">WHAT THE SCHEMA CAN SAY</text>
+      <text class="svg-t xs mut" x="392" y="16">WHAT A REMOTE SESSION ACTUALLY SPANS</text>
+
+      <line class="svg-rule" x1="356" y1="0" x2="356" y2="372"/>
+
+      <!-- one axis -->
+      <rect class="svg-box-ac" x="8" y="30" width="316" height="30" rx="2"/>
+      <text class="svg-t sm bold acc" x="20" y="50">terminal-remote-bridge</text>
+      <rect class="svg-box" x="8" y="66" width="316" height="28" rx="2"/>
+      <text class="svg-t sm" x="20" y="85">linux    build-verified</text>
+      <rect class="svg-box" x="8" y="100" width="316" height="28" rx="2"/>
+      <text class="svg-t sm" x="20" y="119">macos    build-verified</text>
+      <rect class="svg-box" x="8" y="134" width="316" height="28" rx="2"/>
+      <text class="svg-t sm" x="20" y="153">windows  build-verified</text>
+
+      <text class="svg-t sm crit" x="8" y="188">Three cells. But which machine is “macos” —</text>
+      <text class="svg-t sm crit" x="8" y="205">the console host, or the node being reached?</text>
+      <text class="svg-t sm crit" x="8" y="222">The schema cannot distinguish the two claims.</text>
+
+      <rect class="svg-box" x="8" y="246" width="316" height="106" rx="2"/>
+      <text class="svg-t sm bold" x="20" y="266">The rung actually reached</text>
+      <text class="svg-t sm good" x="20" y="287">✓  cross-compiles · 1,638 targets clean</text>
+      <text class="svg-t sm crit" x="20" y="307">✗  runs on that platform · 0 of 75 cells</text>
+      <text class="svg-t sm crit" x="20" y="327">✗  runs against a second machine</text>
+      <text class="svg-t xs mut" x="20" y="345">no vocabulary exists for the third rung</text>
+
+      <!-- the pair matrix -->
+      <text class="svg-t sm mut" x="392" y="46">node OS  →</text>
+      <text class="svg-t sm mut" x="470" y="70" text-anchor="middle">linux</text>
+      <text class="svg-t sm mut" x="600" y="70" text-anchor="middle">macos</text>
+      <text class="svg-t sm mut" x="730" y="70" text-anchor="middle">windows</text>
+      <text class="svg-t sm mut" x="392" y="122">console</text>
+      <text class="svg-t sm mut" x="392" y="139">OS ↓</text>
+
+      <text class="svg-t sm" x="440" y="112" text-anchor="end">linux</text>
+      <text class="svg-t sm" x="440" y="192" text-anchor="end">macos</text>
+      <text class="svg-t sm" x="440" y="272" text-anchor="end">windows</text>
+
+      <rect class="svg-box-hi" x="450" y="84" width="120" height="60" rx="2"/>
+      <text class="svg-t sm crit bold" x="510" y="110" text-anchor="middle">YOUR CASE</text>
+      <text class="svg-t sm crit" x="510" y="127" text-anchor="middle">tried · failed</text>
+
+      <rect class="svg-ghost" x="580" y="84" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="640" y="119" text-anchor="middle">unknown</text>
+      <rect class="svg-ghost" x="710" y="84" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="770" y="119" text-anchor="middle">unknown</text>
+
+      <rect class="svg-ghost" x="450" y="164" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="510" y="199" text-anchor="middle">unknown</text>
+      <rect class="svg-ghost" x="580" y="164" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="640" y="199" text-anchor="middle">unknown</text>
+      <rect class="svg-ghost" x="710" y="164" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="770" y="199" text-anchor="middle">unknown</text>
+
+      <rect class="svg-ghost" x="450" y="244" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="510" y="279" text-anchor="middle">unknown</text>
+      <rect class="svg-ghost" x="580" y="244" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="640" y="279" text-anchor="middle">unknown</text>
+      <rect class="svg-ghost" x="710" y="244" width="120" height="60" rx="2"/>
+      <text class="svg-t sm mut" x="770" y="279" text-anchor="middle">unknown</text>
+
+      <text class="svg-t sm crit" x="450" y="330">Nine pairings. The working directory, the shell path and the</text>
+      <text class="svg-t sm crit" x="450" y="347">path separator all differ per pairing — none is declarable today.</text>
+    </svg>
+    <figcaption>
+      <b>Portability for this feature is a property of a pair, not of a machine.</b> The
+      host-cwd and host-shell defects are the concrete proof: they are invisible on the
+      linux→linux diagonal and break every off-diagonal cell. A per-OS declaration cannot
+      state “a Linux console can drive a macOS node,” which is the only claim an operator
+      actually cares about.
+    </figcaption>
+  </figure>
+
+  <h3>Gap 3 — two of three transport legs survive a network blip</h3>
+
+  <figure>
+    <svg viewBox="0 0 920 300" role="img" aria-label="The node-to-Bridge leg reconnects with exponential backoff and Bridge preserves the session across a transport detach, but the web-console-to-Bridge leg has no reconnect logic, so a brief network interruption returns end-of-file and kills the pane while the remote shell stays alive.">
+      <text class="svg-t xs mut" x="8" y="16">THREE LEGS OF ONE SESSION</text>
+
+      <rect class="svg-box-ok" x="8" y="30" width="220" height="62" rx="2"/>
+      <text class="svg-t bold" x="118" y="52" text-anchor="middle">node agent</text>
+      <text class="svg-t sm good" x="118" y="70" text-anchor="middle">backoff 250 ms → 5 s</text>
+      <text class="svg-t sm good" x="118" y="85" text-anchor="middle">reconnects ✓</text>
+
+      <rect class="svg-box-ok" x="350" y="30" width="220" height="62" rx="2"/>
+      <text class="svg-t bold" x="460" y="52" text-anchor="middle">Bridge</text>
+      <text class="svg-t sm good" x="460" y="70" text-anchor="middle">detach ≠ terminal close</text>
+      <text class="svg-t sm good" x="460" y="85" text-anchor="middle">replays scrollback ✓</text>
+
+      <rect class="svg-box-hi" x="692" y="30" width="220" height="62" rx="2"/>
+      <text class="svg-t bold crit" x="802" y="52" text-anchor="middle">web-console</text>
+      <text class="svg-t sm crit" x="802" y="70" text-anchor="middle">no reconnect, no retry</text>
+      <text class="svg-t sm crit" x="802" y="85" text-anchor="middle">no backoff ✗</text>
+
+      <line class="svg-line good" x1="228" y1="61" x2="344" y2="61" marker-end="url(#ar2g)"/>
+      <line class="svg-line good" x1="344" y1="61" x2="228" y2="61" marker-end="url(#ar2g)"/>
+      <text class="svg-t xs good" x="286" y="50" text-anchor="middle">resumes</text>
+
+      <line class="svg-line crit" x1="570" y1="61" x2="686" y2="61" marker-end="url(#arc)"/>
+      <text class="svg-t xs crit" x="628" y="50" text-anchor="middle">does not</text>
+
+      <line class="svg-rule" x1="8" y1="118" x2="912" y2="118"/>
+      <text class="svg-t xs mut" x="8" y="140">STATE AFTER A FIVE-SECOND WIFI DROP</text>
+
+      <rect class="svg-box-ok" x="8" y="152" width="220" height="52" rx="2"/>
+      <text class="svg-t sm good" x="118" y="173" text-anchor="middle">PTY still alive</text>
+      <text class="svg-t sm mut" x="118" y="190" text-anchor="middle">process untouched</text>
+
+      <rect class="svg-box-ok" x="350" y="152" width="220" height="52" rx="2"/>
+      <text class="svg-t sm good" x="460" y="173" text-anchor="middle">session still open</text>
+      <text class="svg-t sm mut" x="460" y="190" text-anchor="middle">same id would re-attach</text>
+
+      <rect class="svg-box-hi" x="692" y="152" width="220" height="52" rx="2"/>
+      <text class="svg-t sm crit bold" x="802" y="173" text-anchor="middle">Read → io.EOF</text>
+      <text class="svg-t sm crit" x="802" y="190" text-anchor="middle">pane dies · no reason</text>
+
+      <rect class="svg-box-hi" x="8" y="228" width="904" height="54" rx="2"/>
+      <text class="svg-t sm crit" x="24" y="250">bridge_pty.go:19 —</text>
+      <text class="svg-t sm" x="150" y="250">“The client owns URL discovery, authentication, framing, reconnect semantics, and typed resize/data operations”</text>
+      <text class="svg-t xs mut" x="24" y="270">nodeclient contains no reconnect, retry or backoff code. The comment describes an intention, not the package.</text>
+    </svg>
+    <figcaption>
+      <b>The expensive half of resumption is already built.</b> Bridge deliberately treats
+      a browser disconnect as a transport detach and keeps the node PTY alive precisely so
+      a client can re-attach with the same session id. Nothing does. A phone sleeping, a
+      laptop changing networks, or a VPN reconnect kills the pane — the exact conditions a
+      machine-agnostic console has to survive.
+    </figcaption>
+  </figure>
+
+  <h3>Gap 4 — the remaining portability defects</h3>
+
+  <div class="findings">
+    <div class="finding sev-wrong">
+      <div class="finding-head">
+        <span class="id">P1</span>
+        <h4>The Bridge address is not a web-console setting</h4>
+        <span class="pill wrong">Config</span>
+      </div>
+      <p>
+        <code>main.go:342</code> sets <code>bridgeURL := ""</code> with the comment
+        “Bridge endpoint selection belongs to packages/nodeclient,” and nodeclient resolves
+        the hub by slug through discovery. That part is correct and is the same pattern the
+        file uses ten lines away for <code>audio-tools</code>.
+      </p>
+      <p>
+        What was wrong was the old untyped endpoint variable sitting above it.
+        <b>Nothing in the repository sets it</b> — not a script, a manifest, or a test — yet
+        <code>endpoint()</code> reads it at <i>request</i> time and returns it
+        <i>before</i> consulting the explicitly configured <code>BridgeURL</code> field
+        that four callers already pass. So an ambient global outranks explicit
+        configuration, on a client that web-console constructs once per PTY spawn, meaning
+        two clients can never address two Bridges.
+      </p>
+      <p>
+        Delete the <code>os.Getenv</code>. Precedence becomes typed field → slug discovery,
+        both caller-controlled, and nothing breaks. Then give web-console a real setting
+        whose default <i>means</i> “resolve locally,” so the field carries intent rather
+        than emptiness. Note what this does <b>not</b> do: discovery locates a hub on this
+        machine, so removing the variable removes the only — undocumented, config-beating —
+        way to run the console off-host. That capability should return through the shape the
+        agent already uses (an explicit control-plane URL plus mDNS), not an env var.
+      </p>
+      <span class="loc">scenarios/web-console/api/main.go:340-342 · packages/nodeclient/client.go:39,119,141 · docs/reference/configuration.md:32-35</span>
+    </div>
+
+    <div class="finding sev-wrong">
+      <div class="finding-head">
+        <span class="id">P2</span>
+        <h4>“Protocol compatible ✓” is a default, not a measurement</h4>
+        <span class="pill wrong">Fails open</span>
+      </div>
+      <p>
+        A node that has negotiated no version is <code>compat.StatusUnspecified</code>,
+        and <b>two independent places treat that as compatible</b>:
+        <code>compat.go:68</code> returns true for it, and <code>hub.go:252-254</code>
+        overrides it to true again. Your fleet's only node reports an empty revision
+        (<code>rev=-</code> in <code>nodes doctor</code>), so the rung is passing on the
+        absence of information.
+      </p>
+      <p>
+        This is the same defect shape as <code>bridge_scope</code> passing on
+        <code>len(scopes) &gt; 0</code>: for a heterogeneous fleet, version skew is exactly
+        what the rung exists to catch.
+      </p>
+      <span class="loc">scenarios/vrooli-bridge/api/internal/compat/compat.go:68 · internal/presence/hub.go:251-254</span>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head">
+        <span class="id">P3</span>
+        <h4>A node's architecture is reported by the binary, not the machine</h4>
+        <span class="pill debt">Self-perpetuating</span>
+      </div>
+      <p>
+        The agent joins with <code>Facts{OS: runtime.GOOS, Arch: runtime.GOARCH}</code> —
+        the arch <i>it was compiled for</i>. An amd64 build installed on an arm64 machine
+        under emulation reports <code>amd64</code>, and every subsequent artifact Bridge
+        cross-compiles for that node is amd64 forever. Your one node reports
+        <code>darwin/amd64</code>.
+      </p>
+      <p>
+        The SSH onboarding path does it correctly — it probes the host and normalises
+        <code>aarch64 → arm64</code>. So two sources of truth for the same fact disagree
+        by construction, and the wrong one is the one the fleet stores.
+      </p>
+      <span class="loc">scenarios/vrooli-bridge/agent/main.go:168 · api/internal/onboard/sshdriver.go:255-263</span>
+    </div>
+
+    <div class="finding sev-block">
+      <div class="finding-head">
+        <span class="id">P4</span>
+        <h4>The interactive shell is plaintext by design once it leaves the host</h4>
+        <span class="pill block">Boundary</span>
+      </div>
+      <p>
+        Discovery yields <code>http://…</code>; <code>websocketScheme</code> maps that to
+        <code>ws://</code>. The mDNS adapter states the assumption outright: “Bridge
+        commonly serves plain HTTP on a trusted LAN.” On loopback that is fine. The moment
+        an operator sets the old untyped endpoint variable to another machine — the only way to use
+        the console remotely — the <code>Authorization</code> header and a live root-capable
+        shell travel the LAN in the clear.
+      </p>
+      <p>
+        This is a posture, not a bug, but it is currently incidental rather than stated.
+        A machine-agnostic console needs the boundary made explicit: which deployments may
+        use <code>ws://</code>, and what refuses to start without <code>wss://</code>.
+      </p>
+      <span class="loc">packages/nodeclient/client.go:607 · agent/internal/discovery/mdns_adapter.go:54-61</span>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head">
+        <span class="id">P5</span>
+        <h4>The advertised address is one interface's guess</h4>
+        <span class="pill debt">Multi-homed hosts</span>
+      </div>
+      <p>
+        <code>outboundIP()</code> asks the kernel which source address it would use for a
+        TEST-NET destination and advertises that. On a host with a VPN, a container bridge,
+        or both wifi and ethernet, that can be an address no node can route to; with no
+        default route it falls back to <code>127.0.0.1</code> and advertises loopback to
+        the LAN. The comment is honest about the fallback; the failure is silent.
+      </p>
+      <span class="loc">scenarios/vrooli-bridge/api/main.go:298-313</span>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head">
+        <span class="id">P6</span>
+        <h4>A complete SSH backend is wired to nothing</h4>
+        <span class="pill debt">Unreached transport</span>
+      </div>
+      <p>
+        <code>packages/session-core</code> ships <code>NewSSHBackend</code>,
+        <code>SSHSession</code> and a full <code>sshPTY</code> implementing the same
+        contract as the local and node-agent backends. <b>No caller constructs it.</b>
+        Bridge registers <code>NODE_KIND_SSH</code> nodes and web-console maps them to
+        kind <code>"ssh"</code>, but <code>target.Available</code> requires
+        <code>NODE_KIND_AGENT</code> — so an SSH node can be listed and can never be used.
+      </p>
+      <p>
+        SSH is the portability answer for machines that cannot or should not run a resident
+        agent: locked-down servers, appliances, a box you do not own. The implementation
+        exists; the last wire does not.
+      </p>
+      <span class="loc">packages/session-core/session.go:200-258 · scenarios/web-console/api/remote_targets.go:128</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ 8. REGISTER ══════════════ -->
+  <div class="sec">
+    <span class="label">Findings register</span>
+    <h2>Everything found, ranked</h2>
+    <p>Blocking defects first, then correctness, then debt. All verified in the working tree or against the live control plane.</p>
+  </div>
+
+  <div class="tablewrap wide">
+    <table>
+      <caption>30 findings · 18 defect · 8 portability · 4 design &amp; documentation conflicts</caption>
+      <thead>
+        <tr><th>#</th><th>Finding</th><th>Seam</th><th>Class</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">F1</td><td>The session channel invented <code>vrooli-bridge:session</code>, a fourth effect outside the catalog, instead of the <code>vrooli-bridge:&lt;effect&gt;</code> convention the relay path already uses — so no preset can produce it</td><td class="num">vrooli-bridge</td><td><span class="pill block">Blocking</span></td></tr>
+        <tr><td class="num">F2</td><td>Preset save via <code>SetScopes</code> replaces the whole list, silently stripping a CLI-granted session scope</td><td class="num">web-console → bridge</td><td><span class="pill block">Blocking</span></td></tr>
+        <tr><td class="num">F3</td><td>Handshake response discarded at <code>client.go:455</code>; every failure becomes “bad handshake”</td><td class="num">nodeclient</td><td><span class="pill block">Blocking</span></td></tr>
+        <tr><td class="num">F4</td><td>Mid-session close reasons are written to a one-shot <code>readyCh</code> nobody drains; every termination reads as bare <code>io.EOF</code></td><td class="num">nodeclient</td><td><span class="pill block">Blocking</span></td></tr>
+        <tr><td class="num">F5</td><td><code>%v</code> not <code>%w</code> at <code>session_manager.go:346</code> destroys the typed error kind</td><td class="num">web-console</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F6</td><td>Remote create branch skips <code>mapCreateError</code>; raw internals with a node UUID reach the browser</td><td class="num">web-console</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F7</td><td><code>Available</code> ignores session capability; picker, preflight and <code>nodes doctor</code> all clear an unusable node</td><td class="num">web-console + bridge</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F8</td><td><code>ReadinessSessionSupport</code> and <code>ReadinessAgentCLI</code> declared with recovery copy, emitted by nothing</td><td class="num">api-core</td><td><span class="pill debt">Debt</span></td></tr>
+        <tr><td class="num">F9</td><td><code>PROJECT_SCOPE_VOCABULARY</code> excludes transport capabilities by regex and scans 4 hardcoded directories that omit the enforcement site</td><td class="num">structure-health</td><td><span class="pill block">Evidence</span></td></tr>
+        <tr><td class="num">F10</td><td><code>MachinePicker</code> options are never disabled — not for grant, not for offline</td><td class="num">web-console UI</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F11</td><td>Grant chip carries a 3,480-character readiness detail in a <code>shrink-0</code> pill, collapsing the machine name to zero width</td><td class="num">web-console UI</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F12</td><td>Grant chip is hidden on the selected row — the one row where it matters</td><td class="num">web-console UI</td><td><span class="pill debt">Debt</span></td></tr>
+        <tr><td class="num">F13</td><td>Three disjoint stacking scales; <code>BannerRegion</code> has no z-index; actionable errors auto-dismiss at 8 s</td><td class="num">web-console UI + RCL</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F14</td><td><code>handleRetry</code> replays with no options — retrying a failed remote agent launch opens a local empty shell</td><td class="num">web-console UI</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F15</td><td><code>LaunchCommand</code> plumbed through three hops and dropped; remote branch skips both the paste and the metadata write</td><td class="num">web-console + session-core</td><td><span class="pill wrong">Wrong</span></td></tr>
+        <tr><td class="num">F16</td><td>Session channel never consults the owner's scope ceiling; <code>auth.Identity.Scopes</code> is populated and ignored</td><td class="num">vrooli-bridge</td><td><span class="pill block">Security</span></td></tr>
+        <tr><td class="num">F17</td><td>All 4 session-channel tests construct the handler with <code>registry: nil</code>, exercising a branch production never takes</td><td class="num">vrooli-bridge</td><td><span class="pill block">Evidence</span></td></tr>
+        <tr><td class="num">F18</td><td>Bridge hand-rolls <code>sameOrigin</code> by string prefix while <code>session-core</code> exports a stricter, URL-parsing <code>SameOrigin</code></td><td class="num">vrooli-bridge</td><td><span class="pill debt">Debt</span></td></tr>
+        <tr><td class="num">P1</td><td>The old untyped endpoint variable had zero producers, was read at request time, and outranked the typed <code>BridgeURL</code> field four callers already passed</td><td class="num">nodeclient</td><td><span class="pill wrong">Portability</span></td></tr>
+        <tr><td class="num">P2</td><td>Unspecified protocol version is treated as compatible in two places; the node reports no revision</td><td class="num">vrooli-bridge</td><td><span class="pill wrong">Portability</span></td></tr>
+        <tr><td class="num">P3</td><td>Node arch is <code>runtime.GOARCH</code> of the agent binary, not the machine; an emulated install self-perpetuates</td><td class="num">bridge agent</td><td><span class="pill debt">Portability</span></td></tr>
+        <tr><td class="num">P4</td><td>Interactive shell and owner credential travel plaintext <code>ws://</code> once the console is not co-located</td><td class="num">nodeclient + bridge</td><td><span class="pill block">Portability</span></td></tr>
+        <tr><td class="num">P5</td><td><code>outboundIP()</code> advertises a single default-route address; multi-homed and routeless hosts advertise something unreachable</td><td class="num">vrooli-bridge</td><td><span class="pill debt">Portability</span></td></tr>
+        <tr><td class="num">P6</td><td>A complete SSH session backend exists in <code>session-core</code> and is constructed by nothing; SSH nodes can never be available</td><td class="num">session-core + web-console</td><td><span class="pill debt">Portability</span></td></tr>
+        <tr><td class="num">P7</td><td>Local host cwd and shell path sent verbatim to a remote node of a different OS</td><td class="num">web-console</td><td><span class="pill wrong">Portability</span></td></tr>
+        <tr><td class="num">P8</td><td>No reconnect on the console→Bridge leg, while the other two legs implement resumption and the code comment claims it does</td><td class="num">nodeclient</td><td><span class="pill block">Portability</span></td></tr>
+        <tr><td class="num">D1</td><td>Two designs both claim to be the shared node client: <code>nodeclient</code> has the four verbs and the consumers, <code>discovery.ResolveScenario</code> has the address grammar and none — and neither references the other</td><td class="num">api-core + nodeclient</td><td><span class="pill block">Architecture</span></td></tr>
+        <tr><td class="num">D2</td><td>The Bridge Reach Map states the node seam is “default-wired”; no constructor wires it, and the only configurations are in a test file</td><td class="num">docs vs api-core</td><td><span class="pill wrong">Doc conflict</span></td></tr>
+        <tr><td class="num">D3</td><td>That audit's headline blocker — scenario-owned verbs failing relay with <code>exit 127</code> — no longer reproduces; the doc under-reports current state</td><td class="num">docs</td><td><span class="pill debt">Doc conflict</span></td></tr>
+        <tr><td class="num">D4</td><td>Four environment namespaces name one port that Bridge's own manifest fixes at 18767</td><td class="num">repo-wide</td><td><span class="pill debt">Config sprawl</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="findings">
+    <div class="finding sev-block">
+      <div class="finding-head">
+        <span class="id">F16</span>
+        <h4>The highest-privilege operation in the fleet is the one that checks least</h4>
+        <span class="pill block">Security</span>
+      </div>
+      <p>
+        Opening an interactive shell on a remote machine authorizes on two things: the
+        <i>node's</i> grant, and the presence of an owner re-authentication proof. The
+        owner's own scope ceiling — minted into the token, validated by
+        <code>ContainsAll</code>, and carried on <code>auth.Identity.Scopes</code> — is
+        never read by this handler. An operator enrolled with a read-only ceiling can open
+        a full shell on any node that holds the session grant.
+      </p>
+      <p>
+        Your enrolled ceiling today is
+        <code>["agent-manager:read", "agent-manager:write", "vrooli-bridge:read", "vrooli-bridge:write"]</code>
+        — and it is irrelevant to whether the session opens.
+      </p>
+      <span class="loc">scenarios/vrooli-bridge/api/handlers/channel/session_ws.go:32-79 · internal/auth/auth.go:222</span>
+    </div>
+
+    <div class="finding sev-block">
+      <div class="finding-head">
+        <span class="id">F17 + F9</span>
+        <h4>Two independent verification layers were both blind to this</h4>
+        <span class="pill block">Evidence</span>
+      </div>
+      <p>
+        <code>session_ws_test.go</code> has four cases covering relay, enrolled-session
+        acceptance, scope refusal and cross-origin rejection. Every one constructs
+        <code>&amp;sessionWSHandler{…}</code> without a <code>registry</code>, which sends
+        the handler down the <code>scopes</code> query-parameter branch. Production always
+        has a registry, so the query parameter is ignored and grants come from the node
+        record. <b>The authorization surface of the session channel is verified only
+        through a code path production never takes.</b>
+      </p>
+      <p>
+        Above it, structure-health's <code>PROJECT_SCOPE_VOCABULARY</code> rule — which
+        exists precisely to catch a relying party enforcing an unknown scope — cannot match
+        a transport capability with its regex and does not scan the directory the
+        enforcement lives in. Two layers, two independent blind spots, same defect.
+      </p>
+      <span class="loc">scenarios/vrooli-bridge/api/handlers/channel/session_ws_test.go:36,66,82,94 · structure-health/…/scope_vocabulary.go:19,33-38</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ 9. PLACEMENT ═════════════ -->
+  <div class="sec">
+    <span class="label">Where the code belongs</span>
+    <h2>Not a new package — a package that was never finished</h2>
+    <p>Your instinct about <code>api-core</code> was right, and the answer is smaller than a new package.</p>
+  </div>
+
+  <p>
+    <code>packages/api-core</code> is a forty-subpackage utility belt — preflight,
+    database, discovery, retry, metrics. Adding an authorization <i>domain concept</i> as
+    a new sibling there would grow the belt, and you were right to push on it. But the
+    domain already has an owner one level down, and its package comment already claims the
+    job:
+  </p>
+
+  <div class="evidence">
+<pre>packages/api-core/scopecatalog/catalog.go:1
+
+  <span class="ok">// Package scopecatalog derives the authorization vocabulary from CLI</span>
+  <span class="ok">// governance metadata. It deliberately has no dependency on the</span>
+  <span class="ok">// authenticator or on any scenario package.</span></pre>
+  </div>
+
+  <p>
+    It already has fifteen importers — <code>nodeclient</code>, <code>vrooli-bridge</code>
+    (four packages), <code>structure-health</code>, <code>agent-manager</code>. It owns
+    <i>deriving</i> the vocabulary. What leaked out is <i>interpreting</i> it. So the
+    recommendation changes: <b>do not create <code>scopegrammar</code>. Complete
+    <code>scopecatalog</code>.</b>
+  </p>
+
+  <figure>
+    <svg viewBox="0 0 920 340" role="img" aria-label="Four independent parsers of the same scope grammar consolidate into the existing scopecatalog package, which already declares itself the owner of the authorization vocabulary and is already imported by three of the four callers. Two alternative homes are rejected.">
+      <text class="svg-t xs crit" x="8" y="16">FOUR PARSERS OF ONE GRAMMAR</text>
+
+      <rect class="svg-box-hi" x="8" y="30" width="268" height="34" rx="2"/>
+      <text class="svg-t sm" x="20" y="52">grantSummaryForScopes · web-console</text>
+      <rect class="svg-box-hi" x="8" y="70" width="268" height="34" rx="2"/>
+      <text class="svg-t sm" x="20" y="92">classifyScopes · web-console</text>
+      <rect class="svg-box-hi" x="8" y="110" width="268" height="34" rx="2"/>
+      <text class="svg-t sm" x="20" y="132">validateGrant · vrooli-bridge</text>
+      <rect class="svg-box-hi" x="8" y="150" width="268" height="34" rx="2"/>
+      <text class="svg-t sm" x="20" y="172">scopesForEffects · vrooli-bridge</text>
+
+      <text class="svg-t xs crit" x="8" y="204">two splitters · three wildcard rules · zero agreement</text>
+
+      <path class="svg-line crit" d="M 276 47 L 300 47 L 300 105 L 336 105" marker-end="url(#arc)"/>
+      <path class="svg-line crit" d="M 276 87 L 300 87 L 300 105" />
+      <path class="svg-line crit" d="M 276 127 L 300 127 L 300 105" />
+      <path class="svg-line crit" d="M 276 167 L 300 167 L 300 105" />
+
+      <rect class="svg-box-ok" x="342" y="60" width="288" height="90" rx="2"/>
+      <text class="svg-t bold good" x="486" y="84" text-anchor="middle">packages/api-core/scopecatalog</text>
+      <text class="svg-t sm" x="486" y="104" text-anchor="middle">already owns the vocabulary</text>
+      <text class="svg-t sm" x="486" y="121" text-anchor="middle">already imported by 3 of the 4</text>
+      <text class="svg-t sm good" x="486" y="138" text-anchor="middle">+ Parse · Classify · Summarize · capabilities</text>
+
+      <line class="svg-line good" x1="630" y1="105" x2="666" y2="105" marker-end="url(#ar2g)"/>
+      <rect class="svg-box-ok" x="672" y="60" width="240" height="90" rx="2"/>
+      <text class="svg-t sm good bold" x="792" y="84" text-anchor="middle">what it unblocks</text>
+      <text class="svg-t sm" x="792" y="103" text-anchor="middle">the :session literal disappears</text>
+      <text class="svg-t sm" x="792" y="120" text-anchor="middle">structure-health can see it</text>
+      <text class="svg-t sm" x="792" y="137" text-anchor="middle">the grant chip can describe it</text>
+
+      <line class="svg-rule" x1="8" y1="228" x2="912" y2="228"/>
+      <text class="svg-t xs mut" x="8" y="250">CONSIDERED AND REJECTED</text>
+
+      <rect class="svg-ghost" x="8" y="262" width="444" height="62" rx="2"/>
+      <text class="svg-t sm mut" x="20" y="283">a new packages/api-core/scopegrammar sibling</text>
+      <text class="svg-t sm crit" x="20" y="303">splits one concept across two packages and grows</text>
+      <text class="svg-t sm crit" x="20" y="318">the utility belt you were right to question</text>
+
+      <rect class="svg-ghost" x="468" y="262" width="444" height="62" rx="2"/>
+      <text class="svg-t sm mut" x="480" y="283">packages/capability-registry-go</text>
+      <text class="svg-t sm crit" x="480" y="303">its “capability” means scenario dependency</text>
+      <text class="svg-t sm crit" x="480" y="318">availability — a different word, same spelling</text>
+    </svg>
+    <figcaption>
+      <b>The cheapest correct move is the one that adds no new package.</b> Three of the
+      four callers already depend on <code>scopecatalog</code>; the fourth, web-console,
+      already requires <code>api-core</code> in its <code>go.mod</code>, so the import
+      costs nothing — and web-console hand-rolling the summary is precisely the symptom of
+      never having taken it.
+    </figcaption>
+  </figure>
+
+  <p>
+    One line splits cleanly along vocabulary versus policy:
+  </p>
+
+  <div class="compare">
+    <div class="next">
+      <h4>scopecatalog owns — vocabulary</h4>
+      <ul>
+        <li>Parsing <code>&lt;namespace&gt;:&lt;effect&gt;</code> and wildcards, once</li>
+        <li><code>TransportScope(required)</code> — the <code>"vrooli-bridge:" + effect</code> derivation that <code>transport.go</code> and <code>allowlist.go</code> each perform inline today, so every transport asks the same question the same way</li>
+        <li>Classification and human summary, so every surface describes a grant identically</li>
+      </ul>
+    </div>
+    <div class="next">
+      <h4>vrooli-bridge keeps — policy</h4>
+      <ul>
+        <li>Which effect each transport requires as its floor</li>
+        <li>What a grant means for admission</li>
+        <li>The owner ceiling and re-authentication rules</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Note the scope of the change this implies.</strong> With the session channel
+    moved onto the existing convention, the vocabulary work is no longer load-bearing for
+    the fix — it becomes debt reduction that also prevents the next divergence. That is a
+    better position to be in: the unblocking change is one line, and the consolidation can
+    be judged on its own merits rather than smuggled in as a prerequisite.
+  </div>
+
+  <p>
+    <code>session-core</code> is the counter-example worth copying: a shared,
+    transport-neutral contract, adopted by web-console through a thin alias file and by
+    scenario-to-cloud directly. The scope vocabulary deserves the same treatment, and
+    <code>scopecatalog</code> is already 80% of the way there.
+  </p>
+
+  <!-- ══════════════════════════════════════ 10. DEBT ═════════════════ -->
+  <div class="sec">
+    <span class="label">Maturity</span>
+    <h2>Where the messiness lies</h2>
+    <p>Debt worth paying down while the code is open — duplication, dead vocabulary, missing seams, and shapes that read green because they measure the wrong thing.</p>
+  </div>
+
+  <h3>Duplication to collapse</h3>
+
+  <div class="tablewrap wide">
+    <table>
+      <caption>One grammar, four parsers</caption>
+      <thead>
+        <tr><th>Location</th><th>Function</th><th>Splitter</th><th>Diverges by</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">web-console/api/target_catalog.go:112</td><td>grantSummaryForScopes</td><td class="num">SplitN + ToLower</td><td>treats <code>*</code> as read</td></tr>
+        <tr><td class="num">web-console/api/machines_catalog.go:283</td><td>classifyScopes</td><td class="num">SplitN + ToLower</td><td>treats <code>*</code> as all three</td></tr>
+        <tr><td class="num">vrooli-bridge/…/registry/service.go:186</td><td>validateGrant</td><td class="num">strings.Cut</td><td>owns wildcard + special-case rules</td></tr>
+        <tr><td class="num">vrooli-bridge/…/pairing/presets.go:47</td><td>scopesForEffects</td><td class="num">substring check</td><td>rejects any value containing <code>*</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    The first two are the same line of code copy-pasted inside one package. All four are
+    blind to <code>vrooli-bridge:session</code> in the same way: its effect segment matches
+    no <code>case</code>, so it falls through every <code>switch</code> silently — which is
+    exactly why the grant chip could never say “can open terminal sessions.”
+  </p>
+
+  <p>
+    <b>A second duplication is higher-risk:</b> <code>session-core</code> exports
+    <code>SameOrigin</code>, which parses the URL, requires an <code>http(s)</code> scheme
+    and compares hosts case-insensitively. Bridge's channel handler carries its own
+    private <code>sameOrigin</code> that does two <code>TrimPrefix</code> calls and a
+    case-sensitive string compare. Bridge already depends on the module that exports the
+    good one. A security primitive should not have two implementations, and the weaker one
+    should not be the one guarding the shell.
+  </p>
+
+  <h3>Dead code and dead vocabulary to remove or wire</h3>
+
+  <div class="compare">
+    <div class="now">
+      <h4>Declared, never used</h4>
+      <ul>
+        <li><code>ReadinessSessionSupport</code> — label and recovery copy written, zero producers</li>
+        <li><code>ReadinessAgentCLI</code> — same</li>
+        <li><code>NewSSHBackend</code> and <code>sshPTY</code> in <code>session-core</code> — a complete transport, constructed by nothing</li>
+        <li><code>LaunchCommand</code> / <code>ExecuteLaunchCommand</code> on <code>session-core.LaunchSpec</code> — set at three seams, read at none, and <b>inherited by scenario-to-cloud</b> because the dead field lives in the shared contract</li>
+        <li><code>scopes=</code> query parameter sent by <code>nodeclient</code> — ignored whenever a registry exists</li>
+        <li><code>launcher-target-unavailable</code> warning — reachable only in states the picker already prevents</li>
+      </ul>
+    </div>
+    <div class="next">
+      <h4>Rules to adopt</h4>
+      <ul>
+        <li>A vocabulary constant with no producer is a defect, not a placeholder — emit it or delete it</li>
+        <li>A struct field carried across a process boundary and never read is a claim about completeness that is not true; in a <i>shared</i> package it is that claim made to every consumer</li>
+        <li>Conformance test: every <code>Readiness*</code> identity has at least one emitter</li>
+        <li>Conformance test: every capability the control plane <i>enforces</i> is reachable from at least one preset</li>
+        <li>Conformance test: no exported backend in <code>session-core</code> is unconstructed</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>
+    The second conformance test is the general form of the root cause. It would have failed
+    the day the session channel shipped, and it will catch the next capability enforced
+    before it is grantable.
+  </p>
+
+  <h3>Seams to introduce</h3>
+
+  <div class="findings">
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4><code>CanHostSession(node) (bool, reason)</code></h4><span class="pill debt">One predicate, three consumers</span></div>
+      <p>
+        “Can this node host an interactive session?” is answered independently by
+        <code>targetFromRegistryNode</code>, by the <code>Create</code> preflight, and by
+        <code>nodes doctor</code> — and all three are wrong the same way. One predicate,
+        surfaced as a readiness fact, corrects every surface and makes the next divergence
+        impossible.
+      </p>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4><code>dialSession</code> — classify the handshake, don't discard it</h4><span class="pill debt">Diagnosability</span></div>
+      <p>
+        One helper in <code>nodeclient</code> that dials, keeps the
+        <code>*http.Response</code>, and maps <code>401 → ErrMissingReauth</code>,
+        <code>403 → ErrMissingScope</code>, <code>404 → ErrNodeNotFound</code>,
+        <code>503 → ErrNodeUnavailable</code>, carrying Bridge's reason string. Also the
+        right moment to replace <code>websocket.DefaultDialer</code> — the mutable package
+        global whose 45 s handshake timeout silently exceeds the 30 s call context.
+      </p>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4>A durable session status channel, not a one-shot ready gate</h4><span class="pill debt">Diagnosability</span></div>
+      <p>
+        Replace <code>readyCh</code>'s single-read handshake with a stored terminal status
+        the <code>PTY</code> can report after <code>Read</code> returns <code>io.EOF</code>.
+        Every close reason the protocol already carries then reaches the operator instead
+        of a silently vanishing pane.
+      </p>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4>One error-mapping seam for local and remote</h4><span class="pill debt">Simplification</span></div>
+      <p>
+        <code>mapCreateError</code> exists and is good; the remote branch simply returns
+        before reaching it. Move mapping to the single point where <code>Create</code>
+        returns, so one place decides what an operator sees and no branch can bypass it by
+        construction. Fix <code>%v</code> → <code>%w</code> in the same pass.
+      </p>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4>Target-aware launch resolution</h4><span class="pill debt">Correctness by construction</span></div>
+      <p>
+        <code>ResolveWorkingDir()</code> and <code>ResolveShell()</code> are host functions
+        used as session functions. Make resolution take the target: for a remote node the
+        answer is “let the node decide” unless the operator set something explicitly for
+        <i>that</i> machine. The whole off-diagonal column of the portability matrix stops
+        being a bug rather than being patched.
+      </p>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4>Resumption on the third leg</h4><span class="pill debt">Reliability</span></div>
+      <p>
+        Bridge already keeps the session and the node PTY alive across a transport detach
+        and replays bounded scrollback. Give <code>nodeclient</code> the reconnect its own
+        adapter comment already claims it has: re-dial with the same session id under the
+        same backoff shape the agent uses. This is the difference between a console that
+        works on a laptop and one that works on a laptop that moves.
+      </p>
+    </div>
+
+    <div class="finding sev-debt">
+      <div class="finding-head"><h4>Presentation strings out of the transport</h4><span class="pill debt">Payload + tightness</span></div>
+      <p>
+        <code>grantDetailForScopes</code> builds a 3,480-character sentence server-side by
+        joining every scope, ships it per node on every catalog refresh, and the picker
+        renders it into a fixed-width chip. The readiness <code>detail</code> should carry
+        the summary; the scope list belongs in the machines drawer, fetched when opened.
+      </p>
+    </div>
+  </div>
+
+  <h3>Smaller tightenings</h3>
+  <ul>
+    <li><code>matchPreset</code> is an exact-set comparison, so a node holding operate <i>plus</i> a capability grant matches no preset and the drawer shows nothing selected. Match on the preset's semantic content instead.</li>
+    <li>Bridge's default session id is a formatted timestamp (<code>session_ws.go:76</code>) — an identity that can collide. Use a UUID like every other id in the system.</li>
+    <li><code>createInFlight</code> drops a rapid second launch with no feedback at all (<code>useSessionManager.ts:309</code>).</li>
+    <li>Auto-dismiss should apply to informational notices only; an error carrying a recovery action must persist until dismissed or resolved.</li>
+    <li><code>nodes update --scopes</code> help text describes the grammar as <code>&lt;namespace&gt;:&lt;effect&gt;</code>, which cannot express the one value an operator currently needs to type by hand.</li>
+    <li><code>vrooli capability conformance</code> exits 0 with 80 findings. Decide whether it is a gate or a report, and make the exit code say so.</li>
+  </ul>
+
+  <!-- ══════════════════════════════════════ 11. SEQUENCE ═════════════ -->
+  <div class="sec">
+    <span class="label">Plan of action</span>
+    <h2>Recommended sequence</h2>
+    <p>Ordered so each phase is independently verifiable and the evidence gap closes before the fixes land on top of it.</p>
+  </div>
+
+  <div class="phases">
+    <div class="phase">
+      <span class="n">1</span>
+      <h4>Close the evidence gap first</h4>
+      <p class="gate">Gate: two checks fail today that would each have caught the root cause.</p>
+      <ul>
+        <li>Rewrite the session-channel tests to construct the handler <b>with a registry</b> (F17)</li>
+        <li>Preset conformance: every enforced capability is preset-reachable (F1)</li>
+        <li>Widen <code>PROJECT_SCOPE_VOCABULARY</code> to transport capabilities and to a repo-wide walk (F9)</li>
+      </ul>
+      <p>Both must fail on the current tree. Nothing else lands until they do.</p>
+    </div>
+
+    <div class="phase">
+      <span class="n">2</span>
+      <h4>Make failure legible, open and mid-session</h4>
+      <p class="gate">Gate: a denied session names the scope; a closed session names the reason.</p>
+      <ul>
+        <li>Capture and classify the handshake response (F3)</li>
+        <li>Durable terminal status replacing the one-shot ready gate (F4)</li>
+        <li><code>%v</code> → <code>%w</code>, and route the remote branch through the single mapping seam (F5, F6)</li>
+      </ul>
+      <p>This lands before the grant fix on purpose: it is what proves the grant fix worked.</p>
+    </div>
+
+    <div class="phase">
+      <span class="n">3</span>
+      <h4>Adopt the transport-scope convention that already works</h4>
+      <p class="gate">Gate: linking a machine at <code>operate</code> yields a working session, with no new scope value anywhere.</p>
+      <ul>
+        <li>Session channel requires <code>vrooli-bridge:&lt;effect&gt;</code> as the relay path does; state the floor (<code>write</code> recommended) and why (F1)</li>
+        <li>Delete <code>session.Scope</code> and the <code>== "vrooli-bridge:session"</code> special case in <code>validateGrant</code></li>
+        <li>Lift the derivation into <code>scopecatalog.TransportScope</code>; migrate all four parsers onto it (debt)</li>
+        <li>Preset save preserves grants it does not own (F2)</li>
+        <li>Correct the stale requirement text in <code>04-job-dispatch/module.json</code></li>
+      </ul>
+      <p>minimouse already holds <code>vrooli-bridge:write</code>. This phase is expected to turn the feature on without touching a single node grant — which is also the cleanest possible proof that phase 1's tests were measuring the right thing.</p>
+    </div>
+
+    <div class="phase">
+      <span class="n">4</span>
+      <h4>Stop offering what cannot work</h4>
+      <p class="gate">Gate: an ungranted node is visibly unselectable and routes to Manage machines.</p>
+      <ul>
+        <li><code>CanHostSession</code> as one predicate; emit <code>session_support</code> (F7, F8)</li>
+        <li>Disable non-dispatchable picker options with reason and recovery link (F10)</li>
+        <li>Grant chip: summary only, truncated, visible on the selected row (F11, F12)</li>
+        <li><code>nodes doctor</code> gains the same rung; unspecified protocol version stops passing (P2)</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="n">5</span>
+      <h4>Fix the surface the error appears on</h4>
+      <p class="gate">Gate: an error raised inside the launcher is readable without closing it.</p>
+      <ul>
+        <li>Collapse to one stacking scale; give the banner region a real layer (F13)</li>
+        <li>Actionable errors stop auto-dismissing</li>
+        <li><code>handleRetry</code> replays the original <code>LaunchOptions</code> (F14)</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="n">6</span>
+      <h4>Make the remote session equal to the local one</h4>
+      <p class="gate">Gate: launching Claude Code on a remote node starts Claude Code.</p>
+      <ul>
+        <li>Implement <code>LaunchCommand</code> for remote sessions, or remove it from the shared contract (F15)</li>
+        <li>Target-aware working-directory and shell resolution (P7)</li>
+        <li>Record agent type and transcript identity on the remote path</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="n">7</span>
+      <h4>Make it machine-agnostic in fact, not only in build</h4>
+      <p class="gate">Gate: one non-linux node runs a real session, and the claim is recorded.</p>
+      <ul>
+        <li>Resumption on the console→Bridge leg (P8)</li>
+        <li>Delete the legacy untyped endpoint getenv; precedence becomes typed field → slug discovery. Give web-console a real Bridge-address setting whose default means “resolve locally” (P1, D4)</li>
+        <li>Resolve D1: decide whether <code>nodeclient</code> or <code>discovery</code> is the shared node client, and make the other defer to it. The module layout currently forbids the obvious wiring, so this is a placement decision, not a code move</li>
+        <li>Refresh the Bridge Reach Map: correct the “default-wired” claim, retire the fixed relay blocker (D2, D3)</li>
+        <li>Declare <code>platform_capabilities</code> for vrooli-bridge; extend the schema so a cross-machine capability can name a <b>pair</b>, and promote one cell to <code>supported</code> with real evidence</li>
+        <li>Node arch probed rather than self-reported (P3); advertised address handles multi-homed hosts (P5)</li>
+        <li>State the transport-confidentiality boundary and enforce it: which deployments may use <code>ws://</code>, and what refuses to start without <code>wss://</code> (P4)</li>
+        <li>Wire the SSH backend, or delete it from <code>session-core</code> (P6)</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <span class="n">8</span>
+      <h4>Close the authorization asymmetry</h4>
+      <p class="gate">Gate: a read-only ceiling cannot open a shell.</p>
+      <p>
+        Enforce the owner's scope ceiling on the session channel alongside the node grant
+        (F16); adopt <code>session-core.SameOrigin</code> in place of the private
+        implementation (F18); drop or honour the vestigial <code>scopes=</code> query
+        parameter. Deliberately last: it changes who can do what, and should land on a
+        stack where every other signal is already trustworthy.
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ 12. DoD ═════════════════ -->
+  <div class="sec">
+    <span class="label">For the plan</span>
+    <h2>Definition of done</h2>
+    <p>Each line is independently checkable and names the evidence that settles it. A plan is not done because the code changed; it is done because these read true.</p>
+  </div>
+
+  <h4>Capability &amp; governance</h4>
+  <ul class="checklist">
+    <li>A machine linked through the web-console <b>Link a machine</b> flow at the <code>operate</code> preset can open a remote session with no CLI step.
+      <span class="ev">evidence: fresh pairing → launcher → session opens · recorded</span></li>
+    <li>Saving any preset from the machines drawer preserves capability grants that preset does not own.
+      <span class="ev">evidence: unit test on the grant-merge path</span></li>
+    <li>Every capability the control plane enforces is reachable from at least one preset.
+      <span class="ev">evidence: preset-conformance test, red on the pre-fix tree</span></li>
+    <li>Every Bridge transport derives its required scope from one shared helper; no transport carries its own scope literal.
+      <span class="ev">evidence: the deletion diff plus a test over both transports</span></li>
+    <li>The session channel opens against a node whose grants were never hand-edited.
+      <span class="ev">evidence: live run on minimouse at its existing 153 scopes</span></li>
+    <li>No source file outside <code>scopecatalog</code> contains a literal scope string in an authorization decision.
+      <span class="ev">evidence: widened PROJECT_SCOPE_VOCABULARY over a repo-wide walk</span></li>
+    <li>The <code>04-job-dispatch</code> requirement describes the session scope as implemented and grantable.
+      <span class="ev">evidence: diff on requirements/</span></li>
+  </ul>
+
+  <h4>Diagnosability</h4>
+  <ul class="checklist">
+    <li>A session denied for a missing node scope names the scope and a recovery action, in the launcher, without opening a log.
+      <span class="ev">evidence: screenshot + handler test asserting the message</span></li>
+    <li>Missing re-authentication, unknown node, offline node and denied scope produce four distinguishable operator-facing messages.
+      <span class="ev">evidence: table-driven test over the four statuses</span></li>
+    <li>A session closed by the node or Bridge shows the close reason; <code>shell_not_allowed</code> in particular is legible to the operator.
+      <span class="ev">evidence: fake-node test driving a Close frame end to end</span></li>
+    <li>No error reaching the browser contains a raw node UUID or an unmapped internal chain.
+      <span class="ev">evidence: assertion on the remote create path</span></li>
+  </ul>
+
+  <h4>Readiness &amp; UI truth</h4>
+  <ul class="checklist">
+    <li>A node without the session capability is reported not-available by the picker, the server preflight and <code>nodes doctor</code> — all three from one predicate.
+      <span class="ev">evidence: one test per consumer against a shared fixture</span></li>
+    <li>A node that has negotiated no protocol version does not pass the protocol rung.
+      <span class="ev">evidence: presence hub test on StatusUnspecified</span></li>
+    <li>An unavailable machine cannot be selected, and states its reason plus a route to Manage machines.
+      <span class="ev">evidence: RTL test + screenshot</span></li>
+    <li>The grant chip renders within its row at 320 px width with a 153-scope node, and stays visible when that row is selected.
+      <span class="ev">evidence: RTL test asserting no overflow + screenshot</span></li>
+    <li>Every <code>Readiness*</code> identity has at least one emitter, or is deleted.
+      <span class="ev">evidence: conformance test</span></li>
+  </ul>
+
+  <h4>Overlay &amp; error surface</h4>
+  <ul class="checklist">
+    <li>One stacking scale governs both portalled library surfaces and in-flow app chrome; web-console declares no competing <code>--layer-*</code> values.
+      <span class="ev">evidence: token diff + a test asserting banner &gt; modal</span></li>
+    <li>An error raised by an action inside a dialog is readable without dismissing that dialog.
+      <span class="ev">evidence: RTL test + screenshot at mobile width</span></li>
+    <li>Errors carrying a recovery action do not auto-dismiss.
+      <span class="ev">evidence: timer test</span></li>
+    <li>Retry replays the original target and command.
+      <span class="ev">evidence: RTL test asserting the second call's arguments</span></li>
+  </ul>
+
+  <h4>Remote parity</h4>
+  <ul class="checklist">
+    <li>Launching an agent shortcut on a remote node starts that agent, not a bare shell — or is refused with a stated reason.
+      <span class="ev">evidence: live run against a real node, recorded</span></li>
+    <li>No local-host path or shell is transmitted to a remote node.
+      <span class="ev">evidence: assertion on the outbound OpenRequest</span></li>
+    <li>A remote session records agent type and transcript identity equivalently to a local one.
+      <span class="ev">evidence: store assertion on both paths</span></li>
+  </ul>
+
+  <h4>Portability</h4>
+  <ul class="checklist">
+    <li>A five-second network interruption does not end a remote session; the pane re-attaches and scrollback is intact.
+      <span class="ev">evidence: fault-injection test + recorded live run</span></li>
+    <li>web-console can be pointed at a Bridge on another machine through documented configuration, and explicit configuration is not overridden by an environment variable.
+      <span class="ev">evidence: configuration.md entry + precedence test</span></li>
+    <li>At least one non-linux platform cell is promoted from <code>build-verified</code> to <code>supported</code> with real-hardware evidence attached.
+      <span class="ev">evidence: platform_capabilities diff + the run it cites</span></li>
+    <li>vrooli-bridge declares <code>platform_capabilities</code>, and cross-machine capabilities can name a (console OS, node OS) pair.
+      <span class="ev">evidence: schema change + bridge declaration</span></li>
+    <li>A node's stored architecture matches the machine, not the binary.
+      <span class="ev">evidence: join-path probe test</span></li>
+    <li>The transport-confidentiality boundary is stated, and a non-loopback deployment without <code>wss://</code> is refused or prominently warned.
+      <span class="ev">evidence: doc + startup assertion test</span></li>
+    <li>The SSH backend is either constructible and reachable from web-console, or removed from <code>session-core</code>.
+      <span class="ev">evidence: wiring test, or the deletion diff</span></li>
+    <li>The legacy untyped endpoint variable no longer exists; no environment variable can outrank an explicitly configured endpoint.
+      <span class="ev">evidence: the deletion diff plus a precedence test</span></li>
+    <li>One package is documented as the shared node client, and the other defers to it in its own package comment.
+      <span class="ev">evidence: both package comments, and the import graph</span></li>
+    <li>The Bridge Reach Map's claims match the code it describes, or it is marked superseded with a date.
+      <span class="ev">evidence: doc diff against the constructors it cites</span></li>
+  </ul>
+
+  <h4>Authorization</h4>
+  <ul class="checklist">
+    <li>The session channel refuses an owner whose scope ceiling omits the session capability.
+      <span class="ev">evidence: handler test constructed with a registry</span></li>
+    <li>No test in the session-channel package constructs the handler without a registry.
+      <span class="ev">evidence: the test file itself</span></li>
+    <li>Exactly one <code>SameOrigin</code> implementation exists in the repository.
+      <span class="ev">evidence: the deletion diff</span></li>
+  </ul>
+
+  <!-- ══════════════════════════════════════ 13. DELIVERABLES ═════════ -->
+  <div class="sec">
+    <span class="label">For the plan</span>
+    <h2>Deliverables</h2>
+    <p>What exists at the end that did not exist at the start.</p>
+  </div>
+
+  <div class="deliverables">
+    <div class="deliv">
+      <h4>Code — completed seams</h4>
+      <ul>
+        <li><code>packages/api-core/scopecatalog</code> completed with <code>Parse</code>, <code>Classify</code>, <code>Summarize</code> and <code>TransportScope</code>; four parsers and two inline transport derivations migrated onto it</li>
+        <li>A grant merge in vrooli-bridge that preserves grants a preset does not own</li>
+        <li><code>CanHostSession(node) (bool, reason)</code> — the single availability predicate</li>
+        <li><code>dialSession</code> in <code>nodeclient</code> — status-classifying handshake with its own dialer</li>
+        <li>Durable session terminal-status replacing the one-shot ready gate, plus reconnect with backoff on the console→Bridge leg</li>
+        <li>Target-aware launch resolution replacing host-global <code>ResolveWorkingDir</code>/<code>ResolveShell</code> on the remote path</li>
+        <li>A first-class Bridge-address setting for web-console</li>
+      </ul>
+    </div>
+
+    <div class="deliv">
+      <h4>Code — removals</h4>
+      <ul>
+        <li>web-console's partial <code>--layer-*</code> block; <code>z-wc-*</code> re-expressed against the RCL scale</li>
+        <li>Duplicated scope parsing in <code>target_catalog.go</code> and <code>machines_catalog.go</code></li>
+        <li>Bridge's private <code>sameOrigin</code>, replaced by <code>session-core.SameOrigin</code></li>
+        <li><code>session.Scope</code>, and the <code>vrooli-bridge:session</code> special case in <code>validateGrant</code> — the value stops existing rather than becoming grantable</li>
+        <li>The legacy untyped endpoint getenv and its const</li>
+        <li>The vestigial <code>scopes=</code> query parameter, or its enforcement</li>
+        <li><code>ReadinessAgentCLI</code>, the SSH backend and the dead <code>LaunchCommand</code> field — each either wired or deleted, none left declared</li>
+      </ul>
+    </div>
+
+    <div class="deliv">
+      <h4>Tests</h4>
+      <ul>
+        <li>Session-channel handler tests reconstructed <b>with a registry</b>, covering granted, ungranted and ceiling-denied</li>
+        <li>Preset conformance, readiness-emitter conformance, unconstructed-backend conformance</li>
+        <li>Widened <code>PROJECT_SCOPE_VOCABULARY</code> over a repo-wide walk including transport capabilities</li>
+        <li>Four-status error-mapping table test through <code>nodeclient</code> → adapter, plus a Close-frame reason test</li>
+        <li>Network fault-injection test for session resumption</li>
+        <li>RTL: picker disablement, chip overflow at 320 px, banner-over-dialog, retry argument replay</li>
+        <li>One live end-to-end run against a real non-linux node, recorded as evidence</li>
+      </ul>
+    </div>
+
+    <div class="deliv">
+      <h4>Documentation &amp; contract</h4>
+      <ul>
+        <li><code>04-job-dispatch/module.json</code> corrected; a requirement covering the session capability's grant path</li>
+        <li>web-console <code>configuration.md</code> gains the Bridge address and the transport-confidentiality rule</li>
+        <li><code>nodes update --scopes</code> help text describing capability grants</li>
+        <li><code>platform_capabilities</code> schema extended for cross-machine pairs; vrooli-bridge's block authored</li>
+        <li>A short note on the single stacking scale and where new surfaces belong, so the next scenario adopting RCL does not invent a third</li>
+      </ul>
+    </div>
+
+    <div class="deliv">
+      <h4>Evidence artifacts</h4>
+      <ul>
+        <li>Before/after <code>nodes doctor</code> output on the same node</li>
+        <li>Before/after screenshots: picker with an ungranted node, and the error surface at mobile width</li>
+        <li>A recorded cross-platform session run promoting one platform cell to <code>supported</code></li>
+        <li>A work-record journal entry with trigger, approach, evidence and outcome</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>One scoping judgement worth making explicitly.</strong> Phases 1–4 restore the
+    feature and make it honest. Phases 5–8 are what make it <i>mature</i>: they remove a
+    whole vocabulary, close an authorization asymmetry, and move portability from “it
+    compiles for your platform” to “it has run against a second machine.” Splitting after
+    phase 4 is defensible; stopping after phase 3 would leave a working feature that still
+    lies to the operator about which machines can use it.
+  </div>
+
+  <footer class="pagefoot">
+    Investigation performed against branch <code>agi</code> on 2026-08-28. Node facts read
+    live from <code>vrooli-bridge nodes list</code> and <code>nodes doctor</code>; platform
+    figures from <code>vrooli capability conformance</code> (1,638 targets) and a census of
+    every <code>.vrooli/service.json</code>. All other findings verified in the working
+    tree. No files were modified.
+  </footer>
+
+</main>

@@ -1,0 +1,366 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "scenario-to-desktop",
+  "generator": "v1.0.0",
+  "manifest_hash": "4c1cb74ee9445bc2262f84cf0dc0d1df8a7094980d6cb977eedfb9b83ba80349",
+  "commands": [
+    {
+      "path": "build get",
+      "group": "build",
+      "command": "get",
+      "binding": "BuildService.GetBuild",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bundle clean",
+      "group": "bundle",
+      "command": "clean",
+      "binding": "PipelineService.CleanBundle",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "deploy-target add",
+      "group": "deploy-target",
+      "command": "add",
+      "binding": "DeployTargetService.SaveDeployTarget",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "deploy-target doctor",
+      "group": "deploy-target",
+      "command": "doctor",
+      "binding": "DeployTargetService.DiagnoseDeployTarget",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "deploy-target get",
+      "group": "deploy-target",
+      "command": "get",
+      "binding": "DeployTargetService.GetDeployTarget",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "deploy-target list",
+      "group": "deploy-target",
+      "command": "list",
+      "binding": "DeployTargetService.ListDeployTargets",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "deploy-target remove",
+      "group": "deploy-target",
+      "command": "remove",
+      "binding": "DeployTargetService.DeleteDeployTarget",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "deploy-target test",
+      "group": "deploy-target",
+      "command": "test",
+      "binding": "DeployTargetService.TestDeployTarget",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "desktop desktop-status",
+      "group": "desktop",
+      "command": "desktop-status",
+      "binding": "OperationsService.ListDesktopScenarioStatus",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "desktop download",
+      "group": "desktop",
+      "command": "download",
+      "binding": ".",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "desktop records",
+      "group": "desktop",
+      "command": "records",
+      "binding": "DesktopRecordsService.ListDesktopRecords",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "desktop records-delete",
+      "group": "desktop",
+      "command": "records-delete",
+      "binding": "DesktopRecordsService.DeleteDesktopScenario",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "desktop records-move",
+      "group": "desktop",
+      "command": "records-move",
+      "binding": "DesktopRecordsService.MoveDesktopRecord",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "desktop template",
+      "group": "desktop",
+      "command": "template",
+      "binding": "SystemService.GetTemplate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "desktop templates",
+      "group": "desktop",
+      "command": "templates",
+      "binding": "SystemService.ListTemplates",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "docs manifest",
+      "group": "docs",
+      "command": "manifest",
+      "binding": "DocumentationService.GetDocumentationManifest",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence journey",
+      "group": "evidence",
+      "command": "journey",
+      "binding": "EvidenceService.GetEvidenceCapture",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence list",
+      "group": "evidence",
+      "command": "list",
+      "binding": "EvidenceService.ListEvidenceCaptures",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence publish-offer-fact",
+      "group": "evidence",
+      "command": "publish-offer-fact",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "evidence summary",
+      "group": "evidence",
+      "command": "summary",
+      "binding": "EvidenceService.GetEvidenceCapturesSummary",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline active",
+      "group": "pipeline",
+      "command": "active",
+      "binding": "PipelineService.GetActive",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline cancel",
+      "group": "pipeline",
+      "command": "cancel",
+      "binding": "PipelineService.Cancel",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "pipeline create",
+      "group": "pipeline",
+      "command": "create",
+      "binding": "PipelineService.CreateActive",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "pipeline gate",
+      "group": "pipeline",
+      "command": "gate",
+      "binding": "PipelineService.GetReleaseGate",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline history",
+      "group": "pipeline",
+      "command": "history",
+      "binding": "PipelineService.GetHistory",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline list",
+      "group": "pipeline",
+      "command": "list",
+      "binding": "PipelineService.List",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline reset",
+      "group": "pipeline",
+      "command": "reset",
+      "binding": "PipelineService.ResetActive",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "pipeline resume",
+      "group": "pipeline",
+      "command": "resume",
+      "binding": "PipelineService.Resume",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "pipeline run",
+      "group": "pipeline",
+      "command": "run",
+      "binding": "PipelineService.Run",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "pipeline start",
+      "group": "pipeline",
+      "command": "start",
+      "binding": "PipelineService.StartActive",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "pipeline status",
+      "group": "pipeline",
+      "command": "status",
+      "binding": "PipelineService.Get",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "preflight get",
+      "group": "preflight",
+      "command": "get",
+      "binding": "PreflightService.GetPreflightJob",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "signing delete",
+      "group": "signing",
+      "command": "delete",
+      "binding": "SigningService.DeleteSigningConfig",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "signing discover",
+      "group": "signing",
+      "command": "discover",
+      "binding": "SigningService.DiscoverSigningCertificates",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "signing generate-key",
+      "group": "signing",
+      "command": "generate-key",
+      "binding": "SigningService.GenerateLinuxSigningKey",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "signing get",
+      "group": "signing",
+      "command": "get",
+      "binding": "SigningService.GetSigningConfig",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "signing prerequisites",
+      "group": "signing",
+      "command": "prerequisites",
+      "binding": "SigningService.ListSigningPrerequisites",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "signing ready",
+      "group": "signing",
+      "command": "ready",
+      "binding": "SigningService.GetSigningReadiness",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "signing set",
+      "group": "signing",
+      "command": "set",
+      "binding": "SigningService.PutSigningConfig",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "signing validate",
+      "group": "signing",
+      "command": "validate",
+      "binding": "SigningService.ValidateSigningConfig",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "state get",
+      "group": "state",
+      "command": "get",
+      "binding": "StateService.LoadScenarioState",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "tasks list",
+      "group": "tasks",
+      "command": "list",
+      "binding": "TaskService.ListTasks",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "telemetry delete",
+      "group": "telemetry",
+      "command": "delete",
+      "binding": "TelemetryService.DeleteTelemetry",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "telemetry download",
+      "group": "telemetry",
+      "command": "download",
+      "binding": ".",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "telemetry ingest",
+      "group": "telemetry",
+      "command": "ingest",
+      "binding": "TelemetryService.IngestTelemetry",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "telemetry insights",
+      "group": "telemetry",
+      "command": "insights",
+      "binding": "TelemetryService.GetTelemetryInsights",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "telemetry summary",
+      "group": "telemetry",
+      "command": "summary",
+      "binding": "TelemetryService.GetTelemetrySummary",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "telemetry tail",
+      "group": "telemetry",
+      "command": "tail",
+      "binding": "TelemetryService.GetTelemetryTail",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "wine check",
+      "group": "wine",
+      "command": "check",
+      "binding": "SystemService.CheckWine",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "wine install",
+      "group": "wine",
+      "command": "install",
+      "binding": "SystemService.InstallWine",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wine status",
+      "group": "wine",
+      "command": "status",
+      "binding": "SystemService.GetWineInstallStatus",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

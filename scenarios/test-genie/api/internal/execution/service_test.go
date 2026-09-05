@@ -2,190 +2,115 @@ package execution
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
-	"test-genie/internal/shared"
+	"test-genie/internal/orchestrator/phases"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
-func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
-	ctx := context.Background()
-	recorder := &fakeExecutionRecorder{}
-	engine := &stubExecutionEngine{
-		result: &orchestrator.SuiteExecutionResult{
-			ScenarioName:        "demo",
-			StartedAt:           time.Now().Add(-time.Minute),
-			CompletedAt:         time.Now(),
-			Success:             true,
-			PresetUsed:          "quick",
-			RequestedPreset:     "quick",
-			RequestedPhases:     []string{"structure", "unit"},
-			RequestedSkipPhases: []string{"performance"},
-			PlannedPhases:       []string{"structure", "unit"},
-			FailFast:            true,
-		},
-	}
-
-	service := NewSuiteExecutionService(
-		engine,
-		recorder,
-		&fakeSuiteRequestManager{},
-	)
-
-	output, err := service.Execute(ctx, SuiteExecutionInput{
-		Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"},
-	})
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if output == nil {
-		t.Fatalf("expected execution result")
-	}
-	if output.ExecutionID == uuid.Nil {
-		t.Fatalf("execution id was not assigned")
-	}
-	if output.RequestedPreset != "quick" || !output.FailFast {
-		t.Fatalf("expected execution metadata to be preserved: %#v", output)
-	}
-	if len(recorder.records) != 1 {
-		t.Fatalf("expected execution to be persisted, got %#v", recorder.records)
-	}
-}
-
-func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
-	ctx := context.Background()
-	suiteID := uuid.New()
-	mgr := &fakeSuiteRequestManager{
-		suites: map[uuid.UUID]*queue.SuiteRequest{
-			suiteID: {
-				ID:           suiteID,
-				ScenarioName: "ecosystem-manager",
-			},
-		},
-	}
-
-	service := NewSuiteExecutionService(
-		&stubExecutionEngine{},
-		&fakeExecutionRecorder{},
-		mgr,
-	)
-
-	_, err := service.Execute(ctx, SuiteExecutionInput{
-		Request:        orchestrator.SuiteExecutionRequest{ScenarioName: "test-genie"},
-		SuiteRequestID: &suiteID,
-	})
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	var vErr shared.ValidationError
-	if !errors.As(err, &vErr) {
-		t.Fatalf("expected validation error, got %v", err)
-	}
-	if len(mgr.updates) != 0 {
-		t.Fatalf("expected no status updates, got %v", mgr.updates)
-	}
-}
-
-func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T) {
-	ctx := context.Background()
-	suiteID := uuid.New()
-	mgr := &fakeSuiteRequestManager{
-		suites: map[uuid.UUID]*queue.SuiteRequest{
-			suiteID: {
-				ID:           suiteID,
-				ScenarioName: "demo",
-			},
-		},
-	}
-
-	service := NewSuiteExecutionService(
-		&stubExecutionEngine{err: errors.New("runner failed")},
-		&fakeExecutionRecorder{},
-		mgr,
-	)
-
-	_, err := service.Execute(ctx, SuiteExecutionInput{
-		Request:        orchestrator.SuiteExecutionRequest{ScenarioName: "demo"},
-		SuiteRequestID: &suiteID,
-	})
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	if len(mgr.updates) != 2 {
-		t.Fatalf("expected two status updates, got %d", len(mgr.updates))
-	}
-	if mgr.updates[0].status != queue.StatusRunning {
-		t.Fatalf("first status should be running, got %s", mgr.updates[0].status)
-	}
-	if mgr.updates[1].status != queue.StatusFailed {
-		t.Fatalf("second status should be failed, got %s", mgr.updates[1].status)
-	}
-}
-
-type stubExecutionEngine struct {
+type serviceEngine struct {
 	result *orchestrator.SuiteExecutionResult
 	err    error
 }
 
-func (s *stubExecutionEngine) Execute(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*orchestrator.SuiteExecutionResult, error) {
-	return s.result, s.err
-}
-
-func (s *stubExecutionEngine) ExecuteWithEvents(ctx context.Context, req orchestrator.SuiteExecutionRequest, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
-	return s.result, s.err
-}
-
-type fakeExecutionRecorder struct {
-	records []*SuiteExecutionRecord
-	err     error
-}
-
-func (f *fakeExecutionRecorder) Create(ctx context.Context, record *SuiteExecutionRecord) error {
-	if f.err != nil {
-		return f.err
+func TestSuiteExecutionServicePersistsOnlyCompactPhaseHistory(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{
+		RunID: "run-compact", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true,
+		Phases: []phases.ExecutionResult{{
+			Name: "security", Status: "failed", DurationSeconds: 2, LogPath: "coverage/logs/huge.log",
+			Observations: []phases.Observation{phases.NewErrorObservation("huge observation")},
+			Findings:     []*architecturev1.ArchitectureFinding{{Code: "huge.finding", Message: "detailed payload"}},
+			CacheHit:     true, CacheSourceRunID: "source-run", CacheAudit: true,
+		}},
+	}}, recorder)
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
+		t.Fatal(err)
 	}
-	clone := *record
-	if record.Phases != nil {
-		clone.Phases = append([]orchestrator.PhaseExecutionResult(nil), record.Phases...)
+	stored := recorder.records[0].Phases[0]
+	if stored.LogPath != "" || len(stored.Observations) != 0 || len(stored.Findings) != 0 || stored.Metrics != nil {
+		t.Fatalf("SQLite history retained detailed phase payload: %+v", stored)
 	}
-	f.records = append(f.records, &clone)
+	if stored.Name != "security" || stored.Status != "failed" || stored.DurationSeconds != 2 {
+		t.Fatalf("compact phase lost summary fields: %+v", stored)
+	}
+	if !stored.CacheHit || stored.CacheSourceRunID != "source-run" || !stored.CacheAudit {
+		t.Fatalf("compact phase lost cache provenance: %+v", stored)
+	}
+}
+
+func TestSuiteExecutionServicePersistsCompactPreparationStages(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{
+		RunID: "run-stages", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true,
+		PreparationStages: []orchestrator.PreparationStage{{Name: "provider_readiness", DurationMilliseconds: 100}, {Name: "provider_check", Parent: "provider_readiness", Subject: "unit-health", Status: "ready", DurationMilliseconds: 20}},
+	}}, recorder)
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	stages := recorder.records[0].PreparationStages
+	if len(stages) != 2 || stages[1].Subject != "unit-health" || stages[1].DurationMilliseconds != 20 {
+		t.Fatalf("compact preparation stages = %#v", stages)
+	}
+}
+
+func (e serviceEngine) ExecuteWithEvents(_ context.Context, _ orchestrator.SuiteExecutionRequest, _ orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	return e.result, e.err
+}
+
+type serviceRecorder struct{ records []*SuiteExecutionRecord }
+
+func (r *serviceRecorder) Create(_ context.Context, record *SuiteExecutionRecord) error {
+	r.records = append(r.records, record)
 	return nil
 }
 
-type statusChange struct {
-	id     uuid.UUID
-	status string
+func TestSuiteExecutionServicePersistsRunEvidence(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{RunID: "run-1", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true}}, recorder)
+	result, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExecutionID.String() == "" || len(recorder.records) != 1 || recorder.records[0].RunID != "run-1" {
+		t.Fatalf("result=%+v records=%+v", result, recorder.records)
+	}
 }
 
-type fakeSuiteRequestManager struct {
-	suites  map[uuid.UUID]*queue.SuiteRequest
-	updates []statusChange
+func TestSuiteExecutionServiceCollectsRetentionOnlyAfterPersistence(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{result: &orchestrator.SuiteExecutionResult{RunID: "run-retention", ScenarioName: "demo", StartedAt: time.Now().Add(-time.Second), CompletedAt: time.Now(), Success: true}}, recorder)
+	collected := make(chan string, 1)
+	service.SetRetentionCollector(func(_ context.Context, scenario string) {
+		if len(recorder.records) != 1 {
+			t.Errorf("retention ran before persistence: %d records", len(recorder.records))
+		}
+		collected <- scenario
+	})
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case scenario := <-collected:
+		if scenario != "demo" {
+			t.Fatalf("retention scenario = %q", scenario)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("retention collector was not called")
+	}
 }
 
-func (f *fakeSuiteRequestManager) Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error) {
-	if f.suites == nil {
-		return nil, sql.ErrNoRows
+func TestSuiteExecutionServiceRecordsTerminalEngineFailure(t *testing.T) {
+	recorder := &serviceRecorder{}
+	service := NewSuiteExecutionService(serviceEngine{err: errors.New("boom")}, recorder)
+	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo", RunID: "run-2"}}); err == nil {
+		t.Fatal("expected engine failure")
 	}
-	if req, ok := f.suites[id]; ok {
-		copy := *req
-		return &copy, nil
+	if len(recorder.records) != 1 || recorder.records[0].RunID != "run-2" || recorder.records[0].TerminalOutcome == "" {
+		t.Fatalf("records=%+v", recorder.records)
 	}
-	return nil, sql.ErrNoRows
-}
-
-func (f *fakeSuiteRequestManager) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
-	if f.suites == nil {
-		return sql.ErrNoRows
-	}
-	if _, ok := f.suites[id]; !ok {
-		return sql.ErrNoRows
-	}
-	f.updates = append(f.updates, statusChange{id: id, status: status})
-	return nil
 }

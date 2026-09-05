@@ -20,8 +20,8 @@ package domain
 
 import (
 	"fmt"
+	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -57,7 +57,7 @@ func (s TaskStatus) IsTerminal() bool {
 func (s RunStatus) IsValid() bool {
 	switch s {
 	case RunStatusPending, RunStatusStarting, RunStatusRunning,
-		RunStatusNeedsReview, RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+		RunStatusNeedsReview, RunStatusParked, RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return true
 	default:
 		return false
@@ -65,9 +65,11 @@ func (s RunStatus) IsValid() bool {
 }
 
 // IsTerminal returns whether this is a terminal status (no further transitions allowed).
+// parked is intentionally NOT terminal: a parked run resumes (wake) or is
+// cancelled; it is a resting-but-resumable state like needs_review.
 func (s RunStatus) IsTerminal() bool {
 	switch s {
-	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return true
 	default:
 		return false
@@ -82,6 +84,22 @@ func (s RunStatus) IsActive() bool {
 	default:
 		return false
 	}
+}
+
+// IsValid returns whether this is a valid RunFinalizationStatus.
+func (s RunFinalizationStatus) IsValid() bool {
+	switch s {
+	case RunFinalizationStatusNone, RunFinalizationStatusPending, RunFinalizationStatusRunning,
+		RunFinalizationStatusSucceeded, RunFinalizationStatusFailed, RunFinalizationStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsFailed returns whether post-run sandbox finalization failed.
+func (s RunFinalizationStatus) IsFailed() bool {
+	return s == RunFinalizationStatusFailed
 }
 
 // IsValid returns whether this is a valid ApprovalState.
@@ -169,18 +187,9 @@ func (p *AgentProfile) Validate() error {
 		}
 	}
 
-	// RunnerType must be valid
-	if !p.RunnerType.IsValid() {
-		return NewValidationErrorWithHint("runnerType", "invalid runner type",
-			"valid types: claude-code, codex, opencode")
-	}
-
-	// Model and ModelPreset are mutually exclusive
-	if strings.TrimSpace(p.Model) != "" && p.ModelPreset != ModelPresetUnspecified {
-		return NewValidationError("modelPreset", "cannot set model and model preset together")
-	}
-	if p.ModelPreset != ModelPresetUnspecified && !isValidModelPreset(p.ModelPreset) {
-		return NewValidationError("modelPreset", "invalid model preset")
+	if strings.TrimSpace(p.RoleRef) == "" {
+		return NewValidationErrorWithHint("roleRef", "field is required",
+			"Select a portable role from the active role-policy catalog")
 	}
 
 	// MaxTurns must be non-negative
@@ -192,8 +201,21 @@ func (p *AgentProfile) Validate() error {
 	if p.Timeout < 0 {
 		return NewValidationError("timeout", "cannot be negative")
 	}
+	if !p.Effort.IsValid() {
+		return NewValidationErrorWithHint("effort", "invalid effort", "valid values: low, medium, high, xhigh, max")
+	}
 
-	// AllowedTools and DeniedTools should not overlap
+	if err := validateCanonicalTools("allowedTools", p.AllowedTools); err != nil {
+		return err
+	}
+	if err := validateCanonicalTools("deniedTools", p.DeniedTools); err != nil {
+		return err
+	}
+	if !p.ToolRestrictionPolicy.IsValid() {
+		return NewValidationErrorWithHint("toolRestrictionPolicy", "invalid tool restriction policy", "valid values: enforced, advisory")
+	}
+
+	// AllowedTools and DeniedTools should not overlap.
 	if hasStringOverlap(p.AllowedTools, p.DeniedTools) {
 		return NewValidationError("allowedTools/deniedTools",
 			"same tool cannot be both allowed and denied")
@@ -214,15 +236,71 @@ func (p *AgentProfile) Validate() error {
 		return err
 	}
 
-	if err := validateRunnerFallbackTypes("fallbackRunnerTypes", p.FallbackRunnerTypes); err != nil {
-		return err
-	}
-
 	if err := validateExtraFlagsStructure(p.ExtraFlags); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func validateCanonicalTools(field string, tools []string) error {
+	for _, tool := range tools {
+		name := strings.TrimSpace(tool)
+		if CanonicalTool(name).IsValid() {
+			continue
+		}
+		return NewValidationErrorWithHint(field, fmt.Sprintf("unknown canonical tool %q", tool),
+			"Use a canonical tool name; nearest match: "+nearestCanonicalTool(name))
+	}
+	return nil
+}
+
+// ValidateCanonicalToolList validates a resolved run's allowlist without
+// requiring profile-only fields such as name and roleRef.
+func ValidateCanonicalToolList(field string, tools []string) error {
+	return validateCanonicalTools(field, tools)
+}
+
+func nearestCanonicalTool(name string) string {
+	candidates := CanonicalTools()
+	sort.Slice(candidates, func(i, j int) bool {
+		left, right := levenshteinDistance(name, string(candidates[i])), levenshteinDistance(name, string(candidates[j]))
+		if left == right {
+			return candidates[i] < candidates[j]
+		}
+		return left < right
+	})
+	return string(candidates[0])
+}
+
+func levenshteinDistance(left, right string) int {
+	previous := make([]int, len(right)+1)
+	for j := range previous {
+		previous[j] = j
+	}
+	for i, leftRune := range left {
+		current := make([]int, len(right)+1)
+		current[0] = i + 1
+		for j, rightRune := range right {
+			cost := 0
+			if leftRune != rightRune {
+				cost = 1
+			}
+			current[j+1] = minInt(current[j]+1, previous[j+1]+1, previous[j]+cost)
+		}
+		previous = current
+	}
+	return previous[len(right)]
+}
+
+func minInt(values ...int) int {
+	min := values[0]
+	for _, value := range values[1:] {
+		if value < min {
+			min = value
+		}
+	}
+	return min
 }
 
 func validateSandboxConfig(cfg *SandboxConfig) error {
@@ -238,33 +316,39 @@ func validateSandboxConfig(cfg *SandboxConfig) error {
 	if cfg.Lifecycle.IdleTimeout < 0 {
 		return NewValidationError("sandboxConfig.lifecycle.idleTimeout", "cannot be negative")
 	}
+	if err := validateSandboxMode(cfg.Mode); err != nil {
+		return err
+	}
+	if cfg.NetworkMode != "" && !cfg.NetworkMode.IsValid() {
+		return NewValidationErrorWithHint(
+			"sandboxConfig.networkMode",
+			"invalid network mode",
+			"valid values: none, localhost, full",
+		)
+	}
 	return nil
 }
 
-func isValidModelPreset(preset ModelPreset) bool {
-	switch preset {
-	case ModelPresetFast, ModelPresetCheap, ModelPresetSmart:
-		return true
-	default:
-		return false
-	}
-}
-
-func validateRunnerFallbackTypes(field string, fallback []RunnerType) error {
-	if len(fallback) == 0 {
+// validateSandboxMode rejects unknown SandboxMode values. All recognised
+// modes (unspecified, off, tracking, protected) are accepted at the
+// validation layer; whether protected mode actually launches through
+// the sandbox or falls back to the host depends on runtime configuration
+// of the runner's SandboxLauncherFactory (see runnercore.NewRunner /
+// SetSandboxLauncherFactory).
+//
+// SandboxModeOff is the explicit "no sandbox" choice; it is the only
+// Mode that produces RunModeInPlace via DeriveRunMode.
+func validateSandboxMode(mode SandboxMode) error {
+	switch mode {
+	case SandboxModeUnspecified, SandboxModeOff, SandboxModeTracking, SandboxModeProtected:
 		return nil
+	default:
+		return NewValidationErrorWithHint(
+			"sandboxConfig.mode",
+			"invalid sandbox mode",
+			"valid values: off, tracking (default), protected",
+		)
 	}
-	seen := make(map[RunnerType]struct{}, len(fallback))
-	for _, rt := range fallback {
-		if !rt.IsValid() {
-			return NewValidationError(field, "invalid runner type: "+string(rt))
-		}
-		if _, exists := seen[rt]; exists {
-			return NewValidationError(field, "duplicate runner type: "+string(rt))
-		}
-		seen[rt] = struct{}{}
-	}
-	return nil
 }
 
 // =============================================================================
@@ -371,6 +455,12 @@ func (r *Run) Validate() error {
 			"valid modes: sandboxed, in_place")
 	}
 
+	// Interactive execution mode is only available for non-protected (in-place)
+	// runs. See ValidateInteractiveRunMode.
+	if err := ValidateInteractiveRunMode(r.ExecutionMode, r.InteractiveSandboxMode()); err != nil {
+		return err
+	}
+
 	// Status must be valid if set
 	if r.Status != "" && !r.Status.IsValid() {
 		return NewValidationError("status", "invalid status value")
@@ -392,6 +482,29 @@ func (r *Run) Validate() error {
 	}
 
 	return nil
+}
+
+// ValidateInteractiveRunMode validates only the execution-mode vocabulary.
+// Feasibility of an execution-mode/sandbox combination is a runner capability
+// and profile policy concern, not a hard-coded domain prohibition.
+func ValidateInteractiveRunMode(execMode ExecutionMode, sandboxMode SandboxMode) error {
+	_ = sandboxMode
+	return nil
+}
+
+// InteractiveSandboxMode returns the resolved sandbox policy that governs an
+// interactive launch. Legacy sandboxed rows are conservatively Protected.
+func (r *Run) InteractiveSandboxMode() SandboxMode {
+	if r.SandboxConfig != nil {
+		return r.SandboxConfig.Mode
+	}
+	if r.ResolvedConfig != nil && r.ResolvedConfig.SandboxConfig != nil {
+		return r.ResolvedConfig.SandboxConfig.Mode
+	}
+	if r.RunMode == RunModeSandboxed {
+		return SandboxModeProtected
+	}
+	return SandboxModeOff
 }
 
 // ValidateForCreation checks if a Run has valid initial state.
@@ -632,40 +745,6 @@ func (c *RunCheckpoint) Validate() error {
 	}
 
 	return nil
-}
-
-// =============================================================================
-// SCOPE LOCK VALIDATION
-// =============================================================================
-
-// Validate checks that a ScopeLock is valid.
-func (l *ScopeLock) Validate() error {
-	if l.RunID == uuid.Nil {
-		return NewValidationError("runId", "field is required")
-	}
-
-	if strings.TrimSpace(l.ScopePath) == "" {
-		return NewValidationError("scopePath", "field is required")
-	}
-
-	if l.AcquiredAt.IsZero() {
-		return NewValidationError("acquiredAt", "field is required")
-	}
-
-	if l.ExpiresAt.IsZero() {
-		return NewValidationError("expiresAt", "field is required")
-	}
-
-	if l.ExpiresAt.Before(l.AcquiredAt) {
-		return NewValidationError("expiresAt", "must be after acquiredAt")
-	}
-
-	return nil
-}
-
-// IsExpired returns whether this lock has expired.
-func (l *ScopeLock) IsExpired() bool {
-	return time.Now().After(l.ExpiresAt)
 }
 
 // =============================================================================

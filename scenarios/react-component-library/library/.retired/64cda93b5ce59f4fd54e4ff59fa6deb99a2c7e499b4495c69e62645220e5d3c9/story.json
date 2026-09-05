@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Working title",
+          "role": "textbox"
+        },
+        {
+          "kind": "role",
+          "name": "Keep your work before leaving?",
+          "role": "alertdialog"
+        },
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Discard changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Keep editing",
+          "role": "button"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Recovery decision",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Keep your work before leaving?",
+          "role": "alertdialog"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "The workspace service is temporarily unavailable. Retry, keep editing, or preserve a private draft."
+        }
+      ],
+      "id": "request-error",
+      "mode": "live",
+      "name": "Save request error",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Success",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Working title",
+          "role": "textbox"
+        },
+        {
+          "kind": "text",
+          "value": "Saved just now · safe to leave"
+        }
+      ],
+      "id": "success",
+      "mode": "live",
+      "name": "Saved state",
+      "role": "boundary"
+    }
+  ],
+  "title": "UnsavedChangesFlow"
+}

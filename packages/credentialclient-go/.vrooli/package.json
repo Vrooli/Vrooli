@@ -1,0 +1,27 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "credentialclient-go",
+    "display_name": "github.com/vrooli/vrooli/packages/credentialclient-go",
+    "description": "Governed Go package owned by the Vrooli repository.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/credentialclient-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api", "scenario_cli", "scenario_test", "template_api", "template_cli"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "Package remains covered by the repository Go module while its root-internal dependencies are migrated to public package seams."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": ["packages/credentialclient-go/README.md", "docs/package-governance.md"]
+  }
+}

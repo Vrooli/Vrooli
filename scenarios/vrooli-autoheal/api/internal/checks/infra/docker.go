@@ -9,9 +9,12 @@ import (
 	"runtime"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
+
+const dockerCleanupManagerPlanCommand = "storage-manager cleanup plan --json"
 
 // DockerCheck verifies Docker daemon is responsive
 type DockerCheck struct {
@@ -126,9 +129,9 @@ func (c *DockerCheck) RecoveryActions(lastResult *checks.Result) []checks.Recove
 		},
 		{
 			ID:          "prune",
-			Name:        "Prune System",
-			Description: "Remove unused Docker data (stopped containers, unused networks, dangling images)",
-			Dangerous:   true, // Removes data
+			Name:        "Plan Docker Cleanup",
+			Description: "Create a storage-manager plan for Docker reclaim candidates; storage-manager owns apply policy and audit",
+			Dangerous:   true, // Cleanup Manager apply is destructive and confirmation-gated.
 			Available:   isResponsive,
 		},
 		{
@@ -173,7 +176,8 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 
 	switch actionID {
 	case "restart":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "docker")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "docker")
+		result.Elevation = &outcome
 		result.Output = string(output)
 
 		if err != nil {
@@ -188,7 +192,8 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return c.verifyRecovery(ctx, result, "restart", start)
 
 	case "start":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "start", "docker")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "docker")
+		result.Elevation = &outcome
 		result.Output = string(output)
 
 		if err != nil {
@@ -203,24 +208,18 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "prune":
-		// Use docker system prune with --force to avoid interactive prompt
-		output, err := c.executor.CombinedOutput(ctx, "docker", "system", "prune", "--force")
 		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to prune Docker system"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "Docker system pruned successfully"
+		result.Success = false
+		result.Error = "cleanup requires storage-manager approval"
+		result.Message = "Docker cleanup is delegated to storage-manager; create and review a cleanup plan before applying"
+		result.Output = dockerCleanupManagerPlanCommand
 		return result
 
 	case "logs":
-		output, err := c.executor.CombinedOutput(ctx, "journalctl", "-u", "docker", "-n", "100", "--no-pager")
+		output, err := journal.NewReader(c.executor).Tail(ctx, journal.QueryOpts{
+			Unit: []string{"docker"},
+			Tail: 100,
+		})
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

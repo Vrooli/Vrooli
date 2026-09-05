@@ -1,18 +1,20 @@
 syntax = "proto3";
 
-package scenario_to_desktop.v1;
+package vrooli.scenario_to_desktop.v1.domain;
 
-import "scenario-to-desktop/v1/base/shared.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/shared/common.proto";
+import "scenario-to-desktop/v1/shared/metadata.proto";
+import "scenario-to-desktop/v1/shared/update_config.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
 
 // =============================================================================
 // DESKTOP CONFIGURATION
 // =============================================================================
 //
-// @layer 1
-// @domain config
-// @imports base
 // @stability beta
 //
 // Configuration types for desktop application generation. Decomposed into
@@ -20,7 +22,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-
 // for maintainability and reuse.
 //
 // USAGE CONTEXTS:
-//   - Generation: DesktopConfig drives Electron/Tauri scaffold creation
+//   - Generation: DesktopConfig drives Electron scaffold creation
 //   - Pipeline: Config is stored with pipeline status for audit
 //   - UI: Forms populate these structures for user configuration
 //
@@ -35,13 +37,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-
 // These values are used in package manifests, installer metadata, and
 // application window titles.
 //
-// @usage DesktopConfig.app
 message AppIdentity {
   // Internal application name (lowercase, no spaces).
   // Used for directory names and process identification.
-  // @constraint lowercase alphanumeric with hyphens
   // @example "my-desktop-app"
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"}];
 
   // Display name shown to users.
   // Used in window titles, installers, and system menus.
@@ -102,7 +102,6 @@ message AppIdentity {
 //   - Proxy: App is a thin wrapper connecting to remote server
 //   - Bundled: Backend services run locally within the app
 //
-// @usage DesktopConfig.server
 message ServerConfig {
   // Server type identifier.
   // @example "express", "fastify", "none"
@@ -110,8 +109,10 @@ message ServerConfig {
 
   // Port number for the local server.
   // @default 3000
-  // @constraint 1-65535
-  optional int32 port = 2;
+  optional int32 port = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 65535
+  }];
 
   // Path to server entry point (for bundled mode).
   // @format path
@@ -136,7 +137,7 @@ message ServerConfig {
   optional string vrooli_binary_path = 7;
 
   // Deployment mode determining server behavior.
-  DeploymentMode deployment_mode = 8;
+  vrooli.scenario_to_desktop.v1.shared.DeploymentMode deployment_mode = 8;
 
   // URL for proxy mode connections.
   // Required when deployment_mode is PROXY.
@@ -159,10 +160,9 @@ message ServerConfig {
 
 // BundleIPCConfig configures inter-process communication for bundled runtime.
 //
-// The IPC channel allows the Electron/Tauri wrapper to communicate with
+// The IPC channel allows the Electron wrapper to communicate with
 // the bundled backend process for lifecycle management and telemetry.
 //
-// @usage BundleConfig.ipc
 message BundleIPCConfig {
   // IPC server host.
   // @default "127.0.0.1"
@@ -182,7 +182,6 @@ message BundleIPCConfig {
 // In bundled mode, the desktop app packages and manages backend services
 // locally, enabling fully offline operation.
 //
-// @usage DesktopConfig.bundle
 message BundleConfig {
   // Path to the bundle manifest file.
   // @format path
@@ -207,78 +206,11 @@ message BundleConfig {
 }
 
 // =============================================================================
-// UPDATE CONFIGURATION
-// =============================================================================
-
-// GitHubUpdateConfig configures GitHub Releases as the update provider.
-//
-// Uses electron-updater's GitHub provider to check for and download
-// updates from GitHub Releases.
-//
-// @usage UpdateConfig.github
-message GitHubUpdateConfig {
-  // GitHub repository owner (username or organization).
-  // @example "vrooli"
-  string owner = 1;
-
-  // GitHub repository name.
-  // @example "scenario-to-desktop"
-  string repo = 2;
-
-  // Whether the repository is private.
-  // Private repos require authentication token.
-  optional bool private = 3;
-}
-
-// GenericUpdateConfig configures a self-hosted update server.
-//
-// Uses electron-updater's generic provider to check for updates
-// from a custom URL endpoint.
-//
-// @usage UpdateConfig.generic
-message GenericUpdateConfig {
-  // Base URL for the update server.
-  // @format uri
-  // @example "https://updates.example.com"
-  string url = 1;
-
-  // Path to channel-specific update info.
-  // @example "/stable/latest.yml"
-  optional string channel_path = 2;
-}
-
-// UpdateConfig configures automatic updates for the desktop application.
-//
-// Supports multiple update providers. Only one provider should be configured.
-//
-// @usage DesktopConfig.update
-message UpdateConfig {
-  // Update channel (stable, beta, alpha, etc.).
-  // @default "stable"
-  optional string channel = 1;
-
-  // Update provider name.
-  // @example "github", "generic", "s3"
-  optional string provider = 2;
-
-  // Whether to automatically check for updates on startup.
-  // @default true
-  optional bool auto_check = 3;
-
-  // GitHub Releases update configuration.
-  optional GitHubUpdateConfig github = 10;
-
-  // Generic/self-hosted update configuration.
-  optional GenericUpdateConfig generic = 11;
-}
-
-// =============================================================================
 // WINDOW CONFIGURATION
 // =============================================================================
 
 // WindowConfig defines the main window appearance and behavior.
 //
-// @usage DesktopConfig.window
 message WindowConfig {
   // Initial window width in pixels.
   // @default 1200
@@ -316,7 +248,6 @@ message WindowConfig {
 // This is the top-level configuration that combines all aspects of desktop
 // app creation: identity, server, bundling, updates, and code signing.
 //
-// @usage GenerateRequest.config, PipelineStatus.config
 message DesktopConfig {
   // Application identity and branding.
   AppIdentity app = 1;
@@ -328,20 +259,20 @@ message DesktopConfig {
   optional BundleConfig bundle = 3;
 
   // Auto-update configuration.
-  optional UpdateConfig update = 4;
+  optional vrooli.scenario_to_desktop.v1.shared.UpdateConfig update = 4;
 
   // Main window configuration.
   optional WindowConfig window = 5;
 
   // Target desktop framework.
-  Framework framework = 6;
+  vrooli.scenario_to_desktop.v1.shared.Framework framework = 6;
 
   // Application template type.
-  TemplateType template_type = 7;
+  vrooli.scenario_to_desktop.v1.shared.TemplateType template_type = 7;
 
   // Target platforms for building.
   // Empty means current platform only.
-  repeated Platform platforms = 8;
+  repeated vrooli.scenario_to_desktop.v1.shared.Platform platforms = 8;
 
   // Output directory for generated files.
   // @format path
@@ -361,70 +292,6 @@ message DesktopConfig {
 }
 
 // =============================================================================
-// SCENARIO METADATA
-// =============================================================================
-
-// ScenarioMetadata contains extracted information about a scenario.
-//
-// Populated during the generation stage by analyzing the scenario's
-// service.json and package.json files.
-//
-// @usage GenerateResponse.detected_metadata
-message ScenarioMetadata {
-  // Scenario name (directory name).
-  string name = 1;
-
-  // Display name from package.json or service.json.
-  optional string display_name = 2;
-
-  // Description from package metadata.
-  optional string description = 3;
-
-  // Version from package.json.
-  optional string version = 4;
-
-  // Author from package.json.
-  optional string author = 5;
-
-  // License from package.json.
-  optional string license = 6;
-
-  // Generated application ID.
-  optional string app_id = 7;
-
-  // Whether the scenario has a UI component.
-  bool has_ui = 8;
-
-  // Path to the UI distribution directory.
-  // @format path
-  optional string ui_dist_path = 9;
-
-  // UI server port.
-  optional int32 ui_port = 10;
-
-  // API server port.
-  optional int32 api_port = 11;
-
-  // Full path to the scenario directory.
-  // @format path
-  string scenario_path = 12;
-
-  // Scenario category.
-  optional string category = 13;
-
-  // Scenario tags for categorization.
-  repeated string tags = 14;
-
-  // Path to service.json.
-  // @format path
-  optional string service_json_path = 15;
-
-  // Path to package.json.
-  // @format path
-  optional string package_json_path = 16;
-}
-
-// =============================================================================
 // CONNECTION SETTINGS
 // =============================================================================
 
@@ -432,7 +299,6 @@ message ScenarioMetadata {
 //
 // Used to persist user preferences between sessions.
 //
-// @usage UI state persistence
 message ConnectionConfig {
   // Proxy URL for proxy mode.
   // @format uri
@@ -449,7 +315,7 @@ message ConnectionConfig {
   optional string vrooli_binary_path = 4;
 
   // Deployment mode.
-  DeploymentMode deployment_mode = 5;
+  vrooli.scenario_to_desktop.v1.shared.DeploymentMode deployment_mode = 5;
 
   // Bundle manifest path.
   // @format path
@@ -464,4 +330,132 @@ message ConnectionConfig {
   // Icon path override.
   // @format path
   optional string icon = 9;
+}
+
+message GetScenarioMetadataRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message CreateDesktopConfigRequest {
+  vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata metadata = 1;
+  vrooli.scenario_to_desktop.v1.shared.TemplateType template_type = 2;
+}
+
+service ConfigService {
+  rpc GetScenarioMetadata(GetScenarioMetadataRequest) returns (vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata);
+  rpc CreateDesktopConfig(CreateDesktopConfigRequest) returns (DesktopConfig);
+}
+
+// SystemService exposes scenario-to-desktop's local host and template state.
+// It is intentionally separate from configuration generation because its
+// operations reflect the running service rather than a scenario artifact.
+service SystemService {
+  rpc GetSystemStatus(GetSystemStatusRequest) returns (SystemStatusResponse);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc GetTemplate(GetTemplateRequest) returns (TemplateConfigResponse);
+  rpc CheckWine(CheckWineRequest) returns (WineCheckResponse);
+  rpc InstallWine(InstallWineRequest) returns (WineInstallResponse);
+  rpc GetWineInstallStatus(GetWineInstallStatusRequest) returns (WineInstallStatusResponse);
+}
+
+message GetSystemStatusRequest {}
+
+message SystemServiceInfo {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  string status = 4;
+}
+
+message SystemBuildStatistics {
+  int64 total_builds = 1;
+  int64 active_builds = 2;
+  int64 completed_builds = 3;
+  int64 failed_builds = 4;
+}
+
+message SystemStatusResponse {
+  SystemServiceInfo service = 1;
+  SystemBuildStatistics statistics = 2;
+  repeated string capabilities = 3;
+  repeated string supported_frameworks = 4;
+  repeated string supported_templates = 5;
+}
+
+message ListTemplatesRequest {}
+
+message TemplateInfo {
+  string name = 1;
+  string description = 2;
+  string type = 3;
+  string framework = 4;
+  repeated string use_cases = 5;
+  repeated string features = 6;
+  string complexity = 7;
+  repeated string examples = 8;
+}
+
+message ListTemplatesResponse {
+  repeated TemplateInfo templates = 1;
+  int32 count = 2;
+}
+
+message GetTemplateRequest {
+  string type = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message TemplateConfigResponse {
+  google.protobuf.Struct config = 1;
+}
+
+message CheckWineRequest {}
+
+message WineInstallMethod {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool requires_sudo = 4;
+  string estimated = 5;
+  repeated string steps = 6;
+}
+
+message WineCheckResponse {
+  bool installed = 1;
+  optional string version = 2;
+  string platform = 3;
+  repeated string required_for = 4;
+  repeated WineInstallMethod install_methods = 5;
+  optional string recommended_method = 6;
+}
+
+message InstallWineRequest {
+  string method = 1 [(buf.validate.field).string = {
+    in: [
+      "flatpak",
+      "flatpak-auto",
+      "appimage",
+      "skip"
+    ]
+  }];
+}
+
+message WineInstallResponse {
+  string install_id = 1;
+  string status = 2;
+  string method = 3;
+  string status_url = 4;
+}
+
+message GetWineInstallStatusRequest {
+  string install_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message WineInstallStatusResponse {
+  string install_id = 1;
+  string status = 2;
+  string method = 3;
+  google.protobuf.Timestamp started_at = 4;
+  optional google.protobuf.Timestamp completed_at = 5;
+  repeated string log = 6;
+  repeated string error_log = 7;
 }

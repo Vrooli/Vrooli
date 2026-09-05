@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "headless-parity-with-the-ui",
+    "title": "Configure the same install from a terminal",
+    "purpose": "The declarative surface reaches the same result as the browser, which is what makes remote and automated onboarding possible.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P1-004"
+    ]
+  },
+  "steps": [
+    {
+      "page": "setup-scenarios",
+      "intent": "Establish the reference selection in the browser and export it.",
+      "via": "selection export",
+      "state": "cascade-visible"
+    },
+    {
+      "page": "setup-validation",
+      "intent": "Record the resulting readiness verdict.",
+      "via": "readiness summary",
+      "state": "ready"
+    }
+  ],
+  "claims": [
+    {
+      "id": "identical-state-across-surfaces",
+      "type": "custom",
+      "statement": "Applying the exported selection through the non-interactive CLI on a clean host produces byte-identical operator state.",
+      "tier": "manual",
+      "rationale": "The browser half is recorded here; the CLI half is asserted by the parity integration test. Neither alone proves the claim."
+    },
+    {
+      "id": "exit-code-is-actionable",
+      "type": "custom",
+      "statement": "The readiness command exits non-zero when a required item is not ready, so automation can gate on it.",
+      "tier": "manual"
+    }
+  ]
+}

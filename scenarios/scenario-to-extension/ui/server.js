@@ -13,6 +13,7 @@ import { fileURLToPath, parse as parseUrl } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const staticRoot = path.join(__dirname, 'dist');
 
 // Validate required environment variables
 if (!process.env.UI_PORT) {
@@ -158,11 +159,11 @@ const server = http.createServer(async (req, res) => {
 
   // Serve index.html for root path
   let filePath = pathname === '/' ? '/index.html' : pathname;
-  filePath = path.join(__dirname, filePath);
+  filePath = path.join(staticRoot, filePath);
 
   // Security: prevent directory traversal
   const resolvedPath = path.resolve(filePath);
-  const rootDir = path.resolve(__dirname);
+  const rootDir = path.resolve(staticRoot);
   if (!resolvedPath.startsWith(rootDir)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');

@@ -75,6 +75,37 @@ Launch an application on the session's virtual display.
 
 **Response (200):** `{"status": "launched"}`
 
+## POST `/api/v1/livedesktop/sessions/{id}/launch-electron-validation`
+
+Launch the explicit validation target path. This endpoint is separate from
+ordinary interactive launch so a CDP debug surface is never enabled by
+accident. It requires the validation cell identity and an isolation lease;
+the target adapter allocates a loopback port, creates a private Electron
+profile, selects one renderer by identity, and owns cleanup when the session is
+stopped.
+
+**Request Body:**
+```json
+{
+  "app_path": "/path/to/electron-artifact",
+  "context_id": "validation-context-1",
+  "scenario_name": "my-scenario",
+  "artifact_digest": "sha256:...",
+  "target_id": "local-linux-xvfb",
+  "journey_id": "existing-bas-case",
+  "profile_id": "normal",
+  "isolation_lease_id": "lease-...",
+  "renderer_url_prefix": "http://127.0.0.1:4400"
+}
+```
+
+The response contains the target identity, including `cdp_endpoint`,
+`renderer_id`, `renderer_url`, `renderer_title`, `context_id`, `artifact_digest`, and `loopback_only`. The endpoint is an
+opaque internal attachment reference and must not be exposed beyond the
+validation orchestrator. Missing identity, unsafe endpoints, or ambiguous
+renderers return a refused/failed validation result rather than selecting a
+guess.
+
 ---
 
 ## DELETE `/api/v1/livedesktop/sessions/{id}`
@@ -136,12 +167,63 @@ Returns the full process metrics report for a session, including all resource sa
     "current_cpu_percent": 12.3,
     "current_rss_mb": 150.0,
     "peak_rss_mb": 200.0,
-    "sample_count": 42
+    "sample_count": 42,
+    "process_roles": [
+      {
+        "role": "electron_main",
+        "available": true,
+        "process_count": 1,
+        "rss_bytes": 157286400,
+        "peak_rss_bytes": 209715200,
+        "sample_count": 42
+      },
+      {
+        "role": "electron_gpu",
+        "available": false,
+        "unsupported": true
+      }
+    ]
   }
 }
 ```
 
 The `metrics` field is `null` when no monitor is active (e.g., app not launched, or `monitorFactory` not configured).
+
+Process attribution is scoped to the Linux `/proc` process tree rooted at the
+launched application. `process_count` counts unique PIDs observed during the
+run; RSS and thread values are the current aggregate at the last sample, with
+peak values retained separately. `unsupported: true` means the platform
+adapter cannot provide that role, while `available: false` means the role was
+supported but not observed. Consumers must preserve those states instead of
+rendering them as zero.
+
+## Launch-performance evidence
+
+Smoke-test runs persist two separate, redacted launch traces beside the
+recording: a protocol trace and a demo trace. Each trace uses the
+`launch-trace.v1` schema and includes a run identity, monotonic timestamps,
+wall-clock timestamps, component/role attribution, and lifecycle events for:
+
+- recorder/protocol or demo start and completion;
+- Electron readiness and splash creation, load, show, ready-to-show, and first
+  usable paint;
+- bundled-runtime spawn, token, health, readyz, and port discovery;
+- scenario-server readiness; and
+- main-window creation, load, show, and application readiness.
+
+The producer manifest references the checksummed trace/profile artifacts and
+projects named phase durations. Missing or malformed traces make performance
+evidence `degraded` or `unavailable`; they cannot become a passing capability
+gate. Optional Chromium, main-process CPU, and heap profiling is enabled only
+with `S2D_PROFILE_MODE=chromium|cpu|heap|all`; default `disabled` creates no
+profile artifacts.
+
+For repeated cold or warm runs, aggregate only comparable traces (same host
+fingerprint, artifact digest, display, deployment mode, and profiler mode).
+Use nearest-rank p50 and p95, retain min/max/spread, and keep an explicit
+non-comparable result when host or artifact identity changes. The reference
+Linux Xvfb/openbox review budget is advisory until a stable baseline exists:
+process-to-splash-first-paint p95 ≤ 1 second.
 
 ---
 

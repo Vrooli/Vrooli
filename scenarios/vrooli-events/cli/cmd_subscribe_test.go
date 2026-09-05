@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -8,11 +9,21 @@ import (
 	"time"
 )
 
+// registerHealthHandler satisfies the NeedsAPI preflight health probe. Without it,
+// ensureAPIReachable fails with a 404 before the command-under-test runs.
+func registerHealthHandler(mux *http.ServeMux) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "healthy"})
+	})
+}
+
 // [REQ:REQ-CLI-003] Subscribe command connects to SSE endpoint with filter params
 func TestCmdSubscribe_ConnectsWithFilters(t *testing.T) {
 	var gotPath string
 	var gotQuery string
 	mux := http.NewServeMux()
+	registerHealthHandler(mux)
 	mux.HandleFunc("/api/v1/events/subscribe", func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotQuery = r.URL.RawQuery
@@ -39,7 +50,8 @@ func TestCmdSubscribe_ConnectsWithFilters(t *testing.T) {
 	// Run subscribe in a goroutine since it blocks until the connection closes
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- app.cmdSubscribe([]string{
+		errCh <- app.Run([]string{
+			"subscribe",
 			"--type", "test.*",
 			"--source", "my-scenario",
 			"--target", "other",
@@ -50,10 +62,10 @@ func TestCmdSubscribe_ConnectsWithFilters(t *testing.T) {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("cmdSubscribe returned error: %v", err)
+			t.Fatalf("subscribe returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("cmdSubscribe did not return in time")
+		t.Fatal("subscribe did not return in time")
 	}
 
 	if gotPath != "/api/v1/events/subscribe" {
@@ -82,6 +94,7 @@ func TestCmdSubscribe_ConnectsWithFilters(t *testing.T) {
 // [REQ:REQ-CLI-003] Subscribe command handles non-200 status
 func TestCmdSubscribe_HandlesServerError(t *testing.T) {
 	mux := http.NewServeMux()
+	registerHealthHandler(mux)
 	mux.HandleFunc("/api/v1/events/subscribe", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		fmt.Fprintf(w, `{"error":"overloaded"}`)
@@ -95,7 +108,7 @@ func TestCmdSubscribe_HandlesServerError(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	err = app.cmdSubscribe(nil)
+	err = app.Run([]string{"subscribe"})
 	if err == nil {
 		t.Fatal("expected error for 503 response")
 	}
@@ -108,6 +121,7 @@ func TestCmdSubscribe_HandlesServerError(t *testing.T) {
 func TestCmdSubscribe_NoFilters(t *testing.T) {
 	var gotQuery string
 	mux := http.NewServeMux()
+	registerHealthHandler(mux)
 	mux.HandleFunc("/api/v1/events/subscribe", func(w http.ResponseWriter, r *http.Request) {
 		gotQuery = r.URL.RawQuery
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -125,16 +139,16 @@ func TestCmdSubscribe_NoFilters(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- app.cmdSubscribe(nil)
+		errCh <- app.Run([]string{"subscribe"})
 	}()
 
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("cmdSubscribe returned error: %v", err)
+			t.Fatalf("subscribe returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("cmdSubscribe did not return in time")
+		t.Fatal("subscribe did not return in time")
 	}
 
 	if gotQuery != "" {

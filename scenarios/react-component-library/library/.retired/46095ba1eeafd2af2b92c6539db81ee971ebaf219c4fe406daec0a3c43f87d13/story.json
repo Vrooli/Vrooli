@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Filter",
+        "kind": "text",
+        "path": "children"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "path": "selected"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Filter",
+        "selected": false
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Filter",
+          "role": "button"
+        }
+      ],
+      "id": "unselected",
+      "mode": "pinned",
+      "name": "Unselected",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Filter",
+        "selected": true
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Filter",
+          "role": "button"
+        }
+      ],
+      "id": "selected",
+      "mode": "pinned",
+      "name": "Selected",
+      "role": "boundary"
+    }
+  ],
+  "title": "Chip"
+}

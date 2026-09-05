@@ -1,0 +1,317 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "MorphingIcon 3.0",
+  "args": {
+    "fields": [
+      {
+        "default": "",
+        "kind": "structured",
+        "label": "Icon",
+        "path": "children"
+      },
+      {
+        "default": "auto",
+        "kind": "enum",
+        "label": "Transition",
+        "options": [
+          "auto",
+          "morph",
+          "crossfade",
+          "none"
+        ],
+        "path": "morph",
+        "required": true
+      },
+      {
+        "default": "md",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "sm",
+          "md",
+          "lg"
+        ],
+        "path": "size",
+        "required": true
+      },
+      {
+        "default": 320,
+        "kind": "number",
+        "label": "Duration (ms)",
+        "path": "duration"
+      },
+      {
+        "default": "",
+        "kind": "text",
+        "label": "Accessible label",
+        "path": "label"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Any icon, no registry entry",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "3.0 accepts arbitrary icon children. 2.x accepted only eleven named glyphs.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-current] svg path",
+          "value": "3"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon]",
+          "attribute": "data-rcl-technique",
+          "value": "idle"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon]",
+          "attribute": "aria-hidden",
+          "value": "true"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-frame]",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "id": "labelled",
+      "name": "Labelled",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Unlabelled it is decorative; labelled it becomes an image with a name.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Labelled"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Messages"
+        }
+      ]
+    },
+    {
+      "id": "registry-glyph",
+      "name": "Registry glyph",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The 2.x entry point still works unchanged.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "RegistryGlyph"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon] svg path",
+          "attribute": "d",
+          "value": "M6 6l12 12M18 6L6 18"
+        }
+      ]
+    },
+    {
+      "id": "search-glyph",
+      "name": "Search glyph keeps its circle",
+      "role": "boundary",
+      "mode": "live",
+      "description": "2.x dropped both arc commands and shipped this glyph as a bare diagonal line.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SearchGlyph"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon] svg path",
+          "attribute": "d",
+          "value": "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M16 16l4 4"
+        }
+      ]
+    },
+    {
+      "id": "size-small",
+      "name": "Small",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "SizeSmall"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon]",
+          "attribute": "data-size",
+          "value": "sm"
+        }
+      ]
+    },
+    {
+      "id": "compatible-swap",
+      "name": "Compatible pair morphs",
+      "role": "axis",
+      "axis": "morph",
+      "covers": {
+        "morph": [
+          "auto",
+          "morph",
+          "crossfade",
+          "none"
+        ]
+      },
+      "mode": "live",
+      "description": "Measured compatibility 0.862: the container and both interior marks have somewhere to go.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CompatibleSwap"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='morph-swap-trigger']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon]",
+          "attribute": "data-rcl-transition-mode",
+          "value": "auto"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-current] rect",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "incompatible-swap",
+      "name": "Incompatible pair crossfades",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Measured 0.453: nine strokes against three, so path interpolation is declined.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "IncompatibleSwap"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='morph-swap-trigger']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-current] svg",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "no-transition",
+      "name": "Transition disabled",
+      "role": "boundary",
+      "mode": "live",
+      "description": "An instant swap, for a caller that owns its own motion.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "NoTransition"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='morph-swap-trigger']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-morphing-icon]",
+          "attribute": "data-rcl-technique",
+          "value": "idle"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-frame]",
+          "value": "0"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-morphing-icon-current] rect",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}

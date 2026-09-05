@@ -1,0 +1,237 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "workspace",
+    "title": "Workspace",
+    "routes": ["/"],
+    "purpose": "Let an operator review repository state, inspect diffs, compose commits, and move between history and scenario review without losing context.",
+    "prd_refs": ["OT-P0-002", "OT-P0-003", "OT-P0-004", "OT-P0-005", "OT-P2-001"]
+  },
+  "priorities": [
+    { "statement": "Repository status and branch context stay visible before any mutating action." },
+    { "statement": "The active file diff is the primary work surface on desktop." },
+    { "statement": "Changes, diff, commit, history, and review remain reachable as equivalent full-page tabs on mobile." },
+    { "statement": "Desktop operators can resize and rearrange supporting panels without hiding the primary diff." },
+    { "statement": "Mobile chrome stays pinned and safely tappable at the device edge." }
+  ],
+  "states": [
+    { "id": "default", "description": "Repository workspace loaded with status chrome, panel navigation, and the primary review surface." },
+    { "id": "loading", "description": "Initial health and repository status requests are in flight." },
+    { "id": "request-error", "description": "A git operation or status request failed and is surfaced as a toast." },
+    { "id": "history-mode", "description": "A previous commit is selected; the file list and diff inspect that commit instead of the working tree." },
+    { "id": "settings-open", "description": "Settings modal exposes layout, grouping, credential, and health configuration." }
+  ],
+  "elements": [
+    { "id": "workspace-root", "role": "x-application", "description": "The full Git Control Tower application surface." },
+    { "id": "desktop-status-header", "role": "banner", "description": "Desktop status chrome with branch, sync, health, review, search, settings, and refresh controls." },
+    { "id": "mobile-header", "role": "banner", "description": "Mobile status chrome with branch, sync, review, search, and menu controls." },
+    { "id": "status-bar-fill", "role": "region", "description": "Paintable top safe-area strip resolved by the shared chrome theme." },
+    { "id": "kind-band", "role": "region", "description": "Non-collapsible repository target-kind band in the grouped Changes list." },
+    { "id": "run-chip", "role": "button", "description": "Compact attribution control identifying the agent run that wrote a file." },
+    { "id": "run-sheet", "role": "dialog", "description": "Bottom sheet with agent-run provenance and select-only actions." },
+    { "id": "run-filter-chip", "role": "region", "description": "Changes-list filter for files attributed to agent runs." },
+    { "id": "mobile-nav", "role": "navigation", "description": "Mobile bottom navigation across Changes, Diff, Commit, History, and Review panels." },
+    { "id": "mobile-changes-tab", "role": "button", "name": "Changes", "description": "Mobile tab that opens the file-change panel as the current page." },
+    { "id": "mobile-diff-tab", "role": "button", "name": "Diff", "description": "Mobile tab that opens the diff panel as the current page." },
+    { "id": "mobile-commit-tab", "role": "button", "name": "Commit", "description": "Mobile tab that opens commit composition as the current page." },
+    { "id": "mobile-history-tab", "role": "button", "name": "History", "description": "Mobile tab that opens git history as the current page." },
+    { "id": "mobile-review-tab", "role": "button", "name": "Review", "description": "Mobile tab that opens the scenario review surface as the current page." },
+    { "id": "changes-panel", "role": "x-panel", "description": "Working-tree file list with staging and grouping controls." },
+    { "id": "diff-panel", "role": "x-panel", "description": "Primary diff or source viewer for the selected file." },
+    { "id": "commit-panel", "role": "x-panel", "description": "Commit message, validation, push, and pre-commit controls." },
+    { "id": "history-panel", "role": "x-panel", "description": "Git history list and filters." },
+    { "id": "review-entry", "role": "button", "name": "Scenario review", "description": "Chrome entry point into scenario review." },
+    { "id": "search-entry", "role": "button", "description": "Chrome entry point into file search." },
+    { "id": "settings-entry", "role": "button", "description": "Chrome entry point into settings." }
+  ],
+  "claims": [
+    {
+      "id": "desktop-chrome-actions-present",
+      "type": "element-present",
+      "statement": "Desktop chrome exposes review, search, and settings actions without opening a menu.",
+      "tier": "machine",
+      "elements": ["review-entry", "search-entry", "settings-entry"],
+      "states": ["default"],
+      "viewports": ["desktop", "wide"]
+    },
+    {
+      "id": "desktop-status-header-visible",
+      "type": "visible-without-scroll",
+      "statement": "Desktop status chrome is visible without page scrolling.",
+      "tier": "machine",
+      "elements": ["desktop-status-header"],
+      "states": ["default"],
+      "viewports": ["desktop", "wide"]
+    },
+    {
+      "id": "desktop-chrome-before-actions",
+      "type": "reading-order",
+      "statement": "Desktop branch/status chrome reads before review, search, and settings actions.",
+      "tier": "machine",
+      "elements": ["desktop-status-header", "review-entry", "search-entry", "settings-entry"],
+      "states": ["default"],
+      "viewports": ["desktop", "wide"]
+    },
+    {
+      "id": "mobile-header-visible",
+      "type": "visible-without-scroll",
+      "statement": "Mobile status chrome remains visible without page scrolling.",
+      "tier": "machine",
+      "elements": ["mobile-header"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "mobile-tabs-present",
+      "type": "element-present",
+      "statement": "The mobile workspace exposes the same core work surfaces through bottom-nav tabs.",
+      "tier": "machine",
+      "elements": ["mobile-changes-tab", "mobile-diff-tab", "mobile-commit-tab", "mobile-history-tab", "mobile-review-tab"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "mobile-tabs-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Every mobile bottom-nav tab is keyboard reachable.",
+      "tier": "machine",
+      "elements": ["mobile-changes-tab", "mobile-diff-tab", "mobile-commit-tab", "mobile-history-tab", "mobile-review-tab"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "mobile-nav-visible",
+      "type": "visible-without-scroll",
+      "statement": "Mobile bottom navigation is visible without scrolling to the end of the document.",
+      "tier": "machine",
+      "elements": ["mobile-nav"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-001-viewport-fill",
+      "type": "viewport-fill",
+      "statement": "The embedded mobile workspace fills the captured viewport through the app shell rather than collapsing to content height.",
+      "tier": "machine",
+      "elements": ["workspace-root"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-006-chrome-pinned",
+      "type": "chrome-pinned",
+      "statement": "Mobile header and bottom navigation stay inside the viewport as structural chrome without overlapping the active panel.",
+      "tier": "machine",
+      "elements": ["mobile-header", "mobile-nav"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-002-chrome-color-agreement",
+      "type": "chrome-color-agreement",
+      "statement": "Declared status chrome and the rendered top safe-area surface resolve to the same colour.",
+      "tier": "machine",
+      "elements": ["status-bar-fill"],
+      "params": { "reference": "mobile-header" },
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-006-safe-area-tap-targets",
+      "type": "safe-area-tap-targets",
+      "statement": "Mobile navigation controls remain tappable above device-edge safe-area zones.",
+      "tier": "machine",
+      "elements": ["mobile-nav", "mobile-changes-tab", "mobile-diff-tab", "mobile-commit-tab", "mobile-history-tab", "mobile-review-tab"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-changes-kind-band-present",
+      "type": "element-present",
+      "statement": "Grouped Changes identifies repository target kinds with non-collapsible bands.",
+      "tier": "machine",
+      "elements": ["kind-band"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-changes-run-filter-present",
+      "type": "element-present",
+      "statement": "Changes exposes honest attribution and status filters without an approval action.",
+      "tier": "machine",
+      "elements": ["run-filter-chip"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-changes-run-chip-target",
+      "type": "tap-target-size",
+      "statement": "An attributed run chip is large enough to tap on mobile.",
+      "tier": "machine",
+      "elements": ["run-chip"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "desktop-panels-resizable",
+      "type": "custom",
+      "statement": "Desktop support panels can be resized and rearranged without unmounting the active diff.",
+      "tier": "manual",
+      "elements": ["changes-panel", "diff-panel", "commit-panel", "history-panel"],
+      "states": ["default"],
+      "viewports": ["desktop", "wide"],
+      "rationale": "The existing checker can prove panel presence and viewport visibility; drag-resize behavior needs a workflow-backed interaction check."
+    },
+    {
+      "id": "mobile-panels-full-page",
+      "type": "custom",
+      "statement": "On mobile, each bottom-nav choice presents its panel as the full available page rather than shrinking the desktop split-pane layout.",
+      "tier": "manual",
+      "elements": ["mobile-nav", "changes-panel", "diff-panel", "commit-panel", "history-panel"],
+      "states": ["default"],
+      "viewports": ["mobile"],
+      "rationale": "The current matrix captures only the default selected mobile tab; tab-switch state setup is the next interaction-runner step."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "workspace-root": { "testid": "git-control-tower" },
+      "desktop-status-header": { "testid": "status-header" },
+      "mobile-header": { "testid": "mobile-header" },
+      "status-bar-fill": { "testid": "status-bar-fill" },
+      "kind-band": { "selector": "[data-testid^=file-kind-band-]" },
+      "run-chip": { "selector": "[data-testid^=run-chip-]" },
+      "run-sheet": { "testid": "run-sheet" },
+      "run-filter-chip": { "testid": "run-filter-chip" },
+      "mobile-nav": { "testid": "mobile-nav" },
+      "mobile-changes-tab": { "testid": "mobile-nav-changes" },
+      "mobile-diff-tab": { "testid": "mobile-nav-diff" },
+      "mobile-commit-tab": { "testid": "mobile-nav-commit" },
+      "mobile-history-tab": { "testid": "mobile-nav-history" },
+      "mobile-review-tab": { "testid": "mobile-nav-review" },
+      "changes-panel": { "testid": "file-list-panel" },
+      "diff-panel": { "testid": "diff-viewer-panel" },
+      "commit-panel": { "testid": "commit-panel" },
+      "history-panel": { "testid": "git-history-panel" },
+      "review-entry": { "testid": "review-button" },
+      "search-entry": { "testid": "file-search-button" },
+      "settings-entry": { "testid": "settings-button" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "status-chrome", "grid": { "x": 0, "y": 0, "w": 12, "h": 1 }, "elements": ["desktop-status-header"] },
+      { "id": "support-stack", "grid": { "x": 0, "y": 1, "w": 4, "h": 9 }, "elements": ["changes-panel", "history-panel", "commit-panel"], "note": "Desktop support panels are user-resizable and can move left/right/bottom." },
+      { "id": "primary-diff", "grid": { "x": 4, "y": 1, "w": 8, "h": 9 }, "elements": ["diff-panel"] },
+      { "id": "mobile-transform", "note": "At mobile width, these same panels become full-page tabs controlled by mobile-nav.", "elements": ["mobile-header", "mobile-nav", "mobile-changes-tab", "mobile-diff-tab", "mobile-commit-tab", "mobile-history-tab", "mobile-review-tab"] }
+    ]
+  },
+  "x-responsive-transform": {
+    "desktop": "Resizable support panels surround the primary diff surface.",
+    "mobile": "The same surfaces are selected one at a time through pinned bottom navigation.",
+    "schema-note": "scenario-experience-spec/v1 expresses this through viewport-scoped claims plus open-world x- documentation; no schema change was required."
+  }
+}

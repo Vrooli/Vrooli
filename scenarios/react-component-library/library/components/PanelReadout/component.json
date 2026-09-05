@@ -1,0 +1,17 @@
+{
+  "catalogId": "react-component-library:PanelReadout",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "native",
+      "reason": "Preserves provenance-aware ranked rows at wall distance."
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0"
+  ],
+  "latest": "0.1.1",
+  "libraryId": "react-component-library:PanelReadout"
+}

@@ -1,0 +1,418 @@
+{
+  "date": "2026-09-04",
+  "provenance": "test",
+  "runtime_fixtures": [
+    {
+      "program": "browser-automation-studio.author-flow",
+      "fixture": "missing-candidate",
+      "id": "prog_4dea4b67-73b0-4d23-a74d-bcb3d12ef74f",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "project_id for promotion or workflow_id for repair is required",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.author-flow",
+      "fixture": "missing-repair-version",
+      "id": "prog_6c75880b-9e73-42e7-b1d7-5065e22253d4",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Repair requires exact expected_version",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.do-task",
+      "fixture": "missing-task",
+      "id": "prog_b7df6ee2-0887-4df4-a8bf-b565203e1d32",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "task must be a nonempty string",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.do-task",
+      "fixture": "missing-version",
+      "id": "prog_7950c982-d17e-4bd8-88ca-c7be40e40dfe",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Execution requires the exact selected version",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.do-task",
+      "fixture": "ambiguous-route",
+      "id": "prog_436b5654-9b30-4308-98af-b37dadc28f0f",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Select one workflow, candidate flow, or navigation session",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.find-flows",
+      "fixture": "no-task",
+      "id": "prog_1d6330b7-ef25-402b-8852-5db236e164b9",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "task is required",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.find-flows",
+      "fixture": "smoke",
+      "id": "prog_f270c15e-f975-4d48-8817-d4594bff03ba",
+      "ok": true,
+      "status": "ok",
+      "errors": [],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.learning-read",
+      "fixture": "unexpected-selector",
+      "id": "prog_eaac6034-42a5-4197-9c55-0ef24e2e2875",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Only explicit comparison-window selectors are accepted",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.learning-read",
+      "fixture": "live",
+      "id": "prog_e39d6119-c340-4269-94d9-59d3ad53e2a9",
+      "ok": true,
+      "status": "ok",
+      "errors": [],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.navigate-intent",
+      "fixture": "no-session",
+      "id": "prog_eeed71bc-1860-4729-bf2d-4699fe8dd860",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "session (existing browser session id) is required",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.navigate-intent",
+      "fixture": "no-model",
+      "id": "prog_39ec19e0-a240-4b8a-ad1d-847a724af858",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "model_required",
+          "detail": "model is required: the vision-navigation binding has no default and callers must not hardcode a slug",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.setpoint-read",
+      "fixture": "live",
+      "id": "prog_e1fd64c5-5943-40ee-a487-04ed1b3461da",
+      "ok": true,
+      "status": "ok",
+      "errors": [],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.setpoint-read",
+      "fixture": "bad-window",
+      "id": "prog_341822d3-9880-46be-af95-ca03fe777239",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "window=5 outside 10..100 (executions list caps at 100)",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.smoke-flow",
+      "fixture": "no-workflow",
+      "id": "prog_863a6aa9-36a5-42ac-9c61-4ba742078e0a",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Exact positive workflow version required",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.smoke-flow",
+      "fixture": "unknown-workflow",
+      "id": "prog_197d3f3a-83fd-4d48-9f17-88a51d0a34a6",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "workflow_not_found",
+          "detail": "invoke browser-automation-studio/workflows/get: remote status 404 Not Found: {\"code\":\"not_found\",\"message\":\"workflow not found\"}",
+          "where": "collect"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    },
+    {
+      "program": "browser-automation-studio.smoke-flow",
+      "fixture": "missing-version",
+      "id": "prog_2fc5f155-5bd5-4d8b-9ab3-2171901816fb",
+      "ok": true,
+      "status": "failed",
+      "errors": [
+        {
+          "class": "invalid_input",
+          "detail": "Exact positive workflow version required",
+          "where": "validate"
+        }
+      ],
+      "failure": null,
+      "diagnostic": null
+    }
+  ],
+  "operator_speed_baseline": null,
+  "physical_device_actuation_performed": false,
+  "live_browser_checks": {
+    "workflow_id": "655d9130-e215-4c4e-a6b3-07b6415d3306",
+    "replay": {
+      "program": "browser-automation-studio.do-task",
+      "version": "2",
+      "status": "ok",
+      "phase": "report",
+      "inputs": {
+        "task": "Verify isolated blank page",
+        "workflow_id": "655d9130-e215-4c4e-a6b3-07b6415d3306"
+      },
+      "signals": {
+        "result": {
+          "workflow_name": "Verified isolated blank page",
+          "execution_id": "ea2b9a23-3b5f-4096-9245-7eb710933beb",
+          "execution_status": "EXECUTION_STATUS_COMPLETED",
+          "outcome": "passed",
+          "failed_step": null,
+          "failed_action": null,
+          "failed_error_code": null,
+          "timeline_entries": null,
+          "screenshot_count": 2
+        },
+        "candidates": [],
+        "recall_refs": [],
+        "capture_required": true,
+        "reused_workflow": true
+      },
+      "errors": [],
+      "evidence": [
+        "workflow:655d9130-e215-4c4e-a6b3-07b6415d3306",
+        "execution:ea2b9a23-3b5f-4096-9245-7eb710933beb"
+      ]
+    },
+    "repair": {
+      "program": "browser-automation-studio.author-flow",
+      "version": "2",
+      "status": "ok",
+      "phase": "report",
+      "inputs": {
+        "flow_nodes": 2,
+        "name": "candidate",
+        "folder": "candidates"
+      },
+      "signals": {
+        "valid": true,
+        "validation_errors": 0,
+        "validation_warnings": 2,
+        "node_count": 2,
+        "execution_id": "9a8ee1a8-cc73-4205-9e0f-7a5b8f339911",
+        "execution_status": "EXECUTION_STATUS_COMPLETED",
+        "outcome": "passed",
+        "persistable": true,
+        "workflow_id": "655d9130-e215-4c4e-a6b3-07b6415d3306",
+        "version": 2
+      },
+      "errors": [],
+      "evidence": [
+        "execution:9a8ee1a8-cc73-4205-9e0f-7a5b8f339911",
+        "workflow:655d9130-e215-4c4e-a6b3-07b6415d3306:2"
+      ]
+    },
+    "stale": {
+      "program": "browser-automation-studio.author-flow",
+      "version": "2",
+      "status": "failed",
+      "phase": "report",
+      "inputs": {
+        "flow_nodes": 2,
+        "name": "candidate",
+        "folder": "candidates"
+      },
+      "signals": {
+        "valid": null,
+        "validation_errors": null,
+        "validation_warnings": null,
+        "node_count": null,
+        "execution_id": null,
+        "execution_status": null,
+        "outcome": null,
+        "persistable": false,
+        "workflow_id": null,
+        "version": null
+      },
+      "errors": [
+        {
+          "class": "binding_error",
+          "detail": "invoke browser-automation-studio/workflows/validate: remote status 409 Conflict: {\"code\":\"aborted\",\"message\":\"repair baseline version changed\"}",
+          "where": "collect"
+        }
+      ],
+      "evidence": []
+    },
+    "weaken": {
+      "program": "browser-automation-studio.author-flow",
+      "version": "2",
+      "status": "failed",
+      "phase": "report",
+      "inputs": {
+        "flow_nodes": 2,
+        "name": "candidate",
+        "folder": "candidates"
+      },
+      "signals": {
+        "valid": null,
+        "validation_errors": null,
+        "validation_warnings": null,
+        "node_count": null,
+        "execution_id": null,
+        "execution_status": null,
+        "outcome": null,
+        "persistable": false,
+        "workflow_id": null,
+        "version": null
+      },
+      "errors": [
+        {
+          "class": "binding_error",
+          "detail": "invoke browser-automation-studio/workflows/validate: remote status 400 Bad Request: {\"code\":\"failed_precondition\",\"message\":\"automated repair must preserve assertion verify\"}",
+          "where": "collect"
+        }
+      ],
+      "evidence": []
+    },
+    "old_version": {
+      "program": "browser-automation-studio.do-task",
+      "version": "2",
+      "status": "ok",
+      "phase": "report",
+      "inputs": {
+        "task": "Verify original isolated revision",
+        "workflow_id": "655d9130-e215-4c4e-a6b3-07b6415d3306"
+      },
+      "signals": {
+        "result": {
+          "workflow_name": "Verified isolated blank page",
+          "execution_id": "d2f07d68-d28d-464f-b35a-ca2ae12ca224",
+          "execution_status": "EXECUTION_STATUS_COMPLETED",
+          "outcome": "passed",
+          "failed_step": null,
+          "failed_action": null,
+          "failed_error_code": null,
+          "timeline_entries": null,
+          "screenshot_count": 2
+        },
+        "candidates": [],
+        "recall_refs": [],
+        "capture_required": true,
+        "reused_workflow": true
+      },
+      "errors": [],
+      "evidence": [
+        "workflow:655d9130-e215-4c4e-a6b3-07b6415d3306",
+        "execution:d2f07d68-d28d-464f-b35a-ca2ae12ca224"
+      ]
+    }
+  },
+  "test_genie_broad_run": "20260904-223942-0c0fe1fb",
+  "final_contract_suite": {
+    "run_id": "20260904-224947-71dd8a3e",
+    "verdict": "PASS",
+    "phases": [
+      {
+        "name": "programs",
+        "status": "passed"
+      },
+      {
+        "name": "skill-set",
+        "status": "passed"
+      }
+    ]
+  }
+}

@@ -2,15 +2,19 @@ package scenarioport
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
+
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+var cliClient = vroolicli.New()
 
 type PortInfo struct {
 	Name string
@@ -28,6 +32,9 @@ type ScenarioMetadata struct {
 type ScenarioCLI interface {
 	// LookupPort retrieves the port number for a named port of a scenario.
 	LookupPort(ctx context.Context, scenarioName, portName string) (int, error)
+	// LookupPortAtPath retrieves a port for a scenario whose runtime was
+	// launched from an explicit physical scenario directory.
+	LookupPortAtPath(ctx context.Context, scenarioName, portName, path string) (int, error)
 
 	// ListScenarios returns metadata for all known scenarios.
 	ListScenarios(ctx context.Context) ([]ScenarioMetadata, error)
@@ -36,58 +43,75 @@ type ScenarioCLI interface {
 	GetStatus(ctx context.Context, scenarioName string) (string, error)
 }
 
+type scenarioPortResolver interface {
+	ResolveScenarioPort(ctx context.Context, scenarioName, portName string) (int, error)
+}
+
 // DefaultScenarioCLI implements ScenarioCLI using api-core discovery.
-type DefaultScenarioCLI struct{}
+type DefaultScenarioCLI struct {
+	PortResolver scenarioPortResolver
+}
 
 // LookupPort uses api-core discovery to get the port number.
 func (c *DefaultScenarioCLI) LookupPort(ctx context.Context, scenarioName, portName string) (int, error) {
-	return discovery.ResolveScenarioPort(ctx, scenarioName, portName)
+	resolver := c.PortResolver
+	if resolver == nil {
+		resolver = discovery.NewResolver(discovery.ResolverConfig{})
+	}
+	return resolver.ResolveScenarioPort(ctx, scenarioName, portName)
 }
 
-// ListScenarios shells out to 'vrooli scenario list --json' to get all scenarios.
+func (c *DefaultScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, path string) (int, error) {
+	resp, err := cliClient.ScenarioPortAtPath(ctx, scenarioName, portName, path)
+	if err != nil {
+		return 0, err
+	}
+	if !resp.GetSuccess() || resp.GetPort() <= 0 {
+		return 0, fmt.Errorf("%s", strings.TrimSpace(resp.GetError()))
+	}
+	return int(resp.GetPort()), nil
+}
+
+// ListScenarios returns all scenarios via the typed CLI client, mapping the
+// vrooli.cli.v1 scenario-list contract onto ScenarioMetadata.
 func (c *DefaultScenarioCLI) ListScenarios(ctx context.Context) ([]ScenarioMetadata, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list scenarios: %w", err)
 	}
 
-	var payload scenarioListResponse
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario list: %w", err)
-	}
-
-	scenarios := make([]ScenarioMetadata, 0, len(payload.Scenarios))
-	for _, item := range payload.Scenarios {
-		trimmedName := strings.TrimSpace(item.Name)
+	scenarios := make([]ScenarioMetadata, 0, len(resp.GetScenarios()))
+	for _, item := range resp.GetScenarios() {
+		trimmedName := strings.TrimSpace(item.GetName())
 		if trimmedName == "" {
 			continue
 		}
 		scenarios = append(scenarios, ScenarioMetadata{
 			Name:        trimmedName,
-			Description: strings.TrimSpace(item.Description),
-			Status:      strings.TrimSpace(item.Status),
+			Description: strings.TrimSpace(item.GetDescription()),
+			Status:      strings.TrimSpace(item.GetStatus()),
 		})
 	}
 
 	return scenarios, nil
 }
 
-// GetStatus shells out to 'vrooli scenario status' to get the current status.
+// GetStatus reads a scenario's lifecycle status via the typed CLI client. A
+// failed lookup is not an error condition — it degrades to "unknown".
 func (c *DefaultScenarioCLI) GetStatus(ctx context.Context, scenarioName string) (string, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", scenarioName)
-	output, err := cmd.Output()
+	resp, err := cliClient.ScenarioStatus(ctx, scenarioName)
 	if err != nil {
-		return "unknown", nil // Status command failing is not an error condition
+		return "unknown", nil
 	}
 
-	statusStr := strings.TrimSpace(string(output))
-	if strings.Contains(strings.ToLower(statusStr), "running") {
+	switch strings.ToLower(strings.TrimSpace(resp.GetScenario().GetStatus())) {
+	case "running":
 		return "running", nil
-	} else if strings.Contains(strings.ToLower(statusStr), "stopped") {
+	case "stopped":
 		return "stopped", nil
+	default:
+		return "unknown", nil
 	}
-	return "unknown", nil
 }
 
 // Compile-time interface enforcement
@@ -121,6 +145,10 @@ func (m *MockScenarioCLI) LookupPort(_ context.Context, scenarioName, portName s
 		}
 	}
 	return 0, fmt.Errorf("port %s not found for scenario %s", portName, scenarioName)
+}
+
+func (m *MockScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, _ string) (int, error) {
+	return m.LookupPort(ctx, scenarioName, portName)
 }
 
 // ListScenarios returns the configured scenarios or error.
@@ -157,26 +185,26 @@ func SetScenarioCLIForTests(cli ScenarioCLI) func() {
 	}
 }
 
-// Legacy compatibility - portLookupFunc now delegates to scenarioCLI
-var portLookupFunc = func(ctx context.Context, scenarioName, portName string) (int, error) {
-	return scenarioCLI.LookupPort(ctx, scenarioName, portName)
-}
-
 const (
 	portLookupRetryWindow = 6 * time.Second
 	portLookupRetryDelay  = 250 * time.Millisecond
 )
 
-// SetPortLookupFuncForTests provides backward compatibility for existing tests.
-func SetPortLookupFuncForTests(fn func(context.Context, string, string) (int, error)) func() {
-	previous := portLookupFunc
-	portLookupFunc = fn
-	return func() {
-		portLookupFunc = previous
-	}
+func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) (*PortInfo, error) {
+	return resolvePort(ctx, scenarioName, "", portNames...)
 }
 
-func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) (*PortInfo, error) {
+// ResolvePortAtPath resolves a port for a runtime associated with a physical
+// scenario directory. It is intended for generated scenarios that are not
+// part of the repository catalog.
+func ResolvePortAtPath(ctx context.Context, scenarioName, path string, portNames ...string) (*PortInfo, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("scenario path is required")
+	}
+	return resolvePort(ctx, scenarioName, path, portNames...)
+}
+
+func resolvePort(ctx context.Context, scenarioName, path string, portNames ...string) (*PortInfo, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -189,18 +217,20 @@ func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) 
 	combined = append(combined, "UI_PORT", "API_PORT")
 	candidateNames := uniqueNormalizedNames(combined)
 
-	if entry := lookupRegistryEntry(trimmedScenario); entry != nil {
-		if portName, port := entry.portFor(candidateNames); port > 0 {
-			return &PortInfo{Name: portName, Port: port}, nil
-		}
-	}
-
 	deadline := time.Now().Add(portLookupRetryWindow)
 	var lastErr error
 
 	for {
 		for _, name := range candidateNames {
-			port, err := portLookupFunc(ctx, trimmedScenario, name)
+			var (
+				port int
+				err  error
+			)
+			if strings.TrimSpace(path) != "" {
+				port, err = scenarioCLI.LookupPortAtPath(ctx, trimmedScenario, name, path)
+			} else {
+				port, err = scenarioCLI.LookupPort(ctx, trimmedScenario, name)
+			}
 			if err == nil && port > 0 {
 				return &PortInfo{Name: name, Port: port}, nil
 			}
@@ -263,16 +293,6 @@ func ResolveURL(ctx context.Context, scenarioName, path string, portNames ...str
 		return "", nil, fmt.Errorf("scenario name is required")
 	}
 
-	combined := append([]string{}, portNames...)
-	combined = append(combined, "UI_PORT", "API_PORT")
-	candidateNames := uniqueNormalizedNames(combined)
-
-	if entry := lookupRegistryEntry(trimmedScenario); entry != nil {
-		if resolved, info, ok := entry.resolveURL(path, candidateNames); ok {
-			return resolved, info, nil
-		}
-	}
-
 	portInfo, err := ResolvePort(ctx, trimmedScenario, portNames...)
 	if err != nil {
 		return "", nil, err
@@ -286,8 +306,23 @@ func ResolveURL(ctx context.Context, scenarioName, path string, portNames ...str
 	return resolvedURL, portInfo, nil
 }
 
-type scenarioListResponse struct {
-	Scenarios []ScenarioMetadata `json:"scenarios"`
+// ResolveURLAtPath resolves a URL using the runtime registered for scenarioRoot;
+// path remains the HTTP route within that scenario, preserving ResolveURL's
+// existing route-path contract.
+func ResolveURLAtPath(ctx context.Context, scenarioName, scenarioRoot, path string, portNames ...string) (string, *PortInfo, error) {
+	trimmedScenario := strings.TrimSpace(scenarioName)
+	if trimmedScenario == "" {
+		return "", nil, fmt.Errorf("scenario name is required")
+	}
+	portInfo, err := ResolvePortAtPath(ctx, trimmedScenario, scenarioRoot, portNames...)
+	if err != nil {
+		return "", nil, err
+	}
+	resolvedURL, err := BuildURL(portInfo.Port, path)
+	if err != nil {
+		return "", nil, err
+	}
+	return resolvedURL, portInfo, nil
 }
 
 // ListScenarios returns metadata for all known scenarios.

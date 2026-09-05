@@ -1,7 +1,20 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GitHistory } from "./GitHistory";
+
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getTotalSize: () => count * 80,
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        index,
+        start: index * 80,
+        size: 80,
+        key: index
+      })),
+    measureElement: vi.fn()
+  })
+}));
 
 // Minimal history lines with pN pattern commits and a non-pN commit
 const HISTORY_LINES = [
@@ -113,5 +126,31 @@ describe("GitHistory group filter banner", () => {
 
     fireEvent.click(screen.getByTestId("clear-group-filter-btn"));
     expect(onClear).toHaveBeenCalledOnce();
+  });
+});
+
+describe("GitHistory commit check badges", () => {
+  it("renders precommit status badge for entries with recorded checks", () => {
+    renderHistory({
+      entries: [
+        {
+          hash: "abc1234",
+          subject: "web-console TTS p10",
+          files: ["src/a.ts"],
+          checks: [{
+            kind: "precommit",
+            status: "passed",
+            command: "custom check",
+            exit_code: 0,
+            summary: "checks passed",
+            duration_ms: 12,
+            timestamp: "2026-05-09T12:00:00Z"
+          }]
+        },
+        ...ENTRIES.slice(1)
+      ]
+    });
+
+    expect(screen.getByTestId("history-precommit-badge")).toHaveTextContent("precommit passed");
   });
 });

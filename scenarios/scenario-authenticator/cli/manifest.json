@@ -1,0 +1,318 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-authenticator",
+  "description": "scenario-authenticator CLI surface. Single source of truth for the auth + sessions domains: schema-validated against cli-manifest/v1 and cross-validated against the AccountsService/SessionsService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "auth",
+      "description": "Account lifecycle (register, login, change-password, refresh, logout, validate)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Create an account and sign in",
+          "flags": [
+            {
+              "name": "email",
+              "required": true,
+              "description": "Account email"
+            },
+            {
+              "name": "password-stdin",
+              "bool": true,
+              "description": "Read the password from standard input instead of the masked terminal prompt"
+            },
+            {
+              "name": "username",
+              "description": "Optional display name"
+            },
+            {
+              "name": "realm",
+              "description": "Realm to register in (default realm if omitted)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Register"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "login",
+          "description": "Sign in and obtain access + refresh tokens",
+          "flags": [
+            {
+              "name": "email",
+              "required": true,
+              "description": "Account email"
+            },
+            {
+              "name": "password-stdin",
+              "bool": true,
+              "description": "Read the password from standard input instead of the masked terminal prompt"
+            },
+            {
+              "name": "realm",
+              "description": "Realm to authenticate against"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Login"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "change-password",
+          "description": "Change the account password and revoke all live sessions",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "Access token identifying the account"
+            },
+            {
+              "name": "password-stdin",
+              "bool": true,
+              "description": "Read current and new passwords as two newline-delimited values from standard input"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "ChangePassword"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Rotate a refresh token and mint a new access token",
+          "flags": [
+            {
+              "name": "refresh-token",
+              "required": true,
+              "description": "The refresh token to rotate"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Refresh"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "logout",
+          "description": "Sign out: blacklist the access token and revoke sessions",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "The access token to invalidate"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Logout"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate an access token and show its claims",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "The access token to validate"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Validate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "link-machine-account",
+          "description": "Bind the current local principal to the signed-in account",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Access token identifying the account"},
+            {"name": "machine-id", "description": "Machine identifier (defaults to hostname)"},
+            {"name": "realm", "description": "Realm to bind in"},
+            {"name": "default", "bool": true, "description": "Make this the default binding for the principal"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "LinkMachineAccount"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "issue-break-glass",
+          "description": "Issue a short-lived offline credential and write it to an owner-only file; never print the credential",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Access token identifying the account"},
+            {"name": "scopes", "description": "Comma-separated requested scopes, bounded by the account grants"},
+            {"name": "token-file", "required": true, "description": "Owner-only destination for the credential"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "IssueBreakGlass"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "grant-scope",
+          "description": "Grant an opaque scope to the authenticated principal",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Access token identifying the principal"},
+            {"name": "principal-id", "description": "Principal id (defaults to the token subject)"},
+            {"name": "scope", "required": true, "description": "Opaque scope string"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "GrantScope"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "revoke-scope",
+          "description": "Revoke an opaque scope from the authenticated principal",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Access token identifying the principal"},
+            {"name": "principal-id", "description": "Principal id (defaults to the token subject)"},
+            {"name": "scope", "required": true, "description": "Opaque scope string"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "RevokeScope"},
+          "governance": {"effect": "destructive", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "list-scopes",
+          "description": "List opaque scopes assigned to the authenticated principal",
+          "flags": [
+            {"name": "access-token", "required": true, "description": "Access token identifying the principal"},
+            {"name": "principal-id", "description": "Principal id (defaults to the token subject)"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "ListScopes"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "description": "Session enumeration and revocation",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List active sessions for an access token's owner",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "Access token identifying the owner"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "ListSessions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a single session by id (idempotent)",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session id to revoke"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "RevokeSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revoke-all",
+          "description": "Revoke every session for the access token's owner",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "Access token identifying the owner"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "RevokeAllSessions"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "AccountsService",
+      "method": "ExchangeMachinePrincipal",
+      "reason": "Local Unix-socket-only exchange is consumed by bridge/authentication adapters, not a TCP operator CLI command."
+    }
+  ]
+}

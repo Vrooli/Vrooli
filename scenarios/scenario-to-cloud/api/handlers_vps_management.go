@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
+
+	"github.com/gorilla/mux"
 )
 
 // Type aliases for backward compatibility.
@@ -143,7 +143,11 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 		response.OK = true
 		response.Message = actionDesc
 		response.Output = "Server is rebooting. Connection was closed as expected."
-		httputil.WriteJSON(w, http.StatusOK, response)
+		// The remote command returned an error because the host dropped the
+		// connection while rebooting.  Accepted communicates that the action
+		// was received and is in progress without presenting an error branch as
+		// a successful 200 response to generic API health checks.
+		httputil.WriteJSON(w, http.StatusAccepted, response)
 		return
 	}
 

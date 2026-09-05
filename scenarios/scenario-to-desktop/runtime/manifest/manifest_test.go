@@ -1,10 +1,30 @@
 package manifest
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
+
+func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "0.0.0.0", Port: 47710},
+		Services: []Service{{
+			ID: "api", Binaries: map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health: HealthCheck{Type: "tcp"}, Readiness: ReadinessCheck{Type: "tcp"},
+		}},
+	}
+	var hostErr InvalidIPCHostError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &hostErr) || hostErr.Host != "0.0.0.0" {
+		t.Fatalf("Validate() error = %v, want InvalidIPCHostError for 0.0.0.0", err)
+	}
+}
 
 // =============================================================================
 // LoadManifest Tests
@@ -234,7 +254,7 @@ func TestValidate_MissingIPCHost(t *testing.T) {
 	}
 }
 
-func TestValidate_MissingIPCPort(t *testing.T) {
+func TestValidate_AllocatorAssignedIPCPort(t *testing.T) {
 	m := Manifest{
 		SchemaVersion: "desktop.v0.1",
 		Target:        "desktop",
@@ -248,9 +268,28 @@ func TestValidate_MissingIPCPort(t *testing.T) {
 		}},
 	}
 
-	err := m.Validate("linux", "amd64")
-	if err == nil {
-		t.Fatal("Validate() expected error for missing ipc.port")
+	if err := m.Validate("linux", "amd64"); err != nil {
+		t.Fatalf("Validate() should accept allocator input port 0: %v", err)
+	}
+}
+
+func TestValidate_DiscoverPeerRequiresBindings(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "127.0.0.1"},
+		Peers:         []Peer{{Scenario: "authority", BundlePolicy: "discover"}},
+		Services: []Service{{
+			ID:        "api",
+			Binaries:  map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health:    HealthCheck{Type: "tcp"},
+			Readiness: ReadinessCheck{Type: "port_open"},
+		}},
+	}
+	var missing MissingPeerDiscoveryPathError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &missing) {
+		t.Fatalf("Validate() error = %v, want MissingPeerDiscoveryPathError", err)
 	}
 }
 
@@ -404,7 +443,7 @@ func TestResolveBinary(t *testing.T) {
 	// This test is platform-dependent, so just verify it returns something
 	bin, found := m.ResolveBinary(svc)
 	if !found {
-		t.Skip("No binary for current platform, skipping")
+		repocontracttest.SkipPlatform(t, "No binary for current platform, skipping")
 	}
 	if bin.Path == "" {
 		t.Error("ResolveBinary() returned empty path")

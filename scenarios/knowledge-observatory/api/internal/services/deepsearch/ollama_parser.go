@@ -1,73 +1,45 @@
 package deepsearch
 
 // DOC: docs/reference/configuration.md#api-runtime-configuration
+
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"os/exec"
 	"strings"
-	"time"
 )
 
-// OllamaParser uses Ollama to coerce unstructured output into JSON results.
+// OllamaParser uses the resource-ollama gateway CLI to coerce unstructured
+// agent output into JSON results. All daemon traffic is funnelled through the
+// CLI so the host-wide semaphore bounds fleet-wide parallelism.
 type OllamaParser struct {
-	BaseURL string
-	Model   string
-	Client  *http.Client
-}
+	Role string
 
-type ollamaGenerateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-}
-
-type ollamaGenerateResponse struct {
-	Response string `json:"response"`
+	// Runner is an optional seam for tests. Production callers leave it nil and
+	// the default exec-based runner is used.
+	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
 func (o *OllamaParser) Parse(ctx context.Context, raw string) ([]DeepSearchResult, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(o.BaseURL), "/")
-	model := strings.TrimSpace(o.Model)
-	if baseURL == "" || model == "" {
-		return nil, fmt.Errorf("ollama parser not configured")
+	role := strings.TrimSpace(o.Role)
+	if role == "" {
+		return nil, fmt.Errorf("ollama parser role not configured")
 	}
 	prompt := buildOllamaPrompt(raw)
-	payload := ollamaGenerateRequest{
-		Model:  model,
-		Prompt: prompt,
-		Stream: false,
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal ollama request: %w", err)
-	}
-	client := o.Client
-	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/generate", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ollama request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama request failed: %w", err)
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		rawBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(rawBody)))
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
+	out, err := o.run(ctx, args, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("resource-ollama gateway generate failed: %w", err)
 	}
 
-	var decoded ollamaGenerateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-		return nil, fmt.Errorf("failed to decode ollama response: %w", err)
+	var decoded struct {
+		Response string `json:"response"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return nil, fmt.Errorf("decode gateway generate response: %w", err)
 	}
 
 	parsed, ok := parseJSONResults(decoded.Response)
@@ -75,6 +47,22 @@ func (o *OllamaParser) Parse(ctx context.Context, raw string) ([]DeepSearchResul
 		return nil, fmt.Errorf("ollama response did not contain valid JSON")
 	}
 	return parsed, nil
+}
+
+func (o *OllamaParser) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if o.Runner != nil {
+		return o.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 func buildOllamaPrompt(raw string) string {

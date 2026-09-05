@@ -4,12 +4,14 @@ package checks
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"fmt"
-	"strings"
+	"math/big"
+	mathrand "math/rand"
 	"sync"
 	"time"
 
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 const (
@@ -22,9 +24,63 @@ const (
 	// MaxParallelHealActions limits concurrent heal action execution
 	MaxParallelHealActions = 3
 
-	// DefaultAutoHealActionTimeout bounds a single auto-heal action execution.
-	// This prevents one stuck action from blocking the entire tick for too long.
-	DefaultAutoHealActionTimeout = 90 * time.Second
+	// DefaultFastActionTimeout bounds quick diagnostic / cleanup actions
+	// (logs, diagnose, cleanup-ports, kill). A short ceiling prevents a stuck
+	// helper from blocking the tick.
+	DefaultFastActionTimeout = 30 * time.Second
+
+	// DefaultRestartActionTimeout bounds scenario restart / lifecycle actions
+	// (restart, restart-clean, setup-restart, start, stop). Scenario restarts
+	// can legitimately take minutes when a dependency requires a cold build.
+	DefaultRestartActionTimeout = 5 * time.Minute
+
+	// DefaultTimeoutRetryCooldown is the short cooldown applied after a heal
+	// action times out, so the next tick can retry quickly instead of being
+	// silenced by the failure-cooldown ratchet.
+	DefaultTimeoutRetryCooldown = 30 * time.Second
+
+	// DefaultHealInterlockWindow is deliberately short: it contains cross-check
+	// disagreement without indefinitely masking a genuinely flapping target.
+	DefaultHealInterlockWindow = 30 * time.Second
+)
+
+// longRunningActionIDs enumerates action IDs that receive the long lifecycle
+// timeout. Timeout budgeting and recovery ownership are separate concerns:
+// starting a stopped scenario is long-running but does not need the restart
+// coordination gate.
+var longRunningActionIDs = map[string]struct{}{
+	"restart":       {},
+	"restart-clean": {},
+	"setup-restart": {},
+	"recover-go":    {},
+	"recover-pnpm":  {},
+	"start":         {},
+	"stop":          {},
+	"reclaim":       {},
+}
+
+// gatedActionIDs enumerates actions that require runtime recovery ownership.
+// A start action is intentionally absent: starting a scenario already known
+// to be stopped cannot race a running-process recovery controller.
+var gatedActionIDs = map[string]struct{}{
+	"restart":       {},
+	"restart-clean": {},
+	"setup-restart": {},
+	"recover-go":    {},
+	"recover-pnpm":  {},
+	"stop":          {},
+	"reclaim":       {},
+}
+
+// healOutcome is the tri-state outcome of an auto-heal attempt.
+// Distinguishing "timed out" from "failed" keeps a slow-but-recoverable
+// action from ratcheting ConsecutiveFailures into the exponential cooldown.
+type healOutcome int
+
+const (
+	outcomeSuccess healOutcome = iota
+	outcomeFailure
+	outcomeTimeout
 )
 
 // AutoHealPolicy controls cooldown and retry behavior for auto-heal actions.
@@ -34,18 +90,42 @@ type AutoHealPolicy struct {
 	BaseCooldown time.Duration
 	// MaxRestartAttempts is the failure threshold after which backoff increases exponentially.
 	MaxRestartAttempts int
+	// FastActionTimeout bounds quick diagnostic / cleanup actions.
+	FastActionTimeout time.Duration
+	// RestartActionTimeout bounds scenario restart / lifecycle actions.
+	RestartActionTimeout time.Duration
+	// TimeoutRetryCooldown is the short cooldown applied after a timeout outcome.
+	TimeoutRetryCooldown time.Duration
 }
 
 // NewAutoHealPolicyFromGlobal creates a policy from global configuration values.
-func NewAutoHealPolicyFromGlobal(restartCooldownSeconds, maxRestartAttempts int) (AutoHealPolicy, error) {
+// Action timeouts and the timeout-retry cooldown fall back to package defaults
+// when the provided seconds are zero.
+func NewAutoHealPolicyFromGlobal(restartCooldownSeconds, maxRestartAttempts, fastActionTimeoutSeconds, restartActionTimeoutSeconds, timeoutRetrySeconds int) (AutoHealPolicy, error) {
 	policy := AutoHealPolicy{
-		BaseCooldown:       time.Duration(restartCooldownSeconds) * time.Second,
-		MaxRestartAttempts: maxRestartAttempts,
+		BaseCooldown:         time.Duration(restartCooldownSeconds) * time.Second,
+		MaxRestartAttempts:   maxRestartAttempts,
+		FastActionTimeout:    time.Duration(fastActionTimeoutSeconds) * time.Second,
+		RestartActionTimeout: time.Duration(restartActionTimeoutSeconds) * time.Second,
+		TimeoutRetryCooldown: time.Duration(timeoutRetrySeconds) * time.Second,
 	}
+	policy.applyTimeoutDefaults()
 	if err := policy.Validate(); err != nil {
 		return AutoHealPolicy{}, err
 	}
 	return policy, nil
+}
+
+func (p *AutoHealPolicy) applyTimeoutDefaults() {
+	if p.FastActionTimeout <= 0 {
+		p.FastActionTimeout = DefaultFastActionTimeout
+	}
+	if p.RestartActionTimeout <= 0 {
+		p.RestartActionTimeout = DefaultRestartActionTimeout
+	}
+	if p.TimeoutRetryCooldown <= 0 {
+		p.TimeoutRetryCooldown = DefaultTimeoutRetryCooldown
+	}
 }
 
 // Validate ensures the policy is safe and usable.
@@ -56,24 +136,58 @@ func (p AutoHealPolicy) Validate() error {
 	if p.MaxRestartAttempts < 1 {
 		return fmt.Errorf("max restart attempts must be >= 1")
 	}
+	if p.FastActionTimeout <= 0 {
+		return fmt.Errorf("fast action timeout must be > 0")
+	}
+	if p.RestartActionTimeout <= 0 {
+		return fmt.Errorf("restart action timeout must be > 0")
+	}
+	if p.TimeoutRetryCooldown <= 0 {
+		return fmt.Errorf("timeout retry cooldown must be > 0")
+	}
 	return nil
 }
+
+// MaxFailureCooldown caps exponential backoff so auto-heal cannot be silenced
+// indefinitely. Without a cap, a few-dozen failed restarts pushed cooldowns
+// into the multi-day range, leaving broken scenarios effectively unrecoverable
+// until manual intervention.
+const MaxFailureCooldown = 1 * time.Hour
 
 // CalculateFailureCooldown returns the cooldown after a failed auto-heal attempt.
 // For failures below MaxRestartAttempts, BaseCooldown is used.
 // Once failures reach MaxRestartAttempts, cooldown grows exponentially:
-// BaseCooldown * 2^(consecutiveFailures - MaxRestartAttempts + 1).
+// BaseCooldown * 2^(consecutiveFailures - MaxRestartAttempts + 1), capped at
+// MaxFailureCooldown.
 func (p AutoHealPolicy) CalculateFailureCooldown(consecutiveFailures int) time.Duration {
 	if consecutiveFailures <= 0 {
 		return p.BaseCooldown
 	}
 	if consecutiveFailures < p.MaxRestartAttempts {
-		return p.BaseCooldown
+		return capCooldown(p.BaseCooldown)
 	}
 
 	shift := consecutiveFailures - p.MaxRestartAttempts + 1
-	multiplier := 1 << shift
-	return time.Duration(multiplier) * p.BaseCooldown
+	// Saturate the shift before computing the multiplier to avoid integer
+	// overflow at very large failure counts (1 << 62 would still be valid as
+	// an int64, but 1 << 63 wraps negative). 30 is well past the point the
+	// cap kicks in for any sane BaseCooldown.
+	if shift > 30 {
+		return capCooldown(MaxFailureCooldown)
+	}
+	multiplier := time.Duration(1 << shift)
+	cooldown := multiplier * p.BaseCooldown
+	if cooldown < 0 || cooldown > MaxFailureCooldown {
+		return MaxFailureCooldown
+	}
+	return cooldown
+}
+
+func capCooldown(d time.Duration) time.Duration {
+	if d > MaxFailureCooldown {
+		return MaxFailureCooldown
+	}
+	return d
 }
 
 // HealTracker tracks the healing state for a single check
@@ -81,10 +195,27 @@ type HealTracker struct {
 	LastAttempt         time.Time `json:"lastAttempt"`
 	LastSuccess         time.Time `json:"lastSuccess"`
 	ConsecutiveFailures int       `json:"consecutiveFailures"`
+	ConsecutiveTimeouts int       `json:"consecutiveTimeouts,omitempty"`
 	TotalAttempts       int       `json:"totalAttempts"`
 	TotalSuccesses      int       `json:"totalSuccesses"`
+	TotalTimeouts       int       `json:"totalTimeouts,omitempty"`
 	CooldownUntil       time.Time `json:"cooldownUntil"`
+	SuspendedAt         time.Time `json:"suspendedAt,omitempty"`
+	SuspensionReason    string    `json:"suspensionReason,omitempty"`
+	Disposition         string    `json:"disposition,omitempty"`
+	DispositionAt       time.Time `json:"dispositionAt,omitempty"`
+	SuccessHistory      string    `json:"successHistory,omitempty"`
 }
+
+const (
+	HealDispositionHealed    = "healed"
+	HealDispositionRetired   = "retired"
+	HealDispositionEscalated = "escalated"
+	HealSuccessNever         = "never_succeeded"
+	HealSuccessPrevious      = "previously_succeeded"
+)
+
+func (ht *HealTracker) IsSuspended() bool { return !ht.SuspendedAt.IsZero() }
 
 // IsInCooldown returns true if the check is still in cooldown period
 func (ht *HealTracker) IsInCooldown() bool {
@@ -120,22 +251,114 @@ type HealTrackerStore interface {
 	DeleteHealTracker(ctx context.Context, checkID string) error
 }
 
+// RecoveryOwnershipGate prevents autoheal from racing the runtime supervisor's
+// pressure-epoch recovery controller. It is intentionally narrow: health
+// checks continue to run, but restart-class actions defer while ownership is
+// held elsewhere.
+type RecoveryOwnershipGate interface {
+	AllowsAutoHealRestart(ctx context.Context, checkID, actionID string) (allowed bool, reason string)
+}
+
+// HealIncidentReporter is the narrow persistence seam for operator-facing
+// escalation. The registry owns the threshold decision; the incident service
+// owns durable lifecycle records.
+type HealIncidentReporter interface {
+	OpenHealIncident(ctx context.Context, checkID, actionID, lastError string, consecutiveFailures int) error
+	ResolveHealIncident(ctx context.Context, checkID, actionID string) error
+}
+
+// RecoveryRequester delegates exhausted scenario repair to the control-plane
+// recovery broker. Autoheal observes and schedules recovery; it does not own
+// an agent-spawn ladder.
+type RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
+
 // Registry manages health checks
 type Registry struct {
-	mu               sync.RWMutex
-	checks           map[string]Check
-	results          map[string]Result
-	lastRun          map[string]time.Time
-	healTrackers     map[string]*HealTracker // Track healing state per check
-	autoHealPolicy   *AutoHealPolicy
-	platform         *platform.Capabilities
-	config           ConfigProvider
-	healTrackerStore HealTrackerStore // Optional persistence for heal trackers
-	clock            Clock
+	mu                   sync.RWMutex
+	checks               map[string]Check
+	results              map[string]Result
+	lastRun              map[string]time.Time
+	healTrackers         map[string]*HealTracker // Track healing state per check
+	autoHealPolicy       *AutoHealPolicy
+	platform             *platform.Capabilities
+	config               ConfigProvider
+	healTrackerStore     HealTrackerStore // Optional persistence for heal trackers
+	recoveryGate         RecoveryOwnershipGate
+	healIncidentReporter HealIncidentReporter
+	recoveryRequester    RecoveryRequester
+	recoveryRequested    map[string]bool
+	clock                Clock
+	interlockMu          sync.Mutex
+	recentHealActions    map[HealTarget]RecentHealAction
+	healInterlockWindow  time.Duration
+}
+
+// SetRecoveryRequester installs the control-plane escalation seam.
+func (r *Registry) SetRecoveryRequester(requester RecoveryRequester) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recoveryRequester = requester
+}
+
+func (r *Registry) getRecoveryRequester() RecoveryRequester {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.recoveryRequester
+}
+
+func (r *Registry) claimRecoveryRequest(checkID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.recoveryRequested == nil {
+		r.recoveryRequested = make(map[string]bool)
+	}
+	if r.recoveryRequested[checkID] {
+		return false
+	}
+	r.recoveryRequested[checkID] = true
+	return true
+}
+
+func (r *Registry) clearRecoveryRequest(checkID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.recoveryRequested != nil {
+		delete(r.recoveryRequested, checkID)
+	}
+}
+
+// SetRecoveryOwnershipGate installs the cross-controller restart ownership
+// boundary. Nil restores standalone autoheal behavior.
+func (r *Registry) SetRecoveryOwnershipGate(gate RecoveryOwnershipGate) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recoveryGate = gate
+}
+
+// SetHealIncidentReporter wires durable escalation without coupling the check
+// registry to a particular persistence implementation.
+func (r *Registry) SetHealIncidentReporter(reporter HealIncidentReporter) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.healIncidentReporter = reporter
+}
+
+func (r *Registry) getHealIncidentReporter() HealIncidentReporter {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.healIncidentReporter
+}
+
+func (r *Registry) recoveryOwnershipGate() RecoveryOwnershipGate {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.recoveryGate
 }
 
 // Clock provides a seam for time-based logic.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 
@@ -149,12 +372,15 @@ func (realClock) Now() time.Time {
 // Platform is injected to allow testing and avoid hidden dependency creation.
 func NewRegistry(plat *platform.Capabilities) *Registry {
 	return &Registry{
-		checks:       make(map[string]Check),
-		results:      make(map[string]Result),
-		lastRun:      make(map[string]time.Time),
-		healTrackers: make(map[string]*HealTracker),
-		platform:     plat,
-		clock:        realClock{},
+		checks:              make(map[string]Check),
+		results:             make(map[string]Result),
+		lastRun:             make(map[string]time.Time),
+		healTrackers:        make(map[string]*HealTracker),
+		recentHealActions:   make(map[HealTarget]RecentHealAction),
+		recoveryRequested:   make(map[string]bool),
+		healInterlockWindow: DefaultHealInterlockWindow,
+		platform:            plat,
+		clock:               realClock{},
 	}
 }
 
@@ -197,6 +423,55 @@ func (r *Registry) SetAutoHealPolicy(policy AutoHealPolicy) error {
 	return nil
 }
 
+// SeedStartupJitter staggers the first run of interval checks so aligned
+// intervals don't burst together (a synchronized "thundering herd" that pegs a
+// core). For each check WITHOUT an existing lastRun (i.e. not restored from
+// persistence), it seeds lastRun to `now - offset` where offset is a per-check
+// random value in [0, interval). Because shouldRunCheck fires when
+// time.Since(lastRun) >= interval, the check first becomes due at
+// `now + (interval - offset)`, spreading first runs uniformly across the first
+// interval window. Checks already seeded from persisted results are left
+// untouched so restart behavior is unchanged.
+//
+// rng may be nil, in which case the operating system entropy source is used.
+// Passing a deterministic source makes the spread assertable in tests.
+func (r *Registry) SeedStartupJitter(now time.Time, rng *mathrand.Rand) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, check := range r.checks {
+		if _, exists := r.lastRun[id]; exists {
+			continue
+		}
+		interval := time.Duration(check.IntervalSeconds()) * time.Second
+		if interval <= 0 {
+			continue
+		}
+		var offset time.Duration
+		if rng != nil {
+			offset = time.Duration(rng.Int63n(int64(interval)))
+		} else {
+			offset = secureJitterOffset(interval)
+		}
+		r.lastRun[id] = now.Add(-offset)
+	}
+}
+
+// secureJitterOffset supplies startup spreading without using a
+// cryptographically-weak PRNG in the production default. Tests can still pass
+// math/rand.Rand to make the schedule deterministic.
+func secureJitterOffset(interval time.Duration) time.Duration {
+	if interval <= 0 {
+		return 0
+	}
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(interval)))
+	if err != nil {
+		// Jitter is an optimization, not a correctness condition. A stable
+		// midpoint keeps startup safe if the OS entropy source is unavailable.
+		return interval / 2
+	}
+	return time.Duration(n.Int64())
+}
+
 // SetClock sets the time source for cooldown calculations (used by tests).
 func (r *Registry) SetClock(clock Clock) {
 	if clock == nil {
@@ -235,6 +510,11 @@ func (r *Registry) LoadHealTrackers(ctx context.Context) error {
 
 	// Merge loaded trackers into in-memory map
 	for checkID, tracker := range trackers {
+		if tracker.LastSuccess.IsZero() {
+			tracker.SuccessHistory = HealSuccessNever
+		} else {
+			tracker.SuccessHistory = HealSuccessPrevious
+		}
 		r.healTrackers[checkID] = tracker
 	}
 
@@ -250,18 +530,8 @@ func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
 	}
 
 	// Check platform compatibility
-	platforms := check.Platforms()
-	if len(platforms) > 0 {
-		compatible := false
-		for _, p := range platforms {
-			if p == r.platform.Platform {
-				compatible = true
-				break
-			}
-		}
-		if !compatible {
-			return false
-		}
+	if !r.platformCompatible(check) {
+		return false
 	}
 
 	// If forceAll, skip interval check
@@ -281,11 +551,50 @@ func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
 	return time.Since(lastRun) >= interval
 }
 
+func (r *Registry) platformCompatible(check Check) bool {
+	platforms := check.Platforms()
+	if len(platforms) == 0 {
+		return true
+	}
+	for _, p := range platforms {
+		if p == r.platform.Platform {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Registry) checkEnabled(check Check) bool {
+	return r.config == nil || r.config.IsCheckEnabled(check.ID())
+}
+
+func (r *Registry) notApplicableResult(check Check) Result {
+	return Result{
+		CheckID: check.ID(),
+		Status:  StatusNotApplicable,
+		Message: fmt.Sprintf("%s is not applicable on platform %s", check.Title(), r.platform.Platform),
+		Details: map[string]interface{}{
+			"platform":           r.platform.Platform,
+			"supportedPlatforms": check.Platforms(),
+		},
+		Timestamp: time.Now().UTC(),
+	}
+}
+
 // RunAll executes all registered checks that should run
 func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
 	r.mu.RLock()
 	checks := make([]Check, 0, len(r.checks))
 	for _, check := range r.checks {
+		if !r.checkEnabled(check) {
+			continue
+		}
+		if !r.platformCompatible(check) {
+			if forceAll || !r.lastRunExists(check.ID()) || r.shouldRunCheck(check, false) {
+				checks = append(checks, check)
+			}
+			continue
+		}
 		if r.shouldRunCheck(check, forceAll) {
 			checks = append(checks, check)
 		}
@@ -298,12 +607,23 @@ func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
 		case <-ctx.Done():
 			return results
 		default:
-			result := r.runCheck(ctx, check)
+			var result Result
+			if r.platformCompatible(check) {
+				result = r.runCheck(ctx, check)
+			} else {
+				result = r.notApplicableResult(check)
+				r.storeResult(result)
+			}
 			results = append(results, result)
 		}
 	}
 
 	return results
+}
+
+func (r *Registry) lastRunExists(checkID string) bool {
+	_, exists := r.lastRun[checkID]
+	return exists
 }
 
 // RunChecksForIDs runs checks for a specific list of check IDs.
@@ -324,12 +644,25 @@ func (r *Registry) RunChecksForIDs(ctx context.Context, checkIDs []string) []Res
 		case <-ctx.Done():
 			return results
 		default:
-			result := r.runCheck(ctx, check)
+			var result Result
+			if r.platformCompatible(check) {
+				result = r.runCheck(ctx, check)
+			} else {
+				result = r.notApplicableResult(check)
+				r.storeResult(result)
+			}
 			results = append(results, result)
 		}
 	}
 
 	return results
+}
+
+func (r *Registry) storeResult(result Result) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.results[result.CheckID] = result
+	r.lastRun[result.CheckID] = result.Timestamp
 }
 
 // runCheck executes a single check with timeout and stores the result
@@ -477,494 +810,3 @@ func (r *Registry) IsAutoHealEnabled(id string) bool {
 }
 
 // AutoHealResult represents the outcome of an auto-heal attempt
-type AutoHealResult struct {
-	CheckID             string        `json:"checkId"`
-	Attempted           bool          `json:"attempted"`
-	ActionResult        ActionResult  `json:"actionResult,omitempty"`
-	Reason              string        `json:"reason,omitempty"`            // Why it wasn't attempted
-	CooldownRemaining   time.Duration `json:"cooldownRemaining,omitempty"` // Time until next attempt allowed
-	ConsecutiveFailures int           `json:"consecutiveFailures,omitempty"`
-}
-
-// healCandidate represents a check that needs healing with its metadata
-type healCandidate struct {
-	result         Result
-	healable       HealableCheck
-	selectedAction *RecoveryAction
-	priority       int // lower = higher priority
-	detectedPID    int // PID at detection time (0 if unknown); used to prevent killing a new process
-}
-
-// getHealPriority returns priority for a check (lower = more important)
-// Priority order: API (0) > Resources (1) > Scenarios (2) > Others (3)
-func getHealPriority(checkID string) int {
-	switch {
-	case checkID == "vrooli-api":
-		return 0 // API is most critical - other services depend on it
-	case len(checkID) > 9 && checkID[:9] == "resource-":
-		return 1 // Resources (postgres, redis, etc.) are infrastructure
-	case len(checkID) > 9 && checkID[:9] == "scenario-":
-		return 2 // Scenarios depend on API and resources
-	default:
-		return 3 // Unknown checks get lowest priority
-	}
-}
-
-// RunAutoHeal attempts to auto-heal any critical checks that have auto-heal enabled.
-// It runs the first available recovery action for each failing check.
-// Implements cooldown and rate limiting to prevent thrashing on flapping services.
-// Actions are prioritized (API > resources > scenarios) and run in parallel with limits.
-// Returns a list of auto-heal results.
-// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
-func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHealResult {
-	autoHealResults := make([]AutoHealResult, 0)
-	candidates := make([]healCandidate, 0)
-	now := r.now()
-	_, hasPolicy := r.getAutoHealPolicy()
-
-	// Phase 1: Collect and filter candidates
-	for _, result := range results {
-		// Auto-heal trigger is per-check policy (critical or warning+critical).
-		if !r.shouldTriggerAutoHeal(result) {
-			continue
-		}
-
-		if !hasPolicy {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:   result.CheckID,
-				Attempted: false,
-				Reason:    "auto-heal policy not configured",
-			})
-			continue
-		}
-
-		// Check if auto-heal is enabled for this check
-		if !r.IsAutoHealEnabled(result.CheckID) {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:   result.CheckID,
-				Attempted: false,
-				Reason:    "auto-heal not enabled for this check",
-			})
-			continue
-		}
-
-		// Check cooldown before attempting heal.
-		// Use a snapshot to avoid races with concurrent tracker updates.
-		tracker := r.getHealTrackerSnapshot(result.CheckID)
-		if tracker.IsInCooldownAt(now) {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:             result.CheckID,
-				Attempted:           false,
-				Reason:              fmt.Sprintf("in cooldown (%.0fs remaining)", tracker.CooldownRemainingAt(now).Seconds()),
-				CooldownRemaining:   tracker.CooldownRemainingAt(now),
-				ConsecutiveFailures: tracker.ConsecutiveFailures,
-			})
-			continue
-		}
-
-		// Get the healable check
-		healable, ok := r.GetHealableCheck(result.CheckID)
-		if !ok {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:   result.CheckID,
-				Attempted: false,
-				Reason:    "check does not support healing",
-			})
-			continue
-		}
-
-		// Get available recovery actions
-		actions := healable.RecoveryActions(&result)
-
-		selectedAction := selectAutoHealAction(result, actions)
-
-		if selectedAction == nil {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:   result.CheckID,
-				Attempted: false,
-				Reason:    "no auto-heal recovery action available",
-			})
-			continue
-		}
-
-		// Capture PID at detection time for TOCTOU protection.
-		var detectedPID int
-		if result.Details != nil {
-			if pid, ok := result.Details["detectedPID"].(int); ok {
-				detectedPID = pid
-			} else if pidFloat, ok := result.Details["detectedPID"].(float64); ok {
-				detectedPID = int(pidFloat)
-			}
-		}
-
-		// Add to candidates list
-		candidates = append(candidates, healCandidate{
-			result:         result,
-			healable:       healable,
-			selectedAction: selectedAction,
-			priority:       getHealPriority(result.CheckID),
-			detectedPID:    detectedPID,
-		})
-	}
-
-	// Phase 2: Sort candidates by priority (lower priority number = more important)
-	for i := 0; i < len(candidates)-1; i++ {
-		for j := i + 1; j < len(candidates); j++ {
-			if candidates[j].priority < candidates[i].priority {
-				candidates[i], candidates[j] = candidates[j], candidates[i]
-			}
-		}
-	}
-
-	// Phase 3: Limit number of actions per tick
-	if len(candidates) > MaxAutoHealActionsPerTick {
-		// Mark excess candidates as skipped
-		for _, c := range candidates[MaxAutoHealActionsPerTick:] {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:   c.result.CheckID,
-				Attempted: false,
-				Reason:    fmt.Sprintf("deferred to next tick (max %d actions per tick, lower priority)", MaxAutoHealActionsPerTick),
-			})
-		}
-		candidates = candidates[:MaxAutoHealActionsPerTick]
-	}
-
-	// Phase 4: Execute heal actions with per-action timeout.
-	// Before each action, re-run the health check to guard against TOCTOU races
-	// (e.g., a slow tick detects unhealthy at T=0, but by T=90s a fresh process is healthy).
-	// Also verify that the process PID hasn't changed, which indicates a new process
-	// replaced the unhealthy one and the heal action is no longer needed.
-	if len(candidates) == 0 {
-		return autoHealResults
-	}
-
-	for _, c := range candidates {
-		// Check context before executing
-		select {
-		case <-ctx.Done():
-			actionResult := ActionResult{
-				ActionID:  c.selectedAction.ID,
-				CheckID:   c.result.CheckID,
-				Timestamp: time.Now(),
-				Success:   false,
-				Error:     "context cancelled",
-				Message:   "Heal action cancelled due to timeout",
-			}
-			r.updateHealTracker(c.result.CheckID, false)
-			updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:             c.result.CheckID,
-				Attempted:           true,
-				ActionResult:        actionResult,
-				CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
-				ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
-			})
-			continue
-		default:
-		}
-
-		// Pre-heal recheck: re-run the health check to verify the target is
-		// still unhealthy. This prevents the TOCTOU race where detection happens
-		// long before execution (e.g., due to SQLITE_BUSY delays or earlier
-		// heal actions taking time).
-		if skipped := r.preHealRecheck(ctx, c, &autoHealResults); skipped {
-			continue
-		}
-
-		actionCtx, cancel := context.WithTimeout(ctx, DefaultAutoHealActionTimeout)
-		actionResult := r.executeAutoHealActionWithTimeout(actionCtx, c)
-		cancel()
-
-		// Update heal tracker based on result
-		r.updateHealTracker(c.result.CheckID, actionResult.Success)
-
-		// Get updated tracker for result
-		updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
-
-		autoHealResults = append(autoHealResults, AutoHealResult{
-			CheckID:             c.result.CheckID,
-			Attempted:           true,
-			ActionResult:        actionResult,
-			CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
-			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
-		})
-	}
-
-	return autoHealResults
-}
-
-func (r *Registry) executeAutoHealActionWithTimeout(ctx context.Context, candidate healCandidate) ActionResult {
-	resultCh := make(chan ActionResult, 1)
-	go func() {
-		resultCh <- candidate.healable.ExecuteAction(ctx, candidate.selectedAction.ID)
-	}()
-
-	select {
-	case result := <-resultCh:
-		return result
-	case <-ctx.Done():
-		reason := "action timed out"
-		if ctx.Err() == context.Canceled {
-			reason = "action cancelled"
-		}
-		return ActionResult{
-			ActionID:  candidate.selectedAction.ID,
-			CheckID:   candidate.result.CheckID,
-			Timestamp: time.Now(),
-			Success:   false,
-			Error:     reason,
-			Message:   "Auto-heal action did not complete before timeout",
-			Duration:  DefaultAutoHealActionTimeout,
-		}
-	}
-}
-
-// preHealRecheck re-runs the health check for a candidate and optionally verifies
-// that the PID hasn't changed since detection. If the target is now healthy or the
-// PID changed (indicating a new process replaced the unhealthy one), the candidate
-// is skipped and a non-attempted result is appended.
-// Returns true if the candidate was skipped.
-func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results *[]AutoHealResult) bool {
-	recheckCtx, cancel := context.WithTimeout(ctx, DefaultCheckTimeout)
-	defer cancel()
-
-	// Re-run the check to see if it's still unhealthy.
-	r.mu.RLock()
-	check, exists := r.checks[c.result.CheckID]
-	r.mu.RUnlock()
-	if !exists {
-		return false // Check was unregistered; let the caller handle it
-	}
-
-	freshResult := check.Run(recheckCtx)
-
-	// If the check is now healthy, skip the heal action.
-	if freshResult.Status == StatusOK {
-		*results = append(*results, AutoHealResult{
-			CheckID:   c.result.CheckID,
-			Attempted: false,
-			Reason:    "pre-heal recheck passed: target is now healthy",
-		})
-		return true
-	}
-
-	// PID-pinning: if we captured a PID at detection time and the current PID
-	// differs, a new process has started. Skip the heal to avoid killing it.
-	if c.detectedPID > 0 && freshResult.Details != nil {
-		var currentPID int
-		if pid, ok := freshResult.Details["detectedPID"].(int); ok {
-			currentPID = pid
-		} else if pidFloat, ok := freshResult.Details["detectedPID"].(float64); ok {
-			currentPID = int(pidFloat)
-		}
-		if currentPID > 0 && currentPID != c.detectedPID {
-			*results = append(*results, AutoHealResult{
-				CheckID:   c.result.CheckID,
-				Attempted: false,
-				Reason: fmt.Sprintf(
-					"PID changed since detection (was %d, now %d): new process started, skipping heal",
-					c.detectedPID, currentPID),
-			})
-			return true
-		}
-	}
-
-	return false
-}
-
-func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
-	if result.Details != nil {
-		if eligible, ok := result.Details["autoHealEligible"].(bool); ok && !eligible {
-			return false
-		}
-	}
-
-	// Safety default: only critical triggers unless explicitly widened.
-	policy := "critical"
-	if r.config != nil {
-		if configured := r.config.GetAutoHealOn(result.CheckID); configured != "" {
-			policy = configured
-		}
-	}
-
-	switch policy {
-	case "warning+critical":
-		return result.Status == StatusWarning || result.Status == StatusCritical
-	default:
-		return result.Status == StatusCritical
-	}
-}
-
-func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryAction {
-	checkID := result.CheckID
-
-	// Policy: orphan cleanup may auto-run a restricted safe kill action.
-	if checkID == "vrooli-orphans" {
-		for _, action := range actions {
-			if action.Available && action.ID == "kill-safe" && !action.Dangerous {
-				return &action
-			}
-		}
-	}
-
-	// Specialized scenario policy: when shared package drift is detected,
-	// run setup before restart to avoid repeating restart-only loops.
-	if strings.HasPrefix(checkID, "scenario-") {
-		if result.Details != nil {
-			if cause, ok := result.Details["rootCause"].(string); ok && cause == "shared-package-drift" {
-				for _, action := range actions {
-					if action.Available && action.ID == "setup-restart" {
-						return &action
-					}
-				}
-			}
-		}
-	}
-
-	// Controlled dangerous action policy for scenarios:
-	// allow "restart" auto-execution for scenario checks only.
-	if strings.HasPrefix(checkID, "scenario-") {
-		for _, action := range actions {
-			if action.Available && action.ID == "restart" {
-				return &action
-			}
-		}
-	}
-
-	// Default policy: first available safe action.
-	for _, action := range actions {
-		if action.Available && !action.Dangerous {
-			return &action
-		}
-	}
-
-	return nil
-}
-
-// getHealTrackerSnapshot returns a copy of tracker state for safe concurrent reads.
-// It creates the tracker entry if missing.
-func (r *Registry) getHealTrackerSnapshot(checkID string) HealTracker {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	tracker, exists := r.healTrackers[checkID]
-	if !exists {
-		tracker = &HealTracker{}
-		r.healTrackers[checkID] = tracker
-	}
-
-	return *tracker
-}
-
-// updateHealTracker updates the heal tracker after a heal attempt and persists to store
-func (r *Registry) updateHealTracker(checkID string, success bool) {
-	r.mu.Lock()
-
-	tracker, exists := r.healTrackers[checkID]
-	if !exists {
-		tracker = &HealTracker{}
-		r.healTrackers[checkID] = tracker
-	}
-
-	now := r.clock.Now()
-	tracker.LastAttempt = now
-	tracker.TotalAttempts++
-
-	policy := r.autoHealPolicy
-	if success {
-		tracker.LastSuccess = now
-		tracker.TotalSuccesses++
-		tracker.ConsecutiveFailures = 0
-		// Apply base cooldown after success to prevent rapid re-triggering.
-		if policy != nil {
-			tracker.CooldownUntil = now.Add(policy.BaseCooldown)
-		} else {
-			tracker.CooldownUntil = now
-		}
-	} else {
-		tracker.ConsecutiveFailures++
-		if policy != nil {
-			cooldown := policy.CalculateFailureCooldown(tracker.ConsecutiveFailures)
-			tracker.CooldownUntil = now.Add(cooldown)
-		} else {
-			tracker.CooldownUntil = now
-		}
-	}
-
-	// Persist to store if configured (async to not block)
-	store := r.healTrackerStore
-	trackerCopy := *tracker
-	r.mu.Unlock()
-
-	if store != nil {
-		// Use background context for persistence - don't block on this
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			// Ignore errors - persistence is best-effort, in-memory state is authoritative
-			_ = store.SaveHealTracker(ctx, checkID, &trackerCopy)
-		}()
-	}
-}
-
-func (r *Registry) now() time.Time {
-	r.mu.RLock()
-	clock := r.clock
-	r.mu.RUnlock()
-	if clock == nil {
-		return time.Now()
-	}
-	return clock.Now()
-}
-
-func (r *Registry) getAutoHealPolicy() (*AutoHealPolicy, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	if r.autoHealPolicy == nil {
-		return nil, false
-	}
-	p := *r.autoHealPolicy
-	return &p, true
-}
-
-// GetHealTracker returns the heal tracker for a check (for API exposure)
-func (r *Registry) GetHealTracker(checkID string) (*HealTracker, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	tracker, exists := r.healTrackers[checkID]
-	if !exists {
-		return nil, false
-	}
-	// Return a copy to prevent external modification
-	trackerCopy := *tracker
-	return &trackerCopy, true
-}
-
-// GetAllHealTrackers returns all heal trackers (for API exposure)
-func (r *Registry) GetAllHealTrackers() map[string]HealTracker {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make(map[string]HealTracker, len(r.healTrackers))
-	for id, tracker := range r.healTrackers {
-		result[id] = *tracker
-	}
-	return result
-}
-
-// ResetHealTracker resets the heal tracker for a check (for manual intervention)
-func (r *Registry) ResetHealTracker(checkID string) {
-	r.mu.Lock()
-	delete(r.healTrackers, checkID)
-	store := r.healTrackerStore
-	r.mu.Unlock()
-
-	// Delete from persistent store if configured (async)
-	if store != nil {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = store.DeleteHealTracker(ctx, checkID)
-		}()
-	}
-}

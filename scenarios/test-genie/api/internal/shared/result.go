@@ -1,5 +1,7 @@
 package shared
 
+import "fmt"
+
 // RunResult is a generic result type for phase runners.
 // TSummary is the phase-specific summary type (e.g., ValidationSummary, BenchmarkSummary).
 type RunResult[TSummary any] struct {
@@ -22,6 +24,51 @@ type RunResult[TSummary any] struct {
 	Summary TSummary
 }
 
+// Succeeded reports whether the runner completed without validation failure.
+func (r *RunResult[TSummary]) Succeeded() bool {
+	return r != nil && r.Success
+}
+
+// Err returns the first runner error, if any.
+func (r *RunResult[TSummary]) Err() error {
+	if r == nil {
+		return nil
+	}
+	return r.Error
+}
+
+// Failure returns the standardized failure category.
+func (r *RunResult[TSummary]) Failure() FailureClass {
+	if r == nil {
+		return FailureClassSystem
+	}
+	return r.FailureClass
+}
+
+// RemediationText returns human-readable remediation guidance.
+func (r *RunResult[TSummary]) RemediationText() string {
+	if r == nil {
+		return ""
+	}
+	return r.Remediation
+}
+
+// ObservationList returns runner observations.
+func (r *RunResult[TSummary]) ObservationList() []Observation {
+	if r == nil {
+		return nil
+	}
+	return r.Observations
+}
+
+// SummaryText returns the runner summary as display text.
+func (r *RunResult[TSummary]) SummaryText() string {
+	if r == nil {
+		return ""
+	}
+	return fmt.Sprint(r.Summary)
+}
+
 // FailureClass categorizes the type of validation failure.
 type FailureClass string
 
@@ -38,6 +85,9 @@ const (
 	FailureClassExecution FailureClass = "execution"
 	// FailureClassTimeout indicates a timeout occurred.
 	FailureClassTimeout FailureClass = "timeout"
+	// FailureClassMaturityContract indicates a provider returned a response
+	// that violates the shared maturity assessment contract.
+	FailureClassMaturityContract FailureClass = "maturity_contract"
 	// FailureClassSystem indicates a system-level error (I/O, permissions, etc).
 	FailureClassSystem FailureClass = "system"
 )

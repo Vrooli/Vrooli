@@ -1,0 +1,127 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "scenario-to-desktop.evidence-inventory",
+  "version": "1",
+  "purpose": "Summarize retained desktop capture metadata and cross-check producer counts, returning five evidence references without reading media or granting readiness.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Exact packaged scenario name, 1\u2013128 characters."
+    }
+  },
+  "assumptions": [
+    "The caller uses the declared scenario bindings and preserves unavailable evidence.",
+    "Program success describes the read; it never grants deployment approval."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "Read-only: no launch, build, publication, recovery, inference, delegation, or memory write.",
+    "Return identifiers and bounded projections; never print logs, configuration, credentials, media bytes, or private endpoints.",
+    "Capture count never establishes freshness, useful video, checksum verification, matrix completeness, or release approval."
+  ],
+  "bindings": [
+    {
+      "id": "scenario-to-desktop/evidence/list",
+      "effect": "read"
+    },
+    {
+      "id": "scenario-to-desktop/evidence/summary",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "capture_count": "Count from the metadata list; null if the read failed.",
+      "summary_count": "Independent producer count; null if unreadable.",
+      "total_bytes": "Producer-reported retained bytes; not a bundle-size performance measure.",
+      "by_kind": "Distribution of retained capture kinds, at most ten kinds.",
+      "incomplete_metadata": "Count missing identity, checksum, session, or timestamp; not a validity verdict.",
+      "captures": "Five newest metadata references; historical and not candidate-artifact scoped.",
+      "truncated": "True when the returned sample omits other captures."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "identity_mismatch",
+        "invalid_response",
+        "snapshot_changed"
+      ]
+    },
+    "evidence": "Successfully read binding IDs; selected pipeline or capture identities are in signals."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 5
+  },
+  "fixtures": [
+    {
+      "id": "missing-scenario",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "invalid-selector-type",
+      "inputs": {
+        "scenario": false
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "live-reference",
+      "inputs": {
+        "scenario": "hello-desktop"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "scenario-to-desktop"
+      ],
+      "note": "Read-only reference inventory. Empty inventory is an honest zero, not a desktop pass."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "scenario-to-desktop"
+}

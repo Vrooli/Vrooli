@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/logx"
 
 	"github.com/vrooli/api-core/health"
 )
@@ -16,6 +21,26 @@ func newHealthTestServer(t *testing.T) (*Server, func()) {
 	return &Server{db: db}, func() { db.Close() }
 }
 
+func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
+	t.Parallel()
+
+	sql := strings.ToLower(runtimeSchema())
+	if strings.Contains(sql, "alter table") || strings.Contains(sql, "drop table") {
+		t.Fatal("runtime schema must be declarative; data/schema migrations belong in one-shot operator scripts")
+	}
+	for _, table := range []string{
+		"admin_users", "remote_profiles", "metrics_events", "checkout_sessions",
+		"subscriptions", "subscription_schedules", "bundle_products", "bundle_prices",
+		"download_apps", "download_assets", "download_artifacts", "credit_wallets",
+		"credit_transactions", "payment_settings", "usage_records", "credit_reservations",
+		"api_keys", "users", "auth_tokens", "user_sessions", "payment_anomaly_log",
+	} {
+		if !strings.Contains(sql, "create table if not exists "+table) {
+			t.Errorf("missing declarative definition for %s", table)
+		}
+	}
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	t.Run("healthy when database reachable", func(t *testing.T) {
 		srv, cleanup := newHealthTestServer(t)
@@ -24,7 +49,7 @@ func TestHealthEndpoint(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.db), health.Critical).Handler()
+		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.primaryDB()), health.Critical).Handler()
 		healthHandler.ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
@@ -57,7 +82,7 @@ func TestHealthEndpoint(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.db), health.Critical).Handler()
+		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.primaryDB()), health.Critical).Handler()
 		healthHandler.ServeHTTP(w, req)
 
 		if w.Code != http.StatusServiceUnavailable {
@@ -147,11 +172,33 @@ func TestResolveDatabaseURL(t *testing.T) {
 }
 
 func TestLogStructured(t *testing.T) {
-	// Test structured logging (output validation is complex, just ensure no panic)
-	logStructured("test_event", map[string]interface{}{
+	var output bytes.Buffer
+	previousOutput := log.Writer()
+	previousFlags := log.Flags()
+	log.SetOutput(&output)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(previousOutput)
+		log.SetFlags(previousFlags)
+	})
+
+	logx.Info(`test "event"`, map[string]interface{}{
 		"key":   "value",
 		"count": 42,
 	})
 
-	logStructured("test_event_no_fields", nil)
+	logx.Info("test_event_no_fields", nil)
+	logged := output.String()
+	if !strings.Contains(logged, `"msg":"test \"event\""`) || !strings.Contains(logged, `"count":42`) {
+		t.Fatalf("structured event log missing expected fields: %s", logged)
+	}
+	if !strings.Contains(logged, `"msg":"test_event_no_fields"`) {
+		t.Fatalf("structured event without fields missing: %s", logged)
+	}
+	for _, line := range strings.Split(strings.TrimSpace(logged), "\n") {
+		var record map[string]any
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("structured log is not valid JSON: %v (%s)", err, line)
+		}
+	}
 }

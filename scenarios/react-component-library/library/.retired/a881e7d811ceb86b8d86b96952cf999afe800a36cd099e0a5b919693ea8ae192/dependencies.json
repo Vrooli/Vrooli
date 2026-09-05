@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:FilterBar",
+  "version": "1.0.0",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Chip",
+      "version": "1.0.0",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Cluster",
+      "version": "1.0.0",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:SearchInput",
+      "version": "1.0.0",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

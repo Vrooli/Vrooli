@@ -13,13 +13,15 @@ import (
 	"sync"
 	"time"
 
+	sessioncore "github.com/vrooli/vrooli/packages/session-core"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/manifest"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/manifest"
 	stcssh "scenario-to-cloud/ssh"
 )
 
@@ -27,9 +29,11 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow connections from any origin for development
-		// In production, this should be more restrictive
-		return true
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		// Non-browser clients do not send Origin. Browser clients must be
+		// same-origin; deployment credentials are never exposed to arbitrary
+		// websites through a cross-origin terminal socket.
+		return origin == "" || sessioncore.SameOrigin(origin, r.Host)
 	},
 }
 
@@ -335,7 +339,7 @@ func getSSHAgentAuth() ssh.AuthMethod {
 		return nil
 	}
 
-	conn, err := net.Dial("unix", socket)
+	conn, err := net.Dial("unix", socket) // #nosec G704 -- SSH_AUTH_SOCK is a local operator-session agent socket; this never accepts a network target.
 	if err != nil {
 		log.Printf("Terminal: failed to connect to SSH agent: %v", err)
 		return nil

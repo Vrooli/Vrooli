@@ -55,7 +55,7 @@ describe('useUnifiedStats', () => {
       act(() => {
         result.current.recordFrame(1000);
         result.current.recordFrame(2000);
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       expect(result.current.stats.client.totalFrames).toBe(2);
@@ -75,7 +75,7 @@ describe('useUnifiedStats', () => {
       // Record some frames
       act(() => {
         result.current.recordFrame(1000);
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       expect(result.current.stats.client.totalFrames).toBe(1);

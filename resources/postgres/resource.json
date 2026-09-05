@@ -1,0 +1,465 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "postgres",
+  "display_name": "PostgreSQL Database",
+  "description": "Managed PostgreSQL service for project and scenario storage.",
+  "storage": {
+    "entries": {
+        "main_data": {
+        "rung": "pinned",
+        "kind": "dir",
+        "regenerable": false,
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "container"
+        },
+        "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped.",
+        "class": "data",
+        "subpath": "instances/main/data",
+          "budget": {
+            "max_bytes": "100GiB",
+            "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+          }
+        },
+        "instance_runtime": {
+          "rung": "pinned",
+          "kind": "dir",
+          "regenerable": false,
+          "class": "data",
+          "subpath": "instances/main",
+          "rationale": "PostgreSQL server-managed runtime markers and Unix socket files live beside the durable cluster. The containing instance directory is pinned so validation accounts for those files without granting cleanup authority."
+        },
+        "migration_backups": {
+          "rung": "pinned",
+          "kind": "dir",
+          "regenerable": false,
+          "class": "data",
+          "subpath": "migration-backups",
+          "rationale": "Historical PostgreSQL migration dumps and verification records are durable recovery evidence. They remain protected until an explicit operator backup-retention decision removes them."
+        },
+        "config": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "rationale": "Instance configuration and connection metadata are generated under the resource config root.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-postgres",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-postgres_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-postgres"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/postgres",
+        "field": "password",
+        "env": "POSTGRES_PASSWORD",
+        "label": "PostgreSQL password",
+        "description": "Password for the managed PostgreSQL service account.",
+        "required": true
+      }
+    ]
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The native PostgreSQL tree is extracted from a digest-pinned official OCI image without a container runtime."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "copy-first-data-validation"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The native PostgreSQL tree is a checksum-pinned upstream archive built from source on macOS runners; OpenSSL ships inside the archive and resolves through @loader_path.",
+            "No macOS hardware run has been performed. Start, readiness, and shutdown are build-verified only."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "limitations": [
+            "The native PostgreSQL tree is a checksum-pinned upstream archive repackaging EnterpriseDB's official Windows build; its ICU, OpenSSL, and libxml2 DLLs ship beside the executables.",
+            "Windows has no Unix-domain sockets, so the server listens on TCP only and the socket-directory argument is omitted for this target.",
+            "Windows on ARM is unsupported: no aarch64-pc-windows-msvc archive is published upstream.",
+            "No Windows hardware run has been performed. Start, readiness, and shutdown are build-verified only; shutdown relies on a console control event and pg_ctl stop -m fast ships in the same archive as the known fallback."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        }
+      }
+    }
+  },
+  "category": "storage",
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "network": "optional",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "postgresql",
+      "host": 5433
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "kind": "readiness",
+      "target": "127.0.0.1:5433",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:5433",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/postgres",
+      "version": "16",
+      "layout": "dir",
+      "entry_path": "usr/lib/postgresql/16/bin/postgres",
+      "sha256_by_platform": {
+        "linux-amd64": "8c18753fd1965bb4eaf099ad88412be883b25396b6a5e3b97ad610ddfa3855f2",
+        "linux-arm64": "e495022187d70554a26e83311146b847ee3477e972a97ae4224658e52ab299ef",
+        "macos-arm64": "95c628f192ae0466c58351b2e7c79a1c6eda86bc72a9db3c26740aaf1b75eaa3",
+        "macos-amd64": "67cdcb759433cfeb7e282804fa505c2c9fe514f407846604b3237066505802b1",
+        "windows-amd64": "d03f8182c7985e9f0c01264ae8cb6039a3a8a10309a1ebc03812139fccadfc9d"
+      },
+      "bundle_artifact": "postgres_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "PostgreSQL",
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b",
+          "layout": "dir",
+          "bin_path": "usr/lib/postgresql/16/bin/postgres",
+          "runtime_env": {
+            "LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libsystemd.so.0"
+          }
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b",
+          "layout": "dir",
+          "bin_path": "usr/lib/postgresql/16/bin/postgres",
+          "runtime_env": {
+            "LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libsystemd.so.0"
+          }
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "arm64"
+          },
+          "kind": "url",
+          "url": "https://github.com/theseus-rs/postgresql-binaries/releases/download/16.15.0/postgresql-16.15.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "46f6382024d9b633d1f4b4903ffef8c2404e00ae83098d628c00591048cb0512",
+          "archive": "tar.gz",
+          "layout": "dir",
+          "bin_path": "postgresql-16.15.0-aarch64-apple-darwin/bin/postgres",
+          "artifact_sha256": "95c628f192ae0466c58351b2e7c79a1c6eda86bc72a9db3c26740aaf1b75eaa3"
+        },
+        {
+          "when": {
+            "os": "macos",
+            "arch": "amd64"
+          },
+          "kind": "url",
+          "url": "https://github.com/theseus-rs/postgresql-binaries/releases/download/16.15.0/postgresql-16.15.0-x86_64-apple-darwin.tar.gz",
+          "sha256": "dfae21b2b931f1d8d1103afb6e8e108fdd94c6f407ce24d35b6cd0ad34f286d1",
+          "archive": "tar.gz",
+          "layout": "dir",
+          "bin_path": "postgresql-16.15.0-x86_64-apple-darwin/bin/postgres",
+          "artifact_sha256": "67cdcb759433cfeb7e282804fa505c2c9fe514f407846604b3237066505802b1"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "kind": "url",
+          "url": "https://github.com/theseus-rs/postgresql-binaries/releases/download/16.15.0/postgresql-16.15.0-x86_64-pc-windows-msvc.zip",
+          "sha256": "98fe43cff00f5aef4a7669adb575655e913dc65b1fdfb997c46fe3c1e07f4efb",
+          "archive": "zip",
+          "layout": "dir",
+          "bin_path": "postgresql-16.15.0-x86_64-pc-windows-msvc/bin/postgres.exe",
+          "artifact_sha256": "d03f8182c7985e9f0c01264ae8cb6039a3a8a10309a1ebc03812139fccadfc9d"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "arm64"
+          },
+          "unsupported": "The upstream PostgreSQL binary channel publishes no aarch64-pc-windows-msvc archive, so no Windows ARM target can be pinned by checksum."
+        }
+      ]
+    },
+    "attach_health_path": "/",
+    "arguments": [
+      "-D",
+      "${RESOURCE_DATA_DIR}/instances/main/data",
+      "-p",
+      "${RESOURCE_PORT_POSTGRESQL}",
+      "-h",
+      "127.0.0.1",
+      "-k",
+      "${RESOURCE_DATA_DIR}/instances/main"
+    ],
+    "environment": {
+      "POSTGRES_DB": "vrooli",
+      "POSTGRES_USER": "vrooli",
+      "POSTGRES_PASSWORD": "vrooli",
+      "PGDATA": "${RESOURCE_DATA_DIR}/instances/main/data"
+    },
+    "shutdown": {
+      "signal": "interrupt"
+    },
+    "bootstrap": {
+      "marker": "instances/main/data/PG_VERSION",
+      "executable": "usr/lib/postgresql/16/bin/initdb",
+      "arguments": [
+        "-D",
+        "${RESOURCE_DATA_DIR}/instances/main/data",
+        "--username",
+        "${POSTGRES_USER}",
+        "--pwfile",
+        "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+        "--auth-host",
+        "scram-sha-256",
+        "--auth-local",
+        "trust",
+        "--encoding",
+        "UTF8"
+      ],
+      "password_env": "POSTGRES_PASSWORD",
+      "password_file": ".bootstrap-password",
+      "executable_by_platform": {
+        "macos-arm64": "postgresql-16.15.0-aarch64-apple-darwin/bin/initdb",
+        "macos-amd64": "postgresql-16.15.0-x86_64-apple-darwin/bin/initdb",
+        "windows-amd64": "postgresql-16.15.0-x86_64-pc-windows-msvc/bin/initdb.exe"
+      },
+      "arguments_by_platform": {
+        "windows": [
+          "-D",
+          "${RESOURCE_DATA_DIR}/instances/main/data",
+          "--username",
+          "${POSTGRES_USER}",
+          "--pwfile",
+          "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+          "--auth-host",
+          "scram-sha-256",
+          "--encoding",
+          "UTF8"
+        ]
+      }
+    },
+    "arguments_by_platform": {
+      "windows": [
+        "-D",
+        "${RESOURCE_DATA_DIR}/instances/main/data",
+        "-p",
+        "${RESOURCE_PORT_POSTGRESQL}",
+        "-h",
+        "127.0.0.1"
+      ]
+    }
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific PostgreSQL dependency settings.",
+    "properties": {
+      "database": {
+        "type": "string"
+      },
+      "schema": {
+        "type": "string"
+      },
+      "schema_file": {
+        "type": "string"
+      },
+      "config": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "schema": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "instance_name": {
+        "type": "string"
+      },
+      "access_method": {
+        "type": "string"
+      },
+      "estimated_size": {
+        "type": "string"
+      },
+      "backup_frequency": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "POSTGRES_HOST": "localhost",
+      "POSTGRES_SSLMODE": "disable"
+    },
+    "from_ports": {
+      "POSTGRES_PORT": "postgresql"
+    },
+    "from_runtime_env": [
+      "POSTGRES_DB",
+      "POSTGRES_USER",
+      "POSTGRES_PASSWORD"
+    ],
+    "derived": {
+      "POSTGRES_URL": {
+        "template": "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"
+      },
+      "DATABASE_URL": {
+        "template": "${POSTGRES_URL}"
+      },
+      "POSTGRES_ADMIN_URL": {
+        "template": "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/postgres?sslmode=${POSTGRES_SSLMODE}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 1000,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "10-30s",
+    "dependencies": [],
+    "recovery_attempts": 5,
+    "health_check_retries": 10,
+    "health_check_delay_seconds": 3,
+    "priority": "critical"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true,
+    "supports_ensure": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

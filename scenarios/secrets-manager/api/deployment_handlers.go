@@ -65,7 +65,7 @@ func (h *DeploymentHandlers) DeploymentSecrets(w http.ResponseWriter, r *http.Re
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(manifest)
+	_ = json.NewEncoder(w).Encode(manifest)
 }
 
 // DeploymentSecretsGet generates a deployment manifest from query parameters.
@@ -131,7 +131,7 @@ func (h *DeploymentHandlers) DeploymentSecretsGet(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(manifest)
+	_ = json.NewEncoder(w).Encode(manifest)
 }
 
 // DeploymentReadiness returns a lightweight readiness snapshot.
@@ -182,5 +182,5 @@ func (h *DeploymentHandlers) DeploymentReadiness(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }

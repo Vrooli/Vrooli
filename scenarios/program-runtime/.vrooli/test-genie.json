@@ -1,0 +1,47 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "program-runtime",
+  "phase": "programs",
+  "displayName": "Programs",
+  "description": "Validates declared program contracts, sources, and fixture evidence.",
+  "source": "validation-provider",
+  "orderHint": 17,
+  "timeout": "120s",
+  "findingSource": "programs",
+  "validation": {"contract": "scenario-validation/v1", "includeExecution": true},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "applicability": {"default": "applies"},
+  "policy": {"selection": "default_when_applicable", "providerReadiness": "best_effort", "providerLifecycle": "start_if_needed", "freshness": "require_live_contract", "resultGating": "advisory", "unavailable": "skip_without_failing"},
+  "runnability": {},
+  "concurrency": {"mode": "provider-serial"},
+  "docs": {"path": "scenarios/test-genie/docs/phases/programs/README.md"},
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      {"id": "L0", "name": "Program contract unavailable", "description": "Declared program validation cannot inspect the target.", "status_label": "Unavailable", "next_unlock": "Make declared program sources readable."},
+      {"id": "L1", "name": "Program contract inspectable", "description": "Program declarations and fixtures can be inspected.", "status_label": "Foundation", "next_unlock": "Clear program validation findings."},
+      {"id": "L2", "name": "Program contract clean", "description": "Program declarations and fixture evidence are clean.", "status_label": "Complete", "next_unlock": "Maximum program validation maturity."}
+    ],
+    "capabilities": [
+      {"id": "contract_integrity", "label": "Contract Integrity", "description": "Program declarations have readable companion contracts.", "levels": [{"id": "L0", "name": "Unavailable", "description": "No contract can be read."}, {"id": "L1", "name": "Readable", "description": "Contracts can be read."}, {"id": "L2", "name": "Clean", "description": "Contracts are complete."}]},
+      {"id": "binding_reality", "label": "Binding Reality", "description": "Declared bindings resolve to governed callable bindings.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Bindings cannot be inspected."}, {"id": "L1", "name": "Inspectable", "description": "Bindings can be resolved."}, {"id": "L2", "name": "Clean", "description": "Every declared binding is real."}]},
+      {"id": "source_discipline", "label": "Source Discipline", "description": "Program sources pass preflight and emit the declared envelope.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Sources cannot be inspected."}, {"id": "L1", "name": "Inspectable", "description": "Sources can be checked."}, {"id": "L2", "name": "Clean", "description": "Sources pass static discipline."}]},
+      {"id": "fixture_evidence", "label": "Fixture Evidence", "description": "Program fixtures provide executable evidence.", "levels": [{"id": "L0", "name": "Unavailable", "description": "Fixtures are unavailable."}, {"id": "L1", "name": "Inspectable", "description": "Fixtures can be inspected."}, {"id": "L2", "name": "Proven", "description": "Fixture evidence is present."}]}
+    ],
+    "findings": {
+      "programs.scenario_missing": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.programs_unreadable": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.contract_missing": {"capability_id": "contract_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.source_missing": {"capability_id": "contract_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.contract_invalid": {"capability_id": "contract_integrity", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.binding_missing": {"capability_id": "binding_reality", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.preflight_diagnostic": {"capability_id": "source_discipline", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.envelope_missing": {"capability_id": "source_discipline", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.write_undeclared": {"capability_id": "source_discipline", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.fixture_missing": {"capability_id": "fixture_evidence", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "tests", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]},
+      "programs.fixture_malformed": {"capability_id": "fixture_evidence", "local_level_impact": "L1", "global_impact": "advisory", "dimension": "tests", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "recommended_skill_ids": ["program-runtime-improve"]}
+    },
+    "fallback": {"capability_id": "contract_integrity", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "structure", "severity_default": "SEVERITY_WARNING", "clean_requirement": "required"}
+  }
+}

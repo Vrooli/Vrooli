@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "policyId": "agent-manager-test-genie-start-run",
+      "targetScenario": "test-genie",
+      "operation": "POST /vrooli.test_genie.v1.runs.RunsService/StartRun",
+      "protocol": "connect",
+      "responseType": "vrooli.test_genie.v1.runs.StartRunResponse",
+      "responseProjectionPaths": ["run_id", "scenario"],
+      "retentionDays": 3650,
+      "neverExercised": true,
+      "readPrincipals": ["agent-manager"]
+    },
+    {
+      "policyId": "agent-manager-search-hub-query",
+      "targetScenario": "search-hub",
+      "operation": "POST /vrooli.search_hub.v1.routing.RoutingService/Query",
+      "protocol": "connect",
+      "responseType": "vrooli.search_hub.v1.routing.QueryResponse",
+      "responseProjectionPaths": ["degraded", "latency_ms", "reranked"],
+      "retentionDays": 3650,
+      "readPrincipals": ["agent-manager"]
+    },
+    {
+      "policyId": "agent-manager-prompt-manager-discover",
+      "targetScenario": "prompt-manager",
+      "operation": "POST /api/v1/discover",
+      "protocol": "http",
+      "responseType": "prompt_manager.v1.DiscoverResponse",
+      "responseProjectionPaths": ["total", "method", "budgetStatus"],
+      "retentionDays": 3650,
+      "neverExercised": true,
+      "readPrincipals": ["agent-manager"]
+    },
+    {
+      "policyId": "agent-manager-prompt-manager-skill-read",
+      "targetScenario": "prompt-manager",
+      "operation": "POST /api/v1/skills/read",
+      "protocol": "http",
+      "responseType": "prompt_manager.v1.ReadResponse",
+      "responseProjectionPaths": ["skillCount", "totalTokens", "resolve"],
+      "retentionDays": 3650,
+      "neverExercised": true,
+      "readPrincipals": ["agent-manager"]
+    },
+    {
+      "policyId": "agent-manager-test-genie-wait-run",
+      "targetScenario": "test-genie",
+      "operation": "POST /vrooli.test_genie.v1.runs.RunsService/WaitRun",
+      "protocol": "connect",
+      "responseType": "vrooli.test_genie.v1.runs.WaitRunResponse",
+      "responseProjectionPaths": ["status.run_id", "status.status", "timed_out"],
+      "retentionDays": 3650,
+      "neverExercised": true,
+      "readPrincipals": ["agent-manager"]
+    },
+    {
+      "policyId": "agent-manager-test-genie-get-run-status",
+      "targetScenario": "test-genie",
+      "operation": "POST /vrooli.test_genie.v1.runs.RunsService/GetRunStatus",
+      "protocol": "connect",
+      "responseType": "vrooli.test_genie.v1.runs.RunLiveStatus",
+      "responseProjectionPaths": ["run_id", "status", "active_phase"],
+      "retentionDays": 3650,
+      "neverExercised": true,
+      "readPrincipals": ["agent-manager"]
+    },
+    {
+      "policyId": "agent-manager-test-genie-abort-run",
+      "targetScenario": "test-genie",
+      "operation": "POST /vrooli.test_genie.v1.runs.RunsService/AbortRun",
+      "protocol": "connect",
+      "responseType": "vrooli.test_genie.v1.runs.AbortRunResponse",
+      "responseProjectionPaths": ["status.run_id", "status.status"],
+      "retentionDays": 3650,
+      "neverExercised": true,
+      "readPrincipals": ["agent-manager"]
+    }
+  ]
+}

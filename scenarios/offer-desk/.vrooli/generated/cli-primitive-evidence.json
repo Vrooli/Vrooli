@@ -1,0 +1,194 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "offer-desk",
+  "generator": "v1.0.0",
+  "manifest_hash": "6edf4d26c32e06340ffa7f7029405b717eed5f6604c98226cdbcf3cc0931ef8b",
+  "commands": [
+    {
+      "path": "offers board-show",
+      "group": "offers",
+      "command": "board-show",
+      "binding": "BoardService.GetBoard",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers catalog-create",
+      "group": "offers",
+      "command": "catalog-create",
+      "binding": "CatalogService.CreateNode",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-edge",
+      "group": "offers",
+      "command": "catalog-edge",
+      "binding": "CatalogService.CreateEdge",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-edges",
+      "group": "offers",
+      "command": "catalog-edges",
+      "binding": "CatalogService.ListEdges",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers catalog-import",
+      "group": "offers",
+      "command": "catalog-import",
+      "binding": "CatalogService.ImportCatalog",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-list",
+      "group": "offers",
+      "command": "catalog-list",
+      "binding": "CatalogService.ListNodes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers catalog-map-account",
+      "group": "offers",
+      "command": "catalog-map-account",
+      "binding": "CatalogService.MapAccount",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-merge",
+      "group": "offers",
+      "command": "catalog-merge",
+      "binding": "CatalogService.MergeNodes",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-rename",
+      "group": "offers",
+      "command": "catalog-rename",
+      "binding": "CatalogService.RenameNode",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-set-class",
+      "group": "offers",
+      "command": "catalog-set-class",
+      "binding": "CatalogService.SetDeliverableClass",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-set-release-rank",
+      "group": "offers",
+      "command": "catalog-set-release-rank",
+      "binding": "CatalogService.SetReleaseRank",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-transition",
+      "group": "offers",
+      "command": "catalog-transition",
+      "binding": "CatalogService.Transition",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-verify",
+      "group": "offers",
+      "command": "catalog-verify",
+      "binding": "CatalogService.VerifyCatalog",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers enabling-list",
+      "group": "offers",
+      "command": "enabling-list",
+      "binding": "ReleaseLadderService.GetEnablingDeliverables",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers gates-evaluate",
+      "group": "offers",
+      "command": "gates-evaluate",
+      "binding": "GatesService.Evaluate",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers gates-fact",
+      "group": "offers",
+      "command": "gates-fact",
+      "binding": "GatesService.AddFact",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers gates-promote",
+      "group": "offers",
+      "command": "gates-promote",
+      "binding": "GatesService.Promote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers gates-proposals",
+      "group": "offers",
+      "command": "gates-proposals",
+      "binding": "GatesService.ListProposals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers gates-trigger",
+      "group": "offers",
+      "command": "gates-trigger",
+      "binding": "GatesService.DeclareTrigger",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers meters",
+      "group": "offers",
+      "command": "meters",
+      "binding": "CatalogService.GetMeterInventory",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers release-ladder",
+      "group": "offers",
+      "command": "release-ladder",
+      "binding": "ReleaseLadderService.GetReleaseLadder",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers release-prerequisites",
+      "group": "offers",
+      "command": "release-prerequisites",
+      "binding": "ReleaseLadderService.GetPrerequisites",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers space",
+      "group": "offers",
+      "command": "space",
+      "binding": "SpaceService.GetProjection",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "description": "Best-effort importance display line composed from scenario-dependency-analyzer centrality and swarm-manager recent-activity, with a hard 1s combined budget, silently omitted when sources are unreachable; the core score path never touches the network.",
+  "module_id": "MOD-P1-007",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "The score response may optionally include an importance display line composed from: (a) centrality data from scenario-dependency-analyzer and (b) recent-activity data from swarm-manager. These two network calls share a combined hard timeout budget of 1 second. If either or both sources are unreachable, time out, or return errors within the budget, the importance line is silently omitted from the response — no error is surfaced to the caller and no degradation is reported. The core score path (composite score, rung, freshness, recommendations) must complete entirely before importance enrichment is attempted and must not be blocked by it. Network calls for importance enrichment must be the ONLY network touches in the entire score response lifecycle.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Best-Effort Importance Enrichment with 1s Combined Budget and Silent Omission",
+      "validation": [
+        {
+          "notes": "api/internal/signals/importance_enrichment_test.go [REQ:OT-P1-001]: mock dep-analyzer returns centrality within budget → importance line present in result",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/importance_enrichment_test.go: mock dep-analyzer times out at 1.1s → importance line absent, no error returned",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/importance_enrichment_test.go: both sources unreachable → importance line absent, core score fields fully populated",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/importance_enrichment_test.go: assert core score fields (composite, rung, freshness) are populated before enrichment goroutine completes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: run GetScore with dep-analyzer and swarm-manager stubs returning 200; assert importance field present",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: run GetScore with both stubs blocked beyond 1s; assert response completes \u003c2s and importance field absent",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Importance enrichment must not cause total response time to exceed 2s even when sources are slow (core path \u003c1s + enrichment budget 1s)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Engineers see scenario importance context when available without ever sacrificing score availability due to external service downtime",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Importance Enrichment"
+}

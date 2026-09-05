@@ -52,7 +52,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
     };
 
     setLoadState("loading");
-    checkScenarioAvailability();
+    void checkScenarioAvailability();
   }, [scenarioName, iframeKey]);
 
   const handleRefresh = useCallback(() => {
@@ -123,7 +123,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleOpenExternal}
+            onClick={() => { void handleOpenExternal(); }}
             className="gap-2 text-slate-300 hover:text-white"
           >
             <ExternalLink className="h-4 w-4" />

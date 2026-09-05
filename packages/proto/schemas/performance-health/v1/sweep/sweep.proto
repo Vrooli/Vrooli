@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.sweep;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep;sweep_v1";
+
+// =============================================================================
+// PERFORMANCE CAPTURE-SWEEP SERVICE — continuous per-flow capture cadence
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// SweepService runs the OUT-OF-BAND per-flow capture cadence: for each
+// interaction flow that has a per-flow budget declared (performance.budgets.
+// flows), it drives a targeted audit (audit run --workflow <slug>), analyzes
+// the trace, persists a FLOW-TAGGED trend sample, and checks the per-flow
+// budget. It is intentionally NOT wired into the synchronous test-genie
+// Performance phase (restarting the scenario-under-test mid-run collides with
+// the harness lifecycle); per-flow regressions gate via the persisted samples +
+// `git-control-tower baseline diff`, not this call.
+// =============================================================================
+
+service SweepService {
+  // RunSweep audits every budgeted flow for one scenario and persists a
+  // flow-tagged sample per captured flow. The response is a per-flow summary;
+  // gating happens later via baseline-diff over the persisted samples.
+  rpc RunSweep(RunSweepRequest) returns (RunSweepResponse);
+}
+
+message RunSweepRequest {
+  string scenario = 1;
+}
+
+// FlowSweepResult is the outcome of sweeping one interaction flow.
+message FlowSweepResult {
+  string flow = 1;
+  // captured | skipped | unavailable | failed — mirrors AuditOutcome.
+  string outcome = 2;
+  // True when the persisted flow sample is within the per-flow budget (only
+  // meaningful when outcome=captured and a per-flow budget is declared).
+  bool within_budget = 3;
+  // Human-readable axis breaches (e.g. "lcp measured 3200ms exceeds 2000ms").
+  repeated string violations = 4;
+  // Free-form reason when not captured.
+  string reason = 5;
+}
+
+message RunSweepResponse {
+  string scenario = 1;
+  repeated FlowSweepResult results = 2;
+}

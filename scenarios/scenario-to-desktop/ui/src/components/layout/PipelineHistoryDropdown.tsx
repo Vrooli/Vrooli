@@ -5,12 +5,25 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, RefreshCw, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from "lucide-react";
+import {
+  X,
+  RefreshCw,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { usePipelineStore } from "../../store";
+import { stageResultKey } from "../../store";
 import type { VerbosePipelineStatus } from "../../lib/api";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 interface PipelineHistoryDropdownProps {
   open: boolean;
@@ -18,29 +31,39 @@ interface PipelineHistoryDropdownProps {
 }
 
 /** Format Unix timestamp to locale string */
-function formatTimestamp(unix: number | undefined): string {
-  if (!unix) return "-";
-  return new Date(unix * 1000).toLocaleString();
+function formatTimestamp(
+  value: { seconds: bigint; nanos: number } | undefined,
+): string {
+  if (!value) return "-";
+  return new Date(
+    Number(value.seconds) * 1000 + value.nanos / 1_000_000,
+  ).toLocaleString();
 }
 
 /** Get status icon and color */
-function getStatusDisplay(status: string | undefined): { icon: typeof CheckCircle; color: string } {
+function getStatusDisplay(status: StageStatus): {
+  icon: typeof CheckCircle;
+  color: string;
+} {
   switch (status) {
-    case "completed":
+    case StageStatus.COMPLETED:
       return { icon: CheckCircle, color: "text-green-400" };
-    case "failed":
+    case StageStatus.FAILED:
       return { icon: XCircle, color: "text-red-400" };
-    case "cancelled":
+    case StageStatus.CANCELLED:
       return { icon: AlertCircle, color: "text-yellow-400" };
-    case "running":
-    case "pending":
+    case StageStatus.RUNNING:
+    case StageStatus.PENDING:
       return { icon: Loader2, color: "text-blue-400" };
     default:
       return { icon: AlertCircle, color: "text-slate-400" };
   }
 }
 
-export function PipelineHistoryDropdown({ open, onClose }: PipelineHistoryDropdownProps) {
+export function PipelineHistoryDropdown({
+  open,
+  onClose,
+}: PipelineHistoryDropdownProps) {
   if (!open) return null;
 
   return <PipelineHistoryContent onClose={onClose} />;
@@ -76,7 +99,7 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
   }, [scenarioName, loadPipelineHistory]);
 
   useEffect(() => {
-    fetchHistory();
+    void fetchHistory();
   }, [fetchHistory]);
 
   return createPortal(
@@ -91,9 +114,13 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col border-slate-800 bg-slate-950/90 shadow-xl">
         <CardHeader className="flex flex-row items-start justify-between gap-4 shrink-0">
           <div className="space-y-1">
-            <CardTitle className="text-lg text-slate-100">Pipeline History</CardTitle>
+            <CardTitle className="text-lg text-slate-100">
+              Pipeline History
+            </CardTitle>
             <p className="text-sm text-slate-400">
-              {scenarioName ? `Historical pipelines for ${scenarioName}` : "Select a scenario to view history"}
+              {scenarioName
+                ? `Historical pipelines for ${scenarioName}`
+                : "Select a scenario to view history"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -101,12 +128,16 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
               type="button"
               variant="outline"
               size="sm"
-              onClick={fetchHistory}
+              onClick={() => {
+                void fetchHistory();
+              }}
               disabled={isLoading}
               className="h-8 gap-2"
               title="Refresh history"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
             <Button
@@ -115,6 +146,7 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={onClose}
               className="h-8 w-8 p-0"
+              aria-label="Close pipeline history"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -142,12 +174,14 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
           {!error && !isLoading && pipelines.length > 0 && (
             <div className="space-y-3">
               {pipelines.map((pipeline) => {
-                const { icon: StatusIcon, color } = getStatusDisplay(pipeline.status);
-                const isCurrent = pipeline.pipeline_id === currentPipelineId;
+                const { icon: StatusIcon, color } = getStatusDisplay(
+                  pipeline.status,
+                );
+                const isCurrent = pipeline.pipelineId === currentPipelineId;
 
                 return (
                   <div
-                    key={pipeline.pipeline_id}
+                    key={pipeline.pipelineId}
                     className={`rounded-lg border p-3 ${
                       isCurrent
                         ? "border-blue-500/50 bg-blue-950/20"
@@ -158,10 +192,13 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <code className="text-xs font-mono text-slate-300 truncate">
-                            {pipeline.pipeline_id}
+                            {pipeline.pipelineId}
                           </code>
                           {isCurrent && (
-                            <Badge variant="outline" className="text-blue-400 border-blue-500/50">
+                            <Badge
+                              variant="outline"
+                              className="text-blue-400 border-blue-500/50"
+                            >
                               Current
                             </Badge>
                           )}
@@ -169,34 +206,45 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
                         <div className="mt-2 flex items-center gap-4 text-xs text-slate-400">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            <span>{formatTimestamp(pipeline.started_at)}</span>
+                            <span>{formatTimestamp(pipeline.startedAt)}</span>
                           </div>
-                          {pipeline.completed_at && (
+                          {pipeline.completedAt && (
                             <div className="flex items-center gap-1">
                               <CheckCircle className="h-3 w-3" />
-                              <span>{formatTimestamp(pipeline.completed_at)}</span>
+                              <span>
+                                {formatTimestamp(pipeline.completedAt)}
+                              </span>
                             </div>
                           )}
                         </div>
                       </div>
-                      <Badge variant="outline" className={`flex items-center gap-1.5 ${color}`}>
-                        <StatusIcon className={`h-3 w-3 ${pipeline.status === "running" ? "animate-spin" : ""}`} />
-                        {pipeline.status}
+                      <Badge
+                        variant="outline"
+                        className={`flex items-center gap-1.5 ${color}`}
+                      >
+                        <StatusIcon
+                          className={`h-3 w-3 ${pipeline.status === StageStatus.RUNNING ? "animate-spin" : ""}`}
+                        />
+                        {StageStatus[pipeline.status]}
                       </Badge>
                     </div>
 
                     {/* Stage progress */}
-                    {pipeline.stage_order && pipeline.stage_order.length > 0 && (
+                    {pipeline.stageOrder.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1">
-                        {pipeline.stage_order.map((stage) => {
-                          const stageResult = pipeline.stages?.[stage];
-                          const stageStatus = stageResult?.status ?? "pending";
-                          const statusColors: Record<string, string> = {
-                            completed: "bg-green-500",
-                            failed: "bg-red-500",
-                            running: "bg-blue-500",
-                            skipped: "bg-slate-600",
-                            pending: "bg-slate-700",
+                        {pipeline.stageOrder.map((stage: StageName) => {
+                          const stageResult =
+                            pipeline.stages[stageResultKey(stage)];
+                          const stageStatus =
+                            stageResult?.status ?? StageStatus.PENDING;
+                          const statusColors: Partial<
+                            Record<StageStatus, string>
+                          > = {
+                            [StageStatus.COMPLETED]: "bg-green-500",
+                            [StageStatus.FAILED]: "bg-red-500",
+                            [StageStatus.RUNNING]: "bg-blue-500",
+                            [StageStatus.SKIPPED]: "bg-slate-600",
+                            [StageStatus.PENDING]: "bg-slate-700",
                           };
                           return (
                             <div
@@ -204,9 +252,9 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
                               className={`px-2 py-0.5 rounded text-xs ${
                                 statusColors[stageStatus] ?? "bg-slate-700"
                               } text-white`}
-                              title={`${stage}: ${stageStatus}`}
+                              title={`${StageName[stage]}: ${StageStatus[stageStatus]}`}
                             >
-                              {stage}
+                              {StageName[stage]}
                             </div>
                           );
                         })}
@@ -215,7 +263,10 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
 
                     {/* Error message if failed */}
                     {pipeline.error && (
-                      <div className="mt-2 text-xs text-red-400 truncate" title={pipeline.error}>
+                      <div
+                        className="mt-2 text-xs text-red-400 truncate"
+                        title={pipeline.error}
+                      >
                         {pipeline.error}
                       </div>
                     )}
@@ -227,6 +278,6 @@ function PipelineHistoryContent({ onClose }: { onClose: () => void }) {
         </CardContent>
       </Card>
     </div>,
-    document.body
+    document.body,
   );
 }

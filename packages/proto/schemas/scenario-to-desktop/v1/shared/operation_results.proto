@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared";
+
+// =============================================================================
+// SHARED OPERATION RESULTS
+// =============================================================================
+//
+// @stability beta
+//
+// Build and smoke-test snapshots are returned by their dedicated services and
+// retained by pipeline stage results. They therefore belong to neither service
+// domain alone.
+//
+// =============================================================================
+
+enum PlatformBuildStatus {
+  PLATFORM_BUILD_STATUS_UNSPECIFIED = 0;
+  PLATFORM_BUILD_STATUS_BUILDING = 1;
+  PLATFORM_BUILD_STATUS_READY = 2;
+  PLATFORM_BUILD_STATUS_FAILED = 3;
+  PLATFORM_BUILD_STATUS_SKIPPED = 4;
+}
+
+message PlatformBuildResult {
+  Platform platform = 1;
+  PlatformBuildStatus status = 2;
+  google.protobuf.Timestamp started_at = 3;
+  optional google.protobuf.Timestamp completed_at = 4;
+  repeated string error_log = 5;
+  optional string artifact = 6;
+  optional int64 file_size = 7;
+  optional string skip_reason = 8;
+}
+
+message BuildStatusResponse {
+  string build_id = 1;
+  string scenario_name = 2;
+  BuildStatus status = 3;
+  Framework framework = 4;
+  TemplateType template_type = 5;
+  repeated Platform requested_platforms = 6;
+  map<string, PlatformBuildResult> platform_results = 7;
+  optional string output_path = 8;
+  google.protobuf.Timestamp created_at = 9;
+  optional google.protobuf.Timestamp completed_at = 10;
+  repeated string error_log = 11;
+  repeated string build_log = 12;
+  map<string, string> artifacts = 13;
+  map<string, string> metadata = 14;
+}
+
+enum SmokeTestStatus {
+  SMOKE_TEST_STATUS_UNSPECIFIED = 0;
+  SMOKE_TEST_STATUS_RUNNING = 1;
+  SMOKE_TEST_STATUS_PASSED = 2;
+  SMOKE_TEST_STATUS_FAILED = 3;
+}
+
+// ScreenRecordingSummary exposes operator-visible evidence metadata without
+// disclosing the host-local recording path. The recording itself is retrieved
+// through the dedicated authenticated/authorized evidence route.
+message ScreenRecordingSummary {
+  bool recorded = 1;
+  optional int64 duration_ms = 2;
+  optional int64 file_size_bytes = 3;
+  optional string error = 4;
+  // Capture ID resolved through the canonical captures evidence route.
+  optional string capture_id = 5;
+}
+
+// EvidenceChapter is a reviewer-facing projection of one versioned journey
+// step. It contains references and derived values only; credential material and
+// host-local paths are never part of the status contract.
+message EvidenceChapter {
+  string id = 1;
+  string purpose = 2;
+  string action = 3;
+  string disposition = 4;
+  optional string assertion_id = 5;
+  optional string expected = 6;
+  optional string observed = 7;
+  optional string error = 8;
+  optional int64 video_start_offset_ms = 9;
+  optional int64 video_end_offset_ms = 10;
+  repeated string evidence_ids = 11;
+}
+
+message EvidenceReview {
+  string schema_version = 1;
+  string capability = 2;
+  string plan_id = 3;
+  string profile = 4;
+  string disposition = 5;
+  optional string reason = 6;
+  repeated EvidenceChapter chapters = 7;
+  int32 event_count = 8;
+  optional string deployment_mode = 9;
+  optional string provider_tier = 10;
+  optional string service_identity = 11;
+  optional string readiness = 12;
+  optional string fallback_decision = 13;
+  optional string safe_route_class = 14;
+}
+
+message PerformancePhase {
+  string name = 1;
+  bool available = 2;
+  int64 duration_ms = 3;
+  optional string reason = 4;
+}
+
+message SmokeTestPerformance {
+  string status = 1;
+  optional string reason = 2;
+  repeated PerformancePhase protocol_phases = 3;
+  repeated PerformancePhase demo_phases = 4;
+}
+
+message SmokeTestStatusResponse {
+  string smoke_test_id = 1;
+  string scenario_name = 2;
+  Platform platform = 3;
+  SmokeTestStatus status = 4;
+  optional string artifact_path = 5;
+  google.protobuf.Timestamp started_at = 6;
+  optional google.protobuf.Timestamp completed_at = 7;
+  repeated string logs = 8;
+  optional string error = 9;
+  bool telemetry_uploaded = 10;
+  optional string telemetry_upload_error = 11;
+  optional ScreenRecordingSummary screen_recording = 12;
+  optional EvidenceReview evidence_review = 13;
+  optional SmokeTestPerformance performance = 14;
+}

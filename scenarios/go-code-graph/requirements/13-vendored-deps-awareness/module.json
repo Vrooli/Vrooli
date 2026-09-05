@@ -1,0 +1,93 @@
+{
+  "description": "By default exclude `vendor/` directories and module-cache paths from extraction. Provide a `--include-vendor` flag for callers that need full coverage. Document the default in the proto.",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-007"
+      ],
+      "description": "By default, Extract must exclude vendor/ directories and Go module cache paths from the extracted graph. Files and packages under vendor/ must not appear as nodes or contribute edges to the graph. A --include-vendor flag (exposed via CLI, proto field, and UI toggle) must allow callers to override this default and include vendor contents. The default exclusion behavior must be documented in the proto field comment for the ExtractRequest message.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Vendor Directory Exclusion with Optional Include Flag",
+      "validation": [
+        {
+          "notes": "Test that ExtractRequest without include_vendor=true excludes all paths under vendor/ from the returned graph",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that ExtractRequest with include_vendor=true includes vendor/ package nodes in the returned graph",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that module cache paths (GOPATH/pkg/mod) are always excluded regardless of include_vendor flag",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test proto field comment on include_vendor field documents the default exclusion behavior",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a fixture with a vendor/ directory: default response contains no vendor nodes; response with include_vendor=true includes vendor nodes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI go-code-graph extract --include-vendor passes include_vendor=true to the Connect-RPC call",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vendor exclusion does not affect the completeness of import edges between non-vendor packages",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Default extraction (vendor excluded) on a module with a large vendor/ directory is not slower than extraction of an equivalent module without vendor/",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Default behavior protects consumers from accidentally including third-party code in migration analysis",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "include_vendor flag is discoverable via CLI help text and UI toggle label",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Vendored-Deps Awareness"
+}

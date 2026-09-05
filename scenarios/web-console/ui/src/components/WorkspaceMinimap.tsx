@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import { useTranslation } from "react-i18next";
+import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import {
   buildMinimapRowMarkers,
@@ -20,6 +22,7 @@ type ScrollMetrics = {
 };
 
 export default function WorkspaceMinimap({ scrollRef, rowCount }: WorkspaceMinimapProps) {
+  const { t } = useTranslation();
   const isMinimapVisible = useWorkspaceStore((s) => s.isMinimapVisible);
   const railRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -149,7 +152,7 @@ export default function WorkspaceMinimap({ scrollRef, rowCount }: WorkspaceMinim
         ref={railRef}
         className="wc-minimap-rail"
         role="slider"
-        aria-label="Scroll position"
+        aria-label={t(strings.workspaceMinimap.scrollPosition)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(viewport.topPercent)}

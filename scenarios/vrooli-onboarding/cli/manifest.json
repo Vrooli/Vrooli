@@ -1,0 +1,81 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "vrooli-onboarding",
+  "description": "The declarative onboarding CLI surface for inspecting, configuring, and applying one node's desired state.",
+  "groups": [
+    {
+      "name": "glossary",
+      "flat": true,
+      "description": "Explain onboarding terms",
+      "commands": [{"name":"glossary","description":"Search the onboarding glossary","binding":{"kind":"local","handler":"glossary"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}}]
+    },
+    {
+      "name": "readiness",
+      "flat": true,
+      "description": "Check whether this node is ready",
+      "commands": [{"name":"readiness","description":"Validate required onboarding items","binding":{"kind":"local","handler":"readiness"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]}}]
+    },
+    {
+      "name": "control",
+      "description": "Inspect and apply the node configuration",
+      "commands": [
+        {"name":"closure","description":"Show the transitive selection closure","binding":{"kind":"local","handler":"control.closure"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"apply","description":"Apply the committed node configuration","flags":[{"name":"target","description":"Optional registered node id; defaults to this node"}],"binding":{"kind":"local","handler":"control.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+      ],
+      "groups": [
+        {"name":"scenarios","description":"Inspect manifest-derived scenarios","commands":[{"name":"list","description":"List scenarios and dependencies","binding":{"kind":"local","handler":"control.scenarios.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}}]},
+        {"name":"union","description":"Export the deployment union","commands":[{"name":"export","description":"Write the deployment union JSON","binding":{"kind":"local","handler":"control.union.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","filesystem:write"]}}]},
+        {"name":"host","description":"Inspect host requirements and safeguards","commands":[{"name":"list","description":"List host requirements","binding":{"kind":"local","handler":"control.host.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},{"name":"set-config","description":"Set one safeguard configuration value","flags":[{"name":"target","description":"Safeguard configuration key"},{"name":"value","description":"Safeguard configuration value"}],"binding":{"kind":"local","handler":"control.host.set-config"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}}]}
+      ]
+    },
+    {
+      "name": "credentials",
+      "description": "Inspect and provision node credentials",
+      "commands": [
+        {"name":"list","description":"List credential descriptors","binding":{"kind":"local","handler":"credentials.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"provision","description":"Provision a credential from standard input","binding":{"kind":"local","handler":"credentials.provision"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
+        {"name":"doctor","description":"Diagnose the credential authority","binding":{"kind":"local","handler":"credentials.doctor"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name": "operator",
+      "description": "Inspect and commit operator state",
+      "commands": [
+        {"name":"show","description":"Show persisted operator state","binding":{"kind":"local","handler":"operator.show"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {"name":"patch","description":"Apply an operator-state merge patch","binding":{"kind":"local","handler":"operator.patch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write","admin"]}},
+        {"name":"scenarios","description":"Show manifest-derived scenario choices","binding":{"kind":"local","handler":"operator.scenarios"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"readiness","description":"Show composed readiness","binding":{"kind":"local","handler":"operator.readiness"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name": "capabilities",
+      "description": "Inspect and apply operator capabilities",
+      "commands": [
+        {"name":"list","description":"List capability descriptors and status","binding":{"kind":"local","handler":"capabilities.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"preview","description":"Preview a capability action","binding":{"kind":"local","handler":"capabilities.preview"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"apply","description":"Apply a capability action","binding":{"kind":"local","handler":"capabilities.apply"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+      ]
+    },
+    {
+      "name": "resources",
+      "description": "Inspect onboarding resources",
+      "commands": [
+        {"name":"list","description":"List available resources","binding":{"kind":"local","handler":"resources.list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"get","description":"Show one resource","binding":{"kind":"local","handler":"resources.get"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"health","description":"Show resource health","binding":{"kind":"local","handler":"resources.health"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      ]
+    },
+    {
+      "name": "wizard",
+      "description": "Configure one node through the onboarding workflow",
+      "commands": [
+        {"name":"status","description":"Show onboarding session status","binding":{"kind":"local","handler":"wizard.status"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"commit","description":"Commit and apply a selection document","binding":{"kind":"local","handler":"wizard.commit"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
+        {"name":"export","description":"Export the current selection","binding":{"kind":"local","handler":"wizard.export"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"run","description":"Walk the onboarding capability steps","binding":{"kind":"local","handler":"wizard.run"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}},
+        {"name":"core-set","description":"Preview and update the operator core seed","binding":{"kind":"local","handler":"wizard.core-set"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}}
+      ]
+    }
+  ],
+  "measures": {"omitted":[{"domain":"onboarding","reason":"Onboarding is an operator workflow, not a reporting domain."}]}
+}

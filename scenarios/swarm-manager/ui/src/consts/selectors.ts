@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Vrooli Ascension selector registry
  *
@@ -54,7 +56,13 @@ export const literalSelectors = {
     desktopTabs: "desktop-tabs",
     mobileNav: "mobile-nav",
     agentsToggle: "layout-agents-toggle",
-    agentsDropdown: "layout-agents-dropdown",
+  },
+  // Unified Graph/Plan workspace controls
+  workspace: {
+    header: "workspace-header",
+    settingsGear: "settings-gear",
+    settingsDrawer: "settings-drawer",
+    drawerSettingsTab: "settings-drawer-tab-settings",
   },
   // Error state selectors (shared across pages)
   error: {
@@ -80,6 +88,16 @@ export const literalSelectors = {
     timestamp: "error-boundary-timestamp",
     userAgent: "error-boundary-user-agent",
     errorCategory: "error-boundary-error-category",
+  },
+  scenarioHealth: {
+    section: "scenario-health-section",
+    state: "scenario-health-state",
+    remediationPreview: "scenario-remediation-preview",
+    remediationPreviewButton: "scenario-remediation-preview-button",
+    remediationAcceptButton: "scenario-remediation-accept-button",
+    maturityCampaignPreview: "scenario-maturity-campaign-preview",
+    maturityCampaignPreviewButton: "scenario-maturity-campaign-preview-button",
+    maturityCampaignConfirmButton: "scenario-maturity-campaign-confirm-button",
   },
   // Not Found page selectors
   notFound: {
@@ -129,6 +147,8 @@ export const literalSelectors = {
   captures: {
     quickInput: "captures-quick-input",
     quickInputSubmit: "captures-quick-input-submit",
+    quickInputMic: "captures-quick-input-mic",
+    quickComposer: "captures-quick-composer",
     quickInputAttach: "captures-quick-input-attach",
     quickInputSend: "captures-quick-input-send",
     card: "capture-card",
@@ -138,6 +158,35 @@ export const literalSelectors = {
     itemAcceptButton: "capture-item-accept-button",
     itemEditButton: "capture-item-edit-button",
     itemDismissButton: "capture-item-dismiss-button",
+  },
+  agentSessions: {
+    composer: "agent-session-composer",
+    composerMic: "agent-session-composer-mic",
+    composerImageAttach: "agent-session-composer-attach",
+    composerContextAttach: "agent-session-composer-context",
+    composerImagePreviewRemove: "attachment-preview-remove",
+    contextPicker: "session-context-picker",
+    contextSearch: "session-context-search",
+    contextEntityList: "session-context-entity-list",
+    contextRow: "session-context-row",
+    contextSelectedTray: "session-context-selected-tray",
+    contextAttachButton: "session-context-attach",
+    entityAttachAction: "entity-attach-session-action",
+    entityAttachSheet: "entity-attach-session-sheet",
+    entityAttachSearch: "entity-attach-session-search",
+    entityAttachSessionList: "entity-attach-session-list",
+    entityAttachConfirm: "entity-attach-session-confirm",
+    entityAttachQuickStart: "entity-attach-session-quick-start",
+    entityAttachKindSelect: "entity-attach-session-kind-select",
+    entityAttachModeNew: "entity-attach-mode-new",
+    entityAttachModeExisting: "entity-attach-mode-existing",
+    entityAttachSuggestion: "entity-attach-suggestion",
+    proposalStart: "proposal-session-start",
+    messageContextChips: "session-message-context-chips",
+    messageImageThumbnails: "session-message-image-thumbnails",
+    starterSuggestions: "agent-session-starter-suggestions",
+    starterSuggestion: "agent-session-starter-suggestion",
+    starterSuggestionCount: "agent-session-starter-suggestion-count",
   },
   // Inline question stepper selectors
   questionStepper: {
@@ -153,7 +202,6 @@ export const literalSelectors = {
   // Backlog details page selectors
   backlogDetails: {
     page: "backlog-details-page",
-    header: "backlog-details-header",
     title: "backlog-details-title",
     description: "backlog-details-description",
     backButton: "backlog-details-back",
@@ -164,32 +212,28 @@ export const literalSelectors = {
     deleteDialog: "backlog-delete-dialog",
     deleteConfirmButton: "backlog-delete-confirm",
     deleteCancelButton: "backlog-delete-cancel",
+    deleteCopyButton: "backlog-delete-copy",
     fileTree: "backlog-details-file-tree",
     filePreview: "backlog-details-file-preview",
     fileUpload: "backlog-details-file-upload",
     uploadDropzone: "file-upload-dropzone",
     uploadList: "file-upload-list",
-    clarifyPanel: "backlog-clarify-panel",
-    clarifyNextMode: "backlog-clarify-next-mode",
-    clarifyNextModeNone: "backlog-clarify-next-mode-none",
-    clarifySubmit: "backlog-clarify-submit",
     suggestionsPanel: "backlog-suggestions-panel",
     suggestionsSubmit: "backlog-suggestions-submit",
     // Experience architecture additions (Phase 29)
     breadcrumb: "backlog-details-breadcrumb",
-    statusSelect: "backlog-details-status-select",
     activityTimeline: "backlog-details-activity-timeline",
     activeRunBanner: "backlog-details-active-run-banner",
     tabRow: "backlog-details-tab-row",
     tabInfo: "backlog-details-tab-info",
     tabPrompt: "backlog-details-tab-prompt",
     tabFiles: "backlog-details-tab-files",
-    tabOutput: "backlog-details-tab-output",
     tabActivity: "backlog-details-tab-activity",
-    outputTab: "backlog-details-output-tab",
+    tabRelated: "backlog-details-tab-related",
+    relatedContent: "backlog-details-related-content",
     activityTab: "backlog-details-activity-tab",
     promptPanel: "backlog-details-prompt-panel",
-    initiativeChip: "backlog-details-initiative-chip",
+    milestoneChip: "backlog-details-milestone-chip",
   },
   // Backlog form dialog selectors
   backlogForm: {
@@ -249,6 +293,7 @@ export const literalSelectors = {
     deleteDialog: "scenario-delete-dialog",
     deleteConfirmButton: "scenario-delete-confirm",
     deleteCancelButton: "scenario-delete-cancel",
+    deleteCopyButton: "scenario-delete-copy",
     archiveCheckbox: "scenario-delete-archive",
     // Experience architecture additions (Phase 29)
     breadcrumb: "scenario-details-breadcrumb",
@@ -263,6 +308,7 @@ export const literalSelectors = {
     themeLight: "theme-light",
     themeSystem: "theme-system",
     executionDefaults: "execution-defaults",
+    fixBeforeFeature: "fix-before-feature-settings",
     workshopSettings: "workshop-settings",
     agentSettings: "agent-settings",
     uiPreferences: "ui-preferences",
@@ -272,6 +318,13 @@ export const literalSelectors = {
     tabExecution: "settings-tab-execution",
     tabWorkshop: "settings-tab-workshop",
     tabReview: "settings-tab-review",
+    tabAudio: "settings-tab-audio",
+    audioAutoSpeak: "settings-audio-auto-speak",
+    audioVoice: "settings-audio-voice",
+    audioSpeed: "settings-audio-speed",
+    audioSummarize: "settings-audio-summarize",
+    audioUnavailableBanner: "settings-audio-unavailable",
+    integrations: "settings-integrations",
     saveButton: "settings-save",
   },
   // Execution list page selectors
@@ -309,14 +362,6 @@ export const literalSelectors = {
     runChecksButton: "execution-details-run-checks",
     viewRunButton: "execution-details-view-run",
   },
-  // Run backlog modal selectors
-  runBacklog: {
-    dialog: "run-backlog-dialog",
-    submitButton: "run-backlog-submit",
-    blockingReasons: "run-backlog-blocking-reasons",
-    readinessWarning: "run-backlog-readiness-warning",
-    error: "run-backlog-error",
-  },
   followUp: {
     dialog: "follow-up-dialog",
     typeFixup: "follow-up-type-fixup",
@@ -330,10 +375,10 @@ export const literalSelectors = {
     reviewSummary: "follow-up-review-summary",
     runHealth: "follow-up-run-health",
   },
-  // Shared review flow selectors
+  // Shared review surface selectors
   review: {
-    flow: "review-flow",
     statusHeader: "review-status-header",
+    statusHeaderRunLink: "review-status-header-run-link",
     primaryAction: "review-primary-action",
     rerunAction: "review-rerun-action",
     stopAction: "review-stop-action",
@@ -349,22 +394,19 @@ export const literalSelectors = {
     evidenceContextSummary: "review-evidence-context-summary",
     followUpSheet: "review-follow-up-sheet",
   },
-  // Initiative details page selectors
-  initiativeDetails: {
-    page: "initiative-details-page",
-    title: "initiative-details-title",
-    status: "initiative-details-status",
-    description: "initiative-details-description",
-    rollup: "initiative-details-rollup",
-    itemsList: "initiative-details-items-list",
-    itemsViewToggle: "initiative-items-view-toggle",
-    itemsListView: "initiative-items-list-view",
-    itemsGraphView: "initiative-items-graph-view",
-    backLink: "initiative-details-back-link",
-    tabRow: "initiative-details-tab-row",
-    tabInfo: "initiative-details-tab-info",
-    tabFiles: "initiative-details-tab-files",
+  goalDetails: {
+    conceptExplainerDialog: "concept-explainer-dialog",
+    page: "goal-details-page",
+    tabRow: "goal-details-tab-row",
+    files: "goal-details-files",
   },
+  related: {
+    tab: "related-tab",
+    groupLinked: "related-group-linked",
+    groupSameScope: "related-group-same_scope",
+    groupSimilar: "related-group-similar",
+  },
+  // Goal and milestone review surfaces.
   prompts: {
     page: "prompts-page",
     tabs: "prompts-tabs",
@@ -382,12 +424,8 @@ export const literalSelectors = {
     versions: "prompts-versions",
     preview: "prompts-preview",
   },
-  // Command Post selectors
+  // Decision stream (hosted in the Plan board's decision drawer).
   commandPost: {
-    overlay: "command-post-overlay",
-    overlayHeader: "command-post-overlay-header",
-    close: "command-post-close",
-    summary: "command-post-summary",
     decisionStream: {
       container: "ds-container",
       header: "ds-header",
@@ -411,6 +449,15 @@ export const literalSelectors = {
       navigatorSnooze: "ds-navigator-snooze",
     },
   },
+  // Graph sidebar shared empty-state composite.
+  sidebar: {
+    emptyState: "sidebar-empty-state",
+    emptyStateTitle: "sidebar-empty-state-title",
+    emptyStateClear: "sidebar-empty-state-clear",
+  },
+  detailHeader: {
+    sidebarButton: "page-sidebar-button",
+  },
   graphNavControls: {
     container: "graph-nav-controls",
     panUp: "graph-nav-pan-up",
@@ -420,6 +467,72 @@ export const literalSelectors = {
     zoomIn: "graph-nav-zoom-in",
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
+  },
+  // Plan lens board (/plan): Now/Next/Later/Done kanban.
+  plan: {
+    board: "plan-board",
+    boardLoading: "plan-board-loading",
+    boardError: "plan-board-error",
+    boardRefresh: "plan-board-refresh",
+    cycleWarning: "plan-cycle-warning",
+    columnNow: "plan-column-now",
+    columnNowHeader: "plan-column-now-header",
+    columnNext: "plan-column-next",
+    columnLater: "plan-column-later",
+    columnDone: "plan-column-done",
+    nowEmpty: "plan-now-empty",
+    nowSpawnCta: "plan-now-spawn-cta",
+    nextEmpty: "plan-next-empty",
+    laterEmpty: "plan-later-empty",
+    doneEmpty: "plan-done-empty",
+    doneWindow: "plan-done-window",
+    beyondHorizon: "plan-beyond-horizon",
+    groupToggle: "plan-group-toggle",
+    cardGateBadge: "plan-card-gate-badge",
+    cardWaveBadge: "plan-card-wave-badge",
+    cardOutcomeGlyph: "plan-card-outcome-glyph",
+    boardFilters: "plan-board-filters",
+    snoozedHiddenCount: "plan-snoozed-hidden-count",
+    nowSelectToggle: "plan-now-select-toggle",
+    nowRefresh: "plan-now-refresh",
+    nowSpawn: "plan-now-spawn",
+    nowLanesToggle: "plan-now-lanes-toggle",
+    nowLanesHelp: "plan-now-lanes-help",
+    filterDrawer: "plan-filter-drawer",
+    filterSearch: "plan-filter-search",
+    filterStatus: "plan-filter-status",
+    filterLane: "plan-filter-lane",
+    filterOwnerType: "plan-filter-owner-type",
+    filterGroupBy: "plan-filter-group-by",
+    filterShowSnoozed: "plan-filter-show-snoozed",
+    filterReset: "plan-filter-reset",
+    decisionDrawer: "plan-decision-drawer",
+    decisionDrawerEmpty: "plan-decision-drawer-empty",
+    nextRunAll: "plan-next-run-all",
+    nextAnswerAll: "plan-next-answer-all",
+    cardMenu: "plan-card-menu",
+    cardMenuOpen: "plan-card-menu-open",
+    cardMenuAnswer: "plan-card-menu-answer",
+    cardMenuRun: "plan-card-menu-run",
+    cardMenuWorkshop: "plan-card-menu-workshop",
+    cardMenuFinalize: "plan-card-menu-finalize",
+    cardMenuArchive: "plan-card-menu-archive",
+  },
+  // Live-activity primitives shared with the Plan board's Now column
+  // (ActivityRow, LaneBar, OpsBulkActions). The standalone Operations
+  // Center page is retired; running-agent visibility lives on the Plan
+  // lens tab badge (`lens-plan-badge`) and the sidebar home badge.
+  operationsCenter: {
+    laneBar: "operations-center-lane-bar",
+    activityRow: "operations-center-activity-row",
+    activityRowCheckbox: "operations-center-activity-row-checkbox",
+    bulkActionBar: "operations-center-bulk-action-bar",
+    bulkStopSelected: "operations-center-bulk-stop-selected",
+    bulkStopAll: "operations-center-bulk-stop-all",
+    bulkClearSelection: "operations-center-bulk-clear-selection",
+    bulkStopConfirmDialog: "operations-center-bulk-stop-confirm",
+    bulkStopAllConfirmDialog: "operations-center-bulk-stop-all-confirm",
+    bulkStopOutcomeToast: "operations-center-bulk-stop-outcome",
   },
   // Evidence renderer selectors
   evidence: {
@@ -478,6 +591,28 @@ export const dynamicSelectorDefinitions = {
       },
     }),
   },
+  plan: {
+    cardById: defineDynamicSelector({
+      description: "Plan board card by canonical node id",
+      testIdPattern: "plan-card-${id}",
+      params: { id: { type: "string" } },
+    }),
+    groupById: defineDynamicSelector({
+      description: "Plan column card group by group id",
+      testIdPattern: "plan-group-${id}",
+      params: { id: { type: "string" } },
+    }),
+    nowGroup: defineDynamicSelector({
+      description: "Now column group (milestone name or 'standalone')",
+      testIdPattern: "plan-now-group-${key}",
+      params: { key: { type: "string" } },
+    }),
+    doneWindowChoice: defineDynamicSelector({
+      description: "Done column window preset button",
+      testIdPattern: "plan-done-window-${label}",
+      params: { label: { type: "enum", values: ["1h", "6h", "24h"] } },
+    }),
+  },
   scenarios: {
     cardByName: defineDynamicSelector({
       description: "Scenario card filtered by name",
@@ -498,6 +633,13 @@ export const dynamicSelectorDefinitions = {
       description: "Scenario restart action button",
       testIdPattern: "scenario-action-restart-${name}",
       params: { name: { type: "string" } },
+    }),
+  },
+  related: {
+    rowByEntity: defineDynamicSelector({
+      description: "Related-work result row by entity kind and key",
+      testIdPattern: "related-row-${entity}-${id}",
+      params: { entity: { type: "enum", values: ["backlog", "goal", "record"] }, id: { type: "string" } },
     }),
   },
 } as const;
@@ -524,6 +666,10 @@ export const dynamicSelectors = {
     actionRestart: (params: { name: string }) =>
       formatTemplate("scenario-action-restart-${name}", params, "scenarios.actionRestart"),
   },
+  related: {
+    rowByEntity: (params: { entity: string; id: string }) =>
+      formatTemplate("related-row-${entity}-${id}", params, "related.rowByEntity"),
+  },
 } as const;
 
 // =============================================================================
@@ -547,6 +693,10 @@ export const selectors = {
   scenarios: {
     ...literalSelectors.scenarios,
     ...dynamicSelectors.scenarios,
+  },
+  related: {
+    ...literalSelectors.related,
+    ...dynamicSelectors.related,
   },
 } as const;
 
@@ -575,7 +725,7 @@ const flattenLiteralSelectors = (
       };
       continue;
     }
-    flattenLiteralSelectors(value as LiteralSelectorTree, nextPath, target);
+    flattenLiteralSelectors(value, nextPath, target);
   }
   return target;
 };
@@ -601,7 +751,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -615,7 +765,7 @@ const flattenDynamicSelectors = (
       };
       continue;
     }
-    flattenDynamicSelectors(value as DynamicSelectorBranch, nextPath, target);
+    flattenDynamicSelectors(value, nextPath, target);
   }
   return target;
 };

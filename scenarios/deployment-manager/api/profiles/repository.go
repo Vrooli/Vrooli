@@ -4,15 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+
+	"deployment-manager/shared"
 )
 
 // SQLRepository implements Repository using a SQL database.
 type SQLRepository struct {
-	db *sql.DB
+	db shared.RoutedDBTX
 }
 
 // NewSQLRepository creates a new SQLRepository.
-func NewSQLRepository(db *sql.DB) *SQLRepository {
+func NewSQLRepository(db shared.RoutedDBTX) *SQLRepository {
 	return &SQLRepository{db: db}
 }
 
@@ -130,7 +132,7 @@ func (r *SQLRepository) Update(ctx context.Context, idOrName string, updates map
 
 	_, err = r.db.ExecContext(ctx, `
 		UPDATE profiles
-		SET tiers = $1, swaps = $2, secrets = $3, settings = $4, version = $5, updated_at = NOW(), updated_by = 'system'
+		SET tiers = $1, swaps = $2, secrets = $3, settings = $4, version = $5, updated_at = CURRENT_TIMESTAMP, updated_by = 'system'
 		WHERE id = $6
 	`, tiersJSON, swapsJSON, secretsJSON, settingsJSON, newVersion, current.ID)
 	if err != nil {
@@ -255,7 +257,7 @@ func (r *SQLRepository) AddSwap(ctx context.Context, idOrName string, swap Swap)
 			newSwapsJSON, _ := json.Marshal(swaps)
 			_, err = r.db.ExecContext(ctx, `
 				UPDATE profiles
-				SET swaps = $1, updated_at = NOW(), version = version + 1
+				SET swaps = $1, updated_at = CURRENT_TIMESTAMP, version = version + 1
 				WHERE id = $2
 			`, newSwapsJSON, profileID)
 			return err
@@ -268,7 +270,7 @@ func (r *SQLRepository) AddSwap(ctx context.Context, idOrName string, swap Swap)
 
 	_, err = r.db.ExecContext(ctx, `
 		UPDATE profiles
-		SET swaps = $1, updated_at = NOW(), version = version + 1
+		SET swaps = $1, updated_at = CURRENT_TIMESTAMP, version = version + 1
 		WHERE id = $2
 	`, newSwapsJSON, profileID)
 

@@ -1,150 +1,165 @@
-# Research Notes
+# Research — React Component Library
 
-This document captures research findings, uniqueness checks, and external references for react-component-library.
+Notes on substrate decisions that don't rise to a permanent decision in
+`docs/internal/DECISIONS.md` but need a written record so future agents
+don't relitigate them.
 
-## Uniqueness Check
+## Preview harness bundling (Phase 4 slice 3, 2026-05-12)
 
-### Within Vrooli Repository
-- **Search Date**: 2025-11-22
-- **Search Pattern**: `react-component-library`, `component library`, `design system`, `UI library`
-- **Findings**:
-  - No existing `react-component-library` scenario found
-  - Found artifacts in `app-issue-tracker/artifacts/` suggesting prior planning or testing
-  - No other scenarios provide centralized component library management
-  - Several scenarios could benefit from shared component library (tidiness-manager, landing-manager, deployment-manager)
+The library has to execute real React inside an iframe so the user
+sees a live preview of the component they edited. That means the API
+needs a way to turn a TSX source file on disk into something the
+browser can load as an ES module.
 
-### Related Vrooli Scenarios
+### Options considered
 
-#### app-monitor
-- **Relevance**: Reference implementation for iframe-bridge integration and emulator patterns
-- **Overlap**: Uses iframe-bridge for element inspection, has preview/emulator functionality
-- **Differentiation**: app-monitor focuses on monitoring running scenarios, not component editing/management
-- **Learnings**:
-  - iframe-bridge implementation patterns
-  - Multi-viewport emulator architecture
-  - Element selection and inspection UI patterns
+1. **esbuild Go API on-the-fly** — call `github.com/evanw/esbuild/pkg/api`
+   from the API process; bundle the TSX file (loader `tsx`, format
+   `esm`); serve the result through the preview harness. React,
+   ReactDOM, and declared package dependencies resolve client-side via
+   a same-origin importmap.
+2. **Vite SSR / dev server proxy** — run a Vite dev server child
+   process; proxy `/preview/...` to it. Vite handles bundling.
+3. **Pre-bundle all components at scenario boot** — walk the registry,
+   produce one bundle per component up-front, serve as static files.
 
-#### app-issue-tracker
-- **Relevance**: Integration target for component adoption workflow
-- **Overlap**: Issue creation and tracking
-- **Differentiation**: react-component-library generates adoption issues, app-issue-tracker manages them
-- **Integration**: Will use app-issue-tracker API to create detailed adoption reports for coding agents
+### Decision: option 1 (esbuild Go on-the-fly)
 
-#### browser-automation-studio
-- **Relevance**: Template reference for React + Vite + Go stack
-- **Overlap**: Similar tech stack, lifecycle patterns
-- **Differentiation**: Focuses on browser automation, not component management
-- **Learnings**: UI structure, API patterns, testing organization
+| Axis | Why option 1 wins |
+|---|---|
+| Runtime topology | Pure Go; no Node child process; matches the rest of the API. |
+| Cold-start latency | esbuild ≈10ms per small TSX file — well under the PRD's <1s warm-preview budget. |
+| Determinism | One process, one transform; nothing async-cached behind the scenes. |
+| Greenfield fit | No bundler config files, no `vite.config.*` to babysit. |
+| Editing UX | Save → re-transform on the next iframe load. Cache-buster query forces reload. |
+| Failure surface | esbuild surface errors are structured and easy to return as Connect `InvalidArgument`. |
 
-## External References
+Option 2 was rejected because spawning a Node-side process duplicates
+the substrate and pushes us toward two languages of bundler config
+for the same problem. Option 3 was rejected because it forces a full
+re-bundle on every save and hides the "the file you edited is what's
+running" semantics that make live preview believable.
 
-### Component Library Patterns
+### Resolved contracts
 
-#### shadcn/ui
-- **URL**: https://ui.shadcn.com/
-- **Relevance**: Component architecture and structure patterns
-- **Learnings**:
-  - Component registry with metadata
-  - Copy/paste adoption model (similar to our "apply to scenario")
-  - Header comment pattern for component metadata
-  - Radix UI primitives for accessibility
+- **Externals**: bare package imports are marked external in the
+  esbuild Build call; the harness HTML carries an importmap. React
+  runtime imports are same-origin URLs under
+  `/preview/runtime/react@<version>/...` and
+  `/preview/runtime/react-dom@<version>/...`, served by the API from
+  vendored UI workspace packages bundled to ESM on demand. Non-React
+  declared dependencies resolve to same-origin
+  `/preview/runtime/npm/<package>@<version>/...` URLs when that package
+  version is present in the local UI workspace.
+- **Relative imports**: esbuild Build runs with `ResolveDir` rooted at
+  the component source directory, so `./local` and `../local` imports
+  are folded into the component module. Bare package imports stay
+  external so each preview gets its own importmap and conflicting
+  declared versions do not share a process-global resolution.
+- **Harness HTML**: served at `GET /preview/{id}/harness.html`. The
+  shell renders the component's default export into a `<div id="root">`
+  via `ReactDOM.createRoot`. The transformed component module is
+  embedded as a data URL in the harness so the iframe needs no second
+  component fetch.
+- **Cache-busting**: the host iframe wrapper appends a `?v=<sha256>`
+  query reflecting the latest content sha; saves cause the sha to
+  change which causes the iframe to reload.
+- **iframe-bridge child** (req 03 mentions `initIframeBridgeChild()`):
+  full bridge wiring (HELLO/READY/INSPECT) is **deferred** to req 06
+  (element selection). For now the harness posts a minimal
+  `preview-ready` message so the host can detect first-paint without
+  pulling the bridge package into the bundle yet. Tracked in
+  `docs/internal/PROBLEMS.md`.
 
-#### Storybook
-- **URL**: https://storybook.js.org/
-- **Relevance**: Component story/demo file patterns
-- **Learnings**:
-  - Story-based component development
-  - Multi-viewport preview
-  - Component documentation patterns
-- **Future Integration**: P2 feature for component story files
+### Revisit triggers
 
-#### Radix UI
-- **URL**: https://www.radix-ui.com/
-- **Relevance**: Accessible component primitives used by shadcn
-- **Learnings**:
-  - Accessibility-first component design
-  - Headless component architecture
-  - Keyboard navigation patterns
+- esbuild transform exceeds the warm-preview latency budget on any
+  realistic component.
+- A component needs a package version that is not installed in the UI
+  workspace. The current offline contract surfaces an import-map
+  diagnostic instead of fetching a CDN fallback; adding more vendored
+  versions should happen through the scenario dependency-governance
+  flow, not ad hoc package-manager commands.
+- iframe-bridge wiring becomes blocking for any P0 feature — promote
+  the bundling of `@vrooli/iframe-bridge/child` into the esbuild call
+  (it's just another module to bundle in alongside the component).
 
-### Code Editor Solutions
+### Behaviors worth preserving (skimmed from the stashed pre-rewrite tree)
 
-#### Monaco Editor
-- **URL**: https://microsoft.github.io/monaco-editor/
-- **Relevance**: Potential code editor implementation
-- **Pros**: Full VS Code features, excellent TypeScript/TSX support, widely used
-- **Cons**: Larger bundle size (~2-3MB), more complex integration
-- **Use Cases**: VS Code, Azure DevOps, StackBlitz
+The stashed `/tmp/react-component-library-pre-rewrite-2026-05-12/`
+tree shipped a placeholder HTML preview, so there's nothing to lift.
+The behavioral lesson is that "iframe with text content" is not a
+preview — execution has to be real or the feature has no value.
 
-#### CodeMirror 6
-- **URL**: https://codemirror.net/
-- **Relevance**: Alternative code editor option
-- **Pros**: Lighter weight, highly customizable, modern architecture
-- **Cons**: Less feature-complete than Monaco out of box
-- **Use Cases**: Replit, Observable, many lightweight editors
+## Preview runtime range handling (2026-07-08)
 
-### AI Code Editing References
+Phase 5 diagnosis confirmed the first preview-runtime inconsistency:
+the harness bundled component TSX as ESM but then discarded every
+declared dependency whose name started with `react`, installing a
+fixed React/ReactDOM 18.3.1 import map instead. A component declaring
+React 17 therefore transformed successfully, but the iframe executed
+against React 18 at runtime.
 
-#### GitHub Copilot
-- **Relevance**: AI-powered code suggestions and completions
-- **Learnings**: Context-aware suggestions, inline diff display, accept/reject workflow
+The fix keeps a supported preview-runtime candidate list and resolves
+declared `react` / `react-dom` ranges to the newest satisfying
+candidate. When a React runtime range is unresolvable, the harness
+keeps the default 18.3.1 mapping and renders an in-iframe import-map
+diagnostic rather than silently previewing with an unexplained pin.
 
-#### Cursor
-- **Relevance**: AI-first code editor with chat and inline editing
-- **Learnings**: Chat-to-code workflow, patch review UI, multi-file context
+The follow-up offline/degraded-path diagnosis found a second blank-pane
+cause: top-level static imports from `react-dom/client` and the inlined
+component module can fail before harness code reaches its render
+`try/catch`. The harness now dynamically imports `react`,
+`react-dom/client`, and the data-URL component module inside a single
+guarded block. CDN or module-resolution failures therefore write a
+visible `preview: render failed` diagnostic into `#preview-error`.
 
-#### Codeium
-- **Relevance**: AI code completion and chat
-- **Learnings**: Free AI code assistance, diff view patterns
+Phase 3 of the renderer redesign removed the CDN dependency for the
+React runtime itself. The importmap now points React and ReactDOM to
+same-origin `/preview/runtime/...` URLs. The API serves those routes by
+bundling the installed UI workspace React package entrypoints into ESM
+with esbuild. Only React 18.3.1 is currently vendored; declared ranges
+that resolve to another supported candidate produce a diagnostic and
+fall back to the vendored default rather than emitting a dead URL.
 
-## Domain Research
+The harness also inlines the scenario UI's compiled stylesheet when
+available, with a token/utility fallback for test and minimal dev
+environments. This gives previewed components access to the
+`--color-*` design tokens and `bg-app-*` / `text-app-*` Tailwind
+utilities they use in source.
 
-### Component Library Management
-- **Problem**: Component duplication across projects leads to inconsistency, maintenance burden
-- **Solution**: Centralized library with version tracking, adoption workflow, change detection
-- **Industry Examples**: Design systems at Airbnb (React Dates), Shopify (Polaris), Adobe (Spectrum)
+Phase 4 completed the module-resolution side of the redesign. The
+preview bundler now uses esbuild Build rather than Transform, deriving
+`ResolveDir` from the indexed source path so relative imports are
+bundled into the component module. Bare package imports remain
+external and are resolved by the harness importmap. Non-React
+dependencies use `deps.ResolveRangeToLatest` against locally installed
+UI workspace package versions and map to same-origin
+`/preview/runtime/npm/<package>@<version>/...` runtime URLs. If a
+declared dependency range cannot be resolved locally, the harness
+renders an import-map diagnostic instead of emitting an `esm.sh` URL or
+silently dropping the dependency.
 
-### Multi-Viewport Testing
-- **Problem**: Responsive design requires testing across many viewport sizes
-- **Industry Tools**: Browser DevTools, Responsively App, BrowserStack
-- **Our Approach**: Simultaneous multi-frame preview inspired by browser dev tools and app-monitor
+The Phase 5 live-browser regression had a different root cause from
+bundling: the host iframe correctly requested `/preview/{id}/harness.html`,
+but the production UI server only proxied Connect-RPC paths. Because
+`/preview/...` was not proxied before the SPA fallback, `ui/server.js`
+served the React Component Library `index.html` into the iframe, making
+the preview recursively render the library UI. The UI server now proxies
+both `/preview/{id}/harness.html` and `/preview/runtime/...` paths to the
+Go API unchanged, before static assets and SPA fallback run.
 
-### AI-Powered Code Editing
-- **Problem**: Manual component refactoring is time-consuming and error-prone
-- **Industry Trend**: AI-assisted development (GitHub Copilot, Cursor, Codeium)
-- **Our Approach**: Context-aware AI editing via resource-openrouter with diff review workflow
-
-## Technical Constraints
-
-### iframe-bridge Integration
-- **Requirement**: Components must render in iframes for isolation and element selection
-- **Implication**: Need iframe-friendly build configuration, cross-origin communication
-- **Reference**: app-monitor implementation
-
-### Header Comment Parsing
-- **Requirement**: Components must have standardized header comments
-- **Implication**: Need robust parsing, validation, and enforcement
-- **Challenge**: Preventing developer deletion or modification
-
-### Version Tracking
-- **Requirement**: Track component versions and detect drift
-- **Implication**: Need file system scanning, content hashing, diff generation
-- **Complexity**: Balancing performance with accuracy
-
-## Open Research Questions
-
-1. **Code Editor Performance**: How to handle large component files (>1000 lines) without lag?
-2. **AI Context Limits**: What's the optimal context size for AI code suggestions? How to handle large components?
-3. **Adoption Verification**: How to reliably verify component adoption across scenarios without tight coupling?
-4. **Version Strategy**: Should we support automatic version bumping based on changes, or require manual version updates?
-
-## Related Literature & Blog Posts
-
-_To be populated as relevant articles and resources are discovered during implementation._
-
-## Future Research Areas
-
-- Component dependency graph generation and visualization
-- Design token integration with brand-manager or similar systems
-- Automated component test generation with test-genie
-- Component usage analytics and ROI tracking
-- Visual regression testing integration
+The follow-up browser run exposed the actual runtime error that the
+route-level tests still missed: bundling React CommonJS entrypoints with
+esbuild produced default-only ESM, while compiled JSX imports named
+exports from `react/jsx-runtime`. ReactDOM's client bundle also cannot
+leave `react` as a dynamic CommonJS require in a browser ESM module. The
+runtime handler now wraps the vendored React and ReactDOM entrypoints
+with explicit ESM named exports (`jsx`, `jsxs`, `createRoot`, hooks,
+etc.) and bundles ReactDOM with React included. `pnpm run
+test:preview-evidence` delegates the browser session to BAS, captures the
+exact isolated story route, parses the declared contract, and persists
+structured evidence. The BAS playbook
+`preview-renders-component` covers the same user-visible contract at the
+test-genie workflow layer by asserting the host reaches the Rendered
+badge after switching the known component editor into Preview mode.

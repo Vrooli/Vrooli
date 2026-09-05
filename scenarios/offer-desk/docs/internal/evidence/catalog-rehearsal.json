@@ -1,0 +1,44 @@
+{
+  "source": "copy of docs/monetization",
+  "source_file_count": 44,
+  "operator_dry_run": {
+    "files_reported": 44,
+    "lifecycle_status_records": 28,
+    "findings": 0,
+    "applied": false
+  },
+  "operator_apply": {
+    "files_reported": 44,
+    "records_written": 28,
+    "findings": 0,
+    "applied": true
+  },
+  "live_result": {
+    "nodes": 29,
+    "edges": 17,
+    "edge_kinds": {
+      "belongs_to": 6,
+      "requires": 3,
+      "sells_at": 8
+    },
+    "variant_nodes": 4,
+    "status_map_records": 28,
+    "evaluation": "succeeded"
+  },
+  "negative_drills": {
+    "malformed_status": {
+      "path": "catalogs/channels/web-seo.md",
+      "line": 2,
+      "blocking": true,
+      "applied": false
+    },
+    "manifest_drift": {
+      "findings": [
+        "undeclared source file: UNDECLARED.md",
+        "declared source file is missing: catalogs/channels/app-stores.md"
+      ],
+      "blocking": true,
+      "applied": false
+    }
+  }
+}

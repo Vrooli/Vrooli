@@ -9,7 +9,8 @@
  */
 
 import { buildApiUrl } from '@vrooli/api-base'
-import { API_BASE } from '@/lib/api'
+import { API_BASE, connectSlice4Request } from '@/lib/api'
+import { operatorDirectAttributionHeaders } from './attribution'
 
 // ============================================================================
 // Types
@@ -101,6 +102,62 @@ export interface MemberDocRequest {
   content: string
 }
 
+export type HeartbeatControlStatusValue =
+  | 'active'
+  | 'warning-idle-soon'
+  | 'paused-auto-idle'
+  | 'paused-manual'
+
+export interface HeartbeatControlPolicy {
+  enabled: boolean
+  pauseAfterDaysWithoutHumanEngagement: number
+  warningAfterDaysWithoutHumanEngagement: number
+  resumeMode: 'manual'
+}
+
+export interface HeartbeatControlTeamOverride {
+  mode: 'inherit' | 'disabled' | 'custom'
+  pauseAfterDaysWithoutHumanEngagement?: number | null
+  warningAfterDaysWithoutHumanEngagement?: number | null
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlStatus {
+  scope: 'global' | 'team'
+  teamId?: string
+  status: HeartbeatControlStatusValue
+  effectivePolicy: HeartbeatControlPolicy
+  globalPolicy?: HeartbeatControlPolicy
+  teamOverride?: HeartbeatControlTeamOverride | null
+  lastHumanEngagementAt?: string | null
+  lastHumanEngagementReason?: string
+  lastHumanEngagementTeamId?: string
+  pausedAt?: string | null
+  pausedReason?: string
+  warningAt?: string | null
+  autoPauseAt?: string | null
+  resumeHint?: string
+  teams?: HeartbeatControlStatus[]
+}
+
+export interface HeartbeatControlPolicyRequest {
+  enabled?: boolean
+  pauseAfterDaysWithoutHumanEngagement?: number
+  warningAfterDaysWithoutHumanEngagement?: number
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlTeamPolicyRequest {
+  mode?: 'inherit' | 'disabled' | 'custom'
+  pauseAfterDaysWithoutHumanEngagement?: number
+  warningAfterDaysWithoutHumanEngagement?: number
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlPauseRequest {
+  reason?: string
+}
+
 // --- Team State Types ---
 
 export interface HandoffResponse {
@@ -159,80 +216,41 @@ export interface UpdateTaskRequest {
   note?: string
 }
 
-export interface DecisionOption {
-  key: string
-  label: string
-  rationale: string
-  recommended?: boolean
-}
-
-export interface DecisionEntry {
-  id: string
-  at: string
-  by: string
-  decision: string
-  rationale: string
-  context?: string
-  supersedes?: string
-  status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed'
-  topic?: string
-  description?: string
-  options?: DecisionOption[]
-  selected?: string | null
-  freeform?: string | null
-  notes?: string | null
-}
-
-export interface UpdateDecisionRequest {
-  decision?: string
-  rationale?: string
-  context?: string
-  status?: string
-  supersedes?: string
-  topic?: string
-  description?: string
-  options?: DecisionOption[]
-  selected?: string | null
-  freeform?: string | null
-  notes?: string | null
-}
-
-export interface DecisionListResponse {
-  teamId: string
-  entries: DecisionEntry[]
-}
-
-export interface PendingDecisionTeamGroup {
-  teamId: string
-  teamName: string
-  entries: DecisionEntry[]
-}
-
-export interface AllPendingDecisionsResponse {
-  teams: PendingDecisionTeamGroup[]
-  totalCount: number
-}
-
-export interface AddDecisionRequest {
-  by: string
-  decision?: string
-  rationale?: string
-  context?: string
-  supersedes?: string
-  topic?: string
-  options?: DecisionOption[]
-}
-
 // --- Knowledge types ---
+
+// AttributionInfo mirrors the API-side store.AttributionInfo. The canonical
+// contract lives in docs/agent-system/RUNTIME_ATTRIBUTION.md (the API Go
+// struct in scenarios/prompt-manager/api/store/models.go is the source of
+// truth). Optional pointer fields marshal as null over the wire; in
+// TypeScript we represent them as `string | null`.
+export interface AttributionInfo {
+  kind: string
+  member_id: string | null
+  team_id: string | null
+  run_id: string | null
+  spawn_origin: string
+  source_skill_id: string | null
+}
 
 export interface KnowledgeEntry {
   id: string
   at: string
-  by: string
   topic: string
   content: string
   source?: string
   supersedes?: string
+  // caller is the API-derived display string ("team/member", "skill:<id>",
+  // "operator", "legacy:<original-by>") — render this instead of parsing
+  // attribution. Always present on post-cutoff and migrated entries.
+  caller: string
+  // caller_note is optional freeform context the writer attached; never
+  // an identity claim. P3.2 migration preserves the legacy `by` value
+  // here on every pre-cutoff entry.
+  caller_note?: string
+  // attribution is the structured truth. Always present; UI consumers
+  // typically render `caller` and only inspect attribution for filtering
+  // (e.g., "show writes by writer-skills last week").
+  attribution: AttributionInfo
 }
 
 export interface KnowledgeListResponse {
@@ -241,9 +259,12 @@ export interface KnowledgeListResponse {
 }
 
 export interface AddKnowledgeRequest {
-  by: string
   topic: string
   content: string
+  // Identity is carried out-of-band on the X-Vrooli-Attribution header,
+  // not on the request body. caller_note is freeform context only — see
+  // docs/agent-system/RUNTIME_ATTRIBUTION.md.
+  caller_note?: string
   source?: string
   supersedes?: string
 }
@@ -285,11 +306,22 @@ async function apiRequest<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // Every UI-originated request carries operator-direct attribution.
+    // The API ignores this header on read-only endpoints and validates
+    // it on mutating ones (POST /teams/{id}/knowledge etc.). Sending it
+    // unconditionally keeps the request shape uniform. Canon:
+    // docs/agent-system/RUNTIME_ATTRIBUTION.md § HTTP header.
+    ...operatorDirectAttributionHeaders(),
   }
   // Merge additional headers if provided
   if (options?.headers) {
     const extraHeaders = options.headers as Record<string, string>
     Object.assign(headers, extraHeaders)
+  }
+
+  const migrated = await connectSlice4Request(endpoint, { ...options, headers })
+  if (migrated.handled) {
+    return migrated.data as T
   }
 
   const response = await fetch(url, {
@@ -477,6 +509,61 @@ export async function triggerHeartbeat(teamId: string, agentId: string): Promise
   )
   invalidateHeartbeatListCache(teamId)
   return response
+}
+
+// ============================================================================
+// Heartbeat Control Operations
+// ============================================================================
+
+export async function getHeartbeatControlStatus(): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control')
+}
+
+export async function getTeamHeartbeatControlStatus(teamId: string): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control`)
+}
+
+export async function pauseHeartbeatControl(request?: HeartbeatControlPauseRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/pause', {
+    method: 'POST',
+    body: JSON.stringify(request ?? {}),
+  })
+}
+
+export async function resumeHeartbeatControl(): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/resume', {
+    method: 'POST',
+  })
+}
+
+export async function updateHeartbeatControlPolicy(request: HeartbeatControlPolicyRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/policy', {
+    method: 'PUT',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function pauseTeamHeartbeatControl(teamId: string, request?: HeartbeatControlPauseRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/pause`, {
+    method: 'POST',
+    body: JSON.stringify(request ?? {}),
+  })
+}
+
+export async function resumeTeamHeartbeatControl(teamId: string): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/resume`, {
+    method: 'POST',
+  })
+}
+
+export async function updateTeamHeartbeatControlPolicy(
+  teamId: string,
+  request: HeartbeatControlTeamPolicyRequest
+): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/policy`, {
+    method: 'PUT',
+    body: JSON.stringify(request),
+  })
 }
 
 // ============================================================================
@@ -681,6 +768,10 @@ export interface RunDetails {
   sessionId?: string
   teamId?: string
   agentId?: string
+  source?: 'agent-manager' | 'heartbeat-attempt'
+  phase?: string
+  recovery?: string
+  errorCategory?: string
   actions?: RunActions
 }
 
@@ -688,6 +779,23 @@ export interface ListRunsResponse {
   runs: RunDetails[]
   total: number
   hasMore: boolean
+}
+
+export interface HeartbeatAttempt {
+  id: string
+  teamId: string
+  agentId: string
+  profileKey?: string
+  taskId?: string
+  runId?: string
+  tag?: string
+  status: string
+  phase: string
+  startedAt: string
+  endedAt?: string
+  errorCategory?: string
+  error?: string
+  recovery?: string
 }
 
 function normalizeRunStatus(status: string): string {
@@ -804,6 +912,31 @@ export async function listRuns(opts?: {
     total: raw.total ?? runs.length,
     hasMore: raw.has_more ?? false,
   }
+}
+
+/**
+ * List local heartbeat dispatch attempts, including attempts that failed
+ * before agent-manager could create a run.
+ */
+export async function listHeartbeatAttempts(opts?: {
+  status?: string
+  profileKey?: string
+  teamId?: string
+  agentId?: string
+  limit?: number
+  offset?: number
+}): Promise<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }> {
+  const params = new URLSearchParams()
+  if (opts?.status) params.set('status', opts.status)
+  if (opts?.profileKey) params.set('profile_key', opts.profileKey)
+  if (opts?.teamId) params.set('team_id', opts.teamId)
+  if (opts?.agentId) params.set('agent_id', opts.agentId)
+  if (opts?.limit !== undefined) params.set('limit', String(opts.limit))
+  if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
+  const qs = params.toString()
+  return apiRequest<{ attempts: HeartbeatAttempt[]; total: number; hasMore: boolean }>(
+    `/heartbeat-attempts${qs ? `?${qs}` : ''}`
+  )
 }
 
 /**
@@ -1069,7 +1202,7 @@ export async function createRun(opts: {
 }
 
 // ============================================================================
-// Team State Operations (Handoff, Task Board, Decisions)
+// Team State Operations (Handoff, Task Board, Work)
 // ============================================================================
 
 export async function getLastHandoff(teamId: string, agentId: string): Promise<HandoffResponse> {
@@ -1128,54 +1261,11 @@ export async function deleteTask(teamId: string, taskId: string): Promise<void> 
   })
 }
 
-export async function getDecisions(
-  teamId: string,
-  opts?: { context?: string; status?: string; last?: number }
-): Promise<DecisionListResponse> {
-  const params = new URLSearchParams()
-  if (opts?.context) params.set('context', opts.context)
-  if (opts?.status) params.set('status', opts.status)
-  if (opts?.last) params.set('last', String(opts.last))
-  const qs = params.toString()
-  return apiRequest<DecisionListResponse>(`/teams/${encodeURIComponent(teamId)}/decisions${qs ? `?${qs}` : ''}`)
-}
-
-export async function getAllPendingDecisions(): Promise<AllPendingDecisionsResponse> {
-  return apiRequest<AllPendingDecisionsResponse>('/decisions/pending')
-}
-
-export async function addDecision(
-  teamId: string,
-  request: AddDecisionRequest
-): Promise<DecisionEntry> {
-  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions`, {
-    method: 'POST',
-    body: JSON.stringify(request),
-  })
-}
-
-export async function updateDecision(
-  teamId: string,
-  decisionId: string,
-  request: UpdateDecisionRequest
-): Promise<DecisionEntry> {
-  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(request),
-  })
-}
-
-export async function deleteDecision(teamId: string, decisionId: string): Promise<void> {
-  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
-    method: 'DELETE',
-  })
-}
-
 // ============================================================================
 // Knowledge Log
 // ============================================================================
 
-export async function getKnowledge(
+export async function getTeamCorpus(
   teamId: string,
   opts?: { topic?: string; last?: number }
 ): Promise<KnowledgeListResponse> {

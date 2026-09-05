@@ -3,36 +3,498 @@
   "schemaVersion": 1,
   "id": "marketing-crew",
   "displayName": "Marketing Crew",
-  "mission": "Generate authentic marketing content that communicates Vrooli progress, vision, and capabilities.",
-  "enabled": false,
+  "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning work items the operator reviews each heartbeat.",
+  "objectivesServed": [
+    {
+      "id": "T1",
+      "role": "supporting",
+      "acknowledgedRevision": "eb66069cc894"
+    },
+    {
+      "id": "T3",
+      "coverage": "partial",
+      "note": "OSS surface only. Re-derived 2026-08-17: the discovery channel exists, but nothing yet addresses whether another operator can actually run the system, which is the larger half of T3.",
+      "acknowledgedRevision": "6f1333c6dc55"
+    }
+  ],
+  "instrument": {
+    "status": "partial",
+    "archetype": "production-ledger",
+    "coversScenarios": [
+      "content-desk",
+      "asset-studio"
+    ],
+    "gapMarker": "2026-08-13 — content-desk and asset-studio are both real and substantially built, but no single address aggregates them, so a member must know which of the two holds the answer. A third capability the operating model assigns to `social-media-scheduler` (account activation, warming, cadence, posting) has no scenario at all — that capability is unowned, not merely unaggregated. Decide the aggregator (content-desk is the likeliest) before building anything new."
+  },
+  "enabled": true,
   "runtime": {
-    "mode": "single-process"
+    "mode": "multi-process"
   },
   "coordination": {
-    "pattern": "leader-led",
-    "leadAgentId": "marketing-lead",
-    "reportingMode": "leader",
-    "messagingMode": "in-session",
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
     "capabilities": {
-      "showOrgContext": true,
+      "showOrgContext": false,
       "injectInbox": false,
       "allowPeerTriggers": false,
-      "showTaskBoardGuidance": true,
-      "showDecisionLogGuidance": true,
+      "showTaskBoardGuidance": false,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
   },
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
-  "decisionMode": "yolo",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "marketing-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/marketing/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/operating/OPERATING_MODEL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/STRATEGY.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/AUDIENCES.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/CAMPAIGNS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/CHANNELS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/BRAND.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/ASSETS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/IMAGE_STYLE.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "marketing-crew",
+            "director-swarm",
+            "monetization"
+          ],
+          "rationale": "Canonical external voice, audience, channel, campaign, and brand state.",
+          "useFor": "marketing strategy, audiences, campaigns, channels, brand, assets, and image-style guidance"
+        },
+        {
+          "id": "marketing-post-types",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/catalogs/post-types/README.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "marketing-crew"
+          ],
+          "rationale": "Post-type activation discipline and index; individual post-type docs live below this folder.",
+          "useFor": "post-type activation discipline and navigation to individual post-type spokes"
+        },
+        {
+          "id": "marketing-strategies",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/marketing/strategy/patterns/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/patterns/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/patterns/ai-ugc-personas.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/patterns/funnel-patterns.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/strategy/patterns/hook-library.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "marketing-crew"
+          ],
+          "rationale": "Reusable strategy canon for hooks, funnel patterns, and AI-UGC rules.",
+          "useFor": "cross-cutting marketing strategies, hook libraries, funnel patterns, and AI-UGC persona guidance"
+        },
+        {
+          "id": "marketing-research",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/marketing/evidence/research/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/marketing/evidence/research/README.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "marketing-crew",
+            "meta-optimization"
+          ],
+          "rationale": "Research intake, collection, method, and promotion architecture for operator-fed alpha, proactive scans, and future signal-inbox exports.",
+          "useFor": "marketing research routing, alpha extraction, proactive scan discipline, and research method evolution"
+        },
+        {
+          "id": "narrative-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/narrative/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/PITCH.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/NARRATIVE.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/FAQ.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/PRESS_KIT.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/narrative/PITCH_DECK.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "marketing-crew",
+            "director-swarm",
+            "monetization"
+          ],
+          "rationale": "Cross-team project-identity canon curated through brand-guideline-update work items.",
+          "useFor": "canonical pitch, narrative, FAQ, press kit, and pitch-deck project identity"
+        },
+        {
+          "id": "monetization-facts",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/monetization/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/CATALOG.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/PRICING.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/strategy/TIERS.md"
+            }
+          ],
+          "writePolicy": "read-only",
+          "consumers": [
+            "marketing-crew"
+          ],
+          "rationale": "Read-only SKU, pricing, and tier judgment for marketing claims. The scenario→SKU mapping is no longer a document: `docs/monetization/catalogs/scenario-sku-map.json` was retired into Offer Desk on 2026-08-16 and its 13 mappings are now typed `belongs_to` edges. Query them with `offer-desk offers catalog-edges` rather than declaring a path — a scenario that can answer at read time is cited, never copied.",
+          "useFor": "read-only SKU, pricing, and delivery-tier judgment for marketing claims; query `offer-desk offers catalog-list` and `catalog-edges` for live scenario→SKU mapping"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        },
+        {
+          "id": "coverage-business",
+          "path": {
+            "base": "team-shared",
+            "path": "coverage/business.json"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "coverage-oss-platform",
+          "path": {
+            "base": "team-shared",
+            "path": "coverage/oss-platform.json"
+          },
+          "kind": "working-register",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "audience-scan/YYYY-MM-DD": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "brand-snapshot/YYYY-MM-DD": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "channel-scan/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "competitor-record/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "format-scan/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "hook-record/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "marketing-craft-observation/<post-type>/<slug>": {
+        "ownerMemberId": "brand-manager",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "monetization-benchmark-adjacent-record/<topic>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "skill-scan/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      },
+      "workflow-scan/<slug>": {
+        "ownerMemberId": "producer",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "brand-manager": {
+        "lane": "Steward marketing and narrative canon, drain typed marketing-craft observations, and propose campaigns only when signal warrants.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/narrative/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not review individual drafts; the producer drafts independently, and per-draft review belongs to the contrarian and the operator approval gate.",
+          "Do not edit plan-of-record files directly; propose promotions, retirements, or canon edits through the relevant work item."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "narrativeCanonTriggers": [
+            "approved work item changes positioning",
+            "new SKU ships or launch window opens",
+            "systematic drift across >=3 recent drafts",
+            "typed marketing-craft observation reaches promotion threshold",
+            "operator-flagged drift"
+          ]
+        }
+      },
+      "marketing-contrarian": {
+        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale work item hygiene. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/narrative/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never generate positive-action work items.",
+          "Do not invent new failure modes inside a challenge; propose framework-update instead.",
+          "Do not relitigate resolved work items."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "failureModeFrameworkSource": "docs/marketing/strategy/STRATEGY.md#anti-patterns",
+          "reviewPostTypeV1Status": true
+        }
+      },
+      "producer": {
+        "lane": "Sole draft producer. Draws open campaign work from content-desk, gathers the evidence that work needs, and drafts against it with every factual assertion declared as a claim. Lane is a field on the draft, not a member.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/marketing/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/monetization/"
+          },
+          {
+            "base": "repo-root",
+            "path": "docs/narrative/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never publish, and never approve your own draft. The operator is the only approver.",
+          "Frame OSS self-host as deliberate brand credibility, not a revenue leak.",
+          "Never frame subscriptions as paywalling core features.",
+          "Never hallucinate engagement numbers.",
+          "If a source system is unhealthy, raise capability work item instead of shipping partial claims.",
+          "Audience and post-type proposals require at least three converging scans."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 3,
+  "attributionValidFrom": "2026-05-04",
+  "revision": 9,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-15T23:11:37Z"
+  "updatedAt": "2026-07-28T00:00:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "audience-scan/*",
+      "status": "live",
+      "purpose": "Audience pain, vocabulary, buyer triggers, objections, and persona evidence."
+    },
+    {
+      "prefix": "competitor-record/*",
+      "status": "live",
+      "purpose": "Competitor pricing, packaging, positioning, changelog, or claim evidence."
+    },
+    {
+      "prefix": "hook-record/*",
+      "status": "live",
+      "purpose": "Reusable hook and framing observations; the promotion source for the hook library."
+    },
+    {
+      "prefix": "workflow-scan/*",
+      "status": "live",
+      "purpose": "External workflows, playbooks, agent setups, or business processes worth deconstructing."
+    },
+    {
+      "prefix": "skill-scan/*",
+      "status": "live",
+      "purpose": "External skills, prompts, reusable processes, or capability ideas."
+    },
+    {
+      "prefix": "channel-scan/*",
+      "status": "live",
+      "purpose": "Evidence that a channel is worth activating, deprioritizing, or handling differently."
+    },
+    {
+      "prefix": "format-scan/*",
+      "status": "live",
+      "purpose": "Evidence that a post format or channel-native format is worth using or codifying."
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "status": "live",
+      "purpose": "Pricing, packaging, or market facts found by marketing but owned strategically by monetization."
+    },
+    {
+      "prefix": "marketing-craft-observation/*",
+      "status": "live",
+      "purpose": "Typed production observations that may feed canon, skill, scenario, Swarm Manager work item, or retirement work items."
+    },
+    {
+      "prefix": "brand-snapshot/*",
+      "status": "live",
+      "purpose": "Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates."
+    }
+  ]
 }

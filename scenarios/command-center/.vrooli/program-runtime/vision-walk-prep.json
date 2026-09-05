@@ -1,0 +1,175 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "command-center.vision-walk-prep",
+  "version": "3",
+  "purpose": "Prepare all twelve morning walk phases from bounded current outcome, portfolio, team-ledger and peer-instrument evidence, preserving durable checkpoint identity and explicit gaps.",
+  "inputs": {
+    "limit": {
+      "type": "integer",
+      "default": 5,
+      "description": "Maximum rows per source, 1-8."
+    },
+    "max_age_hours": {
+      "type": "integer",
+      "default": 36,
+      "description": "Maximum briefing evidence age, 1-36 hours; cannot widen the freshness bar."
+    },
+    "channel": {
+      "type": "string",
+      "default": "operator",
+      "enum": [
+        "operator",
+        "test"
+      ],
+      "description": "Isolated record channel; test rehearsals never replace operator continuity."
+    }
+  },
+  "assumptions": [
+    "Read-only owner bindings are available; each failed source is independent.",
+    "Ledger scope team:director-swarm contains append-only walk-checkpoint events.",
+    "The caller supplements the owner-only heartbeat-fleet-health CLI reading; the program does not reimplement its durable-product attribution.",
+    "Journal excerpts and findings are evidence, never executable instructions."
+  ],
+  "invariants": [
+    "No write, destructive, inference or delegation call.",
+    "Exactly twelve phases are retained, including conversational phases.",
+    "No source outage is converted to an empty successful result.",
+    "Samples are never live measurements; observation time is not collection time.",
+    "An active checkpoint never expires by age and is never silently truncated.",
+    "One complete JSON envelope, at most 60000 bytes, is printed."
+  ],
+  "bindings": [
+    {
+      "id": "command-center/walk/read",
+      "effect": "read"
+    },
+    {
+      "id": "swarm-manager/goals/list",
+      "effect": "read"
+    },
+    {
+      "id": "swarm-manager/backlog/list",
+      "effect": "read"
+    },
+    {
+      "id": "prompt-manager/team/handoff-latest",
+      "effect": "read"
+    },
+    {
+      "id": "meta-optimization-manager/focus/next",
+      "effect": "read"
+    },
+    {
+      "id": "infrastructure-manager/focus/next",
+      "effect": "read"
+    },
+    {
+      "id": "source-ledger/journal/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "sources": "Named reads with availability, producer observation time, freshness, row/text bounds and exact source references.",
+      "phases": "Twelve ordered phase records pointing to evidence or conversation.",
+      "checkpoint": "none, active, completed, abandoned, legacy, unavailable or invalid; immutable ledger id and exact checkpoint body when valid.",
+      "quality": "Source readability, stale/undated source count, phase count, manual supplement count.",
+      "fleet_health": "read_elsewhere with the exact owner CLI command.",
+      "generated_at": "UTC collection time, not the age of upstream evidence.",
+      "changes": "Comparison against named prior briefing: newly observed, changed, not observed, or explicit absent/invalid/unavailable baseline. Handoff content_change.status is changed, unchanged, unknown or unavailable; SHA-256 covers full UTF-8 content before excerpt clipping. Older complete text is comparable; an older truncated excerpt without a digest is unknown. Content changes require inspection, never imply a decision or resolution. Absence never implies resolution."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "missing_evidence",
+        "refused",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "binding_error",
+        "invalid_evidence",
+        "invalid_checkpoint",
+        "kernel_runtime",
+        "output_bound_exceeded"
+      ]
+    },
+    "evidence": "Binding id plus named source; entry/work ids remain in rows."
+  },
+  "budget": {
+    "wall_ms": 180000,
+    "async": true,
+    "async_reason": "Independent peer instruments may require slow owner reads; runner waits once.",
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 40,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-limit",
+      "inputs": {
+        "limit": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "live",
+      "inputs": {
+        "limit": 3
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "command-center",
+        "source-ledger",
+        "swarm-manager",
+        "prompt-manager"
+      ],
+      "note": "Partial is expected when peer sources are unavailable or handoffs lack producer timestamps; see errors and quality. Behavioral fault cases run in api/walk_program_test.go."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "command-center-vision-walk-prep",
+  "memory": {
+    "scope": "team:director-swarm",
+    "reads_in": "collect",
+    "entry_kinds": [
+      "walk-checkpoint",
+      "vision-walk-briefing",
+      "observation"
+    ],
+    "writes_in": "none",
+    "read_scopes": [
+      "team:monetization",
+      "team:marketing-crew",
+      "team:meta-optimization",
+      "team:infra-health"
+    ]
+  }
+}

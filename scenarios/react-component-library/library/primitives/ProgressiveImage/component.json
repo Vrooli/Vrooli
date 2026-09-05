@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.progressive-image",
+  "deprecatedVersions": [
+    "1.1.4",
+    "1.1.6",
+    "1.1.5",
+    "1.1.0",
+    "1.1.8",
+    "1.1.7"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.6",
+    "1.1.4",
+    "1.1.5",
+    "1.1.0",
+    "1.1.8",
+    "1.1.7"
+  ],
+  "latest": "1.1.9",
+  "libraryId": "react-component-library:ProgressiveImage"
+}

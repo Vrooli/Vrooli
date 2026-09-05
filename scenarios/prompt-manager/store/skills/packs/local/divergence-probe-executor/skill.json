@@ -1,0 +1,31 @@
+{
+  "createdAt": "2026-07-21T13:41:25Z",
+  "description": "Divergence-probe runner: independently execute a skill against a target scenario and emit a structured decision list.",
+  "entry": "SKILL.md",
+  "id": "divergence-probe-executor",
+  "kind": "skill",
+  "modes": [
+    "contract"
+  ],
+  "name": "divergence-probe-executor",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "divergence-probe",
+    "dtv",
+    "meta"
+  ],
+  "updatedAt": "2026-07-21T13:41:25Z"
+}

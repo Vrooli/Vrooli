@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:useOverlaySurface",
+  "version": "1.3.12",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:BaseStyles",
+      "major": 1,
+      "observed": "1.2.3",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:LayerManager",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useControllableState",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useEscapeKey",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useFocusReturn",
+      "major": 1,
+      "observed": "1.1.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useFocusTrap",
+      "major": 1,
+      "observed": "1.1.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useScrollLock",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useSwipe",
+      "major": 2,
+      "observed": "2.0.4",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    }
+  ]
+}

@@ -9,7 +9,7 @@
  * - Text: Plain text display
  *
  * Reads its file service from FileServiceContext — works with both
- * backlog items and initiatives.
+ * backlog items and goals.
  *
  * [REQ:REQ-P0-004] File preview for backlog details page
  */

@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.attached_devices;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices;attached_devices_v1";
+
+service AttachedDeviceService {
+  rpc PairAttachedDevice(PairAttachedDeviceRequest) returns (AttachedDeviceResponse);
+  rpc ListAttachedDevices(ListAttachedDevicesRequest) returns (ListAttachedDevicesResponse);
+  rpc RevokeAttachedDevice(RevokeAttachedDeviceRequest) returns (AttachedDeviceResponse);
+}
+
+message PairAttachedDeviceRequest {
+  string name = 1;
+  string host_node_id = 2;
+  string kind = 3;
+  string transport = 4;
+  string serial = 5;
+  string os_version = 6;
+  bool host_node_online = 7;
+}
+message ListAttachedDevicesRequest {}
+message ListAttachedDevicesResponse {
+  repeated AttachedDevice devices = 1;
+}
+message RevokeAttachedDeviceRequest {
+  string id = 1;
+}
+message AttachedDeviceResponse {
+  AttachedDevice device = 1;
+}
+
+message AttachedDevice {
+  string id = 1;
+  string name = 2;
+  string host_node_id = 3;
+  string kind = 4;
+  string transport = 5;
+  string serial = 6;
+  string os_version = 7;
+  string trust_state = 8;
+  string reachability = 9;
+  string health_reason = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp revoked_at = 12;
+}

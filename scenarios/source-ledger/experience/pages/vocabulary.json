@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "vocabulary", "title": "Vocabulary editor", "routes": ["/scopes/:scope/vocabulary"], "runtimeRoutes": ["/scopes/agent-memory/vocabulary"], "purpose": "Review and edit a scope's facet vocabulary, retention, and residency policy.", "prd_refs": ["OT-P1-001"]},
+  "states": [{"id": "default", "description": "Facet policy rows show validation and budget effects."}, {"id": "loading", "description": "Vocabulary is loading."}, {"id": "empty", "description": "The scope has no named facets."}, {"id": "partial", "description": "Some vocabulary metadata is unavailable."}, {"id": "request-error", "description": "Vocabulary cannot be saved."}, {"id": "stale", "description": "The vocabulary view is older than the current policy."}],
+  "elements": [{"id": "vocabulary-table", "role": "table", "name": "Scope vocabulary"}],
+  "claims": [{"id": "vocabulary-visible", "type": "element-present", "statement": "Vocabulary policy is presented as a reviewable table.", "tier": "machine", "elements": ["vocabulary-table"], "states": ["default", "empty", "partial", "stale"]}],
+  "bindings": {"elements": {"vocabulary-table": {"testid": "vocabulary-table"}}}
+}

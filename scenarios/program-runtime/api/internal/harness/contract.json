@@ -1,0 +1,146 @@
+{
+  "version": 9,
+  "preamble": "You write short Python programs for the Vrooli Program Runtime.",
+  "closing": "Return only Python source. No markdown fence, no commentary.",
+  "rules": [
+    {
+      "id": "flat-namespace",
+      "brief": "Scenario operations are flat top-level names: <scenario>.<group>.<command>, hyphens become underscores (search-hub is search_hub).",
+      "doc_probe": "flat top-level names",
+      "skill_probe": "The public namespace is flat",
+      "failure_signatures": [{"cause":"unresolved_name","detail_pattern":"name \\\"search\\\" does not resolve","example":"name \"search\" does not resolve to a governed binding namespace or a built-in"}]
+    },
+    {
+      "id": "vrooli-is-project-only",
+      "brief": "vrooli. addresses the project CLI only. It is never a scenario and never a runtime verb: call verbs at the top level.",
+      "doc_probe": "is the project control plane and nothing else",
+      "skill_probe": "addresses the project CLI only",
+      "failure_signatures": [{"cause":"unresolved_name","detail_pattern":"name \\\"scenario\\\" does not resolve","example":"name \"scenario\" does not resolve to a governed binding namespace or a built-in"}]
+    },
+    {
+      "id": "no-module-import",
+      "brief": "There is no vrooli module. Never write `import vrooli` or `from vrooli import ...`; the names are already bound.",
+      "doc_probe": "There is no `vrooli` module",
+      "skill_probe": "There is no `vrooli` module",
+      "failure_signatures": [{"cause":"unclassified","detail_pattern":"import \\\"vrooli\\\" is unavailable","example":"import \"vrooli\" is unavailable because the runtime names are already bound"}]
+    },
+    {
+      "id": "handles-are-bounded",
+      "brief": "Every call returns a Handle, never a plain object or dict. Read it with count(), head(n), filter(), group_by(), select(), sort(), meta(); rows themselves come from head(n) or materialize(limit). A Handle has no .get() and no attributes named after response fields \u2014 row = h.head(1)[0] first, then row[\"field\"].",
+      "doc_probe": "materialize(limit)",
+      "skill_probe": "materialize(limit)",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"Handle.*(has no attribute|get\\()","example":"AttributeError: Handle has no attribute 'get'"}]
+    },
+    {
+      "id": "rows-field-for-ambiguous",
+      "brief": "When a response has several repeated fields, pass rows=\"<field>\".",
+      "doc_probe": "rows=\"ranked\"",
+      "skill_probe": "rows=\"ranked\"",
+      "failure_signatures": [{"cause":"ambiguous_response","detail_pattern":"no determinable primary response field","example":"binding search-hub/query/query has no determinable primary response field"}]
+    },
+    {
+      "id": "runtime-verbs",
+      "brief": "Runtime verbs: discover, recall, validate, capture, ai, agent, gather, describe, reachable, lib.",
+      "doc_probe": "## Runtime verbs",
+      "skill_probe": "### Runtime verbs",
+      "failure_signatures": [{"cause":"unresolved_name","detail_pattern":"name \\\"(discover|recall|validate|capture|gather|describe|reachable)\\\" does not resolve","example":"name \"recall\" does not resolve to a governed binding namespace or a built-in"}]
+    },
+    {
+      "id": "verb-shapes",
+      "brief": "ai and agent and lib are namespaces, not callables: use ai.classify/extract/judge/write/batch, agent.start/collect/run, lib.list. The rest are called directly: discover(...), recall(...), validate(...), capture(...), gather(...), describe(...), reachable().",
+      "doc_probe": "ai.classify / extract / judge / write / batch",
+      "skill_probe": "`ai.classify",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"(namespace|_Namespace).*not callable","example":"TypeError: namespace object is not callable"}]
+    },
+    {
+      "id": "inference-keyword-aliases",
+      "brief": "The typed inference helpers accept text= and texts= as additive aliases for source= on ai.classify, ai.extract, ai.judge, and ai.write; supplying more than one spelling is an explicit TypeError.",
+      "doc_probe": "text=` and `texts=`",
+      "skill_probe": "text=` and `texts=`",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"pass only one of (source|text|texts)=","example":"pass only one of source=, text=; received source=, text="}]
+    },
+    {
+      "id": "runtime-keyword-vocabulary",
+      "brief": "Runtime keywords are recovery-oriented: recall accepts query= as an additive alias for intent=; validate accepts scenario=; capture accepts text=. An unknown keyword names the offending keyword and the accepted keywords, and two spellings of one value raise an explicit TypeError.",
+      "doc_probe": "accepted keywords",
+      "skill_probe": "accepted keywords",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"got unexpected keyword","example":"recall() got unexpected keyword 'topic'; accepted keywords: intent, query"}]
+    },
+    {
+      "id": "describe-keyword-alias",
+      "brief": "describe accepts binding_id= as an additive alias for binding=; supplying both names is an explicit TypeError.",
+      "doc_probe": "binding_id=",
+      "skill_probe": "binding_id=",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"pass only one of binding=, binding_id=","example":"pass only one of binding=, binding_id=; received binding=, binding_id="}]
+    },
+    {
+      "id": "describe-argument-rows",
+      "brief": "describe(binding_id=...) returns a Handle of argument rows; read row = handle.head(1)[0] and then row[\"name\"], not row[\"arguments\"].",
+      "doc_probe": "argument rows",
+      "skill_probe": "argument rows",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"(KeyError|missing key).*arguments","example":"KeyError: arguments"}]
+    },
+    {
+      "id": "classify-labels",
+      "brief": "ai.classify accepts labels=[...] as a convenience that desugars to a validated label enum schema; labels= and schema= cannot be supplied together.",
+      "doc_probe": "labels=[\"bug\", \"feature\"]",
+      "skill_probe": "labels=[\"bug\", \"feature\"]",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"labels=.*schema=.*(cannot|only one)","example":"labels= and schema= cannot be supplied together"}]
+    },
+    {
+      "id": "bounded-surface-shapes",
+      "brief": "Handle.group_by(key) returns a count mapping with count() for the grouped source rows; Handle.join accepts key= or its additive on= alias; ai.classify accepts a list of text strings and uses the governed batch route, while recall takes intent= or its additive query= alias.",
+      "doc_probe": "group_by",
+      "skill_probe": "source=[",
+      "failure_signatures": [
+        {"cause":"kernel_runtime","detail_pattern":"(join|group_by|classify).*(key|list|source)","example":"join key 'id' is missing from the right Handle"},
+        {"cause":"kernel_runtime","detail_pattern":"Handle\\.join\\(\\).*missing.*other","example":"TypeError: Handle.join() missing 1 required positional argument: 'other'"}
+      ]
+    },
+    {
+      "id": "library-first",
+      "brief": "Inspect lib.list() before hand-authoring a repeated construction pattern; promoted library entries are explicit and frozen when a session starts.",
+      "doc_probe": "lib.list()",
+      "skill_probe": "lib.list()",
+      "failure_signatures": [{"cause":"unresolved_name","detail_pattern":"name \\\"lib\\\" does not resolve","example":"name \"lib\" does not resolve to a governed binding namespace or a built-in"}]
+    },
+    {
+      "id": "gather-takes-callables",
+      "brief": "gather(*callables) takes zero-argument callables, not strings or lists: gather(*[lambda q=q: search_hub.query.query(query=q, rows=\"ranked\") for q in queries]).",
+      "doc_probe": "zero-argument callables",
+      "skill_probe": "zero-argument callables",
+      "failure_signatures": [
+        {"cause":"kernel_runtime","detail_pattern":"gather.*zero-argument callables","example":"gather requires zero-argument callables"},
+        {"cause":"wrong_result","detail_pattern":"case=fanout-gather","example":"case=fanout-gather; oracle=row_count_relation was not satisfied; stdout=\"Ellipsis\\n\""}
+      ]
+    },
+    {
+      "id": "program-is-module-scope",
+      "brief": "A program is module scope, not a function body. `return` at the top level is a syntax error; use if/else or wrap the work in a def and call it.",
+      "doc_probe": "`return` at the top level",
+      "skill_probe": "`return` at the top level",
+      "failure_signatures": [{"cause":"kernel_syntax","detail_pattern":"return.*outside function","example":"SyntaxError: 'return' outside function"}]
+    },
+    {
+      "id": "print-small-answer",
+      "brief": "print() only the small answer. Never print whole result sets.",
+      "doc_probe": "Printed output is bounded",
+      "skill_probe": "Keep program output bounded",
+      "failure_signatures": [{"cause":"kernel_runtime","detail_pattern":"output.*limit","example":"program output exceeded the configured limit"}]
+    },
+    {
+      "id": "discovery-null-vs-unavailable",
+      "brief": "discover(intent, mode=\"fast\"|\"judged\"|\"deep\") returns a Handle of one row: row = discover(...).head(1)[0]. row[\"binding_id\"] empty with row[\"unavailable\"] False means nothing serves the intent \u2014 stop. row[\"unavailable\"] True means discovery itself failed \u2014 retry or use mode=\"fast\"; it is not evidence the capability is absent.",
+      "doc_probe": "unavailable",
+      "skill_probe": "unavailable",
+      "failure_signatures": [{"cause":"wrong_result","detail_pattern":"case=(discover-then-call|null-verdict)","example":"case=null-verdict; oracle=null_verdict was not satisfied"}]
+    },
+    {
+      "id": "long-work-is-async",
+      "brief": "A synchronous submission is bounded at two minutes. Longer work is submitted with --async and awaited once with `programs wait`; never poll.",
+      "doc_probe": "--async",
+      "skill_probe": "--async",
+      "failure_signatures": [{"cause":"bridge_transport","detail_pattern":"(deadline|timed out|timeout)","example":"submission timed out before the synchronous deadline"}]
+    }
+  ]
+}

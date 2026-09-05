@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -181,7 +180,10 @@ func (f *DefaultPortsFetcher) FetchPorts(ctx context.Context, scenarioID string)
 		return nil, fmt.Errorf("find repo root: %w", err)
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, fmt.Errorf("resolve service.json path: %w", err)
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, fmt.Errorf("read service.json: %w", err)
@@ -214,7 +216,10 @@ func ServiceJSONDependenciesFetcher(scenarioID string) (resources, scenarios []s
 		return nil, nil, err
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, nil, err
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, nil, err

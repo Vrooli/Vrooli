@@ -1,0 +1,450 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "command_validate",
+      "path": "/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReference",
+      "method": "POST",
+      "summary": "Validate one command reference",
+      "description": "Validates a Vrooli-owned command reference without executing it.",
+      "category": "command",
+      "request": {
+        "type": "object",
+        "properties": {
+          "command_text": "string",
+          "policy": "CommandReferencePolicy",
+          "qualifiers": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "result": "CommandReferenceValidationResult"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when command validation is not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReference -H 'Content-Type: application/json' -d '{\"command_text\":\"vrooli scenario test cli-health\",\"policy\":\"COMMAND_REFERENCE_POLICY_PLAN\"}'"
+        }
+      ]
+    },
+    {
+      "id": "command_validate_batch",
+      "path": "/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReferences",
+      "method": "POST",
+      "summary": "Validate command references",
+      "description": "Batch-validates Vrooli-owned command references without executing them.",
+      "category": "command",
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<CommandReferenceValidationResult>"
+        }
+      }
+    },
+    {
+      "id": "search_query",
+      "path": "/vrooli.cli_health.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search CLI commands across scenarios",
+      "description": "Semantic (AI) and text-fallback search across every scenario's CLI manifest.",
+      "category": "search",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "mode": "Mode",
+          "query": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "mode_used": "Mode",
+          "results": "array<SearchResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when no search backend is configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Search",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"list goldens\",\"limit\":10}'"
+        }
+      ]
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.cli_health.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report search backend availability",
+      "description": "Reports whether ollama and qdrant are reachable, indexed doc count, and the most recent reconcile outcome.",
+      "category": "search",
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "boolean",
+          "indexed_count": "int32",
+          "last_reconcile_at": "string",
+          "last_reconcile_outcome": "string",
+          "ollama": "boolean",
+          "qdrant": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when no search backend is configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_reindex",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+      "method": "POST",
+      "summary": "Start a reindex job (token-gated)",
+      "description": "Queues a reconcile job that upserts/deletes points in Qdrant. Requires the provider's control token and the enabled control plane.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "dry_run": "boolean",
+          "scope": "string (optional provider sub-scope; empty means the whole corpus)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "job_id": "string",
+          "planned_deletes": "int32",
+          "planned_upserts": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when no reindex backend is configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Reindex (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true,\"control_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_reindex_status",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/ReindexStatus",
+      "method": "POST",
+      "summary": "Poll reindex job status (token-gated)",
+      "description": "Returns the progress, state, and (on failure) error for a previously-started reindex job.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "job_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "job_id": "string",
+          "processed": "int32",
+          "state": "string",
+          "total": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No reindex job with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Job status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_reindex_cancel",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/ReindexCancel",
+      "method": "POST",
+      "summary": "Cancel a reindex job (token-gated)",
+      "description": "Requests cooperative cancellation of an in-flight job. Idempotent: cancelling a terminal job returns cancelled=false.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "job_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cancelled": "boolean",
+          "job_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Cancel job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_write_config",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+      "method": "POST",
+      "summary": "Write a tuning block back to search.json (token-gated)",
+      "description": "Validates a new tuning block and atomically rewrites the provider's search.json, triggering a reindex when an index-time factor changed. The search-hub sweep's write-back verb; not an interactive operator command.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "dry_run": "boolean (validate + diff without writing)",
+          "provider_id": "string (required; the leaf whose tuning is rewritten)",
+          "tuning": "object (full replacement tuning block)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective": "object (tuning now in effect)",
+          "reindex_job_id": "string",
+          "reindex_triggered": "boolean",
+          "written": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing provider_id or invalid tuning factor"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "provider_id not present in search.json"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Write config (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteConfig -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\",\"dry_run\":true,\"control_token\":\"<token>\",\"tuning\":{\"engine\":\"dense\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "searchcontrol_write_corpus",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus",
+      "method": "POST",
+      "summary": "Write an evaluation corpus back to search.json (token-gated)",
+      "description": "Validates a new evaluation corpus (the tests block, carried as an eval EvalSuite) and atomically rewrites ONLY that block in the provider's search.json — the corpus twin of WriteConfig. The search-hub optimizer's corpus write-back verb (e.g. `evals generate --apply`); not an interactive operator command. Never triggers a reindex.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "corpus": "object (full replacement tests block, as an eval EvalSuite)",
+          "dry_run": "boolean (validate + diff without writing)",
+          "provider_id": "string (required; the leaf whose corpus is rewritten)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective": "object (corpus now in effect, as an eval EvalSuite)",
+          "written": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing provider_id or a malformed corpus (case missing id/query, duplicate id)"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "provider_id not present in search.json"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Write corpus (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\",\"dry_run\":true,\"control_token\":\"<token>\",\"corpus\":{\"suite_id\":\"cli-health.commands.primary\",\"cases\":[]}}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's CLI manifest, proto, and endpoints.json",
+      "description": "Runs the cli-health validators against a scenario and returns the shared scenario-validation response with findings in the maturity assessment.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id, reserved CLI name, or validation input error"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic remediations for a scenario (unimplemented)",
+      "description": "cli-health ships no deterministic autofixer; PreviewFix returns Unimplemented so the test-genie deterministic-fix aggregate records this provider as no_fixer and skips it.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "cli-health has no deterministic fixer"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic remediations for a scenario (unimplemented)",
+      "description": "cli-health ships no deterministic autofixer; ApplyFix returns Unimplemented so the test-genie deterministic-fix aggregate records this provider as no_fixer and skips it.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "cli-health has no deterministic fixer"
+        }
+      ]
+    }
+  ]
+}

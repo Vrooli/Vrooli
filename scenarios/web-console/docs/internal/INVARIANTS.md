@@ -37,6 +37,9 @@ state-mutating operations in the web-console scenario.
 | Refresh sessions | `SessionsPage.tsx:refresh` | **Yes** | Generation counter discards stale responses. |
 | Save profile | `SettingsPage.tsx:handleSave` | **Yes** | Server upsert is idempotent. On error, refetches server state. |
 | Delete profile | `SettingsPage.tsx:handleDelete` | **Yes** | Server delete is idempotent. On error, refetches server state. |
+| TTS incoming event auto-play | `useTtsPlaybackController.ts:handleIncomingEvent` | **Yes** | Stable event id + current transport target prevent replay storms; `playbackIntent=paused/stopped` blocks automatic playback without mutating `lastListenedSequence`. |
+| TTS stop/pause | `Workspace.tsx`, `TerminalPane.tsx`, `useTtsPlaybackController.ts` | **Yes** | User pause/stop persists local playback intent and stops/pauses provider state. It does not mark assistant events listened. |
+| TTS natural completion | `useTtsPlaybackController.ts` | **Yes** | Listened cursor advances only when provider speaking transitions from playing to ended for the current event. Stale completion after stop/pause/new play is ignored by transport state/load id. |
 
 ## Idempotency Keys
 
@@ -53,6 +56,38 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
 - **POST /sessions with idempotency key**: Safe to retry within TTL window (5 min). Returns cached response.
 - **POST /sessions without key**: NOT safe to retry blindly. Creates a new session each time.
 - **POST /ai/generate**: NOT safe to retry without user intent. Calls external APIs, emits events.
+- **TTS incoming assistant event**: Safe to receive again; duplicate events are ignored by `useConversationStore.appendEvent`, and playback is controlled by persisted intent plus current target state.
+
+## TTS Playback Intent Invariants
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| User pause blocks future automatic playback | Incoming assistant events check `playbackIntent` before speaking | `ui/src/domains/tts-playback/utils.ts`, `useTtsPlaybackController.ts` |
+| Natural completion keeps continuous intent | Completion does not convert `continuous` to paused/stopped | `useTtsPlaybackController.ts` |
+| Stop/pause never means listened | `TerminalPane.stopTts()` no longer advances `lastListenedSequence`; controller commits listened only on natural completion | `TerminalPane.tsx`, `useTtsPlaybackController.ts` |
+| Playback controls are not dismissible | The TTS playback bar has no close/collapse state; visibility is derived from auto-TTS setting plus a valid active/replay target | `Workspace.tsx`, `AudioPlayerBar.tsx`, `store.ts` |
+| Inactive pane messages do not speak | Incoming auto-play requires `activePaneId === sessionId` | `utils.ts` |
+| Auto playback respects muted state | Provider `speakText` only force-unmutes manual playback; incoming auto playback preserves the current mute/start-muted setting | `TerminalPane.tsx`, `useTtsPlaybackController.ts` |
+
+## Voice Input UI Invariants
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| Mic button presentation is voice-input only | TTS speaking state never changes the mic icon, title, color, or error visibility; playback state is shown by the TTS bar | `VoiceMicButton.tsx`, `AudioPlayerBar.tsx` |
+| Starting voice input may stop active TTS, but only as an interaction side effect | `isTtsSpeaking`/`onTtsStop` are used before `onStart`; no presentation branch depends on TTS state | `VoiceMicButton.tsx`, `Workspace.tsx` |
+| Audio level and VAD UI state share one sample source | `useVoiceInput` computes `audioLevel` and `voiceActivity` from the same audio-analysis tick after `vadTick` runs | `useVoiceInput.ts`, `voice/activity.ts` |
+| Auto-stop countdown uses the same authority as auto-stop | The circular ring is derived by `decideAutoStopRing`, which shares the server/client precedence with `decideAutoStop` including stale-but-latched server timeouts; persistent listening does not show the one-shot stop ring | `voice/autoStopDecision.ts`, `VoiceMicButton.tsx` |
+| Stop/cancel/error teardown clears voice activity | Teardown paths reset both `audioLevel` and `voiceActivity` to idle | `useVoiceInput.ts` |
+| Every browser mic stream has exactly one observable owner | All `getUserMedia` audio streams are acquired/registered through the mic ownership registry under a named `MicOwner`; releasing a lease stops all tracks exactly once (idempotent) | `audio-integration/hooks/voice/micOwnership.ts` |
+| Passive wake-word listening is visible and user-cancellable | `passiveListeningActive` drives `isPassive`; the mic control shows the passive presentation while a passive stream is live and never reports ordinary idle/off; tapping it calls `exitPassiveMode()` | `useVoiceCore.ts`, `VoiceMicButton.tsx` |
+| Passive wake-word listening is not a `voiceState` | The old `"passive"` workflow state is retired. `voiceState` stays `idle` while passive wake-word listening is live; `passiveListeningActive` is the UI-facing passive truth and the registry is the hardware truth | `types.ts`, `useVoiceCore.ts`, `passiveArmDecision.ts` |
+| Mount and visibility alone never acquire the microphone | Persisted `lowLatencyVoice` or `wakeWordEnabled` flags do not call `getUserMedia` on app open or tab-visible transition. Low-latency prewarm and passive wake-word arming require explicit mic-control intent (`prepareRecording` / start) | `useVoiceCore.ts`, `VoiceMicButton.tsx`, `useVoiceInput.test.ts` |
+| A hidden tab / backgrounded PWA holds no mic stream | Page-lifecycle cleanup is driven by the pure `decideMicLifecycle` policy: a **standalone/PWA releases ALL leases on `visibilitychange` hidden** (incl. active recording — iOS keeps the OS mic indicator on otherwise), a desktop tab releases non-active leases and the controller stops the active recording; ALL leases release on `pagehide`/`freeze`; passive listening never arms while hidden | `micLifecyclePolicy.ts#decideMicLifecycle`, `micOwnership.ts#installMicLifecycleCleanup`, `useVoiceCore.ts`, `passiveArmDecision.ts` |
+| Hardware mic truth is the registry, not `voiceState` | An idle/off UI with a live lease that is NOT an expected passive/prewarm/settings owner is an invariant violation; `useVoiceCore` subscribes to the registry, derives `staleLiveMicLease`, and self-heals by releasing the orphan (logging a structured violation) through `controller.recoverStaleLeases` | `micLifecyclePolicy.ts#selectStaleLeases`, `voiceCaptureController.ts`, `useVoiceCore.ts` |
+| Provider replacement / cleanup is single-authority and atomic | Every provider replace/dispose/shutdown goes through `VoiceCaptureController`; replacement disposes the previous provider (releasing its lease) BEFORE installing the next; error/fallback/cancel/unmount paths cannot leave the UI idle while a provider still owns a live mic track; direct `providerRef.current = …` assignment in error paths is prohibited | `voiceCaptureController.ts`, `useVoiceCore.ts` |
+| A stale live mic surfaces a user recovery affordance | When `staleLiveMicLease` is true while the UI is idle, the mic button shows a "release microphone" affordance; tapping it calls `releaseMicrophone`/`onReleaseMic`, never `onStart` | `VoiceMicButton.tsx`, `useVoiceCore.ts` |
+| `MediaStreamTrack.stop()` is the only mic release signal | Lifecycle/cleanup paths stop tracks via lease release; clearing React state or dropping a reference is never relied on to release the OS microphone | `micOwnership.ts` |
+| Production mic acquisition goes through the registry | A structural UI test fails if production `src` code calls `navigator.mediaDevices.getUserMedia` outside `audio-integration/hooks/voice/micOwnership.ts` | `audio-boundary.test.ts`, `micOwnership.ts` |
 
 ## Unsafe Operations (Intentionally Non-Idempotent)
 
@@ -61,9 +96,10 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
    would require prompt hashing and cache invalidation policy, which is out of scope.
 
 2. **WebSocket stdin messages** — PTY input is inherently non-idempotent (typing "ls\n" twice
-   runs the command twice). No sequence tracking is implemented because the WebSocket protocol
-   provides ordered delivery within a single connection, and reconnection replays terminal
-   output (via offline buffer) rather than replaying input.
+   runs the command twice). Reliable stdin uses cumulative UTF-8 byte offsets and a per-session
+   accepted prefix. Reconnect replays only the unaccepted suffix; control frames are best-effort
+   and never enter the reliable stream. An offset below the released prefix is unreconcilable and
+   is surfaced without replay.
 
 ## Speaker Verification Invariants
 

@@ -1,11 +1,43 @@
+---
+name: "security"
+description: "Vulnerability scanning - input validation, authentication, secrets"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","security"]
+  tags: ["skill"]
+  icon: "shield"
+  status: "active"
+  targetDimensions: ["security"]
+  programmaticHome: "security-health:security"
+  revision: 47
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-06-16T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Security Hardening
+
+> **Ladder position:** R1–R2 (safe & standards-clean — a hard gate the scenario must clear early). High/critical security findings block "safe"; clearing them is foundational, not optional polish. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **improving the security posture** of this scenario across its UI, APIs, background jobs, and data flows.
 
 Do **not** break functionality, regress tests, or weaken existing protections. All changes must maintain or improve overall completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
+- `prompt-manager skill read visited-tracker-tools knowledge-observatory-tools`
+
+Run Security Health before manual judgment. The provider's default human output is the single source of truth for current local maturity, next level, blockers, global impact grouping, and recommended skill IDs:
+
+```bash
+security-health validate scenario {{TARGET}}
+```
+
+Use this skill to interpret and fix the provider findings. Do not duplicate or summarize Security Health's `.vrooli/maturity.json` ladder in skill prose; if the ladder is wrong, fix `security-health` or its maturity spec.
 
 Focus on **practical, high-impact security improvements**, guided by these principles:
 

@@ -1,120 +1,105 @@
 // Package orchestration provides the core orchestration service for agent-manager.
 //
-// This file contains the RunExecutor which handles the lifecycle of a single
-// run execution. It is extracted from the main service to reduce cognitive load
-// and make the execution flow explicit and testable.
+// This file contains the RunExecutor, the thin coordinator that owns phase
+// ordering and shared per-run state (run record, checkpoint, mutex,
+// heartbeat goroutine, identity token). All phase logic lives in
+// internal/orchestration/phases — this file is the orchestration entry
+// point that wires phases together via the Execute() coordinator.
 //
-// EXECUTION FLOW:
-//   1. UpdateStatusToStarting()
-//   2. SetupWorkspace() - creates sandbox if needed
-//   3. AcquireRunner() - gets and validates the runner
-//   4. Execute() - runs the agent
-//   5. HandleResult() - processes the outcome
-//   6. Cleanup() - releases resources (on failure)
+// EXECUTION FLOW (Execute):
+//   1. updateStatusToStarting()
+//   2. phases.SetupWorkspace()
+//   3. phases.AcquireRunner()
+//   4. phases.GenerateIdentityToken()
+//   5. phases.ExecuteWithModelFallback()
+//   6. phases.HandleResult()
+//   7. phases.Finalize() — DEFERRED: phase ladder + sandbox teardown
 //
-// GRACEFUL DEGRADATION:
-// The executor is designed to fail safely and preserve useful state:
-// - Sandbox is preserved on failure for inspection
-// - Events are flushed before marking failure
-// - Errors are classified for actionable recovery hints
-// - Partial work is captured in run summary
+// FINALIZATION CONTRACT:
+// phases.Finalize is the single terminal seam. It is registered as a
+// `defer` at the top of Execute, so it ALWAYS runs — on normal completion,
+// panic, or context cancellation. It guarantees:
+//   - The phase ladder ends at RunPhaseCompleted.
+//   - The sandbox mount is released exactly once via Delete or Stop.
+//   - Sandbox teardown is IMMUNE to execCtx cancellation/timeout.
 //
-// RESILIENCE PATTERNS (see architectural guides):
-// - Idempotency: Operations are idempotent via checkpoint tracking
-// - Temporal Flow: Heartbeats, timeouts, and cancellation propagation
-// - Progress Continuity: Checkpoints enable safe interruption and resumption
+// Idempotency for Finalize is enforced by the `finalized` flag on this
+// struct so re-entry (panic + recovery, etc.) is a no-op.
+//
+// 2026-04-28 incident: before Finalize existed, sandbox teardown was
+// scattered across the success/failure/cancel handlers, each calling
+// teardown with execCtx (the run's 60-min timeout). 11 days of
+// accumulation produced 326 orphan mounts holding ~49 GB of RAM.
+// Regression gates live in phases/finalize_test.go.
 
 package orchestration
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log"
-	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
+	"agent-manager/internal/orchestration/emit"
+	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
+
 	"github.com/google/uuid"
 )
 
-// ExecutorConfig holds configuration for run execution.
-type ExecutorConfig struct {
-	// Timeout is the maximum execution time
-	Timeout time.Duration
+// ModelHealthReporter is an alias for the canonical phase dependency seam.
+type ModelHealthReporter = phases.ModelHealthReporter
 
-	// HeartbeatInterval is how often to update heartbeat
-	HeartbeatInterval time.Duration
-
-	// CheckpointInterval is how often to save checkpoints
-	CheckpointInterval time.Duration
-
-	// MaxRetries is the maximum retries per phase
-	MaxRetries int
-
-	// StaleThreshold is how long without heartbeat before considering stale
-	StaleThreshold time.Duration
-}
-
-// DefaultExecutorConfig returns sensible defaults for execution.
-// HeartbeatInterval is set to 15s to ensure multiple heartbeats before stale threshold.
-// StaleThreshold is 5 minutes to allow for slow database updates or long tool calls.
-func DefaultExecutorConfig() ExecutorConfig {
-	return ExecutorConfig{
-		Timeout:            60 * time.Minute,
-		HeartbeatInterval:  15 * time.Second, // More frequent heartbeats for reliability
-		CheckpointInterval: 1 * time.Minute,
-		MaxRetries:         3,
-		StaleThreshold:     5 * time.Minute, // More forgiving threshold
-	}
-}
-
-// RunExecutor handles the execution lifecycle of a single run.
-// It encapsulates all the steps needed to execute an agent run,
-// making the flow explicit and each step independently testable.
-//
-// RESILIENCE FEATURES:
-// - Checkpoints: Saves progress at each phase transition
-// - Heartbeats: Regular updates to detect stalled runs
-// - Timeout handling: Enforces maximum execution time
-// - Cancellation: Responds to context cancellation
-// - Resumption: Can resume from last checkpoint after interruption
+// RunExecutor handles the execution lifecycle of a single run. It is a
+// thin coordinator: it owns shared per-run state and dispatches to phase
+// functions. Phase logic does not live here.
 type RunExecutor struct {
 	// Dependencies
-	runs        repository.RunRepository
-	runners     runner.Registry
-	sandbox     sandbox.Provider
-	events      event.Store
-	checkpoints repository.CheckpointRepository // optional: for checkpoint persistence
-	broadcaster EventBroadcaster                // optional: for real-time WebSocket updates
+	runs              repository.RunRepository
+	runners           runner.Registry
+	sandbox           sandbox.Provider
+	events            event.Store
+	checkpoints       repository.CheckpointRepository
+	broadcaster       phases.EventBroadcaster
+	workspaceSandbox  phases.WorkspaceSandboxEnsurer
+	modelHealth       ModelHealthReporter
+	structuredResults phases.StructuredResultResolver
+	clock             func() time.Time
 
 	// Configuration
-	config ExecutorConfig
+	levers config.Levers
 
-	// Execution context
+	// gate is the single Emit choke point for events flowing out of this run.
+	gate *emit.Gate
+
+	// Per-run inputs
 	run          *domain.Run
 	task         *domain.Task
 	profile      *domain.AgentProfile
 	prompt       string
 	systemPrompt string
-	attachments  []runner.Attachment // image attachments resolved from storage
+	attachments  []runner.Attachment
 
 	// Workspace state
-	sandboxID *uuid.UUID
-	workDir   string
-	lockID    *uuid.UUID
+	sandboxID     *uuid.UUID
+	workDir       string
+	runState      *runstate.State
+	runStateRoot  string
+	runStateWrite func()
 
-	// Progress tracking
+	// Progress + concurrency
 	checkpoint *domain.RunCheckpoint
-	mu         sync.Mutex // protects checkpoint updates
+	mu         sync.Mutex
 
-	// Heartbeat management
+	// Heartbeat
 	heartbeatStop chan struct{}
 	heartbeatDone chan struct{}
 
@@ -123,21 +108,36 @@ type RunExecutor struct {
 	result  *runner.ExecuteResult
 	execErr error
 
-	// Recommendation extraction gate
-	shouldQueueRecommendations func(*domain.Run) bool
-
 	// Resumption state
 	isResuming bool
 
-	// Sandbox finalization state
-	sandboxFinalized bool
+	// finalized guards the deferred phases.Finalize seam against re-entry.
+	finalized bool
 
-	// Custom environment variables injected by API callers.
-	customEnv map[string]string
+	// parked is set when the agent parked mid-turn (the run's persisted status
+	// became RunStatusParked while this executor's process was running). It makes
+	// the deferred finalize a no-op so the park's preserved sandbox is not torn
+	// down — the park owns the run lifecycle from that point.
+	parked bool
+
+	// Caller-provided env vars
+	customEnv   map[string]string
+	sessionEnv  map[string]string
+	skillSource promptmanager.SourceClient
 
 	// Identity token state
-	identitySecret []byte // HMAC secret for token signing (nil = identity disabled)
-	identityToken  string // generated token for this run
+	identitySecret []byte
+	identityToken  string
+
+	// onRunning fires exactly once when the run reaches
+	// RunStatusRunning. Wired by the spawn dispatcher to release the
+	// startup slot. Nil is safe — the executor still runs.
+	onRunning func()
+
+	// onTerminal receives the persisted terminal run after the finalization
+	// seam. It is deliberately best-effort so analytics capture cannot alter a
+	// completed run's result.
+	onTerminal func(*domain.Run)
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -162,29 +162,59 @@ func NewRunExecutor(
 		profile:       profile,
 		prompt:        prompt,
 		systemPrompt:  systemPrompt,
-		config:        DefaultExecutorConfig(),
+		levers:        config.DefaultLevers(),
 		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 		heartbeatStop: make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
-		shouldQueueRecommendations: func(run *domain.Run) bool {
-			return run.IsInvestigationRun()
-		},
 	}
 }
 
-// WithConfig sets custom executor configuration.
-func (e *RunExecutor) WithConfig(config ExecutorConfig) *RunExecutor {
-	e.config = config
+// =============================================================================
+// BUILDER METHODS
+// =============================================================================
+
+func (e *RunExecutor) WithLevers(l config.Levers) *RunExecutor { e.levers = l; return e }
+
+func (e *RunExecutor) WithRunStateRoot(root string) *RunExecutor { e.runStateRoot = root; return e }
+
+// WithSkillSource supplies prompt-manager's immutable source seam for profile
+// pack composition. A nil source leaves profiles without a skill pack valid.
+func (e *RunExecutor) WithSkillSource(source promptmanager.SourceClient) *RunExecutor {
+	e.skillSource = source
 	return e
 }
 
-// WithCheckpointRepository enables checkpoint persistence.
+func (e *RunExecutor) WithRunStateWriteObserver(observer func()) *RunExecutor {
+	e.runStateWrite = observer
+	return e
+}
+
+// WithClock supplies deterministic timestamps to all execution phases.
+func (e *RunExecutor) WithClock(clock func() time.Time) *RunExecutor { e.clock = clock; return e }
+
+// WithTerminalObserver installs a best-effort observer after the final run
+// state is persisted. The owner uses this to keep the durable analytics read
+// model current for normal executor-driven runs.
+func (e *RunExecutor) WithTerminalObserver(observer func(*domain.Run)) *RunExecutor {
+	e.onTerminal = observer
+	return e
+}
+
 func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
 	e.checkpoints = repo
 	return e
 }
 
-// WithExistingSandbox reuses an existing sandbox for this run.
+func (e *RunExecutor) WithModelHealthReporter(reporter ModelHealthReporter) *RunExecutor {
+	e.modelHealth = reporter
+	return e
+}
+
+func (e *RunExecutor) WithStructuredResultResolver(resolver phases.StructuredResultResolver) *RunExecutor {
+	e.structuredResults = resolver
+	return e
+}
+
 func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *RunExecutor {
 	e.sandboxID = &sandboxID
 	if workDir != "" {
@@ -194,85 +224,95 @@ func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *
 	return e
 }
 
-// WithIdentitySecret sets the HMAC secret used to generate identity tokens.
-// If not set, no identity token will be injected into runs.
 func (e *RunExecutor) WithIdentitySecret(secret []byte) *RunExecutor {
 	e.identitySecret = secret
 	return e
 }
 
-// WithRecommendationQueueFilter sets a custom filter for recommendation extraction.
-func (e *RunExecutor) WithRecommendationQueueFilter(filter func(*domain.Run) bool) *RunExecutor {
-	if filter != nil {
-		e.shouldQueueRecommendations = filter
-	}
-	return e
-}
-
-// WithResumeFrom configures the executor to resume from a checkpoint.
 func (e *RunExecutor) WithResumeFrom(checkpoint *domain.RunCheckpoint) *RunExecutor {
 	e.checkpoint = checkpoint
 	e.isResuming = true
-	// Restore state from checkpoint
 	if checkpoint.SandboxID != nil {
 		e.sandboxID = checkpoint.SandboxID
 		e.workDir = checkpoint.WorkDir
 	}
-	if checkpoint.LockID != nil {
-		e.lockID = checkpoint.LockID
-	}
 	return e
 }
 
-// WithBroadcaster sets the event broadcaster for real-time updates.
-func (e *RunExecutor) WithBroadcaster(b EventBroadcaster) *RunExecutor {
+func (e *RunExecutor) WithBroadcaster(b phases.EventBroadcaster) *RunExecutor {
 	e.broadcaster = b
 	return e
 }
 
-// WithAttachments sets image attachments resolved from storage for the initial execution.
+func (e *RunExecutor) WithWorkspaceSandboxEnsurer(ensurer phases.WorkspaceSandboxEnsurer) *RunExecutor {
+	e.workspaceSandbox = ensurer
+	return e
+}
+
 func (e *RunExecutor) WithAttachments(attachments []runner.Attachment) *RunExecutor {
 	e.attachments = attachments
 	return e
 }
 
-// WithCustomEnvironment sets caller-provided environment variables that will
-// be merged into the agent process environment. Sandbox variables take
-// precedence on key conflicts.
 func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor {
 	e.customEnv = env
 	return e
 }
 
-// Execute runs the full execution lifecycle.
-// This is the main entry point that orchestrates all steps.
-//
-// GRACEFUL DEGRADATION: Each step is wrapped with proper error handling.
-// On failure, we capture the error with full context and preserve
-// the sandbox for inspection.
-//
-// RESILIENCE:
-// - Context cancellation is propagated to all steps
-// - Timeout is enforced via context deadline
-// - Heartbeats run in background to detect stalls
-// - Checkpoints are saved at each phase transition
-// - Resumption skips already-completed phases
+// workflowIdentityMeta extracts only server-authored workflow lineage injected
+// by the workflow launcher. These values become part of the signed identity
+// token and are not accepted from an external request body.
+func workflowIdentityMeta(env map[string]string) map[string]string {
+	meta := make(map[string]string, 7)
+	for envKey, claimKey := range map[string]string{
+		workflowExecutionEnv:  "workflowExecutionId",
+		workflowNodeEnv:       "workflowNodeId",
+		workflowAttemptEnv:    "workflowAttemptId",
+		workflowExperimentEnv: "workflowExperimentId",
+		workflowVariantEnv:    "workflowVariantId",
+		workflowPromptHashEnv: "workflowPromptHash",
+		personaIDEnv:          "persona_id",
+	} {
+		if value := strings.TrimSpace(env[envKey]); value != "" {
+			meta[claimKey] = value
+		}
+	}
+	return meta
+}
+
+// WithOnRunning registers a callback fired exactly once when the run
+// transitions to RunStatusRunning. The spawn dispatcher uses this to
+// release the startup slot so the next queued run can proceed.
+func (e *RunExecutor) WithOnRunning(fn func()) *RunExecutor {
+	e.onRunning = fn
+	return e
+}
+
+// =============================================================================
+// MAIN COORDINATOR
+// =============================================================================
+
+// Execute runs the full execution lifecycle. This is the thin coordinator
+// that walks the phases package's seams in order; each phase function
+// owns its own logic. The deferred phases.Finalize is the single terminal
+// teardown seam — see the file header for the contract it enforces.
 func (e *RunExecutor) Execute(ctx context.Context) {
-	// Apply timeout to context
-	execCtx, cancel := context.WithTimeout(ctx, e.config.Timeout)
+	timeout := e.levers.Execution.DefaultTimeout
+	if e.run != nil && e.run.ResolvedConfig != nil && e.run.ResolvedConfig.Timeout > 0 {
+		timeout = e.run.ResolvedConfig.Timeout
+	}
+	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Start heartbeat goroutine
-	go e.heartbeatLoop(ctx)
+	go phases.RunHeartbeatLoop(ctx, e.heartbeatLoopInput())
 	defer e.stopHeartbeat()
+	defer e.finalize()
 
-	// Determine starting phase (for resumption)
-	startPhase := e.checkpoint.Phase
 	if e.isResuming {
-		e.emitSystemEvent(ctx, "info", fmt.Sprintf("resuming from phase: %s", startPhase))
+		e.emitSystem(ctx, "info", fmt.Sprintf("resuming from phase: %s", e.checkpoint.Phase))
 	}
 
-	// Step 1: Update to starting (skip if resuming past this phase)
+	// Step 1: Update to Starting (skip if resuming past).
 	if !e.shouldSkipPhase(domain.RunPhaseInitializing) {
 		if err := e.updateStatusToStarting(execCtx); err != nil {
 			e.failWithError(execCtx, &domain.DatabaseError{
@@ -280,1219 +320,405 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 				EntityType:  "Run",
 				EntityID:    e.run.ID.String(),
 				Cause:       err,
-				IsTransient: true, // Status updates are retryable
+				IsTransient: true,
 			})
 			return
 		}
 		e.advancePhase(execCtx, domain.RunPhaseInitializing)
 	}
-
-	// Check for cancellation between phases
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
 		return
 	}
 
-	// Step 2: Setup workspace
-	if e.run.RunMode == domain.RunModeSandboxed {
-		if e.sandboxID == nil {
-			e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
-			if err := e.setupWorkspace(execCtx); err != nil {
-				// setupWorkspace already returns domain errors
-				e.failWithError(execCtx, err)
-				e.cleanupOnFailure(execCtx)
-				return
-			}
-		} else {
-			if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) {
-				e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
-			}
-			if e.workDir == "" && e.sandbox != nil {
-				if workDir, err := e.sandbox.GetWorkspacePath(execCtx, *e.sandboxID); err == nil {
-					e.workDir = workDir
+	// Step 2: Setup workspace.
+	if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) || e.run.RunMode == domain.RunModeSandboxed {
+		e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
+	}
+	setupOut, err := phases.SetupWorkspace(execCtx, phases.SetupWorkspaceInput{
+		Deps:              e.deps(),
+		Run:               e.run,
+		Task:              e.task,
+		Profile:           e.profile,
+		Sandbox:           e.sandbox,
+		RunStateRoot:      e.runStateRoot,
+		ExistingSandboxID: e.sandboxID,
+		ExistingWorkDir:   e.workDir,
+	})
+	if err != nil {
+		e.failWithError(execCtx, err)
+		phases.CleanupOnFailure(execCtx, e.deps(), e.run)
+		return
+	}
+	if setupOut.SandboxID != nil {
+		e.sandboxID = setupOut.SandboxID
+	}
+	if setupOut.WorkDir != "" {
+		e.workDir = setupOut.WorkDir
+	}
+	if e.run.RunMode == domain.RunModeSandboxed && e.sandboxID != nil {
+		e.mu.Lock()
+		e.checkpoint = e.checkpoint.WithSandbox(*e.sandboxID, e.workDir)
+		e.mu.Unlock()
+		phases.SaveCheckpoint(execCtx, phases.SaveCheckpointInput{
+			Deps: e.deps(), Checkpoint: e.checkpoint, Mu: &e.mu, RunID: e.run.ID,
+		})
+	}
+	if e.run.ResolvedConfig != nil {
+		sessionEnv, err := PrepareCodecSessionHome(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType)
+		if err != nil {
+			e.failWithError(execCtx, err)
+			return
+		}
+		e.sessionEnv = sessionEnv
+		skillEnv, err := PrepareRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType)
+		if err != nil {
+			e.failWithError(execCtx, err)
+			return
+		}
+		if e.sessionEnv == nil && len(skillEnv) > 0 {
+			e.sessionEnv = make(map[string]string)
+		}
+		for key, value := range skillEnv {
+			e.sessionEnv[key] = value
+		}
+		if e.profile != nil && len(e.profile.SkillPack) > 0 {
+			runtimeRoot := ""
+			for _, key := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME", "GROK_HOME", "OPENCODE_CONFIG_DIR", "ANTIGRAVITY_STATE_DIR"} {
+				if value := e.sessionEnv[key]; value != "" {
+					runtimeRoot = value
+					break
 				}
 			}
-			if e.workDir == "" {
-				e.failWithError(execCtx, domain.NewValidationErrorWithHint("sandboxId", "sandbox workdir not available",
-					"ensure the sandbox is active and has a workdir"))
-				e.cleanupOnFailure(execCtx)
+			if runtimeRoot == "" {
+				e.failWithError(execCtx, fmt.Errorf("profile skill pack has no private runtime root for %s", e.run.ResolvedConfig.RunnerType))
 				return
 			}
-			e.emitSystemEvent(ctx, "info", "reusing existing sandbox")
+			var projectErr error
+			if e.run.ResolvedConfig.SkillExperimentID != "" {
+				_, projectErr = ProjectProfileSkillsAssigned(execCtx, e.runStateRoot, e.run.ID, runtimeRoot, e.run.ResolvedConfig.SkillExperimentID, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
+			} else {
+				_, projectErr = ProjectProfileSkills(execCtx, e.runStateRoot, e.run.ID, runtimeRoot, e.profile.SkillPack, e.skillSource, defaultProfileSkillTokenCeiling)
+			}
+			if projectErr != nil {
+				e.failWithError(execCtx, projectErr)
+				return
+			}
+		}
+	}
+	if err := execCtx.Err(); err != nil {
+		e.handleContextError(ctx, err)
+		return
+	}
+
+	// Step 3: Acquire runner.
+	e.advancePhase(execCtx, domain.RunPhaseRunnerAcquiring)
+	var agentRunner runner.Runner
+	if e.run.ResolvedConfig != nil && e.run.ResolvedConfig.PolicySnapshot != nil {
+		// Snapshot execution owns availability checks and cross-runner
+		// transitions so an unavailable initial runner can be recorded as a
+		// skipped candidate rather than diverted through legacy fallback state.
+		if e.runners != nil {
+			agentRunner, _ = e.runners.Get(e.run.ResolvedConfig.RunnerType)
 		}
 	} else {
-		if !e.shouldSkipPhase(domain.RunPhaseSandboxCreating) {
-			e.advancePhase(execCtx, domain.RunPhaseSandboxCreating)
-		}
-		if err := e.useInPlaceWorkspace(); err != nil {
+		agentRunner, err = phases.AcquireRunner(execCtx, phases.AcquireRunnerInput{
+			Deps: e.deps(), Run: e.run, Profile: e.profile, Runners: e.runners,
+		})
+		if err != nil {
 			e.failWithError(execCtx, err)
-			e.cleanupOnFailure(execCtx)
+			phases.CleanupOnFailure(execCtx, e.deps(), e.run)
 			return
 		}
 	}
-
-	// Check for cancellation between phases
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
 		return
 	}
 
-	// Step 3: Acquire runner
-	e.advancePhase(execCtx, domain.RunPhaseRunnerAcquiring)
-	agentRunner, err := e.acquireRunner(execCtx)
-	if err != nil {
-		// acquireRunner already returns domain errors
-		e.failWithError(execCtx, err)
-		e.cleanupOnFailure(execCtx)
-		return
-	}
+	// Step 3.5: Generate identity token (before execution so it's in env).
+	e.identityToken = phases.GenerateIdentityToken(execCtx, phases.GenerateIdentityTokenInput{
+		Deps: e.deps(), Run: e.run, Profile: e.profile, Task: e.task, Secret: e.identitySecret,
+		Meta:            workflowIdentityMeta(e.run.CustomEnv),
+		AccountScopes:   e.run.OwnerScopes,
+		RequestedScopes: e.run.RequestedScopes,
+	})
 
-	// Check for cancellation between phases
-	if err := execCtx.Err(); err != nil {
-		e.handleContextError(ctx, err)
-		return
-	}
-
-	// Step 3.5: Generate identity token (before execution so it's available in env)
-	e.generateIdentityToken(execCtx)
-
-	// Step 4: Execute agent
+	// Step 4: Execute, walking the preset chain on model-unavailable errors.
 	e.advancePhase(execCtx, domain.RunPhaseExecuting)
-	e.executeAgent(execCtx, agentRunner)
+	eventSink := e.createEventSink()
+	defer eventSink.Close()
 
-	// Check for timeout or cancellation
+	out := phases.ExecuteWithModelFallback(execCtx, phases.ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: phases.ExecuteAgentInput{
+			Deps:          e.deps(),
+			Run:           e.run,
+			Task:          e.task,
+			Profile:       e.profile,
+			Runner:        agentRunner,
+			WorkingDir:    e.workDir,
+			RunStateRoot:  e.runStateRoot,
+			RunStateWrite: e.runStateWrite,
+			SandboxID:     e.sandboxID,
+			Prompt:        e.prompt,
+			SystemPrompt:  e.systemPrompt,
+			Attachments:   e.attachments,
+			EnvVars:       e.MergedEnvVars(),
+			EventSink:     eventSink,
+			RunState:      e.runState,
+			Mu:            &e.mu,
+			ModelHealth:   e.modelHealth,
+			Runners:       e.runners,
+			OnRunning:     e.onRunning,
+		},
+	})
+	e.result = out.Result
+	e.execErr = out.ExecErr
+	if out.RunState != nil {
+		e.runState = out.RunState
+		defer func() {
+			if e.runState != nil {
+				_ = e.runState.Close()
+			}
+		}()
+	}
+
+	// Park coordination (durable park/resume): if the agent parked mid-turn,
+	// ParkRunFromAgent transitioned the run running→parked and terminated this
+	// process — which is why execution returned. The park owns the lifecycle from
+	// here, so skip result-handling and suppress finalize (do NOT tear down the
+	// sandbox the wake will re-acquire, do NOT clobber the parked status).
+	if e.detectParked(ctx) {
+		return
+	}
+
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
 		return
 	}
 
-	// Step 5: Handle result
+	// Step 5: Handle result.
 	e.advancePhase(execCtx, domain.RunPhaseCollectingResults)
-	e.handleResult(execCtx)
+	resultOut := phases.HandleResult(execCtx, phases.HandleResultInput{
+		Deps:      e.deps(),
+		Run:       e.run,
+		Result:    e.result,
+		ExecErr:   e.execErr,
+		Sandbox:   e.sandbox,
+		SandboxID: e.sandboxID,
+	})
+	e.outcome = resultOut.Outcome
 }
 
 // =============================================================================
-// PHASE MANAGEMENT & CHECKPOINTING
+// COORDINATOR HELPERS
 // =============================================================================
+
+// deps returns the bundled dependency struct phase functions consume.
+func (e *RunExecutor) deps() phases.Deps {
+	return phases.Deps{
+		Runs:              e.runs,
+		Events:            e.events,
+		Broadcaster:       e.broadcaster,
+		Checkpoints:       e.checkpoints,
+		Gate:              e.gate,
+		Levers:            e.levers,
+		WorkspaceSandbox:  e.workspaceSandbox,
+		StructuredResults: e.structuredResults,
+		Clock:             e.clock,
+	}
+}
+
+// MergedEnvVars returns custom env vars merged with sandbox + identity.
+// Sandbox and identity vars take precedence on key conflicts.
+func (e *RunExecutor) MergedEnvVars() map[string]string {
+	scope := ""
+	repoRoot := ""
+	if e.task != nil {
+		scope = e.task.ScopePath
+		repoRoot = e.task.ProjectRoot
+	}
+	env := phases.AssembleRunEnv(phases.AssembleRunEnvInput{
+		Custom:        e.customEnv,
+		RunMode:       e.run.RunMode,
+		SandboxID:     e.sandboxID,
+		WorkDir:       e.workDir,
+		RepoRoot:      repoRoot,
+		ScopePath:     scope,
+		IdentityToken: e.identityToken,
+	})
+	for key, value := range e.sessionEnv {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env[key] = value
+	}
+	return env
+}
 
 // shouldSkipPhase returns true if we're resuming and have already completed this phase.
 func (e *RunExecutor) shouldSkipPhase(phase domain.RunPhase) bool {
 	if !e.isResuming {
 		return false
 	}
-	// Compare phase ordinals
-	return phaseOrdinal(e.checkpoint.Phase) > phaseOrdinal(phase)
+	return phases.PhaseOrdinal(e.checkpoint.Phase) > phases.PhaseOrdinal(phase)
 }
 
-// phaseOrdinal returns the numeric order of a phase for comparison.
-func phaseOrdinal(phase domain.RunPhase) int {
-	switch phase {
-	case domain.RunPhaseQueued:
-		return 0
-	case domain.RunPhaseInitializing:
-		return 1
-	case domain.RunPhaseSandboxCreating:
-		return 2
-	case domain.RunPhaseRunnerAcquiring:
-		return 3
-	case domain.RunPhaseExecuting:
-		return 4
-	case domain.RunPhaseCollectingResults:
-		return 5
-	case domain.RunPhaseAwaitingReview:
-		return 6
-	case domain.RunPhaseApplying:
-		return 7
-	case domain.RunPhaseCleaningUp:
-		return 8
-	case domain.RunPhaseCompleted:
-		return 9
-	default:
-		return 0
-	}
-}
-
-// advancePhase updates the checkpoint to a new phase and persists it.
+// advancePhase delegates to phases.AdvancePhase.
 func (e *RunExecutor) advancePhase(ctx context.Context, phase domain.RunPhase) {
-	e.mu.Lock()
-	e.checkpoint = e.checkpoint.Update(phase, 0)
-	e.run.UpdateProgress(phase, domain.PhaseToProgress(phase))
-	e.mu.Unlock()
-
-	// Persist checkpoint if repository is available
-	e.saveCheckpoint(ctx)
-
-	// Update run in database
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to persist phase update: "+err.Error())
-	}
-
-	// Emit phase change event
-	e.emitSystemEvent(ctx, "info", fmt.Sprintf("phase: %s", phase.Description()))
+	phases.AdvancePhase(ctx, phases.AdvancePhaseInput{
+		Deps:       e.deps(),
+		Run:        e.run,
+		Checkpoint: e.checkpoint,
+		Mu:         &e.mu,
+		Phase:      phase,
+	})
 }
 
-// saveCheckpoint persists the current checkpoint if a repository is configured.
-func (e *RunExecutor) saveCheckpoint(ctx context.Context) {
-	if e.checkpoints == nil {
-		return
-	}
-
-	e.mu.Lock()
-	cp := *e.checkpoint // copy
-	e.mu.Unlock()
-
-	if err := e.checkpoints.Save(ctx, &cp); err != nil {
-		// Log but don't fail - checkpoint is best-effort
-		e.emitSystemEvent(ctx, "warn", "failed to save checkpoint: "+err.Error())
-	}
-}
-
-// =============================================================================
-// HEARTBEAT MANAGEMENT
-// =============================================================================
-
-// heartbeatLoop sends periodic heartbeats to indicate the run is still active.
-func (e *RunExecutor) heartbeatLoop(ctx context.Context) {
-	defer close(e.heartbeatDone)
-
-	log.Printf("[heartbeat] Starting heartbeat loop for run %s (tag=%s, interval=%v)",
-		e.run.ID, e.run.GetTag(), e.config.HeartbeatInterval)
-
-	// Send initial heartbeat immediately
-	e.sendHeartbeat(ctx)
-
-	ticker := time.NewTicker(e.config.HeartbeatInterval)
-	defer ticker.Stop()
-
-	heartbeatCount := 1
-	for {
-		select {
-		case <-e.heartbeatStop:
-			log.Printf("[heartbeat] Stopping heartbeat loop for run %s (sent %d heartbeats)",
-				e.run.ID, heartbeatCount)
-			return
-		case <-ctx.Done():
-			log.Printf("[heartbeat] Context cancelled for run %s (sent %d heartbeats)",
-				e.run.ID, heartbeatCount)
-			return
-		case <-ticker.C:
-			heartbeatCount++
-			e.sendHeartbeat(ctx)
-		}
-	}
-}
-
-// sendHeartbeat updates the run's last heartbeat time.
-func (e *RunExecutor) sendHeartbeat(ctx context.Context) {
-	e.mu.Lock()
-	now := time.Now()
-	e.run.LastHeartbeat = &now
-	e.checkpoint.LastHeartbeat = now
-	runID := e.run.ID
-	tag := e.run.GetTag()
-	e.mu.Unlock()
-
-	// Update run in database (best-effort)
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		log.Printf("[heartbeat] ERROR: Failed to update heartbeat for run %s (tag=%s): %v",
-			runID, tag, err)
-		e.emitSystemEvent(ctx, "warn", "heartbeat update failed: "+err.Error())
-	} else {
-		log.Printf("[heartbeat] DEBUG: Updated heartbeat for run %s (tag=%s) at %v",
-			runID, tag, now.Format(time.RFC3339))
-	}
-
-	// Update checkpoint in database (best-effort)
-	if e.checkpoints != nil {
-		if err := e.checkpoints.Heartbeat(ctx, e.run.ID); err != nil {
-			e.emitSystemEvent(ctx, "warn", "heartbeat checkpoint failed: "+err.Error())
-		}
-	}
-}
-
-// stopHeartbeat signals the heartbeat loop to stop.
-func (e *RunExecutor) stopHeartbeat() {
-	close(e.heartbeatStop)
-	<-e.heartbeatDone
-}
-
-// =============================================================================
-// CONTEXT ERROR HANDLING
-// =============================================================================
-
-// handleContextError handles context cancellation or timeout.
-func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
-	if err == context.DeadlineExceeded {
-		// Preserve session ID for continuation even on timeout.
-		// The runner returns a valid result with SessionID populated
-		// from stream events received before the process was killed.
-		if e.result != nil && e.result.SessionID != "" {
-			e.run.SessionID = e.result.SessionID
-		}
-
-		e.failWithError(ctx, &domain.RunnerError{
-			RunnerType:  e.getRunnerType(),
-			Operation:   "timeout",
-			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
-			IsTransient: true, // Timeout is retryable via continuation
-		})
-		e.outcome = domain.RunOutcomeTimeout
-	} else if err == context.Canceled {
-		// Graceful cancellation - not an error
-		e.emitSystemEvent(ctx, "info", "execution cancelled")
-		e.outcome = domain.RunOutcomeCancelled
-		now := time.Now()
-		e.run.Status = domain.RunStatusCancelled
-		e.run.EndedAt = &now
-		e.run.UpdatedAt = now
-		if updateErr := e.runs.Update(ctx, e.run); updateErr != nil {
-			e.emitSystemEvent(ctx, "warn", "failed to persist cancellation: "+updateErr.Error())
-		}
-	}
-
-	// Broadcast terminal status so WebSocket clients see the change
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastRunStatus(e.run)
-	}
-
-	e.cleanupOnFailure(ctx)
-}
-
-// =============================================================================
-// STEP 1: Update Status to Starting
-// =============================================================================
-
+// updateStatusToStarting flips the run to RunStatusStarting and broadcasts.
 func (e *RunExecutor) updateStatusToStarting(ctx context.Context) error {
-	now := time.Now()
+	now := e.deps().Now()
 	e.run.Status = domain.RunStatusStarting
 	e.run.StartedAt = &now
 	e.run.UpdatedAt = now
 	if err := e.runs.Update(ctx, e.run); err != nil {
 		return err
 	}
-	// Broadcast so WebSocket clients see the transition to Starting
 	if e.broadcaster != nil {
 		e.broadcaster.BroadcastRunStatus(e.run)
 	}
 	return nil
 }
 
-// =============================================================================
-// STEP 2: Setup Workspace
-// =============================================================================
-
-func (e *RunExecutor) setupWorkspace(ctx context.Context) error {
-	if e.run.RunMode == domain.RunModeSandboxed {
-		return e.createSandboxWorkspace(ctx)
-	}
-	return e.useInPlaceWorkspace()
-}
-
-func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
-	if e.sandbox == nil {
-		return domain.NewConfigMissingError("sandbox", "provider not configured", nil)
-	}
-
-	// Use idempotency key to allow safe retries of sandbox creation
-	idempotencyKey := fmt.Sprintf("sandbox:run:%s", e.run.ID.String())
-
-	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths)
-	projectRoot := e.task.ProjectRoot
-	if projectRoot != "" && !filepath.IsAbs(projectRoot) {
-		if absRoot, err := filepath.Abs(projectRoot); err == nil {
-			projectRoot = absRoot
-		}
-	}
-
-	metadata := map[string]string{
-		"agent_manager_run_id": e.run.ID.String(),
-	}
-	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
-		Name:           e.buildSandboxName(),
-		ScopePath:      e.task.ScopePath,
-		NoLock:         noLockFromSandboxConfig(e.run.SandboxConfig),
-		ProjectRoot:    projectRoot,
-		Owner:          e.run.ID.String(),
-		OwnerType:      "run",
-		IdempotencyKey: idempotencyKey,
-		Behavior:       e.run.SandboxConfig,
-		Metadata:       metadata,
+// failWithError delegates to phases.FailWithError and stores the outcome.
+func (e *RunExecutor) failWithError(ctx context.Context, err error) {
+	out := phases.FailWithError(ctx, phases.FailWithErrorInput{
+		Deps: e.deps(),
+		Run:  e.run,
+		Err:  err,
 	})
-	if err != nil {
-		if _, ok := err.(*domain.SandboxError); ok {
-			return err
-		}
-		return &domain.SandboxError{
-			Operation:   "create",
-			Cause:       err,
-			IsTransient: true,
-			CanRetry:    true,
-		}
-	}
-
-	e.sandboxID = &sbx.ID
-	e.run.SandboxID = e.sandboxID
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		return &domain.DatabaseError{
-			Operation:   "update",
-			EntityType:  "Run",
-			EntityID:    e.run.ID.String(),
-			Cause:       err,
-			IsTransient: true,
-		}
-	}
-
-	workDir, err := e.sandbox.GetWorkspacePath(ctx, sbx.ID)
-	if err != nil {
-		return &domain.SandboxError{
-			SandboxID:   e.sandboxID,
-			Operation:   "get_workspace_path",
-			Cause:       err,
-			IsTransient: true,
-			CanRetry:    true,
-		}
-	}
-	e.workDir = workDir
-
-	// Update checkpoint with sandbox information for resumption
-	e.mu.Lock()
-	e.checkpoint = e.checkpoint.WithSandbox(sbx.ID, workDir)
-	e.mu.Unlock()
-	e.saveCheckpoint(ctx)
-
-	return nil
+	e.outcome = out.Outcome
 }
 
-func (e *RunExecutor) useInPlaceWorkspace() error {
-	if e.task.ProjectRoot == "" {
-		return domain.NewValidationErrorWithHint(
-			"projectRoot",
-			"project root is required for in-place execution",
-			"Specify projectRoot in the task or use sandboxed run mode",
-		)
+// handleContextError delegates to phases.HandleContextError and stores
+// the resulting outcome.
+func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
+	sessionID := ""
+	if e.result != nil {
+		sessionID = e.result.SessionID
 	}
-	e.workDir = e.task.ProjectRoot
-	return nil
+	out := phases.HandleContextError(ctx, phases.HandleContextErrorInput{
+		Deps:      e.deps(),
+		Run:       e.run,
+		Profile:   e.profile,
+		SandboxID: e.sandboxID,
+		Sandbox:   e.sandbox,
+		SessionID: sessionID,
+		Err:       err,
+		Levers:    e.levers,
+	})
+	e.outcome = out.Outcome
 }
 
-// buildSandboxName constructs a descriptive name for the sandbox.
-// Priority: run.Tag > task.Title > scope path
-// Profile name is appended when available for context.
-func (e *RunExecutor) buildSandboxName() string {
-	// Use run tag if explicitly set
-	if tag := e.run.GetTag(); tag != "" {
-		return tag
-	}
-
-	// Get profile name for context
-	profileName := ""
-	if e.profile != nil && e.profile.Name != "" {
-		profileName = e.profile.Name
-	}
-
-	// Use task title if available
-	if e.task.Title != "" {
-		if profileName != "" {
-			return fmt.Sprintf("%s (%s)", e.task.Title, profileName)
-		}
-		return e.task.Title
-	}
-
-	// Fall back to scope path
-	scope := e.task.ScopePath
-	if scope == "" {
-		scope = "/"
-	}
-	if profileName != "" {
-		return fmt.Sprintf("%s (%s)", scope, profileName)
-	}
-	return scope
+// emitSystem is a thin wrapper around phases.EmitSystemEvent.
+func (e *RunExecutor) emitSystem(ctx context.Context, level, message string) {
+	phases.EmitSystemEvent(ctx, e.deps(), e.run.ID, level, message)
 }
 
 // =============================================================================
-// STEP 3: Acquire Runner
+// HEARTBEAT
 // =============================================================================
 
-func (e *RunExecutor) acquireRunner(ctx context.Context) (runner.Runner, error) {
-	// Get runner type from profile or resolved config
-	runnerType := e.getRunnerType()
-
-	if e.runners == nil {
-		return nil, &domain.RunnerError{
-			RunnerType:  runnerType,
-			Operation:   "acquire",
-			Cause:       domain.NewConfigMissingError("runnerRegistry", "not configured", nil),
-			IsTransient: false,
-		}
+// heartbeatLoopInput builds the input struct phases.RunHeartbeatLoop consumes.
+func (e *RunExecutor) heartbeatLoopInput() phases.HeartbeatLoopInput {
+	return phases.HeartbeatLoopInput{
+		Deps:        e.deps(),
+		Run:         e.run,
+		Checkpoint:  e.checkpoint,
+		Mu:          &e.mu,
+		Levers:      e.levers,
+		Stop:        e.heartbeatStop,
+		Done:        e.heartbeatDone,
+		Checkpoints: e.checkpoints,
 	}
-
-	r, err := e.runners.Get(runnerType)
-	if err != nil {
-		if fallback := e.tryFallbackRunner(ctx, runnerType); fallback != nil {
-			return fallback, nil
-		}
-		alternative := e.findFallbackAlternative(runnerType)
-		return nil, &domain.RunnerError{
-			RunnerType:  runnerType,
-			Operation:   "acquire",
-			Cause:       err,
-			IsTransient: false,
-			Alternative: alternative,
-		}
-	}
-
-	// Verify runner is available
-	available, msg := r.IsAvailable(ctx)
-	if !available {
-		if fallback := e.tryFallbackRunner(ctx, runnerType); fallback != nil {
-			return fallback, nil
-		}
-		alternative := e.findFallbackAlternative(runnerType)
-		return nil, &domain.RunnerError{
-			RunnerType:  runnerType,
-			Operation:   "availability_check",
-			Cause:       errors.New(msg),
-			IsTransient: true, // runner might become available
-			Alternative: alternative,
-		}
-	}
-
-	return r, nil
 }
 
-// getRunnerType returns the runner type, preferring profile but falling back to resolved config.
-func (e *RunExecutor) getRunnerType() domain.RunnerType {
-	if e.profile != nil {
-		return e.profile.RunnerType
-	}
-	if e.run != nil && e.run.ResolvedConfig != nil {
-		return e.run.ResolvedConfig.RunnerType
-	}
-	return domain.RunnerTypeClaudeCode // Default fallback
-}
-
-// findAlternativeRunner attempts to find another available runner.
-// Returns the runner type as a string, or empty string if none available.
-func (e *RunExecutor) findAlternativeRunner() string {
-	if e.runners == nil {
-		return ""
-	}
-
-	// Common runner types to check
-	alternatives := []domain.RunnerType{
-		domain.RunnerTypeClaudeCode,
-		domain.RunnerTypeCodex,
-		domain.RunnerTypeOpenCode,
-	}
-
-	currentType := e.getRunnerType()
-	for _, rt := range alternatives {
-		if rt == currentType {
-			continue // Skip the one that failed
-		}
-		if r, err := e.runners.Get(rt); err == nil {
-			if available, _ := r.IsAvailable(context.Background()); available {
-				return string(rt)
-			}
-		}
-	}
-
-	return ""
-}
-
-func (e *RunExecutor) runnerFallbackCandidates(primary domain.RunnerType) []domain.RunnerType {
-	if e.run == nil || e.run.ResolvedConfig == nil || len(e.run.ResolvedConfig.FallbackRunnerTypes) == 0 {
-		return nil
-	}
-	seen := make(map[domain.RunnerType]struct{}, len(e.run.ResolvedConfig.FallbackRunnerTypes))
-	candidates := make([]domain.RunnerType, 0, len(e.run.ResolvedConfig.FallbackRunnerTypes))
-	for _, rt := range e.run.ResolvedConfig.FallbackRunnerTypes {
-		if !rt.IsValid() || rt == primary {
-			continue
-		}
-		if _, exists := seen[rt]; exists {
-			continue
-		}
-		seen[rt] = struct{}{}
-		candidates = append(candidates, rt)
-	}
-	return candidates
-}
-
-func (e *RunExecutor) findFallbackAlternative(primary domain.RunnerType) string {
-	if e.runners == nil {
-		return ""
-	}
-	for _, rt := range e.runnerFallbackCandidates(primary) {
-		if r, err := e.runners.Get(rt); err == nil {
-			if available, _ := r.IsAvailable(context.Background()); available {
-				return string(rt)
-			}
-		}
-	}
-	return e.findAlternativeRunner()
-}
-
-func (e *RunExecutor) tryFallbackRunner(ctx context.Context, primary domain.RunnerType) runner.Runner {
-	if e.runners == nil {
-		return nil
-	}
-	for _, rt := range e.runnerFallbackCandidates(primary) {
-		r, err := e.runners.Get(rt)
-		if err != nil {
-			continue
-		}
-		available, _ := r.IsAvailable(ctx)
-		if !available {
-			continue
-		}
-		e.applyRunnerFallback(ctx, primary, rt)
-		return r
-	}
-	return nil
-}
-
-func (e *RunExecutor) applyRunnerFallback(ctx context.Context, from, to domain.RunnerType) {
-	if e.run == nil {
-		return
-	}
-	if e.run.ResolvedConfig == nil {
-		e.run.ResolvedConfig = domain.DefaultRunConfig()
-	}
-	e.run.ResolvedConfig.RunnerType = to
-	e.run.UpdatedAt = time.Now()
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to persist runner fallback: "+err.Error())
-	}
-	e.emitSystemEvent(ctx, "warn", fmt.Sprintf("runner fallback: %s -> %s", from, to))
+// stopHeartbeat signals the heartbeat loop to stop and waits for it.
+func (e *RunExecutor) stopHeartbeat() {
+	close(e.heartbeatStop)
+	<-e.heartbeatDone
 }
 
 // =============================================================================
-// STEP 4: Execute Agent
+// EVENT SINK + FINALIZE
 // =============================================================================
 
-func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
-	// Update status to running
-	e.run.Status = domain.RunStatusRunning
-	e.run.UpdatedAt = time.Now()
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to persist run start: "+err.Error())
-	}
-	// Broadcast so WebSocket clients see the transition to Running
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastRunStatus(e.run)
-	}
-
-	// Create event sink
-	eventSink := e.createEventSink()
-	defer eventSink.Close()
-
-	// Build execution request
-	req := runner.ExecuteRequest{
-		RunID:          e.run.ID,
-		Tag:            e.run.GetTag(), // Custom tag or defaults to ID
-		Profile:        e.profile,
-		ResolvedConfig: e.run.ResolvedConfig, // Merged config from profile + inline
-		Task:           e.task,
-		WorkingDir:     e.workDir,
-		Prompt:         e.prompt,
-		SystemPrompt:   e.systemPrompt,
-		EventSink:      eventSink,
-		Attachments:    e.attachments,
-		Environment:    e.MergedEnvVars(),
-	}
-
-	// Execute
-	e.result, e.execErr = r.Execute(ctx, req)
-}
-
-// sandboxEnvVars returns environment variables that enable sandbox-aware scenario
-// lifecycle commands (start, stop, restart) inside the agent's process.
-//
-// # Problem
-//
-// When an agent runs in an overlayfs sandbox, its file changes are captured in
-// the overlay's upper/ layer — the real repo is untouched. But the Vrooli CLI
-// lifecycle system (vrooli scenario restart, make start, etc.) reads from the
-// real repo by default. Without these environment variables, an agent's code
-// changes would be invisible to restarted scenarios, making it impossible to
-// test changes while sandboxed.
-//
-// # Solution
-//
-// These env vars tell the Vrooli CLI (scripts/lib/scenario/runner.sh) to
-// redirect scenario path resolution to the sandbox's merged/ directory. The
-// agent doesn't need to pass any flags — it just runs "vrooli scenario restart"
-// normally and the CLI handles the redirection transparently.
-//
-// # Design constraints
-//
-//   - One instance per slug: restarting a scenario stops any existing instance
-//     of that slug, regardless of whether it was started from a sandbox, a
-//     different sandbox, or the real repo.
-//   - Path-only change: ports, process metadata, health checks, and logs are
-//     identical whether started from the sandbox or the real repo.
-//   - Scope-narrowed: only scenarios within VROOLI_SANDBOX_SCOPE are redirected.
-//     Other scenarios use the real repo, so an agent sandboxing scenario A
-//     won't affect scenario B's restarts.
-//
-// # Variables
-//
-//   - VROOLI_SANDBOX_ID: sandbox UUID, used for logging and debugging
-//   - VROOLI_SANDBOX_MERGED: absolute path to the overlay's merged/ directory
-//   - VROOLI_SANDBOX_SCOPE: relative scope path (e.g. "scenarios/my-scenario")
-//
-// # Example flow
-//
-//  1. Agent edits main.go inside the sandbox (changes go to overlay upper/)
-//  2. Agent runs "vrooli scenario restart my-scenario"
-//  3. CLI detects VROOLI_SANDBOX_MERGED and VROOLI_SANDBOX_SCOPE in env
-//  4. CLI checks that "my-scenario" falls within the scope
-//  5. CLI resolves path to {VROOLI_SANDBOX_MERGED}/scenarios/my-scenario
-//  6. Lifecycle rebuilds and starts from the merged directory (agent's changes)
-//
-// Returns nil for non-sandboxed runs, so callers can unconditionally assign the
-// result to ExecuteRequest.Environment.
-func (e *RunExecutor) SandboxEnvVars() map[string]string {
-	// Only inject sandbox context for sandboxed runs that have completed
-	// sandbox creation (sandboxID and workDir are populated).
-	if e.run.RunMode != domain.RunModeSandboxed {
-		return nil
-	}
-	if e.sandboxID == nil || e.workDir == "" {
-		return nil
-	}
-
-	vars := map[string]string{
-		"VROOLI_SANDBOX_ID":     e.sandboxID.String(),
-		"VROOLI_SANDBOX_MERGED": e.workDir,
-	}
-	if e.task != nil && e.task.ScopePath != "" {
-		vars["VROOLI_SANDBOX_SCOPE"] = e.task.ScopePath
-	}
-	return vars
-}
-
-// IdentityEnvVars returns identity token env vars for the current run.
-// Returns nil if no identity token has been generated.
-func (e *RunExecutor) IdentityEnvVars() map[string]string {
-	if e.identityToken == "" {
-		return nil
-	}
-	return map[string]string{
-		"VROOLI_AGENT_IDENTITY_TOKEN": e.identityToken,
-	}
-}
-
-// MergedEnvVars returns custom env vars merged with sandbox and identity env vars.
-// Sandbox and identity vars take precedence on key conflicts to prevent callers from
-// overriding VROOLI_SANDBOX_MERGED or other system-managed variables.
-func (e *RunExecutor) MergedEnvVars() map[string]string {
-	sandbox := e.SandboxEnvVars()
-	identityVars := e.IdentityEnvVars()
-	if len(e.customEnv) == 0 && len(sandbox) == 0 && len(identityVars) == 0 {
-		return nil
-	}
-	merged := make(map[string]string, len(e.customEnv)+len(sandbox)+len(identityVars))
-	for k, v := range e.customEnv {
-		merged[k] = v
-	}
-	// System vars override custom vars for security.
-	for k, v := range sandbox {
-		merged[k] = v
-	}
-	for k, v := range identityVars {
-		merged[k] = v
-	}
-	if len(merged) == 0 {
-		return nil
-	}
-	return merged
-}
-
-// generateIdentityToken creates a signed identity token for this run and
-// persists its hash in the database. Non-fatal: if generation fails, the run
-// proceeds without an identity token.
-func (e *RunExecutor) generateIdentityToken(ctx context.Context) {
-	if len(e.identitySecret) == 0 {
-		return
-	}
-
-	now := time.Now()
-	profileKey := ""
-	if e.profile != nil {
-		profileKey = e.profile.ProfileKey
-	}
-	scopePath := ""
-	if e.task != nil {
-		scopePath = e.task.ScopePath
-	}
-
-	claims := &identity.Claims{
-		RunID:      e.run.ID,
-		TaskID:     e.run.TaskID,
-		ProfileKey: profileKey,
-		ScopePath:  scopePath,
-		IssuedAt:   now.Unix(),
-		ExpiresAt:  now.Add(identity.DefaultTTL).Unix(),
-		Meta:       map[string]string{},
-	}
-
-	token, err := identity.GenerateToken(claims, e.identitySecret)
-	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to generate identity token: "+err.Error())
-		return
-	}
-
-	e.identityToken = token
-	e.run.IdentityTokenHash = identity.HashToken(token)
-
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to persist identity token hash: "+err.Error())
-	}
-}
-
+// createEventSink picks the underlying sink (broadcaster, store, or no-op)
+// and wraps it in the per-run emit.Gate.
 func (e *RunExecutor) createEventSink() runner.EventSink {
-	// If we have a broadcaster, use the broadcasting sink for real-time updates
-	if e.broadcaster != nil {
-		return &broadcastingEventSink{
+	if e.gate != nil {
+		return e.gate
+	}
+	var underlying runner.EventSink
+	switch {
+	case e.events != nil && e.broadcaster != nil:
+		underlying = &broadcastingEventSink{
 			store:       e.events,
 			runID:       e.run.ID,
 			broadcaster: e.broadcaster,
 		}
-	}
-	// Fallback to just storing events
-	if e.events != nil {
-		return &eventStoreAdapter{store: e.events, runID: e.run.ID}
-	}
-	return &noOpEventSink{}
-}
-
-// =============================================================================
-// STEP 5: Handle Result
-// =============================================================================
-
-func (e *RunExecutor) handleResult(ctx context.Context) {
-	// Classify the outcome using the domain decision helper
-	e.outcome = e.classifyOutcome()
-
-	// Update run based on outcome
-	now := time.Now()
-	e.run.EndedAt = &now
-	e.run.UpdatedAt = now
-
-	switch {
-	case e.outcome.RequiresReview():
-		e.handleSuccessfulCompletion(ctx)
-	case e.outcome.IsTerminalFailure():
-		e.handleFailure(ctx)
-	case e.outcome == domain.RunOutcomeCancelled:
-		e.handleCancellation(ctx)
+	case e.events != nil:
+		underlying = &eventStoreAdapter{store: e.events, runID: e.run.ID}
 	default:
-		e.handleFailure(ctx) // Fallback
+		underlying = &noOpEventSink{}
 	}
-
-	if err := e.runs.Update(ctx, e.run); err != nil {
-		e.emitSystemEvent(ctx, "warn", "failed to persist run result: "+err.Error())
-	}
-
-	// Broadcast final status so WebSocket clients see the terminal state
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastRunStatus(e.run)
-	}
+	e.gate = emit.NewGate(underlying)
+	return e.gate
 }
 
-func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
-	var exitCode *int
-	if e.result != nil {
-		exitCode = &e.result.ExitCode
+// detectParked reports whether the run was parked mid-turn by re-reading its
+// persisted status. On a positive detection it sets e.parked so the deferred
+// finalize becomes a no-op (preserving the sandbox the wake re-acquires).
+// Best-effort: a read error returns false so normal terminal handling proceeds.
+func (e *RunExecutor) detectParked(ctx context.Context) bool {
+	if e.runs == nil {
+		return false
 	}
-
-	return domain.ClassifyRunOutcome(
-		e.execErr,
-		exitCode,
-		false, // wasCancelled - would be set by StopRun
-		false, // timedOut - would be detected during execution
-	)
-}
-
-func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
-	// Check if approval is required based on resolved config
-	requiresApproval := true // default to requiring approval for safety
-	if e.run.ResolvedConfig != nil {
-		requiresApproval = e.run.ResolvedConfig.RequiresApproval
+	cur, err := e.runs.Get(ctx, e.run.ID)
+	if err != nil || cur == nil {
+		return false
 	}
-
-	if e.result != nil {
-		e.run.Summary = e.result.Summary
-		e.run.ExitCode = &e.result.ExitCode
-		if e.result.SessionID != "" {
-			e.run.SessionID = e.result.SessionID
-		}
-	}
-
-	// In-place runs (no sandbox) skip the approval workflow entirely.
-	// The approval/review flow depends on having a sandbox to diff against
-	// and merge from. Without a sandbox, changes were applied directly to the
-	// working tree, so there is nothing to approve or reject — the run is
-	// already complete.
-	if e.run.RunMode == domain.RunModeInPlace {
-		e.run.Status = domain.RunStatusComplete
-		e.run.ApprovalState = domain.ApprovalStateNone
-		e.emitSystemEvent(ctx, "info", "in-place run completed — skipping approval (no sandbox to diff)")
-	} else {
-		autoApplied := false
-		if requiresApproval {
-			autoApplied = e.tryAutoApproval(ctx)
-			if !autoApplied {
-				e.run.Status = domain.RunStatusNeedsReview
-				e.run.ApprovalState = domain.ApprovalStatePending
-			}
-		} else {
-			// Skip approval workflow - mark as complete directly
-			e.run.Status = domain.RunStatusComplete
-			e.run.ApprovalState = domain.ApprovalStateNone
-		}
-	}
-
-	// Queue recommendation extraction for investigation runs
-	// The background RecommendationWorker will pick this up and extract recommendations
-	if e.shouldQueueRecommendations != nil && e.shouldQueueRecommendations(e.run) {
-		now := time.Now()
-		e.run.RecommendationStatus = domain.RecommendationStatusPending
-		e.run.RecommendationQueuedAt = &now
-	}
-
-	e.revokeIdentityToken()
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
-}
-
-func (e *RunExecutor) handleFailure(ctx context.Context) {
-	e.run.Status = domain.RunStatusFailed
-
-	if e.execErr != nil {
-		e.run.ErrorMsg = e.execErr.Error()
-	} else if e.result != nil && e.result.ErrorMessage != "" {
-		e.run.ErrorMsg = e.result.ErrorMessage
-		e.run.ExitCode = &e.result.ExitCode
-	}
-
-	// Emit error event so clients polling events see the failure reason
-	if e.run.ErrorMsg != "" {
-		if e.execErr != nil {
-			if domainErr, ok := e.execErr.(domain.DomainError); ok {
-				e.emitFailureEvent(ctx, domainErr)
-			} else {
-				e.emitGenericFailureEvent(ctx, e.execErr)
-			}
-		} else if e.result != nil && e.result.ErrorMessage != "" {
-			e.emitGenericFailureEvent(ctx, errors.New(e.result.ErrorMessage))
-		}
-	}
-
-	e.revokeIdentityToken()
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
-}
-
-func (e *RunExecutor) handleCancellation(ctx context.Context) {
-	e.run.Status = domain.RunStatusCancelled
-	e.revokeIdentityToken()
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCancelled, "run cancelled")
-}
-
-// revokeIdentityToken marks the run's identity token as revoked.
-func (e *RunExecutor) revokeIdentityToken() {
-	if e.run.IdentityTokenHash != "" {
-		now := time.Now()
-		e.run.IdentityTokenRevokedAt = &now
-	}
-}
-
-// =============================================================================
-// ERROR HANDLING & GRACEFUL DEGRADATION
-// =============================================================================
-
-// failWithError marks the run as failed with proper error classification.
-// This is the central failure handler that ensures:
-// - Errors are captured with full context
-// - Events are preserved (sandbox not deleted)
-// - Failure reason is machine-readable
-func (e *RunExecutor) failWithError(ctx context.Context, err error) {
-	now := time.Now()
-	e.run.Status = domain.RunStatusFailed
-	e.run.EndedAt = &now
-	e.run.UpdatedAt = now
-
-	// Classify the error for structured storage
-	if domainErr, ok := err.(domain.DomainError); ok {
-		e.run.ErrorMsg = domainErr.UserMessage()
-		// Store the error code in a structured way for filtering/alerting
-		e.emitFailureEvent(ctx, domainErr)
-	} else {
-		e.run.ErrorMsg = err.Error()
-		e.emitGenericFailureEvent(ctx, err)
-	}
-
-	// Classify the outcome based on error type
-	e.outcome = e.classifyErrorOutcome(err)
-
-	// Persist the failure state
-	if updateErr := e.runs.Update(ctx, e.run); updateErr != nil {
-		// Log but don't override - the original error is more important
-		e.emitSystemEvent(ctx, "error", "failed to persist failure state: "+updateErr.Error())
-	}
-
-	// Broadcast failure status so WebSocket clients see the change
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastRunStatus(e.run)
-	}
-}
-
-// classifyErrorOutcome maps errors to RunOutcome for categorization.
-func (e *RunExecutor) classifyErrorOutcome(err error) domain.RunOutcome {
-	switch err := err.(type) {
-	case *domain.SandboxError:
-		return domain.RunOutcomeSandboxFail
-	case *domain.ConfigError:
-		if err.Missing && err.Setting == "sandbox" {
-			return domain.RunOutcomeSandboxFail
-		}
-		return domain.RunOutcomeException
-	case *domain.RunnerError:
-		if err.Operation == "timeout" {
-			return domain.RunOutcomeTimeout
-		}
-		return domain.RunOutcomeRunnerFail
-	default:
-		return domain.RunOutcomeException
-	}
-}
-
-// emitFailureEvent captures a domain error as a structured event.
-// Uses the typed ErrorEventData for type safety.
-func (e *RunExecutor) emitFailureEvent(ctx context.Context, err domain.DomainError) {
-	if e.events == nil {
-		return
-	}
-
-	evt := domain.NewErrorEventFromDomainError(e.run.ID, err)
-	_ = e.events.Append(ctx, e.run.ID, evt)
-	// Broadcast so WebSocket clients see post-runner events in real-time
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastEvent(evt)
-	}
-}
-
-// emitGenericFailureEvent captures a non-domain error as an event.
-// Uses the typed ErrorEventData for type safety.
-func (e *RunExecutor) emitGenericFailureEvent(ctx context.Context, err error) {
-	if e.events == nil {
-		return
-	}
-
-	evt := domain.NewErrorEvent(e.run.ID, string(domain.ErrCodeInternal), err.Error(), false)
-	_ = e.events.Append(ctx, e.run.ID, evt)
-	// Broadcast so WebSocket clients see post-runner events in real-time
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastEvent(evt)
-	}
-}
-
-// emitSystemEvent captures a system-level event (log, status change).
-// Uses the typed LogEventData for type safety.
-func (e *RunExecutor) emitSystemEvent(ctx context.Context, level, message string) {
-	if e.events == nil {
-		return
-	}
-
-	evt := domain.NewLogEvent(e.run.ID, level, message)
-	_ = e.events.Append(ctx, e.run.ID, evt)
-	// Broadcast so WebSocket clients see post-runner events in real-time
-	if e.broadcaster != nil {
-		e.broadcaster.BroadcastEvent(evt)
-	}
-}
-
-// =============================================================================
-// CLEANUP OPERATIONS
-// =============================================================================
-
-// cleanupOnFailure performs cleanup when a run fails.
-// NOTE: We intentionally do NOT delete the sandbox on failure.
-// This allows inspection of partial work and debugging.
-func (e *RunExecutor) cleanupOnFailure(ctx context.Context) {
-	// Release any acquired locks
-	// (Future: implement lock cleanup when lock manager is wired up)
-
-	// Emit final status event
-	if e.shouldPreserveSandbox(domain.SandboxLifecycleRunFailed) {
-		e.emitSystemEvent(ctx, "info", "run failed - sandbox preserved for inspection")
-	}
-
-	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "failure cleanup")
-}
-
-func (e *RunExecutor) applySandboxLifecycle(ctx context.Context, event domain.SandboxLifecycleEvent, reason string) {
-	if e.sandboxFinalized {
-		return
-	}
-	if e.run.RunMode != domain.RunModeSandboxed || e.sandboxID == nil || e.sandbox == nil {
-		return
-	}
-
-	cfg := e.effectiveSandboxConfig()
-	if cfg == nil {
-		return
-	}
-
-	events := []domain.SandboxLifecycleEvent{event}
-	if event == domain.SandboxLifecycleRunCompleted || event == domain.SandboxLifecycleRunFailed || event == domain.SandboxLifecycleRunCancelled {
-		events = append(events, domain.SandboxLifecycleTerminal)
-	}
-
-	if hasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
-		if err := e.sandbox.Delete(ctx, *e.sandboxID); err != nil {
-			e.emitSystemEvent(ctx, "warn", "failed to delete sandbox: "+err.Error())
-		} else {
-			e.emitSystemEvent(ctx, "info", "sandbox deleted ("+reason+")")
-			e.sandboxFinalized = true
-		}
-		return
-	}
-
-	if hasLifecycleEvent(cfg.Lifecycle.StopOn, events) {
-		if err := e.sandbox.Stop(ctx, *e.sandboxID); err != nil {
-			e.emitSystemEvent(ctx, "warn", "failed to stop sandbox: "+err.Error())
-		} else {
-			e.emitSystemEvent(ctx, "info", "sandbox stopped ("+reason+")")
-		}
-	}
-}
-
-func (e *RunExecutor) effectiveSandboxConfig() *domain.SandboxConfig {
-	if e.run != nil && e.run.SandboxConfig != nil {
-		return e.run.SandboxConfig
-	}
-	return nil
-}
-
-func hasLifecycleEvent(events []domain.SandboxLifecycleEvent, candidates []domain.SandboxLifecycleEvent) bool {
-	for _, candidate := range candidates {
-		for _, event := range events {
-			if event == candidate {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (e *RunExecutor) shouldPreserveSandbox(event domain.SandboxLifecycleEvent) bool {
-	cfg := e.effectiveSandboxConfig()
-	if cfg == nil {
+	if cur.Status == domain.RunStatusParked {
+		e.parked = true
 		return true
 	}
-	events := []domain.SandboxLifecycleEvent{event, domain.SandboxLifecycleTerminal}
-	if hasLifecycleEvent(cfg.Lifecycle.StopOn, events) || hasLifecycleEvent(cfg.Lifecycle.DeleteOn, events) {
-		return false
-	}
-	return true
-}
-
-func (e *RunExecutor) tryAutoApproval(ctx context.Context) bool {
-	cfg := e.effectiveSandboxConfig()
-	if cfg == nil {
-		return false
-	}
-	if cfg.Acceptance.AutoReject {
-		return e.autoReject(ctx)
-	}
-	if cfg.Acceptance.AutoApprove {
-		return e.autoApprove(ctx)
-	}
-	// Auto-approve empty sandboxes (enabled by default)
-	if !cfg.Acceptance.DisableAutoApproveIfEmpty {
-		return e.autoApproveIfEmpty(ctx)
-	}
 	return false
 }
 
-func (e *RunExecutor) autoApprove(ctx context.Context) bool {
-	if e.sandbox == nil || e.sandboxID == nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve skipped: no sandbox available")
-		return false
+// finalize delegates to phases.Finalize with idempotency-flag protection. It is
+// a no-op for a parked run (the park preserves the sandbox and owns lifecycle).
+func (e *RunExecutor) finalize() {
+	if e.finalized || e.parked {
+		return
 	}
-	actor := "auto-approve"
-	_, err := e.sandbox.Approve(ctx, sandbox.ApproveRequest{
-		SandboxID: *e.sandboxID,
-		Actor:     actor,
+	e.finalized = true
+	if e.run != nil && e.run.ResolvedConfig != nil {
+		if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped session credentials: "+err.Error())
+		}
+		if err := CleanupRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
+			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped skill scope: "+err.Error())
+		}
+	}
+	phases.Finalize(phases.FinalizeInput{
+		Deps:      e.deps(),
+		Run:       e.run,
+		SandboxID: e.sandboxID,
+		Sandbox:   e.sandbox,
 	})
-	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve failed: "+err.Error())
-		return false
+	if e.onTerminal != nil && e.run != nil && e.run.Status.IsTerminal() {
+		e.onTerminal(e.run)
 	}
-	now := time.Now()
-	e.run.ApprovalState = domain.ApprovalStateApproved
-	e.run.ApprovedBy = actor
-	e.run.ApprovedAt = &now
-	e.run.Status = domain.RunStatusComplete
-	return true
-}
-
-func (e *RunExecutor) autoReject(ctx context.Context) bool {
-	if e.sandbox == nil || e.sandboxID == nil {
-		e.emitSystemEvent(ctx, "warn", "auto-reject skipped: no sandbox available")
-		return false
-	}
-	actor := "auto-reject"
-	if err := e.sandbox.Reject(ctx, *e.sandboxID, actor); err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-reject failed: "+err.Error())
-		return false
-	}
-	now := time.Now()
-	e.run.ApprovalState = domain.ApprovalStateRejected
-	e.run.ApprovedBy = actor
-	e.run.ApprovedAt = &now
-	e.run.Status = domain.RunStatusComplete
-	return true
-}
-
-func (e *RunExecutor) autoApproveIfEmpty(ctx context.Context) bool {
-	if e.sandbox == nil || e.sandboxID == nil {
-		return false
-	}
-
-	// Get diff to check if sandbox is empty
-	diff, err := e.sandbox.GetDiff(ctx, *e.sandboxID)
-	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty: failed to get diff: "+err.Error())
-		return false
-	}
-
-	// Check if no changes
-	if diff.Stats.FilesChanged > 0 {
-		return false // Has changes, requires manual review
-	}
-
-	// Empty sandbox - auto-approve
-	actor := "auto-approve-empty"
-	_, err = e.sandbox.Approve(ctx, sandbox.ApproveRequest{
-		SandboxID: *e.sandboxID,
-		Actor:     actor,
-	})
-	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty failed: "+err.Error())
-		return false
-	}
-
-	now := time.Now()
-	e.run.ApprovalState = domain.ApprovalStateApproved
-	e.run.ApprovedBy = actor
-	e.run.ApprovedAt = &now
-	e.run.Status = domain.RunStatusComplete
-
-	e.emitSystemEvent(ctx, "info", "auto-approved empty sandbox (no changes detected)")
-	return true
 }
 
 // =============================================================================
@@ -1500,29 +726,10 @@ func (e *RunExecutor) autoApproveIfEmpty(ctx context.Context) bool {
 // =============================================================================
 
 // Outcome returns the execution outcome after Execute() completes.
-func (e *RunExecutor) Outcome() domain.RunOutcome {
-	return e.outcome
-}
+func (e *RunExecutor) Outcome() domain.RunOutcome { return e.outcome }
 
 // SandboxID returns the sandbox ID if one was created.
-func (e *RunExecutor) SandboxID() *uuid.UUID {
-	return e.sandboxID
-}
+func (e *RunExecutor) SandboxID() *uuid.UUID { return e.sandboxID }
 
 // WorkDir returns the working directory used for execution.
-func (e *RunExecutor) WorkDir() string {
-	return e.workDir
-}
-
-func boolPtr(v bool) *bool { return &v }
-
-// noLockFromSandboxConfig returns the NoLock value from a SandboxConfig,
-// or nil if the config doesn't explicitly set it. Returning nil lets the
-// workspace-sandbox server apply its own DefaultNoLock setting, rather than
-// the agent-manager always overriding with false when NoLock isn't specified.
-func noLockFromSandboxConfig(cfg *domain.SandboxConfig) *bool {
-	if cfg == nil || !cfg.NoLock {
-		return nil // let workspace-sandbox server default apply
-	}
-	return boolPtr(true)
-}
+func (e *RunExecutor) WorkDir() string { return e.workDir }

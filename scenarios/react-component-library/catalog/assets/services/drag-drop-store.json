@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.drag-drop-store",
+    "name": "Drag Drop Store",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The scoped interaction store tracking the active drag, candidate drop targets, collision results, keyboard dragging state, announcements, and the drag overlay.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "Drag context is scoped to one sortable region."
+      },
+      {
+        "asset": "services.live-announcer",
+        "reason": "Keyboard dragging is unusable without spoken position feedback."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "gesture-alternative",
+    "status-announced"
+  ]
+}

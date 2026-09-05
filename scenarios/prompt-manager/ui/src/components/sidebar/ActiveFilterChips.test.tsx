@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { ActiveFilterChips } from './ActiveFilterChips'
 import { DEFAULT_FILTER_STATE } from '@/types/filterSort'
 import type { FilterState } from '@/types/filterSort'

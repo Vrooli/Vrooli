@@ -25,14 +25,14 @@ type ActionRecordCallback func(sessionID string, action *RecordedNavigationActio
 
 // RecordedNavigationAction contains action details from AI navigation.
 type RecordedNavigationAction struct {
-	ActionType  string
-	URL         string
-	PageTitle   string
-	Selector    string
-	Reasoning   string
-	StepNumber  int
-	Timestamp   string
-	Source      string // "ai"
+	ActionType string
+	URL        string
+	PageTitle  string
+	Selector   string
+	Reasoning  string
+	StepNumber int
+	Timestamp  string
+	Source     string // "ai"
 }
 
 // PlaywrightVisionNavigator implements VisionNavigator using playwright-driver.
@@ -166,7 +166,7 @@ func (n *PlaywrightVisionNavigator) CreditPolicy() CreditPolicy {
 		OperationType:    credits.OpAIVisionNavigate,
 		PerStepCharging:  true,
 		CreditsPerStep:   2,
-		BypassConditions: []BypassCondition{BypassBYOK, BypassResourceOpenrouter},
+		BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
 	}
 }
 
@@ -182,29 +182,19 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Track the navigation session
 	session := &NavigationSession{
-		NavigationID:  navigationID,
-		SessionID:     req.SessionID,
-		UserID:        req.UserID,
-		Model:         req.Model,
-		StartedAt:     time.Now(),
-		Status:        StatusNavigating,
-		IsBYOK:        req.APIKey != "",
-		NavigatorType: NavigatorPlaywright,
+		NavigationID:         navigationID,
+		SessionID:            req.SessionID,
+		UserID:               req.UserID,
+		Model:                req.Model,
+		StartedAt:            time.Now(),
+		Status:               StatusNavigating,
+		CredentialProvenance: CredentialProvenanceNone,
+		NavigatorType:        NavigatorPlaywright,
 	}
 
 	n.mu.Lock()
 	n.activeNavigations[navigationID] = session
 	n.mu.Unlock()
-
-	// Resolve API key
-	apiKey := req.APIKey
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENROUTER_API_KEY")
-	}
-	if apiKey == "" {
-		n.removeNavigation(navigationID)
-		return nil, errors.New("API key required: provide api_key in request or set OPENROUTER_API_KEY environment variable")
-	}
 
 	// Set defaults
 	maxSteps := req.MaxSteps
@@ -219,7 +209,6 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 	driverReq := map[string]interface{}{
 		"prompt":       req.Prompt,
 		"model":        req.Model,
-		"api_key":      apiKey,
 		"max_steps":    maxSteps,
 		"callback_url": req.CallbackURL,
 	}
@@ -353,7 +342,7 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 				PromptTokens:     event.TokensUsed.PromptTokens,
 				CompletionTokens: event.TokensUsed.CompletionTokens,
 			},
-			IsBYOK: session.IsBYOK,
+			IsBYOK: session.CredentialProvenance == CredentialProvenanceAuthority,
 		})
 		if err != nil {
 			n.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")

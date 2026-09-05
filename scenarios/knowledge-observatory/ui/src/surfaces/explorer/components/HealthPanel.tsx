@@ -185,7 +185,7 @@ export function HealthPanel({
         </div>
       ) : (
         <div className="ko-panel p-4 ko-text-sm ko-muted">
-          No documentation issues detected. Everything is aligned with the standard layout.
+          No documentation issues detected. Everything is aligned with the documentation contract.
         </div>
       )}
 

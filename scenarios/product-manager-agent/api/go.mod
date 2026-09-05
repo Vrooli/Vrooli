@@ -1,17 +1,43 @@
 module product-manager-api
 
-go 1.21
+go 1.25.0
 
 require (
 	github.com/lib/pq v1.10.9
-	github.com/redis/go-redis/v9 v9.13.0
+	github.com/redis/go-redis/v9 v9.20.1
 	github.com/vrooli/api-core v0.0.0
 )
 
 require (
+	connectrpc.com/connect v1.19.2 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/envkit-go v0.0.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
+
+require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/google/uuid v1.6.0
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go

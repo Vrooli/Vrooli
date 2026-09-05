@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	anypb "google.golang.org/protobuf/types/known/anypb"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -23,35 +24,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// EventEnvelope wraps every event on the vrooli-events bus.
-//
-// The event_type field uses a structured format:
-//
-//	{scenario}.{domain}.{action}.{version}
-//
-// Examples: "agent-manager.run.completed.v1", "lpbs.download.created.v1"
-//
-// @usage Event bus publish/subscribe, SSE streaming
+// Canonical, typed audit observation contract. Event-specific facts are packed
+// in data; routing, attribution and correlation are never hidden in metadata.
 type EventEnvelope struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique identifier for this event.
-	// @format uuid
-	EventId string `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Scenario that produced this event.
-	SourceScenario string `protobuf:"bytes,2,opt,name=source_scenario,json=sourceScenario,proto3" json:"source_scenario,omitempty"`
-	// Scenario this event is addressed to (empty for broadcast).
-	TargetScenario string `protobuf:"bytes,3,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
-	// Structured event type: {scenario}.{domain}.{action}.{version}.
-	EventType string `protobuf:"bytes,4,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
-	// When the event was created.
-	Timestamp *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// Correlation ID for tracing related events across scenarios.
-	// @format uuid
-	CorrelationId string `protobuf:"bytes,6,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
-	// Type-specific event payload.
-	Payload *anypb.Any `protobuf:"bytes,7,opt,name=payload,proto3" json:"payload,omitempty"`
-	// Arbitrary key-value metadata for routing, filtering, or debugging.
-	Metadata      map[string]string `protobuf:"bytes,8,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Source        *EventSource           `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	Target        *EventTarget           `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Correlation   *EventCorrelation      `protobuf:"bytes,6,opt,name=correlation,proto3" json:"correlation,omitempty"`
+	Attribution   *EventAttribution      `protobuf:"bytes,7,opt,name=attribution,proto3" json:"attribution,omitempty"`
+	Data          *anypb.Any             `protobuf:"bytes,8,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -93,20 +77,6 @@ func (x *EventEnvelope) GetEventId() string {
 	return ""
 }
 
-func (x *EventEnvelope) GetSourceScenario() string {
-	if x != nil {
-		return x.SourceScenario
-	}
-	return ""
-}
-
-func (x *EventEnvelope) GetTargetScenario() string {
-	if x != nil {
-		return x.TargetScenario
-	}
-	return ""
-}
-
 func (x *EventEnvelope) GetEventType() string {
 	if x != nil {
 		return x.EventType
@@ -114,30 +84,384 @@ func (x *EventEnvelope) GetEventType() string {
 	return ""
 }
 
-func (x *EventEnvelope) GetTimestamp() *timestamppb.Timestamp {
+func (x *EventEnvelope) GetOccurredAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Timestamp
+		return x.OccurredAt
 	}
 	return nil
 }
 
-func (x *EventEnvelope) GetCorrelationId() string {
+func (x *EventEnvelope) GetSource() *EventSource {
 	if x != nil {
-		return x.CorrelationId
+		return x.Source
+	}
+	return nil
+}
+
+func (x *EventEnvelope) GetTarget() *EventTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *EventEnvelope) GetCorrelation() *EventCorrelation {
+	if x != nil {
+		return x.Correlation
+	}
+	return nil
+}
+
+func (x *EventEnvelope) GetAttribution() *EventAttribution {
+	if x != nil {
+		return x.Attribution
+	}
+	return nil
+}
+
+func (x *EventEnvelope) GetData() *anypb.Any {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type EventSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	ActorKind     string                 `protobuf:"bytes,2,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventSource) Reset() {
+	*x = EventSource{}
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventSource) ProtoMessage() {}
+
+func (x *EventSource) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventSource.ProtoReflect.Descriptor instead.
+func (*EventSource) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *EventSource) GetScenario() string {
+	if x != nil {
+		return x.Scenario
 	}
 	return ""
 }
 
-func (x *EventEnvelope) GetPayload() *anypb.Any {
+func (x *EventSource) GetActorKind() string {
 	if x != nil {
-		return x.Payload
+		return x.ActorKind
 	}
-	return nil
+	return ""
 }
 
-func (x *EventEnvelope) GetMetadata() map[string]string {
+type EventTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Operation     string                 `protobuf:"bytes,2,opt,name=operation,proto3" json:"operation,omitempty"`
+	Protocol      string                 `protobuf:"bytes,3,opt,name=protocol,proto3" json:"protocol,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventTarget) Reset() {
+	*x = EventTarget{}
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventTarget) ProtoMessage() {}
+
+func (x *EventTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[2]
 	if x != nil {
-		return x.Metadata
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventTarget.ProtoReflect.Descriptor instead.
+func (*EventTarget) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *EventTarget) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *EventTarget) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *EventTarget) GetProtocol() string {
+	if x != nil {
+		return x.Protocol
+	}
+	return ""
+}
+
+type EventCorrelation struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	RequestId           string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	AgentRunId          string                 `protobuf:"bytes,2,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	TaskId              string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	WorkflowExecutionId string                 `protobuf:"bytes,4,opt,name=workflow_execution_id,json=workflowExecutionId,proto3" json:"workflow_execution_id,omitempty"`
+	WorkflowNodeId      string                 `protobuf:"bytes,5,opt,name=workflow_node_id,json=workflowNodeId,proto3" json:"workflow_node_id,omitempty"`
+	Attempt             uint32                 `protobuf:"varint,6,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *EventCorrelation) Reset() {
+	*x = EventCorrelation{}
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventCorrelation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventCorrelation) ProtoMessage() {}
+
+func (x *EventCorrelation) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventCorrelation.ProtoReflect.Descriptor instead.
+func (*EventCorrelation) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EventCorrelation) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *EventCorrelation) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
+func (x *EventCorrelation) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *EventCorrelation) GetWorkflowExecutionId() string {
+	if x != nil {
+		return x.WorkflowExecutionId
+	}
+	return ""
+}
+
+func (x *EventCorrelation) GetWorkflowNodeId() string {
+	if x != nil {
+		return x.WorkflowNodeId
+	}
+	return ""
+}
+
+func (x *EventCorrelation) GetAttempt() uint32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+type EventAttribution struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SubjectKind   string                 `protobuf:"bytes,1,opt,name=subject_kind,json=subjectKind,proto3" json:"subject_kind,omitempty"`
+	SubjectId     string                 `protobuf:"bytes,2,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	Verified      bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventAttribution) Reset() {
+	*x = EventAttribution{}
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventAttribution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventAttribution) ProtoMessage() {}
+
+func (x *EventAttribution) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventAttribution.ProtoReflect.Descriptor instead.
+func (*EventAttribution) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *EventAttribution) GetSubjectKind() string {
+	if x != nil {
+		return x.SubjectKind
+	}
+	return ""
+}
+
+func (x *EventAttribution) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *EventAttribution) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+type ReceiptData struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Outcome        string                 `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	StatusCode     uint32                 `protobuf:"varint,2,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	DurationMs     uint64                 `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	PolicyVersion  string                 `protobuf:"bytes,4,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Projection     *structpb.Struct       `protobuf:"bytes,6,opt,name=projection,proto3" json:"projection,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReceiptData) Reset() {
+	*x = ReceiptData{}
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReceiptData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReceiptData) ProtoMessage() {}
+
+func (x *ReceiptData) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_events_v1_domain_envelope_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReceiptData.ProtoReflect.Descriptor instead.
+func (*ReceiptData) Descriptor() ([]byte, []int) {
+	return file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ReceiptData) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *ReceiptData) GetStatusCode() uint32 {
+	if x != nil {
+		return x.StatusCode
+	}
+	return 0
+}
+
+func (x *ReceiptData) GetDurationMs() uint64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *ReceiptData) GetPolicyVersion() string {
+	if x != nil {
+		return x.PolicyVersion
+	}
+	return ""
+}
+
+func (x *ReceiptData) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *ReceiptData) GetProjection() *structpb.Struct {
+	if x != nil {
+		return x.Projection
 	}
 	return nil
 }
@@ -146,20 +470,51 @@ var File_vrooli_events_v1_domain_envelope_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_envelope_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-events/v1/domain/envelope.proto\x12\x10vrooli_events.v1\x1a\x19google/protobuf/any.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb4\x03\n" +
+	"&vrooli-events/v1/domain/envelope.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x03\n" +
 	"\rEventEnvelope\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12'\n" +
-	"\x0fsource_scenario\x18\x02 \x01(\tR\x0esourceScenario\x12'\n" +
-	"\x0ftarget_scenario\x18\x03 \x01(\tR\x0etargetScenario\x12\x1d\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
-	"event_type\x18\x04 \x01(\tR\teventType\x128\n" +
-	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12%\n" +
-	"\x0ecorrelation_id\x18\x06 \x01(\tR\rcorrelationId\x12.\n" +
-	"\apayload\x18\a \x01(\v2\x14.google.protobuf.AnyR\apayload\x12I\n" +
-	"\bmetadata\x18\b \x03(\v2-.vrooli_events.v1.EventEnvelope.MetadataEntryR\bmetadata\x1a;\n" +
-	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
+	"event_type\x18\x02 \x01(\tR\teventType\x12;\n" +
+	"\voccurred_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x12C\n" +
+	"\x06source\x18\x04 \x01(\v2+.vrooli.vrooli_events.v1.domain.EventSourceR\x06source\x12C\n" +
+	"\x06target\x18\x05 \x01(\v2+.vrooli.vrooli_events.v1.domain.EventTargetR\x06target\x12R\n" +
+	"\vcorrelation\x18\x06 \x01(\v20.vrooli.vrooli_events.v1.domain.EventCorrelationR\vcorrelation\x12R\n" +
+	"\vattribution\x18\a \x01(\v20.vrooli.vrooli_events.v1.domain.EventAttributionR\vattribution\x12(\n" +
+	"\x04data\x18\b \x01(\v2\x14.google.protobuf.AnyR\x04data\"H\n" +
+	"\vEventSource\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1d\n" +
+	"\n" +
+	"actor_kind\x18\x02 \x01(\tR\tactorKind\"c\n" +
+	"\vEventTarget\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1c\n" +
+	"\toperation\x18\x02 \x01(\tR\toperation\x12\x1a\n" +
+	"\bprotocol\x18\x03 \x01(\tR\bprotocol\"\xe4\x01\n" +
+	"\x10EventCorrelation\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12 \n" +
+	"\fagent_run_id\x18\x02 \x01(\tR\n" +
+	"agentRunId\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\x122\n" +
+	"\x15workflow_execution_id\x18\x04 \x01(\tR\x13workflowExecutionId\x12(\n" +
+	"\x10workflow_node_id\x18\x05 \x01(\tR\x0eworkflowNodeId\x12\x18\n" +
+	"\aattempt\x18\x06 \x01(\rR\aattempt\"p\n" +
+	"\x10EventAttribution\x12!\n" +
+	"\fsubject_kind\x18\x01 \x01(\tR\vsubjectKind\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x02 \x01(\tR\tsubjectId\x12\x1a\n" +
+	"\bverified\x18\x03 \x01(\bR\bverified\"\xf2\x01\n" +
+	"\vReceiptData\x12\x18\n" +
+	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12\x1f\n" +
+	"\vstatus_code\x18\x02 \x01(\rR\n" +
+	"statusCode\x12\x1f\n" +
+	"\vduration_ms\x18\x03 \x01(\x04R\n" +
+	"durationMs\x12%\n" +
+	"\x0epolicy_version\x18\x04 \x01(\tR\rpolicyVersion\x12'\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x127\n" +
+	"\n" +
+	"projection\x18\x06 \x01(\v2\x17.google.protobuf.StructR\n" +
+	"projectionBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
 
 var (
 	file_vrooli_events_v1_domain_envelope_proto_rawDescOnce sync.Once
@@ -173,22 +528,31 @@ func file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP() []byte {
 	return file_vrooli_events_v1_domain_envelope_proto_rawDescData
 }
 
-var file_vrooli_events_v1_domain_envelope_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_vrooli_events_v1_domain_envelope_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_vrooli_events_v1_domain_envelope_proto_goTypes = []any{
-	(*EventEnvelope)(nil),         // 0: vrooli_events.v1.EventEnvelope
-	nil,                           // 1: vrooli_events.v1.EventEnvelope.MetadataEntry
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
-	(*anypb.Any)(nil),             // 3: google.protobuf.Any
+	(*EventEnvelope)(nil),         // 0: vrooli.vrooli_events.v1.domain.EventEnvelope
+	(*EventSource)(nil),           // 1: vrooli.vrooli_events.v1.domain.EventSource
+	(*EventTarget)(nil),           // 2: vrooli.vrooli_events.v1.domain.EventTarget
+	(*EventCorrelation)(nil),      // 3: vrooli.vrooli_events.v1.domain.EventCorrelation
+	(*EventAttribution)(nil),      // 4: vrooli.vrooli_events.v1.domain.EventAttribution
+	(*ReceiptData)(nil),           // 5: vrooli.vrooli_events.v1.domain.ReceiptData
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*anypb.Any)(nil),             // 7: google.protobuf.Any
+	(*structpb.Struct)(nil),       // 8: google.protobuf.Struct
 }
 var file_vrooli_events_v1_domain_envelope_proto_depIdxs = []int32{
-	2, // 0: vrooli_events.v1.EventEnvelope.timestamp:type_name -> google.protobuf.Timestamp
-	3, // 1: vrooli_events.v1.EventEnvelope.payload:type_name -> google.protobuf.Any
-	1, // 2: vrooli_events.v1.EventEnvelope.metadata:type_name -> vrooli_events.v1.EventEnvelope.MetadataEntry
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 0: vrooli.vrooli_events.v1.domain.EventEnvelope.occurred_at:type_name -> google.protobuf.Timestamp
+	1, // 1: vrooli.vrooli_events.v1.domain.EventEnvelope.source:type_name -> vrooli.vrooli_events.v1.domain.EventSource
+	2, // 2: vrooli.vrooli_events.v1.domain.EventEnvelope.target:type_name -> vrooli.vrooli_events.v1.domain.EventTarget
+	3, // 3: vrooli.vrooli_events.v1.domain.EventEnvelope.correlation:type_name -> vrooli.vrooli_events.v1.domain.EventCorrelation
+	4, // 4: vrooli.vrooli_events.v1.domain.EventEnvelope.attribution:type_name -> vrooli.vrooli_events.v1.domain.EventAttribution
+	7, // 5: vrooli.vrooli_events.v1.domain.EventEnvelope.data:type_name -> google.protobuf.Any
+	8, // 6: vrooli.vrooli_events.v1.domain.ReceiptData.projection:type_name -> google.protobuf.Struct
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_events_v1_domain_envelope_proto_init() }
@@ -202,7 +566,7 @@ func file_vrooli_events_v1_domain_envelope_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_events_v1_domain_envelope_proto_rawDesc), len(file_vrooli_events_v1_domain_envelope_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

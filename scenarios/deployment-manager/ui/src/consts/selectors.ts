@@ -84,7 +84,7 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -273,7 +273,7 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   layout: {
     rootContainer: 'app-root',
     navDashboard: 'nav-dashboard',
@@ -317,6 +317,17 @@ const literalSelectors: LiteralSelectorTree = {
   },
   health: {
     status: 'health-status',
+  },
+  evidence: {
+    heading: 'evidence-heading',
+    commitInput: 'evidence-commit-input',
+    reviewIntro: 'evidence-review-intro',
+    gateStatus: 'evidence-gate-status',
+    producerRecording: 'evidence-producer-recording',
+  },
+  releases: {
+    heading: 'releases-heading',
+    recordsIntro: 'releases-records-intro',
   },
 };
 

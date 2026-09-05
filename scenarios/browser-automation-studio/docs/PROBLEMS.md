@@ -2,6 +2,26 @@
 
 This file tracks unresolved issues, technical debt, and planned improvements for the browser-automation-studio scenario.
 
+## Capture (proto-first, partial)
+
+### CaptureService is the first Connect-RPC domain (2026-05-18)
+
+`api/handlers/capture/` mounts `CaptureService.Capture` next to the existing chi REST router. This is the **canonical example** other BAS domains should follow when migrating off REST. Capture's wire shape lives at `packages/proto/schemas/browser-automation-studio/v1/capture/capture.proto`; CLI surface at `cli/capture/`; prompt-manager actions under `scenarios/prompt-manager/store/actions/packs/core/bas.*/`.
+
+**Remaining REST domains** stay on chi and are migrated per-domain at the author's discretion. There is no big-bang migration plan; the side-by-side mount lets capture establish the pattern and others adopt it incrementally.
+
+### Capture executor fan-out (RESOLVED 2026-05-18)
+
+The Connect handler now produces real artifacts end-to-end:
+
+1. `ExecutionParameters.artifact_config` defaults to "full" profile, so the executor collects screenshots/console/network at every step automatically — no per-type DAG nodes needed for the single-location case.
+2. The capture handler waits for execution completion (substrate fix: `ExecuteAdhocWorkflowAPIWithOptions` now honors `WaitForCompletion` the same way `ExecuteWorkflowAPIWithOptions` already did), then delegates artifact write-out to `WorkflowService.ExportToFolder` via the `Executor` seam.
+3. `harvestArtifacts` walks the resolved output directory and reports real paths + sizes + metadata. `screenshots/step-NN-*.png`, `console-logs.md`, `network-activity.md` map to `CAPTURE_TYPE_SCREENSHOT`, `CAPTURE_TYPE_CONSOLE_LOGS`, `CAPTURE_TYPE_NETWORK`.
+
+Tests: `handlers/capture/service_test.go::TestCapture_HarvestArtifacts_ReadsExporterOutput` and `…_MarksUnsupportedTypesUnavailable`.
+
+**Remaining gap:** `CAPTURE_TYPE_VIDEO`, `CAPTURE_TYPE_DOM`, and `CAPTURE_TYPE_PERFORMANCE` are not produced by the executor's folder export today. Requests for those types receive a single artifact with `metadata.unavailable=true` and `metadata.reason="executor folder export does not produce this artifact type yet"`. Wiring video/DOM/performance into the folder export is a separate, smaller substrate fix in `services/workflow/export_folder.go` plus the corresponding playwright-driver collection paths.
+
 ## API Refactoring (In Progress)
 
 ### Completed
@@ -337,3 +357,36 @@ export DISPLAY=:99
 ### Action Items
 - Document whether MinIO and OpenRouter are required for core functionality
 - If required, add to setup instructions; if optional, document graceful degradation
+
+## Workflow Health Execution Evidence Gap (2026-07-27)
+
+Workflow Health run `2d7cec0e-ff8a-448a-ae85-7642eb15adac` completed with
+25/57 cases passing and 32 failing. The execution and replay cases timed out
+waiting for `execution-viewer`. Driver logs identified the root cause: the UI
+issued `POST /api/v1/workflows/{id}/execute`, a removed REST route that returned
+404, instead of the typed Connect `WorkflowsService.ExecuteWorkflow` contract.
+The execution store now uses the generated Connect client.
+
+The failed-run artifact format still retains only `latest.json` and
+`timeline.json`; it does not retain a browser screenshot, console log, or
+network trace. Preserve richer browser evidence for future Workflow Health
+failures when its artifact contract is extended. The exact historical run
+artifacts are under
+`coverage/workflow-health/runs/2d7cec0e-ff8a-448a-ae85-7642eb15adac/`.
+
+
+## Agent reuse validation boundary — 2026-09-04
+
+W0: the operator explicitly requested usage/improvement implementation; the PRD
+now records the agent-reuse target. W1: the corresponding AGENT-REUSE requirement
+links the owner and program regression tests. W2: targeted and live evidence is
+retained in `.vrooli/program-runtime/tests/validation-evidence.json`; broad Test
+Genie evidence still has provider failures. W3: owner APIs, persistence/programs,
+and registered skills implement the target; no estimated speed floor is asserted.
+
+Provider follow-up: Scenario QA `knw-1788561851141947801` records the missing UI
+surface/command-execution discrepancies and the diagnostic localhost:2026 failure.
+Device requirement-evidence follow-up: `knw-1788561878575592107` records the 21
+older complete claims without requirements-sync snapshots. The new AGENT-REUSE
+requirement remains in_progress until its provider evidence can be earned.
+Do not lower acceptance gates or erase existing evidence to make these checks pass.

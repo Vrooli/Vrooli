@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "understand-a-system-wide-refusal",
+    "title": "Find out why everything is refusing",
+    "purpose": "The failure journey. The verification authority is unreachable, so act-as fails closed everywhere. The operator must reach a correct diagnosis quickly rather than concluding the product is broken."
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "stale",
+      "intent": "Notice the view is labelled stale rather than silently showing old data as current.",
+      "via": "Arrive during a dependency outage."
+    },
+    {
+      "page": "settings",
+      "state": "degraded",
+      "intent": "Identify which dependency is down and understand that refusing is deliberate, not a bug.",
+      "via": "Follow the dashboard's dependency notice."
+    },
+    {
+      "page": "journal",
+      "state": "default",
+      "intent": "Confirm the refusals were recorded with their reason, so nothing was silently permitted.",
+      "via": "Open the journal."
+    }
+  ]
+}

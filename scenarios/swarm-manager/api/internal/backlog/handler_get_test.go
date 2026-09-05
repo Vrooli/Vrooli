@@ -1,14 +1,49 @@
 package backlog
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/gorilla/mux"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
+
+func TestList_EmitsExplicitFreshStalenessVerdict(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "fresh-item", Title: "Fresh Item", Status: StatusBacklog, Priority: 1,
+		Created: "2026-08-30T00:00:00Z", Updated: "2026-08-30T00:00:00Z",
+	})
+
+	w := httptest.NewRecorder()
+	h.List(w, httptest.NewRequest("GET", "/api/v1/backlog", nil))
+	testutil.AssertStatusOK(t, w)
+
+	var response map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	items, ok := response["items"].([]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("items = %#v", response["items"])
+	}
+	item, ok := items[0].(map[string]any)
+	if !ok {
+		t.Fatalf("item = %#v", items[0])
+	}
+	stale, ok := item["stale"]
+	if !ok {
+		t.Fatalf("fresh item omitted an explicit stale verdict: %s", w.Body.String())
+	}
+	if stale != false {
+		t.Fatalf("fresh item stale = %#v, want false", stale)
+	}
+}
 
 func TestList_Empty(t *testing.T) {
 	h, _ := setupTestHandler(t)
@@ -274,6 +309,59 @@ func TestList_FilterBySpawnedFrom(t *testing.T) {
 	}
 	if resp.Items[0].Name != "spawned-a" {
 		t.Errorf("expected 'spawned-a', got %q", resp.Items[0].Name)
+	}
+}
+
+func TestList_FilterByVerifiedActorID(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	verified := identity.Provenance{Actor: identity.TypeAgent, VerificationStatus: "verified", ProfileKey: "team/member", RunID: "run-1"}
+	other := identity.Provenance{Actor: identity.TypeAgent, VerificationStatus: "verified", ProfileKey: "team/other", RunID: "run-2"}
+	createTestItem(t, rootDir, KindExecute, BacklogItem{Name: "member-item", Title: "Member item", Status: StatusBacklog, Priority: 1, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z", CreatedBy: &verified})
+	createTestItem(t, rootDir, KindExecute, BacklogItem{Name: "other-item", Title: "Other item", Status: StatusBacklog, Priority: 1, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z", CreatedBy: &other})
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog?actor_id=team/member", nil)
+	w := httptest.NewRecorder()
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 || resp.Items[0].Name != "member-item" {
+		t.Fatalf("actor filter returned %#v", resp.Items)
+	}
+}
+
+func TestList_FilterByPlanRef(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindExecute, BacklogItem{
+		Name: "plan-a", Title: "Plan A", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		PlanRef: &PlanRef{
+			Provider: PlanRefProviderPlanManager,
+			PlanID:   "plan-123",
+			Slug:     "canonical-plan",
+			Role:     PlanRefRoleExecutionSpec,
+		},
+	})
+	createTestItem(t, rootDir, KindExecute, BacklogItem{
+		Name: "unlinked", Title: "Unlinked", Status: StatusBacklog, Priority: 5,
+		Tags: []string{}, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+	})
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog?has_plan_ref=true&plan_ref=canonical-plan", nil)
+	w := httptest.NewRecorder()
+
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "plan-a" {
+		t.Errorf("expected 'plan-a', got %q", resp.Items[0].Name)
+	}
+	if resp.Items[0].PlanRef == nil || resp.Items[0].PlanRef.Slug != "canonical-plan" {
+		t.Fatalf("expected plan_ref canonical-plan, got %#v", resp.Items[0].PlanRef)
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 // Broker manages WebSocket client connections and broadcasts graph events.
-// Adapted from ecosystem-manager's websocket.Manager pattern.
+// Adapted from swarm-manager's websocket.Manager pattern.
 type Broker struct {
 	clients   map[*websocket.Conn]bool
 	mu        sync.RWMutex
@@ -98,7 +98,9 @@ func (b *Broker) broadcastToAll(msg WSMessage) {
 		if err := conn.WriteJSON(msg); err != nil {
 			slog.Warn("write error, removing client", "error", err)
 			b.RemoveClient(conn)
-			conn.Close()
+			if closeErr := conn.Close(); closeErr != nil {
+				slog.Debug("graph: close client conn failed", "err", closeErr)
+			}
 		}
 	}
 }

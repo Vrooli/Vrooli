@@ -1,0 +1,242 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.do-task",
+  "version": "2",
+  "purpose": "Dispatch one explicitly selected workflow, validated candidate, or bounded navigation; return evidence for outcome-linked capture.",
+  "inputs": {
+    "task": {
+      "type": "string",
+      "required": true,
+      "description": "The browser task in plain words; also the navigation prompt."
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Scenario under test; used to key site-note entries."
+    },
+    "session": {
+      "type": "string",
+      "description": "Existing browser session id; without it the navigation fallback is skipped."
+    },
+    "max_steps": {
+      "type": "integer",
+      "default": 10,
+      "description": "Navigation step budget, 1..25."
+    },
+    "model": {
+      "type": "string",
+      "description": "Vision model identifier, required when `session` is given (navigation fallback). Never defaulted: callers must not hardcode a model slug."
+    },
+    "workflow_id": {
+      "type": "string",
+      "description": "Exact selected workflow UUID"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Exact selected workflow version"
+    },
+    "flow": {
+      "type": "object",
+      "description": "Candidate V2 definition"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Candidate destination project"
+    },
+    "name": {
+      "type": "string",
+      "description": "Candidate name"
+    },
+    "repair_workflow_id": {
+      "type": "string",
+      "description": "Existing workflow to repair"
+    },
+    "expected_version": {
+      "type": "integer",
+      "description": "Repair baseline version"
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Typed execution parameters"
+    }
+  },
+  "assumptions": [
+    "Caller selects an authorized exact workflow version or supplies an authorized candidate/session",
+    "Caller captures the result once through vrooli-memory learning record after completion"
+  ],
+  "invariants": [
+    "One execution route, no speculative candidate execution or retry",
+    "Search only returns candidates; selection is explicit",
+    "No raw screenshots or workflow bodies in the envelope",
+    "No task-record append: caller captures outcome-linked learning once"
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/workflows/get",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/execute",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/executions/get",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "browser-automation-studio/executions/timeline",
+      "effect": "read",
+      "optional": true,
+      "note": "Called with rows=\"entries\"; unreadable timeline degrades the class to step_failed."
+    },
+    {
+      "id": "browser-automation-studio/executions/screenshots",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "browser-automation-studio/workflows/validate",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/execute-adhoc",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/create",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/workflows/update",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/vision-navigation/start",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/vision-navigation/status",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "browser-automation-studio/workflows/list",
+      "effect": "read"
+    },
+    {
+      "id": "workflow-health/workflows/search",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "search-hub/query/query",
+      "effect": "read",
+      "optional": true,
+      "note": "Called with rows=\"ranked\" (the response has four repeated fields)."
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "result": "Selected child result signals",
+      "candidates": "At most five selection candidates",
+      "capture_required": "Caller writes one completed attempt",
+      "reused_workflow": "Whether the selected route used an existing workflow"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "memory_unavailable",
+        "no_candidates",
+        "selector_not_found",
+        "timeout",
+        "auth_required",
+        "step_failed",
+        "navigation_pending",
+        "navigation_failed",
+        "budget_exhausted",
+        "session_not_found",
+        "model_required",
+        "selection_required",
+        "invalid_response",
+        "validation_failed",
+        "version_conflict",
+        "execution_pending",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "execution:<id> per attempt, navigation:<id> when the fallback ran"
+  },
+  "budget": {
+    "wall_ms": 900000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 100,
+    "async": true,
+    "async_reason": "wall_ms exceeds the 120 s synchronous bound: submit with --async and wait once."
+  },
+  "fixtures": [
+    {
+      "id": "missing-task",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "missing-version",
+      "inputs": {
+        "task": "inspect",
+        "workflow_id": "test"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "ambiguous-route",
+      "inputs": {
+        "task": "inspect",
+        "workflow_id": "test",
+        "version": 1,
+        "session": "test"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio"
+}

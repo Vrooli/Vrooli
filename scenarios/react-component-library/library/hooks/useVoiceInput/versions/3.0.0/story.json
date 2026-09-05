@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Enabled",
+        "path": "enabled",
+        "required": true
+      },
+      {
+        "default": "always-on",
+        "kind": "enum",
+        "label": "Mode",
+        "options": [
+          "always-on",
+          "timeout"
+        ],
+        "path": "mode",
+        "required": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": [
+      {
+        "adapter": "voice-input",
+        "key": "voiceInput",
+        "options": [
+          "idle",
+          "recording",
+          "permission-denied"
+        ]
+      }
+    ]
+  },
+  "kind": "hook",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "enabled": true,
+        "mode": "always-on"
+      },
+      "environment": {
+        "voiceInput": "idle"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "idle",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Idle shared-core binding",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "enabled": true,
+        "mode": "always-on"
+      },
+      "environment": {
+        "voiceInput": "recording"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "recording",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Recording after fixture action",
+      "role": "axis",
+      "axis": "mode",
+      "covers": {
+        "mode": [
+          "always-on",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "args": {
+        "enabled": true,
+        "mode": "timeout"
+      },
+      "environment": {
+        "voiceInput": "permission-denied"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "permission-denied",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned",
+      "name": "Permission denied",
+      "role": "boundary"
+    }
+  ],
+  "title": "useVoiceInput 3.0"
+}

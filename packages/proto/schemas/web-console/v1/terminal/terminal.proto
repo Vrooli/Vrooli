@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.terminal;
+
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/terminal;terminal_v1";
+
+// =============================================================================
+// TERMINAL DOMAIN — structured screen reads, programmatic input, idle gates.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain terminal
+// @stability beta
+//
+// Programmatic interaction with a PTY-backed session. The legacy xterm.js
+// path (multipart upload + WebSocket bridge) stays on raw HTTP routes
+// registered separately; this service is the parallel surface that lets
+// agents and the CLI drive a session without rendering ANSI.
+//
+// Three RPCs:
+//   GetScreen  — decoded cell grid + cursor + alt-buffer flag
+//   SendInput  — text / named-key / raw-byte input via a single typed seam
+//   WaitIdle   — block until no PTY output for a quiet window (or timeout)
+//
+// Consumed by:
+//   - API: handlers/terminal/connect_handler.go
+//   - CLI: cli/domains/terminal/register.go
+// =============================================================================
+
+service TerminalService {
+  rpc GetScreen(GetScreenRequest) returns (GetScreenResponse);
+  rpc SendInput(SendInputRequest) returns (SendInputResponse);
+  rpc WaitIdle(WaitIdleRequest) returns (WaitIdleResponse);
+}
+
+// -----------------------------------------------------------------------------
+// GetScreen
+// -----------------------------------------------------------------------------
+
+message GetScreenRequest {
+  string session_id = 1;
+  // When true, scrollback lines (oldest first) are prepended to the
+  // visible rows in the response's plain_text field. The cell grid
+  // (lines/cursor) always reflects only the visible screen.
+  bool include_scrollback = 2;
+}
+
+// SGR is the subset of style state the renderer reproduces on replay.
+// Color encoding matches terminal.SGR:
+//   0           default
+//   1..16       ANSI 16
+//   17..272     256-color (palette index = value-17)
+//   1<<24|rgb   24-bit truecolor (R<<16|G<<8|B in low 24 bits)
+message SGR {
+  uint32 fg = 1;
+  uint32 bg = 2;
+  bool bold = 3;
+  bool italic = 4;
+  bool underline = 5;
+  bool inverse = 6;
+  bool faint = 7;
+}
+
+message Cell {
+  // Rune codepoint (UTF-32). Blank cells use 0x20 (space).
+  int32 rune = 1;
+  SGR sgr = 2;
+}
+
+message Line {
+  repeated Cell cells = 1;
+}
+
+message Cursor {
+  // Zero-based; (0,0) is the top-left.
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message GetScreenResponse {
+  // Cells: outer is rows (top to bottom), inner is cols (left to right).
+  // Always Rows entries; each row has Cols entries.
+  repeated Line lines = 1;
+  Cursor cursor = 2;
+  int32 cols = 3;
+  int32 rows = 4;
+  bool in_alt_buffer = 5;
+  int32 scrollback_lines = 6;
+  // plain_text is the active screen rendered as UTF-8 with trailing
+  // blanks stripped from each row, rows separated by '\n'. When
+  // GetScreenRequest.include_scrollback is true, scrollback lines are
+  // prepended (oldest first). Convenience field for agents and CLI
+  // consumers that don't want to reassemble cells themselves.
+  string plain_text = 7;
+}
+
+// -----------------------------------------------------------------------------
+// SendInput
+// -----------------------------------------------------------------------------
+
+// Key is one named keypress. Modifiers may combine (Ctrl+Alt+...). The
+// server-side KeyMap (per-backend, per-terminal) resolves Key + Modifiers
+// to bytes.
+message Key {
+  string name = 1;
+  bool ctrl = 2;
+  bool alt = 3;
+  bool shift = 4;
+}
+
+message KeySequence {
+  repeated Key keys = 1;
+}
+
+message SendInputRequest {
+  string session_id = 1;
+  oneof body {
+    // Plain text to type. Newlines in the string are forwarded as-is
+    // (LF, 0x0a) — callers wanting carriage-return on its own should
+    // use a Key sequence with name="Enter".
+    string text = 2;
+    // Named keys / chord combinations resolved via the active KeyMap.
+    KeySequence keys = 3;
+    // Raw bytes delivered verbatim. Reserved for tooling that needs
+    // byte-level control (e.g. test fixtures, ANSI replay).
+    bytes raw = 4;
+  }
+  // Optional metadata for diagnostics. "paste" requests use the PTY
+  // bracketed-paste path when supported.
+  string source = 5; // free-form, e.g. "agent:claude-driver", "cli", "test"
+  bool is_paste = 6;
+}
+
+message SendInputResponse {
+  // Number of input bytes the server actually delivered to the PTY.
+  // Useful for senders that need to track flow control.
+  int32 bytes_written = 1;
+}
+
+// -----------------------------------------------------------------------------
+// WaitIdle
+// -----------------------------------------------------------------------------
+
+message WaitIdleRequest {
+  string session_id = 1;
+  // quiet_window: how long the PTY must produce no output to be
+  // considered idle. Defaults to 200ms on the server when unset.
+  google.protobuf.Duration quiet_window = 2;
+  // timeout: maximum total time to wait before returning a timeout
+  // status. Defaults to 5s on the server when unset.
+  google.protobuf.Duration timeout = 3;
+}
+
+message WaitIdleResponse {
+  // Reason describes how the wait ended.
+  //   IDLE      — quiet_window elapsed with no output (success).
+  //   TIMEOUT   — timeout elapsed before reaching quiet_window.
+  //   EXITED    — the underlying PTY exited while waiting.
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+    REASON_IDLE = 1;
+    REASON_TIMEOUT = 2;
+    REASON_EXITED = 3;
+  }
+  Reason reason = 1;
+  google.protobuf.Duration waited = 2;
+}

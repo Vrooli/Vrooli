@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
@@ -19,6 +22,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -44,12 +48,13 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
-		ID:         uuid.New(),
-		WorkflowID: workflowID,
-		Status:     database.ExecutionStatusPending,
-		StartedAt:  now,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          uuid.New(),
+		WorkflowID:  workflowID,
+		Status:      database.ExecutionStatusPending,
+		TriggerType: "manual",
+		StartedAt:   now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
@@ -66,7 +71,7 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		UpdatedAt:   autocontracts.TimeToTimestamp(now),
 	})
 
-	s.startExecutionRunner(getResp.Workflow, exec.ID, parameters)
+	s.startExecutionRunner(ctx, getResp.Workflow, exec.ID, parameters)
 	return exec, nil
 }
 
@@ -85,6 +90,38 @@ type ExecuteOptions struct {
 	RequiresTrace bool
 	// RequiresHAR forces HAR capture capability on the execution plan metadata.
 	RequiresHAR bool
+	// RequiresPerfTrace forces CDP performance-trace + web-vitals capture
+	// capability on the execution plan metadata. The driver attaches a
+	// PerformanceTracer to the session and emits performance.json +
+	// performance.web-vitals.json into the execution's artifact root.
+	RequiresPerfTrace bool
+	// RequiresAccessibility forces a CDP accessibility-tree snapshot on the
+	// execution plan metadata. The driver walks the AX tree after the page
+	// settles and writes the normalized accessibility.json
+	// (bas-accessibility-snapshot/v1) into the execution's artifact root.
+	RequiresAccessibility bool
+	// AppTarget attaches the workflow to a target-owned Electron
+	// renderer. ValidationContext must be provided with it; the context binds
+	// the workflow to its artifact, target, and leased test storage.
+	AppTarget         *autodriver.AppTarget
+	ValidationContext *autodriver.ValidationContext
+}
+
+// requiredVideoArtifactError turns the requires-video request flag into an
+// evidence contract. Capture being enabled is not sufficient: callers asking
+// for video need a durable artifact they can attach to a journey or release
+// record, and a missing artifact must make the execution fail closed.
+func requiredVideoArtifactError(required bool, videos []ExecutionVideoArtifact, lookupErr error) error {
+	if !required {
+		return nil
+	}
+	if lookupErr != nil {
+		return fmt.Errorf("required video artifact could not be verified: %w", lookupErr)
+	}
+	if len(videos) == 0 {
+		return errors.New("required video artifact was not produced")
+	}
+	return nil
 }
 
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
@@ -109,8 +146,43 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 
 	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	if err := validateProjectRoot(projectRoot); err != nil {
+		return nil, err
+	}
+	if projectRoot == "" {
+		projectRoot, err = executionProjectRoot(ctx, s.repo, workflowID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve workflow project root: %w", err)
+		}
+	}
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
+	}
+
+	// Settle the opening navigation on the target scenario's declared surfaces
+	// before any authored step runs. Without this a run proceeds as soon as the
+	// document has loaded, so the first click can land on a page whose content
+	// has not arrived — which surfaces later as a selector timeout somewhere
+	// unrelated. Falls back to generic navigation, and says why.
+	settle := readiness.Settle(ctx, s.readinessResolver, workflowSummary.FlowDefinition)
+	if s.log != nil {
+		entry := s.log.WithFields(logrus.Fields{
+			"workflow_id":        workflowID,
+			"readiness_strategy": settle.Strategy,
+		})
+		if settle.Strategy == readiness.StrategyDeclaredSurface {
+			entry.WithFields(logrus.Fields{
+				"profile_version":   settle.ProfileVersion,
+				"route":             settle.Route,
+				"required_surfaces": settle.RequiredSurfaceIDs,
+			}).Info("Execution settles on declared readiness surfaces")
+		} else if settle.FallbackReason != "" {
+			// Info, not Debug: a silent fallback is indistinguishable from a
+			// fast pass, which is the failure mode this whole contract exists
+			// to remove. Say which rung was used and why.
+			entry.WithField("fallback_reason", settle.FallbackReason).
+				Info("Execution uses generic navigation readiness")
+		}
 	}
 
 	// Resolve session profile if provided for authenticated execution
@@ -149,12 +221,13 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
-		ID:         uuid.New(),
-		WorkflowID: workflowID,
-		Status:     database.ExecutionStatusPending,
-		StartedAt:  now,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          uuid.New(),
+		WorkflowID:  workflowID,
+		Status:      database.ExecutionStatusPending,
+		TriggerType: "api",
+		StartedAt:   now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
 		return nil, err
@@ -175,7 +248,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -226,6 +299,44 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
+// executionProjectCatalog is the narrow persistence seam needed to locate the
+// selector manifest root for a persisted workflow execution.
+type executionProjectCatalog interface {
+	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.WorkflowIndex, error)
+	GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
+}
+
+// executionProjectRoot returns the persisted workflow's project directory.
+// Explicit execution parameters still win; this is the safe default for
+// ordinary project-backed workflow runs, including CLI executions.
+func executionProjectRoot(ctx context.Context, catalog executionProjectCatalog, workflowID uuid.UUID) (string, error) {
+	index, err := catalog.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return "", err
+	}
+	if index == nil || index.ProjectID == nil {
+		return "", nil
+	}
+	project, err := catalog.GetProject(ctx, *index.ProjectID)
+	if err != nil {
+		return "", err
+	}
+	if project == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(project.FolderPath), nil
+}
+
+// validateProjectRoot rejects relative project_root values. A relative path
+// would be resolved against the BAS server's working directory rather than the
+// caller's, silently selecting the wrong selector manifest and scenario root.
+func validateProjectRoot(projectRoot string) error {
+	if projectRoot != "" && !filepath.IsAbs(projectRoot) {
+		return fmt.Errorf("execution parameter project_root must be an absolute path, got %q (relative paths resolve against the BAS server working directory, not the caller's)", projectRoot)
+	}
+	return nil
+}
+
 // executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, session profile IDs, and execution defaults from ExecutionParameters.
 // Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError.
 // projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
@@ -257,11 +368,11 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		}
 	}
 
-	// Extract artifact collection config if provided
-	if p.ArtifactConfig != nil {
-		settings := config.ResolveArtifactSettings(p.ArtifactConfig)
-		artifactCfg = &settings
-	}
+	// Resolve artifact collection config, applying the operator-configured global
+	// default profile (BAS_ARTIFACT_DEFAULT_PROFILE, "standard" by default) when
+	// no per-execution config is supplied. An explicit per-execution profile wins.
+	settings := config.ResolveArtifactSettingsWithDefault(p.ArtifactConfig, config.Load().ArtifactLimits.DefaultProfile)
+	artifactCfg = &settings
 
 	// Extract browser profile for anti-detection and human-like behavior if provided
 	if p.BrowserProfile != nil {
@@ -322,21 +433,52 @@ func navigateWaitEventToString(e basactions.NavigateWaitEvent) string {
 	}
 }
 
-func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
+func (s *WorkflowService) startExecutionRunner(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, parameters map[string]any) {
 	// Normalize legacy flat parameters into the namespaced model.
 	// All legacy parameters go to @store/ namespace for backward compatibility.
 	// Use default artifact config (full profile) and no projectRoot (legacy callers don't use subflows).
-	s.startExecutionRunnerWithNamespaces(workflow, executionID, parameters, nil, nil, nil, "")
+	s.startExecutionRunnerWithNamespaces(parent, workflow, executionID, parameters, nil, nil, nil, "")
 }
 
-func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", false, nil, "", nil)
+func (s *WorkflowService) startExecutionRunnerWithNamespaces(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
+	s.startExecutionRunnerWithOptions(parent, workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", false, nil, "", nil)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (s *WorkflowService) startExecutionRunnerWithOptions(parent context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
+	if coredb.IsTestMode(parent) {
+		browserProfile = withTestModeBrowserHeader(browserProfile)
+	}
+	// Async work must outlive the request, but its routed-isolation marker is a
+	// correctness boundary. Rebuild a background context with that one durable
+	// execution attribute instead of retaining the request cancellation chain.
+	ctx, cancel := context.WithCancel(detachedExecutionContext(parent))
 	s.storeExecutionCancel(executionID, cancel)
 	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
+}
+
+// withTestModeBrowserHeader clones the optional browser profile before adding
+// the header that makes in-page API calls participate in the same routed test
+// lease as the initiating ExecuteAdhoc request. Browser UI fetches are a
+// separate HTTP hop, so retaining the marker only on the server context is not
+// sufficient isolation.
+func withTestModeBrowserHeader(profile *sessionprofilepersistence.BrowserProfile) *sessionprofilepersistence.BrowserProfile {
+	if profile == nil {
+		return &sessionprofilepersistence.BrowserProfile{ExtraHeaders: map[string]string{"X-Vrooli-Test-Mode": "1"}}
+	}
+	cloned := *profile
+	cloned.ExtraHeaders = make(map[string]string, len(profile.ExtraHeaders)+1)
+	for key, value := range profile.ExtraHeaders {
+		cloned.ExtraHeaders[key] = value
+	}
+	cloned.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
+	return &cloned
+}
+
+func detachedExecutionContext(parent context.Context) context.Context {
+	// Preserve the durable execution metadata (including routed test isolation)
+	// while explicitly dropping the request's cancellation and deadline. The
+	// caller owns this context's lifecycle through storeExecutionCancel.
+	return context.WithoutCancel(parent)
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
@@ -350,7 +492,19 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.Workf
 func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
 	defer s.cancelExecutionByID(executionID)
 
-	persistenceCtx := context.Background()
+	// Execution cancellation must stop the runner, but it must not cancel the
+	// persistence context used to publish the terminal status and evidence.
+	// Otherwise StopExecution leaves the durable record stuck in `running` and
+	// callers cannot distinguish a cancelled execution from a hung one.
+	persistenceCtx := context.WithoutCancel(ctx)
+	if coredb.IsTestMode(persistenceCtx) {
+		// Development routing installs an empty, lease-owned database. Seed the
+		// minimum scenario fixture inside that pool so browser validations exercise
+		// the same project surface as normal startup without touching primary data.
+		if _, err := s.EnsureSeedWorkflow(persistenceCtx); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", executionID).Warn("Failed to prepare routed test fixture")
+		}
+	}
 	execIndex, err := s.repo.GetExecution(persistenceCtx, executionID)
 	if err != nil {
 		return
@@ -371,15 +525,28 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	engineName := autoengine.FromEnv().Resolve("")
 	eventSink := s.newEventSink()
 
-	// Configure artifact collection settings on the recorder before execution starts.
-	// This allows per-execution customization of what artifacts are collected.
+	// Resolve the artifact config for this execution. Legacy callers
+	// (ExecuteWorkflow with flat params) pass nil; fall back to the operator-
+	// configured default profile rather than the "collect everything" default.
+	if artifactCfg == nil {
+		settings := config.ResolveArtifactSettingsWithDefault(nil, config.Load().ArtifactLimits.DefaultProfile)
+		artifactCfg = &settings
+	}
+
+	// Configure artifact collection settings scoped to this execution before it
+	// starts. Per-execution scoping prevents concurrent executions from leaking
+	// each other's profile through the shared recorder.
 	if s.artifactRecorder != nil {
-		s.artifactRecorder.SetArtifactConfig(artifactCfg)
+		s.artifactRecorder.SetArtifactConfigForExecution(executionID, artifactCfg)
+		defer s.artifactRecorder.ForgetExecution(executionID)
 	}
 
 	compileCtx := ctx
 	if projectRoot != "" {
 		compileCtx = autocompiler.WithProjectRoot(ctx, projectRoot)
+	}
+	if opts != nil && opts.AppTarget != nil {
+		compileCtx = autocompiler.WithDeferScenarioURLResolution(compileCtx, true)
 	}
 
 	plan, _, err := autoexecutor.BuildContractsPlan(compileCtx, executionID, workflow)
@@ -412,6 +579,34 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		}
 		plan.Metadata["requiresHar"] = true
 	}
+	if opts != nil && opts.RequiresPerfTrace {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresPerformanceTrace"] = true
+	}
+	if opts != nil && opts.RequiresAccessibility {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresAccessibility"] = true
+	}
+	if opts != nil && opts.AppTarget != nil {
+		if opts.ValidationContext == nil || strings.TrimSpace(opts.ValidationContext.IsolationLeaseID) == "" {
+			execIndex.Status = database.ExecutionStatusFailed
+			execIndex.ErrorMessage = "Electron target requires a lease-bound validation context"
+			now := time.Now().UTC()
+			execIndex.CompletedAt = &now
+			execIndex.UpdatedAt = now
+			_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, &execIndex.ErrorMessage, execIndex.CompletedAt, execIndex.UpdatedAt)
+			return
+		}
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["app_target"] = opts.AppTarget
+		plan.Metadata["validation_context"] = opts.ValidationContext
+	}
 
 	// Inject frame streaming config into plan metadata if enabled.
 	// The SimpleExecutor reads this from plan.Metadata["frameStreaming"] to configure
@@ -435,13 +630,16 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 
 	req := autoexecutor.Request{
-		Plan:                plan,
-		EngineName:          engineName,
-		EngineFactory:       s.engineFactory,
-		Recorder:            s.artifactRecorder,
-		EventSink:           eventSink,
-		HeartbeatInterval:   2 * time.Second,
-		ReuseMode:           autoengine.ReuseModeReuse,
+		Plan:              plan,
+		EngineName:        engineName,
+		EngineFactory:     s.engineFactory,
+		Recorder:          s.artifactRecorder,
+		EventSink:         eventSink,
+		HeartbeatInterval: 2 * time.Second,
+		// Leave this unset so the executor resolves the workflow's declared
+		// sessionReuseMode metadata. The historical explicit "reuse" value
+		// silently overrode an adhoc caller's isolation policy.
+		ReuseMode:           "",
 		WorkflowResolver:    s,
 		PlanCompiler:        s.planCompiler,
 		MaxSubflowDepth:     5,
@@ -500,6 +698,10 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		executor = autoexecutor.NewSimpleExecutor(nil)
 	}
 	runErr := executor.Execute(ctx, req)
+	if runErr == nil && opts != nil && opts.RequiresVideo {
+		videos, artifactErr := s.GetExecutionVideoArtifacts(persistenceCtx, executionID)
+		runErr = requiredVideoArtifactError(true, videos, artifactErr)
+	}
 
 	status := database.ExecutionStatusCompleted
 	errMsg := ""

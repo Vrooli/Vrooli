@@ -1,50 +1,41 @@
 {
-  "description": "Settings endpoints (GET/PUT /api/v1/settings, POST /api/v1/settings/reset) in api/internal/handlers/settings.go. Trigger threshold endpoints (PUT /api/v1/investigations/triggers/{id}/threshold). Default thresholds: CPU 70/90, Memory 80/95, Disk 85/95, TCP 500/1000.",
-  "module_id": "MOD-P0-005",
-  "prd_ref": "system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-002"
-      ],
-      "description": "System must provide API endpoints to configure warning and critical thresholds for all monitored metrics",
       "id": "REQ-P0-005",
-      "prd_ref": "system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints",
-      "status": "implemented",
       "title": "Configurable Alert Thresholds",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "description": "System must provide API endpoints to configure warning and critical thresholds for all monitored metrics",
       "validation": [
         {
-          "notes": "Test threshold CRUD operations",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test threshold CRUD operations"
         },
         {
-          "notes": "Verify threshold persistence",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Verify threshold persistence"
         },
         {
-          "notes": "API response \u003c 500ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "API response \u003c 500ms"
         },
         {
-          "notes": "Thresholds configurable via UI",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Thresholds configurable via UI"
         }
       ]
     }
-  ],
-  "title": "Configurable warning/critical thresholds (via API settings endpoints)"
+  ]
 }

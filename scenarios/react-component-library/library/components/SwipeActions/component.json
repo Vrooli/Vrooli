@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "patterns.swipe-actions",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.1.0",
+    "1.1.1",
+    "1.2.0",
+    "1.2.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.1.0",
+    "1.1.1",
+    "1.2.0",
+    "1.2.1",
+    "1.3.0",
+    "1.2.2"
+  ],
+  "latest": "1.3.1",
+  "libraryId": "react-component-library:SwipeActions"
+}

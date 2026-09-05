@@ -100,6 +100,17 @@ func TestDeployStage_CanSkip(t *testing.T) {
 	}
 }
 
+func TestDeployStageRejectsDevelopmentLocalBundle(t *testing.T) {
+	stage := NewDeployStage()
+	result := stage.Execute(context.Background(), &StageInput{
+		Config:                 &Config{DeployConfig: &DeployConfig{AppKey: "demo"}},
+		ResourceDeploymentPlan: &ResourceDeploymentPlan{ArtifactTrustMode: "development-local", Promotable: false},
+	})
+	if result.Status != StatusFailed || !strings.Contains(result.Error, "non-promotable") {
+		t.Fatalf("result = %#v, want development-local promotion refusal", result)
+	}
+}
+
 func TestDeployStage_Execute_NilConfig(t *testing.T) {
 	stage := NewDeployStage(WithDeployTimeProvider(newMockTP()))
 
@@ -116,8 +127,9 @@ func TestDeployStage_Execute_NilConfig(t *testing.T) {
 }
 
 func TestDeployStage_Execute_MissingServiceToken(t *testing.T) {
-	// Ensure env var is unset
+	// Ensure env var is unset and secrets file lookup cannot find a value.
 	t.Setenv("LPBS_SERVICE_SECRET", "")
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_ROOT", t.TempDir())
 	origWD, err := os.Getwd()
 	if err != nil {
@@ -220,7 +232,7 @@ func TestDeployStage_Execute_SavedTarget(t *testing.T) {
 
 	// Set up target repo
 	targetDir := t.TempDir()
-	repo := deploy.NewTargetRepository(targetDir)
+	repo := deploy.NewTargetRepository(filepath.Join(targetDir, "deploy-targets.json"))
 	_ = repo.Save("production", &deploy.DeployTarget{
 		Label:         "Production",
 		ScenarioName:  "lpbs",
@@ -351,7 +363,7 @@ func TestDeployStage_Execute_TargetNotFound(t *testing.T) {
 	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
 
 	targetDir := t.TempDir()
-	repo := deploy.NewTargetRepository(targetDir)
+	repo := deploy.NewTargetRepository(filepath.Join(targetDir, "deploy-targets.json"))
 
 	stage := NewDeployStage(
 		WithDeployTargetRepo(repo),

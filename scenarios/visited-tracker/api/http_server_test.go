@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -75,7 +74,7 @@ func TestCorsMiddleware(t *testing.T) {
 
 func TestHealthHandler(t *testing.T) {
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-health-handler-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-health-handler-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -88,12 +87,7 @@ func TestHealthHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test health handler
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -144,7 +138,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestHealthEndpointComponents(t *testing.T) {
 	// Test when data directory doesn't exist
-	tempDir, err := ioutil.TempDir("", "visited-tracker-health-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-health-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -268,7 +262,7 @@ func TestMainFunctionComponents(t *testing.T) {
 	}
 
 	// Test that os.Chdir works (this is what main() does)
-	tempDir, err := ioutil.TempDir("", "visited-tracker-main-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-main-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

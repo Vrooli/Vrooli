@@ -43,7 +43,7 @@ func main() {
 
 	// Check for smoke test mode
 	if !*smokeTest {
-		fmt.Println("Test fixture - run with --smoke-test flag")
+		_, _ = fmt.Fprintln(os.Stdout, "Test fixture - run with --smoke-test flag")
 		os.Exit(0)
 	}
 
@@ -53,7 +53,7 @@ func main() {
 func runSmokeTestFixture(delay int, failInit, failReady, failResult, noExit, crash, uploadSuccess, uploadError bool, telemetryPath string) {
 	// Check environment
 	if os.Getenv("SMOKE_TEST") != "1" {
-		fmt.Println("Warning: SMOKE_TEST environment variable not set to 1")
+		_, _ = fmt.Fprintln(os.Stdout, "Warning: SMOKE_TEST environment variable not set to 1")
 	}
 
 	// Check for environment-based delay override
@@ -69,50 +69,50 @@ func runSmokeTestFixture(delay int, failInit, failReady, failResult, noExit, cra
 	}
 
 	if failInit {
-		fmt.Println("Failing during initialization...")
+		_, _ = fmt.Fprintln(os.Stdout, "Failing during initialization...")
 		os.Exit(1)
 	}
 
-	fmt.Println("SMOKE_TEST_INIT=started")
+	_, _ = fmt.Fprintln(os.Stdout, "SMOKE_TEST_INIT=started")
 
 	if crash {
-		fmt.Println("About to crash...")
+		_, _ = fmt.Fprintln(os.Stdout, "About to crash...")
 		panic("simulated crash for testing")
 	}
 
 	if failReady {
-		fmt.Println("Failing before ready...")
+		_, _ = fmt.Fprintln(os.Stdout, "Failing before ready...")
 		os.Exit(1)
 	}
 
-	fmt.Println("SMOKE_TEST_READY=true")
+	_, _ = fmt.Fprintln(os.Stdout, "SMOKE_TEST_READY=true")
 
 	if telemetryPath != "" {
-		fmt.Printf("[Desktop App] Telemetry initialized at %s\n", telemetryPath)
+		_, _ = fmt.Fprintf(os.Stdout, "[Desktop App] Telemetry initialized at %s\n", telemetryPath)
 	}
 
 	if delay > 0 {
-		fmt.Printf("Delaying for %d ms...\n", delay)
+		_, _ = fmt.Fprintf(os.Stdout, "Delaying for %d ms...\n", delay)
 		time.Sleep(time.Duration(delay) * time.Millisecond)
 	}
 
 	if failResult {
-		fmt.Println("Failing before result marker...")
+		_, _ = fmt.Fprintln(os.Stdout, "Failing before result marker...")
 		os.Exit(0)
 	}
 
 	if uploadSuccess {
-		fmt.Println("SMOKE_TEST_UPLOAD=ok")
+		_, _ = fmt.Fprintln(os.Stdout, "SMOKE_TEST_UPLOAD=ok")
 	}
 	if uploadError {
-		fmt.Println("SMOKE_TEST_UPLOAD=error")
+		_, _ = fmt.Fprintln(os.Stdout, "SMOKE_TEST_UPLOAD=error")
 	}
 
-	fmt.Println("SMOKE_TEST_RESULT=passed")
+	_, _ = fmt.Fprintln(os.Stdout, "SMOKE_TEST_RESULT=passed")
 
 	if !noExit {
-		fmt.Println("SMOKE_TEST_EXIT=clean")
+		_, _ = fmt.Fprintln(os.Stdout, "SMOKE_TEST_EXIT=clean")
 	}
 
-	fmt.Println("Test fixture completed successfully")
+	_, _ = fmt.Fprintln(os.Stdout, "Test fixture completed successfully")
 }

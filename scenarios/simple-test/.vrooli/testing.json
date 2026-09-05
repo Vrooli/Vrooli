@@ -1,17 +1,99 @@
 {
-  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for simple-test",
-    "generated_from": "test/phases/test-unit.sh",
     "last_updated": "2025-11-06T23:58:54-05:00"
   },
   "version": "1.0.0",
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "duplication_line_debt": 0,
+        "baseline_duplication_line_debt": 1,
+        "ratchet": true
+      }
+    }
+  },
   "unit": {
-    "languages": {
-      "node": {}
-    },
     "options": {
       "verbose": false
+    },
+    "policy_profile": {
+      "version": "2.0.0",
+      "template": {
+        "id": "react-vite",
+        "scenario_class": "custom"
+      },
+      "required_roles": [
+        {
+          "role": "node",
+          "policy_class": "node_vitest",
+          "match": {
+            "surface_id": "node",
+            "kind": "ui",
+            "path": ".",
+            "language": "typescript",
+            "framework": "vite"
+          }
+        }
+      ],
+      "policy_classes": {
+        "node_vitest": {
+          "language": "typescript",
+          "framework": "vitest",
+          "package_manager": "npm",
+          "coverage": {
+            "minimum_percent": 85,
+            "mode": "both",
+            "provider": "v8",
+            "reporters": [
+              "text",
+              "json-summary",
+              "json"
+            ]
+          },
+          "projection": {
+            "required_scripts": [
+              "test",
+              "test:coverage"
+            ],
+            "settings": {
+              "environment": "jsdom",
+              "setup_files": [
+                "./src/test-setup.ts"
+              ],
+              "coverage_provider": "v8"
+            }
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "react-vitest",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        }
+      },
+      "customization": {
+        "mode": "monotonic",
+        "waivers": []
+      },
+      "runner_profiles": {
+        "default": {
+          "cpu_weight": 1,
+          "memory_bytes": 536870912,
+          "max_workers": 1,
+          "timeout_seconds": 600,
+          "no_output_timeout_seconds": 60,
+          "sharding": "none",
+          "network": "allow",
+          "filesystem": "workspace"
+        }
+      }
     }
   }
 }

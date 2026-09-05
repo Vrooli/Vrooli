@@ -1,0 +1,1027 @@
+<title>Sediment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F3F4F0;
+  --surface:     #FBFBF8;
+  --surface-2:   #EAEDE6;
+  --ink:         #171E1B;
+  --ink-soft:    #3D4843;
+  --ink-mute:    #6B766F;
+  --rule:        #D7DCD3;
+  --rule-strong: #B9C1B6;
+  --accent:      #2F6B58;
+  --accent-soft: #DCE9E2;
+  --warn:        #8A6716;
+  --warn-soft:   #F0E7CE;
+  --crit:        #A93F19;
+  --crit-soft:   #F5E2D8;
+  --shadow:      0 1px 2px rgba(23,30,27,.06), 0 8px 24px -12px rgba(23,30,27,.16);
+
+  --display: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --body:    "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+  --wide:    1080px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #111512;
+    --surface:     #191F1B;
+    --surface-2:   #212925;
+    --ink:         #E7EAE3;
+    --ink-soft:    #C0C8C0;
+    --ink-mute:    #8B978D;
+    --rule:        #2A322C;
+    --rule-strong: #3B453D;
+    --accent:      #66B795;
+    --accent-soft: #1D2E27;
+    --warn:        #CBA458;
+    --warn-soft:   #2E2717;
+    --crit:        #E2814F;
+    --crit-soft:   #331D12;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #111512;
+  --surface:     #191F1B;
+  --surface-2:   #212925;
+  --ink:         #E7EAE3;
+  --ink-soft:    #C0C8C0;
+  --ink-mute:    #8B978D;
+  --rule:        #2A322C;
+  --rule-strong: #3B453D;
+  --accent:      #66B795;
+  --accent-soft: #1D2E27;
+  --warn:        #CBA458;
+  --warn-soft:   #2E2717;
+  --crit:        #E2814F;
+  --crit-soft:   #331D12;
+  --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 0;
+  padding: 0 24px 96px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: var(--wide); margin: 0 auto; }
+.col  { max-width: var(--measure); }
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  padding: 72px 0 40px;
+  border-bottom: 2px solid var(--ink);
+}
+.kicker {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 20px;
+}
+h1 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(38px, 6.2vw, 68px);
+  line-height: 1.02;
+  letter-spacing: -.022em;
+  text-wrap: balance;
+  margin: 0 0 22px;
+  max-width: 17ch;
+}
+.standfirst {
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 60ch;
+  margin: 0 0 34px;
+}
+.standfirst b { color: var(--ink); font-weight: 600; }
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.meta span { white-space: nowrap; }
+
+/* ---------- sections ---------- */
+
+section { padding-top: 64px; }
+
+.eyebrow {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+h2 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(26px, 3.4vw, 36px);
+  line-height: 1.12;
+  letter-spacing: -.015em;
+  text-wrap: balance;
+  margin: 0 0 18px;
+  max-width: 22ch;
+}
+h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -.006em;
+  margin: 36px 0 10px;
+}
+p { margin: 0 0 18px; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: .84em;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+}
+strong { font-weight: 600; }
+
+/* ---------- stat strip ---------- */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 32px 0 8px;
+}
+.stat { background: var(--surface); padding: 18px 20px 20px; }
+.stat .n {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  margin-bottom: 8px;
+}
+.stat .n.crit { color: var(--crit); }
+.stat .l {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  line-height: 1.4;
+}
+
+/* ---------- strata bars ---------- */
+
+.strata { margin: 28px 0 12px; display: flex; flex-direction: column; gap: 2px; }
+.band {
+  display: grid;
+  grid-template-columns: 190px 1fr 108px;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.band:last-child { border-bottom: 0; }
+.band .name {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.band .track { background: var(--surface-2); height: 22px; position: relative; }
+.band .fill { height: 100%; background: var(--accent); }
+.band .fill.warn { background: var(--warn); }
+.band .fill.crit { background: var(--crit); }
+.band .val {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+}
+.band .val small {
+  display: block;
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+/* ---------- cards ---------- */
+
+.cards { display: grid; gap: 20px; margin: 28px 0 8px; }
+@media (min-width: 860px) { .cards.three { grid-template-columns: repeat(3, 1fr); } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+  padding: 22px 22px 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.card.is-crit { border-top-color: var(--crit); }
+.card.is-warn { border-top-color: var(--warn); }
+.card h4 {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.card .size {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -.015em;
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 14px;
+}
+.card p { font-size: 15px; line-height: 1.55; margin: 0 0 12px; }
+.card dl { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; }
+.card dt {
+  font-family: var(--display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-top: 12px;
+}
+.card dd { margin: 2px 0 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+.card dd code { font-size: 12px; background: none; padding: 0; color: var(--ink); }
+
+/* ---------- verdict pills ---------- */
+
+.pill {
+  display: inline-block;
+  font-family: var(--display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.pill.ok    { background: var(--accent-soft); color: var(--accent); }
+.pill.gap   { background: var(--warn-soft);   color: var(--warn); }
+.pill.stop  { background: var(--crit-soft);   color: var(--crit); }
+
+/* ---------- figures ---------- */
+
+figure {
+  margin: 34px 0 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 28px 24px 20px;
+  box-shadow: var(--shadow);
+}
+.figscroll { overflow-x: auto; }
+figure svg { display: block; min-width: 640px; width: 100%; height: auto; }
+figcaption {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  max-width: 74ch;
+}
+figcaption b { color: var(--ink-soft); font-weight: 600; }
+
+svg text { font-family: var(--display); }
+svg .lbl   { font-size: 12px; font-weight: 600; fill: var(--ink); }
+svg .sub   { font-size: 10.5px; font-weight: 500; fill: var(--ink-mute); }
+svg .tag   { font-size: 10px; font-weight: 600; letter-spacing: .1em; fill: var(--ink-mute); }
+svg .mono  { font-family: var(--mono); font-size: 11px; fill: var(--ink-soft); }
+
+/* ---------- tables ---------- */
+
+.tablewrap { overflow-x: auto; margin: 28px 0 8px; border: 1px solid var(--rule); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; background: var(--surface); }
+th, td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+th {
+  font-family: var(--display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td code { font-size: 12.5px; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- callout ---------- */
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 20px 24px;
+  margin: 30px 0;
+}
+.callout.crit { border-left-color: var(--crit); background: var(--crit-soft); }
+.callout p:last-child { margin-bottom: 0; }
+.callout .lead {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+.callout.crit .lead { color: var(--crit); }
+
+/* ---------- ordered steps ---------- */
+
+ol.steps { margin: 24px 0; padding: 0; list-style: none; counter-reset: s; }
+ol.steps > li {
+  counter-increment: s;
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 18px;
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+ol.steps > li::before {
+  content: counter(s, decimal-leading-zero);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+ol.steps > li > div > b {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16.5px;
+  display: block;
+  margin-bottom: 6px;
+}
+ol.steps p { font-size: 15px; margin: 0 0 10px; }
+ol.steps p:last-child { margin-bottom: 0; }
+
+ul.tight { margin: 12px 0 18px; padding-left: 20px; }
+ul.tight li { margin-bottom: 8px; }
+
+/* ---------- footer ---------- */
+
+footer {
+  margin-top: 80px;
+  padding-top: 28px;
+  border-top: 2px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-mute);
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .band .fill { transition: width .4s ease; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Vrooli · Artifact retention</p>
+  <h1>Twenty-one gigabytes nobody owns</h1>
+  <p class="standfirst">Four classes of generated artifact accumulate in the repo tree. One is a healthy cache missing an eviction policy, one is a location the migration forgot, one is a build leak with no reaper. But the deeper finding is that <b>none of this is an open design question</b> — the destination, the retention policy, and the cleanup owner are all already declared in the repo contract. What's missing is one helper, and the adoption that follows it.</p>
+  <div class="meta">
+    <span>Measured 2026-08-26</span>
+    <span>branch <code>agi</code></span>
+    <span>host: this machine</span>
+  </div>
+</header>
+
+<section>
+  <p class="eyebrow">The census</p>
+  <h2>What is actually on disk</h2>
+  <div class="col">
+    <p>All four are gitignored except the last, so none of them show up in a git-based check. Total is about <strong>21.5 GB</strong>, and the number that matters is not the total — it's the growth rate on the second row.</p>
+  </div>
+
+  <div class="strip">
+    <div class="stat"><span class="n">17 GB</span><span class="l">coverage/<br>test-genie runs</span></div>
+    <div class="stat"><span class="n">4.4 GB</span><span class="l">phase-cache/<br>no eviction</span></div>
+    <div class="stat"><span class="n">46 MB</span><span class="l">test/artifacts/<br>dead ~9 months</span></div>
+    <div class="stat"><span class="n crit">102 MB</span><span class="l">vrooli.tmp.*<br>not gitignored</span></div>
+  </div>
+
+  <div class="strata">
+    <div class="band">
+      <span class="name">scenarios/*/coverage/</span>
+      <span class="track"><span class="fill" style="width:100%"></span></span>
+      <span class="val">17 GB<small>owned</small></span>
+    </div>
+    <div class="band">
+      <span class="name">scenarios/*/phase-cache/</span>
+      <span class="track"><span class="fill warn" style="width:25.9%"></span></span>
+      <span class="val">4.4 GB<small>+245 MB/day</small></span>
+    </div>
+    <div class="band">
+      <span class="name">scenarios/*/test/artifacts/</span>
+      <span class="track"><span class="fill" style="width:0.27%"></span></span>
+      <span class="val">46 MB<small>abandoned</small></span>
+    </div>
+    <div class="band">
+      <span class="name">vrooli.tmp.&lt;pid&gt;</span>
+      <span class="track"><span class="fill crit" style="width:0.6%"></span></span>
+      <span class="val">102 MB<small>4 files</small></span>
+    </div>
+  </div>
+  <div class="col">
+    <p style="font-size:14px;color:var(--ink-mute);margin-top:14px">Bars share one linear scale. <code>coverage/</code> is understood and properly owned by test-genie; it is on the chart for proportion, not because it is a defect.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Three defects, three different causes</p>
+  <h2>Why each one accumulates</h2>
+
+  <div class="cards three">
+
+    <article class="card is-warn">
+      <h4>scenarios/*/phase-cache/</h4>
+      <p class="size">4.4 GB</p>
+      <p>A legitimate cache — test-genie skips a phase when its declared input globs are unchanged — with <strong>no eviction policy of any kind</strong>.</p>
+      <p>The <code>Store</code> API is Load / Save / Demote / IsDemoted. Nothing removes an entry, ever. Keys are content digests, so every code change mints a new key and permanently strands the old one. Append-only by construction.</p>
+      <dl>
+        <dt>Writer</dt>
+        <dd><code>test-genie/api/internal/orchestrator/phasecache/cache.go:74</code></dd>
+        <dt>Measured</dt>
+        <dd>29,510 entries · oldest 2026-08-08 · 57% untouched &gt;7d · only 15% touched in the last day</dd>
+        <dt>Rate</dt>
+        <dd>~245 MB and ~1,640 entries per day, unbounded</dd>
+        <dt>Deletion risk</dt>
+        <dd><span class="pill ok">None — cold cache recomputes</span></dd>
+      </dl>
+    </article>
+
+    <article class="card">
+      <h4>scenarios/*/test/artifacts/</h4>
+      <p class="size">46 MB</p>
+      <p>A location test-genie <strong>already migrated away from</strong>. The runID-keyed layout replaced it, and <code>RemoveLegacyArtifactDirs</code> cleans up after that move — but only for legacy dirs under <code>coverage/</code>. It never touches this path.</p>
+      <p>The newest file in any of these directories is <strong>266–298 days old</strong>.</p>
+      <dl>
+        <dt>Still written by</dt>
+        <dd><code>app-monitor/api/handlers/lighthouse.go</code> (3 call sites), plus vrooli-autoheal's vite config and chart-generator's playwright config</dd>
+        <dt>Largest</dt>
+        <dd>chart-generator 11M · deployment-manager 9.3M · secrets-manager 8.7M · knowledge-observatory 8.4M</dd>
+        <dt>Status</dt>
+        <dd>quality-health's contractscan explicitly skips it; <code>.gitignore:131</code> hides it. Known and ignored, not governed.</dd>
+        <dt>Deletion risk</dt>
+        <dd><span class="pill ok">None for the dead bytes</span></dd>
+      </dl>
+    </article>
+
+    <article class="card is-crit">
+      <h4>vrooli.tmp.&lt;pid&gt;</h4>
+      <p class="size">102 MB</p>
+      <p>Four 26 MB executables at the repo root, left by the CLI's self-rebuild. One of them, <code>vrooli.tmp.2728454</code>, is <strong>byte-identical to <code>./vrooli</code></strong> — a rebuild that completed and never landed.</p>
+      <p>They are <strong>not gitignored</strong>. <code>git check-ignore</code> matches only <code>vrooli</code> exactly and <code>*.fp</code>, so all four are live commit candidates.</p>
+      <dl>
+        <dt>Writer</dt>
+        <dd><code>internal/buildinfo/buildinfo.go:613</code></dd>
+        <dt>Cleanup</dt>
+        <dd><code>defer os.Remove(tempPath)</code> — structurally unable to fire (see below)</dd>
+        <dt>Reaper</dt>
+        <dd>None anywhere in the codebase</dd>
+        <dt>Deletion risk</dt>
+        <dd><span class="pill stop">Commit hazard until ignored</span></dd>
+      </dl>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Root cause</p>
+  <h2>The rebuild's cleanup cannot run</h2>
+  <div class="col">
+    <p>The self-rebuild builds to a sibling temp path, renames it over the live binary, then execs into it. The <code>defer</code> that removes the temp file sits after the build — but the function's tail is <code>execFn = platform.ReplaceProcess</code>, a <code>syscall.Exec</code> that replaces the process image. Deferred functions never run on that path.</p>
+    <p>On a successful rebuild that is harmless: the rename already consumed the file. The problem is the window <em>before</em> the rename. A <code>go build</code> of a 26 MB binary takes roughly thirty seconds, and for that entire span the only thing protecting the temp file is a defer that dies with the process.</p>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 250" role="img" aria-label="Timeline of the self-rebuild showing the orphan window between build completion and rename">
+      <!-- track -->
+      <line x1="60" y1="96" x2="840" y2="96" stroke="var(--rule-strong)" stroke-width="2"/>
+
+      <!-- orphan window shading -->
+      <rect x="330" y="60" width="300" height="72" fill="var(--crit-soft)"/>
+      <line x1="330" y1="60" x2="330" y2="132" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <line x1="630" y1="60" x2="630" y2="132" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <text x="480" y="52" class="tag" fill="var(--crit)" text-anchor="middle">ORPHAN WINDOW · ~30 s</text>
+
+      <!-- nodes -->
+      <circle cx="120" cy="96" r="7" fill="var(--accent)"/>
+      <text x="120" y="152" class="lbl" text-anchor="middle">acquire lock</text>
+      <text x="120" y="170" class="sub" text-anchor="middle">per-binary, already held</text>
+
+      <circle cx="330" cy="96" r="7" fill="var(--accent)"/>
+      <text x="330" y="152" class="lbl" text-anchor="middle">go build -o tempPath</text>
+      <text x="330" y="170" class="mono" text-anchor="middle">vrooli.tmp.&lt;pid&gt;</text>
+
+      <circle cx="630" cy="96" r="7" fill="var(--crit)"/>
+      <text x="630" y="152" class="lbl" text-anchor="middle">os.Rename</text>
+      <text x="630" y="170" class="sub" text-anchor="middle">file consumed here</text>
+
+      <circle cx="840" cy="96" r="7" fill="var(--ink-mute)"/>
+      <text x="840" y="152" class="lbl" text-anchor="end">syscall.Exec</text>
+      <text x="840" y="170" class="sub" text-anchor="end">process image replaced</text>
+
+      <!-- defer bar -->
+      <line x1="330" y1="212" x2="840" y2="212" stroke="var(--ink-mute)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="330" y="204" class="mono">defer os.Remove(tempPath)</text>
+      <text x="845" y="216" class="tag" fill="var(--crit)">NEVER FIRES</text>
+
+      <!-- kill arrow -->
+      <path d="M480 132 L480 96" stroke="var(--crit)" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="480" y="196" class="sub" fill="var(--crit)" text-anchor="middle">cancel or kill here → 26 MB orphaned forever</text>
+      <defs>
+        <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--crit)"/>
+        </marker>
+      </defs>
+    </svg>
+    </div>
+    <figcaption><b>Evidence for the diagnosis:</b> the four leaked files carry four distinct timestamps (15:26, 19:42, 19:45, 22:22) and three distinct hashes. The fourth is byte-identical to the installed binary — exactly what a cancelled rebuild in this window produces.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="eyebrow">The professional fix</p>
+  <h2>There are already two atomic-install implementations</h2>
+  <div class="col">
+    <p>This is the part worth fixing properly rather than patching. The repo already has a sanctioned atomic-install seam — <code>cliinstall.AtomicInstall</code> — which acquires the binary lock, preserves the root fallback, writes through <code>config.WriteOwnedFileAtomic</code>, and fsyncs the parent directory. <code>buildinfo.go</code> hand-rolls a second, weaker version of the same operation.</p>
+    <p>Three changes, in the order they should land:</p>
+  </div>
+
+  <ol class="steps">
+    <li><div>
+      <b>Ignore the shape now</b>
+      <p>A one-line <code>.gitignore</code> entry for <code>vrooli.tmp.*</code>. Independent of everything below, and the only thing standing between a routine <code>git add -A</code> and four 26 MB binaries in history. The sidecar variant <code>vrooli.fp.tmp.&lt;pid&gt;</code> is already covered by <code>*.fp</code>.</p>
+    </div></li>
+    <li><div>
+      <b>Build outside the repo tree, install through the existing seam</b>
+      <p>Build into the runtime home — <code>.vrooli/build</code> is already in the repo contract's <code>project_config_allowlist</code> — then hand the result to <code>cliinstall.AtomicInstall</code>. A leak then lands in a directory that is already governed by storage-manager's <code>tmp</code> provider instead of at the repo root, and the two implementations collapse into one.</p>
+      <p>One snag to design around: <code>AtomicInstall</code> calls <code>AcquireBinaryInstallLock</code> itself, and the rebuild path already holds that lock. It needs a lock-free inner variant, or reentrancy.</p>
+    </div></li>
+    <li><div>
+      <b>Sweep stale siblings at rebuild start</b>
+      <p>The defer can't be repaired — the function ends in <code>exec</code> by design. So the only mechanism that reclaims an <em>already-leaked</em> file is a sweep. Under the lock the rebuild already holds, glob the sibling temp shape and remove entries whose owning pid is dead or whose mtime is beyond a short horizon.</p>
+      <p>There is precedent on both sides: <code>tools/portability-evidence</code> asserts in test that no <code>.native-evidence-*.tmp</code> survive, and storage-manager's file provider already carries an <code>activePath</code> guard for exactly this class of decision.</p>
+    </div></li>
+  </ol>
+
+  <div class="callout">
+    <p class="lead">Why not just fix the defer</p>
+    <p>Because there is no defer that survives <code>syscall.Exec</code>, and no defer at all if the process is killed. Cleanup that depends on the writer staying alive is not cleanup — it's an assumption. The sweep is what makes the guarantee independent of how the previous run ended.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Greenfield</p>
+  <h2>Delete the legacy path, don't maintain it</h2>
+  <div class="col">
+    <p>Per your call: no legacy handling. That means <code>RemoveLegacyArtifactDirs</code> and <code>LegacyArtifactDirs</code> come out of <code>test-genie/api/internal/shared/artifacts/migrate.go</code> entirely, along with their call from <code>EnsureCoverageStructure</code> — rather than being extended to cover <code>test/artifacts/</code>. The legacy data is removed directly, once, and the code stops carrying a migration it no longer needs.</p>
+    <p>Two things travel with that deletion and shouldn't be missed:</p>
+    <ul class="tight">
+      <li><strong>A live writer still targets the retired location.</strong> <code>app-monitor</code> writes lighthouse output to <code>scenarios/&lt;name&gt;/test/artifacts/lighthouse</code> today. Deleting the directories without redirecting that writer just restarts the accumulation under a different owner.</li>
+      <li><strong>Two scenario test configs also point there</strong> — <code>vrooli-autoheal/ui/vite.config.ts</code> and <code>chart-generator/playwright.config.ts</code>. Both are one-line redirects to the runID-keyed layout.</li>
+    </ul>
+    <p>Once those three writers move, <code>**/test/artifacts/</code> can leave <code>.gitignore</code> and the <code>strings.HasSuffix(rel, "/test/artifacts")</code> skip can leave quality-health's contractscan. The convention stops existing rather than becoming a third thing to remember.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">The architecture question</p>
+  <h2>Two lines of defense — both already exist</h2>
+  <div class="col">
+    <p>You asked whether storage-manager supports scenario-declared glob locations, and especially locations inside <em>other</em> scenarios. The short answer is that it doesn't support globs — and that it shouldn't need to, because the cross-scenario problem already has a better answer in the codebase.</p>
+    <p>Both halves of the two-lines design are built. They have simply never been pointed at test-genie's artifacts.</p>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+    <svg viewBox="0 0 900 420" role="img" aria-label="Two lines of defense: test-genie self-retention and storage-manager owner delegation">
+      <!-- lane 1 -->
+      <text x="24" y="34" class="tag" fill="var(--accent)">LINE 1 — THE OWNER PRUNES ITSELF</text>
+      <rect x="24" y="46" width="852" height="128" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/>
+
+      <rect x="48" y="76" width="176" height="68" fill="var(--surface)" stroke="var(--rule-strong)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="136" y="103" class="lbl" text-anchor="middle">retention budget</text>
+      <text x="136" y="121" class="mono" text-anchor="middle">service.json</text>
+      <text x="136" y="137" class="tag" fill="var(--warn)" text-anchor="middle">TO DECLARE</text>
+
+      <path d="M232 110 L280 110" stroke="var(--ink-mute)" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <rect x="288" y="76" width="196" height="68" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="386" y="103" class="lbl" text-anchor="middle">retention engine</text>
+      <text x="386" y="121" class="mono" text-anchor="middle">api-core/retention</text>
+      <text x="386" y="137" class="tag" fill="var(--accent)" text-anchor="middle">BUILT</text>
+
+      <path d="M492 110 L540 110" stroke="var(--ink-mute)" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <rect x="548" y="76" width="196" height="68" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="646" y="103" class="lbl" text-anchor="middle">DirectoryPruner</text>
+      <text x="646" y="121" class="sub" text-anchor="middle">oldest-first · MaxDeleteFraction</text>
+      <text x="646" y="137" class="tag" fill="var(--accent)" text-anchor="middle">BUILT</text>
+
+      <path d="M752 110 L800 110" stroke="var(--ink-mute)" stroke-width="1.5" marker-end="url(#a2)"/>
+      <text x="838" y="106" class="lbl" text-anchor="middle">prune</text>
+      <text x="838" y="123" class="sub" text-anchor="middle">in-process</text>
+
+      <!-- lane 2 -->
+      <text x="24" y="230" class="tag" fill="var(--accent)">LINE 2 — THE HOST BACKSTOP CALLS THE OWNER</text>
+      <rect x="24" y="242" width="852" height="128" fill="var(--surface-2)" stroke="var(--rule-strong)" stroke-width="1"/>
+
+      <rect x="48" y="272" width="176" height="68" fill="var(--surface)" stroke="var(--rule-strong)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="136" y="299" class="lbl" text-anchor="middle">provider config</text>
+      <text x="136" y="317" class="sub" text-anchor="middle">hardcoded in Go today</text>
+      <text x="136" y="333" class="tag" fill="var(--warn)" text-anchor="middle">NEEDS A DOOR</text>
+
+      <path d="M232 306 L280 306" stroke="var(--ink-mute)" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <rect x="288" y="272" width="196" height="68" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="386" y="299" class="lbl" text-anchor="middle">OwnerScenarioProvider</text>
+      <text x="386" y="317" class="sub" text-anchor="middle">3 scenarios wired</text>
+      <text x="386" y="333" class="tag" fill="var(--accent)" text-anchor="middle">BUILT</text>
+
+      <path d="M492 306 L540 306" stroke="var(--ink-mute)" stroke-width="1.5" marker-end="url(#a2)"/>
+
+      <rect x="548" y="272" width="196" height="68" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="646" y="299" class="lbl" text-anchor="middle">ScenarioProviderClient</text>
+      <text x="646" y="317" class="mono" text-anchor="middle">Estimate·Preview·Apply</text>
+      <text x="646" y="333" class="tag" fill="var(--accent)" text-anchor="middle">BUILT</text>
+
+      <path d="M752 306 L800 306" stroke="var(--ink-mute)" stroke-width="1.5" marker-end="url(#a2)"/>
+      <text x="838" y="302" class="lbl" text-anchor="middle">test-genie</text>
+      <text x="838" y="319" class="sub" text-anchor="middle">deletes its own</text>
+
+      <!-- link between lanes -->
+      <path d="M838 140 L838 200 L136 200 L136 262" stroke="var(--ink-mute)" stroke-width="1.5" stroke-dasharray="4 4" fill="none" marker-end="url(#a2)"/>
+      <text x="490" y="194" class="sub" text-anchor="middle">line 2 engages only when line 1 falls behind — it never reaches into the files itself</text>
+
+      <defs>
+        <marker id="a2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <path d="M0 0 L8 4 L0 8 z" fill="var(--ink-mute)"/>
+        </marker>
+      </defs>
+    </svg>
+    </div>
+    <figcaption><b>The key structural point:</b> storage-manager's backstop is <em>delegation</em>, not reach-in. It asks the owning scenario to estimate, preview, and apply — so paths never cross the scenario boundary, and the question of declaring globs into someone else's directory never arises. Three scenarios already work this way: architecture-cartographer, web-console, and browser-automation-studio.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <p class="eyebrow">The gap</p>
+  <h2>What the schema supports, and what it doesn't</h2>
+  <div class="col">
+    <p>The declaration vocabulary is richer than expected. <code>service.json</code> already carries both a <code>storage</code> surface and a <code>retention</code> block, and the retention target supports <code>directory</code> as a first-class kind alongside <code>sqlite_table</code>. vrooli-autoheal and architecture-cartographer already use it in anger.</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Capability</th><th>Status</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>kind: "directory"</code> budgets</td>
+          <td><span class="pill ok">Supported</span></td>
+          <td><code>DirectoryPruner</code> is implemented — top-level entries, oldest-first, with a <code>MaxDeleteFraction</code> guard that alarms instead of deleting when a cycle would empty the directory.</td>
+        </tr>
+        <tr>
+          <td>Both age and size bounds</td>
+          <td><span class="pill ok">Supported</span></td>
+          <td>The schema explicitly reports an age-only budget as unbounded in size — a lesson from the autoheal incident where a 30-day horizon correctly deleted nothing while the table hit 453 GB.</td>
+        </tr>
+        <tr>
+          <td>Custom pruners</td>
+          <td><span class="pill ok">Supported</span></td>
+          <td><code>pruner: "custom"</code> — the framework owns whether the target is in budget, the scenario owns what dies.</td>
+        </tr>
+        <tr>
+          <td>Cross-scenario cleanup</td>
+          <td><span class="pill ok">Solved differently</span></td>
+          <td>Not via path declaration — via <code>OwnerScenarioProvider</code> delegation. The right answer, already built.</td>
+        </tr>
+        <tr>
+          <td>Glob / wildcard paths</td>
+          <td><span class="pill stop">Not supported</span></td>
+          <td><code>retentionTarget.path</code> is one concrete traversal-safe path. storage-manager's <code>cleanRoots()</code> is trim + <code>filepath.Clean</code> + sort, with no expansion.</td>
+        </tr>
+        <tr>
+          <td>Repo-tree paths</td>
+          <td><span class="pill stop">Outside the model</span></td>
+          <td>Targets resolve relative to a storage class root (<code>config·data·cache·logs·state</code>) via api-core/storage. <code>DirectoryPruner</code> rejects a non-absolute path with "resolve it through api-core/storage first". <code>coverage/</code> and <code>phase-cache/</code> live in the repo tree and have no class root at all.</td>
+        </tr>
+        <tr>
+          <td>Declaring an owner provider</td>
+          <td><span class="pill gap">Hardcoded</span></td>
+          <td>Owner provider configs are a Go literal in <code>storage-manager/api/internal/providers/registry.go</code>. There is no path from a scenario's <code>service.json</code> to a registered provider.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:24px">The last two rows are the same problem wearing two hats. Both exist because test-genie's artifacts are scattered across N directories it doesn't own, in a tree the storage vocabulary doesn't model.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Correction</p>
+  <h2>The destination already exists, already governed</h2>
+  <div class="col">
+    <p>I framed the last version as a design question — pick a class root, add glob support, decide who owns what. That was wrong. The repo contract already answers it, and the answer is written down in three places.</p>
+    <p><code>.vrooli/repo-contract.json</code> declares a runtime-home entry named <code>test_runs</code>:</p>
+  </div>
+
+  <figure>
+    <div class="figscroll">
+      <pre style="font-family:var(--mono);font-size:13px;line-height:1.6;margin:0;color:var(--ink)"><span style="color:var(--ink-mute)">"test_runs": {</span>
+  <span style="color:var(--accent)">"path"</span>:        <span style="color:var(--ink)">"test-runs"</span>,
+  <span style="color:var(--accent)">"kind"</span>:        <span style="color:var(--ink)">"dir"</span>,
+  <span style="color:var(--accent)">"regenerable"</span>: <span style="color:var(--ink)">true</span>,
+  <span style="color:var(--accent)">"owner"</span>:       <span style="color:var(--ink)">"control_plane"</span>,
+  <span style="color:var(--accent)">"cleanup"</span>:     <span style="color:var(--ink)">"storage_manager"</span>,
+  <span style="color:var(--accent)">"retention"</span>:   <span style="color:var(--ink-mute)">{</span> <span style="color:var(--accent)">"max_age"</span>: <span style="color:var(--ink)">"30d"</span>, <span style="color:var(--accent)">"max_bytes"</span>: <span style="color:var(--ink)">"20GiB"</span>,
+                  <span style="color:var(--accent)">"keep_count"</span>: <span style="color:var(--ink)">10</span>, <span style="color:var(--accent)">"protect_active"</span>: <span style="color:var(--ink)">true</span> <span style="color:var(--ink-mute)">}</span>
+<span style="color:var(--ink-mute)">}</span></pre>
+    </div>
+    <figcaption><b>Everything the last version proposed building is in this block.</b> A class root, a size ceiling, an age horizon, a keep-count, an active-work guard, and a named cleanup owner. It has been in the contract the whole time.</figcaption>
+  </figure>
+
+  <div class="col">
+    <p>And the intent is spelled out in the control plane. <code>internal/process/process.go:97</code>:</p>
+    <p style="border-left:3px solid var(--rule-strong);padding-left:18px;color:var(--ink-soft);font-style:italic">"ScenarioTestRunsDir resolves <code>&lt;home&gt;/.vrooli/test-runs/&lt;name&gt;</code> — the stable per-scenario root under which each test run gets its own <code>&lt;run-id&gt;/</code> artifact directory (run.json <b>and future Layer-2 phase logs / validator output</b>)."</p>
+    <p>test-genie's <code>coverage/runs/&lt;runID&gt;/</code> tree <em>is</em> the Layer-2 output that comment anticipates. The destination was chosen, declared, and documented. test-genie simply never moved.</p>
+  </div>
+
+  <div class="strip">
+    <div class="stat"><span class="n">32 KB</span><span class="l">in ~/.vrooli/test-runs<br>one dir, from June 14</span></div>
+    <div class="stat"><span class="n crit">21.5 GB</span><span class="l">in the repo tree<br>ungoverned</span></div>
+    <div class="stat"><span class="n">39 GB</span><span class="l">in ~/.vrooli/artifacts<br>governed, 78% of budget</span></div>
+    <div class="stat"><span class="n">20 GiB</span><span class="l">declared ceiling<br>never enforced</span></div>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:22px">The 39 GB under <code>~/.vrooli/artifacts</code> is resource model weights — unstructured-io 9.0G, kokoro 6.8G, speaker-verification 6.2G, ollama 6.2G, kyutai-stt 5.7G — and it sits inside a declared 50 GiB ceiling with storage-manager as its cleanup owner. That half of the system works. It is worth watching at 78% of budget, but it is not the defect.</p>
+    <p>The defect is that <strong>the governed path is empty and the ungoverned one holds 21.5 GB</strong>.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">The loop that already closes</p>
+  <h2>Declare an entry, get a cleanup provider</h2>
+  <div class="col">
+    <p>You asked whether storage-manager supports a scenario declaring locations for it to govern. For <code>~/.vrooli</code> the answer is yes — declaratively, today, with no Go changes. <code>storage-manager/api/handlers/cleanup/module.go:257</code> walks the contract's runtime-home entries and <strong>synthesizes a cleanup provider from each declaration</strong>:</p>
+    <ul class="tight">
+      <li>Skip anything <code>Protected</code>, non-<code>Regenerable</code>, not owned by <code>storage_manager</code>, or without a <code>Retention</code> block.</li>
+      <li>For the rest, emit a <code>FileProviderConfig</code> carrying the declared <code>RetentionMaxAge</code>, <code>RetentionMaxBytes</code>, and <code>ProtectActive</code>.</li>
+    </ul>
+    <p>Its own comment explains why it reads the declaration rather than naming keys: <code>bin</code> used to be hardcoded there <em>and again</em> in the retention enforcer, "so the two guards could disagree and any third consumer inherited neither. Protection now travels with the entry."</p>
+    <p>That is exactly the two-lines-of-defense design you described, already built and already contract-driven. It has one limit, and it is the whole problem:</p>
+  </div>
+
+  <div class="callout crit">
+    <p class="lead">The boundary</p>
+    <p>The loop is keyed on <strong>runtime-home entries</strong>. A path in the repo tree has no contract entry, no class root, no owner, and no retention block — so it cannot be declared, cannot generate a provider, and cannot be governed. <code>scenarios/*/coverage/</code> is not an unsupported case; it is outside the model entirely. That is why it grew to 17 GB unobserved.</p>
+  </div>
+
+  <div class="col">
+    <p>The storage steer already names this as a red flag in its own checklist — <em>"Filesystem runtime writes bypass <code>package:api-core/storage</code>"</em> — and <code>storage-manager validate scenario test-genie</code> is the command that reports it. The 42 hand-built paths are not an undiscovered problem. They are an unadopted standard.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">The adoption gap</p>
+  <h2>Forty-two call sites, eleven owners, one unreachable authority</h2>
+
+  <div class="strip">
+    <div class="stat"><span class="n">4</span><span class="l">call sites use<br>the path authority</span></div>
+    <div class="stat"><span class="n crit">42</span><span class="l">hand-build<br>coverage paths</span></div>
+    <div class="stat"><span class="n">11</span><span class="l">distinct owners<br>outside test-genie</span></div>
+    <div class="stat"><span class="n">2</span><span class="l">definitions of<br>the same path</span></div>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:26px">test-genie has a genuinely good path module — <code>api/internal/shared/artifacts/paths.go</code>, forty-odd named functions, a documented tree, no magic strings. It is also <strong>structurally unreachable</strong>: it lives under <code>internal/</code> in a module named <code>test-genie</code>, so nothing outside that module can import it. Not another scenario, not <code>packages/</code>, not the control plane. Even test-genie's own CLI is a separate module, and bypasses its own authority in nineteen places.</p>
+    <p>The sharpest symptom is one path defined twice, in two packages that must agree, with nothing making them:</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Location</th><th>Definition</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>test-genie/…/artifacts/paths.go:219</code><br><span style="color:var(--ink-mute);font-size:13px">RunsIndexPath</span></td>
+          <td><code>filepath.Join(scenarioDir, CoverageRoot, RunsIndexFile)</code><br><span class="pill ok">Uses constants</span></td>
+        </tr>
+        <tr>
+          <td><code>packages/freshness-go/runindex:140</code><br><span style="color:var(--ink-mute);font-size:13px">IndexPath</span></td>
+          <td><code>filepath.Join(scenarioDir, "coverage", "runs.index.json")</code><br><span class="pill stop">Hardcoded copy</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Never join a path</p>
+  <h2>Redis and Qdrant already have the API. The filesystem doesn't.</h2>
+  <div class="col">
+    <p>Your question — how far to standardize so scenarios never join file paths — has a precise answer, because <strong>the target shape already ships for two of the three engines</strong>. <code>api-core/storage/namespace.go</code> gives a domain-scoped, variant-aware helper where the caller names a <em>domain and segments</em>, never a location:</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Store</th><th>Caller writes</th><th>Caller must know a path?</th></tr></thead>
+      <tbody>
+        <tr><td>Redis</td><td><code>storage.RedisKey("auth", "session", id)</code></td><td><span class="pill ok">No</span></td></tr>
+        <tr><td>Qdrant</td><td><code>storage.Collection("notes")</code></td><td><span class="pill ok">No</span></td></tr>
+        <tr><td>SQLite</td><td><code>storage.ScenarioNamespace(slug)</code> as <code>Options.ScenarioID</code></td><td><span class="pill ok">No</span></td></tr>
+        <tr><td><strong>Filesystem</strong></td><td><code>Resolver.Path(opts, class, rel)</code> — <em>caller builds <code>rel</code></em></td><td><span class="pill stop">Yes — this is the gap</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:24px">Every filesystem call site therefore composes its own relative path, which is precisely where 42 hand-built joins come from. The fix is symmetry, not a new subsystem: give the filesystem the same domain-scoped shape the other three already have, so a caller asks for a logical artifact and never learns where it lives.</p>
+    <p>The helpers' own doc comment already states the contract this would complete: <em>"Hardcoding the scenario name in a collection, key prefix, or path scope BYPASSES shadow isolation and is exactly what storage-steer / test-genie flag as a finding."</em> Paths are named in that sentence. They just have no helper behind them yet.</p>
+  </div>
+
+  <h3>Typed parameters, not globs</h3>
+  <div class="col">
+    <p>My earlier framing treated per-scenario paths as a wildcard problem. The contract already solved it with a better primitive. <code>runtime_home.scoped</code> holds parameterized templates, expanded by <code>RuntimeHomeScopedPath(home, key, params)</code>:</p>
+    <ul class="tight">
+      <li><code>scenario_secrets</code> → <code>scenarios/{scenario}/secrets.json</code></li>
+      <li><code>project_state</code> → <code>state/projects/{project_key}</code></li>
+    </ul>
+    <p>A <code>{scenario}</code> parameter is strictly better than <code>scenarios/*/coverage</code>: it is enumerable, it is typed, it cannot silently widen, and it fails loudly on an unknown key. Adding <code>test_runs_scenario</code> as a scoped template is a contract edit, not a schema capability — and it closes the glob question without ever adding globs.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Shared data</p>
+  <h2>The reader calls the owner, never the owner's disk</h2>
+  <div class="col">
+    <p>The hardest part of your question: some of these really are shared — test-genie writes a run result and other scenarios read it. Four consumers do this today, and all four do it by reading test-genie's files:</p>
+    <ul class="tight">
+      <li><strong>scenario-completeness-scoring</strong> reads <code>coverage/runs</code> and <code>coverage/phase-results</code></li>
+      <li><strong>app-monitor</strong> writes <code>coverage/phase-results/lighthouse.json</code> <em>into</em> test-genie's tree</li>
+      <li><strong>internal/cli/scenariohandlers</strong> — the control plane — reads <code>coverage/requirements-sync/latest.json</code></li>
+      <li><strong>packages/freshness-go</strong> reads <code>coverage/runs.index.json</code> via its duplicate definition</li>
+    </ul>
+    <p>Every one of those is an independent copy of an assumption about test-genie's layout, and nothing keeps them in sync. A shared path convention is not an interface — it is four guesses that happen to agree today.</p>
+    <p>The repo has already answered this shape three separate times, each time the same way: <strong>the owner publishes a typed surface; consumers call it.</strong></p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Precedent</th><th>What crosses the boundary</th><th>What does not</th></tr></thead>
+      <tbody>
+        <tr><td><code>OwnerScenarioProvider</code><br><span style="color:var(--ink-mute);font-size:13px">storage-manager cleanup</span></td><td>Estimate / Preview / Apply calls to the owner</td><td>Paths. storage-manager never reaches into the files.</td></tr>
+        <tr><td><code>ArtifactCatalog</code><br><span style="color:var(--ink-mute);font-size:13px">test-genie run evidence</span></td><td>Opaque artifact IDs in API projections</td><td>Storage locators — explicitly kept private on disk.</td></tr>
+        <tr><td><code>packages/artifactledger</code><br><span style="color:var(--ink-mute);font-size:13px">removal receipts</span></td><td>Aliased types through a sanctioned package door</td><td>Direct <code>internal/</code> imports, which Go forbids anyway.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:24px">The <code>ArtifactCatalog</code> precedent is the exact one to follow, because it already does the right thing for external API consumers and the wrong thing is only happening for in-repo readers who took the shortcut. Its doc comment is unambiguous: the catalog <em>"stores private storage locators on disk; API projections expose only opaque artifact IDs."</em> Extend that boundary to cover the four in-repo readers and the drift problem disappears — not because the paths agree, but because nobody outside test-genie has a path at all.</p>
+    <p>The one genuine wrinkle is <strong>app-monitor writing into test-genie's tree</strong>. That is not a read-sharing problem, it's a second writer to someone else's store, and no locator API fixes it. It needs to become a submission — app-monitor hands test-genie a phase result through an API and test-genie decides where it lands.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">The squatters</p>
+  <h2>Where each one actually belongs</h2>
+  <div class="col">
+    <p>You were right to push back on the last version: giving the squatters "their own namespace" in the same shared drawer preserves the mistake with better labels. Most of this data is not test output and was never test-genie's to hold. Classified by what it actually is, and by the storage class the steer's rung table implies:</p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Owner</th><th>What the data really is</th><th>Belongs in</th></tr></thead>
+      <tbody>
+        <tr><td>workflow-health</td><td>Its own per-run store, keyed by runID</td><td><code>state</code> class, own scenario root</td></tr>
+        <tr><td>react-component-library</td><td>Gate ledgers and stamp reports — durable verdicts</td><td><code>state</code> class, own scenario root</td></tr>
+        <tr><td>experience-manager</td><td>Rendered wireframes, fully regenerable</td><td><code>cache</code> class, own scenario root</td></tr>
+        <tr><td>scenario-to-cloud</td><td>Deploy bundles, rebuildable from source</td><td><code>cache</code> — or <code>~/.vrooli/build</code>, already governed</td></tr>
+        <tr><td>audio-tools</td><td>Soak-test evidence, durable per run</td><td><code>data</code> class, own scenario root</td></tr>
+        <tr><td>browser-automation-studio</td><td>Runtime seed state</td><td><code>state</code> class, own scenario root</td></tr>
+        <tr><td>unit-health</td><td>Tool output (<code>lcov.info</code>) at a path the tool chooses</td><td>Stays — but declared <code>pinned</code> with a budget</td></tr>
+        <tr><td>app-monitor</td><td>A phase result belonging to test-genie</td><td>Submitted through test-genie's API</td></tr>
+        <tr><td>scenario-completeness-scoring<br>internal/cli · freshness-go</td><td>Reads of test-genie's runs</td><td>test-genie's read API, no path at all</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p style="margin-top:24px">Six scenarios each get one <code>storage.entries</code> declaration with a rung, a class, a <code>regenerable</code> flag, and a budget — the block the steer documents and <code>storage-manager declare suggest</code> will emit from measured bytes. None of them needs to know a path, and each becomes separately measurable and separately budgetable. That is the difference between re-homing the drawer and dissolving it.</p>
+  </div>
+
+  <div class="callout">
+    <p class="lead">How far to standardize</p>
+    <p>All the way, and the bar is concrete rather than aspirational: <strong>no scenario code contains a filesystem path segment that names a location.</strong> Domains and logical names only, resolved by a helper, with the physical layout owned by the contract. Redis, Qdrant, and SQLite already meet that bar. The filesystem is the last engine that doesn't, and closing it is what makes every future move a contract edit rather than a migration.</p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Order of work</p>
+  <h2>What I'd do first</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Reclaims</th><th>Risk</th><th>Blocked by</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Gitignore <code>vrooli.tmp.*</code> and delete the four files</td><td class="num">102 MB</td><td><span class="pill ok">None</span></td><td>Nothing</td></tr>
+        <tr><td>Delete legacy <code>test/artifacts/</code> data and the migrate.go legacy code</td><td class="num">46 MB</td><td><span class="pill ok">None</span></td><td>Redirect app-monitor + 2 test configs first</td></tr>
+        <tr><td>Eviction policy inside <code>phasecache.Store</code></td><td class="num">~2.5 GB</td><td><span class="pill ok">None</span></td><td>Nothing</td></tr>
+        <tr><td>Rebuild through <code>cliinstall.AtomicInstall</code> + sweep on start</td><td class="num">ongoing</td><td><span class="pill gap">Lock reentrancy</span></td><td>Nothing</td></tr>
+        <tr><td><strong>Domain-scoped filesystem helper in <code>api-core/storage</code></strong><br><span style="color:var(--ink-mute);font-size:13px">the symmetry Redis and Qdrant already have</span></td><td class="num">0 bytes</td><td><span class="pill ok">Additive</span></td><td>Nothing. This is the unblocker.</td></tr>
+        <tr><td>Lift the path authority out of <code>internal/</code> onto that helper</td><td class="num">0 bytes</td><td><span class="pill ok">None — no behavior change</span></td><td>The helper</td></tr>
+        <tr><td>Migrate the 42 call sites; delete the runindex duplicate</td><td class="num">0 bytes</td><td><span class="pill ok">Mechanical</span></td><td>The authority; land the ast-grep rule with it</td></tr>
+        <tr><td>Route test-genie writes to <code>HomeKeyTestRuns</code> + a <code>{scenario}</code> scoped template</td><td class="num">21 GB out of the repo</td><td><span class="pill gap">Ergonomic</span></td><td>The authority. Destination and retention already declared.</td></tr>
+        <tr><td>Six squatters declare their own <code>storage.entries</code> and move out</td><td class="num">structural</td><td><span class="pill gap">Touches 6 scenarios</span></td><td>The helper; separable from the rest</td></tr>
+        <tr><td>Four readers move to test-genie's API; app-monitor submits instead of writing</td><td class="num">drift ends</td><td><span class="pill gap">Needs a read surface</span></td><td>Extending the <code>ArtifactCatalog</code> boundary</td></tr>
+        <tr><td>Register test-genie's owner provider in storage-manager</td><td class="num">backstop</td><td><span class="pill ok">None</span></td><td>The move; plus a declaration door in registry.go</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p>Measured 2026-08-26 on branch <code>agi</code>. Sizes from <code>du</code>; entry counts and ages from <code>find</code> mtimes; reference graph from the repo tree plus the 1,873-file plan corpus under <code>~/.vrooli/plans/</code>. Growth rate derived from 29,510 phase-cache entries spanning 2026-08-08 to 2026-08-26.</p>
+</footer>
+
+</div>

@@ -55,7 +55,7 @@ export const TAB_CONFIGS: TabConfig[] = [
   {
     id: 'timeline',
     label: 'Timeline',
-    tooltip: 'View recorded or executed actions',
+    tooltip: 'View recorded actions and executed actions',
     visibleIn: ['recording', 'execution'],
   },
   {
@@ -141,7 +141,7 @@ export interface AISettings {
  * Default AI settings.
  */
 export const DEFAULT_AI_SETTINGS: AISettings = {
-  model: 'qwen3-vl-30b',
+  model: 'local_first',
   maxSteps: 20,
 };
 

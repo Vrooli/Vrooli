@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -244,7 +242,7 @@ func (g *TestDataGenerator) ReasoningRequest(inputText, reasoningType string) Re
 	return ReasoningRequest{
 		Input: inputText,
 		Type:  reasoningType,
-		Model: "llama3.2",
+		Model: "chat.default",
 	}
 }
 
@@ -253,7 +251,7 @@ func (g *TestDataGenerator) AnalyzeRequest(inputText, analysisType string) Analy
 	return AnalyzeRequest{
 		Input: inputText,
 		Type:  analysisType,
-		Model: "llama3.2",
+		Model: "chat.default",
 	}
 }
 

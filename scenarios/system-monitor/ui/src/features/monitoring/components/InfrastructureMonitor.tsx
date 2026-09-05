@@ -13,15 +13,15 @@ interface InfrastructureMonitorProps {
 export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth }: InfrastructureMonitorProps) => {
   const fdInfo = systemHealth?.fileDescriptors;
   const inotifyWatchers = systemHealth?.inotifyWatchers;
+  const apiProcessGoroutines = systemHealth?.apiProcessGoroutines;
   const watcherPercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.watchesPercent : undefined;
   const watcherInstancePercent = inotifyWatchers && inotifyWatchers.supported ? inotifyWatchers.instancesPercent : undefined;
 
   return (
     <section className="monitoring-panel collapsible card">
       <div
-        className="panel-header clickable monitor-panel-header"
+        className={`panel-header clickable monitor-panel-header ${isExpanded ? 'monitor-panel-header-expanded' : ''}`}
         onClick={onToggle}
-        style={{ marginBottom: isExpanded ? 'var(--spacing-md)' : 0 }}
       >
         <h2 className="icon-text monitor-heading">
           <Zap size={20} />
@@ -137,7 +137,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                   </div>
                 </div>
 
-                {(fdInfo || (inotifyWatchers && inotifyWatchers.supported)) && (
+                {(fdInfo || (inotifyWatchers && inotifyWatchers.supported) || apiProcessGoroutines !== undefined) && (
                   <div className="monitor-section">
                     <h3 className="monitor-section-heading">
                       Kernel Resource Limits:
@@ -181,6 +181,16 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           )}
                         </div>
                       )}
+
+                      {apiProcessGoroutines !== undefined && (
+                        <div className="kernel-resource-card">
+                          <div className="kernel-resource-header">
+                            <span>System-monitor API goroutines</span>
+                            <span className="text-bright">{apiProcessGoroutines.toLocaleString()}</span>
+                          </div>
+                          <div className="text-dim-xs">Process self-telemetry; not a host CPU signal.</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -212,7 +222,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                                   {service.status === 'healthy' ? 'Operational' : 'Needs attention'}
                                 </div>
                               </div>
-                              <div style={{ textAlign: 'right' }}>
+                              <div data-sm-style="sm-style-905bfede49">
                                 <div style={{
                                   color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)',
                                   fontWeight: 600

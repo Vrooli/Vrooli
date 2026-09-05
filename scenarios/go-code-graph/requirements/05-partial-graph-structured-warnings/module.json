@@ -1,0 +1,107 @@
+{
+  "description": "When source files fail to parse or imports are unresolvable, return a partial graph plus a `Warnings[]` list of `{file, kind, message}` entries. Hard fail only on catastrophic project errors (missing `go.mod`, unreadable path). Mid-migration scenarios are first-class inputs.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-004"
+      ],
+      "description": "When source files fail to parse or imports are unresolvable, Extract must return the partial graph built from successfully processed files/packages along with a Warnings[] list. Each warning entry must be a structured object with fields: file (string), kind (enum: PARSE_ERROR | UNRESOLVABLE_IMPORT | MISSING_TYPE_INFO), and message (string). Hard failures must only occur for catastrophic project-level errors: missing go.mod, unreadable module_path, or complete package load failure. Mid-migration scenarios with broken imports or partially valid files are explicitly first-class inputs and must not hard-fail.",
+      "id": "REQ-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Partial Graph Return with Structured Warnings on Parse Failures",
+      "validation": [
+        {
+          "notes": "Test that a module with one unparseable file returns a partial graph containing all other files' nodes and a Warnings[] entry for the failed file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that unresolvable imports produce a UNRESOLVABLE_IMPORT warning entry with the file and import path in the message",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that missing go.mod produces a hard failure (not a warning)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an unreadable module_path produces a hard failure (not a warning)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test Warning struct serialization: file, kind, message fields all present and correctly typed",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Table-driven tests for each warning kind with varied input states",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a fixture with intentional syntax errors returns partial graph plus at least one PARSE_ERROR warning",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a fixture with missing imported packages returns partial graph plus at least one UNRESOLVABLE_IMPORT warning",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a fixture with no go.mod returns a hard-fail error response, not a partial graph",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a mid-migration fixture (mixed valid/broken files) returns nodes for all valid files",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Consumers can distinguish between hard failures and partial-success responses via response type, not by inspecting error strings",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Mid-migration codebases that are standard Vrooli migration inputs do not cause full extraction failures",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Partial Graph + Structured Warnings"
+}

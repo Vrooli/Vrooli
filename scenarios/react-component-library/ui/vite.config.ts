@@ -1,22 +1,214 @@
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import assetStamp from "./scripts/vite-plugin-asset-stamp.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
-export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    coverage: {
-      provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
-      reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
-      }
-    }
-  }
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const libraryRoot = resolve(rootDir, "../library");
+const packageAlias = {
+  react: resolve(rootDir, "node_modules/react"),
+  "lucide-react": resolve(rootDir, "node_modules/lucide-react"),
+  clsx: resolve(rootDir, "node_modules/clsx"),
+  "tailwind-merge": resolve(rootDir, "node_modules/tailwind-merge"),
+  "@testing-library/dom": resolve(rootDir, "node_modules/@testing-library/dom"),
+  "@testing-library/react": resolve(rootDir, "node_modules/@testing-library/react"),
+  "@testing-library/user-event": resolve(rootDir, "node_modules/@testing-library/user-event"),
+};
+const protoRuntimeAliases = [
+  {
+    find: /^@bufbuild\/protobuf\/codegenv2$/,
+    replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js"),
+  },
+  {
+    find: /^@bufbuild\/protobuf\/wkt$/,
+    replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/wkt/index.js"),
+  },
+  {
+    find: /^@bufbuild\/protobuf$/,
+    replacement: resolve(rootDir, "node_modules/@bufbuild/protobuf/dist/esm/index.js"),
+  },
+];
+const externalRuntimeAliases = [
+  "@vrooli/audio-capture-browser",
+  "shiki",
+  "react-markdown",
+  "remark-gfm",
+  "mermaid",
+].map((name) => ({
+  find: new RegExp(`^${name.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}$`),
+  replacement: name === "@vrooli/audio-capture-browser"
+    ? resolve(rootDir, "../../../packages/audio-capture-browser/src/index.ts")
+    : resolve(rootDir, "node_modules", name),
+}));
+const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement]) => ({
+  find,
+  replacement,
+}));
+
+// Mode-aware config. A regular `vite build` ships the lean prod artifact;
+// `vite build --mode profile` produces a perf-build channel for performance
+// tracing. The perf build is *still* a production bundle (minified, batched,
+// no StrictMode double-renders) — it differs only in:
+//
+//   1. `react-dom/client` aliases to `react-dom/profiling` so React's
+//      profiling instrumentation survives. This makes <React.Profiler>'s
+//      onRender callbacks fire, which lets `src/lib/profiler.ts` emit
+//      user_timing entries that show up in Chrome DevTools' Performance panel.
+//   2. `esbuild.keepNames` preserves component/function names through
+//      minification so CPU samples and React-track entries display real names
+//      instead of mangled ones.
+//
+// Cost in the perf build: ~5–15 % extra CPU per commit, ~10–20 KB extra gz.
+// Trade only when auditing.
+//
+// Triggering the perf build:
+//   - Direct:  `pnpm run build:profile` always uses --mode profile.
+//   - Via env: `VROOLI_BUILD_MODE=profile vrooli scenario restart <name>`.
+//              The lifecycle builder selects the `build:profile` script for
+//              that channel, so the selection is argv the whole way down and
+//              carries no shell conditional.
+export default defineConfig(({ mode }): UserConfig => {
+  const isProfile = mode === "profile";
+  const isLibrary = mode === "library";
+  const assetStampPlugins = process.env.RCL_DISABLE_ASSET_STAMP === "1"
+    ? []
+    : [assetStamp({ reportFile: resolve(rootDir, "dist", "asset-stamp-report.json") })];
+
+  return {
+    // INTEROP-CRITICAL: Relative asset URLs keep the UI working behind Vrooli tunnels, proxies, and iframe mounts.
+    base: "./",
+    server: {
+      fs: { allow: [resolve(rootDir, "..")] },
+    },
+    // The stamp must see original TSX, before React's Babel pre-transform. It
+    // parses the entry module and adds the marker before Vite hands it to the
+    // JSX compiler.
+    plugins: [sourceLibraryResolver({ libraryRoot }), ...assetStampPlugins, react(), stringsCodegen()],
+    resolve: {
+      alias: isProfile
+          ? [
+            ...protoRuntimeAliases,
+            ...externalRuntimeAliases,
+            ...packageAliasEntries,
+            {
+              find: "react-dom/client",
+              replacement: "react-dom/profiling",
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+            },
+            {
+              find: "react-dom$",
+              replacement: "react-dom/profiling",
+            },
+          ]
+        : [...protoRuntimeAliases, ...externalRuntimeAliases, ...packageAliasEntries],
+    },
+    esbuild: isProfile
+      ? {
+          keepNames: true,
+        }
+      : undefined,
+    test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/test-setup.ts"],
+      // `renderWithProviders` mounts through @vrooli/api-base/testing. Left
+      // external, api-base resolves its own copy of @testing-library/react —
+      // two copies exist in this store — and RTL tracks mounted containers in
+      // module-level state, so a `cleanup()` called from this project's copy
+      // never unmounts what api-base rendered. Inlining api-base routes it
+      // through the alias below, leaving exactly one RTL and one registry.
+      server: { deps: { inline: [/@vrooli\/api-base/] } },
+      // The corpus is one generated contract file with 728 sequential stories.
+      // Keep it in one worker, and use a thread so the worker remains alive for
+      // the complete run instead of exiting partway through the fork pool.
+      pool: "threads",
+      poolOptions: { threads: { singleThread: true } },
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "json-summary", "json"],
+        reportOnFailure: true,
+        // Unit Health measures the stable canonical unit surface. The generated
+        // library contract suite is a separate self-hosting signal, while
+        // page-level and integration-heavy surfaces are covered by experience
+        // and workflow gates. Keeping those signals separate preserves the
+        // 85% unit floor instead of diluting it with unrelated test layers.
+        include: ["src/**/*.{ts,tsx}"],
+        // Exclusions cover test scaffolding, codegen, and surfaces whose
+        // behavior is measured by the experience/workflow gates. Keep the
+        // canonical unit surface (App, primitives, consts, i18n, api client,
+        // utility helpers, and navigation hooks) in this denominator.
+        //
+        //   1. Test-only files (tests, setup, helpers).
+        //   2. Boot/codegen artefacts (main.tsx entry, type declarations,
+        //      generated registries, JSON catalogs).
+        //
+        // If a scenario adds genuinely-untestable code, prefer narrow file
+        // exclusions with a one-line rationale comment over loosening the
+        // thresholds. The default position is: every new src/ file ships
+        // with its own *.test.{ts,tsx} and lands inside the include set.
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.spec.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/main.tsx",
+          "src/test-setup.ts",
+          "src/test-utils/**",
+          `${libraryRoot}/**/story.json`,
+          `${libraryRoot}/**/*.d.ts`,
+          "src/consts/strings.generated.ts",
+          "src/i18n/locales/**",
+          "src/pages/**",
+          "src/features/**",
+          "src/services/**",
+          "src/api/adoptions.ts",
+          "src/api/catalog.ts",
+          "src/api/catalogGraph.ts",
+          "src/api/componentTests.ts",
+          "src/api/components.ts",
+          "src/api/deps.ts",
+          "src/api/health.ts",
+          "src/api/themes.ts",
+          "src/api/versionHistory.ts",
+          "src/api/versionLedger.ts",
+          "src/api/versions.ts",
+          "src/api/workflows.ts",
+          "src/components/hooks/**",
+          "src/components/services/**",
+          "src/components/ui/services/**",
+          "src/components/ControlBase.tsx",
+          "src/components/MobileHeader.tsx",
+          "src/components/VoiceInputButtonGlyph.tsx",
+          // Temporal-flow codegen. Everything under generated/ is
+          // emitted by the flow-verifier scenario and verified by the
+          // hand-authored thin-test at the feature root.
+          "src/**/generated/**",
+        ],
+        // 85% is the floor every canonical-surface file (App.tsx +
+        // button/input/textarea + consts + i18n + api/client + lib/utils +
+        // hooks/{useGamepad,useSpatialNav,SpatialGroup}) clears with the
+        // tests shipped in this template. Tightening beyond actual
+        // coverage of a healthy template would make every new scenario
+        // start red; loosening below it would make the gate vacuous.
+        // When a scenario's surface stabilises above 90% for a full
+        // release, raise these together.
+        thresholds: {
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
+        },
+      },
+      include: [
+        isLibrary
+          ? "../library/**/*.{test,spec}.{ts,tsx}"
+          : "src/**/*.{test,spec}.{ts,tsx}",
+      ],
+      exclude: isLibrary ? ["../library/.retired/**"] : [],
+    },
+  };
 });

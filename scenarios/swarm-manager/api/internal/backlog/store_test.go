@@ -2,6 +2,7 @@ package backlog
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -119,6 +120,48 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 		}
 	})
 
+	t.Run("suggested item finding_ref round-trips", func(t *testing.T) {
+		store, rootDir := setupTestStore(t)
+		testutil.MakeDir(t, filepath.Join(rootDir, "fix", "auto-filed-finding"))
+		item := BacklogItem{
+			Name:       "auto-filed-finding",
+			Title:      "Auto-filed Finding",
+			Status:     StatusSuggested,
+			Priority:   2,
+			Tags:       []string{"auto-filer"},
+			Created:    "2026-01-01T00:00:00Z",
+			Updated:    "2026-01-01T00:00:00Z",
+			Kind:       KindFix,
+			FindingRef: "gct://scenario/readiness/docs",
+		}
+		if err := store.SaveItem(item); err != nil {
+			t.Fatalf("SaveItem: %v", err)
+		}
+
+		loaded, err := store.LoadItem(KindFix, "auto-filed-finding")
+		if err != nil {
+			t.Fatalf("LoadItem: %v", err)
+		}
+		if loaded.Status != StatusSuggested {
+			t.Fatalf("status = %q, want %q", loaded.Status, StatusSuggested)
+		}
+		if loaded.FindingRef != "gct://scenario/readiness/docs" {
+			t.Fatalf("finding_ref = %q", loaded.FindingRef)
+		}
+
+		var persisted map[string]any
+		data, err := os.ReadFile(filepath.Join(rootDir, "fix", "auto-filed-finding", "spec.json"))
+		if err != nil {
+			t.Fatalf("read spec.json: %v", err)
+		}
+		if err := json.Unmarshal(data, &persisted); err != nil {
+			t.Fatalf("unmarshal spec.json: %v", err)
+		}
+		if persisted["finding_ref"] != "gct://scenario/readiness/docs" {
+			t.Fatalf("persisted finding_ref = %#v", persisted["finding_ref"])
+		}
+	})
+
 	t.Run("missing file returns error", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		specPath := filepath.Join(rootDir, "ideas", "nonexistent", "spec.json")
@@ -162,7 +205,10 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy status 'done' normalized to completed", func(t *testing.T) {
+	// Greenfield: unknown or legacy status values are a spec error, not
+	// something to paper over. LoadItemFromPath must surface them via
+	// ErrInvalidStatus so the owner fixes the file, not the loader.
+	t.Run("legacy status 'done' is rejected", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindIdea, "done-item", map[string]any{
 			"title":    "Done Item",
@@ -171,16 +217,13 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 			"created":  "2025-01-01T00:00:00Z",
 		})
 		specPath := filepath.Join(rootDir, "ideas", "done-item", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.Status != StatusCompleted {
-			t.Errorf("Status = %s, want %s", item.Status, StatusCompleted)
+		_, err := store.LoadItemFromPath(KindIdea, specPath)
+		if !errors.Is(err, ErrInvalidStatus) {
+			t.Fatalf("err = %v, want ErrInvalidStatus", err)
 		}
 	})
 
-	t.Run("legacy status 'complete' normalized to completed", func(t *testing.T) {
+	t.Run("legacy status 'complete' is rejected", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindIdea, "complete-item", map[string]any{
 			"title":    "Complete Item",
@@ -189,16 +232,13 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 			"created":  "2025-01-01T00:00:00Z",
 		})
 		specPath := filepath.Join(rootDir, "ideas", "complete-item", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.Status != StatusCompleted {
-			t.Errorf("Status = %s, want %s", item.Status, StatusCompleted)
+		_, err := store.LoadItemFromPath(KindIdea, specPath)
+		if !errors.Is(err, ErrInvalidStatus) {
+			t.Fatalf("err = %v, want ErrInvalidStatus", err)
 		}
 	})
 
-	t.Run("unknown status normalized to backlog", func(t *testing.T) {
+	t.Run("unknown status is rejected", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindIdea, "weird-status", map[string]any{
 			"title":    "Weird Status",
@@ -207,12 +247,9 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 			"created":  "2025-01-01T00:00:00Z",
 		})
 		specPath := filepath.Join(rootDir, "ideas", "weird-status", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.Status != StatusBacklog {
-			t.Errorf("Status = %s, want %s", item.Status, StatusBacklog)
+		_, err := store.LoadItemFromPath(KindIdea, specPath)
+		if !errors.Is(err, ErrInvalidStatus) {
+			t.Fatalf("err = %v, want ErrInvalidStatus", err)
 		}
 	})
 
@@ -707,89 +744,43 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		"created":  "2025-01-01T00:00:00Z",
 	})
 
-	t.Run("deleted/archived dep is not unmet", func(t *testing.T) {
-		// A dependency whose spec no longer exists on disk is presumed
-		// completed and subsequently archived/deleted. It must never
-		// block execution — cleaning up past work is a valid workflow.
-		unmet, err := store.CheckDependencies([]string{"idea/nonexistent-item"})
-		if err != nil {
-			t.Fatalf("expected no error for missing dep, got: %v", err)
-		}
-		if len(unmet) != 0 {
-			t.Errorf("missing dep should be treated as satisfied (archived), got unmet: %v", unmet)
-		}
+	// Create an archived dependency whose stale status still looks unplanned.
+	writeSpecJSON(t, rootDir, KindIdea, "dep-archived-pending", map[string]any{
+		"title":       "Archived Pending Dep",
+		"status":      "backlog",
+		"priority":    3,
+		"created":     "2025-01-01T00:00:00Z",
+		"archived_at": "2026-01-02T00:00:00Z",
 	})
 
-	t.Run("unparseable ref is skipped not blocking", func(t *testing.T) {
-		// Unparseable refs cannot be validated and should not block execution.
-		unmet, err := store.CheckDependencies([]string{"bad-ref-no-slash"})
-		if err != nil {
-			t.Fatalf("expected no error for bad ref, got: %v", err)
-		}
-		if len(unmet) != 0 {
-			t.Errorf("unparseable ref should be skipped, got unmet: %v", unmet)
-		}
-	})
+	tests := []struct {
+		name string
+		refs []string
+		want []string
+	}{
+		{name: "deleted or archived dep is not unmet", refs: []string{"idea/nonexistent-item"}},
+		{name: "unparseable ref is skipped", refs: []string{"bad-ref-no-slash"}},
+		{name: "completed dep is not unmet", refs: []string{"idea/dep-done"}},
+		{name: "backlog dep is unmet", refs: []string{"idea/dep-pending"}, want: []string{"idea/dep-pending"}},
+		{name: "failed dep is not blocking", refs: []string{"idea/dep-failed"}},
+		{name: "ready dep is not blocking", refs: []string{"idea/dep-ready"}},
+		{name: "archived dep ignores stale backlog status", refs: []string{"idea/dep-archived-pending"}},
+		{
+			name: "mixed completed archived and unplanned deps",
+			refs: []string{"idea/dep-done", "idea/nonexistent-item", "idea/dep-failed", "idea/dep-pending"},
+			want: []string{"idea/dep-pending"},
+		},
+	}
 
-	t.Run("completed dep is not unmet", func(t *testing.T) {
-		unmet, err := store.CheckDependencies([]string{"idea/dep-done"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(unmet) != 0 {
-			t.Errorf("expected no unmet deps for completed item, got: %v", unmet)
-		}
-	})
-
-	t.Run("backlog dep is unmet", func(t *testing.T) {
-		unmet, err := store.CheckDependencies([]string{"idea/dep-pending"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(unmet) != 1 || unmet[0] != "idea/dep-pending" {
-			t.Errorf("expected [idea/dep-pending] as unmet, got: %v", unmet)
-		}
-	})
-
-	t.Run("failed dep is not blocking", func(t *testing.T) {
-		// A failed dependency has progressed past the planning phase and
-		// should not block downstream items.
-		unmet, err := store.CheckDependencies([]string{"idea/dep-failed"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(unmet) != 0 {
-			t.Errorf("expected failed dep to not block, got unmet: %v", unmet)
-		}
-	})
-
-	t.Run("ready dep is not blocking", func(t *testing.T) {
-		// A ready dependency has been planned and should not block.
-		unmet, err := store.CheckDependencies([]string{"idea/dep-ready"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(unmet) != 0 {
-			t.Errorf("expected ready dep to not block, got unmet: %v", unmet)
-		}
-	})
-
-	t.Run("mixed completed, archived, and unplanned deps", func(t *testing.T) {
-		// Only the unplanned (backlog/researching) dep should be unmet.
-		unmet, err := store.CheckDependencies([]string{
-			"idea/dep-done",         // completed on disk → satisfied
-			"idea/nonexistent-item", // missing on disk → presumed archived → satisfied
-			"idea/dep-failed",       // failed on disk → past planning → satisfied
-			"idea/dep-pending",      // backlog on disk → still in planning → unmet
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			unmet, err := store.CheckDependencies(tt.refs)
+			if err != nil {
+				t.Fatalf("CheckDependencies: %v", err)
+			}
+			if got, want := strings.Join(unmet, ","), strings.Join(tt.want, ","); got != want {
+				t.Fatalf("unmet dependencies = %q, want %q", got, want)
+			}
 		})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(unmet) != 1 {
-			t.Fatalf("expected 1 unmet dep (only the backlog one), got %d: %v", len(unmet), unmet)
-		}
-		if unmet[0] != "idea/dep-pending" {
-			t.Errorf("expected unmet dep to be idea/dep-pending, got: %s", unmet[0])
-		}
-	})
+	}
 }

@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        },
+        {
+          "kind": "role",
+          "name": "Maya Chen is online",
+          "role": "status"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Named identity",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        }
+      ],
+      "id": "loading",
+      "mode": "live",
+      "name": "Loading",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Maya Chen",
+          "role": "img"
+        }
+      ],
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error fallback",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Group",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Reviewers",
+          "role": "group"
+        },
+        {
+          "kind": "role",
+          "name": "+1 more people",
+          "role": "img"
+        }
+      ],
+      "id": "group",
+      "mode": "live",
+      "name": "Group overflow",
+      "role": "boundary"
+    }
+  ],
+  "title": "Avatar"
+}

@@ -14,10 +14,11 @@ interface AgentActivitiesStoreState {
 }
 
 /**
- * Statuses that represent an agent still doing work or awaiting human input.
- * Activities in these states appear in the "running agents" indicator.
+ * Statuses that keep an activity relevant to coordination/UI. This includes
+ * `needs_review`, which is no longer executing but is still awaiting a user
+ * decision and should remain discoverable on the item.
  */
-const ACTIVE_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
+const TRACKED_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
   "pending",
   "starting",
   "running",
@@ -86,7 +87,7 @@ export const useAgentActivitiesStore = create<AgentActivitiesStoreState>((set, g
 }));
 
 export const selectActiveAgentActivities = (state: AgentActivitiesStoreState): AgentActivityRecord[] => {
-  return state.activities.filter((activity) => ACTIVE_STATUSES.has(activity.status));
+  return state.activities.filter((activity) => TRACKED_STATUSES.has(activity.status));
 };
 
 export const selectLatestActivityForBacklog = (
@@ -99,7 +100,7 @@ export const selectLatestActivityForBacklog = (
       activity.ownerType === "backlog" &&
       activity.ownerKind === backlogKind &&
       activity.ownerName === backlogName &&
-      ACTIVE_STATUSES.has(activity.status)
+      TRACKED_STATUSES.has(activity.status)
   );
   return match ?? null;
 };

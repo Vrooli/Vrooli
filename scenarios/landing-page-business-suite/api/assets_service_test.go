@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -11,7 +13,78 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	corestorage "github.com/vrooli/api-core/storage"
+	"landing-page-business-suite-api/internal/content"
 )
+
+func TestAssetsServiceResolveStoragePathRejectsTraversalAndAbsolutePaths(t *testing.T) {
+	service := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: t.TempDir()})
+	for _, storagePath := range []string{"../secret", "/etc/passwd", ".", ""} {
+		if _, err := service.ResolveStoragePath(storagePath); !errors.Is(err, content.ErrInvalidAssetPath) {
+			t.Fatalf("ResolveStoragePath(%q) error = %v, want ErrInvalidAssetPath", storagePath, err)
+		}
+	}
+	resolved, err := service.ResolveStoragePath("logos/logo.png")
+	if err != nil {
+		t.Fatalf("ResolveStoragePath valid path: %v", err)
+	}
+	if !strings.HasSuffix(resolved, filepath.Join("logos", "logo.png")) {
+		t.Fatalf("resolved path = %q", resolved)
+	}
+}
+
+func TestAssetsServiceUploadContextRoutesTestModeWritesToLeasedRoot(t *testing.T) {
+	db := setupTestDB(t)
+	t.Cleanup(func() { _ = db.Close() })
+
+	primaryRoot := t.TempDir()
+	leasedRoot := t.TempDir()
+	roots := filerouting.New(corestorage.Paths{DataDir: primaryRoot})
+	if err := roots.InstallTestRoots(corestorage.Paths{DataDir: leasedRoot}, "asset-lease", time.Minute); err != nil {
+		t.Fatalf("install leased roots: %v", err)
+	}
+	t.Cleanup(func() { _ = roots.ClearTestRoots("asset-lease") })
+
+	svc := NewAssetsService(db)
+	svc.SetFileRoots(roots)
+	source := filepath.Join(t.TempDir(), "asset.png")
+	if err := os.WriteFile(source, []byte("not a real png"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	file, err := os.Open(source)
+	if err != nil {
+		t.Fatalf("open source: %v", err)
+	}
+	defer file.Close()
+
+	asset, err := svc.UploadContext(database.WithTestMode(context.Background()), &content.AssetUploadRequest{
+		File: file,
+		Header: &multipart.FileHeader{
+			Filename: "asset.png",
+			Header:   textproto.MIMEHeader{"Content-Type": []string{"image/png"}},
+			Size:     int64(len("not a real png")),
+		},
+		Category: "logo",
+	})
+	if err != nil {
+		t.Fatalf("upload in test mode: %v", err)
+	}
+	t.Cleanup(func() { _, _ = db.Exec(`DELETE FROM assets WHERE id = $1`, asset.ID) })
+
+	if _, err := os.Stat(filepath.Join(leasedRoot, asset.StoragePath)); err != nil {
+		t.Fatalf("expected leased-root asset: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(primaryRoot, asset.StoragePath)); !os.IsNotExist(err) {
+		t.Fatalf("primary root must remain untouched, stat error = %v", err)
+	}
+	if got := roots.LeaseStats().TestRootWrites; got != 1 {
+		t.Fatalf("test-root write count = %d, want 1", got)
+	}
+}
 
 func TestGenerateLogoDerivatives(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -39,8 +112,8 @@ func TestGenerateLogoDerivatives(t *testing.T) {
 	}
 	out.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
+	svc := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -96,8 +169,8 @@ func TestGenerateLogoDerivativesJpeg(t *testing.T) {
 	}
 	f.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.jpg", "image/jpeg", "logo")
+	svc := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.jpg", "image/jpeg", "logo")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -122,8 +195,8 @@ func TestGenerateDerivativesSvgFallback(t *testing.T) {
 		t.Fatalf("write svg: %v", err)
 	}
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.svg", "image/svg+xml", "logo")
+	svc := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.svg", "image/svg+xml", "logo")
 	if err != nil {
 		t.Fatalf("svg fallback returned error: %v", err)
 	}
@@ -159,8 +232,8 @@ func TestGenerateFaviconDerivatives(t *testing.T) {
 	}
 	f.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "favicons/favicon.png", "image/png", "favicon")
+	svc := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "favicons/favicon.png", "image/png", "favicon")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -195,8 +268,8 @@ func TestGenerateOgDerivatives(t *testing.T) {
 	}
 	f.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "og-images/og.png", "image/png", "og_image")
+	svc := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "og-images/og.png", "image/png", "og_image")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -233,8 +306,8 @@ func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 		t.Fatalf("write corrupt source: %v", err)
 	}
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
+	svc := NewAssetsServiceWithOptions(content.AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
 	if err == nil {
 		t.Fatal("expected decode error, got nil")
 	}
@@ -269,7 +342,7 @@ func TestAssetsServiceUpload_DisallowedMimeRejectsAndCleansUp(t *testing.T) {
 	}
 	defer file.Close()
 
-	req := &AssetUploadRequest{
+	req := &content.AssetUploadRequest{
 		File:     file,
 		Header:   &multipart.FileHeader{Filename: "payload.txt", Header: textproto.MIMEHeader{"Content-Type": []string{"text/plain"}}, Size: 12},
 		Category: "logo",
@@ -307,7 +380,7 @@ func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 	t.Setenv("UPLOAD_DIR", tmpDir)
 
 	svc := NewAssetsService(db)
-	svc.maxSize = 16
+	svc.SetMaxSize(16)
 
 	payloadPath := filepath.Join(tmpDir, "small.png")
 	if err := os.WriteFile(payloadPath, []byte{0, 1, 2, 3}, 0o644); err != nil {
@@ -319,7 +392,7 @@ func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 	}
 	defer file.Close()
 
-	req := &AssetUploadRequest{
+	req := &content.AssetUploadRequest{
 		File: file,
 		Header: &multipart.FileHeader{
 			Filename: "small.png",
@@ -354,7 +427,7 @@ func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 	}
 	defer file.Close()
 
-	req := &AssetUploadRequest{
+	req := &content.AssetUploadRequest{
 		File: file,
 		Header: &multipart.FileHeader{
 			Filename: "corrupt.png",
@@ -444,7 +517,7 @@ func TestAssetsServiceUpload_GeneratesDerivativesAndThumbnail(t *testing.T) {
 	}
 	defer file.Close()
 
-	req := &AssetUploadRequest{
+	req := &content.AssetUploadRequest{
 		File: file,
 		Header: &multipart.FileHeader{
 			Filename: "upload-logo.png",
@@ -517,7 +590,7 @@ func TestAssetsServiceUpload_DetectsMimeAndStoresGeneralAssets(t *testing.T) {
 	defer file.Close()
 
 	svc := NewAssetsService(db)
-	asset, err := svc.Upload(&AssetUploadRequest{
+	asset, err := svc.Upload(&content.AssetUploadRequest{
 		File: file,
 		Header: &multipart.FileHeader{
 			Filename: "general.png",

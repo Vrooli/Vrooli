@@ -1,0 +1,378 @@
+{
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.runwayFigure": {
+      "testId": "position-runway",
+      "selector": "[data-testid=\"position-runway\"]"
+    },
+    "pages.runwayBasis": {
+      "testId": "position-runway-basis",
+      "selector": "[data-testid=\"position-runway-basis\"]"
+    },
+    "pages.completeness": {
+      "testId": "position-completeness",
+      "selector": "[data-testid=\"position-completeness\"]"
+    },
+    "pages.missingAdapter": {
+      "testId": "position-missing-adapter",
+      "selector": "[data-testid=\"position-missing-adapter\"]"
+    },
+    "pages.goalList": {
+      "testId": "position-goal-list",
+      "selector": "[data-testid=\"position-goal-list\"]"
+    },
+    "pages.sustainProgress": {
+      "testId": "goal-sustain-progress",
+      "selector": "[data-testid=\"goal-sustain-progress\"]"
+    },
+    "pages.positionDelta": {
+      "testId": "position-delta",
+      "selector": "[data-testid=\"position-delta\"]"
+    },
+    "pages.emptyGuidance": {
+      "testId": "position-empty-guidance",
+      "selector": "[data-testid=\"position-empty-guidance\"]"
+    },
+    "pages.positionError": {
+      "testId": "position-error",
+      "selector": "[data-testid=\"position-error\"]"
+    },
+    "pages.runwayBurnTrend": {
+      "testId": "runway-burn-trend",
+      "selector": "[data-testid=\"runway-burn-trend\"]"
+    },
+    "pages.runwayBurnTable": {
+      "testId": "runway-burn-table",
+      "selector": "[data-testid=\"runway-burn-table\"]"
+    },
+    "pages.trendSourceBasis": {
+      "testId": "trend-source-basis",
+      "selector": "[data-testid=\"trend-source-basis\"]"
+    },
+    "pages.trendGap": {
+      "testId": "trend-gap",
+      "selector": "[data-testid=\"trend-gap\"]"
+    },
+    "pages.trendWindow": {
+      "testId": "trend-window",
+      "selector": "[data-testid=\"trend-window\"]"
+    },
+    "pages.journal": {
+      "testId": "page-journal",
+      "selector": "[data-testid=\"page-journal\"]"
+    },
+    "pages.accounts": {
+      "testId": "page-accounts",
+      "selector": "[data-testid=\"page-accounts\"]"
+    },
+    "pages.adapters": {
+      "testId": "page-adapters",
+      "selector": "[data-testid=\"page-adapters\"]"
+    },
+    "pages.statements": {
+      "testId": "page-statements",
+      "selector": "[data-testid=\"page-statements\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.bookList": {
+      "testId": "book-list",
+      "selector": "[data-testid=\"book-list\"]"
+    },
+    "pages.bookLabel": {
+      "testId": "account-book-label",
+      "selector": "[data-testid=\"account-book-label\"]"
+    },
+    "pages.accountTable": {
+      "testId": "account-table",
+      "selector": "[data-testid=\"account-table\"]"
+    },
+    "pages.accountsEmptyGuidance": {
+      "testId": "accounts-empty-guidance",
+      "selector": "[data-testid=\"accounts-empty-guidance\"]"
+    },
+    "pages.balanceBasis": {
+      "testId": "account-balance-basis",
+      "selector": "[data-testid=\"account-balance-basis\"]"
+    },
+    "pages.balanceGap": {
+      "testId": "account-balance-gap",
+      "selector": "[data-testid=\"account-balance-gap\"]"
+    },
+    "pages.transferPair": {
+      "testId": "account-transfer-pair",
+      "selector": "[data-testid=\"account-transfer-pair\"]"
+    },
+    "pages.adapterList": {
+      "testId": "adapter-list",
+      "selector": "[data-testid=\"adapter-list\"]"
+    },
+    "pages.adapterAvailability": {
+      "testId": "adapter-availability",
+      "selector": "[data-testid=\"adapter-availability\"]"
+    },
+    "pages.failureReason": {
+      "testId": "adapter-failure-reason",
+      "selector": "[data-testid=\"adapter-failure-reason\"]"
+    },
+    "pages.lastSuccessAge": {
+      "testId": "adapter-last-success-age",
+      "selector": "[data-testid=\"adapter-last-success-age\"]"
+    },
+    "pages.missingImpact": {
+      "testId": "adapter-missing-impact",
+      "selector": "[data-testid=\"adapter-missing-impact\"]"
+    },
+    "pages.credentialGap": {
+      "testId": "adapter-credential-gap",
+      "selector": "[data-testid=\"adapter-credential-gap\"]"
+    },
+    "pages.manualAdapterEntry": {
+      "testId": "adapter-row-manual",
+      "selector": "[data-testid=\"adapter-row-manual\"]"
+    },
+    "pages.adaptersEmptyGuidance": {
+      "testId": "adapter-empty-guidance",
+      "selector": "[data-testid=\"adapter-empty-guidance\"]"
+    },
+    "pages.operatorInputSurface": {
+      "testId": "operator-input-surface",
+      "selector": "[data-testid=\"operator-input-surface\"]"
+    },
+    "pages.operatorInputStatus": {
+      "testId": "operator-input-status",
+      "selector": "[data-testid=\"operator-input-status\"]"
+    },
+    "pages.operatorInputReport": {
+      "testId": "operator-input-report",
+      "selector": "[data-testid=\"operator-input-report\"]"
+    },
+    "pages.operatorInputDerivedRateRefusal": {
+      "testId": "operator-input-derived-rate-refusal",
+      "selector": "[data-testid=\"operator-input-derived-rate-refusal\"]"
+    },
+    "pages.eventTable": {
+      "testId": "journal-table",
+      "selector": "[data-testid=\"journal-table\"]"
+    },
+    "pages.eventBasis": {
+      "testId": "journal-event-basis",
+      "selector": "[data-testid=\"journal-event-basis\"]"
+    },
+    "pages.eventSource": {
+      "testId": "journal-event-source",
+      "selector": "[data-testid=\"journal-event-source\"]"
+    },
+    "pages.reversalLink": {
+      "testId": "journal-reversal-link",
+      "selector": "[data-testid=\"journal-reversal-link\"]"
+    },
+    "pages.reversalReason": {
+      "testId": "journal-reversal-reason",
+      "selector": "[data-testid=\"journal-reversal-reason\"]"
+    },
+    "pages.reverseAction": {
+      "testId": "journal-reverse",
+      "selector": "[data-testid=\"journal-reverse\"]"
+    },
+    "pages.auditTrail": {
+      "testId": "journal-audit-trail",
+      "selector": "[data-testid=\"journal-audit-trail\"]"
+    },
+    "pages.manualEntry": {
+      "testId": "journal-manual-entry",
+      "selector": "[data-testid=\"journal-manual-entry\"]"
+    },
+    "pages.journalEmptyGuidance": {
+      "testId": "journal-empty-guidance",
+      "selector": "[data-testid=\"journal-empty-guidance\"]"
+    },
+    "pages.statementFigures": {
+      "testId": "statement-figures",
+      "selector": "[data-testid=\"statement-figures\"]"
+    },
+    "pages.coverageNote": {
+      "testId": "statement-coverage",
+      "selector": "[data-testid=\"statement-coverage\"]"
+    },
+    "pages.periodSelector": {
+      "testId": "statement-period",
+      "selector": "[data-testid=\"statement-period\"]"
+    },
+    "pages.categoryBreakdown": {
+      "testId": "statement-categories",
+      "selector": "[data-testid=\"statement-categories\"]"
+    },
+    "pages.uncategorisedCount": {
+      "testId": "statement-uncategorised-count",
+      "selector": "[data-testid=\"statement-uncategorised-count\"]"
+    },
+    "pages.notTaxAdvice": {
+      "testId": "statement-not-tax-advice",
+      "selector": "[data-testid=\"statement-not-tax-advice\"]"
+    },
+    "pages.exportAction": {
+      "testId": "statement-export",
+      "selector": "[data-testid=\"statement-export\"]"
+    },
+    "pages.statementsEmptyGuidance": {
+      "testId": "statement-empty-guidance",
+      "selector": "[data-testid=\"statement-empty-guidance\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "journal",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "journal",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  }
+}

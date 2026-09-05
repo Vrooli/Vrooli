@@ -1,50 +1,45 @@
 {
-  "description": "30 scripts exist in investigations/active/. Scripts are executed by the investigation agent directly, not via the API. API script endpoints (ListScripts, GetScript, ExecuteScript) are placeholders: list returns empty array, get/execute return 404. UI has script browser/editor panel.",
-  "module_id": "MOD-P0-008",
-  "prd_ref": "system-monitor-must-have-investigation-script-execution-30-scripts-in-investigationsactive-api-script-endpoints-are-placeholders",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-003"
-      ],
-      "description": "System must support execution of 30 predefined investigation scripts via API endpoints",
       "id": "REQ-P0-008",
-      "prd_ref": "system-monitor-must-have-investigation-script-execution-30-scripts-in-investigationsactive-api-script-endpoints-are-placeholders",
-      "status": "in-progress",
       "title": "Investigation Script System",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "api",
+      "description": "The system shall expose and execute the predefined investigation catalog through API endpoints, selecting native execution or an explicitly declared shell-gated path with honest unsupported results.",
       "validation": [
         {
-          "notes": "Test script execution engine",
+          "type": "test",
+          "ref": "api/internal/investigations/catalog_test.go",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test catalog loading, native execution, shell JSON validation, and durable run persistence"
         },
         {
-          "notes": "Verify all 30 scripts executable",
+          "type": "test",
+          "ref": "docs/evidence/investigation-catalog-final-2026-08-26/catalog.json",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Verify six catalog entries, two shell escape hatches, four native entries, and platform/tool metadata"
         },
         {
-          "notes": "Script execution \u003c 30s",
+          "type": "test",
+          "ref": "docs/evidence/investigation-catalog-final-2026-08-26/run-container-health.json",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Runtime matrix records every catalog entry below the 60-second execution guard and below the 30-second observed target"
         },
         {
-          "notes": "Scripts runnable from UI",
+          "type": "test",
+          "ref": "ui/src/features/investigations/components/operator-panels.test.tsx",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Operator panel renders catalog metadata and executes entries through the API"
         }
       ]
     }
-  ],
-  "title": "Investigation script execution (30 scripts in investigations/active/; API script endpoints are placeholders)"
+  ]
 }

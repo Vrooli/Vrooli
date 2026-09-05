@@ -65,7 +65,7 @@ func TestVPSPreflightHappyPath(t *testing.T) {
 		}},
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},
@@ -126,7 +126,7 @@ func TestVPSPreflightDNSErrorIsActionable(t *testing.T) {
 		}},
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},
@@ -198,7 +198,7 @@ func TestVPSPreflightDNSPolicyWarnDowngradesFailure(t *testing.T) {
 		}},
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import {
   fetchHealth,
   fetchDriverInfo,
@@ -10,6 +11,7 @@ import {
   deleteSandbox,
   stopSandbox,
   startSandbox,
+  resumeSandbox,
   getDiff,
   approveSandbox,
   rejectSandbox,
@@ -28,7 +30,12 @@ import {
   deleteProfile,
   fetchCommitPreview,
   commitPending,
+  listHistory,
+  fetchRetentionConfig,
+  updateRetentionConfig,
   type ListFilter,
+  type HistoryFilter,
+  type RetentionUpdate,
   type CreateRequest,
   type ApprovalRequest,
   type ExecRequest,
@@ -53,6 +60,8 @@ export const queryKeys = {
   executionConfig: ["executionConfig"] as const,
   profiles: ["profiles"] as const,
   commitPreview: (projectRoot?: string) => ["commitPreview", projectRoot] as const,
+  history: (filter?: HistoryFilter) => ["history", filter] as const,
+  retentionConfig: ["retentionConfig"] as const,
 };
 
 const isTestEnv = import.meta.env.MODE === "test";
@@ -95,12 +104,57 @@ export function useSelectDriver() {
   });
 }
 
-// List sandboxes
+// List sandboxes.
+//
+// Returns a reference-stable response object across polls when nothing
+// semantically changed, so downstream `useMemo` / `React.memo` consumers
+// (SandboxItem, ActiveTab's filter+sort, useBannerData) don't invalidate
+// on every 10s refetch. The dedup signature deliberately excludes
+// `lastUsedAt` second-level updates — bucket it to 60s so "X minutes ago"
+// labels still update without thrashing the list. See
+// docs/perf/2026-05-03-history-fileviewer-resize.md F4.
+function sandboxesSignature(sandboxes: ReadonlyArray<{
+  id: string;
+  status: string;
+  fileCount?: number;
+  sizeBytes?: number;
+  mountHealth?: { healthy?: boolean };
+  lastUsedAt?: string;
+}>) {
+  return sandboxes
+    .map((s) => {
+      const lastUsedBucket = s.lastUsedAt
+        ? Math.floor(new Date(s.lastUsedAt).getTime() / 60000)
+        : 0;
+      return [
+        s.id,
+        s.status,
+        s.fileCount ?? 0,
+        s.sizeBytes ?? 0,
+        s.mountHealth?.healthy === undefined ? "" : s.mountHealth.healthy ? "1" : "0",
+        lastUsedBucket,
+      ].join("|");
+    })
+    .join(",");
+}
+
 export function useSandboxes(filter?: ListFilter) {
+  const cacheRef = useRef<{ sig: string; data: Awaited<ReturnType<typeof listSandboxes>> | null }>({
+    sig: "",
+    data: null,
+  });
   return useQuery({
     queryKey: queryKeys.sandboxes(filter),
     queryFn: () => listSandboxes(filter),
     refetchInterval: isTestEnv ? false : 10000, // Refetch every 10 seconds for live updates
+    select: (data) => {
+      const sig = sandboxesSignature(data.sandboxes ?? []);
+      if (sig === cacheRef.current.sig && cacheRef.current.data) {
+        return cacheRef.current.data;
+      }
+      cacheRef.current = { sig, data };
+      return data;
+    },
   });
 }
 
@@ -165,6 +219,19 @@ export function useStartSandbox() {
 
   return useMutation({
     mutationFn: (id: string) => startSandbox(id),
+    onSuccess: (sandbox) => {
+      queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
+      queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+    },
+  });
+}
+
+// Resume sandbox mutation (remount a checkpointed sandbox)
+export function useResumeSandbox() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => resumeSandbox(id),
     onSuccess: (sandbox) => {
       queryClient.setQueryData(queryKeys.sandbox(sandbox.id), sandbox);
       queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
@@ -394,6 +461,36 @@ export function useCommitPreview(projectRoot?: string) {
   return useQuery({
     queryKey: queryKeys.commitPreview(projectRoot),
     queryFn: () => fetchCommitPreview(projectRoot),
+  });
+}
+
+// List archived sandboxes for the History tab. Pass `enabled: false`
+// from non-History tabs so we don't pay for an unused fetch.
+export function useHistory(filter?: HistoryFilter, options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  return useQuery({
+    queryKey: queryKeys.history(filter),
+    queryFn: () => listHistory(filter),
+    enabled,
+    refetchInterval: isTestEnv ? false : 30000,
+  });
+}
+
+// Diff-archive retention configuration.
+export function useRetentionConfig() {
+  return useQuery({
+    queryKey: queryKeys.retentionConfig,
+    queryFn: fetchRetentionConfig,
+  });
+}
+
+export function useUpdateRetentionConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (update: RetentionUpdate) => updateRetentionConfig(update),
+    onSuccess: (cfg) => {
+      queryClient.setQueryData(queryKeys.retentionConfig, cfg);
+    },
   });
 }
 

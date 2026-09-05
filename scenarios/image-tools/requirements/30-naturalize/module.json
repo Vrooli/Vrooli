@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-011",
+      "title": "Naturalize (De-Plasticize / Realism)",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-011",
+      "category": "feature",
+      "description": "A first-class enhancement op that reintroduces realistic skin/texture/grain to over-smoothed (restored/upscaled) images, with a fidelity-to-realism knob and optional face-aware emphasis. CPU-capable default; full CLI/API/UI parity; auto-suggested after upscale/restore. The lowest consent-weight human edit and the first new feature after the provisioning foundation.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ai/naturalize_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Compose grain/texture + fidelity-to-realism knob; arg-builder assembly"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/workspace/useEnhance.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Naturalize runs through the enhance lifecycle and composes into the non-destructive history with before/after"
+        }
+      ]
+    }
+  ]
+}

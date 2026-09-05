@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -298,7 +297,10 @@ func loadScenarioPortMap(scenarioID string) (map[string]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	path, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -348,7 +350,6 @@ func defaultTemplateManifest() domain.CloudManifest {
 		Ports: domain.ManifestPorts{
 			"ui":  3000,
 			"api": 3001,
-			"ws":  3002,
 		},
 		Edge: domain.ManifestEdge{
 			Domain:    "example.com",

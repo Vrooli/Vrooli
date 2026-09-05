@@ -1,13 +1,15 @@
 package preflight
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // DefaultService is the default implementation of Service.
@@ -16,6 +18,9 @@ type DefaultService struct {
 	jobs             JobStore
 	newDryRunRuntime func(manifest *bundlemanifest.Manifest, bundleRoot string, timeout time.Duration) (*RuntimeHandle, error)
 	now              func() time.Time
+	janitorMu        sync.Mutex
+	janitorCancel    context.CancelFunc
+	janitorDone      chan struct{}
 }
 
 // ServiceOption configures a DefaultService.
@@ -68,14 +73,50 @@ func (s *DefaultService) StartJanitor() {
 	if s.sessions == nil || s.jobs == nil {
 		return
 	}
+	s.janitorMu.Lock()
+	defer s.janitorMu.Unlock()
+	if s.janitorCancel != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	s.janitorCancel = cancel
+	s.janitorDone = done
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
-		for range ticker.C {
-			s.sessions.Cleanup()
-			s.jobs.Cleanup()
+		defer close(done)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.sessions.Cleanup()
+				s.jobs.Cleanup()
+			}
 		}
 	}()
+}
+
+// StopJanitor stops the cleanup worker and waits for it to exit. It is safe
+// to call when the janitor was never started or after it already stopped.
+func (s *DefaultService) StopJanitor(ctx context.Context) error {
+	s.janitorMu.Lock()
+	cancel := s.janitorCancel
+	done := s.janitorDone
+	s.janitorCancel = nil
+	s.janitorDone = nil
+	s.janitorMu.Unlock()
+	if cancel == nil || done == nil {
+		return nil
+	}
+	cancel()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // CreateJob creates a new async preflight job.
@@ -214,6 +255,9 @@ func (s *DefaultService) collectPreflightData(handle *RuntimeHandle, manifest *b
 
 	validation, secrets, err := fetchValidationData(client, request)
 	if err != nil {
+		return nil, err
+	}
+	if err := rejectTier2ServiceSecrets(secrets); err != nil {
 		return nil, err
 	}
 

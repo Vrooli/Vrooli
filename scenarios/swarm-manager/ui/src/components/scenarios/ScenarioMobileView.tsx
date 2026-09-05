@@ -1,23 +1,34 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CheckCircle2,
+  ClipboardList,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
   Loader2,
   MoreHorizontal,
+  ShieldCheck,
   Settings2,
   Trash2,
   XCircle,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { TagList } from "../ui/tag-list";
 import { DetailSection } from "../detail/DetailSection";
-import { ReviewClassificationBadge } from "./ReviewClassificationBadge";
 import { ScenarioCliHints } from "./ScenarioCliHints";
+import { ScenarioOverviewSection } from "./ScenarioOverviewSection";
+import type { ScenarioHealthSnapshot, ScenarioStatus } from "../../types";
 import { capitalize } from "../../lib";
-import { SCENARIO_STATUS_COLORS, type ScenarioStatus } from "../../types";
 import type { LucideIcon } from "lucide-react";
+import { CompactTabBar, type CompactTabItem } from "../ui/compact-tab-bar";
+
+export type ScenarioDetailTab = "overview" | "work" | "quality" | "manage";
+
+const MOBILE_TABS: CompactTabItem<ScenarioDetailTab>[] = [
+  { value: "overview", label: "Overview", icon: CheckCircle2 },
+  { value: "work", label: "Work", icon: ClipboardList },
+  { value: "quality", label: "Quality", icon: ShieldCheck },
+  { value: "manage", label: "Settings", icon: Settings2 },
+];
 
 export interface ScenarioMobileViewProps {
   scenario: {
@@ -29,6 +40,7 @@ export interface ScenarioMobileViewProps {
     completenessScore?: number;
     lastReviewClassification?: string;
     lastReviewAt?: string;
+    health?: ScenarioHealthSnapshot;
   };
   name: string;
   StatusIcon: LucideIcon;
@@ -44,6 +56,10 @@ export interface ScenarioMobileViewProps {
   onDeleteClick: () => void;
   deletePending: boolean;
   deleteError: boolean;
+  workContent?: ReactNode;
+  qualityContent?: ReactNode;
+  activeTab: ScenarioDetailTab;
+  onTabChange: (tab: ScenarioDetailTab) => void;
 }
 
 export function ScenarioMobileView({
@@ -60,6 +76,10 @@ export function ScenarioMobileView({
   onDeleteClick,
   deletePending,
   deleteError,
+  workContent,
+  qualityContent,
+  activeTab,
+  onTabChange,
 }: ScenarioMobileViewProps) {
   const [mobileDangerExpanded, setMobileDangerExpanded] = useState(false);
 
@@ -101,56 +121,41 @@ export function ScenarioMobileView({
         </Button>
       </div>
 
-      <div className="flex-1 space-y-0 overflow-y-auto pb-6">
+      <div className="flex-1 space-y-0 overflow-y-auto px-4 pb-8 sm:px-6">
         {actionError && (
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
             {actionError}
           </div>
         )}
 
-        <DetailSection title="Overview" hideDivider>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <StatusIcon className={`h-4 w-4 ${SCENARIO_STATUS_COLORS[scenario.status]}`} />
-              <span className="text-xs uppercase tracking-wider text-slate-500">
-                {capitalize(scenario.status)}
-              </span>
-              <span className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs text-slate-300">P{scenario.priority}</span>
-              {localGreenfield && (
-                <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[11px] text-cyan-300">
-                  Greenfield
-                </span>
-              )}
-              {scenario.lastReviewClassification ? (
-                <ReviewClassificationBadge
-                  classification={scenario.lastReviewClassification}
-                  reviewedAt={scenario.lastReviewAt}
-                  showTimestamp
-                />
-              ) : (
-                <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-[11px] text-slate-400">
-                  Not reviewed
-                </span>
-              )}
-            </div>
-            <p className="text-sm leading-relaxed text-slate-300">
-              {scenario.description || "No description provided"}
-            </p>
-            {scenario.completenessScore !== undefined && (
-              <div className="flex items-center gap-2">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-700">
-                  <div
-                    className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
-                    style={{ width: `${scenario.completenessScore}%` }}
-                  />
-                </div>
-                <span className="text-xs text-slate-400">{scenario.completenessScore}%</span>
-              </div>
-            )}
-            {scenario.tags.length > 0 && <TagList tags={scenario.tags} maxTags={10} />}
-          </div>
-        </DetailSection>
+        <div className="sticky top-0 z-20 -mx-4 border-b border-slate-800 bg-slate-950/95 backdrop-blur sm:-mx-6">
+          <CompactTabBar
+            items={MOBILE_TABS}
+            activeValue={activeTab}
+            onValueChange={onTabChange}
+            aria-label="Scenario detail sections"
+            className="w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-none bg-transparent px-4 sm:px-6"
+            tabTestIdPrefix="scenario-detail-tab"
+          />
+        </div>
 
+        <div className={activeTab === "overview" ? undefined : "hidden"} aria-hidden={activeTab !== "overview"}>
+          <ScenarioOverviewSection
+            scenario={scenario}
+            StatusIcon={StatusIcon}
+            localGreenfield={localGreenfield}
+            onOpenWork={() => onTabChange("work")}
+            onOpenQuality={() => onTabChange("quality")}
+            evidenceState={scenario.health?.evidenceState}
+            testIds={false}
+          />
+        </div>
+
+        <div className={activeTab === "work" ? undefined : "hidden"} aria-hidden={activeTab !== "work"}>{workContent}</div>
+
+        <div className={activeTab === "quality" ? undefined : "hidden"} aria-hidden={activeTab !== "quality"}>{qualityContent}</div>
+
+        <div className={activeTab === "manage" ? undefined : "hidden"} aria-hidden={activeTab !== "manage"}>
         <DetailSection title="Scenario Settings" icon={Settings2}>
           <div className="space-y-3">
             {updatePending && (
@@ -240,6 +245,7 @@ export function ScenarioMobileView({
             </div>
           )}
         </section>
+        </div>
       </div>
     </div>
   );

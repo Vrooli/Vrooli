@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "FullPageDrawer",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "closed",
+      "name": "Closed",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [{ "kind": "visible", "selector": "dialog" }]
+    },
+    {
+      "id": "mobile-open",
+      "name": "Mobile open",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [{ "kind": "visible", "selector": "dialog" }]
+    },
+    {
+      "id": "desktop-open",
+      "name": "Desktop open",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [{ "kind": "visible", "selector": "dialog" }]
+    },
+    {
+      "id": "long-body",
+      "name": "Long body",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [{ "kind": "visible", "selector": "dialog" }]
+    },
+    {
+      "id": "header-footer",
+      "name": "Header and footer",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [{ "kind": "visible", "selector": "dialog" }]
+    },
+    {
+      "id": "breakpoint-transition",
+      "name": "Breakpoint transition",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [{ "kind": "visible", "selector": "dialog" }]
+    }
+  ]
+}

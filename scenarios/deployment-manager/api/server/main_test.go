@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gorilla/mux"
@@ -55,6 +58,40 @@ func TestRequireEnv(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSecretsManagerIsDegradableLifecycleDependency(t *testing.T) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	scenarioRoot, err := repocontract.ResolveScenarioPath(repoRoot, "deployment-manager")
+	if err != nil {
+		t.Fatalf("resolve deployment-manager path: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatalf("read service manifest: %v", err)
+	}
+	var manifest struct {
+		Dependencies struct {
+			Scenarios map[string]struct {
+				Required         bool   `json:"required"`
+				StartupPolicy    string `json:"startup_policy"`
+				DegradedBehavior string `json:"degraded_behavior"`
+			} `json:"scenarios"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse service manifest: %v", err)
+	}
+	dependency, ok := manifest.Dependencies.Scenarios["secrets-manager"]
+	if !ok {
+		t.Fatal("deployment-manager must declare secrets-manager for secret-dependent operations")
+	}
+	if !dependency.Required || dependency.StartupPolicy != "try_start" || !strings.Contains(dependency.DegradedBehavior, "bundle assembly") {
+		t.Fatalf("secrets-manager lifecycle dependency = %+v, want required try_start with bundle-assembly degradation", dependency)
 	}
 }
 
@@ -291,6 +328,7 @@ func TestServerSetupRoutes(t *testing.T) {
 
 // TestServerLog verifies logging functionality
 func TestServerLog(t *testing.T) {
+	logger := &recordingLogger{}
 	tests := []struct {
 		name   string
 		msg    string
@@ -313,10 +351,28 @@ func TestServerLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Just verify it doesn't panic
-			LogStructured(tt.msg, tt.fields)
+			LogStructuredWith(logger, tt.msg, tt.fields)
+			if logger.message != tt.msg {
+				t.Fatalf("logged message = %q, want %q", logger.message, tt.msg)
+			}
+			if len(logger.args) != 2 || logger.args[0] != "fields" {
+				t.Fatalf("logged args = %#v, want fields key and value", logger.args)
+			}
+			if got, ok := logger.args[1].(map[string]interface{}); !ok || len(got) != len(tt.fields) {
+				t.Fatalf("logged fields = %#v, want %#v", logger.args[1], tt.fields)
+			}
 		})
 	}
+}
+
+type recordingLogger struct {
+	message string
+	args    []any
+}
+
+func (l *recordingLogger) Info(message string, args ...any) {
+	l.message = message
+	l.args = args
 }
 
 // TestServerStartGracefulShutdown verifies graceful shutdown behavior

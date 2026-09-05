@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.page-schema-renderer",
+    "name": "PageSchemaRenderer",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Renders a constrained declarative page schema through approved layouts, components, patterns, and templates, without permitting arbitrary markup to be smuggled through configuration.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "templates.collection-page",
+        "reason": "Generated pages target the shared template family rather than composing raw primitives."
+      }
+    ]
+  },
+  "rationale": "Constrained on purpose. A page schema that accepts arbitrary JSX has recreated the framework it was supposed to abstract, and loses every guarantee the catalog provides."
+}

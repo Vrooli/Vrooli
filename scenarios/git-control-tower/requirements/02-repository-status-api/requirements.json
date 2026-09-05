@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-002 Repository status API",
-    "last_updated": "2025-12-16"
+    "last_updated": "2026-08-07"
   },
   "requirements": [
     {
@@ -33,7 +33,7 @@
       "category": "operational_target.p0",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Repository status includes changed file lists + scopes",
-      "description": "Returns staged/unstaged/untracked files and groups them by Vrooli scope (scenario/resource/package/other)",
+      "description": "Returns staged/unstaged/untracked files and attributes them by optional repo-contract target kind and ID, with manual and builtin fallback scopes when the contract is absent or unreadable",
       "status": "pending",
       "validation": [
         {
@@ -45,18 +45,39 @@
         },
         {
           "type": "test",
-          "ref": "cli/git-control-tower.bats",
-          "phase": "integration",
+          "ref": "api/repo_status_service_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "CLI runs repo-status against running API"
+          "notes": "Validates contract kind/ID attribution and byte-equivalent absent/corrupt-contract fallback"
         },
         {
           "type": "test",
-          "ref": "bas/cases/02-repository-status-api/api/repo-status.json",
-          "phase": "e2e",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Calls repo status endpoint and asserts file containers exist"
-        }
+          "notes": "Validates the standard Go CLI wiring for repository status commands"
+        },
+    {
+      "type": "test",
+      "ref": "bas/cases/02-repository-status-api/api/repo-status.json",
+      "phase": "e2e",
+      "status": "implemented",
+      "notes": "Calls repo status endpoint and asserts file containers exist"
+    },
+    {
+      "type": "test",
+      "ref": "bas/cases/02-repository-status-api/api/repo-groups.json",
+      "phase": "e2e",
+      "status": "implemented",
+      "notes": "Calls the contract-aware groups endpoint and asserts a structured groups response"
+    },
+    {
+      "type": "test",
+      "ref": "bas/cases/02-repository-status-api/api/repo-groups-fallback.json",
+      "phase": "e2e",
+      "status": "implemented",
+      "notes": "Calls the groups endpoint through the contract-free fallback surface"
+    }
       ]
     },
     {

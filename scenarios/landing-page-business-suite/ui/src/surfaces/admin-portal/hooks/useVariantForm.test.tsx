@@ -24,15 +24,12 @@ type PersistVariantFn = typeof persistVariant;
 type PersistVariantSnapshotFn = typeof persistVariantSnapshot;
 type ValidateVariantFormFn = typeof validateVariantForm;
 
-const loadVariantEditorDataMock = vi.fn<Parameters<LoadVariantEditorDataFn>, ReturnType<LoadVariantEditorDataFn>>();
-const loadVariantSpaceDefinitionMock = vi.fn<
-  Parameters<LoadVariantSpaceDefinitionFn>,
-  ReturnType<LoadVariantSpaceDefinitionFn>
->();
-const loadVariantSnapshotMock = vi.fn<Parameters<LoadVariantSnapshotFn>, ReturnType<LoadVariantSnapshotFn>>();
-const persistVariantMock = vi.fn<Parameters<PersistVariantFn>, ReturnType<PersistVariantFn>>();
-const persistVariantSnapshotMock = vi.fn<Parameters<PersistVariantSnapshotFn>, ReturnType<PersistVariantSnapshotFn>>();
-const validateVariantFormMock = vi.fn<Parameters<ValidateVariantFormFn>, ReturnType<ValidateVariantFormFn>>();
+const loadVariantEditorDataMock = vi.fn<LoadVariantEditorDataFn>();
+const loadVariantSpaceDefinitionMock = vi.fn<LoadVariantSpaceDefinitionFn>();
+const loadVariantSnapshotMock = vi.fn<LoadVariantSnapshotFn>();
+const persistVariantMock = vi.fn<PersistVariantFn>();
+const persistVariantSnapshotMock = vi.fn<PersistVariantSnapshotFn>();
+const validateVariantFormMock = vi.fn<ValidateVariantFormFn>();
 
 vi.mock('../controllers/variantEditorController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/variantEditorController')>('../controllers/variantEditorController');
@@ -156,6 +153,7 @@ describe('useVariantForm', () => {
 
       expect(result.current.loading).toBe(false);
       expect(loadVariantEditorDataMock).not.toHaveBeenCalled();
+      await waitFor(() => { expect(result.current.variantSpace).not.toBeNull(); });
     });
 
     it('loads variant space definition', async () => {
@@ -192,6 +190,7 @@ describe('useVariantForm', () => {
 
     it('handles variant load error', async () => {
       loadVariantEditorDataMock.mockRejectedValue(new Error('Variant not found'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       const { result } = renderHook(() => useVariantForm(defaultProps));
 
@@ -200,6 +199,40 @@ describe('useVariantForm', () => {
       });
 
       expect(result.current.error).toBe('Variant not found');
+      expect(consoleError).toHaveBeenCalledWith('Variant fetch error:', expect.any(Error));
+      consoleError.mockRestore();
+    });
+
+    it('uses safe fallback messages when loading data or axes fails with non-Error values', async () => {
+      loadVariantEditorDataMock.mockRejectedValue('not an error');
+      loadVariantSpaceDefinitionMock.mockRejectedValue('not an error');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      const { result } = renderHook(() => useVariantForm(defaultProps));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+        expect(result.current.variantSpace).toBeNull();
+      });
+
+      expect(result.current.error).toBe('Failed to load variant axes');
+      expect(consoleError).toHaveBeenCalledWith('Variant fetch error:', 'not an error');
+      expect(consoleError).toHaveBeenCalledWith('Variant space fetch error:', 'not an error');
+      consoleError.mockRestore();
+    });
+
+    it('reports a snapshot load error without leaving the JSON editor loading', async () => {
+      loadVariantSnapshotMock.mockRejectedValue('not an error');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { result } = renderHook(() => useVariantForm(defaultProps));
+
+      await waitFor(() => {
+        expect(result.current.snapshotLoading).toBe(false);
+      });
+
+      expect(result.current.snapshotError).toBe('Failed to load variant JSON');
+      expect(consoleError).toHaveBeenCalledWith('Variant snapshot fetch error:', 'not an error');
+      consoleError.mockRestore();
     });
   });
 
@@ -259,6 +292,7 @@ describe('useVariantForm', () => {
 
     it('sanitizes slug input', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const sanitized = result.current.sanitizeSlugInput('Test Slug 123!');
 
@@ -269,6 +303,7 @@ describe('useVariantForm', () => {
   describe('tab state', () => {
     it('defaults to form tab', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.activeTab).toBe('form');
       expect(result.current.isJsonTab).toBe(false);
@@ -276,6 +311,7 @@ describe('useVariantForm', () => {
 
     it('switches between tabs', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setActiveTab('json');
@@ -287,6 +323,7 @@ describe('useVariantForm', () => {
 
     it('computes saving label based on tab', async () => {
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.savingLabel).toBe('Save');
 
@@ -337,6 +374,7 @@ describe('useVariantForm', () => {
 
     it('handles save error', async () => {
       persistVariantMock.mockRejectedValue(new Error('Save failed'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       const onError = vi.fn();
       const { result } = renderHook(() =>
@@ -354,6 +392,8 @@ describe('useVariantForm', () => {
       expect(saveResult.success).toBe(false);
       expect(result.current.error).toBe('Save failed');
       expect(onError).toHaveBeenCalledWith('Failed to save variant changes');
+      expect(consoleError).toHaveBeenCalledWith('Variant save error:', expect.any(Error));
+      consoleError.mockRestore();
     });
 
     it('returns saved variant on create', async () => {
@@ -370,6 +410,23 @@ describe('useVariantForm', () => {
 
       expect(saveResult.success).toBe(true);
       expect(saveResult.savedVariant).toEqual(newVariant);
+    });
+
+    it('returns the fallback message when saving fails with a non-Error value', async () => {
+      persistVariantMock.mockRejectedValue('not an error');
+      const onError = vi.fn();
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { result } = renderHook(() => useVariantForm({ ...defaultProps, onError }));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+      const saveResult = await act(async () => result.current.handleSave());
+
+      expect(saveResult).toEqual({ success: false, savedVariant: null });
+      expect(result.current.error).toBe('Failed to save variant');
+      expect(onError).toHaveBeenCalledWith('Failed to save variant changes');
+      consoleError.mockRestore();
     });
   });
 
@@ -419,6 +476,28 @@ describe('useVariantForm', () => {
       expect(onError).toHaveBeenCalledWith('Invalid JSON syntax');
     });
 
+    it('rejects JSON that does not match the variant snapshot contract', async () => {
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useVariantForm({ ...defaultProps, onError })
+      );
+
+      await waitFor(() => {
+        expect(result.current.snapshotLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.setSnapshotDraft(JSON.stringify({ variant: { slug: 'control' } }));
+      });
+
+      const saveResult = await act(async () => result.current.handleSaveJson());
+
+      expect(saveResult).toBe(false);
+      expect(result.current.snapshotError).toBe('Invalid JSON structure for variant snapshot');
+      expect(onError).toHaveBeenCalledWith('Failed to apply variant JSON');
+      expect(persistVariantSnapshotMock).not.toHaveBeenCalled();
+    });
+
     it('handles missing slug', async () => {
       const { result } = renderHook(() =>
         useVariantForm({ ...defaultProps, isNew: true, slug: undefined })
@@ -450,6 +529,21 @@ describe('useVariantForm', () => {
 
       expect(saveResult).toBe(false);
       expect(result.current.snapshotError).toBe('Snapshot save failed');
+    });
+
+    it('uses the JSON save fallback message for a non-Error persistence failure', async () => {
+      persistVariantSnapshotMock.mockRejectedValue('not an error');
+      const onError = vi.fn();
+      const { result } = renderHook(() => useVariantForm({ ...defaultProps, onError }));
+
+      await waitFor(() => {
+        expect(result.current.snapshotLoading).toBe(false);
+      });
+      const saveResult = await act(async () => result.current.handleSaveJson());
+
+      expect(saveResult).toBe(false);
+      expect(result.current.snapshotError).toBe('Failed to save variant JSON');
+      expect(onError).toHaveBeenCalledWith('Failed to apply variant JSON');
     });
   });
 
@@ -561,12 +655,85 @@ describe('useVariantForm', () => {
       });
 
       const { result } = renderHook(() => useVariantForm(defaultProps));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       await act(async () => {
         await result.current.handleCopySchema({ type: 'object' });
       });
 
       expect(result.current.copyStatus).toBe('Copy failed');
+      expect(consoleError).toHaveBeenCalledWith('Schema copy failed', expect.any(Error));
+      consoleError.mockRestore();
+    });
+
+    it('reports a blocked clipboard when copying actual schema issues', async () => {
+      const marker = { message: 'Missing title', startLineNumber: 3, startColumn: 7 };
+      const monaco = {
+        languages: { json: { jsonDefaults: { setDiagnosticsOptions: vi.fn() } } },
+        Uri: { parse: vi.fn((value: string) => ({ toString: () => value })) },
+        editor: {
+          getModelMarkers: vi.fn(() => [marker]),
+          onDidChangeMarkers: vi.fn(() => ({ dispose: vi.fn() })),
+        },
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard blocked')) },
+        configurable: true,
+      });
+      const { result } = renderHook(() => useVariantForm(defaultProps));
+
+      act(() => {
+        result.current.handleEditorMount({} as never, monaco as never);
+      });
+      await act(async () => {
+        await result.current.handleCopyIssues();
+      });
+
+      expect(result.current.copyStatus).toBe('Copy failed (clipboard blocked)');
+    });
+
+    it('copies Monaco marker details and disposes the listener when unmounted', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      const dispose = vi.fn();
+      type MarkerChangeHandler = (changed: readonly { toString: () => string }[]) => void;
+      let onMarkersChanged: MarkerChangeHandler | undefined;
+      const marker = { message: 'Missing title', startLineNumber: 3, startColumn: 7 };
+      const monaco = {
+        languages: { json: { jsonDefaults: { setDiagnosticsOptions: vi.fn() } } },
+        Uri: { parse: vi.fn((value: string) => ({ toString: () => value })) },
+        editor: {
+          getModelMarkers: vi.fn(() => [marker]),
+          onDidChangeMarkers: vi.fn((handler: MarkerChangeHandler) => {
+            onMarkersChanged = handler;
+            return { dispose };
+          }),
+        },
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextMock },
+        configurable: true,
+      });
+
+      const { result, unmount } = renderHook(() => useVariantForm(defaultProps));
+      act(() => {
+        result.current.handleEditorMount({} as never, monaco as never);
+      });
+      act(() => {
+        onMarkersChanged?.([{ toString: () => 'file://variant.json' }]);
+      });
+
+      await act(async () => {
+        await result.current.handleCopyIssues();
+      });
+
+      expect(monaco.languages.json.jsonDefaults.setDiagnosticsOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ validate: true, allowComments: false })
+      );
+      expect(writeTextMock).toHaveBeenCalledWith('Missing title (line 3:7)');
+      expect(result.current.copyStatus).toBe('Copied schema issues');
+
+      unmount();
+      expect(dispose).toHaveBeenCalledOnce();
     });
   });
 

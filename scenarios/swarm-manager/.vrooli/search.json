@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "swarm-manager.initiative",
+      "lifecycle": "experimental",
+      "provider_group": "swarm-manager",
+      "bucket": "BUCKET_STATE",
+      "type": "initiative",
+      "description": "Swarm-manager initiatives represented by the backlog and goal corpus; use this leaf to find the roadmap ownership and outcome behind a theme.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "swarm-manager",
+          "path": "/api/v1/search/ai",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"entity\":\"both\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "payload.title",
+        "snippet_field": "payload.status",
+        "score_field": "score",
+        "path_field": "payload.name",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": false,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {"max_gap": 0, "hard_floor": 0}
+      },
+      "scope": "SCOPE_PROJECT"
+    },
+    {
+    "provider_id": "swarm-manager.records",
+    "lifecycle": "fixture",
+      "provider_group": "swarm-manager",
+      "bucket": "BUCKET_KNOW",
+      "type": "record",
+      "description": "Swarm Manager work records: durable narrative write-ups of completed fixes, features, refactors, and investigations.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "swarm-manager",
+          "path": "/api/v1/records/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "record.id",
+        "title_field": "record.trigger",
+        "snippet_field": "record.approach",
+        "score_field": "score",
+        "path_field": "record.id",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": false,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {"max_gap": 0, "hard_floor": 0}
+      },
+      "scope": "SCOPE_PROJECT"
+    }
+  ]
+}

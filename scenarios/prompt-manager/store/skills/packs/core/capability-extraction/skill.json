@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "capability-extraction",
-  "name": "Capability Extraction",
+  "createdAt": "2026-02-11T00:00:00Z",
   "description": "Methodology for auditing agent files to identify embedded methodologies that should be extracted into reusable, optimizable skills. Covers the 'Agent instructions to Skills' half of the promotion pipeline.",
+  "entry": "SKILL.md",
+  "icon": "package",
+  "id": "capability-extraction",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Capability Extraction",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "meta-optimization",
@@ -14,10 +31,5 @@
     "methodology",
     "agents"
   ],
-  "icon": "package",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-02-11T00:00:00Z",
   "updatedAt": "2026-02-11T00:00:00Z"
 }

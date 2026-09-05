@@ -1,0 +1,211 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Open",
+        "path": "open"
+      },
+      {
+        "default": "Component details",
+        "kind": "text",
+        "label": "Title",
+        "path": "title"
+      },
+      {
+        "default": null,
+        "kind": "structured",
+        "label": "On Close",
+        "path": "onClose"
+      },
+      {
+        "default": "Full-page drawer body content",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
+      },
+      {
+        "default": "compact",
+        "kind": "text",
+        "label": "Size",
+        "path": "size"
+      },
+      {
+        "default": "Content",
+        "kind": "structured",
+        "label": "Header Actions",
+        "path": "headerActions"
+      },
+      {
+        "default": "Content",
+        "kind": "structured",
+        "label": "Header Extra",
+        "path": "headerExtra"
+      },
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Avoid Keyboard",
+        "path": "avoidKeyboard"
+      },
+      {
+        "default": "Close composer",
+        "kind": "text",
+        "label": "Close Aria Label",
+        "path": "closeAriaLabel"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Full-page drawer body content",
+        "open": true,
+        "title": "Component details"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Component details",
+          "role": "dialog"
+        },
+        {
+          "kind": "text",
+          "value": "Full-page drawer body content"
+        }
+      ],
+      "id": "full-open",
+      "mode": "pinned",
+      "name": "Full drawer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FullOpen"
+        }
+      },
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Compact centered panel",
+        "open": true,
+        "size": "compact",
+        "title": "Appearance"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Appearance",
+          "role": "dialog"
+        },
+        {
+          "kind": "text",
+          "value": "Compact centered panel"
+        }
+      ],
+      "id": "compact-open",
+      "mode": "pinned",
+      "name": "Compact drawer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "CompactOpen"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Body with a header action",
+        "open": true,
+        "title": "Edit prompt"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "Body with a header action"
+        }
+      ],
+      "id": "with-header-actions",
+      "mode": "pinned",
+      "name": "Header actions",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithHeaderActions"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Scrollable log content",
+        "open": true,
+        "title": "Session log"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Updated 2 minutes ago"
+        },
+        {
+          "kind": "text",
+          "value": "Scrollable log content"
+        }
+      ],
+      "id": "with-header-extra",
+      "mode": "pinned",
+      "name": "Header subtitle",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithHeaderExtra"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "avoidKeyboard": true,
+        "children": "Composer body lifted above the keyboard",
+        "closeAriaLabel": "Close composer",
+        "open": true,
+        "title": "Message"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Close composer",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "Composer body lifted above the keyboard"
+        }
+      ],
+      "id": "keyboard-aware",
+      "mode": "pinned",
+      "name": "Keyboard-aware composer",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "KeyboardAware"
+        }
+      },
+      "role": "boundary"
+    }
+  ],
+  "title": "DrawerShell"
+}

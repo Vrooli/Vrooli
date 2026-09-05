@@ -1,12 +1,16 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2, MonitorSmartphone, CircleUserRound } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
 import { useLongPress } from "../hooks/useLongPress";
+import { useFloatingPosition } from "../hooks/useFloatingPosition";
+import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
 import VoiceMicButton from "./VoiceMicButton";
-import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
+import { readSafeAreaInsets } from "../lib/safeArea";
 
 /** Minimum fling speed (px/s) to trigger a dock */
 const FLING_VELOCITY_THRESHOLD = 400;
@@ -43,9 +47,14 @@ function saveDockedEdge(edge: DockedEdge) {
 
 interface FloatingToolbarProps {
   onOpenSettings: () => void;
+  onOpenAccount: () => void;
+  /** Opens the machines surface, which owns linking a computer and its permissions. */
+  onOpenMachines: () => void;
   onOpenAi: () => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
+  /** Open the full-screen composer for the active session (desktop entry). */
+  onExpandComposer?: () => void;
   isCreating: boolean;
   /** When true the toolbar is not rendered at all (e.g. mobile tab mode). */
   hidden?: boolean;
@@ -53,56 +62,69 @@ interface FloatingToolbarProps {
   voiceSupported?: boolean;
   voicePreparing?: boolean;
   voiceRecording?: boolean;
+  voicePersistentMode?: boolean;
   voiceListening?: boolean;
+  /** True when passive wake-word listening currently holds the mic. */
+  voicePassive?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
-  voicePartialTranscript?: string;
+  voiceActivity?: VoiceActivitySnapshot;
   voiceBackend?: string;
+  voiceCapabilityReason?: string;
+  voiceOperatorCommand?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
+  onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
-  onVoiceCancel?: () => void;
-  /** Whether TTS is currently playing audio on the active pane. */
-  isTtsSpeaking?: boolean;
-  /** Stop TTS playback. */
-  onTtsStop?: () => void;
+  /** Exit passive wake-word listening (tapping the passive mic button). */
+  onVoiceExitPassive?: () => void;
 }
 
 export default function FloatingToolbar({
   onOpenSettings,
+  onOpenAccount,
+  onOpenMachines,
   onOpenAi,
   onNewTerminal,
   onOpenLauncher,
+  onExpandComposer,
   isCreating,
   hidden,
   voiceSupported,
   voicePreparing,
   voiceRecording,
+  voicePersistentMode,
   voiceListening,
+  voicePassive,
   voiceTranscribing,
   voiceError,
   voiceLevel = 0,
-  voicePartialTranscript,
+  voiceActivity,
   voiceBackend,
+  voiceCapabilityReason,
+  voiceOperatorCommand,
   onVoiceStart,
+  onVoicePrepare,
   onVoiceStop,
-  onVoiceCancel,
-  isTtsSpeaking,
-  onTtsStop,
+  onVoiceExitPassive,
 }: FloatingToolbarProps) {
+  const { t } = useTranslation();
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
   const [docked, setDocked] = useState<DockedEdge>(loadDockedEdge);
   const [animating, setAnimating] = useState(false);
   /** Measured full width of toolbar, for computing dock offset */
-  const [toolbarWidth, setToolbarWidth] = useState(160);
+  // Use a conservative pre-measure width so the first paint is safe even when
+  // a persisted coordinate was recorded on a wider viewport. The measured
+  // width replaces this estimate immediately after layout.
+  const [toolbarWidth, setToolbarWidth] = useState(220);
   /** Viewport width for right-dock positioning */
   const [vpWidth, setVpWidth] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth : 1000,
   );
 
   // Track viewport width for right-dock transform
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onResize = () => setVpWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -132,7 +154,8 @@ export default function FloatingToolbar({
     }
   }, []);
 
-  const { elementRef, floatingStyle, pointerHandlers, handleClickCapture, position } =
+  const { clampPosition } = useFloatingPosition();
+  const { elementRef, floatingStyle, pointerHandlers, handleClickCapture, position, moveTo } =
     useDraggablePosition({
       isActive: true,
       storageKey: "wc-toolbar-pos",
@@ -156,9 +179,23 @@ export default function FloatingToolbar({
   useEffect(() => {
     const el = elementRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0) setToolbarWidth(rect.width);
-  }, [docked, elementRef]);
+    const syncMeasuredBounds = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      setToolbarWidth(rect.width);
+      // A stored position can outlive a viewport or responsive width change.
+      // Re-clamp from the measured box so the toolbar never extends beyond the
+      // capture viewport before the user interacts with it.
+      moveTo(clampPosition(position.x, position.y, {
+        width: rect.width,
+        height: rect.height,
+      }));
+    };
+    syncMeasuredBounds();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncMeasuredBounds);
+    observer?.observe(el);
+    return () => observer?.disconnect();
+  }, [clampPosition, docked, elementRef, moveTo, position.x, position.y]);
 
   const undock = useCallback(() => {
     setAnimating(true);
@@ -173,15 +210,29 @@ export default function FloatingToolbar({
   // Left dock:  toolbar slides left, right edge is visible → tab renders at right end
   // Right dock: toolbar slides right, left edge is visible → tab renders at left end
   const computedStyle = useMemo(() => {
-    if (!docked) return floatingStyle;
+    if (!docked) {
+      // Clamp the rendered transform as well as the stored state. Layout
+      // effects repair the persisted coordinate, but the first paint must not
+      // briefly extend past the capture viewport while that repair runs.
+      const safePosition = clampPosition(position.x, position.y, {
+        width: toolbarWidth,
+        height: 54,
+      });
+      return {
+        ...floatingStyle,
+        transform: `translate3d(${Math.round(safePosition.x)}px, ${Math.round(safePosition.y)}px, 0)`,
+      };
+    }
     const y = position.y;
     if (docked === "left") {
       // Slide left so only the rightmost DOCK_TAB_WIDTH pixels are visible
-      return { transform: `translate3d(${-(toolbarWidth - DOCK_TAB_WIDTH)}px, ${y}px, 0)` };
+      const safe = readSafeAreaInsets();
+      return { transform: `translate3d(${safe.left - (toolbarWidth - DOCK_TAB_WIDTH)}px, ${Math.max(y, safe.top + 12)}px, 0)` };
     }
     // Slide right so only the leftmost DOCK_TAB_WIDTH pixels are visible
-    return { transform: `translate3d(${vpWidth - DOCK_TAB_WIDTH}px, ${y}px, 0)` };
-  }, [docked, floatingStyle, position.y, toolbarWidth, vpWidth]);
+    const safe = readSafeAreaInsets();
+    return { transform: `translate3d(${vpWidth - safe.right - DOCK_TAB_WIDTH}px, ${Math.max(y, safe.top + 12)}px, 0)` };
+  }, [clampPosition, docked, floatingStyle, position.x, position.y, toolbarWidth, vpWidth]);
 
   const plusHandlers = useLongPress({
     onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,
@@ -193,7 +244,7 @@ export default function FloatingToolbar({
     <div
       data-testid="dock-tab"
       className="flex items-center justify-center shrink-0 px-1 py-1"
-      title="Tap to restore toolbar"
+      title={t(strings.floatingToolbar.tapToRestore)}
     >
       {docked === "left" ? (
         <ChevronRight className="h-4 w-4 text-wc-text-muted" />
@@ -212,58 +263,103 @@ export default function FloatingToolbar({
       aria-hidden={!!docked}
     >
       <Button
+        data-testid="toolbar-account"
+        variant="ghost"
+        size="icon"
+        className="h-11 w-11 md:h-8 md:w-8"
+        onClick={onOpenAccount}
+        title={t(strings.settings.tabs.account.label)}
+        aria-label={t(strings.settings.tabs.account.label)}
+        tabIndex={docked ? -1 : undefined}
+      >
+        <CircleUserRound className="h-4 w-4" />
+      </Button>
+      <Button
         data-testid="toolbar-settings"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-11 w-11 md:h-8 md:w-8"
         onClick={onOpenSettings}
-        title="Settings"
+        title={t(strings.floatingToolbar.settingsTitle)}
         tabIndex={docked ? -1 : undefined}
       >
         <Settings className="h-4 w-4" />
       </Button>
-      {/* AI and mic buttons are hidden on mobile (< md breakpoint) because
-       * the MobileToolbar already provides both. Keeping them in the floating
-       * toolbar on mobile would be redundant and waste precious screen space.
-       * On desktop the MobileToolbar is hidden (md:hidden), so these remain
-       * the only way to access AI and voice features. */}
+      {/* Machines sit in the persistent control cluster rather than inside the
+          launcher, because linking a computer is something the installation
+          owns — not a step in starting one terminal. */}
+      <Button
+        data-testid="toolbar-machines"
+        variant="ghost"
+        size="icon"
+        className="h-11 w-11 md:h-8 md:w-8"
+        onClick={onOpenMachines}
+        aria-label={t(strings.fleet.openAriaLabel)}
+        title={t(strings.fleet.openAriaLabel)}
+        tabIndex={docked ? -1 : undefined}
+      >
+        <MonitorSmartphone className="h-4 w-4" />
+      </Button>
+      {/* AI and mic buttons stay out of the narrow toolbar breakpoint because
+       * the bottom touch toolbar already provides both there. Wider touch
+       * viewports may show both surfaces so keyboardless devices retain the
+       * terminal key controls without changing the desktop toolbar contract. */}
       <Button
         data-testid="toolbar-ai"
         variant="ghost"
         size="icon"
-        className="h-7 w-7 hidden md:inline-flex"
+        className="h-8 w-8 hidden md:inline-flex"
         onClick={onOpenAi}
-        title="AI Command"
+        title={t(strings.floatingToolbar.aiCommandTitle)}
         tabIndex={docked ? -1 : undefined}
       >
         <Sparkles className="h-4 w-4" />
       </Button>
-      {voiceSupported && onVoiceStart && onVoiceStop && (
+      {onExpandComposer && (
+        <Button
+          data-testid="toolbar-expand-composer"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hidden md:inline-flex"
+          onClick={onExpandComposer}
+          title={t(strings.floatingToolbar.expandComposerTitle)}
+          tabIndex={docked ? -1 : undefined}
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+      )}
+      {onVoiceStart && onVoiceStop && (
         <VoiceMicButton
-          supported={voiceSupported}
+          testId="voice-mic-btn"
+          supported={voiceSupported ?? false}
           isPreparing={voicePreparing ?? false}
           isRecording={voiceRecording ?? false}
+          persistentMode={voicePersistentMode ?? false}
           isListening={voiceListening ?? false}
+          isPassive={voicePassive ?? false}
           isTranscribing={voiceTranscribing ?? false}
+          size="xs"
           error={voiceError ?? null}
           audioLevel={voiceLevel}
-          partialTranscript={voicePartialTranscript}
+          voiceActivity={voiceActivity}
           backend={voiceBackend}
-          isTtsSpeaking={isTtsSpeaking}
+          capabilityReason={voiceCapabilityReason}
+          operatorCommand={voiceOperatorCommand}
+          onPrepare={onVoicePrepare}
           onStart={onVoiceStart}
           onStop={onVoiceStop}
-          onCancel={onVoiceCancel}
-          onTtsStop={onTtsStop}
+          onExitPassive={onVoiceExitPassive}
           className="hidden md:flex"
+          buttonClassName="h-8 w-8"
         />
       )}
       <Button
         data-testid="toolbar-new"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-11 w-11 md:h-8 md:w-8"
         disabled={isCreating}
-        title={plusButtonBehavior === "launcher" ? "Open launcher (long-press for empty terminal)" : "New terminal (long-press for launcher)"}
+        title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
         tabIndex={docked ? -1 : undefined}
         onPointerDown={plusHandlers.onPointerDown}
         onPointerUp={plusHandlers.onPointerUp}
@@ -281,7 +377,7 @@ export default function FloatingToolbar({
     <div
       ref={(node) => { elementRef.current = node; }}
       data-testid="floating-toolbar"
-      className={`fixed left-0 top-0 z-[2600] flex items-center rounded-full border border-wc-default bg-wc-surface-raised/95 backdrop-blur-md shadow-lg select-none touch-none ${
+      className={`fixed left-0 top-0 z-wc-toolbar flex items-center rounded-full border border-wc-default bg-wc-surface-raised/95 backdrop-blur-md shadow-lg select-none touch-none ${
         docked ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
       } ${animating ? "wc-dock-transition" : ""}`}
       style={computedStyle}

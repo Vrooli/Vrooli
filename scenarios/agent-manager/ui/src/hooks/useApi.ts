@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { create, fromJson, toJson, type DescMessage, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
-import { durationFromMs } from "@bufbuild/protobuf/wkt";
+import { durationFromMs, ValueSchema } from "@bufbuild/protobuf/wkt";
 import { getApiBaseUrl, jsonObjectToPlain, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
   ApproveFormData,
   ApproveResult,
-  ExtractionResult,
   HealthResponse,
   InvestigationContextFlags,
   InvestigationDepth,
+  InvestigationFindings,
   InvestigationSettings,
   InvestigationTagRule,
-  ModelRegistry,
   ProfileFormData,
   ProbeResult,
   RejectFormData,
@@ -25,7 +24,7 @@ import type {
   Task,
   TaskFormData,
 } from "../types";
-import { ModelPreset } from "../types";
+import { StructuredResultStatus } from "../types";
 import {
   AgentProfileSchema,
   RunConfigOverridesSchema,
@@ -45,7 +44,10 @@ import {
   UpdateTaskResponseSchema,
   GetRunDiffResponseSchema,
   GetRunEventsResponseSchema,
+  GetPermissionPolicyCatalogResponseSchema,
+  GetPermissionPolicyStatusResponseSchema,
   GetRunResponseSchema,
+  GetRolePolicyCatalogResponseSchema,
   GetRunnerStatusResponseSchema,
   GetTaskResponseSchema,
   ListProfilesResponseSchema,
@@ -58,9 +60,26 @@ import {
   PurgeTarget,
   ProbeRunnerResponseSchema,
   RejectRunRequestSchema,
+  DoctorPermissionPolicyResponseSchema,
+  PlanPermissionPolicyResponseSchema,
+  ReconcilePermissionPolicyRequestSchema,
+  ReconcilePermissionPolicyResponseSchema,
+  ReloadPermissionPolicyCatalogResponseSchema,
+  ValidatePermissionPolicyCatalogResponseSchema,
   UpdateProfileRequestSchema,
   UpdateProfileResponseSchema,
+  GetWorkflowExecutionTraceResponseSchema,
+  ListWorkflowExecutionsResponseSchema,
+  SignalWorkflowExecutionRequestSchema,
+  WorkflowExecutionOperationRequestSchema,
+  WorkflowExecutionOperationResponseSchema,
 } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { WorkflowExecution, WorkflowJournalEntry, WorkflowNodeAttempt } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
+import type { CohortWatch, InspectCohortWatchResponse } from "@vrooli/proto-types/agent-manager/v1/domain/watch_pb";
+import {
+  InspectCohortWatchResponseSchema,
+  ListCohortWatchesResponseSchema,
+} from "@vrooli/proto-types/agent-manager/v1/domain/watch_pb";
 import {
   ErrorResponseSchema,
   HealthResponseSchema,
@@ -69,7 +88,25 @@ import {
   ExtraFlagListSchema,
   FeatureFlagsSchema,
   NetworkAccess,
+  SandboxConfigSchema,
+  SandboxMode,
 } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
+
+// sandboxModeFromForm parses the UI form-string to the proto enum.
+// Empty/unknown maps to UNSPECIFIED so agent-manager applies its
+// DefaultSandboxConfig.
+function sandboxModeFromForm(s?: "off" | "tracking" | "protected"): SandboxMode {
+  switch (s) {
+    case "off":
+      return SandboxMode.OFF;
+    case "tracking":
+      return SandboxMode.TRACKING;
+    case "protected":
+      return SandboxMode.PROTECTED;
+    default:
+      return SandboxMode.UNSPECIFIED;
+  }
+}
 
 function networkAccessToProto(na: "none" | "localhost" | "full"): NetworkAccess {
   switch (na) {
@@ -88,6 +125,94 @@ interface ApiState<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
+}
+
+export interface RunStatusCounts {
+  pending: number;
+  running: number;
+  complete: number;
+  failed: number;
+  cancelled: number;
+  needsReview: number;
+  total: number;
+}
+
+export interface RunReportView {
+  run_id: string;
+  status: string;
+  exit_code?: number;
+  error?: string;
+  duration_ms?: string;
+  heartbeat_gap_ms?: string;
+  turns: number;
+  tokens: number;
+  cost_usd: number;
+  result: { selection_status: string; selection_rule?: string; candidate_count: number; structured_status?: string; structured_method?: string; diagnostic_codes?: string[] };
+  event_counts: Record<string, number>;
+  tools: Array<{ name: string; calls: number; successes: number; failures: number; unresolved?: number }>;
+  project_owned_tool_calls: number;
+  external_tool_calls: number;
+  requested_model?: string;
+  actual_model?: string;
+  fallback_count: number;
+  repeated_tool_calls: number;
+  files_read_more_than_once: number;
+  longest_event_gap_ms: string;
+  diff: { files: number; bytes: number; available: { state: string; reason?: string } };
+  events_availability: { state: string; reason?: string };
+  receipts_availability: { state: string; reason?: string };
+  receipt_count: number;
+}
+
+export interface RecurringFindingView {
+  id: string;
+  runId: string;
+  investigationRunId: string;
+  category: string;
+  severity: string;
+  recommendation: string;
+  evidence?: string;
+  targetPath?: string;
+  fingerprint: string;
+  decision?: string;
+  createdAt: string;
+  occurrences: number;
+}
+
+export function useRecurringFindings() {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RecurringFindingView[]>(null);
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest<{ findings: RecurringFindingView[] }>("/findings");
+      setData(response.findings.sort((a, b) => b.occurrences - a.occurrences || b.createdAt.localeCompare(a.createdAt)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load investigation findings");
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setError, setLoading]);
+  useEffect(() => { void refetch(); }, [refetch]);
+  return { data, loading, error, refetch };
+}
+
+export function useRunReport(runId: string) {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RunReportView>(null);
+  const refetch = useCallback(async () => {
+    if (!runId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await apiRequest<RunReportView>(`/runs/${encodeURIComponent(runId)}/report`));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load run report");
+    } finally {
+      setLoading(false);
+    }
+  }, [runId, setData, setError, setLoading]);
+  useEffect(() => { void refetch(); }, [refetch]);
+  return { data, loading, error, refetch };
 }
 
 function useApiState<T>(initialData: T | null = null): ApiState<T> & {
@@ -266,6 +391,149 @@ function durationFromMinutes(minutes?: number) {
   return durationFromMs(minutes * 60_000);
 }
 
+export interface WorkflowTraceView {
+  execution?: WorkflowExecution;
+  attempts: WorkflowNodeAttempt[];
+  journal: WorkflowJournalEntry[];
+}
+
+export function useWorkflowExecutions() {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<WorkflowExecution[]>([]);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const raw = await apiRequest<unknown>("/workflow-executions?limit=100");
+      const response = parseProto(ListWorkflowExecutionsResponseSchema, raw);
+      setData(response.executions);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load workflow executions");
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setError, setLoading]);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  useEffect(() => {
+    const refresh = () => void refetch();
+    window.addEventListener("agent-manager:workflow-lifecycle", refresh);
+    return () => window.removeEventListener("agent-manager:workflow-lifecycle", refresh);
+  }, [refetch]);
+
+  const getTrace = useCallback(async (executionId: string): Promise<WorkflowTraceView> => {
+    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(executionId)}/trace?limit=500`);
+    const response = parseProto(GetWorkflowExecutionTraceResponseSchema, raw);
+    return { execution: response.execution, attempts: response.attempts, journal: response.journal };
+  }, []);
+
+  const control = useCallback(async (execution: WorkflowExecution, operation: "cancel" | "retry" | "resume") => {
+    const request = create(WorkflowExecutionOperationRequestSchema, {
+      executionId: execution.id,
+      idempotencyKey: `ui-${operation}-${execution.id}-${execution.version.toString()}`,
+      expectedVersion: execution.version,
+      reason: "Operator action from Agent Manager workflow console",
+    });
+    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(execution.id)}/${operation}`, {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(WorkflowExecutionOperationRequestSchema, request)),
+    });
+    const response = parseProto(WorkflowExecutionOperationResponseSchema, raw);
+    await refetch();
+    return response.execution;
+  }, [refetch]);
+
+  const signal = useCallback(async (execution: WorkflowExecution, name: string, payload: unknown) => {
+    const request = create(SignalWorkflowExecutionRequestSchema, {
+      executionId: execution.id,
+      signal: name,
+      payload: fromJson(ValueSchema, normalizeJsonValueInput(payload) as JsonValue, protoReadOptions),
+      idempotencyKey: `ui-signal-${execution.id}-${execution.version.toString()}-${name}`,
+      expectedVersion: execution.version,
+    });
+    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(execution.id)}/signals`, {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(SignalWorkflowExecutionRequestSchema, request)),
+    });
+    const response = parseProto(WorkflowExecutionOperationResponseSchema, raw);
+    await refetch();
+    return response.execution;
+  }, [refetch]);
+
+  return { data, loading, error, refetch, getTrace, control, signal };
+}
+
+export interface CohortWatchInspection {
+  inspection: InspectCohortWatchResponse;
+  actions: CohortWatchActionView[];
+}
+
+export interface CohortWatchActionView {
+  actionId: string;
+  kind: number;
+  targetRunId: string;
+  state: number;
+  status: string;
+  rejectionReason: string;
+}
+
+function normalizeCohortWatchActions(raw: unknown): CohortWatchActionView[] {
+  if (typeof raw !== "object" || raw === null || !("actions" in raw) || !Array.isArray(raw.actions)) return [];
+  return raw.actions.flatMap((value): CohortWatchActionView[] => {
+    if (typeof value !== "object" || value === null) return [];
+    const action = value as Record<string, unknown>;
+    const text = (camel: string, snake: string) => typeof action[camel] === "string" ? action[camel] as string : typeof action[snake] === "string" ? action[snake] as string : "";
+    const numeric = (key: string) => typeof action[key] === "number" ? action[key] as number : 0;
+    return [{
+      actionId: text("actionId", "action_id"),
+      kind: numeric("kind"),
+      targetRunId: text("targetRunId", "target_run_id"),
+      state: numeric("state"),
+      status: text("status", "status"),
+      rejectionReason: text("rejectionReason", "rejection_reason"),
+    }];
+  });
+}
+
+export function useCohortWatches() {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<CohortWatch[]>([]);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const raw = await apiRequest<unknown>("/cohort-watches?page_size=100");
+      const response = parseProto(ListCohortWatchesResponseSchema, raw);
+      setData(response.watches);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load cohort watches");
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setError, setLoading]);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  const inspect = useCallback(async (watchId: string): Promise<CohortWatchInspection> => {
+    const encodedID = encodeURIComponent(watchId);
+    const [inspectionRaw, actionsRaw] = await Promise.all([
+      apiRequest<unknown>(`/cohort-watches/${encodedID}/inspect?event_limit=100`),
+      apiRequest<unknown>(`/cohort-watches/${encodedID}/actions?limit=100`),
+    ]);
+    return {
+      inspection: parseProto(InspectCohortWatchResponseSchema, inspectionRaw),
+      actions: normalizeCohortWatchActions(actionsRaw),
+    };
+  }, []);
+
+  return { data, loading, error, refetch, inspect };
+}
+
 function generateProfileKey(name: string): string {
   const base = name
     .trim()
@@ -285,22 +553,20 @@ function resolveProfileKey(profile: ProfileFormData): string {
 }
 
 function buildProfile(profile: ProfileFormData): AgentProfile {
-  const model = profile.model?.trim() ?? "";
   return create(AgentProfileSchema, {
     name: profile.name,
     profileKey: resolveProfileKey(profile),
     description: profile.description ?? "",
-    runnerType: profile.runnerType,
-    model,
-    modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
+    roleRef: profile.roleRef.trim(),
     maxTurns: profile.maxTurns ?? 0,
     timeout: durationFromMinutes(profile.timeoutMinutes),
-    fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
+    effort: profile.effort ?? "",
     allowedTools: profile.allowedTools ?? [],
     deniedTools: profile.deniedTools ?? [],
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
-    requiresSandbox: profile.requiresSandbox ?? true,
-    requiresApproval: profile.requiresApproval ?? true,
+    sandboxConfig: profile.sandboxMode
+      ? create(SandboxConfigSchema, { mode: sandboxModeFromForm(profile.sandboxMode) })
+      : undefined,
     networkAccess: networkAccessToProto(profile.networkAccess ?? "localhost"),
     allowedPaths: profile.allowedPaths ?? [],
     deniedPaths: profile.deniedPaths ?? [],
@@ -334,26 +600,17 @@ function buildTask(task: TaskFormData): Task {
 
 function buildRunConfigOverrides(run: RunFormData) {
   const payload: Record<string, unknown> = {};
-  if (run.runnerType !== undefined) {
-    payload.runnerType = run.runnerType;
-  }
-  if (run.fallbackRunnerTypes !== undefined) {
-    payload.fallbackRunnerTypes = run.fallbackRunnerTypes;
-    if (run.fallbackRunnerTypes.length === 0) {
-      payload.clearFallbackRunnerTypes = true;
-    }
-  }
-  if (run.modelPreset !== undefined) {
-    payload.modelPreset = run.modelPreset;
-  }
-  if (run.model !== undefined && run.model.trim() !== "") {
-    payload.model = run.model;
+  if (run.roleRef !== undefined) {
+    payload.roleRef = run.roleRef.trim();
   }
   if (run.maxTurns !== undefined) {
     payload.maxTurns = run.maxTurns;
   }
   if (run.timeoutMinutes !== undefined) {
     payload.timeout = durationFromMinutes(run.timeoutMinutes);
+  }
+  if (run.effort !== undefined) {
+    payload.effort = run.effort;
   }
   if (run.allowedTools !== undefined) {
     payload.allowedTools = run.allowedTools;
@@ -370,11 +627,15 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (typeof run.skipPermissionPrompt === "boolean") {
     payload.skipPermissionPrompt = run.skipPermissionPrompt;
   }
-  if (typeof run.requiresSandbox === "boolean") {
-    payload.requiresSandbox = run.requiresSandbox;
-  }
-  if (typeof run.requiresApproval === "boolean") {
-    payload.requiresApproval = run.requiresApproval;
+  if (run.sandboxMode !== undefined) {
+    // SandboxConfig.mode is the single source of truth for sandbox
+    // selection — see agent-manager DeriveRunMode. Pass it via
+    // sandboxConfig (the request struct's field), letting the
+    // orchestrator's resolveSandboxConfig backfill the rest of the
+    // contract defaults (auto-apply, manual-review, etc).
+    payload.sandboxConfig = create(SandboxConfigSchema, {
+      mode: sandboxModeFromForm(run.sandboxMode),
+    });
   }
   if (run.networkAccess !== undefined) {
     payload.networkAccess = networkAccessToProto(run.networkAccess);
@@ -412,17 +673,14 @@ function buildRunConfigOverrides(run: RunFormData) {
 
 function hasInlineConfig(run: RunFormData): boolean {
   return Boolean(
-    run.runnerType !== undefined ||
-      run.fallbackRunnerTypes !== undefined ||
-      run.model !== undefined ||
-      run.modelPreset !== undefined ||
+    run.roleRef !== undefined ||
       run.maxTurns !== undefined ||
       run.timeoutMinutes !== undefined ||
+      run.effort !== undefined ||
       run.allowedTools !== undefined ||
       run.deniedTools !== undefined ||
       typeof run.skipPermissionPrompt === "boolean" ||
-      typeof run.requiresSandbox === "boolean" ||
-      typeof run.requiresApproval === "boolean" ||
+      run.sandboxMode !== undefined ||
       run.networkAccess !== undefined ||
       run.allowedPaths !== undefined ||
       run.deniedPaths !== undefined ||
@@ -469,11 +727,13 @@ export function useHealth() {
     const poll = async () => {
       await fetchHealth();
       if (!cancelled) {
-        timeoutId = setTimeout(poll, 30000);
+        timeoutId = setTimeout(() => {
+          void poll();
+        }, 30000);
       }
     };
 
-    poll();
+    void poll();
 
     return () => {
       cancelled = true;
@@ -486,7 +746,8 @@ export function useHealth() {
 }
 
 // Profiles hook
-export function useProfiles() {
+export function useProfiles(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<AgentProfile[]>([]);
 
   const fetchProfiles = useCallback(async () => {
@@ -545,8 +806,11 @@ export function useProfiles() {
   );
 
   useEffect(() => {
-    fetchProfiles();
-  }, [fetchProfiles]);
+    if (!enabled) {
+      return;
+    }
+    void fetchProfiles();
+  }, [enabled, fetchProfiles]);
 
   return {
     data, loading, error,
@@ -558,7 +822,8 @@ export function useProfiles() {
 }
 
 // Tasks hook
-export function useTasks() {
+export function useTasks(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<Task[]>([]);
 
   const fetchTasks = useCallback(async () => {
@@ -631,8 +896,11 @@ export function useTasks() {
   );
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    if (!enabled) {
+      return;
+    }
+    void fetchTasks();
+  }, [enabled, fetchTasks]);
 
   return {
     data, loading, error,
@@ -646,7 +914,9 @@ export function useTasks() {
 }
 
 // Runs hook
-export function useRuns() {
+export function useRuns(options?: { enabled?: boolean; limit?: number }) {
+  const enabled = options?.enabled ?? true;
+  const limit = options?.limit;
   const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([]);
 
   const hasFetchedRef = useRef(false);
@@ -658,7 +928,8 @@ export function useRuns() {
     }
     setError(null);
     try {
-      const resp = await apiRequest<unknown>("/runs");
+      const query = limit !== undefined ? `?limit=${encodeURIComponent(String(limit))}` : "";
+      const resp = await apiRequest<unknown>("/runs" + query);
       const message = parseProto(ListRunsResponseSchema, resp);
       setData(message.runs ?? []);
       hasFetchedRef.current = true;
@@ -667,20 +938,27 @@ export function useRuns() {
     } finally {
       setLoading(false);
     }
-  }, [setData, setLoading, setError]);
+  }, [limit, setData, setLoading, setError]);
 
   const createRun = useCallback(
     async (run: RunFormData): Promise<Run> => {
   const inlineConfig = hasInlineConfig(run) ? buildRunConfigOverrides(run) : undefined;
+      // Mint a fresh ConversationId per Decision D7 if the caller didn't
+      // supply one. Each top-level "run task" click is conceptually a new
+      // conversation; multi-turn flows pass an explicit conversationId.
+      const conversationId = run.conversationId ?? crypto.randomUUID();
       const request = create(CreateRunRequestSchema, {
         taskId: run.taskId,
         agentProfileId: run.agentProfileId,
         tag: run.tag,
         runMode: run.runMode,
+        executionMode: run.executionMode,
         inlineConfig,
         idempotencyKey: run.idempotencyKey,
         prompt: run.prompt,
         existingSandboxId: run.existingSandboxId,
+        conversationId,
+        parentRunId: run.parentRunId,
       });
       const created = await apiRequest<unknown>("/runs", {
         method: "POST",
@@ -711,11 +989,21 @@ export function useRuns() {
       customContext?: string,
       depth?: "quick" | "standard" | "deep",
       projectRoot?: string,
-      scopePaths?: string[]
+      scopePaths?: string[],
+      attachmentIds?: string[],
+		overrides?: { roleRef?: string }
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigate", {
         method: "POST",
-        body: JSON.stringify({ runIds, customContext, depth, projectRoot, scopePaths }),
+        body: JSON.stringify({
+          runIds,
+          customContext,
+          depth,
+          projectRoot,
+          scopePaths,
+          attachmentIds,
+			roleRef: overrides?.roleRef,
+        }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
@@ -726,10 +1014,41 @@ export function useRuns() {
   );
 
   const applyInvestigation = useCallback(
-    async (investigationRunId: string, customContext?: string): Promise<Run> => {
+    async (
+      investigationRunId: string,
+      selected: string[],
+      customContext?: string,
+      attachmentIds?: string[],
+		overrides?: { roleRef?: string }
+    ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigation-apply", {
         method: "POST",
-        body: JSON.stringify({ investigationRunId, customContext }),
+        body: JSON.stringify({
+          investigationRunId,
+          decision: "completed",
+          selected,
+          customContext,
+          attachmentIds,
+			roleRef: overrides?.roleRef,
+        }),
+      });
+      const message = parseProto(CreateRunResponseSchema, created);
+      const mapped = message.run as Run;
+      await fetchRuns();
+      return mapped;
+    },
+    [fetchRuns]
+  );
+
+  const resumeFromFailedRun = useCallback(
+    async (
+      runId: string,
+      customContext?: string,
+      attachmentIds?: string[]
+    ): Promise<Run> => {
+      const created = await apiRequest<unknown>("/runs/resume-from-failed", {
+        method: "POST",
+        body: JSON.stringify({ runId, customContext, attachmentIds }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
@@ -762,8 +1081,13 @@ export function useRuns() {
   );
 
   const getRunEvents = useCallback(
-    async (id: string): Promise<RunEvent[]> => {
-      const data = await apiRequest<unknown>("/runs/" + id + "/events");
+    async (id: string, options?: { afterSequence?: bigint }): Promise<RunEvent[]> => {
+      const params = new URLSearchParams();
+      if (options?.afterSequence !== undefined) {
+        params.set("after_sequence", options.afterSequence.toString());
+      }
+      const query = params.size > 0 ? `?${params.toString()}` : "";
+      const data = await apiRequest<unknown>("/runs/" + id + "/events" + query);
       const message = parseProto(GetRunEventsResponseSchema, data);
       return message.events ?? [];
     },
@@ -864,8 +1188,11 @@ export function useRuns() {
   );
 
   useEffect(() => {
-    fetchRuns();
-  }, [fetchRuns]);
+    if (!enabled) {
+      return;
+    }
+    void fetchRuns();
+  }, [enabled, fetchRuns]);
 
   return {
     data, loading, error,
@@ -874,6 +1201,7 @@ export function useRuns() {
     retryRun,
     investigateRuns,
     applyInvestigation,
+    resumeFromFailedRun,
     getRun,
     stopRun,
     deleteRun,
@@ -887,8 +1215,36 @@ export function useRuns() {
   };
 }
 
+export function useRunStatusCounts(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RunStatusCounts>();
+
+  const fetchStatusCounts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest<{ statusCounts?: RunStatusCounts }>("/stats/status-distribution");
+      setData(response.statusCounts ?? null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setLoading, setError]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    void fetchStatusCounts();
+  }, [enabled, fetchStatusCounts]);
+
+  return { data, loading, error, refetch: fetchStatusCounts };
+}
+
 // Runners hook
-export function useRunners() {
+export function useRunners(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<Record<string, RunnerStatus>>({});
 
   const fetchRunners = useCallback(async () => {
@@ -910,52 +1266,111 @@ export function useRunners() {
   }, [setData, setLoading, setError]);
 
   useEffect(() => {
-    fetchRunners();
-  }, [fetchRunners]);
+    if (!enabled) {
+      return;
+    }
+    void fetchRunners();
+  }, [enabled, fetchRunners]);
 
   return { data, loading, error, refetch: fetchRunners };
 }
 
-// Model registry hook
-export function useModelRegistry() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelRegistry | null>(null);
+// Role-policy catalog hook. This is a read-only projection of Git-managed
+// declared state; reload and validation remain explicit operator commands.
+export function useRolePolicyCatalog(options?: { enabled?: boolean }) {
+	const enabled = options?.enabled ?? true;
+	const { data, loading, error, setData, setLoading, setError } = useApiState<MessageShape<typeof GetRolePolicyCatalogResponseSchema> | null>(null);
 
-  const fetchRegistry = useCallback(async () => {
+  const fetchCatalog = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<ModelRegistry>("/runner-models");
-      setData(data);
+		const payload = await apiRequest<unknown>("/role-policy/catalog");
+		setData(parseProto(GetRolePolicyCatalogResponseSchema, payload));
     } catch (err) {
       setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  const updateRegistry = useCallback(async (registry: ModelRegistry): Promise<ModelRegistry> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<ModelRegistry>("/runner-models", {
-        method: "PUT",
-        body: JSON.stringify(registry),
-      });
-      setData(data);
-      return data;
-    } catch (err) {
-      setError((err as Error).message);
-      throw err;
     } finally {
       setLoading(false);
     }
   }, [setData, setLoading, setError]);
 
   useEffect(() => {
-    fetchRegistry();
-  }, [fetchRegistry]);
+    if (enabled) void fetchCatalog();
+  }, [enabled, fetchCatalog]);
 
-  return { data, loading, error, refetch: fetchRegistry, updateRegistry };
+  return { data, loading, error, refetch: fetchCatalog };
+}
+
+type PermissionPolicyData = {
+  status: MessageShape<typeof GetPermissionPolicyStatusResponseSchema>;
+  catalog: MessageShape<typeof GetPermissionPolicyCatalogResponseSchema>;
+};
+
+// Permission-policy actions are intentionally whole-document operations. The
+// UI never exposes resource-native patterns or individual rule mutation.
+export function usePermissionPolicy(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<PermissionPolicyData | null>(null);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statusPayload, catalogPayload] = await Promise.all([
+        apiRequest<unknown>("/permission-policy/status"),
+        apiRequest<unknown>("/permission-policy/catalog"),
+      ]);
+      setData({
+        status: parseProto(GetPermissionPolicyStatusResponseSchema, statusPayload),
+        catalog: parseProto(GetPermissionPolicyCatalogResponseSchema, catalogPayload),
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setLoading, setError]);
+
+  useEffect(() => {
+    if (enabled) void refetch();
+  }, [enabled, refetch]);
+
+  const validate = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/validate", { method: "POST" });
+    const response = parseProto(ValidatePermissionPolicyCatalogResponseSchema, payload);
+    await refetch();
+    return response;
+  }, [refetch]);
+
+  const reload = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/reload", { method: "POST" });
+    const response = parseProto(ReloadPermissionPolicyCatalogResponseSchema, payload);
+    await refetch();
+    return response;
+  }, [refetch]);
+
+  const plan = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/plan", { method: "POST" });
+    return parseProto(PlanPermissionPolicyResponseSchema, payload);
+  }, []);
+
+  const doctor = useCallback(async () => {
+    const payload = await apiRequest<unknown>("/permission-policy/doctor", { method: "POST" });
+    return parseProto(DoctorPermissionPolicyResponseSchema, payload);
+  }, []);
+
+  const reconcile = useCallback(async () => {
+    const request = create(ReconcilePermissionPolicyRequestSchema, { explicitlyAuthorized: true });
+    const payload = await apiRequest<unknown>("/permission-policy/reconcile", {
+      method: "POST",
+      body: JSON.stringify(toProtoJson(ReconcilePermissionPolicyRequestSchema, request)),
+    });
+    const response = parseProto(ReconcilePermissionPolicyResponseSchema, payload);
+    await refetch();
+    return response;
+  }, [refetch]);
+
+  return { data, loading, error, refetch, validate, reload, plan, doctor, reconcile };
 }
 
 // Probe runner function (standalone for use in components)
@@ -1048,28 +1463,51 @@ export async function ensureProfile(profileKey: string): Promise<AgentProfile> {
   return message.profile as AgentProfile;
 }
 
-// Extract recommendations from an investigation run (standalone function)
-// Uses a longer timeout (120s) since LLM extraction can take time
-export async function extractRecommendations(runId: string): Promise<ExtractionResult> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout
-
-  try {
-    return await apiRequest<ExtractionResult>(`/runs/${runId}/extract-recommendations`, {
-      method: "POST",
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
+// Reads the categorized recommendations out of an investigation run's
+// structured result (run.result.structured, present once the run's
+// `agent-manager/investigate` node completes with a schema-validated
+// output). Returns null when the run hasn't produced a successful
+// structured result yet (still running, failed, or extraction was not
+// SUCCESS) — callers should treat that as "not ready" rather than an error.
+export function getInvestigationFindings(run: Run | null | undefined): InvestigationFindings | null {
+  const structured = run?.result?.structured;
+  if (!structured || structured.status !== StructuredResultStatus.SUCCESS) {
+    return null;
   }
-}
 
-// Regenerate recommendations for an investigation run (standalone function)
-// Resets extraction state and queues for background processing
-export async function regenerateRecommendations(runId: string): Promise<void> {
-  await apiRequest<{ success: boolean }>(`/runs/${runId}/regenerate-recommendations`, {
-    method: "POST",
-  });
+  const raw: unknown = structured.value;
+  let parsed: unknown;
+  if (typeof raw === "string") {
+    if (!raw.trim()) return null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  } else if (ArrayBuffer.isView(raw)) {
+    const bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+    if (bytes.length === 0) return null;
+    try {
+      parsed = JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      return null;
+    }
+  } else if (raw && typeof raw === "object") {
+    parsed = raw;
+  } else {
+    return null;
+  }
+
+  if (!parsed || typeof parsed !== "object") return null;
+  const findings = parsed as Partial<InvestigationFindings>;
+  if (!Array.isArray(findings.categories)) return null;
+
+  return {
+    summary: typeof findings.summary === "string" ? findings.summary : "",
+    primaryCategory: findings.primaryCategory ?? "Both",
+    confidence: findings.confidence,
+    categories: findings.categories,
+  };
 }
 
 // Maintenance hook

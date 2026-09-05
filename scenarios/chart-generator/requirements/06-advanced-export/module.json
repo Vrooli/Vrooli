@@ -1,17 +1,16 @@
 {
   "_metadata": {
-    "prd_section": "P1 - Advanced Export Capabilities",
-    "description": "PDF export and multi-chart composition features"
+    "description": "PDF export and multi-chart composition features",
+    "last_validated_at": "2026-07-13T23:28:32-04:00"
   },
   "requirements": [
     {
       "id": "CHART-P1-005",
-      "category": "chart-generation.export",
-      "prd_ref": "OT-P1-005",
-      "operational_target_id": "OT-P1-005",
       "title": "PDF export with vector graphics for print-quality reports",
-      "description": "High-quality PDF generation for professional reporting and print",
       "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "chart-generation.export",
+      "description": "High-quality PDF generation for professional reporting and print",
       "validation": [
         {
           "type": "test",
@@ -24,18 +23,17 @@
     },
     {
       "id": "CHART-P1-006",
-      "category": "chart-generation.composition",
-      "prd_ref": "OT-P1-006",
-      "operational_target_id": "OT-P1-006",
       "title": "Chart composition (multiple charts in single canvas)",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
+      "category": "chart-generation.composition",
       "description": "Multi-chart layouts with grid, horizontal, and vertical arrangements",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/chart_composition_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "TestChartComposition_GenerateComposite validates multi-chart composition"
         }
       ]

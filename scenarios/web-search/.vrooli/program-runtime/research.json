@@ -1,0 +1,189 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.research",
+  "version": "1",
+  "purpose": "Answer one question at one ladder rung (l0 raw hits, l1 cited synthesis, l2 fetch-and-read), reading the findings ledger first and marking strong stored hits used when asked.",
+  "inputs": {
+    "query": {
+      "type": "string",
+      "required": true,
+      "description": "The question to answer."
+    },
+    "effort": {
+      "type": "string",
+      "default": "l1",
+      "enum": [
+        "l0",
+        "l1",
+        "l2",
+        "l3"
+      ],
+      "description": "Ladder rung. l3 has no governed binding and is reported unavailable."
+    },
+    "limit": {
+      "type": "integer",
+      "default": 5,
+      "description": "Max stored hits and max live results (1..50)."
+    },
+    "top_n": {
+      "type": "integer",
+      "default": 3,
+      "description": "l2 only: result pages fetched and read (1..10)."
+    },
+    "mark_used": {
+      "type": "boolean",
+      "default": false,
+      "description": "Record `findings use` for every strong stored hit."
+    },
+    "capture": {
+      "type": "boolean",
+      "default": false,
+      "description": "l2 only: distill the synthesis into the findings store."
+    }
+  },
+  "assumptions": [
+    "web-search is running and its Connect-RPC bindings are reachable from the kernel",
+    "the caller treats status unavailable as unknown, never as no answer",
+    "effort l3 is started by hand with `web-search research l3 <query>`; the binding is run-ineligible",
+    "the `synthesis` keyword is the binding's argument name for the request field `synthesize`, as `bindings describe` reports it"
+  ],
+  "invariants": [
+    "the findings ledger is read before any live answer is trusted",
+    "the program writes through exactly two bindings: research l2 (only at effort l2, with capture as the caller set it) and findings use (only when mark_used is true and the hit is active, not weak, confidence >= 0.5 and at most 180 days old); both run in act, never in collect",
+    "research l2 is called with capture exactly as the caller set it; l0 and l1 never persist findings",
+    "no row set is materialized; stored hits are head(limit) with claims cut to 140 characters; the envelope fits the 4 KB stdout bound",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "web-search/findings/search",
+      "effect": "read"
+    },
+    {
+      "id": "web-search/search/search",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "web-search/research/l2",
+      "effect": "write",
+      "optional": true
+    },
+    {
+      "id": "web-search/findings/use",
+      "effect": "write",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "act",
+        "classify",
+        "collect",
+        "report",
+        "validate"
+      ]
+    },
+    "signals": {
+      "answer_kind": "one of stored_finding, cited_synthesis, raw_hits, none",
+      "confidence": "max stored-finding confidence when answer_kind is stored_finding; null otherwise",
+      "citations": "l1: synthesis citations; l2: {url, title} from the excerpts rows (the brief carries no citations); stored: {finding_id}",
+      "stored_hits": "At most ten stored hits with id, claim, status, confidence, score, weak, retrieval_date, age_days and usable (the skill's ledger-answers gate).",
+      "stored_hit_count": "count of stored hits returned",
+      "strong_hit_count": "count of non-weak, non-superseded stored hits",
+      "live_result_count": "count of live results (l0/l1) or excerpts (l2)",
+      "cached": "l0/l1: results came from the TTL cache",
+      "degraded": "l0/l1: the governor or upstream declined the call",
+      "degraded_reason": "l0/l1: the reason string when degraded",
+      "abstained": "l1/l2: the synthesis abstained because sources were thin or in conflict",
+      "captured_finding_ids": "l2 with capture: finding ids written",
+      "marked_used": "finding ids for which findings use was recorded",
+      "live_rung": "the live rung that ran, or null"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "no_governed_binding",
+        "rate_limited",
+        "upstream_degraded"
+      ]
+    },
+    "evidence": "finding ids read or written"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 50
+  },
+  "fixtures": [
+    {
+      "id": "l1-live",
+      "inputs": {
+        "query": "latest stable Python release",
+        "effort": "l1"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "l3-unavailable",
+      "inputs": {
+        "query": "latest stable Python release",
+        "effort": "l3"
+      },
+      "expect": {
+        "status": [
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "bad-effort",
+      "inputs": {
+        "query": "x",
+        "effort": "l9"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search"
+}

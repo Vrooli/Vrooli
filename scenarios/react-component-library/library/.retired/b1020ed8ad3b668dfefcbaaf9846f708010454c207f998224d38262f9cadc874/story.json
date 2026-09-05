@@ -1,0 +1,124 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Save changes",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
+      },
+      {
+        "default": "primary",
+        "kind": "text",
+        "label": "Variant",
+        "path": "variant"
+      },
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Save changes",
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Save changes"
+        },
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        }
+      ],
+      "id": "primary",
+      "mode": "pinned",
+      "name": "Primary",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Delete record",
+        "variant": "danger"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Delete record"
+        },
+        {
+          "kind": "role",
+          "name": "Delete record",
+          "role": "button"
+        }
+      ],
+      "id": "destructive",
+      "mode": "pinned",
+      "name": "Destructive",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Sync all queued workspace changes",
+        "disabled": true,
+        "variant": "secondary"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Sync all queued workspace changes"
+        },
+        {
+          "kind": "attribute",
+          "name": "disabled",
+          "selector": "button",
+          "value": ""
+        }
+      ],
+      "id": "disabled-long-label",
+      "mode": "pinned",
+      "name": "Disabled Long Label",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Save draft"
+        },
+        {
+          "kind": "role",
+          "name": "Save draft",
+          "role": "button"
+        }
+      ],
+      "id": "icon-start",
+      "mode": "pinned",
+      "name": "Icon Start",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "IconStart"
+        }
+      },
+      "role": "boundary"
+    }
+  ],
+  "title": "Button"
+}

@@ -475,7 +475,7 @@ curl https://your-server.example.com/api/v1/health
    // In manifest
    {
      "telemetry": {
-       "upload_to": "https://your-server/api/v1/telemetry/upload"
+      "upload_url": "https://your-server/api/v1/telemetry/upload"
      }
    }
    ```
@@ -507,7 +507,7 @@ If these solutions don't resolve your issue:
 
 3. **Check progress and known issues**
    - `scenarios/deployment-manager/docs/PROGRESS.md`
-   - `scenarios/deployment-manager/docs/PROBLEMS.md`
+   - `scenarios/deployment-manager/docs/internal/PROBLEMS.md`
 
 4. **File an issue**
    - Report issues at https://github.com/anthropics/claude-code/issues

@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Search",
+        "kind": "text",
+        "path": "placeholder"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "placeholder": "Search"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SearchInputStory",
+          "module": "./story.tsx"
+        }
+      },
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
+    }
+  ],
+  "title": "SearchInput"
+}

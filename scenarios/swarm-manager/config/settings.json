@@ -1,0 +1,47 @@
+{
+  "theme": "dark",
+  "default_mode": "manual",
+  "auto_fixup": false,
+  "max_fixup_attempts": 2,
+  "review_agent_enabled": true,
+  "agent_max_turns": 600,
+  "agent_timeout_seconds": 3600,
+  "search_debounce_ms": 300,
+  "toast_duration_ms": 5000,
+  "delete_confirmation_levels": {
+    "backlog": "simple",
+    "backlogFile": "simple",
+    "capture": "none",
+    "initiative": "strong",
+    "scenario": "strong",
+    "session": "simple"
+  },
+  "review_code_quality_min_score": 60,
+  "review_test_min_pass_rate": 1,
+  "review_max_blocking_violations": 0,
+  "review_max_warnings": -1,
+  "review_require_screenshots": true,
+  "review_require_tests": true,
+  "lane_concurrency_limits": {
+    "execute": 3,
+    "investigate": 6,
+    "reconcile": 2,
+    "review": 8
+  },
+  "max_queue_depth": 50,
+  "circuit_breaker_threshold": 3,
+  "circuit_breaker_cooldown_minutes": 60,
+  "execution_cost_cap_per_run": 0,
+  "cost_per_turn_estimate": 0.1,
+  "fix_before_feature": "suggest",
+  "auto_filer": {
+    "enabled": false,
+    "mode": "suggest",
+    "strategy": "feature_pending",
+    "max_open_auto_filed": 10,
+    "velocity_window_days": 7,
+    "min_velocity_transitions": 1,
+    "interval_minutes": 30,
+    "goal_name": "automated-maintenance"
+  }
+}

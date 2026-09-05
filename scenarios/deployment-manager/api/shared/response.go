@@ -30,3 +30,12 @@ func JSONOK(w http.ResponseWriter, data interface{}) {
 func JSONCreated(w http.ResponseWriter, data interface{}) {
 	JSONSuccess(w, data, http.StatusCreated)
 }
+
+// JSONErrorCode writes a structured JSON error payload at the given status code.
+// Used when callers need to discriminate by a code field (e.g. 409
+// "release_in_flight") rather than a plain message string.
+func JSONErrorCode(w http.ResponseWriter, statusCode int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(payload)
+}

@@ -4,7 +4,7 @@ The `secrets` package handles secure storage, retrieval, and injection of secret
 
 ## Overview
 
-Desktop applications often need API keys, database passwords, and other sensitive values. This package manages the full secret lifecycle: prompting users, persisting to disk, and injecting into service processes via environment variables or files.
+Desktop applications often need API keys, database passwords, and other sensitive values. This package manages the full secret lifecycle: prompting users, persisting through Vrooli's native OS credential authority, and injecting values into service processes via environment variables or explicitly declared files.
 
 ## Key Types
 
@@ -47,9 +47,12 @@ type Store interface {
 ## Usage
 
 ```go
-// Create manager
-secretsPath := filepath.Join(appData, "secrets.json")
-manager := secrets.NewManager(manifest, fs, secretsPath)
+// Create the production manager. It fails closed when the native credential
+// authority is unavailable.
+manager, err := secrets.NewNativeManager(manifest)
+if err != nil {
+    return err
+}
 
 // Load persisted secrets
 loaded, err := manager.Load()
@@ -86,25 +89,38 @@ Secrets can be injected as:
 | Type | Description | Example |
 |------|-------------|---------|
 | `env` | Environment variable | `API_KEY=secret123` |
-| `file` | Written to file | `/app/data/.credentials` |
+| `file` | Materialized on ephemeral storage, removed once services start | `$XDG_RUNTIME_DIR/vrooli/bundle-secrets/cert.pem` |
 
-## Storage Format
+## Storage
 
-Secrets are stored in `secrets.json`:
+Production secrets are stored only by the Vrooli credential authority, which
+uses the native OS credential store, or the encrypted file store on a host with
+no native one. The runtime never reads or writes a `secrets.json` file during
+normal operation.
 
-```json
-{
-  "API_KEY": "sk-xxx...",
-  "DB_PASSWORD": "hunter2"
-}
-```
+A secret declaring `logical_id` and `field` resolves to the **same durable name
+every other deployment tier uses**, so a credential provisioned once during
+onboarding is the credential this bundle reads. A secret that declares neither
+falls back to a bundle-private namespace derived from the app name — it still
+works, but no Tier 1 install will find it and it is a separate value to back up.
 
-File permissions are set to `0600` (owner read/write only).
+A `file` target is materialized on ephemeral storage (`XDG_RUNTIME_DIR`, else
+the system temp dir) and removed once the services that needed it have started.
+Where the host has no ephemeral location the bundle refuses rather than writing
+a durable plaintext credential an operator cannot see.
+
+Legacy plaintext migration is not a desktop-runtime operation. The one-shot
+migration owned by `packages/credentialclient-go` and exposed by
+secrets-manager requires an explicit source path, maps only declared
+credentials, verifies a recovery export, and controls source deletion only
+after that verification. The runtime itself never opens a legacy JSON file.
 
 ## Security Considerations
 
-- Secrets file is stored in user config directory
-- File permissions restrict access to current user
+- Production values are never persisted in the desktop app data directory, and
+  a `file` target never lands on durable storage
+- Native-store unavailability is a startup/configuration error; there is no
+  plaintext fallback
 - Secrets are never logged or included in telemetry
 - Memory is not explicitly zeroed (Go limitation)
 

@@ -1,0 +1,158 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "last_validated_at": "2026-09-02T22:29:11-04:00",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CLN-P2-001",
+      "title": "Scheduled policy execution",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "description": "Add opt-in scheduled cleanup runs for eligible Safe and SafeWithOwner providers with explicit dry-run and audit retention controls.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-001] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-002",
+      "title": "Fleet cleanup intelligence",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Aggregate cleanup estimates, provider health, and reclaim outcomes across scenarios to guide capacity planning and future storage governance.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-002] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-003",
+      "title": "Extended provider marketplace",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "description": "Support registered scenario-owned providers with declarative metadata, contract validation, and reusable action discovery for future cleanup capabilities.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-003] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-004",
+      "title": "Advisory cross-platform declaration lint",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-004",
+      "criticality": "P2",
+      "description": "Identify non-portable paths, platform mismatches, missing branches, and supersedable platform maps as warning-level declaration accountability findings.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/crossplatform_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Each warning-level cross-platform finding has positive and negative coverage in [REQ:CLN-P2-004]."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-005",
+      "title": "Attributed storage growth and owner cleanup contract",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Fit per-owner storage velocity from persisted census samples, project declared ceilings, and delegate preview-first cleanup to owner scenarios with explicit approval and idempotency.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/growth/growth_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Least-squares owner fits, six-sample device projection, ceiling status, owner contract transport, and cleanup idempotency are covered."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-006",
+      "title": "Provider policy reconciliation",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Reconcile every registered cleanup provider into the active policy row while preserving deliberate operator disables and auditing additions.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/policy/profiles_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Reconciliation adds missing providers without changing existing policy choices."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-007",
+      "title": "Explicit regenerable storage declarations",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Require every storage entry to state regenerable and report unbounded regenerable entries or non-binding ceilings.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/conformance_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Conformance tests cover CEILING_NOT_BINDING and RETENTION_CEILING_UNBOUNDED; repository declarations pass the hidden-manifest audit."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-008",
+      "title": "Owner cleanup contract conformance",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Provide a shared estimate, preview, apply, and verify owner cleanup contract with protected-item and idempotency guarantees.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/cleanup/ownercontract_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "HTTP transport tests cover blocked reasons, protected preview filtering, approval mode, and idempotent apply."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-009",
+      "title": "Warning pressure growth feedback",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Forward warning pressure, run only the safe tier, and rate-limit a Scenario QA bug for the fastest unbounded owner.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/orchestrator/pressure_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Warning action, daily owner rate limit, and autonomous kill-switch behavior are covered; system-monitor forwards warning bands."
+        }
+      ]
+    }
+  ]
+}

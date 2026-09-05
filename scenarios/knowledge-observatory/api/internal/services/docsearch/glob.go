@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doctemplates"
 )
 
 const maxPreviewBytes = 400
@@ -47,8 +47,8 @@ func (s *Service) SearchFiles(ctx context.Context, req FileSearchRequest) ([]Fil
 			Size:         info.Size(),
 			ModifiedAt:   info.ModTime(),
 		}
-		if docType, ok := docschema.DocTypeForPath(rel); ok {
-			result.DocType = string(docType)
+		if docType := s.contractDocType(file.Scenario, rel); docType != "" {
+			result.DocType = docType
 		}
 		if req.IncludeContent {
 			result.ContentPreview = readPreview(file.Path)
@@ -62,6 +62,25 @@ func (s *Service) SearchFiles(ctx context.Context, req FileSearchRequest) ([]Fil
 		return results[i].RelativePath < results[j].RelativePath
 	})
 	return results, nil
+}
+
+func (s *Service) contractDocType(scenario, rel string) string {
+	if scenario == "" {
+		return ""
+	}
+	scenarioPath, err := s.scenarioPath(scenario)
+	if err != nil {
+		return ""
+	}
+	resolved, err := doctemplates.NewResolverFromScenariosRoot(s.scenariosRoot).ResolveScenario(scenarioPath)
+	if err != nil || resolved == nil || resolved.Contract == nil {
+		return ""
+	}
+	doc, ok := resolved.Contract.ResolvePath(rel)
+	if !ok {
+		return ""
+	}
+	return doc.DocType
 }
 
 func readPreview(path string) string {

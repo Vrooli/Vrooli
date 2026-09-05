@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.cluster",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:Cluster"
+}

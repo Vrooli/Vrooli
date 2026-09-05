@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestBuildPromptAndContext_DefaultsAndNote(t *testing.T) {
@@ -69,6 +69,19 @@ func TestExtractErrorSummary(t *testing.T) {
 	msg = strings.Repeat("x", 120)
 	if got := extractErrorSummary(&domain.Deployment{ErrorMessage: &msg}); !strings.HasSuffix(got, "...") {
 		t.Fatalf("expected truncated summary, got %q", got)
+	}
+}
+
+func TestBuildDiagnosticChecklistAttachment_UsesContractNeutralScenarioGuidance(t *testing.T) {
+	att := buildDiagnosticChecklistAttachment()
+	if att == nil {
+		t.Fatal("expected attachment")
+	}
+	if strings.Contains(att.Content, "<workdir>/scenarios/<scenario>/.vrooli/service.json") {
+		t.Fatalf("diagnostic checklist should not hard-code scenario path layout: %q", att.Content)
+	}
+	if !strings.Contains(att.Content, "contract-defined scenario root") {
+		t.Fatalf("diagnostic checklist should reference contract-defined scenario root: %q", att.Content)
 	}
 }
 

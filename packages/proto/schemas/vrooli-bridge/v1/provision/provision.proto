@@ -1,0 +1,315 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.provision;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision;provision_v1";
+
+// =============================================================================
+// PROVISION DOMAIN — the privileged tier that syncs a node to a revision
+// (OT-P0-006)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the ProvisionService: the owner asks the control plane to
+// bring a target node to a project git revision R — `git fetch`@R + an
+// idempotent `vrooli setup` — and to report the node's resulting version. This
+// is the PRIVILEGED counterpart to the dispatch/runs job path (OT-P0-004/005):
+// where a job runs as the non-privileged runner under an allowlisted verb, a
+// provisioning op runs through a STRUCTURALLY SEPARATE privileged helper on the
+// node (DECISIONS.md "two trust tiers" — a distinct OS principal + a distinct
+// executor, not a flag). The everyday runner has no path to invoke it, so
+// remote execution can never escalate to provisioning.
+//
+// A SyncToRevision becomes a server-owned, durable ProvisioningOp that survives
+// client AND node disconnect, is re-attachable by id with a block-once Wait (no
+// polling), and collects the node's streamed progress, resulting version, and
+// terminal outcome. This mirrors the runs domain's run-lifecycle philosophy
+// rather than reinventing it: the control plane owns the op record; the node's
+// privileged helper reports progress against it.
+//
+// Auth audiences are split across this one service (mirroring registry vs
+// channel and the runs domain):
+//   - SyncToRevision / GetProvisioningOp / ListProvisioningOps /
+//     WaitProvisioningOp / GetNodeVersion are OWNER-gated operator verbs.
+//   - ReportProvisionEvent is NODE-facing: the node-agent's privileged helper
+//     calls it (signed with the node's per-node Ed25519 credential) to stream
+//     ProvisionEvents back. It is omitted from the CLI manifest — there is no
+//     operator `provision report` command.
+//
+// The privileged push itself rides the existing channel contract: a
+// SyncToRevision marshals a channel.ProvisionCommand into a ServerFrame down
+// the node's held dial-out SSE stream. This file owns only the durable op
+// lifecycle + the node→control-plane ProvisionEvent stream.
+//
+// Dry-run: SyncToRevision honours X-Dry-Run (cli-core sets it on `--dry-run`).
+// It validates the node + revision, then short-circuits with dry_run=true
+// BEFORE creating an op, writing audit, or pushing anything to the node.
+//
+// Consumed by:
+//   - API: handlers/provision/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/provision/handlers.go via the generated Connect-Go client.
+//   - Agent: agent/internal/privsep reports ProvisionEvents via the generated client.
+// =============================================================================
+
+// ProvisioningStatus is a provisioning op's lifecycle state. QUEUED/RUNNING are
+// non-terminal; COMPLETED/FAILED/ROLLED_BACK are terminal. WaitProvisioningOp
+// returns once the op reaches a terminal status (or its wait deadline elapses).
+enum ProvisioningStatus {
+  PROVISIONING_STATUS_UNSPECIFIED = 0;
+
+  // The op record exists and the ProvisionCommand has been delivered, but the
+  // node's privileged helper has not yet reported it started.
+  PROVISIONING_STATUS_QUEUED = 1;
+
+  // The node reported the privileged helper is fetching/setting up.
+  PROVISIONING_STATUS_RUNNING = 2;
+
+  // Terminal: the node reached the target revision and `vrooli setup` succeeded.
+  PROVISIONING_STATUS_COMPLETED = 3;
+
+  // Terminal: setup failed and the node could NOT be rolled back (or there was
+  // no rollback revision); the node may be in a degraded state needing operator
+  // attention.
+  PROVISIONING_STATUS_FAILED = 4;
+
+  // Terminal: setup failed but the node successfully rolled back to its prior
+  // revision and re-validated — the safe failure outcome (OT-P0-006 "rollback
+  // on failed setup").
+  PROVISIONING_STATUS_ROLLED_BACK = 5;
+}
+
+// ProvisionEventKind discriminates the payload a ProvisionEvent carries back
+// from a node's privileged helper.
+enum ProvisionEventKind {
+  PROVISION_EVENT_KIND_UNSPECIFIED = 0;
+
+  // log_chunk carries a slice of combined stdout/stderr from the helper.
+  PROVISION_EVENT_KIND_LOG = 1;
+
+  // status carries a human-readable lifecycle transition (e.g. "fetching",
+  // "running setup", "rolling back").
+  PROVISION_EVENT_KIND_STATUS = 2;
+
+  // revision reports the node's resulting checked-out revision; the control
+  // plane records it as the node's current version (node_versions history).
+  PROVISION_EVENT_KIND_VERSION = 3;
+
+  // exit_code is the terminal helper exit code; the op is terminal after it.
+  // The accompanying status distinguishes COMPLETED from FAILED/ROLLED_BACK.
+  PROVISION_EVENT_KIND_EXIT = 4;
+}
+
+// ProvisioningOp is the durable, server-owned record of one SyncToRevision.
+message ProvisioningOp {
+  // Server-owned op id, assigned at SyncToRevision and reported against by the
+  // node.
+  string id = 1;
+
+  // The node being provisioned (registry id).
+  string node_id = 2;
+
+  // The git revision the node is being brought to (fetch@R + `vrooli setup`).
+  string target_revision = 3;
+
+  // The revision to roll back to if setup fails; empty on a node's first
+  // provision (nothing to roll back to).
+  string rollback_revision = 4;
+
+  // Current lifecycle status.
+  ProvisioningStatus status = 5;
+
+  // The node's resulting checked-out revision once known (the VERSION event).
+  // On a successful op this equals target_revision; on a rollback it equals
+  // rollback_revision.
+  string resulting_revision = 6;
+
+  // Terminal helper exit code; meaningful once status is terminal.
+  int32 exit_code = 7;
+
+  // When the op was created (SyncToRevision), the node reported it started, and
+  // it reached a terminal status. started_at / finished_at are unset until the
+  // corresponding transition.
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp started_at = 9;
+  google.protobuf.Timestamp finished_at = 10;
+}
+
+// NodeVersion is the control plane's record of a node's current project
+// revision, updated each time a provisioning op reports a VERSION event.
+message NodeVersion {
+  string node_id = 1;
+
+  // The git revision the node is currently checked out at.
+  string revision = 2;
+
+  // The provisioning op that last set this version.
+  string op_id = 3;
+
+  // When the control plane recorded this version.
+  google.protobuf.Timestamp reported_at = 4;
+}
+
+// ProvisionEvent streams a provisioning op's progress back to the control plane
+// (node → control plane). The provision domain proxies these to the block-once
+// wait verb so a re-attaching client sees the same stream.
+message ProvisionEvent {
+  string op_id = 1;
+
+  ProvisionEventKind kind = 2;
+
+  // Monotonic per-op sequence so the control plane can order/dedupe events on
+  // reconnect (stale-completion safety).
+  uint64 sequence = 3;
+
+  // Set when kind == PROVISION_EVENT_KIND_LOG: a chunk of combined output.
+  string log_chunk = 4;
+
+  // Set when kind == PROVISION_EVENT_KIND_STATUS: a lifecycle transition label.
+  string status = 5;
+
+  // Set when kind == PROVISION_EVENT_KIND_VERSION: the resulting revision.
+  string revision = 6;
+
+  // Set when kind == PROVISION_EVENT_KIND_EXIT: the terminal helper exit code.
+  int32 exit_code = 7;
+
+  google.protobuf.Timestamp emitted_at = 8;
+}
+
+service ProvisionService {
+  // SyncToRevision validates the target node + revision, creates a durable
+  // provisioning op, audits it, and pushes a privileged ProvisionCommand down
+  // the node's held channel. Owner-gated. An unknown/revoked node is rejected
+  // with the matching Connect code (and audited) before any op is created; an
+  // offline node is rejected (the command cannot be delivered). Honours
+  // X-Dry-Run. The response carries the op id; the operator then blocks on
+  // WaitProvisioningOp.
+  rpc SyncToRevision(SyncToRevisionRequest) returns (SyncToRevisionResponse);
+
+  // GetProvisioningOp returns one op by id with its full persisted event
+  // history (logs, status transitions, version, exit). Owner-gated.
+  // Re-attaching after a client disconnect is just calling GetProvisioningOp
+  // again.
+  rpc GetProvisioningOp(GetProvisioningOpRequest) returns (GetProvisioningOpResponse);
+
+  // ListProvisioningOps returns ops newest-first, optionally filtered by node.
+  // Owner-gated.
+  rpc ListProvisioningOps(ListProvisioningOpsRequest) returns (ListProvisioningOpsResponse);
+
+  // WaitProvisioningOp blocks server-side and returns EXACTLY ONCE when the op
+  // reaches a terminal status, carrying the terminal op. It does not stream. If
+  // the wait deadline (timeout_seconds) elapses first it returns the still-
+  // running op with timed_out=true (the CLI maps that to exit 124). This is the
+  // block-once verb — clients never poll. Owner-gated.
+  rpc WaitProvisioningOp(WaitProvisioningOpRequest) returns (WaitProvisioningOpResponse);
+
+  // GetNodeVersion returns a node's current recorded project revision (the last
+  // VERSION a provisioning op reported). Owner-gated. A node that has never been
+  // provisioned returns has_version=false.
+  rpc GetNodeVersion(GetNodeVersionRequest) returns (GetNodeVersionResponse);
+
+  // ReportProvisionEvent ingests one ProvisionEvent streamed back from the
+  // node-agent's privileged helper. It is NODE-facing (signed with the node's
+  // Ed25519 credential), not an operator verb — omitted from the CLI manifest.
+  // A terminal EXIT event flips the op to its terminal status and wakes any
+  // block-once waiters; a VERSION event records the node's current revision.
+  rpc ReportProvisionEvent(ReportProvisionEventRequest) returns (ReportProvisionEventResponse);
+}
+
+message SyncToRevisionRequest {
+  // Target node (registry id). Must be a known, non-revoked, online node.
+  string node_id = 1;
+
+  // The git revision to bring the node to.
+  string target_revision = 2;
+
+  // Optional explicit rollback revision. When empty the control plane uses the
+  // node's last recorded version (GetNodeVersion) as the rollback target, so a
+  // failed setup returns the node to where it was.
+  string rollback_revision = 3;
+
+  // Wall-clock budget after which the node aborts the provisioning op. 0 uses
+  // the server default provisioning timeout.
+  int64 timeout_seconds = 4;
+}
+
+message SyncToRevisionResponse {
+  // The server-owned durable op id to wait on / re-attach by. Empty on a
+  // dry-run (no op is created).
+  string op_id = 1;
+
+  // True when X-Dry-Run short-circuited: the request validated and would have
+  // been dispatched, but no op was created, no audit written, nothing pushed.
+  bool dry_run = 2;
+
+  // Echo of the validated request so the caller can confirm exactly what was
+  // (or would be) provisioned.
+  string node_id = 3;
+  string target_revision = 4;
+  string rollback_revision = 5;
+}
+
+message GetProvisioningOpRequest {
+  string id = 1;
+}
+
+message GetProvisioningOpResponse {
+  ProvisioningOp op = 1;
+
+  // The full persisted event history for the op, in sequence order.
+  repeated ProvisionEvent events = 2;
+}
+
+message ListProvisioningOpsRequest {
+  // Optional node filter; empty returns every node's ops.
+  string node_id = 1;
+
+  // Optional cap on the number of ops returned (0 = server default).
+  int32 limit = 2;
+}
+
+message ListProvisioningOpsResponse {
+  // Ops ordered newest-first by created_at.
+  repeated ProvisioningOp ops = 1;
+}
+
+message WaitProvisioningOpRequest {
+  string id = 1;
+
+  // How long to block before returning timed_out=true. 0 uses the server's
+  // default wait budget; the call still returns once if the op is terminal.
+  int64 timeout_seconds = 2;
+}
+
+message WaitProvisioningOpResponse {
+  ProvisioningOp op = 1;
+
+  // True when the wait deadline elapsed before the op reached a terminal
+  // status; the op carried here is the latest non-terminal snapshot.
+  bool timed_out = 2;
+}
+
+message GetNodeVersionRequest {
+  string node_id = 1;
+}
+
+message GetNodeVersionResponse {
+  NodeVersion version = 1;
+
+  // False when the node has never been provisioned (no version recorded).
+  bool has_version = 2;
+}
+
+message ReportProvisionEventRequest {
+  ProvisionEvent event = 1;
+}
+
+message ReportProvisionEventResponse {
+  // True once the event was accepted and persisted. An event for an unknown or
+  // already-terminal op is acknowledged (accepted=false) without error so a
+  // re-sending node never spins.
+  bool accepted = 1;
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.registry-sweep",
+  "version": "1",
+  "purpose": "Read the dry-run plan of a safe read-binding sweep and report row counts grouped by the plan's key field, without invoking any binding the sweep would exercise.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "description": "Optional scenario filter for the sweep plan."
+    }
+  },
+  "assumptions": [
+    "program-runtime is running; the sweep binding is called with dry_run=True only"
+  ],
+  "invariants": [
+    "execute is never passed; the sweep binding runs its dry-run plan only",
+    "no row set is materialized beyond head(1)",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/bindings/sweep",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "result_rows": "count of plan rows",
+      "first_row_keys": "keys of the first plan row",
+      "by_key": "{key: {value: count}} for the first plan key present among eligible, eligibility, skipReason, skipped, status, effect, scenario"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "the sweep command name"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 1
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

@@ -66,6 +66,14 @@ type Orchestrator interface {
 	ListPipelines() []*Status
 }
 
+// ConfigUpdatingOrchestrator is an optional capability for implementations
+// that can update the configuration of an idle pipeline before it starts.
+// Manager depends on this capability only when callers supply overrides;
+// it must not assume every valid Orchestrator has the concrete default type.
+type ConfigUpdatingOrchestrator interface {
+	UpdatePipelineConfig(pipelineID string, configUpdates *Config) error
+}
+
 // Store persists pipeline run states.
 type Store interface {
 	// Save creates or updates a pipeline status.

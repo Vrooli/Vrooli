@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "vite build",
     "preview": "vite preview",
-    "serve": "vite preview --port ${UI_PORT:-9101}",
+    "serve": "vite preview",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },

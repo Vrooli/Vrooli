@@ -1,0 +1,37 @@
+{
+  "style_id": "engraved-colonnade-vector",
+  "width": 1440,
+  "height": 720,
+  "composite": "composite.png",
+  "reduced_motion": "composite.png",
+  "layers": [
+    {
+      "name": "distance",
+      "file": "distance.png",
+      "depth": 0,
+      "blend": "normal",
+      "opacity": 1,
+      "parallax": 0.04
+    },
+    {
+      "name": "arcade",
+      "file": "arcade.png",
+      "depth": 1,
+      "blend": "normal",
+      "opacity": 1,
+      "parallax": 0.22
+    },
+    {
+      "name": "canopy",
+      "file": "canopy.png",
+      "depth": 2,
+      "blend": "normal",
+      "opacity": 1,
+      "parallax": 0.46,
+      "ambient": "sway",
+      "ambient_seconds": 26,
+      "ambient_amplitude": 0.006
+    }
+  ],
+  "css": "motion.css"
+}

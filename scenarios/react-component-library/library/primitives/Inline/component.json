@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.inline",
+  "deprecatedVersions": [
+    "1.1.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.1.0"
+  ],
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:Inline"
+}

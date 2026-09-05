@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package vrooli.scenario_dependency_analyzer.v1.dependency_health;
+
+import "common/v1/maturity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health;dependency_health_v1";
+
+// =============================================================================
+// DEPENDENCY HEALTH DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Scenario Dependency Analyzer's single producer contract for dependency
+// readiness, dependency graph drift, runtime dependency status, dependency
+// governance, package release-age policy, and degraded upstream integrations.
+//
+// Test Genie consumes this contract for its dependencies phase. SDA owns the
+// dependency interpretation; Code Facts remains the source of code surface
+// evidence and Security Health remains the source of vulnerability truth. SDA
+// dependency health may report Security Health dependency-index availability,
+// but vulnerability findings belong to Security Health and SDA governance
+// workflows, not this producer's findings list.
+// =============================================================================
+
+service DependencyHealthService {
+  // ValidateDependencyHealth returns the dependency-health report for one
+  // scenario. The operation is read-only and never installs, tidies, fetches, or
+  // mutates dependency files.
+  rpc ValidateDependencyHealth(ValidateDependencyHealthRequest) returns (DependencyHealthResponse);
+}
+
+message ValidateDependencyHealthRequest {
+  // Scenario directory name to validate.
+  string scenario = 1;
+  // Prefer cached upstream fact responses when available.
+  bool use_cache = 2;
+}
+
+message DependencyHealthResponse {
+  string scenario = 1;
+  bool passed = 2;
+  DependencyHealthSummary summary = 3;
+  repeated DependencyHealthSection sections = 4;
+  repeated DependencyHealthFinding findings = 5;
+  repeated DependencyHealthSurface surfaces = 6;
+  repeated DependencyHealthCommandResult command_results = 7;
+  DependencyGovernanceSummary governance_summary = 8;
+  DependencyPolicySummary policy_summary = 9;
+  repeated DegradedDependency degraded_dependencies = 10;
+  string generated_at = 11;
+  common.v1.MaturityAssessment assessment = 12;
+}
+
+message DependencyHealthSummary {
+  int32 sections = 1;
+  int32 surfaces = 2;
+  int32 findings = 3;
+  int32 errors = 4;
+  int32 warnings = 5;
+  int32 infos = 6;
+  int32 degraded_dependencies = 7;
+}
+
+message DependencyHealthSection {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string summary = 4;
+  repeated string finding_ids = 5;
+}
+
+message DependencyHealthFinding {
+  string id = 1;
+  string severity = 2;
+  string source_domain = 3;
+  string title = 4;
+  string description = 5;
+  string remediation = 6;
+  string file_path = 7;
+  string surface_id = 8;
+  string rule_id = 9;
+  string observed = 10;
+  string expected = 11;
+}
+
+message DependencyHealthSurface {
+  string id = 1;
+  string kind = 2;
+  string language = 3;
+  string framework = 4;
+  string root_path = 5;
+  string parse_unit_root = 6;
+  string config_path = 7;
+  string status = 8;
+  string package_manager = 9;
+  double confidence = 10;
+}
+
+message DependencyHealthCommandResult {
+  string id = 1;
+  string command = 2;
+  string status = 3;
+  int32 exit_code = 4;
+  string summary = 5;
+}
+
+message DependencyGovernanceSummary {
+  string status = 1;
+  int32 approved = 2;
+  int32 approved_with_constraints = 3;
+  int32 needs_review = 4;
+  int32 blocked = 5;
+  int32 deprecated = 6;
+  string guidance = 7;
+}
+
+message DependencyPolicySummary {
+  string status = 1;
+  int32 release_age_minimum_minutes = 2;
+  int32 release_age_exceptions = 3;
+  repeated string policies = 4;
+}
+
+message DegradedDependency {
+  string id = 1;
+  string dependency = 2;
+  string domain = 3;
+  string reason = 4;
+}

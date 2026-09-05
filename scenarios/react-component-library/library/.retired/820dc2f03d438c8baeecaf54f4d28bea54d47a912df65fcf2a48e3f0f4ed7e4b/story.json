@@ -1,0 +1,161 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "heading",
+        "kind": "enum",
+        "label": "Style",
+        "options": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ],
+        "path": "style"
+      },
+      {
+        "default": 2,
+        "kind": "number",
+        "label": "Document level",
+        "maximum": 6,
+        "minimum": 1,
+        "path": "level"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "level": 2,
+        "style": "heading"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "HeadingAnatomy"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
+        },
+        {
+          "attribute": "data-heading-level",
+          "kind": "attribute",
+          "selector": "[data-heading-level]",
+          "value": "2"
+        },
+        {
+          "kind": "layout",
+          "minHeight": 160,
+          "minWidth": 240,
+          "noOverflow": true,
+          "selector": "[data-rcl-heading-showcase]"
+        }
+      ],
+      "id": "semantic-heading",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Semantic heading",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "level": 1,
+        "style": "display"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "HeadingScaleMatrix"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
+        },
+        {
+          "attribute": "data-heading-level",
+          "kind": "attribute",
+          "selector": "[data-heading-level]",
+          "value": "1"
+        }
+      ],
+      "id": "display-level",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Display style at level one",
+      "role": "axis",
+      "axis": "style",
+      "covers": {
+        "style": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ]
+      }
+    },
+    {
+      "args": {
+        "level": 3,
+        "style": "title"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "HeadingBoundary"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Meaning and visual scale stay independent.",
+          "role": "heading"
+        },
+        {
+          "attribute": "data-heading-level",
+          "kind": "attribute",
+          "selector": "[data-heading-level]",
+          "value": "3"
+        }
+      ],
+      "id": "compact-heading",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Compact heading",
+      "role": "boundary"
+    }
+  ],
+  "title": "Heading"
+}

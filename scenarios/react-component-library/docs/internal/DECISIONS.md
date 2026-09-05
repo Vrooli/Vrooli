@@ -1,0 +1,472 @@
+# Decisions — React Component Library
+
+This document records durable decisions and tradeoffs future agents
+should not accidentally relitigate.
+
+| 2026-09-04 | D1 — Mount the canonical BaseStyles layer in every library-consuming scenario | Copying contract-tier tokens into each scenario would create divergent ramps and duplicate ownership. The provider is the single runtime source, and adoption is checked by the fleet census and provider-mount validation. | All 45 real library-consuming scenario UIs now render `BaseStyles` from their entrypoint, while scenario-owned ramps retain only overrides. | Revisit only if the canonical layer becomes a separately versioned runtime service with equivalent cascade and provenance guarantees. |
+| 2026-09-04 | D4 — Supersede Chip and TopBar for the onboarding redesign without retiring either asset | Chip overlaps the stronger StatusBadge/Button grammar, and TopBar duplicates the AppShell surface. Continuing to adopt either would preserve competing interaction and shell systems. | Onboarding uses Button/StatusBadge for category and state affordances and AppShell for chrome. Chip and TopBar remain released library assets and are not retired by this plan. | Revisit if the library defines a new retirement contract or a consumer proves a capability unavailable in the replacement surfaces. |
+
+| 2026-08-29 | Treat the shared base `tokens.css` as the canonical design-token authority | A generated vocabulary needs one reviewable source; treating each kit, scenario ramp, or component fallback as independently authoritative permits silent semantic drift. | `templates/design/_base/tokens.css` owns canonical names and defaults. Kit CSS, scenario managed regions, the token dictionary, `BaseStyles`, and fallback-parity evidence are derived from or checked against that source. | Revisit if tokens become a separately versioned registry asset with typed provenance and an equally deterministic generation path. |
+| 2026-08-29 | Derive kit compatibility from required-token closure | Aesthetic affinity cannot prove that a component renders under a kit, and manually authored compatibility claims become stale as component dependencies and token vocabularies evolve. | The census computes each active component's transitive required properties, compares them with registered kit publications, persists the verdict, and gates undefined or unsatisfiable closures and affinity overclaims. | Revisit if compatibility expands beyond token satisfiability; keep this derived token verdict as one explicit dimension rather than replacing it with subjective metadata. |
+| 2026-08-13 | Keep raw CSS properties in one library vocabulary and derive adoption requirements from source | Utility-role translation and CSS custom properties solve different problems; conflating them made the old `--app-*` aliases look like the library contract while leaving raw `var()` dependencies invisible. | Library source uses the retained ramp families, indexed versions persist derived required properties and dynamic families, and preflight/apply/reapply enforce the closure against `ui/src/design-tokens.css`. | Revisit if CSS custom properties become a separately versioned registry asset with explicit closure semantics. |
+| 2026-08-13 | Make `ui/src/design-tokens.css` the sole managed ramp location | A predictable path and delimited region let adopters retain scenario-owned theme declarations while making token synchronization deterministic and reversible. | `BaseStyles` now supplies canonical defaults through `@layer rcl.tokens`, satisfying the cascade-layer revisit trigger: the managed region carries only scenario overrides and import-derived requirements. Sync and prune still rewrite only `/* rcl:tokens:begin */` through `/* rcl:tokens:end */`; declarations outside the region are never overwritten. | Revisit if a typed theme service can replace source-file overrides while preserving deterministic, reversible synchronization. |
+| 2026-08-13 | Treat released version hashes as immutable adoption evidence | Reusing a version label after changing its bytes invalidates every recorded adoption snapshot and makes drift status untrustworthy. | Released reindexing rejects hash changes, refresh reports `source_drifted`, and the catalog integrity gate audits the indexed corpus. Draft versions remain mutable. | Revisit only if the catalog moves from folder versions to a content-addressed release store. |
+
+| 2026-08-10 | Keep feedback, navigation, layout, and voice assets visually native at their own boundaries | These surfaces are often adopted independently; styling them through shared runtime re-exports or application utility classes makes Files misleading and previews collapse toward browser defaults. | `StatusBadge`, `EmptyState`, `BottomNav`, `AssetDetailShell`, `InspectorLayout`, and `VoiceInputButton` now ship version-local data-attribute CSS backed by the library token ramp, with responsive geometry, focus, forced-colors, and reduced-motion treatment. Composed `AsyncPanel` consumers receive explicit class seams, while governed controls retain their own ownership through `data-rcl-control`. The active token gate is at zero findings, and the targeted preview matrix is screenshot-grounded. | Revisit when a native token/style asset becomes registry-resolvable with equivalent standalone closure guarantees; it may replace duplicated local rules only if Files still exposes real source and standalone previews remain faithful. |
+
+| 2026-08-10 | Keep self-adoptions version-local and let the RCL CLI own their lifecycle | Flat adoption targets make companion files such as `styles.ts` collide across assets, while hand-maintained wrappers can hide which implementation is actually adopted. The workbench must show the same source that preview and adoption tooling resolve. | Direct self-adoptions use version-local target folders mirroring the library closure; thin compatibility wrappers remain only at established app import paths. All adoption writes and cleanup use the RCL CLI, and refresh is the drift evidence. Source-local service resolver seams are explicit where a closure imports a non-registry service. | Revisit if the adoption CLI gains collision-free namespacing or services become first-class closure assets; then wrappers and resolver seams can be reduced without flattening source ownership. |
+
+| 2026-08-10 | Make overlay shells share native geometry, focus, and layer semantics | Drawer, dialog, sidebar, and responsive-panel surfaces are high-fanout infrastructure. If each keeps its own utility classes or Escape listener, consumers inherit inconsistent modal geometry, focus restoration, and theme behavior. | `DrawerShell@1.1.0` and `ResponsivePanel@1.1.0` use version-local data-attribute CSS backed by the canonical token ramp, register modal layers through `LayerManager`, use the shared focus-trap contract where appropriate, and cover safe areas, reduced motion, forced colors, responsive surfaces, and viewport-bounded screenshots. | Revisit when LayerManager itself becomes a closure-resolvable catalog service; until then, direct source-local service imports are retained and intentionally not declared as component dependencies because the resolver does not index service assets as component closure members. |
+
+| 2026-08-10 | Make shell compositions own their visual grammar and validate geometry at every declared viewport | Layout shells are high-fanout surfaces: a technically correct grid can still look like default HTML, use the wrong theme canvas, or make an overlay fill the viewport with no usable scrim. | `SidebarShell`, `CommandCenterShell`, and `WorkspaceHeader` now use version-local semantic token CSS, responsive geometry, focus/motion/forced-colors treatment, and explicit state/layout attributes. Screenshot sweeps are run with desktop/mobile viewports and default/command-display kits; visual defects are treated as implementation failures, not preview noise. | Revisit if the catalog introduces a governed shell/layout primitive with explicit closure semantics; it must preserve standalone source truth and the same screenshot matrix. |
+
+| 2026-08-10 | Make foundational Card and Dialog surfaces own native token geometry | Card and Dialog are high-fanout surfaces; leaving their current versions on utility classes makes composed previews inherit styling-bundle assumptions and makes responsive/accessibility defects harder to see. Dialog's static IDs also break when more than one instance exists. | `Card@1.1.0` and `Dialog@1.1.0` use version-local data-attribute CSS with semantic spacing, colors, type, elevation, focus, reduced-motion, forced-colors, and responsive rules. Dialog derives title/description IDs from `useId`, preserving correct labelling for multiple instances. Card's stale draft pointer was removed so active source selection stays truthful. | Revisit if a governed native surface primitive becomes closure-resolvable; it can replace local rules without restoring an external utility styling dependency. |
+
+| 2026-08-10 | Resolve default source views from manifest pointers, never history-row order | Version history is intentionally retained, and prerelease rows can sort ahead of released rows after a re-index. Treating the first row as “current” made Files and Preview show stale draft implementations, which looked like source organization failures even when the latest source was correct. | The workbench receives and uses `latestVersion` as its default active version; explicit historical selection remains opt-in. The index still preserves every immutable version for retrieval and comparison. A regression test covers a draft-first history response, while previews now report the exact released version in their frame URL. | Revisit if the API adds a typed `currentVersion` field that is guaranteed to be manifest-derived; then the UI can consume that field directly without duplicating the manifest-pointer terminology. |
+
+| 2026-08-10 | Give Markdown renderers native standalone styling at each active asset boundary | Markdown is both a composed renderer and a set of independently adopted assets. Styling only the parent renderer left standalone CodeBlock, InlineCode, and MermaidDiagram previews close to browser defaults, undermining visual validation and consumer portability. | `markdown-renderer@0.3.2`, `code-block@0.3.1`, `inline-code@0.3.1`, and `mermaid-diagram@0.3.1` each ship version-local data-attribute CSS backed by semantic tokens, including focus, motion, forced-colors, bounded overflow, and state affordances. This avoids hidden shared-runtime source and keeps each active asset self-contained. | Revisit if the registry promotes a governed design-token CSS asset with explicit closure semantics; then these local style modules may compose that asset while preserving standalone fidelity. |
+
+| 2026-08-10 | Corpus-wide quality gates resolve active manifest versions, not retired history | A gate that scans every historical version can report a large burn-down number that no current catalog surface can reproduce, while other gates and the indexer inspect only latest/draft sources. That makes both the baseline and the review target misleading. | `activeLibrarySources` resolves each manifest's latest and draft pointers for token and lifecycle inspection, with an isolated-fixture fallback for unit tests. The live token gate now reports the active corpus (309 files, 163 findings) rather than historical noise (498 files, 1168 findings); the remaining findings are real active source work, not suppressed results. A stale ColorPicker draft pointer was removed after confirming 1.0.0 is the active implementation. | Revisit only if the catalog promotes historical versions to a separately governed compatibility corpus; then add an explicit historical gate rather than silently mixing it into active quality evidence. |
+
+| 2026-08-10 | Keep ColorPicker's visual grammar in native token-backed CSS while retaining optional icon injection | Color selection is a small but highly visible surface: utility-class geometry and arbitrary kit utilities make it drift from the library's control rhythm and make the preview dependent on the application's styling bundle. | `ColorPicker` owns swatch/gradient/custom-input geometry, selected-state rings, press/focus motion, recent-color grouping, reduced-motion, and forced-colors treatment through semantic tokens and data attributes. Consumers may still inject icon components, but no external styling system is required. | Revisit if a governed native swatch or color-input primitive becomes available; the current data-attribute contract can compose it without changing the public color model. |
+
+| 2026-08-10 | Let ResourceCollection orchestrate intent while DataToolbar and DataTable own their grammars | A resource list becomes noisy and contradictory when the pattern duplicates search, filtering, density, and result-state controls already owned by collection primitives. Router and data-source concerns also belong at the orchestration boundary rather than inside a visual table. | `ResourceCollection` owns title/context, applied-vs-draft query, filter handoff, view/action/router seams, and state vocabulary; it composes DataToolbar for refinement and DataTable for semantic presentation. DataTable exposes explicit `hideQueryControls` and `hideDensityControl` composition seams, so the pattern has one visible control grammar while retaining the table's standalone defaults. | Revisit if SearchFilterResults gains a generic record renderer or if the library promotes a first-class collection controller; then ResourceCollection can delegate query synchronization without reintroducing duplicate UI. |
+
+| 2026-08-10 | Make DataTable's responsive mode container-aware and keep the table primitive responsible for geometry | A viewport breakpoint is insufficient when a collection is embedded in a narrow product panel; fixed or minimum-content columns can clip later fields, while mobile actions can steal the title width and create unreadable wrapping. | `DataTable` 1.3.0 uses a container query to switch from semantic table markup to labelled cards when its own available width is constrained, keeps row actions visible, and gives card headers a stable title/action grid. `Table` owns the token-backed overflow, density, hover, focus, forced-colors, and reduced-motion baseline. Stories assert portable semantic evidence so the durable verifier and real preview host agree without duplicating hidden desktop/mobile roles. | Revisit if the library introduces a shared responsive collection primitive or a table virtualization contract; either should preserve the same no-clipping and action-discoverability guarantees. |
+
+| 2026-08-10 | Distinguish no-match, empty-source, loading, and request failure in the search pattern | A single “no results” line makes users unable to tell whether a query is too narrow, the source has no records, or the request failed. It also encourages consumers to throw away the query when recovery begins. | `SearchFilterResults` keeps draft and applied query state separate, delegates cancellation to `useAbortableTask`, composes FilterBar and SearchResults, and gives each state its own heading, guidance, and recovery semantics. SearchResults retains semantic list/section markup and token-backed state surfaces; story assertions use supported semantic evidence without redundant explicit roles. | Revisit if a first-class router/data-source adapter becomes registry-resolvable; then the same query state can gain URL synchronization without moving request policy into the visual surface. |
+
+| 2026-08-10 | Treat DataToolbar as the shared collection-control grammar and repair shared dependencies when screenshots expose seams | A collection surface becomes incoherent when query, filters, saved views, freshness, sorting, density, and actions each bring their own layout and interaction rules. A technically valid nested toolbar can still collide at mobile widths or feel like raw browser controls. | `DataToolbar` composes version-pinned FilterBar and Toolbar, keeps context and actions in separate responsive rows, uses instance-safe sort IDs, announces refreshing/offline state, and exposes executable stories for default/refreshing/offline states. FilterBar owns token-backed panel/button styling and shared hover/press/focus motion instead of consumer-specific inline fallbacks. | Revisit if the library gains a first-class collection-control primitive or if Toolbar gains a declarative responsive grouping API; then DataToolbar can adopt that API without changing its intent surface. |
+
+| 2026-08-10 | Make bulk selection recovery explicit and selection-preserving | Multi-record actions are trust-sensitive: a single success/error label cannot explain partial work, and clearing the selection on transport failure makes recovery destructive. | `BulkActionBar` keeps count and scope visible through all states, reports progress with a native progress element, names failed records, distinguishes transport failure from partial completion, and retries without replacing the selection. The current closure resolver can pin Button and ButtonGroup; runtime selection and task-progress services remain consumer/source-local until they become first-class closure assets. | Revisit if `SelectionStore` and `TaskProgress` become registry-resolvable assets; then the component can pin them without changing its intent API. |
+
+| 2026-08-10 | Keep preview overlays viewport-grounded by avoiding containing-block effects in the specimen shell | Fixed modals and palettes must be judged against the viewport. The preview well's `backdrop-filter` silently established a containing block, so a correct `position: fixed` overlay was rendered as a clipped child of the specimen card. | The preview shell keeps its token-backed surface and elevation but no longer applies `backdrop-filter` to an ancestor of the specimen. Modal components retain real fixed positioning, focus behavior, and viewport sizing; targeted screenshots now expose their complete responsive geometry. | Revisit if the preview host gains a dedicated portal root or an overlay-aware visual shell that can provide blur without changing fixed-position containing blocks. |
+
+| 2026-08-10 | Keep command services scoped per consumer and component dependencies registry-resolvable | A module-global command or shortcut registry leaks state between consumers and makes test/preview isolation unreliable. The current catalog closure resolver also does not register runtime services as dependency assets. | `CommandRegistry` and `ShortcutRegistry` expose explicit factory-created instances; `GlobalCommandSystem` owns the instance boundary and declares only registry-resolvable component dependencies. Service imports remain source-local until services become first-class closure assets, preserving truthful manifests and isolated command state. | Revisit if services become first-class registry-resolvable assets; then manifests may pin the service versions without changing the consumer-facing command API. |
+
+| 2026-08-10 | Keep resource editing below the detail grid and make the edit state previewable | An editor inserted into an arbitrary metadata slot collapses into a narrow column on desktop, while a transient click-only state cannot be visually reviewed or used as a stable screenshot baseline. | `ResourceDetail` renders composed children below its metadata/history grid so patterns such as `EditableResource` receive the full content width. `EditableResource` exposes `defaultEditing` for legitimate deep links/recovery entry and declares separate read, editing, and post-save stories. Its slotted inputs receive the library’s token-backed control baseline while consumers still own field semantics and value policy. | Revisit if the library introduces a dedicated resource-layout region API; the current child seam should then map to that named region without restoring column-local insertion. |
+
+| 2026-08-10 | Put the consent sentence immediately above approval and keep recovery state orthogonal | High-stakes approval fails when the user must reconstruct scope from scattered metadata, or when a transport error is indistinguishable from missing permission. | `ApprovalPrompt` renders action, target, scope, consequences, alternatives, and expiry as separate readable facts, repeats the exact permission sentence immediately above the action group, never auto-focuses approval, and models submitting/success/request-error/permission-denied/retry as explicit states. The component composes existing Alert, Button, ButtonGroup, and StatusIndicator assets rather than inventing a second status or action grammar. | Revisit if the library adds a shared human-in-the-loop protocol that can provide structured audit IDs or policy explanations; those can slot into the existing fact/consent sections without changing action semantics. |
+
+| 2026-08-10 | Treat concurrent-edit conflicts as field decisions, not generic errors | Last-write-wins or a single opaque error forces users to reconstruct which work was lost. A conflict surface must show both values, let the user choose deliberately, and retain those choices when the next request fails. | `ConflictResolutionFlow` composes `DiffViewer`, `Form`, and `useAnnounce`; each field exposes local/remote choices with field-qualified accessible names, submit/retry state, and preserved choices. `DiffViewer` owns the comparison vocabulary with labelled previous/current rows, token-backed change surfaces, responsive wrapping, and forced-colors behavior. | Revisit if a governed merge engine becomes available; it can replace value selection internals while preserving the same field decision and recovery contract. |
+
+| 2026-08-10 | Make collection/detail navigation transform presentation without changing intent | A master-detail workspace should not make consumers coordinate desktop adjacency, mobile drill-in, route selection, scroll restoration, and recovery states independently. Splitting at a breakpoint is a presentation change, not a new navigation model. | `MasterDetail` exposes one item/selection API plus optional `onNavigate` and `onBack` router seams. It composes `SplitView` for wide adjacency, uses `useMediaQuery` for the compact transformation, preserves list scroll position, keeps the back action explicit, and renders loading/empty/partial/request-error states inside the same hierarchy. Controlled selection accepts `null` as the explicit no-selection value so a compact back action cannot be confused with uncontrolled initialization. | Revisit if a governed router adapter becomes a registry-resolvable closure asset; then `onNavigate` can gain a typed adapter port without moving routing policy into the library. |
+
+| 2026-08-10 | Make reorderable surfaces intent-driven and honest about persistence | Drag-and-drop is not a visual flourish: it changes user-owned order, must work from keyboard and pointer input, and must explain whether a remote save is pending, committed, or rolled back. | `Sortable` owns the item model, handle semantics, keyboard pickup/move/commit/cancel, pointer reordering, optimistic persistence, rollback, announcements, and disabled-item treatment. It composes `useDrag`, `useAnnounce`, `useOptimisticAction`, and `AutoAnimateLayout`; stories exercise the keyboard save path, while visual review spans all three named kits and both viewport classes. The list verifier requires explicit `list`/`listitem` roles because its lightweight DOM role map does not infer `<ol>`. | Revisit if the registry promotes a first-class drag/drop service or if a shared listbox/reorder protocol adds formal insertion-position semantics; those can replace internals without changing the consumer intent API. |
+
+| 2026-08-10 | Keep motion layout-safe and consumer dependency-local | Automatic animation should make state change legible without interpolating layout properties or forcing a styling/runtime dependency on the library itself. | `AutoAnimateLayout` snapshots keyed descendants and animates only transforms through the Web Animations API, disables motion under reduced-motion, and composes the version-pinned `LayoutGroup` boundary. Each asset declares only its own governed dependencies; the library does not need to own a global styling package or external component framework. | Revisit if the platform provides a governed shared FLIP/motion runtime with the same reduced-motion and cancellation guarantees. |
+
+| 2026-08-07 | Keep menu overlays opaque even when a design kit uses translucent panels | A translucent command menu lets page copy and focus states bleed through the action surface, which is visually attractive only until it harms readability or obscures the active command. | Popover composes the raised surface token as a gradient layer over the kit background token. This preserves each kit’s color language while guaranteeing an opaque readable overlay, including dark command-display themes. Menu supplies the semantic `menu` role seam and its own roving/typeahead registry without depending on a runtime shell. | Revisit if the design-token contract gains an explicit `--color-overlay-surface` token with a documented opacity guarantee; then Popover can consume that token directly. |
+
+| 2026-08-07 | Make undo a first-class reversible-action surface with local preview composition | Undo is not a toast label: it has an expiry window, rollback lifecycle, progress, failure recovery, and a high-cost trust boundary. The component also needs to be judged in a context where a fixed transient surface does not hide the story that explains it. | `UndoManager` owns scoped records, expiry, async rollback, success/error/retry transitions, and announcements; `UndoBanner` renders the shared token/elevation grammar with explicit status semantics, forced-colors treatment, and mobile action reflow. The production surface remains fixed to the viewport, while stories provide a positioned local preview context so screenshots show both the narrative and the affordance. The service stays source-local because services are not registry-resolvable assets. | Revisit if services become first-class dependency-closure assets or if the library gains a standardized transient-feedback frame that can replace the story-local positioning seam. |
+
+| 2026-08-07 | Keep direct manipulation intent-driven while centralizing pointer, keyboard, and motion state | A draggable consumer should describe what moves and how it is bounded, not coordinate pointer capture, velocity, announcements, and cancellation independently. Pointer-only behavior also excludes keyboard and assistive-technology users. | `Draggable` composes the version-pinned `useDrag` and `useAnnounce` contracts with a source-local scoped `DragDropStore`. Pointer and keyboard paths converge on the same constrained position state; pointer cancellation restores the declared default; velocity is measured at the component boundary; transforms are token-backed and layout animation is never used. Story interactions cover pickup/move/commit and pickup/move/cancel. | Revisit if services become first-class registry-resolvable assets or if the library adds a formally standardized sortable/drop-target adapter; then the existing store can expose those capabilities without changing the consumer intent API. |
+
+| 2026-08-07 | Keep computed form values visibly derived and semantically non-editable | A derived value should update with its source graph without creating a second synchronization path or inviting users to type into a display-only field. | `ComputedField` subscribes to `FormStore`, computes from current values, renders an accessible live `output`, and marks calculated versus explicitly overridden values. The source-local service import follows the same runtime-service policy as ConditionalField. | Revisit if generated forms add a formal override editor; it should opt into the existing `override` state while preserving the derived/calculated distinction. |
+
+| 2026-08-07 | Make Combobox a selection grammar over one local and one remote engine | Searchable selection should not fork keyboard, naming, error, and responsive behavior just because its options come from a local array or a request. Duplicating remote cancellation inside a new field would also recreate stale-result bugs. | `Combobox` owns the local native combobox/listbox path, creation affordance, highlighting, and error association; when `loadOptions` is supplied it delegates to the version-pinned `AsyncOptionsField` engine. The public surface stays intent-driven while remote debounce, retry, pagination, and cancellation remain centralized. Open-panel status geometry is collapsed so the dropdown does not cover its own match announcement. | Revisit if the library promotes a shared listbox primitive; then both local and AsyncOptionsField paths should compose that primitive without changing consumer intent. |
+
+| 2026-08-07 | Render sticky virtual rows as a visual overlay over an honest semantic source row | Applying `position: sticky` directly to transformed virtual rows creates overlap and can duplicate the accessible item. The sticky affordance needs to be visually persistent without changing the reading order or count. | `VirtualList` keeps the real row in the virtual list for measurement, position, and `aria-posinset`/`aria-setsize`; once it scrolls past its origin, a zero-height sticky layer mirrors the visual row with `aria-hidden` and pointer-events disabled. The final restored-scroll screenshot verifies the overlay does not shift neighboring rows. | Revisit if interactive sticky rows become required; then the overlay needs an explicit focus/activation handoff instead of remaining presentation-only. |
+
+| 2026-08-07 | Make virtualization preserve collection truth before optimizing row count | A virtualized list that only exposes mounted rows, or lets estimated heights overlap before measurement settles, is fast but unusable. Accessibility and visual geometry are part of the performance contract. | `VirtualList` keeps total item count on every row, announces the visible window, uses stable keys and overscan, restores scroll position, and immediately measures intrinsic row height before the observer settles. Transformed virtual rows are not treated as sticky positioning contexts; sticky headers require a separate overlay layer before production-ready promotion. | Revisit when the overlay can own sticky-row focus, height reservation, and scroll synchronization without duplicating a row’s accessible identity. |
+
+| 2026-08-07 | Make async form state a composed workflow with one source of truth | Loading, validation, submission, recovery, and navigation become untrustworthy when each state owns a separate mini-form or when the outer pattern does not react to the shared store. | `AsyncFormFlow` delegates generic async presentation to `AsyncBoundary`, delegates form semantics/actions/summary to the pinned form assets, and subscribes to `FormStore` for the outer success/error/submitting surfaces. It maps server field errors without replacing user values, exposes an abort signal for cancellation, and keeps the success handoff explicit. Visual stories must seed and display the actual state they claim. | Revisit if FormStore gains a first-class cancellation/transaction primitive; then the pattern can remove its local controller while preserving the same state and recovery contract. |
+
+| 2026-08-07 | Make attachment progress adapter-driven and recovery-first | File transfer UI is judged by what happens during interruption, scanning, and retry—not by a decorative progress bar. The library must not imply network behavior it does not own, and mobile actions must remain usable under real error copy. | `AttachmentPreview` accepts explicit per-file status/progress and callbacks, composes `FilePreview` and `Progress`, maps indeterminate scanning/offline states without inventing percentages, announces recovery state, and moves retry/cancel actions to a dedicated narrow-screen row. The visual sweep caught a real mobile overlap before evidence was accepted. | Revisit if the library standardizes an upload-task adapter; that adapter can supply the same state model without changing the presentation or recovery contract. |
+
+| 2026-08-07 | Make the indexed version file, not a generated runtime shell, the Files-tab source of truth | A source viewer that shows a one-line re-export hides the implementation an operator is judging and makes stale/generated organization look like component quality. | Released component version entries remain version-local and full-fidelity; catalog conformance rejects relative imports that cross a `shared` directory, and the post-index SQLite audit checks both version and version-file content for `runtimePhase`/`shared/runtime` stubs. The legacy shared modules were retained only during migration; after the final consumers moved to version-local implementations, they were retired on 2026-08-10. | Revisit if historical source records require an immutable archive outside the active library tree. |
+
+| 2026-08-07 | Keep generated forms as composition, not a second field implementation | A schema compiler is only valuable if its output keeps the same interaction, error, and responsive contracts as hand-authored forms. Reimplementing each field branch inside GeneratedForm would recreate the drift the asset is meant to remove. | `GeneratedForm` delegates sections, fields, actions, summaries, conditional visibility, computed output, arrays, and nested objects to their version-pinned assets. `ArrayField` and `ObjectField` own their respective value policies, while the generated layer owns only schema dispatch and grouping. A screenshot review corrected an overly broad inferred-error adapter before evidence was accepted. | Revisit if the schema becomes serializable across a process boundary; then callback-based render seams should be replaced with explicit field adapters while preserving the same composed runtime. |
+
+| 2026-08-07 | Treat array and object values as data, never as inferred validation | Nested values can be strings, numbers, or objects without being invalid. Inferring errors from value shape creates dishonest issue counts and undermines trust in generated recovery. | `ObjectField` accepts explicit nested errors and only reports them when supplied; `GeneratedForm` does not guess child errors from object values. Root FormStore errors remain visible, and child renderers can opt into explicit per-key error lookup through the context. | Revisit if FormStore adds first-class nested-path validation; then the adapter can map authoritative path errors without changing the rendering contract. |
+
+| 2026-08-07 | Keep conditional-field value policy explicit and service imports local | Conditional fields can hide, disable, or reset data, and generated forms must not accidentally submit stale values. FormStore is a runtime service rather than a registry-resolvable UI asset. | `ConditionalField` takes a required store, a pure value predicate, and an explicit mode. It subscribes to the store, renders fallback copy for hide/reset, resets to the declared field default in reset mode, and keeps the FormStore import source-local instead of declaring an unresolvable component dependency. | Revisit if services become first-class dependency-closure assets; the manifest can then declare the service without changing the field’s value policy. |
+
+| 2026-08-07 | Keep form-section disclosure and validation context in one reusable surface | Generated forms need hierarchy and recovery context that remains stable across schema shapes; putting collapse buttons and error counts in each generated layout would drift quickly. | `FormSection` owns semantic grouping, title/description/summary relationships, issue count announcements, controlled/uncontrolled disclosure, and responsive padding. It composes the version-pinned `CollapsibleRegion` for content visibility while keeping the consumer’s field tree unchanged. | Revisit if a future section-navigation system needs a shared heading registry or sticky outline; that should extend the section contract rather than move layout policy into GeneratedForm. |
+
+| 2026-08-07 | Make asynchronous option search a composed contract over cancellation and retry hooks | Async option fields combine debounce, supersession, retries, pagination, and state communication; duplicating those policies inside every field would create subtle stale-result and lifecycle bugs. | `AsyncOptionsField` delegates cancellation to `useAbortableTask` and bounded retry to `useRetry`, while owning only combobox state, option presentation, keyboard movement, and user-facing async states. Initial options are supported so a selected value can render truthfully before the first network request. The story and preview matrix are part of the contract. | Revisit if the library gains a shared data-query cache or a formally standardized combobox primitive; either must preserve the same abort, retry, and accessibility guarantees. |
+
+| 2026-08-06 | Make Toolbar declarative and let the shared roving-focus hook own keyboard movement | A toolbar made from arbitrary children would force consumers to wire refs, disabled skipping, and orientation-specific key handling. The toolbar’s common case is a small action model, and the library already has ControlBase/Toggle primitives to render it consistently. | Toolbar accepts item intent, renders governed controls, and delegates Arrow/Home/End behavior to useRovingFocus. Narrow horizontal toolbars wrap rather than expose clipped labels; vertical mode keeps the same item model and semantics. | Revisit if a future toolbar must host arbitrary custom renderers; add an explicit render-slot contract rather than weakening the default declarative path. |
+| 2026-08-06 | Keep Toggle as a pressed-state layer over ControlBase | Toggle needs button semantics and a persistent pressed state, not a second checkbox-like state engine. Reusing ControlBase preserves the same hover, press, focus, geometry, and reduced-motion behavior as Button while keeping the public API declarative. | Toggle owns only controlled/uncontrolled pressed state and chooses the visual variant; consumers get `aria-pressed` and one change callback without wiring interaction grammar. ControlBase disabled opacity has a readable floor so all composed controls remain perceivable in dark themes. | Revisit if a future toggle requires multi-value selection or form submission semantics; that belongs to a distinct native selection primitive. |
+| 2026-08-06 | Compose RadioGroup over native SelectionControl rather than inventing a composite state engine | Radio choices need shared-name browser behavior, arrow-key progression, controlled state, and the same label/description/error treatment as checkbox and switch. A parallel implementation would create drift and make future form assets inconsistent. | RadioGroup owns only group selection and layout; each option remains a native SelectionControl radio. Disabled states retain context, horizontal mode is a responsive layout choice, and consumer glue is limited to the value callback. | Revisit if a future roving-focus composite is required for a non-form navigation pattern; that should be a distinct primitive rather than weakening native form participation. |
+| 2026-08-06 | Put checkbox, radio, and switch semantics in one native SelectionControl primitive | These controls share focus, label, description, error, disabled, motion, and state geometry; separate implementations would drift while a generic div-based control would lose browser semantics. | SelectionControl renders native inputs and owns the shared visual grammar. Checkbox and Switch remain small declarative compositions, while RadioGroup can later reuse the same primitive without another state engine. | Revisit if a future selection pattern requires a fundamentally different interaction model, such as a roving composite widget rather than native form participation. |
+| 2026-08-06 | Give Button stories a product context without hiding the control contract | A direct Button story rendered technically correct markup but gave no meaningful visual signal about hierarchy, spacing, disabled communication, or how the control belongs in an application. | Button 2.0 uses a named specimen harness for every declarative state, while Button, ControlBase, and Pressable remain the reusable source of geometry, focus, motion, pending, and disabled behavior. The harness adds only explanatory composition and does not replace component semantics. | Revisit if the preview host gains a standardized control-grammar frame that can provide this context consistently across all control assets. |
+| 2026-08-06 | Anchor Tabs motion to the tablist and make story harnesses explicit | The active indicator was positioned relative to the entire tabs surface, so it appeared beneath the panel; generic story arguments also made it too easy for a screenshot to look like the wrong baseline. | The tablist owns the indicator containing block, mobile padding preserves the default two-tab state, long-content behavior remains horizontally operable, and each baseline story has a named harness. The preview runner verifies the rendered story metadata before saving isolated evidence. | Revisit if the library introduces a shared scrollable-tab primitive with its own indicator and screenshot contract. |
+| 2026-08-06 | Treat indexed catalog state as a required visual-evidence boundary | The preview service resolves source, stories, and harnesses from the indexed catalog projection; working-tree edits can therefore produce stale-looking screenshots until `components index` runs. | Visual validation now explicitly re-indexes after source/story changes, and isolated captures fail closed when their requested story differs from the rendered story metadata. Source conformance continues to reject published imports from shared runtime paths. | Revisit if previews are changed to resolve immutable Git source snapshots directly instead of the SQLite projection. |
+
+| 2026-08-06 | Let FilterBar own responsive transformation while keeping query/filter state portable | A data filter surface is not a row of raw inputs: actions need an explicit apply/reset boundary, active filters need semantic names, and narrow screens cannot preserve desktop alignment without clipping. Router synchronization belongs to the consumer rather than the reusable asset. | FilterBar composes governed SearchInput, Chip, and Cluster assets, exposes controlled and uncontrolled state, announces the current result scope, and uses a component-owned media rule to stack actions at narrow widths. The source remains a real versioned implementation and does not delegate to a shared runtime shell. | Revisit if the library gains a formal responsive layout primitive that can express this transformation without component-local media rules. |
+| 2026-08-06 | Make motion a shared declarative layer instead of per-component animation code | Presence already owns mount/unmount lifecycle, while individual components need a consistent variant, duration, reduced-motion, and direct-value vocabulary. Repeating CSS transitions in every asset would make interruption and accessibility drift. | MotionPrimitive owns token-backed visual transitions and a direct DOM channel for CSS custom properties; Transition composes it with Presence and preserves the same lifecycle across fade, scale, slide, blur, and crossfade. Layout properties remain outside the motion contract, and reduced motion settles visual state without animation. | Revisit if a future animation system needs spring physics or layout projection that cannot be represented by the current transform/opacity/filter contract. |
+| 2026-08-06 | Keep Popover positioning self-calibrating inside preview surfaces | The editor preview well uses a backdrop filter, which establishes a containing block that can offset fixed descendants; blindly trusting viewport coordinates produced a visually disconnected overlay. | Popover measures its final rendered rectangle after applying desired coordinates and corrects for the containing-block offset before committing position and arrow variables. This keeps consumer placement truthful in the real preview without weakening the preview well’s visual treatment or requiring a second portal runtime dependency. | Revisit if the preview host gains a first-class overlay portal/root contract; then Popover can use that root and remove the calibration fallback. |
+
+## Purpose Of This Document
+
+Use this document when a choice:
+
+- affects multiple files or future agents,
+- rejects a plausible alternative,
+- changes architecture, deployment, data, security, monetization, or
+  testing direction,
+- needs a revisit trigger.
+
+Routine implementation notes belong in [`PROGRESS.md`](PROGRESS.md).
+Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
+
+## Decision Log
+
+| 2026-08-31 | Record unresolved catalog population as intended roadmap work | The catalog contains 225 declared IDs with no manifest-backed implementation. Existing fixture and roadmap consumers still depend on these declarations, so deleting them would erase useful intent and break fixture validation. | Every unresolved ID is recorded in `catalog/population-decisions.json` as `intended-and-scheduled`; readiness and I19 count only unresolved IDs without a recorded decision. The declarations remain non-implemented and cannot earn maturity until a governed manifest and evidence contract exist. | Revisit an ID when a governed implementation is available, or change its decision to `removed` with an explicit review record. |
+
+
+| Date | Decision | Context | Consequences | Revisit Trigger |
+|---|---|---|---|---|
+| 2026-08-10 | Keep hover intent pointer-aware and focus-complete | Hover-only activation excludes touch and pen users, while a hover hook that ignores related floating surfaces closes menus while the pointer travels to them. | `useHover` gates pointer activation through the hover/fine media capability, treats keyboard focus as an independent open path, delays entry/exit, and accepts related refs for handoff. The current preview sweep remains component-only; hook behavior is validated through closure and a retained interactive story until a hook-aware visual runner exists. | Revisit when capability-detection becomes a registered closure asset or the preview harness can mount behavior-only stories with pointer/focus interaction assertions. |
+| 2026-08-10 | Treat calendar headers and date cells as one localization contract | A calendar with correctly positioned cells but an independently generated weekday header can look plausible while lying about which day is under each column. | `Calendar` derives weekday labels from the same first-day offset used to build the 42-cell grid, delegates locale/direction to the version-pinned hooks, and keeps date labels machine-readable through `Intl.DateTimeFormat`. | Revisit when a date-time adapter supplies locale-specific first-day rules, non-Gregorian calendars, or timezone-aware date arithmetic; those policies should replace the local defaults without changing keyboard or selection semantics. |
+| 2026-08-10 | Keep render recovery local, resettable, and diagnostically bounded | A render exception should not erase the host interface, but exposing raw stacks by default creates security and usability problems. A retry that only reloads the page is too destructive for a component library. | `ErrorBoundary` replaces only its failed subtree, accepts reset keys and a consumer fallback, reports errors through an optional adapter callback, and exposes only an opt-in error message disclosure. Its default recovery composes ErrorState and never steals focus. | Revisit if React provides a stable reset-boundary primitive or if the platform standardizes a telemetry adapter that can carry component identity and trace context without consumer callbacks. |
+| 2026-08-10 | Make Message a structured reading surface, not a styled text bubble | AI responses carry evidence, work state, recovery, and actions; flattening those into one text block hides provenance and makes partial/error states dishonest. | `Message` keeps actor, content, activity, attachments, citations, recovery, actions, and footer in explicit DOM order. Shared primitives own identity/time/status semantics, while the local surface owns responsive composition, state geometry, and keyboard-operable recovery. | Revisit if the library introduces a standardized transcript/turn container or a first-class citation/attachment protocol; then these local data contracts can adopt that protocol without changing reading order. |
+| 2026-08-10 | Keep avatar identity and presence as separate accessible surfaces | Combining the presence marker inside the avatar image role made status difficult to discover and a stretched wrapper detached the marker visually from the identity. | `Avatar` keeps the person name on the image surface, exposes presence as a visible sibling status with its own accessible label, and uses an intrinsic shell wrapper so presence stays anchored across kits and mobile widths. Group stories also constrain intrinsic width to the specimen boundary. | Revisit if the library adopts a shared identity/presence primitive with a standardized status slot or if avatar media gains a first-class error-state contract. |
+| 2026-08-06 | Give data-display primitives semantic item/card contracts and own their narrow-screen transformations | Stat and List previously rendered isolated text/raw rows with fixed pixels, no meaningful trend or item metadata model, and no deliberate empty/long-content behavior. | Stat owns trend tone and loading geometry; List accepts structured item context, keeps primary copy readable, moves metadata below content on narrow screens, and exposes a bounded empty state. Stories judge realistic product surfaces rather than bare asset output. | Revisit if the library establishes a shared data-density or virtualization primitive that can preserve these contracts at much larger collections. |
+| 2026-08-06 | Make the feedback-state family compose over AsyncBoundary and keep hidden announcement fallbacks unroled | LoadingState, ErrorState, and OfflineState had duplicated panel/button styling, while a global fallback `role=status` made visible state assertions ambiguous when a component also exposed a real status region. | The three assets inherit one async visual/interaction grammar and remain thin APIs; the provider-backed LiveAnnouncer keeps its explicit status contract, while its no-provider fallback uses `aria-live`/`aria-atomic` without an extra landmark role. | Revisit if the announcement service gains a dedicated non-landmark channel or if feedback assets need a state model outside AsyncBoundary’s lifecycle. |
+| 2026-08-06 | Make AsyncBoundary a stable state surface rather than a conditional fallback switch | A loading/error/content branch loses useful data during refresh, causes avoidable geometry changes, and gives offline and partial failure no distinct semantics. | AsyncBoundary owns delayed initial loading, preserved refresh-like content, offline detection/override, live state announcements, persistent accessible description wiring, retry lifecycle, and token-bound state messaging. Consumers may supply custom pending/error content without importing a shared runtime shell. | Revisit if a platform data-fetching contract supplies authoritative stale/error/offline state and can preserve the same rendering and accessibility guarantees without consumer glue. |
+| 2026-05-12 | Use the generated `react-vite` scenario documentation contract. | Scenario scaffold was generated from the template. | Docs start with stubs and maturity metadata in `docs/manifest.json`. | Revisit when scenario adopts a different template or doc contract. |
+| 2026-07-08 | Treat SQLite as an additive projection of Git-tracked component files. | Slot, headers, dependency declarations, preview import maps, and style affinities all derive from `component.json` and version source headers. | Schema changes use one-shot migrations for existing dev DBs; re-index rebuilds projection rows without recreating the database. | Revisit only if the component library stops using Git-tracked files as source of truth. |
+| 2026-07-08 | Use `templates/design/*/metadata.json` IDs as the canonical design-style vocabulary. | Component affinity declarations need a stable key that scenario generation and UX validation can share. | `component.json designStyles[]` is reconciled against the registry during index, stale IDs are reported as non-fatal findings, `components styles` exposes the registry, and search/UI/adoption workflows treat affinities as advisory signals. | Revisit when design styles move out of templates or become versioned cross-scenario resources. |
+| 2026-07-08 | Keep design-style affinities component-scoped. | Existing components do not have version-specific style intent, while dependency declarations are version-scoped because adopters can pin old code with different package needs. | `component_design_affinities` remains keyed by `(component_id, style_id)` and can carry a rationale; version-specific fit must be introduced deliberately if component versions diverge visually. | Revisit when two versions of the same component intentionally target different design styles. |
+| 2026-07-08 | Store dependency declarations by component version and kind. | Adopters can pin older component versions, and peer dependencies have different compatibility semantics than runtime/dev dependencies. | `component_dep_declarations` is keyed by `(component_id, version, dep_name)` and carries `kind`; adoption validation resolves against the requested adopted version. | Revisit if component artifacts gain a package-lock-style dependency manifest. |
+| 2026-07-14 | TabBar is withdrawn from the harvest loop; DrawerShell is the sole harvest exemplar. | The predecessor harvest plan (`rcl-harvest-loop-completion-pilot-closeout-origin-parity`) intended to harvest both DrawerShell and TabBar as multi-file units and re-adopt them in web-console. During execution the operator determined TabBar carries too much scenario-specific logic (web-console-coupled routing/state) to become a governed shared primitive without distorting either side. DrawerShell completed the full harvest→canonicalize→adopt loop end-to-end and stands as the reference exemplar. | Do NOT re-harvest TabBar or restart a TabBar migration. The successor plan (`rcl-trust-hardening-adoption-reconciliation-and-detail-view`) does no new component migrations; it only cleans up TabBar's orphaned catalog/index rows and hardens the loop's invariants. No new component is harvested in that plan. | Revisit only if TabBar is deliberately refactored to strip its scenario-specific coupling and a fresh case is made for it as a shared primitive. |
+| 2026-07-16 | Preserve VoiceMicButton presentation and pointer semantics as the RCL VoiceInputButton contract. | The first RCL version used a circular generic control, which omitted the established compact rectangular geometry, icon palette, level fill, timeout ring, error popover, and pointer-down/up semantics. | RCL reproduces those presentation and interaction rules using RCL tokens and injected callbacks only; browser capture, TTS, VAD stores, transport, and scenario policy remain outside the asset. | Revisit when a proven reusable voice state cannot be represented by the controlled component-plus-hook contract. |
+| 2026-08-04 | Make `ControlBase` the governing primitive for adopted controls, with one coupled size scale and container-supplied density. | Button, IconButton, and VoiceInputButton had independently drifting geometry, spacing, focus, hover, and disabled treatment. A control should resolve height, horizontal padding, icon size, and radius from `xs`–`xl`; `comfortable` and `compact` density adjust internal spacing without changing the public size contract. | New controls compose `ControlBase` and expose the same size/density vocabulary. Component experience claims can validate spacing, state treatment, and size parity at the catalog boundary. | Revisit only if a control genuinely cannot express its interaction geometry through the shared primitive or if a new density mode is proven necessary. |
+| 2026-08-04 | Keep token translation scenario-owned and require injective, CSS-variable-backed mappings with a contrast floor. | Consumer palettes differ, and a library-owned translator previously collapsed distinct semantic roles. Each adopter now owns `ui/token-map.json`; adoption fails closed when roles collide, a role is missing, a target is not CSS-backed, or a declared contrast pair is below the floor. | Theme changes remain local to the adopting scenario while shared assets preserve semantic roles. Adoption errors name the colliding roles and target. | Revisit if the token contract gains a shared cross-scenario palette service rather than consumer-owned CSS variables. |
+| 2026-08-05 | Treat radius as a design-kit property, not a control-size property. | `vrooli-conversion-landing` uses a pill control radius for every size, while the previous coupled size scale made three `ControlBase` sizes bypass the kit with Tailwind defaults. | Every `ControlBase` size resolves `rounded-control`; the kit chooses whether that means a compact radius, a generous radius, or a pill. Shared components can remain portable across kits. | Revisit only if a future kit requires radius to vary by semantic control size and declares that variation as a separate contract. |
+| 2026-08-06 | Keep preview frames in version-local `story.json` and out of catalog descriptors and adoption closures. | Catalog assets describe reusable intent; a story chooses the document context in which a specimen is judged. A structural asset is otherwise misleading when rendered alone. | Schema version 3 validates frame asset, region, and fixture references against the catalog, bundles the frame beside the subject, and preserves the subject's independent adoption closure. The `navigation.page` implementation is the reference frame. | Revisit if preview composition becomes a separately adoptable runtime capability rather than a workbench concern. |
+| 2026-08-06 | Review foundations and services as one token-and-runtime layer against the named kit benchmarks. | The first Phase 9 batch covers the shared ramps, typed contracts, scoped stores, and the three intentional global coordinators. | The batch passes with zero phase-linked API, token, lifecycle, and examples findings; future assets consume these contracts instead of recreating them. | Revisit if a kit introduces a new foundation ramp or a runtime coordinator outside layer, command, and shortcut registration. |
+| 2026-08-06 | Review the 25 runtime hooks as one behavioral grammar against the named kit benchmarks and Rive motion reference. | Press, focus, async, responsive, motion, and input hooks must compose without consumer glue or SSR lifecycle hazards. | The batch passes with browser stories for the public contracts and zero phase-linked API, token, lifecycle, and examples findings. | Revisit if a new interaction class cannot be expressed through the shared hook contracts. |
+| 2026-08-06 | Review the 19 primitives as one token-backed visual grammar against the named kit benchmarks and Rive motion reference. | Layout, text, surface, icon, feedback, and presence primitives need bounded APIs that preserve the kit's rhythm and elevation model. | The batch passes; Text and Heading expose eight bundled styles, Surface exposes four elevations without a shadow prop, and phase-linked gates are clean. | Revisit if a new primitive needs a semantic ramp not represented by Tokens or VisualRecipes. |
+| 2026-08-06 | Build the Phase 11 data-display family on one shared composition grammar. | Lists, tables, metrics, filters, histories, trees, diffs, and JSON need one semantic and token-bound grammar instead of unrelated specimen implementations. | The initial migration used `runtimePhase11.tsx` as a temporary composition engine. Those consumers are now materialized as version-local implementations with explicit stories and persisted gate evidence; data-source ownership remains visible at the composition boundary, and the temporary shared modules are retired. | Revisit if a data surface needs a new semantic state or density contract not expressible by the version-local shared primitives. |
+| 2026-08-06 | Make AppNavigation one responsive model with viewport-specific presentations. | Sidebar, drawer, and bottom navigation are transformations of one route model; page-level consumers should not coordinate three divergent navigation systems. | AppNavigation exposes desktop sidebar, tablet drawer, and mobile bottom-navigation presentations with machine bindings and stories for all three modes. The current experience environment lacks tablet capture, so that claim remains explicitly advisory until the matrix expands. | Revisit when the capture matrix supports tablet or a new navigation presentation is required. |
+| 2026-08-06 | Keep page-template regions data-source-owned and state-complete. | Dashboard, collection, and detail templates must preserve context across async states without importing fixtures or hiding region ownership in page glue. | All declared regions are explicit `data-source` regions and each template has stories for ready, loading, refreshing, stale, empty, partial-error, fatal-error, and offline states. | Revisit if a template introduces a region lifecycle or generic state outside the shared template contract. |
+| 2026-08-06 | Treat Phase 11 aggregate failures as inherited baseline debt, not a reason to weaken new contracts. | The full component suite still reports VoiceInputButton, markdown-renderer, and useVoiceInput failures, while all Phase 11 assets pass individually and the experience suite passes. | Phase 11 closes with exact 32/32 target coverage and durable run evidence; inherited failures remain visible for their owning work rather than being masked by gate changes. | Revisit when the three inherited assets are repaired and the aggregate suite can reach a clean baseline. |
+| 2026-08-06 | Rewrite the workbench in place on clean adoptions and expose maturity as operator routes. | The workbench had a second local primitive tree, relative library imports, and no first-class view of catalog coverage or capability readiness. | Twenty governed adoptions now live at root or version-local canonical paths with zero local drift; `components/ui` is removed; authored compositions carry source markers; semantic spacing is enforced with a narrow documented exception list; `/coverage` and `/capabilities` consume the real APIs. The managed aggregate still reports the inherited VoiceInputButton, markdown-renderer, and useVoiceInput harness failures plus pre-existing scenario architecture debt. | Revisit when the inherited component harness and scenario isolation baseline are repaired. |
+| 2026-08-06 | Review the control family as one Pressable-driven interaction grammar. | Historical Button and IconButton versions had divergent Tailwind styling, external merge dependencies, unstable pending content, and a ButtonGroup story that rendered raw HTML controls. | ControlBase owns token geometry, focus, hover/press motion, reduced-motion behavior, and the 44px floor; Pressable owns pending state and stable content stacking; Button and IconButton compose it; historical versions adapt into the same path; ButtonGroup stories use real governed controls. The focused light/dark desktop/mobile sweep passed with refreshed screenshots. | Revisit when a non-button control requires a distinct activation model that cannot be expressed by the shared Pressable contract. |
+| 2026-08-06 | Centralize announcements and navigation scroll ownership in reusable services. | `useAnnounce` created or mutated a live region directly, while ScrollRestoration was cataloged under the wrong domain and used unguarded history/storage behavior. | LiveAnnouncer provides one queued atomic live region with priority, bounded queueing, and a fallback handle; useAnnounce delegates to it. ScrollRestoration now exposes restore/reset/preserve intent, manual history ownership, RAF restoration, injectable storage, cancellation, and SSR guards. | Revisit if the platform adds a router-owned transition service or a distinct announcement channel with formally separated semantics. |
+| 2026-08-06 | Keep async controls on one stable state-label geometry and treat services as internal source dependencies. | CommandButton needs idle/pending/success/error/retry states without toolbar reflow; `useAnnounce` consumes the colocated `services/LiveAnnouncer` layer, which is intentionally outside the component registry resolver. | CommandButton composes Button and the upgraded useAsyncAction contract, keeping every state in one intrinsic grid with native busy/disabled/live-status semantics. Hook manifests do not declare unresolvable service-library dependencies; source-local service imports remain explicit and lifecycle-gated. | Revisit if services become first-class registry assets with dependency-closure and browser-test support. |
+| 2026-08-06 | Make media layout reservation a first-class primitive and keep image failure inside the product surface. | Images are often treated as a raw `<img>`, which causes layout shift, browser fallback chrome, and inconsistent responsive source handling. | `AspectRatio` owns responsive geometry; `ProgressiveImage` composes it and owns source selection, restrained reveal, native naming, reduced motion, and compact error treatment. The preview validator recognizes implicit image roles so accessibility does not require redundant markup. | Revisit if a platform media service supplies a stronger intrinsic ratio or image transformation contract. |
+| 2026-08-06 | Keep transient feedback policy in ToastManager and make Toast a renderer. | Toasts otherwise become scattered local timers, duplicate announcements, and unbounded overlays that compete with the task. | ToastManager owns scoped queueing, dedupe, updates, limits, lifetime, dismissal, and announcement priority; Toast composes Surface and Presence with safe-area-aware responsive placement. The component manifest depends on registry-resolvable render primitives while the service remains an internal source layer. | Revisit if notification persistence or blocking recovery becomes a separate product surface rather than transient feedback. |
+
+## Superseded Decisions
+
+| Date | Superseded Decision | Replacement | Notes |
+|---|---|---|---|
+| 2026-08-05 | 2026-08-04 coupled `ControlBase` size scale | Radius is a kit property; all sizes use `rounded-control`. | The shared ramp makes the former size-to-radius binding non-portable. |
+
+## Cold version tier decisions
+
+### 2026-08-27 — Keep version identity durable while tiering its bytes
+
+The manifest and SQLite ledger retain every version identity and the complete
+per-file hash mirror. The working tree carries only the reachability-derived
+warm set, so history remains listable and diffable without six-figure source
+churn.
+
+### 2026-08-27 — Use one materializer boundary for all filesystem readers
+
+Components owns hash verification, complete-set validation, and atomic restore.
+Preview, content, package build, and export consumers do not each invent a
+database fallback or a different error policy.
+
+### 2026-08-27 — Treat reachability as the tier authority
+
+Latest, draft, adoption, dependency, and source-import references all use the
+existing ledger graph. Adoption lifecycle hooks invoke the same scoped
+reconciliation, making tier movement replay-safe and independent of operator
+memory.
+
+### 2026-08-27 — Preserve released immutability during projection repair
+
+Indexing never repairs a released hash by rewriting source. Existing source /
+ledger mismatches are surfaced as errors and withheld from automatic eviction
+until the owning release is repaired or explicitly retired.
+
+### 2026-08-31 — Restore authored bytes only from the durable mirror
+
+When a materialized release file is changed by an unsafe formatter or stale
+projection, `make restore-authored-mirror` is the recovery boundary. The
+command previews the exact paths, restores only bytes that exist in the
+SQLite mirror, excludes derived locks, and requires `--apply`; current bytes
+are never accepted as provenance by the repair path. Materialized retired
+versions are reclaimed through the lifecycle CLI after mirror verification.
+
+### 2026-08-27 — Bound evidence by measured payload workload
+
+Five recent reports plus first-pass/first-fail evidence remain useful, while a
+256 MiB SQLite payload ceiling prevents closure-heavy reports from growing the
+host-local database without bound. Rollup counters remain after payload trim.
+
+### Rejected alternatives
+
+- Age-based eviction was rejected because age does not establish reachability;
+  revisit only if graph computation needs a bounded pre-filter while retaining
+  the graph check.
+- Patch-chain source storage was rejected because replay and mid-chain edits
+  make recovery less trustworthy than the existing byte-exact mirror; revisit
+  if one archive becomes too large to carry.
+- Independent reader fallbacks were rejected because four implementations
+  would drift in hash, path, and error handling; revisit only if a reader must
+  operate without the components materializer service.
+
+## Cross-References
+
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system decisions
+- [`PROBLEMS.md`](PROBLEMS.md) — unresolved drift and debt
+- [`PROGRESS.md`](PROGRESS.md) — completed work history
+# 2026-08-06 — Recovery prompts must preserve work without owning navigation
+
+# 2026-08-07 — Feedback tone must survive interaction and color loss
+
+`Alert` expresses information, success, warning, and danger through native
+status semantics, labelled glyphs, text, border emphasis, and forced-colors
+rules. Its stories assert the state after declared interactions, so dismissal
+is verified as a recovery behavior rather than being mistaken for a missing
+button. The visual treatment remains token-backed and responsive.
+
+# 2026-08-06 — Keep chart rendering replaceable but make the accessible contract native
+
+`Chart` owns the parts most chart integrations omit—responsive plot geometry,
+locale-aware labels, state handling, keyboard-readable values, a tabular
+equivalent, high-contrast treatment, and selection semantics—while rendering
+the baseline line plot with native SVG. A future chart engine can replace the
+plot implementation without weakening those contracts or forcing an external
+chart dependency into the library bundle.
+
+# 2026-08-06 — Patterns may customize presentation while primitives own policy
+
+`UnsavedChangesFlow` composes `DirtyStateGuard` and `AlertDialog` through an
+explicit prompt-render seam. The guard remains responsible for dirty-state,
+unload protection, action ordering, and focus restoration; the pattern can add
+private-draft preservation and product-specific error recovery without copying
+that policy or falling back to a runtime shell.
+
+# 2026-08-06 — Catalog evidence must come from executable gates
+
+`types` now runs the catalog’s declared `pnpm run catalog:check` command and
+maps a runner failure conservatively to implemented assets instead of emitting
+an unconditional pass. The manual `record:<gate>` API was removed because it
+accepted no asset or artifact scope and could mark the entire corpus green
+without evidence. Browser-backed contract evidence remains written only by
+the provider after a passing component run.
+
+`DirtyStateGuard` exposes an imperative `requestLeave()` seam and an explicit recovery dialog rather than pretending to own every router implementation. It only registers `beforeunload` while meaningful edits are dirty, and its save/discard/continue actions remain visible and keyboard-operable. This keeps navigation adapters replaceable while making the loss-prevention contract concrete and testable.
+
+# 2026-08-06 — Component-test provider stays bounded below the transport window
+
+The provider validates the full released registry through a single Test Genie RPC. Four workers made the 136-asset suite take just over two minutes and produced an `unexpected EOF` at the client boundary even though the server completed. Ten bounded workers now keep the 149-asset suite below the transport window; the pool must remain bounded because evidence writes share SQLite.
+# 2026-08-06 — File previews fail visibly and safely
+
+`FilePreview` uses a typed glyph and an announced status when a thumbnail is unavailable or the format cannot be rendered. Open/download/remove remain explicit native buttons, and mobile moves them below the metadata instead of shrinking targets below the 44px interaction floor. This keeps “preview unavailable” useful without making color or an image the only source of meaning.
+
+# 2026-08-10 — Preview stage and experience contracts must expose ground truth
+
+The workbench keeps stage mode and gallery mode as distinct rendering contracts: a device viewport belongs to one specimen, while comparison cards remain fluid. Experience contracts must point at readable version-local stories and use machine tiers only for claims the capture system can actually evaluate; legacy array states, missing index entries, and unsupported custom machine claims are repaired at the contract boundary rather than treated as evidence.
+
+# 2026-08-10 — Semantic tokens are runtime infrastructure, not documentation
+
+Released assets are allowed to consume semantic shorthands such as
+`--text-label`, `--text-body`, `--color-on-primary`, and `--icon-size-md`, but
+the canonical preview token sheet must define those names directly. A token
+reference that resolves to an undefined custom property invalidates the whole
+CSS declaration and can make a carefully authored asset look like default HTML.
+The preview sheet now defines the shorthand typography, color aliases, icon
+scale, and motion aliases centrally; components continue to own their local
+semantics and may use component-specific variables on top.
+
+# 2026-08-10 — Reversible destructive actions are a pattern boundary
+
+`UndoableDestructiveAction` owns the consumer-intent action surface and
+composes `UndoManager`/`UndoBanner` for history, expiry, rollback, and
+announcement policy. It does not introduce an external UI dependency or
+duplicate the undo service. The pattern's source, stories, and experience
+contract remain version-local; service dependencies that are not indexed
+catalog assets are reached through the already-proven `UndoBanner` closure.
+
+# 2026-08-10 — Lifecycle gates must model runtime boundaries
+
+Lifecycle quality gates inspect released implementation files, not stories or
+other browser-only specimens. They treat browser APIs inside React effects as
+client-only by construction, while still requiring explicit `typeof window` or
+`typeof document` guards for render-time and module-level access. This keeps the
+gate strict about real SSR hazards without forcing harmless effect code to add
+misleading guard strings.
+
+# 2026-08-10 — Shell experience validation must be compositional and browser-grounded
+
+The AppShell experience contract is now a real adoption target: it owns named
+navigation/main landmarks, skip navigation, min-width-safe content, responsive
+navigation transformation, reduced motion, and explicit roles that the
+component runner can verify reliably. The current workbench remains a
+composition-specific consumer while migration is staged; its browser smoke
+checks must still measure computed visibility, geometry, overflow, and fixed
+controls because DOM presence alone missed the hidden-desktop-sidebar and
+collapsed-main regressions. Tree/file inventory behavior belongs in the
+library TreeView grammar rather than bespoke flat asset rows.
+
+# 2026-08-10 — AppShell owns geometry while navigation owns presentation state
+
+The workbench should adopt the library AppShell even when its navigation needs
+resizing, drawer focus, and route-specific inventory behavior. AppShell now
+offers a generic `navigationMode="managed"` slot plus explicit header/main
+modes; the consumer supplies the responsive SidebarShell, while AppShell
+continues to own the grid, landmarks, skip link, and main-region geometry.
+WorkspaceHeader exposes an `as` seam so composition does not create nested
+header landmarks. This keeps the shell self-hosted without forcing
+application-specific drawer policy into the shared asset.
+
+# 2026-08-10 — Structural previews must privilege the specimen
+
+Navigation and page assets are judged as compositions, not as fragments. The
+stage therefore opens with its specimen panel expanded, its props/inspector
+panel collapsed, and the declared viewport fitted to the available canvas;
+the tools remain available through an explicit toggle. This preserves real
+viewport semantics without forcing every visual review through a cropped
+320px gallery card.
+
+# 2026-08-10 — Make layout geometry a first-class story assertion
+
+Roles and text prove semantic presence but cannot catch a zero-width region, a
+stretched mobile navigation row, or content that overflows its own main pane.
+Story expectations now support browser-grounded `layout` claims for bounds and
+horizontal overflow; the preview E2E runner and iframe assertion mirror execute
+the same checks. AppShell uses these claims for its shell and main region, and
+the workbench continues to consume the versioned AppShell source through a
+clean adoption.
+
+# 2026-08-10 — Treat submenu placement as a Popover capability
+
+A Menu submenu needs the same collision handling, viewport bounds, reduced
+motion surface, and focus restoration as every other floating surface. Popover
+now owns right/left placements and edge fallback; Menu composes that
+version-pinned behavior for `Submenu`, while GeneratedForm owns its
+controlled/uncontrolled store policy.
+
+# 2026-08-10 — Foundations are closure assets, not invisible catalog metadata
+
+Foundations under `library/foundations/*` are versioned source dependencies of
+renderable primitives, so the registry and closure runner must resolve and
+hash them directly. They remain excluded from ordinary component browsing and
+do not require renderable story contracts; source-only closure validation is
+the correct contract for `Tokens` and `IconRegistry`. Foundation imports also
+need a dedicated adoption destination so relative imports remain real after
+copying an asset into a consumer scenario.
+
+# 2026-08-10 — Preview tokens require safe fallbacks at the asset boundary
+
+An isolated component harness cannot assume the host app’s token stylesheet is
+present. Shared foundations therefore return CSS custom properties with
+reasonable fallbacks for essential geometry such as icon sizes. This keeps
+the source token-backed while preventing an undefined custom property from
+collapsing a visible control to zero dimensions in a standalone preview or
+consumer surface.
+
+# 2026-08-10 — Responsive controls must have one rendered representation
+
+Responsive assets should select the active representation from measured
+container geometry rather than mounting desktop and mobile branches together.
+Mounting both branches makes tables, actions, and accessible names duplicate in
+tests and in assistive technology trees, while CSS visibility alone is not a
+reliable behavioral contract. `DataTable` therefore owns a ResizeObserver-based
+representation switch with a browser-safe fallback; stories and focused tests
+assert the selected behavior. The same principle applies to the shell: detail
+tabs are semantic scrollable tabs, not a row of Button components, and global
+actions are suppressed where they compete with source-editor controls.
+
+# 2026-08-10 — Pending states must be geometrically inert until visible
+
+Pending content belongs in an absolutely layered region so its label cannot
+change the intrinsic size of the ready control. Text controls keep accessible
+pending text while icon-only controls preserve their authored accessible name
+and expose only the spinner visually. Pressable stories explicitly cover both
+cases, and closure validation must include the shared dependency chain before
+adoption propagation.
+
+# 2026-08-10 — Accessible geometry must satisfy both hidden-state and tap-target contracts
+
+The AppShell skip link uses a tokenized 44px in-viewport hit area with clipped idle content, then expands on `:focus-visible`. Translating an interactive element offscreen avoided visual noise but failed experience geometry; a 1px clipped link avoided the offscreen warning but failed the tap-target floor. The 44px clipped geometry satisfies keyboard access, pointer-target sizing, and the visual design simultaneously.
+
+# 2026-08-10 — Semantic scroll containers own the navigation role
+
+Tabs keeps the horizontal overflow on the bounded viewport that carries `role="tablist"` and its accessible name. The inner strip is only a layout surface. This prevents the intrinsic width of long tab labels from being reported as document chrome or horizontal page overflow while preserving roving focus and the tab/tabpanel relationship.
+# 2026-08-14 — Catalog relationships use rung bands and read-only reconciliation
+
+The catalog graph is indexed in memory with forward and reverse edges. Closure
+surfaces use six labelled rung bands because the enforced rung ordering is more
+legible and deterministic than a force-directed graph at catalog scale.
+`graph-reconciled` is deliberately non-blocking: it measures existing catalog,
+manifest, and import drift without writing `library/**`. Host obligations are
+derived from port-facet capabilities over the closure and remain distinct from
+behavior claims.
+# Trustworthy validation instrument — Phase 1 decisions
+
+## Coverage evidence is a bounded local cache
+
+Visual captures remain local under `coverage/` because browser traces and
+screenshots are large, generated artifacts. The checked-in contract is the
+retention policy and the durable verdict/evaluator/hash records, not pixels.
+The CLI owns pruning and defaults to a dry run so an operator can review the
+deletion set before applying it.
+
+## Calibration fixtures will live outside catalog coverage
+
+The calibration set introduced in Phase 2 will live under
+`scenarios/react-component-library/calibration/`. It is a checked-in oracle,
+not a catalog asset, so it will be excluded from catalog coverage denominators.
+
+## Parked plans are superseded by this execution
+
+`preview-stage-rebuild-a-canvas-workbench-built-from-library` and
+`ui-platform-trust-repair-make-component-validation-prove` are superseded by
+this plan. Their delivered preview-stage and validation-instrument work is
+retained; their unfinished prove-it phases are covered by this plan's
+calibration, performance, floor, finding, and dogfooding phases.
+
+## Released source remains immutable
+
+The existing `released-version-immutable` catalog gate is the single source
+immutability check. Phase 1 adds a synthetic drift regression test and repairs
+the existing drifted adoption records by publishing corrected versions or
+restoring released bytes as appropriate.
+
+## Capture determinism is an explicit harness contract
+
+The capture helper uses the direct preview harness URL, an explicit light/dark
+theme, a fixed seed, a reduced-motion query, the DOM readiness selector
+`#root[data-experience-state=ready][data-rcl-theme]`, and a bounded worker pool.
+The harness freezes animation/transition timing and caret rendering only when
+the capture query requests deterministic motion. A revision manifest lets
+changed-only runs skip unchanged asset/theme/viewport inputs while durable
+verdict and timing records remain reviewable.
+
+## Companion contracts evolve independently from released entry code
+
+Released entry source bytes are protected by the immutable-source gate. Story
+and experience contracts are version-local declarative validation data and may
+be re-indexed when the contract schema, evaluator vocabulary, or proof policy
+changes. This keeps runtime releases immutable while allowing the validation
+instrument to mature; source drift still fails the gate and requires a new
+released version or restoration of the recorded source bytes.
+# Calibration corpus and evaluator evidence
+
+| 2026-08-31 | Transiently project retired dependencies without warming them | Historical released source can still contain a relative dependency on a retired version, so a package projection must be able to compile that source while retention keeps the version cold. | `versions materialize --all --into <directory>` includes retired mirror rows only for the transient destination; normal materialization still excludes retired rows. The selected `restore-authored-mirror --retired asset@version --apply` repair records mirror hashes and restores authored files atomically. | Revisit if historical source is migrated away from exact relative dependencies; until then, keep transient projection separate from live presence. |
+
+The frozen calibration corpus lives under `scenarios/react-component-library/calibration/`. It references versioned library assets, is excluded from catalog coverage ratios, and stores the P2 oracle in `verdicts.json`; later capture-performance work must compare against that file rather than regenerate it. `content-not-clipped` is the first computed visual-bar check: it consumes BAS accessibility nodes enriched with client/scroll dimensions and computed overflow, failing only when overflow is clipped without a reachable scroll affordance.
+
+# Final validation evidence is split by oracle
+
+The targeted checks are the authoritative evidence for the instrument changes: they directly cover the modified evaluator, floor, gate, story, capture, conformance, and adoption paths. The required producer-owned baseline diff is also retained, but its fresh member run terminates with the generic `phase did not apply to one or both captured targets` regression classification. Because that classifier does not identify a failing implementation assertion and repeats after managed recovery, it is reported as validation-infrastructure friction rather than converted into a false pass.
+
+# Asset graph report disposition
+
+The dated asset-graph workspace report is now a historical pointer. Its
+durable hierarchy and Preview-composition facts are owned by
+`docs/concepts/ARCHITECTURE.md`, `docs/concepts/STORY-CONTRACT.md`,
+`docs/guides/asset-preview-composition.md`, and
+`docs/guides/preview-composition-migration.md`. Current counts must be
+recreated from the catalog index for each validation run; they must not be
+copied forward from the historical report.
+| 2026-08-31 | Keep retired rows cold during presence reconciliation | Retired versions are deliberately evicted and retained only in the durable mirror. The reconciler previously treated every evicted row outside the current retire-candidate set as a warm-tier repair, which proposed rematerializing all 737 retired rows. | Presence reconciliation now excludes rows whose lifecycle status is `retired` (and the legacy `archived` status) from materialization. A live rebuilt API preview now reports 0 materializations and 1,070 unchanged rows while preserving the 19 current eviction candidates. | Revisit if lifecycle state is normalized so retired rows no longer appear as a component-version status; keep the cold-tier invariant regardless of storage representation. |

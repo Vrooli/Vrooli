@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.card-grid",
+    "name": "Card Grid",
+    "kind": "pattern",
+    "surface": "base",
+    "domain": "patterns",
+    "description": "A restrained responsive card arrangement that establishes a raised surface context for repeated records without turning every page section into a floating panel.",
+    "targets": ["react-vite"],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.card",
+        "reason": "The grid owns arrangement and context; Card owns the repeated surface structure."
+      }
+    ]
+  },
+  "provides": {
+    "elevation": "raised"
+  },
+  "rationale": "The provider-consumer pair is an executable example of context-aware composition: a card remains flat alone but becomes raised when the pattern establishes that surface role."
+}

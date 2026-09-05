@@ -1,0 +1,166 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "storage": {
+    "entries": {
+      "data": {
+        "budget": {
+          "max_bytes": "16MiB",
+          "rationale": "Measured at 2745291 bytes on 2026-08-24 at the resolved data location; the 16MiB ceiling preserves a bounded margin for SQLite growth without making this durable surface unbounded."
+        },
+        "class": "data",
+        "kind": "dir",
+        "rationale": "Resolved scenario data directory containing the SQLite offer graph, gate registry, append-only catalog audit, and SQLite sidecars.",
+        "regenerable": false,
+        "rung": "owned"
+      }
+    }
+  },
+  "maturity": "pilot",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "offer-desk",
+    "displayName": "Offer Desk",
+    "description": "The offer graph, its promotion gates, and what should be sold",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "class": "meta",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-13T13:53:24Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "9c22027c8958143938a33ac807d163b273682a70f9cb79b938541ec92ab05af1"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "offer-desk",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "offer-desk"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Protects the resolved Offer Desk data directory through scheduled snapshots and recovery drills; it is not part of request handling.",
+        "degraded_behavior": "Offer Desk runs normally when the backup manager is unavailable; protection is a scheduled operational concern and the board continues to report data-source availability explicitly."
+      },
+      "money-ledger": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Supplies actuals for the earned-versus-intended join on the board (OT-P1-002). Read-only and one-way: Money Ledger has no knowledge of offers.",
+        "degraded_behavior": "The board marks its actuals source unavailable with a reason and the age of the last good reading, and every other ranking source continues to rank. Earnings are never reported as zero on account of an unreachable ledger, because zero is indistinguishable from an offer that genuinely earned nothing."
+      }
+    }
+  },
+  "credentials": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

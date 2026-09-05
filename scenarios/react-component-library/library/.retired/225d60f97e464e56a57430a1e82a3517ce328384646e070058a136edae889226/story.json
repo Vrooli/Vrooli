@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "neutral",
+        "kind": "enum",
+        "label": "Tone",
+        "options": ["neutral", "info", "success", "warning", "danger"],
+        "path": "tone"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "tone": "neutral"
+      },
+      "id": "tone-neutral",
+      "mode": "pinned",
+      "name": "tone neutral",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ]
+    },
+    {
+      "args": {
+        "tone": "info"
+      },
+      "id": "tone-info",
+      "mode": "pinned",
+      "name": "tone info",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": ["neutral", "info", "success", "warning", "danger"]
+      }
+    },
+    {
+      "args": {
+        "tone": "success"
+      },
+      "id": "tone-success",
+      "mode": "pinned",
+      "name": "tone success",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "tone": "warning"
+      },
+      "id": "tone-warning",
+      "mode": "pinned",
+      "name": "tone warning",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "tone": "danger"
+      },
+      "id": "tone-danger",
+      "mode": "pinned",
+      "name": "tone danger",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "body"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "Badge"
+}

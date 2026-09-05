@@ -1,0 +1,92 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.handle-shaping",
+  "version": "1",
+  "purpose": "Filter, join, sort, select, and aggregate two local Handles in the kernel and return only the top rows and one sum; the handle-shaping construction pattern.",
+  "inputs": {
+    "top_n": {
+      "type": "integer",
+      "default": 3,
+      "description": "Rows returned from the shaped handle, 1 to 10."
+    }
+  },
+  "assumptions": [
+    "program-runtime kernel exposes the Handle constructor"
+  ],
+  "invariants": [
+    "no binding is called; no inference; no delegation",
+    "at most top_n rows are materialized",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "top": "the top_n {name, amount} rows by amount among paid orders",
+      "paid_total": "sum of paid amounts",
+      "paid_count": "count of paid orders"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "handle_error"
+      ]
+    },
+    "evidence": "the local handle sizes"
+  },
+  "budget": {
+    "wall_ms": 10000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10
+  },
+  "fixtures": [
+    {
+      "id": "default",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "paid_total": 73,
+          "paid_count": 3
+        }
+      }
+    },
+    {
+      "id": "bad-top",
+      "inputs": {
+        "top_n": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

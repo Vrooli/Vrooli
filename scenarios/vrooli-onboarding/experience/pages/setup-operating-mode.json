@@ -1,0 +1,113 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-operating-mode",
+    "title": "Operating mode",
+    "routes": [
+      "/setup/operating-mode"
+    ],
+    "purpose": "Confirm which selected scenarios stay running, starting from each manifest's recommendation.",
+    "prd_refs": [
+      "OT-P2-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The manifest recommends; the operator decides, and the difference is visible."
+    },
+    {
+      "statement": "A scenario whose runtime shape makes auto-restart meaningless does not ask about it."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One row per selected scenario with its effective keep-running choice.",
+      "setup": {
+        "route": "/setup/operating-mode"
+      }
+    },
+    {
+      "id": "overridden",
+      "description": "At least one scenario differs from its manifest recommendation."
+    }
+  ],
+  "elements": [
+    {
+      "id": "scenario-row",
+      "role": "group",
+      "description": "One selected scenario's operating-mode choice."
+    },
+    {
+      "id": "keep-running-toggle",
+      "role": "checkbox",
+      "description": "Whether this scenario stays running."
+    },
+    {
+      "id": "recommendation-note",
+      "role": "note",
+      "description": "The manifest's recommendation for this scenario."
+    },
+    {
+      "id": "override-indicator",
+      "role": "note",
+      "description": "Marks a choice that differs from the recommendation."
+    }
+  ],
+  "claims": [
+    {
+      "id": "recommendation-is-visible",
+      "type": "element-present",
+      "statement": "Each row states the manifest recommendation alongside the operator's choice.",
+      "tier": "machine",
+      "elements": [
+        "recommendation-note"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "override-is-visible",
+      "type": "element-present",
+      "statement": "A choice that differs from the manifest recommendation is marked as an override.",
+      "tier": "aspirational",
+      "elements": [
+        "override-indicator"
+      ],
+      "states": [
+        "overridden"
+      ]
+    },
+    {
+      "id": "toggle-keyboard-operable",
+      "type": "keyboard-reachable",
+      "statement": "Every keep-running toggle is operable by keyboard alone.",
+      "tier": "machine",
+      "elements": [
+        "keep-running-toggle"
+      ],
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "scenario-row": {
+        "testid": "operating-mode-row"
+      },
+      "keep-running-toggle": {
+        "testid": "keep-running-toggle"
+      },
+      "recommendation-note": {
+        "testid": "recommendation-note"
+      },
+      "override-indicator": {
+        "testid": "override-indicator"
+      }
+    }
+  }
+}

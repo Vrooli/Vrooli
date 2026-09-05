@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"git-control-tower/internal/testutil/fixtures"
 )
 
 // [REQ:GCT-OT-P0-004] Stage/unstage operations
@@ -299,6 +301,9 @@ func TestUnstageFiles_WithRealRepo(t *testing.T) {
 }
 
 func TestExpandScope(t *testing.T) {
+	repoDir := t.TempDir()
+	fixtures.WriteRepoContract(t, repoDir)
+
 	tests := []struct {
 		scope    string
 		expected []string
@@ -311,7 +316,7 @@ func TestExpandScope(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		result := expandScope(tc.scope)
+		result := expandScope(repoDir, tc.scope)
 		if len(result) != len(tc.expected) {
 			t.Errorf("expandScope(%q) = %v, want %v", tc.scope, result, tc.expected)
 			continue

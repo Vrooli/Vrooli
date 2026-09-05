@@ -3,26 +3,23 @@
   "schemaVersion": 1,
   "id": "skill-optimizer",
   "displayName": "Skill Optimizer",
-  "description": "Audits skill effectiveness, resolves cross-skill conflicts, rewrites underperforming skills, and creates missing skills.",
+  "description": "Applies evolutionary pressure to the skill library. Primary lever: convert prose-heavy skills into thin wrappers over scenario CLIs. Secondary: audit drift, propose deprecation.",
   "status": "active",
   "appearance": {
-    "body": "#B45309",
-    "head": "#FBBF24",
-    "accent": "#FDE68A"
+    "body": "#7C3AED",
+    "head": "#A78BFA",
+    "accent": "#EDE9FE"
   },
   "tags": [
     "meta",
     "skills",
-    "authoring",
     "optimization",
-    "conflict-resolution"
+    "programmatic-conversion"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
-  "revision": 2,
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-03-11T00:00:00Z"
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
 }

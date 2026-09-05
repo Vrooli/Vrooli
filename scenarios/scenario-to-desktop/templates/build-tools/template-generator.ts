@@ -51,7 +51,7 @@ interface DesktopConfig {
     lpbs_url?: string; // Vrooli platform URL for auth (defaults to https://vrooli.com)
 
     // Template configuration
-    framework: 'electron' | 'tauri' | 'neutralino';
+    framework: 'electron';
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
 
     // Features
@@ -388,7 +388,9 @@ class DesktopTemplateGenerator {
             BUNDLED_RUNTIME_SUPPORTED: this.config.deployment_mode === 'bundled',
             BUNDLED_RUNTIME_ROOT: this.config.bundle_runtime_root || 'bundle',
             BUNDLED_RUNTIME_IPC_HOST: this.config.bundle_ipc?.host || '127.0.0.1',
-            BUNDLED_RUNTIME_IPC_PORT: this.config.bundle_ipc?.port || 47710,
+            // No BUNDLED_RUNTIME_IPC_PORT: baking a port here turned a bundle's
+            // "0 = allocate" declaration into a fixed number. The staged bundle
+            // manifest carries the declaration; the runtime publishes the result.
             // CRITICAL: Token path must match bundle.json exactly!
             // If bundle_ipc.auth_token_path is not provided, we use a default.
             // This default MUST match what the runtime creates, or the desktop app will timeout.

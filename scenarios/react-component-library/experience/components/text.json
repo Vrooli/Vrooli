@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": { "id": "text", "title": "Text", "purpose": "A token-bound structural typography primitive.", "storyRef": "../../library/primitives/Text/versions/1.1.2/story.json" },
+  "states": [
+    { "id": "display", "example": "scale", "description": "Display typography." },
+    { "id": "title", "example": "scale", "description": "Title typography." },
+    { "id": "heading", "example": "scale", "description": "Heading typography." },
+    { "id": "body", "example": "anatomy", "description": "Body typography." },
+    { "id": "label", "example": "scale", "description": "Label typography." },
+    { "id": "caption", "example": "scale", "description": "Caption typography." },
+    { "id": "code", "example": "scale", "description": "Code typography." },
+    { "id": "overline", "example": "scale", "description": "Overline typography." }
+  ],
+  "elements": [{ "id": "text", "role": "x-text", "description": "The visible text output." }],
+  "claims": [
+    { "id": "text-present", "type": "element-present", "statement": "The selected style renders visible text.", "tier": "machine", "elements": ["text"], "states": ["display", "title", "heading", "body", "label", "caption", "code", "overline"] },
+    { "id": "typography-contract", "type": "custom", "statement": "Text exposes bounded typography styles backed by shared tokens.", "tier": "manual", "states": ["display", "title", "heading", "body", "label", "caption", "code", "overline"] }
+  ],
+  "bindings": { "elements": { "text": { "testid": "rcl-text-sample" } } }
+}

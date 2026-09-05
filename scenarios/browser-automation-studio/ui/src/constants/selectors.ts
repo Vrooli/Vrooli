@@ -377,9 +377,8 @@ const literalSelectors = {
   executions: {
     tabs: {
       executions: "execution-tab-executions",
-      logs: "execution-tab-logs",
       replay: "execution-tab-replay",
-      screenshots: "execution-tab-screenshots",
+      artifacts: "execution-tab-artifacts",
     },
     filters: {
       all: "execution-filter-all",
@@ -509,12 +508,16 @@ const literalSelectors = {
     card: "project-card",
     cardTitle: "project-card-title",
     editButton: "project-edit-button",
+    moreMenuButton: "project-more-menu-button",
+    resyncFilesButton: "project-resync-files-button",
     fileTree: {
       root: "project-file-tree-root",
       container: "project-file-tree",
       viewModeToggle: "project-file-tree-view-mode-toggle",
       createFolderButton: "project-file-tree-create-folder",
       createWorkflowButton: "project-file-tree-create-workflow",
+      runButton: "file-tree-run",
+      testButton: "file-tree-test",
     },
     presets: {
       recommendedPreset: "project-preset-recommended",
@@ -613,10 +616,16 @@ const literalSelectors = {
   workflows: {
     tab: "workflows-tab",
     card: "workflow-card",
+    cardViewToggle: "workflow-card-view-toggle",
+    creation: {
+      dialog: "workflow-creation-dialog",
+      aiAssisted: "workflow-creation-ai-assisted",
+      visualBuilder: "workflow-creation-visual-builder",
+    },
     newButton: "new-workflow-button",
     newButtonFab: "new-workflow-button-fab",
   },
-  // Landing Manager Admin Portal selectors
+  // Landing-page admin portal selectors
   // Note: These are data-testid selector values, NOT actual credentials
   // nosec: These string literals are DOM test selectors, not secrets
   exports: {

@@ -1,0 +1,47 @@
+{
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "description": "Every finding carries a human-readable remediation string so consumers (humans and the controller's steer skill) get an actionable next step, not just a verdict.",
+  "requirements": [
+    {
+      "id": "REQ-P0-008",
+      "title": "Per-finding remediation text",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "status": "planned",
+      "description": "Each scanner runner must attach a concrete remediation string to every finding it emits (e.g. gitleaks -> 'rotate the exposed credential and purge it from history; move it to vault'; osv/govulncheck -> 'bump <module> to >= <patched version>').",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "A gitleaks finding's remediation references rotation and vault." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "An osv-scanner finding's remediation names the patched version to bump to." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "No emitted finding has an empty remediation field." }
+      ]
+    },
+    {
+      "id": "REQ-P0-020",
+      "title": "API security header validation",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "status": "planned",
+      "description": "Security Health must validate that first-party Go API surfaces centralize baseline browser security headers at the router or middleware boundary, and must flag credentialed wildcard CORS without requiring a generic CORS policy.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "ref": "api/internal/validation/validation_test.go::TestService_SecurityHeadersMissingFailsScenario", "notes": "Missing centralized security headers produce an ERROR finding." },
+        { "type": "test", "phase": "unit", "status": "pending", "ref": "api/internal/validation/validation_test.go::TestSecurityHeadersCheckFlagsOnlyUnsafeCORS", "notes": "Credentialed wildcard CORS is flagged while normal CORS is not mandated." },
+        { "type": "test", "phase": "unit", "status": "pending", "ref": "api/internal/middleware/securityheaders_test.go::TestSecurityHeadersMiddlewareSetsBaselineHeaders", "notes": "Security Health's own API middleware stamps the required baseline headers." }
+      ]
+    },
+    {
+      "id": "REQ-P0-021",
+      "title": "Safe security header autofix",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "status": "planned",
+      "description": "Security Health's deterministic fixer must preview and apply only low-risk generated-Go API security-header middleware edits, and must return no-op guidance for unsupported shapes instead of guessing.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "ref": "api/internal/validation/validation_test.go::TestSecurityHeadersFixPreviewAndApplyGeneratedServerShape", "notes": "Preview is dry-run; apply creates the middleware and registers it in the generated server shape." },
+        { "type": "test", "phase": "unit", "status": "pending", "ref": "api/handlers/validation/connect_handler_test.go::TestPreviewAndApplyFixMapCandidates", "notes": "Shared Fix RPC maps Security Health candidates into scenario-validation FixResponse." },
+        { "type": "test", "phase": "unit", "status": "pending", "ref": "cli/domains/fix/handlers_test.go::TestPreviewFixSendsScenarioAndDedupedRuleIDs", "notes": "CLI preview sends normalized rule ids through the shared Fix RPC." }
+      ]
+    }
+  ]
+}

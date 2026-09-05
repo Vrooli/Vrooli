@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "foundations.gesture-direction", "name": "Gesture Direction", "kind": "foundation", "domain": "foundations", "description": "Resolves logical gesture directions from writing direction and anchor edge.", "targets": ["react-vite"], "slot": "theme-token", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

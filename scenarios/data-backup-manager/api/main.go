@@ -2,769 +2,474 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"github.com/vrooli/api-core/health"
+	"data-backup-manager/internal/destinationreadiness"
+	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/modules"
+	"data-backup-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	auditsH "data-backup-manager/handlers/audits"
+	coverageH "data-backup-manager/handlers/coverage"
+	destinationsH "data-backup-manager/handlers/destinations"
+	discoveryH "data-backup-manager/handlers/discovery"
+	drillsH "data-backup-manager/handlers/drills"
+	healthH "data-backup-manager/handlers/health"
+	plansH "data-backup-manager/handlers/plans"
+	restoresH "data-backup-manager/handlers/restores"
+	runsH "data-backup-manager/handlers/runs"
+	safetyH "data-backup-manager/handlers/safety"
+	targetsH "data-backup-manager/handlers/targets"
+
+	auditsint "data-backup-manager/internal/audits"
+	coverageint "data-backup-manager/internal/coverage"
+	destint "data-backup-manager/internal/destinations"
+	discoveryint "data-backup-manager/internal/discovery"
+	drillsint "data-backup-manager/internal/drills"
+	plansint "data-backup-manager/internal/plans"
+	restoresint "data-backup-manager/internal/restores"
+	runsint "data-backup-manager/internal/runs"
+	safetyint "data-backup-manager/internal/safety"
+	scenariospecint "data-backup-manager/internal/scenariospec"
+	schedint "data-backup-manager/internal/scheduler"
+	"data-backup-manager/internal/sources"
+	"data-backup-manager/internal/sysmounts"
+	targetsint "data-backup-manager/internal/targets"
 )
 
-type BackupJob struct {
-	ID              string    `json:"id"`
-	Type            string    `json:"type"`
-	Target          string    `json:"target"`
-	TargetID        string    `json:"target_identifier"`
-	Status          string    `json:"status"`
-	StartedAt       time.Time `json:"started_at"`
-	CompletedAt     *time.Time `json:"completed_at"`
-	SizeBytes       int64     `json:"size_bytes"`
-	CompressionRatio float64   `json:"compression_ratio"`
-	StoragePath     string    `json:"storage_path"`
-	Checksum        string    `json:"checksum"`
-	RetentionUntil  time.Time `json:"retention_until"`
-	Description     string    `json:"description"`
+func lookupEnvTrimmed(name string) (string, bool) {
+	value, ok := os.LookupEnv(name)
+	value = strings.TrimSpace(value)
+	return value, ok && value != ""
 }
 
-type BackupCreateRequest struct {
-	Type          string   `json:"type"`
-	Targets       []string `json:"targets"`
-	Description   string   `json:"description,omitempty"`
-	RetentionDays int      `json:"retention_days,omitempty"`
+// sqlitePath resolves this scenario's own database path. The path is needed
+// separately from the DSN because databasePreflight inspects the file before
+// anything opens it — an empty or vanished database is a possible data loss and
+// must stop startup rather than be silently recreated.
+func sqlitePath() (string, error) {
+	return storage.SQLitePath(storage.SQLiteConfig{Scenario: "data-backup-manager"})
 }
 
-type BackupCreateResponse struct {
-	JobID             string   `json:"job_id"`
-	EstimatedDuration string   `json:"estimated_duration"`
-	Status            string   `json:"status"`
-	Targets           []string `json:"targets"`
-}
-
-type RestoreCreateRequest struct {
-	RestorePointID       string   `json:"restore_point_id,omitempty"`
-	BackupJobID          string   `json:"backup_job_id,omitempty"`
-	Targets              []string `json:"targets"`
-	Destination          string   `json:"destination,omitempty"`
-	VerifyBeforeRestore  bool     `json:"verify_before_restore"`
-}
-
-type RestoreCreateResponse struct {
-	RestoreID         string        `json:"restore_id"`
-	EstimatedDuration string        `json:"estimated_duration"`
-	Status            string        `json:"status"`
-	ValidationResults []interface{} `json:"validation_results"`
-}
-
-type BackupStatusResponse struct {
-	SystemStatus         string            `json:"system_status"`
-	ActiveJobs           []BackupJob       `json:"active_jobs"`
-	LastSuccessfulBackup *time.Time        `json:"last_successful_backup"`
-	StorageUsage         StorageUsageInfo  `json:"storage_usage"`
-	ResourceHealth       ResourceHealthMap `json:"resource_health"`
-}
-
-type StorageUsageInfo struct {
-	UsedGB           float64 `json:"used_gb"`
-	AvailableGB      float64 `json:"available_gb"`
-	CompressionRatio float64 `json:"compression_ratio"`
-}
-
-type ResourceHealthMap map[string]ResourceHealth
-
-type ResourceHealth struct {
-	Status      string    `json:"status"`
-	LastChecked time.Time `json:"last_checked"`
-	Message     string    `json:"message,omitempty"`
-}
-
-
-// Compliance tracking
-func handleComplianceReport(w http.ResponseWriter, r *http.Request) {
-	report := map[string]interface{}{
-		"total_resources":  45,
-		"compliant":        38,
-		"non_compliant":    7,
-		"compliance_score": 84.4,
-		"last_scan":        time.Now().Add(-3 * time.Hour),
-		"issues": []map[string]interface{}{
-			{
-				"id":       "issue-001",
-				"severity": "high",
-				"title":    "PostgreSQL backup older than 24 hours",
-				"path":     "/resources/postgres/main",
-				"recommendation": "Run immediate backup or check schedule",
-			},
-			{
-				"id":       "issue-002",
-				"severity": "medium",
-				"title":    "Scenario 'app-monitor' missing backup configuration",
-				"path":     "/scenarios/app-monitor",
-				"recommendation": "Add backup configuration to service.json",
-			},
-			{
-				"id":       "issue-003",
-				"severity": "low",
-				"title":    "Data directory not following naming convention",
-				"path":     "/data/misc",
-				"recommendation": "Rename to follow /data/{category}/{timestamp} format",
-			},
-		},
-		"categories": map[string]interface{}{
-			"resources": map[string]int{
-				"total":      15,
-				"compliant":  12,
-				"issues":     3,
-			},
-			"scenarios": map[string]int{
-				"total":      30,
-				"compliant":  26,
-				"issues":     4,
-			},
-		},
+// databasePreflight prevents a previously initialized catalog from silently
+// becoming a fresh empty catalog after a cleanup, retention, or mount mistake.
+// A genuinely new installation is still allowed to create its first database;
+// the marker makes subsequent absence a loud recovery condition.
+func databasePreflight(path string) error {
+	if strings.HasPrefix(path, "file:") {
+		return nil
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(report)
-}
-
-func handleComplianceScan(w http.ResponseWriter, r *http.Request) {
-	// Trigger compliance scan
-	scanID := fmt.Sprintf("scan-%d", time.Now().Unix())
-	
-	response := map[string]interface{}{
-		"scan_id":     scanID,
-		"status":      "started",
-		"started_at":  time.Now(),
-		"estimated":   "5m",
-		"message":     "Compliance scan initiated. Checking all resources and scenarios...",
-	}
-
-	log.Printf("Started compliance scan: %s", scanID)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleComplianceFix(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	issueID := vars["id"]
-	
-	response := map[string]interface{}{
-		"issue_id":    issueID,
-		"status":      "fixing",
-		"action":      "Automated fix initiated",
-		"details":     "Moving data to compliant location and updating configuration",
-		"estimated":   "30s",
-	}
-
-	log.Printf("Fixing compliance issue: %s", issueID)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-// Visited tracker integration
-func handleVisitedRecord(w http.ResponseWriter, r *http.Request) {
-	var record map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&record); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	// Record visit to visited-tracker
-	record["visited_at"] = time.Now()
-	record["visitor"] = "data-backup-manager"
-	
-	log.Printf("Recorded visit to %s/%s", record["type"], record["name"])
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Visit recorded successfully",
-		"data":    record,
-	})
-}
-
-func handleVisitedNext(w http.ResponseWriter, r *http.Request) {
-	// Get next unvisited resource/scenario from visited-tracker
-	nextTarget := map[string]interface{}{
-		"type":         "scenario",
-		"name":         "system-monitor",
-		"path":         "/scenarios/system-monitor",
-		"last_visited": nil,
-		"priority":     "high",
-		"reason":       "Never checked for compliance",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(nextTarget)
-}
-
-// Maintenance orchestrator integration
-func handleMaintenanceStatus(w http.ResponseWriter, r *http.Request) {
-	status := map[string]interface{}{
-		"service_name":        "data-backup-manager",
-		"agent_enabled":       true,
-		"agent_last_run":      time.Now().Add(-2 * time.Hour),
-		"agent_next_run":      time.Now().Add(4 * time.Hour),
-		"maintenance_score":   92.5,
-		"critical_issues":     0,
-		"warning_issues":      2,
-		"auto_fix_enabled":    true,
-		"tasks_completed":     47,
-		"tasks_failed":        1,
-		"available_tasks": []string{
-			"backup_postgres",
-			"backup_files", 
-			"verify_backups",
-			"cleanup_old_backups",
-			"compliance_scan",
-			"fix_compliance_issues",
-			"rotate_logs",
-		},
-		"dependencies": map[string]string{
-			"postgres":    "healthy",
-			"minio":       "healthy",
-			"n8n":         "healthy",
-			"visited-tracker": "available",
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
-}
-
-func handleMaintenanceTask(w http.ResponseWriter, r *http.Request) {
-	var taskRequest map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&taskRequest); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	taskType := taskRequest["task_type"].(string)
-	taskID := fmt.Sprintf("task-%d", time.Now().Unix())
-	
-	var response map[string]interface{}
-	
-	switch taskType {
-	case "backup_postgres":
-		response = map[string]interface{}{
-			"task_id":     taskID,
-			"task_type":   taskType,
-			"status":      "running",
-			"started_at":  time.Now(),
-			"estimated":   "5m",
-			"progress":    0,
-			"message":     "Starting PostgreSQL backup...",
+	info, err := os.Stat(path)
+	if err == nil {
+		if info.Size() == 0 {
+			return fmt.Errorf("data-backup-manager database %q is empty; refusing to initialize over a possible loss", path)
 		}
-	case "compliance_scan":
-		response = map[string]interface{}{
-			"task_id":     taskID,
-			"task_type":   taskType,
-			"status":      "running",
-			"started_at":  time.Now(),
-			"estimated":   "3m",
-			"progress":    0,
-			"message":     "Scanning all resources and scenarios for compliance...",
-		}
-	case "cleanup_old_backups":
-		response = map[string]interface{}{
-			"task_id":     taskID,
-			"task_type":   taskType,
-			"status":      "running",
-			"started_at":  time.Now(),
-			"estimated":   "2m",
-			"progress":    0,
-			"message":     "Removing expired backups based on retention policy...",
-		}
-	default:
-		http.Error(w, "Unknown task type", http.StatusBadRequest)
-		return
+		return nil
 	}
-
-	log.Printf("Maintenance orchestrator requested task: %s (ID: %s)", taskType, taskID)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect data-backup-manager database %q: %w", path, err)
+	}
+	if _, markerErr := os.Stat(path + ".initialized"); markerErr == nil {
+		return fmt.Errorf("data-backup-manager database %q is absent after prior initialization; restore it before starting", path)
+	}
+	return nil
 }
 
-func handleMaintenanceAgentToggle(w http.ResponseWriter, r *http.Request) {
-	var toggleRequest map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&toggleRequest); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
+func markDatabaseInitialized(path string) error {
+	if strings.HasPrefix(path, "file:") {
+		return nil
 	}
-
-	enabled := toggleRequest["enabled"].(bool)
-	
-	response := map[string]interface{}{
-		"service":         "data-backup-manager",
-		"agent_enabled":   enabled,
-		"updated_at":      time.Now(),
-		"message":         fmt.Sprintf("Maintenance agent %s", map[bool]string{true: "enabled", false: "disabled"}[enabled]),
-		"next_scheduled":  nil,
+	marker := path + ".initialized"
+	if _, err := os.Stat(marker); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
 	}
-
-	if enabled {
-		response["next_scheduled"] = time.Now().Add(6 * time.Hour)
-		response["schedule"] = "0 */6 * * *" // Every 6 hours
-	}
-
-	log.Printf("Maintenance agent %s for data-backup-manager", map[bool]string{true: "enabled", false: "disabled"}[enabled])
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	return os.WriteFile(marker, []byte("data-backup-manager database initialized\n"), 0o600)
 }
-
-// Global backup manager instance
-var backupManager *BackupManager
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "data-backup-manager",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "data-backup-manager"}) {
+		return
 	}
+	if err := run(context.Background()); err != nil {
+		log.Fatalf("%v", err)
+	}
+}
 
-	// Initialize backup manager
-	var err error
-	backupManager, err = NewBackupManager()
+func healthHandler(handler http.Handler) http.HandlerFunc {
+	return handler.ServeHTTP
+}
+
+func run(ctx context.Context) error {
+	databasePath, err := sqlitePath()
 	if err != nil {
-		log.Printf("Warning: Backup manager initialization failed: %v", err)
-		log.Printf("API will run with limited functionality")
-		// Continue running without database connection
-	} else {
-		log.Printf("Backup manager initialized successfully")
-		
-		// Start scheduled backup checker (runs every minute)
-		go func() {
-			ticker := time.NewTicker(1 * time.Minute)
-			defer ticker.Stop()
-			for range ticker.C {
-				if backupManager != nil {
-					backupManager.RunScheduledBackups()
-				}
-			}
-		}()
+		return fmt.Errorf("sqlite configuration failed: %w", err)
+	}
+	if err := databasePreflight(databasePath); err != nil {
+		return fmt.Errorf("database preflight failed: %w", err)
+	}
+	dsn, err := storage.SQLiteDSNAt(databasePath, storage.SQLiteTuning{})
+	if err != nil {
+		return fmt.Errorf("sqlite configuration failed: %w", err)
 	}
 
-	r := mux.NewRouter()
-
-	// Health endpoint - using standardized api-core/health
-	var dbPinger interface{ Ping() error }
-	if backupManager != nil {
-		dbPinger = backupManager.db
+	db, err := database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		return fmt.Errorf("database connection failed: %w", err)
 	}
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(dbPinger), health.Critical).Handler()
-	r.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// API v1 routes
-	api := r.PathPrefix("/api/v1").Subrouter()
-	
-	// Backup endpoints
-	api.HandleFunc("/backup/create", handleBackupCreate).Methods("POST")
-	api.HandleFunc("/backup/status", handleBackupStatus).Methods("GET")
-	api.HandleFunc("/backup/list", handleBackupList).Methods("GET")
-	api.HandleFunc("/backup/verify/{id}", handleBackupVerify).Methods("POST")
-	
-	// Restore endpoints
-	api.HandleFunc("/restore/create", handleRestoreCreate).Methods("POST")
-	api.HandleFunc("/restore/status/{id}", handleRestoreStatus).Methods("GET")
-	
-	// Schedule endpoints
-	api.HandleFunc("/schedules", handleScheduleList).Methods("GET")
-	api.HandleFunc("/schedules", handleScheduleCreate).Methods("POST")
-	api.HandleFunc("/schedules/{id}", handleScheduleUpdate).Methods("PUT")
-	api.HandleFunc("/schedules/{id}", handleScheduleDelete).Methods("DELETE")
-	
-	// Compliance endpoints
-	api.HandleFunc("/compliance/report", handleComplianceReport).Methods("GET")
-	api.HandleFunc("/compliance/scan", handleComplianceScan).Methods("POST")
-	api.HandleFunc("/compliance/issue/{id}/fix", handleComplianceFix).Methods("POST")
-	
-	// Visited tracker integration
-	api.HandleFunc("/visited/record", handleVisitedRecord).Methods("POST")
-	api.HandleFunc("/visited/next", handleVisitedNext).Methods("GET")
-	
-	// Maintenance orchestrator integration
-	api.HandleFunc("/maintenance/status", handleMaintenanceStatus).Methods("GET")
-	api.HandleFunc("/maintenance/task", handleMaintenanceTask).Methods("POST")
-	api.HandleFunc("/maintenance/agent/toggle", handleMaintenanceAgentToggle).Methods("POST")
+	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("schema initialization failed: %w", err)
+	}
+	if err := markDatabaseInitialized(databasePath); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("record database initialization marker: %w", err)
+	}
 
-	// Setup CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"*"},
+	// Additive column migration for the destinations table (SQLite has no
+	// ADD COLUMN IF NOT EXISTS); idempotent on fresh and existing databases.
+	if err := destint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("destinations column migration failed: %w", err)
+	}
+	if err := plansint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("plans column migration failed: %w", err)
+	}
+	if err := targetsint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("targets column migration failed: %w", err)
+	}
+
+	// Additive column migration for the runs table (error, updated_at) so the
+	// async-execution columns land on a database that predates them without
+	// losing run history.
+	if err := runsint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("runs column migration failed: %w", err)
+	}
+
+	// Additive column migration for the restores table (updated_at heartbeat) so
+	// async-restore columns land on a database that predates them.
+	if err := restoresint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("restores column migration failed: %w", err)
+	}
+
+	// The backup engine (resource-kopia) wrapped behind the KopiaEngine seam,
+	// and the storage root the manager protects (a destination must not point
+	// under it — the separate-root rule). SCENARIO_DATA_DIR is set by the
+	// lifecycle; empty in bare dev runs, which makes the rule permissive.
+	clk := schedule.System()
+	logger := log.Default()
+	kopia := engine.NewKopiaCLI()
+	protectedRoot, _ := lookupEnvTrimmed("SCENARIO_DATA_DIR")
+	fileResolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return fmt.Errorf("create file storage resolver: %w", err)
+	}
+	filePaths, err := fileResolver.Resolve(storage.Options{ScenarioID: "data-backup-manager"})
+	if err != nil {
+		return fmt.Errorf("resolve file storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(filePaths)
+
+	// Concrete domain services used both for mounting (via each module) and as
+	// the backing for the cross-domain adapters the run orchestration needs.
+	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
+	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
+	if err := destSvc.ReconcileCredentialReferences(ctx); err != nil {
+		// A destination may be mounted read-only while the manager is still
+		// able to serve catalog/readiness requests. Keep the service available,
+		// surface the exact pending migration, and retry on the next boot.
+		logger.Printf("destination credential-reference reconciliation pending: %v", err)
+	}
+	planReadiness := destinationreadiness.NewService(
+		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
+		destinationreadiness.NewLocalPreparer(),
+	)
+
+	// Discovery: read-only onboarding suggestions. Scans well-known runtime
+	// state (~/.vrooli) for targets and mounted volumes for destinations,
+	// filtering against the live catalog + a dismissals table. Suggestions are
+	// derived; only dismissals persist. The protected-path set is computed here
+	// (runtime root + registered destinations + registered target locators) —
+	// wider than the destinations service's own protectedRoot (D4). Built before
+	// plans because the plan coverage guard reads its recommendations.
+	sourceScanner := discoveryint.NewCachedTargetSourceScanner(
+		discoveryint.NewCompositeScanner(
+			discoveryint.NewWellKnownScanner(),
+			discoveryint.NewResourceDataScanner(),
+		),
+		30*time.Second,
+	)
+	// Warm the bounded read-only inventory before advertising API health. The
+	// first overview request must not pay the full repository walk, and later
+	// concurrent coverage/suggestions requests reuse this snapshot.
+	if _, err := sourceScanner.Scan(ctx); err != nil {
+		logger.Printf("discovery inventory warm-up unavailable: %v", err)
+	}
+
+	discoverySvc := discoveryint.NewService(discoveryint.Deps{
+		Volumes: sysmounts.New(),
+		// Two source scanners behind one seam: Vrooli's own runtime home
+		// (~/.vrooli) plus every declared non-regenerable owner storage entry.
+		Sources:      sourceScanner,
+		Targets:      discoveryTargetCatalog{svc: targetsSvc},
+		Destinations: discoveryDestCatalog{svc: destSvc},
+		Protected:    discoveryProtectedPaths{runtimeRoot: discoveryint.RuntimeRoot(), targets: targetsSvc, dests: destSvc},
+		Dismissals:   discoveryint.NewSQLiteDismissalStore(db, clk),
 	})
 
-	handler := c.Handler(r)
+	// Plan coverage guard: a suggestions-only coverage instance backs the plans
+	// service so create/update can block on incomplete non-sensitive default
+	// coverage. It depends only on discovery (not plans), which keeps the
+	// construction graph acyclic — the full coverage service below reads plans.
+	guardCoverage := coverageint.NewService(coverageint.Deps{
+		Suggestions: coverageSuggestions{svc: discoverySvc},
+	})
+	plansSvc := plansint.NewServiceWithPolicies(
+		plansint.NewSQLiteRepository(db, clk),
+		planCoverageGuard{svc: guardCoverage},
+		planCriticalTargetPolicy{svc: targetsSvc},
+		planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness},
+	)
 
-	log.Println("Data Backup Manager API starting...")
-	if err := server.Run(server.Config{
+	// The run orchestration: capture (sources) + snapshot/retention (engine),
+	// cap-block via destinations, reading plans/targets through adapters. Runs
+	// execute on a background worker bound to execCtx (server lifetime), so a
+	// client/proxy disconnect cannot cancel an in-flight backup. execCtx is
+	// cancelled on graceful shutdown to interrupt and drain in-flight work.
+	execCtx, cancelExec := context.WithCancel(ctx)
+	defer cancelExec()
+	concurrency, err := runConcurrency()
+	if err != nil {
+		cancelExec()
+		_ = db.Close()
+		return err
+	}
+	overdueAfterDur, err := overdueAfter()
+	if err != nil {
+		cancelExec()
+		_ = db.Close()
+		return err
+	}
+	sourceRegistry := sources.NewProductionRegistry(sources.ExecRunner{})
+	// Late-bound: the scheduler is constructed below (it needs runsSvc as its
+	// trigger), then assigned into this adapter before any request runs.
+	nextSched := &nextScheduleAdapter{plans: plansSvc}
+	runsSvc := runsint.NewService(runsint.Deps{
+		Repo:                 runsint.NewSQLiteRepository(db, clk),
+		Plans:                planLookup{svc: plansSvc},
+		Targets:              targetLookup{svc: targetsSvc},
+		ActiveTargets:        targetLookup{svc: targetsSvc},
+		Destinations:         destinationLookup{svc: destSvc},
+		Engine:               kopia,
+		Sources:              sourceRegistry,
+		Events:               logEventSink{logger: logger},
+		Clock:                clk,
+		Logger:               logger,
+		BaseContext:          execCtx,
+		TargetConcurrency:    concurrency,
+		OverdueAfter:         overdueAfterDur,
+		NextSchedule:         nextSched,
+		PreflightSourcePaths: true,
+		Readiness:            planReadiness,
+		RoutedRoots:          fileRoots,
+	})
+
+	// Startup reconciliation: close any run left non-terminal by a prior
+	// crash/restart/disconnect so no run can wedge in pending/capturing forever.
+	if err := runsSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("run reconciliation failed: %w", err)
+	}
+
+	// Restore + verify gate: restore a target to a location, or test-restore to
+	// scratch + checksum (verify), recording last-verified (OT-P0-006).
+	restoresSvc := restoresint.NewService(restoresint.Deps{
+		Repo:         restoresint.NewSQLiteRepository(db, clk),
+		Targets:      restoreTargetLookup{svc: targetsSvc},
+		Destinations: restoreDestinationLookup{svc: destSvc},
+		Engine:       kopia,
+		Sources:      sourceRegistry,
+		Clock:        clk,
+		// Restores run async on a background worker bound to the server-lifetime
+		// context, so the request RPC returns immediately and a client disconnect
+		// cannot sever an in-flight restore (no more 6h WriteTimeout).
+		BaseContext: execCtx,
+		Workers:     concurrency,
+		Logger:      logger,
+	})
+
+	// Startup reconciliation: close any restore left non-terminal by a prior
+	// crash/restart/disconnect, fail-not-resume (never falsely "verified").
+	if err := restoresSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("restore reconciliation failed: %w", err)
+	}
+
+	// Generic snapshot audit: restore a snapshot to scratch, capture the live
+	// target to scratch (read-only on live), walk both, and compare by generic
+	// signals only. Scenario-agnostic — DBM never learns a domain's objects.
+	// Runs async on a background worker bound to the server-lifetime context.
+	auditsSvc := auditsint.NewService(auditsint.Deps{
+		Repo:         auditsint.NewSQLiteRepository(db, clk),
+		Targets:      auditTargetLookup{svc: targetsSvc},
+		Destinations: auditDestinationLookup{svc: destSvc},
+		Engine:       kopia,
+		Sources:      sourceRegistry,
+		Clock:        clk,
+		BaseContext:  execCtx,
+		Workers:      concurrency,
+		Logger:       logger,
+	})
+
+	// Startup reconciliation: close any audit left non-terminal by a prior
+	// crash/restart/disconnect, fail-not-resume.
+	if err := auditsSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("audit reconciliation failed: %w", err)
+	}
+
+	// Recovery drills reuse the verified-restore gate but add durable policy,
+	// idempotency, latest-successful-snapshot selection, and scheduled operator
+	// evidence. They never write to a live target.
+	drillsSvc := drillsint.NewService(drillsint.Deps{
+		Repo:        drillsint.NewSQLiteRepository(db),
+		Plans:       drillPlanLookup{svc: plansSvc},
+		Snapshots:   drillSnapshotLookup{svc: runsSvc},
+		Restores:    drillRestoreRunner{svc: restoresSvc},
+		Clock:       clk,
+		BaseContext: execCtx,
+		Workers:     concurrency,
+		Logger:      logger,
+	})
+	if err := drillsSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("recovery-drill reconciliation failed: %w", err)
+	}
+	if err := startDrillScheduler(ctx, drillsSvc, logger); err != nil {
+		_ = db.Close()
+		return err
+	}
+
+	// Coverage: the first-real-backup readiness surface. Composes discovery
+	// suggestions with the targets/plans/runs/restores catalogs into one report
+	// plus bulk default acceptance. Owns no scanner logic; reads no file
+	// contents; persists nothing.
+	coverageSvc := coverageint.NewService(coverageint.Deps{
+		Suggestions: coverageSuggestions{svc: discoverySvc},
+		Targets:     coverageTargetCatalog{svc: targetsSvc},
+		Plans:       coveragePlanCatalog{svc: plansSvc},
+		Runs:        coverageRunStatus{svc: runsSvc},
+		Restores:    coverageVerified{svc: restoresSvc},
+	})
+
+	// In-process scheduler: fires due plans on their cadence (OT-P0-005).
+	scheduler := schedint.New(clk, planSource{svc: plansSvc}, runTrigger{svc: runsSvc})
+	nextSched.sched = scheduler // late bind: see nextScheduleAdapter
+	if err := startScheduler(ctx, scheduler, logger); err != nil {
+		_ = db.Close()
+		return err
+	}
+
+	// Health reports backup posture (degraded when targets are overdue/failed)
+	// in addition to liveness, and emits a posture event for monitoring. It
+	// reads the same per-target Overdue the runs service computes from
+	// overdueAfterDur, so /health and `runs status` never disagree.
+	posture := backupPosture{runs: runsSvc}
+
+	// Baseline Modes safety substrate: pure orchestration over the
+	// destinations/targets/plans/runs services (no tables of its own) that the
+	// platform recovery floor shells out to for pre-promote scenario snapshots.
+	safetySvc := safetyint.NewService(safetyint.Deps{
+		Destinations: safetyDestinations{svc: destSvc},
+		Targets:      safetyTargets{svc: targetsSvc},
+		Plans:        safetyPlans{svc: plansSvc},
+		Runs:         safetyRuns{svc: runsSvc},
+		Restores:     safetyRestores{svc: restoresSvc},
+		Inspector:    safetyScenarioInspector{insp: scenariospecint.NewInspector()},
+		RuntimeRoot:  discoveryint.RuntimeRoot,
+	})
+
+	srv := server.New(
+		server.Deps{Clock: clk, Logger: logger},
+		healthH.ModuleWithPosture(db, "data-backup-manager-api", "1.0.0", posture, logEventSink{logger: logger}),
+		auditsH.Module(auditsSvc, logger),
+		coverageH.Module(coverageSvc, logger),
+		destinationsH.Module(db, clk, kopia, protectedRoot, logger),
+		discoveryH.Module(discoverySvc, logger),
+		plansH.Module(plansSvc, logger),
+		restoresH.Module(restoresSvc, logger),
+		drillsH.Module(drillsSvc, logger),
+		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),
+		safetyH.Module(safetySvc, logger),
+		targetsH.Module(db, clk, logger),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	rootMux.HandleFunc("/health", healthHandler(srv.Handler()))
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error {
-			if backupManager != nil && backupManager.db != nil {
-				return backupManager.db.Close()
-			}
-			return nil
+		// Both backup runs AND restores/verifies are now async: their RPCs persist
+		// a record, schedule the kopia work on a server-lifetime background worker,
+		// and return immediately. Nothing blocks the HTTP handler for the duration
+		// of a kopia operation anymore, so the api-core default WriteTimeout is
+		// sufficient — the 6h override (and the CLI's unlimited-timeout client)
+		// that the synchronous restore path needed are gone.
+		Cleanup: func(cctx context.Context) error {
+			// Interrupt and drain in-flight runs + restores before closing the DB
+			// so no worker can write to a closed handle.
+			cancelExec()
+			_ = runsSvc.Shutdown(cctx)
+			_ = restoresSvc.Shutdown(cctx)
+			_ = auditsSvc.Shutdown(cctx)
+			_ = drillsSvc.Shutdown(cctx)
+			return db.Close()
 		},
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		return fmt.Errorf("server error: %w", err)
 	}
-}
-
-func handleBackupCreate(w http.ResponseWriter, r *http.Request) {
-	var req BackupCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	// Validate request
-	if len(req.Targets) == 0 {
-		http.Error(w, "At least one target must be specified", http.StatusBadRequest)
-		return
-	}
-
-	if req.Type != "full" && req.Type != "incremental" && req.Type != "differential" {
-		http.Error(w, "Invalid backup type. Must be 'full', 'incremental', or 'differential'", http.StatusBadRequest)
-		return
-	}
-
-	// Create backup job using the backup manager
-	var job *BackupJob
-	var err error
-	
-	if backupManager != nil {
-		job, err = backupManager.CreateBackupJob(req.Type, req.Targets, req.Description)
-		if err != nil {
-			log.Printf("Warning: Could not create backup job in database: %v", err)
-			// Continue with mock job
-		} else {
-			// Execute the actual backup asynchronously
-			go func() {
-				for _, target := range req.Targets {
-					switch target {
-					case "postgres":
-						if err := backupManager.BackupPostgres(job.ID); err != nil {
-							log.Printf("PostgreSQL backup failed: %v", err)
-						}
-					case "files", "scenarios":
-						if err := backupManager.BackupFiles(job.ID, ""); err != nil {
-							log.Printf("File backup failed: %v", err)
-						}
-					case "minio":
-						if err := backupManager.BackupMinIO(job.ID); err != nil {
-							log.Printf("MinIO backup failed: %v", err)
-						}
-					default:
-						log.Printf("Unknown backup target: %s", target)
-					}
-				}
-			}()
-		}
-	}
-	
-	// If no backup manager or job creation failed, create mock job
-	if job == nil {
-		job = &BackupJob{
-			ID:          fmt.Sprintf("backup-%d", time.Now().Unix()),
-			Type:        req.Type,
-			Target:      strings.Join(req.Targets, ","),
-			Status:      "pending",
-			Description: req.Description,
-		}
-	}
-	
-	response := BackupCreateResponse{
-		JobID:             job.ID,
-		EstimatedDuration: "15m",
-		Status:            job.Status,
-		Targets:           req.Targets,
-	}
-
-	log.Printf("Created backup job %s for targets: %v", job.ID, req.Targets)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleBackupStatus(w http.ResponseWriter, r *http.Request) {
-	lastBackup := time.Now().Add(-2 * time.Hour) // Mock data
-	
-	response := BackupStatusResponse{
-		SystemStatus:         "healthy",
-		ActiveJobs:           []BackupJob{}, // No active jobs for demo
-		LastSuccessfulBackup: &lastBackup,
-		StorageUsage: StorageUsageInfo{
-			UsedGB:           15.3,
-			AvailableGB:      84.7,
-			CompressionRatio: 0.72,
-		},
-		ResourceHealth: ResourceHealthMap{
-			"postgres": ResourceHealth{
-				Status:      "healthy",
-				LastChecked: time.Now(),
-			},
-			"minio": ResourceHealth{
-				Status:      "healthy",
-				LastChecked: time.Now(),
-			},
-			"n8n": ResourceHealth{
-				Status:      "healthy", 
-				LastChecked: time.Now(),
-			},
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleBackupList(w http.ResponseWriter, r *http.Request) {
-	// Mock backup list
-	backups := []BackupJob{
-		{
-			ID:               "backup-1725552000",
-			Type:             "full",
-			Target:           "postgres",
-			TargetID:         "main-db",
-			Status:           "completed",
-			StartedAt:        time.Now().Add(-2 * time.Hour),
-			CompletedAt:      &[]time.Time{time.Now().Add(-1*time.Hour + -45*time.Minute)}[0],
-			SizeBytes:        1024*1024*50, // 50MB
-			CompressionRatio: 0.68,
-			StoragePath:      "/backups/postgres/2025-09-05/backup-1725552000.tar.gz",
-			Checksum:         "sha256:abc123...",
-			RetentionUntil:   time.Now().Add(7 * 24 * time.Hour),
-			Description:      "Scheduled daily backup",
-		},
-		{
-			ID:               "backup-1725548400",
-			Type:             "incremental",
-			Target:           "files",
-			TargetID:         "scenario-configs",
-			Status:           "completed",
-			StartedAt:        time.Now().Add(-4 * time.Hour),
-			CompletedAt:      &[]time.Time{time.Now().Add(-3*time.Hour + -55*time.Minute)}[0],
-			SizeBytes:        1024*1024*5, // 5MB
-			CompressionRatio: 0.85,
-			StoragePath:      "/backups/files/2025-09-05/backup-1725548400.tar.gz",
-			Checksum:         "sha256:def456...",
-			RetentionUntil:   time.Now().Add(30 * 24 * time.Hour),
-			Description:      "Incremental scenario backup",
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"backups": backups,
-		"total":   len(backups),
-	})
-}
-
-func handleBackupVerify(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	backupID := vars["id"]
-
-	var verified bool
-	var verifyErr error
-	var issues []string
-
-	// Use actual backup manager if available
-	if backupManager != nil {
-		verified, verifyErr = backupManager.VerifyBackup(backupID)
-		if verifyErr != nil {
-			issues = append(issues, verifyErr.Error())
-		}
-	} else {
-		// Mock verification if no backup manager
-		verified = true
-	}
-
-	result := map[string]interface{}{
-		"backup_id":      backupID,
-		"verified":       verified,
-		"checksum_match": verified,
-		"size_match":     verified,
-		"verified_at":    time.Now(),
-		"issues":         issues,
-	}
-
-	log.Printf("Verified backup %s: %v", backupID, verified)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
-
-func handleRestoreCreate(w http.ResponseWriter, r *http.Request) {
-	var req RestoreCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	// Validate request
-	if len(req.Targets) == 0 {
-		http.Error(w, "At least one target must be specified", http.StatusBadRequest)
-		return
-	}
-
-	if req.RestorePointID == "" && req.BackupJobID == "" {
-		http.Error(w, "Either restore_point_id or backup_job_id must be specified", http.StatusBadRequest)
-		return
-	}
-
-	// Generate restore ID
-	restoreID := fmt.Sprintf("restore-%d", time.Now().Unix())
-	
-	// If we have a backup manager, attempt actual restore
-	if backupManager != nil && req.BackupJobID != "" {
-		// Verify backup first if requested
-		if req.VerifyBeforeRestore {
-			valid, err := backupManager.VerifyBackup(req.BackupJobID)
-			if err != nil || !valid {
-				http.Error(w, fmt.Sprintf("Backup verification failed: %v", err), http.StatusBadRequest)
-				return
-			}
-		}
-		
-		// Execute restore asynchronously
-		go func() {
-			for _, target := range req.Targets {
-				switch target {
-				case "postgres":
-					if err := backupManager.RestorePostgres(req.BackupJobID); err != nil {
-						log.Printf("PostgreSQL restore failed: %v", err)
-					} else {
-						log.Printf("PostgreSQL restore completed for backup: %s", req.BackupJobID)
-					}
-				default:
-					log.Printf("Restore for target %s not yet implemented", target)
-				}
-			}
-		}()
-	}
-	
-	response := RestoreCreateResponse{
-		RestoreID:         restoreID,
-		EstimatedDuration: "10m",
-		Status:            "pending",
-		ValidationResults: []interface{}{},
-	}
-
-	log.Printf("Created restore job %s for targets: %v", restoreID, req.Targets)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleRestoreStatus(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	restoreID := vars["id"]
-
-	status := map[string]interface{}{
-		"restore_id":     restoreID,
-		"status":         "completed",
-		"progress":       100,
-		"started_at":     time.Now().Add(-5 * time.Minute),
-		"completed_at":   time.Now(),
-		"restored_items": []string{"database_schema", "table_data", "indexes"},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
-}
-
-func handleScheduleList(w http.ResponseWriter, r *http.Request) {
-	schedules := []map[string]interface{}{
-		{
-			"id":              "schedule-daily",
-			"name":            "Daily Full Backup",
-			"cron_expression": "0 2 * * *",
-			"backup_type":     "full",
-			"targets":         []string{"postgres", "files"},
-			"retention_days":  7,
-			"enabled":         true,
-			"last_run":        time.Now().Add(-22 * time.Hour),
-			"next_run":        time.Now().Add(2 * time.Hour),
-		},
-		{
-			"id":              "schedule-hourly",
-			"name":            "Hourly Incremental",
-			"cron_expression": "0 * * * *",
-			"backup_type":     "incremental",
-			"targets":         []string{"postgres"},
-			"retention_days":  1,
-			"enabled":         true,
-			"last_run":        time.Now().Add(-1 * time.Hour),
-			"next_run":        time.Now().Add(1 * time.Minute),
-		},
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"schedules": schedules,
-		"total":     len(schedules),
-	})
-}
-
-func handleScheduleCreate(w http.ResponseWriter, r *http.Request) {
-	var schedule map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&schedule); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	// Add ID and timestamps
-	schedule["id"] = fmt.Sprintf("schedule-%d", time.Now().Unix())
-	schedule["created_at"] = time.Now()
-	schedule["enabled"] = true
-
-	log.Printf("Created backup schedule: %s", schedule["name"])
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(schedule)
-}
-
-func handleScheduleUpdate(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	scheduleID := vars["id"]
-
-	var updates map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	updates["id"] = scheduleID
-	updates["updated_at"] = time.Now()
-
-	log.Printf("Updated backup schedule: %s", scheduleID)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updates)
-}
-
-func handleScheduleDelete(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	scheduleID := vars["id"]
-
-	log.Printf("Deleted backup schedule: %s", scheduleID)
-
-	w.WriteHeader(http.StatusNoContent)
+	return nil
 }

@@ -26,6 +26,7 @@ func TestWSStream(t *testing.T) {
 	}
 	defer conn.Close()
 
+	waitForClient(t, broker)
 	broker.BroadcastUpdate(WSNodeUpdate, map[string]string{"id": "scenario/my-app"})
 
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -41,6 +42,18 @@ func TestWSStream(t *testing.T) {
 	if msg.Type != WSNodeUpdate {
 		t.Errorf("expected node-update, got %s", msg.Type)
 	}
+}
+
+func waitForClient(t *testing.T, broker *Broker) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if broker.ClientCount() > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("websocket client was not registered")
 }
 
 // TestWSStreamHandlerServeHTTP verifies the stream handler works as an

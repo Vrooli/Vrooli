@@ -1,0 +1,698 @@
+<title>Terminal Second Pass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --ground:#f5f6f8; --surface:#ffffff; --surface-2:#eceff3; --surface-3:#e2e6ec;
+  --ink:#141a21; --ink-2:#3c4653; --ink-3:#6a7683;
+  --rule:#d7dce2; --rule-2:#b6bfc9;
+  --in:#0e6a61; --in-soft:rgba(14,106,97,.10);
+  --out:#9c5325; --out-soft:rgba(156,83,37,.10);
+  --crit:#a52e27; --crit-soft:rgba(165,46,39,.11);
+  --warn:#856512; --warn-soft:rgba(133,101,18,.13);
+  --ok:#2c6942; --ok-soft:rgba(44,105,66,.12);
+  --shadow:0 1px 2px rgba(20,26,33,.05),0 8px 24px -18px rgba(20,26,33,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d1015; --surface:#141920; --surface-2:#1a2029; --surface-3:#222a34;
+    --ink:#e7ebf0; --ink-2:#b2bcc7; --ink-3:#7d8894;
+    --rule:#262f3a; --rule-2:#39434f;
+    --in:#54bcae; --in-soft:rgba(84,188,174,.12);
+    --out:#e2924f; --out-soft:rgba(226,146,79,.12);
+    --crit:#ec7a70; --crit-soft:rgba(236,122,112,.13);
+    --warn:#d8ae4f; --warn-soft:rgba(216,174,79,.13);
+    --ok:#6bc48b; --ok-soft:rgba(107,196,139,.13);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d1015; --surface:#141920; --surface-2:#1a2029; --surface-3:#222a34;
+  --ink:#e7ebf0; --ink-2:#b2bcc7; --ink-3:#7d8894;
+  --rule:#262f3a; --rule-2:#39434f;
+  --in:#54bcae; --in-soft:rgba(84,188,174,.12);
+  --out:#e2924f; --out-soft:rgba(226,146,79,.12);
+  --crit:#ec7a70; --crit-soft:rgba(236,122,112,.13);
+  --warn:#d8ae4f; --warn-soft:rgba(216,174,79,.13);
+  --ok:#6bc48b; --ok-soft:rgba(107,196,139,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -20px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:Spectral,Georgia,serif; font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; padding:0 20px 96px;
+}
+.wrap{max-width:1080px;margin:0 auto}
+.col{max-width:66ch}
+h1,h2,h3,h4,.ui{font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.eyebrow{font-family:Archivo,sans-serif;font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+p{margin:0 0 18px}
+strong{font-weight:600}
+a{color:var(--in);text-underline-offset:2px}
+:focus-visible{outline:2px solid var(--in);outline-offset:3px;border-radius:2px}
+code{font-size:.855em;background:var(--surface-2);color:var(--ink);padding:.1em .34em;border-radius:2px;border:1px solid var(--rule);word-break:break-word}
+
+header.masthead{padding:72px 0 0}
+header.masthead h1{font-size:clamp(36px,6vw,58px);font-weight:700;line-height:1;letter-spacing:-.028em;margin:14px 0 0;text-wrap:balance}
+.standfirst{font-size:20px;line-height:1.55;color:var(--ink-2);margin:20px 0 0;max-width:60ch}
+.meta-rail{display:flex;flex-wrap:wrap;gap:10px 28px;margin:34px 0 0;padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.meta-rail div{display:flex;flex-direction:column;gap:3px}
+.meta-rail .k{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.meta-rail .v{font-family:"JetBrains Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums}
+
+section{margin:70px 0 0}
+h2{font-size:clamp(25px,3.2vw,33px);font-weight:600;letter-spacing:-.02em;line-height:1.12;margin:0 0 6px;text-wrap:balance}
+h2 .num{font-family:"JetBrains Mono",monospace;font-size:.5em;font-weight:500;color:var(--ink-3);margin-right:.85em;vertical-align:.32em;letter-spacing:0}
+.deck{color:var(--ink-3);font-size:16px;margin:0 0 28px;max-width:64ch}
+.scroll{overflow-x:auto;padding-bottom:4px}
+
+/* symptom blocks */
+.sym{border-top:1px solid var(--ink-3);padding:26px 0 6px;margin:0}
+.sym + .sym{border-top:1px solid var(--rule-2)}
+.shead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 14px;margin-bottom:10px}
+.sid{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;color:var(--ink-3)}
+.shead h3{font-family:Archivo,sans-serif;font-size:21px;font-weight:600;letter-spacing:-.012em;margin:0;flex:1 1 320px;line-height:1.25;text-wrap:balance}
+.chip{font-family:Archivo,sans-serif;font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;padding:3px 8px;border-radius:2px;border:1px solid;white-space:nowrap}
+.chip.crit{color:var(--crit);background:var(--crit-soft);border-color:var(--crit)}
+.chip.warn{color:var(--warn);background:var(--warn-soft);border-color:var(--warn)}
+.chip.ok{color:var(--ok);background:var(--ok-soft);border-color:var(--ok)}
+.quote{
+  font-family:Archivo,sans-serif;font-size:14px;color:var(--ink-2);font-style:normal;
+  border-left:2px solid var(--rule-2);padding:2px 0 2px 14px;margin:0 0 16px;max-width:62ch;
+}
+.sym p{max-width:66ch}
+
+/* mechanism chain */
+.chain{margin:16px 0 6px;border:1px solid var(--rule);border-radius:3px;background:var(--surface);overflow:hidden}
+.chain-hd{
+  font-family:Archivo,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);padding:9px 14px;background:var(--surface-2);border-bottom:1px solid var(--rule);
+}
+.chain ol{margin:0;padding:12px 14px 12px 34px;list-style:none;counter-reset:step}
+.chain li{
+  counter-increment:step;position:relative;font-family:"JetBrains Mono",monospace;
+  font-size:12.5px;line-height:1.62;color:var(--ink-2);padding:3px 0;
+}
+.chain li::before{
+  content:counter(step);position:absolute;left:-22px;top:5px;
+  font-size:10px;font-weight:700;color:var(--ink-3);
+}
+.chain li b{color:var(--ink);font-weight:700}
+.chain li.bad{color:var(--crit)}
+.chain li.bad b{color:var(--crit)}
+.chain .out{
+  border-top:1px solid var(--rule);background:var(--crit-soft);padding:11px 14px;
+  font-family:Archivo,sans-serif;font-size:13.5px;line-height:1.5;color:var(--ink);
+}
+.chain .out b{color:var(--crit)}
+.chain .out.good{background:var(--ok-soft)}
+.chain .out.good b{color:var(--ok)}
+
+.fixnote{
+  margin:16px 0 0;padding:13px 15px;border:1px solid var(--in);background:var(--in-soft);
+  border-radius:3px;font-family:Archivo,sans-serif;font-size:14px;line-height:1.55;color:var(--ink);max-width:70ch;
+}
+.fixnote .lbl{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--in);display:block;margin-bottom:5px}
+.fixnote code{background:var(--surface);font-size:.8em}
+
+/* pill mock */
+.mockrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:18px 0 4px}
+.mock{border:1px solid var(--rule);border-radius:3px;background:var(--surface);overflow:hidden}
+.mock-hd{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--rule)}
+.mock-hd.now{color:var(--crit);background:var(--crit-soft)}
+.mock-hd.next{color:var(--ok);background:var(--ok-soft)}
+.mock-bd{padding:12px;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.85;color:var(--ink-2);background:var(--surface-2)}
+.mock-bd .dim{color:var(--ink-3)}
+.mock-bd .k{display:inline-block;border:1px solid var(--rule-2);border-radius:2px;padding:0 5px;color:var(--ink);background:var(--surface)}
+.mock-bd .act{color:var(--in);text-decoration:underline;text-underline-offset:2px}
+
+/* storage bars */
+.bars{margin:6px 0 0}
+.bar{display:grid;grid-template-columns:minmax(160px,220px) 1fr minmax(96px,auto);gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule)}
+.bar:last-child{border-bottom:0}
+.bar .lb{font-family:Archivo,sans-serif;font-size:13px;color:var(--ink-2);line-height:1.3}
+.bar .lb small{display:block;font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.bar .tr{height:16px;background:var(--surface-2);border:1px solid var(--rule);border-radius:2px;overflow:hidden;min-width:60px}
+.bar .fl{height:100%;display:block}
+.bar .vl{font-family:"JetBrains Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.f-waste{background:repeating-linear-gradient(45deg,var(--crit) 0 5px,transparent 5px 10px),var(--crit-soft)}
+.f-real{background:var(--in)}
+.f-idx{background:var(--out)}
+.f-dup{background:var(--crit)}
+
+.callout{
+  border:1px solid var(--rule-2);border-left:3px solid var(--out);background:var(--surface);
+  padding:18px 20px;border-radius:3px;margin:24px 0;max-width:74ch;
+}
+.callout h4{font-family:Archivo,sans-serif;font-size:15.5px;font-weight:600;margin:0 0 8px;color:var(--out)}
+.callout p{font-size:15.5px;line-height:1.55;color:var(--ink-2);margin:0 0 10px}
+.callout p:last-child{margin:0}
+
+/* inventory table */
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14.5px}
+th,td{padding:11px 13px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--rule-2)}
+td.n{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+td .what{font-family:Archivo,sans-serif;font-weight:600;font-size:14.5px;display:block;margin-bottom:3px}
+td .why{font-size:13.5px;color:var(--ink-3);line-height:1.45}
+.pri{font-family:Archivo,sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:2px;border:1px solid;white-space:nowrap}
+.pri.a{color:var(--crit);background:var(--crit-soft);border-color:var(--crit)}
+.pri.b{color:var(--warn);background:var(--warn-soft);border-color:var(--warn)}
+.pri.c{color:var(--ink-3);background:var(--surface-2);border-color:var(--rule-2)}
+tbody tr:last-child td{border-bottom:1px solid var(--rule-2)}
+
+ul.col,ol.col{padding-left:1.15em;margin:0 0 18px}
+ul.col li,ol.col li{margin:0 0 9px}
+pre{margin:14px 0 0;padding:14px 16px;background:var(--surface-2);border:1px solid var(--rule);border-radius:3px;overflow-x:auto;font-family:"JetBrains Mono",monospace;font-size:12.5px;line-height:1.7;color:var(--ink-2)}
+pre .hl{color:var(--crit);font-weight:700}
+pre .cm{color:var(--ink-3)}
+.figcap{font-family:Archivo,sans-serif;font-size:12.5px;color:var(--ink-3);margin:12px 0 0;max-width:72ch;line-height:1.5}
+.figcap b{color:var(--ink-2);font-weight:600}
+/* portability matrix */
+.mx{min-width:700px;border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--surface)}
+.mx-r{display:grid;grid-template-columns:minmax(190px,1.5fr) repeat(3,1fr);border-bottom:1px solid var(--rule)}
+.mx-r:last-child{border-bottom:0}
+.mx-r.hd{background:var(--surface-2)}
+.mx-c{padding:11px 14px;border-right:1px solid var(--rule);font-family:Archivo,sans-serif;font-size:13.5px;line-height:1.4}
+.mx-c:last-child{border-right:0}
+.mx-r.hd .mx-c{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.mx-c.lb{color:var(--ink-2)}
+.mx-c.lb small{display:block;font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-3);margin-top:3px}
+.mk{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px}
+.mk::before{content:"";width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.mk.y{color:var(--ok)} .mk.y::before{background:var(--ok)}
+.mk.n{color:var(--crit)} .mk.n::before{background:var(--crit)}
+.mk.p{color:var(--warn)} .mk.p::before{background:var(--warn)}
+.mk.q{color:var(--ink-3)} .mk.q::before{background:var(--ink-3)}
+.mx-c em{display:block;font-style:normal;font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.4}
+.targets{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+.tg{font-family:"JetBrains Mono",monospace;font-size:12px;padding:5px 10px;border-radius:2px;border:1px solid var(--ok);color:var(--ok);background:var(--ok-soft);white-space:nowrap}
+footer{margin:76px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);color:var(--ink-3);font-size:14px;max-width:66ch}
+@media (max-width:720px){body{font-size:16px;padding:0 16px 72px}header.masthead{padding:48px 0 0}section{margin:54px 0 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">web-console · second pass</div>
+  <h1>Four symptoms, one storage surprise, and a consolidation list</h1>
+  <p class="standfirst">Each outstanding symptom traced to a specific mechanism, the real disk numbers measured rather than guessed, the concrete cleanup work ranked by payoff, and a portability audit of what would actually have to change for Windows.</p>
+  <div class="meta-rail">
+    <div><span class="k">Symptoms diagnosed</span><span class="v">4 of 4</span></div>
+    <div><span class="k">DB measured</span><span class="v">425 MB</span></div>
+    <div><span class="k">Session state measured</span><span class="v">46 GB</span></div>
+    <div><span class="k">Consolidation items</span><span class="v">12</span></div>
+    <div><span class="k">Cross-compile</span><span class="v">6 / 6 targets pass</span></div>
+  </div>
+</header>
+
+<section class="col">
+  <p>Before the symptoms: the three things you've fixed are visible in the code, and they're why this pass could go deeper than the last one. <strong>Typing</strong> works because <code>send-keys -l</code> plus the <code>#{pane_in_mode}</code> guard is genuinely the correct tmux delivery discipline. <strong>Scrolling and resizing</strong> work because the size lease gave the grid a single owner. <strong>UI snappiness</strong> holds because xterm is a pure renderer with no authoritative state to reconcile.</p>
+  <p>Every symptom below sits <em>next to</em> one of those fixes rather than inside it — which is consistent: the components are right, the wiring between them is where things leak.</p>
+</section>
+
+<section>
+  <h2><span class="num">01</span>The four outstanding symptoms</h2>
+  <p class="deck">Each one traced to a specific line of code. Three are new findings; the first confirms what the last pass predicted.</p>
+
+  <div class="sym">
+    <div class="shead"><span class="sid">S1</span><h3>"That input was rejected" on every refresh</h3><span class="chip crit">Confirmed F1</span></div>
+    <p class="quote">"When I load/refresh, I get an 'That input was rejected — it never reached the terminal' message. But I haven't inputted anything."</p>
+    <p>This is the offset-ledger split from the last pass, and your symptom is the proof I didn't have. Here is the exact path from page load to toast:</p>
+
+    <div class="chain">
+      <div class="chain-hd">Mechanism</div>
+      <ol>
+        <li>Server sends <b>session_ready</b> with <code>accepted_through: 47</code> — the bytes you typed before the refresh</li>
+        <li>Client's fresh hook has <code>writeHead = 0</code></li>
+        <li><code>stdin.reconcile(47)</code> evaluates <code>47 &gt; writeHead</code></li>
+        <li class="bad"><b>unreconcilableRef = true</b> — latched, never cleared</li>
+        <li class="bad"><code>notifySettled(47, <b>false</b>, "unreconcilable")</code></li>
+        <li><code>usePaneSelection</code>'s <code>subscribeInputSettled</code> listener fires</li>
+        <li class="bad"><code>setInputError(rejectedMessage)</code> → the toast</li>
+      </ol>
+      <div class="out">The toast is the <b>visible half</b>. The invisible half is worse: from step 4 onward every keystroke in that pane returns <code>{sent:false}</code> and queues silently. <b>You are being told about the wrong problem, and not told about the real one.</b></div>
+    </div>
+
+    <p style="margin-top:20px">There's a second, independent defect stacked here. That listener has an escape hatch — <code>selfReportedOffsetsRef</code> — so a failed <em>paste</em> doesn't double-report, because the paste UI shows its own error. But a connect-time reconciliation failure isn't a payload at all; it matches no recorded offset, so it always renders as if a payload you sent had been rejected.</p>
+
+    <div class="fixnote">
+      <span class="lbl">Fix — two separate things</span>
+      Rebase the offset space per connection (Lever 01 from the last pass), <em>and</em> stop routing connection-level reconciliation failures through the per-payload settled channel. A reconnect that can't reconcile is a pane-status event ("reconnected, some input may not have been delivered"), not a per-keystroke rejection. Two different facts currently share one callback.
+    </div>
+  </div>
+
+  <div class="sym">
+    <div class="shead"><span class="sid">S2</span><h3>The unsent-input pill speaks in bytes, not actions</h3><span class="chip warn">Design</span></div>
+    <p class="quote">"[4s] [A / [4s] [A — anything that's not normal characters means nothing to me… it'd have 11 lines, one for each letter and space… and there isn't a way to cancel."</p>
+    <p><code>[A</code> is <code>ESC [ A</code> — you pressed Up twice. The pill is rendering raw CSI bytes with a single cosmetic substitution (<code>\n</code> → ⏎) and nothing else. You're right on all three counts, and they're three genuinely separate problems:</p>
+
+    <div class="mockrow">
+      <div class="mock">
+        <div class="mock-hd now">Today — one entry per wire payload</div>
+        <div class="mock-bd">
+          ⏳ 13 unsent <span class="dim">(oldest 4s)</span> ▾<br>
+          <span class="dim">[4s]</span> h<br>
+          <span class="dim">[4s]</span> e<br>
+          <span class="dim">[4s]</span> l<br>
+          <span class="dim">[4s]</span> l<br>
+          <span class="dim">[4s]</span> o<br>
+          <span class="dim">[4s]</span> ⏎<br>
+          <span class="dim">[3s]</span> [A<br>
+          <span class="dim">[3s]</span> [A
+        </div>
+      </div>
+      <div class="mock">
+        <div class="mock-hd next">Grouped by action</div>
+        <div class="mock-bd">
+          ⏳ 3 unsent <span class="dim">(oldest 4s)</span> ▾<br>
+          <span class="dim">[4s]</span> "hello" <span class="k">⏎</span> &nbsp;<span class="act">✕</span><br>
+          <span class="dim">[3s]</span> <span class="k">↑</span> <span class="k">↑</span> &nbsp;<span class="act">✕</span><br>
+          <span class="dim">[1s]</span> paste · 240 chars &nbsp;<span class="act">✕</span><br>
+          <br>
+          <span class="act">Discard all</span> &nbsp;·&nbsp; <span class="act">Send now</span>
+        </div>
+      </div>
+    </div>
+    <p class="figcap"><b>The queue's unit is wrong, not just its rendering.</b> <code>enqueue()</code> pushes one entry per <code>xterm.onData</code> event. Coalescing adjacent same-intent entries <em>at enqueue time</em> fixes the display and cuts N wire frames to 1 on flush — they were going to be concatenated on the wire anyway.</p>
+
+    <p style="margin-top:22px">For rendering, <code>terminalKeys.ts</code> already holds the forward map (key name → bytes). The pill needs the inverse: a byte-sequence decoder that turns <code>ESC[A</code> into <span style="border:1px solid var(--rule-2);border-radius:2px;padding:0 5px;font-family:'JetBrains Mono',monospace;font-size:.85em">↑</span>, <code>\x03</code> into <span style="border:1px solid var(--rule-2);border-radius:2px;padding:0 5px;font-family:'JetBrains Mono',monospace;font-size:.85em">Ctrl+C</span>, and leaves printable runs as quoted strings. That decoder belongs next to the forward map, not in the component.</p>
+
+    <p><strong>The missing-cancel point is the important one, and it's a safety issue rather than a convenience one.</strong> A queued entry is replayed whenever the socket returns — which may be minutes later, in a shell that has since changed directory, exited, or started a different program. The queue also survives pane unmount through <code>setPendingInputBuffer</code>, so it can outlive the pane that created it. There is currently no way to inspect-and-discard before that happens, and no expiry.</p>
+
+    <div class="fixnote">
+      <span class="lbl">Fix</span>
+      Coalesce at <code>enqueue</code>; add a byte→label decoder beside <code>terminalKeys.ts</code>; give the pill per-entry discard, discard-all, and send-now. Then add an age threshold beyond which queued input is <em>held</em> rather than auto-sent — the current behaviour (replay unconditionally, however stale) is the wrong default for a shell.
+    </div>
+  </div>
+
+  <div class="sym">
+    <div class="shead"><span class="sid">S3</span><h3>Touch scroll dies because there are two scroll controllers</h3><span class="chip crit">New — root cause</span></div>
+    <p class="quote">"Sometimes the scroll stops working on touchscreen for some reason."</p>
+    <p>Found it, and it's a clean instance of the identity-churn problem from F8. <code>useTerminalTransport</code> returns a fresh object literal on every render. That poisons everything downstream of it:</p>
+
+<pre><span class="cm">// useTerminalTransport.ts — new object identity every render</span>
+return { sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state };
+
+<span class="cm">// useTerminalSession.ts — so this rebuilds every render…</span>
+const sendControl     = useCallback(..., [<span class="hl">transport</span>]);
+const scrollController = useMemo(..., [<span class="hl">sendControl</span>]);
+
+<span class="cm">// useTerminalTouch.ts — …but this captured instance #1 and keeps it</span>
+}, [terminal, enabled]);   <span class="cm">// scrollBy is NOT a dependency</span></pre>
+
+    <div class="chain" style="margin-top:20px">
+      <div class="chain-hd">Why it goes permanently dead</div>
+      <ol>
+        <li>Touch scroll calls instance <b>#1</b> → <code>unacknowledgedFrames++</code></li>
+        <li>A <code>stdout</code> frame arrives → <code>notifyOutput()</code> decrements instance <b>#N</b> (current render's)</li>
+        <li class="bad">Instance #1's counter <b>only ever increases</b></li>
+        <li class="bad">At 8 it hits <code>maxUnacknowledgedFrames</code></li>
+        <li class="bad"><code>flush()</code> now always takes the <code>schedule()</code> branch — a rAF loop that re-queues forever and never sends</li>
+      </ol>
+      <div class="out">Touch scroll is <b>permanently dead</b> for that pane after eight gestures, and it burns a <code>requestAnimationFrame</code> every frame from then on. It only affects mouse-tracking (TUI) panes — the non-tracking path does a local <code>terminal.scrollLines</code> with no gating at all. <b>That's your "sometimes."</b></div>
+    </div>
+
+    <div class="fixnote">
+      <span class="lbl">Fix — and it's bigger than this bug</span>
+      Make <code>useTerminalTransport</code> return a <em>stable</em> handle (build it once in a ref; the methods are already stable <code>useCallback</code>s with empty deps). Hold the scroll controller in a ref rather than a memo. Then audit for the same shape elsewhere — the fresh-object-per-render return is the root, and it silently invalidates every downstream <code>useMemo</code>/<code>useCallback</code> without any type or lint error. This one happened to produce a visible symptom; the others just churn.
+    </div>
+  </div>
+
+  <div class="sym">
+    <div class="shead"><span class="sid">S4</span><h3>The device frame appears because lease state rides the size channel</h3><span class="chip crit">New — root cause</span></div>
+    <p class="quote">"It can falsely enter this mode sometimes when the screen is resized, but not every time."</p>
+    <p>"Not every time" is the tell — it's a dropped notification, and the drop is size-conditional. Two mechanisms compound:</p>
+
+    <div class="chain">
+      <div class="chain-hd">Mechanism A — a lease change that coincides with a resize is discarded</div>
+      <ol>
+        <li><code>SizeCh</code> has capacity <b>1</b>; <code>publishSizeLocked</code> drops-and-replaces when full</li>
+        <li>The forwarder reads a queued entry, then re-reads live state via <code>SizeLeaseState</code></li>
+        <li class="bad"><code>if cols != size[0] || rows != size[1] { <b>continue</b> }</code></li>
+        <li class="bad">The <code>holdsLease</code> value was fresh and correct — and it is thrown away by a <b>size-equality</b> staleness filter</li>
+      </ol>
+      <div class="out">During a drag-resize or a mobile keyboard opening, dimensions change faster than the channel drains. <b>The lease-transfer notification is exactly the one that gets eaten</b>, and the client stays a follower until something unrelated publishes again.</div>
+    </div>
+
+    <div class="chain" style="margin-top:18px">
+      <div class="chain-hd">Mechanism B — the reconnect double-subscribe window</div>
+      <ol>
+        <li>A new WebSocket <code>Subscribe()</code>s before the server's read loop notices the old one died</li>
+        <li>Both connections are in <code>s.clients</code>; <code>s.leaseOwner</code> is still the old channel</li>
+        <li class="bad">The new connection's first <code>size_info</code> reports <code>holdsLease: false</code> → the frame appears</li>
+        <li>Normally self-heals when <code>Unsubscribe</code> transfers the lease…</li>
+        <li class="bad">…unless Mechanism A eats <em>that</em> notification too, in which case it sticks</li>
+      </ol>
+      <div class="out">This is why a single-viewer session can show a "another device owns this" frame with <b>no other device involved</b>.</div>
+    </div>
+
+    <p style="margin-top:22px"><strong>And separately, the frame renders badly because it fights xterm for layout.</strong> <code>useFollowerPresentation</code> imperatively writes <code>position</code>, <code>left</code>, <code>top</code>, <code>width</code>, <code>height</code> and <code>transform</code> onto <code>terminal.element</code>, overrides <code>terminal.options.fontSize</code>, then calls <code>fit.fit()</code> <em>and</em> <code>terminal.resize()</code>. Three layout authorities on one element, with a 240 ms CSS transition running underneath — xterm measures its cell geometry from a DOM node that is mid-transition and scaled.</p>
+
+    <div class="fixnote">
+      <span class="lbl">Fix</span>
+      <b>Separate the concerns that are currently fused.</b> Presence and lease are not size: give them their own frame and their own channel, never coalesced against dimensions. Require a confirmed second viewer (<code>viewerCount &gt; 1</code>) before rendering the frame, so a transient nil-lease can't produce one. And for layout, scale a <em>wrapper</em> element — let xterm lay out naturally at the leader's grid inside an untransformed box, and put the <code>transform</code> on the parent. xterm should never be told a font size that isn't the one it's measuring.
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>Storage: it isn't the database</h2>
+  <p class="deck">Your instinct that something is growing wrong is right. The thing that's growing is 108× larger than the database, and it isn't terminal history.</p>
+
+  <div class="callout">
+    <h4>First, a correction worth making</h4>
+    <p>Terminal scrollback is <strong>not stored in the database at all</strong> — not one byte. It lives in three in-memory or process-owned places: the server emulator's ring (10,000 lines, ≈1–2 MB), tmux's own <code>history-limit</code> (set from the same constant), and xterm's client-side buffer. None of it is persisted. So "we're storing earlier terminal data pointlessly" isn't what's happening — but something else is.</p>
+  </div>
+
+  <div class="figure">
+    <div class="scroll">
+      <div class="bars">
+        <div class="bar">
+          <span class="lb">Codex session homes<small>state/…/sessions/codex</small></span>
+          <span class="tr"><span class="fl f-waste" style="width:100%"></span></span>
+          <span class="vl">45 GB</span>
+        </div>
+        <div class="bar">
+          <span class="lb">Grok session homes<small>state/…/sessions/grok</small></span>
+          <span class="tr"><span class="fl f-waste" style="width:1.6%"></span></span>
+          <span class="vl">744 MB</span>
+        </div>
+        <div class="bar">
+          <span class="lb">The database<small>data/…/web-console.db</small></span>
+          <span class="tr"><span class="fl f-real" style="width:0.9%"></span></span>
+          <span class="vl">425 MB</span>
+        </div>
+        <div class="bar">
+          <span class="lb">Uploads cache<small>cache/…/uploads</small></span>
+          <span class="tr"><span class="fl f-real" style="width:0.03%"></span></span>
+          <span class="vl">13 MB</span>
+        </div>
+      </div>
+    </div>
+    <p class="figcap"><b>59,340 per-session Codex home directories exist. The <code>sessions</code> table has 275 rows.</b> That's roughly 59,000 orphans, the oldest dating to May 27. Nothing reaps them: session teardown calls <code>os.RemoveAll(uploadDir)</code> in four places and never touches the agent home. The only code that deletes one is the manual archive-retention endpoint — which is dry-run by default. <b>Clearing the backlog belongs to storage-manager</b>; what belongs here is not generating it.</p>
+  </div>
+
+  <p class="col" style="margin-top:26px">There's a second, cheaper problem underneath: <code>session_factory.go</code> sets <code>CODEX_HOME</code> for <em>every</em> session unconditionally, whether or not you ever run <code>codex</code> in it. Each empty scaffold is ~24 KB of directory inodes. At 59,340 directories that's about 1.4 GB of pure scaffolding for sessions that never used the feature.</p>
+
+  <h3 style="font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:38px 0 4px">Inside the 425 MB database</h3>
+  <p class="deck" style="margin-bottom:18px">110 MB of real text, stored three times.</p>
+
+  <div class="figure">
+    <div class="scroll">
+      <div class="bars">
+        <div class="bar">
+          <span class="lb">conversation_events.text<small>the actual content</small></span>
+          <span class="tr"><span class="fl f-real" style="width:100%"></span></span>
+          <span class="vl">110.4 MB</span>
+        </div>
+        <div class="bar">
+          <span class="lb">…fts_content<small>byte-identical duplicate</small></span>
+          <span class="tr"><span class="fl f-dup" style="width:100%"></span></span>
+          <span class="vl">110.4 MB</span>
+        </div>
+        <div class="bar">
+          <span class="lb">…fts_data<small>the inverted index — legitimate</small></span>
+          <span class="tr"><span class="fl f-idx" style="width:56.7%"></span></span>
+          <span class="vl">62.6 MB</span>
+        </div>
+        <div class="bar">
+          <span class="lb">speech_paragraphs<small>JSON re-slicing of the same text</small></span>
+          <span class="tr"><span class="fl f-dup" style="width:46.8%"></span></span>
+          <span class="vl">51.6 MB</span>
+        </div>
+      </div>
+    </div>
+    <p class="figcap"><b>The 110 MB duplicate is a one-line schema fix.</b> The FTS5 table was created as content-owning, so it keeps its own full copy of every string. It was declared <code>fts5(event_id UNINDEXED, text, tokenize='unicode61')</code> — declaring it <code>content='conversation_events', content_rowid='rowid'</code> instead (external-content FTS) eliminates the copy entirely. The three triggers already written in <code>main.go</code> are exactly the shape external-content FTS requires, so the migration is the table declaration plus a rebuild.</p>
+  </div>
+
+  <p class="col" style="margin-top:26px">And there is <strong>no retention on <code>conversation_events</code> at all</strong>. 132,697 rows spanning 2026-05-20 to today — about 1,450 events per day, growing monotonically. The only <code>DELETE</code> is <code>WHERE session_id = ?</code>, which runs when a session is explicitly cleared. Nothing ages anything out.</p>
+
+  <div class="callout" style="border-left-color:var(--in)">
+    <h4 style="color:var(--in)">On scrolling further back</h4>
+    <p>This is cheap — <code>WC_TERMINAL_SCROLLBACK_LINES</code> accepts up to 100,000 and drives both the emulator ring and tmux's <code>history-limit</code> — but there's a coupling that will bite you. <code>MaxSnapshotBytes</code> caps one replay at <strong>2 MiB</strong>, and the scrollback ring's own comment estimates 10,000 lines at ≈1–2 MB. <strong>You are already at the replay ceiling.</strong></p>
+    <p>Raise scrollback without raising that cap and the extra history exists on the server but can never reach a reconnecting client — <code>boundSnapshot</code> silently trims it and emits a <code>snapshot_notice</code>. Raise both and every reconnect re-streams multiple megabytes of JSON-encoded ANSI. Which is the concrete reason output-delta resume (Lever 05) is the prerequisite for deeper scrollback rather than a separate nice-to-have.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">03</span>Consolidation inventory</h2>
+  <p class="deck">Concrete duplication and cleanup, ranked. Line counts are actual.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Opportunity</th><th>Size</th><th>Priority</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="what">Stop <em>creating</em> orphan agent homes</span><span class="why">Reaping the 45 GB backlog is storage-manager's job and is out of scope here. What is in scope: <code>session_factory.go</code> sets <code>CODEX_HOME</code> for every session unconditionally, so a plain shell pane scaffolds ~24 KB of directories it will never use. Create it lazily on first agent launch, and delete the home in the teardown path next to the existing <code>RemoveAll(uploadDir)</code> — that stops new orphans without web-console owning host cleanup.</span></td>
+        <td class="n">~24 KB<br>per session</td><td><span class="pri b">B</span></td>
+        <td class="n">backlog routed to<br>storage-manager</td>
+      </tr>
+      <tr>
+        <td><span class="what">External-content FTS + retention on conversation_events</span><span class="why">One schema declaration removes the 110 MB duplicate. Retention is a policy decision you don't currently have — age or per-session cap, with the FTS delete trigger already in place.</span></td>
+        <td class="n">~160 MB</td><td><span class="pri a">A</span></td>
+        <td class="n">132,697 rows<br>no retention</td>
+      </tr>
+      <tr>
+        <td><span class="what">Three tailers → one engine + three adapters</span><span class="why"><code>claude_tailer</code>, <code>codex_tailer</code>, <code>grok_tailer</code> each implement the identical machine: <code>pollLoop</code>, <code>scanForNewFiles</code>, <code>tailFile</code>, <code>load/saveCheckpoint</code>, <code>captureAgentInfo</code>. They differ only in path layout and line schema — a discovery function and a decoder.</span></td>
+        <td class="n">837 lines<br>→ ~430</td><td><span class="pri a">A</span></td>
+        <td class="n">+438 in<br>opencode_watcher</td>
+      </tr>
+      <tr>
+        <td><span class="what">Two checkpoint tables → one</span><span class="why"><code>codex_rollout_checkpoints</code> and <code>agent_transcript_checkpoints</code> both store (source, key, cursor). The schema comment already concedes it: <em>"This intentionally does NOT subsume codex_rollout_checkpoints."</em> Fold it during the tailer merge, when the risk argument no longer holds.</span></td>
+        <td class="n">263 lines<br>2 tables</td><td><span class="pri b">B</span></td>
+        <td class="n">acknowledged<br>in-comment</td>
+      </tr>
+      <tr>
+        <td><span class="what">Stable transport handle</span><span class="why">Fixes S3 and removes a whole class of silent memo invalidation. Smallest diff on this list with the widest blast radius.</span></td>
+        <td class="n">~5 lines</td><td><span class="pri a">A</span></td>
+        <td class="n">root of S3</td>
+      </tr>
+      <tr>
+        <td><span class="what">Split useTerminalSession</span><span class="why">596 lines holding protocol, prediction, latency EMA, scroll, lease, mouse mode, conversation acks and the debug probe. Lift the message switch out as a pure reducer; the rest become siblings.</span></td>
+        <td class="n">596 lines</td><td><span class="pri b">B</span></td>
+        <td class="n">enables the<br>missing tests</td>
+      </tr>
+      <tr>
+        <td><span class="what">Delete the MsgType alias block</span><span class="why">31 <code>var</code> aliases in <code>terminal_ws.go</code> re-exporting <code>wireproto</code> constants for source compatibility with older tests. Two names for every wire constant is exactly how a protocol drifts.</span></td>
+        <td class="n">31 aliases</td><td><span class="pri b">B</span></td>
+        <td class="n">pure deletion<br>after callers move</td>
+      </tr>
+      <tr>
+        <td><span class="what">Share the snapshot prologue constant</span><span class="why"><code>\x1b[?1049l\x1bc\x1b[3J\x1b[H\x1b[0m</code> is authored with per-byte rationale in <code>snapshot.go</code> and re-implemented as a bare <code>\x1bc</code> in <code>boundSnapshot</code>. One exported constant, used by both.</span></td>
+        <td class="n">2 sites</td><td><span class="pri b">B</span></td>
+        <td class="n">F9</td>
+      </tr>
+      <tr>
+        <td><span class="what">Byte→label decoder beside terminalKeys.ts</span><span class="why">The forward map exists. The inverse is needed by the pending pill (S2) and would also improve every place that displays a key.</span></td>
+        <td class="n">new, ~60</td><td><span class="pri b">B</span></td>
+        <td class="n">unblocks S2</td>
+      </tr>
+      <tr>
+        <td><span class="what">Decompose main.go</span><span class="why">41 top-level functions spanning schema init, FTS migration, column migration, server construction, routing, middleware, env helpers and file-copy utilities. The legacy-migration group (<code>migrateLegacyDB</code>, <code>legacyDBCandidates</code>, <code>migrateLegacyStateFile(s)</code>, <code>legacyStateCandidates</code>, <code>copyFileWithMode</code>, <code>copyFileIfExists</code>) is one-time code that has long since run.</span></td>
+        <td class="n">1,414 lines</td><td><span class="pri c">C</span></td>
+        <td class="n">~150 lines<br>likely dead</td>
+      </tr>
+      <tr>
+        <td><span class="what">Clean the leaked tmux sockets and stale binary</span><span class="why">13 orphaned unix sockets named <code>wc-test-*</code> sit in <code>api/</code>, created by tests and never removed. Tests should socket into a temp dir and clean up.</span></td>
+        <td class="n">13 sockets<br>+26 MB</td><td><span class="pri c">C</span></td>
+        <td class="n">test hygiene</td>
+      </tr>
+      <tr>
+        <td><span class="what">Close the .gitignore gaps</span><span class="why"><code>api/web-console</code> and <code>*.db</code> are ignored; <code>api/build.err</code> (empty, from April) and the <code>wc-test-*</code> sockets are not — so <code>git status</code> in this scenario is permanently noisy, which is how real changes get missed.</span></td>
+        <td class="n">2 patterns</td><td><span class="pri c">C</span></td>
+        <td class="n">30 seconds</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+
+<section>
+  <h2><span class="num">04</span>Portability: it compiles everywhere, it runs one place</h2>
+  <p class="deck">The build is genuinely portable and the capability reporting is honest about what isn't. The gap is that "unsupported" is currently a runtime flag rather than a compile-time seam — which is exactly the difference between Windows being a file to write and Windows being an audit.</p>
+
+  <h3 style="font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:6px 0 6px">What already works — verified, not assumed</h3>
+  <p class="col">I cross-compiled every target and ran <code>go vet</code>, which typechecks test files as well as production code:</p>
+  <div class="targets">
+    <span class="tg">linux/amd64 ✓</span><span class="tg">linux/arm64 ✓</span>
+    <span class="tg">darwin/amd64 ✓</span><span class="tg">darwin/arm64 ✓</span>
+    <span class="tg">windows/amd64 ✓</span><span class="tg">windows/arm64 ✓</span>
+  </div>
+  <p class="figcap" style="margin-bottom:22px"><b>Six for six, production and test code, zero errors.</b> That is a real achievement and it is not the normal state of a Go service that shells out to tmux. It means the portability work already done is holding.</p>
+
+  <p class="col">The rest of the foundation is in good shape too, and it's worth naming because these are the patterns to copy rather than replace:</p>
+  <ul class="col">
+    <li><strong>No <code>develop.sh</code>.</strong> The lifecycle is declarative — <code>"exec": ["web-console","hooks","register"]</code> — so there is no bash interpreter on the startup path. This scenario is already Declared-Scenario shaped, which is the single biggest Windows blocker most scenarios still have.</li>
+    <li><strong><code>capabilities.KnownForPlatform</code> tells the truth.</strong> On Windows both terminal backends are downgraded to <code>PlatformUnsupported</code> with a specific reason string, rather than being advertised and then failing.</li>
+    <li><strong><code>resolveShellForOS</code> already knows the Git Bash trap</strong> — that a POSIX <code>SHELL</code> export can't be resolved by Windows <code>LookPath</code> — and prefers <code>powershell.exe</code> unless <code>WC_DEFAULT_SHELL</code> says otherwise.</li>
+    <li><strong><code>filepreview</code> is split correctly</strong> into <code>hidden_unix.go</code> / <code>hidden_windows.go</code>, using real <code>Win32FileAttributeData</code> rather than a dotfile-name guess.</li>
+    <li><strong>The UI already parses Windows paths.</strong> <code>lib/paths.ts</code> handles drive letters, UNC prefixes and backslash separators — because a remote target might be Windows even when the server isn't. That's the right instinct.</li>
+    <li><strong>Only three hardcoded POSIX paths</strong> in the whole Go API, and each is either inside a Unix-only code path or already guarded.</li>
+    <li><strong><code>systemd-run</code> is done exactly right</strong> — a <code>LookPath</code> probe behind a <code>sync.Once</code>, a GOOS check, a logged verdict, and a working fallback when it's absent. Copy this shape for every other host-tool dependency.</li>
+  </ul>
+
+  <h3 style="font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:38px 0 8px">What actually runs, per platform</h3>
+  <div class="figure">
+    <div class="scroll">
+      <div class="mx">
+        <div class="mx-r hd">
+          <div class="mx-c">Capability</div><div class="mx-c">Linux</div><div class="mx-c">macOS</div><div class="mx-c">Windows</div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">Standard PTY sessions<small>realPTY / creack pty</small></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk n">stub</span><em>creack/pty v2's <code>StartWithSize</code> on Windows returns <code>ErrUnsupported</code></em></div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">Persistent tmux sessions<small>pty_tmux.go — 737 lines</small></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk p">if tmux present</span></div>
+          <div class="mx-c"><span class="mk n">no path</span><em>compiles in, fails at runtime — no build tag</em></div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">Echo state / prediction<small>pty_echo_*.go</small></div>
+          <div class="mx-c"><span class="mk y">ioctl</span></div>
+          <div class="mx-c"><span class="mk n">never</span><em><code>//go:build !linux</code> lumps darwin with Windows</em></div>
+          <div class="mx-c"><span class="mk n">never</span></div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">Remote sessions<small>bridge_pty.go</small></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk y">works</span><em>pure network — the one terminal path with no host dependency</em></div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">Claude Code hooks<small>lib/*.sh</small></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk n">bash only</span><em>registers a <code>.sh</code> by absolute path</em></div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">File preview / hidden files</div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+          <div class="mx-c"><span class="mk y">works</span></div>
+        </div>
+        <div class="mx-r">
+          <div class="mx-c lb">Test suite</div>
+          <div class="mx-c"><span class="mk y">passes</span></div>
+          <div class="mx-c"><span class="mk q">unknown</span><em>9 test files need a real PTY/tmux; 2 have a platform guard</em></div>
+          <div class="mx-c"><span class="mk q">unknown</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="figcap"><b>On Windows today the product is a web console with no terminals.</b> That's honestly reported rather than hidden — but it means the Windows build proves the code compiles, not that anything works. And the bottom row is the one that matters most: with almost no platform guards, the suite would fail confusingly on macOS and Windows rather than skipping cleanly, so <b>there is currently no signal at all</b> about whether non-Linux behaviour is correct.</p>
+  </div>
+
+  <h3 style="font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:40px 0 8px">The one structural change that makes Windows easy later</h3>
+  <p class="col">Right now platform support is expressed as a <em>runtime boolean</em>:</p>
+
+<pre><span class="cm">// pty_supported.go   //go:build !windows</span>
+var localPTYAvailable = true
+<span class="cm">// pty_unsupported.go //go:build windows</span>
+var localPTYAvailable = false
+
+<span class="cm">// backend_registry.go — the flag only colours the descriptor…</span>
+reg.Register(backend.Descriptor{ID: backend.Standard, Available: standardAvailable}, <span class="hl">defaultPTYFactory</span>)
+<span class="cm">// …the factory is still registered and still callable.</span></pre>
+
+  <p class="col" style="margin-top:18px">So the old platform flag was advisory. <code>defaultPTYFactory</code> lives in the Unix-only <code>pty.go</code> and imports <code>creackpty</code> directly; <code>pty_tmux.go</code>'s 737 lines of Unix-only tmux orchestration are now isolated by a build tag.</p>
+
+  <div class="fixnote">
+    <span class="lbl">The change</span>
+    <b>Move the platform decision from a flag to the file layout, behind the interface that already exists.</b> <code>pty.PTY</code> (from <code>session-core</code>) is the correct seam; the implementations just aren't split along it.
+    <div style="margin-top:10px">
+      <code>pty_local_unix.go</code> <span style="color:var(--ink-3)">(<code>!windows</code>)</span> — <code>realPTY</code> + creackpty, as today<br>
+      <code>pty_local_windows.go</code> <span style="color:var(--ink-3)">(<code>windows</code>)</span> — a ConPTY <code>realPTY</code>: an explicit <code>ErrUnsupported</code> stub now, a real implementation later<br>
+      <code>pty_tmux.go</code> <span style="color:var(--ink-3)">(<code>!windows</code>)</span> — build-tagged, and the persistent backend registered only where it can exist
+    </div>
+    <div style="margin-top:12px">Then the shared platform flag deletes itself: availability becomes a property of which file compiled. <b>Adding Windows turns into writing one file against a known interface, instead of auditing 737 lines for Unix assumptions.</b> That is precisely the "easy to add later" property you asked about.</div>
+  </div>
+
+  <h3 style="font-family:Archivo,sans-serif;font-size:19px;font-weight:600;margin:40px 0 8px">The rest of the portability list</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Item</th><th>Where</th><th>Priority</th><th>Payoff</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="what">Split echo state per-OS instead of <code>!linux</code></span><span class="why">Darwin is a first-class platform being treated as "not Linux". <code>x/sys/unix</code> on darwin does have <code>IoctlGetTermios</code> — it just wants <code>TIOCGETA</code> where Linux wants <code>TCGETS</code>. Today macOS users get a permanently fail-closed prediction overlay and nobody has been told why.</span></td>
+        <td class="n">pty_echo_*.go</td><td><span class="pri a">A</span></td>
+        <td class="n">~10 lines<br>fixes macOS</td>
+      </tr>
+      <tr>
+        <td><span class="what">Give the tests a platform contract</span><span class="why">Add <code>requireLocalPTY(t)</code> / <code>requireTmux(t)</code> helpers over the existing <code>repocontracttest.SkipPlatform</code> — which is already imported and used exactly once. Then the suite is <em>runnable</em> on macOS and Windows and reports honest skips. Without this, any Windows work is unverifiable, which is the real reason to do it first.</span></td>
+        <td class="n">9 test files</td><td><span class="pri a">A</span></td>
+        <td class="n">creates the<br>missing signal</td>
+      </tr>
+      <tr>
+        <td><span class="what">Evaluate a cross-platform PTY library</span><span class="why">Something like <code>go-pty</code> presents one interface over Unix PTY and Windows ConPTY, which would collapse the stub and the split into a dependency swap. Worth a spike rather than a commitment — and per repo policy this goes through Scenario Dependency Analyzer, never a raw <code>go get</code>.</span></td>
+        <td class="n">go.mod</td><td><span class="pri b">B</span></td>
+        <td class="n">could remove<br>two items above</td>
+      </tr>
+      <tr>
+        <td><span class="what">Replace the two bash hooks with Go subcommands</span><span class="why"><code>web-console hooks register</code> already exists as a Go CLI. Make the hooks themselves <code>web-console hooks stop</code> / <code>hooks prompt-submit</code> and the last shell scripts in the scenario disappear. It also removes the detection-by-filename in <code>main.go</code>, which currently string-matches <code>"claude-stop-hook.sh"</code> to decide whether a hook is registered — fragile on any platform, broken on Windows.</span></td>
+        <td class="n">lib/*.sh<br>register.go</td><td><span class="pri b">B</span></td>
+        <td class="n">deletes the last<br>bash dependency</td>
+      </tr>
+      <tr>
+        <td><span class="what">Drop the POSIX default out of the schema</span><span class="why"><code>shell TEXT NOT NULL DEFAULT '/bin/bash'</code> bakes a Unix path into the database. A row inserted without an explicit shell gets <code>/bin/bash</code> on Windows. Default to <code>''</code> and let <code>resolveShellForOS</code> own the decision — it already does everywhere else.</span></td>
+        <td class="n">schema.sql</td><td><span class="pri b">B</span></td>
+        <td class="n">one word</td>
+      </tr>
+      <tr>
+        <td><span class="what">Degrade to platform-appropriate, not to empty</span><span class="why"><code>readDistro()</code> opens <code>/etc/os-release</code> and returns <code>""</code> anywhere else, so the AI system context silently loses OS identity on macOS and Windows — where the information exists, just elsewhere. The failure mode isn't a crash, it's the assistant quietly getting dumber on two platforms. Worth a per-OS implementation beside the existing <code>runtime.GOOS</code> it already reports.</span></td>
+        <td class="n">ai/system_context.go</td><td><span class="pri c">C</span></td>
+        <td class="n">quality on<br>non-Linux</td>
+      </tr>
+      <tr>
+        <td><span class="what">Declare the platform matrix in service.json</span><span class="why"><code>hostTools</code> declares tmux as optional with a good degraded-behavior note, but there's no machine-readable statement of which platforms the scenario supports and at what tier. The repo already has <code>make cross-compile</code> and <code>internal/deployability/platformstatus.go</code>; declaring the matrix lets the gate verify the claim instead of the claim living only in a prose note.</span></td>
+        <td class="n">.vrooli/service.json</td><td><span class="pri c">C</span></td>
+        <td class="n">makes the claim<br>checkable</td>
+      </tr>
+      <tr>
+        <td><span class="what">Own the tmux socket path deliberately</span><span class="why">Unix domain sockets have a ~108-byte path limit, which <code>resolveTmuxSocket</code> comments on and works around by relocating relative names to <code>os.TempDir()</code>. Yet 13 orphaned <code>wc-test-*</code> sockets ended up in <code>api/</code> — so the resolution is less controlled than the comment implies. Same fix as the earlier hygiene item, but it's a portability issue too: this path is one of the few places where a host-specific limit leaks into behaviour.</span></td>
+        <td class="n">pty_tmux.go</td><td><span class="pri c">C</span></td>
+        <td class="n">also fixes<br>test litter</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout" style="border-left-color:var(--in);margin-top:30px">
+    <h4 style="color:var(--in)">The honest summary</h4>
+    <p>Portability here is <strong>structurally sound and functionally shallow</strong>. The build system, the capability reporting, the lifecycle model and the shared platform package are all doing the right thing — you can ship a Windows binary today and it will start, serve the UI, and correctly tell the user it has no terminals.</p>
+    <p>What's missing is one seam and one signal: the PTY implementations aren't split along the interface that already exists, and the test suite can't run anywhere but Linux. Fix those two and Windows support becomes an additive task with a green/red indicator, rather than a research project.</p>
+  </div>
+</section>
+
+<section class="col">
+  <h2><span class="num">05</span>Suggested order</h2>
+  <p>The dependency structure matters more than the individual items here.</p>
+  <ol class="col">
+    <li><strong>Stable transport handle</strong> — five lines, fixes S3 outright, and removes the churn that makes every other UI change hard to reason about. Do it first because everything else in the UI gets easier afterwards.</li>
+    <li><strong>Per-connection offset rebase + separate the reconciliation channel</strong> — kills S1's toast <em>and</em> the silent input death behind it. These are one change; shipping only the toast fix would hide the real bug.</li>
+    <li><strong>Split lease/presence off the size channel</strong> — fixes S4's false positives. The frame's <em>appearance</em> is a separate, smaller job: scale a wrapper instead of mutating <code>terminal.element</code>.</li>
+    <li><strong>Give the tests a platform contract</strong> — cheap, and it is the prerequisite for every other portability item. Without it you cannot tell whether a macOS or Windows change worked.</li>
+    <li><strong>Split the PTY implementations per-OS; fix darwin echo state</strong> — the structural move that converts "add Windows later" from an audit into writing one file. The macOS echo fix rides along for ~10 lines.</li>
+    <li><strong>External-content FTS, then a retention policy</strong> — the schema change is mechanical; the retention <em>policy</em> is a product decision only you can make.</li>
+    <li><strong>Pending-input queue rework</strong> — coalescing, the decoder, and cancel. Do it after (2), because a correctly-working input lane changes how often anyone sees this UI at all.</li>
+    <li><strong>Lazy <code>CODEX_HOME</code> + teardown deletion</strong> — stops generating orphans. Clearing the existing 45 GB stays with storage-manager.</li>
+    <li><strong>Tailer consolidation, then fold the checkpoint tables</strong> — the largest pure-refactor item, and the one with no user-visible payoff, so it goes last among the substantive work.</li>
+  </ol>
+  <p style="margin-top:22px"><strong>Confidence, stated precisely.</strong> S1 is confirmed — your report matches the traced path exactly. S3 and S4 are traced mechanisms that fit your symptoms including the "sometimes" and "not every time" qualifiers, but I have not reproduced either in a browser. Storage figures are measured directly off disk. The cross-compile results are measured by running the builds. Everything else is a static read.</p>
+</section>
+
+<footer>
+  Second pass, 2026-08-25. Storage figures measured from <code>~/.vrooli/data/vrooli/web-console</code> and <code>~/.vrooli/state/vrooli/web-console</code>; database figures from a read-only copy. Cross-compile and vet results from <code>GOOS/GOARCH</code> builds of <code>scenarios/web-console/api</code>. Companion to the first-pass architecture teardown.
+</footer>
+
+</div>

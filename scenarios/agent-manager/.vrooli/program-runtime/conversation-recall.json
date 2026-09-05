@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.conversation-recall",
+  "version": "1",
+  "purpose": "Recover retained Agent Manager conversations from incomplete clues by merging bounded direct and federated searches, then optionally fetching bounded context.",
+  "inputs": {
+    "clues": { "type": "array", "required": true, "description": "One to three partial-memory clues. Empty strings are rejected; raw clues are not echoed in the envelope." },
+    "project_scope": { "type": "string", "default": "", "description": "Optional exact Agent Manager project-scope filter for direct search." },
+    "harness": { "type": "string", "default": "", "description": "Optional exact harness filter for direct search." },
+    "role": { "type": "string", "default": "", "description": "Optional exact message-role filter for direct search." },
+    "occurred_after": { "type": "string", "default": "", "description": "Optional RFC3339 lower time bound for direct search." },
+    "occurred_before": { "type": "string", "default": "", "description": "Optional RFC3339 upper time bound for direct search." },
+    "policy": { "type": "string", "default": "both", "enum": ["direct", "federated", "both"], "description": "Which authoritative search surfaces to call." },
+    "per_query_limit": { "type": "integer", "default": 5, "description": "Results requested per search leg; range 1 through 10." },
+    "max_candidates": { "type": "integer", "default": 10, "description": "Deduplicated candidates returned; range 1 through 20." },
+    "context_candidates": { "type": "integer", "default": 2, "description": "Top candidates expanded only in context output mode; range 0 through 3." },
+    "context_before": { "type": "integer", "default": 2, "description": "Events before each selected hit; range 0 through 5." },
+    "context_after": { "type": "integer", "default": 2, "description": "Events after each selected hit; range 0 through 5." },
+    "max_context_bytes": { "type": "integer", "default": 6000, "description": "Aggregate UTF-8 bytes retained from snippets and context; range 0 through 12000." },
+    "output_mode": { "type": "string", "default": "metadata", "enum": ["metadata", "snippets", "context"], "description": "Metadata omits all content, snippets adds bounded hit snippets, and context adds bounded neighboring event content." }
+  },
+  "assumptions": [
+    "Agent Manager is running and exposes a policy-filtered retained conversation projection",
+    "Search Hub is required only for federated or both policy",
+    "the caller is authorized to see any content requested by output_mode",
+    "each invocation runs in a fresh Program Runtime session"
+  ],
+  "invariants": [
+    "only declared read bindings are called; canonical runs, projections, configurations, corpora, and memory are never changed",
+    "at most four deterministic query variants, twelve search calls, three context calls, twenty candidates, and twelve thousand content bytes are retained",
+    "provider ranking is preserved as contributing evidence; the program only deduplicates identities and orders by support count then best native rank",
+    "raw clues are never echoed in output, evidence, errors, or telemetry",
+    "one failed search leg preserves every successful leg and produces partial status",
+    "the envelope is printed exactly once on every path"
+  ],
+  "bindings": [
+    { "id": "agent-manager/conversation/search", "effect": "read", "optional": true },
+    { "id": "agent-manager/conversation/context", "effect": "read", "optional": true },
+    { "id": "search-hub/query/query", "effect": "read", "optional": true }
+  ],
+  "verbs": ["gather"],
+  "outputs": {
+    "status": { "enum": ["ok", "partial", "unavailable", "failed"] },
+    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "signals": {
+      "query_variants": "Number of deduplicated deterministic variants; clue text is omitted.",
+      "legs_planned": "Bounded direct and federated calls planned.",
+      "legs_succeeded": "Search calls that returned a governed response.",
+      "legs_failed": "Search calls that failed, with one classified error each.",
+      "candidate_count": "Deduplicated attributable Agent Manager candidates returned.",
+      "candidates": "Ranked bounded metadata, optional content, provenance, contributing surface/mode/rank evidence, and optional context.",
+      "sibling_provider_count": "Federated hits owned by other providers; these are counted but their content is not copied.",
+      "degradations": "Deduplicated reason, leg, and retryability only; raw provider details are omitted.",
+      "next_actions": "Closed next steps derived from no-result, ambiguity, partial-leg, and degradation states.",
+      "content_bytes": "Aggregate UTF-8 bytes of optional snippets and context retained in the envelope."
+    },
+    "errors": { "classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"] },
+    "evidence": "Binding IDs plus query ordinal, mode, counts, stable hit IDs, and degradation categories; never clue or conversation content."
+  },
+  "budget": { "wall_ms": 90000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 20, "output_bytes": 65536 },
+  "fixtures": [
+    { "id": "one-clue-no-content", "inputs": { "clues": ["fixture adaptive scheduler"], "policy": "direct", "output_mode": "metadata", "max_candidates": 5 }, "expect": { "status": ["ok", "partial"] }, "requires": ["agent-manager"], "note": "An empty live corpus is a valid ok result; deterministic fixture assertions live in Agent Manager tests." },
+    { "id": "many-clues-bounded", "inputs": { "clues": ["prior correction", "shared capacity", "phase monitor"], "policy": "both", "output_mode": "metadata", "max_candidates": 3 }, "expect": { "status": ["ok", "partial"] }, "requires": ["agent-manager", "search-hub"] },
+    { "id": "conflicting-dates", "inputs": { "clues": ["prior run"], "occurred_after": "2026-09-02T00:00:00Z", "occurred_before": "2026-09-01T00:00:00Z" }, "expect": { "status": ["failed"] } },
+    { "id": "missing-clues", "inputs": {}, "expect": { "status": ["failed"] } }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

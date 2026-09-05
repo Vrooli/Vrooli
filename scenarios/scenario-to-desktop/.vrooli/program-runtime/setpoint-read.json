@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "scenario-to-desktop.setpoint-read",
+  "version": "1",
+  "purpose": "Read the desktop improvement board with external binding condition and explicit missing outcome measures; never equate an available board with desktop maturity.",
+  "inputs": {},
+  "assumptions": [
+    "The caller uses the declared scenario bindings and preserves unavailable evidence.",
+    "Program success describes the read; it never grants deployment approval."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every path.",
+    "Read-only: no launch, build, publication, recovery, inference, delegation, or memory write.",
+    "Return identifiers and bounded projections; never print logs, configuration, credentials, media bytes, or private endpoints.",
+    "The skill table and board have the same nine rows and targets.",
+    "Dormant or uninstrumented bindings cannot establish serving health.",
+    "Missing performance baselines produce null targets; no historical sample is copied into a live reading.",
+    "Learning rows preserve per-context cohorts and missing denominators; targets remain null until comparable baselines exist."
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/bindings/condition",
+      "effect": "read"
+    },
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Nine rows: binding-condition, external-friction, desktop-behavior, runtime-performance, pipeline-performance, engineering-quality. Each has row, reading, target, in_band, unavailable, reason; null target means pending baseline. Includes learning-failure-recurrence, learning-success-effort, learning-advice-outcomes."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Successfully read binding IDs; selected pipeline or capture identities are in signals."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime",
+        "vrooli-memory"
+      ],
+      "note": "Permanent missing measurements and dormant bindings remain visible; neither lowers board execution status."
+    },
+    {
+      "id": "unexpected-input",
+      "inputs": {
+        "scenario": "other"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "scenario-to-desktop-improve"
+}

@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package vrooli.flow_verifier.v1.scenarios;
+
+import "flow-verifier/v1/artifacts/artifacts.proto";
+import "flow-verifier/v1/flows/flows.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/scenarios;scenarios_v1";
+
+// =============================================================================
+// SCENARIOS DOMAIN — scenario index + scenario-level artifact lifecycle
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain scenarios
+// @imports vrooli.flow_verifier.v1.flows, vrooli.flow_verifier.v1.artifacts
+// @stability stable
+//
+// Wire contract for the /scenarios index and per-scenario operations.
+// GenerateScenarioArtifacts is the canonical server-streaming RPC: the
+// UI subscribes and updates per-flow rows as messages arrive instead
+// of waiting for a final batch.
+// =============================================================================
+
+service ScenariosService {
+  rpc ListScenarios(ListScenariosRequest) returns (ListScenariosResponse);
+  rpc GetScenario(GetScenarioRequest) returns (GetScenarioResponse);
+
+  // Server-stream: one GenerateScenarioArtifactsResponse per flow, in
+  // discovery order. The stream completes when every flow has been
+  // generated (success or per-flow failure). Per-flow failures do not
+  // abort the stream — the UI renders one yellow row and keeps going.
+  rpc GenerateScenarioArtifacts(GenerateScenarioArtifactsRequest) returns (stream GenerateScenarioArtifactsResponse);
+
+  rpc ClearScenarioArtifacts(ClearScenarioArtifactsRequest) returns (ClearScenarioArtifactsResponse);
+}
+
+// ScenarioSummary is the row the /scenarios index renders. flow_count
+// drives the "12 flows" badge and the empty-state branch.
+message ScenarioSummary {
+  string id = 1;
+  string display_name = 2;
+  string description = 3;
+  string path = 4;
+  int32 flow_count = 5;
+  // Set when this scenario's flow tree could not be read; the index
+  // still renders the row so misconfigured scenarios are visible.
+  string discovery_error = 6;
+}
+
+// ScenarioDetail is one scenario plus every flow inside it.
+message ScenarioDetail {
+  ScenarioSummary summary = 1;
+  repeated vrooli.flow_verifier.v1.flows.FlowSummary flows = 2;
+}
+
+message ListScenariosRequest {}
+message ListScenariosResponse {
+  // Resolved Vrooli root, surfaced to the UI's empty-state.
+  string vrooli_root = 1;
+  repeated ScenarioSummary scenarios = 2;
+}
+
+message GetScenarioRequest {
+  string id = 1;
+}
+message GetScenarioResponse {
+  ScenarioDetail scenario = 1;
+}
+
+message GenerateScenarioArtifactsRequest {
+  string scenario_id = 1;
+}
+
+// GenerateScenarioArtifactsResponse is one message in the server-stream.
+// Exactly one of `report` or `error_message` is populated per message:
+// success messages carry the fresh ArtifactReport; failure messages
+// carry the error_message and the stream continues with the next flow.
+message GenerateScenarioArtifactsResponse {
+  string flow_id = 1;
+  vrooli.flow_verifier.v1.artifacts.ArtifactReport report = 2;
+  string error_message = 3;
+}
+
+message ClearScenarioArtifactsRequest {
+  string scenario_id = 1;
+}
+message ClearScenarioArtifactsResponse {
+  repeated vrooli.flow_verifier.v1.artifacts.ClearArtifactsResponse flows = 1;
+}

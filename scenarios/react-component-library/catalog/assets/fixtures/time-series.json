@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.time-series",
+    "name": "TimeSeriesFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial metric series with gaps, spikes, negative values, mixed intervals, and timezone boundaries, for dashboards, analytics, and any charted data.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "MetricSeries"
+      ]
+    },
+    "recordCount": {
+      "typical": 90,
+      "volume": 100000
+    }
+  },
+  "rationale": "Gaps are the point: a series with genuinely missing intervals is what proves a chart declares missing data rather than interpolating a trend that never happened."
+}

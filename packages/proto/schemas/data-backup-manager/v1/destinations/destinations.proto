@@ -1,0 +1,311 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.destinations;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations;destinations_v1";
+
+// =============================================================================
+// DESTINATIONS DOMAIN — encrypted kopia repositories
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain destinations
+// @stability stable
+//
+// Wire contract for DestinationsService. Each destination is one kopia
+// repository (filesystem or S3/MinIO). Invariants enforced server-side:
+// encryption is always on (OT-P0-007); a destination MUST NOT point under
+// the storage root it would protect (separate-root rule); storage caps
+// default to alert+block — never silent eviction (OT-P0-008).
+//
+// Destinations persist only references to vault-held secrets, never the
+// secrets themselves; the kopia resource sources passphrases from vault.
+// =============================================================================
+
+service DestinationsService {
+  rpc CreateDestination(CreateDestinationRequest) returns (CreateDestinationResponse);
+  rpc GetDestination(GetDestinationRequest) returns (GetDestinationResponse);
+  rpc ListDestinations(ListDestinationsRequest) returns (ListDestinationsResponse);
+  rpc UpdateDestination(UpdateDestinationRequest) returns (UpdateDestinationResponse);
+  rpc DeleteDestination(DeleteDestinationRequest) returns (DeleteDestinationResponse);
+  rpc GetDestinationUsage(GetDestinationUsageRequest) returns (GetDestinationUsageResponse);
+  rpc AnalyzeDestination(AnalyzeDestinationRequest) returns (AnalyzeDestinationResponse);
+  rpc PlanDestinationPreparation(PlanDestinationPreparationRequest) returns (PlanDestinationPreparationResponse);
+  rpc ExecuteDestinationPreparation(ExecuteDestinationPreparationRequest) returns (ExecuteDestinationPreparationResponse);
+}
+
+// BackendKind is the kopia repository backend.
+enum BackendKind {
+  BACKEND_KIND_UNSPECIFIED = 0;
+  // Local filesystem repository.
+  BACKEND_KIND_FILESYSTEM = 1;
+  // S3-compatible object storage (S3/MinIO).
+  BACKEND_KIND_S3 = 2;
+}
+
+// CapPolicy is the over-cap behavior. Defaults to alert+block.
+enum CapPolicy {
+  CAP_POLICY_UNSPECIFIED = 0;
+  // Alert AND refuse new writes when usage would exceed the cap. Never evicts.
+  CAP_POLICY_ALERT_BLOCK = 1;
+  // Alert only; allow the write to proceed past the cap.
+  CAP_POLICY_ALERT_ONLY = 2;
+}
+
+// UsageState classifies current usage against the cap.
+enum UsageState {
+  USAGE_STATE_UNSPECIFIED = 0;
+  // Comfortably under the cap.
+  USAGE_STATE_WITHIN = 1;
+  // Approaching the cap (default >= 90%).
+  USAGE_STATE_NEAR = 2;
+  // At or over the cap.
+  USAGE_STATE_OVER = 3;
+}
+
+// ReadinessSeverity is the normalized outcome for destination readiness checks.
+enum ReadinessSeverity {
+  READINESS_SEVERITY_UNSPECIFIED = 0;
+  READINESS_SEVERITY_PASS = 1;
+  READINESS_SEVERITY_WARNING = 2;
+  READINESS_SEVERITY_FAIL = 3;
+  READINESS_SEVERITY_UNKNOWN = 4;
+}
+
+// PreparationAction describes a destination-preparation operation.
+enum PreparationAction {
+  PREPARATION_ACTION_UNSPECIFIED = 0;
+  PREPARATION_ACTION_CREATE_SUBDIR = 1;
+  PREPARATION_ACTION_RELABEL = 2;
+  PREPARATION_ACTION_CLEAR_DIRECTORY = 3;
+  PREPARATION_ACTION_FORMAT = 4;
+  // Remediation actions for a destination the kernel refuses to mount
+  // read/write. They are executed by the control plane, which owns host state;
+  // the manager plans, confirms, and reports them.
+  //
+  // The usual order is unmount → check → repair → mount read/write, each
+  // separately confirmed. Splitting them keeps every step individually
+  // auditable and individually refusable rather than hiding a repair inside a
+  // single opaque "fix it" call.
+  PREPARATION_ACTION_UNMOUNT = 5;
+  PREPARATION_ACTION_CHECK_FILESYSTEM = 6;
+  PREPARATION_ACTION_REPAIR_FILESYSTEM = 7;
+  PREPARATION_ACTION_MOUNT_READ_WRITE = 8;
+}
+
+// Destination is the canonical wire shape for a backup destination.
+message Destination {
+  string id = 1;
+  // Operator-facing unique name.
+  string name = 2;
+  BackendKind backend_kind = 3;
+  // Operator-facing destination root. For a filesystem backend this is the
+  // self-describing bundle root (the folder that holds README.txt, RECOVERY.txt,
+  // vrooli-backup-destination.json, and the repositories/ subfolder). For S3 it
+  // is the bucket/prefix reference. Never holds credentials.
+  string location = 4;
+  // Configurable storage cap in bytes. Zero means "no cap".
+  int64 cap_bytes = 5;
+  CapPolicy cap_policy = 6;
+  // Reported kopia encryption algorithm; non-empty for every destination
+  // (encryption is always on).
+  string encryption_algorithm = 7;
+  // Reference (not value) to the vault entry holding this destination's
+  // passphrase/access keys. The kopia resource resolves it at call time.
+  string secret_ref = 8;
+  // Current bytes used, read from kopia repository stats (best-effort cache).
+  int64 usage_bytes = 9;
+  UsageState usage_state = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  // Concrete backend repository location passed to resource-kopia. For a
+  // filesystem backend this is the vanilla kopia repository path nested inside
+  // the bundle root, e.g. "<location>/repositories/<name>.kopia". For S3 it is
+  // the same bucket/prefix as location. Distinct from location so the operator
+  // sees the human bundle root while the engine targets the repository folder.
+  string repository_location = 13;
+}
+
+message CreateDestinationRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  BackendKind backend_kind = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string location = 3 [(buf.validate.field).string.min_len = 1];
+  int64 cap_bytes = 4 [(buf.validate.field).int64.gte = 0];
+  // Optional; defaults to CAP_POLICY_ALERT_BLOCK when unspecified.
+  CapPolicy cap_policy = 5;
+}
+
+message CreateDestinationResponse {
+  Destination destination = 1;
+}
+
+message GetDestinationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDestinationResponse {
+  Destination destination = 1;
+}
+
+message ListDestinationsRequest {
+  int32 page_size = 1 [(buf.validate.field).int32.gte = 0];
+  string page_token = 2;
+}
+
+message ListDestinationsResponse {
+  repeated Destination destinations = 1;
+  string next_page_token = 2;
+}
+
+message UpdateDestinationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // New cap in bytes; zero means "no cap".
+  int64 cap_bytes = 2 [(buf.validate.field).int64.gte = 0];
+  // Optional; leaves policy unchanged when unspecified.
+  CapPolicy cap_policy = 3;
+}
+
+message UpdateDestinationResponse {
+  Destination destination = 1;
+}
+
+message DeleteDestinationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  // When false (default), removing the destination record does NOT delete the
+  // underlying kopia repository. Reserved for future explicit repo teardown.
+  bool delete_repository = 2;
+}
+
+message DeleteDestinationResponse {
+  bool removed = 1;
+}
+
+message GetDestinationUsageRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetDestinationUsageResponse {
+  int64 usage_bytes = 1;
+  int64 cap_bytes = 2;
+  UsageState usage_state = 3;
+  CapPolicy cap_policy = 4;
+}
+
+// DestinationDeviceIdentity binds preparation plans to an observed device.
+message DestinationDeviceIdentity {
+  string device_path = 1;
+  string mountpoint = 2;
+  string label = 3;
+  string filesystem = 4;
+  int64 total_bytes = 5;
+  string model = 6;
+  string serial = 7;
+  string uuid = 8;
+}
+
+message DestinationReadinessCheck {
+  string code = 1;
+  ReadinessSeverity severity = 2;
+  string message = 3;
+  string next_action = 4;
+}
+
+message DestinationReadinessReport {
+  string location = 1;
+  ReadinessSeverity overall_severity = 2;
+  DestinationDeviceIdentity identity = 3;
+  repeated DestinationReadinessCheck checks = 4;
+  string recommended_destination_location = 5;
+  string recommended_action = 6;
+  string platform = 7;
+  string confidence = 8;
+  string evidence_source = 9;
+  google.protobuf.Timestamp observed_at = 10;
+  repeated string repair_steps = 11;
+}
+
+message AnalyzeDestinationRequest {
+  string location = 1 [(buf.validate.field).string.min_len = 1];
+  string proposed_subdir = 2;
+  int64 selected_target_bytes = 3 [(buf.validate.field).int64.gte = 0];
+  int32 retention_copies = 4 [(buf.validate.field).int32.gte = 0];
+  bool cross_platform_required = 5;
+}
+
+message AnalyzeDestinationResponse {
+  DestinationReadinessReport report = 1;
+}
+
+message DestinationPreparationPlan {
+  string id = 1;
+  PreparationAction action = 2;
+  string location = 3;
+  string target_path = 4;
+  DestinationDeviceIdentity identity = 5;
+  string desired_label = 6;
+  string desired_filesystem = 7;
+  bool requires_confirmation = 8;
+  bool destructive = 9;
+  string confirmation_phrase = 10;
+  bool supported = 11;
+  string unsupported_reason = 12;
+}
+
+message PlanDestinationPreparationRequest {
+  string location = 1 [(buf.validate.field).string.min_len = 1];
+  PreparationAction action = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string desired_subdir = 3;
+  string desired_label = 4;
+  string desired_filesystem = 5;
+  DestinationDeviceIdentity expected_identity = 6;
+}
+
+message PlanDestinationPreparationResponse {
+  DestinationPreparationPlan plan = 1;
+}
+
+message ExecuteDestinationPreparationRequest {
+  DestinationPreparationPlan plan = 1;
+  string confirmation = 2;
+  // Omitted defaults to true server-side; false requests real execution and
+  // still requires every server-side guard to pass.
+  optional bool dry_run = 3;
+  bool acknowledge_data_loss = 4;
+}
+
+message ExecuteDestinationPreparationResponse {
+  bool dry_run = 1;
+  PreparationAction action = 2;
+  string location = 3;
+  DestinationReadinessReport post_action_report = 4;
+  // Remediation outcome. These are populated for the host-remediation actions,
+  // which are executed by the control plane and reported here rather than
+  // collapsed into a bare success/failure.
+  //
+  // "verified" | "changed" | "already_satisfied" | "refused" | "unsupported" |
+  // "failed"
+  string status = 5;
+  bool changed = 6;
+  // Which control-plane execution path served the request.
+  string backend = 7;
+  // The exact argv that ran, or would have run under dry run.
+  repeated string command = 8;
+  // Bounded tool output.
+  string detail = 9;
+  // Set when this host has no automated path, naming the command an operator
+  // can run instead.
+  string operator_command = 10;
+  // Set when a safety gate rejected the request.
+  string refusal_reason = 11;
+  // Verdict of a check-filesystem action: "unknown" | "yes" | "no".
+  string consistent = 12;
+}

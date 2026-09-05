@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.aisearch;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/aisearch;aisearch_v1";
+
+service AISearchService {
+  rpc SearchSkills(SearchSkillsRequest) returns (SearchSkillsResponse);
+  rpc SearchAgents(SearchAgentsRequest) returns (SearchAgentsResponse);
+  rpc SearchActions(SearchActionsRequest) returns (SearchActionsResponse);
+  rpc SearchTeams(SearchTeamsRequest) returns (SearchTeamsResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse);
+  rpc GetReconcileStatus(GetReconcileStatusRequest) returns (ReconcileStatus);
+  rpc CancelReconcile(CancelReconcileRequest) returns (ReconcileStatus);
+}
+
+message SearchSkillsRequest {
+  string query = 1; repeated string queries = 2; int32 limit = 3;
+  string output = 4; string format = 5; int32 render_limit = 6;
+}
+message SkillResult {
+  string id = 1; string name = 2; string description = 3; string folder = 4;
+  repeated string tags = 5; repeated string modes = 6; double score = 7; int32 score_percent = 8;
+}
+message SearchSkillsResponse {
+  repeated SkillResult results = 1; string combined = 2; int32 skill_count = 3;
+  int32 total_tokens = 4; string format = 5; int32 total = 6; string query = 7;
+  string method = 8; string output = 9;
+}
+
+message SearchAgentsRequest { string query = 1; int32 limit = 2; }
+message AgentResult {
+  string id = 1; string display_name = 2; string description = 3; string status = 4;
+  repeated string tags = 5; double score = 6; int32 score_percent = 7;
+}
+message SearchAgentsResponse { repeated AgentResult results = 1; int32 total = 2; string query = 3; string method = 4; }
+
+message SearchActionsRequest { string query = 1; int32 limit = 2; }
+message ActionResult {
+  string id = 1; string name = 2; string description = 3; string status = 4;
+  string owner = 5; string command = 6; repeated string tags = 7;
+  double score = 8; int32 score_percent = 9;
+}
+message SearchActionsResponse { repeated ActionResult results = 1; int32 total = 2; string query = 3; string method = 4; }
+
+message SearchTeamsRequest { string query = 1; int32 limit = 2; }
+message TeamResult {
+  string id = 1; string display_name = 2; string mission = 3; bool enabled = 4;
+  int32 member_count = 5; double score = 6; int32 score_percent = 7;
+}
+message SearchTeamsResponse { repeated TeamResult results = 1; int32 total = 2; string query = 3; string method = 4; }
+
+message GetStatusRequest {}
+message GetStatusResponse {
+  bool available = 1; bool ollama = 2; bool qdrant = 3; int32 indexed_count = 4; string message = 5;
+}
+
+message ItemRef { string kind = 1; string point_id = 2; string name = 3; string payload_hash = 4; }
+message CollectionDriftReport {
+  string kind = 1; repeated ItemRef to_upsert = 2; repeated string to_delete = 3;
+  int32 unchanged_count = 4; int32 legacy_count = 5;
+}
+message DriftReport { string planned_at = 1; repeated CollectionDriftReport collections = 2; }
+message CollectionApplyResult { string kind = 1; int32 upserted = 2; int32 deleted = 3; }
+message ReconcileError { string kind = 1; string point_id = 2; string name = 3; string op = 4; string err = 5; }
+message ApplyResult {
+  string started_at = 1; string finished_at = 2;
+  repeated CollectionApplyResult collections = 3; repeated ReconcileError errors = 4;
+}
+message ReconcileStatus {
+  bool running = 1; string started_at = 2; string finished_at = 3;
+  DriftReport last_plan = 4; ApplyResult last_result = 5;
+  string last_error = 6; bool canceled = 7;
+}
+message ReconcileRequest { string collection = 1; bool dry_run = 2; }
+message ReconcileResponse { bool dry_run = 1; DriftReport plan = 2; ReconcileStatus status = 3; }
+message GetReconcileStatusRequest {}
+message CancelReconcileRequest {}

@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "name": "tap-target-broken",
+    "description": "CALIBRATION: plants a 20px interactive target and must fail the minimum tap-target assertion.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "overlay-composition-calibration",
+      "calibration": "expected-failure",
+      "assertion_class": "tap-target-broken",
+      "requirements_json": "[\"OVERLAY-COMPOSITION\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open calibration host"
+        }
+      }
+    },
+    {
+      "id": "plant-broken-fixture",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { document.body.innerHTML='<button id=\"broken\" style=\"width:20px;height:20px\">x</button>'; const r=document.querySelector('#broken').getBoundingClientRect(); document.body.dataset.calibrationOk=(r.width>=44&&r.height>=44)?'yes':'no'; return {width:r.width,height:r.height}; })()",
+          "store_result": "plantedEvidence"
+        },
+        "metadata": {
+          "label": "Plant the deliberately broken fixture"
+        }
+      }
+    },
+    {
+      "id": "assert-calibration",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-calibration-ok=\"yes\"]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 1000,
+          "failure_message": "EXPECTED CALIBRATION FAILURE: the planted interactive target is 20px, below --tap-target-min."
+        },
+        "metadata": {
+          "label": "Expected failure discriminator"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "plant-broken-fixture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "plant-broken-fixture",
+      "target": "assert-calibration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

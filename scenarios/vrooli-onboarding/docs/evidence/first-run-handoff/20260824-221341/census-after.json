@@ -1,0 +1,9 @@
+{
+  "internal_setup_setup_go_lines": 540,
+  "internal_setup_production_max_lines": 587,
+  "cli_shared_get_json_helpers": 1,
+  "api_internal_import_allowlist_ceiling": 7,
+  "ui_full_suite_tests": 219,
+  "ui_full_suite_passed": true,
+  "source": "current working tree after implementation"
+}

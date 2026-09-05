@@ -1,0 +1,481 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/repo-contract.schema.json",
+  "title": "Vrooli Repository Contract Schema",
+  "description": "Language-agnostic contract for Vrooli's future-state repository structure",
+  "type": "object",
+  "required": [
+    "$schema",
+    "version",
+    "platform",
+    "root",
+    "layout",
+    "targets",
+    "runtime_home",
+    "scenario",
+    "resource",
+    "globs",
+    "environment",
+    "sandbox",
+    "profiles"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "schemas/repo-contract.schema.json",
+      "description": "Schema reference"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver"
+    },
+    "platform": {
+      "type": "object",
+      "required": [
+        "mode",
+        "legacy_project_bash_supported",
+        "platform_conformance_gate"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "cross_platform_go_native"
+        },
+        "legacy_project_bash_supported": {
+          "type": "boolean",
+          "const": false
+        },
+        "platform_conformance_gate": {
+          "type": "string",
+          "const": "vrooli capability conformance"
+        }
+      },
+      "additionalProperties": false
+    },
+    "root": {
+      "type": "object",
+      "required": [
+        "markers"
+      ],
+      "properties": {
+        "markers": {
+          "type": "object",
+          "required": [
+            "required_dirs",
+            "required_files"
+          ],
+          "properties": {
+            "required_dirs": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/slashPath"
+              }
+            },
+            "required_files": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/slashPath"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "layout": {
+      "type": "object",
+      "required": [
+        "project_config_dir",
+        "scenario_dir",
+        "resource_dir",
+        "template_dir",
+        "package_dir",
+        "command_dir",
+        "internal_dir",
+        "docs_dir"
+      ],
+      "properties": {
+        "project_config_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "scenario_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "resource_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "template_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "package_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "command_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "internal_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "docs_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "scratch_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "project_config_allowlist": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/slashPath"
+          },
+          "description": "Explicitly approved entries in the repository .vrooli project-config directory."
+        }
+      },
+      "additionalProperties": false
+    },
+    "targets": {
+      "type": "object",
+      "required": [
+        "kinds"
+      ],
+      "properties": {
+        "kinds": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "roots"
+            ],
+            "properties": {
+              "roots": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/definitions/slashGlob"
+                }
+              },
+              "marker": {
+                "$ref": "#/definitions/slashPath"
+              },
+              "exclude": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/definitions/slashGlob"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime_home": {
+      "type": "object",
+      "description": "Structural authority for the operator runtime home ($HOME/.vrooli): its directory name and the well-known entries inside it. Distinct from layout.project_config_dir (the repo-relative .vrooli). Resolution (sudo-awareness) is NOT defined here — only structure.",
+      "required": [
+        "dir_name",
+        "env_overrides",
+        "entries",
+        "scoped"
+      ],
+      "properties": {
+        "dir_name": {
+          "type": "string",
+          "const": ".vrooli",
+          "description": "Name of the runtime-home directory relative to the operator's OS home."
+        },
+        "env_overrides": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/envVarName"
+          },
+          "description": "Environment variables that may override the resolved home root. Empty: no overrides are honored (single resolution path)."
+        },
+        "entries": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "common.schema.json#/definitions/durableDataEntry"
+          },
+          "description": "Well-known entries directly under the runtime home, keyed by stable logical name."
+        },
+        "scoped": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Slash-normalized home-relative template path with {param} placeholders."
+          },
+          "description": "Parameterized home-relative paths (e.g. per-scenario, per-project) expanded with caller-supplied params."
+        }
+      },
+      "additionalProperties": false
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "required_files",
+        "well_known_paths"
+      ],
+      "properties": {
+        "required_files": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/slashPath"
+          }
+        },
+        "well_known_paths": {
+          "type": "object",
+          "required": [
+            "service",
+            "docs",
+            "docs_manifest",
+            "requirements",
+            "api",
+            "ui",
+            "cli",
+            "cli_manifest"
+          ],
+          "properties": {
+            "service": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "orientation": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "docs": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "docs_manifest": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "requirements": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "api": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "ui": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "cli": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "cli_manifest": {
+              "$ref": "#/definitions/slashPath"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "required": [
+        "manifest",
+        "well_known_paths"
+      ],
+      "properties": {
+        "manifest": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "well_known_paths": {
+          "type": "object",
+          "required": [
+            "docs"
+          ],
+          "properties": {
+            "docs": {
+              "$ref": "#/definitions/slashPath"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "globs": {
+      "type": "object",
+      "required": [
+        "syntax",
+        "root_relative",
+        "case_sensitive",
+        "allow_absolute",
+        "path_format"
+      ],
+      "properties": {
+        "syntax": {
+          "type": "string",
+          "const": "doublestar"
+        },
+        "root_relative": {
+          "type": "boolean",
+          "const": true
+        },
+        "case_sensitive": {
+          "type": "boolean",
+          "const": true
+        },
+        "allow_absolute": {
+          "type": "boolean",
+          "const": false
+        },
+        "path_format": {
+          "type": "string",
+          "const": "slash_normalized"
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "variables"
+      ],
+      "properties": {
+        "variables": {
+          "type": "object",
+          "required": [
+            "repo_root",
+            "source_root",
+            "sandbox_id",
+            "sandbox_merged",
+            "sandbox_scope"
+          ],
+          "properties": {
+            "repo_root": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "source_root": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "sandbox_id": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "sandbox_merged": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "sandbox_scope": {
+              "$ref": "#/definitions/envVarName"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sandbox": {
+      "type": "object",
+      "required": [
+        "full_repo_scopes",
+        "scenario_scope_prefix"
+      ],
+      "properties": {
+        "full_repo_scopes": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "scenario_scope_prefix": {
+          "type": "string",
+          "const": "scenarios/"
+        }
+      },
+      "additionalProperties": false
+    },
+    "profiles": {
+      "type": "object",
+      "required": [
+        "mini_vrooli_bundle"
+      ],
+      "properties": {
+        "mini_vrooli_bundle": {
+          "$ref": "#/definitions/profile"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "slashPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
+      "description": "Slash-normalized repository-relative path"
+    },
+    "slashGlob": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.)(?:/(?:[^/\\.\\\\][^/\\\\]*|\\.[^/\\.\\\\][^/\\\\]*|\\.\\.[^/\\\\][^/\\\\]*|\\.))*$",
+      "description": "Slash-normalized repository-relative glob"
+    },
+    "envVarName": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "description",
+        "parameters",
+        "include",
+        "optional_include",
+        "exclude"
+      ],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(\\[\\*\\])?$"
+          }
+        },
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/slashPath"
+          }
+        },
+        "optional_include": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/slashPath"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/slashGlob"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

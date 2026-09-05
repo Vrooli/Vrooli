@@ -114,10 +114,12 @@ func setupViewerFixture(t *testing.T) (string, string) {
 	}
 	content := `# Problems
 
-## 2000-01-01: Ancient issue
+## Entries
+
+### 2000-01-01 - Ancient issue
 - Legacy note
 
-## 2100-01-01: Recent issue
+### 2100-01-01 - Recent issue
 - Current note
 `
 	file := filepath.Join(docPath, "PROBLEMS.md")

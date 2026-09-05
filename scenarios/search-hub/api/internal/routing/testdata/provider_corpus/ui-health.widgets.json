@@ -1,0 +1,29 @@
+{
+ "provider_id": "ui-health.widgets",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "ui-health",
+  "bucket": "BUCKET_REUSE",
+  "type": "widget",
+  "description": "Chat-embeddable UI widgets across every scenario — surfaces that declare a widget contract (@vrooliWidget) so an agent can embed them inline in a conversation, searchable by what each widget renders or does. Route here to find an embeddable widget to drop into a chat response instead of building one.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "ui-health",
+      "path": "/vrooli.ui_health.v1.search.SearchService/Search",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "filePath",
+    "title_field": "displayName",
+    "score_field": "score",
+    "snippet_field": "description",
+    "path_field": "filePath",
+    "presence_field": "widget",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

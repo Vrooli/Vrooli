@@ -1,0 +1,164 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "notification-hub",
+  "generator": "v1.0.0",
+  "manifest_hash": "3327eae4aa13a4ebe48f3b5d712eec6374bbfcee10b5fd49998c890ccf6670c0",
+  "commands": [
+    {
+      "path": "channels status",
+      "group": "channels",
+      "command": "status",
+      "binding": "RoutingService.ChannelsStatus"
+    },
+    {
+      "path": "conversations answer",
+      "group": "conversations",
+      "command": "answer",
+      "binding": "ConversationsService.Answer"
+    },
+    {
+      "path": "conversations ask",
+      "group": "conversations",
+      "command": "ask",
+      "binding": "ConversationsService.Ask"
+    },
+    {
+      "path": "conversations wait",
+      "group": "conversations",
+      "command": "wait",
+      "binding": "ConversationsService.Wait"
+    },
+    {
+      "path": "delivery analytics",
+      "group": "delivery",
+      "command": "analytics",
+      "binding": "DeliveryService.GetAnalytics"
+    },
+    {
+      "path": "delivery deliver",
+      "group": "delivery",
+      "command": "deliver",
+      "binding": "DeliveryService.Deliver"
+    },
+    {
+      "path": "delivery timeline",
+      "group": "delivery",
+      "command": "timeline",
+      "binding": "DeliveryService.GetTimeline"
+    },
+    {
+      "path": "integrations event-config",
+      "group": "integrations",
+      "command": "event-config"
+    },
+    {
+      "path": "integrations event-config-set",
+      "group": "integrations",
+      "command": "event-config-set"
+    },
+    {
+      "path": "notifications get",
+      "group": "notifications",
+      "command": "get",
+      "binding": "NotificationsService.Get"
+    },
+    {
+      "path": "notifications list",
+      "group": "notifications",
+      "command": "list",
+      "binding": "NotificationsService.List"
+    },
+    {
+      "path": "notifications relay",
+      "group": "notifications",
+      "command": "relay",
+      "binding": "NotificationsService.Relay"
+    },
+    {
+      "path": "notifications send",
+      "group": "notifications",
+      "command": "send",
+      "binding": "NotificationsService.Send"
+    },
+    {
+      "path": "recipients address-remove",
+      "group": "recipients",
+      "command": "address-remove",
+      "binding": "RecipientsService.RemoveChannelAddress"
+    },
+    {
+      "path": "recipients address-upsert",
+      "group": "recipients",
+      "command": "address-upsert",
+      "binding": "RecipientsService.UpsertChannelAddress"
+    },
+    {
+      "path": "recipients device-list",
+      "group": "recipients",
+      "command": "device-list",
+      "binding": "RecipientsService.ListDevices"
+    },
+    {
+      "path": "recipients device-remove",
+      "group": "recipients",
+      "command": "device-remove",
+      "binding": "RecipientsService.RemoveDevice"
+    },
+    {
+      "path": "recipients device-upsert",
+      "group": "recipients",
+      "command": "device-upsert",
+      "binding": "RecipientsService.UpsertDevice"
+    },
+    {
+      "path": "recipients escalation-get",
+      "group": "recipients",
+      "command": "escalation-get",
+      "binding": "RecipientsService.GetEscalationChain"
+    },
+    {
+      "path": "recipients escalation-set",
+      "group": "recipients",
+      "command": "escalation-set",
+      "binding": "RecipientsService.SetEscalationChain"
+    },
+    {
+      "path": "recipients get",
+      "group": "recipients",
+      "command": "get",
+      "binding": "RecipientsService.GetRecipient"
+    },
+    {
+      "path": "recipients push-remove",
+      "group": "recipients",
+      "command": "push-remove",
+      "binding": "RecipientsService.RemovePushSubscription"
+    },
+    {
+      "path": "recipients push-subscribe",
+      "group": "recipients",
+      "command": "push-subscribe",
+      "binding": "RecipientsService.RegisterPushSubscription"
+    },
+    {
+      "path": "recipients quiet-delete",
+      "group": "recipients",
+      "command": "quiet-delete",
+      "binding": "RecipientsService.DeleteQuietWindow"
+    },
+    {
+      "path": "recipients quiet-list",
+      "group": "recipients",
+      "command": "quiet-list",
+      "binding": "RecipientsService.ListQuietWindows"
+    },
+    {
+      "path": "recipients quiet-set",
+      "group": "recipients",
+      "command": "quiet-set",
+      "binding": "RecipientsService.SetQuietWindow"
+    }
+  ]
+}

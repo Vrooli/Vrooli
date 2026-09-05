@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-05-03T00:00:00Z",
+  "description": "Universal writer skill for filing a bug observation against any scenario, skill, member, or CLI command. Writes a bug-inbox/\u003csignal-type\u003e/\u003cslug\u003e entry on the scenario-qa team for the bug-investigator to drain.",
+  "entry": "SKILL.md",
+  "icon": "bug",
+  "id": "report-bug",
+  "kind": "skill",
+  "modes": [
+    "tools"
+  ],
+  "name": "Report Bug",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager team",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 3,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "observability",
+    "bug-report",
+    "writer-skill"
+  ],
+  "updatedAt": "2026-07-21T00:00:00Z",
+  "writes_to": [
+    "bug-inbox/*"
+  ]
+}

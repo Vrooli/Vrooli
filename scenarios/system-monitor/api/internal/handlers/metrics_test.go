@@ -1,17 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
-	"system-monitor-api/internal/config"
-	handlermocks "system-monitor-api/internal/handlers/mocks"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/testutil"
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/nodereach"
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/testutil"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestGetCurrentMetrics_Success(t *testing.T) {
@@ -29,7 +39,7 @@ func TestGetCurrentMetrics_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 
 	// Verify JSON contains expected fields.
@@ -58,7 +68,7 @@ func TestGetCurrentMetrics_Fresh(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current?fresh=true", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 }
 
@@ -69,7 +79,7 @@ func TestGetCurrentMetrics_Error(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
 }
 
@@ -101,7 +111,75 @@ func TestGetCurrentMetrics_WriteError_NoPanic(t *testing.T) {
 	w := newBrokenResponseWriter()
 
 	// This should not panic even though Write returns an error.
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
+}
+
+type machineRegistryServer struct {
+	registryconnect.UnimplementedNodeRegistryServiceHandler
+}
+
+func (machineRegistryServer) ListNodes(context.Context, *connect.Request[registryv1.ListNodesRequest]) (*connect.Response[registryv1.ListNodesResponse], error) {
+	return connect.NewResponse(&registryv1.ListNodesResponse{Nodes: []*registryv1.Node{{
+		Id: "minimouse", Name: "minimouse", Os: "darwin", Arch: "amd64", Online: true,
+		HeartbeatFresh: true, ChannelHeld: true, ProtocolCompatible: true, Dispatchable: true,
+		Scopes: []string{"system-monitor:read", "system-monitor:write"},
+		Status: registryv1.NodeStatus_NODE_STATUS_ONLINE, LastSeenAt: timestamppb.Now(),
+	}}}), nil
+}
+
+func TestRemoteMetricsAndMachinesUseSharedNodeClient(t *testing.T) {
+	registryPath, registryHandler := registryconnect.NewNodeRegistryServiceHandler(machineRegistryServer{})
+	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, registryPath):
+			registryHandler.ServeHTTP(w, r)
+		case r.URL.Path == "/api/v1/targets/minimouse/scenarios/system-monitor/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics":
+			payload, err := proto.Marshal(&metricspb.GetCurrentMetricsResponse{Metrics: &metricspb.MetricsResponse{CpuUsage: 12.5}})
+			if err != nil {
+				t.Fatalf("marshal remote metrics: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/proto")
+			_, _ = w.Write(payload)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer bridge.Close()
+
+	client := nodereach.New(nodereach.Config{BridgeURL: bridge.URL})
+	handler := NewMetricsHandler(&config.Config{}, handlermocks.NewMonitorQuerier().WithCurrentMetrics(&models.MetricsResponse{CPUUsage: 7.25}).WithActive(true), slog.Default())
+	handler.bridge = client
+
+	machines := httptest.NewRecorder()
+	handler.HandleGetMachines(machines, httptest.NewRequest(http.MethodGet, "/api/v1/machines", nil))
+	testutil.AssertStatusCode(t, machines.Code, http.StatusOK)
+	if !strings.Contains(machines.Body.String(), "minimouse") {
+		t.Fatalf("machines response = %s", machines.Body.String())
+	}
+	if !strings.Contains(machines.Body.String(), "Read and operate; destructive actions withheld") {
+		t.Fatalf("machines response omitted the operator-facing grant: %s", machines.Body.String())
+	}
+	if !strings.Contains(machines.Body.String(), "system-monitor:read") || !strings.Contains(machines.Body.String(), "system-monitor:write") {
+		t.Fatalf("machines response omitted concrete grant scopes: %s", machines.Body.String())
+	}
+
+	metrics := httptest.NewRecorder()
+	local := httptest.NewRecorder()
+	handler.HandleGetCurrentMetrics(local, httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current?fresh=1", nil))
+	testutil.AssertStatusCode(t, local.Code, http.StatusOK)
+	remote := httptest.NewRecorder()
+	handler.HandleGetCurrentMetrics(remote, httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current?node=minimouse&fresh=1", nil))
+	testutil.AssertStatusCode(t, remote.Code, http.StatusOK)
+	for name, body := range map[string][]byte{"local": local.Body.Bytes(), "minimouse": remote.Body.Bytes()} {
+		decoded := &metricspb.MetricsResponse{}
+		if err := protojson.Unmarshal(body, decoded); err != nil {
+			t.Fatalf("%s metrics response is not the shared MetricsResponse JSON type: %v; body=%s", name, err, body)
+		}
+	}
+	metrics = remote
+	if !strings.Contains(metrics.Body.String(), "12.5") {
+		t.Fatalf("remote metrics response = %s", metrics.Body.String())
+	}
 }
 
 func TestGetMetricsTimeline_Success(t *testing.T) {
@@ -132,7 +210,7 @@ func TestGetMetricsTimeline_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=120", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 
 	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
@@ -158,7 +236,7 @@ func TestGetMetricsTimeline_EmptySamples(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 }
 
@@ -175,7 +253,7 @@ func TestGetMetricsTimeline_CustomWindow(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=300&interval=10", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 }
 
@@ -186,8 +264,41 @@ func TestGetMetricsTimeline_Error(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=120", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
+}
+
+func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
+	mock := handlermocks.NewMonitorQuerier().
+		WithDiskDetail(&models.DiskDetailResponse{
+			Partitions: []models.DiskPartitionInfo{
+				{
+					Device:         "/dev/test",
+					MountPoint:     "/",
+					SizeBytes:      100,
+					UsedBytes:      90,
+					AvailableBytes: 10,
+					UsePercent:     90,
+				},
+			},
+			ActiveMount: "/",
+			Depth:       2,
+			Notes:       []string{"Suggested handoff: storage-manager cleanup plan --profile conservative"},
+			Timestamp:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		})
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	res, err := handler.GetDiskDetail(context.Background(), connect.NewRequest(&metricspb.GetDiskDetailRequest{}))
+	if err != nil {
+		t.Fatalf("GetDiskDetail returned error: %v", err)
+	}
+	if res.Msg.GetData().GetPartitions()[0].GetUsePercent() != 90 {
+		t.Fatalf("disk pressure = %v, want 90", res.Msg.GetData().GetPartitions()[0].GetUsePercent())
+	}
+	notes := res.Msg.GetData().GetNotes()
+	if len(notes) != 1 || notes[0] != "Suggested handoff: storage-manager cleanup plan --profile conservative" {
+		t.Fatalf("notes = %v, want storage-manager handoff", notes)
+	}
 }
 
 var _ MonitorQuerier = (*handlermocks.MonitorQuerier)(nil)

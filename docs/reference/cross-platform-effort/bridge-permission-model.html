@@ -1,0 +1,431 @@
+<title>Vrooli Node &amp; Agent Authorization — the model, and the three things wrong with it</title>
+<style>
+  :root {
+    --ground:#EEF0F3; --surface:#FFFFFF; --surface-2:#F6F7F9; --surface-3:#EDEFF3;
+    --ink:#14181E; --ink-2:#5A626D; --ink-3:#878F9A;
+    --rule:#D5DAE1; --rule-strong:#B9C1CB;
+    --accent:#1B5A8A; --accent-soft:#E3EDF5;
+    --ok:#2C7A57; --ok-soft:#E0EFE8;
+    --warn:#A96B12; --warn-soft:#F6EBD8;
+    --crit:#A93A2C; --crit-soft:#F7E4E1;
+    --none:#7E8792; --none-soft:#E7EAEE;
+    --built:#5A4E96; --built-soft:#E9E6F4;
+    --shadow:0 1px 2px rgba(20,24,30,.06), 0 8px 24px -16px rgba(20,24,30,.28);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wrap: 1100px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128; --surface-3:#212832;
+      --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+      --rule:#262C35; --rule-strong:#37404B;
+      --accent:#74AEDD; --accent-soft:#17293A;
+      --ok:#58BC91; --ok-soft:#12291F;
+      --warn:#DBA24A; --warn-soft:#2B2013;
+      --crit:#E77A68; --crit-soft:#2E1917;
+      --none:#7E8792; --none-soft:#1E232A;
+      --built:#A79BE0; --built-soft:#201D33;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128; --surface-3:#212832;
+    --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+    --rule:#262C35; --rule-strong:#37404B;
+    --accent:#74AEDD; --accent-soft:#17293A;
+    --ok:#58BC91; --ok-soft:#12291F;
+    --warn:#DBA24A; --warn-soft:#2B2013;
+    --crit:#E77A68; --crit-soft:#2E1917;
+    --none:#7E8792; --none-soft:#1E232A;
+    --built:#A79BE0; --built-soft:#201D33;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px; }
+
+  .masthead { border-bottom:1px solid var(--rule); background:var(--surface); }
+  .masthead .wrap { padding-top:44px; padding-bottom:34px; }
+  .kicker { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent); margin:0 0 18px; }
+  h1 { font-family:var(--mono); font-weight:600; letter-spacing:-.028em;
+       font-size:clamp(26px,3.6vw,38px); line-height:1.12; margin:0 0 18px;
+       text-wrap:balance; max-width:24ch; }
+  .standfirst { font-size:18px; color:var(--ink-2); max-width:70ch; margin:0; }
+  .standfirst strong { color:var(--ink); font-weight:600; }
+  .meta { margin-top:24px; padding-top:18px; border-top:1px solid var(--rule);
+          font-family:var(--mono); font-size:12px; color:var(--ink-3);
+          display:flex; flex-wrap:wrap; gap:8px 26px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1px;
+           background:var(--rule); border:1px solid var(--rule); margin-top:32px; }
+  .stat { background:var(--surface); padding:18px 20px; }
+  .stat .n { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.03em;
+             font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat .l { font-size:13px; color:var(--ink-2); margin-top:5px; }
+  .n.ok{color:var(--ok);} .n.warn{color:var(--warn);} .n.crit{color:var(--crit);}
+  .n.acc{color:var(--accent);} .n.blt{color:var(--built);}
+
+  section { padding:50px 0; border-bottom:1px solid var(--rule); }
+  section:last-of-type { border-bottom:0; padding-bottom:64px; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+             color:var(--ink-3); display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .eyebrow::after { content:""; flex:1; height:1px; background:var(--rule); }
+  h2 { font-family:var(--mono); font-weight:600; font-size:clamp(20px,2.3vw,26px);
+       letter-spacing:-.022em; margin:0 0 14px; text-wrap:balance; max-width:32ch; }
+  h3 { font-family:var(--sans); font-weight:650; font-size:16.5px; margin:28px 0 8px; letter-spacing:-.008em; }
+  p { margin:0 0 14px; max-width:74ch; }
+  .lede { font-size:17px; color:var(--ink-2); max-width:70ch; }
+  ul,ol { margin:0 0 14px; padding-left:20px; max-width:74ch; }
+  li { margin-bottom:7px; }
+  code { font-family:var(--mono); font-size:.86em; background:var(--surface-2);
+         border:1px solid var(--rule); border-radius:3px; padding:1px 5px; color:var(--ink); }
+  .m { font-family:var(--mono); font-size:.9em; }
+  strong { font-weight:650; }
+
+  .chip { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10.5px;
+          letter-spacing:.05em; text-transform:uppercase; font-weight:600; padding:2px 7px;
+          border-radius:3px; white-space:nowrap; }
+  .chip::before { content:""; width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .c-ok{color:var(--ok);background:var(--ok-soft);}
+  .c-blt{color:var(--built);background:var(--built-soft);}
+  .c-warn{color:var(--warn);background:var(--warn-soft);}
+  .c-crit{color:var(--crit);background:var(--crit-soft);}
+  .c-none{color:var(--none);background:var(--none-soft);}
+  .c-acc{color:var(--accent);background:var(--accent-soft);}
+  .chip.flat::before{display:none;}
+
+  /* derivation flow */
+  .flow { display:grid; gap:14px; grid-template-columns:minmax(0,1fr); margin:22px 0 6px; }
+  @media (min-width:900px){ .flow{ grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr) 26px minmax(0,1fr); align-items:stretch; gap:0; } }
+  .node { border:1px solid var(--rule); background:var(--surface); padding:16px 18px; box-shadow:var(--shadow); }
+  .node .cap { font-family:var(--mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase;
+               color:var(--ink-3); margin:0 0 8px; }
+  .node .ttl { font-family:var(--mono); font-weight:600; font-size:14.5px; margin:0 0 8px; letter-spacing:-.015em; }
+  .node p { font-size:13.5px; margin:0 0 8px; color:var(--ink-2); }
+  .node p:last-child, .node ul:last-child { margin-bottom:0; }
+  .node ul { font-size:13px; padding-left:17px; color:var(--ink-2); }
+  .node li { margin-bottom:4px; }
+  .arrow { display:none; }
+  @media (min-width:900px){
+    .arrow { display:flex; align-items:center; justify-content:center;
+             font-family:var(--mono); color:var(--ink-3); font-size:15px; }
+  }
+  .node.src { border-left:3px solid var(--accent); }
+  .node.der { border-left:3px solid var(--built); }
+  .node.use { border-left:3px solid var(--ok); }
+
+  .scroll { overflow-x:auto; border:1px solid var(--rule); background:var(--surface); margin:18px 0 8px; }
+  table { border-collapse:collapse; width:100%; min-width:620px; font-size:13.5px; }
+  th,td { text-align:left; padding:9px 13px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+             color:var(--ink-3); font-weight:600; background:var(--surface-2);
+             border-bottom:1px solid var(--rule-strong); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.k { font-family:var(--mono); font-size:12.5px; white-space:nowrap; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.c { text-align:center; }
+  .caption { font-size:12.5px; color:var(--ink-3); margin:0 0 4px; max-width:78ch; }
+
+  .callout { border:1px solid var(--rule); border-left:3px solid var(--accent); background:var(--surface);
+             padding:18px 20px; margin:22px 0; box-shadow:var(--shadow); }
+  .callout.crit { border-left-color:var(--crit); }
+  .callout.ok { border-left-color:var(--ok); }
+  .callout.warn { border-left-color:var(--warn); }
+  .callout p:last-child, .callout ul:last-child { margin-bottom:0; }
+  .callout .t { font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+                color:var(--ink-3); margin:0 0 8px; }
+
+  .defects { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .defect { background:var(--surface); padding:18px 20px; display:grid; gap:14px;
+            grid-template-columns:minmax(0,1fr); }
+  @media (min-width:880px){ .defect{ grid-template-columns:58px minmax(0,1fr); gap:22px; } }
+  .defect .n { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--crit);
+               letter-spacing:.06em; padding-top:3px; }
+  .defect .h { font-weight:650; font-size:15.5px; margin-bottom:6px; }
+  .defect p { margin-bottom:8px; font-size:14.5px; }
+  .defect p:last-child { margin-bottom:0; }
+  .defect .ev { font-family:var(--mono); font-size:12px; color:var(--ink-3); }
+
+  pre { margin:14px 0; padding:14px 16px; background:var(--surface-2); border:1px solid var(--rule);
+        overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.65; color:var(--ink); }
+  pre .cm { color:var(--ink-3); }
+  pre .no { color:var(--crit); }
+  pre .yes { color:var(--ok); }
+
+  .split { display:grid; gap:26px; grid-template-columns:minmax(0,1fr); margin-top:8px; }
+  @media (min-width:900px){ .split{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:32px; } }
+  .panel { border:1px solid var(--rule); background:var(--surface); padding:18px 20px; }
+  .panel h3 { margin-top:0; }
+  .panel p:last-child, .panel ul:last-child { margin-bottom:0; }
+
+  a { color:var(--accent); text-underline-offset:2px; }
+  a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
+</style>
+
+<div class="historical">Historical permission-model snapshot. Session-scope references below are retained for traceability and are not the current transport contract (updated 2026-08-29).</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Architecture reference · measured 2026-08-18 · branch <span class="m">agi</span></p>
+    <h1>Node and agent authorization is derived from one catalog vocabulary.</h1>
+    <p class="standfirst">Vrooli does not maintain a hand-written list of remotely-invocable commands. The authorization vocabulary is <strong>derived at init from every CLI manifest in the repository</strong> — 2,251 governed commands compress to <strong>164 grantable scope strings</strong>. Bridge admission, discovery's relay pre-check, and agent identity now share that vocabulary. Node authority is keyed by scenario namespace and effect, so adding a command requires no Bridge or node-record edit while a new destructive command remains excluded from read/write grants.</p>
+    <div class="meta">
+      <span>74 CLI manifests read</span>
+      <span>1 authority: <span class="m">api-core/scopecatalog</span></span>
+      <span>3 relying parties</span>
+      <span>2 transports</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="n acc">2,251</div><div class="l">Governed commands across the repo</div></div>
+      <div class="stat"><div class="n ok">164</div><div class="l">Distinct grantable scope strings</div></div>
+      <div class="stat"><div class="n blt">1,603 / 493</div><div class="l">RPC-bound scopes / omitted RPCs given a safe default</div></div>
+      <div class="stat"><div class="n ok">2</div><div class="l">Active node grant sets migrated</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The model</p>
+    <h2>One derivation, three consumers</h2>
+    <p class="lede">Everything flows from CLI manifests. Nothing in the middle is hand-maintained; the checked-in artifact on the Bridge side, <code>dispatch.manifest.json</code>, is six lines long and names no commands at all.</p>
+
+    <div class="flow">
+      <div class="node src">
+        <p class="cap">Source of truth</p>
+        <p class="ttl">cli/manifest.json ×74</p>
+        <p>The root project manifest plus one per scenario. Each command declares a <code>governance</code> block:</p>
+        <ul>
+          <li><code>effect</code> — <span class="m">read</span> / <span class="m">write</span> / <span class="m">destructive</span></li>
+          <li><code>run_eligible</code> — may an agent invoke it, or humans only</li>
+          <li><code>permissions</code> — filesystem/network/admin classes</li>
+          <li><code>binding</code> — the connect-rpc service+method, when there is one</li>
+        </ul>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node der">
+        <p class="cap">Derivation · no I/O at call time</p>
+        <p class="ttl">api-core/scopecatalog</p>
+        <p>Schema-validates every manifest, then emits a deterministic catalog of <code>&lt;scenario&gt;:&lt;effect&gt;</code> scopes. Also:</p>
+        <ul>
+          <li>gives each <code>omitted</code> RPC the scenario's <em>most restrictive</em> effect — the safe default</li>
+          <li><code>Reconcile()</code> checks the catalog against proto descriptors for completeness</li>
+          <li><code>Resolve()</code> implements the wildcard grammar</li>
+          <li><code>Materialize()</code> expands wildcards at token-mint time and drops human-only commands</li>
+        </ul>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node use">
+        <p class="cap">Relying parties</p>
+        <p class="ttl">Three, one vocabulary</p>
+        <ul>
+          <li><strong>Bridge dispatch</strong> — <code>dispatch.Allow</code> admits a typed job against a node's scopes</li>
+          <li><strong>Discovery relay</strong> — <code>ResolveScenario</code> admits an addressed <span class="m">node@scenario</span> call</li>
+          <li><strong>Agent identity</strong> — agent-manager mints run tokens via <code>Materialize</code></li>
+        </ul>
+        <p style="margin-top:8px">A fourth party, <strong>scenario-authenticator</strong>, stores grants but deliberately never interprets them.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="t">The separation that makes this work</p>
+      <p>scenario-authenticator's authorization package says it outright: <em>"It does not derive, validate, or enforce scope meaning; relying parties own those decisions."</em> That is the correct IAM split, and it is the reason no second vocabulary is needed. The <strong>catalog defines</strong> what scopes exist, the <strong>authenticator stores</strong> who holds which, and each <strong>relying party enforces</strong> at its own boundary. Any proposal that teaches the authenticator about command semantics is moving in the wrong direction.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The grammar</p>
+    <h2>Scope strings, and how a grant is decided</h2>
+
+    <div class="split">
+      <div class="panel">
+        <h3>Format</h3>
+        <p>Every scope is <code>&lt;namespace&gt;:&lt;effect&gt;</code>. The namespace is a scenario name, or <code>vrooli</code> for the project CLI — kept explicit so a scenario named "vrooli" cannot collide with the root identity.</p>
+        <div class="scroll">
+          <table style="min-width:0">
+            <thead><tr><th>Held grant</th><th>Covers</th></tr></thead>
+            <tbody>
+              <tr><td class="k">web-console:read</td><td>every read command of web-console</td></tr>
+              <tr><td class="k">web-console:*</td><td>every effect within web-console</td></tr>
+              <tr><td class="k">*:read</td><td>every read command, any scenario</td></tr>
+              <tr><td class="k">*</td><td>everything</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">Matching is exact and case-sensitive, and whitespace is deliberately not normalized so a malformed scope string can never grant access.</p>
+      </div>
+      <div class="panel">
+        <h3>Effect distribution across the repo</h3>
+        <div class="scroll">
+          <table style="min-width:0">
+            <thead><tr><th>Effect</th><th class="c">Commands</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="k">read</td><td class="num c">1,197</td><td>no observable mutation</td></tr>
+              <tr><td class="k">write</td><td class="num c">993</td><td>mutates state non-destructively</td></tr>
+              <tr><td class="k">destructive</td><td class="num c">61</td><td>irreversible mutation or data loss</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">The effect ladder is strict: holding <code>write</code> never implies <code>destructive</code>. On the root CLI that separation is already well graded — <code>uninstall</code>, <code>cleanup orphans</code>, <code>recovery restore</code> and <code>release-authority regenerate</code> all sit in the destructive tier.</p>
+      </div>
+    </div>
+
+    <h3>Where a node's grant comes from</h3>
+    <p>Not from a per-node decision made by hand. <code>trustposture.DefaultsFor()</code> maps the installation's stance onto default node execution scopes, so the grant is a property of the <em>install profile</em>, not of the machine:</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Posture</th><th>Default node execution scopes</th><th class="c">Break-glass</th><th class="c">Token TTL</th></tr></thead>
+        <tbody>
+          <tr><td class="k">personal</td><td class="k">vrooli-bridge:read/write, *:read, *:write</td><td class="c"><span class="chip c-ok flat">yes</span></td><td class="num c">60 min</td></tr>
+          <tr><td class="k">shared</td><td class="k">— none —</td><td class="c"><span class="chip c-ok flat">yes</span></td><td class="num c">15 min</td></tr>
+          <tr><td class="k">hosted</td><td class="k">— none —</td><td class="c"><span class="chip c-crit flat">no</span></td><td class="num c">10 min</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Resolved 2026-08-18</p>
+    <h2>Three narrow defects, now closed</h2>
+    <p class="lede">The architecture did not need replacement. The shipped change corrected derivation, re-keyed grants, and migrated the active fleet.</p>
+
+    <div class="defects">
+      <div class="defect">
+        <div class="n">D1</div>
+        <div>
+          <div class="h">Resolved: active nodes hold complete grant pairs</div>
+          <p><code>Allow</code> still requires two independent grants: <code>vrooli-bridge:&lt;effect&gt;</code> permits typed work over the transport, while <code>&lt;namespace&gt;:&lt;effect&gt;</code> selects commands. The active records were migrated through the registry CLI, never by editing its database.</p>
+          <p>The <code>capabilities</code> column remains self-reported evidence and is never merged into owner-granted <code>Scopes</code>. That separation prevents a node from widening its own authority.</p>
+          <p class="ev">dispatch admission and the discovery pre-check both call scopecatalog.Resolve</p>
+        </div>
+      </div>
+
+      <div class="defect">
+        <div class="n">D2</div>
+        <div>
+          <div class="h">Resolved: derived verbs honor real CLI argv</div>
+          <p>The catalog now reads <code>Group.flat</code>. Flat organizational groups emit the command name alone; routed groups retain <code>group.Name + " " + command.Name</code>.</p>
+          <pre>root manifest declares flat: true on  top-level · lifecycle-commands · hygiene
+
+derived verb              real invocation
+<span class="no">"top-level hygiene"</span>        <span class="yes">vrooli hygiene</span>
+<span class="no">"lifecycle-commands setup"</span> <span class="yes">vrooli setup</span>
+<span class="yes">"scenario status"</span>          <span class="yes">vrooli scenario status</span>   <span class="cm">← correct by coincidence</span></pre>
+          <p>A repository conformance test walks the installed owning CLIs and reports manifest/runtime disagreements explicitly.</p>
+          <p class="ev">scopecatalog derives <code>setup</code> and <code>hygiene</code>, never their organizational prefixes</p>
+        </div>
+      </div>
+
+      <div class="defect">
+        <div class="n">D3</div>
+        <div>
+          <div class="h">Resolved: the second axis is namespace and effect</div>
+          <p>The dual requirement remains, but the command-name glob has been replaced with the catalog pair already attached to every derived command. Exact grants and the catalog wildcards are resolved case-sensitively by one function.</p>
+          <p>Registry and pairing writes reject command-named or unknown grants with typed errors, so the retired vocabulary cannot re-enter persisted state.</p>
+          <p class="ev">accepted: namespace:effect · namespace:* · *:effect · * · declared transport capabilities</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The shipped model</p>
+    <h2>The key changed; the guarantee stayed</h2>
+    <p class="lede">The second axis resolves with <code>scopecatalog.Resolve</code> against <code>&lt;namespace&gt;:&lt;effect&gt;</code>. Bridge remains the enforcement point and discovery performs the same check only as an early refusal.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Situation</th><th>Today</th><th>After</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Node grant for a read-only observer</td>
+            <td class="k">vrooli-bridge:read<br>+ "scenario status*"<br>+ "host inventory*"<br>+ "capability ledger*"<br>+ … one per command</td>
+            <td class="k">*:read</td>
+          </tr>
+          <tr>
+            <td>Node allowed to operate one scenario</td>
+            <td class="k">legacy: enumerate every verb</td>
+            <td class="k">web-console:read<br>web-console:write</td>
+          </tr>
+          <tr><td><strong>A scenario gains a new read command</strong></td><td><span class="chip c-crit">edit every node</span></td><td><span class="chip c-ok">covered automatically</span></td></tr>
+          <tr><td><strong>A scenario gains a new destructive command</strong></td><td><span class="chip c-ok">not granted</span></td><td><span class="chip c-ok">not granted</span></td></tr>
+          <tr><td><strong>A brand-new scenario appears</strong></td><td><span class="chip c-ok">not granted</span></td><td><span class="chip c-ok">not granted</span></td></tr>
+          <tr><td><strong>Operator wants to widen one scenario</strong></td><td>enumerate verbs</td><td>grant one string</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">The safety property that motivated the pairing survives intact: a new command is only auto-covered inside a (scenario, effect) pair the operator has <em>already</em> conceded. Nothing crosses a namespace boundary, and <code>write</code> still never implies <code>destructive</code>.</p>
+
+    <h3>Delivered sequence</h3>
+    <ol>
+      <li><strong>D2 first</strong> — teach <code>scopecatalog</code> to honour <code>Group.flat</code>. Until derived verbs match real argv, nothing downstream can be tested honestly.</li>
+      <li><strong>D3 next</strong> — re-key the second axis, delete the machine-specific test, and express node grants in catalog scopes.</li>
+      <li><strong>D1 resolves as a consequence</strong> — both live nodes come back the moment their existing <code>vrooli-bridge:read/write</code> grants are paired with a namespace grant rather than a verb list. Add a regression test that runs the <em>actual persisted</em> node records through <code>Allow</code>, so a tightening can never again brick every node silently.</li>
+    </ol>
+
+    <div class="callout ok">
+      <p class="t">Keep these — they are already right</p>
+      <ul>
+        <li><strong>Shell-metacharacter rejection</strong> on every token, as defence in depth. A typed job never reaches a shell (the node-agent execs an argv, never <code>sh -c</code>), so a metacharacter can only be a smuggling attempt.</li>
+        <li><strong>Pure decision function.</strong> <code>Allow</code> does no I/O, which is exactly why the probe above was possible — the highest-stakes decision in the scenario is exhaustively table-testable.</li>
+        <li><strong>Audited rejections.</strong> A denial is recorded before any run is created or anything is pushed.</li>
+        <li><strong>Ordered, typed rejection reasons</strong> — invalid job, unsafe token, verb not in manifest, verb out of scope — each distinct and separately testable.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Two constraints worth writing down</p>
+    <h2>Things a plan will get wrong if nobody says them</h2>
+
+    <div class="split">
+      <div class="panel">
+        <h3>There is no inbound endpoint on a node</h3>
+        <p>Discovery already implements the node axis — <code>ResolveScenario(ctx, "node@scenario", …)</code>, local path unchanged, remote path relayed. But a remote resolution deliberately carries <em>no URL</em>. From the source: <em>"nodes dial out, so inventing an inbound endpoint would violate the bridge contract."</em></p>
+        <p>So remote scenario interaction is <strong>typed command relay</strong> — a bounded, single-shot <code>RelayRequest</code>/<code>RelayResponse</code> — not Connect-RPC against a remote scenario. This is exactly why the CLI manifest is the right authorization surface: for a remote caller, <em>the CLI verb is the API</em>.</p>
+      </div>
+      <div class="panel">
+        <h3>Interactive work is a different transport</h3>
+        <p>Streaming and PTY sessions do not ride the relay. They use a separate binary WebSocket channel with explicit owner re-authentication, a bounded flow-control window, an idle timeout and a hard lifetime — gated on <code>vrooli-bridge:session</code>, which is a <em>capability</em> grant rather than a command scope.</p>
+        <p>A remote <code>scenario status</code> and a remote agent terminal are therefore not the same mechanism. Any plan that treats "federate to a remote scenario" as one thing will mis-scope; there are two doors and they have different locks.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p class="t">A coverage gap the model cannot see</p>
+      <p><strong>52 of 123 scenarios have no <code>cli/manifest.json</code></strong>, so they contribute <em>zero</em> scopes to the catalog. They are not denied by policy — they are invisible to the vocabulary entirely, which means there is no grantable string that could ever authorize them remotely. Before the namespace model can be called complete, that gap needs either a manifest per scenario or an explicit, recorded decision that these scenarios are local-only.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Invariants</p>
+    <h2>What keeps this from drifting back</h2>
+    <p class="lede">The model has already drifted once — the verb-glob axis is itself the drift. Four rules, each mechanically checkable, keep the derivation load-bearing rather than decorative.</p>
+    <ol>
+      <li><strong>No relying party may declare a scope vocabulary.</strong> Every scope string a component enforces must pass <code>Catalog.HasScope</code>. The Bridge dispatch manifest already validates its default grants this way — generalize it, and the check becomes a structural rule rather than one component's discipline.</li>
+      <li><strong>No grant may name a command.</strong> A stored grant is <code>namespace:effect</code> or a wildcard over it. If a grant string contains a space or a trailing glob over a verb, reject it at write time — that is the shape of the current defect, and it should become unrepresentable.</li>
+      <li><strong>Derived verbs must match real invocation.</strong> The <code>flat</code> field is one instance of a general problem: manifest structure and argv structure are different things. A conformance test should invoke each derived verb's help path and fail when it is not a real command.</li>
+      <li><strong>Admission decisions must be tested against persisted records, not fixtures.</strong> D1 was invisible because every test used hand-built scopes. One test that reads the real node rows would have caught it the day it landed.</li>
+    </ol>
+
+    <div class="callout">
+      <p class="t">The short version, for anyone arriving mid-thread</p>
+      <p>Bridge does not hardcode scenario commands and does not need changing when a scenario gains one — that part of the design is already built and correct. The friction everyone keeps hitting comes from a single mis-keyed axis: node grants are expressed as command-name globs instead of the <code>scenario:effect</code> namespace the catalog already derives. Fix the key, honour <code>Group.flat</code>, and add a regression test that uses real node records. Everything else in the model can stay exactly as it is.</p>
+    </div>
+  </div>
+</section>

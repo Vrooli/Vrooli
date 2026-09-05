@@ -1,0 +1,93 @@
+{
+  "description": "Persist completed Rewrite operations (plan ID, files affected, timestamp, success/failure) in a local SQLite store so operators can audit what the scenario actually changed. Read-only API on the audit trail; no replay capability in v1.",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003",
+        "REQ-P0-007"
+      ],
+      "description": "Persist all completed Rewrite operations in a local SQLite store. Each persisted record must include: plan_id, list of affected files, operation types applied, timestamp of apply, and success/failure status with error message on failure. Expose a read-only API (RewriteHistory RPC) for querying the audit trail. No replay capability in v1: the API is read-only. The SQLite store must be initialized automatically on server start with the required schema.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Rewrite Operation Log Persistence in SQLite",
+      "validation": [
+        {
+          "notes": "Test that a successful Rewrite apply persists a record with correct plan_id, affected files, timestamp, and success status",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a failed Rewrite apply persists a record with failure status and error message",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test SQLite schema initialization creates the required table with all required columns",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test RewriteHistory query returns records in reverse-chronological order",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that replay/mutation operations on persisted records are rejected (read-only enforcement)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: run Rewrite apply, then call RewriteHistory RPC, verify the completed operation appears in the response",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Server restart test: persisted records survive server restart and are accessible via RewriteHistory RPC after restart",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent Rewrite applies persist separate records without data corruption",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operators can audit all filesystem changes made by the scenario without inspecting server logs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "RewriteHistory RPC is accessible via CLI and UI as with all other capabilities",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Operation Log Persistence"
+}

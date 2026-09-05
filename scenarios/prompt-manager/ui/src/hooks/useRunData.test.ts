@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { areRunsEqual, useRunData } from './useRunData'
 import type { RunDetails } from '@/services/heartbeatService'
-import { listRuns } from '@/services/heartbeatService'
+import { listHeartbeatAttempts, listRuns } from '@/services/heartbeatService'
 
 vi.mock('@/services/heartbeatService', () => ({
+  listHeartbeatAttempts: vi.fn(),
   listRuns: vi.fn(),
 }))
 
@@ -25,6 +26,7 @@ describe('useRunData', () => {
       configurable: true,
       value: false,
     })
+    vi.mocked(listHeartbeatAttempts).mockResolvedValue({ attempts: [], total: 0, hasMore: false })
   })
 
   afterEach(() => {
@@ -93,6 +95,45 @@ describe('useRunData', () => {
         profileKey: 'prompt-manager-heartbeat',
         limit: 100,
       })
+      expect(listHeartbeatAttempts).toHaveBeenCalledWith({
+        status: undefined,
+        profileKey: 'prompt-manager-heartbeat',
+        limit: 100,
+      })
+    })
+  })
+
+  it('includes heartbeat attempts that failed before run creation', async () => {
+    vi.mocked(listRuns).mockResolvedValue({
+      runs: [],
+      total: 0,
+      hasMore: false,
+    })
+    vi.mocked(listHeartbeatAttempts).mockResolvedValue({
+      attempts: [{
+        id: 'attempt-1',
+        teamId: 'scenario-qa',
+        agentId: 'bug-investigator',
+        profileKey: 'prompt-manager-heartbeat',
+        status: 'failed',
+        phase: 'creating_run',
+        startedAt: '2026-05-06T12:00:00Z',
+        endedAt: '2026-05-06T12:00:01Z',
+        errorCategory: 'contract_validation',
+        error: 'creating run: validation error',
+        recovery: 'fix_integration_contract',
+      }],
+      total: 1,
+      hasMore: false,
+    })
+
+    const { result } = renderHook(() => useRunData())
+
+    await waitFor(() => {
+      expect(result.current.runs).toHaveLength(1)
+      expect(result.current.runs[0]?.id).toBe('attempt:attempt-1')
+      expect(result.current.runs[0]?.source).toBe('heartbeat-attempt')
+      expect(result.current.runs[0]?.errorCategory).toBe('contract_validation')
     })
   })
 })

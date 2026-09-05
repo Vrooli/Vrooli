@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.holders;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/holders;holdersv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// HOLDERS
+// =============================================================================
+//
+// @stability experimental
+//
+// Owns authenticated holder identity and holder-scoped views. Phase 6 expands
+// this message into the complete holder contract.
+//
+// =============================================================================
+
+message Holder {
+  string id = 1;
+  string display_name = 2;
+  string authenticator_subject = 3;
+  google.protobuf.Timestamp created_at = 4;
+}

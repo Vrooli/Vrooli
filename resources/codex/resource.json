@@ -1,0 +1,332 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "codex",
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.codex",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Codex CLI state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME, defaulting to ~/.codex.",
+        "budget": {
+          "max_bytes": "50GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "skills": {
+        "rung": "relocatable",
+        "path": "$USER_HOME/.codex/skills",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "projection": {
+          "environment": "CODEX_HOME",
+          "project_scope": true
+        },
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+      }
+    }
+  },
+  "display_name": "OpenAI Codex CLI",
+  "description": "OpenAI Codex CLI for local code generation and agentic engineering workflows.",
+  "execution": {
+    "runner_type": "codex",
+    "codec": "codex",
+    "detection_signal": "CODEX_CI=1 AND CODEX_THREAD_ID non-empty",
+    "hook_surface": "native-permissions"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "resource-codex",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-codex_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-codex"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "model-policy.json",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/openai",
+        "field": "api-key",
+        "env": "OPENAI_API_KEY",
+        "label": "OpenAI API key",
+        "description": "Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/api-keys"
+      },
+      {
+        "logical_id": "vrooli/openai",
+        "field": "organization-id",
+        "env": "OPENAI_ORG_ID",
+        "label": "OpenAI organization ID",
+        "description": "Optional organization identifier used with the OpenAI API.",
+        "required": false
+      }
+    ]
+  },
+  "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"}
+    ]
+  },
+  "provider_policy": {
+    "default_mode": "managed-discovered",
+    "allowed_modes": [
+      "managed-discovered"
+    ],
+    "external_management": "forbidden"
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "codex",
+  "version_args": [
+    "--version"
+  ],
+  "category": "developer-tooling",
+  "requirements": {
+    "ram_mb": 1024,
+    "disk_mb": 2048,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "developer-tooling",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "hostTools": [
+    {
+      "name": "yq",
+      "required": false,
+      "reason": "Inspect Codex YAML-backed test fixtures from retained resource unit-test workflows",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "notes": "Codex resource unit checks degrade gracefully when yq is unavailable"
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "codex",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Codex dependency settings.",
+    "properties": {
+      "api": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "model": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "storage": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "limits": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "features": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "CODEX_PATH": "codex"
+    }
+  },
+  "orchestration": {
+    "startup_order": 530,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "resource-codex",
+        "install-direct"
+      ],
+      "macos": [
+        "resource-codex",
+        "install-direct"
+      ]
+    }
+  },
+  "durable_data": {
+    "base": "$HOME/.codex",
+    "entries": {
+      "sessions": {
+        "path": "sessions",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Codex session transcripts — the primary conversation record for later analysis."
+      },
+      "history": {
+        "path": "history.jsonl",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Codex prompt/command history across sessions."
+      },
+      "state": {
+        "path": "state_5.sqlite",
+        "kind": "file",
+        "format": "sqlite",
+        "regenerable": false,
+        "rationale": "Codex durable state database — captured as a consistent SQLite copy."
+      },
+      "config": {
+        "path": "config.toml",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Codex configuration."
+      },
+      "memories": {
+        "path": "memories",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Codex long-term memories carried across sessions."
+      },
+      "auth": {
+        "path": "auth.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Codex auth tokens — includes live credentials; back up only deliberately."
+      }
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "upstream_cli": {
+    "version_command": [
+      "codex",
+      "--version"
+    ],
+    "version_pinned": "0.141.0",
+    "upstream_release_source": "https://registry.npmjs.org/@openai/codex/latest",
+    "docs_source": "https://developers.openai.com/codex/permissions",
+    "docs_pinned_at": "2026-05-28",
+    "schema_version": 1
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required",
+  "vrooli_memory_targets": [
+    {
+      "runtime": "codex",
+      "path": "$USER_HOME/.codex/memories/vrooli-memory.md",
+      "section": "",
+      "byte_cap": 32768,
+      "line_cap": 200
+    }
+  ]
+}

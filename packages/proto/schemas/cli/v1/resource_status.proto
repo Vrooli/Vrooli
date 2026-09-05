@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/common.proto";
+import "cli/v1/resource_list.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — resource status/info output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of `vrooli resource status [--json]` (single + fleet
+// forms) and `vrooli resource info --json`. Marshaled with protojson
+// (UseProtoNames=true, EmitUnpopulated=true). All messages are prefixed
+// `Resource*` so they stay globally unique within the shared cliv1 package.
+// Reuses the existing cliv1.Resource (resource_list.proto) and
+// cliv1.DiscoveryFailure (common.proto) messages.
+// =============================================================================
+
+// ResourceStatus is one resource's runtime status (control.Status). It embeds
+// the catalog Resource under the `resource` field, mirroring the internal
+// `resources.Status` struct.
+message ResourceStatus {
+  // Catalog entry for the resource (reused cliv1.Resource message).
+  Resource resource = 1;
+
+  // True when the resource is installed on disk.
+  bool installed = 2;
+
+  // True when the resource is currently running.
+  bool running = 3;
+
+  // Tri-state health probe result (bool when evaluated, null when not). Backs
+  // the internal *bool `healthy`; producer maps via structpb.NewValue(*v), nil->null.
+  google.protobuf.Value healthy = 4;
+
+  // Free-form health detail string; empty when unset.
+  string health = 5;
+
+  // Machine-readable status code (e.g. "ok", "unavailable", "timeout"); empty if unset.
+  string status_code = 6;
+
+  // Human-readable status message; empty if unset.
+  string message = 7;
+
+  // Probe error detail; empty unless a probe failed.
+  string probe_error = 8;
+
+  // Raw driver status payload as returned by the driver; null/absent when none.
+  // Backs the internal json.RawMessage `raw` field.
+  google.protobuf.Value raw = 9;
+
+  // Tri-state: true when the resource can answer requests, whether or not it is
+  // healthy. Read it alongside `healthy` to tell degraded from down — a
+  // resource running below its declared accelerator backend reports
+  // healthy=false with serving=true, and restarting it would loop against
+  // something that is working. Backs the internal *bool `serving`; nil->null.
+  google.protobuf.Value serving = 10;
+
+  // Accelerator backend the resource asked the platform for ("cuda", "metal",
+  // "rocm", "vulkan", "cpu"); empty when the resource declares no accelerator.
+  string declared_mode = 11;
+
+  // Accelerator backend the host says the running resource is on; the CLI
+  // projects not_evaluated when placement was not evaluated.
+  string observed_mode = 12;
+
+  // True when the resource is serving below its declared backend.
+  bool mode_drift = 13;
+
+  // Evidence behind observed_mode, in the words of whatever produced it.
+  string mode_reason = 14;
+}
+
+// ResourceStatusesResponse is the fleet form of `resource status --json`
+// (envelope from WriteSuccessFields: success + resources + discovery_failures).
+message ResourceStatusesResponse {
+  // True when status enumeration completed; standard CLI success envelope.
+  bool success = 1;
+
+  // Per-resource runtime status, ordered as enumerated.
+  repeated ResourceStatus resources = 2;
+
+  // Resources skipped due to discovery errors; empty on a clean sweep.
+  repeated DiscoveryFailure discovery_failures = 3;
+}
+
+// ResourceStatusResponse is the single-resource form of `resource status --json`
+// (envelope from WriteSuccessFields: success + flattened convenience fields +
+// the full resource status).
+message ResourceStatusResponse {
+  // True when the status was resolved; standard CLI success envelope.
+  bool success = 1;
+
+  // Resource slug (mirrors resource.resource.name for convenience).
+  string name = 2;
+
+  // True when the resource is installed (mirror of resource.installed).
+  bool installed = 3;
+
+  // True when the resource is running (mirror of resource.running).
+  bool running = 4;
+
+  // Tri-state health probe result (mirror of resource.healthy); bool when
+  // evaluated, null when not. Backs the internal *bool; nil->null.
+  google.protobuf.Value healthy = 5;
+
+  // Human-readable status message (mirror of resource.message); empty if unset.
+  string status = 6;
+
+  // Full resource runtime status record.
+  ResourceStatus resource = 7;
+
+  // Tri-state serving flag (mirror of resource.serving); bool when evaluated,
+  // null when not. Backs the internal *bool; nil->null.
+  google.protobuf.Value serving = 8;
+
+  // True when the resource is serving below its declared accelerator backend
+  // (mirror of resource.mode_drift).
+  bool mode_drift = 9;
+}
+
+// ResourceInfoResponse is the shape of `vrooli resource info --json`
+// (WriteSuccessJSON with key "resource"): success + the full status record.
+message ResourceInfoResponse {
+  // True when the resource info was resolved; standard CLI success envelope.
+  bool success = 1;
+
+  // Full resource runtime status record.
+  ResourceStatus resource = 2;
+}

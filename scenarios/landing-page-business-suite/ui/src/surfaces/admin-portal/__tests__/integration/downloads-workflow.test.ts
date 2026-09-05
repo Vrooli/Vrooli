@@ -7,7 +7,7 @@
  * - customizationController
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   filterActiveVariants,
   filterArchivedVariants,
@@ -33,6 +33,15 @@ const createMockVariant = (overrides: Partial<Variant> = {}): Variant => ({
 });
 
 describe('Downloads and App Configuration Workflow', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-17T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('Variant management workflow', () => {
     it('separates active and archived variants for display', () => {
       const variants = [
@@ -113,9 +122,8 @@ describe('Downloads and App Configuration Workflow', () => {
 
   describe('Attention-requiring variants workflow', () => {
     it('identifies variants needing attention from multiple sources', () => {
-      // Create stale variant (40+ days old)
-      const staleDate = new Date();
-      staleDate.setDate(staleDate.getDate() - 45);
+      // Create stale variant with an exact 45-day offset to avoid DST drift.
+      const staleDate = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
 
       const variants = [
         createMockVariant({ slug: 'stale', updated_at: staleDate.toISOString() }),

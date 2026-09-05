@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace sections",
+          "role": "tablist"
+        },
+        {
+          "kind": "role",
+          "role": "tabpanel"
+        },
+        {
+          "kind": "text",
+          "value": "Arrow keys move between tabs"
+        },
+        {
+          "kind": "text",
+          "value": "Recent activity appears here."
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Activity",
+            "role": "tab"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContent",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Preferences",
+          "role": "tab"
+        },
+        {
+          "kind": "role",
+          "role": "tabpanel"
+        }
+      ],
+      "id": "long-content",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Long content",
+      "role": "boundary"
+    }
+  ],
+  "title": "Tabs"
+}

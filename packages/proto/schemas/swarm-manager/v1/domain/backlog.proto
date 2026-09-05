@@ -1,8 +1,11 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/shared/agent_session.proto";
+import "swarm-manager/v1/shared/backlog.proto";
+import "swarm-manager/v1/shared/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -10,9 +13,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // BACKLOG DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain backlog
-// @imports none (external only: buf.validate)
 // @stability beta
 //
 // Backlog items capture all work types for Swarm Manager:
@@ -37,23 +37,24 @@ message BacklogItem {
   string description = 3;
 
   // Lifecycle state for the backlog item.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
-  string status = 4 [(buf.validate.field).string = { in: [
-    "backlog",
-    "researching",
-    "ready",
-    "queued",
-    "in_progress",
-    "completed",
-    "failed"
-  ] }];
+  //
+  // Intentionally NOT constrained to an inline allowlist. The vocabulary's
+  // single source of truth is the server's status table
+  // (swarm-manager/api/internal/backlogstatus/statuses.go), which validates
+  // every write. Duplicating the list here meant adding a status required
+  // editing three .proto files in lockstep, and they had already drifted apart
+  // — one omitted `suggested` and admitted a bogus `archived`.
+  string status = 4 [(buf.validate.field).string.min_len = 1];
 
   // Priority level (1 = highest, 10 = lowest).
   // @constraint 1-10
-  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  int32 priority = 5 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 10
+  }];
 
   // Categorization tags.
-  repeated string tags = 6 [(buf.validate.field).repeated = { unique: true }];
+  repeated string tags = 6 [(buf.validate.field).repeated = {unique: true}];
 
   // RFC3339 timestamp of creation.
   // @format rfc3339
@@ -64,18 +65,34 @@ message BacklogItem {
   string updated = 8 [(buf.validate.field).string.min_len = 1];
 
   // Backlog kind: idea, research, fix, execute.
-  string kind = 9 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+  string kind = 9 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "research",
+      "fix",
+      "execute",
+      "chore"
+    ]
+  }];
 
   reserved 10; // research_target — removed; research items execute directly.
 
   // Dependencies as "kind/name" references. Item won't process until all deps complete.
   repeated string depends_on = 11;
 
-  // Initiative this item belongs to.
-  optional string initiative = 12;
+  // Owned goal/milestone reference this item belongs to.
+  optional string milestone = 12;
 
   // Effort estimate: XS, S, M, L, XL.
-  optional string effort = 13 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+  optional string effort = 13 [(buf.validate.field).string = {
+    in: [
+      "XS",
+      "S",
+      "M",
+      "L",
+      "XL"
+    ]
+  }];
 
   reserved 14; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
 
@@ -98,41 +115,75 @@ message BacklogItem {
   // @format rfc3339
   optional string archived_at = 19;
 
-  // Raw JSON string containing the plan validation report (PlanValidationResult).
-  // Ephemeral data — regenerated on read when plan.md is newer than the report.
-  optional string plan_validation_json = 20;
+  reserved 20; // plan_validation_json — removed; plan quality is owned by plan-manager.
 
   // Skill IDs recommended by the creating agent. Workshop and execution agents
   // should read these skills before proceeding.
   repeated string suggested_skills = 21;
+
+  // Glob patterns for file paths the work plans to create. Same syntax as
+  // acceptance_allow. Used by the workshop validator to allow forward-looking
+  // paths in acceptance_allow that don't yet exist on disk. Absence means
+  // "no declared new paths."
+  repeated string creates = 22;
+
+  // Verified provenance for the actor/session that created this item.
+  optional shared.AgentSessionAttribution created_by = 23;
+
+  // Items-ahead in the pending queue: this item's zero-based index within the
+  // ranked pending set (backlogrank order). Surfaced on CreateItem/GetItem so
+  // feedback-contract consumers can show "N items ahead" without computing the
+  // ranking themselves. Unset when the item is not pending (e.g. completed,
+  // failed, in_progress, archived) — there is no position to report.
+  // @constraint 0+
+  optional int32 queue_position = 24 [(buf.validate.field).int32.gte = 0];
+
+  // Canonical plan-manager plan backing this work item.
+  optional shared.PlanRef plan_ref = 25;
+
+  // Stable programmatic finding ID that produced this item, when auto-filed.
+  optional string finding_ref = 26;
+
+  // Deterministic operator signal. It is computed on read from item age,
+  // review age, plan/acceptance validity, and is never persisted in spec.json.
+  optional bool stale = 27;
+
+  // Most recent explicit decision that the item remains valid without a
+  // content mutation. This is distinct from `updated`, which tracks changes
+  // to the work specification itself.
+  optional BacklogReviewRecord last_review = 28;
+
+  // Explicit operator authorization for the current canonical plan frontier.
+  // A changed content hash or work-contract version makes this record stale.
+  optional PlanAcceptance plan_acceptance = 29;
+
+  // Independently settleable definitions of done for this item.
+  repeated shared.BacklogCriterion acceptance_criteria = 30;
 }
 
-// BacklogFile represents a file or directory within a backlog item folder.
-message BacklogFile {
-  // File or directory name.
-  string name = 1 [(buf.validate.field).string.min_len = 1];
+message PlanAcceptance {
+  string actor = 1 [(buf.validate.field).string.min_len = 1];
+  string accepted_at = 2 [(buf.validate.field).string.min_len = 1];
+  string plan_content_hash = 3 [(buf.validate.field).string.min_len = 1];
+  string subject_version = 4 [(buf.validate.field).string.min_len = 1];
+}
 
-  // Relative path from the backlog item root.
-  string path = 2 [(buf.validate.field).string.min_len = 1];
+message BacklogReviewRecord {
+  // RFC3339 timestamp of the accepted review.
+  string reviewed_at = 1 [(buf.validate.field).string.min_len = 1];
 
-  // File type: "file" or "directory".
-  // @constraint one of: file, directory
-  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+  // Source session and proposal preserve an auditable decision trail.
+  string session_id = 2 [(buf.validate.field).string.min_len = 1];
+  string proposal_id = 3 [(buf.validate.field).string.min_len = 1];
 
-  // File size in bytes (files only).
-  optional int64 size = 4 [(buf.validate.field).int64 = { gte: 0 }];
-
-  // Child nodes (directories only).
-  repeated BacklogFile children = 5;
+  // The reviewer-facing rationale for keeping the item unchanged.
+  string rationale = 4;
 }
 
 // =============================================================================
 // CLARIFICATION DOMAIN
 // =============================================================================
 //
-// @layer 1
-// @domain backlog.clarification
-// @imports none (external only: buf.validate)
 // @stability beta
 //
 // Clarification threads capture multi-turn conversations between operators and
@@ -145,7 +196,12 @@ message BacklogFile {
 message ClarificationMessage {
   // Who sent this message.
   // @constraint one of: user, assistant
-  string role = 1 [(buf.validate.field).string = { in: ["user", "assistant"] }];
+  string role = 1 [(buf.validate.field).string = {
+    in: [
+      "user",
+      "assistant"
+    ]
+  }];
 
   // Message content (markdown text).
   string content = 2;
@@ -163,7 +219,13 @@ message ClarificationMessage {
 message ClarificationImpact {
   // Impact level of the clarification on the workshop.
   // @constraint one of: none, decision, round
-  string level = 1 [(buf.validate.field).string = { in: ["none", "decision", "round"] }];
+  string level = 1 [(buf.validate.field).string = {
+    in: [
+      "none",
+      "decision",
+      "round"
+    ]
+  }];
 
   // Why this impact level was chosen.
   string reasoning = 2;
@@ -197,7 +259,13 @@ message ClarificationThread {
 
   // Thread lifecycle state.
   // @constraint one of: active, resolved, dismissed
-  string status = 7 [(buf.validate.field).string = { in: ["active", "resolved", "dismissed"] }];
+  string status = 7 [(buf.validate.field).string = {
+    in: [
+      "active",
+      "resolved",
+      "dismissed"
+    ]
+  }];
 
   // RFC3339 timestamp of thread creation.
   // @format rfc3339

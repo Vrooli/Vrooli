@@ -38,7 +38,7 @@ Lighthouse testing provides automated auditing of:
 ### Prerequisites
 
 1. **Node.js** installed (for Lighthouse CLI)
-2. **Lighthouse CLI** installed: `npm install -g lighthouse` (or will use npx)
+2. **Lighthouse CLI** available through the governed scenario dependency workflow (validation never installs packages)
 3. **Chrome/Chromium** installed on the system
 4. **Scenario with UI** component running
 
@@ -144,6 +144,13 @@ cat coverage/phase-results/lighthouse.json
 - **error**: Score below this fails the test
 - **warn**: Score below this generates warning (test still passes)
 - Scores are 0.0-1.0 (displayed as 0-100%)
+
+For every browser UI, each declared page must include both `accessibility.error`
+and `accessibility.warn`. Missing, disabled, or malformed Lighthouse
+configuration is a gating configuration failure; it is not an opt-out for a
+web UI. A scenario without a browser UI is not applicable. If Chrome, the
+Lighthouse CLI, or the running UI is unavailable, Performance Health reports
+degraded evidence rather than a pass.
 
 **Recommended Values by Page Type:**
 
@@ -366,5 +373,5 @@ When `reporting.formats` includes `"json"`, the following files are generated:
 
 - [Performance Phase](README.md) - Performance phase overview
 - [Phases Overview](../README.md) - 8-phase architecture
-- [UI Smoke Testing](../smoke/README.md) - Fast UI validation
+- [UI Health Phase](../ui-health/README.md) - UI validation (static + BAS-driven render/handshake)
 - [Requirements Sync](../business/README.md) - Evidence collection

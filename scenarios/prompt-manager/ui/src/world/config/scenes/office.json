@@ -1,0 +1,86 @@
+{
+  "id": "office",
+  "title": "Office",
+  "environment": "indoor",
+  "assetSet": "office",
+  "biomeSet": "park",
+  "layoutStrategy": "floorplan",
+  "centre": {
+    "source": "floorplate",
+    "margin": 6,
+    "blend": 4,
+    "terrain": { "amplitude": 0, "detailAmplitude": 0 },
+    "biomeSet": "office",
+    "levelTo": "plateMean",
+    "maxBoundaryGrade": 1
+  },
+  "props": {
+    "desk": "desk",
+    "chair": "chair_desk",
+    "table": "table_round",
+    "seat": "chair_lounge",
+    "hearth": "coffee_table",
+    "lamp": "lamp_floor",
+    "board": "display_board",
+    "filler": ["plant_small", "rug_round", "side_table", "bookcase"]
+  },
+  "emissive": { "lamp": "#ffe4bc" },
+  "gatheringLabel": "Lobby",
+  "palette": {
+    "horizon": "#7fa862",
+    "ground": "#6fae58",
+    "roomFloor": "#e8e2d6",
+    "roomWall": "#f3efe8",
+    "commons": "#cfc6b8",
+    "path": "#e0dace"
+  },
+  "camera": {
+    "hero": {
+      "azimuthDeg": 20,
+      "polarDeg": 52,
+      "targetY": 0.6,
+      "distanceFactor": 1.0
+    },
+    "establishing": {
+      "azimuthDeg": 4,
+      "polarDeg": 34,
+      "targetY": 0.6,
+      "distanceFactor": 1.6
+    }
+  },
+  "lighting": {
+    "periods": {
+      "dawn": {
+        "keyIntensity": 1.6,
+        "envIntensity": 0.8,
+        "lampEmissive": 0.8,
+        "fogNear": 3,
+        "fogFar": 12
+      },
+      "day": {
+        "keyIntensity": 2.2,
+        "lampEmissive": 0,
+        "fogNear": 3,
+        "fogFar": 12
+      },
+      "dusk": {
+        "keyIntensity": 1.2,
+        "envIntensity": 0.6,
+        "lampEmissive": 1.2,
+        "fogNear": 3,
+        "fogFar": 12
+      },
+      "night": {
+        "keyIntensity": 0.3,
+        "envIntensity": 0.2,
+        "exposure": 0.6,
+        "lampEmissive": 4.5,
+        "ambientIntensity": 0.25,
+        "fogNear": 3,
+        "fogFar": 12
+      }
+    }
+  },
+  "propScale": 1.7,
+  "treeScale": 1
+}

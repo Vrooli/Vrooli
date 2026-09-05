@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Provider-neutral request contracts for AI Gateway callers.",
+    "last_validated_at": "2026-08-27T21:29:54-04:00",
+    "module": "gateway-contract",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-CONTRACT-TEXT",
+      "title": "Text inference requests use role, profile, and constraints instead of concrete models",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P0",
+      "description": "AI Gateway must expose a stable request shape for chat, generation, summarization, classification, and structured extraction. Callers provide task intent, role, optional profile, and constraints; they do not provide Ollama/OpenRouter model slugs.",
+      "tags": [
+        "contract",
+        "text",
+        "routing"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/gateway/service_test.go::TestValidateAcceptsProviderNeutralRequest",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates provider-neutral text request parsing, defaults, and role/profile fields."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates rejection of concrete provider/model/embedding metadata fields."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-CONTRACT-EMBEDDING",
+      "title": "Embedding requests carry role and schema metadata requirements",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P0",
+      "description": "Embedding requests must be role-based and must return enough metadata for callers to persist model identity, dimensions, content hash/version, and retarget compatibility information.",
+      "tags": [
+        "contract",
+        "embedding",
+        "metadata"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validates that callers cannot smuggle implicit embedding dimensions through provider-specific metadata; full embedding metadata response support remains in progress."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-CONTRACT-SAMPLING",
+      "title": "Sampling is a declared role stance a caller may override only where the role allows",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P1",
+      "description": "The public request carries an optional temperature only. Absent, the role's declared sampling applies; present, it is admitted only by a role declaring overridable, and a role that forbids it must return INVALID_REQUEST with construct sampling.temperature rather than silently overriding or silently ignoring. An explicit 0.0 must stay distinguishable from unset on every surface, because 0.0 is a meaningful deterministic request.",
+      "tags": [
+        "contract",
+        "sampling",
+        "determinism"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryRejectsCallerTemperatureOnDeterministicRole",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A caller temperature sent to a role that has not declared itself overridable is refused by name, and the walk stops rather than trying other candidates that would refuse identically."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryDeterministicRoleReachesOpenRouter",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The determinism invariant holds on the hosted rung too: a role declaring temperature 0 reaches OpenRouter with it, which was previously false because the gateway never passed the flag."
+        }
+      ]
+    }
+  ]
+}

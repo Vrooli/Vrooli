@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "glossary",
+    "title": "Glossary",
+    "routes": [
+      "/glossary"
+    ],
+    "purpose": "Let an operator resolve an unfamiliar term without leaving onboarding.",
+    "prd_refs": [
+      "OT-P1-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A term is findable by typing part of it."
+    },
+    {
+      "statement": "An empty result is recoverable in one action."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Entries rendered.",
+      "setup": {
+        "route": "/glossary"
+      }
+    },
+    {
+      "id": "searching",
+      "description": "A query narrows the entries."
+    },
+    {
+      "id": "no-results",
+      "description": "The query matches nothing; a clear action is offered."
+    }
+  ],
+  "elements": [
+    {
+      "id": "glossary-search",
+      "role": "searchbox",
+      "description": "Narrows entries by term.",
+      "name": "Search terms"
+    },
+    {
+      "id": "glossary-entry",
+      "role": "listitem",
+      "description": "One term and its plain-language description."
+    },
+    {
+      "id": "clear-search",
+      "role": "button",
+      "description": "Clears the query.",
+      "name": "Clear search"
+    }
+  ],
+  "claims": [
+    {
+      "id": "search-present",
+      "type": "affordance-present",
+      "statement": "Entries can be narrowed by typing part of a term.",
+      "tier": "machine",
+      "elements": [
+        "glossary-search"
+      ],
+      "states": [
+        "default"
+      ],
+      "params": {
+        "affordances": [
+          "search"
+        ]
+      }
+    },
+    {
+      "id": "no-results-recoverable",
+      "type": "state-covered",
+      "statement": "An empty result offers a one-action way back to the full list.",
+      "tier": "aspirational",
+      "elements": [
+        "clear-search"
+      ],
+      "states": [
+        "no-results"
+      ]
+    },
+    {
+      "id": "search-keyboard-operable",
+      "type": "keyboard-reachable",
+      "statement": "Search and clear are operable by keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "glossary-search",
+        "clear-search"
+      ],
+      "states": [
+        "searching"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "glossary-search": {
+        "testid": "glossary-search"
+      },
+      "glossary-entry": {
+        "testid": "glossary-list"
+      },
+      "clear-search": {
+        "testid": "glossary-clear-search"
+      }
+    }
+  }
+}

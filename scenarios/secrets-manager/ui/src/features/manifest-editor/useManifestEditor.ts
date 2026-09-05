@@ -1,13 +1,13 @@
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DeploymentManifestResponse, DeploymentManifestSecret, SetOverridePayload } from "../../lib/api";
+import type { DeploymentManifestResponse, SetOverridePayload } from "../../lib/api";
 import {
   fetchScenarioTierOverrides,
   setScenarioOverride,
   deleteScenarioOverride,
   copyOverridesFromTier
 } from "../../lib/api";
-import type { FilterMode, ResourceGroup, ManifestSummary, PendingOverrideEdit, OverrideFields } from "./types";
+import type { FilterMode, PendingOverrideEdit, OverrideFields } from "./types";
 import { secretIdToString } from "./types";
 import {
   groupSecretsByResource,
@@ -64,10 +64,9 @@ export function useManifestEditor({ scenario, tier, initialManifest }: UseManife
     return groupSecretsByResource(
       initialManifest.secrets,
       excludedResources,
-      excludedSecrets,
-      overriddenSecrets
+      excludedSecrets
     );
-  }, [initialManifest.secrets, excludedResources, excludedSecrets, overriddenSecrets]);
+  }, [initialManifest.secrets, excludedResources, excludedSecrets]);
 
   // Filter resource groups
   const filteredGroups = useMemo(() => {

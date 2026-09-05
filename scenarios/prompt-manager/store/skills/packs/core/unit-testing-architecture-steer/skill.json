@@ -1,13 +1,32 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "unit-testing-architecture-steer",
-  "name": "Unit Testing Architecture",
+  "createdAt": "2026-02-04T12:50:18Z",
   "description": "Establishes robust unit test infrastructure including file organization, test isolation, mock organization, testable production code patterns, and systematic edge case coverage structures.",
+  "entry": "SKILL.md",
+  "id": "unit-testing-architecture-steer",
+  "kind": "skill",
   "modes": [
     "steer",
     "test"
   ],
+  "name": "Unit Testing Architecture",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "unit-health:unit",
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "vrooli"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ]
+  },
+  "revision": 9,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "testing",
     "unit-tests",
@@ -16,9 +35,8 @@
     "testcontainers",
     "dependency-injection"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 7,
-  "createdAt": "2026-02-04T12:50:18Z",
-  "updatedAt": "2026-02-05T01:02:59Z"
+  "targetDimensions": [
+    "tests"
+  ],
+  "updatedAt": "2026-07-21T00:00:00Z"
 }

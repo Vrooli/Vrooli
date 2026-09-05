@@ -2,78 +2,97 @@ package config
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Config captures runtime configuration resolved from the environment.
 type Config struct {
-	Port         string
-	DatabaseURL  string
-	ScenariosDir string
+	Port                       string
+	DatabaseDSN                string
+	ScenariosDir               string
+	InterfaceGraphCacheTTL     time.Duration
+	InterfaceGraphBuildTimeout time.Duration
 }
 
 // Load reads environment variables (and .env files) to build the Config.
 func Load() Config {
-	godotenv.Load()
+	_ = godotenv.Load()
 
 	port := os.Getenv("API_PORT")
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or POSTGRES_* variables")
-		}
-
-		dbURL = fmt.Sprintf(
-			"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-			dbHost, dbPort, dbUser, dbPassword, dbName,
-		)
+	dbDSN, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "scenario-dependency-analyzer"})
+	if err != nil {
+		log.Fatalf("❌ SQLite configuration failed: %v", err)
 	}
 
 	scenariosDir := os.Getenv("VROOLI_SCENARIOS_DIR")
 	if scenariosDir == "" {
 		scenariosDir = "../.."
 	}
+	scenariosDir, err = absolutePath(scenariosDir)
+	if err != nil {
+		log.Fatalf("❌ Scenario directory configuration failed: %v", err)
+	}
 
 	return Config{
-		Port:         port,
-		DatabaseURL:  dbURL,
-		ScenariosDir: scenariosDir,
+		Port:                       port,
+		DatabaseDSN:                dbDSN,
+		ScenariosDir:               scenariosDir,
+		InterfaceGraphCacheTTL:     durationFromEnv("INTERFACE_GRAPH_CACHE_TTL", 5*time.Minute),
+		InterfaceGraphBuildTimeout: durationFromEnv("INTERFACE_GRAPH_BUILD_TIMEOUT", 90*time.Second),
 	}
 }
 
-// InitDatabase opens a PostgreSQL connection with automatic retry and backoff.
-func InitDatabase(dbURL string) (*sql.DB, error) {
-	log.Println("🔄 Attempting database connection with exponential backoff...")
+func durationFromEnv(name string, fallback time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil || parsed < 0 {
+		return fallback
+	}
+	return parsed
+}
 
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver:          "postgres",
-		DSN:             dbURL,
-		MaxOpenConns:    25,
-		MaxIdleConns:    5,
+// InitDatabase opens the embedded SQLite database with the standard Vrooli pragmas.
+func InitDatabase(dsn string) (*database.RoutedDB, error) {
+	log.Println("🔄 Opening SQLite database...")
+
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:          database.DriverSQLite,
+		DSN:             dsn,
+		MaxOpenConns:    1,
+		MaxIdleConns:    1,
 		ConnMaxLifetime: 5 * time.Minute,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("🎉 SQLite database opened successfully!")
 	return db, nil
+}
+
+func absolutePath(path string) (string, error) {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path), nil
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve absolute path %q: %w", path, err)
+	}
+	return filepath.Clean(abs), nil
 }

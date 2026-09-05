@@ -12,8 +12,9 @@ import (
 	"sync"
 
 	"scenario-to-desktop-api/generation"
-	apperrors "scenario-to-desktop-api/shared/errors"
 	"scenario-to-desktop-api/shared/path"
+
+	apperrors "scenario-to-desktop-api/shared/errors"
 )
 
 const (

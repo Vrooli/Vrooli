@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.sparkline",
+    "name": "Sparkline",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "visualization",
+    "description": "The compact contextual trend with an accessible summary, highlighted points, threshold markers, explicit missing-data treatment, and stable rendering inside dense rows.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Scales, theming, and the accessible equivalent are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience",
+    "ramp-conformance"
+  ],
+  "rationale": "Missing-data treatment is the honesty question: interpolating across a gap draws a trend that did not happen, which in an operational dashboard is a false statement about the system."
+}

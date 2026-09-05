@@ -1,0 +1,442 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.dev/schemas/program-contract.schema.json",
+  "title": "Program contract",
+  "description": "Contract for a scenario-owned program-runtime program. Lives beside the source as scenarios/<scenario>/.vrooli/program-runtime/<name>.json. See docs/guides/program-contracts.md.",
+  "type": "object",
+  "required": [
+    "name",
+    "version",
+    "purpose",
+    "inputs",
+    "assumptions",
+    "invariants",
+    "bindings",
+    "outputs",
+    "budget",
+    "fixtures"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "<scenario>.<program>, matching the file stem."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 240
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "array",
+              "object"
+            ]
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "default": {},
+          "enum": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": [
+                "string",
+                "integer",
+                "number",
+                "boolean"
+              ]
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 8
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 8
+      },
+      "description": "Always includes the envelope invariant: the envelope is printed exactly once, on every path."
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "effect"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+$"
+          },
+          "effect": {
+            "enum": [
+              "read",
+              "write",
+              "destructive"
+            ]
+          },
+          "optional": {
+            "type": "boolean",
+            "default": false,
+            "description": "True when the program degrades to partial without it."
+          },
+          "via": {
+            "enum": [
+              "binding",
+              "ai.classify",
+              "ai.extract",
+              "ai.judge",
+              "ai.write",
+              "ai.batch",
+              "agent.start",
+              "agent.collect",
+              "agent.run",
+              "lib",
+              "recall",
+              "discover",
+              "validate",
+              "capture",
+              "guide"
+            ],
+            "default": "binding",
+            "description": "How the source reaches the binding: directly, or through a runtime verb or helper that resolves to it."
+          },
+          "note": {
+            "type": "string",
+            "description": "Free text for reviewers (for example why the binding is optional)."
+          }
+        }
+      }
+    },
+    "verbs": {
+      "type": "array",
+      "description": "Runtime verbs and helpers the source uses besides scenario bindings.",
+      "items": {
+        "enum": [
+          "gather",
+          "discover",
+          "recall",
+          "validate",
+          "capture",
+          "guide",
+          "describe",
+          "ai.classify",
+          "ai.extract",
+          "ai.judge",
+          "ai.write",
+          "ai.batch",
+          "agent.start",
+          "agent.collect",
+          "agent.run",
+          "lib"
+        ]
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "required": [
+        "status",
+        "phase",
+        "signals",
+        "errors"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "object",
+          "required": [
+            "enum"
+          ],
+          "properties": {
+            "enum": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "ok",
+                  "partial",
+                  "unavailable",
+                  "refused",
+                  "failed"
+                ]
+              },
+              "minItems": 2
+            },
+            "note": {
+              "type": "string",
+              "description": "Why a status in the full vocabulary is unreachable for this program, and what would make it reachable."
+            }
+          }
+        },
+        "phase": {
+          "type": "object",
+          "required": [
+            "enum"
+          ],
+          "properties": {
+            "enum": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "validate",
+                  "collect",
+                  "classify",
+                  "decide",
+                  "act",
+                  "delegate",
+                  "report"
+                ]
+              },
+              "minItems": 2
+            }
+          }
+        },
+        "signals": {
+          "type": "object",
+          "description": "Name \u2192 one-line description of each signal the envelope carries.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "object",
+          "required": [
+            "classes"
+          ],
+          "properties": {
+            "classes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "description": "Every value errors[].class may take. Transport classes (scenario_unreachable, no_grant, not_run_eligible, binding_error) plus the program's domain classes."
+            }
+          }
+        },
+        "evidence": {
+          "type": "string",
+          "description": "What kind of references evidence[] carries."
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "wall_ms",
+        "inference_calls",
+        "delegated_runs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "wall_ms": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 14400000
+        },
+        "inference_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delegated_runs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "materialize_limit": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Largest row set the program may materialize."
+        },
+        "async": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when wall_ms exceeds the 120 s synchronous submission bound; the caller submits with --async and waits once."
+        },
+        "async_reason": {
+          "type": "string",
+          "description": "Why the program needs the asynchronous path (which step is long)."
+        },
+        "output_bytes": {
+          "type": "integer",
+          "enum": [
+            4096,
+            65536
+          ],
+          "default": 4096,
+          "description": "Runtime output tier. The program must keep its complete envelope within this bound."
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "Present only when the program reads or writes a memory scope (S4 orchestrators).",
+      "required": [
+        "scope",
+        "reads_in",
+        "writes_in",
+        "entry_kinds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "type": "string",
+          "pattern": "^(team:)?[a-z0-9-]+$"
+        },
+        "reads_in": {
+          "enum": [
+            "collect",
+            "none"
+          ]
+        },
+        "writes_in": {
+          "enum": [
+            "report",
+            "none"
+          ]
+        },
+        "entry_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "scope_input": {
+          "type": "string",
+          "description": "Name of the input that overrides the default scope, so a fixture can write to a throwaway scope."
+        },
+        "writes_when": {
+          "type": "string",
+          "description": "The condition under which report writes. A program that writes on every path teaches its scope from rejected inputs and dead dependencies."
+        },
+        "read_scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(team:)?[a-z0-9-]+$"
+          },
+          "description": "Additional explicitly named read-only ledger scopes; no ambient scope discovery."
+        }
+      }
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "inputs",
+          "expect"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "inputs": {
+            "type": "object"
+          },
+          "expect": {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "enum": [
+                    "ok",
+                    "partial",
+                    "unavailable",
+                    "refused",
+                    "failed"
+                  ]
+                },
+                "description": "Accepted statuses; unavailable is accepted only when listed."
+              },
+              "signals": {
+                "type": "object"
+              }
+            }
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Scenarios that must be running for the fixture to be meaningful."
+          },
+          "note": {
+            "type": "string",
+            "description": "Free text for reviewers: why this fixture exists or what it cannot prove."
+          },
+          "host_local": {
+            "type": "boolean",
+            "default": false,
+            "description": "True when the fixture depends on ids or ports discovered on this host; the validation phase skips it elsewhere."
+          }
+        }
+      }
+    },
+    "rung": {
+      "enum": [
+        "S3",
+        "S4"
+      ],
+      "default": "S3",
+      "description": "S4 marks an orchestrator that owns its skill's decision tree."
+    },
+    "owner_skill": {
+      "type": "string",
+      "description": "The skill id whose tree names this program as a step."
+    },
+    "output_schema": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Local output JSON Schema path, included in the program content digest."
+    }
+  }
+}

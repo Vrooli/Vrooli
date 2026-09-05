@@ -1,0 +1,200 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "flows.artifacts.status",
+      "path": "/vrooli.flow_verifier.v1.artifacts.ArtifactsService/GetArtifactStatus",
+      "method": "POST",
+      "summary": "Inspect a flow's generated/ tree",
+      "description": "Returns each expected artifact path with its existence/mtime, plus an overall fresh|missing status. Pure inspection — no mutation.",
+      "category": "artifacts"
+    },
+    {
+      "id": "flows.artifacts.generate",
+      "path": "/vrooli.flow_verifier.v1.artifacts.ArtifactsService/GenerateArtifacts",
+      "method": "POST",
+      "summary": "Generate or regenerate a flow's artifacts",
+      "description": "Runs the pipeline in generate mode for one flow. Returns the new artifacts status alongside the recorded run.",
+      "category": "artifacts"
+    },
+    {
+      "id": "flows.artifacts.clear",
+      "path": "/vrooli.flow_verifier.v1.artifacts.ArtifactsService/ClearArtifacts",
+      "method": "POST",
+      "summary": "Clear a flow's generated/ tree",
+      "description": "Removes every file under <flow-dir>/generated/. Refuses crafted paths that would escape the scenario root.",
+      "category": "artifacts"
+    },
+    {
+      "id": "flows.list",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ListFlows",
+      "method": "POST",
+      "summary": "List discovered flows",
+      "description": "Walks the configured root and returns one entry per flow/flow.json with id, contract path, language, and schema version.",
+      "category": "flows"
+    },
+    {
+      "id": "flows.get",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/GetFlow",
+      "method": "POST",
+      "summary": "Flow detail",
+      "description": "Returns the typed flow.json projection consumed by the UI's flow-detail page.",
+      "category": "flows"
+    },
+    {
+      "id": "flows.create",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/CreateFlow",
+      "method": "POST",
+      "summary": "Scaffold a new flow",
+      "description": "Creates a fresh flow directory with hand-authored transition + test sidecars. Replaces the legacy in-process CLI command.",
+      "category": "flows"
+    },
+    {
+      "id": "flows.validate",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ValidateFlow",
+      "method": "POST",
+      "summary": "Validate every flow under root",
+      "description": "Compiles every flow.json and returns the first compilation/contract error encountered, or empty on success.",
+      "category": "flows"
+    },
+    {
+      "id": "flows.explain",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ExplainFlow",
+      "method": "POST",
+      "summary": "Human-readable explain report",
+      "description": "Renders the markdown explanation consumed by the UI Overview tab and CLI explain output.",
+      "category": "flows"
+    },
+    {
+      "id": "flows.codegen",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/CodegenFlow",
+      "method": "POST",
+      "summary": "Emit codegen artifacts",
+      "description": "Runs the navigation kind's codegen (routes.generated.ts) and optionally writes the output to disk.",
+      "category": "flows"
+    },
+    {
+      "id": "flows.reconcile",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/ReconcileFlow",
+      "method": "POST",
+      "summary": "Reconcile spec against source",
+      "description": "Walks the scenario's ui/src tree and asserts every route declared in code matches a spec route (and vice-versa).",
+      "category": "flows"
+    },
+    {
+      "id": "flows.navigationStudio",
+      "path": "/vrooli.flow_verifier.v1.flows.FlowsService/GetNavigationStudio",
+      "method": "POST",
+      "summary": "Flow Studio descriptor for a navigation flow",
+      "description": "Returns the Flow Studio renderer payload (routes, affordances, containers, context toggles, invariant pass/fail) consumed by the UI's navigation graph view.",
+      "category": "flows"
+    },
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "runs.list",
+      "path": "/vrooli.flow_verifier.v1.runs.RunsService/ListRuns",
+      "method": "POST",
+      "summary": "List verification runs",
+      "description": "Returns persisted verification history with optional flow_id filter and a configurable limit.",
+      "category": "runs"
+    },
+    {
+      "id": "runs.get",
+      "path": "/vrooli.flow_verifier.v1.runs.RunsService/GetRun",
+      "method": "POST",
+      "summary": "Single run detail",
+      "description": "Returns one verification run including the counterexample blob on failure.",
+      "category": "runs"
+    },
+    {
+      "id": "scenarios.list",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/ListScenarios",
+      "method": "POST",
+      "summary": "List discovered scenarios",
+      "description": "Walks <vrooli-root>/scenarios/* for .vrooli/service.json descriptors and returns one row per scenario.",
+      "category": "scenarios"
+    },
+    {
+      "id": "scenarios.get",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GetScenario",
+      "method": "POST",
+      "summary": "Scenario detail",
+      "description": "Returns the scenario descriptor plus the flow summaries discovered inside it.",
+      "category": "scenarios"
+    },
+    {
+      "id": "scenarios.generate_artifacts",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GenerateScenarioArtifacts",
+      "method": "POST",
+      "summary": "Generate every flow's artifacts in a scenario (server-stream)",
+      "description": "Server-streams one ScenarioArtifactsProgress per flow as artifacts are regenerated.",
+      "category": "scenarios"
+    },
+    {
+      "id": "scenarios.clear_artifacts",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/ClearScenarioArtifacts",
+      "method": "POST",
+      "summary": "Clear every flow's generated/ tree in a scenario",
+      "description": "Removes every generated/ tree under the scenario root. Refuses traversal outside root.",
+      "category": "scenarios"
+    },
+    {
+      "id": "settings.get",
+      "path": "/vrooli.flow_verifier.v1.settings.SettingsService/GetSettings",
+      "method": "POST",
+      "summary": "Get UI/CLI preferences",
+      "description": "Returns the local principal's persisted UI/CLI preferences. Hard-coded defaults are returned when no row exists; never NotFound.",
+      "category": "settings"
+    },
+    {
+      "id": "settings.update",
+      "path": "/vrooli.flow_verifier.v1.settings.SettingsService/UpdateSettings",
+      "method": "POST",
+      "summary": "Update UI/CLI preferences",
+      "description": "Partial-update of the local principal's preferences. The FieldMask names which fields of the supplied Settings message are merged into the stored row.",
+      "category": "settings"
+    },
+    {
+      "id": "verifications.start",
+      "path": "/vrooli.flow_verifier.v1.verifications.VerificationsService/StartVerification",
+      "method": "POST",
+      "summary": "Start a verification",
+      "description": "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns the recorded run rows.",
+      "category": "verifications"
+    },
+    {
+      "id": "verifications.get",
+      "path": "/vrooli.flow_verifier.v1.verifications.VerificationsService/GetVerification",
+      "method": "POST",
+      "summary": "Verification status",
+      "description": "Returns status + result for one verification run.",
+      "category": "verifications"
+    }
+  ]
+}

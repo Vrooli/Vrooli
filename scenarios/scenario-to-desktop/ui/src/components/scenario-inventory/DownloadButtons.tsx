@@ -10,7 +10,7 @@ import {
   getPlatformName,
   formatBytes,
   type Platform,
-  type DesktopBuildArtifact
+  type DesktopBuildArtifact,
 } from "../../domain/download";
 
 interface DownloadButtonsProps {
@@ -18,24 +18,29 @@ interface DownloadButtonsProps {
   artifacts: DesktopBuildArtifact[];
 }
 
-export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProps) {
+export function DownloadButtons({
+  scenarioName,
+  artifacts,
+}: DownloadButtonsProps) {
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
 
   // Get only valid platforms (filters out "unknown")
   const availablePlatforms = getAvailablePlatforms(artifacts);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(
-    availablePlatforms[0] ?? null
+    availablePlatforms[0] ?? null,
   );
 
   const platformGroups = groupArtifactsByPlatform(artifacts);
-  const selectedGroup = selectedPlatform ? platformGroups.get(selectedPlatform) : null;
+  const selectedGroup = selectedPlatform
+    ? platformGroups.get(selectedPlatform)
+    : null;
 
   const handleDownload = useCallback(
     (platform: Platform) => {
       const url = getDownloadUrl(scenarioName, platform);
       triggerDownload({ url });
     },
-    [scenarioName]
+    [scenarioName],
   );
 
   const handleCopyPath = useCallback(async (path?: string) => {
@@ -43,7 +48,9 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
     const result = await writeToClipboard(path);
     if (result.success) {
       setCopiedPath(path);
-      setTimeout(() => setCopiedPath(null), 2000);
+      setTimeout(() => {
+        setCopiedPath(null);
+      }, 2000);
     }
   }, []);
 
@@ -58,12 +65,17 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
         {availablePlatforms.map((platform) => (
           <button
             key={platform}
-            onClick={() => setSelectedPlatform(platform)}
+            type="button"
+            aria-pressed={selectedPlatform === platform}
+            onClick={() => {
+              setSelectedPlatform(platform);
+            }}
             className={`
               flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-              ${selectedPlatform === platform
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-300 hover:text-white hover:bg-slate-700/60"
+              ${
+                selectedPlatform === platform
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-300 hover:text-white hover:bg-slate-700/60"
               }
             `}
           >
@@ -81,7 +93,9 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
             <Button
               size="default"
               className="gap-2"
-              onClick={() => handleDownload(selectedPlatform)}
+              onClick={() => {
+                handleDownload(selectedPlatform);
+              }}
             >
               <Download className="h-4 w-4" />
               Download {getPlatformName(selectedPlatform)} installer
@@ -89,7 +103,9 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
             <span className="text-sm text-slate-400">
               {formatBytes(selectedGroup.totalSizeBytes)}
               {selectedGroup.artifacts.length > 1 && (
-                <span className="ml-1">({selectedGroup.artifacts.length} files)</span>
+                <span className="ml-1">
+                  ({selectedGroup.artifacts.length} files)
+                </span>
               )}
             </span>
           </div>
@@ -108,14 +124,19 @@ export function DownloadButtons({ scenarioName, artifacts }: DownloadButtonsProp
                 >
                   <span className="text-slate-200">{artifact.file_name}</span>
                   {artifact.size_bytes !== undefined && (
-                    <span className="text-slate-500">({formatBytes(artifact.size_bytes)})</span>
+                    <span className="text-slate-500">
+                      ({formatBytes(artifact.size_bytes)})
+                    </span>
                   )}
                   {artifact.relative_path && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-5 px-1.5 gap-1 text-xs"
-                      onClick={() => handleCopyPath(artifact.relative_path)}
+                      aria-label={`Copy ${artifact.file_name} path`}
+                      onClick={() => {
+                        void handleCopyPath(artifact.relative_path);
+                      }}
                     >
                       {copiedPath === artifact.relative_path ? (
                         <Check className="h-3 w-3 text-green-400" />

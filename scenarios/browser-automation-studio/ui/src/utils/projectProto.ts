@@ -57,6 +57,8 @@ const mapProject = (proto: ProtoProject | undefined): ParsedProject | null => {
   };
 };
 
+export const mapProtoProject = (proto: ProtoProject | undefined): ParsedProject | null => mapProject(proto);
+
 const mapProjectWithStats = (proto: ProtoProjectWithStats | undefined): ParsedProject | null => {
   if (!proto) return null;
   const project = mapProject(proto.project);
@@ -70,6 +72,10 @@ const mapProjectWithStats = (proto: ProtoProjectWithStats | undefined): ParsedPr
     : undefined;
   return stats ? { ...project, stats } : project;
 };
+
+export const mapProtoProjectWithStats = (
+  proto: ProtoProjectWithStats | undefined,
+): ParsedProject | null => mapProjectWithStats(proto);
 
 export const parseProjectList = (raw: unknown): ParsedProject[] => {
   try {

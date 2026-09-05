@@ -1,0 +1,481 @@
+package scenarioapp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostlifecycle"
+	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/resources"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	serviceParameterB = 124
+	serviceParameterC = 2
+)
+
+type EnvironmentValidator interface {
+	ValidateScenarioEnvironment(name string) (resources.ScenarioEnvValidationReport, error)
+}
+
+type ScenarioOperations interface {
+	StartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error)
+	RestartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error)
+	Inventory() ([]orchestrator.Detail, error)
+	InventoryReport() (orchestrator.InventoryReport, error)
+	Detail(name string) (orchestrator.Detail, error)
+	DetailAtPath(name, path string) (orchestrator.Detail, error)
+	StartAll() (control.StartReport, error)
+	StopAll() (control.StopReport, error)
+	ResolvePort(name, portName string) (orchestrator.ResolvedPort, error)
+}
+
+type PhaseRunner interface {
+	Stop(name string, opts lifecycle.StopOptions) error
+	RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
+	RunPhase(name, phase string, opts lifecycle.PhaseOptions) error
+	FreshnessReportByName(name, customPath string) (lifecycle.FreshnessReport, error)
+	WaitScenario(name string, opts lifecycle.WaitOptions) (lifecycle.WaitOutcome, error)
+}
+
+type Service struct {
+	Scenarios ScenarioOperations
+	Runner    PhaseRunner
+	Validator EnvironmentValidator
+	OpenURL   func(string) error
+}
+
+func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
+	items := make([]LifecycleItemOutput, 0, len(req.Names))
+	for _, name := range req.Names {
+		result, err := s.Scenarios.StartDetailed(name, req.Options)
+		if err != nil {
+			return nil, err
+		}
+
+		status := "started"
+		if result.AlreadyRunning {
+			status = "already_running"
+		}
+		items = append(items, LifecycleItemOutput{
+			Name:               result.Scenario.Slug,
+			Status:             status,
+			Health:             result.Details.Health,
+			Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
+			Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
+			FailedDependencies: append([]string(nil), result.FailedDependencies...),
+			FailedResources:    append([]string(nil), result.FailedResources...),
+			Verdict:            result.Verdict,
+			Operation:          result.StartOperation,
+		})
+
+		if req.OpenAfter {
+			resolved, err := s.Scenarios.ResolvePort(name, "UI_PORT")
+			if err != nil {
+				return nil, err
+			}
+			if err := s.OpenURL(resolved.URL); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return items, nil
+}
+
+func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
+	result, err := s.Scenarios.RestartDetailed(req.Name, req.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	item := LifecycleItemOutput{
+		Name:               result.Scenario.Slug,
+		Status:             "restarted",
+		Health:             result.Details.Health,
+		Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
+		Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
+		FailedDependencies: append([]string(nil), result.FailedDependencies...),
+		FailedResources:    append([]string(nil), result.FailedResources...),
+		Verdict:            result.Verdict,
+		Operation:          result.StartOperation,
+	}
+
+	if req.OpenAfter {
+		resolved, err := s.Scenarios.ResolvePort(req.Name, "UI_PORT")
+		if err != nil {
+			return nil, err
+		}
+		if err := s.OpenURL(resolved.URL); err != nil {
+			return nil, err
+		}
+	}
+
+	return []LifecycleItemOutput{item}, nil
+}
+
+func (s Service) Stop(req StopRequest) ([]LifecycleItemOutput, error) {
+	if hostlifecycle.InSandbox() {
+		if _, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.ScenarioRequest{Action: "stop", Name: req.Name}); err != nil {
+			return nil, err
+		}
+		return []LifecycleItemOutput{{Name: req.Name, Status: "stopped"}}, nil
+	}
+	if err := s.Runner.Stop(req.Name, lifecycle.StopOptions{}); err != nil {
+		return nil, err
+	}
+	return []LifecycleItemOutput{{Name: req.Name, Status: "stopped"}}, nil
+}
+
+func (s Service) List(req ListRequest) (ListResponse, error) {
+	inventory, err := s.Scenarios.InventoryReport()
+	if err != nil {
+		return ListResponse{}, err
+	}
+
+	resp := ListResponse{
+		Items:    make([]ListItemOutput, 0, len(inventory.Items)),
+		Failures: append([]discovery.Failure(nil), inventory.Failures...),
+	}
+	for _, item := range inventory.Items {
+		status := "available"
+		startFailureReason := ""
+		var startFailedAt *time.Time
+		projectedStatus, reason, failedAt := scenarioStatus(item)
+		if projectedStatus == "start-failed" {
+			status = projectedStatus
+			startFailureReason = reason
+			startFailedAt = failedAt
+		}
+		if item.Details.Status == scenarioruntime.StatusRunning {
+			status = item.Details.Status
+			resp.RunningCount++
+		}
+
+		listPorts := []ListPortOutput{}
+		if req.IncludePorts && item.Details.Status == scenarioruntime.StatusRunning {
+			listPorts = RuntimePortOutputs(item.Details.PortBindings)
+		}
+
+		resp.Items = append(resp.Items, ListItemOutput{
+			Name:               item.Scenario.Slug,
+			Description:        item.Scenario.Manifest.Service.Description,
+			Version:            item.Scenario.Manifest.Service.Version,
+			Status:             status,
+			Tags:               CopyStrings(item.Scenario.Manifest.Service.Tags),
+			Path:               item.Scenario.Path + string(os.PathSeparator),
+			Ports:              listPorts,
+			Health:             item.Details.Health,
+			StartFailureReason: startFailureReason,
+			StartFailedAt:      startFailedAt,
+		})
+	}
+	return resp, nil
+}
+
+func (s Service) Info(req InfoRequest) (InfoOutput, error) {
+	detail, err := s.Scenarios.Detail(req.Name)
+	if err != nil {
+		return InfoOutput{}, err
+	}
+	return InfoOutput{
+		Success:  true,
+		Scenario: BuildInfoData(detail.Scenario),
+		Runtime:  BuildRuntimeDataFromDetail(detail),
+	}, nil
+}
+
+// Freshness returns the scenario's freshness report (per-check verdicts +
+// resolved dependency policies), the data behind `vrooli scenario freshness`.
+func (s Service) Freshness(req FreshnessRequest) (lifecycle.FreshnessReport, error) {
+	return s.Runner.FreshnessReportByName(req.Name, req.Path)
+}
+
+func (s Service) Status(req StatusRequest) (StatusResponse, error) {
+	if req.Name == "" {
+		inventory, err := s.Scenarios.InventoryReport()
+		if err != nil {
+			return StatusResponse{}, err
+		}
+		items := make([]StatusItemOutput, 0, len(inventory.Items))
+		for _, item := range inventory.Items {
+			items = append(items, BuildStatusDetail(item))
+		}
+		return StatusResponse{
+			List:     items,
+			Failures: append([]discovery.Failure(nil), inventory.Failures...),
+		}, nil
+	}
+
+	detail, err := s.Scenarios.Detail(req.Name)
+	if err != nil {
+		return StatusResponse{}, err
+	}
+	output := StatusSingleOutput{
+		Success:  true,
+		Scenario: BuildStatusDetail(detail),
+		Info:     BuildInfoData(detail.Scenario),
+		Runtime:  BuildRuntimeDataFromDetail(detail),
+	}
+	return StatusResponse{Single: &output}, nil
+}
+
+// Wait attaches to the scenario's in-flight start operation (or evaluates
+// current runtime health when none is in flight) and returns one verdict with
+// its exit code. Infrastructure failures return an error; every orchestration
+// outcome — including the --timeout ceiling — is a WaitResponse.
+func (s Service) Wait(req WaitRequest) (WaitResponse, error) {
+	opts := lifecycle.WaitOptions{OnTransition: req.OnTransition}
+	if req.TimeoutSeconds > 0 {
+		opts.Timeout = time.Duration(req.TimeoutSeconds) * time.Second
+	}
+	outcome, err := s.Runner.WaitScenario(req.Name, opts)
+	if err != nil {
+		return WaitResponse{}, err
+	}
+	source := "registry"
+	if outcome.Attached {
+		source = "attached"
+	}
+	return WaitResponse{
+		Success:       outcome.Healthy(),
+		Scenario:      outcome.Scenario,
+		Verdict:       outcome.Verdict,
+		ExitCode:      VerdictExitCode(outcome.Verdict),
+		Source:        source,
+		WaitedSeconds: int(outcome.Waited / time.Second),
+		Error:         outcome.Error,
+		Operation:     outcome.Operation,
+	}, nil
+}
+
+// VerdictExitCode maps a wait/start verdict onto the agent exit-code
+// contract: 0 healthy (or running for no-checks scenarios), 1 failed, 2
+// degraded-after-timeout success, 124 wait ceiling elapsed.
+func VerdictExitCode(verdict string) int {
+	switch verdict {
+	case lifecycle.WaitVerdictHealthy, lifecycle.WaitVerdictRunning:
+		return 0
+	case lifecycle.WaitVerdictDegraded:
+		return serviceParameterC
+	case lifecycle.WaitVerdictTimeout:
+		return serviceParameterB
+	default:
+		return 1
+	}
+}
+
+func (s Service) ValidateEnv(req ValidateEnvRequest) (ValidateEnvResponse, error) {
+	report, err := s.Validator.ValidateScenarioEnvironment(req.Name)
+	if err != nil {
+		return ValidateEnvResponse{}, err
+	}
+	return ValidateEnvResponse{Report: report}, nil
+}
+
+func (s Service) Setup(req SetupRequest) (lifecycle.PhaseResult, error) {
+	return s.Runner.RunPhaseDetailed(req.Name, "setup", req.Opts)
+}
+
+// TestDetailed runs the test phase and returns the lifecycle result (run-id,
+// timestamps, exit code, log file) so the CLI can persist a typed run record.
+func (s Service) StartAll() (BatchResponse, error) {
+	report, err := s.Scenarios.StartAll()
+	if err != nil {
+		return BatchResponse{}, err
+	}
+	return BatchResponseFromStartReport(report), nil
+}
+
+func (s Service) StopAll() (BatchResponse, error) {
+	report, err := s.Scenarios.StopAll()
+	if err != nil {
+		return BatchResponse{}, err
+	}
+	return BatchResponseFromStopReport(report), nil
+}
+
+func (s Service) Port(req PortRequest) (PortResponse, error) {
+	if hostlifecycle.InSandbox() {
+		return s.hostPort(req)
+	}
+	var (
+		detail orchestrator.Detail
+		err    error
+	)
+	if strings.TrimSpace(req.Path) != "" {
+		detail, err = s.Scenarios.DetailAtPath(req.ScenarioName, req.Path)
+	} else {
+		detail, err = s.Scenarios.Detail(req.ScenarioName)
+	}
+	if err != nil {
+		return PortResponse{}, err
+	}
+	listPorts := RuntimePortOutputs(detail.Details.PortBindings)
+	portsMap := CopyIntMap(detail.Details.Ports)
+
+	if req.PortName == "" {
+		if detail.Details.Status != scenarioruntime.StatusRunning || len(portsMap) == 0 {
+			errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
+			if req.JSON {
+				return PortResponse{List: &PortListOutput{
+					Success:  false,
+					Scenario: req.ScenarioName,
+					Ports:    []ListPortOutput{},
+					Error:    errMessage,
+				}}, nil
+			}
+			return PortResponse{}, errors.New(errMessage)
+		}
+		list := &PortListOutput{
+			Success:  true,
+			Scenario: req.ScenarioName,
+			Ports:    listPorts,
+		}
+		if req.JSON {
+			list.Metadata = map[string]int{"count": len(listPorts)}
+		}
+		return PortResponse{List: list}, nil
+	}
+
+	if detail.Details.Status != scenarioruntime.StatusRunning {
+		errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
+		if req.JSON {
+			return PortResponse{Single: &PortSingleOutput{
+				Success:  false,
+				Scenario: req.ScenarioName,
+				PortName: req.PortName,
+				Error:    errMessage,
+			}}, nil
+		}
+		return PortResponse{}, errors.New(errMessage)
+	}
+
+	resolved, ok := scenariomodel.ResolveRuntimePort(detail.Scenario.Manifest, detail.Details.PortBindings, portsMap, req.PortName)
+	if !ok {
+		if req.JSON {
+			return PortResponse{Single: &PortSingleOutput{
+				Success:  false,
+				Scenario: req.ScenarioName,
+				PortName: req.PortName,
+				Error:    fmt.Sprintf("No running port named %s for scenario", req.PortName),
+			}}, nil
+		}
+		return PortResponse{}, fmt.Errorf("no running port named %s for scenario %q", req.PortName, req.ScenarioName)
+	}
+
+	return PortResponse{Single: &PortSingleOutput{
+		Success:  true,
+		Scenario: req.ScenarioName,
+		PortName: resolved.Key,
+		Step:     resolved.Step,
+		Port:     resolved.Port,
+	}}, nil
+}
+
+func noRunningRuntimePortsMessage(scenarioName string, status string, bindingCount int) string {
+	trimmedStatus := strings.TrimSpace(status)
+	if trimmedStatus == "" {
+		trimmedStatus = "unknown"
+	}
+	if bindingCount > 0 && trimmedStatus != scenarioruntime.StatusRunning {
+		return fmt.Sprintf("runtime registry for scenario %q is %s with %d port binding(s), but only running runtimes expose ports; check `vrooli runtime supervisor status` and restart the scenario if needed", scenarioName, trimmedStatus, bindingCount)
+	}
+	return fmt.Sprintf("no running runtime ports found for scenario %q", scenarioName)
+}
+
+func (s Service) hostPort(req PortRequest) (PortResponse, error) {
+	resp, err := hostlifecycle.RunScenario(context.Background(), hostlifecycle.ScenarioRequest{
+		Action:   "port",
+		Name:     req.ScenarioName,
+		PortName: req.PortName,
+	})
+	if err != nil {
+		return PortResponse{}, err
+	}
+	if req.PortName == "" {
+		return PortResponse{}, fmt.Errorf("sandbox host port proxy requires a port name")
+	}
+	port, parseErr := parsePort(resp.Stdout)
+	if parseErr != nil {
+		return PortResponse{}, parseErr
+	}
+	return PortResponse{Single: &PortSingleOutput{
+		Success:  true,
+		Scenario: req.ScenarioName,
+		PortName: req.PortName,
+		Port:     port,
+	}}, nil
+}
+
+func parsePort(output string) (int, error) {
+	match := regexp.MustCompile(`\b(\d{2,5})\b`).FindStringSubmatch(output)
+	if len(match) < serviceParameterC {
+		return 0, fmt.Errorf("host port proxy returned no port in %q", strings.TrimSpace(output))
+	}
+	port, err := strconv.Atoi(match[1])
+	if err != nil {
+		return 0, fmt.Errorf("parse host port proxy output: %w", err)
+	}
+	return port, nil
+}
+
+func (s Service) Open(req OpenRequest) (OpenOutput, error) {
+	resolved, err := s.Scenarios.ResolvePort(req.ScenarioName, req.PortName)
+	if err != nil {
+		return OpenOutput{}, err
+	}
+	if !req.PrintURL && !req.JSON {
+		if err := s.OpenURL(resolved.URL); err != nil {
+			return OpenOutput{}, err
+		}
+		return OpenOutput{}, nil
+	}
+	return OpenOutput{
+		Success:  true,
+		Scenario: req.ScenarioName,
+		PortName: resolved.Name,
+		Port:     resolved.Port,
+		URL:      resolved.URL,
+	}, nil
+}
+
+func envPortMap(manifest scenariomodel.ServiceManifest, ports map[string]int) map[string]int {
+	out := make(map[string]int, len(ports))
+	for portName, port := range ports {
+		envVar := manifest.PortEnvVar(portName)
+		if envVar == "" {
+			envVar = strings.ToUpper(strings.ReplaceAll(portName, "-", "_")) + "_PORT"
+		}
+		out[envVar] = port
+	}
+	return out
+}
+
+func endpointOutputs(manifest scenariomodel.ServiceManifest, ports map[string]int) []EndpointOutput {
+	endpoints := scenariomodel.RuntimeEndpoints(manifest, ports)
+	if len(endpoints) == 0 {
+		return nil
+	}
+	out := make([]EndpointOutput, 0, len(endpoints))
+	for _, endpoint := range endpoints {
+		out = append(out, EndpointOutput{
+			Name:        endpoint.Name,
+			Key:         endpoint.Key,
+			Description: endpoint.Description,
+			Port:        endpoint.Port,
+			URL:         endpoint.URL,
+		})
+	}
+	return out
+}

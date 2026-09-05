@@ -2,13 +2,19 @@ package smoketest_test
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestProcessExecutor_Execute_Success(t *testing.T) {
@@ -30,6 +36,39 @@ func TestProcessExecutor_Execute_Success(t *testing.T) {
 	}
 	if !strings.Contains(output, "hello") {
 		t.Errorf("Execute() output = %q, want to contain 'hello'", output)
+	}
+}
+
+func TestProcessExecutor_Execute_CleansDescendantsAfterSuccessfulLeaderExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "process-group cleanup is Unix-specific")
+	}
+
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	executor := smoketest.NewProcessExecutor(mocks.NewMockLogger(), smoketest.WithKillGracePeriod(25*time.Millisecond))
+	result, err := executor.ExecuteWithResult(context.Background(), "", "sh", []string{"-c", "sleep 300 >/dev/null 2>&1 & echo $! > \"$1\"; exit 0", "sh", pidFile}, nil, 5*time.Second)
+	if err != nil || result == nil || result.ExitCode != 0 {
+		t.Fatalf("successful launcher result = %#v, %v", result, err)
+	}
+
+	data, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatalf("read child pid: %v", err)
+	}
+	var pid int
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(data)), "%d", &pid); err != nil || pid <= 0 {
+		t.Fatalf("parse child pid %q: %v", data, err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for {
+		err = syscall.Kill(pid, 0)
+		if err == syscall.ESRCH {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("descendant pid %d survived successful launcher cleanup: %v", pid, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

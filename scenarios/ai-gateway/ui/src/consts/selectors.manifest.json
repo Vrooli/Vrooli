@@ -1,0 +1,293 @@
+{
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.providers": {
+      "testId": "page-providers",
+      "selector": "[data-testid=\"page-providers\"]"
+    },
+    "pages.routePreview": {
+      "testId": "page-route-preview",
+      "selector": "[data-testid=\"page-route-preview\"]"
+    },
+    "pages.conformance": {
+      "testId": "page-conformance",
+      "selector": "[data-testid=\"page-conformance\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "dashboard.summary": {
+      "testId": "dashboard-summary",
+      "selector": "[data-testid=\"dashboard-summary\"]"
+    },
+    "dashboard.error": {
+      "testId": "dashboard-error",
+      "selector": "[data-testid=\"dashboard-error\"]"
+    },
+    "dashboard.routeEvents": {
+      "testId": "dashboard-route-events",
+      "selector": "[data-testid=\"dashboard-route-events\"]"
+    },
+    "dashboard.conformanceDebt": {
+      "testId": "dashboard-conformance-debt",
+      "selector": "[data-testid=\"dashboard-conformance-debt\"]"
+    },
+    "providers.loading": {
+      "testId": "providers-loading",
+      "selector": "[data-testid=\"providers-loading\"]"
+    },
+    "providers.error": {
+      "testId": "providers-error",
+      "selector": "[data-testid=\"providers-error\"]"
+    },
+    "providers.empty": {
+      "testId": "providers-empty",
+      "selector": "[data-testid=\"providers-empty\"]"
+    },
+    "providers.table": {
+      "testId": "providers-table",
+      "selector": "[data-testid=\"providers-table\"]"
+    },
+    "routePreview.form": {
+      "testId": "route-preview-form",
+      "selector": "[data-testid=\"route-preview-form\"]"
+    },
+    "routePreview.scenarioInput": {
+      "testId": "route-preview-scenario-input",
+      "selector": "[data-testid=\"route-preview-scenario-input\"]"
+    },
+    "routePreview.profileSelect": {
+      "testId": "route-preview-profile-select",
+      "selector": "[data-testid=\"route-preview-profile-select\"]"
+    },
+    "routePreview.submit": {
+      "testId": "route-preview-submit",
+      "selector": "[data-testid=\"route-preview-submit\"]"
+    },
+    "routePreview.result": {
+      "testId": "route-preview-result",
+      "selector": "[data-testid=\"route-preview-result\"]"
+    },
+    "routePreview.error": {
+      "testId": "route-preview-error",
+      "selector": "[data-testid=\"route-preview-error\"]"
+    },
+    "routePreview.candidates": {
+      "testId": "route-preview-candidates",
+      "selector": "[data-testid=\"route-preview-candidates\"]"
+    },
+    "conformance.form": {
+      "testId": "conformance-form",
+      "selector": "[data-testid=\"conformance-form\"]"
+    },
+    "conformance.scenarioInput": {
+      "testId": "conformance-scenario-input",
+      "selector": "[data-testid=\"conformance-scenario-input\"]"
+    },
+    "conformance.submit": {
+      "testId": "conformance-submit",
+      "selector": "[data-testid=\"conformance-submit\"]"
+    },
+    "conformance.result": {
+      "testId": "conformance-result",
+      "selector": "[data-testid=\"conformance-result\"]"
+    },
+    "conformance.error": {
+      "testId": "conformance-error",
+      "selector": "[data-testid=\"conformance-error\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "providers",
+            "routePreview",
+            "conformance",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "providers",
+            "routePreview",
+            "conformance",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "providers.roleRow": {
+      "description": "Provider inventory row by provider and role",
+      "selectorPattern": "[data-testid=\"providers-role-${provider}-${role}\"]",
+      "testIdPattern": "providers-role-${provider}-${role}",
+      "params": [
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,658 @@
+package capture
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
+
+	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basebase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
+	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+)
+
+// newTestServer wires the service through the generated Connect HTTP
+// handler so tests exercise codec + header propagation in addition to
+// the in-process Capture method.
+func newTestServer(t *testing.T, deps Deps) (captureconnect.CaptureServiceClient, *httptest.Server) {
+	t.Helper()
+	if deps.Logger == nil {
+		deps.Logger = logrus.New()
+	}
+	if deps.Now == nil {
+		deps.Now = func() time.Time { return time.Unix(0, 0) }
+	}
+	if deps.CapturesRoot == "" {
+		deps.CapturesRoot = t.TempDir()
+	}
+	mount := Module(deps)
+	mux := http.NewServeMux()
+	mux.Handle(mount.Path, mount.Handler)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	client := captureconnect.NewCaptureServiceClient(srv.Client(), srv.URL)
+	return client, srv
+}
+
+func TestCapture_HappyPath_Screenshot(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com",
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+	require.Len(t, resp.Msg.Artifacts, 1)
+	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT, resp.Msg.Artifacts[0].Type)
+	require.Regexp(t, `^bas-capture://[0-9a-f-]+/screenshot$`, resp.Msg.Artifacts[0].Reference)
+
+	require.Equal(t, 1, exec.Calls)
+	require.NotNil(t, exec.LastReq)
+	require.NotNil(t, exec.LastReq.FlowDefinition)
+	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 1)
+	nav := exec.LastReq.FlowDefinition.Nodes[0].GetAction().GetNavigate()
+	require.NotNil(t, nav)
+	require.Equal(t, "https://example.com", nav.Url)
+	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Equal(t, "ready", resp.Msg.GetReadiness().GetOutcome())
+}
+
+func TestCapture_FailedExecutionExportsResultThenReturnsConnectErrorWithoutArtifacts(t *testing.T) {
+	executionID := "745c1553-890d-4b1b-b2a4-d6bf538e5d4f"
+	failure := "driver session capacity reached"
+	exec := &fakeExecutor{Resp: &basexecution.ExecuteAdhocResponse{
+		ExecutionId: executionID,
+		Status:      basebase.ExecutionStatus_EXECUTION_STATUS_FAILED,
+		Error:       &failure,
+	}, ExportLayout: map[string]string{"result.json": `{"status":"failed","error":"driver session capacity reached"}`}}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com"}))
+	require.Nil(t, resp)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.Contains(t, err.Error(), executionID)
+	require.Contains(t, err.Error(), "driver session capacity reached")
+	require.Equal(t, 1, exec.ExportCalls, "failed executions must persist their authoritative result")
+	result, readErr := os.ReadFile(filepath.Join(exec.LastExportDir, "result.json"))
+	require.NoError(t, readErr)
+	require.Contains(t, string(result), `"status":"failed"`)
+	require.Contains(t, string(result), failure)
+}
+
+func TestCaptureReadinessDiagnosticsCarriesDeclaredProfileProvenance(t *testing.T) {
+	diagnostics := captureReadinessDiagnosticsWithResolution(nil, "declared-surface", "ready", 42, "", ReadinessResolution{
+		ProfileVersion:     "experience-readiness-profile/v1",
+		Route:              "/results",
+		RequiredSurfaceIDs: []string{"summary", "results"},
+	})
+	require.Equal(t, "experience-readiness-profile/v1", diagnostics.GetProfileVersion())
+	require.Equal(t, "/results", diagnostics.GetRoute())
+	require.Equal(t, []string{"summary", "results"}, diagnostics.GetRequiredSurfaceIds())
+}
+
+func TestCaptureReadinessDiagnosticsCarriesNavigationAndWaitTiming(t *testing.T) {
+	diagnostics := captureReadinessDiagnosticsWithTiming(nil, "declared-surface", "ready", 190, "", ReadinessResolution{}, readinessTimelineTiming{navigationMS: 120, readinessWaitMS: 70})
+	require.EqualValues(t, 120, diagnostics.GetNavigationDurationMs())
+	require.EqualValues(t, 70, diagnostics.GetReadinessWaitDurationMs())
+}
+
+func TestCapture_ReadinessWaitsFollowNavigation(t *testing.T) {
+	tests := []struct {
+		name   string
+		wait   *capturev1.WaitFor
+		assert func(t *testing.T, nodes []*workflowsv1.WorkflowNodeV2)
+	}{
+		{
+			name: "duration",
+			wait: &capturev1.WaitFor{Spec: &capturev1.WaitFor_TimeoutMs{TimeoutMs: 3000}},
+			assert: func(t *testing.T, nodes []*workflowsv1.WorkflowNodeV2) {
+				require.EqualValues(t, 3000, nodes[1].GetAction().GetWait().GetDurationMs())
+			},
+		},
+		{
+			name: "selector",
+			wait: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Selector{Selector: "[data-testid=ready]"}},
+			assert: func(t *testing.T, nodes []*workflowsv1.WorkflowNodeV2) {
+				require.Equal(t, "[data-testid=ready]", nodes[1].GetAction().GetWait().GetSelector())
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: tt.wait}, 1440, 900, "document.documentElement.outerHTML")
+			require.NoError(t, err)
+			nodes := req.GetFlowDefinition().GetNodes()
+			require.Len(t, nodes, 2)
+			require.NotNil(t, nodes[0].GetAction().GetNavigate())
+			require.NotNil(t, nodes[1].GetAction().GetWait())
+			require.Len(t, req.GetFlowDefinition().GetEdges(), 1)
+			require.Equal(t, nodes[0].GetId(), req.GetFlowDefinition().GetEdges()[0].GetSource())
+			require.Equal(t, nodes[1].GetId(), req.GetFlowDefinition().GetEdges()[0].GetTarget())
+			tt.assert(t, nodes)
+		})
+	}
+}
+
+func TestCapture_NetworkIdleIsADeclaredPostNavigationWait(t *testing.T) {
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Networkidle{Networkidle: true}}}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	nodes := req.GetFlowDefinition().GetNodes()
+	require.Len(t, nodes, 1)
+	require.Equal(t, actionsv1.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE, nodes[0].GetAction().GetNavigate().GetWaitUntil())
+}
+
+func TestAppendPostNavigationWaitInsertsProfileReadinessBeforeFollowers(t *testing.T) {
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	appendPostNavigationWait(req, &actionsv1.WaitParams{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}})
+	flow := req.GetFlowDefinition()
+	require.Len(t, flow.GetNodes(), 3)
+	var waitID string
+	for _, node := range flow.GetNodes() {
+		if node.GetAction().GetWait() != nil {
+			waitID = node.GetId()
+			require.Equal(t, "[data-testid=results]", node.GetAction().GetWait().GetSelector())
+		}
+	}
+	require.NotEmpty(t, waitID)
+	for _, edge := range flow.GetEdges() {
+		if edge.GetTarget() == waitID {
+			require.Equal(t, flow.GetNodes()[0].GetId(), edge.GetSource())
+		}
+		if edge.GetSource() == waitID {
+			require.NotEqual(t, waitID, edge.GetTarget())
+		}
+	}
+}
+
+func TestAppendPostNavigationWaitsChainsEveryDeclaredSurface(t *testing.T) {
+	req, _, err := buildAdhocRequest("https://example.com", &capturev1.CaptureRequest{InlineDom: true}, 1440, 900, "document.documentElement.outerHTML")
+	require.NoError(t, err)
+	appendPostNavigationWaits(req, []*actionsv1.WaitParams{
+		{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=summary]"}},
+		{WaitFor: &actionsv1.WaitParams_Selector{Selector: "[data-testid=results]"}},
+	})
+	flow := req.GetFlowDefinition()
+	require.Len(t, flow.GetNodes(), 4)
+	var waits []*workflowsv1.WorkflowNodeV2
+	for _, node := range flow.GetNodes() {
+		if node.GetAction().GetWait() != nil {
+			waits = append(waits, node)
+		}
+	}
+	require.Len(t, waits, 2)
+	require.Equal(t, "[data-testid=summary]", waits[0].GetAction().GetWait().GetSelector())
+	require.Equal(t, "[data-testid=results]", waits[1].GetAction().GetWait().GetSelector())
+	var chained bool
+	for _, edge := range flow.GetEdges() {
+		if edge.GetSource() == waits[0].GetId() && edge.GetTarget() == waits[1].GetId() {
+			chained = true
+		}
+	}
+	require.True(t, chained)
+}
+
+func TestCapture_MultiCapture_ScreenshotConsoleNetwork(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com",
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT,
+			capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS,
+			capturev1.CaptureType_CAPTURE_TYPE_NETWORK,
+		},
+	}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Artifacts, 3)
+	types := []capturev1.CaptureType{
+		resp.Msg.Artifacts[0].Type, resp.Msg.Artifacts[1].Type, resp.Msg.Artifacts[2].Type,
+	}
+	require.ElementsMatch(t, []capturev1.CaptureType{
+		capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT,
+		capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS,
+		capturev1.CaptureType_CAPTURE_TYPE_NETWORK,
+	}, types)
+}
+
+func TestCapture_DimensionsPreset_Mobile(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com",
+		Dimensions: &capturev1.Dimensions{
+			Preset: capturev1.DimensionsPreset_DIMENSIONS_PRESET_MOBILE,
+		},
+	}))
+	require.NoError(t, err)
+	params := exec.LastReq.Parameters
+	require.NotNil(t, params.ViewportWidth)
+	require.NotNil(t, params.ViewportHeight)
+	require.EqualValues(t, 390, *params.ViewportWidth)
+	require.EqualValues(t, 844, *params.ViewportHeight)
+	settings := exec.LastReq.GetFlowDefinition().GetSettings()
+	require.NotNil(t, settings)
+	require.EqualValues(t, 390, settings.GetViewportWidth())
+	require.EqualValues(t, 844, settings.GetViewportHeight())
+}
+
+func TestCapture_DimensionsExplicit_OverridesPreset(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	w, h := int32(1200), int32(800)
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com",
+		Dimensions: &capturev1.Dimensions{
+			Preset: capturev1.DimensionsPreset_DIMENSIONS_PRESET_MOBILE,
+			Width:  &w,
+			Height: &h,
+		},
+	}))
+	require.NoError(t, err)
+	require.EqualValues(t, 1200, *exec.LastReq.Parameters.ViewportWidth)
+	require.EqualValues(t, 800, *exec.LastReq.Parameters.ViewportHeight)
+	settings := exec.LastReq.GetFlowDefinition().GetSettings()
+	require.EqualValues(t, 1200, settings.GetViewportWidth())
+	require.EqualValues(t, 800, settings.GetViewportHeight())
+}
+
+func TestCapture_URLShorthand_ResolvesScenarioSlug(t *testing.T) {
+	exec := &fakeExecutor{}
+	resolver := &fakeResolver{URL: "http://127.0.0.1:9101"}
+	client, _ := newTestServer(t, Deps{Executor: exec, Resolver: resolver})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "scenario=app-monitor,path=/dashboard",
+	}))
+	require.NoError(t, err)
+	require.NotNil(t, exec.LastReq.Parameters.StartUrl)
+	require.Equal(t, "http://127.0.0.1:9101/dashboard", *exec.LastReq.Parameters.StartUrl)
+	nav := exec.LastReq.FlowDefinition.Nodes[0].GetAction().GetNavigate()
+	require.Equal(t, "http://127.0.0.1:9101/dashboard", nav.Url)
+}
+
+func TestCapture_URLShorthand_PrefersScenarioUIPort(t *testing.T) {
+	exec := &fakeExecutor{}
+	resolver := &fakeResolver{URL: "http://127.0.0.1:9101", UIURL: "http://127.0.0.1:9201"}
+	client, _ := newTestServer(t, Deps{Executor: exec, Resolver: resolver})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "scenario=react-component-library,path=/assets/Button?tab=preview",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "http://127.0.0.1:9201/assets/Button?tab=preview", *exec.LastReq.Parameters.StartUrl)
+}
+
+func TestCapture_DeclaredReadinessReportsObservedTerminalState(t *testing.T) {
+	exec := &fakeExecutor{ExportFunc: func(_ *fakeExecutor, outputDir string) error {
+		return os.WriteFile(filepath.Join(outputDir, "timeline.json"), []byte(`{"frames":[{"step_type":"navigate"},{"step_type":"wait","extracted_data_preview":{"experience_surface_state":"partial"}}]}`), 0o644)
+	}}
+	client, _ := newTestServer(t, Deps{
+		Executor:          exec,
+		Resolver:          &fakeResolver{URL: "http://127.0.0.1:9101"},
+		ReadinessResolver: &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="results"]`}}}, ProfileVersion: "experience-readiness-profile/v1", Route: "/dashboard", RequiredSurfaceIDs: []string{"results"}}},
+	})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "scenario=app-monitor,path=/dashboard"}))
+	require.NoError(t, err)
+	require.Equal(t, "declared-surface", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Equal(t, "partial", resp.Msg.GetReadiness().GetOutcome())
+	require.Equal(t, "experience-readiness-profile/v1", resp.Msg.GetReadiness().GetProfileVersion())
+}
+
+func TestCapture_ExternalURLRetainsGenericReadinessWithoutProfileLookup(t *testing.T) {
+	exec := &fakeExecutor{}
+	readiness := &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="results"]`}}}}}
+	client, _ := newTestServer(t, Deps{Executor: exec, ReadinessResolver: readiness})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "https://example.com/results"}))
+	require.NoError(t, err)
+	require.Equal(t, 0, readiness.Calls)
+	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Len(t, exec.LastReq.GetFlowDefinition().GetNodes(), 1)
+}
+
+func TestCapture_DeclaredRouteWithoutSurfacesExplainsGenericFallback(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{
+		Executor:          exec,
+		Resolver:          &fakeResolver{URL: "http://127.0.0.1:9101"},
+		ReadinessResolver: &fakeReadinessResolver{Resolution: ReadinessResolution{ProfileVersion: "experience-readiness-profile/v1", Route: "/", RouteMatched: true}},
+	})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{Url: "scenario=app-monitor,path=/"}))
+	require.NoError(t, err)
+	require.Equal(t, "generic-navigation", resp.Msg.GetReadiness().GetSelectedStrategy())
+	require.Equal(t, "declared readiness route has no bound required surfaces", resp.Msg.GetReadiness().GetFallbackReason())
+}
+
+func TestCapture_ExplicitWaitOverridesDeclaredReadiness(t *testing.T) {
+	exec := &fakeExecutor{}
+	readiness := &fakeReadinessResolver{Resolution: ReadinessResolution{Waits: []*actionsv1.WaitParams{{WaitFor: &actionsv1.WaitParams_Selector{Selector: `[data-testid="declared-ready"]`}}}}}
+	client, _ := newTestServer(t, Deps{
+		Executor:          exec,
+		Resolver:          &fakeResolver{URL: "http://127.0.0.1:9101"},
+		ReadinessResolver: readiness,
+	})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:     "scenario=app-monitor,path=/dashboard",
+		WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Selector{Selector: `[data-testid="caller-ready"]`}},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 0, readiness.Calls)
+	require.Equal(t, "explicit-selector", resp.Msg.GetReadiness().GetSelectedStrategy())
+	nodes := exec.LastReq.GetFlowDefinition().GetNodes()
+	require.Len(t, nodes, 2)
+	require.Equal(t, `[data-testid="caller-ready"]`, nodes[1].GetAction().GetWait().GetSelector())
+}
+
+func TestCapture_DryRun_ShortCircuits(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	req := connect.NewRequest(&capturev1.CaptureRequest{
+		Url: "https://example.com",
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT,
+			capturev1.CaptureType_CAPTURE_TYPE_NETWORK,
+		},
+		OutDir: "/tmp/dry",
+	})
+	req.Header().Set("X-Dry-Run", "true")
+	resp, err := client.Capture(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, resp.Msg.DryRun)
+	require.Equal(t, 0, exec.Calls, "executor must not be called for dry-run")
+	require.Len(t, resp.Msg.Artifacts, 2)
+	for _, a := range resp.Msg.Artifacts {
+		require.Contains(t, a.Path, "/tmp/dry/")
+	}
+}
+
+func TestCapture_HarvestArtifacts_ReadsExporterOutput(t *testing.T) {
+	exec := &fakeExecutor{
+		ExportLayout: map[string]string{
+			"screenshots/step-01-nav.png": "fake-png-bytes",
+			"console-logs.md":             "# console\n",
+			"network-activity.md":         "# network\n",
+		},
+	}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:    "https://example.com",
+		OutDir: t.TempDir(),
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT,
+			capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS,
+			capturev1.CaptureType_CAPTURE_TYPE_NETWORK,
+		},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 1, exec.ExportCalls, "export seam reached exactly once")
+	require.Len(t, resp.Msg.Artifacts, 3)
+
+	byType := map[capturev1.CaptureType]*capturev1.CaptureArtifact{}
+	for _, a := range resp.Msg.Artifacts {
+		byType[a.Type] = a
+	}
+	shot := byType[capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT]
+	require.NotNil(t, shot)
+	require.Contains(t, shot.Path, "step-01-nav.png")
+	require.EqualValues(t, len("fake-png-bytes"), shot.SizeBytes)
+	require.NotEqual(t, "true", shot.Metadata["unavailable"], "real screenshot must not be marked unavailable")
+
+	console := byType[capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS]
+	require.NotNil(t, console)
+	require.EqualValues(t, len("# console\n"), console.SizeBytes)
+
+	network := byType[capturev1.CaptureType_CAPTURE_TYPE_NETWORK]
+	require.NotNil(t, network)
+	require.EqualValues(t, len("# network\n"), network.SizeBytes)
+}
+
+func TestCapture_HarvestArtifacts_MarksUnsupportedTypesUnavailable(t *testing.T) {
+	exec := &fakeExecutor{} // no export layout — every file is missing
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:    "https://example.com",
+		OutDir: t.TempDir(),
+		Captures: []capturev1.CaptureType{
+			capturev1.CaptureType_CAPTURE_TYPE_VIDEO,
+			capturev1.CaptureType_CAPTURE_TYPE_DOM,
+			capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE,
+		},
+	}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Artifacts, 3)
+	for _, a := range resp.Msg.Artifacts {
+		require.Equal(t, "true", a.Metadata["unavailable"], "type %v must be flagged unavailable", a.Type)
+	}
+}
+
+func TestCapture_ValidationErrors_InvalidArgument(t *testing.T) {
+	type tc struct {
+		name string
+		req  *capturev1.CaptureRequest
+		deps Deps
+	}
+	exec := &fakeExecutor{}
+	width := int32(1200)
+
+	cases := []tc{
+		{
+			name: "empty url",
+			req:  &capturev1.CaptureRequest{Url: ""},
+			deps: Deps{Executor: exec},
+		},
+		{
+			name: "width without height",
+			req: &capturev1.CaptureRequest{
+				Url:        "https://example.com",
+				Dimensions: &capturev1.Dimensions{Width: &width},
+			},
+			deps: Deps{Executor: exec},
+		},
+		{
+			name: "unspecified capture type",
+			req: &capturev1.CaptureRequest{
+				Url:      "https://example.com",
+				Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_UNSPECIFIED},
+			},
+			deps: Deps{Executor: exec},
+		},
+		{
+			name: "malformed shorthand slug",
+			req: &capturev1.CaptureRequest{
+				Url: "scenario=BadSlug!,path=/",
+			},
+			deps: Deps{Executor: exec, Resolver: &fakeResolver{URL: "http://x"}},
+		},
+		{
+			name: "shorthand without resolver",
+			req:  &capturev1.CaptureRequest{Url: "scenario=app-monitor,path=/"},
+			deps: Deps{Executor: exec},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			client, _ := newTestServer(t, c.deps)
+			_, err := client.Capture(context.Background(), connect.NewRequest(c.req))
+			require.Error(t, err)
+			var ce *connect.Error
+			require.True(t, errors.As(err, &ce), "expected connect.Error, got %T", err)
+			require.Equal(t, connect.CodeInvalidArgument, ce.Code(), "got code %s", ce.Code())
+		})
+	}
+}
+
+// --- Phase 1: interaction-aware perf capture --------------------------------
+
+// scrollFlowJSON is a 2-node bas/flows-shape interaction: navigate (the flow's
+// own entry) + a scroll-by-selector. The capture path prepends its own
+// navigate-to-URL node and splices this flow after it.
+const scrollFlowJSON = `{
+  "metadata": {"name": "scroll-list", "version": "1"},
+  "nodes": [
+    {"id": "flow-scroll", "action": {"type": "ACTION_TYPE_SCROLL",
+      "scroll": {"selector": "[data-testid='virtualized-list']", "delta_y": 2000}}}
+  ]
+}`
+
+func TestCapture_InteractionFlow_SplicedAfterNavigate(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com/list",
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		InteractionFlowJson: scrollFlowJSON,
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+
+	require.NotNil(t, exec.LastReq)
+	def := exec.LastReq.FlowDefinition
+	require.NotNil(t, def)
+	// navigate node + spliced scroll node.
+	require.Len(t, def.Nodes, 2)
+	nav := def.Nodes[0].GetAction().GetNavigate()
+	require.NotNil(t, nav)
+	require.Equal(t, "https://example.com/list", nav.Url)
+	scroll := def.Nodes[1].GetAction().GetScroll()
+	require.NotNil(t, scroll, "spliced node must be the scroll interaction")
+	require.Equal(t, "[data-testid='virtualized-list']", scroll.GetSelector())
+	// An edge wires navigate → the interaction's first node so the scroll runs
+	// inside the same perf-trace window, after the navigate.
+	require.Len(t, def.Edges, 1)
+	require.Equal(t, def.Nodes[0].GetId(), def.Edges[0].GetSource())
+	require.Equal(t, def.Nodes[1].GetId(), def.Edges[0].GetTarget())
+
+	// Perf trace was requested.
+	require.Equal(t, 1, exec.Calls)
+}
+
+// A bas/flows body with short-form metadata (execution_mode:"observer",
+// viewport settings) must splice identically to one fed through
+// `execute-adhoc --flow-file` — i.e. the capture path applies the same compat
+// normalization, not raw protojson.
+func TestCapture_InteractionFlow_ShortFormMetadataNormalized(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	flow := `{
+	  "metadata": {"name": "scroll-list", "execution_mode": "observer", "reset": "none"},
+	  "settings": {"viewport_width": 1440, "viewport_height": 900},
+	  "nodes": [
+	    {"id": "s", "action": {"type": "ACTION_TYPE_SCROLL", "scroll": {"selector": "[data-testid='list']", "delta_y": 1000}}}
+	  ]
+	}`
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com/list",
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		InteractionFlowJson: flow,
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+	require.NotNil(t, exec.LastReq)
+	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 2)
+	require.NotNil(t, exec.LastReq.FlowDefinition.Nodes[1].GetAction().GetScroll())
+}
+
+func TestCapture_EmptyInteractionFlow_PreservesNavigateOnly(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com",
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		InteractionFlowJson: "",
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+	require.NotNil(t, exec.LastReq)
+	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 1)
+	require.Empty(t, exec.LastReq.FlowDefinition.Edges)
+}
+
+func TestCapture_MalformedInteractionFlow_InvalidArgument(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com",
+		InteractionFlowJson: "{ not valid json",
+	}))
+	require.Error(t, err)
+	var ce *connect.Error
+	require.True(t, errors.As(err, &ce))
+	require.Equal(t, connect.CodeInvalidArgument, ce.Code())
+	require.Equal(t, 0, exec.Calls, "executor must not run on a malformed flow")
+}
+
+func TestCapture_RelativeOutDirResolvesUnderCapturesRoot(t *testing.T) {
+	root := t.TempDir()
+	exec := &fakeExecutor{ExportLayout: map[string]string{"screenshots/step-01.png": "png"}}
+	client, _ := newTestServer(t, Deps{Executor: exec, CapturesRoot: root})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		OutDir:   "nested/bundle",
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
+	}))
+	require.NoError(t, err)
+	wantPrefix := filepath.Join(root, "nested", "bundle") + string(filepath.Separator)
+	require.Truef(t, strings.HasPrefix(resp.Msg.OutDir, wantPrefix), "out dir %q must resolve under captures root %q", resp.Msg.OutDir, wantPrefix)
+	require.Truef(t, strings.HasPrefix(exec.LastExportDir, wantPrefix), "export dir %q must resolve under captures root", exec.LastExportDir)
+	for _, a := range resp.Msg.Artifacts {
+		require.Truef(t, filepath.IsAbs(a.Path), "artifact path %q must be absolute so callers can locate it", a.Path)
+		require.Truef(t, strings.HasPrefix(a.Path, wantPrefix), "artifact path %q must live under the captures root", a.Path)
+	}
+}
+
+func TestCapture_RelativeOutDirTraversalRejected(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec, CapturesRoot: t.TempDir()})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		OutDir:   "../escape",
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Zero(t, exec.Calls, "traversal must be rejected before the executor runs")
+}
+
+func TestCapture_EmptyOutDirDefaultsUnderCapturesRoot(t *testing.T) {
+	root := t.TempDir()
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec, CapturesRoot: root})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:      "https://example.com",
+		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
+	}))
+	require.NoError(t, err)
+	require.Truef(t, strings.HasPrefix(resp.Msg.OutDir, root+string(filepath.Separator)), "default out dir %q must live under captures root %q", resp.Msg.OutDir, root)
+}

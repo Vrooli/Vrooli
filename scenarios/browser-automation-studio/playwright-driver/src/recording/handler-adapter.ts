@@ -19,7 +19,7 @@
 
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type { TimelineEntry } from '../proto';
-import type { HandlerInstruction } from '../proto';
+import { getActionType, type HandlerInstruction } from '../proto';
 import type { HandlerContext } from '../handlers/base';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
@@ -42,7 +42,9 @@ import { createNoOpMetrics, type NoOpMetrics } from '../utils/metrics';
 export interface ReplayContext {
   page: Page;
   timeout: number;
-  validateSelector?: (selector: string) => Promise<{ valid: boolean; matchCount: number; selector: string; error?: string }>;
+  validateSelector?: (
+    selector: string
+  ) => Promise<{ valid: boolean; matchCount: number; selector: string; error?: string }>;
 }
 
 /**
@@ -81,13 +83,13 @@ export interface HandlerAdapterResult extends Omit<BaseExecutionResult, 'error' 
  * handlers expect. The key field is `action` which contains typed params.
  */
 export function timelineEntryToHandlerInstruction(entry: TimelineEntry): HandlerInstruction {
-  const actionType = entry.action?.type ?? ActionType.UNSPECIFIED;
+  if (!entry.action || entry.action.type === ActionType.UNSPECIFIED) {
+    throw new Error(`Timeline entry ${entry.id} is missing a typed action`);
+  }
 
   return {
     index: entry.sequenceNum,
     nodeId: entry.id,
-    type: actionTypeToString(actionType),
-    params: {}, // Legacy field, handlers use action.params
     action: entry.action,
   };
 }
@@ -141,6 +143,7 @@ export function createReplayHandlerContext(
     // Cast to Metrics - NoOpMetrics implements the same interface
     metrics: cachedMetrics as unknown as Metrics,
     sessionId,
+    interactionState: undefined,
   };
 }
 
@@ -169,12 +172,13 @@ export async function executeViaHandler(
 
   try {
     // Check if handler exists for this type
-    if (!handlerRegistry.isSupported(instruction.type)) {
+    const actionType = getActionType(instruction);
+    if (!handlerRegistry.isSupported(actionType)) {
       return {
         success: false,
         durationMs: Date.now() - startTime,
         error: {
-          message: `No handler registered for action type: ${instruction.type}`,
+          message: `No handler registered for action type: ${actionType}`,
           code: 'UNSUPPORTED_ACTION',
         },
       };
@@ -190,10 +194,12 @@ export async function executeViaHandler(
     return {
       success: result.success,
       durationMs: Date.now() - startTime,
-      error: result.error ? {
-        message: result.error.message,
-        code: result.error.code || 'UNKNOWN',
-      } : undefined,
+      error: result.error
+        ? {
+            message: result.error.message,
+            code: result.error.code || 'UNKNOWN',
+          }
+        : undefined,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

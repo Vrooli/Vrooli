@@ -1,120 +1,95 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Knowledge Observatory Documentation",
-  "description": "Operator, developer, and integration documentation for the Knowledge Observatory scenario.",
+  "description": "Contract-driven operator, developer, and agent documentation for the Knowledge Observatory scenario.",
   "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "knowledge-observatory",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable scenario document here. Use concepts for mental models, reference for stable API/CLI/config lookup, operations for runtime procedures, business for monetization and go-to-market thinking, and internal for developer/agent memory."
+  },
   "sections": [
+    {
+      "id": "root",
+      "title": "Root",
+      "documents": [
+        {"path": "../README.md", "docType": "readme", "title": "README", "aliases": ["overview"], "description": "Scenario summary and entrypoint", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "../PRD.md", "docType": "prd", "title": "Product Requirements", "aliases": ["requirements"], "description": "Purpose, users, targets, dependencies, and launch plan", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "manifest.json", "docType": "manifest", "title": "Documentation Manifest", "aliases": ["docs-manifest", "contract"], "description": "Scenario-local documentation contract", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "../REFACTORING_PROGRESS.md", "docType": "refactoring-progress", "title": "Refactoring Progress", "aliases": ["legacy-refactor-log"], "description": "Legacy refactoring progress notes retained as historical context", "maturity": "retired", "requiredBy": ["implemented"], "completion": "optional"}
+      ]
+    },
     {
       "id": "getting-started",
       "title": "Getting Started",
-      "icon": "rocket",
       "documents": [
-        {
-          "path": "QUICKSTART.md",
-          "title": "Quickstart",
-          "description": "Run the scenario and complete your first search",
-          "audience": ["users", "developers"]
-        },
-        {
-          "path": "guides/getting-started.md",
-          "title": "Getting Started Guide",
-          "description": "End-to-end usage across UI, CLI, and API",
-          "audience": ["users", "developers"]
-        }
+        {"path": "QUICKSTART.md", "docType": "quickstart", "title": "Quickstart", "aliases": ["quick-start", "run-local"], "description": "Run the scenario and complete the first workflows", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "guides/getting-started.md", "docType": "getting-started-guide", "title": "Getting Started Guide", "aliases": ["getting-started", "guide"], "description": "End-to-end usage across UI, CLI, and API", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "guides/troubleshooting.md", "docType": "troubleshooting", "title": "Troubleshooting", "aliases": ["troubleshoot", "common-failures"], "description": "Known local failure modes and recovery steps", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
       ]
     },
     {
       "id": "concepts",
       "title": "Concepts",
-      "icon": "layers",
       "documents": [
-        {
-          "path": "concepts/ARCHITECTURE.md",
-          "title": "Architecture Overview",
-          "description": "System surfaces and data flows"
-        },
-        {
-          "path": "concepts/GLOSSARY.md",
-          "title": "Glossary",
-          "description": "Domain vocabulary and data model terms"
-        }
+        {"path": "concepts/ARCHITECTURE.md", "docType": "architecture", "title": "Architecture", "aliases": ["arch", "system-architecture"], "description": "System map and architectural hub", "maturity": "active", "requiredBy": ["generated", "implemented"], "completion": "required"},
+        {"path": "concepts/DOMAINS.md", "docType": "domains", "title": "Domains", "aliases": ["domain", "domain-map", "bounded-contexts"], "description": "Capability/domain inventory and ownership", "maturity": "active", "requiredBy": ["oriented", "implemented"], "completion": "required"},
+        {"path": "concepts/FLOWS.md", "docType": "flows", "title": "Flows", "aliases": ["flow", "workflows", "temporal-flows"], "description": "User, system, and background workflows", "maturity": "active", "requiredBy": ["implemented", "validated"], "completion": "required"},
+        {"path": "concepts/DATA.md", "docType": "data", "title": "Data", "aliases": ["data-model", "storage"], "description": "Data ownership, persistence, and retention", "maturity": "active", "requiredBy": ["implemented", "deployable"], "completion": "required"},
+        {"path": "concepts/INTEGRATIONS.md", "docType": "integrations", "title": "Integrations", "aliases": ["dependencies", "resources"], "description": "Resources, scenarios, and third-party services", "maturity": "active", "requiredBy": ["implemented", "deployable"], "completion": "required"},
+        {"path": "concepts/GLOSSARY.md", "docType": "glossary", "title": "Glossary", "aliases": ["vocabulary"], "description": "Domain vocabulary and data model terms", "maturity": "active", "requiredBy": ["implemented"], "completion": "optional"}
+      ]
+    },
+    {
+      "id": "business",
+      "title": "Business",
+      "documents": [
+        {"path": "business/MONETIZATION.md", "docType": "monetization", "title": "Monetization", "aliases": ["revenue", "pricing"], "description": "Revenue role, packaging, and validation plan", "maturity": "draft", "requiredBy": ["monetizable"], "completion": "conditional"},
+        {"path": "business/GO-TO-MARKET.md", "docType": "go-to-market", "title": "Go To Market", "aliases": ["gtm", "launch"], "description": "Audience, channels, launch motion, and messaging", "maturity": "stub", "requiredBy": ["monetizable"], "completion": "conditional"}
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "documents": [
+        {"path": "operations/DEPLOYMENT.md", "docType": "deployment", "title": "Deployment", "aliases": ["deploy", "release"], "description": "Delivery tiers and release readiness", "maturity": "draft", "requiredBy": ["deployable"], "completion": "required"},
+        {"path": "operations/RUNBOOK.md", "docType": "runbook", "title": "Runbook", "aliases": ["operations-runbook", "operator-runbook"], "description": "Operator procedures and incident handling", "maturity": "draft", "requiredBy": ["deployable"], "completion": "required"},
+        {"path": "operations/OBSERVABILITY.md", "docType": "observability", "title": "Observability", "aliases": ["telemetry", "monitoring"], "description": "Logs, metrics, health, and product signals", "maturity": "draft", "requiredBy": ["deployable"], "completion": "required"}
       ]
     },
     {
       "id": "reference",
       "title": "Reference",
-      "icon": "book",
       "documents": [
-        {
-          "path": "reference/api-endpoints.md",
-          "title": "API Endpoints",
-          "description": "REST API contracts and payloads"
-        },
-        {
-          "path": "reference/cli-commands.md",
-          "title": "CLI Commands",
-          "description": "Command-line usage and examples"
-        },
-        {
-          "path": "reference/configuration.md",
-          "title": "Configuration",
-          "description": "Environment variables, ports, and defaults"
-        }
-      ]
-    },
-    {
-      "id": "guides",
-      "title": "Guides",
-      "icon": "map",
-      "documents": [
-        {
-          "path": "guides/troubleshooting.md",
-          "title": "Troubleshooting",
-          "description": "Common failure modes and recovery steps"
-        }
+        {"path": "reference/api-endpoints.md", "docType": "api-reference", "title": "API Endpoints", "aliases": ["api", "api-endpoints", "endpoints"], "description": "REST API contracts and payloads", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/cli-commands.md", "docType": "cli-reference", "title": "CLI Commands", "aliases": ["cli", "commands"], "description": "Command-line usage and examples", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/configuration.md", "docType": "configuration-reference", "title": "Configuration", "aliases": ["config", "environment"], "description": "Environment variables, ports, and defaults", "maturity": "active", "requiredBy": ["deployable"], "completion": "required"}
       ]
     },
     {
       "id": "internal",
       "title": "Internal",
-      "icon": "lock",
       "visibility": "developers-only",
       "documents": [
-        {
-          "path": "internal/PROBLEMS.md",
-          "title": "Known Issues",
-          "internal": true
-        },
-        {
-          "path": "internal/PROGRESS.md",
-          "title": "Progress Log",
-          "internal": true
-        },
-        {
-          "path": "internal/SCREAMING_ARCHITECTURE_AUDIT.md",
-          "title": "Screaming Architecture Audit",
-          "internal": true
-        },
-        {
-          "path": "internal/EXPERIENCE-AUDIT.md",
-          "title": "Experience Audit",
-          "internal": true
-        },
-        {
-          "path": "internal/SEAMS.md",
-          "title": "Seams & Boundaries",
-          "internal": true
-        },
-        {
-          "path": "internal/COHERENCE-NOTES.md",
-          "title": "UI Coherence Notes",
-          "internal": true
-        }
+        {"path": "internal/SEAMS.md", "docType": "seams", "title": "Seams", "aliases": ["seam", "boundaries"], "description": "Boundary registry and test seams", "maturity": "active", "requiredBy": ["implemented", "validated"], "completion": "required"},
+        {"path": "internal/ERROR-HANDLING.md", "docType": "error-handling", "title": "Error Handling", "aliases": ["errors", "error-semantics"], "description": "Error categories and recovery paths", "maturity": "draft", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/TESTING.md", "docType": "testing", "title": "Testing", "aliases": ["tests", "qa"], "description": "Layered test strategy and fixtures", "maturity": "draft", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/SECURITY.md", "docType": "security", "title": "Security", "aliases": ["security-posture", "secrets"], "description": "Auth, secrets, privacy, and threat areas", "maturity": "stub", "requiredBy": ["deployable"], "completion": "required"},
+        {"path": "internal/PERFORMANCE.md", "docType": "performance", "title": "Performance", "aliases": ["perf", "performance-budgets"], "description": "Performance budgets, measurements, and regressions", "maturity": "draft", "requiredBy": ["validated", "deployable"], "completion": "conditional"},
+        {"path": "internal/DECISIONS.md", "docType": "decisions", "title": "Decisions", "aliases": ["decision-log", "adr"], "description": "Durable decisions and tradeoffs", "maturity": "draft", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROBLEMS.md", "docType": "problems", "title": "Problems", "aliases": ["problem", "issues", "known-problems"], "description": "Known issues, tech debt, and deferred work", "maturity": "active", "requiredBy": ["implemented", "validated"], "completion": "required", "operations": {"appendLog": {"enabled": true, "targetHeading": "Entries", "format": "dated-markdown-section", "emptyMarker": "_None yet._", "fields": ["title", "body"], "retention": {"supportsReset": true, "dateSource": "heading", "keepMinimumEntries": 0}}}, "validation": {"requiredHeadings": ["Entries"]}},
+        {"path": "internal/PROGRESS.md", "docType": "progress", "title": "Progress", "aliases": ["progress-log", "changelog"], "description": "Lifecycle log for completed changes", "maturity": "active", "requiredBy": ["implemented", "validated"], "completion": "required", "operations": {"appendLog": {"enabled": true, "targetHeading": "Progress Log", "format": "markdown-table", "emptyMarker": "_No progress entries yet._", "fields": ["date", "author", "status", "notes"], "retention": {"supportsReset": true, "dateSource": "first-column", "keepMinimumEntries": 0}}}, "validation": {"requiredHeadings": ["Progress Log"]}},
+        {"path": "internal/STORAGE_AUDIT.md", "docType": "storage-audit", "title": "Storage Audit", "aliases": ["storage-architecture", "migration-audit", "table-ownership"], "description": "Storage engine, per-domain table ownership, row inventory, and migration classification", "maturity": "active", "requiredBy": ["validated"], "completion": "optional"},
+        {"path": "internal/COHERENCE-NOTES.md", "docType": "coherence-notes", "title": "Coherence Notes", "aliases": ["ui-coherence"], "description": "UI coherence audit notes retained from previous work", "maturity": "active", "requiredBy": ["validated"], "completion": "optional"},
+        {"path": "internal/EXPERIENCE-AUDIT.md", "docType": "experience-audit", "title": "Experience Audit", "aliases": ["ux-audit"], "description": "Experience and friction audit notes retained from previous work", "maturity": "active", "requiredBy": ["validated"], "completion": "optional"}
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "reference", "guides"],
-    "secondary": ["internal"]
+    "primary": ["getting-started", "concepts", "reference", "operations"],
+    "secondary": ["business", "internal"]
   }
 }

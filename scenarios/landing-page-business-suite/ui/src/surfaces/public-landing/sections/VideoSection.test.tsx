@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen, fireEvent } from "@testing-library/react";
 import { VideoSection } from './VideoSection';
 
 /**

@@ -1,0 +1,248 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "plan-manager",
+    "displayName": "Plan Manager",
+    "description": "Planning runtime and single authority for plan logic: a guided wizard that makes authoring and executing implementation plans cheap enough for local models, with first-class phases, computed staleness, and baseline-aware validation.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-25T04:40:27Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "94311a98b62f1d2a3d08e6e8e31846ab7ab8c8e2637af01c6c836a8704d1cea3"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "plan-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "plan-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Resolves `[CODE:]` references and provides structural facts that feed staleness (the `validation` domain).",
+        "degraded_behavior": "References remain recorded but unresolved; staleness is reported as unknown. Other flows continue."
+      },
+      "git-control-tower": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Captures and diffs the regression anchor (baseline snapshot/diff) used by authoring autofill and DoD verification.",
+        "degraded_behavior": "Anchor autofill is skipped and flagged; DoD verification reports anchor-unavailable rather than failing."
+      },
+      "test-genie": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Runs this scenario's phased test suite and owns project/scenario validation results consumed (not owned) for plan health.",
+        "degraded_behavior": "Plan-health validation reads are reported unavailable; the plan still records its own validation state."
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Executes the skill/action discovery probes behind authoring's server-side context discovery (`prompt-manager discover --json`).",
+        "degraded_behavior": "The affected discovery probes return typed degraded candidates; the wizard continues and the author can submit context directly or record an honest skip."
+      },
+      "meta-optimization-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Velocity signal sink (trials) for per-plan time/tokens/iterations.",
+        "degraded_behavior": "Velocity is retained locally and emit is retried later; no flow blocks."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides the signed run-identity attribution contract used to dedup handoff actions. Owns the prose-handoff capture (it holds the transcript); plan-manager links to it by reference and never reads transcripts.",
+        "degraded_behavior": "Handoff dedup falls back to content-based best-effort; structured handoff still assembles."
+      },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Executes the recall probe behind authoring's server-side context discovery (`search-hub query --json`) and reference suggestion.",
+        "degraded_behavior": "The recall probe returns a typed degraded candidate (per-probe timeout bounds slow queries); the wizard continues without recall results."
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "retention": {
+    "budgets": {
+      "log_entries": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "plan-manager.db",
+          "table": "log_entries",
+          "time_column": "created_at"
+        },
+        "max_age": "365d",
+        "max_bytes": "256MiB",
+        "pruner": "builtin",
+        "rationale": "Append-only operational log (decisions, findings, bugs, records, notes) written during plan execution. It only grows: nothing in the API deletes from it. A plan's durable narrative is the rendered plan itself, so a year of raw log rows is generous for post-hoc review while bounding a table that is otherwise unbounded by construction. The byte ceiling is the real bound because volume is driven by how chatty execution is, which is not a function of time."
+      },
+      "validation_operations": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "plan-manager.db",
+          "table": "validation_operations",
+          "time_column": "updated_at"
+        },
+        "max_age": "180d",
+        "max_bytes": "128MiB",
+        "pruner": "builtin",
+        "rationale": "Transient records of in-flight validation runs. The durable verdict lives on the plan and its phases, so these rows stop being useful once the run they describe has been read. Half a year outlives any realistic resume window."
+      },
+      "candidate_revisions": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "plan-manager.db",
+          "table": "candidate_revisions",
+          "time_column": "expires_at"
+        },
+        "max_age": "30d",
+        "max_bytes": "64MiB",
+        "pruner": "builtin",
+        "rationale": "Whole-plan proposal buffers that already carry an expires_at column, so they are expiring by design and simply had no sweeper. Pruning on expires_at rather than created_at honours the lifetime the producer declared."
+      }
+    }
+  }
+}

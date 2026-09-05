@@ -1,0 +1,3867 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "plan-manager",
+  "description": "Plan Manager CLI \u2014 the agent- and operator-facing surface for the planning runtime: author (guided composer wizard), exec (guided runner with just-in-time context + canonical handoff), plans/phase/template (the structured-plan SSOT), and validate (references, staleness, baseline-aware validation, Definition-of-Done). Schema-validated against cli-manifest/v1 and cross-validated against the PlansService/AuthoringService/ExecutionService/ValidationService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "plans",
+      "description": "The structured-plan SSOT \u2014 create, read, render, archive, graph, and import/migrate plans",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List plans, optionally filtered by status",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Filter by status (draft|active|complete|archived)",
+              "values": [
+                "draft",
+                "active",
+                "complete",
+                "archived"
+              ]
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup/listing"
+            },
+            {
+              "name": "include-archived",
+              "description": "Include archived plans",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListPlans"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one plan by id or slug",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "GetPlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a new structured plan",
+          "flags": [
+            {
+              "name": "title",
+              "description": "Plan title",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "description": "Filename-safe slug (derived from title when omitted)"
+            },
+            {
+              "name": "purpose",
+              "description": "One-paragraph why"
+            },
+            {
+              "name": "scope",
+              "description": "In/out of scope"
+            },
+            {
+              "name": "constraints",
+              "description": "Hard rules"
+            },
+            {
+              "name": "non-goals",
+              "description": "Explicit exclusions"
+            },
+            {
+              "name": "dod",
+              "description": "Definition of Done"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "CreatePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a plan's authored fields",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "Plan title"
+            },
+            {
+              "name": "purpose",
+              "description": "One-paragraph why"
+            },
+            {
+              "name": "scope",
+              "description": "In/out of scope"
+            },
+            {
+              "name": "constraints",
+              "description": "Hard rules"
+            },
+            {
+              "name": "non-goals",
+              "description": "Explicit exclusions"
+            },
+            {
+              "name": "dod",
+              "description": "Definition of Done"
+            },
+            {
+              "name": "problem",
+              "description": "Problem statement"
+            },
+            {
+              "name": "outcome",
+              "description": "Target outcome"
+            },
+            {
+              "name": "assumptions",
+              "description": "Plan assumptions"
+            },
+            {
+              "name": "technical-approach",
+              "description": "Technical approach / design rationale"
+            },
+            {
+              "name": "decision",
+              "description": "Structured decision as TITLE::STATEMENT; repeat to replace all decisions"
+            },
+            {
+              "name": "validation-strategy",
+              "description": "Validation strategy"
+            },
+            {
+              "name": "final-validation-command",
+              "description": "Final validation command; repeat or comma-separate for multiple commands"
+            },
+            {
+              "name": "risks",
+              "description": "Risks and hazards"
+            },
+            {
+              "name": "prohibited-approaches",
+              "description": "Prohibited approaches"
+            },
+            {
+              "name": "change-allow",
+              "description": "Change-boundary acceptance_allow glob; repeat or comma-separate for multiple globs"
+            },
+            {
+              "name": "change-deny",
+              "description": "Change-boundary acceptance_deny glob; repeat or comma-separate for multiple globs"
+            },
+            {
+              "name": "operator-only",
+              "description": "Reason this plan has no editable repo path boundary"
+            },
+            {
+              "name": "baseline-mode",
+              "description": "legacy requires explicit execution-time baseline adoption; current derives a collection from a change-boundary anchor"
+            },
+            {
+              "name": "anchor-strategy",
+              "description": "Regression anchor strategy, e.g. change_boundary"
+            },
+            {
+              "name": "anchor-scenario",
+              "description": "Regression anchor scenario for legacy scenario-baseline anchors"
+            },
+            {
+              "name": "anchor-baseline",
+              "description": "Regression anchor baseline name"
+            },
+            {
+              "name": "anchor-head-sha",
+              "description": "Regression anchor HEAD sha"
+            },
+            {
+              "name": "anchor-allow",
+              "description": "Regression anchor allowlist path; repeat or comma-separate for multiple paths"
+            },
+            {
+              "name": "anchor-command",
+              "description": "Regression anchor command; repeat for multiple commands"
+            },
+            {
+              "name": "anchor-captured-at",
+              "description": "Regression anchor capture timestamp"
+            },
+            {
+              "name": "anchor-unavailable",
+              "description": "Mark regression anchor capture as unavailable",
+              "bool": true
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup before patching"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdatePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "archive",
+          "description": "Soft-archive a plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ArchivePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "render",
+          "description": "Render a plan to its markdown view",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "compact",
+              "bool": true,
+              "description": "Render the compact execution-facing markdown view"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "RenderMarkdown"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "graph",
+          "description": "Show the supersession/dependency graph",
+          "flags": [
+            {
+              "name": "plan",
+              "description": "Scope to one plan's neighborhood",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "GetGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-add",
+          "description": "Add persisted relevant context to a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id; omit for plan-wide context"
+            },
+            {
+              "name": "kind",
+              "description": "Context kind",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
+            },
+            {
+              "name": "label",
+              "description": "Short human label"
+            },
+            {
+              "name": "reason",
+              "description": "Why this setup item matters"
+            },
+            {
+              "name": "instruction",
+              "description": "Instruction shown to future agents"
+            },
+            {
+              "name": "command",
+              "description": "Command/search text"
+            },
+            {
+              "name": "target",
+              "description": "Reference target or skill slug"
+            },
+            {
+              "name": "required",
+              "description": "Whether the item is required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "AddRelevantContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-list",
+          "description": "List persisted relevant-context setup items for a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide context",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListRelevantContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-update",
+          "description": "Replace one persisted relevant-context setup item without rewriting the whole plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Context item id from plans context-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide context"
+            },
+            {
+              "name": "kind",
+              "description": "Context kind: command, search, doc, code_ref, req_ref, skill, note",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
+            },
+            {
+              "name": "label",
+              "description": "Short human label"
+            },
+            {
+              "name": "reason",
+              "description": "Why this setup item matters"
+            },
+            {
+              "name": "instruction",
+              "description": "Instruction shown to future agents"
+            },
+            {
+              "name": "command",
+              "description": "Command/search text when kind is command or search"
+            },
+            {
+              "name": "target",
+              "description": "Reference target or skill slug"
+            },
+            {
+              "name": "required",
+              "description": "Whether the item is required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdateRelevantContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-remove",
+          "description": "Remove one persisted relevant-context setup item from a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Context item id from plans context-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "RemoveRelevantContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-add",
+          "description": "Add a persisted code, doc, or requirement reference to a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id; omit for plan-wide references"
+            },
+            {
+              "name": "kind",
+              "description": "Reference kind",
+              "values": [
+                "code",
+                "doc",
+                "req"
+              ]
+            },
+            {
+              "name": "target",
+              "description": "Reference target path or requirement id",
+              "required": true
+            },
+            {
+              "name": "future",
+              "description": "Mark this reference as intentionally future",
+              "bool": true
+            },
+            {
+              "name": "note",
+              "description": "Optional operator note"
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "AddReference"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-list",
+          "description": "List persisted code/doc/req references for a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide references",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListReferences"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-update",
+          "description": "Replace one persisted code/doc/req reference without rewriting the whole plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "reference",
+              "required": true,
+              "description": "Reference id from plans reference-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide references"
+            },
+            {
+              "name": "kind",
+              "description": "Reference kind: code, doc, req",
+              "values": [
+                "code",
+                "doc",
+                "req"
+              ]
+            },
+            {
+              "name": "target",
+              "description": "Reference target path or requirement id",
+              "required": true
+            },
+            {
+              "name": "future",
+              "description": "Mark this reference as intentionally future",
+              "bool": true
+            },
+            {
+              "name": "note",
+              "description": "Optional operator note"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdateReference"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-remove",
+          "description": "Remove one persisted code/doc/req reference from a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "reference",
+              "required": true,
+              "description": "Reference id from plans reference-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide references"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "RemoveReference"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "link",
+          "description": "Record that one plan supersedes another",
+          "positionals": [
+            {
+              "name": "superseding",
+              "required": true,
+              "description": "Superseding plan id"
+            },
+            {
+              "name": "superseded",
+              "required": true,
+              "description": "Superseded plan id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "LinkSupersession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "depend",
+          "description": "Record that one plan depends on another",
+          "positionals": [
+            {
+              "name": "depending",
+              "required": true,
+              "description": "Depending plan id"
+            },
+            {
+              "name": "dependency",
+              "required": true,
+              "description": "Dependency plan id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "LinkDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Adopt a markdown plan from a fallback location (non-destructive: the source file is never moved or deleted; unmapped legacy sections are preserved)",
+          "flags": [
+            {
+              "name": "source",
+              "description": "Source path to read"
+            },
+            {
+              "name": "markdown",
+              "description": "Inline markdown (overrides source)"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root for relative source paths"
+            },
+            {
+              "name": "supersede",
+              "description": "Plan id or slug to supersede and archive atomically"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ImportPlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "migrate",
+          "description": "Ensure a plan resides in the canonical home store",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "MigratePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "candidate-create",
+          "description": "Store a whole-plan candidate revision without changing the canonical plan",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Canonical plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "base-hash",
+              "description": "Expected canonical plan content hash",
+              "required": true
+            },
+            {
+              "name": "provenance",
+              "description": "Proposal or workshop provenance",
+              "required": true
+            },
+            {
+              "name": "candidate-json",
+              "description": "Whole candidate shared.Plan JSON",
+              "required": true
+            },
+            {
+              "name": "expires-at",
+              "description": "Optional RFC3339 candidate expiry time"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root used to resolve the canonical plan"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "CreateCandidateRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "candidate-get",
+          "description": "Show one durable candidate revision",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "GetCandidateRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "candidate-preview",
+          "description": "Compute candidate diff, diagnostics, and rendered content without mutating the plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "PreviewCandidateRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "candidate-validate",
+          "description": "Validate a candidate revision without mutating the plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ValidateCandidateRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "candidate-apply",
+          "description": "Apply a validated candidate when the base hash matches and no execution is active",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "base-hash",
+              "description": "Expected canonical plan content hash",
+              "required": true
+            },
+            {
+              "name": "acknowledge-quality-impact",
+              "description": "Explicitly acknowledge the reviewed candidate quality impact",
+              "bool": true,
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ApplyCandidateRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "candidate-discard",
+          "description": "Discard an unapplied candidate revision",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Optional discard rationale"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "DiscardCandidateRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Repair rendered mirrors and non-destructively canonicalize misplaced markdown plan sources",
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report planned actions without writing canonical records or mirrors",
+              "bool": true
+            },
+            {
+              "name": "repair-mirrors",
+              "description": "Repair missing or stale rendered markdown mirrors",
+              "bool": true
+            },
+            {
+              "name": "source-intake",
+              "description": "Scan configured plan source locations and import missing markdown plans",
+              "bool": true
+            },
+            {
+              "name": "retire-sources",
+              "description": "Remove source files after they are proven canonical, imported, or duplicate",
+              "bool": true
+            },
+            {
+              "name": "include-archived",
+              "description": "Include archived canonical plans when repairing mirrors",
+              "bool": true
+            },
+            {
+              "name": "include-archived-sources",
+              "description": "Include archived source index records during intake",
+              "bool": true
+            },
+            {
+              "name": "conflict-policy",
+              "description": "Duplicate/conflict behavior (report_only|skip_existing)",
+              "values": [
+                "report_only",
+                "skip_existing"
+              ]
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root for docs/plans and plans source scans"
+            },
+            {
+              "name": "source-runtime-home-plans",
+              "description": "Scan the runtime-home plans directory",
+              "bool": true
+            },
+            {
+              "name": "source-docs-plans",
+              "description": "Scan repo docs/plans",
+              "bool": true
+            },
+            {
+              "name": "source-repo-plans",
+              "description": "Scan repo plans",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ReconcilePlans"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "phase",
+      "description": "First-class phases on a plan \u2014 add and update",
+      "commands": [
+        {
+          "name": "add",
+          "description": "Append a phase to a plan",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "Phase title",
+              "required": true
+            },
+            {
+              "name": "intent",
+              "description": "What the phase accomplishes"
+            },
+            {
+              "name": "affected-areas",
+              "description": "Areas/files this phase touches (newline- or comma-separated)"
+            },
+            {
+              "name": "affected-area",
+              "description": "One affected area, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "steps",
+              "description": "Ordered implementation steps (newline- or comma-separated)"
+            },
+            {
+              "name": "step",
+              "description": "One ordered step, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "expected-outputs",
+              "description": "Expected outputs/artifacts (newline- or comma-separated)"
+            },
+            {
+              "name": "expected-output",
+              "description": "One expected output, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "validation",
+              "description": "How this phase is validated (the checking method)"
+            },
+            {
+              "name": "risks-hazards",
+              "description": "Risks/hazards for this phase (newline- or comma-separated)"
+            },
+            {
+              "name": "risk-hazard",
+              "description": "One risk or hazard, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "handoff-notes",
+              "description": "Handoff notes for the next agent"
+            },
+            {
+              "name": "acceptance",
+              "description": "Objective pass/fail"
+            },
+            {
+              "name": "context",
+              "description": "Deprecated strict key=value context DSL; use --context-json"
+            },
+            {
+              "name": "context-json",
+              "description": "One RelevantContextItem JSON object; repeat as needed"
+            },
+            {
+              "name": "reminders",
+              "description": "Phase-scoped reminders, comma-separated"
+            },
+            {
+              "name": "baseline-scope",
+              "description": "Explicit baseline/validation commands for this phase, comma-separated"
+            },
+            {
+              "name": "validation-scope",
+              "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "AddPhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a phase's authored fields",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "Phase title"
+            },
+            {
+              "name": "intent",
+              "description": "What the phase accomplishes"
+            },
+            {
+              "name": "affected-areas",
+              "description": "Areas/files this phase touches (newline- or comma-separated)"
+            },
+            {
+              "name": "affected-area",
+              "description": "One affected area, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "steps",
+              "description": "Ordered implementation steps (newline- or comma-separated)"
+            },
+            {
+              "name": "step",
+              "description": "One ordered step, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "expected-outputs",
+              "description": "Expected outputs/artifacts (newline- or comma-separated)"
+            },
+            {
+              "name": "expected-output",
+              "description": "One expected output, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "validation",
+              "description": "How this phase is validated (the checking method)"
+            },
+            {
+              "name": "risks-hazards",
+              "description": "Risks/hazards for this phase (newline- or comma-separated)"
+            },
+            {
+              "name": "risk-hazard",
+              "description": "One risk or hazard, preserved verbatim; repeat as needed"
+            },
+            {
+              "name": "handoff-notes",
+              "description": "Handoff notes for the next agent"
+            },
+            {
+              "name": "acceptance",
+              "description": "Objective pass/fail"
+            },
+            {
+              "name": "status",
+              "description": "Phase status (todo|active|done|blocked)",
+              "values": [
+                "todo",
+                "active",
+                "done",
+                "blocked"
+              ]
+            },
+            {
+              "name": "context",
+              "description": "Deprecated strict key=value context DSL; use --context-json"
+            },
+            {
+              "name": "context-json",
+              "description": "One RelevantContextItem JSON object; repeat as needed"
+            },
+            {
+              "name": "reminders",
+              "description": "Phase-scoped reminders, comma-separated"
+            },
+            {
+              "name": "baseline-scope",
+              "description": "Explicit baseline/validation commands for this phase, comma-separated"
+            },
+            {
+              "name": "validation-scope",
+              "description": "Validation declaration: full_plan:<rationale> or narrow:<allow-glob>|<allow-glob>"
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root (defaults to the current repository)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdatePhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "template",
+      "description": "Per-surface plan templates \u2014 list and instantiate",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the available plan templates",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListTemplates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "new",
+          "description": "Create a plan from a template",
+          "positionals": [
+            {
+              "name": "template",
+              "required": true,
+              "description": "Template id (generic|cli|proto|ui)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "Plan title",
+              "required": true
+            },
+            {
+              "name": "slug",
+              "description": "Filename-safe slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "CreateFromTemplate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "validate",
+      "description": "Plan health \u2014 resolve references, compute staleness, derive + run baselines, verify the Definition of Done",
+      "commands": [
+        {
+          "name": "references",
+          "description": "Resolve a plan/phase's code references against code-facts",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ResolveReferences"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "staleness",
+          "description": "Compute staleness tiers for a plan/phase's references",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ComputeStaleness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "baseline-scope",
+          "description": "Derive the exact baseline/validation command set",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "DeriveBaselineScope"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a durable validation operation and return its id",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Scoped retry key; duplicates return the original operation"
+            },
+            {
+              "name": "execution",
+              "description": "Execution id that owns this evidence",
+              "bind": {
+                "field": "execution_id"
+              }
+            },
+            {
+              "name": "members",
+              "description": "Comma-separated selected captured members; must include the phase minimum",
+              "bind": {
+                "field": "member"
+              }
+            },
+            {
+              "name": "test-runs",
+              "description": "Comma-separated Test Genie evidence handles as scenario:run-id"
+            },
+            {
+              "name": "scope-generation",
+              "description": "Current execution phase scope generation (from execution status)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "StartValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Inspect a durable validation operation without waiting",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "GetValidationOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Legacy inspection alias; wait through the producer command rendered by the ticket",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "WaitValidationOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Legacy inspection alias; recover through the producer command rendered by the ticket",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ResumeValidationOperation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Synchronize producer-owned validation evidence without waiting",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "SyncValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Legacy guidance; create a producer-owned ticket with validate start instead",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Scope to one phase id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "RunValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "verify-dod",
+          "description": "Legacy guidance; use the execution runner's selector-free final validation ticket instead",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "VerifyDefinitionOfDone"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "author",
+      "description": "Guided composer wizard \u2014 start a session, walk and submit sections, validate structure, submit relevant context, autofill mechanical sections, and finalize into a structured plan",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start a guided authoring session for a plan title/slug",
+          "flags": [
+            {
+              "name": "title",
+              "required": true,
+              "description": "Plan title"
+            },
+            {
+              "name": "slug",
+              "description": "Optional slug (derived from title when omitted)"
+            },
+            {
+              "name": "template",
+              "description": "Optional template id to pre-scaffold the section skeleton"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "StartSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get-session",
+          "description": "Read the full authoring session state (explicit full-state read; mutations return only focused progress)",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "GetSession"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "section-get",
+          "description": "Get one section's current state",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "section",
+              "required": true,
+              "description": "Section key (e.g. purpose, scope, regression_anchor, phases)",
+              "bind": {
+                "field": "section_key"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "GetSection"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "section-submit",
+          "description": "Submit authored content for a section and re-validate it",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "section",
+              "required": true,
+              "description": "Section key to submit"
+            },
+            {
+              "name": "content",
+              "required": true,
+              "description": "Authored content for the section"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitSection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "submit",
+          "description": "Batch-submit sections and phase fields in ONE call: repeated --set <section_key>=<content> and/or --set <phase-ref>.<field>=<content>. Per-item accepted/rejected results; for an already-written plan document use `plans import`",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id or readable alias"
+            }
+          ],
+          "flags": [
+            {
+              "name": "set",
+              "description": "Repeated <key>=<content> pair; key is a section key or <phase-ref>.<field>"
+            },
+            {
+              "name": "set-file",
+              "description": "Repeated <key>=<path> pair (path may be @-prefixed); the file's contents become the field content \u2014 for long content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitFields"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "next",
+          "description": "Return the next section that still needs author input",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id or readable alias",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "full",
+              "description": "Show full plan details in human output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "Next"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "continue",
+          "description": "Return the single recommended next authoring action across sections, phases, validation review, and finalize",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ContinueAuthoring"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Run the structure-validation gate over the whole session",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ValidateStructure"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "autofill",
+          "description": "Autofill the mechanical regression-anchor intent behind a seam",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "sources",
+              "description": "Comma-separated autofill source(s) to run; omit to run the default source (regression_anchor). References come from direct search-hub discovery, not autofill."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "Autofill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "skill-pack",
+          "description": "Discover a prompt-manager skill pack from 2-5 concepts and auto-add the skills as relevant context, global by default or phase-scoped with --phase",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "concepts",
+              "required": true,
+              "description": "Comma-separated skill discovery concepts"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; adds the pack as phase-scoped context on that phase instead of global context"
+            },
+            {
+              "name": "complexity",
+              "description": "Optional prompt-manager discovery complexity: minor|moderate|major|architectural (synonyms low/medium/high are normalized; omit for prompt-manager default)",
+              "values": [
+                "minor",
+                "moderate",
+                "major",
+                "architectural"
+              ],
+              "value_aliases": {
+                "low": "minor",
+                "small": "minor",
+                "medium": "moderate",
+                "high": "major",
+                "large": "major",
+                "xhigh": "architectural",
+                "max": "architectural"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "DiscoverSkillPack"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-submit",
+          "description": "Submit one global or phase-scoped relevant-context setup item",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number for phase-scoped context"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
+            },
+            {
+              "name": "label",
+              "description": "Short label for the context item"
+            },
+            {
+              "name": "reason",
+              "description": "Why this context is relevant"
+            },
+            {
+              "name": "instruction",
+              "description": "What the execution agent should do with this context"
+            },
+            {
+              "name": "command",
+              "description": "Exact command for command/search/skill setup items"
+            },
+            {
+              "name": "argv",
+              "description": "Comma-separated canonical argv; defaults from command when omitted"
+            },
+            {
+              "name": "argv-json",
+              "description": "JSON string array canonical argv; preferred for arguments with spaces or quotes"
+            },
+            {
+              "name": "target",
+              "description": "Doc/code/requirement/skill target locator"
+            },
+            {
+              "name": "required",
+              "description": "Mark the context item required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitRelevantContextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-list",
+          "description": "List accepted relevant-context setup items for a session or phase",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for global context",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ListRelevantContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-update",
+          "description": "Replace one accepted relevant-context item in place (by id) to fix a bad item before finalize",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Accepted relevant-context item id (from author context-list)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for global context"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
+            },
+            {
+              "name": "label",
+              "description": "Short label for the context item"
+            },
+            {
+              "name": "reason",
+              "description": "Why this context is relevant"
+            },
+            {
+              "name": "instruction",
+              "description": "What the execution agent should do with this context"
+            },
+            {
+              "name": "command",
+              "description": "Exact command for command/search/skill setup items"
+            },
+            {
+              "name": "argv",
+              "description": "Comma-separated canonical argv; defaults from command when omitted"
+            },
+            {
+              "name": "argv-json",
+              "description": "JSON string array canonical argv; preferred for arguments with spaces or quotes"
+            },
+            {
+              "name": "target",
+              "description": "Doc/code/requirement/skill target locator"
+            },
+            {
+              "name": "required",
+              "description": "Mark the context item required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "UpdateRelevantContextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-remove",
+          "description": "Remove one accepted relevant-context item (by id) before finalize",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Accepted relevant-context item id (from author context-list)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for global context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "RemoveRelevantContextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-add",
+          "description": "Append one structured phase draft to an authoring session",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "required": true,
+              "description": "Phase title"
+            },
+            {
+              "name": "intent",
+              "description": "Phase intent"
+            },
+            {
+              "name": "set",
+              "description": "Optional repeated <field>=<content> pair applied to the new phase in one batch call, so add+fill is one command"
+            },
+            {
+              "name": "set-file",
+              "description": "Repeated <key>=<path> pair (path may be @-prefixed); the file's contents become the field content \u2014 for long content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "AddPhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-move",
+          "description": "Move one structured phase draft before or after another without rewriting content",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id or readable alias"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id or order number to move"
+            }
+          ],
+          "flags": [
+            {
+              "name": "before",
+              "description": "Move before this phase id or order number"
+            },
+            {
+              "name": "after",
+              "description": "Move after this phase id or order number"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "MovePhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-get",
+          "description": "Get one structured phase draft and its current guided step",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id or order number",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "GetPhase"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-submit",
+          "description": "Submit one or many structured phase fields (batch via repeated --set) and re-validate the phase",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id or order number"
+            }
+          ],
+          "flags": [
+            {
+              "name": "field",
+              "description": "Phase field: title, intent, affected_areas, references, steps, expected_outputs, validation, acceptance, risks_hazards, handoff_notes, relevant_context, reminders, no_code_refs_reason. required_reading is accepted only as legacy migration input. Optional when using --set pairs"
+            },
+            {
+              "name": "content",
+              "description": "Field content (single-field form; use --set for batches)"
+            },
+            {
+              "name": "set",
+              "description": "Repeated <key>=<content> pair; on phase commands the key is a phase field name. Batched into ONE SubmitFields call with per-item results"
+            },
+            {
+              "name": "set-file",
+              "description": "Repeated <key>=<path> pair (path may be @-prefixed); the file's contents become the field content \u2014 for long content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitPhaseField"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-next",
+          "description": "Return the first structured phase draft that still needs input",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "NextPhase"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Render the in-progress plan to its markdown review artifact without persisting",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "PreviewPlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "finalize",
+          "description": "Run the structure gate then write the produced plan through the plans domain",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id or readable alias"
+            }
+          ],
+          "flags": [
+            {
+              "name": "full",
+              "description": "Show full plan details in human output",
+              "bool": true
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root to stamp on the produced plan (default: the resolved repo root) so workspace-scoped `plans get/list` resolve it"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "Finalize"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "exec",
+      "description": "Guided runner \u2014 start a run, get just-in-time context, transition phases, capture decisions/findings, complete into the canonical handoff, triage candidate findings, and read velocity",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start a guided run linked to a plan",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "run-id",
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "Start"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Get the just-in-time context for the current phase",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context",
+          "description": "Get setup context for the current or requested phase without advancing",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id to inspect without moving the pointer",
+              "bind": {
+                "field": "phase_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "GetContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume an execution or plan and return setup context without advancing",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id to move the pointer to",
+              "bind": {
+                "field": "phase_id"
+              }
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id when a new execution is created"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "Resume"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "continue",
+          "description": "Resume or start an execution and return the single recommended next runner action without advancing",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id to move the pointer to",
+              "bind": {
+                "field": "phase_id"
+              }
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id when a new execution is created"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "ContinueExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "abandon",
+          "description": "Terminally abandon an accidental execution while preserving audit history",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why this execution must be abandoned"
+            },
+            {
+              "name": "actor",
+              "description": "Actor/provenance; defaults server-side"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "AbandonExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "baseline-sync",
+          "description": "Synchronize producer-owned baseline collection evidence without waiting",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "SyncBaseline"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "scope-amend",
+          "description": "Record an auditable phase validation scope expansion within the captured baseline inventory",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id",
+              "required": true,
+              "bind": {
+                "field": "phase_id"
+              }
+            },
+            {
+              "name": "members",
+              "description": "Comma-separated additional captured scenario members",
+              "required": true,
+              "bind": {
+                "field": "member"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Why implementation scope expanded",
+              "required": true
+            },
+            {
+              "name": "author",
+              "description": "Actor recording the amendment"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "AmendScope"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "baseline-adopt",
+          "description": "Explicitly recapture or degrade a legacy execution baseline; never starts or waits for GCT",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "mode",
+              "description": "recapture or degraded",
+              "required": true
+            },
+            {
+              "name": "name",
+              "description": "Collection name for recapture"
+            },
+            {
+              "name": "members",
+              "description": "Comma-separated members for recapture",
+              "bind": {
+                "field": "member"
+              }
+            },
+            {
+              "name": "paths",
+              "description": "Comma-separated informational source paths",
+              "bind": {
+                "field": "path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Honest adoption/degradation reason",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "AdoptBaseline"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "baseline-scope-repair",
+          "description": "Replace a repair-required informational source selection within the plan boundary and re-estimate it through Git Control Tower",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "paths",
+              "description": "Comma-separated replacement source globs within the authored change boundary",
+              "required": true,
+              "bind": {
+                "field": "path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Why this narrower source selection is relevant",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "RepairSourceScope"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "boundary-extend",
+          "description": "Append allow globs to the plan's change boundary so validation scope follows a needed edit the authored boundary did not anticipate. Append-only; acceptance_deny still refuses",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "paths",
+              "description": "Comma-separated repo-relative globs to add to acceptance_allow (e.g. packages/proto/schemas/plan-manager/**)",
+              "required": true,
+              "bind": {
+                "field": "path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Which phase intent needs the edit, and why the authored boundary did not cover it",
+              "required": true
+            },
+            {
+              "name": "author",
+              "description": "Who recorded the extension",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "ExtendBoundary"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "next",
+          "description": "Advance to the next actionable phase and return its context",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "GetNext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "transition",
+          "description": "Transition a phase to a new status",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "status",
+              "description": "Target status (todo|active|done|blocked)",
+              "required": true,
+              "values": [
+                "todo",
+                "active",
+                "done",
+                "blocked"
+              ]
+            },
+            {
+              "name": "validation-override-reason",
+              "description": "Explicit reason for marking done without a fresh passing validation result"
+            },
+            {
+              "name": "feedback-override-reason",
+              "description": "Explicit reason for marking done without a satisfied phase feedback checkpoint"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "TransitionPhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "complete",
+          "description": "Run the guided completion process and assemble the canonical handoff",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tokens",
+              "description": "Tokens consumed (velocity)"
+            },
+            {
+              "name": "iterations",
+              "description": "Iteration count (velocity)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "Complete"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "partial-handoff",
+          "description": "Persist an honest resumable handoff without marking the execution complete",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tokens",
+              "description": "Tokens consumed (velocity)"
+            },
+            {
+              "name": "iterations",
+              "description": "Iteration count (velocity)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "PartialHandoff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "handoff",
+          "description": "Show the assembled canonical handoff",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "GetHandoff"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "velocity",
+          "description": "Show the per-plan velocity series",
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "GetVelocity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "log",
+      "description": "Execution-log ledger \u2014 record decisions, candidate findings, filed bug reports, reusable records, and notes; list/inspect/update/promote/sync. Plan Manager forwards bugs/records downstream internally; agents never call external scenario CLIs.",
+      "commands": [
+        {
+          "name": "decision-add",
+          "description": "Record an in-flow design decision",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddDecision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "finding-add",
+          "description": "Record a candidate finding (a possible bug)",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "severity",
+              "description": "Severity: info|low|medium|high|critical",
+              "values": [
+                "info",
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ]
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "bug-add",
+          "description": "Capture a taxonomy-complete bug report (published or saved as a private draft)",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "severity",
+              "description": "Severity: info|low|medium|high|critical",
+              "values": [
+                "info",
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ]
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
+            },
+            {
+              "name": "signal-type",
+              "description": "Scenario QA signal type: code-defect|regression|prompt-confusion|data-shape-mismatch|unexpected-error|unknown",
+              "values": [
+                "code-defect",
+                "regression",
+                "prompt-confusion",
+                "data-shape-mismatch",
+                "unexpected-error",
+                "unknown"
+              ]
+            },
+            {
+              "name": "report-severity",
+              "description": "Scenario QA severity: blocker|major|minor",
+              "values": [
+                "blocker",
+                "major",
+                "minor"
+              ]
+            },
+            {
+              "name": "repro",
+              "description": "Comma-separated reproduction steps"
+            },
+            {
+              "name": "expected",
+              "description": "Expected behavior"
+            },
+            {
+              "name": "actual",
+              "description": "Observed behavior"
+            },
+            {
+              "name": "description",
+              "description": "Free-form report details"
+            },
+            {
+              "name": "honesty-flags",
+              "description": "Comma-separated Scenario QA honesty flags"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddBug"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "record-add",
+          "description": "Capture a classified learning record (published or saved as a private draft)",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
+            },
+            {
+              "name": "kind",
+              "description": "Swarm record kind"
+            },
+            {
+              "name": "scenario",
+              "description": "Owning scenario slug"
+            },
+            {
+              "name": "trigger",
+              "description": "What triggered this work"
+            },
+            {
+              "name": "approach",
+              "description": "What was done"
+            },
+            {
+              "name": "record-evidence",
+              "description": "Validation evidence for the record"
+            },
+            {
+              "name": "outcome",
+              "description": "Swarm record outcome"
+            },
+            {
+              "name": "created-by",
+              "description": "Record author/provenance"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddRecord"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "note-add",
+          "description": "Record a lightweight progress/context note",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "evidence-item",
+              "description": "One supporting evidence locator, preserved verbatim; repeat as needed. Use this instead of --evidence when a locator contains a comma."
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List ledger entries with a compact summary",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "description": "Plan id/slug or execution id to scope the listing"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Filter by phase id"
+            },
+            {
+              "name": "type",
+              "description": "Filter by type: decision|finding|bug_report|record|note",
+              "values": [
+                "decision",
+                "finding",
+                "bug_report",
+                "record",
+                "note"
+              ]
+            },
+            {
+              "name": "triage",
+              "description": "Filter findings by triage: candidate|promoted|dismissed",
+              "values": [
+                "candidate",
+                "promoted",
+                "dismissed"
+              ]
+            },
+            {
+              "name": "sync-status",
+              "description": "Filter by sync status: local|pending|synced|sync_failed",
+              "values": [
+                "local",
+                "pending",
+                "synced",
+                "sync_failed"
+              ]
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "ListEntries"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one ledger entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "GetEntry"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a ledger entry's mutable fields",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "New title (empty leaves unchanged)"
+            },
+            {
+              "name": "detail",
+              "description": "New detail (empty leaves unchanged)"
+            },
+            {
+              "name": "severity",
+              "description": "New severity"
+            },
+            {
+              "name": "triage",
+              "description": "New triage state for a finding: candidate|promoted|dismissed",
+              "values": [
+                "candidate",
+                "promoted",
+                "dismissed"
+              ]
+            },
+            {
+              "name": "add-evidence",
+              "description": "Comma-separated evidence locators to append"
+            },
+            {
+              "name": "add-evidence-item",
+              "description": "One evidence locator to append, preserved verbatim; repeat as needed. Use this instead of --add-evidence when a locator contains a comma."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "UpdateEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reassign",
+          "description": "Move a ledger entry to another phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal in the entry's plan",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "ReassignEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote a finding into a bug report or record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "to",
+              "description": "Target type: bug|record",
+              "required": true,
+              "values": [
+                "bug",
+                "record"
+              ]
+            },
+            {
+              "name": "title",
+              "description": "Optional override title"
+            },
+            {
+              "name": "detail",
+              "description": "Optional override detail"
+            },
+            {
+              "name": "severity",
+              "description": "Optional override severity"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "PromoteEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Retry downstream forwarding for a pending/failed bug or record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "SyncEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "PlansService",
+      "method": "ListAuditFacts",
+      "reason": "Internal evidence reconciliation API; not an operator plans command."
+    }
+  ]
+}

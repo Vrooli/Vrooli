@@ -1,0 +1,159 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.smoke-flow",
+  "version": "1",
+  "purpose": "Execute one persisted BAS workflow with wait and classify the outcome from the first failed timeline entry (action type and driver error code) into a closed failure vocabulary.",
+  "inputs": {
+    "workflow_id": {
+      "type": "string",
+      "required": true,
+      "description": "Workflow UUID to execute."
+    },
+    "version": {
+      "type": "integer",
+      "description": "Exact positive workflow revision selected by the caller"
+    },
+    "parameters": {
+      "type": "object",
+      "description": "ExecutionParameters object passed to the execute binding (the CLI's --parameters-file reads the same message from a file). A file path is rejected as invalid_input. A session profile is applied only through this object; the execute binding has no profile argument."
+    }
+  },
+  "assumptions": [
+    "browser-automation-studio is running and its playwright-driver is ready",
+    "the caller may execute the named workflow; a mutating workflow needs the confirmation the workflow's labels declare",
+    "executions/timeline is read in-kernel with rows=\"entries\" (the response carries two repeated fields, entries and logs); the failed entry is the one whose aggregates.status is STEP_STATUS_FAILED or whose context.error is set",
+    "context.errorCode carries the playwright-driver's code (ELEMENT_NOT_FOUND, NOT_FOUND, NO_BOUNDING_BOX, a TIMEOUT code); an entry without a code and without a wait action classifies as step_failed"
+  ],
+  "invariants": [
+    "exactly one execution is started per submission; no retry",
+    "act calls only workflows/execute; every read after the run happens in classify",
+    "no binding with effect destructive is called",
+    "no row set above 200 timeline entries is materialized; other readings are head(1) and count",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/workflows/get",
+      "effect": "read"
+    },
+    {
+      "id": "browser-automation-studio/workflows/execute",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/executions/get",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "browser-automation-studio/executions/timeline",
+      "effect": "read",
+      "optional": true,
+      "note": "Called with rows=\"entries\"; unreadable timeline degrades the class to step_failed."
+    },
+    {
+      "id": "browser-automation-studio/executions/screenshots",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "workflow_name": "name of the executed workflow",
+      "execution_id": "execution UUID created by the run",
+      "execution_status": "EXECUTION_STATUS_* value after wait",
+      "outcome": "passed | failed | still_running | cancelled",
+      "failed_step": "1-based index of the first failed timeline entry, or null",
+      "failed_action": "ACTION_TYPE_* of the failed entry, or null",
+      "failed_error_code": "context.errorCode of the failed entry, or null",
+      "timeline_entries": "count of timeline entries, or null when the timeline was not read",
+      "screenshot_count": "count of screenshots retained for the execution, or null when unreadable"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "workflow_not_found",
+        "selector_not_found",
+        "timeout",
+        "auth_required",
+        "step_failed"
+      ]
+    },
+    "evidence": "workflow:<id>, execution:<id>, node:<id> of the failed entry"
+  },
+  "budget": {
+    "wall_ms": 300000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 200,
+    "async": true,
+    "async_reason": "workflows/execute with wait can outrun the 120 s synchronous bound; submit with --async and wait once."
+  },
+  "fixtures": [
+    {
+      "id": "no-workflow",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "unknown-workflow",
+      "inputs": {
+        "workflow_id": "00000000-0000-0000-0000-000000000000",
+        "version": 1
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ],
+      "note": "Expects failed/workflow_not_found. Recorded as unavailable when browser-automation-studio is down (2026-09-02: start-failed, api build exit 1)."
+    },
+    {
+      "id": "missing-version",
+      "inputs": {
+        "workflow_id": "00000000-0000-0000-0000-000000000000"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio"
+}

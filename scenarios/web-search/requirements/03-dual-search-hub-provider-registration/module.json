@@ -1,0 +1,66 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-003",
+      "title": "Dual Search-Hub Provider Self-Registration at Startup",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "integration",
+      "description": "At service startup, web-search must self-register two providers with the search-hub federation layer: (1) web-search.live with SCOPE_EXTERNAL, rate-limited, reachable only on explicit --type web / --all flags or fallback escalation; (2) web-search.learnings with SCOPE_PROJECT, safe to query on any default federated route. Registration must use the standard .vrooli/search.json provider descriptor format and the search-hub ResultMapping and control-token contract. Both providers must be registered before the service begins accepting requests.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/searchreg_test.go::TestSearchJSONLiveDescriptorIsExternalScope",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Provider descriptor for web-search.live has scope=SCOPE_EXTERNAL and explicit-only routing flag set to true [in the registry contract scope=SCOPE_EXTERNAL IS the explicit-only constraint — search-hub's partitionByScope withholds external providers from all automatic routing; the test also pins type=web, the explicit selector]"
+        },
+        {
+          "type": "test",
+          "ref": "api/searchreg_test.go::TestSearchJSONLearningsDescriptorIsProjectScope",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Provider descriptor for web-search.learnings has scope=SCOPE_PROJECT and is included in default routing set [SCOPE_PROJECT is what keeps a provider in the router's automatic candidate set]"
+        },
+        {
+          "type": "test",
+          "ref": "api/searchreg_test.go::TestMainWiresRegistrationBeforeServing",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Registration function is called during service initialization before the HTTP server begins accepting connections (verified via startup lifecycle order test) [registration is initiated before apiserver.Run opens the listener; it runs on a background goroutine with bounded retry because search-hub is an OPTIONAL dependency that must never block boot]"
+        },
+        {
+          "type": "test",
+          "ref": "api/searchreg_test.go::TestSearchJSONDescriptorsConformToRegistryContract",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Both provider descriptors conform to the .vrooli/search.json JSON schema (schema validation test) [conformance is enforced by the strict protojson mapping onto search-hub's registry ProviderDescriptor proto — unknown fields, bad enum values, or malformed endpoint/result_mapping sub-objects fail the load — plus assertions on every contract field registration and fan-out depend on]"
+        },
+        {
+          "type": "test",
+          "ref": "api/searchreg_test.go::TestRegisterUpsertsBothProvidersWithFakeHub",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "After service startup, querying the search-hub provider registry returns both web-search.live and web-search.learnings with correct scope metadata [drives the production registration path (committed search.json -\u003e searchregister.Register) against a fake hub and asserts both upsert payloads carry the correct scopes; hub-side persistence/read-back of those payloads is covered by search-hub's registry store round-trip tests]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/router_test.go::TestAutoRouteWithholdsExternalScope",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A default federated query issued after startup routes to web-search.learnings and does NOT invoke web-search.live (verified by asserting zero HTTP calls to SearXNG) [the fake transport carries no canned response for the web-search.live endpoint, so any call would surface as a degraded group in corpora_searched; the test asserts web-search.live is absent] [covering test lives in search-hub — scope-aware routing is the router's half of the contract]"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/registry/store_test.go::TestStoreUpsertRoundTripsDescriptor",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The system administrator can inspect the search-hub registry post-startup and confirm both providers are present with correct scope and routing constraints [covering test lives in search-hub — registry persistence and read-back (Upsert -\u003e Get returns scope/endpoint/result_mapping for inspection) is the hub's half of the contract; web-search's half (both providers upserted with correct scopes) is api/searchreg_test.go::TestRegisterUpsertsBothProvidersWithFakeHub]"
+        }
+      ]
+    }
+  ]
+}

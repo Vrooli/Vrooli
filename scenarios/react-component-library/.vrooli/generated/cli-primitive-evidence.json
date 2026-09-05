@@ -1,0 +1,309 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "react-component-library",
+  "generator": "v1.0.0",
+  "manifest_hash": "baa705dd5af057538053673f0762fc8b25f488de07ef621ce42c9bc0f235c742",
+  "commands": [
+    {
+      "path": "adoptions link",
+      "group": "adoptions",
+      "command": "link",
+      "binding": "AdoptionsService.LinkAdoption",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "adoptions list",
+      "group": "adoptions",
+      "command": "list",
+      "binding": "AdoptionsService.ListAdoptions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "adoptions list-effective",
+      "group": "adoptions",
+      "command": "list-effective",
+      "binding": "AdoptionsService.ListEffectiveAdoptions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "adoptions obligations",
+      "group": "adoptions",
+      "command": "obligations",
+      "binding": "."
+    },
+    {
+      "path": "adoptions preflight",
+      "group": "adoptions",
+      "command": "preflight",
+      "binding": "AdoptionsService.PreflightAdoption",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "asset check",
+      "group": "asset",
+      "command": "check",
+      "binding": "."
+    },
+    {
+      "path": "catalog build",
+      "group": "catalog",
+      "command": "build",
+      "binding": "."
+    },
+    {
+      "path": "catalog corpus-report",
+      "group": "catalog",
+      "command": "corpus-report",
+      "binding": "."
+    },
+    {
+      "path": "catalog gates",
+      "group": "catalog",
+      "command": "gates",
+      "binding": "CatalogService.RunGate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "catalog graph",
+      "group": "catalog",
+      "command": "graph",
+      "binding": "CatalogService.GetAssetRelationships",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "catalog readiness",
+      "group": "catalog",
+      "command": "readiness",
+      "binding": "CatalogService.GetReadiness",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "components content-set",
+      "group": "components",
+      "command": "content-set",
+      "binding": "ComponentsService.UpdateComponentContent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "components draft-begin",
+      "group": "components",
+      "command": "draft-begin",
+      "binding": "ComponentsService.BeginComponentVersion",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "components draft-publish",
+      "group": "components",
+      "command": "draft-publish",
+      "binding": "ComponentsService.PublishComponentVersion",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "components get",
+      "group": "components",
+      "command": "get",
+      "binding": "ComponentsService.GetComponent",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "components ingest",
+      "group": "components",
+      "command": "ingest",
+      "binding": "ComponentsService.IngestComponent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "components list",
+      "group": "components",
+      "command": "list",
+      "binding": "ComponentsService.ListComponents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "components sweep",
+      "group": "components",
+      "command": "sweep",
+      "binding": "ComponentTestsService.SweepComponentTests",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "components test",
+      "group": "components",
+      "command": "test",
+      "binding": "ComponentTestsService.RunComponentTest",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "preview bundle",
+      "group": "preview",
+      "command": "bundle",
+      "binding": "PreviewService.GetPreviewBundle",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "preview populate-store",
+      "group": "preview",
+      "command": "populate-store",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "sketch brief",
+      "group": "sketch",
+      "command": "brief",
+      "binding": "SketchService.BuildBrief",
+      "declared_primitive": "proto_list"
+    },
+    {
+      "path": "sketch get",
+      "group": "sketch",
+      "command": "get",
+      "binding": "SketchService.GetSketch",
+      "declared_primitive": "proto_list"
+    },
+    {
+      "path": "sketch import",
+      "group": "sketch",
+      "command": "import",
+      "binding": "SketchService.ImportPage",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch note",
+      "group": "sketch",
+      "command": "note",
+      "binding": "SketchService.AddNote",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch place",
+      "group": "sketch",
+      "command": "place",
+      "binding": "SketchService.Place",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch placeholder",
+      "group": "sketch",
+      "command": "placeholder",
+      "binding": "SketchService.Placeholder",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch set",
+      "group": "sketch",
+      "command": "set",
+      "binding": "SketchService.PutSketch",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch template",
+      "group": "sketch",
+      "command": "template",
+      "binding": "SketchService.SetTemplate",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch unplace",
+      "group": "sketch",
+      "command": "unplace",
+      "binding": "SketchService.Unplace",
+      "declared_primitive": "proto_mutation"
+    },
+    {
+      "path": "sketch verify",
+      "group": "sketch",
+      "command": "verify",
+      "binding": "SketchService.VerifySketch",
+      "declared_primitive": "proto_list"
+    },
+    {
+      "path": "versions diff",
+      "group": "versions",
+      "command": "diff",
+      "binding": "VersionsService.DiffVersions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "versions doctor",
+      "group": "versions",
+      "command": "doctor",
+      "binding": "VersionLifecycleService.Doctor",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "versions list",
+      "group": "versions",
+      "command": "list",
+      "binding": "VersionsService.ListVersions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "versions reap",
+      "group": "versions",
+      "command": "reap",
+      "binding": ".",
+      "declared_primitive": "action"
+    },
+    {
+      "path": "versions show",
+      "group": "versions",
+      "command": "show",
+      "binding": "VersionsService.GetVersion",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workflows get",
+      "group": "workflows",
+      "command": "get",
+      "binding": "WorkflowsService.GetWorkflow",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workflows list",
+      "group": "workflows",
+      "command": "list",
+      "binding": "WorkflowsService.ListWorkflows",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workflows promotion-readiness",
+      "group": "workflows",
+      "command": "promotion-readiness",
+      "binding": "WorkflowsService.GetPromotionReadiness",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "workflows start",
+      "group": "workflows",
+      "command": "start",
+      "binding": "WorkflowsService.StartWorkflow",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    }
+  ]
+}

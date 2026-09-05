@@ -87,5 +87,6 @@ describe("useConfirmAction", () => {
 
     // Timer should be cleared, no errors from state update after unmount
     act(() => vi.advanceTimersByTime(5000));
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 });

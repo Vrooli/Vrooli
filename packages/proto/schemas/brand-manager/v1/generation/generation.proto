@@ -1,0 +1,331 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.generation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation;generation_v1";
+
+// =============================================================================
+// GENERATION DOMAIN — AI-assisted brand element + image generation
+// =============================================================================
+//
+// @layer 5
+// @domain generation
+// @stability stable
+//
+// Wire contract for the GenerationService Connect-RPC service. Generation is a
+// stateless orchestration domain: it owns no table of its own. It reads a brand
+// (brands domain), produces brand facets or images, then writes the results back
+// through the brands domain (text facets) and the assets domain (images). The
+// cross-domain wiring lives only at the composition root
+// (handlers/generation/module.go); the internal domains never import each other.
+//
+// Two distinct backends, by facet kind:
+//   - TEXT facets (colors, typography, voice) use the local LLM provider chain:
+//     Ollama first (local, free, routed through the resource-ollama gateway CLI),
+//     then OpenRouter (cloud, when OPENROUTER_API_KEY is set). GetProviderStatus
+//     reports THIS chain's readiness.
+//   - IMAGE facets (logo/favicon generation, prompt-based logo editing, logo
+//     background removal, derived icon variants) run through the image-tools
+//     scenario — the reusable image capability that owns model lifecycle, local
+//     backends (stable-diffusion.cpp / diffusers / rembg / …), durable GPU jobs,
+//     and an opt-in BYOK cloud fallback. brand-manager talks to image-tools over
+//     a narrow HTTP client seam: it submits the AI operation, waits once for the
+//     durable job, downloads the result blob, and stores it as a brand asset.
+//     GetImageBackendStatus reports image-tools' readiness per operation.
+//     brand-manager never exposes image-tools job ids; it returns the stored
+//     brand asset only.
+//
+// Asset/version policy (decision: preserve exploratory results):
+//   - Every AI image generation/edit/removal stores its output as a NEW brand
+//     asset under a unique filename (e.g. "logo-<short>.png"), so exploratory
+//     runs never overwrite a prior result. The canonical per-kind asset
+//     ("logo.png" / "favicon.png" / "logo-transparent.png") is (re)written only
+//     when set_canonical is true, OR automatically the first time a kind has no
+//     canonical yet — so a brand's first logo is usable immediately while an
+//     existing user logo is never silently overwritten.
+//   - DeriveBrandIcons is deterministic (resize/flatten via image-tools' ops
+//     domain), so its outputs use stable canonical icon filenames and re-running
+//     is idempotent (byte-identical).
+//
+// Idempotency / safety re-expressed Connect-native:
+//   - GenerateBrandElements applies generated facets via the brands domain's
+//     partial-merge UpdateBrand: regenerating one facet (e.g. colors) never wipes
+//     the siblings, and each successful apply bumps the brand version. An unknown
+//     brand_id → NOT_FOUND. No text provider available → UNAVAILABLE.
+//   - The image RPCs translate image-tools readiness failures into actionable
+//     brand-level errors: image-tools unreachable → UNAVAILABLE; model/backend
+//     not installed or BYOK key missing → FAILED_PRECONDITION; the durable job or
+//     blob download failed → INTERNAL.
+//
+// Consumed by:
+//   - API: handlers/generation/connect_handler.go implements the generated
+//          GenerationServiceHandler interface.
+//   - UI:  ui/src/api/generation.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/generation/handlers.go calls the generated Connect-Go
+//          client.
+// =============================================================================
+
+service GenerationService {
+  rpc GetProviderStatus(GetProviderStatusRequest) returns (GetProviderStatusResponse);
+  rpc GetImageBackendStatus(GetImageBackendStatusRequest) returns (GetImageBackendStatusResponse);
+  rpc GenerateBrandElements(GenerateBrandElementsRequest) returns (GenerateBrandElementsResponse);
+  rpc GenerateBrandImage(GenerateBrandImageRequest) returns (BrandImageAsset);
+  rpc EditBrandImage(EditBrandImageRequest) returns (BrandImageAsset);
+  rpc RemoveBrandImageBackground(RemoveBrandImageBackgroundRequest) returns (BrandImageAsset);
+  rpc DeriveBrandIcons(DeriveBrandIconsRequest) returns (DeriveBrandIconsResponse);
+}
+
+// =============================================================================
+// Text provider readiness (LLM chain for colors/typography/voice)
+// =============================================================================
+
+// ProviderStatus reports one text AI provider's current reachability.
+message ProviderStatus {
+  // The provider identifier (e.g. "ollama", "openrouter").
+  string name = 1;
+  // Whether the provider is currently reachable / configured.
+  bool available = 2;
+}
+
+// GetProviderStatusRequest takes no arguments.
+message GetProviderStatusRequest {}
+
+// GetProviderStatusResponse reports the TEXT provider chain's readiness (the
+// chain used for colors/typography/voice). Image readiness is a separate call
+// (GetImageBackendStatus) because images run through image-tools, not this chain.
+message GetProviderStatusResponse {
+  // True when at least one text provider in the chain is available.
+  bool available = 1;
+  // Per-provider status, in chain order (Ollama first, then OpenRouter).
+  repeated ProviderStatus providers = 2;
+}
+
+// =============================================================================
+// Image backend readiness (image-tools)
+// =============================================================================
+
+// GetImageBackendStatusRequest takes no arguments.
+message GetImageBackendStatusRequest {}
+
+// ImageOperationStatus reports whether one brand image operation is runnable on
+// image-tools right now, plus the model/tier image-tools would select and an
+// actionable hint when it is not ready.
+message ImageOperationStatus {
+  // The brand operation: "generate" (text_to_image), "edit" (edit_instruct), or
+  // "remove_background" (background_removal).
+  string operation = 1;
+  // True when image-tools can run this operation now (model installed, backend
+  // available).
+  bool ready = 2;
+  // The registry model image-tools would select (for display).
+  string model_id = 3;
+  // Where it would run: "local-gpu", "local-cpu", or "byok-cloud".
+  string tier = 4;
+  // Human-readable guidance when not ready (e.g. "run image-tools models install
+  // sd-1.5") or a non-fatal caveat.
+  string hint = 5;
+  // Non-fatal selection/backend cautions from image-tools, including BYOK cost
+  // disclosure and skipped higher-quality candidates.
+  repeated string warnings = 6;
+}
+
+// GetImageBackendStatusResponse reports image-tools' overall reachability and
+// per-operation readiness so a UI/CLI can warn before spending a generation.
+message GetImageBackendStatusResponse {
+  // True when image-tools is reachable.
+  bool available = 1;
+  // Detail when unavailable (e.g. "image-tools is not running").
+  string detail = 2;
+  // Per-operation readiness, in a stable order.
+  repeated ImageOperationStatus operations = 3;
+}
+
+// =============================================================================
+// Text facet generation (unchanged contract)
+// =============================================================================
+
+// GenerateBrandElementsRequest asks the AI chain to generate one or more text
+// brand facets and apply them to the brand.
+message GenerateBrandElementsRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The facets to generate: any of "colors", "typography", "voice".
+  // Unknown element names are reported per-element as "unsupported".
+  repeated string elements = 2;
+  // Optional. Provider model/role override (e.g. an Ollama role or an
+  // OpenRouter model id). Empty uses the chain's defaults.
+  string model = 3;
+}
+
+// ElementResult is the per-element outcome of a GenerateBrandElements call.
+message ElementResult {
+  // The requested element name.
+  string element = 1;
+  // One of "applied" (generated and merged onto the brand), "failed" (provider
+  // or parse error; detail explains), or "unsupported" (unknown element name).
+  string status = 2;
+  // Human-readable detail: empty on "applied", an error message otherwise.
+  string detail = 3;
+}
+
+// GenerateBrandElementsResponse reports each element's outcome plus the brand
+// version after the applied facets were merged.
+message GenerateBrandElementsResponse {
+  // Per-element outcomes, in request order.
+  repeated ElementResult results = 1;
+  // The element names that were successfully applied to the brand.
+  repeated string applied = 2;
+  // The provider that produced the last successful generation (e.g. "ollama").
+  string provider = 3;
+  // The model the provider reported using.
+  string model = 4;
+  // The brand version after applying the generated facets. 0 when nothing was
+  // applied (the brand was left unchanged).
+  int32 brand_version = 5;
+}
+
+// =============================================================================
+// Image generation / editing (image-tools backed)
+// =============================================================================
+
+// BrandImageAsset is the stored-asset result shared by all image RPCs. It is the
+// brand-manager view of a completed image: the brand asset that was written,
+// plus which image-tools model/tier produced it. Image-tools job ids are never
+// surfaced — brand-manager waits for the job and returns the stored asset.
+message BrandImageAsset {
+  // The brand the image belongs to.
+  string brand_id = 1;
+  // The id of the asset row the image was stored as.
+  string asset_id = 2;
+  // The asset role: "logo", "favicon", "logo-transparent", or an icon variant
+  // name ("favicon-32", "apple-touch-icon", "maskable-192", …).
+  string kind = 3;
+  // The stored asset filename (unique per exploratory generation; canonical for
+  // derived icons).
+  string filename = 4;
+  // The image mime type (e.g. "image/png").
+  string mime_type = 5;
+  // The stored image size in bytes.
+  int64 size = 6;
+  // The image-tools registry model that produced it (empty for deterministic
+  // derivations).
+  string model_id = 7;
+  // Where it ran: "local-gpu", "local-cpu", "byok-cloud", or "deterministic".
+  string tier = 8;
+  // True when this asset was (also) written as the canonical asset for its kind.
+  bool canonical = 9;
+  // Non-fatal cautions from image-tools selection (CPU time, BYOK cost, …).
+  repeated string warnings = 10;
+}
+
+// GenerateBrandImageRequest asks image-tools to generate a brand image
+// (text_to_image) from a brand-aware prompt and stores it as a brand asset.
+message GenerateBrandImageRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The image type: "logo" or "favicon".
+  string type = 2;
+  // Optional. image-tools model id override. Empty uses image-tools' hardware-fit
+  // default for the operation.
+  string model_override = 3;
+  // Optional. Permit image-tools to use its metered BYOK cloud provider unless
+  // fallback_policy is "local_only". Brand image generation defaults to quality
+  // with cloud fallback when configured.
+  bool allow_byok = 4;
+  // Optional. RNG seed for reproducibility; 0 means random.
+  int64 seed = 5;
+  // Optional. Also write the result as the brand's canonical asset for this type
+  // ("logo.png" / "favicon.png"). When false, the canonical is still written
+  // automatically if the brand has none yet, but an existing canonical is left
+  // untouched.
+  bool set_canonical = 6;
+  // Optional. "quality" (default), "balanced", or "fast".
+  string quality_policy = 7;
+  // Optional. "any" (default), "cloud_allowed", or "local_only".
+  string fallback_policy = 8;
+  // Optional. Capacity priority: "service" (default), "interactive", or "batch".
+  string priority = 9;
+  // Optional. Whether image-tools may reclaim cold-idle local resources. Unset
+  // defaults to true for brand-quality image generation.
+  optional bool allow_reclaim = 10;
+}
+
+// EditBrandImageRequest asks image-tools to edit an existing brand image
+// (edit_instruct) by a natural-language instruction and stores the edited result
+// as a new brand asset.
+message EditBrandImageRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The source asset to edit (an existing brand asset id).
+  string source_asset_id = 2;
+  // Required. The natural-language edit instruction (e.g. "make the background
+  // navy and add a subtle gradient").
+  string instruction = 3;
+  // Optional. image-tools model id override.
+  string model_override = 4;
+  // Optional. Permit metered BYOK cloud fallback unless fallback_policy is
+  // "local_only". Brand image editing defaults to quality with cloud fallback
+  // when configured.
+  bool allow_byok = 5;
+  // Optional. RNG seed; 0 means random.
+  int64 seed = 6;
+  // Optional. Also write the edited result as the canonical "logo.png" (see
+  // GenerateBrandImageRequest.set_canonical for semantics).
+  bool set_canonical = 7;
+  // Optional. "quality" (default), "balanced", or "fast".
+  string quality_policy = 8;
+  // Optional. "any" (default), "cloud_allowed", or "local_only".
+  string fallback_policy = 9;
+  // Optional. Capacity priority: "service" (default), "interactive", or "batch".
+  string priority = 10;
+  // Optional. Whether image-tools may reclaim cold-idle local resources. Unset
+  // defaults to true for brand-quality image editing.
+  optional bool allow_reclaim = 11;
+}
+
+// RemoveBrandImageBackgroundRequest asks image-tools to isolate the mark in an
+// existing brand image (background_removal) and stores the transparent cutout as
+// a new brand asset.
+message RemoveBrandImageBackgroundRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The source asset to cut out (an existing brand asset id).
+  string source_asset_id = 2;
+  // Optional. image-tools model id override.
+  string model_override = 3;
+  // Optional. Permit metered BYOK cloud fallback. Off by default.
+  bool allow_byok = 4;
+  // Optional. Also write the transparent result as the canonical
+  // "logo-transparent.png".
+  bool set_canonical = 5;
+}
+
+// DeriveBrandIconsRequest produces a deterministic set of platform icon variants
+// from a source brand asset. Derivation uses image-tools' deterministic ops
+// (resize + solid-background flatten), NOT a model, so it is reproducible and
+// idempotent. The transparent mark is the preferred source for solid-background
+// variants; a transparent source is composited onto a brand-color background for
+// Apple-touch and maskable launcher icons, while favicons keep transparency.
+message DeriveBrandIconsRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The source asset (typically the transparent logo) to derive from.
+  string source_asset_id = 2;
+  // When NO include_* flag is set, every variant family is produced. When any is
+  // set, only the selected families are emitted.
+  // include_maskable: maskable launcher icons (192/512, solid brand-color bg).
+  bool include_maskable = 3;
+  // include_apple_touch: an opaque Apple-touch icon (180, solid background).
+  bool include_apple_touch = 4;
+  // include_favicon: transparent favicon PNGs (16/32/196).
+  bool include_favicon = 5;
+}
+
+// DeriveBrandIconsResponse returns each derived icon asset.
+message DeriveBrandIconsResponse {
+  // The derived icon assets (canonical filenames), in a stable order.
+  repeated BrandImageAsset icons = 1;
+  // Non-fatal cautions (e.g. a requested variant skipped because the source was
+  // too small).
+  repeated string warnings = 2;
+}

@@ -1,0 +1,74 @@
+{
+  "shortNames": {
+    "external:operator": "OP",
+    "external:report-bug": "RB",
+    "external:swarm-manager": "SWARM",
+    "member:bug-investigator": "BI",
+    "member:quality-auditor": "QA",
+    "por:docs/scenario-qa/README.md": "DOCSSCENARIO",
+    "por:docs/scenario-qa/governance/adoption-validation.md": "DOCSSCENARIO2",
+    "por:docs/scenario-qa/governance/changelog.md": "DOCSSCENARIO3",
+    "por:docs/scenario-qa/governance/editing.md": "DOCSSCENARIO4",
+    "por:docs/scenario-qa/operating/OPERATING_MODEL.md": "DOCSSCENARIO5",
+    "process:swarm-manager-backlog-routing": "BACKLOG",
+    "process:work-item-routing": "GAPROUTE",
+    "team:director-swarm": "DIR",
+    "team:infra-health": "INFRA",
+    "team:marketing-crew": "MKT",
+    "team:meta-optimization": "META_IN",
+    "team:monetization": "MON",
+    "topic:bug-inbox/*": "BUGINBOX",
+    "topic:bug-investigation-report/*": "BUGINVESTIGA",
+    "topic:bug-investigation-report/\u003cslug\u003e": "BUGREP",
+    "topic:quality-audit/*": "QUALITYAUDIT",
+    "topic:quality-audit/\u003cscenario-id\u003e/\u003cskill-id\u003e": "QUAUD"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:report-bug": "report-bug skill",
+    "external:swarm-manager": "Swarm Manager",
+    "member:bug-investigator": "Bug Investigator",
+    "member:quality-auditor": "Quality Auditor",
+    "process:swarm-manager-backlog-routing": "Swarm Manager backlog routing",
+    "process:work-item-routing": "Capability work routing",
+    "team:director-swarm": "Director Swarm",
+    "team:infra-health": "Infra Health",
+    "team:marketing-crew": "Marketing Crew",
+    "team:meta-optimization": "Meta Optimization",
+    "team:monetization": "Monetization"
+  },
+  "nodeOrder": [
+    "process:swarm-manager-backlog-routing",
+    "member:bug-investigator",
+    "topic:bug-inbox/*",
+    "topic:bug-investigation-report/*",
+    "topic:bug-investigation-report/\u003cslug\u003e",
+    "team:director-swarm",
+    "por:docs/scenario-qa/README.md",
+    "por:docs/scenario-qa/governance/adoption-validation.md",
+    "por:docs/scenario-qa/governance/changelog.md",
+    "por:docs/scenario-qa/governance/editing.md",
+    "por:docs/scenario-qa/operating/OPERATING_MODEL.md",
+    "process:work-item-routing",
+    "team:infra-health",
+    "team:meta-optimization",
+    "team:marketing-crew",
+    "team:monetization",
+    "external:operator",
+    "member:quality-auditor",
+    "topic:quality-audit/*",
+    "topic:quality-audit/\u003cscenario-id\u003e/\u003cskill-id\u003e",
+    "external:report-bug",
+    "external:swarm-manager"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "process:swarm-manager-backlog-routing",
+      "to": "external:swarm-manager"
+    },
+    {
+      "from": "process:work-item-routing",
+      "to": "team:meta-optimization"
+    }
+  ]
+}

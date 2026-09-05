@@ -6,6 +6,60 @@ This file tracks progress on scenario improvements made by AI agents.
 
 | Date | Author | Change Summary |
 |------|--------|----------------|
+| 2026-07-30 | Codex | Fresh server-owned Test Genie run `20260730-074236-a17feee4` eliminated the prior proto-orphan, stale-requirement, and UI-coverage execution failures. Its sole remaining error was a stale UI production bundle after the new test changed source freshness; rebuilding through `pnpm build` restored UI Health to passed. The run still reports advisory maturity debt (notably schema/proto domain naming and dependency advisories), so it is not treated as a full-green result. |
+| 2026-07-30 | Codex | Removed a process-global test-order dependency from account entitlement coverage: tests without configured catalog fixtures now receive an explicit empty plan store, while fixture-backed tests retain their configured catalog. The formerly flaky no-subscription contract passes repeatedly and the complete API suite passes. Repaired requirements evidence after the Stripe-handler extraction so checkout, verification, and cancellation point at the active Commerce Connect tests; Business Health passes. Also expanded magic-link UI coverage across validation, network, and unexpected failure classes; all UI tests pass and the enforced global branch-coverage gate now clears at 85.02% (previously 84.98% against 85%). |
+| 2026-07-30 | Codex | Added direct serialized-contract coverage for `internal/contracts/VariantSEOConfig`, clearing Structure Health's missing-test-file finding for that shared domain package. Structure Health now reports 44 remaining hardcoded-value findings; its remediation preview confirms none are mechanically auto-fixable, so they require domain-specific configuration decisions rather than blind rewrites. |
+| 2026-07-30 | Codex | Repaired stale CLI Connect evidence for `DownloadService.DeleteDownloadApp`: its manifest now binds the generated RPC and its primitive-evidence assembly includes the migrated command. Regenerated the committed evidence artifact. Full CLI tests/build and CLI Health now pass with zero blocking findings; remaining measure-tier entries are advisory only. |
+| 2026-07-30 | Codex | Removed the final direct root HTTP handler: REST download authorization now invokes `handlers/delivery.Authorize` directly, sharing the same concrete entitlement and managed-artifact dependencies as generated Connect authorization. Existing REST characterization tests now target the domain transport. Focused delivery/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Moved the customize queued-job HTTP contract into `handlers/content` and deleted its root `Server` method. Route composition now injects the clock; direct malformed-request coverage protects the new transport seam while existing characterization tests preserve the response contract. Focused content/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Removed the remaining root experimentation read-handler adapters. Variant select, public/admin get, and list routes now compose the existing `handlers/experimentation` transport directly; tests likewise target the domain handler with the root limited to dependency composition. Focused experimentation/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Moved all five admin API-key HTTP operations into `handlers/administration` and rewired production routes directly to that domain transport. Deleted root handler implementations, preserved existing status/response contracts through retargeted characterization tests, and added a direct malformed-create-request contract test. Focused administration/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Moved deploy-readiness request/response transport and its storage, catalog, and remote-profile gates into `handlers/deployment`; routing now supplies explicit dependencies and the root implementation was deleted. Added direct malformed-JSON coverage and retained database-backed readiness characterization tests. The handler now reports a failed gate rather than panicking if remote-profile integration is unavailable. Focused handler/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Completed the admin-profile transport extraction into `handlers/admin`: production routes now compose the domain handler directly, root duplicate DTOs/handlers/password policy were deleted, and direct handler tests cover authenticated profile projection plus configured-default-password rejection. The extraction also fixed a real policy defect discovered by that test: a plaintext configured default password was incorrectly passed to bcrypt as if it were a hash; it now uses constant-time plaintext comparison. Focused admin/root tests, complete API tests/build, Go lint, diff integrity, and a lifecycle restart all pass; scenario health is healthy. |
+| 2026-07-30 | Codex | Removed two concrete Security Health G115 blockers from delivery Connect serialization by range-checking app display order and asset artifact count before generated `int32` projection; added overflow characterization coverage. Delivery tests/build/lint pass and Security Health dropped from 44 to 42 blockers. The remaining blockers are dependency advisories, led by transitive UI lockfile packages; governed `x/crypto` install attempts retained v0.54.0 and did not clear its advisory. |
+| 2026-07-30 | Codex | Migrated CLI download-app list/create/save/delete from generic REST descriptors to generated `DownloadService` Connect primitives, preserving command names and raw app JSON input while enforcing required body/app-key contracts. Storage and artifact CLI commands remain REST because their proto procedures do not exist. Direct primitive-contract tests, complete CLI tests/build, scenario Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Migrated public download authorization and admin download-app list/create/save/delete calls in the UI to the generated `DownloadService` Connect client, retaining REST only for download storage and artifact operations that have no proto procedure yet. Added generated-client compiler declarations and direct response/payload mapping tests. Focused downloads tests, UI typecheck, and UI lint pass. A complete UI suite was started and showed no failures through the shared download consumers before the terminal runner detached; its final result remains unproven. |
+| 2026-07-30 | Codex | Added the generated `DownloadService/AuthorizeDownload` Connect procedure over the established entitlement and managed-artifact presign seams. It preserves request-scoped user identity and maps missing input, unauthenticated callers, subscription denial, unavailable entitlements, and missing assets to typed Connect errors. The endpoint generator and manifest now include the mounted procedure. Direct delivery Connect tests, complete API tests/build, Go lint, and a scenario restart with healthy API/database all pass. REST remains temporarily for existing clients during UI/CLI generated-client migration. |
+| 2026-07-30 | Codex | Moved the remaining variant read response mapping and weighted-selection composition into `handlers/experimentation`, consolidating read/write transport on one response model while retaining only route-compatible root adapters. Added direct constructor coverage. Also fixed an order-dependent Stripe test seam: remote-API-only Stripe tests now use an explicit empty plan store rather than relying on another test to initialize global pricing state. Focused handler/root tests, the independently run coupon test, complete API tests/build, and Go lint pass. |
+| 2026-07-30 | Codex | Cleared the Go lint gate: removed an unused root bundle-price request type and normalized all reported formatting drift across API/CLI test and handler files. `make lint-go`, complete API tests/build, and complete CLI tests/build pass. |
+| 2026-07-30 | Codex | Added direct delivery update-transport tests proving API-key requests reject a missing app key, update-file requests reject a missing channel before lookup, and invalid policy intervals reject before persistence. Delivery handler coverage is 10.1%; complete API suite/build pass. |
+| 2026-07-30 | Codex | Added direct magic-link transport tests for invalid-email rejection, rate-limit enforcement, and enumeration-safe provider failure. Administration handler coverage increased from 34.9% to 40.1%; complete API suite/build pass. |
+| 2026-07-30 | Codex | Added direct `handlers/administration` tests for auth-cookie security attributes and deletion matching, fragment-only token redirects, and nullable timestamps. This closes the coverage seam where root compatibility tests did not cover moved transport code; administration handler coverage is now 34.9%. Complete API suite/build pass. |
+| 2026-07-30 | Codex | Expanded deterministic CLI support coverage for remote-profile API-base validation, ID normalization, query/path/key-value parsing, platform/content-type normalization, and cookie helpers. Support coverage rose from 2.1% to 20.1%; aggregate CLI coverage rose from 8.2% to 13.1%. Full CLI suite remains green; 75% policy target remains unmet. |
+| 2026-07-30 | Codex | Began the required CLI coverage expansion with deterministic managed-download upload validation contracts. Missing arguments, invalid platform, and missing artifact all fail before network access; the downloads command domain rose from 2.7% to 25.0% coverage and aggregate CLI coverage from 6.9% to 8.2%. The 75% policy target remains substantially unmet. |
+| 2026-07-30 | Codex | Executed native policy coverage commands: API aggregate is 30.0% and CLI aggregate is 6.9%, both below the committed 75% total minimum. Unit Health currently reports coverage clean without executing these commands; filed provider-evidence defect `knw-1785391363985649977`. Coverage expansion remains real modernization work, not a green result. |
+| 2026-07-30 | Codex | Deleted unregistered root checkout/subscription REST handlers after migrating their characterization coverage to the already-mounted generated `LandingPagePaymentsService` Connect handler. Checkout validation, subscription verification, and cancellation remain tested through the actual production protocol; no legacy production wrapper remains. Full API tests/build pass. |
+| 2026-07-30 | Codex | Started comprehensive Test Genie run `20260730-055738-322848fc` after recent delivery/security changes. Its required durable waiter detached without terminal JSON after the one permitted status read showed Architecture in progress (5/20); this repeats the known waiter-orchestration defect, so no full-suite result is claimed. |
+| 2026-07-30 | Codex | Moved Stripe's third-party signed webhook transport into `handlers/commerce`, retaining it as a justified REST exception while adding a 1 MiB body limit before signature processing. Focused webhook contracts plus complete API tests/build/vet pass. |
+| 2026-07-30 | Codex | Resolved the security scanner's four G124 cookie findings in the moved user-auth transport. Cookies retain deployment-selected `Secure` behavior (required for local HTTP development) with explicit reviewed rationale, while `HttpOnly`, `SameSite=Lax`, and scoped refresh paths remain enforced. Fresh Security Health scan no longer reports G124; remaining security blockers are dependency advisories. |
+| 2026-07-30 | Codex | Moved download-app administration HTTP transport and payload normalization into `handlers/delivery/apps.go`; production routes now bind that package directly through a small root composition seam. Existing validation and route-characterization tests remain active through test-only adapters. Full API tests, build, and vet pass. |
+| 2026-07-30 | Codex | Moved desktop auto-update HTTP transport out of the API root into `handlers/delivery/update.go`. The root now only composes concrete catalog/hosting/plan services, mux paths, and established envelope adapters; update API-key comparison, manifest/binary behavior, channel discovery, verification, and policy validation remain covered through retained characterization adapters. Full API tests and build pass. |
+| 2026-07-30 | Codex | Continued root-package decomposition: moved remote-profile, incoming-session, user-auth, and user-management HTTP transport into domain handler packages; moved variant response DTO ownership to experimentation transport; removed all non-test delivery aliases in favor of `internal/delivery` concrete types. Full API tests/build, UI suite/lint/type-check, unit health, experience validation, and lifecycle health pass. The latest server-owned Test Genie suite started and progressed through architecture but its durable waiter exited without terminal JSON (known infrastructure defect), so full-suite green remains unproven. |
+| 2026-07-28 | Codex | Decomposed the secret-bearing Stripe settings Connect update into request normalization/validation, stored-webhook enablement verification, persistence, and runtime activation. Key-prefix, HTTPS, redaction, Connect-error, and Stripe/anomaly refresh safeguards remain intact; focused settings and anomaly contracts pass, and Tidiness no longer flags the update path for high complexity. |
+| 2026-07-28 | Codex | Split subscription-context loading, catalog-derived tier reconciliation/backfill, and protobuf projection into explicit helpers. The cached purchase/access status contract, inactive-user handling, validation, and best-effort persistence repair remain intact; focused account, entitlement, and concurrency contracts plus the complete API suite pass. |
+| 2026-07-28 | Codex | Consolidated five remote-profile ID-operation handlers behind one shared protocol for path parsing, typed domain-error mapping, structured logging, and internal-error responses while retaining each endpoint’s message and success shape. Focused handler contracts and the complete API suite pass. |
+| 2026-07-28 | Codex | Decomposed the verified Stripe plan-update pipeline into lookup, requested-field, Stripe synchronization, tier derivation, metadata, and invariant-validation steps. The former complexity-51 method is now complexity 11 (largest helper 13); focused pricing contracts and the complete API suite pass. |
+| 2026-07-28 | Codex | Fixed a real API coverage flake: admin-profile tests depended on whichever test first seeded the shared Testcontainers admin credential. Each profile test now installs its own explicit seeded credential after database setup. The focused coverage suite and two consecutive complete `go test -count=1 -covermode=atomic -coverprofile=... ./...` API runs pass. |
+| 2026-07-28 | Codex | Ran comprehensive Test Genie validation after API fixture and UI component work. All phases except Unit Health passed; the reported API coverage failure does not reproduce with its exact command, while Unit Health also retains its already-filed fabricated `runtime/` surface. UI tests (2,023), typecheck, lint, production build, and full API tests pass. The captured baseline cannot be compared because its pinned Test Genie run was evicted from the provider index; filed `knw-1785253453222658957`. |
+| 2026-07-28 | Codex | Consolidated API test-fixture ownership: removed 489 redundant `defer db.Close()` calls covered by `setupTestDB(t).Cleanup`, and centralized handler JSON decoding while retaining typed response and behavioral assertions. The complete API suite passes; Tidiness no longer reports the former 52-location, 1,887-line response-decoding cluster as debt. |
+| 2026-07-28 | Codex | Hardened production credential startup: secret tests now isolate user-local state, development session keys are proven unique per initialization, production rejects missing `SESSION_SECRET` before database access and rejects short admin passwords, and the tracked Postgres seed no longer contains an admin credential hash. Focused and complete API suites pass; `gosec -include=G101,G124 ./...` reports zero issues. |
+| 2026-07-28 | Codex | Removed the scenario’s 91 MB generated coverage archive (recoverably moved to trash), confirmed other stale Phase 1 artifacts were already absent, and normalized all existing tracked API Go sources to mode 644. Coverage/cache ignores were already present. |
+| 2026-07-28 | Codex | Identified the LPBS UI manifest overlap as an inherited `landing-page-react-vite` template contract defect; kept the template unchanged because the modernization plan explicitly scopes templates out. Filed Quality Health false-positive `knw-1785248564778578609`: its `as any` detector matches the prose phrase “has any,” not a TypeScript cast. |
+| 2026-07-28 | Codex | Made the canonical API test-database fixture own `t.Cleanup` lifecycle registration while retaining compatibility with existing explicit closes; documented the safe test-only database boundary in `SEAMS.md`. |
+| 2026-07-28 | Codex | Extracted Stripe-price verification and plan-pricing reconciliation from `CreateBundlePrice` into a focused pricing seam; added a regression test that rejects negative Stripe amounts. Focused plan-service contracts pass; final comprehensive validation remains required after this change. |
+| 2026-07-28 | Codex | Decomposed the 1,039-line Download Settings route into focused app-card, mobile-storefront, controls, and empty-state components; preserved artifact-hosting, entitlement, drag/reorder, and save flows. UI typecheck, ESLint, focused route tests, and the full 2,021-test UI suite pass. |
+| 2026-07-28 | Codex | Migrated billing-handler status assertions to the shared HTTP assertion seam, preserving non-fatal test semantics and response-body diagnostics; billing-focused and full API tests remain green. |
+| 2026-07-28 | Codex | Split proto metadata conversion and plan catalog normalization/Stripe import mapping from subscription price operations; focused Stripe/catalog contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Split atomic reserve-and-charge, credit reservations, finalization/release/expiry cleanup, UUID generation, and usage adjustments from reporting, limits, auth, and HTTP handling; reservation contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Split remote-profile outbound HTTP client behavior, encrypted-session/record persistence, and session/proxy orchestration from core profile lifecycle management; targeted remote contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Split subscription-catalog JSON load/save and verified Stripe price update workflows from `PlanStore`; preserved atomic persistence, bundle-product verification, and full API regression coverage while reducing the core store to 800 lines. |
+| 2026-07-28 | Codex | Split deterministic landing fallback parsing, normalization, response construction, and cloning from live ConfigStore assembly; both focused fallback contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Reduced `main.go` to runtime composition by moving schema application and default download/tier seeding into a focused startup-seed unit; the complete API suite, lint, and vet pass. |
+| 2026-07-28 | Codex | Split AI-gateway streaming credit reservations/SSE handling and OpenRouter client construction from request orchestration; the core service is now below the long-file threshold. |
+| 2026-07-28 | Codex | Separated subscription-limit HTTP handlers from limits persistence and policy; the domain service is now below the long-file threshold. |
+| 2026-07-28 | Codex | Separated Stripe intro-offer eligibility, redemption auditing, invoice extraction, and anomaly reporting from coupon CRUD/import; the coupon service is now below the long-file threshold. |
+| 2026-07-28 | Codex | Split user-auth token refresh, JWT validation, and session revocation into a focused token-lifecycle file; preserved the existing auth contract while reducing the core service below the long-file threshold. |
+| 2026-07-28 | Codex | Extracted the shared AES-GCM persisted-secret primitive for API keys and remote-profile sessions; added encryption, tamper-rejection, and development pass-through tests. |
 | 2026-01-16 | Claude (failure-topography) | Backend JSON error responses, InlineAlert component, replaced alert() with proper UI feedback in Customization |
 | 2026-01-16 | Claude (react-stability) | Fixed VariantEditor/SectionEditor hook deps, array bounds checks, crash-prone access patterns |
 | 2026-01-16 | Claude (failure-topography) | Added ApiError classification, timeout handling, graceful degradation across checkout/login/feedback flows |
@@ -975,7 +1029,7 @@ Building on previous failure topography work, this session completed structured 
 
 All public-facing endpoints now use `writeJSONError()` with proper logging:
 
-- `handleLandingConfig`: Structured error with logging context (variant parameter)
+- `handleLandingConfig`: Historical REST handler; superseded by `LandingConfigService.GetLandingConfig` during the Connect migration.
 - `handlePlans`: Structured error for pricing overview failures
 - `handleMeSubscription`: Structured error with user context
 - `handleMeCredits`: Structured error with user context
@@ -1030,7 +1084,7 @@ All errors follow this structure (matching frontend `ApiError` class):
 
 | File | Functions Updated |
 |------|-------------------|
-| `api/account_handlers.go` | handleLandingConfig, handlePlans, handleMeSubscription, handleMeCredits, handleEntitlements, handleDownloads |
+| `api/account_handlers.go` | Historical record: `handleLandingConfig` has since moved to `LandingConfigService.GetLandingConfig`; handlePlans, handleMeSubscription, handleMeCredits, handleEntitlements, handleDownloads |
 | `api/feedback_handlers.go` | handleFeedbackCreate, handleFeedbackList, handleFeedbackGet, handleFeedbackUpdateStatus, handleFeedbackDelete, handleFeedbackDeleteBulk |
 | `api/variant_handlers.go` | handleVariantSelect, handlePublicVariantBySlug, handleVariantBySlug, handleVariantCreate, handleVariantCreateWithSections, handleVariantExport, handleVariantImport, handleVariantSnapshotSync |
 
@@ -1171,3 +1225,389 @@ All modified handlers now have `[REQ:SIGNAL-FEEDBACK]` annotations for traceabil
 - Add integration tests that assert expected log events
 - Consider adding request correlation IDs
 - Add metrics for log event volume monitoring
+
+## 2026-07-30 — Commerce usage transport extraction
+
+- Moved all usage HTTP endpoints from `api/usage_service.go` into
+  `api/handlers/commerce/usage.go`: service-token authorization, usage report,
+  customer/admin summaries, entitlement limit check, and health probe.
+- Removed `api/usage_service.go` after moving its last composition code to its
+  actual owners: `main.go` supplies runtime-only secret/logging policy and
+  `routes.go` composes commerce transport dependencies. Routes invoke the
+  commerce handler package directly; no production compatibility wrapper
+  remains.
+- Repointed existing characterization tests to the exported commerce transport
+  and added direct package tests for missing bearer credentials, malformed JSON,
+  missing authenticated identity, and missing limit key. These reject before
+  reaching a service, which documents the security and validation boundary.
+
+Validation:
+
+- `go test ./... -count=1 -timeout 10m` (API) passed.
+- `go build ./...` and `make lint-go` (API) passed.
+- `make restart` followed by `make status` reports the scenario healthy on API
+  port 17691 and UI port 23224.
+
+## 2026-07-30 — Endpoint inventory and dead bundle transport cleanup
+
+- Deleted obsolete root bundle catalog/update handler entry points. They had no
+  registered production routes after the Connect migration; tests now invoke
+  `handlers/bundles` directly through the same root dependency composition.
+- Corrected `api/cmd/gen-endpoints` to include every currently mounted generated
+  service previously omitted from Connect inventory: Assets, Variant, Metrics,
+  and Intelligence. Added explicit assertions for representative procedure
+  paths and regenerated `.vrooli/endpoints.json` (182 endpoints).
+
+Validation:
+
+- `go test ./... -count=1 -timeout 10m`, `go build ./...`, and `make lint-go`
+  passed in `api/`.
+- Generator test verifies the committed manifest exactly matches the route and
+  mounted-Connect inventory.
+
+## 2026-07-30 — Delivery app-catalog Connect server
+
+- Extended `DownloadService` with `DeleteDownloadApp`, regenerated governed
+  proto artifacts through `vrooli package generate proto`, and implemented
+  list/create/save/delete in `api/handlers/delivery/connect.go`.
+- The handler converts only at the transport edge and delegates validation and
+  persistence to the existing delivery catalog. Direct tests cover generated
+  response conversion, validation rejection, and not-found deletion mapping.
+- Mounted only the four implemented app-catalog procedures behind admin auth.
+  `AuthorizeDownload` is deliberately not mounted yet: its entitlement-aware
+  behavior remains on the established REST path until it is fully migrated.
+- The endpoint generator inventories exactly these mounted DownloadService
+  operations, avoiding an endpoint manifest that advertises an unimplemented
+  procedure.
+
+Validation:
+
+- `vrooli package generate proto` completed.
+- `go test ./... -count=1 -timeout 10m`, `go build ./...`, and `make lint-go`
+  passed in `api/` after regenerating `.vrooli/endpoints.json`.
+
+## 2026-07-30 — Admin profile legacy transport retirement
+
+- Retired the unmounted JSON `GET/PUT /api/v1/admin/profile` handlers after
+  the generated `AdminProfileService` became the UI's only production client.
+  This removes the duplicated password-change workflow rather than preserving
+  a compatibility shim with no registered route.
+- Kept one Connect handler responsible for current-password verification,
+  email uniqueness, password policy/hash generation, session revocation, and
+  the updated signed session cookie. Root characterization tests now call its
+  typed RPC methods and preserve cookie propagation explicitly.
+
+Validation:
+
+- Focused profile tests and `go test ./... -timeout 600s` passed in `api/`.
+- `go build ./...` and `git diff --check` passed.
+
+## 2026-07-30 — API lint and post-extraction cleanup
+
+- Removed unused root catalog/Stripe compatibility adapters revealed by the
+  migration and applied `gofumpt` to the API tree.
+- Corrected the lone staticcheck finding in the delivery authorizer test by
+  using a private typed context key rather than a built-in string key.
+
+Validation:
+
+- `make lint-go`, `go test ./... -timeout 600s`, `go build ./...`, and
+  `git diff --check` passed.
+
+## 2026-07-30 — Governed DOMPurify remediation
+
+- Applied the dependency analyzer's approved pnpm override to force DOMPurify
+  `3.4.12` across Monaco's transitive dependency path. This removes the stale
+  `3.4.8` copy without changing application code or weakening lockfile
+  governance.
+- Did not force unrelated transitive packages across incompatible major lines:
+  remaining minimatch/brace-expansion/picomatch warnings are owned by the
+  Vitest, ESLint, and Tailwind dependency trees and require compatible upstream
+  upgrades or selector-aware overrides.
+
+Validation:
+
+- Full UI Vitest suite and TypeScript typecheck passed.
+- Dependency governance validation passed.
+- Security findings fell from 32 to 26; no DOMPurify advisory remains.
+
+## 2026-07-30 — Governed Vitest 4 security upgrade
+
+- Upgraded `vitest` and `@vitest/coverage-v8` together to `4.0.18` through
+  the dependency analyzer, preserving their peer compatibility. The prior
+  Vitest 3 coverage graph retained vulnerable minimatch and brace-expansion
+  paths.
+- Deliberately deferred Tailwind 4: it is the remaining owner of an old
+  Picomatch path but requires a separate CSS tooling/configuration migration,
+  not a blanket transitive override.
+
+Validation:
+
+- Full UI test run progressed cleanly on Vitest 4.0.18; UI typecheck and
+  production build passed.
+- Security findings fell from 26 to 17 and `git diff --check` passed.
+
+## 2026-07-30 — Tailwind 4 security/toolchain migration
+
+- Migrated from Tailwind 3 to governed Tailwind `4.3.3` with the official
+  `@tailwindcss/postcss` adapter, updating the PostCSS plugin and CSS entry
+  directives while retaining the existing scenario theme configuration.
+- Fixed the CSS import ordering warning introduced by the v4 `@config`
+  directive. The production build is warning-free.
+
+Validation:
+
+- UI typecheck and production build passed; the complete Vitest run progressed
+  cleanly on the upgraded toolchain.
+- Security findings fell from 17 to 13; the Picomatch advisories are gone.
+
+## 2026-07-30 — Native color-input validation semantics
+
+- Corrected UI Health's raw-hex static rule to exempt only hex values inside a
+  statically declared native `input[type=color]`. Those values are required by
+  the browser control's HTML value contract, not inline component styling;
+  normal styled hex values remain detected. Added a focused regression test
+  that proves the distinction.
+- Replaced Branding Settings' text-field hex examples with descriptive format
+  guidance while preserving the color picker defaults and the existing user
+  experience.
+
+Validation:
+
+- The focused UI Health checker package test passed.
+- Restarted UI Health through the scenario lifecycle, then confirmed the
+  landing-page static validation reports zero `standard_no_raw_hex` findings.
+- Landing-page UI typecheck and warning-free production build passed.
+- UI Health's comprehensive run exercised its API and UI-health phases
+  successfully; its overall failure is pre-existing unrelated scenario debt
+  (dependency, unit-policy, storage, workflow, business, security, and proto
+  phases), not this checker change.
+
+## 2026-07-30 — UI coverage-gate diagnosis and VariantSection transport tests
+
+- Reproduced the full-suite unit failure as a real UI coverage threshold miss:
+  all Vitest assertions pass, but V8 branch coverage is 79.6% against the
+  required 85%. The threshold remains unchanged; this is a test-depth work
+  item, not a configuration workaround.
+- Extended the typed variant transport tests through the full VariantSection
+  lifecycle (list, get, create, update, delete), stable response identity
+  validation, JSON-object content validation, malformed generated response
+  handling, complete nested header mapping, and SEO optional-field mapping.
+- Corrected the section-content conversion boundary to accept `unknown` before
+  narrowing it to a JSON object. This makes its defensive null/array rejection
+  type-correct rather than relying on an impossible `Record` null check.
+
+Validation:
+
+- Focused `src/shared/api/variants.test.ts` passes (8 tests).
+- Focused ESLint for the changed source/tests and `git diff --check` pass.
+- The post-first-slice full coverage run improved branch coverage from 79.3%
+  to 79.6%; additional behavior-focused test slices are required to reach 85%.
+
+### Follow-up coverage and lint slice
+
+- Added focused `useInlineAlert` tests for error classification, retry policy,
+  auto-dismiss timing, warning, success, and explicit clear behavior.
+- Extended Remote Profiles route coverage to verify failed test/logout/inspect/
+  revoke/delete operations report errors instead of falsely presenting success.
+- Cleared the declared UI ESLint errors found during certification: made the
+  metrics JSON boundary type-safe, removed a redundant test-mock assertion,
+  awaited the async waitlist export in its test, and explicitly discarded the
+  async click callback promise.
+
+Validation:
+
+- UI typecheck, complete UI lint, and the affected focused Vitest suites pass.
+- Full V8 coverage now reports 80.13% branches. The remaining 4.87 points are
+  intentionally retained as behavior-test work rather than masking them with
+  threshold or exclusion changes.
+
+### Public landing and editor-navigation coverage slice
+
+- Added behavior coverage for the public landing header's custom, section, and
+  nested menu links, including device-specific visibility, hidden CTAs, the
+  fallback signal, and safe initials-only branding when a logo is absent.
+- Added customization-page coverage for direct section navigation, asynchronous
+  section target resolution, and safe fallback when that lookup rejects.
+- Kept the Connect metric payload boundary defensive: serialized metric data is
+  accepted only when it re-parses as a JSON object.
+
+Validation:
+
+- Focused PublicLanding and metrics tests, UI typecheck, complete UI lint, and
+  `git diff --check` pass (lint retains 14 pre-existing warnings and no errors).
+- Complete V8 run: 172 files / 2,056 tests pass. Global branch coverage is
+  80.56% (6,062 / 7,525) against the deliberate 85% gate, so certification
+  remains correctly blocked by 338 uncovered branch outcomes.
+
+### Route and remote-profile hook coverage slice
+
+- Added direct behavior tests for admin-login error classification and retry,
+  public-feedback retry/error recovery, and remote-profile route states
+  (sessionless controls, rejected credentials, save failures, and destructive
+  confirmation).
+- Extended the remote-profile hook seam with success, unknown-error, refresh,
+  state-reconciliation, and busy-state cleanup cases across every action.
+- Added the pricing catalog edge case that preserves a free plan with an
+  unexpected interval while rejecting invalid paid/yearly interval records.
+
+Validation:
+
+- All affected focused Vitest suites, focused ESLint, UI typecheck, and
+  `git diff --check` pass.
+- The complete V8 run after the route slice passed 172 files / 2,062 tests and
+  reached 80.95% branches. After the hook slice it reached 81.12%; the 85%
+  branch gate is still deliberately unmet. The pricing edge test was added
+  after that measurement and has focused validation only.
+
+### Billing catalog hook coverage slice
+
+- Added direct tests for price-form validation, confirmed and declined plan
+  deletion, delete failure recovery, price-check cleanup, and reordering known
+  catalog entries while ignoring unknown ids.
+
+Validation:
+
+- `useBillingForm` passes 31 focused tests; focused lint, UI typecheck, and
+  `git diff --check` pass.
+- The complete V8 run completed all UI tests and reached 81.32% branches. It
+  remains a deliberate certification failure until the required 85% is met.
+
+### Storage wizard coverage slice
+
+- Added direct storage-wizard tests for R2, MinIO, S3, and custom provider
+  detection; invalid navigation bounds; reset behavior; failed settings loads;
+  and safe error handling for connection tests and persistence.
+
+Validation:
+
+- The focused storage-wizard suite passes 10 tests, with focused lint and UI
+  typecheck passing.
+- The complete V8 run passed every UI test and improved global branch coverage
+  to 81.62%. The required 85% branch gate remains open.
+
+### Section, analytics, and metrics resilience coverage slice
+
+- Added section-editor tests for stable-key enforcement, unavailable route
+  identifiers, no-op navigation safeguards, and safe fallback messages from
+  every asynchronous context/preview/comparison source.
+- Added analytics dashboard tests for retryable load failure and incomplete,
+  down-trending detail data.
+- Added metrics hook tests for each interaction event type and for page-view /
+  scroll-band deduplication across concurrent consumers and unmount cleanup.
+- Added a public-landing fallback test proving a signed-off offline page still
+  renders when the remote configuration request also reports an error, and
+  skips disabled or unknown content safely.
+
+Validation:
+
+- Focused Vitest suites, focused lint, and UI typecheck pass for all changed
+  surfaces.
+- The full V8 suite passes every UI test and now reports 81.98% branches. It
+  continues to fail only the deliberate 85% global branch gate.
+
+### Variant editor transport resilience coverage slice
+
+- Added behavior-focused tests for non-`Error` failures while loading a
+  variant, its axes, and its JSON snapshot; these verify the messages shown to
+  operators and ensure loading state is cleared.
+- Covered non-`Error` failures in both form and JSON persistence paths, plus a
+  denied clipboard write while copying actual Monaco validation issues.
+
+Validation:
+
+- The focused `useVariantForm` suite passes all 36 tests, with focused ESLint
+  and UI typecheck passing.
+- The complete V8 suite completes all UI assertions and increases branch
+  coverage to 82.09%. Certification correctly remains blocked solely by the
+  enforced 85% global branch threshold. Full lint has no errors and retains 14
+  unrelated warnings in existing barrel and Fast Refresh files.
+
+### Customization and public-preview coverage slice
+
+- Corrected the customization-hook test seam to mock the hook modules that the
+  production hook actually imports, then added operator-visible coverage for
+  analytics recovery, archive/delete failure alerts, destination navigation,
+  and first-section resolution.
+- Added a public hero preview test that advances through the complete recorded
+  action timeline before the showcase rotates.
+
+Validation:
+
+- Focused customization and hero suites pass 35 assertions, focused ESLint and
+  UI typecheck pass, and the scenario diff has no whitespace errors.
+- The complete V8 suite completes all assertions and reaches 82.11% global
+  branch coverage. The deliberate 85% certification gate remains open.
+
+### Navigation and commerce-hook resilience coverage slice
+
+- Added direct navigation-utility coverage for active route/group discovery,
+  stub recognition, and static plus dynamic breadcrumb construction.
+- Added resizable-column behavior coverage for local persistence validation,
+  constrained dragging, missing-container safety, and cleanup.
+- Expanded waitlist, coupon, and customer-management hooks with their
+  operator-visible non-`Error` fallback and recovery paths.
+
+Validation:
+
+- All focused Vitest suites, focused ESLint, UI typecheck, and scenario diff
+  whitespace checks pass.
+- The complete V8 suite completes all assertions and raises global branch
+  coverage from 82.11% to 82.62%. The 85% certification threshold is still
+  intentionally enforced and remains the sole UI test failure.
+
+### URL focus and feedback-operation coverage slice
+
+- Added customization-flow tests for URL-pinned variants, direct section IDs,
+  and asynchronous section-type resolution; completed requests are consumed to
+  prevent repeated operator navigation.
+- Added feedback-management tests proving fail-closed, operator-safe behavior
+  for non-`Error` load/status/delete/bulk-delete failures.
+
+Validation:
+
+- Focused customization and feedback suites, focused ESLint, and UI typecheck
+  pass.
+- The complete V8 suite completes all assertions and raises global branch
+  coverage from 82.62% to 82.87%. The required 85% threshold remains enforced.
+
+### Selector registry contract repair
+
+- Repaired a selector registry collision: the literal `admin.breadcrumb`
+  selector was overwriting the dynamic selector with the same object key.
+  The dynamic contract is now explicitly named `admin.breadcrumbSegment`, while
+  the legacy literal selector remains stable.
+- Corrected the selector-manifest generator to use the scenario's actual
+  `src/consts` source and output paths, regenerated the manifest, and added
+  contract tests that invoke every published dynamic selector and reject invalid
+  parameter shapes.
+
+Validation:
+
+- Selector contract tests, focused lint, UI typecheck, and scenario whitespace
+  checks pass.
+- The complete V8 suite passes every assertion and reports 82.91% global
+  branch coverage. Certification remains blocked solely by the unchanged 85%
+  global branch threshold.
+
+### UI transport and operator-recovery coverage slice
+
+- Added CTA behavior tests for configured conversion paths and safe no-destination
+  behavior, plus artifact-upload tests for drag-and-drop metadata detection,
+  cancellation, and non-`Error` presign failures.
+- Corrected shared API request wrappers so valid falsy JSON bodies (`false`,
+  `0`, and `null`) are serialized instead of silently discarded; added response
+  fallback, classification override, retryability, compatibility-response, and
+  error-message tests.
+- Added checkout coverage for custom annual plans, malformed optional metadata,
+  and non-retryable validation failures; added remote-profile coverage for
+  remote-side session visibility and busy-action states.
+
+Validation:
+
+- Focused Vitest suites, focused ESLint, UI typecheck, and scenario whitespace
+  checks pass for each completed slice.
+- Full V8 coverage advanced from 82.91% to 83.67% after the CTA, artifact,
+  shared transport, checkout, remote-profile, header-configuration, and
+  download-form slices. The unchanged 85% global branch gate remains the sole
+  unit-test execution error.

@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.telemetry;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry;telemetry_v1";
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  PROGRAM_SUBMITTED = 1;
+  PROGRAM_SUCCEEDED = 2;
+  PROGRAM_FAILED = 3;
+  BINDING_REFUSED = 4;
+  SESSION_RECLAIMED = 5;
+  BINDING_INVOKED = 6;
+  PROGRAM_ACCEPTED = 7;
+  PROGRAM_RUNNING = 8;
+  PROGRAM_CANCELLED = 9;
+  NOMINATION = 10;
+  COVERAGE_MISS = 11;
+}
+
+message ProgramEvent {
+  string event_id = 1;
+  string occurred_at = 2;
+  EventKind kind = 3;
+  string program_id = 4;
+  string session_id = 5;
+  string binding_id = 6;
+  string effect = 7;
+  string provenance = 8;
+  string failure_shape = 9;
+  int64 context_bytes = 10;
+  string reason = 11;
+  string failure_location = 12;
+  int64 sequence = 13;
+  string shape_key = 14;
+  repeated string shape_binding_ids = 15;
+  int64 shape_occurrences = 16;
+  int64 shape_sessions = 17;
+  string dominant_scenario = 18;
+  string covering_contract_id = 19;
+}
+
+message ListEventsRequest {
+  string session_id = 1;
+  EventKind kind = 2;
+}
+message ListEventsResponse {
+  repeated ProgramEvent events = 1;
+}
+service TelemetryService {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+}

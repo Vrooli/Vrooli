@@ -1,0 +1,485 @@
+{
+  "_metadata": {
+    "description": "SDA requirements mapped to literal PRD operational target IDs.",
+    "last_validated_at": "2026-09-02T15:38:22-04:00",
+    "module": "operational-targets",
+    "prd_ref": "PRD.md",
+    "priority": "P0-P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SDA-P0-001",
+      "title": "Declared dependency extraction",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "declared-dependencies",
+      "description": "Parse scenario service metadata and extract declared resource and scenario dependencies.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestRuntimeDependencyHealthReportsRequiredResourceAndScenarioFailures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates `.vrooli/service.json` resource and scenario dependency extraction for runtime health."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-002",
+      "title": "Retained non-import scenario signals",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "legacy-signals",
+      "description": "Retain supported Vrooli command and workflow usage signals until AST facts replace them.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/interfacegraph/builder_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Interface graph tests cover non-import evidence preservation where upstream facts provide it."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-003",
+      "title": "Dependency metadata storage",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "storage",
+      "description": "Persist history-bearing dependency metadata and analysis records in the domain store.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/store",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Store tests validate dependency metadata persistence surfaces."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-004",
+      "title": "Interactive dependency graph UI",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "ui",
+      "description": "Render graph data with operator controls, status states, and selected-node details.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "UI tests and type checks cover graph and governance operator surfaces."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-005",
+      "title": "Semantic scenario matching",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "semantic-matching",
+      "description": "Use Qdrant and embeddings for proposed-scenario similarity with deterministic fallback behavior.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/proposal",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Proposal tests validate semantic matching and deterministic fallback behavior."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-006",
+      "title": "CLI graph access",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "cli",
+      "description": "Expose graph, drift, optimization, export, health, and governance workflows through the SDA CLI.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI package tests and CLI Health discovery validate command availability."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-007",
+      "title": "API graph access",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "api",
+      "description": "Serve REST and Connect endpoints for dependency and graph consumers.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/graph",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Graph API tests validate downstream graph access."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-008",
+      "title": "Actual interface graph",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "actual-graph",
+      "description": "Compute actual scenario edges from proto-health and code-facts batch facts.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/interfacegraph",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Interface graph tests validate upstream proto/import fact interpretation."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-009",
+      "title": "Dependency drift reporting",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "drift",
+      "description": "Compare actual import evidence with declared scenario dependencies using asymmetric severity.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestMaturitySpecCoversDependencyHealthRuleFamilies",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Dependency health maturity coverage includes graph drift rule families."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-010",
+      "title": "Connect graph seam",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "category": "connect",
+      "description": "Expose DescribeInterfaceGraph as the reusable Connect contract for downstream planners.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/graph",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Graph Connect handler tests validate the reusable graph seam."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-011",
+      "title": "SQLite storage cutover",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "sqlite",
+      "description": "Run SDA on SQLite with embedded domain-owned schemas and no Postgres runtime dependency.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/store",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Store tests validate SQLite-backed SDA persistence."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-012",
+      "title": "Test Genie dependency producer",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "dependency-health",
+      "description": "Provide the single read-only SDA health producer consumed by Test Genie's dependencies phase.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../test-genie/api/internal/orchestrator/phases/phase_findings_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Test Genie maps the SDA health response without native dependency fallback."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-013",
+      "title": "Dependency surface readiness",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "readiness",
+      "description": "Discover dependency surfaces through Code Facts and validate commands, runtimes, modules, package managers, lockfiles, and local install state without mutating files.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestReadinessRoutesByDiscoveredSurfaceLanguage",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Readiness routes by discovered surface language and checks Go/Node surface state."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-014",
+      "title": "Runtime dependency health",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "runtime",
+      "description": "Report required resources and scenario dependencies from `.vrooli/service.json` with degraded runtime status evidence.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestRuntimeDependencyHealthReportsRequiredResourceAndScenarioFailures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Runtime health reports required resource and scenario failures."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-015",
+      "title": "Approved dependency governance",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
+      "category": "governance",
+      "description": "Maintain reviewable approved-dependency governance memory for package choices, ranges, constraints, and non-allowlist guidance.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencygovernance/registry_test.go::TestListFindingsFiltersFleetGovernanceFindings",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Governance tests validate review findings and advisory policy behavior."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-016",
+      "title": "Release-age policy validation",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "release-age",
+      "description": "Validate pnpm `minimumReleaseAge` policy and governed release-age exceptions for dependency supply-chain safety.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestReleaseAgeReportsMissingAndLowPNPMPolicy",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Release-age tests validate missing and low pnpm policy findings."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestReleaseAgeAcceptsGovernedExcludes",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Release-age tests validate governed exclusion handling."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P0-017",
+      "title": "Security evidence boundary",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "security-boundary",
+      "description": "Report Security Health dependency-index context in dependency health while keeping vulnerability findings in Security Health and governance evidence workflows.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dependencyhealth/connect_test.go::TestSecurityHealthVulnerabilityEvidenceStaysOutOfHealthFindings",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Dependency health does not call vulnerability evidence or emit security findings."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/dependencygovernance/registry_test.go::TestListSecurityGovernanceGapsReportsCoverageAndApprovedOverlap",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Governance still consumes Security Health vulnerability evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/dependencygovernance/registry_test.go::TestListSecurityGovernanceGapsToleratesSecurityHealthPreamble",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Governance evidence parsing tolerates Security Health CLI wrapper output without moving scanner ownership into SDA."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-001",
+      "title": "Optimization recommendations",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "optimization",
+      "description": "Recommend resource swaps and dependency reductions for lighter deployments.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/optimization",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Optimization tests validate recommendation behavior."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-002",
+      "title": "Dependency impact analysis",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "impact",
+      "description": "Explain which scenarios or resources are affected if a dependency is removed.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add automated impact-analysis validation when OT-P1-002 implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-003",
+      "title": "Dependency history",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "history",
+      "description": "Track dependency changes over time for regression and trend analysis.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add automated history validation when OT-P1-003 implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-004",
+      "title": "Graph export formats",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "export",
+      "description": "Export dependency graphs as JSON, DOT/GraphViz, and image-ready data.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/graph",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Graph tests validate exportable graph payloads."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-005",
+      "title": "Cycle detection",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "cycles",
+      "description": "Detect circular scenario or resource dependency chains.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add automated cycle detection validation when OT-P1-005 implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-006",
+      "title": "Resource cost estimation",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "cost",
+      "description": "Estimate resource cost and deployment weight from dependency depth and resource classes.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add automated cost-estimation validation when OT-P1-006 implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P1-007",
+      "title": "Governance operator workflow",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "governance-ui",
+      "description": "Provide CLI and UI workflows for dependency governance triage, fleet validation, dry-run mutation, security-gap review, and remediation preview.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/governance/GovernancePage.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Governance UI tests validate triage, remediation, and dry-run/apply workflow copy."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/dependencygovernance/registry_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Governance API tests validate fleet triage and security-gap workflow behavior."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P2-001",
+      "title": "Predictive dependency planning",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "planning",
+      "description": "Predict likely dependencies for new scenario proposals from similar historical scenarios.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add automated predictive planning validation when OT-P2-001 implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P2-002",
+      "title": "Refactoring suggestions",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "refactoring",
+      "description": "Suggest refactors that reduce dependency complexity or improve deployment modularity.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add automated refactoring-suggestion validation when OT-P2-002 implementation begins."
+        }
+      ]
+    },
+    {
+      "id": "SDA-P2-003",
+      "title": "CI dependency policy",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "ci",
+      "description": "Integrate with CI and quality loops to validate dependency changes before merge.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Add CI policy validation when OT-P2-003 implementation begins."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,199 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "scenario-to-plugin",
+    "displayName": "Scenario to Plugin",
+    "description": "Deployment ramp that packages, signs, and publishes a Vrooli scenario as an Agent Plugin — Agent Skills plus MCP servers — to agent runtimes and skill registries",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "deployment-ramp",
+      "agent-plugins",
+      "agent-skills",
+      "mcp",
+      "supply-chain",
+      "attestation",
+      "publishing",
+      "skill-registries",
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-19T05:18:31Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a900506f4c658fdc0235b6b3b36665d7cd18676723f90e3184e0c6b69864d342"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-plugin",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-plugin"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "deployment-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Governance plane: release-gate decisions and TargetVerdict ingest.",
+        "degraded_behavior": "Composition, conformance, attestation, and rehearsal remain available; publication and revocation are refused until deployment-manager is healthy, because no release decision can be obtained."
+      },
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Clean-room isolation for install rehearsals.",
+        "degraded_behavior": "Packages can be composed, checked, and attested; rehearsal is refused rather than run unisolated, so no package can reach publication."
+      },
+      "cli-health": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Pinned command-surface source for the skill-to-CLI drift check.",
+        "degraded_behavior": "The drift gate fails closed rather than passing unchecked; composition and readiness remain available."
+      },
+      "secrets-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Registry and signing credential references resolved at publish time.",
+        "degraded_behavior": "The full pipeline runs up to publication; channel calls that need a credential reference are refused with the missing reference named.",
+        "supervision_precedence": "required"
+      },
+      "scenario-dependency-analyzer": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Governed third-party package installation and SBOM dependency facts.",
+        "degraded_behavior": "Runtime is unaffected; SBOM generation falls back to direct manifest inspection and records reduced dependency provenance."
+      },
+      "offer-desk": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Receives per-plugin channel evidence for the skill-registries channel.",
+        "degraded_behavior": "Attribution is recorded locally and forwarded when Offer Desk returns; no pipeline stage blocks."
+      },
+      "knowledge-observatory": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Indexes published skill documentation for fleet-wide search.",
+        "degraded_behavior": "Published packages are unaffected; indexing is deferred until the service returns."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

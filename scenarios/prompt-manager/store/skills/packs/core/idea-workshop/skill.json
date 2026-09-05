@@ -1,12 +1,30 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "idea-workshop",
-  "name": "Idea Workshop",
+  "createdAt": "2026-03-20T00:00:00Z",
   "description": "Collaborative brainstorming methodology for shaping vague intuitions into coherent, structured ideas ready for swarm-manager's idea agent pipeline. Guides the conversation from raw brain-dump through synthesis, sharpening questions, and iteration to a complete backlog submission.",
+  "entry": "SKILL.md",
+  "icon": "lightbulb",
+  "id": "idea-workshop",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Idea Workshop",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "swarm-manager",
+      "swarm-manager backlog",
+      "swarm-manager does"
+    ],
+    "scenarios": [
+      "swarm-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "brainstorming",
@@ -14,10 +32,5 @@
     "collaboration",
     "methodology"
   ],
-  "icon": "lightbulb",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-03-20T00:00:00Z",
   "updatedAt": "2026-03-20T00:00:00Z"
 }

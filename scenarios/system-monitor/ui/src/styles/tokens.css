@@ -4,163 +4,202 @@
  * Surfaces and primitives consume only these variables.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Web fonts (Inter, JetBrains Mono, Share Tech Mono) are loaded
+ * non-render-blocking from index.html via preconnect + async <link>.
+ * A CSS @import here would chain a network request behind this stylesheet,
+ * blocking first paint; the tokens below fall back to system fonts until
+ * the web fonts swap in (font-display: swap). Do NOT re-add an @import. */
 
 /* ═══════════════════════════════════════════════════════════
    DARK THEME (default)
    ═══════════════════════════════════════════════════════════ */
 :root,
 [data-theme="dark"] {
-  /* ── Brand / Accent ── */
-  --color-primary: #5b8af5;
-  --color-primary-hover: #7da6ff;
-  --color-primary-muted: rgba(91, 138, 245, 0.14);
-  --color-primary-text: #ffffff;
+  /* ── Brand / Accent ──
+     ONE accent, and it is the trace colour. `phosphor` is a bench-instrument
+     green-teal rather than a stock blue: this scenario reads a live machine's
+     vital signs, and a CRT trace is the vernacular that world actually uses.
+     Text ON the accent is near-black ink, never white — white on a light
+     phosphor fails contrast, and dark ink on a lit surface is also what real
+     instrument legends do. */
+  --color-primary: #5fd3a6;
+  --color-primary-hover: #7ce0ba;
+  --color-primary-muted: rgba(95, 211, 166, 0.13);
+  --color-secondary: #54b6d6;
+  --color-primary-text: #06120e;
 
-  /* ── Backgrounds ── */
-  --color-background: #080c18;
-  --color-background-alt: #0d1225;
-  --color-surface: #121a30;
-  --color-surface-raised: #182240;
-  --color-surface-overlay: rgba(18, 26, 48, 0.96);
-  --color-surface-hover: #1d2a4a;
+  /* ── Backgrounds ──
+     Graphite, biased a few degrees toward green rather than the blue-navy it
+     replaces. The bias matters: a neutral grey reads as unconsidered and a
+     navy ground reads as the default dashboard, while a ground that shares a
+     hue root with the trace makes the lit trace look emitted rather than
+     pasted on. */
+  --color-background: #0b0e0f;
+  --color-background-alt: #101415;
+  --color-surface: #151a1b;
+  --color-surface-raised: #1c2325;
+  --color-surface-overlay: rgba(21, 26, 27, 0.96);
+  --color-surface-hover: #232b2c;
 
   /* ── Borders ── */
-  --color-border: rgba(100, 140, 200, 0.16);
-  --color-border-strong: rgba(100, 140, 200, 0.3);
+  --color-border: rgba(150, 180, 172, 0.14);
+  --color-border-strong: rgba(150, 180, 172, 0.28);
   --color-border-focus: var(--color-primary);
 
   /* ── Text ── */
-  --color-text: #c8d6e8;
-  --color-text-secondary: #7e92ad;
-  --color-text-muted: #506580;
-  --color-text-heading: #e4ecf7;
-  --color-text-inverse: #080c18;
+  --color-text: #dce4e2;
+  --color-text-secondary: #93a29e;
+  --color-text-muted: #65726f;
+  --color-text-heading: #f0f5f3;
+  --color-text-inverse: #0b0e0f;
 
-  /* ── Semantic status ── */
-  --color-success: #34d399;
-  --color-success-muted: rgba(52, 211, 153, 0.14);
-  --color-success-text: #5eead4;
-  --color-warning: #fbbf24;
-  --color-warning-muted: rgba(251, 191, 36, 0.13);
-  --color-warning-text: #fcd34d;
-  --color-error: #f87171;
-  --color-error-muted: rgba(248, 113, 113, 0.12);
-  --color-error-text: #fca5a5;
-  --color-info: #60a5fa;
-  --color-info-muted: rgba(96, 165, 250, 0.14);
-  --color-info-text: #93c5fd;
+  /* ── Semantic status ──
+     Warm against the cool ground so severity reads before the label does, and
+     deliberately NOT the stock ramp: these are lamp colours, sampled to sit at
+     equal apparent brightness on graphite so no state shouts louder than its
+     severity warrants. */
+  --color-success: #5fd3a6;
+  --color-success-muted: rgba(95, 211, 166, 0.13);
+  --color-success-text: #8ae3c1;
+  --color-warning: #e0a542;
+  --color-warning-muted: rgba(224, 165, 66, 0.13);
+  --color-warning-text: #efc379;
+  --color-error: #e0644a;
+  --color-error-muted: rgba(224, 100, 74, 0.13);
+  --color-error-text: #f0907b;
+  --color-info: #54b6d6;
+  --color-info-muted: rgba(84, 182, 214, 0.13);
+  --color-info-text: #8ad0e6;
 
   /* ── Focus ── */
-  --focus-ring: 0 0 0 3px rgba(91, 138, 245, 0.35);
+  --focus-ring: 0 0 0 3px rgba(95, 211, 166, 0.34);
 
   /* ── Overlays ── */
-  --overlay-backdrop: rgba(4, 6, 16, 0.7);
-  --overlay-light: rgba(8, 16, 36, 0.4);
-  --overlay-medium: rgba(4, 8, 24, 0.5);
+  --overlay-backdrop: rgba(5, 8, 8, 0.72);
+  --overlay-light: rgba(10, 14, 14, 0.4);
+  --overlay-medium: rgba(6, 10, 10, 0.55);
 
   /* ── Shadows ── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 14px rgba(0, 4, 20, 0.45);
-  --shadow-lg: 0 8px 28px rgba(0, 4, 20, 0.5);
-  --shadow-header: 0 1px 4px rgba(0, 2, 12, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-header: 0 1px 4px rgba(0, 0, 0, 0.55);
 
   /* ── Scrollbar ── */
-  --scrollbar-track: #121a30;
-  --scrollbar-thumb: #2a3a5c;
-  --scrollbar-thumb-hover: #3d5278;
+  --scrollbar-track: #151a1b;
+  --scrollbar-thumb: #2c3536;
+  --scrollbar-thumb-hover: #3d4849;
 
-  /* ── Chart / data viz ── */
-  --chart-grid: rgba(100, 140, 200, 0.07);
+  /* ── Chart / data viz ──
+     `--chart-gradient-start-opacity` is deliberately low. A trace whose fill
+     approaches opacity 1 stops reading as a measurement and starts reading as
+     a bar: the fill exists to give the line a body, and the LINE is the datum.
+     The graticule is what makes it legible as an instrument rather than a
+     blob, so it is a real token, not a hairline afterthought. */
+  --chart-grid: rgba(150, 180, 172, 0.09);
+  --chart-grid-strong: rgba(150, 180, 172, 0.16);
   --chart-line-1: var(--color-primary);
   --chart-line-2: var(--color-info);
-  --chart-line-3: var(--color-success);
-  --chart-fill-opacity: 0.15;
+  --chart-line-3: var(--color-warning);
+  --chart-fill-opacity: 0.14;
   --chart-tooltip-bg: var(--color-surface-raised);
   --chart-tooltip-border: var(--color-border-strong);
-  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --chart-cursor-color: rgba(200, 214, 232, 0.3);
-  --chart-gradient-start-opacity: 0.25;
+  --chart-tooltip-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --chart-cursor-color: rgba(220, 228, 226, 0.32);
+  --chart-gradient-start-opacity: 0.2;
   --chart-gradient-end-opacity: 0;
   --chart-dot-stroke: var(--color-surface);
+  /* Halo behind the live endpoint. The newest sample is the one a reader
+     actually looks for, so it gets the only glow on the surface. */
+  --chart-endpoint-halo: rgba(95, 211, 166, 0.28);
 }
 
 /* ═══════════════════════════════════════════════════════════
    LIGHT THEME
    ═══════════════════════════════════════════════════════════ */
+/* The light theme is the same instrument under bench lighting, not an
+   inversion. Two things are deliberately NOT mirrored. The ground is a warm
+   off-white with a green cast rather than the cool slate it replaces, so the
+   neutral still shares a hue root with the trace. And every signal hue is
+   re-picked at paper contrast rather than reused: `#5fd3a6` is legible as a
+   lit trace on graphite and illegible as ink on paper, so the light theme
+   takes the same hue at a depth that actually holds against white. */
 [data-theme="light"] {
   /* ── Brand / Accent ── */
-  --color-primary: #4f46e5;
-  --color-primary-hover: #4338ca;
-  --color-primary-muted: rgba(79, 70, 229, 0.1);
+  --color-primary: #0f8a63;
+  --color-primary-hover: #0b6f50;
+  --color-primary-muted: rgba(15, 138, 99, 0.1);
+  --color-secondary: #1e7a99;
   --color-primary-text: #ffffff;
 
   /* ── Backgrounds ── */
-  --color-background: #f8fafc;
-  --color-background-alt: #f1f5f9;
+  --color-background: #f5f7f5;
+  --color-background-alt: #eef1ef;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
   --color-surface-overlay: rgba(255, 255, 255, 0.97);
-  --color-surface-hover: #f1f5f9;
+  --color-surface-hover: #eef1ef;
 
   /* ── Borders ── */
-  --color-border: rgba(15, 23, 42, 0.1);
-  --color-border-strong: rgba(15, 23, 42, 0.2);
+  --color-border: rgba(26, 35, 33, 0.12);
+  --color-border-strong: rgba(26, 35, 33, 0.24);
   --color-border-focus: var(--color-primary);
 
   /* ── Text ── */
-  --color-text: #334155;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-text-heading: #0f172a;
-  --color-text-inverse: #f8fafc;
+  --color-text: #35403d;
+  --color-text-secondary: #63706d;
+  --color-text-muted: #8d9995;
+  --color-text-heading: #141c1a;
+  --color-text-inverse: #f5f7f5;
 
   /* ── Semantic status ── */
-  --color-success: #16a34a;
-  --color-success-muted: rgba(22, 163, 74, 0.1);
-  --color-success-text: #15803d;
-  --color-warning: #d97706;
-  --color-warning-muted: rgba(217, 119, 6, 0.1);
-  --color-warning-text: #b45309;
-  --color-error: #dc2626;
-  --color-error-muted: rgba(220, 38, 38, 0.08);
-  --color-error-text: #b91c1c;
-  --color-info: #2563eb;
-  --color-info-muted: rgba(37, 99, 235, 0.08);
-  --color-info-text: #1d4ed8;
+  --color-success: #0f8a63;
+  --color-success-muted: rgba(15, 138, 99, 0.1);
+  --color-success-text: #0b6f50;
+  --color-warning: #a8700f;
+  --color-warning-muted: rgba(168, 112, 15, 0.1);
+  --color-warning-text: #855709;
+  --color-error: #bf4227;
+  --color-error-muted: rgba(191, 66, 39, 0.09);
+  --color-error-text: #9c331c;
+  --color-info: #1e7a99;
+  --color-info-muted: rgba(30, 122, 153, 0.09);
+  --color-info-text: #175f78;
 
   /* ── Focus ── */
-  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.3);
+  --focus-ring: 0 0 0 3px rgba(15, 138, 99, 0.28);
 
   /* ── Overlays ── */
-  --overlay-backdrop: rgba(15, 23, 42, 0.4);
-  --overlay-light: rgba(15, 23, 42, 0.04);
-  --overlay-medium: rgba(15, 23, 42, 0.06);
+  --overlay-backdrop: rgba(20, 28, 26, 0.4);
+  --overlay-light: rgba(20, 28, 26, 0.04);
+  --overlay-medium: rgba(20, 28, 26, 0.06);
 
   /* ── Shadows ── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-sm: 0 1px 2px rgba(20, 28, 26, 0.06);
+  --shadow-md: 0 4px 12px rgba(20, 28, 26, 0.09);
+  --shadow-lg: 0 8px 24px rgba(20, 28, 26, 0.13);
+  --shadow-header: 0 1px 3px rgba(20, 28, 26, 0.09);
 
   /* ── Scrollbar ── */
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-track: #eef1ef;
+  --scrollbar-thumb: #c8d0cd;
+  --scrollbar-thumb-hover: #97a29f;
 
   /* ── Chart / data viz ── */
-  --chart-grid: rgba(15, 23, 42, 0.06);
+  --chart-grid: rgba(20, 28, 26, 0.07);
+  --chart-grid-strong: rgba(20, 28, 26, 0.14);
   --chart-line-1: var(--color-primary);
   --chart-line-2: var(--color-info);
-  --chart-line-3: var(--color-success);
-  --chart-fill-opacity: 0.08;
+  --chart-line-3: var(--color-warning);
+  --chart-fill-opacity: 0.09;
   --chart-tooltip-bg: var(--color-surface-raised);
   --chart-tooltip-border: var(--color-border-strong);
-  --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --chart-cursor-color: rgba(15, 23, 42, 0.15);
-  --chart-gradient-start-opacity: 0.15;
+  --chart-tooltip-shadow: 0 6px 18px rgba(20, 28, 26, 0.14);
+  --chart-cursor-color: rgba(20, 28, 26, 0.2);
+  --chart-gradient-start-opacity: 0.16;
   --chart-gradient-end-opacity: 0;
   --chart-dot-stroke: #ffffff;
+  --chart-endpoint-halo: rgba(15, 138, 99, 0.22);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -184,6 +223,13 @@
   /* ── Typography ── */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  /* Third type role: the READOUT face, for metric figures and section
+     eyebrows. Condensed, so a four-digit reading keeps the same optical weight
+     as a two-digit one and a column of cards does not visibly ragged. The
+     fallbacks are ordered narrow-first so a host without the web font degrades
+     to another condensed face rather than jumping to a full-width default. */
+  --font-display: 'Barlow Semi Condensed', 'Bahnschrift', 'Liberation Sans Narrow',
+    'DejaVu Sans Condensed', 'Segoe UI', sans-serif;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -191,6 +237,18 @@
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
+  /* Readout sizes. These exist only for metric figures — the primary number on
+     a card is the thing a reader crosses the room to see, and at --text-3xl it
+     was competing with its own label rather than dominating it. */
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+
+  /* Digits that sit in a column, or that tick every second, must not reflow as
+     they change. Every figure in this app is one or both. */
+  --numeric-tabular: tabular-nums lining-nums;
+
+  /* Uppercase micro-labels need tracking or they set as a solid bar. */
+  --tracking-eyebrow: 0.09em;
   --line-height: 1.6;
   --line-height-tight: 1.3;
 
@@ -204,6 +262,39 @@
   --z-dropdown: 200;
   --z-modal: 1000;
   --z-toast: 1500;
+}
+
+/* App shell. Keep the page itself as the only vertical scroll container so
+   the dashboard behaves predictably inside a Vrooli iframe and on mobile. */
+.app {
+  min-height: 100dvh;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.main-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.main-content > .container {
+  width: min(100% - (var(--spacing-xl) * 2), 1400px);
+  margin: 0 auto;
+  padding: var(--spacing-xl) 0 var(--spacing-xxl);
+}
+
+/* Native controls that do not opt into a component class still receive a
+   visible keyboard affordance. This is intentionally global: feature pages
+   are allowed to use plain controls without reimplementing accessibility. */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -242,15 +333,23 @@ a:focus-visible {
 /* ═══════════════════════════════════════════════════════════
    TYPOGRAPHY
    ═══════════════════════════════════════════════════════════ */
+/* Headings take the condensed readout face, which is what ties the chrome to
+   the metric figures: the same voice states a section name and states a
+   reading. `text-wrap: balance` stops a two-line heading leaving one orphaned
+   word, which is the single most common thing that makes a dashboard look
+   unedited. */
 h1, h2, h3, h4, h5, h6 {
   margin: 0 0 var(--spacing-md) 0;
   color: var(--color-text-heading);
+  font-family: var(--font-display);
   font-weight: 600;
   line-height: var(--line-height-tight);
+  letter-spacing: 0.005em;
+  text-wrap: balance;
 }
 
-h1 { font-size: var(--text-2xl); }
-h2 { font-size: var(--text-xl); }
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-2xl); }
 h3 { font-size: var(--text-lg); }
 h4 { font-size: var(--text-base); }
 
@@ -260,12 +359,64 @@ p {
   color: var(--color-text-secondary);
 }
 
+/* Running prose gets a measure. Body text set to the full width of a wide
+   dashboard is unreadable no matter how good the type is; ~70 characters is
+   the point where the eye reliably finds the next line. Applied opt-in via
+   the class so it never fights a deliberately full-width data table. */
+.prose-measure {
+  max-width: 70ch;
+}
+
+/* Uppercase micro-labels are a real type role here — they name every card,
+   column, and rung. Set as-is they compress into an unreadable bar, so the
+   tracking is part of the definition rather than something each caller
+   remembers to add. */
+.eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* Any figure that sits in a column or ticks on a poll. Without this, digits
+   are proportional and the number visibly jitters as it updates. */
+.tabular {
+  font-variant-numeric: var(--numeric-tabular);
+}
+
+/* All native controls meet the 44px touch target floor, including controls
+   rendered by feature pages that do not use the shared button classes. */
+button,
+select,
+input {
+  min-height: 44px;
+}
+
+/* A checkbox or radio has no intrinsic width to stretch, so min-height alone
+   leaves it about 13px wide and below the tap-target floor the rule above
+   states. Every other input type grows to fill its container and needs no
+   width floor. */
+input[type="checkbox"],
+input[type="radio"] {
+  min-width: 44px;
+}
+
+.app-nav a {
+  min-width: var(--hdr-h);
+  min-height: var(--hdr-h);
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ═══════════════════════════════════════════════════════════
    BUTTONS
    ═══════════════════════════════════════════════════════════ */
 .btn {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-surface);
@@ -276,7 +427,7 @@ p {
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
   text-decoration: none;
   user-select: none;
 }
@@ -393,7 +544,7 @@ p {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: all var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal), opacity var(--transition-normal), transform var(--transition-normal);
 }
 
 .card:hover {
@@ -416,7 +567,7 @@ p {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: all var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal), box-shadow var(--transition-normal), opacity var(--transition-normal), transform var(--transition-normal);
   cursor: pointer;
 }
 
@@ -446,6 +597,10 @@ p {
   color: var(--color-text-heading);
   margin-bottom: var(--spacing-sm);
 }
+
+.metric-observed-at { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: var(--spacing-xs); }
+.metric-state-reason { color: var(--color-warning-text); font-size: var(--text-xs); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .metric-bar {
   width: 100%;
@@ -504,14 +659,76 @@ p {
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
+/* Every control in the chrome is one height, one radius, one border. Before
+   this the right side held five idioms at four heights — a 48px agent button
+   beside 44px icon buttons beside a 44px select with a different radius — and
+   the ragged baseline was most of what made the bar look unfinished.
+   Touch pointers get the 44px tap-target floor; a mouse does not need it, and
+   the 8px per control is exactly what was overflowing the viewport. */
+:root {
+  --hdr-h: 36px;
+}
+
+/* A coarse pointer is the real reason for the 44px floor, so ask for that
+   directly; the width query keeps the floor on the narrow layouts that a
+   touch device reports as fine-pointer. */
+@media (pointer: coarse), (max-width: 899px) {
+  :root {
+    --hdr-h: 44px;
+  }
+}
+
+/* The global `button, select, input { min-height: 44px }` tap-target floor
+   applies to every native control on the page. Inside the chrome the floor is
+   whatever --hdr-h says, which is still 44px on a touch pointer — without this
+   the controls that set only `height` resolved to 36 wide and 44 tall. */
+.app-header-inner button,
+.app-header-inner select {
+  min-height: var(--hdr-h);
+}
+
 .app-header-inner {
   max-width: 1400px;
   margin: 0 auto;
-  padding: var(--spacing-md) var(--spacing-xl);
+  padding: 0.55rem var(--spacing-lg);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
+}
+
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* The nav is the only part allowed to give ground, and it scrolls inside
+   itself rather than pushing the controls off the end of the bar. */
+.app-header-inner > .app-nav {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-header-inner > .app-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* Controls sit against the right edge without `justify-content: space-between`
+   stretching the gaps when the nav is short. */
+.app-header-inner > .flex-row-center:last-child {
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: var(--spacing-xs);
+}
+
+/* A label that collapses to its icon when the bar gets tight. Every control
+   that uses it carries an aria-label, so the accessible name survives. */
+.hdr-label {
+  white-space: nowrap;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -527,8 +744,10 @@ p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
-  padding: 0.4rem 0.75rem;
+  gap: 0.4rem;
+  padding: 0 0.6rem;
+  height: var(--hdr-h);
+  min-height: var(--hdr-h);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -536,7 +755,7 @@ p {
   font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .header-button:hover:not(:disabled) {
@@ -554,36 +773,60 @@ p {
   box-shadow: var(--focus-ring);
 }
 
+/* Square, and square at the same edge length as every other control. The
+   previous rule asked for both a 36px width and a 44px min-width, so the
+   button silently resolved to 44 and only the author's intent was 36. */
 .header-button.icon-button {
-  width: 36px;
-  height: 36px;
+  width: var(--hdr-h);
+  min-width: var(--hdr-h);
+  height: var(--hdr-h);
+  min-height: var(--hdr-h);
   padding: 0;
   border-radius: var(--radius-md);
 }
 
+/* A lamp and a switch that describe the same subsystem read as one instrument,
+   not as two chips that happen to be adjacent. The segment carries the frame;
+   its two halves are still two separate targets, divided by a hairline. */
 .status-control-group {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  display: inline-flex;
+  align-items: stretch;
   position: relative;
+  height: var(--hdr-h);
+  /* An inset ring rather than a border: a real border eats 2px from the
+     container's content box, which left the lamp half at 42px and two pixels
+     under the 44px tap-target floor on a touch pointer. */
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.status-control-group > .header-button {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.status-control-group > .header-button:focus-visible {
+  border-radius: var(--radius-md);
 }
 
 .status-dot-button {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  width: var(--hdr-h);
+  min-width: var(--hdr-h);
   padding: 0;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-radius: var(--radius-md) 0 0 var(--radius-md) !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .status-dot-button:hover {
-  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .status-dot {
@@ -600,6 +843,19 @@ p {
 
 .status-dot.error {
   background: var(--color-warning);
+}
+
+.status-dot.status-critical {
+  background: var(--color-error);
+}
+
+.status-dot.status-warning {
+  background: var(--color-warning);
+}
+
+.status-dot.status-info {
+  background: var(--color-info);
+  animation: none;
 }
 
 @keyframes pulse {
@@ -662,7 +918,7 @@ p {
   font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .status-popover-refresh:hover:not(:disabled) {
@@ -676,16 +932,21 @@ p {
 }
 
 .status-toggle {
-  min-width: 84px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+  border-left: 1px solid var(--color-border) !important;
 }
 
+.status-toggle:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+/* Inside a shared frame the state can no longer be carried by the control's
+   own border, so it moves to the text and the icon. */
 .status-toggle.active {
-  border-color: var(--color-success);
   color: var(--color-success-text);
 }
 
 .status-toggle.inactive {
-  border-color: var(--color-warning);
   color: var(--color-warning-text);
 }
 
@@ -739,7 +1000,7 @@ p {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .terminal-close:hover {
@@ -837,13 +1098,15 @@ p {
   color: var(--color-text-secondary);
   cursor: pointer;
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .modal-close:hover {
@@ -856,9 +1119,49 @@ p {
   box-shadow: var(--focus-ring);
 }
 
+.history-window-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* A <select> cannot carry a pseudo-element, so the caret is drawn on the label
+   that wraps it and the native one is suppressed. */
+.history-window-control::after {
+  content: '';
+  position: absolute;
+  right: 0.55rem;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--color-text-muted);
+  border-bottom: 1.5px solid var(--color-text-muted);
+  transform: translateY(-2px) rotate(45deg);
+  pointer-events: none;
+}
+
+.history-window-control select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 1.6rem !important;
+  height: var(--hdr-h);
+  min-height: var(--hdr-h);
+  padding: 0 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.history-window-control select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* Terminal modal */
 .modal-terminal {
-  width: min(900px, calc(100vw - 3rem));
+  width: min(900px, calc(100% - 3rem));
   max-height: min(80vh, 720px);
   display: flex;
   flex-direction: column;
@@ -947,13 +1250,31 @@ p {
 /* ═══════════════════════════════════════════════════════════
    STATUS BADGES
    ═══════════════════════════════════════════════════════════ */
+/* ── The fill rule ──
+   `--color-success` and `--color-primary` are deliberately the SAME phosphor:
+   in a monitoring instrument, "nominal" and "the instrument's own voice" are
+   genuinely one idea, and the sibling `vrooli-annunciator` panel already
+   establishes lit-green = nominal across Vrooli.
+   That only stays unambiguous because SATURATION encodes the distinction, and
+   this is the rule the whole palette rests on:
+     • a SATURATED fill of the accent means AN ACTION  (`.btn-primary`)
+     • a MUTED tint of the accent means A STATE        (`.badge-success`)
+   So a badge must never take a saturated background, and a button must never
+   be styled as a tinted chip. Break this and a status readout starts looking
+   like something the reader is supposed to click. */
 .badge {
+  display: inline-flex;
+  align-items: center;
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-eyebrow);
+  /* Badges routinely carry counts and durations. */
+  font-variant-numeric: var(--numeric-tabular);
+  white-space: nowrap;
 }
 
 .badge-success {
@@ -1037,10 +1358,24 @@ p {
   animation: spin 1s linear infinite;
 }
 
+/* This previously named only two spinner classes, which left every transition,
+   every keyframe animation, and every smooth scroll in the app running for a
+   reader who asked for none. A monitoring surface is the worst place to get
+   this wrong: it repaints on a poll interval, so residual motion is constant
+   rather than incidental.
+   Animations are reduced to a single near-instant pass rather than `none`,
+   because `animation: none` cancels an animation's final state — an element
+   that fades in via keyframes would stay at its 0% opacity and vanish
+   entirely. A 1ms run lands on the end state immediately, which is what
+   "reduced" means here. */
 @media (prefers-reduced-motion: reduce) {
-  .spinning-loader,
-  .animate-spin {
-    animation: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -1090,7 +1425,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   width: 16px;
   margin-top: -6px;
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -1112,7 +1447,7 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   height: 16px;
   width: 16px;
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
@@ -1409,7 +1744,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-retry:hover {
@@ -1429,7 +1764,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-copy-error:hover {
@@ -1449,7 +1784,7 @@ input[type="range"]::-moz-range-thumb:hover {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-reload:hover {
@@ -1490,7 +1825,7 @@ input[type="range"]::-moz-range-thumb:hover {
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 600;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-terminate:hover {
@@ -1559,13 +1894,53 @@ input[type="range"]::-moz-range-thumb:hover {
    DOMAIN: AGENTS & INVESTIGATIONS
    ═══════════════════════════════════════════════════════════ */
 
+/* The wordmark is an `h1`, so it must declare its own size: the global `h1`
+   rule is sized for page headings (--text-3xl) and would render the chrome
+   title larger than any content on the page beneath it. */
 .system-monitor-title {
   gap: 0.5rem;
+  margin: 0;
+  font-size: var(--text-base);
 }
 
 .system-monitor-title-text {
   white-space: nowrap;
+  font-family: var(--font-display);
   font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-heading);
+}
+
+/* ── Header control grouping ──
+   The right side of the chrome held six unrelated controls in one flat row:
+   an agent dropdown, a health indicator, a time-range select, and three icon
+   buttons. Flat adjacency implies they are peers, and they are not — the
+   time range and pause govern WHAT THE PAGE SHOWS, while theme, settings and
+   terminal govern THE APP. Splitting them with a hairline states that
+   relationship without adding a single word of chrome. */
+.header-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.header-group + .header-group {
+  margin-left: 0.35rem;
+  padding-left: 0.35rem;
+  border-left: 1px solid var(--color-border);
+}
+
+/* Icon buttons in a group read as one control cluster rather than three
+   floating chips: the group carries the frame, the buttons stay quiet until
+   hovered. */
+.header-group .header-button.icon-button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.header-group .header-button.icon-button:hover:not(:disabled) {
+  background: var(--color-surface-hover);
   color: var(--color-text-heading);
 }
 
@@ -1654,24 +2029,41 @@ input[type="range"]::-moz-range-thumb:hover {
 .agent-dropdown-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.9rem;
+  gap: 0.4rem;
+  height: var(--hdr-h);
+  padding: 0 0.6rem;
   border-radius: var(--radius-md);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .agent-dropdown-btn:hover {
   background: var(--color-surface-hover);
 }
 
-.agent-dropdown-btn.active {
+/* Three tones, and only one of them is loud. Before this, "1 Complete" and
+   "2 Active" both lit the accent, so a finished investigation shouted as
+   loudly as a running one and outweighed the current nav item. */
+.agent-dropdown-active {
   background: var(--color-primary-muted);
-  border-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  color: var(--color-text-heading);
+}
+
+.agent-dropdown-active svg:first-of-type {
+  color: var(--color-primary);
+}
+
+.agent-dropdown-success svg:first-of-type {
+  color: var(--color-success);
+}
+
+.agent-dropdown-idle {
+  color: var(--color-text-secondary);
 }
 
 .agent-dropdown-panel {
@@ -1708,7 +2100,7 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--color-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .agent-dropdown-refresh:hover {
@@ -1836,11 +2228,139 @@ input[type="range"]::-moz-range-thumb:hover {
   gap: var(--spacing-sm);
   color: var(--color-text-heading);
   font-weight: 600;
+  min-width: 0;
 }
 
 .metric-detail-headline {
   font-size: var(--text-xl);
   color: var(--color-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.metric-detail-heading {
+  align-items: flex-start;
+  flex: 1 1 28rem;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.detail-layout-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.detail-layout-toolbar__label {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-layout-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.detail-layout-controls__row {
+  display: flex;
+  align-items: end;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.detail-layout-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.detail-layout-controls select {
+  min-height: 2.5rem;
+  min-width: 8rem;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.detail-layout-controls__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detail-layout-controls__sections li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  min-height: 2.5rem;
+  padding: 0 var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.detail-layout-controls__sections li > label {
+  flex-direction: row;
+  align-items: center;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.detail-layout-controls__sections li > span {
+  display: flex;
+  gap: var(--spacing-2xs);
+}
+
+.detail-layout-content {
+  display: grid;
+  grid-template-columns: repeat(var(--detail-columns, 1), minmax(0, 1fr));
+  gap: var(--detail-gap, var(--spacing-lg));
+  min-width: 0;
+}
+
+.detail-layout-content[data-columns="2"] { --detail-columns: 2; }
+.detail-layout-content[data-columns="3"] { --detail-columns: 3; }
+.detail-layout-content[data-density="compact"] { --detail-gap: var(--spacing-sm); }
+.detail-layout-content[data-density="dense"] { --detail-gap: var(--spacing-xs); }
+.detail-layout-section { min-width: 0; }
+
+@media (max-width: 48rem) {
+  .detail-layout-content { grid-template-columns: minmax(0, 1fr); }
+  .detail-layout-controls__row { align-items: stretch; flex-direction: column; }
+  .detail-layout-controls select { width: 100%; }
+}
+
+@media (max-width: 48rem) {
+  .metric-detail-heading {
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .metric-detail-title {
+    font-size: var(--text-lg);
+  }
+
+  .metric-detail-headline {
+    font-size: var(--text-lg);
+  }
 }
 
 .analysis-select-label {
@@ -2082,7 +2602,7 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--overlay-medium);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .trigger-card-enabled {
@@ -2182,11 +2702,76 @@ input[type="range"]::-moz-range-thumb:hover {
   text-align: center;
 }
 
+.logs-page,
+.log-table {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.log-table {
+  overflow-x: auto;
+}
+
+@media (max-width: 480px) {
+  .logs-page {
+    overflow-x: clip;
+  }
+
+  .logs-page .filter-bar {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .logs-page .filter-bar > *,
+  .logs-page .filter-bar .flex-row-center {
+    min-width: 0 !important;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .logs-page .filter-bar input,
+  .logs-page .filter-bar select {
+    min-width: 0 !important;
+    max-width: 100%;
+  }
+}
+
+.incident-timeline-entry + .incident-timeline-entry {
+  border-top: 1px solid var(--color-border);
+}
+
+.incident-timeline-entry-button {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--spacing-sm) 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.incident-timeline-entry-button:hover,
+.incident-timeline-entry-button:focus-visible {
+  color: var(--color-info);
+}
+
+.incident-timeline-entry-button > span:last-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
 /* Icon button — transparent, hover-reveals background */
 .btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   padding: 4px;
   background: transparent;
   border: none;
@@ -2206,9 +2791,7 @@ input[type="range"]::-moz-range-thumb:hover {
     gap: 0.25rem;
   }
 
-  .system-monitor-title-text {
-    display: none;
-  }
+  .system-monitor-title-text { display: inline; }
 
   .agent-spawn-header {
     flex-direction: column;
@@ -2239,30 +2822,521 @@ input[type="range"]::-moz-range-thumb:hover {
   }
 }
 
+@media (max-width: 480px) {
+  body { overflow-x: hidden; }
+  .metrics-grid { gap: var(--spacing-sm); }
+  .metric-card { min-width: 0; padding: var(--spacing-md); }
+  .metric-grid-2col { grid-template-columns: 1fr; }
+  .app-header-inner {
+    flex-wrap: wrap;
+    padding: var(--spacing-sm) var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+  .app-header-brand {
+    flex: 1 1 auto;
+    justify-content: space-between;
+    min-width: min(100%, 18rem);
+  }
+  .app-header-inner > .flex-row-center:last-child {
+    order: 2;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    row-gap: var(--spacing-xs);
+  }
+  .app-header-inner > .app-nav {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0 !important;
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 2px;
+    /* A flex item will not shrink below its min-content width unless this is
+       set, so `overflow-x: auto` above had no effect: instead of scrolling
+       inside itself, the nav forced the header — and with it the page — wider
+       than the viewport, clipping the last link. */
+    min-width: 0;
+  }
+
+  .main-content > .container {
+    width: min(100% - (var(--spacing-md) * 2), 1400px);
+    padding-top: var(--spacing-md);
+  }
+
+  /* Once the cluster wraps, the group divider is a hairline hanging between
+     two rows with nothing on either side of it. The groups still read as
+     groups because each wraps as a unit. */
+  .header-group + .header-group {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .header-group {
+    gap: var(--spacing-xs);
+  }
+
+  .history-window-control select {
+    max-width: 9.5rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Tier 2 — the bar is narrower than brand + nav + every labelled control.
+   The nav becomes the Menu trigger and the two labelled status controls fall
+   back to their icons. Each keeps its aria-label, so nothing is lost to a
+   screen reader; only the redundant visible word goes. */
+@media (max-width: 1079px) {
+  .app-header-inner > .app-nav {
+    display: none;
+  }
+
+  .hdr-label {
+    display: none;
+  }
+
+  .agent-dropdown-btn,
+  .status-toggle {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Tier 3 — not even brand + controls fit on one line, so the bar becomes two
+   rows rather than pushing the last control past the viewport edge. */
+@media (max-width: 899px) {
+  .app-header-inner {
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+  }
+
+  .app-header-brand {
+    flex: 1 1 auto;
+    justify-content: space-between;
+    min-width: min(100%, 18rem);
+  }
+
+  .app-header-inner > .flex-row-center:last-child {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    min-width: 0;
+    margin-left: 0;
+  }
+}
+
+/* The Menu trigger and its panel appear wherever the nav is hidden — the two
+   breakpoints have to be the same one, or there is a band of widths with no
+   navigation at all. */
+@media (max-width: 1079px) {
+  .app-mobile-nav-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    height: var(--hdr-h);
+    min-height: var(--hdr-h);
+    padding: 0 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .app-mobile-nav-trigger:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-border-strong);
+  }
+
+  .app-mobile-nav-trigger:focus-visible,
+  .app-mobile-nav-panel a:focus-visible,
+  .app-mobile-nav-panel button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .app-mobile-nav-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-sticky) + 1);
+    border: 0;
+    background: rgba(0, 0, 0, 0.58);
+    cursor: default;
+  }
+
+  .app-mobile-nav-panel {
+    display: block;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: calc(var(--z-sticky) + 2);
+    width: min(21rem, calc(100vw - var(--spacing-lg)));
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    background: var(--color-surface-overlay);
+    border-left: 1px solid var(--color-border-strong);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .app-mobile-nav-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .app-mobile-nav-panel-title {
+    color: var(--color-text-heading);
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 700;
+  }
+
+  .app-mobile-nav-links {
+    display: grid;
+    gap: var(--spacing-xs);
+    padding-top: var(--spacing-md);
+  }
+
+  .app-mobile-nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    min-height: 48px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .app-mobile-nav-link:hover,
+  .app-mobile-nav-link.active {
+    color: var(--color-text-heading);
+    background: var(--color-surface-hover);
+  }
+
+  .app-mobile-nav-link.active {
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+
+  .app-mobile-nav-current {
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════
    THEME TOGGLE
    ═══════════════════════════════════════════════════════════ */
+/* Was a private copy of the icon-button idiom at its own size. It is the same
+   control as settings and terminal and now says so. */
 .theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--hdr-h);
+  min-width: var(--hdr-h);
+  height: var(--hdr-h);
   padding: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: transparent;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .theme-toggle:hover {
   background: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
+  color: var(--color-text-heading);
 }
 
 .theme-toggle:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATE CARDS — blindness, caution, excursion
+   ═══════════════════════════════════════════════════════════
+   These three exist because an unread value, a warning, and a failure used to
+   render as the same neutral `.card`, which left severity carried by the
+   sentence alone. Each gets a left edge as well as a tint, so the state
+   survives greyscale printing and colour-blindness — the tint alone is not a
+   channel. */
+.card--caution,
+.card--excursion,
+.capacity-blind {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+.card--caution {
+  background: var(--color-warning-muted);
+  border-color: var(--color-border);
+  border-left-color: var(--color-warning);
+}
+
+.card--caution__label {
+  color: var(--color-warning-text);
+}
+
+.card--excursion {
+  background: var(--color-error-muted);
+  border-color: var(--color-border);
+  border-left-color: var(--color-error);
+}
+
+.card--excursion__label {
+  color: var(--color-error-text);
+}
+
+/* Blindness is NOT an error and must not be dressed as one. It takes the muted
+   surface and a dashed edge: dashed reads as "nothing is being drawn here",
+   which is exactly the fact being reported, and it is visually distinct from
+   both the solid caution edge and the solid excursion edge. */
+.capacity-blind {
+  background: var(--color-background-alt);
+  border-color: var(--color-border);
+  border-left-style: dashed;
+  border-left-color: var(--color-text-muted);
+}
+
+.capacity-blind__label {
+  color: var(--color-text-secondary);
+}
+
+.capacity-blind__body {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* The reasons are machine-generated diagnostic strings, so they take the mono
+   face: it signals "this is verbatim output" and stops a path or a binary name
+   being mistaken for prose. */
+.capacity-blind__reasons {
+  margin: 0;
+  padding-left: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.capacity-empty {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMARY NAVIGATION
+   ═══════════════════════════════════════════════════════════
+   These links previously had NO rule of their own. They fell through to the
+   global `a` colour, so all five rendered in the accent at equal weight and
+   the current page was completely unmarked — the nav told you where you could
+   go but never where you were. `NavLink` already emits `.active`; nothing was
+   listening for it.
+
+   The resting state is deliberately quiet. Navigation is not a reading on this
+   page, and five lit accent items compete with the traces, which ARE readings.
+   The accent is spent on the current page only. */
+.app-nav-link {
+  position: relative;
+  padding: var(--spacing-xs) 0.55rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.app-nav-link:hover {
+  color: var(--color-text-heading);
+  background: var(--color-surface-hover);
+}
+
+.app-nav-link.active {
+  color: var(--color-text-heading);
+}
+
+/* The current page carries a lit underline as well as a colour shift, so the
+   state survives greyscale and does not depend on the reader distinguishing
+   two similar text colours. `::after` rather than a border keeps the link from
+   shifting by a pixel as it becomes active. */
+.app-nav-link.active::after {
+  content: '';
+  position: absolute;
+  left: var(--spacing-sm);
+  right: var(--spacing-sm);
+  bottom: 2px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+.app-nav-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.app-mobile-nav-trigger,
+.app-mobile-nav-panel,
+.app-mobile-nav-scrim {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FORM CONTROL BASELINE
+   ═══════════════════════════════════════════════════════════
+   About twenty text inputs and selects across this app render as bare
+   elements with no shared class, so they fell through to the user agent's
+   default — a white field with black text — on a committed dark page. The
+   Capacity policy levers were the most visible case: two blinding white bars
+   across an otherwise dark surface.
+
+   Fixing this at the ELEMENT level rather than by adding a class to twenty
+   call sites is deliberate. It repairs every existing control at once and,
+   more importantly, every control added later: a contributor who writes a
+   plain `<input>` now gets the themed field automatically instead of
+   reintroducing this bug. `.input-field` still exists and still wins, because
+   a class outranks an element selector — this is a floor, not a replacement.
+
+   Checkboxes and radios are excluded on purpose. They are drawn by the
+   platform, and giving them a surface background and a 1px border is what
+   makes a themed checkbox look broken. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  background: var(--color-background);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Checkboxes and radios still need to adopt the accent, which is the one part
+   of their appearance the platform will take from us without redrawing them. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+/* A lever value is an identifier or a raw quantity, not prose. The mono face
+   keeps `1m0s` and `268435456` legible and stops them wrapping mid-token. */
+.policy-lever-key,
+.policy-lever-value {
+  font-family: var(--font-mono);
+}
+
+.policy-lever-value {
+  font-variant-numeric: var(--numeric-tabular);
+}
+
+/* A lever value is a duration, a byte count, or a short enum — never prose.
+   Stretching the field to the full page width gave a three-character value a
+   1600px box and pushed its Save button so far from it that they no longer
+   read as one control. Capping the measure keeps the pair together. */
+.policy-lever-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.policy-lever-row > input,
+.policy-lever-row > select {
+  flex: 0 1 22ch;
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CRASH FORENSICS LAYOUT
+   ═══════════════════════════════════════════════════════════
+   `.forensics-grid` had no rule of its own; the layout came entirely from a
+   migrated inline style of `repeat(auto-fit, minmax(320px, 1fr))`. At desktop
+   width that resolves to four columns, which suits the four short evidence
+   cards but strands the autoheal check list — twenty-odd rows of check name,
+   verdict and reason — in a single 320px column with three-quarters of the
+   row empty beside it. */
+.forensics-panel--wide {
+  grid-column: 1 / -1;
+}
+
+/* Given the full width, the check list becomes a readable multi-column set
+   rather than one very long scroll. `columns` (not grid) is deliberate: the
+   list is sorted by severity in the component, and column flow fills each
+   column top-to-bottom in document order, so the failing checks stay together
+   at the head of the first column. */
+.forensics-panel--wide ul {
+  columns: 20rem auto;
+  column-gap: var(--spacing-xl);
+}
+
+/* Without this a check row can be split across a column break, putting its
+   verdict in one column and its reason in the next. */
+.forensics-panel--wide li {
+  break-inside: avoid;
+}
+
+/* The primary navigation rules live below the older responsive layout block
+   in this stylesheet. Keep the visibility contract explicit here so the
+   mobile trigger and panel cannot be hidden by source-order changes above.
+   This breakpoint MUST match the one that hides `.app-nav`; when they drifted
+   apart there was a band of widths with no navigation at all. */
+@media (max-width: 1079px) {
+  .app-mobile-nav-trigger { display: inline-flex; }
+  .app-mobile-nav-panel { display: block; }
+  .app-mobile-nav-scrim { display: block; }
 }

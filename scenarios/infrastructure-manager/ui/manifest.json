@@ -1,0 +1,121 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "react-vite template UI manifest",
+  "description": "Declares where UI building blocks live in scenarios generated from the react-vite template. Consumed by react-component-library's adoption resolver to compute canonical filesystem paths for adopted components.",
+  "schemaVersion": "2.0.0",
+  "targets": ["react-vite"],
+  "idiom": "react-typescript",
+  "provides": ["design-tokens", "ui-provider"],
+  "gates": ["types", "tokens", "lifecycle"],
+  "templateStructureVersion": "react-vite/v2",
+  "slotCoverage": "full",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "react-vite",
+    "extensionRule": "Scenarios may override individual slot `dir` values inside their own .vrooli/ui-manifest.json overlay. New slot names must be added to the template manifest, not the overlay."
+  },
+  "slots": {
+    "ui-primitive": {
+      "dir": "ui/src/components/ui",
+      "description": "Headless primitives (button, input, textarea) that other components compose. Kebab-case filenames.",
+      "pathPattern": "{dir}/{kebab-name}.tsx",
+      "barrel": null
+    },
+    "shared-component": {
+      "dir": "ui/src/components",
+      "description": "Cross-cutting components used by multiple features or layouts (e.g. ErrorBoundary).",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "barrel": null
+    },
+    "layout-shell": {
+      "dir": "ui/src/layout",
+      "description": "App shell (AppShell, root container components). Shares the layout dir with layout-nav by design.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true,
+      "barrel": null
+    },
+    "layout-nav": {
+      "dir": "ui/src/layout",
+      "description": "Navigation surfaces inside the shell (Sidebar, TopBar, BottomNav). Shares the layout dir with layout-shell by design.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true,
+      "barrel": null
+    },
+    "page": {
+      "dir": "ui/src/pages",
+      "description": "Routed pages mounted under the shell's Outlet.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "barrel": null
+    },
+    "feature": {
+      "dir": "ui/src/features/{feature}",
+      "description": "Feature folder. Owns its own components, hooks, API client wrapper, and tests.",
+      "pathPattern": "{dir}",
+      "multiFile": true,
+      "requiresFeature": true,
+      "barrel": null
+    },
+    "feature-component": {
+      "dir": "ui/src/features/{feature}",
+      "description": "A single component inside a feature folder.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "requiresFeature": true,
+      "barrel": null
+    },
+    "hook": {
+      "dir": "ui/src/hooks",
+      "description": "React hooks reusable across features.",
+      "pathPattern": "{dir}/{camelName}.ts",
+      "barrel": null
+    },
+    "api-client": {
+      "dir": "ui/src/api",
+      "description": "Connect-RPC client modules and small API wrappers.",
+      "pathPattern": "{dir}/{camelName}.ts",
+      "barrel": null
+    },
+    "lib-util": {
+      "dir": "ui/src/lib",
+      "description": "Framework-agnostic utility modules.",
+      "pathPattern": "{dir}/{camelName}.ts",
+      "barrel": null
+    },
+    "consts": {
+      "dir": "ui/src/consts",
+      "description": "Compile-time constants (selectors, strings registry).",
+      "pathPattern": "{dir}/{camelName}.ts",
+      "barrel": null
+    },
+    "i18n-strings": {
+      "dir": "ui/src/i18n/locales",
+      "description": "i18next catalog JSON files. One per locale.",
+      "pathPattern": "{dir}/{locale}.json",
+      "barrel": null
+    },
+    "theme-token": {
+      "dir": "ui/src/theme",
+      "description": "Theme provider + CSS custom-property tokens.",
+      "pathPattern": "{dir}/{kebab-name}.css",
+      "barrel": null
+    },
+    "test-util": {
+      "dir": "ui/src/test-utils",
+      "description": "Test-only helpers (renderWithProviders, factories, a11y).",
+      "pathPattern": "{dir}/{camelName}.ts",
+      "barrel": null
+    },
+    "service": { "dir": "ui/src/services", "pathPattern": "{dir}/{camelName}.ts", "barrel": null },
+    "provider": { "dir": "ui/src/providers", "pathPattern": "{dir}/{ComponentName}.tsx", "barrel": null },
+    "adapter": { "dir": "ui/src/adapters", "pathPattern": "{dir}/{camelName}.ts", "barrel": null },
+    "pattern": { "dir": "ui/src/patterns", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null },
+    "page-template": { "dir": "ui/src/templates", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null },
+    "fixture": { "dir": "ui/src/fixtures", "pathPattern": "{dir}/{camelName}.ts", "barrel": null },
+    "visual-recipe": { "dir": "ui/src/visual", "pathPattern": "{dir}/{kebab-name}.ts", "barrel": null },
+    "motion": { "dir": "ui/src/motion", "pathPattern": "{dir}/{camelName}.ts", "barrel": null }
+  },
+  "defaults": {
+    "slot": "shared-component",
+    "fallbackDir": "ui/src/components"
+  }
+}

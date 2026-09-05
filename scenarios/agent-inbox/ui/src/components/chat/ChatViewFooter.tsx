@@ -21,7 +21,7 @@ interface ChatViewFooterProps {
   editingMessage?: Message | null;
   onCancelEdit?: () => void;
   onSubmitEdit?: (payload: MessagePayload) => void;
-  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  onTemplateActivated?: (templateId: string) => Promise<void>;
   activeTemplateId?: string | null;
   onTemplateDeactivate?: () => void;
 }
@@ -70,7 +70,7 @@ export function ChatViewFooter({
       <AgentStartModal
         isOpen={agent.showAgentStartModal}
         onClose={() => { agent.setShowAgentStartModal(false); agent.setPendingAgentMessage(""); }}
-        onStart={agent.handleStartAgent}
+        onStart={(config) => { void agent.handleStartAgent(config); }}
         defaultSettings={agent.agentSettings}
         isLoading={agent.isStartingAgent}
         error={agent.agentError}
@@ -79,7 +79,7 @@ export function ChatViewFooter({
       <AttachRunModal
         isOpen={agent.showAttachModal}
         onClose={() => agent.setShowAttachModal(false)}
-        onAttach={agent.handleAttachRun}
+        onAttach={(run) => { void agent.handleAttachRun(run); }}
         isLoading={agent.isAttaching}
       />
     </>

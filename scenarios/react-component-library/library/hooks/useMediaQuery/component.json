@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-media-query",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:useMediaQuery"
+}

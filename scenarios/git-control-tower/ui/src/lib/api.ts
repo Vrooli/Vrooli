@@ -33,6 +33,9 @@ export type {
   RepoStatus,
   RepoHistoryResponse,
   RepoHistoryEntry,
+  CommitCheckRun,
+  CommitCheckKind,
+  CommitCheckStatus,
   DiffHunk,
   DiffStats,
 } from "./api-types-repo";
@@ -50,12 +53,21 @@ export type {
   UnstageResponse,
   CommitRequest,
   CommitResponse,
+  PrecommitConfig,
+  PrecommitRunRequest,
+  PrecommitRunResponse,
+  PrecommitRunResult,
+  PrecommitStreamEvent,
+  PrecommitStreamEventType,
+  PrecommitHookState,
   DiscardRequest,
   DiscardResponse,
   IgnoreRequest,
   IgnoreResponse,
   GroupingRulesConfig,
   GroupingRuleAPI,
+  ChangeGroupAPI,
+  RepoGroupsResponse,
   GitignoreHealthResponse,
   GitignoreSuggestion,
   GitignoreMoveRequest,
@@ -90,6 +102,10 @@ export type {
   SaveFileContentRequest,
   SaveFileContentResponse,
   SaveFileContentConflictResponse,
+  TrackedBinariesResponse,
+  TrackedBinary,
+  UntrackBinaryRequest,
+  UntrackBinaryResponse,
 } from "./api-types-operations";
 export { FileContentConflictError } from "./api-types-operations";
 
@@ -102,6 +118,10 @@ export {
   stageFiles,
   unstageFiles,
   createCommit,
+  fetchPrecommitConfig,
+  savePrecommitConfig,
+  runPrecommit,
+  runPrecommitStream,
   discardFiles,
   ignoreFile,
   pushToRemote,
@@ -154,9 +174,12 @@ export type {
 export {
   fetchCapabilities,
   fetchGroupingRules,
+  fetchRepoGroups,
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
+  fetchTrackedBinaries,
+  untrackBinary,
   fetchCredentials,
   saveCredential,
   deleteCredential,
@@ -180,7 +203,6 @@ export type {
   CaptureTrigger,
   CaptureStatus,
   SnapshotRole,
-  CaptureMode,
   CaptureTheme,
   CapturePreset,
   SnapshotStalenessInfo,
@@ -189,11 +211,6 @@ export type {
   SnapshotSetDetail,
   VisualCaptureListResponse,
   CaptureStorageStats,
-  ExecutionMode,
-  WorkflowExecutionResult,
-  WorkflowCaptureResult,
-  WorkflowCaptureListResponse,
-  WorkflowCaptureDetailResponse,
 } from "./api-visual";
 export {
   SIZE_PRESETS,
@@ -212,10 +229,6 @@ export {
   buildCaptureScreenshotUrl,
   fetchScreenshotPath,
   buildCaptureVideoUrl,
-  triggerWorkflowCapture,
-  fetchWorkflowCaptures,
-  fetchWorkflowCaptureDetail,
-  buildWorkflowVideoUrl,
 } from "./api-visual";
 
 // Test execution & tidiness
@@ -239,9 +252,6 @@ export type {
   TidinessScenarioDetail,
 } from "./api-testing";
 export {
-  triggerTestExecution,
-  fetchTestExecutions,
-  fetchTestExecution,
   fetchTidinessScore,
   fetchTidinessIssues,
   fetchTidinessStaleness,

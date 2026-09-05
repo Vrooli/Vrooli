@@ -6,12 +6,24 @@
       "target": "assert-builder-ready",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
-    {
-      "id": "e6",
-      "source": "assert-builder-ready",
-      "target": "assert-multiple-nodes",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
+  {
+    "id": "e6",
+    "source": "assert-builder-ready",
+    "target": "add-connection-source",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e6a",
+    "source": "add-connection-source",
+    "target": "assert-connection-source",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
+  {
+    "id": "e6b",
+    "source": "assert-connection-source",
+    "target": "assert-multiple-nodes",
+    "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  },
     {
       "id": "e7",
       "source": "assert-multiple-nodes",
@@ -63,11 +75,15 @@
   ],
   "metadata": {
     "description": "Validates creating a connection between two nodes by dragging from output handle to input handle",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Builder Create Connection",
+    "version": "1"
   },
   "nodes": [
     {
@@ -104,8 +120,38 @@
     },
     {
       "action": {
+        "drag_drop": {
+          "source_selector": "@selector/nodePalette.cards.click",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Create a deterministic connection source node"
+        },
+        "type": "ACTION_TYPE_DRAG_DROP"
+      },
+      "id": "add-connection-source"
+    },
+    {
+      "action": {
+        "assert": {
+          "failure_message": "A Click node should be available as the connection source",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "selector": ".react-flow__node.workflow-node--click",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Verify connection source node"
+        },
+        "type": "ACTION_TYPE_ASSERT"
+      },
+      "id": "assert-connection-source"
+    },
+    {
+      "action": {
         "evaluate": {
-          "expression": "document.querySelectorAll('.react-flow__node').length >= 2",
+          "expression": "document.querySelectorAll('.react-flow__node').length \u003e= 2",
           "store_result": "hasMultipleNodes"
         },
         "metadata": {
@@ -131,7 +177,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const firstNode = document.querySelector('.react-flow__node:first-of-type'); if (!firstNode) return null; const handle = firstNode.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "expression": "(() =\u003e { const source = document.querySelector('.react-flow__node.workflow-node--click'); if (!source) return null; const handle = source.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
           "store_result": "firstNodeHandle"
         },
         "metadata": {
@@ -144,7 +190,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node'); if (nodes.length < 2) return null; const secondNode = nodes[1]; const handle = secondNode.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "expression": "(() =\u003e { const target = document.querySelector('.react-flow__node[data-type=\"navigate\"]'); if (!target) return null; const handle = target.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
           "store_result": "secondNodeHandle"
         },
         "metadata": {
@@ -157,7 +203,7 @@
     {
       "action": {
         "hover": {
-          "selector": ".react-flow__node:first-of-type",
+          "selector": ".react-flow__node.workflow-node--click",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -165,25 +211,19 @@
         },
         "type": "ACTION_TYPE_HOVER"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
       "id": "hover-first-node"
     },
     {
       "action": {
         "drag_drop": {
-          "source_selector": ".react-flow__node:first-of-type .react-flow__handle-bottom, .react-flow__node:first-of-type .react-flow__handle-right",
-          "target_selector": ".react-flow__node:nth-of-type(2) .react-flow__handle-top, .react-flow__node:nth-of-type(2) .react-flow__handle-left",
+          "source_selector": ".react-flow__node.workflow-node--click [data-testid=\"workflow-node-source-handle\"]",
+          "target_selector": ".react-flow__node[data-type=\"navigate\"] [data-testid=\"workflow-node-target-handle\"]",
           "timeout_ms": 10000
         },
         "metadata": {
           "label": "Drag from first node output to second node input"
         },
         "type": "ACTION_TYPE_DRAG_DROP"
-      },
-      "execution_settings": {
-        "wait_after_ms": 2000
       },
       "id": "drag-connection"
     },
@@ -203,7 +243,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const initial = Number(${@store/initialEdgeCount} || 0); const final = Number(${@store/finalEdgeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
+          "expression": "Number('${@store/finalEdgeCount}') > Number('${@store/initialEdgeCount}')",
           "store_result": "connectionWasAdded"
         },
         "metadata": {

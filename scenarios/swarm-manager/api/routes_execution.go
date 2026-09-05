@@ -2,27 +2,49 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"swarm-manager/internal/autofiler"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/review"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 )
 
-func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service {
+func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *execution.Service {
 	// Create archiver from scenarios handler for post-spec-sync archive
 	var archiver execution.Archiver
 	if s.scenariosHandler != nil {
 		archiver = scenarios.NewArchiver(s.scenariosHandler)
 	}
 
+	storePath, err := runtimepaths.StatePath("execution-runs.json")
+	if err != nil {
+		panic(err)
+	}
+
+	// Baseline Modes engagement (plan P6 §200): opt-in via
+	// SWARM_MANAGER_BASELINE_ENGAGEMENT so execution fronts each declared scenario
+	// with a live-mode `baseline start` (git-free restore point) and
+	// promotes-on-green / abandons-on-terminal-failure at finalization. Default
+	// off — the mechanism is dormant until an operator flips the env, which keeps
+	// the reflexive kernel unperturbed during rollout.
+	finalizationCfg := execution.DefaultFinalizationConfig()
+	finalizationCfg.BaselineEngagementEnabled = baselineEngagementEnabled()
+
 	// Execution control endpoints
 	cfg := execution.ServiceConfig{
-		RootDir:                  scenarioRoot,
-		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
+		DataRoot:                 dataRoot,
+		RepoRoot:                 scenarioRoot,
+		StorePath:                storePath,
 		SelfScenarioName:         "swarm-manager",
 		PolicyProvider:           settings.NewPolicyAdapter(s.settingsStore),
 		GovernanceProvider:       settings.NewGovernanceAdapter(s.settingsStore),
@@ -32,8 +54,59 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 		ScenarioHealthChecker:    scenarios.NewCLIHealthChecker(20 * time.Second),
 		Archiver:                 archiver,
 		ReviewClient:             execution.NewHTTPReviewClient(nil),
+		BaselineClient:           execution.NewConnectBaselineClient(nil),
+		BaselineEngagementRunner: &execution.GCTBaselineEngagementRunner{ProjectRoot: repoRootFromScenarioRoot(scenarioRoot)},
+		PlanRenderer:             planclient.NewConnectClient(nil, nil),
+		TransitionRegistry:       s.transitionRegistry,
+		Finalization:             finalizationCfg,
 	}
 	s.executionSvc = execution.NewService(cfg)
+	if s.agentActivitySvc != nil {
+		s.executionSvc.SetWorkflowActivityRecorder(s.agentActivitySvc)
+	}
+	// Wire the agentactivity service in as the lane reader so
+	// GovernanceStatus reports per-lane utilization for all four canonical
+	// lanes (Execute is also visible via execution.Records, but the other
+	// three only live in the activity store).
+	if s.agentActivitySvc != nil {
+		s.executionSvc.SetActivityLaneReader(s.agentActivitySvc)
+	}
+	// Wire the governed backlog auto-filer. The fix-before-feature gate only
+	// wakes this sweeper; the sweeper owns policy, targeting, finding source,
+	// and filing.
+	if s.backlogHandler != nil {
+		filerCfg := backlog.ServiceConfig{
+			Store:    s.backlogHandler.Store(),
+			Assigner: s.milestoneAssigner,
+		}
+		if s.emitter != nil {
+			filerCfg.Events = s.emitter
+		}
+		if filerSvc, filerErr := backlog.NewService(filerCfg); filerErr == nil {
+			source := autofiler.TestGenieFindingSource{Health: scenarios.NewTestGenieHealthSource(3 * time.Second)}
+			sweeper := autofiler.NewSweeper(
+				settings.NewGovernanceAdapter(s.settingsStore),
+				s.backlogHandler.Store(),
+				s.eventRepo,
+				autofiler.NewFiler(filerSvc, s.goalService),
+				source,
+			)
+			sweeper.Reconciler = filerSvc
+			dismissals := autofiler.NewDismissalStore(dataRoot)
+			sweeper.Dismissals = dismissals
+			sweeper.Feature = autofiler.FeaturePendingStrategy{
+				BacklogReader:    s.backlogHandler.Store(),
+				SelfScenarioName: "swarm-manager",
+			}
+			sweeper.Importance = autofiler.ImportanceStrategy{}
+			s.autoFilerSweeper = sweeper
+			s.executionSvc.SetAutoFilerWaker(sweeper)
+			autofiler.RegisterConnectService(
+				s.router,
+				autofiler.NewConnectService(settings.NewGovernanceAdapter(s.settingsStore), sweeper, s.backlogHandler.Store(), filerSvc, dismissals),
+			)
+		}
+	}
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
 	s.executionHandler.RegisterRoutes(s.router)
 
@@ -43,15 +116,77 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 	}
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetExecutionQueuer(s.executionSvc)
+		s.backlogHandler.SetFollowUpDispatcher(executionFollowUpDispatcher{service: s.executionSvc})
+		if s.goalsHandler != nil {
+			goalHandler := s.goalsHandler
+			s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, status backlog.BacklogStatus) {
+				goalHandler.StartMilestoneReviewsForTerminalItem(ctx, kind, name, status)
+			})
+		}
+
+		// Baseline Modes engagement close (plan P-c): promote/abandon the owner's
+		// whole engagement set at the review-decide terminal transition — the
+		// atomic accept/reject — not at finalization. Chained via Add so it
+		// coexists with other terminal observers.
+		execSvc := s.executionSvc
+		s.backlogHandler.AddItemTerminalHandler(func(ctx context.Context, kind, name string, status backlog.BacklogStatus) {
+			execSvc.CloseOwnerEngagements(ctx, kind, name, engagementCloseDecisionForStatus(status))
+		})
 	}
 	return s.executionSvc
 }
 
+// engagementCloseDecisionForStatus maps a backlog terminal status onto the
+// execution package's engagement-close decision. Accept (completed) promotes the
+// set; reject (failed) abandons it; needs_followup leaves it open for the next
+// run under the same owner.
+func engagementCloseDecisionForStatus(status backlog.BacklogStatus) execution.EngagementCloseDecision {
+	switch status {
+	case backlog.StatusCompleted:
+		return execution.EngagementPromote
+	case backlog.StatusFailed:
+		return execution.EngagementAbandon
+	default:
+		return execution.EngagementLeaveOpen
+	}
+}
+
+// baselineEngagementEnabled reports whether Baseline Modes engagements are
+// turned on for backlog execution (plan P6 §200). Opt-in via
+// SWARM_MANAGER_BASELINE_ENGAGEMENT (1/true/yes/on, case-insensitive); default
+// off so the reflexive kernel runs unchanged until an operator enables it.
+func baselineEngagementEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("SWARM_MANAGER_BASELINE_ENGAGEMENT"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// repoRootFromScenarioRoot derives the repo root from the scenario source path
+// (`<repo>/scenarios/swarm-manager` → `<repo>`), used as the working dir for the
+// git-control-tower engagement runner. Returns "" when the path does not look
+// like a scenario root (the runner then inherits the process working dir; GCT
+// baseline verbs resolve scenarios via the vrooli registry regardless).
+func repoRootFromScenarioRoot(scenarioRoot string) string {
+	root := strings.TrimSpace(scenarioRoot)
+	if root == "" {
+		return ""
+	}
+	parent := filepath.Dir(root)
+	if filepath.Base(parent) == "scenarios" {
+		return filepath.Dir(parent)
+	}
+	return ""
+}
+
 func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Service) {
-	backlogStore := backlog.NewFileStore(scenarioRoot)
+	backlogStore := backlog.NewFileStore(s.dataRoot)
+	reviewPlanClient := planclient.NewConnectClient(nil, nil)
 	cfg := review.ServiceConfig{
-		RootDir:      scenarioRoot,
-		AgentService: s.requireTrackedAgentService(),
+		DataRoot:     s.dataRoot,
+		RunInspector: s.requireTrackedAgentService(),
 		ItemDirFn:    func(kind, name string) string { return backlogStore.ItemDir(backlog.BacklogKind(kind), name) },
 		LoadItemTitle: func(kind, name string) (string, error) {
 			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
@@ -59,6 +194,53 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 				return "", err
 			}
 			return item.Title, nil
+		},
+		LoadReviewContract: func(kind, name string) (review.ReviewContract, error) {
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return review.ReviewContract{}, err
+			}
+			return review.ReviewContract{Description: item.Description, Criteria: item.AcceptanceCriteria}, nil
+		},
+		PlanContentResolver: func(ctx context.Context, kind, name, _ string) (string, error) {
+			if strings.EqualFold(strings.TrimSpace(kind), string(backlog.KindResearch)) {
+				return "", nil
+			}
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return "", err
+			}
+			if item.PlanRef == nil {
+				return "", fmt.Errorf("backlog item %s/%s has no plan_ref", kind, name)
+			}
+			planID := strings.TrimSpace(item.PlanRef.PlanID)
+			if planID == "" {
+				planID = strings.TrimSpace(item.PlanRef.Slug)
+			}
+			if planID == "" {
+				return "", fmt.Errorf("backlog item %s/%s plan_ref has no plan id or slug", kind, name)
+			}
+			rendered, err := reviewPlanClient.RenderMarkdown(ctx, planID, true)
+			if err != nil {
+				return "", err
+			}
+			return rendered.Markdown, nil
+		},
+		// When a review round finishes (complete or failed), flip the backlog
+		// item from in_review to review_pending so the user can assess and
+		// decide the terminal status via the review-decide endpoint.
+		OnRoundTerminal: func(ctx context.Context, kind, name string, round review.Round) {
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return
+			}
+			// Only transition from in_review; any other state means the user
+			// (or another flow) has already taken over — don't overwrite.
+			if item.Status != backlog.StatusInReview {
+				return
+			}
+			item.Status = backlog.StatusReviewPending
+			_ = backlogStore.SaveItem(item)
 		},
 	}
 	if execSvc != nil {
@@ -85,9 +267,13 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 
 			ctxOut.AffectedScenarios = append([]string(nil), record.Finalization.AffectedScenarios...)
 			resultsByScenario := make(map[string]any)
+			baselineByScenario := make(map[string]execution.BaselineDiffResult)
 			for _, scenario := range record.Finalization.Scenarios {
 				if len(scenario.ChangedPaths) > 0 {
 					ctxOut.ChangedPathsByScenario[scenario.ScenarioName] = append([]string(nil), scenario.ChangedPaths...)
+				}
+				if scenario.BaselineDiff != nil {
+					baselineByScenario[scenario.ScenarioName] = *scenario.BaselineDiff
 				}
 				if scenario.Review.Result == nil {
 					continue
@@ -100,16 +286,71 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 				}
 			}
 			ctxOut.GCTResultsJSON = review.MarshalScenarioGCTResults(resultsByScenario)
+			ctxOut.BaselineDiffJSON = execution.MarshalBaselineDiffResults(baselineByScenario)
 
 			return ctxOut, nil
 		}
 	}
 	s.reviewSvc = review.NewService(cfg)
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetReviewEvidenceVerifier(s.reviewSvc)
+	}
+	if s.eventDB != nil {
+		ledger := evidence.NewLedger(s.eventDB)
+		s.reviewSvc.SetEvidenceRecorder(func(ctx context.Context, kind, name string, round review.Round) error {
+			attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, round.RoundNum)
+			for _, item := range round.Evidence {
+				// A review result is agent narrative by default. Its declared trust
+				// must never promote it beyond reported; only bounded machine
+				// producers can supply observed evidence.
+				confidence := "reported"
+				if item.Producer == "test-genie" || item.Producer == "git-control-tower" || item.Producer == "command" {
+					confidence = "observed"
+				}
+				if err := ledger.Record(ctx, evidence.Observation{ID: attemptRef + "/" + item.ID, Producer: "swarm-review", SourceSystem: "work.review", RunID: review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), SubjectKind: "criterion", SubjectID: kind + "/" + name + "/" + item.CriterionID, Action: item.Settlement, Confidence: confidence, Title: item.Title, Description: item.Description}, attemptRef); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		s.reviewSvc.SetEvidenceVerificationRecorder(func(ctx context.Context, kind, name string, round review.Round, item review.EvidenceItem, verified bool, actor, reason string) error {
+			attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, round.RoundNum)
+			action := "operator_unverified"
+			if verified {
+				action = "operator_verified"
+			}
+			// Events are append-only so an operator can revise a prior decision;
+			// the ledger projection selects the latest event for each evidence id.
+			observationID := fmt.Sprintf("%s/%s/operator-verification/%d", attemptRef, item.ID, time.Now().UTC().UnixNano())
+			return ledger.Record(ctx, evidence.Observation{ID: observationID, Producer: "swarm-review", SourceSystem: "work.review", RunID: review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), SubjectKind: "criterion", SubjectID: kind + "/" + name + "/" + item.CriterionID, Action: action, Confidence: "operator_verified", Title: item.Title, Description: item.Description, Actor: actor, Reason: reason}, attemptRef)
+		})
+		s.reviewSvc.SetEvidenceVerificationProjection(func(ctx context.Context, kind, name string, round review.Round) (map[string]bool, bool, error) {
+			if ok, err := ledger.ParityProven(ctx, "review-evidence/v1"); err != nil || !ok {
+				return nil, false, err
+			}
+			attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, round.RoundNum)
+			ids, err := ledger.OperatorVerifiedEvidenceIDs(ctx, attemptRef)
+			if err != nil {
+				return nil, false, err
+			}
+			result := make(map[string]bool, len(ids))
+			for observationID := range ids {
+				result[strings.TrimPrefix(observationID, attemptRef+"/")] = true
+			}
+			return result, true, nil
+		})
+	}
 	s.reviewHandler = review.NewHandler(s.reviewSvc)
 	s.reviewHandler.RegisterRoutes(s.router)
 
 	// Wire review service into execution service for finalization integration.
 	if execSvc != nil {
 		execSvc.SetReviewService(s.reviewSvc)
+	}
+
+	// Wire the review-round liveness seam so the recover-review endpoint can
+	// refuse to short-circuit an in-flight review.
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetReviewRoundInspector(s.reviewSvc)
 	}
 }

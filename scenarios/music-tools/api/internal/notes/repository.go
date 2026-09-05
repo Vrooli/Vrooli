@@ -1,0 +1,44 @@
+package notes
+
+import (
+	"context"
+	"time"
+)
+
+// Repository is the persistence seam the notes service depends on.
+// Production wires the sqlite-backed implementation from sqlite.go;
+// service unit tests wire mocks.FakeRepository (from internal/notes/mocks).
+// New methods
+// land here when the service proves it needs them — keep the surface
+// narrow.
+type Repository interface {
+	// Create persists n. The implementation populates ID, CreatedAt,
+	// and UpdatedAt; callers leaving those zero-valued is the canonical
+	// shape. Returns the persisted Note (with the populated fields).
+	Create(ctx context.Context, n Note) (Note, error)
+
+	// Get returns the note with the given ID or ErrNoteNotFound{ID}
+	// when no row matches. Wrapped error types other than
+	// ErrNoteNotFound mean an underlying storage failure.
+	Get(ctx context.Context, id string) (Note, error)
+
+	// List returns up to `limit` notes ordered newest-first by
+	// CreatedAt. limit <= 0 returns no rows; callers requesting "all"
+	// pass an explicit upper bound.
+	List(ctx context.Context, limit int) ([]Note, error)
+
+	// Count returns the number of notes whose CreatedAt falls in the
+	// half-open range [from, to) — From inclusive, To exclusive, matching
+	// the measures-go time-window resolver. It backs the `notes count`
+	// measure: a real aggregate (SELECT COUNT(*)), not a List-and-filter,
+	// so the answer is exact regardless of row volume.
+	Count(ctx context.Context, from, to time.Time) (int, error)
+}
+
+// AttachmentsRepository is the persistence seam for note attachment
+// metadata. The opaque bytes are stored by api-core/blobstore; this
+// repository only records the typed metadata row.
+type AttachmentsRepository interface {
+	CreateAttachment(ctx context.Context, a Attachment) (Attachment, error)
+	ListAttachmentKeys(ctx context.Context, noteID string) ([]string, error)
+}

@@ -5,145 +5,101 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-// OllamaClient provides an interface for interacting with Ollama LLM services.
-// This abstraction enables testing without requiring a real Ollama instance.
+// OllamaClient provides an interface for interacting with Ollama LLM services
+// via the resource-ollama gateway CLI.
 type OllamaClient interface {
 	// Query sends a prompt to Ollama and returns the response text.
-	Query(ctx context.Context, model, prompt string) (string, error)
+	Query(ctx context.Context, role, prompt string) (string, error)
 }
 
-// DefaultOllamaClient implements OllamaClient using the Ollama HTTP API.
+// DefaultOllamaClient implements OllamaClient by shelling out to
+// `resource-ollama gateway generate`. All daemon traffic is funnelled through
+// the CLI so the host-wide semaphore can bound fleet-wide parallelism — never
+// call Ollama HTTP directly.
 type DefaultOllamaClient struct {
-	baseURL    string
-	httpClient *http.Client
-	log        *logrus.Logger
+	log    *logrus.Logger
+	runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
 // OllamaClientOption configures the DefaultOllamaClient.
 type OllamaClientOption func(*DefaultOllamaClient)
 
-// WithOllamaBaseURL sets a custom base URL for the Ollama API.
-func WithOllamaBaseURL(url string) OllamaClientOption {
+// WithOllamaRunner injects a custom runner (used by tests).
+func WithOllamaRunner(r func(ctx context.Context, args []string, stdin string) ([]byte, error)) OllamaClientOption {
 	return func(c *DefaultOllamaClient) {
-		c.baseURL = url
+		c.runner = r
 	}
 }
 
-// WithOllamaHTTPClient sets a custom HTTP client.
-func WithOllamaHTTPClient(client *http.Client) OllamaClientOption {
-	return func(c *DefaultOllamaClient) {
-		c.httpClient = client
-	}
-}
-
-// NewDefaultOllamaClient creates an OllamaClient that communicates via HTTP.
+// NewDefaultOllamaClient creates an OllamaClient that calls resource-ollama.
 func NewDefaultOllamaClient(log *logrus.Logger, opts ...OllamaClientOption) *DefaultOllamaClient {
-	baseURL := os.Getenv("OLLAMA_URL")
-	if baseURL == "" {
-		baseURL = os.Getenv("OLLAMA_HOST")
-	}
-	if baseURL == "" {
-		baseURL = "http://localhost:11434"
-	}
-
-	client := &DefaultOllamaClient{
-		baseURL: strings.TrimSuffix(baseURL, "/"),
-		httpClient: &http.Client{
-			Timeout: 120 * time.Second,
-		},
-		log: log,
-	}
-
+	client := &DefaultOllamaClient{log: log}
 	for _, opt := range opts {
 		opt(client)
 	}
-
 	return client
 }
 
-// Query sends a prompt to Ollama and returns the response.
-func (c *DefaultOllamaClient) Query(ctx context.Context, model, prompt string) (string, error) {
+// Query sends a prompt to Ollama via the resource-ollama gateway CLI.
+func (c *DefaultOllamaClient) Query(ctx context.Context, role, prompt string) (string, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return "", fmt.Errorf("prompt is required")
 	}
-	if strings.TrimSpace(model) == "" {
-		model = "llama3.2:3b"
+	if strings.TrimSpace(role) == "" {
+		role = defaultOllamaRole
 	}
 
-	payload := map[string]any{
-		"model":  model,
-		"prompt": prompt,
-		"stream": false,
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal ollama payload: %w", err)
-	}
-
-	endpoint := fmt.Sprintf("%s/api/generate", c.baseURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payloadBytes))
-	if err != nil {
-		return "", fmt.Errorf("failed to create ollama request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
+	args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 	if c.log != nil {
-		c.log.WithFields(logrus.Fields{
-			"model":    model,
-			"endpoint": endpoint,
-		}).Debug("Sending request to Ollama")
+		c.log.WithFields(logrus.Fields{"role": role}).Debug("Sending request to resource-ollama gateway")
 	}
 
-	resp, err := c.httpClient.Do(req)
+	out, err := c.run(ctx, args, prompt)
 	if err != nil {
-		return "", fmt.Errorf("failed to call ollama API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read ollama response: %w", err)
+		return "", fmt.Errorf("resource-ollama gateway generate failed: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ollama API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var ollamaResp struct {
-		Model    string `json:"model"`
+	var decoded struct {
 		Response string `json:"response"`
-		Done     bool   `json:"done"`
 	}
-
-	if err := json.Unmarshal(body, &ollamaResp); err != nil {
-		return "", fmt.Errorf("failed to parse ollama response: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return "", fmt.Errorf("decode gateway generate response: %w", err)
 	}
 
 	if c.log != nil {
-		previewLen := 200
-		responsePreview := ollamaResp.Response
-		if len(responsePreview) > previewLen {
-			responsePreview = responsePreview[:previewLen]
+		preview := decoded.Response
+		if len(preview) > 200 {
+			preview = preview[:200]
 		}
 		c.log.WithFields(logrus.Fields{
-			"model":            ollamaResp.Model,
-			"done":             ollamaResp.Done,
-			"response_length":  len(ollamaResp.Response),
-			"response_preview": responsePreview,
-		}).Debug("Received Ollama response")
+			"role":             role,
+			"response_length":  len(decoded.Response),
+			"response_preview": preview,
+		}).Debug("Received gateway response")
 	}
+	return decoded.Response, nil
+}
 
-	return ollamaResp.Response, nil
+func (c *DefaultOllamaClient) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if c.runner != nil {
+		return c.runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 // MockOllamaClient is a test double for OllamaClient.
@@ -155,24 +111,18 @@ type MockOllamaClient struct {
 
 // MockOllamaQuery records a query made to the mock client.
 type MockOllamaQuery struct {
-	Model  string
+	Role   string
 	Prompt string
 }
 
 // NewMockOllamaClient creates a MockOllamaClient with a default response.
 func NewMockOllamaClient(response string) *MockOllamaClient {
-	return &MockOllamaClient{
-		Response: response,
-	}
+	return &MockOllamaClient{Response: response}
 }
 
 // Query records the query and returns the configured response or error.
-func (m *MockOllamaClient) Query(_ context.Context, model, prompt string) (string, error) {
-	m.QueriesCalled = append(m.QueriesCalled, MockOllamaQuery{
-		Model:  model,
-		Prompt: prompt,
-	})
-
+func (m *MockOllamaClient) Query(_ context.Context, role, prompt string) (string, error) {
+	m.QueriesCalled = append(m.QueriesCalled, MockOllamaQuery{Role: role, Prompt: prompt})
 	if m.Err != nil {
 		return "", m.Err
 	}

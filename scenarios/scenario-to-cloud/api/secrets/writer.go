@@ -2,82 +2,19 @@ package secrets
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
+	"sort"
 	"strings"
-	"time"
 
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
-// Metadata contains metadata about the secrets.json file.
-type Metadata struct {
-	Environment string    `json:"environment"`
-	LastUpdated time.Time `json:"last_updated"`
-	Notes       string    `json:"notes"`
-	GeneratedBy string    `json:"generated_by"`
-	ScenarioID  string    `json:"scenario_id"`
-}
-
-// JSONPayload represents the structure of .vrooli/secrets.json.
-// This matches the format expected by secrets::resolve() in Vrooli core.
-type JSONPayload struct {
-	Metadata Metadata `json:"_metadata"`
-	// Secrets are added as top-level keys via custom marshaling
-	secrets map[string]string
-}
-
-// MarshalJSON flattens secrets to top-level while keeping _metadata.
-func (p JSONPayload) MarshalJSON() ([]byte, error) {
-	m := make(map[string]interface{})
-	m["_metadata"] = p.Metadata
-	for k, v := range p.secrets {
-		m[k] = v
-	}
-	return json.MarshalIndent(m, "", "  ")
-}
-
-// ReadFromVPS reads existing secrets.json from the VPS if it exists.
-// Returns nil map if file doesn't exist (not an error - just means fresh install).
-func ReadFromVPS(
-	ctx context.Context,
-	sshRunner ssh.Runner,
-	cfg ssh.Config,
-	workdir string,
-) (map[string]string, error) {
-	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
-
-	// Try to read existing secrets file
-	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", shellutil.QuoteSingle(secretsPath))
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return nil, fmt.Errorf("read secrets.json: %w", err)
-	}
-
-	// Parse the JSON to extract existing secrets
-	var rawJSON map[string]interface{}
-	if err := json.Unmarshal([]byte(result.Stdout), &rawJSON); err != nil {
-		// If we can't parse it, treat as empty (fresh install)
-		return make(map[string]string), nil
-	}
-
-	// Extract string values (skip _metadata)
-	existing := make(map[string]string)
-	for k, v := range rawJSON {
-		if k == "_metadata" {
-			continue
-		}
-		if strVal, ok := v.(string); ok {
-			existing[k] = strVal
-		}
-	}
-
-	return existing, nil
-}
-
-// WriteToVPS writes secrets.json to the VPS via SSH.
-// This creates .vrooli/secrets.json with generated credentials BEFORE resource startup.
+// WriteToVPS provisions generated credentials to the target authority before
+// resource startup. It does not create a plaintext secrets file.
 // IMPORTANT: Preserves existing secrets to avoid breaking database connections on redeploy.
 func WriteToVPS(
 	ctx context.Context,
@@ -91,32 +28,38 @@ func WriteToVPS(
 	if len(secrets) == 0 && len(userSecrets) == 0 {
 		return nil // Nothing to write
 	}
-
-	// CRITICAL: Read existing secrets first to preserve them across redeployments
-	// This prevents "password authentication failed" errors when redeploying
-	existingSecrets, err := ReadFromVPS(ctx, sshRunner, cfg, workdir)
-	if err != nil {
-		// Log but don't fail - treat as fresh install
-		existingSecrets = make(map[string]string)
+	// Validated before any remote call. The identity is built from this, so an
+	// empty value would otherwise send a run of `vrooli//<field>` queries to the
+	// target before anything noticed.
+	if strings.TrimSpace(scenarioID) == "" {
+		return fmt.Errorf("provision remote credentials: scenario id is required to name the credential identity")
 	}
 
-	// Build secrets map, preserving existing values for per_install_generated secrets
+	// A generated secret is written only when the remote store does not already
+	// hold one. Regenerating a database password on redeploy is what produced
+	// "password authentication failed" against a database that still had the
+	// old one, so preservation is load-bearing rather than an optimization.
+	//
+	// Preservation now asks the remote authority whether a value exists instead
+	// of reading a remote plaintext file — and it never reads the value back.
+	// Knowing that something is stored is the whole question here.
 	secretsMap := make(map[string]string)
-	for k, v := range existingSecrets {
-		if v != "" {
-			secretsMap[k] = v
-		}
+	client, err := newRemoteCredentialClient(sshRunner, cfg)
+	if err != nil {
+		return err
 	}
 	for _, s := range secrets {
-		if existing, ok := existingSecrets[s.Key]; ok && existing != "" {
-			// PRESERVE existing secret - don't regenerate!
-			// This is critical for database passwords, API keys, etc.
-			secretsMap[s.Key] = existing
-		} else {
-			// New secret or empty - use generated value
-			secretsMap[s.Key] = s.Value
+		configured, err := remoteCredentialConfiguredWithClient(ctx, client, scenarioID, s.Key)
+		if err != nil {
+			return err
 		}
+		if configured {
+			continue
+		}
+		secretsMap[s.Key] = s.Value
 	}
+	// An operator-supplied value is an explicit instruction for this deploy and
+	// overrides what is stored.
 	for key, value := range userSecrets {
 		if strings.TrimSpace(value) == "" {
 			continue
@@ -124,141 +67,135 @@ func WriteToVPS(
 		secretsMap[key] = value
 	}
 
-	payload := JSONPayload{
-		Metadata: Metadata{
-			Environment: "production",
-			LastUpdated: time.Now().UTC(),
-			Notes:       "Generated during VPS deployment - managed by scenario-to-cloud",
-			GeneratedBy: "scenario-to-cloud",
-			ScenarioID:  scenarioID,
-		},
-		secrets: secretsMap,
+	// Each value is provisioned into the remote host's own credential
+	// authority, one SSH call per secret, with the value on standard input.
+	//
+	// It used to be one call that embedded the whole plaintext payload in the
+	// command string. A command string becomes argv for the local ssh process
+	// and the argument to the remote shell, so every value was visible in both
+	// process listings for the duration of the deploy — the precise exposure
+	// every credential-store adapter in this platform is built to avoid. It
+	// also left a plaintext secrets.json on the VPS afterwards.
+	//
+	// The remote store is the same seam as the local one: on a headless VPS
+	// that is the encrypted file store, so the values land encrypted at rest
+	// under a key the file alone does not contain.
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	if err := ensureRemoteCredentialStoreWithClient(ctx, client); err != nil {
+		return err
 	}
 
-	jsonBytes, err := payload.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("marshal secrets.json: %w", err)
+	keys := make([]string, 0, len(secretsMap))
+	for key := range secretsMap {
+		keys = append(keys, key)
 	}
+	sort.Strings(keys)
 
-	// Paths on VPS
-	secretsDir := shellutil.SafeRemoteJoin(workdir, ".vrooli")
-	secretsPath := shellutil.SafeRemoteJoin(secretsDir, "secrets.json")
-
-	// Write secrets.json with proper permissions (600 = owner read/write only)
-	// Use printf with %s to avoid shell interpretation of special characters
-	// The JSON is passed through shellutil.QuoteSingle to escape it safely
-	cmd := fmt.Sprintf(
-		"mkdir -p %s && printf '%%s' %s > %s && chmod 600 %s",
-		shellutil.QuoteSingle(secretsDir),
-		shellutil.QuoteSingle(string(jsonBytes)),
-		shellutil.QuoteSingle(secretsPath),
-		shellutil.QuoteSingle(secretsPath),
-	)
-
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return fmt.Errorf("write secrets.json: %w (exit: %d, stderr: %s)", err, result.ExitCode, result.Stderr)
-	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("write secrets.json failed: exit %d, stderr: %s", result.ExitCode, result.Stderr)
+	for _, key := range keys {
+		value := secretsMap[key]
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		field := CredentialField(key)
+		if field == "" {
+			continue
+		}
+		if _, err := client.Provision(ctx, credentialclient.ProvisionRequest{Identity: identity, Field: field, Value: value}); err != nil {
+			// The value is never echoed back, so neither is it in this error.
+			return fmt.Errorf("provision remote credential %s/%s: %w", identity, field, err)
+		}
 	}
 
 	return nil
 }
 
-// BuildJSON builds the secrets.json content without writing it.
-// Useful for testing or including in bundles.
-func BuildJSON(secrets []GeneratedSecret, scenarioID string) ([]byte, error) {
-	secretsMap := make(map[string]string)
-	for _, s := range secrets {
-		secretsMap[s.Key] = s.Value
-	}
-
-	payload := JSONPayload{
-		Metadata: Metadata{
-			Environment: "production",
-			LastUpdated: time.Now().UTC(),
-			Notes:       "Generated during VPS deployment - managed by scenario-to-cloud",
-			GeneratedBy: "scenario-to-cloud",
-			ScenarioID:  scenarioID,
-		},
-		secrets: secretsMap,
-	}
-
-	return payload.MarshalJSON()
+type credentialSSHRunner struct {
+	runner ssh.Runner
+	cfg    ssh.Config
 }
 
-// VPSSecretsData represents the complete parsed secrets.json file from VPS.
-type VPSSecretsData struct {
-	Metadata Metadata
-	Secrets  map[string]string
-}
-
-// ReadAllFromVPS reads secrets.json from VPS and returns structured data with metadata.
-// Unlike ReadFromVPS, this preserves the metadata for display purposes.
-func ReadAllFromVPS(
-	ctx context.Context,
-	sshRunner ssh.Runner,
-	cfg ssh.Config,
-	workdir string,
-) (*VPSSecretsData, error) {
-	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
-
-	// Try to read existing secrets file
-	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", shellutil.QuoteSingle(secretsPath))
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
+func (r credentialSSHRunner) Run(ctx context.Context, _ string, args []string, stdin io.Reader) ([]byte, error) {
+	parts := make([]string, 0, len(args))
+	for _, arg := range args {
+		parts = append(parts, shellutil.QuoteSingle(arg))
+	}
+	options := ssh.DefaultRunOptions()
+	if stdin != nil {
+		data, err := io.ReadAll(stdin)
+		if err != nil {
+			return nil, err
+		}
+		options.Stdin = data
+	}
+	result, err := r.runner.Run(ctx, r.cfg, strings.Join(parts, " "), options)
 	if err != nil {
-		return nil, fmt.Errorf("read secrets.json: %w", err)
+		return nil, err
 	}
-
-	// Parse the JSON
-	var rawJSON map[string]interface{}
-	if err := json.Unmarshal([]byte(result.Stdout), &rawJSON); err != nil {
-		// If we can't parse it, return empty data
-		return &VPSSecretsData{
-			Secrets: make(map[string]string),
-		}, nil
+	if result.ExitCode != 0 {
+		return []byte(result.Stdout), fmt.Errorf("remote command exited %d: %s", result.ExitCode, result.Stderr)
 	}
-
-	data := &VPSSecretsData{
-		Secrets: make(map[string]string),
-	}
-
-	// Extract metadata if present
-	if metadataRaw, ok := rawJSON["_metadata"].(map[string]interface{}); ok {
-		if env, ok := metadataRaw["environment"].(string); ok {
-			data.Metadata.Environment = env
-		}
-		if lastUpdated, ok := metadataRaw["last_updated"].(string); ok {
-			if t, err := time.Parse(time.RFC3339, lastUpdated); err == nil {
-				data.Metadata.LastUpdated = t
-			}
-		}
-		if notes, ok := metadataRaw["notes"].(string); ok {
-			data.Metadata.Notes = notes
-		}
-		if generatedBy, ok := metadataRaw["generated_by"].(string); ok {
-			data.Metadata.GeneratedBy = generatedBy
-		}
-		if scenarioID, ok := metadataRaw["scenario_id"].(string); ok {
-			data.Metadata.ScenarioID = scenarioID
-		}
-	}
-
-	// Extract secrets (skip _metadata)
-	for k, v := range rawJSON {
-		if k == "_metadata" {
-			continue
-		}
-		if strVal, ok := v.(string); ok {
-			data.Secrets[k] = strVal
-		}
-	}
-
-	return data, nil
+	return []byte(result.Stdout), nil
 }
 
-// AddSecretToVPS adds a new secret to the VPS secrets.json file.
+func newRemoteCredentialClient(runner ssh.Runner, cfg ssh.Config) (credentialclient.Client, error) {
+	target := fmt.Sprintf("%s@%s", cfg.User, cfg.Host)
+	return credentialclient.NewClient(credentialclient.ClientOptions{RemoteTarget: target, RemoteRunner: credentialSSHRunner{runner: runner, cfg: cfg}})
+}
+
+func remoteCredentialConfiguredWithClient(ctx context.Context, client credentialclient.Client, scenarioID, key string) (bool, error) {
+	field := CredentialField(key)
+	if field == "" {
+		return false, nil
+	}
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	status, err := client.Status(ctx, identity, field)
+	if err != nil {
+		return false, err
+	}
+	if status.ProviderState != "available" {
+		return false, fmt.Errorf("remote credential store is %s; refusing to decide whether %s/%s already exists", status.ProviderState, identity, field)
+	}
+	return status.Configured, nil
+}
+
+func ensureRemoteCredentialStoreWithClient(ctx context.Context, client credentialclient.Client) error {
+	diagnosis, err := client.Doctor(ctx)
+	if err != nil {
+		return fmt.Errorf("remote credential diagnosis failed: %w", err)
+	}
+	if diagnosis.Provider.Condition != "available" {
+		return fmt.Errorf("remote credential store is %s: %s", diagnosis.Provider.Condition, diagnosis.Provider.Fix)
+	}
+	return nil
+}
+
+func listRemoteCredentials(ctx context.Context, client credentialclient.Client, scenarioID string) ([]credentialclient.CredentialRef, error) {
+	refs, err := client.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	prefix := "vrooli/" + strings.TrimSpace(scenarioID)
+	filtered := make([]credentialclient.CredentialRef, 0, len(refs))
+	for _, ref := range refs {
+		if ref.LogicalID == prefix {
+			filtered = append(filtered, ref)
+		}
+	}
+	return filtered, nil
+}
+
+// CredentialField converts a bundle secret key into the durable field name the
+// credential authority addresses. It matches the normalization the deploy path
+// uses, so a value written here is a value the scenario can read back.
+func CredentialField(key string) string {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(trimmed))
+}
+
+// AddSecretToVPS adds a new secret to the target credential authority.
 // Returns an error if the key already exists.
 func AddSecretToVPS(
 	ctx context.Context,
@@ -269,22 +206,21 @@ func AddSecretToVPS(
 	value string,
 	scenarioID string,
 ) error {
-	// Read existing secrets
-	data, err := ReadAllFromVPS(ctx, sshRunner, cfg, workdir)
+	client, err := newRemoteCredentialClient(sshRunner, cfg)
 	if err != nil {
-		return fmt.Errorf("read existing secrets: %w", err)
+		return err
 	}
-
-	// Check if key already exists
-	if _, exists := data.Secrets[key]; exists {
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	field := CredentialField(key)
+	status, err := client.Status(ctx, identity, field)
+	if err != nil {
+		return err
+	}
+	if status.Configured {
 		return fmt.Errorf("secret key %q already exists", key)
 	}
-
-	// Add new secret
-	data.Secrets[key] = value
-
-	// Write back
-	return writeSecretsData(ctx, sshRunner, cfg, workdir, data, scenarioID)
+	_, err = client.Provision(ctx, credentialclient.ProvisionRequest{Identity: identity, Field: field, Value: value})
+	return err
 }
 
 // UpdateSecretOnVPS updates an existing secret value on the VPS.
@@ -298,25 +234,24 @@ func UpdateSecretOnVPS(
 	value string,
 	scenarioID string,
 ) error {
-	// Read existing secrets
-	data, err := ReadAllFromVPS(ctx, sshRunner, cfg, workdir)
+	client, err := newRemoteCredentialClient(sshRunner, cfg)
 	if err != nil {
-		return fmt.Errorf("read existing secrets: %w", err)
+		return err
 	}
-
-	// Check if key exists
-	if _, exists := data.Secrets[key]; !exists {
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	field := CredentialField(key)
+	status, err := client.Status(ctx, identity, field)
+	if err != nil {
+		return err
+	}
+	if !status.Configured {
 		return fmt.Errorf("secret key %q not found", key)
 	}
-
-	// Update secret
-	data.Secrets[key] = value
-
-	// Write back
-	return writeSecretsData(ctx, sshRunner, cfg, workdir, data, scenarioID)
+	_, err = client.Provision(ctx, credentialclient.ProvisionRequest{Identity: identity, Field: field, Value: value})
+	return err
 }
 
-// DeleteSecretFromVPS removes a secret from the VPS secrets.json file.
+// DeleteSecretFromVPS removes a secret from the target credential authority.
 // Returns an error if the key doesn't exist.
 func DeleteSecretFromVPS(
 	ctx context.Context,
@@ -326,76 +261,18 @@ func DeleteSecretFromVPS(
 	key string,
 	scenarioID string,
 ) error {
-	// Read existing secrets
-	data, err := ReadAllFromVPS(ctx, sshRunner, cfg, workdir)
+	client, err := newRemoteCredentialClient(sshRunner, cfg)
 	if err != nil {
-		return fmt.Errorf("read existing secrets: %w", err)
+		return err
 	}
-
-	// Check if key exists
-	if _, exists := data.Secrets[key]; !exists {
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	field := CredentialField(key)
+	status, err := client.Status(ctx, identity, field)
+	if err != nil {
+		return err
+	}
+	if !status.Configured {
 		return fmt.Errorf("secret key %q not found", key)
 	}
-
-	// Delete secret
-	delete(data.Secrets, key)
-
-	// Write back
-	return writeSecretsData(ctx, sshRunner, cfg, workdir, data, scenarioID)
-}
-
-// writeSecretsData writes the secrets data back to VPS.
-// This is a helper function used by Add, Update, and Delete operations.
-func writeSecretsData(
-	ctx context.Context,
-	sshRunner ssh.Runner,
-	cfg ssh.Config,
-	workdir string,
-	data *VPSSecretsData,
-	scenarioID string,
-) error {
-	// Use the scenario ID from metadata if available, otherwise use provided
-	effectiveScenarioID := scenarioID
-	if data.Metadata.ScenarioID != "" {
-		effectiveScenarioID = data.Metadata.ScenarioID
-	}
-
-	payload := JSONPayload{
-		Metadata: Metadata{
-			Environment: "production",
-			LastUpdated: time.Now().UTC(),
-			Notes:       "Updated via scenario-to-cloud secrets management",
-			GeneratedBy: "scenario-to-cloud",
-			ScenarioID:  effectiveScenarioID,
-		},
-		secrets: data.Secrets,
-	}
-
-	jsonBytes, err := payload.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("marshal secrets.json: %w", err)
-	}
-
-	// Paths on VPS
-	secretsDir := shellutil.SafeRemoteJoin(workdir, ".vrooli")
-	secretsPath := shellutil.SafeRemoteJoin(secretsDir, "secrets.json")
-
-	// Write secrets.json with proper permissions (600 = owner read/write only)
-	cmd := fmt.Sprintf(
-		"mkdir -p %s && printf '%%s' %s > %s && chmod 600 %s",
-		shellutil.QuoteSingle(secretsDir),
-		shellutil.QuoteSingle(string(jsonBytes)),
-		shellutil.QuoteSingle(secretsPath),
-		shellutil.QuoteSingle(secretsPath),
-	)
-
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return fmt.Errorf("write secrets.json: %w (exit: %d, stderr: %s)", err, result.ExitCode, result.Stderr)
-	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("write secrets.json failed: exit %d, stderr: %s", result.ExitCode, result.Stderr)
-	}
-
-	return nil
+	return client.Delete(ctx, identity, field)
 }

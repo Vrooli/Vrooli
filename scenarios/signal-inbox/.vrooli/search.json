@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+    "provider_id": "signal-inbox.signals",
+    "lifecycle": "fixture",
+      "provider_group": "signal-inbox",
+      "bucket": "BUCKET_KNOW",
+      "type": "signal",
+      "description": "Operator-captured external material: saved links, posts, screenshots, conversations, and pasted notes. Route here when the question is whether the operator previously saved a source or idea; every capture remains searchable even after it is categorized, handled, or dropped from ambient review.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.10,
+        "telemetry_required": true,
+        "minimum_samples": 3
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "signal-inbox",
+          "path": "/vrooli.signal_inbox.v1.retrieval.RetrievalService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"filter\":{\"text\":\"{{query}}\",\"page_size\":{{limit}}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "signal-inbox",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "signal.id",
+        "title_field": "signal.source_url",
+        "score_field": "score",
+        "snippet_field": "signal.extracted_content",
+        "path_field": "signal.id",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "ai-gateway:embedding.default",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+      "tests": {
+        "suite_id": "signal-inbox.signals.pending-corpus",
+        "name": "Signal Inbox signals — pending operator corpus",
+        "description": "The provider contract and negative control are declared now. Reviewed positive cases are intentionally absent until operator-owned Chrome, X, and Reddit exports are imported; invented signal IDs would turn an empty corpus into false relevance evidence.",
+        "cases": [
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv signal nonsense",
+            "tags": ["gibberish"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.30
+          }
+        ]
+      }
+    }
+  ]
+}

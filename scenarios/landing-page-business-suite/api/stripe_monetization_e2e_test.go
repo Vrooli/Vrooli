@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -27,7 +28,7 @@ import (
 type monetizationTestHarness struct {
 	db             *sql.DB
 	stripeService  *StripeService
-	accountService *AccountService
+	accountService *commerce.Service
 	authorizer     *DownloadAuthorizer
 	webhookSecret  string
 }
@@ -64,7 +65,6 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 		DROP TABLE IF EXISTS download_assets CASCADE;
 		DROP TABLE IF EXISTS download_apps CASCADE;
 		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
-		DROP TABLE IF EXISTS intro_anomaly_log CASCADE;
 		DROP TABLE IF EXISTS credit_transactions CASCADE;
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS subscription_schedules CASCADE;
@@ -103,6 +103,8 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			customer_id VARCHAR(255),
 			customer_email VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			source VARCHAR(100) NOT NULL DEFAULT 'stripe',
+			external_subscription_id VARCHAR(255),
 			plan_tier VARCHAR(50),
 			price_id VARCHAR(255),
 			bundle_key VARCHAR(100),
@@ -139,9 +141,12 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			customer_email VARCHAR(255) NOT NULL,
 			amount_credits BIGINT NOT NULL,
 			transaction_type VARCHAR(50) NOT NULL,
+			source VARCHAR(100) NOT NULL DEFAULT 'stripe',
+			external_event_id VARCHAR(255),
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
+			created_at TIMESTAMP DEFAULT NOW(),
+			UNIQUE (source, external_event_id)
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
 		ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;
@@ -153,15 +158,6 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			plan_tier VARCHAR(50),
 			subscription_id VARCHAR(255),
 			used_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE intro_anomaly_log (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255),
-			customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			anomaly_type VARCHAR(100),
-			details JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE TABLE download_apps (
 			id SERIAL PRIMARY KEY,
@@ -178,6 +174,7 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			metadata JSONB DEFAULT '{}'::jsonb,
 			display_order INTEGER DEFAULT 0,
 			update_api_key TEXT,
+			update_policy JSONB NOT NULL DEFAULT '{"check_interval_hours":4,"update_mode":"optional","allow_downgrade":false}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE(bundle_key, app_key)
@@ -213,7 +210,7 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 	service := ConfigureStripeService(t, db, cfg, stripeServer)
 
 	accountSvc := NewAccountService(db, service.planService)
-	downloadSvc := &DownloadService{db: db}
+	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 
 	return &monetizationTestHarness{
@@ -282,7 +279,7 @@ func TestE2E_Checkout_Webhook_Entitlement_Download_HappyPath(t *testing.T) {
 	require.NotNil(t, session)
 
 	// Step 2: Before webhook — download should be denied (no subscription)
-	_, err = h.authorizer.Authorize("desktop-app", "windows", "happy@example.com")
+	_, err = h.authorizer.Authorize(testRequestContext, "desktop-app", "windows", "happy@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription) || strings.Contains(err.Error(), "subscription"),
 		"expected download denied before payment, got: %v", err)
 
@@ -308,7 +305,7 @@ func TestE2E_Checkout_Webhook_Entitlement_Download_HappyPath(t *testing.T) {
 	assert.Equal(t, "active", subStatus)
 
 	// Step 5: Download should now be authorized
-	asset, err := h.authorizer.Authorize("desktop-app", "windows", "happy@example.com")
+	asset, err := h.authorizer.Authorize(testRequestContext, "desktop-app", "windows", "happy@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -402,7 +399,7 @@ func TestE2E_Webhook_OutOfOrder_InvoicePaid_BeforeCheckoutCompleted(t *testing.T
 	assert.Equal(t, "pro", planTier, "plan tier should be set")
 
 	// Download should be authorized
-	asset, err := h.authorizer.Authorize("desktop-app", "windows", "ooo@example.com")
+	asset, err := h.authorizer.Authorize(testRequestContext, "desktop-app", "windows", "ooo@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -571,7 +568,7 @@ func TestE2E_Webhook_UserDeletedBetweenEvents(t *testing.T) {
 	_, err = h.db.Exec(`DELETE FROM users WHERE email = $1`, "deleted@example.com")
 	require.NoError(t, err)
 
-	// Webhook should still succeed — handleCheckoutCompleted re-creates user via linkUserToStripeCustomer
+	// Webhook should still succeed — handleCheckoutCompleted re-creates the user/customer link.
 	h.fireWebhook(t, map[string]interface{}{
 		"id":   "evt_deleted_user",
 		"type": "checkout.session.completed",

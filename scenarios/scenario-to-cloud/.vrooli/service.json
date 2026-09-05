@@ -1,6 +1,37 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "bundles": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "subpath": "bundles",
+        "regenerable": true,
+        "rationale": "Deployment bundles are reproducible build products; 690979788 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "2GiB",
+          "rationale": "The bundle cache measured 690979788 bytes on 2026-08-27; seven days and 2 GiB retain recent deploy candidates."
+        }
+      },
+      "bundle_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "bundles/database.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "rationale": "The bundle database is durable domain state even when empty; 0 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The database measured 0 bytes on 2026-08-27; 256 MiB is an alarm ceiling and does not authorize deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces separate regenerable deployment bundles from durable bundle metadata."
+  },
   "service": {
     "parent": "vrooli",
     "name": "scenario-to-cloud",
@@ -43,14 +74,37 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "range": "20000-24999"
     }
   },
+  "hostTools": [
+    {
+      "name": "qemu",
+      "required": true,
+      "reason": "The disposable local-QEMU provider needs a real Linux VM for fresh-host validation.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    },
+    {
+      "name": "cloud-localds",
+      "required": true,
+      "reason": "The disposable local-QEMU provider uses cloud-init to provision the VM user and SSH key.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -78,143 +132,6 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-cloud-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-cloud",
-            "targets": [
-              "scenario-to-cloud"
-            ]
-          },
-          {
-            "type": "command",
-            "command": "test -d ui/node_modules && [ \"$(ls -A ui/node_modules 2>/dev/null)\" ]"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o scenario-to-cloud-api .",
-          "description": "Build Go API binary (api/scenario-to-cloud-api)"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && exec ./scenario-to-cloud-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/scenario-to-cloud-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "production": {
-      "description": "Start API and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && exec ./scenario-to-cloud-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/scenario-to-cloud-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute scenario-to-cloud structure standards dependencies lint docs unit integration business",
-          "description": "Run test-genie orchestrated test suite (fast, deterministic phases)"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'scenario-to-cloud-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -224,15 +141,103 @@
         "enabled": true,
         "required": true,
         "description": "Deployment records storage",
-        "schema": "scenario_to_cloud"
+        "schema": "scenario_to_cloud",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
       "scenario-dependency-analyzer": {
         "enabled": true,
         "required": true,
-        "description": "Provides dependency analysis for manifest generation"
+        "description": "Provides dependency analysis for manifest generation",
+        "startup_policy": "must_start"
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional investigation and task orchestration backend",
+        "startup_policy": "try_start"
+      },
+      "secrets-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Secret resolution uses the secrets-manager HTTP boundary through discovery.",
+        "degraded_behavior": "Operations requiring secret resolution fail explicitly while secrets-manager is unavailable."
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-cloud",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-cloud"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/scenario-to-cloud",
+        "field": "lpbs-vps-ssh-key",
+        "label": "LPBS VPS SSH key",
+        "description": "Operator-provided SSH private key used to reconcile the deployed Landing Page Business Suite VPS. Keep the value in the credential authority; never place it in a process environment.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://docs.github.com/en/authentication/connecting-to-github-with-ssh",
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

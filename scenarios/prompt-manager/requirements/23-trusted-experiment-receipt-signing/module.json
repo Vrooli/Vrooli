@@ -1,0 +1,29 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-023",
+      "title": "Trusted receipt evidence",
+      "status": "in_progress",
+      "prd_ref": "trusted-experiment-receipt-signing",
+      "category": "security",
+      "description": "When Prompt Manager records an audit or holdout receipt, it shall persist a canonical-digest signature envelope and reject unsigned, tampered, wrong-purpose, unhealthy, or development-only evidence for production conclusion or promotion.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/store/experiment_store_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    }
+  ]
+}

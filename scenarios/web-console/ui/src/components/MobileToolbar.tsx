@@ -1,17 +1,68 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
-// DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
-import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Image, Maximize2, Minimize2, SendHorizontal, Sparkles } from "lucide-react";
-import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+// DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
+import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties } from "react";
+import { Loader2, Maximize2, SendHorizontal, Volume2 } from "lucide-react";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { InputGroup } from "@vrooli/react-component-library/InputGroup";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1";
+import { useTranslation } from "react-i18next";
+import { ENTER_KEY, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+import { strings } from "../consts/strings";
+import type { GateResult, InputIntent } from "./terminal/inputGate";
+import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
-import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
-import type { StartRecordingOpts } from "../hooks/useVoiceInput";
-import type { CommandSuggestion } from "../hooks/voice/types";
-import { slugify } from "../lib/slugify";
-import { useDraftPersistence } from "../hooks/useDraftPersistence";
+import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
+import AiSuggestBar from "./AiSuggestBar";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
+import type { CommandSuggestion } from "../audio-integration";
+import { useComposerDraft, type ComposerDraft } from "../hooks/useComposerDraft";
+import { decodeInputLabel } from "../lib/terminalKeyLabels";
+import {
+  TOOLBAR_CONTROLS,
+  layoutToolbar,
+  toolbarMetrics,
+  type ToolbarControlId,
+  type ToolbarControlSpec,
+} from "../lib/toolbarLayout";
+import { useElementWidth } from "../hooks/useElementWidth";
+import ToolbarSurface from "./toolbar/ToolbarSurface";
+import { renderToolbarControl, type ToolbarControlContext } from "./toolbar/toolbarControls";
+import { SnippetPicker } from "./snippets/SnippetPicker";
+
+/**
+ * Width assumed before the toolbar has been measured. In a browser the real
+ * width lands in the same commit (ResizeObserver reports on observe), so this
+ * only governs environments with no layout at all — SSR and jsdom — where a
+ * mainstream phone width produces a representative toolbar instead of an empty
+ * one.
+ */
+const INITIAL_TOOLBAR_WIDTH_PX = 390;
+
+/** The More sheet always uses comfortable targets, whatever the toolbar does. */
+const SHEET_METRICS = toolbarMetrics("large");
+
+/**
+ * Wraps AiSuggestBar and applies useDeferredValue to the draft text *here*
+ * rather than in MobileToolbar. Hoisting the deferral into a child that only
+ * mounts while the suggest bar is open means a normal keystroke no longer
+ * triggers MobileToolbar's deferred (second) render pass when the bar is
+ * closed — which is the common case and was adding latency to typing.
+ */
+function DeferredAiSuggestBar({
+  inputText,
+  onExecute,
+  onClose,
+}: {
+  inputText: string;
+  onExecute: (command: string) => void;
+  onClose: () => void;
+}) {
+  const deferredInputText = useDeferredValue(inputText);
+  return <AiSuggestBar inputText={deferredInputText} onExecute={onExecute} onClose={onClose} />;
+}
 
 // [REQ:P0-007a] Floating Toolbar Component
 // [REQ:P0-007b] Terminal Key/Chord Mapping
@@ -20,10 +71,29 @@ import { useDraftPersistence } from "../hooks/useDraftPersistence";
 const MAX_VISIBLE_LINES = 4;
 /** Approximate line height in px for the textarea. */
 const LINE_HEIGHT_PX = 20;
-/** Max textarea height: MAX_VISIBLE_LINES * line-height + padding. */
-const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
+/** Vertical padding the input group applies to the control, both sides.
+ *  Kept as a number here because the height ceiling below is arithmetic,
+ *  not a style — a token string cannot be added to a line count. */
+const COMPOSER_PAD_BLOCK_PX = 8;
+/** The first height at which the composer genuinely needs a second row.
+ *
+ *  Deliberately two lines, not one. Comparing against a single line looks
+ *  right and is wrong: the control's own `min-block-size` (the group's size
+ *  rung, 44px) floors `scrollHeight` above one line's 36px, so a one-line
+ *  composer measures 44 and would read as grown forever. */
+const GROWN_TEXTAREA_HEIGHT_PX = LINE_HEIGHT_PX * 2 + COMPOSER_PAD_BLOCK_PX * 2;
+/** Max textarea height: MAX_VISIBLE_LINES * line-height + vertical padding. */
+const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + COMPOSER_PAD_BLOCK_PX * 2;
 
-type SendStatus = "sent" | "queued" | "idle";
+type SendStatus = "sent" | "queued" | "sending" | "failed" | "idle";
+
+/** Snapshot of a single unsent payload used by the pending-input pill. */
+export interface PendingInputSnapshot {
+  data: string;
+  addedAt: number;
+  intent: "typing" | "bulk_text" | "named_key";
+  held?: boolean;
+}
 
 export interface MobileToolbarHandle {
   /** Append text to the command input (used by voice transcription on mobile). */
@@ -35,48 +105,88 @@ export interface MobileToolbarHandle {
   clearInput: () => void;
 }
 
+export interface MobileToolbarVoiceProps {
+  supported?: boolean;
+  preparing?: boolean;
+  recording?: boolean;
+  persistentMode?: boolean;
+  listening?: boolean;
+  passive?: boolean;
+  transcribing?: boolean;
+  error?: string | null;
+  level?: number;
+  activity?: VoiceActivitySnapshot;
+  partialTranscript?: string;
+  backend?: string;
+  capabilityReason?: string;
+  operatorCommand?: string;
+  onStart?: (opts?: StartRecordingOpts) => void;
+  onPrepare?: () => void;
+  onStop?: () => void;
+  onExitPassive?: () => void;
+  commandSuggestion?: CommandSuggestion | null;
+  onCommandConfirm?: (suggestion: CommandSuggestion) => void;
+  onCommandDismiss?: (suggestion: CommandSuggestion) => void;
+}
+
 interface MobileToolbarProps {
-  /** Callback to inject input into the active terminal. Returns true if sent immediately. */
-  onInput: (data: string) => boolean;
+  /**
+   * Callback to inject input into the active terminal via the input
+   * gate. Returns a typed GateResult: `sent` (queued stdin_ack),
+   * `queued` (session not ready, ws closed, or paused by xterm mode),
+   * or `rejected` (empty or disposed). The toolbar uses the result
+   * to surface queued/paused states as distinct pill variants.
+   */
+  onInput: (data: string, intent: Exclude<InputIntent, "control">) => GateResult;
+  /**
+   * Subscribe to per-send settlement callbacks from the active terminal
+   * socket. The draft is preserved during "sending" state and only cleared
+   * after `ok === true` arrives; on `ok === false` the toolbar surfaces
+   * "Send failed — retry" and restores the draft for editing.
+   */
+  subscribeInputSettled?: (cb: (offset: number, ok: boolean, reason?: string) => void) => () => void;
+  /** Await settlement for the exact byte offset returned by onInput. */
+  awaitOffset?: (offset: number, cb: InputSettlementCallback) => () => void;
+  /** Subscribe to pending-queue-changed notifications for the unsent pill. */
+  subscribePendingInput?: (cb: () => void) => () => void;
+  /** Snapshot the active terminal's pending (unsent) input queue. */
+  getPendingInputSnapshot?: () => readonly PendingInputSnapshot[];
+  discardPendingInput?: (index: number) => void;
+  discardAllPendingInput?: () => void;
+  flushPendingInputNow?: () => void;
   /** Move focus to the active terminal (e.g. after submitting a command). */
   onFocusTerminal?: () => void;
   /** Active session ID for per-tab draft persistence. */
   activeSessionId?: string | null;
+  /**
+   * Shared per-session draft. When provided (by Workspace), the collapsed input
+   * and the full-screen composer read/write ONE value and cannot diverge. When
+   * omitted (standalone/tests), the toolbar owns a private draft instead.
+   */
+  draft?: ComposerDraft;
+  /**
+   * Open the full-screen composer for the active session. When provided, a
+   * low-emphasis corner expand icon is shown on the textarea (terminal mode).
+   */
+  onExpandComposer?: () => void;
   /** Whether the toolbar is visible. */
   visible?: boolean;
-  // Voice input props (optional - hidden when undefined)
-  voiceSupported?: boolean;
-  voicePreparing?: boolean;
-  voiceRecording?: boolean;
-  /** True when persistent voice mode is active. */
-  voiceListening?: boolean;
-  voiceTranscribing?: boolean;
-  voiceError?: string | null;
-  /** 0–1 audio level for live mic visualization */
-  voiceLevel?: number;
-  voicePartialTranscript?: string;
-  voiceBackend?: string;
-  onVoiceStart?: (opts?: StartRecordingOpts) => void;
-  onVoiceStop?: () => void;
-  onVoiceCancel?: () => void;
-  /** Current voice command suggestion awaiting confirmation. */
-  voiceCommandSuggestion?: CommandSuggestion | null;
-  /** Called when user confirms a voice command suggestion. */
-  onVoiceCommandConfirm?: (suggestion: CommandSuggestion) => void;
-  /** Called when user dismisses a voice command suggestion. */
-  onVoiceCommandDismiss?: (suggestion: CommandSuggestion) => void;
+  /** Voice state and callbacks are grouped to keep the toolbar boundary small. */
+  voice?: MobileToolbarVoiceProps;
   onUploadImage?: () => void;
   /** Open the AI Command modal. Moved here from the floating toolbar on
    *  mobile because it's more accessible in the persistent bottom bar. */
   onOpenAi?: () => void;
-  /** Called when the textarea value changes (for AI suggest bar). */
-  onInputChange?: (value: string) => void;
-  /** Whether the inline AI suggestion bar is active. Highlights the sparkles button. */
-  aiSuggestActive?: boolean;
+  /** Execute a suggestion generated from the local input draft. */
+  onAiSuggestExecute?: (command: string) => void;
   /** Whether TTS is currently playing audio on the active pane. */
   isTtsSpeaking?: boolean;
   /** Stop TTS playback. */
   onTtsStop?: () => void;
+  /** Restore a dismissed compact TTS playback line. */
+  onTtsRestore?: () => void;
+  /** Whether the compact TTS line is currently dismissed. */
+  ttsDismissed?: boolean;
   /** Current view mode of the active pane. Terminal-specific keys are hidden in messages mode. */
   viewMode?: "terminal" | "messages";
   /** Auto-switch to terminal view after sending a command while in messages mode. */
@@ -85,53 +195,165 @@ interface MobileToolbarProps {
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
+  subscribeInputSettled,
+  awaitOffset,
+  subscribePendingInput,
+  getPendingInputSnapshot,
+  discardPendingInput,
+  discardAllPendingInput,
+  flushPendingInputNow,
   onFocusTerminal,
   activeSessionId,
+  draft: draftProp,
+  onExpandComposer,
   visible = true,
-  voiceSupported,
-  voicePreparing,
-  voiceRecording,
-  voiceListening,
-  voiceTranscribing,
-  voiceError,
-  voiceLevel,
-  voicePartialTranscript,
-  voiceBackend,
-  onVoiceStart,
-  onVoiceStop,
-  onVoiceCancel,
-  voiceCommandSuggestion,
-  onVoiceCommandConfirm,
-  onVoiceCommandDismiss,
+  voice,
   onUploadImage,
   onOpenAi,
-  onInputChange,
-  aiSuggestActive,
+  onAiSuggestExecute,
   isTtsSpeaking,
   onTtsStop,
+  onTtsRestore,
+  ttsDismissed = false,
   viewMode = "terminal",
   onSwitchToTerminal,
 }, ref) {
-  const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
+  const { t } = useTranslation();
+  const aiSuggestActive = useWorkspaceStore((state) => state.aiSuggestActive);
+  const {
+    supported: voiceSupported,
+    preparing: voicePreparing,
+    recording: voiceRecording,
+    persistentMode: voicePersistentMode,
+    listening: voiceListening,
+    passive: voicePassive,
+    transcribing: voiceTranscribing,
+    error: voiceError,
+    level: voiceLevel,
+    activity: voiceActivity,
+    partialTranscript: voicePartialTranscript,
+    backend: voiceBackend,
+    capabilityReason: voiceCapabilityReason,
+    operatorCommand: voiceOperatorCommand,
+    onStart: onVoiceStart,
+    onPrepare: onVoicePrepare,
+    onStop: onVoiceStop,
+    onExitPassive: onVoiceExitPassive,
+    commandSuggestion: voiceCommandSuggestion,
+    onCommandConfirm: onVoiceCommandConfirm,
+    onCommandDismiss: onVoiceCommandDismiss,
+  } = voice ?? {};
+  // Single-source the draft. When Workspace passes a shared draft, the collapsed
+  // input and the full-screen composer read/write the same value; the private
+  // fallback keeps the toolbar usable standalone (and in unit tests). Both hooks
+  // run unconditionally (hooks rule) but only the selected one is wired up.
+  const fallbackDraft = useComposerDraft(activeSessionId);
+  const draft = draftProp ?? fallbackDraft;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerGroupRef = useRef<HTMLDivElement>(null);
+
+  // The textarea is UNCONTROLLED: the DOM owns the live value and the shared
+  // draft mirrors it. Typing therefore never calls setState, so a keystroke
+  // doesn't re-render the toolbar — that controlled round-trip was the main
+  // cause of mobile typing lag. (Backspace is likewise left entirely to the
+  // browser, which natively handles tap-to-delete and hold-to-repeat in any
+  // textarea.) React state is used only for things that must re-render: the
+  // AI-suggest draft (below) and send status.
+
+  // The AI-suggest bar needs the live draft to render suggestions, which means
+  // re-rendering on each keystroke — but ONLY while it's open. We mirror the
+  // draft into state guarded by an `aiSuggestActive` ref so normal typing (bar
+  // closed, the common case) stays state-free and lag-free.
+  const [aiInputText, setAiInputText] = useState(() => draft.getValue());
+  const aiSuggestActiveRef = useRef(false);
+  useEffect(() => {
+    aiSuggestActiveRef.current = !!aiSuggestActive;
+    if (aiSuggestActive) setAiInputText(draft.getValue());
+  }, [aiSuggestActive, draft]);
+
+  // Auto-resize the textarea to fit its content (up to MAX_TEXTAREA_HEIGHT).
+  // Reset to "auto" first so scrollHeight reflects the natural content height,
+  // then only write back when it actually changed to avoid a redundant layout.
+  const resizeTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const target = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    const next = `${target}px`;
+    if (el.style.height !== next) el.style.height = next;
+
+    // Tell the field shell it has grown, so the send and expand actions leave
+    // their fixed lane and take a row beneath the text. The group cannot work
+    // this out for itself — only this component knows what one row means here.
+    //
+    // Written straight to the node rather than through state: this runs on
+    // every keystroke, and a `useState` here would put back exactly the
+    // per-keystroke render the composer was reworked to remove. React never
+    // rendered this attribute, so it leaves it alone on subsequent renders.
+    const group = composerGroupRef.current;
+    if (!group) return;
+    const grown = target >= GROWN_TEXTAREA_HEIGHT_PX;
+    if (grown === (group.getAttribute("data-grown") === "true")) return;
+    if (grown) group.setAttribute("data-grown", "true");
+    else group.removeAttribute("data-grown");
+  }, []);
+
+  // Track the live value + caret as the user types. No setState in the common
+  // path → no re-render per keystroke. The shared draft notifies peer surfaces.
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    draft.handleChange(e.currentTarget);
+    resizeTextarea();
+  }, [draft, resizeTextarea]);
+
+  // Size the textarea to its initial draft once on mount.
+  useEffect(() => {
+    resizeTextarea();
+  }, [resizeTextarea]);
+
+  // Reseed the textarea from the shared draft whenever ANOTHER surface changes
+  // it (the composer typing, voice insertion, clear, session reload). We skip
+  // reseeding during our own typing (reason "input" while this textarea is
+  // focused) so we never clobber the live caret. The AI-suggest mirror follows
+  // the draft here so it stays state-free until the bar is open.
+  useEffect(() => {
+    return draft.subscribe((change) => {
+      const el = textareaRef.current;
+      const isOwnTyping = change.reason === "input" && el != null && document.activeElement === el;
+      if (el && !isOwnTyping) {
+        if (el.value !== change.value) el.value = change.value;
+        if (change.caret != null) {
+          try {
+            el.setSelectionRange(change.caret, change.caret);
+          } catch {
+            // The textarea may be detached during teardown; ignore.
+          }
+        }
+        resizeTextarea();
+      }
+      if (aiSuggestActiveRef.current) setAiInputText(change.value);
+    });
+  }, [draft, resizeTextarea]);
 
   useImperativeHandle(ref, () => ({
     appendText: (text: string) => {
-      setInputValue(prev => {
-        const needsSpace = prev.length > 0 && !prev.endsWith(" ");
-        return prev + (needsSpace ? " " : "") + text;
-      });
+      draft.appendAtCaret(text);
     },
     focusInput: () => {
       textareaRef.current?.focus();
     },
     clearInput: () => {
-      clearDraft();
+      draft.reset();
     },
-  }), [setInputValue, clearDraft]);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [expanded, setExpanded] = useState(false);
+  }), [draft]);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
-  const toolbarLayout = useWorkspaceStore((s) => s.toolbarLayout);
+  const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
+  /** Draft snapshot taken at submit time; restored on ack failure. */
+  const pendingSendRef = useRef<{ draft: string } | null>(null);
+  /** Unsubscribe for the current in-flight settlement subscription. */
+  const settlementUnsubRef = useRef<(() => void) | null>(null);
+  const [pendingInputEntries, setPendingInputEntries] = useState<readonly PendingInputSnapshot[]>([]);
+  const [pillOpen, setPillOpen] = useState(false);
+  const toolbarPrefs = useWorkspaceStore((s) => s.toolbarPrefs);
   const modifiers = useWorkspaceStore((s) => s.modifiers);
   const toggleModifier = useWorkspaceStore((s) => s.toggleModifier);
   const clearModifiers = useWorkspaceStore((s) => s.clearModifiers);
@@ -141,19 +363,24 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   useEffect(() => {
     return () => {
       if (statusTimerRef.current !== null) clearTimeout(statusTimerRef.current);
+      settlementUnsubRef.current?.();
+      settlementUnsubRef.current = null;
     };
   }, []);
 
-  // Auto-resize textarea height
+  // Keep the pending-input pill in sync with the active terminal's queue.
   useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const target = expanded
-      ? el.scrollHeight
-      : Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
-    el.style.height = `${target}px`;
-  }, [inputValue, expanded]);
+    if (!subscribePendingInput || !getPendingInputSnapshot) {
+      setPendingInputEntries([]);
+      return;
+    }
+    const sync = () => setPendingInputEntries(getPendingInputSnapshot());
+    sync();
+    const unsub = subscribePendingInput(sync);
+    return () => {
+      unsub();
+    };
+  }, [subscribePendingInput, getPendingInputSnapshot]);
 
   const showStatus = useCallback((status: SendStatus) => {
     setSendStatus(status);
@@ -170,7 +397,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     (key: ToolbarKey) => {
       const mods = useWorkspaceStore.getState().modifiers;
       const { data, consumed } = applyModifiers(key.input, mods);
-      onInput(data);
+      onInput(data, "typing");
       if (consumed) clearModifiers();
       // Re-focus the terminal after sending the key. On mobile, rapid taps can
       // cause the browser to blur the terminal (moving activeElement to body),
@@ -183,6 +410,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     [onInput, clearModifiers, onFocusTerminal],
   );
 
+  /**
+   * Subscribe to the next single settlement event from the terminal socket.
+   * The subscription auto-unsubscribes after it fires once — subsequent
+   * acks from other senders (e.g. xterm direct keystrokes) are ignored.
+   */
   const submitCommand = useCallback(() => {
     // When the text box is exactly empty (length 0, NOT whitespace-only),
     // act as an Enter key press. This lets mobile users tap Send twice to
@@ -190,8 +422,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // when using interactive CLI tools like Claude Code. Whitespace-only
     // input is intentionally NOT treated as empty so it can still be
     // submitted verbatim (some programs interpret whitespace input).
-    if (inputValue.length === 0) {
-      onInput(ENTER_KEY.input);
+    const draftText = draft.getValue();
+    if (draftText.length === 0) {
+      onInput(ENTER_KEY.input, "typing");
       // Auto-switch to terminal so the user sees the result of pressing Enter
       if (viewMode === "messages") onSwitchToTerminal?.();
       onFocusTerminal?.();
@@ -205,7 +438,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     if (hasModifier) {
       // With modifiers active, apply them to the input text character by character
       // (useful for combos like Ctrl+C, Ctrl+Alt+2, etc.)
-      const { data } = applyModifiers(inputValue, mods);
+      const { data } = applyModifiers(draftText, mods);
       dataToSend = data;
       clearModifiers();
     } else {
@@ -213,34 +446,277 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // The user can explicitly include a newline via the Enter toolbar key
       // if needed. Appending one automatically caused unwanted extra blank
       // lines in the terminal output.
-      dataToSend = inputValue;
+      dataToSend = draftText;
     }
 
-    const sent = onInput(dataToSend);
-    if (sent) {
-      clearDraft();
-      showStatus("sent");
-      // Auto-switch to terminal so the user can see and confirm their command
-      if (viewMode === "messages") onSwitchToTerminal?.();
-    } else {
-      showStatus("queued");
+    // Snapshot the draft so we can restore it on ack failure. The draft
+    // is kept visible during "sending" state; the ack resolution path
+    // (below) decides whether to clear it.
+    pendingSendRef.current = { draft: draftText };
+    // Snapshot the session too: the ack can settle after the user switches
+    // sessions, and the clear below must target the session we sent from.
+    const sentFrom = draft.getSessionId();
+
+    const result = onInput(dataToSend, "bulk_text");
+
+    if (result.status === "rejected") {
+      // "empty" cannot occur here (draft.length > 0 checked above);
+      // "disposed" means the pane has torn down. In either case the
+      // draft should stay visible and no status change is needed.
+      pendingSendRef.current = null;
+      return;
     }
+
+    if (result.status === "queued") {
+      // The input was not sent immediately. Reason tells us why:
+      //   - "not-ready"  — session_ready hasn't arrived; flushes later.
+      //   - "ws-closed"  — socket is reconnecting; flushes on next open.
+      //   - "paused"     — an explicit higher-level pause held it back.
+      // Preserve the draft (user sees the pending-input pill).
+      showStatus("queued");
+      onFocusTerminal?.();
+      return;
+    }
+
+    // Frame was handed to the WS stack. Wait for stdin_ack before clearing.
+    setSendStatus("sending");
+    if (statusTimerRef.current !== null) {
+      clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = null;
+    }
+
+    const finalizeSuccess = () => {
+      pendingSendRef.current = null;
+      draft.reset(sentFrom);
+      showStatus("sent");
+      if (viewMode === "messages") onSwitchToTerminal?.();
+    };
+
+    const finalizeFailure = () => {
+      pendingSendRef.current = null;
+      // Draft is still in the textarea (we never cleared it); just surface
+      // the failure so the user can retry by pressing Send again.
+      showStatus("failed");
+    };
+
+    if (awaitOffset) {
+      settlementUnsubRef.current?.();
+      settlementUnsubRef.current = awaitOffset(result.offset, (ok) => {
+        settlementUnsubRef.current = null;
+        if (ok) finalizeSuccess();
+        else finalizeFailure();
+      });
+    } else {
+      // No settlement seam available (legacy caller wiring) — fall back
+      // to the optimistic behavior so we don't strand the draft.
+      finalizeSuccess();
+    }
+
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal]);
+  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, awaitOffset]);
 
+  // ── Toolbar composition ────────────────────────────────────────────────
+  // The arrangement is computed, not written. `layoutToolbar` decides which
+  // controls fit the user's row budget at the width we actually have; the same
+  // call with a simulated width drives the settings preview.
+  const [keysAreaRef, measuredWidth] = useElementWidth();
+
+  const voiceAvailable = Boolean(onVoiceStart && onVoiceStop);
+
+  /** Controls whose feature is not wired up this render claim no width. */
+  const unavailable = useMemo<ToolbarControlId[]>(() => {
+    const ids: ToolbarControlId[] = [];
+    if (!onOpenAi) ids.push("ai");
+    if (!onUploadImage) ids.push("image");
+    if (!voiceAvailable) ids.push("mic");
+    return ids;
+  }, [onOpenAi, onUploadImage, voiceAvailable]);
+
+  const layout = useMemo(
+    () => layoutToolbar(toolbarPrefs, measuredWidth ?? INITIAL_TOOLBAR_WIDTH_PX, {
+      view: viewMode,
+      unavailable,
+    }),
+    [toolbarPrefs, measuredWidth, viewMode, unavailable],
+  );
+
+  const controlLabels = useMemo<Record<string, string>>(() => ({
+    more: t(strings.mobileToolbar.controls.more),
+    modifiers: t(strings.mobileToolbar.controls.modifiers),
+    special: t(strings.mobileToolbar.controls.special),
+    arrows: t(strings.mobileToolbar.controls.arrows),
+    mic: t(strings.mobileToolbar.controls.mic),
+    image: t(strings.mobileToolbar.uploadImageTitle),
+    ai: t(strings.mobileToolbar.aiCommandTitle),
+    snippets: t(strings.snippets.picker.title),
+  }), [t]);
+
+  const voiceProps = useMemo(() => (voiceAvailable && onVoiceStart && onVoiceStop ? {
+    supported: voiceSupported ?? false,
+    isPreparing: voicePreparing ?? false,
+    isRecording: voiceRecording ?? false,
+    persistentMode: voicePersistentMode ?? false,
+    isListening: voiceListening ?? false,
+    isPassive: voicePassive ?? false,
+    isTranscribing: voiceTranscribing ?? false,
+    error: voiceError ?? null,
+    audioLevel: voiceLevel,
+    voiceActivity: voiceActivity,
+    backend: voiceBackend,
+    capabilityReason: voiceCapabilityReason,
+    operatorCommand: voiceOperatorCommand,
+    onPrepare: onVoicePrepare,
+    onStart: onVoiceStart,
+    onStop: onVoiceStop,
+    onExitPassive: onVoiceExitPassive,
+  } : undefined), [
+    voiceAvailable, voicePreparing, voiceRecording, voicePersistentMode, voiceListening,
+    voicePassive, voiceTranscribing, voiceError, voiceLevel, voiceActivity, voiceBackend,
+    voiceCapabilityReason, voiceOperatorCommand,
+    onVoicePrepare, onVoiceStart, onVoiceStop, onVoiceExitPassive,
+  ]);
+
+  /**
+   * Controls that are not on the surface — hidden by the user, or pushed out by
+   * the budget. They are the reason More is pinned: this list is what would
+   * otherwise be unreachable.
+   */
+  const offToolbarSpecs = useMemo<ToolbarControlSpec[]>(() => {
+    const seated = new Set<ToolbarControlId>(layout.rows.flatMap((row) => row.slots.map((s) => s.id)));
+    if (layout.dpad) seated.add("arrows");
+    return TOOLBAR_CONTROLS.filter((spec) => (
+      !spec.pinned
+      && !unavailable.includes(spec.id)
+      && !(viewMode === "messages" && spec.terminalOnly)
+      && !seated.has(spec.id)
+    ));
+  }, [layout, unavailable, viewMode]);
+
+  const baseControlContext = useMemo<Omit<ToolbarControlContext, "moreTrigger">>(() => ({
+    onKey: handleKey,
+    modifiers,
+    toggleModifier,
+    onOpenAi,
+    aiSuggestActive,
+    onUploadImage,
+    onOpenSnippets: () => { setSnippetPickerOpen(true); },
+    voice: voiceProps,
+    labels: controlLabels,
+  }), [handleKey, modifiers, toggleModifier, onOpenAi, aiSuggestActive, onUploadImage, voiceProps, controlLabels]);
+
+  // Rendered inside the More sheet at comfortable targets. Same renderer as the
+  // toolbar, so a control behaves identically wherever it is reached from.
+  const offToolbarControls = useMemo(() => offToolbarSpecs.map((spec) => ({
+    id: String(spec.id),
+    label: controlLabels[spec.id] ?? String(spec.id),
+    node: renderToolbarControl(
+      { id: spec.id, spec, width: SHEET_METRICS.unit, fill: false },
+      // A control can be in the strip and the sheet at once; the prefix keeps
+      // the two copies distinguishable.
+      { ...baseControlContext, testIdPrefix: "more-" },
+      SHEET_METRICS,
+    ),
+  })), [offToolbarSpecs, controlLabels, baseControlContext]);
+
+  const controlContext = useMemo<ToolbarControlContext>(() => ({
+    ...baseControlContext,
+    moreTrigger: ({ className, style, label }) => (
+      <KeyComboPicker
+        onInput={onInput}
+        onFocusTerminal={onFocusTerminal}
+        triggerClassName={className}
+        triggerStyle={style}
+        triggerLabel={label}
+        offToolbarControls={offToolbarControls}
+        showKeyCombos={viewMode === "terminal"}
+      />
+    ),
+  }), [baseControlContext, onInput, onFocusTerminal, offToolbarControls, viewMode]);
+
+  const snippetAutoValues = useMemo<Record<string, string>>(
+    () => ({ session: activeSessionId ?? "" }),
+    [activeSessionId],
+  );
   if (!visible) return null;
 
   return (
     <div
       data-testid="mobile-toolbar"
-      // pb-[var(--wc-safe-bottom)] adds bottom padding equal to the device's
-      // safe-area inset (for rounded corners / home indicators in PWA mode).
-      // The useAppViewport hook sets --wc-safe-bottom to 0px when the virtual
-      // keyboard is open since the keyboard covers the bottom edge.
-      className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation pb-[var(--wc-safe-bottom)]"
+      // Do not add bottom safe-area padding here. The toolbar is part of the
+      // fixed app layout, and iOS/PWA safe-area handling already reserves the
+      // bottom edge; adding it here creates a visible extra gutter.
+      className="wc-chrome-surface-raised flex shrink-0 flex-col border-t border-wc-default touch-manipulation ps-[max(0.25rem,var(--wc-safe-left,0px))] pe-[max(0.25rem,var(--wc-safe-right,0px))]"
     >
+      {ttsDismissed && onTtsRestore && (
+        <button
+          type="button"
+          data-testid="tts-restore"
+          className="absolute bottom-2 end-2 z-10 rounded-full bg-wc-surface-input p-2 text-wc-text-secondary shadow ring-1 ring-wc-default"
+          aria-label="Show audio playback"
+          title="Show audio playback"
+          onClick={onTtsRestore}
+        >
+          <Volume2 className="h-4 w-4" />
+        </button>
+      )}
+      {/* Pending-input pill — visible whenever the terminal's stdin queue is non-empty.
+          Clicking it toggles a disclosure listing truncated payloads and oldest age. */}
+      {pendingInputEntries.length > 0 && (
+        <div
+          data-testid="pending-input-pill"
+          className="flex flex-col border-b border-wc-default bg-wc-surface-raised/80 px-2 py-1 text-[11px] text-yellow-300"
+        >
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => setPillOpen((v) => !v)}
+            className="flex items-center justify-between gap-2 text-start"
+            title={t(strings.mobileToolbar.showUnsentTitle)}
+          >
+            <span>
+              ⏳ {t(strings.mobileToolbar.unsentCount, { count: pendingInputEntries.length })}
+              {(() => {
+                const oldest = pendingInputEntries.reduce(
+                  (min, e) => (min === null || e.addedAt < min ? e.addedAt : min),
+                  null as number | null,
+                );
+                if (oldest === null) return null;
+                const ageSec = Math.max(0, Math.floor((Date.now() - oldest) / 1000));
+                return <span className="ms-1 text-wc-text-muted">{t(strings.mobileToolbar.unsentOldest, { seconds: ageSec })}</span>;
+              })()}
+            </span>
+            <span className="text-wc-text-muted">{pillOpen ? "▾" : "▸"}</span>
+          </button>
+          {pillOpen && (
+            <div data-testid="pending-input-disclosure" className="mt-1 flex flex-col gap-1">
+              <ul className="max-h-24 overflow-y-auto font-mono text-[10px] text-wc-text-secondary">
+                {pendingInputEntries.map((entry, idx) => {
+                  const truncated = entry.data.length > 60 ? entry.data.slice(0, 60) + "…" : entry.data;
+                  const ageSec = Math.max(0, Math.floor((Date.now() - entry.addedAt) / 1000));
+                  return (
+                    <li key={idx} className="truncate">
+                      <span className="text-wc-text-muted">[{ageSec}s]</span>{" "}
+                      {entry.held && <span className="me-1 text-amber-300">held</span>}
+                      {decodeInputLabel(truncated).map((label, labelIndex) => (
+                        <span key={labelIndex} className={label.kind === "key" ? "me-1 rounded bg-wc-surface-input px-1" : ""}>
+                          {label.kind === "text" ? `“${label.label}”` : label.label}
+                        </span>
+                      ))}
+                      {discardPendingInput && <button type="button" className="ms-2 text-wc-text-muted hover:text-red-300" aria-label={`Discard pending input ${idx + 1}`} onClick={() => discardPendingInput(idx)}>×</button>}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="flex gap-2 text-[10px]">
+                {discardAllPendingInput && <button type="button" className="rounded border border-wc-default px-1.5 py-0.5 hover:bg-wc-surface-input" aria-label="Discard all pending input" onClick={discardAllPendingInput}>Discard all</button>}
+                {flushPendingInputNow && <button type="button" className="rounded border border-wc-default px-1.5 py-0.5 hover:bg-wc-surface-input" aria-label="Send pending input now" onClick={flushPendingInputNow}>Send now</button>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {/* Voice command suggestion bar */}
       {voiceCommandSuggestion && onVoiceCommandConfirm && onVoiceCommandDismiss && (
         <VoiceCommandSuggestion
@@ -249,59 +725,159 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           onDismiss={onVoiceCommandDismiss}
         />
       )}
+      {aiSuggestActive && onAiSuggestExecute && (
+        <DeferredAiSuggestBar
+          inputText={aiInputText}
+          onExecute={onAiSuggestExecute}
+          onClose={() => onOpenAi?.()}
+        />
+      )}
       {/* Command input row */}
       <div className="flex items-end gap-0.5 px-1 py-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          <textarea
-            ref={textareaRef}
-            data-testid="mobile-command-input"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              onInputChange?.(e.target.value);
-            }}
-            autoComplete="off"
-            autoCorrect="on"
-            spellCheck={false}
-            rows={1}
-            placeholder="Type command…"
-            className={cn(
-              "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
-              "overflow-y-auto",
-              !expanded && "overflow-x-hidden",
-            )}
+          {/* Uncontrolled: the DOM owns the value (mirrored into the shared
+              draft), so typing and native backspace never re-render the toolbar. */}
+          {/* One field, three parts. The group owns the border, the surface
+              and the focus ring; the textarea, the expand affordance and the
+              send action all live inside that single outline.
+              `--rcl-group-pad` is the group's own seam for its inline gutter,
+              so the mirror below and the textarea it draws for read their
+              padding from one value instead of two hand-matched ones. */}
+          <InputGroup
+            ref={composerGroupRef}
+            testId="mobile-command-group"
+            size="lg"
+            // Pill here means "as round as one row allows": clamped to a true
+            // capsule at rest, hugging the circular send button, and a
+            // well-rounded rectangle once the field grows.
+            shape="pill"
             style={{
-              lineHeight: `${LINE_HEIGHT_PX}px`,
-              maxHeight: expanded ? "60dvh" : `${MAX_TEXTAREA_HEIGHT}px`,
-            }}
-          />
+              // Aligns the text with the optical left edge of the action
+              // glyphs, which sit at 18px: 4px of action inset plus half the
+              // difference between the 44px button and its 16px icon. 16px is
+              // the nearest token, and 2px under is imperceptible.
+              //
+              // The old value here was 8px, carried over from the `px-2` the
+              // hand-rolled composer used. That read fine against a square
+              // border and cramped against a pill: a 27px radius puts the
+              // border at x≈7px nine pixels down, so the first line had about
+              // 2px of clearance at the corner.
+              "--rcl-group-pad": "var(--space-sm)",
+            } as CSSProperties}
+          >
+            <InputGroup.Field>
+              {/* The mirror sits behind the textarea, so the textarea stays
+                  transparent — an opaque one would paint over the very text
+                  this is meant to reveal. */}
+              <InterimTranscriptOverlay
+                draft={draft}
+                interim={voicePartialTranscript ?? ""}
+                textareaRef={textareaRef}
+                className="box-border text-base leading-5 text-wc-text-primary"
+                style={{
+                  paddingInline: "var(--rcl-group-pad)",
+                  paddingBlock: "var(--space-2xs)",
+                }}
+                testId="mobile-interim-overlay"
+              />
+              <Textarea
+                ref={textareaRef}
+                data-testid="mobile-command-input"
+                defaultValue={draft.getValue()}
+                onChange={handleTextareaChange}
+                onSelect={(e) => draft.trackSelection(e.currentTarget)}
+                onBlur={(e) => draft.trackSelection(e.currentTarget)}
+                autoComplete="off"
+                autoCorrect="on"
+                spellCheck={false}
+                rows={1}
+                placeholder={t(strings.mobileToolbar.placeholder)}
+                // Border, background, radius and padding are the group's now.
+                // `text-base` stays: 16px is what stops iOS zooming the
+                // viewport on focus, and the group deliberately leaves `font`
+                // alone so this class still wins.
+                className={cn(
+                  "relative z-10 text-base caret-wc-text-primary",
+                  "overflow-y-auto overflow-x-hidden",
+                  // Hand the glyphs to the mirror while a hypothesis is on
+                  // screen so settled and unsettled text cannot double up.
+                  voicePartialTranscript ? "text-transparent" : "text-wc-text-primary",
+                )}
+                style={{
+                  color: voicePartialTranscript ? "transparent" : "rgb(var(--wc-text-primary))",
+                  lineHeight: `${LINE_HEIGHT_PX}px`,
+                  maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
+                }}
+              />
+            </InputGroup.Field>
+            {/* Always-visible, low-emphasis corner affordance that expands the
+                draft into the full-screen composer. It holds the top corner
+                rather than the vertical centre because a growing field keeps
+                its top edge still — `align="start"` is that decision, stated. */}
+            {onExpandComposer && (
+              <InputGroup.Action align="start" testId="expand-toggle-slot">
+                <IconButton
+                  type="button"
+                  data-testid="expand-toggle"
+                  aria-label={t(strings.mobileToolbar.expandComposerTitle)}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={onExpandComposer}
+                  shape="rounded"
+                  surface="ghost"
+                  // `lg` renders a 24px glyph; this affordance has always been a
+                  // 16px icon sitting inside the composer's trailing gutter.
+                  size="sm"
+                  title={t(strings.mobileToolbar.expandComposerTitle)}
+                >
+                  <Maximize2 aria-hidden className="h-4 w-4" />
+                </IconButton>
+              </InputGroup.Action>
+            )}
+            {/* Send lives inside the field rather than beside it, pinned to the
+                bottom: on one line that is indistinguishable from centred, and
+                at four lines it is the only anchor that stays next to the text
+                and the thumb.
+
+                It is filled unconditionally and never dimmed on an empty draft.
+                The chat-app convention would be wrong here — an empty send is
+                not a no-op, it sends Enter (see submitCommand), so dimming it
+                would signal "nothing to do" about a control that does. */}
+            <InputGroup.Action align="end" testId="mobile-command-submit-slot">
+              <IconButton
+                type="button"
+                data-testid="mobile-command-submit"
+                aria-label={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                title={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                tabIndex={-1}
+                shape="circle"
+                surface="solid"
+                size="sm"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={submitCommand}
+              >
+                {/* "sending" renders as an inline spinner in the button itself
+                    rather than a label below the textarea — the label changed
+                    the toolbar's height on every send, forcing a costly
+                    terminal resize/reflow. */}
+                {sendStatus === "sending" ? (
+                  <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
+                ) : (
+                  <SendHorizontal aria-hidden className="h-4 w-4" />
+                )}
+              </IconButton>
+            </InputGroup.Action>
+          </InputGroup>
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
-              Queued — connection lost. Input preserved.
+              {t(strings.mobileToolbar.statusQueued)}
+            </span>
+          )}
+          {sendStatus === "failed" && (
+            <span data-testid="send-status-failed" className="px-1 text-[10px] text-red-400">
+              {t(strings.mobileToolbar.statusFailed)}
             </span>
           )}
         </div>
-        {/* Expand/collapse toggle */}
-        <button
-          data-testid="expand-toggle"
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={() => setExpanded((prev) => !prev)}
-          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-          title={expanded ? "Collapse editor" : "Expand editor"}
-        >
-          {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-        </button>
-        {/* Send button — always enabled so that tapping it with an empty
-             input acts as Enter (see submitCommand for rationale). */}
-        <button
-          data-testid="mobile-command-submit"
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={submitCommand}
-          className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-          title="Send command"
-        >
-          <SendHorizontal className="h-3.5 w-3.5" />
-        </button>
       </div>
       {/* Toolbar keys area.
          Focus-preservation strategy (multiple layers to handle browser inconsistencies):
@@ -312,292 +888,15 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
          4. select-none: prevents double-tap text selection which can blur the terminal.
          5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
             in case the browser still manages to blur the terminal despite layers 1-4. */}
-      {viewMode === "messages" ? (
-        /* ── Messages mode: AI + image upload + voice mic ── */
-        <div
-          className="flex items-center justify-end gap-0.5 px-1 py-1 touch-manipulation select-none"
+      <div ref={keysAreaRef} className="relative min-w-0">
+        <ToolbarSurface
+          testId={viewMode === "messages" ? "messages-toolbar-actions" : "toolbar-keys-area"}
+          layout={layout}
+          ctx={controlContext}
           onMouseDown={(e) => e.preventDefault()}
-        >
-          {onOpenAi && (
-            <button
-              data-testid="toolbar-ai"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={onOpenAi}
-              className={cn(
-                "shrink-0 rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
-                aiSuggestActive
-                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-              )}
-              title="AI Command"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {onUploadImage && (
-            <button
-              data-testid="toolbar-upload-image"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={onUploadImage}
-              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-              title="Upload image"
-            >
-              <Image className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {voiceSupported && onVoiceStart && onVoiceStop && (
-            <VoiceMicButton
-              supported={voiceSupported}
-              isPreparing={voicePreparing ?? false}
-              isRecording={voiceRecording ?? false}
-              isListening={voiceListening ?? false}
-              isTranscribing={voiceTranscribing ?? false}
-              error={voiceError ?? null}
-              audioLevel={voiceLevel}
-              partialTranscript={voicePartialTranscript}
-              backend={voiceBackend}
-              isTtsSpeaking={isTtsSpeaking}
-              onStart={onVoiceStart}
-              onStop={onVoiceStop}
-              onCancel={onVoiceCancel}
-              onTtsStop={onTtsStop}
-            />
-          )}
-        </div>
-      ) : toolbarLayout === "expanded" ? (
-        /* ── Expanded layout: two rows with D-pad arrow cluster ──
-           ┌────────────────────────────────────────────────────────────┐
-           │ [Ctrl] [Alt] [Shift] │     [↑]      │ [📷] │            │
-           │ [Esc]  [Tab] [Enter] │ [←] [↓] [→]  │      │    [🎤]   │
-           └────────────────────────────────────────────────────────────┘
-           The mic button spans both rows for easy access. */
-        <div
-          className="grid gap-0.5 px-1 py-1 touch-manipulation select-none"
-          style={{ gridTemplateColumns: "auto auto 1fr auto", gridTemplateRows: "auto auto" }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {/* Column 1: Combo picker + Modifiers (row 1) + Special keys (row 2) */}
-          <div className="flex flex-col gap-0.5" style={{ gridRow: "1 / -1" }}>
-            <div className="flex items-center gap-0.5">
-              <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
-              <div className="w-px h-5 bg-wc-default shrink-0" />
-              {(["ctrl", "alt", "shift"] as const).map((mod) => (
-                <button
-                  key={mod}
-                  data-testid={`toolbar-mod-${mod}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => toggleModifier(mod)}
-                  className={cn(
-                    "shrink-0 rounded border px-2 py-1.5 text-sm font-medium transition touch-manipulation",
-                    modifiers[mod]
-                      ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
-                  )}
-                >
-                  {mod.charAt(0).toUpperCase() + mod.slice(1)}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-0.5">
-              {[ESC_KEY, TAB_KEY, ENTER_KEY].map((key) => (
-                <button
-                  key={key.label}
-                  data-testid={`toolbar-key-${slugify(key.label)}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => handleKey(key)}
-                  className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.75rem]"
-                >
-                  {key.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Column 2: D-pad arrow cluster */}
-          <div className="flex flex-col items-center gap-0.5 px-1" style={{ gridRow: "1 / -1" }}>
-            {/* Row 1: Up arrow centered */}
-            <div className="flex justify-center">
-              <button
-                data-testid={`toolbar-key-${slugify(ARROW_UP.label)}`}
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => handleKey(ARROW_UP)}
-                className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
-              >
-                {ARROW_UP.label}
-              </button>
-            </div>
-            {/* Row 2: Left, Down, Right */}
-            <div className="flex items-center gap-0.5">
-              {[ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT].map((key) => (
-                <button
-                  key={key.label}
-                  data-testid={`toolbar-key-${slugify(key.label)}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => handleKey(key)}
-                  className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
-                >
-                  {key.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Column 3: AI + Image upload buttons (right-aligned) */}
-          <div className="flex flex-col items-end gap-0.5" style={{ gridColumn: 3, gridRow: "1 / -1" }}>
-            {onOpenAi && (
-              <button
-                data-testid="toolbar-ai"
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={onOpenAi}
-                className={cn(
-                  "shrink-0 rounded border p-2 transition active:bg-wc-accent-active touch-manipulation",
-                  aiSuggestActive
-                    ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-                )}
-                title="AI Command"
-              >
-                <Sparkles className="h-4 w-4" />
-              </button>
-            )}
-            {onUploadImage && (
-              <button
-                data-testid="toolbar-upload-image"
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={onUploadImage}
-                className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-                title="Upload image"
-              >
-                <Image className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Column 4: Voice mic button spanning both rows for easy access */}
-          {voiceSupported && onVoiceStart && onVoiceStop && (
-            <div className="flex items-stretch" style={{ gridColumn: 4, gridRow: "1 / -1" }}>
-              <VoiceMicButton
-                supported={voiceSupported}
-                isPreparing={voicePreparing ?? false}
-                isRecording={voiceRecording ?? false}
-                isListening={voiceListening ?? false}
-                isTranscribing={voiceTranscribing ?? false}
-                error={voiceError ?? null}
-                audioLevel={voiceLevel}
-                partialTranscript={voicePartialTranscript}
-                backend={voiceBackend}
-                isTtsSpeaking={isTtsSpeaking}
-                onStart={onVoiceStart}
-                onStop={onVoiceStop}
-                onCancel={onVoiceCancel}
-                onTtsStop={onTtsStop}
-                className="h-full"
-                buttonClassName="h-full px-3"
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ── Compact layout: single row (original) ── */
-        <div
-          className="flex items-center gap-0.5 px-1 py-1 touch-manipulation select-none"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {/* Combo picker + Modifier toggle buttons */}
-          <KeyComboPicker onInput={onInput} onFocusTerminal={onFocusTerminal} />
-          <div className="w-px h-4 bg-wc-default shrink-0" />
-          {(["ctrl", "alt", "shift"] as const).map((mod) => (
-            <button
-              key={mod}
-              data-testid={`toolbar-mod-${mod}`}
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => toggleModifier(mod)}
-              className={cn(
-                "shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition touch-manipulation",
-                modifiers[mod]
-                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary active:bg-wc-accent-active",
-              )}
-            >
-              {mod.charAt(0).toUpperCase() + mod.slice(1)}
-            </button>
-          ))}
-          <div className="w-px h-4 bg-wc-default shrink-0" />
-          <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
-            {TOOLBAR_KEYS.map((key) => (
-              <button
-                key={key.label}
-                data-testid={`toolbar-key-${slugify(key.label)}`}
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => handleKey(key)}
-                className={cn(
-                  "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
-                  key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
-                )}
-              >
-                {key.label}
-              </button>
-            ))}
-          </div>
-          {onOpenAi && (
-            <button
-              data-testid="toolbar-ai"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={onOpenAi}
-              className={cn(
-                "shrink-0 rounded border p-1.5 transition active:bg-wc-accent-active touch-manipulation",
-                aiSuggestActive
-                  ? "border-wc-accent bg-wc-accent/20 text-wc-text-primary"
-                  : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-              )}
-              title="AI Command"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {onUploadImage && (
-            <button
-              data-testid="toolbar-upload-image"
-              tabIndex={-1}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={onUploadImage}
-              className="shrink-0 rounded border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation"
-              title="Upload image"
-            >
-              <Image className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {voiceSupported && onVoiceStart && onVoiceStop && (
-            <VoiceMicButton
-              supported={voiceSupported}
-              isPreparing={voicePreparing ?? false}
-              isRecording={voiceRecording ?? false}
-              isListening={voiceListening ?? false}
-              isTranscribing={voiceTranscribing ?? false}
-              error={voiceError ?? null}
-              audioLevel={voiceLevel}
-              partialTranscript={voicePartialTranscript}
-              backend={voiceBackend}
-              isTtsSpeaking={isTtsSpeaking}
-              onStart={onVoiceStart}
-              onStop={onVoiceStop}
-              onCancel={onVoiceCancel}
-              onTtsStop={onTtsStop}
-            />
-          )}
-        </div>
-      )}
+        />
+      </div>
+      {snippetPickerOpen && <SnippetPicker open onClose={() => setSnippetPickerOpen(false)} autoValues={snippetAutoValues} onInsert={async (text) => { draft.appendAtCaret(text); }} />}
     </div>
   );
 });

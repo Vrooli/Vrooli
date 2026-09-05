@@ -71,6 +71,18 @@ export interface CommitRequest {
   amend?: boolean;
   author_name?: string;
   author_email?: string;
+  skip_precommit_once?: boolean;
+}
+
+export interface PrecommitRunResult {
+  status: string;
+  exit_code: number;
+  summary: string;
+  stdout?: string;
+  stderr?: string;
+  duration_ms: number;
+  override_allowed: boolean;
+  timestamp: string;
 }
 
 export interface CommitResponse {
@@ -79,7 +91,51 @@ export interface CommitResponse {
   amended?: boolean;
   error?: string;
   validation_errors?: string[];
+  precommit?: PrecommitRunResult;
   timestamp: string;
+}
+
+export interface PrecommitConfig {
+  enabled: boolean;
+  command: string;
+  working_directory: string;
+  timeout_seconds: number;
+  run_before_commit: boolean;
+  allow_override: boolean;
+  last_result?: PrecommitRunResult;
+  hook?: PrecommitHookState;
+}
+
+export interface PrecommitHookState {
+  status: "installed" | "fallback" | "uninstalled" | string;
+  reason?: string;
+  existing_kind?: "user" | "framework" | "gct" | "none" | string;
+  existing_hook_preview?: string;
+  path?: string;
+  hooks_path?: string;
+  installed_at?: string;
+}
+
+export interface PrecommitRunRequest {
+  command?: string;
+  working_directory?: string;
+  timeout_seconds?: number;
+}
+
+export interface PrecommitRunResponse {
+  success: boolean;
+  result: PrecommitRunResult;
+}
+
+export type PrecommitStreamEventType = "started" | "progress" | "finished" | "error";
+
+export interface PrecommitStreamEvent {
+  type: PrecommitStreamEventType;
+  elapsed_ms: number;
+  command?: string;
+  tail?: string[];
+  result?: PrecommitRunResult;
+  error?: string;
 }
 
 export interface DiscardRequest {
@@ -123,6 +179,20 @@ export interface GroupingRuleAPI {
   mode: string; // "prefix" | "segment"
 }
 
+export interface ChangeGroupAPI {
+  key: string;
+  kind?: string;
+  id?: string;
+  label: string;
+  root?: string;
+  source: "manual" | "contract" | "builtin" | string;
+  files: string[];
+}
+
+export interface RepoGroupsResponse {
+  groups: ChangeGroupAPI[];
+}
+
 // Gitignore health types
 export interface GitignoreHealthResponse {
   root_entry_count: number;
@@ -144,6 +214,37 @@ export interface GitignoreMoveRequest {
   pattern: string;
   group_dir: string;
   target_pattern: string;
+}
+
+// Tracked-binary health types
+export interface TrackedBinariesResponse {
+  binaries: TrackedBinary[];
+  total_bytes: number;
+  /** Stated plainly so the UI never implies untracking reclaims repo size. */
+  history_warning?: string;
+}
+
+export interface TrackedBinary {
+  path: string;
+  bytes: number;
+  format: "elf" | "mach-o" | "pe";
+  /** Scenario/resource dir that should ignore this path; "" means repo root. */
+  owner_dir: string;
+  ignore_pattern: string;
+  already_ignored: boolean;
+}
+
+export interface UntrackBinaryRequest {
+  path: string;
+  owner_dir: string;
+  ignore_pattern: string;
+}
+
+export interface UntrackBinaryResponse {
+  success: boolean;
+  removed_from_index: boolean;
+  ignore_added_to?: string;
+  error?: string;
 }
 
 export interface GitignoreMoveResponse {

@@ -1,18 +1,18 @@
 {
   "_metadata": {
-    "description": "Workflow builder canvas and persistence requirements",
-    "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
+    "description": "Workflow builder canvas and persistence requirements",
+    "last_validated_at": "2026-06-20T23:54:18-04:00",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
       "id": "BAS-WORKFLOW-PERSIST-CRUD",
-      "category": "workflow.builder",
-      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Workflows persist nodes, edges, and metadata",
-      "description": "Validates compiler, database, and API layers so workflows round-trip with folder hierarchy and normalized metadata required for execution planning.",
       "status": "in_progress",
+      "prd_ref": "Functional Requirements \u003e Must Have \u003e Visual workflow builder",
+      "category": "workflow.builder",
+      "description": "Validates compiler, database, and API layers so workflows round-trip with folder hierarchy and normalized metadata required for execution planning.",
       "validation": [
         {
           "type": "test",
@@ -60,17 +60,17 @@
     },
     {
       "id": "BAS-WORKFLOW-DEMO-SEED",
-      "category": "workflow.builder",
-      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Demo project and workflow seed remain available after boot",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Must Have \u003e Visual workflow builder",
+      "category": "workflow.builder",
       "description": "Guarantees the bundled demo project loads for first-time operators, providing an executable workflow that exercises the canvas and executor pipeline.",
-      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "bas/cases/02-builder/01-projects/demo-sanity.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export)."
         }
       ]

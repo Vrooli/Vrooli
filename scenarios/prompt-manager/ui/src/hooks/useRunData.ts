@@ -10,7 +10,7 @@
 // AI_CHECK: RUN_POLL_STATE_CHURN=2 | LAST: 2026-02-18
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { listRuns, type RunDetails } from '@/services/heartbeatService'
+import { listHeartbeatAttempts, listRuns, type HeartbeatAttempt, type RunDetails } from '@/services/heartbeatService'
 
 const POLL_INTERVAL = 10_000
 const DEFAULT_PROFILE_KEY = 'prompt-manager-heartbeat'
@@ -44,11 +44,45 @@ export function areRunsEqual(a: RunDetails[], b: RunDetails[]): boolean {
       left.taskId !== right.taskId ||
       left.profileId !== right.profileId ||
       left.sessionId !== right.sessionId
+      || left.source !== right.source
+      || left.phase !== right.phase
+      || left.recovery !== right.recovery
+      || left.errorCategory !== right.errorCategory
     ) {
       return false
     }
   }
   return true
+}
+
+function attemptToRun(attempt: HeartbeatAttempt): RunDetails {
+  return {
+    id: attempt.runId || `attempt:${attempt.id}`,
+    taskId: attempt.taskId || '',
+    status: attempt.status,
+    startedAt: attempt.startedAt,
+    endedAt: attempt.endedAt,
+    error: attempt.error,
+    tag: attempt.tag || `heartbeat-${attempt.teamId}-${attempt.agentId}`,
+    teamId: attempt.teamId,
+    agentId: attempt.agentId,
+    source: 'heartbeat-attempt',
+    phase: attempt.phase,
+    recovery: attempt.recovery,
+    errorCategory: attempt.errorCategory,
+  }
+}
+
+function mergeRunsWithAttempts(runs: RunDetails[], attempts: HeartbeatAttempt[]): RunDetails[] {
+  const runIds = new Set(runs.map((run) => run.id))
+  const attemptRuns = attempts
+    .filter((attempt) => !attempt.runId || !runIds.has(attempt.runId))
+    .map(attemptToRun)
+  return [...runs, ...attemptRuns].sort((a, b) => {
+    const left = new Date(a.startedAt ?? a.endedAt ?? 0).getTime()
+    const right = new Date(b.startedAt ?? b.endedAt ?? 0).getTime()
+    return right - left
+  })
 }
 
 export function useRunData(opts?: UseRunDataOptions): UseRunDataResult {
@@ -65,14 +99,23 @@ export function useRunData(opts?: UseRunDataOptions): UseRunDataResult {
       setLoading(true)
     }
     try {
-      const response = await listRuns({
-        status: opts?.status,
-        tagPrefix: opts?.tagPrefix,
-        profileKey: opts?.profileKey ?? DEFAULT_PROFILE_KEY,
-        limit: 100,
-      })
+      const profileKey = opts?.profileKey ?? DEFAULT_PROFILE_KEY
+      const [response, attemptsResponse] = await Promise.all([
+        listRuns({
+          status: opts?.status,
+          tagPrefix: opts?.tagPrefix,
+          profileKey,
+          limit: 100,
+        }),
+        listHeartbeatAttempts({
+          status: opts?.status,
+          profileKey,
+          limit: 100,
+        }),
+      ])
+      const mergedRuns = mergeRunsWithAttempts(response.runs, attemptsResponse.attempts)
       // Avoid rerendering the runs tab when polled data is unchanged.
-      setRuns((prev) => (areRunsEqual(prev, response.runs) ? prev : response.runs))
+      setRuns((prev) => (areRunsEqual(prev, mergedRuns) ? prev : mergedRuns))
       setError(null)
     } catch (err) {
       if (isFirstLoad.current) {

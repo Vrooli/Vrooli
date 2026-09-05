@@ -11,16 +11,19 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phases/dbdetect"
+	"test-genie/internal/orchestrator/phases/isolation"
+	"test-genie/internal/orchestrator/phases/seeds"
+	"test-genie/internal/orchestrator/testconfig/config"
+	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
+	"test-genie/internal/storage/sqlfiles"
+
 	"github.com/vrooli/api-core/database"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 
-	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/playbooks/config"
-	"test-genie/internal/playbooks/isolation"
-	"test-genie/internal/playbooks/seeds"
-	"test-genie/internal/shared"
 	sharedartifacts "test-genie/internal/shared/artifacts"
-	"test-genie/internal/storage/sqlfiles"
 )
 
 // PlaybooksSeedSession holds state for a seed lifecycle run.
@@ -37,7 +40,22 @@ type resourceNeeds struct {
 	RequirePostgres bool
 	RequireRedis    bool
 	RequireSQLite   bool
-	SQLiteEnvVars   []string
+	// PrimaryDriver identifies the scenario's primary database driver
+	// ("postgres" or "sqlite") when detection has strong evidence
+	// (e.g. a Go driver import). Empty when no single driver dominates.
+	// Used by the routed path to pick a DSN that matches the scenario's
+	// actual driver, avoiding hangs from cross-driver DSN injection.
+	PrimaryDriver string
+	SQLiteEnvVars []string
+}
+
+// isolationProvider lets tests stub seed isolation without requiring Docker.
+type isolationProvider interface {
+	Prepare(ctx context.Context) (*isolation.Result, error)
+}
+
+var isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
+	return isolation.NewManager(cfg)
 }
 
 // Cleanup tears down isolation resources and restarts the scenario to normal resources.
@@ -63,7 +81,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("playbooks seeds disabled via .vrooli/testing.json")
 	}
 
-	needs := detectResourceNeeds(env, logWriter)
+	needs := resolveDBNeeds(ctx, env, logWriter)
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
 		RequirePostgres: needs.RequirePostgres,
@@ -83,7 +101,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	restoreEnv := isolation.ApplyEnv(isoResult.Env)
 	envApplied := true
 
-	if err := applyPlaybooksMigrations(ctx, env, needs, logWriter); err != nil {
+	if err := applyPlaybooksMigrations(ctx, env, needs, isoResult.Env, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 		}
@@ -91,7 +109,15 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		return nil, fmt.Errorf("failed to apply playbooks migrations: %w", err)
 	}
 
-	if err := RestartScenario(ctx, env.ScenarioName, logWriter); err != nil {
+	if env.TargetRuntime == nil {
+		if envApplied {
+			restoreEnv()
+		}
+		_ = isoResult.Cleanup(context.Background())
+		return nil, fmt.Errorf("target runtime manager is not configured")
+	}
+
+	if err := env.TargetRuntime.RestartWithEnv(ctx, isoResult.Env, logWriter); err != nil {
 		if envApplied {
 			restoreEnv()
 		}
@@ -106,7 +132,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 	seedCtx, cancel := context.WithTimeout(ctx, playbooksCfg.Seeds.SeedTimeout())
 	defer cancel()
 
-	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.TestDir, logWriter)
+	seedManager := seeds.NewManager(env.ScenarioDir, env.AppRoot, env.CoverageDir, logWriter)
 	restoreSeedEnv := applyEnv(isoResult.Env)
 	_, seedErr := seedManager.Apply(seedCtx)
 	restoreSeedEnv()
@@ -128,7 +154,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 		SeedState: seedState,
 	}
 	session.cleanup = func(cleanupCtx context.Context) error {
-		if err := RestartScenario(cleanupCtx, env.ScenarioName, logWriter); err != nil {
+		if err := env.TargetRuntime.Restore(cleanupCtx, logWriter); err != nil {
 			shared.LogWarn(logWriter, "failed to restart scenario back to normal resources: %v", err)
 		}
 		if err := isoResult.Cleanup(cleanupCtx); err != nil {
@@ -142,7 +168,7 @@ func ApplyPlaybooksSeed(ctx context.Context, env workspace.Environment, logWrite
 
 // applyPlaybooksMigrations applies optional .sql files under bas/seeds/migrations
 // against the isolated database backend. Files execute in lexicographic order.
-func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, logWriter io.Writer) error {
+func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, needs resourceNeeds, isolatedEnv map[string]string, logWriter io.Writer) error {
 	if !needs.RequirePostgres && !needs.RequireSQLite {
 		return nil
 	}
@@ -167,7 +193,7 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	if needs.RequirePostgres {
 		files := append([]string(nil), commonFiles...)
 		files = append(files, postgresFiles...)
-		if err := applyPostgresMigrations(ctx, env, files, logWriter); err != nil {
+		if err := applyPostgresMigrations(ctx, env, isolatedEnv, files, logWriter); err != nil {
 			return err
 		}
 	}
@@ -181,11 +207,11 @@ func applyPlaybooksMigrations(ctx context.Context, env workspace.Environment, ne
 	return nil
 }
 
-func applyPostgresMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+func applyPostgresMigrations(ctx context.Context, env workspace.Environment, isolatedEnv map[string]string, files []string, logWriter io.Writer) error {
 	if err := EnsureCommandAvailable("psql"); err != nil {
 		return fmt.Errorf("psql not available for playbooks migrations: %w", err)
 	}
-	connURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	connURL := strings.TrimSpace(firstNonEmpty(isolatedEnv["DATABASE_URL"], isolatedEnv["POSTGRES_URL"]))
 	if connURL == "" {
 		return fmt.Errorf("DATABASE_URL is not set for playbooks migrations")
 	}
@@ -200,14 +226,15 @@ func applyPostgresMigrations(ctx context.Context, env workspace.Environment, fil
 }
 
 func applySQLiteMigrations(ctx context.Context, env workspace.Environment, files []string, logWriter io.Writer) error {
+	// Only the playbooks-scoped variables are read. The generic pair used to be
+	// accepted here as a fallback, which made this migration path a consumer of
+	// whatever database path happened to be in the environment.
 	sqliteDSN := strings.TrimSpace(firstNonEmpty(
 		os.Getenv("PLAYBOOKS_SQLITE_DSN"),
 		os.Getenv("PLAYBOOKS_SQLITE_PATH"),
-		os.Getenv("SQLITE_PATH"),
-		os.Getenv("SQLITE_DB"),
 	))
 	if sqliteDSN == "" {
-		return fmt.Errorf("SQLITE_PATH is not set for playbooks migrations")
+		return fmt.Errorf("PLAYBOOKS_SQLITE_DSN is not set for playbooks migrations; the isolation manager supplies it")
 	}
 	db, err := database.Connect(ctx, database.Config{
 		Driver:       database.DriverSQLite,
@@ -277,46 +304,70 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// detectResourceNeeds inspects the scenario service manifest and returns which
-// isolated resources should be provisioned for Playbooks. Defaults to
-// provisioning Postgres + Redis when the manifest cannot be read or does not
-// declare any supported resource types.
-func detectResourceNeeds(env workspace.Environment, logWriter io.Writer) resourceNeeds {
+// resolveDBNeeds runs the dbdetect resolver against the
+// scenario, writes the evidence chain to logWriter, and projects the report
+// to the booleans the isolation manager consumes. There is no fallback: a
+// scenario with no evidence is provisioned with nothing, which is the
+// correct signal that detection should be fixed at the source.
+func resolveDBNeeds(ctx context.Context, env workspace.Environment, logWriter io.Writer) resourceNeeds {
 	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
-	manifest, err := workspace.LoadServiceManifest(manifestPath)
+	rawManifest, err := workspace.LoadServiceManifest(manifestPath)
 	if err != nil {
-		shared.LogWarn(logWriter, "unable to read service manifest (%v); defaulting to Postgres + Redis isolation", err)
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
+		shared.LogWarn(logWriter, "unable to read service manifest (%v); proceeding with file-based detection only", err)
+	}
+	manifest := dbdetect.WrapManifest(rawManifest)
+
+	resolver, err := dbdetect.NewResolver(dbdetect.DefaultCollectors(), dbdetect.DefaultProfiles())
+	if err != nil {
+		shared.LogWarn(logWriter, "db-detect resolver construction failed: %v", err)
+		return resourceNeeds{SQLiteEnvVars: manifest.SQLitePathEnvVars()}
 	}
 
-	if len(manifest.Dependencies.Resources) == 0 {
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
+	report := resolver.Resolve(ctx, dbdetect.ScenarioInputs{
+		ScenarioDir: env.ScenarioDir,
+		Manifest:    manifest,
+		Filesystem:  dbdetect.OSFilesystem{},
+	})
+	if logWriter != nil {
+		_, _ = logWriter.Write([]byte(report.FormatHuman()))
 	}
-
 	needs := resourceNeeds{
-		SQLiteEnvVars: manifest.SQLitePathEnvVars(),
+		RequirePostgres: report.Required("postgres"),
+		RequireRedis:    report.Required("redis"),
+		RequireSQLite:   report.Required("sqlite"),
+		PrimaryDriver:   primaryDriver(report),
+		SQLiteEnvVars:   manifest.SQLitePathEnvVars(),
 	}
-	for _, res := range manifest.Dependencies.Resources {
-		if !res.Enabled && !res.Required {
-			continue
-		}
-		switch strings.ToLower(res.Type) {
-		case "postgres":
-			needs.RequirePostgres = true
-		case "redis":
-			needs.RequireRedis = true
-		case "sqlite":
-			needs.RequireSQLite = true
-		}
+	if needs.PrimaryDriver == "" {
+		shared.LogWarn(logWriter, "db-detect did not pick a primary driver — routed path will not be used")
+	} else {
+		shared.LogInfo(logWriter, "db-detect primary driver = %s", needs.PrimaryDriver)
 	}
-
-	// If nothing matched, assume both legacy backing services to avoid false negatives.
-	if !needs.RequirePostgres && !needs.RequireRedis && !needs.RequireSQLite {
-		shared.LogWarn(logWriter, "service manifest declares no postgres/redis/sqlite resources; defaulting to provision Postgres + Redis for playbooks isolation")
-		return resourceNeeds{RequirePostgres: true, RequireRedis: true}
-	}
-
 	return needs
+}
+
+// primaryDriver returns "postgres" or "sqlite" when one has strictly
+// stronger evidence than the other (per Evidence.Priority), and empty
+// otherwise. The empty case means "no winner — fall back to the caller's
+// default DSN order" (caller-defined behavior).
+func primaryDriver(report dbdetect.DetectionReport) string {
+	pgPriority := decisionPriority(report, "postgres")
+	sqlitePriority := decisionPriority(report, "sqlite")
+	if pgPriority > sqlitePriority {
+		return "postgres"
+	}
+	if sqlitePriority > pgPriority {
+		return "sqlite"
+	}
+	return ""
+}
+
+func decisionPriority(report dbdetect.DetectionReport, db string) dbdetect.Priority {
+	res, ok := report.Results[db]
+	if !ok || !res.Required || res.Decision == nil {
+		return 0
+	}
+	return res.Decision.Priority
 }
 
 func applyEnv(env map[string]string) func() {

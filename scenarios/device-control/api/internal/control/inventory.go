@@ -1,0 +1,790 @@
+package control
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"sort"
+	"strings"
+	"time"
+
+	devicedomain "device-control/internal/devices"
+	"device-control/internal/identity"
+	"device-control/strategy"
+)
+
+const defaultInventoryTimeout = 10 * time.Second
+
+func (s *Service) Strategies(ctx context.Context) []strategy.Declaration { return s.registry.List(ctx) }
+func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceReport, error) {
+	return s.registry.Verify(ctx, id)
+}
+
+func (s *Service) Devices(ctx context.Context) []Device {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timeout := s.inventoryTimeout
+	if timeout <= 0 {
+		timeout = defaultInventoryTimeout
+	}
+	inventoryCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.restoreTransportStrategies()
+	declarations := s.registry.List(inventoryCtx)
+	declarationByID := make(map[string]strategy.Declaration, len(declarations))
+	for _, declaration := range declarations {
+		declarationByID[declaration.StrategyID] = declaration
+	}
+	hostNodeID := strings.TrimSpace(os.Getenv("VROOLI_NODE_ID"))
+	if hostNodeID == "" {
+		hostNodeID, _ = os.Hostname()
+	}
+	seen := map[string]bool{}
+	promotedEndpoints := make(map[string]string, len(s.transportStates))
+	for id, state := range s.transportStates {
+		if endpoint := strings.TrimSpace(state.Endpoint); endpoint != "" {
+			promotedEndpoints[endpoint] = id
+		}
+	}
+	for _, d := range declarations {
+		enumerating := false
+		if base, ok := s.registry.Get(d.StrategyID); ok {
+			// Enumerate the unscoped adapter as well as any promoted transport
+			// adapters. A promoted wireless phone must stay endpoint-bound for
+			// its verbs, but it must not hide a concurrently running emulator
+			// from the host inventory.
+			type inventoryStrategy struct {
+				strategy strategy.Strategy
+				promoted bool
+			}
+			items := []inventoryStrategy{{strategy: base}}
+			for deviceID, promoted := range s.transportStrategies {
+				if device, exists := s.devices.Get(deviceID); exists && device.StrategyID == d.StrategyID && promoted != nil {
+					items = append(items, inventoryStrategy{strategy: promoted, promoted: true})
+				}
+			}
+			for _, candidate := range items {
+				item := candidate.strategy
+				// A promoted wireless adapter is endpoint-bound. Its capability
+				// declaration can differ from the base adapter, so use the
+				// effective declaration for the devices it enumerates.
+				declaration := d
+				// Android capability probing performs several bounded ADB probes
+				// (including screen recording and WebView discovery). Keep the
+				// inventory request bounded, but allow a cold emulator or a
+				// wireless phone enough time to answer the complete declaration;
+				// truncating it makes an otherwise usable target look capability-
+				// empty to delivery ramps.
+				probeCtx, cancel := context.WithTimeout(inventoryCtx, 8*time.Second)
+				effective, err := item.Describe(probeCtx)
+				cancel()
+				if err == nil {
+					declaration = effective
+				}
+				if enumerator, ok := item.(strategy.Enumerator); ok {
+					enumerating = true
+					discovered, enumerateErr := enumerator.Enumerate(inventoryCtx)
+					if enumerateErr == nil {
+						for _, discoveredDevice := range discovered {
+							if !candidate.promoted {
+								if promotedID, duplicate := promotedEndpoints[strings.TrimSpace(discoveredDevice.Serial)]; duplicate {
+									seen[promotedID] = true
+									continue
+								}
+							}
+							deviceDeclaration := declaration
+							// An ADB strategy can enumerate several devices, but its
+							// declaration probes whichever serial the adapter owns. Use
+							// a device-scoped adapter for the unpromoted inventory so
+							// emulator capabilities are not inherited from a phone (or
+							// vice versa). Promoted transports retain their endpoint-
+							// bound declaration above.
+							if !candidate.promoted {
+								if scoped, scopedOK := item.(strategy.DeviceScoped); scopedOK && strings.TrimSpace(discoveredDevice.Serial) != "" {
+									deviceStrategy := scoped.ForDevice(discoveredDevice.Serial)
+									probeCtx, probeCancel := context.WithTimeout(inventoryCtx, 8*time.Second)
+									effective, describeErr := deviceStrategy.Describe(probeCtx)
+									probeCancel()
+									if describeErr == nil {
+										deviceDeclaration = effective
+									}
+								}
+							}
+							identityKey := discoveredDevice.IdentityKey
+							if identityKey == "" && discoveredDevice.StrategyID == "android-adb" {
+								identityKey = discoveredDevice.Serial
+							}
+							record := devicedomain.Record{ID: discoveredDevice.ID, IdentityKey: identityKey, IdentityKind: discoveredDevice.IdentityKind, Claims: claimsForDevice(discoveredDevice), Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration), Properties: append([]strategy.PropertyDescriptor(nil), deviceDeclaration.Properties...)}
+							if record.Name == "" {
+								record.Name = record.Serial
+							}
+							merged := s.devices.UpsertIdentity(record)
+							_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+							_ = s.persistIdentityClaims(inventoryCtx, merged)
+							s.startObserverLocked(merged)
+							seen[merged.ID] = true
+						}
+					} else {
+						// Enumeration is part of the device contract. Preserve a
+						// diagnostic row instead of silently dropping the transport.
+						// The synthetic id is transport-scoped and is replaced by a
+						// hardware identity as soon as a browse succeeds.
+						reason := fmt.Sprintf("%s enumeration failed: %v", d.StrategyID, enumerateErr)
+						id := "unreachable:" + d.StrategyID
+						merged := s.devices.Upsert(devicedomain.Record{ID: id, IdentityKey: "", Name: d.Description, Kind: "physical", StrategyID: d.StrategyID, Transport: d.StrategyID, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: reason, HostNodeID: hostNodeID, Capabilities: mapCaps(declaration), ObservedAt: time.Now().UTC()})
+						seen[merged.ID] = true
+					}
+				}
+			}
+		}
+		if enumerating {
+			continue
+		}
+		// Strategies are exposed by /strategies. The device inventory contains
+		// physical identities (and bridge-attached identities) only; a strategy
+		// row is not a device and must not be presented as one.
+		_ = d
+	}
+	if len(seen) == 0 {
+		seen = map[string]bool{}
+	}
+	if inventoryCtx.Err() == nil {
+		s.devices.MarkAbsentExcept(time.Now().UTC(), seen, func(item devicedomain.Record) string {
+			if item.HostNodeID != "" {
+				return "device not present on host node " + item.HostNodeID
+			}
+			return "device not present on host node local"
+		})
+	}
+	out := make([]Device, 0)
+	for _, item := range s.devices.List() {
+		if seen[item.ID] || item.Kind == "physical" || item.Kind == "emulator" {
+			out = append(out, deviceFromRecord(item))
+		}
+	}
+	if s.attached != nil {
+		attached, err := s.attached.List(inventoryCtx)
+		if err != nil {
+			// A failed bridge lookup must not manufacture a pseudo-device beside
+			// locally enumerated physical devices. Consumers expect one row per
+			// real device; retain the diagnostic placeholder only when there is
+			// no physical inventory to provide context for the bridge failure.
+			if len(out) == 0 {
+				out = append(out, Device{ID: "bridge", Name: "Bridge attached-device registry", Kind: "bridge", Status: strategy.StatusUnavailable, Health: "unreachable", HealthReason: "bridge host node is unavailable", Capabilities: make([]strategy.Capability, 0), ObservedAt: time.Now().UTC()})
+			}
+		} else {
+			byID := make(map[string]int, len(out))
+			bySerial := make(map[string]int, len(out))
+			for i, device := range out {
+				if device.Kind != "physical" {
+					continue
+				}
+				byID[device.ID] = i
+				if device.Serial != "" {
+					bySerial[device.Serial] = i
+				}
+			}
+			for _, d := range attached {
+				status := strategy.StatusAvailable
+				reason := d.HealthReason
+				if d.Reachability != "reachable" || d.TrustState != "trusted" {
+					status = strategy.StatusUnavailable
+				}
+				index, found := byID[d.ID]
+				if !found && d.Serial != "" {
+					index, found = bySerial[d.Serial]
+				}
+				if found {
+					device := &out[index]
+					if device.StrategyID == "" && strings.EqualFold(d.Kind, "android") {
+						device.StrategyID = "android-adb"
+					}
+					if d.Name != "" {
+						device.Name = d.Name
+						if device.Model == "" {
+							device.Model = d.Name
+						}
+					}
+					if d.OSVersion != "" {
+						device.OSVersion = d.OSVersion
+					}
+					if d.Transport != "" {
+						device.Transport = d.Transport
+					}
+					if d.HostNodeID != "" {
+						device.HostNodeID = d.HostNodeID
+					}
+					if len(device.Capabilities) == 0 {
+						if declaration, ok := declarationByID[device.StrategyID]; ok {
+							device.Capabilities = mapCaps(declaration)
+						}
+					}
+					device.Status, device.Health, device.HealthReason = status, status, reason
+					merged := s.devices.UpsertIdentity(recordFromDevice(*device))
+					_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+					_ = s.persistIdentityClaims(inventoryCtx, merged)
+					s.startObserverLocked(merged)
+					continue
+				}
+				byID[d.ID] = len(out)
+				if d.Serial != "" {
+					bySerial[d.Serial] = len(out)
+				}
+				strategyID := ""
+				if strings.EqualFold(d.Kind, "android") {
+					strategyID = "android-adb"
+				}
+				capabilities := make([]strategy.Capability, 0)
+				if declaration, ok := declarationByID[strategyID]; ok {
+					capabilities = mapCaps(declaration)
+				}
+				// Bridge's attached-device contract carries the platform kind
+				// (currently "android"), while device-control's inventory kind
+				// answers whether the row is a physical target. Keep those
+				// concepts separate: every bridge peripheral is physical, and
+				// the strategy id carries the platform-specific driver.
+				merged := s.devices.UpsertIdentity(devicedomain.Record{ID: d.ID, IdentityKey: d.Serial, Name: d.Name, Kind: "physical", Serial: d.Serial, Model: d.Name, OSVersion: d.OSVersion, StrategyID: strategyID, Transport: d.Transport, HostNodeID: d.HostNodeID, Status: status, Health: status, HealthReason: reason, Capabilities: capabilities, ObservedAt: time.Now().UTC()})
+				_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+				_ = s.persistIdentityClaims(inventoryCtx, merged)
+				s.startObserverLocked(merged)
+				out = append(out, deviceFromRecord(merged))
+			}
+		}
+	}
+	// ADB and the bridge can both report the USB endpoint during the handoff.
+	// Promotion owns the identity transition, so restore its selected
+	// transport after all merges rather than allowing a USB observation to
+	// overwrite the stable record on the next refresh.
+	for i := range out {
+		if _, promoted := s.transportStrategies[out[i].ID]; !promoted {
+			continue
+		}
+		out[i].Transport = "wireless"
+		// Do not turn a retained, unreachable identity into a healthy
+		// device merely because its wireless adapter was restored. The
+		// enumerator owns the fresh reachability result; this pass only
+		// preserves the selected transport across USB/bridge merges.
+		if out[i].Health == strategy.StatusAvailable {
+			out[i].HealthReason = "wireless ADB endpoint reachable and identity verified"
+		}
+		s.devices.UpsertIdentity(recordFromDevice(out[i]))
+	}
+	return out
+}
+
+func claimsForDevice(device strategy.Device) []identity.IdentityClaim {
+	kind := strings.TrimSpace(device.IdentityKind)
+	if kind == "" && device.StrategyID == "android-adb" {
+		kind = string(identity.ADBSerial)
+	}
+	value := strings.TrimSpace(device.IdentityKey)
+	if value == "" && kind == string(identity.ADBSerial) {
+		value = strings.TrimSpace(device.Serial)
+	}
+	if kind == "" || value == "" {
+		return nil
+	}
+	claim, err := identity.NewClaim(kind, value, device.StrategyID, "observed")
+	if err != nil {
+		return nil
+	}
+	return []identity.IdentityClaim{claim}
+}
+
+// DescribeDevice returns the device-oriented declaration after refreshing the
+// inventory. The transport profiles are accumulated by the identity store,
+// while the legacy scalar fields remain as the selected/default transport.
+func (s *Service) DescribeDevice(ctx context.Context, id string) (Device, error) {
+	for _, device := range s.Devices(ctx) {
+		if device.ID == strings.TrimSpace(id) {
+			return device, nil
+		}
+	}
+	return Device{}, fmt.Errorf("unknown device %q", id)
+}
+
+func adbDeviceKind(serial string) string {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(serial)), "emulator-") {
+		return "emulator"
+	}
+	return "physical"
+}
+
+// ForgetDevice removes a retained identity only when the owner explicitly
+// requests it. Device discovery never calls this path, preserving stable ids
+// across disconnects and adb-server restarts.
+func (s *Service) ForgetDevice(id string) bool {
+	return s.ForgetDeviceContext(context.Background(), id)
+}
+
+func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id = strings.TrimSpace(id)
+	forgotten := s.devices.Forget(id)
+	delete(s.transportStrategies, id)
+	if cancel := s.observerCancels[id]; cancel != nil {
+		cancel()
+		delete(s.observerCancels, id)
+	}
+	delete(s.transportStates, id)
+	for key, state := range s.transportProfiles {
+		if state.DeviceID == id {
+			delete(s.transportProfiles, key)
+		}
+	}
+	if s.db != nil {
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transports WHERE device_id = ?`, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transport_profiles WHERE device_id = ?`, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_claims WHERE device_id = ?`, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_merges WHERE canonical_id = ? OR member_id = ?`, id, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_aliases WHERE canonical_id = ? OR alias_id = ?`, id, id)
+	}
+	delete(s.auditAliases, id)
+	for canonical, aliases := range s.auditAliases {
+		delete(aliases, id)
+		if len(aliases) == 0 {
+			delete(s.auditAliases, canonical)
+		}
+	}
+	return forgotten
+}
+
+// PromoteWireless changes transport on an existing USB-onboarded identity
+// only after the strategy verifies the same serial over its wireless endpoint.
+func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	record, ok := s.devices.Get(strings.TrimSpace(id))
+	if !ok {
+		return Device{}, fmt.Errorf("unknown device %q", id)
+	}
+	if record.Transport != "usb" {
+		return Device{}, fmt.Errorf("device %q must be onboarded over USB before wireless promotion", id)
+	}
+	base, ok := s.registry.Get(record.StrategyID)
+	if !ok {
+		return Device{}, fmt.Errorf("strategy %q is unavailable", record.StrategyID)
+	}
+	if scoped, ok := base.(strategy.DeviceScoped); ok && record.Serial != "" {
+		base = scoped.ForDevice(record.Serial)
+	}
+	promoter, ok := base.(interface{ PromoteWireless(context.Context) error })
+	if !ok {
+		return Device{}, fmt.Errorf("strategy %q does not support wireless transport", record.StrategyID)
+	}
+	if err := promoter.PromoteWireless(ctx); err != nil {
+		return Device{}, err
+	}
+	endpointProvider, ok := base.(interface{ WirelessEndpoint() string })
+	if !ok || strings.TrimSpace(endpointProvider.WirelessEndpoint()) == "" {
+		return Device{}, fmt.Errorf("strategy %q did not expose a verified wireless endpoint", record.StrategyID)
+	}
+	state := transportState{DeviceID: id, Serial: record.Serial, StrategyID: record.StrategyID, Transport: "wireless", Endpoint: strings.TrimSpace(endpointProvider.WirelessEndpoint()), UpdatedAt: time.Now().UTC()}
+	if err := s.persistTransportState(ctx, state); err != nil {
+		return Device{}, err
+	}
+	s.transportStrategies[id] = base
+	s.transportStates[id] = state
+	record.Transport = "wireless"
+	record.Status = strategy.StatusAvailable
+	record.Health = strategy.StatusAvailable
+	record.HealthReason = "wireless ADB transport verified against the onboarded serial"
+	return deviceFromRecord(s.devices.UpsertIdentity(record)), nil
+}
+
+// ReconnectWireless revalidates a promoted wireless transport and allows the
+// Android adapter to replace a stale endpoint through authenticated mDNS
+// discovery. The stable device identity remains bound to the onboarded serial.
+func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, error) {
+	s.mu.Lock()
+	s.restoreTransportStrategies()
+	record, ok := s.devices.Get(strings.TrimSpace(id))
+	adapter, hasAdapter := s.transportStrategies[id]
+	s.mu.Unlock()
+	if !ok {
+		return Device{}, fmt.Errorf("unknown device %q", id)
+	}
+	if record.Transport != "wireless" || !hasAdapter {
+		return Device{}, fmt.Errorf("device %q has no promoted wireless transport", id)
+	}
+	reconnector, ok := adapter.(strategy.WirelessReconnector)
+	if !ok {
+		return Device{}, fmt.Errorf("strategy %q does not support wireless reconnect", record.StrategyID)
+	}
+	if err := reconnector.ReconnectWireless(ctx); err != nil {
+		return Device{}, err
+	}
+	endpointProvider, ok := adapter.(interface{ WirelessEndpoint() string })
+	if !ok || strings.TrimSpace(endpointProvider.WirelessEndpoint()) == "" {
+		return Device{}, fmt.Errorf("strategy %q did not expose a verified wireless endpoint", record.StrategyID)
+	}
+	state := transportState{DeviceID: id, Serial: record.Serial, StrategyID: record.StrategyID, Transport: "wireless", Endpoint: strings.TrimSpace(endpointProvider.WirelessEndpoint()), UpdatedAt: time.Now().UTC()}
+	if err := s.persistTransportState(ctx, state); err != nil {
+		return Device{}, err
+	}
+	s.mu.Lock()
+	s.transportStates[id] = state
+	record.Status = strategy.StatusAvailable
+	record.Health = strategy.StatusAvailable
+	record.HealthReason = "wireless ADB endpoint reconnected and identity verified"
+	updated := s.devices.UpsertIdentity(record)
+	s.mu.Unlock()
+	return deviceFromRecord(updated), nil
+}
+
+func mapCaps(d strategy.Declaration) []strategy.Capability {
+	names := make([]string, 0, len(d.Capabilities))
+	for n := range d.Capabilities {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	out := make([]strategy.Capability, 0, len(names))
+	for _, n := range names {
+		capability := d.Capabilities[n]
+		capability.Name = n
+		out = append(out, capability)
+	}
+	return out
+}
+
+func recordFromDevice(device Device) devicedomain.Record {
+	capabilities := make([]strategy.Capability, len(device.Capabilities))
+	copy(capabilities, device.Capabilities)
+	return devicedomain.Record{
+		ID: device.ID, IdentityKey: device.IdentityKey, Claims: append([]identity.IdentityClaim(nil), device.Claims...), IdentityReason: device.IdentityReason, Name: device.Name, Kind: device.Kind, Serial: device.Serial,
+		Model: device.Model, OSVersion: device.OSVersion, StrategyID: device.StrategyID,
+		Status: device.Status, Health: device.Health, HealthReason: device.HealthReason,
+		HostNodeID: device.HostNodeID, Transport: device.Transport, Capabilities: capabilities,
+		Transports: append([]strategy.DeviceTransport(nil), device.Transports...),
+		Endpoint:   device.Endpoint,
+		ObservedAt: device.ObservedAt, FirstSeenAt: device.FirstSeenAt, LastSeenAt: device.LastSeenAt,
+	}
+}
+
+func (s *Service) Onboarding(kind string) []map[string]string {
+	kind = strings.ToLower(strings.TrimSpace(kind))
+	common := []map[string]string{{"id": "host-node", "prerequisite": "A trusted bridge host node is online.", "owner": "owner", "status": "available", "next_action": "No action required."}}
+	if kind == "android" {
+		sdkStatus := probeCommand("adb")
+		sdkNext := "Run `vrooli resource install android-sdk` and verify `adb version`."
+		if sdkStatus == "available" {
+			sdkNext = "No action required."
+		}
+		return append(common,
+			map[string]string{"id": "android-sdk", "prerequisite": "android-sdk resource provides adb and platform-tools.", "owner": "scenario", "status": sdkStatus, "next_action": sdkNext},
+			map[string]string{"id": "usb-bus", "prerequisite": "An Android device is visible on the host USB bus.", "owner": "owner", "status": "unavailable", "next_action": "Connect a data-capable cable and set USB mode to File Transfer."},
+			map[string]string{"id": "wireless-adb", "prerequisite": "An Android device is visible through authorized wireless ADB.", "owner": "owner", "status": "unavailable", "next_action": "Enable Wireless debugging and authorize this host."},
+			map[string]string{"id": "usb-debugging", "prerequisite": "USB debugging is enabled and the device authorizes this host.", "owner": "owner", "status": "unavailable", "next_action": "Enable Developer Options and USB debugging, then accept the RSA prompt."})
+	}
+	if kind == "google-tv" || kind == "googletv" {
+		return append(common,
+			map[string]string{"id": "lan-multicast", "prerequisite": "The control host and television share a multicast-reachable LAN segment.", "owner": "owner", "status": "available", "next_action": "No action required."},
+			map[string]string{"id": "google-tv-discovery", "prerequisite": "The television advertises Android TV Remote or Google Cast DNS-SD services.", "owner": "owner", "status": "unavailable", "next_action": "Enable network access on the television and run device discover."},
+			map[string]string{"id": "remote-pairing", "prerequisite": "The owner has opened the Android TV Remote pairing prompt and has its six-character hexadecimal code.", "owner": "owner", "status": "unavailable", "next_action": "Open the pairing prompt on the television, then run device pair with the displayed six-character hexadecimal code."},
+			map[string]string{"id": "paired-transport", "prerequisite": "The Android TV Remote certificate is stored in the credential authority and reconnects.", "owner": "scenario", "status": "unavailable", "next_action": "Complete pairing once; subsequent discovery should show the remote as paired."})
+	}
+	if kind == "ios" {
+		return append(common, map[string]string{"id": "xcode", "prerequisite": "Xcode and the requested simulator runtime are installed on a macOS node.", "owner": "owner", "status": "unavailable", "next_action": "Install Xcode and an iOS Simulator runtime."}, map[string]string{"id": "device-trust", "prerequisite": "The iPhone is attached and trusted.", "owner": "owner", "status": "unavailable", "next_action": "Connect the iPhone to the macOS node and tap Trust."})
+	}
+	return append(common, map[string]string{"id": "kind", "prerequisite": "A supported device kind is selected.", "owner": "owner", "status": "unavailable", "next_action": "Select a supported onboarding kind."})
+}
+
+func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]string {
+	rungs := s.Onboarding(kind)
+	if strings.ToLower(strings.TrimSpace(kind)) == "google-tv" || strings.ToLower(strings.TrimSpace(kind)) == "googletv" {
+		services, err := s.DiscoverLAN(ctx)
+		return applyGoogleTVOnboardingProbe(rungs, services, err)
+	}
+	if strings.ToLower(strings.TrimSpace(kind)) != "android" {
+		return rungs
+	}
+	for _, item := range s.registry.List(ctx) {
+		if item.StrategyID != "android-adb" {
+			continue
+		}
+		adapter, ok := s.registry.Get(item.StrategyID)
+		if !ok {
+			continue
+		}
+		enumerator, ok := adapter.(strategy.Enumerator)
+		if !ok {
+			continue
+		}
+		bus := sampleUSBLink()
+		busStatus, busReason := bus.Status, bus.Reason
+		status, reason := "unavailable", "No Android device is visible to adb. Use a data-capable cable and set USB mode to File Transfer."
+		if busStatus == "unavailable" {
+			reason = busReason
+		}
+		devices, _ := enumerator.Enumerate(ctx)
+		for _, device := range devices {
+			status = "available"
+			reason = "Device " + device.Serial + " is authorized and reachable."
+			if device.Health != strategy.StatusAvailable {
+				status = "unavailable"
+				reason = device.HealthReason
+			}
+			for i := range rungs {
+				if rungs[i]["id"] == "wireless-adb" && device.Transport == "wireless" && status == "available" {
+					rungs[i]["status"] = "available"
+					rungs[i]["next_action"] = "No action required; authorized wireless ADB is reachable."
+				}
+			}
+			break
+		}
+		for i := range rungs {
+			if rungs[i]["id"] == "usb-bus" {
+				rungs[i]["status"] = busStatus
+				rungs[i]["next_action"] = busReason
+				rungs[i]["flap_count"] = fmt.Sprintf("%d", bus.FlapCount)
+			}
+			if rungs[i]["id"] == "usb-debugging" {
+				rungs[i]["status"] = status
+				rungs[i]["next_action"] = reason
+			}
+		}
+	}
+	return rungs
+}
+
+func applyGoogleTVOnboardingProbe(rungs []map[string]string, services []DiscoveredService, discoverErr error) []map[string]string {
+	// A browse can return useful instances from one transport while another
+	// transport reports a timeout. Preserve the successful discovery in the
+	// ladder and make the degraded condition explicit instead of hiding the TV.
+	found := len(services) > 0
+	remoteFound := false
+	remotePaired := false
+	instances := make([]string, 0, len(services))
+	seenInstances := map[string]struct{}{}
+	for _, service := range services {
+		instance := strings.TrimSpace(service.Name)
+		if instance == "" {
+			instance = strings.TrimSpace(service.ID)
+		}
+		if instance != "" {
+			if _, alreadySeen := seenInstances[instance]; !alreadySeen {
+				instances = append(instances, instance)
+				seenInstances[instance] = struct{}{}
+			}
+		}
+		if service.StrategyID == "android-tv-remote" {
+			remoteFound = true
+			remotePaired = remotePaired || service.Paired
+		}
+	}
+	for i := range rungs {
+		switch rungs[i]["id"] {
+		case "lan-multicast":
+			if discoverErr == nil {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "No action required."
+			} else if found {
+				rungs[i]["status"] = "degraded"
+				rungs[i]["next_action"] = "Multicast browse partially succeeded: " + discoverErr.Error()
+			} else {
+				rungs[i]["status"] = "unreachable"
+				rungs[i]["next_action"] = "Multicast browse failed: " + discoverErr.Error()
+			}
+		case "google-tv-discovery":
+			if found {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "Discovered: " + strings.Join(instances, ", ")
+				if discoverErr != nil {
+					rungs[i]["next_action"] += " (degraded: " + discoverErr.Error() + ")"
+				}
+			}
+		case "remote-pairing":
+			if remotePaired {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "No action required; the Android TV Remote certificate is stored."
+			} else if remoteFound {
+				rungs[i]["next_action"] = "Enter the six-character hexadecimal code shown by the television with device pair."
+			}
+		case "paired-transport":
+			if remotePaired {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "No action required; the paired transport reconnects without another code."
+			}
+		}
+	}
+	return rungs
+}
+
+func probeCommand(name string) string {
+	if _, err := execLookPath(name); err != nil {
+		return "unavailable"
+	}
+	return "available"
+}
+
+var execLookPath = func(name string) (string, error) { return exec.LookPath(name) }
+
+var usbBusCommand = func() ([]byte, error) { return exec.Command("lsusb").Output() }
+
+var systemProfilerCommand = func() ([]byte, error) { return exec.Command("system_profiler", "SPUSBDataType").Output() }
+
+var windowsUSBCommand = func() ([]byte, error) {
+	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-PnpDevice -Class USB | Format-List -Property InstanceId,Status,Class").Output()
+}
+
+const (
+	usbBusPresent       = "available"
+	usbBusAbsent        = "unavailable"
+	usbBusCannotInspect = "cannot-inspect"
+)
+
+type usbBusInspection struct {
+	Status    string
+	Reason    string
+	FlapCount int
+}
+
+type usbBusInspector interface {
+	Inspect() usbBusInspection
+}
+
+type linuxUSBInspector struct{}
+
+func (linuxUSBInspector) Inspect() usbBusInspection {
+	if _, err := execLookPath("lsusb"); err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "USB bus inspection is unavailable on Linux; install usbutils so the host can inspect Android hardware."}
+	}
+	out, err := usbBusCommand()
+	if err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "USB bus inspection failed on Linux; verify host permissions and install usbutils."}
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 6 {
+			vendor := strings.ToLower(strings.SplitN(fields[5], ":", 2)[0]) + ":"
+			if androidUSBVendorIDs[vendor] {
+				return usbBusInspection{Status: usbBusPresent, Reason: "Android hardware is visible on the Linux USB bus; waiting for adb authorization."}
+			}
+		}
+	}
+	return usbBusInspection{Status: usbBusAbsent, Reason: "No Android device is visible on the Linux USB bus; check for a data-capable cable and File Transfer USB mode."}
+}
+
+type darwinUSBInspector struct{}
+
+func (darwinUSBInspector) Inspect() usbBusInspection {
+	if _, err := execLookPath("system_profiler"); err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "USB bus inspection is unavailable on macOS; use the built-in system_profiler command."}
+	}
+	out, err := systemProfilerCommand()
+	if err != nil {
+		return usbBusInspection{Status: usbBusCannotInspect, Reason: "macOS system_profiler could not inspect the USB bus; check host permissions."}
+	}
+	if containsAndroidUSBVendor(string(out)) {
+		return usbBusInspection{Status: usbBusPresent, Reason: "Android hardware is visible through macOS system_profiler; waiting for adb authorization."}
+	}
+	return usbBusInspection{Status: usbBusAbsent, Reason: "No Android device is visible in macOS system_profiler; check the data cable and USB mode."}
+}
+
+type windowsUSBInspector struct{}
+
+func (windowsUSBInspector) Inspect() usbBusInspection {
+	if _, err := execLookPath("powershell"); err != nil {
+		return usbBusCannotInspectResult("USB bus inspection is unavailable on Windows; use PowerShell PnP device enumeration.")
+	}
+	out, err := windowsUSBCommand()
+	if err != nil {
+		return usbBusCannotInspectResult("Windows PnP USB enumeration failed; check device-manager permissions.")
+	}
+	if containsAndroidUSBVendor(string(out)) || strings.Contains(strings.ToLower(string(out)), "android") {
+		return usbBusInspection{Status: usbBusPresent, Reason: "Android hardware is visible through Windows PnP enumeration; waiting for adb authorization."}
+	}
+	return usbBusInspection{Status: usbBusAbsent, Reason: "No Android device is visible in Windows PnP enumeration; check the data cable and USB mode."}
+}
+
+func usbBusCannotInspectResult(reason string) usbBusInspection {
+	return usbBusInspection{Status: usbBusCannotInspect, Reason: reason}
+}
+
+func containsAndroidUSBVendor(output string) bool {
+	lower := strings.ToLower(output)
+	for vendor := range androidUSBVendorIDs {
+		if strings.Contains(lower, strings.TrimSuffix(vendor, ":")) {
+			return true
+		}
+	}
+	return false
+}
+
+func selectedUSBInspector() usbBusInspector {
+	switch strategy.HostOS {
+	case "darwin":
+		return darwinUSBInspector{}
+	case "windows":
+		return windowsUSBInspector{}
+	case "linux":
+		return linuxUSBInspector{}
+	default:
+		return unknownUSBInspector{}
+	}
+}
+
+type unknownUSBInspector struct{}
+
+func (unknownUSBInspector) Inspect() usbBusInspection {
+	return usbBusCannotInspectResult(fmt.Sprintf("USB bus inspection is not implemented for host OS %q.", strategy.HostOS))
+}
+
+func sampleUSBLink() usbBusInspection {
+	const sampleCount = 3
+	first := selectedUSBInspector().Inspect()
+	if first.Status == usbBusCannotInspect {
+		return first
+	}
+	previousPresent := first.Status == usbBusPresent
+	flaps := 0
+	for i := 1; i < sampleCount; i++ {
+		current := selectedUSBInspector().Inspect()
+		if current.Status == usbBusCannotInspect {
+			return current
+		}
+		present := current.Status == usbBusPresent
+		if present != previousPresent {
+			flaps++
+		}
+		previousPresent = present
+		first = current
+	}
+	first.FlapCount = flaps
+	if flaps > 0 {
+		first.Reason = fmt.Sprintf("Android USB link is intermittent (%d flap(s) observed); replace the cable before running a flow.", flaps)
+	} else if first.Status == usbBusPresent {
+		first.Reason += " Link stability sample passed; flap_count=0."
+	}
+	return first
+}
+
+// usbBusProbe distinguishes a disconnected/charge-only cable from an adb
+// authorization problem. Vendor ids cover the common Android manufacturers;
+// adb remains the authority for serial, authorization, and device state.
+func usbBusProbe() (string, string) {
+	result := selectedUSBInspector().Inspect()
+	return result.Status, result.Reason
+}
+
+var androidUSBVendorIDs = map[string]bool{
+	"04e8:": true, // Samsung
+	"05c6:": true, // Qualcomm
+	"0bb4:": true, // HTC
+	"0e8d:": true, // MediaTek
+	"12d1:": true, // Huawei
+	"1782:": true, // Spreadtrum
+	"18d1:": true, // Google
+	"19d2:": true, // ZTE
+	"22b8:": true, // Motorola
+	"2717:": true, // Xiaomi
+	"2a45:": true, // Meizu
+	"2a70:": true, // OnePlus
+	"2d95:": true, // Vivo
+}

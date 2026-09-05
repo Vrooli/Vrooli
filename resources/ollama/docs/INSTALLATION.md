@@ -1,226 +1,121 @@
 # Ollama Installation Guide
 
-This guide covers the installation and setup of Ollama for local LLM inference.
+This guide covers installing and running Ollama for local LLM inference.
+
+Ollama runs as a Vrooli-managed service from a checksum-verified native artifact.
+There is no host-systemd install, no `/usr/local/bin/ollama` binary, no Docker
+fallback, and no `manage.sh` script — the managed-service supervisor owns the
+deployment. Ports, environment, artifact, and health checks are declared in
+[`resource.json`](../resource.json) and applied by `vrooli resource …`.
 
 ## Prerequisites
 
-- **Hardware Requirements**:
+- **Hardware**:
   - Minimum: 8GB RAM, 4GB free disk space
   - Recommended: 16GB+ RAM, 50GB+ disk space
   - GPU: NVIDIA with 8GB+ VRAM (optional but recommended)
+- **Software**:
+  - A staged Ollama server artifact matching the manifest checksum
+  - NVIDIA driver/runtime (only for GPU acceleration)
 
-- **Software Requirements**:
-  - Docker and Docker Compose
-  - NVIDIA Container Toolkit (for GPU support)
+## Install / Start / Stop
 
-## Installation Methods
-
-### 1. Quick Install (Default Models)
-
-Install Ollama with recommended models:
+All lifecycle actions route through the managed-service driver:
 
 ```bash
-./manage.sh --action install
+vrooli resource install ollama   # verify the pinned native server artifact
+vrooli resource start ollama     # supervise the native server on :11434
+vrooli resource status ollama    # report Running/Healthy via the /api/tags health check
+vrooli resource stop ollama      # stop the managed process (model data persists)
+vrooli resource logs ollama      # read the managed-service log
 ```
 
-This will:
-- Install Ollama server
-- Download default models: llama3.1:8b, deepseek-r1:8b, qwen2.5-coder:7b
-- Verify GPU availability (if present)
-- Start the service on port 11434
+`install` verifies the staged artifact before the supervisor grants it lifecycle
+authority. The model directory is `${RESOURCE_DATA_DIR}/models`, so pulled
+models survive restarts.
 
-### 2. Custom Installation
+### Port-conflict preflight
 
-#### Install Specific Models
+The managed-service driver performs the normal host-port preflight and fails
+fast if `:11434` is already occupied. Stop the conflicting service and retry:
+
+```
+resource "ollama" cannot start: host port 11434 is already in use. Stop and
+remove the conflicting process — e.g.
+`sudo systemctl disable --now ollama` or terminate whatever is listening on
+:11434 — then retry.
+```
+
+## Models
+
+There is no host `ollama` CLI. Manage models through the service API or the
+resource CLI; this keeps model identity and deletion inside Ollama's ownership
+boundary:
 
 ```bash
-# Install with custom model set
-./manage.sh --action install --models "llama3.1:8b,gemma2:9b"
+# List installed models
+curl http://localhost:11434/api/tags
 
-# Install without any models (manual selection later)
-./manage.sh --action install --skip-models
+# Pull a model through the service API
+curl http://localhost:11434/api/pull -d '{"name":"llama3.1:8b","stream":false}'
 ```
 
-#### Install with Custom Port
-
-```bash
-# Use custom port
-OLLAMA_CUSTOM_PORT=9999 ./manage.sh --action install
-```
-
-#### GPU Configuration
-
-```bash
-# Force CPU-only mode
-./manage.sh --action install --force-cpu
-
-# Verify GPU support
-./manage.sh --action gpu-info
-```
-
-## Model Installation
-
-### Automatic Model Installation
-
-During installation, these default models are downloaded:
-
-- **llama3.1:8b** - General purpose model (4.7GB)
-- **deepseek-r1:8b** - Reasoning and math (4.9GB)  
-- **qwen2.5-coder:7b** - Code generation (4.2GB)
-
-Total download: ~14GB
-
-### Manual Model Installation
-
-After installation, add more models:
-
-```bash
-# Install single model
-./manage.sh --action pull --models "gemma2:9b"
-
-# Install multiple models
-./manage.sh --action pull --models "llama3.1:70b,claude3:haiku"
-
-# List available models in catalog
-./manage.sh --action models
-```
-
-## Post-Installation Verification
-
-### 1. Check Service Status
-
-```bash
-./manage.sh --action status
-```
-
-Expected output:
-```
-[INFO] Ollama Status:
-✅ Service: Running on port 11434
-✅ API: Responding (200 OK)
-✅ Models: 3 models installed
-✅ GPU: NVIDIA RTX 4090 detected
-✅ Memory: 15.2GB available
-```
-
-### 2. Test Model Inference
-
-```bash
-# Quick test
-./manage.sh --action prompt --text "What is 2+2?" --model "llama3.1:8b"
-
-# Test each type
-./manage.sh --action prompt --text "Hello world" --type general
-./manage.sh --action prompt --text "def fibonacci(n):" --type code
-./manage.sh --action prompt --text "Solve: x^2 + 5x + 6 = 0" --type reasoning
-```
-
-### 3. Verify GPU Usage (if available)
-
-```bash
-# Check GPU utilization during inference
-nvidia-smi
-
-# View Ollama GPU status
-./manage.sh --action gpu-info
-```
+Scenarios should not pull models by hand. They declare model **roles** (resolved
+through [`model-policy.json`](../model-policy.json)) in their ollama dependency
+config, and `resource-ollama ensure` pulls any missing resolved models into the
+running managed service automatically.
 
 ## Configuration
 
-### Environment Variables
+Runtime configuration lives in [`resource.json`](../resource.json). The normal
+managed-service settings are under `managed_service`:
+
+| Setting | Where | Default |
+| --- | --- | --- |
+| Artifact pin | `managed_service.artifact` | Ollama `0.30.10`, checksum verified |
+| API port | `ports[].host` | `11434` |
+| Concurrency / loaded models / flash-attn / keep-alive / CORS | `managed_service.environment` | see file |
+| Model storage | `managed_service.environment.OLLAMA_MODELS` | `${RESOURCE_DATA_DIR}/models` |
+
+To change any of these, edit `resource.json` and `vrooli resource restart ollama`.
+
+## Post-Installation Verification
 
 ```bash
-# Server configuration
-export OLLAMA_CUSTOM_PORT=11434              # API port
-export OLLAMA_HOST=0.0.0.0                   # Bind address
-export OLLAMA_ORIGINS="*"                    # CORS origins
+# Lifecycle health
+vrooli resource status ollama        # → Running / Healthy
 
-# Performance tuning
-export OLLAMA_NUM_PARALLEL=4                 # Concurrent requests
-export OLLAMA_MAX_LOADED_MODELS=3            # Models in memory
-export OLLAMA_FLASH_ATTENTION=1              # Enable flash attention
-
-# GPU configuration  
-export OLLAMA_GPU_LAYERS=35                  # GPU layers (auto-detected)
-export CUDA_VISIBLE_DEVICES=0                # Specific GPU
-```
-
-### Model Storage
-
-```bash
-# Custom model storage location
-export OLLAMA_MODELS=/opt/ollama/models
-
-# Create directory with proper permissions
-sudo mkdir -p /opt/ollama/models
-sudo chown -R $(id -u):$(id -g) /opt/ollama/models
-```
-
-## Troubleshooting Installation
-
-### Common Issues
-
-#### Port Already in Use
-```bash
-# Check what's using port 11434
-sudo lsof -i :11434
-
-# Use different port
-OLLAMA_CUSTOM_PORT=11435 ./manage.sh --action install
-```
-
-#### GPU Not Detected
-```bash
-# Check NVIDIA drivers
-nvidia-smi
-
-# Verify Docker GPU support
-docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi
-
-# Install NVIDIA Container Toolkit
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-```
-
-#### Insufficient Memory
-```bash
-# Check available memory
-free -h
-
-# Reduce default models
-./manage.sh --action install --models "llama3.1:8b"  # Just one model
-
-# Use smaller models
-./manage.sh --action install --models "llama3.2:3b,qwen2.5:3b"
-```
-
-#### Download Failures
-```bash
-# Check network connectivity
-curl -I https://ollama.ai
-
-# Resume interrupted download
-./manage.sh --action pull --models "llama3.1:8b" --force
-
-# Clear corrupted downloads
-./manage.sh --action cleanup
-```
-
-### Verification Commands
-
-```bash
-# Test API directly
+# API directly
 curl http://localhost:11434/api/tags
 
-# Check container logs
-docker logs ollama
-
-# Monitor resource usage
-./manage.sh --action monitor
+# Inference smoke test (model must be pulled first)
+curl http://localhost:11434/api/generate \
+  -d '{"model":"llama3.1:8b","prompt":"What is 2+2?","stream":false}'
 ```
+
+## GPU Acceleration
+
+```bash
+# Verify host drivers
+nvidia-smi
+
+# Verify host GPU access
+nvidia-smi
+```
+
+## Troubleshooting
+
+- **Port already in use** — see the [port-conflict preflight](#port-conflict-preflight)
+  above; stop the host process holding `:11434`, then `vrooli resource start ollama`.
+- **GPU not detected** — confirm `nvidia-smi` works on the host, then inspect
+  `vrooli resource status ollama --json` for processor and GPU findings.
+- **Insufficient memory** — prefer a smaller role target (e.g. the `chat.small`
+  role; see `resource-ollama policy roles`) or lower concurrency/model residency
+  in `managed_service.environment`.
+- **Inspect managed logs** — `vrooli resource logs ollama`.
 
 ## Next Steps
 
-- [Configure Ollama](CONFIGURATION.md) for your use case
-- [Explore the model catalog](MODELS.md) for other options
-- [Learn the API](API.md) for integration
-- [Optimize performance](PERFORMANCE.md) for your hardware
+- [Explore the model catalog](MODELS.md)
+- [Operations runbook](OPERATIONS.md)
+- [Embedding models](EMBEDDING_MODELS.md)

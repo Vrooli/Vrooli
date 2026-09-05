@@ -1,67 +1,29 @@
-/**
- * PlanPanel Component
- *
- * Displays the backlog item's plan.md content with:
- * - Rendered markdown view (default)
- * - Raw Monaco editor for editing
- * - Save-to-API for persisting edits
- * - Copy-to-clipboard
- * - Table of contents popover for heading navigation
- */
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Editor, { type OnMount } from "@monaco-editor/react";
-import {
-  Check,
-  Code,
-  Copy,
-  Eye,
-  FileText,
-  List,
-  Loader2,
-  Save,
-} from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../hooks/useActionMutation";
+import { errorMessageOf } from "../../lib/error-utils";
+import { Check, Copy, ExternalLink, FileText, List, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { defaultQueryOptions, useResolvedTheme } from "../../lib";
-import { renderMarkdown } from "../../lib/render-markdown";
-import { extractHeadings, type HeadingEntry } from "../../lib/heading-utils";
+import { defaultQueryOptions } from "../../lib";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
+import { extractHeadings } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
+import { planWorkshopService } from "../../services/plan-workshop-service";
 import type { BacklogKind } from "../../types";
-import { getDeliverablePath } from "../../lib/workshop-files";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { selectors } from "../../consts/selectors";
+import { isApiError } from "../../lib/api-client";
 
 export interface PlanPanelProps {
   backlogKind: BacklogKind;
   backlogName: string;
   className?: string;
+  onAuthorPlan?: () => void;
+  authorPlanPending?: boolean;
+  authorPlanError?: string | null;
 }
-
-const EDITOR_OPTIONS = {
-  minimap: { enabled: false },
-  wordWrap: "on",
-  lineNumbers: "on",
-  fontSize: 13,
-  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-  tabSize: 2,
-  scrollBeyondLastLine: false,
-  renderLineHighlight: "none",
-  cursorBlinking: "smooth",
-  smoothScrolling: true,
-  scrollbar: {
-    vertical: "auto",
-    horizontal: "auto",
-    verticalScrollbarSize: 8,
-    horizontalScrollbarSize: 8,
-  },
-  hideCursorInOverviewRuler: true,
-  folding: true,
-  foldingStrategy: "indentation",
-  automaticLayout: true,
-} as const;
 
 const TOC_ITEM_STYLES: Record<number, string> = {
   1: "pl-3 font-medium text-slate-200",
@@ -69,21 +31,19 @@ const TOC_ITEM_STYLES: Record<number, string> = {
   3: "pl-8 text-slate-500 text-xs",
 };
 
-export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProps) {
-  const queryClient = useQueryClient();
-  const resolvedTheme = useResolvedTheme();
-
-  const deliverablePath = getDeliverablePath(backlogKind);
-  const isResearch = backlogKind === "research";
-  const deliverableLabel = isResearch ? "conclusion" : "plan";
-
-  const [viewMode, setViewMode] = useState<"rendered" | "raw">("rendered");
-  const [draftContent, setDraftContent] = useState("");
+export function PlanPanel({
+  backlogKind,
+  backlogName,
+  className,
+  onAuthorPlan,
+  authorPlanPending = false,
+  authorPlanError,
+}: PlanPanelProps) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
-
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const tocRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
   useModalBehavior({
     isOpen: tocOpen,
@@ -92,76 +52,73 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
     delayClickOutside: true,
   });
 
-  const queryKey = ["backlog-plan-content", backlogKind, backlogName];
-
   const {
-    data: planContent,
+    data,
     isLoading,
     error,
     refetch,
-  } = useQuery<string>({
-    queryKey,
-    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, deliverablePath),
+  } = useQuery({
+    queryKey: ["backlog-plan-render", backlogKind, backlogName],
+    queryFn: () => backlogService.getRenderedPlan(backlogKind, backlogName),
     ...defaultQueryOptions,
   });
 
-  useEffect(() => {
-    if (planContent !== undefined) {
-      setDraftContent(planContent);
-    }
-  }, [planContent]);
-
-  const isDirty = planContent !== undefined ? draftContent !== planContent : false;
-
-  const saveMutation = useMutation({
-    mutationFn: (content: string) =>
-      backlogService.saveFileContent(backlogKind, backlogName, deliverablePath, content),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
+  const markdown = data?.markdown ?? "";
+  const headings = extractHeadings(markdown);
+  const planAbsent = isApiError(error) && error.code === "plan_ref_not_found";
+  const label = "plan";
+  const itemQuery = useQuery({
+    queryKey: ["backlog-item", backlogKind, backlogName],
+    queryFn: () => backlogService.get(backlogKind, backlogName),
+    enabled: Boolean(data?.planRef),
+    ...defaultQueryOptions,
   });
+  const refreshAcceptance = () => {
+    void itemQuery.refetch();
+    void queryClient.invalidateQueries({ queryKey: ["backlog-item", backlogKind, backlogName] });
+  };
+  // These report through the panel's own status line, which stays visible
+  // beside the plan; a toast would restate the same event out of context.
+  const accept = useActionMutation({
+    mutationFn: () => planWorkshopService.acceptPlan(backlogKind, backlogName),
+    errorMessage: "Unable to accept this plan.",
+    silentError: true,
+    source: "PlanPanel.accept",
+    onSuccess: () => { setActionMessage("Plan accepted. Queueing will recheck this exact revision and scope."); refreshAcceptance(); },
+    onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to accept this plan.")),
+  });
+  const unaccept = useActionMutation({
+    mutationFn: () => planWorkshopService.unacceptPlan(backlogKind, backlogName),
+    errorMessage: "Unable to clear plan acceptance.",
+    silentError: true,
+    source: "PlanPanel.unaccept",
+    onSuccess: () => { setActionMessage("Plan acceptance cleared."); refreshAcceptance(); },
+    onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to clear plan acceptance.")),
+  });
+  const runReview = useActionMutation({
+    mutationFn: async () => {
+      const opened = await planWorkshopService.open({ kind: "backlog_item", ref: `${backlogKind}/${backlogName}` });
+      return planWorkshopService.startReview(opened.id);
+    },
+    errorMessage: "Unable to start plan review.",
+    silentError: true,
+    source: "PlanPanel.runReview",
+    onSuccess: () => setActionMessage("Plan review started. Its findings and proposals will appear in Decide."),
+    onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to start plan review.")),
+  });
+  const accepted = itemQuery.data?.planAcceptance;
 
   const handleCopy = useCallback(async () => {
-    if (planContent === undefined) return;
-    await navigator.clipboard.writeText(draftContent);
+    if (!markdown) return;
+    await navigator.clipboard.writeText(markdown);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
-  }, [planContent, draftContent]);
+  }, [markdown]);
 
-  const handleSave = useCallback(() => {
-    if (isDirty) {
-      saveMutation.mutate(draftContent);
-    }
-  }, [isDirty, draftContent, saveMutation]);
-
-  const handleDiscard = useCallback(() => {
-    if (planContent !== undefined) {
-      setDraftContent(planContent);
-    }
-  }, [planContent]);
-
-  const handleEditorMount: OnMount = useCallback((editor) => {
-    editorRef.current = editor;
-  }, []);
-
-  const handleTocToggle = useCallback(() => {
-    setTocOpen((prev) => !prev);
-  }, []);
-
-  const handleTocJump = useCallback((heading: HeadingEntry) => {
+  const handleTocJump = useCallback((id: string) => {
     setTocOpen(false);
-    if (viewMode === "rendered") {
-      document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else if (editorRef.current) {
-      editorRef.current.revealLineInCenter(heading.line);
-      editorRef.current.setPosition({ lineNumber: heading.line, column: 1 });
-      editorRef.current.focus();
-    }
-  }, [viewMode]);
-
-  const headings = extractHeadings(draftContent);
-
-  const is404 = error && (error as Error).message?.includes("not found");
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   if (isLoading) {
     return (
@@ -171,15 +128,23 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
     );
   }
 
-  if (is404 || (!isLoading && !error && planContent === undefined)) {
+  if (planAbsent || (!isLoading && !error && !markdown)) {
     return (
       <div
         className={cn("flex flex-col items-center justify-center gap-3 py-20 text-center", className)}
         data-testid={selectors.backlogDetails.promptPanel}
       >
         <FileText className="h-10 w-10 text-slate-600" />
-        <p className="text-sm font-medium text-slate-400">No {deliverableLabel} yet</p>
-        <p className="text-xs text-slate-500">Run a workshop session to generate a {deliverableLabel}.</p>
+        <p className="text-sm font-medium text-slate-400">No {label} yet</p>
+        <p className="text-xs text-slate-500">
+          Author an actionable plan through plan.author, then start plan review and accept the canonical plan before queueing.
+        </p>
+        {onAuthorPlan && (
+          <Button type="button" size="sm" onClick={onAuthorPlan} disabled={authorPlanPending} data-testid="backlog-plan-author-cta">
+            {authorPlanPending ? "Starting authoring…" : "Author plan"}
+          </Button>
+        )}
+        {authorPlanError && <p className="text-xs text-red-300" role="alert">{authorPlanError}</p>}
       </div>
     );
   }
@@ -187,48 +152,21 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
   if (error) {
     return (
       <div className={cn("px-4 py-8", className)}>
-        <ErrorState error={error as Error} onRetry={() => refetch()} />
+        <ErrorState error={error} onRetry={() => refetch()} />
       </div>
     );
   }
 
-  if (planContent === undefined) return null;
-
   return (
-    <div
-      className={cn("flex flex-col", className)}
-      data-testid={selectors.backlogDetails.promptPanel}
-    >
-      {/* Toolbar */}
+    <div className={cn("flex flex-col", className)} data-testid={selectors.backlogDetails.promptPanel}>
       <div className="flex items-center gap-1.5 border-b border-slate-800 px-4 py-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className={cn(viewMode === "rendered" && "bg-slate-700 text-slate-100")}
-          onClick={() => setViewMode("rendered")}
-          aria-label="Rendered view"
-          title="Rendered view"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className={cn(viewMode === "raw" && "bg-slate-700 text-slate-100")}
-          onClick={() => setViewMode("raw")}
-          aria-label="Raw editor"
-          title="Edit"
-        >
-          <Code className="h-3.5 w-3.5" />
-        </Button>
-
         {headings.length > 0 && (
           <div ref={tocRef} className="relative">
             <Button
               variant="outline"
               size="icon"
               className={cn(tocOpen && "bg-slate-700 text-slate-100")}
-              onClick={handleTocToggle}
+              onClick={() => setTocOpen((prev) => !prev)}
               aria-label="Table of contents"
               title="Table of contents"
             >
@@ -241,59 +179,62 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
                 data-testid="toc-popover"
               >
                 <div className="max-h-72 overflow-y-auto py-1.5">
-                  {headings.map((h, i) => {
-                    const showDivider = h.level === 1 && i > 0;
-                    return (
-                      <div key={`${h.id}-${h.line}`}>
-                        {showDivider && (
-                          <div className="mx-3 my-1 border-t border-white/5" />
+                  {headings.map((heading, index) => (
+                    <div key={`${heading.id}-${heading.line}`}>
+                      {heading.level === 1 && index > 0 && <div className="mx-3 my-1 border-t border-white/5" />}
+                      <button
+                        className={cn(
+                          "block w-full truncate py-1 pr-3 text-left text-[13px] transition-colors",
+                          "hover:bg-white/5 hover:text-slate-100",
+                          TOC_ITEM_STYLES[heading.level],
                         )}
-                        <button
-                          className={cn(
-                            "block w-full truncate py-1 pr-3 text-left text-[13px] transition-colors",
-                            "hover:bg-white/5 hover:text-slate-100",
-                            TOC_ITEM_STYLES[h.level],
-                          )}
-                          onClick={() => handleTocJump(h)}
-                        >
-                          {h.text}
-                        </button>
-                      </div>
-                    );
-                  })}
+                        onClick={() => handleTocJump(heading.id)}
+                      >
+                        {heading.text}
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </nav>
             )}
           </div>
         )}
 
-        <div className="flex-1" />
+        <div className="min-w-0 flex-1 truncate text-xs text-slate-500">{data?.path}</div>
 
-        {viewMode === "raw" && isDirty && (
+        {accepted ? (
+          <span className="hidden text-xs text-emerald-300 sm:inline">Accepted {new Date(accepted.acceptedAt).toLocaleDateString()}</span>
+        ) : null}
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={accept.isPending || unaccept.isPending}
+          title={accepted ? "Clear the recorded acceptance before changing queue readiness" : "Accept this exact canonical plan revision"}
+          onClick={() => accepted ? unaccept.mutate() : accept.mutate()}
+        >
+          {accept.isPending || unaccept.isPending ? "Saving…" : accepted ? "Un-accept" : "Accept plan"}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={runReview.isPending}
+          title={runReview.isPending ? "A plan review is being started" : "Start a plan review; resulting decisions appear in Decide"}
+          onClick={() => runReview.mutate()}
+        >
+          {runReview.isPending ? "Starting…" : "Run plan review"}
+        </Button>
+
+        {data?.planRef?.slug && (
           <Button
             variant="outline"
-            size="sm"
-            className="h-8 px-2.5 text-xs text-slate-400"
-            onClick={handleDiscard}
+            size="icon"
+            aria-label="Open in plan-manager"
+            title="Open in plan-manager"
+            onClick={() => window.open(`/plan-manager/plans/${data.planRef?.slug}`, "_blank", "noopener,noreferrer")}
           >
-            Discard
-          </Button>
-        )}
-
-        {viewMode === "raw" && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2.5 text-xs"
-            disabled={!isDirty || saveMutation.isPending}
-            onClick={handleSave}
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Save
+            <ExternalLink className="h-3.5 w-3.5" />
           </Button>
         )}
 
@@ -302,52 +243,26 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
           size="icon"
           className={cn(copySuccess && "text-green-400")}
           onClick={handleCopy}
-          aria-label={`Copy ${deliverableLabel}`}
-          title={copySuccess ? "Copied!" : `Copy ${deliverableLabel}`}
+          aria-label={`Copy ${label}`}
+          title={copySuccess ? "Copied!" : `Copy ${label}`}
         >
-          {copySuccess ? (
-            <Check className="h-3.5 w-3.5" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
+          {copySuccess ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </Button>
       </div>
 
-      {/* Save feedback */}
-      {saveMutation.isSuccess && (
-        <div className="border-b border-green-500/20 bg-green-500/10 px-4 py-1.5 text-xs text-green-400">
-          {isResearch ? "Conclusion" : "Plan"} saved.
-        </div>
-      )}
-      {saveMutation.isError && (
-        <div className="border-b border-red-500/20 bg-red-500/10 px-4 py-1.5 text-xs text-red-400">
-          Failed to save: {(saveMutation.error as Error).message}
+      {data?.qualityStatus && data.qualityStatus !== "clean" && (
+        <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
+          <span className="font-medium">Plan quality: {data.qualityStatus}</span>
+          {data.qualityFindings && data.qualityFindings.length > 0 && (
+            <span className="ml-2 text-amber-100/80">{data.qualityFindings.join("; ")}</span>
+          )}
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {viewMode === "rendered" ? (
-          <div
-            className="px-4 py-4"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(planContent) }}
-          />
-        ) : (
-          <Editor
-            height="100%"
-            language="markdown"
-            theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
-            value={draftContent}
-            onChange={(value) => setDraftContent(value ?? "")}
-            onMount={handleEditorMount}
-            options={EDITOR_OPTIONS}
-            loading={
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
-              </div>
-            }
-          />
-        )}
+      {actionMessage && <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-300" role="status">{actionMessage}</p>}
+
+      <div className="flex-1 overflow-y-auto bg-transparent">
+        <MarkdownRenderer content={markdown} className="px-4 py-4" />
       </div>
     </div>
   );

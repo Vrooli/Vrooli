@@ -19,9 +19,11 @@
 - **Expiration sweeper interval (60s) is acceptable resolution**: Session cleanup is not instant on TTL expiry — there's up to 60 seconds of drift. Made in [CODE: api/session_policy.go].
 
 ## Environment Assumptions
-- **POSIX runtime with PTY support**: The API requires `creack/pty` which needs `/dev/ptmx`. Will not run on Windows without WSL. Made in [CODE: api/pty.go].
+- **Platform-specific PTY seam**: Unix builds use `creack/pty` and Windows
+  builds use the native ConPTY adapter. Persistent tmux sessions are Unix-only;
+  the platform capability matrix in `.vrooli/service.json` is authoritative.
 - **SQLite available via `api-core/database`**: The database connection string is resolved by the `api-core` library from environment variables. Made in [CODE: api/main.go].
-- **SQL files exist relative to binary**: `initSchema()` reads `../initialization/sqlite/schema.sql` relative to `os.Executable()`. Breaks if binary is moved without its sibling directories. Made in [CODE: api/main.go].
+- **SQL files exist relative to binary**: `initSchema()` reads `../api/internal/<domain>/schema.sql` relative to `os.Executable()`. Breaks if binary is moved without its sibling directories. Made in [CODE: api/main.go].
 
 ## Hardening Status
 | Assumption | Status | Moved to INVARIANTS |

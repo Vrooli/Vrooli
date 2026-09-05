@@ -14,6 +14,7 @@ import (
 	"deployment-manager/build"
 	"deployment-manager/bundles"
 	"deployment-manager/profiles"
+	"deployment-manager/releases"
 )
 
 // publishToLPBS triggers a deploy-stage-only pipeline, extracts version data,
@@ -33,6 +34,22 @@ func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Prof
 		Publish:         true,
 		ResumeFromStage: "deploy",
 		StopAfterStage:  "deploy",
+		ReleaseID:       req.ReleaseID,
+		Channel:         req.Channel,
+	}
+
+	// Pass full LPBS coords on the inline DeployConfig when this profile has
+	// LPBS release config wired. ReleaseID + Channel must ride on the deploy
+	// config so S2D's Config decoder forwards them through to lpbs_client.go.
+	if cfg := o.loadLPBSConfigForPublish(ctx, req.ProfileID); cfg != nil && cfg.LPBSAppKey != "" {
+		pipelineReq.DeployConfig = &PublishDeployConfig{
+			ScenarioName:  profile.Scenario,
+			RemoteProfile: cfg.LPBSRemoteProfile,
+			AppKey:        cfg.LPBSAppKey,
+			UpdateURL:     cfg.UpdateURL,
+			ReleaseID:     req.ReleaseID,
+			Channel:       req.Channel,
+		}
 	}
 
 	pipelineResp, err := client.RunPublishPipeline(ctx, pipelineReq)
@@ -84,6 +101,7 @@ func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Prof
 			Version:       version,
 			GitCommitHash: gitHash,
 			ArtifactID:    artifact.ArtifactID,
+			ReleaseID:     req.ReleaseID,
 		}
 		if err := o.publishedVersionsRepo.RecordPublish(ctx, record); err != nil {
 			o.log("warn", map[string]interface{}{
@@ -94,6 +112,15 @@ func (o *Orchestrator) publishToLPBS(ctx context.Context, profile *profiles.Prof
 			continue
 		}
 		published = append(published, *record)
+
+		// Advance the per-platform release row so verify sees published state.
+		if o.releasesRepo != nil && req.ReleaseID != "" {
+			_ = o.releasesRepo.MarkPlatformPublished(ctx, req.ReleaseID, artifact.Platform, artifact.ArtifactID)
+		}
+	}
+
+	if o.releasesRepo != nil && req.ReleaseID != "" && len(published) > 0 {
+		_ = o.releasesRepo.UpdateStatus(ctx, req.ReleaseID, releases.StatusPublishing)
 	}
 
 	response.PublishedVersions = published

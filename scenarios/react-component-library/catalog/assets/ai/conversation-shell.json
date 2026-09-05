@@ -1,0 +1,144 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.conversation-shell",
+    "name": "ConversationShell",
+    "kind": "pattern",
+    "domain": "ai",
+    "description": "The complete conversational workspace coordinating transcript, composer, context, artifacts, agent activity, approvals, responsive panels, and scroll restoration as one surface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "ai.message-list",
+        "reason": "The transcript is the shared message collection."
+      },
+      {
+        "asset": "ai.prompt-composer",
+        "reason": "Entry is the shared composer."
+      },
+      {
+        "asset": "ai.context-indicator",
+        "reason": "Available context is always legible."
+      },
+      {
+        "asset": "ai.agent-status",
+        "reason": "Current agent activity is always visible."
+      },
+      {
+        "asset": "overlays.responsive-panel",
+        "reason": "Artifacts and activity present as a desktop side panel and a mobile drawer without losing state."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Loading, empty, partial, stale, error, and offline presentation are delegated rather than reimplemented."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TMessage"
+      ]
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion",
+    "signature-moment",
+    "mobile-capability-parity",
+    "offline-behavior",
+    "input-preservation",
+    "recovery-path",
+    "partial-degradation",
+    "viewport-fill",
+    "safe-area-respected"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "transcript",
+      "purpose": "The conversation history with streaming, branching, and history loading.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "composer",
+      "purpose": "Message entry with attachments, commands, and generation controls.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "context",
+      "purpose": "What the agent can currently see, with inspection and removal.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "workbench",
+      "purpose": "Artifacts, plans, activity, and approvals beside the conversation.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Work the agent produces appears beside the conversation rather than scrolling away inside it, so the transcript stays a record and the artifacts stay reachable."
+    },
+    "avoid": [
+      "modal-for-routine-inspection",
+      "toast-as-only-error-record"
+    ]
+  },
+  "rationale": "The flagship surface of the domain and the one with no adequate prior art to copy. Its defining decision is separating transcript from workbench: conversation is a record that scrolls, artifacts and plans are objects that persist, and collapsing the two is why most agent interfaces become unusable past a few dozen turns."
+}

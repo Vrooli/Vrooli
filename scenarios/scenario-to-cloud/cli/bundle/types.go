@@ -72,14 +72,14 @@ type CleanupRequest struct {
 
 // CleanupResponse represents the response from bundle cleanup.
 type CleanupResponse struct {
-	OK              bool       `json:"ok"`
+	OK              bool         `json:"ok"`
 	LocalDeleted    []BundleInfo `json:"local_deleted,omitempty"`
-	LocalFreedBytes int64      `json:"local_freed_bytes"`
-	VPSDeleted      int        `json:"vps_deleted,omitempty"`
-	VPSFreedBytes   int64      `json:"vps_freed_bytes,omitempty"`
-	VPSError        string     `json:"vps_error,omitempty"`
-	Message         string     `json:"message"`
-	Timestamp       string     `json:"timestamp"`
+	LocalFreedBytes int64        `json:"local_freed_bytes"`
+	VPSDeleted      int          `json:"vps_deleted,omitempty"`
+	VPSFreedBytes   int64        `json:"vps_freed_bytes,omitempty"`
+	VPSError        string       `json:"vps_error,omitempty"`
+	Message         string       `json:"message"`
+	Timestamp       string       `json:"timestamp"`
 }
 
 // VPSBundleInfo represents a bundle stored on the target VPS.
@@ -102,11 +102,11 @@ type VPSBundleListRequest struct {
 
 // DeploymentVPSListResponse matches the API response for listing VPS bundles.
 type DeploymentVPSListResponse struct {
-	OK             bool           `json:"ok"`
+	OK             bool            `json:"ok"`
 	Bundles        []VPSBundleInfo `json:"bundles"`
-	TotalSizeBytes int64          `json:"total_size_bytes"`
-	Error          string         `json:"error,omitempty"`
-	Timestamp      string         `json:"timestamp"`
+	TotalSizeBytes int64           `json:"total_size_bytes"`
+	Error          string          `json:"error,omitempty"`
+	Timestamp      string          `json:"timestamp"`
 }
 
 // VPSBundleDeleteRequest deletes one bundle file from the VPS.
@@ -130,10 +130,10 @@ type VPSBundleDeleteResponse struct {
 
 // VPSBundleGCRequest requests garbage collection of the VPS bundle cache.
 type VPSBundleGCRequest struct {
-	ScenarioID     string   `json:"scenario_id,omitempty"`
-	KeepLatest     int      `json:"keep_latest,omitempty"`
-	ProtectSHA256  []string `json:"protect_sha256,omitempty"`
-	DryRun         bool     `json:"dry_run,omitempty"`
+	ScenarioID    string   `json:"scenario_id,omitempty"`
+	KeepLatest    int      `json:"keep_latest,omitempty"`
+	ProtectSHA256 []string `json:"protect_sha256,omitempty"`
+	DryRun        bool     `json:"dry_run,omitempty"`
 }
 
 // VPSBundleGCResponse matches the API response for VPS bundle GC.

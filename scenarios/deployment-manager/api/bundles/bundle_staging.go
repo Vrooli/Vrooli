@@ -9,19 +9,33 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // resolveScenarioRoot returns the absolute scenario directory.
 func resolveScenarioRoot(scenario string) string {
+	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return ""
 	}
-	root := os.Getenv("VROOLI_ROOT")
+	root := resolveRepoRoot()
 	if root == "" {
-		home, _ := os.UserHomeDir()
-		root = filepath.Join(home, "Vrooli")
+		return ""
 	}
-	return filepath.Join(root, "scenarios", scenario)
+	resolved, err := repocontract.ResolveScenarioPath(root, scenario)
+	if err != nil {
+		return ""
+	}
+	return resolved
+}
+
+func resolveRepoRoot() string {
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
+	}
+	return root
 }
 
 // populateAssetMetadata fills in missing/pending asset hashes and sizes using files on disk.

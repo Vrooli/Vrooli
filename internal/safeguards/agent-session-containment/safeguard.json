@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "agent_session_containment",
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard writes one systemd user slice unit inside the invoking user's home and starts it; it needs no privilege and creates no host-wide state."
+  },
+  "description": "Write and verify vrooli-agents.slice under the invoking user's systemd manager so every coding-agent session is born inside a CPU, memory and task ceiling that a build storm cannot escape",
+  "handler": "agent_session_containment",
+  "risk": "low",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "cpu_weight": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10000,
+        "default": 50,
+        "description": "systemd CPUWeight= of the agent slice. 100 is a neutral share; 50 gives the supervisors (400) eight times the share under contention."
+      },
+      "memory_high_percent": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 50,
+        "description": "MemoryHigh= as a percentage of physical memory: the slice is throttled above it."
+      },
+      "memory_max_percent": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 60,
+        "description": "MemoryMax= as a percentage of physical memory: the kernel reclaims and kills inside the slice above it, before the host swaps. Must not be below memory_high_percent."
+      },
+      "tasks_max": {
+        "type": "integer",
+        "minimum": 16,
+        "default": 4096,
+        "description": "TasksMax= of the slice: the most threads and processes every agent session together may hold. A fork storm stops here."
+      }
+    }
+  },
+  "verificationCheck": {
+    "files": [
+      "$USER_HOME/.config/systemd/user/vrooli-agents.slice"
+    ]
+  },
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "build-verified",
+      "evidence": "No slice on macOS; the launcher applies the same ceilings per session through the rlimit-exec shim (RLIMIT_NPROC from tasks_max, RLIMIT_AS from memory_max_percent). Verified by platform-go fixtures, not on a macOS host.",
+      "review_by": "2027-03-01"
+    },
+    "windows": {
+      "status": "build-verified",
+      "evidence": "No slice on Windows; the launcher assigns each session to a Job Object with a memory, active-process and CPU-rate quota. Verified by platform-go fixtures, not on a Windows host.",
+      "review_by": "2027-03-01"
+    }
+  },
+  "risk_class": "reload_live"
+}

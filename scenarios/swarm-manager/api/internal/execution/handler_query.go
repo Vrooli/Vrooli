@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
+
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +24,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		CreatedFrom: strings.TrimSpace(r.URL.Query().Get("created_from")),
 		CreatedTo:   strings.TrimSpace(r.URL.Query().Get("created_to")),
 	}
-	items, err := h.service.List(r.Context(), filters)
+	items, err := h.service.ListSnapshot(r.Context(), filters)
 	if err != nil {
 		apierr.MapError(w, "[execution] list", err)
 		return
@@ -72,6 +73,24 @@ func (h *Handler) GetPromptTrace(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.JSON(w, map[string]any{"trace": record.PromptTrace}); err != nil {
 		apierr.MapError(w, "[execution] prompt-trace", apierr.Internal("failed to encode response"))
+	}
+}
+
+// GetProgress proxies the active workflow trace on demand. It does not persist
+// or infer live state from the local execution record.
+func (h *Handler) GetProgress(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] progress", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	progress, err := h.service.WorkflowProgress(r.Context(), executionID)
+	if err != nil {
+		apierr.MapError(w, "[execution] progress", err)
+		return
+	}
+	if err := httputil.JSON(w, progress); err != nil {
+		apierr.MapError(w, "[execution] progress", apierr.Internal("encode workflow progress"))
 	}
 }
 

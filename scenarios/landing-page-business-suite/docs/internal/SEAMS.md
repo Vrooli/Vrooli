@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2026-02-05
+> **Last Updated**: 2026-07-28
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
@@ -19,16 +19,68 @@ This document reflects the current code; claims here have been verified against 
 
 ---
 
+## Seam Registry
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| metricshttp.EventTracker | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeEventTracker` | Exercise event-ingestion transport without a database. |
+| metricshttp.AnalyticsReader | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeAnalyticsReader` | Exercise summary and variant transport without a database. |
+| feedback.Notifier | `api/handlers/feedback/connect.go` | `feedbackEmailNotifier` wired in `api/feedback_notifier.go` | `api/handlers/metrics/mocks.FakeFeedbackNotifier` | Keep generated feedback creation separate from branding/email delivery. |
+| envx.Reader | `api/internal/envx/env.go` | `envx.System` | `api/internal/testutil/mocks.FakeEnvironment` | Isolate process configuration from business and startup logic. |
+| logx.Logger | `api/internal/logx/log.go` | `logx.System` | `api/internal/testutil/mocks.FakeLogger` | Keep structured logging substitutable in tests and composition. |
+| metrics.WaitlistStore | `api/internal/metrics/waitlist.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeWaitlistStore` | Route context-aware waitlist persistence to Test Genie’s lease-owned pool. |
+| metrics.FeedbackStore | `api/internal/metrics/feedback.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeFeedbackStore` | Route context-aware feedback persistence to Test Genie’s lease-owned pool. |
+| commerce.Store | `api/internal/commerce/account_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in account service tests | Route subscription, credit, and entitlement reads to Test Genie's lease-owned pool. |
+| administration.UserManagementStore | `api/internal/administration/user_management_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-management service tests | Keep admin user and session operations transport-free and routed to Test Genie’s lease-owned pool. |
+| administration.APIKeyStore | `api/internal/administration/apikeys_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in API-key service tests | Route encrypted provider-key reads and writes through the request-scoped database seam. |
+| commerce.UsageStore | `api/internal/commerce/usage_contracts.go` | `*database.RoutedDB` in API composition | `*sql.DB` in usage service tests | Route credit usage and reservations through the request-scoped database seam. |
+| intelligence.UsageServicer | `api/internal/intelligence/metered_inference_contracts.go` | `newCommerceUsageServicer(*commerce.UsageService)` in API composition | `MockUsageService` in metered inference tests | Keep AI-provider orchestration independent of credit persistence and reservation implementation. |
+| intelligence.AccountServicer | `api/internal/intelligence/metered_inference_contracts.go` | `*commerce.Service` wired in `api/main.go` | account-service stubs in metered inference tests | Keep subscription-tier lookup outside the AI provider domain. |
+| intelligence.APIKeyServicer | `api/internal/intelligence/metered_inference_contracts.go` | `*administration.APIKeyService` wired in `api/main.go` | API-key stubs in metered inference tests | Keep encrypted provider-key storage outside AI provider orchestration. |
+| intelligence.MeteredInferenceProvider | `api/internal/intelligence/metered_inference_contracts.go` | `*intelligence.MeteredInferenceService` wired in `api/main.go` | `MockMeteredInference` in `api/metered_inference_handlers_test.go` | Exercise HTTP request and error translation without provider, account, or credit persistence. |
+| intelligence.Limiter | `api/handlers/intelligence/handler.go` | rate-limiter implementation wired by the intelligence HTTP composition | deterministic limiter stub in handler tests | Keep request throttling independent from typed AI request handling. |
+| intelligence.OpenRouterClient | `api/internal/intelligence/openrouter_contracts.go` | `httpOpenRouterClient` created through `MeteredInferenceServiceOptions.ClientFactory` | `MockOpenRouterClient` in metered inference tests | Keep provider HTTP/SSE transport replaceable while AI orchestration retains credit and account policy. |
+| account.Reader | `api/handlers/account/reads.go` | `handlers/account.NewCommerceReader(*commerce.Service)` in API composition | `fakeReader` in account transport tests | Keep generated Connect account transport independent of commerce-domain DTOs. |
+| administration.RemoteProfileStore | `api/internal/administration/remote_profiles_store.go` | `*database.RoutedDB` in API composition | `*sql.DB` in remote-profile service tests | Route encrypted remote-profile configuration and session operations through the request-scoped database seam. |
+| administration.HTTPDoer | `api/internal/administration/remote_profile_http.go` | `*http.Client` in remote-profile service composition | Test HTTP client in remote-profile service tests | Keep remote-profile login, session, and proxy traffic deterministic in tests without coupling administration logic to a concrete client. |
+| commerce.PaymentSettingsStore | `api/internal/commerce/payment_settings_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-settings service tests | Route Stripe and payment-anomaly configuration through the request-scoped database seam. |
+| commerce.PaymentAnomalyStore | `api/internal/commerce/anomaly_dispatcher.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-anomaly tests | Route payment anomaly records and delivery state through the request-scoped database seam. |
+| commerce.LimitsStore | `api/internal/commerce/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
+| commerce.StripeStore | `api/internal/commerce/{stripe_repository,account_link_service}.go` | `*database.RoutedDB` in API composition through `StripeService` | `*sql.DB` in commerce-focused tests | Keep subscription, checkout, credit, and customer-identity persistence independent of API composition and Stripe transport clients. |
+| commerce.CreditWallet | `api/internal/commerce/credit_wallet_service.go` | `*commerce.CreditWalletService` constructed from `StripeServiceStore` during API composition | real Postgres in credit-wallet tests | Keep wallet ledger and replay-safe balance mutation inside commerce; Stripe webhook code supplies only provider event data for a top-up. |
+| commerce.BundleProductReader | `api/internal/commerce/credit_topup.go` | `*commerce.PlanService` injected by `StripeService` composition | `creditTopupPlansFake` in commerce tests | Keep conversion from a completed provider payment to wallet credits inside commerce without coupling the policy to Stripe webhook parsing. |
+| commerce.CouponService | `api/internal/commerce/{coupons,stripe_coupon_provider}.go` | `*commerce.StripeCouponProvider` composed by `StripeService` | `fakeCouponService` in `api/handlers/coupons/handler_test.go`; `stripeCouponRequesterFake` in commerce tests | Keep generated coupon administration transport and coupon policy independent of Stripe runtime configuration. The root adapter supplies only authenticated requests, current intro-coupon configuration, and the plan mapping source. |
+| commerce.CouponMappingReader | `api/internal/commerce/stripe_coupon_provider.go` | `*commerce.PlanService` injected by `StripeService.couponProvider` | plan-store fakes in commerce coupon-provider tests | Keep coupon import previews dependent on the minimal local plan-to-coupon mapping contract rather than API composition or provider configuration. |
+| commerce.StripeRequester | `api/internal/commerce/stripe_coupon_provider.go` | `stripeCouponRequester` in `api/stripe_coupon_service.go` | function/requester fakes in commerce provider tests | Share a minimal authenticated Stripe request boundary across coupon and catalog-import providers, keeping business workflows independent of the root service's credentials, HTTP client, and runtime configuration. |
+| commerce.PlanStorer | `api/internal/commerce/plan_store.go` | `api/plan_catalog.go` injects structured logging and environment-derived catalog settings | explicit `PlanStoreOptions` plus temporary plans files in domain tests | Keep the atomic, file-backed monetization catalog independent of HTTP composition while preserving deterministic catalog and Stripe-import tests. |
+| experimentation.ConfigStorer | `api/internal/experimentation/config_store.go` | `api/config_store.go` injects structured logging and scenario filesystem paths | explicit `ConfigStoreOptions` plus temporary JSON files in domain tests | Keep file-backed variants and branding independent of HTTP composition while preserving deterministic configuration tests. |
+| content.SEOStore | `api/internal/content/seo_service.go` | `seoConfigStoreAdapter` in `api/seo_service.go` | `fakeSEOStore` in content SEO tests | Keep SEO reads and variant-SEO persistence independent of the JSON configuration implementation; only API composition knows the experimentation store. |
+| administration.UserAuthStore | `api/internal/administration/user_auth_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-auth service tests | Route user identities, magic links, and sessions through the request-scoped database seam. |
+| delivery.EntitlementLookup | `api/internal/delivery/authorizer.go` | `entitlementStatusLookup` inside `delivery.DownloadAuthorizer` | `entitlementStub` in `api/internal/delivery/authorizer_test.go` | Keep paid-download policy independent of account persistence. |
+| delivery.AssetLookup | `api/internal/delivery/authorizer.go` | `*delivery.CatalogService` wired in API composition | catalog lookup stubs in download authorization tests | Keep catalog lookup substitutable while delivery authorization remains transport-free. |
+| delivery.EntitlementStatusProvider | `api/internal/delivery/authorizer.go` | `*commerce.Service` wired in API composition | entitlement status stubs in download authorization tests | Pass request-scoped subscription state to delivery without exposing commerce payloads. |
+| delivery.Storage | `api/internal/delivery/storage.go` | `delivery.S3StorageProvider` wired from API composition | `mockDownloadStorage` in `api/download_hosting_test.go` | Keep artifact hosting independent of an S3-compatible provider and preserve deterministic delivery-service tests. |
+| delivery.Store | `api/internal/delivery/service.go` | `*sql.DB` wired in API composition | database-backed delivery service tests | Keep artifact and storage-setting persistence within delivery while accepting only the SQL operations it uses. |
+| delivery.CatalogStore | `api/internal/delivery/catalog.go` | `routedDownloadStore` in `api/download_service.go` | `*sql.DB` in catalog tests | Route catalog persistence through Test Genie’s request-aware database while keeping delivery independent of API composition. |
+
+The `api/internal/testutil` seam-registry test reconciles the tagged interface
+set with this table. New seams must add their `// seam:` declaration, production
+assertion, reusable fake, and row in the same change.
+
+---
+
 ## Responsibility Zones
 
 **Transport (HTTP handlers)**  
 `api/*_handlers.go` validate input, enforce auth, and delegate to services. Examples: `stripe_handlers.go`, `payment_settings_handlers.go`, `metrics_handlers.go`, `variant_handlers.go`, `seo_handlers.go` (now delegating merging to `SEOService`).
 
 **Domain/services**  
-`PlanService`, `StripeService`, `PaymentSettingsService`, `ContentService`, `VariantService`, `SEOService`, and `MetricsService` contain business rules and orchestration. Presentation layers must not reach into SQL or Stripe directly. SEO persistence now flows through `VariantService.UpdateSEOConfigBySlug`, which owns slug lookup, JSON encoding, and writes so the admin handler stays transport-only.
+`PlanService`, `StripeService`, `PaymentSettingsService`, `VariantService`, `VariantSectionService`, `SEOService`, and `MetricsService` contain business rules and orchestration. Presentation layers must not reach into SQL, Stripe, or experimentation storage directly. SEO persistence flows through `SEOService.UpdateVariantSEO` and its narrow `SEOStore` seam, so the admin handler remains transport-only while API composition owns JSON encoding and configuration writes. JSON-backed landing sections are addressed by a durable key scoped to their variant, never by a synthetic global numeric ID.
 
 **Infrastructure/data**  
-SQL access lives inside services (`plan_service.go`, `stripe_service.go`, `payment_settings_service.go`, etc.). Environment parsing and router wiring live in `main.go`.
+SQL access lives inside services (`plan_service.go`, the internal commerce Stripe
+services, `payment_settings_service.go`, etc.). Non-secret environment parsing
+and router wiring live in `main.go`.
 
 **UI contracts**  
 Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React surfaces (public landing + admin portal). Controllers such as `seoController.ts` adapt those clients for components so React views no longer make raw `fetch` calls.
@@ -46,17 +98,17 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 ## Stripe Seams (priority)
 
 - **Config loading seam** (`StripeService.RefreshConfig`)  
-  - Source of truth is `loadStripeConfig`: pulls env vars (`STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `STRIPE_API_BASE`) then overlays admin overrides from `PaymentSettingsService.GetStripeSettings`.  
+  - Source of truth is `loadStripeConfig`: resolves the three Stripe credentials through the credential-authority-backed `PaymentSettingsService`; only the non-secret `STRIPE_API_BASE` configuration remains environment-backed.
   - Tests can bypass env + DB by injecting a loader via `StripeService.UseConfigLoader(...)` and calling `RefreshConfig` to apply.  
-  - Placeholders keep `hasSecret/hasWebhook` false when keys are absent, preventing accidental live calls.
+  - Placeholders keep `hasSecret/hasWebhook` false when operator credentials are absent, preventing accidental live calls.
 
 - **HTTP seam for Stripe calls** (`StripeService.doStripeRequest`)  
   - All Stripe network traffic flows through `stripeAPIURL` + injected client.  
   - Swap the client with `StripeService.UseHTTPClient(...)` or point to a mock server with `STRIPE_API_BASE`.  
   - This keeps checkout/portal/subscription calls testable without real Stripe access.
 
-- **Admin settings seam** (`payment_settings_handlers.go`, `payment_settings_service.go`)  
-  - Admin endpoints handle normalization, redaction, and persistence of Stripe keys.  
+- **Admin settings seam** (`api/handlers/commerce/payment_settings_connect.go`, `api/internal/commerce/payment_settings_service.go`)
+  - Generated Connect procedures handle normalization, redaction, and authority write-through of Stripe keys; the database row retains only non-secret configuration.
   - After writes, `StripeService.RefreshConfig` is invoked so runtime state follows storage.  
   - `ConfigSnapshot` redacts secrets while exposing `*_set` flags and source to the UI.
 
@@ -69,9 +121,50 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   - All cache invalidation and reconciliation stay inside `StripeService`; handlers only translate errors and params.  
   - Subscription persistence preserves existing `plan_tier`/`bundle_key` when Stripe payloads omit or invalidate fields, and uses price ID token inference as a fallback.
 
+- **Payment anomaly dispatch seam** (`payment_anomaly_service.go`, `anomaly_alert_dispatcher.go`)
+  - `PaymentAnomalyService.Log(ctx, anomaly)` is the sole entrypoint for recording payment-pipeline anomalies into `payment_anomaly_log`. Callers outside this file should prefer the package-level helper `LogPaymentAnomaly(ctx, srv, anomaly)`.
+  - `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` polls the row's `dispatch_status` column at num[threshold]:25 ms intervals until it transitions out of `pending` or ctx cancels. Used by integration tests for deterministic async synchronization and available to admin tooling for manual-insert confirmation (no test-only code path).
+  - `PaymentAnomalyService.RefreshConfig(ctx)` re-reads the num[sot]:three `payment_settings` columns (`anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`) and atomically swaps the in-memory snapshot via `atomic.Pointer[anomalyConfig]`. `StripeSettingsService.UpdateStripeSettings` calls `RefreshConfig` after every successful save so the next dispatch uses the new config without restart.
+  - `AnomalyAlertDispatcher.Dispatch` is the outbound HTTP seam: num[threshold]:3 attempts × 5 s per-attempt timeout with 1 s/2 s/4 s backoff, retries on 5xx + transport errors, does not retry on 4xx. Test seam: `AnomalyAlertDispatcher.UseHTTPClient(httpDoer)` and `UseBackoff(...)` swap the client/backoffs for deterministic tests.
+  - Rate limiter: in-process token bucket per `anomaly_type`, guarded by `sync.Mutex`, with defaults of `burst=5` + `refill=1/60s`. Per-type overrides are read from `payment_settings.anomaly_rate_limits` JSONB. Known constraint: the bucket is **in-process** and therefore single-instance; multi-replica deployments would need a postgres-backed limiter, but LPBS runs as one instance today.
+  - Dispatch lifecycle: `Log(...)` returns after the row is committed and fires `go s.dispatcher.Dispatch(s.shutdownCtx, payload)` on an unbounded goroutine. Each goroutine exits within ~7 s worst-case (3 attempts × 5 s + 1 s/2 s backoffs); the per-type rate limiter caps spawn rate. HTTP requests use `http.NewRequestWithContext(shutdownCtx, ...)` so in-flight POSTs abort on server shutdown.
+  - Historical note: the legacy `intro_anomaly_log` table is not part of the runtime schema. Any retained local rows require the documented one-shot operator migration before deploying this declarative schema.
+
 ---
 
 ## Other Seams
+
+### Test database lifecycle seam (2026-07-28)
+
+- `setupTestDB(t)` is the canonical API database fixture. It only accepts the
+  explicit `TEST_DATABASE_URL` test target or an isolated Testcontainers
+  database—never the scenario's `DATABASE_URL`—and now registers `t.Cleanup`
+  for every returned pool. Handler tests use the shared JSON decode assertions
+  in `test_helpers_test.go`, so fixture lifecycle and malformed-response
+  diagnostics remain consistent without obscuring each test's typed contract
+  and behavior checks.
+
+### Commercial Measures seam (2026-07-27)
+
+- **Authoritative substrate:** `handlers/measures` executes fixed, parameterized
+  `COUNT(*)` aggregates over Postgres `created_at` data. Callers never choose a
+  table or provide SQL. Coverage now includes monetization, customer/session,
+  authentication/key, credit/usage, administration, content/download,
+  analytics, remote-profile, feedback, and waitlist substrates. Each of the
+  Each persisted entity detected by Measures Health has a dedicated aggregate.
+- **Typed and registry consumers:** each measure is available through the
+  generated `MeasuresService` Connect RPC and the `packages/measures-go`
+  registry (`/api/v1/measures/declarations` and
+  `/api/v1/measures/execute`). Both paths share
+  the same aggregate function and deterministic UTC `TimeWindow` resolution;
+  registry results include the resolved SQL/window provenance.
+- **Access policy:** commercial aggregates are wrapped with
+  `requireAdminOrService`; unauthenticated callers receive 401. This prevents
+  public traffic from inferring subscription or checkout volume while allowing
+  authenticated operators and service clients to consume the measure surface.
+- **Test seam:** `Counter` is a narrow `QueryRowContext` dependency. Handler
+  tests use an in-memory SQL database and assert Connect/registry semantic
+  parity from the same source snapshot.
 
 - **Plan/pricing lookup + integrity** (`plan_service.go`, `plan_store.go`)  
   Centralizes bundle/price metadata and enforces plan integrity rules (valid tiers, kind↔tier alignment, currency, billing interval, unique Stripe price IDs, bundle↔Stripe product matching).  
@@ -81,11 +174,15 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   - Stripe import flows through `PlanService.ImportStripePrices(...)` → `PlanStore.ApplyStripeImportSelections(...)` to batch updates and persist once (rejecting prices that do not belong to the bundle's Stripe product).
   - Plan catalog writes are atomic (temp file + rename) and re-normalize bundle/plan fields on save to keep `.vrooli/plans.json` consistent.
 
-- **Metrics ingestion** (`metrics_service.go`, `metrics_handlers.go`)  
-  Validation and storage happen in the service; handlers only marshal/unmarshal requests.
+- **Metrics and feedback transport** (`api/internal/metrics/`, `api/handlers/metrics/`, `api/handlers/feedback/`)
+  Validation and storage happen in the service; event, aggregate, and waitlist
+  handlers translate HTTP, while feedback is a generated `FeedbackService`
+  Connect boundary. Feedback persistence is routed through
+  `metrics.FeedbackStore`; branding/email notification remains isolated behind
+  `feedback.Notifier`.
 
-- **Content & variants** (`content_service.go`, `variant_service.go`)  
-  UI content and A/B variants are isolated behind services so new presentations do not touch SQL.
+- **Content & variants** (`api/internal/content/`, `api/handlers/content/`, `api/handlers/experimentation/`)  
+  UI content and A/B variants are isolated behind services so new presentations do not touch SQL. Generated `AssetsService` and `SeoService` procedures are translated by `handlers/content`, while `BrandingService` belongs to `handlers/experimentation`; `api/routes.go` only composes them with the appropriate public/admin middleware and configuration services. Crawler documents remain explicit REST exceptions in `handlers/seo`.
 - **SEO composition** (`seo_service.go`)  
   Combines site branding defaults with per-variant SEO config and drives sitemap/robots responses. Handlers call the service; admin UI uses the `seoController` + shared API client instead of direct `fetch` calls to keep transport concerns separate from editing logic.
 
@@ -93,7 +190,13 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 ## Remote Profiles & Proxy Seam (NEW)
 
-- **Remote profile service** (`api/remote_profiles_service.go`)  
+- **Persisted secret encryption primitive** (`api/internal/securevalue`)
+  `APIKeyService` and `RemoteProfileService` share one AES-GCM primitive for
+  values encrypted at rest. The primitive owns nonce-prefix encoding and
+  authentication; each service remains responsible for whether a missing key is
+  permitted in development and is rejected in production.
+
+- **Remote profile service** (`api/internal/administration/remote_profile_service.go`)
   Centralizes remote admin sessions in one place and encrypts stored `admin_session` cookies at rest. The service owns validation of remote API bases, connector IDs, remote session linkage (`remote_session_id`), and status updates so handlers remain transport-only.
 
 - **HTTP client seam** (`RemoteProfileService.httpClient`)  
@@ -108,8 +211,14 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 - **Proxy allowlist seam** (`remoteProfileProxyAllowlist`)  
   Only explicitly allowlisted `/admin/*` endpoints can be proxied, preventing accidental exposure of unrelated admin routes.
 
-- **Incoming session observability seam** (`api/remote_profile_sessions_handlers.go`)  
+- **Incoming session observability seam** (`api/handlers/administration/remote_profile_sessions.go`)
   Incoming connector sessions are discovered and revoked via dedicated admin endpoints (`/admin/remote-profile-sessions*`) by parsing connector metadata from admin-session user-agent values. This keeps remote-profile ingress controls separate from generic auth and avoids coupling UI flows directly to auth storage internals.
+
+- **Incoming session repository seam** (`api/internal/administration/incoming_remote_profile_sessions.go`)
+  The administration repository owns the `admin_sessions` query, connector filtering, metadata parsing, and remote-session revocation. The HTTP handler receives only `List`/`Revoke` behavior, keeping SQL and routed-pool persistence out of the transport layer.
+
+- **Landing configuration composition seam** (`api/landing_config_composition.go`)
+  `internal/content.LandingConfigService` owns variant/config, fallback, pricing, download, and public-branding aggregation. The root composition adapter is the only place that translates provider-specific Stripe coupons into content-owned display-safe intro offers, keeping payment-provider types out of public landing configuration.
 
 ---
 
@@ -117,25 +226,61 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electron-updater manifests and binary download redirects.
 
-- **Handler interface seam** (`api/update_handlers.go`)
-  `handleUpdateFile` is a public endpoint (no auth middleware) that dispatches manifest vs. binary requests based on the `{file}` path segment. Four narrow interfaces are injected:
-  - `updateAppLookup` — app retrieval for API key gating
-  - `updateAssetLookup` — asset retrieval by variant for manifest serving
-  - `updateArtifactResolver` — artifact retrieval, filename lookup, and presigned URL generation
-  - `updateBundleKeyProvider` — bundle key resolution
+- **Handler interface seam** (`api/handlers/delivery/update.go`)
+  `UpdateFile` dispatches manifest vs. binary requests based on the `{file}` path
+  segment. `UpdateDependencies` contains only HTTP-edge adapters (path lookup,
+  response envelope, JSON decoding, and bundle key); the delivery package owns
+  the concrete handler logic. Narrow lookup interfaces cover app access, asset
+  lookup, artifact storage, channel discovery, and update-policy changes.
 
-  In production, `*DownloadService` satisfies both `updateAppLookup` and `updateAssetLookup`; `*DownloadHostingService` satisfies `updateArtifactResolver`; `*PlanService` satisfies `updateBundleKeyProvider`. In tests, lightweight mocks (`mockUpdateAppLookup`, etc.) substitute without a database.
+  `api/update_transport.go` is the composition root: `*delivery.CatalogService`,
+  `*delivery.Service`, and `*commerce.PlanService` are bound there without the
+  handler importing mux or API-root response types. Root-package compatibility
+  adapters exist only in `_test.go`, preserving the pre-migration
+  characterization mocks while production routes call `handlers/delivery`
+  directly.
 
 - **Per-app API key gating** (`DownloadApp.UpdateAPIKey`)
   Optional per-app access control via `X-Update-Key` header. When `update_api_key` is empty on the app, the endpoint is fully public. Validation lives in the handler, checked before any manifest or download logic.
 
-- **Channel-to-variant mapping** (`channelToVariantKey`)
+- **Channel-to-variant mapping** (`delivery.ChannelToVariantKey`)
   Pure function mapping electron-updater channel names to download_assets `variant_key` values. `"stable"` and `""` map to `"default"`; all other channel names pass through. Easily testable without dependencies.
 
-- **Manifest generation** (`buildElectronManifest`)
+- **Manifest generation** (`delivery.BuildElectronManifest`)
   Pure function generating electron-updater YAML from a `DownloadArtifact`. No yaml library needed — fixed format via `fmt.Sprintf`. Requires `SHA512` to be present; endpoint returns 404 if missing.
 
 - **Download redirect** (`updateArtifactResolver.GetCurrentArtifactByFilename` + `PresignGetArtifact`)
+
+## Download App Administration Seams
+
+`api/handlers/delivery/apps.go` owns the download-app administration transport:
+list, create, replace, delete, and payload-to-domain translation. Its
+`AppDependencies` receives only HTTP-edge functions and the active bundle key;
+`AppCatalog` isolates the catalog service. `api/download_app_transport.go`
+binds the concrete services, response envelope, JSON decoder, and mux path
+lookup. The root-package test adapters are deliberately `_test.go` only, so
+the established payload-validation and route characterization tests cover the
+moved handler without retaining a production root shim.
+
+## Stripe Webhook Seam
+
+`api/handlers/commerce/webhook.go` owns the Stripe-signed callback transport.
+It is intentionally REST because Stripe owns the callback shape. The handler
+limits the raw body to 1 MiB before delegating signature verification and event
+processing to `StripeService`; errors remain generic to the webhook caller.
+`billingWebhookDependencies` is the sole root composition seam, and focused
+handler tests prove both oversized-payload rejection and non-leaking failures.
+
+## Usage Metering HTTP Seam
+
+`api/handlers/commerce/usage.go` owns the usage-report, usage-summary,
+limit-check, admin-summary, and monitoring HTTP transports. Its
+`UsageDependencies` supplies only request-identity extraction and API response
+and logging adapters; `internal/commerce.UsageService` owns token validation,
+metering, limit policy, and persistence. `usageHTTPDependencies` is the single
+root composition point. This keeps service-to-service bearer validation at the
+commerce edge and makes missing-auth, malformed-input, and unauthenticated-user
+paths testable without a database.
   Binary download requests resolve the current artifact via a join query (download_artifacts + download_assets), then redirect to a presigned S3 URL. The existing `DownloadStorage` interface seam for presigning applies here.
 
 ### Testability Status
@@ -150,7 +295,7 @@ The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electr
 
 ## Scan Helper Utilities
 
-`artifactScanTargets` (download_hosting.go), `assetScanTargets` (download_service.go), and `appScanTargets` (download_service.go) consolidate the repeated SQL NullString/JSON → struct hydration pattern across all artifact, asset, and app query methods. Each helper provides `scanDest()` for ordered scan destinations and `hydrate()` for populating the struct. Extra columns (e.g., `is_current`, `artifact_count`) are appended to `scanDest()` at the call site.
+`delivery.ArtifactScanTargets` (`api/internal/delivery/artifact.go`), `assetScanTargets` (download_service.go), and `appScanTargets` (download_service.go) consolidate the repeated SQL NullString/JSON → struct hydration pattern across all artifact, asset, and app query methods. Each helper provides ordered scan destinations and hydration into its domain value. Extra columns (e.g., `is_current`, `artifact_count`) are appended at the call site.
 
 ---
 
@@ -162,7 +307,7 @@ The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electr
   - Sign webhooks with the helpers in `stripe_handlers_test.go` to exercise signature enforcement.
 - Landing config fallback tests should inject a provider via `UseFallbackProvider` to avoid depending on baked JSON and to confirm payloads are copied per request.
 - Use `resetStripeTestData`, `upsertTestBundleProduct`, and `insertBundlePrice` helpers to seed pricing without touching production fixtures.
-- Admin settings tests should go through `handleUpdateStripeSettings`/`handleGetStripeSettings` to ensure redaction and refresh paths are covered.
+- Admin settings tests should go through `stripeSettingsConnectHandler` and its mounted generated procedures to ensure redaction and refresh paths are covered.
 
 ---
 
@@ -174,13 +319,13 @@ The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electr
 
 ---
 
-## AI Gateway Seams (NEW)
+## Metered Inference Seams (NEW)
 
-The AI Gateway provides centralized AI access with credit management for all Vrooli applications.
+The Metered Inference provides centralized AI access with credit management for all Vrooli applications.
 
 ### OpenRouterClient Seam (Strong)
 
-**Location:** `api/openrouter_client.go`
+**Location:** `api/internal/intelligence/openrouter_client.go`
 
 **Interface:**
 ```go
@@ -196,7 +341,7 @@ type OpenRouterClient interface {
 
 **Status:** Strong
 - Clean interface separating HTTP concerns from business logic
-- Mock enables testing AI gateway service without network calls
+- Mock enables testing metered inference service without network calls
 - Compile-time interface enforcement
 
 **Testing Pattern:**
@@ -209,19 +354,19 @@ mockClient := &MockOpenRouterClient{
         }, nil
     },
 }
-svc := NewAIGatewayService(AIGatewayServiceOptions{
+svc := NewMeteredInferenceService(MeteredInferenceServiceOptions{
     OpenRouterClient: mockClient,
     // ...
 })
 ```
 
-### AIGateway Seam (Strong)
+### MeteredInference Seam (Strong)
 
-**Location:** `api/ai_gateway_interface.go`
+**Location:** `api/internal/intelligence/metered_inference_contracts.go`
 
 **Interface:**
 ```go
-type AIGateway interface {
+type MeteredInferenceProvider interface {
     ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error)
     ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error
     GetAvailableModels() []string
@@ -229,59 +374,59 @@ type AIGateway interface {
 }
 ```
 
-**Test Doubles:**
-- `MockAIGateway` - Full interface mock for handler testing
+**Test Double:**
+- `MockMeteredInference` in `api/metered_inference_handlers_test.go` implements the handler seam.
 
 **Status:** Strong
-- Handlers accept `AIGateway` interface, not concrete `*AIGatewayService`
+- Handlers accept the `intelligence.Gateway` interface, not a concrete service
 - Enables isolated handler testing without real service
 - Compile-time interface enforcement
 
 **Testing Pattern:**
 ```go
-mock := &MockAIGateway{
-    ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
-        return &AIResponse{Content: "Mock response"}, nil
+mock := &MockMeteredInference{
+    ExecuteChatFn: func(ctx context.Context, userIdentity string, req intelligence.AIRequest) (*intelligence.AIResponse, error) {
+        return &intelligence.AIResponse{Content: "Mock response"}, nil
     },
 }
 handler := handleAIChat(mock)
 ```
 
-### AI Gateway Service Injection Seams
+### Metered Inference Service Injection Seams
 
-**Location:** `api/ai_gateway_service.go`
+**Location:** `api/internal/intelligence/metered_inference_service.go`
 
 The service has multiple injection points:
 
-1. **OpenRouter Client** - `UseOpenRouterClient(client OpenRouterClient)`
-   - Primary seam for testing AI provider communication
+1. **OpenRouter client factory** - `MeteredInferenceServiceOptions.ClientFactory`
+   - Primary seam for testing AI provider communication without root-package wiring
 
-2. **Logger** - Via `AIGatewayServiceOptions.Logger`
+2. **Logger** - Via `MeteredInferenceServiceOptions.Logger`
    - Enables capturing logs in tests
 
 **Status:** Strong
 
-### AI Gateway Rate Limiter Seam
+### Metered Inference Rate Limiter Seam
 
-**Location:** `api/ai_gateway_handlers.go`
+**Location:** `api/metered_inference_handlers.go`
 
 **Design:**
-- Package-level `aiGatewayRateLimiter` with `UseTimeProvider()` injection
+- Package-level `meteredInferenceRateLimiter` with `UseTimeProvider()` injection
 - Enables controlling time progression in tests
 
 **Testing Pattern:**
 ```go
 // Control time for rate limit testing
 fixedTime := time.Now()
-aiGatewayRateLimiter.UseTimeProvider(func() time.Time { return fixedTime })
-defer aiGatewayRateLimiter.UseTimeProvider(nil)
+meteredInferenceRateLimiter.UseTimeProvider(func() time.Time { return fixedTime })
+defer meteredInferenceRateLimiter.UseTimeProvider(nil)
 ```
 
-### AI Gateway Architecture
+### Metered Inference Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                      AI Gateway Service                          │
+│                      Metered Inference Service                          │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────────┐    ┌─────────────────────────────────┐   │
@@ -317,9 +462,44 @@ defer aiGatewayRateLimiter.UseTimeProvider(nil)
 
 ---
 
+### Commercial-context presentation seam
+
+`AccountService.GetCommercialContext` is the optional consumer-facing seam for
+account-aware presentation. `handlers/account/commerce_reader.go` reads
+authoritative subscription, credit, and entitlement state, then emits facts
+separately from cacheable content. Content is allow-listed to supported
+placements and capability-scoped requests; it contains stable IDs, eligibility,
+expiration, dismissal, freshness, and owned CTA metadata.
+
+Consumers may cache or dismiss presentation content, but neither operation can
+change entitlements or authorize a billable operation. Authenticated identity
+is taken from the request context before the commerce source is queried. Tests
+for identity enforcement, placement filtering, and transport mapping live
+beside the account handler and adapter.
+
 ## See Also
+
+### Administrator Authentication Persistence Seam
+
+**Location:** `api/admin_auth_service.go`
+
+`AdminAuthService` owns administrator credentials, server-side sessions, and
+profile persistence through `AdminAuthStore`. It receives request contexts for
+every query and mutation. HTTP handlers own cookies and response formatting,
+not SQL; production wires the service to `database.RoutedDB` and tests can
+supply a database-backed seam.
+
+### Routed Persistence Store Contracts
+
+**Locations:** `api/{assets,download_service,stripe_service,stripe_repository}.go`, `api/internal/{delivery,metrics}/service.go`
+
+Production domain services expose narrow store contracts instead of retaining
+`*sql.DB`. The contracts preserve the query and transaction capabilities each
+domain actually needs, allowing request-facing services to be wired to the
+routed database seam while unit tests retain simple database-backed fixtures.
+`StripeTestStore` applies the same boundary to Stripe configuration helpers.
 
 - `docs/STRIPE_RESTRICTED_KEYS.md`
 - `docs/STRIPE_WEBHOOKS.md`
 - `docs/api/payments.md`
-- `docs/AI_GATEWAY.md`
+- `docs/METERED_INFERENCE.md`

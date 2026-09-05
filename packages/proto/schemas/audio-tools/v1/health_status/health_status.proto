@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.health_status;
+
+import "audio-tools/v1/common/common.proto";
+import "audio-tools/v1/diagnostics/diagnostics.proto";
+import "audio-tools/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status;health_status_v1";
+
+// =============================================================================
+// HEALTH_STATUS DOMAIN — standing provider-health visibility.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain health_status
+// @stability stable
+//
+// HealthStatusService publishes the per-capability, per-provider rollup
+// computed by the in-process capabilities.Registry. The existing
+// /health REST endpoint stays as an ops probe; this Connect surface is
+// the typed contract consumers (web-console, audio-tools UI, the CLI)
+// use to render standing health beyond a single liveness boolean.
+//
+// Reuses vrooli.audio_tools.v1.common.ProviderTier and
+// vrooli.audio_tools.v1.diagnostics.Capability — do not redefine.
+// =============================================================================
+
+service HealthStatusService {
+  // GetProviderHealth returns the cached rollup. Latency is bounded by
+  // the registry's TTL; consumers wanting a fresh check call
+  // RefreshProviderHealth.
+  rpc GetProviderHealth(GetProviderHealthRequest) returns (GetProviderHealthResponse);
+
+  // RefreshProviderHealth bypasses the cache and re-runs every checker
+  // before returning the same shape as GetProviderHealth.
+  rpc RefreshProviderHealth(RefreshProviderHealthRequest) returns (RefreshProviderHealthResponse);
+
+  // StreamProviderHealth emits one ProviderHealthEvent per tick (the
+  // registry TTL clamped at a 5s minimum). Closes on context cancel.
+  rpc StreamProviderHealth(StreamProviderHealthRequest) returns (stream ProviderHealthEvent);
+}
+
+// State is the per-provider availability flag. UNKNOWN means no checker
+// has reported yet (or the registry has no checker for this provider);
+// AVAILABLE/UNAVAILABLE follow the last checker observation.
+message CapabilityHealth {
+  vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
+  repeated vrooli.audio_tools.v1.shared.ProviderHealth providers = 2;
+  // Effective rollup: AVAILABLE if any provider AVAILABLE, else
+  // UNAVAILABLE if any UNAVAILABLE, else UNKNOWN.
+  vrooli.audio_tools.v1.shared.ProviderState effective_state = 3;
+}
+
+message GetProviderHealthRequest {}
+
+message GetProviderHealthResponse {
+  repeated CapabilityHealth capabilities = 1;
+  // RFC3339 timestamp identifying when the rollup was computed.
+  string generated_at = 2;
+  // Registry cache TTL, in seconds. Clients drive their polling
+  // interval from this value (typically cache_ttl_seconds / 2).
+  int32 cache_ttl_seconds = 3;
+}
+
+message RefreshProviderHealthRequest {}
+
+message RefreshProviderHealthResponse {
+  repeated CapabilityHealth capabilities = 1;
+  string generated_at = 2;
+  int32 cache_ttl_seconds = 3;
+}
+
+message StreamProviderHealthRequest {}
+
+message ProviderHealthEvent {
+  string generated_at = 1;
+  repeated CapabilityHealth capabilities = 2;
+}

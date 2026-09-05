@@ -73,6 +73,66 @@ func TestLoadTestingConfigParsesSettings(t *testing.T) {
 	})
 }
 
+func TestLoadTestingConfigIgnoresUnitPolicyProfile(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-P0] unit policy profile does not affect phase compatibility", func(t *testing.T) {
+		root := t.TempDir()
+		configDir := filepath.Join(root, ".vrooli")
+		if err := os.MkdirAll(configDir, 0o755); err != nil {
+			t.Fatalf("failed to create config dir: %v", err)
+		}
+		payload := `{
+  "unit": {
+    "policy_profile": {
+      "version": "1.0.0",
+      "template": {"id": "react-vite", "scenario_class": "react-vite"},
+      "required_roles": [
+        {"role": "api", "policy_class": "go_service"},
+        {"role": "ui", "policy_class": "react_vite_ui"}
+      ],
+      "policy_classes": {
+        "go_service": {"language": "go", "framework": "go test"},
+        "react_vite_ui": {"language": "typescript", "framework": "vitest"}
+      },
+      "customization": {"mode": "monotonic", "waivers": []}
+    }
+  },
+  "phases": {
+    "unit": {"enabled": true, "timeout": "120s"}
+  },
+  "presets": {
+    "smoke": ["unit"]
+  }
+}`
+		if err := os.WriteFile(filepath.Join(configDir, "testing.json"), []byte(payload), 0o644); err != nil {
+			t.Fatalf("failed to write testing config: %v", err)
+		}
+
+		cfg, err := LoadTestingConfig(root)
+		if err != nil {
+			t.Fatalf("LoadTestingConfig failed: %v", err)
+		}
+		if cfg == nil {
+			t.Fatalf("expected phase config to parse")
+		}
+		unit, ok := cfg.Phases["unit"]
+		if !ok {
+			t.Fatalf("expected unit phase settings")
+		}
+		if unit.Enabled == nil || !*unit.Enabled {
+			t.Fatalf("expected unit phase enabled")
+		}
+		if unit.Timeout != 120*time.Second {
+			t.Fatalf("expected unit timeout to equal 120s, got %s", unit.Timeout)
+		}
+		if !cfg.Sections["unit"] || !cfg.Sections["phases"] || !cfg.Sections["presets"] {
+			t.Fatalf("top-level testing sections = %v, want unit, phases, and presets", cfg.Sections)
+		}
+		if got := cfg.Presets["smoke"]; !reflect.DeepEqual([]string{"unit"}, got) {
+			t.Fatalf("unexpected smoke preset phases: %v", got)
+		}
+	})
+}
+
 func TestLoadTestingConfigMissingFile(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] loader tolerates missing config", func(t *testing.T) {
 		root := t.TempDir()

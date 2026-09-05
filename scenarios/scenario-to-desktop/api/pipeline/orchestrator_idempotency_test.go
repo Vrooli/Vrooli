@@ -23,7 +23,7 @@ func TestIdempotencyKeyBasic(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	idempotencyKey := "test-idempotency-key-123"
+	idempotencyKey := "idem-fixture-001"
 
 	// First request
 	config1 := &Config{
@@ -211,12 +211,18 @@ func TestIdempotencyKeyWithCompletedPipeline(t *testing.T) {
 		IdempotencyKey: idempotencyKey,
 	}
 
-	// Start first pipeline and wait for completion
+	// Start first pipeline and wait for its persisted terminal state. A fixed
+	// sleep is scheduler-dependent and made this contract test flaky under load.
 	status1, _ := orchestrator.RunPipeline(ctx, config)
-	time.Sleep(200 * time.Millisecond)
-
-	// Verify it completed
-	final1, _ := orchestrator.GetStatus(status1.PipelineID)
+	deadline := time.Now().Add(2 * time.Second)
+	var final1 *Status
+	for time.Now().Before(deadline) {
+		final1, _ = orchestrator.GetStatus(status1.PipelineID)
+		if final1 != nil && final1.Status == StatusCompleted {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if final1.Status != StatusCompleted {
 		t.Fatalf("expected first pipeline to complete, got %s", final1.Status)
 	}
@@ -367,10 +373,7 @@ func TestRunPipeline_StageFiltering_SingleStage(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	// Wait for completion
-	time.Sleep(200 * time.Millisecond)
-
-	final, _ := orchestrator.GetStatus(status.PipelineID)
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	// Only bundle should be executed
 	mu.Lock()
@@ -410,9 +413,7 @@ func TestRunPipeline_StageFiltering_MultipleStages(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	final, _ := orchestrator.GetStatus(status.PipelineID)
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -458,7 +459,7 @@ func TestRunPipeline_StageFiltering_PreservesPipelineOrder(t *testing.T) {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	final := waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -470,7 +471,6 @@ func TestRunPipeline_StageFiltering_PreservesPipelineOrder(t *testing.T) {
 		t.Errorf("expected [bundle, generate] (pipeline order), got %v", executedStages)
 	}
 
-	final, _ := orchestrator.GetStatus(status.PipelineID)
 	if len(final.StageOrder) != 2 || final.StageOrder[0] != "bundle" || final.StageOrder[1] != "generate" {
 		t.Errorf("expected stage order [bundle, generate], got %v", final.StageOrder)
 	}
@@ -514,12 +514,12 @@ func TestRunPipeline_StageFiltering_EmptyRunsAll(t *testing.T) {
 		// Stages not specified - should run all
 	}
 
-	_, err := orchestrator.RunPipeline(ctx, config)
+	status, err := orchestrator.RunPipeline(ctx, config)
 	if err != nil {
 		t.Fatalf("RunPipeline error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	waitForPipelineTerminal(t, orchestrator, status.PipelineID)
 
 	mu.Lock()
 	defer mu.Unlock()

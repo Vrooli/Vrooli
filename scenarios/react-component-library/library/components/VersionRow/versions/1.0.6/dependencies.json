@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:VersionRow",
+  "version": "1.0.6",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:AspectRatio",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:BoundedMeter",
+      "major": 1,
+      "observed": "1.0.9",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:CaptureGrid",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:CopyableText",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:FindingList",
+      "major": 1,
+      "observed": "1.0.11",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ProgressiveImage",
+      "major": 1,
+      "observed": "1.1.9",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:RelativeTime",
+      "major": 1,
+      "observed": "1.0.4",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StatusBadge",
+      "major": 1,
+      "observed": "1.2.2",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:TrendSpark",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 3
+    }
+  ]
+}

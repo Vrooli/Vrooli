@@ -1,0 +1,100 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "The system should ship axis space records, cell planning, axis-cell coverage binning, and a composite sampler that bins by axis cell then samples within a cell, so that set diversity is guaranteed by construction rather than only measured",
+      "id": "PS-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Axis spaces and specified diversity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should ship a test harness phase that validates a consuming scenario declarations when that scenario own suite runs, with a gated maturity ladder whose every rung declares a capability summary, whose every non-top rung declares its next unlock, and whose findings declare a clean requirement so a phase emitting nothing cannot report maximum maturity",
+      "id": "PS-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Declaration conformance phase",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should propose a new exemplar or anti-pattern from the difference between a generated candidate and the operator edited commit, for explicit confirmation, so the system learns the style without learning a preference ranking",
+      "id": "PS-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Style learning from edits",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should offer an optional judge-based conformance gate returning pass or fail against declared constraints, never a rank",
+      "id": "PS-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Inferential measurement tier",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should expose reading-level, elaboration, and simplification transforms as first-class typed operations with recorded provenance",
+      "id": "PS-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Transform operations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should ship a reasoning-first sampler variant for cases where candidate quality benefits from explicit deliberation before enumeration",
+      "id": "PS-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Reasoning-first sampler",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

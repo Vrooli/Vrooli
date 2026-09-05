@@ -1,0 +1,632 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "web-search",
+  "description": "web-search CLI surface. Single source of truth for the scenario's command groups: schema-validated against cli-manifest/v1 and cross-validated against the proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "findings",
+      "description": "Manage the self-curating findings knowledge store",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List findings (newest-first; superseded excluded unless --include-archived)",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Filter to one lifecycle state (active, disputed, superseded)"
+            },
+            {
+              "name": "include-archived",
+              "bool": true,
+              "description": "Include superseded findings"
+            },
+            {
+              "name": "limit",
+              "description": "Max findings to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "ListFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a finding by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "GetFinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "add",
+          "description": "Add a citation-backed finding",
+          "flags": [
+            {
+              "name": "claim",
+              "required": true,
+              "description": "The claim text"
+            },
+            {
+              "name": "confidence",
+              "description": "Confidence in [0,1]"
+            },
+            {
+              "name": "query",
+              "description": "The query this finding answers"
+            },
+            {
+              "name": "source",
+              "description": "Provenance (manual, l2, l3)"
+            },
+            {
+              "name": "citations",
+              "description": "Citations as 'url|title' entries, comma-separated"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "AddFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "edit",
+          "description": "Edit a finding's claim and confidence",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "claim",
+              "required": true,
+              "description": "The new claim text"
+            },
+            {
+              "name": "confidence",
+              "description": "Confidence in [0,1]"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "EditFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "supersede",
+          "description": "Supersede a finding with a replacement (soft retire; never deletes)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id to retire"
+            }
+          ],
+          "flags": [
+            {
+              "name": "replacement",
+              "description": "Finding id that supersedes this one"
+            },
+            {
+              "name": "reason",
+              "description": "Why this finding is superseded"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "SupersedeFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "flag",
+          "description": "Flag a finding as disputed (sources conflict)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why the finding is disputed"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "FlagFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prune",
+          "description": "Prune (archive) superseded findings",
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Report what would be pruned without deleting"
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Required to execute deletions; without it the command refuses (preview with --dry-run)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "PruneFindings"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Semantic search over the findings corpus",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Search query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Max hits to return"
+            },
+            {
+              "name": "include-archived",
+              "bool": true,
+              "description": "Also surface superseded findings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "SearchFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "count",
+          "description": "Count findings captured in a time window (the canonical measure)",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "CountFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "intent": "How many findings were captured in a given time window.",
+            "questions": [
+              "how many findings were captured this week",
+              "findings added last month",
+              "how many findings did we record in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "findings",
+              "summary_template": "{count} findings captured ({window})"
+            }
+          }
+        },
+        {
+          "name": "used-rate",
+          "description": "Measure the ratio of used findings to surfaced findings",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Window anchored to finding creation and latest surfacing" }],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "UsedRate" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "findings", "intent": "Ratio of used to surfaced findings; finding_usage has no independent creation timestamp, so the window limitation is explicit.", "questions": ["what fraction of surfaced findings were used", "finding utilization this week", "web search finding used rate"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} finding usage rate ({window})" } }
+        },
+        {
+          "name": "never-surfaced",
+          "description": "Count findings without an explicit use record",
+          "flags": [{ "name": "window", "default": "this_week", "description": "Window anchored to finding creation" }],
+          "binding": { "kind": "connect-rpc", "service": "FindingsService", "method": "NeverSurfaced" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": { "domain": "findings", "intent": "Count findings with no explicit use record in the finding-creation window; usage has no independent creation timestamp.", "questions": ["how many findings were never used", "never surfaced findings this week", "unused web findings"], "params": { "window": { "type": "time_window", "default": "this_week" } }, "result": { "kind": "scalar", "value_field": "count", "unit": "findings", "summary_template": "{count} never-used findings ({window})" } }
+        },
+        {
+          "name": "effectiveness",
+          "description": "List findings by usage effectiveness (surfaced/used counts, last-surfaced age, blended score)",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Max findings to return"
+            },
+            {
+              "name": "include-disputed",
+              "bool": true,
+              "description": "Include DISPUTED findings (default active only)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "ListEffectiveness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "use",
+          "description": "Record an explicit 'this finding was used' signal",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "RecordUsage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "gc",
+          "description": "Run the periodic store-consistency GC: soft-retire never-surfaced fully-decayed findings (confidence-gated) and report cold-archive/stale-dispute/orphan drift",
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Report candidates without mutating anything"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "RunGC"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Live web search (L0) with optional snippet synthesis (L1)",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Run a live web search; with --synthesis, add an always-cited snippet synthesis over the returned results",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Web-search query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Max results to return"
+            },
+            {
+              "name": "synthesis",
+              "bool": true,
+              "description": "Run the optional L1 snippet synthesis pass",
+              "bind": {
+                "field": "synthesize"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LiveSearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "research",
+      "description": "L2/L3 deep research over fetched page content",
+      "commands": [
+        {
+          "name": "l2",
+          "description": "L2: fetch the top-N result pages, extract readable text, and produce a single-pass cited synthesis",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Research query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "top-n",
+              "description": "How many result pages to fetch and read (1..10)"
+            },
+            {
+              "name": "capture",
+              "bool": true,
+              "description": "Distill the synthesis into the findings store (opt-in for L2)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "RunL2"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "l3",
+          "description": "Start an L3 iterative research-and-reconcile run (returns a run handle to poll)",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Research question"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "RunL3"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Poll an L3 research run by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "L3 run id",
+              "bind": {
+                "field": "run_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "GetResearchStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "gather",
+          "description": "GATHER: load the findings semantically near a query (bounded sweep, server-capped at 20) for the research-and-reconcile loop",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Gather query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "max",
+              "description": "Upper bound on nearby findings to return (clamped to 1..20; default 20)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResearchService",
+            "method": "GatherRelatedFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "disputes",
+      "description": "Review and resolve disputed findings",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List disputed findings (sources conflict; awaiting resolution)",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Max findings to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "ListDisputes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Resolve a disputed finding: keep (return to active) or supersede (retire for a replacement)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Disputed finding id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "resolution",
+              "required": true,
+              "description": "keep | supersede"
+            },
+            {
+              "name": "replacement",
+              "description": "Replacement finding id (required for supersede)"
+            },
+            {
+              "name": "reason",
+              "description": "Why the dispute is resolved this way"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FindingsService",
+            "method": "ResolveDispute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      { "domain": "findings", "stateful": true, "reason": "Findings and finding_usage are durable timestamped knowledge and effectiveness ledgers." },
+      { "domain": "research", "stateful": false, "reason": "Research commands orchestrate retrieval and synthesis; durable claims are owned by findings." },
+      { "domain": "livesearch", "stateful": false, "reason": "Live search is request-scoped and its cache is an optimization, not an analytical ledger." },
+      { "domain": "health", "stateful": false, "reason": "Health is an instantaneous service diagnostic." }
+    ]
+  },
+  "omitted": []
+}

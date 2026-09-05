@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared";
+
+// =============================================================================
+// SCENARIO METADATA
+// =============================================================================
+//
+// @stability beta
+//
+// Scenario metadata is produced by generation and retained in pipeline stage
+// results. It is shared because neither domain owns the other.
+//
+// =============================================================================
+
+// ScenarioMetadata contains extracted information about a scenario.
+message ScenarioMetadata {
+  string name = 1;
+  optional string display_name = 2;
+  optional string description = 3;
+  optional string version = 4;
+  optional string author = 5;
+  optional string license = 6;
+  optional string app_id = 7;
+  bool has_ui = 8;
+  optional string ui_dist_path = 9;
+  optional int32 ui_port = 10;
+  optional int32 api_port = 11;
+  string scenario_path = 12;
+  optional string category = 13;
+  repeated string tags = 14;
+  optional string service_json_path = 15;
+  optional string package_json_path = 16;
+}

@@ -1,5 +1,21 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "hostTools": [
+    {
+      "name": "stripe",
+      "required": false,
+      "reason": "Run local Stripe webhook forwarding and payment test flows for landing-page subscriptions, bundles, and coupons",
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Use the Stripe CLI to forward /api/v1/webhooks/stripe and trigger test events during scenario validation"
+    }
+  ],
   "dependencies": {
     "resources": {
       "postgres": {
@@ -7,39 +23,19 @@
         "enabled": true,
         "required": true,
         "schema": "landing-page-business-suite",
-        "type": "postgres"
+        "type": "postgres",
+        "startup_policy": "must_start"
       }
     }
   },
-  "lifecycle": {
-    "develop": {
-      "description": "Launch API and production UI bundle",
-      "steps": [
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "api/landing-page-business-suite-api"
-          },
-          "description": "Start Go API server",
-          "name": "start-api",
-          "run": "cd api && exec ./landing-page-business-suite-api"
-        },
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle",
-          "name": "start-ui",
-          "run": "cd ui && node server.js"
-        },
-        {
-          "description": "Display access URLs",
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\""
-        }
-      ]
+  "generation": {
+    "template": {
+      "id": "landing-page-react-vite",
+      "version": "1.0.0"
     },
+    "generated_at": "2025-12-06T20:24:47Z"
+  },
+  "lifecycle": {
     "health": {
       "checks": [
         {
@@ -66,109 +62,6 @@
       },
       "startup_grace_period": 15000
     },
-    "production": {
-      "description": "Production deployment with optimized settings",
-      "steps": [
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "api/landing-page-business-suite-api"
-          },
-          "description": "Start Go API server in production mode",
-          "name": "start-api",
-          "run": "cd api && exec ./landing-page-business-suite-api"
-        },
-        {
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle with optimized settings",
-          "name": "start-ui",
-          "run": "cd ui && node server.js"
-        }
-      ]
-    },
-    "setup": {
-      "condition": {
-        "checks": [
-          {
-            "targets": [
-              "api/landing-page-business-suite-api"
-            ],
-            "type": "binaries"
-          },
-          {
-            "command": "landing-page-business-suite",
-            "targets": [
-              "landing-page-business-suite"
-            ],
-            "type": "cli"
-          },
-          {
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src",
-            "type": "ui-bundle"
-          }
-        ]
-      },
-      "description": "Build API & UI for the generated landing scenario",
-      "steps": [
-        {
-          "description": "Install landing-page-business-suite CLI command globally",
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
-          "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o landing-page-business-suite-api ."
-        },
-        {
-          "description": "Install UI dependencies",
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi"
-        },
-        {
-          "description": "Build production UI bundle",
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi"
-        },
-        {
-          "description": "Display access URLs",
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\""
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "description": "Stop Go API",
-          "name": "stop-api",
-          "run": "pkill -f 'landing-page-business-suite-api' || true"
-        },
-        {
-          "description": "Stop UI server",
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "description": "Run structure/unit/integration/business/performance phases",
-          "name": "run-tests",
-          "run": "test-genie execute landing-page-business-suite --preset comprehensive"
-        }
-      ]
-    },
     "version": "2.0.0"
   },
   "ports": {
@@ -180,18 +73,13 @@
     "ui": {
       "description": "React UI",
       "env_var": "UI_PORT",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "description": "WebSocket channel",
-      "env_var": "WS_PORT",
-      "range": "25000-29999"
+      "range": "20000-24999"
     }
   },
   "service": {
     "category": "business_tools",
     "description": "Generated landing page scenario from template 'landing-page-business-suite'",
-    "displayName": "landing-page-business-suite",
+    "displayName": "Silent Founder OS",
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "license": "MIT",
@@ -224,54 +112,313 @@
     "type": "application-template",
     "version": "1.1.0"
   },
-  "deployment": {
+  "tier_feasibility": {
     "tiers": {
-      "tier-1-local": {
-        "status": "ready",
-        "secrets": [
-          {
-            "secret_id": "ADMIN_DEFAULT_EMAIL",
-            "classification": "user",
-            "label": "Admin Email",
-            "description": "Email address for the default admin account. Used for logging into the admin portal.",
-            "required": false,
-            "default_hint": "Defaults to admin@localhost if not set"
-          },
-          {
-            "secret_id": "ADMIN_DEFAULT_PASSWORD",
-            "classification": "user",
-            "label": "Admin Password",
-            "description": "Password for the default admin account. Should be a strong, unique password for production deployments.",
-            "required": false,
-            "default_hint": "Minimum 12 characters with letters and numbers (defaults to 'changeme123' if not set)"
-          },
-          {
-            "secret_id": "SESSION_SECRET",
-            "classification": "service",
-            "label": "Session Secret",
-            "description": "Secret key used for encrypting session cookies. Must be kept private and should be unique per deployment.",
-            "required": true,
-            "default_hint": "Generate with: openssl rand -base64 32"
-          },
-          {
-            "secret_id": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
-            "classification": "service",
-            "label": "Remote Profile Encryption Key",
-            "description": "Encrypts stored remote admin sessions for remote profiles. Required in production deployments.",
-            "required": false,
-            "default_hint": "Generate with: openssl rand -base64 32"
-          },
-          {
-            "secret_id": "LPBS_SERVICE_SECRET",
-            "classification": "service",
-            "label": "Service Auth Secret",
-            "description": "Shared secret used for LPBS service-to-service authentication (for example scenario-to-desktop deploy target auth).",
-            "required": false,
-            "default_hint": "Set with scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain>"
-          }
-        ]
-      }
+      "tier-1-local": {}
     }
   },
-  "version": "1.1.0"
+  "version": "1.1.0",
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "cli": {
+    "enabled": true,
+    "command": "landing-page-business-suite",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "landing-page-business-suite"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "session-secret",
+        "label": "Session signing secret",
+        "description": "Signs session cookies. Landing Page Business Suite mints this on first start and stores it in the credential authority; there is nothing for an operator to enter.",
+        "required": true,
+      "provisioning": "generated",
+      "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+      ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "session-secret-previous",
+        "label": "Retired session signing secret",
+        "description": "Previous session signing secret retained for verification after rotation; LPBS writes it during rotation and there is nothing for an operator to enter.",
+        "required": false,
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+      "field": "service-secret",
+        "label": "Service-to-service token",
+        "description": "Service-to-service token minted by Landing Page Business Suite and stored in the credential authority; there is nothing for an operator to enter.",
+        "required": true,
+        "provisioning": "generated",
+      "tiers": [
+        "tier-1-local",
+        "tier-4-saas"
+      ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "api-key-encryption-key",
+        "label": "API key encryption key",
+        "description": "Versioned encryption ring minted by LPBS. Losing it makes sealed API-key rows unreadable; there is nothing for an operator to enter.",
+        "required": true,
+    "provisioning": "generated",
+    "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "remote-profile-encryption-key",
+        "label": "Remote profile encryption key",
+        "description": "Independent versioned encryption ring minted by LPBS. Losing it makes sealed remote profiles unreadable; there is nothing for an operator to enter.",
+        "required": true,
+        "provisioning": "generated",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "admin-default-password",
+        "label": "Seeded admin password",
+        "description": "Password for the seeded admin account. Resolve it through the credential authority; it is never injected into the LPBS process environment.",
+        "required": true,
+        "provisioning": "operator",
+        "tiers": [
+          "tier-1-local",
+          "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "public-base-url",
+        "label": "Public base URL",
+        "description": "Canonical HTTPS origin for the deployed Landing Page Business Suite instance and links generated for its public surfaces.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs",
+        "tiers": [
+          "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "consumer-auth-private-key",
+        "label": "Consumer token signing key",
+        "description": "Private RSA key minted by Landing Page Business Suite and stored in the credential authority. Never distribute it to bundled scenarios.",
+        "required": true,
+        "provisioning": "generated",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "sendgrid-api-key",
+        "env": "SENDGRID_API_KEY",
+        "label": "SendGrid API key",
+        "description": "Authenticates outbound transactional email delivery.",
+        "required": false,
+        "provisioning": "operator"
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "stripe-secret-key",
+        "label": "Stripe restricted secret key",
+        "description": "Authenticates server-side Stripe API requests. Obtain it from the Stripe dashboard.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "stripe-webhook-secret",
+        "label": "Stripe webhook signing secret",
+        "description": "Verifies inbound Stripe webhook signatures. Obtain it from the Stripe dashboard.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/webhooks",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "stripe-publishable-key",
+        "env": "STRIPE_PUBLISHABLE_KEY",
+        "label": "Stripe publishable key",
+        "description": "Public client key used by the browser checkout flow.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "delivery-s3-access-key-id",
+        "label": "Download bucket access key ID",
+        "description": "Optional account identifier for signing desktop download URLs; leave unset when using an instance role.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "delivery-s3-secret-access-key",
+        "label": "Download bucket secret access key",
+        "description": "Optional signing key for desktop download URLs; leave unset when using an instance role.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "delivery-s3-session-token",
+        "label": "Download bucket session token",
+        "description": "Optional session token for temporary download-bucket credentials.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-root-cert-pem",
+        "label": "Apple receipt root certificate",
+        "description": "Apple trust anchor used to verify StoreKit signed transactions; keep it in governed server configuration.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-bundle-id",
+        "label": "Apple application bundle ID",
+        "description": "Bundle identifier matched against signed Apple transactions.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-product-plans",
+        "label": "Apple product-to-plan map",
+        "description": "Governed mapping from Apple product identifiers to Vrooli plan tiers.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-package-name",
+        "label": "Google Play package name",
+        "description": "Android package identifier used by the server-side Play purchase verifier.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-product-id",
+        "label": "Google Play product ID",
+        "description": "Subscription product identifier used by the server-side Play purchase verifier.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-oauth-token",
+        "label": "Google Play verification credential",
+        "description": "Server-only OAuth credential resolved through the credential authority for Play verification.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      }
+    ]
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
 }

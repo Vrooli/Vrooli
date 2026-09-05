@@ -1,3 +1,4 @@
+// INTEROP-CRITICAL: interop-sensitive configuration below — do not remove without checking host-frame embedding.
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -20,11 +21,29 @@ const healthMiddleware = () => {
 };
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd());
-
-  const uiPort = process.env.UI_PORT || env.UI_PORT || "4173";
+  const env = loadEnv(mode, process.cwd(), "UI_");
+  const configuredUIPort = env.UI_PORT?.trim();
+  const uiPort = mode === "test" && !configuredUIPort ? 4173 : Number(configuredUIPort);
+  if (!Number.isInteger(uiPort) || uiPort < 1 || uiPort > 65535) {
+    throw new Error("UI_PORT must be an integer between 1 and 65535");
+  }
 
   return {
+    // Perf-build channel (managed by Performance Health). A regular build ships
+    // the lean prod artifact; `vite build --mode profile` keeps React's
+    // profiling instrumentation + real component names so <React.Profiler>'s
+    // onRender fires and CPU samples display readable names.
+    ...(mode === "profile"
+      ? {
+          resolve: {
+            alias: {
+              "react-dom/client": "react-dom/profiling",
+              "react-dom$": "react-dom/profiling",
+            },
+          },
+          esbuild: { keepNames: true },
+        }
+      : {}),
     plugins: [
       react(),
       {
@@ -47,7 +66,31 @@ export default defineConfig(({ mode }) => {
       port: Number(uiPort)
     },
     test: {
-      environment: "jsdom"
+      environment: "jsdom",
+      setupFiles: ["./src/test-setup.ts"],
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "json-summary", "json"],
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.spec.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/main.tsx",
+          "src/test-setup.ts",
+          "src/test-utils/**",
+          "src/consts/strings.generated.ts",
+          "src/i18n/locales/**",
+          "src/**/generated/**"
+        ],
+        reportOnFailure: true,
+        thresholds: {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85
+        }
+      }
     }
   };
 });

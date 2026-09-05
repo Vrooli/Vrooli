@@ -8,14 +8,24 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/envx"
 )
 
-func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountService {
+func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *commerce.Service {
 	t.Helper()
 
 	planStore := getTestPlanStore()
 	if planStore == nil {
-		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+		// Tests without pricing fixtures must not depend on another test having
+		// initialized the process-global catalog. An explicit empty catalog
+		// preserves the production service contract while keeping this helper
+		// independently runnable.
+		planStore = NewPlanStoreWithOptions(commerce.PlanStoreOptions{
+			BundleKey:  "business_suite",
+			DisplayEnv: "test",
+		})
 	}
 
 	return NewAccountService(db, NewPlanServiceWithPlanStore(planStore))
@@ -23,7 +33,6 @@ func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountServic
 
 func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "credits_env")
 	productID := upsertTestBundleProduct(
@@ -95,15 +104,14 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 
 func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "missing_pricing_env")
-	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+	emptyStore := NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath:  "",
 		BundleKey:  bundleKey,
 		DisplayEnv: "production",
 	})
-	planService := &PlanService{planStore: emptyStore, defaultBundle: bundleKey, displayEnv: "production"}
+	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: bundleKey, DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("no-wallet@example.com")
@@ -133,7 +141,6 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 
 func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "entitlements_env")
 	productID := upsertTestBundleProduct(
@@ -228,7 +235,6 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 
 func TestAccountServiceEntitlements_NoSubscriptionDefaults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 
@@ -259,8 +265,8 @@ func configureAccountBundleEnv(t *testing.T, env string) string {
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	bundleKey := fmt.Sprintf("bundle_%s", replacer.Replace(strings.ToLower(t.Name())))
-	prevKey := os.Getenv("BUNDLE_KEY")
-	prevEnv := os.Getenv("BUNDLE_ENVIRONMENT")
+	prevKey := envx.Get("BUNDLE_KEY")
+	prevEnv := envx.Get("BUNDLE_ENVIRONMENT")
 
 	if err := os.Setenv("BUNDLE_KEY", bundleKey); err != nil {
 		t.Fatalf("failed to set BUNDLE_KEY: %v", err)
@@ -279,7 +285,6 @@ func configureAccountBundleEnv(t *testing.T, env string) string {
 
 func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	suffix := replacer.Replace(strings.ToLower(t.Name()))
@@ -353,7 +358,6 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 
 func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "empty_user_env")
 	accountService := newAccountServiceWithTestPlanStore(t, db)
@@ -389,7 +393,6 @@ func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
 
 func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "past_due_env")
 	productID := upsertTestBundleProduct(
@@ -458,7 +461,6 @@ func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 
 func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "trialing_env")
 	productID := upsertTestBundleProduct(
@@ -532,7 +534,6 @@ func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 
 func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "canceled_env")
 
@@ -571,7 +572,6 @@ func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 
 func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "billing_cycle_env")
 	productID := upsertTestBundleProduct(
@@ -637,7 +637,6 @@ func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 
 func TestGetEntitlements_NoBillingCycleStart_DefaultsToZero(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "no_billing_env")
 

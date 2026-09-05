@@ -1,0 +1,1 @@
+{"version":"v1","status":"not-captured","category":"evidence-capture-not-run","stage":"validation","retryable":false,"remediation":"Use the immutable Git Control Tower baseline and rerun a disposable dry-run for live evidence."}

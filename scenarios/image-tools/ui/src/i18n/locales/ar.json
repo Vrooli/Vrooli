@@ -1,0 +1,918 @@
+{
+  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Image Tools هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `vrooli scenario generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "app": {
+    "title": "Lume",
+    "tagline": "الضوء، بإتقان."
+  },
+  "layout": {
+    "sidebarLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل الرئيسي (للجوال)",
+    "mainContentLabel": "المحتوى الرئيسي",
+    "nav": {
+      "home": "الرئيسية",
+      "workspace": "مساحة العمل",
+      "library": "المكتبة",
+      "activity": "النشاط",
+      "models": "النماذج",
+      "settings": "الإعدادات",
+      "select": "تحديد",
+      "compare": "مقارنة"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "settings": {
+    "fontScale": {
+      "label": "حجم النص",
+      "small": "صغير",
+      "default": "افتراضي",
+      "large": "كبير",
+      "xlarge": "كبير جدًا"
+    },
+    "reducedMotion": {
+      "label": "الحركة",
+      "description": "تقليل الرسوم المتحركة في كل أنحاء التطبيق.",
+      "system": "حسب النظام",
+      "always": "تقليل",
+      "never": "السماح"
+    },
+    "textDirection": {
+      "label": "اتجاه النص",
+      "auto": "تلقائي (حسب اللغة)",
+      "ltr": "من اليسار إلى اليمين",
+      "rtl": "من اليمين إلى اليسار"
+    },
+    "handedness": {
+      "label": "اليد المُفضّلة",
+      "description": "الجهة التي تفضّلها أزرار الإجراءات على الجوال.",
+      "left": "يسار",
+      "right": "يمين"
+    },
+    "responsibleUse": {
+      "loading": "جارٍ تحميل سياسة الاستخدام المسؤول…",
+      "error": "تعذّر تحميل سياسة الاستخدام المسؤول.",
+      "tierLabel": "مستوى النشر",
+      "tier": {
+        "unspecified": "غير محدد",
+        "local": "محلي",
+        "public": "عام"
+      },
+      "controlsHeading": "الضوابط المُطبَّقة",
+      "consent": "الموافقة مطلوبة لتعديلات الهوية",
+      "nsfwScan": "فحص تلقائي لمخرجات الذكاء الاصطناعي بحثًا عن محتوى غير آمن",
+      "provenance": "وسم المخرجات بمعلومات المصدر",
+      "rateLimit": "حد المعدل: {{count}} إرسال/دقيقة",
+      "rateLimitNone": "حد المعدل: بلا",
+      "on": "مُفعّل",
+      "off": "مُعطّل",
+      "weightsHeading": "أوزان الموافقة لكل عملية",
+      "weightOperation": "العملية",
+      "weightLevel": "وزن الموافقة",
+      "weight": {
+        "unspecified": "غير محدد",
+        "none": "بلا",
+        "low": "منخفض",
+        "high": "مرتفع"
+      },
+      "empty": "لا توجد أوزان عمليات مُهيأة."
+    }
+  },
+  "pages": {
+    "home": {
+      "title": "الرئيسية"
+    },
+    "library": {
+      "title": "المكتبة"
+    },
+    "activity": {
+      "title": "النشاط"
+    },
+    "models": {
+      "title": "النماذج"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة",
+      "displayHeading": "العرض وإمكانية الوصول",
+      "responsibleUseHeading": "الاستخدام المسؤول"
+    },
+    "workspace": {
+      "title": "مساحة العمل"
+    }
+  },
+  "health": {
+    "title": "حالة API",
+    "loading": "جارٍ التحقق من حالة API…",
+    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "statusLabel": "الحالة:",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:"
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا توجد إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "jobs": {
+    "title": "أحدث المهام",
+    "loading": "جارٍ تحميل المهام…",
+    "empty": "لا توجد مهام بعد.",
+    "stateLabel": "الحالة:",
+    "progressLabel": "اكتمل {{count}}%",
+    "cancel": "إلغاء",
+    "lane": {
+      "unspecified": "غير محدد",
+      "gpu": "GPU",
+      "cpu": "CPU"
+    },
+    "state": {
+      "unspecified": "غير محدد",
+      "queued": "في الانتظار",
+      "running": "قيد التشغيل",
+      "succeeded": "نجح",
+      "failed": "فشل",
+      "canceled": "ملغى"
+    },
+    "errorLabel": "خطأ:",
+    "liveBadge": "مباشر"
+  },
+  "home": {
+    "greeting": "ماذا سننشئ؟",
+    "entry": {
+      "title": "أفلِت صورة، أو الصقها، أو اختر ملفًا",
+      "hint": "PNG · JPEG · WebP · AVIF · HEIC · GIF · TIFF · BMP · SVG",
+      "choose": "اختر ملفًا",
+      "camera": "الكاميرا",
+      "sample": "جرّب عيّنة",
+      "dropActive": "أفلِت للفتح",
+      "fileLabel": "اختر ملف صورة"
+    },
+    "group": {
+      "quickEdits": "تعديلات سريعة",
+      "enhance": "تحسين",
+      "create": "إنشاء",
+      "analyze": "تحليل"
+    },
+    "needsModel": "يتطلب نموذجًا",
+    "analyzeTile": "تحليل صورة",
+    "recent": {
+      "heading": "الأخيرة",
+      "viewAll": "عرض المكتبة",
+      "empty": "تظهر هنا تعديلاتك وإبداعاتك.",
+      "alt": "النتيجة الأخيرة لعملية {{operation}}"
+    },
+    "firstRun": "جديد هنا؟ جرّب عيّنة — أزِل خلفية بنقرة واحدة.",
+    "samples": {
+      "heading": "أو ابدأ من عيّنة",
+      "product": "صورة منتج",
+      "portrait": "صورة شخصية",
+      "blurry": "لقطة ضبابية",
+      "receipt": "إيصال"
+    }
+  },
+  "library": {
+    "description": "كل صورة أنشأتها أو عدّلتها. افتح إحداها لمواصلة العمل عليها.",
+    "loading": "جارٍ تحميل مكتبتك…",
+    "empty": "لا توجد مخرجات بعد. أنشئ شيئًا في مساحة العمل وسيظهر هنا.",
+    "searchLabel": "تصفية حسب العملية",
+    "searchPlaceholder": "تصفية حسب العملية…",
+    "noMatches": "لا توجد نتائج تطابق هذه التصفية.",
+    "count": "{{count}} عنصرًا",
+    "count_zero": "لا عناصر",
+    "count_one": "عنصر واحد",
+    "count_two": "عنصران",
+    "count_few": "{{count}} عناصر",
+    "count_many": "{{count}} عنصرًا",
+    "selected": "{{count}} محدد",
+    "selectAll": "تحديد الكل",
+    "clearSelection": "مسح",
+    "downloadSelected": "تنزيل المحدد",
+    "open": "فتح في مساحة العمل",
+    "thumbnailAlt": "نتيجة عملية {{operation}}",
+    "tryWorkspace": "افتح مساحة العمل"
+  },
+  "looks": {
+    "title": "المظاهر والأنماط",
+    "description": "وصفات تحويل قابلة لإعادة الاستخدام — طبّق مظهر فيلم أو كاميرا أو نمط بنقرة واحدة. مظاهر الفيلم والكاميرا تعرض معاينة فورية، ومظاهر النمط تُنفَّذ في مساحة العمل.",
+    "loading": "جارٍ تحميل مكتبة المظاهر…",
+    "empty": "لا توجد مظاهر بعد.",
+    "preview": "معاينة",
+    "refresh": "تحديث المعاينة",
+    "rendering": "جارٍ الإنشاء…",
+    "noPreview": "لا توجد معاينة بعد",
+    "deferred": "خطوات النمط تُعرض في مساحة العمل",
+    "builtinBadge": "مدمج",
+    "customBadge": "مخصص",
+    "thumbnailAlt": "معاينة مظهر {{name}}",
+    "kind": {
+      "style": "نمط",
+      "film": "فيلم",
+      "camera": "كاميرا",
+      "enhance": "تحسين",
+      "custom": "مخصص",
+      "unspecified": "مظهر"
+    }
+  },
+  "activity": {
+    "description": "العمليات الجارية والأخيرة. يستمر عمل الذكاء الاصطناعي الطويل رغم إعادة تحميل الصفحة.",
+    "thumbnailAlt": "نتيجة عملية {{operation}}",
+    "openOutput": "فتح المخرَج"
+  },
+  "backends": {
+    "title": "محركات الخلفية",
+    "description": "محركات ذكاء اصطناعي اختيارية تُثبَّت عند الطلب. لا يقوم الإعداد الافتراضي بتنزيلها أبداً.",
+    "loading": "جارٍ فحص المحركات…",
+    "empty": "لا توجد محركات اختيارية للتثبيت.",
+    "operationsLabel": "يشغّل",
+    "ready": "مُثبَّت",
+    "notInstalled": "غير مُثبَّت",
+    "install": "تثبيت",
+    "installing": "جارٍ التثبيت…",
+    "installStarted": "جارٍ التثبيت (المهمة {{jobId}}، نحو {{eta}} ثانية)",
+    "alreadyInstalled": "مُثبَّت بالفعل",
+    "manualHint": "{{detail}}",
+    "remediationLabel": "نفّذ: {{cmd}}"
+  },
+  "models": {
+    "title": "سجل النماذج",
+    "loading": "جارٍ تحميل النماذج…",
+    "empty": "لا توجد نماذج مسجلة.",
+    "tierLabel": "الفئة:",
+    "backendLabel": "الواجهة الخلفية:",
+    "enabledLabel": "مُفعّل",
+    "disabledLabel": "مُعطّل",
+    "enable": "تفعيل",
+    "disable": "تعطيل",
+    "operationsLabel": "العمليات:",
+    "sizeLabel": "الحجم:",
+    "sizeValue": "{{mb}} ميجابايت",
+    "hardwareLabel": "العتاد:",
+    "hardware": {
+      "gpuRequired": "يتطلب معالج رسوميات",
+      "gpuAvailable": "✓ يعمل على معالج الرسوميات",
+      "gpuShort": "يلزم نحو {{gb}} غ.ب إضافية من ذاكرة الرسوميات",
+      "cpuOk": "✓ يعمل على معالجك",
+      "vram": "‏يتطلب {{gb}} جيجابايت VRAM على الأقل",
+      "ram": "‏يتطلب {{gb}} جيجابايت RAM على الأقل",
+      "speedNote": "{{note}}"
+    },
+    "licenseLabel": "الترخيص:",
+    "commercialLabel": "الاستخدام التجاري:",
+    "commercial": {
+      "unspecified": "غير معروف",
+      "yes": "مسموح",
+      "no": "غير مسموح",
+      "conditional": "مشروط"
+    },
+    "commercialNotesLabel": "ملاحظات الاستخدام التجاري:",
+    "nsfwBadge": "يدعم محتوى للبالغين",
+    "customBadge": "مخصص",
+    "defaultForBadge": "افتراضي",
+    "defaultForLabel": "افتراضي للعمليات:",
+    "downloadSizeLabel": "التنزيل:",
+    "diskSizeLabel": "على القرص:",
+    "installState": {
+      "installed": "مثبّت",
+      "notInstalled": "غير مثبّت"
+    },
+    "install": "تثبيت",
+    "installing": "جارٍ التثبيت…",
+    "installStarted": "بدأ التثبيت (المهمة {{jobId}}، نحو {{eta}} ثانية)",
+    "alreadyInstalled": "مثبّت بالفعل",
+    "remove": "إزالة",
+    "removing": "جارٍ الإزالة…",
+    "blocklist": {
+      "title": "النماذج المحظورة",
+      "loading": "جارٍ تحميل قائمة الحظر…",
+      "empty": "لا توجد نماذج محظورة.",
+      "licenseLabel": "الترخيص:",
+      "reasonLabel": "السبب:",
+      "operationsLabel": "العمليات:",
+      "onnxWarning": "قد يبدو أن التصدير إلى ONNX/GGUF يزيل هذا القيد، لكنه في الواقع لا يفعل."
+    },
+    "addCustom": {
+      "title": "إضافة نموذج مخصص",
+      "idLabel": "معرّف النموذج",
+      "operationsLabel": "العمليات (مفصولة بفواصل)",
+      "backendLabel": "الواجهة الخلفية",
+      "localPathLabel": "المسار المحلي",
+      "downloadUrlLabel": "رابط التنزيل (اختياري)",
+      "submit": "إضافة النموذج",
+      "submitting": "جارٍ الإضافة…",
+      "success": "تمت إضافة النموذج المخصص."
+    },
+    "defaults": {
+      "title": "النموذج الافتراضي لكل عملية",
+      "loading": "جارٍ تحميل الإعدادات الافتراضية…",
+      "empty": "لا توجد عمليات متاحة.",
+      "modelLabel": "النموذج الافتراضي",
+      "sourceLabel": "المصدر",
+      "source": {
+        "seed": "مدمج",
+        "override": "مثبّت"
+      },
+      "useDefault": "استخدام الافتراضي المدمج",
+      "clear": "مسح",
+      "none": "لا شيء"
+    },
+    "picker": {
+      "titleFor": "نموذج لـ {{op}}",
+      "close": "إغلاق",
+      "loading": "جارٍ البحث عن نماذج تناسب جهازك…",
+      "size": "{{size}} ميغابايت",
+      "manualTitle": "إعداد يدوي",
+      "trigger": {
+        "label": "النموذج",
+        "loading": "جارٍ اختيار نموذج…",
+        "none": "لا يوجد نموذج متاح",
+        "change": "تغيير"
+      },
+      "host": {
+        "gpu": "{{name}} · ذاكرة رسوميات {{total}} غ.ب ({{free}} غ.ب متاحة)",
+        "gpuUnknown": "{{name}} · ذاكرة الرسوميات غير معروفة",
+        "noGpu": "لم يُكتشف معالج رسوميات — وحدة المعالجة المركزية فقط",
+        "specs": "{{cores}} نواة · ذاكرة {{ram}} غ.ب"
+      },
+      "fit": {
+        "gpu": "يعمل على معالج الرسوميات",
+        "cpu": "يعمل على المعالج المركزي",
+        "cpuFallback": "يعمل على المعالج (لا يتّسع في معالج الرسوميات حاليًا)",
+        "insufficientVram": "يلزم نحو {{gb}} غ.ب إضافية من ذاكرة الرسوميات المتاحة",
+        "noGpu": "يتطلّب معالج رسوميات (غير مكتشف)",
+        "unsupportedOs": "لا يوجد إصدار لـ {{os}}/{{arch}}"
+      },
+      "state": {
+        "ready": "جاهز",
+        "needsModel": "الأوزان غير مُنزَّلة",
+        "needsBackend": "المحرّك غير مُثبَّت",
+        "needsBackendManual": "يحتاج المحرّك إلى إعداد يدوي",
+        "needsBoth": "يلزم الأوزان والمحرّك",
+        "disabled": "مُعطَّل في الإعدادات",
+        "insufficient": "لا يمكن تشغيله على جهازك",
+        "unsupported": "غير متاح لنظام تشغيلك",
+        "derivedUnproven": "عبر سير عمل (غير مُثبَت بعد)"
+      },
+      "support": {
+        "native": "أصلي",
+        "viaWorkflow": "عبر سير عمل"
+      },
+      "caveatBanner": "يُشغِّل {{op}} عبر تقنية مُشتقّة — {{caveat}}",
+      "action": {
+        "select": "استخدام",
+        "useAnyway": "استخدامه على أي حال",
+        "selected": "قيد الاستخدام",
+        "installModel": "تنزيل",
+        "installBackend": "تثبيت المحرّك",
+        "enable": "تفعيل",
+        "manualSteps": "خطوات الإعداد",
+        "installing": "جارٍ التثبيت…"
+      },
+      "footer": {
+        "all": "عرض كل النماذج ({{count}}) لهذه المهمة — تظهر النماذج التي لا يمكنك تشغيلها لتعرف السبب.",
+        "none": "لا توجد نماذج أخرى متاحة لهذه المهمة."
+      }
+    },
+    "import": {
+      "title": "استيراد نموذج",
+      "sourceLabel": "المصدر (معرّف مستودع Hugging Face أو رابط أو مسار محلي)",
+      "inspect": "فحص",
+      "inspecting": "جارٍ الفحص…",
+      "layoutLabel": "التخطيط",
+      "architectureInferred": "البنية",
+      "licenseLabel": "الترخيص",
+      "nsfwLabel": "NSFW",
+      "sizeLabel": "الحجم التقريبي",
+      "offeredOpsLabel": "العمليات المتاحة",
+      "idLabel": "معرّف الإدخال",
+      "nameLabel": "اسم العرض",
+      "architectureLabel": "تأكيد البنية",
+      "selectArchitecture": "اختر بنية…",
+      "attestLabel": "أمتلك الحقوق التجارية (السماح بالتقديم العام/BYOK)",
+      "import": "استيراد وتثبيت",
+      "importing": "جارٍ الاستيراد…",
+      "success": "بدأ الاستيراد — سيظهر النموذج بعد اكتمال التنزيل.",
+      "needsArchitecture": "لم يتم اكتشاف بنية — اختر واحدة للاستيراد."
+    }
+  },
+  "workspace": {
+    "loading": "جارٍ تحميل العمليات…",
+    "error": "تعذر تحميل العمليات.",
+    "uploadLabel": "الصورة المصدر",
+    "overlayLabel": "صورة العلامة المائية",
+    "run": "تطبيق",
+    "running": "جارٍ التطبيق…",
+    "empty": "اختر عملية وطبّقها لبناء تعديلك.",
+    "originalLabel": "الأصلية",
+    "resultLabel": "النتيجة",
+    "resultMeta": "{{width}}×{{height}} · {{format}}",
+    "metadataLabel": "البيانات الوصفية",
+    "canvas": {
+      "empty": "أفلِت صورة هنا للبدء، أو اختر ملفًا.",
+      "zoomIn": "تكبير",
+      "zoomOut": "تصغير",
+      "zoomFit": "ملاءمة",
+      "zoomActual": "الحجم الفعلي",
+      "zoomLevel": "{{percent}}%",
+      "compareToggle": "قبل / بعد",
+      "replace": "استبدال"
+    },
+    "actions": {
+      "undo": "تراجع",
+      "redo": "إعادة",
+      "reset": "إعادة تعيين",
+      "download": "تنزيل"
+    },
+    "history": {
+      "title": "السجل",
+      "empty": "لا توجد تعديلات بعد.",
+      "source": "المصدر",
+      "step": "{{index}}. {{operation}}"
+    },
+    "mode": {
+      "edit": "تحرير",
+      "enhance": "تحسين",
+      "create": "إنشاء",
+      "analyze": "تحليل",
+      "switcherLabel": "وضع مساحة العمل"
+    },
+    "analyzeOp": {
+      "probe": {
+        "label": "فحص الصورة",
+        "desc": "قراءة الأبعاد والصيغة وبيانات EXIF والألوان السائدة."
+      },
+      "ocr": {
+        "label": "استخراج النص",
+        "desc": "التعرّف على النص وتحديد كل منطقة على اللوحة."
+      },
+      "nsfw_classify": {
+        "label": "فحص الأمان",
+        "desc": "تصنيف الصورة بحثًا عن محتوى غير لائق."
+      },
+      "duplicate_detect": {
+        "label": "البحث عن التكرارات",
+        "desc": "احسب بصمات إدراكية لاكتشاف الصور شبه المكررة."
+      },
+      "quality_assessment": {
+        "label": "تقييم الجودة",
+        "desc": "قيِّم الحدة والإضاءة والتباين فورًا."
+      }
+    },
+    "analyze": {
+      "intro": "قراءة المعلومات من الصورة الحالية — لا يتم تغيير أي شيء.",
+      "loading": "جارٍ تحميل أدوات التحليل…",
+      "error": "تعذّر تحميل أدوات التحليل.",
+      "needsImage": "أضف صورة لتحليلها.",
+      "modelNote": "يستخدم نموذجًا — يُثبَّت عند أول تشغيل.",
+      "run": "تحليل",
+      "running": "جارٍ التحليل…",
+      "retry": "حاول مرة أخرى",
+      "failed": "فشل التحليل.",
+      "probe": {
+        "dimensions": "الأبعاد",
+        "format": "الصيغة",
+        "colorModel": "نموذج الألوان",
+        "alpha": "الشفافية",
+        "frames": "الإطارات",
+        "megapixels": "ميجابكسل",
+        "size": "حجم الملف",
+        "exif": "بيانات EXIF",
+        "gps": "موقع GPS",
+        "orientation": "الاتجاه",
+        "palette": "الألوان السائدة",
+        "yes": "نعم",
+        "no": "لا"
+      },
+      "ocr": {
+        "copy": "نسخ النص",
+        "copied": "تم النسخ",
+        "empty": "لم يُعثر على نص.",
+        "language": "اللغة: {{language}}",
+        "blocks": "{{count}} منطقة نصية"
+      },
+      "nsfw": {
+        "flagged": "مُعلَّم",
+        "safe": "يبدو آمنًا",
+        "score": "النتيجة {{score}}%",
+        "threshold": "العتبة {{threshold}}%"
+      },
+      "duplicate": {
+        "hint": "قارن هذه البصمات للعثور على الصور شبه المكررة.",
+        "phash": "التجزئة الإدراكية (pHash)",
+        "ahash": "متوسط التجزئة (aHash)",
+        "bits": "تجزئة بحجم {{count}} بت",
+        "copy": "نسخ",
+        "copied": "تم النسخ"
+      },
+      "quality": {
+        "overall": "الجودة الإجمالية",
+        "sharpness": "الحدة",
+        "blurry": "تبدو ضبابية",
+        "sharp": "تبدو حادة",
+        "brightness": "السطوع",
+        "contrast": "التباين",
+        "exposure": "الإضاءة: {{exposure}}",
+        "notesHeading": "ملاحظات"
+      }
+    },
+    "aiOp": {
+      "background_removal": {
+        "label": "إزالة الخلفية",
+        "desc": "محو الخلفية لتصبح شفافة."
+      },
+      "upscale": {
+        "label": "تكبير",
+        "desc": "تكبير وزيادة الحدة باستخدام الدقة الفائقة."
+      },
+      "denoise": {
+        "label": "إزالة التشويش والضبابية",
+        "desc": "تقليل التشويش واستعادة التفاصيل الضبابية."
+      },
+      "naturalize": {
+        "label": "إضفاء الطابع الطبيعي",
+        "desc": "إعادة إضافة ملمس واقعي للصور المفرطة النعومة."
+      },
+      "colorize": {
+        "label": "تلوين",
+        "desc": "أضف ألوانًا طبيعية إلى صورة بالأبيض والأسود."
+      },
+      "depth_map": {
+        "label": "خريطة العمق",
+        "desc": "قدِّر خريطة عمق من الصورة."
+      }
+    },
+    "enhance": {
+      "intro": "تحسين بالذكاء الاصطناعي بنقرة واحدة — اختر إجراءً ثم اضغط تحسين.",
+      "loading": "جارٍ تحميل تحسينات الذكاء الاصطناعي…",
+      "error": "تعذّر تحميل عمليات الذكاء الاصطناعي.",
+      "needsImage": "أضف صورة لتحسينها أولاً.",
+      "scaleLabel": "المقياس",
+      "targetResolution": "{{from}} ← {{to}}",
+      "memoryWarning": "النتيجة كبيرة — قد تكون بطيئة على الأجهزة ذات الذاكرة المنخفضة.",
+      "run": "تحسين",
+      "running": "جارٍ التحسين…",
+      "progress": "{{percent}}%",
+      "cancel": "إلغاء",
+      "retry": "إعادة المحاولة",
+      "succeeded": "تم — أُضيفت إلى اللوحة.",
+      "failed": "تعذّر إكمال التحسين.",
+      "warningsLabel": "تنبيه",
+      "tier": {
+        "localGpu": "يعمل على وحدة المعالجة الرسومية لديك",
+        "localCpu": "يعمل على المعالج لديك",
+        "byokCloud": "يعمل على السحابة (BYOK)"
+      },
+      "install": {
+        "title": "النموذج {{model}} غير مثبّت بعد",
+        "cpu": "يعمل على المعالج لديك",
+        "gpu": "يتطلب وحدة معالجة رسومية بذاكرة ‏{{vram}}‏ غيغابايت على الأقل",
+        "size": "تنزيل بحجم ‏{{size}}‏ ميغابايت",
+        "run": "تثبيت وتشغيل",
+        "installing": "جارٍ تثبيت النموذج…"
+      },
+      "naturalize": {
+        "realismLabel": "الواقعية",
+        "realismHint": "كلما زادت، زاد الملمس والحبيبات.",
+        "subtle": "خفيف",
+        "strong": "قوي",
+        "faceAware": "التركيز على الوجوه والبشرة",
+        "suggestTitle": "تبدو النتيجة بلاستيكية قليلاً؟",
+        "suggest": "إضفاء الطابع الطبيعي على هذه النتيجة"
+      }
+    },
+    "createOp": {
+      "text_to_image": {
+        "label": "إنشاء",
+        "desc": "أنشئ صورة جديدة من وصف نصي."
+      },
+      "image_to_image": {
+        "label": "تحويل",
+        "desc": "أعد تصوّر الصورة الحالية بإرشاد من وصف نصي."
+      },
+      "edit_instruct": {
+        "label": "تحرير بالتعليمات",
+        "desc": "حرِّر بتعليمات بلغة طبيعية مع الإبقاء على بقية الصورة."
+      },
+      "inpaint": {
+        "label": "تعبئة داخلية",
+        "desc": "أعد رسم منطقة مُقنّعة انطلاقًا من وصف نصي."
+      },
+      "object_removal": {
+        "label": "إزالة كائن",
+        "desc": "امحُ كائنًا مُقنّعًا واملأ الفراغ."
+      },
+      "outpaint": {
+        "label": "التوسيع الخارجي",
+        "desc": "وسّع الصورة خارج الحافة المُقنّعة انطلاقًا من موجّه."
+      },
+      "background_replace": {
+        "label": "استبدال الخلفية",
+        "desc": "استبدل الخلفية المُقنّعة بمشهد جديد من الموجّه."
+      }
+    },
+    "create": {
+      "intro": "صِف ما تريده ثم اضغط إنشاء. تصل النتائج كتنويعات يمكنك إرسالها إلى اللوحة.",
+      "loading": "جارٍ تحميل المولّدات…",
+      "error": "تعذّر تحميل عمليات الذكاء الاصطناعي.",
+      "promptLabel": "الوصف",
+      "promptPlaceholder": "بحيرة جبلية هادئة في الساعة الذهبية…",
+      "negativeLabel": "الوصف السلبي",
+      "negativePlaceholder": "ضبابي، جودة منخفضة، علامة مائية",
+      "sizeLabel": "الحجم",
+      "size": {
+        "square": "مربّع",
+        "portrait": "طولي",
+        "landscape": "عرضي"
+      },
+      "seedLabel": "البذرة",
+      "seedRandom": "عشوائي",
+      "seedLock": "تثبيت البذرة",
+      "seedRandomize": "بذرة عشوائية",
+      "variationsLabel": "التنويعات",
+      "byokLabel": "السماح بالسحابة المدفوعة (BYOK)",
+      "advanced": "إعدادات متقدمة",
+      "usesCurrent": "يستخدم صورة اللوحة الحالية.",
+      "needsImage": "أضف صورة لتحويلها أولاً.",
+      "needsMask": "ارسم قناعًا أو ارفع واحدًا أولاً.",
+      "run": "إنشاء",
+      "running": "جارٍ الإنشاء…",
+      "produced": "تم إنتاج {{done}}/{{total}}",
+      "progress": "{{percent}}%",
+      "cancel": "إلغاء",
+      "retry": "إعادة المحاولة",
+      "succeeded": "تم إنشاء {{count}} — اختر واحدة لإرسالها إلى اللوحة.",
+      "failed": "تعذّر إكمال الإنشاء.",
+      "warningsLabel": "تنبيه",
+      "consent": {
+        "label": "أملك الحق في تعديل الأشخاص في هذه الصورة.",
+        "required": "أكّد أنك تملك الحق في تعديل الأشخاص في هذه الصورة قبل المتابعة."
+      },
+      "result": {
+        "heading": "التنويعات",
+        "slot": "التنويعة {{index}}",
+        "pending": "جارٍ الإنشاء…",
+        "sendToCanvas": "إرسال إلى اللوحة",
+        "sendToEnhance": "تحسين",
+        "download": "تنزيل"
+      }
+    },
+    "mask": {
+      "title": "القناع",
+      "hint": "لوّن فوق المنطقة المراد تغييرها — يحدّد الأبيض المنطقة المتأثّرة.",
+      "brushSize": "حجم الفرشاة",
+      "clear": "مسح القناع",
+      "uploadLabel": "ارفع صورة قناع بدلاً من ذلك",
+      "painted": "القناع جاهز.",
+      "uploaded": "تم رفع القناع: {{name}}",
+      "empty": "لا يوجد قناع بعد."
+    },
+    "operationLabelGroup": "العملية",
+    "op": {
+      "resize": {
+        "label": "تغيير الحجم",
+        "desc": "تغيير أبعاد الصورة إلى مقاس جديد."
+      },
+      "crop": {
+        "label": "قص",
+        "desc": "اقتطاع منطقة مستطيلة — اسحب المربع على لوحة الرسم."
+      },
+      "rotate": {
+        "label": "تدوير",
+        "desc": "تدوير الصورة بزاوية محددة."
+      },
+      "flip": {
+        "label": "قلب",
+        "desc": "عكس الصورة أفقيًا أو رأسيًا."
+      },
+      "deskew": {
+        "label": "تصحيح الميل",
+        "desc": "تعديل ميل المسح الضوئي أو الصورة."
+      },
+      "thumbnail": {
+        "label": "صورة مصغرة",
+        "desc": "إنشاء معاينة صغيرة تناسب إطارًا محددًا."
+      },
+      "canvas": {
+        "label": "لوحة الرسم",
+        "desc": "وضع الصورة على خلفية أكبر."
+      },
+      "adjust": {
+        "label": "ضبط",
+        "desc": "ضبط السطوع والتباين واللون وجاما."
+      },
+      "filter": {
+        "label": "مرشح",
+        "desc": "تطبيق تأثير بصري مثل التدرج الرمادي أو البني الداكن."
+      },
+      "convert": {
+        "label": "تحويل",
+        "desc": "تغيير صيغة الملف والجودة."
+      },
+      "compress": {
+        "label": "ضغط",
+        "desc": "تصغير الملف نحو حجم مستهدف."
+      },
+      "overlay": {
+        "label": "علامة مائية",
+        "desc": "إضافة نص أو صورة فوق الصورة."
+      },
+      "metadata": {
+        "label": "البيانات الوصفية",
+        "desc": "إزالة أو قراءة بيانات EXIF والاتجاه."
+      }
+    },
+    "fitOption": {
+      "fit": "احتواء",
+      "fill": "ملء",
+      "stretch": "تمديد"
+    },
+    "axisOption": {
+      "horizontal": "أفقي",
+      "vertical": "رأسي"
+    },
+    "filterOption": {
+      "grayscale": "تدرج رمادي",
+      "sepia": "بني داكن",
+      "invert": "عكس الألوان",
+      "blur": "تمويه",
+      "sharpen": "زيادة الحدة"
+    },
+    "position": {
+      "name": {
+        "topLeft": "أعلى اليسار",
+        "top": "أعلى",
+        "topRight": "أعلى اليمين",
+        "left": "يسار",
+        "center": "وسط",
+        "right": "يمين",
+        "bottomLeft": "أسفل اليسار",
+        "bottom": "أسفل",
+        "bottomRight": "أسفل اليمين"
+      }
+    },
+    "crop": {
+      "aspect": {
+        "label": "نسبة العرض إلى الارتفاع",
+        "free": "حر",
+        "square": "1:1",
+        "standard": "4:3",
+        "wide": "16:9",
+        "original": "الأصلية"
+      },
+      "advanced": "إعدادات متقدمة",
+      "hint": "اسحب المربع لتحديد القص، أو استخدم مفاتيح الأسهم لتحريكه.",
+      "boxLabel": "منطقة القص"
+    },
+    "control": {
+      "reset": "إعادة التعيين إلى الافتراضي"
+    },
+    "color": {
+      "alpha": "العتامة",
+      "clear": "مسح اللون"
+    },
+    "target": {
+      "kb": "كيلوبايت",
+      "mb": "ميجابايت",
+      "noLimit": "بدون حد للحجم"
+    },
+    "compare": {
+      "before": "قبل",
+      "after": "بعد",
+      "slider": "شريط المقارنة"
+    },
+    "field": {
+      "width": "العرض",
+      "height": "الارتفاع",
+      "fit": "الملاءمة",
+      "gravity": "الجاذبية",
+      "x": "X",
+      "y": "Y",
+      "angle": "الزاوية",
+      "background": "الخلفية",
+      "axis": "المحور",
+      "brightness": "السطوع",
+      "contrast": "التباين",
+      "gamma": "جاما",
+      "saturation": "التشبع",
+      "hue": "تدرّج اللون",
+      "filter": "المرشّح",
+      "amount": "المقدار",
+      "format": "الصيغة",
+      "quality": "الجودة",
+      "lossless": "بدون فقدان",
+      "targetBytes": "البايتات المستهدفة",
+      "text": "النص",
+      "position": "الموضع",
+      "opacity": "الشفافية",
+      "color": "اللون",
+      "fontSize": "حجم الخط",
+      "stripAll": "إزالة الكل",
+      "stripGps": "إزالة GPS",
+      "autoOrient": "توجيه تلقائي"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  },
+  "select": {
+    "title": "التحديد الذكي",
+    "description": "انقر على منطقة في صورتك لتحديدها — تلتصق الحافة بالحدود — ثم اختر تعديلاً مناسباً للسياق.",
+    "chooseImage": "اختر صورة",
+    "pointerHint": "انقر على الصورة لتحديد منطقة، أو استخدم عناصر التحكم أدناه.",
+    "autoSelect": "تحديد الموضوع تلقائياً",
+    "selectPoint": "تحديد نقطة",
+    "pointX": "س (٪)",
+    "pointY": "ص (٪)",
+    "tolerance": "تفاوت التفاصيل",
+    "segmenting": "جارٍ التحديد…",
+    "region": "المنطقة: {{class}}",
+    "confidence": "ثقة {{percent}}٪",
+    "editsHeading": "تعديلات مقترحة",
+    "noEdits": "لا توجد تعديلات متاحة لهذه المنطقة.",
+    "promptPlaceholder": "صف التغيير…",
+    "applying": "جارٍ التطبيق…",
+    "submitted": "تم الإرسال كمهمة {{jobId}} — تابعها في النشاط.",
+    "gate": "يحتاج هذا التعديل إلى خلفية نموذج. ثبّت واحداً في النماذج، أو فعّل BYOK.",
+    "reset": "البدء من جديد",
+    "imageAlt": "صورتك",
+    "maskAlt": "قناع المنطقة المحددة",
+    "error": "تعذّر إكمال التحديد.",
+    "class": {
+      "person": "شخص",
+      "sky": "سماء",
+      "foliage": "أوراق الشجر",
+      "background": "خلفية",
+      "object": "كائن"
+    }
+  },
+  "compare": {
+    "title": "المقارنة المرئية",
+    "description": "أسقط صورتين — صورة أساس وصورة مرشحة — لترى بالضبط ما الذي تغيّر: حكم، وخريطة حرارية للاختلافات، والمقاييس الكامنة وراءها.",
+    "baseLabel": "صورة الأساس",
+    "compareLabel": "صورة المقارنة",
+    "chooseBase": "اختر صورة الأساس",
+    "chooseCompare": "اختر صورة المقارنة",
+    "dropHint": "أسقط صورة هنا، أو اختر ملفًا.",
+    "baseAlt": "صورة الأساس",
+    "compareAlt": "صورة المقارنة",
+    "mode": "وضع المقارنة",
+    "modePixel": "بكسل",
+    "modePerceptual": "إدراكي",
+    "tolerance": "تسامح البكسل",
+    "toleranceReset": "إعادة تعيين التسامح",
+    "run": "قارن",
+    "reset": "ابدأ من جديد",
+    "comparing": "جارٍ المقارنة…",
+    "error": "تعذّر إكمال المقارنة.",
+    "verdictHeading": "الحكم",
+    "verdictIdentical": "متطابقة",
+    "verdictSimilar": "متشابهة",
+    "verdictDifferent": "مختلفة",
+    "dimensionsMismatch": "تختلف الصورتان في الحجم — تم تغيير حجم صورة المقارنة لتطابق صورة الأساس.",
+    "heatmapHeading": "خريطة حرارية للاختلاف",
+    "heatmapAlt": "خريطة حرارية تُبرز وحدات البكسل المتغيّرة",
+    "metricsHeading": "المقاييس",
+    "metricChanged": "وحدات البكسل المتغيّرة",
+    "metricChangedValue": "{{percent}}٪ ({{changed}} من {{total}})",
+    "metricMae": "MAE",
+    "metricRmse": "RMSE",
+    "metricPsnr": "PSNR",
+    "metricPsnrValue": "{{value}} ديسيبل",
+    "metricPhashDistance": "مسافة pHash",
+    "metricPhashSimilarity": "تشابه pHash",
+    "metricSsim": "SSIM",
+    "warningsHeading": "تحذيرات"
+  }
+}

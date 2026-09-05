@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	ws "github.com/vrooli/browser-automation-studio/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // mockHTTPDoer implements HTTPDoer for testing.
@@ -77,8 +78,8 @@ type mockWSHub struct {
 	lastEnvelope   any
 }
 
-func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID)                      {}
-func (m *mockWSHub) BroadcastRecordingEntry(_ string, _ *ws.UnifiedTimelineEntry) ws.BroadcastResult {
+func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID) {}
+func (m *mockWSHub) BroadcastTimelineEntry(_ string, _ *bastimeline.TimelineEntry) ws.BroadcastResult {
 	return ws.BroadcastResult{}
 }
 func (m *mockWSHub) BroadcastRecordingFrame(_ string, _ *ws.RecordingFrame) {}
@@ -207,30 +208,13 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
-	t.Run("missing API key returns error", func(t *testing.T) {
-		nav := NewPlaywrightVisionNavigator(log)
-
-		// Ensure env var is not set
-		t.Setenv("OPENROUTER_API_KEY", "")
-
-		_, err := nav.Navigate(t.Context(), NavigationRequest{
-			SessionID: "session123",
-			Prompt:    "Click button",
-			Model:     "gpt-4o",
-		})
-
-		if err == nil {
-			t.Error("expected error for missing API key")
-		}
-	})
-
 	t.Run("successful navigation start", func(t *testing.T) {
 		mockResp := &http.Response{
 			StatusCode: 200,
 			Body: io.NopCloser(bytes.NewReader([]byte(`{
 				"navigation_id": "nav_test123",
 				"status": "navigating",
-				"model": "gpt-4o",
+				"model": "local_first",
 				"max_steps": 20
 			}`))),
 		}
@@ -241,10 +225,8 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 		handle, err := nav.Navigate(t.Context(), NavigationRequest{
 			SessionID: "session123",
 			Prompt:    "Click button",
-			Model:     "gpt-4o",
-			APIKey:    "test-key",
+			Model:     "local_first",
 		})
-
 		if err != nil {
 			t.Fatalf("Navigate() error = %v", err)
 		}
@@ -270,8 +252,7 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 		_, err := nav.Navigate(t.Context(), NavigationRequest{
 			SessionID: "session123",
 			Prompt:    "Click button",
-			Model:     "gpt-4o",
-			APIKey:    "test-key",
+			Model:     "local_first",
 		})
 
 		if err == nil {
@@ -294,11 +275,9 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 		_, err := nav.Navigate(t.Context(), NavigationRequest{
 			SessionID: "session123",
 			Prompt:    "Click button",
-			Model:     "gpt-4o",
-			APIKey:    "test-key",
+			Model:     "local_first",
 			MaxSteps:  200, // Over limit
 		})
-
 		if err != nil {
 			t.Fatalf("Navigate() error = %v", err)
 		}
@@ -331,7 +310,7 @@ func TestPlaywrightVisionNavigator_HandleStepCallback(t *testing.T) {
 		NavigationID:  "nav_test123",
 		SessionID:     "session123",
 		UserID:        "user123",
-		Model:         "gpt-4o",
+		Model:         "local_first",
 		StartedAt:     time.Now(),
 		Status:        StatusNavigating,
 		NavigatorType: NavigatorPlaywright,
@@ -652,8 +631,7 @@ func TestPlaywrightNavigationHandle(t *testing.T) {
 	handle, err := nav.Navigate(t.Context(), NavigationRequest{
 		SessionID: "session123",
 		Prompt:    "Click",
-		Model:     "gpt-4o",
-		APIKey:    "test-key",
+		Model:     "local_first",
 	})
 	if err != nil {
 		t.Fatalf("Navigate() error = %v", err)

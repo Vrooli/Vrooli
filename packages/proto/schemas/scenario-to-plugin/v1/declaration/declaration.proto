@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_plugin.v1.declaration;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/declaration;declaration_v1";
+
+// PLG-DECL-SOURCE, PLG-DECL-READINESS, PLG-DECL-STANDALONE.
+service DeclarationService {
+  // Reads one governed scenario declaration and its named blockers.
+  rpc GetDeclaration(GetDeclarationRequest) returns (GetDeclarationResponse);
+  // Reports readiness for every scenario in the requested fleet view.
+  rpc ListReadiness(ListReadinessRequest) returns (ListReadinessResponse);
+}
+
+message GetDeclarationRequest { string scenario = 1; }
+message GetDeclarationResponse { Declaration declaration = 1; Readiness readiness = 2; }
+message ListReadinessRequest { repeated string scenarios = 1; }
+message ListReadinessResponse { repeated Readiness items = 1; }
+message Declaration {
+  string scenario = 1;
+  string slug = 2;
+  repeated Skill skills = 3;
+  string entitlement_tier = 4;
+  Standalone standalone = 5;
+  MCP mcp = 6;
+}
+message Skill { string name = 1; string source = 2; repeated string command_groups = 3; }
+message Standalone { string install_script = 1; repeated string runtime_binaries = 2; repeated string resources = 3; }
+message MCP { string name = 1; string command = 2; repeated string args = 3; string authentication = 4; }
+message Readiness { string scenario = 1; bool eligible = 2; repeated Prerequisite prerequisites = 3; string blocking_prerequisite = 4; }
+message Prerequisite { string code = 1; string description = 2; bool satisfied = 3; }

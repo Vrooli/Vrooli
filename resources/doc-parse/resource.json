@@ -1,0 +1,162 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "doc-parse",
+  "display_name": "Doc Parse",
+  "description": "Vrooli-owned portable document parsing runtime with a checksum-verified WASI artifact and native Go control boundary.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-doc-parse",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-doc-parse_${os}_${arch}"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-doc-parse"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "driver": "native-cli",
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": ["amd64", "arm64"],
+          "limitations": ["WASI execution and the Go controller are validated on Linux amd64 only in this phase."],
+          "evidence": ["manifest-validation", "artifact-checksum"]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": ["amd64", "arm64"],
+          "limitations": ["WASI execution and the Go controller are validated on Linux amd64 only in this phase."],
+          "evidence": ["manifest-validation", "artifact-checksum"]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-client",
+          "architectures": ["amd64"],
+          "limitations": ["WASI execution and the Go controller are validated on Linux amd64 only in this phase."],
+          "evidence": ["manifest-validation", "artifact-checksum"]
+        }
+      }
+    }
+  },
+  "binary": "resource-doc-parse",
+  "version_args": [
+    "health"
+  ],
+  "requirements": {
+    "class": "small",
+    "weight": 1,
+    "ram_mb": 1024,
+    "disk_mb": 128,
+    "cpu_cores": 1,
+    "network": "none",
+    "bucket": "small",
+    "source": "measured",
+    "confidence": "high"
+  },
+  "privilege": "user",
+  "bundling": "vendorable",
+  "category": "developer-tooling",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": ["managed-private"]
+    },
+    "artifact": {
+      "path": "doc-parse.wasm",
+      "version": "0.1.0",
+      "sha256": "427d748be587f2bf6d9eff3cf4e491520280f098ef60999b55b29504f309f023"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "MIT",
+      "targets": [
+        {
+          "url": "https://github.com/vrooli/vrooli/releases/download/doc-parse-v0.1.0/doc-parse.wasm",
+          "sha256": "427d748be587f2bf6d9eff3cf4e491520280f098ef60999b55b29504f309f023",
+          "archive": "none",
+          "layout": "file"
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "doc-parse-wasi",
+        "path": "doc-parse.wasm",
+        "acquisition": {
+          "kind": "url",
+          "license": "MIT",
+          "targets": [
+            {
+              "url": "https://github.com/vrooli/vrooli/releases/download/doc-parse-v0.1.0/doc-parse.wasm",
+              "sha256": "427d748be587f2bf6d9eff3cf4e491520280f098ef60999b55b29504f309f023",
+              "archive": "none",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for doc-parse.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "1-3s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "readiness",
+      "command": [
+        "resource-doc-parse",
+        "health"
+      ]
+    }
+  ],
+  "template_version": "2"
+}

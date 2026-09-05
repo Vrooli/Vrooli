@@ -3,12 +3,19 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/health"
 )
+
+type cachedHealthResponse struct {
+	body        []byte
+	contentType string
+	statusCode  int
+}
 
 // Server represents the main application server
 type Server struct {
@@ -21,7 +28,7 @@ type Server struct {
 	eventPublisher    *EventPublisher
 	baseURL           string
 	// Health check cache
-	healthCache      map[string]interface{}
+	healthCache      map[string]cachedHealthResponse
 	healthCacheTime  time.Time
 	healthCacheMutex sync.RWMutex
 }
@@ -42,7 +49,7 @@ func NewServer(config *Config, db *Database, logger *Logger) *Server {
 		connectionManager: connectionManager,
 		eventPublisher:    eventPublisher,
 		baseURL:           fmt.Sprintf("http://localhost:%s", config.APIPort),
-		healthCache:       make(map[string]interface{}),
+		healthCache:       make(map[string]cachedHealthResponse),
 	}
 
 	// Create WebSocket handler
@@ -72,8 +79,7 @@ func (s *Server) setupRoutes() {
 	s.router.Use(authMiddleware.Middleware)
 
 	// Health check
-	healthHandler := health.New().Version(apiVersion).Check(health.DB(s.db), health.Critical).Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/health", s.HealthHandler).Methods("GET", "OPTIONS")
 
 	// API v1 routes
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -117,6 +123,58 @@ func (s *Server) setupRoutes() {
 	// CRM Integration endpoints
 	api.HandleFunc("/crm-integrations", s.CreateCRMIntegrationHandler).Methods("POST")
 	api.HandleFunc("/conversations/{conversation_id}/sync-crm", s.SyncCRMLeadHandler).Methods("POST")
+}
+
+func (s *Server) buildHealthHandler() http.HandlerFunc {
+	builder := health.New(serviceName).Version(apiVersion)
+	if s.db != nil && s.db.DB() != nil {
+		builder = builder.Check(health.DB(s.db.DB()), health.Critical)
+	}
+	return builder.Handler()
+}
+
+func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	cacheKey := "basic"
+	if r.URL.Query().Get("detailed") == "true" {
+		cacheKey = "detailed"
+	}
+
+	s.healthCacheMutex.RLock()
+	cached, ok := s.healthCache[cacheKey]
+	cacheFresh := ok && time.Since(s.healthCacheTime) < time.Second
+	s.healthCacheMutex.RUnlock()
+	if cacheFresh {
+		w.Header().Set("Content-Type", cached.contentType)
+		w.WriteHeader(cached.statusCode)
+		_, _ = w.Write(cached.body)
+		return
+	}
+
+	recorder := httptest.NewRecorder()
+	s.buildHealthHandler()(recorder, r)
+
+	result := recorder.Result()
+	body := recorder.Body.Bytes()
+	contentType := result.Header.Get("Content-Type")
+	if contentType != "" {
+		w.Header().Set("Content-Type", contentType)
+	}
+	w.WriteHeader(result.StatusCode)
+	_, _ = w.Write(body)
+
+	s.healthCacheMutex.Lock()
+	s.healthCache[cacheKey] = cachedHealthResponse{
+		body:        append([]byte(nil), body...),
+		contentType: contentType,
+		statusCode:  result.StatusCode,
+	}
+	s.healthCacheTime = time.Now()
+	s.healthCacheMutex.Unlock()
 }
 
 // WidgetHandler returns the widget embed code for a chatbot

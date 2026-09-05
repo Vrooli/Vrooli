@@ -1,10 +1,11 @@
 package detection
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 )
 
 // catalog.go - Catalog management and caching
@@ -61,6 +62,9 @@ func (c *catalogManager) refresh() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if scenariosDir := os.Getenv("VROOLI_SCENARIOS_DIR"); scenariosDir != "" {
+		c.cfg.ScenariosDir = scenariosDir
+	}
 	c.loaded = false
 	c.knownScenarios = nil
 	c.knownResources = nil
@@ -114,18 +118,18 @@ func (c *catalogManager) getScenarioCatalog() map[string]struct{} {
 	return snapshot
 }
 
-// getResourceCatalog returns a copy of the resource catalog for inspection
+// getResourceCatalog returns a snapshot of resource manifest names. Detection
+// builds heuristics from this catalog; the analyzer does not own a second list
+// of resource instances.
 func (c *catalogManager) getResourceCatalog() map[string]struct{} {
 	c.ensureLoaded()
 
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	// Return a copy to prevent external modification
 	snapshot := make(map[string]struct{}, len(c.knownResources))
-	for k := range c.knownResources {
-		snapshot[k] = struct{}{}
+	for name := range c.knownResources {
+		snapshot[name] = struct{}{}
 	}
-
 	return snapshot
 }

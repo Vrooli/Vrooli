@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
+
+	"github.com/gorilla/mux"
 )
 
 type fakeTLSService struct {

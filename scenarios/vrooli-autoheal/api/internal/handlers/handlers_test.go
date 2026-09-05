@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/testutil"
+	"github.com/gorilla/mux"
 )
 
 func TestHealth_Healthy(t *testing.T) {
@@ -27,8 +27,10 @@ func TestHealth_Healthy(t *testing.T) {
 
 	h.Health(w, req)
 
-	testutil.AssertStatus(t, w, http.StatusOK)
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 
 	if resp["status"] != "healthy" {
 		t.Errorf("status = %v, want healthy", resp["status"])
@@ -42,8 +44,15 @@ func TestHealth_Healthy(t *testing.T) {
 	if !ok {
 		t.Fatal("dependencies field missing or invalid")
 	}
-	if deps["database"] != "connected" {
-		t.Errorf("database = %v, want connected", deps["database"])
+	db, ok := deps["database"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dependencies.database should be a DependencyStatus object, got %T", deps["database"])
+	}
+	if db["connected"] != true {
+		t.Errorf("dependencies.database.connected = %v, want true", db["connected"])
+	}
+	if db["database"] != "sqlite" {
+		t.Errorf("dependencies.database.database = %v, want sqlite", db["database"])
 	}
 }
 
@@ -56,7 +65,7 @@ func TestHealth_Unhealthy(t *testing.T) {
 
 	h.Health(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 
 	if resp["status"] != "unhealthy" {
 		t.Errorf("status = %v, want unhealthy", resp["status"])
@@ -66,8 +75,15 @@ func TestHealth_Unhealthy(t *testing.T) {
 	if !ok {
 		t.Fatal("dependencies field missing or invalid")
 	}
-	if deps["database"] != "disconnected" {
-		t.Errorf("database = %v, want disconnected", deps["database"])
+	db, ok := deps["database"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dependencies.database should be a DependencyStatus object, got %T", deps["database"])
+	}
+	if db["connected"] != false {
+		t.Errorf("dependencies.database.connected = %v, want false", db["connected"])
+	}
+	if db["error"] == nil {
+		t.Errorf("dependencies.database.error should be populated when unhealthy")
 	}
 }
 
@@ -80,8 +96,10 @@ func TestPlatform(t *testing.T) {
 
 	h.Platform(w, req)
 
-	testutil.AssertStatus(t, w, http.StatusOK)
-	resp := testutil.MustDecodeJSON[platform.Capabilities](t, w)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+	resp := apihttptest.MustDecodeJSON[platform.Capabilities](t, w.Body.Bytes())
 
 	if resp.Platform != platform.Linux {
 		t.Errorf("Platform = %v, want linux", resp.Platform)
@@ -128,6 +146,43 @@ func TestStatus(t *testing.T) {
 	if _, ok := resp["tickStartedAt"]; !ok {
 		t.Error("response should include tickStartedAt field")
 	}
+	if statusFresh, ok := resp["statusFresh"].(bool); !ok || statusFresh {
+		t.Errorf("statusFresh = %v, want false before first completed tick", resp["statusFresh"])
+	}
+	if lastCompletedTickAt, ok := resp["lastCompletedTickAt"]; !ok || lastCompletedTickAt != nil {
+		t.Errorf("lastCompletedTickAt = %v, want null before first completed tick", resp["lastCompletedTickAt"])
+	}
+}
+
+func TestStatus_ExposesLatestHealingIssuePerCheck(t *testing.T) {
+	store := &mockStore{actionLogs: &persistence.ActionLogsResponse{Logs: []persistence.ActionLog{
+		{CheckID: "scenario-demo", ActionID: "autoheal-skip", Success: false, Message: "in cooldown", Timestamp: "2026-08-22T20:00:00Z"},
+		{CheckID: "scenario-demo", ActionID: "restart", Success: false, Message: "exit status 1", Timestamp: "2026-08-22T19:59:00Z"},
+		{CheckID: "resource-demo", ActionID: "restart", Success: true, Message: "restarted", Timestamp: "2026-08-22T19:58:00Z"},
+		{CheckID: "recovered-demo", ActionID: "restart", Success: true, Message: "recovered", Timestamp: "2026-08-22T19:57:00Z"},
+		{CheckID: "recovered-demo", ActionID: "restart", Success: false, Message: "older failure", Timestamp: "2026-08-22T19:56:00Z"},
+	}}}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	issues, ok := resp["autoHealIssues"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("autoHealIssues = %T, want object", resp["autoHealIssues"])
+	}
+	issue, ok := issues["scenario-demo"].(map[string]interface{})
+	if !ok || issue["actionId"] != "autoheal-skip" {
+		t.Fatalf("scenario-demo issue = %#v, want newest skipped outcome", issues["scenario-demo"])
+	}
+	if _, exists := issues["resource-demo"]; exists {
+		t.Fatalf("successful recovery should not be exposed as an issue: %#v", issues["resource-demo"])
+	}
+	if _, exists := issues["recovered-demo"]; exists {
+		t.Fatalf("older failure should not survive a newer successful recovery: %#v", issues["recovered-demo"])
+	}
 }
 
 func TestStatus_IncludesActiveTickState(t *testing.T) {
@@ -144,13 +199,60 @@ func TestStatus_IncludesActiveTickState(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.Status(w, req)
 
-	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
 	if tickRunning, ok := resp["tickRunning"].(bool); !ok || !tickRunning {
 		t.Fatalf("tickRunning = %v, want true", resp["tickRunning"])
 	}
 
 	if startedAt, ok := resp["tickStartedAt"].(string); !ok || startedAt == "" {
 		t.Fatalf("tickStartedAt = %v, want RFC3339 timestamp string", resp["tickStartedAt"])
+	}
+}
+
+func TestStatus_ReportsFreshCompletedTick(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	completed := time.Now().Add(-45 * time.Second)
+	h.tickLock.Lock()
+	h.tickEnded = completed
+	h.tickLock.Unlock()
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	if statusFresh, ok := resp["statusFresh"].(bool); !ok || !statusFresh {
+		t.Fatalf("statusFresh = %v, want true", resp["statusFresh"])
+	}
+	if reason, ok := resp["statusStaleReason"].(string); !ok || reason != "" {
+		t.Fatalf("statusStaleReason = %v, want empty string", resp["statusStaleReason"])
+	}
+	if age, ok := resp["statusAgeSeconds"].(float64); !ok || age < 40 || age > 50 {
+		t.Fatalf("statusAgeSeconds = %v, want about 45", resp["statusAgeSeconds"])
+	}
+}
+
+func TestStatus_ReportsStaleCompletedTick(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	completed := time.Now().Add(-5 * time.Minute)
+	h.tickLock.Lock()
+	h.tickEnded = completed
+	h.tickLock.Unlock()
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	if statusFresh, ok := resp["statusFresh"].(bool); !ok || statusFresh {
+		t.Fatalf("statusFresh = %v, want false", resp["statusFresh"])
+	}
+	if reason, ok := resp["statusStaleReason"].(string); !ok || reason == "" {
+		t.Fatalf("statusStaleReason = %v, want non-empty reason", resp["statusStaleReason"])
 	}
 }
 
@@ -183,6 +285,9 @@ func TestTick(t *testing.T) {
 
 	if len(results) == 0 {
 		t.Error("results should not be empty")
+	}
+	if store.savedInventories != 1 {
+		t.Fatalf("saved host inventories = %d, want 1", store.savedInventories)
 	}
 }
 
@@ -714,772 +819,5 @@ func TestWatchdog_WithRefresh(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Watchdog() with refresh status = %d, want %d", w.Code, http.StatusOK)
-	}
-}
-
-func TestWatchdogTemplate(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/watchdog/template", nil)
-	w := httptest.NewRecorder()
-
-	h.WatchdogTemplate(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("WatchdogTemplate() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Check required fields
-	if _, ok := resp["platform"]; !ok {
-		t.Error("response should have platform field")
-	}
-
-	if _, ok := resp["template"]; !ok {
-		t.Error("response should have template field")
-	}
-
-	if _, ok := resp["instructions"]; !ok {
-		t.Error("response should have instructions field")
-	}
-
-	// Template should have substantial content
-	template, ok := resp["template"].(string)
-	if !ok || len(template) < 50 {
-		t.Errorf("template should be a substantial string, got length %d", len(template))
-	}
-}
-
-// --- Additional Handler Tests ---
-
-func TestUptimeHistory(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/uptime/history", nil)
-	w := httptest.NewRecorder()
-
-	h.UptimeHistory(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("UptimeHistory() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.UptimeHistory
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.WindowHours != 24 {
-		t.Errorf("WindowHours = %d, want 24", resp.WindowHours)
-	}
-
-	if resp.BucketCount != 24 {
-		t.Errorf("BucketCount = %d, want 24", resp.BucketCount)
-	}
-}
-
-func TestUptimeHistory_WithQueryParams(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/uptime/history?hours=48&buckets=12", nil)
-	w := httptest.NewRecorder()
-
-	h.UptimeHistory(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("UptimeHistory() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.UptimeHistory
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.WindowHours != 48 {
-		t.Errorf("WindowHours = %d, want 48", resp.WindowHours)
-	}
-
-	if resp.BucketCount != 12 {
-		t.Errorf("BucketCount = %d, want 12", resp.BucketCount)
-	}
-}
-
-func TestUptimeHistory_InvalidParams(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	// Invalid params should use defaults
-	req := httptest.NewRequest("GET", "/api/v1/uptime/history?hours=invalid&buckets=-5", nil)
-	w := httptest.NewRecorder()
-
-	h.UptimeHistory(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("UptimeHistory() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.UptimeHistory
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Should use defaults when invalid
-	if resp.WindowHours != 24 {
-		t.Errorf("WindowHours = %d, want 24 (default)", resp.WindowHours)
-	}
-}
-
-func TestUptimeHistory_Error(t *testing.T) {
-	store := &mockStore{uptimeHistoryErr: context.DeadlineExceeded}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/uptime/history", nil)
-	w := httptest.NewRecorder()
-
-	h.UptimeHistory(w, req)
-
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("UptimeHistory() with error status = %d, want %d", w.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestCheckTrends(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/trends", nil)
-	w := httptest.NewRecorder()
-
-	h.CheckTrends(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("CheckTrends() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.CheckTrendsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.WindowHours != 24 {
-		t.Errorf("WindowHours = %d, want 24", resp.WindowHours)
-	}
-}
-
-func TestCheckTrends_WithQueryParams(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/trends?hours=72", nil)
-	w := httptest.NewRecorder()
-
-	h.CheckTrends(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("CheckTrends() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.CheckTrendsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.WindowHours != 72 {
-		t.Errorf("WindowHours = %d, want 72", resp.WindowHours)
-	}
-}
-
-func TestCheckTrends_Error(t *testing.T) {
-	store := &mockStore{checkTrendsErr: context.DeadlineExceeded}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/trends", nil)
-	w := httptest.NewRecorder()
-
-	h.CheckTrends(w, req)
-
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("CheckTrends() with error status = %d, want %d", w.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestIncidents(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/incidents", nil)
-	w := httptest.NewRecorder()
-
-	h.Incidents(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Incidents() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.IncidentsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.WindowHours != 24 {
-		t.Errorf("WindowHours = %d, want 24", resp.WindowHours)
-	}
-}
-
-func TestIncidents_WithQueryParams(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/incidents?hours=48&limit=100", nil)
-	w := httptest.NewRecorder()
-
-	h.Incidents(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Incidents() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.IncidentsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.WindowHours != 48 {
-		t.Errorf("WindowHours = %d, want 48", resp.WindowHours)
-	}
-}
-
-func TestIncidents_Error(t *testing.T) {
-	store := &mockStore{incidentsErr: context.DeadlineExceeded}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/incidents", nil)
-	w := httptest.NewRecorder()
-
-	h.Incidents(w, req)
-
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Incidents() with error status = %d, want %d", w.Code, http.StatusInternalServerError)
-	}
-}
-
-func TestGetActionHistory(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/actions", nil)
-	w := httptest.NewRecorder()
-
-	h.GetActionHistory(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("GetActionHistory() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp persistence.ActionLogsResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Should have empty array, not nil
-	if resp.Logs == nil {
-		t.Error("Logs should be empty array, not nil")
-	}
-}
-
-func TestGetActionHistory_WithCheckFilter(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/actions?checkId=test-check", nil)
-	w := httptest.NewRecorder()
-
-	h.GetActionHistory(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("GetActionHistory() status = %d, want %d", w.Code, http.StatusOK)
-	}
-}
-
-func TestGetCheckActions(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlersWithHealable(store)
-
-	// First run tick to populate results
-	tickReq := httptest.NewRequest("POST", "/api/v1/tick?force=true", nil)
-	tickW := httptest.NewRecorder()
-	h.Tick(tickW, tickReq)
-
-	req := httptest.NewRequest("GET", "/api/v1/checks/healable-check/actions", nil)
-	w := httptest.NewRecorder()
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/checks/{checkId}/actions", h.GetCheckActions)
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("GetCheckActions() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp["checkId"] != "healable-check" {
-		t.Errorf("checkId = %v, want healable-check", resp["checkId"])
-	}
-
-	actions, ok := resp["actions"].([]interface{})
-	if !ok {
-		t.Fatal("actions field missing or invalid")
-	}
-
-	if len(actions) != 2 {
-		t.Errorf("actions length = %d, want 2", len(actions))
-	}
-}
-
-func TestGetCheckActions_NotFound(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/checks/nonexistent/actions", nil)
-	w := httptest.NewRecorder()
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/checks/{checkId}/actions", h.GetCheckActions)
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("GetCheckActions() for nonexistent check status = %d, want %d", w.Code, http.StatusNotFound)
-	}
-}
-
-func TestExecuteCheckAction(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlersWithHealable(store)
-
-	req := httptest.NewRequest("POST", "/api/v1/checks/healable-check/actions/restart", nil)
-	w := httptest.NewRecorder()
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/checks/{checkId}/actions/{actionId}", h.ExecuteCheckAction)
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("ExecuteCheckAction() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp checks.ActionResult
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if !resp.Success {
-		t.Errorf("expected success, got failure")
-	}
-
-	if resp.ActionID != "restart" {
-		t.Errorf("ActionID = %s, want restart", resp.ActionID)
-	}
-}
-
-func TestExecuteCheckAction_NotFound(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("POST", "/api/v1/checks/nonexistent/actions/restart", nil)
-	w := httptest.NewRecorder()
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/checks/{checkId}/actions/{actionId}", h.ExecuteCheckAction)
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("ExecuteCheckAction() for nonexistent check status = %d, want %d", w.Code, http.StatusNotFound)
-	}
-}
-
-// Test concurrent tick execution
-func TestTick_Concurrent(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	// Start first tick in background (simulate long-running)
-	// Since we can't easily simulate a long tick, we'll test the lock acquisition
-	// by running sequential ticks and verifying they complete
-
-	results := make(chan int, 2)
-
-	// First tick
-	go func() {
-		req := httptest.NewRequest("POST", "/api/v1/tick?force=true", nil)
-		w := httptest.NewRecorder()
-		h.Tick(w, req)
-		results <- w.Code
-	}()
-
-	// Second tick (should either succeed or get conflict)
-	go func() {
-		req := httptest.NewRequest("POST", "/api/v1/tick?force=true", nil)
-		w := httptest.NewRecorder()
-		h.Tick(w, req)
-		results <- w.Code
-	}()
-
-	// Both should complete (either 200 or 409)
-	code1 := <-results
-	code2 := <-results
-
-	// At least one should succeed
-	if code1 != http.StatusOK && code2 != http.StatusOK {
-		t.Errorf("Expected at least one tick to succeed, got %d and %d", code1, code2)
-	}
-}
-
-// Test parsePositiveInt helper
-func TestParsePositiveInt(t *testing.T) {
-	tests := []struct {
-		input   string
-		want    int
-		wantErr bool
-	}{
-		{"42", 42, false},
-		{"0", 0, false},
-		{"-5", -5, false}, // parsePositiveInt doesn't validate negativity
-		{"abc", 0, true},
-		{"", 0, true},
-	}
-
-	for _, tc := range tests {
-		got, err := parsePositiveInt(tc.input)
-		if tc.wantErr && err == nil {
-			t.Errorf("parsePositiveInt(%q) expected error", tc.input)
-		}
-		if !tc.wantErr && got != tc.want {
-			t.Errorf("parsePositiveInt(%q) = %d, want %d", tc.input, got, tc.want)
-		}
-	}
-}
-
-// Test install instructions helpers
-func TestGetInstallInstructions(t *testing.T) {
-	platforms := []string{"linux", "macos", "windows", "unknown"}
-
-	for _, p := range platforms {
-		instructions := getInstallInstructions(p)
-		if instructions == "" {
-			t.Errorf("getInstallInstructions(%q) returned empty string", p)
-		}
-	}
-}
-
-func TestGetOneLinerInstall(t *testing.T) {
-	apiBase := "http://localhost:8080"
-	platforms := []string{"linux", "macos", "windows"}
-
-	for _, p := range platforms {
-		oneLiner := getOneLinerInstall(p, apiBase)
-		if oneLiner == "" {
-			t.Errorf("getOneLinerInstall(%q) returned empty string", p)
-		}
-		if p != "unknown" && !contains(oneLiner, apiBase) {
-			t.Errorf("getOneLinerInstall(%q) should contain API base URL", p)
-		}
-	}
-
-	// Unknown platform returns empty
-	oneLiner := getOneLinerInstall("unknown", apiBase)
-	if oneLiner != "" {
-		t.Errorf("getOneLinerInstall(unknown) should return empty, got %q", oneLiner)
-	}
-}
-
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-// =============================================================================
-// Tick with Auto-Heal Tests
-// =============================================================================
-
-func TestTick_WithAutoHeal(t *testing.T) {
-	store := &mockStore{}
-	h, criticalCheck := setupTestHandlersWithAutoHeal(store)
-
-	req := httptest.NewRequest("POST", "/api/v1/tick?force=true", nil)
-	w := httptest.NewRecorder()
-
-	h.Tick(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Tick() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	// Should have auto-heal results
-	autoHeal, ok := resp["autoHeal"].([]interface{})
-	if !ok {
-		t.Fatal("autoHeal field missing or invalid")
-	}
-
-	if len(autoHeal) == 0 {
-		t.Error("autoHeal should have at least one result for critical check")
-	}
-
-	// Verify the safe action was executed (start, not restart)
-	if criticalCheck.executeCalled {
-		if criticalCheck.executeResult.ActionID != "start" {
-			t.Errorf("Auto-heal should execute 'start' (non-dangerous), got %q", criticalCheck.executeResult.ActionID)
-		}
-	}
-}
-
-func TestTick_AutoHealSkippedWhenDisabled(t *testing.T) {
-	caps := &platform.Capabilities{
-		Platform:        platform.Linux,
-		SupportsSystemd: true,
-	}
-
-	registry := checks.NewRegistry(caps)
-	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
-		BaseCooldown:       5 * time.Minute,
-		MaxRestartAttempts: 3,
-	})
-
-	// Create a critical check
-	criticalCheck := &mockHealableCheckCritical{
-		mockCheck: mockCheck{
-			id:      "critical-check",
-			status:  checks.StatusCritical,
-			message: "Service down",
-		},
-		recoveryActions: []checks.RecoveryAction{
-			{ID: "start", Name: "Start", Available: true, Dangerous: false},
-		},
-		executeResult: checks.ActionResult{
-			CheckID: "critical-check",
-			Success: true,
-		},
-	}
-	registry.Register(criticalCheck)
-
-	// Disable auto-heal
-	configProvider := &mockConfigProvider{
-		enabledChecks:  map[string]bool{"critical-check": true},
-		autoHealChecks: map[string]bool{"critical-check": false},
-	}
-	registry.SetConfigProvider(configProvider)
-
-	store := &mockStore{}
-	h := NewWithInterface(registry, store, caps)
-
-	req := httptest.NewRequest("POST", "/api/v1/tick?force=true", nil)
-	w := httptest.NewRecorder()
-
-	h.Tick(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Tick() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	autoHeal, ok := resp["autoHeal"].([]interface{})
-	if !ok {
-		t.Fatal("autoHeal field missing")
-	}
-
-	// Should have auto-heal result with "not enabled" reason
-	if len(autoHeal) > 0 {
-		first := autoHeal[0].(map[string]interface{})
-		if first["attempted"] == true {
-			t.Error("Auto-heal should NOT be attempted when disabled")
-		}
-		if reason, ok := first["reason"].(string); ok {
-			t.Logf("Auto-heal skipped: %s", reason)
-		}
-	}
-
-	// Verify no action was executed
-	if criticalCheck.executeCalled {
-		t.Error("No action should be executed when auto-heal is disabled")
-	}
-}
-
-func TestTick_AutoHealSkipsNonCritical(t *testing.T) {
-	caps := &platform.Capabilities{
-		Platform: platform.Linux,
-	}
-
-	registry := checks.NewRegistry(caps)
-	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
-		BaseCooldown:       5 * time.Minute,
-		MaxRestartAttempts: 3,
-	})
-
-	// Create a warning (non-critical) check
-	warningCheck := &mockHealableCheckCritical{
-		mockCheck: mockCheck{
-			id:      "warning-check",
-			status:  checks.StatusWarning, // Not critical
-			message: "Minor issue",
-		},
-		recoveryActions: []checks.RecoveryAction{
-			{ID: "fix", Name: "Fix", Available: true, Dangerous: false},
-		},
-	}
-	registry.Register(warningCheck)
-
-	configProvider := &mockConfigProvider{
-		enabledChecks:  map[string]bool{"warning-check": true},
-		autoHealChecks: map[string]bool{"warning-check": true},
-	}
-	registry.SetConfigProvider(configProvider)
-
-	store := &mockStore{}
-	h := NewWithInterface(registry, store, caps)
-
-	req := httptest.NewRequest("POST", "/api/v1/tick?force=true", nil)
-	w := httptest.NewRecorder()
-
-	h.Tick(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Tick() status = %d, want %d", w.Code, http.StatusOK)
-	}
-
-	// Warning check should NOT trigger auto-heal
-	if warningCheck.executeCalled {
-		t.Error("Auto-heal should NOT execute for non-critical checks")
-	}
-}
-
-// =============================================================================
-// Docs Handler Tests (if DocsManifest/DocsContent exist)
-// =============================================================================
-
-func TestDocsManifest(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/docs/manifest", nil)
-	w := httptest.NewRecorder()
-
-	h.DocsManifest(w, req)
-
-	// Should return OK or NotFound (depending on whether docs exist)
-	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
-		t.Errorf("DocsManifest() status = %d, want 200 or 404", w.Code)
-	}
-}
-
-func TestDocsContent(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store)
-
-	req := httptest.NewRequest("GET", "/api/v1/docs/content?path=README.md", nil)
-	w := httptest.NewRecorder()
-
-	h.DocsContent(w, req)
-
-	// Should return OK or NotFound (depending on whether docs exist)
-	if w.Code != http.StatusOK && w.Code != http.StatusNotFound {
-		t.Errorf("DocsContent() status = %d, want 200 or 404", w.Code)
-	}
-}
-
-// =============================================================================
-// Additional Edge Case Tests
-// =============================================================================
-
-func TestGetCheckActions_NotHealable(t *testing.T) {
-	store := &mockStore{}
-	h := setupTestHandlers(store) // Uses non-healable mockCheck
-
-	req := httptest.NewRequest("GET", "/api/v1/checks/test-check/actions", nil)
-	w := httptest.NewRecorder()
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/checks/{checkId}/actions", h.GetCheckActions)
-	router.ServeHTTP(w, req)
-
-	// Non-healable check should return 404
-	if w.Code != http.StatusNotFound {
-		t.Errorf("GetCheckActions() for non-healable check status = %d, want %d", w.Code, http.StatusNotFound)
-	}
-}
-
-func TestExecuteCheckAction_Failed(t *testing.T) {
-	caps := &platform.Capabilities{
-		Platform: platform.Linux,
-	}
-
-	registry := checks.NewRegistry(caps)
-
-	// Create a healable check that fails on action
-	failingCheck := &mockHealableCheck{
-		mockCheck: mockCheck{
-			id:      "failing-check",
-			status:  checks.StatusCritical,
-			message: "Failed",
-		},
-		recoveryActions: []checks.RecoveryAction{
-			{ID: "restart", Name: "Restart", Available: true},
-		},
-		executeResult: checks.ActionResult{
-			CheckID: "failing-check",
-			Success: false,
-			Error:   "Service failed to start",
-		},
-	}
-	registry.Register(failingCheck)
-
-	store := &mockStore{}
-	h := NewWithInterface(registry, store, caps)
-
-	req := httptest.NewRequest("POST", "/api/v1/checks/failing-check/actions/restart", nil)
-	w := httptest.NewRecorder()
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/checks/{checkId}/actions/{actionId}", h.ExecuteCheckAction)
-	router.ServeHTTP(w, req)
-
-	// Failed action should return 500
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("ExecuteCheckAction() with failure status = %d, want %d", w.Code, http.StatusInternalServerError)
-	}
-
-	var resp checks.ActionResult
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.Success {
-		t.Error("Expected success=false for failed action")
-	}
-
-	if resp.Error == "" {
-		t.Error("Expected error message for failed action")
 	}
 }

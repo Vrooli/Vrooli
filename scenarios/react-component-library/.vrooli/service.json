@@ -1,41 +1,70 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "512MiB",
+          "rationale": "The durable SQLite database includes component-test evidence and currently measures about 299MiB; a 512MiB ceiling bounds the measured multi-stage payload workload while preserving rollup counters."
+        }
+      },
+      "gate_evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "gates",
+        "regenerable": false,
+        "rationale": "Gate ledgers, stamp reports, and baseline captures are durable recorded verdicts; 1212269 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The durable gate cohort measured 1212269 bytes on 2026-08-27; 256 MiB allows long-lived verdict history without authorizing deletion."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": false,
+        "rationale": "Retention receipts are durable records of cleanup decisions and enforcement outcomes.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Retention receipts are bounded JSON records and must remain durable for auditability."
+        }
+      },
+      "retired": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "library/.retired",
+        "regenerable": false,
+        "rationale": "Cold release source is retained for immutable-version recovery until the governed reaper's retention window expires.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "The retired source tier is currently about 19MiB; the ceiling bounds cold history while leaving room for normal release turnover."
+        }
+      }
+    },
+    "rationale": "Storage surfaces include component data and durable gate evidence in the scenario state class."
+  },
   "service": {
     "parent": "vrooli",
     "name": "react-component-library",
     "displayName": "React Component Library",
-    "description": "Central UI for designing, previewing, editing, and tracking shared React UI components with AI-powered live editing and multi-viewport emulation",
+    "description": "Central UI for designing, previewing, editing, and tracking shared React UI components across Vrooli scenarios.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
     "tags": [
       "react-ui",
-      "go-api",
-      "component-library",
-      "ui-designer",
-      "preview-emulator",
-      "ai-editing",
-      "iframe-bridge"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/react-component-library"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+      "go-api"
+    ]
   },
   "ports": {
     "api": {
@@ -46,149 +75,184 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Standard API/UI health checks",
-      "startup_grace_period": 15000,
+      "probe": "live",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "timeout": 10000,
-          "interval": 30000,
-          "critical": true
+          "critical": true,
+          "timeout": 2000,
+          "interval": 30000
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000,
-          "critical": false
+          "interval": 30000
         }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/react-component-library-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "react-component-library"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o react-component-library-api .",
-          "description": "Compile Go API server"
-        },
-        {
-          "name": "install-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./react-component-library-api",
-          "background": true,
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute react-component-library --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'react-component-library-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      ],
+      "startup_grace_period": 60000
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
         "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "react-component-library"
+        "required": false,
+        "description": "Optional server-side dispatcher for attributable assisted extraction and adoption workflows; direct RCL APIs remain available when it is unavailable.",
+        "degraded_behavior": "Assisted extraction and adoption workflows remain unavailable and are stored as unavailable; direct catalog and adoption APIs remain available.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/extract-assist-profile.json",
+              ".vrooli/agent-manager/adopt-assist-profile.json",
+              ".vrooli/agent-manager/extract-assist.json",
+              ".vrooli/agent-manager/adopt-assist.json"
+            ]
+          }
+        },
+        "startup_policy": "try_start"
       },
-      "resource-openrouter": {
-        "type": "ai-gateway",
+      "experience-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "description": "Provides the shared experience-spec contract and capture reconciliation used by RCL experience evidence.",
+        "degraded_behavior": "Catalog, component contracts, and direct library APIs remain available; experience capture and reconciliation are unavailable until experience-manager is healthy.",
+        "startup_policy": "try_start"
+      },
+      "ui-health": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides the shared UI inventory and provenance contracts used by RCL inventory adapters.",
+        "degraded_behavior": "Catalog and component APIs remain available; cross-scenario UI inventory integration is unavailable until ui-health is healthy.",
+        "startup_policy": "try_start"
+      },
+      "typescript-code-graph": {
+        "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "AI-powered code editing and component refactoring"
+        "description": "Supplies the parsed TypeScript import graph required by the blocking graph-reconciled catalog gate.",
+        "startup_policy": "must_start"
       }
     },
-    "scenarios": {
-      "app-issue-tracker": {
-        "enabled": true,
-        "required": true,
-        "description": "Integration for component adoption workflow"
+    "resources": {}
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-05-12T15:51:13Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "56ebeae608251c87b0ebd6856dfb30f81d28bd68e2d4b55f37f9ed0a2ae7501d",
+    "content_sha": "cddd285114520b1bea27e67f6f2ad5c256eab8e8f7a114678116a7a70815d654"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "react-component-library",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "react-component-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "environment": {},
+  "hostTools": [
+    {
+      "name": "java",
+      "required": true,
+      "reason": "Provide Java 17+ for Quint verify during formal temporal-flow validation",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Required by the Level 5 attachment-upload temporal-flow reference."
+    },
+    {
+      "name": "quint",
+      "required": true,
+      "reason": "Check Quint temporal-flow models and generated conformance artifacts",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
+      "notes": "Required by the Level 5 attachment-upload temporal-flow reference."
+    }
+  ],
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

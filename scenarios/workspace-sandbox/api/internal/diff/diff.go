@@ -5,15 +5,15 @@
 // This package relies on external commands for diff generation and patch application:
 //
 //   - diff: Used for generating unified diffs of modified files (GNU diffutils).
-//     Called via exec.CommandContext("diff", "-u", ...).
+//     Invoked via process.Starter.
 //     Required for modified file comparisons.
 //
 //   - git: Used for patch application in git repositories.
-//     Called via exec.CommandContext("git", "apply", ...).
+//     Invoked via process.Starter.
 //     Only used when target directory is a git repository.
 //
 //   - patch: Fallback for patch application in non-git directories.
-//     Called via exec.CommandContext("patch", "-p1", ...).
+//     Invoked via process.Starter.
 //     Used when target is not a git repository.
 //
 // # Error Handling
@@ -43,13 +43,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
+
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -83,24 +83,24 @@ type Generator struct {
 	runner CommandRunner
 }
 
-// NewGenerator creates a new diff generator with default config.
-// Uses DefaultCommandRunner() for external command execution.
-func NewGenerator() *Generator {
+// NewGenerator creates a new diff generator with default config and a
+// CommandRunner backed by the supplied process.Starter.
+func NewGenerator(starter process.Starter) *Generator {
 	return &Generator{
 		config: DefaultGeneratorConfig(),
-		runner: DefaultCommandRunner(),
+		runner: NewExecCommandRunner(starter),
 	}
 }
 
-// NewGeneratorWithConfig creates a new diff generator with custom config.
-// Uses DefaultCommandRunner() for external command execution.
-func NewGeneratorWithConfig(cfg GeneratorConfig) *Generator {
+// NewGeneratorWithConfig creates a new diff generator with custom config
+// and a CommandRunner backed by the supplied process.Starter.
+func NewGeneratorWithConfig(cfg GeneratorConfig, starter process.Starter) *Generator {
 	if cfg.BinaryDetectionThreshold <= 0 {
 		cfg.BinaryDetectionThreshold = 8000
 	}
 	return &Generator{
 		config: cfg,
-		runner: DefaultCommandRunner(),
+		runner: NewExecCommandRunner(starter),
 	}
 }
 
@@ -177,8 +177,10 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 
 	var diffBuilder strings.Builder
 	var added, deleted, modified int
+	var totalBytes int64
 
 	for _, change := range sortedChanges {
+		totalBytes += change.FileSize
 		switch change.ChangeType {
 		case types.ChangeTypeAdded:
 			added++
@@ -206,15 +208,50 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 		}
 	}
 
+	unified := diffBuilder.String()
+	linesAdded, linesRemoved := countUnifiedDiffLines(unified)
+
+	// Generated is left as the zero value here. The caller (Service,
+	// using its injected clock) stamps it before returning the result
+	// to API consumers. Keeping the diff package clock-free keeps it a
+	// pure data-shaping module that tests can exercise without a clock.
 	return &types.DiffResult{
-		SandboxID:     s.ID,
-		Files:         sortedChanges,
-		UnifiedDiff:   diffBuilder.String(),
-		Generated:     time.Now(),
-		TotalAdded:    added,
-		TotalDeleted:  deleted,
-		TotalModified: modified,
+		SandboxID:   s.ID,
+		Files:       sortedChanges,
+		UnifiedDiff: unified,
+		Stats: types.DiffStats{
+			FilesChanged:  added + modified + deleted,
+			FilesAdded:    added,
+			FilesModified: modified,
+			FilesDeleted:  deleted,
+			LinesAdded:    linesAdded,
+			LinesRemoved:  linesRemoved,
+			TotalBytes:    totalBytes,
+		},
 	}, nil
+}
+
+// countUnifiedDiffLines counts added/removed content lines in a unified diff,
+// excluding the `+++`/`---` file headers.
+func countUnifiedDiffLines(unified string) (added, removed int) {
+	for _, line := range strings.Split(unified, "\n") {
+		if len(line) == 0 {
+			continue
+		}
+		switch line[0] {
+		case '+':
+			if strings.HasPrefix(line, "+++") {
+				continue
+			}
+			added++
+		case '-':
+			if strings.HasPrefix(line, "---") {
+				continue
+			}
+			removed++
+		}
+	}
+	return added, removed
 }
 
 // diffNewFile generates a diff for a newly added file.
@@ -692,9 +729,10 @@ type Patcher struct {
 	runner CommandRunner
 }
 
-// NewPatcher creates a new patcher with the default command runner.
-func NewPatcher() *Patcher {
-	return &Patcher{runner: DefaultCommandRunner()}
+// NewPatcher creates a new patcher with a CommandRunner backed by the
+// supplied process.Starter (Round 4 Phase 7).
+func NewPatcher(starter process.Starter) *Patcher {
+	return &Patcher{runner: NewExecCommandRunner(starter)}
 }
 
 // NewPatcherWithRunner creates a patcher with a custom command runner.
@@ -876,13 +914,6 @@ func (p *Patcher) isGitRepo(ctx context.Context, dir string) bool {
 	return result.Err == nil
 }
 
-// isGitRepo is a package-level helper that uses the default command runner.
-// For testable code, use Patcher.isGitRepo instead.
-func isGitRepo(dir string) bool {
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--git-dir")
-	return cmd.Run() == nil
-}
-
 // CopyChanges copies changes from the sandbox upper layer to the target directory.
 func CopyChanges(ctx context.Context, s *types.Sandbox, changes []*types.FileChange, targetDir string) error {
 	for _, change := range changes {
@@ -937,8 +968,10 @@ func copyFile(src, dst string) error {
 
 // GenerateFileDiff creates a diff for a single file given its ID.
 // pathPrefix is optional; if non-empty, it is prepended to file paths in diff headers.
-func GenerateFileDiff(ctx context.Context, s *types.Sandbox, change *types.FileChange, pathPrefix string) (string, error) {
-	gen := NewGenerator()
+// starter routes diff/git/patch invocations through the canonical exec
+// seam (Round 4 Phase 7).
+func GenerateFileDiff(ctx context.Context, starter process.Starter, s *types.Sandbox, change *types.FileChange, pathPrefix string) (string, error) {
+	gen := NewGenerator(starter)
 
 	switch change.ChangeType {
 	case types.ChangeTypeAdded:
@@ -1204,68 +1237,8 @@ func GetHunksForFile(diff string, filePath string) []*ParsedHunk {
 
 // --- Conflict Detection (OT-P2-002) ---
 
-// GetGitCommitHash returns the current HEAD commit hash for a git repository.
-// Returns empty string if the directory is not a git repo or git is unavailable.
-func GetGitCommitHash(ctx context.Context, repoDir string) (string, error) {
-	if !isGitRepo(repoDir) {
-		return "", nil // Not a git repo, no commit hash available
-	}
-
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "rev-parse", "HEAD")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to get git commit hash: %w", err)
-	}
-
-	return strings.TrimSpace(stdout.String()), nil
-}
-
-// CheckRepoChanged compares the current repo commit hash against a base hash.
-// Returns true if the repo has changed since the base hash was recorded.
-// Returns false if either hash is empty (non-git repo) or they match.
-func CheckRepoChanged(ctx context.Context, repoDir, baseHash string) (bool, string, error) {
-	if baseHash == "" {
-		return false, "", nil // No base hash to compare against
-	}
-
-	currentHash, err := GetGitCommitHash(ctx, repoDir)
-	if err != nil {
-		return false, "", err
-	}
-
-	if currentHash == "" {
-		return false, "", nil // Not a git repo anymore
-	}
-
-	return currentHash != baseHash, currentHash, nil
-}
-
-// GetChangedFilesSinceCommit returns files changed in the repo since a specific commit.
-// This helps identify which files in a sandbox might have conflicts.
-func GetChangedFilesSinceCommit(ctx context.Context, repoDir, baseCommit string) ([]string, error) {
-	if !isGitRepo(repoDir) || baseCommit == "" {
-		return nil, nil
-	}
-
-	// Get list of files changed since base commit
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "diff", "--name-only", baseCommit+"..HEAD")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to get changed files: %w", err)
-	}
-
-	output := strings.TrimSpace(stdout.String())
-	if output == "" {
-		return nil, nil
-	}
-
-	return strings.Split(output, "\n"), nil
-}
-
 // FindConflictingFiles identifies files that have been modified both in the sandbox
-// and in the canonical repo since sandbox creation.
+// and in the canonical repo since sandbox creation. Pure function — no exec.
 func FindConflictingFiles(sandboxChanges []*types.FileChange, repoChangedFiles []string) []string {
 	sandboxFilePaths := make(map[string]bool)
 	for _, change := range sandboxChanges {
@@ -1291,45 +1264,14 @@ type ConflictCheckResult struct {
 	ConflictingFiles []string // Files changed in both sandbox and repo
 }
 
-// CheckForConflicts performs a comprehensive conflict detection check.
-// This should be called before approving changes to detect potential issues.
-func CheckForConflicts(ctx context.Context, s *types.Sandbox, sandboxChanges []*types.FileChange) (*ConflictCheckResult, error) {
-	result := &ConflictCheckResult{
-		BaseCommitHash: s.BaseCommitHash,
-	}
-
-	// If no base commit hash, we can't detect conflicts
-	if s.BaseCommitHash == "" {
-		return result, nil
-	}
-
-	// Check if repo has changed
-	changed, currentHash, err := CheckRepoChanged(ctx, s.ProjectRoot, s.BaseCommitHash)
-	if err != nil {
-		return nil, err
-	}
-
-	result.HasChanged = changed
-	result.CurrentHash = currentHash
-
-	if !changed {
-		return result, nil
-	}
-
-	// Get list of files changed in repo
-	repoChangedFiles, err := GetChangedFilesSinceCommit(ctx, s.ProjectRoot, s.BaseCommitHash)
-	if err != nil {
-		return nil, err
-	}
-	result.RepoChangedFiles = repoChangedFiles
-
-	// Find conflicting files
-	result.ConflictingFiles = FindConflictingFiles(sandboxChanges, repoChangedFiles)
-
-	return result, nil
-}
-
 // --- Git Status Reconciliation ---
+//
+// The package-level git invocation helpers (GetGitCommitHash,
+// CheckRepoChanged, GetChangedFilesSinceCommit, CheckForConflicts,
+// GetUncommittedFiles, GetUncommittedFilePaths, ReconcilePendingWithGit)
+// were removed in Round 4 Phase 7. The corresponding methods on
+// *GitOps cover the same surface and route through CommandRunner /
+// process.Starter, which is the canonical seam.
 
 // GitFileStatus represents the status of a file in git's working tree.
 type GitFileStatus struct {
@@ -1338,78 +1280,6 @@ type GitFileStatus struct {
 	WorkTree   string // State in working tree: M, D, U, or ?
 	IsStaged   bool   // True if file has staged changes
 	IsDirty    bool   // True if file has unstaged changes
-}
-
-// GetUncommittedFiles returns all uncommitted files from git status.
-// This includes both staged and unstaged changes.
-func GetUncommittedFiles(ctx context.Context, repoDir string) ([]GitFileStatus, error) {
-	if !isGitRepo(repoDir) {
-		return nil, nil
-	}
-
-	// Use porcelain format for machine-readable output
-	// Format: XY PATH (or XY PATH -> PATH for renames)
-	cmd := exec.CommandContext(ctx, "git", "-C", repoDir, "status", "--porcelain", "-z")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to get git status: %w", err)
-	}
-
-	output := stdout.String()
-	if output == "" {
-		return nil, nil
-	}
-
-	var files []GitFileStatus
-
-	// Split by null character (from -z flag)
-	entries := strings.Split(output, "\x00")
-	for _, entry := range entries {
-		if len(entry) < 3 {
-			continue
-		}
-
-		// First two chars are the status codes
-		indexState := string(entry[0])
-		workTree := string(entry[1])
-		path := strings.TrimSpace(entry[3:])
-
-		// Handle rename entries (have " -> " in path)
-		if idx := strings.Index(path, " -> "); idx > 0 {
-			path = path[idx+4:] // Use the new path
-		}
-
-		if path == "" {
-			continue
-		}
-
-		status := GitFileStatus{
-			Path:       path,
-			IndexState: indexState,
-			WorkTree:   workTree,
-			IsStaged:   indexState != " " && indexState != "?",
-			IsDirty:    workTree != " " && workTree != "?",
-		}
-		files = append(files, status)
-	}
-
-	return files, nil
-}
-
-// GetUncommittedFilePaths returns just the paths of uncommitted files.
-// This is a convenience wrapper around GetUncommittedFiles.
-func GetUncommittedFilePaths(ctx context.Context, repoDir string) ([]string, error) {
-	files, err := GetUncommittedFiles(ctx, repoDir)
-	if err != nil {
-		return nil, err
-	}
-
-	paths := make([]string, len(files))
-	for i, f := range files {
-		paths[i] = f.Path
-	}
-	return paths, nil
 }
 
 // ReconcileResult contains the result of reconciling pending changes with git status.
@@ -1423,31 +1293,4 @@ type ReconcileResult struct {
 	// NotFound are files in DB that don't exist in git status at all
 	// (either committed or never existed)
 	NotFound []string
-}
-
-// ReconcilePendingWithGit compares database pending files with actual git status.
-// This detects files that were committed outside of workspace-sandbox.
-func ReconcilePendingWithGit(ctx context.Context, repoDir string, pendingPaths []string) (*ReconcileResult, error) {
-	uncommitted, err := GetUncommittedFilePaths(ctx, repoDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get uncommitted files: %w", err)
-	}
-
-	// Build set of uncommitted paths
-	uncommittedSet := make(map[string]bool)
-	for _, p := range uncommitted {
-		uncommittedSet[p] = true
-	}
-
-	result := &ReconcileResult{}
-	for _, pending := range pendingPaths {
-		if uncommittedSet[pending] {
-			result.StillPending = append(result.StillPending, pending)
-		} else {
-			// File is not in uncommitted list - either already committed or deleted
-			result.AlreadyCommitted = append(result.AlreadyCommitted, pending)
-		}
-	}
-
-	return result, nil
 }

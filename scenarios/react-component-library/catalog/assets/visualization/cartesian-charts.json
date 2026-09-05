@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.cartesian-charts",
+    "name": "CartesianCharts",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "visualization",
+    "description": "The line, area, bar, stacked bar, scatter, and histogram family sharing one data, axis, interaction, animation, and accessibility model.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Framework, axes, legends, and states are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "kind": [
+        "line",
+        "area",
+        "bar",
+        "stacked-bar",
+        "scatter",
+        "histogram"
+      ]
+    }
+  },
+  "qualityGates": [
+    "performance"
+  ]
+}

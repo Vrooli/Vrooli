@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.contracts",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:Contracts"
+}

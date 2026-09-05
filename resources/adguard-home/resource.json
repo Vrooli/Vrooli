@@ -1,0 +1,315 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "adguard-home",
+  "storage": {
+    "entries": {
+      "work": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/adguard-home",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/adguard-home",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/adguard-home"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "AdGuard Home work data is bind-mounted to /opt/adguardhome/work by the managed resource.",
+        "budget": {
+          "max_bytes": "10GiB",
+          "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.config/vrooli/resources/adguard-home",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/adguard-home",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/adguard-home"
+        },
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "AdGuard Home configuration is bind-mounted to /opt/adguardhome/conf and contains administrative settings."
+      }
+    }
+  },
+  "display_name": "AdGuard Home",
+  "description": "Managed AdGuard Home DNS filtering and resolver service",
+  "cli": {
+    "enabled": true,
+    "command": "resource-adguard-home",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-adguard-home_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-adguard-home"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native AdGuard Home release bytes are acquired and verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native AdGuard Home release bytes are acquired and verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "Native AdGuard Home release bytes are acquired and verified per target architecture."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        }
+      }
+    }
+  },
+  "category": "dns",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 1024,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "dns",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "dependencies": [],
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/adguard-home",
+        "field": "admin-username",
+        "env": "ADGUARD_HOME_USERNAME",
+        "label": "AdGuard Home admin username",
+        "description": "Administrator username used by resource-local diagnostics and Network Manager when checking AdGuard Home.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/adguard-home",
+        "field": "admin-password",
+        "env": "ADGUARD_HOME_PASSWORD",
+        "label": "AdGuard Home admin password",
+        "description": "Administrator password stored through the Vrooli secret flow; never pass this value to Network Manager directly.",
+        "required": false
+      }
+    ]
+  },
+  "ports": [
+    {
+      "name": "admin",
+      "host": 3000,
+      "protocol": "tcp"
+    },
+    {
+      "name": "dns-tcp",
+      "host_ip": "127.0.0.1",
+      "host": 5353,
+      "protocol": "tcp"
+    },
+    {
+      "name": "dns-udp",
+      "host_ip": "127.0.0.1",
+      "host": 5353,
+      "protocol": "udp"
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:3000/",
+      "expected_status": [
+        200,
+        302,
+        401
+      ],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:3000/",
+      "kind": "liveness",
+      "expected_status": [200, 302, 401],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/AdGuardHome",
+      "version": "0.107.73",
+      "sha256_by_platform": {
+        "linux-amd64": "a3514db3890690a0521b9664dfb761fa6191b29f7225862410e9cb3f8fcab917",
+        "linux-arm64": "b4d802924997f49a44c185c191b85858c1a4ad241f69365ce010848e86f0d3ac",
+        "macos-amd64": "add616e76ad6f0474abcabf169c0fffd8e1f42b7154730a8c06d461303fc5242",
+        "macos-arm64": "12381a70a26392f5c92f62c057777c6f860bc051ee87d2c9b590240e6228f2c5",
+        "windows-amd64": "1447350b855b0248171f8ba131cec6e51390a32fab77b3b036c134565aafd462",
+        "windows-arm64": "62a32579c116be2531611a596c6b50bcb3c84c1d34c9482392a65e38b60125ca"
+      },
+      "bundle_artifact": "adguard-home_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "GPL-3.0-or-later",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.73/AdGuardHome_linux_amd64.tar.gz", "sha256": "bf61a592ce8edeb38b3aff19033a90e704f733cb08114fa52730584a52727ee4", "archive": "tar.gz", "layout": "file", "bin_path": "AdGuardHome/AdGuardHome"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.73/AdGuardHome_linux_arm64.tar.gz", "sha256": "8b9e3a132939a460e78085ae985f79ed3119cd14945801e615c4f5f8d0a55bb9", "archive": "tar.gz", "layout": "file", "bin_path": "AdGuardHome/AdGuardHome"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.73/AdGuardHome_darwin_amd64.zip", "sha256": "329e1e1f0b6c8aeb9fabec41b8b5be645ce3228c46f287a0aecab35751c7b7b0", "archive": "zip", "layout": "file", "bin_path": "AdGuardHome/AdGuardHome"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.73/AdGuardHome_darwin_arm64.zip", "sha256": "5d3cf176b9273ac25dee49e493fcb9d799d2f3a2b6d24aec91aa6ae43c61b9c2", "archive": "zip", "layout": "file", "bin_path": "AdGuardHome/AdGuardHome"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.73/AdGuardHome_windows_amd64.zip", "sha256": "ccf42cb10887447b84497da99e756acee755794e01ede60bf6c33ef266bc0b69", "archive": "zip", "layout": "file", "bin_path": "AdGuardHome/AdGuardHome.exe"},
+        {"when": {"os": "windows", "arch": "arm64"}, "url": "https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.73/AdGuardHome_windows_arm64.zip", "sha256": "a60171565d7b503c638ad1f4320e935db8448f2d82d631fcfd2b9e0770815047", "archive": "zip", "layout": "file", "bin_path": "AdGuardHome/AdGuardHome.exe"}
+      ]
+    },
+    "attach_health_path": "/",
+    "arguments": [
+      "--config",
+      "${RESOURCE_CONFIG_DIR}/AdGuardHome.yaml",
+      "--work-dir",
+      "${RESOURCE_DATA_DIR}"
+    ],
+    "environment": {
+      "ADGUARD_HOME_BASE_URL": "http://localhost:${RESOURCE_PORT_ADMIN}",
+      "ADGUARD_HOME_CREDENTIAL_REF": "vrooli/adguard-home"
+    },
+    "config": {
+      "path": "AdGuardHome.yaml",
+      "content": "http:\n  address: 127.0.0.1:${RESOURCE_PORT_ADMIN}\ndns:\n  bind_hosts:\n    - 127.0.0.1\n  port: ${RESOURCE_PORT_DNS_TCP}\n"
+    }
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for adguard-home.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "ADGUARD_HOME_HOST": "localhost",
+      "ADGUARD_HOME_DNS_BIND_IP": "127.0.0.1"
+    },
+    "from_ports": {
+      "ADGUARD_HOME_PORT": "admin",
+      "ADGUARD_HOME_DNS_TCP_PORT": "dns-tcp",
+      "ADGUARD_HOME_DNS_UDP_PORT": "dns-udp"
+    },
+    "from_runtime_env": [
+      "ADGUARD_HOME_CREDENTIAL_REF"
+    ],
+    "derived": {
+      "ADGUARD_HOME_URL": {
+        "template": "http://$ADGUARD_HOME_HOST:$ADGUARD_HOME_PORT"
+      },
+      "ADGUARD_HOME_BASE_URL": {
+        "template": "http://$ADGUARD_HOME_HOST:$ADGUARD_HOME_PORT"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 30,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 30,
+    "stop_timeout_seconds": 30,
+    "retries": 2
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": false
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

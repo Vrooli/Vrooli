@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "name": "device-control-session-kill",
+    "description": "Acquire a device lease and verify that the dashboard exposes an immediate kill action.",
+    "requirement": "DVC-P1-008",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "sessions", "requires_confirmation": "true", "routed_isolation": "true" },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "id": "5fa0f2cb-e28e-407e-9dfd-965f42ae0bb8",
+  "project_id": "device-control",
+  "name": "device-control-session-kill",
+  "folder_path": "/bas/cases/02-operator",
+  "description": "The operator can see and kill a held device lease.",
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-dashboard", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "@scenario/self", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open Device Control" } } },
+      { "id": "wait-acquire", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.dashboardAcquire", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Lease control renders" } } },
+      { "id": "acquire", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.dashboardAcquire" }, "metadata": { "label": "Acquire lease" } } },
+      { "id": "wait-kill", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/pages.dashboardSessionKill", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Kill control renders" } } },
+      { "id": "kill", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/pages.dashboardSessionKill" }, "metadata": { "label": "Kill held lease" } } }
+    ],
+    "edges": [
+      { "source": "open-dashboard", "target": "wait-acquire" },
+      { "source": "wait-acquire", "target": "acquire" },
+      { "source": "acquire", "target": "wait-kill" },
+      { "source": "wait-kill", "target": "kill" }
+    ]
+  }
+}

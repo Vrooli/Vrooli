@@ -1,0 +1,218 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "content-desk",
+  "generator": "v1.0.0",
+  "manifest_hash": "c0358bae410811f6142336ac13f476c893780b7f9c6b2c7f646087aaec6b6a27",
+  "commands": [
+    {
+      "path": "artifacts approve",
+      "group": "artifacts",
+      "command": "approve",
+      "binding": "ArtifactsService.ApproveDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "artifacts create",
+      "group": "artifacts",
+      "command": "create",
+      "binding": "ArtifactsService.CreateDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "artifacts list",
+      "group": "artifacts",
+      "command": "list",
+      "binding": "ArtifactsService.ListDrafts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "artifacts revise",
+      "group": "artifacts",
+      "command": "revise",
+      "binding": "ArtifactsService.UpdateDraftBody",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "artifacts submit-release",
+      "group": "artifacts",
+      "command": "submit-release",
+      "binding": "ArtifactsService.SubmitReleaseDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "artifacts transition",
+      "group": "artifacts",
+      "command": "transition",
+      "binding": "ArtifactsService.TransitionDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "campaigns activate",
+      "group": "campaigns",
+      "command": "activate",
+      "binding": "CampaignsService.ActivateCampaign",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "campaigns create",
+      "group": "campaigns",
+      "command": "create",
+      "binding": "CampaignsService.CreateCampaign",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "campaigns launch-assets",
+      "group": "campaigns",
+      "command": "launch-assets",
+      "binding": "CampaignsService.GetLaunchAssets",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "campaigns list",
+      "group": "campaigns",
+      "command": "list",
+      "binding": "CampaignsService.ListCampaigns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "claims cite",
+      "group": "claims",
+      "command": "cite",
+      "binding": "ClaimsService.CiteClaim",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "claims create",
+      "group": "claims",
+      "command": "create",
+      "binding": "ClaimsService.CreateClaim",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "claims list",
+      "group": "claims",
+      "command": "list",
+      "binding": "ClaimsService.ListClaims",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "claims list-draft",
+      "group": "claims",
+      "command": "list-draft",
+      "binding": "ClaimsService.ListDraftClaims",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "claims sweep",
+      "group": "claims",
+      "command": "sweep",
+      "binding": "ClaimsService.SweepClaims",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "claims verify",
+      "group": "claims",
+      "command": "verify",
+      "binding": "ClaimsService.VerifyClaim",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger contamination",
+      "group": "ledger",
+      "command": "contamination",
+      "binding": "LedgerService.ListContaminatedPublishRecords",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger coverage",
+      "group": "ledger",
+      "command": "coverage",
+      "binding": "LedgerService.ListCoverage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger list",
+      "group": "ledger",
+      "command": "list",
+      "binding": "LedgerService.ListPublishRecords",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger remediate",
+      "group": "ledger",
+      "command": "remediate",
+      "binding": "LedgerService.CreateRemediation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger remediations",
+      "group": "ledger",
+      "command": "remediations",
+      "binding": "LedgerService.ListRemediations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger resolve-remediation",
+      "group": "ledger",
+      "command": "resolve-remediation",
+      "binding": "LedgerService.ResolveRemediation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "posttypes list",
+      "group": "posttypes",
+      "command": "list",
+      "binding": "PosttypesService.ListPostTypes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "posttypes register",
+      "group": "posttypes",
+      "command": "register",
+      "binding": "PosttypesService.RegisterPostType",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "review list",
+      "group": "review",
+      "command": "list",
+      "binding": "ReviewService.ListReviewRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "review record",
+      "group": "review",
+      "command": "record",
+      "binding": "ReviewService.RecordReviewRun",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    }
+  ]
+}

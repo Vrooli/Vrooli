@@ -1,0 +1,137 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.analytics-page",
+    "name": "AnalyticsPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The analytics workspace with date ranges, comparison periods, metric selection, charts, tables, annotations, partial failure, export, and responsive hierarchy.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, description, and actions are the shared header."
+      },
+      {
+        "asset": "visualization.chart",
+        "reason": "Plots use the shared chart framework and its accessible equivalents."
+      },
+      {
+        "asset": "patterns.export-workflow",
+        "reason": "Export uses the shared workflow."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "date-time-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TSeries"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "density-adaptive-layout",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "controls",
+      "purpose": "Date range, comparison, and metric selection.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "summary",
+      "purpose": "Headline figures for the selected period.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "charts",
+      "purpose": "The plotted series.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "visualization"
+    },
+    {
+      "id": "breakdown",
+      "purpose": "Tabular detail behind the charts.",
+      "required": false,
+      "lifecycle": "async",
+      "accepts": "data-display"
+    }
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

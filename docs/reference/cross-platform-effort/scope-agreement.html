@@ -1,0 +1,792 @@
+<title>Cross-Platform Effort — Scope Agreement</title>
+<style>
+  :root {
+    --ground:#EEF0F3; --surface:#FFFFFF; --surface-2:#F6F7F9;
+    --ink:#14181E; --ink-2:#5A626D; --ink-3:#878F9A;
+    --rule:#D5DAE1; --rule-strong:#B9C1CB;
+    --accent:#1B5A8A; --accent-soft:#E3EDF5;
+    --ok:#2C7A57; --ok-soft:#E0EFE8;
+    --warn:#A96B12; --warn-soft:#F6EBD8;
+    --crit:#A93A2C; --crit-soft:#F7E4E1;
+    --none:#7E8792; --none-soft:#E7EAEE;
+    --shadow:0 1px 2px rgba(20,24,30,.06), 0 8px 24px -16px rgba(20,24,30,.28);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wrap: 1120px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128;
+      --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+      --rule:#262C35; --rule-strong:#37404B;
+      --accent:#74AEDD; --accent-soft:#17293A;
+      --ok:#58BC91; --ok-soft:#12291F;
+      --warn:#DBA24A; --warn-soft:#2B2013;
+      --crit:#E77A68; --crit-soft:#2E1917;
+      --none:#7E8792; --none-soft:#1E232A;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128;
+    --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+    --rule:#262C35; --rule-strong:#37404B;
+    --accent:#74AEDD; --accent-soft:#17293A;
+    --ok:#58BC91; --ok-soft:#12291F;
+    --warn:#DBA24A; --warn-soft:#2B2013;
+    --crit:#E77A68; --crit-soft:#2E1917;
+    --none:#7E8792; --none-soft:#1E232A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px; }
+
+  .masthead { border-bottom:1px solid var(--rule); background:var(--surface); }
+  .masthead .wrap { padding-top:44px; padding-bottom:36px; }
+  .kicker { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent); margin:0 0 18px; }
+  h1 { font-family:var(--mono); font-weight:600; letter-spacing:-.028em;
+       font-size:clamp(28px,4vw,42px); line-height:1.1; margin:0 0 18px;
+       text-wrap:balance; max-width:22ch; }
+  .standfirst { font-size:18px; color:var(--ink-2); max-width:68ch; margin:0; }
+  .standfirst strong { color:var(--ink); font-weight:600; }
+  .meta { margin-top:26px; padding-top:18px; border-top:1px solid var(--rule);
+          font-family:var(--mono); font-size:12px; color:var(--ink-3);
+          display:flex; flex-wrap:wrap; gap:8px 26px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1px;
+           background:var(--rule); border:1px solid var(--rule); margin-top:34px; }
+  .stat { background:var(--surface); padding:18px 20px; }
+  .stat .n { font-family:var(--mono); font-size:27px; font-weight:600; letter-spacing:-.03em;
+             font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat .l { font-size:13px; color:var(--ink-2); margin-top:5px; }
+  .n.ok{color:var(--ok);} .n.warn{color:var(--warn);} .n.crit{color:var(--crit);} .n.acc{color:var(--accent);}
+
+  section { padding:54px 0; border-bottom:1px solid var(--rule); }
+  section:last-of-type { border-bottom:0; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+             color:var(--ink-3); display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .eyebrow::after { content:""; flex:1; height:1px; background:var(--rule); }
+  h2 { font-family:var(--mono); font-weight:600; font-size:clamp(20px,2.3vw,26px);
+       letter-spacing:-.022em; margin:0 0 14px; text-wrap:balance; }
+  h3 { font-family:var(--sans); font-weight:650; font-size:16.5px; margin:28px 0 8px; letter-spacing:-.008em; }
+  p { margin:0 0 14px; max-width:74ch; }
+  .lede { font-size:17px; color:var(--ink-2); max-width:70ch; }
+  ul { margin:0 0 14px; padding-left:20px; max-width:74ch; }
+  li { margin-bottom:7px; }
+  code { font-family:var(--mono); font-size:.875em; background:var(--surface-2);
+         border:1px solid var(--rule); border-radius:3px; padding:1px 5px; color:var(--ink); }
+  .m { font-family:var(--mono); font-size:.9em; }
+
+  .chip { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10.5px;
+          letter-spacing:.05em; text-transform:uppercase; font-weight:600; padding:2px 7px;
+          border-radius:3px; white-space:nowrap; }
+  .chip::before { content:""; width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .c-fix{color:var(--crit);background:var(--crit-soft);}
+  .c-ref{color:var(--accent);background:var(--accent-soft);}
+  .c-enh{color:var(--ok);background:var(--ok-soft);}
+  .c-wn{color:var(--warn);background:var(--warn-soft);}
+  .c-no{color:var(--none);background:var(--none-soft);}
+  .chip.flat::before{display:none;}
+
+  .scroll { overflow-x:auto; border:1px solid var(--rule); background:var(--surface); margin:20px 0 8px; }
+  table { border-collapse:collapse; width:100%; min-width:700px; font-size:13.5px; }
+  th,td { text-align:left; padding:9px 13px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+             color:var(--ink-3); font-weight:600; background:var(--surface-2);
+             border-bottom:1px solid var(--rule-strong); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.id { font-family:var(--mono); font-size:12px; color:var(--ink-3); white-space:nowrap; width:1%; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.k { font-family:var(--mono); font-size:12.5px; }
+  .caption { font-size:12.5px; color:var(--ink-3); margin:0 0 4px; max-width:74ch; }
+
+  .callout { border:1px solid var(--rule); border-left:3px solid var(--accent); background:var(--surface);
+             padding:18px 20px; margin:22px 0; box-shadow:var(--shadow); }
+  .callout.crit { border-left-color:var(--crit); }
+  .callout.ok { border-left-color:var(--ok); }
+  .callout.warn { border-left-color:var(--warn); }
+  .callout p:last-child { margin-bottom:0; }
+  .callout .t { font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+                color:var(--ink-3); margin:0 0 8px; }
+
+  .goals { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .goal { background:var(--surface); padding:17px 20px; display:grid; gap:8px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:820px){ .goal{ grid-template-columns:44px minmax(0,1fr); gap:20px; } }
+  .goal .g { font-family:var(--mono); font-size:19px; font-weight:600; color:var(--ink-3); letter-spacing:-.03em; }
+  .goal .h { font-weight:650; font-size:15.5px; margin-bottom:4px; }
+  .goal .d { color:var(--ink-2); font-size:14.5px; }
+  .goal .d b { color:var(--ink); font-weight:650; }
+
+  .ws { border:1px solid var(--rule); background:var(--surface); margin:14px 0; box-shadow:var(--shadow); }
+  .ws > summary { cursor:pointer; padding:15px 20px; display:flex; align-items:center; gap:12px;
+                  list-style:none; font-weight:650; font-size:15.5px; flex-wrap:wrap; }
+  .ws > summary::-webkit-details-marker { display:none; }
+  .ws > summary::after { content:"+"; margin-left:auto; font-family:var(--mono); color:var(--ink-3); font-size:18px; line-height:1; }
+  .ws[open] > summary::after { content:"–"; }
+  .ws[open] > summary { border-bottom:1px solid var(--rule); }
+  .ws .code { font-family:var(--mono); font-size:12px; color:var(--accent); background:var(--accent-soft);
+              padding:2px 8px; border-radius:3px; font-weight:600; }
+  .ws .cnt { font-family:var(--mono); font-size:11.5px; color:var(--ink-3); font-weight:400; }
+  .ws .inner { padding:4px 0 0; }
+  .ws .owner { font-size:13.5px; color:var(--ink-2); background:var(--surface-2);
+               border-bottom:1px solid var(--rule); padding:11px 20px; }
+  .ws .owner b { color:var(--ink); }
+
+  .dec { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .dc { background:var(--surface); padding:16px 20px; display:grid; gap:8px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:820px){ .dc{ grid-template-columns:112px minmax(0,1fr); gap:22px; } }
+  .dc .st { font-family:var(--mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase; font-weight:600; }
+  .dc .st.open { color:var(--warn); }
+  .dc .st.settled { color:var(--ok); }
+  .dc .q { font-weight:650; font-size:15px; margin-bottom:5px; }
+  .dc .a { color:var(--ink-2); font-size:14.5px; }
+  .dc .a b { color:var(--ink); font-weight:650; }
+
+  .dod { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:18px; }
+  .dd { background:var(--surface); padding:13px 18px; display:flex; gap:13px; align-items:flex-start; }
+  .dd .box { font-family:var(--mono); color:var(--ink-3); font-size:13.5px; flex:none; margin-top:1px; }
+  .dd .txt { font-size:14.5px; }
+  .dd .txt small { display:block; color:var(--ink-3); font-size:12.5px; margin-top:2px; }
+
+  footer { padding:36px 0 60px; color:var(--ink-3); }
+  footer .wrap { display:flex; flex-wrap:wrap; gap:10px 24px; font-family:var(--mono); font-size:12px; }
+
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Scope agreement &middot; companion to the readiness audit &middot; 2026-08-07</p>
+    <h1>Cross-platform, but the refactor is the point.</h1>
+    <p class="standfirst">
+      Everything from four rounds of investigation, consolidated into one scope. This is not a plan —
+      it is the agreement about <strong>what we are trying to achieve, what is in and out, and what
+      "done" means</strong>, so the plan that follows has nothing to rediscover.
+      The organizing claim: <strong>getting to a Mac mini is achievable without any of this
+      refactoring, and doing it that way would make the codebase worse.</strong> The portability work
+      is the forcing function; the consolidation is the deliverable.
+    </p>
+    <div class="stats">
+      <div class="stat"><div class="n acc">59</div><div class="l">scoped items</div></div>
+      <div class="stat"><div class="n crit">15</div><div class="l">fix — something is broken</div></div>
+      <div class="stat"><div class="n ok">22</div><div class="l">refactor — consolidate to one</div></div>
+      <div class="stat"><div class="n warn">22</div><div class="l">enhance — new capability</div></div>
+    </div>
+    <div class="meta">
+      <span>10 workstreams</span><span>all decisions settled</span><span>3 tiers of done</span>
+      <span>rev 4 — ready to plan against</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <p class="eyebrow">Goals</p>
+  <h2>What we are actually trying to achieve</h2>
+  <p class="lede">
+    Four goals, ordered. Each later one depends on the ones above it, which is why the sequence at the
+    end is not arbitrary.
+  </p>
+
+  <div class="goals">
+    <div class="goal">
+      <div class="g">G1</div>
+      <div>
+        <div class="h">Be able to prove a platform claim</div>
+        <div class="d">Today no verdict in the system records which OS produced it, so "it works on
+          macOS" is unfalsifiable. <b>Everything else is unmeasurable until this is true.</b>
+          The Mac mini is the instrument, not the milestone.</div>
+      </div>
+    </div>
+    <div class="goal">
+      <div class="g">G2</div>
+      <div>
+        <div class="h">One seam per platform concern, enforced</div>
+        <div class="d">Not "make it work on macOS" — <b>make it structurally impossible to write
+          non-portable code without declaring it.</b> Eight process implementations become one; the
+          rule that keeps it one lives in a validation scenario, not in review discipline.</div>
+      </div>
+    </div>
+    <div class="goal">
+      <div class="g">G3</div>
+      <div>
+        <div class="h">Every declaration has one authority</div>
+        <div class="d">Platform support, requirement level, package adoption, test architecture —
+          each currently has multiple sources that can disagree, and in several cases already do.
+          <b>One vocabulary per concern, and a contract check that fails when a claim outruns its
+          evidence.</b></div>
+      </div>
+    </div>
+    <div class="goal">
+      <div class="g">G4</div>
+      <div>
+        <div class="h">A new developer inherits a floor, not a toolbox</div>
+        <div class="d">The project is being prepared for other developers. <b>The committed manifest
+          should express what the project needs; the operator's own file should express what the
+          operator wants.</b> Both layers exist; today everything is in the wrong one.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout ok">
+    <p class="t">The through-line</p>
+    <p>
+      Three of these four goals are consolidation goals that happen to be prerequisites for
+      portability. That is the shape of this effort: <b>the cross-platform target is what makes the
+      duplication expensive enough to justify removing.</b> Eight process seams were survivable while
+      there was one OS. They are not survivable at four.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Boundaries</p>
+  <h2>In scope, out of scope</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>In scope</th><th>Out of scope</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>The developer install path — <code>curl | sh</code> → <code>setup</code> → <code>develop</code> on any OS</td>
+          <td>End-user distribution. <span class="m">scenario-to-desktop</span> owns bundling and already has the signing infrastructure.</td>
+        </tr>
+        <tr>
+          <td>Control plane, packages, resources, tools, safeguards, templates</td>
+          <td>Rewriting the 135 scenarios. They get fixed where broken and migrated where they duplicate shared code — not redesigned.</td>
+        </tr>
+        <tr>
+          <td>Consolidating validation into the existing health-scenario fleet</td>
+          <td>New CI infrastructure. GitHub Actions shrinks to three jobs; Test Genie owns the rest.</td>
+        </tr>
+        <tr>
+          <td>Making Docker an explicit, justified developer prerequisite</td>
+          <td>Moving Postgres/Redis off Docker. <b>Settled: acceptable for now</b> — revisit when a need arises.</td>
+        </tr>
+        <tr>
+          <td>Code signing readiness for generated desktop apps</td>
+          <td>Signing the <code>vrooli</code> control-plane binary. <code>curl | sh</code> sets no quarantine attribute; Gatekeeper never engages.</td>
+        </tr>
+        <tr>
+          <td>Bridge-pushed provisioning for constrained targets</td>
+          <td>Publishing pre-baked config bundles. Revisit when profiles ship and the artifact count becomes the profile count.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Scope inventory</p>
+  <h2>All 48 items, nothing dropped</h2>
+  <p class="lede">
+    Every finding from the audit, assigned to a workstream and tagged by the kind of work it is.
+    Each workstream names the scenario that already owns the enforcement.
+  </p>
+  <p style="font-size:13.5px;color:var(--ink-3)">
+    <span class="chip c-fix">fix</span> something is broken or contradictory &nbsp;
+    <span class="chip c-ref">refactor</span> consolidate duplicates to one authority &nbsp;
+    <span class="chip c-enh">enhance</span> new capability
+  </p>
+
+  <details class="ws" open>
+    <summary><span class="code">WS-A</span> Broken now <span class="cnt">— 8 items · unblocks all measurement</span></summary>
+    <div class="owner">Owner: <b>the owning scenarios</b> · no new infrastructure needed</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">A1</td><td>Nine scenario API modules do not compile on linux/amd64 — <span class="m">data-tools, elo-swipe, flow-verifier, picker-wheel, product-manager-agent, scenario-auditor, seo-optimizer, text-tools, time-tools</span>. Mostly <code>test_helpers.go</code> referencing removed handlers.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">A2</td><td><code>livedesktop.NewLinuxBackend</code> undefined on darwin and windows — vrooli-emulator has only <code>platform_linux.go</code>.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">A3</td><td><code>syscall.SysProcAttr.Setpgid</code> ×3 in web-console <code>pty_tmux.go</code>.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">A4</td><td><code>syscall.Flock</code> / <code>LOCK_EX</code> in git-control-tower <code>internal/baseline/storage.go</code>.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">A5</td><td>Bump go-redis past v9.15.0 — upstream Windows break, via scenario-dependency-analyzer.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">A6</td><td>Converge <code>modernc.org/sqlite</code> (five pinned versions) and retire two modules still on cgo <code>mattn/go-sqlite3</code>.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">A7</td><td><b>Delete all seven duplicate tool entries</b> — <code>internal/tools/{vault,codex,grok,k6,kopia,opencode,claude}</code>. Vault is the active contradiction (<code>host-required</code> as a tool vs <code>vendorable</code>/<code>managed-service</code> as a resource); the other six are consistent today but are unwired parallel declarations free to drift the same way.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">A8</td><td>Docker is declared <code>required: true</code> in all three environments but <code>bootstrapAwareRequirements</code> silently drops it. One of the two is wrong.</td><td><span class="chip c-fix">fix</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-B</span> The platform seam <span class="cnt">— 14 items · the largest refactor · B11–B14 added by the Windows decision</span></summary>
+    <div class="owner">Owner: <b>quality-health</b> for the rules — already accepts <code>ValidationTargetKind: "project"</code></div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">B1</td><td>Create one platform package owning process spawn/attributes, signals, process trees, file locking, service install (systemd/launchd/SCM), elevation, path resolution.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B2</td><td>Migrate <b>8 duplicate process implementations</b> onto it — buildinfo, lifecycle, maintenance, process, runtimesupervisor, scenarioexec, setup, plus agent-manager and scenario-to-desktop.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">B3</td><td>Merge <b>9 <code>internal/host*</code> packages</b> into one tree; 8 of the 9 currently have no package doc.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">B4</td><td>Drive <b>397 inline <code>runtime.GOOS</code> branches</b> (215 files) below 50 by moving OS logic behind the seam.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">B5</td><td><code>service_install_linux.go</code> writes a systemd unit unconditionally, never consulting the <code>SupportsSystemd</code> fact it already has. No non-systemd fallback exists.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">B6</td><td>Sweep for other collected-but-unconsulted host facts — <code>IsHeadless</code> and <code>IsWSL</code> are used at 4 sites each against PackageManager's 80.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">B7</td><td><b>72 files reference <code>/proc</code></b> outside a <code>_linux.go</code> file.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">B8</td><td>20 of 23 safeguards are Linux-only and declare it honestly — they need a typed <code>unsupported-on-platform</code> result rather than erroring or silently no-oping.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B9</td><td>Foundation ban rules in quality-health: no <code>syscall.*</code> or <code>golang.org/x/sys</code> outside the seam; no <code>exec.Command("bash"\|"sh")</code>; no bare <code>runtime.GOOS</code> comparison. Exceptions declared in data with a rationale.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B10</td><td>Expand golangci beyond its current 8 linters — <code>depguard</code>, <code>forbidigo</code>, <code>importas</code>. One ast-grep rule currently guards 3.8M lines.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B11</td><td><b>Windows service control (SCM)</b> as a third service-install backend alongside systemd and launchd. <code>runtimesupervisor</code> has darwin and linux only.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B12</td><td><b>Graceful shutdown without SIGTERM.</b> 85 <code>SIGTERM</code> and 69 <code>SIGKILL</code> sites assume POSIX signals; Windows needs <code>CTRL_BREAK_EVENT</code> or an explicit shutdown channel behind the seam.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B13</td><td><b>Job Objects for process groups.</b> PGID semantics are assumed throughout; Windows has no equivalent and needs the seam to express "kill this tree" abstractly.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">B14</td><td>Flip <code>SupportsDevelop</code> to true for Windows and unskip the <b>45 e2e tests</b> that currently say "relies on SIGTERM; not portable to Windows."</td><td><span class="chip c-fix">fix</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-C</span> Requirements &amp; config model <span class="cnt">— 8 items</span></summary>
+    <div class="owner">Owner: <b>structure-health</b> for the contract check · both layers already exist</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">C1</td><td>Triage all <b>19 project hostTools</b> — every one is <code>required: true</code>, which structurally bypasses the opt-in layer. Proposed floor: git, curl, jq, yq, go.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">C2</td><td>Move operator preferences (<span class="m">java, quint, python, protoc + 3 plugins</span>) into <code>operator-state.json</code> as <code>host_tools.&lt;name&gt;.opted_in</code>.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">C3</td><td><code>rasdaemon</code>, <code>mcelog</code>, <code>kdump-tools</code> are required in the <b>minimal</b> profile. Linux kernel RAS tooling with no macOS or Windows equivalent — gate on a host fact or drop.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">C4</td><td>Populate <code>resources</code> and <code>scenarios</code> in operator-state — the schema supports both and neither is used, so resource and scenario selection has no personal layer today.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">C5</td><td>Require a written rationale for project-level <code>required: true</code> and for <code>bundling: host-required</code> — 40 of 48 tools and 24 of 25 resources take that value with nothing justifying it.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">C6</td><td>Settle why <code>node</code> is <code>host-required</code> while <code>pnpm</code> is <code>vendorable</code> — same toolchain, no stated reason.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">C7</td><td><b>Settled:</b> the resource registry is the authority for third-party binaries a resource wraps. Add a structure-health rule rejecting a new <code>internal/tools/&lt;name&gt;</code> that collides with a <code>resources/&lt;name&gt;</code>, so the deletion in A7 stays done.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">C8</td><td>Reconcile the two Homebrew policies — <code>setup</code> auto-installs it, Bridge deliberately refuses with a documented rationale. Record the decision once in the host-requirement spec.</td><td><span class="chip c-fix">fix</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-D</span> Compatibility source of truth <span class="cnt">— 5 items</span></summary>
+    <div class="owner">Owner: <b>structure-health</b> · already covers all eight contract kinds</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">D1</td><td>Adopt the <code>platform-support.md</code> evidence-tier vocabulary as the schema across all <b>7 authorities</b> — it is the only one that separates "we built it" from "we proved it."</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">D2</td><td>Collapse the <b>3 per-resource platform axes</b> (<code>platforms</code>, <code>portability_tier</code>, <code>deployment.profiles.*.support</code>) into one. A resource can hold three inconsistent answers today.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">D3</td><td>Make code the source and docs a projection. <code>SupportsSetup</code>/<code>SupportsDevelop</code> are runtime facts; README and matrix should be generated.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">D4</td><td>Contract check that fails when a claim outruns its evidence — the check that would have caught <code>runtime_windows.go: SupportsSetup: true</code> against the README's "not supported."</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">D5</td><td>Delete stale prose. No existing declaration is treated as a ceiling on what the project is trying to reach.</td><td><span class="chip c-fix">fix</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-E</span> Test scaffolding &amp; testkit <span class="cnt">— 8 items · ~336 files consolidated</span></summary>
+    <div class="owner">Owner: <b>unit-health</b> · charter already covers test architecture; substrate in 113 scenarios</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">E1</td><td>Flip <code>scenario_adoptable</code> to true in <code>packages/testkit-go/.vrooli/package.json</code>, add <code>scenario_test</code> to <code>allowed_consumers</code>, declare <code>go_module_replace</code>. It is the only package in the repo with adoption disabled.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">E2</td><td>Give testkit-go a <code>go.mod</code>, matching api-core and cli-core — the reason 226 scenario modules can import those and not this one.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">E3</td><td>Keep the four <code>internal/</code>-dependent fixtures (scenariofixture, processfixture, packagefixture, resourcefixture) out of the scenario-facing surface. The split already exists.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">E4</td><td>Add scaffolding subpackages — <code>clock</code>, <code>assertx</code>, <code>dbtest</code>, <code>clitest</code> — and migrate. Start with <code>assertx</code>: 46 copies, 1 distinct.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">E5</td><td>Reconcile <code>testutil/db/sqlite.go</code> first — 48 copies, 15 distinct, the only file with real divergence.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">E6</td><td>Add a <code>provides</code> field to the package manifest schema so unit-health derives the ban list from what testkit exports rather than a hardcoded list. <b>The one genuinely new construct in this workstream.</b></td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">E7</td><td>unit-health rule: a scenario hand-rolling a concern a <code>scenario_test</code>-adoptable package provides is a finding, with the ladder rung driven by adoption percentage.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">E8</td><td>Fix the templates that stamp the copies out, or every new scenario keeps adding to the pile.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-F</span> Validation topology <span class="cnt">— 4 items · CI gets smaller</span></summary>
+    <div class="owner">Owner: <b>test-genie</b> + <b>structure-health</b></div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">F1</td><td>Delete the <b>47 inert scenario workflow files</b>. Actions only reads root workflows; they have never executed and they imply coverage that does not exist.</td><td><span class="chip c-fix">fix</span></td></tr>
+      <tr><td class="id">F2</td><td>Shrink GitHub CI to three jobs: release pipeline (must build darwin on macOS for the cgo Keychain), hygiene + repo-contract gate, cross-OS credential conformance.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">F3</td><td>Add platform provenance to <code>suite_executions</code> — os, arch, node identity, host-fact digest. Today a macOS pass and a Linux pass are indistinguishable in the record.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">F4</td><td>Audit the <b>936 <code>t.Skip</code> sites</b> — 45 say "not portable to Windows," 9 say "lifecycle targets linux." Decide which become platform-gated and which become failures.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-G</span> Mac mini — the proof <span class="cnt">— 4 items · the definition of done</span></summary>
+    <div class="owner">Owner: <b>vrooli-bridge</b> · cross-builds clean, <code>"scenario test"</code> already allowlisted</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">G1</td><td>Bootstrap the Mac mini as a Bridge node. A failed onboard <em>is</em> the next portability bug report — the attempt is the first measurement.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">G2</td><td>Dispatch <code>scenario test</code> at control-plane and package target kinds first — highest platform sensitivity, smallest runtime.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">G3</td><td>Record the hardware evidence document <code>platform-support.md</code> already specifies — host identity, clean-state prep, run IDs, launchctl state, reboot behaviour, Seatbelt results, interrupted-install recovery.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">G4</td><td>Promote the macOS matrix rows and keep the node attached so they stay true.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-H</span> Constrained targets <span class="cnt">— 4 items · optional, gated on a decision</span></summary>
+    <div class="owner">Owner: <b>vrooli-bridge</b> + <b>cmd/vrooli-dist</b> · both transport halves exist</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">H1</td><td>Key the payload on the build digest <code>api-core/staleness/checker.go</code> already computes (GOOS, GOARCH, CGO_ENABLED, GOFLAGS, GOEXPERIMENT, GOAMD64, GOARM) rather than inventing a bundle identity.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">H2</td><td>Extend <code>resource-artifacts-v1.txt</code> to carry scenario binaries for a target, reusing the installer's verify-and-stage loop.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">H3</td><td>Push artifacts over Bridge before setup; setup finds them and skips the compile.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">H4</td><td>Document the darwin asymmetry: the cgo Keychain means a Mac must build its own credential path locally. One mechanism will not cover both targets.</td><td><span class="chip c-fix">fix</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws">
+    <summary><span class="code">WS-I</span> Architecture &amp; housekeeping <span class="cnt">— 5 items</span></summary>
+    <div class="owner">Owner: <b>structure-health</b></div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">I1</td><td><b>Deferred by decision.</b> <code>internal/</code> is 62 flat packages with 7 implicit families — host (9), scenario (4), credential (3), cli (3), runtime (2), repo (2), project (2), port (2). Only <code>host*</code> is reorganized, inside WS-B (B3). The remaining six families are recorded as a named follow-up effort, not dropped.</td><td><span class="chip c-no">out of scope</span></td></tr>
+      <tr><td class="id">I2</td><td>Settle <code>module/</code> vs <code>modules/</code> in scenario API trees — 47 against 52 — and let the tree name domains rather than plumbing.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">I3</td><td>The <b>336-LOC vault stager</b> in <code>cmd/vrooli-dist/vault_server.go</code> duplicates what the resource archetype already does. Decide whether it survives A7.</td><td><span class="chip c-ref">refactor</span></td></tr>
+      <tr><td class="id">I4</td><td>11 template modules carry <code>{{SCENARIO_ID}}</code> placeholder <code>go.mod</code> files, so they can never be build-validated. Every generated scenario inherits an unvalidated skeleton.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">I5</td><td>Small: move <code>prepare_asus_bios_usb.sh</code> out of the repo root; correct the <code>.gitattributes</code> comment asserting "the project is always ran in a Unix-based environment"; note the 9 tracked symlinks need Developer Mode on Windows.</td><td><span class="chip c-fix">fix</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <details class="ws" open>
+    <summary><span class="code">WS-J</span> Autonomy &amp; credential access <span class="cnt">— 7 items · added this revision</span></summary>
+    <div class="owner">Owner: <b>internal/privilegebroker</b> + <b>securestore</b> + <b>vrooli-bridge</b> · every primitive already exists</div>
+    <div class="inner"><div class="scroll"><table>
+      <thead><tr><th>ID</th><th>Item</th><th>Kind</th></tr></thead><tbody>
+      <tr><td class="id">J1</td><td><b>Stand up the effort credential store</b> at <code>~/.vrooli-xplat-effort/</code> — 0700 dir, 0600 values, askpass helpers, a manifest naming entries without values. Survives reboots; outside the repo and outside <code>.vrooli</code>.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">J2</td><td><b>NOPASSWD sudoers drop-in for the local machine</b> so <code>vrooli setup</code> can be re-run with elevation autonomously whenever new privileged code lands. No password stored anywhere; every use logged by sudo.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">J3</td><td><b>Log every privileged use that is not <code>vrooli setup</code> as a finding.</b> Each one is evidence the one-time-elevation design has a hole — a privileged operation setup should have provisioned, or a missing broker registry entry. The count is a measure of whether the principle held.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">J4</td><td><b>Autonomous Bridge link recovery.</b> With the Mac mini askpass entry, re-run first-touch key install and <code>onboard --provision-sudo</code> without asking — covering the case where the link was never established, did not persist, or was lost.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">J5</td><td><b>Autonomous credential-store repair.</b> Feed the store passphrase via <code>helper | vrooli credentials store unlock</code> and <code>keyring repair</code>, using judgment on the remedy. Values stay out of argv and out of the transcript.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">J6</td><td><b>Make blockers non-halting.</b> <code>setup --result-file</code> already emits mode-0600 typed results with <code>status</code>, <code>category</code>, <code>stage</code>, <code>retryable</code>, <code>blocked_requirements</code> and <code>remediation</code>. Extend that contract across the effort so anything genuinely needing a human is queued and the run continues.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      <tr><td class="id">J7</td><td><b>Teardown is a deliverable.</b> The sudoers drop-in removed, the value files shredded, the effort store deleted, the SSH key removed from <code>authorized_keys</code> if it was effort-only — each verified rather than assumed, with the sudo auth log retained as the record of what was done.</td><td><span class="chip c-enh">enhance</span></td></tr>
+      </tbody></table></div></div>
+  </details>
+
+  <div class="callout">
+    <p class="t">What this consolidates, measured</p>
+    <p>
+      <b>1,196 byte-identical Go files across 83 duplicate groups — 3.39 MB of redundant source</b>
+      (node_modules and vendor excluded). The duplicate groups are overwhelmingly the scenario
+      test and service scaffolding WS-E targets, which is why that workstream removes most of it
+      with the least risk. Plus 8 process implementations → 1, nine <code>host*</code> packages → 1,
+      seven platform authorities → 1, and 397 <code>runtime.GOOS</code> branches → under 50.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Approach</p>
+  <h2>Why this order</h2>
+  <p class="lede">
+    The sequence is load-bearing in two places and flexible everywhere else.
+  </p>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Phase</th><th>Workstreams</th><th>Why here</th></tr></thead>
+      <tbody>
+        <tr><td class="k">0 · Grant</td><td class="k">WS-J1–J5</td>
+            <td><b>Prerequisite.</b> Encrypted store initialized, scoped sudo granted, SSH key on the Mac mini, secrets provisioned by reference. Four operator steps, done once, before any autonomous work begins. Nothing downstream runs unattended without this.</td></tr>
+        <tr><td class="k">1 · Measure</td><td class="k">WS-A, WS-G1–G2, WS-J6</td>
+            <td><b>Load-bearing.</b> Fix what is broken, stand up the Mac mini, make verdicts record their platform, extend the blocked-requirement contract so nothing halts. Until a run can say which OS produced it, every subsequent claim is unfalsifiable.</td></tr>
+        <tr><td class="k">2 · Unblock</td><td class="k">WS-C</td>
+            <td>Triage the required set before the Mac mini tries to install kdump-tools. Cheap, and it is the difference between a clean macOS setup and a confusing failure.</td></tr>
+        <tr><td class="k">3 · Seam</td><td class="k">WS-B</td>
+            <td><b>Load-bearing.</b> The largest refactor, and the ban rules must land with it — a consolidation without enforcement re-drifts. Everything downstream is easier once <code>syscall</code> lives in one package.</td></tr>
+        <tr><td class="k">4 · Declare</td><td class="k">WS-D, WS-E, WS-F</td>
+            <td>Independent of each other, all dependent on phase 3's precedent for "one authority, enforced by a health scenario." Can run in parallel.</td></tr>
+        <tr><td class="k">5 · Prove</td><td class="k">WS-G3–G4, WS-I</td>
+            <td>Record the evidence, promote the claims, tidy. The matrix becomes honest without being pessimistic.</td></tr>
+        <tr><td class="k">6 · Optimize</td><td class="k">WS-H</td>
+            <td>Prebuilt artifacts pushed over Bridge. An optimization now that the Pi is a full developer machine — nothing else depends on it.</td></tr>
+        <tr><td class="k">7 · Revoke</td><td class="k">WS-J7</td>
+            <td><b>Not optional.</b> Every grant from phase 0 enumerated and removed, with the revocation verified. The effort is not done while the access it needed still exists.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <p class="t">The one rule I would hold to</p>
+    <p>
+      <b>No consolidation ships without its enforcement rule in the same change.</b> Merging eight
+      process implementations into one is a week of work that a single well-meaning
+      <code>exec.Command("bash", …)</code> undoes. Every WS-B, WS-D and WS-E item has a named owning
+      health scenario for exactly this reason — the rule is the deliverable, the refactor is how you
+      make the rule passable.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Credential protocol</p>
+  <h2>How the agent works unattended for the duration of this effort</h2>
+  <p class="lede">
+    An effort-scoped credential store, created at the start and destroyed at the end, so that a
+    half-provisioned host never turns into a stop-and-ask. It is deliberately temporary scaffolding —
+    the permanent architecture does not change, and one of the store's jobs is to measure whether that
+    architecture holds.
+  </p>
+
+  <div class="callout ok">
+    <p class="t">The architecture stays; this is execution scaffolding</p>
+    <p>
+      <b>One-time elevation is a real feature and this must not erode it.</b> The design principle —
+      you grant elevated permission once to <code>vrooli setup</code> and it provisions everything so
+      it is never needed again — stays exactly as it is. Same for Bridge's one-password-then-keys
+      onboarding and the keyring's self-repair. Nothing below changes the product.
+    </p>
+    <p style="margin-top:12px">
+      What this section covers is different: <b>during this effort we cannot assume any of that is
+      already provisioned correctly on either machine.</b> New code will add things that need a fresh
+      elevated setup run. The Bridge link may not exist yet, or may not have persisted. The credential
+      store may need repair. Each of those is a stop-and-ask today, and there will be many.
+    </p>
+  </div>
+
+  <h3>The mechanism, per credential</h3>
+  <p>
+    One store, three entries, two different techniques — because the local sudo case has a strictly
+    better answer than storing a password at all.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Need</th><th>Technique</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="k">Root on this machine<br><small>re-run setup after adding privileged code</small></td>
+          <td><b>NOPASSWD sudoers drop-in</b>, not a stored password</td>
+          <td>No secret material at rest at all. Every invocation is logged by sudo to the system auth log, so the whole run is auditable afterwards. Cannot be used from another machine. Revoked by deleting one file.</td>
+        </tr>
+        <tr>
+          <td class="k">Mac mini account<br><small>first-touch SSH, re-pairing, node sudo</small></td>
+          <td><b>askpass helper</b> reading a 0600 value file</td>
+          <td>A password genuinely is required for first-touch. The helper prints it to the consuming process; I pass the helper's <em>path</em>, never its output.</td>
+        </tr>
+        <tr>
+          <td class="k">Credential store passphrase<br><small>unlock, repair, rewrap</small></td>
+          <td><b>askpass helper</b> piped to stdin</td>
+          <td><code>credentials store unlock</code> and <code>keyring repair</code> read from stdin and never print. <code>helper | vrooli credentials store unlock</code> keeps the value out of argv and out of my context.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Where it lives</h3>
+  <pre>~/.vrooli-xplat-effort/            <span class="c">0700 — outside the repo, outside .vrooli</span>
+  MANIFEST.json                    <span class="c">entry names + purpose + expiry. Safe for me to read.</span>
+  askpass-macmini.sh               <span class="c">0700 — prints one value to stdout</span>
+  askpass-store.sh                 <span class="c">0700</span>
+  .values/                         <span class="c">0700</span>
+    macmini                        <span class="c">0600 — I never read these</span>
+    store                          <span class="c">0600</span></pre>
+  <p>
+    <b>Not <code>/tmp</code> or the scratchpad</b> — a verification baseline written there previously
+    was gone three days later, and this effort spans reboots (LaunchAgent persistence and supervisor
+    restart are both on the acceptance list). It has to survive a restart and it has to not be in the
+    repo.
+  </p>
+
+  <h3>The rules I hold to</h3>
+  <ul>
+    <li><b>Never <code>cat</code>, <code>grep</code>, <code>echo</code> or otherwise read anything under <code>.values/</code>,</b> and never capture a helper's stdout into my own context.</li>
+    <li><b>Only ever indirection:</b> <code>SUDO_ASKPASS=&lt;helper&gt; sudo -A …</code>, <code>SSH_ASKPASS=&lt;helper&gt;</code>, or <code>&lt;helper&gt; | &lt;command reading stdin&gt;</code>.</li>
+    <li><b>Never a secret in argv</b> — it is visible in the host process list to every local user.</li>
+    <li><b>Redirect stderr on password-consuming commands</b>, since some echo the value back on failure.</li>
+    <li><b>If a task cannot be done without me reading a value, I stop and say so</b> rather than reading it.</li>
+  </ul>
+
+  <div class="callout warn">
+    <p class="t">The store doubles as a measurement instrument</p>
+    <p>
+      Here is the part worth keeping even after teardown: <b>every time I need the sudo grant for
+      something that is not <code>vrooli setup</code>, that is evidence the one-time-elevation design
+      has a hole.</b> Those uses get logged and become findings — a privileged operation that setup
+      should have provisioned but did not, or a broker registry entry that should exist.
+    </p>
+    <p style="margin-top:12px">
+      So the scaffolding measures the very principle you want protected. If the count is zero by the
+      end, the architecture held. If it is not, the list is exactly the backlog for making it hold.
+    </p>
+  </div>
+
+  <h3>What I would ask you to do once, up front</h3>
+  <ul>
+    <li><b>Install the sudoers drop-in</b> I generate — one file, your user, removed at teardown.</li>
+    <li><b>Create the effort store</b> and write the two values into <code>.values/</code> yourself. I will generate the directory, the helpers and the manifest; you supply only the values.</li>
+    <li><b>Tell me the Mac mini's hostname and account name</b> — those are not secrets and I need them to reference the entries.</li>
+  </ul>
+  <p>
+    That is it. Everything after — running <code>vrooli setup</code> with elevation, establishing or
+    re-establishing the Bridge link, repairing the credential store, provisioning the Mac mini — I do
+    autonomously.
+  </p>
+
+  <div class="callout warn">
+    <p class="t">A concrete gotcha, learned the hard way</p>
+    <p>
+      Every value provisioned into the credential store must be <b>single-line</b>. A multi-line PEM
+      previously made the entire GNOME login keyring unloadable, taking down remote desktop and every
+      other secret with it. Base64-encode anything with newlines before it goes in.
+    </p>
+  </div>
+
+  <h3>What "never blocked" can honestly mean</h3>
+  <p>
+    Not "I will never need you" — <b>"I will never stop."</b> That distinction matters because there is
+    at least one failure mode the project itself says is not automatable: the
+    <code>credentials keyring repair</code> help text ends by telling the operator "what only a person
+    can do when it did not" work. Promising zero human involvement would be promising something the
+    tooling explicitly disclaims.
+  </p>
+  <p>
+    What is achievable: <b>the run never halts.</b> Anything needing a human is recorded as a typed
+    blocked requirement with a stage, a retryable flag and a remediation string, the run continues with
+    everything that does not depend on it, and you get one consolidated list at the end instead of
+    being interrupted N times. The <code>--result-file</code> contract that does this already exists;
+    J6 extends it beyond setup to the whole effort.
+  </p>
+
+  <div class="callout">
+    <p class="t">Worth saying plainly</p>
+    <p>
+      An agent with reusable root on your dev machine and SSH into a second machine is a real blast
+      radius, and scoping it is not just hygiene — <b>scoped grants are what make the autonomy work</b>.
+      A broker registry entry and a specific sudoers line survive reboots, need no re-approval, and can
+      be audited afterwards. A password in a file has to be trusted, cannot be scoped, and leaves you
+      with nothing to inspect when the run is over.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Decisions</p>
+  <h2>All settled — nothing blocking the plan</h2>
+  <div class="dec">
+    <div class="dc">
+      <div class="st settled">Settled</div>
+      <div>
+        <div class="q">Windows — both <code>setup</code> and <code>develop</code> must fully work.</div>
+        <div class="a"><b>All operating systems get the full lifecycle.</b> This adds B11–B14 to the
+          platform seam: a Windows service-control backend, graceful shutdown without SIGTERM, Job
+          Objects for process groups, and unskipping the 45 e2e tests that currently opt out.
+          It is the single largest scope addition in this revision, and it lands inside WS-B rather
+          than beside it — the seam is what makes it tractable.</div>
+      </div>
+    </div>
+    <div class="dc">
+      <div class="st settled">Settled</div>
+      <div>
+        <div class="q">Raspberry Pi — a full developer machine, like every other target.</div>
+        <div class="a"><b>Setup and develop must work there too</b>, which they can: linux/arm64 already
+          builds with zero arch-specific breaks. WS-H stays in scope as an <em>optimization</em> rather
+          than a prerequisite — compiling is acceptable, and pushing prebuilt artifacts over Bridge
+          makes it pleasant.</div>
+      </div>
+    </div>
+    <div class="dc">
+      <div class="st settled">Settled</div>
+      <div>
+        <div class="q">The resource registry owns third-party binaries a resource wraps.</div>
+        <div class="a"><b>Delete all seven tool entries</b> — vault plus codex, grok, k6, kopia,
+          opencode and claude. This matches how the code already behaves: the <code>external-cli</code>
+          driver probes the command directly and each resource ships its own
+          <code>resource-&lt;name&gt;</code> wrapper, so the tool entries were never load-bearing.
+          Six drift surfaces removed rather than monitored.</div>
+      </div>
+    </div>
+    <div class="dc">
+      <div class="st settled">Settled</div>
+      <div>
+        <div class="q">Profiles stay deferred; WS-C ships as scoped.</div>
+        <div class="a">Triage the 19 required tools, move operator preferences into
+          <code>operator-state.json</code>, drop the Linux kernel tooling from minimal.
+          <b>That delivers the developer-versus-maintainer split in practice without designing a
+          schema against a hypothetical second operator</b> — which is the discipline
+          <code>profiles.md</code> argues for. <code>active_profile</code> stays reserved and null.</div>
+      </div>
+    </div>
+    <div class="dc">
+      <div class="st settled">Settled</div>
+      <div>
+        <div class="q"><code>internal/</code> reorganization is limited to the <code>host*</code> nine.</div>
+        <div class="a">Merged inside WS-B where the churn is already happening and the review is
+          already about that code. <b>The other six families stay flat for this effort</b> — burying
+          the platform-seam diff inside repo-wide import-path churn would make the highest-risk change
+          in the plan unreviewable. Recorded as a named follow-up so it is deferred, not dropped.</div>
+      </div>
+    </div>
+    <div class="dc">
+      <div class="st settled">Settled</div>
+      <div>
+        <div class="q">Docker for Postgres, Redis and the other container resources.</div>
+        <div class="a"><b>Accepted as a developer prerequisite for now.</b> Resource archetypes have
+          documented maturity ladders; these sit at the right rung until a need arises. Scope is limited
+          to making the requirement explicit and justified (C5), not to moving them.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Deliverables</p>
+  <h2>What exists at the end that does not exist now</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Deliverable</th><th>Shape</th></tr></thead>
+      <tbody>
+        <tr><td class="k">One platform package</td><td>Process, signals, locking, service install, elevation, paths — with build-tagged implementations per OS and no <code>syscall</code> import anywhere else.</td></tr>
+        <tr><td class="k">Three foundation rules in quality-health</td><td>Project-scoped, data-declared exceptions with rationales, enforced on every run.</td></tr>
+        <tr><td class="k">One compatibility schema</td><td>Evidence tiers, one axis per resource, docs generated from code, contract check on claim-versus-evidence.</td></tr>
+        <tr><td class="k">A scenario-adoptable testkit</td><td><code>go.mod</code>, adoption governance flipped, four scaffolding subpackages, ~336 duplicated files removed.</td></tr>
+        <tr><td class="k">A <code>provides</code> manifest field</td><td>Plus the unit-health rule that reads it, so adoption enforcement extends automatically as testkit grows.</td></tr>
+        <tr><td class="k">Platform-aware test verdicts</td><td><code>suite_executions</code> records os, arch and node — the first time a result can state where it came from.</td></tr>
+        <tr><td class="k">A macOS node in the fleet</td><td>Onboarded, dispatchable, and attached so the matrix rows stay true rather than decaying.</td></tr>
+        <tr><td class="k">A recorded hardware evidence document</td><td>Filling the pre-written checklist that <code>platform-support.md</code> has specified since before this effort started.</td></tr>
+        <tr><td class="k">A full Windows lifecycle</td><td>Service-control backend, signal-free graceful shutdown, Job Object process groups — and 45 e2e tests that no longer skip.</td></tr>
+        <tr><td class="k">An audited, revoked credential trail</td><td>Scoped grants rather than shared passwords, a redacted broker audit log of every privileged action taken, and verified teardown at the end.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Definition of done</p>
+  <h2>Three tiers, and the third is the one that matters</h2>
+  <p class="lede">
+    The proof tier is what you asked for. The quality tier is what makes it worth doing. The
+    durability tier is what stops it decaying back.
+  </p>
+
+  <h3>Tier 1 — the proof</h3>
+  <div class="dod">
+    <div class="dd"><span class="box">[ ]</span><span class="txt">A bare Mac mini with nothing but curl reaches an installed CLI, completes <code>vrooli setup</code> with no manual intervention, and brings up a working stack with <code>vrooli develop</code>.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Setup does not attempt to install Linux kernel tooling on macOS.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">The Mac mini is onboarded as a Bridge node and accepts a dispatched <code>scenario test</code> job.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Control-plane and package target kinds pass on macOS with zero platform-reason skips.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Credentials round-trip through the macOS Keychain; the recovery drill passes on hardware; the supervisor survives a reboot via LaunchAgent.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">The hardware evidence document is recorded and the macOS matrix rows are promoted.</span></div>
+  </div>
+
+  <h3>Tier 2 — the quality bar</h3>
+  <div class="dod">
+    <div class="dd"><span class="box">[ ]</span><span class="txt"><code>syscall</code> and <code>golang.org/x/sys</code> are imported in exactly one package.<small>From 8 process implementations and 101 syscall-importing files.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt"><code>runtime.GOOS</code> appears at fewer than 50 sites.<small>From 397 across 215 files.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Every platform-support claim in the repo resolves to one vocabulary with one authority.<small>From 7 authorities and 5 vocabularies.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">The scenario test scaffolding exists once.<small>~336 files across 6 directories become one adoptable package.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">A new developer's required tool set is a defensible floor, and every entry above it carries a rationale.<small>From 19 of 19 marked required with none justified.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Every module in the repo builds on linux/amd64, linux/arm64 and darwin/arm64.<small>From 9 broken on the native platform.</small></span></div>
+  </div>
+
+  <h3>Tier 3 — the durability bar</h3>
+  <div class="dod">
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Every credential grant made for this effort is revoked and the revocation is verified.<small>SSH key removed from <code>authorized_keys</code>, sudoers drop-in deleted, effort-only broker registry entries removed.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">No secret value appears in any transcript, log, argv, or file created by this effort.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">Reintroducing a second process implementation fails a validation run, not a code review.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">A platform claim without recorded evidence fails the repo contract.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">A scenario hand-rolling something testkit provides is a finding — derived from testkit's manifest, so it stays correct as testkit grows.</span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">A newly generated scenario inherits none of the duplication this effort removed.<small>Templates fixed, not just existing scenarios migrated.</small></span></div>
+    <div class="dd"><span class="box">[ ]</span><span class="txt">The macOS node stays attached, so the matrix rows are continuously re-earned rather than earned once.</span></div>
+  </div>
+
+  <div class="callout ok">
+    <p class="t">The agreement in one paragraph</p>
+    <p>
+      We are doing a consolidation effort with a portability acceptance test. Fifty-nine items across
+      ten workstreams: fifteen things that are broken, twenty-two duplications collapsed to a single
+      authority, twenty-two new capabilities — most of which are enforcement rules that keep the
+      consolidation from re-drifting. Every operating system gets the full
+      <code>setup</code>&nbsp;+&nbsp;<code>develop</code> lifecycle. The Mac mini is the instrument that
+      makes it measurable and the proof that it worked. <b>If we did only the portability work, we
+      would get a Mac mini running and a codebase with nine process implementations instead of eight.
+      That is the outcome this scope exists to prevent.</b>
+    </p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>scope agreement · companion to the readiness audit</span>
+    <span>48 items · 9 workstreams · 5 open decisions</span>
+    <span>no plan authored — scope and approach only</span>
+  </div>
+</footer>

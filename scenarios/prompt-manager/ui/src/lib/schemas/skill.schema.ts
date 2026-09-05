@@ -40,13 +40,20 @@ export const SkillSchema = z.object({
   icon: z.string().nullable().optional(),
   targetToolId: z.string().nullable().optional(),
   defaultScope: z.string().nullable().optional(), // Default scope skill to include with this skill
+  programmaticHome: z.string().nullable().optional(), // Record-of-fact pointer ("engine:identifier") set when detection has graduated to a programmatic engine
   draft: z.boolean().nullable().optional().transform((val) => val ?? false),
   folder: FolderTypeSchema,
   skillDir: z.string().nullable().optional(),    // Absolute path to skill directory
   contentPath: z.string().nullable().optional(), // Absolute path to SKILL.md file
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  usageCount: z.number(),
+  // Some legacy skills have no persisted timestamps. Normalize protobuf null
+  // values at the boundary so one malformed record cannot hide the entire
+  // list from the UI.
+  createdAt: z.string().nullable().optional().transform((val) => val ?? ''),
+  updatedAt: z.string().nullable().optional().transform((val) => val ?? ''),
+  // Protobuf JSON omits zero-valued scalars by default. Treat an omitted
+  // counter as its wire default instead of rejecting successful create/list
+  // responses for skills that have not been used yet.
+  usageCount: z.number().optional().transform((val) => val ?? 0),
   lastUsed: z.string().nullable().optional(),
   effectivenessRating: z.number().nullable().optional(),
 })
@@ -70,6 +77,7 @@ export const CreateSkillRequestSchema = z.object({
   tags: z.array(z.string()).optional(),
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
+  programmaticHome: z.string().nullable().optional(),
   draft: z.boolean().optional(),
   folder: FolderTypeSchema,
 })
@@ -90,6 +98,8 @@ export const UpdateSkillRequestSchema = z.object({
   icon: z.string().optional(),
   targetToolId: z.string().nullable().optional(),
   defaultScope: z.string().optional(), // Default scope skill ID
+  programmaticHome: z.string().nullable().optional(),
+  clearProgrammaticHome: z.boolean().optional(),
   draft: z.boolean().optional(),
   folder: FolderTypeSchema.optional(),
 })

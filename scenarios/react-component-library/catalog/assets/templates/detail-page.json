@@ -1,0 +1,141 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "templates.detail-page",
+    "name": "DetailPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The resource-detail surface with header, status, actions, sections, metadata, history, related items, permission handling, and a responsive inspector.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, description, and actions are the shared header."
+      },
+      {
+        "asset": "patterns.resource-detail",
+        "reason": "Detail composition, metadata, and history are the shared pattern."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRecord"
+      ]
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "header",
+      "purpose": "Identity, status, and primary actions for the record.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "primary",
+      "purpose": "The record's main content and editable sections.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "metadata",
+      "purpose": "Supporting attributes, ownership, and timestamps.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "history",
+      "purpose": "Audit trail or activity for this record.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "related",
+      "purpose": "Linked records and cross-references.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ]
+}

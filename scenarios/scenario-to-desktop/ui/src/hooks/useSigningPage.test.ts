@@ -8,50 +8,48 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { useSigningPage } from "./useSigningPage";
-import type {
-  SigningConfig,
-  SigningConfigResponse,
-  SigningReadinessResponse,
-  ToolDetectionResult,
-  DiscoveredCertificate,
-} from "../lib/api";
+import type { SigningConfig, DiscoveredCertificate } from "../domain/signing";
 import type { ScenariosResponse } from "../components/scenario-inventory/types";
 
-// Mock the API module
+// Scenario inventory remains a separate generated-client surface.
 vi.mock("../lib/api", () => ({
-  fetchSigningConfig: vi.fn(),
-  saveSigningConfig: vi.fn(),
-  validateSigningConfig: vi.fn(),
-  checkSigningReadiness: vi.fn(),
-  fetchSigningPrerequisites: vi.fn(),
-  deleteSigningConfig: vi.fn(),
-  discoverCertificates: vi.fn(),
-  generateLinuxSigningKey: vi.fn(),
   fetchScenarioDesktopStatus: vi.fn(),
 }));
+vi.mock("../lib/api/connect", () => ({
+  signingConnectClient: {
+    getSigningConfig: vi.fn(),
+    putSigningConfig: vi.fn(),
+    validateSigningConfig: vi.fn(),
+    getSigningReadiness: vi.fn(),
+    listSigningPrerequisites: vi.fn(),
+    deleteSigningConfig: vi.fn(),
+    discoverSigningCertificates: vi.fn(),
+    generateLinuxSigningKey: vi.fn(),
+  },
+}));
 
-// Import mocks after setting up vi.mock
-import {
-  fetchSigningConfig,
-  saveSigningConfig,
-  validateSigningConfig,
-  checkSigningReadiness,
-  fetchSigningPrerequisites,
-  deleteSigningConfig,
-  discoverCertificates,
-  generateLinuxSigningKey,
-  fetchScenarioDesktopStatus,
-} from "../lib/api";
+import { fetchScenarioDesktopStatus } from "../lib/api";
+import { signingConnectClient } from "../lib/api/connect";
 
-const mockFetchSigningConfig = fetchSigningConfig as ReturnType<typeof vi.fn>;
-const mockSaveSigningConfig = saveSigningConfig as ReturnType<typeof vi.fn>;
-const mockValidateSigningConfig = validateSigningConfig as ReturnType<typeof vi.fn>;
-const mockCheckSigningReadiness = checkSigningReadiness as ReturnType<typeof vi.fn>;
-const mockFetchSigningPrerequisites = fetchSigningPrerequisites as ReturnType<typeof vi.fn>;
-const mockDeleteSigningConfig = deleteSigningConfig as ReturnType<typeof vi.fn>;
-const mockDiscoverCertificates = discoverCertificates as ReturnType<typeof vi.fn>;
-const _mockGenerateLinuxSigningKey = generateLinuxSigningKey as ReturnType<typeof vi.fn>;
-const mockFetchScenarioDesktopStatus = fetchScenarioDesktopStatus as ReturnType<typeof vi.fn>;
+const mockFetchSigningConfig =
+  signingConnectClient.getSigningConfig as ReturnType<typeof vi.fn>;
+const mockSaveSigningConfig =
+  signingConnectClient.putSigningConfig as ReturnType<typeof vi.fn>;
+const mockValidateSigningConfig =
+  signingConnectClient.validateSigningConfig as ReturnType<typeof vi.fn>;
+const mockCheckSigningReadiness =
+  signingConnectClient.getSigningReadiness as ReturnType<typeof vi.fn>;
+const mockFetchSigningPrerequisites =
+  signingConnectClient.listSigningPrerequisites as ReturnType<typeof vi.fn>;
+const mockDeleteSigningConfig =
+  signingConnectClient.deleteSigningConfig as ReturnType<typeof vi.fn>;
+const mockDiscoverCertificates =
+  signingConnectClient.discoverSigningCertificates as ReturnType<typeof vi.fn>;
+const _mockGenerateLinuxSigningKey =
+  signingConnectClient.generateLinuxSigningKey as ReturnType<typeof vi.fn>;
+const mockFetchScenarioDesktopStatus = fetchScenarioDesktopStatus as ReturnType<
+  typeof vi.fn
+>;
 
 // Create a wrapper with QueryClientProvider
 function createWrapper() {
@@ -62,12 +60,18 @@ function createWrapper() {
     },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   };
 }
 
 // Helper to create mock signing config
-function createMockSigningConfig(overrides: Partial<SigningConfig> = {}): SigningConfig {
+function createMockSigningConfig(
+  overrides: Partial<SigningConfig> = {},
+): SigningConfig {
   return {
     enabled: true,
     windows: {
@@ -87,33 +91,20 @@ function createMockSigningConfig(overrides: Partial<SigningConfig> = {}): Signin
   };
 }
 
-// Helper to create mock config response
-function createMockConfigResponse(config: SigningConfig | null = null): SigningConfigResponse {
-  return {
-    scenario: "test-scenario",
-    config,
-  };
-}
-
-// Helper to create mock readiness response
-function createMockReadinessResponse(ready: boolean, issues: string[] = []): SigningReadinessResponse {
-  return {
-    ready,
-    issues,
-    platforms: {
-      windows: { ready, reason: ready ? undefined : "Not configured" },
-      macos: { ready: false, reason: "Not configured" },
-      linux: { ready: false, reason: "Not configured" },
-    },
-  };
-}
-
 // Helper to create mock scenarios response
 function createMockScenariosResponse(): ScenariosResponse {
   return {
     scenarios: [
-      { name: "test-scenario", has_desktop: true, desktop_path: "/path/to/scenario" },
-      { name: "other-scenario", has_desktop: true, desktop_path: "/path/to/other" },
+      {
+        name: "test-scenario",
+        has_desktop: true,
+        desktop_path: "/path/to/scenario",
+      },
+      {
+        name: "other-scenario",
+        has_desktop: true,
+        desktop_path: "/path/to/other",
+      },
     ],
     stats: { total: 2, with_desktop: 2, built: 0, web_only: 0 },
   };
@@ -122,10 +113,16 @@ function createMockScenariosResponse(): ScenariosResponse {
 beforeEach(() => {
   vi.clearAllMocks();
   // Set up default mock responses
-  mockFetchScenarioDesktopStatus.mockResolvedValue(createMockScenariosResponse());
+  mockFetchScenarioDesktopStatus.mockResolvedValue(
+    createMockScenariosResponse(),
+  );
   mockFetchSigningPrerequisites.mockResolvedValue({ tools: [] });
-  mockFetchSigningConfig.mockResolvedValue(createMockConfigResponse(null));
-  mockCheckSigningReadiness.mockResolvedValue(createMockReadinessResponse(false));
+  mockFetchSigningConfig.mockResolvedValue({ config: undefined });
+  mockCheckSigningReadiness.mockResolvedValue({
+    ready: false,
+    message: "Not configured",
+    platforms: [],
+  });
 });
 
 afterEach(() => {
@@ -147,7 +144,7 @@ describe("useSigningPage", () => {
     it("uses initialScenario when provided", async () => {
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
@@ -172,7 +169,7 @@ describe("useSigningPage", () => {
       const onScenarioChange = vi.fn();
       const { result } = renderHook(
         () => useSigningPage({ onScenarioChange }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       act(() => {
@@ -185,15 +182,26 @@ describe("useSigningPage", () => {
 
     it("fetches config when scenario is selected", async () => {
       const config = createMockSigningConfig();
-      mockFetchSigningConfig.mockResolvedValue(createMockConfigResponse(config));
+      mockFetchSigningConfig.mockResolvedValue({
+        config: {
+          enabled: config.enabled,
+          windows: {
+            enabled: true,
+            certificateSource: 1,
+            certificatePath: config.windows?.certificate_file,
+          },
+        },
+      });
 
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
-        expect(mockFetchSigningConfig).toHaveBeenCalledWith("test-scenario");
+        expect(mockFetchSigningConfig).toHaveBeenCalledWith({
+          scenarioName: "test-scenario",
+        });
         expect(result.current.localConfig.enabled).toBe(true);
       });
     });
@@ -202,10 +210,9 @@ describe("useSigningPage", () => {
   describe("config changes", () => {
     it("updates localConfig when handleConfigChange is called", async () => {
       // Don't set initialScenario to avoid config loading race conditions
-      const { result } = renderHook(
-        () => useSigningPage({}),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSigningPage({}), {
+        wrapper: createWrapper(),
+      });
 
       // Initial state before any changes
       expect(result.current.localConfig.enabled).toBe(false);
@@ -223,7 +230,7 @@ describe("useSigningPage", () => {
     it("marks hasUnsavedChanges true after config change", async () => {
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       expect(result.current.hasUnsavedChanges).toBe(false);
@@ -242,7 +249,7 @@ describe("useSigningPage", () => {
 
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
@@ -266,10 +273,9 @@ describe("useSigningPage", () => {
       mockSaveSigningConfig.mockResolvedValue({});
 
       // Select a scenario first so save has a target
-      const { result } = renderHook(
-        () => useSigningPage({}),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useSigningPage({}), {
+        wrapper: createWrapper(),
+      });
 
       // Set scenario without triggering config fetch
       act(() => {
@@ -303,12 +309,13 @@ describe("useSigningPage", () => {
     it("calls validateSigningConfig when handleValidate is called", async () => {
       mockValidateSigningConfig.mockResolvedValue({
         valid: true,
-        platforms: {},
+        errors: [],
+        warnings: [],
       });
 
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
@@ -320,7 +327,9 @@ describe("useSigningPage", () => {
       });
 
       await waitFor(() => {
-        expect(mockValidateSigningConfig).toHaveBeenCalledWith("test-scenario");
+        expect(mockValidateSigningConfig).toHaveBeenCalledWith(
+          expect.objectContaining({ scenarioName: "test-scenario" }),
+        );
       });
     });
   });
@@ -355,7 +364,15 @@ describe("useSigningPage", () => {
           is_expired: false,
         },
       ];
-      mockDiscoverCertificates.mockResolvedValue({ platform: "windows", certificates: mockCerts });
+      mockDiscoverCertificates.mockResolvedValue({
+        certificates: mockCerts.map((cert) => ({
+          id: cert.id,
+          subject: cert.subject,
+          issuer: cert.issuer,
+          expired: cert.is_expired,
+          platform: 1,
+        })),
+      });
 
       const { result } = renderHook(() => useSigningPage({}), {
         wrapper: createWrapper(),
@@ -366,7 +383,7 @@ describe("useSigningPage", () => {
       });
 
       await waitFor(() => {
-        expect(mockDiscoverCertificates).toHaveBeenCalledWith("windows");
+        expect(mockDiscoverCertificates).toHaveBeenCalledWith({ platform: 1 });
         expect(result.current.discovered).toHaveLength(1);
       });
     });
@@ -374,10 +391,9 @@ describe("useSigningPage", () => {
 
   describe("prerequisites", () => {
     it("loads prerequisites on mount", async () => {
-      const mockTools: ToolDetectionResult[] = [
-        { tool: "signtool", platform: "windows", installed: true },
-      ];
-      mockFetchSigningPrerequisites.mockResolvedValue({ tools: mockTools });
+      mockFetchSigningPrerequisites.mockResolvedValue({
+        tools: [{ tool: "signtool", platform: 1, installed: true }],
+      });
 
       const { result } = renderHook(() => useSigningPage({}), {
         wrapper: createWrapper(),
@@ -402,7 +418,7 @@ describe("useSigningPage", () => {
 
       // Update mock for second call
       mockFetchSigningPrerequisites.mockResolvedValue({
-        tools: [{ tool: "gpg", platform: "linux", installed: true }],
+        tools: [{ tool: "gpg", platform: 3, installed: true }],
       });
 
       await act(async () => {
@@ -423,7 +439,7 @@ describe("useSigningPage", () => {
 
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {
@@ -445,7 +461,7 @@ describe("useSigningPage", () => {
 
       const { result } = renderHook(
         () => useSigningPage({ initialScenario: "test-scenario" }),
-        { wrapper: createWrapper() }
+        { wrapper: createWrapper() },
       );
 
       await waitFor(() => {

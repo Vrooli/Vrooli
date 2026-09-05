@@ -1,17 +1,116 @@
 # Open Issues
-- The scenario still needs to rebuild the CLI delegation workflow that triggers suite generation remotely.
-- Requirement modules now have `[REQ:TESTGENIE-*]` tags across Go + CLI suites, but we still need to run the orchestrator through the lifecycle to refresh requirement snapshots and add UI/E2E coverage (vault dashboard, delegated flows) before OT-P0-002 is truly multi-layer.
-- Requirements sync now runs directly from the Go orchestrator, but it only fires after full-suite executions triggered via the API—`coverage/run-tests.sh` and the UI still need to delegate to that path so coverage snapshots stay fresh without manual commands.
-- Queue telemetry now surfaces in `/health` and the CLI, but there is still no alerting when items stay queued for too long or when execution failures spike—ecosystem-manager will need to subscribe to the new signals to close that gap.
-- The React dashboard now exposes queue metrics and runner triggers, but it still lacks visibility into delegated issue IDs, coverage/vault analytics, and historical suite grouping, so ops personas cannot yet audit whether AI generation actually closed the gaps they queued.
-- The new quick-focus rail is still ephemeral; we need to persist the chosen scenario and outstanding queue/execution context (local storage + API) so operators can resume their intent after refreshes instead of retyping every session.
-- Personas still share the same overview density; watchers and decision-makers need a lighter "state of testing" digest surface that summarizes focus, backlog, vault coverage, and failure stories without the instrumentation-heavy controls that builders expect.
-- Flow highlight cards now surface the oldest high-priority queue entry and the most recent failed execution, but guidance still stops there—coverage/vault analytics and automated alert thresholds remain missing, so ops personas cannot yet tell when AI assistance produced enough suites or which vault needs attention next.
+
+## Resolved 2026-07-10 — Descriptor phase additions broke fixed test registries
+
+**Symptom:** The full API suite failed after the descriptor-owned `templates`
+phase appeared: catalog guards lacked templates-specific surface/skip entries,
+and the orchestration fixture called the live provider because its no-op runner
+list named only the older phases.
+
+**Root cause:** Test infrastructure retained three fixed phase registries after
+production orchestration became descriptor-driven. The tests therefore required
+coordinated Test Genie changes for a provider-owned catalog extension.
+
+**Resolution:** Orchestration fixtures now replace every discovered runner and
+detach provider transport generically. Capability guards validate normalized
+descriptor ownership without pinning phase surface metadata, and skip-variable
+guards derive the stable public name from each machine key. A synthetic future
+phase fixture proves planning and execution require no phase registration.
+
+**Owner:** Test Genie descriptor/catalog test architecture.
+
+**Refs:** `api/internal/orchestrator/suite_execution_test.go`;
+`api/internal/orchestrator/phases/catalog_guard_test.go`.
+
+## Resolved 2026-07-10 — Foreground execute dropped aggregate duration and unavailable failures
+
+**Symptom:** A lifecycle-managed `vrooli scenario test agent-manager --json`
+run published the terminal verdict, phase results, and findings, but its
+`phaseSummary.durationSeconds` was zero even though the phase durations were
+nonzero. A `provider_unavailable` phase also increased `total` without
+increasing any outcome bucket.
+
+**Root cause:** The foreground FollowRun renderer rebuilt its terminal summary
+with a private counting loop. Unlike the canonical wait/show summarizer, that
+loop did not accumulate phase duration and did not classify
+`provider_unavailable` as failed evidence.
+
+**Resolution:** Foreground execute, wait, and show rendering now share the same
+phase summarizer for total, outcome counts, duration, and observations. A
+regression fixture covers nonzero durations and unavailable providers. Run
+`20260711-034608-b6bdcd60` proved the repaired foreground summary and persisted
+show projection both contain two failed phases totaling three seconds, while
+the findings endpoint returns both phases.
+
+**Owner:** Test Genie CLI durable execution projection.
+
+**Refs:** `cli/execute/durable.go`; `cli/execute/standing.go`;
+`cli/execute/durable_test.go`.
+
+## Resolved 2026-07-10 — Terminal wait and show disagreed after durable fallback
+
+**Symptom:** `test-genie runs wait --json swarm-manager 20260710-142937-ae6a753e`
+returned terminal `failed` with zero phases and zero duration, while `runs show`
+for the same run returned 20 persisted phase results spanning 14:47:02–14:59:57
+UTC.
+
+**Historical root cause:** Terminal wait projected the run manager's reduced
+live/durable status fallback while show converted the persisted run record; the
+two paths did not share a versioned terminal snapshot projector.
+
+**Historical workaround:** Treat terminal wait output with missing phase data as
+degraded and inspect the same run with show. Do not relabel the zero-phase
+result as a pass or start a replacement run to manufacture baseline evidence.
+
+**Resolution:** New runs atomically persist one schema-versioned terminal
+snapshot and both wait and show project it before and after retirement/restart.
+Legacy, partial, and corrupt records remain explicitly degraded. The original
+run remains a diagnostic fixture; only a fresh exact-SHA lifecycle run may
+replace it as authoritative evidence.
+
+**Owner:** test-genie run lifecycle.
+
+**Refs:** `api/internal/app/runs/lifecycle.go`;
+`api/internal/app/runs/convert.go`; run `20260710-142937-ae6a753e`.
+
+## Test Gaps — typed artifact catalog live proof
+
+Phase 4 has race-enabled unit and contract coverage for atomic catalogs,
+runtime-emitted unknown kinds, legacy discovery, screenshot/video enumeration,
+opaque list/detail/byte access, missing files, cross-run IDs, symlink escape,
+and active-content headers. Phase 10's copy-first rehearsal also proved repeated
+wait/get/catalog projections and opaque resolution over 116 copied historical
+Test Genie runs and 2,237 artifacts without changing the copied byte tree; all
+116 honestly remained legacy because they predate canonical snapshots and
+persisted catalogs. The remaining proof is a clean, lifecycle-managed exact-SHA
+run confirming that new ui-health screenshots and workflow-health recordings
+are persisted and streamed through opaque routes. Copied historical evidence is
+strong migration evidence, but it is not an authoritative post-repair run.
+
+- Closed 2026-08-29: Unit Health's bounded executor used the independently
+  resolved managed Go binary while inheriting a foreign host `GOROOT`, allowing
+  the selected toolchain to load an incompatible standard library. The executor
+  now removes inherited `GOROOT`/`GOTOOLDIR` only for resolved Go commands and
+  attributes each waited child to the execution metrics collector. Unit tests
+  cover portable Go executable names, environment isolation, preservation for
+  non-Go commands, and child RSS attribution. A live execution-backed Unit
+  Health validation of `vrooli-autoheal` passed both Go coverage commands and
+  the TypeScript coverage command.
+- Provider freshness gap observed 2026-08-29: a Test Genie tidiness phase reused
+  a running Tidiness Manager whose binary predated the current scenario-seam
+  rebasing logic, so repository-only seam budgets were incorrectly applied to
+  `vrooli-autoheal`. A lifecycle restart made the same aggregate gate pass with
+  an empty applicable-seam audit. Add an exact provider-freshness regression
+  proving that source/build-input drift cannot reuse a stale running provider;
+  until then, this remains an open Test Genie orchestration gap.
+
+- Detection refactor 2026-05: DB detection lives in `internal/orchestrator/phases/dbdetect`; the silent Postgres+Redis fallback is eliminated. Scenarios with no manifest/godeps/source evidence now provision nothing for workflow seed helpers — fix at the source (declare the resource or add the driver import) rather than reinstating a fallback.
+- Historical queue, generation, and separate fix/requirements-improve gaps listed here were retired in July 2026. The supported workflow is now evidence-backed remediation from a completed execution; do not reintroduce those independent paths to address old ledger entries.
 
 # Failure Topography (2025-12-03)
 - **Critical flows mapped**
   - *Suite request ingestion*: depends on API payload validation and embedded SQLite writes. Failure modes: invalid requested types/priority (client) vs. DB access failures (infra). Current mitigation: validation errors stay 400 and non-validation paths now emit structured logging; storage failures still bubble a 500—documented for follow-up.
-  - *Suite execution orchestrator*: preflight includes Go-native structure + dependency phases, scenario script registry, and artifact persistence. Dependencies: filesystem layout, `.vrooli/service.json`, toolchain availability (`bash`, `curl`, `jq`, language runtimes, package managers), and manifest-declared resources.
+  - *Suite execution orchestrator*: preflight includes provider-backed catalog phases and artifact persistence. Dependencies: filesystem layout, `.vrooli/service.json`, provider availability, language runtimes, package managers, and manifest-declared resources.
 - **Observed failure modes**
   - Missing directories or manifest drift silently mapped to 500s before this loop. They are now classified as `misconfiguration` with remediation text so UI/API callers can render contextual actions.
   - Dependency gaps were previously reported one-at-a-time; now the Go phase aggregates all missing commands and surfaces a single actionable error plus per-phase observations to avoid repeated API calls.

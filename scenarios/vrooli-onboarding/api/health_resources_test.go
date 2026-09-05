@@ -90,7 +90,7 @@ func TestResourceHealthAllStopped(t *testing.T) {
 // [REQ:REQ-P1-001] - Resource Health API
 func TestResourceHealthManyResources(t *testing.T) {
 	srv := newTestServer(t, []map[string]string{
-		testResPostgres, testResRedis, testResOllama, testResPostgis, testResJudge0,
+		testResPostgres, testResRedis, testResOllama, testResNextcloud,
 	})
 
 	w := doGet(t, srv, "/api/v1/resources/health")
@@ -100,13 +100,13 @@ func TestResourceHealthManyResources(t *testing.T) {
 	decodeJSON(t, w, &resp)
 
 	resources := resp["resources"].([]any)
-	if len(resources) != 5 {
-		t.Errorf("expected 5 resources, got %d", len(resources))
+	if len(resources) != 4 {
+		t.Errorf("expected 4 resources, got %d", len(resources))
 	}
 
 	total := resp["total"].(float64)
-	if int(total) != 5 {
-		t.Errorf("expected total=5, got %v", total)
+	if int(total) != 4 {
+		t.Errorf("expected total=4, got %v", total)
 	}
 }
 

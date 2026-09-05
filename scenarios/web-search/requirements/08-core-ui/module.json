@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-008",
+      "title": "Core UI — Search, History, Ops Panel, and Findings Management Surface",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "ui",
+      "description": "Ship a UI comprising four integrated surfaces: (1) Search box with ranked result display (SearchHit cards with title, URL, snippet, score, source badge, optional L1 synthesis block with citations); (2) Query history panel listing past queries with timestamps and result counts, selectable to replay; (3) Ops panel showing SearXNG engine reachability status, cache hit-rate metric, and remaining budget tokens with a visual indicator; (4) Findings management surface with browse/filter by status, inline edit, supersede action, flag action, and a manual-add form. All surfaces must reflect live state without requiring page reload.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/search/SnippetCard.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "SearchHit card renders all required fields (title, URL, snippet, score, source) given a complete SearchHit fixture"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/search/SnippetCard.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "SearchHit card renders gracefully (no crash) given a SearchHit fixture with null snippet"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/search/SearchPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "L1 synthesis block is absent from the result view when no synthesis response is present in the result envelope"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/search/SearchPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "L1 synthesis block displays citation links that match source URLs in the SearchHit set"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/ops/OpsPanel.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Ops panel displays 'unreachable' status for SearXNG when the engine health endpoint returns an error"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/findings/StatusBadge.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Findings management browse table renders status badges (active/disputed/superseded) with correct visual differentiation"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/findings/AddFindingForm.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Manual-add form validates required fields (claim, at least one citation) before submission"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/SearchPage.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Submit a search query and verify results appear without page reload; submit a second query and verify history panel adds an entry"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/ops/OpsPanel.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Trigger a live-web query that is cache-served and verify ops panel cache hit-rate increments"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/findings/FindingCard.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Flag a finding via the UI findings management surface and verify the finding status updates to disputed in the database and refreshes in the browse table without page reload"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/search/SearchPanel.test.tsx",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Search results render within 200ms of receiving the first SearchHit from the API"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/ops/OpsPanel.test.tsx",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Ops panel metrics refresh at most every 5 seconds without user action"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/app/routes.test.tsx",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "A user can search, review results, inspect system health, and manage findings entirely within the UI without using CLI"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/ops/OpsPanel.test.tsx",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The ops panel enables an operator to monitor SearXNG reachability and budget consumption at a glance"
+        }
+      ]
+    }
+  ]
+}

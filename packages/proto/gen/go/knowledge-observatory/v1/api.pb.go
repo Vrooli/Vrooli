@@ -8,6 +8,7 @@ package knowledgeobservatoryv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -22,6 +23,59 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// Severity classifies the impact of a documentation finding.
+type DocHealthSeverity int32
+
+const (
+	DocHealthSeverity_DOC_HEALTH_SEVERITY_UNSPECIFIED DocHealthSeverity = 0
+	DocHealthSeverity_DOC_HEALTH_SEVERITY_INFO        DocHealthSeverity = 1
+	DocHealthSeverity_DOC_HEALTH_SEVERITY_WARNING     DocHealthSeverity = 2
+	DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE     DocHealthSeverity = 3
+)
+
+// Enum value maps for DocHealthSeverity.
+var (
+	DocHealthSeverity_name = map[int32]string{
+		0: "DOC_HEALTH_SEVERITY_UNSPECIFIED",
+		1: "DOC_HEALTH_SEVERITY_INFO",
+		2: "DOC_HEALTH_SEVERITY_WARNING",
+		3: "DOC_HEALTH_SEVERITY_FAILURE",
+	}
+	DocHealthSeverity_value = map[string]int32{
+		"DOC_HEALTH_SEVERITY_UNSPECIFIED": 0,
+		"DOC_HEALTH_SEVERITY_INFO":        1,
+		"DOC_HEALTH_SEVERITY_WARNING":     2,
+		"DOC_HEALTH_SEVERITY_FAILURE":     3,
+	}
+)
+
+func (x DocHealthSeverity) Enum() *DocHealthSeverity {
+	p := new(DocHealthSeverity)
+	*p = x
+	return p
+}
+
+func (x DocHealthSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DocHealthSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_knowledge_observatory_v1_api_proto_enumTypes[0].Descriptor()
+}
+
+func (DocHealthSeverity) Type() protoreflect.EnumType {
+	return &file_knowledge_observatory_v1_api_proto_enumTypes[0]
+}
+
+func (x DocHealthSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DocHealthSeverity.Descriptor instead.
+func (DocHealthSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{0}
+}
 
 // SearchRequest defines the input schema for semantic search.
 //
@@ -696,11 +750,932 @@ func (x *KnowledgeHealthResponse) GetTimestamp() string {
 	return ""
 }
 
+// DocHealthFinding is a single observation produced by a validator.
+//
+// Used uniformly across structural, content, link, mermaid, path, reference,
+// and manifest-coverage validators. Fields not relevant to a finding's family
+// may be empty.
+type DocHealthFinding struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable machine code (e.g. "broken_local_link", "absolute_path",
+	// "missing_doc"). @constraint Must be non-empty.
+	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// Severity bucket.
+	Severity DocHealthSeverity `protobuf:"varint,2,opt,name=severity,proto3,enum=knowledge_observatory.v1.DocHealthSeverity" json:"severity,omitempty"`
+	// Human-readable summary of the finding.
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Repo-relative path of the offending file, if applicable.
+	Path *string `protobuf:"bytes,4,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	// Optional doc type identifier (when the finding maps to a known contract
+	// document — e.g. "architecture", "seams").
+	DocType *string `protobuf:"bytes,5,opt,name=doc_type,json=docType,proto3,oneof" json:"doc_type,omitempty"`
+	// Optional line number within `path`.
+	Line *int32 `protobuf:"varint,6,opt,name=line,proto3,oneof" json:"line,omitempty"`
+	// Optional target referenced by the finding (e.g. broken link href,
+	// referenced code path).
+	Target        *string `protobuf:"bytes,7,opt,name=target,proto3,oneof" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocHealthFinding) Reset() {
+	*x = DocHealthFinding{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocHealthFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocHealthFinding) ProtoMessage() {}
+
+func (x *DocHealthFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocHealthFinding.ProtoReflect.Descriptor instead.
+func (*DocHealthFinding) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DocHealthFinding) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *DocHealthFinding) GetSeverity() DocHealthSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return DocHealthSeverity_DOC_HEALTH_SEVERITY_UNSPECIFIED
+}
+
+func (x *DocHealthFinding) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *DocHealthFinding) GetPath() string {
+	if x != nil && x.Path != nil {
+		return *x.Path
+	}
+	return ""
+}
+
+func (x *DocHealthFinding) GetDocType() string {
+	if x != nil && x.DocType != nil {
+		return *x.DocType
+	}
+	return ""
+}
+
+func (x *DocHealthFinding) GetLine() int32 {
+	if x != nil && x.Line != nil {
+		return *x.Line
+	}
+	return 0
+}
+
+func (x *DocHealthFinding) GetTarget() string {
+	if x != nil && x.Target != nil {
+		return *x.Target
+	}
+	return ""
+}
+
+// DocHealthMisplacedDoc describes a documentation file located outside its
+// contract-expected path.
+type DocHealthMisplacedDoc struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActualPath    string                 `protobuf:"bytes,1,opt,name=actual_path,json=actualPath,proto3" json:"actual_path,omitempty"`
+	ExpectedPath  string                 `protobuf:"bytes,2,opt,name=expected_path,json=expectedPath,proto3" json:"expected_path,omitempty"`
+	Severity      DocHealthSeverity      `protobuf:"varint,3,opt,name=severity,proto3,enum=knowledge_observatory.v1.DocHealthSeverity" json:"severity,omitempty"`
+	DocType       *string                `protobuf:"bytes,4,opt,name=doc_type,json=docType,proto3,oneof" json:"doc_type,omitempty"`
+	Message       *string                `protobuf:"bytes,5,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocHealthMisplacedDoc) Reset() {
+	*x = DocHealthMisplacedDoc{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocHealthMisplacedDoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocHealthMisplacedDoc) ProtoMessage() {}
+
+func (x *DocHealthMisplacedDoc) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocHealthMisplacedDoc.ProtoReflect.Descriptor instead.
+func (*DocHealthMisplacedDoc) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DocHealthMisplacedDoc) GetActualPath() string {
+	if x != nil {
+		return x.ActualPath
+	}
+	return ""
+}
+
+func (x *DocHealthMisplacedDoc) GetExpectedPath() string {
+	if x != nil {
+		return x.ExpectedPath
+	}
+	return ""
+}
+
+func (x *DocHealthMisplacedDoc) GetSeverity() DocHealthSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return DocHealthSeverity_DOC_HEALTH_SEVERITY_UNSPECIFIED
+}
+
+func (x *DocHealthMisplacedDoc) GetDocType() string {
+	if x != nil && x.DocType != nil {
+		return *x.DocType
+	}
+	return ""
+}
+
+func (x *DocHealthMisplacedDoc) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
+// DocHealthMissingDoc describes a contract-required document that is absent.
+type DocHealthMissingDoc struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DocType       string                 `protobuf:"bytes,1,opt,name=doc_type,json=docType,proto3" json:"doc_type,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Severity      DocHealthSeverity      `protobuf:"varint,3,opt,name=severity,proto3,enum=knowledge_observatory.v1.DocHealthSeverity" json:"severity,omitempty"`
+	Completion    *string                `protobuf:"bytes,4,opt,name=completion,proto3,oneof" json:"completion,omitempty"`
+	RequiredBy    []string               `protobuf:"bytes,5,rep,name=required_by,json=requiredBy,proto3" json:"required_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocHealthMissingDoc) Reset() {
+	*x = DocHealthMissingDoc{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocHealthMissingDoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocHealthMissingDoc) ProtoMessage() {}
+
+func (x *DocHealthMissingDoc) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocHealthMissingDoc.ProtoReflect.Descriptor instead.
+func (*DocHealthMissingDoc) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DocHealthMissingDoc) GetDocType() string {
+	if x != nil {
+		return x.DocType
+	}
+	return ""
+}
+
+func (x *DocHealthMissingDoc) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DocHealthMissingDoc) GetSeverity() DocHealthSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return DocHealthSeverity_DOC_HEALTH_SEVERITY_UNSPECIFIED
+}
+
+func (x *DocHealthMissingDoc) GetCompletion() string {
+	if x != nil && x.Completion != nil {
+		return *x.Completion
+	}
+	return ""
+}
+
+func (x *DocHealthMissingDoc) GetRequiredBy() []string {
+	if x != nil {
+		return x.RequiredBy
+	}
+	return nil
+}
+
+// DocHealthCounts aggregates raw metric counts produced by content/link/refs
+// validators. Mirrors the legacy test-genie Summary so phase reporting keeps
+// its existing shape after the migration.
+type DocHealthCounts struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Markdown / file-level totals.
+	FilesChecked     int32 `protobuf:"varint,1,opt,name=files_checked,json=filesChecked,proto3" json:"files_checked,omitempty"`
+	MarkdownWarnings int32 `protobuf:"varint,2,opt,name=markdown_warnings,json=markdownWarnings,proto3" json:"markdown_warnings,omitempty"`
+	MarkdownFailures int32 `protobuf:"varint,3,opt,name=markdown_failures,json=markdownFailures,proto3" json:"markdown_failures,omitempty"`
+	// Link totals.
+	LocalLinks       int32 `protobuf:"varint,4,opt,name=local_links,json=localLinks,proto3" json:"local_links,omitempty"`
+	ExternalLinks    int32 `protobuf:"varint,5,opt,name=external_links,json=externalLinks,proto3" json:"external_links,omitempty"`
+	BrokenLinks      int32 `protobuf:"varint,6,opt,name=broken_links,json=brokenLinks,proto3" json:"broken_links,omitempty"`
+	ExternalWarnings int32 `protobuf:"varint,7,opt,name=external_warnings,json=externalWarnings,proto3" json:"external_warnings,omitempty"`
+	ExternalFailures int32 `protobuf:"varint,8,opt,name=external_failures,json=externalFailures,proto3" json:"external_failures,omitempty"`
+	// Mermaid totals.
+	MermaidValidated int32 `protobuf:"varint,9,opt,name=mermaid_validated,json=mermaidValidated,proto3" json:"mermaid_validated,omitempty"`
+	MermaidFailures  int32 `protobuf:"varint,10,opt,name=mermaid_failures,json=mermaidFailures,proto3" json:"mermaid_failures,omitempty"`
+	// Absolute-path totals.
+	AbsolutePathHits int32 `protobuf:"varint,11,opt,name=absolute_path_hits,json=absolutePathHits,proto3" json:"absolute_path_hits,omitempty"`
+	AbsoluteFailures int32 `protobuf:"varint,12,opt,name=absolute_failures,json=absoluteFailures,proto3" json:"absolute_failures,omitempty"`
+	// Bidirectional reference totals.
+	CodeFilesScanned  int32 `protobuf:"varint,13,opt,name=code_files_scanned,json=codeFilesScanned,proto3" json:"code_files_scanned,omitempty"`
+	CodeRefsFound     int32 `protobuf:"varint,14,opt,name=code_refs_found,json=codeRefsFound,proto3" json:"code_refs_found,omitempty"`
+	CodeRefsBroken    int32 `protobuf:"varint,15,opt,name=code_refs_broken,json=codeRefsBroken,proto3" json:"code_refs_broken,omitempty"`
+	DocRefsFound      int32 `protobuf:"varint,16,opt,name=doc_refs_found,json=docRefsFound,proto3" json:"doc_refs_found,omitempty"`
+	DocRefsBroken     int32 `protobuf:"varint,17,opt,name=doc_refs_broken,json=docRefsBroken,proto3" json:"doc_refs_broken,omitempty"`
+	MarkedRefsFound   int32 `protobuf:"varint,18,opt,name=marked_refs_found,json=markedRefsFound,proto3" json:"marked_refs_found,omitempty"`
+	MarkedRefsBroken  int32 `protobuf:"varint,19,opt,name=marked_refs_broken,json=markedRefsBroken,proto3" json:"marked_refs_broken,omitempty"`
+	MarkedRefsSkipped int32 `protobuf:"varint,20,opt,name=marked_refs_skipped,json=markedRefsSkipped,proto3" json:"marked_refs_skipped,omitempty"`
+	MarkedRefsUnknown int32 `protobuf:"varint,21,opt,name=marked_refs_unknown,json=markedRefsUnknown,proto3" json:"marked_refs_unknown,omitempty"`
+	// Manifest coverage totals.
+	DocsInManifest    int32 `protobuf:"varint,22,opt,name=docs_in_manifest,json=docsInManifest,proto3" json:"docs_in_manifest,omitempty"`
+	DocsNotInManifest int32 `protobuf:"varint,23,opt,name=docs_not_in_manifest,json=docsNotInManifest,proto3" json:"docs_not_in_manifest,omitempty"`
+	// Derived-number / drift-prone count lint totals.
+	NumbersFlagged int32 `protobuf:"varint,24,opt,name=numbers_flagged,json=numbersFlagged,proto3" json:"numbers_flagged,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DocHealthCounts) Reset() {
+	*x = DocHealthCounts{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocHealthCounts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocHealthCounts) ProtoMessage() {}
+
+func (x *DocHealthCounts) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocHealthCounts.ProtoReflect.Descriptor instead.
+func (*DocHealthCounts) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DocHealthCounts) GetFilesChecked() int32 {
+	if x != nil {
+		return x.FilesChecked
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMarkdownWarnings() int32 {
+	if x != nil {
+		return x.MarkdownWarnings
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMarkdownFailures() int32 {
+	if x != nil {
+		return x.MarkdownFailures
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetLocalLinks() int32 {
+	if x != nil {
+		return x.LocalLinks
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetExternalLinks() int32 {
+	if x != nil {
+		return x.ExternalLinks
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetBrokenLinks() int32 {
+	if x != nil {
+		return x.BrokenLinks
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetExternalWarnings() int32 {
+	if x != nil {
+		return x.ExternalWarnings
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetExternalFailures() int32 {
+	if x != nil {
+		return x.ExternalFailures
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMermaidValidated() int32 {
+	if x != nil {
+		return x.MermaidValidated
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMermaidFailures() int32 {
+	if x != nil {
+		return x.MermaidFailures
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetAbsolutePathHits() int32 {
+	if x != nil {
+		return x.AbsolutePathHits
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetAbsoluteFailures() int32 {
+	if x != nil {
+		return x.AbsoluteFailures
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetCodeFilesScanned() int32 {
+	if x != nil {
+		return x.CodeFilesScanned
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetCodeRefsFound() int32 {
+	if x != nil {
+		return x.CodeRefsFound
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetCodeRefsBroken() int32 {
+	if x != nil {
+		return x.CodeRefsBroken
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetDocRefsFound() int32 {
+	if x != nil {
+		return x.DocRefsFound
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetDocRefsBroken() int32 {
+	if x != nil {
+		return x.DocRefsBroken
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMarkedRefsFound() int32 {
+	if x != nil {
+		return x.MarkedRefsFound
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMarkedRefsBroken() int32 {
+	if x != nil {
+		return x.MarkedRefsBroken
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMarkedRefsSkipped() int32 {
+	if x != nil {
+		return x.MarkedRefsSkipped
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetMarkedRefsUnknown() int32 {
+	if x != nil {
+		return x.MarkedRefsUnknown
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetDocsInManifest() int32 {
+	if x != nil {
+		return x.DocsInManifest
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetDocsNotInManifest() int32 {
+	if x != nil {
+		return x.DocsNotInManifest
+	}
+	return 0
+}
+
+func (x *DocHealthCounts) GetNumbersFlagged() int32 {
+	if x != nil {
+		return x.NumbersFlagged
+	}
+	return 0
+}
+
+// DocHealthRequest invokes a full documentation-health check for a single
+// scenario.
+//
+// @usage rpc DocHealth on KnowledgeObservatoryService
+type DocHealthRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the scenario directory (under the scenarios root). Required for the
+	// default (scenario) scope; leave empty when scope = "path".
+	// @constraint When set, contains no path separators.
+	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	// When true, external (http/https) links cause failures rather than
+	// warnings. When unset, server default applies.
+	StrictExternalLinks *bool `protobuf:"varint,2,opt,name=strict_external_links,json=strictExternalLinks,proto3,oneof" json:"strict_external_links,omitempty"`
+	// When true, every doc file under the scenario must be registered in
+	// docs/manifest.json (orphaned docs become failures). When unset, server
+	// default applies.
+	RequireAllDocsRegistered *bool `protobuf:"varint,3,opt,name=require_all_docs_registered,json=requireAllDocsRegistered,proto3,oneof" json:"require_all_docs_registered,omitempty"`
+	// When true, external link probing is skipped entirely (offline mode).
+	SkipExternalLinks *bool `protobuf:"varint,4,opt,name=skip_external_links,json=skipExternalLinks,proto3,oneof" json:"skip_external_links,omitempty"`
+	// Target scope: "" or "scenario" (default; resolved from scenario_name) or
+	// "path" (scan `path` directly). A path that resolves inside a scenario is
+	// promoted to that scenario (all checks); a project-level path runs only
+	// generic checks.
+	Scope *string `protobuf:"bytes,5,opt,name=scope,proto3,oneof" json:"scope,omitempty"`
+	// Path to scan when scope = "path". Absolute, or relative to the repo root.
+	Path *string `protobuf:"bytes,6,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	// Narrow the run to these check names (see the check registry: structure,
+	// content, links, refs, manifest, numbers). Empty = all checks applicable to
+	// the target.
+	Checks        []string `protobuf:"bytes,7,rep,name=checks,proto3" json:"checks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocHealthRequest) Reset() {
+	*x = DocHealthRequest{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocHealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocHealthRequest) ProtoMessage() {}
+
+func (x *DocHealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocHealthRequest.ProtoReflect.Descriptor instead.
+func (*DocHealthRequest) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DocHealthRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *DocHealthRequest) GetStrictExternalLinks() bool {
+	if x != nil && x.StrictExternalLinks != nil {
+		return *x.StrictExternalLinks
+	}
+	return false
+}
+
+func (x *DocHealthRequest) GetRequireAllDocsRegistered() bool {
+	if x != nil && x.RequireAllDocsRegistered != nil {
+		return *x.RequireAllDocsRegistered
+	}
+	return false
+}
+
+func (x *DocHealthRequest) GetSkipExternalLinks() bool {
+	if x != nil && x.SkipExternalLinks != nil {
+		return *x.SkipExternalLinks
+	}
+	return false
+}
+
+func (x *DocHealthRequest) GetScope() string {
+	if x != nil && x.Scope != nil {
+		return *x.Scope
+	}
+	return ""
+}
+
+func (x *DocHealthRequest) GetPath() string {
+	if x != nil && x.Path != nil {
+		return *x.Path
+	}
+	return ""
+}
+
+func (x *DocHealthRequest) GetChecks() []string {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+// DocHealthResponse is the combined result of every validator family.
+//
+// @usage rpc DocHealth on KnowledgeObservatoryService
+type DocHealthResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Echoed scenario name.
+	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	// Source template identifier (e.g. "go-api", "react-vite"), if resolved.
+	SourceTemplateId *string `protobuf:"bytes,2,opt,name=source_template_id,json=sourceTemplateId,proto3,oneof" json:"source_template_id,omitempty"`
+	// Repo-relative path to the docs manifest used for the run.
+	ManifestPath *string `protobuf:"bytes,3,opt,name=manifest_path,json=manifestPath,proto3,oneof" json:"manifest_path,omitempty"`
+	// Manifest status: "present" | "template-fallback" | "missing".
+	ManifestStatus *string `protobuf:"bytes,4,opt,name=manifest_status,json=manifestStatus,proto3,oneof" json:"manifest_status,omitempty"`
+	// Aggregate health score in [0, 1]. 1 = clean, 0 = unrecoverable.
+	// @constraint 0-1
+	HealthScore float64 `protobuf:"fixed64,5,opt,name=health_score,json=healthScore,proto3" json:"health_score,omitempty"`
+	// Total documentation files discovered under the scenario.
+	TotalDocs int32 `protobuf:"varint,6,opt,name=total_docs,json=totalDocs,proto3" json:"total_docs,omitempty"`
+	// Structural findings.
+	MisplacedDocs []*DocHealthMisplacedDoc `protobuf:"bytes,7,rep,name=misplaced_docs,json=misplacedDocs,proto3" json:"misplaced_docs,omitempty"`
+	MissingDocs   []*DocHealthMissingDoc   `protobuf:"bytes,8,rep,name=missing_docs,json=missingDocs,proto3" json:"missing_docs,omitempty"`
+	ExtraDocs     []string                 `protobuf:"bytes,9,rep,name=extra_docs,json=extraDocs,proto3" json:"extra_docs,omitempty"`
+	TemporaryDocs []string                 `protobuf:"bytes,10,rep,name=temporary_docs,json=temporaryDocs,proto3" json:"temporary_docs,omitempty"`
+	// Contract findings emitted by docs manifest resolution.
+	ContractFindings []*DocHealthFinding `protobuf:"bytes,11,rep,name=contract_findings,json=contractFindings,proto3" json:"contract_findings,omitempty"`
+	// Findings from content-level validators (markdown, mermaid, paths, links).
+	ContentFindings []*DocHealthFinding `protobuf:"bytes,12,rep,name=content_findings,json=contentFindings,proto3" json:"content_findings,omitempty"`
+	// Findings from bidirectional reference audits ([CODE:], // DOC:, [PATH:],
+	// [DOC:]).
+	ReferenceFindings []*DocHealthFinding `protobuf:"bytes,13,rep,name=reference_findings,json=referenceFindings,proto3" json:"reference_findings,omitempty"`
+	// Findings from docs/manifest.json coverage audit (orphaned docs, missing
+	// registrations).
+	ManifestFindings []*DocHealthFinding `protobuf:"bytes,14,rep,name=manifest_findings,json=manifestFindings,proto3" json:"manifest_findings,omitempty"`
+	// Aggregate metric counts mirroring the legacy test-genie Summary.
+	Counts *DocHealthCounts `protobuf:"bytes,15,opt,name=counts,proto3" json:"counts,omitempty"`
+	// Time the check was performed.
+	// @format rfc3339
+	Timestamp string `protobuf:"bytes,16,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Provider-owned local maturity assessment for Test Genie docs phase
+	// aggregation and fleet-level health comparison.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,17,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocHealthResponse) Reset() {
+	*x = DocHealthResponse{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocHealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocHealthResponse) ProtoMessage() {}
+
+func (x *DocHealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocHealthResponse.ProtoReflect.Descriptor instead.
+func (*DocHealthResponse) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DocHealthResponse) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *DocHealthResponse) GetSourceTemplateId() string {
+	if x != nil && x.SourceTemplateId != nil {
+		return *x.SourceTemplateId
+	}
+	return ""
+}
+
+func (x *DocHealthResponse) GetManifestPath() string {
+	if x != nil && x.ManifestPath != nil {
+		return *x.ManifestPath
+	}
+	return ""
+}
+
+func (x *DocHealthResponse) GetManifestStatus() string {
+	if x != nil && x.ManifestStatus != nil {
+		return *x.ManifestStatus
+	}
+	return ""
+}
+
+func (x *DocHealthResponse) GetHealthScore() float64 {
+	if x != nil {
+		return x.HealthScore
+	}
+	return 0
+}
+
+func (x *DocHealthResponse) GetTotalDocs() int32 {
+	if x != nil {
+		return x.TotalDocs
+	}
+	return 0
+}
+
+func (x *DocHealthResponse) GetMisplacedDocs() []*DocHealthMisplacedDoc {
+	if x != nil {
+		return x.MisplacedDocs
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetMissingDocs() []*DocHealthMissingDoc {
+	if x != nil {
+		return x.MissingDocs
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetExtraDocs() []string {
+	if x != nil {
+		return x.ExtraDocs
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetTemporaryDocs() []string {
+	if x != nil {
+		return x.TemporaryDocs
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetContractFindings() []*DocHealthFinding {
+	if x != nil {
+		return x.ContractFindings
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetContentFindings() []*DocHealthFinding {
+	if x != nil {
+		return x.ContentFindings
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetReferenceFindings() []*DocHealthFinding {
+	if x != nil {
+		return x.ReferenceFindings
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetManifestFindings() []*DocHealthFinding {
+	if x != nil {
+		return x.ManifestFindings
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetCounts() *DocHealthCounts {
+	if x != nil {
+		return x.Counts
+	}
+	return nil
+}
+
+func (x *DocHealthResponse) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+func (x *DocHealthResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
+}
+
+// ValidateMarkdownDiagramsRequest validates Mermaid fences in arbitrary Markdown.
+type ValidateMarkdownDiagramsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	SourceLabel   *string                `protobuf:"bytes,2,opt,name=source_label,json=sourceLabel,proto3,oneof" json:"source_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateMarkdownDiagramsRequest) Reset() {
+	*x = ValidateMarkdownDiagramsRequest{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateMarkdownDiagramsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateMarkdownDiagramsRequest) ProtoMessage() {}
+
+func (x *ValidateMarkdownDiagramsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateMarkdownDiagramsRequest.ProtoReflect.Descriptor instead.
+func (*ValidateMarkdownDiagramsRequest) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ValidateMarkdownDiagramsRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *ValidateMarkdownDiagramsRequest) GetSourceLabel() string {
+	if x != nil && x.SourceLabel != nil {
+		return *x.SourceLabel
+	}
+	return ""
+}
+
+// ValidateMarkdownDiagramsResponse contains Mermaid-only findings.
+type ValidateMarkdownDiagramsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Findings      []*DocHealthFinding    `protobuf:"bytes,1,rep,name=findings,proto3" json:"findings,omitempty"`
+	Engine        string                 `protobuf:"bytes,2,opt,name=engine,proto3" json:"engine,omitempty"`
+	Unverified    bool                   `protobuf:"varint,3,opt,name=unverified,proto3" json:"unverified,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateMarkdownDiagramsResponse) Reset() {
+	*x = ValidateMarkdownDiagramsResponse{}
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateMarkdownDiagramsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateMarkdownDiagramsResponse) ProtoMessage() {}
+
+func (x *ValidateMarkdownDiagramsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_knowledge_observatory_v1_api_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateMarkdownDiagramsResponse.ProtoReflect.Descriptor instead.
+func (*ValidateMarkdownDiagramsResponse) Descriptor() ([]byte, []int) {
+	return file_knowledge_observatory_v1_api_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ValidateMarkdownDiagramsResponse) GetFindings() []*DocHealthFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+func (x *ValidateMarkdownDiagramsResponse) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *ValidateMarkdownDiagramsResponse) GetUnverified() bool {
+	if x != nil {
+		return x.Unverified
+	}
+	return false
+}
+
 var File_knowledge_observatory_v1_api_proto protoreflect.FileDescriptor
 
 const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"\n" +
-	"\"knowledge-observatory/v1/api.proto\x12\x18knowledge_observatory.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xb1\x03\n" +
+	"\"knowledge-observatory/v1/api.proto\x12\x18knowledge_observatory.v1\x1a\x1bbuf/validate/validate.proto\x1a\x18common/v1/maturity.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xb1\x03\n" +
 	"\rSearchRequest\x12\x1d\n" +
 	"\x05query\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05query\x12#\n" +
 	"\n" +
@@ -786,7 +1761,126 @@ const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"\x0eoverall_health\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\roverallHealth\x12Q\n" +
 	"\x0foverall_metrics\x18\x04 \x01(\v2(.knowledge_observatory.v1.QualityMetricsR\x0eoverallMetrics\x12%\n" +
 	"\ttimestamp\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ttimestampB\x10\n" +
-	"\x0e_total_entriesB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/knowledge_observatory/v1;knowledgeobservatoryv1b\x06proto3"
+	"\x0e_total_entries\"\xc0\x02\n" +
+	"\x10DocHealthFinding\x12\x1b\n" +
+	"\x04code\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04code\x12S\n" +
+	"\bseverity\x18\x02 \x01(\x0e2+.knowledge_observatory.v1.DocHealthSeverityB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bseverity\x12!\n" +
+	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12\x17\n" +
+	"\x04path\x18\x04 \x01(\tH\x00R\x04path\x88\x01\x01\x12\x1e\n" +
+	"\bdoc_type\x18\x05 \x01(\tH\x01R\adocType\x88\x01\x01\x12\x17\n" +
+	"\x04line\x18\x06 \x01(\x05H\x02R\x04line\x88\x01\x01\x12\x1b\n" +
+	"\x06target\x18\a \x01(\tH\x03R\x06target\x88\x01\x01B\a\n" +
+	"\x05_pathB\v\n" +
+	"\t_doc_typeB\a\n" +
+	"\x05_lineB\t\n" +
+	"\a_target\"\x9c\x02\n" +
+	"\x15DocHealthMisplacedDoc\x12(\n" +
+	"\vactual_path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
+	"actualPath\x12,\n" +
+	"\rexpected_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fexpectedPath\x12S\n" +
+	"\bseverity\x18\x03 \x01(\x0e2+.knowledge_observatory.v1.DocHealthSeverityB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bseverity\x12\x1e\n" +
+	"\bdoc_type\x18\x04 \x01(\tH\x00R\adocType\x88\x01\x01\x12\x1d\n" +
+	"\amessage\x18\x05 \x01(\tH\x01R\amessage\x88\x01\x01B\v\n" +
+	"\t_doc_typeB\n" +
+	"\n" +
+	"\b_message\"\x80\x02\n" +
+	"\x13DocHealthMissingDoc\x12\"\n" +
+	"\bdoc_type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\adocType\x12\x1b\n" +
+	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12S\n" +
+	"\bseverity\x18\x03 \x01(\x0e2+.knowledge_observatory.v1.DocHealthSeverityB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bseverity\x12#\n" +
+	"\n" +
+	"completion\x18\x04 \x01(\tH\x00R\n" +
+	"completion\x88\x01\x01\x12\x1f\n" +
+	"\vrequired_by\x18\x05 \x03(\tR\n" +
+	"requiredByB\r\n" +
+	"\v_completion\"\x94\b\n" +
+	"\x0fDocHealthCounts\x12#\n" +
+	"\rfiles_checked\x18\x01 \x01(\x05R\ffilesChecked\x12+\n" +
+	"\x11markdown_warnings\x18\x02 \x01(\x05R\x10markdownWarnings\x12+\n" +
+	"\x11markdown_failures\x18\x03 \x01(\x05R\x10markdownFailures\x12\x1f\n" +
+	"\vlocal_links\x18\x04 \x01(\x05R\n" +
+	"localLinks\x12%\n" +
+	"\x0eexternal_links\x18\x05 \x01(\x05R\rexternalLinks\x12!\n" +
+	"\fbroken_links\x18\x06 \x01(\x05R\vbrokenLinks\x12+\n" +
+	"\x11external_warnings\x18\a \x01(\x05R\x10externalWarnings\x12+\n" +
+	"\x11external_failures\x18\b \x01(\x05R\x10externalFailures\x12+\n" +
+	"\x11mermaid_validated\x18\t \x01(\x05R\x10mermaidValidated\x12)\n" +
+	"\x10mermaid_failures\x18\n" +
+	" \x01(\x05R\x0fmermaidFailures\x12,\n" +
+	"\x12absolute_path_hits\x18\v \x01(\x05R\x10absolutePathHits\x12+\n" +
+	"\x11absolute_failures\x18\f \x01(\x05R\x10absoluteFailures\x12,\n" +
+	"\x12code_files_scanned\x18\r \x01(\x05R\x10codeFilesScanned\x12&\n" +
+	"\x0fcode_refs_found\x18\x0e \x01(\x05R\rcodeRefsFound\x12(\n" +
+	"\x10code_refs_broken\x18\x0f \x01(\x05R\x0ecodeRefsBroken\x12$\n" +
+	"\x0edoc_refs_found\x18\x10 \x01(\x05R\fdocRefsFound\x12&\n" +
+	"\x0fdoc_refs_broken\x18\x11 \x01(\x05R\rdocRefsBroken\x12*\n" +
+	"\x11marked_refs_found\x18\x12 \x01(\x05R\x0fmarkedRefsFound\x12,\n" +
+	"\x12marked_refs_broken\x18\x13 \x01(\x05R\x10markedRefsBroken\x12.\n" +
+	"\x13marked_refs_skipped\x18\x14 \x01(\x05R\x11markedRefsSkipped\x12.\n" +
+	"\x13marked_refs_unknown\x18\x15 \x01(\x05R\x11markedRefsUnknown\x12(\n" +
+	"\x10docs_in_manifest\x18\x16 \x01(\x05R\x0edocsInManifest\x12/\n" +
+	"\x14docs_not_in_manifest\x18\x17 \x01(\x05R\x11docsNotInManifest\x12'\n" +
+	"\x0fnumbers_flagged\x18\x18 \x01(\x05R\x0enumbersFlagged\"\xc5\x03\n" +
+	"\x10DocHealthRequest\x12N\n" +
+	"\rscenario_name\x18\x01 \x01(\tB)\xbaH&r$\x18\x80\x022\x1f^([A-Za-z0-9][A-Za-z0-9._-]*)?$R\fscenarioName\x127\n" +
+	"\x15strict_external_links\x18\x02 \x01(\bH\x00R\x13strictExternalLinks\x88\x01\x01\x12B\n" +
+	"\x1brequire_all_docs_registered\x18\x03 \x01(\bH\x01R\x18requireAllDocsRegistered\x88\x01\x01\x123\n" +
+	"\x13skip_external_links\x18\x04 \x01(\bH\x02R\x11skipExternalLinks\x88\x01\x01\x12\x19\n" +
+	"\x05scope\x18\x05 \x01(\tH\x03R\x05scope\x88\x01\x01\x12\x17\n" +
+	"\x04path\x18\x06 \x01(\tH\x04R\x04path\x88\x01\x01\x12\x16\n" +
+	"\x06checks\x18\a \x03(\tR\x06checksB\x18\n" +
+	"\x16_strict_external_linksB\x1e\n" +
+	"\x1c_require_all_docs_registeredB\x16\n" +
+	"\x14_skip_external_linksB\b\n" +
+	"\x06_scopeB\a\n" +
+	"\x05_path\"\xe1\b\n" +
+	"\x11DocHealthResponse\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x121\n" +
+	"\x12source_template_id\x18\x02 \x01(\tH\x00R\x10sourceTemplateId\x88\x01\x01\x12(\n" +
+	"\rmanifest_path\x18\x03 \x01(\tH\x01R\fmanifestPath\x88\x01\x01\x12,\n" +
+	"\x0fmanifest_status\x18\x04 \x01(\tH\x02R\x0emanifestStatus\x88\x01\x01\x12:\n" +
+	"\fhealth_score\x18\x05 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\vhealthScore\x12\x1d\n" +
+	"\n" +
+	"total_docs\x18\x06 \x01(\x05R\ttotalDocs\x12V\n" +
+	"\x0emisplaced_docs\x18\a \x03(\v2/.knowledge_observatory.v1.DocHealthMisplacedDocR\rmisplacedDocs\x12P\n" +
+	"\fmissing_docs\x18\b \x03(\v2-.knowledge_observatory.v1.DocHealthMissingDocR\vmissingDocs\x12\x1d\n" +
+	"\n" +
+	"extra_docs\x18\t \x03(\tR\textraDocs\x12%\n" +
+	"\x0etemporary_docs\x18\n" +
+	" \x03(\tR\rtemporaryDocs\x12W\n" +
+	"\x11contract_findings\x18\v \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\x10contractFindings\x12U\n" +
+	"\x10content_findings\x18\f \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\x0fcontentFindings\x12Y\n" +
+	"\x12reference_findings\x18\r \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\x11referenceFindings\x12W\n" +
+	"\x11manifest_findings\x18\x0e \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\x10manifestFindings\x12A\n" +
+	"\x06counts\x18\x0f \x01(\v2).knowledge_observatory.v1.DocHealthCountsR\x06counts\x12%\n" +
+	"\ttimestamp\x18\x10 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ttimestamp\x12=\n" +
+	"\n" +
+	"assessment\x18\x11 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessmentB\x15\n" +
+	"\x13_source_template_idB\x10\n" +
+	"\x0e_manifest_pathB\x12\n" +
+	"\x10_manifest_status\"t\n" +
+	"\x1fValidateMarkdownDiagramsRequest\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\x12&\n" +
+	"\fsource_label\x18\x02 \x01(\tH\x00R\vsourceLabel\x88\x01\x01B\x0f\n" +
+	"\r_source_label\"\xa2\x01\n" +
+	" ValidateMarkdownDiagramsResponse\x12F\n" +
+	"\bfindings\x18\x01 \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\bfindings\x12\x16\n" +
+	"\x06engine\x18\x02 \x01(\tR\x06engine\x12\x1e\n" +
+	"\n" +
+	"unverified\x18\x03 \x01(\bR\n" +
+	"unverified*\x98\x01\n" +
+	"\x11DocHealthSeverity\x12#\n" +
+	"\x1fDOC_HEALTH_SEVERITY_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18DOC_HEALTH_SEVERITY_INFO\x10\x01\x12\x1f\n" +
+	"\x1bDOC_HEALTH_SEVERITY_WARNING\x10\x02\x12\x1f\n" +
+	"\x1bDOC_HEALTH_SEVERITY_FAILURE\x10\x032\x97\x02\n" +
+	"\x1bKnowledgeObservatoryService\x12d\n" +
+	"\tDocHealth\x12*.knowledge_observatory.v1.DocHealthRequest\x1a+.knowledge_observatory.v1.DocHealthResponse\x12\x91\x01\n" +
+	"\x18ValidateMarkdownDiagrams\x129.knowledge_observatory.v1.ValidateMarkdownDiagramsRequest\x1a:.knowledge_observatory.v1.ValidateMarkdownDiagramsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1;knowledgeobservatoryv1b\x06proto3"
 
 var (
 	file_knowledge_observatory_v1_api_proto_rawDescOnce sync.Once
@@ -800,37 +1894,64 @@ func file_knowledge_observatory_v1_api_proto_rawDescGZIP() []byte {
 	return file_knowledge_observatory_v1_api_proto_rawDescData
 }
 
-var file_knowledge_observatory_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_knowledge_observatory_v1_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_knowledge_observatory_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_knowledge_observatory_v1_api_proto_goTypes = []any{
-	(*SearchRequest)(nil),                // 0: knowledge_observatory.v1.SearchRequest
-	(*SearchResult)(nil),                 // 1: knowledge_observatory.v1.SearchResult
-	(*SearchResponse)(nil),               // 2: knowledge_observatory.v1.SearchResponse
-	(*DependencyStatus)(nil),             // 3: knowledge_observatory.v1.DependencyStatus
-	(*InfrastructureHealthResponse)(nil), // 4: knowledge_observatory.v1.InfrastructureHealthResponse
-	(*QualityMetrics)(nil),               // 5: knowledge_observatory.v1.QualityMetrics
-	(*CollectionHealth)(nil),             // 6: knowledge_observatory.v1.CollectionHealth
-	(*KnowledgeHealthResponse)(nil),      // 7: knowledge_observatory.v1.KnowledgeHealthResponse
-	nil,                                  // 8: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
-	nil,                                  // 9: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
-	(*structpb.Struct)(nil),              // 10: google.protobuf.Struct
-	(*structpb.Value)(nil),               // 11: google.protobuf.Value
+	(DocHealthSeverity)(0),                   // 0: knowledge_observatory.v1.DocHealthSeverity
+	(*SearchRequest)(nil),                    // 1: knowledge_observatory.v1.SearchRequest
+	(*SearchResult)(nil),                     // 2: knowledge_observatory.v1.SearchResult
+	(*SearchResponse)(nil),                   // 3: knowledge_observatory.v1.SearchResponse
+	(*DependencyStatus)(nil),                 // 4: knowledge_observatory.v1.DependencyStatus
+	(*InfrastructureHealthResponse)(nil),     // 5: knowledge_observatory.v1.InfrastructureHealthResponse
+	(*QualityMetrics)(nil),                   // 6: knowledge_observatory.v1.QualityMetrics
+	(*CollectionHealth)(nil),                 // 7: knowledge_observatory.v1.CollectionHealth
+	(*KnowledgeHealthResponse)(nil),          // 8: knowledge_observatory.v1.KnowledgeHealthResponse
+	(*DocHealthFinding)(nil),                 // 9: knowledge_observatory.v1.DocHealthFinding
+	(*DocHealthMisplacedDoc)(nil),            // 10: knowledge_observatory.v1.DocHealthMisplacedDoc
+	(*DocHealthMissingDoc)(nil),              // 11: knowledge_observatory.v1.DocHealthMissingDoc
+	(*DocHealthCounts)(nil),                  // 12: knowledge_observatory.v1.DocHealthCounts
+	(*DocHealthRequest)(nil),                 // 13: knowledge_observatory.v1.DocHealthRequest
+	(*DocHealthResponse)(nil),                // 14: knowledge_observatory.v1.DocHealthResponse
+	(*ValidateMarkdownDiagramsRequest)(nil),  // 15: knowledge_observatory.v1.ValidateMarkdownDiagramsRequest
+	(*ValidateMarkdownDiagramsResponse)(nil), // 16: knowledge_observatory.v1.ValidateMarkdownDiagramsResponse
+	nil,                                      // 17: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
+	nil,                                      // 18: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
+	(*structpb.Struct)(nil),                  // 19: google.protobuf.Struct
+	(*structpb.Value)(nil),                   // 20: google.protobuf.Value
+	(*v1.MaturityAssessment)(nil),            // 21: common.v1.MaturityAssessment
 }
 var file_knowledge_observatory_v1_api_proto_depIdxs = []int32{
-	10, // 0: knowledge_observatory.v1.SearchResult.metadata:type_name -> google.protobuf.Struct
-	1,  // 1: knowledge_observatory.v1.SearchResponse.results:type_name -> knowledge_observatory.v1.SearchResult
-	11, // 2: knowledge_observatory.v1.DependencyStatus.error:type_name -> google.protobuf.Value
-	8,  // 3: knowledge_observatory.v1.InfrastructureHealthResponse.dependencies:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
-	9,  // 4: knowledge_observatory.v1.InfrastructureHealthResponse.metrics:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
-	5,  // 5: knowledge_observatory.v1.CollectionHealth.metrics:type_name -> knowledge_observatory.v1.QualityMetrics
-	6,  // 6: knowledge_observatory.v1.KnowledgeHealthResponse.collections:type_name -> knowledge_observatory.v1.CollectionHealth
-	5,  // 7: knowledge_observatory.v1.KnowledgeHealthResponse.overall_metrics:type_name -> knowledge_observatory.v1.QualityMetrics
-	3,  // 8: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry.value:type_name -> knowledge_observatory.v1.DependencyStatus
-	11, // 9: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	19, // 0: knowledge_observatory.v1.SearchResult.metadata:type_name -> google.protobuf.Struct
+	2,  // 1: knowledge_observatory.v1.SearchResponse.results:type_name -> knowledge_observatory.v1.SearchResult
+	20, // 2: knowledge_observatory.v1.DependencyStatus.error:type_name -> google.protobuf.Value
+	17, // 3: knowledge_observatory.v1.InfrastructureHealthResponse.dependencies:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry
+	18, // 4: knowledge_observatory.v1.InfrastructureHealthResponse.metrics:type_name -> knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
+	6,  // 5: knowledge_observatory.v1.CollectionHealth.metrics:type_name -> knowledge_observatory.v1.QualityMetrics
+	7,  // 6: knowledge_observatory.v1.KnowledgeHealthResponse.collections:type_name -> knowledge_observatory.v1.CollectionHealth
+	6,  // 7: knowledge_observatory.v1.KnowledgeHealthResponse.overall_metrics:type_name -> knowledge_observatory.v1.QualityMetrics
+	0,  // 8: knowledge_observatory.v1.DocHealthFinding.severity:type_name -> knowledge_observatory.v1.DocHealthSeverity
+	0,  // 9: knowledge_observatory.v1.DocHealthMisplacedDoc.severity:type_name -> knowledge_observatory.v1.DocHealthSeverity
+	0,  // 10: knowledge_observatory.v1.DocHealthMissingDoc.severity:type_name -> knowledge_observatory.v1.DocHealthSeverity
+	10, // 11: knowledge_observatory.v1.DocHealthResponse.misplaced_docs:type_name -> knowledge_observatory.v1.DocHealthMisplacedDoc
+	11, // 12: knowledge_observatory.v1.DocHealthResponse.missing_docs:type_name -> knowledge_observatory.v1.DocHealthMissingDoc
+	9,  // 13: knowledge_observatory.v1.DocHealthResponse.contract_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
+	9,  // 14: knowledge_observatory.v1.DocHealthResponse.content_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
+	9,  // 15: knowledge_observatory.v1.DocHealthResponse.reference_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
+	9,  // 16: knowledge_observatory.v1.DocHealthResponse.manifest_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
+	12, // 17: knowledge_observatory.v1.DocHealthResponse.counts:type_name -> knowledge_observatory.v1.DocHealthCounts
+	21, // 18: knowledge_observatory.v1.DocHealthResponse.assessment:type_name -> common.v1.MaturityAssessment
+	9,  // 19: knowledge_observatory.v1.ValidateMarkdownDiagramsResponse.findings:type_name -> knowledge_observatory.v1.DocHealthFinding
+	4,  // 20: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry.value:type_name -> knowledge_observatory.v1.DependencyStatus
+	20, // 21: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
+	13, // 22: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:input_type -> knowledge_observatory.v1.DocHealthRequest
+	15, // 23: knowledge_observatory.v1.KnowledgeObservatoryService.ValidateMarkdownDiagrams:input_type -> knowledge_observatory.v1.ValidateMarkdownDiagramsRequest
+	14, // 24: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:output_type -> knowledge_observatory.v1.DocHealthResponse
+	16, // 25: knowledge_observatory.v1.KnowledgeObservatoryService.ValidateMarkdownDiagrams:output_type -> knowledge_observatory.v1.ValidateMarkdownDiagramsResponse
+	24, // [24:26] is the sub-list for method output_type
+	22, // [22:24] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_knowledge_observatory_v1_api_proto_init() }
@@ -845,18 +1966,25 @@ func file_knowledge_observatory_v1_api_proto_init() {
 	file_knowledge_observatory_v1_api_proto_msgTypes[5].OneofWrappers = []any{}
 	file_knowledge_observatory_v1_api_proto_msgTypes[6].OneofWrappers = []any{}
 	file_knowledge_observatory_v1_api_proto_msgTypes[7].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[8].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[9].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[10].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[12].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[13].OneofWrappers = []any{}
+	file_knowledge_observatory_v1_api_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_knowledge_observatory_v1_api_proto_rawDesc), len(file_knowledge_observatory_v1_api_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   10,
+			NumEnums:      1,
+			NumMessages:   18,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_knowledge_observatory_v1_api_proto_goTypes,
 		DependencyIndexes: file_knowledge_observatory_v1_api_proto_depIdxs,
+		EnumInfos:         file_knowledge_observatory_v1_api_proto_enumTypes,
 		MessageInfos:      file_knowledge_observatory_v1_api_proto_msgTypes,
 	}.Build()
 	File_knowledge_observatory_v1_api_proto = out.File

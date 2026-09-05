@@ -10,14 +10,23 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import * as http from 'node:http'
+import * as zlib from 'node:zlib'
 import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
-import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
+import { createProxyMiddleware, proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
+import { assertLifecycleManagedUI } from './lifecycle.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
+
+// Connect-RPC URL grammar: /<dotted.package.Service>/<UpperCamelMethod>.
+// The package must contain at least one '.' so we never match plain SPA
+// routes like /login or static assets like /index.html. Method names start
+// with an uppercase letter, distinguishing /foo.bar/Baz from /assets/img.png
+// or any other lowercase-leading second segment.
+const CONNECT_PATH_PATTERN = /^\/[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\/[A-Z][A-Za-z0-9_]*$/
 
 const IMMUTABLE_ASSET_EXTENSIONS = new Set([
   '.js',
@@ -47,6 +56,8 @@ const IMMUTABLE_ASSET_EXTENSIONS = new Set([
 
 const HASHED_FILENAME_PATTERN = /[-_][A-Za-z0-9_\-]{6,}\./
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
+const MIN_GZIP_BYTES = 1024
+const COMPRESSIBLE_CONTENT_TYPE = /^(?:text\/|application\/(?:javascript|json|manifest\+json|xml|wasm)|image\/svg\+xml)/i
 
 function isImmutableBuildAsset(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase()
@@ -77,6 +88,90 @@ function applyStaticCacheHeaders(res: Response, filePath: string): void {
   if (!res.getHeader('Cache-Control')) {
     res.setHeader('Cache-Control', 'public, max-age=0')
   }
+}
+
+function appendVary(res: Response, value: string): void {
+  const current = res.getHeader('Vary')
+  if (!current) {
+    res.setHeader('Vary', value)
+    return
+  }
+
+  const values = Array.isArray(current) ? current.join(',') : String(current)
+  if (values.toLowerCase().split(',').map(item => item.trim()).includes(value.toLowerCase())) {
+    return
+  }
+  res.setHeader('Vary', `${values}, ${value}`)
+}
+
+function acceptsGzip(req: Request): boolean {
+  return String(req.headers['accept-encoding'] || '').split(',').some(part => part.trim().toLowerCase().startsWith('gzip'))
+}
+
+function shouldCompressResponse(res: Response, bodyLength: number): boolean {
+  if (bodyLength < MIN_GZIP_BYTES) {
+    return false
+  }
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    return false
+  }
+  if (res.getHeader('Content-Encoding')) {
+    return false
+  }
+  const contentType = String(res.getHeader('Content-Type') || '')
+  return COMPRESSIBLE_CONTENT_TYPE.test(contentType)
+}
+
+function gzipStaticResponseMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (req.method !== 'GET' || !acceptsGzip(req)) {
+    next()
+    return
+  }
+
+  const chunks: Buffer[] = []
+  const originalWrite = res.write.bind(res) as (...args: any[]) => boolean
+  const originalEnd = res.end.bind(res) as (...args: any[]) => Response
+
+  const bufferFrom = (chunk: any, encoding?: any): Buffer => {
+    if (Buffer.isBuffer(chunk)) {
+      return chunk
+    }
+    return Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : undefined)
+  }
+
+  ;(res as unknown as { write: (...args: any[]) => boolean }).write = (chunk: any, encoding?: any, callback?: any): boolean => {
+    if (chunk) {
+      chunks.push(bufferFrom(chunk, encoding))
+    }
+    if (typeof encoding === 'function') {
+      encoding()
+    } else if (typeof callback === 'function') {
+      callback()
+    }
+    return true
+  }
+
+  ;(res as unknown as { end: (...args: any[]) => Response }).end = (chunk?: any, encoding?: any, callback?: any): Response => {
+    if (chunk) {
+      chunks.push(bufferFrom(chunk, encoding))
+    }
+
+    const body = Buffer.concat(chunks)
+    appendVary(res, 'Accept-Encoding')
+    if (!shouldCompressResponse(res, body.length)) {
+      for (const buffered of chunks) {
+        originalWrite(buffered)
+      }
+      return originalEnd(typeof callback === 'function' ? callback : undefined)
+    }
+
+    const compressed = zlib.gzipSync(body)
+    res.setHeader('Content-Encoding', 'gzip')
+    res.removeHeader('Content-Length')
+    return originalEnd(compressed, typeof callback === 'function' ? callback : undefined)
+  }
+
+  next()
 }
 
 /**
@@ -356,6 +451,11 @@ function applyBodyParser(app: Express, setting: ServerTemplateOptions['bodyParse
 }
 
 export function createScenarioServer(options: ServerTemplateOptions): Express {
+  assertLifecycleManagedUI({
+    serviceName: options.serviceName,
+    disableLifecycleGuard: options.disableLifecycleGuard,
+  })
+
   const {
     uiPort,
     apiPort,
@@ -408,6 +508,29 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   }
 
   const resolvedProxyAgent = resolveProxyAgent({ agent: proxyAgent, keepAlive: proxyKeepAlive })
+
+  // Connect-RPC proxy.
+  //
+  // Connect procedures live at /<fully.qualified.Service>/<MethodName> with
+  // no shared prefix, so the /api mount below can't reach them. The pattern
+  // requires a dotted package (at least one '.' before the first slash) and
+  // an UpperCamelCase method name, which matches Connect's URL grammar
+  // exactly and can't shadow any SPA route or static asset.
+  //
+  // proxyToApi is invoked directly here (rather than createProxyMiddleware)
+  // because the middleware coerces every path under /api; Connect paths must
+  // be forwarded unchanged.
+  app.use(CONNECT_PATH_PATTERN, async (req: Request, res: Response) => {
+    const headers = typeof proxyHeaders === 'function' ? proxyHeaders(req) : (proxyHeaders ?? {})
+    await proxyToApi(req, res, req.originalUrl, {
+      apiPort: parsedApiPort,
+      apiHost,
+      verbose,
+      headers,
+      timeout: proxyTimeoutMs,
+      agent: resolvedProxyAgent,
+    })
+  })
 
   // API proxy middleware
   app.use('/api', createProxyMiddleware({
@@ -478,6 +601,8 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     console.warn(`[server] Warning: dist directory does not exist: ${absoluteDistDir}`)
     console.warn('[server] Static files will not be served. Run build first.')
   }
+
+  app.use(gzipStaticResponseMiddleware)
 
   // Serve static files with production-friendly caching
   app.use(express.static(absoluteDistDir, {
@@ -561,22 +686,21 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
   // Attach WebSocket upgrade handler if configured
   if (wsPathPrefix) {
-    // Store upgrade handler on app for later attachment to HTTP server
-    // This is a bit of a hack, but Express doesn't support upgrade events directly
+    // Express has no upgrade hook, so the handler is stored on the app and
+    // bound to whichever http.Server ends up serving it. Both start paths bind
+    // it: startScenarioServer binds its own server explicitly, and app.listen
+    // is wrapped below so a caller that starts the app itself is not silently
+    // left without WebSocket proxying.
     ;(app as any).__wsUpgradeHandler = (req: any, socket: any, head: any) => {
       if (!req.url || !req.url.startsWith(wsPathPrefix)) {
         socket.destroy()
         return
       }
 
-      // Transform path
-      let transformedPath: string
-      if (wsPathTransform) {
-        transformedPath = wsPathTransform(req.url)
-      } else {
-        // Default: replace prefix with /api/v1
-        transformedPath = req.url.replace(new RegExp(`^${wsPathPrefix}`), '/api/v1')
-      }
+      // wsPathPrefix selects which upgrades to proxy; it does not rewrite them.
+      // The upstream path is preserved unless a caller asks for a remap, so a
+      // prefix the API also serves needs no transform to work.
+      const transformedPath = wsPathTransform ? wsPathTransform(req.url) : req.url
 
       // Build headers
       let headers = proxyHeaders || {}
@@ -599,9 +723,42 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
         headers,
       })
     }
+
+    // A caller that starts the app itself (createScenarioServer + app.listen,
+    // rather than startScenarioServer) would otherwise receive an app whose
+    // wsPathPrefix is configured but never bound. The upgrade would fall
+    // through to the ordinary HTTP proxy, reach the API as a plain GET, and be
+    // rejected there — a 400 that names nothing about the missing binding.
+    // Wrapping listen makes the option behave the same on both start paths.
+    const originalListen = app.listen.bind(app)
+    app.listen = ((...args: unknown[]) => {
+      const server = originalListen(...(args as Parameters<typeof originalListen>))
+      attachWsUpgradeHandler(server, app)
+      return server
+    }) as typeof app.listen
   }
 
   return app
+}
+
+/**
+ * Bind an app's configured WebSocket upgrade handler to the server that serves
+ * it. Safe to call more than once for the same pair: a second call for an
+ * already-bound server is a no-op, so a caller that both wraps listen and binds
+ * explicitly does not proxy each upgrade twice.
+ */
+export function attachWsUpgradeHandler(server: http.Server, app: Express): void {
+  const handler = (app as any).__wsUpgradeHandler
+  if (!handler) return
+
+  const bound: Set<http.Server> =
+    (app as any).__wsUpgradeBoundServers ??
+    ((app as any).__wsUpgradeBoundServers = new Set<http.Server>())
+  if (bound.has(server)) return
+
+  bound.add(server)
+  server.on('upgrade', handler)
+  server.once('close', () => bound.delete(server))
 }
 
 /**
@@ -636,10 +793,7 @@ export function startScenarioServer(options: ServerTemplateOptions): Express {
   const server = http.createServer(app)
 
   // Attach WebSocket upgrade handler if it was configured
-  const wsUpgradeHandler = (app as any).__wsUpgradeHandler
-  if (wsUpgradeHandler) {
-    server.on('upgrade', wsUpgradeHandler)
-  }
+  attachWsUpgradeHandler(server, app)
 
   server.listen(Number.parseInt(port, 10), '0.0.0.0', () => {
     console.log(`${options.serviceName || 'Scenario'} UI server listening on port ${port}`)

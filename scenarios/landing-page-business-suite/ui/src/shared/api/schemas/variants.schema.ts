@@ -72,9 +72,11 @@ export const VariantListResponseSchema = z.object({
 // Variant snapshot meta schema
 export const VariantSnapshotMetaSchema = z.object({
   slug: z.string(),
-  name: z.string(),
-  description: z.string().optional(),
-  axes: VariantAxesSchema,
+	name: z.string(),
+	description: z.string().optional(),
+	weight: z.number().optional(),
+	status: z.enum(['active', 'archived']).optional(),
+	axes: VariantAxesSchema,
   header_config: LandingHeaderConfigSchema.optional(),
   seo_config: z.record(z.string(), z.unknown()).optional(),
 });

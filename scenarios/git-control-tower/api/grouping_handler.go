@@ -38,6 +38,34 @@ func (s *Server) handleGetGroupingRules(w http.ResponseWriter, r *http.Request) 
 	hctx.Resp.OK(cfg)
 }
 
+// handleGetRepoGroups resolves the change list with manual rules first,
+// contract targets second, and Other last. Contract-derived groups are read
+// only and are never written to grouping-rules.json.
+func (s *Server) handleGetRepoGroups(w http.ResponseWriter, r *http.Request) {
+	hctx := RepoRead(w, r, s.git, s.repos, 10*time.Second)
+	if hctx == nil {
+		return
+	}
+	defer hctx.Cancel()
+
+	configPath, err := s.groupingConfigPath(hctx.RepoID)
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+	config, err := LoadGroupingRules(GroupingDeps{FS: OSFileIO{}, ConfigPath: configPath})
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+	status, err := GetRepoStatus(hctx.Ctx, RepoStatusDeps{Git: hctx.Git, RepoDir: hctx.RepoDir})
+	if err != nil {
+		hctx.Resp.InternalError(err.Error())
+		return
+	}
+	hctx.Resp.OK(RepoGroupsResponse{Groups: ResolveChangeGroups(hctx.RepoDir, status.Files, *config)})
+}
+
 func (s *Server) handleSaveGroupingRules(w http.ResponseWriter, r *http.Request) {
 	hctx := RepoRead(w, r, s.git, s.repos, 5*time.Second)
 	if hctx == nil {

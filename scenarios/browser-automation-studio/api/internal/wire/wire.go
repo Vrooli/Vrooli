@@ -16,6 +16,7 @@ package wire
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ import (
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	"github.com/vrooli/browser-automation-studio/services/readiness"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
@@ -104,6 +106,10 @@ func DefaultConfig() Config {
 func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error) {
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
+	recordingsRootProvider, err := paths.NewRecordingsRootProvider(log)
+	if err != nil {
+		return nil, fmt.Errorf("create routed recordings root provider: %w", err)
+	}
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingImportSvc := archiveingestion.NewIngestionService(repo, storageClient, hub, log, recordingsRoot)
@@ -117,7 +123,7 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	}
 
 	// Persist execution artifacts under recordingsRoot
-	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRoot)
+	autoRecorder := executionwriter.NewFileWriter(repo, storageClient, log, recordingsRootProvider)
 
 	// Configure event sink factory - optionally wrap with UX metrics collector
 	var eventSinkFactory func() autoevents.Sink
@@ -138,12 +144,18 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 		ExecutionDataRoot:     recordingsRoot,
 		SessionProfileService: sessionProfileSvc,
 	})
+	// Declared-readiness settling for the opening navigation. Optional by
+	// design: if Experience Manager is unavailable every run falls back to
+	// generic navigation with a stated reason.
+	if workflowSvc != nil {
+		workflowSvc.SetReadinessResolver(readiness.NewProfileResolver())
+	}
 
 	// Ensure the demo project exists
 	if workflowSvc != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if _, err := workflowSvc.EnsureSeedProject(ctx); err != nil && log != nil {
-			log.WithError(err).Warn("Failed to ensure seed project")
+		if _, err := workflowSvc.EnsureSeedWorkflow(ctx); err != nil && log != nil {
+			log.WithError(err).Warn("Failed to ensure demo workflow fixture")
 		}
 		cancel()
 	}
@@ -160,7 +172,7 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	var unifiedRecordingSvc *unifiedrecording.Service
 	if db != nil {
 		// Access underlying *sql.DB from *sqlx.DB embedded in database.DB
-		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.DB.DB, log)
+		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.Routed, log)
 		unifiedRecordingSvc = unifiedrecording.NewService(
 			unifiedRecordingRepo,
 			hub,
@@ -254,16 +266,16 @@ func eventBufferLimits() autocontracts.EventBufferLimits {
 // HandlerDeps converts Dependencies to the format expected by handlers.
 // This provides backward compatibility while migrating to the new wire package.
 type HandlerDeps struct {
-	WorkflowCatalog   *workflow.WorkflowService
-	ExecutionService  *workflow.WorkflowService
-	ExportService     *workflow.WorkflowService
-	WorkflowValidator *workflowvalidator.Validator
-	Storage           storage.StorageInterface
-	RecordingService  archiveingestion.IngestionServiceInterface
-	RecordingsRoot    string
-	ReplayRenderer    ReplayRenderer
+	WorkflowCatalog       *workflow.WorkflowService
+	ExecutionService      *workflow.WorkflowService
+	ExportService         *workflow.WorkflowService
+	WorkflowValidator     *workflowvalidator.Validator
+	Storage               storage.StorageInterface
+	RecordingService      archiveingestion.IngestionServiceInterface
+	RecordingsRoot        string
+	ReplayRenderer        ReplayRenderer
 	SessionProfileService *sessionprofile.Service
-	UXMetricsRepo     uxmetrics.Repository
+	UXMetricsRepo         uxmetrics.Repository
 
 	// Unified recording service
 	// DOC: docs/architecture/recording.md#unified-recording

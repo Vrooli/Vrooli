@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #22d3ee; } a:hover { color: #67e8f9; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1470px; height: 620px; background: #020617; padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font: 500 11px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Device card · states</span>
+    <h2 style="margin: 0; font: 600 18px/24px system-ui, sans-serif; color: #f8fafc;">Every state a connected device can be in</h2>
+  </div>
+
+  <div style="display: flex; gap: 16px; align-items: stretch;">
+
+    <!-- 1 · In control -->
+    <div style="width: 268px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div style="flex: 1 1 auto; background: #1e293b; border: 1px solid rgb(34 211 238 / 0.4); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); box-shadow: inset 0 0 44px rgb(34 211 238 / 0.12); display: flex; align-items: center; justify-content: center; padding: 8px;">
+          <svg viewBox="-14 0 420 268" style="height: 100%; width: auto;" aria-hidden="true">
+            <path d="M-13.72 252 H405.72 L396.72 268 H-4.72 Z" fill="#242E43"></path>
+            <path d="M-13.72 252 H405.72" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.2" fill="none"></path>
+            <rect x="160.72" y="256.48" width="70.56" height="5.44" rx="2" fill="#020615" opacity="0.55"></rect>
+            <rect x="0" y="0" width="392" height="250" rx="10" fill="#333F55"></rect>
+            <rect x="0.75" y="0.75" width="390.5" height="248.5" rx="9.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+            <rect x="9" y="9" width="374" height="221" rx="3" fill="#06323b"></rect>
+            <rect x="9" y="9" width="374" height="221" rx="3" fill="none" stroke="rgb(34 211 238 / 0.45)" stroke-width="1"></rect>
+            <circle cx="196" cy="4.5" r="2.2" fill="rgb(248 250 252 / 0.4)"></circle>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">Studio MacBook</span>
+            <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">You</span>
+          </div>
+          <div style="font-size: 12px; line-height: 16px; color: #64748b;">Laptop · connected 2 hours ago</div>
+          <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            In control
+          </span>
+        </div>
+        <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto;">
+          <button style="width: 100%; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Rename</button>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;">The lit screen is the only place lease state is drawn as form rather than text.</p>
+    </div>
+
+    <!-- 2 · Following -->
+    <div style="width: 268px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div style="flex: 1 1 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+          <svg viewBox="-3 0 202 400" style="height: 100%; width: auto;" aria-hidden="true">
+            <rect x="195" y="86" width="3" height="46" rx="1.5" fill="#242E43"></rect>
+            <rect x="-2" y="74" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+            <rect x="-2" y="106" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+            <rect x="0" y="0" width="196" height="400" rx="27" fill="#333F55"></rect>
+            <rect x="0.75" y="0.75" width="194.5" height="398.5" rx="26.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+            <rect x="9" y="9" width="178" height="382" rx="19" fill="#020615"></rect>
+            <rect x="9" y="9" width="178" height="382" rx="19" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+            <rect x="77.42" y="13.7" width="41.16" height="8.55" rx="4.28" fill="#242E43"></rect>
+            <rect x="63.7" y="394.1" width="68.6" height="2.8" rx="1.4" fill="rgb(248 250 252 / 0.4)"></rect>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">iPhone</span>
+          <div style="font-size: 12px; line-height: 16px; color: #64748b;">Phone · connected 6 minutes ago</div>
+          <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(148 163 184 / 0.25); background: rgb(148 163 184 / 0.1); color: #cbd5e1; font: 500 11px/1 system-ui, sans-serif;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Following
+          </span>
+        </div>
+        <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+          <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 0; background: #22d3ee; color: #0f172a; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Give control</button>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;">Control moves from the roster, so it no longer depends on having that pane open.</p>
+    </div>
+
+    <!-- 3 · Idle -->
+    <div style="width: 268px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div style="flex: 1 1 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+          <svg viewBox="0 0 286 372" style="height: 100%; width: auto; opacity: 0.55;" aria-hidden="true">
+            <rect x="0" y="0" width="286" height="372" rx="20" fill="#333F55"></rect>
+            <rect x="0.75" y="0.75" width="284.5" height="370.5" rx="19.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+            <rect x="14" y="14" width="258" height="344" rx="9" fill="#020615"></rect>
+            <rect x="14" y="14" width="258" height="344" rx="9" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+            <circle cx="143" cy="7" r="2.2" fill="rgb(248 250 252 / 0.4)"></circle>
+            <rect x="92.95" y="363.6" width="100.1" height="2.8" rx="1.4" fill="rgb(248 250 252 / 0.4)"></rect>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">Kitchen iPad</span>
+          <div style="font-size: 12px; line-height: 16px; color: #64748b;">Tablet · no session open</div>
+          <span style="align-self: flex-start; display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(148 163 184 / 0.25); background: rgb(148 163 184 / 0.1); color: #cbd5e1; font: 500 11px/1 system-ui, sans-serif;">Idle</span>
+        </div>
+        <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto;">
+          <button style="width: 100%; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Rename</button>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;">Connected but driving nothing. The dimmed silhouette carries it — no extra badge.</p>
+    </div>
+
+    <!-- 4 · Reconnecting (the ghost-leader answer) -->
+    <div style="width: 268px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div style="flex: 1 1 auto; background: #1e293b; border: 1px solid rgb(251 191 36 / 0.35); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px; position: relative;">
+          <svg viewBox="-3 0 202 400" style="height: 100%; width: auto; opacity: 0.75;" aria-hidden="true">
+            <rect x="195" y="86" width="3" height="46" rx="1.5" fill="#242E43"></rect>
+            <rect x="-2" y="74" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+            <rect x="-2" y="106" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+            <rect x="0" y="0" width="196" height="400" rx="27" fill="#333F55"></rect>
+            <rect x="0.75" y="0.75" width="194.5" height="398.5" rx="26.25" fill="none" stroke="rgb(251 191 36 / 0.4)" stroke-width="1.5"></rect>
+            <rect x="9" y="9" width="178" height="382" rx="19" fill="#020615"></rect>
+            <rect x="9" y="9" width="178" height="382" rx="19" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+            <rect x="77.42" y="13.7" width="41.16" height="8.55" rx="4.28" fill="#242E43"></rect>
+            <rect x="63.7" y="394.1" width="68.6" height="2.8" rx="1.4" fill="rgb(248 250 252 / 0.4)"></rect>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">iPhone</span>
+          <div style="font-size: 12px; line-height: 16px; color: #64748b;">Phone · dropped 12 seconds ago</div>
+          <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(251 191 36 / 0.3); background: rgb(251 191 36 / 0.1); color: #fde68a; font: 500 11px/1 system-ui, sans-serif;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path></svg>
+            Reconnecting
+          </span>
+          <div style="font-size: 12px; line-height: 16px; color: #fde68a;">Its old connection is still closing.</div>
+        </div>
+        <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto;">
+          <button style="width: 100%; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Drop the old one</button>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #fde68a;">The bug fix, made visible: cards group by device id, so a phone that reconnects is one card in transition — never two entries fighting each other.</p>
+    </div>
+
+    <!-- 5 · Last seen -->
+    <div style="width: 268px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div style="flex: 1 1 auto; background: #0f172a; border: 1px dashed rgb(255 255 255 / 0.12); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.04); display: flex; align-items: center; justify-content: center; padding: 8px;">
+          <svg viewBox="0 0 392 276" style="height: 100%; width: auto; opacity: 0.28;" aria-hidden="true">
+            <path d="M178.36 232 H213.64 L217.64 263.68 H174.36 Z" fill="#242E43"></path>
+            <rect x="129.36" y="263.68" width="133.28" height="12.32" rx="6.16" fill="#333F55"></rect>
+            <rect x="0" y="0" width="392" height="232" rx="8" fill="#333F55"></rect>
+            <rect x="0.75" y="0.75" width="390.5" height="230.5" rx="7.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+            <rect x="8" y="8" width="376" height="200" rx="3" fill="#020615"></rect>
+            <rect x="182.28" y="218.8" width="27.44" height="2.4" rx="1.2" fill="rgb(248 250 252 / 0.4)" opacity="0.55"></rect>
+          </svg>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font: 500 14px/20px system-ui, sans-serif; color: #94a3b8;">Desktop</span>
+          <div style="font-size: 12px; line-height: 16px; color: #64748b;">Monitor · last seen 3 days ago</div>
+          <span style="align-self: flex-start; display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(148 163 184 / 0.2); background: transparent; color: #64748b; font: 500 11px/1 system-ui, sans-serif;">Not connected</span>
+        </div>
+        <div style="border-top: 1px solid rgb(255 255 255 / 0.08); padding-top: 12px; margin-top: auto;">
+          <button style="width: 100%; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.15); background: transparent; color: #94a3b8; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Forget this device</button>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;">A private window or cleared site data mints a brand-new device id, so the roster needs a way to forget one from day one.</p>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:NavLink",
+  "version": "1.0.5",
+  "resolvedAt": "2026-08-27T18:29:27.181Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.1",
+      "rank": 2
+    }
+  ]
+}

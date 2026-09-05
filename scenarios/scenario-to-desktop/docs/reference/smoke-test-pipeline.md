@@ -17,6 +17,67 @@ The smoke test stage:
 - **Blocks**: Deploy stage (won't proceed unless smoke test passes)
 - **Skippable**: Yes, via `SkipSmokeTest` configuration flag
 
+## Journey evidence contract
+
+The provider-neutral journey and evidence contract is owned by
+`packages/delivery-ramp-go`. This scenario supplies the desktop Driver and
+the capture/process/display adapters; the public smoke-test endpoints remain
+scenario-owned projections over the shared result. The shared runner is the
+release-gate seam used by future deployment ramps.
+
+When visual evidence is enabled, the normal run launches a second, non-smoke
+demo process on the recording display and executes the registered capability
+plan. Hello Desktop is registered as `hello-desktop`; the generic runner has no
+scenario-name branch. Each chapter records its purpose, action, bounded
+readiness policy, settle policy, expected/observed result, assertion status,
+capture references, and monotonic/wall-clock timing. Readiness and settle
+events are in the same timeline.
+
+The persisted journey sidecar uses `journey-evidence.v2`. The status API exposes
+an `EvidenceReview` projection, while the raw journey and recording remain
+producer-owned captures. The UI must display the backend verdict verbatim:
+`pass`, `failed`, `degraded`, `unavailable`, `unsupported`, or `not_run`.
+
+Visual pass requires all of the following:
+
+- the capability and plan are registered;
+- the target window and semantic assertions pass;
+- every required chapter has before/after evidence;
+- the MP4 decodes and contains useful application frames;
+- timeline order, chapter coverage, checksums, persistence, and redaction pass.
+
+An unavailable host capability or missing recording offset is visible and
+never promoted to pass. Cross-platform compilation/package checks do not imply
+native Windows or macOS visual execution.
+
+### Launch-performance trace alignment
+
+The protocol and demo are separate producer runs even though one smoke-test
+status owns both. The protocol trace records validation and cleanup; the demo
+trace is aligned with the recording and owns the user-visible launch timeline.
+Trace events use monotonic timestamps for durations and wall-clock timestamps
+for review alignment. The demo event sequence distinguishes process creation,
+Electron readiness, splash first paint, runtime/server readiness, main-window
+load/show, and app readiness. A missing event is unavailable evidence, not a
+zero-duration phase.
+
+Trace artifacts are redacted and checksum-addressed in the producer manifest.
+They are reference-only when deployment-manager receives the evidence report;
+raw trace/profile bytes remain producer-owned. See the [live desktop API
+reference](live-desktop-api.md#launch-performance-evidence) for the phase
+projection, role attribution, optional profiling modes, and comparability rules.
+
+## Pacing profiles
+
+The runner uses explicit bounded policies rather than unlabelled sleeps. The
+The `normal-review` profile leaves a named visual settle window for human review.
+`fast-ci` shortens bounded readiness and settle windows for deterministic CI;
+`diagnostic-slow` lengthens them within explicit upper bounds. Select them with
+`S2D_JOURNEY_PROFILE`; unknown values fail closed. `S2D_JOURNEY_CAPABILITY`
+selects a registered behavior fixture when a journey is not the baseline
+scenario identity. The app demo hold remains owned by this smoke orchestration
+(`SMOKE_TEST_DEMO_HOLD_MS`); a journey step may not silently extend it.
+
 ---
 
 ## Execution Flow
@@ -181,6 +242,11 @@ type Config struct {
 | `SMOKE_TEST` | `1` | Signals app is running in smoke test mode |
 | `SMOKE_TEST_TIMEOUT_MS` | `30000` | Timeout for app startup |
 | `SMOKE_TEST_UPLOAD_URL` | `http://127.0.0.1:{port}/api/v1/deployment/telemetry` | Where to upload telemetry |
+| `DEPLOYMENT_MANAGER_URL` | Optional Connect base URL | Enables reference-only `ReportTargetVerdict` after the journey |
+| `DEPLOYMENT_MANAGER_PROFILE_ID` | Optional profile ID | Identifies the release profile for the evidence report |
+| `S2D_JOURNEY_CAPABILITY` | Optional registered capability | Selects a behavior fixture such as bundled-private or shared-resource |
+| `S2D_JOURNEY_PROFILE` | `normal-review`, `fast-ci`, or `diagnostic-slow` | Selects bounded journey pacing; unknown profiles fail closed |
+| `VROOLI_GIT_COMMIT` | Optional exact commit hash | Binds the evidence report to the reviewed source |
 
 ---
 
@@ -218,6 +284,62 @@ $EXECUTABLE --smoke-test
 
 ---
 
+## Decision-grade desktop journey
+
+When recording is enabled, capture starts before the demo process starts. After
+the smoke-test process passes, the service keeps the normal app open and runs a
+bounded journey: wait for a usable application window (not the generated
+400x300 splash), activate it, maximize it, run the fixture's semantic action,
+click, send Return, resize, move, and close it. Every interaction has a
+screenshot before and after; window actions also persist geometry. The ordered
+step list is stored as a `journey` capture beside the recording and screenshots.
+
+Hello Desktop is the canonical deterministic fixture. Its journey types a
+run-specific name, activates `Say Hello`, and verifies the test bridge observed
+the exact `Hello, <name>!` state. The semantic step records an assertion ID,
+expected state, and observed state. Generic pointer and keyboard actions remain
+structural diagnostics and cannot replace this application-level assertion.
+
+The journey is `pass` only when Linux, xdotool, a started titlebar-capable
+window manager, a usable application window, successful interactions, and a
+maximize geometry of at least 90% of the display are all observed. A desktop
+root/helper window (including a tiny 1x1 window) is not an application window
+and cannot satisfy this contract. Missing prerequisites are explicit degraded
+outcomes and never pass:
+
+- `platform_not_linux`
+- `window_manager_not_started`
+- `window_manager_titlebar_unavailable`
+- `xdotool_unavailable`
+- `no_visible_window`
+
+An action, screenshot, geometry read, or maximize assertion failure is a
+failed journey. Each action is bounded by the smoke-test context so a hung
+desktop command cannot hold the pipeline indefinitely.
+
+When recording is enabled, a smoke test that requested desktop evidence also
+requires a passing journey. A successful `--smoke-test` protocol alone is not
+enough to approve a video: an absent application window, failed journey, or
+missing journey is a smoke-test failure. The recording and journey captures
+are retained so the failed evidence can be diagnosed.
+
+### Capture integrity and manifest
+
+After the recorder stops, the producer runs `ffprobe` and decodes sampled
+frames with FFmpeg. A recording must be a non-empty MP4 with a video stream,
+positive dimensions and duration, and at least one bright application frame
+across the recording; the uniform dark Xvfb desktop and cursor do not satisfy
+that gate. The producer persists a versioned manifest beside the MP4 at
+`<recording>.manifest.json`. It contains the artifact digest, target and
+runner identity, capture checksums and absolute paths, media dimensions and
+duration, journey assertion, and each required gate disposition.
+
+The default local profile is `visual`. `release_visual` additionally requires
+successful reference-only reporting to deployment-manager; unavailable
+governance is never converted into a release pass. Windows and macOS remain
+compile/package results until a native or remote runner executes this same
+visual contract.
+
 ## Success Criteria
 
 For a smoke test to **pass**, the application output must contain:
@@ -248,7 +370,7 @@ If telemetry upload fails during the test, the fallback mechanism reads from the
 
 The smoke test service persists test status to:
 ```
-{vrooliRoot}/scenarios/scenario-to-desktop/data/smoke_tests_v2.json
+<data-root>/vrooli/scenario-to-desktop/smoke_tests_v2.json
 ```
 
 ### Status Data Structure
@@ -358,11 +480,14 @@ When `ScreenRecordingConfig.Enabled` is set on a smoke test status, the service 
 2. **Capture start**: `Recorder.StartCapture()` calls `resource-ffmpeg screen-capture start` to begin x11grab recording
 3. **Execution**: The smoke test runs on the virtual display (xvfb-run wrapper is skipped since the display is managed directly)
 4. **Capture stop**: After execution completes (pass or fail), `Recorder.StopCapture()` finalizes the video
-5. **Result storage**: The `ScreenRecordingResult` is stored in the smoke test status
+5. **Result storage**: The recording status stores only the canonical capture identity and checksum in the smoke test status
 
 ### Video Serving
 
-Recorded videos are served via `GET /api/v1/smoketest/{id}/video` with Range header support for browser playback. The deployment-manager downloads videos through this endpoint for its review workflow.
+Recorded videos remain producer-owned and are served via the canonical captures
+route with Range header support for browser playback. deployment-manager stores
+only the capture identity, checksum, kind, and size through
+`EvidenceService.ReportTargetVerdict`; it never downloads or stores the video.
 
 ### Configuration
 

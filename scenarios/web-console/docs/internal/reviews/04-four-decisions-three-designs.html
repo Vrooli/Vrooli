@@ -1,0 +1,426 @@
+<title>Four Decisions, Three Designs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root {
+  --ground:#eef2f4; --surface:#ffffff; --surface-2:#f6f9fa;
+  --line:#d3dde2; --line-strong:#b3c3cb;
+  --ink:#16212b; --ink-2:#47606e; --ink-3:#748894;
+  --accent:#0d6a86; --accent-soft:#d9ecf2; --accent-ink:#0a4f65;
+  --crit:#a32f30; --crit-soft:#f6e0e0;
+  --warn:#97620d; --warn-soft:#f8ebd5;
+  --ok:#2b6f4e; --ok-soft:#dcefe4;
+  --shadow:0 1px 2px rgba(22,33,43,.06), 0 8px 24px -18px rgba(22,33,43,.5);
+  --f-display:"IBM Plex Sans Condensed","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --measure:68ch; --pad:clamp(1.25rem,4vw,3rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:#0d151b; --surface:#141f27; --surface-2:#18242d;
+    --line:#26353f; --line-strong:#3a4d59;
+    --ink:#dde7ec; --ink-2:#9db0bb; --ink-3:#71858f;
+    --accent:#4fb4d0; --accent-soft:#12333f; --accent-ink:#8ad2e6;
+    --crit:#e08181; --crit-soft:#3a1f20;
+    --warn:#d9a75a; --warn-soft:#3a2c14;
+    --ok:#74c79b; --ok-soft:#16321f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0d151b; --surface:#141f27; --surface-2:#18242d;
+  --line:#26353f; --line-strong:#3a4d59;
+  --ink:#dde7ec; --ink-2:#9db0bb; --ink-3:#71858f;
+  --accent:#4fb4d0; --accent-soft:#12333f; --accent-ink:#8ad2e6;
+  --crit:#e08181; --crit-soft:#3a1f20;
+  --warn:#d9a75a; --warn-soft:#3a2c14;
+  --ok:#74c79b; --ok-soft:#16321f;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1180px; margin:0 auto; padding:var(--pad); display:flex; flex-direction:column; gap:clamp(2.5rem,6vw,4.5rem); }
+
+h1,h2,h3,h4 { font-family:var(--f-display); text-wrap:balance; margin:0; line-height:1.12; }
+h1 { font-size:clamp(2.3rem,5.6vw,3.8rem); font-weight:700; letter-spacing:-.022em; }
+h2 { font-size:clamp(1.45rem,3vw,2rem); font-weight:700; letter-spacing:-.014em; }
+h3 { font-size:1.13rem; font-weight:600; }
+h4 { font-size:.95rem; font-weight:600; }
+p { margin:0; max-width:var(--measure); }
+.eyebrow { font-family:var(--f-mono); font-size:.70rem; font-weight:500; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+.lede { font-size:clamp(1.02rem,1.6vw,1.16rem); color:var(--ink-2); max-width:62ch; }
+code,.mono { font-family:var(--f-mono); font-size:.855em; }
+code { background:var(--surface-2); border:1px solid var(--line); border-radius:3px; padding:.08em .34em; color:var(--accent-ink); overflow-wrap:anywhere; }
+a { color:var(--accent); }
+a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+.masthead { display:flex; flex-direction:column; gap:1.4rem; padding-top:clamp(.5rem,3vw,2rem); }
+.mast-rule { display:flex; align-items:baseline; gap:1rem; border-bottom:2px solid var(--ink); padding-bottom:.6rem; }
+.mast-rule .eyebrow { color:var(--ink-2); }
+.mast-rule .spacer { flex:1; }
+.mast-meta { font-family:var(--f-mono); font-size:.72rem; color:var(--ink-3); }
+
+section { display:flex; flex-direction:column; gap:1.4rem; }
+.sec-head { display:flex; flex-direction:column; gap:.55rem; border-top:1px solid var(--line-strong); padding-top:1.1rem; }
+.sec-head .row { display:flex; align-items:baseline; gap:.9rem; flex-wrap:wrap; }
+.tag { font-family:var(--f-mono); font-size:.72rem; font-weight:600; color:var(--surface); background:var(--ink); padding:.18rem .45rem; border-radius:2px; letter-spacing:.06em; }
+.tag.ok { background:var(--ok); } .tag.acc { background:var(--accent); }
+
+/* decision cards */
+.decisions { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:5px; overflow:hidden; box-shadow:var(--shadow); }
+.dec { background:var(--surface); padding:1rem 1.1rem; display:flex; flex-direction:column; gap:.45rem; }
+.dec .dk { font-family:var(--f-mono); font-size:.66rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); }
+.dec .dv { font-family:var(--f-display); font-size:1.12rem; font-weight:700; color:var(--ok); line-height:1.2; }
+.dec .dn { font-size:.82rem; color:var(--ink-2); line-height:1.45; }
+.dec .commits { font-size:.78rem; color:var(--ink-3); border-top:1px solid var(--line); padding-top:.4rem; margin-top:auto; }
+.dec .commits b { color:var(--ink-2); font-family:var(--f-display); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; display:block; margin-bottom:.15rem; }
+
+/* design block */
+.design { background:var(--surface); border:1px solid var(--line); border-radius:5px; box-shadow:var(--shadow); overflow:hidden; }
+.design > header { padding:1rem 1.2rem; background:var(--surface-2); border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:.25rem; }
+.design > header .dt { font-family:var(--f-display); font-size:1.2rem; font-weight:700; }
+.design > header .ds { font-size:.86rem; color:var(--ink-2); }
+.design .body { padding:1.2rem; display:flex; flex-direction:column; gap:1.1rem; }
+
+.thesis { background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line)); border-left:3px solid var(--accent); border-radius:0 4px 4px 0; padding:1rem 1.15rem; display:flex; flex-direction:column; gap:.4rem; }
+.thesis .eyebrow { color:var(--accent-ink); }
+.thesis p { color:color-mix(in srgb,var(--accent-ink) 82%,var(--ink)); max-width:none; font-size:.92rem; }
+
+.trace { background:var(--surface-2); border:1px solid var(--line); border-radius:4px; padding:.9rem 1rem; overflow-x:auto; }
+.trace pre { margin:0; font-family:var(--f-mono); font-size:.735rem; line-height:1.72; color:var(--ink-2); white-space:pre; }
+.trace .hi { color:var(--crit); font-weight:600; }
+.trace .go { color:var(--ok); font-weight:600; }
+.trace .dim { color:var(--ink-3); }
+.trace .ac { color:var(--accent-ink); }
+
+.steps { display:flex; flex-direction:column; gap:.75rem; }
+.step { display:grid; grid-template-columns:auto 1fr; gap:.85rem; align-items:start; }
+.step .sn { font-family:var(--f-mono); font-size:.7rem; font-weight:600; color:var(--surface); background:var(--accent); width:1.35rem; height:1.35rem; display:flex; align-items:center; justify-content:center; border-radius:2px; margin-top:.15rem; }
+.step .sb { display:flex; flex-direction:column; gap:.2rem; }
+.step h4 { color:var(--ink); }
+.step p { font-size:.875rem; color:var(--ink-2); max-width:none; }
+.step .ev { font-family:var(--f-mono); font-size:.68rem; color:var(--ink-3); }
+
+.gain { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.5rem; }
+.gain span { font-size:.79rem; color:var(--ok); background:var(--ok-soft); border:1px solid color-mix(in srgb,var(--ok) 28%,transparent); border-radius:3px; padding:.4rem .55rem; line-height:1.35; }
+
+/* table */
+.tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:5px; background:var(--surface); box-shadow:var(--shadow); }
+table { border-collapse:collapse; width:100%; min-width:720px; font-size:.845rem; }
+thead th { text-align:left; font-family:var(--f-mono); font-weight:600; font-size:.67rem; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3); padding:.7rem .85rem; background:var(--surface-2); border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+tbody td { padding:.68rem .85rem; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink-2); }
+tbody tr:last-child td { border-bottom:none; }
+tbody td:first-child { color:var(--ink); font-weight:500; }
+tbody td.rec { color:var(--ink); }
+td .m { font-family:var(--f-mono); font-size:.73rem; color:var(--ink-3); display:block; margin-top:.2rem; overflow-wrap:anywhere; }
+
+/* phases */
+.phases { display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+.phase { background:var(--surface); padding:1rem 1.2rem; display:grid; grid-template-columns:auto 1fr auto; gap:1rem; align-items:start; }
+.phase .pn { font-family:var(--f-display); font-size:1.35rem; font-weight:700; color:var(--accent); line-height:1; font-variant-numeric:tabular-nums; padding-top:.12rem; }
+.phase .pb { display:flex; flex-direction:column; gap:.28rem; }
+.phase p { font-size:.87rem; color:var(--ink-2); max-width:none; }
+.phase .dep { font-family:var(--f-mono); font-size:.68rem; color:var(--ink-3); }
+.phase .sz { font-family:var(--f-mono); font-size:.68rem; color:var(--ink-3); white-space:nowrap; padding-top:.3rem; }
+
+.open { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:.7rem; }
+.oq { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:0 4px 4px 0; padding:.8rem .95rem; display:flex; flex-direction:column; gap:.25rem; }
+.oq .qn { font-family:var(--f-display); font-size:.95rem; font-weight:600; color:var(--ink); }
+.oq .qd { font-size:.82rem; color:var(--ink-2); line-height:1.45; }
+
+footer { border-top:1px solid var(--line-strong); padding:1.4rem 0 3rem; color:var(--ink-3); font-size:.8rem; display:flex; flex-direction:column; gap:.3rem; }
+@media (max-width:700px){ .phase{grid-template-columns:1fr;gap:.4rem;} .step{grid-template-columns:1fr;} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important;} }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-rule">
+      <span class="eyebrow">web-console · terminal subsystem · decisions</span>
+      <span class="spacer"></span>
+      <span class="mast-meta">2026-08-24</span>
+    </div>
+    <h1>Four Decisions, Three Designs</h1>
+    <p class="lede">Four calls are now made. Three of them need a design before anyone writes code, and one of those — remote terminals — has a much better answer than the one I proposed, because the mechanism you were reaching for already exists in this scenario and is being used for exactly one thing. The three follow-up questions are closed too; two of them turned out to be answerable from the code rather than by judgement, and one of those answers retires a workaround.</p>
+
+    <div class="decisions">
+      <div class="dec">
+        <span class="dk">Local echo</span>
+        <span class="dv">Rebuild it properly</span>
+        <span class="dn">Prediction stays, but as a real subsystem with confirmation and retraction — not buffer writes that cannot be undone.</span>
+        <span class="commits"><b>Commits you to</b>Building it <em>after</em> the byte-offset stream, which supplies the confirmation signal it needs.</span>
+      </div>
+      <div class="dec">
+        <span class="dk">Input model</span>
+        <span class="dv">Cumulative byte offset</span>
+        <span class="dn">Server acknowledges bytes-accepted; the client retransmits once, on reconnect, from that offset.</span>
+        <span class="commits"><b>Commits you to</b>A protocol change on both handlers — which is why the protocol package lands first.</span>
+      </div>
+      <div class="dec">
+        <span class="dk">Windows</span>
+        <span class="dv">Declare, and render it</span>
+        <span class="dn">Author <code>unsupported</code> and surface it in the UI rather than letting a launcher look ready and fail.</span>
+        <span class="commits"><b>Commits you to</b>Almost nothing new — the registry already short-circuits unsupported platforms and the panel already renders status.</span>
+      </div>
+      <div class="dec">
+        <span class="dk">Remote terminals</span>
+        <span class="dv">Full, un-gated, integrated</span>
+        <span class="dn">A first-class target with visible status and a restart action, not a set of environment variables.</span>
+        <span class="commits"><b>Commits you to</b>The design below — which is mostly deletion.</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== DESIGN 1: REMOTE ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag acc">DESIGN 1</span><h2>Remote terminals</h2></div>
+      <p>You were right that the integrations concept is the missing piece, and it is further along than you thought. <code>packages/capability-registry-go</code> already models everything this needs — and web-console's catalogue currently contains exactly one entry.</p>
+    </div>
+
+    <div class="design">
+      <header>
+        <span class="dt">Two independent moves that happen to fit together</span>
+        <span class="ds">Status and lifecycle belong in the capability registry. The transport belongs behind the PTY interface. Neither needs a bespoke mechanism.</span>
+      </header>
+      <div class="body">
+
+        <h3>Part A — vrooli-bridge becomes a declared capability</h3>
+        <p>The <code>Def</code> struct already carries dependency kind and slug, an action kind, an action label, an operator command, a feature list, and a platform verdict. <code>ScenarioChecker</code> is generic. <code>IntegrationsPanel</code> already renders status, message and a start/restart button. The catalogue is one entry long:</p>
+
+        <div class="trace">
+<pre><span class="dim">api/internal/capabilities/registry.go</span>
+var Known = []Def{
+  { ID: audiotools.CapabilitySlug, Name: "Audio Tools", ... },   <span class="dim">// the only entry</span>
+}
+
+<span class="dim">api/main.go:590 — checkers registered</span>
+"ollama":      &amp;capabilities.OllamaChecker{...},      <span class="hi">// no Def — never shown</span>
+"openrouter":  &amp;capabilities.OpenRouterChecker{...},  <span class="hi">// no Def — never shown</span>
+"audio-tools": &amp;capabilities.ScenarioChecker{Slug: "audio-tools"},
+
+<span class="go">// What vrooli-bridge needs is one Def and one line:</span>
+{ ID: "vrooli-bridge", Name: "Remote Terminals",
+  Description:    "Bridged terminal sessions on registered remote nodes",
+  DependencyKind: DependencyScenario, DependencySlug: "vrooli-bridge",
+  ActionKind:     ActionKindScenarioStart, ActionLabel: "Start Bridge",
+  OperatorCommand: "vrooli scenario start vrooli-bridge --json" }
+
+"vrooli-bridge": &amp;capabilities.ScenarioChecker{Slug: "vrooli-bridge"},</pre>
+        </div>
+
+        <p>The current design un-gates it through the shared node client. The remote target is no longer conditional on a legacy Bridge URL environment variable: the target always exists, and its <em>status</em> comes from the Bridge registry. The server-side adapter projects the provider-neutral target model, keeps owner credentials out of browser payloads, and exposes typed readiness and recovery facts to the UI.</p>
+
+        <div class="thesis">
+          <span class="eyebrow">Part B — the thesis</span>
+          <p>Do not build a second WebSocket handler that reaches parity with the first. <b>Make the bridge a <code>pty.PTY</code> implementation.</b> A bridged session already gives you every method on that interface: data frames are <code>Read</code>, stdin is <code>WriteInput</code>, resize is <code>SetSize</code>, close is <code>Close</code>, the ack stream gives <code>ExitCode</code> and <code>ProbeReady</code>. Register it as a third backend beside <code>Standard</code> and <code>Persistent</code>, and a remote session becomes an ordinary <code>Session</code>.</p>
+        </div>
+
+        <p>Everything remote is missing then arrives for free, because it was never remote-specific — it belonged to <code>Session</code> and the WS handler all along:</p>
+
+        <div class="gain">
+          <span>Snapshot replay on reconnect, from the same <code>terminal.Emulator</code></span>
+          <span>Control frames — so scroll and mouse work</span>
+          <span>Size lease and multi-viewer presence</span>
+          <span>Coalescing, trim and resync</span>
+          <span>Keepalive pings and read deadlines</span>
+          <span>Intent-aware delivery</span>
+          <span>The byte-offset stdin protocol, once</span>
+          <span>The <code>GetScreen</code> / <code>WaitIdle</code> RPCs for agents</span>
+        </div>
+
+        <p>And <code>remote_terminal.go</code>'s 160-line WebSocket handler is deleted rather than fixed. The registry, catalogue and Bridge credential handling stay; the duplicated protocol goes.</p>
+
+        <div class="steps">
+          <div class="step"><span class="sn">1</span><div class="sb"><h4>Extract the protocol package first</h4><p>Move <code>TerminalMessage</code>, the frame constants and the reason codes into a versioned package with one conformance suite. This is on the critical path for the byte-offset decision anyway, and it is what makes step 3 safe.</p></div></div>
+          <div class="step"><span class="sn">2</span><div class="sb"><h4>Declare the capability and wire the checker</h4><p>One <code>Def</code>, one <code>ScenarioChecker</code>, and a <code>ResultChecker</code> that maps bridge readiness onto <code>CheckResult</code>. Remove the env-gate from target construction.</p></div></div>
+          <div class="step"><span class="sn">3</span><div class="sb"><h4>Implement <code>bridgePTY</code> and register it as a backend</h4><p>The frame translation that lives in the WS handler today moves behind <code>Read</code>/<code>WriteInput</code>. Bridge sequence numbers stay internal to the PTY; they are no longer part of the browser protocol.</p><p class="ev">The bridge's own durable data sequence maps cleanly to the cumulative offset model — it is already an offset, which is why these two decisions compose rather than conflict.</p></div></div>
+          <div class="step"><span class="sn">4</span><div class="sb"><h4>Delete the parallel handler</h4><p>The parallel remote terminal handler, the <code>remote:</code> prefix branch in <code>handleTerminalWS</code>, the <code>pending</code> map and the unreachable <code>"close"</code> message type all go.</p></div></div>
+        </div>
+
+        <p><b>One caveat, stated plainly.</b> A remote session running through <code>Session</code> means web-console holds an emulator and 10 000 lines of scrollback per remote pane, in web-console's memory rather than the node's. That is the right trade — it is what makes replay identical everywhere — but it is a real memory cost per remote session and should be measured before you scale the node count.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DESIGN 2: ECHO ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag acc">DESIGN 2</span><h2>Predictive echo, done properly</h2></div>
+      <p>You chose the hard option, so here is what it actually requires. The current implementation has three defects and only one of them is the alt-buffer gate.</p>
+    </div>
+
+    <div class="design">
+      <header>
+        <span class="dt">Four properties the rebuild must have</span>
+        <span class="ds">Miss any one and it degrades back into the current behaviour under load.</span>
+      </header>
+      <div class="body">
+        <div class="steps">
+          <div class="step"><span class="sn">1</span><div class="sb"><h4>Predictions render in an overlay, never into the buffer</h4><p>The root defect is not the matching logic — it is that a prediction is a <code>terminal.write()</code>, which mutates authoritative state that only the server is supposed to own. Once written it cannot be retracted without emitting more bytes. Predictions must live in a layer that can be cleared without touching terminal state: xterm's decoration/marker API over the cursor cell, or an absolutely-positioned layer above the screen element.</p><p class="ev">This single change is what makes retraction possible and removes the client/server divergence.</p></div></div>
+
+          <div class="step"><span class="sn">2</span><div class="sb"><h4>The server tells the client when prediction is valid</h4><p>The browser cannot read termios. The server can — it holds the fd for the standard backend, and tmux can report pane state for the persistent one. Add an echo-state signal to the wire protocol so prediction is enabled by an authoritative fact rather than inferred from <code>buffer.active === buffer.alternate</code> once, at connect time. Predict only when: echo is on, the pane is in the normal buffer, the cursor sits at the end of the line, and no resize is in flight.</p><p class="ev">This is also the honest fix for the password-prompt leak — at a non-echoing prompt the server says “do not predict”, and nothing is ever drawn.</p></div></div>
+
+          <div class="step"><span class="sn">3</span><div class="sb"><h4>Confirmation is keyed to the byte offset</h4><p>Each prediction records the send offset that produced it. When the server confirms bytes through that offset and the emulator's cursor lands where predicted, the prediction retires. Anything else — mismatch, timeout, resize, reconnect — clears the whole overlay. This is why the byte-offset stream has to land first: it is the confirmation mechanism, and building echo on the current per-payload acks would just inherit their ambiguity.</p></div></div>
+
+          <div class="step"><span class="sn">4</span><div class="sb"><h4>Unconfirmed text looks unconfirmed</h4><p>Render predictions underlined or dimmed, the way mosh does. It costs nothing, it makes a wrong prediction self-evident rather than mysterious, and it means the user is never misled about what the shell has actually received. Tie the styling to a threshold so it only appears once round-trip latency is high enough for prediction to be earning its keep — on a local socket predictions confirm within a frame and should be invisible.</p></div></div>
+        </div>
+
+        <div class="thesis">
+          <span class="eyebrow">Interim position</span>
+          <p>The rebuild depends on the offset protocol, which depends on the protocol package. That is a multi-week chain, and the corruption you are hitting in Claude Code is happening now. Ship the <code>buffer.onBufferChange</code> subscription and a hard-reset-on-mismatch as a stopgap in the meantime — hours of work, fixes the reported symptom, and every line of it is deleted when the real subsystem lands. Do not let the stopgap become the plan.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DESIGN 3: WINDOWS ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag acc">DESIGN 3</span><h2>Windows, declared and rendered</h2></div>
+      <p>This is the cheapest of the four because the mechanism is already built and already wired to the UI.</p>
+    </div>
+
+    <div class="design">
+      <header>
+        <span class="dt">The platform verdict already short-circuits</span>
+        <span class="ds"><code>Def.Platform</code> is a <code>PlatformVerdict{Support, Reason}</code>, and the registry checks <code>PlatformUnsupported</code> in three places before it ever runs a checker.</span>
+      </header>
+      <div class="body">
+        <div class="trace">
+<pre><span class="dim">packages/capability-registry-go/registry.go</span>
+type PlatformVerdict struct { Support PlatformSupport; Reason string }
+  <span class="ac">PlatformSupported | PlatformDegraded | PlatformUnsupported</span>
+
+<span class="go">// already honoured at :202, :235, :264 — an unsupported platform</span>
+<span class="go">// never reaches its checker and reports with its Reason attached.</span></pre>
+        </div>
+
+        <p>So the Windows story is three small pieces, none of them new machinery:</p>
+
+        <div class="steps">
+          <div class="step"><span class="sn">1</span><div class="sb"><h4>Make the session backends capabilities</h4><p>Add <code>Def</code> entries for the standard PTY and persistent tmux backends carrying <code>Platform: {Support: PlatformUnsupported, Reason: "no PTY implementation for this platform"}</code> on Windows. The reason string already exists in <code>backend_registry.go</code>; it just has nowhere to be shown.</p></div></div>
+          <div class="step"><span class="sn">2</span><div class="sb"><h4>Fix the empty-list branch in the launcher</h4><p><code>showBackendSelector = backends.length &gt; 1</code> treats zero and one identically. Split them: zero available backends renders the capability's reason instead of a launcher that looks ready.</p><p class="ev">TerminalLauncher.tsx:179–182</p></div></div>
+          <div class="step"><span class="sn">3</span><div class="sb"><h4>Author the static declaration too</h4><p>The runtime verdict tells a user on the machine. The <code>platform_capabilities</code> block in <code>service.json</code> tells the repo's deployability resolver, and is what makes the claim regressable in CI. Author both, and delete the platform sentence from the tmux <code>hostTools.notes</code> so there is one record rather than three.</p></div></div>
+        </div>
+
+        <p>While you are there: <code>ollama</code> and <code>openrouter</code> have working checkers registered in <code>main.go</code> and no <code>Def</code>, so they are checked and never displayed. The Integrations panel shows one integration out of at least four real dependencies. See the resolution below — the UI test already treats them as integrations, so this is missing wiring rather than an open question.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== STANDING RECS ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag">RULINGS</span><h2>The decisions I did not need to ask about</h2></div>
+      <p>These have a clearly better answer given what the code already does. Flagged here so they are explicit rather than assumed — overrule any of them and the sequencing still holds.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Question</th><th>Ruling</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Which font-size store wins?</td><td class="rec"><code>deviceFontSize</code> is the effective value<span class="m">pane.fontSize becomes the synced default; defaultFontSize stays new-pane-only</span></td><td>It is already what the renderer reads. Expose one <code>useEffectiveFontSize(sessionId)</code> selector that the stepper and the terminal both consume, and the broken buttons, dead reset and stale apply-to-panes all fix at once.</td></tr>
+          <tr><td>Recovery after a coalesce trim?</td><td class="rec">Resync from the emulator<span class="m">not SIGWINCH</span></td><td>The server holds a complete correct screen. Resending it is deterministic and backend-independent, and it retires the SIGWINCH heuristic, its alt-buffer settle window, its cooldown, and the fact that it is disabled entirely on the default backend.</td></tr>
+          <tr><td>tmux delivery cost?</td><td class="rec">Persistent control-mode client<span class="m">plus client-side onData coalescing</span></td><td><code>ResolveAuto</code> prefers tmux whenever it is installed, so two subprocess spawns per keystroke is the default path, not an edge case. Coalescing alone is the cheap half; the control-mode connection is what removes the forks.</td></tr>
+          <tr><td>Does tmux mouse mode stay on?</td><td class="rec">Make it a setting, default off<span class="m">currently set unconditionally at session creation</span></td><td>It is the switch that makes scrolling a network operation. Users who want tmux copy-mode on scroll can opt in; everyone else gets local, instant scrollback.</td></tr>
+          <tr><td>Font stack?</td><td class="rec">Bundle one webfont<span class="m">with a full OS fallback ladder behind it</span></td><td>Identical cell metrics on every machine is the only way the size lease is coherent across devices. The fallback ladder is the safety net, not the plan.</td></tr>
+          <tr><td>Which scrollback depth?</td><td class="rec">One number, from config<span class="m">tmux 50 000 vs emulator 10 000 vs xterm 10 000</span></td><td>Whatever the emulator retains is what survives a reconnect, so tmux holding five times more just means depth that silently varies by backend.</td></tr>
+          <tr><td>How far to split <code>TerminalPane</code>?</td><td class="rec">Five extractions<span class="m">lifecycle · follower · speech · attachments · selection</span></td><td>Those are the seams already visible in the file. The handle then shrinks to input, focus and selection.</td></tr>
+          <tr><td>Shell resolution failure?</td><td class="rec">Return the error, never panic<span class="m">the typed error already exists</span></td><td><code>resolveShellChecked</code> is written correctly and its caller discards the result. A host with an unusable <code>$SHELL</code> is a supportable condition, not a crash.</td></tr>
+          <tr><td>The tmux capability probe?</td><td class="rec">Route through <code>tmuxCmd()</code><span class="m">and pin the socket with <code>-S &lt;state-dir&gt;/tmux.sock</code></span></td><td>It currently probes the user's default tmux server rather than the one the scenario uses, and leaves a named buffer behind. Pinning the socket also removes the macOS <code>$TMPDIR</code> session-orphaning hazard structurally.</td></tr>
+          <tr><td><code>GetScreen</code> torn read?</td><td class="rec">One locked read, both projections<span class="m">Screen() and PlainText() currently lock separately</span></td><td>This is the API coding agents use to decide what to type next. Cells and plain text describing different moments is worse than it sounds.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== SEQUENCE ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag ok">ORDER</span><h2>Sequencing</h2></div>
+      <p>The dependencies are real: echo needs offsets, offsets need the protocol package, and the bridge backend wants all three. Everything in phase 0 is independent and can start today.</p>
+    </div>
+
+    <div class="phases">
+      <div class="phase"><span class="pn">0</span><div class="pb"><h4>Unblock the reported pain — no dependencies</h4><p>Echo gate stopgap via <code>buffer.onBufferChange</code>. Restore synchronized output and drop the fake DECRQM reply. Font-size selector unification. Launcher empty-backend branch. Missing capability <code>Def</code>s. Shell panic removal. Probe socket fix. <code>appendOutputProbe</code> behind a debug flag. <code>setPaneSize</code> inside the rAF.</p><p class="dep">independent · ships two of the four agent-corruption causes and the broken stepper</p></div><span class="sz">days</span></div>
+
+      <div class="phase"><span class="pn">1</span><div class="pb"><h4>Protocol package + conformance suite</h4><p>Versioned frames, reason codes, one suite both handlers must pass. Write deadlines and bounded snapshots land here too, since they are protocol-level obligations.</p><p class="dep">blocks: 2, 3, 4</p></div><span class="sz">1–2 weeks</span></div>
+
+      <div class="phase"><span class="pn">2</span><div class="pb"><h4>Cumulative byte-offset stdin</h4><p>Replaces per-payload seq/ack, the retry timers, the 64-entry queue, the tail re-enqueue and the unmount flattening. Trim resync lands alongside it — both are “the server is authoritative” changes.</p><p class="dep">needs: 1 · blocks: 4</p></div><span class="sz">1–2 weeks</span></div>
+
+      <div class="phase"><span class="pn">3</span><div class="pb"><h4>Capability declarations + bridge as a backend</h4><p>vrooli-bridge <code>Def</code> and checker, backend capabilities with platform verdicts, the Windows declaration, <code>bridgePTY</code>, then delete the parallel WS handler.</p><p class="dep">needs: 1 · independent of 2</p></div><span class="sz">2–3 weeks</span></div>
+
+      <div class="phase"><span class="pn">4</span><div class="pb"><h4>Predictive echo rebuild</h4><p>Overlay rendering, server-supplied echo state, offset-keyed confirmation, distinct styling. The phase 0 stopgap is deleted here.</p><p class="dep">needs: 2</p></div><span class="sz">2–3 weeks</span></div>
+
+      <div class="phase"><span class="pn">5</span><div class="pb"><h4>Scroll and input performance</h4><p>One <code>scrollBy</code> seam, mouse-tracking bytes diverted out of <code>onData</code>, batched and rate-limited remote scroll, time-normalized momentum, sensitivity settings, tmux control-mode client, pinch-to-zoom.</p><p class="dep">needs: 0 for the font authority; otherwise independent</p></div><span class="sz">2–3 weeks</span></div>
+    </div>
+  </section>
+
+  <!-- ===== RESOLVED ===== -->
+  <section>
+    <div class="sec-head">
+      <div class="row"><span class="tag ok">RESOLVED</span><h2>The three follow-ups, closed</h2></div>
+      <p>Two were empirical and did not need a judgement call. The third was a genuine ownership question.</p>
+    </div>
+
+    <div class="design">
+      <header>
+        <span class="dt">1 — The xterm.js crash the sanitizer guards against is not in the code you ship</span>
+        <span class="ds">Verdict: restore synchronized output, then verify the mobile case.</span>
+      </header>
+      <div class="body">
+        <p>I read <code>requestMode</code> in the installed v6.0.0 source and then in <code>lib/xterm.js</code>, the bundle that actually runs. Every identifier is declared, there is no stray <code>r</code>, and mode 2026 is handled explicitly — as are the DECSET/DECRST toggles:</p>
+        <div class="trace">
+<pre><span class="dim">src/common/InputHandler.ts:2303</span>
+if (p === 2026) return f(p, b2v(dm.<span class="go">synchronizedOutput</span>));
+
+<span class="dim">lib/xterm.js — the shipped bundle, minified</span>
+2026===_?u(i.<span class="go">synchronizedOutput</span>):0,o.triggerDataEvent(`${n.C0.ES…
+2026:this._coreService.decPrivateModes.<span class="go">synchronizedOutput</span>=!0}ret
+2026:this._coreService.decPrivateModes.<span class="go">synchronizedOutput</span>=!1,thi</pre>
+        </div>
+        <p>So the primary rationale in <code>sanitize.go</code> is obsolete, and the server is currently telling every TUI that a capability the terminal genuinely has is “not recognized”. Two layers of workaround come out: the <code>$p</code> query strip, and the fake <code>\x1b[?2026;0$y</code> reply in <code>ansiReplyFor</code>.</p>
+        <p><b>The second rationale is untested, not disproven.</b> The comment also cites mobile-browser timer throttling stranding a framed block until the next DECRST. That risk is about xterm's own sync implementation under throttling, and it only ever arose because the server stopped TUIs emitting toggles in the first place. Restore, then background a mobile tab mid-repaint and watch for a stuck frame. Re-add a mitigation only if it reproduces — and if it does, mitigate inside the renderer rather than by lying about the capability.</p>
+        <p class="ev">Retires one of the four causes of agent-TUI corruption identified in <span class="mono">Scroll, Zoom, Redraw</span>, and it is independent of every other phase.</p>
+      </div>
+    </div>
+
+    <div class="design">
+      <header>
+        <span class="dt">2 — ollama and openrouter were always meant to be integrations</span>
+        <span class="ds">Verdict: author the missing <code>Def</code>s. The UI test already assumes they exist.</span>
+      </header>
+      <div class="body">
+        <p>The code does not say what was intended, but the test does. <code>integrations-panel.test.tsx</code> builds capability fixtures for <code>audio-tools</code>, <code>ollama</code>, <code>openrouter</code> and <code>kokoro-tts</code>, and asserts that <code>cap-card-ollama</code> and <code>cap-card-openrouter</code> render. It passes — because it feeds the panel its own fixtures rather than the real catalogue.</p>
+        <div class="thesis">
+          <span class="eyebrow">The same pattern as the font stepper</span>
+          <p>A green test proving the mechanism works, next to production wiring that never supplies it. The panel can render these integrations; <code>capabilities.Known</code> just never lists them. Add the <code>Def</code>s — <code>ollama</code> and <code>openrouter</code> already have working checkers registered in <code>main.go</code>. <code>kokoro-tts</code> appears in the fixture with neither a <code>Def</code> nor a checker, so decide whether it is real before adding it.</p>
+        </div>
+        <p>Then make the panel test read the real catalogue for at least one case, so “declared” and “renderable” stop being independently true.</p>
+      </div>
+    </div>
+
+    <div class="design">
+      <header>
+        <span class="dt">3 — Node onboarding stays with vrooli-bridge</span>
+        <span class="ds">Verdict: web-console consumes the registry only. Pairing remains a bridge CLI operation.</span>
+      </header>
+      <div class="body">
+        <p>vrooli-bridge owns a full <code>PairingService</code> — issue and redeem pairing codes, request and approve pairing, register encryption keys — plus a <code>ProvisionService</code> for revision sync. It has <code>api</code>, <code>cli</code>, <code>agent</code> and <code>bootstrap</code>, and no <code>ui</code> directory, so the onboarding ceremony has no browser surface anywhere today.</p>
+        <p>Phase 3 therefore reads <code>ListNodes</code> and <code>GetNodeReadiness</code> to populate targets and status, and does not grow a pairing flow. Un-gating remote terminals never required one: a node that has been paired via the CLI shows up as a target with live status and a restart action, which is the whole of what was missing.</p>
+        <p class="ev">Deliberately deferred, not forgotten: a browser pairing surface belongs in vrooli-bridge alongside the protocol it implements. web-console should deep-link to it when it exists rather than absorb another scenario's domain.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Decision record for <span class="mono">scenarios/web-console</span> · companions: <span class="mono">Terminal Signal Path</span>, <span class="mono">Scroll, Zoom, Redraw</span>, <span class="mono">Runs Anywhere, Proven Nowhere</span>.</span>
+    <span>Read-only review. No files were modified.</span>
+  </footer>
+
+</div>

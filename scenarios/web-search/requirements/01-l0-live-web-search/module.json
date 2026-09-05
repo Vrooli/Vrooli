@@ -1,0 +1,87 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "title": "SearXNG Live Web Search Normalization (L0)",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "Query the locally deployed SearXNG resource and normalize raw JSON results into the search-hub SearchHit shape. This is the fast path for external web queries and must involve no LLM calls. Normalization includes field extraction (title, url, snippet, score), score-scale normalization to [0,1], deduplication by URL, and surfacing source engine metadata.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/normalization_internal_test.go::TestNormalizationMapsSearxngFixture",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Given a SearXNG JSON response fixture, normalization produces SearchHit objects with all required fields populated and scores within [0,1] [web-search carries the RAW SearXNG score by design; the [0,1] clamp happens at the federation seam per the declared score_scale — see the score-scale entry's search-hub ref]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/normalization_internal_test.go::TestNormalizeMissingOptionalFieldsDefaults",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Given a SearXNG response with missing optional fields (e.g., no snippet), normalization produces a valid SearchHit with null/empty defaults without panicking"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/normalization_internal_test.go::TestNormalizeAllDeduplicatesByURL",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Given a SearXNG response with duplicate URLs, normalization deduplicates entries retaining the highest-scored hit"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/livesearch/connect_handler_test.go::TestSearchProjectsResultsToProto",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ResultMapping field extraction correctly maps SearXNG fields to SearchHit fields for all known engine response variants"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/providers/adapter_test.go::TestMapResultsScoreNormalization",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Score-scale normalization correctly maps arbitrary SearXNG score ranges to [0,1] across at least 5 fixture variations [covering test lives in search-hub — the federation seam clamps to [0,1] per the score_scale declared in web-search's .vrooli/search.json result_mapping]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceL0PathMakesNoLLMCalls",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Issue a live query against the running SearXNG resource and verify the response normalizes into valid SearchHit objects with no LLM call made (verified via LLM call mock asserting zero invocations)"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceL0LatencyBudgetWithNormalUpstream",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify that the L0 path returns results within the defined latency budget under normal SearXNG response times"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceL0LatencyBudgetWithNormalUpstream",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "L0 live-search round-trip latency (SearXNG query + normalization) must complete within 2000ms at p95 under normal conditions"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/normalization_internal_test.go::BenchmarkNormalizeAll20Results",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Normalization of a 20-result SearXNG response must complete in under 10ms CPU time"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/livesearch/connect_handler_test.go::TestSearchProjectsResultsToProto",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "A user issuing an explicit --type web query receives normalized web search results with no synthesis delay and no LLM involvement"
+        }
+      ]
+    }
+  ]
+}

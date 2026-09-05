@@ -47,13 +47,15 @@ export {
   createFpsController,
   getIntervalMs,
   getCurrentFps,
-  // Types
-  FpsControllerConfig,
-  FpsControllerState,
-  FpsAdjustmentResult,
-  FpsAdjustmentDiagnostics,
   // Constants
   DEFAULT_FPS_CONFIG,
   // State factory
   createInitialState,
+} from './controller';
+
+export type {
+  FpsControllerConfig,
+  FpsControllerState,
+  FpsAdjustmentResult,
+  FpsAdjustmentDiagnostics,
 } from './controller';

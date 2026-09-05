@@ -218,21 +218,19 @@ func (h *Handlers) SetActiveTemplate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.JSONResponse(w, map[string]interface{}{
-			"active_template_id":       nil,
-			"active_template_tool_ids": nil,
+			"active_template_id": nil,
 		}, http.StatusOK)
 		return
 	}
 
 	// Set the active template
-	if err := h.Repo.SetActiveTemplate(ctx, chatID, req.TemplateID, req.ToolIDs); err != nil {
+	if err := h.Repo.SetActiveTemplate(ctx, chatID, req.TemplateID); err != nil {
 		log.Printf("[ERROR] [%s] SetActiveTemplate failed: %v", middleware.GetRequestID(ctx), err)
 		h.WriteAppError(w, r, domain.ErrDatabaseError("set active template", err))
 		return
 	}
 
 	h.JSONResponse(w, map[string]interface{}{
-		"active_template_id":       req.TemplateID,
-		"active_template_tool_ids": req.ToolIDs,
+		"active_template_id": req.TemplateID,
 	}, http.StatusOK)
 }

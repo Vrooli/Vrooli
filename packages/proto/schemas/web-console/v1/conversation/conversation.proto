@@ -1,0 +1,209 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.conversation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation;conversation_v1";
+
+// =============================================================================
+// CONVERSATION DOMAIN — per-session conversation history, cursor, summarization
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain conversation
+// @stability stable
+//
+// Wire contract for ConversationService. Mirrors three legacy REST routes:
+//   GET  /api/v1/sessions/{id}/conversation
+//   PUT  /api/v1/sessions/{id}/conversation/cursor
+//   POST /api/v1/sessions/{id}/conversation/{eventId}/summarize
+//
+// File-reference resolution/preview moved out to its own domain
+// (vrooli.web_console.v1.file_preview.FilePreviewService) so the conversation
+// domain stays semantic conversation state and the preview subsystem is
+// reusable by other surfaces.
+//
+// Consumed by:
+//   - API: handlers/conversation/connect_handler.go
+//   - UI:  ui/src/api/conversation.ts (Connect-Web client)
+//   - CLI: cli/domains/conversation/register.go (Connect-Go client)
+// =============================================================================
+
+service ConversationService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc SearchArchived(SearchArchivedRequest) returns (SearchArchivedResponse);
+  rpc GetRange(GetRangeRequest) returns (GetResponse);
+  rpc UpdateCursor(UpdateCursorRequest) returns (UpdateCursorResponse);
+  rpc SummarizeEvent(SummarizeEventRequest) returns (SummarizeEventResponse);
+}
+
+message SearchRequest {
+  string session_id = 1;
+  string query = 2;
+  int32 limit = 3;
+  string role_filter = 4;
+}
+
+message SearchMatch {
+  string event_id = 1;
+  int64 sequence = 2;
+  string excerpt = 3;
+}
+
+message SearchResponse {
+  repeated SearchMatch matches = 1;
+  bool truncated = 2;
+  int64 total_matches = 3;
+}
+
+message SearchArchivedRequest {
+  string query = 1;
+  int32 limit = 2;
+  string agent_type = 3;
+  string role = 4;
+  string created_after = 5;
+}
+
+message ArchivedSearchMatch {
+  string event_id = 1;
+  string session_id = 2;
+  int64 sequence = 3;
+  string role = 4;
+  string created_at = 5;
+  string excerpt = 6;
+}
+
+message SearchArchivedResponse {
+  repeated ArchivedSearchMatch matches = 1;
+  bool truncated = 2;
+  int64 total_matches = 3;
+  int64 distinct_sessions = 4;
+}
+
+message GetRangeRequest {
+  string session_id = 1;
+  int64 from_sequence = 2;
+  int64 to_sequence = 3;
+}
+
+// ConversationEvent is one stored entry in a session's transcript. Mirrors the
+// legacy JSON shape exactly so the WS forwarder doesn't have to fork wire types.
+message ConversationEvent {
+  string id = 1;
+  string session_id = 2;
+  string source = 3;
+  string role = 4; // "assistant" | "user"
+  string text = 5;
+  repeated string speech_paragraphs = 6;
+  repeated string original_speech_paragraphs = 7;
+  bool summarized = 8;
+  string created_at = 9; // RFC3339
+  int64 sequence = 10;
+  string delivery_state = 11; // "pending" | "received" | "seen"
+  string tts_state = 12; // "idle" | "playing" | "played" | "rejected" | "failed"
+  string consumption_state = 13; // "unseen" | "seen" | "listening" | "listened"
+}
+
+message ConversationCursor {
+  int64 last_seen_sequence = 1;
+  int64 last_listened_sequence = 2;
+}
+
+// GetRequest fetches the conversation history for one session.
+// since_sequence (when > 0) limits the response to events with
+// sequence > since_sequence — used by reconnect/refresh to fetch only the gap.
+message GetRequest {
+  string session_id = 1;
+  int64 since_sequence = 2;
+  // Zero preserves the legacy full-history response.
+  int32 limit = 3;
+  // Zero starts at the newest event; otherwise only earlier events are returned.
+  int64 before_sequence = 4;
+}
+
+message GetResponse {
+  string session_id = 1;
+  repeated ConversationEvent events = 2;
+  ConversationCursor cursor = 3;
+  bool has_more = 4;
+  int64 oldest_sequence = 5;
+  int64 newest_sequence = 6;
+  int64 total_count = 7;
+  // Why the event list looks the way it does. An empty list is ambiguous on
+  // its own — a brand-new session and a session whose transcript can never be
+  // read produce the same zero events — so every Get carries the explanation
+  // alongside the data.
+  MessageCaptureStatus capture = 8;
+}
+
+// MessageCaptureState says whether Web Console can record this session's
+// messages at all. It is deliberately separate from the event list: callers
+// render CAPTURING with zero events as "nothing said yet", and UNAVAILABLE
+// with zero events as a fault with a cause and a remedy.
+enum MessageCaptureState {
+  MESSAGE_CAPTURE_STATE_UNSPECIFIED = 0;
+  // The session's transcript is being read; events flow as they are produced.
+  MESSAGE_CAPTURE_STATE_CAPTURING = 1;
+  // The session runs no agent, so there is no conversation to capture.
+  MESSAGE_CAPTURE_STATE_NOT_APPLICABLE = 2;
+  // Capture is wired but the agent has not produced anything to identify it
+  // by yet. This resolves on its own once the session is used.
+  MESSAGE_CAPTURE_STATE_PENDING = 3;
+  // Capture cannot proceed. reason_code says why and remediation says what
+  // would fix it. This is the state that must never be shown as "no messages".
+  MESSAGE_CAPTURE_STATE_UNAVAILABLE = 4;
+}
+
+// MessageCaptureStatus is the per-session diagnosis behind the event list.
+// It replaces a class of silent failure: before it existed, a session whose
+// transcript was never discovered was indistinguishable from an empty one.
+message MessageCaptureStatus {
+  MessageCaptureState state = 1;
+  // Stable machine-readable cause, e.g. "agent_unidentified", "hook_stale",
+  // "transcript_unreadable". Empty when state is CAPTURING.
+  string reason_code = 2;
+  // One sentence, written for the person reading the Messages view.
+  string summary = 3;
+  // Operator-facing specifics — a path, a hook status, a settings location.
+  // Surfaces behind a disclosure, never as the primary sentence.
+  string detail = 4;
+  // The action that would fix this, when one exists.
+  string remediation = 5;
+  // Resolved transcript path when capture has identified one.
+  string transcript_path = 6;
+  // RFC3339 timestamp of the most recent captured message; empty if never.
+  string last_captured_at = 7;
+}
+
+// UpdateCursorRequest applies a partial update to the session's cursor.
+// Only fields with has_* = true are applied.
+message UpdateCursorRequest {
+  string session_id = 1;
+
+  int64 last_seen_sequence = 2;
+  bool has_last_seen_sequence = 3;
+
+  int64 last_listened_sequence = 4;
+  bool has_last_listened_sequence = 5;
+}
+
+message UpdateCursorResponse {
+  ConversationCursor cursor = 1;
+}
+
+// SummarizeEventRequest triggers on-demand TTS summarization for a specific
+// assistant-authored event in the session's transcript.
+message SummarizeEventRequest {
+  string session_id = 1;
+  string event_id = 2;
+}
+
+// SummarizeEventResponse mirrors the legacy shape: summarized=false plus an
+// error string is the soft-failure path (model unavailable, empty output).
+// Hard validation failures (missing event, non-assistant role) come back as
+// Connect errors.
+message SummarizeEventResponse {
+  bool summarized = 1;
+  repeated string speech_paragraphs = 2;
+  string error = 3;
+}

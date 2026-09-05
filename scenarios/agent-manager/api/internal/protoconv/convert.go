@@ -10,13 +10,13 @@ package protoconv
 import (
 	"time"
 
+	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"agent-manager/internal/domain"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -57,6 +57,10 @@ func RunnerTypeToProto(r domain.RunnerType) pb.RunnerType {
 		return pb.RunnerType_RUNNER_TYPE_CODEX
 	case domain.RunnerTypeOpenCode:
 		return pb.RunnerType_RUNNER_TYPE_OPENCODE
+	case domain.RunnerTypeGrok:
+		return pb.RunnerType_RUNNER_TYPE_GROK
+	case domain.RunnerTypeAntigravity:
+		return pb.RunnerType_RUNNER_TYPE_ANTIGRAVITY
 	default:
 		return pb.RunnerType_RUNNER_TYPE_UNSPECIFIED
 	}
@@ -71,40 +75,36 @@ func RunnerTypeFromProto(r pb.RunnerType) domain.RunnerType {
 		return domain.RunnerTypeCodex
 	case pb.RunnerType_RUNNER_TYPE_OPENCODE:
 		return domain.RunnerTypeOpenCode
+	case pb.RunnerType_RUNNER_TYPE_GROK:
+		return domain.RunnerTypeGrok
+	case pb.RunnerType_RUNNER_TYPE_ANTIGRAVITY:
+		return domain.RunnerTypeAntigravity
 	default:
 		return domain.RunnerType("")
 	}
 }
 
-// =============================================================================
-// MODEL PRESET
-// =============================================================================
-
-// ModelPresetToProto converts domain ModelPreset to proto ModelPreset.
-func ModelPresetToProto(preset domain.ModelPreset) pb.ModelPreset {
-	switch preset {
-	case domain.ModelPresetFast:
-		return pb.ModelPreset_MODEL_PRESET_FAST
-	case domain.ModelPresetCheap:
-		return pb.ModelPreset_MODEL_PRESET_CHEAP
-	case domain.ModelPresetSmart:
-		return pb.ModelPreset_MODEL_PRESET_SMART
+// ModelSelectionTypeToProto converts an explicit snapshot selection type.
+func ModelSelectionTypeToProto(selectionType domain.ModelSelectionType) pb.ModelSelectionType {
+	switch selectionType {
+	case domain.ModelSelectionTypeModel:
+		return pb.ModelSelectionType_MODEL_SELECTION_TYPE_MODEL
+	case domain.ModelSelectionTypeRunnerDefault:
+		return pb.ModelSelectionType_MODEL_SELECTION_TYPE_RUNNER_DEFAULT
 	default:
-		return pb.ModelPreset_MODEL_PRESET_UNSPECIFIED
+		return pb.ModelSelectionType_MODEL_SELECTION_TYPE_UNSPECIFIED
 	}
 }
 
-// ModelPresetFromProto converts proto ModelPreset to domain ModelPreset.
-func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
-	switch preset {
-	case pb.ModelPreset_MODEL_PRESET_FAST:
-		return domain.ModelPresetFast
-	case pb.ModelPreset_MODEL_PRESET_CHEAP:
-		return domain.ModelPresetCheap
-	case pb.ModelPreset_MODEL_PRESET_SMART:
-		return domain.ModelPresetSmart
+// ModelSelectionTypeFromProto converts an explicit snapshot selection type.
+func ModelSelectionTypeFromProto(selectionType pb.ModelSelectionType) domain.ModelSelectionType {
+	switch selectionType {
+	case pb.ModelSelectionType_MODEL_SELECTION_TYPE_MODEL:
+		return domain.ModelSelectionTypeModel
+	case pb.ModelSelectionType_MODEL_SELECTION_TYPE_RUNNER_DEFAULT:
+		return domain.ModelSelectionTypeRunnerDefault
 	default:
-		return domain.ModelPresetUnspecified
+		return ""
 	}
 }
 
@@ -147,6 +147,12 @@ func NetworkAccessFromProto(n pb.NetworkAccess) domain.NetworkAccess {
 // SandboxLifecycleEventToProto converts domain SandboxLifecycleEvent to proto.
 func SandboxLifecycleEventToProto(event domain.SandboxLifecycleEvent) pb.SandboxLifecycleEvent {
 	switch event {
+	case domain.SandboxLifecycleTurnCompleted:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED
+	case domain.SandboxLifecycleTurnFailed:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_FAILED
+	case domain.SandboxLifecycleTurnCancelled:
+		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED
 	case domain.SandboxLifecycleRunCompleted:
 		return pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED
 	case domain.SandboxLifecycleRunFailed:
@@ -167,6 +173,12 @@ func SandboxLifecycleEventToProto(event domain.SandboxLifecycleEvent) pb.Sandbox
 // SandboxLifecycleEventFromProto converts proto SandboxLifecycleEvent to domain.
 func SandboxLifecycleEventFromProto(event pb.SandboxLifecycleEvent) domain.SandboxLifecycleEvent {
 	switch event {
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED:
+		return domain.SandboxLifecycleTurnCompleted
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_FAILED:
+		return domain.SandboxLifecycleTurnFailed
+	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED:
+		return domain.SandboxLifecycleTurnCancelled
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED:
 		return domain.SandboxLifecycleRunCompleted
 	case pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_RUN_FAILED:
@@ -236,13 +248,10 @@ func SandboxFileCriteriaFromProto(criteria *pb.SandboxFileCriteria) domain.Sandb
 // SandboxAcceptanceConfigToProto converts domain SandboxAcceptanceConfig to proto.
 func SandboxAcceptanceConfigToProto(cfg domain.SandboxAcceptanceConfig) *pb.SandboxAcceptanceConfig {
 	return &pb.SandboxAcceptanceConfig{
-		Mode:                      SandboxAcceptanceModeToProto(cfg.Mode),
-		Allow:                     SandboxFileCriteriaToProto(cfg.Allow),
-		Deny:                      SandboxFileCriteriaToProto(cfg.Deny),
-		IgnoreBinary:              cfg.IgnoreBinary,
-		AutoApprove:               cfg.AutoApprove,
-		AutoReject:                cfg.AutoReject,
-		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
+		Mode:         SandboxAcceptanceModeToProto(cfg.Mode),
+		Allow:        SandboxFileCriteriaToProto(cfg.Allow),
+		Deny:         SandboxFileCriteriaToProto(cfg.Deny),
+		IgnoreBinary: cfg.IgnoreBinary,
 	}
 }
 
@@ -252,18 +261,19 @@ func SandboxAcceptanceConfigFromProto(cfg *pb.SandboxAcceptanceConfig) domain.Sa
 		return domain.SandboxAcceptanceConfig{}
 	}
 	return domain.SandboxAcceptanceConfig{
-		Mode:                      SandboxAcceptanceModeFromProto(cfg.Mode),
-		Allow:                     SandboxFileCriteriaFromProto(cfg.Allow),
-		Deny:                      SandboxFileCriteriaFromProto(cfg.Deny),
-		IgnoreBinary:              cfg.IgnoreBinary,
-		AutoApprove:               cfg.AutoApprove,
-		AutoReject:                cfg.AutoReject,
-		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
+		Mode:         SandboxAcceptanceModeFromProto(cfg.Mode),
+		Allow:        SandboxFileCriteriaFromProto(cfg.Allow),
+		Deny:         SandboxFileCriteriaFromProto(cfg.Deny),
+		IgnoreBinary: cfg.IgnoreBinary,
 	}
 }
 
 // SandboxLifecycleConfigToProto converts domain SandboxLifecycleConfig to proto.
 func SandboxLifecycleConfigToProto(cfg domain.SandboxLifecycleConfig) *pb.SandboxLifecycleConfig {
+	checkpointOn := make([]pb.SandboxLifecycleEvent, 0, len(cfg.CheckpointOn))
+	for _, event := range cfg.CheckpointOn {
+		checkpointOn = append(checkpointOn, SandboxLifecycleEventToProto(event))
+	}
 	stopOn := make([]pb.SandboxLifecycleEvent, 0, len(cfg.StopOn))
 	for _, event := range cfg.StopOn {
 		stopOn = append(stopOn, SandboxLifecycleEventToProto(event))
@@ -273,10 +283,11 @@ func SandboxLifecycleConfigToProto(cfg domain.SandboxLifecycleConfig) *pb.Sandbo
 		deleteOn = append(deleteOn, SandboxLifecycleEventToProto(event))
 	}
 	return &pb.SandboxLifecycleConfig{
-		StopOn:      stopOn,
-		DeleteOn:    deleteOn,
-		Ttl:         DurationToProto(cfg.TTL),
-		IdleTimeout: DurationToProto(cfg.IdleTimeout),
+		CheckpointOn: checkpointOn,
+		StopOn:       stopOn,
+		DeleteOn:     deleteOn,
+		Ttl:          DurationToProto(cfg.TTL),
+		IdleTimeout:  DurationToProto(cfg.IdleTimeout),
 	}
 }
 
@@ -285,36 +296,75 @@ func SandboxLifecycleConfigFromProto(cfg *pb.SandboxLifecycleConfig) domain.Sand
 	if cfg == nil {
 		return domain.SandboxLifecycleConfig{}
 	}
-	stopOn := make([]domain.SandboxLifecycleEvent, 0, len(cfg.StopOn))
-	for _, event := range cfg.StopOn {
-		if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
-			continue
+	convertEvents := func(events []pb.SandboxLifecycleEvent) []domain.SandboxLifecycleEvent {
+		out := make([]domain.SandboxLifecycleEvent, 0, len(events))
+		for _, event := range events {
+			if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
+				continue
+			}
+			if converted := SandboxLifecycleEventFromProto(event); converted != "" {
+				out = append(out, converted)
+			}
 		}
-		stopOn = append(stopOn, SandboxLifecycleEventFromProto(event))
+		return out
 	}
-	deleteOn := make([]domain.SandboxLifecycleEvent, 0, len(cfg.DeleteOn))
-	for _, event := range cfg.DeleteOn {
-		if event == pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED {
-			continue
-		}
-		deleteOn = append(deleteOn, SandboxLifecycleEventFromProto(event))
-	}
+	checkpointOn := convertEvents(cfg.CheckpointOn)
+	stopOn := convertEvents(cfg.StopOn)
+	deleteOn := convertEvents(cfg.DeleteOn)
 	return domain.SandboxLifecycleConfig{
-		StopOn:      stopOn,
-		DeleteOn:    deleteOn,
-		TTL:         DurationFromProto(cfg.Ttl),
-		IdleTimeout: DurationFromProto(cfg.IdleTimeout),
+		CheckpointOn: checkpointOn,
+		StopOn:       stopOn,
+		DeleteOn:     deleteOn,
+		TTL:          DurationFromProto(cfg.Ttl),
+		IdleTimeout:  DurationFromProto(cfg.IdleTimeout),
 	}
 }
 
-// SandboxConfigToProto converts domain SandboxConfig to proto.
+// SandboxModeToProto converts domain SandboxMode to proto SandboxMode.
+func SandboxModeToProto(m domain.SandboxMode) pb.SandboxMode {
+	switch m {
+	case domain.SandboxModeOff:
+		return pb.SandboxMode_SANDBOX_MODE_OFF
+	case domain.SandboxModeTracking:
+		return pb.SandboxMode_SANDBOX_MODE_TRACKING
+	case domain.SandboxModeProtected:
+		return pb.SandboxMode_SANDBOX_MODE_PROTECTED
+	default:
+		return pb.SandboxMode_SANDBOX_MODE_UNSPECIFIED
+	}
+}
+
+// SandboxModeFromProto converts proto SandboxMode to domain.
+func SandboxModeFromProto(m pb.SandboxMode) domain.SandboxMode {
+	switch m {
+	case pb.SandboxMode_SANDBOX_MODE_OFF:
+		return domain.SandboxModeOff
+	case pb.SandboxMode_SANDBOX_MODE_TRACKING:
+		return domain.SandboxModeTracking
+	case pb.SandboxMode_SANDBOX_MODE_PROTECTED:
+		return domain.SandboxModeProtected
+	default:
+		return domain.SandboxModeUnspecified
+	}
+}
+
+// SandboxConfigToProto converts domain SandboxConfig to proto. Carries the
+// auditability-contract levers (mode, manual_review, auto_apply,
+// apply_on_failure, network_mode, no_lock) added in
+// agent-sandbox-audit-foundation Phase 3b.
 func SandboxConfigToProto(cfg *domain.SandboxConfig) *pb.SandboxConfig {
 	if cfg == nil {
 		return nil
 	}
 	return &pb.SandboxConfig{
-		Lifecycle:  SandboxLifecycleConfigToProto(cfg.Lifecycle),
-		Acceptance: SandboxAcceptanceConfigToProto(cfg.Acceptance),
+		Lifecycle:      SandboxLifecycleConfigToProto(cfg.Lifecycle),
+		Acceptance:     SandboxAcceptanceConfigToProto(cfg.Acceptance),
+		Mode:           SandboxModeToProto(cfg.Mode),
+		ManualReview:   cfg.ManualReview,
+		AutoApply:      cfg.AutoApply,
+		ApplyOnFailure: cfg.ApplyOnFailure,
+		NetworkMode:    NetworkAccessToProto(cfg.NetworkMode),
+		NoLock:         cfg.NoLock,
 	}
 }
 
@@ -324,8 +374,14 @@ func SandboxConfigFromProto(cfg *pb.SandboxConfig) *domain.SandboxConfig {
 		return nil
 	}
 	return &domain.SandboxConfig{
-		Lifecycle:  SandboxLifecycleConfigFromProto(cfg.Lifecycle),
-		Acceptance: SandboxAcceptanceConfigFromProto(cfg.Acceptance),
+		Lifecycle:      SandboxLifecycleConfigFromProto(cfg.Lifecycle),
+		Acceptance:     SandboxAcceptanceConfigFromProto(cfg.Acceptance),
+		Mode:           SandboxModeFromProto(cfg.Mode),
+		ManualReview:   cfg.ManualReview,
+		AutoApply:      cfg.AutoApply,
+		ApplyOnFailure: cfg.ApplyOnFailure,
+		NetworkMode:    NetworkAccessFromProto(cfg.NetworkMode),
+		NoLock:         cfg.NoLock,
 	}
 }
 
@@ -398,6 +454,10 @@ func RunStatusToProto(s domain.RunStatus) pb.RunStatus {
 		return pb.RunStatus_RUN_STATUS_FAILED
 	case domain.RunStatusCancelled:
 		return pb.RunStatus_RUN_STATUS_CANCELLED
+	case domain.RunStatusParked:
+		return pb.RunStatus_RUN_STATUS_PARKED
+	case domain.RunStatusUnknown:
+		return pb.RunStatus_RUN_STATUS_UNKNOWN
 	default:
 		return pb.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
@@ -420,8 +480,52 @@ func RunStatusFromProto(s pb.RunStatus) domain.RunStatus {
 		return domain.RunStatusFailed
 	case pb.RunStatus_RUN_STATUS_CANCELLED:
 		return domain.RunStatusCancelled
+	case pb.RunStatus_RUN_STATUS_PARKED:
+		return domain.RunStatusParked
+	case pb.RunStatus_RUN_STATUS_UNKNOWN:
+		return domain.RunStatusUnknown
 	default:
 		return domain.RunStatus("")
+	}
+}
+
+// RunFinalizationStatusToProto converts domain RunFinalizationStatus to proto.
+func RunFinalizationStatusToProto(s domain.RunFinalizationStatus) pb.RunFinalizationStatus {
+	switch s {
+	case domain.RunFinalizationStatusNone:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_NONE
+	case domain.RunFinalizationStatusPending:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_PENDING
+	case domain.RunFinalizationStatusRunning:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_RUNNING
+	case domain.RunFinalizationStatusSucceeded:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SUCCEEDED
+	case domain.RunFinalizationStatusFailed:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_FAILED
+	case domain.RunFinalizationStatusSkipped:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SKIPPED
+	default:
+		return pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_UNSPECIFIED
+	}
+}
+
+// RunFinalizationStatusFromProto converts proto RunFinalizationStatus to domain.
+func RunFinalizationStatusFromProto(s pb.RunFinalizationStatus) domain.RunFinalizationStatus {
+	switch s {
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_NONE:
+		return domain.RunFinalizationStatusNone
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_PENDING:
+		return domain.RunFinalizationStatusPending
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_RUNNING:
+		return domain.RunFinalizationStatusRunning
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SUCCEEDED:
+		return domain.RunFinalizationStatusSucceeded
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_FAILED:
+		return domain.RunFinalizationStatusFailed
+	case pb.RunFinalizationStatus_RUN_FINALIZATION_STATUS_SKIPPED:
+		return domain.RunFinalizationStatusSkipped
+	default:
+		return domain.RunFinalizationStatusNone
 	}
 }
 
@@ -513,6 +617,38 @@ func RunModeFromProto(m pb.RunMode) domain.RunMode {
 	}
 }
 
+// ExecutionModeToProto converts domain ExecutionMode to proto ExecutionMode.
+// The empty domain value normalizes to codec-pipe.
+func ExecutionModeToProto(m domain.ExecutionMode) pb.ExecutionMode {
+	switch m.Normalized() {
+	case domain.ExecutionModeInteractive:
+		return pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+	case domain.ExecutionModeImported:
+		return pb.ExecutionMode_EXECUTION_MODE_IMPORTED
+	case domain.ExecutionModeAttached:
+		return pb.ExecutionMode_EXECUTION_MODE_ATTACHED
+	default:
+		return pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
+	}
+}
+
+// ExecutionModeFromProto converts proto ExecutionMode to domain ExecutionMode.
+// UNSPECIFIED maps to the empty domain value (treated as codec-pipe).
+func ExecutionModeFromProto(m pb.ExecutionMode) domain.ExecutionMode {
+	switch m {
+	case pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE:
+		return domain.ExecutionModeCodecPipe
+	case pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE:
+		return domain.ExecutionModeInteractive
+	case pb.ExecutionMode_EXECUTION_MODE_IMPORTED:
+		return domain.ExecutionModeImported
+	case pb.ExecutionMode_EXECUTION_MODE_ATTACHED:
+		return domain.ExecutionModeAttached
+	default:
+		return ""
+	}
+}
+
 // =============================================================================
 // APPROVAL STATE
 // =============================================================================
@@ -578,6 +714,10 @@ func RunEventTypeToProto(t domain.RunEventType) pb.RunEventType {
 		return pb.RunEventType_RUN_EVENT_TYPE_ARTIFACT
 	case domain.EventTypeError:
 		return pb.RunEventType_RUN_EVENT_TYPE_ERROR
+	case domain.EventTypeCompaction:
+		return pb.RunEventType_RUN_EVENT_TYPE_COMPACTION
+	case domain.EventTypeLifecycle:
+		return pb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE
 	default:
 		return pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED
 	}
@@ -604,6 +744,10 @@ func RunEventTypeFromProto(t pb.RunEventType) domain.RunEventType {
 		return domain.EventTypeArtifact
 	case pb.RunEventType_RUN_EVENT_TYPE_ERROR:
 		return domain.EventTypeError
+	case pb.RunEventType_RUN_EVENT_TYPE_COMPACTION:
+		return domain.EventTypeCompaction
+	case pb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE:
+		return domain.EventTypeLifecycle
 	default:
 		return domain.EventTypeLog
 	}

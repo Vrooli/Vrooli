@@ -1,0 +1,151 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Release brief",
+          "role": "heading"
+        },
+        {
+          "kind": "text",
+          "value": "Platform operations"
+        },
+        {
+          "kind": "role",
+          "name": "Audit trail",
+          "role": "list"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Resource detail",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Refreshing",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing"
+        },
+        {
+          "kind": "text",
+          "value": "Release brief"
+        }
+      ],
+      "id": "refreshing",
+      "mode": "live",
+      "name": "Refreshing",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Partial",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Some fields are still arriving"
+        },
+        {
+          "kind": "text",
+          "value": "Platform operations"
+        }
+      ],
+      "id": "partial",
+      "mode": "live",
+      "name": "Partial data",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "no detail to show"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RequestError",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Try again",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "could not be refreshed"
+        }
+      ],
+      "id": "request-error",
+      "mode": "live",
+      "name": "Request error",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PermissionDenied",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "do not have permission"
+        }
+      ],
+      "id": "permission-denied",
+      "mode": "live",
+      "name": "Permission denied",
+      "role": "boundary"
+    }
+  ],
+  "title": "ResourceDetail"
+}

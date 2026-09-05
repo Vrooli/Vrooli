@@ -19,7 +19,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -34,8 +33,15 @@ const (
 	// DefaultExecutionTimeout is the timeout for execution operations (longer, for slow playwright ops).
 	DefaultExecutionTimeout = 5 * time.Minute
 
+	// DriverExecutionTimeoutEnv allows operators to raise the HTTP deadline when
+	// a single driver operation itself is expected to run longer than five minutes.
+	DriverExecutionTimeoutEnv = "BAS_DRIVER_EXECUTION_TIMEOUT_MS"
+
 	// PlaywrightDriverEnv is the environment variable for the driver URL.
 	PlaywrightDriverEnv = "PLAYWRIGHT_DRIVER_URL"
+	// PlaywrightDriverAdminSecretEnv authorizes only the loopback recovery
+	// endpoint. It is never sent with normal lease-protected operations.
+	PlaywrightDriverAdminSecretEnv = "PLAYWRIGHT_DRIVER_ADMIN_SECRET"
 )
 
 // HTTPDoer is an interface for making HTTP requests.
@@ -86,10 +92,11 @@ var _ ClientInterface = (*Client)(nil)
 // Client provides unified HTTP communication with the playwright-driver.
 // It supports both recording mode and execution mode operations.
 type Client struct {
-	baseURL    string
-	httpClient HTTPDoer
-	log        *logrus.Logger
-	breaker    *resilience.Breaker
+	baseURL     string
+	httpClient  HTTPDoer
+	log         *logrus.Logger
+	breaker     *resilience.Breaker
+	adminSecret string
 }
 
 // ClientOption configures a Client.
@@ -123,6 +130,15 @@ func WithCircuitBreaker(breaker *resilience.Breaker) ClientOption {
 	}
 }
 
+// WithAdminSecret configures the loopback-only secret used exclusively by
+// terminal-session reconciliation. Normal lease-protected operations never
+// send this value.
+func WithAdminSecret(secret string) ClientOption {
+	return func(c *Client) {
+		c.adminSecret = strings.TrimSpace(secret)
+	}
+}
+
 // WithoutCircuitBreaker disables the circuit breaker.
 func WithoutCircuitBreaker() ClientOption {
 	return func(c *Client) {
@@ -146,10 +162,11 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	cfg.Logger = log
 
 	c := &Client{
-		baseURL:    strings.TrimRight(driverURL, "/"),
-		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        log,
-		breaker:    resilience.NewBreaker(cfg),
+		baseURL:     strings.TrimRight(driverURL, "/"),
+		httpClient:  &http.Client{Timeout: configuredExecutionTimeout()},
+		log:         log,
+		breaker:     resilience.NewBreaker(cfg),
+		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
 	}
 
 	for _, opt := range opts {
@@ -177,10 +194,11 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	cfg.Logger = log
 
 	c := &Client{
-		baseURL:    strings.TrimRight(driverURL, "/"),
-		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        log,
-		breaker:    resilience.NewBreaker(cfg),
+		baseURL:     strings.TrimRight(driverURL, "/"),
+		httpClient:  &http.Client{Timeout: configuredExecutionTimeout()},
+		log:         log,
+		breaker:     resilience.NewBreaker(cfg),
+		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
 	}
 
 	for _, opt := range opts {
@@ -194,6 +212,15 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func configuredExecutionTimeout() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv(DriverExecutionTimeoutEnv)); raw != "" {
+		if milliseconds, err := strconv.ParseInt(raw, 10, 64); err == nil && milliseconds > 0 {
+			return time.Duration(milliseconds) * time.Millisecond
+		}
+	}
+	return DefaultExecutionTimeout
 }
 
 // NewRecordingClient creates a client optimized for recording operations (shorter timeout).
@@ -278,6 +305,9 @@ func (c *Client) Health(ctx context.Context) error {
 			Hint:    "check playwright-driver logs for errors",
 		}
 	}
+	if c.breaker != nil && c.breaker.IsOpen() {
+		c.breaker.Reset()
+	}
 
 	return nil
 }
@@ -310,13 +340,63 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	return &resp, nil
 }
 
-// CloseSession closes a browser session.
-func (c *Client) CloseSession(ctx context.Context, sessionID string) (*CloseSessionResponse, error) {
-	var resp CloseSessionResponse
-	if err := c.postNoBody(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &resp); err != nil {
+// CreateSessionForDrill executes the normal admission path with a scoped
+// test token. Only BAS's controlled drill orchestrator uses this method.
+func (c *Client) CreateSessionForDrill(ctx context.Context, req *CreateSessionRequest, token string) (*CreateSessionResponse, error) {
+	var resp CreateSessionResponse
+	if err := c.postWithHeaders(ctx, "/session/start", req, &resp, http.Header{"X-Playwright-Drill-Token": []string{token}}); err != nil {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// CloseSessionWithLease closes only the session currently leased by executionID.
+func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, executionID, leaseID string) (*CloseSessionResponse, error) {
+	var resp CloseSessionResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &CloseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// ListObservedSessions returns recovery metadata without mutating session
+// activity. The endpoint is deliberately separate from normal session use so
+// reconciliation cannot keep an idle session alive.
+func (c *Client) ListObservedSessions(ctx context.Context) ([]ObservedSession, error) {
+	var resp ObservedSessionsResponse
+	if err := c.get(ctx, "/observability/sessions", &resp); err != nil {
+		return nil, err
+	}
+	return resp.Sessions, nil
+}
+
+// ForceCloseSession is an authenticated, loopback-only recovery operation.
+// Normal callers must use CloseSessionWithLease. A missing secret fails closed
+// rather than silently weakening the driver's lease ownership model.
+func (c *Client) ForceCloseSession(ctx context.Context, sessionID string) error {
+	secret := c.adminSecret
+	if secret == "" {
+		return fmt.Errorf("%s is required for administrative session recovery", PlaywrightDriverAdminSecretEnv)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+fmt.Sprintf("/session/%s/force-close", url.PathEscape(sessionID)), http.NoBody)
+	if err != nil {
+		return fmt.Errorf("create force-close request: %w", err)
+	}
+	req.Header.Set("X-Playwright-Admin-Secret", secret)
+	return c.doRequest(req, &CloseSessionResponse{}, "POST /session/:id/force-close")
+}
+
+// SetAdministrativeSecret configures recovery for a sidecar managed by this
+// API process. It is called during startup before the client serves requests.
+func (c *Client) SetAdministrativeSecret(secret string) {
+	c.adminSecret = strings.TrimSpace(secret)
+}
+
+// ReleaseSessionLease releases only the session currently leased by executionID
+// while retaining the browser resource for an explicitly later reuse.
+func (c *Client) ReleaseSessionLease(ctx context.Context, sessionID, executionID, leaseID string) error {
+	var resp ReleaseSessionResponse
+	return c.post(ctx, fmt.Sprintf("/session/%s/release", url.PathEscape(sessionID)), &ReleaseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp)
 }
 
 // DownloadArtifact streams an artifact file from the driver.
@@ -717,6 +797,10 @@ func (c *Client) RunInstruction(ctx context.Context, sessionID string, instructi
 }
 
 func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[string]any, error) {
+	if instruction.Action == nil {
+		return nil, fmt.Errorf("instruction %s has no typed action", instruction.NodeID)
+	}
+
 	payload := make(map[string]any)
 	wire := map[string]any{
 		"index":   instruction.Index,
@@ -737,126 +821,34 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 		wire["metadata"] = instruction.Metadata
 	}
 
-	if instruction.Action != nil {
-		actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
+	actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
+	if err != nil {
+		return nil, fmt.Errorf("encode action: %w", err)
+	}
+	var action map[string]any
+	if err := json.Unmarshal(actionJSON, &action); err != nil {
+		return nil, fmt.Errorf("decode action: %w", err)
+	}
+	wire["action"] = action
+
+	// This payload is assembled field by field, so anything added to
+	// CompiledInstruction and not copied here is silently dropped rather than
+	// failing to compile. Telemetry is opt-in: omitted when unset so the driver
+	// keeps its own defaults.
+	if instruction.Telemetry != nil {
+		telemetryJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Telemetry)
 		if err != nil {
-			return nil, fmt.Errorf("encode action: %w", err)
+			return nil, fmt.Errorf("encode telemetry directive: %w", err)
 		}
-		var action map[string]any
-		if err := json.Unmarshal(actionJSON, &action); err != nil {
-			return nil, fmt.Errorf("decode action: %w", err)
+		var telemetry map[string]any
+		if err := json.Unmarshal(telemetryJSON, &telemetry); err != nil {
+			return nil, fmt.Errorf("decode telemetry directive: %w", err)
 		}
-		wire["action"] = action
+		wire["telemetry"] = telemetry
 	}
-
-	stepType := actionTypeToString(instruction.Action)
-	if stepType != "" {
-		wire["type"] = stepType
-	}
-
-	params := actionToParams(instruction.Action)
-	if params == nil {
-		params = map[string]any{}
-	}
-	wire["params"] = params
 
 	payload["instruction"] = wire
 	return payload, nil
-}
-
-func actionTypeToString(action *basactions.ActionDefinition) string {
-	if action == nil {
-		return ""
-	}
-	switch action.Type {
-	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		return "navigate"
-	case basactions.ActionType_ACTION_TYPE_CLICK:
-		return "click"
-	case basactions.ActionType_ACTION_TYPE_INPUT:
-		return "type"
-	case basactions.ActionType_ACTION_TYPE_WAIT:
-		return "wait"
-	case basactions.ActionType_ACTION_TYPE_ASSERT:
-		return "assert"
-	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		return "scroll"
-	case basactions.ActionType_ACTION_TYPE_SELECT:
-		return "select"
-	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		return "evaluate"
-	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		return "keyboard"
-	case basactions.ActionType_ACTION_TYPE_HOVER:
-		return "hover"
-	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		return "screenshot"
-	case basactions.ActionType_ACTION_TYPE_FOCUS:
-		return "focus"
-	case basactions.ActionType_ACTION_TYPE_BLUR:
-		return "blur"
-	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
-		return "subflow"
-	case basactions.ActionType_ACTION_TYPE_EXTRACT:
-		return "extract"
-	case basactions.ActionType_ACTION_TYPE_UPLOAD_FILE:
-		return "uploadFile"
-	case basactions.ActionType_ACTION_TYPE_DOWNLOAD:
-		return "download"
-	case basactions.ActionType_ACTION_TYPE_FRAME_SWITCH:
-		return "frameSwitch"
-	case basactions.ActionType_ACTION_TYPE_TAB_SWITCH:
-		return "tabSwitch"
-	case basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE:
-		return "setCookie"
-	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
-		return "shortcut"
-	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
-		return "dragDrop"
-	case basactions.ActionType_ACTION_TYPE_GESTURE:
-		return "gesture"
-	case basactions.ActionType_ACTION_TYPE_NETWORK_MOCK:
-		return "networkMock"
-	case basactions.ActionType_ACTION_TYPE_ROTATE:
-		return "rotate"
-	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
-		return "setVariable"
-	case basactions.ActionType_ACTION_TYPE_LOOP:
-		return "loop"
-	case basactions.ActionType_ACTION_TYPE_CONDITIONAL:
-		return "conditional"
-	default:
-		return ""
-	}
-}
-
-func actionToParams(action *basactions.ActionDefinition) map[string]any {
-	if action == nil {
-		return nil
-	}
-
-	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(action)
-	if err != nil {
-		return nil
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return nil
-	}
-
-	delete(decoded, "type")
-	delete(decoded, "metadata")
-
-	for _, value := range decoded {
-		if params, ok := value.(map[string]any); ok {
-			wrapped := make(map[string]any, len(params))
-			for key, param := range params {
-				wrapped[key] = typeconv.WrapJsonValue(param)
-			}
-			return wrapped
-		}
-	}
-	return nil
 }
 
 // decodeStepOutcome converts the driver response into a StepOutcome,
@@ -1000,6 +992,10 @@ func (c *Client) get(ctx context.Context, path string, response interface{}) err
 }
 
 func (c *Client) post(ctx context.Context, path string, body interface{}, response interface{}) error {
+	return c.postWithHeaders(ctx, path, body, response, nil)
+}
+
+func (c *Client) postWithHeaders(ctx context.Context, path string, body interface{}, response interface{}, headers http.Header) error {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -1009,6 +1005,11 @@ func (c *Client) post(ctx context.Context, path string, body interface{}, respon
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
 	return c.doRequest(req, response, "POST "+path)
 }
 

@@ -28,6 +28,13 @@ type ArtifactCollectionSettings struct {
 	CollectCursorTrails  bool
 	CollectTelemetry     bool
 
+	// ScreenshotPolicy governs whether the driver CAPTURES a step screenshot,
+	// which is a separate question from whether CollectScreenshots persists one.
+	// Capture is the expensive half — a full-viewport PNG per step, encoded and
+	// shipped over HTTP — so a run that only needs pass/fail evidence can skip
+	// it on steps that carry no visual meaning.
+	ScreenshotPolicy basexecution.ScreenshotCapturePolicy
+
 	// Size limits (in bytes)
 	MaxScreenshotBytes     int
 	MaxDOMSnapshotBytes    int
@@ -64,6 +71,11 @@ const (
 	ProfileDebug    = "debug"
 	ProfileNone     = "none"
 	ProfileCustom   = "custom"
+	// ProfileValidation is for automated suites that need pass/fail evidence
+	// rather than a replayable storyboard. It keeps assertions and extracted
+	// data — those ARE the test results — but captures screenshots only where
+	// they carry diagnostic value, which is most of the run's cost.
+	ProfileValidation = "validation"
 )
 
 // artifactProfiles defines the preset configurations.
@@ -71,6 +83,7 @@ const (
 var artifactProfiles = map[string]ArtifactCollectionSettings{
 	ProfileFull: {
 		// Collect everything - backward compatible default
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS,
 		CollectScreenshots:     true,
 		CollectDOMSnapshots:    true,
 		CollectConsoleLogs:     true,
@@ -86,6 +99,7 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 	},
 	ProfileStandard: {
 		// Most useful artifacts, skip verbose debugging data
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS,
 		CollectScreenshots:     true,
 		CollectDOMSnapshots:    false,
 		CollectConsoleLogs:     true,
@@ -101,6 +115,7 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 	},
 	ProfileMinimal: {
 		// Just screenshots and assertions for quick validation
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS,
 		CollectScreenshots:     true,
 		CollectDOMSnapshots:    false,
 		CollectConsoleLogs:     false,
@@ -116,6 +131,7 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 	},
 	ProfileDebug: {
 		// Everything enabled with larger size limits for troubleshooting
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS,
 		CollectScreenshots:     true,
 		CollectDOMSnapshots:    true,
 		CollectConsoleLogs:     true,
@@ -129,8 +145,27 @@ var artifactProfiles = map[string]ArtifactCollectionSettings{
 		MaxConsoleEntryBytes:   DebugMaxConsoleEntryBytes,
 		MaxNetworkPreviewBytes: DebugMaxNetworkPreviewBytes,
 	},
+	ProfileValidation: {
+		// Automated suites: keep the artifacts that ARE the result, drop the
+		// per-step imagery nobody reads. Screenshots still persist when they
+		// happen, so failure frames survive for debugging.
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ON_FAILURE,
+		CollectScreenshots:     true,
+		CollectDOMSnapshots:    false,
+		CollectConsoleLogs:     false,
+		CollectNetworkEvents:   false,
+		CollectExtractedData:   true,
+		CollectAssertions:      true,
+		CollectCursorTrails:    false,
+		CollectTelemetry:       true,
+		MaxScreenshotBytes:     DefaultMaxScreenshotBytes,
+		MaxDOMSnapshotBytes:    DefaultMaxDOMSnapshotBytes,
+		MaxConsoleEntryBytes:   DefaultMaxConsoleEntryBytes,
+		MaxNetworkPreviewBytes: DefaultMaxNetworkPreviewBytes,
+	},
 	ProfileNone: {
 		// Disable all artifact collection (execution status only)
+		ScreenshotPolicy:       basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER,
 		CollectScreenshots:     false,
 		CollectDOMSnapshots:    false,
 		CollectConsoleLogs:     false,
@@ -170,6 +205,11 @@ func GetArtifactProfiles() []ArtifactProfile {
 			Settings:    artifactProfiles[ProfileDebug],
 		},
 		{
+			Name:        ProfileValidation,
+			Description: "Assertions and extracted data, screenshots only on failure (automated suites)",
+			Settings:    artifactProfiles[ProfileValidation],
+		},
+		{
 			Name:        ProfileNone,
 			Description: "No artifacts collected (execution status only)",
 			Settings:    artifactProfiles[ProfileNone],
@@ -177,9 +217,40 @@ func GetArtifactProfiles() []ArtifactProfile {
 	}
 }
 
-// DefaultArtifactSettings returns the default configuration (full profile).
+// DefaultArtifactSettings returns the "collect everything" configuration (full
+// profile). This is the hard fallback used by in-memory recorders that always
+// want every artifact. The normal per-execution default is the operator-
+// configured profile (BAS_ARTIFACT_DEFAULT_PROFILE, "standard" by default);
+// resolve that via ResolveArtifactSettingsWithDefault, not this function.
 func DefaultArtifactSettings() ArtifactCollectionSettings {
 	return artifactProfiles[ProfileFull]
+}
+
+// DefaultArtifactSettingsForProfile returns the settings for the named profile,
+// falling back to the standard profile when the name is empty or unknown.
+func DefaultArtifactSettingsForProfile(profile string) ArtifactCollectionSettings {
+	name := strings.ToLower(strings.TrimSpace(profile))
+	if name == "" {
+		name = ProfileStandard
+	}
+	if settings, ok := artifactProfiles[name]; ok {
+		return settings
+	}
+	return artifactProfiles[ProfileStandard]
+}
+
+// ResolveArtifactSettingsWithDefault resolves a proto ArtifactCollectionConfig to
+// concrete settings, applying defaultProfile when no per-execution profile is
+// supplied. An explicit cfg.Profile always wins over defaultProfile; size-limit
+// overrides on cfg are honored in both cases. defaultProfile is the operator-
+// configured global default (BAS_ARTIFACT_DEFAULT_PROFILE).
+func ResolveArtifactSettingsWithDefault(cfg *basexecution.ArtifactCollectionConfig, defaultProfile string) ArtifactCollectionSettings {
+	if cfg == nil || strings.TrimSpace(cfg.GetProfile()) == "" {
+		settings := DefaultArtifactSettingsForProfile(defaultProfile)
+		// Allow per-execution size-limit overrides even when the profile is defaulted.
+		return applyLimitOverrides(settings, cfg)
+	}
+	return ResolveArtifactSettings(cfg)
 }
 
 // ResolveArtifactSettings converts a proto ArtifactCollectionConfig to resolved settings.
@@ -215,10 +286,23 @@ func ResolveArtifactSettings(cfg *basexecution.ArtifactCollectionConfig) Artifac
 	return settings
 }
 
+// screenshotPolicyFor maps a persist toggle to the matching capture policy.
+// Persisting and capturing are separate concerns, but "don't keep it" always
+// implies "don't spend on it".
+func screenshotPolicyFor(collect bool) basexecution.ScreenshotCapturePolicy {
+	if !collect {
+		return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER
+	}
+	return basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_ALWAYS
+}
+
 // buildCustomSettings creates settings from individual proto toggles.
 // All toggles default to true for backward compatibility.
 func buildCustomSettings(cfg *basexecution.ArtifactCollectionConfig) ArtifactCollectionSettings {
 	return ArtifactCollectionSettings{
+		// A custom profile that turns screenshots off should not pay to capture
+		// them either; otherwise capture stays at the backward-compatible always.
+		ScreenshotPolicy:       screenshotPolicyFor(getBoolWithDefault(cfg.CollectScreenshots, true)),
 		CollectScreenshots:     getBoolWithDefault(cfg.CollectScreenshots, true),
 		CollectDOMSnapshots:    getBoolWithDefault(cfg.CollectDomSnapshots, true),
 		CollectConsoleLogs:     getBoolWithDefault(cfg.CollectConsoleLogs, true),

@@ -3,57 +3,69 @@ package execution
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/promptcatalog"
+	"swarm-manager/internal/transitions"
 )
+
+const defaultExecutionStrategy = "phased-plan-drain"
+
+func (s *Service) declaredExecutionStrategies() []transitions.ExecutionStrategy {
+	if definition, ok := s.transitionRegistry.Get("plan.execute"); ok && len(definition.Strategies) > 0 {
+		return append([]transitions.ExecutionStrategy(nil), definition.Strategies...)
+	}
+	// Consumers without a registry can validate the strategy identifier, but
+	// cannot select a workflow. Production always reads that locator from the
+	// declaration above.
+	return []transitions.ExecutionStrategy{{
+		ID:          defaultExecutionStrategy,
+		DisplayName: "Phased plan drain", Description: "Executes an accepted plan one verified phase at a time.",
+		WhenToUse: "Use for accepted plans that need durable phase progress.", CostBand: "Governed execution cost.",
+	}}
+}
+
+func (s *Service) normalizeExecutionSelection(req *CreateRequest) error {
+	req.Strategy = strings.TrimSpace(req.Strategy)
+	if req.Strategy == "" {
+		req.Strategy = defaultExecutionStrategy
+	}
+	matched := false
+	for _, strategy := range s.declaredExecutionStrategies() {
+		if strategy.ID == req.Strategy {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return apierr.BadRequest("unknown execution strategy %q", req.Strategy)
+	}
+	if req.MaxSlices == 0 {
+		req.MaxSlices = 6
+	}
+	if req.MaxSlices < 1 || req.MaxSlices > 6 {
+		return apierr.BadRequest("max_slices must be between 1 and 6")
+	}
+	return nil
+}
 
 // QueueBacklog creates an execution record and optionally starts it.
 func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	policy, err := s.policyProvider.LoadPolicy()
-	if err != nil {
+	if err := s.normalizeExecutionSelection(&req); err != nil {
 		return Record{}, err
 	}
 
-	if strings.TrimSpace(req.BacklogKind) == "" {
-		return Record{}, apierr.BadRequest("backlog_kind is required")
-	}
-	if strings.TrimSpace(req.BacklogName) == "" {
-		return Record{}, apierr.BadRequest("backlog_name is required")
-	}
-	mode := normalizeMode(req.Mode)
-	if mode == "" {
-		mode = policy.DefaultMode
-	}
-	if mode == "" {
-		return Record{}, apierr.BadRequest("mode must be manual or yolo")
-	}
-
-	item, err := s.loadBacklogItem(req.BacklogKind, req.BacklogName)
+	mode, item, preflight, err := s.validateAndLoadQueueRequest(ctx, req)
 	if err != nil {
-		return Record{}, apierr.NotFound("backlog item not found: %s/%s", req.BacklogKind, req.BacklogName)
+		return Record{}, err
 	}
-	isArchived := item.ArchivedAt != nil
-	if !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
-		return Record{}, apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status)
-	}
-	preflight := s.processPreflightForItem(item, true)
-	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
-		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(preflight.BlockingReasons, "; "))
-	}
-
 	// Load governance settings for enforcement checks.
 	gov, govErr := s.governanceProvider.LoadGovernance()
 	if govErr != nil {
@@ -73,51 +85,20 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, err
 	}
 
-	// Queue depth enforcement.
-	if gov.MaxQueueDepth > 0 {
-		queued := countQueuedExecutions(records)
-		if queued >= gov.MaxQueueDepth {
-			return Record{}, apierr.Conflict("queue depth limit exceeded (%d/%d)", queued, gov.MaxQueueDepth)
+	// Drop pending records whose backlog item has disappeared — they can
+	// never be started and otherwise consume the queue-depth budget.
+	if filtered, pruned := pruneOrphanedPendingRecords(records, s.itemDir); pruned > 0 {
+		if saveErr := s.store.Save(filtered); saveErr != nil {
+			return Record{}, saveErr
 		}
+		records = filtered
 	}
 
-	// Cost cap enforcement.
-	if gov.ExecutionCostCapPerRun > 0 && gov.CostPerTurnEstimate > 0 {
-		agentMaxTurns := gov.AgentMaxTurns
-		if agentMaxTurns <= 0 {
-			agentMaxTurns = 60
-		}
-		estimatedCost := gov.CostPerTurnEstimate * float64(agentMaxTurns)
-		if estimatedCost > gov.ExecutionCostCapPerRun && !req.Force {
-			return Record{}, apierr.Conflict("estimated cost $%.2f exceeds cap $%.2f (use force to override)", estimatedCost, gov.ExecutionCostCapPerRun)
-		}
+	if err := enforceQueueGovernance(records, gov, req.Force); err != nil {
+		return Record{}, err
 	}
 
-	now := nowRFC3339()
-	record := Record{
-		ExecutionID:    idgen.Generate(),
-		BacklogKind:    strings.ToLower(strings.TrimSpace(req.BacklogKind)),
-		BacklogName:    strings.TrimSpace(req.BacklogName),
-		PreviousStatus: strings.ToLower(strings.TrimSpace(item.Status)),
-		Mode:           mode,
-		Status:         StatusPending,
-		StartedBy:      strings.TrimSpace(req.StartedBy),
-		Operation:      normalizeOperation(req.Operation),
-		Force:          req.Force,
-		CreatedAt:      now,
-		UpdatedAt:      now,
-	}
-	if record.StartedBy == "" {
-		prov := identity.FromContext(ctx)
-		if prov.IsAgent() {
-			record.StartedBy = prov.FormatStartedBy()
-		} else {
-			record.StartedBy = "swarm-manager"
-		}
-	}
-	if record.Operation == "" {
-		record.Operation = "generator"
-	}
+	record := buildNewQueueRecord(ctx, req, item, mode, preflight)
 
 	if err := s.updateBacklogStatus(item, backlogStatusQueued); err != nil {
 		return Record{}, err
@@ -130,35 +111,141 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	s.logExecutionEvent(record, "")
 
 	if mode == ModeYOLO {
-		started, startErr := s.startLocked(ctx, record.ExecutionID)
-		if startErr == nil {
-			return started, nil
-		}
-
-		// At capacity: leave as pending for the poller to drain later.
-		if errors.Is(startErr, errAtCapacity) {
-			slog.Info("at capacity, leaving as pending", "execution_id", record.ExecutionID, "item_key", itemKey)
-			s.dispatchStatusUpdate(record)
-			return record, nil
-		}
-
-		// Roll back queue side-effects when immediate start fails.
-		rolledBack, rbErr := s.store.Load()
-		if rbErr == nil {
-			filtered := make([]Record, 0, len(rolledBack))
-			for _, candidate := range rolledBack {
-				if candidate.ExecutionID != record.ExecutionID {
-					filtered = append(filtered, candidate)
-				}
-			}
-			_ = s.store.Save(filtered)
-		}
-		_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
-		return Record{}, startErr
+		return s.startQueuedYOLO(ctx, record, item, itemKey)
 	}
 
 	s.dispatchStatusUpdate(record)
 	return record, nil
+}
+
+// validateAndLoadQueueRequest validates the create request, resolves the effective
+// mode, loads the backlog item, and runs preflight checks. Returns the resolved
+// mode, loaded item, preflight result, and any validation error.
+func (s *Service) validateAndLoadQueueRequest(ctx context.Context, req CreateRequest) (Mode, backlogItem, ProcessPreflight, error) {
+	if strings.TrimSpace(req.BacklogKind) == "" {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog_kind is required")
+	}
+	if strings.TrimSpace(req.BacklogName) == "" {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog_name is required")
+	}
+
+	mode := normalizeMode(req.Mode)
+	if mode == "" {
+		policy, err := s.policyProvider.LoadPolicy()
+		if err != nil {
+			return "", backlogItem{}, ProcessPreflight{}, err
+		}
+		mode = policy.DefaultMode
+	}
+	if mode == "" {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("mode must be manual or yolo")
+	}
+
+	item, err := s.loadBacklogItem(req.BacklogKind, req.BacklogName)
+	if err != nil {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.NotFound("backlog item not found: %s/%s", req.BacklogKind, req.BacklogName)
+	}
+	isArchived := item.ArchivedAt != nil
+	if !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status)
+	}
+
+	preflight := s.processPreflightForItem(ctx, item, true)
+	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("process preflight failed: %s", strings.Join(allBlockingReasons(preflight), "; "))
+	}
+
+	return mode, item, preflight, nil
+}
+
+// buildNewQueueRecord constructs a pending Record from the validated request,
+// resolved item, and mode. It resolves StartedBy from the context when not
+// provided and defaults Operation to "generator".
+func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogItem, mode Mode, _ ProcessPreflight) Record {
+	now := nowRFC3339()
+	record := Record{
+		ExecutionID:       idgen.Generate(),
+		BacklogKind:       strings.ToLower(strings.TrimSpace(req.BacklogKind)),
+		BacklogName:       strings.TrimSpace(req.BacklogName),
+		PreviousStatus:    strings.ToLower(strings.TrimSpace(item.Status)),
+		Mode:              mode,
+		Status:            StatusPending,
+		StartedBy:         strings.TrimSpace(req.StartedBy),
+		Operation:         normalizeOperation(req.Operation),
+		Force:             req.Force,
+		ExecutionStrategy: req.Strategy,
+		MaxSlices:         req.MaxSlices,
+		QueuedAt:          now,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+	if record.StartedBy == "" {
+		prov := identity.FromContext(ctx)
+		if prov.IsAgent() {
+			record.StartedBy = prov.FormatStartedBy()
+		} else {
+			record.StartedBy = "swarm-manager"
+		}
+	}
+	if record.Operation == "" {
+		record.Operation = "generator"
+	}
+	return record
+}
+
+// enforceQueueGovernance applies queue-depth and cost-cap limits before a
+// record is admitted to the queue.
+func enforceQueueGovernance(records []Record, gov GovernanceSettings, force bool) error {
+	// Queue depth enforcement.
+	if gov.MaxQueueDepth > 0 {
+		queued := countQueuedExecutions(records)
+		if queued >= gov.MaxQueueDepth {
+			return apierr.Conflict("queue depth limit exceeded (%d/%d)", queued, gov.MaxQueueDepth)
+		}
+	}
+
+	// Cost cap enforcement.
+	if gov.ExecutionCostCapPerRun > 0 && gov.CostPerTurnEstimate > 0 {
+		agentMaxTurns := gov.AgentMaxTurns
+		if agentMaxTurns <= 0 {
+			agentMaxTurns = 600
+		}
+		estimatedCost := gov.CostPerTurnEstimate * float64(agentMaxTurns)
+		if estimatedCost > gov.ExecutionCostCapPerRun && !force {
+			return apierr.Conflict("estimated cost $%.2f exceeds cap $%.2f (use force to override)", estimatedCost, gov.ExecutionCostCapPerRun)
+		}
+	}
+	return nil
+}
+
+// startQueuedYOLO attempts an immediate start for a YOLO-mode record, leaving
+// it pending at capacity and rolling back queue side-effects on other failures.
+func (s *Service) startQueuedYOLO(ctx context.Context, record Record, item backlogItem, itemKey string) (Record, error) {
+	started, startErr := s.startLocked(ctx, record.ExecutionID)
+	if startErr == nil {
+		return started, nil
+	}
+
+	// At capacity: leave as pending for the poller to drain later.
+	if errors.Is(startErr, errAtCapacity) {
+		slog.Info("at capacity, leaving as pending", "execution_id", record.ExecutionID, "item_key", itemKey)
+		s.dispatchStatusUpdate(record)
+		return record, nil
+	}
+
+	// Roll back queue side-effects when immediate start fails.
+	rolledBack, rbErr := s.store.Load()
+	if rbErr == nil {
+		filtered := make([]Record, 0, len(rolledBack))
+		for _, candidate := range rolledBack {
+			if candidate.ExecutionID != record.ExecutionID {
+				filtered = append(filtered, candidate)
+			}
+		}
+		_ = s.store.Save(filtered)
+	}
+	_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
+	return Record{}, startErr
 }
 
 // QueueSpecSyncArchive creates an execution that runs spec-sync, then archives on completion.
@@ -176,10 +263,6 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		return Record{}, apierr.BadRequest("scenario path does not exist: %s", ac.ScenarioPath)
 	}
 
-	if s.agentService == nil || !s.agentService.IsEnabled() {
-		return Record{}, apierr.Unavailable("agent-manager is not available")
-	}
-
 	records, err := s.store.Load()
 	if err != nil {
 		return Record{}, err
@@ -195,65 +278,40 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		StartedBy:      "swarm-manager",
 		Operation:      "spec-sync-archive",
 		ArchiveContext: &ac,
+		QueuedAt:       now,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
 
-	specSyncEntry, ok := promptcatalog.ResolveSpecSyncSkill()
-	if !ok {
-		return Record{}, fmt.Errorf("spec-sync prompt catalog entry missing")
-	}
-
-	// Fetch spec-sync prompt from prompt-manager
-	specSyncVars := map[string]string{
-		"TARGET": ac.ScenarioName,
-	}
-	prompt, promptErr := s.promptClient.ReadSkill(ctx, specSyncEntry.SkillID, specSyncVars, false)
-	if promptErr != nil {
-		slog.Warn("spec-sync prompt fetch failed, using fallback", "err", promptErr)
-		prompt = "Read the implementation code in this scenario and update all spec artifacts (PRD.md, requirements/, README.md, docs/) to match the actual behavior."
-	}
-	record.PromptTrace = &PromptTrace{
-		Purpose:        "spec-sync",
-		Prompt:         prompt,
-		PromptRevision: promptRevision(prompt),
-		UsedFallback:   promptErr != nil,
-		CapturedAt:     now,
-	}
-
-	// Spawn agent targeting the scenario directory
-	activityCtx := agentactivity.WithSpec(ctx, scenarioActivitySpec(
-		ac,
-		record.ExecutionID,
-		record.StartedBy,
-		map[string]string{
-			"entrypoint": "execution.spec_sync_archive",
-		},
-	))
-
-	runResult, err := s.agentService.SpawnBacklog(activityCtx, agentmanager.BacklogSpawnRequest{
-		Kind:        "spec-sync",
-		Name:        ac.ScenarioName,
-		Title:       "Spec sync: " + ac.ScenarioName,
-		Description: prompt,
-		Prompt:      prompt,
-		ScopePath:   ac.ScenarioPath,
-		ProjectRoot: ".",
-		CreatedBy:   "swarm-manager",
-		Purpose:     "spec-sync",
-		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": record.BacklogKind + "/" + record.BacklogName},
-	})
-	if err != nil {
+	// Persist before starting: the runner's registered input builder reprojects
+	// the archive context from the durable record, so the record has to exist on
+	// disk before the start and again at the apply-time rebuild.
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
 		return Record{}, err
 	}
 
-	record.TaskID = runResult.TaskID
-	record.RunID = runResult.RunID
+	// The declared workflow owns the spec-sync agent work. Swarm retains the
+	// archive capability and applies a matching typed terminal result explicitly.
+	res, _, err := s.startSpecSyncWorkflow(ctx, record)
+	if err != nil {
+		return Record{}, wrapAgentError(err)
+	}
+	if strings.TrimSpace(res.ExecutionID) == "" {
+		return Record{}, apierr.BadGateway("scenario spec-sync workflow started but returned no execution id")
+	}
+	record.RunID = res.RunID
+	record.TaskID = res.ExecutionID
 	record.StartedAt = nowRFC3339()
 	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()
 
-	records = append(records, record)
+	for i := range records {
+		if records[i].ExecutionID == record.ExecutionID {
+			records[i] = record
+			break
+		}
+	}
 	if err := s.store.Save(records); err != nil {
 		return Record{}, err
 	}

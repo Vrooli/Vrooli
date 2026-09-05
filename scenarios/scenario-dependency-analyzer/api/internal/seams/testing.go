@@ -2,6 +2,7 @@ package seams
 
 import (
 	"io/fs"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -54,7 +55,7 @@ func NewSequentialIDGenerator(prefix string) *SequentialIDGenerator {
 func (g *SequentialIDGenerator) NewID() string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	id := g.prefix + "-" + string(rune('0'+g.next))
+	id := g.prefix + "-" + strconv.Itoa(g.next)
 	if g.next < 9 {
 		g.next++
 	}
@@ -146,7 +147,7 @@ type memFileInfo struct {
 
 func (f *memFileInfo) Name() string       { return f.name }
 func (f *memFileInfo) Size() int64        { return f.size }
-func (f *memFileInfo) Mode() fs.FileMode  { return 0644 }
+func (f *memFileInfo) Mode() fs.FileMode  { return 0o644 }
 func (f *memFileInfo) ModTime() time.Time { return time.Time{} }
 func (f *memFileInfo) IsDir() bool        { return f.isDir }
 func (f *memFileInfo) Sys() interface{}   { return nil }
@@ -297,10 +298,8 @@ type MockDetector struct {
 	resources           map[string]struct{}
 	detectedResources   interface{}
 	detectedScenarios   interface{}
-	detectedWorkflows   interface{}
 	ScanResourcesErr    error
 	ScanScenarioDepsErr error
-	ScanWorkflowsErr    error
 }
 
 // NewMockDetector creates an empty mock detector.
@@ -357,15 +356,6 @@ func (m *MockDetector) ScanScenarioDependencies(scenarioPath, scenarioName strin
 	return m.detectedScenarios, nil
 }
 
-func (m *MockDetector) ScanSharedWorkflows(scenarioPath, scenarioName string) (interface{}, error) {
-	if m.ScanWorkflowsErr != nil {
-		return nil, m.ScanWorkflowsErr
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.detectedWorkflows, nil
-}
-
 // AddScenario adds a known scenario to the mock detector.
 func (m *MockDetector) AddScenario(name string) {
 	m.mu.Lock()
@@ -392,13 +382,6 @@ func (m *MockDetector) SetDetectedScenarios(scenarios interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.detectedScenarios = scenarios
-}
-
-// SetDetectedWorkflows sets the workflows that will be returned by ScanSharedWorkflows.
-func (m *MockDetector) SetDetectedWorkflows(workflows interface{}) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.detectedWorkflows = workflows
 }
 
 // NewTestDependencies creates Dependencies with test doubles.

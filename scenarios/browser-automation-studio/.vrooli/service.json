@@ -1,6 +1,133 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "recordings": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "recordings",
+        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "max_age": "7d",
+          "rationale": "Retain recent reproducible evidence within an explicit capacity ceiling; the owner protects live work and removes oldest eligible entries when either bound is exceeded."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "captures": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "captures",
+        "rationale": "Owner-managed reproducible artifacts; configurable age and byte bounds with live-work protection.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "max_age": "7d",
+          "rationale": "Retain recent reproducible evidence within an explicit capacity ceiling; the owner protects live work and removes oldest eligible entries when either bound is exceeded."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "projects",
+        "regenerable": false,
+        "rationale": "Scenario-owned project data is durable user work and is bounded independently from regenerable execution evidence.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Project definitions are durable user work; 10GiB is a workload-derived alarm ceiling independent of recording retention."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      },
+      "api_storage": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned API storage observed in the canonical API storage directory.",
+        "subpath": "api/storage",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "The API database and durable metadata are bounded at 10GiB; execution evidence is governed by the recordings and captures entries."
+        }
+      },
+      "seed_state": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "seed",
+        "regenerable": false,
+        "rationale": "Seed identity preserves stable demo project and workflow IDs; 227 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The seed state measured 227 bytes on 2026-08-27; 1 MiB detects accidental payload growth without authorizing deletion."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "browser-automation-studio-recordings",
+        "name": "Browser Automation Studio terminal recordings",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner",
+        "storage_entries": [
+          "recordings",
+          "captures"
+        ]
+      }
+    ],
+    "rationale": "Storage surfaces include durable project and seed state plus separately budgeted regenerable execution evidence."
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "label": "OpenRouter API key",
+        "description": "User-provisioned OpenRouter credential used by the gateway-backed vision navigator. The value is never returned or stored in browser local storage.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys",
+        "tiers": [
+          "tier-1-local"
+        ]
+      },
+      {
+        "logical_id": "vrooli/claude-code",
+        "field": "anthropic-api-key",
+        "label": "Claude Code Anthropic API key",
+        "description": "Credential used by the Claude Code navigator through resource-claude-code. The value is never returned or stored in browser local storage.",
+        "required": false,
+        "obtain_url": "https://console.anthropic.com/settings/keys"
+      },
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli subscription session",
+        "description": "Device-scoped refresh credential shared by bundled scenarios. Access tokens remain in memory only.",
+        "required": false
+      }
+    ]
+  },
   "service": {
     "name": "browser-automation-studio",
     "displayName": "Vrooli Ascension",
@@ -17,7 +144,7 @@
       "real-time-execution",
       "go-api",
       "react-ui",
-      "postgres-storage"
+      "sqlite-storage"
     ],
     "parent": "vrooli",
     "type": "scenario",
@@ -50,17 +177,27 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Visual workflow builder UI port",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket port for real-time updates",
-      "range": "25000-29999"
+      "range": "20000-24999"
     },
     "playwright_driver": {
       "env_var": "PLAYWRIGHT_DRIVER_PORT",
       "description": "Playwright driver HTTP server port",
-      "range": "39400-39499"
+      "range": "24400-24499"
+    },
+    "playwright_driver_frames": {
+      "env_var": "PLAYWRIGHT_DRIVER_FRAMES_PORT",
+      "description": "Playwright driver direct frame-streaming WebSocket port",
+      "range": "24400-24499"
+    },
+    "playwright_driver_metrics": {
+      "env_var": "PLAYWRIGHT_DRIVER_METRICS_PORT",
+      "description": "Playwright driver Prometheus metrics port",
+      "range": "24400-24499"
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   },
   "lifecycle": {
@@ -92,215 +229,83 @@
       "timeout": 10000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Vrooli Ascension",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/browser-automation-studio-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "playwright-driver/dist/server.js",
-            "source_dir": "playwright-driver/src"
-          },
-          {
-            "type": "cli",
-            "command": "browser-automation-studio",
-            "targets": [
-              "browser-automation-studio"
-            ]
-          },
-          {
-            "type": "directory",
-            "path": "initialization/storage/postgres"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "create-data-dirs",
-          "run": "mkdir -p data/workflows data/executions data/screenshots",
-          "description": "Create data directories for workflow storage"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o browser-automation-studio-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then pnpm install --ignore-workspace; else echo 'No package.json found, skipping pnpm install'; fi",
-          "description": "Install React UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build React UI for production"
-        },
-        {
-          "name": "install-playwright-driver-deps",
-          "run": "cd playwright-driver && pnpm install --ignore-workspace",
-          "description": "Install Playwright driver dependencies"
-        },
-        {
-          "name": "build-playwright-driver",
-          "run": "cd playwright-driver && pnpm run build",
-          "description": "Build Playwright driver for production"
-        },
-        {
-          "name": "setup-database",
-          "run": "echo 'Database schema will be initialized on first API startup'",
-          "description": "Prepare database schema"
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Vrooli Ascension initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start browser automation studio with production UI bundle",
-      "steps": [
-        {
-          "name": "start-playwright-driver",
-          "run": "echo 'ℹ️  Playwright driver lifecycle managed by API sidecar supervisor'",
-          "description": "Skipped - API manages playwright driver lifecycle via sidecar supervisor. Set BAS_SIDECAR_ENABLED=false or PLAYWRIGHT_DRIVER_URL to use external driver."
-        },
-        {
-          "name": "start-api",
-          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/browser-automation-studio-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Express server with built React app",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Services running:\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for browser-automation-studio",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute browser-automation-studio --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop all browser automation studio services",
-      "steps": [
-        {
-          "name": "stop-playwright-driver",
-          "run": "pkill -f 'playwright-driver.*server' || true; pkill -f 'node.*playwright-driver/dist/server.js' || true",
-          "description": "Stop scenario-managed Playwright driver if running"
-        },
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"browser-automation-studio-api\" || true; sleep 1; pkill -9 -f \"browser-automation-studio-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/browser-automation-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/browser-automation-studio.*vite\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Workflow definitions and execution history storage",
-        "schema": "browser_automation_studio"
-      },
-      "playwright": {
-        "type": "playwright",
-        "enabled": true,
-        "required": true,
-        "description": "Core browser automation engine for workflow execution (scenario-managed driver)"
-      },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "description": "Screenshot and artifact storage with S3-compatible API"
+        "description": "Screenshot and artifact storage with S3-compatible API",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "description": "AI workflow generation and debugging assistance"
+        "description": "AI workflow generation and debugging assistance",
+        "model_roles": [
+          "chat.small"
+        ],
+        "startup_policy": "try_start"
       },
       "openrouter": {
         "type": "openrouter",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (resource_cli)"
+        "description": "Auto-detected via analyzer (resource_cli)",
+        "model_roles": [
+          "chat.default"
+        ],
+        "startup_policy": "must_start"
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "experience-manager": {
+        "required": true,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "description": "Import-level dependency detected via go_import",
+        "degraded_behavior": "Readiness-profile resolution is unavailable while experience-manager is stopped; capture and execution APIs continue with their bounded default readiness behavior.",
+        "startup_policy": "must_start"
+      },
+      "landing-page-business-suite": {
+        "required": true,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "description": "LPBS is the authoritative monetization and subscription provider",
+        "runtime_only": true,
+        "runtime_only_rationale": "BAS reaches LPBS through its configured entitlement HTTP boundary and the control-plane-discovered local port; no Go package import is expected or desirable across scenario modules.",
+        "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease.",
+        "bundle_policy": "discover",
+        "startup_policy": "must_start"
+      },
+      "ai-gateway": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Vision sidecar requests use the provider-neutral AI gateway HTTP boundary resolved at startup.",
+        "degraded_behavior": "Managed vision calls fail closed while the AI gateway is unavailable."
+      }
+    }
   },
-  "deployment": {
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Render replay exports and media conversions for browser automation playback artifacts",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Replay export features degrade when ffmpeg is unavailable"
+    }
+  ],
+  "tier_feasibility": {
     "metadata_version": 1,
-    "last_analyzed_at": "2024-03-28T01:30:00Z",
-    "analyzer": {
-      "name": "manual-draft",
-      "version": "0.1"
-    },
-    "aggregate_requirements": {
-      "ram_mb": 8192,
-      "disk_mb": 12288,
-      "cpu_cores": 4,
-      "gpu": false,
-      "network": "required",
-      "storage_mb_per_user": 200,
-      "startup_time_ms": 45000,
-      "bucket": "large",
-      "source": "estimated",
-      "confidence": "medium"
-    },
     "tiers": {
       "tier-1-local": {
-        "status": "ready",
-        "fitness_score": 0.85,
-        "constraints": [
-          "Requires full Vrooli stack with browserless Chromium workers and app-monitor proxy",
-          "Needs outbound network for OpenRouter fallback when Ollama disabled"
-        ],
         "requirements": {
           "ram_mb": 8192,
           "disk_mb": 12288,
@@ -310,24 +315,7 @@
           "source": "estimated",
           "confidence": "medium"
         },
-        "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
-        "secrets": [
-          {
-            "secret_id": "browser-automation-studio/postgres-url",
-            "classification": "service",
-            "notes": "Regenerate per deployment"
-          },
-          {
-            "secret_id": "browserless/api-key",
-            "classification": "infrastructure",
-            "notes": "Never ships with desktop bundles"
-          },
-          {
-            "secret_id": "openrouter/api-key",
-            "classification": "user",
-            "notes": "Prompt desktop users for their own API key when using remote LLMs"
-          }
-        ],
+        "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel. Persistent storage is local SQLite via api-core/storage.",
         "artifacts": [
           {
             "type": "cloudflare-proxy",
@@ -338,13 +326,6 @@
         ]
       },
       "tier-2-desktop": {
-        "status": "limited",
-        "fitness_score": 0.35,
-        "constraints": [
-          "Browserless + Postgres footprint too heavy for bundled runtimes",
-          "MinIO requires background server and credentials",
-          "Secrets must be provisioned at install time"
-        ],
         "requirements": {
           "ram_mb": 6144,
           "disk_mb": 8192,
@@ -356,52 +337,34 @@
         },
         "adaptations": [
           {
-            "dependency": "postgres",
-            "swap": "sqlite",
-            "impact": "Would enable single-process storage but removes advanced query features",
-            "effort_days": 4,
-            "notes": "Needs schema + migration tooling"
-          },
-          {
-            "dependency": "browserless",
-            "swap": "playwright-packaged",
-            "impact": "Compile Playwright into the Electron app to avoid remote dependency",
-            "effort_days": 5,
-            "notes": "Requires custom runner and sandbox hardening"
+            "dependency": "playwright-driver",
+            "swap": "playwright-packaged-sidecar",
+            "impact": "Ship the built driver and its Node dependencies as an Electron bundle asset; the API supervises it locally",
+            "effort_days": 0,
+            "notes": "Implemented by bundle/bundle.json and the API sidecar supervisor"
           },
           {
             "dependency": "minio",
             "swap": "filesystem-store",
             "impact": "Store artifacts in user data folder",
-            "effort_days": 2
+            "effort_days": 0,
+            "notes": "Implemented by BAS_SCREENSHOT_STORAGE=local in the desktop bundle"
           }
         ],
-        "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
+        "notes": "Desktop ships the API, UI, CLI, supervised Playwright driver, and SQLite-backed local artifact storage; no MinIO or remote API is required for the bundled runtime.",
         "artifacts": [
           {
             "type": "electron-app",
             "producer": "scenario-to-desktop",
-            "status": "thin-client",
-            "notes": "UI bundle works but depends on remote API"
+            "status": "bundled",
+            "notes": "Bundle proof stages the BAS API, UI, CLI, Playwright driver dist, and node_modules; monetized Class A calls remain LPBS-authorized."
           }
         ]
       },
       "tier-3-mobile": {
-        "status": "blocked",
-        "fitness_score": 0.1,
-        "constraints": [
-          "Browser automation requires Chromium which is unavailable on mobile",
-          "Resource footprint exceeds mobile limits"
-        ],
         "notes": "Needs entirely different orchestration model"
       },
       "tier-4-saas": {
-        "status": "limited",
-        "fitness_score": 0.6,
-        "constraints": [
-          "Requires deployment-manager driven packaging of dependent resources",
-          "Needs secrets templating + Terraform/K8s automation"
-        ],
         "requirements": {
           "ram_mb": 10240,
           "disk_mb": 16384,
@@ -411,102 +374,14 @@
           "source": "estimated",
           "confidence": "low"
         },
-        "notes": "Viable once deployment-manager can provision Browserless pools and managed storage"
+        "notes": "Viable once deployment-manager can provision Playwright driver pools and managed storage"
       },
       "tier-5-enterprise": {
-        "status": "limited",
-        "fitness_score": 0.55,
-        "constraints": [
-          "Secrets segregation + air-gapped resource support not implemented",
-          "Requires on-prem Browserless fleet management"
-        ],
         "notes": "Follows SaaS path but with hardened secrets + monitoring"
       }
     },
     "dependencies": {
       "resources": {
-        "postgres": {
-          "resource_type": "database",
-          "footprint": {
-            "ram_mb": 768,
-            "disk_mb": 4096,
-            "cpu_cores": 1,
-            "network": "required",
-            "source": "estimated",
-            "confidence": "medium"
-          },
-          "platform_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.9,
-              "notes": "Uses shared postgres resource"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Desktop install would need embedded database service",
-              "alternatives": [
-                "sqlite"
-              ]
-            },
-            "tier-4-saas": {
-              "supported": true,
-              "fitness_score": 0.7,
-              "notes": "Needs managed PaaS provisioning"
-            }
-          },
-          "swappable_with": [
-            {
-              "id": "sqlite",
-              "relationship": "migration",
-              "notes": "Only viable for single-user bundles"
-            }
-          ],
-          "packaging_hints": [
-            "Requires initialization/storage/postgres/schema.sql"
-          ]
-        },
-        "browserless": {
-          "resource_type": "browser-automation",
-          "footprint": {
-            "ram_mb": 2048,
-            "disk_mb": 512,
-            "cpu_cores": 2,
-            "network": "required",
-            "source": "estimated",
-            "confidence": "medium"
-          },
-          "platform_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.85,
-              "notes": "Managed via shared Browserless resource"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.1,
-              "reason": "Electron cannot embed headless Chromium + Node cluster today",
-              "alternatives": [
-                "playwright-packaged"
-              ]
-            },
-            "tier-4-saas": {
-              "supported": true,
-              "fitness_score": 0.6,
-              "notes": "Needs auto-scaling pool"
-            }
-          },
-          "swappable_with": [
-            {
-              "id": "playwright-packaged",
-              "relationship": "future",
-              "notes": "Potential compiled runner for desktop/mobile"
-            }
-          ],
-          "packaging_hints": [
-            "Requires Puppeteer-compatible fonts + sandbox syscalls"
-          ]
-        },
         "playwright-driver": {
           "resource_type": "browser-automation",
           "footprint": {
@@ -520,20 +395,18 @@
           "platform_support": {
             "tier-1-local": {
               "supported": true,
-              "fitness_score": 0.75,
               "notes": "Non-Docker Node driver on localhost"
             },
             "tier-2-desktop": {
               "supported": true,
-              "fitness_score": 0.9,
               "notes": "Packaged driver spawned by Electron; reuse bundled Chromium via PLAYWRIGHT_CHROMIUM_PATH when possible"
             }
           },
           "swappable_with": [
             {
-              "id": "browserless",
-              "relationship": "fallback",
-              "notes": "Use when remote pool is available"
+              "id": "playwright-packaged",
+              "relationship": "future",
+              "notes": "Compiled runner bundled directly into desktop/mobile builds"
             }
           ],
           "packaging_hints": [
@@ -554,20 +427,14 @@
           "platform_support": {
             "tier-1-local": {
               "supported": true,
-              "fitness_score": 0.8,
               "notes": "Shared MinIO resource"
             },
             "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.3,
-              "reason": "Requires bundled object storage process",
-              "alternatives": [
-                "filesystem-store"
-              ]
+              "supported": true,
+              "notes": "BAS desktop selects its local filesystem artifact store; MinIO is not started or shipped."
             },
             "tier-4-saas": {
               "supported": true,
-              "fitness_score": 0.7,
               "notes": "Map to S3/Spaces bucket"
             }
           },
@@ -589,12 +456,10 @@
           "platform_support": {
             "tier-1-local": {
               "supported": true,
-              "fitness_score": 0.6,
               "notes": "Optional but heavy"
             },
             "tier-2-desktop": {
               "supported": false,
-              "fitness_score": 0.2,
               "reason": "Model download sizes exceed desktop bundle budget",
               "alternatives": [
                 "openrouter"
@@ -619,12 +484,10 @@
           "platform_support": {
             "tier-1-local": {
               "supported": true,
-              "fitness_score": 0.7,
               "notes": "Used when Ollama disabled"
             },
             "tier-2-desktop": {
               "supported": true,
-              "fitness_score": 0.5,
               "reason": "Requires user-provided API key and network"
             }
           },
@@ -635,5 +498,115 @@
       },
       "scenarios": {}
     }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "browser-automation-studio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "browser-automation-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "env": {
+          "REQUEST_TIMEOUT_MS": "7200000",
+          "SESSION_IDLE_TIMEOUT_MS": "7200000",
+          "BAS_DRIVER_EXECUTION_TIMEOUT_MS": "7200000",
+          "BAS_EXECUTION_MAX_TIMEOUT_MS": "7200000",
+          "PLAYWRIGHT_DRIVER_URL": "http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}"
+        },
+        "port": "api",
+        "data_dirs": [
+          "data/executions",
+          "data/screenshots",
+          "data/workflows"
+        ],
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    },
+    "playwright-driver": {
+      "role": "sidecar",
+      "build": {
+        "kind": "node_bundle",
+        "dir": "playwright-driver",
+        "output": "playwright-driver/dist/server.js"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "dist/server.js"
+        ],
+        "cwd": "playwright-driver",
+        "port": "playwright_driver",
+        "env": {
+          "METRICS_PORT": "${PLAYWRIGHT_DRIVER_METRICS_PORT}",
+          "FRAME_STREAM_DIRECT_PORT": "${PLAYWRIGHT_DRIVER_FRAMES_PORT}"
+        },
+        "supervised_by": "api"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/browser-automation-studio/SKILL.md",
+      "programs": [
+        "browser-automation-studio.smoke-flow",
+        "browser-automation-studio.find-flows",
+        "browser-automation-studio.author-flow",
+        "browser-automation-studio.navigate-intent",
+        "browser-automation-studio.do-task"
+      ]
+    },
+    "improve": {
+      "source": "skills/browser-automation-studio-improve/SKILL.md",
+      "programs": [
+        "browser-automation-studio.setpoint-read",
+        "browser-automation-studio.learning-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "bas-usage"
+    },
+    "waivers": {}
   }
 }

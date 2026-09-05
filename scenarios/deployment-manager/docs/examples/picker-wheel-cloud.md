@@ -3,7 +3,7 @@
 ## Current Approach
 
 - Deploy Tier 1 stack on a DigitalOcean VPS (same machine we develop on) and expose Picker Wheel through app-monitor + Cloudflare tunnel.
-- No automated provisioning; setup is manual using scripts from `docs/deployment/providers/digitalocean.md`.
+- No automated provisioning; setup is manual using the [DigitalOcean provider reference](../providers/digitalocean.md).
 - Secrets are copied from local dev, which is unacceptable for real customers.
 
 ## Pain Points
@@ -23,5 +23,5 @@
 
 ## Interim Documentation
 
-- Keep track of manual steps in `docs/deployment/providers/digitalocean.md`.
+- Keep track of manual steps in the [DigitalOcean provider reference](../providers/digitalocean.md).
 - Note any customer-specific tweaks so they can become deployment-manager modules later.

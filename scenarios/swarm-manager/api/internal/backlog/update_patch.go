@@ -11,22 +11,28 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"swarm-manager/internal/backlogstatus"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 const (
-	updateFieldTitle           = "title"
-	updateFieldDescription     = "description"
-	updateFieldStatus          = "status"
-	updateFieldPriority        = "priority"
-	updateFieldTags            = "tags"
-	updateFieldDependsOn       = "depends_on"
-	updateFieldInitiative      = "initiative"
-	updateFieldEffort          = "effort"
-	updateFieldAcceptanceAllow = "acceptance_allow"
-	updateFieldAcceptanceDeny  = "acceptance_deny"
-	updateFieldSpawnedFrom     = "spawned_from"
-	updateFieldNote            = "note"
+	updateFieldTitle              = "title"
+	updateFieldDescription        = "description"
+	updateFieldStatus             = "status"
+	updateFieldPriority           = "priority"
+	updateFieldTags               = "tags"
+	updateFieldDependsOn          = "depends_on"
+	updateFieldMilestone          = "milestone"
+	updateFieldEffort             = "effort"
+	updateFieldAcceptanceAllow    = "acceptance_allow"
+	updateFieldAcceptanceDeny     = "acceptance_deny"
+	updateFieldAcceptanceCriteria = "acceptance_criteria"
+	updateFieldCreates            = "creates"
+	updateFieldSpawnedFrom        = "spawned_from"
+	updateFieldPlanRef            = "plan_ref"
+	updateFieldNote               = "note"
 )
 
 type backlogUpdateFieldSet map[string]struct{}
@@ -136,9 +142,9 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		normalized := strings.ToLower(strings.TrimSpace(*req.Status))
 		req.Status = &normalized
 	}
-	if fields.Has(updateFieldInitiative) && req.Initiative != nil {
-		trimmed := strings.TrimSpace(*req.Initiative)
-		req.Initiative = &trimmed
+	if fields.Has(updateFieldMilestone) && req.Milestone != nil {
+		trimmed := strings.TrimSpace(*req.Milestone)
+		req.Milestone = &trimmed
 	}
 	if fields.Has(updateFieldEffort) && req.Effort != nil {
 		normalized := strings.ToUpper(strings.TrimSpace(*req.Effort))
@@ -150,7 +156,7 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 	}
 }
 
-func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet, kind BacklogKind) string {
+func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet, kind BacklogKind, existingStatus BacklogStatus) string {
 	if fields.Empty() {
 		return "at least one field is required"
 	}
@@ -158,12 +164,8 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 		return "title is required"
 	}
 	if fields.Has(updateFieldStatus) {
-		status := req.GetStatus()
-		if !validateBacklogStatus(status) {
-			return "status must be a valid backlog status"
-		}
-		if status == string(StatusQueued) || status == string(StatusInProgress) {
-			return "status 'queued' and 'in_progress' can only be set by the execution system"
+		if msg := validateStatusField(req.GetStatus(), existingStatus); msg != "" {
+			return msg
 		}
 	}
 	if fields.Has(updateFieldPriority) {
@@ -192,47 +194,162 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 			return "acceptance_deny: " + err.Error()
 		}
 	}
+	if fields.Has(updateFieldAcceptanceCriteria) {
+		if _, err := criteriaFromProto(req.AcceptanceCriteria); err != nil {
+			return "acceptance_criteria: " + err.Error()
+		}
+	}
+	if fields.Has(updateFieldCreates) {
+		if err := validateGlobs(req.Creates); err != nil {
+			return "creates: " + err.Error()
+		}
+	}
+	if fields.Has(updateFieldPlanRef) {
+		ref := normalizePlanRef(planRefFromProto(req.PlanRef))
+		if err := validatePlanRef(ref, PlanRefRoleExecutionSpec); err != nil {
+			return err.Error()
+		}
+	}
 
 	return ""
 }
 
+// validateStatusField checks that the requested status value is syntactically
+// valid, is user-settable via PATCH (not owned by execution/review systems),
+// does not bypass the review-decide endpoint when the item is review-gated,
+// and represents a permitted state-machine transition. Extracting this keeps
+// the parent validator focused on field presence rather than status semantics.
+func validateStatusField(status string, existingStatus BacklogStatus) string {
+	if !validateBacklogStatus(status) {
+		return "status must be a valid backlog status"
+	}
+	// Whitelist: only backlog, researching, ready are user-settable via
+	// PATCH. Everything else is owned by execution, the review agent,
+	// the review gate, or review-decide. New statuses added to the enum
+	// default to NOT user-settable (enforced by backlogstatus.IsUserSettable).
+	if !backlogstatus.IsUserSettable(status) {
+		switch status {
+		case string(StatusQueued), string(StatusInProgress):
+			return "status 'queued' and 'in_progress' can only be set by the execution system"
+		case string(StatusInReview):
+			return "status 'in_review' is set by the execution/review system; use the review-decide endpoint to complete review"
+		case string(StatusReviewPending):
+			return "status 'review_pending' is set by the review system; use the review-decide endpoint to accept or reject the review"
+		case string(StatusCompleted), string(StatusFailed), string(StatusNeedsFollowup):
+			return fmt.Sprintf("status %q is a terminal state; set it via the review-decide endpoint so the decision is audited", status)
+		}
+		return fmt.Sprintf("status %q is not user-settable via PATCH", status)
+	}
+	// Force review-gated items through the review-decide endpoint. PATCH
+	// cannot short-circuit the review flow because review-decide is the
+	// audit trail for the terminal decision (records rationale, decider,
+	// and fires the itemTerminalHandler for downstream work).
+	if IsReviewStatus(existingStatus) && BacklogStatus(status) != existingStatus {
+		return fmt.Sprintf("item is in status %q; use the review-decide endpoint to change status", existingStatus)
+	}
+	// Defense-in-depth: reject transitions the state machine considers
+	// nonsensical regardless of caller (terminal → anything, etc.).
+	// The whitelist above handles most cases, but IsValidTransition
+	// catches the rare edge (e.g., if a terminal were ever added to
+	// IsUserSettable by mistake).
+	if !IsValidTransition(existingStatus, BacklogStatus(status)) {
+		return fmt.Sprintf("status transition %q → %q is not allowed", existingStatus, status)
+	}
+	return ""
+}
+
+// applyUpdateBacklogPatch adapts a proto-shaped PATCH request into the
+// struct-based ItemPatch, then delegates the actual mutation to the
+// shared ApplyItemPatch helper. The handler path retains its proto wire
+// format; the field-assignment semantics are defined once.
+//
+// The proto request does not natively distinguish "unset" from "empty",
+// which is why fields+getters combine to reconstruct presence. Callers
+// must have already normalized the request (normalizeUpdateBacklogPatch)
+// so trim/case rules don't apply twice when ApplyItemPatch re-normalizes
+// on the struct side.
 func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet) {
+	patch := ItemPatch{}
 	if fields.Has(updateFieldTitle) {
-		item.Title = req.GetTitle()
+		v := req.GetTitle()
+		patch.Title = &v
 	}
 	if fields.Has(updateFieldDescription) {
-		item.Description = req.GetDescription()
+		v := req.GetDescription()
+		patch.Description = &v
 	}
 	if fields.Has(updateFieldStatus) {
-		item.Status = BacklogStatus(req.GetStatus())
+		v := req.GetStatus()
+		patch.Status = &v
 	}
 	if fields.Has(updateFieldPriority) {
-		item.Priority = int(req.GetPriority())
+		v := int(req.GetPriority())
+		patch.Priority = &v
 	}
 	if fields.Has(updateFieldTags) {
-		item.Tags = cloneStringsOrEmpty(req.Tags)
+		v := cloneStringsOrEmpty(req.Tags)
+		patch.Tags = &v
 	}
 	if fields.Has(updateFieldDependsOn) {
-		item.DependsOn = cloneStrings(req.DependsOn)
+		v := cloneStrings(req.DependsOn)
+		patch.DependsOn = &v
 	}
-	if fields.Has(updateFieldInitiative) {
-		item.Initiative = strings.TrimSpace(req.GetInitiative())
+	if fields.Has(updateFieldMilestone) {
+		v := req.GetMilestone()
+		patch.Milestone = &v
 	}
 	if fields.Has(updateFieldEffort) {
-		item.Effort = req.GetEffort()
+		v := req.GetEffort()
+		patch.Effort = &v
 	}
 	if fields.Has(updateFieldAcceptanceAllow) {
-		item.AcceptanceAllow = cloneStrings(req.AcceptanceAllow)
+		v := cloneStrings(req.AcceptanceAllow)
+		patch.AcceptanceAllow = &v
 	}
 	if fields.Has(updateFieldAcceptanceDeny) {
-		item.AcceptanceDeny = cloneStrings(req.AcceptanceDeny)
+		v := cloneStrings(req.AcceptanceDeny)
+		patch.AcceptanceDeny = &v
+	}
+	if fields.Has(updateFieldAcceptanceCriteria) {
+		v, _ := criteriaFromProto(req.AcceptanceCriteria)
+		patch.AcceptanceCriteria = &v
+	}
+	if fields.Has(updateFieldCreates) {
+		v := cloneStrings(req.Creates)
+		patch.Creates = &v
 	}
 	if fields.Has(updateFieldSpawnedFrom) {
-		item.SpawnedFrom = strings.TrimSpace(req.GetSpawnedFrom())
+		v := req.GetSpawnedFrom()
+		patch.SpawnedFrom = &v
+	}
+	if fields.Has(updateFieldPlanRef) {
+		patch.PlanRef = normalizePlanRef(planRefFromProto(req.PlanRef))
+		patch.PlanRefSet = true
 	}
 	if fields.Has(updateFieldNote) {
-		item.Note = strings.TrimSpace(req.GetNote())
+		v := req.GetNote()
+		patch.Note = &v
 	}
+	ApplyItemPatch(item, patch)
+}
+
+func criteriaFromProto(values []*sharedpb.BacklogCriterion) ([]Criterion, error) {
+	criteria := make([]Criterion, 0, len(values))
+	for _, value := range values {
+		if value == nil {
+			return nil, fmt.Errorf("criterion is required")
+		}
+		criterion := Criterion{ID: value.GetId(), Gherkin: value.GetGherkin()}
+		if value.Check != nil {
+			criterion.Check = &Check{Kind: value.Check.GetKind(), Scenario: value.Check.GetScenario(), Phase: value.Check.GetPhase(), Argv: cloneStrings(value.Check.GetArgv()), ExpectExit: int(value.Check.GetExpectExit())}
+		}
+		criteria = append(criteria, criterion)
+	}
+	normalized := NormalizeCriteria(nil, criteria)
+	if len(normalized) != len(criteria) {
+		return nil, fmt.Errorf("criteria must be unique Given/When/Then conditions with valid checks")
+	}
+	return criteria, nil
 }
 
 func cloneStrings(values []string) []string {

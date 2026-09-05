@@ -1,0 +1,758 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared;shared_v1";
+
+// =============================================================================
+// PLAN MODEL — the structured plan + phase record (cross-domain vocabulary)
+// =============================================================================
+//
+// @stability draft
+//
+// The canonical wire encoding of the structured plan model. The prose
+// definition of every field — what is *authored* by an agent versus *computed*
+// by the runtime — lives in docs/concepts/PLAN-MODEL.md; these messages are the
+// machine encoding of that document. Keep them in lockstep.
+//
+// Defined once here and shared by the plans / authoring / execution / validation
+// services because the record is the contract every domain operates on: `plans`
+// owns persistence, `authoring` produces it, `execution` walks its phases, and
+// `validation` annotates its references/staleness. The structured record is the
+// source of truth; the human-readable markdown view is always *rendered* from it
+// and never parsed back (see PlansService.RenderMarkdown).
+//
+// Computed-vs-authored is a load-bearing distinction: status, content_hash,
+// baseline_scope, staleness, resume point and handoff assembly are COMPUTED;
+// prose sections, references, acceptance and reminders are AUTHORED. The agent
+// never hand-edits the markdown view.
+// =============================================================================
+
+// PlanStatus is the lifecycle state of a plan. COMPUTED: derived from phase
+// status plus lifecycle actions, never free-text edited.
+enum PlanStatus {
+  PLAN_STATUS_UNSPECIFIED = 0;
+  PLAN_STATUS_DRAFT = 1; // being authored; not yet executable
+  PLAN_STATUS_ACTIVE = 2; // at least one phase has left todo
+  PLAN_STATUS_COMPLETE = 3; // every phase done
+  PLAN_STATUS_ARCHIVED = 4; // soft-hidden; retained
+}
+
+// PhaseStatus is the state of a single first-class phase. COMPUTED via a typed
+// transition or inferred from acceptance + validation passing.
+enum PhaseStatus {
+  PHASE_STATUS_UNSPECIFIED = 0;
+  PHASE_STATUS_TODO = 1;
+  PHASE_STATUS_ACTIVE = 2;
+  PHASE_STATUS_DONE = 3;
+  PHASE_STATUS_BLOCKED = 4;
+}
+
+// StalenessTier is the computed validity of referenced code since authoring.
+enum StalenessTier {
+  STALENESS_TIER_UNSPECIFIED = 0;
+  STALENESS_TIER_FRESH = 1; // no relevant change
+  STALENESS_TIER_LIGHTLY_STALE = 2; // small diffs in referenced code
+  STALENESS_TIER_DEFINITELY_STALE = 3; // referenced locations moved or deleted
+}
+
+// ReferenceKind is the machine-readable locator family from
+// docs/reference/machine-readable-references.md.
+enum ReferenceKind {
+  REFERENCE_KIND_UNSPECIFIED = 0;
+  REFERENCE_KIND_CODE = 1; // [CODE: path/to/file.go]
+  REFERENCE_KIND_REQ = 2; // [REQ: OT-...]
+  REFERENCE_KIND_DOC = 3; // [DOC: path/to/doc.md]
+}
+
+// ReferenceResolution is whether a reference resolves against code-facts.
+enum ReferenceResolution {
+  REFERENCE_RESOLUTION_UNSPECIFIED = 0;
+  REFERENCE_RESOLUTION_RESOLVED = 1; // located in code today
+  REFERENCE_RESOLUTION_UNRESOLVED = 2; // recorded but code-facts could not resolve (degraded)
+  REFERENCE_RESOLUTION_FUTURE = 3; // proposed not-yet-existing location (not flagged as deleted)
+  REFERENCE_RESOLUTION_MISSING = 4; // resolved before but the location moved or was deleted
+}
+
+// RelevantContextKind classifies one setup item a fresh/resumed agent should
+// load, inspect, or run before acting on a plan or phase.
+enum RelevantContextKind {
+  RELEVANT_CONTEXT_KIND_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_KIND_SKILL = 1;
+  RELEVANT_CONTEXT_KIND_DOC = 2;
+  RELEVANT_CONTEXT_KIND_COMMAND = 3;
+  RELEVANT_CONTEXT_KIND_SEARCH = 4;
+  RELEVANT_CONTEXT_KIND_CODE_REF = 5;
+  RELEVANT_CONTEXT_KIND_REQ_REF = 6;
+  RELEVANT_CONTEXT_KIND_NOTE = 7;
+}
+
+// RelevantContextScope says whether an item applies plan-wide or to one phase.
+enum RelevantContextScope {
+  RELEVANT_CONTEXT_SCOPE_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_SCOPE_GLOBAL = 1;
+  RELEVANT_CONTEXT_SCOPE_PHASE = 2;
+}
+
+// RelevantContextRepeatPolicy says when execution should re-emit the item.
+enum RelevantContextRepeatPolicy {
+  RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION = 1;
+  RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME = 2;
+  RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE = 3;
+  RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY = 4;
+  RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED = 5;
+}
+
+// RelevantContextSource captures how the context item entered the plan.
+enum RelevantContextSource {
+  RELEVANT_CONTEXT_SOURCE_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_SOURCE_AUTHORED = 1;
+  RELEVANT_CONTEXT_SOURCE_DISCOVERED = 2;
+  RELEVANT_CONTEXT_SOURCE_MIGRATED = 3;
+  RELEVANT_CONTEXT_SOURCE_AUTOFILLED = 4;
+}
+
+// RelevantContextStatus records whether the item is usable or degraded.
+enum RelevantContextStatus {
+  RELEVANT_CONTEXT_STATUS_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_STATUS_READY = 1;
+  RELEVANT_CONTEXT_STATUS_DEGRADED = 2;
+  RELEVANT_CONTEXT_STATUS_UNRESOLVED = 3;
+}
+
+// FindingTriage is the operator-triage state of a candidate finding. Findings
+// are filed as CANDIDATE (unvalidated) and never auto-promoted to real bugs.
+enum FindingTriage {
+  FINDING_TRIAGE_UNSPECIFIED = 0;
+  FINDING_TRIAGE_CANDIDATE = 1; // unvalidated; awaiting operator triage
+  FINDING_TRIAGE_PROMOTED = 2; // operator promoted to a real bug
+  FINDING_TRIAGE_DISMISSED = 3; // operator dismissed
+}
+
+// Completeness distinguishes a full run from a partial one. COMPUTED from the
+// phase-status set (full iff every phase is done), never narrated.
+enum Completeness {
+  COMPLETENESS_UNSPECIFIED = 0;
+  COMPLETENESS_FULL = 1;
+  COMPLETENESS_PARTIAL = 2;
+}
+
+// WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from the
+// associated scenario's maturity (default GREENFIELD); never agent-authored. The
+// renderer injects the matching guidance block. See docs/concepts/PLAN-MODEL.md.
+enum WorkPosture {
+  WORK_POSTURE_UNSPECIFIED = 0;
+  WORK_POSTURE_GREENFIELD = 1; // net-new work; no compatibility shims/dead code
+  WORK_POSTURE_BROWNFIELD = 2; // deployed/limited-live; preserve external contracts
+}
+
+// WorkPostureSource records HOW the posture was decided (audit/explainability).
+enum WorkPostureSource {
+  WORK_POSTURE_SOURCE_UNSPECIFIED = 0;
+  WORK_POSTURE_SOURCE_DEFAULT = 1; // no resolvable scenario; defaulted to greenfield
+  WORK_POSTURE_SOURCE_SERVICE_MATURITY = 2; // derived from scenario .vrooli/service.json maturity
+  WORK_POSTURE_SOURCE_EXPLICIT_OVERRIDE = 3; // a future explicit override signal
+  WORK_POSTURE_SOURCE_IMPORT_LEGACY = 4; // carried in from a legacy markdown import
+}
+
+// RenderedMirrorStatus describes the health of the durable rendered markdown
+// projection for a canonical structured plan. The mirror is repairable from the
+// structured record and is never editable truth.
+enum RenderedMirrorStatus {
+  RENDERED_MIRROR_STATUS_UNSPECIFIED = 0;
+  RENDERED_MIRROR_STATUS_FRESH = 1;
+  RENDERED_MIRROR_STATUS_MISSING = 2;
+  RENDERED_MIRROR_STATUS_STALE = 3;
+  RENDERED_MIRROR_STATUS_WRITE_FAILED = 4;
+  RENDERED_MIRROR_STATUS_UNKNOWN = 5;
+}
+
+// RenderedPlanMirror is the durable markdown projection contract for a plan.
+// SQLite remains canonical; this metadata lets clients link to and diagnose the
+// file-addressable rendered view under the repo-contract runtime-home plans dir.
+message RenderedPlanMirror {
+  string path = 1; // absolute path to the rendered markdown mirror
+  string relative_path = 2; // path relative to runtime-home plans
+  string content_hash = 3; // sha256 of rendered markdown bytes
+  string render_version = 4; // deterministic renderer version
+  string rendered_at = 5; // RFC3339
+  RenderedMirrorStatus status = 6;
+  string last_error = 7; // diagnostics for degraded/repairable states
+}
+
+// LegacySection is one imported markdown section preserved as provenance because
+// it could not be mapped to a canonical field — never silently dropped.
+message LegacySection {
+  string heading = 1; // the original markdown heading text
+  string content = 2; // the verbatim section body
+  string mapped_to = 3; // canonical field it partially informed, when any
+  string preservation_reason = 4; // e.g. "unmapped_legacy_section"
+}
+
+// ImportProvenance records that a plan was canonicalized from a markdown source
+// rather than authored fresh. Import is non-destructive (the source is never
+// moved/deleted); this is the bookkeeping that records where it came from.
+message ImportProvenance {
+  string source_path = 1; // path the markdown was imported from (informational)
+  string imported_at = 2; // RFC3339
+  string original_format = 3; // e.g. "legacy_markdown"
+  string note = 4; // human-readable adoption note
+  string workspace_id = 5; // workspace identity at import time, when known
+  string workspace_root = 6; // absolute workspace root at import time, when known
+}
+
+// ValidationVerdict is the outcome of a validation/DoD check. UNKNOWN is the
+// honest degraded result when a composed dependency (code-facts /
+// git-control-tower) is unavailable — never a false PASS.
+enum ValidationVerdict {
+  VALIDATION_VERDICT_UNSPECIFIED = 0;
+  VALIDATION_VERDICT_PASS = 1;
+  VALIDATION_VERDICT_FAIL = 2;
+  VALIDATION_VERDICT_UNKNOWN = 3;
+}
+
+// NextActionKind classifies the role of a wizard action in the current guided
+// step. Clients should treat RECOMMENDED as the default action to execute next.
+enum NextActionKind {
+  NEXT_ACTION_KIND_UNSPECIFIED = 0;
+  NEXT_ACTION_KIND_RECOMMENDED = 1;
+  NEXT_ACTION_KIND_ALTERNATIVE = 2;
+  NEXT_ACTION_KIND_OPTIONAL = 3;
+  NEXT_ACTION_KIND_RECOVERY = 4;
+}
+
+// NextAction is one concrete command/action the API recommends for the current
+// guided step. argv is canonical; shell strings are presentation-only.
+message NextAction {
+  string id = 1;
+  NextActionKind kind = 2;
+  string label = 3;
+  string reason = 4;
+  repeated string argv = 5;
+  // Filled only when the action needs agent-authored content.
+  string content_placeholder = 6;
+  // Human-readable blockers that must be resolved before this action can run.
+  repeated string blocked_by = 7;
+}
+
+// ChecklistItem is one requirement in a guided step's full-disclosure
+// checklist: the COMPLETE requirement set for the touched scope with live
+// status, so an agent never has to submit a field just to learn the next one.
+message ChecklistItem {
+  // Stable requirement key, e.g. "steps", "purpose", "phase:2".
+  string key = 1;
+  string label = 2;
+  // Live status: "filled" | "missing" | "violation".
+  string state = 3;
+  // Short qualifier — a parse summary for filled items, the violation message
+  // for violations, or the accepted escape (e.g. "NO_CODE_REFS recorded").
+  string detail = 4;
+}
+
+// GuidedStep is the API-owned steering contract for Plan Manager wizard flows.
+// Authoring, execution, CLI, UI, and future scenario consumers all read this
+// shape instead of re-deriving workflow order.
+message GuidedStep {
+  string step_kind = 1;
+  string title = 2;
+  string summary = 3;
+  repeated string instructions = 4;
+  repeated string required_inputs = 5;
+  repeated string examples = 6;
+  repeated string common_mistakes = 7;
+  repeated NextAction next_actions = 8;
+  // Full-disclosure checklist for the touched scope: every requirement (phase
+  // fields for a phase step, mandatory inputs for section/review steps) with
+  // filled/missing/violation status — a superset of required_inputs, which
+  // stays for compatibility.
+  repeated ChecklistItem checklist = 9;
+}
+
+// Reference is one connected-code locator on a plan or phase. AUTHORED (kind +
+// target + future) and then RESOLVED (resolution + staleness + change_factor)
+// by the validation domain against code-facts.
+message Reference {
+  string id = 1;
+  ReferenceKind kind = 2;
+  // The raw locator value as authored, e.g. "scenarios/foo/api/main.go" or
+  // "OT-P0-001". The bracketed grammar ([CODE: ...]) is the rendered form.
+  string target = 3;
+  // True when the reference points at proposed, not-yet-existing code so
+  // staleness does not flag it as deleted.
+  bool future = 4;
+  ReferenceResolution resolution = 5;
+  StalenessTier staleness = 6;
+  // Magnitude of change in the referenced location since authoring (0 = none).
+  double change_factor = 7;
+  // Human-readable resolution detail (e.g. "moved to bar.go", "code-facts down").
+  string note = 8;
+}
+
+// RelevantContextItem is the execution-facing setup contract. It replaces flat
+// required-reading prose with typed, ordered context that CLI/UI/execution can
+// render without re-inferring what an agent should do.
+message RelevantContextItem {
+  string id = 1;
+  RelevantContextKind kind = 2;
+  RelevantContextScope scope = 3;
+  // Filled when scope=PHASE. For phase-owned items this mirrors the parent
+  // phase id so consumers can merge global and phase context deterministically.
+  string phase_id = 4;
+  string label = 5;
+  string reason = 6;
+  string instruction = 7;
+  // Presentation shell command. argv is canonical when both are present.
+  string command = 8;
+  repeated string argv = 9;
+  // Locator for docs/code/requirements/skills/search terms.
+  string target = 10;
+  bool required = 11;
+  RelevantContextRepeatPolicy repeat_policy = 12;
+  RelevantContextSource source = 13;
+  RelevantContextStatus status = 14;
+  string status_detail = 15;
+}
+
+// ChangeBoundary is the first-class blast-radius contract for a plan (and,
+// optionally, a per-phase refinement). It uses the SAME acceptance_allow /
+// acceptance_deny vocabulary as Swarm Manager's backlog change boundary so the
+// two compose without translation. It deliberately has NO `scope` field and no
+// primary_scenario / affected_scenario identity: scenario names are DERIVED from
+// the allow globs and references, never authored as a top-level plan identity.
+// See docs/concepts/PLAN-MODEL.md (Change Boundary).
+message ChangeBoundary {
+  // Repo-relative path globs the plan may change (e.g. "scenarios/foo/**",
+  // "packages/proto/**", "docs/**"). Required for newly authored implementation
+  // plans unless operator_only_reason is set.
+  repeated string acceptance_allow = 1;
+  // Optional path globs the plan must NOT change. Guardrails only — they never
+  // widen validation scope.
+  repeated string acceptance_deny = 2;
+  // Why a plan legitimately carries no acceptance_allow (operator-only/no-code
+  // work) — the boundary analogue of the references NO_CODE_REFS escape.
+  string operator_only_reason = 3;
+}
+
+enum ValidationScopeMode {
+  VALIDATION_SCOPE_MODE_UNSPECIFIED = 0;
+  VALIDATION_SCOPE_MODE_NARROW = 1;
+  VALIDATION_SCOPE_MODE_FULL_PLAN = 2;
+}
+
+message ValidationScope {
+  ValidationScopeMode mode = 1;
+  ChangeBoundary boundary = 2;
+  string rationale = 3;
+}
+
+// RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
+// by the authoring wizard and stored on the plan.
+//
+// strategy is one of:
+//   - "change_boundary": the boundary-native anchor new plans author; affected
+//     scenarios and the tiered baseline/diff commands are DERIVED from the plan's
+//     ChangeBoundary (scenario/allowlist_paths are not hand-authored).
+//   - "scenario_baseline" / "head_sha_allowlist": legacy strategies, retained for
+//     import/read of pre-cutover plans only — never produced for new plans.
+//   - "legacy_prose": an unstructured imported anchor preserved as provenance.
+message RegressionAnchor {
+  // "change_boundary" (new) | "scenario_baseline" | "head_sha_allowlist" |
+  // "legacy_prose" (legacy import/read only).
+  string strategy = 1;
+  string scenario = 2; // scenario-baseline strategy: the scenario name
+  string baseline_name = 3; // scenario-baseline strategy: the named snapshot
+  string head_sha = 4; // head-sha strategy: the recorded commit
+  repeated string allowlist_paths = 5; // head-sha strategy: paths allowed to change
+  // The exact baseline/diff command set this anchor implies.
+  repeated string commands = 6;
+  string captured_at = 7; // RFC3339; empty when autofill was skipped/degraded
+  // True when anchor autofill was attempted but the dependency was down.
+  bool unavailable = 8;
+}
+
+// BaselineSetIntent is the compact, plan-owned policy for a complete before
+// state. GCT owns collection execution and source-snapshot storage; Plan
+// Manager owns this immutable selection and phase policy. Source paths are
+// explicitly informational and must never be interpreted as behavioral passes.
+message BaselineSetIntent {
+  string name = 1;
+  repeated string scenario_targets = 2;
+  repeated string repo_paths = 3;
+  // "execution_start" for the current contract.
+  string capture_policy = 4;
+  // "baseline_set" for current plans; "legacy_anchor" preserves imports.
+  string compatibility = 5;
+}
+
+// =============================================================================
+// EXECUTION-LOG LEDGER — the typed plan-log vocabulary
+// =============================================================================
+//
+// The log domain is Plan Manager's single durable ledger for the work products
+// an agent produces while executing a plan. Findings, bug reports, and records
+// are DISTINCT concepts and must not be conflated: a finding is an unvalidated
+// candidate observation; a bug_report is a defect deliberately filed to the
+// issue tracker; a record is reusable learning captured for the learning loop.
+// Bug reports and records are forwarded to downstream systems through internal
+// seams; the local entry stays durable with a sync_status even when the
+// downstream write fails. See docs/concepts/PLAN-MODEL.md and
+// docs/concepts/DOMAINS.md (log).
+
+// LogEntryType is the typed kind of an execution-log ledger entry.
+enum LogEntryType {
+  LOG_ENTRY_TYPE_UNSPECIFIED = 0;
+  LOG_ENTRY_TYPE_DECISION = 1;
+  LOG_ENTRY_TYPE_FINDING = 2;
+  LOG_ENTRY_TYPE_BUG_REPORT = 3;
+  LOG_ENTRY_TYPE_RECORD = 4;
+  LOG_ENTRY_TYPE_NOTE = 5;
+}
+
+// LogSyncStatus is the downstream-integration state of a log entry. LOCAL means
+// the entry has no downstream target (decisions/findings/notes). PENDING/SYNCED/
+// FAILED apply to bug_report and record entries Plan Manager forwards through an
+// internal seam. A FAILED entry remains durable and retryable.
+enum LogSyncStatus {
+  LOG_SYNC_STATUS_UNSPECIFIED = 0;
+  LOG_SYNC_STATUS_LOCAL = 1;
+  LOG_SYNC_STATUS_PENDING = 2;
+  LOG_SYNC_STATUS_SYNCED = 3;
+  LOG_SYNC_STATUS_FAILED = 4;
+}
+
+// LogSeverity is the optional severity of a finding or bug-report entry.
+enum LogSeverity {
+  LOG_SEVERITY_UNSPECIFIED = 0;
+  LOG_SEVERITY_INFO = 1;
+  LOG_SEVERITY_LOW = 2;
+  LOG_SEVERITY_MEDIUM = 3;
+  LOG_SEVERITY_HIGH = 4;
+  LOG_SEVERITY_CRITICAL = 5;
+}
+
+// DownstreamRef records the result of forwarding a log entry to a downstream
+// system (the scenario-qa bug inbox, swarm-manager records).
+message DownstreamRef {
+  string system = 1; // "scenario-qa" | "swarm-manager"
+  string kind = 2; // "bug_report" | "record"
+  string reference = 3; // downstream id/url once synced
+  string detail = 4; // last sync detail or error
+  string synced_at = 5; // RFC3339; empty until first successful sync
+  CaptureDisposition capture = 6;
+}
+
+message CaptureDiagnostic {
+  string field = 1;
+  string value = 2;
+  string message = 3;
+}
+
+// CaptureDisposition is supplied by the owning downstream writer. DRAFT means
+// it retained the report privately and returned an exact repair action; it is
+// not a failed published sync.
+message CaptureDisposition {
+  string state = 1; // published | draft
+  string draft_id = 2;
+  repeated string needs = 3;
+  repeated CaptureDiagnostic invalid = 4;
+  repeated string warnings = 5;
+  repeated string next_action = 6;
+}
+
+message BugReportPayload {
+  string signal_type = 1;
+  string severity = 2;
+  repeated string repro = 3;
+  string expected = 4;
+  string actual = 5;
+  string description = 6;
+  map<string, string> context = 7;
+  repeated string honesty_flags = 8;
+}
+
+message RecordPayload {
+  string kind = 1;
+  string scenario = 2;
+  string trigger = 3;
+  string approach = 4;
+  string evidence = 5;
+  string outcome = 6;
+  string created_by = 7;
+}
+
+// LogEntry is one typed execution-log ledger entry — the unified record for
+// decisions, candidate findings, bug reports, reusable records, and notes.
+message LogEntry {
+  string id = 1;
+  LogEntryType type = 2;
+  string plan_id = 3;
+  string execution_id = 4;
+  string phase_id = 5;
+  string title = 6;
+  string detail = 7;
+  LogSeverity severity = 8;
+  // Operator-triage state; meaningful for finding entries (candidate ->
+  // promoted/dismissed). Other types stay UNSPECIFIED.
+  FindingTriage triage = 9;
+  LogSyncStatus sync_status = 10;
+  DownstreamRef downstream = 11;
+  // The plan-manager CLI command path that produced this entry (audit trail).
+  string source_command = 12;
+  // Optional supporting evidence locators (paths, command output refs, urls).
+  repeated string evidence = 13;
+  // Explicit or server-verified attribution run id; powers attribution-keyed dedup.
+  string attribution_run_id = 14;
+  // Idempotency key; a retry with the same key returns the existing entry.
+  string idempotency_key = 15;
+  // When this entry corrects/supersedes an earlier entry.
+  string supersedes_id = 16;
+  // When this bug_report/record was promoted from a finding entry.
+  string promoted_from_id = 17;
+  string created_at = 18;
+  string updated_at = 19;
+  BugReportPayload bug = 20;
+  RecordPayload record = 21;
+  CaptureDisposition capture = 22;
+}
+
+// LogSummaryItem is one compact line in a LogSummary.
+message LogSummaryItem {
+  string id = 1;
+  LogEntryType type = 2;
+  string title = 3;
+  LogSyncStatus sync_status = 4;
+  FindingTriage triage = 5;
+  string phase_id = 6;
+}
+
+// LogSummary is a compact roll-up of an execution's (or plan's) log ledger,
+// surfaced into resume/status/handoff so a resumed agent reorients without
+// reading every entry.
+message LogSummary {
+  int32 total = 1;
+  int32 decisions = 2;
+  int32 findings = 3;
+  int32 bug_reports = 4;
+  int32 records = 5;
+  int32 notes = 6;
+  int32 candidate_findings = 7;
+  int32 pending_sync = 8;
+  int32 failed_sync = 9;
+  // A short, most-recent-first list for quick reorientation.
+  repeated LogSummaryItem recent = 10;
+}
+
+// ValidationResult is the most recent validation/baseline outcome for a plan or
+// phase. COMPUTED by the validation domain (verdict from baseline diff exit-0 as
+// oracle); never the source of truth for code itself.
+message ValidationResult {
+  string id = 1;
+  string plan_id = 2;
+  string phase_id = 3;
+  ValidationVerdict verdict = 4;
+  StalenessTier staleness = 5;
+  repeated string commands_run = 6;
+  string detail = 7;
+  string ran_at = 8;
+  // COMPUTED: authored cli: command references checked through CLI Health.
+  repeated CommandValidationFinding command_findings = 9;
+  // Producer-ticket provenance. These fields let an execution gate prove that
+  // a synchronized pass covered its audited selected scope.
+  string execution_id = 10;
+  string operation_id = 11;
+  int32 scope_generation = 12;
+  bool full_inventory = 13;
+  repeated string required_members = 14;
+  repeated string selected_members = 15;
+}
+
+// CommandValidationFinding is one CLI Health-backed finding for an authored
+// command reference in a plan or phase. It validates references, not runtime
+// execution.
+message CommandValidationFinding {
+  string command_text = 1;
+  string verdict = 2;
+  string validation_level = 3;
+  string message = 4;
+  string location = 5;
+  // CLI Health issue codes preserved for clients that need structured policy
+  // mapping instead of parsing message text.
+  repeated string issue_codes = 6;
+  // CLI Health command suggestions, ordered by CLI Health confidence.
+  repeated string suggestions = 7;
+  // CLI Health-authored remediation guidance.
+  repeated string guidance = 8;
+}
+
+// Phase is a first-class phase — the unit the runner walks and context is scoped
+// to. order/title/intent/relevant_context/reminders/acceptance are AUTHORED;
+// required_reading is legacy migration input; baseline_scope/status/
+// last_validation are COMPUTED. In-flow decisions/findings are NOT stored on the
+// phase — they are typed entries in the log domain (LogService), scoped to the
+// phase by phase_id.
+message Phase {
+  string id = 1;
+  int32 order = 2;
+  string title = 3;
+  string intent = 4;
+  // Legacy migration input. Execution-facing setup is relevant_context.
+  repeated string required_reading = 5;
+  repeated string reminders = 6;
+  // COMPUTED: the baseline/validation command set this phase touches, derived
+  // from its references across all affected locations.
+  repeated string baseline_scope = 7;
+  string acceptance = 8;
+  PhaseStatus status = 9;
+  ValidationResult last_validation = 10;
+  repeated Reference references = 11;
+  repeated RelevantContextItem relevant_context = 12;
+  // AUTHORED professional phase fields (see docs/concepts/PLAN-MODEL.md).
+  // Orienting prose lines for the files/dirs/surfaces this phase touches.
+  repeated string affected_areas = 13;
+  // Ordered implementation steps an agent follows. Mandatory for impl phases.
+  repeated string steps = 14;
+  // Artifacts/outputs this phase should produce.
+  repeated string expected_outputs = 15;
+  // The METHOD of checking this phase (commands/checks). Distinct from
+  // acceptance (the outcome gate); the two must not be identical.
+  string validation = 16;
+  // What the next phase depends on / what a resuming agent must know.
+  string handoff_notes = 17;
+  // Phase-specific risks/hazards and controls, only when relevant.
+  repeated string risks_hazards = 18;
+  // Optional per-phase boundary refinement. NARROWS the plan-level boundary for
+  // phase-specific checks; it never widens the plan blast radius.
+  ChangeBoundary change_boundary = 19;
+  ValidationScope validation_scope = 20;
+}
+
+// PlanDecision is one pinned plan-time contract decision (rendered D1..Dn under
+// Approach & Decisions). AUTHORED and optional; distinct from execution-time
+// log decisions, which live in the log ledger.
+message PlanDecision {
+  string title = 1; // short handle, e.g. "Cluster names and order"
+  string statement = 2; // the pinned decision; do not relitigate during execution
+}
+
+// PlanAssumption is one structured assumption with its "if wrong -> then"
+// mitigation, rendered as the Assumptions & Risks table. AUTHORED and optional;
+// prose assumptions without mitigations stay in Plan.assumptions.
+message PlanAssumption {
+  string statement = 1;
+  string mitigation = 2; // what changes if the assumption is wrong
+}
+
+// PlanDefinition is a plan-local term coined or narrowed by the author.
+message PlanDefinition {
+  string term = 1;
+  string meaning = 2;
+}
+
+// Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
+// the authored/computed split per field.
+message Plan {
+  string id = 1;
+  string slug = 2;
+  string title = 3;
+  PlanStatus status = 4; // COMPUTED
+  string content_hash = 5; // COMPUTED; powers supersession/dependency edges
+  string created_at = 6;
+  string updated_at = 7;
+  string purpose = 8;
+  string scope = 9;
+  string constraints = 10;
+  string non_goals = 11;
+  repeated Reference references = 12;
+  RegressionAnchor regression_anchor = 13; // AUTO-FILLED
+  string definition_of_done = 14;
+  repeated Phase phases = 15;
+  repeated string supersedes = 16; // plan-graph edges
+  repeated string superseded_by = 17; // plan-graph edges
+  repeated RelevantContextItem relevant_context = 18;
+  // AUTHORED professional plan fields (see docs/concepts/PLAN-MODEL.md).
+  string problem_statement = 19; // the concrete problem/need/gap this closes
+  string target_outcome = 20; // the observable end state once done
+  string assumptions = 21; // preconditions taken as given
+  string technical_approach = 22; // design rationale: the chosen approach + why
+  string validation_strategy = 23; // how the plan proves it works
+  repeated string final_validation_commands = 24; // exact end-of-plan review commands
+  string risks_hazards = 25; // plan-wide risks/hazards + controls, when relevant
+  string prohibited_approaches = 26; // off-limits approaches, only when relevant
+  // AUTOFILLED/COMPUTED work posture (never agent-authored).
+  WorkPosture work_posture = 27;
+  WorkPostureSource work_posture_source = 28;
+  string work_posture_detail = 29; // derivation note (fallback reason, sunset warning)
+  // GOVERNANCE: import bookkeeping (only when imported).
+  ImportProvenance import_provenance = 30;
+  repeated LegacySection preserved_legacy_sections = 31;
+  // The plan's first-class blast-radius contract (acceptance_allow /
+  // acceptance_deny). Source of truth for posture, anchor, and validation scope.
+  ChangeBoundary change_boundary = 32;
+  // COMPUTED rendered markdown mirror metadata. The file is a durable projection,
+  // not canonical editable state.
+  RenderedPlanMirror mirror = 33;
+  // Canonical workspace association used for workspace-scoped list/lookup.
+  string workspace_id = 34;
+  // Canonical absolute workspace root used for filesystem-scoped plans.
+  string workspace_root = 35;
+  // AUTHORED optional plan-time contract decisions, rendered D1..Dn under
+  // Approach & Decisions (contract decision D3).
+  repeated PlanDecision decisions = 36;
+  // AUTHORED optional structured assumptions with mitigations, rendered as the
+  // Assumptions & Risks table (contract decision D3).
+  repeated PlanAssumption assumption_risks = 37;
+  // Optional for migration: pre-cutover plans retain regression_anchor only.
+  BaselineSetIntent baseline_set = 38;
+  // AUTHORED optional local terminology. Shared ecosystem terms are referenced
+  // from docs/concepts/GLOSSARY.md rather than duplicated here.
+  repeated PlanDefinition definitions = 39;
+}
+
+// PlanEdge is one supersession/dependency edge between two plans (the plan
+// graph). Derived from supersedes/superseded_by + content_hash.
+message PlanEdge {
+  string from_plan_id = 1;
+  string to_plan_id = 2;
+  string kind = 3; // "supersedes" | "depends_on"
+}
+
+// VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
+// the meta-optimization-manager emit seam is stubbed/deferred (see
+// docs/concepts/INTEGRATIONS.md).
+message VelocityPoint {
+  string id = 1;
+  string plan_id = 2;
+  string run_id = 3;
+  int64 wall_time_seconds = 4;
+  int64 tokens = 5;
+  int32 iterations = 6;
+  Completeness completeness = 7;
+  string recorded_at = 8;
+}
+
+// Handoff is the canonical, structured handoff assembled from state captured
+// in-flow during a run. plan-manager owns ONLY this structured layer; the prose
+// final-message catch-all is owned by the orchestration layer and linked here by
+// reference (prose_handoff_ref).
+message Handoff {
+  string id = 1;
+  string execution_id = 2;
+  string plan_id = 3;
+  Completeness completeness = 4; // COMPUTED from the phase-status set
+  string resume_phase_id = 5; // COMPUTED: earliest non-done phase
+  // Compact roll-up of the execution's log ledger (decisions/findings/bugs/
+  // records) assembled from the log domain at handoff time.
+  LogSummary log_summary = 6;
+  // The full log entries captured during the run, oldest-first.
+  repeated LogEntry log_entries = 7;
+  ValidationResult last_validation = 8;
+  StalenessTier staleness = 9;
+  // Reference (URL/id) to the orchestration-layer prose handoff; plan-manager
+  // never reads transcripts, it only links.
+  string prose_handoff_ref = 10;
+  string assembled_at = 11;
+  // The plan's change boundary, snapshotted into the handoff so the next agent
+  // sees what was allowed/denied and where validation coverage is informational.
+  ChangeBoundary change_boundary = 12;
+}

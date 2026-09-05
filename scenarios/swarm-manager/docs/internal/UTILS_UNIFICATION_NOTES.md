@@ -3,11 +3,24 @@
 This document tracks the utility consolidation audit and improvements for the swarm-manager scenario.
 
 ## Last Updated
-2026-01-28 (Phase 22: Utils Unification, Iteration 2)
+2026-05-01 (Test utility architecture slice)
 
 ## Summary
 
 The codebase utility structure is well-organized but had one significant duplication issue resolved in this phase. The overall architecture follows screaming architecture principles with utilities organized by concern.
+
+2026-05-06 update: Agent-session, clarification, and evidence-request chat
+surfaces now share `ui/src/components/chat/` primitives for markdown rendering,
+message alignment, waiting indicators, auto-scroll, and composer behavior.
+Session-specific artifact node mapping was extracted to
+`ui/src/components/session/session-artifact-routing.ts` with pure unit coverage,
+so session page navigation no longer owns ad hoc artifact parsing.
+
+2026-05-01 update: Swarm Manager now has a dedicated UI test utility layer under `ui/src/test-utils/` for test-only query clients, provider/router rendering, browser API mocks, storage reset helpers, and expected-console handling. Initial hook tests have been migrated to this layer; future UI test work should extend these helpers instead of recreating local QueryClient, MemoryRouter, matchMedia, ResizeObserver, localStorage, or console-silencing setup.
+
+2026-05-01 follow-up: `components/ui/file-preview.test.tsx` now reuses `createTestQueryClient` and the previously skipped fetch-error assertion is active. This exposed one important boundary: production query options spread directly inside components can override QueryClient test defaults, so tests that need immediate error rendering must explicitly disable the component-level retry seam until the shared harness owns that override centrally.
+
+2026-05-01 warning-cleanup follow-up: `src/test-utils/console.ts` now includes `withExpectedReactHookError` for provider-invariant hook tests. Use it only around tests that intentionally render a throwing hook; ordinary React warnings should be fixed at the component or harness seam. `src/setupTests.ts` filters the known `[api-base]` startup diagnostic prefix so individual tests do not need local `@vrooli/api-base` mocks just to keep stdout readable.
 
 ## Current Utility Architecture
 
@@ -33,6 +46,12 @@ src/
 │   └── index.ts                  # Re-exports
 ├── consts/                       # UI constants
 │   └── selectors.ts              # Test selector registry
+├── test-utils/                   # Test-only provider, browser, storage, and console helpers
+│   ├── query.ts                  # React Query test client defaults
+│   ├── render.tsx                # render/renderHook wrappers with providers/router
+│   ├── browser.ts                # matchMedia/ResizeObserver and storage helpers
+│   ├── stores.ts                 # storage reset helper
+│   └── console.ts                # narrow expected-console and expected hook-error helpers
 └── components/ui/                # Shared UI components
     ├── button.tsx                # Button with CVA variants
     ├── input.tsx                 # Input with CVA variants
@@ -211,6 +230,9 @@ The codebase properly implements testing seams for utilities:
 3. **Error Utils**: Pure functions with no hidden dependencies
 4. **ID Generation**: Now testable via `generateUniqueId(prefix)` with deterministic format
 5. **Query Options**: `defaultQueryOptions` references config, making it testable and overridable
+6. **UI Test Utilities**: `src/test-utils` centralizes React Query, router, browser, storage, and expected-console seams for tests only
+7. **Hot-spot Render Harness**: `ExecutionPage`, `ScenarioDetailsPage`, `ScenariosPage`, `FeedbackDialog`, and `FeedbackPanel` tests now use the shared render/query/browser helpers instead of local QueryClient, router, and matchMedia setup
+8. **Act-Safe Timer Harnessing**: Polling and staleness tests wrap timer advancement and subscribed store resets in `act` (`useCapturePolling`, `ClarificationPanel`, `FollowUpSheet`) so warning-free focused runs reflect real React update boundaries
 
 ## Future Consolidation Candidates
 
@@ -294,3 +316,65 @@ The codebase properly implements testing seams for utilities:
 ---
 
 *Last updated: 2026-01-28 (Phase 22: Utils Unification, Iteration 2)*
+
+---
+
+## Test Utility Consolidation (2026-05-01)
+
+The UI test utility layer is now the canonical home for app-level test providers and browser shims:
+
+- `src/test-utils/render.tsx` owns QueryClient + router wrappers, including React Router future flags and `initialIndex` support.
+- `src/test-utils/query.ts` owns retry-free React Query defaults.
+- `src/test-utils/browser.ts` owns `matchMedia`, `ResizeObserver`, and storage helpers.
+- `src/test-utils/console.ts` owns narrow expected-console suppression helpers.
+
+Recent migrations removed local router/query/browser setup from `InitiativeDetailsPage`, `BacklogDetailsPage`, `NotFoundPage`, `DetailPageHeader`, `ExecutionOverviewTab`, `FocusActionsSection`, `DependencyChipList`, `ScenarioResultCards`, `InitiativeDependencyGraph`, and `ScenarioBadge`. Keep future page or routed component tests on these helpers unless the test is intentionally validating a lower-level routing primitive.
+
+Remaining consolidation candidates:
+- Local `QueryClientProvider` wrappers in smaller component/hook tests.
+- Remaining raw `MemoryRouter` wrappers in low-level navigation component tests.
+- Local IndexedDB/FileReader mocks in `useIndexedDBAttachments.test.ts`, if another browser-storage test needs the same seam.
+
+## API Test Timing Utilities (2026-05-01)
+
+`api/internal/testutil.Eventually` (defined in `helpers.go`) is the canonical helper for tests that observe asynchronous fire-and-forget work. (An earlier `assertx` subpackage was consolidated back into the flat `testutil` package — see the Test Utility Boundary seam in `SEAMS.md` — so import `testutil.Eventually` directly.)
+
+Use it for positive eventual conditions such as index notifications, graph materialization drains, background reindex completion, and dispatch hook rebuilds. Do not use it to hide absence checks; tests that intentionally validate "nothing happened after a short window" should keep a narrow fixed sleep with a comment naming that real-time contract.
+
+Recent migrations removed local polling loops from AI search integration tests, AI search reindex tests, graph materializer scheduling tests, the root graph materialization integration helper, and the root initiative feedback/review integration helpers. Remaining direct sleeps are limited to the shared `Eventually` polling interval, explicitly commented negative absence checks, and fake upstream latency used to pin singleton semantics.
+
+## Plan-Lens Consolidation Audit (2026-07-02)
+
+Utils audit of the surfaces touched by the Plan-lens consolidation (Operations
+Center + Command Post + Topology/Operations lens retirement):
+
+**Consolidated / rehomed**
+- `components/cards/BoardCard.tsx` is the single card primitive for board
+  surfaces (status dot, title, meta, badge/action slots); all Plan board card
+  variants (`PlanCardView`, gate cards, outcome cards) render on it. The
+  live-activity row keeps `components/operations/ActivityRow.tsx` — it is a
+  self-contained store-connected component reused verbatim by the Now column,
+  not a second primitive.
+- Board grouping/sorting/labeling lives in pure `surfaces/plan/lib/` modules
+  (`plan-presentation.ts`, `plan-url-state.ts`), unit-tested without React.
+  Server-side grouping/sorting lives in `internal/planview` (mirroring the
+  Command Post ordering via the pre-existing `backlogrank` package — no new
+  ranking implementation was written).
+- The Operations Center URL-filter vocabulary was extracted into
+  `plan-url-state.ts` instead of duplicating the page-local helpers it
+  replaced; old `/operations?...` links keep working through the redirect.
+- `lib/command-post-utils.ts` survives only for execution/capture grouping and
+  question aggregation. Backlog actionability is supplied by the server-owned
+  next-action feed, so no client predicate needs parity with planview.
+
+**Deleted rather than unified** (single-consumer code that died with its page):
+`OpsHeader`, `OpsFilterBar`, `OpsBody`, `ByInitiativeView`, `ByPhaseView`,
+`SummaryView`, `ActionGroupCard`, `RecentSection`, `SnoozedSection`,
+`EmptyState`, `ExecutionCaptureCard`, `CommandPostButton`, `Breadcrumb`,
+`ClusterNode`, `clustering-utils`, the edge-count perf guards, MiniMap wiring,
+`getStatusRgb`, the graph-service focus plumbing, and the server
+flow/operations projection with its node builders.
+
+**Known intentional duplication**: date/status formatting on board cards uses
+the shared `formatRelativeTime` / status label helpers already in `lib/`; no
+new formatters were introduced.

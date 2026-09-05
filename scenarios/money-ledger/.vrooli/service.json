@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "storage": {
+    "entries": {
+      "data": {
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Measured at 192031 bytes on 2026-08-16 at the resolved data location; 1MiB leaves more than twice the observed SQLite database and sidecar footprint."
+        },
+        "class": "data",
+        "kind": "dir",
+        "rationale": "Resolved scenario data directory containing the SQLite ledger, account and goal state, audit records, and SQLite sidecars.",
+        "regenerable": false,
+        "rung": "owned"
+      }
+    }
+  },
+  "maturity": "pilot",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "money-ledger",
+    "displayName": "Money Ledger",
+    "description": "Accounts, money events, derived balances, and financial position",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-13T13:53:43Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "9c22027c8958143938a33ac807d163b273682a70f9cb79b938541ec92ab05af1"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "money-ledger",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "money-ledger"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Protects the resolved Money Ledger data directory through scheduled snapshots and recovery drills; it is not part of request handling.",
+        "degraded_behavior": "Money Ledger runs normally when the backup manager is unavailable; protection is a scheduled operational concern and is never substituted with synthetic financial values."
+      },
+      "landing-page-business-suite": {
+        "type": "scenario",
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Planned P1 source for the commerce adapter (OT-P1-005): subscription and charge events, entering through the ordinary money-event contract rather than as a privileged integration. Disabled until that adapter is built.",
+        "degraded_behavior": "The commerce adapter reports unavailable with its last-success age and does not advance its sync cursor, so the next run re-reads rather than skips. No zero-valued event is ever written, and position marks itself partial while the adapter is down."
+      }
+    }
+  },
+  "credentials": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

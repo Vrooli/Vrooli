@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.link",
+  "deprecatedVersions": [
+    "1.0.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:Link"
+}

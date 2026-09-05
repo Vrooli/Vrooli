@@ -1,7 +1,7 @@
 import { useMemo, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { ChevronDown, GripVertical, Loader2, RefreshCw, ShieldCheck, Trash2, Tag, X } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
-import { Textarea } from '../../../../shared/ui/input';
+import { Textarea } from '../../../../shared/ui/textarea';
 import { Card, CardContent, CardHeader } from '../../../../shared/ui/card';
 import { FormField } from '../FormField';
 import { inputClassName, textareaClassName } from '../formFieldClasses';
@@ -208,7 +208,7 @@ export function PriceFormCard({
                 variant="ghost"
                 size="sm"
                 className="gap-2 text-amber-200 hover:text-amber-100"
-                onClick={() => onRemoveDemoPlan(bundleKey, priceIdentifier)}
+                onClick={() => { onRemoveDemoPlan(bundleKey, priceIdentifier); }}
               >
                 Remove demo placeholder
               </Button>
@@ -219,7 +219,7 @@ export function PriceFormCard({
                   variant="ghost"
                   size="sm"
                   className="text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
-                  onClick={() => onDeletePlan(bundleKey, priceIdentifier)}
+                  onClick={() => { onDeletePlan(bundleKey, priceIdentifier); }}
                   disabled={formState.saving}
                   title="Delete plan"
                 >
@@ -277,7 +277,7 @@ export function PriceFormCard({
               <button
                 type="button"
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white hover:bg-white/10 disabled:opacity-50"
-                onClick={() => onVerifyPrice(bundleKey, priceIdentifier)}
+                onClick={() => { void onVerifyPrice(bundleKey, priceIdentifier); }}
                 disabled={verifyDisabled}
               >
                 {verificationStatus === 'checking' ? 'Checking...' : 'Verify'}
@@ -364,10 +364,9 @@ export function PriceFormCard({
                       type="button"
                       variant="ghost"
                       size="sm"
+                      aria-label="Unassign intro coupon"
                       className="h-7 w-7 p-0 text-emerald-300 hover:text-white hover:bg-emerald-500/20"
-                      onClick={async () => {
-                        await onUnassignCoupon(priceIdentifier);
-                      }}
+                      onClick={() => { void onUnassignCoupon(priceIdentifier); }}
                       disabled={couponSaving}
                     >
                       {couponSaving ? (
@@ -381,9 +380,9 @@ export function PriceFormCard({
                   <select
                     className={cn(inputClassName, 'cursor-pointer')}
                     value=""
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       if (e.target.value) {
-                        await onAssignCoupon(priceIdentifier, e.target.value);
+                        void onAssignCoupon(priceIdentifier, e.target.value);
                       }
                     }}
                     disabled={couponSaving || availableCoupons.length === 0}
@@ -412,7 +411,7 @@ export function PriceFormCard({
           <div className="mt-4 flex items-center gap-3">
             <Button
               type="button"
-              onClick={() => onSavePrice(bundleKey, priceIdentifier)}
+              onClick={() => { void onSavePrice(bundleKey, priceIdentifier); }}
               disabled={!dirty || formState.saving || demoPlan}
               className="gap-2"
             >

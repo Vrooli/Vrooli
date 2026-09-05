@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"system-monitor-api/internal/httputil"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 )
 
 // Recovery returns middleware that catches panics and writes a 500 JSON error.

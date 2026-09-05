@@ -22,7 +22,7 @@ Authenticates an admin user.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "<replace-at-deploy>"
 }
 ```
 
@@ -143,7 +143,8 @@ Updates the admin email and/or password. `current_password` is required for all 
 
 Remote profiles let the admin UI/CLI manage a deployed LPBS instance by storing an encrypted
 `admin_session` cookie and proxying allowlisted admin requests. Remote sessions are encrypted
-at rest using `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` (or `LPBS_API_KEY_ENCRYPTION_KEY` fallback).
+at rest using the independent credential-authority-backed
+`remote-profile-encryption-key` ring.
 
 ### GET /admin/remote-profiles
 
@@ -247,7 +248,7 @@ Logs in to the remote LPBS instance and stores the remote session cookie.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "your-remote-admin-password"
 }
 ```
 
@@ -707,6 +708,6 @@ Resets all data to demo defaults.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Admin Guide](../../guides/ADMIN_GUIDE.md) - Using the admin portal
 - [Payments](payments.md) - Stripe settings

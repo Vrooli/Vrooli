@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	sshcore "github.com/vrooli/ssh-core"
 )
 
 // IsIPv6 checks if the given host is an IPv6 address.
@@ -27,6 +29,9 @@ func TestConnection(ctx context.Context, runner Runner, req TestConnectionReques
 	timestamp := nowTimestamp()
 
 	cfg := NewConfig(req.Host, req.Port, req.User, ExpandPath(req.KeyPath))
+	if path, err := ensureKnownHostsFile(); err == nil {
+		cfg.KnownHostsFile = path
+	}
 
 	// Validate key path
 	if err := ValidateSSHPath(cfg.KeyPath); err != nil {
@@ -120,7 +125,7 @@ func TestConnection(ctx context.Context, runner Runner, req TestConnectionReques
 
 	// Populate Fingerprint by reading host key from known_hosts after
 	// successful connection (the key was accepted via accept-new).
-	fingerprint := readHostFingerprint(cfg.Host)
+	fingerprint := sshcore.HostFingerprint(cfg.KnownHostsFile, cfg.Host, cfg.Port)
 
 	slog.Info("ssh.connection_test",
 		"host", cfg.Host,
@@ -139,26 +144,4 @@ func TestConnection(ctx context.Context, runner Runner, req TestConnectionReques
 		Fingerprint: fingerprint,
 		LatencyMs:   latency,
 	}
-}
-
-// readHostFingerprint extracts the host key fingerprint from known_hosts.
-// Returns empty string on any failure (best-effort).
-func readHostFingerprint(host string) string {
-	cmd := ExecCommandRunner{}
-	stdout, _, err := cmd.Run(context.Background(), "ssh-keygen", "-lF", host)
-	if err != nil {
-		return ""
-	}
-	// Output format: "# Host <host> found: line N\n<bits> <fingerprint> ..."
-	for _, line := range strings.Split(string(stdout), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) >= 2 {
-			return parts[1] // SHA256:xxxx
-		}
-	}
-	return ""
 }

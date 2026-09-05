@@ -1,0 +1,86 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like CLI Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "CLI Health",
+    "eyebrow": "Scenario Template",
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+  },
+"errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "nav": {
+    "search": "Search",
+    "validate": "Validate",
+    "status": "Status"
+  },
+  "search": {
+    "title": "Command search",
+    "description": "Find CLI commands across every scenario and the top-level vrooli CLI. Switch to text mode if Ollama or Qdrant is unavailable.",
+    "placeholder": "Search commands…",
+    "submit": "Search",
+    "modeAi": "AI",
+    "modeText": "Text",
+    "modeLabel": "Mode",
+    "noResults": "No matches.",
+    "loading": "Searching…",
+    "error": "Search failed: {{message}}",
+    "modeUsed": "Served via {{mode}} mode.",
+    "reranker": "Reranked by {{reranker}}.",
+    "resultScore": "Score: {{score}}",
+    "resultSource": "Source: {{source}}",
+    "weakMatch": "Weak match"
+  },
+  "validate": {
+    "title": "Manifest validation",
+    "description": "Run cli-manifest validation against a scenario. Errors fail the report; warnings inform.",
+    "placeholder": "Scenario id (e.g. development-toolchain-validator)",
+    "submit": "Validate",
+    "loading": "Validating…",
+    "error": "Validation failed: {{message}}",
+    "passed": "Passed",
+    "failed": "Failed",
+    "summary": "{{errors}} errors, {{warnings}} warnings, {{infos}} infos",
+    "noFindings": "No findings.",
+    "severityError": "ERROR",
+    "severityWarning": "WARN",
+    "severityInfo": "INFO"
+  },
+  "status": {
+    "title": "Index status",
+    "description": "Health of the AI search backend and the indexed command corpus.",
+    "loading": "Loading status…",
+    "error": "Status check failed: {{message}}",
+    "availableYes": "Available",
+    "availableNo": "Unavailable",
+    "ollamaLabel": "Ollama:",
+    "qdrantLabel": "Qdrant:",
+    "indexedLabel": "Indexed commands:",
+    "lastReconcileLabel": "Last reconcile:",
+    "yes": "yes",
+    "no": "no",
+    "never": "never"
+  }
+}

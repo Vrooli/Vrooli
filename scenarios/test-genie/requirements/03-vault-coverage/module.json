@@ -1,25 +1,26 @@
 {
   "_metadata": {
-    "module_name": "Vault & Coverage Experience",
-    "description": "Recreate the dashboard, vault builder, and coverage analytics stack on React + Vite.",
+    "description": "Expose execution evidence, requirement evidence, and remediation state in the React operator experience.",
+    "last_validated_at": "2026-08-27T13:28:07-04:00",
+    "module_name": "Remediation Evidence Experience",
     "prd_ref": "OT-P1-003",
     "priority": "P1"
   },
   "requirements": [
     {
-      "id": "TESTGENIE-VAULT-P1",
-      "title": "Vault lifecycle + coverage UX",
-      "description": "Deliver UI workflows to configure vault phases, monitor execution, and inspect coverage gaps in real time.",
+      "id": "TESTGENIE-REMEDIATION-UX-P1",
+      "title": "Remediation evidence UX",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
-      "status": "planned",
+      "description": "Deliver UI workflows that inspect execution findings, select remediation evidence, distinguish provisional agent completion from verified reruns, and review deltas.",
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/pages/Generate/PhaseSelector.test.tsx",
+          "ref": "ui/src/components/remediation/RemediationPanel.test.tsx",
           "phase": "business",
-          "status": "not_implemented",
-          "notes": "Current UI tests only cover generation controls; coverage analytics and vault builders still need dedicated tests"
+          "status": "implemented",
+          "notes": "Covers evidence selection, provisional agent completion, verification action, and degraded evidence copy"
         }
       ]
     }

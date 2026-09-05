@@ -12,16 +12,29 @@ make start
 # Run tests for any scenario
 test-genie execute my-scenario --preset comprehensive
 
-# View results
-test-genie status --executions
+# Wait for the durable run printed by execute
+test-genie runs wait --json --timeout=840 my-scenario <run-id>
 ```
 
 ## What Test Genie Does
 
-- **Executes tests** via 11-phase pipeline (structure → standards → dependencies → lint → docs → smoke → unit → integration → playbooks → business → performance)
+- **Executes tests** via a descriptor-backed health-provider phase pipeline
 - **Tracks requirements** by auto-syncing `[REQ:ID]` tags from test results
-- **Provides APIs** for agent automation (REST + CLI)
-- **Queues test generation** requests for downstream AI agents
+- **Turns completed execution evidence into ranked remediation jobs**
+- **Delegates agent policy and protected-workspace execution to Agent Manager**
+
+### Signal and remediation policy
+
+Fleet health reports actionable finding volume as a separate headline
+(`blockers + errors`) and keeps `warnings + infos` as advisory context. Info
+volume is bounded to the documented 30-day `InfoFindingRetentionWindow`; the
+full execution evidence and actionable findings remain governed by the normal
+run-retention policy.
+
+The evidence-bound remediation surface is adopted and remains supported. It is
+operator-triggered from a completed execution and stable finding IDs; Test
+Genie does not create autonomous remediation jobs from a fleet rollup. The
+verification rerun remains the authority for declaring a remediation effective.
 
 ## Architecture
 
@@ -38,9 +51,8 @@ test-genie/
 | Phase | Timeout | Purpose |
 |-------|---------|---------|
 | Structure | 15s | Validate files, JSON configs |
-| Standards | 60s | Run scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
-| Dependencies | 30s | Check runtimes, tools, resources |
-| Lint | 30s | Type checking and linting |
+| Dependencies | 30s | Dependency health via scenario-dependency-analyzer |
+| Quality | 120s | Static quality contracts via quality-health |
 | Docs | 60s | Validate Markdown, mermaid, links, portability |
 | Smoke | 90s | UI handshake via iframe-bridge |
 | Unit | 60s | Run Go/Node/Python unit tests |
@@ -53,18 +65,15 @@ test-genie/
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| `quick` | Structure, Standards, Docs, Unit | Fast sanity check |
-| `smoke` | Structure, Standards, Lint, Docs, Integration | Pre-commit validation |
-| `comprehensive` | All 11 phases | Full CI/CD validation |
+| `quick` | Structure, Docs, Business, Unit, Proto | Fast sanity check |
+| `smoke` | Structure, API, Quality, Docs, Business, Proto | Pre-commit validation |
+| `comprehensive` | Every registered phase, including Quality | Full CI/CD validation |
 
 ```bash
 test-genie execute my-scenario --preset smoke
 ```
 
-Opt out per run:
-```bash
-test-genie execute my-scenario --skip standards
-```
+Opt out per run with `--skip <phase>`.
 
 ## CLI Usage
 
@@ -75,8 +84,14 @@ test-genie execute <scenario> [--preset quick|smoke|comprehensive] [--fail-fast]
 # Check status
 test-genie status [--executions] [--verbose]
 
-# Queue test generation (delegates to AI agents)
-test-genie generate <scenario> --types unit,integration
+# Launch one remediation job from completed execution evidence
+test-genie remediate <scenario> --execution <uuid> --findings afid:example --role code.default
+
+# Trigger the scenario-local runner
+test-genie run-tests <scenario> [--type phased]
+
+# Inspect the live descriptor-backed phase plan
+test-genie phases --help
 ```
 
 ## REST API
@@ -93,7 +108,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
 
-# Preview selected phases, estimate, and timeout budget
+# Preview selected phases, conservative timing guidance, and timeout budget
 curl -X POST "http://localhost:${API_PORT}/api/v1/executions/plan" \
   -H "Content-Type: application/json" \
   -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
@@ -103,6 +118,12 @@ curl "http://localhost:${API_PORT}/api/v1/executions?scenario=my-scenario&limit=
 
 # Get phase catalog
 curl "http://localhost:${API_PORT}/api/v1/phases"
+
+# Inspect a completed run's remediation plan, then create one job from stable IDs
+curl "http://localhost:${API_PORT}/api/v1/scenarios/my-scenario/remediation/plans/<execution-uuid>"
+curl -X POST "http://localhost:${API_PORT}/api/v1/scenarios/my-scenario/remediation/jobs" \
+  -H "Content-Type: application/json" \
+  -d '{"sourceExecutionId":"<execution-uuid>","findingIds":["afid:example"],"roleRef":"code.default"}'
 ```
 
 See [docs/reference/api-endpoints.md](docs/reference/api-endpoints.md) for complete API reference.

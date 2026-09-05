@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "kernel_config",
+  "storage": {
+    "entries": {
+      "sysctl_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/sysctl.d/99-vrooli.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes Linux kernel parameters."
+      }
+    },
+    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+  },
+  "description": "Configure kernel parameters for optimal Vrooli operation (inotify file watcher limits)",
+  "handler": "kernel_config",
+  "risk": "medium",
+  "verificationCheck": {
+    "files": [
+      "/etc/sysctl.d/99-vrooli.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard kernel_config; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard kernel_config; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "boot_critical"
+}

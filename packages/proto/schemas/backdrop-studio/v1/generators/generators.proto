@@ -1,0 +1,106 @@
+syntax = "proto3";
+package vrooli.backdrop_studio.v1.generators;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/generators;generators_v1";
+
+// =============================================================================
+// GENERATORS DOMAIN — model-authored vector generators
+// =============================================================================
+//
+// @stability beta
+//
+// A generator drawn by a model rather than written by hand. It is catalog data:
+// an SVG template whose numbers are expressions of declared parameters, the
+// frame size and a seeded noise field, stored with the prompt that produced it,
+// the model that wrote it, and the validation verdict that admitted it.
+//
+// Authoring and storage are two calls, deliberately. A model's first answer is
+// often refused — for an undeclared parameter, a pixel-bound composition, or an
+// active-content violation — and an operator who reads the verdict before
+// storing can re-ask with a sharper brief instead of accumulating rejects in
+// the catalog.
+//
+// Consumed by:
+//   - API: handlers/generators/module.go
+//   - CLI: cli/domains/generators (`generators author`, `list`, `delete`)
+// =============================================================================
+
+service GeneratorsService {
+  // AuthorGenerator asks a model for a generator and validates it. It stores
+  // nothing unless store=true AND validation passed.
+  rpc AuthorGenerator(AuthorGeneratorRequest) returns (AuthorGeneratorResponse);
+  // ListGenerators returns every stored, validated generator.
+  rpc ListGenerators(ListGeneratorsRequest) returns (ListGeneratorsResponse);
+  // DeleteGenerator removes one. A style still bound to it then fails by name
+  // at its next render rather than silently drawing something else.
+  rpc DeleteGenerator(DeleteGeneratorRequest) returns (DeleteGeneratorResponse);
+}
+
+// ParamSpec is one declared knob, with the range a caller may set inside.
+message ParamSpec {
+  string name = 1;
+  double min = 2;
+  double max = 3;
+  double default = 4;
+  string description = 5;
+}
+
+// Check is one validation test and what it measured.
+message Check {
+  string name = 1;
+  bool passed = 2;
+  string detail = 3;
+}
+
+// ValidationReport is the verdict that admits or refuses a generator. Stored
+// beside it so an operator reads what was actually checked rather than trusting
+// that something was.
+message ValidationReport {
+  bool passed = 1;
+  repeated Check checks = 2;
+  repeated string refusals = 3;
+}
+
+message Generator {
+  string id = 1;
+  string name = 2;
+  string template = 3;
+  repeated ParamSpec params = 4;
+  // The "$brand.*" ink slots the template references.
+  repeated string inks = 5;
+  // The authoring prompt, verbatim. A generator whose prompt nobody kept can
+  // never be re-authored, re-reviewed or explained.
+  string prompt = 6;
+  // The model ai-gateway resolved. It is the disclosure record for every asset
+  // this generator later draws, and never a model this scenario asked for.
+  string model_id = 7;
+  ValidationReport validation = 8;
+}
+
+message AuthorGeneratorRequest {
+  // The id to author. It may not shadow a built-in preset.
+  string id = 1;
+  // The art direction, in the operator's words.
+  string brief = 2;
+  // Store the result when validation passes. False previews the verdict and
+  // writes nothing, which is the cheap way to iterate on a brief.
+  bool store = 3;
+}
+
+message AuthorGeneratorResponse {
+  Generator generator = 1;
+  // True only when the generator passed validation AND store was requested.
+  bool stored = 2;
+}
+
+message ListGeneratorsRequest {}
+message ListGeneratorsResponse {
+  repeated Generator generators = 1;
+}
+
+message DeleteGeneratorRequest {
+  string id = 1;
+}
+message DeleteGeneratorResponse {
+  bool deleted = 1;
+}

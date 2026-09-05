@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Portal",
+  "version": "1.1.2",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:LayerManager",
+      "major": 2,
+      "observed": "2.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useHydrated",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

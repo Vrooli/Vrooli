@@ -2,48 +2,243 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
-	_ "github.com/lib/pq"
+	internalconfig "tunnel-manager/internal/config"
+	internalexposure "tunnel-manager/internal/exposure"
+	"tunnel-manager/internal/modules"
+	internalprobes "tunnel-manager/internal/probes"
+	internalrecovery "tunnel-manager/internal/recovery"
+	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
 
-	"tunnel-manager/store"
+	auditH "tunnel-manager/handlers/audit"
+	configH "tunnel-manager/handlers/config"
+	exposureH "tunnel-manager/handlers/exposure"
+	healthH "tunnel-manager/handlers/health"
+	probesH "tunnel-manager/handlers/probes"
+	recoveryH "tunnel-manager/handlers/recovery"
+	routesH "tunnel-manager/handlers/routes"
+	tunnelH "tunnel-manager/handlers/tunnel"
 )
 
+type lifecycleScheduler interface {
+	Run(context.Context)
+}
+
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "tunnel-manager",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "tunnel-manager"}) {
+		return
 	}
 
-	// Initialize structured logging [REQ:OBS-003]
-	InitStructuredLogging(slog.LevelInfo)
-
-	// Connect to database with automatic retry and backoff
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: database.DriverPostgres,
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "tunnel-manager",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Ensure schema tables exist
-	if err := store.EnsureSchema(db); err != nil {
-		log.Fatalf("Schema migration failed: %v", err)
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
 	}
 
-	srv := NewServer(db)
+	clk := schedule.System()
+	logger := log.Default()
+	routesSvc := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
+	configSvc := configH.NewProductionService(db, clk, routesSvc)
+	bootstrapStop := startDerivedCredentialBootstrap(configSvc, logger)
+	exposureSvc := exposureH.NewProductionService(db, clk, routesSvc, configSvc)
+	probesSvc := probesH.NewProductionService(routesSvc, db, clk)
+	recoverySvc := recoveryH.NewProductionService(db, clk)
 
-	// Start server with graceful shutdown (port from API_PORT env var)
-	if err := server.Run(server.Config{
-		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+	var schedulerStops []func(context.Context)
+	if exposureSchedulerEnabledFromEnv() {
+		scheduler, err := internalexposure.NewScheduler(internalexposure.SchedulerConfig{
+			Service:  exposureSvc,
+			Interval: exposureSchedulerIntervalFromEnv(),
+			Logger:   logger,
+		})
+		if err != nil {
+			log.Fatalf("exposure scheduler initialization failed: %v", err)
+		}
+		schedulerStops = append(schedulerStops, startScheduler(scheduler))
+	}
+
+	if probeSchedulerEnabledFromEnv() {
+		scheduler, err := internalprobes.NewScheduler(internalprobes.SchedulerConfig{
+			Service:  probesSvc,
+			Interval: probeSchedulerIntervalFromEnv(),
+			Logger:   logger,
+		})
+		if err != nil {
+			log.Fatalf("probe scheduler initialization failed: %v", err)
+		}
+		schedulerStops = append(schedulerStops, startScheduler(scheduler))
+	}
+
+	if recoverySchedulerEnabledFromEnv() {
+		scheduler, err := internalrecovery.NewScheduler(internalrecovery.SchedulerConfig{
+			Service:  recoverySvc,
+			Interval: recoverySchedulerIntervalFromEnv(),
+			Logger:   logger,
+		})
+		if err != nil {
+			log.Fatalf("recovery scheduler initialization failed: %v", err)
+		}
+		schedulerStops = append(schedulerStops, startScheduler(scheduler))
+	}
+
+	srv := server.New(
+		server.Deps{Clock: clk, Logger: logger},
+		healthH.Module(db, "tunnel-manager-api", "1.0.0"),
+		routesH.Module(db, clk, logger),
+		auditH.ModuleWithRoutes(routesSvc, logger),
+		configH.ModuleWithService(configSvc, logger),
+		exposureH.ModuleWithService(exposureSvc, logger),
+		probesH.ModuleWithService(probesSvc, logger),
+		recoveryH.ModuleWithService(recoverySvc, logger),
+		tunnelH.Module(db, clk, logger),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			bootstrapStop(ctx)
+			for i := len(schedulerStops) - 1; i >= 0; i-- {
+				schedulerStops[i](ctx)
+			}
+			return errors.Join(ctx.Err(), db.Close())
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func startDerivedCredentialBootstrap(service internalconfig.Service, logger *log.Logger) func(context.Context) {
+	bootstrapper, ok := service.(internalconfig.DerivedCredentialBootstrapper)
+	if !ok {
+		return func(context.Context) {}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := bootstrapper.BootstrapConfiguredCloudflare(ctx); err != nil {
+			logger.Printf("derived credential bootstrap deferred: %v", err)
+		}
+	}()
+	return func(stopCtx context.Context) {
+		cancel()
+		select {
+		case <-done:
+		case <-stopCtx.Done():
+		}
+	}
+}
+
+func exposureSchedulerEnabledFromEnv() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_EXPOSURE_SCHEDULER_DISABLED")))
+	return raw != "1" && raw != "true" && raw != "yes"
+}
+
+func exposureSchedulerIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL"))
+	if raw == "" {
+		return internalexposure.DefaultReconcileInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		slog.Warn("invalid exposure reconcile interval; using default", "value", raw, "default", internalexposure.DefaultReconcileInterval.String())
+		return internalexposure.DefaultReconcileInterval
+	}
+	return d
+}
+
+func probeSchedulerEnabledFromEnv() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_PROBE_SCHEDULER_DISABLED")))
+	return raw != "1" && raw != "true" && raw != "yes"
+}
+
+func probeSchedulerIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_PROBE_INTERVAL"))
+	if raw == "" {
+		return internalprobes.DefaultProbeInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		slog.Warn("invalid probe interval; using default", "value", raw, "default", internalprobes.DefaultProbeInterval.String())
+		return internalprobes.DefaultProbeInterval
+	}
+	return d
+}
+
+func recoverySchedulerEnabledFromEnv() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED")))
+	return raw != "1" && raw != "true" && raw != "yes"
+}
+
+func recoverySchedulerIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL"))
+	if raw == "" {
+		return internalrecovery.DefaultEvaluationInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		slog.Warn("invalid recovery evaluation interval; using default", "value", raw, "default", internalrecovery.DefaultEvaluationInterval.String())
+		return internalrecovery.DefaultEvaluationInterval
+	}
+	return d
+}
+
+func startScheduler(s lifecycleScheduler) func(context.Context) {
+	schedulerCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.Run(schedulerCtx)
+	}()
+	return func(ctx context.Context) {
+		cancel()
+		waitForScheduler(ctx, done)
+	}
+}
+
+func waitForScheduler(ctx context.Context, done <-chan struct{}) {
+	select {
+	case <-done:
+	case <-ctx.Done():
 	}
 }

@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "mandates",
+    "title": "Mandates",
+    "routes": [
+      "/mandates"
+    ],
+    "purpose": "Show what authority currently exists, when each grant lapses, and what recurs. An operator uses this page to answer what an agent is allowed to do right now.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-012",
+      "OT-P1-005",
+      "OT-P2-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A live mandate is distinguishable from an expired, exhausted, or revoked one"
+    },
+    {
+      "statement": "Time remaining before expiry is stated, not left to be computed from a date"
+    },
+    {
+      "statement": "Standing mandates show their next charge date and cancel in one action"
+    },
+    {
+      "statement": "The scope of each grant is readable without opening it"
+    },
+    {
+      "statement": "Revocation is available and clearly irreversible"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Mandates exist across several lifecycle states."
+    },
+    {
+      "id": "loading",
+      "description": "Mandates are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No mandate has been issued; the page explains what a mandate grants."
+    },
+    {
+      "id": "submitting",
+      "description": "A revocation or cancellation is being recorded."
+    },
+    {
+      "id": "success",
+      "description": "A mandate was issued or revoked; the change is confirmed in terms of what it now permits."
+    },
+    {
+      "id": "validation-error",
+      "description": "A proposed mandate exceeds the budget backing it; the page names the constraint."
+    },
+    {
+      "id": "request-error",
+      "description": "Mandates could not be fetched."
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; the page names which rather than showing a blank."
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its refresh interval and states its age."
+    }
+  ],
+  "claims": [
+    {
+      "id": "mandates-lifecycle-distinct",
+      "type": "state-distinct",
+      "statement": "Live, expired, exhausted and revoked mandates are mutually distinguishable by text or shape, not colour alone.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "mandates-expiry-relative",
+      "type": "element-present",
+      "statement": "Time remaining is stated in relative terms alongside the absolute expiry.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "mandates-cancel-one-action",
+      "type": "affordance-present",
+      "statement": "A standing mandate is cancellable from its row without navigating into a detail view.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "mandates-revoke-irreversible",
+      "type": "element-present",
+      "statement": "The revoke control states that revocation is terminal and that reissue is the alternative.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "mandates-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Revoke and cancel are keyboard-operable with a visible focus state.",
+      "tier": "aspirational"
+    }
+  ]
+}

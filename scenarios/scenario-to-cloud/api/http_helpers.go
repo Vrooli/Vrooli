@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
+
+	"github.com/gorilla/mux"
 )
 
 // DeploymentContext bundles the common results of fetching and parsing a deployment.

@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "FormWizard",
+  "args": { "fields": [{ "path": "draftKey", "kind": "text", "label": "Draft key" }] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "resumable-navigation",
+      "name": "The footer is made of buttons",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "1.0.x emitted two unstyled elements with no gap, which adopting apps rendered as the single word BackSave. The footer now composes Button, so each control has a variant, a height and a separation from its neighbour.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "visible", "selector": "[data-rcl-wizard-footer]" },
+        { "kind": "count", "selector": "[data-rcl-wizard-footer] [data-rcl-control]", "value": "2" },
+        { "kind": "attribute", "selector": "[data-testid='story-back']", "attribute": "data-control-variant", "value": "secondary" },
+        { "kind": "attribute", "selector": "[data-testid='story-next']", "attribute": "data-control-variant", "value": "primary" },
+        { "kind": "role", "role": "button", "name": "Continue" }
+      ]
+    },
+    {
+      "id": "step-advance",
+      "name": "Continuing advances the strip and swaps the primary",
+      "role": "boundary",
+      "mode": "live",
+      "description": "On the last step the primary becomes Save, and the step behind it becomes reachable. A strip that let you jump forward would skip the validate boundary the current step declared, so only completed steps enable.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "interactions": [
+        { "kind": "click", "target": { "selector": "[data-testid='story-next']" } },
+        { "kind": "settle" }
+      ],
+      "expect": [
+        { "kind": "role", "role": "button", "name": "Save" },
+        { "kind": "attribute", "selector": "[data-rcl-wizard-step]", "attribute": "data-complete", "value": "true" },
+        { "kind": "text", "value": "What gets installed on it." }
+      ]
+    },
+    {
+      "id": "single-step",
+      "name": "One step gets no footer",
+      "role": "boundary",
+      "mode": "live",
+      "description": "A one-step wizard had a permanently disabled Back beside a Save that could not advance anything. showFooter now defaults to steps.length > 1, so the default matches what the step count already says.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "SingleStep" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "count", "selector": "[data-rcl-wizard-footer]", "value": "0" },
+        { "kind": "count", "selector": "[data-rcl-wizard-steps]", "value": "0" },
+        { "kind": "text", "value": "Address, login, password." }
+      ]
+    },
+    {
+      "id": "own-primary",
+      "name": "A caller's own primary replaces the generated one",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The escape hatch for a form whose submit is Start onboarding rather than Save. The note takes the leading edge so a disabled primary can say why it is disabled.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "OwnPrimary" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='story-own-primary']" },
+        { "kind": "visible", "selector": "[data-rcl-wizard-footer-note]" },
+        { "kind": "count", "selector": "[data-rcl-wizard-footer] [data-rcl-control]", "value": "0" },
+        { "kind": "text", "value": "Enter an address and a login" }
+      ]
+    }
+  ]
+}

@@ -3,14 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {
@@ -49,12 +53,25 @@ func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, er
 		Timestamp:   time.Now().UTC(),
 	}
 
-	if deps.IncludeFiles {
+	if deps.IncludeFiles || deps.IncludeChecks {
 		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit, deps.GrepPattern)
 		if err != nil {
 			return nil, err
 		}
 		entries := parseHistoryDetails(detailsRaw)
+		if deps.IncludeChecks && deps.CommitChecks != nil && len(entries) > 0 {
+			hashes := make([]string, 0, len(entries))
+			for _, entry := range entries {
+				hashes = append(hashes, entry.Hash)
+			}
+			checksByHash, err := deps.CommitChecks.ListForCommits(ctx, repoDir, hashes)
+			if err != nil {
+				return nil, err
+			}
+			for index := range entries {
+				entries[index].Checks = checksByHash[entries[index].Hash]
+			}
+		}
 		history.Entries = entries
 	}
 
@@ -118,17 +135,35 @@ func parseHistoryDetails(out []byte) []RepoHistoryEntry {
 	return entries
 }
 
-func detectScopes(files RepoFilesStatus) map[string][]string {
+func detectScopes(repoDir string, files RepoFilesStatus) map[string][]string {
 	scopes := map[string][]string{}
+	index := targetIndexForRepo(repoDir)
 	for _, path := range append(append(append(files.Staged, files.Unstaged...), files.Untracked...), files.Conflicts...) {
-		key := scopeKeyForPath(path)
+		key := scopeKeyForPath(path, index)
 		scopes[key] = append(scopes[key], path)
 	}
 	for _, path := range files.Ignored {
-		key := scopeKeyForPath(path)
+		key := scopeKeyForPath(path, index)
 		scopes[key] = append(scopes[key], path)
 	}
 	return scopes
+}
+
+func targetIndexForRepo(repoDir string) *repocontract.TargetIndex {
+	contract, err := repocontract.LoadDefault(repoDir)
+	if err != nil {
+		var contractErr *repocontract.Error
+		if errors.As(err, &contractErr) && contractErr.Kind != repocontract.ErrNotFound {
+			log.Printf("DEBUG: repo contract unavailable for %q: %v", repoDir, err)
+		}
+		return nil
+	}
+	index, err := contract.NewTargetIndex(repoDir)
+	if err != nil {
+		log.Printf("DEBUG: repo contract target index unavailable for %q: %v", repoDir, err)
+		return nil
+	}
+	return index
 }
 
 // scopePrefixMap maps top-level directories to their scope prefix.
@@ -140,7 +175,12 @@ var scopePrefixMap = map[string]string{
 	"services":  "service:",
 }
 
-func scopeKeyForPath(path string) string {
+func scopeKeyForPath(path string, indexes ...*repocontract.TargetIndex) string {
+	if len(indexes) > 0 && indexes[0] != nil {
+		if target, ok := indexes[0].Lookup(path); ok {
+			return string(target.Kind) + ":" + target.ID
+		}
+	}
 	trimmed := strings.TrimLeft(path, "/")
 	parts := strings.Split(trimmed, "/")
 	if len(parts) >= 2 {
@@ -151,43 +191,82 @@ func scopeKeyForPath(path string) string {
 	return "other"
 }
 
+// parseNumstatOutput parses `git diff --numstat -z` output into per-file stats
+// keyed by the file's current path, plus the paths git reported as binary.
+//
+// The -z form emits one NUL-terminated record per file:
+//
+//	"<add>\t<del>\t<path>\0"
+//
+// A rename or copy instead leaves the path field empty and follows the record
+// with its two paths as separate NUL-terminated records:
+//
+//	"<add>\t<del>\t\0<oldPath>\0<newPath>\0"
+//
+// Stats for a rename are keyed on the new path, which is the path
+// `git status --porcelain=v2` reports and therefore the one the rest of the
+// status pipeline uses. Binary files report "-" for both counts.
+//
+// The -z form is used rather than the newline form because the latter escapes
+// unusual filenames and collapses renames into an ambiguous
+// "old => new" / "dir/{old => new}/file" path field.
 func parseNumstatOutput(out []byte) (map[string]DiffStats, []string) {
 	stats := map[string]DiffStats{}
 	var binaries []string
-	raw := strings.TrimSpace(string(out))
-	if raw == "" {
-		return stats, binaries
-	}
-	lines := strings.Split(raw, "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
+
+	records := strings.Split(string(out), "\x00")
+	for i := 0; i < len(records); i++ {
+		record := records[i]
+		if strings.TrimSpace(record) == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
+		additions, deletions, path, ok := splitNumstatRecord(record)
+		if !ok {
 			continue
 		}
-		path := strings.TrimSpace(parts[2])
+
+		oldPath := ""
 		if path == "" {
-			continue
+			// Rename or copy: the two paths follow as their own records.
+			if i+2 >= len(records) {
+				continue
+			}
+			oldPath, path = records[i+1], records[i+2]
+			i += 2
+			if path == "" {
+				continue
+			}
 		}
-		additions := strings.TrimSpace(parts[0])
-		deletions := strings.TrimSpace(parts[1])
+
 		if additions == "-" || deletions == "-" {
 			binaries = append(binaries, path)
-			stats[path] = DiffStats{Files: 1, IsBinary: true}
+			stats[path] = DiffStats{Files: 1, IsBinary: true, IsRename: oldPath != "", OldPath: oldPath}
 			continue
 		}
-		add := parseNumstatValue(parts[0])
-		del := parseNumstatValue(parts[1])
+
+		add := parseNumstatValue(additions)
+		del := parseNumstatValue(deletions)
 		stats[path] = DiffStats{
 			Additions: add,
 			Deletions: del,
 			Files:     1,
 			NetLines:  add - del,
+			IsRename:  oldPath != "",
+			OldPath:   oldPath,
 		}
 	}
 	return stats, binaries
+}
+
+// splitNumstatRecord splits a single numstat record into its addition count,
+// deletion count, and path. The path is empty for rename and copy records,
+// whose paths are carried in the records that follow.
+func splitNumstatRecord(record string) (additions, deletions, path string, ok bool) {
+	parts := strings.SplitN(record, "\t", 3)
+	if len(parts) < 3 {
+		return "", "", "", false
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), parts[2], true
 }
 
 func parseNumstatValue(value string) int {

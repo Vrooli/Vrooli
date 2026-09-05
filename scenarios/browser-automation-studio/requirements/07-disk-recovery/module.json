@@ -1,0 +1,27 @@
+{
+  "_metadata": {
+    "description": "Requirement for bounded, resumable browser evidence retention.",
+    "last_validated_at": "2026-09-03T17:00:27-04:00",
+    "module": "disk-recovery",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BAS-P0-101",
+      "title": "Bounded browser evidence retention",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "Browser Automation Studio MUST retain recordings and captures within the declared seven-day budget and MUST use resumable complete-entry deletion with shared containment checks.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/services/retention/retention_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Retention selection, deletion, and bounded sweep behavior are covered."
+        }
+      ]
+    }
+  ]
+}

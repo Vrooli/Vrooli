@@ -1,0 +1,917 @@
+<title>Leader, Follower, Ghost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────── */
+  :root {
+    --ground:      #f1f3f4;
+    --surface:     #ffffff;
+    --surface-2:   #e9edef;
+    --line:        #d5dbdf;
+    --line-soft:   #e4e9eb;
+    --text:        #141a20;
+    --text-2:      #3d4852;
+    --muted:       #626e7a;
+    --accent:      #14707f;
+    --accent-soft: #d3e8ea;
+    --critical:    #a83f2b;
+    --warn:        #7d5a10;
+    --ok:          #2b6647;
+    --crit-bg:     #f6e3de;
+    --warn-bg:     #f4ead2;
+    --ok-bg:       #dcecdf;
+
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --body:    "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --measure: 68ch;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0f1318;
+      --surface:     #161c23;
+      --surface-2:   #1c232b;
+      --line:        #2a333d;
+      --line-soft:   #232b34;
+      --text:        #e3e7ea;
+      --text-2:      #c0c8d0;
+      --muted:       #8c98a5;
+      --accent:      #57b9c8;
+      --accent-soft: #16333a;
+      --critical:    #e07a67;
+      --warn:        #dda94f;
+      --ok:          #7cbb92;
+      --crit-bg:     #2c1a17;
+      --warn-bg:     #2b2313;
+      --ok-bg:       #16281d;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0f1318;
+    --surface:     #161c23;
+    --surface-2:   #1c232b;
+    --line:        #2a333d;
+    --line-soft:   #232b34;
+    --text:        #e3e7ea;
+    --text-2:      #c0c8d0;
+    --muted:       #8c98a5;
+    --accent:      #57b9c8;
+    --accent-soft: #16333a;
+    --critical:    #e07a67;
+    --warn:        #dda94f;
+    --ok:          #7cbb92;
+    --crit-bg:     #2c1a17;
+    --warn-bg:     #2b2313;
+    --ok-bg:       #16281d;
+    color-scheme: dark;
+  }
+
+  /* ── Base ───────────────────────────────────────────────────────────── */
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  p, li { color: var(--text-2); }
+  p { margin: 0 0 1em; max-width: var(--measure); }
+  ul, ol { max-width: var(--measure); padding-left: 1.15em; margin: 0 0 1.1em; }
+  li { margin-bottom: .42em; }
+  strong { color: var(--text); font-weight: 600; }
+  a { color: var(--accent); }
+
+  h1, h2, h3, h4 {
+    font-family: var(--display);
+    color: var(--text);
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.015em;
+  }
+
+  code, .mono { font-family: var(--mono); }
+
+  code {
+    font-size: .84em;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: .08em .34em;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── Masthead ───────────────────────────────────────────────────────── */
+  .masthead {
+    border-bottom: 2px solid var(--text);
+    padding: 64px 0 26px;
+    margin-bottom: 8px;
+  }
+  .masthead h1 {
+    font-size: clamp(38px, 7vw, 68px);
+    font-weight: 700;
+    line-height: 1.0;
+    letter-spacing: -0.035em;
+    margin: 14px 0 20px;
+  }
+  .deck {
+    font-size: clamp(18px, 2.3vw, 22px);
+    line-height: 1.48;
+    max-width: 34ch;
+    color: var(--text-2);
+    margin: 0;
+  }
+  .stamp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 28px;
+    margin-top: 30px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stamp b { color: var(--text); font-weight: 500; }
+
+  /* ── Section scaffolding ────────────────────────────────────────────── */
+  section { margin-top: 76px; }
+
+  .sec-head {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0 24px;
+    align-items: baseline;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    margin-bottom: 30px;
+  }
+  .sec-head h2 {
+    font-size: clamp(24px, 3.4vw, 33px);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+  }
+  .sec-head .eyebrow { padding-top: .5em; }
+
+  .body-col { padding-left: 0; }
+  @media (min-width: 780px) {
+    .body-col { padding-left: calc(7rem + 24px); }
+  }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 34px 0 10px;
+  }
+
+  /* ── Summary strip ──────────────────────────────────────────────────── */
+  .strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin: 34px 0 0;
+  }
+  .strip div {
+    background: var(--surface);
+    padding: 16px 18px 18px;
+  }
+  .strip .n {
+    font-family: var(--display);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    display: block;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .strip .k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-top: 6px;
+  }
+  .strip .n.crit { color: var(--critical); }
+  .strip .n.warn { color: var(--warn); }
+  .strip .n.acc  { color: var(--accent); }
+
+  /* ── Pull quote / thesis ────────────────────────────────────────────── */
+  .thesis {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 22px 26px;
+    margin: 30px 0;
+    max-width: var(--measure);
+  }
+  .thesis p {
+    font-size: 19px;
+    line-height: 1.5;
+    margin: 0;
+    color: var(--text);
+  }
+
+  /* ── Figures ────────────────────────────────────────────────────────── */
+  figure {
+    margin: 34px 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 22px 22px 16px;
+  }
+  figure .scroller { overflow-x: auto; }
+  figure svg {
+    display: block;
+    width: 100%;
+    min-width: 560px;
+    max-width: 100%;
+    height: auto;
+    color: var(--text);
+  }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line-soft);
+  }
+  svg text { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  /* ── Finding ledger ─────────────────────────────────────────────────── */
+  .finding {
+    border-top: 1px solid var(--line);
+    padding: 26px 0 6px;
+    display: grid;
+    gap: 0 24px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 780px) {
+    .finding { grid-template-columns: 7rem 1fr; }
+  }
+  .finding:first-of-type { border-top: 2px solid var(--text); }
+
+  .f-gutter { padding-bottom: 12px; }
+  .f-id {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: block;
+  }
+  .f-sev {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    display: inline-block;
+    margin-top: 8px;
+    border-radius: 2px;
+  }
+  .sev-crit { background: var(--crit-bg); color: var(--critical); }
+  .sev-warn { background: var(--warn-bg); color: var(--warn); }
+  .sev-low  { background: var(--surface-2); color: var(--muted); }
+  .f-conf {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    display: block;
+    margin-top: 9px;
+    line-height: 1.4;
+  }
+
+  .finding h3 { margin-top: 0; font-size: 22px; letter-spacing: -0.02em; }
+
+  .quote {
+    font-style: italic;
+    color: var(--muted);
+    border-left: 2px solid var(--line);
+    padding-left: 14px;
+    margin: 0 0 16px;
+    max-width: var(--measure);
+    font-size: 16px;
+  }
+
+  .kv {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+    margin: 18px 0 6px;
+    max-width: var(--measure);
+  }
+  .kv > div {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0 14px;
+    padding: 9px 0;
+    border-top: 1px solid var(--line-soft);
+    align-items: start;
+  }
+  .kv dt, .kv .k2 {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 4px;
+  }
+  .kv .v {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+  .kv .v.code-list {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    word-break: break-word;
+  }
+  .kv .v.code-list span { display: block; }
+
+  /* ── Debt table ─────────────────────────────────────────────────────── */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); margin: 26px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+  }
+  td { font-size: 15px; line-height: 1.5; color: var(--text-2); }
+  td:first-child { font-family: var(--mono); font-size: 12.5px; color: var(--text); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── Ordered work plan ──────────────────────────────────────────────── */
+  .plan { counter-reset: step; list-style: none; padding: 0; max-width: var(--measure); }
+  .plan > li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 2.4rem 1fr;
+    gap: 0 16px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line-soft);
+    margin: 0;
+  }
+  .plan > li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    padding-top: 3px;
+  }
+  .plan h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .plan p { margin: 0; font-size: 15.5px; }
+
+  .footnote {
+    margin-top: 70px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 72ch;
+  }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <span class="eyebrow">Web Console · Terminal fidelity · REQ-P0-002e</span>
+    <h1>Leader, Follower,<br>Ghost</h1>
+    <p class="deck">Device identity is per device. Control authority is per socket. Nothing in the system connects the two — and almost every bug you're feeling lives in that gap.</p>
+    <div class="stamp">
+      <span>Audited <b>2026-08-29</b></span>
+      <span>Branch <b>agi</b></span>
+      <span>Scope <b>~4,000 lines, 17 files, Go + TS</b></span>
+      <span>Method <b>source read; not device-reproduced</b></span>
+    </div>
+  </header>
+
+  <div class="strip">
+    <div><span class="n crit">2</span><span class="k">Confirmed blockers</span></div>
+    <div><span class="n warn">4</span><span class="k">Confirmed frictions</span></div>
+    <div><span class="n acc">84</span><span class="k">Green unit tests</span></div>
+    <div><span class="n">0</span><span class="k">Tests on the broken seams</span></div>
+    <div><span class="n">0</span><span class="k">BAS cases for follower</span></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Part 01</span>
+      <h2>How it actually works</h2>
+    </div>
+    <div class="body-col">
+
+      <p>There are four moving parts. They were each built well; they were never introduced to each other.</p>
+
+      <h3>1 · Identity — what makes your phone "your phone"</h3>
+      <p>Purely browser-local, and deliberately not a hardware claim. On first load, <code>deviceIdentity()</code> mints a <code>crypto.randomUUID()</code> and stores it in <code>localStorage</code> under <code>wc.deviceId</code>, alongside an operator-editable label under <code>wc.deviceLabel</code>.</p>
+      <p>The <em>shape</em> — phone, tablet, laptop, monitor, ultrawide — is computed fresh on every connect by <code>deviceClassFromScreen()</code>, from <code>screen.width</code>, <code>screen.height</code> and <code>navigator.maxTouchPoints</code>. Touch plus a short edge under 600px is a phone; touch under 1100px is a tablet; otherwise aspect ratio and long edge decide. The comments are explicit that this reads <code>screen</code> and not the terminal grid, because the grid shrinks when a virtual keyboard opens and a phone would reclassify itself as a laptop mid-sentence. That reasoning is sound and the code honours it.</p>
+      <p>All three values ride the WebSocket URL as query parameters and land in the session's per-connection <code>ClientInfo</code>. Every comment in both languages repeats the same disclaimer: <strong>display only, never an authorization signal.</strong></p>
+
+      <h3>2 · Authority — the size lease</h3>
+      <p>One session, one PTY, one winsize. So exactly one connection holds the <em>size lease</em> and gets to resize the shared terminal. In <code>api/session/session.go</code> the lease owner is stored as <code>leaseOwner chan []byte</code> — a Go channel, which is the identity of <strong>one WebSocket connection</strong>. Not a device. Not a person.</p>
+      <p>It moves in four ways: <code>first_client</code> on the empty session, <code>input</code> when a follower types, <code>explicit</code> on a Take over tap, and <code>leader_disconnect</code>, which hands it to <code>oldestClientLocked()</code> — the longest-connected survivor.</p>
+
+      <h3>3 · Presentation — the silhouette</h3>
+      <p>Presence and <code>size_info</code> frames carry the leader's <code>leaderDevice</code>, <code>deviceClass</code>, <code>kbOpen</code>, <code>holdsLease</code> and <code>viewerCount</code>. A follower runs <code>resolveArchetype()</code> (declared class wins; grid geometry is the fallback), then <code>fitFollowerPresentation()</code> letterboxes the leader's grid inside a fixed-aspect enclosure from one geometry table, picking a <code>full</code> / <code>hairline</code> / <code>strip</code> chrome tier by how much pane surplus is left. This layer is genuinely good work — one table drives both the drawn bezel and the aperture the terminal is inset into, so they cannot drift.</p>
+
+      <h3>4 · Takeover</h3>
+      <p><code>takeLease()</code> re-declares this client's last known grid, then sends <code>{type:"take_lease"}</code>. The server calls <code>AcquireLease</code>, applies the new owner's <em>declared</em> size to the PTY, and re-publishes presence to everyone.</p>
+
+      <figure>
+        <div class="scroller">
+        <svg viewBox="0 0 900 400" role="img" aria-label="Two parallel tracks: a device-identity track that flows from localStorage to the follower's silhouette, and an authority track keyed on the WebSocket channel. The two tracks never connect.">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+            </marker>
+          </defs>
+
+          <!-- lane labels -->
+          <text x="0" y="20" font-size="11" letter-spacing="1.4" fill="var(--muted)">BROWSER</text>
+          <text x="255" y="20" font-size="11" letter-spacing="1.4" fill="var(--muted)">WEBSOCKET</text>
+          <text x="470" y="20" font-size="11" letter-spacing="1.4" fill="var(--muted)">SESSION (GO)</text>
+          <text x="720" y="20" font-size="11" letter-spacing="1.4" fill="var(--muted)">EVERY VIEWER</text>
+          <line x1="0" y1="30" x2="900" y2="30" stroke="currentColor" stroke-opacity=".18"/>
+
+          <!-- Track A: identity -->
+          <text x="0" y="62" font-size="11" font-weight="600" letter-spacing="1.2" fill="var(--muted)">IDENTITY TRACK</text>
+
+          <rect x="0" y="76" width="212" height="62" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="12" y="98" font-size="12.5">localStorage</text>
+          <text x="12" y="115" font-size="11.5" fill="var(--muted)">wc.deviceId (uuid)</text>
+          <text x="12" y="130" font-size="11.5" fill="var(--muted)">wc.deviceLabel</text>
+
+          <rect x="0" y="148" width="212" height="46" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="12" y="169" font-size="12.5">screen + maxTouchPoints</text>
+          <text x="12" y="185" font-size="11.5" fill="var(--muted)">→ deviceClass</text>
+
+          <line x1="212" y1="107" x2="252" y2="107" stroke="currentColor" marker-end="url(#a1)"/>
+          <line x1="212" y1="171" x2="240" y2="171" stroke="currentColor"/>
+          <path d="M240 171 L240 112 L252 112" fill="none" stroke="currentColor" marker-end="url(#a1)"/>
+
+          <rect x="256" y="86" width="190" height="46" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="266" y="106" font-size="11.5">?deviceId&amp;deviceLabel</text>
+          <text x="266" y="122" font-size="11.5">&amp;deviceClass</text>
+
+          <line x1="446" y1="109" x2="482" y2="109" stroke="currentColor" marker-end="url(#a1)"/>
+
+          <rect x="486" y="76" width="200" height="66" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="497" y="97" font-size="12.5">ClientInfo</text>
+          <text x="497" y="114" font-size="11.5" fill="var(--muted)">DeviceID, DeviceLabel,</text>
+          <text x="497" y="130" font-size="11.5" fill="var(--muted)">DeviceClass, KbOpen</text>
+
+          <line x1="686" y1="109" x2="716" y2="109" stroke="currentColor" marker-end="url(#a1)"/>
+          <rect x="720" y="80" width="180" height="58" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="731" y="101" font-size="12.5">silhouette + label</text>
+          <text x="731" y="119" font-size="11.5" fill="var(--muted)">"iPhone · 52×28"</text>
+
+          <!-- separator -->
+          <line x1="0" y1="228" x2="900" y2="228" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="2 5"/>
+
+          <!-- Track B: authority -->
+          <text x="0" y="262" font-size="11" font-weight="600" letter-spacing="1.2" fill="var(--accent)">AUTHORITY TRACK</text>
+
+          <rect x="0" y="276" width="212" height="52" fill="none" stroke="var(--accent)"/>
+          <text x="12" y="297" font-size="12.5" fill="var(--accent)">new WebSocket(url)</text>
+          <text x="12" y="314" font-size="11.5" fill="var(--muted)">one socket = one client</text>
+
+          <line x1="212" y1="302" x2="252" y2="302" stroke="var(--accent)" marker-end="url(#a2)"/>
+          <rect x="256" y="278" width="190" height="48" fill="none" stroke="var(--accent)"/>
+          <text x="266" y="299" font-size="11.5" fill="var(--accent)">chan []byte</text>
+          <text x="266" y="316" font-size="11.5" fill="var(--muted)">the output channel</text>
+
+          <line x1="446" y1="302" x2="482" y2="302" stroke="var(--accent)" marker-end="url(#a2)"/>
+          <rect x="486" y="272" width="200" height="60" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="497" y="294" font-size="12.5" font-weight="600" fill="var(--accent)">leaseOwner</text>
+          <text x="497" y="312" font-size="11.5" fill="var(--muted)">= chan []byte</text>
+          <text x="497" y="326" font-size="11.5" fill="var(--muted)">"who may resize the PTY"</text>
+
+          <line x1="686" y1="302" x2="716" y2="302" stroke="var(--accent)" marker-end="url(#a2)"/>
+          <rect x="720" y="278" width="180" height="48" fill="none" stroke="var(--accent)"/>
+          <text x="731" y="298" font-size="12.5" fill="var(--accent)">holdsLease: bool</text>
+          <text x="731" y="315" font-size="11.5" fill="var(--muted)">→ isFollower</text>
+
+          <!-- the missing link -->
+          <path d="M586 148 L586 264" fill="none" stroke="var(--critical)" stroke-width="1.5" stroke-dasharray="5 5"/>
+          <line x1="572" y1="198" x2="600" y2="216" stroke="var(--critical)" stroke-width="2"/>
+          <line x1="600" y1="198" x2="572" y2="216" stroke="var(--critical)" stroke-width="2"/>
+          <text x="612" y="203" font-size="12" font-weight="600" fill="var(--critical)">no reconciliation</text>
+          <text x="612" y="219" font-size="11.5" fill="var(--muted)">the lease never asks which device it belongs to</text>
+
+          <text x="720" y="360" font-size="11.5" fill="var(--critical)">"leader" (the leader's deviceId)</text>
+          <text x="720" y="376" font-size="11.5" fill="var(--muted)">is on the wire — and read by nothing</text>
+          <path d="M714 355 L694 355 L694 145" fill="none" stroke="var(--critical)" stroke-opacity=".5" stroke-dasharray="3 4"/>
+        </svg>
+        </div>
+        <figcaption>Two tracks reach the follower independently. The identity track answers "what does the leader look like"; the authority track answers "am I the leader". Neither one ever asks whether the leader <em>is</em> me. The server already ships the answer — <code>leader</code>, the leader's device id, in every presence frame — and no line of UI code reads it.</figcaption>
+      </figure>
+
+      <div class="thesis">
+        <p>One sentence explains four of your six symptoms: <strong>a device can be its own remote.</strong> Two sockets from one phone are two independent clients to the server, and the UI has no way to notice they are the same hardware.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Part 02</span>
+      <h2>What is broken</h2>
+    </div>
+    <div class="body-col">
+      <p>Six defects, ordered by how much of the annoyance they account for. Every one is traced to a specific line; none required guessing.</p>
+    </div>
+
+    <!-- D1 -->
+    <div class="finding">
+      <div class="f-gutter">
+        <span class="f-id">D1</span>
+        <span class="f-sev sev-crit">Blocker</span>
+        <span class="f-conf">Confidence<br>High — mechanism read end to end</span>
+      </div>
+      <div>
+        <h3>The phone becomes its own ghost leader</h3>
+        <p class="quote">"Sometimes it thinks there's a remote device in control when it's really just the current device."</p>
+        <p>When a phone's socket dies without a close frame — backgrounded Safari, a Wi-Fi-to-cellular handoff, a tunnel — the server does not find out immediately. It learns via a read deadline of <code>2 × wsPingPeriod</code>, which is <strong>60 seconds</strong> by default. Meanwhile the client, which knew instantly, has already reconnected.</p>
+        <p>For up to a minute the session holds two <code>ClientInfo</code> records with the <em>same</em> <code>DeviceID</code> and the <em>same</em> <code>DeviceLabel</code>. The dead one still owns the lease. So <code>viewerCount</code> is 2, <code>holdsLease</code> is false, and the phone dutifully draws a phone-shaped silhouette captioned with its own name and offers to take control back from itself.</p>
+        <p>It self-heals when the deadline expires, which is exactly why it reads as intermittent and unreproducible.</p>
+        <div class="kv">
+          <div><span class="k2">Evidence</span><span class="v code-list">
+            <span>api/terminal_ws.go:160 — <em>read deadline = 2 × 30s</em></span>
+            <span>api/session/session.go:787 — <em>Subscribe registers a second client</em></span>
+            <span>api/session/sizelease.go:146 — <em>presence built from leaseOwner's ClientInfo</em></span>
+            <span>useTerminalSession.ts:388 — <em>applyLeaderPresentation drops msg.leader</em></span>
+            <span>TerminalPane.tsx:199 — <em>presentsFollowerDevice = frame &amp;&amp; viewerCount &gt; 1</em></span>
+          </span></div>
+          <div><span class="k2">Fix</span><span class="v">Two halves, both cheap. <strong>Client:</strong> read <code>msg.leader</code> — it is already typed in <code>types/terminal.ts:89</code> — and suppress the follower presentation when it equals this device's id. <strong>Server:</strong> on <code>Subscribe</code>, when an existing connection carries the same non-empty <code>DeviceID</code>, treat the newcomer as that device reclaiming its seat: move the lease and evict the stale socket instead of waiting out the deadline. A device reconnecting to its own session should not have to ask itself for permission.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body-col">
+      <figure>
+        <div class="scroller">
+        <svg viewBox="0 0 900 320" role="img" aria-label="Timeline showing a phone's old socket dying silently, the phone reconnecting on a new socket, and the server holding the lease on the dead socket for up to sixty seconds while the phone renders itself as a remote device.">
+          <defs>
+            <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- time axis -->
+          <line x1="150" y1="292" x2="880" y2="292" stroke="currentColor" stroke-opacity=".4" marker-end="url(#a3)"/>
+          <text x="150" y="312" font-size="11" fill="var(--muted)">t₀</text>
+          <text x="330" y="312" font-size="11" fill="var(--muted)">network drops</text>
+          <text x="470" y="312" font-size="11" fill="var(--muted)">client reconnects</text>
+          <text x="740" y="312" font-size="11" fill="var(--muted)">t₀ + 60s</text>
+
+          <line x1="330" y1="40" x2="330" y2="286" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>
+          <line x1="470" y1="40" x2="470" y2="286" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>
+          <line x1="740" y1="40" x2="740" y2="286" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>
+
+          <!-- lane 1 -->
+          <text x="0" y="62" font-size="11.5" fill="var(--muted)">Socket A (phone)</text>
+          <rect x="150" y="46" width="180" height="24" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="160" y="63" font-size="11.5">live · holds lease</text>
+          <rect x="330" y="46" width="410" height="24" fill="var(--crit-bg)" stroke="var(--critical)" stroke-dasharray="4 3"/>
+          <text x="342" y="63" font-size="11.5" fill="var(--critical)">dead, but still registered — and still leaseOwner</text>
+
+          <!-- lane 2 -->
+          <text x="0" y="122" font-size="11.5" fill="var(--muted)">Socket B (phone)</text>
+          <rect x="470" y="106" width="410" height="24" fill="none" stroke="var(--accent)"/>
+          <text x="482" y="123" font-size="11.5" fill="var(--accent)">live · holdsLease = false · same deviceId as Socket A</text>
+
+          <!-- lane 3 -->
+          <text x="0" y="182" font-size="11.5" fill="var(--muted)">Server view</text>
+          <rect x="150" y="166" width="320" height="24" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+          <text x="160" y="183" font-size="11.5" fill="var(--muted)">viewerCount 1</text>
+          <rect x="470" y="166" width="270" height="24" fill="var(--warn-bg)" stroke="var(--warn)"/>
+          <text x="482" y="183" font-size="11.5" fill="var(--warn)">viewerCount 2 · leader = Socket A</text>
+          <rect x="740" y="166" width="140" height="24" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+          <text x="750" y="183" font-size="11.5" fill="var(--muted)">reaped → lease moves</text>
+
+          <!-- lane 4 -->
+          <text x="0" y="242" font-size="11.5" fill="var(--muted)">What you see</text>
+          <rect x="150" y="226" width="320" height="24" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+          <text x="160" y="243" font-size="11.5" fill="var(--muted)">normal terminal</text>
+          <rect x="470" y="226" width="270" height="24" fill="var(--crit-bg)" stroke="var(--critical)"/>
+          <text x="482" y="243" font-size="11.5" fill="var(--critical)">phone silhouette + "Take over control"</text>
+          <rect x="740" y="226" width="140" height="24" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+          <text x="750" y="243" font-size="11.5" fill="var(--muted)">back to normal</text>
+        </svg>
+        </div>
+        <figcaption>The ghost window is bounded by the server's read deadline, not by anything the client can influence. Every signal inside it is internally consistent — which is why nothing logs an error and why it looks random from the outside.</figcaption>
+      </figure>
+    </div>
+
+    <!-- D2 -->
+    <div class="finding">
+      <div class="f-gutter">
+        <span class="f-id">D2</span>
+        <span class="f-sev sev-crit">Blocker</span>
+        <span class="f-conf">Confidence<br>High — single-line cause, matches laptop/phone split exactly</span>
+      </div>
+      <div>
+        <h3>Take over control cannot be tapped, only clicked</h3>
+        <p class="quote">"The takeover button doesn't seem to work when I'm viewing it from my phone… it always works when viewed through my laptop."</p>
+        <p>The pane's touch layer attaches <code>touchstart</code> / <code>touchend</code> listeners on the pane container in the <strong>capture phase</strong>, so it sees every touch before any descendant. On a short tap it calls <code>e.preventDefault()</code> — deliberately, with a good comment: it suppresses the synthetic click the browser fires ~300 ms later, by which time the virtual keyboard has resized the pane and the click would land somewhere else.</p>
+        <p>The consequence is that <strong>no <code>click</code> event is ever dispatched inside the terminal pane on a touch device</strong>. The Take over button is a DOM descendant of that container, so its <code>onClick</code> never runs. A mouse produces no touch events at all, which is why the laptop is unaffected.</p>
+        <p>The tell is already in the file: <code>onTouchStart</code> carries a hand-written escape hatch — <code>target.closest("[data-testid='terminal-context-menu'], [data-testid='ctx-backdrop']")</code> — added the last time this exact bug bit. The device caption was never added to that list.</p>
+        <div class="kv">
+          <div><span class="k2">Evidence</span><span class="v code-list">
+            <span>useTerminalTouch.ts:635,640 — <em>capture-phase listeners on the pane container</em></span>
+            <span>useTerminalTouch.ts:566 — <em>e.preventDefault() on the tap path</em></span>
+            <span>useTerminalTouch.ts:360 — <em>the two-entry allowlist</em></span>
+            <span>DeviceFrame.tsx:101 — <em>&lt;button onClick={onTakeOver}&gt;</em></span>
+          </span></div>
+          <div><span class="k2">Fix</span><span class="v">Stop maintaining an allowlist of test ids. Invert it: bail out of the gesture machine whenever the touch target is interactive at all — <code>target.closest("button, a, input, textarea, select, [role='button']")</code> — so the terminal's gesture layer only ever claims touches that landed on the terminal. That fixes the take-over button and every future in-pane control in one edit.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D3 -->
+    <div class="finding">
+      <div class="f-gutter">
+        <span class="f-id">D3</span>
+        <span class="f-sev sev-warn">Friction</span>
+        <span class="f-conf">Confidence<br>High — stacking rules are deterministic</span>
+      </div>
+      <div>
+        <h3>The device frame paints over the messages view</h3>
+        <p class="quote">"When I have the messages view open it shouldn't be showing the device frame, but it still does."</p>
+        <p>The messages view is not a replacement for the terminal — it is an <code>absolute inset-0</code> sibling layered on top of a still-mounted <code>TerminalPane</code>. That sibling has no <code>z-index</code>, so it sits at <code>z-index: auto</code>.</p>
+        <p>Inside the terminal pane, the device caption carries <code>z-wc-chrome-raised</code>, which is <code>z-index: 20</code>, and the enclosure carries <code>z-index: 1</code>. The pane root is <code>relative</code> with no <code>z-index</code>, so it does <em>not</em> establish a stacking context — those two values escape into the parent's context and win against a later sibling at <code>auto</code>. DOM order says messages are on top; the z-scale says otherwise, and the z-scale wins.</p>
+        <p>Note the blast radius is wider than the device frame: the pane status toast, upload errors and input errors all use the same token and will also punch through the messages view.</p>
+        <div class="kv">
+          <div><span class="k2">Evidence</span><span class="v code-list">
+            <span>WorkspacePaneShell.tsx:216 — <em>MessagesPane in a bare absolute inset-0</em></span>
+            <span>DeviceFrame.tsx:82 — <em>z-wc-chrome-raised on the caption</em></span>
+            <span>useFollowerViewportLayout.ts:23 — <em>FOLLOWER_ENCLOSURE_Z = 1</em></span>
+            <span>tailwind.config.ts:81 — <em>wc-chrome-raised = 20</em></span>
+            <span>TerminalPane.tsx:312 — <em>root is "relative", z-index auto</em></span>
+          </span></div>
+          <div><span class="k2">Fix</span><span class="v">Two independent corrections, and I'd do both. <strong>Containment:</strong> give the pane root an explicit <code>isolation: isolate</code> so its z-scale cannot leak past its own box — that is the general bug, and it protects the toasts too. <strong>Intent:</strong> a follower frame while the reader is in the messages view is meaningless chrome; pass the view mode down and stop rendering it, rather than relying on paint order to hide it.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body-col">
+      <figure>
+        <div class="scroller">
+        <svg viewBox="0 0 900 250" role="img" aria-label="DOM order places MessagesPane after TerminalPane, but because the pane root creates no stacking context, the device frame's z-index of 20 escapes and paints above the messages pane's automatic z-index.">
+          <text x="0" y="18" font-size="11" letter-spacing="1.4" fill="var(--muted)">DOM ORDER (WHAT YOU'D EXPECT)</text>
+          <rect x="0" y="34" width="330" height="34" fill="none" stroke="currentColor" stroke-opacity=".5"/>
+          <text x="12" y="56" font-size="12">TerminalPane · position: relative · z: auto</text>
+          <rect x="20" y="76" width="310" height="30" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+          <text x="32" y="96" font-size="11.5" fill="var(--muted)">DeviceFrame caption · z: 20</text>
+          <rect x="0" y="118" width="330" height="34" fill="var(--accent-soft)" stroke="var(--accent)"/>
+          <text x="12" y="140" font-size="12" fill="var(--accent)">MessagesPane · absolute inset-0 · z: auto</text>
+          <text x="0" y="180" font-size="11.5" fill="var(--muted)">Later sibling — should cover everything above it.</text>
+
+          <line x1="380" y1="30" x2="380" y2="200" stroke="currentColor" stroke-opacity=".2"/>
+
+          <text x="430" y="18" font-size="11" letter-spacing="1.4" fill="var(--critical)">PAINT ORDER (WHAT HAPPENS)</text>
+          <text x="430" y="42" font-size="11.5" fill="var(--muted)">z: auto on the pane root means no stacking context,</text>
+          <text x="430" y="58" font-size="11.5" fill="var(--muted)">so its children compete in the parent's context.</text>
+
+          <rect x="430" y="76" width="330" height="30" fill="var(--crit-bg)" stroke="var(--critical)"/>
+          <text x="442" y="96" font-size="11.5" fill="var(--critical)">DeviceFrame caption · z: 20 ← on top</text>
+          <rect x="446" y="112" width="330" height="30" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+          <text x="458" y="132" font-size="11.5" fill="var(--muted)">DeviceFrame enclosure · z: 1</text>
+          <rect x="462" y="148" width="330" height="30" fill="none" stroke="var(--accent)" stroke-opacity=".7"/>
+          <text x="474" y="168" font-size="11.5" fill="var(--accent)">MessagesPane · z: auto ← buried</text>
+
+          <text x="430" y="210" font-size="11.5" fill="var(--text)">Fix: isolation: isolate on the pane root.</text>
+        </svg>
+        </div>
+        <figcaption>A positive <code>z-index</code> inside an element that establishes no stacking context is not scoped to that element. The overlay z-scale in <code>tailwind.config.ts</code> is well designed and well documented; it just assumes containment that the pane root never provides.</figcaption>
+      </figure>
+    </div>
+
+    <!-- D4 -->
+    <div class="finding">
+      <div class="f-gutter">
+        <span class="f-id">D4</span>
+        <span class="f-sev sev-warn">Friction</span>
+        <span class="f-conf">Confidence<br>High — the pinch workaround is the proof</span>
+      </div>
+      <div>
+        <h3>Nothing re-fits the terminal when the role changes</h3>
+        <p class="quote">"When I take over or get back into the main full view, sometimes the terminal doesn't resize properly and I have to pinch to zoom in and out to get it to figure out that it needs to resize."</p>
+        <p>Your workaround is the diagnosis. There are exactly three things that fit the terminal and report a new size upstream: a <code>ResizeObserver</code> on the container, a change to <code>paneFontSize</code>, and first mount. <strong>A lease change is none of them.</strong></p>
+        <p>Worse, it cannot be. <code>isFollower</code> reaches the lifecycle hook as <code>isFollowerForLifecycle</code> — a <code>useCallback</code> with an empty dependency array that reads a ref. Its identity never changes, so every effect that depends on it is frozen at mount and none of them re-run when you take control back.</p>
+        <p>What does run is <code>useFollowerViewportLayout</code>, which clears the follower styles and calls <code>refit()</code>. But <code>refit</code> is <code>scrollAwareFit</code> — it fits xterm to the box and <em>never calls <code>sendResize</code></em>. So the local grid and the PTY's winsize can disagree, and the container has not changed size, so the observer stays quiet. Pinching changes <code>paneFontSize</code>, which is the one live dependency left, which fires the effect that finally calls <code>maybeSendResize</code>.</p>
+        <p>A second trap compounds it: <code>maybeSendResize</code> requires <code>serverDiffers &amp;&amp; dimensionsChanged</code>. <code>lastSentSizeRef</code> is never reset — not on reconnect, not on a role change. If a fit lands on a grid this client already sent once, <code>dimensionsChanged</code> is false and the correct size is withheld precisely when it is needed most.</p>
+        <div class="kv">
+          <div><span class="k2">Evidence</span><span class="v code-list">
+            <span>TerminalPane.tsx:114 — <em>isFollowerForLifecycle: useCallback(…, [])</em></span>
+            <span>useXtermLifecycle.ts:157,178,188 — <em>three effects gated on that frozen identity</em></span>
+            <span>useXtermLifecycle.ts:22 — <em>maybeSendResize's double guard</em></span>
+            <span>useFollowerViewportLayout.ts:95 — <em>refit() with no upstream declaration</em></span>
+          </span></div>
+          <div><span class="k2">Fix</span><span class="v">Make the role a real dependency instead of a ref smuggled through a stable callback, and make "I am now the leader" an explicit transition that re-fits <em>and</em> declares: fit to the host, then unconditionally <code>sendResize(terminal.cols, terminal.rows)</code>. Reset <code>lastSentSizeRef</code> on every transport open and on every lease change — the guard exists to suppress chatter, not to withhold the truth after the ground moved.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D5 -->
+    <div class="finding">
+      <div class="f-gutter">
+        <span class="f-id">D5</span>
+        <span class="f-sev sev-warn">Friction</span>
+        <span class="f-conf">Confidence<br>High — explicit branch in the code</span>
+      </div>
+      <div>
+        <h3>A reconnect never re-declares the device's grid</h3>
+        <p>Size declaration is guarded by <code>if (t &amp;&amp; !wasReconnect)</code>. A first connect declares its grid; a reconnect declares nothing. But the server built a brand-new <code>ClientInfo</code> for that socket with <code>DeclaredCols = DeclaredRows = 0</code>.</p>
+        <p>So if that connection later inherits the lease through <code>leader_disconnect</code>, <code>applyDeclaredSizeLocked</code> finds a zero and returns without touching the PTY. The new leader is left rendering the departed leader's grid on hardware that never agreed to it. Take over control still works — it re-sends <code>declaredSizeRef</code> explicitly — but that ref holds the size from <em>before</em> this device became a follower, so a rotation or a keyboard open while following is silently discarded.</p>
+        <p>This is the same class of bug as D4 and shares its symptom, but it is a distinct cause and needs its own fix.</p>
+        <div class="kv">
+          <div><span class="k2">Evidence</span><span class="v code-list">
+            <span>useTerminalSession.ts:248 — <em>if (t &amp;&amp; !wasReconnect)</em></span>
+            <span>api/session/session.go:836 — <em>applyDeclaredSizeLocked on leader_disconnect</em></span>
+            <span>api/session/sizelease.go:101 — <em>zero declaration returns nil PTY</em></span>
+          </span></div>
+          <div><span class="k2">Fix</span><span class="v">Declare the grid on <em>every</em> open. A connection's declared size is per-connection server state; a reconnect is a new connection and must re-establish it. Keep <code>declaredSizeRef</code> current while following too — the device's own preferred grid is knowable at all times, whether or not it is currently allowed to apply it.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D6 -->
+    <div class="finding">
+      <div class="f-gutter">
+        <span class="f-id">D6</span>
+        <span class="f-sev sev-low">Design smell</span>
+        <span class="f-conf">Confidence<br>High as written; low as a live bug</span>
+      </div>
+      <div>
+        <h3>Two different answers to "am I following?"</h3>
+        <p>The pane computes <code>presentsFollowerDevice = followerFrame !== null &amp;&amp; viewerCount &gt; 1</code> and uses it for the visual frame — but hands the raw <code>isFollower</code> to the xterm lifecycle and the touch layer. So a viewer who has lost the lease with <code>viewerCount === 1</code> gets a terminal that refuses to re-fit and a pinch gesture that is disabled, with no frame and no Take over button to explain either.</p>
+        <p>The comment above that line says the two must agree, and then wires them to two different predicates. Today the reachable window is narrow because presence and lease travel in the same frame. It is still one concept with two implementations, which is how D4 stayed hidden.</p>
+        <div class="kv">
+          <div><span class="k2">Evidence</span><span class="v code-list">
+            <span>TerminalPane.tsx:199 — <em>presentsFollowerDevice</em></span>
+            <span>TerminalPane.tsx:126,247 — <em>raw isFollower to lifecycle and selection</em></span>
+          </span></div>
+          <div><span class="k2">Fix</span><span class="v">Derive one <code>followerMode</code> value in the session hook and feed every consumer from it. If a state has no frame it should have no follower restrictions either.</span></div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Part 03</span>
+      <h2>Debt and duplication</h2>
+    </div>
+    <div class="body-col">
+      <p>None of this is causing your bugs directly. All of it is why the bugs were hard to see.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Location</th><th>What's there</th><th>Why it matters</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>lib/terminalProtocol.ts<br>92 lines</td>
+            <td>A pure reducer for the whole wire protocol — lease, leader presentation, echo, cursor. It is written to on every message and <strong>read by nothing</strong>. The live state lives in duplicated <code>useState</code> calls inside the hook.</td>
+            <td>Extracted for testability, never adopted. Its 7 tests pass, prove nothing about the app, and are cited as validation evidence for REQ-P0-002e.</td>
+          </tr>
+          <tr>
+            <td>lib/followerViewport.ts<br><code>chromeTier()</code></td>
+            <td>An exported tier policy used only by its own tests. <code>fitFollowerPresentation</code> inlines a <em>different</em> policy — the export branches on <code>scale &lt; 1</code>, the live code branches on a minimum silhouette height.</td>
+            <td>Two divergent answers to the same question, one of which is the one under test. Delete the dead one.</td>
+          </tr>
+          <tr>
+            <td>lib/followerViewport.ts<br><code>fitGrid()</code></td>
+            <td>Superseded by <code>fitDeviceGrid</code>; referenced only from tests.</td>
+            <td>Dead weight that still has to be read and reasoned about.</td>
+          </tr>
+          <tr>
+            <td>requirements/02-…/module.json</td>
+            <td>All nine validation entries for REQ-P0-002e are marked <code>"status": "failing"</code>. I ran the seven UI ones: 84 tests, all green.</td>
+            <td>The requirement's status signal is stale in the pessimistic direction, which is the direction nobody investigates.</td>
+          </tr>
+          <tr>
+            <td>lib/deviceIdentity.ts<br>vs deviceArchetype.ts</td>
+            <td>Two classifiers with thresholds the comment claims "mirror" each other. They don't — one keys on physical short edge and touch, the other on grid aspect ratio. A 52×28 grid on a phone classifies as <code>phone</code> either way; a wide phone in landscape does not.</td>
+            <td>The fallback path can disagree with the declared path for the same hardware. Low impact today because declared class almost always wins.</td>
+          </tr>
+          <tr>
+            <td>useTerminalSession.ts<br>686 lines</td>
+            <td>Transport orchestration, the size lease, prediction overlay, echo state, scroll protocol, TTS acks and keyboard declaration in one hook returning a 20-member interface.</td>
+            <td>The lease is four of those lines and has nowhere to be tested in isolation. TerminalPane.tsx (363 lines, ~15 hooks) has the same shape.</td>
+          </tr>
+          <tr>
+            <td>useTerminalSession.ts:197</td>
+            <td><code>deviceIdentity()</code> — two <code>localStorage</code> reads — runs on every render of every pane.</td>
+            <td>Harmless in practice; the URL string memoizes downstream. Worth hoisting to a module-level singleton anyway, since the identity is immutable for the tab's lifetime.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="body-col">
+      <h3>The test topology is the real finding</h3>
+      <p>84 unit tests pass across seven files covering this feature, and every symptom you reported survives them. That is not a coverage gap — it is a coverage <em>shape</em> problem. Everything tested is a pure function: geometry fitting, archetype resolution, silhouette rendering, wire-message reduction. Every defect above lives in a seam:</p>
+      <ul>
+        <li><strong>D1</strong> — two connections, one device. Needs two clients against one session.</li>
+        <li><strong>D2</strong> — a capture-phase listener versus a descendant's click. Needs a real touch event, and jsdom will not produce one.</li>
+        <li><strong>D3</strong> — CSS stacking contexts. No unit test can observe paint order.</li>
+        <li><strong>D4/D5</strong> — effect dependency identity and reconnect branches. Needs a mounted pane across a role transition.</li>
+      </ul>
+      <p>The scenario has three BAS suites — foundation, messages, snippets — and <strong>not one case touches the follower, lease or device-frame surface</strong>. The nearest neighbour, <code>reconnect-offline-buffer-replay</code>, is single-client. Nothing in the repo has ever exercised two viewers on one session end-to-end.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">Part 04</span>
+      <h2>Where I'd start</h2>
+    </div>
+    <div class="body-col">
+      <p>Ordered deliberately: the first item changes the model, and it makes two of the later ones smaller. The last one is what stops this list from being written again in three months.</p>
+
+      <ol class="plan">
+        <li>
+          <h4>Make identity beat the socket</h4>
+          <p>Read <code>msg.leader</code> in the client and suppress follower presentation when the leader is this device. Then, on the server, let a reconnecting <code>DeviceID</code> reclaim its own lease and evict its stale socket. D1 disappears, and D5's blast radius shrinks with it. One-line client change, one modest server change.</p>
+        </li>
+        <li>
+          <h4>Let the pane's controls receive touches</h4>
+          <p>Replace the two-entry test-id allowlist in <code>useTerminalTouch</code> with an interactive-element check. Smallest change on this page, and it is the difference between the feature working on a phone and not.</p>
+        </li>
+        <li>
+          <h4>Contain the pane's z-scale, and gate the frame on view mode</h4>
+          <p><code>isolation: isolate</code> on the pane root fixes the class of bug; passing view mode into <code>TerminalPane</code> fixes the intent. Both, not either.</p>
+        </li>
+        <li>
+          <h4>Give the role transition an owner</h4>
+          <p>One <code>followerMode</code> value, real effect dependencies rather than a frozen callback over a ref, an explicit re-fit-and-declare when the lease arrives, and a <code>lastSentSizeRef</code> reset on every open and every role change. This is the largest of the four and it retires D4, D5 and D6 together.</p>
+        </li>
+        <li>
+          <h4>Put a two-client test where the bugs live</h4>
+          <p>A Go test that subscribes two clients with the same <code>DeviceID</code> and asserts the newcomer is not made a follower of itself. A BAS case that opens one session in two viewports, taps Take over from the touch viewport, and asserts the frame clears and the PTY adopts the new grid. Two tests, and every defect above becomes detectable rather than reportable.</p>
+        </li>
+      </ol>
+
+      <h3>Worth saying plainly</h3>
+      <p>The follower geometry layer is the strongest code in this area — one table driving both the drawn bezel and the terminal's aperture, keyboard plate sized from its own key metrics rather than leftovers, declared class deliberately preferred over the grid so a keyboard cannot morph a phone into a laptop. Those comments read like someone who had already been burned and fixed it properly. You said the frames look great, and the code explains why.</p>
+      <p>What's missing is not care. It is that "which device am I" and "who is in charge" were built as separate, well-documented systems that each state they are not the other — and then nobody wrote the line that reconciles them.</p>
+    </div>
+  </section>
+
+  <p class="footnote">
+    Method: source reading across <code>scenarios/web-console</code> — <code>ui/src/lib/device*.ts</code>, <code>followerViewport.ts</code>, <code>terminalProtocol.ts</code>, <code>ui/src/hooks/terminal/*</code>, <code>useTerminalTouch.ts</code>, <code>TerminalPane.tsx</code>, <code>WorkspacePaneShell.tsx</code>, <code>DeviceFrame.tsx</code>, and <code>api/terminal_ws*.go</code>, <code>api/session/{session,sizelease,broadcast}.go</code>. The 84-test result is from an actual targeted <code>vitest run</code> on 2026-08-29. Nothing here was reproduced on physical hardware; line numbers are from the working tree on branch <code>agi</code> and will drift.
+  </p>
+
+</div>

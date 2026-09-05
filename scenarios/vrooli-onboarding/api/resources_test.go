@@ -1,13 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 // TestCategorize verifies category lookup for known and unknown resources.
@@ -18,11 +20,10 @@ func TestCategorize(t *testing.T) {
 		resource string
 		want     string
 	}{
-		{"postgres is database", "postgres", "database"},
+		{"postgres uses its declared category", "postgres", "storage"},
 		{"ollama is ai", "ollama", "ai"},
-		{"redis is database", "redis", "database"},
+		{"redis uses its declared category", "redis", "storage"},
 		{"minio is storage", "minio", "storage"},
-		{"browserless is browser", "browserless", "browser"},
 		{"unknown falls back to general", "some-unknown-resource", "general"},
 		{"empty string falls back to general", "", "general"},
 	}
@@ -37,43 +38,126 @@ func TestCategorize(t *testing.T) {
 	}
 }
 
-// Common test resource fixtures to avoid repeating verbose map literals.
+type resourceStatusFixture struct {
+	Name      string
+	Installed bool
+	Running   bool
+	Health    string
+	Message   string
+}
+
 var (
-	testResPostgres = map[string]string{"name": "postgres", "status": "running", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"}
-	testResRedis    = map[string]string{"name": "redis", "status": "running", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"}
-	testResOllama   = map[string]string{"name": "ollama", "status": "installed", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"}
-	testResPostgis  = map[string]string{"name": "postgis", "status": "running", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"}
-	testResJudge0   = map[string]string{"name": "judge0", "status": "running", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"}
-	testResStopped  = map[string]string{"name": "redis", "status": "stopped", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"}
-	testResMystery  = map[string]string{"name": "mystery", "status": "WEIRD_STATUS", "installed": "false", "last_updated": "2026-01-01T00:00:00Z"}
+	testResPostgres  = map[string]string{"name": "postgres", "status": "running", "installed": "true"}
+	testResRedis     = map[string]string{"name": "redis", "status": "running", "installed": "true"}
+	testResOllama    = map[string]string{"name": "ollama", "status": "installed", "installed": "true"}
+	testResNextcloud = map[string]string{"name": "nextcloud", "status": "running", "installed": "true"}
+	testResStopped   = map[string]string{"name": "redis", "status": "stopped", "installed": "true"}
+	testResMystery   = map[string]string{"name": "mystery", "status": "stopped", "installed": "false"}
 )
 
-// writeResourcesFile creates a running-resources.json in the given dir under .vrooli/.
-func writeResourcesFile(t *testing.T, dir string, resources []map[string]string) {
+func fixtureFromMap(raw map[string]string) resourceStatusFixture {
+	fixture := resourceStatusFixture{
+		Name:      raw["name"],
+		Installed: strings.EqualFold(raw["installed"], "true"),
+	}
+	switch strings.ToLower(raw["status"]) {
+	case "running":
+		fixture.Running = true
+		fixture.Health = "healthy"
+		fixture.Message = "healthy"
+	case "installed":
+		fixture.Message = "available for manual start"
+	case "stopped":
+		fixture.Message = "stopped"
+		fixture.Health = "stopped"
+	default:
+		fixture.Message = raw["status"]
+	}
+	return fixture
+}
+
+func writeResourcesFile(t *testing.T, _ string, resources []map[string]string) {
 	t.Helper()
-	vrooliDir := filepath.Join(dir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatal(err)
+	fixtures := make([]resourceStatusFixture, 0, len(resources))
+	for _, item := range resources {
+		fixtures = append(fixtures, fixtureFromMap(item))
 	}
+	stubResourceStatusJSON(t, fixtures, nil)
+}
 
-	rawResources := make([]map[string]string, len(resources))
-	copy(rawResources, resources)
+// stubRunner is a vroolicli.Runner that returns canned output, letting tests
+// drive loadResources without executing the real CLI.
+type stubRunner struct {
+	out []byte
+	err error
+}
 
-	data := map[string]any{
-		"resources":    rawResources,
-		"last_updated": "2026-01-01T00:00:00Z",
+func (s stubRunner) Run(context.Context, string, ...string) ([]byte, error) {
+	if s.err != nil {
+		return nil, s.err
 	}
-	b, err := json.Marshal(data)
+	return s.out, nil
+}
+
+func (s stubRunner) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return s.Run(ctx, name, args...)
+}
+
+// swapCLIClient points the package-level cliClient at a stub runner for the
+// duration of the test.
+func swapCLIClient(t *testing.T, out []byte, err error) {
+	t.Helper()
+	previous := cliClient
+	t.Cleanup(func() {
+		cliClient = previous
+	})
+	cliClient = vroolicli.New(vroolicli.WithRunner(stubRunner{out: out, err: err}))
+}
+
+func stubResourceStatusJSON(t *testing.T, fixtures []resourceStatusFixture, err error) {
+	t.Helper()
+
 	if err != nil {
-		t.Fatal(err)
+		swapCLIClient(t, nil, err)
+		return
 	}
-	if err := os.WriteFile(filepath.Join(vrooliDir, "running-resources.json"), b, 0o644); err != nil {
-		t.Fatal(err)
+	payload := map[string]any{
+		"resources": fixturesToCLI(fixtures),
+		"success":   true,
 	}
+	data, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		t.Fatalf("marshal fixtures: %v", marshalErr)
+	}
+	swapCLIClient(t, data, nil)
+}
+
+func stubRawResourceStatusJSON(t *testing.T, raw string, err error) {
+	t.Helper()
+	if err != nil {
+		swapCLIClient(t, nil, err)
+		return
+	}
+	swapCLIClient(t, []byte(raw), nil)
+}
+
+func fixturesToCLI(fixtures []resourceStatusFixture) []map[string]any {
+	items := make([]map[string]any, 0, len(fixtures))
+	for _, fixture := range fixtures {
+		items = append(items, map[string]any{
+			"resource": map[string]any{
+				"name": fixture.Name,
+			},
+			"installed": fixture.Installed,
+			"running":   fixture.Running,
+			"health":    fixture.Health,
+			"message":   fixture.Message,
+		})
+	}
+	return items
 }
 
 // doRequest performs an HTTP request against the test server and returns the recorder.
-// For GET requests, body should be empty string. For POST/PUT, pass JSON body string.
 func doRequest(t *testing.T, srv *Server, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	var req *http.Request
@@ -83,24 +167,24 @@ func doRequest(t *testing.T, srv *Server, method, path, body string) *httptest.R
 	} else {
 		req = httptest.NewRequest(method, path, nil)
 	}
+	// Test requests represent the local browser/CLI caller. Remote-boundary
+	// tests construct an explicit non-loopback RemoteAddr instead.
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.router.ServeHTTP(w, req)
 	return w
 }
 
-// doGet is a convenience wrapper for GET requests.
 func doGet(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	return doRequest(t, srv, http.MethodGet, path, "")
 }
 
-// doPost is a convenience wrapper for POST requests with a JSON body.
 func doPost(t *testing.T, srv *Server, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	return doRequest(t, srv, http.MethodPost, path, body)
 }
 
-// requireStatus asserts the response status code and fatals with the body on mismatch.
 func requireStatus(t *testing.T, w *httptest.ResponseRecorder, want int) {
 	t.Helper()
 	if w.Code != want {
@@ -108,7 +192,6 @@ func requireStatus(t *testing.T, w *httptest.ResponseRecorder, want int) {
 	}
 }
 
-// decodeJSON unmarshals the response body into dst.
 func decodeJSON(t *testing.T, w *httptest.ResponseRecorder, dst any) {
 	t.Helper()
 	if err := json.Unmarshal(w.Body.Bytes(), dst); err != nil {
@@ -116,17 +199,33 @@ func decodeJSON(t *testing.T, w *httptest.ResponseRecorder, dst any) {
 	}
 }
 
-// TestLoadResources verifies loading from a temp running-resources.json.
+func newTestServer(t *testing.T, fixtures any) *Server {
+	t.Helper()
+	var normalized []resourceStatusFixture
+	switch typed := fixtures.(type) {
+	case []resourceStatusFixture:
+		normalized = typed
+	case []map[string]string:
+		normalized = make([]resourceStatusFixture, 0, len(typed))
+		for _, item := range typed {
+			normalized = append(normalized, fixtureFromMap(item))
+		}
+	default:
+		t.Fatalf("unsupported fixture type %T", fixtures)
+	}
+
+	stubResourceStatusJSON(t, normalized, nil)
+	return NewServer()
+}
+
+// TestLoadResources verifies loading from the Vrooli CLI JSON output.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestLoadResources(t *testing.T) {
-	dir := t.TempDir()
-	writeResourcesFile(t, dir, []map[string]string{
-		testResPostgres,
-		testResOllama,
-		testResMystery,
-	})
-
-	t.Setenv("VROOLI_ROOT", dir)
+	stubResourceStatusJSON(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy", Message: "healthy"},
+		{Name: "ollama", Installed: true, Running: false, Message: "available for manual start"},
+		{Name: "mystery", Installed: false, Running: false, Message: "not installed"},
+	}, nil)
 
 	resources, err := loadResources()
 	if err != nil {
@@ -137,18 +236,19 @@ func TestLoadResources(t *testing.T) {
 		t.Fatalf("expected 3 resources, got %d", len(resources))
 	}
 
-	// Check postgres
 	if resources[0].Name != "postgres" {
 		t.Errorf("resources[0].Name = %q, want %q", resources[0].Name, "postgres")
 	}
-	if resources[0].Category != "database" {
-		t.Errorf("resources[0].Category = %q, want %q", resources[0].Category, "database")
+	if resources[0].Category != "storage" {
+		t.Errorf("resources[0].Category = %q, want %q", resources[0].Category, "storage")
 	}
 	if resources[0].Status != "running" {
 		t.Errorf("resources[0].Status = %q, want %q", resources[0].Status, "running")
 	}
+	if !resources[0].Installed {
+		t.Error("resources[0].Installed = false, want true")
+	}
 
-	// Check ollama
 	if resources[1].Category != "ai" {
 		t.Errorf("resources[1].Category = %q, want %q", resources[1].Category, "ai")
 	}
@@ -156,40 +256,32 @@ func TestLoadResources(t *testing.T) {
 		t.Errorf("resources[1].Status = %q, want %q", resources[1].Status, "installed")
 	}
 
-	// Check unknown status normalization
 	if resources[2].Status != "stopped" {
-		t.Errorf("resources[2].Status = %q, want %q (unknown status should normalize to stopped)", resources[2].Status, "stopped")
+		t.Errorf("resources[2].Status = %q, want %q", resources[2].Status, "stopped")
 	}
 	if resources[2].Category != "general" {
 		t.Errorf("resources[2].Category = %q, want %q", resources[2].Category, "general")
 	}
 }
 
-// TestLoadResourcesMissingFile verifies error when no resources file exists.
+// TestLoadResourcesCommandFailure verifies error propagation when CLI execution fails.
 // [REQ:REQ-P0-001] - Resource Discovery API
-func TestLoadResourcesMissingFile(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
+func TestLoadResourcesCommandFailure(t *testing.T) {
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
 
 	_, err := loadResources()
 	if err == nil {
-		t.Fatal("expected error when resources file is missing, got nil")
+		t.Fatal("expected error when CLI command fails, got nil")
 	}
-}
-
-// newTestServer creates a Server with nil db (sufficient for resource/config tests)
-// and sets up VROOLI_ROOT to a temp directory with resources.
-func newTestServer(t *testing.T, resources []map[string]string) *Server {
-	t.Helper()
-	dir := t.TempDir()
-	writeResourcesFile(t, dir, resources)
-	t.Setenv("VROOLI_ROOT", dir)
-	return NewServer(nil)
 }
 
 // TestHandleListResources verifies the GET /api/v1/resources endpoint.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestHandleListResources(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResRedis})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+		{Name: "redis", Installed: true, Running: false, Health: "stopped", Message: "stopped"},
+	})
 
 	w := doGet(t, srv, "/api/v1/resources")
 	requireStatus(t, w, http.StatusOK)
@@ -221,7 +313,10 @@ func TestHandleListResources(t *testing.T) {
 // TestHandleGetResource verifies GET /api/v1/resources/{name} for an existing resource.
 // [REQ:REQ-P0-002] - Resource Detail View
 func TestHandleGetResource(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres, testResOllama})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+		{Name: "ollama", Installed: true, Running: false, Message: "available for manual start"},
+	})
 
 	w := doGet(t, srv, "/api/v1/resources/postgres")
 	requireStatus(t, w, http.StatusOK)
@@ -232,15 +327,17 @@ func TestHandleGetResource(t *testing.T) {
 	if res.Name != "postgres" {
 		t.Errorf("Name = %q, want %q", res.Name, "postgres")
 	}
-	if res.Category != "database" {
-		t.Errorf("Category = %q, want %q", res.Category, "database")
+	if res.Category != "storage" {
+		t.Errorf("Category = %q, want %q", res.Category, "storage")
 	}
 }
 
 // TestHandleGetResourceNotFound verifies 404 for unknown resource names.
 // [REQ:REQ-P0-002] - Resource Detail View
 func TestHandleGetResourceNotFound(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+	})
 
 	w := doGet(t, srv, "/api/v1/resources/nonexistent")
 	requireStatus(t, w, http.StatusNotFound)
@@ -255,85 +352,19 @@ func TestHandleGetResourceNotFound(t *testing.T) {
 // TestHandleGetResourceCaseInsensitive verifies case-insensitive matching.
 // [REQ:REQ-P0-002] - Resource Detail View
 func TestHandleGetResourceCaseInsensitive(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+	})
 
 	w := doGet(t, srv, "/api/v1/resources/Postgres")
 	requireStatus(t, w, http.StatusOK)
 }
 
-// TestResolveResourcesPathWithVrooliRoot verifies VROOLI_ROOT env var path.
-// [REQ:REQ-P0-001] - Resource Discovery API
-func TestResolveResourcesPathWithVrooliRoot(t *testing.T) {
-	dir := t.TempDir()
-	writeResourcesFile(t, dir, []map[string]string{testResPostgres})
-	t.Setenv("VROOLI_ROOT", dir)
-
-	got := resolveResourcesPath()
-	want := filepath.Join(dir, ".vrooli", "running-resources.json")
-	if got != want {
-		t.Errorf("resolveResourcesPath() = %q, want %q", got, want)
-	}
-}
-
-// TestResolveResourcesPathWalkUp verifies walk-up directory traversal.
-// [REQ:REQ-P0-001] - Resource Discovery API
-func TestResolveResourcesPathWalkUp(t *testing.T) {
-	dir := t.TempDir()
-	writeResourcesFile(t, dir, []map[string]string{testResPostgres})
-	t.Setenv("VROOLI_ROOT", "")
-
-	// Create a nested directory to walk up from
-	nested := filepath.Join(dir, "a", "b", "c")
-	if err := os.MkdirAll(nested, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Change to nested dir so walk-up finds .vrooli/running-resources.json
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(nested); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Logf("cleanup chdir: %v", err)
-		}
-	})
-
-	got := resolveResourcesPath()
-	want := filepath.Join(dir, ".vrooli", "running-resources.json")
-	if got != want {
-		t.Errorf("resolveResourcesPath() = %q, want %q", got, want)
-	}
-}
-
-// TestResolveResourcesPathNotFound verifies empty return when no resources file exists.
-// [REQ:REQ-P0-001] - Resource Discovery API
-func TestResolveResourcesPathNotFound(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", "")
-
-	// Use a temp dir with no .vrooli directory
-	dir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Logf("cleanup chdir: %v", err)
-		}
-	})
-
-	got := resolveResourcesPath()
-	if got != "" {
-		t.Errorf("resolveResourcesPath() = %q, want empty string", got)
-	}
-}
-
-// TestHandleListResourcesLoadError verifies 500 when resources file is missing.
+// TestHandleListResourcesLoadError verifies 500 when CLI status fails.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestHandleListResourcesLoadError(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir()) // no .vrooli/running-resources.json
-	srv := NewServer(nil)
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
+	srv := NewServer()
 
 	w := doGet(t, srv, "/api/v1/resources")
 	requireStatus(t, w, http.StatusInternalServerError)
@@ -345,28 +376,20 @@ func TestHandleListResourcesLoadError(t *testing.T) {
 	}
 }
 
-// TestHandleGetResourceLoadError verifies 500 when resources file is missing.
+// TestHandleGetResourceLoadError verifies 500 when CLI status fails.
 // [REQ:REQ-P0-002] - Resource Detail View
 func TestHandleGetResourceLoadError(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
-	srv := NewServer(nil)
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
+	srv := NewServer()
 
 	w := doGet(t, srv, "/api/v1/resources/postgres")
 	requireStatus(t, w, http.StatusInternalServerError)
 }
 
-// TestLoadResourcesInvalidJSON verifies error for malformed resources file.
+// TestLoadResourcesInvalidJSON verifies error for malformed CLI output.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestLoadResourcesInvalidJSON(t *testing.T) {
-	dir := t.TempDir()
-	vrooliDir := filepath.Join(dir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(vrooliDir, "running-resources.json"), []byte("{bad json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("VROOLI_ROOT", dir)
+	stubRawResourceStatusJSON(t, "{bad json", nil)
 
 	_, err := loadResources()
 	if err == nil {
@@ -377,9 +400,7 @@ func TestLoadResourcesInvalidJSON(t *testing.T) {
 // TestLoadResourcesEmptyList verifies loading an empty resources list.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestLoadResourcesEmptyList(t *testing.T) {
-	dir := t.TempDir()
-	writeResourcesFile(t, dir, []map[string]string{})
-	t.Setenv("VROOLI_ROOT", dir)
+	stubResourceStatusJSON(t, []resourceStatusFixture{}, nil)
 
 	resources, err := loadResources()
 	if err != nil {
@@ -393,7 +414,7 @@ func TestLoadResourcesEmptyList(t *testing.T) {
 // TestHandleListResourcesEmpty verifies GET /api/v1/resources with no resources.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestHandleListResourcesEmpty(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{})
+	srv := newTestServer(t, []resourceStatusFixture{})
 
 	w := doGet(t, srv, "/api/v1/resources")
 	requireStatus(t, w, http.StatusOK)
@@ -410,7 +431,9 @@ func TestHandleListResourcesEmpty(t *testing.T) {
 // TestHandleListResourcesResponseHasLoadedAt verifies loaded_at timestamp format.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestHandleListResourcesResponseHasLoadedAt(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+	})
 
 	w := doGet(t, srv, "/api/v1/resources")
 	requireStatus(t, w, http.StatusOK)
@@ -431,11 +454,10 @@ func TestCategorizeSpecificResources(t *testing.T) {
 		resource string
 		want     string
 	}{
-		{"vault", "security"},
-		{"postgis", "database"},
-		{"qdrant", "database"},
-		{"judge0", "devops"},
-		{"n8n", "devops"},
+		{"vault", "storage"},
+		{"qdrant", "storage"},
+		{"nextcloud", "general"},
+		{"n8n", "general"},
 	}
 
 	for _, tc := range tests {
@@ -446,19 +468,17 @@ func TestCategorizeSpecificResources(t *testing.T) {
 	}
 }
 
-// TestLoadResourcesStatusNormalization verifies all status variants are normalized.
+// TestLoadResourcesStatusNormalization verifies status derivation from CLI state.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestLoadResourcesStatusNormalization(t *testing.T) {
-	dir := t.TempDir()
-	writeResourcesFile(t, dir, []map[string]string{
-		{"name": "a", "status": "running", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"},
-		{"name": "b", "status": "installed", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"},
-		{"name": "c", "status": "stopped", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"},
-		{"name": "d", "status": "RUNNING", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"},
-		{"name": "e", "status": "Starting", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"},
-		{"name": "f", "status": "", "installed": "true", "last_updated": "2026-01-01T00:00:00Z"},
-	})
-	t.Setenv("VROOLI_ROOT", dir)
+	stubResourceStatusJSON(t, []resourceStatusFixture{
+		{Name: "a", Installed: true, Running: true, Health: "healthy"},
+		{Name: "b", Installed: true, Running: false, Message: "available for manual start"},
+		{Name: "c", Installed: true, Running: false, Health: "stopped"},
+		{Name: "d", Installed: true, Running: true, Message: "available"},
+		{Name: "e", Installed: false, Running: false, Message: "not installed"},
+		{Name: "f", Installed: false, Running: false, Message: ""},
+	}, nil)
 
 	resources, err := loadResources()
 	if err != nil {
@@ -477,7 +497,9 @@ func TestLoadResourcesStatusNormalization(t *testing.T) {
 // TestHandleGetResourceAllFields verifies the full response structure for a single resource.
 // [REQ:REQ-P0-002] - Resource Detail View
 func TestHandleGetResourceAllFields(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+	})
 
 	w := doGet(t, srv, "/api/v1/resources/postgres")
 	requireStatus(t, w, http.StatusOK)
@@ -488,24 +510,23 @@ func TestHandleGetResourceAllFields(t *testing.T) {
 	if res.Name != "postgres" {
 		t.Errorf("Name = %q, want %q", res.Name, "postgres")
 	}
-	if res.Category != "database" {
-		t.Errorf("Category = %q, want %q", res.Category, "database")
+	if res.Category != "storage" {
+		t.Errorf("Category = %q, want %q", res.Category, "storage")
 	}
 	if res.Status != "running" {
 		t.Errorf("Status = %q, want %q", res.Status, "running")
 	}
-	if res.Installed != "true" {
-		t.Errorf("Installed = %q, want %q", res.Installed, "true")
-	}
-	if res.LastUpdated == "" {
-		t.Error("LastUpdated should not be empty")
+	if !res.Installed {
+		t.Error("Installed = false, want true")
 	}
 }
 
 // TestHandleUnknownRoute verifies 405 for wrong method on known endpoint.
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestHandleDeleteResources(t *testing.T) {
-	srv := newTestServer(t, []map[string]string{testResPostgres})
+	srv := newTestServer(t, []resourceStatusFixture{
+		{Name: "postgres", Installed: true, Running: true, Health: "healthy"},
+	})
 
 	w := doRequest(t, srv, http.MethodDelete, "/api/v1/resources", "")
 	if w.Code == http.StatusOK {

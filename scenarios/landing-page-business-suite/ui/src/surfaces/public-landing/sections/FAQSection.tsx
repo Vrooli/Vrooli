@@ -75,12 +75,12 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
     <div
       key={index}
       className="rounded-2xl border border-white/10 bg-surface-primary transition-all duration-200 hover:border-white/20"
-      data-testid={`faq-${index}`}
+      data-testid={`faq-${String(index)}`}
     >
       <button
-        onClick={() => toggleFaq(index)}
+        onClick={() => { toggleFaq(index); }}
         className="flex w-full items-center justify-between px-6 py-5 text-left"
-        data-testid={`faq-question-${index}`}
+        data-testid={`faq-question-${String(index)}`}
       >
         <span className="pr-4 text-base font-semibold text-white">{faq.question}</span>
         <ChevronDown
@@ -91,7 +91,7 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
         className={`overflow-hidden transition-all duration-300 ${
           openIndices.has(index) ? 'max-h-96' : 'max-h-0'
         }`}
-        data-testid={`faq-answer-${index}`}
+        data-testid={`faq-answer-${String(index)}`}
       >
         <div className="px-6 pb-6 text-sm leading-relaxed text-slate-300">{faq.answer}</div>
       </div>

@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-scroll-lock",
+    "name": "useScrollLock",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A reference-counted scroll-lock primitive preserving scrollbar geometry, nested locks, mobile viewport behavior, and restoration on release.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    }
+  ]
+}

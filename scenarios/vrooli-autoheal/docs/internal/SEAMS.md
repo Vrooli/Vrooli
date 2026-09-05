@@ -165,6 +165,100 @@ vrooli-autoheal follows a layered architecture with clear responsibility separat
 
 ## Key Design Decisions
 
+### `vrooli` CLI Invocation Seam — `repo-contract-go/cliinvoke`
+
+`github.com/vrooli/repo-contract-go/cliinvoke` is the only place that
+resolves, runs and classifies a `vrooli` subprocess, for the whole repository.
+Inside autoheal, `api/internal/checks/executor.go` (`RealExecutor`) routes
+every `name == "vrooli"` invocation through it, and the loop's `invokeVrooli`
+wrapper does the same; the argv comes from the `cliinvoke` catalog
+(`ScenarioLifecycle`, `ScenarioStatusJSON`, `ScenarioPort`, `AgentRecover`,
+`Setup`, `SetupStatusReadiness`, `DiagnosePort`, `VersionJSON`).
+
+Why: the CLI's argv surface is a contract every supervisor consumes. On
+2026-09-02 a retired global flag left every supervisor unable to call the CLI
+after a reboot. The seam passes no global flags, resolves the binary one way
+(explicit path, `VROOLI_BIN`, the runtime home's bin entry, `PATH`), applies
+the deadline and `WaitDelay` discipline from the 2026-08-01 inherited-pipe
+outage, and classifies failures (`usage`, `binary-missing`, `timeout`,
+`refusal`, `lifecycle`) so a caller never retries a usage error identically.
+
+How to apply: build the argv with a catalog function and run it through
+`cliinvoke.Run` (or the `CommandExecutor` interface inside the API). Register
+new argv producers in `internal/cli/rootcli/invokers`; the conformance test in
+`cliinvoke` fails on any direct `exec.Command(..., "vrooli", ...)` under
+`scenarios/vrooli-autoheal/`, and the registry test fails when a registered
+argv no longer parses or relies on the retired-globals tolerance table.
+
+Reference: `docs/reference/cli-invokers.md` (generated registry page) and
+`docs/reference/staleness-and-rebuild.md` (why no stale-check flag exists).
+
+### Loop Freshness Seam — the lifecycle engine builds, the safeguard verifies
+
+The boot-recovery loop (`cli/loop`, a nested Go module) is declared as the
+`loop` component in `.vrooli/service.json` (`build.kind: go_module`,
+`build.dir: cli/loop`, `build.output: cli/vrooli-autoheal-loop`). `vrooli
+scenario setup vrooli-autoheal` builds it with the same engine that builds the
+API and stamps `cli/vrooli-autoheal-loop.freshness.json` next to it; the
+component's `go list` closure (the loop module, `langrecover`,
+`packages/repo-contract-go`, `packages/envkit-go`) is the recorded input set.
+
+`internal/safeguards/autoheal-watchdog` (project control plane) never builds
+the loop. `loopBinaryVerdict` reads that manifest through the engine's public
+reader (`cli-core/cliutil.ReadFreshnessManifest` + `EvaluateFreshness`) and
+reports `fresh`, `stale` (manifest disagrees with the sources, or the binary is
+missing) or `unknown` (no manifest: the engine never built this binary). Stale
+and unknown are both not-applied; `Apply` then runs `vrooli scenario setup
+vrooli-autoheal` through `repo-contract-go/cliinvoke` and restarts the unit
+when the binary's sha256 changed. `Inspect` also compares the unit's main
+process executable (`/proc/<MainPID>/exe` on Linux) with the binary on disk
+and reports "process older than binary" until the unit is restarted; evidence
+lands in `loop_freshness` and `process_identity` of `vrooli setup status
+--json --phase readiness`.
+
+Why: the safeguard used to rebuild from an mtime walk and its own `go build`,
+a second freshness engine that reported "Already present" over a binary months
+older than its source (2026-09-01), and a rebuilt file never reached the
+running process without a restart. One engine, one manifest, one verdict.
+
+Declaration note: the engine skips building a component whose `run.condition`
+is unmet and launches every component that has no `supervised_by`, so the loop
+is declared `supervised_by: api` to be built-but-not-launched. The API does
+not supervise it; the native scheduler unit does. A build-only component kind
+is the missing contract (recorded in the boot-recovery plan's p09 evidence).
+
+How to apply: change loop sources, run `make loop-build` (which is `vrooli
+scenario setup vrooli-autoheal`), never `go build` the loop by hand; the next
+`vrooli setup` restarts the unit onto the new binary.
+
+### Recovery Floor Command Seam — `selfHealRunner`
+
+`cli/loop/selfheal.go` routes every command the dependency-drift recovery
+floor executes (`go mod tidy`, `pnpm install`, the recovery scripts in
+`langrecover`) through `selfHealRunner`, a `langrecover.Runner`. Production
+uses `langrecover.DefaultRunner`; tests inject a recording runner and assert
+the exact argv, working directory and ordering the floor would run, without
+touching a real module. Recovery decisions (`decideFromSources`) are pure over
+the failure output and the signatures, so a wrong recovery is a unit-test failure,
+not a host mutation.
+
+### System Event Timeline Collection Seam
+
+`api/internal/systemevents/` owns host-event normalization for the forensic
+Timeline surface. It is the only place that should parse OS package logs,
+kernel journal lines, boot history, or platform-specific event sources for the
+system-event timeline.
+
+Production collection goes through injected `checks.CommandExecutor`,
+`journal.Reader`, and file/glob functions. Tests should exercise parser and
+collector behavior with injected content rather than reading host log paths,
+`journalctl`, or platform event logs directly.
+
+The `/api/v1/timeline` endpoint remains the health-check-result timeline. New
+host-level event work belongs behind `/api/v1/system-events` and the
+`system_events` SQLite table so it can dedupe repeated ingestion and survive
+process restarts.
+
 ### Watchdog Detection System Probe Seam
 
 `api/internal/watchdog/watchdog.go` now routes environment/runtime interactions through a dedicated `detectorProbe` boundary. This seam isolates:
@@ -179,26 +273,33 @@ Production uses `realDetectorProbe`; tests can inject a fake probe to exercise w
 
 This avoids environment-coupled tests and keeps watchdog status logic testable as pure decision flow over probe outputs.
 
-### Watchdog Installer Entry Seam (Probe-Reused)
+### Cleanup Manager Handoff Seam
 
-`api/internal/watchdog/installer.go` now reuses `detectorProbe` for installer entry decisions that vary by environment:
+Broad disk reclaim is delegated to storage-manager. Autoheal may observe disk
+pressure, surface diagnostics, start stopped services, and gather logs, but it
+must not execute host cleanup such as `docker system prune`, journal vacuum,
+package-cache cleanup, or arbitrary file deletion as a recovery action.
 
-- runtime OS checks for Windows-only install/uninstall gating
-- `VROOLI_ROOT` and home-directory lookup when resolving loop binary path
-- binary existence verification before installation
+The Docker check keeps a `prune` recovery action only as a compatibility
+discovery surface. Executing it returns a storage-manager planning hint
+(`storage-manager cleanup plan --json`) and performs no command invocation. The
+actual cleanup flow is: storage-manager estimates candidates, records a plan,
+requires policy/provider-version/approval gates, and audits any apply attempt.
 
-This keeps platform/env discovery at a single seam (`Detector.probe`) and makes installer boundary behavior unit-testable without depending on the host OS or real filesystem layout.
+Tests should protect this seam by asserting broad-cleanup handoff actions make
+zero `CommandExecutor` calls.
 
-### Watchdog Installer Side-Effect Seam (Probe-Enforced)
+### Watchdog Compatibility Seam (Read-Only)
 
-`api/internal/watchdog/installer.go` now routes installer/uninstaller side effects through `detectorProbe` instead of calling OS/process APIs directly in boundary logic:
+`api/internal/watchdog/installer.go` retains the historical install, uninstall,
+and lingering method signatures for API compatibility, but those methods now
+return setup guidance and perform no host mutation. Native scheduler rendering,
+installation, enablement, and boot-policy changes are owned by
+`internal/safeguards/autoheal-watchdog` in the project control plane.
 
-- command execution for service/task lifecycle (`systemctl`, `launchctl`, `schtasks`, `loginctl`, `sudo rm`)
-- command execution with stdin for privileged file writes (`sudo tee` for system service/plist files)
-- filesystem mutations (`mkdirAll`, `writeFile`, `remove`)
-- temporary task-file writes for Windows scheduled task creation (`writeTempFile`)
-
-This consolidates environment-coupled behavior behind one seam so installation flow remains decision-oriented and testable with fakes.
+The scenario watchdog detector remains an observation surface: it reports
+native service state and can render a diagnostic template, but it has no file,
+process, scheduler, or privilege-mutation seam.
 
 ### User Config Filesystem + Home-Dir Seam
 
@@ -273,11 +374,14 @@ This change:
 
 ### Adding a New Health Check
 
-1. Create check in `api/internal/checks/infra/` or `checks/vrooli/`
-2. Implement the `Check` interface
-3. If platform-dependent, accept `*platform.Capabilities` in constructor
-4. Register in `bootstrap/checks.go:RegisterDefaultChecks()`
-5. Add tests in the same package
+Follow `docs/guides/adding-checks.md`; the steps are:
+
+1. Add the check file under `api/internal/checks/<category>/` with its desired-behavior tests.
+2. Add it to the appropriate `DefaultCheckFactory` slice in `api/internal/bootstrap/`.
+3. If it heals, add its action to the allowlists in `checks/registry.go`. A check that only reports (for example `system-boot-recovery-readiness`) declares no actions.
+4. Add or update the corresponding space-doc cell.
+5. Add a setpoint bar with a unit and threshold.
+6. Add the check to `docs/reference/check-catalog.md`, write its `docs/reference/checks/<id>.md` page, and register that page in `docs/manifest.json`.
 
 ### Adding a New API Endpoint
 
@@ -304,3 +408,13 @@ This change:
 | Checks | `checks/infra/*_test.go` | Check interface compliance, result structure |
 | Platform | `platform/platform_test.go` | Detection accuracy, caching |
 | UI | `ui/src/*.test.tsx` | Component rendering, user interaction |
+
+### Typed readiness and healing-episode read
+
+| | |
+|---|---|
+| **Seam** | Condition/coverage consumers ↔ autoheal startup and recovery evidence |
+| **Module** | `packages/proto/schemas/vrooli-autoheal/v1/healing/healing.proto`, implemented by `handlers.typedHealing.GetReadiness` |
+| **Production wiring** | Autoheal derives first healthy probes after process start and joins persisted failing probes, recovery actions, and subsequent healthy probes. It reports an explicit unknown starter when supervisor attribution is unavailable. Infrastructure-manager reads the generated Connect client through `sources.AutohealReader`. |
+| **Test fake** | Handler tests substitute `StoreInterface` and provide persisted check/action timestamps; source tests substitute discovery and HTTP clients. |
+| **Why it exists** | A3 and R3 require measured timestamps, not a hand-written coverage claim or action duration reused as episode duration. |

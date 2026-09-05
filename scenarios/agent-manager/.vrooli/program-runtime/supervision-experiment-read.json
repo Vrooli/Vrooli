@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.supervision-experiment-read",
+  "version": "1",
+  "purpose": "Join immutable candidate identity, owner evaluation gates and bounded live outcome coverage.",
+  "inputs": {
+    "policy_version": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "Owner responses are authoritative; separate reads can observe different revisions."
+  ],
+  "invariants": [
+    "Read only; no launches, cursor movement, assessments or promotions.",
+    "One bounded envelope; missing evidence remains unknown.",
+    "Outer usage skill owns one outcome-linked memory capture."
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/watch/policy-get",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/watch/policy-outcomes",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "summary": "Bounded owner identities, evidence coverage and next action"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "identity_mismatch",
+        "output_budget_exhausted",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "At most two owner identities"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 32
+  },
+  "fixtures": [
+    {
+      "id": "empty-owner-id",
+      "inputs": {
+        "policy_version": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

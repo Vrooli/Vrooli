@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,16 +15,17 @@ import (
 )
 
 type config struct {
-	host      string
-	port      int
-	appData   string
-	tokenFile string
-	command   string
-	serviceID string
-	portName  string
-	lines     int
-	upload    bool
-	uploadURL string
+	host        string
+	port        int
+	appData     string
+	tokenFile   string
+	command     string
+	commandArgs []string
+	serviceID   string
+	portName    string
+	lines       int
+	upload      bool
+	uploadURL   string
 }
 
 func main() {
@@ -57,10 +59,11 @@ func parseFlags() config {
 
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Println("usage: runtimectl [flags] <health|ready|ports|status|port|logs|telemetry|shutdown>")
+		fmt.Println("usage: runtimectl [flags] <health|ready|ports|status|port|logs|telemetry|credentials|shutdown>")
 		os.Exit(1)
 	}
 	cfg.command = args[0]
+	cfg.commandArgs = args[1:]
 	return cfg
 }
 
@@ -91,12 +94,99 @@ func runCommand(cfg config, token string) {
 		if err := handleTelemetry(cfg, token); err != nil {
 			fail(err)
 		}
+	case "credentials":
+		if err := runCredentials(cfg, token); err != nil {
+			fail(err)
+		}
 	case "shutdown":
 		callJSON(cfg, token, "/shutdown")
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", cfg.command)
 		os.Exit(1)
 	}
+}
+
+func runCredentials(cfg config, token string) error {
+	if len(cfg.commandArgs) == 0 {
+		return fmt.Errorf("credentials requires list, doctor, status, or provision")
+	}
+	subcommand := cfg.commandArgs[0]
+	args := cfg.commandArgs[1:]
+	switch subcommand {
+	case "list", "doctor":
+		if len(args) != 0 {
+			return fmt.Errorf("credentials %s does not accept positional arguments", subcommand)
+		}
+		body, err := doRequest(cfg, token, "/credentials/"+subcommand)
+		if err != nil {
+			return err
+		}
+		return printJSON(body)
+	case "status":
+		identity, field, err := parseCredentialArgs(args)
+		if err != nil {
+			return err
+		}
+		path := "/credentials/status?identity=" + url.QueryEscape(identity) + "&field=" + url.QueryEscape(field)
+		body, err := doRequest(cfg, token, path)
+		if err != nil {
+			return err
+		}
+		return printJSON(body)
+	case "provision":
+		identity, field, err := parseCredentialArgs(args)
+		if err != nil {
+			return err
+		}
+		value, err := io.ReadAll(io.LimitReader(os.Stdin, 64*1024+1))
+		if err != nil {
+			return fmt.Errorf("read credential value: %w", err)
+		}
+		if len(value) > 64*1024 {
+			return fmt.Errorf("credential value exceeds 64 KiB limit")
+		}
+		payload, err := json.Marshal(map[string]string{"identity": identity, "field": field, "value": string(value)})
+		if err != nil {
+			return fmt.Errorf("encode credential request: %w", err)
+		}
+		body, err := doRequestMethod(cfg, token, http.MethodPost, "/credentials/provision", strings.NewReader(string(payload)))
+		if err != nil {
+			return err
+		}
+		return printJSON(body)
+	default:
+		return fmt.Errorf("unknown credentials command %q", subcommand)
+	}
+}
+
+func parseCredentialArgs(args []string) (string, string, error) {
+	parsed := flag.NewFlagSet("credentials", flag.ContinueOnError)
+	parsed.SetOutput(io.Discard)
+	identity := parsed.String("identity", "", "credential identity")
+	field := parsed.String("field", "value", "credential field")
+	if err := parsed.Parse(args); err != nil {
+		return "", "", err
+	}
+	if parsed.NArg() != 0 {
+		return "", "", fmt.Errorf("unexpected credential arguments: %s", strings.Join(parsed.Args(), " "))
+	}
+	if strings.TrimSpace(*identity) == "" {
+		return "", "", fmt.Errorf("--identity is required")
+	}
+	return strings.TrimSpace(*identity), strings.TrimSpace(*field), nil
+}
+
+func printJSON(body []byte) error {
+	var value any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return fmt.Errorf("parse response: %w", err)
+	}
+	pretty, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return fmt.Errorf("format response: %w", err)
+	}
+	fmt.Println(string(pretty))
+	return nil
 }
 
 func showStatus(cfg config, token string) error {
@@ -236,10 +326,20 @@ func fetchText(cfg config, token, path string) (string, error) {
 }
 
 func doRequest(cfg config, token, path string) ([]byte, error) {
+	return doRequestMethod(cfg, token, http.MethodGet, path, nil)
+}
+
+func doRequestMethod(cfg config, token, method, path string, body io.Reader) ([]byte, error) {
 	url := fmt.Sprintf("http://%s:%d%s", cfg.host, cfg.port, path)
-	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
 	if token != "" && path != "/healthz" {
 		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -248,11 +348,11 @@ func doRequest(cfg config, token, path string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	responseBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
 	}
-	return body, nil
+	return responseBody, nil
 }
 
 func resolveToken(cfg config) (string, error) {

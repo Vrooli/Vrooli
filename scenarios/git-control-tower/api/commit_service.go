@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -10,8 +11,10 @@ import (
 
 // CommitDeps contains dependencies for commit operations.
 type CommitDeps struct {
-	Git     GitRunner
-	RepoDir string
+	Git       GitRunner
+	RepoDir   string
+	Precommit *PrecommitService
+	Checks    CommitCheckRecorder
 }
 
 func commitValidationFailure(errors []string) *CommitResponse {
@@ -85,6 +88,24 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	if resp := validateCommitRequest(ctx, deps, repoDir, req, message); resp != nil {
 		return resp, nil
 	}
+	var passedPrecommit *PrecommitRunResult
+	if deps.Precommit != nil && !req.SkipPrecommitOnce {
+		result, ran, err := deps.Precommit.RunBeforeCommit(ctx, repoDir)
+		if err != nil {
+			return nil, err
+		}
+		if ran && result.Status != "passed" {
+			return &CommitResponse{
+				Success:   false,
+				Error:     "precommit failed",
+				Precommit: &result,
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
+		if ran {
+			passedPrecommit = &result
+		}
+	}
 
 	noEdit := req.Amend && message == ""
 	hash, err := deps.Git.Commit(ctx, repoDir, message, CommitOptions{
@@ -92,6 +113,7 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
 		Amend:       req.Amend,
 		NoEdit:      noEdit,
+		NoVerify:    req.SkipPrecommitOnce,
 	})
 	if err != nil {
 		return &CommitResponse{
@@ -99,6 +121,11 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 			Error:     err.Error(),
 			Timestamp: time.Now().UTC(),
 		}, nil
+	}
+	if deps.Checks != nil && passedPrecommit != nil {
+		if err := deps.Checks.Save(context.Background(), repoDir, hash, commitCheckFromPrecommit(*passedPrecommit)); err != nil {
+			log.Printf("save commit check run failed: %v", err)
+		}
 	}
 
 	return &CommitResponse{

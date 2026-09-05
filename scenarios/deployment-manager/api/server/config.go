@@ -2,11 +2,11 @@
 package server
 
 import (
-	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Config holds minimal runtime configuration.
@@ -24,44 +24,8 @@ func RequireEnv(key string) string {
 	return value
 }
 
-// ResolveDatabaseURL constructs a database connection URL from environment variables.
+// ResolveDatabaseURL delegates Postgres precedence and reconstruction to the
+// package that owns the resource environment contract.
 func ResolveDatabaseURL() (string, error) {
-	// Prefer explicit DATABASE_URL if set
-	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
-		if raw == "" {
-			return "", fmt.Errorf("DATABASE_URL is set but empty")
-		}
-		return raw, nil
-	}
-
-	// Fall back to individual components
-	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
-
-	if host == "" || port == "" || user == "" || password == "" || name == "" {
-		return "", fmt.Errorf("DATABASE_URL or all of POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
-	}
-
-	pgURL := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(user, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   name,
-	}
-	values := pgURL.Query()
-	values.Set("sslmode", "disable")
-	pgURL.RawQuery = values.Encode()
-
-	return pgURL.String(), nil
-}
-
-// validationVideoDir returns the directory for storing validation video recordings.
-func validationVideoDir() string {
-	if dir := os.Getenv("DEPLOYMENT_MANAGER_DATA_DIR"); dir != "" {
-		return dir + "/validation-videos"
-	}
-	return "/tmp/deployment-manager/validation-videos"
+	return database.ResolvePostgresDSN(os.Getenv)
 }

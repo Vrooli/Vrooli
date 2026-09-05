@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -22,6 +21,8 @@ import (
 	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // DeployRequest is the request body for VPS deployment.
@@ -41,6 +42,9 @@ func ValidateUserPromptSecrets(manifest domain.CloudManifest, providedSecrets ma
 		if secret.Class != "user_prompt" {
 			continue // Not a user-provided secret
 		}
+		if secret.Descriptor == nil && strings.TrimSpace(secret.DescriptorReason) == "" {
+			return nil, fmt.Errorf("user_prompt secret %q has no credential descriptor address or documented reason", secret.ID)
+		}
 		if !secret.Required {
 			continue // Optional secret
 		}
@@ -53,6 +57,12 @@ func ValidateUserPromptSecrets(manifest domain.CloudManifest, providedSecrets ma
 		// Check if secret was provided
 		if _, ok := providedSecrets[key]; ok {
 			continue // Secret provided
+		}
+		if secret.Descriptor != nil {
+			address := strings.TrimSpace(secret.Descriptor.LogicalID) + ":" + strings.TrimSpace(secret.Descriptor.Field)
+			if _, ok := providedSecrets[address]; ok {
+				continue
+			}
 		}
 
 		// Secret is missing - collect info for error message
@@ -118,16 +128,57 @@ func BuildPortEnvVars(ports domain.ManifestPorts) string {
 	return fmt.Sprintf("export %s &&", strings.Join(parts, " "))
 }
 
-func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) map[string]string {
+// credentialFieldFor derives the durable field name for a bundle secret.
+//
+// The normalization itself lives in secrets.CredentialField and is shared with
+// the remote provisioning path deliberately: a value written under one
+// normalization and read under another is a credential that silently is not
+// there. Only the choice of which part of the plan names it belongs here.
+func credentialFieldFor(secret domain.BundleSecretPlan) string {
+	if secret.Descriptor != nil && strings.TrimSpace(secret.Descriptor.Field) != "" {
+		return secrets.CredentialField(secret.Descriptor.Field)
+	}
+	raw := strings.TrimSpace(secret.ID)
+	if raw == "" {
+		raw = strings.TrimSpace(secret.Target.Name)
+	}
+	return secrets.CredentialField(raw)
+}
+
+// buildUserSecretMap resolves the operator-supplied secrets a bundle needs.
+//
+// Values come from the credential authority, never from a file. The two
+// plaintext stores this used to read — ~/.vrooli/secrets.json and
+// ~/.vrooli/scenarios/<id>/secrets.json — are gone along with the API that
+// maintained them, so a cloud deploy no longer depends on, or recreates, a
+// credential sitting unencrypted on the operator's disk.
+//
+// The identity namespace is the same one Tier 1 and Tier 2 use,
+// vrooli/<scenario>, so a credential provisioned once during onboarding is the
+// credential a cloud deploy ships. That is the whole point of a durable
+// backend-neutral name: the deployment tier must not change where a value
+// lives.
+func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) (map[string]string, error) {
 	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	repoRoot, _ := bundle.FindRepoRootFromCWD()
-	workspaceSecrets := readLocalSecretsMap(filepath.Join(repoRoot, ".vrooli", "secrets.json"))
-	scenarioSecrets := readLocalSecretsMap(filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "secrets.json"))
+	authority, authErr := credentialauthority.Default()
+	identity, identityErr := credentialauthority.ParseIdentity("vrooli/" + strings.TrimSpace(manifest.Scenario.ID))
+	if authErr != nil {
+		return nil, fmt.Errorf("initialize credential authority: %w", authErr)
+	}
+	if identityErr != nil {
+		return nil, fmt.Errorf("parse deployment identity: %w", identityErr)
+	}
 
 	out := make(map[string]string)
+	descriptorKey := func(address *domain.DescriptorAddress) string {
+		if address == nil {
+			return ""
+		}
+		return strings.TrimSpace(address.LogicalID) + ":" + strings.TrimSpace(address.Field)
+	}
 	for _, secret := range manifest.Secrets.BundleSecrets {
 		if secret.Class != "user_prompt" {
 			continue
@@ -139,48 +190,43 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 		if key == "" {
 			continue
 		}
-
-		// Merge precedence (lowest -> highest):
-		// workspace/.vrooli/secrets.json -> scenarios/<id>/.vrooli/secrets.json -> explicit provided secrets
-		if v, ok := workspaceSecrets[key]; ok && strings.TrimSpace(v) != "" {
-			out[key] = v
-		}
-		if v, ok := scenarioSecrets[key]; ok && strings.TrimSpace(v) != "" {
-			out[key] = v
+		descriptor := descriptorKey(secret.Descriptor)
+		if descriptor != "" {
+			if v, ok := providedSecrets[descriptor]; ok && strings.TrimSpace(v) != "" {
+				out[key] = v
+				continue
+			}
 		}
 		if v, ok := providedSecrets[key]; ok && strings.TrimSpace(v) != "" {
 			out[key] = v
+			continue
+		}
+
+		// Merge precedence (lowest -> highest): the stored credential, then a
+		// value the caller supplied explicitly for this deploy.
+		resolveIdentity := identity
+		if secret.Descriptor != nil {
+			resolveIdentity, identityErr = credentialauthority.ParseIdentity(strings.TrimSpace(secret.Descriptor.LogicalID))
+			if identityErr != nil {
+				return nil, fmt.Errorf("parse descriptor identity for %s: %w", key, identityErr)
+			}
+		}
+		if field := credentialFieldFor(secret); field != "" {
+			// Unconfigured is handled by the caller's missing-secret check, but
+			// provider failures must remain visible and never become empty input.
+			value, resolveErr := authority.Require(resolveIdentity, field)
+			if resolveErr == nil && strings.TrimSpace(value) != "" {
+				out[key] = value
+			} else if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
+				return nil, fmt.Errorf("resolve deployment credential %s:%s: %w", resolveIdentity, field, resolveErr)
+			}
 		}
 	}
 
 	if len(out) == 0 {
-		return nil
+		return nil, nil
 	}
-	return out
-}
-
-func readLocalSecretsMap(path string) map[string]string {
-	out := make(map[string]string)
-	if strings.TrimSpace(path) == "" {
-		return out
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return out
-	}
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return out
-	}
-	for k, v := range raw {
-		if strings.HasPrefix(k, "_") {
-			continue
-		}
-		if str, ok := v.(string); ok {
-			out[k] = str
-		}
-	}
-	return out
+	return out, nil
 }
 
 // ServiceJSON represents the structure of .vrooli/service.json
@@ -230,26 +276,7 @@ type DefaultBundleFinder struct{}
 
 // FindRepoRootFromCWD finds the repo root from the current working directory.
 func (DefaultBundleFinder) FindRepoRootFromCWD() (string, error) {
-	// Use environment variable if set, otherwise search
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root, nil
-	}
-	// Walk up looking for .git directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	dir := cwd
-	for {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("repo root not found from %s", cwd)
-		}
-		dir = parent
-	}
+	return bundle.FindRepoRootFromCWD()
 }
 
 var bundleFinder BundleFinder = DefaultBundleFinder{}
@@ -261,7 +288,10 @@ func RequiredResourcesForScenario(scenarioID string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("repo root not found for dependency validation: %w", err)
 	}
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, fmt.Errorf("resolve service.json for dependency validation: %w", err)
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, fmt.Errorf("read service.json for dependency validation: %w", err)
@@ -353,7 +383,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 		steps = append(steps, domain.VPSPlanStep{
 			ID:          "secrets_provision",
 			Title:       "Provision secrets",
-			Description: "Generate per-install secrets and write to .vrooli/secrets.json before resource startup.",
+			Description: "Generate per-install secrets and provision them to the target credential authority before resource startup.",
 			Command:     "(custom step - secrets generated and written via API)",
 		})
 	}
@@ -598,8 +628,11 @@ func RunDeployWithProgress(
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("generate secrets: %w", err))
 		}
 
-		// Write secrets.json to VPS (generated + user-provided)
-		userSecrets := buildUserSecretMap(manifest, providedSecrets)
+		// Provision generated and user-provided values to the target authority.
+		userSecrets, resolveErr := buildUserSecretMap(manifest, providedSecrets)
+		if resolveErr != nil {
+			return failStep("secrets_provision", "Provisioning secrets", resolveErr)
+		}
 		if err := secrets.WriteToVPS(ctx, sshRunner, cfg, workdir, generated, userSecrets, manifest.Scenario.ID); err != nil {
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("write secrets: %w", err))
 		}
@@ -1087,7 +1120,7 @@ func resolveHostIP(ctx context.Context, host string) (string, error) {
 }
 
 // BuildWaitForPortScript returns a shell script that waits for a TCP port to be listening.
-func BuildWaitForPortScript(host string, port int, timeoutSecs int, serviceName string) string {
+func BuildWaitForPortScript(host string, port, timeoutSecs int, serviceName string) string {
 	return fmt.Sprintf(`
 set -e
 HOST=%s

@@ -1,6 +1,8 @@
 import datetime
 
+from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
+from agent_manager.v1.domain import workflow_pb2 as _workflow_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
@@ -21,6 +23,7 @@ class AgentManagerWsMessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrappe
     AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS: _ClassVar[AgentManagerWsMessageType]
     AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED: _ClassVar[AgentManagerWsMessageType]
     AGENT_MANAGER_WS_MESSAGE_TYPE_PONG: _ClassVar[AgentManagerWsMessageType]
+    AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE: _ClassVar[AgentManagerWsMessageType]
 
 class AgentManagerWsClientMessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -37,6 +40,7 @@ AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS: AgentManagerWsMessageType
 AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS: AgentManagerWsMessageType
 AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED: AgentManagerWsMessageType
 AGENT_MANAGER_WS_MESSAGE_TYPE_PONG: AgentManagerWsMessageType
+AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE: AgentManagerWsMessageType
 AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSPECIFIED: AgentManagerWsClientMessageType
 AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE: AgentManagerWsClientMessageType
 AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE: AgentManagerWsClientMessageType
@@ -85,7 +89,7 @@ class RunEvent(_message.Message):
     def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ..., compaction: _Optional[_Union[CompactionEventData, _Mapping]] = ...) -> None: ...
 
 class AgentManagerWsMessage(_message.Message):
-    __slots__ = ("type", "run_id", "run_event", "run_status", "task_status", "run_progress", "connected", "pong")
+    __slots__ = ("type", "run_id", "run_event", "run_status", "task_status", "run_progress", "connected", "pong", "workflow_lifecycle")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
@@ -94,6 +98,7 @@ class AgentManagerWsMessage(_message.Message):
     RUN_PROGRESS_FIELD_NUMBER: _ClassVar[int]
     CONNECTED_FIELD_NUMBER: _ClassVar[int]
     PONG_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     type: AgentManagerWsMessageType
     run_id: str
     run_event: RunEvent
@@ -102,19 +107,56 @@ class AgentManagerWsMessage(_message.Message):
     run_progress: ProgressEventData
     connected: WsConnected
     pong: WsPong
-    def __init__(self, type: _Optional[_Union[AgentManagerWsMessageType, str]] = ..., run_id: _Optional[str] = ..., run_event: _Optional[_Union[RunEvent, _Mapping]] = ..., run_status: _Optional[_Union[RunStatusUpdate, _Mapping]] = ..., task_status: _Optional[_Union[TaskStatusUpdate, _Mapping]] = ..., run_progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., connected: _Optional[_Union[WsConnected, _Mapping]] = ..., pong: _Optional[_Union[WsPong, _Mapping]] = ...) -> None: ...
+    workflow_lifecycle: WorkflowLifecycleUpdate
+    def __init__(self, type: _Optional[_Union[AgentManagerWsMessageType, str]] = ..., run_id: _Optional[str] = ..., run_event: _Optional[_Union[RunEvent, _Mapping]] = ..., run_status: _Optional[_Union[RunStatusUpdate, _Mapping]] = ..., task_status: _Optional[_Union[TaskStatusUpdate, _Mapping]] = ..., run_progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., connected: _Optional[_Union[WsConnected, _Mapping]] = ..., pong: _Optional[_Union[WsPong, _Mapping]] = ..., workflow_lifecycle: _Optional[_Union[WorkflowLifecycleUpdate, _Mapping]] = ...) -> None: ...
+
+class WorkflowLifecycleUpdate(_message.Message):
+    __slots__ = ("execution_id", "definition_digest", "status", "node_id", "strategy", "profile_identity", "run_id", "conversation_id", "source_attempt_id", "journal_sequence", "journal_kind", "journal_payload_digest", "budget_usage", "terminal_reason")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    CONVERSATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_KIND_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_PAYLOAD_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_USAGE_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_REASON_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    definition_digest: str
+    status: str
+    node_id: str
+    strategy: str
+    profile_identity: str
+    run_id: str
+    conversation_id: str
+    source_attempt_id: str
+    journal_sequence: int
+    journal_kind: str
+    journal_payload_digest: str
+    budget_usage: _workflow_pb2.WorkflowBudgetUsage
+    terminal_reason: _workflow_pb2.WorkflowTerminalReason
+    def __init__(self, execution_id: _Optional[str] = ..., definition_digest: _Optional[str] = ..., status: _Optional[str] = ..., node_id: _Optional[str] = ..., strategy: _Optional[str] = ..., profile_identity: _Optional[str] = ..., run_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., source_attempt_id: _Optional[str] = ..., journal_sequence: _Optional[int] = ..., journal_kind: _Optional[str] = ..., journal_payload_digest: _Optional[str] = ..., budget_usage: _Optional[_Union[_workflow_pb2.WorkflowBudgetUsage, _Mapping]] = ..., terminal_reason: _Optional[_Union[_workflow_pb2.WorkflowTerminalReason, _Mapping]] = ...) -> None: ...
 
 class RunStatusUpdate(_message.Message):
-    __slots__ = ("run_id", "status", "task_id", "prompt_preview")
+    __slots__ = ("run_id", "status", "task_id", "prompt_preview", "result_selection_status", "result_selection_rule")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     PROMPT_PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    RESULT_SELECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_SELECTION_RULE_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: _types_pb2.RunStatus
     task_id: str
     prompt_preview: str
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ...) -> None: ...
+    result_selection_status: _run_pb2.FinalOutputSelectionStatus
+    result_selection_rule: str
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., prompt_preview: _Optional[str] = ..., result_selection_status: _Optional[_Union[_run_pb2.FinalOutputSelectionStatus, str]] = ..., result_selection_rule: _Optional[str] = ...) -> None: ...
 
 class TaskStatusUpdate(_message.Message):
     __slots__ = ("task_id", "status")
@@ -161,14 +203,36 @@ class LogEventData(_message.Message):
     def __init__(self, level: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class MessageEventData(_message.Message):
-    __slots__ = ("role", "content", "attachments")
+    __slots__ = ("role", "content", "attachments", "message_id", "conversation_id", "turn_id", "provider_origin", "completion_reason", "terminal", "parent_message_id", "provider_event_type", "raw_evidence_ref", "evidence_only", "evidence_for_event_id")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    CONVERSATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    COMPLETION_REASON_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    PARENT_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    RAW_EVIDENCE_REF_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FOR_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     role: str
     content: str
     attachments: _containers.RepeatedCompositeFieldContainer[MessageAttachmentInfo]
-    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[MessageAttachmentInfo, _Mapping]]] = ...) -> None: ...
+    message_id: str
+    conversation_id: str
+    turn_id: str
+    provider_origin: str
+    completion_reason: str
+    terminal: bool
+    parent_message_id: str
+    provider_event_type: str
+    raw_evidence_ref: str
+    evidence_only: bool
+    evidence_for_event_id: str
+    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[MessageAttachmentInfo, _Mapping]]] = ..., message_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., provider_origin: _Optional[str] = ..., completion_reason: _Optional[str] = ..., terminal: _Optional[bool] = ..., parent_message_id: _Optional[str] = ..., provider_event_type: _Optional[str] = ..., raw_evidence_ref: _Optional[str] = ..., evidence_only: _Optional[bool] = ..., evidence_for_event_id: _Optional[str] = ...) -> None: ...
 
 class MessageAttachmentInfo(_message.Message):
     __slots__ = ("id", "file_name", "content_type", "url")

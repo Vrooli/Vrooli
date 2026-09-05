@@ -1,268 +1,229 @@
 {
   "_metadata": {
-    "prd_section": "P0 - Light Scanning Engine",
-    "description": "Cheap, fast static analysis using Makefile integration and file metrics"
+    "description": "Cheap, fast static analysis using Makefile integration and file metrics",
+    "last_validated_at": "2026-08-27T10:14:15-04:00"
   },
   "requirements": [
     {
       "id": "TM-LS-001",
       "title": "Makefile integration for lint execution",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Execute `make lint` for any scenario with a Makefile and capture full output",
       "validation": [
         {
           "type": "test",
+          "ref": "api/lint_execution_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/lint_execution_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/light_scanner_integration_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/light_scanner_integration_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/lint-execution.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-002",
       "title": "Makefile integration for type checking",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Execute `make type` for any scenario with a Makefile and capture full output",
       "validation": [
         {
           "type": "test",
+          "ref": "api/type_execution_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/type_execution_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/light_scanner_integration_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/light_scanner_integration_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/type-execution.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "Parse typescript and Go type errors into structured format",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-003",
       "title": "Lint output parser",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Parse lint outputs into structured issues with scenario, file path, line/column, message, and tool",
       "validation": [
         {
           "type": "test",
+          "ref": "api/parsers_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/parsers_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/no_makefile_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/no_makefile_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/lint-parser.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "Support multiple linter formats (eslint, golangci-lint). Parsers_test.go includes 34 unit tests plus 2 fuzz tests for comprehensive edge case coverage.",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-004",
       "title": "Type output parser",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "description": "Parse type checker outputs into structured issues",
       "validation": [
         {
           "type": "test",
+          "ref": "api/parsers_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/parsers_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/type-parser.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "Support typescript tsc and Go type errors. Comprehensive edge case coverage via 34 unit tests + fuzz tests.",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-005",
       "title": "File metrics - line counting",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "description": "Compute per-file line counts for all source files matching configurable glob patterns",
       "validation": [
         {
           "type": "test",
+          "ref": "api/file_metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/file_metrics_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/light_scanner_integration_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/light_scanner_integration_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/file-metrics-lines.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-006",
       "title": "File metrics - long file flagging",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "description": "Flag files exceeding configurable line count threshold as 'long file' issues",
       "validation": [
         {
           "type": "test",
+          "ref": "api/file_metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/file_metrics_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "api/light_scanner_integration_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/light_scanner_integration_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/long-file-detection.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "Default threshold: 400-600 lines (configurable per scenario)",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-007",
       "title": "Light scan performance - small scenarios",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
-      "description": "Light scans for scenarios <50 files must complete in under 60 seconds",
+      "description": "Light scans for scenarios \u003c50 files must complete in under 60 seconds",
       "validation": [
         {
           "type": "test",
+          "ref": "api/scan_performance_test.go",
           "phase": "performance",
-          "status": "implemented",
-          "ref": "api/scan_performance_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/light_scanner_integration_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/light_scanner_integration_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
-        {
-          "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/scan-performance-small.json"
+          "status": "implemented"
         }
-      ],
-      "notes": "CLI scan command wired, performance tests passing. Integration tests verify 30-file scenario completes in <60s (actual: ~7ms).",
-      "status": "complete"
+      ]
     },
     {
       "id": "TM-LS-008",
       "title": "Light scan performance - medium scenarios",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
-      "description": "Light scans for scenarios <200 files must complete in under 120 seconds",
+      "description": "Light scans for scenarios \u003c200 files must complete in under 120 seconds",
       "validation": [
         {
           "type": "test",
+          "ref": "api/scan_performance_test.go",
           "phase": "performance",
-          "status": "implemented",
-          "ref": "api/scan_performance_test.go"
+          "status": "implemented"
         },
         {
           "type": "test",
+          "ref": "api/end_to_end_scan_test.go",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "api/end_to_end_scan_test.go"
-        },
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TM-LS-009",
+      "title": "Declarative canonical seam enforcement",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "When a scanned tree declares canonical seams, Tidiness Manager shall parse each in-scope Go file once, report AST-matched call and literal bypasses above the seam budget, and ignore comment or excluded-path lookalikes.",
+      "validation": [
         {
           "type": "test",
-          "phase": "e2e",
-          "status": "implemented",
-          "ref": "bas/cases/01-light-scanning/api/scan-performance-medium.json"
+          "ref": "api/canonical_seams_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Tagged tests cover call and qualified-literal AST matching, import aliases, comment controls, exclusions, budgets, canonical declaration exemption, strict configuration decoding, and the five repository seams."
         }
-      ],
-      "notes": "CLI scan command wired, performance tests passing (tidiness-manager completes in 2s)",
-      "status": "complete"
+      ]
     }
   ]
 }

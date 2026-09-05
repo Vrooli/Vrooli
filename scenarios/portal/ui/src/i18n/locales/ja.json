@@ -1,0 +1,170 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Portal のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Vrooli Portal"
+  },
+  "layout": {
+    "sidebarLabel": "デスクトップナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Portal",
+      "description": "OpenRouter モデルやコーディングエージェントと会話しながら、Portal がエコシステム文脈を受動的に表示します。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "integrations": {
+    "mode": {
+      "label": "検索モード",
+      "loading": "確認中",
+      "off": "オフ",
+      "passive": "パッシブ",
+      "full": "フル",
+      "unknown": "不明"
+    },
+    "settings": {
+      "title": "連携",
+      "description": "Portal は任意依存関係を自身の呼び出しで測定し、その測定値から有効な検索動作を選択します。",
+      "overrideLabel": "動作の上書き",
+      "overrideAuto": "自動",
+      "overrideForceOff": "オフを強制",
+      "overrideForcePassive": "パッシブを強制",
+      "nameHeader": "連携",
+      "stateHeader": "状態",
+      "latencyHeader": "P95 レイテンシ",
+      "samplesHeader": "サンプル",
+      "reasonHeader": "理由",
+      "empty": "連携測定はまだありません。",
+      "error": "連携ステータスを読み込めません。"
+    },
+    "state": {
+      "available": "利用可能",
+      "degraded": "低下",
+      "unavailable": "利用不可",
+      "unknown": "不明",
+      "unspecified": "未指定"
+    }
+  },
+  "search": {
+    "omnibox": {
+      "title": "エコシステム検索",
+      "description": "search-hub からシナリオ、ドキュメント、記録、スキル、コマンドを会話を止めずに表示します。",
+      "inputLabel": "下書き",
+      "placeholder": "Vrooli の機能、コマンド、ドキュメント、過去の作業を質問",
+      "loading": "エコシステムの文脈を検索しています…",
+      "empty": "候補は見つかりませんでした。",
+      "degraded": "検索候補は縮退しています。"
+    }
+  },
+  "chat": {
+    "title": "チャット",
+    "sidebar": {
+      "label": "会話リスト",
+      "description": "グループ化されたチャットは同じ LLM / エージェント作業空間を共有します。",
+      "newChat": "LLM",
+      "newAgent": "エージェント",
+      "newGroup": "新規グループ",
+      "newChatTitle": "新規 LLM チャット",
+      "newAgentTitle": "新規エージェントチャット",
+      "newGroupTitle": "新規グループ",
+      "ungrouped": "未分類",
+      "empty": "LLM またはエージェントチャットを作成して開始してください。"
+    },
+    "controls": {
+      "mode": "モード",
+      "modeLlm": "LLM",
+      "modeAgent": "エージェント",
+      "model": "モデル",
+      "modelFast": "高速モデル",
+      "modelReasoning": "推論モデル",
+      "agentHarness": "エージェント",
+      "harnessClaude": "Claude Code",
+      "harnessCodex": "Codex",
+      "harnessOpencode": "OpenCode",
+      "harnessGrok": "Grok",
+      "webSearch": "受動検索"
+    },
+    "empty": {
+      "description": "サイドバーからチャットを開始し、メッセージを送信します。search-hub が利用可能な場合、検索結果は背景で添付されます。"
+    },
+    "message": {
+      "roleUser": "あなた",
+      "roleAssistant": "アシスタント",
+      "roleAgent": "エージェント",
+      "branchCount": "{{current}} / {{total}}",
+      "previousBranch": "前の分岐",
+      "nextBranch": "次の分岐",
+      "edit": "メッセージを編集",
+      "editPrompt": "メッセージを編集",
+      "regenerate": "再生成",
+      "searchAttachments": "エコシステム結果",
+      "agentActivity": "エージェント活動",
+      "streaming": "ストリーミング中"
+    },
+    "composer": {
+      "label": "メッセージ",
+      "placeholder": "Portal に推論、構築、説明、または Vrooli 全体の検索を依頼します。",
+      "skills": "スキル ID",
+      "skillsPlaceholder": "prompt-manager のスキル ID をカンマ区切りで入力",
+      "send": "送信",
+      "stop": "停止"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

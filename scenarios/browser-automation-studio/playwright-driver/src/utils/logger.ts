@@ -64,7 +64,8 @@ export function createLogger(config: Config): winston.Logger {
 
 // Default logger instance (can be replaced via setLogger)
 let loggerInstance: winston.Logger = winston.createLogger({
-  level: 'info',
+  level: process.env.NODE_ENV === 'test' ? 'silent' : 'info',
+  silent: process.env.NODE_ENV === 'test',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),

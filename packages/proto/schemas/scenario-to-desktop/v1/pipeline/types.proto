@@ -1,20 +1,21 @@
 syntax = "proto3";
 
-package scenario_to_desktop.v1;
+package vrooli.scenario_to_desktop.v1.pipeline;
 
-import "google/protobuf/struct.proto";
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
-import "scenario-to-desktop/v1/base/shared.proto";
+import "scenario-to-desktop/v1/shared/common.proto";
+import "scenario-to-desktop/v1/shared/metadata.proto";
+import "scenario-to-desktop/v1/shared/operation_results.proto";
+import "scenario-to-desktop/v1/shared/preflight_results.proto";
+import "scenario-to-desktop/v1/shared/update_config.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline;pipeline";
 
 // =============================================================================
 // PIPELINE ORCHESTRATION
 // =============================================================================
 //
-// @layer 2
-// @domain pipeline
-// @imports base
 // @stability beta
 //
 // Pipeline orchestration types for managing the desktop deployment workflow.
@@ -36,15 +37,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-
 // All settings are optional with sensible defaults. The only required
 // field is scenario_name.
 //
-// @usage POST /api/pipeline request body
 message PipelineConfig {
   // Name of the scenario to deploy (required).
-  // @constraint non-empty
-  string scenario_name = 1;
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
 
   // Target platforms to build for.
   // Empty means current platform only.
-  repeated Platform platforms = 2;
+  repeated vrooli.scenario_to_desktop.v1.shared.Platform platforms = 2;
 
   // Whether to skip preflight validation.
   // @default false
@@ -59,13 +58,13 @@ message PipelineConfig {
   optional bool stop_on_failure = 5;
 
   // Deployment mode for the desktop application.
-  DeploymentMode deployment_mode = 6;
+  vrooli.scenario_to_desktop.v1.shared.DeploymentMode deployment_mode = 6;
 
   // Target desktop framework.
-  Framework framework = 7;
+  vrooli.scenario_to_desktop.v1.shared.Framework framework = 7;
 
   // Application template type.
-  TemplateType template_type = 8;
+  vrooli.scenario_to_desktop.v1.shared.TemplateType template_type = 8;
 
   // Webhook URL for pipeline notifications.
   // @format uri
@@ -79,6 +78,15 @@ message PipelineConfig {
   // Override path to bundle manifest.
   // @format path
   optional string bundle_manifest_path = 11;
+
+  // Verified Vrooli release directory that contains resource artifacts.
+  optional string resource_artifact_root = 24;
+
+  // Verified Vrooli release directory that contains vendored tool artifacts.
+  optional string tool_artifact_root = 29;
+
+  // Output placement mode: proper, staging, or custom.
+  optional string location_mode = 25;
 
   // Whether to clean existing output before building.
   // @default false
@@ -113,10 +121,10 @@ message PipelineConfig {
 
   // Stage to stop after (for partial runs).
   // Empty means run all stages.
-  optional StageName stop_after_stage = 20;
+  optional vrooli.scenario_to_desktop.v1.shared.StageName stop_after_stage = 20;
 
   // Stage to resume from (requires prior stop_after_stage run).
-  optional StageName resume_from_stage = 21;
+  optional vrooli.scenario_to_desktop.v1.shared.StageName resume_from_stage = 21;
 
   // Parent pipeline ID when resuming.
   // @format uuid
@@ -126,6 +134,18 @@ message PipelineConfig {
   // If a pipeline with this key already exists and is running/completed,
   // returns existing pipeline instead of starting new one.
   optional string idempotency_key = 23;
+
+  // Explicit stage selection. Empty means run the complete pipeline.
+  repeated vrooli.scenario_to_desktop.v1.shared.StageName stages = 26;
+
+  // Required for bundled resource artifacts: development-local verifies staged
+  // bytes without release promotion; production requires the release authority.
+  optional string artifact_trust_mode = 27;
+
+  // Auto-update configuration embedded in the generated desktop application.
+  // Generic update URLs may use HTTP only for development-local evidence; a
+  // production pipeline requires an HTTPS endpoint.
+  optional vrooli.scenario_to_desktop.v1.shared.UpdateConfig update_config = 28;
 }
 
 // =============================================================================
@@ -134,13 +154,12 @@ message PipelineConfig {
 
 // StageResult contains the outcome of a single pipeline stage.
 //
-// @usage PipelineStatus.stages
 message StageResult {
   // Stage name.
-  StageName stage = 1;
+  vrooli.scenario_to_desktop.v1.shared.StageName stage = 1;
 
   // Stage execution status.
-  StageStatus status = 2;
+  vrooli.scenario_to_desktop.v1.shared.StageStatus status = 2;
 
   // When the stage started.
   google.protobuf.Timestamp started_at = 3;
@@ -151,12 +170,157 @@ message StageResult {
   // Error message if stage failed.
   optional string error = 5;
 
-  // Stage-specific output data.
-  // Structure varies by stage type.
-  optional google.protobuf.Struct details = 6;
+  // Field 6 formerly held untyped JSON output. The desktop deployment
+  // contract is greenfield and requires every stage result to be explicit.
+  reserved 6;
 
   // Log messages from stage execution.
   repeated string logs = 7;
+
+  // Typed stage-specific output data.
+  optional StageDetails details = 8;
+}
+
+// StageDetails is the complete set of outputs a pipeline stage may publish.
+// A stage publishes exactly one result kind; consumers must not infer shape
+// from a stage name or decode untyped JSON.
+message StageDetails {
+  oneof kind {
+    ResourceDeploymentPlan resolve_deployment = 1;
+    BundleStageDetails bundle = 2;
+    vrooli.scenario_to_desktop.v1.shared.PreflightResponse preflight = 3;
+    GenerateResponse generate = 4;
+    vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse build = 5;
+    vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse smoke_test = 6;
+    DeployStageDetails deploy = 7;
+  }
+}
+
+message ResourceDeploymentPlan {
+  string schema_version = 1;
+  repeated ResourceDeploymentPlanItem resources = 2;
+  string artifact_trust_mode = 3;
+  bool promotable = 4;
+  repeated HostRequirementPlanItem host_requirements = 5;
+}
+
+message HostRequirementPlanItem {
+  string name = 1;
+  string kind = 2;
+  string os = 3;
+  string privilege = 4;
+  string bundling = 5;
+  bool required = 6;
+  string verdict = 7;
+  string reason = 8;
+  repeated string provenance = 9;
+  string architecture = 10;
+  optional string artifact = 11;
+}
+
+message ResourceDeploymentPlanItem {
+  string requested_resource = 1;
+  string resource = 2;
+  string os = 3;
+  string architecture = 4;
+  string mode = 5;
+  string support = 6;
+  repeated string requires = 7;
+  repeated string limitations = 8;
+  repeated string evidence = 9;
+  optional ResourceDeploymentFallback selected_fallback = 10;
+  optional string artifact = 11;
+  repeated ResourceDeploymentArtifact files = 12;
+  optional ResourceDeploymentService service = 13;
+  string privilege = 14;
+  string bundling = 15;
+  string eligibility = 16;
+  string eligibility_reason = 17;
+}
+
+message ResourceDeploymentFallback {
+  string resource = 1;
+  string reason = 2;
+}
+
+message ResourceDeploymentArtifact {
+  string name = 1;
+  string sha256 = 2;
+}
+
+message ResourceDeploymentService {
+  ResourceProviderPolicy provider_policy = 1;
+  string artifact = 2;
+  string version = 3;
+  string sha256 = 4;
+  repeated string arguments = 5;
+  map<string, string> environment = 6;
+  repeated ResourceDeploymentServicePort ports = 7;
+  repeated ResourceDeploymentHealthCheck health_checks = 8;
+  repeated ResourceDeploymentArtifact files = 9;
+  optional ResourceDeploymentServiceConfig config = 10;
+  string layout = 11;
+  optional string entry_path = 12;
+}
+
+message ResourceProviderPolicy {
+  string default_mode = 1;
+  map<string, string> target_defaults = 2;
+  repeated string allowed_modes = 3;
+  bool shared_reuse_requires_consent = 4;
+  string external_management = 5;
+  repeated string external_access_capabilities = 6;
+}
+
+message ResourceDeploymentServiceConfig {
+  string path = 1;
+  string content = 2;
+}
+
+message ResourceDeploymentServicePort {
+  string name = 1;
+  int32 host = 2;
+}
+
+message ResourceDeploymentHealthCheck {
+  string type = 1;
+  string target = 2;
+  repeated int32 expected_status = 3;
+  int32 timeout_seconds = 4;
+}
+
+message BundleStageDetails {
+  string bundle_dir = 1;
+  string manifest_path = 2;
+  map<string, string> runtime_binaries = 3;
+  repeated string copied_artifacts = 4;
+  int64 total_size_bytes = 5;
+  string total_size_human = 6;
+  optional BundleSizeWarning size_warning = 7;
+}
+
+message BundleSizeWarning {
+  string level = 1;
+  string message = 2;
+  int64 total_bytes = 3;
+  string total_human = 4;
+  repeated BundleLargeFile large_files = 5;
+}
+
+message BundleLargeFile {
+  string path = 1;
+  int64 size_bytes = 2;
+  string size_human = 3;
+}
+
+message DeployStageDetails {
+  repeated DeployArtifactResult artifacts = 1;
+  optional string update_url = 2;
+}
+
+message DeployArtifactResult {
+  int64 artifact_id = 1;
+  vrooli.scenario_to_desktop.v1.shared.Platform platform = 2;
 }
 
 // =============================================================================
@@ -165,7 +329,6 @@ message StageResult {
 
 // PipelineStatus contains the complete state of a pipeline run.
 //
-// @usage GET /api/pipeline/{id}/status response
 message PipelineStatus {
   // Unique pipeline run identifier.
   // @format uuid
@@ -175,10 +338,10 @@ message PipelineStatus {
   string scenario_name = 2;
 
   // Overall pipeline status.
-  StageStatus status = 3;
+  vrooli.scenario_to_desktop.v1.shared.StageStatus status = 3;
 
   // Currently executing stage.
-  optional StageName current_stage = 4;
+  optional vrooli.scenario_to_desktop.v1.shared.StageName current_stage = 4;
 
   // Progress percentage (0-100).
   // Calculated from completed stages / total stages.
@@ -188,12 +351,17 @@ message PipelineStatus {
   // @example "Running build stage (3/6)"
   optional string progress_message = 6;
 
+  // Fine-grained orchestration state, such as "gate_blocked".
+  // This supplements the overall stage status for clients that render approval
+  // and execution-state guidance.
+  optional string current_state = 17;
+
   // Per-stage results.
   // Key: Stage name (bundle, preflight, generate, build, smoketest, distribution)
   map<string, StageResult> stages = 7;
 
   // Ordered list of stages to execute.
-  repeated StageName stage_order = 8;
+  repeated vrooli.scenario_to_desktop.v1.shared.StageName stage_order = 8;
 
   // Pipeline configuration used.
   PipelineConfig config = 9;
@@ -208,11 +376,11 @@ message PipelineStatus {
   optional string error = 12;
 
   // Final build artifacts.
-  // Key: Platform or artifact name, Value: File path
+  // Key: vrooli.scenario_to_desktop.v1.shared.Platform or artifact name, Value: File path
   map<string, string> final_artifacts = 13;
 
   // Stage the pipeline was stopped after (if intentionally stopped).
-  optional StageName stopped_after_stage = 14;
+  optional vrooli.scenario_to_desktop.v1.shared.StageName stopped_after_stage = 14;
 
   // Parent pipeline ID if this is a resumed run.
   // @format uuid
@@ -229,7 +397,6 @@ message PipelineStatus {
 // PipelineRunRequest is the request to start a pipeline.
 // Alias for PipelineConfig with identical structure.
 //
-// @usage POST /api/pipeline request body
 message PipelineRunRequest {
   // Embedded configuration.
   PipelineConfig config = 1;
@@ -237,23 +404,34 @@ message PipelineRunRequest {
 
 // PipelineRunResponse is returned when a pipeline is started.
 //
-// @usage POST /api/pipeline response
 message PipelineRunResponse {
   // Unique pipeline identifier.
   // @format uuid
   string pipeline_id = 1;
 
-  // URL to poll for status updates.
-  // @format uri
-  string status_url = 2;
+  // Informational message. Read the pipeline with PipelineService.Get.
+  optional string message = 2;
+}
 
-  // Informational message.
-  optional string message = 3;
+message PipelineGetRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message PipelineResumeRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  PipelineConfig config = 2;
+}
+
+message PipelineCancelRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message PipelineListRequest {
+  optional string scenario_name = 1;
 }
 
 // PipelineCancelResponse is returned when a pipeline is cancelled.
 //
-// @usage POST /api/pipeline/{id}/cancel response
 message PipelineCancelResponse {
   // Resulting status after cancellation.
   string status = 1;
@@ -264,7 +442,6 @@ message PipelineCancelResponse {
 
 // PipelineResumeResponse is returned when a pipeline is resumed.
 //
-// @usage POST /api/pipeline/{id}/resume response
 message PipelineResumeResponse {
   // New pipeline identifier for the resumed run.
   // @format uuid
@@ -274,20 +451,15 @@ message PipelineResumeResponse {
   // @format uuid
   string parent_pipeline_id = 2;
 
-  // URL to poll for status updates.
-  // @format uri
-  string status_url = 3;
-
   // Stage the resumed pipeline starts from.
-  StageName resume_from_stage = 4;
+  vrooli.scenario_to_desktop.v1.shared.StageName resume_from_stage = 3;
 
   // Informational message.
-  optional string message = 5;
+  optional string message = 4;
 }
 
 // PipelineListItem is a summary of a pipeline for list views.
 //
-// @usage PipelineListResponse.pipelines
 message PipelineListItem {
   // Pipeline identifier.
   // @format uuid
@@ -297,13 +469,13 @@ message PipelineListItem {
   string scenario_name = 2;
 
   // Pipeline status.
-  StageStatus status = 3;
+  vrooli.scenario_to_desktop.v1.shared.StageStatus status = 3;
 
   // Progress percentage.
   int32 progress_percent = 4;
 
   // Current stage (if running).
-  optional StageName current_stage = 5;
+  optional vrooli.scenario_to_desktop.v1.shared.StageName current_stage = 5;
 
   // When the pipeline was created.
   google.protobuf.Timestamp created_at = 6;
@@ -320,7 +492,6 @@ message PipelineListItem {
 
 // PipelineListResponse contains a list of pipelines.
 //
-// @usage GET /api/pipeline response
 message PipelineListResponse {
   // List of pipeline summaries.
   repeated PipelineListItem pipelines = 1;
@@ -329,43 +500,121 @@ message PipelineListResponse {
   optional int32 total = 2;
 }
 
+// ScenarioPipelineRequest identifies the scenario whose durable active-pipeline
+// slot is being managed.
+message ScenarioPipelineRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetActivePipelineRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Creates a new idle pipeline when no active slot exists.
+  bool auto_create = 2;
+}
+
+message ActivePipelineResponse {
+  optional PipelineStatus pipeline = 1;
+  bool created = 2;
+}
+
+message CreatePipelineRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional PipelineConfig config = 2;
+}
+
+message CreatePipelineResponse {
+  PipelineStatus pipeline = 1;
+  optional string archived_pipeline_id = 2;
+}
+
+message ResetPipelineResponse {
+  optional string archived_pipeline_id = 1;
+  bool cleared = 2;
+}
+
+message PipelineHistoryRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional int32 limit = 2;
+}
+
+message PipelineHistoryResponse {
+  repeated PipelineStatus pipelines = 1;
+  int32 total = 2;
+}
+
+message StartActivePipelineRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional PipelineConfig config_overrides = 2;
+}
+
+message StartActivePipelineResponse {
+  PipelineStatus pipeline = 1;
+  // Read the returned pipeline with PipelineService.Get as it progresses.
+  optional string message = 2;
+}
+
+// BundleCleanRequest removes the generated bundle payload for one scenario.
+// It is intentionally Electron-only: framework selection is not a client
+// choice in the mature desktop deployment contract.
+message BundleCleanRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  optional string location_mode = 2;
+  optional string pipeline_id = 3;
+}
+
+message BundleCleanResponse {
+  string scenario_name = 1;
+  string location_mode = 2;
+  optional string pipeline_id = 3;
+  string path = 4;
+  bool removed = 5;
+}
+
 // =============================================================================
 // GENERATE RESPONSE
 // =============================================================================
 
 // GenerateResponse is returned after the generate stage completes.
 //
-// @usage POST /api/generate response
 message GenerateResponse {
-  // Pipeline ID for the generation (deprecated, use pipeline_id).
-  // @format uuid
-  // @deprecated Use pipeline_id instead
-  optional string build_id = 1;
-
   // Pipeline identifier.
   // @format uuid
-  string pipeline_id = 2;
+  string pipeline_id = 1;
 
   // Initial status.
-  string status = 3;
+  string status = 2;
 
   // Scenario that was generated.
-  string scenario_name = 4;
+  string scenario_name = 3;
 
   // Path to the generated desktop wrapper.
   // @format path
-  optional string desktop_path = 5;
+  optional string desktop_path = 4;
 
   // Detected scenario metadata.
-  optional google.protobuf.Struct detected_metadata = 6;
+  optional vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata detected_metadata = 5;
 
   // Instructions for installing dependencies.
-  optional string install_instructions = 7;
+  optional string install_instructions = 6;
 
   // Command to test the generated application.
-  optional string test_command = 8;
+  optional string test_command = 7;
+}
 
-  // URL to poll for pipeline status.
-  // @format uri
-  optional string status_url = 9;
+service PipelineService {
+  rpc Run(PipelineRunRequest) returns (PipelineRunResponse);
+  rpc Get(PipelineGetRequest) returns (PipelineStatus);
+  // GetReleaseGate returns the deployment approval state for a pipeline.
+  // It is intentionally separate from Get: callers use it to make an
+  // approval decision, rather than to render general pipeline progress.
+  rpc GetReleaseGate(PipelineGetRequest) returns (PipelineStatus);
+  rpc Resume(PipelineResumeRequest) returns (PipelineResumeResponse);
+  rpc Cancel(PipelineCancelRequest) returns (PipelineCancelResponse);
+  rpc List(PipelineListRequest) returns (PipelineListResponse);
+  rpc GetActive(GetActivePipelineRequest) returns (ActivePipelineResponse);
+  rpc CreateActive(CreatePipelineRequest) returns (CreatePipelineResponse);
+  rpc ResetActive(ScenarioPipelineRequest) returns (ResetPipelineResponse);
+  rpc GetHistory(PipelineHistoryRequest) returns (PipelineHistoryResponse);
+  rpc StartActive(StartActivePipelineRequest) returns (StartActivePipelineResponse);
+  rpc CleanBundle(BundleCleanRequest) returns (BundleCleanResponse);
 }

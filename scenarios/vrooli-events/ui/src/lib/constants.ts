@@ -15,7 +15,7 @@ export const QUERY_LIMIT_OPTIONS = [25, 50, 100, 500] as const;
 
 /** CSS class for styled form inputs (filter fields, selects). */
 export const INPUT_CLASS =
-  "rounded-lg border border-[var(--border-default)] bg-[var(--surface-inset)] px-3 py-2 text-sm text-[var(--text-secondary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--text-accent)]";
+  "rounded-lg border border-[var(--border-default)] bg-[var(--surface-inset)] px-3 py-2 text-base text-[var(--text-secondary)] placeholder-[var(--text-faint)] outline-none focus:border-[var(--text-accent)]";
 
 /** Health status to indicator color mapping. */
 export const STATUS_COLORS: Record<string, string> = {

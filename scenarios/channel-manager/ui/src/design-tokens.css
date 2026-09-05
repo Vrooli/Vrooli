@@ -1,0 +1,217 @@
+:root {
+  --color-background: #f8fafc;
+  --color-shell: #020617;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-raised: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+  --color-border: #cbd5e1;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0891b2;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #0284c7;
+  --color-focus: #2563eb;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-sheet: 1rem;
+  --radius-pill: 9999px;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --spacing-unit: 0.25rem;
+  --touch-target: 44px;
+  --sidebar-width: 20rem;
+  --sidebar-min-width: 16.25rem;
+  --sidebar-max-width: 30rem;
+  color-scheme: light;
+/* rcl:tokens:begin */
+  --badge-border: var(--color-border);
+  --border-hairline: 1px;
+  --border-strong: 2px;
+  --color-field: var(--color-surface);
+  --color-surface-sunken: #0b1220;
+  --control-height: initial;
+  --control-height-lg: initial;
+  --control-height-sm: initial;
+  --control-padding: var(--space-sm);
+  --control-radius: var(--radius-control);
+  --control-size-icon: 40px;
+  --control-size-lg: 44px;
+  --control-size-md: 40px;
+  --control-size-sm: 36px;
+  --control-size-xl: 48px;
+  --control-size-xs: 32px;
+  --dur-deliberate: 400ms;
+  --dur-enter: var(--dur-quick);
+  --dur-fast: var(--dur-instant);
+  --dur-instant: 120ms;
+  --dur-moderate: 280ms;
+  --dur-normal: var(--dur-moderate);
+  --dur-quick: 180ms;
+  --dur-slow: var(--dur-deliberate);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --elev-: initial;
+  --elev-flat: none;
+  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
+  --elev-modal: 0 4px 12px rgba(9, 18, 22, 0.1), 0 16px 48px rgba(9, 18, 22, 0.18);
+  --elev-overlay: 0 2px 4px rgba(9, 18, 22, 0.06), 0 4px 12px rgba(9, 18, 22, 0.1);
+  --elev-raised: 0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1);
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
+  --icon-size-lg: 24px;
+  --icon-size-md: 20px;
+  --icon-size-sm: 16px;
+  --opacity-muted: 0.64;
+  --panel-padding: var(--space-md);
+  --panel-radius: var(--radius-panel);
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-none: 0;
+  --radius-overlay: 1rem;
+  --radius-sm: 0.25rem;
+  --radius-xl: 1.25rem;
+  --space-2xl: 48px;
+  --space-2xs: 8px;
+  --space-3xs: 4px;
+  --space-4xl: 80px;
+  --space-4xs: 4px;
+  --space-lg: 32px;
+  --space-md: 24px;
+  --space-sm: 16px;
+  --space-xl: 40px;
+  --space-xs: 12px;
+  --spring-subtle: cubic-bezier(0.2, 0.8, 0.2, 1.05);
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-body-line: 22px;
+  --text-body-size: 14px;
+  --text-body-sm-line: 20px;
+  --text-body-sm-size: 13px;
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-caption-size: 11px;
+  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  --text-heading-line: 24px;
+  --text-heading-size: 18px;
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-label-line: 16px;
+  --text-label-size: 12px;
+  --text-label-tracking: 0.005em;
+  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+  --text-title-line: 30px;
+  --text-title-size: 24px;
+/* rcl:tokens:end */}
+
+:root[data-resolved-theme="dark"],
+.dark {
+  --color-background: #020617;
+  --color-shell: #020617;
+  --color-surface: #0f172a;
+  --color-surface-muted: #1e293b;
+  --color-surface-raised: #172033;
+  --color-foreground: #f8fafc;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #334155;
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #020617;
+  --color-accent: #22d3ee;
+  --color-success: #22c55e;
+  --color-danger: #f87171;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-focus: #60a5fa;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]) {
+    --color-background: #020617;
+    --color-shell: #020617;
+    --color-surface: #0f172a;
+    --color-surface-muted: #1e293b;
+    --color-surface-raised: #172033;
+    --color-foreground: #f8fafc;
+    --color-muted-foreground: #94a3b8;
+    --color-border: #334155;
+    --color-primary: #60a5fa;
+    --color-primary-foreground: #020617;
+    --color-accent: #22d3ee;
+    --color-success: #22c55e;
+    --color-danger: #f87171;
+    --color-warning: #f59e0b;
+    --color-info: #38bdf8;
+    --color-focus: #60a5fa;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+    color-scheme: dark;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

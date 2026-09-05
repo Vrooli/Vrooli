@@ -1,0 +1,208 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "workspace",
+    "title": "Terminal Workspace",
+    "routes": ["/"],
+    "purpose": "Run and steer many terminal sessions from one surface: start a first session in seconds, keep the active session's output at the visual center, switch sessions at a glance, and never be lied to about connection or recovery state.",
+    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-006", "OT-P0-007", "OT-P0-008"]
+  },
+  "priorities": [
+    { "statement": "A first-time visitor reaches a live shell within seconds of arriving." },
+    { "statement": "The active session's output owns the visual center at all times; chrome stays ambient." },
+    { "statement": "Session identity and switching are one glance away, in every display mode." },
+    { "statement": "Connection and recovery truth is always visible — the console never silently lies about liveness." },
+    { "statement": "Voice and AI input are discoverable without ever competing with the terminal." }
+  ],
+  "states": [
+    { "id": "loading", "description": "Store hydration / initial health check before the workspace is interactive." },
+    { "id": "empty", "description": "No sessions yet: tagline plus the new-terminal affordance as the one path forward." },
+    { "id": "default", "description": "One or more live sessions; active pane output streaming." },
+    { "id": "launcher-open", "description": "The new-terminal launcher dialog is open (shortcuts, custom command, backend options)." },
+    { "id": "recovering", "description": "Async session recovery in progress after reload; honestly bannered while usable." },
+    { "id": "offline", "description": "API unreachable: connection banner with retry, auto-clearing when health returns." },
+    { "id": "voice-active", "description": "Mic engaged (recording/listening/transcribing) with visible state on the mic control." }
+  ],
+  "regions": [
+    {
+      "id": "workspace-shell",
+      "purpose": "Stable hydrated shell marker used by capture and workflow consumers before inspecting workspace controls.",
+      "component": { "library": { "component": "experience-surface", "version": "1.0.3" } },
+      "lifecycle": { "kind": "static", "states": ["static"] }
+    }
+  ],
+  "elements": [
+    { "id": "new-terminal", "role": "button", "description": "Primary affordance to start a session; present in empty state and ambient chrome." },
+    { "id": "launcher", "role": "dialog", "description": "New-terminal launcher: default shortcuts, custom command, backend/timeout options." },
+    { "id": "terminal-surface", "role": "x-terminal", "description": "xterm.js pane host — no adequate native ARIA role; x- custom role by design (spike: exercises the escape hatch)." },
+    { "id": "tab-strip", "role": "tablist", "description": "Session tabs with selected state (tabs display mode)." },
+    { "id": "composer", "role": "textbox", "description": "Command input in the mobile toolbar; queued/failed send status alongside." },
+    { "id": "mic-toggle", "role": "button", "description": "Voice input control with visible state machine (idle/recording/listening/transcribing) and auto-stop ring." },
+    { "id": "ai-entry", "role": "button", "description": "AI command palette entry in the ambient toolbar." },
+    { "id": "connection-banner", "role": "status", "description": "API-unreachable banner with retry; polls and auto-clears." },
+    { "id": "recovery-banner", "role": "status", "description": "Async session-recovery progress banner." }
+  ],
+  "claims": [
+    {
+      "id": "empty-invites-first-session",
+      "type": "element-present",
+      "statement": "The empty workspace presents the new-terminal affordance immediately; there is no dead-end arrival.",
+      "tier": "machine",
+      "elements": ["new-terminal"],
+      "states": ["empty"]
+    },
+    {
+      "id": "start-dominates-when-empty",
+      "type": "single-dominant-action",
+      "statement": "With no sessions, starting one is the single dominant action; nothing competes.",
+      "tier": "machine",
+      "elements": ["new-terminal"],
+      "states": ["empty"]
+    },
+    {
+      "id": "launcher-announced",
+      "type": "element-present",
+      "statement": "The new-terminal launcher opens as an announced dialog, keyboard-dismissable.",
+      "tier": "machine",
+      "elements": ["launcher"],
+      "states": ["launcher-open"]
+    },
+    {
+      "id": "terminal-owns-the-center",
+      "type": "element-present",
+      "statement": "A terminal surface is perceivable and central whenever sessions exist — including during recovery and voice capture.",
+      "tier": "machine",
+      "elements": ["terminal-surface"],
+      "states": ["default", "recovering", "voice-active"]
+    },
+    {
+      "id": "tabs-announced",
+      "type": "element-present",
+      "statement": "In tabs mode, sessions are exposed as a tablist with the active tab selected.",
+      "tier": "machine",
+      "elements": ["tab-strip"],
+      "states": ["default"],
+      "x-display-mode": "tabs"
+    },
+    {
+      "id": "composer-reachable-mobile",
+      "type": "element-present",
+      "statement": "On mobile, the command composer is perceivable alongside the terminal without hunting.",
+      "tier": "machine",
+      "elements": ["composer"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "composer-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "The composer and its send affordance are fully keyboard operable.",
+      "tier": "machine",
+      "elements": ["composer"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "recovery-honest",
+      "type": "element-present",
+      "statement": "While sessions recover after a reload, a status banner discloses it; recovery is never silent.",
+      "tier": "machine",
+      "elements": ["recovery-banner"],
+      "states": ["recovering"]
+    },
+    {
+      "id": "offline-truthful",
+      "type": "element-present",
+      "statement": "When the API is unreachable, a status banner says so and offers retry; it clears itself when health returns.",
+      "tier": "machine",
+      "elements": ["connection-banner"],
+      "states": ["offline"]
+    },
+    {
+      "id": "mic-discoverable",
+      "type": "element-present",
+      "statement": "Voice input is discoverable from the primary surface without opening any menu.",
+      "tier": "machine",
+      "elements": ["mic-toggle"],
+      "states": ["default"]
+    },
+    {
+      "id": "first-session-fast",
+      "type": "custom",
+      "statement": "A first-time visitor reaches a live shell in at most three interactions from the empty state.",
+      "tier": "manual",
+      "states": ["empty"],
+      "params": { "maxInteractions": 3 }
+    },
+    {
+      "id": "chrome-stays-ambient",
+      "type": "custom",
+      "statement": "Toolbars, banners, and the audio bar never occlude the active terminal's most recent output line.",
+      "tier": "manual",
+      "states": ["default", "recovering", "voice-active"]
+    },
+    {
+      "id": "drafts-survive",
+      "type": "custom",
+      "statement": "Composer drafts survive reloads and session switches; typed input is never lost.",
+      "tier": "manual",
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "pane-cycling-keyboard",
+      "type": "custom",
+      "statement": "Panes cycle with Ctrl+Tab / Ctrl+Shift+Tab and jump with Ctrl+1–9; heavy users never need the pointer to switch sessions.",
+      "tier": "manual",
+      "states": ["default"]
+    },
+    {
+      "id": "adaptive-chrome-belongs",
+      "type": "custom",
+      "statement": "App chrome tints to the active terminal's palette, so the console feels of-a-piece with the session rather than framing it.",
+      "tier": "aspirational",
+      "states": ["default"],
+      "rationale": "The ambient-chrome identity claim; becomes checkable with the P2 saliency/palette tier."
+    },
+    {
+      "id": "output-owns-the-eye",
+      "type": "custom",
+      "statement": "In every display mode, the active pane's output dominates attention; chrome and siblings recede.",
+      "tier": "aspirational",
+      "states": ["default"],
+      "rationale": "Priority 2 as a saliency claim (P2 importance ranking)."
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "workspace-shell": { "testid": "workspace-top-edge" }
+    },
+    "elements": {
+      "new-terminal": { "testid": "new-terminal-button", "note": "Empty-state instance; ambient instances are toolbar-new / tab-bar-new / workspace-sidebar-new." },
+      "launcher": { "testid": "terminal-launcher" },
+      "terminal-surface": { "testid": "terminal-pane" },
+      "tab-strip": { "selector": "[role='tablist']", "note": "Tabs display mode only (x-display-mode)." },
+      "composer": { "testid": "mobile-command-input" },
+      "mic-toggle": { "testid": "voice-mic-btn" },
+      "ai-entry": { "testid": "toolbar-ai" },
+      "connection-banner": { "testid": "connection-banner" },
+      "recovery-banner": { "testid": "session-recovery-banner" }
+    }
+  },
+  "x-display-modes": {
+    "modes": ["grid", "tabs", "sidebar"],
+    "note": "Display mode is a user-selectable layout dimension ORTHOGONAL to the lifecycle states above (a mode x state matrix). scenario-experience-spec/v1 has no first-class axis for this, so mode-scoped claims carry x-display-mode; open-world semantics absorb it. SPIKE LEARNING: if this recurs across scenarios, promote a generalized 'dimensions' axis in a schema minor version rather than overloading states."
+  },
+  "x-spike": {
+    "authored": "2026-07-04",
+    "verdict-source": "Operator judgment: web-console UX is exceptional — machine claims are expected to PASS; any failure is either a genuine edge (e.g. connection banner not exposed as status) or a spec mis-assumption to fix. Mirror image of the business-health calibration.",
+    "expected-reconciliation-failures": { "machine": [], "manual": [] },
+    "vocabulary-stress-notes": [
+      "Single route '/': the routes-based page model held, but only because overlays could be modeled as states.",
+      "x-terminal custom role: the ARIA registry has no terminal role; the x- escape hatch was required, not optional.",
+      "No DESIGN.md: state list was authored from observed behavior instead of a seeded contract; parser must not hard-require the seed.",
+      "Display modes needed x- scoping on claims (see x-display-modes)."
+    ]
+  }
+}

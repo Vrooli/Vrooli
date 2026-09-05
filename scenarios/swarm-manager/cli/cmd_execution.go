@@ -64,7 +64,7 @@ func (a *App) resolveExecutionMode(mode string) (string, error) {
 		return mode, nil
 	}
 
-	body, err := a.getV1("/settings", nil)
+	body, err := a.core.Get("/settings", nil)
 	if err != nil {
 		return "", fmt.Errorf("resolve execution mode from settings: %w", err)
 	}
@@ -123,7 +123,7 @@ func (a *App) cmdExecutionList(args []string) error {
 		query.Set("created_to", strings.TrimSpace(*createdTo))
 	}
 
-	body, err := a.getV1("/execution", query)
+	body, err := a.core.Get("/execution", query)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (a *App) cmdExecutionGet(args []string) error {
 		return fmt.Errorf("usage: execution get --id ID [--json]\n\n%s", err)
 	}
 	executionID := strings.TrimSpace(*id)
-	body, err := a.getV1("/execution/"+executionID, nil)
+	body, err := a.core.Get("/execution/"+executionID, nil)
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (a *App) cmdExecutionCreate(args []string) error {
 		"started_by":    opts.startedBy,
 	}
 
-	body, err := a.requestV1("POST", "/execution", nil, payload)
+	body, err := a.core.Request("POST", "/execution", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (a *App) cmdExecutionPolicyGet(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/settings", nil)
+	body, err := a.core.Get("/settings", nil)
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
-	body, err := a.requestV1("PUT", "/settings", nil, json.RawMessage(payloadBytes))
+	body, err := a.core.Request("PUT", "/settings", nil, json.RawMessage(payloadBytes))
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (a *App) cmdExecutionPromptTrace(args []string) error {
 	}
 	executionID := strings.TrimSpace(*id)
 
-	body, err := a.getV1("/execution/"+executionID+"/prompt-trace", nil)
+	body, err := a.core.Get("/execution/"+executionID+"/prompt-trace", nil)
 	if err != nil {
 		return err
 	}
@@ -421,8 +421,48 @@ func (a *App) cmdExecutionCancel(args []string) error {
 	return a.runExecutionMutation(args, "cancel")
 }
 
+// cmdExecutionRetry retries a terminal execution as a NEW attempt parented
+// to the prior one. The prior execution row is preserved intact for audit.
+// Use this when you need to retry a specific historical attempt; for the
+// common "retry the latest attempt of this item" case, prefer
+// `backlog retry --kind KIND --name NAME`.
 func (a *App) cmdExecutionRetry(args []string) error {
-	return a.runExecutionMutation(args, "retry")
+	fs := flag.NewFlagSet("execution retry", flag.ContinueOnError)
+	id := fs.String("id", "", "Execution ID")
+	noteFlag := fs.String("note", "", "Optional informational note (e.g. 'fixed agent-manager bug')")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return fmt.Errorf("usage: execution retry --id ID [--note MSG] [--json]\n\n%s", err)
+	}
+	executionID := strings.TrimSpace(*id)
+	payload, err := json.Marshal(map[string]any{"note": strings.TrimSpace(*noteFlag)})
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
+	}
+	body, err := a.core.Request("POST", "/execution/"+executionID+"/retry", nil, json.RawMessage(payload))
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[ExecutionItemResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Retry Dispatched")
+	fmt.Printf("  Parent:      %s\n", executionID)
+	fmt.Printf("  New attempt: %s (%s)\n", response.Execution.ExecutionID, response.Execution.Status)
+	fmt.Printf("  Backlog:     %s/%s\n", response.Execution.BacklogKind, response.Execution.BacklogName)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("execution", "get", "--id", response.Execution.ExecutionID),
+		cliCommand("execution", "list", "--backlog-kind", response.Execution.BacklogKind, "--backlog-name", response.Execution.BacklogName),
+	})
+	return nil
 }
 
 func (a *App) cmdCircuitBreakerReset(args []string) error {
@@ -436,7 +476,7 @@ func (a *App) cmdCircuitBreakerReset(args []string) error {
 	}
 
 	payload := map[string]string{"item": strings.TrimSpace(*item)}
-	_, err := a.requestV1("POST", "/execution/circuit-breaker/reset", nil, payload)
+	_, err := a.core.Request("POST", "/execution/circuit-breaker/reset", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -456,7 +496,7 @@ func (a *App) runExecutionMutation(args []string, action string) error {
 		return fmt.Errorf("usage: execution %s --id ID [--json]\n\n%s", action, err)
 	}
 	executionID := strings.TrimSpace(*id)
-	body, err := a.requestV1("POST", "/execution/"+executionID+"/"+action, nil, nil)
+	body, err := a.core.Request("POST", "/execution/"+executionID+"/"+action, nil, nil)
 	if err != nil {
 		return err
 	}

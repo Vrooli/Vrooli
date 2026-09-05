@@ -251,7 +251,7 @@ LISTEN 0      4096         0.0.0.0:443         0.0.0.0:*    users:(("caddy",pid=
 	}
 }
 
-func TestParseCPUUsageFromTop(t *testing.T) {
+func TestParseRemoteProcStatCPUUsage(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -290,37 +290,9 @@ cpu  2000 50 300 5050 100 10 5 0`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseCPUUsageFromTop(tt.input)
+			result := systemmetrics.ParseCPUUsageFromProcStat(tt.input)
 			if result < tt.wantMin || result > tt.wantMax {
-				t.Errorf("parseCPUUsageFromTop() = %f, want between %f and %f", result, tt.wantMin, tt.wantMax)
-			}
-		})
-	}
-}
-
-func TestParseHumanSize(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input string
-		want  int
-	}{
-		{"200G", 200},
-		{"1T", 1024},
-		{"512M", 0},
-		{"1024M", 1},
-		{"100K", 0},
-		{"0G", 0},
-		{"2.5T", 2560},
-		{"", 0},
-		{"notanumber", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := parseHumanSize(tt.input)
-			if result != tt.want {
-				t.Errorf("parseHumanSize(%q) = %d, want %d", tt.input, result, tt.want)
+				t.Errorf("ParseCPUUsageFromProcStat() = %f, want between %f and %f", result, tt.wantMin, tt.wantMax)
 			}
 		})
 	}
@@ -400,7 +372,7 @@ func TestParseSystemState_Disk(t *testing.T) {
 	t.Parallel()
 
 	results := map[string]sshCommandResult{
-		"df": {result: ssh.Result{Stdout: "/dev/sda1      200G   84G  116G  42% /"}},
+		"df_kb": {result: ssh.Result{Stdout: "/dev/sda1 209715200 88080384 121634816 42% /"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))
@@ -422,7 +394,7 @@ func TestParseSystemState_Memory(t *testing.T) {
 	t.Parallel()
 
 	results := map[string]sshCommandResult{
-		"free": {result: ssh.Result{Stdout: "Mem:           3944        2048        1024         100         872        1700\nSwap:          2048         512        1536"}},
+		"meminfo": {result: ssh.Result{Stdout: "MemTotal:       4038656 kB\nMemFree:        1048576 kB\nMemAvailable:   1740800 kB\nBuffers:         102400 kB\nCached:          790528 kB\nSwapTotal:       2097152 kB\nSwapFree:        1572864 kB\n"}},
 	}
 
 	state := parseSystemState(results, sshidentity.DeploymentSSHIdentity{}, "", systemmetrics.CollectorForOS("linux"))

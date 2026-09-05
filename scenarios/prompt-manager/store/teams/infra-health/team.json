@@ -1,0 +1,311 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "infra-health",
+  "displayName": "Infra Health Team",
+  "mission": "Watch the platform's own health — internal Vrooli code, lifecycle, autoheal/system-monitor history — and surface durable findings the operator can act on. Detect patterns across runtime incidents, audit internal code along the same dimensions scenario-qa applies to scenarios, and drive internal instrumentation forward so future findings are sharper.",
+  "objectivesServed": [
+    {
+      "id": "I2",
+      "acknowledgedRevision": "5de27857cc63"
+    }
+  ],
+  "instrument": {
+    "status": "partial",
+    "scenario": "infrastructure-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "vrooli-autoheal",
+      "system-monitor",
+      "storage-manager",
+      "data-backup-manager",
+      "agent-manager",
+      "test-genie",
+      "scenario-dependency-analyzer"
+    ],
+    "gapMarker": "2026-08-20 (second revision) — the instrument is wired to its own condition domain and to a new substrate projection. Fixed since the first marker: the batch saturation read removed the N+1 per-check fan-out that was reporting deadline expiry as UNTRUSTED on roughly two thirds of checks; ghost classification now tests target existence rather than core-set membership, so installed scenarios outside the core set are reported as out-of-scope and stay in every aggregate; the focus surface now joins out-of-band and untrusted readings, so inner cascade tiers can outrank coverage gaps; and 24 of 28 setpoint bars now carry a unit and a numeric threshold, with the remaining four declared not-gradeable with stated reasons. Still open: substrate bars are provisional pending operator ratification, setpoint confidence is SKETCH, peer sources other than vrooli-autoheal have no typed reader, capability availability history is unavailable, the infra-health loop remains paused, and template provenance remains quarantined upstream. The plant remains the layer stack in docs/infra-health/operating/OPERATING_MODEL.md section Platform Under Control — not the *-health scenario fleet, which is scenario-qa's plant."
+  },
+  "enabled": true,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "topicCatalog": [
+    {
+      "prefix": "runtime-health-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot one runtime-health signal or quiet-day review."
+    },
+    {
+      "prefix": "platform-code-audit/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Snapshot one internal platform-code audit slice."
+    },
+    {
+      "prefix": "contrarian-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Stale work-item and failure-mode review snapshot."
+    }
+  ],
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 4,
+  "createdAt": "2026-04-28T00:00:00Z",
+  "updatedAt": "2026-08-20T00:00:00Z",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "infra-health-canon",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/infra-health/README.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/manifest.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/infra-health/operating/OPERATING_MODEL.md"
+            }
+          ],
+          "writePolicy": "operator-curated-via-swarm-manager",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "rationale": "Operating contract, cross-platform portability ledger, and editing authority. Reliability targets, sensor definitions and instrumentation gaps are NOT here — they are owned and computed by the infrastructure-manager instrument.",
+          "useFor": "team operating contract and routing rules, cross-platform portability ledger, and director-swarm morning-walk infrastructure work items"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-md",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        },
+        {
+          "id": "runtime-lessons",
+          "path": {
+            "base": "team-shared",
+            "path": "RUNTIME_LESSONS.md"
+          },
+          "ownerMemberId": "runtime-health-scanner",
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "platform-audit",
+          "path": {
+            "base": "team-shared",
+            "path": "PLATFORM_AUDIT.md"
+          },
+          "ownerMemberId": "platform-code-auditor",
+          "kind": "rolling-snapshot",
+          "required": true
+        },
+        {
+          "id": "aging-scan",
+          "path": {
+            "base": "team-shared",
+            "path": "AGING_SCAN.md"
+          },
+          "ownerMemberId": "infra-contrarian",
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ],
+      "instrument": [
+        {
+          "id": "infra-health-instrument",
+          "scenario": "infrastructure-manager",
+          "kind": "read-only-instrument",
+          "writePolicy": "no-write-path",
+          "consumers": [
+            "infra-health",
+            "director-swarm"
+          ],
+          "readSurfaces": {
+            "focus": "infrastructure-manager focus next --json",
+            "coverage": "infrastructure-manager coverage status --json",
+            "openLoop": "infrastructure-manager coverage open-loop --json",
+            "condition": "infrastructure-manager condition status --json",
+            "trust": "infrastructure-manager condition trust --json",
+            "explain": "infrastructure-manager condition explain <cell-ref> --json"
+          },
+          "setpoint": "scenarios/infrastructure-manager/setpoint/reliability-setpoint.json",
+          "rationale": "The team's instrument. Members read reliability state here instead of re-deriving it; no member may write to the setpoint, which is what stops the supervisor grading itself.",
+          "useFor": "what to work next, whether a cell is in band, whether a reading can be believed, and which cells have no sensor at all"
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "runtime-health-audit/YYYY-MM-DD": {
+        "ownerMemberId": "runtime-health-scanner",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "Snapshot of one runtime-health signal or quiet-day review."
+      },
+      "platform-code-audit/YYYY-MM-DD": {
+        "ownerMemberId": "platform-code-auditor",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "Snapshot of one internal platform-code audit slice."
+      },
+      "contrarian-scan/YYYY-MM-DD": {
+        "ownerMemberId": "infra-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot",
+        "comment": "Stale work item and failure-mode review snapshot."
+      }
+    },
+    "members": {
+      "runtime-health-scanner": {
+        "lane": "Find aggregate runtime-health patterns across durable autoheal incidents, autoheal history, system-monitor, and lifecycle history; produce one concrete finding at a time.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "base": "team-shared",
+            "path": "RUNTIME_LESSONS.md"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/infra-health/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Pick one signal per heartbeat; depth over breadth.",
+          "Never edit platform, autoheal, or system-monitor code."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "triageLadder": "SSOT is the Task Loop in members/runtime-health-scanner/HEARTBEAT.md — walk the ladder there in order (rounds 2-3 expanded it beyond the original five tiers). Do not maintain a second copy here."
+        }
+      },
+      "platform-code-auditor": {
+        "lane": "Audit one slice of internal Vrooli platform code per heartbeat and route concrete findings through work items.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "base": "team-shared",
+            "path": "PLATFORM_AUDIT.md"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/infra-health/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Never edit internal platform code directly.",
+          "Do not audit scenario code; scenario-qa owns that lane."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "sliceRotation": [
+            "cli-core",
+            "cli-scenario-lifecycle",
+            "cli-setup",
+            "lifecycle-internals",
+            "infra-scripts",
+            "harness",
+            "repo-contract"
+          ],
+          "dimensions": [
+            "architecture",
+            "security",
+            "test coverage",
+            "documentation",
+            "cross-platform readiness",
+            "signal and feedback surface",
+            "instrumentation gaps"
+          ]
+        }
+      },
+      "infra-contrarian": {
+        "lane": "Challenge infra-health work items against the team failure-mode rubric and run the stale work item scan. Also this team's shape sensor: hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "base": "team-shared",
+            "path": "AGING_SCAN.md"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "forbiddenWrites": [
+          {
+            "base": "repo-root",
+            "path": "docs/infra-health/"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Do not generate runtime or platform findings.",
+          "Do not edit code or plan-of-record docs.",
+          "Do not synthesize other members into a leader-style brief."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        },
+        "taskParameters": {
+          "reviewCapPerHeartbeat": 5,
+          "frameworkMetaCadence": "at most one per calendar month",
+          "failureModes": "SSOT is the Failure-Mode Rubric + Mechanical Thresholds in members/infra-contrarian/RESPONSIBILITIES.md — the operative set includes the mechanical fails (unit mismatch, dead-sensor, roster creep, cascade violation) added in rounds 2-3. Do not maintain a second copy here."
+        }
+      }
+    }
+  },
+  "attributionValidFrom": "2026-05-04"
+}

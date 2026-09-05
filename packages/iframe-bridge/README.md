@@ -6,7 +6,7 @@ Lightweight utilities for passing messages between host scenarios and embedded i
 
 ### Storage Shimming
 
-When running in sandboxed iframe contexts (like Browserless for UI smoke tests), `localStorage` and `sessionStorage` may be blocked. The bridge automatically shims them with in-memory implementations.
+When running in sandboxed/headless browser containers (for UI smoke tests), `localStorage` and `sessionStorage` may be blocked. The bridge automatically shims them with in-memory implementations.
 
 This happens automatically when you call `initIframeBridgeChild()`. You can also call `shimStorage()` explicitly if you need the shim earlier:
 
@@ -56,10 +56,10 @@ pnpm --filter @vrooli/iframe-bridge build
 
 ## Propagating Package Updates
 
-After editing this package, refresh the scenarios that depend on it so they reinstall the new build:
+After editing this package, use the native refresh command:
 
 ```bash
-./scripts/scenarios/tools/refresh-shared-package.sh iframe-bridge <scenario|all> [--no-restart]
+vrooli package refresh iframe-bridge all
 ```
 
-The helper rebuilds `@vrooli/iframe-bridge`, filters to scenarios that declare this dependency, runs `vrooli scenario setup`, and restarts only the scenarios that were already running (use `--no-restart` to opt out and restart manually later).
+That rebuilds `@vrooli/iframe-bridge`, discovers governed dependents, runs `vrooli scenario setup`, and restarts only consumers that were already running.

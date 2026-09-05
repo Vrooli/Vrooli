@@ -13,11 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 // mockRuntime implements Runtime for testing.
@@ -33,8 +34,18 @@ type mockRuntime struct {
 	shutdownCalled bool
 	startCalled    bool
 	telemetryLogs  []string
+	telemetryData  []map[string]interface{}
 	gpuStatus      gpu.Status
 	runtimeInfo    RuntimeInfo
+}
+
+type providerObservationRuntime struct {
+	*mockRuntime
+	observations map[string]resourceplan.ProviderObservation
+}
+
+func (m *providerObservationRuntime) ProviderObservations() map[string]resourceplan.ProviderObservation {
+	return m.observations
 }
 
 func (m *mockRuntime) Shutdown(ctx context.Context) error {
@@ -80,6 +91,11 @@ func (m *mockRuntime) StartServicesIfReady() {
 
 func (m *mockRuntime) RecordTelemetry(event string, details map[string]interface{}) error {
 	m.telemetryLogs = append(m.telemetryLogs, event)
+	copyDetails := make(map[string]interface{}, len(details))
+	for key, value := range details {
+		copyDetails[key] = value
+	}
+	m.telemetryData = append(m.telemetryData, copyDetails)
 	return nil
 }
 
@@ -135,7 +151,7 @@ func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 		manifest:      m,
 		appDataDir:    appData,
 		fs:            fs,
-		secretStore:   secrets.NewManager(m, fs, filepath.Join(appData, "secrets.json")),
+		secretStore:   secrets.NewManager(m),
 		gpuStatus: gpu.Status{
 			Available: true,
 			Method:    "mock",
@@ -181,6 +197,30 @@ func TestHandleHealth(t *testing.T) {
 
 	if body["services"].(float64) != 1 {
 		t.Errorf("handleHealth() services = %v, want 1", body["services"])
+	}
+}
+
+func TestHandleProviderObservations(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &providerObservationRuntime{mockRuntime: base, observations: map[string]resourceplan.ProviderObservation{
+		"vault": {DeploymentMode: "bundled", ProviderTier: "tier1-local-vrooli", Readiness: "ready", SafeRouteClass: "shared-resource"},
+	}}
+	server := NewServer(rt, "test-token")
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/provider-observations", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("provider observations status = %d, want 200", w.Code)
+	}
+	var body struct {
+		Observations map[string]resourceplan.ProviderObservation `json:"observations"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Observations["vault"].SafeRouteClass != "shared-resource" {
+		t.Fatalf("provider observations = %#v", body.Observations)
 	}
 }
 
@@ -514,3 +554,101 @@ func TestHandleLogs(t *testing.T) {
 	})
 }
 
+func TestCredentialRoutesRequireAuthAndNeverReturnValues(t *testing.T) {
+	required := true
+	manifestWithCredential := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "credential-test", Version: "1.0.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 47710, AuthTokenRel: "runtime/auth-token"},
+		Secrets: []manifest.Secret{{
+			ID:        "openrouter-api-key",
+			LogicalID: "provider/openrouter",
+			Field:     "api-key",
+			Required:  &required,
+		}},
+	}
+	rt := testRuntime(t, manifestWithCredential)
+	secretValue := "value-must-not-cross-the-control-api"
+	rt.secretStore.Set(map[string]string{"openrouter-api-key": secretValue})
+	server := NewServer(rt, "test-token")
+
+	call := func(method, path, body, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+		mux := http.NewServeMux()
+		server.RegisterHandlers(mux)
+		server.AuthMiddleware(mux).ServeHTTP(w, req)
+		return w
+	}
+
+	for _, path := range []string{
+		"/credentials/list",
+		"/credentials/doctor",
+		"/credentials/status?identity=provider%2Fopenrouter&field=api-key",
+		"/credentials/resolve?identity=provider%2Fopenrouter&field=api-key",
+		"/credentials/provision",
+		"/credentials/delete",
+		"/credentials/recovery/export",
+		"/credentials/recovery/restore",
+	} {
+		w := call(http.MethodGet, path, `{"identity":"provider/openrouter","field":"api-key","value":"`+secretValue+`"}`, "")
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("%s without auth status = %d, want %d", path, w.Code, http.StatusUnauthorized)
+		}
+		if strings.Contains(w.Body.String(), secretValue) {
+			t.Errorf("%s without auth echoed the credential value", path)
+		}
+	}
+
+	list := call(http.MethodGet, "/credentials/list", "", "test-token")
+	if list.Code != http.StatusOK || strings.Contains(list.Body.String(), secretValue) {
+		t.Fatalf("credential list status/body unsafe: status=%d body=%s", list.Code, list.Body.String())
+	}
+
+	provision := call(http.MethodPost, "/credentials/provision", `{"identity":"provider/openrouter","field":"api-key","value":"new-secret"}`, "test-token")
+	if provision.Code != http.StatusCreated || strings.Contains(provision.Body.String(), "new-secret") {
+		t.Fatalf("credential provision status/body unsafe: status=%d body=%s", provision.Code, provision.Body.String())
+	}
+
+	status := call(http.MethodGet, "/credentials/status?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"configured":true`) || strings.Contains(status.Body.String(), "new-secret") {
+		t.Fatalf("credential status unexpected or leaked value: status=%d body=%s", status.Code, status.Body.String())
+	}
+
+	resolved := call(http.MethodGet, "/credentials/resolve?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if resolved.Code != http.StatusOK || !strings.Contains(resolved.Body.String(), `"value":"new-secret"`) {
+		t.Fatalf("credential resolve status/body unexpected: status=%d body=%s", resolved.Code, resolved.Body.String())
+	}
+
+	deleted := call(http.MethodPost, "/credentials/delete", `{"identity":"provider/openrouter","field":"api-key"}`, "test-token")
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("credential delete status = %d, body=%s", deleted.Code, deleted.Body.String())
+	}
+	missing := call(http.MethodGet, "/credentials/resolve?identity=provider%2Fopenrouter&field=api-key", "", "test-token")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("resolved deleted credential status = %d, want %d", missing.Code, http.StatusNotFound)
+	}
+
+	doctor := call(http.MethodGet, "/credentials/doctor", "", "test-token")
+	if doctor.Code != http.StatusOK || strings.Contains(doctor.Body.String(), secretValue) || strings.Contains(doctor.Body.String(), "new-secret") {
+		t.Fatalf("credential doctor status/body unsafe: status=%d body=%s", doctor.Code, doctor.Body.String())
+	}
+
+	telemetry, err := json.Marshal(rt.telemetryData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(telemetry), secretValue) || strings.Contains(string(telemetry), "provider/openrouter") {
+		t.Fatalf("credential telemetry leaked value or identity-to-value context: %s", telemetry)
+	}
+
+	undeclared := call(http.MethodPost, "/credentials/provision", `{"identity":"provider/unknown","field":"api-key","value":"new-secret"}`, "test-token")
+	if undeclared.Code != http.StatusForbidden || strings.Contains(undeclared.Body.String(), "new-secret") {
+		t.Fatalf("undeclared credential status/body unsafe: status=%d body=%s", undeclared.Code, undeclared.Body.String())
+	}
+}

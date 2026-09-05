@@ -1,13 +1,36 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "cli-steer",
-  "name": "CLI Steer",
+  "createdAt": "2026-01-30T16:30:00-05:00",
+  "defaultScope": "architecture-scope",
   "description": "Design and maintain scenario CLIs as thin, professional wrappers over the API using cli-core for cross-platform consistency",
+  "entry": "SKILL.md",
+  "id": "cli-steer",
+  "kind": "skill",
   "modes": [
     "steer",
     "architecture"
   ],
+  "name": "CLI Steer",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "cli-health:contracts",
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "test-genie",
+      "vrooli",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "test-genie",
+      "vrooli"
+    ]
+  },
+  "revision": 49,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "cli",
     "cli-core",
@@ -15,10 +38,5 @@
     "cross-platform",
     "api-parity"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
-  "revision": 48,
-  "createdAt": "2026-01-30T16:30:00-05:00",
-  "updatedAt": "2026-02-06T23:12:37Z"
+  "updatedAt": "2026-06-16T00:00:00Z"
 }

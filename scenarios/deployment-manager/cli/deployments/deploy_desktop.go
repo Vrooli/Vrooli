@@ -12,6 +12,7 @@ import (
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -217,72 +218,75 @@ func (c *Commands) printFallbackArtifacts(profileID string) {
 }
 
 func printDeployDesktopResults(resp DeployDesktopResponse) {
-	statusIcon := "✓"
+	report := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Desktop deployment: %s", resp.Status),
+			fmt.Sprintf("Profile: %s", resp.ProfileID),
+			fmt.Sprintf("Scenario: %s", resp.Scenario),
+		},
+	}
 	if resp.Status != "success" {
-		statusIcon = "✗"
+		report.Status[0] = fmt.Sprintf("Desktop deployment: %s", resp.Status)
 	}
-	fmt.Printf("%s Desktop Deployment: %s\n", statusIcon, resp.Status)
-	fmt.Printf("  Profile:  %s\n", resp.ProfileID)
-	fmt.Printf("  Scenario: %s\n", resp.Scenario)
 	if resp.Duration != "" {
-		fmt.Printf("  Duration: %s\n", resp.Duration)
+		report.Status = append(report.Status, fmt.Sprintf("Duration: %s", resp.Duration))
 	}
-	fmt.Println()
-
-	fmt.Println("Steps:")
+	stepsGroup := cliapp.TriageGroup{Heading: "Workflow Steps"}
 	for _, step := range resp.Steps {
-		icon := "○"
-		switch step.Status {
-		case "success":
-			icon = "✓"
-		case "failed":
-			icon = "✗"
-		case "skipped":
-			icon = "⊘"
-		case "running":
-			icon = "◐"
-		}
-		fmt.Printf("  %s %s", icon, step.Name)
+		line := fmt.Sprintf("%s status=%s", step.Name, step.Status)
 		if step.Message != "" {
-			fmt.Printf(" - %s", step.Message)
+			line += fmt.Sprintf(" message=%s", step.Message)
 		}
 		if step.Error != "" {
-			fmt.Printf(" [ERROR: %s]", step.Error)
+			line += fmt.Sprintf(" error=%s", step.Error)
 		}
-		fmt.Println()
+		stepsGroup.Items = append(stepsGroup.Items, line)
 	}
-	fmt.Println()
+	report.Triage = append(report.Triage, stepsGroup)
 
 	if resp.ManifestPath != "" {
-		fmt.Printf("Manifest: %s\n", resp.ManifestPath)
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Manifest",
+			Items:   []string{resp.ManifestPath},
+		})
 	}
 
 	if resp.BuildResults != nil && len(resp.BuildResults.Results) > 0 {
 		successCount := 0
+		group := cliapp.TriageGroup{Heading: "Build Results"}
 		for _, r := range resp.BuildResults.Results {
 			if r.Success {
 				successCount++
 			}
+			line := fmt.Sprintf("%s success=%v output=%s", r.Platform, r.Success, r.OutputPath)
+			if r.Error != "" {
+				line += fmt.Sprintf(" error=%s", r.Error)
+			}
+			group.Items = append(group.Items, line)
 		}
-		fmt.Printf("Binaries: %d/%d succeeded\n", successCount, len(resp.BuildResults.Results))
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Binary Summary",
+			Items:   []string{fmt.Sprintf("%d/%d succeeded", successCount, len(resp.BuildResults.Results))},
+		})
+		report.Triage = append(report.Triage, group)
 	}
 
 	if resp.DesktopPath != "" {
-		fmt.Printf("Desktop Wrapper: %s\n", resp.DesktopPath)
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Desktop Wrapper",
+			Items:   []string{resp.DesktopPath},
+		})
 	}
 
 	if len(resp.Installers) > 0 {
-		fmt.Println("\nInstallers:")
+		group := cliapp.TriageGroup{Heading: "Installers"}
 		for platform, path := range resp.Installers {
-			fmt.Printf("  %-8s %s\n", platform+":", path)
+			group.Items = append(group.Items, fmt.Sprintf("%s: %s", platform, path))
 		}
+		report.Triage = append(report.Triage, group)
 	}
-	fmt.Println()
-
 	if len(resp.NextSteps) > 0 {
-		fmt.Println("Next steps:")
-		for _, step := range resp.NextSteps {
-			fmt.Printf("  $ %s\n", step)
-		}
+		report.NextSteps = append(report.NextSteps, resp.NextSteps...)
 	}
+	_ = cliapp.RenderOperationalReport(os.Stdout, report)
 }

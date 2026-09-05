@@ -1,8 +1,20 @@
 package main
 
 import (
+	"strings"
 	"testing"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestRejectUnsupportedNodeTarget(t *testing.T) {
+	if err := rejectUnsupportedNodeTarget("no-such-node"); err == nil || !strings.Contains(err.Error(), "no-such-node") {
+		t.Fatalf("error = %v, want explicit remote node refusal", err)
+	}
+	if err := rejectUnsupportedNodeTarget(" "); err != nil {
+		t.Fatalf("empty node should remain local: %v", err)
+	}
+}
 
 // =============================================================================
 // APP INITIALIZATION TESTS
@@ -116,10 +128,14 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.commandGroups()
 
 	// Verify expected command groups exist
-	expectedGroups := []string{"Health", "Profiles", "Tasks", "Runs", "Runners", "Settings", "Maintenance", "Configuration"}
+	expectedGroups := []string{
+		"Health",
+		"Configuration",
+		"Runs",
+	}
 	if len(groups) != len(expectedGroups) {
 		t.Errorf("expected %d command groups, got %d", len(expectedGroups), len(groups))
 	}
@@ -140,7 +156,7 @@ func TestApp_RegisterCommands_HealthGroup(t *testing.T) {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.commandGroups()
 
 	// Find Health group
 	var healthGroup *struct {
@@ -182,60 +198,6 @@ func TestApp_RegisterCommands_HealthGroup(t *testing.T) {
 }
 
 // =============================================================================
-// API PATH HELPER TESTS
-// =============================================================================
-
-func TestApp_ApiPath_EmptyString(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("")
-	if result != "" {
-		t.Errorf("expected empty string for empty input, got '%s'", result)
-	}
-}
-
-func TestApp_ApiPath_WhitespaceOnly(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("   ")
-	if result != "" {
-		t.Errorf("expected empty string for whitespace input, got '%s'", result)
-	}
-}
-
-func TestApp_ApiPath_WithLeadingSlash(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("/health")
-	// Should include /api/v1 prefix when not already present in base URL
-	if result != "/api/v1/health" {
-		t.Errorf("expected '/api/v1/health', got '%s'", result)
-	}
-}
-
-func TestApp_ApiPath_WithoutLeadingSlash(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("profiles")
-	// Should add leading slash and /api/v1 prefix
-	if result != "/api/v1/profiles" {
-		t.Errorf("expected '/api/v1/profiles', got '%s'", result)
-	}
-}
-
-// =============================================================================
 // COMMAND HELP TESTS
 // =============================================================================
 
@@ -246,7 +208,7 @@ func TestApp_ProfileHelp(t *testing.T) {
 	}
 
 	// Running profile help should not error
-	err = app.profileHelp()
+	err = app.Run([]string{"profile", "help"})
 	if err != nil {
 		t.Errorf("profileHelp() returned error: %v", err)
 	}
@@ -259,7 +221,7 @@ func TestApp_TaskHelp(t *testing.T) {
 	}
 
 	// Running task help should not error
-	err = app.taskHelp()
+	err = app.Run([]string{"task", "help"})
 	if err != nil {
 		t.Errorf("taskHelp() returned error: %v", err)
 	}
@@ -272,7 +234,7 @@ func TestApp_RunHelp(t *testing.T) {
 	}
 
 	// Running run help should not error
-	err = app.runHelp()
+	err = app.Run([]string{"run", "help"})
 	if err != nil {
 		t.Errorf("runHelp() returned error: %v", err)
 	}
@@ -282,122 +244,39 @@ func TestApp_RunHelp(t *testing.T) {
 // COMMAND DISPATCH TESTS
 // =============================================================================
 
-func TestApp_CmdProfile_EmptyArgs(t *testing.T) {
+func TestApp_CommandDispatch(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	// Empty args should show help, not error
-	err = app.cmdProfile([]string{})
-	if err != nil {
-		t.Errorf("cmdProfile with empty args should show help, got error: %v", err)
-	}
-}
-
-func TestApp_CmdProfile_Help(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Help subcommand should not error
-	for _, helpArg := range []string{"help", "-h", "--help"} {
-		err = app.cmdProfile([]string{helpArg})
-		if err != nil {
-			t.Errorf("cmdProfile with '%s' returned error: %v", helpArg, err)
-		}
-	}
-}
-
-func TestApp_CmdProfile_UnknownSubcommand(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
+	tests := []struct {
+		name    string
+		command func([]string) error
+		help    func(string) error
+	}{
+		{name: "profile", command: app.cmdProfile, help: func(arg string) error { return app.Run([]string{"profile", arg}) }},
+		{name: "task", command: app.cmdTask, help: func(arg string) error { return app.cmdTask([]string{arg}) }},
+		{name: "run", command: app.cmdRun, help: func(arg string) error { return app.cmdRun([]string{arg}) }},
+		{name: "runner", command: app.cmdRunner, help: func(arg string) error { return app.cmdRunner([]string{arg}) }},
+		{name: "settings", command: app.cmdSettings, help: func(arg string) error { return app.cmdSettings([]string{arg}) }},
+		{name: "maintenance", command: app.cmdMaintenance, help: func(arg string) error { return app.cmdMaintenance([]string{arg}) }},
 	}
 
-	// Unknown subcommand should return error
-	err = app.cmdProfile([]string{"unknown-subcommand"})
-	if err == nil {
-		t.Error("expected error for unknown subcommand")
-	}
-}
-
-func TestApp_CmdTask_EmptyArgs(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Empty args should show help
-	err = app.cmdTask([]string{})
-	if err != nil {
-		t.Errorf("cmdTask with empty args should show help, got error: %v", err)
-	}
-}
-
-func TestApp_CmdTask_Help(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	for _, helpArg := range []string{"help", "-h", "--help"} {
-		err = app.cmdTask([]string{helpArg})
-		if err != nil {
-			t.Errorf("cmdTask with '%s' returned error: %v", helpArg, err)
-		}
-	}
-}
-
-func TestApp_CmdTask_UnknownSubcommand(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	err = app.cmdTask([]string{"unknown-subcommand"})
-	if err == nil {
-		t.Error("expected error for unknown subcommand")
-	}
-}
-
-func TestApp_CmdRun_EmptyArgs(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Empty args should show help
-	err = app.cmdRun([]string{})
-	if err != nil {
-		t.Errorf("cmdRun with empty args should show help, got error: %v", err)
-	}
-}
-
-func TestApp_CmdRun_Help(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	for _, helpArg := range []string{"help", "-h", "--help"} {
-		err = app.cmdRun([]string{helpArg})
-		if err != nil {
-			t.Errorf("cmdRun with '%s' returned error: %v", helpArg, err)
-		}
-	}
-}
-
-func TestApp_CmdRun_UnknownSubcommand(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	err = app.cmdRun([]string{"unknown-subcommand"})
-	if err == nil {
-		t.Error("expected error for unknown subcommand")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.command(nil); err != nil {
+				t.Fatalf("empty args: %v", err)
+			}
+			for _, arg := range []string{"help", "-h", "--help"} {
+				if err := tt.help(arg); err != nil {
+					t.Errorf("%s: %v", arg, err)
+				}
+			}
+			if err := tt.command([]string{"unknown-subcommand"}); err == nil {
+				t.Error("expected error for unknown subcommand")
+			}
+		})
 	}
 }
 
@@ -405,105 +284,42 @@ func TestApp_CmdRun_UnknownSubcommand(t *testing.T) {
 // MISSING ARGUMENTS TESTS
 // =============================================================================
 
-func TestApp_ProfileGet_MissingID(t *testing.T) {
+func TestCommandsRejectMissingRequiredArguments(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
-
-	// Get without ID should error
-	err = app.profileGet([]string{})
-	if err == nil {
-		t.Error("expected error for missing profile ID")
+	tests := map[string]func([]string) error{
+		"profile get id": app.profileGet, "profile update id": app.profileUpdate,
+		"profile delete id": app.profileDelete, "profile create name": app.profileCreate,
+		"task get id": app.taskGet, "task create title": app.taskCreate,
+		"run get id": app.runGet, "run create task": app.runCreate,
+	}
+	for name, command := range tests {
+		t.Run(name, func(t *testing.T) {
+			if err := command(nil); err == nil {
+				t.Error("expected missing required argument error")
+			}
+		})
 	}
 }
 
-func TestApp_ProfileUpdate_MissingID(t *testing.T) {
-	app, err := NewApp()
+func TestParseResultSpecClassificationUsesCanonicalContract(t *testing.T) { // [REQ:REQ-P2-001]
+	spec, err := parseResultSpec("", "", "complete, blocked", true)
 	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
+		t.Fatal(err)
 	}
-
-	// Update without ID should error
-	err = app.profileUpdate([]string{})
-	if err == nil {
-		t.Error("expected error for missing profile ID")
+	if spec.Kind != domainpb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION || len(spec.ClassificationValues) != 2 {
+		t.Fatalf("spec = %+v", spec)
+	}
+	if spec.ExtractionMode != domainpb.StructuredExtractionMode_STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK || spec.ExtractionRole != "extract.structured" {
+		t.Fatalf("extraction = %+v", spec)
 	}
 }
 
-func TestApp_ProfileDelete_MissingID(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Delete without ID should error
-	err = app.profileDelete([]string{})
-	if err == nil {
-		t.Error("expected error for missing profile ID")
-	}
-}
-
-func TestApp_ProfileCreate_MissingName(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Create without name should error
-	err = app.profileCreate([]string{})
-	if err == nil {
-		t.Error("expected error for missing profile name")
-	}
-}
-
-func TestApp_TaskGet_MissingID(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	err = app.taskGet([]string{})
-	if err == nil {
-		t.Error("expected error for missing task ID")
-	}
-}
-
-func TestApp_TaskCreate_MissingTitle(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Create without required fields should error
-	err = app.taskCreate([]string{})
-	if err == nil {
-		t.Error("expected error for missing task title")
-	}
-}
-
-func TestApp_RunGet_MissingID(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	err = app.runGet([]string{})
-	if err == nil {
-		t.Error("expected error for missing run ID")
-	}
-}
-
-func TestApp_RunCreate_MissingTaskID(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Create without task ID should error
-	err = app.runCreate([]string{})
-	if err == nil {
-		t.Error("expected error for missing task ID")
+func TestParseResultSpecRejectsParallelSchemaSystems(t *testing.T) {
+	if _, err := parseResultSpec(`{"type":"string"}`, "", "yes,no", false); err == nil {
+		t.Fatal("expected mutually exclusive result-spec inputs to fail")
 	}
 }
 
@@ -531,6 +347,9 @@ func TestNewServices(t *testing.T) {
 	if services.Runners == nil {
 		t.Error("expected Runners service")
 	}
+	if services.Policy == nil {
+		t.Error("expected Policy service")
+	}
 	if services.Settings == nil {
 		t.Error("expected Settings service")
 	}
@@ -543,119 +362,39 @@ func TestNewServices(t *testing.T) {
 // NEW COMMAND DISPATCHER TESTS
 // =============================================================================
 
-func TestApp_CmdRunner_EmptyArgs(t *testing.T) {
+// [REQ:REQ-P1-004] Policy commands are discoverable and removed mutation vocabulary is rejected.
+func TestApp_CmdPolicy_HelpAndUnknownSubcommand(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
-
-	// Empty args should show help
-	err = app.cmdRunner([]string{})
-	if err != nil {
-		t.Errorf("cmdRunner with empty args should show help, got error: %v", err)
-	}
-}
-
-func TestApp_CmdRunner_Help(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	for _, helpArg := range []string{"help", "-h", "--help"} {
-		err = app.cmdRunner([]string{helpArg})
-		if err != nil {
-			t.Errorf("cmdRunner with '%s' returned error: %v", helpArg, err)
+	for _, args := range [][]string{{}, {"help"}, {"-h"}, {"--help"}} {
+		if err := app.cmdPolicy(args); err != nil {
+			t.Fatalf("cmdPolicy(%v): %v", args, err)
 		}
 	}
+	if err := app.cmdPolicy([]string{"models-update"}); err == nil {
+		t.Fatal("expected removed policy subcommand to fail")
+	}
 }
 
-func TestApp_CmdRunner_UnknownSubcommand(t *testing.T) {
+func TestApp_AdditionalCommandGroupsAcceptHelp(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
-
-	err = app.cmdRunner([]string{"unknown-subcommand"})
-	if err == nil {
-		t.Error("expected error for unknown subcommand")
+	commands := map[string]func([]string) error{
+		"declarations":      app.cmdDeclarations,
+		"events":            app.cmdEvents,
+		"health":            app.cmdHealth,
+		"ops":               app.cmdOps,
+		"permission-policy": app.cmdPermissionPolicy,
 	}
-}
-
-func TestApp_CmdSettings_EmptyArgs(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Empty args should show help
-	err = app.cmdSettings([]string{})
-	if err != nil {
-		t.Errorf("cmdSettings with empty args should show help, got error: %v", err)
-	}
-}
-
-func TestApp_CmdSettings_Help(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	for _, helpArg := range []string{"help", "-h", "--help"} {
-		err = app.cmdSettings([]string{helpArg})
-		if err != nil {
-			t.Errorf("cmdSettings with '%s' returned error: %v", helpArg, err)
-		}
-	}
-}
-
-func TestApp_CmdSettings_UnknownSubcommand(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	err = app.cmdSettings([]string{"unknown-subcommand"})
-	if err == nil {
-		t.Error("expected error for unknown subcommand")
-	}
-}
-
-func TestApp_CmdMaintenance_EmptyArgs(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	// Empty args should show help
-	err = app.cmdMaintenance([]string{})
-	if err != nil {
-		t.Errorf("cmdMaintenance with empty args should show help, got error: %v", err)
-	}
-}
-
-func TestApp_CmdMaintenance_Help(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	for _, helpArg := range []string{"help", "-h", "--help"} {
-		err = app.cmdMaintenance([]string{helpArg})
-		if err != nil {
-			t.Errorf("cmdMaintenance with '%s' returned error: %v", helpArg, err)
-		}
-	}
-}
-
-func TestApp_CmdMaintenance_UnknownSubcommand(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	err = app.cmdMaintenance([]string{"unknown-subcommand"})
-	if err == nil {
-		t.Error("expected error for unknown subcommand")
+	for name, command := range commands {
+		t.Run(name, func(t *testing.T) {
+			if err := command([]string{"--help"}); err != nil {
+				t.Fatalf("help: %v", err)
+			}
+		})
 	}
 }

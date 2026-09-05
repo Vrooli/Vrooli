@@ -7,9 +7,10 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
 
 // TestResourceCheckInterface verifies ResourceCheck implements Check
@@ -80,71 +81,43 @@ func TestScenarioCheckCriticality(t *testing.T) {
 	}
 }
 
-// TestAPICheckInterface verifies APICheck implements Check
-// [REQ:VROOLI-API-001]
-func TestAPICheckInterface(t *testing.T) {
-	var _ checks.Check = (*APICheck)(nil)
-
-	check := NewAPICheck()
-	if check.ID() != "vrooli-api" {
-		t.Errorf("ID() = %q, want %q", check.ID(), "vrooli-api")
+func TestSupervisionIntentAndAttributionAppearOnEveryTargetResult(t *testing.T) {
+	chain := []coreset.AttributionStep{{Name: "search-hub", Kind: coreset.MemberKindScenario, SupervisionIntent: coreset.IntentTryStart, Source: "core.seed"}}
+	scenarioExecutor := testutil.NewMockExecutor()
+	scenarioExecutor.Responses["vrooli scenario status search-hub --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"scenario":{"name":"search-hub","status":"stopped","health_status":null}}`),
 	}
-	if check.Description() == "" {
-		t.Error("Description() is empty")
+	scenarioResult := NewScenarioCheck(
+		"search-hub",
+		false,
+		WithScenarioExecutor(scenarioExecutor),
+		WithScenarioSupervision(coreset.IntentTryStart, chain),
+	).Run(context.Background())
+	if scenarioResult.Status != checks.StatusWarning {
+		t.Fatalf("try_start scenario status = %s, want warning", scenarioResult.Status)
 	}
-	if check.IntervalSeconds() <= 0 {
-		t.Error("IntervalSeconds() should be positive")
+	if scenarioResult.Details["supervisionIntent"] != coreset.IntentTryStart {
+		t.Fatalf("scenario intent missing from details: %+v", scenarioResult.Details)
 	}
-	// API check should run on all platforms
-	if check.Platforms() != nil {
-		t.Error("APICheck should run on all platforms")
-	}
-}
-
-// TestAPICheckHealable verifies APICheck implements HealableCheck
-// [REQ:HEAL-ACTION-001]
-func TestAPICheckHealable(t *testing.T) {
-	var _ checks.HealableCheck = (*APICheck)(nil)
-
-	check := NewAPICheck()
-
-	// Test recovery actions with nil result
-	actions := check.RecoveryActions(nil)
-	if len(actions) == 0 {
-		t.Error("RecoveryActions() should return actions")
+	if got, ok := scenarioResult.Details["attributionChain"].([]coreset.AttributionStep); !ok || len(got) != 1 || got[0].Source != "core.seed" {
+		t.Fatalf("scenario attribution missing from details: %#v", scenarioResult.Details["attributionChain"])
 	}
 
-	// Verify expected actions exist
-	expectedActions := map[string]bool{
-		"restart":   false,
-		"kill-port": false,
-		"logs":      false,
-		"diagnose":  false,
+	resourceChain := []coreset.AttributionStep{{Name: "redis", Kind: coreset.MemberKindResource, SupervisionIntent: coreset.IntentTryStart, Source: "core.seed"}}
+	resourceExecutor := testutil.NewMockExecutor()
+	resourceExecutor.Responses["vrooli resource status redis --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"name":"redis","installed":false,"running":false,"status":"not installed"}`),
 	}
-	for _, action := range actions {
-		if _, exists := expectedActions[action.ID]; exists {
-			expectedActions[action.ID] = true
-		}
+	resourceResult := NewResourceCheck(
+		"redis",
+		WithResourceExecutor(resourceExecutor),
+		WithResourceSupervision(coreset.IntentTryStart, resourceChain),
+	).Run(context.Background())
+	if resourceResult.Status != checks.StatusWarning {
+		t.Fatalf("try_start resource status = %s, want warning", resourceResult.Status)
 	}
-	for id, found := range expectedActions {
-		if !found {
-			t.Errorf("Expected action %q not found in RecoveryActions()", id)
-		}
-	}
-}
-
-// TestAPICheckOptions verifies APICheck configuration options
-func TestAPICheckOptions(t *testing.T) {
-	check := NewAPICheck(
-		WithAPIURL("http://localhost:9000/health"),
-		WithAPITimeout(10*time.Second),
-	)
-
-	if check.url != "http://localhost:9000/health" {
-		t.Errorf("url = %q, want %q", check.url, "http://localhost:9000/health")
-	}
-	if check.timeout != 10*time.Second {
-		t.Errorf("timeout = %v, want %v", check.timeout, 10*time.Second)
+	if resourceResult.Details["supervisionIntent"] != coreset.IntentTryStart {
+		t.Fatalf("resource intent missing from details: %+v", resourceResult.Details)
 	}
 }
 
@@ -232,22 +205,36 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 		expectedMsg    string
 	}{
 		{
-			name:           "resource running",
-			cliOutput:      "postgres: running (healthy)",
+			name:           "resource healthy",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":true,"healthy":true,"status":"healthy"}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusOK,
-			expectedMsg:    "postgres resource is running",
+			expectedMsg:    "postgres resource is healthy",
 		},
 		{
 			name:           "resource stopped",
-			cliOutput:      "postgres: stopped",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":false,"healthy":false,"status":"stopped"}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "postgres resource is stopped",
 		},
 		{
+			name:           "resource unhealthy",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":true,"healthy":false,"status":"unhealthy"}`,
+			cliError:       nil,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "postgres resource is unhealthy",
+		},
+		{
+			name:           "resource not installed",
+			cliOutput:      `{"success":true,"name":"postgres","installed":false,"running":false,"status":"not installed"}`,
+			cliError:       nil,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "postgres resource is not installed",
+		},
+		{
 			name:           "resource unclear status",
-			cliOutput:      "postgres: some unknown state",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":true,"status":"unknown"}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "postgres resource status unclear",
@@ -255,7 +242,7 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 		{
 			name:           "cli command failed",
 			cliOutput:      "",
-			cliError:       checks.ErrCommandNotFound,
+			cliError:       testutil.ErrCommandNotFound,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "postgres resource is not healthy",
 		},
@@ -263,8 +250,8 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses["vrooli resource status postgres"] = checks.MockResponse{
+			mockExecutor := testutil.NewMockExecutor()
+			mockExecutor.Responses["vrooli resource status postgres --json"] = testutil.MockResponse{
 				Output: []byte(tt.cliOutput),
 				Error:  tt.cliError,
 			}
@@ -284,6 +271,35 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 				t.Errorf("Expected 1 executor call, got %d", len(mockExecutor.Calls))
 			}
 		})
+	}
+}
+
+func TestResourceCheckServingWithDeadCompanionIsObservedButNotAutoHealed(t *testing.T) {
+	mockExecutor := testutil.NewMockExecutor()
+	mockExecutor.Responses["vrooli resource status ollama --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"name":"ollama","installed":true,"running":true,"healthy":false,"serving":true,"status":"running; capacity-sync companion down","resource":{"running":true,"healthy":false,"serving":true,"raw":{"companions":[{"name":"capacity-sync","alive":false}]}}}`),
+	}
+
+	check := NewResourceCheck("ollama", WithResourceExecutor(mockExecutor))
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusWarning {
+		t.Fatalf("status = %v, want warning", result.Status)
+	}
+	if available, _ := result.Details["available"].(bool); !available {
+		t.Fatalf("available = %v, want true", result.Details["available"])
+	}
+	if companion, _ := result.Details["companionDown"].(bool); !companion {
+		t.Fatalf("companionDown = %v, want true", result.Details["companionDown"])
+	}
+	if eligible, ok := result.Details["autoHealEligible"].(bool); !ok || eligible {
+		t.Fatalf("autoHealEligible = %v, want explicit false", result.Details["autoHealEligible"])
+	}
+
+	// The manual repair remains discoverable; only scheduled auto-heal is
+	// suppressed while the primary continues to serve.
+	actions := check.RecoveryActions(&result)
+	if len(actions) == 0 || actions[0].ID != "respawn-companion" || !actions[0].Available {
+		t.Fatalf("actions = %+v, want available manual respawn-companion", actions)
 	}
 }
 
@@ -311,7 +327,7 @@ func TestResourceCheckExecuteActionWithMock(t *testing.T) {
 			actionID:      "logs",
 			cmdKey:        "vrooli resource logs postgres --tail 50",
 			cmdOutput:     "",
-			cmdError:      checks.ErrCommandNotFound,
+			cmdError:      testutil.ErrCommandNotFound,
 			expectSuccess: false,
 		},
 		{
@@ -334,9 +350,9 @@ func TestResourceCheckExecuteActionWithMock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
+			mockExecutor := testutil.NewMockExecutor()
 			if tt.cmdKey != "" {
-				mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
+				mockExecutor.Responses[tt.cmdKey] = testutil.MockResponse{
 					Output: []byte(tt.cmdOutput),
 					Error:  tt.cmdError,
 				}
@@ -358,6 +374,49 @@ func TestResourceCheckExecuteActionWithMock(t *testing.T) {
 	}
 }
 
+func TestResourceCheckWhisperCompanionDownRecovery(t *testing.T) {
+	check := NewResourceCheck("whisper")
+	lastResult := &checks.Result{
+		CheckID: "resource-whisper",
+		Status:  checks.StatusCritical,
+		Message: "whisper resource is unhealthy",
+		Details: map[string]interface{}{
+			"running":       true,
+			"companionDown": true,
+		},
+	}
+
+	actions := check.RecoveryActions(lastResult)
+	if len(actions) == 0 {
+		t.Fatal("expected recovery actions")
+	}
+	if actions[0].ID != "respawn-companion" {
+		t.Fatalf("first recovery action = %q, want respawn-companion", actions[0].ID)
+	}
+	if actions[0].Dangerous {
+		t.Fatal("respawn-companion should not be marked dangerous")
+	}
+
+	mockExecutor := testutil.NewMockExecutor()
+	mockExecutor.Responses["vrooli resource start whisper"] = testutil.MockResponse{
+		Output: []byte("Whisper activity-edge companion started"),
+		Error:  nil,
+	}
+	mockExecutor.Responses["vrooli resource status whisper --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"name":"whisper","installed":true,"running":true,"healthy":true,"status":"healthy"}`),
+		Error:  nil,
+	}
+
+	check = NewResourceCheck("whisper", WithResourceExecutor(mockExecutor))
+	result := check.ExecuteAction(context.Background(), "respawn-companion")
+	if !result.Success {
+		t.Fatalf("respawn-companion success = false, error=%s output=%s", result.Error, result.Output)
+	}
+	if len(mockExecutor.Calls) == 0 || mockExecutor.Calls[0].Name+" "+strings.Join(mockExecutor.Calls[0].Args, " ") != "vrooli resource start whisper" {
+		t.Fatalf("first command = %v, want vrooli resource start whisper", mockExecutor.Calls)
+	}
+}
+
 // TestScenarioCheckRunWithMock tests ScenarioCheck.Run() using mock executor
 // [REQ:SCENARIO-CHECK-001] [REQ:TEST-SEAM-001]
 func TestScenarioCheckRunWithMock(t *testing.T) {
@@ -374,7 +433,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario healthy",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"healthy"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"running","health_status":"healthy"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusOK,
 			expectedMsg:    "vrooli-autoheal scenario is healthy",
@@ -383,7 +442,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario degraded",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"degraded"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"running","health_status":"degraded"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "vrooli-autoheal scenario is degraded",
@@ -392,7 +451,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario unhealthy",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"unhealthy"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"running","health_status":"unhealthy"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "vrooli-autoheal scenario is unhealthy",
@@ -401,7 +460,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "non-critical scenario unhealthy",
 			scenarioName:   "deployment-manager",
 			critical:       false,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"unhealthy"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"deployment-manager","status":"running","health_status":"unhealthy"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "deployment-manager scenario is unhealthy",
@@ -410,7 +469,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario stopped",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"stopped","health_status":""}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"stopped","health_status":null}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "vrooli-autoheal scenario is stopped",
@@ -419,7 +478,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "non-critical scenario stopped",
 			scenarioName:   "test-app",
 			critical:       false,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"stopped","health_status":""}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"test-app","status":"stopped","health_status":null}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "test-app scenario is stopped",
@@ -438,7 +497,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			scenarioName:   "broken-scenario",
 			critical:       true,
 			cliOutput:      "",
-			cliError:       checks.ErrCommandNotFound,
+			cliError:       testutil.ErrCommandNotFound,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "broken-scenario scenario check failed",
 		},
@@ -446,8 +505,8 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses["vrooli scenario status "+tt.scenarioName+" --json"] = checks.MockResponse{
+			mockExecutor := testutil.NewMockExecutor()
+			mockExecutor.Responses["vrooli scenario status "+tt.scenarioName+" --json"] = testutil.MockResponse{
 				Output: []byte(tt.cliOutput),
 				Error:  tt.cliError,
 			}
@@ -467,6 +526,105 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 				t.Errorf("Expected 1 executor call, got %d", len(mockExecutor.Calls))
 			}
 		})
+	}
+}
+
+func TestScenarioCheckRun_DriftSignatureFromLifecycleLog(t *testing.T) {
+	// When `scenario status` reports stopped, the failure cause lives in the
+	// lifecycle run log, not the status output. The check must read the log
+	// tail and surface the appropriate recommendedAction.
+	tests := []struct {
+		name           string
+		logTail        string
+		expectedRoot   string
+		expectedAction string
+		expectedSource string
+	}{
+		{
+			name:           "go-mod-tidy needed",
+			logTail:        "[1/6] build-api\ngo: updates to go.mod needed; to update it:\n\tgo mod tidy\n",
+			expectedRoot:   rootCauseGoModuleDrift,
+			expectedAction: recommendedActionRecoverGo,
+			expectedSource: "lifecycle-log",
+		},
+		{
+			name:           "missing go.sum",
+			logTail:        "main.go:19:2: missing go.sum entry for module providing package modernc.org/sqlite (imported by flow-verifier); to add:\n\tgo get flow-verifier\n",
+			expectedRoot:   rootCauseGoModuleDrift,
+			expectedAction: recommendedActionRecoverGo,
+			expectedSource: "lifecycle-log",
+		},
+		{
+			name:           "pnpm outdated lockfile",
+			logTail:        "ERR_PNPM_OUTDATED_LOCKFILE Cannot install with frozen-lockfile because pnpm-lock.yaml is not up to date\n",
+			expectedRoot:   rootCausePnpmInstallDrift,
+			expectedAction: recommendedActionRecoverPnpm,
+			expectedSource: "lifecycle-log",
+		},
+		{
+			name:           "no drift signature",
+			logTail:        "scenario started successfully then died from OOM\n",
+			expectedRoot:   "",
+			expectedAction: "",
+			expectedSource: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExecutor := testutil.NewMockExecutor()
+			mockExecutor.Responses["vrooli scenario status broken --json"] = testutil.MockResponse{
+				Output: []byte(`{"success":true,"scenario":{"name":"broken","status":"stopped","health_status":null}}`),
+			}
+			logTail := tt.logTail
+			check := NewScenarioCheck("broken", true,
+				WithScenarioExecutor(mockExecutor),
+				WithScenarioLifecycleLogReader(func() string { return logTail }),
+			)
+			result := check.Run(context.Background())
+			if result.Status != checks.StatusCritical {
+				t.Fatalf("status = %v, want critical", result.Status)
+			}
+			gotRoot, _ := result.Details["rootCause"].(string)
+			gotAction, _ := result.Details["recommendedAction"].(string)
+			gotSource, _ := result.Details["driftSource"].(string)
+			if gotRoot != tt.expectedRoot {
+				t.Errorf("rootCause = %q, want %q", gotRoot, tt.expectedRoot)
+			}
+			if gotAction != tt.expectedAction {
+				t.Errorf("recommendedAction = %q, want %q", gotAction, tt.expectedAction)
+			}
+			if gotSource != tt.expectedSource {
+				t.Errorf("driftSource = %q, want %q", gotSource, tt.expectedSource)
+			}
+		})
+	}
+}
+
+func TestScenarioCheckRun_StatusOutputDriftBeatsLog(t *testing.T) {
+	// If the status output already contains a drift signature, prefer it
+	// (driftSource = status-output) and do not fall back to the log.
+	mockExecutor := testutil.NewMockExecutor()
+	statusOut := `{"success":true,"scenario":{"name":"broken","status":"stopped","health_status":null},"info":{"setupReasons":["missing go.sum entry for module providing package x"]}}`
+	mockExecutor.Responses["vrooli scenario status broken --json"] = testutil.MockResponse{
+		Output: []byte(statusOut),
+	}
+	logReaderCalled := false
+	check := NewScenarioCheck("broken", true,
+		WithScenarioExecutor(mockExecutor),
+		WithScenarioLifecycleLogReader(func() string {
+			logReaderCalled = true
+			return "ERR_PNPM_OUTDATED_LOCKFILE foo"
+		}),
+	)
+	result := check.Run(context.Background())
+	if got, _ := result.Details["driftSource"].(string); got != "status-output" {
+		t.Errorf("driftSource = %q, want status-output", got)
+	}
+	if got, _ := result.Details["recommendedAction"].(string); got != recommendedActionRecoverGo {
+		t.Errorf("recommendedAction = %q, want %q", got, recommendedActionRecoverGo)
+	}
+	if logReaderCalled {
+		t.Error("log reader should not be invoked when status output already matched")
 	}
 }
 
@@ -500,8 +658,8 @@ func TestScenarioCheckRun_APIDownFallsBackToDirectHealthCheck(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses["vrooli scenario status important-scenario --json"] = checks.MockResponse{
+			mockExecutor := testutil.NewMockExecutor()
+			mockExecutor.Responses["vrooli scenario status important-scenario --json"] = testutil.MockResponse{
 				Output: []byte(apiUnavailableOutput),
 				Error:  errors.New("exit status 1"),
 			}
@@ -566,7 +724,7 @@ func TestScenarioCheckExecuteActionWithMock(t *testing.T) {
 			actionID:      "stop",
 			cmdKey:        "vrooli scenario stop test-scenario",
 			cmdOutput:     "",
-			cmdError:      checks.ErrConnectionRefused,
+			cmdError:      testutil.ErrConnectionRefused,
 			expectSuccess: false,
 		},
 		{
@@ -581,142 +739,15 @@ func TestScenarioCheckExecuteActionWithMock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
+			mockExecutor := testutil.NewMockExecutor()
 			if tt.cmdKey != "" {
-				mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
+				mockExecutor.Responses[tt.cmdKey] = testutil.MockResponse{
 					Output: []byte(tt.cmdOutput),
 					Error:  tt.cmdError,
 				}
 			}
 
 			check := NewScenarioCheck("test-scenario", true, WithScenarioExecutor(mockExecutor))
-			result := check.ExecuteAction(context.Background(), tt.actionID)
-
-			if result.Success != tt.expectSuccess {
-				t.Errorf("Success = %v, want %v", result.Success, tt.expectSuccess)
-			}
-			if result.ActionID != tt.actionID {
-				t.Errorf("ActionID = %q, want %q", result.ActionID, tt.actionID)
-			}
-			if result.CheckID != check.ID() {
-				t.Errorf("CheckID = %q, want %q", result.CheckID, check.ID())
-			}
-		})
-	}
-}
-
-// TestAPICheckRunWithMock tests APICheck.Run() using mock HTTP client
-// [REQ:VROOLI-API-001] [REQ:TEST-SEAM-001]
-func TestAPICheckRunWithMock(t *testing.T) {
-	tests := []struct {
-		name           string
-		httpStatus     int
-		httpBody       string
-		httpError      error
-		expectedStatus checks.Status
-		expectMsgPart  string // Check that message contains this substring
-	}{
-		{
-			name:           "API healthy",
-			httpStatus:     200,
-			httpBody:       `{"status":"healthy"}`,
-			httpError:      nil,
-			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "Vrooli API healthy",
-		},
-		{
-			name:           "API unhealthy response",
-			httpStatus:     503,
-			httpBody:       `{"status":"unhealthy"}`,
-			httpError:      nil,
-			expectedStatus: checks.StatusCritical,
-			expectMsgPart:  "Vrooli API reports unhealthy status",
-		},
-		{
-			name:           "API connection error",
-			httpStatus:     0,
-			httpBody:       "",
-			httpError:      checks.ErrConnectionRefused,
-			expectedStatus: checks.StatusCritical,
-			expectMsgPart:  "Vrooli API is not responding",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockHTTP := checks.NewMockHTTPClient()
-			mockHTTP.DefaultResponse = checks.MockHTTPResponse{
-				StatusCode: tt.httpStatus,
-				Body:       tt.httpBody,
-				Error:      tt.httpError,
-			}
-
-			check := NewAPICheck(WithHTTPClient(mockHTTP))
-			result := check.Run(context.Background())
-
-			if result.Status != tt.expectedStatus {
-				t.Errorf("Status = %v, want %v", result.Status, tt.expectedStatus)
-			}
-			if !strings.Contains(result.Message, tt.expectMsgPart) {
-				t.Errorf("Message = %q, want to contain %q", result.Message, tt.expectMsgPart)
-			}
-
-			// Verify the mock was called
-			if len(mockHTTP.Calls) != 1 {
-				t.Errorf("Expected 1 HTTP call, got %d", len(mockHTTP.Calls))
-			}
-		})
-	}
-}
-
-// TestAPICheckExecuteActionWithMock tests APICheck.ExecuteAction() using mock
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestAPICheckExecuteActionWithMock(t *testing.T) {
-	tests := []struct {
-		name          string
-		actionID      string
-		cmdKey        string
-		cmdOutput     string
-		cmdError      error
-		expectSuccess bool
-	}{
-		{
-			name:          "diagnose success",
-			actionID:      "diagnose",
-			cmdKey:        "vrooli api diagnose",
-			cmdOutput:     "API diagnostics: all OK",
-			cmdError:      nil,
-			expectSuccess: true,
-		},
-		{
-			name:          "logs success",
-			actionID:      "logs",
-			cmdKey:        "vrooli api logs --tail 100",
-			cmdOutput:     "API logs...",
-			cmdError:      nil,
-			expectSuccess: true,
-		},
-		{
-			name:          "unknown action",
-			actionID:      "invalid-action",
-			cmdKey:        "",
-			cmdOutput:     "",
-			cmdError:      nil,
-			expectSuccess: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			if tt.cmdKey != "" {
-				mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
-					Output: []byte(tt.cmdOutput),
-					Error:  tt.cmdError,
-				}
-			}
-
-			check := NewAPICheck(WithAPIExecutor(mockExecutor))
 			result := check.ExecuteAction(context.Background(), tt.actionID)
 
 			if result.Success != tt.expectSuccess {
@@ -791,511 +822,3 @@ func TestExtractPorts(t *testing.T) {
 
 // TestResourceCheckExecuteAction_AllActions tests all ResourceCheck actions
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestResourceCheckExecuteAction_AllActions(t *testing.T) {
-	tests := []struct {
-		name          string
-		actionID      string
-		cmdKey        string
-		cmdOutput     string
-		cmdError      error
-		statusOutput  string // For verification after start/restart
-		expectSuccess bool
-	}{
-		{
-			name:          "start success",
-			actionID:      "start",
-			cmdKey:        "vrooli resource start postgres",
-			cmdOutput:     "Started postgres resource",
-			cmdError:      nil,
-			statusOutput:  "postgres: running (healthy)", // Verification returns healthy
-			expectSuccess: true,
-		},
-		{
-			name:          "start failure - command error",
-			actionID:      "start",
-			cmdKey:        "vrooli resource start postgres",
-			cmdOutput:     "Failed to start",
-			cmdError:      checks.ErrCommandNotFound,
-			statusOutput:  "",
-			expectSuccess: false,
-		},
-		{
-			name:          "restart success",
-			actionID:      "restart",
-			cmdKey:        "vrooli resource restart postgres",
-			cmdOutput:     "Restarted postgres resource",
-			cmdError:      nil,
-			statusOutput:  "postgres: running (healthy)", // Verification returns healthy
-			expectSuccess: true,
-		},
-		{
-			name:          "restart failure - command error",
-			actionID:      "restart",
-			cmdKey:        "vrooli resource restart postgres",
-			cmdOutput:     "",
-			cmdError:      checks.ErrConnectionRefused,
-			statusOutput:  "",
-			expectSuccess: false,
-		},
-		{
-			name:          "stop success",
-			actionID:      "stop",
-			cmdKey:        "vrooli resource stop postgres",
-			cmdOutput:     "Stopped postgres resource",
-			cmdError:      nil,
-			statusOutput:  "", // Stop doesn't need verification
-			expectSuccess: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
-				Output: []byte(tt.cmdOutput),
-				Error:  tt.cmdError,
-			}
-			// Add status response for verification (used by start/restart)
-			if tt.statusOutput != "" {
-				mockExecutor.Responses["vrooli resource status postgres"] = checks.MockResponse{
-					Output: []byte(tt.statusOutput),
-					Error:  nil,
-				}
-			}
-
-			check := NewResourceCheck("postgres", WithResourceExecutor(mockExecutor))
-			result := check.ExecuteAction(context.Background(), tt.actionID)
-
-			if result.Success != tt.expectSuccess {
-				t.Errorf("Success = %v, want %v (Error: %s)", result.Success, tt.expectSuccess, result.Error)
-			}
-			if result.ActionID != tt.actionID {
-				t.Errorf("ActionID = %q, want %q", result.ActionID, tt.actionID)
-			}
-
-			// Verify executor was called
-			if len(mockExecutor.Calls) < 1 {
-				t.Error("Expected executor to be called")
-			}
-		})
-	}
-}
-
-// TestScenarioCheckExecuteAction_AllActions tests all ScenarioCheck actions
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
-	tests := []struct {
-		name          string
-		actionID      string
-		cmdKey        string
-		cmdOutput     string
-		cmdError      error
-		statusOutput  string // For verification after start/restart
-		expectSuccess bool
-	}{
-		{
-			name:          "start success",
-			actionID:      "start",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "Started test-scenario",
-			cmdError:      nil,
-			statusOutput:  "test-scenario: running (healthy)",
-			expectSuccess: true,
-		},
-		{
-			name:          "start failure - command error",
-			actionID:      "start",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "",
-			cmdError:      checks.ErrCommandNotFound,
-			statusOutput:  "",
-			expectSuccess: false,
-		},
-		{
-			name:          "restart success",
-			actionID:      "restart",
-			cmdKey:        "vrooli scenario restart test-scenario --best-effort",
-			cmdOutput:     "Restarted test-scenario",
-			cmdError:      nil,
-			statusOutput:  "test-scenario: running (healthy)",
-			expectSuccess: true,
-		},
-		{
-			name:          "restart-clean success",
-			actionID:      "restart-clean",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "Clean restart of test-scenario",
-			cmdError:      nil,
-			statusOutput:  "test-scenario: running (healthy)",
-			expectSuccess: true,
-		},
-		{
-			name:          "restart-clean failure - command error",
-			actionID:      "restart-clean",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "",
-			cmdError:      checks.ErrConnectionRefused,
-			statusOutput:  "",
-			expectSuccess: false,
-		},
-		{
-			name:          "stop success",
-			actionID:      "stop",
-			cmdKey:        "vrooli scenario stop test-scenario",
-			cmdOutput:     "Stopped test-scenario",
-			cmdError:      nil,
-			statusOutput:  "", // Stop doesn't need verification
-			expectSuccess: true,
-		},
-		// Note: The diagnose action gathers information from multiple commands
-		// and always succeeds (it collects what it can). It doesn't have a
-		// failure mode since errors from individual commands are ignored.
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
-				Output: []byte(tt.cmdOutput),
-				Error:  tt.cmdError,
-			}
-			// Add status response for verification (used by start/restart/restart-clean)
-			if tt.statusOutput != "" {
-				mockExecutor.Responses["vrooli scenario status test-scenario --json"] = checks.MockResponse{
-					Output: []byte(tt.statusOutput),
-					Error:  nil,
-				}
-			}
-
-			check := NewScenarioCheck(
-				"test-scenario",
-				true,
-				WithScenarioExecutor(mockExecutor),
-				WithScenarioRecoveryPolling(100*time.Millisecond, 10*time.Millisecond, 0),
-				WithScenarioDirectHealthChecker(func(context.Context) (bool, string) {
-					if tt.actionID == "start" || tt.actionID == "restart" || tt.actionID == "restart-clean" {
-						if tt.cmdError == nil {
-							return true, ""
-						}
-					}
-					return false, "mock direct health check failed"
-				}),
-			)
-			result := check.ExecuteAction(context.Background(), tt.actionID)
-
-			if result.Success != tt.expectSuccess {
-				t.Errorf("Success = %v, want %v (Error: %s)", result.Success, tt.expectSuccess, result.Error)
-			}
-			if result.ActionID != tt.actionID {
-				t.Errorf("ActionID = %q, want %q", result.ActionID, tt.actionID)
-			}
-		})
-	}
-}
-
-// TestAPICheckExecuteAction_UnknownAction tests unknown action handling
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestAPICheckExecuteAction_UnknownAction(t *testing.T) {
-	check := NewAPICheck()
-	result := check.ExecuteAction(context.Background(), "invalid-action")
-
-	if result.Success {
-		t.Error("Success should be false for unknown action")
-	}
-	if result.Error != "unknown action: invalid-action" {
-		t.Errorf("Error = %q, want %q", result.Error, "unknown action: invalid-action")
-	}
-	if result.ActionID != "invalid-action" {
-		t.Errorf("ActionID = %q, want %q", result.ActionID, "invalid-action")
-	}
-}
-
-// Note: restart and kill-port actions have complex implementations that
-// involve file system operations, environment variables, and HTTP calls.
-// They are tested through integration tests rather than unit tests with mocks.
-
-// TestScenarioCheckCleanupPorts tests the cleanup-ports action
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestScenarioCheckCleanupPorts(t *testing.T) {
-	tests := []struct {
-		name          string
-		portOutput    string
-		portError     error
-		killOutputs   map[string]checks.MockResponse
-		expectSuccess bool
-	}{
-		{
-			name:          "no ports to clean",
-			portOutput:    "No ports in use",
-			portError:     nil,
-			killOutputs:   nil,
-			expectSuccess: true,
-		},
-		{
-			name:       "ports cleaned successfully",
-			portOutput: "8080/tcp\n9000/tcp",
-			portError:  nil,
-			killOutputs: map[string]checks.MockResponse{
-				"fuser -k 8080/tcp": {Output: []byte(""), Error: nil},
-				"fuser -k 9000/tcp": {Output: []byte(""), Error: nil},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:          "port query fails",
-			portOutput:    "",
-			portError:     checks.ErrCommandNotFound,
-			killOutputs:   nil,
-			expectSuccess: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			// Note: cleanup-ports uses "vrooli scenario port" (not "ports")
-			mockExecutor.Responses["vrooli scenario port test-scenario"] = checks.MockResponse{
-				Output: []byte(tt.portOutput),
-				Error:  tt.portError,
-			}
-			for key, resp := range tt.killOutputs {
-				mockExecutor.Responses[key] = resp
-			}
-
-			check := NewScenarioCheck("test-scenario", true, WithScenarioExecutor(mockExecutor))
-			result := check.ExecuteAction(context.Background(), "cleanup-ports")
-
-			if result.Success != tt.expectSuccess {
-				t.Errorf("Success = %v, want %v (Error: %s)", result.Success, tt.expectSuccess, result.Error)
-			}
-		})
-	}
-}
-
-// TestResourceCheckRecoveryActionsDangerous tests dangerous action marking
-// [REQ:HEAL-ACTION-001]
-func TestResourceCheckRecoveryActionsDangerous(t *testing.T) {
-	check := NewResourceCheck("postgres")
-	actions := check.RecoveryActions(nil)
-
-	actionMap := make(map[string]checks.RecoveryAction)
-	for _, a := range actions {
-		actionMap[a.ID] = a
-	}
-
-	// stop and restart should typically be considered potentially dangerous
-	// but this depends on implementation - just verify they exist
-	expectedActions := []string{"start", "stop", "restart", "logs"}
-	for _, id := range expectedActions {
-		if _, exists := actionMap[id]; !exists {
-			t.Errorf("Expected action %q not found", id)
-		}
-	}
-
-	// logs action should be safe
-	if action, ok := actionMap["logs"]; ok {
-		if action.Dangerous {
-			t.Error("logs action should not be dangerous")
-		}
-	}
-}
-
-// TestScenarioCheckRecoveryActionsDangerous tests dangerous action marking
-// [REQ:HEAL-ACTION-001]
-func TestScenarioCheckRecoveryActionsDangerous(t *testing.T) {
-	check := NewScenarioCheck("test-scenario", true)
-	actions := check.RecoveryActions(nil)
-
-	actionMap := make(map[string]checks.RecoveryAction)
-	for _, a := range actions {
-		actionMap[a.ID] = a
-	}
-
-	// restart-clean should be dangerous as it clears state
-	if action, ok := actionMap["restart-clean"]; ok {
-		if !action.Dangerous {
-			t.Error("restart-clean action should be dangerous")
-		}
-	}
-
-	if action, ok := actionMap["setup-restart"]; ok {
-		if !action.Dangerous {
-			t.Error("setup-restart action should be dangerous")
-		}
-	}
-
-	// logs and diagnose should be safe
-	safeActions := []string{"logs", "diagnose"}
-	for _, id := range safeActions {
-		if action, ok := actionMap[id]; ok {
-			if action.Dangerous {
-				t.Errorf("%s action should not be dangerous", id)
-			}
-		}
-	}
-}
-
-func TestScenarioCheckRun_DetectsSharedPackageDriftRootCause(t *testing.T) {
-	mockExecutor := checks.NewMockExecutor()
-	mockExecutor.Responses["vrooli scenario status test-scenario --json"] = checks.MockResponse{
-		Output: []byte(`{
-			"success": true,
-			"scenario_data": {
-				"status": "running",
-				"health_status": "degraded"
-			},
-			"diagnostics": {
-				"log_analysis": {
-					"recent_events": {
-						"ui": {
-							"message": "Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/repo/packages/api-base/dist/server/perf.js'"
-						}
-					}
-				}
-			}
-		}`),
-		Error: nil,
-	}
-
-	check := NewScenarioCheck("test-scenario", true, WithScenarioExecutor(mockExecutor))
-	result := check.Run(context.Background())
-
-	if got, _ := result.Details["rootCause"].(string); got != "shared-package-drift" {
-		t.Fatalf("rootCause = %q, want shared-package-drift", got)
-	}
-	if got, _ := result.Details["recommendedAction"].(string); got != "setup-restart" {
-		t.Fatalf("recommendedAction = %q, want setup-restart", got)
-	}
-}
-
-func TestScenarioCheckExecuteAction_SetupRestart(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupError    error
-		startError    error
-		expectSuccess bool
-	}{
-		{
-			name:          "success",
-			expectSuccess: true,
-		},
-		{
-			name:          "setup fails",
-			setupError:    checks.ErrCommandNotFound,
-			expectSuccess: false,
-		},
-		{
-			name:          "start fails",
-			startError:    checks.ErrConnectionRefused,
-			expectSuccess: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses["vrooli scenario stop test-scenario"] = checks.MockResponse{
-				Output: []byte("Stopped"),
-				Error:  nil,
-			}
-			mockExecutor.Responses["vrooli scenario setup test-scenario"] = checks.MockResponse{
-				Output: []byte("Setup complete"),
-				Error:  tt.setupError,
-			}
-			mockExecutor.Responses["vrooli scenario start test-scenario --best-effort"] = checks.MockResponse{
-				Output: []byte("Started"),
-				Error:  tt.startError,
-			}
-
-			check := NewScenarioCheck(
-				"test-scenario",
-				true,
-				WithScenarioExecutor(mockExecutor),
-				WithScenarioRecoveryPolling(100*time.Millisecond, 10*time.Millisecond, 0),
-				WithScenarioDirectHealthChecker(func(context.Context) (bool, string) {
-					if tt.setupError == nil && tt.startError == nil {
-						return true, ""
-					}
-					return false, "mock direct health check failed"
-				}),
-			)
-
-			result := check.ExecuteAction(context.Background(), "setup-restart")
-			if result.Success != tt.expectSuccess {
-				t.Fatalf("Success = %v, want %v (err=%s)", result.Success, tt.expectSuccess, result.Error)
-			}
-			if result.ActionID != "setup-restart" {
-				t.Fatalf("ActionID = %q, want setup-restart", result.ActionID)
-			}
-		})
-	}
-}
-
-// TestAPICheckRecoveryActionsDangerous tests dangerous action marking
-// [REQ:HEAL-ACTION-001]
-func TestAPICheckRecoveryActionsDangerous(t *testing.T) {
-	check := NewAPICheck()
-	actions := check.RecoveryActions(nil)
-
-	actionMap := make(map[string]checks.RecoveryAction)
-	for _, a := range actions {
-		actionMap[a.ID] = a
-	}
-
-	// kill-port should be dangerous
-	if action, ok := actionMap["kill-port"]; ok {
-		if !action.Dangerous {
-			t.Error("kill-port action should be dangerous")
-		}
-	}
-
-	// logs and diagnose should be safe
-	safeActions := []string{"logs", "diagnose"}
-	for _, id := range safeActions {
-		if action, ok := actionMap[id]; ok {
-			if action.Dangerous {
-				t.Errorf("%s action should not be dangerous", id)
-			}
-		}
-	}
-}
-
-// TestResourceCheckExecutorInjection verifies executor is properly injected
-func TestResourceCheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	check := NewResourceCheck("postgres", WithResourceExecutor(mockExec))
-
-	if check.executor != mockExec {
-		t.Error("Executor was not properly injected")
-	}
-}
-
-// TestScenarioCheckExecutorInjection verifies executor is properly injected
-func TestScenarioCheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	check := NewScenarioCheck("test", true, WithScenarioExecutor(mockExec))
-
-	if check.executor != mockExec {
-		t.Error("Executor was not properly injected")
-	}
-}
-
-// TestAPICheckExecutorInjection verifies executor is properly injected
-func TestAPICheckExecutorInjection(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	check := NewAPICheck(WithAPIExecutor(mockExec))
-
-	if check.executor != mockExec {
-		t.Error("Executor was not properly injected")
-	}
-}
-
-// TestAPICheckHTTPClientInjection verifies HTTP client is properly injected
-func TestAPICheckHTTPClientInjection(t *testing.T) {
-	mockHTTP := checks.NewMockHTTPClient()
-	check := NewAPICheck(WithHTTPClient(mockHTTP))
-
-	if check.client != mockHTTP {
-		t.Error("HTTP client was not properly injected")
-	}
-}

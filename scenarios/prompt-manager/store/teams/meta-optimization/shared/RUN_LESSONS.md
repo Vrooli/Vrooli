@@ -1,0 +1,329 @@
+# Run Lessons
+
+Durable lessons extracted from agent-manager runs by `run-introspector`. One run per heartbeat. Append-only except for status column updates.
+
+## Schema
+
+| Date | Run ID | Agent / Task | Triage Tier | Lesson | Implicated | Handoff | Measurement | Status |
+
+---
+
+## Lessons
+
+### 2026-09-03 · `3a11f6b4-259c-436a-86e2-80d5e8b6333b` · `heartbeat-director-swarm-director-contrarian-2026-09-03T21-20-02Z` · errored
+
+**Lesson.** A sandboxed run can spend substantial model/tool accounting before failing on runner authentication, while exposing an ambiguous final-output selection and no usable work result. This is environmental runner-integrity evidence, not a prompt or skill lesson, and the ambiguity itself makes the result unsafe to treat as a completed agent run.
+
+**What happened.** `agent-manager run report` showed `failed`, 2 turns, 809,261 reported tokens, ambiguous final selection (`multiple_equally_supported_candidates`, 2 candidates), 14 successful non-Bash tool results, 15 unresolved Bash calls, no diff, and unobserved receipts. The event trail ends with assistant content `Not logged in · Please...`, an execution error, and failed status; the process log is empty. The run's bounded investigation command was refused because investigation is operator-only for run identities, so this finding uses the read-only report and event trail.
+
+**Implicated.** Primary: `agent-manager` runner authentication/session acquisition and result-finalization/reporting. Secondary: run-introspector triage should classify `Not logged in` plus unresolved tool calls and ambiguous final selection as an environmental no-meta-signal, rather than infer agent behavior. This is not an Action opportunity: no deterministic manual CLI sequence would repair runner credentials or session state.
+
+**Action decision.** `capability-work-item`; existing backlog item `agent-manager-launch-prerequisite-integrity` is the closest owner handoff. The distinct measurement need is to make authentication/session prerequisites and terminal result provenance explicit before dispatch or retry.
+
+**Handoff.** Agent-manager owner / scenario-qa: expose a typed authentication-prerequisite failure, avoid leaving unresolved tool calls as the only evidence, and suppress ambiguous final-output success candidates when the runner reports `Not logged in`. Team-agent-optimizer: treat this as zero usable agent result despite the large token counter; do not use it as prompt-efficiency evidence.
+
+**Measurement plan.** Baseline: 1 selected failed run, 2 turns, 15 unresolved Bash calls, 0 diff bytes, 0 observed receipts, 2 final candidates, and no process-log diagnosis. Over the next 7 heartbeats, count failed runs whose terminal evidence includes authentication/session refusal; expected outcome after the owner change is a typed prerequisite code, deterministic result state, and zero ambiguous final-output selections for this class.
+
+**Program-runtime ratchet.** Governed share was `2332/2351 = 0.991918` over the 604800-second window `2026-08-27T22:45:17.929424282Z`–`2026-09-03T22:45:17.929424282Z`; observed calls were 19. Unresolved name `inputs` occurred 18 times, last seen `2026-09-03T09:00:44.32851624Z`; `bindings` occurred once. Library search for `inputs` returned only `typed-inference`, not an `inputs` program. Filed bounded backlog item `idea/program-runtime-inputs-observed-capability`.
+
+**Discovery gaps.** The top repeated unmet query was `writing standards for plans` (count 2); singleton clusters were observed but not filed because they do not meet the recurrence threshold. This is a discoverability/capability signal for skill-optimizer review, not a run-specific Action usage claim.
+
+**Status.** pending (owner handoff; no implementation in this lane).
+
+### 2026-09-02 · `8cee79a8-9752-436c-bebf-45214d7616d0` · `heartbeat-director-swarm-director-contrarian-2026-09-02T22-00-00Z` · errored
+
+**Lesson.** A sandboxed heartbeat can fail before agent work begins when the launch path cannot persist the editor lease and the uncontained fallback cannot start its systemd transient unit. This is an environmental launch-integrity failure, not an agent or prompt lesson.
+
+**What happened.** `agent-manager run report` recorded status `failed`, exit code 1, 4,128ms duration, one turn, zero tokens, zero tools, no result candidate, zero diff bytes, and unobserved receipts. The process log reports `create editor lease: attempt to write a readonly database (8)`, followed by `StartTransientUnit ... Failed to set bus address: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined`. Event stats were available (2 errors, 6 lifecycle, 11 log, 2 message, 1 metric, 2 policy attempts, 1 sandbox operation, 2 status), while the failed-event view contained no rendered event rows. The bounded investigation lifecycle was unavailable to this member because it requires operator context.
+
+**Implicated.** Primary: `agent-manager` launch/runner environment and its run-integrity reporting; secondary: run-introspector triage, which should classify zero-work launch failures separately from agent-behavior failures. This is not an Action candidate: no stable manual CLI sequence would make the lease/database and DBUS runtime prerequisites reliable.
+
+**Action decision.** `capability-work-item`: add a preflight/typed failure contract for editor-lease writability and systemd/DBUS runtime prerequisites, with a safe fallback or explicit refusal before dispatch. The exact run is not a recurrence of the existing knowledge-route or imported-run lessons, so no duplicate supersession applies.
+
+**Handoff.** `agent-manager` owner / scenario-qa: make the launch preflight report which prerequisite failed, avoid attempting uncontained dispatch when the DBUS environment is absent, and preserve a typed environmental failure in the run result. `team-agent-optimizer`: add this class to tier-1 environmental-failure exclusions only after the typed signal is available; until then, identify `zero turns + zero tokens + launch error` as no-meta-signal.
+
+**Measurement plan.** Baseline: 1 selected run, 0 agent tokens, 0 tools, 0 result candidates, 0 receipts, 2 launch errors, and 4.1s wall span. After the owner change, launch failures should expose a typed prerequisite code and no longer reach an ambiguous failed run; across the next 7 heartbeats, count zero-work runs with empty/opaque launch diagnostics and confirm no agent lesson is opened for this class.
+
+**Status.** pending (capability owner handoff; no implementation in this lane).
+
+### 2026-08-29 · `9329b3ca-2218-49df-97ce-c2195f1d0308` · `agent-manager-imported` · slow
+
+**Lesson.** Imported runs can be marked complete while exposing no usable agent result, no diff, and thousands of unresolved replayed tool calls. Their wall-clock span is not valid agent-work duration; the investigation surface needs an explicit imported/replay health verdict before a run can count as a meaningful completion or slow-run sample.
+
+**What happened.** The selected run spanned 17,355 seconds (2026-08-29T03:58:35Z–08:47:50Z), but `agent-manager run report` showed `Turns: 0`, no final output, no diff, and `Receipts: unobserved`. It recorded 1,103 repeated tool calls: 1,048 unresolved `exec` calls and 57 unresolved `wait` calls, with only 58 successful tool results. The event trail is an imported Codex transcript whose work occurred in rapid bursts; the long span is replay/import timing, not agent execution. The run was not previously present in this artifact.
+
+**Implicated.** `agent-manager` run import/report and the run-introspector triage interpretation. `run report` currently presents `Status: complete` alongside zero turns, empty output, unavailable diff, unobserved receipts, and unresolved calls without a consolidated unusable-result warning. Run-introspector's slow tier also needs to exclude imported/replay runs unless agent-work duration and result provenance are available.
+
+**Action decision.** `capability-work-item`, not an Action candidate: this is a missing typed health/verdict contract in an existing control-plane surface, not a repeated deterministic CLI sequence. No existing Action would make the evidence trustworthy.
+
+**Proposed change.** Add an explicit imported-run integrity classification to the report/result surface (for example `result_state=unusable` or `replay_incomplete`) when a completed imported run has zero turns, no final result, unavailable diff, unobserved receipts, or unresolved tool calls. Expose the classification and source timing separately from agent-work duration. Update run-introspector guidance to exclude such runs from slow triage and route them to a single provenance/observability lesson.
+
+**Handoff.** `agent-manager` owner / scenario-qa for the report contract and import replay accounting; `team-agent-optimizer` for the run-introspector slow-tier interpretation.
+
+**Measurement plan.** Baseline for this sample: 1 imported run, 0 turns, 0 final-output candidates, 0 diff bytes, 0 observed receipts, 1,105 unresolved calls, and 17,355 seconds wall span. Post-change: imported runs with these markers should receive a non-success integrity verdict, and slow triage should not select them as agent slowness. Recheck after 7 heartbeats by sampling imported runs and comparing `started_at`–`ended_at` with event/tool activity span; expected false slow selections: 0.
+
+**Status.** pending (requires agent-manager owner and team-agent-optimizer interpretation changes).
+
+### 2026-04-23 · `60116710-f77d-4c33-8058-2bd90c475289` · `agent-manager-investigation` · errored
+
+**Lesson.** The triage ladder's tier-1 ("errored") signal is contaminated by a known false-positive class: `exit_code=429` can be emitted on a **clean** run whose final assistant message merely *discusses* rate limiting as a topic. The substring matcher `detectRateLimit` in `claude_code.go:1518-1559` fires on any assistant text containing "rate limit" regardless of `IsError`, forcing `Success=false, ExitCode=429`. Investigating these as genuine failures wastes a heartbeat and draws the wrong lesson.
+
+**What happened.** Run `60116710` is itself an investigation run that completed successfully, produced a thorough report, and then — because that report contains the phrase "rate limit" dozens of times — got misclassified as FAILED/429. The report itself diagnoses the bug at `scenarios/agent-manager/api/internal/adapters/runner/claude_code.go:1528-1531` and lists `e08357a4` as a sibling false-positive (the assistant discussed a "per-type token-bucket rate limiter" feature and `TestLog_PerTypeRateLimit`). Recent-failed-runs scan confirms the pattern: 2 of 22 failed runs have `exit_code=429` + substantive completion text, not rate-limit banners.
+
+**Implicated.** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — the triage ladder in "Required Loop" step 3 picks tier-1 errored runs without a verification step for false-positive exit codes. Run-introspector will pick these runs first every time they surface.
+
+**Proposed change.** Add a **tier-1 verification gate** to run-introspector's HEARTBEAT.md: before accepting an errored run for investigation, if `exit_code == 429` AND `error_msg` looks like substantive task output (multi-paragraph, markdown sections, "Summary" / "Classification" / "Report" headings) rather than a terse rate-limit banner, re-classify as tier-5 (random-success-with-misclassification) and note the false-positive. Do **not** modify `detectRateLimit` itself — that's a scenario-qa concern against agent-manager code; our lane is only the introspection workflow.
+
+**Handoff.** `team-agent-optimizer` — edit `HEARTBEAT.md` step 3 to add the verification gate. Separately, the agent-manager code bug (E1 from run `60116710`'s report) is a scenario-qa concern; not a meta-optimization capability work item since agent-manager already exists and the bug is documented in the run's own investigation artifact.
+
+**Measurement plan.**
+- **Baseline:** 2/22 (~9%) of FAILED runs in the current list carry exit_code=429 + substantive completion text (ids `60116710`, `e08357a4`).
+- **Post-change:** after HEARTBEAT.md adds the gate, future run-introspector heartbeats should skip these false positives at tier-1. Check by grepping RUN_LESSONS.md — no future lesson should investigate a 429-completion-text run as tier-1; they should be reclassified.
+- **Secondary:** when the underlying `detectRateLimit` bug is fixed by scenario-qa, the 9% rate drops to 0 and the gate becomes a no-op (still correct, no removal needed).
+- **Revisit:** 7 heartbeats from today (2026-04-30) — check if gate is in place and whether false-positive count has moved.
+
+**Status.** pending (awaits team-agent-optimizer pickup).
+
+---
+
+### 2026-04-24 · `564191ef-e1b4-4328-b21c-c83999676123` · `swarm-manager:initiative:rev-trigger:review:round-001` · slow
+
+**Lesson.** The triage ladder's tier-3 ("slow") signal is contaminated by **approval-blocked** runs. For runs with `resolved_config.requires_approval=true`, `ended_at` is set when the operator approves the run, not when the agent finished work — so wall-clock (`ended_at - started_at`) reflects human latency, not agent latency. The right "slow" signal is **work duration** ≈ `last_heartbeat - started_at`. Without this distinction, run-introspector's tier-3 picks would be dominated by approval-queue artifacts whenever the operator batches approvals.
+
+**What happened.** In the window since 2026-04-23, the top 25 longest runs by wall-clock are all `swarm-manager:initiative:rev-trigger:review:round-001`, each with wall-clock 70k–82k seconds (~19–22h). Inspection of `564191ef` (the longest at 81,648s) shows: `started_at=22:29:09`, `last_heartbeat=22:29:24` (15s of agent work), `ended_at=21:09:57` next day (= `approved_at`), `summary.turns_used=1`, `summary.tokens_used=27523`, `summary.cost_estimate=$0.09`. Cross-check with `86f4378d` (same tag, 13s wall-clock): `started=21:05:01`, `last_heartbeat=21:05:14`, `ended=21:05:14` (operator approved within 2ms), 1 turn / 27,470 tokens. Identical agent work; wall-clock spread is ~6,000× because approval landed at different times. Mass-end pattern at `2026-04-24T21:09:5X` (25 runs ending within ~7 seconds of each other from start times spanning 22h) confirms the operator batch-cleared the approval queue in one sweep.
+
+**Implicated.** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Reasoning Framework" tier-3 says: *"Slow — run exceeded expected tokens or duration by > 50%"*. "Duration" is unqualified; the natural reading (and what triage used this heartbeat) is wall-clock, which is contaminated by approval lag whenever `requires_approval=true`.
+
+**Proposed change.** Add a **tier-3 work-duration clarification** to HEARTBEAT.md: "duration" means `last_heartbeat - started_at` (or equivalent agent-side span), not `ended_at - started_at`. When `resolved_config.requires_approval=true`, wall-clock includes operator latency and is not a valid slow signal — explicitly exclude. Optionally also exclude tier-3 picks where `summary.turns_used <= 1` AND `summary.cost_estimate < $0.20` (a 1-turn $0.09 run is structurally not slow, regardless of wall-clock).
+
+**Handoff.** `team-agent-optimizer` — edit run-introspector's `HEARTBEAT.md` "Reasoning Framework" tier-3 definition (Slow). The underlying `ended_at` semantics in agent-manager are correct (it records when the run ended for the system, including approval); changing them would break audit trails. The fix belongs in run-introspector's interpretation, not in agent-manager.
+
+**Measurement plan.**
+- **Baseline.** Of 98 successful runs in this heartbeat's window, the 25 longest by wall-clock all share the `swarm-manager:initiative:rev-trigger:review:round-001` tag, all 1-turn / ~27k tokens / ~$0.09, with `requires_approval=true` and mass-completion at `21:09:5X` UTC. Median wall-clock 64,462s; median work-duration (per spot checks) ~15s — a ~4,300× discrepancy.
+- **Post-change.** Future heartbeats compute work-duration directly. The next tier-3 pick should have `last_heartbeat - started_at > 50%` over expected, not `ended_at - started_at`. Approval-blocked clusters fall out of slow-triage entirely.
+- **Revisit.** 7 heartbeats (2026-05-01) — grep RUN_LESSONS.md for any tier-3 lesson opened on a `requires_approval=true` run with `turns_used <= 1`. Expected count: 0.
+- **Secondary.** This is the second tier-contamination lesson in two heartbeats (yesterday: tier-1 false-positives from `detectRateLimit`; today: tier-3 false-positives from approval lag). If a third surfaces, the contrarian should consider a `framework-update` formalizing tier-signal-contamination as a standing failure mode.
+
+**Status.** pending (awaits team-agent-optimizer pickup).
+
+---
+
+### 2026-04-25 · `cab1c399-9a3e-4b12-99e4-6a21dcb69ddb` · `swarm-manager:backlog:execute:swarm-manager-work-deferral:process` · errored
+
+**Lesson.** The triage ladder's tier-1 ("errored") signal is contaminated by a third class: **transient upstream-API failures**. Runs that fail purely because Anthropic returned `5xx Overloaded` carry no meta-layer signal — there is no skill, agent prompt, or team-config edit that would have prevented the failure. Investigating these as tier-1 wastes a heartbeat. This is the third tier-contamination class in three heartbeats (after tier-1 `detectRateLimit` false-positives and tier-3 approval-lag artifacts).
+
+**What happened.** Run `cab1c399` (sandboxed, opus, requires_approval=true, fallback_runner_types=[CLAUDE_CODE, CODEX]) ran for 203,961 ms (~3.4 min) on a 1-turn execution before claude-code terminated with `is_error=true (subtype=success, turns=1)`. The assistant message and error event both contain the literal payload: *"API Error: 529 Overloaded. This is a server-side issue, usually temporary — try again in a moment. If it persists, check status.claude.com."* Run was marked `RUN_STATUS_FAILED`. The declared codex fallback never engaged (the runner's terminate-on-error path does not honor `fallback_runner_types` when claude-code returns `is_error=true` with `subtype=success`). The single FAILED run in this 78-run window; no other tier-1 candidates.
+
+**Implicated.**
+- **Meta-layer (in lane):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Required Loop" step 3 / "Reasoning Framework" tier-1. The current tier-1 verification gate (proposed in `dec-1777069916962818847`) only handles `exit_code=429 + substantive completion text`. It does not handle 5xx upstream-overload failures.
+- **Scenario-qa lane (noted, not actioned by this lesson):** agent-manager's claude-code runner terminate-on-error path does not engage `fallback_runner_types` on transient `5xx Overloaded` responses, despite the run config declaring `[CLAUDE_CODE, CODEX]` as fallbacks. Likely callsite: the same `claude_code.go` runner that owns `detectRateLimit` (yesterday's lesson). The `subtype=success` from claude-code masks the upstream API failure so the orchestrator doesn't see it as a retryable error.
+
+**Proposed change.**
+- **Meta-layer:** Extend run-introspector's HEARTBEAT.md tier-1 gate (currently scoped to 429 false-positives) to also exclude **transient upstream-API failures**: if the run's terminal error message matches `API Error: 5\d\d (Overloaded|Internal|Bad Gateway|Service Unavailable|Gateway Timeout)` AND `summary.turns_used <= 1`, reclassify as tier-5 (random-success-with-transient-failure), record the transient failure in RUN_LESSONS.md, continue walking the ladder. The two gates can share one prose paragraph or be separate bullets — team-agent-optimizer's call.
+- **Scenario-qa (separate lane, separate concern):** Note in RUN_LESSONS.md that claude-code runner's terminate-on-error path should honor `fallback_runner_types` when the underlying error is a transient 5xx from Anthropic. Not raised as a meta-optimization decision (out of lane); surfaced here for visibility.
+- **Standing pattern:** With this third tier-contamination lesson, the contrarian should evaluate `framework-update` for "tier-signal-contamination" as a standing failure mode. Three classes now: (1) tier-1 detectRateLimit false-positives, (2) tier-3 approval-lag wall-clock artifacts, (3) tier-1 transient-API-failure runs. All three share the same shape: triage tier fires correctly per its literal definition but the underlying signal is environmental, not agent-behavioral. Not raising the framework update myself — that's contrarian's lane.
+
+**Handoff.** `team-agent-optimizer` — extend the tier-1 gate edit (already pending in `dec-1777069916962818847`) to also cover 5xx transient-API failures, OR add a separate gate paragraph if cleaner. Either works; team-agent-optimizer to choose.
+
+**Measurement plan.**
+- **Baseline.** 1/78 (~1.3%) of completed runs in this window are pure-transient-5xx failures (`cab1c399`). Across multiple windows the rate is unknown but expected non-zero given Anthropic 5xx rates; this lesson's value scales with that rate.
+- **Post-change.** Future heartbeats encountering a 5xx-only tier-1 run should mark it "tier-1 transient-API-failure (skipped)" rather than open a full lesson. Grep RUN_LESSONS.md 7 heartbeats from now (2026-05-02) — count of tier-1 lessons opened on `API Error: 5xx Overloaded`-only runs should be 0.
+- **Standing-pattern watch.** This lesson is the third tier-contamination class. If a fourth surfaces, the contrarian's `framework-update` is overdue.
+- **Secondary (out-of-lane).** When/if scenario-qa fixes the runner to engage `fallback_runner_types` on 5xx, 1-turn-5xx-failure rate drops toward 0 and the gate becomes a no-op (still correct, no removal).
+
+**Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777069916962818847`).
+
+---
+
+### 2026-04-27 · `cdd35a04-a353-499d-85aa-463f864b3c27` · `heartbeat-marketing-crew-brand-manager-2026-04-26T19-00-00Z` · errored
+
+**Lesson.** The triage ladder's tier-1 ("errored") signal is contaminated by a **fourth** class: **silent runner-stall failures**. Runs whose event stream stops abruptly mid-execution, with no terminal `RUN_FAILED`/error event, no `error_message`, and a frozen `last_heartbeat`, then get reaped to `RUN_STATUS_FAILED` minutes later by timeout. The agent did not fail — the runner subsystem (claude-code stream, codex, or the orchestrator's reaper) lost the process without an emitted error. There is no skill, agent prompt, or team-config edit that would have prevented the failure. Investigating these as tier-1 yields the same null finding every time. This is the **fourth** tier-contamination class in four heartbeats.
+
+**What happened.** In the 2026-04-25T22:48Z–2026-04-27T22:48Z window: 6 FAILED runs of 133 total. Three of the 6 cluster within a 1-hour window on 2026-04-26 (18:30 monetization-catalog-strategist, 19:00 marketing-crew-brand-manager, 19:30 marketing-crew-oss-advertiser) and share an identical shape:
+
+| Run ID | Tag | last event elapsed | last_heartbeat elapsed | wall-clock | terminal error |
+|---|---|---|---|---|---|
+| `057547bf` | monetization-catalog-strategist | 7:08 | 7:00 | 23:45 | none |
+| `cdd35a04` | brand-manager | 5:06 | 7:00 | 23:50 | none |
+| `ffcfe70b` | oss-advertiser | 0:11 | 0:00 | 17:00 | none |
+
+All three: started with log `runner fallback: codex -> claude-code` (codex unavailable, fell back); flipped to `RUN_PHASE_EXECUTING` normally; emitted ordinary tool calls; then events stopped without any `RUN_EVENT_TYPE_RUN_FAILED`, `STATUS=failed`, or error log; were reaped silently by the orchestrator timeout (~16–18 min later). `summary={}`, `error_message=""`, `progress_message=""`. `last_heartbeat << ended_at` by 16+ min in every case. (Picked `cdd35a04` as the representative for one-run-per-heartbeat discipline; other two corroborate the cluster-not-coincidence reading.)
+
+This is structurally distinct from `cab1c399`'s 5xx-Overloaded lesson (run `cab1c399` had an explicit terminal error payload "API Error: 529 Overloaded"). Today's class has **no** terminal error — the runner died silently.
+
+**Implicated.**
+- **Meta-layer (in lane):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Required Loop" step 3 / "Reasoning Framework" tier-1. The pending tier-1 gates (`dec-1777069916962818847` for 429-substantive-text, `dec-1777157323547139809` for 5xx-API-error) both rely on inspecting the terminal error message. Silent-stall runs have no terminal error message to gate on, so they slip past both gates.
+- **Scenario-qa lane (noted, not actioned by this lesson):** agent-manager's runner subsystem (likely `claude_code.go` and/or the orchestrator's run-reaper) terminates a run to `RUN_STATUS_FAILED` without emitting a `RUN_EVENT_TYPE_RUN_FAILED` event or populating `error_message`. From the introspection lane this is opaque — the only signal that the runner stalled is the gap between `last_event_timestamp` and `ended_at`. The codex-fallback log line at start in all three cases also raises an out-of-lane question whether codex unavailability correlates with downstream stalls; not investigated.
+- **Standing pattern (out of lane, contrarian's call):** This is the **fourth** tier-contamination class. Per RUN_LESSONS.md 2026-04-25 lesson's standing-pattern watch: *"If a fourth surfaces, the contrarian's `framework-update` is overdue."* Pending work queue contains no `framework-update`. Flagging here for visibility; not raising myself.
+
+**Proposed change.**
+- **Meta-layer:** Extend the run-introspector tier-1 gate (already pending in two prior decisions) to additionally exclude **silent-stall runs**: if the run is `RUN_STATUS_FAILED` AND `error_message` is empty AND no `RUN_EVENT_TYPE_RUN_FAILED` event exists AND (`ended_at - last_heartbeat > 5 min` OR `ended_at - last_event_timestamp > 5 min`), reclassify as tier-5 (silent-stall, no-meta-signal), record the stall in RUN_LESSONS.md as a one-line note with run ID + cluster, continue walking the ladder. Implementation note for team-agent-optimizer: the existing gate paragraph is now covering three sub-classes (429-FP, 5xx-explicit, silent-stall) — at this point a single short bullet list "tier-1 environmental-failure exclusions" is cleaner than three separate prose paragraphs. Implementer's call.
+- **Scenario-qa (separate lane, separate concern):** Note that runs reaped by the orchestrator should emit a `RUN_EVENT_TYPE_RUN_FAILED` with `reason="silent_stall"` (or equivalent) and populate `error_message`, so triage downstream can see what happened. Without this, every introspection lane (mine and any future investigator) has to infer stalls from event-stream gaps, which is fragile. Not raised as a meta-optimization decision (out of lane).
+- **Standing pattern:** Fourth class observed. Contrarian's `framework-update` for "tier-signal-contamination as a standing failure mode" is now formally overdue per the prior lesson's own watch criterion. Not raising myself — that's contrarian's lane.
+
+**Handoff.** `team-agent-optimizer` — extend the tier-1 gate (already pending in `dec-1777069916962818847` and `dec-1777157323547139809`) to also cover silent-stall runs. With three sub-classes now stacked under tier-1, recommend consolidating into a single "tier-1 environmental-failure exclusions" bullet list rather than three separate prose paragraphs. Implementer's call.
+
+**Measurement plan.**
+- **Baseline.** 3/6 (~50%) of FAILED runs in this 2-day window are silent-stalls; 3/133 (~2.3%) of completed runs overall. Cluster timing (within 1 hour) suggests environmental incident — base rate likely lower across longer windows, but non-zero given runner subsystem complexity.
+- **Post-change.** Future heartbeats encountering a silent-stall tier-1 candidate should mark it "tier-1 silent-stall (skipped)" and continue walking. Grep RUN_LESSONS.md 7 heartbeats from now (2026-05-04) — count of tier-1 lessons opened on `error_message=""` + frozen-`last_heartbeat` runs should be 0.
+- **Standing-pattern watch.** Fourth class now observed. If contrarian does not raise `framework-update` within the next 3 heartbeats, consider this lesson's standing-pattern note itself stale — the prediction held; the systemic action did not follow. (Out-of-lane to escalate further; just noting.)
+- **Secondary (out-of-lane).** When/if scenario-qa adds explicit `RUN_FAILED` emission for reaped stalls, the gate's silent-stall predicate becomes inspectable on `reason=` rather than inferred from event-stream gaps, but the gate logic stays the same.
+
+**Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777069916962818847` and `dec-1777157323547139809`).
+
+---
+
+### 2026-04-27 · `56398acb-2aec-4b2c-bfc4-eafc8dc28c3e` · `heartbeat-meta-optimization-run-introspector-2026-04-26T22-45-00Z` · errored
+
+**Lesson.** Two distinct findings from the prior run-introspector heartbeat's own failure:
+
+1. **Pending 5xx-gate predicate is too narrow.** `dec-1777157323547139809` proposes reclassifying tier-1 environmental failures when terminal error matches `API Error: 5xx ...` AND `summary.turns_used <= 1`. The turn-count predicate is wrong — multi-turn legitimate work that dies on a single transient API 5xx is still environmentally-failed, not agent-failure. Run `13ac79cb` (swarm-manager research, 34 internal turns then `overloaded_error`) is a 34-turn 5xx that the gate would let through. Drop the `turns_used <= 1` predicate; the 5xx-pattern alone is sufficient.
+
+2. **Run-introspector heartbeat is bumping the 50-turn ceiling.** Run `56398acb` ran 51 turns / 7m36s before claude-code terminated with `subtype=error_max_turns`. The agent did legitimate investigation work (read prior work items, listed runs, fetched events on 4 runs, drafted the 2026-04-26 silent-stall lesson, then began revising the 5xx gate) and was caught mid-update. Last assistant message at sequence 127: *"Picking `13ac79cb` ... confirms my pending 5xx gate's `turns_used <= 1` predicate is too narrow. I'll revise the prior work item with a broader take."* Sequence 128 was an obsolete CLI help call. One step later: max_turns. The heartbeat as written investigates ≥1 run + writes ≥1 lesson + writes ≥1 update + does CLI navigation; on a heartbeat that produces two interlocking findings (a new lesson AND an update to prior work) the 50-turn cap is tight.
+
+**What happened.** Tier-1 errored. Run `56398acb` (sandboxed, opus, requires_approval=APPROVAL_STATE_NONE, runner=claude-code, max_turns=50) terminated `is_error=true subtype=error_max_turns turns=51 duration_ms=454664`. Final phase `RUN_PHASE_COLLECTING_RESULTS`, `summary={}`, `error_message=""` (the max-turns error lives in `RUN_EVENT_TYPE_ERROR` event, not on the run record itself). The agent had — within those 51 turns — already drafted the entire 2026-04-26 silent-stall lesson via Edit calls into RUN_LESSONS.md (uncommitted; visible in `git diff HEAD`); the work was preserved by sandbox file-edit semantics, not by run completion. The supersession of `dec-1777157323547139809` did not land — that work is what this heartbeat is now picking up.
+
+**Implicated.**
+- **Meta-layer (in lane, primary):** `dec-1777157323547139809` — predicate `summary.turns_used <= 1` is the bug; drop it. The 5xx error pattern alone is the right signal.
+- **Meta-layer (in lane, secondary):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — the "Required Loop" is dense (10 steps + supersession + multi-decision raises + knowledge snapshot). When a heartbeat produces a new lesson AND must supersede a prior decision, 50 turns is tight. Two tightening options for team-agent-optimizer to weigh: (a) trim the loop's CLI ceremony (e.g., let supersession be deferred to the next heartbeat when same-day work crowds it out — explicit "carry-over" rather than "must complete in this heartbeat"); (b) raise max_turns on this heartbeat's profile from 50 → 75. (a) is in-lane (heartbeat prose); (b) is the agent-manager profile config (out-of-lane).
+- **Scenario-qa lane (noted, not actioned):** an obsolete prompt-manager team help call returned generic help rather than useful flags. Documented in earlier events of this run as a 1-turn deadweight call. This is a CLI ergonomics issue.
+- **Concurrent-heartbeat firing (out of lane, observed):** While drafting this lesson, two run-introspector heartbeats fired simultaneously at 2026-04-27T22:45:00Z (runs `096b1dee` and `937bcb50`, both `RUN_STATUS_RUNNING`, same tag, started 55ms apart). The earlier one wrote the 2026-04-26 silent-stall lesson uncommitted; this lesson is being written by the second. Duplicate-firing is a real coordination hazard (file races on RUN_LESSONS.md and knowledge-entry topic collision). Out of lane — that's an agent-manager scheduler concern; surfacing here so contrarian / scenario-qa can pick up if pattern recurs.
+
+**Proposed change (this heartbeat is doing it).**
+- **Revise `work-1777157323547139809`** with a new `run-lesson` work item: drop `turns_used <= 1` from the 5xx-environmental-failure predicate. Keep the rest (terminal-error pattern match, reclassify-as-tier-5, continue walking the ladder).
+- Optional secondary handoff to **team-agent-optimizer** for HEARTBEAT.md tightening per (a) above; not raising a separate decision this heartbeat (cap; supersession is the priority).
+
+**Handoff.** This heartbeat's supersession decision **replaces** `dec-1777157323547139809`. team-agent-optimizer should pick up the broader 5xx predicate when implementing the consolidated tier-1 environmental-failure exclusions list (alongside the silent-stall extension from the 2026-04-27 silent-stall lesson above). All three exclusions (429-FP, 5xx-pattern, silent-stall) now collapse cleanly into one bullet list per the implementation note in the silent-stall lesson.
+
+**Measurement plan.**
+- **Baseline.** Run `13ac79cb` (34-turn 5xx) is a concrete miss for the original predicate; in this 2-day window the original gate would let it through and the broader gate would catch it (1 saved tier-1 misclassification this window).
+- **Post-change.** 7 heartbeats from now (2026-05-04), grep RUN_LESSONS.md for any tier-1 lesson opened on a run whose terminal error matches `5\d\d.*Overloaded|overloaded_error` regardless of turn count — expected 0.
+- **Heartbeat turn-budget watch.** Monitor whether subsequent run-introspector heartbeats hit `error_max_turns`. If another max-turns failure appears within 7 heartbeats, escalate the loop-tightening or max-turns-raise option from secondary to primary.
+
+**Status.** pending (awaits team-agent-optimizer pickup; supersedes `dec-1777157323547139809`).
+
+---
+
+### 2026-04-28 · `2074b6d2-9214-47f4-90f0-99712c2fc559` · `heartbeat-monetization-financial-tracker-2026-04-28T18-00-00Z` · errored
+
+**Lesson.** Two refinements to my pending broader-5xx predicate (`dec-1777330324477920142`), both surfaced by a real 5xx environmental failure this heartbeat:
+
+1. **5xx pattern is too narrow** — the previously-proposed allowlist (`Overloaded | Internal | Bad Gateway | Service Unavailable | Gateway Timeout | overloaded_error`) misses `API Error: 529 Authentication service is temporarily unavailable`. Anthropic uses **non-standard 5xx codes and free-form status text**; an allowlist of canonical reason phrases is brittle. Replace with the simpler match: any `API Error: 5\d\d` (any 5xx HTTP code), regardless of the status-text suffix. By definition all 5xx codes are server-side environmental failures with no meta-layer signal. Status-text discrimination is over-engineering.
+
+2. **error-source must include events, not just `run.error_message`** — on this run, `run.error_message` is empty (`None`), but the actual 529 payload lives in two events: a `RUN_EVENT_TYPE_MESSAGE` (sequence 9, role=assistant) and a `RUN_EVENT_TYPE_ERROR` (sequence 10, code=`execution_error`, details.subtype=`success`, details.result_text=`API Error: 529 ...`). A predicate that reads only the run-level `error_message` field will silently miss this entire failure class. The predicate must check, in order: (a) `run.error_message`, then (b) the last `RUN_EVENT_TYPE_ERROR` event's `error.details.result_text`, then (c) the final `RUN_EVENT_TYPE_MESSAGE` (role=assistant) content.
+
+**What happened.** Tier-1 errored. Run `2074b6d2` (in-place, opus, runner=claude-code, max_turns=600) — heartbeat for monetization-financial-tracker. Codex unavailable → fell back to claude-code; "protected mode requested but SandboxID is nil; falling back to HostLauncher" log at sequence 6 (sandbox not provisioned despite request). System context received at sequence 8 (3.5s in). Then a 3:21 silent gap. Sequence 9 (3:24 in): assistant message *"API Error: 529 Authentication service is temporarily unavailable. Retry the request. This is a server-side issue, usually temporary..."* Sequence 10: `RUN_EVENT_TYPE_ERROR` with `subtype=success, turns=1, duration_ms=200789`. Sequence 11: status flipped to `failed` with reason `"Claude Code execution completed"`. Run-level `error_message` field never populated; `last_heartbeat == ended_at` (within 0.4ms) so the silent-stall predicate also doesn't catch it.
+
+**Why this is one of nine in window, not isolated.** This run is one of **9** triple-fired heartbeat runs at 18:00–18:30Z (3 instances each of `monetization-financial-tracker`, `monetization-catalog-strategist`, `marketing-crew-subscription-advertiser`), all FAILED with empty `run.error_message`, all hitting the same upstream 529 wall during a multi-minute Anthropic auth-service outage. Investigated `2074b6d2` as the cluster representative; the other 8 share the same shape per spot-checks. **None** would be caught by my pending broader-5xx predicate as currently drafted, because (a) the 529-auth-temp-unavailable text isn't in the allowlist and (b) the predicate reads `run.error_message` which is empty on all of them.
+
+**Implicated.**
+- **Meta-layer (in lane, primary):** `dec-1777330324477920142` — pending broader-5xx predicate. Two refinements above (pattern simplification + event-source widening). Refines, does not overturn.
+- **Meta-layer (in lane, secondary):** the silent-stall predicate (`dec-1777330180871528504`) and broader-5xx predicate (`dec-1777330324477920142`) both currently key off `run.error_message`. With this heartbeat's evidence that the field is unpopulated for an entire failure class, **all three** pending tier-1 environmental-failure exclusions (429-FP, 5xx-pattern, silent-stall) need the same event-source-widening treatment when team-agent-optimizer implements them. Recommend the consolidated bullet list (per silent-stall lesson's implementation note) include a single shared "error-source resolution" preamble: *"For all rules below, 'terminal error' means: `run.error_message` if non-empty, else the last `RUN_EVENT_TYPE_ERROR` event's `details.result_text`, else the final `RUN_EVENT_TYPE_MESSAGE` (role=assistant) content."*
+- **Scheduler / scenario-qa lane (noted, not actioned by this lesson):** **Triple-firing pattern is escalating.** 2026-04-27 lesson noted 2 simultaneous run-introspector heartbeats (55ms apart, same tag). 2026-04-28 has 3 heartbeats (financial-tracker, catalog-strategist, subscription-advertiser) each firing 3 instances within ~200ms windows — 9 total duplicate-fired runs in this window. This is unequivocally a scheduler bug (firings 100ms apart cannot be retry-on-failure since failures occur 3+ min later). Out of meta-optimization lane; surfaced for visibility.
+- **Sandbox-launcher (out of lane):** sequence-6 log `"protected mode requested but SandboxID is nil; falling back to HostLauncher"` — the run requested SANDBOX_MODE_PROTECTED but no sandbox ID was provisioned, so the runner silently fell back to host. This is a separate concern unrelated to today's lesson, but documenting since it appeared in the events trail.
+
+**Adjacent observation (Cluster A, not picked).** A second tier-1 cluster in this window: 9 sequential `swarm-manager:initiative:agent-sandbox-audit-foundation:feedback:round-002..010` runs, all FAILED, all retrying the same step. Rounds 002–006 fail at startup with `env: '~/.local/bin/claude': No such file or directory` (exit_code=127, ~140ms each). Round 007 fails with empty stderr / exit 1 (~2s). Rounds 008–010 reach `phase=COLLECTING_RESULTS, progress=85` and fail with `"sandbox process ended without exit info"` (the known SSE Flusher bug per `project_workspace_sandbox_sse_flusher_bug` memory). The meta-relevant signal here is that **swarm-manager's initiative auto-retry has no environmental-failure circuit-break** — it kept cycling rounds despite 9 consecutive failures with progressively-shifting environmental causes. That's a `capability work item` candidate for swarm-manager (director-swarm consumes), but not raised this heartbeat (one run per heartbeat discipline; depth over breadth). Flagged here for a future heartbeat to pick a representative round and raise.
+
+**Proposed change.** Supersede `dec-1777330324477920142` with the refined predicate:
+
+> **Tier-1 environmental-failure exclusions (when team-agent-optimizer implements):** For each rule below, "terminal error" = `run.error_message` if non-empty, else the last `RUN_EVENT_TYPE_ERROR` event's `details.result_text` (or `error.message`), else the final `RUN_EVENT_TYPE_MESSAGE` (role=assistant) `content`.
+>
+> Reclassify as tier-5 (no-meta-signal) and continue walking the ladder when any of:
+> - **5xx environmental failure:** terminal error matches `API Error: 5\d\d` (any 5xx, any status-text suffix) OR `overloaded_error` (claude-code error.subtype=success payload). Drops the prior `turns_used <= 1` predicate; drops the canonical-status-text allowlist.
+> - **Silent runner-stall:** `run.status=FAILED` AND terminal error empty (per resolution rule above) AND no `RUN_EVENT_TYPE_RUN_FAILED` event AND `(ended_at - last_heartbeat > 5 min OR ended_at - last_event_timestamp > 5 min)`. Per silent-stall lesson 2026-04-27.
+> - **429 false-positive:** `exit_code=429` AND terminal error is multi-paragraph substantive completion text (not a terse rate-limit banner). Per 2026-04-23 lesson / `dec-1777069916962818847`.
+
+**Handoff.** `team-agent-optimizer` — implement the consolidated tier-1 environmental-failure exclusions block with the refined predicates above. Coordinates with (does not supersede) `dec-1777330180871528504` (silent-stall) and `dec-1777069916962818847` (429-FP); replaces `dec-1777330324477920142` (broader-5xx). All three exclusions land together in one bullet list with the shared error-source-resolution preamble.
+
+**Measurement plan.**
+- **Baseline.** 9/29 (~31%) of FAILED runs in this 24h window are 529-auth-temp-unavailable triple-fires that the original `dec-1777330324477920142` predicate would miss (none match the allowlist; all have empty `run.error_message`). Refined predicate would catch all 9 — large concrete miss.
+- **Post-change.** 7 heartbeats from now (2026-05-05), grep RUN_LESSONS.md for any tier-1 lesson opened on a run whose terminal error (resolved per the rule above) matches `API Error: 5\d\d` regardless of status-text suffix or `run.error_message` presence — expected 0.
+- **Standing-pattern watch (carry-over).** Now five tier-contamination classes observed: (1) 429-FP, (2) approval-lag wall-clock, (3) 5xx-explicit, (4) silent-stall, (5) 5xx-with-empty-error_message-field. Per RUN_LESSONS.md 2026-04-25 lesson's standing-pattern note ("If a fourth surfaces, the contrarian's `framework-update` is overdue"), `framework-update` for "tier-signal-contamination as a standing failure mode" remains overdue. Not raising — out of lane (contrarian).
+- **Triple-firing watch (out of lane).** Document baseline: 9 duplicate-fired runs across 3 tags this window. If pattern persists or escalates (more tags, higher multiplicity) for another 3 heartbeats without scheduler-side fix, run-introspector will need a sixth tier-1 exclusion: same-tag-near-simultaneous-fire. Defer until pattern persists.
+
+**Status.** pending (awaits team-agent-optimizer pickup; supersedes `dec-1777330324477920142`).
+
+---
+
+### 2026-04-28 · `a5a54d03-c3ef-4f61-bdb2-3ff0454aaa00` · `swarm-manager:initiative:agent-sandbox-audit-foundation:feedback:round-006` · errored
+
+**Lesson.** This is the **second** 2026-04-28 lesson, written by a parallel run-introspector heartbeat that fired alongside the cede3fca/ec9266f3 instances at 22:45:00Z (now three simultaneous run-introspectors — the duplicate-firing pattern flagged in 2026-04-27 has escalated to triple-firing at the introspector itself). It picks up **Cluster A** which the twin lesson above explicitly punted (line 171: *"not raised this heartbeat (one run per heartbeat discipline; depth over breadth). Flagged here for a future heartbeat to pick a representative round and raise."*). The two lessons are complementary: the twin's covers Class C (heartbeat-triple 529s with empty `run.error_message`); this lesson covers Classes A (sandbox-binary-not-found), B (sandbox-no-exit-info / SSE Flusher), and D (runner-pool-unavailable). With both lessons together, all 24 FAILED runs in the window are accounted for and all six new tier-1 environmental sub-classes (the twin's three refinements + the three from this lesson) are surfaced.
+
+**What happened.** Same window as the twin lesson (2026-04-27T22:49Z → 2026-04-28T22:45Z, 24 FAILED of 119). Picked `a5a54d03` (round-006) as the in-depth anchor — last of Class A before the failure mode flipped to Class B at round-007. Run is sandboxed (`SANDBOX_MODE_PROTECTED`, `network_mode=LOCALHOST`), runner=claude-code, model=opus, max_turns=600, timeout=3600s. Sandbox `cf47c27b` was created; the runner attempted to invoke `/usr/local/bin/claude` inside the sandbox; binary not present at that path; `env` returned 127; runner reaped the run to FAILED 138ms later. Total agent work: zero turns, zero tokens, zero meta-actionable signal.
+
+**Cluster context.** 9 retry rounds (`swarm-manager:initiative:agent-sandbox-audit-foundation:feedback:round-002`..`round-010`) of the same skill fired in 1h23m. The failure mode shifted at round-006/007:
+
+| Rounds | Class | Error | Duration |
+|---|---|---|---|
+| 002 | A — binary missing | `env: '~/.local/bin/claude': No such file or directory` | 0.14s |
+| 003-006 | A — binary missing | `env: '/usr/local/bin/claude': No such file or directory` | 0.14-0.18s |
+| 007 | B (incipient) | stderr preamble only, no `claude` invocation error | 2.1s |
+| 008-010 | B — SSE Flusher | `sandbox error during no_exit_info: sandbox process ended without exit info` | 30-39s |
+
+Round 002 used `~/.local/bin/claude` (initial path), rounds 003-006 used `/usr/local/bin/claude` (changed path), then round-007+ stopped throwing the binary-not-found error entirely. Two interpretations are consistent with the evidence: (i) operator (or upstream auto-fix) changed the runner config between rounds 002 and 003 and again between 006 and 007, "fixing" the missing-binary error each time and revealing the next environmental failure; (ii) the runner itself has multiple fallback path resolutions and the order it tried them shifted. From the introspection lane the two are indistinguishable. Either way, 9 consecutive runs of zero agent work landed in the FAILED bucket.
+
+**Distinct from prior classes:**
+- **Not Class C (silent-stall, empty run.error_message)** — Classes A/B both populate `run.error_message` definitively.
+- **Not the twin lesson's Class C-as-5xx** — those are heartbeat 529s. Classes A/B/D have completely different terminal error text.
+- **Not 429-FP / 5xx-pattern / silent-stall (existing pending gates)** — none of A/B/D match those predicates.
+
+Investigating any of A/B/D as tier-1 yields the same null-meta-signal finding every time.
+
+**Implicated.**
+- **Meta-layer (in lane, primary):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — the consolidated tier-1 environmental-failure exclusions block (per the twin's `dec-1777416636519315268` and the silent-stall `dec-1777330180871528504`) currently covers three sub-classes plus the twin's two refinements. It does **not** cover three more sub-classes observed in this same window: (5) sandbox-binary-not-found (Class A, 5 runs), (6) sandbox-no-exit-info (Class B, 4 runs), (7) runner-pool-unavailable (Class D, 6 runs). All three should be added to the same exclusions list.
+- **Scenario-qa lane (noted, not actioned):**
+  - **Class A root cause:** workspace-sandbox runner config invokes `claude` via a hardcoded absolute path that doesn't exist inside the sandbox overlay; the path inconsistency between rounds 002 (`~/.local/bin/claude`) and 003-006 (`/usr/local/bin/claude`) suggests the runner has multiple fallback path resolutions, none of which adapts to the overlay filesystem. Adjacent to but distinct from `project_sandbox_aware_cli_tools.md` (which is about scenario CLIs, not the runner's own binary invocation).
+  - **Class B root cause:** known SSE Flusher bug per memory `project_workspace_sandbox_sse_flusher_bug.md` — `responseWriter` middleware in `scenarios/workspace-sandbox/api/main.go:345` doesn't implement `http.Flusher`; SSE handler returns 500 on assertion failure; surfaces as "sandbox process ended without exit info". Documented fix (5-line `Flush()` method) not yet shipped. Companion: `domain.ErrCodeSandboxNoExitInfo` exists but no producer constructs `SandboxError{Operation: "no_exit_info"}` so the typed code never fires — operators see generic `INTERNAL` instead of `SANDBOX_NO_EXIT_INFO`.
+  - **Class D root cause:** runner pool exhausted at dispatch; orchestrator parks the run for the full configured timeout (3600s) before reaping with the "Runner claude-code is temporarily unavailable. Please try again." message. Class D runs in this window (`d8632883`, etc.) are sandboxed and approval-not-required — meaning even with no operator gate, they sat for 60min without a runner. Likely runner-pool sizing or claim-leak issue.
+- **Initiative retry storm (in lane, secondary, also surfaced by twin lesson):** swarm-manager initiative-feedback skill retried 9 times in 1h23m with no failure-mode-aware backoff — through the binary-path → SSE-Flusher transition. Twin lesson flagged this as a `capability work item` candidate for swarm-manager (director-swarm consumes); concurring; not raising as a separate decision (cap discipline + duplicates twin's flag).
+- **Triple-firing escalation (out of lane, real-time observation):** the run that wrote this lesson is one of **three** simultaneous `heartbeat-meta-optimization-run-introspector-2026-04-28T22-45-00Z` runs (IDs `ec9266f3` started 22:45:00.107Z, `cede3fca` started 22:45:00.110Z, `6f2d6f5d` started 22:45:00.111Z — 4ms apart). The 2026-04-27 lesson noted 2 simultaneous; the twin lesson noted 9 duplicate-fires across 3 tags (3 each). Now run-introspector itself is triple-fired. The "if pattern persists or escalates for another 3 heartbeats" watch from the twin lesson (line 188) just escalated mid-heartbeat. Out of meta-optimization lane (scheduler concern); reinforced for visibility.
+- **Standing pattern (out of lane):** the count of distinct tier-1 environmental-failure sub-classes treated as contamination is now **seven** (429-FP, approval-lag, 5xx-pattern with twin's refinements, silent-stall, sandbox-binary-not-found, sandbox-no-exit-info, runner-pool-unavailable). The contrarian `framework-update` is now overdue by a third heartbeat. Not raising (out of lane).
+
+**Proposed change.** Extend the consolidated tier-1 environmental-failure exclusions block (per the twin's `dec-1777416636519315268`) with three more bullet points:
+
+> - **Sandbox-binary-not-found:** terminal error matches `env: '.+(/claude|/codex|/[a-z][a-z0-9_-]+)': No such file or directory` (covers any runner binary invoked via `env`, not just `claude`) → reclassify as tier-5 (sandbox-binary-not-found). Run did zero turns of agent work; environmental.
+> - **Sandbox-no-exit-info:** terminal error matches `sandbox error during no_exit_info: sandbox process ended without exit info` OR (post-fix) typed code `SANDBOX_NO_EXIT_INFO` → reclassify as tier-5 (sandbox-no-exit-info / SSE-Flusher). Per `project_workspace_sandbox_sse_flusher_bug` memory; the bug obliterates exit-info regardless of agent work performed.
+> - **Runner-pool-unavailable:** terminal error matches `Runner [a-z-]+ is temporarily unavailable\. Please try again\.` AND `(ended_at - started_at)` is within 1% of `resolved_config.timeout` AND `last_heartbeat ≈ started_at` (no agent work occurred) → reclassify as tier-5 (runner-pool-unavailable). Run never got a runner.
+
+The "terminal error" definition uses the twin lesson's error-source-resolution preamble (run.error_message → last RUN_EVENT_TYPE_ERROR.details.result_text → final assistant message content). All three new bullets are additive; no other gate semantics change.
+
+**Handoff.** `team-agent-optimizer` — when implementing the consolidated tier-1 environmental-failure exclusions block, include the three sub-classes from this lesson alongside the twin's three (5xx-broad, silent-stall, 429-FP). Six bullets total in one block. Coordinates with (does not supersede) `dec-1777330180871528504` (silent-stall), `dec-1777069916962818847` (429-FP), `dec-1777416636519315268` (twin's refined-5xx). Also reads `project_workspace_sandbox_sse_flusher_bug` memory for Class B context.
+
+**Measurement plan.**
+- **Baseline.** Of 24 FAILED runs in this window: twin lesson covers Class C (9 runs); this lesson covers Class A (5) + B (4) + D (6) = 15 runs. Combined 24/24 = 100% of FAILED runs in window are environmental-classified. Without this lesson's three new sub-classes, run-introspector would burn three additional heartbeats (one per missing sub-class) reaching null-meta-signal findings on Classes A/B/D.
+- **Post-change.** 7 heartbeats from now (2026-05-05), grep RUN_LESSONS.md for any tier-1 lesson opened on a run whose terminal error matches one of: `env: '.+': No such file or directory`, `sandbox error during no_exit_info`, or `Runner [a-z-]+ is temporarily unavailable` — expected 0. Concrete misses this window: 15 (5 A + 4 B + 6 D) saved misclassifications.
+- **Failure-mode-shift watch.** The Class A→B transition at round-006/007 illustrates that "fixing" one environmental cause can unmask another. If a future cluster shows a similar within-cluster shift but the new failure mode is **agent-meta-actionable** (not in the exclusions list), that's a real lesson worth surfacing — flag explicitly via the cluster representative, not the boundary run.
+- **Triple-firing escalation watch.** Run-introspector itself is now triple-fired this heartbeat (3 instances 4ms apart). If the next 3 heartbeats also show 2+ run-introspector instances, escalate the scheduler issue from "out of lane, observed" to a `capability work item` for director-swarm to consume (deduplication primitive in agent-manager). One of the three could pick that up next heartbeat — explicit handoff to the next run-introspector iteration.
+- **Standing-pattern watch (carry-over).** Seven sub-classes now stacked under tier-1 contamination across five heartbeats. Contrarian `framework-update` overdue by three heartbeats. If still not raised within next 2, the standing-pattern note itself is stale and should be retired (the prediction held; the systemic action did not). Out of lane to escalate.
+
+**Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777330180871528504`, `dec-1777069916962818847`, `dec-1777416636519315268`; does not supersede any).
+
+### 2026-08-29 · `e8dae0f4-3320-4d0c-b2aa-e904dbe6dc47` · `agent-manager-imported` · slow
+
+**Lesson.** A second imported transcript independently reproduces the imported-run integrity gap: `complete`/exit 0 does not establish usable agent execution. The report must expose an explicit replay-integrity verdict and separate source-transcript span from agent-work duration before this run can be treated as a slow sample or successful completion.
+
+**What happened.** The run report measured `duration_ms=15146763` (~4h12m), but reported `turns=0`, no final result, no diff because the run has no sandbox, unobserved receipts, and 219 tool calls with 191 unresolved Bash calls. Event counts showed 33 messages and 219 tool results, while the imported transcript's visible final message described a completed planning handoff. The report's time accounting attributed 2,601,445ms to model generation and 12,312,594ms to unattributable time; therefore neither the wall span nor the classifier's synthetic 675-turn handoff episodes is a trustworthy agent-work measure. The run was imported from a Claude Code session and has no verified receipts.
+
+**Implicated.** `agent-manager` import/report integrity and run-introspector slow-tier interpretation. This corroborates the existing `agent-manager-imported-run-integrity-verdict` backlog item and the prior `9329b3ca-2218-49df-97ce-c2195f1d0308` lesson; no duplicate work item is needed. The episode classifier also needs to avoid presenting replay-derived handoff/stall durations as execution evidence when the parent run has zero turns and unresolved replay calls, but that is an agent-manager/scenario-qa surface observation, not an introspector implementation.
+
+**Action decision.** `capability-work-item`, specifically existing backlog `agent-manager-imported-run-integrity-verdict`; not an Action candidate. This is a typed provenance and result-health contract gap, not a repeated deterministic CLI sequence. Discovery gaps for the last 7 days are all singleton clusters, so no new Action or CLI backlog is justified from aggregate demand.
+
+**Measurement plan.** Baseline now includes at least 2 independently observed imported runs with `status=complete`, `exit_code=0`, `turns=0`, no final result, unavailable diff, unobserved receipts, and large unresolved-call counts. Post-change, imported reports with any of these integrity markers must receive a non-success replay/result verdict, and slow triage must use verified agent-work span rather than transcript wall time. Recheck after 7 heartbeats; expected false slow selections of unusable imported runs: 0.
+
+**Status.** pending; corroborates existing `agent-manager-imported-run-integrity-verdict` and prior imported-run lesson; no new filing.
+
+### 2026-08-30 · `2ff09b54-5990-4390-9462-9e9866688dc2` · `bug-investigator` · errored
+
+**Lesson.** An otherwise productive bug-investigator run was terminated while completing the final friction-recording step after encountering a known prompt-manager knowledge-route mismatch. The run reached a concrete reproduction, evidence handoff, and inbox supersession, but spent 47 Bash calls (46 repeated), including retries around unsupported backlog/knowledge mutation shapes; the final friction submission was still in progress when SIGINT ended the run. This is execution friction and a completion-integrity risk, not evidence that the underlying bug investigation was wrong.
+
+**What happened.** `agent-manager run report` shows `status=failed`, `exit_code=-1`, duration 198,567ms, 10 turns, 47 Bash calls (37 successful, 5 failed, 5 unresolved), one 23,965ms event gap, and 46 repeated tool calls. The event stream shows the agent confirmed the Git Control Tower API-test defect, attempted the evidence/backlog handoff, discovered the append-only refusal when deleting the drained inbox row, created a superseding pointer, then observed that the original row remained visible and began submitting a friction report through the actual structured CLI contract. The process exited by signal 2 four seconds later. No repeated file reads or model fallback were present.
+
+**Implicated.** Primary: prompt-manager team knowledge mutation/friction-report route discoverability and contract parity; secondary: bug-investigator workflow's long closeout ceremony and repeated shell-level retries. The prior team context already records `fix/prompt-manager-team-knowledge-routes`; this run is corroborating evidence, not a new work item. The run also confirms that a deterministic closeout Action could reduce retries only after the route contract is made reliable; current evidence does not establish a missing controlled CLI.
+
+**Action decision.** `capability-work-item` via the existing `fix/prompt-manager-team-knowledge-routes` work item; no duplicate filing and no new Action candidate. The single-run failure is sufficient to preserve the route mismatch, but discovery-gap clusters remain singleton-only, so aggregate demand does not justify a new Action or CLI backlog.
+
+**Handoff.** Existing prompt-manager route owner: make team knowledge list/update/delete and structured friction submission discoverable and mutually consistent, with append-only/supersession semantics exposed in the response. Run-introspector retains the lesson; does not edit the investigator workflow or scenario code.
+
+**Measurement plan.** Baseline: this run required 47 Bash calls, had 5 command failures, 5 unresolved calls, 46 repeated calls, and ended before friction submission receipt; the inbox row remained visible after supersession. After the route fix, run one equivalent bug-investigator closeout: target zero contract-shape retries, zero unresolved closeout calls, a confirmed friction receipt, and a machine-visible drained/superseded state. Recheck after 3 heartbeats; expected no repeat of the same route-mismatch termination pattern.
+
+**Status.** pending; corroborates existing `fix/prompt-manager-team-knowledge-routes`; no new filing.

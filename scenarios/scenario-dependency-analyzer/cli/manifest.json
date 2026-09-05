@@ -1,0 +1,1100 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-dependency-analyzer",
+  "description": "Governance manifest for the Scenario Dependency Analyzer CLI. Runtime command registration is still code-backed during the React-Vite migration; this manifest declares the Connect-backed surface first and documents deferred legacy command coverage.",
+  "groups": [
+    {
+      "name": "health",
+      "description": "Dependency readiness and governance validation (formerly dependency-health).",
+      "flat": true,
+      "commands": [
+        {
+          "name": "health",
+          "description": "Validate dependency health for one scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "description": "Scenario to validate",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            },
+            {
+              "name": "use-cache",
+              "description": "Allow cached upstream facts",
+              "default": "true"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyHealthService",
+            "method": "ValidateDependencyHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "freshness",
+          "description": "Report fleet/touched package freshness for Go scenario surfaces",
+          "flags": [
+            {
+              "name": "touched",
+              "description": "Only check surfaces impacted by changed in-repo modules",
+              "default": "true"
+            },
+            {
+              "name": "all",
+              "description": "Check every discovered Go scenario surface",
+              "default": "false"
+            },
+            {
+              "name": "apply",
+              "description": "Run go mod tidy on stale surfaces",
+              "default": "false"
+            },
+            {
+              "name": "build",
+              "description": "Run go build ./... after tidy checks",
+              "default": "false"
+            },
+            {
+              "name": "module",
+              "description": "Only check one Go module by repository-relative path or module path"
+            },
+            {
+              "name": "concurrency",
+              "description": "Maximum package surfaces to check concurrently",
+              "default": "8"
+            },
+            {
+              "name": "repo-root",
+              "description": "Repository root; defaults to git rev-parse --show-toplevel"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "deps",
+      "description": "Governed third-party dependency install gateway.",
+      "commands": [
+        {
+          "name": "install",
+          "description": "Install a governed dependency into a scenario surface (dry-run by default; the sanctioned alternative to raw pnpm/go/pip)",
+          "positionals": [
+            {
+              "name": "package",
+              "description": "<ecosystem>/<package>[@version]",
+              "required": true,
+              "bind": {
+                "field": "package_name"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Target scenario"
+            },
+            {
+              "name": "surface",
+              "description": "Target surface: ui, api, or cli"
+            },
+            {
+              "name": "version",
+              "description": "Optional explicit version/range"
+            },
+            {
+              "name": "apply",
+              "description": "Perform the install (default is a dry run)",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "InstallDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "deps-approved",
+      "description": "Approved third-party dependency governance memory (formerly approved-dependencies).",
+      "commands": [
+        {
+          "name": "approve-observed",
+          "description": "Approve a dependency from observed fleet usage",
+          "positionals": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "from-findings",
+              "description": "Build evidence from fleet governance findings and observed usage",
+              "default": "false"
+            },
+            {
+              "name": "range-strategy",
+              "description": "Version range strategy: observed, exact, major_line, minimum, or wildcard"
+            },
+            {
+              "name": "range-policy",
+              "description": "Range policy override: exact, major_line, minimum, or dev_tooling"
+            },
+            {
+              "name": "rationale",
+              "description": "Optional approval rationale"
+            },
+            {
+              "name": "approved-by",
+              "description": "Reviewer or approving group"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ApproveObservedDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "deny-vulnerable",
+          "description": "Preview or apply a Security Health-derived denied dependency decision",
+          "positionals": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "vulnerability",
+              "description": "Security vulnerability id driving the denial"
+            },
+            {
+              "name": "affected-range",
+              "description": "Affected version range to deny; defaults to Security Health evidence"
+            },
+            {
+              "name": "fixed-range",
+              "description": "Fixed version range; defaults to Security Health evidence"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "DenyVulnerableDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "explain",
+          "description": "Explain one approved dependency record",
+          "positionals": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true,
+              "bind": {
+                "field": "ecosystem"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ExplainApprovedDependency"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "findings",
+          "description": "List fleet approved-dependency governance findings",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
+            },
+            {
+              "name": "severity",
+              "description": "Filter by severity"
+            },
+            {
+              "name": "class",
+              "description": "Filter by finding class",
+              "bind": {
+                "field": "finding_class"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum grouped findings in human output",
+              "default": "40",
+              "local_only": true
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ListApprovedDependencyFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List approved dependency records with non-allowlist guidance",
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "state",
+              "description": "Filter by governance state"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ListApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "propose-records",
+          "description": "Propose draft governance records from fleet findings",
+          "flags": [
+            {
+              "name": "top-unrecorded",
+              "description": "Maximum unrecorded dependency groups to propose",
+              "default": "25"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
+            },
+            {
+              "name": "scenario",
+              "description": "Filter by scenario"
+            },
+            {
+              "name": "minimum-scenario-count",
+              "description": "Require use across at least this many scenarios",
+              "default": "0"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ProposeApprovedDependencyRecords"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remediate",
+          "description": "Show Security Health vulnerability evidence and governance remediation preview",
+          "positionals": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true,
+              "bind": {
+                "field": "ecosystem"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "vulnerability",
+              "description": "Security vulnerability id to explain",
+              "bind": {
+                "field": "vulnerability_id"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "PreviewVulnerabilityRemediation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Search approved dependency records without treating them as an exhaustive allowlist",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Search query (optional when a facet filter is given)",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem (npm|go|pip)"
+            },
+            {
+              "name": "framework",
+              "description": "Filter by framework/keyword (e.g. react)"
+            },
+            {
+              "name": "surface",
+              "description": "Filter by allowed surface (ui|api|cli)"
+            },
+            {
+              "name": "state",
+              "description": "Filter by governance state (approved|denied|needs_review|deprecated)"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum records to return",
+              "default": "20"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "SearchApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "security-gaps",
+          "description": "List vulnerable dependency exposures not yet represented in governance",
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
+            },
+            {
+              "name": "scenario",
+              "description": "Filter by scenario"
+            },
+            {
+              "name": "vulnerability",
+              "description": "Filter by vulnerability id",
+              "bind": {
+                "field": "vulnerability_id"
+              }
+            },
+            {
+              "name": "minimum-severity",
+              "description": "Filter by minimum normalized severity"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum gaps to show",
+              "default": "25"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ListSecurityGovernanceGaps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "triage",
+          "description": "Show grouped approved-dependency governance decisions",
+          "flags": [
+            {
+              "name": "section",
+              "description": "Filter by section: security, seeding, ranges, hotspots, or expired"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum groups per section in human output",
+              "default": "10"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "GetApprovedDependencyTriage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "upsert",
+          "description": "Preview or apply one dependency governance record from JSON",
+          "positionals": [
+            {
+              "name": "record",
+              "description": "ApprovedDependencyRecord JSON file supplied with --file",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to an ApprovedDependencyRecord JSON file"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "UpsertApprovedDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "upsert-batch",
+          "description": "Preview or apply a batch of dependency governance records",
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to proposal or BatchUpsertApprovedDependenciesRequest JSON"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview the changes without writing",
+              "default": "false"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the changes; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "BatchUpsertApprovedDependencies"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "usage",
+          "description": "Show fleet usage for one dependency",
+          "positionals": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true,
+              "bind": {
+                "field": "ecosystem"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "GetApprovedDependencyUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate one scenario or the whole fleet against dependency governance records",
+          "positionals": [
+            {
+              "name": "scenario",
+              "description": "Scenario to validate unless --all is set",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "description": "Validate every discovered scenario",
+              "default": "false",
+              "local_only": true
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ValidateApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "widen-range",
+          "description": "Widen an existing approval to the observed major line",
+          "positionals": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "to-major-line",
+              "description": "Widen the record to the observed major line",
+              "default": "false"
+            },
+            {
+              "name": "rationale",
+              "description": "Optional rationale for the range widening"
+            },
+            {
+              "name": "approved-by",
+              "description": "Reviewer or approving group"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "WidenApprovedDependencyRange"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "graph",
+      "description": "Actual scenario interface graph operations",
+      "commands": [
+        {
+          "name": "actual",
+          "description": "Describe the actual scenario interface graph using the generated Connect contract",
+          "flags": [
+            {
+              "name": "format",
+              "description": "Output format",
+              "default": "json",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InterfaceGraphService",
+            "method": "DescribeInterfaceGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "search",
+          "description": "Search the scenario connection graph (what depends on what) via the federated leaf",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Natural-language connection query",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum hits to return",
+              "default": "10"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InterfaceGraphService",
+            "method": "SearchInterfaceGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "resources",
+      "description": "Local resource usage search across the fleet",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search local resource usage (which scenarios use a resource) via the federated leaf",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Natural-language resource-usage query",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum hits to return",
+              "default": "10"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceUsageService",
+            "method": "SearchResourceUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+    ,{
+      "name": "analyze",
+      "flat": true,
+      "commands": [{"name": "analyze", "description": "Analyze scenario dependencies", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "core-set",
+      "flat": true,
+      "commands": [{"name": "core-set", "description": "Show the trusted dependency core set", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "cycles",
+      "flat": true,
+      "commands": [{"name": "cycles", "description": "Inspect dependency cycles", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "deployment",
+      "flat": true,
+      "commands": [{"name": "deployment", "description": "Inspect deployment dependencies", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "drift",
+      "flat": true,
+      "commands": [{"name": "drift", "description": "Inspect dependency drift", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "graph",
+      "flat": true,
+      "commands": [{"name": "graph", "description": "Inspect dependency graphs", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "impact",
+      "flat": true,
+      "commands": [{"name": "impact", "description": "Inspect dependency impact", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "list",
+      "flat": true,
+      "commands": [{"name": "list", "description": "List scenario dependencies", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "optimize",
+      "flat": true,
+      "commands": [{"name": "optimize", "description": "Optimize dependency layout", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "propose",
+      "flat": true,
+      "commands": [{"name": "propose", "description": "Propose dependency changes", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "resources",
+      "flat": true,
+      "commands": [{"name": "resources", "description": "Inspect resource usage", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "scan",
+      "flat": true,
+      "commands": [{"name": "scan", "description": "Scan scenario dependencies", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}]
+    },
+    {
+      "name": "bundle",
+      "commands": [{"name": "manifest", "description": "Show the deployment bundle manifest", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "dag",
+      "commands": [{"name": "export", "description": "Export the dependency DAG", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+    },
+    {
+      "name": "deps",
+      "commands": [
+        {"name": "reconcile", "description": "Reconcile dependency records", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
+      ]
+    },
+    {
+      "name": "deps-approved",
+      "commands": [
+        {"name": "approve", "description": "Approve a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "deny", "description": "Deny a dependency", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
+      ]
+    },
+    {
+      "name": "scenarios",
+      "commands": [
+        {"name": "get", "description": "Get scenario dependency details", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+        {"name": "list", "description": "List analyzed scenarios", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "scenario_dependencies",
+        "stateful": true,
+        "reason": "Dependency edges are persisted in SQLite and need a dedicated future count/table measure RPC; the current graph actual command returns a nested graph contract rather than a measures-shaped result."
+      },
+      {
+        "domain": "scenario_metadata",
+        "stateful": true,
+        "reason": "Scenario metadata is persisted in SQLite and currently exposed through legacy REST/CLI commands; Connect measure coverage is deferred to the catalog contract migration."
+      },
+      {
+        "domain": "optimization_recommendations",
+        "stateful": true,
+        "reason": "Optimization recommendations are persisted analysis outputs; Connect measure coverage is deferred to the optimization contract migration."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "scenario_dependencies",
+        "reason": "The graph actual command is the current read surface, but it returns a nested interface graph instead of a measure-shaped scalar/table. Add a dedicated Count/ListScenarioDependencies Connect RPC before removing this waiver."
+      },
+      {
+        "domain": "scenario_metadata",
+        "reason": "Catalog/scenarios commands are still REST-backed compatibility surfaces during Phase 4."
+      },
+      {
+        "domain": "optimization_recommendations",
+        "reason": "Optimization commands are still REST-backed compatibility surfaces during Phase 4."
+      }
+    ]
+  },
+  "omitted": [
+    {
+      "service": "DependencyGovernanceService",
+      "method": "ValidateFleetApprovedDependencies",
+      "reason": "Exposed through the `deps approved validate --all` CLI path, which shares the validate command surface with single-scenario validation."
+    },
+    {
+      "service": "PlatformVerdictService",
+      "method": "ListPlatformVerdicts",
+      "reason": "Typed Connect read consumed by infrastructure-manager portability fleet; it is not a standalone CLI command."
+    }
+  ]
+}

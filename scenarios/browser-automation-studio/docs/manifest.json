@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Browser Automation Studio Documentation",
   "description": "Documentation for the browser automation recording, playback, and AI navigation platform",
-  "defaultDocument": "QUICKSTART.md",
+  "defaultDocument": "START-HERE.md",
   "sections": [
     {
       "id": "architecture",
@@ -12,37 +12,79 @@
         {
           "path": "SYSTEM_ARCHITECTURE.md",
           "title": "System Architecture",
-          "description": "High-level system design and component overview"
+          "description": "High-level system design and component overview",
+          "docType": "doc-SYSTEM-ARCHITECTURE-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "architecture/execution.md",
           "title": "Execution Architecture",
-          "description": "Workflow execution, telemetry, and artifact persistence"
+          "description": "Workflow execution, telemetry, and artifact persistence",
+          "docType": "doc-architecture-execution-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "architecture/ai-navigation.md",
           "title": "AI Navigation Architecture",
-          "description": "Vision-based AI autopilot system architecture"
+          "description": "Vision-based AI autopilot system architecture",
+          "docType": "doc-architecture-ai-navigation-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "architecture/driver-interface.md",
           "title": "Driver Interface Architecture",
-          "description": "Pluggable driver and navigator interface design with policy patterns"
+          "description": "Pluggable driver and navigator interface design with policy patterns",
+          "docType": "doc-architecture-driver-interface-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "architecture/recording.md",
           "title": "Recording Architecture",
-          "description": "Action vs history recording, timeline, action persistence, session management, and ActionRecorder observability"
+          "description": "Action vs history recording, timeline, action persistence, session management, and ActionRecorder observability",
+          "docType": "doc-architecture-recording-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "architecture/reconciliation.md",
           "title": "Reconciliation",
-          "description": "State reconciliation patterns"
+          "description": "State reconciliation patterns",
+          "docType": "doc-architecture-reconciliation-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "architecture/FPS_CONTROL_ANALYSIS.md",
           "title": "FPS Control Analysis",
-          "description": "Frame rate control and performance analysis"
+          "description": "Frame rate control and performance analysis",
+          "docType": "doc-architecture-FPS-CONTROL-ANALYSIS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -54,147 +96,321 @@
         {
           "path": "NODE_INDEX.md",
           "title": "Node Index",
-          "description": "Overview of all available workflow nodes"
+          "description": "Overview of all available workflow nodes",
+          "docType": "doc-NODE-INDEX-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/navigate.md",
           "title": "Navigate Node",
-          "description": "URL navigation action"
+          "description": "URL navigation action",
+          "docType": "doc-nodes-navigate-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/click.md",
           "title": "Click Node",
-          "description": "Mouse click action"
+          "description": "Mouse click action",
+          "docType": "doc-nodes-click-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/type.md",
           "title": "Type Node",
-          "description": "Keyboard typing action"
+          "description": "Keyboard typing action",
+          "docType": "doc-nodes-type-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/screenshot.md",
           "title": "Screenshot Node",
-          "description": "Screenshot capture action"
+          "description": "Screenshot capture action",
+          "docType": "doc-nodes-screenshot-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/wait.md",
           "title": "Wait Node",
-          "description": "Wait/delay action"
+          "description": "Wait/delay action",
+          "docType": "doc-nodes-wait-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/extract.md",
           "title": "Extract Node",
-          "description": "Data extraction action"
+          "description": "Data extraction action",
+          "docType": "doc-nodes-extract-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/assert.md",
           "title": "Assert Node",
-          "description": "Assertion/validation action"
+          "description": "Assertion/validation action",
+          "docType": "doc-nodes-assert-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/scroll.md",
           "title": "Scroll Node",
-          "description": "Scroll action"
+          "description": "Scroll action",
+          "docType": "doc-nodes-scroll-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/hover.md",
           "title": "Hover Node",
-          "description": "Mouse hover action"
+          "description": "Mouse hover action",
+          "docType": "doc-nodes-hover-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/select.md",
           "title": "Select Node",
-          "description": "Dropdown select action"
+          "description": "Dropdown select action",
+          "docType": "doc-nodes-select-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/keyboard.md",
           "title": "Keyboard Node",
-          "description": "Keyboard shortcut action"
+          "description": "Keyboard shortcut action",
+          "docType": "doc-nodes-keyboard-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/loop.md",
           "title": "Loop Node",
-          "description": "Loop/iteration control"
+          "description": "Loop/iteration control",
+          "docType": "doc-nodes-loop-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/conditional.md",
           "title": "Conditional Node",
-          "description": "Conditional branching"
+          "description": "Conditional branching",
+          "docType": "doc-nodes-conditional-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/script.md",
           "title": "Script Node",
-          "description": "Custom JavaScript execution"
+          "description": "Custom JavaScript execution",
+          "docType": "doc-nodes-script-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/set-variable.md",
           "title": "Set Variable Node",
-          "description": "Variable assignment"
+          "description": "Variable assignment",
+          "docType": "doc-nodes-set-variable-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/use-variable.md",
           "title": "Use Variable Node",
-          "description": "Variable usage"
+          "description": "Variable usage",
+          "docType": "doc-nodes-use-variable-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/upload-file.md",
           "title": "Upload File Node",
-          "description": "File upload action"
+          "description": "File upload action",
+          "docType": "doc-nodes-upload-file-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/drag-drop.md",
           "title": "Drag & Drop Node",
-          "description": "Drag and drop action"
+          "description": "Drag and drop action",
+          "docType": "doc-nodes-drag-drop-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/focus.md",
           "title": "Focus Node",
-          "description": "Element focus action"
+          "description": "Element focus action",
+          "docType": "doc-nodes-focus-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/blur.md",
           "title": "Blur Node",
-          "description": "Element blur action"
+          "description": "Element blur action",
+          "docType": "doc-nodes-blur-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/tab-switch.md",
           "title": "Tab Switch Node",
-          "description": "Browser tab switching"
+          "description": "Browser tab switching",
+          "docType": "doc-nodes-tab-switch-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/frame-switch.md",
           "title": "Frame Switch Node",
-          "description": "Iframe switching"
+          "description": "Iframe switching",
+          "docType": "doc-nodes-frame-switch-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/gesture.md",
           "title": "Gesture Node",
-          "description": "Touch gesture action"
+          "description": "Touch gesture action",
+          "docType": "doc-nodes-gesture-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/rotate.md",
           "title": "Rotate Node",
-          "description": "Device rotation"
+          "description": "Device rotation",
+          "docType": "doc-nodes-rotate-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/shortcut.md",
           "title": "Shortcut Node",
-          "description": "Keyboard shortcut action"
+          "description": "Keyboard shortcut action",
+          "docType": "doc-nodes-shortcut-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/network-mock.md",
           "title": "Network Mock Node",
-          "description": "Network request mocking"
+          "description": "Network request mocking",
+          "docType": "doc-nodes-network-mock-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/cookie-storage.md",
           "title": "Cookie & Storage Node",
-          "description": "Cookie and storage manipulation"
+          "description": "Cookie and storage manipulation",
+          "docType": "doc-nodes-cookie-storage-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "nodes/workflow-call.md",
           "title": "Workflow Call Node",
-          "description": "Sub-workflow invocation"
+          "description": "Sub-workflow invocation",
+          "docType": "doc-nodes-workflow-call-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -206,12 +422,24 @@
         {
           "path": "replay-layout.md",
           "title": "Replay Layout",
-          "description": "Replay panel layout and components"
+          "description": "Replay panel layout and components",
+          "docType": "doc-replay-layout-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "replay-style.md",
           "title": "Replay Style",
-          "description": "Replay visual styling guidelines"
+          "description": "Replay visual styling guidelines",
+          "docType": "doc-replay-style-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -223,7 +451,33 @@
         {
           "path": "research/ai-browser-automation-research.md",
           "title": "AI Browser Automation Research",
-          "description": "Research on AI-driven browser automation approaches"
+          "description": "Research on AI-driven browser automation approaches",
+          "docType": "doc-research-ai-browser-automation-research-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "perf/2026-05-03-lists-resize-polling.md",
+          "title": "Lists, Resize, and Polling Audit",
+          "description": "Profile-mode browser performance audit for dashboard lists, record-mode sidebar resize, and polling/frame state churn",
+          "internal": true,
+          "docType": "doc-perf-2026-05-03-lists-resize-polling-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -237,79 +491,194 @@
           "path": "SEAMS.md",
           "title": "Seams & Boundaries",
           "description": "Integration boundaries and responsibility zones",
-          "internal": true
+          "internal": true,
+          "docType": "doc-SEAMS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Cross-surface contracts and their enforcement evidence",
+          "internal": true,
+          "docType": "doc-INVARIANTS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "PROBLEMS.md",
           "title": "Known Issues",
           "description": "Known issues and technical debt",
-          "internal": true
+          "internal": true,
+          "docType": "doc-PROBLEMS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "PROGRESS.md",
           "title": "Progress",
           "description": "Development history and milestones",
-          "internal": true
+          "internal": true,
+          "docType": "doc-PROGRESS-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "CONTROL_SURFACE.md",
           "title": "Control Surface",
           "description": "API surface and control points",
-          "internal": true
+          "internal": true,
+          "docType": "doc-CONTROL-SURFACE-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "failure-drills.md",
+          "title": "Controlled Failure Drills",
+          "description": "Development-only browser driver fault and recovery qualification",
+          "internal": true,
+          "docType": "doc-failure-drills-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "ASSUMPTION_MAPPING.md",
           "title": "Assumption Mapping",
           "description": "Documented assumptions",
-          "internal": true
+          "internal": true,
+          "docType": "doc-ASSUMPTION-MAPPING-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "LPBS_INTEGRATION.md",
           "title": "LPBS Integration",
           "description": "Playwright browser session integration",
-          "internal": true
+          "internal": true,
+          "docType": "doc-LPBS-INTEGRATION-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "BUNDLE_INTEGRATION.md",
+          "title": "Bundle Integration",
+          "description": "Shared paid-surface, entitlement, usage, and desktop session wiring",
+          "internal": true,
+          "docType": "doc-BUNDLE-INTEGRATION-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
         },
         {
           "path": "ENVIRONMENT.md",
           "title": "Environment",
           "description": "Environment configuration",
-          "internal": true
+          "internal": true,
+          "docType": "doc-ENVIRONMENT-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "automation-engine-analysis.md",
           "title": "Automation Engine Analysis",
           "description": "Analysis of automation engine implementation",
-          "internal": true
+          "internal": true,
+          "docType": "doc-automation-engine-analysis-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "playwright-driver-summary.md",
           "title": "Playwright Driver Summary",
           "description": "Summary of playwright driver implementation",
-          "internal": true
+          "internal": true,
+          "docType": "doc-playwright-driver-summary-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "playwright-driver-review.md",
           "title": "Playwright Driver Review",
           "description": "Review of playwright driver code",
-          "internal": true
+          "internal": true,
+          "docType": "doc-playwright-driver-review-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "playwright-driver-phase1-guide.md",
           "title": "Playwright Driver Phase 1 Guide",
           "description": "Phase 1 implementation guide",
-          "internal": true
+          "internal": true,
+          "docType": "doc-playwright-driver-phase1-guide-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "playwright-driver-v2-implementation.md",
           "title": "Playwright Driver V2",
           "description": "V2 implementation details",
-          "internal": true
+          "internal": true,
+          "docType": "doc-playwright-driver-v2-implementation-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "V2_WORKFLOW_MIGRATION_PLAN.md",
           "title": "V2 Workflow Migration",
           "description": "Migration plan to V2 workflow system",
-          "internal": true
+          "internal": true,
+          "docType": "doc-V2-WORKFLOW-MIGRATION-PLAN-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -322,48 +691,278 @@
         {
           "path": "plans/vision-agent-implementation-plan.md",
           "title": "Vision Agent Implementation",
-          "description": "AI vision agent implementation plan"
+          "description": "AI vision agent implementation plan",
+          "docType": "doc-plans-vision-agent-implementation-plan-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/ai-api-keys-and-credits-plan.md",
           "title": "AI API Keys & Credits",
-          "description": "API key and credit system plan"
+          "description": "API key and credit system plan",
+          "docType": "doc-plans-ai-api-keys-and-credits-plan-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/browser-automation-engine.md",
           "title": "Browser Automation Engine",
-          "description": "Automation engine architecture plan"
+          "description": "Automation engine architecture plan",
+          "docType": "doc-plans-browser-automation-engine-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/playwright-driver-completion.md",
           "title": "Playwright Driver Completion",
-          "description": "Driver completion roadmap"
+          "description": "Driver completion roadmap",
+          "docType": "doc-plans-playwright-driver-completion-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/RECORD_MODE_IMPLEMENTATION_PLAN.md",
           "title": "Record Mode Implementation",
-          "description": "Recording mode implementation plan"
+          "description": "Recording mode implementation plan",
+          "docType": "doc-plans-RECORD-MODE-IMPLEMENTATION-PLAN-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/replay-export-implementation-plan.md",
           "title": "Replay Export Implementation",
-          "description": "Replay export feature plan"
+          "description": "Replay export feature plan",
+          "docType": "doc-plans-replay-export-implementation-plan-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/ux-metrics-architecture-plan.md",
           "title": "UX Metrics Architecture",
-          "description": "UX metrics collection plan"
+          "description": "UX metrics collection plan",
+          "docType": "doc-plans-ux-metrics-architecture-plan-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         },
         {
           "path": "plans/multi-tab-recording-implementation.md",
           "title": "Multi-Tab Recording",
-          "description": "Multi-tab recording implementation plan"
+          "description": "Multi-tab recording implementation plan",
+          "docType": "doc-plans-multi-tab-recording-implementation-md",
+          "maturity": "retired",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        }
+      ]
+    },
+    {
+      "id": "readiness",
+      "title": "Readiness",
+      "icon": "shield",
+      "documents": [
+        {
+          "path": "START-HERE.md",
+          "docType": "doc-START-HERE-md",
+          "title": "Start Here",
+          "description": "Scenario orientation",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../README.md",
+          "docType": "doc--README-md",
+          "title": "README",
+          "description": "Scenario entrypoint",
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "doc--PRD-md",
+          "title": "Product Requirements",
+          "description": "Product requirements and readiness",
+          "maturity": "draft",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "docType": "doc-concepts-ARCHITECTURE-md",
+          "title": "Architecture",
+          "description": "Authoritative system architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DOMAINS.md",
+          "docType": "doc-concepts-DOMAINS-md",
+          "title": "Domains",
+          "description": "Authoritative ownership map",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/FLOWS.md",
+          "docType": "doc-concepts-FLOWS-md",
+          "title": "Flows",
+          "description": "Lifecycle rules",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/DATA.md",
+          "docType": "doc-concepts-DATA-md",
+          "title": "Data",
+          "description": "Data ownership",
+          "maturity": "active",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/INTEGRATIONS.md",
+          "docType": "doc-concepts-INTEGRATIONS-md",
+          "title": "Integrations",
+          "description": "Dependency boundaries",
+          "maturity": "active",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "concepts/V2-WORKFLOW-STATUS.md",
+          "docType": "doc-concepts-V2-WORKFLOW-STATUS-md",
+          "title": "V2 Workflow Status",
+          "description": "Authoritative V2 migration status",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/configuration.md",
+          "docType": "doc-reference-configuration-md",
+          "title": "Configuration",
+          "description": "Runtime configuration",
+          "maturity": "active",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "operations/RUNBOOK.md",
+          "docType": "doc-operations-RUNBOOK-md",
+          "title": "Operations Runbook",
+          "description": "Lifecycle and test protocol",
+          "maturity": "active",
+          "requiredBy": [
+            "deployable"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "business/MONETIZATION.md",
+          "docType": "doc-business-MONETIZATION-md",
+          "title": "Monetization",
+          "description": "Commercial readiness constraints",
+          "maturity": "draft",
+          "requiredBy": [
+            "monetizable"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "reference/PROTO-CONTRACT-EXCEPTIONS.md",
+          "docType": "doc-reference-PROTO-CONTRACT-EXCEPTIONS-md",
+          "title": "Proto Contract Exceptions",
+          "description": "Versioned contract migration and validator-boundary register",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required"
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["architecture", "nodes", "guides"],
-    "secondary": ["research", "internal", "plans"]
+    "primary": [
+      "architecture",
+      "nodes",
+      "guides"
+    ],
+    "secondary": [
+      "research",
+      "perf",
+      "internal",
+      "plans"
+    ]
+  },
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Register every durable scenario document. Keep authoritative system concepts in docs/concepts, operational procedures in docs/operations, stable lookup material in docs/reference, and historical plans or audits in docs/internal."
   }
 }

@@ -1,0 +1,222 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.validation;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — plan health (refs / staleness / baseline-scope / DoD)
+// =============================================================================
+//
+// @stability draft
+//
+// ValidationService is the verification surface: it resolves code references
+// against code-facts, computes staleness tiers from filesystem existence plus
+// git-sourced referenced-code change,
+// derives each phase's exact baseline/validation command set across all affected
+// locations, runs those baselines on request (compute + run, the agent in the
+// loop), and verifies Definition-of-Done against the regression anchor as an
+// oracle (baseline diff exit-0). Every cross-scenario call is behind a seam and
+// degrades to a marked gap (UNKNOWN), never a false PASS. See
+// docs/concepts/DOMAINS.md (validation) and docs/internal/SEAMS.md.
+//
+// This service does NOT own project-level validation of resources/packages —
+// that is consumed from test-genie / scenario-validation. It composes
+// git-control-tower (baseline), code-facts (reference evidence), and the
+// platform freshness engine where it can express the needed scope rather than
+// re-implementing scenario-wide health.
+// =============================================================================
+
+service ValidationService {
+  // ResolveReferences resolves a plan/phase's [CODE:]/[REQ:] references against
+  // code-facts (OT-P0-004, PM-REF-001). Degrades to UNRESOLVED when code-facts
+  // is down.
+  rpc ResolveReferences(ResolveReferencesRequest) returns (ResolveReferencesResponse);
+  // ComputeStaleness computes staleness tiers for a plan/phase's references
+  // (OT-P0-004, PM-STALE-001).
+  rpc ComputeStaleness(ComputeStalenessRequest) returns (ComputeStalenessResponse);
+  // DeriveBaselineScope derives the exact baseline/validation command set across
+  // all affected locations for a phase (OT-P0-005).
+  rpc DeriveBaselineScope(DeriveBaselineScopeRequest) returns (DeriveBaselineScopeResponse);
+  // StartValidation persists a durable producer ticket and exact action argv.
+  // It never dispatches or waits for producer work.
+  rpc StartValidation(StartValidationRequest) returns (StartValidationResponse);
+  // GetValidationOperation inspects a durable operation or waits once. A
+  // transport timeout detaches without canceling server-owned work.
+  rpc GetValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
+  rpc WaitValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
+  rpc ResumeValidationOperation(GetValidationOperationRequest) returns (GetValidationOperationResponse);
+  rpc SyncValidation(SyncValidationRequest) returns (SyncValidationResponse);
+  // RunValidation runs the derived baseline/check set on request and returns the
+  // result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
+  // exec failure — degrades to UNKNOWN.
+  rpc RunValidation(RunValidationRequest) returns (RunValidationResponse);
+  // VerifyDefinitionOfDone verifies a plan's DoD against the regression anchor as
+  // an oracle (baseline diff exit-0), not a narrated claim (OT-P0-005,
+  // PM-VALID-002).
+  rpc VerifyDefinitionOfDone(VerifyDefinitionOfDoneRequest) returns (VerifyDefinitionOfDoneResponse);
+}
+
+message ResolveReferencesRequest {
+  string plan_id = 1;
+  // Optional phase scope; empty resolves the plan-level references.
+  string phase_id = 2;
+}
+
+message ResolveReferencesResponse {
+  repeated shared.Reference references = 1;
+  // True when code-facts was unavailable and references are best-effort.
+  bool degraded = 2;
+}
+
+message ComputeStalenessRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+}
+
+message ComputeStalenessResponse {
+  // The worst tier across the scoped references.
+  shared.StalenessTier overall = 1;
+  repeated shared.Reference references = 2;
+  bool degraded = 3;
+}
+
+message DeriveBaselineScopeRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+}
+
+message DeriveBaselineScopeResponse {
+  // The exact baseline/diff command set across all affected locations.
+  repeated string commands = 1;
+  // The distinct affected locations the commands cover (scenarios + paths).
+  repeated string locations = 2;
+}
+
+enum ValidationOperationStatus {
+  VALIDATION_OPERATION_STATUS_UNSPECIFIED = 0;
+  VALIDATION_OPERATION_STATUS_QUEUED = 1;
+  VALIDATION_OPERATION_STATUS_RUNNING = 2;
+  VALIDATION_OPERATION_STATUS_TERMINAL = 3;
+}
+
+enum ValidationChildStatus {
+  VALIDATION_CHILD_STATUS_UNSPECIFIED = 0;
+  VALIDATION_CHILD_STATUS_QUEUED = 1;
+  VALIDATION_CHILD_STATUS_RUNNING = 2;
+  VALIDATION_CHILD_STATUS_TERMINAL = 3;
+}
+
+message ValidationOperationError {
+  string code = 1;
+  string detail = 2;
+}
+
+message ValidationChildOperation {
+  string id = 1;
+  string command = 2;
+  bool oracle = 3;
+  ValidationChildStatus status = 4;
+  int32 attempt = 5;
+  string external_id = 6;
+  shared.ValidationVerdict verdict = 7;
+  string detail = 8;
+  ValidationOperationError error = 9;
+  string queued_at = 10;
+  string started_at = 11;
+  string terminal_at = 12;
+}
+
+message ValidationOperation {
+  string id = 1;
+  string plan_id = 2;
+  string phase_id = 3;
+  string idempotency_key = 4;
+  ValidationOperationStatus status = 5;
+  int32 attempt = 6;
+  repeated ValidationChildOperation children = 7;
+  shared.ValidationResult result = 8;
+  string result_ref = 9;
+  ValidationOperationError error = 10;
+  string queued_at = 11;
+  string started_at = 12;
+  string terminal_at = 13;
+  int32 queue_budget_seconds = 14;
+  int32 execution_budget_seconds = 15;
+  int32 transport_wait_budget_seconds = 16;
+  int32 recommended_wait_seconds = 17;
+  int32 schema_version = 18;
+  string scope_fingerprint = 19;
+  string queue_reason = 20;
+  repeated string producer_wait_argv = 21;
+  repeated string sync_argv = 22;
+  string last_synced_at = 23;
+  string execution_id = 24;
+  int32 scope_generation = 25;
+  repeated string required_members = 26;
+  repeated string selected_members = 27;
+  bool full_inventory = 28;
+  repeated TestRunEvidence test_runs = 29;
+}
+
+message TestRunEvidence {
+  string scenario = 1;
+  string run_id = 2;
+  string status = 3;
+  string fingerprint = 4;
+  string terminal_at = 5;
+  string detail = 6;
+}
+
+message StartValidationRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+  string idempotency_key = 3;
+  string execution_id = 4;
+  int32 scope_generation = 5;
+  repeated string member = 6;
+  repeated TestRunEvidence test_runs = 7;
+}
+
+message StartValidationResponse {
+  ValidationOperation operation = 1;
+  bool deduplicated = 2;
+}
+
+message GetValidationOperationRequest {
+  string operation_id = 1;
+  bool wait = 2;
+}
+
+message GetValidationOperationResponse {
+  ValidationOperation operation = 1;
+}
+
+message SyncValidationRequest {
+  string operation_id = 1;
+}
+message SyncValidationResponse {
+  ValidationOperation operation = 1;
+}
+
+message RunValidationRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+}
+
+message RunValidationResponse {
+  shared.ValidationResult result = 1;
+}
+
+message VerifyDefinitionOfDoneRequest {
+  string plan_id = 1;
+}
+
+message VerifyDefinitionOfDoneResponse {
+  shared.ValidationResult result = 1;
+  // True only when the regression-anchor oracle returned exit-0; false on FAIL;
+  // unset semantics carried by result.verdict == UNKNOWN when degraded.
+  bool dod_met = 2;
+}

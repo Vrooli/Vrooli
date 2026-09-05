@@ -1,0 +1,216 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "storage-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "3f00adb55036aaac008feb2fdec1959b8460ea7f51bd63abc044c4290d484da3",
+  "commands": [
+    {
+      "path": "advisor engines",
+      "group": "advisor",
+      "command": "engines",
+      "binding": "AdvisorService.AdviseEngines"
+    },
+    {
+      "path": "advisor migrations",
+      "group": "advisor",
+      "command": "migrations",
+      "binding": "AdvisorService.AnalyzeMigrations"
+    },
+    {
+      "path": "cleanup apply",
+      "group": "cleanup",
+      "command": "apply",
+      "binding": "CleanupService.ApplyPlan",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cleanup audit",
+      "group": "cleanup",
+      "command": "audit",
+      "binding": "CleanupService.ListAudit",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cleanup plan",
+      "group": "cleanup",
+      "command": "plan",
+      "binding": "CleanupService.CreatePlan",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "cleanup policy",
+      "group": "cleanup",
+      "command": "policy",
+      "binding": "CleanupService.GetPolicy",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cleanup providers",
+      "group": "cleanup",
+      "command": "providers",
+      "binding": "CleanupService.ListProviders",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cleanup report-pressure",
+      "group": "cleanup",
+      "command": "report-pressure",
+      "binding": "CleanupService.ReportPressure",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cleanup set-profile",
+      "group": "cleanup",
+      "command": "set-profile",
+      "binding": "CleanupService.SetPolicyProfile",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "declare check",
+      "group": "declare",
+      "command": "check",
+      "binding": "."
+    },
+    {
+      "path": "declare inspect",
+      "group": "declare",
+      "command": "inspect",
+      "binding": "."
+    },
+    {
+      "path": "declare suggest",
+      "group": "declare",
+      "command": "suggest",
+      "binding": "."
+    },
+    {
+      "path": "fix apply",
+      "group": "fix",
+      "command": "apply",
+      "binding": "ScenarioValidationService.ApplyFix"
+    },
+    {
+      "path": "fix preview",
+      "group": "fix",
+      "command": "preview",
+      "binding": "ScenarioValidationService.PreviewFix"
+    },
+    {
+      "path": "fleet inventory",
+      "group": "fleet",
+      "command": "inventory",
+      "binding": "FleetService.GetInventory"
+    },
+    {
+      "path": "fleet scan",
+      "group": "fleet",
+      "command": "scan",
+      "binding": "FleetService.ScanFleet"
+    },
+    {
+      "path": "placement verify",
+      "group": "placement",
+      "command": "verify",
+      "binding": "."
+    },
+    {
+      "path": "storage adoption",
+      "group": "storage",
+      "command": "adoption",
+      "binding": "."
+    },
+    {
+      "path": "storage census",
+      "group": "storage",
+      "command": "census",
+      "binding": "."
+    },
+    {
+      "path": "storage growth",
+      "group": "storage",
+      "command": "growth"
+    },
+    {
+      "path": "storage history",
+      "group": "storage",
+      "command": "history",
+      "binding": "."
+    },
+    {
+      "path": "storage infra-health",
+      "group": "storage",
+      "command": "infra-health",
+      "binding": "."
+    },
+    {
+      "path": "storage inventory",
+      "group": "storage",
+      "command": "inventory",
+      "binding": "."
+    },
+    {
+      "path": "storage placement",
+      "group": "storage",
+      "command": "placement",
+      "binding": "."
+    },
+    {
+      "path": "storage placement-audit",
+      "group": "storage",
+      "command": "placement-audit",
+      "binding": "."
+    },
+    {
+      "path": "storage retention",
+      "group": "storage",
+      "command": "retention",
+      "binding": "."
+    },
+    {
+      "path": "storage status",
+      "group": "storage",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "validate fleet",
+      "group": "validate",
+      "command": "fleet"
+    },
+    {
+      "path": "validate prove-isolation",
+      "group": "validate",
+      "command": "prove-isolation"
+    },
+    {
+      "path": "validate resource",
+      "group": "validate",
+      "command": "resource"
+    },
+    {
+      "path": "validate safeguard",
+      "group": "validate",
+      "command": "safeguard"
+    },
+    {
+      "path": "validate scenario",
+      "group": "validate",
+      "command": "scenario",
+      "binding": "ScenarioValidationService.ValidateScenario"
+    },
+    {
+      "path": "validate tool",
+      "group": "validate",
+      "command": "tool"
+    }
+  ]
+}

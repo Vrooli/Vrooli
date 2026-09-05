@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:NumberField",
+  "version": "1.0.3",
+  "resolvedAt": "2026-08-29T05:33:25Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:InputGroup",
+      "version": "1.2.0",
+      "rank": 4
+    }
+  ]
+}

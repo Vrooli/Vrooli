@@ -1,0 +1,133 @@
+{
+  "_metadata": {
+    "description": "Books, accounts, signed postings, and the audit trail underneath everything else.",
+    "last_validated_at": "2026-08-13T23:50:33-04:00",
+    "module": "journal",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "JRNL-001",
+      "title": "Accounts belong to exactly one book",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "A book is an accounting entity — a business, a household, a person. Every account belongs to exactly one; queries scope to one book or explicitly span several. This is what lets personal and business money share one system without being mixed, which is the real shape of a solo operator's finances.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "An account cannot be created without a book; a book-scoped query never returns another book's accounts."
+        }
+      ]
+    },
+    {
+      "id": "JRNL-002",
+      "title": "Inter-book movement is modelled, not lost",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "Money moving between books is an explicit paired posting (an owner draw or contribution), not two unrelated events. Without this, money leaving one book simply vanishes and both books read wrong.",
+      "tags": [
+        "domain",
+        "integrity"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "A transfer writes paired postings that net to zero across books."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Deleting one side of a transfer is impossible through any API path."
+        }
+      ]
+    },
+    {
+      "id": "JRNL-003",
+      "title": "Events are signed postings against accounts",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "A money event is one or more dated, signed postings naming an account and an amount with a currency. The double-entry data shape is modelled from the first commit; the accounting reporting UX deliberately is not. The shape is nearly free now and painful to retrofit later.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "Postings carry account, signed amount, currency and date; an unsigned or currency-less amount is rejected."
+        }
+      ]
+    },
+    {
+      "id": "JRNL-004",
+      "title": "The journal is append-only with an audit trail",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "Postings are never edited or deleted. A correction is a reversing entry that references what it reverses, and every write records actor and timestamp. This replaces the history and review that version control was providing before this state moved into a database.",
+      "tags": [
+        "storage",
+        "audit"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "No API path mutates or deletes an existing posting; a correction creates a reversing entry with a reference."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "The audit trail reconstructs the state of an account at any past date."
+        }
+      ]
+    },
+    {
+      "id": "JRNL-005",
+      "title": "Balances are computed, never stored",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "service",
+      "criticality": "P0",
+      "description": "Every balance, total and net figure is derived from the journal at read time. A stored balance is drift by construction — it can disagree with the postings that produced it, and nothing would notice.",
+      "tags": [
+        "service",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "No balance column exists in the schema; a computed balance equals the sum of its postings."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "Adding a backdated posting changes every affected historical balance on the next read."
+        }
+      ]
+    }
+  ]
+}

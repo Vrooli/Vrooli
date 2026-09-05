@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from swarm_manager.v1.domain import execution_pb2 as swarm__manager_dot_v1_dot_domain_dot_execution__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$swarm-manager/v1/api/execution.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\x1a\'swarm-manager/v1/domain/execution.proto\"P\n\x15ListExecutionResponse\x12\x37\n\x05items\x18\x01 \x03(\x0b\x32!.swarm_manager.v1.ExecutionRecordR\x05items\"T\n\x11\x45xecutionResponse\x12?\n\texecution\x18\x01 \x01(\x0b\x32!.swarm_manager.v1.ExecutionRecordR\texecution\"T\n\x17\x45xecutionPolicyResponse\x12\x39\n\x06policy\x18\x01 \x01(\x0b\x32!.swarm_manager.v1.ExecutionPolicyR\x06policy\"\x83\x02\n\x16\x43reateExecutionRequest\x12*\n\x0c\x62\x61\x63klog_kind\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x62\x61\x63klogKind\x12*\n\x0c\x62\x61\x63klog_name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x62\x61\x63klogName\x12\'\n\x04mode\x18\x03 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n\nstarted_by\x18\x05 \x01(\tH\x00R\tstartedBy\x88\x01\x01\x12!\n\toperation\x18\x06 \x01(\tH\x01R\toperation\x88\x01\x01\x42\r\n\x0b_started_byB\x0c\n\n_operationJ\x04\x08\x04\x10\x05\"\xe8\x01\n\x18\x46ollowUpExecutionRequest\x12*\n\x0c\x65xecution_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x65xecutionId\x12\x44\n\x0e\x66ollow_up_type\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x05\x66ixupR\x08\x66ollowupR\x06\x63ustomR\x0c\x66ollowUpType\x12\x1d\n\x07\x63ontext\x18\x03 \x01(\tH\x00R\x07\x63ontext\x88\x01\x01\x12/\n\x08run_mode\x18\x04 \x01(\tB\x14\xbaH\x11r\x0fR\x08\x63ontinueR\x03newR\x07runModeB\n\n\x08_contextBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$swarm-manager/v1/api/execution.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1b\x62uf/validate/validate.proto\x1a\'swarm-manager/v1/domain/execution.proto\"^\n\x15ListExecutionResponse\x12\x45\n\x05items\x18\x01 \x03(\x0b\x32/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\x05items\"b\n\x11\x45xecutionResponse\x12M\n\texecution\x18\x01 \x01(\x0b\x32/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\texecution\"b\n\x17\x45xecutionPolicyResponse\x12G\n\x06policy\x18\x01 \x01(\x0b\x32/.vrooli.swarm_manager.v1.domain.ExecutionPolicyR\x06policy\"\xef\x02\n\x16\x43reateExecutionRequest\x12*\n\x0c\x62\x61\x63klog_kind\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x62\x61\x63klogKind\x12*\n\x0c\x62\x61\x63klog_name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x62\x61\x63klogName\x12\'\n\x04mode\x18\x03 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n\nstarted_by\x18\x05 \x01(\tH\x00R\tstartedBy\x88\x01\x01\x12!\n\toperation\x18\x06 \x01(\tH\x01R\toperation\x88\x01\x01\x12\x1f\n\x08strategy\x18\x07 \x01(\tH\x02R\x08strategy\x88\x01\x01\x12-\n\nmax_slices\x18\x08 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x06(\x01H\x03R\tmaxSlices\x88\x01\x01\x42\r\n\x0b_started_byB\x0c\n\n_operationB\x0b\n\t_strategyB\r\n\x0b_max_slicesJ\x04\x08\x04\x10\x05\"\xe8\x01\n\x18\x46ollowUpExecutionRequest\x12*\n\x0c\x65xecution_id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x65xecutionId\x12\x44\n\x0e\x66ollow_up_type\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x05\x66ixupR\x08\x66ollowupR\x06\x63ustomR\x0c\x66ollowUpType\x12\x1d\n\x07\x63ontext\x18\x03 \x01(\tH\x00R\x07\x63ontext\x88\x01\x01\x12/\n\x08run_mode\x18\x04 \x01(\tB\x14\xbaH\x11r\x0fR\x08\x63ontinueR\x03newR\x07runModeB\n\n\x08_contextBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -40,20 +40,22 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CREATEEXECUTIONREQUEST'].fields_by_name['backlog_name']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_CREATEEXECUTIONREQUEST'].fields_by_name['mode']._loaded_options = None
   _globals['_CREATEEXECUTIONREQUEST'].fields_by_name['mode']._serialized_options = b'\272H\020r\016R\006manualR\004yolo'
+  _globals['_CREATEEXECUTIONREQUEST'].fields_by_name['max_slices']._loaded_options = None
+  _globals['_CREATEEXECUTIONREQUEST'].fields_by_name['max_slices']._serialized_options = b'\272H\006\032\004\030\006(\001'
   _globals['_FOLLOWUPEXECUTIONREQUEST'].fields_by_name['execution_id']._loaded_options = None
   _globals['_FOLLOWUPEXECUTIONREQUEST'].fields_by_name['execution_id']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_FOLLOWUPEXECUTIONREQUEST'].fields_by_name['follow_up_type']._loaded_options = None
   _globals['_FOLLOWUPEXECUTIONREQUEST'].fields_by_name['follow_up_type']._serialized_options = b'\272H\033r\031R\005fixupR\010followupR\006custom'
   _globals['_FOLLOWUPEXECUTIONREQUEST'].fields_by_name['run_mode']._loaded_options = None
   _globals['_FOLLOWUPEXECUTIONREQUEST'].fields_by_name['run_mode']._serialized_options = b'\272H\021r\017R\010continueR\003new'
-  _globals['_LISTEXECUTIONRESPONSE']._serialized_start=128
-  _globals['_LISTEXECUTIONRESPONSE']._serialized_end=208
-  _globals['_EXECUTIONRESPONSE']._serialized_start=210
-  _globals['_EXECUTIONRESPONSE']._serialized_end=294
-  _globals['_EXECUTIONPOLICYRESPONSE']._serialized_start=296
-  _globals['_EXECUTIONPOLICYRESPONSE']._serialized_end=380
-  _globals['_CREATEEXECUTIONREQUEST']._serialized_start=383
-  _globals['_CREATEEXECUTIONREQUEST']._serialized_end=642
-  _globals['_FOLLOWUPEXECUTIONREQUEST']._serialized_start=645
-  _globals['_FOLLOWUPEXECUTIONREQUEST']._serialized_end=877
+  _globals['_LISTEXECUTIONRESPONSE']._serialized_start=139
+  _globals['_LISTEXECUTIONRESPONSE']._serialized_end=233
+  _globals['_EXECUTIONRESPONSE']._serialized_start=235
+  _globals['_EXECUTIONRESPONSE']._serialized_end=333
+  _globals['_EXECUTIONPOLICYRESPONSE']._serialized_start=335
+  _globals['_EXECUTIONPOLICYRESPONSE']._serialized_end=433
+  _globals['_CREATEEXECUTIONREQUEST']._serialized_start=436
+  _globals['_CREATEEXECUTIONREQUEST']._serialized_end=803
+  _globals['_FOLLOWUPEXECUTIONREQUEST']._serialized_start=806
+  _globals['_FOLLOWUPEXECUTIONREQUEST']._serialized_end=1038
 # @@protoc_insertion_point(module_scope)

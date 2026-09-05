@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "description": "The same wizard on every deployment tier: local repository, desktop bundle, and remote host reached through vrooli-bridge or scenario-to-cloud.",
+    "last_validated_at": "2026-08-24T18:20:16-04:00",
+    "module": "onboarding.tiers",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ONB-TIER-PARITY",
+      "title": "While the wizard runs on any supported deployment tier, every step shall resolve its data and no step shall return an error.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "tiers",
+      "description": "Compositional claim for the tier domain. The desktop bundle now carries the complete manifest-derived catalog and the browser-validated wizard resolves every declared step without an error.",
+      "children": [
+        "ONB-TIER-BUNDLE-CATALOG",
+        "ONB-TIER-NO-STEP-ERROR",
+        "ONB-TIER-BUNDLE-COMPLETENESS"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: boots the API with only the bundle root set and exercises every V2 endpoint."
+        }
+      ]
+    },
+    {
+      "id": "ONB-TIER-BUNDLE-CATALOG",
+      "title": "While the wizard runs from a desktop bundle, it shall resolve every manifest it reads from the bundled catalog.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "tiers",
+      "description": "The desktop runtime deliberately does not set a repository root, because a standalone app has no monorepo. Every manifest class the wizard reads — scenarios, resources, tools, safeguards — must therefore be present in the bundle catalog.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: host requirements resolve from a bundle fixture containing tool and safeguard manifests."
+        }
+      ]
+    },
+    {
+      "id": "ONB-TIER-NO-STEP-ERROR",
+      "title": "If a manifest source is unavailable on the running tier, then the step shall present a named actionable state and shall not return an unhandled error.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "tiers",
+      "description": "A directory-read failure currently becomes a server error and the step renders a generic failure line. The target distinguishes 'this tier does not carry that catalog' from 'this host is broken', because the two have different operator responses.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence: an absent catalog yields a typed degraded response, not a 500."
+        }
+      ]
+    },
+    {
+      "id": "ONB-TIER-BUNDLE-COMPLETENESS",
+      "title": "If a desktop bundle omits a catalog path the wizard reads, then the bundle build check shall fail.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "tiers",
+      "description": "The bundle contract declares the catalog paths onboarding depends on, and the packaging step verifies them. This turns a silent runtime failure on an operator's machine into a build failure on ours.",
+      "depends_on": [
+        "ONB-SELECT-UNION-EXPORT"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The onboarding bundle fixture exercises the catalog read models and the desktop runtime catalog contract separately fails closed when a declared catalog path is missing."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/evidence/bundle-tier.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Recorded BAS bundle-tier evidence proves the BUNDLE_ROOT-only browser walk and HTTP-200 V2 endpoint sweep."
+        }
+      ]
+    },
+    {
+      "id": "ONB-TIER-STATE-LOCATION",
+      "title": "The operator-state location shall be resolved from the deployment tier, and a desktop install shall not write the repository document.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "tiers",
+      "description": "A bundle resolves its state under the app data root supplied by the desktop runtime; a repository install resolves the repository document. A desktop app and a local install on one machine are separate installs by design.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/operator_state_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts the storage-root fallback resolves outside the repository when no repository root is set."
+        }
+      ]
+    },
+    {
+      "id": "ONB-TIER-REMOTE-ONBOARDING",
+      "title": "vrooli-bridge should configure a remote host through the non-interactive surface with no hand-edited file.",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "tiers",
+      "description": "Bridge owns reaching the machine and holding the connection through the canonical `vrooli-bridge onboard connect --host \u003chost\u003e --user \u003cuser\u003e` workflow; onboarding owns deciding what runs there. The identity-only handoff joins the two authorities without exposing operator-state internals. First touch may consume one SSH password, while reconnect reuses durable Bridge trust without prompting; real remote apply remains deployment evidence to be earned.",
+      "depends_on": [
+        "ONB-CLI-NONINTERACTIVE"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../vrooli-bridge/api/internal/onboarding/client_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Evidence target: `scenarios/vrooli-bridge/api/internal/onboarding/client_test.go`; this requirement remains planned until a real remote target is available. The focused Bridge client tests cover capability-shaped selection transfer and authoritative readiness handling, but do not substitute for a real VPS run."
+        }
+      ]
+    },
+    {
+      "id": "ONB-TIER-SUBSET-SHIPPING",
+      "title": "The union export should determine which scenarios, resources, tools, and safeguards a remote or bundled target must carry.",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-005",
+      "category": "tiers",
+      "description": "Shipping the whole repository to every target does not scale, and hand-maintained per-target lists drift. One computation, consumed by every target, keeps them consistent by construction.",
+      "depends_on": [
+        "ONB-SELECT-UNION-EXPORT"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/closure_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Evidence target: `api/v2_union_test.go`; this requirement remains planned until that evidence is added. the union for a two-scenario selection excludes unrelated catalog members."
+        }
+      ]
+    }
+  ]
+}

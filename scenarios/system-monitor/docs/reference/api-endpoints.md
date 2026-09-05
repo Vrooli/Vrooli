@@ -4,6 +4,14 @@
 
 **Authentication**: None currently. All endpoints are publicly accessible.
 
+**Runtime contract**: Proto-owned operations are served through generated
+Connect procedure paths such as
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics`. The
+`/api/v1/...` paths in the proto-owned sections below are HTTP annotation
+inventory and historical compatibility context; they are not mounted as manual
+REST routes after the bright-window cleanup. Runtime REST exceptions are health
+probes, development pprof, logs, and forensics.
+
 ---
 
 ## Health
@@ -22,9 +30,16 @@
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/metrics/current` | Current system metrics snapshot |
+| GET | `/api/v1/metrics/pressure` | Typed Linux memory PSI/OOM snapshot; unavailable evidence is explicit |
 | GET | `/api/v1/metrics/detailed` | Comprehensive metrics (CPU, memory, network, GPU, disk, processes, system health) |
+| GET | `/api/v1/metrics/timeline` | Recent metrics timeline |
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
+| GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
+| GET | `/api/v1/forensics/processes` | Bounded CPU, RSS, or GPU-VRAM-ranked process attribution (`rank=cpu|rss|gpu`) |
+| GET | `/api/v1/forensics/gpu` | Retained GPU utilization and VRAM timeline (`window=1h`) |
+| GET | `/api/v1/forensics/pressure` | Retained memory PSI and OOM-kill timeline (`window=1h`) |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
+| GET | `/api/v1/metrics/disk` | Disk partition and usage detail through the generated Connect method |
 
 ### GET /api/v1/metrics/current
 
@@ -68,9 +83,9 @@ Response:
 | GET | `/api/v1/investigations/triggers` | Get all investigation triggers |
 | PUT | `/api/v1/investigations/triggers/{id}` | Update trigger config |
 | PUT | `/api/v1/investigations/triggers/{id}/threshold` | Update trigger threshold only |
-| GET | `/api/v1/investigations/scripts` | List investigation scripts (placeholder -- returns empty array) |
-| GET | `/api/v1/investigations/scripts/{id}` | Get script by ID (placeholder -- returns not found) |
-| POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script (placeholder -- returns not found) |
+| GET | `/api/v1/investigations/scripts` | List investigation scripts |
+| GET | `/api/v1/investigations/scripts/{id}` | Get script by ID |
+| POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script |
 
 ### POST /api/v1/investigations/trigger
 
@@ -139,41 +154,49 @@ Valid types: `daily`, `weekly`
 
 `[CODE: api/internal/handlers/settings.go]`
 
----
-
-## Agent Configuration
+### Metrics lifecycle (retention & compaction)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/agent/config` | Get agent configuration |
-| PUT | `/api/v1/agent/config` | Update agent config |
-| GET | `/api/v1/agent/runners` | Get available runners |
+| GET | `/api/v1/maintenance/metrics/retention/preview?days=<n>` | Read-only estimate of rows/bytes/time-range a prune would remove, with DB stats |
+| POST | `/api/v1/maintenance/metrics/retention/apply` | Prune metrics older than the window. Body: `{"retentionDays": <n>, "confirm": true}`. Requires `confirm=true` |
+| GET | `/api/v1/maintenance/metrics/compaction/preview` | Read-only DB stats and estimated reclaimable bytes |
+| POST | `/api/v1/maintenance/metrics/compaction/apply` | Compact the DB (`VACUUM`). Body: `{"confirm": true}`. Requires `confirm=true` |
+
+Destructive applies without `confirm=true` return `400` validation errors.
+Compaction on a non-SQLite backend returns `503` (unsupported).
+
+`[CODE: api/internal/handlers/maintenance.go]`
+
+---
+
+## Agent Manager status
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/api/v1/agent/status` | Get agent status |
 
-### PUT /api/v1/agent/config
-
-Configurable fields: `runner`, `model`, `max_turns`, `timeout`, `tools`, `skip_permissions`, `requires_sandbox`, `requires_approval`
+System Monitor does not select runners, models, or profile defaults. Its
+scenario-owned `.vrooli/agent-profiles/default.json` declares portable
+`roleRef` intent and is reconciled through Agent Manager. Operators inspect
+role and native-resource state in Agent Manager; System Monitor only reports
+its integration availability and active investigation count.
 
 `[CODE: api/internal/handlers/investigations.go]`
 
 ---
 
-## Tool Discovery Protocol
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/tools` | Get tool manifest |
-| GET | `/api/v1/tools/{name}` | Get specific tool definition |
-| POST | `/api/v1/tools/execute` | Execute a tool |
-
-`[CODE: api/internal/toolexecution/handler.go]`
-
----
-
-## Missing Endpoints
+## Missing Product Endpoints
 
 The following endpoints are referenced by the UI but do not exist in the API:
 
-- `GET /api/v1/metrics/timeline` -- referenced by UI sparkline charts
-- `GET /api/v1/metrics/disk/details` -- referenced by UI disk detail view
 - `POST /api/v1/processes/{pid}/kill` -- referenced by UI process kill dialog (silently fails)
+
+Disk detail is implemented through `MetricsService.GetDiskDetail`
+(`/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`) and is
+read-only. Its response may include storage-manager handoff notes when disk
+pressure is high; system-monitor does not delete files or apply cleanup.
+
+## Connect Migration Notes
+
+Proto schemas and generated clients exist under `packages/proto/schemas/system-monitor/v1/` and `packages/proto/gen/`. The runtime mounts generated Connect handlers through `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. Current non-blocking drift and REST exceptions are tracked in `[CODE: docs/internal/INTEROP_AUDIT.md]`.

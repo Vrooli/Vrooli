@@ -1,0 +1,429 @@
+/**
+ * @libraryId react-component-library:CommandPalette
+ * @displayName CommandPalette
+ * @description A focused, keyboard-first command surface with recent actions, grouped search, async recovery, and responsive layering.
+ * @version 1.0.4
+ * @tags ["overlay","command","token-bound"]
+ * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
+ */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+
+/** @vrooliComponentSource overlays.command-palette */
+import {
+  resolveStrings,
+  useStrings,
+} from "@vrooli/react-component-library/useLocale/1.0.1";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import {
+  createCommandRegistry,
+  type Command,
+  type CommandRegistry,
+} from "@vrooli/react-component-library/CommandRegistry/1.0.0";
+import { SearchInput } from "@vrooli/react-component-library/SearchInput/1.0.0";
+
+export type CommandPaletteStatus =
+  | "default"
+  | "loading"
+  | "empty"
+  | "request-error"
+  | "retry";
+
+export interface CommandPaletteProps {
+  open?: boolean;
+  onClose?: () => void;
+  registry?: CommandRegistry;
+  commands?: Command[];
+  status?: CommandPaletteStatus;
+  errorMessage?: ReactNode;
+  onRetry?: () => void | Promise<void>;
+  onExecuted?: (command: Command) => void | Promise<void>;
+  title?: string;
+  description?: string;
+  placeholder?: string;
+  className?: string;
+  style?: CSSProperties;
+}
+
+const styles = `
+[data-rcl-command-palette] { position: fixed; inset: 0; z-index: var(--layer-modal, 40); display: grid; align-items: start; justify-items: center; padding: clamp(var(--space-lg, 1.5rem), 10vh, var(--space-4xl, 5rem)) var(--space-md, 1rem); color: var(--color-foreground, #0f172a); }
+[data-rcl-command-palette-backdrop] { position: absolute; inset: 0; border: 0; background: color-mix(in srgb, var(--color-overlay, #0f172a) 48%, transparent); cursor: default; }
+[data-rcl-command-palette-panel] { position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-block-size: 0; inline-size: min(100%, 42rem); max-block-size: min(calc(100dvh - var(--space-xl, 2rem)), 44rem); overflow: hidden; border: var(--border-hairline, 1px) solid var(--color-border-strong, #94a3b8); border-radius: var(--radius-panel, 1rem); background: var(--color-surface-raised, #fff); box-shadow: var(--elev-overlay, 0 20px 60px rgb(15 23 42 / .24)); animation: rcl-command-palette-enter var(--dur-enter, 180ms) var(--ease-standard, ease-out); }
+[data-rcl-command-palette-header] { display: grid; gap: var(--space-2xs, .35rem); padding: var(--space-lg, 1.5rem) var(--space-lg, 1.5rem) var(--space-sm, .75rem); border-block-end: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary, #2563eb) 8%, var(--color-surface-raised, #fff)), var(--color-surface-raised, #fff)); }
+[data-rcl-command-palette-eyebrow] { color: var(--color-primary, #2563eb); font: var(--text-overline, 700 .6875rem/1.1 system-ui, sans-serif); letter-spacing: .12em; text-transform: uppercase; }
+[data-rcl-command-palette-title] { margin: 0; font: var(--text-title, 750 1.25rem/1.2 system-ui, sans-serif); letter-spacing: var(--text-title-tracking, -.02em); }
+[data-rcl-command-palette-description] { margin: 0; color: var(--color-muted-foreground, #64748b); font: var(--text-body, 400 .875rem/1.4 system-ui, sans-serif); }
+[data-rcl-command-palette-search] { display: grid; grid-template-columns: minmax(0, 1fr); padding: var(--space-sm, .75rem) var(--space-lg, 1.5rem); border-block-end: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); }
+[data-rcl-command-palette-search] label { inline-size: 100%; }
+[data-rcl-command-palette-search] label > span { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+[data-rcl-command-palette-search] input { min-block-size: var(--tap-target-min, 44px); border-color: var(--color-border-strong, #94a3b8); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent); }
+[data-rcl-command-palette-list] { display: grid; align-content: start; gap: var(--space-2xs, .35rem); min-block-size: 0; overflow: auto; padding: var(--space-sm, .75rem); overscroll-behavior: contain; }
+[data-rcl-command-palette-group] { display: grid; gap: var(--space-3xs, .2rem); }
+[data-rcl-command-palette-group-label] { padding: var(--space-2xs, .35rem) var(--space-xs, .625rem); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 700 .75rem/1.2 system-ui, sans-serif); letter-spacing: .04em; text-transform: uppercase; }
+[data-rcl-command-palette-option] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm, .75rem); min-block-size: var(--tap-target-min, 44px); padding: var(--space-xs, .625rem) var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid transparent; border-radius: var(--radius-control, .625rem); background: transparent; color: inherit; text-align: start; cursor: pointer; font: inherit; transition: background var(--dur-quick, 140ms) var(--ease-standard, ease), border-color var(--dur-quick, 140ms) var(--ease-standard, ease), transform var(--dur-quick, 140ms) var(--ease-standard, ease); }
+[data-rcl-command-palette-option]:hover, [data-rcl-command-palette-option][aria-selected="true"] { border-color: color-mix(in srgb, var(--color-primary, #2563eb) 36%, var(--color-border, #cbd5e1)); background: color-mix(in srgb, var(--color-primary, #2563eb) 9%, var(--color-surface-raised, #fff)); }
+[data-rcl-command-palette-option][aria-selected="true"] { transform: translateX(var(--space-3xs, .25rem)); }
+[data-rcl-command-palette-option]:focus-visible, [data-rcl-command-palette-close]:focus-visible, [data-rcl-command-palette-retry]:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-focus, #2563eb) 38%, transparent); outline-offset: 2px; }
+[data-rcl-command-palette-option-copy] { display: grid; gap: var(--space-3xs, .25rem); min-inline-size: 0; }
+[data-rcl-command-palette-option-label] { overflow-wrap: anywhere; font: var(--text-label, 650 .875rem/1.3 system-ui, sans-serif); }
+[data-rcl-command-palette-option-description] { overflow-wrap: anywhere; color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 400 .75rem/1.3 system-ui, sans-serif); }
+[data-rcl-command-palette-option-meta] { display: inline-flex; align-items: center; gap: var(--space-xs, .625rem); color: var(--color-muted-foreground, #64748b); }
+[data-rcl-command-palette-option-group] { font: var(--text-caption, 600 .6875rem/1.2 system-ui, sans-serif); }
+[data-rcl-command-palette-option-shortcut], [data-rcl-command-palette-key] { padding: var(--space-3xs, .2rem) var(--space-2xs, .35rem); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .375rem); background: var(--color-surface-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 650 .6875rem/1.2 ui-monospace, monospace); white-space: nowrap; }
+[data-rcl-command-palette-state] { display: grid; place-items: center; gap: var(--space-xs, .625rem); min-block-size: 12rem; padding: var(--space-xl, 2rem); color: var(--color-muted-foreground, #64748b); text-align: center; font: var(--text-body, 400 .875rem/1.4 system-ui, sans-serif); }
+[data-rcl-command-palette-state] strong { color: var(--color-foreground, #0f172a); font: var(--text-subtitle, 700 1rem/1.3 system-ui, sans-serif); }
+[data-rcl-command-palette-state][data-tone="danger"] { color: var(--color-danger, #dc2626); }
+[data-rcl-command-palette-state] button { min-block-size: var(--tap-target-min, 44px); padding-inline: var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid var(--color-primary, #2563eb); border-radius: var(--radius-control, .625rem); background: var(--color-primary, #2563eb); color: var(--color-primary-foreground, #fff); font: var(--text-label, 650 .8125rem/1.2 system-ui, sans-serif); cursor: pointer; }
+[data-rcl-command-palette-footer] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm, .75rem); padding: var(--space-sm, .75rem) var(--space-lg, 1.5rem); border-block-start: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); color: var(--color-muted-foreground, #64748b); font: var(--text-caption, 500 .75rem/1.2 system-ui, sans-serif); }
+[data-rcl-command-palette-footer-hints] { display: inline-flex; flex-wrap: wrap; gap: var(--space-xs, .625rem); }
+[data-rcl-command-palette-close] { min-block-size: var(--tap-target-min, 44px); padding-inline: var(--space-sm, .75rem); border: var(--border-hairline, 1px) solid var(--color-border, #cbd5e1); border-radius: var(--radius-control, .625rem); background: transparent; color: inherit; font: var(--text-label, 650 .8125rem/1.2 system-ui, sans-serif); cursor: pointer; }
+@keyframes rcl-command-palette-enter { from { opacity: 0; transform: translateY(calc(var(--space-sm, .75rem) * -1)) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 34rem) { [data-rcl-command-palette] { align-items: end; padding: 0; } [data-rcl-command-palette-panel] { inline-size: 100%; max-block-size: min(calc(100dvh - var(--space-sm, .75rem)), 48rem); border-block-end: 0; border-radius: var(--radius-panel, 1rem) var(--radius-panel, 1rem) 0 0; } [data-rcl-command-palette-header], [data-rcl-command-palette-search] { padding-inline: var(--space-md, 1rem); } [data-rcl-command-palette-footer] { padding-inline: var(--space-md, 1rem); } }
+@media (prefers-reduced-motion: reduce) { [data-rcl-command-palette-panel], [data-rcl-command-palette-option] { animation: none; transition: none; } [data-rcl-command-palette-option][aria-selected="true"] { transform: none; } }
+@media (forced-colors: active) { [data-rcl-command-palette-panel], [data-rcl-command-palette-option], [data-rcl-command-palette-key], [data-rcl-command-palette-option-shortcut] { border-color: CanvasText; background: Canvas; color: CanvasText; box-shadow: none; } [data-rcl-command-palette-backdrop] { background: CanvasText; opacity: .5; } }
+`;
+
+export const CommandPalette = withClassName(function CommandPalette({
+  open = false,
+  onClose,
+  registry,
+  commands = [],
+  status = "default",
+  errorMessage = "Commands could not be refreshed. Your last available actions remain safe to retry.",
+  onRetry,
+  onExecuted,
+  title = resolveStrings(
+    "overlays.command-palette.command-palette",
+    "Command palette",
+  ),
+  description = resolveStrings(
+    "overlays.command-palette.search-actions-across-this-workspace-placeholder",
+    "Search actions across this workspace.",
+  ),
+  placeholder = resolveStrings(
+    "overlays.command-palette.search-commands",
+    "Search commands…",
+  ),
+  className,
+  style,
+}: CommandPaletteProps) {
+  const strings = useStrings();
+  const localRegistry = useMemo(
+    () => registry ?? createCommandRegistry(),
+    [registry],
+  );
+  useEffect(() => {
+    if (registry) return undefined;
+    const unregister = commands.map((command) =>
+      localRegistry.register(command),
+    );
+    return () => unregister.forEach((remove) => remove());
+  }, [commands, localRegistry, registry]);
+
+  useSyncExternalStore(
+    localRegistry.subscribe,
+    localRegistry.getSnapshot,
+    localRegistry.getSnapshot,
+  );
+  const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState<string>();
+  const [execution, setExecution] = useState<"idle" | "running" | "error">(
+    "idle",
+  );
+  const [executionError, setExecutionError] = useState<ReactNode>();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+
+  const filtered = (() => {
+    const matches = localRegistry.search(query);
+    if (query.trim()) return matches;
+    const recent = localRegistry.getRecent();
+    const recentIds = new Set(recent.map((command) => command.id));
+    return [
+      ...recent,
+      ...matches.filter((command) => !recentIds.has(command.id)),
+    ];
+  })();
+  const grouped = useMemo(() => {
+    const groups = new Map<string, Command[]>();
+    filtered.forEach((command) => {
+      const group = command.group ?? "Actions";
+      groups.set(group, [...(groups.get(group) ?? []), command]);
+    });
+    return [...groups.entries()];
+  }, [filtered]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    restoreFocusRef.current = document.activeElement as HTMLElement | null;
+    const frame = window.requestAnimationFrame(() =>
+      searchRef.current?.focus({ preventScroll: true }),
+    );
+    return () => {
+      window.cancelAnimationFrame(frame);
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    const first = filtered.find((command) => !command.disabled);
+    if (!activeId || !filtered.some((command) => command.id === activeId)) {
+      setActiveId(first?.id);
+    }
+  }, [activeId, filtered]);
+
+  if (!open) return null;
+
+  const orderedCommands = filtered.filter((command) => !command.disabled);
+  const moveActive = (direction: 1 | -1) => {
+    if (!orderedCommands.length) return;
+    const currentIndex = orderedCommands.findIndex(
+      (command) => command.id === activeId,
+    );
+    const nextIndex =
+      (currentIndex + direction + orderedCommands.length) %
+      orderedCommands.length;
+    setActiveId(orderedCommands[nextIndex]?.id);
+  };
+  const execute = async (command: Command) => {
+    if (command.disabled || execution === "running") return;
+    setExecution("running");
+    setExecutionError(undefined);
+    try {
+      await localRegistry.execute(command.id, { query });
+      await onExecuted?.(command);
+      setExecution("idle");
+    } catch (error) {
+      setExecution("error");
+      setExecutionError(
+        error instanceof Error ? error.message : "The command could not run.",
+      );
+    }
+  };
+  const activeCommand = orderedCommands.find(
+    (command) => command.id === activeId,
+  );
+  const state = execution === "error" ? "request-error" : status;
+
+  return (
+    <div
+      data-rcl-command-palette
+      className={className}
+      style={style}
+      data-status={state}
+    >
+      <style
+        data-rcl-command-palette-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
+      <button
+        data-testid="overlays.command-palette"
+        type="button"
+        data-rcl-command-palette-backdrop
+        aria-label={strings(
+          "overlays.command-palette.close-command-palette",
+          "Close command palette",
+        )}
+        onClick={onClose}
+      />
+      <section
+        data-rcl-command-palette-panel
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rcl-command-palette-title"
+        aria-describedby="rcl-command-palette-description"
+      >
+        <header data-rcl-command-palette-header>
+          <span data-rcl-command-palette-eyebrow>
+            {strings(
+              "overlays.command-palette.command-center",
+              "Command center",
+            )}
+          </span>
+          <h2 id="rcl-command-palette-title" data-rcl-command-palette-title>
+            {title}
+          </h2>
+          <p
+            id="rcl-command-palette-description"
+            data-rcl-command-palette-description
+          >
+            {description}
+          </p>
+        </header>
+        <div data-rcl-command-palette-search>
+          <SearchInput
+            ref={searchRef}
+            aria-label={strings(
+              "overlays.command-palette.search-commands.search-commands",
+              "Search commands",
+            )}
+            role="combobox"
+            aria-controls="rcl-command-palette-list"
+            aria-expanded="true"
+            aria-activedescendant={
+              activeId ? `rcl-command-${activeId}` : undefined
+            }
+            placeholder={placeholder}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                moveActive(1);
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                moveActive(-1);
+              } else if (event.key === "Enter" && activeCommand) {
+                event.preventDefault();
+                void execute(activeCommand);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                onClose?.();
+              }
+            }}
+            style={{ width: "100%" }}
+          />
+        </div>
+        {state === "loading" ? (
+          <div data-rcl-command-palette-state role="status">
+            <strong>
+              {strings(
+                "overlays.command-palette.loading-commands",
+                "Loading commands",
+              )}
+            </strong>
+            <span>
+              {strings(
+                "overlays.command-palette.preparing-actions-for-this-workspace-span-div-st",
+                "Preparing actions for this workspace…",
+              )}
+            </span>
+          </div>
+        ) : state === "request-error" || state === "retry" ? (
+          <div data-rcl-command-palette-state data-tone="danger" role="alert">
+            <strong>
+              {strings(
+                "overlays.command-palette.commands-need-a-retry",
+                "Commands need a retry",
+              )}
+            </strong>
+            <span>{executionError ?? errorMessage}</span>
+            {onRetry ? (
+              <button
+                data-testid="overlays.command-palette"
+                type="button"
+                data-rcl-command-palette-retry
+                onClick={() => void onRetry()}
+              >
+                {strings("overlays.command-palette.try-again", "Try again")}
+              </button>
+            ) : null}
+          </div>
+        ) : state === "empty" || !grouped.length ? (
+          <div data-rcl-command-palette-state role="status">
+            <strong>
+              {strings(
+                "overlays.command-palette.no-matching-commands",
+                "No matching commands",
+              )}
+            </strong>
+            <span>
+              {strings(
+                "overlays.command-palette.try-a-shorter-phrase-or-clear-the-search-span-di",
+                "Try a shorter phrase or clear the search.",
+              )}
+            </span>
+          </div>
+        ) : (
+          <div
+            id="rcl-command-palette-list"
+            data-rcl-command-palette-list
+            role="listbox"
+            aria-label={strings(
+              "overlays.command-palette.available-commands",
+              "Available commands",
+            )}
+          >
+            {grouped.map(([group, groupCommands]) => (
+              <div data-rcl-command-palette-group key={group}>
+                <div data-rcl-command-palette-group-label>{group}</div>
+                {groupCommands.map((command) => (
+                  <button
+                    data-testid="overlays.command-palette"
+                    key={command.id}
+                    id={`rcl-command-${command.id}`}
+                    type="button"
+                    role="option"
+                    aria-selected={command.id === activeId}
+                    aria-disabled={command.disabled || undefined}
+                    disabled={command.disabled}
+                    data-rcl-command-palette-option
+                    onMouseEnter={() => setActiveId(command.id)}
+                    onClick={() => void execute(command)}
+                  >
+                    <span data-rcl-command-palette-option-copy>
+                      <span data-rcl-command-palette-option-label>
+                        {command.label}
+                      </span>
+                      {command.description ? (
+                        <span data-rcl-command-palette-option-description>
+                          {command.description}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span data-rcl-command-palette-option-meta>
+                      {command.group ? (
+                        <span data-rcl-command-palette-option-group>
+                          {command.group}
+                        </span>
+                      ) : null}
+                      {command.shortcut ? (
+                        <kbd data-rcl-command-palette-option-shortcut>
+                          {command.shortcut}
+                        </kbd>
+                      ) : null}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        <footer data-rcl-command-palette-footer>
+          <span data-rcl-command-palette-footer-hints>
+            <span>
+              <kbd data-rcl-command-palette-key>↑↓</kbd>
+              {strings("overlays.command-palette.navigate", "Navigate")}
+            </span>
+            <span>
+              <kbd data-rcl-command-palette-key>↵</kbd>
+              {strings("overlays.command-palette.run", "Run")}
+            </span>
+            <span>
+              <kbd data-rcl-command-palette-key>
+                {strings("overlays.command-palette.esc", "Esc")}
+              </kbd>
+              {strings("overlays.command-palette.close", "Close")}
+            </span>
+          </span>
+          <button
+            data-testid="overlays.command-palette"
+            type="button"
+            data-rcl-command-palette-close
+            onClick={onClose}
+          >
+            {strings("overlays.command-palette.close", "Close")}
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+});

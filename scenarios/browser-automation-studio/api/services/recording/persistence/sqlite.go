@@ -10,17 +10,33 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/domain"
 )
 
 // SQLiteRepository implements Repository using SQLite.
 type SQLiteRepository struct {
-	db  *sql.DB
+	db  sqlExecutor
 	log *logrus.Logger
 }
 
 // NewSQLiteRepository creates a new SQLite-backed repository.
-func NewSQLiteRepository(db *sql.DB, log *logrus.Logger) *SQLiteRepository {
+// sqlExecutor is the smallest persistence surface this domain needs. Both a
+// standard *sql.DB and api-core's context-routed database satisfy it, keeping
+// unit tests simple while production requests honor the Test Genie lease.
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+var (
+	_ sqlExecutor = (*sql.DB)(nil)
+	_ sqlExecutor = (*coredb.RoutedDB)(nil)
+)
+
+func NewSQLiteRepository(db sqlExecutor, log *logrus.Logger) *SQLiteRepository {
 	return &SQLiteRepository{
 		db:  db,
 		log: log,
@@ -224,7 +240,7 @@ func (r *SQLiteRepository) SaveTimelineEntries(ctx context.Context, entries []*U
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO timeline_entries (id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json)
@@ -486,7 +502,7 @@ func (r *SQLiteRepository) PruneOldSessions(ctx context.Context, olderThan time.
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, id := range sessionIDs {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = $1`, id); err != nil {

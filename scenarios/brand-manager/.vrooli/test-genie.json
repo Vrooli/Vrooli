@@ -1,0 +1,687 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "brand-manager",
+  "phase": "branding",
+  "displayName": "Branding",
+  "description": "Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager.",
+  "source": "validation-provider",
+  "orderHint": 18,
+  "timeout": "120s",
+  "findingSource": "branding",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {"kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario brand manifests, design tokens, and rendered UI assets; the control plane has no product branding surface."
+      }
+    ]},
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "best_effort",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "skip_without_failing"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/branding/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "identity_contract",
+        "label": "Identity Contract",
+        "description": "Scenario display identity and cross-surface name consistency.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No branding target",
+            "status_label": "Unavailable",
+            "description": "Brand Manager cannot resolve a scenario or readable source tree to assess branding.",
+            "capability_summary": "Brand Manager cannot yet resolve a readable branding target.",
+            "next_unlock": "A readable target tree and completed branding scan."
+          },
+          {
+            "id": "L1",
+            "name": "Display name declared",
+            "status_label": "Foundation",
+            "description": "The scenario declares a non-placeholder display name.",
+            "capability_summary": "The scenario declares the minimum brand identity every surface can render.",
+            "next_unlock": "Consistent naming across manifest, document, and scenario metadata."
+          },
+          {
+            "id": "L2",
+            "name": "Identity cross-checked",
+            "status_label": "Ready",
+            "description": "The scenario's display name can be compared across branding surfaces.",
+            "capability_summary": "Brand identity can be checked across core surfaces.",
+            "next_unlock": "Fully consistent naming across all branding surfaces."
+          },
+          {
+            "id": "L3",
+            "name": "Identity consistent",
+            "status_label": "Complete",
+            "description": "The scenario's display name is consistent across branding surfaces.",
+            "capability_summary": "Brand identity is declared and consistent across core surfaces."
+          }
+        ]
+      },
+      {
+        "id": "visual_system",
+        "label": "Visual System",
+        "description": "Color tokens, typography, and typeface readiness.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Visual system absent",
+            "status_label": "Unavailable",
+            "description": "No usable visual-system foundation is available.",
+            "capability_summary": "The scenario has no usable visual-system foundation.",
+            "next_unlock": "A canonical color token system."
+          },
+          {
+            "id": "L1",
+            "name": "Color system present",
+            "status_label": "Foundation",
+            "description": "The scenario defines a canonical color-token contract.",
+            "capability_summary": "Core colors are declared in a reusable token system.",
+            "next_unlock": "Typography choices that make the brand recognizable."
+          },
+          {
+            "id": "L2",
+            "name": "Typography declared",
+            "status_label": "Basic",
+            "description": "The scenario declares typography or font-family decisions.",
+            "capability_summary": "The visual system includes typography decisions.",
+            "next_unlock": "Custom or intentionally self-hosted typeface evidence where the brand requires it."
+          },
+          {
+            "id": "L3",
+            "name": "Typeface intentional",
+            "status_label": "Complete",
+            "description": "The scenario has enough color and typography structure for consistent brand application.",
+            "capability_summary": "Color and typography are ready for consistent brand application."
+          }
+        ]
+      },
+      {
+        "id": "brand_assets",
+        "label": "Brand Assets",
+        "description": "Logo, favicon, Apple touch icon, referenced assets, template residue, SVG safety, and public asset convention.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Brand assets absent",
+            "status_label": "Unavailable",
+            "description": "No usable visible brand assets are present.",
+            "capability_summary": "Visible brand assets are missing.",
+            "next_unlock": "A real logo and favicon."
+          },
+          {
+            "id": "L1",
+            "name": "Core marks present",
+            "status_label": "Basic",
+            "description": "Logo and favicon surfaces are present.",
+            "capability_summary": "Core browser and product marks are present.",
+            "next_unlock": "Valid referenced assets with template residue removed."
+          },
+          {
+            "id": "L2",
+            "name": "Assets coherent",
+            "status_label": "Ready",
+            "description": "Brand assets exist, references resolve, generated-template residue is removed, and SVGs are safe.",
+            "capability_summary": "Brand assets are present, referenced correctly, and safe to serve.",
+            "next_unlock": "Public install/share asset convention and home-screen icon readiness."
+          },
+          {
+            "id": "L3",
+            "name": "Assets publishable",
+            "status_label": "Complete",
+            "description": "Brand assets are valid, conventionally served, and ready for public/install surfaces.",
+            "capability_summary": "Visible brand assets are publishable across browser, install, and share surfaces."
+          }
+        ]
+      },
+      {
+        "id": "accessibility_application",
+        "label": "Accessibility and Application",
+        "description": "Contrast, reduced-motion support, color-scheme declaration, and evidence that the brand has been applied.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Accessibility posture unknown",
+            "status_label": "Unavailable",
+            "description": "Brand accessibility cannot be evaluated yet.",
+            "capability_summary": "Brand accessibility posture is unknown.",
+            "next_unlock": "Readable color pairings for contrast evaluation."
+          },
+          {
+            "id": "L1",
+            "name": "Light contrast readable",
+            "status_label": "Basic",
+            "description": "Core light-mode color pairings meet WCAG AA contrast.",
+            "capability_summary": "Light-mode color contrast is readable.",
+            "next_unlock": "Dark-mode contrast and browser color-scheme support."
+          },
+          {
+            "id": "L2",
+            "name": "Accessible theming",
+            "status_label": "Ready",
+            "description": "Light and dark themes are readable and declare browser color-scheme/reduced-motion support.",
+            "capability_summary": "Brand theming is accessible across color scheme and motion preferences.",
+            "next_unlock": "Evidence that brand-manager markers or manifest metadata apply the brand."
+          },
+          {
+            "id": "L3",
+            "name": "Brand applied",
+            "status_label": "Complete",
+            "description": "Accessible brand tokens are applied across the scenario through markers or manifest metadata.",
+            "capability_summary": "The brand is accessible and visibly applied."
+          }
+        ]
+      },
+      {
+        "id": "install_surface",
+        "label": "Install Surface",
+        "description": "Theme color, standalone/mobile metadata, iOS safe area, and manifest completeness.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Install branding absent",
+            "status_label": "Unavailable",
+            "description": "The scenario lacks the branded metadata needed for install surfaces.",
+            "capability_summary": "Install branding metadata is absent.",
+            "next_unlock": "Theme color and standalone mobile metadata."
+          },
+          {
+            "id": "L1",
+            "name": "Mobile chrome branded",
+            "status_label": "Basic",
+            "description": "Theme color and standalone/mobile web-app metadata are declared.",
+            "capability_summary": "Mobile browser chrome and standalone launch metadata are branded.",
+            "next_unlock": "Complete install manifest and iOS safe-area/status-bar handling."
+          },
+          {
+            "id": "L2",
+            "name": "Install metadata complete",
+            "status_label": "Ready",
+            "description": "The manifest, theme colors, standalone metadata, and safe-area/status-bar handling are complete.",
+            "capability_summary": "Install metadata is ready for branded home-screen use.",
+            "next_unlock": "Maximum install-surface maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Install surface clean",
+            "status_label": "Complete",
+            "description": "Install and mobile branding metadata is clean.",
+            "capability_summary": "The scenario is consistently branded as an installable web app."
+          }
+        ]
+      },
+      {
+        "id": "share_and_product_surfaces",
+        "label": "Share and Product Surfaces",
+        "description": "Open Graph, Twitter card, social preview image, CLI branding, and API branding.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Share surfaces absent",
+            "status_label": "Unavailable",
+            "description": "External share/product surfaces do not expose brand metadata.",
+            "capability_summary": "Share and product surfaces are unbranded.",
+            "next_unlock": "Open Graph and Twitter card metadata."
+          },
+          {
+            "id": "L1",
+            "name": "Social metadata present",
+            "status_label": "Basic",
+            "description": "Open Graph and Twitter card metadata are present.",
+            "capability_summary": "Link previews can render branded metadata.",
+            "next_unlock": "A branded social preview image."
+          },
+          {
+            "id": "L2",
+            "name": "Share preview branded",
+            "status_label": "Ready",
+            "description": "Social preview metadata includes an approved preview image.",
+            "capability_summary": "External link previews are visually branded.",
+            "next_unlock": "CLI and API surfaces that use the brand name in user-facing copy."
+          },
+          {
+            "id": "L3",
+            "name": "Product surfaces branded",
+            "status_label": "Complete",
+            "description": "Social, CLI, and API surfaces all carry the scenario brand.",
+            "capability_summary": "Share, CLI, and API product surfaces are branded."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "has-display-name": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_ERROR",
+        "fix_class": "manual",
+        "reason": "A meaningful display name requires human/product judgment, not a deterministic default.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ecosystem-fit"
+        ],
+        "clean_requirement": "required"
+      },
+      "name-consistency": {
+        "capability_id": "identity_contract",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "has-color-system": {
+        "capability_id": "visual_system",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "A complete baseline token set is only created when none exists; an existing-but-incomplete file is left to a human (not advertised as auto-fixable).",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "has-typography": {
+        "capability_id": "visual_system",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "manual",
+        "reason": "Font selection is a design choice, not a deterministic default.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "custom-font-loaded": {
+        "capability_id": "visual_system",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "manual",
+        "reason": "Fetching/self-hosting a typeface is not a deterministic edit; font selection is a design choice.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "has-logo": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "Logo image generation is non-deterministic and requires AI or a human asset.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "has-favicon": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "Self-contained: derived from an existing logo. When no logo exists it is honestly guidance-only (autofix not advertised).",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "no-template-residue": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "Default Vite favicon/title residue is removed deterministically; lorem-ipsum copy stays a manual finding.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "asset-validity": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "Flattening/re-encoding an icon or generating an icon set is an image transform left to the brand-projection path.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "referenced-assets-exist": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "A dangling reference is fixed by shipping the missing image bytes, which cannot be synthesized deterministically.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "svg-asset-safety": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "Stripping nodes from a hand/tool-authored SVG can silently break its rendering, so sanitizing stays a human decision.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "apple-touch-icon": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "A home-screen icon is a branded visual asset and should be derived from the approved brand/logo source, not invented by validation.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "public-asset-convention": {
+        "capability_id": "brand_assets",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "Branding/PWA/OG assets and their references are deterministically relocated under /public/ (ui/public/public) and repointed, so an edge Access bypass can serve them to anonymous fetchers.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "wcag-aa-contrast": {
+        "capability_id": "accessibility_application",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "Re-balancing a palette to pass AA requires design judgment, not a mechanical edit.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "dark-mode-contrast": {
+        "capability_id": "accessibility_application",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "Re-balancing the dark palette to pass AA requires design judgment.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "color-scheme-declared": {
+        "capability_id": "accessibility_application",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "reduced-motion-support": {
+        "capability_id": "accessibility_application",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "A uniform prefers-reduced-motion reduce block is appended to the existing design tokens; when no tokens file exists it is guidance-only.",
+        "recommended_skill_ids": [
+          "brand-manager",
+          "ui-health"
+        ],
+        "clean_requirement": "required"
+      },
+      "brand-markers-applied": {
+        "capability_id": "accessibility_application",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "manual",
+        "reason": "Applying markers is brand-projection: it needs an assigned brand via the apply domain, which the served validation path has no input for, so it is guidance-only here.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "theme-color-present": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "The missing-entirely case is auto-injected; deriving a dark-scheme variant value is left guidance-only.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "standalone-capable": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "theme-color-consistency": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "theme-color-design-token": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "A scenario may intentionally use a launch chrome color that differs from the canonical surface token, but that divergence must be documented in DESIGN.md.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "ios-statusbar-safe-area": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "Injects viewport-fit=cover + a safe-area-inset token deterministically; the runtime render is out of scope (ui-health/device harness).",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "manifest-completeness": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "reason": "Scalar fields are filled from identity + house defaults; missing icons require a logo and stay guidance-only.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "open-graph": {
+        "capability_id": "share_and_product_surfaces",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "twitter-card": {
+        "capability_id": "share_and_product_surfaces",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "social-preview-image": {
+        "capability_id": "share_and_product_surfaces",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "A share-card image requires a branded 1200x630 asset or approved visual composition, so validation only reports the missing surface.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "cli-branding": {
+        "capability_id": "share_and_product_surfaces",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "manual",
+        "reason": "Human-facing CLI help copy is a writing decision, not a deterministic default.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      },
+      "api-branding": {
+        "capability_id": "share_and_product_surfaces",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_INFO",
+        "fix_class": "manual",
+        "reason": "The API/OpenAPI title (service.description) is human-authored product copy.",
+        "recommended_skill_ids": [
+          "brand-manager"
+        ],
+        "clean_requirement": "required"
+      }
+    },
+    "fallback": {
+      "capability_id": "identity_contract",
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required"
+    }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
+  "dimensions": [
+    "branding"
+  ]
+}

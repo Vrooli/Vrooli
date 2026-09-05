@@ -1,0 +1,485 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "git-control-tower",
+  "description": "Single source of truth for the manifest-aligned portion of the git-control-tower CLI command surface. Today this covers the `worktree` group (Connect-RPC via WorktreeService); the legacy REST-backed domains (repo, branch, review, audit) and RepoService.GetRepoStatus stay hand-written in their respective domain registrars until they migrate to Connect-RPC. Schema-validated against cli-manifest/v1; cross-validated against the WorktreeService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "worktree",
+      "description": "Manage git worktrees via the WorktreeService Connect-RPC surface",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List worktrees in a repo",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "ListWorktrees"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "GetWorktree"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a worktree from an existing branch, new branch (with optional start point + tracking), or detached commit",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "New worktree path",
+              "bind": {
+                "field": "new_worktree_path"
+              }
+            },
+            {
+              "name": "existing_branch",
+              "aliases": ["branch"],
+              "description": "Existing branch to check out (mutually exclusive with --new-branch / --commit)"
+            },
+            {
+              "name": "new-branch",
+              "description": "New branch name to create (mutually exclusive with --branch / --commit)"
+            },
+            {
+              "name": "start-point",
+              "aliases": ["start"],
+              "description": "Start point for --new-branch"
+            },
+            {
+              "name": "track",
+              "bool": true,
+              "description": "Set --track for the new branch's upstream"
+            },
+            {
+              "name": "commit",
+              "description": "Detached HEAD commit SHA (mutually exclusive with --branch / --new-branch)"
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Force-create even if the target path is dirty"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "CreateWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Remove a worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Force removal even if the worktree is dirty"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "RemoveWorktree"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "lock",
+          "description": "Lock a worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Optional lock reason recorded by git"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "LockWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "unlock",
+          "description": "Unlock a worktree",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "UnlockWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "move",
+          "description": "Move a worktree to a new path",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Existing worktree path",
+              "bind": {
+                "field": "worktree_path"
+              }
+            },
+            {
+              "name": "new-path",
+              "required": true,
+              "description": "Destination worktree path",
+              "bind": {
+                "field": "new_worktree_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "MoveWorktree"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "prune",
+          "description": "Prune worktree records that no longer have a valid working tree on disk",
+          "flags": [
+            {
+              "name": "repo",
+              "required": true,
+              "description": "Repository path",
+              "bind": {
+                "field": "repo_path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Optional reason recorded in the audit log"
+            },
+            {
+              "name": "report-only",
+              "bool": true,
+              "description": "Report what would be pruned without modifying state"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorktreeService",
+            "method": "PruneWorktrees"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "repo",
+      "description": "Read-only repository status projections",
+      "commands": [
+        {
+          "name": "groups",
+          "description": "Resolve changed files into manual, contract-derived, and builtin groups",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "EvidenceService",
+      "method": "StartRun",
+      "reason": "UI convenience over Test Genie's durable StartRun; agents use `vrooli scenario test` / `test-genie runs` directly."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListRuns",
+      "reason": "UI-only descriptor-aware run history; agents use Test Genie's canonical runs CLI."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "GetRun",
+      "reason": "UI-only run detail and typed artifact metadata; agents use Test Genie's canonical runs CLI."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "ListEvidence",
+      "reason": "UI-only cross-run evidence search; artifact bytes remain behind opaque same-origin routes."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "SnapshotForBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline snapshot) \u2014 custom Connect client with rich human output and dirty-tree/skip warnings; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetSnapshotStatus",
+      "reason": "Hand-written in cli/domains/baseline (baseline snapshot status) \u2014 custom Connect client with snapshot lifecycle exit codes and not-found diagnostics; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline show) \u2014 custom Connect client; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "ListBaselines",
+      "reason": "Hand-written in cli/domains/baseline (baseline list) \u2014 custom Connect client; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "StartDiff",
+      "reason": "Hand-written in cli/domains/baseline (baseline diff) \u2014 custom Connect client; durable return-fast start with re-attach banner; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetDiffResult",
+      "reason": "Hand-written in cli/domains/baseline (baseline diff status) \u2014 custom Connect client with diff exit codes 0/1/2/3; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DeleteBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline delete) \u2014 custom Connect client; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "RepairBaseline",
+      "reason": "Hand-written in cli/domains/baseline (baseline repair) \u2014 custom Connect client with explicit dry-run and --apply lifecycle mutation boundary; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "StartCollectionCapture",
+      "reason": "Hand-written in cli/domains/baseline (collection capture) \u2014 producer-owned wait guidance; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetCollectionStatus",
+      "reason": "Hand-written in cli/domains/baseline (collection show) \u2014 pure durable standing read rendered through the shared operation-standing renderer; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "WaitCollectionCapture",
+      "reason": "Hand-written in cli/domains/baseline (collection show --wait) \u2014 explicit parent attachment with typed detach exit; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "ExtendCollection",
+      "reason": "Hand-written in cli/domains/baseline (collection extend) \u2014 append-only member workflow; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "StartCollectionDiff",
+      "reason": "Hand-written in cli/domains/baseline (collection diff) \u2014 durable producer operation rendering; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetCollectionDiffStatus",
+      "reason": "Hand-written in cli/domains/baseline (collection diff status) \u2014 pure aggregate/child standing read rendered through the shared operation-standing renderer; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "WaitCollectionDiff",
+      "reason": "Hand-written in cli/domains/baseline (collection diff wait) \u2014 explicit aggregate attachment with typed terminal/detached exit; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DeleteCollection",
+      "reason": "Hand-written in cli/domains/baseline (collection delete); not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "EstimatePathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path estimate) \u2014 renders contributor and scope-repair guidance; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "CapturePathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path capture) \u2014 explicit content/ignored policy flags; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "GetPathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path show); not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DiffPathSnapshots",
+      "reason": "Hand-written in cli/domains/baseline (path diff) \u2014 informational source evidence rendering; not manifest-bound."
+    },
+    {
+      "service": "BaselinesService",
+      "method": "DeletePathSnapshot",
+      "reason": "Hand-written in cli/domains/baseline (path delete); not manifest-bound."
+    },
+    {
+      "service": "RepoService",
+      "method": "GetRepoStatus",
+      "reason": "Legacy REST-backed repo domain; stays hand-written until RepoService migrates to Connect-RPC (see manifest description)."
+    }
+  ]
+}

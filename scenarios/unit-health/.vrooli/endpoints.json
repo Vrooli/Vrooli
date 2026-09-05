@@ -1,0 +1,192 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.unit_health.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.unit_health.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.unit_health.v1.validation.ValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario test maturity",
+      "description": "Discovers test surfaces through Code Facts, plans and optionally runs the canonical test commands, analyzes coverage/architecture/quality, and returns normalized findings plus a shared maturity assessment.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string",
+          "use_cache": "bool",
+          "workspaces": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "cache_hit": "bool",
+          "cache_invalidated_dimensions": "array<string>",
+          "cache_miss_reason": "string",
+          "cache_retained_bytes": "int64",
+          "cache_saved_cpu_time_ms": "int64",
+          "cache_saved_wall_time_ms": "int64",
+          "coverage": "array<CoverageTarget>",
+          "findings": "array<ValidationFinding>",
+          "maturity": "MaturitySummary",
+          "status": "string",
+          "surfaces": "array<TestSurface>",
+          "workspaces": "array<TestWorkspace>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario test maturity through the shared provider contract",
+      "description": "Runs Unit Health's validation engine and returns the shared scenario-validation response; the native unit-health ValidateScenarioResponse is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<unit_health.v1.validation.ValidateScenarioResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview unit validation fixes",
+      "description": "Previews deterministic low-risk Unit Health config/projection fixes without writing files.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "string[]",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply unit validation fixes",
+      "description": "Applies deterministic low-risk Unit Health config/projection fixes with before-write drift checks.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "string[]",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "A target file changed before the fix could be applied"
+        }
+      ]
+    }
+  ]
+}

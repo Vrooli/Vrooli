@@ -2,30 +2,32 @@
 package namespace
 
 import (
-	"os"
 	"strings"
 	"testing"
+
+	"workspace-sandbox/internal/process"
 )
 
-// TestCheckReturnsStatus verifies that Check() returns a valid Status struct
+// testStarter is the production OSExecStarter, used by these tests
+// because they exercise host-level capability probes. Tests that want
+// to inject scripted responses construct a procmocks.FakeStarter
+// directly.
+var testStarter = process.NewOSExecStarter()
+
+// TestCheckReturnsStatus verifies that Check(testStarter) returns a valid Status struct
 // [REQ:P0-001] Sandbox creation relies on namespace status detection
 func TestCheckReturnsStatus(t *testing.T) {
-	status := Check()
+	status := Check(testStarter)
 
 	// Status should always have a kernel version
 	if status.KernelVersion == "" {
 		t.Error("expected non-empty kernel version")
 	}
 
-	// If we're in a CI environment or user namespaces disabled,
-	// we should get a reason explaining why
+	// If we're in a CI environment or user namespaces are unavailable,
+	// we should get a reason explaining why.
 	if !status.CanCreateUserNamespace && status.Reason == "" {
-		// This is expected when user namespaces are disabled
-		if os.Getenv(DisableUserNamespaceEnv) != "1" {
-			// Only require reason if not explicitly disabled
-			// (disabled case sets reason in Check)
-			t.Error("expected reason when user namespace creation is unavailable")
-		}
+		t.Error("expected reason when user namespace creation is unavailable")
 	}
 
 	t.Logf("Namespace status: InUserNamespace=%v, CanCreate=%v, CanMount=%v, Kernel=%s, Reason=%s",
@@ -36,32 +38,11 @@ func TestCheckReturnsStatus(t *testing.T) {
 		status.Reason)
 }
 
-// TestCheckWithDisabledEnv verifies Check honors the disable environment variable
-// [REQ:P2-025] Cross-platform driver interface fallback detection
-func TestCheckWithDisabledEnv(t *testing.T) {
-	// Save and restore environment
-	oldVal := os.Getenv(DisableUserNamespaceEnv)
-	defer os.Setenv(DisableUserNamespaceEnv, oldVal)
-
-	// Disable user namespaces
-	os.Setenv(DisableUserNamespaceEnv, "1")
-
-	status := Check()
-
-	if status.CanCreateUserNamespace {
-		t.Error("expected CanCreateUserNamespace to be false when disabled via env")
-	}
-
-	if !strings.Contains(status.Reason, DisableUserNamespaceEnv) {
-		t.Errorf("expected reason to mention %s, got: %s", DisableUserNamespaceEnv, status.Reason)
-	}
-}
-
 // TestIsKernelAtLeastBasicCases tests kernel version comparison
 // [REQ:P0-002] Driver selection depends on kernel version detection
 func TestIsKernelAtLeastBasicCases(t *testing.T) {
 	// Get actual kernel version for context
-	status := Check()
+	status := Check(testStarter)
 	t.Logf("Running on kernel: %s", status.KernelVersion)
 
 	// Test against very old kernel - should always pass on modern systems
@@ -79,7 +60,7 @@ func TestIsKernelAtLeastBasicCases(t *testing.T) {
 // [REQ:P0-002] Driver selection depends on kernel version detection
 func TestIsKernelAtLeastEdgeCases(t *testing.T) {
 	// These tests are based on the running kernel
-	status := Check()
+	status := Check(testStarter)
 
 	// Parse actual kernel version for comparison
 	parts := strings.Split(status.KernelVersion, ".")
@@ -92,54 +73,9 @@ func TestIsKernelAtLeastEdgeCases(t *testing.T) {
 	t.Logf("Kernel parts: %v", parts)
 }
 
-// TestEnterUserNamespaceAlreadyIn verifies no-op when already in namespace
-// [REQ:P0-001] Sandbox creation can be repeated safely
-func TestEnterUserNamespaceAlreadyIn(t *testing.T) {
-	// Save and restore environment
-	oldVal := os.Getenv(InUserNamespaceEnv)
-	defer os.Setenv(InUserNamespaceEnv, oldVal)
-
-	// Simulate already being in user namespace
-	os.Setenv(InUserNamespaceEnv, "1")
-
-	err := EnterUserNamespace()
-	if err != nil {
-		t.Errorf("expected nil error when already in namespace, got: %v", err)
-	}
-}
-
-// TestEnterUserNamespaceDisabled verifies no-op when explicitly disabled
-// [REQ:P2-025] Cross-platform driver interface fallback handling
-func TestEnterUserNamespaceDisabled(t *testing.T) {
-	// Save and restore environment
-	oldVal := os.Getenv(DisableUserNamespaceEnv)
-	oldInVal := os.Getenv(InUserNamespaceEnv)
-	defer func() {
-		os.Setenv(DisableUserNamespaceEnv, oldVal)
-		os.Setenv(InUserNamespaceEnv, oldInVal)
-	}()
-
-	// Ensure we're not "in" a namespace
-	os.Unsetenv(InUserNamespaceEnv)
-
-	// Disable user namespaces
-	os.Setenv(DisableUserNamespaceEnv, "1")
-
-	err := EnterUserNamespace()
-	if err != nil {
-		t.Errorf("expected nil error when disabled, got: %v", err)
-	}
-}
-
-// TestConstantsAreDefined verifies that environment variable constants are defined
+// TestConstantsAreDefined verifies kernel requirement constants.
 // [REQ:P0-007] Sandbox lifecycle management uses these for detection
 func TestConstantsAreDefined(t *testing.T) {
-	if InUserNamespaceEnv == "" {
-		t.Error("InUserNamespaceEnv constant should not be empty")
-	}
-	if DisableUserNamespaceEnv == "" {
-		t.Error("DisableUserNamespaceEnv constant should not be empty")
-	}
 	if RequiredKernelMajor == 0 {
 		t.Error("RequiredKernelMajor should not be 0")
 	}
@@ -148,7 +84,7 @@ func TestConstantsAreDefined(t *testing.T) {
 // TestKernelVersionFormat verifies kernel version string format
 // [REQ:P2-025] Cross-platform driver selection uses kernel version
 func TestKernelVersionFormat(t *testing.T) {
-	status := Check()
+	status := Check(testStarter)
 
 	if status.KernelVersion == "unknown" {
 		t.Skip("kernel version detection returned 'unknown'")
@@ -168,7 +104,7 @@ func TestKernelVersionFormat(t *testing.T) {
 // TestStatusFieldsInitialized verifies Status struct is properly initialized
 // [REQ:P0-001] Sandbox creation depends on accurate status detection
 func TestStatusFieldsInitialized(t *testing.T) {
-	status := Check()
+	status := Check(testStarter)
 
 	// Booleans default to false, which is acceptable
 	// But KernelVersion should always be set
@@ -178,42 +114,6 @@ func TestStatusFieldsInitialized(t *testing.T) {
 
 	// Reason should explain when features aren't available
 	if !status.CanCreateUserNamespace && !status.InUserNamespace && status.Reason == "" {
-		// Reason may be empty only if env var explicitly disables and we already checked
-		if os.Getenv(DisableUserNamespaceEnv) != "1" {
-			// In most CI environments, user namespaces aren't available
-			// Reason should explain this
-			t.Logf("Note: CanCreateUserNamespace=%v with empty Reason", status.CanCreateUserNamespace)
-		}
+		t.Logf("Note: CanCreateUserNamespace=%v with empty Reason", status.CanCreateUserNamespace)
 	}
-}
-
-// TestMustEnterUserNamespaceCallsLogger verifies logger is called on failure
-// [REQ:P0-007] Sandbox lifecycle management logging
-func TestMustEnterUserNamespaceCallsLogger(t *testing.T) {
-	// Save and restore environment
-	oldVal := os.Getenv(DisableUserNamespaceEnv)
-	oldInVal := os.Getenv(InUserNamespaceEnv)
-	defer func() {
-		os.Setenv(DisableUserNamespaceEnv, oldVal)
-		os.Setenv(InUserNamespaceEnv, oldInVal)
-	}()
-
-	// Ensure we're not "in" a namespace and namespaces work
-	os.Unsetenv(InUserNamespaceEnv)
-	os.Unsetenv(DisableUserNamespaceEnv)
-
-	// Track if logger was called
-	loggerCalled := false
-	logger := func(format string, args ...interface{}) {
-		loggerCalled = true
-		t.Logf("Logger output: "+format, args...)
-	}
-
-	// Call MustEnterUserNamespace - it may or may not call logger
-	// depending on whether namespaces are available
-	MustEnterUserNamespace(logger)
-
-	// We can't assert loggerCalled because it depends on the system
-	// Just verify no panic occurred
-	t.Logf("Logger was called: %v", loggerCalled)
 }

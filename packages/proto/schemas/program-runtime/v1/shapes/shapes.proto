@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.shapes;
+
+import "program-runtime/v1/shared/shapes.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shapes;shapes_v1";
+
+message ListShapesRequest {
+  int64 min_occurrences = 1;
+  int64 min_sessions = 2;
+  bool uncovered_only = 3;
+  string state = 4;
+  int32 limit = 5;
+}
+message ListShapesResponse {
+  repeated vrooli.program_runtime.v1.shared.ProgramShape shapes = 1;
+  int64 observed = 2;
+  int64 nominated = 3;
+  int64 covered = 4;
+}
+message GetShapeRequest { string shape_key = 1; }
+message GetShapeResponse { vrooli.program_runtime.v1.shared.ProgramShape shape = 1; }
+message ExpireShapesRequest { int64 window_seconds = 1; }
+message ExpireShapesResponse { int64 deleted = 1; }
+
+service ShapeService {
+  rpc ListShapes(ListShapesRequest) returns (ListShapesResponse);
+  rpc GetShape(GetShapeRequest) returns (GetShapeResponse);
+  rpc ExpireShapes(ExpireShapesRequest) returns (ExpireShapesResponse);
+}

@@ -1,0 +1,531 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.experience_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.experience_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "studio_start_authoring_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/StartAuthoringSession",
+      "method": "POST",
+      "summary": "Start an experience spec authoring session",
+      "description": "Creates a persisted authoring session for form-shaped experience/ edits.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "session": "AuthoringSession"
+        }
+      }
+    },
+    {
+      "id": "studio_submit_page",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/SubmitPage",
+      "method": "POST",
+      "summary": "Submit a page form into an authoring session",
+      "description": "Stores a typed PageForm draft for preview/apply.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page": "PageForm",
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "page": "PageDraft",
+          "session": "AuthoringSession"
+        }
+      }
+    },
+    {
+      "id": "studio_preview_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/PreviewSession",
+      "method": "POST",
+      "summary": "Preview authoring session diffs",
+      "description": "Computes file diffs and parser validation for the session without touching the target tree.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "diffs": "array<FileDiff>",
+          "validation": "ValidateScenarioResponse"
+        }
+      }
+    },
+    {
+      "id": "studio_apply_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ApplySession",
+      "method": "POST",
+      "summary": "Apply an authoring session",
+      "description": "Writes previewed experience/ files only after the parser reports zero error findings.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "diffs": "array<FileDiff>",
+          "validation": "ValidateScenarioResponse"
+        }
+      }
+    },
+    {
+      "id": "studio_discard_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/DiscardSession",
+      "method": "POST",
+      "summary": "Discard an authoring session",
+      "description": "Deletes the persisted authoring session and its page drafts.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "discarded": "boolean"
+        }
+      }
+    },
+    {
+      "id": "studio_list_spec",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ListSpec",
+      "method": "POST",
+      "summary": "List experience spec documents",
+      "description": "Lists pages and journeys from a scenario's parsed experience index.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "journeys": "array<SpecDocument>",
+          "pages": "array<SpecDocument>"
+        }
+      }
+    },
+    {
+      "id": "studio_show_spec",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ShowSpec",
+      "method": "POST",
+      "summary": "Show a page spec",
+      "description": "Returns one page document as JSON.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "json": "string"
+        }
+      }
+    },
+    {
+      "id": "studio_list_evidence",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ListEvidence",
+      "method": "POST",
+      "summary": "List reconciliation evidence",
+      "description": "Returns persisted per-claim reconciliation evidence rows for a page.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "claim": "string",
+          "limit": "int",
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "evidence": "array<ReconciliationEvidence>"
+        }
+      }
+    },
+    {
+      "id": "studio_suggest_bindings",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/SuggestBindings",
+      "method": "POST",
+      "summary": "Suggest page bindings",
+      "description": "Suggests testid/role bindings from existing spec bindings and latest reconciliation evidence.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int",
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<BindingSuggestion>"
+        }
+      }
+    },
+    {
+      "id": "studio_render_spec",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/RenderSpec",
+      "method": "POST",
+      "summary": "Render a deterministic page wireframe",
+      "description": "Renders one page spec to stable HTML for workshop review. Image mode degrades to wireframe-only when image-tools is unavailable.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mode": "string",
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_path": "string",
+          "degraded_reason": "string",
+          "html": "string"
+        }
+      }
+    },
+    {
+      "id": "studio_compare_variants",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/CompareVariants",
+      "method": "POST",
+      "summary": "Compare rendered page variants",
+      "description": "Renders supplied page-form variants side by side as deterministic workshop HTML.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mode": "string",
+          "page": "string",
+          "path": "string",
+          "scenario": "string",
+          "variants": "array<SpecVariant>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_path": "string",
+          "html": "string",
+          "variants": "array<RenderedVariant>"
+        }
+      }
+    },
+    {
+      "id": "studio_promote_variant",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/PromoteVariant",
+      "method": "POST",
+      "summary": "Promote a page variant into the spec",
+      "description": "Writes the selected variant through parser-clean apply semantics and returns diffs plus validation.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page": "string",
+          "path": "string",
+          "scenario": "string",
+          "variant": "SpecVariant"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "diffs": "array<FileDiff>",
+          "validation": "ValidateScenarioResponse",
+          "variant": "RenderedVariant"
+        }
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's experience contract (shared mount)",
+      "description": "Parser-backed Test Genie ScenarioValidationService mount for scenario-experience-spec/v1 contracts.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional resolved path)",
+          "scenario": "string (required, scenario slug)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any (experience_manager.v1.contract.ExperienceContractReport)",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario path or experience contract cannot be parsed."
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic experience-contract fixes",
+      "description": "Previews deterministic spec, BAS scaffold, and documentation fixes without writing.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string> (optional filter)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "boolean",
+          "candidates": "array<FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic experience-contract fixes",
+      "description": "Applies deterministic spec, BAS scaffold, and documentation fixes with sequential re-preview semantics.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string> (optional filter)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "boolean",
+          "candidates": "array<FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "contract_validate_scenario",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's experience contract (native detail)",
+      "description": "Native experience contract validation for scenario-experience-spec/v1 contracts.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional resolved path)",
+          "scenario": "string (required, scenario slug)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "report": "ExperienceContractReport",
+          "scenario": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario path or experience contract cannot be parsed."
+        }
+      ]
+    },
+    {
+      "id": "contract_list_fleet",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/ListFleet",
+      "method": "POST",
+      "summary": "List fleet-wide experience depth and debt",
+      "description": "Computes experience/ presence, page depth, parser findings, and debt score across scenarios without persisted fleet state.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "repo_root": "string (optional repo root override)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario_count": "int32",
+          "scenarios": "array<FleetScenario>",
+          "total_pages": "int32",
+          "with_experience_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Repo root cannot be swept."
+        }
+      ]
+    },
+    {
+      "id": "contract_append_attestation",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/AppendAttestation",
+      "method": "POST",
+      "summary": "Append manual experience attestation",
+      "description": "Records one append-only manual attestation for a manual-tier claim with author, rationale, and expiry.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "author": "string",
+          "claim": "string",
+          "expires_at": "string (RFC3339)",
+          "page": "string",
+          "rationale": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "attestation": "ManualAttestation"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Attestation fields are incomplete or malformed."
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Attestation repository is not configured."
+        }
+      ]
+    },
+    {
+      "id": "contract_scaffold_cases",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/ScaffoldCases",
+      "method": "POST",
+      "summary": "Scaffold BAS cases from experience specs",
+      "description": "Derives workflow-health-governed BAS case stubs from active experience page specs through the deterministic case-scaffold fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "boolean",
+          "diffs": "array<FileDiff>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario path cannot be resolved."
+        }
+      ]
+    }
+  ]
+}

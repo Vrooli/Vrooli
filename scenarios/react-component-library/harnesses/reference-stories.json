@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "kind": "preview-harness-reference-stories",
+  "purpose": "Machine-validated contract examples for every shared Preview harness family. These examples are not catalog assets and never enter adoption closure.",
+  "stories": [
+    {
+      "id": "showcase-default",
+      "family": "showcase",
+      "subjectKind": "component",
+      "story": {
+        "id": "default",
+        "mode": "live",
+        "args": {},
+        "expect": [
+          { "kind": "role", "role": "button", "name": "Example subject" }
+        ]
+      }
+    },
+    {
+      "id": "controlled-state-toggle",
+      "family": "controlled-state",
+      "subjectKind": "component",
+      "story": {
+        "id": "controlled",
+        "mode": "live",
+        "args": { "aria-label": "Example subject" },
+        "config": {
+          "valueProp": "pressed",
+          "changeProp": "onPressedChange",
+          "initialValue": false
+        },
+        "expect": [
+          { "kind": "role", "role": "button", "name": "Example subject" }
+        ],
+        "interactions": [
+          {
+            "kind": "click",
+            "target": { "role": "button", "name": "Example subject" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "state-transition-toggle",
+      "family": "state-transition",
+      "subjectKind": "primitive",
+      "story": {
+        "id": "transition",
+        "mode": "live",
+        "args": {},
+        "expect": [
+          { "kind": "role", "role": "button", "name": "Example subject" }
+        ],
+        "interactions": [
+          {
+            "kind": "click",
+            "target": { "role": "button", "name": "Example subject" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "async-state-success",
+      "family": "async-state",
+      "subjectKind": "component",
+      "story": {
+        "id": "success",
+        "mode": "live",
+        "args": {},
+        "config": { "status": "Loaded" },
+        "expect": [{ "kind": "text", "text": "Example subject" }]
+      }
+    },
+    {
+      "id": "recovery-retry",
+      "family": "recovery",
+      "subjectKind": "component",
+      "story": {
+        "id": "retry",
+        "mode": "live",
+        "args": {},
+        "config": { "status": "Recoverable error" },
+        "expect": [{ "kind": "role", "role": "button", "name": "Retry" }],
+        "interactions": [
+          { "kind": "click", "target": { "role": "button", "name": "Retry" } }
+        ]
+      }
+    },
+    {
+      "id": "data-state-collection",
+      "family": "data-state",
+      "subjectKind": "pattern",
+      "story": {
+        "id": "collection",
+        "mode": "live",
+        "args": {},
+        "config": { "status": "Fixture: three records" },
+        "expect": [{ "kind": "text", "text": "Example subject" }]
+      }
+    },
+    {
+      "id": "overlay-interaction-dialog",
+      "family": "overlay-interaction",
+      "subjectKind": "component",
+      "story": {
+        "id": "dialog",
+        "mode": "live",
+        "args": {},
+        "expect": [{ "kind": "role", "role": "button", "name": "Open" }],
+        "interactions": [
+          { "kind": "click", "target": { "role": "button", "name": "Open" } },
+          { "kind": "press", "key": "Escape" }
+        ]
+      }
+    },
+    {
+      "id": "responsive-mode-default",
+      "family": "responsive-mode",
+      "subjectKind": "component",
+      "story": {
+        "id": "responsive",
+        "mode": "live",
+        "args": {},
+        "expect": [{ "kind": "text", "text": "Example subject" }]
+      }
+    },
+    {
+      "id": "hook-contract-observable",
+      "family": "hook-contract",
+      "subjectKind": "hook",
+      "story": {
+        "id": "observable",
+        "mode": "live",
+        "args": {},
+        "expect": [{ "kind": "text", "text": "Hook output" }]
+      }
+    }
+  ]
+}

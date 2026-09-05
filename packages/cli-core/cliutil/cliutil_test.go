@@ -63,6 +63,44 @@ func TestDetermineAPIBasePrecedence(t *testing.T) {
 	}
 }
 
+func TestDetermineAPIBaseIgnoresGenericBaseEnvInAgentContext(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "tok")
+	t.Setenv("API_BASE_URL", "http://wrong.example")
+	t.Setenv("VITE_API_BASE_URL", "http://also-wrong.example")
+	t.Setenv("DEMO_API_BASE", "http://scenario.example")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		EnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL", "DEMO_API_BASE"},
+	})
+	if base != "http://scenario.example" {
+		t.Fatalf("expected scenario-specific env to win, got %s", base)
+	}
+}
+
+func TestDetermineAPIBaseKeepsGenericBaseEnvOutsideAgentContext(t *testing.T) {
+	t.Setenv("API_BASE_URL", "http://generic.example")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		EnvVars: []string{"API_BASE_URL"},
+	})
+	if base != "http://generic.example" {
+		t.Fatalf("expected generic env outside agent context, got %s", base)
+	}
+}
+
+func TestDetermineAPIBaseIgnoresGenericAPIPortLeakage(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "tok")
+	t.Setenv("API_PORT", "18800")
+
+	base := DetermineAPIBase(APIBaseOptions{
+		PortEnvVars:  []string{"SWARM_MANAGER_API_PORT"},
+		PortDetector: func() string { return "15000" },
+	})
+	if base != "http://localhost:15000" {
+		t.Fatalf("expected lifecycle detector to win over generic API_PORT, got %s", base)
+	}
+}
+
 func TestResolveSourceRoot(t *testing.T) {
 	temp := t.TempDir()
 	child := filepath.Join(temp, "child")
@@ -307,6 +345,154 @@ func TestHTTPClientRespectsContextCancellation(t *testing.T) {
 	_, err := client.DoWithContext(ctx, http.MethodGet, "/slow", nil, nil)
 	if err == nil {
 		t.Fatalf("expected context cancellation error")
+	}
+}
+
+func TestHTTPClientHeaderSourceInjectsHeaders(t *testing.T) {
+	gotHeaders := make(http.Header)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range r.Header {
+			gotHeaders[k] = v
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+	})
+
+	calls := 0
+	client.SetHeaderSource(func() map[string]string {
+		calls++
+		return map[string]string{
+			"X-Vrooli-Attribution": "test-value",
+			"X-Skip-Empty":         "",
+			"X-Custom":             "another",
+		}
+	})
+
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("expected header source called once, got %d", calls)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Attribution"); got != "test-value" {
+		t.Errorf("X-Vrooli-Attribution = %q, want test-value", got)
+	}
+	if got := gotHeaders.Get("X-Custom"); got != "another" {
+		t.Errorf("X-Custom = %q, want another", got)
+	}
+	if _, present := gotHeaders["X-Skip-Empty"]; present {
+		t.Errorf("empty-value header should be skipped, got %v", gotHeaders["X-Skip-Empty"])
+	}
+
+	// Second request: source must be re-invoked.
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("second request: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected header source called per-request, got %d", calls)
+	}
+}
+
+func TestHTTPClientHeaderSourceClearsWhenNil(t *testing.T) {
+	gotHeader := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Get("X-Custom")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{
+		BaseOptions: APIBaseOptions{DefaultBase: server.URL},
+	})
+
+	client.SetHeaderSource(func() map[string]string {
+		return map[string]string{"X-Custom": "set"}
+	})
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if gotHeader != "set" {
+		t.Fatalf("expected X-Custom=set, got %q", gotHeader)
+	}
+
+	client.SetHeaderSource(nil)
+	gotHeader = ""
+	if _, err := client.Do(http.MethodGet, "/test", nil, nil); err != nil {
+		t.Fatalf("second request: %v", err)
+	}
+	if gotHeader != "" {
+		t.Fatalf("expected X-Custom cleared, got %q", gotHeader)
+	}
+}
+
+func TestHTTPClientApplicationAndInvocationHeaderSourcesCompose(t *testing.T) {
+	gotHeaders := make(http.Header)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeaders = r.Header.Clone()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := NewHTTPClient(HTTPClientOptions{BaseOptions: APIBaseOptions{DefaultBase: server.URL}})
+	client.SetHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Attribution": "required"} })
+	client.SetInvocationHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Invocation-ID": "invocation"} })
+
+	if _, err := client.Do(http.MethodPost, "/capture", nil, map[string]string{"ok": "true"}); err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Attribution"); got != "required" {
+		t.Fatalf("attribution header = %q, want required", got)
+	}
+	if got := gotHeaders.Get("X-Vrooli-Invocation-ID"); got != "invocation" {
+		t.Fatalf("invocation header = %q, want invocation", got)
+	}
+}
+
+func TestIdentityForwardingTransportAddsProcessIdentityForRawClient(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "opaque-agent-token")
+	gotIdentity := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := &http.Client{Transport: identityForwardingTransport{next: http.DefaultTransport}}
+	resp, err := client.Get(server.URL)
+	if err != nil {
+		t.Fatalf("raw client request: %v", err)
+	}
+	resp.Body.Close()
+	if gotIdentity != "opaque-agent-token" {
+		t.Fatalf("identity header = %q, want process token", gotIdentity)
+	}
+}
+
+func TestIdentityForwardingTransportPreservesExplicitIdentity(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "environment-token")
+	gotIdentity := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set(HeaderAgentIdentityToken, "explicit-token")
+	resp, err := identityForwardingTransport{next: http.DefaultTransport}.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	resp.Body.Close()
+	if gotIdentity != "explicit-token" {
+		t.Fatalf("identity header = %q, want explicit token", gotIdentity)
 	}
 }
 

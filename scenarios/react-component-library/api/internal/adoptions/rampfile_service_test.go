@@ -1,0 +1,315 @@
+package adoptions_test
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"regexp"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/scheduletest"
+
+	"react-component-library/internal/adoptions"
+	adoptmocks "react-component-library/internal/adoptions/mocks"
+	"react-component-library/internal/components"
+	"react-component-library/internal/themes"
+)
+
+var testRampTokenRE = regexp.MustCompile(`--[A-Za-z0-9_-]+`)
+
+type rampTokenInventory struct {
+	files   *fakeFiles
+	runtime []string
+}
+
+type importedRampFiles struct {
+	*fakeFiles
+	imports []components.LibraryPackageSpecifier
+}
+
+type tieredRampTokenInventory struct {
+	rampTokenInventory
+	tokens map[string]themes.DesignToken
+}
+
+func (r tieredRampTokenInventory) ReferenceTokens(context.Context) (map[string]themes.DesignToken, error) {
+	return r.tokens, nil
+}
+
+func (f *importedRampFiles) ImportedLibrarySpecifiers(context.Context, string) ([]components.LibraryPackageSpecifier, error) {
+	return append([]components.LibraryPackageSpecifier(nil), f.imports...), nil
+}
+
+type contractCoverageVerdicts map[string]string
+
+func (r contractCoverageVerdicts) GateVerdict(context.Context, components.Component, string, string, string) (string, error) {
+	return r["default"], nil
+}
+
+func (r rampTokenInventory) TokenNamespace(context.Context, string) (string, error) {
+	return "app", nil
+}
+
+func (r rampTokenInventory) DeclaredTokens(_ context.Context, scenario string) ([]string, error) {
+	raw := r.files.bytes[scenario+"::ui/src/design-tokens.css"]
+	return append(testRampTokenRE.FindAllString(string(raw), -1), r.runtime...), nil
+}
+
+func (r rampTokenInventory) RuntimeWrittenTokens(context.Context, string) ([]string, error) {
+	return append([]string(nil), r.runtime...), nil
+}
+
+func newRampService(ramp string) (adoptions.Service, *fakeFiles) {
+	return newRampServiceWithTokens(ramp, []string{"--color-primary"})
+}
+
+func newRampServiceWithTokens(ramp string, requiredTokens []string) (adoptions.Service, *fakeFiles) {
+	repo := adoptmocks.NewFakeRepository()
+	repo.Seed(adoptions.Adoption{
+		ID: "adoption-1", ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", AdoptedVersion: "1.0.0",
+	})
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-button": {ID: "cmp-button", LibraryID: "rcl:Button", LatestVersion: "1.0.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-button@1.0.0": {
+				ComponentID: "cmp-button", LibraryID: "rcl:Button", Version: "1.0.0",
+				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
+				RequiredTokens: append([]string(nil), requiredTokens...),
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	if ramp != "" {
+		files.bytes["target::ui/src/design-tokens.css"] = []byte(ramp)
+	}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+	return svc, files
+}
+
+func TestAdoptTokenContractAcceptsCompleteScenarioStylesheet(t *testing.T) {
+	svc, _ := newRampServiceWithTokens(":root { --color-primary: blue; --tap-target-min: 44px; }", []string{"--color-primary", "--tap-target-min"})
+	result, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Adoption.ID)
+}
+
+func TestAdoptTokenContractRejectsAndNamesEveryMissingProperty(t *testing.T) {
+	svc, files := newRampServiceWithTokens(":root { --color-primary: blue; }", []string{"--color-primary", "--space-sm", "--tap-target-min"})
+	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	var unsatisfied adoptions.ErrAdoptionTokensUnsatisfied
+	require.ErrorAs(t, err, &unsatisfied)
+	require.Equal(t, []string{"--space-sm", "--tap-target-min"}, unsatisfied.Properties)
+	require.Contains(t, unsatisfied.Error(), "--space-sm")
+	require.Contains(t, unsatisfied.Error(), "--tap-target-min")
+	require.NotContains(t, files.bytes, "target::ui/src/Button.tsx")
+}
+
+func TestSyncScenarioTokensMissingFileIsIdempotent(t *testing.T) {
+	svc, files := newRampService("")
+
+	first, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-primary"}, first.Added)
+	require.True(t, first.Changed)
+	written := append([]byte(nil), files.bytes["target::ui/src/design-tokens.css"]...)
+
+	second, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Empty(t, second.Added)
+	require.False(t, second.Changed)
+	require.Equal(t, written, files.bytes["target::ui/src/design-tokens.css"])
+}
+
+func TestSyncScenarioTokensReportsScenarioOwnedCollision(t *testing.T) {
+	ramp := ":root { --color-primary: pink; }\n"
+	svc, files := newRampService(ramp)
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-primary"}, result.Collisions)
+	require.Empty(t, result.Added)
+	require.Contains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--color-primary: pink")
+	require.NotContains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--color-primary: initial")
+}
+
+func TestSyncScenarioTokensUsesLatestReleasedVersion(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	repo.Seed(adoptions.Adoption{
+		ID: "adoption-1", ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", AdoptedVersion: "0.9.0",
+	})
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-button": {ID: "cmp-button", LibraryID: "rcl:Button", LatestVersion: "1.0.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-button@0.9.0": {
+				ComponentID: "cmp-button", LibraryID: "rcl:Button", Version: "0.9.0",
+				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
+				RequiredTokens: []string{"--color-old"},
+			},
+			"cmp-button@1.0.0": {
+				ComponentID: "cmp-button", LibraryID: "rcl:Button", Version: "1.0.0",
+				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
+				RequiredTokens: []string{"--color-latest"},
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-latest"}, result.Added)
+	require.NotContains(t, result.Added, "--color-old")
+	require.Contains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--color-latest: initial;")
+}
+
+func TestSyncScenarioTokensUnionsImportedAssetsWithAdoptionLedger(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-button": {ID: "cmp-button", LibraryID: "react-component-library:Button", LatestVersion: "2.1.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-button@1.4.2": {ComponentID: "cmp-button", LibraryID: "react-component-library:Button", Version: "1.4.2", Status: components.VersionStatusReleased, RequiredTokens: []string{"--color-old"}},
+			"cmp-button@2.1.0": {ComponentID: "cmp-button", LibraryID: "react-component-library:Button", Version: "2.1.0", Status: components.VersionStatusReleased, RequiredTokens: []string{"--color-imported"}},
+		},
+	}
+	baseFiles := &fakeFiles{bytes: map[string][]byte{}}
+	files := &importedRampFiles{fakeFiles: baseFiles, imports: []components.LibraryPackageSpecifier{{Name: "Button", RequestedVersion: "2"}}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: baseFiles})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target", DryRun: true})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-imported"}, result.Added)
+}
+
+func TestSyncScenarioTokensNeverManagesContractTier(t *testing.T) {
+	svc, files := newRampServiceWithTokens(":root {\n/* rcl:tokens:begin */\n  --layer-modal: 400;\n/* rcl:tokens:end */\n}\n", []string{"--color-primary", "--layer-modal"})
+	adoptions.SetTokenNamespaceReader(svc, tieredRampTokenInventory{
+		rampTokenInventory: rampTokenInventory{files: files},
+		tokens: map[string]themes.DesignToken{
+			"--color-primary": {Name: "--color-primary", Value: "blue", Tier: themes.TokenTierExpression},
+			"--layer-modal":   {Name: "--layer-modal", Value: "400", Tier: themes.TokenTierContract},
+		},
+	})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-primary"}, result.Added)
+	require.NotContains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--layer-modal")
+}
+
+func TestFSScenarioFileReaderReadsCanonicalTokenTiers(t *testing.T) {
+	root := t.TempDir()
+	scenariosRoot := filepath.Join(root, "scenarios")
+	tokenPath := filepath.Join(root, "templates", "design", "_base", "tokens.css")
+	require.NoError(t, os.MkdirAll(filepath.Dir(tokenPath), 0o755))
+	require.NoError(t, os.WriteFile(tokenPath, []byte(":root {\n  /* @tier Expression */\n  --color-primary: blue;\n  /* @tier Contract */\n  --layer-modal: 400;\n}\n"), 0o600))
+
+	tokens, err := adoptions.NewFSScenarioFileReader(scenariosRoot).ReferenceTokens(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, themes.TokenTierExpression, tokens["--color-primary"].Tier)
+	require.Equal(t, themes.TokenTierContract, tokens["--layer-modal"].Tier)
+}
+
+func TestSyncScenarioTokensResolvesReindexedComponentByStableLibraryID(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	repo.Seed(adoptions.Adoption{
+		ID: "adoption-1", ComponentID: "stale-component-uuid", LibraryID: "rcl:Button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx", AdoptedVersion: "1.0.0",
+	})
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"current-component-uuid": {ID: "current-component-uuid", LibraryID: "rcl:Button", LatestVersion: "1.1.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"current-component-uuid@1.1.0": {
+				ComponentID: "current-component-uuid", LibraryID: "rcl:Button", Version: "1.1.0",
+				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
+				RequiredTokens: []string{"--color-current"},
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-current"}, result.Added)
+}
+
+func TestSyncScenarioTokensRemovesRuntimeOwnedPropertyFromManagedRamp(t *testing.T) {
+	ramp := `:root {
+/* rcl:tokens:begin */
+  --wc-kb-height: 2.5rem;
+/* rcl:tokens:end */
+}`
+	svc, files := newRampServiceWithTokens(ramp, []string{"--wc-kb-height"})
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: files, runtime: []string{"--wc-kb-height"}})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.True(t, result.Changed)
+	require.Empty(t, result.Added)
+	require.NotContains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--wc-kb-height:")
+}
+
+func TestPruneScenarioTokensMissingFileIsEmpty(t *testing.T) {
+	svc, _ := newRampService("")
+	result, err := svc.PruneScenarioTokens(context.Background(), adoptions.TokenPruneInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Empty(t, result.Removed)
+	require.Empty(t, result.Retained)
+	require.False(t, result.Changed)
+}
+
+func TestTokenVerdictBlocksApplyAndRemainsVisibleAfterOverride(t *testing.T) {
+	svc, files := newRampService("")
+
+	_, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+	})
+	var unsatisfied adoptions.ErrAdoptionTokensUnsatisfied
+	require.ErrorAs(t, err, &unsatisfied)
+	require.Contains(t, unsatisfied.Error(), "--color-primary")
+	require.NotContains(t, files.bytes, "target::ui/src/Button.tsx")
+
+	result, err := svc.Apply(context.Background(), adoptions.ApplyInput{
+		ComponentID: "cmp-button", Scenario: "target", AdoptedPath: "ui/src/Button.tsx",
+		OverrideValidation: true,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Adoption.ID)
+
+	preflight, err := svc.Preflight(context.Background(), adoptions.PreflightInput{
+		ComponentID: "cmp-button", Scenario: "target", Version: "1.0.0",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-primary"}, preflight.Tokens.Unsatisfied)
+}
+
+func TestPreflightSurfacesContractCoverageVerdicts(t *testing.T) {
+	svc, _ := newRampService(":root { --color-primary: blue; }")
+	coverage := contractCoverageVerdicts{"default": "fail"}
+	adoptions.SetContractCoverageReader(svc, coverage)
+
+	preflight, err := svc.Preflight(context.Background(), adoptions.PreflightInput{
+		ComponentID: "cmp-button", Scenario: "target", Version: "1.0.0",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "fail", preflight.I18n)
+	require.Equal(t, "fail", preflight.Selectors)
+	require.True(t, preflight.Blocking)
+}

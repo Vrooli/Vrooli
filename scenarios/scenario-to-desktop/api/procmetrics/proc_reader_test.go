@@ -2,6 +2,20 @@ package procmetrics
 
 import "testing"
 
+func TestParseProcessStatAndRoleClassification(t *testing.T) {
+	input := "1234 (Electron Helper (GPU)) S 1000 1234 1234 0 -1 4194304 500 0 0 0 150 30 0 0 20 0 1 0 100 1000000 200 0 0 0"
+	ppid, command, utime, stime, err := parseProcessStat(input)
+	if err != nil {
+		t.Fatalf("parseProcessStat failed: %v", err)
+	}
+	if ppid != 1000 || command != "Electron Helper (GPU)" || utime != 150 || stime != 30 {
+		t.Fatalf("parsed process = %d %q %d %d", ppid, command, utime, stime)
+	}
+	if got := classifyRole(1235, 1234, command); got != RoleElectronGPU {
+		t.Fatalf("role = %q, want %q", got, RoleElectronGPU)
+	}
+}
+
 func TestParseStat(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "title": "Test Genie Provider Phase Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "scenario",
+    "phase",
+    "displayName",
+    "description",
+    "source",
+    "timeout",
+    "validation",
+    "applicability",
+    "policy",
+    "runnability",
+    "docs",
+    "maturity"
+  ],
+  "properties": {
+    "$schema": { "const": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json" },
+    "schemaVersion": { "const": "1.0.0" },
+    "scenario": { "type": "string", "minLength": 1 },
+    "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "source": { "enum": ["validation-provider"] },
+    "conformanceTarget": { "type": "string", "minLength": 1 },
+    "dbIsolationProvider": { "type": "boolean" },
+    "artifactComparisonProvider": { "type": "boolean" },
+    "orderHint": { "type": "integer" },
+    "timeout": { "type": "string", "minLength": 1 },
+    "findingSource": { "type": ["string", "null"] },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["compatible", "changed-unreviewed", "invalidated", "superseded", "additive"] }
+      }
+    },
+    "profileMembership": {
+      "type": "array",
+      "items": { "enum": ["architecture-audit"] },
+      "uniqueItems": true
+    },
+    "freshnessRequirement": { "enum": ["never", "always", "when_applicable"] },
+    "phaseClass": { "enum": ["quality", "architecture", "runtime", "provider-contract", "capability"] },
+    "runtimeClass": { "enum": ["static", "execution", "lifecycle"] },
+    "dimensions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "evidenceKinds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
+    "supersedes": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract"],
+      "properties": {
+        "contract": { "const": "scenario-validation/v1" },
+        "capabilitySubset": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "includeExecution": { "type": "boolean" },
+        "deliveryMode": {
+          "type": "string",
+          "enum": ["inline", "durable-run"],
+          "default": "inline",
+          "description": "Inline calls ValidateScenario; durable-run starts and reattaches through DurableValidationRunService."
+        },
+        "execution": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this provider phase performs execution validation. Required for durable-run delivery."
+        },
+        "runService": {
+          "type": "string",
+          "enum": ["scenario-validation/v1.DurableValidationRunService"],
+          "description": "Required only for durable-run delivery."
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kinds", "selection"],
+      "properties": {
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["scenario", "asset", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] }
+        },
+		"notApplicableKinds": {
+		  "type": "array",
+		  "uniqueItems": true,
+		  "items": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["kind", "reason"],
+			"properties": {
+			  "kind": { "enum": ["scenario", "asset", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] },
+			  "reason": { "type": "string", "minLength": 40 }
+			}
+		  }
+		},
+        "selection": { "const": "enumerate" }
+	  },
+	  "allOf": [
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "scenario" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "scenario" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "asset" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "asset" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "resource" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "resource" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "tool" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "tool" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "safeguard" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "safeguard" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "team" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "team" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "package" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "package" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "control-plane" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "control-plane" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "docs" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "docs" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "project" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "project" } } } } }
+		}
+	  ]
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default"],
+	  "not": { "required": ["any", "all"] },
+      "properties": {
+        "default": { "enum": ["applies", "not_applicable", "unknown"] },
+        "any": { "type": "array", "items": { "$ref": "#/$defs/predicate" } },
+        "all": { "type": "array", "items": { "$ref": "#/$defs/predicate" } },
+        "applicabilityRpc": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "providerReadiness",
+        "providerLifecycle",
+        "freshness",
+        "resultGating",
+        "unavailable"
+      ],
+      "properties": {
+        "selection": { "enum": ["default_when_applicable", "comprehensive_when_applicable", "explicit_only", "never_by_default"] },
+        "providerReadiness": { "enum": ["none", "required_when_applicable", "best_effort"] },
+        "providerLifecycle": { "enum": ["none", "check_only", "start_if_needed", "restart_before_probe"] },
+        "freshness": { "enum": ["none", "require_reachable", "require_live_contract", "require_fresh_binary"] },
+        "resultGating": { "enum": ["gating", "advisory", "high_confidence_gating"] },
+        "unavailable": { "enum": ["fail", "partial", "skip_without_failing", "advisory"] }
+      }
+    },
+    "runnability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "needsUI": { "type": "boolean" },
+        "needsAPI": { "type": "boolean" },
+        "mutatesLifecycle": { "type": "boolean" },
+        "lifecycleDecisionDeferred": { "type": "boolean" },
+        "dbIsolation": { "enum": ["none", "routed"] },
+        "requiredResources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "concurrency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["parallel-safe", "exclusive", "provider-serial"] },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "exclusive" } } },
+          "then": { "required": ["reason"] }
+        }
+      ],
+      "description": "Provider-owned concurrency safety. Undeclared defaults to exclusive."
+    },
+    "determinism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default"],
+      "properties": {
+        "default": { "enum": ["file-determined", "observational"] },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mode"],
+            "properties": {
+              "mode": { "enum": ["file-determined", "observational"] },
+              "inputs": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true
+              },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "default": { "const": "file-determined" } } },
+          "then": { "required": ["inputs"] }
+        },
+        {
+          "if": { "properties": { "default": { "const": "observational" } } },
+          "then": { "required": ["reason"] }
+        }
+      ],
+      "description": "Provider-owned cache eligibility. Omitted declarations resolve to observational."
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "maturity": { "type": "object" }
+  },
+  "$defs": {
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "hostOS": { "type": "string", "minLength": 1 },
+        "fileExists": { "type": "string", "minLength": 1 },
+        "pathGlob": { "type": "string", "minLength": 1 },
+        "scenarioDependency": { "type": "string", "minLength": 1 },
+        "serviceCapability": { "type": "string", "minLength": 1 },
+        "serviceTag": { "type": "string", "minLength": 1 },
+      "targetKind": { "enum": ["scenario", "asset", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] },
+        "hasUI": { "type": "boolean" },
+        "hasAPI": { "type": "boolean" },
+        "testingConfigSection": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

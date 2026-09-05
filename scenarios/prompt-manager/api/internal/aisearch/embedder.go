@@ -1,0 +1,110 @@
+package aisearch
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+
+	"github.com/vrooli/envkit-go"
+)
+
+// Embedder generates text embeddings. The production implementation shells out
+// to `resource-ollama gateway embed`; tests substitute fakes via
+// newEmbedderWithRunner.
+type Embedder interface {
+	Embed(ctx context.Context, text string) ([]float64, error)
+	Available(ctx context.Context) bool
+}
+
+type embedderRunner func(ctx context.Context, args []string, stdin []byte) ([]byte, error)
+
+type cliEmbedder struct {
+	bin  string
+	role string
+	run  embedderRunner
+}
+
+const (
+	defaultEmbedderBin  = "resource-ollama"
+	defaultEmbedderRole = "embedding.default"
+)
+
+// NewEmbedder returns the production CLI-backed Embedder.
+func NewEmbedder(role string) Embedder {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = defaultEmbedderRole
+	}
+	return &cliEmbedder{
+		bin:  defaultEmbedderBin,
+		role: role,
+		run:  defaultRunner,
+	}
+}
+
+func newEmbedderWithRunner(role string, run embedderRunner) Embedder {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = defaultEmbedderRole
+	}
+	return &cliEmbedder{
+		bin:  defaultEmbedderBin,
+		role: role,
+		run:  run,
+	}
+}
+
+func defaultRunner(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
+	if len(stdin) > 0 {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%s: %w", msg, err)
+	}
+	return stdout.Bytes(), nil
+}
+
+type cliEmbedResponse struct {
+	Embedding []float64 `json:"embedding"`
+}
+
+func (e *cliEmbedder) Embed(ctx context.Context, text string) ([]float64, error) {
+	if e.run == nil {
+		return nil, errors.New("embedder runner is not configured")
+	}
+	args := []string{e.bin, "gateway", "embed", "--role", e.role, "--json", "--input-stdin"}
+	out, err := e.run(ctx, args, []byte(text))
+	if err != nil {
+		return nil, fmt.Errorf("resource-ollama gateway embed: %w", err)
+	}
+	var decoded cliEmbedResponse
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return nil, fmt.Errorf("decode embed response: %w", err)
+	}
+	if len(decoded.Embedding) == 0 {
+		return nil, errors.New("embed response contained no vector")
+	}
+	return decoded.Embedding, nil
+}
+
+func (e *cliEmbedder) Available(ctx context.Context) bool {
+	if e.run == nil {
+		return false
+	}
+	_, err := e.Embed(ctx, "ping")
+	return err == nil
+}

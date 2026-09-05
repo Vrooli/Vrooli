@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { selectors } from "../../consts/selectors";
 import { sanitizeBacklogName } from "../../lib";
 import type { BacklogFormValues, BacklogKind } from "../../types";
@@ -40,7 +40,7 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, tags, initiative, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
+  const { name, title, description, status, priority, kind, tags, milestone, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
 
   const isEditMode = mode === "edit";
 
@@ -78,7 +78,7 @@ export function BacklogFormDialog({
       tags,
       kind,
       dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
-      initiative: initiative?.trim() || undefined,
+      milestone: milestone?.trim() || undefined,
       effort: effort?.trim() || undefined,
       acceptanceAllow: acceptanceAllow && acceptanceAllow.length > 0 ? acceptanceAllow : undefined,
       acceptanceDeny: acceptanceDeny && acceptanceDeny.length > 0 ? acceptanceDeny : undefined,
@@ -93,23 +93,14 @@ export function BacklogFormDialog({
   };
 
   return (
-    <Dialog
+    <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="max-w-xl"
-      isLoading={isSubmitting}
+      title={isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
+      description={isEditMode ? "Update backlog details and lifecycle status." : "Capture a new backlog item and add it to the swarm."}
       testId={selectors.backlogForm.dialog}
     >
-      <h2 className="text-xl font-semibold text-slate-100">
-        {isEditMode ? `Edit ${kindLabel}` : `Create ${kindLabel}`}
-      </h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {isEditMode
-          ? "Update backlog details and lifecycle status."
-          : "Capture a new backlog item and add it to the swarm."}
-      </p>
-
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4 p-4">
         <BacklogFormIdentitySection
           kind={kind}
           title={title}
@@ -130,7 +121,7 @@ export function BacklogFormDialog({
           status={status}
           priority={priority}
           tagsInput={tagsInput}
-          initiative={initiative}
+          milestone={milestone}
           dependsOn={dependsOn}
           effort={effort}
           acceptanceAllow={acceptanceAllow}
@@ -169,6 +160,6 @@ export function BacklogFormDialog({
           {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : `Create ${kindLabel}`}
         </Button>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

@@ -11,19 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
+	"scenario-to-cloud/instance"
 	"scenario-to-cloud/investigation"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/persistence"
@@ -31,10 +23,20 @@ import (
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
-	"scenario-to-cloud/toolexecution"
-	"scenario-to-cloud/toolhandlers"
-	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
+
 	vpspreflight "scenario-to-cloud/vps/preflight"
 )
 
@@ -49,7 +51,7 @@ type Config struct {
 type Server struct {
 	config           *Config
 	router           *mux.Router
-	db               *sql.DB
+	db               *database.RoutedDB
 	repo             *persistence.Repository
 	progressHub      *deployment.Hub
 	agentSvc         *agentmanager.AgentService
@@ -57,10 +59,6 @@ type Server struct {
 	taskSvc          *tasks.Service
 	historyRecorder  deployment.HistoryRecorder
 	orchestrator     *deployment.Orchestrator
-	// Tool Discovery Protocol
-	toolRegistry *toolregistry.Registry
-	// Tool Execution Protocol
-	toolExecutor *toolexecution.ServerExecutor
 
 	// Seam: SSH command execution (defaults to ssh.ExecRunner)
 	sshRunner ssh.Runner
@@ -78,6 +76,23 @@ type Server struct {
 	tlsALPNRunner tlsinfo.ALPNRunner
 	// Seam: Deployment repository (defaults to persistence.Repository)
 	deploymentRepo DeploymentRepository
+	// Seam: instance provider (defaults to the local disposable QEMU lane).
+	instanceProvider instance.Provider
+}
+
+// devRoutingMux adapts gorilla/mux's fluent registration API to api-core's
+// intentionally tiny mounting interface. Mount is important here: Connect
+// RPC handlers own a service-prefix subtree rather than one exact path.
+type devRoutingMux struct {
+	router *mux.Router
+}
+
+func (m devRoutingMux) Handle(pattern string, handler http.Handler) {
+	m.router.Handle(pattern, handler)
+}
+
+func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
+	m.router.PathPrefix(pattern).Handler(handler)
 }
 
 // NewServer initializes configuration, database, and routes
@@ -87,8 +102,11 @@ func NewServer() (*Server, error) {
 	}
 
 	// Connect to database
-	db, err := database.Connect(context.Background(), database.Config{
+	db, err := database.Open(context.Background(), database.Config{
 		Driver: database.DriverPostgres,
+		// Test Genie provisions an isolated SQLite lease for routed workflow
+		// runs; production traffic remains on PostgreSQL.
+		TestDriver: database.DriverSQLite,
 	})
 	if err != nil {
 		return nil, err
@@ -96,10 +114,23 @@ func NewServer() (*Server, error) {
 
 	// Initialize repository and schema
 	repo := persistence.NewRepository(db)
+	// Keep the api-core schema contract active even though this scenario still
+	// owns a migration-rich repository schema. This also makes the routed
+	// primary/test-pool boundary explicit to storage-health.
+	if err := database.EnsureSchemas(context.Background(), db.Primary()); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := repo.InitSchema(context.Background()); err != nil {
 		db.Close()
 		return nil, err
 	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool); err != nil {
+			return err
+		}
+		return repo.InitSchemaOnDialect(ctx, pool, database.DriverSQLite)
+	})
 
 	progressHub := deployment.NewHub()
 
@@ -153,6 +184,7 @@ func NewServer() (*Server, error) {
 		dnsService:       dnsService,
 		tlsService:       tlsService,
 		tlsALPNRunner:    tlsALPNRunner,
+		instanceProvider: instance.LocalQEMUProvider{},
 	}
 
 	// Initialize manifest refresher for rebuild operations
@@ -180,27 +212,6 @@ func NewServer() (*Server, error) {
 		Logger:            srv.log,
 	})
 
-	// Initialize Tool Discovery Protocol registry
-	srv.toolRegistry = toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "scenario-to-cloud",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Deploys scenarios to VPS targets with full lifecycle management, preflight checks, and live state inspection.",
-	})
-	// Register all tool providers
-	srv.toolRegistry.RegisterProvider(toolregistry.NewDeploymentToolProvider())
-	srv.toolRegistry.RegisterProvider(toolregistry.NewInspectionToolProvider())
-	srv.toolRegistry.RegisterProvider(toolregistry.NewValidationToolProvider())
-
-	// Initialize Tool Execution Protocol executor
-	srv.toolExecutor = toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		Repo:         repo,
-		Resolver:     toolregistry.NewResolver(repo),
-		Orchestrator: srv.orchestrator,
-		SSHRunner:    sshRunner,
-		DNSService:   dnsService,
-		Logger:       srv.log,
-	})
-
 	srv.setupRoutes()
 	return srv, nil
 }
@@ -209,7 +220,11 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	healthHandler := health.Handler(health.DB(s.db))
+	var healthDB *sql.DB
+	if s.db != nil {
+		healthDB = s.db.Primary()
+	}
+	healthHandler := health.Handler(health.DB(healthDB))
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -243,15 +258,15 @@ func (s *Server) setupRoutes() {
 	})).Methods("POST")
 	api.HandleFunc("/preflight/requirements", vpspreflight.HandleRequirements()).Methods("GET")
 	api.HandleFunc("/secrets/{scenario}", secrets.HandleGetSecrets(s.secretsFetcher)).Methods("GET")
-	api.HandleFunc("/local-secrets/{scope}/{key}", secrets.HandleGetLocalSecret()).Methods("GET")
-	api.HandleFunc("/local-secrets/{scope}/{key}", secrets.HandleSetLocalSecret()).Methods("PUT")
-	api.HandleFunc("/local-secrets/{scope}/{key}", secrets.HandleDeleteLocalSecret()).Methods("DELETE")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
 	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
 	api.HandleFunc("/vps/deploy/plan", s.handleVPSDeployPlan).Methods("POST")
 	api.HandleFunc("/vps/deploy/apply", s.handleVPSDeployApply).Methods("POST")
 	api.HandleFunc("/vps/inspect/plan", s.handleVPSInspectPlan).Methods("POST")
 	api.HandleFunc("/vps/inspect/apply", s.handleVPSInspectApply).Methods("POST")
+	api.HandleFunc("/instances/plan", s.handleInstancePlan).Methods("POST")
+	api.HandleFunc("/instances", s.handleInstanceCreate).Methods("POST")
+	api.HandleFunc("/instances/{id}/{action}", s.handleInstanceAction).Methods("POST")
 
 	// Deployment management
 	api.HandleFunc("/deployments", s.handleListDeployments).Methods("GET")
@@ -334,19 +349,30 @@ func (s *Server) setupRoutes() {
 	// New unified task endpoints
 	s.registerTaskRoutes(api)
 
-	// Tool Discovery Protocol endpoints
-	toolsHandler := toolhandlers.NewToolsHandler(s.toolRegistry)
-	api.HandleFunc("/tools", toolsHandler.GetTools).Methods("GET", "OPTIONS")
-	api.HandleFunc("/tools/{name}", toolsHandler.GetTool).Methods("GET", "OPTIONS")
-
-	// Tool Execution Protocol endpoint
-	toolExecHandler := toolexecution.NewHandler(s.toolExecutor)
-	api.HandleFunc("/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
+	// Test-genie uses a leased shadow pool in development. The registration is
+	// deliberately dev-only inside api-core and is never exposed in production.
+	if s.db != nil {
+		devrouting.Register(devRoutingMux{router: s.router}, s.db)
+	}
 }
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	return apihttp.TestModeMiddleware(handlers.RecoveryHandler()(securityHeadersMiddleware(s.router)))
+}
+
+// securityHeadersMiddleware centralizes the baseline browser boundary for
+// every API response. HSTS is included because the API is also deployed
+// behind the HTTPS edge; local development remains functional because this
+// header is only honored by browsers after a secure response.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {

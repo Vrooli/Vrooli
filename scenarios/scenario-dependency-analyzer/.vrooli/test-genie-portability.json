@@ -1,0 +1,42 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "scenario-dependency-analyzer",
+  "phase": "portability",
+  "displayName": "Portability",
+  "description": "Runs the deployability resolver against declared resource inputs and the observed host OS. Control-plane scope is intentionally excluded because this provider's contract is scenario/resource deployability-specific and does not expose control-plane validation.",
+  "source": "validation-provider",
+  "timeout": "120s",
+  "phaseClass": "architecture",
+  "runtimeClass": "execution",
+  "validation": {"contract": "scenario-validation/v1", "capabilitySubset": ["portability"]},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "applicability": {"default": "applies"},
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "none",
+    "providerLifecycle": "none",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "dimensions": ["dependencies"],
+  "determinism": {"default": "observational", "reason": "The phase evaluates live host facts and is never cacheable."},
+  "docs": {"path": "scenarios/test-genie/docs/phases/portability/README.md"},
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "platform_truth",
+        "label": "Platform Truth",
+        "description": "Declared resource platform support agrees with the host observed by the validator.",
+        "levels": [
+          {"id": "L0", "name": "Contradictory", "description": "A declared input is not true on the observed host.", "entry_criteria": [], "exit_criteria": []},
+          {"id": "L1", "name": "Verified", "description": "All declared resource inputs resolve on the observed host.", "entry_criteria": [], "exit_criteria": []}
+        ]
+      }
+    ],
+    "fallback": {"capability_id": "platform_truth", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "dependencies", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required"}
+  }
+}

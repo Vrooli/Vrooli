@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "models",
+    "title": "Models",
+    "routes": ["/models"],
+    "purpose": "Make the model registry legible: what is installed, what it costs in disk and VRAM, what licence it carries, and whether it may be used in commercially distributed output.",
+    "prd_refs": ["OT-P0-002", "OT-P1-002"]
+  },
+  "priorities": [
+    { "statement": "Licence and commercial-use lane are visible on every model without opening a detail view — they are decision-critical, not metadata." },
+    { "statement": "An install that would exhaust disk is refused with the shortfall named before any bytes are written." }
+  ],
+  "states": [
+    { "id": "installed", "example": "installed", "description": "Model present and usable." },
+    { "id": "available", "example": "available", "description": "Declared but not installed." },
+    { "id": "blocked-hardware", "example": "blocked-hardware", "description": "Host cannot meet the model's hardware gates." },
+    { "id": "blocked-disk", "example": "blocked-disk", "description": "Installing would breach the free-disk floor." },
+    { "id": "restricted-lane", "example": "restricted", "description": "Non-commercial or unknown licence; excluded from commercial builds." }
+  ],
+  "elements": [
+    { "id": "model-row", "role": "listitem", "description": "One registry entry." },
+    { "id": "lane-badge", "role": "status", "description": "Commercial-use lane indicator." },
+    { "id": "cost-summary", "role": "status", "description": "Disk and VRAM cost." },
+    { "id": "install-action", "role": "button", "description": "Install control." }
+  ],
+  "claims": [
+    {
+      "id": "lane-visible-on-every-row",
+      "type": "element-present",
+      "statement": "Every model row displays its commercial-use lane.",
+      "tier": "machine",
+      "elements": ["lane-badge"],
+      "states": ["installed", "available", "restricted-lane"]
+    },
+    {
+      "id": "cost-visible-before-install",
+      "type": "element-present",
+      "statement": "Disk and VRAM cost are shown before the install action is taken.",
+      "tier": "machine",
+      "elements": ["cost-summary", "install-action"],
+      "states": ["available"]
+    },
+    {
+      "id": "blocked-install-is-not-actionable",
+      "type": "element-present",
+      "statement": "A model blocked by hardware gates or the disk floor surfaces the reason rather than an enabled install control.",
+      "tier": "machine",
+      "elements": ["model-row"],
+      "states": ["blocked-hardware", "blocked-disk"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "model-row": { "testid": "model-row" },
+      "lane-badge": { "testid": "model-lane-badge" },
+      "cost-summary": { "testid": "model-cost-summary" },
+      "install-action": { "testid": "model-install-action" }
+    }
+  }
+}

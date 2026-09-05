@@ -19,12 +19,12 @@ func TestSeams_OllamaClientMock(t *testing.T) {
 		mockResponse := `[{"text": "Login", "tagName": "BUTTON", "confidence": 0.9, "category": "auth"}]`
 		mockClient := NewMockOllamaClient(mockResponse)
 
-		response, err := mockClient.Query(context.Background(), "llama3.2", "test prompt")
+		response, err := mockClient.Query(context.Background(), "chat.small", "test prompt")
 
 		require.NoError(t, err)
 		assert.Equal(t, mockResponse, response)
 		assert.Len(t, mockClient.QueriesCalled, 1)
-		assert.Equal(t, "llama3.2", mockClient.QueriesCalled[0].Model)
+		assert.Equal(t, "chat.small", mockClient.QueriesCalled[0].Role)
 		assert.Equal(t, "test prompt", mockClient.QueriesCalled[0].Prompt)
 	})
 
@@ -33,7 +33,7 @@ func TestSeams_OllamaClientMock(t *testing.T) {
 			Err: assert.AnError,
 		}
 
-		_, err := mockClient.Query(context.Background(), "llama3.2", "test prompt")
+		_, err := mockClient.Query(context.Background(), "chat.small", "test prompt")
 
 		assert.Error(t, err)
 		assert.Equal(t, assert.AnError, err)
@@ -104,7 +104,7 @@ func TestSeams_DOMHandlerWithMockRunner(t *testing.T) {
 				NodeID:   "dom.extract",
 				StepType: "evaluate",
 				ExtractedData: map[string]any{
-					"value": map[string]any{
+					"result": map[string]any{
 						"tagName":  "BODY",
 						"children": []any{},
 					},

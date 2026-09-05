@@ -15,16 +15,22 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/gorilla/mux"
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/metrics"
 	"workspace-sandbox/internal/process"
+	"workspace-sandbox/internal/runtime"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // StatsGetter is an interface for retrieving sandbox statistics.
@@ -36,21 +42,77 @@ type StatsGetter interface {
 // Dependencies are expressed as interfaces to enable testing with mocks.
 type Handlers struct {
 	Service         sandbox.ServiceAPI // Service interface for testability
-	DriverManager   *driver.Manager    // Driver manager for hot-swapping drivers
+	DriverSlot      *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
 	DB              Pinger
-	Config          config.Config       // Unified configuration for accessing levers
-	StatsGetter     StatsGetter         // For retrieving sandbox statistics
-	ProcessTracker  *process.Tracker    // For tracking sandbox processes (OT-P0-008)
-	ProcessLogger   *process.Logger     // For capturing process logs (Phase 2)
-	GCService       GCService           // For garbage collection operations (OT-P1-003)
-	ProfileStore    config.ProfileStore // For isolation profile storage
-	InUserNamespace bool                // Whether API is running in a user namespace
+	Config          config.Config         // Unified configuration for accessing levers
+	Behavior        config.BehaviorConfig // Operator-tunable behavior knobs (loaded from .vrooli/config.json)
+	StatsGetter     StatsGetter           // For retrieving sandbox statistics
+	ProcessTracker  *process.Tracker      // For tracking sandbox processes (OT-P0-008)
+	ProcessLogger   *process.Logger       // For capturing process logs (Phase 2)
+	GCService       GCService             // For garbage collection operations (OT-P1-003)
+	ProfileStore    config.ProfileStore   // For isolation profile storage (admin write paths)
+	InUserNamespace bool                  // Whether API is running in a user namespace
+	Reconcilers     *sandbox.Runner       // Periodic reconciler dispatcher (Phase 2 Round 3)
+	RetentionStore  config.RetentionStore // Diff-archive retention config (Phase 4)
+	Clock           schedule.Clock        // Wall-clock seam (Round 4 Phase 2). Required.
+	Mounter         fsmount.Mounter       // Mount/unmount seam (Round 4 Phase 7). Required.
+	Starter         process.Starter       // Process exec seam (Round 4 Phase 7). Required.
+
+	// profileSnapshot holds the immutable {ID → profile} snapshot used
+	// by every Resolve in the request path. Loaded once at startup
+	// (via SetProfileSnapshot) and rebuilt on admin Save/Delete (via
+	// RefreshProfileSnapshot). Read paths are atomic.Pointer.Load —
+	// no lock needed in the hot path.
+	//
+	// Round 4 Phase 9: introduced so file-system mutations to the
+	// profiles JSON cannot drift the running resolver, and so the
+	// snapshot semantics are testable in isolation from the Store.
+	profileSnapshot atomic.Pointer[map[string]config.IsolationProfile]
 }
 
-// Driver returns the current driver from the manager.
-// This is a convenience method that maintains backward compatibility.
+// SetProfileSnapshot installs the initial profile snapshot atomically.
+// Called once at startup from main.go after LoadProfiles. Panics if
+// snapshot is nil — startup is expected to fail loud rather than wire
+// in a nil pointer that crashes a request later.
+func (h *Handlers) SetProfileSnapshot(snapshot map[string]config.IsolationProfile) {
+	if snapshot == nil {
+		panic("Handlers.SetProfileSnapshot: snapshot is nil")
+	}
+	h.profileSnapshot.Store(&snapshot)
+}
+
+// ProfileSnapshot returns the current snapshot or an empty map when
+// none has been installed yet. Callers should treat the returned map
+// as read-only.
+func (h *Handlers) ProfileSnapshot() map[string]config.IsolationProfile {
+	if p := h.profileSnapshot.Load(); p != nil {
+		return *p
+	}
+	return map[string]config.IsolationProfile{}
+}
+
+// RefreshProfileSnapshot rebuilds the snapshot from the current
+// ProfileStore. Called by admin Save/Delete handlers so the public API
+// stays consistent for the life of the process. Returns the underlying
+// store error wrapped for context — admin endpoints surface it as a
+// 500 rather than silently leaving the snapshot stale.
+func (h *Handlers) RefreshProfileSnapshot() error {
+	if h.ProfileStore == nil {
+		return fmt.Errorf("RefreshProfileSnapshot: ProfileStore is nil")
+	}
+	snapshot, err := runtime.LoadProfiles(h.ProfileStore)
+	if err != nil {
+		return fmt.Errorf("RefreshProfileSnapshot: %w", err)
+	}
+	h.profileSnapshot.Store(&snapshot)
+	return nil
+}
+
+// Driver returns the active driver from the slot. Atomic load — safe for
+// in-flight ops to capture once at the top of an operation, matching the
+// prior Manager.Current() semantics.
 func (h *Handlers) Driver() driver.Driver {
-	return h.DriverManager
+	return h.DriverSlot.Current()
 }
 
 // Version is the API version string.
@@ -162,6 +224,17 @@ func (h *Handlers) JSONDomainError(w http.ResponseWriter, err types.DomainError)
 		response.Details = detailable.Details()
 	}
 
+	// Surface a stable string code in Details when the error provides
+	// one (e.g., HomeOverlayRequiredError → "HOME_OVERLAY_REQUIRED").
+	// Agent-manager keys off this to map the HTTP body into a typed
+	// ErrorEventData on the run timeline.
+	if codable, ok := err.(interface{ Code() string }); ok {
+		if response.Details == nil {
+			response.Details = map[string]interface{}{}
+		}
+		response.Details["code"] = codable.Code()
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.HTTPStatus())
 	if encErr := json.NewEncoder(w).Encode(response); encErr != nil {
@@ -194,16 +267,25 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api := router.PathPrefix("/api/v1").Subrouter()
 
 	// --- Sandbox CRUD ---
+	// /sandboxes/history must be registered BEFORE /sandboxes/{id} so
+	// gorilla/mux matches the literal path before the UUID variable.
 	api.HandleFunc("/sandboxes", h.CreateSandbox).Methods("POST")
 	api.HandleFunc("/sandboxes", h.ListSandboxes).Methods("GET")
+	api.HandleFunc("/sandboxes/history", h.ListHistory).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}", h.GetSandbox).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}", h.DeleteSandbox).Methods("DELETE")
 	api.HandleFunc("/sandboxes/{id}/stop", h.StopSandbox).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/start", h.StartSandbox).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/resume", h.ResumeSandbox).Methods("POST")
 
 	// --- Workflow: Diff and Approval ---
+	// Closed-sandbox archives are served through GetDiff (status-driven
+	// resolution); GetDiffFile streams individual archived blobs.
 	api.HandleFunc("/sandboxes/{id}/diff", h.GetDiff).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/diff/file", h.GetDiffFile).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/approve", h.Approve).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/apply-at-run-end", h.ApplyAtRunEnd).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/turn-checkpoint", h.TurnCheckpoint).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/reject", h.Reject).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/discard", h.Discard).Methods("POST")
 
@@ -226,8 +308,10 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/sandboxes/{id}/processes", h.ListProcesses).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}", h.KillProcess).Methods("DELETE")
 	api.HandleFunc("/sandboxes/{id}/processes/kill-all", h.KillAllProcesses).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/processes/{pid}/stdin", h.PostProcessStdin).Methods("POST")
 
-	// --- Process Logs (Phase 2) ---
+	// --- Process Logs (Phase 2; stream-aware as of phase 3 ws-sb work) ---
+	// Required query parameter for both: stream=stdout|stderr
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}/logs", h.GetProcessLogs).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}/logs/stream", h.StreamProcessLogs).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/logs", h.ListProcessLogs).Methods("GET")
@@ -240,8 +324,9 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/driver/options", h.DriverOptions).Methods("GET")
 	api.HandleFunc("/driver/select", h.SelectDriver).Methods("POST")
 	api.HandleFunc("/driver/preference", h.GetDriverPreference).Methods("GET")
-	api.HandleFunc("/driver/bwrap", h.BwrapInfo).Methods("GET")
+	api.HandleFunc("/driver/containment", h.ContainmentInfo).Methods("GET")
 	api.HandleFunc("/validate-path", h.ValidatePath).Methods("GET")
+	api.HandleFunc("/host/vrooli/scenario", h.HostVrooliScenario).Methods("POST")
 
 	// --- Admin: Stats ---
 	api.HandleFunc("/stats", h.Stats).Methods("GET")
@@ -255,6 +340,10 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/config/profiles/{id}", h.SaveProfile).Methods("PUT")
 	api.HandleFunc("/config/profiles/{id}", h.DeleteProfile).Methods("DELETE")
 
+	// --- Config: Diff-archive retention (Phase 4) ---
+	api.HandleFunc("/config/retention", h.GetRetention).Methods("GET")
+	api.HandleFunc("/config/retention", h.UpdateRetention).Methods("PUT")
+
 	// --- Admin: Garbage Collection (OT-P1-003) ---
 	api.HandleFunc("/gc", h.GC).Methods("POST")
 	api.HandleFunc("/gc/preview", h.GCPreview).Methods("POST")
@@ -262,6 +351,12 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	// --- Admin: Audit Logs (OT-P1-004) ---
 	api.HandleFunc("/audit", h.GetAuditLog).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/audit", h.GetSandboxAuditLog).Methods("GET")
+
+	// --- Admin: Reconcilers (Round 3 Phase 2) ---
+	// On-demand trigger of one of the registered reconcilers
+	// (lifecycle, heal, orphan, daemon-reaper, manual-review-expiry).
+	api.HandleFunc("/admin/reconcilers", h.ListReconcilers).Methods("GET")
+	api.HandleFunc("/admin/reconcilers/{name}", h.RunReconciler).Methods("POST")
 
 	// --- Provenance Tracking ---
 	api.HandleFunc("/pending", h.GetPendingChanges).Methods("GET")

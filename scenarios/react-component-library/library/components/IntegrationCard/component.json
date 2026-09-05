@@ -1,0 +1,16 @@
+{
+  "catalogId": null,
+  "deprecatedVersions": [
+    "0.1.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0",
+    "0.1.3",
+    "0.1.2",
+    "0.1.1"
+  ],
+  "latest": "0.1.4",
+  "libraryId": "react-component-library:IntegrationCard",
+  "supplemental": true
+}

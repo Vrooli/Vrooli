@@ -21,7 +21,7 @@ func LoadLevers() (*Levers, error) {
 	levers := DefaultLevers()
 
 	// Load from config file if specified
-	if configPath := os.Getenv("AGENT_MANAGER_CONFIG"); configPath != "" {
+	if configPath, configured := os.LookupEnv("AGENT_MANAGER_CONFIG"); configured && configPath != "" {
 		if err := loadFromFile(&levers, configPath); err != nil {
 			return nil, err
 		}
@@ -128,6 +128,9 @@ func applyEnvOverrides(l *Levers) {
 	if v := getEnvDuration("AGENT_MANAGER_RUNNERS_STARTUP_GRACE_PERIOD"); v >= 0 {
 		l.Runners.StartupGracePeriod = v
 	}
+	if v, ok := envBoolOpt("AGENT_MANAGER_RUNNERS_USE_CLI_DEFAULT_MODEL"); ok {
+		l.Runners.UseCliDefaultModel = v
+	}
 
 	// Server levers
 	if v := getEnv("AGENT_MANAGER_SERVER_PORT"); v != "" {
@@ -180,7 +183,8 @@ func applyEnvOverrides(l *Levers) {
 // =============================================================================
 
 func getEnv(key string) string {
-	return strings.TrimSpace(os.Getenv(key))
+	value, _ := os.LookupEnv(key)
+	return strings.TrimSpace(value)
 }
 
 func getEnvInt(key string) int {

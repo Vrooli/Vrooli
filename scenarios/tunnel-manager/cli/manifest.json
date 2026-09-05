@@ -1,0 +1,1066 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "tunnel-manager",
+  "description": "Tunnel Manager operator CLI surface. Single source of truth for config, exposure, routes, probes, recovery, tunnel, and audit command groups; schema-validated against cli-manifest/v1 and cross-validated against proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "routes",
+      "description": "Manage the exposure manifest (which scenario is exposed where)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List manifest routes",
+          "flags": [
+            {
+              "name": "tier",
+              "description": "Filter by tier (core or leased)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "ListRoutes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a route by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Route id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "GetRoute"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a manifest route",
+          "flags": [
+            {
+              "name": "subdomain",
+              "required": true,
+              "description": "DNS-label subdomain"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario the route exposes (required for scenario routes)"
+            },
+            {
+              "name": "local-port",
+              "description": "Local port 1-65535 (required for scenario routes)"
+            },
+            {
+              "name": "domain",
+              "description": "Apex domain (default itsagitime.com)"
+            },
+            {
+              "name": "tier",
+              "description": "Tier: core or leased (default leased)"
+            },
+            {
+              "name": "health-path",
+              "description": "Health probe path (default /health)"
+            },
+            {
+              "name": "external",
+              "description": "Create an external route (uses --target instead of --scenario/--local-port)"
+            },
+            {
+              "name": "target",
+              "description": "External service target URL (e.g. http://127.0.0.1:9000); required with --external"
+            },
+            {
+              "name": "public-exposure",
+              "description": "Per-route /public Access-bypass override: inherit (default), enabled, or disabled"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "CreateRoute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a route (partial)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Route id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "subdomain",
+              "description": "New subdomain"
+            },
+            {
+              "name": "scenario",
+              "description": "New scenario"
+            },
+            {
+              "name": "local-port",
+              "description": "New local port"
+            },
+            {
+              "name": "domain",
+              "description": "New apex domain"
+            },
+            {
+              "name": "tier",
+              "description": "New tier"
+            },
+            {
+              "name": "health-path",
+              "description": "New health path"
+            },
+            {
+              "name": "enabled",
+              "description": "Set enabled (true/false)"
+            },
+            {
+              "name": "target",
+              "description": "New external service target URL"
+            },
+            {
+              "name": "public-exposure",
+              "description": "Per-route /public Access-bypass override: inherit, enabled, or disabled (unset leaves unchanged)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "UpdateRoute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a route by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Route id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "DeleteRoute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "description": "Audit exposure-manifest port compliance against scenario service.json files",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a port-compliance audit across all enabled manifest routes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "RunAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "config",
+      "description": "Manage tunnel configuration and reconcile Cloudflare ingress with the routes manifest",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get the persisted tunnel configuration",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Reconcile ingress with the routes manifest (use --dry-run to preview)",
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Compute the diff without applying it"
+            },
+            {
+              "name": "prune",
+              "description": "Also remove orphaned entries (ledger-managed hostnames whose routes are gone). Never removes unmanaged drift."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "Sync"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "bootstrap",
+          "description": "Adopt or create the named Cloudflare tunnel from one API token, then store all derived credentials",
+          "flags": [
+            {"name": "api-token-stdin", "bool": true, "description": "Read the Cloudflare API token from standard input; never place it in argv or shell history"},
+            {"name": "account-id", "description": "Optional account id when the token can access multiple accounts"},
+            {"name": "tunnel-id", "description": "Optional existing tunnel id to adopt"},
+            {"name": "tunnel-name", "description": "Tunnel name to adopt or create (default vrooli)"},
+            {"name": "dry-run", "bool": true, "description": "Discover the adoption/create plan without writing credentials or creating a tunnel"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "BootstrapCloudflare"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:external", "admin"]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "credentials-status",
+          "description": "Show Cloudflare credential readiness without printing secret values (use --verify for LIVE scope checks)",
+          "flags": [
+            {
+              "name": "verify",
+              "description": "Run LIVE read-only Cloudflare probes (token verify, account/tunnel read, apex zone lookup + DNS:Edit) instead of the presence-only fast path",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetCredentialStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "credentials-set",
+          "description": "Store write-only Cloudflare credentials in the Vrooli credential authority",
+          "flags": [
+            {
+              "name": "account-id",
+              "description": "Cloudflare account id"
+            },
+            {
+              "name": "tunnel-id",
+              "description": "Managed Cloudflare tunnel id"
+            },
+            {
+              "name": "api-token-stdin",
+              "bool": true,
+              "description": "Read the Cloudflare API token from standard input"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "SetCloudflareCredentials"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "credentials-clear",
+          "description": "Clear Cloudflare credentials from the Vrooli credential authority",
+          "flags": [
+            {
+              "name": "field",
+              "description": "Field to clear: account_id, tunnel_id, api_token, or all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "ClearCloudflareCredentials"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "mode",
+          "description": "Switch tunnel management mode (remote or local)",
+          "flags": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target mode: remote or local"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "SwitchMode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "public-exposure",
+          "description": "Flip the global /public Access-bypass switch (use --on or --off)",
+          "flags": [
+            {
+              "name": "on",
+              "bool": true,
+              "description": "Enable global /public Access bypass"
+            },
+            {
+              "name": "off",
+              "bool": true,
+              "description": "Disable global /public Access bypass"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "SetPublicExposure"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "access",
+      "description": "Inspect the /public Cloudflare Access-bypass state (global switch + per-host effective bypass). Read-only; the global toggle lives on `config public-exposure`.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the global /public exposure switch and the per-host effective-bypass table (use --dry-run to preview the pending create/remove diff)",
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Render the pending Bypass-app create/remove diff (to_create/to_remove) instead of the per-host table; mutates nothing",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetAccessStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "drift",
+      "description": "Inspect and reconcile ingress ownership drift (live vs. desired vs. unmanaged)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every live/desired/tracked hostname classified by ownership state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetDrift"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "adopt",
+          "description": "Adopt an unmanaged hostname as a scenario or external route",
+          "positionals": [
+            {
+              "name": "hostname",
+              "required": true,
+              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Adopt as this scenario route"
+            },
+            {
+              "name": "target",
+              "description": "Adopt as an external route pointing here (e.g. http://127.0.0.1:9000)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "AdoptIngress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "ignore",
+          "description": "Acknowledge a hostname as external; never push or prune it",
+          "positionals": [
+            {
+              "name": "hostname",
+              "required": true,
+              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "note",
+              "description": "Operator note for why this ingress is acknowledged"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "IgnoreIngress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "prune",
+          "description": "Remove a single named hostname from live ingress and the ledger",
+          "positionals": [
+            {
+              "name": "hostname",
+              "required": true,
+              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "PruneIngress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "exposure",
+      "description": "Tiered exposure broker \u2014 request/extend/revoke leases, list exposures, reconcile",
+      "commands": [
+        {
+          "name": "expose",
+          "description": "Expose a scenario on demand (creates a TTL lease)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to expose"
+            }
+          ],
+          "flags": [
+            {
+              "name": "ttl",
+              "description": "Lease duration as a human duration (e.g. 30m, 2h, 168h). Wins over --ttl-seconds."
+            },
+            {
+              "name": "ttl-seconds",
+              "description": "Lease duration in seconds (default ~1 week). Legacy; prefer --ttl."
+            },
+            {
+              "name": "requested-by",
+              "description": "Caller identity recorded on the lease"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "Expose"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "extend",
+          "description": "Extend a lease's expiry",
+          "positionals": [
+            {
+              "name": "lease_id",
+              "required": true,
+              "description": "Lease id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "ttl-seconds",
+              "description": "New duration from now in seconds (default ~1 week)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "ExtendLease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a lease (retracts ingress unless also CORE)",
+          "positionals": [
+            {
+              "name": "lease_id",
+              "required": true,
+              "description": "Lease id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "RevokeLease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "unexpose",
+          "description": "Unexpose a scenario by name (revokes its active lease; retracts ingress + DNS unless also CORE)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to unexpose"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "Unexpose"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "leases",
+          "description": "List leases (optionally by status)",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Filter: active, expired, or revoked"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "ListLeases"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List the reconciled exposure state per scenario",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "ListExposures"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "check",
+          "description": "Check whether a scenario is currently exposed",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "IsExposed"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Re-derive CORE routes and reap expired leases",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "Reconcile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "probes",
+      "description": "Liveness probing & failure classification",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run one probe cycle across all enabled routes (internal + external) and persist results",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProbesService",
+            "method": "RunProbes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "history",
+          "description": "List recent probe history newest-first, optionally filtered by subdomain",
+          "flags": [
+            {
+              "name": "subdomain",
+              "description": "Filter history to a single route subdomain"
+            },
+            {
+              "name": "limit",
+              "description": "Max rows to return (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProbesService",
+            "method": "ListProbes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "classify",
+          "description": "Diagnose per-route reachability from the latest stored internal+external probes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProbesService",
+            "method": "Classify"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recovery",
+      "description": "Inspect and trigger cloudflared auto-recovery (state, events, manual recover)",
+      "commands": [
+        {
+          "name": "state",
+          "description": "Show the live recovery state machine",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryService",
+            "method": "GetState"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "events",
+          "description": "List recovery events (newest first)",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Max events to return (default 50)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryService",
+            "method": "ListEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "run",
+          "description": "Trigger a manual recovery attempt (restart cloudflared)",
+          "flags": [
+            {
+              "name": "force",
+              "description": "Bypass the circuit breaker (true/false)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryService",
+            "method": "Recover"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "tunnel",
+      "description": "Inspect tunnel-wide health and scraped cloudflared metrics",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show composite tunnel health (systemd + /ready) and latest metrics",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TunnelService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "metrics",
+          "description": "List scraped metrics samples within an optional time window",
+          "flags": [
+            {
+              "name": "from",
+              "description": "Window start (RFC3339)"
+            },
+            {
+              "name": "to",
+              "description": "Window end (RFC3339)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TunnelService",
+            "method": "ListMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "scrape",
+          "description": "Force one Prometheus scrape and persist the sample",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TunnelService",
+            "method": "Scrape"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "ConfigService",
+      "method": "VerifyCredentials",
+      "reason": "Surfaced through `config credentials-status --verify` (the same command's live path) rather than its own verb, so the presence-only fast path and the live scope probe share one ergonomic surface."
+    }
+  ]
+}

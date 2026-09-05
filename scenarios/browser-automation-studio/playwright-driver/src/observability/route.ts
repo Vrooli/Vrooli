@@ -26,119 +26,24 @@ import { createObservabilityCollector, getObservabilityCache } from './index';
 import type {
   ObservabilityDepth,
   ObservabilityDependencies,
-  DiagnosticRunRequest,
-  DiagnosticRunResponse,
-  RecordingDiagnostics,
   SessionSummary,
   CleanupStatus,
   RecordingStats,
 } from './types';
 import { VERSION } from '../constants';
 import {
-  RecordingDiagnosticLevel,
-  DiagnosticSeverity,
-  type RecordingDiagnosticResult,
-  type DiagnosticIssue,
   runRecordingPipelineTest,
 } from '../recording';
-
-/**
- * Extract category from diagnostic code.
- * Maps DIAGNOSTIC_CODES prefixes to user-friendly categories.
- */
-function codeToCategory(code: string): string {
-  if (code.startsWith('SCRIPT_')) return 'script';
-  if (code.startsWith('INJECTION_')) return 'injection';
-  if (code.startsWith('EVENT_')) return 'event';
-  if (code.startsWith('PROVIDER_')) return 'provider';
-  if (code.startsWith('CDP_')) return 'cdp';
-  return 'general';
-}
-
-/**
- * Map DiagnosticSeverity enum to string literal.
- */
-function severityToString(severity: DiagnosticSeverity): 'error' | 'warning' | 'info' {
-  // DiagnosticSeverity enum values are 'error', 'warning', 'info'
-  return severity as unknown as 'error' | 'warning' | 'info';
-}
+export { handleDiagnosticsRun } from './diagnostics-run';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const isString = (value: unknown): value is string => typeof value === 'string';
-
-const isNumber = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value);
-
-const safeJsonParse = (value: string): unknown => {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-};
-
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const parseJsonObject = (body: string): Record<string, unknown> => {
-  if (!body) {
-    return {};
-  }
-
-  const parsed = safeJsonParse(body);
-  return isRecord(parsed) ? parsed : {};
+  try { const value: unknown = JSON.parse(body || '{}'); return isRecord(value) ? value : {}; } catch { return {}; }
 };
 
-type DiagnosticLevel = 'quick' | 'standard' | 'full';
-
-const isDiagnosticLevel = (level: unknown): level is DiagnosticLevel =>
-  level === 'quick' || level === 'standard' || level === 'full';
-
-const parseDiagnosticRunRequest = (value: Record<string, unknown>): DiagnosticRunRequest => {
-
-  const rawType = value.type;
-  const type = rawType === 'recording' || rawType === 'browser' || rawType === 'all'
-    ? rawType
-    : 'recording';
-  const session_id = isString(value.session_id) ? value.session_id : undefined;
-  const rawOptions = isRecord(value.options) ? value.options : undefined;
-  const options = rawOptions
-    ? {
-        level: isDiagnosticLevel(rawOptions.level)
-          ? rawOptions.level
-          : undefined,
-        timeout_ms: isNumber(rawOptions.timeout_ms) ? rawOptions.timeout_ms : undefined,
-      }
-    : undefined;
-
-  return {
-    type,
-    session_id,
-    options,
-  };
-};
-
-/**
- * Transform backend diagnostic result to UI-compatible format.
- */
-function transformDiagnosticsForUI(result: RecordingDiagnosticResult): RecordingDiagnostics {
-  return {
-    ready: result.ready,
-    timestamp: result.timestamp,
-    durationMs: result.durationMs,
-    level: result.level,
-    // Include all checks performed for detailed breakdown display
-    checks: result.checks,
-    issues: result.issues.map((issue: DiagnosticIssue) => ({
-      severity: severityToString(issue.severity),
-      category: codeToCategory(issue.code),
-      message: issue.message,
-      suggestion: issue.suggestion,
-    })),
-    provider: result.provider,
-    // Include event flow test result for detailed diagnostics (FULL level only)
-    eventFlowTest: result.eventFlowTest,
-  };
-}
 
 // =============================================================================
 // Types
@@ -204,7 +109,7 @@ function aggregateRecordingStats(
 
   for (const sessionId of sessionIds) {
     try {
-      const session = sessionManager.getSession(sessionId);
+      const session = sessionManager.peekSession(sessionId);
       if (session.recordingInitializer) {
         const injectionStats = session.recordingInitializer.getInjectionStats();
         const routeStats = session.recordingInitializer.getRouteHandlerStats();
@@ -303,7 +208,7 @@ function createSessionSummary(
 
   for (const id of sessionIds) {
     try {
-      const session = sessionManager.getSession(id);
+      const session = sessionManager.peekSession(id);
       const idleTimeMs = now - session.lastUsedAt.getTime();
 
       if (idleTimeMs < config.session.idleTimeoutMs) {
@@ -429,173 +334,6 @@ export function handleObservabilityRefresh(
   });
 }
 
-/**
- * POST /observability/diagnostics/run
- *
- * Run specific diagnostics manually.
- *
- * Request body:
- * - type: 'recording' | 'browser' | 'all'
- * - session_id?: string (for session-specific diagnostics)
- * - options?: { level?: 'quick' | 'standard' | 'full', timeout_ms?: number }
- */
-export function handleDiagnosticsRun(
-  req: IncomingMessage,
-  res: ServerResponse,
-  deps: ObservabilityRouteDependencies
-): void {
-  // Read request body
-  let body = '';
-  req.on('data', (chunk: Buffer) => {
-    body += chunk.toString();
-  });
-
-  const handleEnd = async (): Promise<void> => {
-    const startedAt = new Date();
-
-    try {
-      const request = parseDiagnosticRunRequest(parseJsonObject(body));
-      const { type, session_id, options } = request;
-
-      logger.info(scopedLog(LogContext.HEALTH, 'running diagnostics'), {
-        type,
-        sessionId: session_id,
-        level: options?.level,
-      });
-
-      // For now, we only support recording diagnostics via the existing system
-      // Future: Add more diagnostic types
-      const results: DiagnosticRunResponse['results'] = {};
-
-      if (type === 'recording' || type === 'all') {
-        // Recording diagnostics require an active session with a page
-        // Auto-select a session if none is provided
-        let targetSessionId = session_id;
-        if (!targetSessionId) {
-          const allSessionIds = deps.sessionManager.getAllSessionIds();
-          if (allSessionIds.length > 0) {
-            // Prefer a session that's actively recording, otherwise pick first available
-            for (const sid of allSessionIds) {
-              try {
-                const session = deps.sessionManager.getSession(sid);
-                if (session.pipelineManager?.isRecording()) {
-                  targetSessionId = sid;
-                  break;
-                }
-              } catch {
-                // Session may have been closed
-              }
-            }
-            // If no recording session found, use the first available
-            if (!targetSessionId) {
-              targetSessionId = allSessionIds[0];
-            }
-          }
-        }
-
-        if (targetSessionId) {
-          try {
-            const session = deps.sessionManager.getSession(targetSessionId);
-            const { runRecordingDiagnostics, RecordingDiagnosticLevel } = await import('../recording');
-
-            const level = options?.level === 'full'
-              ? RecordingDiagnosticLevel.FULL
-              : options?.level === 'standard'
-                ? RecordingDiagnosticLevel.STANDARD
-                : RecordingDiagnosticLevel.QUICK;
-
-            const rawResult = await runRecordingDiagnostics(session.page, session.context, {
-              level,
-              timeoutMs: options?.timeout_ms ?? 5000,
-              contextInitializer: session.recordingInitializer,
-            });
-
-            // Transform to UI-compatible format with category instead of code
-            results.recording = transformDiagnosticsForUI(rawResult);
-          } catch (error) {
-            logger.warn(scopedLog(LogContext.HEALTH, 'recording diagnostics failed'), {
-              sessionId: targetSessionId,
-              error: error instanceof Error ? error.message : String(error),
-            });
-            // Return an error result instead of silently failing
-            const errorLevel = options?.level === 'full'
-              ? RecordingDiagnosticLevel.FULL
-              : options?.level === 'standard'
-                ? RecordingDiagnosticLevel.STANDARD
-                : RecordingDiagnosticLevel.QUICK;
-            results.recording = {
-              ready: false,
-              timestamp: new Date().toISOString(),
-              durationMs: 0,
-              level: errorLevel,
-              issues: [{
-                severity: 'error',
-                category: 'general',
-                message: `Recording diagnostics failed: ${error instanceof Error ? error.message : String(error)}`,
-                suggestion: 'Check the browser console for JavaScript errors',
-              }],
-              checks: [],
-              provider: { name: 'unknown', evaluateIsolated: false, exposeBindingIsolated: false },
-            };
-          }
-        } else {
-          // No sessions available - return a structured response
-          logger.warn(scopedLog(LogContext.HEALTH, 'no sessions available for recording diagnostics'));
-          const noSessionLevel = options?.level === 'full'
-            ? RecordingDiagnosticLevel.FULL
-            : options?.level === 'standard'
-              ? RecordingDiagnosticLevel.STANDARD
-              : RecordingDiagnosticLevel.QUICK;
-          results.recording = {
-            ready: false,
-            timestamp: new Date().toISOString(),
-            durationMs: 0,
-            level: noSessionLevel,
-            issues: [{
-              severity: 'warning',
-              category: 'general',
-              message: 'No active browser sessions available for diagnostics',
-              suggestion: 'Start a browser session first by navigating to a page',
-            }],
-            checks: [],
-            provider: { name: 'unknown', evaluateIsolated: false, exposeBindingIsolated: false },
-          };
-        }
-      }
-
-      const completedAt = new Date();
-
-      const response: DiagnosticRunResponse = {
-        started_at: startedAt.toISOString(),
-        completed_at: completedAt.toISOString(),
-        duration_ms: completedAt.getTime() - startedAt.getTime(),
-        results,
-      };
-
-      sendJson(res, 200, response);
-    } catch (error) {
-      logger.error(scopedLog(LogContext.HEALTH, 'diagnostics run failed'), {
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      sendJson(res, 500, {
-        error: 'Failed to run diagnostics',
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  };
-
-  req.on('end', () => {
-    void handleEnd();
-  });
-}
-
-/**
- * GET /observability/sessions
- *
- * Get detailed list of all active browser sessions.
- * Returns session metadata for diagnostics and monitoring.
- */
 export function handleSessionList(
   _req: IncomingMessage,
   res: ServerResponse,
@@ -644,14 +382,16 @@ export async function handleCleanupRun(
   logger.info(scopedLog(LogContext.HEALTH, 'manual cleanup triggered'));
 
   try {
-    // Get session count before cleanup
-    const beforeCount = deps.sessionManager.getSessionCount();
+    // Preserve per-session age before cleanup so a zero-reclaim result remains
+    // diagnosable rather than success-shaped.
+    const beforeSessions = deps.sessionManager.getSessionList();
+    const beforeCount = beforeSessions.length;
 
     // Run cleanup
     await deps.sessionManager.cleanupIdleSessions();
 
-    // Get session count after cleanup
-    const afterCount = deps.sessionManager.getSessionCount();
+    const remainingSessions = deps.sessionManager.getSessionList();
+    const afterCount = remainingSessions.length;
     const cleanedUp = beforeCount - afterCount;
 
     const completedAt = new Date();
@@ -660,6 +400,16 @@ export async function handleCleanupRun(
       success: true,
       cleaned_up: cleanedUp,
       remaining_sessions: afterCount,
+      sessions_before: beforeSessions.map((session) => ({
+        id: session.id,
+        age_ms: startedAt.getTime() - new Date(session.created_at).getTime(),
+        last_used_at: session.last_used_at,
+      })),
+      surviving_sessions: remainingSessions.map((session) => ({
+        id: session.id,
+        age_ms: Date.now() - new Date(session.created_at).getTime(),
+        last_used_at: session.last_used_at,
+      })),
       started_at: startedAt.toISOString(),
       completed_at: completedAt.toISOString(),
       duration_ms: completedAt.getTime() - startedAt.getTime(),

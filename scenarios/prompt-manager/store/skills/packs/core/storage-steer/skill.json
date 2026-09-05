@@ -1,29 +1,58 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-01-30T20:00:00-05:00",
+  "defaultScope": "architecture-scope",
+  "description": "Steers scenarios toward engine-independent, per-domain storage architecture: schema embedded next to the code that interprets it (SchemaProvider/EnsureSchemas substrate in api-core/database), repository interfaces hide the engine, the same per-domain rule applies to Qdrant collections and Redis namespaces, and migrations follow a three-tier story (declarative greenfield, out-of-tree scripts for greenfield-with-data, versioned migrations only when production schema evolution earns them).",
+  "entry": "SKILL.md",
   "id": "storage-steer",
-  "name": "Storage Architecture",
-  "description": "Ensures persistent storage mechanisms (PostgreSQL, Redis, Qdrant, filesystem) are properly configured with environment-driven connections, scenario-isolated databases, idempotent schema initialization, repository abstractions, and filesystem runtime state routed through api-core/storage.",
+  "kind": "skill",
   "modes": [
     "steer"
   ],
+  "name": "Storage Architecture",
+  "origin": {
+    "kind": "authored"
+  },
+  "programmaticHome": "storage-manager:storage",
+  "requires": {
+    "commands": [
+      "git-control-tower baseline",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "swarm-manager captures",
+      "test-genie",
+      "test-genie phase",
+      "vrooli",
+      "vrooli scenario"
+    ],
+    "scenarios": [
+      "git-control-tower",
+      "prompt-manager",
+      "swarm-manager",
+      "test-genie",
+      "vrooli"
+    ]
+  },
+  "revision": 51,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "storage",
     "database",
-    "postgres",
-    "redis",
-    "qdrant",
-    "filesystem",
-    "api-core-storage",
+    "schema-architecture",
+    "per-domain-schema",
+    "schema-provider",
+    "ensure-schemas",
     "migrations",
     "repository-pattern",
-    "connection-pooling",
-    "environment-variables"
+    "sqlite",
+    "postgres",
+    "qdrant",
+    "redis",
+    "isolation",
+    "greenfield"
   ],
-  "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
-  "revision": 48,
-  "createdAt": "2026-01-30T20:00:00-05:00",
-  "updatedAt": "2026-02-07T04:16:18Z"
+  "targetDimensions": [
+    "storage"
+  ],
+  "updatedAt": "2026-06-22T00:00:00Z"
 }

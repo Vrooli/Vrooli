@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "deployment-manager.release-preflight", "version": "1",
+  "purpose": "Read one prepared review and return a bounded fail-closed preflight decision without releasing.",
+  "inputs": {"review_key": {"type": "string", "required": true}},
+  "assumptions": ["a readiness review has already been prepared"],
+  "invariants": ["read-only", "never converts unavailable to ready", "at most 20 findings are materialized", "one envelope is printed on every path"],
+  "bindings": [{"id": "deployment-manager/readiness-reviews/get", "effect": "read"}, {"id": "deployment-manager/readiness-reviews/policy-check", "effect": "read"}],
+  "verbs": ["gather"],
+  "outputs": {"status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]}, "phase": {"enum": ["validate", "collect", "classify", "report"]}, "signals": {"ready": "true only for exact approved review", "review_status": "durable state", "unresolved": "finding count", "policy_matches": "canonical projection result", "findings": "at most 20 rows"}, "errors": {"classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "deadline_exceeded", "binding_error", "kernel_runtime"]}, "evidence": "review key and policy version"},
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 20},
+  "fixtures": [{"id": "missing-key", "inputs": {}, "expect": {"status": ["failed"]}}, {"id": "unknown-key", "inputs": {"review_key": "rr-fixture-missing"}, "expect": {"status": ["failed", "unavailable"]}, "requires": ["deployment-manager"]}],
+  "rung": "S3", "owner_skill": "deployment-manager"
+}

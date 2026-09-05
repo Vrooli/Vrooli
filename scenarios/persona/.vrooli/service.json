@@ -1,0 +1,185 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "persona",
+    "displayName": "Persona Identity Console",
+    "description": "Holds the identity an agent transacts as, retrieves the codes a machine cannot receive on its own, and turns every wall it cannot cross into a resumable handoff",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-18T19:43:20Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a8b2a3025441b1e658f96935a24e446e45a3524fa138824c99d642e5d51506e9"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "persona",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "persona"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Owns run identity. Persona binds persona_id into Claims.Meta and verifies every act-as through agent-manager's live endpoint; token parsing, scope intersection, and attenuation are never reimplemented here.",
+        "degraded_behavior": "Act-as is refused and the refusal is journaled. Reads, the operator console, and human handoff completion remain available. There is no degraded evidence grade and no override.",
+        "supervision_precedence": "required"
+      },
+      "document-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Sole store for identity documents. Persona holds a binding and a release-into-handoff verb, never document bytes, so sensitivity classification and the append-only custody journal stay in one place.",
+        "degraded_behavior": "Binding and release are refused; existing bindings remain listable. No document content is ever cached locally to fall back on.",
+        "supervision_precedence": "required"
+      },
+      "secrets-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Holds mailbox and channel provider credentials. A persona records which credential to use and never the secret value itself.",
+        "degraded_behavior": "Affected channel adapters report unavailable and code retrieval is refused for them; other adapters continue. No credential was cached to leak.",
+        "supervision_precedence": "required"
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional source of act-as grants expressed as ordinary team member configuration, keeping organisational policy where teams already live.",
+        "degraded_behavior": "Falls back to locally held persona ACL entries. Access becomes narrower, never wider."
+      },
+      "device-control": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional one-time-code adapter that leases a phone and reads a code through its existing bounded-action pattern.",
+        "degraded_behavior": "That single adapter reports unavailable; other OTP adapters continue. Never falls back to another persona's route."
+      },
+      "notification-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional relay that delivers handoffs to the operator's preferred device.",
+        "degraded_behavior": "The built-in handoff queue serves the operator directly and no handoff is lost; only cross-device delivery is absent."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

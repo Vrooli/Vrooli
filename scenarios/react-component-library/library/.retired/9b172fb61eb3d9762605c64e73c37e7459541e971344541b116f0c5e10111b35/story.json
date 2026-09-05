@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "list"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace principles"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Ordered collection",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "list"
+        },
+        {
+          "kind": "role",
+          "name": "Channel",
+          "role": "textbox"
+        }
+      ],
+      "id": "empty",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Add channel",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Empty invitation",
+      "role": "boundary"
+    }
+  ],
+  "title": "ArrayField"
+}

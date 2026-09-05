@@ -1,0 +1,294 @@
+/* ── Canonical brand design tokens ──
+ * The brand-identity SSOT for web-console, in the canonical `--color-*` /
+ * `--font-*` contract that the Vrooli branding ecosystem (brand-manager) reads
+ * and projects into. These mirror the operational `--wc-*` palette in
+ * styles.css (which carries the `R G B` triples Tailwind needs for alpha); this
+ * file is the human/brand-facing source of truth for the core identity colors
+ * and typography. Keep the two in sync when the brand changes.
+ */
+:root {
+  /* Core identity colors (hex SSOT). */
+  --color-background: #020617; /* slate-950 — app base */
+  --color-foreground: #f8fafc; /* slate-50  — primary text */
+  --color-primary: #22d3ee;    /* cyan-400  — brand accent */
+  --color-secondary: #0ea5b7;  /* cyan-600-ish */
+  --color-surface: #0f172a;    /* slate-900 — raised surface */
+  --color-accent: #22d3ee;     /* cyan-400 */
+  /* ── Follower device frame ──
+   * The silhouette drawn around a session another device is driving. The
+   * enclosure reads as an object rather than an outline, so it needs a body,
+   * a lit rim, a recessed screen and a keyboard plate — not one line colour.
+   *
+   * Body and screen are re-derived from the active terminal theme in
+   * styles.css, so the bezel belongs to the terminal it surrounds. The values
+   * here are the slate-family defaults the canonical brand ships. */
+  --wc-device-frame-surface: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  --wc-device-frame-line: color-mix(in srgb, var(--color-foreground) 36%, transparent);
+  --wc-device-frame-text: var(--color-foreground);
+  --wc-device-frame-radius: 20px;
+  --wc-device-frame-caption-radius: 4px;
+  /* Enclosure body, and the shaded variant used for stands and side buttons. */
+  --wc-device-body: color-mix(in srgb, var(--wc-device-theme-surface, var(--color-surface)) 72%, #8fa6c4 28%);
+  --wc-device-body-shade: color-mix(in srgb, var(--wc-device-theme-surface, var(--color-surface)) 84%, #8fa6c4 16%);
+  /* Lit top edge; what separates an enclosure from a filled rectangle. */
+  --wc-device-rim: color-mix(in srgb, var(--wc-device-theme-fg, var(--color-foreground)) 26%, transparent);
+  /* Screen glass and the recess shadow around it. */
+  --wc-device-screen: color-mix(in srgb, var(--wc-device-theme-bg, var(--color-background)) 92%, #000 8%);
+  --wc-device-screen-rim: color-mix(in srgb, #000 55%, transparent);
+  /* Small relief details: home bar, camera, chin mark. */
+  --wc-device-detail: color-mix(in srgb, var(--wc-device-theme-fg, var(--color-foreground)) 40%, transparent);
+  /* Leader keyboard plate. Deliberately low contrast: it is an explanation of
+   * why the grid shrank, never something a viewer could mistake for input. */
+  --wc-device-keyplate: color-mix(in srgb, var(--wc-device-theme-bg, var(--color-background)) 88%, #fff 12%);
+  --wc-device-keycap: color-mix(in srgb, var(--wc-device-theme-fg, var(--color-foreground)) 14%, transparent);
+  /* Leader state chip, and the one accented affordance on the frame. */
+  --wc-device-state-fg: var(--color-primary);
+  --wc-device-state-line: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  --wc-device-action-bg: var(--color-primary);
+  --wc-device-action-fg: var(--color-background);
+
+  /* Machine chassis. A machine is compute, not a screen — most are headless —
+   * so its recess is a vent face rather than glass, and reachability is
+   * carried by a status lamp instead of by the shape. The colours stay in the
+   * device family on purpose: both halves of the fleet drawer must shift
+   * together when the terminal palette changes. */
+  --wc-machine-lamp-live: var(--color-primary);
+  --wc-machine-lamp-offline: var(--color-warning);
+  --wc-machine-lamp-dark: var(--wc-device-detail);
+  /* The chassis analogue of --wc-device-screen-lit: a dispatchable machine
+   * washes its vent face the way a leading device lights its screen. */
+  --wc-machine-face-live: color-mix(in srgb, var(--color-primary) 14%, var(--wc-device-screen));
+
+  /* Typography. A system-font stack (no bundled webfont): we render with the
+   * platform UI typeface rather than shipping a custom font. If the brand later
+   * adopts a bundled typeface, self-host it (@font-face + woff2) and lead with
+   * it here. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* ── Contract tokens for adopted React Component Library components ──
+   *
+   * `src/audio-integration/` (ControlBase, IconButton, VoiceInputButton) is
+   * copied from React Component Library and reads these at runtime. Component
+   * adoption translates Tailwind utility class names only; it does not carry
+   * the CSS custom properties the copied CSS depends on. Every name below was
+   * previously undefined here, so each declaration degraded to its CSS initial
+   * value — `border-width: var(--border-hairline)` fell back to `medium`
+   * (~3px), and the voice glyph's `inline-size: var(--space-sm)` fell back to
+   * `auto`, sizing the mic SVG to its intrinsic default until `overflow:
+   * hidden` clipped it into a featureless colored disc.
+   *
+   * Semantic colors are mapped onto the operational `--wc-*` palette in
+   * styles.css wherever web-console already has an equivalent, so the shared
+   * controls inherit this app's identity rather than a second palette. Warning,
+   * info, and success have no `--wc-*` equivalent and take the canonical
+   * library values, which are from the same Tailwind family as the rest.
+   *
+   * Structural values are copied verbatim from the canonical source,
+   * `scenarios/react-component-library/ui/src/design-tokens.css`.
+   */
+  --color-border: rgb(var(--wc-border-default));
+  /* Field surface. web-console distinguishes a panel (slate-900) from an
+   * input (slate-800); the library's --color-surface is the panel, so
+   * before this token existed every adopted field had to override it at
+   * the call site. Mapped once here instead. */
+  --color-field: rgb(var(--wc-surface-input));
+  --color-muted-foreground: rgb(var(--wc-text-muted));
+  --color-surface-muted: rgb(var(--wc-surface-input));
+  --color-primary-foreground: rgb(var(--wc-accent-fg));
+  --color-focus: rgb(var(--wc-accent));
+  --color-danger: rgb(var(--wc-error-detail));
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-success: #22c55e;
+
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-pill: 9999px;
+
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs: 12px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+  --space-xl: 40px;
+  --space-2xl: 48px;
+  --tap-target-min: 44px;
+  --text-body-size: 14px;
+  --text-body-line: 22px;
+  --text-body-sm-size: 13px;
+  --text-body-sm-line: 20px;
+  --text-label-size: 12px;
+  --text-label-line: 16px;
+  --text-label-tracking: 0.005em;
+  --icon-size-xs: 12px;
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+  --elev-flat: none;
+  --elev-raised: 0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1);
+  --elev-overlay: 0 2px 4px rgba(9, 18, 22, 0.06), 0 4px 12px rgba(9, 18, 22, 0.1);
+
+  /* Stacking scale. Copied verbatim from the canonical source, where it sits
+   * between --elev-* and --border-*; this copy had skipped the block entirely.
+   *
+   * Every name here was previously undefined, and an undefined custom property
+   * in `z-index: var(--layer-modal)` is invalid at computed-value time, so the
+   * declaration resolved to `auto` rather than to any number. That is not a
+   * cosmetic default: a library rule still WINS the cascade and then computes
+   * to `auto`, which silently outranks nothing and loses to every consumer
+   * `z-index` on the page.
+   *
+   * SidebarShell is where it surfaced. Its panel rule
+   * `[data-rcl-sidebar-shell][data-mode="overlay"]` is (0,2,0) and beats the
+   * `.z-wc-drawer` class this app puts on the same element, so the panel took
+   * `auto`; its backdrop rule `[data-rcl-sidebar-backdrop]` is only (0,1,0),
+   * ties with `.z-wc-drawer`, and the consumer wins the tie — so the backdrop
+   * took 50 and painted over the drawer it was meant to sit behind. Dialog,
+   * DrawerShell and ResponsivePanel read the same token and were equally
+   * unlayered; they just had no consumer z-index to lose to yet. */
+  --layer-base: 0;
+  --layer-sticky: 100;
+  --layer-dropdown: 200;
+  --layer-overlay: 300;
+  --layer-modal: 400;
+  --layer-toast: 500;
+  --layer-tooltip: 600;
+  --layer-menu: 610;
+	--layer-alert: 700;
+	--layer-banner: 750;
+
+  --border-hairline: 1px;
+  --border-strong: 2px;
+  --opacity-disabled: 0.4;
+  --opacity-muted: 0.64;
+  --dur-instant: 120ms;
+  --dur-quick: 180ms;
+  --dur-moderate: 280ms;
+  --dur-deliberate: 400ms;
+  --dur-fast: var(--dur-instant);
+  --dur-normal: var(--dur-moderate);
+  --dur-slow: var(--dur-deliberate);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  /* Overshoots slightly before settling. For direct-manipulation controls
+     whose travel should read as physical — a switch thumb, a snapping sheet.
+     Never for opacity or colour, where an overshoot has nowhere to go. */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+/* rcl:tokens:begin */
+  --badge-border: var(--color-border);
+  --border-thin: 1px;
+  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-danger-border: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+  --color-danger-foreground: color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground));
+  --color-danger-foreground-inverse: var(--color-primary-foreground);
+  --color-danger-subtle: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  --color-scrim: rgba(15, 23, 42, 0.72);
+  --color-shell: #020617;
+  --color-surface-raised: #172033;
+  --control-height: 2.75rem;
+  --control-height-lg: 3.25rem;
+  --control-height-sm: 2.25rem;
+  --control-padding: var(--space-sm);
+  --control-radius: var(--radius-control);
+  --control-size-icon: 40px;
+  --control-size-lg: 44px;
+  --control-size-md: 40px;
+  --control-size-sm: 36px;
+  --control-size-xl: 48px;
+  --control-size-xs: 32px;
+  --dur-enter: var(--dur-quick);
+  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
+  --elev-modal: 0 4px 12px rgba(9, 18, 22, 0.1), 0 16px 48px rgba(9, 18, 22, 0.18);
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, .06);
+  --font-size-lg: 18px;
+  --font-size-sm: 14px;
+  --opacity-scrim: 0.72;
+  --overlay-dialog-lg: 48rem;
+  --overlay-dialog-md: 32rem;
+  --overlay-dialog-sm: 24rem;
+  --overlay-drawer-top-gap: var(--space-2xl);
+  --overlay-grabber-block: 0.25rem;
+  --overlay-grabber-inline: 2.25rem;
+  --overlay-menu-align: 0px;
+  --panel-padding: var(--space-md);
+  --panel-radius: var(--radius-panel);
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-none: 0;
+  --radius-overlay: 1rem;
+  --radius-sheet: 1rem;
+  --radius-sm: 0.25rem;
+  --radius-xl: 1.25rem;
+  --rcl-sheet-progress: initial;
+  --space-4xl: 80px;
+  --space-4xs: 4px;
+  --spring-subtle: cubic-bezier(0.2, 0.8, 0.2, 1.05);
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-body-sm: 400 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-caption-line: 16px;
+  --text-caption-size: 11px;
+  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
+  --text-display-line: 38px;
+  --text-display-size: 32px;
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  --text-heading-line: 24px;
+  --text-heading-size: 18px;
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-subheading-line: 20px;
+  --text-subheading-size: 15px;
+  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+  --text-subtitle-tracking: 0;
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+  --text-title-line: 30px;
+  --text-title-size: 24px;
+  --text-title-tracking: -.01em;
+  --text-xs: 12px;
+  --tracking-caps: .08em;
+  --weight-medium: 500;
+/* rcl:tokens:end */
+
+  /* Scenario-owned, deliberately outside the managed region.
+   *
+   * --color-border-strong was declared only in the light-theme block and in
+   * the mobile-toolbar scope, so in the app's default dark theme it resolved
+   * to nothing. Every library control that paints with it — the drawer, sheet,
+   * and dialog grabbers most visibly — drew an invisible bar: present in the
+   * accessibility tree and in the hit area, absent on screen.
+   *
+   * Viewport geometry is owned by the shared overlay environment and scoped
+   * to each presentation root; Web Console publishes only its --wc-* shell
+   * projection. */
+  --color-border-strong: rgb(var(--wc-text-faint));
+}
+
+/* The application defaults to its established dark identity, while preview,
+ * visual-regression, and explicit theme hosts can request the light contract.
+ * Keeping this mapping in the consumer-owned token file means composition
+ * tests exercise web-console's real cascade instead of a catalog-side copy. */
+:root[data-resolved-theme="light"] {
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+  --color-surface: #ffffff;
+  /* The :root mapping points at the dark --wc-surface-input, so the light
+     contract has to restate it or every field stays slate-800 here. */
+  --color-field: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-sunken: #e2e8f0;
+  --color-surface-raised: #ffffff;
+  --color-border: #cbd5e1;
+  --color-border-strong: #94a3b8;
+  --color-border-subtle: #e2e8f0;
+  --color-muted-foreground: #64748b;
+  --color-primary: #0891b2;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0891b2;
+  --color-focus: #0891b2;
+  --color-scrim: rgb(15 23 42 / 0.52);
+  color-scheme: light;
+}

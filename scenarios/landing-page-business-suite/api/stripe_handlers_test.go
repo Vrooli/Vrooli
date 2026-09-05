@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -12,6 +13,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
 )
 
 func newMockStripeServer(t *testing.T) *httptest.Server {
@@ -51,26 +56,19 @@ func signStripePayload(t *testing.T, payload []byte, timestamp string, secret st
 
 func TestHandleCheckoutCreateValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_validation", "production", 1000000, 0.001, "credits")
 	service := ConfigureStripeServiceSimple(t, db)
-	handler := handleCheckoutCreate(service)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/checkout/create", bytes.NewBufferString(`{"price_id":""}`))
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for missing fields, got %d", rec.Code)
+	handler := billinghttp.NewConnectHandler(billingConnectDependencies(service))
+	_, err := handler.CreateCheckoutSession(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.CreateCheckoutSessionRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid argument for missing fields, got %v", connect.CodeOf(err))
 	}
 }
 
 func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	stripeServer := newMockStripeServer(t)
 
 	resetStripeTestData(t, db)
@@ -122,7 +120,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 	}
 	payload, _ := json.Marshal(body)
 
-	handler := handleStripeWebhook(stripeService)
+	handler := billinghttp.Webhook(billingWebhookDependencies(stripeService))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(payload))
 	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
@@ -140,18 +138,15 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 		t.Fatalf("expected active subscription, got %s", status)
 	}
 
-	verifyHandler := handleSubscriptionVerify(stripeService)
-	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/subscription/verify?user=handler@example.com", nil)
-	verifyRec := httptest.NewRecorder()
-	verifyHandler.ServeHTTP(verifyRec, verifyReq)
-	if verifyRec.Code != http.StatusOK {
-		t.Fatalf("verify handler returned %d", verifyRec.Code)
+	payments := billinghttp.NewConnectHandler(billingConnectDependencies(stripeService))
+	_, err = payments.VerifySubscription(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.VerifySubscriptionRequest{UserIdentity: "handler@example.com"}))
+	if err != nil {
+		t.Fatalf("verify subscription: %v", err)
 	}
 }
 
 func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	stripeServer := newMockStripeServer(t)
 
 	resetStripeTestData(t, db)
@@ -206,7 +201,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
 
-	handleStripeWebhook(stripeService).ServeHTTP(rec, req)
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("webhook handler failed: %d %s", rec.Code, rec.Body.String())
 	}
@@ -222,7 +217,6 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 
 func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 
@@ -262,7 +256,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	reqPaid := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawPaid))
 	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "", "whsec_handlers"))
 	recPaid := httptest.NewRecorder()
-	handleStripeWebhook(stripeService).ServeHTTP(recPaid, reqPaid)
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(recPaid, reqPaid)
 	if recPaid.Code != http.StatusOK {
 		t.Fatalf("invoice.paid handler returned %d: %s", recPaid.Code, recPaid.Body.String())
 	}
@@ -293,7 +287,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	reqFailed := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawFailed))
 	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "", "whsec_handlers"))
 	recFailed := httptest.NewRecorder()
-	handleStripeWebhook(stripeService).ServeHTTP(recFailed, reqFailed)
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(recFailed, reqFailed)
 	if recFailed.Code != http.StatusOK {
 		t.Fatalf("invoice.payment_failed handler returned %d: %s", recFailed.Code, recFailed.Body.String())
 	}
@@ -308,7 +302,6 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 
 func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 
@@ -355,7 +348,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 		req.Header.Set("Stripe-Signature", signStripePayload(t, raw, "", "whsec_handlers"))
 		rec := httptest.NewRecorder()
 
-		handleStripeWebhook(stripeService).ServeHTTP(rec, req)
+		billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("event %d (%s) failed: %d %s", i, evt.eventType, rec.Code, rec.Body.String())
 		}
@@ -376,58 +369,33 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 
 func TestStripeSettingsHandlers(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 
-	update := handleUpdateStripeSettings(paymentService, stripeService)
-	body := bytes.NewBufferString(`{"publishable_key":"pk_live_handlers","secret_key":"sk_live_handlers","webhook_secret":"whsec_live_handlers","dashboard_url":"https://dashboard.stripe.com/test"}`)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings/stripe", body)
-	rec := httptest.NewRecorder()
-	update.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 from update handler, got %d (%s)", rec.Code, rec.Body.String())
+	handler := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, nil)
+	if _, err := handler.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{PublishableKey: protoString("pk_live_handlers"), SecretKey: protoString("sk_live_handlers"), WebhookSecret: protoString("whsec_live_handlers"), DashboardUrl: protoString("https://dashboard.stripe.com/test")})); err != nil {
+		t.Fatalf("update settings: %v", err)
 	}
-
-	get := handleGetStripeSettings(paymentService, stripeService)
-	getRec := httptest.NewRecorder()
-	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/settings/stripe", nil)
-	get.ServeHTTP(getRec, getReq)
-	if getRec.Code != http.StatusOK {
-		t.Fatalf("expected 200 from get handler, got %d", getRec.Code)
+	response, err := handler.GetStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.GetStripeSettingsRequest{}))
+	if err != nil {
+		t.Fatalf("get settings: %v", err)
 	}
-
-	var resp map[string]any
-	if err := json.Unmarshal(getRec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
+	if response.Msg.GetSnapshot().GetSource() == landing_page_business_suite_v1.ConfigSource_CONFIG_SOURCE_UNSPECIFIED {
+		t.Fatal("expected source to be present in snapshot")
 	}
-	snapshot, _ := resp["snapshot"].(map[string]any)
-	settings, _ := resp["settings"].(map[string]any)
-
-	sourceVal := snapshot["source"]
-	sourceStr, _ := sourceVal.(string)
-	if sourceStr == "" {
-		if num, ok := sourceVal.(float64); ok {
-			sourceStr = fmt.Sprintf("%v", num)
-		}
-	}
-	if sourceStr == "" {
-		t.Fatalf("expected source to be present in snapshot")
-	}
-	if !snapshot["publishable_key_set"].(bool) || !snapshot["secret_key_set"].(bool) || !snapshot["webhook_secret_set"].(bool) {
+	if !response.Msg.GetSnapshot().GetPublishableKeySet() || !response.Msg.GetSnapshot().GetSecretKeySet() || !response.Msg.GetSnapshot().GetWebhookSecretSet() {
 		t.Fatalf("expected all stripe keys to be marked as set")
 	}
-	if settings["dashboard_url"] == nil || settings["dashboard_url"] == "" {
-		t.Fatalf("expected dashboard url returned")
+	if response.Msg.GetSettings().GetDashboardUrl() == "" || response.Msg.GetSettings().GetSecretKey() != "" {
+		t.Fatalf("expected dashboard url and redacted secret, got %+v", response.Msg.GetSettings())
 	}
 }
 
 func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	stripeServer := newMockStripeServer(t)
 
 	resetStripeTestData(t, db)
@@ -443,19 +411,12 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 
 	stripeService := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	verifyRec := httptest.NewRecorder()
-	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/subscription/verify?user=cancelme@example.com", nil)
-	handleSubscriptionVerify(stripeService).ServeHTTP(verifyRec, verifyReq)
-	if verifyRec.Code != http.StatusOK {
-		t.Fatalf("verify handler returned %d", verifyRec.Code)
+	payments := billinghttp.NewConnectHandler(billingConnectDependencies(stripeService))
+	if _, err := payments.VerifySubscription(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.VerifySubscriptionRequest{UserIdentity: "cancelme@example.com"})); err != nil {
+		t.Fatalf("verify subscription: %v", err)
 	}
-
-	cancelBody := bytes.NewBufferString(`{"user_identity":"cancelme@example.com"}`)
-	cancelReq := httptest.NewRequest(http.MethodPost, "/api/v1/subscription/cancel", cancelBody)
-	cancelRec := httptest.NewRecorder()
-	handleSubscriptionCancel(stripeService).ServeHTTP(cancelRec, cancelReq)
-	if cancelRec.Code != http.StatusOK {
-		t.Fatalf("cancel handler returned %d: %s", cancelRec.Code, cancelRec.Body.String())
+	if _, err := payments.CancelSubscription(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.CancelSubscriptionRequest{UserIdentity: "cancelme@example.com"})); err != nil {
+		t.Fatalf("cancel subscription: %v", err)
 	}
 
 	var status string
@@ -469,12 +430,11 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 
 func TestHandleStripeWebhookRequiresSignature(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 
 	stripeService := ConfigureStripeServiceSimple(t, db)
-	handler := handleStripeWebhook(stripeService)
+	handler := billinghttp.Webhook(billingWebhookDependencies(stripeService))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewBufferString(`{"type":"test.event"}`))
 	rec := httptest.NewRecorder()

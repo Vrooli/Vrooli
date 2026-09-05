@@ -1,10 +1,11 @@
 // DOC: docs/concepts/ARCHITECTURE.md#file-map
 // DOC: docs/internal/STORAGE_AUDIT.md
-// DOC: docs/concepts/GLOSSARY.md#shortcut-profile
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 
 package main
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -16,10 +17,36 @@ import (
 // by selecting the highest-priority scope's profile.
 
 // ShortcutEntry represents a single launch shortcut.
+//
+// AgentID typed-links the entry to one coding agent in the capability
+// catalogue, or is "" for a plain operator command. It is stored rather than
+// re-derived on every read so that surfaces stop guessing which agent a
+// command string refers to; shortcut_agent_identity.go owns the one derivation
+// that fills it in for entries written before the field existed.
 type ShortcutEntry struct {
 	Label       string `json:"label"`
 	Command     string `json:"command"`
 	Description string `json:"description,omitempty"`
+	AgentID     string `json:"agent_id,omitempty"`
+}
+
+// EffectiveShortcuts is the resolved list plus the identity of the profile it
+// came from.
+//
+// The two travel together because a client that lets an operator reorder the
+// effective list has to write the result back to a specific profile. Returning
+// only the entries forced that client to re-derive scope priority for itself —
+// a second copy of a rule this package already owns, and one that would drift.
+// ProfileID is "" when no profile exists and the built-in defaults are being
+// served; a client must then create a profile rather than update one.
+type EffectiveShortcuts struct {
+	ProfileID string
+	Scope     string
+	// Name travels with the identity because UpsertProfile requires a name and
+	// rejects a blank one. A client that had only the id would have to invent
+	// one, silently renaming the operator's profile on the first reorder.
+	Name      string
+	Shortcuts []ShortcutEntry
 }
 
 // ShortcutProfile represents a named set of shortcuts at a given scope.
@@ -39,16 +66,127 @@ type ShortcutProfileStore struct {
 }
 
 // defaultShortcuts are the built-in shortcuts per PRD (OT-P0-006).
+//
+// These are plain agent commands. They do not name vrooli-agent-launcher and do
+// not preflight it, because the coding_agent_shims host safeguard puts a shim
+// for each agent on PATH; running `codex` already routes through the launcher
+// and picks up an identity. That is also why the separate "(attributed)"
+// entries are gone — every entry is attributed now, and a duplicate set that
+// hand-rolled the launcher invocation only invited the two to drift apart.
+//
+// Claude Code keeps its governed `vrooli agent launch` invocation: that routes
+// through agent-manager, which owns the run outright rather than attributing an
+// externally started one. The shim would work, but it is the weaker guarantee.
 var defaultShortcuts = []ShortcutEntry{
 	{
 		Label:       "Claude Code",
-		Command:     "claude --dangerously-skip-permissions",
+		Command:     "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
 		Description: "AI coding assistant with full permissions",
+		AgentID:     "claude",
 	},
 	{
 		Label:       "Codex",
 		Command:     "codex --yolo",
 		Description: "OpenAI Codex CLI in auto-approve mode",
+		AgentID:     "codex",
+	},
+	{
+		Label:       "OpenCode",
+		Command:     "opencode",
+		Description: "OpenCode TUI — conversation captured via its local server API",
+		AgentID:     "opencode",
+	},
+	{
+		Label:       "Grok",
+		Command:     "grok",
+		Description: "xAI Grok CLI — conversation captured from its session transcript",
+		AgentID:     "grok",
+	},
+}
+
+// legacyDefaultShortcutSets are prior built-in default shortcut lists that
+// shipped before OpenCode/Grok were added. A persisted "default" service
+// profile (seeded by older builds that wrote it to SQLite at boot) is only
+// reconciled to the current defaults when its content exactly matches one of
+// these — i.e. it is provably the unmodified seed, never a user customization.
+// Append a snapshot here whenever defaultShortcuts changes, so the prior shape
+// stays recognizable as "untouched seed".
+var legacyDefaultShortcutSets = [][]ShortcutEntry{
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+		{
+			Label:       "OpenCode",
+			Command:     "opencode",
+			Description: "OpenCode TUI — conversation captured via its local server API",
+		},
+		{
+			Label:       "Grok",
+			Command:     "grok",
+			Description: "xAI Grok CLI — conversation captured from its session transcript",
+		},
+		{
+			Label:       "Claude Code (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+			Description: "Claude Code with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+		{
+			Label:       "Codex (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo; fi; exec codex --yolo",
+			Description: "Codex with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+		{
+			Label:       "OpenCode (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent opencode --; fi; exec opencode",
+			Description: "OpenCode with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+		{
+			Label:       "Grok (attributed)",
+			Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent grok --; fi; exec grok",
+			Description: "Grok with best-effort Agent Manager attribution; direct fallback stays available",
+		},
+	},
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "claude --dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+	},
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "claude --dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+		{
+			Label:       "OpenCode",
+			Command:     "opencode",
+			Description: "OpenCode TUI — conversation captured via its local server API",
+		},
+		{
+			Label:       "Grok",
+			Command:     "grok",
+			Description: "xAI Grok CLI — conversation captured from its session transcript",
+		},
 	},
 }
 
@@ -85,7 +223,7 @@ var scopePriority = map[string]int{
 }
 
 // List returns all profiles.
-func (s *ShortcutProfileStore) List() []*ShortcutProfile {
+func (s *ShortcutProfileStore) List(_ context.Context) []*ShortcutProfile {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]*ShortcutProfile, 0, len(s.profiles))
@@ -96,7 +234,7 @@ func (s *ShortcutProfileStore) List() []*ShortcutProfile {
 }
 
 // Get returns a profile by ID.
-func (s *ShortcutProfileStore) Get(id string) (*ShortcutProfile, bool) {
+func (s *ShortcutProfileStore) Get(_ context.Context, id string) (*ShortcutProfile, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	p, ok := s.profiles[id]
@@ -120,10 +258,11 @@ func shortcutsEqual(a, b []ShortcutEntry) bool {
 // Replay-safe: if the content (scope, name, shortcuts) is identical to the
 // existing profile, the UpdatedAt timestamp is preserved — repeated calls
 // with the same payload are a no-op.
-func (s *ShortcutProfileStore) Upsert(id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
+func (s *ShortcutProfileStore) Upsert(_ context.Context, id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	shortcuts = normalizeShortcutEntries(shortcuts)
 	if existing, ok := s.profiles[id]; ok {
 		// Only bump UpdatedAt when content actually changed
 		if existing.Scope != scope || existing.Name != name || !shortcutsEqual(existing.Shortcuts, shortcuts) {
@@ -147,7 +286,7 @@ func (s *ShortcutProfileStore) Upsert(id, scope, name string, shortcuts []Shortc
 }
 
 // Delete removes a profile by ID. Returns false if not found.
-func (s *ShortcutProfileStore) Delete(id string) bool {
+func (s *ShortcutProfileStore) Delete(_ context.Context, id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.profiles[id]; !ok {
@@ -158,9 +297,9 @@ func (s *ShortcutProfileStore) Delete(id string) bool {
 }
 
 // Effective returns the resolved shortcut list by selecting the
-// highest-priority scope's profile. Falls back to default shortcuts
-// if no profiles exist.
-func (s *ShortcutProfileStore) Effective() []ShortcutEntry {
+// highest-priority scope's profile, together with that profile's identity.
+// Falls back to default shortcuts if no profiles exist.
+func (s *ShortcutProfileStore) Effective(_ context.Context) EffectiveShortcuts {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -175,7 +314,12 @@ func (s *ShortcutProfileStore) Effective() []ShortcutEntry {
 	}
 
 	if best == nil {
-		return defaultShortcuts
+		return EffectiveShortcuts{Shortcuts: normalizeShortcutEntries(defaultShortcuts)}
 	}
-	return best.Shortcuts
+	return EffectiveShortcuts{
+		ProfileID: best.ID,
+		Scope:     best.Scope,
+		Name:      best.Name,
+		Shortcuts: normalizeShortcutEntries(best.Shortcuts),
+	}
 }

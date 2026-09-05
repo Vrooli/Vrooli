@@ -1,0 +1,610 @@
+<title>Terminal I/O Teardown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ── tokens ─────────────────────────────────────────────────────────── */
+:root{
+  --ground:#f5f6f8; --surface:#ffffff; --surface-2:#eceff3; --surface-3:#e2e6ec;
+  --ink:#141a21; --ink-2:#3c4653; --ink-3:#6a7683;
+  --rule:#d7dce2; --rule-2:#b6bfc9;
+  --in:#0e6a61; --in-soft:rgba(14,106,97,.10); --in-line:rgba(14,106,97,.34);
+  --out:#9c5325; --out-soft:rgba(156,83,37,.10); --out-line:rgba(156,83,37,.34);
+  --crit:#a52e27; --crit-soft:rgba(165,46,39,.11);
+  --warn:#856512; --warn-soft:rgba(133,101,18,.13);
+  --ok:#2c6942; --ok-soft:rgba(44,105,66,.12);
+  --shadow:0 1px 2px rgba(20,26,33,.05),0 8px 24px -18px rgba(20,26,33,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d1015; --surface:#141920; --surface-2:#1a2029; --surface-3:#222a34;
+    --ink:#e7ebf0; --ink-2:#b2bcc7; --ink-3:#7d8894;
+    --rule:#262f3a; --rule-2:#39434f;
+    --in:#54bcae; --in-soft:rgba(84,188,174,.12); --in-line:rgba(84,188,174,.34);
+    --out:#e2924f; --out-soft:rgba(226,146,79,.12); --out-line:rgba(226,146,79,.34);
+    --crit:#ec7a70; --crit-soft:rgba(236,122,112,.13);
+    --warn:#d8ae4f; --warn-soft:rgba(216,174,79,.13);
+    --ok:#6bc48b; --ok-soft:rgba(107,196,139,.13);
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d1015; --surface:#141920; --surface-2:#1a2029; --surface-3:#222a34;
+  --ink:#e7ebf0; --ink-2:#b2bcc7; --ink-3:#7d8894;
+  --rule:#262f3a; --rule-2:#39434f;
+  --in:#54bcae; --in-soft:rgba(84,188,174,.12); --in-line:rgba(84,188,174,.34);
+  --out:#e2924f; --out-soft:rgba(226,146,79,.12); --out-line:rgba(226,146,79,.34);
+  --crit:#ec7a70; --crit-soft:rgba(236,122,112,.13);
+  --warn:#d8ae4f; --warn-soft:rgba(216,174,79,.13);
+  --ok:#6bc48b; --ok-soft:rgba(107,196,139,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -20px rgba(0,0,0,.9);
+}
+
+/* ── base ───────────────────────────────────────────────────────────── */
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:Spectral,Georgia,"Times New Roman",serif;
+  font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  padding:0 20px 96px;
+}
+.wrap{max-width:1080px;margin:0 auto}
+.col{max-width:66ch}
+h1,h2,h3,h4,.ui{font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+code,.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+
+.eyebrow{
+  font-family:Archivo,sans-serif;font-size:11.5px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+}
+
+/* ── masthead ───────────────────────────────────────────────────────── */
+header.masthead{padding:72px 0 0}
+header.masthead h1{
+  font-size:clamp(38px,6.4vw,62px); font-weight:700; line-height:.98;
+  letter-spacing:-.028em; margin:14px 0 0; text-wrap:balance;
+}
+header.masthead h1 .lane-in{color:var(--in)}
+header.masthead h1 .lane-out{color:var(--out)}
+.standfirst{font-size:20px;line-height:1.55;color:var(--ink-2);margin:20px 0 0;max-width:60ch}
+.meta-rail{
+  display:flex;flex-wrap:wrap;gap:10px 28px;margin:34px 0 0;
+  padding:16px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+}
+.meta-rail div{display:flex;flex-direction:column;gap:3px}
+.meta-rail dt,.meta-rail .k{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.meta-rail .v{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* ── sections ───────────────────────────────────────────────────────── */
+section{margin:68px 0 0}
+h2{
+  font-size:clamp(25px,3.2vw,33px);font-weight:600;letter-spacing:-.02em;
+  line-height:1.12;margin:0 0 6px;text-wrap:balance;
+}
+h2 .num{
+  font-family:"JetBrains Mono",monospace;font-size:.5em;font-weight:500;
+  color:var(--ink-3);margin-right:.85em;vertical-align:.32em;letter-spacing:0;
+}
+.deck{color:var(--ink-3);font-size:16px;margin:0 0 26px;max-width:62ch}
+p{margin:0 0 18px}
+p.col,ul.col,ol.col{max-width:66ch}
+strong{font-weight:600}
+em{font-style:italic}
+a{color:var(--in);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+:focus-visible{outline:2px solid var(--in);outline-offset:3px;border-radius:2px}
+
+code{
+  font-size:.855em;background:var(--surface-2);color:var(--ink);
+  padding:.1em .34em;border-radius:2px;border:1px solid var(--rule);
+  word-break:break-word;
+}
+
+/* ── the pipe diagram ───────────────────────────────────────────────── */
+.figure{margin:8px 0 30px}
+.figcap{
+  font-family:Archivo,sans-serif;font-size:12.5px;color:var(--ink-3);
+  margin:12px 0 0;padding-left:2px;max-width:70ch;line-height:1.5;
+}
+.figcap b{color:var(--ink-2);font-weight:600}
+.scroll{overflow-x:auto;padding-bottom:4px}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0 0 16px}
+.legend span{display:inline-flex;align-items:center;gap:8px;font-family:Archivo,sans-serif;font-size:12px;color:var(--ink-2)}
+.legend i{width:22px;height:0;border-top:2px solid;display:inline-block}
+.legend .li{border-color:var(--in)} .legend .lo{border-color:var(--out)}
+.legend .ld{border-top-style:dashed;border-color:var(--ink-3)}
+
+.pipe{min-width:660px;display:grid;grid-template-columns:1fr 118px 1fr;gap:0}
+.tier{
+  grid-column:2;display:flex;align-items:center;justify-content:center;
+  font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  text-align:center;padding:14px 4px;line-height:1.35;
+  border-left:1px solid var(--rule);border-right:1px solid var(--rule);
+  background:var(--surface-2);
+}
+.node{
+  border:1px solid var(--rule);background:var(--surface);border-radius:3px;
+  padding:11px 13px;margin:9px 0;box-shadow:var(--shadow);
+}
+.node .nm{font-family:"JetBrains Mono",monospace;font-size:12.5px;font-weight:500;color:var(--ink);display:block;word-break:break-word}
+.node .ds{font-family:Archivo,sans-serif;font-size:11.5px;color:var(--ink-3);display:block;margin-top:4px;line-height:1.45}
+.cellin{grid-column:1;padding:0 20px 0 0;border-left:3px solid var(--in-line);padding-left:18px}
+.cellout{grid-column:3;padding:0 0 0 20px;border-right:3px solid var(--out-line);padding-right:18px}
+.cellin .node{border-left:2px solid var(--in)}
+.cellout .node{border-right:2px solid var(--out)}
+.arrow{font-family:"JetBrains Mono",monospace;font-size:14px;line-height:1;padding:2px 0}
+.cellin .arrow{color:var(--in)}
+.cellout .arrow{color:var(--out);text-align:right}
+.lanehead{
+  font-family:Archivo,sans-serif;font-size:11px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;padding:0 0 10px;
+}
+.cellin .lanehead{color:var(--in)}
+.cellout .lanehead{color:var(--out);text-align:right}
+.forkbadge{
+  display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10.5px;
+  font-weight:700;color:var(--crit);background:var(--crit-soft);
+  border:1px solid var(--crit);border-radius:2px;padding:1px 5px;margin-top:7px;
+}
+
+/* ── ledger diagram ─────────────────────────────────────────────────── */
+.ledger{min-width:620px;border:1px solid var(--rule);border-radius:3px;background:var(--surface);overflow:hidden}
+.ledger-row{display:grid;grid-template-columns:150px 1fr;border-bottom:1px solid var(--rule)}
+.ledger-row:last-child{border-bottom:0}
+.ledger-lbl{
+  padding:16px 14px;background:var(--surface-2);border-right:1px solid var(--rule);
+  font-family:Archivo,sans-serif;font-size:11.5px;font-weight:600;color:var(--ink-2);line-height:1.35;
+}
+.ledger-lbl small{display:block;font-family:"JetBrains Mono",monospace;font-weight:400;font-size:10.5px;color:var(--ink-3);margin-top:4px;letter-spacing:-.01em}
+.track{padding:16px 18px;display:flex;align-items:center;gap:0;flex-wrap:nowrap}
+.tick{
+  flex:0 0 auto;font-family:"JetBrains Mono",monospace;font-size:11.5px;
+  font-variant-numeric:tabular-nums;padding:5px 9px;border-radius:2px;
+  border:1px solid var(--rule-2);background:var(--surface-2);color:var(--ink-2);
+}
+.tick.in{border-color:var(--in);color:var(--in);background:var(--in-soft)}
+.tick.out{border-color:var(--out);color:var(--out);background:var(--out-soft)}
+.tick.bad{border-color:var(--crit);color:var(--crit);background:var(--crit-soft);font-weight:700}
+.seg{flex:0 0 auto;width:26px;border-top:1px solid var(--rule-2);height:0}
+.seg.brk{border-top-style:dashed;border-color:var(--crit);width:34px}
+.brklbl{
+  flex:0 0 auto;font-family:Archivo,sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--crit);padding:0 10px;
+}
+.verdict{
+  margin-top:0;border:1px solid var(--crit);border-top:0;background:var(--crit-soft);
+  padding:14px 16px;font-family:Archivo,sans-serif;font-size:13.5px;line-height:1.5;color:var(--ink);
+  border-radius:0 0 3px 3px;
+}
+.verdict b{color:var(--crit)}
+
+/* ── data table ─────────────────────────────────────────────────────── */
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:14px}
+caption{text-align:left;font-family:Archivo,sans-serif;font-size:12px;color:var(--ink-3);padding-bottom:10px}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  font-family:Archivo,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--rule-2);
+}
+td.n{font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.n.hot{color:var(--crit);font-weight:700}
+tbody tr:last-child td{border-bottom:1px solid var(--rule-2)}
+td .sub{display:block;font-family:Archivo,sans-serif;font-size:11.5px;color:var(--ink-3);margin-top:3px}
+
+/* ── findings ───────────────────────────────────────────────────────── */
+.finding{border-top:1px solid var(--rule-2);padding:26px 0 4px;margin:0}
+.finding:first-of-type{border-top:1px solid var(--ink-3)}
+.fhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 14px;margin-bottom:4px}
+.fid{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:700;color:var(--ink-3);letter-spacing:.02em}
+.fhead h3{font-family:Archivo,sans-serif;font-size:20px;font-weight:600;letter-spacing:-.012em;margin:0;flex:1 1 320px;line-height:1.25;text-wrap:balance}
+.chip{
+  font-family:Archivo,sans-serif;font-size:10px;font-weight:700;letter-spacing:.11em;
+  text-transform:uppercase;padding:3px 8px;border-radius:2px;border:1px solid;white-space:nowrap;
+}
+.chip.crit{color:var(--crit);background:var(--crit-soft);border-color:var(--crit)}
+.chip.warn{color:var(--warn);background:var(--warn-soft);border-color:var(--warn)}
+.chip.info{color:var(--ink-3);background:var(--surface-2);border-color:var(--rule-2)}
+.axes{
+  display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 14px;
+}
+.axis{
+  font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  color:var(--ink-3);background:var(--surface-2);border:1px solid var(--rule);
+  border-radius:2px;padding:2px 7px;
+}
+.evidence{
+  margin:14px 0 0;padding:11px 14px;background:var(--surface-2);
+  border:1px solid var(--rule);border-left:2px solid var(--ink-3);border-radius:2px;
+  font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.75;color:var(--ink-2);
+  overflow-x:auto;
+}
+.evidence b{color:var(--ink);font-weight:700}
+pre{
+  margin:14px 0 0;padding:14px 16px;background:var(--surface-2);border:1px solid var(--rule);
+  border-radius:3px;overflow-x:auto;font-family:"JetBrains Mono",monospace;
+  font-size:12.5px;line-height:1.7;color:var(--ink-2);
+}
+pre .hl{color:var(--crit);font-weight:700}
+pre .cm{color:var(--ink-3)}
+
+/* ── fixes ──────────────────────────────────────────────────────────── */
+.fixgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.fix{background:var(--surface);padding:20px}
+.fix .rank{font-family:"JetBrains Mono",monospace;font-size:11.5px;font-weight:700;color:var(--in);letter-spacing:.06em}
+.fix h4{font-family:Archivo,sans-serif;font-size:16.5px;font-weight:600;margin:8px 0 8px;line-height:1.3;letter-spacing:-.01em}
+.fix p{font-size:14.5px;line-height:1.55;color:var(--ink-2);margin:0 0 10px}
+.fix p:last-child{margin-bottom:0}
+.fix .kills{font-family:Archivo,sans-serif;font-size:11.5px;color:var(--ink-3)}
+.fix .kills b{color:var(--in);font-weight:700;font-family:"JetBrains Mono",monospace}
+
+ul.col li,ol.col li{margin:0 0 9px}
+ul.col,ol.col{padding-left:1.15em;margin:0 0 18px}
+
+footer{margin:76px 0 0;padding:24px 0 0;border-top:1px solid var(--rule);color:var(--ink-3);font-size:14px;max-width:66ch}
+
+@media (max-width:720px){
+  body{font-size:16px;padding:0 16px 72px}
+  header.masthead{padding:48px 0 0}
+  section{margin:52px 0 0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">web-console · scenario teardown</div>
+  <h1>How the <span class="lane-in">input</span> and <span class="lane-out">output</span> lanes actually work</h1>
+  <p class="standfirst">A structural read of the web-console terminal stack — the round trip from a keypress to a PTY and back — and the five places the architecture, not the code, is what's failing.</p>
+  <div class="meta-rail">
+    <div><span class="k">Read at</span><span class="v">2026-08-25</span></div>
+    <div><span class="k">Surface</span><span class="v">ui/hooks/terminal + api/session + api/pty*</span></div>
+    <div><span class="k">Findings</span><span class="v">2 critical · 4 structural · 3 maturity</span></div>
+    <div><span class="k">Method</span><span class="v">static trace + measured fork cost</span></div>
+  </div>
+</header>
+
+<section>
+  <h2><span class="num">01</span>The map</h2>
+  <p class="deck">Two independent lanes share one WebSocket. They do not share a queue, an ordering guarantee, or a mutex discipline — and almost every symptom traces back to that.</p>
+
+  <div class="figure">
+    <div class="legend">
+      <span><i class="li"></i>Input lane — client → PTY</span>
+      <span><i class="lo"></i>Output lane — PTY → client</span>
+      <span><i class="ld"></i>separate transport, no shared ordering</span>
+    </div>
+    <div class="scroll">
+    <div class="pipe">
+
+      <div class="cellin">
+        <div class="lanehead">Input ↓</div>
+        <div class="node"><span class="nm">xterm.onData</span><span class="ds">Keystrokes, IME, browser paste</span></div>
+        <div class="arrow">▼</div>
+        <div class="node"><span class="nm">stripTerminalResponses()</span><span class="ds">Drops xterm's own DA/OSC replies so replayed queries don't spam the shell</span></div>
+        <div class="arrow">▼</div>
+        <div class="node"><span class="nm">inputGate.submit()</span><span class="ds">sent · queued · rejected — the single decision point</span></div>
+        <div class="arrow">▼</div>
+        <div class="node"><span class="nm">useStdinStream</span><span class="ds">Assigns a cumulative UTF-8 byte offset; keeps sent entries for replay</span></div>
+      </div>
+      <div class="tier">Browser<br>React</div>
+      <div class="cellout">
+        <div class="lanehead">↑ Output</div>
+        <div class="node"><span class="nm">terminal.write(data)</span><span class="ds">xterm.js is a pure renderer — it holds no authoritative state</span></div>
+        <div class="arrow">▲</div>
+        <div class="node"><span class="nm">useTerminalSession switch</span><span class="ds">stdout · history_end · resync · size_info · echo_state · stdin_ack</span></div>
+        <div class="arrow">▲</div>
+        <div class="node"><span class="nm">reset() + clear() on every open</span><span class="ds">Full repaint from a server snapshot on every reconnect</span></div>
+      </div>
+
+      <div class="cellin">
+        <div class="node"><span class="nm">{type:"stdin", offset, intent}</span><span class="ds">Reliable lane — acknowledged, replayed on reconnect</span></div>
+        <div class="arrow">▼</div>
+        <div class="node" style="border-left-style:dashed"><span class="nm">{type:"control", data}</span><span class="ds">Best-effort lane — mouse, wheel, scroll. Never acknowledged, never replayed, <b>never ordered against stdin</b></span></div>
+      </div>
+      <div class="tier">WebSocket<br>one conn</div>
+      <div class="cellout">
+        <div class="node"><span class="nm">{type:"stdout", data}</span><span class="ds">64 KiB chunks; snapshot first, then live frames</span></div>
+        <div class="arrow">▲</div>
+        <div class="node"><span class="nm">{type:"echo_state", …}</span><span class="ds">Emitted after <em>every</em> output frame</span></div>
+      </div>
+
+      <div class="cellin">
+        <div class="lanehead">Input ↓</div>
+        <div class="node"><span class="nm">dispatchInputMessage()</span><span class="ds">Compares offset to session.acceptedThrough → gap / duplicate / accept</span></div>
+        <div class="arrow">▼</div>
+        <div class="node"><span class="nm">Session.applyInput(data, kind)</span><span class="ds">The one PTY-write seam. Runs inline on the WS read loop</span></div>
+      </div>
+      <div class="tier">Server<br>session</div>
+      <div class="cellout">
+        <div class="node"><span class="nm">output forwarder goroutine</span><span class="ds">Drains the per-client channel; coalesces to 1 MiB, then forces a resync</span></div>
+        <div class="arrow">▲</div>
+        <div class="node"><span class="nm">Session.broadcast()</span><span class="ds">Feeds the emulator (durable truth) then fans out to N clients</span></div>
+        <div class="arrow">▲</div>
+        <div class="node"><span class="nm">readLoop + terminal.Emulator</span><span class="ds">Parses ANSI, holds screen + alt + scrollback, serializes snapshots</span></div>
+      </div>
+
+      <div class="cellin">
+        <div class="node"><span class="nm">realPTY.WriteInput</span><span class="ds">ptmx.Write — one syscall</span></div>
+        <div class="arrow">▼</div>
+        <div class="node"><span class="nm">tmuxPTY.WriteInput</span><span class="ds">display-message → send-keys -l (or load-buffer → paste-buffer)<span class="forkbadge">2–3 process spawns per keystroke</span></span></div>
+      </div>
+      <div class="tier">PTY<br>backend</div>
+      <div class="cellout">
+        <div class="node"><span class="nm">ptmx.Read → 4 KiB frames</span><span class="ds">One frame per 4096 bytes of program output</span></div>
+        <div class="arrow">▲</div>
+        <div class="node"><span class="nm">TerminalEchoState()</span><span class="ds">tmux: display-message + stty, under the session mutex<span class="forkbadge">2 process spawns per output frame</span></span></div>
+      </div>
+
+    </div>
+    </div>
+    <p class="figcap"><b>Read it as a loop.</b> Left column descends from keypress to kernel; right column climbs from kernel back to the screen. The two columns never touch: there is no point in the system where a keystroke and a mouse-wheel event, or a keystroke and the output it caused, are ordered against each other.</p>
+  </div>
+</section>
+
+<section class="col">
+  <h2><span class="num">02</span>What the design gets right</h2>
+  <p>Worth saying plainly, because the problems below are all <em>composition</em> problems, not craft problems. The pieces are unusually well made.</p>
+  <ul class="col">
+    <li><strong>The server emulator is the source of truth.</strong> <code>terminal.Emulator</code> parses the real ANSI stream and serializes a self-contained replay; xterm.js is a renderer with no authority. That is the correct choice and most browser-terminal projects get it wrong.</li>
+    <li><strong>One input seam.</strong> Every source — typing, paste, image upload, voice, toolbar keys — reaches the PTY through <code>inputGate.submit</code> → <code>Session.applyInput</code>, and greenfield tests fail the build if anyone reaches around it.</li>
+    <li><strong>The tmux delivery rules are hard-won and correctly documented.</strong> <code>send-keys -l</code> plus an explicit <code>-X cancel</code>, per-call paste buffers, bracketing keyed to semantics rather than transport — every one of those constants has a comment explaining the bug it fixes.</li>
+    <li><strong>Failure has a vocabulary.</strong> <code>stdin_ack</code> carries typed reasons, and the paste UI genuinely waits on settlement instead of assuming success.</li>
+  </ul>
+  <p>So the question isn't "is this code careful." It is: <em>the pieces are individually sound and the system still misbehaves — where is the seam?</em></p>
+</section>
+
+<section>
+  <h2><span class="num">03</span>The offset ledger has two owners</h2>
+  <p class="deck">This is the one I'd fix first. It is not a bug in either half — each half is internally correct — it's that the two halves count in different units.</p>
+
+  <div class="col">
+  <p>The reliable input lane is built on a cumulative byte offset. The client keeps a <code>writeHead</code> that starts at <code>0</code> when the hook mounts. The server keeps <code>session.acceptedThrough</code>, which starts at <code>0</code> when the <em>PTY session</em> is created and is documented as <em>"monotonic for the lifetime of the PTY session."</em></p>
+  <p>Those two lifetimes are not the same lifetime. A session outlives a page load, a pane remount, and a browser tab — that persistence is the whole point of the tmux backend. So the moment a fresh client attaches to a session that has ever received input, the two counters disagree by exactly the number of bytes typed before.</p>
+  </div>
+
+  <div class="figure">
+    <div class="scroll">
+      <div class="ledger">
+        <div class="ledger-row">
+          <div class="ledger-lbl">Client<small>writeHeadRef<br>per hook mount</small></div>
+          <div class="track">
+            <span class="tick in">0</span><span class="seg"></span>
+            <span class="tick in">3</span><span class="seg"></span>
+            <span class="tick in">47</span>
+            <span class="seg brk"></span><span class="brklbl">page reload</span><span class="seg brk"></span>
+            <span class="tick bad">0</span>
+          </div>
+        </div>
+        <div class="ledger-row">
+          <div class="ledger-lbl">Server<small>acceptedThrough<br>per PTY session</small></div>
+          <div class="track">
+            <span class="tick out">0</span><span class="seg"></span>
+            <span class="tick out">3</span><span class="seg"></span>
+            <span class="tick out">47</span>
+            <span class="seg brk"></span><span class="brklbl">session survives</span><span class="seg brk"></span>
+            <span class="tick bad">47</span>
+          </div>
+        </div>
+      </div>
+      <div class="verdict">
+        <b>session_ready carries accepted_through: 47.</b> The client evaluates <code>47 &gt; writeHead (0)</code>, latches <code>unreconcilable = true</code>, and from that instant every <code>send()</code> returns <code>{sent:false, reason:"not-ready"}</code>. The gate dutifully queues each keystroke. Nothing ever drains the queue, nothing surfaces an error, and <code>unreconcilable</code> is never cleared — not by <code>resetForNewConnection</code>, not by a reconnect, not by anything. <b>The pane looks alive and silently accepts input forever.</b>
+      </div>
+    </div>
+    <p class="figcap"><b>Two paths reach the same dead end.</b> If the server's count is <em>ahead</em>, the client latches unreconcilable and freezes. If a client's offset is <em>behind</em> — a second device on the same session — <code>terminal_ws_input.go</code> takes the <code>msg.Offset &lt; accepted</code> branch and replies <code>ok: true</code> <em>without writing the bytes to the PTY at all</em>. Input vanishes and the UI is told it succeeded.</p>
+  </div>
+
+  <div class="col">
+  <p>The second path matters because multi-viewer isn't hypothetical here — <code>viewerCount</code>, <code>leaderDevice</code>, the size lease and the "Take over" affordance exist precisely to support two devices on one session. Two viewers means two independent write heads advancing one shared server counter. There is no arrangement of two clients under which that counter is meaningful to both.</p>
+  <p>What makes this a <em>maturity</em> finding rather than just a bug: the behaviour is <strong>tested, and the test asserts it as correct</strong>.</p>
+  </div>
+
+  <pre><span class="cm">// ui/src/hooks/terminal/useStdinStream.test.ts</span>
+it("rejects a server offset that is ahead of the local write head", () =&gt; {
+  result.current.send("x", "typing");
+  result.current.reconcile(2);
+  expect(events).toEqual([[2, false, <span class="hl">"unreconcilable"</span>]]);
+});</pre>
+
+  <p class="col" style="margin-top:18px">As a statement about <code>useStdinStream</code> in isolation, that assertion is right. As a statement about the system, it encodes the failure. Every test in the suite pins <code>accepted_through: 0</code> — the composition where the counters can diverge is the one case nobody wrote down.</p>
+</section>
+
+<section>
+  <h2><span class="num">04</span>The output path forks two processes per frame</h2>
+  <p class="deck">The persistent backend pays a subprocess tax on both hot paths, and pays it while holding the mutex that everything else in the session needs.</p>
+
+  <div class="col">
+  <p>After <em>every</em> PTY output frame, the WebSocket forwarder calls <code>emitEchoState()</code>. That calls <code>Session.EchoState()</code>, which takes <code>s.mu</code> and — still holding it — asks the tmux backend for the pane's echo bit. On <code>tmuxPTY</code> that means <code>tmux display-message -p '#{pane_tty}'</code> followed by <code>stty -a -F &lt;tty&gt;</code>. Two process spawns and two tmux-server round trips, per frame, per connected viewer.</p>
+  <p>The deduplication in <code>emitEchoState</code> compares the <em>result</em> — so it saves a WebSocket frame, and saves nothing at all on the cost that matters.</p>
+  <p>I measured the primitives on an isolated tmux socket on this host, idle:</p>
+  </div>
+
+  <div class="figure"><div class="scroll">
+  <table>
+    <caption>Measured, 100 iterations each, tmux 3.x on an otherwise-idle socket. Real cost under a loaded tmux server is higher.</caption>
+    <thead><tr><th>Operation</th><th>Cost</th><th>Fires</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>display-message #{pane_tty}</code><span class="sub">echo-state probe, step 1</span></td>
+        <td class="n">1.62 ms</td>
+        <td class="n hot">per output frame<br>per viewer</td>
+        <td>Held under <code>s.mu</code></td>
+      </tr>
+      <tr>
+        <td><code>stty -a -F &lt;pane_tty&gt;</code><span class="sub">echo-state probe, step 2</span></td>
+        <td class="n">0.52 ms</td>
+        <td class="n hot">per output frame<br>per viewer</td>
+        <td>Held under <code>s.mu</code></td>
+      </tr>
+      <tr>
+        <td><code>display-message #{pane_in_mode}</code><span class="sub">exitModeIfAny guard</span></td>
+        <td class="n">1.58 ms</td>
+        <td class="n hot">per keystroke</td>
+        <td>Blocks the WS read loop</td>
+      </tr>
+      <tr>
+        <td><code>send-keys -t … -l -- &lt;data&gt;</code><span class="sub">the actual delivery</span></td>
+        <td class="n">1.61 ms</td>
+        <td class="n hot">per keystroke</td>
+        <td>Blocks the WS read loop</td>
+      </tr>
+      <tr>
+        <td><code>ioctl TCGETS</code><span class="sub">standard backend, same job</span></td>
+        <td class="n">~0.001 ms</td>
+        <td class="n">per output frame</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="figcap"><b>The arithmetic is the finding.</b> <code>PTYReadBuffer</code> is 4096 bytes, so a program emitting 4 MB of output produces roughly 1,000 frames — about <b>2,000 process spawns and ~2.1 seconds of subprocess time</b>, serialized under the session mutex, for one viewer. The standard backend does the identical job with one ioctl.</p>
+  </div>
+
+  <div class="col">
+  <p>And <code>tmuxCommandTimeout</code> is 5 seconds. If the tmux server stalls, <code>Session.EchoState()</code> can hold <code>s.mu</code> for up to ten seconds — during which <code>readLoop</code> cannot broadcast, <code>applyInput</code> cannot write a keystroke, <code>Resize</code> cannot run, and <code>Subscribe</code> cannot attach a new viewer. A cosmetic feature has a hard lock on the terminal's critical section.</p>
+  <p>What <code>echo_state</code> is <em>for</em> is the client-side prediction overlay: don't draw a predicted character where the shell has echo off, because it might be a password. That is a good invariant, correctly fail-closed. It just doesn't need a per-frame probe — echo state changes when a program changes it, which is a rare event, and two of the four fields (<code>InAltBuffer</code>, <code>CursorAtLineEnd</code>) already come free from the emulator.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">05</span>The rest of the findings</h2>
+  <p class="deck">Ranked by how much of the system each one moves. Severity chips are impact; the tags underneath name which of your five axes it lands on.</p>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F3</span><h3>One mutex owns parsing, replay, input, and presence</h3><span class="chip crit">Critical</span></div>
+    <div class="axes"><span class="axis">Performance</span><span class="axis">Reliability</span></div>
+    <p><code>s.mu</code> guards the emulator feed, snapshot serialization, the client registry, the size lease, and the PTY pointer. <code>broadcast()</code> holds it across a full ANSI parse of every frame; <code>Subscribe()</code> holds it while serializing up to 2 MiB of scrollback. So output parsing blocks input delivery, a new viewer attaching stalls the read loop, and the lock is the reason F2's subprocess cost turns into a system-wide stall rather than just a slow probe.</p>
+    <p>This is the structural reason the terminal "feels stuck under load" and the reason a single slow tmux call takes the whole pane down with it.</p>
+    <div class="evidence"><b>api/session/session.go</b> — <code>EchoState()</code> takes <code>s.mu</code>, then calls out to the backend<br><b>api/session/broadcast.go</b> — <code>broadcast()</code> holds <code>s.mu</code> across <code>emu.Feed(data)</code></div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F4</span><h3>Two input lanes, no shared ordering</h3><span class="chip warn">Structural</span></div>
+    <div class="axes"><span class="axis">Reliability</span><span class="axis">Quality</span></div>
+    <p>Typing goes <code>stdin</code> → <code>send-keys</code> (~3.2 ms, two forks, via the tmux server). Mouse and wheel go <code>control</code> → <code>ptmx.Write</code> (one syscall, immediate, straight to the attach client). Same session, same WebSocket, two transports with wildly different latency and no sequencer between them.</p>
+    <p>A control frame issued after a keystroke can and will reach the pane first. In a TUI that mixes mouse and keys — which is exactly what Claude Code, vim and fzf do — the pane observes events in an order the user never produced. The <code>control</code> lane is also deliberately unacknowledged and unreplayed, which is right for a wheel tick and wrong for anything that carries state.</p>
+    <p>The same split explains a subtler one: the ANSI responder answers <code>DA1</code>/<code>DA3</code> queries through <code>SendInput</code> — the <em>typing</em> lane — so a capability reply can interleave into the middle of a line the user is typing.</p>
+    <div class="evidence"><b>api/pty_tmux.go</b> — <code>KindControl</code> → <code>ptmx.Write</code>; <code>KindKeystroke</code> → <code>tmux send-keys</code><br><b>api/session/ansi_responder.go</b> — server replies share the keystroke lane</div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F5</span><h3>PTY delivery runs inline on the WebSocket read loop</h3><span class="chip warn">Structural</span></div>
+    <div class="axes"><span class="axis">Reliability</span><span class="axis">Performance</span></div>
+    <p>The loop is <code>ReadMessage()</code> → dispatch → write to the PTY → write the ack → <code>ReadMessage()</code>. On the tmux backend the middle step is two process spawns, so <strong>each keystroke blocks reading the next one for ~3 ms</strong>. Type at 10 cps and a third of the loop's time is spent forked. Hit a 5-second tmux timeout and the connection stops reading anything at all — including <code>take_lease</code>, resize, and pong.</p>
+    <p>It couples the other way too: the ack write contends on <code>writeMu</code> with the output forwarder, whose <code>wsWriteTimeout</code> is 10 seconds. A client with a stalled TCP receive window therefore blocks its own input acknowledgements. Slow output stops input.</p>
+    <div class="evidence"><b>api/terminal_ws.go</b> — <code>wsWriteTimeout = 10s</code>, one <code>writeMu</code> shared by both loops<br><b>api/pty_tmux.go</b> — <code>tmuxCommandTimeout = 5s</code> ×2 per delivery</div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F6</span><h3>Input is resumable; output is not</h3><span class="chip warn">Structural</span></div>
+    <div class="axes"><span class="axis">Performance</span><span class="axis">Quality</span></div>
+    <p>The input lane got a real reliability protocol: cumulative offsets, acknowledgement, replay of the unaccepted suffix. The output lane got none of it. Every WebSocket open — including the visibility-triggered reconnect a phone does every time it wakes — runs <code>terminal.reset()</code>, <code>terminal.clear()</code>, and a full re-stream of up to 2 MiB of ANSI in 64 KiB JSON frames, which the client then re-parses from scratch.</p>
+    <p>The client already holds that state. There is no cursor, no "I have through byte N", no delta. On a flaky mobile link this is the dominant cost of the entire system, and it's the asymmetry — one lane got the treatment, the other didn't — that marks it as unfinished rather than intentional.</p>
+    <div class="evidence"><b>useTerminalSession.ts</b> — <code>onTransportOpen</code> resets and clears unconditionally<br><b>api/terminal_ws.go</b> — full <code>sub.Snapshot</code> re-stream per connection</div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F7</span><h3>Every keystroke arbitrates the size lease</h3><span class="chip info">Design smell</span></div>
+    <div class="axes"><span class="axis">Quality</span><span class="axis">Performance</span></div>
+    <p><code>dispatchInputMessage</code> opens the stdin case with <code>HoldsLease()</code> and, if false, <code>AcquireLease()</code> — which resizes the PTY to that viewer's declared grid and publishes to every client. That's two more mutex round trips per keypress on the hot path, plus two more for <code>AcceptedThrough</code> and <code>AdvanceAcceptedThrough</code>: five acquisitions of the contended session mutex to deliver one character.</p>
+    <p>Semantically it also means typing one letter on a phone silently reflows the desktop's terminal. That may be the intent, but it is a policy decision buried in the byte-delivery path rather than expressed anywhere a reader would look for it.</p>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F8</span><h3>useTerminalSession is doing eight jobs</h3><span class="chip info">Maintainability</span></div>
+    <div class="axes"><span class="axis">Maintainability</span><span class="axis">Quality</span></div>
+    <p>596 lines holding: the protocol switch, the prediction overlay, a latency EMA, echo-state gating, the scroll controller, the size lease, mouse mode, conversation acks, the debug probe, and direct <code>useWorkspaceStore.getState()</code> reads. The transport and stdin layers below it were extracted cleanly — this one wasn't, and it's where the layering stops.</p>
+    <p>Two concrete consequences. <code>useStdinStream</code> returns a fresh object literal every render, so the message-subscriber effect tears down and re-subscribes on <em>every</em> pane re-render. And the gate is built as <code>useRef(createInputGate({…stdin.send}))</code> — which reconstructs and discards a gate on every render, and permanently captures the first render's <code>send</code>. It works today only because those callbacks happen to have stable identity; the day one gains a dependency, the gate holds a stale closure and input dies silently, with no test that would notice.</p>
+    <p>The protocol switch is already a pure state machine over <code>(message, state) → state + effects</code>. Lifting it out of React would make the reconnect and multi-viewer cases testable without a fake socket and a fake terminal.</p>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F9</span><h3>A truncated snapshot drops its own documented prologue</h3><span class="chip info">Maturity</span></div>
+    <div class="axes"><span class="axis">Quality</span><span class="axis">Reliability</span></div>
+    <p><code>Emulator.Snapshot()</code> opens with <code>\x1b[?1049l \x1bc \x1b[3J \x1b[H \x1b[0m</code> and documents each byte as a defensive invariant — exit a stuck alt-buffer, full reset, clear scrollback, park the cursor. When <code>boundSnapshot()</code> trims an oversized snapshot it re-prepends a bare <code>\x1bc</code> and drops the other four. So the truncation path — the one that runs when state is <em>largest and most likely to be wrong</em> — is the path that discards the guards.</p>
+    <p>It's harmless today because the client happens to call <code>reset()</code> + <code>clear()</code> first. That's a coincidence, not a contract, and the prologue is duplicated as a literal in two files rather than shared as one constant.</p>
+    <div class="evidence"><b>api/terminal/snapshot.go</b> — prologue with per-byte rationale<br><b>api/terminal_ws.go</b> — <code>boundSnapshot()</code> re-prepends only <code>\x1bc</code></div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><span class="fid">F10</span><h3>The tests verify parts, and the failures live between them</h3><span class="chip info">Maturity</span></div>
+    <div class="axes"><span class="axis">Maturity</span><span class="axis">Reliability</span></div>
+    <p>Coverage is genuinely good per unit — <code>useStdinStream</code>, <code>useTerminalTransport</code>, <code>tmuxPTY</code> payload sizing, a real measured ceiling test for <code>send-keys</code>, and greenfield assertions that fail CI if a forbidden shape reappears. That's a mature instinct.</p>
+    <p>But every finding above lives at a seam: client offset space vs. server offset space, echo probe vs. mutex, control lane vs. stdin lane, snapshot prologue vs. truncation. The suite has no test that runs <em>two</em> clients against one session, and none that reconnects with a non-zero <code>accepted_through</code>. Those two fixtures would have caught F1 outright.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>What I'd change, structurally</h2>
+  <p class="deck">Ordered by leverage. Each of these deletes a class of bug rather than an instance — the first two together account for most of what's listed above.</p>
+
+  <div class="fixgrid">
+    <div class="fix">
+      <div class="rank">LEVER 01</div>
+      <h4>Give the offset space one owner: the connection</h4>
+      <p>Stop treating <code>acceptedThrough</code> as a session fact. At <code>Subscribe</code>, snapshot it as that connection's base and hand the client a base of zero; the client's offsets are then connection-relative and correct by construction, for one viewer or five. Session-wide ordering is the session's job — it already has a serialization point — not the offset's.</p>
+      <p>Then make <code>unreconcilable</code> recoverable: clear it on reconnect, and surface it in the pane instead of silently queueing forever. A lane that can enter a permanent silent-failure state with no operator-visible signal is the actual defect; the offset mismatch is just what triggers it.</p>
+      <p class="kills">Closes <b>F1</b> · unblocks multi-viewer</p>
+    </div>
+
+    <div class="fix">
+      <div class="rank">LEVER 02</div>
+      <h4>One long-lived tmux control channel, not a fork per operation</h4>
+      <p>Every tmux interaction in <code>pty_tmux.go</code> spawns a process. <code>tmux -C</code> (control mode) gives you a single persistent client you write commands into and read tagged responses out of — the same operations, without the spawn, and with a real place to serialize them.</p>
+      <p>That single change removes the per-keystroke fork pair, the per-frame probe pair, and the 5-second-timeout blast radius at once, and it turns "did the tmux command succeed" into a channel read instead of a process exit code.</p>
+      <p class="kills">Closes <b>F2</b> · defuses <b>F3</b>, <b>F5</b></p>
+    </div>
+
+    <div class="fix">
+      <div class="rank">LEVER 03</div>
+      <h4>Take echo state off the output path entirely</h4>
+      <p>Derive <code>in_alt_buffer</code> and <code>cursor_at_line_end</code> from the emulator, which already knows them for free. Sample the termios ECHO bit on its own cadence — or only while a client has prediction enabled — and push <code>echo_state</code> on <em>change</em>, not per frame.</p>
+      <p>Non-negotiable either way: never hold <code>s.mu</code> across a call that can exec, block, or time out.</p>
+      <p class="kills">Closes <b>F2</b> at the design level</p>
+    </div>
+
+    <div class="fix">
+      <div class="rank">LEVER 04</div>
+      <h4>Split the session mutex; make input asynchronous</h4>
+      <p>Two locks, not one: emulator + snapshot cache under one, client registry + lease + presence under another. Neither is ever held across I/O. That alone stops a new viewer's snapshot from stalling the read loop.</p>
+      <p>Then give the session one ordered input queue that both <code>stdin</code> and <code>control</code> feed. The WS read loop enqueues and returns immediately; a single writer drains it and emits the ack. Input ordering becomes a property of the queue instead of an accident of two transports, and the read loop stops being hostage to backend latency.</p>
+      <p class="kills">Closes <b>F3</b>, <b>F4</b>, <b>F5</b>, <b>F7</b></p>
+    </div>
+
+    <div class="fix">
+      <div class="rank">LEVER 05</div>
+      <h4>Make output resumable, like input already is</h4>
+      <p>Keep a monotonic byte cursor on the broadcast stream alongside a bounded ring. A reconnecting client sends the last cursor it rendered; if it's still in the ring, replay the delta and skip the reset entirely. Fall back to the full snapshot only when it isn't.</p>
+      <p>The reliability vocabulary for this already exists on the input side — this is applying it to the lane that carries a thousand times more bytes.</p>
+      <p class="kills">Closes <b>F6</b> · biggest mobile win</p>
+    </div>
+
+    <div class="fix">
+      <div class="rank">LEVER 06</div>
+      <h4>Lift the protocol out of React</h4>
+      <p>The message switch in <code>useTerminalSession</code> is a pure reducer wearing a hook. Extract it as <code>(state, message) → [state, effects]</code>, leave the hook to bind effects to xterm and the store, and move prediction, scroll, lease, mouse mode and speech into siblings.</p>
+      <p>The payoff is the test fixtures you can't write today: two clients on one session, a reconnect at a non-zero offset, an ack arriving after unmount — none of which need a DOM.</p>
+      <p class="kills">Closes <b>F8</b> · makes <b>F10</b> fixable</p>
+    </div>
+  </div>
+</section>
+
+<section class="col">
+  <h2><span class="num">07</span>Confidence, and what I didn't do</h2>
+  <p>This is a static trace of the current working tree plus one measurement. To be precise about which is which:</p>
+  <ul class="col">
+    <li><strong>Measured.</strong> The tmux and stty timings in §04 — 100 iterations each against a scratch tmux socket I created and killed. Idle host, no other load. Real-world numbers under a busy tmux server will be worse, not better.</li>
+    <li><strong>Traced, not executed.</strong> F1's failure path. I followed <code>acceptedThrough</code> from <code>session_ready</code> through <code>reconcile()</code> to the <code>unreconcilable</code> latch and confirmed nothing clears it, but I did not reproduce it in a browser. Confirming it takes about thirty seconds: open a pane, type anything, reload the page, type again.</li>
+    <li><strong>Not examined.</strong> <code>bridge_pty.go</code> and the remote-session path, session recovery after an API restart, and the conversation/TTS surfaces that share this WebSocket. Any of those could hold findings of their own.</li>
+  </ul>
+  <p>One framing note, since you asked for structure over symptoms. Every finding here is the same shape: <em>a correct component composed against a component with a different notion of scope.</em> Client-mount scope against session scope. Frame cadence against process-spawn cost. Two transports against one ordering assumption. That's why the individual code reads so well and the system still misbehaves — and it's why the fixes above are all about relocating an authority rather than patching a call site.</p>
+</section>
+
+<footer>
+  Traced against the working tree on branch <code>agi</code>, 2026-08-25. File references point at the files as they stand today; several were modified during this session.
+</footer>
+
+</div>

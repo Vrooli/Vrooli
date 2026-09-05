@@ -23,6 +23,8 @@ import (
 // minClaudeVersion is the minimum Claude CLI version required for Chrome MCP support.
 var minClaudeVersion = semver.MustParse("1.0.18")
 
+const resourceClaudeCommand = "resource-claude-code"
+
 // CommandRunner abstracts command execution for testing.
 type CommandRunner interface {
 	LookPath(file string) (string, error)
@@ -139,7 +141,7 @@ func (n *ClaudeCodeVisionNavigator) Description() string {
 
 // IsAvailable checks if Claude CLI is available and meets version requirements.
 func (n *ClaudeCodeVisionNavigator) IsAvailable(ctx context.Context) bool {
-	claudePath, err := n.cmdRunner.LookPath("claude")
+	claudePath, err := n.cmdRunner.LookPath(resourceClaudeCommand)
 	if err != nil {
 		return false
 	}
@@ -154,7 +156,7 @@ func (n *ClaudeCodeVisionNavigator) IsAvailable(ctx context.Context) bool {
 
 // UnavailableReason returns why the navigator is unavailable.
 func (n *ClaudeCodeVisionNavigator) UnavailableReason(ctx context.Context) string {
-	claudePath, err := n.cmdRunner.LookPath("claude")
+	claudePath, err := n.cmdRunner.LookPath(resourceClaudeCommand)
 	if err != nil {
 		return "claude CLI not found in PATH"
 	}
@@ -173,7 +175,7 @@ func (n *ClaudeCodeVisionNavigator) UnavailableReason(ctx context.Context) strin
 
 // getClaudeVersion runs `claude --version` and parses the version string.
 func (n *ClaudeCodeVisionNavigator) getClaudeVersion(ctx context.Context, claudePath string) (*semver.Version, error) {
-	cmd := n.cmdRunner.CommandContext(ctx, claudePath, "--version")
+	cmd := n.cmdRunner.CommandContext(ctx, claudePath, "run", "--", "--version")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("run claude --version: %w", err)
@@ -241,14 +243,14 @@ func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Create session
 	session := &NavigationSession{
-		NavigationID:  navigationID,
-		SessionID:     req.SessionID,
-		UserID:        req.UserID,
-		Model:         req.Model,
-		StartedAt:     time.Now(),
-		Status:        StatusNavigating,
-		IsBYOK:        false, // Claude Code uses local execution
-		NavigatorType: NavigatorClaudeCode,
+		NavigationID:         navigationID,
+		SessionID:            req.SessionID,
+		UserID:               req.UserID,
+		Model:                req.Model,
+		StartedAt:            time.Now(),
+		Status:               StatusNavigating,
+		CredentialProvenance: CredentialProvenanceNone, // Claude Code uses local execution
+		NavigatorType:        NavigatorClaudeCode,
 	}
 
 	ccSession := &claudeCodeSession{
@@ -262,7 +264,7 @@ func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req Navigation
 	n.mu.Unlock()
 
 	// Find claude CLI path
-	claudePath, err := n.cmdRunner.LookPath("claude")
+	claudePath, err := n.cmdRunner.LookPath(resourceClaudeCommand)
 	if err != nil {
 		n.removeNavigation(navigationID)
 		return nil, fmt.Errorf("claude CLI not found: %w", err)
@@ -286,7 +288,8 @@ func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req Navigation
 		"--allowedTools", "mcp__claude-in-chrome__*",
 	}
 
-	cmd := n.cmdRunner.CommandContext(cmdCtx, claudePath, args...)
+	cmdArgs := append([]string{"run", "--"}, args...)
+	cmd := n.cmdRunner.CommandContext(cmdCtx, claudePath, cmdArgs...)
 	ccSession.cmd = cmd
 
 	// Set up stdin pipe to pass the prompt

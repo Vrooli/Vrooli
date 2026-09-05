@@ -1,0 +1,90 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save changes",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Reset",
+          "role": "button"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default actions",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pending",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Saving…",
+          "role": "button"
+        },
+        {
+          "attribute": "disabled",
+          "kind": "attribute",
+          "selector": "[data-rcl-form-action=submit]",
+          "value": ""
+        }
+      ],
+      "id": "pending",
+      "mode": "live",
+      "name": "Pending actions",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Compact",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Continue",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Back",
+          "role": "button"
+        }
+      ],
+      "id": "compact",
+      "mode": "live",
+      "name": "Compact actions",
+      "role": "boundary"
+    }
+  ],
+  "title": "FormActions"
+}

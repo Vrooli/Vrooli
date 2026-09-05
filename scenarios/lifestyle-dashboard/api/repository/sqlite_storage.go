@@ -9,7 +9,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 
 	"lifestyle-dashboard/domain"
@@ -32,15 +31,14 @@ func (r *SQLiteStorageRepository) GetStorageInfo(ctx context.Context) (*domain.S
 		EventsByDomain: make([]domain.DomainStorageInfo, 0),
 	}
 
-	// Get database file size
-	dbPath := os.Getenv("SQLITE_PATH")
-	if dbPath != "" {
-		// Strip query params if present
-		if idx := strings.Index(dbPath, "?"); idx > 0 {
-			dbPath = dbPath[:idx]
-		}
-		if fi, err := os.Stat(dbPath); err == nil {
-			info.DatabaseSizeBytes = fi.Size()
+	// Ask SQLite itself how large the database is, rather than stat-ing a path
+	// read back out of the environment. This reports the true size (it counts
+	// every page, including any the file has not been truncated to) and cannot
+	// measure a different database than the one this handle is connected to.
+	var pageCount, pageSize int64
+	if err := r.db.QueryRowContext(ctx, `PRAGMA page_count`).Scan(&pageCount); err == nil {
+		if err := r.db.QueryRowContext(ctx, `PRAGMA page_size`).Scan(&pageSize); err == nil {
+			info.DatabaseSizeBytes = pageCount * pageSize
 		}
 	}
 

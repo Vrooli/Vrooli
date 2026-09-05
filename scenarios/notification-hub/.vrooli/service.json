@@ -1,66 +1,150 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "notification-db": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "notification-hub.db",
+        "format": "sqlite",
+        "rung": "owned",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "90d",
+          "rationale": "Notification history is actively retained for 90 days and the SQLite working set is bounded to 2 GiB by the scenario maintenance pass."
+        },
+        "rationale": "Durable notifications, recipient projections, routing decisions, delivery attempts, receipts, and conversation state."
+      },
+      "notification-db-wal": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "notification-hub.db-wal",
+        "format": "sqlite",
+        "rung": "owned",
+        "regenerable": true,
+        "rationale": "SQLite write-ahead log sidecar for the durable notification database."
+      },
+      "notification-db-shm": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "notification-hub.db-shm",
+        "format": "sqlite",
+        "rung": "owned",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the durable notification database."
+      },
+      "deployment-report": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "rung": "owned",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Lifecycle deployment report retained as owner data and budgeted by age."
+        },
+        "rationale": "The lifecycle deployment report is written under the scenario data root."
+      },
+      "vapid-private-key": {
+        "class": "state",
+        "kind": "file",
+        "subpath": "vapid-private-key",
+        "rung": "owned",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "1KiB",
+          "rationale": "The encoded P-256 VAPID private key is a single small stable secret; size bounds catch accidental replacement with unrelated data without rotating subscriptions."
+        },
+        "rationale": "Scenario-owned VAPID private key used to authenticate encrypted Web Push deliveries; the public half is returned to the authenticated UI and the private half never leaves state storage."
+      },
+      "retention-receipts": {
+        "class": "state",
+        "kind": "dir",
+        "subpath": "retention",
+        "rung": "owned",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state bounded by size and age."
+        },
+        "rationale": "The storage manager records retention enforcement receipts under the scenario-owned state namespace."
+      }
+    },
+    "rationale": "The scenario owns one SQLite database and its WAL/SHM sidecars through the api-core storage resolver."
+  },
   "service": {
+    "parent": "vrooli",
     "name": "notification-hub",
     "displayName": "Notification Hub",
-    "description": "Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios",
-    "version": "1.0.0",
+    "description": "Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "notifications",
-      "multi-tenant",
-      "email",
-      "sms",
-      "push-notifications",
-      "infrastructure",
-      "communication",
-      "api",
-      "rate-limiting",
-      "analytics",
-      "compliance",
-      "go-api",
-      "nodejs-server",
-      "postgres-storage",
-      "redis-cache"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/notification-hub"
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-08-17T21:56:23Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "a03095c2f8c1ca51deeaa91182a4d7de08db6b7744aff3d0b58eaef9017de936",
+    "content_sha": "a8b2a3025441b1e658f96935a24e446e45a3524fa138824c99d642e5d51506e9"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "notification-hub",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "notification-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Notification Hub API port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Notification Hub dashboard port",
-      "range": "35000-39999"
+      "description": "React UI",
+      "port": 20001
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Notification Hub health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
@@ -71,162 +155,107 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
-          "timeout": 5000,
+          "timeout": 10000,
           "interval": 30000
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
       ],
-      "timeout": 5000,
-      "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Notification Hub with multi-tenant capabilities",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/notification-hub-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "notification-hub",
-            "targets": [
-              "notification-hub"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ln -sf $(pwd)/notification-hub ~/.local/bin/notification-hub 2>/dev/null || sudo ln -sf $(pwd)/notification-hub /usr/local/bin/notification-hub",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o notification-hub-api .",
-          "description": "Build Go API server binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install Node.js UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd14 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Notification Hub with Go API server and Node.js dashboard",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./notification-hub-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/notification-hub-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Node.js dashboard server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd14 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for notification-hub",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute notification-hub --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"notification-hub-api\" || true; sleep 1; pkill -9 -f \"notification-hub-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/notification-hub.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/notification-hub.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
+    "scenarios": {
+      "scenario-authenticator": {
+        "type": "scenario",
         "enabled": true,
         "required": true,
-        "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Identity is verified locally against the authenticator's published JWKS through packages/api-core/owneridentity. The authenticator is resolved by slug at runtime over HTTP; no Go package from that scenario is imported here, so no import-graph edge exists.",
+        "degraded_behavior": "Authenticated surfaces fail closed when the authenticator is unreachable: the API rejects requests it cannot attribute to a verified identity. Already-accepted notifications continue to drain through the delivery worker, because their recipient was resolved at acceptance time.",
+        "description": "Owner identity for every authenticated API, CLI, and UI surface. This scenario issues no API key and stores no password.",
+        "supervision_precedence": "required"
       },
-      "redis": {
-        "type": "redis",
+      "tunnel-manager": {
+        "type": "scenario",
         "enabled": true,
         "required": true,
-        "purpose": "Notification queues, rate limiting counters, and caching"
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Public exposure is reconciled by tunnel-manager against the core-set authority. This scenario imports no tunnel-manager Go package; it only requires that its own origin stays reachable and stable.",
+        "degraded_behavior": "Without tunnel-manager, no new device can subscribe to push and the push channel reports unavailable with a stated reason. Already-registered subscriptions continue to receive deliveries while the origin remains resolvable. No local channel is affected.",
+        "description": "Stable, never-expiring public origin for the installed progressive web app. A Web Push subscription is bound to an origin and dies with it.",
+        "supervision_precedence": "required"
       },
-      "n8n": {
-        "type": "n8n",
+      "vrooli-bridge": {
+        "type": "scenario",
         "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "Cross-node delivery is handed to Bridge durable dispatch across its API boundary. Node capability data is read from the same surface. No Bridge Go package is imported here.",
+        "degraded_behavior": "Without Bridge, the hub delivers only channels this host can reach itself and marks every host-bound channel unroutable with a stated reason. It never silently holds a notification it cannot deliver.",
+        "description": "Fleet node registry and durable dispatch for cross-node delivery relay."
+      },
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "runtime_only": true,
+        "runtime_only_rationale": "Event ingress is inbound: vrooli-events POSTs to this scenario's webhook receiver, and subscriptions are managed across its API boundary. No events Go package is imported here.",
+        "degraded_behavior": "Without vrooli-events, event-driven ingress is unavailable and the hub accepts direct Connect-RPC and CLI requests only. No notification path that was working stops working.",
+        "description": "Event-driven ingress via durable subscription webhook delivery."
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "notification-hub/smtp",
+        "field": "password",
+        "label": "Notification Hub SMTP password",
+        "required": false,
+        "description": "Optional SMTP password used for email notification delivery when SMTP is configured."
+      }
+    ]
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
       }
     },
-    "scenarios": {}
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

@@ -1,0 +1,157 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Save changes",
+        "format": "renderable-text",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children",
+        "required": true
+      },
+      {
+        "default": "primary",
+        "kind": "enum",
+        "label": "Variant",
+        "options": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ],
+        "path": "variant",
+        "required": true
+      },
+      {
+        "default": "md",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "icon"
+        ],
+        "path": "size",
+        "required": true
+      },
+      {
+        "default": "",
+        "kind": "structured",
+        "label": "Icon",
+        "path": "icon"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Save",
+        "size": "xs",
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Save",
+          "role": "button"
+        }
+      ],
+      "id": "primary-xs",
+      "mode": "pinned",
+      "name": "Primary extra small",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Cancel",
+        "size": "sm",
+        "variant": "secondary"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Cancel",
+          "role": "button"
+        }
+      ],
+      "id": "secondary-sm",
+      "mode": "pinned",
+      "name": "Secondary small",
+      "role": "axis",
+      "axis": "variant",
+      "covers": {
+        "variant": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "More",
+        "size": "md",
+        "variant": "ghost"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "More",
+          "role": "button"
+        }
+      ],
+      "id": "ghost-md",
+      "mode": "pinned",
+      "name": "Ghost medium",
+      "role": "axis",
+      "axis": "size",
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "icon"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "Delete",
+        "size": "icon",
+        "variant": "danger"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Delete",
+          "role": "button"
+        }
+      ],
+      "id": "danger-icon",
+      "mode": "pinned",
+      "name": "Danger icon",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "DangerIcon"
+        }
+      },
+      "role": "boundary"
+    }
+  ],
+  "title": "Button 1.3"
+}

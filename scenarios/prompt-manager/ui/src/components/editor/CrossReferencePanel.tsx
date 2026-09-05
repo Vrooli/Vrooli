@@ -8,13 +8,14 @@
 
 import { useEffect, useState } from 'react'
 import { Bot, Users, Sparkles, Link2, Network } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { useGraphStore } from '@/stores/graphStore'
 import { getGraphNode } from '@/services/graphService'
 import { selectors } from '@/constants/selectors'
 import type { GraphEdge, Reference } from '@/lib/schemas'
 import { Dialog } from '@/components/shared/Dialog'
+import { graphPath, routeForEntity } from '@/app/routes/route-paths'
 
 interface CrossReferencePanelProps {
   skillId: string
@@ -61,15 +62,12 @@ interface ResolvedRef {
 }
 
 export function CrossReferencePanel({ skillId, onNavigateToReference, className }: CrossReferencePanelProps) {
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [refs, setRefs] = useState<ResolvedRef[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  const setSelectedAgentId = useSelectionStore((s) => s.setSelectedAgentId)
-  const setSelectedTeamId = useSelectionStore((s) => s.setSelectedTeamId)
-  const setSelectedSkillId = useSelectionStore((s) => s.setSelectedSkillId)
-  const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
   const focusNodes = useGraphStore((s) => s.focusNodes)
 
   useEffect(() => {
@@ -141,9 +139,11 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
       setIsOpen(false)
       return
     }
-    if (ref.entityType === 'agent') setSelectedAgentId(ref.entityId)
-    else if (ref.entityType === 'team') setSelectedTeamId(ref.entityId)
-    else setSelectedSkillId(ref.entityId)
+    navigate(routeForEntity(ref.entityType, ref.entityId, {
+      hlFile: ref.filePath,
+      hlLine: ref.lineNumber,
+      hlText: skillId,
+    }))
     setIsOpen(false)
   }
 
@@ -197,10 +197,7 @@ export function CrossReferencePanel({ skillId, onNavigateToReference, className 
               type="button"
               onClick={() => {
                 focusNodes([skillId])
-                setGraphViewActive(true)
-                setSelectedAgentId(null)
-                setSelectedTeamId(null)
-                setSelectedSkillId(null)
+                navigate(graphPath({ focus: skillId }))
                 setIsOpen(false)
               }}
               className={cn(

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:AmbientCanvas",
+  "version": "0.1.0",
+  "resolvedAt": "2026-09-04T00:13:47Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ProvenanceInk",
+      "major": 0,
+      "observed": "0.1.2",
+      "rank": 4
+    }
+  ]
+}

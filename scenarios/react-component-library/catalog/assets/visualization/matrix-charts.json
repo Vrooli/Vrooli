@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.matrix-charts",
+    "name": "MatrixCharts",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "visualization",
+    "description": "The heatmap and calendar-heatmap family with colour scales, legends, selection, tooltips, explicit missing-value treatment, and keyboard summaries.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Framework, scales, and states are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "date-time-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "kind": [
+        "heatmap",
+        "calendar-heatmap"
+      ]
+    }
+  },
+  "qualityGates": [
+    "performance"
+  ]
+}

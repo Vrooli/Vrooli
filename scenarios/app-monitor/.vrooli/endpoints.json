@@ -15,12 +15,6 @@
       "category": "host"
     },
     {
-      "id": "apps-fallback-diagnostics",
-      "path": "/api/v1/apps/{id}/fallback-diagnostics",
-      "method": "POST",
-      "category": "diagnostics"
-    },
-    {
       "id": "apps-diagnostics",
       "path": "/api/v1/apps/{id}/diagnostics",
       "method": "GET",

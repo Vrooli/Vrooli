@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "ResizableSidebar",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Preset sidebar",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "Navigation-shaped defaults over the shared resize primitive.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "complementary",
+          "name": "Filters"
+        },
+        {
+          "kind": "role",
+          "role": "separator",
+          "name": "Resize Filters"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='navigation.resizable-sidebar-handle']",
+          "attribute": "aria-valuenow",
+          "value": "260"
+        }
+      ]
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "role": "boundary",
+      "states": ["truncate"],
+      "mode": "live",
+      "description": "Sidebar content wraps instead of overflowing at the declared minimum.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "LongContent"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Filters"
+          },
+          "text": "Home"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='navigation.resizable-sidebar-handle']",
+          "attribute": "aria-valuenow",
+          "value": "200"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-testid='navigation.resizable-sidebar']",
+          "noOverflow": true
+        }
+      ]
+    }
+  ]
+}

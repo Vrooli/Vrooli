@@ -5,16 +5,19 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/generation"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // Stage names as constants for consistency.
 const (
-	StageBundle    = "bundle"
-	StagePreflight = "preflight"
-	StageGenerate  = "generate"
-	StageBuild     = "build"
-	StageSmokeTest = "smoketest"
-	StageDeploy    = "deploy"
+	StageResolveDeployment = "resolve-deployment"
+	StageBundle            = "bundle"
+	StagePreflight         = "preflight"
+	StageGenerate          = "generate"
+	StageBuild             = "build"
+	StageSmokeTest         = "smoketest"
+	StageDeploy            = "deploy"
 )
 
 // Pipeline status values.
@@ -138,7 +141,8 @@ type Config struct {
 	// ScenarioName is the name of the scenario to deploy (required).
 	ScenarioName string `json:"scenario_name" validate:"required"`
 
-	// Platforms to build for. Defaults to current platform if empty.
+	// Platforms to build for. Empty input is normalized to the concrete current
+	// OS/architecture before resource deployment resolution.
 	Platforms []string `json:"platforms,omitempty"`
 
 	// SkipPreflight skips the preflight validation stage.
@@ -160,7 +164,7 @@ type Config struct {
 	TemplateType string `json:"template_type,omitempty"`
 
 	// LocationMode controls where the desktop output is written.
-	// Options: proper (default), staging/temp (write to scenario-to-desktop/data/staging), custom (requires output_path).
+	// Options: proper (default), staging/temp (write to the scenario-to-desktop cache staging root), custom (requires output_path).
 	LocationMode string `json:"location_mode,omitempty"`
 
 	// WebhookURL is an optional URL for webhook notifications.
@@ -171,6 +175,19 @@ type Config struct {
 
 	// BundleManifestPath overrides the default manifest path.
 	BundleManifestPath string `json:"bundle_manifest_path,omitempty"`
+
+	// ResourceArtifactRoot is a verified Vrooli release directory containing
+	// resource artifacts plus SHA256SUMS. Bundled resource modes refuse to
+	// package from source when this is absent.
+	ResourceArtifactRoot string `json:"resource_artifact_root,omitempty"`
+
+	// ToolArtifactRoot is a verified Vrooli release directory containing
+	// vendored tool artifacts plus SHA256SUMS.
+	ToolArtifactRoot string `json:"tool_artifact_root,omitempty"`
+
+	// ArtifactTrustMode governs Vrooli release-manifest admission. It is
+	// independent of installer/app code signing.
+	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode,omitempty"`
 
 	// Clean forces a clean build (removes existing desktop output).
 	Clean bool `json:"clean,omitempty"`
@@ -226,6 +243,19 @@ type Config struct {
 	// If nil, the default provider (generic) is used but auto-updates are disabled
 	// until generic.url is configured.
 	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
+}
+
+func (c *Config) GetArtifactTrustMode() resourcedeployment.ArtifactTrustMode {
+	return c.ArtifactTrustMode
+}
+
+// ValidateFramework rejects framework values that the generation pipeline does
+// not implement. An empty value is valid because Electron is the default.
+func (c *Config) ValidateFramework() error {
+	if c.Framework == "" || c.Framework == FrameworkElectron {
+		return nil
+	}
+	return fmt.Errorf("unsupported framework %q: only %q is supported", c.Framework, FrameworkElectron)
 }
 
 // DeployConfig configures the deploy stage for LPBS deployment.
@@ -477,7 +507,7 @@ func (c *Config) takeVersionRollback() *versionRollback {
 // IsValidStageName checks if a stage name is valid.
 func IsValidStageName(name string) bool {
 	switch name {
-	case StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
+	case StageResolveDeployment, StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
 		return true
 	default:
 		return false
@@ -584,7 +614,7 @@ func (s *Status) GetNextResumeStage() string {
 	}
 
 	// Define stage order
-	stageOrder := []string{StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
+	stageOrder := []string{StageResolveDeployment, StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
 
 	// Find the stopped stage and return the next one
 	for i, stage := range stageOrder {

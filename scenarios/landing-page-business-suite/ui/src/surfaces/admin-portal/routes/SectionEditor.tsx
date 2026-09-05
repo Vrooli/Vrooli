@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Eye, FileEdit } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
@@ -7,7 +8,7 @@ import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Button } from '../../../shared/ui/button';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { useToast } from '../../../shared/ui/useToast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
 import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
@@ -34,17 +35,17 @@ type PreviewRenderer = (params: {
   content: Record<string, unknown>;
   sectionType: ContentSection['section_type'];
   config: LandingConfigResponse | null;
-}) => JSX.Element | null;
+}) => ReactNode;
 
 /**
  * Safely parse content for preview, returning the parsed content or the original
  * if parsing succeeds (which is expected since schemas are lenient).
  */
-function getPreviewContent<T>(sectionType: string, content: Record<string, unknown>): T {
+function getPreviewContent(sectionType: string, content: Record<string, unknown>): Record<string, unknown> {
   const result = parseDynamicSectionContent(sectionType, content);
   // Parsing should almost always succeed since schemas have optional fields
-  // If it fails, we still return content cast to T for preview purposes
-  return (result.success ? result.data : content) as T;
+  // If it fails, preserve the raw editor content for preview purposes.
+  return result.success ? result.data : content;
 }
 
 const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewRenderer> = {
@@ -86,7 +87,9 @@ const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewR
  */
 export function SectionEditor() {
   const navigate = useNavigate();
-  const { variantSlug, sectionId } = useParams<{ variantSlug: string; sectionId: string }>();
+  const routeParams = useParams();
+  const variantSlug = typeof routeParams.variantSlug === 'string' ? routeParams.variantSlug : undefined;
+  const sectionId = typeof routeParams.sectionId === 'string' ? routeParams.sectionId : undefined;
   const toast = useToast();
 
   const {
@@ -95,7 +98,7 @@ export function SectionEditor() {
     saving,
     error,
     isNew,
-    numericSectionId,
+    sectionKey,
 
     // Form state
     sectionType,
@@ -170,7 +173,6 @@ export function SectionEditor() {
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
-          variant="icon-title"
           title={isNew ? 'New Section' : `Edit ${sectionType} Section`}
           icon={FileEdit}
           iconBgClass="bg-teal-500/10"
@@ -181,7 +183,7 @@ export function SectionEditor() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(`/admin/customization/variants/${variantSlug}`)}
+                onClick={() => { navigate(`/admin/customization/variants/${encodeURIComponent(variantSlug ?? '')}`); }}
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -194,14 +196,16 @@ export function SectionEditor() {
                   size="sm"
                   className="gap-2 hidden sm:inline-flex"
                 >
-                  <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/?variant=${encodeURIComponent(variantSlug)}`} target="_blank" rel="noopener noreferrer">
                     <Eye className="h-4 w-4" />
                     View Variant
                   </a>
                 </Button>
               )}
               <Button
-                onClick={handleSave}
+                onClick={() => {
+                  void handleSave();
+                }}
                 disabled={saving}
                 className="gap-2"
                 data-testid="save-section"
@@ -227,11 +231,13 @@ export function SectionEditor() {
                 sections={timelineSections}
                 loading={previewConfigLoading}
                 error={previewConfigError}
-                currentSectionId={numericSectionId}
+                currentSectionKey={sectionKey}
                 currentSectionType={sectionType}
                 onNavigateSection={handleNavigateSection}
                 onAddSection={handleAddSection}
-                onReorderSection={handleReorderSection}
+                onReorderSection={(section, direction) => {
+                  void handleReorderSection(section, direction);
+                }}
                 reorderingSectionId={reorderingSectionId}
                 reorderError={reorderError}
               />
@@ -241,10 +247,10 @@ export function SectionEditor() {
               error={variantContextError}
               loading={variantContextLoading}
             />
-            <StylingGuardrailsCard variantSlug={variantContext?.variant?.slug ?? variantSlug} />
+            <StylingGuardrailsCard variantSlug={variantContext?.variant.slug ?? variantSlug} />
 
             {/* Section Settings */}
-            <div className="${LAYOUT.card.base} rounded-xl p-6">
+            <div className={`${LAYOUT.card.base} rounded-xl p-6`}>
               <h2 className="text-lg font-semibold mb-4">Section Settings</h2>
 
               <div className="space-y-4">
@@ -255,7 +261,7 @@ export function SectionEditor() {
                   <select
                     id="section-type"
                     value={sectionType}
-                    onChange={(e) => setSectionType(e.target.value as ContentSection['section_type'])}
+                    onChange={(e) => { setSectionType(e.target.value as ContentSection['section_type']); }}
                     disabled={!isNew}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none disabled:opacity-50"
                     data-testid="section-type-input"
@@ -277,7 +283,7 @@ export function SectionEditor() {
                     <input
                       type="checkbox"
                       checked={enabled}
-                      onChange={(e) => setEnabled(e.target.checked)}
+                      onChange={(e) => { setEnabled(e.target.checked); }}
                       className="w-4 h-4"
                       data-testid="section-enabled-input"
                     />
@@ -292,7 +298,7 @@ export function SectionEditor() {
                       id="order"
                       type="number"
                       value={order}
-                      onChange={(e) => setOrder(parseInt(e.target.value) || 0)}
+                      onChange={(e) => { setOrder(parseInt(e.target.value) || 0); }}
                       className="w-full px-3 py-1 bg-slate-900 border border-white/10 rounded"
                       data-testid="section-order-input"
                     />
@@ -302,7 +308,7 @@ export function SectionEditor() {
             </div>
 
             {/* Content Fields */}
-            <div className="${LAYOUT.card.base} rounded-xl p-6">
+            <div className={`${LAYOUT.card.base} rounded-xl p-6`}>
               <h2 className="text-lg font-semibold mb-4">Content</h2>
 
               <div className="space-y-4">
@@ -314,7 +320,7 @@ export function SectionEditor() {
                     id="title"
                     type="text"
                     value={(content.title as string) || ''}
-                    onChange={(e) => updateContentField('title', e.target.value)}
+                    onChange={(e) => { updateContentField('title', e.target.value); }}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-0"
                     placeholder="Enter title"
                     data-testid="content-title-input"
@@ -328,7 +334,7 @@ export function SectionEditor() {
                   <Textarea
                     id="subtitle"
                     value={(content.subtitle as string) || ''}
-                    onChange={(e) => updateContentField('subtitle', e.target.value)}
+                    onChange={(e) => { updateContentField('subtitle', e.target.value); }}
                     className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                     rows={3}
                     placeholder="Enter subtitle"
@@ -345,7 +351,7 @@ export function SectionEditor() {
                       id="cta-text"
                       type="text"
                       value={(content.cta_text as string) || ''}
-                      onChange={(e) => updateContentField('cta_text', e.target.value)}
+                      onChange={(e) => { updateContentField('cta_text', e.target.value); }}
                       className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                       placeholder="Get Started"
                       data-testid="content-cta-text-input"
@@ -360,7 +366,7 @@ export function SectionEditor() {
                       id="cta-url"
                       type="text"
                       value={(content.cta_url as string) || ''}
-                      onChange={(e) => updateContentField('cta_url', e.target.value)}
+                      onChange={(e) => { updateContentField('cta_url', e.target.value); }}
                       className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                       placeholder="/signup"
                       data-testid="content-cta-url-input"
@@ -378,7 +384,7 @@ export function SectionEditor() {
                       id="image-url"
                       type="text"
                       value={(content.image_url as string) || ''}
-                      onChange={(e) => updateContentField('image_url', e.target.value)}
+                      onChange={(e) => { updateContentField('image_url', e.target.value); }}
                       className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                       placeholder="https://example.com/hero.jpg"
                       data-testid="content-image-url-input"
@@ -391,7 +397,7 @@ export function SectionEditor() {
 
           {/* Right Column: Live Preview (OT-P0-013: updates within 300ms) */}
           <div className="lg:sticky lg:top-6 lg:self-start">
-            <div className="${LAYOUT.card.base} rounded-xl p-6 space-y-4">
+            <div className={`${LAYOUT.card.base} rounded-xl p-6 space-y-4`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -409,7 +415,9 @@ export function SectionEditor() {
                   <select
                     id="compare-variant"
                     value={compareVariantSlug}
-                    onChange={(e) => handleCompareVariantChange(e.target.value)}
+                    onChange={(e) => {
+                      void handleCompareVariantChange(e.target.value);
+                    }}
                     className="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
                   >
                     <option value="">Single preview</option>
@@ -497,7 +505,7 @@ export function SectionEditor() {
                   size="sm"
                   className="gap-2 sm:hidden"
                 >
-                  <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/?variant=${encodeURIComponent(variantSlug)}`} target="_blank" rel="noopener noreferrer">
                     <Eye className="h-4 w-4" />
                     View Variant
                   </a>

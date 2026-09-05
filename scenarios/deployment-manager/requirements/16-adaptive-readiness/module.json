@@ -1,0 +1,117 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-04T03:17:18-04:00"
+  },
+  "requirements": [
+    {
+      "id": "DM-P0-040",
+      "title": "Canonical readiness policy",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-040",
+      "description": "When a readiness decision is prepared, deployment-manager shall evaluate one versioned policy registry and shall reject duplicate, drifted, or incomplete criteria.",
+      "tags": [
+        "readiness",
+        "policy",
+        "governance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/readiness/checklist_test.go::TestDefaultChecklistIsValidAndCoversReleaseRiskGroups",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The embedded 33-criterion policy is schema- and semantics-validated and its projection drift check is executable."
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-041",
+      "title": "Immutable readiness review",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-041",
+      "description": "When a candidate review is prepared or retried, deployment-manager shall derive one immutable identity and shall persist review evidence, findings, human checks, waivers, goal linkage, approval, and publication as distinct state.",
+      "tags": [
+        "readiness",
+        "identity",
+        "storage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/readiness/repository_test.go::TestCreateOrGetIsDeterministicAndDoesNotFabricateApproval",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Repository tests prove deterministic identity, separated lifecycle state, invalidation, typed observations, human checks, waivers, approval, promotion, and supersession constraints."
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-042",
+      "title": "Attributable producer and predecessor evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-042",
+      "description": "When producer and release-history evidence is collected, deployment-manager shall retain attributable dispositions and shall distinguish first release, comparable predecessor, and unavailable comparison without fabricating a pass.",
+      "tags": [
+        "readiness",
+        "evidence",
+        "predecessor",
+        "migration",
+        "regression"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/readiness/preparation_test.go::TestPrepareReadsTypedObservationFromDeclaredProducer",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Preparation tests cover exact typed producer observations and honest first-release, comparable, and unavailable predecessor modes; the server adapter verifies exact published target lineage."
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-043",
+      "title": "Exact-identity approval and promotion",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-043",
+      "description": "When independent goal close-out or promotion is requested, deployment-manager shall revalidate the exact review identity and current required evidence and shall refuse any open, stale, regressed, unavailable-required, or mismatched state.",
+      "tags": [
+        "readiness",
+        "approval",
+        "promotion",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/readiness/connect_handler_test.go::TestApprovalRevalidationRequiresPassingMechanicalAndHumanEvidence",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Approval rejects unresolved mechanical or human evidence, stale evidence, expired waivers, and identity mismatch; release handler tests enforce the exact approved identity."
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-044",
+      "title": "Adaptive agent capability loop",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-044",
+      "description": "When an agent uses or improves deployment readiness, deployment-manager shall expose discoverable skill roles, bounded governed programs, attributable learning capture, and live measures that route repair to the correct owner and remove superseded workarounds.",
+      "tags": [
+        "skills",
+        "programs",
+        "learning",
+        "measures",
+        "improvement"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": ".vrooli/program-runtime/setpoint-read.json",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The validated usage/improve skill set declares five bounded governed programs, owned measures, failure classes, and attributable learning capture."
+        }
+      ]
+    }
+  ]
+}

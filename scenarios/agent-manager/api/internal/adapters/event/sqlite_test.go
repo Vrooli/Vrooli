@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,10 +42,23 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 			sequence INTEGER NOT NULL,
 			event_type TEXT NOT NULL,
 			timestamp DATETIME NOT NULL,
-			data TEXT
+			schema_version INTEGER NOT NULL DEFAULT 1,
+			data TEXT,
+			UNIQUE(run_id, sequence)
 		);
 		CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 		CREATE INDEX IF NOT EXISTS idx_run_events_sequence ON run_events(run_id, sequence);
+		CREATE TABLE IF NOT EXISTS event_retention_state (
+			singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+			generation INTEGER NOT NULL,
+			floor_rowid INTEGER NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		INSERT INTO event_retention_state(singleton,generation,floor_rowid,updated_at) VALUES (1,1,0,datetime('now'));
+		CREATE TABLE IF NOT EXISTS runs (
+			id TEXT PRIMARY KEY,
+			execution_mode TEXT NOT NULL DEFAULT 'codec_pipe'
+		);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		_ = db.Close()
@@ -513,9 +527,7 @@ func TestSQLiteStore_EventDataRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSQLiteStore_SequentialAppend(t *testing.T) {
-	// SQLite doesn't handle concurrent writes well, so this test
-	// uses sequential appends to verify sequence uniqueness.
+func TestSQLiteStore_ConcurrentAppendSequences(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
@@ -523,17 +535,29 @@ func TestSQLiteStore_SequentialAppend(t *testing.T) {
 	ctx := context.Background()
 	runID := uuid.New()
 
-	// Append events sequentially from multiple "sources"
 	const numSources = 5
 	const eventsPerSource = 10
 
+	var wg sync.WaitGroup
+	errs := make(chan error, numSources*eventsPerSource)
 	for i := 0; i < numSources; i++ {
-		for j := 0; j < eventsPerSource; j++ {
-			evt := domain.NewLogEvent(runID, "info", fmt.Sprintf("source %d event %d", i, j))
-			if err := store.Append(ctx, runID, evt); err != nil {
-				t.Fatalf("append failed: %v", err)
+		source := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < eventsPerSource; j++ {
+				evt := domain.NewLogEvent(runID, "info", fmt.Sprintf("source %d event %d", source, j))
+				if err := store.Append(ctx, runID, evt); err != nil {
+					errs <- err
+				}
 			}
-		}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("append failed: %v", err)
 	}
 
 	// Verify all events were stored
@@ -557,5 +581,135 @@ func TestSQLiteStore_SequentialAppend(t *testing.T) {
 		if evt.Sequence != int64(i) {
 			t.Errorf("expected sequence %d, got %d", i, evt.Sequence)
 		}
+	}
+}
+
+func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ensureProjectionWatermarksTable(t, db)
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	runID := uuid.New()
+	old := time.Now().Add(-48 * time.Hour)
+	for range 3 {
+		evt := domain.NewLogEvent(runID, "info", "expired")
+		evt.Timestamp = old
+		if err := store.Append(ctx, runID, evt); err != nil {
+			t.Fatalf("append expired: %v", err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event-3', ?, 'test', 1, ?)`, runID.String(), old, old); err != nil {
+		t.Fatalf("mark projection complete: %v", err)
+	}
+	fresh := domain.NewLogEvent(runID, "info", "fresh")
+	fresh.Timestamp = time.Now()
+	if err := store.Append(ctx, runID, fresh); err != nil {
+		t.Fatalf("append fresh: %v", err)
+	}
+
+	deleted, err := store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 2)
+	if err != nil || deleted != 2 {
+		t.Fatalf("first bounded delete = %d, %v", deleted, err)
+	}
+	deleted, err = store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 2)
+	if err != nil || deleted != 1 {
+		t.Fatalf("second bounded delete = %d, %v", deleted, err)
+	}
+	count, err := store.Count(ctx, runID)
+	if err != nil || count != 1 {
+		t.Fatalf("retained events = %d, %v", count, err)
+	}
+	var generation int64
+	if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 3 {
+		t.Fatalf("retention generation = %d, %v", generation, err)
+	}
+}
+
+func TestSQLiteStore_DeleteBeforePreservesEventsWithoutCompletedProjection(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ensureProjectionWatermarksTable(t, db)
+	if _, err := db.Exec(`CREATE TABLE invocation_read_model_facts (run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, PRIMARY KEY (run_id, call_event_id))`); err != nil {
+		t.Fatal(err)
+	}
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	old := time.Now().Add(-48 * time.Hour)
+	completeRun, incompleteRun := uuid.New(), uuid.New()
+	for _, runID := range []uuid.UUID{completeRun, incompleteRun} {
+		evt := domain.NewLogEvent(runID, "info", "expired")
+		evt.Timestamp = old
+		if err := store.Append(ctx, runID, evt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 1, ?)`, completeRun.String(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_facts (run_id, call_event_id) VALUES (?, 'event')`, completeRun.String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 0, ?)`, incompleteRun.String(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 10)
+	if err != nil || deleted != 1 {
+		t.Fatalf("deleted = %d, %v", deleted, err)
+	}
+	if count, _ := store.Count(ctx, completeRun); count != 0 {
+		t.Fatalf("completed run events = %d, want 0", count)
+	}
+	if count, _ := store.Count(ctx, incompleteRun); count != 1 {
+		t.Fatalf("incomplete run events = %d, want 1", count)
+	}
+	var derivedFacts int
+	if err := db.Get(&derivedFacts, `SELECT COUNT(*) FROM invocation_read_model_facts WHERE run_id = ?`, completeRun.String()); err != nil || derivedFacts != 1 {
+		t.Fatalf("derived facts after completed-run sweep = %d, %v; want the projection to remain queryable", derivedFacts, err)
+	}
+}
+
+func TestSQLiteStore_DeleteBeforePreservesImportedEvents(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ensureProjectionWatermarksTable(t, db)
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	old := time.Now().Add(-48 * time.Hour)
+	importedRun, nativeRun := uuid.New(), uuid.New()
+
+	for _, runID := range []uuid.UUID{importedRun, nativeRun} {
+		if _, err := db.Exec(`INSERT INTO runs (id) VALUES (?)`, runID.String()); err != nil {
+			t.Fatal(err)
+		}
+		evt := domain.NewLogEvent(runID, "info", "expired")
+		evt.Timestamp = old
+		if err := store.Append(ctx, runID, evt); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 1, ?)`, runID.String(), old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE runs SET execution_mode = 'imported' WHERE id = ?`, importedRun.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 10)
+	if err != nil || deleted != 1 {
+		t.Fatalf("deleted = %d, %v; want only native event deleted", deleted, err)
+	}
+	if count, _ := store.Count(ctx, importedRun); count != 1 {
+		t.Fatalf("imported run events = %d, want 1", count)
+	}
+	if count, _ := store.Count(ctx, nativeRun); count != 0 {
+		t.Fatalf("native run events = %d, want 0", count)
+	}
+}
+
+func ensureProjectionWatermarksTable(t *testing.T, db *sqlx.DB) {
+	t.Helper()
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS invocation_read_model_watermarks (run_id TEXT PRIMARY KEY, last_event_id TEXT NOT NULL, last_event_at TEXT NOT NULL, classifier_version TEXT NOT NULL, projection_complete INTEGER NOT NULL DEFAULT 0, projected_at TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create projection watermark fixture: %v", err)
 	}
 }

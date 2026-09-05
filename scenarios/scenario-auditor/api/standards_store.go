@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // StandardsStore provides persistent storage for standards violations
@@ -26,55 +27,27 @@ type StandardsData struct {
 	LastUpdate time.Time                       `json:"last_update"`
 }
 
-var standardsStore = initStandardsStore()
+var standardsStore = newStandardsStore()
 
-func initStandardsStore() *StandardsStore {
-	fmt.Fprintf(os.Stderr, "[INIT] Initializing standards store...\n")
-	store := &StandardsStore{
+func newStandardsStore() *StandardsStore {
+	return &StandardsStore{
 		violations: make(map[string][]StandardsViolation),
 		lastCheck:  make(map[string]time.Time),
 	}
-
-	// Try to enable persistence, but don't fail if we can't
-	fmt.Fprintf(os.Stderr, "[INIT] Enabling standards store persistence...\n")
-	store.enablePersistence()
-	fmt.Fprintf(os.Stderr, "[INIT] Standards store initialized\n")
-
-	return store
 }
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
-
-	// Get Vrooli root directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = os.Getenv("HOME") + "/Vrooli"
+	if ss.filePath != "" {
+		return
 	}
-
-	// Create data directory if it doesn't exist
-	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
-
-	// Check if parent directory exists first
-	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		// Try to create parent directory structure
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
-			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
-			logger.Info("Standards store will operate in memory-only mode (no persistence)")
-			return
-		}
-	}
-
-	// Now create our specific directory
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
+	path, err := resolveScenarioAuditorStoragePath(storage.ClassCache, "standards-violations.json")
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor standards cache path", err)
 		logger.Info("Standards store will operate in memory-only mode (no persistence)")
 		return
 	}
-
-	// Set the file path
-	ss.filePath = filepath.Join(dataDir, "standards-violations.json")
+	ss.filePath = path
 
 	// Try to load existing data
 	if err := ss.loadFromFile(); err != nil {
@@ -314,7 +287,7 @@ func (ss *StandardsStore) saveToFile() error {
 		return fmt.Errorf("failed to marshal standards data: %w", err)
 	}
 
-	if err := os.WriteFile(ss.filePath, jsonData, 0644); err != nil {
+	if err := storage.WriteFileAtomic(ss.filePath, jsonData, storage.DefaultFilePerm); err != nil {
 		return fmt.Errorf("failed to write standards data to %s: %w", ss.filePath, err)
 	}
 

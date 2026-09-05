@@ -442,17 +442,3 @@ func TestGetInstallInstructionsFunc(t *testing.T) {
 		}
 	})
 }
-
-// TestCheckBrowserlessHealth tests browserless health check
-func TestCheckBrowserlessHealth(t *testing.T) {
-	loggerCleanup := setupTestLogger()
-	defer loggerCleanup()
-
-	t.Run("DefaultImplementation", func(t *testing.T) {
-		// Current implementation always returns true
-		healthy := checkBrowserlessHealth()
-		if !healthy {
-			t.Error("Expected browserless health check to return true")
-		}
-	})
-}

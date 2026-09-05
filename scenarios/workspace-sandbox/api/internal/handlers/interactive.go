@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/creack/pty/v2"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"workspace-sandbox/internal/driver"
+	driverexec "workspace-sandbox/internal/driver/exec"
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 // WebSocket message types for interactive sessions
@@ -45,6 +45,7 @@ type InteractiveStartRequest struct {
 	Command        string            `json:"command"`
 	Args           []string          `json:"args,omitempty"`
 	IsolationLevel string            `json:"isolationLevel,omitempty"`
+	ExecutionMode  string            `json:"executionMode,omitempty"`
 	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
 	Env            map[string]string `json:"env,omitempty"`
 	WorkingDir     string            `json:"workingDir,omitempty"`
@@ -116,6 +117,10 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		sendErrorMessage(conn, "command is required")
 		return
 	}
+	if err := h.validateExecutionMode(r.Context(), startReq.ExecutionMode); err != nil {
+		sendErrorMessage(conn, err.Error())
+		return
+	}
 
 	// Set default terminal size
 	if startReq.Cols <= 0 {
@@ -125,8 +130,9 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		startReq.Rows = 24
 	}
 
-	// Build bwrap config
-	cfg := driver.DefaultBwrapConfig()
+	// Build bwrap config: defaults → host env → isolation profile.
+	cfg := driverexec.DefaultBwrapConfig()
+	driverexec.CaptureEnv().ApplyTo(&cfg)
 	if startReq.WorkingDir != "" {
 		cfg.WorkingDir = startReq.WorkingDir
 	}
@@ -134,15 +140,17 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 		cfg.Env[k] = v
 	}
 
-	// Set isolation level and related config
-	if startReq.IsolationLevel == "vrooli-aware" {
-		driver.ApplyVrooliAwareConfig(&cfg)
-	} else if startReq.AllowNetwork {
+	if err := h.applyIsolationProfile(sb, &cfg, startReq.IsolationLevel); err != nil {
+		sendErrorMessage(conn, err.Error())
+		return
+	}
+
+	if startReq.AllowNetwork {
 		cfg.AllowNetwork = true
 	}
 
 	// Set resource limits
-	cfg.ResourceLimits = driver.ResourceLimits{
+	cfg.ResourceLimits = driverexec.ResourceLimits{
 		MemoryLimitMB: startReq.MemoryLimitMB,
 		CPUTimeSec:    startReq.CPUTimeSec,
 		MaxProcesses:  startReq.MaxProcesses,
@@ -150,25 +158,26 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run the interactive session
-	runInteractiveSession(conn, sb, cfg, startReq)
+	runInteractiveSession(conn, sb, cfg, startReq, h.Clock)
 }
 
-// runInteractiveSession runs a command with PTY and streams I/O over WebSocket.
-func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.BwrapConfig, req InteractiveStartRequest) {
+// runInteractiveSession runs a command with PTY and streams I/O over
+// WebSocket. PTY allocation routes through process.PTYStart so the
+// os/exec dependency stays confined to the canonical PTY seam.
+func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driverexec.BwrapConfig, req InteractiveStartRequest, clk schedule.Clock) {
 	// Build the command
-	executable, args := driver.BuildExecCommand(sb, cfg, req.Command, req.Args...)
+	executable, args := driverexec.BuildExecCommand(sb, cfg, req.Command, req.Args...)
 
-	cmd := exec.Command(executable, args...)
-	cmd.Dir = sb.MergedDir
-
-	// Set up environment
-	cmd.Env = os.Environ()
+	env := os.Environ()
 	for k, v := range cfg.Env {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Start with PTY
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
+	handle, err := process.PTYStart(process.PTYOpts{
+		Path: executable,
+		Args: args,
+		Dir:  sb.MergedDir,
+		Env:  env,
 		Rows: uint16(req.Rows),
 		Cols: uint16(req.Cols),
 	})
@@ -176,6 +185,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 		sendErrorMessage(conn, fmt.Sprintf("failed to start process: %v", err))
 		return
 	}
+	ptmx := handle.PTY()
 	defer ptmx.Close()
 
 	// Use a context to manage shutdown
@@ -238,10 +248,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 				}
 			case MsgTypeResize:
 				if msg.Cols > 0 && msg.Rows > 0 {
-					if err := pty.Setsize(ptmx, &pty.Winsize{
-						Rows: uint16(msg.Rows),
-						Cols: uint16(msg.Cols),
-					}); err != nil {
+					if err := handle.SetPTYSize(uint16(msg.Rows), uint16(msg.Cols)); err != nil {
 						return
 					}
 				}
@@ -258,13 +265,9 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 
 	// Wait for process to exit
 	exitCode := 0
-	if err := cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				exitCode = status.ExitStatus()
-			}
-		}
-	}
+	waitErr := handle.Wait()
+	exit := handle.ExitInfo(waitErr)
+	exitCode = exit.ExitCode
 
 	// Cancel context to stop goroutines
 	cancel()
@@ -281,7 +284,7 @@ func runInteractiveSession(conn *websocket.Conn, sb *types.Sandbox, cfg driver.B
 	}
 
 	// Give a moment for the message to be sent
-	time.Sleep(100 * time.Millisecond)
+	clk.Sleep(100 * time.Millisecond)
 
 	// Wait for goroutines to finish (with timeout)
 	done := make(chan struct{})

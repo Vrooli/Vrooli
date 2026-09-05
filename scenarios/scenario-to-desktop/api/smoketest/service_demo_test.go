@@ -130,10 +130,10 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 		}
 	}
 
-	// Smoke test status should still be "passed"
+	// Without a usable desktop journey, a recorded smoke test must not pass.
 	status, _ := store.Get("test-demo")
-	if status.Status != "passed" {
-		t.Errorf("Expected status 'passed', got %q", status.Status)
+	if status.Status != "failed" {
+		t.Errorf("Expected status 'failed' when desktop evidence is unavailable, got %q", status.Status)
 	}
 }
 
@@ -258,7 +258,7 @@ func TestService_DemoLaunch_SkippedWithoutRecording(t *testing.T) {
 	}
 }
 
-func TestService_DemoLaunch_FailureIsNonFatal(t *testing.T) {
+func TestService_DemoLaunch_FailureDoesNotCreatePassingEvidence(t *testing.T) {
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{
 		SmokeTestID:  "test-demo-err",
@@ -325,10 +325,11 @@ func TestService_DemoLaunch_FailureIsNonFatal(t *testing.T) {
 	ctx := context.Background()
 	service.PerformSmokeTest(ctx, "test-demo-err", "test-scenario", "/path/to/artifact.AppImage", "linux")
 
-	// Smoke test should still pass despite demo failure
+	// The underlying protocol passed, but the requested desktop evidence did
+	// not. The combined acceptance result must fail.
 	status, _ := store.Get("test-demo-err")
-	if status.Status != "passed" {
-		t.Errorf("Expected status 'passed' despite demo failure, got %q", status.Status)
+	if status.Status != "failed" {
+		t.Errorf("Expected status 'failed' when desktop evidence fails, got %q", status.Status)
 	}
 
 	// Should have 2 execute calls (headless + demo attempt)
@@ -337,8 +338,8 @@ func TestService_DemoLaunch_FailureIsNonFatal(t *testing.T) {
 	}
 
 	// Logs should mention the demo error
-	if !logsContain(status.Logs, "Demo launch error") {
-		t.Error("Expected logs to mention demo launch error")
+	if !logsContain(status.Logs, "Demo launch completion warning") {
+		t.Error("Expected logs to mention demo launch completion warning")
 		t.Logf("Logs: %v", status.Logs)
 	}
 }

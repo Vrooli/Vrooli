@@ -1,3 +1,4 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
@@ -164,5 +165,103 @@ describe("useDraggablePosition", () => {
     expect(result.current.position).toEqual(positionBeforeDrag);
     // But the DOM transform IS updated
     expect(el.style.transform).toContain("translate3d");
+  });
+
+  it("covers inactive, persisted, cancelled, and completed drag paths", () => {
+    const el = makeMockElement();
+    localStorage.setItem("drag", JSON.stringify({ x: 20, y: 30, savedAt: 1 }));
+    const onDragStart = vi.fn();
+    const onDragEnd = vi.fn();
+    const { result, rerender } = renderHook(({ active }) => useDraggablePosition({
+      isActive: active,
+      storageKey: "drag",
+      defaultPosition: () => null,
+      onDragStart,
+      onDragEnd,
+    }), { initialProps: { active: true } });
+    act(() => { result.current.elementRef.current = el; });
+    expect(result.current.position).toEqual({ x: 20, y: 30 });
+
+    act(() => {
+      result.current.pointerHandlers.onPointerDown(makePointerEvent({ button: 2 }));
+      result.current.pointerHandlers.onPointerMove(makePointerEvent({ pointerId: 99 }));
+      result.current.pointerHandlers.onPointerUp(makePointerEvent({ pointerId: 99 }));
+    });
+    expect(onDragStart).not.toHaveBeenCalled();
+
+    el.hasPointerCapture = vi.fn().mockReturnValue(true);
+    act(() => { result.current.pointerHandlers.onPointerDown(makePointerEvent({ clientX: 120, clientY: 24 })); });
+    act(() => { result.current.pointerHandlers.onPointerMove(makePointerEvent({ clientX: 150, clientY: 54 })); });
+    act(() => { result.current.pointerHandlers.onPointerMove(makePointerEvent({ clientX: 180, clientY: 84 })); });
+    act(() => { result.current.pointerHandlers.onPointerUp(makePointerEvent({ clientX: 180, clientY: 84 })); });
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(onDragEnd).toHaveBeenCalledWith(expect.objectContaining({ position: expect.any(Object), velocity: expect.any(Object) }));
+    const click = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as Parameters<typeof result.current.handleClickCapture>[0];
+    act(() => { result.current.handleClickCapture(click); });
+    expect(click.preventDefault).toHaveBeenCalled();
+
+    act(() => { result.current.moveTo({ x: 400, y: 500 }); result.current.resetPosition(); });
+    expect(result.current.position).toEqual({ x: 160, y: 72 });
+    // Reapplying the current coordinates is intentionally a no-op so resize
+    // and docking reconciliation cannot create a render loop.
+    const stablePosition = result.current.position;
+    act(() => { result.current.moveTo(stablePosition); });
+    expect(result.current.position).toBe(stablePosition);
+    act(() => { rerender({ active: false }); });
+    expect(result.current.floatingStyle).toBeUndefined();
+  });
+
+  it("uses fallback positions and survives storage and pointer-capture failures", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    localStorage.setItem("bad", "not-json");
+    const { result } = renderHook(() => useDraggablePosition({ isActive: true, storageKey: "bad", defaultPosition: () => null }));
+    expect(result.current.position).toEqual({ x: 12, y: 12 });
+    const el = makeMockElement();
+    el.setPointerCapture = vi.fn(() => { throw new Error("capture failed"); });
+    el.hasPointerCapture = vi.fn().mockReturnValue(true);
+    el.releasePointerCapture = vi.fn(() => { throw new Error("release failed"); });
+    act(() => { result.current.elementRef.current = el; result.current.pointerHandlers.onPointerDown(makePointerEvent()); });
+    act(() => { result.current.pointerHandlers.onPointerMove(makePointerEvent({ clientX: 150, clientY: 54 })); });
+    act(() => { result.current.pointerHandlers.onPointerUp(makePointerEvent({ clientX: 150, clientY: 54 })); });
+    expect(warn).toHaveBeenCalled();
+    act(() => { result.current.moveTo({ x: 1, y: 1 }); });
+    vi.spyOn(localStorage, "removeItem").mockImplementation(() => { throw new Error("quota"); });
+    act(() => { result.current.resetPosition(); });
+  });
+
+  it("reclamps a persisted position when ResizeObserver measures the toolbar", () => {
+    class MockResizeObserver {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      unobserve = vi.fn();
+
+      constructor(private readonly onResize: ResizeObserverCallback) {
+        observed = this;
+      }
+
+      notify() {
+        this.onResize([], this as unknown as ResizeObserver);
+      }
+    }
+    let observed: MockResizeObserver | undefined;
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    localStorage.setItem("toolbar", JSON.stringify({ x: 1000, y: 30, savedAt: 1 }));
+
+    const el = makeMockElement();
+    const { result, rerender } = renderHook(({ active }) => useDraggablePosition({
+      isActive: active,
+      storageKey: "toolbar",
+      defaultPosition: DEFAULT_POS,
+    }), { initialProps: { active: true } });
+    act(() => { result.current.elementRef.current = el; });
+    act(() => { rerender({ active: false }); });
+    act(() => { rerender({ active: true }); });
+
+    const resizeObserver = observed;
+    if (!resizeObserver) throw new Error("ResizeObserver was not constructed");
+    expect(resizeObserver.observe).toHaveBeenCalledWith(el);
+    expect(result.current.position).toEqual({ x: 852, y: 30 });
+    act(() => { resizeObserver.notify(); });
+    expect(resizeObserver.disconnect).not.toHaveBeenCalled();
   });
 });

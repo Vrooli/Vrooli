@@ -14,6 +14,14 @@ import (
 	"testing"
 	"time"
 
+	adminhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/logx"
+	"landing-page-business-suite-api/internal/securevalue"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -23,6 +31,14 @@ type mockHTTPDoer struct {
 	body       string
 	err        error
 	requests   []*http.Request
+}
+
+func apiKeyHandlerDependencies(service *administration.APIKeyService) adminhttp.APIKeyDependencies {
+	return adminhttp.APIKeyDependencies{
+		Service:    service,
+		WriteError: writeJSONError,
+		LogError:   logx.Error,
+	}
 }
 
 func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
@@ -76,7 +92,7 @@ func createTestAPIKeysDB(t *testing.T) *sql.DB {
 }
 
 // createTestAPIKeyService creates an API key service for testing without encryption.
-func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService, *sql.DB) {
+func createTestAPIKeyService(t *testing.T, httpClient administration.APIKeyHTTPDoer) (*administration.APIKeyService, *sql.DB) {
 	t.Helper()
 
 	db := createTestAPIKeysDB(t)
@@ -84,19 +100,15 @@ func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService,
 		httpClient = &mockHTTPDoer{statusCode: 200}
 	}
 
-	// Service without encryption key (development mode) with SQLite dialect
-	svc := &APIKeyService{
-		db:            db,
-		encryptionKey: nil,
-		httpClient:    httpClient,
-		dialects:      NewDialectHelper("sqlite"),
-	}
+	// Service without encryption key (development mode) with SQLite dialect.
+	// Construct through the Account domain rather than reaching into its fields.
+	svc := newAPIKeyServiceForTest(db, httpClient, "sqlite", nil)
 
 	return svc, db
 }
 
 // createTestAPIKeyServiceWithEncryption creates an API key service with encryption enabled.
-func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*APIKeyService, *sql.DB) {
+func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient administration.APIKeyHTTPDoer) (*administration.APIKeyService, *sql.DB) {
 	t.Helper()
 
 	db := createTestAPIKeysDB(t)
@@ -110,12 +122,7 @@ func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*
 		encryptionKey[i] = byte(i)
 	}
 
-	svc := &APIKeyService{
-		db:            db,
-		encryptionKey: encryptionKey,
-		httpClient:    httpClient,
-		dialects:      NewDialectHelper("sqlite"),
-	}
+	svc := newAPIKeyServiceForTest(db, httpClient, "sqlite", encryptionKey)
 
 	return svc, db
 }
@@ -164,7 +171,7 @@ func TestAPIKeyService_Store_EncryptsKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	plainKey := "sk-or-test-key-12345678"
+	plainKey := "test-openrouter-key-12345678"
 
 	// Store a key
 	_, err := svc.Store(ctx, "openrouter", plainKey)
@@ -290,7 +297,7 @@ func TestAPIKeyService_Get_ReturnsDecryptedKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	plainKey := "sk-or-test-key-12345678"
+	plainKey := "test-openrouter-key-12345678"
 
 	// Store a key
 	_, err := svc.Store(ctx, "openrouter", plainKey)
@@ -655,27 +662,23 @@ func TestAPIKeyService_NoEncryptionKey_StoresPlaintext(t *testing.T) {
 // ============================================================================
 
 func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
-	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
-
-	// Set production mode without encryption key
-	os.Setenv("LPBS_ENVIRONMENT", "production")
-	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	// The package test harness enables fallback credentials for ordinary unit
+	// tests; this test explicitly injects an unconfigured authority result and
+	// verifies the production refusal path without depending on host state.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "")
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
 
-	// Attempting to create service without encryption key in production should fail
-	_, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	// Attempting to create the service without an authority value in
+	// production should fail.
+	_, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) {
+			return "", fmt.Errorf("%w: api-key-encryption-key", credentialauthority.ErrUnconfigured)
+		},
+		func() bool { return true }, nil, nil,
+	)
 	if err == nil {
 		t.Error("Expected error when creating API key service in production without encryption key")
 	}
@@ -691,8 +694,8 @@ func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
 
 func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
 	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	oldEnv := envx.Get("LPBS_ENVIRONMENT")
+	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
 	defer func() {
 		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
 		if oldKey != "" {
@@ -721,32 +724,80 @@ func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
-	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		if oldEnv != "" {
-			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		} else {
-			os.Unsetenv("LPBS_ENVIRONMENT")
-		}
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
+func TestAPIKeyService_MigrateEncryptionResealsLegacyRows(t *testing.T) {
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	legacyKey := make([]byte, 32)
+	for i := range legacyKey {
+		legacyKey[i] = byte(i + 1)
+	}
+	legacyCiphertext, err := securevalue.Encrypt(legacyKey, "legacy-api-key")
+	if err != nil {
+		t.Fatalf("encrypt legacy key: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO api_keys (provider, encrypted_key, key_hint) VALUES ('openrouter', ?, '****key')`, legacyCiphertext); err != nil {
+		t.Fatalf("insert legacy key: %v", err)
+	}
+	ring := securevalue.Ring{Active: 1, Keys: []securevalue.VersionedKey{{Version: 1, Key: base64.StdEncoding.EncodeToString(legacyKey)}}}
+	ring, err = ring.Rotate()
+	if err != nil {
+		t.Fatalf("rotate ring: %v", err)
+	}
+	serialized, err := ring.Marshal()
+	if err != nil {
+		t.Fatalf("marshal ring: %v", err)
+	}
+	svc, err := administration.NewAPIKeyServiceWithRuntime(db, nil, "sqlite", func(string) string { return serialized }, func() bool { return false }, nil, nil)
+	if err != nil {
+		t.Fatalf("construct ring service: %v", err)
+	}
+	count, err := svc.MigrateEncryption(context.Background())
+	if err != nil || count != 1 {
+		t.Fatalf("migration count=%d err=%v, want 1", count, err)
+	}
+	got, err := svc.Get(context.Background(), "openrouter")
+	if err != nil || got != "legacy-api-key" {
+		t.Fatalf("migrated key=%q err=%v", got, err)
+	}
+	var state string
+	if err := db.QueryRow(`SELECT encryption_state FROM api_keys WHERE provider = 'openrouter'`).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "v2" {
+		t.Fatalf("encryption state=%q, want v2", state)
+	}
+}
 
-	// Set development mode (or empty, which defaults to dev)
-	os.Setenv("LPBS_ENVIRONMENT", "development")
-	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+func TestAPIKeyService_PropagatesCredentialProviderFailure(t *testing.T) {
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	providerErr := fmt.Errorf("provider unavailable: %w", credentialauthority.ErrProviderUnavailable)
+
+	_, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) { return "", providerErr },
+		func() bool { return false }, nil, nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "resolve API key encryption credential") {
+		t.Fatalf("expected provider failure to propagate, got %v", err)
+	}
+}
+
+func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
+	// Keep this test independent of the host authority store.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "")
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
 
-	// Should succeed in development without encryption key (with warning)
-	svc, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	// Should succeed in development without an encryption key.
+	svc, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) {
+			return "", fmt.Errorf("%w: api-key-encryption-key", credentialauthority.ErrUnconfigured)
+		},
+		func() bool { return false }, nil, nil,
+	)
 	if err != nil {
 		t.Fatalf("Expected success in development without encryption key, got error: %v", err)
 	}
@@ -763,7 +814,7 @@ func TestHandleListAPIKeys_Empty(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleListAPIKeys(svc)
+	handler := adminhttp.ListAPIKeys(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -797,7 +848,7 @@ func TestHandleListAPIKeys_MultipleKeys(t *testing.T) {
 	_, _ = svc.Store(ctx, "openai", "sk-openai-test")
 	_, _ = svc.Store(ctx, "anthropic", "sk-ant-test")
 
-	handler := handleListAPIKeys(svc)
+	handler := adminhttp.ListAPIKeys(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -826,9 +877,9 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
-	body := `{"provider": "openrouter", "key": "sk-or-test-12345678"}`
+	body := `{"provider": "openrouter", "key": "test-openrouter-key-12345678"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -839,7 +890,7 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 
-	var resp APIKey
+	var resp administration.APIKey
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -856,7 +907,7 @@ func TestHandleCreateAPIKey_InvalidProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	body := `{"provider": "invalid-provider", "key": "some-key"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
@@ -874,7 +925,7 @@ func TestHandleCreateAPIKey_EmptyKey(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	body := `{"provider": "openrouter", "key": ""}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
@@ -892,7 +943,7 @@ func TestHandleCreateAPIKey_InvalidJSON(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -912,7 +963,7 @@ func TestHandleDeleteAPIKey_Success(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -934,7 +985,7 @@ func TestHandleDeleteAPIKey_MissingProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -950,7 +1001,7 @@ func TestHandleDeleteAPIKey_NotFound(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -970,7 +1021,7 @@ func TestHandleTestAPIKey_ValidKey(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -1002,7 +1053,7 @@ func TestHandleTestAPIKey_InvalidKey(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "invalid-key")
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -1027,7 +1078,7 @@ func TestHandleTestAPIKey_MissingProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test", nil)
 	w := httptest.NewRecorder()
@@ -1043,7 +1094,7 @@ func TestHandleTestAPIKey_NoKeyConfigured(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -1075,7 +1126,7 @@ func TestHandleToggleAPIKey_Success(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleToggleAPIKey(svc)
+	handler := adminhttp.ToggleAPIKey(apiKeyHandlerDependencies(svc))
 
 	// Toggle off
 	body := `{"provider": "openrouter", "active": false}`
@@ -1100,7 +1151,7 @@ func TestHandleToggleAPIKey_InvalidJSON(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleToggleAPIKey(svc)
+	handler := adminhttp.ToggleAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/api-keys/toggle", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -1123,7 +1174,7 @@ func TestTestOpenAI_Success(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "sk-openai-test")
+	success, message := svc.TestOpenAIProvider(ctx, "sk-openai-test")
 
 	if !success {
 		t.Errorf("Expected success=true, got false with message: %s", message)
@@ -1151,7 +1202,7 @@ func TestTestOpenAI_InvalidKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "invalid-key")
+	success, message := svc.TestOpenAIProvider(ctx, "invalid-key")
 
 	if success {
 		t.Error("Expected success=false for 401 response")
@@ -1167,7 +1218,7 @@ func TestTestOpenAI_ConnectionError(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "sk-test")
+	success, message := svc.TestOpenAIProvider(ctx, "sk-test")
 
 	if success {
 		t.Error("Expected success=false for connection error")
@@ -1183,7 +1234,7 @@ func TestTestAnthropic_Success(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	if !success {
 		t.Errorf("Expected success=true, got false with message: %s", message)
@@ -1211,7 +1262,7 @@ func TestTestAnthropic_RateLimited(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	// 429 should still indicate the key is valid (just rate limited)
 	if !success {
@@ -1225,7 +1276,7 @@ func TestTestAnthropic_BadRequest(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	// 400 should still indicate the key is valid (just validation error)
 	if !success {

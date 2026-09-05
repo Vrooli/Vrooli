@@ -1,10 +1,12 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import FormWizard from "@vrooli/react-component-library/FormWizard";
 import { cn } from "../../lib/utils";
-import { STEP_LABELS } from "../../types";
+import type { V2Step } from "../../types";
 
 interface WizardShellProps {
   currentStep: number;
+  steps: V2Step[];
   onNext: () => void;
   onPrev: () => void;
   onGoToStep?: (step: number) => void;
@@ -13,10 +15,15 @@ interface WizardShellProps {
   showPrev?: boolean;
   showNext?: boolean;
   children: React.ReactNode;
+  stepContents?: React.ReactNode[];
+  target?: string;
+  onTargetChange?: (target: string) => void;
+  targetOptions?: Array<{ id: string; name?: string; status?: string }>;
 }
 
 export function WizardShell({
   currentStep,
+  steps,
   onNext,
   onPrev,
   onGoToStep,
@@ -25,34 +32,62 @@ export function WizardShell({
   showPrev = true,
   showNext = true,
   children,
+  stepContents,
+  target = "local",
+  onTargetChange,
+  targetOptions = [],
 }: WizardShellProps) {
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-slate-950 text-slate-50" data-testid="wizard-shell">
+    <div
+      className="flex min-h-full flex-col bg-surface text-foreground"
+      data-testid="wizard-shell"
+    >
+      <div className="border-b border-muted bg-surface px-3 py-3 sm:px-6" data-testid="wizard-target-chrome">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3">
+          <label htmlFor="wizard-target" className="text-sm font-medium">Configuring target</label>
+          <Input id="wizard-target" value={target} onChange={(event) => onTargetChange?.(event.target.value)} list="wizard-target-options" aria-describedby="wizard-target-help" data-testid="wizard-target" className="min-w-0 flex-1" />
+          <datalist id="wizard-target-options">{targetOptions.map((option) => <option key={option.id} value={option.id}>{option.name || option.id}</option>)}</datalist>
+          <span id="wizard-target-help" className="text-xs text-muted">Use <code>local</code> or a registered node id.</span>
+        </div>
+      </div>
       {/* Step indicator */}
-      <section className="border-b border-white/10 bg-white/5 px-2 py-2 sm:px-6 sm:py-4" aria-label="Wizard progress">
+      <section
+        className="border-b border-muted bg-surface-muted px-2 py-2 sm:px-6 sm:py-4"
+        aria-label="Wizard progress"
+      >
         <div className="mx-auto max-w-3xl">
           {/* Mobile: compact current-step label + dot indicators */}
           <div className="flex items-center justify-between sm:hidden mb-2">
-            <span className="text-xs font-medium text-slate-50">
-              Step {currentStep + 1}: {STEP_LABELS[currentStep]}
+            <span className="text-xs font-medium text-foreground">
+              Step {currentStep + 1}: {steps[currentStep]?.title ?? "Loading"}
             </span>
-            <span className="text-xs text-slate-300">
-              {currentStep + 1}/{STEP_LABELS.length}
+            <span className="text-xs text-muted">
+              {currentStep + 1}/{steps.length}
             </span>
           </div>
-          <div className="flex items-center justify-center gap-2 sm:hidden mb-2" aria-label="Step progress" role="list">
-            {STEP_LABELS.map((label, i) => {
+          <div
+            className="flex max-w-full flex-wrap items-center justify-center gap-2 sm:hidden mb-2"
+            aria-label="Step progress"
+            role="list"
+          >
+            {steps.map((step, i) => {
+              const label = step.title;
               const isCompleted = i < currentStep;
               const isClickable = isCompleted && onGoToStep;
               return isClickable ? (
-                <button
+                <Button
+                  variant="ghost"
                   key={label}
                   type="button"
-                  role="listitem"
-                  className="h-2 w-2 rounded-full bg-emerald-500 transition-colors cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                  className="h-11 w-11 shrink-0 rounded-full bg-transparent p-0 transition-colors cursor-pointer hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
                   aria-label={`Go back to ${label} (completed)`}
                   onClick={() => onGoToStep(i)}
-                />
+                >
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 rounded-full bg-primary"
+                  />
+                </Button>
               ) : (
                 <div
                   key={label}
@@ -60,10 +95,10 @@ export function WizardShell({
                   className={cn(
                     "h-2 w-2 rounded-full transition-colors",
                     isCompleted
-                      ? "bg-emerald-500"
+                      ? "bg-primary"
                       : i === currentStep
-                        ? "bg-slate-50"
-                        : "bg-white/20"
+                        ? "bg-foreground"
+                        : "bg-border-muted",
                   )}
                   aria-label={`${label}${isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}`}
                 />
@@ -72,24 +107,34 @@ export function WizardShell({
           </div>
 
           {/* Desktop: full step labels with numbers */}
-          <ol className="hidden sm:flex items-center justify-between mb-3" aria-label="Wizard steps" data-testid="wizard-steps-desktop">
-            {STEP_LABELS.map((label, i) => {
+          <ol
+            className="hidden sm:flex items-center justify-between mb-3"
+            aria-label="Wizard steps"
+            data-testid="wizard-steps-desktop"
+          >
+            {steps.map((step, i) => {
+              const label = step.title;
               const isCompleted = i < currentStep;
               const isClickable = isCompleted && onGoToStep;
               return (
-                <li key={label} className="flex items-center gap-2" aria-current={i === currentStep ? "step" : undefined}>
-                  <button
+                <li
+                  key={label}
+                  className="flex items-center gap-2"
+                  aria-current={i === currentStep ? "step" : undefined}
+                >
+                  <Button
+                    variant="ghost"
                     type="button"
                     className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors",
                       isCompleted
-                        ? "bg-emerald-500 text-white"
+                        ? "bg-primary text-foreground"
                         : i === currentStep
-                          ? "bg-slate-50 text-slate-900"
-                          : "bg-white/10 text-slate-300",
+                          ? "bg-foreground text-foreground-strong"
+                          : "bg-surface-subtle text-muted",
                       isClickable
-                        ? "cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                        : "cursor-default"
+                        ? "cursor-pointer hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+                        : "cursor-default",
                     )}
                     data-testid={`step-indicator-${i}`}
                     onClick={() => isClickable && onGoToStep(i)}
@@ -98,30 +143,39 @@ export function WizardShell({
                     aria-hidden={!isClickable ? "true" : undefined}
                   >
                     {isCompleted ? "\u2713" : i + 1}
-                  </button>
-                  <span
-                    className={cn(
-                      "text-sm",
-                      i === currentStep ? "text-slate-50 font-medium" : "text-slate-300"
-                    )}
-                  >
+                  </Button>
+                  <span className="sr-only">
                     {label}
-                    <span className="sr-only">
-                      {isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}
-                    </span>
+                    {isCompleted
+                      ? " (completed)"
+                      : i === currentStep
+                        ? " (current)"
+                        : ""}
                   </span>
-                  {i < STEP_LABELS.length - 1 && (
-                    <div className="mx-2 h-px w-8 bg-white/10" aria-hidden="true" />
+                  {i < steps.length - 1 && (
+                    <div
+                      className="mx-1 h-px w-4 bg-surface-subtle lg:mx-2 lg:w-6"
+                      aria-hidden="true"
+                    />
                   )}
                 </li>
               );
             })}
           </ol>
           {/* Progress bar */}
-          <div className="h-1 w-full rounded-full bg-white/10" role="progressbar" aria-valuenow={currentStep} aria-valuemin={0} aria-valuemax={STEP_LABELS.length - 1} aria-label="Wizard progress">
+          <div
+            className="h-1 w-full rounded-full bg-surface-subtle"
+            role="progressbar"
+            aria-valuenow={currentStep}
+            aria-valuemin={0}
+            aria-valuemax={Math.max(steps.length - 1, 0)}
+            aria-label="Wizard progress"
+          >
             <div
-              className="h-1 rounded-full bg-emerald-500 transition-all duration-300"
-              style={{ width: `${(currentStep / (STEP_LABELS.length - 1)) * 100}%` }}
+              className="h-1 rounded-full bg-primary transition-all duration-300"
+              style={{
+                width: `${steps.length > 1 ? (currentStep / (steps.length - 1)) * 100 : 0}%`,
+              }}
               data-testid="progress-bar"
             />
           </div>
@@ -130,28 +184,39 @@ export function WizardShell({
 
       {/* Content - reduced padding on mobile, extra bottom padding for sticky nav */}
       <div className="flex-1 overflow-auto px-3 py-4 sm:px-6 sm:py-8 pb-20 sm:pb-8">
-        <div className="mx-auto max-w-3xl">{children}</div>
-      </div>
-
-      {/* Navigation - sticky on mobile for thumb access */}
-      <div className="sticky bottom-0 border-t border-white/10 bg-slate-950/95 backdrop-blur-sm px-3 py-2.5 sm:static sm:bg-white/5 sm:px-6 sm:py-4" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <div>
-            {showPrev && currentStep > 0 && (
-              <Button variant="outline" onClick={onPrev} data-testid="wizard-prev" aria-label="Go to previous step">
-                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
-                Back
-              </Button>
-            )}
-          </div>
-          <div>
-            {showNext && (
-              <Button onClick={onNext} disabled={nextDisabled} data-testid="wizard-next" aria-label={nextLabel}>
-                {nextLabel}
-                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-          </div>
+        <div className="mx-auto max-w-3xl">
+          <FormWizard
+            key={steps.map((step) => step.id).join("/")}
+            steps={steps.map((step, index) => ({
+              id: step.id,
+              title: step.title,
+              content: stepContents?.[index] ?? (index === currentStep ? children : null),
+            }))}
+            initialStep={currentStep}
+            activeStep={currentStep}
+            onStepChange={(index) => {
+              if (onGoToStep) {
+                onGoToStep(index);
+              } else if (index > currentStep) {
+                onNext();
+              } else if (index < currentStep) {
+                onPrev();
+              }
+            }}
+            draftKey="vrooli-onboarding"
+            showStepNavigation={false}
+            showHeading={false}
+            showPrevious={showPrev && currentStep > 0}
+            showNext={showNext}
+            showSave={false}
+            nextLabel={nextLabel}
+            nextDisabled={nextDisabled}
+            nextTestId="wizard-next"
+            previousTestId="wizard-prev"
+            nextAriaLabel={nextLabel}
+            previousAriaLabel="Go to previous step"
+            className="min-h-0"
+          />
         </div>
       </div>
     </div>

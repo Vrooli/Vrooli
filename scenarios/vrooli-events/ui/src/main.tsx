@@ -1,14 +1,26 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { AppRouter } from "./router";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
+
+initSpatialNav();
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("sw.js").catch((error: unknown) => {
+      console.warn("Service worker registration failed", error);
+    });
+  });
+}
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
 // ║                                                              ║
 // ║  Must run BEFORE React mount so that:                        ║
-// ║  1. Storage shimming is in place before any component        ║
+// ║  1. Storage shimming is in place before application code      ║
 // ║     accesses localStorage/sessionStorage                     ║
 // ║  2. The bridge message channel is ready for host commands    ║
 // ║                                                              ║
@@ -44,6 +56,8 @@ const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element not found");
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
-    <AppRouter />
+    <React.Profiler id="vrooli-events" onRender={onProfilerRender}>
+      <AppRouter />
+    </React.Profiler>
   </React.StrictMode>
 );

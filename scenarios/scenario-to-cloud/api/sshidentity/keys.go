@@ -51,7 +51,7 @@ func (i RemoteAuthorizedKeysInspector) Inspect(ctx context.Context, cfg ssh.Conf
 }
 
 // ReadPublicKeyAndFingerprint returns the .pub content and fingerprint for a private key path.
-func ReadPublicKeyAndFingerprint(privateKeyPath string) (publicKey string, fingerprint string, err error) {
+func ReadPublicKeyAndFingerprint(privateKeyPath string) (publicKey, fingerprint string, err error) {
 	keyPath := expandHome(strings.TrimSpace(privateKeyPath))
 	if keyPath == "" {
 		return "", "", os.ErrNotExist

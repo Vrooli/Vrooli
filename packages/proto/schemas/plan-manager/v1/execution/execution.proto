@@ -1,0 +1,525 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.execution;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution;execution_v1";
+
+// =============================================================================
+// EXECUTION DOMAIN — the guided runner + canonical handoff
+// =============================================================================
+//
+// @stability draft
+//
+// ExecutionService is the guided runner: it links a run to a plan, walks the
+// phases via typed status transitions, and acts as a just-in-time context server
+// (Start / GetStatus / GetContext / Resume / GetNext return the current phase,
+// what is next, setup context, reminders, the last validation and staleness) so
+// the agent does not carry that knowledge (OT-P0-003). It reads compact log
+// summaries (decisions/findings/bugs/records owned by LogService) through an
+// internal seam, runs a thin guided completion process (nudges), and assembles
+// the canonical structured handoff from captured state — full/partial + resume
+// point COMPUTED from the phase-status set (OT-P1-001). Velocity is captured
+// LOCAL ONLY; the meta-optimization-manager emit seam is stubbed/deferred
+// (OT-P1-002).
+//
+// plan-manager owns only the structured handoff; the prose final-message
+// catch-all is owned by the orchestration layer and linked by reference.
+// =============================================================================
+
+service ExecutionService {
+  // Start links a run to a plan and returns the execution (OT-P0-003).
+  rpc Start(StartRequest) returns (StartResponse);
+  // GetStatus returns the just-in-time context for the current phase.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  // GetContext returns only the actionable setup context for the current or
+  // requested phase without advancing the execution pointer.
+  rpc GetContext(GetContextRequest) returns (GetContextResponse);
+  // Resume resolves an existing execution or creates one for a plan, optionally
+  // moves the pointer to a phase, and returns setup context without advancing.
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+  // ContinueExecution resumes or starts a run for a plan/execution id and
+  // returns the single recommended next runner action without advancing.
+  rpc ContinueExecution(ContinueExecutionRequest) returns (ContinueExecutionResponse);
+  // AbandonExecution terminalizes an accidental execution without deleting its
+  // audit history. Replaying the same abandonment is idempotent.
+  rpc AbandonExecution(AbandonExecutionRequest) returns (AbandonExecutionResponse);
+  // SyncBaseline performs one nonblocking typed read of the producer-owned GCT
+  // collection attached to an execution. It never starts or waits for capture.
+  rpc SyncBaseline(SyncBaselineRequest) returns (SyncBaselineResponse);
+  // AmendScope records an auditable phase-scope expansion within an already
+  // captured collection and invalidates older evidence for that phase.
+  rpc AmendScope(AmendScopeRequest) returns (AmendScopeResponse);
+  // AdoptBaseline repairs a legacy execution by creating a new producer ticket
+  // or recording an explicit degraded state. It never starts or waits for GCT.
+  rpc AdoptBaseline(AdoptBaselineRequest) returns (AdoptBaselineResponse);
+  // RepairSourceScope replaces a repair-required informational selection only
+  // after it is boundary-checked and re-estimated by Git Control Tower.
+  rpc RepairSourceScope(RepairSourceScopeRequest) returns (RepairSourceScopeResponse);
+  // ExtendBoundary appends globs to the plan's acceptance_allow mid-execution so
+  // validation scope follows a sanctioned scope expansion. It is append-only,
+  // refuses anything the authored acceptance_deny guardrail forbids, and
+  // invalidates the current phase's prior evidence generation.
+  rpc ExtendBoundary(ExtendBoundaryRequest) returns (ExtendBoundaryResponse);
+  // GetNext advances the runner's pointer to the next actionable phase and
+  // returns its injected context.
+  rpc GetNext(GetNextRequest) returns (GetNextResponse);
+  // TransitionPhase performs a typed phase-status transition; plan status is
+  // recomputed from the phase-status set.
+  rpc TransitionPhase(TransitionPhaseRequest) returns (TransitionPhaseResponse);
+  // Complete runs the thin guided completion process and assembles the canonical
+  // handoff, capturing a velocity point (OT-P1-001/002).
+  rpc Complete(CompleteRequest) returns (CompleteResponse);
+  // PartialHandoff persists a resumable incomplete handoff and never marks the
+  // execution normally complete.
+  rpc PartialHandoff(PartialHandoffRequest) returns (PartialHandoffResponse);
+  // GetHandoff returns the assembled canonical handoff for an execution.
+  rpc GetHandoff(GetHandoffRequest) returns (GetHandoffResponse);
+  // GetVelocity returns the per-plan velocity series.
+  rpc GetVelocity(GetVelocityRequest) returns (GetVelocityResponse);
+}
+
+// Decisions, candidate findings, bug reports, and records are NOT captured here.
+// They are typed entries in the log domain (LogService); execution reads compact
+// log summaries through an internal seam for its just-in-time context and
+// handoff. This keeps findings, bug reports, and records distinct and owned by a
+// single ledger.
+
+// Execution is a run↔plan linkage with the runner's current pointer.
+message Execution {
+  string id = 1;
+  string plan_id = 2;
+  // Explicit or server-verified attribution run id when present.
+  string run_id = 3;
+  string current_phase_id = 4;
+  bool complete = 5;
+  string started_at = 6;
+  string updated_at = 7;
+  BaselineSetState baseline_set = 8;
+  repeated ScopeAmendment scope_amendments = 9;
+  string degraded_reason = 10;
+  // active | completed | abandoned
+  string lifecycle_state = 11;
+  string abandoned_reason = 12;
+  string abandoned_at = 13;
+  string abandoned_by = 14;
+  repeated BoundaryExtension boundary_extensions = 15;
+}
+
+// Execution-owned checkpoint for a resolved GCT collection. Source paths are
+// informational evidence; required/ready coverage is behavioral only.
+message BaselineSetState {
+  int32 version = 1;
+  string name = 2;
+  repeated string scenario_targets = 3;
+  repeated string repo_paths = 4;
+  string captured_at = 5;
+  // required | scope_repair_required | complete | partial | degraded
+  string status = 6;
+  int32 required = 7;
+  int32 ready = 8;
+  int32 pending = 9;
+  int32 failed = 10;
+  int32 skipped = 11;
+  int32 stale = 12;
+  string detail = 13;
+  string collection_branch = 14;
+  repeated BaselineSetMember members = 15;
+  repeated BaselineSetPathSnapshot path_snapshots = 16;
+  repeated string capture_argv = 17;
+  repeated string wait_argv = 18;
+  repeated string sync_argv = 19;
+  string last_synced_at = 20;
+  SourceEvidencePreflight source_preflight = 21;
+  bool preflight_unavailable = 22;
+}
+
+// Direct GCT preflight evidence retained with the execution checkpoint. It is
+// source-evidence guidance, not a behavioral Test Genie verdict.
+message SourceEvidencePreflight {
+  int32 eligible_files = 1;
+  int64 eligible_bytes = 2;
+  int64 retained_content_bytes = 3;
+  bool repair_required = 4;
+  repeated SourceEvidenceIssue issues = 5;
+  repeated SourceEvidenceRecommendation recommendations = 6;
+  int32 policy_version = 7;
+  bool include_ignored = 8;
+  bool retain_content = 9;
+  int32 excluded_ignored_files = 10;
+  int64 excluded_ignored_bytes = 11;
+  int32 excluded_sensitive_files = 12;
+  int32 excluded_binary_files = 13;
+  int32 oversized_files = 14;
+  repeated SourceEvidenceContributor top_contributors = 15;
+}
+message SourceEvidenceIssue {
+  string code = 1;
+  string severity = 2;
+  string detail = 3;
+}
+message SourceEvidenceRecommendation {
+  string selection = 1;
+  string reason = 2;
+}
+message SourceEvidenceContributor {
+  string path = 1;
+  int32 files = 2;
+  int64 bytes = 3;
+}
+
+message BaselineSetMember {
+  string scenario = 1;
+  string baseline_name = 2;
+  bool required = 3;
+  // pending | ready | failed | skipped | stale | not-comparable
+  string status = 4;
+  string run_id = 5;
+  string error = 6;
+  string git_sha = 7;
+}
+
+// Metadata-only reference to bounded GCT source evidence. Content is never
+// returned through Plan Manager.
+message BaselineSetPathSnapshot {
+  string name = 1;
+  string branch = 2;
+  string created_at = 3;
+}
+
+message ScopeAmendment {
+  string id = 1;
+  string phase_id = 2;
+  string author = 3;
+  string reason = 4;
+  repeated string old_minimum = 5;
+  repeated string new_minimum = 6;
+  string invalidated_at = 7;
+  string created_at = 8;
+  repeated string invalidated_ticket_ids = 9;
+}
+
+// PhaseContext is the just-in-time context injected for a phase: everything an
+// agent would otherwise carry in its head. COMPUTED at request time.
+message PhaseContext {
+  shared.Phase current_phase = 1;
+  shared.Phase next_phase = 2;
+  // Legacy migration input. Execution-facing setup is relevant_context.
+  repeated string required_reading = 3;
+  repeated string reminders = 4;
+  shared.ValidationResult last_validation = 5;
+  shared.StalenessTier staleness = 6;
+  // The earliest non-done phase (the resume point).
+  string resume_phase_id = 7;
+  shared.Completeness completeness = 8;
+  repeated shared.RelevantContextItem relevant_context = 9;
+  // Compact roll-up of the execution's log ledger so a resumed agent sees
+  // decisions/findings/bugs/records without reading every entry. Assembled from
+  // the log domain through an internal seam.
+  shared.LogSummary log_summary = 10;
+  // Execution-start "freshen inputs" status. The runner captures the
+  // regression-anchor's baseline snapshot fresh and recomputes reference
+  // staleness ONCE on first start/resume (delegated to the validation domain).
+  // inputs_freshened is true once the step has run; freshen_status is "captured"
+  // or "degraded"; freshen_detail carries the captured baseline / staleness
+  // summary or the honest degradation reason. Never blocks phase work.
+  bool inputs_freshened = 11;
+  string freshen_status = 12;
+  string freshen_detail = 13;
+  // The plan's (or phase's narrowing) change boundary, surfaced so a fresh or
+  // resumed agent sees the allowed/denied paths and oracle coverage without
+  // reading the full plan markdown.
+  shared.ChangeBoundary change_boundary = 14;
+  // Phase-close feedback checkpoint. Computed from phase-scoped log entries so
+  // a smaller agent gets an explicit "capture or confirm none" gate before a
+  // phase is recommended done.
+  PhaseFeedbackCheckpoint feedback_checkpoint = 15;
+  BaselineSetState baseline_set = 16;
+  int32 scope_generation = 17;
+}
+
+// PhaseFeedbackCheckpoint reports whether the current phase has durable feedback
+// captured in the log ledger, or an explicit no-feedback note. It is computed
+// from LogService entries; execution never stores feedback on the phase.
+message PhaseFeedbackCheckpoint {
+  string phase_id = 1;
+  bool reviewed = 2;
+  bool satisfied = 3;
+  string summary = 4;
+  int32 decisions = 5;
+  int32 findings = 6;
+  int32 bug_reports = 7;
+  int32 records = 8;
+  int32 notes = 9;
+  int32 pending_sync = 10;
+  int32 failed_sync = 11;
+  string no_feedback_title = 12;
+  string no_feedback_detail = 13;
+}
+
+// CompletionNudge is one item in the thin guided completion process. Nudges are
+// typed and Plan Manager-local — they point back at `plan-manager log ...`
+// commands, never at external scenario CLIs.
+message CompletionNudge {
+  // "record_finding" | "file_bug" | "capture_record" | "confirm_phase_status".
+  string kind = 1;
+  string message = 2;
+  // True when the captured state already satisfies the nudge.
+  bool satisfied = 3;
+}
+
+message StartRequest {
+  string plan_id = 1;
+  // Optional explicitly supplied or server-verified attribution run id.
+  // server-side when empty.
+  string run_id = 2;
+}
+
+message StartResponse {
+  Execution execution = 1;
+  shared.GuidedStep step = 2;
+  PhaseContext context = 3;
+}
+
+message GetStatusRequest {
+  string execution_id = 1;
+}
+
+message GetStatusResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message GetContextRequest {
+  string execution_id = 1;
+  // Optional phase override. When empty, the execution pointer is used. This
+  // read does not persist the override.
+  string phase_id = 2;
+}
+
+message GetContextResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ResumeRequest {
+  // Plan id/slug or execution id.
+  string plan_or_execution = 1;
+  // Optional phase override. When set, the execution pointer is moved there.
+  string phase_id = 2;
+  // Optional attribution run id used only when a new execution is created.
+  string run_id = 3;
+}
+
+message ResumeResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ContinueExecutionRequest {
+  // Plan id/slug or execution id.
+  string plan_or_execution = 1;
+  // Optional phase override. When set, the execution pointer is moved there.
+  string phase_id = 2;
+  // Optional attribution run id used only when a new execution is created.
+  string run_id = 3;
+}
+
+message ContinueExecutionResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AbandonExecutionRequest {
+  string execution_id = 1;
+  string reason = 2;
+  string actor = 3;
+}
+
+message AbandonExecutionResponse {
+  Execution execution = 1;
+  bool already_abandoned = 2;
+  shared.GuidedStep step = 3;
+}
+
+// Returned as a typed failed-precondition detail when Start would violate the
+// single-active-execution invariant.
+message ActiveExecutionConflict {
+  repeated string execution_ids = 1;
+  repeated string resume_commands = 2;
+  repeated string abandon_commands = 3;
+}
+
+message SyncBaselineRequest {
+  string execution_id = 1;
+}
+
+message SyncBaselineResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AmendScopeRequest {
+  string execution_id = 1;
+  string phase_id = 2;
+  repeated string member = 3;
+  string author = 4;
+  string reason = 5;
+}
+message AmendScopeResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AdoptBaselineRequest {
+  string execution_id = 1;
+  string mode = 2; // recapture | degraded
+  string name = 3;
+  repeated string member = 4;
+  repeated string path = 5;
+  string reason = 6;
+}
+message AdoptBaselineResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message RepairSourceScopeRequest {
+  string execution_id = 1;
+  repeated string path = 2;
+  string reason = 3;
+}
+message RepairSourceScopeResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+// BoundaryExtension is an append-only audit record of a mid-execution widening
+// of the plan's acceptance_allow. The authored boundary is a blast-radius
+// estimate made before the work started; when a phase's intent genuinely needs
+// an edit outside it, the honest move is to widen the boundary and re-validate,
+// not to write a workaround that stays inside a stale estimate. Deny globs are
+// never extendable — they are the authored prohibition.
+message BoundaryExtension {
+  string id = 1;
+  string phase_id = 2;
+  string author = 3;
+  string reason = 4;
+  // The globs added by this extension (already normalized).
+  repeated string added_allow = 5;
+  // The full acceptance_allow before and after, for audit reconstruction.
+  repeated string old_allow = 6;
+  repeated string new_allow = 7;
+  string invalidated_at = 8;
+  string created_at = 9;
+}
+
+message ExtendBoundaryRequest {
+  string execution_id = 1;
+  repeated string path = 2;
+  string reason = 3;
+  string author = 4;
+}
+message ExtendBoundaryResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+  // The globs THIS call added. Empty means every requested glob was already
+  // inside the boundary, which is a successful no-op rather than an error.
+  // Callers must read this field rather than inferring the outcome from the
+  // execution's boundary_extensions tail — on a no-op that tail still holds an
+  // EARLIER extension, and reporting it would claim work that did not happen.
+  repeated string added_allow = 4;
+}
+
+message GetNextRequest {
+  string execution_id = 1;
+}
+
+message GetNextResponse {
+  PhaseContext context = 1;
+  // True when no actionable phase remains.
+  bool complete = 2;
+  shared.GuidedStep step = 3;
+}
+
+message TransitionPhaseRequest {
+  string execution_id = 1;
+  string phase_id = 2;
+  shared.PhaseStatus to_status = 3;
+  // Required when marking a phase done without a recent passing validation
+  // result. This is an explicit audit trail for degraded/offline work, not a
+  // free pass hidden in prose.
+  ValidationOverride validation_override = 4;
+  // Required when marking a phase done without a satisfied feedback checkpoint.
+  // This is an explicit audit trail for operator/degraded cases; normal agents
+  // should satisfy the checkpoint by capturing feedback or a no-feedback note.
+  FeedbackOverride feedback_override = 5;
+}
+
+message TransitionPhaseResponse {
+  Execution execution = 1;
+  shared.Plan plan = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ValidationOverride {
+  string reason = 1;
+}
+
+message FeedbackOverride {
+  string reason = 1;
+}
+
+message CompleteRequest {
+  string execution_id = 1;
+  // Optional velocity inputs the agent supplies; wall-time is computed.
+  int64 tokens = 2;
+  int32 iterations = 3;
+}
+
+message CompleteResponse {
+  shared.Handoff handoff = 1;
+  // Unsatisfied nudges the agent should address; an empty list means the
+  // completion process is clean.
+  repeated CompletionNudge nudges = 2;
+  shared.GuidedStep step = 3;
+}
+
+message PartialHandoffRequest {
+  string execution_id = 1;
+  int64 tokens = 2;
+  int32 iterations = 3;
+}
+message PartialHandoffResponse {
+  shared.Handoff handoff = 1;
+  repeated CompletionNudge nudges = 2;
+  shared.GuidedStep step = 3;
+}
+
+message GetHandoffRequest {
+  string execution_id = 1;
+}
+
+message GetHandoffResponse {
+  shared.Handoff handoff = 1;
+  shared.GuidedStep step = 2;
+}
+
+message GetVelocityRequest {
+  string plan_id = 1;
+}
+
+message GetVelocityResponse {
+  repeated shared.VelocityPoint points = 1;
+  shared.GuidedStep step = 2;
+}

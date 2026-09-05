@@ -1,0 +1,663 @@
+<title>Cross-Platform Readiness — Measured State, rev 5</title>
+<style>
+  :root {
+    --ground:#EEF0F3; --surface:#FFFFFF; --surface-2:#F6F7F9; --surface-3:#EDEFF3;
+    --ink:#14181E; --ink-2:#5A626D; --ink-3:#878F9A;
+    --rule:#D5DAE1; --rule-strong:#B9C1CB;
+    --accent:#1B5A8A; --accent-soft:#E3EDF5;
+    --ok:#2C7A57; --ok-soft:#E0EFE8;
+    --warn:#A96B12; --warn-soft:#F6EBD8;
+    --crit:#A93A2C; --crit-soft:#F7E4E1;
+    --none:#7E8792; --none-soft:#E7EAEE;
+    --built:#5A4E96; --built-soft:#E9E6F4;
+    --shadow:0 1px 2px rgba(20,24,30,.06), 0 8px 24px -16px rgba(20,24,30,.28);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wrap: 1140px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128; --surface-3:#212832;
+      --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+      --rule:#262C35; --rule-strong:#37404B;
+      --accent:#74AEDD; --accent-soft:#17293A;
+      --ok:#58BC91; --ok-soft:#12291F;
+      --warn:#DBA24A; --warn-soft:#2B2013;
+      --crit:#E77A68; --crit-soft:#2E1917;
+      --none:#7E8792; --none-soft:#1E232A;
+      --built:#A79BE0; --built-soft:#201D33;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1216; --surface:#161A20; --surface-2:#1C2128; --surface-3:#212832;
+    --ink:#E4E8ED; --ink-2:#9AA3AE; --ink-3:#6E7783;
+    --rule:#262C35; --rule-strong:#37404B;
+    --accent:#74AEDD; --accent-soft:#17293A;
+    --ok:#58BC91; --ok-soft:#12291F;
+    --warn:#DBA24A; --warn-soft:#2B2013;
+    --crit:#E77A68; --crit-soft:#2E1917;
+    --none:#7E8792; --none-soft:#1E232A;
+    --built:#A79BE0; --built-soft:#201D33;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ground); color:var(--ink); font-family:var(--sans);
+         font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 24px; }
+
+  .masthead { border-bottom:1px solid var(--rule); background:var(--surface); }
+  .masthead .wrap { padding-top:44px; padding-bottom:36px; }
+  .kicker { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+            color:var(--accent); margin:0 0 18px; }
+  h1 { font-family:var(--mono); font-weight:600; letter-spacing:-.028em;
+       font-size:clamp(27px,4vw,40px); line-height:1.12; margin:0 0 18px;
+       text-wrap:balance; max-width:24ch; }
+  .standfirst { font-size:18px; color:var(--ink-2); max-width:70ch; margin:0; }
+  .standfirst strong { color:var(--ink); font-weight:600; }
+  .meta { margin-top:26px; padding-top:18px; border-top:1px solid var(--rule);
+          font-family:var(--mono); font-size:12px; color:var(--ink-3);
+          display:flex; flex-wrap:wrap; gap:8px 26px; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(196px,1fr)); gap:1px;
+           background:var(--rule); border:1px solid var(--rule); margin-top:34px; }
+  .stat { background:var(--surface); padding:18px 20px; }
+  .stat .n { font-family:var(--mono); font-size:26px; font-weight:600; letter-spacing:-.03em;
+             font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat .l { font-size:13px; color:var(--ink-2); margin-top:5px; }
+  .stat .s { font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:6px; }
+  .n.ok{color:var(--ok);} .n.warn{color:var(--warn);} .n.crit{color:var(--crit);}
+  .n.acc{color:var(--accent);} .n.blt{color:var(--built);}
+
+  section { padding:52px 0; border-bottom:1px solid var(--rule); }
+  section:last-of-type { border-bottom:0; padding-bottom:64px; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; text-transform:uppercase;
+             color:var(--ink-3); display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+  .eyebrow::after { content:""; flex:1; height:1px; background:var(--rule); }
+  h2 { font-family:var(--mono); font-weight:600; font-size:clamp(20px,2.3vw,26px);
+       letter-spacing:-.022em; margin:0 0 14px; text-wrap:balance; max-width:30ch; }
+  h3 { font-family:var(--sans); font-weight:650; font-size:16.5px; margin:30px 0 8px; letter-spacing:-.008em; }
+  p { margin:0 0 14px; max-width:74ch; }
+  .lede { font-size:17px; color:var(--ink-2); max-width:70ch; }
+  ul,ol { margin:0 0 14px; padding-left:20px; max-width:74ch; }
+  li { margin-bottom:7px; }
+  code { font-family:var(--mono); font-size:.86em; background:var(--surface-2);
+         border:1px solid var(--rule); border-radius:3px; padding:1px 5px; color:var(--ink); }
+  .m { font-family:var(--mono); font-size:.9em; }
+  strong { font-weight:650; }
+
+  .chip { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10.5px;
+          letter-spacing:.05em; text-transform:uppercase; font-weight:600; padding:2px 7px;
+          border-radius:3px; white-space:nowrap; }
+  .chip::before { content:""; width:5px; height:5px; border-radius:50%; background:currentColor; }
+  .c-ok{color:var(--ok);background:var(--ok-soft);}
+  .c-blt{color:var(--built);background:var(--built-soft);}
+  .c-warn{color:var(--warn);background:var(--warn-soft);}
+  .c-crit{color:var(--crit);background:var(--crit-soft);}
+  .c-none{color:var(--none);background:var(--none-soft);}
+  .c-acc{color:var(--accent);background:var(--accent-soft);}
+  .chip.flat::before{display:none;}
+
+  .legend { display:flex; flex-wrap:wrap; gap:10px 18px; margin:0 0 18px; font-size:13px; color:var(--ink-2); }
+  .legend span.lg { display:inline-flex; align-items:center; gap:7px; }
+
+  .scroll { overflow-x:auto; border:1px solid var(--rule); background:var(--surface); margin:18px 0 8px; }
+  table { border-collapse:collapse; width:100%; min-width:660px; font-size:13.5px; }
+  th,td { text-align:left; padding:9px 13px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  thead th { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+             color:var(--ink-3); font-weight:600; background:var(--surface-2);
+             border-bottom:1px solid var(--rule-strong); }
+  tbody tr:last-child td { border-bottom:0; }
+  td.id { font-family:var(--mono); font-size:12px; color:var(--ink-3); white-space:nowrap; width:1%; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.k { font-family:var(--mono); font-size:12.5px; }
+  td.c { text-align:center; }
+  .caption { font-size:12.5px; color:var(--ink-3); margin:0 0 4px; max-width:78ch; }
+
+  .callout { border:1px solid var(--rule); border-left:3px solid var(--accent); background:var(--surface);
+             padding:18px 20px; margin:22px 0; box-shadow:var(--shadow); }
+  .callout.crit { border-left-color:var(--crit); }
+  .callout.ok { border-left-color:var(--ok); }
+  .callout.warn { border-left-color:var(--warn); }
+  .callout p:last-child { margin-bottom:0; }
+  .callout .t { font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+                color:var(--ink-3); margin:0 0 8px; }
+
+  .walls { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .wall { background:var(--surface); padding:18px 20px; display:grid; gap:14px;
+          grid-template-columns:minmax(0,1fr); }
+  @media (min-width:860px){ .wall{ grid-template-columns:52px minmax(0,1fr); gap:22px; } }
+  .wall .w { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--crit);
+             letter-spacing:.06em; padding-top:3px; }
+  .wall .h { font-weight:650; font-size:15.5px; margin-bottom:6px; }
+  .wall p { margin-bottom:8px; font-size:14.5px; }
+  .wall p:last-child { margin-bottom:0; }
+  .wall .ev { font-family:var(--mono); font-size:12px; color:var(--ink-3); }
+
+  .ladder { display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:20px; }
+  .rung { background:var(--surface); padding:18px 20px; display:grid; gap:12px;
+          grid-template-columns:minmax(0,1fr); }
+  @media (min-width:860px){ .rung{ grid-template-columns:132px minmax(0,1fr); gap:24px; } }
+  .rung .tag { font-family:var(--mono); font-size:11.5px; letter-spacing:.09em; text-transform:uppercase;
+               color:var(--ink-3); padding-top:3px; }
+  .rung .h { font-weight:650; font-size:15.5px; margin-bottom:6px; }
+  .rung p { margin-bottom:8px; font-size:14.5px; }
+  .rung p:last-child, .rung ul:last-child { margin-bottom:0; }
+  .rung ul { font-size:14.5px; }
+
+  .split { display:grid; gap:26px; grid-template-columns:minmax(0,1fr); margin-top:8px; }
+  @media (min-width:900px){ .split{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:34px; } }
+  .panel { border:1px solid var(--rule); background:var(--surface); padding:18px 20px; }
+  .panel h3 { margin-top:0; }
+  .panel p:last-child, .panel ul:last-child { margin-bottom:0; }
+
+  .kv { display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 16px;
+        font-family:var(--mono); font-size:12.5px; margin:14px 0 0; }
+  .kv dt { color:var(--ink-3); white-space:nowrap; }
+  .kv dd { margin:0; color:var(--ink); overflow-wrap:anywhere; }
+
+  a { color:var(--accent); text-underline-offset:2px; }
+  a:focus-visible, summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
+</style>
+
+<div class="historical">Historical readiness snapshot. Session-scope references below are retained for traceability and are not the current transport contract (updated 2026-08-29).</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="kicker">Portability &amp; architecture audit · rev 5 · measured 2026-08-18 · branch <span class="m">agi</span></p>
+    <h1>The build problem is solved. What's left is runtime, evidence, and two resources.</h1>
+    <p class="standfirst">Every real Go module in the repository now cross-compiles for macOS. That was the headline blocker in rev 4 and it is gone. The Mac mini is enrolled, online today, and has already run <strong>setup</strong>, <strong>resource start</strong>, and <strong>host inventory</strong> natively. What stands between here and a coding agent answering from that machine inside Web Console is a small set of named blockers — including one live regression that is currently refusing <em>every</em> typed dispatch to <em>both</em> nodes. Behind them sits the consolidation debt that is now the largest risk to the whole effort, because <strong>the platform seam exists and nothing enforces it</strong>.</p>
+    <div class="meta">
+      <span>312 Go modules swept</span>
+      <span>3 build targets</span>
+      <span>37 declared capabilities</span>
+      <span>29 resources · 123 scenarios</span>
+      <span>Prior baseline: rev 4, 2026-08-07</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n ok">299 / 299</div><div class="l">Real modules building on <span class="m">darwin/arm64</span></div><div class="s">identical to linux/amd64</div></div>
+      <div class="stat"><div class="n warn">297 / 299</div><div class="l">Real modules building on <span class="m">windows/amd64</span></div><div class="s">2 named failures</div></div>
+      <div class="stat"><div class="n blt">25 / 37</div><div class="l">Capabilities with a macOS implementation</div><div class="s">12 declared but unwired</div></div>
+      <div class="stat"><div class="n crit">463</div><div class="l"><span class="m">runtime.GOOS</span> branches, 260 files</div><div class="s">rev-4 target was &lt; 50</div></div>
+      <div class="stat"><div class="n crit">34 / 7</div><div class="l">Real Postgres / Redis dependents</div><div class="s">of 41 and 31 declared</div></div>
+      <div class="stat"><div class="n warn">945 MB</div><div class="l">Leaked codegen staging directories</div><div class="s">18 of them, last 2 days</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">What this is</p>
+    <h2>Read this as rev 5 of the same dossier</h2>
+    <p class="lede">Rev 4 (2026-08-07) produced a 59-item scope agreement across ten workstreams. Eleven days and roughly a dozen executed plans later, this re-measures every claim in it against the working tree. Nothing here is inherited from that document — every number below was produced today by sweeping the repository, cross-building all 312 Go modules against three targets, reading the Bridge database, and running the control plane's own capability ledger.</p>
+    <p>Three kinds of statement appear, and they are kept apart deliberately, because conflating them is the single failure mode this project keeps hitting:</p>
+    <div class="legend">
+      <span class="lg"><span class="chip c-ok">measured</span> produced by a command run today</span>
+      <span class="lg"><span class="chip c-blt">declared</span> a manifest or code says so; no evidence attached</span>
+      <span class="lg"><span class="chip c-warn">inferred</span> my reading, stated as such</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Measurement 1 · the compiler</p>
+    <h2>Cross-build parity with Linux is achieved</h2>
+    <p class="lede">I compiled every <code>go.mod</code> in the repository — 312 of them — against three targets with <code>CGO_ENABLED=0</code>. Rev 4 recorded nine scenario API modules that would not even build on <span class="m">linux/amd64</span>. All nine build now, and darwin is at exact parity.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Target</th><th class="c">Modules swept</th><th class="c">Excluded by design</th><th class="c">Real failures</th><th>What fails</th></tr></thead>
+        <tbody>
+          <tr><td class="k">linux/amd64</td><td class="num c">312</td><td class="num c">13</td><td class="c"><span class="chip c-ok flat">0</span></td><td>—</td></tr>
+          <tr><td class="k">darwin/arm64</td><td class="num c">312</td><td class="num c">13</td><td class="c"><span class="chip c-ok flat">0</span></td><td>—</td></tr>
+          <tr><td class="k">windows/amd64</td><td class="num c">312</td><td class="num c">13</td><td class="c"><span class="chip c-warn flat">2</span></td><td><code>resources/doc-parse/cli</code> — <code>syscall.Rusage.Maxrss</code> hand-rolled outside a platform file, while <code>api-core/metrics</code> already has the correct <span class="m">_unix/_windows/_other</span> split.<br><code>scenarios/api-library/api</code> — <code>go-redis v9.15.0</code>, the known upstream Windows break. Rev-4 item A5, still open; four different go-redis versions are pinned across the repo.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">"Excluded by design" = 12 template modules that carry <code>{{SCENARIO_ID}}</code> placeholders in their <code>go.mod</code>, plus <code>scenarios/go-code-graph/bas/fixtures/go-cycles</code>, an intentional import-cycle fixture. <span class="chip c-ok">measured</span></p>
+
+    <div class="callout ok">
+      <p class="t">The good news is bigger than it looks</p>
+      <p>A <code>make cross-compile</code> target already exists and already sweeps every module, so this is institutionalized rather than a one-off. Resources are fully Go-native — 29 resources, exactly one <code>.sh</code> file left among them — and <code>scripts/</code> has gone from 226 files to <strong>5 files / 569 lines</strong>. The bash-retirement effort is genuinely finished.</p>
+    </div>
+
+    <div class="callout warn">
+      <p class="t">Two things the sweep exposed about the gate itself</p>
+      <p>The <code>make cross-compile</code> exclusion list still skips <code>scenarios/flow-verifier/api</code> with the reason "retains <code>{{SCENARIO_ID}}</code> imports." That module builds clean on all three targets now. A hand-maintained skip list drifts the moment the thing it excuses gets fixed, and a stale skip is indistinguishable from a real one at a glance.</p>
+      <p>And the 12 unbuildable template modules are rev-4 item I4, untouched: every generated scenario still inherits a skeleton that has never been compile-validated. That is the upstream cause of most of the duplication measured further down.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Measurement 2 · the capability ledger</p>
+    <h2>Where the platform story is actually thin</h2>
+    <p class="lede">The control plane derives a cross-platform capability ledger from manifests — <code>vrooli capability ledger</code>. Running it today gives the clearest single readout of the gap. Note what it is: a <span class="chip c-blt">declared</span> view. It says whether an implementation is <em>wired</em> for a host OS, not whether anyone has run it there.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Host OS</th><th class="c">Implemented</th><th class="c">Unwired</th><th class="c">No peer possible</th><th>Reading</th></tr></thead>
+        <tbody>
+          <tr><td class="k">linux</td><td class="c"><span class="chip c-ok flat">37</span></td><td class="num c">0</td><td class="num c">0</td><td>Complete, and the only OS where that is true.</td></tr>
+          <tr><td class="k">macos</td><td class="c"><span class="chip c-blt flat">25</span></td><td class="c"><span class="chip c-warn flat">12</span></td><td class="num c">0</td><td>Every gap is "a mechanism is named but nothing implements it" — real work, not impossibility.</td></tr>
+          <tr><td class="k">windows</td><td class="c"><span class="chip c-blt flat">22</span></td><td class="c"><span class="chip c-warn flat">13</span></td><td class="c"><span class="chip c-none flat">2</span></td><td>Two capabilities honestly have no Windows equivalent.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The twelve macOS gaps are not twelve independent problems</h3>
+    <p>Seven of them are one problem. Every <code>system-monitor-*</code> capability — cpu, memory, disk, network, process — plus <code>process-containment</code> and <code>autoheal-host-integrity</code> is unwired on macOS for the same reason:</p>
+    <div class="callout crit">
+      <p class="t">Root cause, verified in source</p>
+      <p><code>scenarios/system-monitor/api/internal/collectors/</code> reads <code>/proc</code> directly from <code>cpu.go</code>, <code>disk.go</code>, <code>network.go</code>, <code>process.go</code>, <code>pressure.go</code> and <code>hostsnapshot.go</code> — none of which is a platform-suffixed file. The entire scenario has exactly <strong>two</strong> platform-suffixed files. Repo-wide, <strong>111 files reference <code>/proc</code> outside a <code>_linux.go</code> file</strong>. <span class="chip c-ok">measured</span></p>
+      <p>This is the whole macOS monitoring gap, and it is one refactor, not seven.</p>
+    </div>
+
+    <div class="split">
+      <div class="panel">
+        <h3>Remaining macOS gaps, honestly classified</h3>
+        <ul>
+          <li><code>network-host-config</code> and <code>clock-accuracy</code> — real peers exist on macOS (<code>networksetup</code>, <code>sntp</code>); nobody wired them.</li>
+          <li><code>hardware-error-telemetry</code> — correctly marked <em>no equivalent ever</em>. This is the <code>rasdaemon</code>/<code>mcelog</code>/<code>kdump</code> family.</li>
+          <li><code>crash-forensics</code> — marked <em>no work required</em>.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>What the ledger cannot tell you</h3>
+        <p>It has no evidence axis. A capability reads "implemented" on macOS whether it has been exercised on hardware or merely compiled. <code>docs/reference/platform-support.md</code> <em>does</em> carry the four-tier evidence vocabulary — <span class="m">supported / build-verified / experimental / unqualified</span> — and is scrupulously honest. But the two are separate documents that can disagree, which is rev-4 item D1 and still open.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Measurement 3 · the Mac mini</p>
+    <h2>More is working on <span class="m">minimouse</span> than you think</h2>
+    <p class="lede">I read the Bridge database directly. The Mac mini is not a stalled experiment — it is an enrolled, heartbeating node that has successfully executed real control-plane work today.</p>
+
+    <div class="split">
+      <div class="panel">
+        <h3>Node state, read from <code>vrooli-bridge.db</code></h3>
+        <dl class="kv">
+          <dt>name</dt><dd>minimouse</dd>
+          <dt>platform</dt><dd>darwin / amd64 — <strong>Intel</strong> Mac mini</dd>
+          <dt>enrolled</dt><dd>2026-08-17 15:39 UTC</dd>
+          <dt>last seen</dt><dd>2026-08-18 18:13 UTC — <strong>live</strong></dd>
+          <dt>revision</dt><dd>78c6be32…+dirty</dd>
+          <dt>scopes</dt><dd><span class="chip c-ok flat">read</span> <span class="chip c-ok flat">write</span> <span class="chip c-crit flat">no session</span></dd>
+          <dt>runs</dt><dd>21 dispatched</dd>
+        </dl>
+      </div>
+      <div class="panel">
+        <h3>What it has actually done, natively</h3>
+        <ul>
+          <li><code>vrooli setup --environment minimal --resources searxng</code> — <strong>succeeded</strong></li>
+          <li><code>vrooli resource start searxng</code> → <code>resource status</code> — <strong>succeeded</strong></li>
+          <li><code>vrooli host inventory --json</code> — <strong>succeeded</strong></li>
+          <li><code>vrooli capability ledger</code> — <strong>succeeded</strong></li>
+          <li><code>vrooli scenario status vrooli-bridge</code> — succeeded (one earlier attempt exited 1)</li>
+        </ul>
+        <p class="caption">Plus the recorded onboarding operation that shipped the working tree, recovered the Go toolchain, built the CGO-enabled native CLI with the Keychain credential backend, installed the service, and enabled launchd KeepAlive.</p>
+      </div>
+    </div>
+
+    <h3>Three walls stand between that and your acceptance criterion</h3>
+    <p>All three are narrow and named. None is architectural.</p>
+
+    <div class="walls">
+      <div class="wall">
+        <div class="w">WALL 1</div>
+        <div>
+          <div class="h">The node has no <span class="m">session</span> scope, so Web Console physically cannot attach</div>
+          <p>Web Console's Bridge federation adapter exists and is complete — 533 lines at <code>scenarios/web-console/api/remote_terminal.go</code>, with the UI side wired through <code>ui/src/api/remoteSessions.ts</code>, <code>useSessionManager.ts</code> and <code>Workspace.tsx</code>. It opens the channel by requesting <code>scopes=vrooli-bridge:session</code>. <code>minimouse</code> was granted <code>read</code> and <code>write</code> only. The Linux node <code>swarminator</code> <em>does</em> hold the session scope.</p>
+          <p class="ev">Evidence · remote_terminal.go:362 requests the scope · session/types.go:19 defines it · channel/endpoints.go:65 returns 403 without it · nodes row shows minimouse lacking it</p>
+        </div>
+      </div>
+      <div class="wall">
+        <div class="w">WALL 2</div>
+        <div>
+          <div class="h">Typed dispatch is rejecting <em>every</em> verb, on both nodes, right now</div>
+          <p>This is worse and more interesting than a missing agent verb. Bridge's <code>Allow</code> requires a node to hold <strong>two</strong> things: an effect scope (<code>vrooli-bridge:read</code>) <em>and</em> a literal verb-glob (<code>"scenario status*"</code>). Neither live node holds any verb-glob in the column <code>Allow</code> actually reads. I ran the real node scopes through the real decision function:</p>
+          <div class="scroll" style="margin:12px 0 8px">
+            <table style="min-width:0">
+              <tbody>
+                <tr><td class="k">host inventory</td><td><span class="chip c-crit flat">outside this node's granted scopes</span></td></tr>
+                <tr><td class="k">scenario status</td><td><span class="chip c-crit flat">outside this node's granted scopes</span></td></tr>
+                <tr><td class="k">resource start</td><td><span class="chip c-crit flat">outside this node's granted scopes</span></td></tr>
+                <tr><td class="k">setup</td><td><span class="chip c-crit flat">not an allowlisted manifest verb</span></td></tr>
+                <tr><td class="k">scenario status <span style="color:var(--ink-3)">(swarminator, local Linux)</span></td><td><span class="chip c-crit flat">outside this node's granted scopes</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Every verb <code>minimouse</code> has <em>already successfully run</em> is now refused, and so is the local Linux node. The verb-globs on <code>minimouse</code> live in the <code>capabilities</code> column; <code>Allow</code> reads <code>Scopes</code> and never consults <code>capabilities</code>. A recent tightening granted the vocabulary automatically and left every existing node without the second half of the pair.</p>
+          <p class="ev">Evidence · probe run against <code>dispatch.Allow</code> with scopes copied verbatim from the live <span class="m">nodes</span> rows · service.go:126 passes <span class="m">node.Scopes</span> · registry sqlite.go never merges the two columns</p>
+        </div>
+      </div>
+
+      <div class="wall">
+        <div class="w">WALL 2b</div>
+        <div>
+          <div class="h">The derived verb grammar does not match the CLI's real argv</div>
+          <p>The scope catalog builds each verb as <code>group.Name + " " + command.Name</code>. But the CLI-manifest schema already carries <code>Group.flat</code> — <em>"When true, this group dispatches its commands at the CLI top level rather than beneath the group name"</em> — and <code>scopecatalog</code> never reads it. So of 1,813 derived entries it emits <code>top-level hygiene</code>, <code>lifecycle-commands setup</code> and <code>setup vrooli</code> for what are really <code>hygiene</code> and <code>setup</code>. The entries that work do so by coincidence, where a group name happens to be a real argv token.</p>
+          <p class="ev">Evidence · <code>grep -c flat packages/api-core/scopecatalog/catalog.go</code> → 0 · root manifest declares <span class="m">flat: true</span> on <code>top-level</code>, <code>lifecycle-commands</code>, <code>hygiene</code></p>
+        </div>
+      </div>
+      <div class="wall">
+        <div class="w">WALL 3</div>
+        <div>
+          <div class="h">Postgres and Redis are declared unsupported on macOS — and 41 / 31 scenarios want them</div>
+          <p>Both resources declare <code>"macos": "unsupported"</code> and <code>"windows": "unsupported"</code> in <code>resource.json</code>. That is why the only setup that has succeeded on the Mac is <code>--environment minimal --resources searxng</code>. But the two are <strong>not symmetric</strong>, and the difference decides the plan:</p>
+          <div class="scroll" style="margin:12px 0 8px">
+            <table style="min-width:0">
+              <thead><tr><th></th><th class="c">Declared</th><th class="c">Actually referenced in code</th><th class="c">Already <span class="m">enabled: false</span></th></tr></thead>
+              <tbody>
+                <tr><td class="k">postgres</td><td class="num c">41</td><td class="c"><span class="chip c-crit flat">34</span></td><td class="num c">2</td></tr>
+                <tr><td class="k">redis</td><td class="num c">31</td><td class="c"><span class="chip c-ok flat">7</span></td><td class="num c">12</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Redis is largely aspirational declaration — only 7 scenarios touch it and 12 already have it disabled, so pruning shrinks this wall substantially for free. Postgres is real debt: 34 genuine dependents means the SQLite-first escape hatch is a migration, not a shortcut.</p>
+          <p class="ev">Evidence · resource.json platform maps · dependency census over 120 <span class="m">.vrooli/service.json</span> files, cross-checked against <span class="m">lib/pq</span>/<span class="m">pgx</span>/<span class="m">go-redis</span>/DSN references in each scenario's api tree</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p class="t">And a fourth thing worth knowing before planning</p>
+      <p>Postgres and Redis each hold <strong>three answers to the same question</strong>. <code>resource.json</code> says <code>driver: managed-service</code> (native). Its own <code>deployment.profiles.desktop.macos</code> says <code>unsupported / manual</code>. <code>platform-support.md</code> says they "remain on the existing <code>docker-service</code> contract." Rev-4 item D2 named exactly this and it is untouched — a resource can hold three inconsistent platform answers today, and these two do.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Correction &amp; addendum</p>
+    <h2>The Bridge permission model is not hardcoded — it is mis-keyed</h2>
+    <p class="lede">An earlier reading of Wall 2 pointed at the <code>nodes.capabilities</code> column and concluded the command allowlist was a hand-maintained list. That was wrong in a way that changes the fix, so it is corrected here rather than quietly amended above.</p>
+
+    <div class="split">
+      <div class="panel">
+        <h3>What is already right</h3>
+        <p>Bridge holds <strong>no</strong> hardcoded command vocabulary. <code>dispatch/allowlist.go</code> calls <code>scopecatalog.Build(repoRoot)</code> at init, which walks the root <code>cli/manifest.json</code> plus all 119 scenario manifests and derives 1,813 verbs with their <code>governance.effect</code>. Its checked-in artifact, <code>dispatch.manifest.json</code>, is six lines long and names no verbs.</p>
+        <p>The profile layer exists too: <code>trustposture.DefaultsFor()</code> maps a per-install stance (<span class="m">personal / shared / hosted</span>) onto default node execution scopes. And <code>scopecatalog</code> already implements the hierarchical grammar — <code>scenario:effect</code> with <code>*</code>, <code>scenario:*</code> and <code>*:effect</code>.</p>
+      </div>
+      <div class="panel">
+        <h3>What is wrong</h3>
+        <p>The <em>second</em> grant axis is a literal verb-name prefix glob rather than the scenario namespace the catalog already emits on every scope. That is the per-command maintenance burden, and it is why both live nodes now reject everything.</p>
+        <p>The safety property behind the dual requirement is real and worth keeping — the code says it plainly: pairing the requirements <em>"prevents adding a new catalog command from widening every existing node that only has the broad effect grant."</em> The unit is the defect, not the idea.</p>
+      </div>
+    </div>
+
+    <div class="callout ok">
+      <p class="t">The shape of the fix</p>
+      <p>Resolve the second axis with <code>scopecatalog.Resolve</code> instead of <code>targetmodel.ScopeAllows</code>, so a node grant reads <code>web-console:read</code> or <code>*:read</code> rather than <code>"scenario status*"</code>. A new command in an already-conceded (scenario, effect) pair is covered automatically; a new <em>scenario</em> grants nothing anywhere; <code>write</code> never implies <code>destructive</code>. Same guarantee, no per-command work — and it retires a unit test that currently hardcodes one machine's verb list.</p>
+    </div>
+
+    <h3>One constraint worth writing down before planning remote federation</h3>
+    <p><code>packages/api-core/discovery/transport.go</code> already implements the node axis, but a remote resolution <em>deliberately carries no URL</em>: <em>"nodes dial out, so inventing an inbound endpoint would violate the bridge contract."</em> Remote scenario interaction is therefore <strong>typed command relay</strong> — bounded, single-shot <code>RelayRequest</code>/<code>RelayResponse</code> — not Connect-RPC to a remote scenario. That is precisely why the CLI manifest is the right authorization surface: the CLI verb genuinely <em>is</em> the remote API.</p>
+    <p>Interactive and streaming work rides a second, separate transport: the binary WebSocket channel gated on <code>vrooli-bridge:session</code>. Two transports by design. A remote <code>scenario status</code> and a remote agent PTY are not the same mechanism, and a plan that assumes they are will mis-scope.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Measurement 4 · the seam</p>
+    <h2>The platform package exists. Nothing makes anyone use it.</h2>
+    <p class="lede">This is the most important finding in the report, and it inverts the rev-4 picture. Rev 4's largest workstream was "create one platform package." That package now exists and is <em>good</em>. The problem has moved from absence to adoption.</p>
+
+    <div class="split">
+      <div class="panel">
+        <h3>What <code>packages/platform-go</code> already owns</h3>
+        <p>Thirty files with proper <span class="m">_linux / _darwin / _windows / _unsupported</span> splits, covering: process spawn attributes and containment, graceful stop, process groups, signal re-raise, PID liveness, process environment reads, file locking, home-path resolution, service install/uninstall for systemd <em>and</em> launchd <em>and</em> Windows SCM, native service start/stop/status/logs, host-log parsing for journald, macOS NDJSON and Windows Event JSON, and identity-scoped session invocation.</p>
+        <p>That is a serious, complete seam. Twelve <code>internal/</code> packages consume it, including <code>lifecycle</code>, <code>runtimesupervisor</code>, <code>setup</code>, <code>scenarioexec</code> and <code>hostinventory</code>.</p>
+      </div>
+      <div class="panel">
+        <h3>What still routes around it</h3>
+        <div class="scroll" style="margin-top:6px">
+          <table style="min-width:0">
+            <tbody>
+              <tr><td><code>runtime.GOOS</code> occurrences</td><td class="num"><span class="chip c-crit flat">463</span> in 260 files</td></tr>
+              <tr><td>…in a platform-suffixed file</td><td class="num">2 files</td></tr>
+              <tr><td><code>/proc</code> outside <code>_linux.go</code></td><td class="num">111 files</td></tr>
+              <tr><td>POSIX signal call sites</td><td class="num">199</td></tr>
+              <tr><td><code>SysProcAttr</code> outside a platform file</td><td class="num">10 of 23</td></tr>
+              <tr><td><code>exec.Command("bash"|"sh")</code></td><td class="num">36</td></tr>
+              <tr><td>Scenarios importing platform-go</td><td class="num"><span class="chip c-crit flat">6 of 123</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption" style="margin-top:8px">Rev 4 measured 397 <code>runtime.GOOS</code> branches across 215 files and set a target of under 50. It is now <strong>463 across 260</strong>. <span class="chip c-ok">measured</span></p>
+      </div>
+    </div>
+
+    <div class="callout crit">
+      <p class="t">Why it went up instead of down</p>
+      <p>Because nothing prevents it. The repository has <strong>one</strong> ast-grep rule (<code>no-safeguard-notes-control-flow.yml</code>) governing 3.4 million lines, and <strong>eight</strong> golangci linters with no <code>depguard</code>, no <code>forbidigo</code>, no <code>importas</code>. There is no rule that says "<code>syscall</code> and raw <code>runtime.GOOS</code> comparisons live in the seam." So the seam got built, twelve control-plane packages adopted it, and 117 scenarios kept writing what they were already writing.</p>
+      <p>Rev 4 said it in one line and it is worth repeating verbatim: <em>no consolidation ships without its enforcement rule in the same change.</em> The consolidation shipped. The rule did not. This is the measured cost.</p>
+    </div>
+
+    <p><span class="chip c-warn">inferred</span> The counter-example is instructive and is right there in the working tree: <code>scenarios/git-control-tower/api/precommit_service.go</code> now calls <code>applyProcessGroupContainment(cmd)</code>, supplied per-platform, with a comment explaining exactly why the POSIX process-group mechanism cannot be assumed. That is the pattern. It exists in one file because one person wrote it there, not because anything requires it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Measurement 5 · consolidation debt</p>
+    <h2>Duplication, and the one place it is actively diverging</h2>
+
+    <h3>The test-utility story is mostly a success</h3>
+    <p>The plan <em>test-utility-ownership: one home per seam</em> completed 2026-08-13 with all twelve phases done. It dissolved <code>testkit-go</code> deliberately — which is why the rev-4 recommendation to "flip <code>scenario_adoptable</code> to true" no longer applies — and moved the shared seams into <code>packages/api-core</code>, which now exposes <code>databasetest</code>, <code>scheduletest</code>, <code>connectxtest</code>, <code>apihttptest</code> and companions. The <code>testutil/db/sqlite.go</code> family that rev 4 counted at 48 copies is gone.</p>
+
+    <h3>What the templates keep stamping out is not</h3>
+    <p>Excluding generated and staging trees, the repository still holds <strong>100 duplicate groups / 1,131 redundant copies / ~3.0 MB</strong>. Rev 4 measured 1,196 files in 83 groups. Essentially unchanged, because rev-4 item E8 — <em>fix the templates that stamp the copies out</em> — was never done.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Duplicated file</th><th class="c">Copies</th><th class="c">Size each</th><th class="c">Redundant</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td class="k">internal/testutil/modeltest/formal.go</td><td class="num c">26</td><td class="num c">19.1 KB</td><td class="num c">466 KB</td><td><span class="chip c-crit">diverged</span> a second, incompatible 17.1 KB version exists in 24 more scenarios</td></tr>
+          <tr><td class="k">api/main_e2e_test.go</td><td class="num c">53</td><td class="num c">6.0 KB</td><td class="num c">306 KB</td><td>identical everywhere — a template artifact</td></tr>
+          <tr><td class="k">internal/testutil/modeltest/matrix.go</td><td class="num c">30</td><td class="num c">5.7 KB</td><td class="num c">161 KB</td><td><span class="chip c-crit">diverged</span> second 3.9 KB version in 24 scenarios</td></tr>
+          <tr><td class="k">internal/middleware/logging.go</td><td class="num c">57</td><td class="num c">—</td><td class="num c">—</td><td>production middleware, not test scaffolding</td></tr>
+          <tr><td class="k">internal/middleware/securityheaders.go</td><td class="num c">33</td><td class="num c">—</td><td class="num c">—</td><td>security-relevant; 33 places to patch a header policy</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">The headline number overstates the risk — 23 of the 100 groups are files under 1 KB, and a per-module <code>package main</code> genuinely must repeat. The two that matter are <code>modeltest/formal.go</code> and <code>modeltest/matrix.go</code>, which have <strong>already split into two incompatible versions</strong>, and the middleware pair, where duplication is a security-patch surface rather than a tidiness one. <span class="chip c-ok">measured</span></p>
+
+    <div class="callout crit">
+      <p class="t">Unrelated to portability, but it is 945 MB and it is growing</p>
+      <p><code>packages/</code> contains <strong>18 leaked proto-codegen staging directories</strong> — <code>.proto-gen-stage-*</code> and <code>.proto-gen-verify-*</code> — totalling <strong>945 MB across ~18,000 files</strong>, every one created in the last two days. They are gitignored, so no contract check sees them, and the codegen path evidently does not clean up on cancel or failure. Given this host's disk-exhaustion history, this is the most immediately dangerous single finding in the report and the cheapest to fix.</p>
+    </div>
+
+    <h3>Host facts are collected in four places</h3>
+    <p><code>internal/hostinventory</code> is the authority (3,787 lines, 62 internal consumers). But <code>system-monitor</code> also runs 25 raw <code>/proc</code>/<code>sysctl</code>/<code>uname</code> probes of its own, <code>vrooli-autoheal</code> runs 21, and <code>device-control</code> runs 9 — while all three <em>also</em> import <code>hostinventory</code>. That is the duplication you suspected, and it is precisely why the macOS capability gaps cluster where they do.</p>
+
+    <div class="split">
+      <div class="panel">
+        <h3>Structural odds and ends, measured</h3>
+        <ul>
+          <li><strong>69</strong> packages under <code>internal/</code>; <strong>38</strong> of those with top-level Go files have no package doc.</li>
+          <li>Nine <code>internal/host*</code> packages, <strong>11,624 lines</strong>, still unmerged (rev-4 B3).</li>
+          <li><code>module/</code> vs <code>modules/</code> in scenario API trees: <strong>58 vs 64</strong>. Rev 4 measured 47 vs 52 — the split is growing, not converging.</li>
+          <li><strong>57</strong> inert <code>.github/workflows</code> files inside scenarios. GitHub only reads the 5 at the root; these have never executed and imply coverage that does not exist. Rev 4 counted 47.</li>
+          <li><strong>34</strong> scenario READMEs still open with "This scenario was generated from the … template."</li>
+          <li>Empty directories at the repo root: <code>library/</code>, <code>experience/</code>, <code>build/</code>, <code>dist/</code>, <code>scenario-to-desktop/</code>. Plus a 3.5 MB <code>vrooli-ports-migrate</code> binary and <code>prepare_asus_bios_usb.sh</code> (rev-4 I5, still there).</li>
+          <li><code>logs/</code> holds 2,660 files / 70 MB.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>What genuinely got fixed since rev 4</h3>
+        <ul>
+          <li><span class="chip c-ok flat">A1</span> All nine broken scenario modules compile.</li>
+          <li><span class="chip c-ok flat">A2</span> <code>vrooli-emulator</code> gained <code>platform_unsupported.go</code>.</li>
+          <li><span class="chip c-ok flat">C1</span> Required host tools cut from <strong>19/19</strong> to <strong>10/19</strong>. The opt-in layer is now reachable.</li>
+          <li><span class="chip c-ok flat">C3</span> <code>rasdaemon</code>, <code>mcelog</code>, <code>kdump-tools</code> are no longer required.</li>
+          <li><span class="chip c-ok flat">A8</span> Docker is now <code>required: false</code> — and only 4 of 29 resources need it at all.</li>
+          <li><span class="chip c-ok flat">A7</span> The stray <code>vault</code> tool entry is gone (six benign duplicates remain).</li>
+          <li><span class="chip c-ok flat">E1–E7</span> Test-utility ownership resolved via <code>api-core</code>.</li>
+          <li><span class="chip c-ok flat">G1</span> Mac mini enrolled, online, running native commands.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Measurement 6 · validation</p>
+    <h2>The instrument that would tell you if this is working is currently red</h2>
+    <p class="lede">I ran <code>vrooli hygiene --json</code>. It returns <code>success: false</code>, and the reasons matter more than the verdict.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Check</th><th class="c">Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td class="k">repo_contract</td><td class="c"><span class="chip c-crit flat">error</span></td><td>structure-health provider unavailable — <code>deadline_exceeded</code>. The structural authority did not answer, so <em>no</em> structural violation is being reported right now.</td></tr>
+          <tr><td class="k">dependency_freshness</td><td class="c"><span class="chip c-crit flat">error</span></td><td>7 stale dependency surfaces.</td></tr>
+          <tr><td class="k">test_freshness</td><td class="c"><span class="chip c-none flat">skipped</span></td><td>test-genie CLI did not answer within the check budget — reported as <code>passed: true, severity: info</code>.</td></tr>
+          <tr><td class="k">plan_manager_reconcile</td><td class="c"><span class="chip c-warn flat">warn</span></td><td>11 plan hygiene items auto-reconcilable.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout crit">
+      <p class="t">A timeout reported as a pass</p>
+      <p>Two of the four checks are answering about the health of the checker rather than the health of the repository, and one of them — <code>test_freshness</code> — records a timeout as <code>passed: true</code>. A validation surface that reports "I could not measure" as "fine" cannot be the instrument for a portability effort whose entire premise is that claims must be falsifiable.</p>
+    </div>
+
+    <h3>Test suite shape</h3>
+    <p>7,261 Go test files and 4,173 TypeScript test files, with <strong>955</strong> <code>t.Skip</code> sites — 64 of which name Windows and 56 of which say some variant of "not portable." Rev-4 item F4 (audit those skips, decide which become platform-gated and which become failures) is untouched. Meanwhile <code>internal/runtime/runtime_windows.go</code> declares <code>SupportsSetup: true, SupportsDevelop: true</code> while <code>platform-support.md</code> records Windows setup as <em>unqualified</em>. That is rev-4 item D4 — a claim outrunning its evidence — still live, in the exact file rev 4 named.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The iOS question</p>
+    <h2>Reachable — with one correction to the premise</h2>
+    <p class="lede">You asked whether Claude Code's iOS simulation, being Mac-native, could be proven through a Bridge-dispatched agent. The answer is yes for the capability that matters, and no for the specific feature you were thinking of.</p>
+
+    <div class="split">
+      <div class="panel">
+        <h3>What Anthropic's docs actually say</h3>
+        <p>The iOS simulator <em>pane</em> is a Claude Code <strong>Desktop</strong> feature on macOS. Per the documentation: it "is available in local sessions only; in cloud and SSH sessions, Claude runs on a machine that can't reach the simulators on your Mac." It also requires Xcode 26.x specifically — the pane does not yet work with Xcode 27, which replaced the Simulator app with Device Hub.</p>
+        <p><span class="chip c-warn">inferred</span> A Bridge-dispatched agent is, architecturally, a remote session. So streaming that GUI pane into Web Console is not the path.</p>
+      </div>
+      <div class="panel">
+        <h3>What is the path — and it is better</h3>
+        <p><code>xcrun simctl</code> is a plain CLI. A headless agent on the Mac can <code>boot</code> a runtime, <code>install</code> an app, <code>launch</code> it, and capture <code>io … screenshot</code> and <code>recordVideo</code> artifacts. That produces <em>durable evidence</em> — files Bridge already knows how to return via <code>produced_artifacts</code> — rather than pixels in a pane.</p>
+        <p>And the vocabulary already exists: <code>packages/delivery-ramp-go/validationmatrix/host_capabilities.go</code> defines <code>xcodebuild</code>, <code>simctl</code> and <code>ios-simulator</code> as probed capabilities, and refuses to classify a darwin host as iOS-capable until it can genuinely build and boot a simulator.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p class="t">Two hardware facts to price in now</p>
+      <p><strong><code>minimouse</code> is Intel</strong> (<span class="m">darwin/amd64</span>). The code already anticipates this — its simulator-runtime hint says "on Intel hosts fetch the universal architecture variant." Intel Macs will run Xcode and simulators for now, but macOS 26 is the last release supporting them, so an Intel Mac mini is a proving ground with a known expiry, not the long-term iOS host.</p>
+      <p><strong>Also:</strong> <code>scenario-to-ios</code> is <em>not</em> the stale relic you remember. The <em>mobile-delivery-ramps</em> plan has eight of nine phases done as of 2026-08-17; the scenario has ~5,950 lines of Go across nine handler domains, all touched this month, and its spine adapters and readiness ladder are implemented. A from-scratch regeneration would destroy recent work. Recommend you inspect before deciding.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Recommendations</p>
+    <h2>What I would build toward, and in what order</h2>
+    <p class="lede">Not a plan — the shape a plan should take. The organizing judgement is unchanged from rev 4 and now has evidence behind it: <strong>you can reach the Mac mini without any of the refactoring, and doing it that way would make the codebase worse.</strong> What is new is that the refactor is no longer "build the seam." It is "make the seam mandatory," which is a far cheaper, far more enforceable ask.</p>
+
+    <div class="ladder">
+      <div class="rung">
+        <div class="tag">Do this week<br>Independent</div>
+        <div>
+          <div class="h">Stop the bleeding — three fixes, no design work</div>
+          <ul>
+            <li>Fix the proto-codegen staging leak and reclaim 945 MB. Add a contract check that fails when <code>packages/.proto-gen-*</code> survives a run.</li>
+            <li>Land the two Windows build failures: give <code>doc-parse</code>'s <code>portable-compare</code> the <code>_unix/_windows</code> split <code>api-core/metrics</code> already has, and move <code>api-library</code> off <code>go-redis v9.15.0</code> through the dependency analyzer.</li>
+            <li>Delete the 57 inert scenario workflow files and the stale <code>flow-verifier</code> skip in <code>make cross-compile</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="rung">
+        <div class="tag">Foundation<br>Load-bearing</div>
+        <div>
+          <div class="h">Make the seam mandatory before writing any more of it</div>
+          <p>The single highest-leverage change in this entire report. Ban rules in <code>quality-health</code>, with declared exceptions carrying a rationale in data:</p>
+          <ul>
+            <li>No <code>syscall.*</code> or <code>golang.org/x/sys</code> outside <code>packages/platform-go</code>.</li>
+            <li>No <code>/proc</code> path outside a <code>_linux.go</code> file.</li>
+            <li>No bare <code>runtime.GOOS</code> equality comparison — build tags or the seam.</li>
+            <li>No <code>exec.Command("bash"|"sh")</code>.</li>
+            <li>Expand golangci with <code>depguard</code>, <code>forbidigo</code>, <code>importas</code>.</li>
+          </ul>
+          <p>Land the rules <em>first</em>, at warning severity with the current 463 sites grandfathered as declared exceptions, then burn the exception list down. That way the number can only fall.</p>
+        </div>
+      </div>
+
+      <div class="rung">
+        <div class="tag">Measurement<br>Load-bearing</div>
+        <div>
+          <div class="h">Give every verdict a platform, and give the ledger an evidence axis</div>
+          <p>Two changes that make everything after them falsifiable. First, platform provenance on <code>suite_executions</code> — OS, arch, node identity, host-fact digest — so a macOS pass and a Linux pass stop being indistinguishable in the record. Second, merge the four-tier evidence vocabulary from <code>platform-support.md</code> into the capability ledger, so "implemented" and "proven on hardware" stop being the same word.</p>
+          <p>Then fix hygiene's own honesty: a timeout must never report <code>passed: true</code>.</p>
+        </div>
+      </div>
+
+      <div class="rung">
+        <div class="tag">Deliverable 1<br>Small</div>
+        <div>
+          <div class="h">Hello from a coding agent on the Mac mini, inside Web Console</div>
+          <p>The walls are removable without new architecture — and the second one should be fixed at the model level, not by adding globs (see the next section):</p>
+          <ul>
+            <li>Grant <code>minimouse</code> the <code>vrooli-bridge:session</code> scope.</li>
+            <li>Restore dispatch for both nodes by moving the second grant axis from verb-globs to the scenario namespace the catalog already emits.</li>
+            <li>Teach <code>scopecatalog</code> to honour <code>Group.flat</code> so derived verbs match real argv.</li>
+            <li>Let the remote session carry an interactive sign-in — you attach through Web Console's terminal, authenticate the agent by hand once, and the credential persists on the node.</li>
+          </ul>
+          <p><strong>Acceptance:</strong> a session created in Web Console with a node selector spawns an agent on <code>minimouse</code>, appears in the remote-sessions surface with <code>SESSION_ORIGIN_REMOTE</code>, streams a real "hello world" back, and survives a reconnect. Prove the authenticator boundary in the same run: a principal without the session scope must be refused with a 403 you can point at.</p>
+        </div>
+      </div>
+
+      <div class="rung">
+        <div class="tag">Deliverable 2<br>Medium</div>
+        <div>
+          <div class="h">Prove the iOS simulator, with artifacts rather than pixels</div>
+          <p>Through the Deliverable-1 session, have the agent probe <code>xcodebuild</code> and <code>simctl</code>, boot a runtime, build and install a trivial app, and return a screenshot plus a device log as Bridge artifacts. Feed the probe result into the existing <code>validationmatrix</code> classifier so the node's iOS capability is <em>derived</em>, not asserted.</p>
+          <p><strong>Acceptance:</strong> a <code>simctl</code> screenshot of a booted iOS runtime, produced on <code>minimouse</code>, retrievable through Bridge, with the capability ledger flipping that node to iOS-capable off the same evidence. Do this before touching <code>scenario-to-ios</code> — it tells you whether a rewrite is needed at all.</p>
+        </div>
+      </div>
+
+      <div class="rung">
+        <div class="tag">Deliverable 3<br>The real cost</div>
+        <div>
+          <div class="h">Port Redis first — it is nearly free — then decide Postgres deliberately</div>
+          <p>The portable pattern is already proven three times over. <code>minio</code>, <code>qdrant</code> and <code>searxng</code> carry the <em>identical</em> <code>driver: managed-service</code> + <code>bundling: vendorable</code> as Postgres and Redis. The only difference is that they declare <code>managed_service.acquisition.targets[]</code> — per-target <code>{when:{os,arch}, url, sha256, archive, layout}</code> — and Postgres declares <code>install: null</code>, <code>binary: null</code>, no targets, with its CLI still shelling out to <code>docker exec</code>.</p>
+          <ul>
+            <li><strong>Redis — do it now.</strong> 7 real dependents, 12 declarations already disabled. Prune the aspirational ones, then compose a tree the way SearXNG was composed. Note the upstream fact: Redis publishes no official macOS/Windows binaries, and Valkey — the Linux Foundation BSD fork, the natural target — distributes mainly through Homebrew, source and containers rather than plain archives. So this is a compose job, not a URL fetch.</li>
+            <li><strong>Postgres — decide, do not drift.</strong> 34 real dependents makes SQLite-first a migration rather than a shortcut. The credible archive source is <code>zonkyio/embedded-postgres-binaries</code>, which repackages <em>official</em> EDB distributions for Darwin and Windows across amd64/arm64 into standardized archives — that maps straight onto the existing acquisition contract and <code>packages/binaryfetch</code>. Verify one thing first: their arm64 macOS artifacts are reportedly fat binaries and less current than x86-64, which the Intel Mac mini will not expose.</li>
+            <li><strong>Docker on macOS</strong> remains the cheap answer that contradicts the premise. If you take it, take it explicitly and write the reason down.</li>
+          </ul>
+          <p>Whatever you choose, collapse the three disagreeing platform axes into one authority in the same change, or the next audit will find four.</p>
+        </div>
+      </div>
+
+      <div class="rung">
+        <div class="tag">Then<br>Ongoing</div>
+        <div>
+          <div class="h">Consolidation, now that rules can hold it</div>
+          <p>Merge the nine <code>internal/host*</code> packages (11,624 lines). Pull <code>system-monitor</code>, <code>vrooli-autoheal</code> and <code>device-control</code> onto <code>hostinventory</code> and close seven macOS capability gaps in one move. Fix the templates so they stop stamping <code>modeltest/formal.go</code>, and reconcile the two versions that have already diverged. Settle <code>module/</code> vs <code>modules/</code>. Give the 12 template modules a buildable <code>go.mod</code> so generated scenarios stop inheriting an unvalidated skeleton.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="t">The one framing I would hold to</p>
+      <p>Rev 4's thesis was "the cross-platform target is what makes the duplication expensive enough to justify removing." Eleven days of evidence says something sharper: <strong>the duplication is not expensive because it exists, it is expensive because it grows.</strong> Every measured consolidation number that had no enforcement rule attached went <em>up</em> — <code>runtime.GOOS</code> 397→463, workflow files 47→57, <code>module/modules</code> 47/52→58/64. Every one that had an owning plan with a completion gate went to zero. Sequence the rules before the refactors and this effort converges; sequence them after and you will re-measure the same numbers in another eleven days.</p>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-007",
+      "title": "Live-Web Result Cache with TTL and Token-Bucket Budget Governor",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "Cache live-web search results using a TTL-based cache keyed on normalized query string, returning cached results for repeated queries without issuing SearXNG requests. Enforce a token-bucket budget governor on the live-web path: each external request consumes one token, tokens refill at a configured rate per time window, and when the bucket is exhausted the system returns a structured 'rate-limited, try later' response (HTTP 429 with retry-after hint) rather than forwarding the request to SearXNG. Cache and budget state must be inspectable via the ops panel.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::TestCacheKeyEquivalentQueriesHit",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Cache key generation produces identical keys for semantically equivalent queries (same terms, different whitespace/case normalization)"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::TestCacheHitWithinTTL",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Cache returns a hit for a query issued within TTL window after initial population"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceCacheExpiryRefetches",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Cache returns a miss for a query issued after TTL expiry, triggering a fresh SearXNG request"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::TestGovernorRefillsToCapacityAfterWindow",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Token bucket correctly refills to capacity after one full time window elapses"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::TestGovernorExhaustedAfterBurst",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Token bucket returns exhausted=true and zero remaining tokens after burst limit is consumed"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceGovernorExhaustionDegradesWithoutClient",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "When bucket is exhausted, the live-web path returns a structured rate-limited response with retry-after field, not a SearXNG call"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::TestGovernorRefillNeverExceedsCapacity",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Token bucket refill is monotonic and does not exceed configured capacity"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceCacheHitSkipsClient",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Issue the same query twice within TTL; assert SearXNG HTTP call count equals exactly one (second served from cache)"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceGovernorExhaustionDegradesWithoutClient",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Exhaust the token bucket by issuing N+1 requests in one window; assert the N+1th returns a graceful rate-limited response and no additional SearXNG call is made"
+        },
+        {
+          "type": "test",
+          "ref": "../search-hub/api/internal/routing/router_test.go::TestAutoRouteWithholdsExternalScope",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Default federated query issues zero external HTTP calls even when budget is exhausted (learnings path unaffected) [covering test lives in search-hub — the default auto path withholds SCOPE_EXTERNAL providers entirely, so web-search.live is never called regardless of budget state]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::BenchmarkCacheGet",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Cache hit response time must be under 50ms at p95 (no network I/O)"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/cache_governor_test.go::BenchmarkGovernorAllow",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Budget governor check adds at most 1ms overhead to the request path"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceCacheHitSkipsClient",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Repeated identical user queries are served from cache, reducing SearXNG load and preserving rate-limit budget"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/livesearch/connect_handler_test.go::TestSearchDegradedOnBudgetExhaustion",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Users receive a clear 'rate-limited, try later' message rather than an error or silent failure when the budget is exhausted"
+        }
+      ]
+    }
+  ]
+}

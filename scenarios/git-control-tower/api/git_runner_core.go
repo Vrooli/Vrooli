@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ExecGitRunner implements GitRunner by executing the real git binary.
@@ -78,19 +80,25 @@ func (r *ExecGitRunner) Diff(ctx context.Context, repoDir string, path string, s
 }
 
 func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []string) ([]string, error) {
-	args := []string{"-C", repoDir, "add", "--"}
-	args = append(args, paths...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	build := func() *exec.Cmd {
+		args := []string{"-C", repoDir, "add", "--"}
+		args = append(args, paths...)
+		return exec.CommandContext(ctx, r.gitPath(), args...)
+	}
+	// Capture stderr separately so warnings can be parsed; the retry wrapper
+	// inspects these bytes for index.lock contention.
+	run := func(cmd *exec.Cmd) ([]byte, error) {
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		e := cmd.Run()
+		return stderr.Bytes(), e
+	}
+	stderrBytes, err := execWithIndexLockRetry(ctx, build, run)
 
 	// Parse stderr for warnings even if command succeeded
 	var warnings []string
-	stderrStr := strings.TrimSpace(stderr.String())
+	stderrStr := strings.TrimSpace(string(stderrBytes))
 	if stderrStr != "" {
 		// Check for known warning patterns that aren't fatal errors
 		if strings.Contains(stderrStr, "ignored by one of your .gitignore files") ||
@@ -111,11 +119,12 @@ func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []strin
 }
 
 func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []string) error {
-	args := []string{"-C", repoDir, "reset", "HEAD", "--"}
-	args = append(args, paths...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
+	build := func() *exec.Cmd {
+		args := []string{"-C", repoDir, "reset", "HEAD", "--"}
+		args = append(args, paths...)
+		return exec.CommandContext(ctx, r.gitPath(), args...)
+	}
+	out, err := execWithIndexLockRetry(ctx, build, runCombined)
 	if err != nil {
 		exitErr := &exec.ExitError{}
 		if errors.As(err, &exitErr) {
@@ -127,34 +136,41 @@ func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 }
 
 func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
-	// Create the commit
-	args := []string{"-C", repoDir, "commit"}
-	if options.Amend {
-		args = append(args, "--amend")
-	}
-	if options.NoEdit {
-		args = append(args, "--no-edit")
-	} else {
-		args = append(args, "-m", message)
-	}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	if options.AuthorName != "" || options.AuthorEmail != "" {
-		env := os.Environ()
-		if options.AuthorName != "" {
-			env = append(env,
-				fmt.Sprintf("GIT_AUTHOR_NAME=%s", options.AuthorName),
-				fmt.Sprintf("GIT_COMMITTER_NAME=%s", options.AuthorName),
-			)
+	// Create the commit. index.lock contention fails before any commit is
+	// written, so retrying on that error is safe (nothing was committed).
+	build := func() *exec.Cmd {
+		args := []string{"-C", repoDir, "commit"}
+		if options.Amend {
+			args = append(args, "--amend")
 		}
-		if options.AuthorEmail != "" {
-			env = append(env,
-				fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", options.AuthorEmail),
-				fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", options.AuthorEmail),
-			)
+		if options.NoVerify {
+			args = append(args, "--no-verify")
 		}
-		cmd.Env = env
+		if options.NoEdit {
+			args = append(args, "--no-edit")
+		} else {
+			args = append(args, "-m", message)
+		}
+		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+		if options.AuthorName != "" || options.AuthorEmail != "" {
+			env := os.Environ()
+			if options.AuthorName != "" {
+				env = append(env,
+					fmt.Sprintf("GIT_AUTHOR_NAME=%s", options.AuthorName),
+					fmt.Sprintf("GIT_COMMITTER_NAME=%s", options.AuthorName),
+				)
+			}
+			if options.AuthorEmail != "" {
+				env = append(env,
+					fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", options.AuthorEmail),
+					fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", options.AuthorEmail),
+				)
+			}
+			cmd.Env = env
+		}
+		return cmd
 	}
-	out, err := cmd.CombinedOutput()
+	out, err := execWithIndexLockRetry(ctx, build, runCombined)
 	if err != nil {
 		exitErr := &exec.ExitError{}
 		if errors.As(err, &exitErr) {
@@ -164,7 +180,7 @@ func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message stri
 	}
 
 	// Get the commit hash using rev-parse HEAD
-	hashCmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--short", "HEAD")
+	hashCmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "HEAD")
 	hashOut, err := hashCmd.Output()
 	if err != nil {
 		// Commit succeeded but couldn't get hash - return empty string
@@ -207,16 +223,12 @@ func (r *ExecGitRunner) LookPath() (string, error) {
 	return exec.LookPath(r.gitPath())
 }
 
-// ResolveRepoRoot returns the repository root directory.
-// Priority: VROOLI_ROOT env var > git rev-parse --show-toplevel > empty string.
-// DECISION BOUNDARY: This determines which repository the API operates on.
 func (r *ExecGitRunner) ResolveRepoRoot(ctx context.Context) string {
-	// First, check for explicit VROOLI_ROOT configuration
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err == nil {
 		return root
 	}
 
-	// Fall back to git's repository detection
 	cmd := exec.CommandContext(ctx, r.gitPath(), "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
 	if err == nil {
@@ -249,10 +261,12 @@ func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 
 	if untracked {
 		// For untracked files, use git clean -f
-		args := []string{"-C", repoDir, "clean", "-f", "--"}
-		args = append(args, paths...)
-		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-		out, err := cmd.CombinedOutput()
+		build := func() *exec.Cmd {
+			args := []string{"-C", repoDir, "clean", "-f", "--"}
+			args = append(args, paths...)
+			return exec.CommandContext(ctx, r.gitPath(), args...)
+		}
+		out, err := execWithIndexLockRetry(ctx, build, runCombined)
 		if err != nil {
 			exitErr := &exec.ExitError{}
 			if errors.As(err, &exitErr) {
@@ -262,10 +276,12 @@ func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 		}
 	} else {
 		// For tracked files, use git checkout -- <paths>
-		args := []string{"-C", repoDir, "checkout", "--"}
-		args = append(args, paths...)
-		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-		out, err := cmd.CombinedOutput()
+		build := func() *exec.Cmd {
+			args := []string{"-C", repoDir, "checkout", "--"}
+			args = append(args, paths...)
+			return exec.CommandContext(ctx, r.gitPath(), args...)
+		}
+		out, err := execWithIndexLockRetry(ctx, build, runCombined)
 		if err != nil {
 			exitErr := &exec.ExitError{}
 			if errors.As(err, &exitErr) {
@@ -279,7 +295,7 @@ func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
-	args := readArgs(repoDir, "diff", "--numstat", "--no-color")
+	args := readArgs(repoDir, "diff", "--numstat", "--no-color", "-z")
 	if staged {
 		args = append(args, "--cached")
 	}
@@ -302,11 +318,12 @@ func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged 
 }
 
 func (r *ExecGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {
-	args := []string{"-C", repoDir, "rm", "--cached", "--ignore-unmatch", "--"}
-	args = append(args, paths...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
+	build := func() *exec.Cmd {
+		args := []string{"-C", repoDir, "rm", "--cached", "--ignore-unmatch", "--"}
+		args = append(args, paths...)
+		return exec.CommandContext(ctx, r.gitPath(), args...)
+	}
+	out, err := execWithIndexLockRetry(ctx, build, runCombined)
 	if err != nil {
 		exitErr := &exec.ExitError{}
 		if errors.As(err, &exitErr) {

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "scenario": "quality-health",
+  "input_digest": "sha256:6d712a691130e73d163846d7524315ea81fe9170f2182a2751555eeba59afb59",
+  "input_files": [
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto",
+    "schemas/quality-health/v1/audit/audit.proto",
+    "schemas/quality-health/v1/errors/errors.proto",
+    "schemas/quality-health/v1/health/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/quality-health/v1/audit/audit.pb.go": "sha256:9a98899f9b0009ad1107acc753cb1a4de46a2e5d10f75a998abf879758e7481e",
+    "gen/go/quality-health/v1/audit/audit_v1connect/audit.connect.go": "sha256:a91c6e1583b3006dcbee289fb5d6beb35cfb331b195e34e4c0232f94109ce9b7",
+    "gen/go/quality-health/v1/errors/errors.pb.go": "sha256:2eaac5ba656a41d79a175fc21f192056ad7bf849e6968ba4af65588d2e74b9ae",
+    "gen/go/quality-health/v1/health/health.pb.go": "sha256:8e039592fd05a5f57c41f07788ee9647c65434c9fc9cdafcd61c178be8f0abb5",
+    "gen/python/quality_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/quality_health/v1/audit/audit_pb2.py": "sha256:bad5a10c95faa9f1c7791fb27a34d83bb08c7021fdd77eb160972fd67f3ad7d9",
+    "gen/python/quality_health/v1/audit/audit_pb2.pyi": "sha256:a2b9d1b93de184fcb8ff7247db8917df475e04eb8cd4736b1cd8479f8fc711aa",
+    "gen/python/quality_health/v1/audit/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/quality_health/v1/errors/errors_pb2.py": "sha256:a41f873f867741f1a6a48a2a60c0dbcdeb88170e3864b2ead5edde11df17d61c",
+    "gen/python/quality_health/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/quality_health/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/quality_health/v1/health/health_pb2.py": "sha256:49c35234dd2a7e876771f61e42e335e23db9ec7154c5295d3ea90bf889b64a9e",
+    "gen/python/quality_health/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/quality_health/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/quality_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/quality-health/v1/audit/audit_pb.ts": "sha256:ea873945ee9f04cf26b4050b2edd67c9e5d66dd3dc4edd850f3c4d588365f6e4",
+    "gen/typescript/quality-health/v1/errors/errors_pb.ts": "sha256:20e154a7a101a35bd9454a521d88be17af670b6ed0ccac6344c32843720d69d5",
+    "gen/typescript/quality-health/v1/health/health_pb.ts": "sha256:a4c96a3205d9943f369c7268ee4019b66dcd05e9637474d4916addd2382e3391"
+  }
+}

@@ -1,0 +1,681 @@
+package scenariocli
+
+import (
+	"bytes"
+	"os"
+	"os/exec"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/process"
+	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+func TestRenderStatusResponseHumanSingleIncludesScenarioHeader(t *testing.T) {
+	startedAt := time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC)
+	resp := StatusResponse{
+		Single: &StatusSingleOutput{
+			Scenario: StatusItemOutput{
+				Name:        "alpha",
+				Status:      "running",
+				Health:      "healthy",
+				HealthError: "api_endpoint: invalid health response schema",
+				Processes:   1,
+				Runtime:     "2m",
+				Ports:       map[string]int{"API_PORT": 18080},
+			},
+			Info: InfoScenarioData{
+				Name:        "alpha",
+				DisplayName: "Alpha",
+				Description: "Alpha scenario",
+				Path:        "/repo/scenarios/alpha",
+			},
+			Runtime: InfoRuntimeData{
+				Status:    "running",
+				Runtime:   "2m",
+				StartedAt: &startedAt,
+				Ports:     map[string]int{"API_PORT": 18080},
+				ProcessInfo: []process.Record{
+					{Step: "start-api", PID: 1234, Port: 18080, StartedAt: startedAt},
+				},
+			},
+		},
+	}
+
+	var stdout bytes.Buffer
+	if err := RenderStatusResponse(&stdout, cliout.FormatHuman, resp); err != nil {
+		t.Fatalf("RenderStatusResponse: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{"Scenario: alpha", "Status: running", "Health: healthy", "Health error: api_endpoint: invalid health response schema", "Processes:", "start-api pid=1234"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
+func TestWriteLifecycleItemsJSONIncludesSuccessEnvelope(t *testing.T) {
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatJSON, []LifecycleItemOutput{{
+		Name:      "alpha",
+		Status:    "started",
+		Ports:     map[string]int{"API_PORT": 18080},
+		Endpoints: []EndpointOutput{{Key: "API_PORT", URL: "http://localhost:18080", Port: 18080}},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `"success": true`) || !strings.Contains(output, `"scenarios":`) {
+		t.Fatalf("output = %s", output)
+	}
+}
+
+func TestWriteLifecycleItemsHumanIncludesURLs(t *testing.T) {
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:            "alpha",
+		Status:          "started",
+		Health:          "healthy",
+		Ports:           map[string]int{"API_PORT": 18080},
+		Endpoints:       []EndpointOutput{{Key: "API_PORT", URL: "http://localhost:18080", Port: 18080}},
+		FailedResources: []string{"qdrant"},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{"Started scenario 'alpha' (healthy)", "Ports: API_PORT=18080", "URLs:", "API_PORT: http://localhost:18080", "Failed resources: qdrant"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
+func TestWriteLifecycleItemsHumanStartsWithBlankLine(t *testing.T) {
+	// Leading blank line separates the summary from the preceding
+	// progress pings / slog stream. Compact/JSON modes have their own
+	// coverage; this test guards the normal-mode visual spacing.
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "restarted",
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	if !strings.HasPrefix(stdout.String(), "\n") {
+		t.Fatalf("expected leading blank line, got %q", stdout.String())
+	}
+}
+
+func TestWriteLifecycleItemsHumanIncludesLogsFooter(t *testing.T) {
+	// The summary must always point users at the log tail command so
+	// they know how to drill deeper on any status — started, restarted,
+	// stopped, or degraded.
+	cases := []string{"started", "restarted", "stopped", "already_running"}
+	for _, status := range cases {
+		status := status
+		t.Run(status, func(t *testing.T) {
+			var stdout bytes.Buffer
+			err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+				Name:   "alpha",
+				Status: status,
+			}})
+			if err != nil {
+				t.Fatalf("WriteLifecycleItems: %v", err)
+			}
+			if !strings.Contains(stdout.String(), "Logs: vrooli scenario logs alpha") {
+				t.Fatalf("%s: missing Logs footer in %q", status, stdout.String())
+			}
+		})
+	}
+}
+
+func TestWriteLifecycleItemsCompactOmitsLogsFooter(t *testing.T) {
+	// Compact single-line mode is for scripts that want the minimum
+	// possible signal per scenario; the Logs footer would break the
+	// one-line-per-scenario contract documented on writeLifecycleItemsCompact.
+	t.Setenv("VROOLI_OUTPUT", "quiet")
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "started",
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	if strings.Contains(stdout.String(), "Logs:") {
+		t.Fatalf("compact mode must not include Logs footer, got %q", stdout.String())
+	}
+}
+
+func TestWriteLifecycleItemsHumanUsesRestartVerb(t *testing.T) {
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "restarted",
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "Restarted scenario 'alpha'") {
+		t.Fatalf("stdout = %q", got)
+	}
+}
+
+func TestWriteLifecycleItemsCompactAtQuiet(t *testing.T) {
+	t.Setenv("VROOLI_OUTPUT", "quiet")
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "restarted",
+		Health: "healthy",
+		Ports: map[string]int{
+			"API_PORT": 18800,
+			"UI_PORT":  36238,
+		},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	got := stdout.String()
+	lines := strings.Count(strings.TrimRight(got, "\n"), "\n") + 1
+	if lines != 1 {
+		t.Fatalf("quiet output should be single line, got %d lines: %q", lines, got)
+	}
+	if !strings.Contains(got, "alpha") || !strings.Contains(got, "restarted") {
+		t.Errorf("missing expected fields: %q", got)
+	}
+	if !strings.Contains(got, "API_PORT=18800") {
+		t.Errorf("ports not inlined: %q", got)
+	}
+	if !strings.Contains(got, "OK") {
+		t.Errorf("missing status glyph: %q", got)
+	}
+}
+
+func TestWriteLifecycleItemsCompactFlagsFailures(t *testing.T) {
+	t.Setenv("VROOLI_OUTPUT", "quiet")
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:               "alpha",
+		Status:             "started",
+		Health:             "degraded",
+		FailedDependencies: []string{"workspace-sandbox"},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	got := stdout.String()
+	if !strings.Contains(got, "!!") {
+		t.Errorf("missing failure glyph: %q", got)
+	}
+	if !strings.Contains(got, "failed deps") {
+		t.Errorf("missing failed deps: %q", got)
+	}
+}
+
+func TestParseStartRequestRequiresSingleNameWhenPathProvided(t *testing.T) {
+	_, err := ParseStartRequest(false, []string{"alpha", "beta", "--path", "/tmp/custom"})
+	if err == nil {
+		t.Fatal("expected path + multiple names to fail")
+	}
+	if !strings.Contains(err.Error(), "accepts exactly one scenario name") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRenderListResponseHumanIncludesPortsWhenPresent(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderListResponse(&stdout, cliout.FormatHuman, ListResponse{
+		Items: []ListItemOutput{{
+			Name:        "alpha",
+			Description: "demo",
+			Ports: []ListPortOutput{{
+				Key:  "API_PORT",
+				Port: 18080,
+			}},
+		}},
+		RunningCount: 1,
+	})
+	if err != nil {
+		t.Fatalf("RenderListResponse: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "API_PORT=18080") {
+		t.Fatalf("stdout = %q", got)
+	}
+}
+
+func TestParseOpenRequestAcceptsJSONAndPrintURL(t *testing.T) {
+	req, err := ParseOpenRequest(false, []string{"alpha", "--print-url", "--json"})
+	if err != nil {
+		t.Fatalf("ParseOpenRequest: %v", err)
+	}
+	if req.ScenarioName != "alpha" || !req.PrintURL || !req.JSON {
+		t.Fatalf("req = %+v", req)
+	}
+}
+
+func TestRenderPortResponseHumanSingleMatchesContract(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderPortResponse(&stdout, cliout.FormatHuman, PortResponse{
+		Single: &PortSingleOutput{
+			Success:  true,
+			Scenario: "alpha",
+			PortName: "UI_PORT",
+			Port:     38080,
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderPortResponse: %v", err)
+	}
+	if got := strings.TrimSpace(stdout.String()); got != "38080" {
+		t.Fatalf("stdout = %q", got)
+	}
+}
+
+func TestParseValidateEnvRequestAcceptsJSON(t *testing.T) {
+	req, err := ParseValidateEnvRequest(false, []string{"alpha", "--json"})
+	if err != nil {
+		t.Fatalf("ParseValidateEnvRequest: %v", err)
+	}
+	if req.Name != "alpha" || !req.JSON {
+		t.Fatalf("req = %+v", req)
+	}
+}
+
+func TestParseRequirementsRequestTreatsHelpAsCommandHelp(t *testing.T) {
+	_, err := ParseRequirementsRequest([]string{"--help"})
+	if err == nil {
+		t.Fatal("expected help-only error")
+	}
+	if !strings.Contains(err.Error(), RequirementsHelpText()) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestRequirementsHelpTextIsGeneratedFromSubcommandSpecs(t *testing.T) {
+	text := RequirementsHelpText()
+	for _, want := range []string{
+		"Scenario Requirements Commands",
+		"report",
+		"snapshot",
+		"manual-log",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in help:\n%s", want, text)
+		}
+	}
+}
+
+func TestParseLogsArgsParsesFlagsAndStep(t *testing.T) {
+	name, opts, err := ParseLogsArgs([]string{"alpha", "--follow", "--step", "build", "--runtime", "--previous", "--tail", "25"})
+	if err != nil {
+		t.Fatalf("ParseLogsArgs: %v", err)
+	}
+	if name != "alpha" {
+		t.Fatalf("name = %q", name)
+	}
+	if !opts.Follow || opts.StepName != "build" || !opts.Runtime || !opts.Previous || opts.Tail != 25 {
+		t.Fatalf("opts = %+v", opts)
+	}
+}
+
+func TestParseLogsArgsRejectsInvalidTail(t *testing.T) {
+	cases := [][]string{
+		{"alpha", "--tail", "nope"},
+		{"alpha", "--tail", "0"},
+		{"alpha", "--tail", "-1"},
+	}
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			if _, _, err := ParseLogsArgs(args); err == nil {
+				t.Fatalf("ParseLogsArgs(%v) expected error", args)
+			}
+		})
+	}
+}
+
+func TestParseHealFromSandboxRequestUsesDefaultMergedPath(t *testing.T) {
+	req, err := ParseHealFromSandboxRequest("/merged", nil)
+	if err != nil {
+		t.Fatalf("ParseHealFromSandboxRequest: %v", err)
+	}
+	if req.MergedPath != "/merged" || req.DryRun {
+		t.Fatalf("req = %+v", req)
+	}
+}
+
+func TestBuildListPortsSortsAndMapsRecords(t *testing.T) {
+	manifest := scenariomodel.ServiceManifest{
+		Ports: map[string]scenariomodel.Port{
+			"api": {EnvVar: "API_PORT"},
+			"ui":  {EnvVar: "UI_PORT"},
+		},
+	}
+
+	listPorts, ports := scenarioapp.BuildListPorts(manifest, []process.Record{
+		{Step: "start-ui", Port: 38080, PortKey: "UI_PORT"},
+		{Step: "start-api", Port: 18080, PortKey: "API_PORT"},
+	})
+
+	if len(listPorts) != 2 {
+		t.Fatalf("len(listPorts) = %d, want 2", len(listPorts))
+	}
+	if listPorts[0].Key != "API_PORT" || listPorts[1].Key != "UI_PORT" {
+		t.Fatalf("listPorts = %#v", listPorts)
+	}
+	if ports["API_PORT"] != 18080 || ports["UI_PORT"] != 38080 {
+		t.Fatalf("ports = %#v", ports)
+	}
+}
+
+func TestBuildListPortsKeepsFirstExplicitRecordPerPort(t *testing.T) {
+	manifest := scenariomodel.ServiceManifest{
+		Ports: map[string]scenariomodel.Port{
+			"api": {EnvVar: "API_PORT"},
+		},
+	}
+
+	listPorts, ports := scenarioapp.BuildListPorts(manifest, []process.Record{
+		{Step: "start-api", Port: 18080, PortKey: "API_PORT"},
+		{Step: "run-api", Port: 19090, PortKey: "API_PORT"},
+	})
+
+	if len(listPorts) != 1 {
+		t.Fatalf("len(listPorts) = %d, want 1", len(listPorts))
+	}
+	if listPorts[0].Port != 18080 {
+		t.Fatalf("listPorts[0].Port = %d, want 18080", listPorts[0].Port)
+	}
+	if ports["API_PORT"] != 18080 {
+		t.Fatalf("ports = %#v", ports)
+	}
+}
+
+func TestParseOptionalScenarioNameAndJSONValidation(t *testing.T) {
+	name, jsonFlag, err := ParseOptionalScenarioNameAndJSON("status", false, []string{"alpha", "--json"})
+	if err != nil {
+		t.Fatalf("ParseOptionalScenarioNameAndJSON() error = %v", err)
+	}
+	if name != "alpha" || !jsonFlag {
+		t.Fatalf("name/json = %q/%v", name, jsonFlag)
+	}
+
+	if _, _, err := ParseOptionalScenarioNameAndJSON("status", false, []string{"alpha", "beta"}); err == nil {
+		t.Fatal("expected duplicate scenario names to fail")
+	}
+	if _, _, err := ParseOptionalScenarioNameAndJSON("status", false, []string{"--bogus"}); err == nil {
+		t.Fatal("expected unknown option to fail")
+	}
+	if _, _, err := ParseScenarioNameAndJSON("info", false, nil); err == nil {
+		t.Fatal("expected missing scenario name to fail")
+	}
+}
+
+func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
+	parsed, err := ParseScenarioStartArgs(false, []string{
+		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--force", "--accept-credential-loss", "--path", "/tmp/custom", "--timeout", "90",
+	})
+	if err != nil {
+		t.Fatalf("ParseScenarioStartArgs() error = %v", err)
+	}
+	if got := strings.Join(parsed.Names, ","); got != "alpha,beta" {
+		t.Fatalf("names = %q", got)
+	}
+	if !parsed.JSON || !parsed.OpenAfter || !parsed.Options.BestEffort || !parsed.Options.CleanStale || !parsed.Options.ForceSetup || !parsed.Options.AcceptCredentialLoss || parsed.Options.CustomPath != "/tmp/custom" {
+		t.Fatalf("parsed = %+v", parsed)
+	}
+	if parsed.TimeoutSeconds != 90 {
+		t.Fatalf("timeout = %d, want 90", parsed.TimeoutSeconds)
+	}
+
+	if _, err := ParseScenarioStartArgs(false, []string{"--path"}); err == nil {
+		t.Fatal("expected missing --path value to fail")
+	}
+	if _, err := ParseScenarioStartArgs(false, []string{"--bogus"}); err == nil {
+		t.Fatal("expected unknown option to fail")
+	}
+	if _, err := ParseScenarioStartArgs(false, []string{"alpha", "--timeout", "nope"}); err == nil {
+		t.Fatal("expected non-numeric --timeout to fail")
+	}
+	if _, err := ParseScenarioSingleStartArgs("restart", false, nil); err == nil {
+		t.Fatal("expected missing restart target to fail")
+	}
+	if _, err := ParseScenarioSingleStartArgs("restart", false, []string{"alpha", "beta"}); err == nil {
+		t.Fatal("expected duplicate restart targets to fail")
+	}
+}
+
+func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
+	startedAt := time.Date(2026, time.April, 10, 12, 0, 0, 0, time.UTC)
+	fixedPort := 5432
+	item := scenariomodel.Scenario{
+		Slug:       "alpha",
+		Path:       "/repo/scenarios/alpha",
+		Redirected: true,
+		Manifest: scenariomodel.ServiceManifest{
+			Service: scenariomodel.ServiceMetadata{
+				Name:        "alpha",
+				DisplayName: "Alpha",
+				Description: "Alpha scenario",
+				Version:     "0.1.0",
+				Type:        "tool",
+				Category:    "ops",
+				Tags:        []string{"internal", "go"},
+			},
+			Ports: map[string]scenariomodel.Port{
+				"api": {EnvVar: "API_PORT", Range: "15000-19999"},
+				"db":  {Port: &fixedPort},
+			},
+			Lifecycle: scenariomodel.Lifecycle{Version: "2.0.0"},
+		},
+	}
+	runtimeState := process.ScenarioRuntime{
+		ProcessCount: 1,
+		Runtime:      "2m",
+		StartedAt:    &startedAt,
+		Records: []process.Record{
+			{Step: "start-api", PID: 1234, Port: 18080, PortKey: "API_PORT", StartedAt: startedAt},
+		},
+	}
+
+	status := scenarioapp.BuildStatusItem(item, runtimeState)
+	if status.Status != "running" || status.Health != "running" {
+		t.Fatalf("status item = %+v", status)
+	}
+
+	var infoOut bytes.Buffer
+	WriteInfoHuman(&infoOut, scenarioapp.BuildInfoData(item), scenarioapp.BuildRuntimeData(item.Manifest, runtimeState))
+	for _, want := range []string{
+		"Configured ports:",
+		"API_PORT (api)",
+		"DB_PORT (db) fixed=5432",
+		"Version: 0.1.0",
+		"Type: tool",
+		"Category: ops",
+		"Tags: internal, go",
+		"Lifecycle version: 2.0.0",
+		"Sandbox: using redirected scenario path",
+	} {
+		if !strings.Contains(infoOut.String(), want) {
+			t.Fatalf("missing %q in info output:\n%s", want, infoOut.String())
+		}
+	}
+
+	var tableOut bytes.Buffer
+	WriteStatusTable(&tableOut, []StatusItemOutput{status})
+	if !strings.Contains(tableOut.String(), "Name") || !strings.Contains(tableOut.String(), "alpha") {
+		t.Fatalf("scenario table output = %s", tableOut.String())
+	}
+
+	var statusOut bytes.Buffer
+	WriteStatusHuman(&statusOut, StatusSingleOutput{
+		Scenario: status,
+		Info:     scenarioapp.BuildInfoData(item),
+		Runtime:  scenarioapp.BuildRuntimeData(item.Manifest, runtimeState),
+	})
+	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
+		t.Fatalf("scenario status output = %s", statusOut.String())
+	}
+}
+
+func TestWriteStatusHumanReportsInFlightLifecycleOperation(t *testing.T) {
+	// The regression this guards: a scenario four seconds into someone else's
+	// start reports "stopped" — identical to a scenario nobody is touching —
+	// so the operator runs `scenario restart` and the per-scenario lock
+	// refuses it with a bare PID the status output never mentioned.
+	inFlight := &lifecycle.StartOperationView{
+		Scenario:       "alpha",
+		Operation:      "start",
+		Status:         scenarioruntime.StartOperationStatusRunning,
+		InitiatorPID:   3941220,
+		CurrentStep:    "setup",
+		ElapsedSeconds: 4,
+	}
+
+	var out bytes.Buffer
+	WriteStatusHuman(&out, StatusSingleOutput{
+		Scenario: StatusItemOutput{Name: "alpha", Status: "stopped", StartOperation: inFlight},
+		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
+		Runtime:  InfoRuntimeData{Status: "stopped"},
+	})
+	for _, want := range []string{"Status: stopped", "Lifecycle: start in progress", "pid 3941220", "setup step"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("status output missing %q:\n%s", want, out.String())
+		}
+	}
+
+	// A terminal operation is history, not activity: reporting it as in
+	// flight would recreate the same confusion pointing the other way.
+	done := *inFlight
+	done.Status = scenarioruntime.StartOperationStatusSucceeded
+	var settled bytes.Buffer
+	WriteStatusHuman(&settled, StatusSingleOutput{
+		Scenario: StatusItemOutput{Name: "alpha", Status: "running", StartOperation: &done},
+		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
+		Runtime:  InfoRuntimeData{Status: "running"},
+	})
+	if strings.Contains(settled.String(), "Lifecycle:") {
+		t.Fatalf("terminal operation rendered as in flight:\n%s", settled.String())
+	}
+
+	// No record at all must stay silent rather than implying quiescence it
+	// cannot prove.
+	var bare bytes.Buffer
+	WriteStatusHuman(&bare, StatusSingleOutput{
+		Scenario: StatusItemOutput{Name: "alpha", Status: "stopped"},
+		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
+		Runtime:  InfoRuntimeData{Status: "stopped"},
+	})
+	if strings.Contains(bare.String(), "Lifecycle:") {
+		t.Fatalf("absent record rendered a lifecycle line:\n%s", bare.String())
+	}
+}
+
+func TestBuildStatusDetailIncludesHealthError(t *testing.T) {
+	detail := orchestrator.Detail{
+		Scenario: scenariomodel.Scenario{
+			Slug: "alpha",
+			Manifest: scenariomodel.ServiceManifest{
+				Service: scenariomodel.ServiceMetadata{Name: "alpha"},
+			},
+		},
+		Details: scenariomodel.RuntimeDetails{
+			Status:      "running",
+			Health:      "unhealthy",
+			HealthError: "api_endpoint: invalid health response schema",
+		},
+	}
+
+	status := scenarioapp.BuildStatusDetail(detail)
+	if status.Health != "unhealthy" {
+		t.Fatalf("Health = %v, want unhealthy", status.Health)
+	}
+	if status.HealthError != "api_endpoint: invalid health response schema" {
+		t.Fatalf("HealthError = %q", status.HealthError)
+	}
+}
+
+func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		testkitgo.SkipPlatform(t, "process environment inspection uses /proc on linux")
+	}
+
+	cmd := exec.Command("sleep", "30")
+	cmd.Env = append(os.Environ(), "API_PORT=18080", "WS_PORT=28080")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start sleep: %v", err)
+	}
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+	})
+
+	manifest := scenariomodel.ServiceManifest{
+		Ports: map[string]scenariomodel.Port{
+			"api":       {EnvVar: "API_PORT"},
+			"websocket": {EnvVar: "WS_PORT"},
+		},
+	}
+
+	var listPorts []ListPortOutput
+	var ports map[string]int
+	for attempt := 0; attempt < 20; attempt++ {
+		listPorts, ports = scenarioapp.BuildListPorts(manifest, []process.Record{{
+			PID:     cmd.Process.Pid,
+			Step:    "start-api",
+			Port:    18080,
+			PortKey: "API_PORT",
+		}})
+		if ports["WS_PORT"] == 28080 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if len(listPorts) != 1 || listPorts[0].Key != "API_PORT" {
+		t.Fatalf("list ports = %#v", listPorts)
+	}
+	if ports["API_PORT"] != 18080 || ports["WS_PORT"] != 28080 {
+		t.Fatalf("ports = %#v", ports)
+	}
+}
+
+func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
+	originalStrings := []string{"alpha"}
+	originalRecords := []process.Record{{PID: 1234}}
+	copiedStrings := scenarioapp.CopyStrings(originalStrings)
+	copiedRecords := scenarioapp.CopyProcessRecords(originalRecords)
+	if len(scenarioapp.CopyStrings(nil)) != 0 || len(scenarioapp.CopyProcessRecords(nil)) != 0 {
+		t.Fatal("expected nil inputs to return empty slices")
+	}
+
+	copiedStrings[0] = "beta"
+	copiedRecords[0].PID = 99
+	if originalStrings[0] != "alpha" || originalRecords[0].PID != 1234 {
+		t.Fatal("expected copies to avoid mutating originals")
+	}
+}
+
+func TestCopyProcessRecordsReturnsIndependentSlice(t *testing.T) {
+	values := []process.Record{{Step: "start-api", Port: 18080}}
+	copied := scenarioapp.CopyProcessRecords(values)
+	values[0].Port = 19090
+
+	if copied[0].Port != 18080 {
+		t.Fatalf("copied = %#v", copied)
+	}
+}

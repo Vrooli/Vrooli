@@ -1,13 +1,18 @@
 # Web Console — Glossary
 
 ## Last Updated
-2026-02-19
+2026-08-18
 
 ## Core Terms
 
 | Term | Definition | Where Used |
 |------|-----------|------------|
 | **Session** | A server-side PTY process with associated metadata (shell, cols, rows, policy). Each session has exactly one PTY and zero or more WebSocket subscribers. | [CODE: api/session.go], [CODE: ui/src/hooks/useSessionManager.ts] |
+| **Archive** | The non-destructive result of closing a pane. The session row, pane identity, and conversation remain; `sessions.archived_at` records when it was archived. | [CODE: api/internal/sessionstore/store.go], [CODE: ui/src/components/ArchiveDrawer.tsx] |
+| **Reopen** | Create a replacement live session from an archived row by using the replay-safe recovery workflow and linking the old row through `recovered_into`. | [CODE: api/handlers/sessions/adapter.go] |
+| **Reopenable** | Restore state where agent identity and the exact session-owned history are present, so Reopen can resume the agent. | [CODE: api/handlers/sessions/adapter.go] |
+| **Read-only** | Restore state where the conversation is intact and searchable but agent history is unavailable, so the session cannot resume. | [CODE: api/handlers/sessions/adapter.go] |
+| **Nothing to restore** | Restore state for an archive with no resumable agent and no captured messages. | [CODE: api/handlers/sessions/adapter.go] |
 | **Pane** | A UI-side terminal viewport bound to one session. The workspace displays panes in a grid layout. | [CODE: ui/src/components/Workspace.tsx], [CODE: ui/src/components/TerminalPane.tsx] |
 | **Workspace** | The main terminal view containing one or more panes. Desktop shows 2-column layout; mobile shows 1-column. | [CODE: ui/src/components/Workspace.tsx] |
 | **PTY** | Pseudo-terminal — a kernel abstraction providing terminal I/O for a shell process. Abstracted behind the `PTY` interface for testability. | [CODE: api/pty.go] |

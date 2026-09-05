@@ -8,8 +8,9 @@
  */
 
 import { useState } from "react";
-import { renderMarkdown } from "../../lib/render-markdown";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import {
+  Clock3,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -25,6 +26,7 @@ export interface EvidencePanelProps {
   backlogKind: string;
   backlogName: string;
   isGathering: boolean;
+  isAwaitingManualReview: boolean;
   onVerify: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMore: (round: number, evidenceId?: string) => void;
 }
@@ -34,6 +36,7 @@ export function EvidencePanel({
   backlogKind,
   backlogName,
   isGathering,
+  isAwaitingManualReview,
   onVerify,
   onRequestMore,
 }: EvidencePanelProps) {
@@ -77,12 +80,17 @@ export function EvidencePanel({
               {totalCount - verifiedCount} unreviewed
             </span>
           )}
-          {isGathering && (
+          {isAwaitingManualReview ? (
+            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <Clock3 className="h-3 w-3" />
+              Awaiting manual review...
+            </span>
+          ) : isGathering ? (
             <span className="flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400">
               <Loader2 className="h-3 w-3 animate-spin" />
               Gathering evidence...
             </span>
-          )}
+          ) : null}
         </div>
         {rounds.length > 0 && (
           <button
@@ -160,13 +168,17 @@ function RoundSection({
         <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
           Round {round.round}
         </span>
-        <RoundStatusBadge status={round.status} classification={round.classification} />
+        <RoundStatusBadge
+          status={round.status}
+          classification={round.classification}
+          currentRunStatus={round.current_run_status}
+        />
         <span className="text-xs text-slate-400 dark:text-slate-500">
           {round.evidence.length} items{verifiedCount < round.evidence.length ? `, ${round.evidence.length - verifiedCount} unreviewed` : ""}
         </span>
         {/* Collapsed assessment preview */}
         {round.agent_assessment && !expanded && (
-          <span className="flex-1 truncate text-xs text-slate-400 italic" dangerouslySetInnerHTML={{ __html: renderMarkdown(round.agent_assessment) }} />
+          <MarkdownRenderer content={round.agent_assessment} className="flex-1 truncate text-xs text-slate-400 italic" />
         )}
       </button>
 
@@ -176,13 +188,14 @@ function RoundSection({
           {round.status === "failed" && round.failure_reason && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
               <div className="flex items-center gap-2">
-                <RoundStatusBadge status={round.status} classification={round.classification} />
+                <RoundStatusBadge
+                  status={round.status}
+                  classification={round.classification}
+                  currentRunStatus={round.current_run_status}
+                />
                 <span className="text-xs font-medium text-red-200">Review Failure</span>
               </div>
-              <div
-                className="mt-2 prose-sm-slate text-sm leading-relaxed text-red-100"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(round.failure_reason) }}
-              />
+              <MarkdownRenderer content={round.failure_reason} className="mt-2 prose-sm-slate text-sm leading-relaxed text-red-100" />
             </div>
           )}
 
@@ -193,16 +206,20 @@ function RoundSection({
               data-testid={selectors.evidence.agentAssessment}
             >
               <div className="flex items-center gap-2">
-                <RoundStatusBadge status={round.status} classification={round.classification} />
+                <RoundStatusBadge
+                  status={round.status}
+                  classification={round.classification}
+                  currentRunStatus={round.current_run_status}
+                />
                 <span className="text-xs font-medium text-slate-300">Agent Assessment</span>
               </div>
               {round.agent_assessment && (
-                <div className="prose-sm-slate text-sm leading-relaxed text-slate-300" dangerouslySetInnerHTML={{ __html: renderMarkdown(round.agent_assessment) }} />
+                <MarkdownRenderer content={round.agent_assessment} className="prose-sm-slate text-sm leading-relaxed text-slate-300" />
               )}
               {round.notes && round.notes.length > 0 && (
                 <ul className="space-y-1 pl-4 list-disc">
                   {round.notes.map((note, i) => (
-                    <li key={i} className="text-xs text-slate-400" dangerouslySetInnerHTML={{ __html: renderMarkdown(note) }} />
+                    <li key={i} className="text-xs text-slate-400"><MarkdownRenderer content={note} /></li>
                   ))}
                 </ul>
               )}
@@ -247,10 +264,20 @@ function RoundSection({
 function RoundStatusBadge({
   status,
   classification,
+  currentRunStatus,
 }: {
   status: string;
   classification?: string;
+  currentRunStatus?: string;
 }) {
+  if (status === "gathering" && currentRunStatus === "needs_review") {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        <Clock3 className="h-3 w-3" />
+        Awaiting review
+      </span>
+    );
+  }
   if (status === "gathering") {
     return (
       <span className="flex items-center gap-1 rounded-full bg-cyan-100 px-2 py-0.5 text-xs text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">

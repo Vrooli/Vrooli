@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:Checkbox",
+  "version": "1.0.5",
+  "resolvedAt": "2026-08-31T04:06:41.272Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.0",
+      "rank": 3
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.1",
+      "rank": 2
+    }
+  ]
+}

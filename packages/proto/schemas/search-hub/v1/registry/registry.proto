@@ -1,0 +1,413 @@
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+
+package vrooli.search_hub.v1.registry;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry;registry_v1";
+
+// =============================================================================
+// SEARCH-HUB REGISTRY DOMAIN — provider self-registration contract
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain registry
+// @stability beta
+//
+// Wire contract for RegistryService. A scenario that owns a searchable corpus
+// registers a declarative ProviderDescriptor (one indexed corpus of one type =
+// one "leaf"; a scenario that indexes several types registers N leaves). The
+// router stores these descriptors in postgres and routes purely on them — it
+// holds NO corpus content and NO vectors, and contains zero provider-specific
+// code. Adding a provider is one RegisterProvider call, never a router change.
+//
+// The descriptor's `description` is natural-language routing context. An
+// optional `routing_profile` supplies positive answer-space and intent facets
+// for semantic routing without requiring provider-specific router code. The
+// descriptor's `result_mapping` is the declarative spec
+// that maps a provider's heterogeneous response onto the unified SearchHit —
+// this is what makes "a new provider = a registry row" true.
+//
+// Endpoints are LOGICAL targets (owning scenario + path/RPC). Provider ports
+// are lifecycle-allocated and dynamic, so the router resolves the live base URL
+// at call-time via the backend cross-scenario resolver — never client-computed.
+//
+// See docs/plans/unified-search-hub-plan.md Appendix A for the full design.
+// =============================================================================
+
+// Routing facet — the search-context buckets. Each names what the *consumer*
+// does with a result, never the domain it came from, so the taxonomy stays
+// fully provider-agnostic (a bucket whose name could only come from one
+// scenario — e.g. "calendar" — would violate this and is disallowed):
+//   DO     — execute it (actions, commands, tools)
+//   REUSE  — build with it (skills, components, templates, dependency packages)
+//   KNOW   — learn from it (docs, work records, learnings)
+//   STATE  — check its current value (health scores, metrics, status)
+//   ENTITY — retrieve a specific data record (calendar events, contacts,
+//            emails, transactions, logs, messages) — the discrete "noun"
+//            instances of personal/business apps that none of the above hold.
+// Buckets are advisory categorization metadata; routing keys off `type` + the
+// classifier, so this enum is not load-bearing for fan-out.
+enum Bucket {
+  BUCKET_UNSPECIFIED = 0;
+  BUCKET_DO = 1;
+  BUCKET_REUSE = 2;
+  BUCKET_KNOW = 3;
+  BUCKET_STATE = 4;
+  BUCKET_ENTITY = 5;
+}
+
+// Whether the corpus is project-internal or an external (e.g. paid) source.
+// Carried from day one so web/papers/inventory providers register identically.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  SCOPE_PROJECT = 1;
+  SCOPE_EXTERNAL = 2;
+}
+
+// ACTIVE = a live, callable provider. CAPABILITY_GAP = a tracked stub with a
+// description + intended_home but no endpoint (the Track-A checklist).
+enum ProviderState {
+  PROVIDER_STATE_UNSPECIFIED = 0;
+  PROVIDER_STATE_ACTIVE = 1;
+  PROVIDER_STATE_CAPABILITY_GAP = 2;
+}
+
+// Lifecycle policy for automatic routing. UNSPECIFIED is intentionally
+// observable at the RPC boundary so registration cannot silently inherit a
+// fail-open production policy; descriptor migration writes explicit values.
+enum Lifecycle {
+  LIFECYCLE_UNSPECIFIED = 0;
+  LIFECYCLE_PRODUCTION = 1;
+  LIFECYCLE_FIXTURE = 2;
+  LIFECYCLE_EXPERIMENTAL = 3;
+}
+
+// The scale a provider returns scores on, so the router normalizes to [0,1].
+enum ScoreScale {
+  SCORE_SCALE_UNSPECIFIED = 0;
+  SCORE_SCALE_COSINE_0_1 = 1;
+  SCORE_SCALE_PERCENT_0_100 = 2;
+  SCORE_SCALE_RAW = 3;
+}
+
+enum HttpMethod {
+  HTTP_METHOD_UNSPECIFIED = 0;
+  HTTP_METHOD_POST = 1;
+  HTTP_METHOD_GET = 2;
+}
+
+// How the router reaches one leaf. Logical target; base URL resolved at
+// call-time. http_json covers BOTH Connect-via-JSON and plain REST (Connect
+// RPCs accept POST {service}/{method} with application/json), so the router
+// needs only an HTTP+JSON client plus a CLI fallback — no per-provider Go
+// clients.
+message Endpoint {
+  oneof kind {
+    HttpJsonEndpoint http_json = 1;
+    CliEndpoint cli = 2;
+  }
+}
+
+message HttpJsonEndpoint {
+  // Owning scenario; the cross-scenario resolver supplies the live base URL.
+  string scenario_id = 1;
+  // Path, e.g. "/search/ai" or "/cli_health.v1.search.SearchService/Search".
+  string path = 2;
+  HttpMethod method = 3;
+  // JSON body with {{query}} {{limit}} {{type}} placeholders.
+  string body_template = 4;
+  // e.g. Content-Type: application/json.
+  map<string, string> headers = 5;
+}
+
+// CLI fallback for surfaces with no HTTP endpoint. Tokens carry {{query}} /
+// {{limit}} placeholders.
+message CliEndpoint {
+  repeated string argv_template = 1;
+}
+
+// Declarative provider->unified mapping. THIS is what makes "new provider =
+// a row": the router applies these JSON-path selectors generically, with no
+// per-provider parsing code.
+message ResultMapping {
+  // JSON path to the result array, e.g. "results".
+  string results_path = 1;
+  string id_field = 2;
+  string title_field = 3;
+  string score_field = 4;
+  string snippet_field = 5;
+  // Provenance locator (file / id / command).
+  string path_field = 6;
+  ScoreScale score_scale = 7;
+  // Optional result filter for the multi-leaf-on-one-endpoint case: when one
+  // provider endpoint serves several leaves (e.g. ui-health's SearchService
+  // returns both surfaces and widgets), the leaf descriptor sets
+  // filter_field = "kind" and filter_value = "surface" so the router keeps
+  // only matching items. Empty filter_field means "no filter" (the common
+  // single-leaf case). Applied generically by the adapter — no per-provider
+  // code.
+  string filter_field = 8;
+  string filter_value = 9;
+  // Optional presence filter for the case where leaves on one endpoint are
+  // distinguished by the PRESENCE of a field rather than a field's value. The
+  // canonical case is ui-health: its SearchResult has no "surface" vs "widget"
+  // discriminator value (kind is a SurfaceKind enum with no widget member) —
+  // a widget-bearing surface is identified by a populated `widget` object. The
+  // `ui-health.widgets` leaf sets presence_field = "widget" so the adapter
+  // keeps only results where that JSON path resolves to a present (non-empty)
+  // value. Empty presence_field means "no presence filter". Like
+  // filter_field/value, this is applied generically by the adapter — no
+  // per-provider code (preserves the no-conditional-monolith invariant).
+  string presence_field = 10;
+  // Optional measure carrier path. When set, the adapter decodes the per-item
+  // object at this JSON path into SearchHit.measure (the measures provider's
+  // structured answer). The object's keys follow the fixed MeasureHit contract
+  // (measure_id, scenario, params, answer, needs, effect, executed_query,
+  // confidence). Empty means "no measure carrier" — every retrieval provider
+  // leaves it unset. Applied generically by the adapter, like the filters above
+  // (no per-provider code), so only the single registered measures provider
+  // (measures-health) populates it.
+  string measure_field = 11;
+  // Optional attestation carrier path. When set, the adapter decodes the
+  // per-item object at this JSON path into SearchHit.attestation (the provider's
+  // attested architectural answer). The object follows the fixed AttestedAnswer
+  // contract (claim, citations, basis, sufficiency, gaps, suggested_follow_ups).
+  // Empty means "no attestation carrier" — ordinary retrieval providers leave it
+  // unset. Applied generically by the adapter, like measure_field and the
+  // filters above (no per-provider code). Architectural providers (e.g.
+  // architecture-cartographer, meta-optimization-manager) set it; the
+  // conformance lint enforces that.
+  string attestation_field = 12;
+  // Optional confidence carrier path. When set, the adapter decodes the object
+  // at this JSON path into SearchHit.confidence (keys: weak, regime). Providers
+  // that still expose bare fields can instead set weak_field/regime_field below.
+  string confidence_field = 13;
+  // Optional repeated-string locations path. These are transported to
+  // SearchHit.locations and the first location becomes SearchHit.path when
+  // path_field is empty or maps to no value.
+  string locations_field = 14;
+  // Compatibility mapping for providers that emit a top-level weak bool.
+  string weak_field = 15;
+  // Compatibility mapping for providers that emit a top-level regime string.
+  string regime_field = 16;
+}
+
+// Per-leg score floor (query-time). A value of 0 means "use the regime
+// default" — the floor is not disabled, it falls back to aisearch-go's
+// regime-aware floor calibration. Carried so the sweep can write a
+// measured override back into search.json without touching code.
+message FloorConfig {
+  double max_gap = 1;
+  double hard_floor = 2;
+}
+
+// The tuning factors the sweep optimizes and writes back. This is the wire
+// carrier for the `tuning` block of a scenario's .vrooli/search.json; the
+// authoritative taxonomy (legal values, defaults, cost tier) lives in
+// packages/aisearch-go's Factor table, NOT here — this message only transports
+// the chosen values. Each factor is tagged INDEX-TIME (changing it requires a
+// reindex) or QUERY-TIME (applicable per request, no reindex) so the sweep and
+// the override channel (routing.SearchOverrides) know which tier a factor
+// belongs to.
+message Tuning {
+  // INDEX-TIME: "dense" | "hybrid" — the structural engine choice. Data-driven
+  // here so dense-vs-hybrid stops being a Go code literal.
+  string engine = 1;
+  // INDEX-TIME: embedding model id, e.g. "nomic-embed-text".
+  string embed_model = 2;
+  // INDEX-TIME: emit nomic search_query:/search_document: task prefixes.
+  bool embed_task_prefix = 3;
+  // QUERY-TIME: run the cross-encoder/LLM rerank leg.
+  bool rerank_enabled = 4;
+  // QUERY-TIME: blend rerank with RRF rather than pure cross-encoder reorder.
+  bool rerank_blend = 5;
+  // QUERY-TIME: rerank candidate shortlist depth (0 = package default).
+  int32 rerank_shortlist = 6;
+  // QUERY-TIME: per-leg score floor overrides (0 fields = regime default).
+  FloorConfig floor = 7;
+  // QUERY-TIME: dense+sparse Qdrant fusion strategy ("rrf" or "dbsf").
+  string hybrid_fusion = 8;
+  // QUERY-TIME: whether the cross-encoder may fall back to the LLM leg.
+  string rerank_preference = 9;
+}
+
+// Declarative, provider-agnostic routing facets. Positive fields are semantic
+// evidence; exclusions are retained for lexical/policy diagnostics and are
+// never embedded as positive route text.
+message RoutingProfile {
+  repeated string answer_spaces = 1;
+  repeated string intents = 2;
+  repeated string positive_examples = 3;
+  repeated string exclusions = 4;
+}
+
+// The unit of registration: one (corpus, type) leaf.
+message ProviderDescriptor {
+  // Unique leaf id, e.g. "cli-health.commands".
+  string provider_id = 1;
+  // Owning scenario (the provider group), e.g. "cli-health".
+  string provider_group = 2;
+  Bucket bucket = 3;
+  // The --type token, e.g. "command", "doc", "record".
+  string type = 4;
+  // Natural-language description of what this corpus holds. The router uses
+  // it as fallback routing context when routing_profile is absent.
+  string description = 5;
+  Endpoint endpoint = 6;
+  ResultMapping result_mapping = 7;
+  // Optional advisory the provider wants applied (HyDE / instruction-prefix);
+  // the transform still executes provider-side.
+  string query_hint = 8;
+  // Optional freshness probe the router aggregates into status.
+  Endpoint status_endpoint = 9;
+  Scope scope = 10;
+  ProviderState state = 11;
+  // For CAPABILITY_GAP stubs: the planned home scenario (from
+  // docs/reference/ai-search-routing.md).
+  string intended_home = 12;
+  // Secured control-plane targets (search-hub.v1.control.SearchControlService).
+  // reindex_endpoint triggers/poll/cancels an async corpus reconcile;
+  // config_endpoint writes a new `tuning` block back into the provider's
+  // search.json. Both are token-gated (see the control token below). A provider
+  // that exposes neither leaves these unset — it is then routable + evaluable
+  // but not sweep-tunable. Logical targets; base URL resolved at call-time.
+  Endpoint reindex_endpoint = 13;
+  Endpoint config_endpoint = 14;
+  // The provider's current tuning factors (the search.json `tuning` block). The
+  // sweep reads this as the incumbent and writes the winner back via
+  // config_endpoint. Absent for providers that declare no tuning (they run on
+  // aisearch-go defaults).
+  Tuning tuning = 15;
+  // production participates in automatic routing; fixture and experimental
+  // providers require an explicit selector. UNSPECIFIED is rejected at
+  // registration and is only valid while decoding legacy persisted data.
+  Lifecycle lifecycle = 16;
+  // Registrant-declared minimum reviewed evidence for ACTIVE production leaves.
+  EvalMinimum tests_minimum = 17;
+  // Explicit owner rationale for opting out of automatic junk-leak withholding.
+  // Empty means the provider is subject to the gate.
+  string junk_leak_opt_out_reason = 18;
+  // Declared JSON field carrying the provider's last index build timestamp.
+  // Search Hub reads this field as the primary freshness contract; the legacy
+  // key sniffer remains only as a compatibility fallback with a warning.
+  string index_timestamp_field = 19;
+  // RFC3339 timestamp first registered/declared by the owning scenario. Used
+  // to make experimental providers age-visible without scenario knowledge.
+  string declared_at = 20;
+  // Maximum acceptable age of the provider's indexed corpus for automatic
+  // routing. A zero value uses Search Hub's conservative default.
+  google.protobuf.Duration freshness_budget = 21;
+  // Optional structured routing facets. Providers without this profile use
+  // their description as the semantic representation.
+  RoutingProfile routing_profile = 22;
+}
+
+message EvalMinimum {
+  int32 reviewed_positive = 1;
+  int32 negative = 2;
+  repeated string required_tags = 3;
+}
+
+message IncubatingProvider {
+  string provider_id = 1;
+  string declared_at = 2;
+  int64 times_routed = 3;
+  int64 total_hits = 4;
+  bool suite_present = 5;
+  string next_action = 6;
+}
+
+service RegistryService {
+  rpc RegisterProvider(RegisterProviderRequest) returns (RegisterProviderResponse);
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  // Execute an authenticated provider-owned embedding migration action through
+  // the descriptor's declared reindex endpoint. Search Hub retains the control
+  // token; operator CLIs never receive it.
+  rpc ExecuteEmbeddingMigration(ExecuteEmbeddingMigrationRequest) returns (ExecuteEmbeddingMigrationResponse);
+  // ListMaturityTargets returns the descriptor/capability target set used by
+  // Search Hub's maturity scan. It is intentionally separate from provider
+  // registration: a scenario can be a scan target before it owns a registered
+  // provider leaf.
+  rpc ListMaturityTargets(ListMaturityTargetsRequest) returns (ListMaturityTargetsResponse);
+  rpc DeregisterProvider(DeregisterProviderRequest) returns (DeregisterProviderResponse);
+}
+
+message RegisterProviderRequest {
+  ProviderDescriptor descriptor = 1;
+  // Ownership proof on re-registration: a provider caches the control_token it
+  // received on first registration and echoes it here so a different actor
+  // cannot hijack an existing provider_id by re-registering it with a new
+  // endpoint. Empty on first registration (the leaf does not yet exist).
+  string control_token = 2;
+}
+
+// Registration is an upsert; `created` is false when an existing leaf was
+// updated.
+message RegisterProviderResponse {
+  ProviderDescriptor descriptor = 1;
+  bool created = 2;
+  // The control token for this leaf — minted by search-hub on first
+  // registration and echoed on every subsequent upsert so the provider always
+  // re-acquires it after a restart/cache loss. The provider must present this
+  // token on routing overrides (routing.QueryRequest.control_token) and on the
+  // secured control-plane RPCs (reindex / config-write). Opaque; stored
+  // server-side per provider.
+  string control_token = 3;
+}
+
+// All filters optional; an UNSPECIFIED enum or empty string means "no filter".
+message ListProvidersRequest {
+  Bucket bucket = 1;
+  string type = 2;
+  ProviderState state = 3;
+}
+
+message ListProvidersResponse {
+  repeated ProviderDescriptor providers = 1;
+  repeated IncubatingProvider incubating = 2;
+}
+
+message ExecuteEmbeddingMigrationRequest {
+  string provider_id = 1;
+  string action = 2;
+  string shadow_collection = 3;
+  string rollback_collection = 4;
+  string embedding_model = 5;
+  string embedding_role = 6;
+  int32 embedding_dimensions = 7;
+  string embedding_policy_schema_version = 8;
+  string scope = 9;
+  bool dry_run = 10;
+  string job_id = 11;
+}
+
+message ExecuteEmbeddingMigrationResponse {
+  string job_id = 1;
+  string state = 2;
+  int32 planned_upserts = 3;
+  int32 planned_deletes = 4;
+  int32 processed = 5;
+  int32 total = 6;
+  string error = 7;
+}
+
+message ListMaturityTargetsRequest {}
+
+message ListMaturityTargetsResponse {
+  repeated MaturityTarget targets = 1;
+}
+
+message MaturityTarget {
+  string scenario = 1;
+  string path = 2;
+  string applicability_reason = 3;
+}
+
+message DeregisterProviderRequest {
+  string provider_id = 1;
+}
+
+message DeregisterProviderResponse {
+  bool removed = 1;
+}

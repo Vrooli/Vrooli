@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/delivery"
+
 	"github.com/gorilla/mux"
 )
 
@@ -169,7 +171,6 @@ func TestBuildElectronManifest(t *testing.T) {
 
 func TestHandleUpdateFile_MissingAppKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	hosting := NewDownloadHostingService(db)
@@ -192,7 +193,6 @@ func TestHandleUpdateFile_MissingAppKey(t *testing.T) {
 
 func TestHandleUpdateFile_AppNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	hosting := NewDownloadHostingService(db)
@@ -222,7 +222,6 @@ func TestHandleUpdateFile_AppNotFound(t *testing.T) {
 
 func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -230,7 +229,7 @@ func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 	plans := newTestPlanService(t, "test_bundle")
 
 	// Create an app with an update_api_key
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey:    "test_bundle",
 		AppKey:       "gated-app",
 		Name:         "Gated App",
@@ -285,7 +284,6 @@ func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 
 func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -293,7 +291,7 @@ func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 	plans := newTestPlanService(t, "test_bundle")
 
 	// Create an app without update_api_key (public)
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: "test_bundle",
 		AppKey:    "public-app",
 		Name:      "Public App",
@@ -554,17 +552,17 @@ func TestRequireUpdateAPIKeyMiddleware_Mock(t *testing.T) {
 // --- Channel discovery tests ---
 
 type mockChannelDiscoveryLookup struct {
-	ListChannelsFn func(bundleKey, appKey string) ([]ChannelInfo, error)
+	ListChannelsFn func(bundleKey, appKey string) ([]delivery.ChannelInfo, error)
 }
 
-func (m *mockChannelDiscoveryLookup) ListChannels(bundleKey, appKey string) ([]ChannelInfo, error) {
+func (m *mockChannelDiscoveryLookup) ListChannels(bundleKey, appKey string) ([]delivery.ChannelInfo, error) {
 	return m.ListChannelsFn(bundleKey, appKey)
 }
 
 func TestHandleChannelDiscovery(t *testing.T) {
 	channelsMock := &mockChannelDiscoveryLookup{
-		ListChannelsFn: func(_, _ string) ([]ChannelInfo, error) {
-			return []ChannelInfo{
+		ListChannelsFn: func(_, _ string) ([]delivery.ChannelInfo, error) {
+			return []delivery.ChannelInfo{
 				{Channel: "stable", Platform: "windows", Version: "1.0.0", UpdatedAt: "2026-01-01T00:00:00Z"},
 				{Channel: "beta", Platform: "windows", Version: "1.1.0-beta", UpdatedAt: "2026-01-02T00:00:00Z"},
 			}, nil
@@ -583,7 +581,7 @@ func TestHandleChannelDiscovery(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var result []ChannelInfo
+	var result []delivery.ChannelInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -596,13 +594,12 @@ func TestHandleChannelDiscovery(t *testing.T) {
 
 func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: "test_bundle",
 		AppKey:    "policy-app",
 		Name:      "Policy App",
@@ -666,13 +663,12 @@ func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 
 func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: plans.BundleKey(),
 		AppKey:    "variant-app",
 		Name:      "Variant App",
@@ -731,13 +727,12 @@ func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 
 func TestListChannels_Integration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: plans.BundleKey(),
 		AppKey:    "channels-app",
 		Name:      "Channels App",

@@ -1,0 +1,108 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-006",
+      "title": "Findings Management CLI Commands",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "cli",
+      "description": "Expose CLI commands covering the full findings lifecycle: (1) list/browse — paginated list with filter by status/brief/query; (2) add — manually add a finding with claim, citations, and confidence; (3) edit — update claim, confidence, or citations on an existing active finding; (4) supersede — mark a finding as superseded, require a replacement finding ID or reason, archive the original row; (5) flag — mark a finding as disputed with a reason string; (6) prune — remove findings matching a filter (dry-run mode required); destructive execution refuses without an explicit --force flag (no interactive confirmation prompt — prompts would conflict with programmatic agent invocation). All commands must be usable by both human operators via terminal and programmatically by the L3 agent as tool invocations.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestListStatusActiveFiltersToActiveOnly",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings list` with --status=active returns only active findings"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestListStatusSupersededFiltersToSupersededOnly",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings list` with --status=superseded returns only superseded findings"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestAddWithClaimAndCitationCreatesActiveFinding",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings add` with valid claim and at least one citation creates a new finding with status=active"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestAddMissingClaimReturnsValidationError",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings add` missing required claim field returns a validation error with descriptive message"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/findings/sqlite_test.go::TestEditSupersededRejected",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings edit` on a superseded finding returns an error (cannot edit archived findings) [guard implemented at the repository seam (every caller path — CLI, RPC, agent — inherits it): Edit rejects status=superseded with a validation error, preserving the archived row]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/findings/sqlite_test.go::TestSupersedeNeverDeletes",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings supersede` transitions finding status from active to superseded and writes audit record with reason"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/findings/sqlite_test.go::TestFlagSetsDisputed",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings flag` transitions finding status from active to disputed and records the dispute reason"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestPruneDryRunReportsCountWithoutMutating",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings prune --dry-run` outputs matched findings count without mutating the database"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestPruneWithoutForceRefuses",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`findings prune` without --dry-run refuses to execute deletions unless the explicit --force flag is passed; the refusal names --force and issues no RPC [criterion amended 2026-06-10 from 'confirmation prompt': an interactive prompt conflicts with the sibling criterion that all commands run programmatically by the L3 agent without prompts — an explicit flag is the destructive gate that satisfies both]"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/l3_test.go::TestReconcileConfidenceGate",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "L3 agent invokes `findings supersede` as a tool call and the finding status transitions correctly in the live database"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestListMixedStatusStoreFiltersCorrectly",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI `findings list` executed against a database with mixed-status findings returns correctly filtered results"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestOperatorManagesFindingsLifecycleEndToEnd",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "A human operator can fully manage the findings lifecycle (add, review, correct, supersede, flag) without direct database access"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/findings/handlers_test.go::TestManagementCommandsRunProgrammaticallyWithoutPrompts",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The L3 agent can invoke all findings management commands as tools without requiring human intervention for routine curation"
+        }
+      ]
+    }
+  ]
+}

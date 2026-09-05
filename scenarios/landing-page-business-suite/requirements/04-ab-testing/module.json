@@ -1,128 +1,110 @@
 {
-  "module_id": "ab-testing",
-  "title": "A/B Testing Core",
-  "priority": "P0",
-  "description": "Whole-page A/B variant selection, management, and archival",
+  "_metadata": {
+    "last_validated_at": "2026-08-27T15:05:18-04:00"
+  },
   "requirements": [
     {
       "id": "AB-FALLBACK",
       "title": "Baked fallback variant",
+      "status": "in_progress",
       "prd_ref": "OT-P0-031",
       "description": "Ship a static fallback variant (hero/features/pricing/cta/download copy) that the UI renders whenever variant selection or section fetches fail, ensuring visitors always see a safe configuration even if the API is unavailable.",
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Provider unit tests cover fallback activation when the landing config fetch errors or the slug is invalid."
         },
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "api/landing_config_service_test.go",
+          "phase": "unit",
+          "status": "failing",
           "notes": "LandingConfigService test verifies that missing variants trigger the baked fallback response."
         }
-      ],
-      "status": "complete",
-      "notes": "Spec: Template PRD `OT-P0-031` (landing config + fallback). Frontend fallback coverage via LandingVariantProvider tests and backend guard via landing_config_service."
+      ]
     },
     {
       "id": "AB-URL",
       "title": "URL variant selection",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "description": "If variant_slug in URL, force that variant regardless of localStorage",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Frontend variant context fetches variant by slug from URL parameter. Tests verify URL takes priority over localStorage.",
-          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx"
+          "status": "failing",
+          "notes": "Frontend variant context fetches variant by slug from URL parameter. Tests verify URL takes priority over localStorage."
         }
-      ],
-      "status": "complete",
-      "notes": "Complete implementation: API endpoint GET /api/v1/variants/{slug} + frontend VariantContext with URL parsing. 7 unit tests passing."
+      ]
     },
     {
       "id": "AB-STORAGE",
       "title": "localStorage persistence",
+      "status": "in_progress",
       "prd_ref": "OT-P0-015",
       "description": "If no URL slug and localStorage has variant ID, reuse that variant",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Frontend VariantContext retrieves and stores variant in localStorage. Tests verify persistence across page reloads.",
-          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx"
+          "status": "failing",
+          "notes": "Frontend VariantContext retrieves and stores variant in localStorage. Tests verify persistence across page reloads."
         }
-      ],
-      "status": "complete",
-      "dependencies": [
-        "AB-URL"
-      ],
-      "notes": "Complete implementation: VariantContext manages localStorage persistence with VARIANT_STORAGE_KEY. Unit tests validate storage/retrieval logic."
+      ]
     },
     {
       "id": "AB-API",
       "title": "API weight-based selection",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "description": "If neither URL nor localStorage, API selects variant by weight and frontend stores it in localStorage",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Frontend VariantContext calls /api/v1/variants/select and stores result in localStorage. Tests verify selection and storage.",
-          "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx"
+          "status": "failing",
+          "notes": "Frontend VariantContext calls /api/v1/variants/select and stores result in localStorage. Tests verify selection and storage."
         }
-      ],
-      "status": "complete",
-      "dependencies": [
-        "AB-URL",
-        "AB-STORAGE"
-      ],
-      "notes": "Complete end-to-end implementation: Backend weighted selection API + frontend integration with localStorage persistence. 10 total unit tests passing (7 frontend + 3 backend)."
+      ]
     },
     {
       "id": "AB-CRUD",
       "title": "Variant CRUD operations",
+      "status": "in_progress",
       "prd_ref": "OT-P0-017",
       "description": "Admin can create, update weights, disable/archive, and hard delete variants (with confirmation)",
       "validation": [
         {
           "type": "test",
+          "ref": "api/variant_handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "All CRUD API endpoints implemented: GET /variants, POST /variants, PATCH /variants/{slug}, DELETE /variants/{slug}",
-          "ref": "api/variant_handlers_test.go"
+          "status": "failing",
+          "notes": "All CRUD API endpoints implemented: GET /variants, POST /variants, PATCH /variants/{slug}, DELETE /variants/{slug}"
         }
-      ],
-      "status": "complete",
-      "notes": "Backend CRUD complete. Admin UI for variant management needs implementation."
+      ]
     },
     {
       "id": "AB-ARCHIVE",
       "title": "Archived variant handling",
+      "status": "in_progress",
       "prd_ref": "OT-P0-018",
       "description": "Archived variants remain queryable for analytics but ineligible for random selection",
       "validation": [
         {
           "type": "test",
+          "ref": "api/variant_handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Archive endpoint POST /variants/{slug}/archive implemented. SelectVariant excludes archived status.",
-          "ref": "api/variant_handlers_test.go"
+          "status": "failing",
+          "notes": "Archive endpoint POST /variants/{slug}/archive implemented. SelectVariant excludes archived status."
         }
-      ],
-      "status": "complete",
-      "dependencies": [
-        "AB-CRUD"
-      ],
-      "notes": "Database schema has status column (active, archived, deleted). API filters archived variants from random selection. SelectVariant only returns active variants."
+      ]
     }
-  ],
-  "_metadata": {}
+  ]
 }

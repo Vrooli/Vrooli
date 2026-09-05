@@ -1,0 +1,711 @@
+// Package scenes renders finished procedural backdrops.
+//
+// It is deliberately separate from internal/scaffold, and the distinction is
+// the point. A *scaffold* is conditioning input for a model: flat, blocky
+// geometry whose only job is to tell a depth or edge preprocessor where the
+// horizon, the focal mass and the copy-safe void sit. Crude is correct there.
+// A *scene* is finished output that a treatment chain runs over and a visitor
+// actually looks at, so it needs coherent noise, a light model, atmospheric
+// depth and — critically — a full tonal range, because every ink-mapping
+// treatment downstream distributes its inks across the tones this produces.
+//
+// Before this package existed the scaffold generators served both roles, so the
+// procedural lane shipped conditioning geometry as its product.
+//
+// Every scene is a pure function of (preset, size, seed, params): no clocks, no
+// global RNG, no I/O.
+package scenes
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"math"
+	"sort"
+)
+
+// Presets are the scene generators this package can render.
+//
+// The first four are the legacy set: they depict things. The rest are field
+// generators — most depict nothing, which is what they are good at, and between
+// them they cover the abstract half of the taxonomy without the procedural lane
+// ever having to pretend it can draw a building. `contour` and `nebula` are the
+// exceptions: they depict a map and a sky respectively, and they claim those
+// subjects rather than hiding under the abstract one.
+//
+// See docs/reference/taxonomy.md for which subject reaches which generator, and
+// subjects.go for the rule that a style may only use a generator that depicts
+// what the style says it depicts.
+var Presets = []string{
+	"horizon", "arcade", "terrain", "field",
+	"flow", "voronoi", "reaction", "caustics",
+	"mesh", "contour", "truchet", "attractor", "nebula",
+}
+
+// Request describes one scene render.
+// QuietZone is an area a generator composes around so overlay copy has ground.
+//
+// It is not a scrim and not a post-process. Measured through a really running
+// engine on 2026-08-13, twenty-two of twenty-four styles score near 1.00
+// worst-pixel contrast inside their own declared copy region, and the two that
+// pass do so for one reason: nothing is drawn there. `survey-relief` scores 8.00
+// because its contour plate leaves the upper left empty, so the area is pure
+// paper.
+//
+// The mechanism matters and is specific. A pictorial backdrop has light and dark
+// pixels nearly everywhere, so worst-pixel contrast is low wherever the picture
+// is. Flattening the zone to a MID tone does not help: a screen applied
+// afterwards turns a flat mid tone into a regular dot pattern, and the worst
+// pixel is still an ink dot. The zone has to sit at the EXTREME of the tonal
+// ramp — light enough that a screen deposits no ink, or dark enough that it
+// deposits solid — so that after screening the area is one colour.
+//
+// That is why this lives in the generator rather than in a treatment: it has to
+// happen before the screen, in the tone the screen reads.
+type QuietZone struct {
+	X, Y, Width, Height float64
+	// TowardLight pushes the zone to the light end of the ramp, which suits
+	// dark copy. False pushes it dark, for light copy.
+	TowardLight bool
+	// Feather is how far the lift eases out, as a fraction of the short edge.
+	// Zero takes a default: a hard edge reads as a box, and a reader sees the
+	// box before the headline.
+	Feather float64
+}
+
+type Request struct {
+	Preset     string
+	Width      int
+	Height     int
+	Seed       int64
+	ParamsJSON string
+	// Quiet, when set, is an area the scene composes around so overlay copy has
+	// ground. Nil leaves the picture exactly as the generator drew it.
+	Quiet *QuietZone
+}
+
+// Result carries the encoded scene and its content hash.
+type Result struct {
+	PNG    []byte
+	SHA256 string
+	Width  int
+	Height int
+	// Planes names the depth layers the generator drew, back to front. A
+	// generator that names none draws one implicit layer carrying the whole
+	// picture, so this is never empty.
+	Planes []string
+	// PlaneImages carries one transparent-backed PNG per plane, in the same
+	// order as Planes.
+	//
+	// The alpha is exact: each plane received the same writes the flat buffer
+	// did, source-over onto transparency, so a plane is the generator's own
+	// layer rather than a matte estimated from a finished picture. Flattening
+	// them normal-over-normal reproduces PNG.
+	PlaneImages [][]byte
+}
+
+// Render produces a finished procedural scene.
+func Render(req Request) (Result, error) {
+	if req.Width < 16 || req.Height < 16 {
+		return Result{}, fmt.Errorf("scenes: width and height must be at least 16 (got %dx%d)", req.Width, req.Height)
+	}
+	if req.Width > 8192 || req.Height > 8192 {
+		return Result{}, fmt.Errorf("scenes: width and height must be at most 8192 (got %dx%d)", req.Width, req.Height)
+	}
+	known := false
+	for _, p := range Presets {
+		if p == req.Preset {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return Result{}, fmt.Errorf("scenes: unknown preset %q (known: %v)", req.Preset, Presets)
+	}
+
+	params := map[string]float64{}
+	if req.ParamsJSON != "" {
+		if err := json.Unmarshal([]byte(req.ParamsJSON), &params); err != nil {
+			return Result{}, fmt.Errorf("scenes: invalid params_json: %w", err)
+		}
+	}
+	p := paramSet{values: params}
+	c := &canvas{img: image.NewNRGBA(image.Rect(0, 0, req.Width, req.Height)), w: req.Width, h: req.Height}
+
+	switch req.Preset {
+	case "horizon":
+		drawHorizon(c, p, req.Seed)
+	case "arcade":
+		drawArcade(c, p, req.Seed)
+	case "terrain":
+		drawTerrain(c, p, req.Seed)
+	case "field":
+		drawField(c, p, req.Seed)
+	case "flow":
+		drawFlowField(c, p, req.Seed)
+	case "voronoi":
+		drawVoronoi(c, p, req.Seed)
+	case "reaction":
+		drawReactionDiffusion(c, p, req.Seed)
+	case "caustics":
+		drawCaustics(c, p, req.Seed)
+	case "mesh":
+		drawMeshGradient(c, p, req.Seed)
+	case "contour":
+		drawContour(c, p, req.Seed)
+	case "truchet":
+		drawTruchet(c, p, req.Seed)
+	case "attractor":
+		drawAttractor(c, p, req.Seed)
+	case "nebula":
+		drawNebula(c, p, req.Seed)
+	}
+
+	if req.Quiet != nil {
+		c.quiet(*req.Quiet)
+	}
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, c.img); err != nil {
+		return Result{}, fmt.Errorf("scenes: encode PNG: %w", err)
+	}
+	planes := make([][]byte, 0, len(c.planes))
+	for _, img := range c.planeImages() {
+		var planeBuf bytes.Buffer
+		if err := png.Encode(&planeBuf, img); err != nil {
+			return Result{}, fmt.Errorf("scenes: encode plane PNG: %w", err)
+		}
+		planes = append(planes, planeBuf.Bytes())
+	}
+	sum := sha256.Sum256(buf.Bytes())
+	return Result{
+		PNG: buf.Bytes(), SHA256: hex.EncodeToString(sum[:]), Width: req.Width, Height: req.Height,
+		Planes: c.planeNames(), PlaneImages: planes,
+	}, nil
+}
+
+// paramSet reads optional scene parameters. Absence is distinguished from zero:
+// scaffold.clamp treated 0 as "unset" and substituted a fallback, which made a
+// legitimate edge value such as focal_x=0 unreachable.
+type paramSet struct{ values map[string]float64 }
+
+func (p paramSet) get(key string, min, max, fallback float64) float64 {
+	v, ok := p.values[key]
+	if !ok {
+		return fallback
+	}
+	return math.Min(max, math.Max(min, v))
+}
+
+// ── canvas ───────────────────────────────────────────────────────────────
+
+// canvas accumulates a scene, and records each write into the depth plane the
+// generator is currently drawing.
+//
+// The flat buffer is written exactly as it was before planes existed, so a
+// generator's composite output is byte-identical by construction rather than by
+// assertion. Each plane additionally receives the same write source-over onto
+// transparency, which makes the planes compose back to the flat buffer exactly:
+// alpha compositing is associative, so N successive blends into one buffer and
+// N source-over accumulations flattened afterwards produce the same colour.
+//
+// The important consequence is that `at` still reads the ACCUMULATED scene.
+// Generators rely on that — atmospheric perspective is drawn by blending a
+// haze over whatever is already behind it — and a plane-local read would give
+// them transparency where they expect the sky.
+type canvas struct {
+	img  *image.NRGBA
+	w, h int
+
+	planes  []*scenePlane
+	current *scenePlane
+}
+
+// scenePlane is one depth layer of a raster scene.
+type scenePlane struct {
+	name  string
+	depth int
+	img   *image.NRGBA
+}
+
+// plane opens a depth layer and makes it the target of subsequent draws.
+// depth 0 is furthest from the viewer. A generator that never calls it draws
+// into a single implicit plane carrying the whole picture, which is what every
+// generator did before planes existed.
+func (c *canvas) plane(name string, depth int) {
+	for _, existing := range c.planes {
+		if existing.name == name {
+			c.current = existing
+			return
+		}
+	}
+	p := &scenePlane{name: name, depth: depth, img: image.NewNRGBA(image.Rect(0, 0, c.w, c.h))}
+	c.planes = append(c.planes, p)
+	c.current = p
+}
+
+// planeNames returns the declared planes in depth order.
+func (c *canvas) planeNames() []string {
+	ordered := append([]*scenePlane(nil), c.planes...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].depth < ordered[j].depth })
+	out := make([]string, 0, len(ordered))
+	for _, p := range ordered {
+		out = append(out, p.name)
+	}
+	return out
+}
+
+// planeImages returns one transparent-backed image per declared plane, in the
+// same order as planeNames.
+func (c *canvas) planeImages() []*image.NRGBA {
+	ordered := append([]*scenePlane(nil), c.planes...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].depth < ordered[j].depth })
+	out := make([]*image.NRGBA, 0, len(ordered))
+	for _, p := range ordered {
+		out = append(out, p.img)
+	}
+	return out
+}
+
+// record writes into the current plane, source-over onto transparency.
+//
+// The implicit plane is created on the first write rather than up front, so a
+// generator that names its own layers gets exactly those. Creating it eagerly
+// left every named generator with a leading empty "scene" plane, which the
+// stack would have carried as a layer drawing nothing.
+func (c *canvas) record(x, y int, r, g, b, a float64) {
+	if a <= 0 {
+		return
+	}
+	if c.current == nil {
+		c.plane("scene", 0)
+	}
+	if a > 1 {
+		a = 1
+	}
+	dst := c.current.img.NRGBAAt(x, y)
+	da := float64(dst.A) / 255
+	outA := a + da*(1-a)
+	if outA <= 0 {
+		return
+	}
+	mix := func(src, existing float64) uint8 {
+		return clamp8((src*a + existing*da*(1-a)) / outA)
+	}
+	c.current.img.SetNRGBA(x, y, color.NRGBA{
+		R: mix(r, float64(dst.R)), G: mix(g, float64(dst.G)), B: mix(b, float64(dst.B)),
+		A: clamp8(outA * 255),
+	})
+}
+
+func clamp8(v float64) uint8 {
+	if v <= 0 {
+		return 0
+	}
+	if v >= 255 {
+		return 255
+	}
+	return uint8(v + 0.5)
+}
+
+func (c *canvas) set(x, y int, r, g, b float64) {
+	if x < 0 || y < 0 || x >= c.w || y >= c.h {
+		return
+	}
+	c.img.SetNRGBA(x, y, color.NRGBA{R: clamp8(r), G: clamp8(g), B: clamp8(b), A: 255})
+	c.record(x, y, r, g, b, 1)
+}
+
+func (c *canvas) at(x, y int) (float64, float64, float64) {
+	if x < 0 || y < 0 || x >= c.w || y >= c.h {
+		return 0, 0, 0
+	}
+	n := c.img.NRGBAAt(x, y)
+	return float64(n.R), float64(n.G), float64(n.B)
+}
+
+// blend composites a colour over the existing pixel at the given coverage.
+func (c *canvas) blend(x, y int, r, g, b, a float64) {
+	if a <= 0 {
+		return
+	}
+	if a > 1 {
+		a = 1
+	}
+	if x < 0 || y < 0 || x >= c.w || y >= c.h {
+		return
+	}
+	or, og, ob := c.at(x, y)
+	// The flat buffer takes the blended result, exactly as before. The plane
+	// takes the SOURCE colour at its own coverage, which is what makes the
+	// planes flatten back to this buffer rather than to a darker copy of it.
+	c.img.SetNRGBA(x, y, color.NRGBA{
+		R: clamp8(or + (r-or)*a), G: clamp8(og + (g-og)*a), B: clamp8(ob + (b-ob)*a), A: 255,
+	})
+	c.record(x, y, r, g, b, a)
+}
+
+// ── coherent noise ───────────────────────────────────────────────────────
+//
+// The scaffold generators drew their randomness from a per-pixel xorshift,
+// which is white noise: adjacent pixels are uncorrelated, so it can only ever
+// produce speckle. Terrain ridges, foliage masses and cloud structure all need
+// *coherent* noise, where nearby samples are related.
+
+func hash2(ix, iy int, seed int64) float64 {
+	h := uint64(seed)*0x9e3779b97f4a7c15 ^ uint64(int64(ix))*0xbf58476d1ce4e5b9 ^ uint64(int64(iy))*0x94d049bb133111eb
+	h ^= h >> 30
+	h *= 0xbf58476d1ce4e5b9
+	h ^= h >> 27
+	h *= 0x94d049bb133111eb
+	h ^= h >> 31
+	return float64(h>>11) / float64(uint64(1)<<53)
+}
+
+func smoothstep(t float64) float64 { return t * t * (3 - 2*t) }
+
+// valueNoise samples a smoothly interpolated 2-D lattice.
+func valueNoise(x, y float64, seed int64) float64 {
+	ix, iy := math.Floor(x), math.Floor(y)
+	fx, fy := smoothstep(x-ix), smoothstep(y-iy)
+	i, j := int(ix), int(iy)
+	a := hash2(i, j, seed)
+	b := hash2(i+1, j, seed)
+	cc := hash2(i, j+1, seed)
+	d := hash2(i+1, j+1, seed)
+	return (a+(b-a)*fx)*(1-fy) + (cc+(d-cc)*fx)*fy
+}
+
+// fbm sums octaves of value noise.
+func fbm(x, y float64, octaves int, seed int64) float64 {
+	sum, amp, freq, norm := 0.0, 0.5, 1.0, 0.0
+	for i := 0; i < octaves; i++ {
+		sum += amp * valueNoise(x*freq, y*freq, seed+int64(i)*7919)
+		norm += amp
+		freq *= 2
+		amp *= 0.5
+	}
+	return sum / norm
+}
+
+// ridged inverts and sharpens fbm into mountain-like crests.
+func ridged(x, y float64, octaves int, seed int64) float64 {
+	v := 1 - math.Abs(fbm(x, y, octaves, seed)*2-1)
+	return v * v
+}
+
+// ── shared elements ──────────────────────────────────────────────────────
+
+// sky paints a vertical gradient with a sun glow, brightening toward the
+// horizon. The glow is what gives every downstream ink ramp a genuine white
+// point to map to.
+func (c *canvas) sky(horizonY, sunX, sunY, sunR float64, top, bottom [3]float64, warm [3]float64) {
+	for y := 0; y < int(horizonY)+1 && y < c.h; y++ {
+		t := float64(y) / math.Max(1, horizonY)
+		t = math.Pow(t, 1.4)
+		r := top[0] + (bottom[0]-top[0])*t
+		g := top[1] + (bottom[1]-top[1])*t
+		b := top[2] + (bottom[2]-top[2])*t
+		for x := 0; x < c.w; x++ {
+			d := math.Hypot(float64(x)-sunX, float64(y)-sunY)
+			glow := math.Exp(-d / (sunR * 3.2))
+			c.set(x, y, r+(warm[0]-r)*glow, g+(warm[1]-g)*glow, b+(warm[2]-b)*glow)
+		}
+	}
+	// the disc itself — the scene's white point
+	for y := int(sunY - sunR - 2); y <= int(sunY+sunR+2); y++ {
+		for x := int(sunX - sunR - 2); x <= int(sunX+sunR+2); x++ {
+			d := math.Hypot(float64(x)-sunX, float64(y)-sunY)
+			if d <= sunR {
+				c.set(x, y, 255, 252, 244)
+			} else if d <= sunR+2 {
+				c.blend(x, y, 255, 252, 244, 1-(d-sunR)/2)
+			}
+		}
+	}
+}
+
+// ── scenes ───────────────────────────────────────────────────────────────
+
+func drawHorizon(c *canvas, p paramSet, seed int64) {
+	fw, fh := float64(c.w), float64(c.h)
+	horizon := p.get("horizon", 0.2, 0.85, 0.58) * fh
+	focal := p.get("focal_x", 0, 1, 0.74)
+	sunX, sunY := focal*fw, horizon*0.36
+	sunR := fh * 0.085
+
+	// The four layers this scene has always drawn, now named. The separation is
+	// what the picture already contained: a sky, a sea that reads through it, a
+	// band of headlands sitting ON the horizon, and a foreground bank that is
+	// the tonal floor. Flattening them at the moment of render threw away the
+	// depth the atmospheric perspective was drawing.
+	c.plane("sky", 0)
+	c.sky(horizon, sunX, sunY, sunR, [3]float64{12, 28, 92}, [3]float64{176, 206, 232}, [3]float64{255, 214, 150})
+
+	// sea, darkening with depth, with a sun column and coherent ripples
+	c.plane("sea", 1)
+	for y := int(horizon); y < c.h; y++ {
+		t := (float64(y) - horizon) / math.Max(1, fh-horizon)
+		base := [3]float64{18 + 30*(1-t), 62 + 60*(1-t), 130 + 70*(1-t)}
+		for x := 0; x < c.w; x++ {
+			col := math.Exp(-math.Abs(float64(x)-sunX) / (fw * 0.06))
+			rip := (fbm(float64(x)/(fw*0.02), float64(y)/(fh*0.006), 3, seed+11) - 0.5) * 34
+			r := base[0]*(1-t*0.55) + rip + col*120*(1-t*0.7)
+			g := base[1]*(1-t*0.55) + rip + col*95*(1-t*0.7)
+			b := base[2]*(1-t*0.55) + rip + col*55*(1-t*0.7)
+			c.set(x, y, r, g, b)
+		}
+	}
+
+	// Distant headlands sit ON the horizon and rise upward. They must not fill
+	// downward to the frame edge: that paints over the sea and the composition
+	// loses its water entirely.
+	c.plane("headlands", 2)
+	for layer := 0; layer < 3; layer++ {
+		lf := float64(layer)
+		shade := [3]float64{96 - lf*26, 128 - lf*34, 122 - lf*30}
+		amp := fh * (0.13 - lf*0.032)
+		baseY := horizon - lf*fh*0.012
+		for x := 0; x < c.w; x++ {
+			n := fbm(float64(x)/(fw*0.24)+lf*13, lf*5, 4, seed+int64(layer)*331)
+			top := baseY - n*amp - amp*0.3
+			for y := int(top); y < int(baseY) && y < c.h; y++ {
+				c.set(x, y, shade[0], shade[1], shade[2])
+			}
+		}
+	}
+
+	// Foreground bank along the bottom edge: the scene's tonal floor, which the
+	// ink-mapping treatments need as their black point.
+	c.plane("bank", 3)
+	bankTop := fh * 0.86
+	for x := 0; x < c.w; x++ {
+		n := fbm(float64(x)/(fw*0.16)+29, 3, 4, seed+77)
+		top := bankTop - n*fh*0.06
+		// a bright shoreline edge where the bank meets the water
+		for y := int(top); y < int(top+fh*0.014) && y < c.h; y++ {
+			c.set(x, y, 236, 224, 190)
+		}
+		for y := int(top + fh*0.014); y < c.h; y++ {
+			g := fbm(float64(x)/(fw*0.01), float64(y)/(fh*0.01), 3, seed+53)
+			c.set(x, y, 14+g*20, 26+g*26, 20+g*20)
+		}
+	}
+}
+
+func drawArcade(c *canvas, p paramSet, seed int64) {
+	fw, fh := float64(c.w), float64(c.h)
+	bays := int(p.get("bays", 1, 8, 3))
+	focal := p.get("focal_x", 0, 1, 0.5)
+	horizon := fh * 0.62
+	sunX, sunY := focal*fw, horizon*0.55
+	sunR := fh * 0.055
+
+	// The view THROUGH the arches is painted first, across the whole frame.
+	// The previous generator filled the arch openings with a colour darker than
+	// the wall, so the arcade read as three dark slabs instead of openings.
+	c.sky(horizon, sunX, sunY, sunR, [3]float64{92, 140, 190}, [3]float64{214, 222, 214}, [3]float64{255, 236, 198})
+	for y := int(horizon); y < c.h; y++ {
+		t := (float64(y) - horizon) / math.Max(1, fh-horizon)
+		for x := 0; x < c.w; x++ {
+			rip := (fbm(float64(x)/(fw*0.03), float64(y)/(fh*0.008), 3, seed+5) - 0.5) * 26
+			c.set(x, y, 96-36*t+rip, 132-52*t+rip, 162-58*t+rip)
+		}
+	}
+	// distant headland
+	for x := 0; x < c.w; x++ {
+		n := fbm(float64(x)/(fw*0.3), 0, 4, seed+91)
+		top := horizon - n*fh*0.07 - fh*0.02
+		for y := int(top); y < int(horizon)+1 && y < c.h; y++ {
+			c.set(x, y, 140, 152, 154)
+		}
+	}
+
+	// statue silhouette in the centre bay, lit from the sun side
+	stX, stBase := fw*0.5, fh*0.80
+	for y := int(stBase - fh*0.30); y < int(stBase); y++ {
+		for x := int(stX - fw*0.05); x < int(stX+fw*0.05); x++ {
+			dy := (float64(y) - (stBase - fh*0.30)) / (fh * 0.30)
+			halfW := fw * 0.020 * (0.55 + 0.65*math.Sin(dy*math.Pi*0.9+0.35))
+			if math.Abs(float64(x)-stX) < halfW {
+				lit := 1 - math.Abs(float64(x)-stX)/halfW*0.45
+				c.set(x, y, 224*lit+16, 218*lit+16, 202*lit+16)
+			}
+		}
+	}
+	for y := int(stBase); y < int(stBase+fh*0.09) && y < c.h; y++ {
+		for x := int(stX - fw*0.035); x < int(stX+fw*0.035); x++ {
+			c.set(x, y, 206, 198, 180)
+		}
+	}
+
+	// the wall, with arch openings left untouched
+	pad, gap := fw*0.07, fw*0.035
+	span := (fw - pad*2 - gap*float64(bays-1)) / float64(bays)
+	archTop, archBottom := fh*0.26, fh*0.90
+	radius := span / 2
+	inArch := func(x, y float64) bool {
+		for i := 0; i < bays; i++ {
+			ax := pad + float64(i)*(span+gap)
+			if x < ax || x > ax+span || y > archBottom {
+				continue
+			}
+			cy := archTop + radius
+			if y >= cy {
+				return true
+			}
+			if math.Hypot(x-(ax+radius), y-cy) <= radius {
+				return true
+			}
+		}
+		return false
+	}
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			fx, fy := float64(x), float64(y)
+			if inArch(fx, fy) {
+				continue
+			}
+			// plaster with coherent grain, shaded away from the sun
+			n := fbm(fx/(fw*0.04), fy/(fh*0.04), 4, seed+17)
+			lit := 1 - math.Min(1, math.Abs(fx-sunX)/fw)*0.28
+			v := (206 + n*34) * lit
+			c.set(x, y, v, v*0.95, v*0.85)
+		}
+	}
+	// ledge below the arches
+	for y := int(archBottom); y < c.h; y++ {
+		t := (float64(y) - archBottom) / math.Max(1, fh-archBottom)
+		for x := 0; x < c.w; x++ {
+			n := fbm(float64(x)/(fw*0.05), float64(y)/(fh*0.05), 3, seed+23)
+			v := (188 + n*28) * (1 - t*0.42)
+			c.set(x, y, v, v*0.95, v*0.86)
+		}
+	}
+
+	// foliage canopy: coherent mass, not speckle
+	for y := 0; y < int(fh*0.42); y++ {
+		for x := 0; x < c.w; x++ {
+			fx, fy := float64(x), float64(y)
+			d := fbm(fx/(fw*0.06), fy/(fh*0.05), 4, seed+61)
+			cover := d - (fy/(fh*0.42))*0.75
+			if cover > 0.16 {
+				shade := 0.55 + d*0.7
+				c.blend(x, y, 26*shade, 56*shade, 34*shade, math.Min(1, (cover-0.16)*7))
+			}
+		}
+	}
+}
+
+func drawTerrain(c *canvas, p paramSet, seed int64) {
+	fw, fh := float64(c.w), float64(c.h)
+	horizon := p.get("horizon", 0.2, 0.85, 0.42) * fh
+	focal := p.get("focal_x", 0, 1, 0.26)
+
+	// night sky with a moon as the white point
+	c.plane("sky", 0)
+	moonX, moonY, moonR := focal*fw, horizon*0.42, fh*0.075
+	c.sky(horizon, moonX, moonY, moonR, [3]float64{8, 16, 30}, [3]float64{132, 168, 176}, [3]float64{236, 246, 240})
+
+	// Five ridge layers, lightest at the back — the atmospheric haze IS the
+	// depth cue, and each ridge is its own plane so a consumer can move them
+	// against each other rather than inferring depth from a picture that no
+	// longer contains it.
+	const layers = 5
+	for layer := 0; layer < layers; layer++ {
+		c.plane(fmt.Sprintf("ridge-%d", layer+1), layer+1)
+		lf := float64(layer) / float64(layers-1)
+		baseY := horizon + lf*fh*0.34
+		amp := fh * (0.26 - lf*0.15)
+		v := 214 - lf*196
+		for x := 0; x < c.w; x++ {
+			r := ridged(float64(x)/(fw*0.22)+float64(layer)*17, float64(layer)*3, 5, seed+int64(layer)*613)
+			top := baseY - r*amp
+			for y := int(top); y < c.h; y++ {
+				// a little vertical falloff so each mass has form
+				dy := math.Min(1, (float64(y)-top)/(fh*0.4))
+				c.set(x, y, (v+14)*(1-dy*0.22), (v+26)*(1-dy*0.22), (v+18)*(1-dy*0.22))
+			}
+		}
+	}
+
+	// foreground canopy: dark, near-black, giving the tonal floor
+	c.plane("canopy", layers+1)
+	for x := 0; x < c.w; x++ {
+		n := fbm(float64(x)/(fw*0.05), 7, 4, seed+911)
+		top := fh*0.82 - n*fh*0.10
+		for y := int(top); y < c.h; y++ {
+			g := fbm(float64(x)/(fw*0.01), float64(y)/(fh*0.01), 3, seed+53)
+			c.set(x, y, 6+g*14, 12+g*20, 9+g*14)
+		}
+	}
+}
+
+// quiet lifts a zone to the extreme of the tonal ramp.
+//
+// Applied after the generator draws and before any treatment, because a screen
+// reads TONE: an area at the light extreme takes no ink and comes out as paper,
+// which is the only state that survives a halftone with its contrast intact.
+// Flattening to a mid tone would not help — a screen turns a flat mid tone into
+// a regular dot pattern, and the worst pixel is still an ink dot.
+//
+// That is why this lives in the generator rather than in a treatment: it has to
+// happen before the screen, in the tone the screen reads. Measured through a
+// really running engine, twenty-two of twenty-four styles score near 1.00
+// worst-pixel contrast inside their own copy region, and the one that scores
+// 8.00 does so because its generator leaves that area empty.
+func (c *canvas) quiet(zone QuietZone) {
+	if zone.Width <= 0 || zone.Height <= 0 {
+		return
+	}
+	feather := zone.Feather
+	if feather <= 0 {
+		feather = 0.10
+	}
+	fw, fh := float64(c.w), float64(c.h)
+	shortEdge := math.Min(fw, fh)
+	x0, y0 := zone.X*fw, zone.Y*fh
+	x1, y1 := (zone.X+zone.Width)*fw, (zone.Y+zone.Height)*fh
+	reach := feather * shortEdge
+
+	for y := 0; y < c.h; y++ {
+		for x := 0; x < c.w; x++ {
+			dx := math.Max(0, math.Max(x0-float64(x), float64(x)-x1))
+			dy := math.Max(0, math.Max(y0-float64(y), float64(y)-y1))
+			d := math.Hypot(dx, dy)
+			var t float64
+			switch {
+			case d <= 0:
+				t = 1
+			case d >= reach:
+				continue
+			default:
+				e := 1 - d/reach
+				t = e * e * (3 - 2*e)
+			}
+			r, g, b := c.at(x, y)
+			// 0.94 rather than 1.0: a zone taken all the way to pure white
+			// loses the paper's own colour, and a cream backdrop with a white
+			// hole in it reads as a printing fault rather than as light.
+			const lift = 0.94
+			if zone.TowardLight {
+				r += (255 - r) * lift * t
+				g += (255 - g) * lift * t
+				b += (255 - b) * lift * t
+			} else {
+				r -= r * lift * t
+				g -= g * lift * t
+				b -= b * lift * t
+			}
+			// Written straight to the buffer: this is a composition decision
+			// about ground the generator already drew, not a new mark belonging
+			// to a depth plane.
+			c.img.SetNRGBA(x, y, color.NRGBA{R: clamp8(r), G: clamp8(g), B: clamp8(b), A: 255})
+		}
+	}
+}

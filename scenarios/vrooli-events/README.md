@@ -1,6 +1,8 @@
 # Vrooli Events
 
-The central nervous system for all inter-scenario communication in Vrooli. Every call through the discovery package emits a structured event here for durable storage, real-time pub/sub, analytics, compliance auditing, and policy enforcement.
+The platform service for durable event receipts, real-time pub/sub, analytics, compliance auditing, and policy distribution across Vrooli.
+
+Receipt observations use the canonical event type `vrooli.events.receipt.v1`.
 
 ## Why This Exists
 
@@ -12,7 +14,7 @@ Before vrooli-events, inter-scenario communication was invisible — scenario A 
 - Audit inter-scenario communication for compliance
 - Build event-driven features (like notifications) that react to any scenario's activity
 
-vrooli-events solves all of this by sitting at the discovery layer. The discovery package's `EmittingResolver` wraps every inter-scenario call with automatic event emission and local policy enforcement — zero changes needed in existing scenarios.
+vrooli-events solves the shared-service part of this problem without becoming a mandatory runtime dependency. Standard clients use the local cache and receipt helpers in `packages/api-core/eventbus`; the complete behavioral contract is [Vrooli Events Platform Contract](../../docs/concepts/VROOLI_EVENTS_PLATFORM_CONTRACT.md).
 
 ## Architecture
 
@@ -121,6 +123,8 @@ make stop     # Stop
 |--------|------|-------------|
 | POST | /api/v1/policies | Create policy rule (access control, rate limit, or circuit breaker) |
 | GET | /api/v1/policies | List rules (filters: rule_type, source, target, enabled) |
+| GET | /api/v1/policies/snapshot | Atomic enabled-rule snapshot for background client refresh |
+| POST/GET | /api/v1/receipt-projections | Centrally managed safe receipt projection allow-lists |
 | GET | /api/v1/policies/:id | Get rule by ID |
 | PUT | /api/v1/policies/:id | Update rule |
 | DELETE | /api/v1/policies/:id | Delete rule |
@@ -152,29 +156,13 @@ make stop     # Stop
 ## CLI
 
 ```bash
-# Event operations
 vrooli-events query --type "swarm-manager.**" --limit 10
-vrooli-events query --correlation-id "abc123" --json
+vrooli-events query --correlation-id "abc123"
 vrooli-events subscribe --type "*.completed.*"
 vrooli-events stats
-
-# Policy management
-vrooli-events policy list
-vrooli-events policy create --type access --source "swarm-manager" --target "agent-manager" --effect allow
-vrooli-events policy create --type rate_limit --source "*" --target "agent-manager" --max-requests 100 --window 60
-vrooli-events policy create --type circuit_breaker --source "*" --target "flaky-service" --failure-threshold 5 --cooldown 30
-vrooli-events policy violations --since 1h
-
-# Subscription management
-vrooli-events subscriptions list
-vrooli-events subscriptions create --name "backlog-notifications" --pattern "swarm-manager.backlog.**" --delivery-type webhook --target "http://localhost:15200/api/v1/hooks/events"
-vrooli-events subscriptions health --id <id>
-vrooli-events subscriptions test --id <id>
-
-# Settings
-vrooli-events configure api_base http://localhost:15000/api/v1
-vrooli-events retention --retention-days 60 --max-size-gb 4
-vrooli-events status
+vrooli-events capture-preview
+vrooli-events capture-reconcile
+vrooli-events ingest --event-id "example.audit.001" --type "example.audit.v1" --source "example-scenario" --payload '{}'
 ```
 
 ## Integration
@@ -194,14 +182,12 @@ router.Use(discovery.PolicyMiddleware("http://localhost:15000", "my-scenario"))
 
 ### For event consumers (like notification-hub)
 
-Create a persistent subscription:
+Create a persistent subscription through the HTTP API:
 
 ```bash
-vrooli-events subscriptions create \
-  --name "notify-on-completion" \
-  --pattern "swarm-manager.backlog.item-completed.v1" \
-  --delivery-type webhook \
-  --target "http://localhost:15200/api/v1/hooks/events"
+curl -X POST "http://localhost:${API_PORT}/api/v1/subscriptions" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"notify-on-completion","owner_scenario":"notification-hub","event_pattern":"swarm-manager.backlog.item-completed.v1","delivery_type":"webhook","delivery_target":"http://localhost:15200/api/v1/hooks/events","enabled":true}'
 ```
 
 ### Direct event publishing

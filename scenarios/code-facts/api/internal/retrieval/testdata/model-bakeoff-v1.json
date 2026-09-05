@@ -1,0 +1,18 @@
+{
+  "version": "code-facts-embedding-bakeoff-v1",
+  "captured_on": "2026-08-20",
+  "model": "nomic-embed-text:latest",
+  "installed_alternatives": [],
+  "cases": 5,
+  "profiles": [
+    {"dimensions": 384, "recall_at_5": 1.0, "mrr_at_3": 1.0, "ranks": [1, 1, 1, 1, 1]},
+    {"dimensions": 768, "recall_at_5": 1.0, "mrr_at_3": 1.0, "ranks": [1, 1, 1, 1, 1]}
+  ],
+  "selected": {
+    "dimensions": 768,
+    "normalization": "cosine",
+    "storage": "qdrant-on-disk-scalar-quantized",
+    "reason": "Both installed-host dimension profiles ranked every smoke case first. Select the governed default full dimension because it preserves information and the projected 80000-card profile stays below 1.5 GiB."
+  },
+  "limitations": "This no-download host bake-off compares dimensions of the governed installed model. The final provider evaluation must repeat the full reviewed corpus and may replace the selection through a recorded decision."
+}

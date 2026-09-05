@@ -309,7 +309,7 @@ func appendEntries(content string, toAdd []string) string {
 // normalizePrefix ensures the prefix ends with a trailing slash.
 func normalizePrefix(p string) string {
 	if p == "" {
-		return "/"
+		return ""
 	}
 	if !strings.HasSuffix(p, "/") {
 		return p + "/"

@@ -1,4 +1,6 @@
 // REQ-UI-008: Circuit breaker dashboard
+// DOC: docs/reference/api-endpoints.md#circuit-breaker-override
+// DOC: docs/guides/managing-policies.md
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";

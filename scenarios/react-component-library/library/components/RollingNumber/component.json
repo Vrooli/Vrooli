@@ -1,0 +1,25 @@
+{
+  "catalogId": "data-display.rolling-number",
+  "deprecatedVersions": [
+    "0.1.2",
+    "0.1.0",
+    "0.1.1"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "native",
+      "reason": "Provides the board's large animated figure treatment."
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0",
+    "0.1.1"
+  ],
+  "latest": "0.1.5",
+  "libraryId": "react-component-library:RollingNumber",
+  "displayName": "RollingNumber",
+  "description": "A number drawn in an ink. The glyph box is identical in every ink so a metric going live never moves a pixel, and only the digits that changed roll.",
+  "tags": []
+}

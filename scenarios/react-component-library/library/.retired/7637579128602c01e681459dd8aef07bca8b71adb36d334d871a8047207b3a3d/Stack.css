@@ -1,0 +1,99 @@
+[data-rcl-stack] {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-inline-size: 0;
+}
+[data-rcl-stack][data-gap="xs"] {
+  gap: var(--space-xs);
+}
+[data-rcl-stack][data-gap="sm"] {
+  gap: var(--space-sm);
+}
+[data-rcl-stack][data-gap="md"] {
+  gap: var(--space-md);
+}
+[data-rcl-stack][data-gap="lg"] {
+  gap: var(--space-lg);
+}
+[data-rcl-stack][data-gap="xl"] {
+  gap: var(--space-xl);
+}
+[data-rcl-stack][data-align="start"] {
+  align-items: flex-start;
+}
+[data-rcl-stack][data-align="center"] {
+  align-items: center;
+}
+[data-rcl-stack][data-align="end"] {
+  align-items: flex-end;
+}
+[data-rcl-stack][data-justify="start"] {
+  justify-content: flex-start;
+}
+[data-rcl-stack][data-justify="center"] {
+  justify-content: center;
+}
+[data-rcl-stack][data-justify="end"] {
+  justify-content: flex-end;
+}
+[data-rcl-stack][data-text-align="start"] {
+  text-align: start;
+}
+[data-rcl-stack][data-text-align="center"] {
+  text-align: center;
+}
+[data-rcl-stack][data-text-align="end"] {
+  text-align: end;
+}
+[data-rcl-stack][data-measure="narrow"] {
+  inline-size: 100%;
+  max-inline-size: var(--layout-content-compact, 28rem);
+  margin-inline: auto;
+}
+[data-rcl-stack][data-measure="content"] {
+  inline-size: 100%;
+  max-inline-size: var(--layout-content, 34rem);
+  margin-inline: auto;
+}
+[data-rcl-stack][data-measure="wide"] {
+  inline-size: 100%;
+  max-inline-size: var(--layout-content-wide, 42rem);
+  margin-inline: auto;
+}
+[data-rcl-stack][data-inset="responsive"] {
+  padding: clamp(var(--space-lg), 6vw, var(--space-2xl));
+}
+[data-rcl-stack][data-inset="sm"] {
+  padding: var(--space-sm);
+}
+[data-rcl-stack][data-inset="md"] {
+  padding: var(--space-md);
+}
+[data-rcl-stack][data-inset="lg"] {
+  padding: var(--space-lg);
+}
+[data-rcl-stack][data-inset-block="responsive"] {
+  padding-block: clamp(var(--space-lg), 6vw, var(--space-2xl));
+}
+[data-rcl-stack][data-inset-block="sm"] {
+  padding-block: var(--space-sm);
+}
+[data-rcl-stack][data-inset-block="md"] {
+  padding-block: var(--space-md);
+}
+[data-rcl-stack][data-inset-block="lg"] {
+  padding-block: var(--space-lg);
+}
+[data-rcl-stack][data-inset-inline="responsive"] {
+  padding-inline: clamp(var(--space-lg), 6vw, var(--space-2xl));
+}
+[data-rcl-stack][data-inset-inline="sm"] {
+  padding-inline: var(--space-sm);
+}
+[data-rcl-stack][data-inset-inline="md"] {
+  padding-inline: var(--space-md);
+}
+[data-rcl-stack][data-inset-inline="lg"] {
+  padding-inline: var(--space-lg);
+}

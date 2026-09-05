@@ -1486,7 +1486,7 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\b\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xf0\b\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
@@ -1508,11 +1508,11 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12N\n" +
-	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\aR\x0earchiveContext\x88\x01\x01\x123\n" +
+	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12\\\n" +
+	"\x0farchive_context\x18\x10 \x01(\v2..vrooli.swarm_manager.v1.domain.ArchiveContextH\aR\x0earchiveContext\x88\x01\x01\x123\n" +
 	"\x13parent_execution_id\x18\x11 \x01(\tH\bR\x11parentExecutionId\x88\x01\x01\x12#\n" +
-	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12G\n" +
-	"\ffinalization\x18\x17 \x01(\v2\x1e.swarm_manager.v1.FinalizationH\tR\ffinalization\x88\x01\x01B\n" +
+	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12U\n" +
+	"\ffinalization\x18\x17 \x01(\v2,.vrooli.swarm_manager.v1.domain.FinalizationH\tR\ffinalization\x88\x01\x01B\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\r\n" +
@@ -1532,12 +1532,12 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0epreserve_paths\x18\x04 \x03(\tR\rpreservePaths\x12,\n" +
 	"\x0fpreserve_preset\x18\x05 \x01(\tH\x01R\x0epreservePreset\x88\x01\x01B\x13\n" +
 	"\x11_preset_or_customB\x12\n" +
-	"\x10_preserve_preset\"\x8a\x02\n" +
+	"\x10_preserve_preset\"\x98\x02\n" +
 	"\fReviewResult\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12&\n" +
-	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12A\n" +
+	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12O\n" +
 	"\n" +
-	"dimensions\x18\x03 \x03(\v2!.swarm_manager.v1.ReviewDimensionR\n" +
+	"dimensions\x18\x03 \x03(\v2/.vrooli.swarm_manager.v1.domain.ReviewDimensionR\n" +
 	"dimensions\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12\x1f\n" +
 	"\vreviewed_at\x18\x05 \x01(\tR\n" +
@@ -1549,7 +1549,7 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
 	"\adetails\x18\x03 \x01(\tH\x00R\adetails\x88\x01\x01B\n" +
 	"\n" +
-	"\b_details\"\xd8\x04\n" +
+	"\b_details\"\xf4\x04\n" +
 	"\fFinalization\x12\x1a\n" +
 	"\beligible\x18\x01 \x01(\bR\beligible\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
@@ -1559,13 +1559,13 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"skipReason\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"started_at\x18\x06 \x01(\tH\x01R\tstartedAt\x88\x01\x01\x12&\n" +
-	"\fcompleted_at\x18\a \x01(\tH\x02R\vcompletedAt\x88\x01\x01\x12A\n" +
-	"\bwarnings\x18\b \x03(\v2%.swarm_manager.v1.FinalizationWarningR\bwarnings\x12-\n" +
+	"\fcompleted_at\x18\a \x01(\tH\x02R\vcompletedAt\x88\x01\x01\x12O\n" +
+	"\bwarnings\x18\b \x03(\v23.vrooli.swarm_manager.v1.domain.FinalizationWarningR\bwarnings\x12-\n" +
 	"\x12affected_scenarios\x18\t \x03(\tR\x11affectedScenarios\x129\n" +
 	"\x18aggregate_classification\x18\n" +
 	" \x01(\tR\x17aggregateClassification\x120\n" +
-	"\x11aggregate_summary\x18\v \x01(\tH\x03R\x10aggregateSummary\x88\x01\x01\x12D\n" +
-	"\tscenarios\x18\f \x03(\v2&.swarm_manager.v1.ScenarioFinalizationR\tscenariosB\x0e\n" +
+	"\x11aggregate_summary\x18\v \x01(\tH\x03R\x10aggregateSummary\x88\x01\x01\x12R\n" +
+	"\tscenarios\x18\f \x03(\v24.vrooli.swarm_manager.v1.domain.ScenarioFinalizationR\tscenariosB\x0e\n" +
 	"\f_skip_reasonB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\x14\n" +
@@ -1577,13 +1577,13 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\tretryable\x18\x04 \x01(\bR\tretryable\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAtB\x10\n" +
-	"\x0e_scenario_name\"\x92\x02\n" +
+	"\x0e_scenario_name\"\xbc\x02\n" +
 	"\x14ScenarioFinalization\x12#\n" +
 	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12#\n" +
-	"\rchanged_paths\x18\x02 \x03(\tR\fchangedPaths\x129\n" +
-	"\arestart\x18\x03 \x01(\v2\x1f.swarm_manager.v1.RestartResultR\arestart\x12;\n" +
-	"\x06health\x18\x04 \x01(\v2#.swarm_manager.v1.HealthCheckResultR\x06health\x128\n" +
-	"\x06review\x18\x05 \x01(\v2 .swarm_manager.v1.ScenarioReviewR\x06review\"\xdf\x01\n" +
+	"\rchanged_paths\x18\x02 \x03(\tR\fchangedPaths\x12G\n" +
+	"\arestart\x18\x03 \x01(\v2-.vrooli.swarm_manager.v1.domain.RestartResultR\arestart\x12I\n" +
+	"\x06health\x18\x04 \x01(\v21.vrooli.swarm_manager.v1.domain.HealthCheckResultR\x06health\x12F\n" +
+	"\x06review\x18\x05 \x01(\v2..vrooli.swarm_manager.v1.domain.ScenarioReviewR\x06review\"\xdf\x01\n" +
 	"\rRestartResult\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
 	"\battempts\x18\x02 \x01(\x05R\battempts\x12\"\n" +
@@ -1608,16 +1608,16 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0e_health_statusB\n" +
 	"\n" +
 	"\b_detailsB\r\n" +
-	"\v_checked_at\"\xcd\x01\n" +
+	"\v_checked_at\"\xdb\x01\n" +
 	"\x0eScenarioReview\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
 	"\x06job_id\x18\x02 \x01(\tH\x00R\x05jobId\x88\x01\x01\x12$\n" +
 	"\vskip_reason\x18\x03 \x01(\tH\x01R\n" +
-	"skipReason\x88\x01\x01\x12;\n" +
-	"\x06result\x18\x04 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
+	"skipReason\x88\x01\x01\x12I\n" +
+	"\x06result\x18\x04 \x01(\v2,.vrooli.swarm_manager.v1.domain.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
 	"\a_job_idB\x0e\n" +
 	"\f_skip_reasonB\t\n" +
-	"\a_result\"\x8b\x03\n" +
+	"\a_result\"\x99\x03\n" +
 	"\fEvidenceItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
@@ -1627,8 +1627,8 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\bverified\x18\x06 \x01(\bR\bverified\x12$\n" +
 	"\vverified_at\x18\a \x01(\tH\x01R\n" +
 	"verifiedAt\x88\x01\x01\x123\n" +
-	"\x13before_capture_path\x18\b \x01(\tH\x02R\x11beforeCapturePath\x88\x01\x01\x12G\n" +
-	"\ftest_results\x18\t \x03(\v2$.swarm_manager.v1.EvidenceTestResultR\vtestResultsB\x0f\n" +
+	"\x13before_capture_path\x18\b \x01(\tH\x02R\x11beforeCapturePath\x88\x01\x01\x12U\n" +
+	"\ftest_results\x18\t \x03(\v22.vrooli.swarm_manager.v1.domain.EvidenceTestResultR\vtestResultsB\x0f\n" +
 	"\r_capture_pathB\x0e\n" +
 	"\f_verified_atB\x16\n" +
 	"\x14_before_capture_path\"\x7f\n" +
@@ -1636,13 +1636,13 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12*\n" +
 	"\x0eoutput_summary\x18\x03 \x01(\tH\x00R\routputSummary\x88\x01\x01B\x11\n" +
-	"\x0f_output_summary\"\x81\x02\n" +
+	"\x0f_output_summary\"\x8f\x02\n" +
 	"\x15EvidenceRequestThread\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12$\n" +
 	"\vevidence_id\x18\x02 \x01(\tH\x00R\n" +
 	"evidenceId\x88\x01\x01\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\x12D\n" +
-	"\bmessages\x18\x04 \x03(\v2(.swarm_manager.v1.EvidenceRequestMessageR\bmessages\x12\x1d\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12R\n" +
+	"\bmessages\x18\x04 \x03(\v26.vrooli.swarm_manager.v1.domain.EvidenceRequestMessageR\bmessages\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1a\n" +
 	"\x06run_id\x18\x06 \x01(\tH\x01R\x05runId\x88\x01\x01B\x0e\n" +
@@ -1652,7 +1652,7 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1c\n" +
 	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12,\n" +
-	"\x12added_evidence_ids\x18\x04 \x03(\tR\x10addedEvidenceIds\"\xd9\x03\n" +
+	"\x12added_evidence_ids\x18\x04 \x03(\tR\x10addedEvidenceIds\"\xf5\x03\n" +
 	"\x13ReviewEvidenceRound\x12\x14\n" +
 	"\x05round\x18\x01 \x01(\x05R\x05round\x12!\n" +
 	"\fgenerated_at\x18\x02 \x01(\tR\vgeneratedAt\x12!\n" +
@@ -1660,9 +1660,9 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12.\n" +
 	"\x10agent_assessment\x18\x05 \x01(\tH\x00R\x0fagentAssessment\x88\x01\x01\x12+\n" +
 	"\x0eclassification\x18\x06 \x01(\tH\x01R\x0eclassification\x88\x01\x01\x12\x14\n" +
-	"\x05notes\x18\a \x03(\tR\x05notes\x12:\n" +
-	"\bevidence\x18\b \x03(\v2\x1e.swarm_manager.v1.EvidenceItemR\bevidence\x12P\n" +
-	"\x0frequest_threads\x18\t \x03(\v2'.swarm_manager.v1.EvidenceRequestThreadR\x0erequestThreads\x12\x1a\n" +
+	"\x05notes\x18\a \x03(\tR\x05notes\x12H\n" +
+	"\bevidence\x18\b \x03(\v2,.vrooli.swarm_manager.v1.domain.EvidenceItemR\bevidence\x12^\n" +
+	"\x0frequest_threads\x18\t \x03(\v25.vrooli.swarm_manager.v1.domain.EvidenceRequestThreadR\x0erequestThreads\x12\x1a\n" +
 	"\x06run_id\x18\n" +
 	" \x01(\tH\x02R\x05runId\x88\x01\x01B\x13\n" +
 	"\x11_agent_assessmentB\x11\n" +
@@ -1689,37 +1689,37 @@ func file_swarm_manager_v1_domain_execution_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_swarm_manager_v1_domain_execution_proto_goTypes = []any{
-	(*ExecutionRecord)(nil),        // 0: swarm_manager.v1.ExecutionRecord
-	(*ArchiveContext)(nil),         // 1: swarm_manager.v1.ArchiveContext
-	(*ReviewResult)(nil),           // 2: swarm_manager.v1.ReviewResult
-	(*ReviewDimension)(nil),        // 3: swarm_manager.v1.ReviewDimension
-	(*Finalization)(nil),           // 4: swarm_manager.v1.Finalization
-	(*FinalizationWarning)(nil),    // 5: swarm_manager.v1.FinalizationWarning
-	(*ScenarioFinalization)(nil),   // 6: swarm_manager.v1.ScenarioFinalization
-	(*RestartResult)(nil),          // 7: swarm_manager.v1.RestartResult
-	(*HealthCheckResult)(nil),      // 8: swarm_manager.v1.HealthCheckResult
-	(*ScenarioReview)(nil),         // 9: swarm_manager.v1.ScenarioReview
-	(*EvidenceItem)(nil),           // 10: swarm_manager.v1.EvidenceItem
-	(*EvidenceTestResult)(nil),     // 11: swarm_manager.v1.EvidenceTestResult
-	(*EvidenceRequestThread)(nil),  // 12: swarm_manager.v1.EvidenceRequestThread
-	(*EvidenceRequestMessage)(nil), // 13: swarm_manager.v1.EvidenceRequestMessage
-	(*ReviewEvidenceRound)(nil),    // 14: swarm_manager.v1.ReviewEvidenceRound
-	(*ExecutionPolicy)(nil),        // 15: swarm_manager.v1.ExecutionPolicy
+	(*ExecutionRecord)(nil),        // 0: vrooli.swarm_manager.v1.domain.ExecutionRecord
+	(*ArchiveContext)(nil),         // 1: vrooli.swarm_manager.v1.domain.ArchiveContext
+	(*ReviewResult)(nil),           // 2: vrooli.swarm_manager.v1.domain.ReviewResult
+	(*ReviewDimension)(nil),        // 3: vrooli.swarm_manager.v1.domain.ReviewDimension
+	(*Finalization)(nil),           // 4: vrooli.swarm_manager.v1.domain.Finalization
+	(*FinalizationWarning)(nil),    // 5: vrooli.swarm_manager.v1.domain.FinalizationWarning
+	(*ScenarioFinalization)(nil),   // 6: vrooli.swarm_manager.v1.domain.ScenarioFinalization
+	(*RestartResult)(nil),          // 7: vrooli.swarm_manager.v1.domain.RestartResult
+	(*HealthCheckResult)(nil),      // 8: vrooli.swarm_manager.v1.domain.HealthCheckResult
+	(*ScenarioReview)(nil),         // 9: vrooli.swarm_manager.v1.domain.ScenarioReview
+	(*EvidenceItem)(nil),           // 10: vrooli.swarm_manager.v1.domain.EvidenceItem
+	(*EvidenceTestResult)(nil),     // 11: vrooli.swarm_manager.v1.domain.EvidenceTestResult
+	(*EvidenceRequestThread)(nil),  // 12: vrooli.swarm_manager.v1.domain.EvidenceRequestThread
+	(*EvidenceRequestMessage)(nil), // 13: vrooli.swarm_manager.v1.domain.EvidenceRequestMessage
+	(*ReviewEvidenceRound)(nil),    // 14: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound
+	(*ExecutionPolicy)(nil),        // 15: vrooli.swarm_manager.v1.domain.ExecutionPolicy
 }
 var file_swarm_manager_v1_domain_execution_proto_depIdxs = []int32{
-	1,  // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
-	4,  // 1: swarm_manager.v1.ExecutionRecord.finalization:type_name -> swarm_manager.v1.Finalization
-	3,  // 2: swarm_manager.v1.ReviewResult.dimensions:type_name -> swarm_manager.v1.ReviewDimension
-	5,  // 3: swarm_manager.v1.Finalization.warnings:type_name -> swarm_manager.v1.FinalizationWarning
-	6,  // 4: swarm_manager.v1.Finalization.scenarios:type_name -> swarm_manager.v1.ScenarioFinalization
-	7,  // 5: swarm_manager.v1.ScenarioFinalization.restart:type_name -> swarm_manager.v1.RestartResult
-	8,  // 6: swarm_manager.v1.ScenarioFinalization.health:type_name -> swarm_manager.v1.HealthCheckResult
-	9,  // 7: swarm_manager.v1.ScenarioFinalization.review:type_name -> swarm_manager.v1.ScenarioReview
-	2,  // 8: swarm_manager.v1.ScenarioReview.result:type_name -> swarm_manager.v1.ReviewResult
-	11, // 9: swarm_manager.v1.EvidenceItem.test_results:type_name -> swarm_manager.v1.EvidenceTestResult
-	13, // 10: swarm_manager.v1.EvidenceRequestThread.messages:type_name -> swarm_manager.v1.EvidenceRequestMessage
-	10, // 11: swarm_manager.v1.ReviewEvidenceRound.evidence:type_name -> swarm_manager.v1.EvidenceItem
-	12, // 12: swarm_manager.v1.ReviewEvidenceRound.request_threads:type_name -> swarm_manager.v1.EvidenceRequestThread
+	1,  // 0: vrooli.swarm_manager.v1.domain.ExecutionRecord.archive_context:type_name -> vrooli.swarm_manager.v1.domain.ArchiveContext
+	4,  // 1: vrooli.swarm_manager.v1.domain.ExecutionRecord.finalization:type_name -> vrooli.swarm_manager.v1.domain.Finalization
+	3,  // 2: vrooli.swarm_manager.v1.domain.ReviewResult.dimensions:type_name -> vrooli.swarm_manager.v1.domain.ReviewDimension
+	5,  // 3: vrooli.swarm_manager.v1.domain.Finalization.warnings:type_name -> vrooli.swarm_manager.v1.domain.FinalizationWarning
+	6,  // 4: vrooli.swarm_manager.v1.domain.Finalization.scenarios:type_name -> vrooli.swarm_manager.v1.domain.ScenarioFinalization
+	7,  // 5: vrooli.swarm_manager.v1.domain.ScenarioFinalization.restart:type_name -> vrooli.swarm_manager.v1.domain.RestartResult
+	8,  // 6: vrooli.swarm_manager.v1.domain.ScenarioFinalization.health:type_name -> vrooli.swarm_manager.v1.domain.HealthCheckResult
+	9,  // 7: vrooli.swarm_manager.v1.domain.ScenarioFinalization.review:type_name -> vrooli.swarm_manager.v1.domain.ScenarioReview
+	2,  // 8: vrooli.swarm_manager.v1.domain.ScenarioReview.result:type_name -> vrooli.swarm_manager.v1.domain.ReviewResult
+	11, // 9: vrooli.swarm_manager.v1.domain.EvidenceItem.test_results:type_name -> vrooli.swarm_manager.v1.domain.EvidenceTestResult
+	13, // 10: vrooli.swarm_manager.v1.domain.EvidenceRequestThread.messages:type_name -> vrooli.swarm_manager.v1.domain.EvidenceRequestMessage
+	10, // 11: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound.evidence:type_name -> vrooli.swarm_manager.v1.domain.EvidenceItem
+	12, // 12: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound.request_threads:type_name -> vrooli.swarm_manager.v1.domain.EvidenceRequestThread
 	13, // [13:13] is the sub-list for method output_type
 	13, // [13:13] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name

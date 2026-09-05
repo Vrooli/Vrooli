@@ -1,20 +1,32 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-01-23T00:00:00Z",
+  "description": "Authoring guide for Steer skills: the {{TARGET}} placeholder rule, the steer opening template, and the maturity-source requirement for audit-shaped steer skills.",
+  "entry": "SKILL.md",
+  "icon": "fileedit",
   "id": "skill-authoring",
-  "name": "Steer Skill Authoring",
-  "description": "Authoring guide for Steer skills that drive scenario development loops. Covers convergence patterns, audit sections, and memory continuity.",
+  "kind": "skill",
   "modes": [
     "meta",
     "steer"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "fileedit",
-  "status": "active",
-  "entry": "SKILL.md",
+  "name": "Steer Skill Authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
   "revision": 44,
-  "createdAt": "2026-01-23T00:00:00Z",
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "authoring"
+  ],
   "updatedAt": "2026-02-04T21:15:00Z"
 }

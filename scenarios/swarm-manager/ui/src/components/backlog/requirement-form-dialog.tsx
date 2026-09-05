@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
-import { Dialog } from "../ui/dialog";
+import { Drawer } from "../ui/drawer";
 import { Input } from "../ui/input";
 import { Select } from "../ui/select";
 import type { ArchiveRequirementRecord } from "../../types";
@@ -75,15 +75,14 @@ export function RequirementFormDialog({
   const displayError = error ?? submitError;
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose} maxWidth="max-w-xl" isLoading={isSubmitting}>
-      <h2 className="text-xl font-semibold text-slate-100">
-        {isEditMode ? "Edit Requirement" : "Create Requirement"}
-      </h2>
-      <p className="mt-1 text-sm text-slate-400">
-        {isEditMode ? "Update requirement details." : "Add a new requirement to this module."}
-      </p>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditMode ? "Edit Requirement" : "Create Requirement"}
+      description={isEditMode ? "Update requirement details." : "Add a new requirement to this module."}
+    >
 
-      <div className="mt-6 space-y-4">
+      <div className="space-y-4 p-4">
         <div>
           <label htmlFor="req-form-id" className="text-sm font-medium text-slate-300">ID</label>
           <Input
@@ -189,6 +188,6 @@ export function RequirementFormDialog({
           {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : "Create Requirement"}
         </Button>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

@@ -1,0 +1,215 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "cloudflared",
+  "display_name": "Cloudflare Tunnel",
+  "description": "Vrooli-supervised Cloudflare Tunnel connector using an authority-backed token file.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-cloudflared",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-cloudflared_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-cloudflared"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "bundling": "host-required",
+  "privilege": "user",
+  "hostTools": [
+    {
+      "name": "cloudflared",
+      "required": true,
+      "reason": "The managed service adopts the separately governed cloudflared host tool.",
+      "platforms": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "bundling": "host-required"
+    }
+  ],
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden"
+    },
+    "artifact": {
+      "path": "cloudflared",
+      "version": "2025.10.0",
+      "verification": "host-tool"
+    },
+    "acquisition": {
+      "kind": "none",
+      "license": "Cloudflare Terms of Service",
+      "targets": [
+        {
+          "executable": "cloudflared"
+        }
+      ]
+    },
+    "credential_files": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-connector-token",
+        "path": "cloudflare-connector-token"
+      }
+    ],
+    "arguments": [
+      "--no-autoupdate",
+      "--metrics=127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "tunnel",
+      "run",
+      "--token-file=${RESOURCE_STATE_DIR}/cloudflare-connector-token"
+    ],
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "category": "network",
+  "requirements": {
+    "class": "network",
+    "weight": 1,
+    "ram_mb": 128,
+    "disk_mb": 64,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "small",
+    "source": "measured",
+    "confidence": "medium"
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 20242,
+      "host": 20242
+    }
+  ],
+  "environment_exports": {
+    "from_ports": {
+      "CLOUDFLARED_METRICS_PORT": "http"
+    },
+    "derived": {
+      "CLOUDFLARED_METRICS_URL": {
+        "template": "http://127.0.0.1:${CLOUDFLARED_METRICS_PORT}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 850,
+    "startup_timeout_seconds": 45,
+    "recovery_attempts": 2,
+    "priority": "high"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/ready",
+      "interval_seconds": 5,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/ready",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "cloudflared"
+          ],
+          "limitations": [
+            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "cloudflared"
+          ],
+          "limitations": [
+            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "cloudflared"
+          ],
+          "limitations": [
+            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  }
+}

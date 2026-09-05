@@ -281,7 +281,7 @@ func TestStorage_DeleteSnapshotsByRole(t *testing.T) {
 	}
 }
 
-func TestStorage_ClearScenarioSnapshots(t *testing.T) {
+func TestStorage_DeleteSnapshotSet_ScopesToScenario(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	store := NewVisualCaptureStorage(testStorageResolver(t, dir), OSFileIO{})
@@ -298,13 +298,15 @@ func TestStorage_ClearScenarioSnapshots(t *testing.T) {
 		t.Fatalf("save other: %v", err)
 	}
 
-	if err := store.ClearScenarioSnapshots(1, "target"); err != nil {
-		t.Fatalf("clear: %v", err)
+	// Deleting a single set (the path used to release a pinned baseline snapshot)
+	// removes only that set and leaves the other scenario untouched.
+	if err := store.DeleteSnapshotSet(1, "target", "a"); err != nil {
+		t.Fatalf("delete: %v", err)
 	}
 
 	list, _ := store.ListSnapshotSets(1, "target")
-	if len(list) != 0 {
-		t.Errorf("expected 0 target snapshots, got %d", len(list))
+	if len(list) != 1 {
+		t.Errorf("expected 1 remaining target snapshot, got %d", len(list))
 	}
 	otherList, _ := store.ListSnapshotSets(1, "other")
 	if len(otherList) != 1 {

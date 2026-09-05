@@ -1,0 +1,122 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "prose-studio",
+  "generator": "v1.0.0",
+  "manifest_hash": "6d204f5d3df0a1625cebb166bd2109975c9386ef5f1d7ed3d11b1aee342b16b7",
+  "commands": [
+    {
+      "path": "prose conformance",
+      "group": "prose",
+      "command": "conformance",
+      "binding": "ProseStudioService.Conformance",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose declarations-reindex",
+      "group": "prose",
+      "command": "declarations-reindex",
+      "binding": "ProseStudioService.ReindexDeclarations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose declarations-validate",
+      "group": "prose",
+      "command": "declarations-validate",
+      "binding": "ProseStudioService.ValidateDeclarations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose document-assemble",
+      "group": "prose",
+      "command": "document-assemble",
+      "binding": "ProseStudioService.AssembleDocument",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose document-create",
+      "group": "prose",
+      "command": "document-create",
+      "binding": "ProseStudioService.CreateDocument",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose document-list",
+      "group": "prose",
+      "command": "document-list",
+      "binding": "ProseStudioService.ListDocuments",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose document-resume",
+      "group": "prose",
+      "command": "document-resume",
+      "binding": "ProseStudioService.ResumeDocument",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose document-show",
+      "group": "prose",
+      "command": "document-show",
+      "binding": "ProseStudioService.GetDocument",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose generate",
+      "group": "prose",
+      "command": "generate",
+      "binding": "ProseStudioService.Generate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose profile-resolve",
+      "group": "prose",
+      "command": "profile-resolve",
+      "binding": "ProseStudioService.ResolveProfile",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose registry",
+      "group": "prose",
+      "command": "registry",
+      "binding": "ProseStudioService.Registry",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose reroll",
+      "group": "prose",
+      "command": "reroll",
+      "binding": "ProseStudioService.Reroll",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose session-action",
+      "group": "prose",
+      "command": "session-action",
+      "binding": "ProseStudioService.SessionAction",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose style-create",
+      "group": "prose",
+      "command": "style-create",
+      "binding": "ProseStudioService.CreateStyle",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

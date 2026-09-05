@@ -1,12 +1,29 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
-  "id": "leader-explore-plan-implement",
-  "name": "Leader: Explore-Plan-Implement Pipeline",
+  "createdAt": "2026-02-10T00:00:00Z",
   "description": "Leader-focused pipeline that orchestrates systematic exploration, implementation plan authoring, and coordinated implementation delegation. Defines phase transitions, coordination protocols, and convergence patterns for when to use the full pipeline vs partial entry.",
+  "entry": "SKILL.md",
+  "icon": "git-branch",
+  "id": "leader-explore-plan-implement",
+  "kind": "skill",
   "modes": [
     "practice"
   ],
+  "name": "Leader: Explore-Plan-Implement Pipeline",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
   "tags": [
     "practice",
     "pipeline",
@@ -15,10 +32,5 @@
     "coordination",
     "methodology"
   ],
-  "icon": "git-branch",
-  "status": "active",
-  "entry": "SKILL.md",
-  "revision": 1,
-  "createdAt": "2026-02-10T00:00:00Z",
   "updatedAt": "2026-02-10T00:00:00Z"
 }

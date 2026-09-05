@@ -1,0 +1,40 @@
+# Progress — Tunnel Manager
+
+Lifecycle log for meaningful scenario changes. Future agents read this
+file to understand what changed without reconstructing history from git.
+
+This file ships empty in newly generated scenarios. Append entries when
+work lands, not while work is still speculative.
+
+## Progress Log
+
+| Date | Author | Status | Summary |
+|---|---|---|---|
+| 2026-06-18 | regen agent | done | **Phase 0** — Regenerated from `react-vite` 1.1.0 + vrooli-default design kit (old scenario preserved at `/tmp/tunnel-manager-OLD-reference`). Scaffold boots healthy (API+UI), builds green, raw unit/deps phases pass. Replaces the pre-1.0.0 REST/JSON scenario with a Connect-RPC + screaming-architecture foundation. |
+| 2026-06-18 | regen agent | done | **Phase 1 (docs-first)** — Authored PRD (12 P0 / 7 P1 / 8 P2 targets; reframed as exposure broker + self-healing control plane), 10-module requirements registry (40 reqs, `prd-control-tower requirements validate` → healthy, 27/27 targets linked), DOMAINS map (7 domains + health), DECISIONS log (12 durable decisions), Gate-4 `service.json` (SQLite, fixed UI port 21240, cloudflared hostTool, optional redis), and all concept/internal/ops/business/reference docs (honest "planned" framing; example fences preserved for Phase 2 detemplate). Plan: `docs/plans/tunnel-manager-regen-adoption-plan.md`. |
+| 2026-06-18 | impl agent | done | **Stage 1–2 (backend)** — Proto contracts for all 7 domains (`buf lint` 0, Go+TS codegen clean) + implemented routes/config/audit/tunnel/probes/recovery/exposure across proto→API (Connect + SQLite)→CLI (cli-core, `--json`). Fixed the `.vrooli.com` hardcode (host derives from `route.Domain`). Recovery = live backoff+circuit-breaker (single cloudflared-restart owner); exposure = tiered broker (CORE coreset closure + LEASED TTL; Expose/Extend/Revoke/Reconcile/IsExposed). New seams: `cmdrunner`, Cloudflare `IngressClient`. All Go build/vet/test green. |
+| 2026-06-18 | impl agent | done | **Stage 3 (UX, Phases 10–14)** — Reimagined 5-surface UI replacing the placeholder shell: Overview, Exposure (the heart), Recovery & Events, Metrics, Audit. Shared primitives (`QueryState`, `StatusBadge`), per-surface i18n (en/ja/ar parity), document titles, a11y (axe green), React-Router v7 future flags. 180 vitest tests, coverage gate green, tsc + eslint clean. |
+| 2026-06-18 | impl agent | done | **Stage 4 (Phases 15–16)** — `detemplate` removed the `notes` example (Gate 7 ✓); reconciled all 40 requirement `validation.ref`s to real tests (TIER-005 budget / TIER-006 idle-spindown honestly marked `not_implemented`, P2 out-of-scope). Hardening: width-bounded `ParseInt` (gosec G109 ×4), security-headers middleware + secured REST error writer, pnpm `minimumReleaseAge`. **`vrooli scenario test` = 15/18 phases green; completeness 83/100 (nearly_ready).** Remaining 3 reds (standards/tidiness/proto) are react-vite **template/fleet debt** — see PROBLEMS.md. Stage 5 (live CF adoption) is operator-attended, not started. |
+| 2026-06-19 | impl agent | done | **Production-readiness redesign validation hardening** — Closed the previously red `standards`, `tidiness`, and `proto` phases. Refreshed endpoint metadata after notes removal, restarted `proto-health` so it reads the current tunnel-manager descriptor, changed the REST error writer to literal `w.Header().Set(...)` security headers for the standards analyzer, extracted shared scheduler loop wiring, deduped manifest coverage tests, and reduced high-complexity/duplication test helpers. **`vrooli scenario test tunnel-manager` = 18/18 phases green; completeness 85/100 (nearly_ready).** Baseline diff `tunnel-manager-production-readiness-redesign` returned `Overall: preexisting` with standards cleared and only inherited smoke baseline debt. |
+| 2026-06-19 | impl agent | done | **Phase 7 documentation reconciliation** — Replaced scaffold-era "documentation-first / not built / notes example" claims in README, architecture, data, integrations, runbook, observability, deployment, error-handling, security, and docs manifest with current implemented state. Kept deferred work explicit: richer DNS/Cloudflare outage signals, prune windows, privileged mutation authz, and operator-attended live Cloudflare validation. `vrooli scenario test tunnel-manager` remained green at 18/18 phases after the doc pass. |
+| 2026-06-19 | impl agent | done | **Phase 7 follow-up truth reconciliation** — Split current probe-pair classification from deferred DNS/Cloudflare-outage isolation: PRD OT-P1-001 is now unchecked until richer signals exist, `requirements/06-liveness-probes` has implemented `PROBE-004` plus not-implemented `PROBE-005`, and stale "planned Phase 2" seams/performance/flow/business messaging was updated to current implementation status. `prd-control-tower requirements validate tunnel-manager --json` returned healthy (41 requirements, 27/27 targets linked). |
+| 2026-06-19 | impl agent | done | **Retention hardening** — Replaced TBD telemetry retention with repository-owned pruning: tunnel metrics and probe history now keep rolling 14-day SQLite windows, while recovery events keep a rolling 90-day incident-review window. Updated data, observability, performance, and problem ledgers so future agents do not treat retention as deferred. |
+| 2026-06-19 | impl agent | done | **Privileged mutation authz hardening** — Added an API/service-layer authorizer seam and optional static operator-token gate for privileged mutation RPCs. `TUNNEL_MANAGER_AUTHZ_ENFORCED=1` now requires `Authorization: Bearer <token>` or `X-Vrooli-Operator-Token` matching `TUNNEL_MANAGER_OPERATOR_TOKEN` (fallback `API_TOKEN`) for config sync/mode changes, route create/update/delete, exposure expose/extend/revoke/reconcile, and manual recovery. Read RPCs remain available; scenario-authenticator aud-scoped cross-scenario tokens are still deferred. |
+| 2026-06-20 | impl agent | done | **Phase 8 rollout validation** — Restarted through the lifecycle and verified healthy API/UI endpoints (`API_PORT=15135`, `UI_PORT=21240`), live local-mode config readiness, safe local `config sync --dry-run`, and local `exposure reconcile`. `vrooli scenario test tunnel-manager --json` passed, and the anchored baseline diff returned `Overall: preexisting` with no regressions and only the inherited smoke baseline failure. Operator-attended live Cloudflare validation remains deferred until real credentials are available. |
+| 2026-06-20 | impl agent | partial | **Greenfield config/secrets consolidation backend slice** — Added the config-domain credential seam and repo-contract runtime-home paths. Cloudflare credential resolution was later completed through the Vrooli credential authority; legacy `CF_*` aliases and plaintext scenario stores are not accepted. |
+| 2026-06-20 | impl agent | done | **Greenfield config/secrets setup slice** — Added dynamic per-operation Cloudflare credential re-resolution, browser-safe credential status, write-only set/clear ConfigService RPCs with authz, CLI `config credentials-status|credentials-set|credentials-clear`, and a Settings setup form that saves/clears credentials without rendering token values. Remote sync/reconcile can now pick up authority-backed credentials without restarting the scenario. Live Cloudflare validation remains operator-attended. |
+| 2026-06-20 | impl agent | done | **Credential UX and config-policy hardening** — Settings explains the final config policy at the credential form, links operators to Cloudflare token guidance, and shows the next setup action. The current contract is Vrooli credential-authority-only for Cloudflare credentials; environment variables are lifecycle/deployment controls, not credential fallbacks. |
+
+## Entry Template
+
+Use this table shape when appending entries.
+
+```markdown
+| YYYY-MM-DD | author | done | Concise summary of the completed change |
+```
+
+## Cross-references
+
+- [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
+- [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map

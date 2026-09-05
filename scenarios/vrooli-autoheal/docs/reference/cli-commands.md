@@ -154,6 +154,37 @@ Last Update: 2024-01-15 10:30:00
 
 ---
 
+### incidents
+
+Inspect durable incidents and manage operator-approved remediation artifacts.
+
+```bash
+vrooli-autoheal incidents latest [--json]
+vrooli-autoheal incidents show <incident-id> [--json]
+vrooli-autoheal incidents remediations <incident-id> [--json]
+vrooli-autoheal incidents remediation generate <incident-id> <remediation-id> [--json]
+vrooli-autoheal incidents remediation outcome <incident-id> <remediation-id> --status <status> [--note "..."] [--json]
+```
+
+Generated remediation artifacts are written under the `api-core/storage` state directory for `vrooli-autoheal`, beneath `incidents/<incident-id>/remediation/<remediation-id>/`, and are not executed by autoheal. The exact root can vary by OS, profile, and environment overrides; use the `artifactPath` printed by `generate`. They are one-off operator artifacts for the current machine and should not be checked into the scenario source tree. Use `outcome` after the operator reports what happened so the incident retains the result alongside the generated artifact reference.
+
+---
+
+### timeline
+
+Show the persisted system-event timeline for host forensics.
+
+```bash
+vrooli-autoheal timeline [--since 72h] [--category kernel,driver] [--severity critical,warning] [--source journalctl,dpkg-log] [--limit 100] [--json]
+vrooli-autoheal timeline refresh [--json]
+```
+
+The top-level timeline reports host events such as boots, kernel/package changes, driver/module events, firmware updates, and crash/reset signals. `vrooli-autoheal actions timeline` remains the health-check result timeline.
+
+Correlation hints are deterministic temporal hints only. They identify ordering such as "kernel change before first crash" without claiming root cause.
+
+---
+
 ### checks
 
 List registered health checks.
@@ -246,7 +277,7 @@ Protection: ENABLED ✓
 #### watchdog install
 
 ```bash
-vrooli-autoheal watchdog install [--system]
+sudo vrooli setup
 ```
 
 **Options:**
@@ -257,7 +288,8 @@ vrooli-autoheal watchdog install [--system]
 #### watchdog uninstall
 
 ```bash
-vrooli-autoheal watchdog uninstall
+There is no separate uninstall path for the project-owned protection; use
+the setup-owned operator policy and `vrooli setup` to reconcile it.
 ```
 
 ---
@@ -288,6 +320,7 @@ vrooli-autoheal help watchdog
 |----------|-------------|---------|
 | `AUTOHEAL_API_PORT` | API port to connect to | Auto-detect |
 | `AUTOHEAL_API_HOST` | API host | localhost |
+| `AUTOHEAL_SYSTEMEVENTS_INTERVAL` | API-server knob: minimum interval between tick-driven kernel-signal (journalctl) ingestion passes. Decouples the expensive journal grep from the 60s health tick. Go duration; clamped to `[300s, 600s]`. The explicit `POST /api/v1/system-events/refresh` endpoint and startup ingestion bypass this throttle. | `300s` |
 | `VROOLI_LIFECYCLE_MANAGED` | Set by lifecycle system | - |
 
 ## Exit Codes
@@ -334,9 +367,9 @@ max_attempts=5
 attempt=0
 
 while [ $attempt -lt $max_attempts ]; do
-    vrooli-autoheal tick --force --json > /tmp/tick.json
+    vrooli-autoheal tick --force --json > "${TMPDIR:-.}/tick.json"
 
-    critical=$(jq '.summary.critical' /tmp/tick.json)
+    critical=$(jq '.summary.critical' "${TMPDIR:-.}/tick.json")
     if [ "$critical" -eq 0 ]; then
         echo "All checks passing"
         exit 0

@@ -6,6 +6,35 @@ This document describes the testing seams in the prompt-manager scenario - delib
 
 The prompt-manager uses interface-based design to create clear testing seams. Each domain handler depends on interfaces rather than concrete types, enabling mock implementations for unit testing.
 
+## Normalized package layout
+
+The API now follows the scenario layout contract:
+
+```text
+api/
+├── handlers/<domain>/   # composition-facing transport facade
+└── internal/<domain>/   # domain behavior, ports, persistence adapters, tests
+```
+
+The phase-11 move was deliberately behavior-preserving. Each
+`handlers/<domain>/facade.go` re-exports only the composition-root surface from
+the moved implementation package. This keeps every unexported invariant and
+the exact REST behavior intact while making the dependency direction visible.
+The proto migration slices replace these compatibility facades with thin
+Connect adapters and progressively narrow their exports; new business logic
+must not be added to a facade.
+
+Database schema providers live under `internal/database/<domain>` rather than
+inside a domain package. That separation prevents schema bootstrap from
+creating domain import cycles (for example, skills uses metrics while the
+metrics integration test applies the skills schema).
+
+Tests moved with their implementation packages. Repository-relative fixtures
+were adjusted for the additional `internal/` path component, without changing
+their asserted behavior. The canonical before/after comparison is package
+outcome plus the invariant counts of 393 implementation/test Go files and 172
+test files; the normalized tree adds 16 facade files and removes no tests.
+
 ## API Seams
 
 ### Handler Layer
@@ -19,7 +48,7 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 │       │          │          │          │                    │
 │  ┌────┴──────────┴──────────┴──────────┴───────────────┐   │
 │  │                   Interfaces                         │   │
-│  │  SkillStore │ AgentStore │ TeamStore │ OllamaClient │   │
+│  │  SkillStore │ AgentStore │ TeamStore │  LLMClient   │   │
 │  └────┬──────────┴──────────┴──────────┴──────┬────────┘   │
 └───────┼─────────────────────────────────────────┼───────────┘
         │ Production                              │ Testing
@@ -53,14 +82,19 @@ The prompt-manager uses interface-based design to create clear testing seams. Ea
 | `TeamRelReader` | `aisearch` | Team member relations for team embeddings |
 | `TopicStoreReader` | `aisearch` | Read-only topic access for discover pipeline |
 | `BudgetConfigProvider` | `aisearch` | Budget tier config for discover budgeting |
+| `DiscoverFilterConfigProvider` | `aisearch` | Discover exclusion filter config (drafts/ids/modes/tags) |
+| `DiscoverRankingConfigProvider` | `aisearch` | Ranking levers (topic gate, high-confidence bar, caps) for the block-aware discover composition; faked via `MockRankingConfigProvider` in tests |
+| `SemanticActionSearcher` | `actions` | Semantic similarity for `action create` dedup previews (adapts aisearch; faked in tests) |
+| `DiscoveryMissStore` | `aisearch` | Discovery-miss telemetry sink/source (impl: `store.DiscoveryMissStore`; faked in tests) |
+| `DiscoveryCallStore` | `aisearch` | Per-call discovery telemetry sink/source — records EVERY discover call, not just misses (impl: `store.DiscoveryCallStore`; faked in tests) |
 
 ### Search Service Seams
 
 The `search` package provides dedicated seams for text and content search across all
-entity types, isolating search behavior from HTTP handlers and the UI:
+entity types, isolating search behavior from Connect handlers and consumers:
 
 ```
-HTTP handler (/search/skills, /search/agents, /search/teams)
+Connect handler (`SearchService` deterministic methods)
   ↓
 search.Service / AgentSearchService / TeamSearchService
   ↓
@@ -188,42 +222,32 @@ Heartbeat execution uses three explicit seams:
   `RunRegistry` depend on the `AgentClient` interface instead of the concrete `*AgentManagerClient`.
   Tests substitute `mockAgentClient` (in `mock_agent_client_test.go`) with configurable responses
   and error injection for all agent-manager API calls (CreateTask, CreateRun, GetRun, WaitForRun,
-  StopRun, EnsureProfile, Health). The concrete `*AgentManagerClient` satisfies this interface
+  StopRun, EnsureProfile, ReconcileScenarioProfiles, Health). The concrete `*AgentManagerClient` satisfies this interface
   and has a `testBaseURL` field for httptest-based integration tests.
 - **Scheduler → Executor**: `heartbeat.Scheduler` depends on the `HeartbeatExecutor` interface, allowing
   tests to substitute fake executors to validate scheduling behavior without running agent-manager.
 - **Scheduler → Config Store**: `heartbeat.Scheduler` depends on `HeartbeatConfigStore` to resolve
   per-member profile keys and enabled state at run time.
+- **Heartbeat Control Store** (`heartbeat/control.go`): persisted runtime-data state for global/per-team
+  auto-pause policy, manual pause/resume state, and last operator engagement. `Scheduler.Schedule`,
+  cron fire execution, and manual trigger handlers consult this gate before starting new work. The
+  gate never mutates `heartbeat.json.enabled`; resume reschedules enabled configs separately.
+- **Structured Engagement Detection**: decision updates and heartbeat control/config mutations parse
+  `X-Vrooli-Attribution` and record engagement only for `kind=operator-direct`. Agent-member and
+  writer-skill activity never resets the idle clock.
 
-### Timeout Serialization Seam
+### Scenario-owned Profile Reconciliation
 
-Go's `time.Duration` serializes as nanosecond integers (e.g., `600000000000` for 10 minutes) via
-`encoding/json`. Agent-manager uses `google.protobuf.Duration` which expects the protojson canonical
-string format (e.g., `"600s"`). With `protojson.UnmarshalOptions{DiscardUnknown: false}`, the
-nanosecond integer causes `EnsureProfile` to fail at startup, which then causes every `CreateRun`
-to fail with "profile not found".
+Prompt Manager declares its heartbeat profiles in `.vrooli/agent-profiles/`
+and registers both files in its Agent Manager dependency configuration.
+`Scheduler.Start()` calls `ReconcileScenarioProfiles("prompt-manager")`; the
+consumer never sends inline profile defaults, runner types, models, or policy
+references.
 
-**Fix:** `AgentProfile.Timeout` is typed as `string` (not `time.Duration`). The `DurationToProtojson()`
-helper converts Go durations to protojson format. This is validated by:
-- `TestEnsureProfileRequest_ProtojsonCompatibility` — verifies timeout is a JSON string, not a number
-- `TestEnsureProfileRequest_ProtojsonRoundTrip` — validates the full payload structure
-- `TestDurationToProtojson` — unit tests for the helper function
-
-### Contract Test Coverage
-
-Cross-scenario payloads (prompt-manager → agent-manager) are validated by contract tests in
-`client_contract_test.go`. These tests verify:
-- All field names are snake_case (protojson UseProtoNames)
-- Duration fields use protojson string format
-- Enum fields use proto enum name strings (e.g., `RUNNER_TYPE_CODEX`)
-- No unknown fields that would be rejected by `DiscardUnknown=false`
-
-### EnsureProfile → CreateRun Dependency Chain
-
-`Scheduler.Start()` calls `ensureProfile()` to create the heartbeat profile in agent-manager.
-If this fails (e.g., due to a serialization bug), the profile is never created, and all subsequent
-`CreateRun` calls fail with "profile not found". The `TestEnsureProfileFailure_CausesCreateRunProfileNotFound`
-integration test validates this failure chain end-to-end.
+`CreateRun` sends only the reconciled `profile_key`. `EnsureProfile` remains a
+read-only key-to-ID lookup for run-list filtering, so a missing profile is a
+clear startup/reconciliation failure rather than an opportunity for a consumer
+to create one. `client_contract_test.go` pins both request shapes as key-only.
 
 Member cleanup is centralized in the team handlers:
 
@@ -315,21 +339,15 @@ and the queued-dequeue goroutine in `OnMemberComplete`.
 **Testing:** `TestEnqueue_ExecuteFailure_ClearsRunningState` uses a `failingExecutor` to verify
 the state is cleared and re-enqueue succeeds.
 
-### CreateRun ProfileRef.Defaults
+### CreateRun Profile Reference
 
 [CODE: api/heartbeat/executor.go, api/heartbeat/client.go]
 
-The `CreateRunRequest.ProfileRef` must always include `Defaults` (a full `AgentProfile`).
-Agent-manager's `resolveRunConfig` calls `EnsureProfile` internally, and if the profile
-doesn't exist and no defaults are provided, it returns a validation error. The `EnsureProfile`
-call at scheduler startup is non-fatal (logs warning, continues), so the profile may not
-exist when `CreateRun` is called. Including defaults makes `CreateRun` self-sufficient.
-
-`BuildDefaultProfile(profileKey)` is the exported constructor for the default heartbeat
-profile, shared between `Scheduler.ensureProfile()` and `Executor.Execute()`.
-
-**Testing:** `TestExecute_CreateRunIncludesDefaults` verifies the ProfileRef always has
-non-nil Defaults with required fields populated.
+The `CreateRunRequest.ProfileRef` contains only the stable, scenario-owned
+profile key. Agent Manager resolves the profile's portable `roleRef` through
+resource-owned policy and records the concrete runner/model only in the
+immutable execution snapshot. `TestExecute_CreateRunUsesDeclaredProfile`
+prevents inline defaults from returning.
 
 ---
 
@@ -512,14 +530,57 @@ pattern as `graph.Handlers.GetHealthConfig`/`PutHealthConfig`.
 
 ---
 
-## World Scale Config
+## Discovery Telemetry
 
-The world-scale system uses a simple file-based config (`store/world-scale.json`) with
-GET/PUT handlers in `api/worldscale/handlers.go`. The handlers use `store.LoadJSON` and
-`store.SaveJSON` — the same seams as other file-based stores.
+The discover pipeline has two parallel telemetry seams, both interfaces in the
+`aisearch` package whose production impls live in `store` and whose fakes are
+injected in tests:
 
-**Testing:** Handlers accept `storeDir string`, so tests can point at a temp directory.
-No interfaces needed — the seam is the filesystem path.
+```go
+type DiscoveryMissStore interface { // unmet queries only (top score < 0.45)
+    Append(miss store.DiscoveryMiss) error
+    ReadSince(window time.Duration) ([]store.DiscoveryMiss, error)
+}
+
+type DiscoveryCallStore interface { // EVERY discover call
+    Append(call store.DiscoveryCall) error
+    ReadSince(window time.Duration) ([]store.DiscoveryCall, error)
+}
+```
+
+**Why two.** The miss store answers "what are agents looking for that we don't
+have?" (mined as capability-work alpha). The call store answers "is the
+threshold/budget tuned right?" — it records every call (scores, budget status,
+trimmed count, optional clip count) so a call that returns relevant-but-clipped
+results is visible. The miss store alone is blind to that case.
+
+**Production:** `store.DiscoveryMissStore` / `store.DiscoveryCallStore` write
+bounded, time-windowed JSONL (`discovery-misses.jsonl` / `discovery-calls.jsonl`)
+under the runtime-data root — separate files so miss-mining semantics stay
+clean. Wired in `main.go` via `SetDiscoveryMissStore` / `SetDiscoveryCallStore`.
+
+**Testing:** `fakeMissStore` / `fakeCallStore` capture appended records and
+return canned read responses, so `recordDiscoveryMiss`, `recordDiscoveryCall`,
+`DiscoveryGaps`, and `DiscoveryMetrics` are tested without a filesystem home.
+Both recorders are guarded (nil store = no-op) and log-and-continue on error so
+telemetry never fails the discover response.
+
+See [discovery-pipeline.md](../reference/discovery-pipeline.md) for the full
+pipeline, threshold/budget semantics, and tuning rubric.
+
+---
+
+## World Service
+
+`api/internal/world` persists the world's operator config (`<config>/world/config.json`)
+and per-scene layout overrides (`world/layout-<scene>.json`) through `store.LoadJSON` /
+`store.SaveJSON`, and fans swarm signals out through `world.Hub`. The hub is the
+`heartbeat.RunObserver` installed on the run registry; a `ScheduleWatcher` polls the
+cron scheduler for upcoming heartbeats.
+
+**Testing:** `NewStore(dir)` takes a temp directory; `NewHub(ring, depth, source)` takes a
+`SnapshotSource` fake; the Connect handler is exercised through `httptest` with the
+generated client (`handlers/world/connect_handler_test.go`).
 
 ## UI Seams
 
@@ -587,32 +648,69 @@ const agents = await agentService.getAgents()
 expect(agents).toHaveLength(1)
 ```
 
-## Decision Approval Seams
+### Skills, actions, and tags Connect handlers
 
-### X-Caller-ID Header (Caller Type Seam)
+The `handlers/{skills,actions,tags}` packages own the generated transport
+adapters for slice 1. Public REST registrations for these operations have been
+removed. The generated clients used by the CLI, UI, and scenario consumers are
+therefore the only supported network transport.
 
-The `X-Caller-ID` HTTP header identifies who is making a decision status update. In production:
-- Agents send their agent ID (e.g., `agent-1`)
-- The UI sends nothing or `"ui-user"`
+The domains still contain mature behavior in their existing `net/http`
+handlers. `handlers/transportbridge` is a deliberately narrow in-process seam:
+it constructs a request, invokes that behavior without a loopback network
+call, maps HTTP failures to Connect codes, and decodes successful JSON with
+unknown protobuf fields rejected. This keeps the migration behavior-preserving
+while later domain-service extraction proceeds. It is not a second public
+transport, and new business logic must not be added to the bridge.
 
-In tests, set this header to simulate agent vs human callers:
-```go
-req.Header.Set("X-Caller-ID", "agent-1") // simulate agent caller
-// or omit header to simulate human caller
-```
+Slice 1 exposes 25 RPC methods: 16 skills (including five variant operations),
+seven actions, and two tags. The CLI declares 22 bindings because variant get,
+variant update, and usage recording have no CLI commands. The retired surface contained 26 REST route
+registrations; action preview and create are represented by the single typed
+`AuthorAction` operation with an explicit `apply` field.
 
-**File**: [CODE: api/heartbeat/handlers.go#checkApprovalEnforcement]
+### Search, AI search, and discovery Connect handlers
 
-### DecisionMode (Behavior Toggle Seam)
+Slice 2 applies the same behavior-preserving transport seam to
+`handlers/search` and `handlers/aisearch`. `SearchService` owns six
+deterministic entity/content queries, `AISearchService` owns four semantic
+queries plus status and reconciliation, and `DiscoveryService` owns unified
+discovery, gaps, metrics, and skill-usage reporting. Together they expose 18
+typed methods and replace 18 public REST registrations.
 
-The `Team.DecisionMode` field (`"yolo"` or `"approval"`) controls whether approval enforcement is active. In tests, create teams with the desired mode:
-```go
-teamStore.Create(ctx, &store.Team{
-    ID: "team-test", DecisionMode: "approval",
-})
-```
+The CLI has 11 exact governed bindings from this slice: the five search flats,
+four discovery/reporting flats, plus `agent search` and `team search`.
+Deterministic and content-search methods remain real generated-client paths
+behind those commands' `--text` and `--content` modes and carry explicit
+manifest omission reasons because they are not separate commands.
 
-**File**: [CODE: api/store/models.go#Team]
+All discovered consumers moved with the cutover: the prompt-manager UI uses
+generated TypeScript clients, Agent Inbox uses the generated Go AI-search
+client, and Search Hub's declarative descriptors target Connect-JSON
+procedure paths. The old `net/http` handlers are reachable only through the
+in-process compatibility adapter described above; they are not public routes.
+
+### Graph Connect Handler (proto transport seam) {#graph-connect-handler}
+
+`graph.NewConnectMount(indexStore)` builds prompt-manager's first proto/Connect
+contract — `vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores` — and
+returns the `(procedurePath, http.Handler)` pair mounted on the existing
+gorilla/mux router via `connectx.RegisterServices` in `api/main.go`. The handler
+(`api/graph/connect_handler.go`) owns no domain logic: it delegates to the same
+`graphIndexProvider` the REST `GET /api/v1/graph/health` handler reads and maps
+the domain `HealthScore`/`HealthMessage` onto their proto wire shapes.
+
+This is **additive**: the legacy REST route stays live; prompt-manager's own
+CLI/UI are not migrated. The contract exists because
+meta-optimization-manager's Guide numerator consumes it as a typed
+`GraphServiceClient` over a discovery-resolved base URL (replacing a
+`prompt-manager graph health --json` CLI shell-out). Full proto/Connect adoption
+of the other graph + prompt-manager domains — plus the `gen-endpoints` /
+`endpoints.json` drift gate — is deferred to a dedicated adoption plan
+(see [PROBLEMS.md](PROBLEMS.md)).
+
+**Files**: [CODE: api/graph/connect_handler.go], [CODE: api/main.go] (mount),
+[CODE: packages/proto/schemas/prompt-manager/v1/graph/graph.proto] (contract).
 
 ## Related Documentation
 

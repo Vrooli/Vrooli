@@ -12,26 +12,35 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 )
 
 var (
-	errNotFound       = apierr.ErrNotFound
-	errSessionExpired = apierr.ErrSessionExpired
-	errAtCapacity     = apierr.ErrAtCapacity
+	errNotFound   = apierr.ErrNotFound
+	errAtCapacity = apierr.ErrAtCapacity
 )
 
-// Backlog status values used by execution to update backlog items.
-// Defined locally to avoid a circular import with the backlog package.
+// Backlog status values referenced by execution when writing backlog items.
+// Aliased from the shared backlogstatus package (which has no dependencies
+// and is imported by both backlog and execution to break the cycle). Using
+// named locals rather than qualifying every call site keeps the hot paths
+// readable.
 const (
-	backlogStatusQueued      = "queued"
-	backlogStatusCompleted   = "completed"
-	backlogStatusFailed      = "failed"
-	backlogStatusBacklog     = "backlog"
-	backlogStatusResearching = "researching"
-	backlogStatusReady       = "ready"
+	backlogStatusQueued        = backlogstatus.Queued
+	backlogStatusInReview      = backlogstatus.InReview
+	backlogStatusReviewPending = backlogstatus.ReviewPending
+	backlogStatusFailed        = backlogstatus.Failed
+	backlogStatusBacklog       = backlogstatus.Backlog
+	backlogStatusResearching   = backlogstatus.Researching
+	backlogStatusReady         = backlogstatus.Ready
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows
@@ -56,31 +65,6 @@ func (d *defaultGovernanceProvider) LoadGovernance() (GovernanceSettings, error)
 	return DefaultGovernanceSettings(), nil
 }
 
-func executionActivityPurpose(runType string) agentactivity.Purpose {
-	switch strings.ToLower(strings.TrimSpace(runType)) {
-	case "initialize":
-		return agentactivity.PurposeInitialize
-	case "workshop":
-		return agentactivity.PurposeWorkshop
-	case "finalize":
-		return agentactivity.PurposeFinalize
-	case "research":
-		return agentactivity.PurposeResearch
-	case "process":
-		return agentactivity.PurposeProcess
-	case "fixup":
-		return agentactivity.PurposeFixup
-	case "followup", "custom":
-		return agentactivity.PurposeFollowUp
-	case "spec-sync", "spec_sync":
-		return agentactivity.PurposeSpecSync
-	case "classify":
-		return agentactivity.PurposeClassify
-	default:
-		return agentactivity.PurposeProcess
-	}
-}
-
 func backlogActivitySpec(
 	item backlogItem,
 	executionID string,
@@ -88,6 +72,16 @@ func backlogActivitySpec(
 	requestedBy string,
 	metadata map[string]string,
 ) agentactivity.Spec {
+	// Resolve PhaseKind explicitly here so every execution-package spawn
+	// site sees a fully-typed lane intent. Falls back to the per-Purpose
+	// default in agentactivity.LaneOf — this assignment exists so the wire
+	// shape carries phase_kind for Operations Center utilization without
+	// relying on the default-resolution path.
+	lane, err := agentactivity.LaneOf(purpose, "")
+	phaseKind := ""
+	if err == nil {
+		phaseKind = string(lane)
+	}
 	return agentactivity.Spec{
 		OwnerType:   agentactivity.OwnerBacklog,
 		OwnerKind:   item.Kind,
@@ -95,95 +89,118 @@ func backlogActivitySpec(
 		OwnerTitle:  item.Title,
 		ExecutionID: executionID,
 		Purpose:     purpose,
+		PhaseKind:   phaseKind,
 		RequestedBy: requestedBy,
 		Metadata:    metadata,
 	}
-}
-
-func scenarioActivitySpec(
-	ac ArchiveContext,
-	executionID string,
-	requestedBy string,
-	metadata map[string]string,
-) agentactivity.Spec {
-	return agentactivity.Spec{
-		OwnerType:   agentactivity.OwnerScenario,
-		OwnerName:   ac.ScenarioName,
-		OwnerTitle:  ac.ScenarioName,
-		ExecutionID: executionID,
-		Purpose:     agentactivity.PurposeSpecSync,
-		RequestedBy: requestedBy,
-		Metadata:    metadata,
-	}
-}
-
-// runTracker holds ephemeral per-run polling state (not persisted).
-type runTracker struct {
-	FirstSeen          time.Time
-	ConsecutiveErrors  int
-	ConsecutiveUnknown int
 }
 
 // ServiceConfig configures execution service dependencies.
+//
+// DataRoot is the runtime-home data directory where backlog item folders
+// live (`~/.vrooli/data/vrooli/swarm-manager/<kind>/<name>/...`). RepoRoot
+// is the scenario source path, used only as a repo anchor for resolving
+// the sibling scenarios/ directory in preflight.
 type ServiceConfig struct {
-	RootDir                  string
+	DataRoot                 string
+	RepoRoot                 string
 	StorePath                string
+	CircuitBreakerPath       string
 	SelfScenarioName         string
-	MaxConsecutiveErrors     int
-	MaxConsecutiveUnknown    int
-	MaxRunAge                time.Duration
 	PolicyProvider           PolicyProvider
 	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
-	AgentService             AgentSpawner
+	AgentService             AgentManagerAvailability
 	ScenarioLifecycle        ScenarioLifecycle
 	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
 	ExperimentClient         promptmanager.ExperimentClient
 	Archiver                 Archiver
 	ReviewClient             ReviewClient
+	BaselineClient           BaselineClient
+	BaselineEngagementRunner BaselineEngagementRunner
+	PlanRenderer             planclient.MarkdownRenderer
+	PhasedPlanWorkflow       agentmanager.WorkflowInvoker
+	WorkWorkflow             agentmanager.WorkflowInvoker
+	SpecSyncWorkflow         agentmanager.WorkflowInvoker
+	WorkflowStateReader      WorkflowStateReader
+	TransitionRegistry       transitions.Registry
 	Finalization             FinalizationConfig
 }
 
 // Service owns execution lifecycle logic.
 type Service struct {
-	rootDir                  string
+	dataRoot                 string
+	repoRoot                 string
 	selfScenarioName         string
 	finalizationCfg          FinalizationConfig
-	maxConsecutiveErrors     int
-	maxConsecutiveUnknown    int
-	maxRunAge                time.Duration
 	store                    Store
 	policyProvider           PolicyProvider
 	governanceProvider       GovernanceProvider
 	reviewThresholdsProvider ReviewThresholdsProvider
-	agentService             AgentSpawner
+	agentService             AgentManagerAvailability
+	operationStarter         OperationStarter
 	promptClient             promptmanager.Client
 	experimentClient         promptmanager.ExperimentClient
 	archiver                 Archiver
 	reviewClient             ReviewClient
-	inspector                RunInspector
+	baselineClient           BaselineClient
+	baselineEngagementRunner BaselineEngagementRunner
+	planRenderer             planclient.MarkdownRenderer
+	phasedPlanWorkflow       agentmanager.WorkflowInvoker
+	workWorkflow             agentmanager.WorkflowInvoker
+	specSyncWorkflow         agentmanager.WorkflowInvoker
+	workflowStateReader      WorkflowStateReader
+	transitionRegistry       transitions.Registry
+	transitionRunner         *transitionrunner.Runner
+	engagementStore          *EngagementStore
 	differ                   RunDiffer
 	stopper                  RunStopper
-	continuer                RunContinuer
+	approver                 RunApprover
 	scenarioLifecycle        ScenarioLifecycle
 	scenarioHealth           ScenarioHealthChecker
 	reviewService            ReviewServiceIntegration
 	eventDispatcher          dispatch.NodeDispatcher
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
+	activityLaneReader       ActivityLaneReader
+	goalPriorityProvider     GoalPriorityProvider
+	goalReadyProvider        GoalReadyProvider
+	autoDrainProvider        AutoDrainProvider
+	autoFilerWaker           AutoFilerWaker
 	processingFinalizations  map[string]struct{}
-	runTrackers              map[string]*runTracker
+	processingHolds          map[string]struct{}
 	mu                       sync.Mutex
+}
+
+type workflowProgressReader interface {
+	GetWorkflowProgress(context.Context, string) (agentmanager.WorkflowProgress, error)
+}
+
+// SetActivityLaneReader wires the agentactivity-backed lane reader after
+// construction. The wiring layer (server bootstrap) calls this once both
+// services exist; tests can leave it unset and GovernanceStatus will
+// report zero for non-Execute lanes.
+func (s *Service) SetActivityLaneReader(r ActivityLaneReader) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activityLaneReader = r
 }
 
 // NewService creates a new execution service.
 func NewService(cfg ServiceConfig) *Service {
-	rootDir := strings.TrimSpace(cfg.RootDir)
-	if rootDir == "" {
-		rootDir = pathutil.ResolveScenarioRoot("swarm-manager")
+	dataRoot := strings.TrimSpace(cfg.DataRoot)
+	if dataRoot == "" {
+		if p, err := runtimepaths.DataPath(""); err == nil {
+			dataRoot = p
+		} else {
+			dataRoot = pathutil.ResolveScenarioRoot("swarm-manager")
+		}
 	}
-
+	repoRoot := strings.TrimSpace(cfg.RepoRoot)
+	if repoRoot == "" {
+		repoRoot = pathutil.ResolveScenarioRoot("swarm-manager")
+	}
 	pc := cfg.PromptClient
 	if pc == nil {
 		pc = promptmanager.NewHTTPClient()
@@ -203,29 +220,18 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	selfName := strings.TrimSpace(cfg.SelfScenarioName)
 	if selfName == "" {
-		selfName = filepath.Base(rootDir)
+		selfName = filepath.Base(repoRoot)
 	}
-
-	maxConsecErrors := cfg.MaxConsecutiveErrors
-	if maxConsecErrors <= 0 {
-		maxConsecErrors = 30
-	}
-	maxConsecUnknown := cfg.MaxConsecutiveUnknown
-	if maxConsecUnknown <= 0 {
-		maxConsecUnknown = 5
-	}
-	maxRunAge := cfg.MaxRunAge
-	if maxRunAge <= 0 {
-		maxRunAge = 30 * time.Minute
+	circuitBreakerPath := strings.TrimSpace(cfg.CircuitBreakerPath)
+	if circuitBreakerPath == "" {
+		circuitBreakerPath = defaultCircuitBreakerPath(cfg.StorePath)
 	}
 
 	service := &Service{
-		rootDir:                  rootDir,
+		dataRoot:                 dataRoot,
+		repoRoot:                 repoRoot,
 		selfScenarioName:         selfName,
 		finalizationCfg:          fc,
-		maxConsecutiveErrors:     maxConsecErrors,
-		maxConsecutiveUnknown:    maxConsecUnknown,
-		maxRunAge:                maxRunAge,
 		store:                    NewStore(cfg.StorePath),
 		policyProvider:           pp,
 		governanceProvider:       gp,
@@ -235,30 +241,115 @@ func NewService(cfg ServiceConfig) *Service {
 		experimentClient:         cfg.ExperimentClient,
 		archiver:                 cfg.Archiver,
 		reviewClient:             cfg.ReviewClient,
+		baselineClient:           cfg.BaselineClient,
+		baselineEngagementRunner: cfg.BaselineEngagementRunner,
+		planRenderer:             cfg.PlanRenderer,
+		phasedPlanWorkflow:       cfg.PhasedPlanWorkflow,
+		workWorkflow:             cfg.WorkWorkflow,
+		specSyncWorkflow:         cfg.SpecSyncWorkflow,
+		workflowStateReader:      cfg.WorkflowStateReader,
+		transitionRegistry:       cfg.TransitionRegistry,
+		engagementStore:          NewEngagementStore(engagementStorePath(cfg.StorePath)),
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
-		circuitBreaker:           NewCircuitBreaker(filepath.Join(rootDir, ".vrooli", "circuit-breaker.json")),
+		circuitBreaker:           NewCircuitBreaker(circuitBreakerPath),
 		processingFinalizations:  map[string]struct{}{},
-		runTrackers:              map[string]*runTracker{},
+		processingHolds:          map[string]struct{}{},
 	}
-	if inspector, ok := cfg.AgentService.(RunInspector); ok {
-		service.inspector = inspector
+	if service.phasedPlanWorkflow == nil {
+		service.phasedPlanWorkflow = agentmanager.NewWorkflowService()
+	}
+	if service.workWorkflow == nil {
+		service.workWorkflow = agentmanager.NewWorkflowService()
+	}
+	if service.specSyncWorkflow == nil {
+		service.specSyncWorkflow = agentmanager.NewWorkflowService()
 	}
 	if differ, ok := cfg.AgentService.(RunDiffer); ok {
 		service.differ = differ
 	}
-	if continuer, ok := cfg.AgentService.(RunContinuer); ok {
-		service.continuer = continuer
-	}
 	if stopper, ok := cfg.AgentService.(RunStopper); ok {
 		service.stopper = stopper
 	}
+	if approver, ok := cfg.AgentService.(RunApprover); ok {
+		service.approver = approver
+	}
+	service.configureLocalTransitionRunner()
 	return service
+}
+
+func (s *Service) configureLocalTransitionRunner() {
+	if len(s.transitionRegistry.Definitions()) == 0 {
+		return
+	}
+	routes := map[string]agentmanager.WorkflowInvoker{}
+	for transitionKey, invoker := range map[string]agentmanager.WorkflowInvoker{"plan.execute": s.phasedPlanWorkflow, "work.correct": s.workWorkflow, "work.follow_up": s.workWorkflow, "scenario.spec_sync": s.specSyncWorkflow} {
+		if locator, err := s.transitionRegistry.ResolveWorkflow(transitionKey); err == nil {
+			routes[locator.Key] = invoker
+		}
+	}
+	runner := transitionrunner.New(s.transitionRegistry, transitionrunner.NewWorkflowRouter(s.phasedPlanWorkflow, routes), transitionrun.NewFileStore(filepath.Join(s.dataRoot, "transition-runs")), nil)
+	s.RegisterTransitionAdapter(runner)
+	s.transitionRunner = runner
+}
+
+func defaultCircuitBreakerPath(storePath string) string {
+	if trimmed := strings.TrimSpace(storePath); trimmed != "" {
+		return filepath.Join(filepath.Dir(trimmed), "circuit-breaker.json")
+	}
+	path, err := runtimepaths.StatePath("circuit-breaker.json")
+	if err != nil {
+		panic(err)
+	}
+	return path
+}
+
+// engagementStorePath places the Baseline Modes engagement-owner index next to
+// the execution records store so they share a lifecycle/backup boundary. Empty
+// store path ⇒ the engagement store resolves the runtime state dir itself.
+func engagementStorePath(storePath string) string {
+	if trimmed := strings.TrimSpace(storePath); trimmed != "" {
+		return filepath.Join(filepath.Dir(trimmed), "engagement-owners.json")
+	}
+	return ""
 }
 
 // SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
 func (s *Service) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	s.eventDispatcher = d
+}
+
+// SetWorkflowActivityRecorder wires the launch ledger into the declared
+// workflow consumer. It keeps activity recording at StartWorkflow rather than
+// duplicating it in each execution entry point.
+func (s *Service) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActivityRecorder) {
+	if workflow, ok := s.phasedPlanWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+	if workflow, ok := s.workWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+	if workflow, ok := s.specSyncWorkflow.(*agentmanager.WorkflowService); ok {
+		workflow.SetWorkflowActivityRecorder(recorder)
+	}
+}
+
+// WorkflowProgress reads Agent Manager's trace for this execution. The local
+// record only supplies the stable correlation; it never caches live fields.
+func (s *Service) WorkflowProgress(ctx context.Context, executionID string) (agentmanager.WorkflowProgress, error) {
+	record, err := s.Get(ctx, executionID)
+	if err != nil {
+		return agentmanager.WorkflowProgress{}, err
+	}
+	correlation, err := s.transitionCorrelation(record)
+	if err != nil {
+		return agentmanager.WorkflowProgress{}, apierr.Conflict("execution has no agent workflow")
+	}
+	reader, ok := s.phasedPlanWorkflow.(workflowProgressReader)
+	if !ok {
+		return agentmanager.WorkflowProgress{}, apierr.Unavailable("workflow progress is unavailable")
+	}
+	return reader.GetWorkflowProgress(ctx, correlation.ExecutionID)
 }
 
 // SetEventLogger injects an optional event logger for analytics tracking.
@@ -272,11 +363,30 @@ func (s *Service) SetReviewService(rs ReviewServiceIntegration) {
 	s.reviewService = rs
 }
 
+// SetGoalDirectedProviders wires the optional goal-directed drain dependencies:
+// a per-item goal-priority source for the drain comparator, a ready-items
+// source and an enablement flag for continuous auto-enqueue. Any may be nil,
+// leaving pure FIFO / no continuous drain. Set after construction to avoid an
+// import cycle with the goals package.
+func (s *Service) SetGoalDirectedProviders(priorities GoalPriorityProvider, ready GoalReadyProvider, autoDrain AutoDrainProvider) {
+	s.goalPriorityProvider = priorities
+	s.goalReadyProvider = ready
+	s.autoDrainProvider = autoDrain
+}
+
 // RecordView emits a view event for analytics.
 func (s *Service) RecordView(execID string) {
 	if s.eventLogger != nil {
 		s.eventLogger.EmitExecutionViewed(execID)
 	}
+}
+
+// dispatchStatusAndLog is the canonical "after you mutate record.Status" helper.
+// Every site that transitions an execution's status must call this (not just
+// dispatchStatusUpdate) so the event log captures the transition.
+func (s *Service) dispatchStatusAndLog(record Record, prevStatus Status) {
+	s.logExecutionEvent(record, prevStatus)
+	s.dispatchStatusUpdate(record)
 }
 
 // dispatchStatusUpdate emits a node-update event for an execution record status change.
@@ -292,7 +402,7 @@ func (s *Service) dispatchStatusUpdate(record Record) {
 		"mode":         string(record.Mode),
 		"run_id":       record.RunID,
 	})
-	s.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+	s.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 // logExecutionEvent emits an event log entry for an execution status transition.
@@ -313,6 +423,14 @@ func (s *Service) logExecutionEvent(record Record, prevStatus Status) {
 	switch record.Status {
 	case StatusCompleted:
 		dur := executionDuration(record)
+		if record.ManuallyAccepted {
+			s.eventLogger.EmitExecutionManuallyAccepted(
+				record.ExecutionID,
+				record.AcceptedBy,
+				record.AcceptedReason,
+				string(record.AcceptedPreviousStatus),
+			)
+		}
 		s.eventLogger.EmitExecutionCompleted(record.ExecutionID, dur, record.FixupAttempt > 0)
 	case StatusFailed:
 		dur := executionDuration(record)
@@ -320,6 +438,62 @@ func (s *Service) logExecutionEvent(record Record, prevStatus Status) {
 	case StatusCanceled:
 		s.eventLogger.EmitExecutionCanceled(record.ExecutionID, "user canceled")
 	}
+}
+
+// ManuallyAcceptLatestForBacklog finds the most recent non-cancelled execution
+// for the given backlog item and flips it to StatusCompleted with
+// ManuallyAccepted=true. Intended to be called when the user manually
+// transitions a backlog item from failed → completed, overriding the agent's
+// own verdict. Returns (accepted execution ID, true) when a record was
+// flipped, or ("", false) if no eligible execution was found.
+func (s *Service) ManuallyAcceptLatestForBacklog(ctx context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error) {
+	_ = s.ProcessActiveExecutions(ctx)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	records, err := s.store.Load()
+	if err != nil {
+		return "", false, err
+	}
+
+	idx := -1
+	for i := range records {
+		r := &records[i]
+		if r.BacklogKind != backlogKind || r.BacklogName != backlogName {
+			continue
+		}
+		switch r.Status {
+		case StatusFailed, StatusNeedsFixup:
+			// eligible
+		default:
+			continue
+		}
+		if idx == -1 || r.CreatedAt > records[idx].CreatedAt {
+			idx = i
+		}
+	}
+	if idx == -1 {
+		return "", false, nil
+	}
+
+	record := &records[idx]
+	prev := record.Status
+	now := nowRFC3339()
+	record.AcceptedPreviousStatus = prev
+	record.Status = StatusCompleted
+	record.ManuallyAccepted = true
+	record.AcceptedBy = strings.TrimSpace(acceptor)
+	record.AcceptedReason = strings.TrimSpace(reason)
+	record.FailureReason = ""
+	if record.FinishedAt == "" {
+		record.FinishedAt = now
+	}
+	record.UpdatedAt = now
+	if err := s.store.Save(records); err != nil {
+		return "", false, err
+	}
+	s.dispatchStatusAndLog(*record, prev)
+	return record.ExecutionID, true, nil
 }
 
 func executionDuration(r Record) float64 {
@@ -349,8 +523,15 @@ func (s *Service) Get(ctx context.Context, executionID string) (Record, error) {
 // List returns executions ordered by created_at descending.
 func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, error) {
 	_ = s.ProcessActiveExecutions(ctx)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	return s.ListSnapshot(ctx, filters)
+}
+
+// ListSnapshot returns executions from the persisted store without polling
+// agent-manager or draining pending work. Use this for read-only aggregate
+// projections where freshness is provided by the regular execution poller and
+// graph invalidation events; blocking those projections on remote run-state
+// refresh makes unrelated UI surfaces slow to open.
+func (s *Service) ListSnapshot(_ context.Context, filters ListFilters) ([]Record, error) {
 	records, err := s.store.Load()
 	if err != nil {
 		return nil, err
@@ -420,7 +601,16 @@ func wrapAgentError(err error) error {
 		return apierr.Conflict("an agent is already active for this backlog item")
 	}
 	if errors.Is(err, agentmanager.ErrRequestFailed) {
-		return apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry")
+		return apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry: %s", err.Error())
+	}
+	if spe := agentmanager.AsStalePlanError(err); spe != nil {
+		return apierr.PlanStale(
+			"this plan references paths that no longer exist; re-workshop required",
+			map[string]any{
+				"missingPaths": spe.MissingPaths,
+				"projectRoot":  spe.ProjectRoot,
+			},
+		)
 	}
 	return err
 }

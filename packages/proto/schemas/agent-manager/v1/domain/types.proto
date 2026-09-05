@@ -54,21 +54,27 @@ enum RunnerType {
   // Open-source multi-model CLI supporting various providers.
   // Supports: OpenRouter, Anthropic, OpenAI, Google, DeepSeek.
   RUNNER_TYPE_OPENCODE = 3;
+
+  // Grok Build CLI (resource-grok).
+  // xAI's Grok-based coding assistant CLI.
+  // Supports: streaming (streaming-json), continuation (--resume).
+  RUNNER_TYPE_GROK = 4;
+
+  // Google Antigravity CLI (resource-antigravity).
+  // Google's maintained successor to Gemini CLI.
+  // Supports: print-mode text output and continuation by conversation.
+  RUNNER_TYPE_ANTIGRAVITY = 5;
 }
 
-// =============================================================================
-// MODEL PRESETS
-// =============================================================================
-
-// ModelPreset provides a stable, high-level model selection.
+// ModelSelectionType distinguishes a pinned model identifier from an explicit
+// request to let the selected runner choose its own default. The latter is a
+// first-class value; an empty model string is never its wire representation.
 //
-// Presets are resolved to concrete models via the model registry.
-// @usage AgentProfile.model_preset, RunConfig.model_preset
-enum ModelPreset {
-  MODEL_PRESET_UNSPECIFIED = 0;
-  MODEL_PRESET_FAST = 1;
-  MODEL_PRESET_CHEAP = 2;
-  MODEL_PRESET_SMART = 3;
+// @usage ExecutionCandidate.selection_type
+enum ModelSelectionType {
+  MODEL_SELECTION_TYPE_UNSPECIFIED = 0;
+  MODEL_SELECTION_TYPE_MODEL = 1;
+  MODEL_SELECTION_TYPE_RUNNER_DEFAULT = 2;
 }
 
 // =============================================================================
@@ -77,7 +83,7 @@ enum ModelPreset {
 
 // NetworkAccess controls the level of network access granted to an agent.
 //
-// This is independent of sandbox file isolation (RequiresSandbox).
+// This is independent of sandbox file isolation (SandboxConfig.mode).
 // Runners map this to runner-specific flags.
 //
 // @usage AgentProfile.network_access, RunConfig.network_access
@@ -94,7 +100,7 @@ enum NetworkAccess {
 
 // SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
 //
-// @usage SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
+// @usage SandboxLifecycleConfig.checkpoint_on, SandboxLifecycleConfig.stop_on, SandboxLifecycleConfig.delete_on
 enum SandboxLifecycleEvent {
   SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED = 0;
   SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED = 1;
@@ -103,6 +109,9 @@ enum SandboxLifecycleEvent {
   SANDBOX_LIFECYCLE_EVENT_APPROVED = 4;
   SANDBOX_LIFECYCLE_EVENT_REJECTED = 5;
   SANDBOX_LIFECYCLE_EVENT_TERMINAL = 6;
+  SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED = 7;
+  SANDBOX_LIFECYCLE_EVENT_TURN_FAILED = 8;
+  SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED = 9;
 }
 
 // SandboxAcceptanceMode controls how files are accepted for approval.
@@ -120,16 +129,18 @@ message SandboxFileCriteria {
 }
 
 // SandboxAcceptanceConfig controls which files are eligible for approval.
+//
+// auto_approve / auto_reject / disable_auto_approve_if_empty (5,6,7) were
+// removed in agent-sandbox-audit-foundation Phase 3b. The auditability
+// contract replaces them with SandboxConfig.manual_review / auto_apply /
+// apply_on_failure (see scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md).
 message SandboxAcceptanceConfig {
   SandboxAcceptanceMode mode = 1;
   SandboxFileCriteria allow = 2;
   SandboxFileCriteria deny = 3;
   bool ignore_binary = 4;
-  bool auto_approve = 5;
-  bool auto_reject = 6;
-  // When false (default), sandboxes with no file changes are auto-approved.
-  // Set to true to require manual approval even for empty sandboxes.
-  bool disable_auto_approve_if_empty = 7;
+  reserved 5, 6, 7;
+  reserved "auto_approve", "auto_reject", "disable_auto_approve_if_empty";
 }
 
 // SandboxLifecycleConfig controls sandbox stop/delete behavior.
@@ -138,12 +149,58 @@ message SandboxLifecycleConfig {
   repeated SandboxLifecycleEvent delete_on = 2;
   google.protobuf.Duration ttl = 3;
   google.protobuf.Duration idle_timeout = 4;
+  repeated SandboxLifecycleEvent checkpoint_on = 5;
 }
 
-// SandboxConfig groups lifecycle and acceptance settings.
+// SandboxMode names the per-run sandbox execution mode from the
+// auditability contract. The default in spawn surfaces is protected
+// (DefaultSandboxConfig); tracking is the explicit operator opt-out
+// for runs that need full host capability; off disables sandboxing
+// entirely (used only for runs with no auditability requirement).
+//
+// Mode is the single source of truth for "is this run sandboxed?" —
+// see scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision
+// boundary). Off → RunModeInPlace; every other value → RunModeSandboxed.
+enum SandboxMode {
+  SANDBOX_MODE_UNSPECIFIED = 0;
+  SANDBOX_MODE_TRACKING = 1;
+  SANDBOX_MODE_PROTECTED = 2;
+  SANDBOX_MODE_OFF = 3;
+}
+
+// SandboxConfig groups lifecycle, acceptance, and the auditability-contract
+// run-end behavior levers.
+//
+// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
 message SandboxConfig {
   SandboxLifecycleConfig lifecycle = 1;
   SandboxAcceptanceConfig acceptance = 2;
+
+  // mode selects the sandbox execution mode (tracking is the default).
+  SandboxMode mode = 3;
+
+  // manual_review defers apply at run end until an operator approves via
+  // one of the three viewing surfaces (git-control-tower, agent-manager,
+  // workspace-sandbox). When true the sandbox persists past run end.
+  bool manual_review = 4;
+
+  // auto_apply controls whether in-acceptance changes apply to the
+  // canonical repo at run end. Optional so the unset case maps to the
+  // contract default (true).
+  optional bool auto_apply = 5;
+
+  // apply_on_failure controls whether apply runs identically when the
+  // run outcome is failure / cancelled / timeout. Optional with default
+  // true.
+  optional bool apply_on_failure = 6;
+
+  // network_mode mirrors NetworkAccess for sandboxed execution. Empty
+  // defaults to NETWORK_ACCESS_LOCALHOST.
+  NetworkAccess network_mode = 7;
+
+  // no_lock disables mutual exclusion locking. Acceptance filtering
+  // remains independent.
+  bool no_lock = 8;
 }
 
 // =============================================================================
@@ -250,6 +307,41 @@ enum RunStatus {
 
   // Run was cancelled.
   RUN_STATUS_CANCELLED = 7;
+
+  // Run is parked: suspended waiting on externally-owned async work (a
+  // test-genie run, a git-control-tower baseline diff). The agent process has
+  // exited (zero tokens) but the run is NOT terminal — its sandbox is preserved
+  // and agent-manager wakes it (resumes the conversation with the awaited
+  // result injected) once the work resolves. Non-terminal, non-active.
+  RUN_STATUS_PARKED = 8;
+
+  // Historical evidence was imported without a trustworthy terminal signal.
+  // This is distinct from FAILED because no provider failure was observed.
+  RUN_STATUS_UNKNOWN = 9;
+}
+
+// RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
+enum RunFinalizationStatus {
+  // Default/unspecified.
+  RUN_FINALIZATION_STATUS_UNSPECIFIED = 0;
+
+  // No finalization has been requested or is needed.
+  RUN_FINALIZATION_STATUS_NONE = 1;
+
+  // Finalization is queued but not yet running.
+  RUN_FINALIZATION_STATUS_PENDING = 2;
+
+  // Finalization is currently applying/checkpointing sandbox effects.
+  RUN_FINALIZATION_STATUS_RUNNING = 3;
+
+  // Finalization completed successfully.
+  RUN_FINALIZATION_STATUS_SUCCEEDED = 4;
+
+  // Finalization failed after the runner turn completed.
+  RUN_FINALIZATION_STATUS_FAILED = 5;
+
+  // Finalization was intentionally skipped by policy.
+  RUN_FINALIZATION_STATUS_SKIPPED = 6;
 }
 
 // =============================================================================
@@ -318,6 +410,37 @@ enum RunMode {
   // Execute directly in target directory.
   // Changes are applied immediately (requires explicit permission).
   RUN_MODE_IN_PLACE = 2;
+}
+
+// =============================================================================
+// EXECUTION MODE
+// =============================================================================
+
+// ExecutionMode selects the substrate agent-manager uses to drive the agent
+// CLI for a run. It is orthogonal to RunMode (sandbox isolation): a run picks
+// an execution substrate independently of whether it is sandboxed.
+//
+// @usage CreateRunRequest.execution_mode, Run.execution_mode
+enum ExecutionMode {
+  // Default/unspecified. Treated as EXECUTION_MODE_CODEC_PIPE.
+  EXECUTION_MODE_UNSPECIFIED = 0;
+
+  // agent-manager owns the CLI process and reads events off its stdout pipe
+  // via the codec decoders. The historical path and the only path for
+  // protected (sandboxed) runs.
+  EXECUTION_MODE_CODEC_PIPE = 1;
+
+  // agent-manager launches the real interactive agent CLI inside a web-console
+  // (persistent/tmux) session and reads events by tailing the agent-owned
+  // on-disk transcript. Allowed only for non-protected (in-place) runs.
+  EXECUTION_MODE_INTERACTIVE = 2;
+
+  // Read-only historical evidence adopted from an external harness.
+  EXECUTION_MODE_IMPORTED = 3;
+
+  // An operator-started harness session identified by agent-manager without
+  // being spawned or transcript-tailed by it.
+  EXECUTION_MODE_ATTACHED = 4;
 }
 
 // =============================================================================
@@ -393,6 +516,11 @@ enum RunEventType {
 
   // Context compaction/summarization event.
   RUN_EVENT_TYPE_COMPACTION = 10;
+
+  // Lifecycle transition event (spawn-enqueued, spawn-started,
+  // runner-acquired, runner-exited, finalize-started, finalize-completed).
+  // Emitted only by internal/orchestration/obs/events.go helpers.
+  RUN_EVENT_TYPE_LIFECYCLE = 11;
 }
 
 // =============================================================================

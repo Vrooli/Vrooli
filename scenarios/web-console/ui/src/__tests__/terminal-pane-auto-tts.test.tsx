@@ -1,6 +1,10 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, act, cleanup } from "@testing-library/react";
+import { createTerminalSessionStub } from "../test-utils";
+import { act, cleanup } from "@testing-library/react";
 import { apiBaseMock } from "../test-utils";
+import { useConversationStore } from "../stores/useConversationStore";
+import type { ConversationEvent } from "../api/conversation";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
@@ -26,6 +30,10 @@ vi.stubGlobal("SpeechSynthesisUtterance", MockUtterance);
 const mockSpeak = vi.fn();
 const mockSpeakParagraphs = vi.fn().mockResolvedValue("browser");
 const mockStop = vi.fn();
+const mockIncoming = vi.fn();
+const mockSendAck = vi.fn();
+const mockGetServerSize = vi.fn(() => null);
+const mockSendResize = vi.fn();
 
 vi.mock("../hooks/useTextToSpeech", () => ({
   useTextToSpeech: () => ({
@@ -40,42 +48,31 @@ vi.mock("../hooks/useTextToSpeech", () => ({
   }),
 }));
 
-let capturedCandidateHandler:
-  | ((candidate: { id: string; source: string; role: "assistant"; text: string; speechParagraphs?: string[]; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
-  | undefined;
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: (opts: { onConversationEvent?: typeof capturedCandidateHandler }) => {
-    capturedCandidateHandler = opts.onConversationEvent;
-    return {
-      sendInput: vi.fn().mockReturnValue(true),
-      sendResize: vi.fn(),
-      totalBytesRef: { current: 0 },
-    };
-  },
+// Conversation events now arrive via the global SSE channel into the store;
+// TerminalPane drives auto-TTS by observing the store tail for the active pane.
+// So we mock the session hook (no WS conversation callbacks anymore) and drive
+// tests by appending events to the real conversation store.
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  // One stable session object: TerminalPane keys effects on these references.
+  const session = createTerminalSessionStub({ sendResize: mockSendResize, getServerSize: mockGetServerSize, sendConversationAck: mockSendAck });
+  return { useTerminalSession: () => session };
+});
+
+// Avoid the async mount-hydrate fetch; tests seed the store explicitly.
+vi.mock("../hooks/useConversationSession", () => ({
+  useConversationSession: () => ({
+    persistCursor: vi.fn().mockResolvedValue(undefined),
+    appendConversationEvent: vi.fn(),
+    refresh: vi.fn().mockResolvedValue(true),
+  }),
+  refreshConversationSession: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("../hooks/useTerminalTouch", () => ({
-  useTerminalTouch: () => ({
-    hasSelection: false,
-    copySelection: vi.fn(),
-    clearSelection: vi.fn(),
-  }),
+  useTerminalTouch: () => ({ hasSelection: false, copySelection: vi.fn(), clearSelection: vi.fn() }),
 }));
 
-vi.mock("../hooks/useMobileBackspaceRepeat", () => ({
-  useMobileBackspaceRepeat: vi.fn(),
-}));
-
-const makeLine = (text: string) => ({ translateToString: vi.fn(() => text) });
-const terminalBufferLines = [
-  "Hello world",
-  "First paragraph",
-  "Second paragraph",
-  "Third paragraph",
-  "New message replaces old",
-  "Only real content",
-  "Second part",
-];
+vi.mock("../hooks/useMobileBackspaceRepeat", () => ({ useMobileBackspaceRepeat: vi.fn() }));
 
 vi.mock("@xterm/xterm", () => ({
   Terminal: vi.fn().mockImplementation(() => ({
@@ -88,15 +85,8 @@ vi.mock("@xterm/xterm", () => ({
     cols: 80,
     rows: 24,
     options: {},
-    buffer: {
-      active: {
-        viewportY: 0,
-        baseY: 0,
-        length: terminalBufferLines.length,
-        getLine: (index: number) => makeLine(terminalBufferLines[index] ?? ""),
-      },
-    },
-    loadAddon: vi.fn(),
+    buffer: { active: { viewportY: 0, baseY: 0, length: 0, getLine: () => ({ translateToString: () => "" }) } },
+    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""),
@@ -110,28 +100,11 @@ vi.mock("@xterm/xterm", () => ({
 }));
 
 vi.mock("@xterm/addon-fit", () => ({
-  FitAddon: vi.fn().mockImplementation(() => ({
-    fit: vi.fn(),
-    dispose: vi.fn(),
-  })),
-}));
-
-vi.mock("@xterm/addon-serialize", () => ({
-  SerializeAddon: vi.fn().mockImplementation(() => ({
-    serialize: vi.fn(() => ""),
-    dispose: vi.fn(),
-  })),
+  FitAddon: vi.fn().mockImplementation(() => ({ fit: vi.fn(), dispose: vi.fn() })),
 }));
 
 vi.mock("@xterm/addon-web-links", () => ({
-  WebLinksAddon: vi.fn().mockImplementation(() => ({
-    dispose: vi.fn(),
-  })),
-}));
-
-vi.mock("../lib/terminalCache", () => ({
-  loadTerminalCache: vi.fn(() => null),
-  saveTerminalCache: vi.fn(),
+  WebLinksAddon: vi.fn().mockImplementation(() => ({ dispose: vi.fn() })),
 }));
 
 const storeState: Record<string, unknown> = {
@@ -142,25 +115,48 @@ const storeState: Record<string, unknown> = {
   kokoroVoice: "af_heart",
   kokoroSpeed: 1.0,
   ttsBackendPreference: "auto",
+  deviceFontSize: {},
   voiceShortcut: "",
   panes: [{ sessionId: "tts-test", name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: "tts-test",
   renamePaneById: vi.fn(),
+  setPendingInputBuffer: vi.fn(),
+  consumePendingInputBuffer: vi.fn(() => undefined),
+  setPendingInputDraft: vi.fn(),
+  consumePendingInputDraft: vi.fn(() => undefined),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(storeState) : storeState,
+  useEffectiveFontSize: () => 14,
 }));
 
 const { default: TerminalPane } = await import("../components/TerminalPane");
 
-describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
+function makeEvent(id: string, sequence: number, text: string, speechParagraphs?: string[]): ConversationEvent {
+  return {
+    id,
+    sessionId: "tts-test",
+    source: "claude_hook",
+    role: "assistant",
+    text,
+    speechParagraphs: speechParagraphs ?? [text],
+    summarized: false,
+    createdAt: new Date().toISOString(),
+    sequence,
+    deliveryState: "received",
+    ttsState: "idle",
+    consumptionState: "unseen",
+  };
+}
+
+describe("TerminalPane auto-TTS (store-driven)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    capturedCandidateHandler = undefined;
     storeState.autoTtsEnabled = true;
-
+    storeState.activePane = "tts-test";
+    useConversationStore.setState({ sessions: {}, viewModes: {} });
     if (typeof globalThis.ResizeObserver === "undefined") {
       globalThis.ResizeObserver = class {
         observe() {}
@@ -174,134 +170,63 @@ describe("TerminalPane auto-TTS via useTextToSpeech hook", () => {
     cleanup();
   });
 
-  it("calls speakParagraphs when autoTtsEnabled and a matching candidate arrives", async () => {
-    const ack = vi.fn();
-    render(<TerminalPane sessionId="tts-test" />);
-
-    await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-1", source: "claude_hook", role: "assistant", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] }, ack);
+  function renderPane() {
+    const r = render(<TerminalPane sessionId="tts-test" onConversationEventReceived={mockIncoming} />);
+    // Establish the auto-TTS baseline from an (empty) hydrate so the first
+    // live event that follows is treated as fresh, not as the baseline.
+    act(() => {
+      useConversationStore.getState().hydrateSession("tts-test", [], { lastSeenSequence: 0, lastListenedSequence: 0 });
     });
+    return r;
+  }
 
-    expect(mockStop).toHaveBeenCalled();
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Hello world"], { eventId: "evt-1" });
-    expect(ack).toHaveBeenCalledWith("received");
-    expect(ack).toHaveBeenCalledWith("seen");
-    expect(ack).toHaveBeenCalledWith("playback_started", undefined, "browser");
-    expect(ack).toHaveBeenCalledWith("playback_succeeded", undefined, "browser");
+  it("forwards a fresh assistant event for the active pane to the controller", () => {
+    renderPane();
+    act(() => useConversationStore.getState().appendEvent(makeEvent("evt-1", 1, "Hello world", ["Hello world"])));
+
+    expect(mockIncoming).toHaveBeenCalledWith(
+      "tts-test",
+      expect.objectContaining({ id: "evt-1", speechParagraphs: ["Hello world"] }),
+      expect.any(Function),
+    );
   });
 
-  it("uses backend-provided speechParagraphs for TTS playback", async () => {
-    render(<TerminalPane sessionId="tts-test" />);
+  it("forwards the event's own speechParagraphs", () => {
+    renderPane();
+    act(() => useConversationStore.getState().appendEvent(
+      makeEvent("evt-2", 2, "a\n\nb\n\nc", ["First paragraph", "Second paragraph", "Third paragraph"]),
+    ));
 
-    await act(async () => {
-      await capturedCandidateHandler?.({
-        id: "evt-2", source: "claude_hook", role: "assistant", sequence: 2,
-        text: "First paragraph\n\nSecond paragraph\n\nThird paragraph",
-        speechParagraphs: ["First paragraph", "Second paragraph", "Third paragraph"],
-      }, vi.fn());
-    });
-
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith([
-      "First paragraph",
-      "Second paragraph",
-      "Third paragraph",
-    ], { eventId: "evt-2" });
+    expect(mockIncoming).toHaveBeenCalledWith(
+      "tts-test",
+      expect.objectContaining({ id: "evt-2", speechParagraphs: ["First paragraph", "Second paragraph", "Third paragraph"] }),
+      expect.any(Function),
+    );
   });
 
-  it("does not speak when autoTtsEnabled is false", async () => {
+  it("leaves auto-TTS policy to the controller (forwards even with autoTtsEnabled off)", () => {
     storeState.autoTtsEnabled = false;
-    const ack = vi.fn();
-    render(<TerminalPane sessionId="tts-test" />);
+    renderPane();
+    act(() => useConversationStore.getState().appendEvent(makeEvent("evt-3", 3, "Hello", ["Hello"])));
 
-    await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-3", source: "claude_hook", role: "assistant", sequence: 3, text: "Hello world", speechParagraphs: ["Hello world"] }, ack);
-    });
-
-    expect(mockSpeakParagraphs).not.toHaveBeenCalled();
-    expect(ack).toHaveBeenCalledWith("received");
+    // TerminalPane forwards; the controller (mocked here) is what gates on policy.
+    expect(mockIncoming).toHaveBeenCalled();
   });
 
-  it("does not reject based on terminal text matching anymore", async () => {
-    const ack = vi.fn();
-    render(<TerminalPane sessionId="tts-test" />);
+  it("does not forward events for an inactive pane", () => {
+    storeState.activePane = "other";
+    renderPane();
+    act(() => useConversationStore.getState().appendEvent(makeEvent("evt-4", 4, "Background", ["Background"])));
 
-    await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-4", source: "claude_hook", role: "assistant", sequence: 4, text: "This text is nowhere in the visible terminal", speechParagraphs: ["This text is nowhere in the visible terminal"] }, ack);
-    });
-
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["This text is nowhere in the visible terminal"], { eventId: "evt-4" });
-    expect(ack).not.toHaveBeenCalledWith("rejected", expect.anything());
+    expect(mockIncoming).not.toHaveBeenCalled();
   });
 
-  it("matches Codex markdown-formatted candidate text against rendered terminal output", async () => {
-    const ack = vi.fn();
-    render(<TerminalPane sessionId="tts-test" />);
+  it("does not auto-read a stale (old) event — guards SSE reconnect backlog", () => {
+    renderPane();
+    const stale = makeEvent("evt-5", 5, "Old message", ["Old message"]);
+    stale.createdAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    act(() => useConversationStore.getState().appendEvent(stale));
 
-    const original = terminalBufferLines[0] ?? "";
-    terminalBufferLines[0] = "Hi. What do you need help with in /home/matthalloran8/Vrooli?";
-
-    await act(async () => {
-      await capturedCandidateHandler?.({
-        id: "evt-codex-markdown",
-        source: "codex_tailer",
-        role: "assistant",
-        sequence: 5,
-        text: "Hi. What do you need help with in `/home/matthalloran8/Vrooli`?",
-        speechParagraphs: ["Hi. What do you need help with in Vrooli?"],
-      }, ack);
-    });
-
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith([
-      "Hi. What do you need help with in Vrooli?",
-    ], { eventId: "evt-codex-markdown" });
-    expect(ack).toHaveBeenCalledWith("seen");
-    terminalBufferLines[0] = original;
-  });
-
-  it("speaks delayed Codex events without terminal correlation retries", async () => {
-    const ack = vi.fn();
-    render(<TerminalPane sessionId="tts-test" />);
-
-    await act(async () => {
-      await capturedCandidateHandler?.({
-        id: "evt-retry",
-        source: "codex_tailer",
-        role: "assistant",
-        sequence: 6,
-        text: "Rendered a moment later",
-        speechParagraphs: ["Rendered a moment later"],
-      }, ack);
-    });
-
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith(["Rendered a moment later"], { eventId: "evt-retry" });
-    expect(ack).toHaveBeenCalledWith("seen");
-  });
-
-  it("passes backend-provided speechParagraphs directly to speakParagraphs", async () => {
-    render(<TerminalPane sessionId="tts-test" />);
-
-    const lineA = "A".repeat(300);
-    const lineB = "B".repeat(300);
-    await act(async () => {
-      await capturedCandidateHandler?.({
-        id: "evt-5", source: "claude_hook", role: "assistant", sequence: 7,
-        text: `${lineA}\n${lineB}`,
-        speechParagraphs: [lineA, lineB],
-      }, vi.fn());
-    });
-
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith([lineA, lineB], { eventId: "evt-5" });
-  });
-
-  it("falls back to [text] when speechParagraphs is missing", async () => {
-    render(<TerminalPane sessionId="tts-test" />);
-
-    await act(async () => {
-      await capturedCandidateHandler?.({ id: "evt-6", source: "claude_hook", role: "assistant", sequence: 8, text: "Only real content" }, vi.fn());
-    });
-
-    expect(mockSpeakParagraphs).toHaveBeenCalledWith([
-      "Only real content",
-    ], { eventId: "evt-6" });
+    expect(mockIncoming).not.toHaveBeenCalled();
   });
 });

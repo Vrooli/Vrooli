@@ -1,0 +1,149 @@
+{
+  "_metadata": {
+    "description": "Requirements for the regenerated scenario-centric graph and contract-first planning surface.",
+    "last_validated_at": "2026-06-14T15:52:25-04:00",
+    "module": "foundation",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TTD-GRAPH-001",
+      "title": "Live graph from scenario-dependency-analyzer",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "graph",
+      "criticality": "P0",
+      "description": "TTD must build a scenario-centric graph from SDA's DescribeInterfaceGraph through a fakeable GraphSource seam, preserving scenario nodes, proto-import and Go-import edges, transport world, and stability metadata.",
+      "tags": [
+        "graph",
+        "scenario-dependency-analyzer",
+        "contract"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "implemented",
+          "notes": "SDA source tests cover faked SDA mapping; graph service tests cover queries, export, and planned overlays."
+        }
+      ]
+    },
+    {
+      "id": "TTD-PLAN-001",
+      "title": "Planned proto contract workspace",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "planning",
+      "criticality": "P0",
+      "description": "TTD must store planned scenarios as real .proto text files, expose filesystem-feel CRUD, validate planned contracts against live schemas, and refuse materialization on validation failure.",
+      "tags": [
+        "planning",
+        "proto",
+        "materialize"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 4 tests will cover file-tree CRUD, protocompile validation, finding emission, and materialize dry-run/guard behavior."
+        }
+      ]
+    },
+    {
+      "id": "TTD-ONTOLOGY-001",
+      "title": "Capability ontology coverage layer",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "ontology",
+      "criticality": "P1",
+      "description": "TTD must model a top-down capability ontology, link capabilities to live and planned scenarios, and compute cross-layer coverage and focus analytics.",
+      "tags": [
+        "ontology",
+        "coverage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ontology/service_test.go::TestCoverageClassifiesBuiltInflightGapsAndUnmappedScenarios",
+          "status": "implemented",
+          "notes": "Covers four-state coverage classification."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ontology/sqlite_test.go::TestSQLiteRepositoryRoundTrip",
+          "status": "implemented",
+          "notes": "Covers capability, edge, and fulfillment persistence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ontology/importtopology_test.go::TestMapTopologyFixture",
+          "status": "implemented",
+          "notes": "Covers macro topology import mapping."
+        }
+      ]
+    },
+    {
+      "id": "TTD-UI-001",
+      "title": "Production planning UI",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "TTD must provide a production-ready direct UI for the graph, planned proto editor, validation findings, and ontology coverage overview with loading, error, and empty states.",
+      "tags": [
+        "ui",
+        "graph",
+        "planning"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 6 tests will cover component behavior, accessibility, and loading/error/empty states."
+        }
+      ]
+    },
+    {
+      "id": "TTD-SDA-001",
+      "title": "scenario-dependency-analyzer source",
+      "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "TTD must consume scenario-dependency-analyzer as the canonical richer graph source through its InterfaceGraph RPC.",
+      "tags": [
+        "sda",
+        "graph-source"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/graph/sda_source_test.go::TestSDASourceGraphMapsInterfaceGraph",
+          "status": "implemented",
+          "notes": "Covers SDA response mapping, including Go import evidence."
+        }
+      ]
+    },
+    {
+      "id": "TTD-AI-001",
+      "title": "Future strategic analysis",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "analysis",
+      "criticality": "P2",
+      "description": "TTD may add optional AI-assisted node ideas, bottleneck analysis, and timelines only after deterministic graph and planning workflows are stable.",
+      "tags": [
+        "ai",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred follow-up; no ollama/openrouter dependency in the current service manifest."
+        }
+      ]
+    }
+  ]
+}

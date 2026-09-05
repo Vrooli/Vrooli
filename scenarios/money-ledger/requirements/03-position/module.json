@@ -1,0 +1,151 @@
+{
+  "_metadata": {
+    "description": "Computed financial position, goals, and statements.",
+    "last_validated_at": "2026-08-13T23:50:33-04:00",
+    "module": "position",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "POS-001",
+      "title": "Position is computed with visible inputs",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "service",
+      "criticality": "P1",
+      "description": "Runway, burn and inflow/outflow over a window are computed from the journal, and the response names every input with its source and age. The replaced document stated the formula and left an agent to apply it to numbers of unstated freshness.",
+      "tags": [
+        "service",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "The response enumerates contributing inputs with basis and age."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Position over a seeded journal matches an independently computed expectation."
+        }
+      ]
+    },
+    {
+      "id": "POS-002",
+      "title": "Goals are declared thresholds, not hard-coded rules",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "category": "domain",
+      "criticality": "P1",
+      "description": "A goal is a declared threshold with a comparison, a sustain window, and an optional buffer multiple. The 'default-alive' rule — revenue at or above burn for a sustained period, with a buffer target — becomes one instance rather than the only rule the system knows.",
+      "tags": [
+        "domain",
+        "generality"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "A goal with a sustain window only reports met after the window is satisfied."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "The default-alive rule is expressible with no code change."
+        }
+      ]
+    },
+    {
+      "id": "POS-003",
+      "title": "Statements are queries over the same journal",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "service",
+      "criticality": "P1",
+      "description": "Income-versus-expense over a period and assets-minus-liabilities at a date are queries, not separate stores. Once postings exist these are nearly free, and deriving them elsewhere would create a second version of the truth.",
+      "tags": [
+        "service",
+        "reporting"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ledger/store_test.go",
+          "status": "implemented",
+          "notes": "Both statements over a seeded journal match expectations, including at a historical date."
+        }
+      ]
+    },
+    {
+      "id": "POS-004",
+      "title": "Unavailable adapters are never reported as zero",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "An adapter that cannot run is reported unavailable with a reason and the age of its last success. A journal that silently reads zero because an upstream was down is worse than one that admits it does not know.",
+      "tags": [
+        "integration",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/ingest/store_test.go",
+          "status": "implemented",
+          "notes": "A faked failing adapter yields an availability entry; no zero-valued event is written."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Position marks itself partial while any contributing adapter is unavailable."
+        }
+      ]
+    },
+    {
+      "id": "POS-005",
+      "title": "The commerce adapter proves the contract",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "adapter",
+      "criticality": "P1",
+      "description": "The Landing Page Business Suite adapter lands subscription and charge events through the ordinary contract. It exists as much to prove the contract against a real, messy upstream as to carry the data.",
+      "tags": [
+        "adapter",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Against a faked upstream, events land with authoritative basis and correct external ids."
+        }
+      ]
+    },
+    {
+      "id": "POS-006",
+      "title": "Events carry deductibility categories",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "domain",
+      "criticality": "P1",
+      "description": "Events can be tagged with a tax category and exported. The scenario categorises and never computes: tax calculation is jurisdictional, regulated, and a liability this scenario refuses by design.",
+      "tags": [
+        "domain",
+        "boundary"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Category tags round-trip and filter; no code path computes a tax amount."
+        }
+      ]
+    }
+  ]
+}

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestNewDetector tests detector creation.
@@ -101,10 +101,10 @@ func TestCatalogManager(t *testing.T) {
 // TestShouldSkipDirectoryEntry tests directory filtering.
 func TestShouldSkipDirectoryEntry(t *testing.T) {
 	tests := []struct {
-		name     string
-		dirName  string
-		isDir    bool
-		want     bool
+		name    string
+		dirName string
+		isDir   bool
+		want    bool
 	}{
 		{"NodeModules", "node_modules", true, true},
 		{"Dist", "dist", true, true},
@@ -199,9 +199,9 @@ func TestDetectorIntegration(t *testing.T) {
 	resourcesDir := filepath.Join(tempDir, "resources")
 
 	// Create directories
-	os.MkdirAll(filepath.Join(scenariosDir, "test-scenario"), 0755)
-	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0755)
-	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0755)
+	os.MkdirAll(filepath.Join(scenariosDir, "test-scenario"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0o755)
 
 	cfg := appconfig.Config{
 		ScenariosDir: scenariosDir,
@@ -243,15 +243,15 @@ func TestScanResources(t *testing.T) {
 
 	// Create test scenario with resource references
 	scenarioPath := filepath.Join(scenariosDir, "test-scenario")
-	os.MkdirAll(filepath.Join(scenarioPath, "api"), 0755)
-	os.MkdirAll(resourcesDir, 0755)
+	os.MkdirAll(filepath.Join(scenarioPath, "api"), 0o755)
+	os.MkdirAll(resourcesDir, 0o755)
 
 	// Create a script with resource CLI reference
 	scriptContent := `#!/bin/bash
 resource-postgres connect
 PGHOST=localhost
 `
-	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0644)
+	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0o644)
 
 	cfg := appconfig.Config{
 		ScenariosDir: scenariosDir,
@@ -259,7 +259,7 @@ PGHOST=localhost
 	detector := New(cfg)
 	detector.RefreshCatalogs()
 
-	serviceConfig := &types.ServiceConfig{}
+	serviceConfig := &types.Manifest{}
 	deps, err := detector.ScanResources(scenarioPath, "test-scenario", serviceConfig)
 	if err != nil {
 		t.Fatalf("ScanResources error: %v", err)
@@ -277,14 +277,14 @@ func TestScanScenarioDependencies(t *testing.T) {
 	// Create test scenarios
 	testScenario := filepath.Join(scenariosDir, "test-scenario")
 	dependencyScenario := filepath.Join(scenariosDir, "dependency-scenario")
-	os.MkdirAll(filepath.Join(testScenario, "api"), 0755)
-	os.MkdirAll(filepath.Join(dependencyScenario, ".vrooli"), 0755)
+	os.MkdirAll(filepath.Join(testScenario, "api"), 0o755)
+	os.MkdirAll(filepath.Join(dependencyScenario, ".vrooli"), 0o755)
 
 	// Create script with scenario reference
 	scriptContent := `#!/bin/bash
 vrooli scenario run dependency-scenario
 `
-	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0644)
+	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0o644)
 
 	cfg := appconfig.Config{
 		ScenariosDir: scenariosDir,
@@ -309,39 +309,6 @@ vrooli scenario run dependency-scenario
 	if !found && len(deps) > 0 {
 		t.Logf("Found dependencies: %+v", deps)
 	}
-}
-
-// TestScanSharedWorkflows tests workflow scanning.
-func TestScanSharedWorkflows(t *testing.T) {
-	tempDir := t.TempDir()
-
-	t.Run("NoWorkflows", func(t *testing.T) {
-		cfg := appconfig.Config{}
-		detector := New(cfg)
-
-		deps, err := detector.ScanSharedWorkflows(tempDir, "test-scenario")
-		if err != nil {
-			t.Fatalf("ScanSharedWorkflows error: %v", err)
-		}
-		if len(deps) != 0 {
-			t.Errorf("expected no workflows, got %d", len(deps))
-		}
-	})
-
-	t.Run("WithWorkflowDir", func(t *testing.T) {
-		workflowDir := filepath.Join(tempDir, "initialization", "automation", "n8n")
-		os.MkdirAll(workflowDir, 0755)
-
-		cfg := appconfig.Config{}
-		detector := New(cfg)
-
-		deps, err := detector.ScanSharedWorkflows(tempDir, "test-scenario")
-		if err != nil {
-			t.Fatalf("ScanSharedWorkflows error: %v", err)
-		}
-		// May or may not find workflows depending on content
-		t.Logf("Found %d workflow dependencies", len(deps))
-	})
 }
 
 // mockDirEntry is a mock implementation of fs.DirEntry for testing

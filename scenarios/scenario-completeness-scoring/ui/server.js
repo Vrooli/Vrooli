@@ -1,24 +1,42 @@
-let startScenarioServer
-try {
-  ({ startScenarioServer } = await import('@vrooli/api-base/server'))
-} catch (error) {
-  const isMissingPerfModule =
-    error?.code === 'ERR_MODULE_NOT_FOUND' &&
-    typeof error?.message === 'string' &&
-    error.message.includes('@vrooli/api-base/dist/server/perf.js')
+import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
-  if (!isMissingPerfModule) {
-    throw error
-  }
-
-  // Fallback for stale file-dependency installs where server/perf.js is absent.
-  ({ startScenarioServer } = await import('../../../packages/api-base/dist/server/template.js'))
+// Both ports come from the scenario lifecycle. createScenarioServer already
+// rejects either one when it is missing or unparseable, so these guards change
+// no behaviour: the process still refuses to start. What they change is the
+// message — the library reports "Invalid UI_PORT configuration", which names
+// the symptom, and these name the cause and the fix.
+const uiPort = process.env.UI_PORT
+if (!uiPort) {
+  throw new Error(
+    'UI_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start scenario-completeness-scoring` rather than running server.js directly.',
+  )
 }
 
+const apiPort = process.env.API_PORT
+if (!apiPort) {
+  throw new Error(
+    'API_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start scenario-completeness-scoring` rather than running server.js directly.',
+  )
+}
+
+const connectRpcPath = /^\/vrooli\.scenario_completeness_scoring\.v1\./
+
 startScenarioServer({
-  uiPort: process.env.UI_PORT,
-  apiPort: process.env.API_PORT,
+  uiPort,
+  apiPort,
   distDir: './dist',
   serviceName: 'scenario-completeness-scoring',
   corsOrigins: '*',
+  setupRoutes(app) {
+    app.use((req, res, next) => {
+      if (!connectRpcPath.test(req.path)) {
+        next()
+        return
+      }
+
+      proxyToApi(req, res, req.originalUrl || req.url, {
+        apiPort,
+      }).catch(next)
+    })
+  },
 })

@@ -699,8 +699,15 @@ function CheckItem({
                   {hasDNSInstructions && data?.vps_ips && (
                     <div className="mt-2 flex items-center gap-2">
                       <span className="text-slate-400">Target IP:</span>
-                      <code className="bg-slate-800 px-2 py-0.5 rounded text-slate-200">{data.vps_ips.split(",")[0]}</code>
-                      <CopyButton text={data.vps_ips.split(",")[0]} />
+                      {(() => {
+                        const firstIP = data.vps_ips.split(",")[0];
+                        return firstIP ? (
+                          <>
+                            <code className="bg-slate-800 px-2 py-0.5 rounded text-slate-200">{firstIP}</code>
+                            <CopyButton text={firstIP} />
+                          </>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </div>

@@ -1,3 +1,4 @@
+import React, { useMemo } from "react";
 import { X } from "lucide-react";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { TemplateVariableForm } from "./TemplateVariableForm";
@@ -6,6 +7,7 @@ import { MessageInputFooter } from "./MessageInputFooter";
 import { MessageInputModals } from "./MessageInputModals";
 import { MessageInputArea } from "./MessageInputArea";
 import { selectorsManifest } from "../../consts/selectors";
+import { onProfilerRender } from "../../lib/profiler";
 
 import type { MessageInputProps } from "./MessageInput.types";
 import { useMessageInput } from "./useMessageInput";
@@ -14,11 +16,6 @@ import { useMessageInput } from "./useMessageInput";
 export type { MessagePayload } from "./MessageInput.types";
 
 export function MessageInput(props: MessageInputProps) {
-  const {
-    activeTemplateId,
-    onTemplateDeactivate,
-  } = props;
-
   const messageInputTestIds = {
     container:
       selectorsManifest.selectors["messageInput.container"]?.testId ??
@@ -38,19 +35,22 @@ export function MessageInput(props: MessageInputProps) {
 
   const {
     draft,
+    message,
+    setMessage,
     isEditMode,
     textareaRef,
+    placeholder,
     webSearchEnabled,
     setWebSearchEnabled,
     enableAttachments,
     enableWebSearch,
+    modelSupportsImages,
+    modelSupportsPDFs,
     modelSupportsWebSearch,
     effectiveAttachments,
     hasIncompatibleAttachments,
     removeAttachment,
     isUploading,
-    forcedTool,
-    handleClearForcedTool,
     templates,
     skills,
     skillsLoading,
@@ -78,16 +78,73 @@ export function MessageInput(props: MessageInputProps) {
     dismissSuggestion,
     dismissAllSuggestions,
     modeHistory,
+    slashCommands,
     templateActions,
     sendLogic,
     loading,
-    handleForceTool,
-    handleClearForcedTool: _hcft,
-    toolsByScenario,
+    handleImageSelect,
+    handlePDFSelect,
     setMessageState,
     onCancelEdit,
+    handleWebSearchToggle,
+    handleKeyDown,
     chatId,
+    isMerging,
   } = state;
+
+  const inputAreaState = useMemo(() => ({
+    message,
+    setMessage,
+    draft,
+    loading,
+    isEditMode,
+    textareaRef,
+    placeholder,
+    webSearchEnabled,
+    enableAttachments,
+    enableWebSearch,
+    modelSupportsImages,
+    modelSupportsPDFs,
+    modelSupportsWebSearch,
+    handleImageSelect,
+    handlePDFSelect,
+    activeTemplate,
+    selectedSkillIds,
+    slashCommands,
+    templateActions,
+    sendLogic,
+    handleWebSearchToggle,
+    handleKeyDown,
+    chatId,
+    setWebSearchEnabled,
+    isMerging,
+  }), [
+    activeTemplate,
+    chatId,
+    draft,
+    enableAttachments,
+    enableWebSearch,
+    handleImageSelect,
+    handleKeyDown,
+    handlePDFSelect,
+    handleWebSearchToggle,
+    isEditMode,
+    isMerging,
+    loading,
+    message,
+    modelSupportsImages,
+    modelSupportsPDFs,
+    modelSupportsWebSearch,
+    placeholder,
+    selectedSkillIds,
+    sendLogic,
+    setMessage,
+    setWebSearchEnabled,
+    slashCommands,
+    templateActions,
+    textareaRef,
+    webSearchEnabled,
+  ]);
 
   return (
     <div
@@ -120,7 +177,7 @@ export function MessageInput(props: MessageInputProps) {
           templates={templates}
           currentModePath={currentModePath}
           modeHistory={modeHistory}
-          handleTemplateSelect={templateActions.handleTemplateSelect}
+          handleTemplateSelect={(template) => { void templateActions.handleTemplateSelect(template); }}
           navigateToMode={navigateToMode}
           navigateBack={navigateBack}
           resetModePath={resetModePath}
@@ -171,11 +228,13 @@ export function MessageInput(props: MessageInputProps) {
       )}
 
       {/* Input container (extracted) */}
-      <MessageInputArea
-        state={state}
-        inputTestId={messageInputTestIds.input}
-        sendButtonTestId={messageInputTestIds.sendButton}
-      />
+      <React.Profiler id="MessageInputArea" onRender={onProfilerRender}>
+        <MessageInputArea
+          state={inputAreaState}
+          inputTestId={messageInputTestIds.input}
+          sendButtonTestId={messageInputTestIds.sendButton}
+        />
+      </React.Profiler>
 
       {/* Footer with keyboard hints and indicators */}
       <MessageInputFooter
@@ -186,13 +245,9 @@ export function MessageInput(props: MessageInputProps) {
         modelSupportsWebSearch={modelSupportsWebSearch}
         webSearchEnabled={webSearchEnabled}
         setWebSearchEnabled={setWebSearchEnabled}
-        forcedTool={forcedTool}
-        handleClearForcedTool={handleClearForcedTool}
         activeTemplate={activeTemplate}
         clearTemplate={clearTemplate}
         setShowVariableForm={templateActions.setShowVariableForm}
-        activeTemplateId={activeTemplateId}
-        onTemplateDeactivate={onTemplateDeactivate}
         selectedSkillIds={selectedSkillIds}
         getSelectedSkills={getSelectedSkills}
         removeSkill={removeSkill}
@@ -215,7 +270,7 @@ export function MessageInput(props: MessageInputProps) {
         templates={templates}
         onSelectTemplate={(template) => {
           templateActions.setShowTemplateSelector(false);
-          templateActions.handleTemplateSelect(template);
+          void templateActions.handleTemplateSelect(template);
         }}
         activeTemplateId={activeTemplate?.template.id}
         showSkillSelector={templateActions.showSkillSelector}
@@ -228,15 +283,6 @@ export function MessageInput(props: MessageInputProps) {
         onToggleSkill={toggleSkill}
         onSyncSkills={syncSkills}
         isSyncing={skillsLoading}
-        showToolSelector={templateActions.showToolSelector}
-        onCloseToolSelector={() => {
-          templateActions.setShowToolSelector(false);
-          textareaRef.current?.focus();
-        }}
-        toolsByScenario={toolsByScenario}
-        forcedTool={forcedTool}
-        onSelectTool={handleForceTool}
-        onClearTool={handleClearForcedTool}
         showTemplateEditor={templateActions.showTemplateEditor}
         onCloseTemplateEditor={templateActions.handleCloseTemplateEditor}
         editingTemplate={templateActions.editingTemplate}

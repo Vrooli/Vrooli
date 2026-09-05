@@ -98,7 +98,7 @@ const loadApiKeySettings = (): ApiKeySettings => {
 **Goal**: Track AI API usage per user with monthly limits by tier
 
 #### 2.1 Database Schema
-**File**: `initialization/storage/postgres/schema.sql`
+**File**: `api/internal/<domain>/storage/postgres/schema.sql`
 
 ```sql
 -- AI Credits Usage Tracking
@@ -178,20 +178,16 @@ func (t *AICreditsTracker) CanUseCredits(ctx context.Context, userIdentity strin
 func (t *AICreditsTracker) LogRequest(ctx context.Context, req *AIRequestLog) error
 ```
 
-#### 2.3 Update Entitlement Config
-**File**: `api/config/config.go`
+#### 2.3 Read AI limits from the signed entitlement lease
+**Files**: `api/config/config.go`, `api/services/entitlement/service.go`
 
-Add AI credits limits configuration:
+AI limits are authoritative in LPBS `limits[]` and are verified as part of
+the signed entitlement lease. Do not add a local tier-to-limit environment
+map; that would create a second source of truth.
 
 ```go
-type EntitlementConfig struct {
-    // ... existing fields ...
-
-    // AICreditsLimits defines the AI credits limit per tier per calendar month.
-    // Parsed from JSON: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
-    // -1 means unlimited. 0 means no access.
-    // Env: BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON
-    AICreditsLimits map[string]int
+type Entitlement struct {
+    Limits []entitlementclient.Limit
 }
 ```
 
@@ -724,7 +720,7 @@ func AIGate(svc *entitlement.Service, tracker *entitlement.AICreditsTracker) fun
 ### Modified Files
 | File | Changes |
 |------|---------|
-| `initialization/storage/postgres/schema.sql` | Add AI credits tables |
+| `api/internal/<domain>/storage/postgres/schema.sql` | Add AI credits tables |
 | `api/config/config.go` | Add AI credits limits config |
 | `api/services/entitlement/service.go` | Add AI credits methods |
 | `api/services/ai/client.go` | Support user-provided keys |
@@ -747,10 +743,6 @@ func AIGate(svc *entitlement.Service, tracker *entitlement.AICreditsTracker) fun
 ### Environment Variables
 
 ```bash
-# AI Credits Limits (JSON format)
-# {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
-BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON='{"free":0,"solo":50,"pro":500,"studio":2000,"business":-1}'
-
 # Credit costs per operation type (optional fine-tuning)
 BAS_AI_CREDIT_COST_WORKFLOW_GENERATE=1
 BAS_AI_CREDIT_COST_ELEMENT_ANALYZE=1

@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "continue-with-a-degraded-install",
+    "title": "Finish setup with an optional gap",
+    "purpose": "Every required item is ready and one optional item is not. The operator continues deliberately, and the acknowledgement is recorded rather than forgotten.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "steps": [
+    {
+      "page": "setup-validation",
+      "intent": "See an optional item that is not ready, with its remediation.",
+      "via": "readiness item",
+      "state": "degraded"
+    },
+    {
+      "page": "setup-validation",
+      "intent": "Re-run the probe pass after attempting the fix.",
+      "via": "recheck",
+      "state": "degraded"
+    },
+    {
+      "page": "setup-validation",
+      "intent": "Continue deliberately with the gap acknowledged.",
+      "via": "continue with degraded",
+      "state": "degraded"
+    }
+  ],
+  "claims": [
+    {
+      "id": "required-gaps-still-block",
+      "type": "custom",
+      "statement": "Continue-with-degraded is unavailable while any required item is not ready.",
+      "tier": "manual"
+    },
+    {
+      "id": "acknowledgement-is-durable",
+      "type": "custom",
+      "statement": "The degraded acknowledgement survives a reload and remains visible to later diagnosis.",
+      "tier": "manual"
+    }
+  ]
+}

@@ -1,0 +1,437 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "kyutai-stt",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "The Linux managed service stages checksum-verified Kyutai model files below the resource data directory; the resource is unsupported on macOS and Windows.",
+        "platforms": [
+          "linux"
+        ],
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "Kyutai STT",
+  "description": "Managed Kyutai streaming speech-to-text service. Wraps the Kyutai delayed-streams-modeling model behind a stable FastAPI + WebSocket contract consumed by the audio-tools scenario without a container runtime.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-kyutai-stt",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-kyutai-stt_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-kyutai-stt"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "server/**",
+        "tests/**",
+        "requirements.lock",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/kyutai-stt",
+      "version": "2026.08.25",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "afc3f4503a91068d9df17e21481120cd1183225ad936223edfa0735898ff4984"
+      },
+      "bundle_artifact": "kyutai-stt_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "MIT; CPython PSF-2.0; Kyutai moshi dependencies and model weights retain their upstream licenses",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "afc3f4503a91068d9df17e21481120cd1183225ad936223edfa0735898ff4984",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements.lock",
+              "index_url": "https://download.pytorch.org/whl/cu124",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
+            },
+            {
+              "role": "application",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "server/server.py"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Kyutai moshi does not have a qualified Vrooli arm64 wheel and hardware-backed evidence is not available for this target."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Kyutai STT requires the qualified Linux CUDA runtime; macOS has no supported native target."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Kyutai STT requires the qualified Linux CUDA runtime; Windows has no supported native target."
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "model-config",
+        "path": "kyutai-config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/config.json",
+              "sha256": "5e6aee8007000d844152932184fb7c7112d73cb9a4be562a313b6fa2b89a68f9",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "moshi-weights",
+        "path": "kyutai-model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/model.safetensors",
+              "sha256": "8f6e244d44baf63c6fa3587d25a4e8d3627ecbafe177cf34a736e697bb725116",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "mimi-weights",
+        "path": "kyutai-mimi.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/mimi-pytorch-e351c8d8@125.safetensors",
+              "sha256": "09b782f0629851a271227fb9d36db65c041790365f11bbe5d3d59369cf863f50",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tokenizer",
+        "path": "kyutai-tokenizer_en_fr_audio_8000.model",
+        "acquisition": {
+          "kind": "url",
+          "license": "Kyutai stt-1b-en_fr model license",
+          "provenance": { "kind": "none" },
+          "targets": [
+            {
+              "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/tokenizer_en_fr_audio_8000.model",
+              "sha256": "cd87dd5d17169151782ac700280ec057e5d658a9afbe238a048ea5ff318cce69",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ],
+    "arguments": [
+      "-m",
+      "uvicorn",
+      "source.server:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_HTTP}"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "KYUTAI_STT_DEVICE": "cuda",
+      "KYUTAI_STT_CONFIG_PATH": "${RESOURCE_DATA_DIR}/kyutai-config.json",
+      "KYUTAI_STT_MOSHI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-model.safetensors",
+      "KYUTAI_STT_MIMI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-mimi.safetensors",
+      "KYUTAI_STT_TOKENIZER": "${RESOURCE_DATA_DIR}/kyutai-tokenizer_en_fr_audio_8000.model"
+    },
+    "attach_health_path": "/ready",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The composed CPython runtime and wheel tree are checksum-pinned; CUDA remains optional at runtime and must be qualified on the target host."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+      "macos": {
+        "support": "unsupported",
+        "mode": "bundled-service",
+        "limitations": [
+          "The qualified target is Linux amd64; macOS remains explicitly unsupported until a native runtime and hardware evidence exist."
+        ],
+        "reason": "The qualified target is Linux amd64; macOS has no supported native target."
+        },
+      "windows": {
+        "support": "unsupported",
+        "mode": "bundled-service",
+        "limitations": [
+          "The qualified target is Linux amd64; Windows has no supported native target."
+        ],
+        "reason": "The qualified target is Linux amd64; Windows has no supported native target."
+        }
+      }
+    }
+  },
+  "acceleration": {
+    "backends": [
+      "cuda",
+      "cpu"
+    ],
+    "require": "preferred",
+    "cuda": {
+      "min_compute": "8.9",
+      "env": {
+        "KYUTAI_STT_DEVICE": "cuda"
+      }
+    },
+    "cpu": {},
+    "claim": {
+      "resource_kind": "vram",
+      "gpu_index": 0,
+      "preferred_bytes": 3221225472,
+      "floor_bytes": 0,
+      "priority": "service",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "idle_unload_ttl_seconds": 900,
+      "profile": {
+        "steps": [
+          {
+            "label": "loaded",
+            "amount_bytes": 3221225472
+          },
+          {
+            "label": "unloaded",
+            "amount_bytes": 0
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": false
+      }
+    }
+  },
+  "category": "ai",
+  "requirements": {
+    "ram_mb": 4096,
+    "disk_mb": 8192,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 3
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/kyutai-stt",
+        "field": "huggingface-token",
+        "env": "KYUTAI_STT_HF_TOKEN",
+        "label": "Hugging Face token",
+        "description": "Optional Hugging Face access token used only to avoid anonymous download rate limits when fetching Kyutai STT weights on first start. The Kyutai STT models are public; leave empty unless you hit rate limits.",
+        "obtain_url": "https://huggingface.co/settings/tokens",
+        "required": false
+      }
+    ]
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 8094,
+      "protocol": "tcp"
+    }
+  ],
+  "orchestration": {
+    "startup_order": 555,
+    "startup_timeout_seconds": 420,
+    "startup_time_estimate": "first run 2-5 min model download plus load (budgeted 7 min); then 20-45s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "KYUTAI_STT_HOST": "localhost"
+    },
+    "from_ports": {
+      "KYUTAI_STT_PORT": "http"
+    },
+    "derived": {
+      "KYUTAI_STT_URL": {
+        "template": "http://${KYUTAI_STT_HOST}:${KYUTAI_STT_PORT}"
+      },
+      "KYUTAI_STT_BASE_URL": {
+        "template": "${KYUTAI_STT_URL}"
+      },
+      "KYUTAI_STT_WS_URL": {
+        "template": "ws://${KYUTAI_STT_HOST}:${KYUTAI_STT_PORT}/v1/stream"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8094/ready",
+      "kind": "readiness",
+      "expected_status": [
+        200
+      ],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8094/ready",
+      "kind": "liveness",
+      "expected_status": [200],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "This resource declares an accelerator backend. The safeguard proves the host driver is ready, that the compute device nodes survive a boot with no client attached, and that this user can open them; without all three the resource starts and silently falls back to the CPU.",
+      "notes": "No-op on hosts without NVIDIA display hardware. Optional because a CPU fallback is a supported, reported state rather than a start-time failure; a resource that must have an accelerator declares acceleration.require = required instead."
+    }
+  ]
+}

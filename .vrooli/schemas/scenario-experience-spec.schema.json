@@ -1,0 +1,668 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario-experience-spec/v1",
+  "title": "Scenario Experience Spec",
+  "description": "Declarative experience contract for a scenario's UI, living in a root `experience/` folder (index.json + pages/*.json + journeys/*.json + components/*.json) that mirrors `requirements/` on the business axis. One schema covers all four document kinds, discriminated by the top-level `kind` field: experience-index, experience-page, experience-journey, experience-component.\n\nDOCTRINE (owned by scenarios/experience-manager, see its docs/internal/DECISIONS.md):\n\n1. CLAIM-BASED, NEVER DESCRIPTIVE. A page or component spec is a set of typed claims about perceivable outcomes (\"exactly one action visually dominates\"), never an exhaustive description of the surface. The optional `sketch` block is non-normative and exists only for wireframe rendering and BAS scaffolding — it is never validated against the built UI.\n\n2. OPEN-WORLD. The spec is a floor, not a census: anything unclaimed is free, and nothing is ever flagged for being unmentioned. Validators check stated claims plus declared-state coverage only. Every object accepts `x-` prefixed extension properties; the claim `type` vocabulary is open.\n\n3. ENFORCEMENT TIERS. Every claim carries a tier: `machine` (deterministically checkable now — gates CI), `manual` (human-attested with expiry via the attestation ledger), `aspirational` (stated intent with no check yet — advisory only, never rejected). The spec language is allowed to run ahead of the validator; vocabulary grows by promoting aspirational claims to machine as checks are built. `custom`-type claims may not be machine tier (there is nothing deterministic to check).\n\n4. INTENT/BINDINGS SPLIT. Claims and elements are stable intent (role + accessible name, WAI-ARIA vocabulary). The `bindings` block is the volatile grounding (element id -> testid/selector) that implementation refactors may touch freely; it is also the selector SSOT that bas/ case scaffolding reads. Never encode selectors, coordinates, or pixel values in claims.\n\n5. DEPTH IS A LADDER, NOT A GATE. Pages use L0 identity -> L1 priorities -> L2 grounded claims -> L3 state coverage -> L4 journey membership. Components use L0 identity -> L1 priorities -> L2 grounded claims -> L3 example-anchored state coverage. Depth is computed by the experience-manager parser, never stored in these files. A page or component at L1 is compliant; depth is tracked as debt.\n\nWhat JSON Schema cannot express is enforced by the experience-manager parser: cross-file reference resolution (claim->element, binding->element, journey step->page/state, component state->example, prd_ref->PRD operational target, route->UI), per-array id uniqueness, coverage against DESIGN.md's required UX-state contract, and tier/open-world semantics.",
+  "oneOf": [
+    { "$ref": "#/$defs/IndexDocument" },
+    { "$ref": "#/$defs/PageDocument" },
+    { "$ref": "#/$defs/JourneyDocument" },
+    { "$ref": "#/$defs/ComponentDocument" }
+  ],
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Kebab-case identifier, stable once published (other files and bas/ cases reference it)."
+    },
+    "SchemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "PrdRef": {
+      "type": "string",
+      "pattern": "^OT-P[0-9]-[0-9]{3}$",
+      "description": "Operational-target id in this scenario's PRD.md. The parser verifies it resolves."
+    },
+    "Route": {
+      "type": "string",
+      "pattern": "^/\\S*$",
+      "description": "UI route path, may contain :params (e.g. /scenarios/:scenario)."
+    },
+    "Role": {
+      "type": "string",
+      "pattern": "^([a-z]+|x-[a-z][a-z0-9-]*)$",
+      "description": "WAI-ARIA role (button, link, table, list, listitem, form, region, img, meter, note, alert, status, ...). The parser validates against the ARIA registry. Custom roles are allowed only as x- namespaced extensions where ARIA is insufficient."
+    },
+    "StateId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Page-state id. Open set. Canonical vocabulary (from DESIGN.md's required UX-state contract): default, loading, submitting, saving, syncing, refreshing, empty, partial, stale, success, validation-error, request-error, permission-denied, offline, retry. Page-specific states (e.g. comparing) are welcome."
+    },
+    "Viewport": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Viewport class. Open set; canonical vocabulary: mobile, tablet, desktop, wide."
+    },
+    "Locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]+)*$",
+      "description": "BCP-47-style locale tag (en, ja, ar, ...). Reading-order claims are direction-aware: rtl locales flip horizontal expectations."
+    },
+    "Tier": {
+      "type": "string",
+      "enum": ["machine", "manual", "aspirational"],
+      "description": "machine = deterministically checkable now, gates CI. manual = human-attested with expiry. aspirational = stated intent with no check yet; advisory only, never a failure."
+    },
+    "PageStatus": {
+      "type": "string",
+      "enum": ["draft", "active", "deprecated"],
+      "description": "draft = intent authored ahead of (or out of sync with) the build; reconciliation runs advisory. active = the build is expected to conform; machine-tier claims gate. deprecated = excluded from coverage, pending removal."
+    },
+    "Contract": {
+      "type": "object",
+      "required": ["kind", "schema"],
+      "properties": {
+        "kind": { "type": "string", "const": "scenario-experience" },
+        "schema": { "type": "string", "const": "scenario-experience-spec/v1" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "IndexDocument": {
+      "type": "object",
+      "required": ["kind", "contract", "schemaVersion", "scenario", "pages"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "experience-index" },
+        "contract": { "$ref": "#/$defs/Contract" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "scenario": { "$ref": "#/$defs/Id" },
+        "description": { "type": "string" },
+        "pages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DocumentRef" },
+          "description": "Registry of page specs. Every file under pages/ must be listed here and vice versa (parser-enforced)."
+        },
+        "journeys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DocumentRef" },
+          "description": "Registry of journey specs."
+        },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DocumentRef" },
+          "description": "Registry of reusable component specs whose states are anchored to named catalog examples."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "DocumentRef": {
+      "type": "object",
+      "required": ["id", "path", "status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "path": {
+          "type": "string",
+          "pattern": "^(pages|journeys|components)/[a-z0-9-]+\\.json$",
+          "description": "Path relative to the experience/ folder."
+        },
+        "title": { "type": "string" },
+        "status": { "$ref": "#/$defs/PageStatus" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "PageDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "page"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "experience-page" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "page": { "$ref": "#/$defs/PageIdentity" },
+        "priorities": {
+          "type": "array",
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/Priority" },
+          "description": "Ranked communication priorities — what this page must convey, in order (rank = array order). Deliberately capped: if everything is a priority, nothing is. This is what saliency scoring (P2) is checked against."
+        },
+        "states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/State" },
+          "description": "The perceivable states this page declares. Claims may scope to states; coverage checks compare this list against DESIGN.md's required UX-state contract."
+        },
+        "elements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Element" },
+          "description": "Intent-level perceivable things claims refer to. Role + accessible-name expectation only — grounding lives in bindings."
+        },
+        "claims": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Claim" }
+        },
+        "regions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ExperienceRegion" },
+          "description": "Meaningful independently rendered or asynchronously resolved surfaces. Passive primitives inherit their parent region lifecycle and are not declared here."
+        },
+        "bindings": { "$ref": "#/$defs/Bindings" },
+        "floorOptOuts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FloorOptOut" },
+          "description": "Explicit per-page escape hatch for inherited experience floors. Opt-outs must name the floor and carry a human-readable reason."
+        },
+        "sketch": { "$ref": "#/$defs/Sketch" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "PageIdentity": {
+      "type": "object",
+      "required": ["id", "title", "routes", "purpose"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "title": { "type": "string", "minLength": 1 },
+        "routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Route" },
+          "uniqueItems": true
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 15,
+          "description": "One or two sentences: what a person should get from this page. Written for a reader, not a parser."
+        },
+        "prd_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PrdRef" },
+          "uniqueItems": true
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Priority": {
+      "type": "object",
+      "required": ["statement"],
+      "properties": {
+        "statement": { "type": "string", "minLength": 10 },
+        "notes": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "State": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/StateId" },
+        "description": { "type": "string" },
+        "setup": { "$ref": "#/$defs/StateSetup" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "StateSetup": {
+      "type": "object",
+      "description": "Deterministic navigation setup used before capturing a non-default page state. This is deliberately limited to URL shape and settle timing; richer interaction flows belong in BAS cases.",
+      "properties": {
+        "route": {
+          "$ref": "#/$defs/Route",
+          "description": "Optional route override for this state. Omitted means the page's primary route."
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "propertyNames": { "pattern": "^[A-Za-z0-9_.~-]+$" },
+          "description": "Query parameters appended to the capture URL for this state."
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^#?[A-Za-z0-9_./~!$&'()*+,;=:@%-]*$",
+          "description": "URL fragment to apply for this state, with or without the leading #."
+        },
+        "settleMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30000,
+          "description": "State-specific settle time before the accessibility snapshot."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Element": {
+      "type": "object",
+      "required": ["id", "role"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "role": { "$ref": "#/$defs/Role" },
+        "name": {
+          "type": "string",
+          "description": "Expected accessible name (or a stable substring of it). Compared against the captured accessibility tree during reconciliation."
+        },
+        "description": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Claim": {
+      "type": "object",
+      "required": ["id", "type", "statement", "tier"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Open vocabulary. Machine-checkable types include accessible-name, focus-containment, token-resolution, dark-parity, portal-boundary, element-present, element-absent, single-dominant-action, visible-without-scroll, reading-order, state-covered, state-distinct, keyboard-reachable, affordance-present, spacing, state-contrast, size-parity, and differential. `custom` = free-form claim that always parses and may not be machine tier. Unknown types parse and are treated as aspirational until the validator learns them."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 10,
+          "description": "The claim in plain language, intent-level. Never selectors, coordinates, or pixel values."
+        },
+        "tier": { "$ref": "#/$defs/Tier" },
+        "elements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Id" },
+          "uniqueItems": true,
+          "description": "Element ids this claim refers to. For reading-order, array order is the expected perceptual order."
+        },
+        "states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StateId" },
+          "uniqueItems": true,
+          "description": "States the claim is scoped to. Omitted = holds in every declared state."
+        },
+        "viewports": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Viewport" },
+          "uniqueItems": true,
+          "description": "Omitted = holds at every viewport."
+        },
+        "locales": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Locale" },
+          "uniqueItems": true,
+          "description": "Omitted = holds in every locale."
+        },
+        "params": {
+          "type": "object",
+          "description": "Type-specific parameters (e.g. {\"maxSteps\": 3}). Free-form by design."
+        },
+        "rationale": { "type": "string" },
+        "subject": { "$ref": "#/$defs/Id" },
+        "metric": { "type": "string", "minLength": 1 },
+        "contexts": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "story", "expect"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "story": { "type": "string", "minLength": 1 },
+              "parent": { "type": "string", "minLength": 1 },
+              "expect": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "require": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "custom" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": { "tier": { "enum": ["manual", "aspirational"] } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "differential" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["subject", "metric", "contexts", "require"],
+            "properties": { "require": { "const": "contexts-differ" } }
+          }
+        }
+      ]
+    },
+    "FloorOptOut": {
+      "type": "object",
+      "required": ["floor", "reason"],
+      "properties": {
+        "floor": {
+          "type": "string",
+          "enum": [
+            "no-document-horizontal-overflow",
+            "viewport-fill",
+            "chrome-pinned",
+            "safe-area-tap-targets",
+            "single-line-chrome",
+            "tap-target-size"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Why this page intentionally diverges from the inherited floor."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Bindings": {
+      "type": "object",
+      "description": "Volatile grounding: element id -> concrete hooks in the implementation. The only section a pure refactor/restyle should ever touch. Selector SSOT for bas/ case scaffolding.",
+      "properties": {
+        "elements": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/Binding" },
+          "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+        },
+        "regions": {
+          "type": "object",
+          "description": "Volatile runtime hooks for declared meaningful regions. Keys are stable region ids; values are selectors or test ids.",
+          "additionalProperties": { "$ref": "#/$defs/Binding" },
+          "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Binding": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "testid": { "type": "string", "description": "data-testid value. Preferred hook." },
+        "selector": { "type": "string", "description": "CSS selector fallback when a testid is not feasible." },
+        "note": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "ExperienceRegion": {
+      "type": "object",
+      "required": ["id", "purpose", "component", "lifecycle"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "purpose": { "type": "string", "minLength": 10 },
+        "required": { "type": "boolean", "default": true, "description": "Required unsettled or failed regions block page readiness. Optional failures aggregate to partial while the primary task remains usable." },
+        "component": { "$ref": "#/$defs/ComponentReference" },
+        "lifecycle": { "$ref": "#/$defs/RegionLifecycle" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "ComponentReference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["local"],
+          "properties": { "local": { "$ref": "#/$defs/Id" } },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["library"],
+          "properties": {
+            "library": { "$ref": "#/$defs/LibraryComponentReference" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "LibraryComponentReference": {
+      "type": "object",
+      "required": ["component", "version"],
+      "properties": {
+        "component": { "$ref": "#/$defs/Id" },
+        "version": { "$ref": "#/$defs/SchemaVersion" }
+      },
+      "additionalProperties": false
+    },
+    "RegionLifecycle": {
+      "type": "object",
+      "required": ["kind", "states"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["async", "static"] },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["loading", "ready", "empty", "partial", "error", "static"] }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Sketch": {
+      "type": "object",
+      "description": "NON-NORMATIVE layout hint for wireframe rendering and workshop variants only. Never validated against the built UI; divergence here is not a finding. Regions may reference element ids and coarse positions on an abstract 12-column grid.",
+      "properties": {
+        "viewport": { "$ref": "#/$defs/Viewport" },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "note": { "type": "string" },
+              "elements": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/Id" }
+              },
+              "grid": {
+                "type": "object",
+                "properties": {
+                  "x": { "type": "integer", "minimum": 0, "maximum": 11 },
+                  "y": { "type": "integer", "minimum": 0 },
+                  "w": { "type": "integer", "minimum": 1, "maximum": 12 },
+                  "h": { "type": "integer", "minimum": 1 }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "JourneyDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "journey", "steps"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "experience-journey" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "journey": {
+          "type": "object",
+          "required": ["id", "title", "purpose"],
+          "properties": {
+            "id": { "$ref": "#/$defs/Id" },
+            "title": { "type": "string", "minLength": 1 },
+            "purpose": { "type": "string", "minLength": 15 },
+            "prd_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/PrdRef" },
+              "uniqueItems": true
+            }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/JourneyStep" }
+        },
+        "claims": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Claim" },
+          "description": "Journey-level claims (e.g. friction budget). Same claim model; runtime checking is P2 and builds on workflow-health execution."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "JourneyStep": {
+      "type": "object",
+      "required": ["page", "intent"],
+      "properties": {
+        "page": {
+          "$ref": "#/$defs/Id",
+          "description": "Page id declared in this scenario's experience index."
+        },
+        "state": {
+          "$ref": "#/$defs/StateId",
+          "description": "State declared on that page. Omitted = default."
+        },
+        "intent": {
+          "type": "string",
+          "minLength": 10,
+          "description": "What the user accomplishes or understands at this step."
+        },
+        "via": {
+          "type": "string",
+          "description": "The affordance used to arrive here (free text, e.g. an element id or gesture)."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "ComponentDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "component", "states", "elements", "claims", "bindings"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "experience-component" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "component": { "$ref": "#/$defs/ComponentIdentity" },
+        "priorities": {
+          "type": "array",
+          "maxItems": 7,
+          "items": { "$ref": "#/$defs/Priority" },
+          "description": "Ranked communication priorities for this reusable component."
+        },
+        "states": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ComponentState" },
+          "description": "Perceivable component states. Each state is anchored to a named catalog specimen."
+        },
+        "elements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Element" }
+        },
+        "claims": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Claim" }
+        },
+        "bindings": { "$ref": "#/$defs/Bindings" },
+        "floorOptOuts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ComponentFloorOptOut" },
+          "description": "Escape hatch for component floors only. Page floors do not apply to component documents."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "ComponentIdentity": {
+      "type": "object",
+      "required": ["id", "title", "purpose"],
+      "anyOf": [
+        { "required": ["examplesRef"] },
+        { "required": ["storyRef"] }
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "title": { "type": "string", "minLength": 1 },
+        "purpose": {
+          "type": "string",
+          "minLength": 15,
+          "description": "One or two sentences: what a person should be able to perceive or do with this reusable component."
+        },
+        "examplesRef": {
+          "type": "string",
+          "pattern": "^\\.\\./(library/(components|hooks|primitives)|\\.\\./library/(components|hooks|primitives)|\\.\\./\\.\\./react-component-library/library/(components|hooks|primitives))/[A-Za-z0-9_-]+/versions/[^/]+/examples\\.json$",
+          "description": "Path from experience/components/ to the catalog component or hook version examples.json that grounds this spec. Adopted scenario components may point at the shared react-component-library catalog."
+        },
+        "storyRef": {
+          "type": "string",
+          "pattern": "^\\.\\./(library/(components|hooks|primitives)|\\.\\./library/(components|hooks|primitives)|\\.\\./\\.\\./react-component-library/library/(components|hooks|primitives))/[A-Za-z0-9_-]+/versions/[^/]+/story\\.json$",
+          "description": "Path from experience/components/ to the catalog component or hook version story.json that grounds this spec. Adopted scenario components may point at the shared react-component-library catalog."
+        },
+        "extends": {
+          "$ref": "#/$defs/LibraryComponentReference",
+          "description": "Exact canonical RCL contract this local component wraps. A wrapper may add behavior but cannot silently replace the pinned lifecycle or claims."
+        },
+        "extension": {
+          "type": "object",
+          "required": ["purpose"],
+          "properties": {
+            "purpose": { "type": "string", "minLength": 15 }
+          },
+          "additionalProperties": false,
+          "description": "Required only for an extends wrapper; explains the additive scenario-local behavior."
+        },
+        "prd_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PrdRef" },
+          "uniqueItems": true
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "required": ["extends"] },
+          "then": { "required": ["extension"] }
+        }
+      ]
+    },
+    "ComponentState": {
+      "type": "object",
+      "required": ["id", "example"],
+      "properties": {
+        "id": { "$ref": "#/$defs/StateId" },
+        "example": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Named example in the referenced examples.json file."
+        },
+        "description": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "ComponentFloorOptOut": {
+      "type": "object",
+      "required": ["floor", "reason"],
+      "properties": {
+        "floor": {
+          "type": "string",
+          "enum": ["no-document-horizontal-overflow", "tap-target-size"]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Why this component intentionally diverges from the inherited component floor."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    }
+  }
+}

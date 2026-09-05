@@ -1,8 +1,22 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { onProfilerRender } from "./lib/profiler";
+import "./i18n";
 import "./styles/global.css";
+
+// INTEROP-CRITICAL: embedded keyboard and gamepad navigation is initialized
+// before the application renders.
+initSpatialNav();
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next
+// navigation. This guard reloads once (rate-limited) instead.
+installChunkReloadGuard();
 
 declare global {
   interface Window {
@@ -21,7 +35,7 @@ if (
     if (document.referrer) {
       parentOrigin = new URL(document.referrer).origin;
     }
-  } catch (error) {
+  } catch {
     // Fall back to default origin when parsing fails.
   }
 
@@ -31,6 +45,10 @@ if (
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </React.Profiler>
+    </ErrorBoundary>
   </React.StrictMode>
 );

@@ -7,18 +7,11 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  RotateCcw,
   ListPlus,
-  Eye,
-  FileSearch,
   ClipboardCheck,
-  XCircle,
-  RefreshCw,
   Pencil,
   Trash2,
-  PlusCircle,
   FolderOpen,
-  Beaker,
   Link,
   Target,
   Archive,
@@ -30,7 +23,8 @@ import { getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
-import type { DetailSelection } from "../../../stores/detail-selection-store";
+import { transitionService } from "../../../services/transition-service";
+import type { DetailRouteTarget } from "../../../app/routes/route-paths";
 
 export interface InspectorAction {
   id: string;
@@ -42,35 +36,10 @@ export interface InspectorAction {
   /** If provided, determines whether this action is available for the given node. */
   enabled?: (node: GraphNode) => boolean;
   /** If set, this action opens a detail page instead of calling an API. */
-  navigateTo?: (node: GraphNode) => DetailSelection | null;
+  navigateTo?: (node: GraphNode) => DetailRouteTarget | null;
 }
 
 type ActionRegistry = Record<GraphLens, Partial<Record<EntityType, InspectorAction[]>>>;
-
-/** Check if a node is in a terminal execution state eligible for follow-up. */
-function isTerminalExecution(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "completed" || status === "failed" || status === "needs_fixup" || status === "canceled";
-}
-
-function canFollowUpExecution(node: GraphNode): boolean {
-  return isTerminalExecution(node);
-}
-
-function canRetryExecution(node: GraphNode): boolean {
-  return getGraphNodeStatus(node) === "failed";
-}
-
-function canRunPostRunChecksExecution(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "completed" || status === "failed" || status === "needs_fixup";
-}
-
-/** Check if execution is active (can be cancelled). */
-function isActiveExecution(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "pending" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating";
-}
 
 // ---------------------------------------------------------------------------
 // Action factory helpers
@@ -97,114 +66,6 @@ function makeQueueAction(): InspectorAction {
   };
 }
 
-function makeViewBacklogDetailsAction(): InspectorAction {
-  return {
-    id: "view-backlog-details",
-    label: "View Details",
-    icon: Eye,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.kind || !parsed?.name) return null;
-      return { entityType: "backlog", kind: parsed.kind, name: parsed.name };
-    },
-  };
-}
-
-function makeViewExecutionDetailsAction(): InspectorAction {
-  return {
-    id: "view-execution-details",
-    label: "View Details",
-    icon: Eye,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) return null;
-      return { entityType: "execution", identifier: parsed.identifier };
-    },
-  };
-}
-
-function makeViewPromptTraceAction(): InspectorAction {
-  return {
-    id: "view-prompt-trace",
-    label: "Prompt Trace",
-    icon: FileSearch,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) return null;
-      return { entityType: "execution", identifier: parsed.identifier };
-    },
-  };
-}
-
-function makeFollowUpAction(): InspectorAction {
-  return {
-    id: "follow-up",
-    label: "Follow-up",
-    icon: RefreshCw,
-    variant: "default",
-    enabled: canFollowUpExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionFollowUp(parsed.identifier), {
-        followUpType: "followup",
-        runMode: "new",
-      });
-    },
-  };
-}
-
-function makeRetryAction(): InspectorAction {
-  return {
-    id: "retry",
-    label: "Retry",
-    icon: RotateCcw,
-    variant: "default",
-    enabled: canRetryExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionRetry(parsed.identifier), {});
-    },
-  };
-}
-
-function makeTriggerReviewAction(): InspectorAction {
-  return {
-    id: "trigger-review",
-    label: "Run Post-Run Checks",
-    icon: ClipboardCheck,
-    variant: "default",
-    enabled: canRunPostRunChecksExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionTriggerReview(parsed.identifier), {});
-    },
-  };
-}
-
-function makeCancelExecutionAction(): InspectorAction {
-  return {
-    id: "cancel",
-    label: "Cancel",
-    icon: XCircle,
-    variant: "destructive",
-    enabled: isActiveExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionCancel(parsed.identifier), {});
-    },
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Topology action factory helpers
 // ---------------------------------------------------------------------------
@@ -218,25 +79,7 @@ function makeCaptureClassifyAction(): InspectorAction {
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine capture identity");
-      await defaultApiClient.post(API_ENDPOINTS.captureClassify(parsed.identifier), {});
-    },
-  };
-}
-
-function makeCaptureCreateItemAction(): InspectorAction {
-  return {
-    id: "create-item",
-    label: "Create Item",
-    icon: PlusCircle,
-    variant: "default",
-    enabled(node: GraphNode) {
-      const status = getGraphNodeStatus(node);
-      return status === "classified";
-    },
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine capture identity");
-      await defaultApiClient.post(API_ENDPOINTS.captureCreateItem(parsed.identifier), {});
+      await transitionService.start("capture.classify", parsed.identifier);
     },
   };
 }
@@ -270,21 +113,6 @@ function makeBacklogEditAction(): InspectorAction {
   };
 }
 
-function makeBacklogWorkshopAction(): InspectorAction {
-  return {
-    id: "workshop",
-    label: "Workshop",
-    icon: Beaker,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.kind || !parsed?.name) return null;
-      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "workshop" };
-    },
-  };
-}
-
 function makeBacklogAddDependencyAction(): InspectorAction {
   return {
     id: "add-dependency",
@@ -300,17 +128,17 @@ function makeBacklogAddDependencyAction(): InspectorAction {
   };
 }
 
-function makeBacklogAssignInitiativeAction(): InspectorAction {
+function makeBacklogAssignGoalAction(): InspectorAction {
   return {
-    id: "assign-initiative",
-    label: "Assign Initiative",
+    id: "assign-goal",
+    label: "Assign Goal",
     icon: Target,
     variant: "default",
     async handler() { /* navigation handled by navigateTo */ },
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) return null;
-      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "initiative" };
+      return { entityType: "backlog", kind: parsed.kind, name: parsed.name, tab: "goal" };
     },
   };
 }
@@ -330,9 +158,9 @@ function makeBacklogViewFilesAction(): InspectorAction {
   };
 }
 
-function makeInitiativeEditAction(): InspectorAction {
+function makeGoalEditAction(): InspectorAction {
   return {
-    id: "edit-initiative",
+    id: "edit-goal",
     label: "Edit",
     icon: Pencil,
     variant: "default",
@@ -340,12 +168,12 @@ function makeInitiativeEditAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return { entityType: "initiative", name: parsed.name };
+      return { entityType: "goal", name: parsed.name };
     },
   };
 }
 
-function makeInitiativeManageMembersAction(): InspectorAction {
+function makeGoalManageMembersAction(): InspectorAction {
   return {
     id: "manage-members",
     label: "Manage Items",
@@ -355,21 +183,21 @@ function makeInitiativeManageMembersAction(): InspectorAction {
     navigateTo(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed?.name) return null;
-      return { entityType: "initiative", name: parsed.name, tab: "items" };
+      return { entityType: "goal", name: parsed.name, tab: "items" };
     },
   };
 }
 
-function makeInitiativeArchiveAction(): InspectorAction {
+function makeGoalArchiveAction(): InspectorAction {
   return {
-    id: "archive-initiative",
+    id: "archive-goal",
     label: "Archive",
     icon: Archive,
     variant: "destructive",
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
-      if (!parsed?.name) throw new Error("Cannot determine initiative name");
-      await defaultApiClient.patch(API_ENDPOINTS.initiativeArchiveItem(parsed.name), {});
+      if (!parsed?.name) throw new Error("Cannot determine goal name");
+      await defaultApiClient.patch(API_ENDPOINTS.goalArchiveItem(parsed.name), {});
     },
     enabled(node: GraphNode) {
       // Check archivedAt from the node's extra data if available
@@ -414,24 +242,25 @@ function makeScenarioEditMetadataAction(): InspectorAction {
 // ---------------------------------------------------------------------------
 
 export const actionRegistry: ActionRegistry = {
+  // The plan lens renders the kanban board, not the node canvas — no
+  // inspector actions apply.
+  plan: {},
   focus: {
     capture: [
       makeCaptureClassifyAction(),
-      makeCaptureCreateItemAction(),
       makeCaptureDeleteAction(),
     ],
     backlog: [
       makeBacklogEditAction(),
       makeQueueAction(),
-      makeBacklogWorkshopAction(),
       makeBacklogAddDependencyAction(),
-      makeBacklogAssignInitiativeAction(),
+      makeBacklogAssignGoalAction(),
       makeBacklogViewFilesAction(),
     ],
-    initiative: [
-      makeInitiativeEditAction(),
-      makeInitiativeManageMembersAction(),
-      makeInitiativeArchiveAction(),
+    goal: [
+      makeGoalEditAction(),
+      makeGoalManageMembersAction(),
+      makeGoalArchiveAction(),
     ],
     scenario: [
       makeScenarioViewFilesAction(),
@@ -441,41 +270,23 @@ export const actionRegistry: ActionRegistry = {
   topology: {
     capture: [
       makeCaptureClassifyAction(),
-      makeCaptureCreateItemAction(),
       makeCaptureDeleteAction(),
     ],
     backlog: [
       makeBacklogEditAction(),
       makeQueueAction(),
-      makeBacklogWorkshopAction(),
       makeBacklogAddDependencyAction(),
-      makeBacklogAssignInitiativeAction(),
+      makeBacklogAssignGoalAction(),
       makeBacklogViewFilesAction(),
     ],
-    initiative: [
-      makeInitiativeEditAction(),
-      makeInitiativeManageMembersAction(),
-      makeInitiativeArchiveAction(),
+    goal: [
+      makeGoalEditAction(),
+      makeGoalManageMembersAction(),
+      makeGoalArchiveAction(),
     ],
     scenario: [
       makeScenarioViewFilesAction(),
       makeScenarioEditMetadataAction(),
-    ],
-  },
-  operations: {
-    backlog: [
-      makeQueueAction(),
-      makeBacklogWorkshopAction(),
-      makeBacklogViewFilesAction(),
-      makeViewBacklogDetailsAction(),
-    ],
-    execution: [
-      makeViewExecutionDetailsAction(),
-      makeViewPromptTraceAction(),
-      makeFollowUpAction(),
-      makeRetryAction(),
-      makeTriggerReviewAction(),
-      makeCancelExecutionAction(),
     ],
   },
 };

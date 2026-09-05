@@ -1,0 +1,801 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "storage-manager",
+  "description": "Storage Manager CLI surface for preview-first cleanup policy, planning, apply, and audit operations.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate a scenario's storage judgment",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Run storage analyzers against a scenario",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "platform",
+              "description": "linux, macos, or windows",
+              "bind": {
+                "field": "path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Preview or apply deterministic storage fixes",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview storage fixes without writing",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Finding code filter",
+              "bind": {
+                "field": "rule_ids"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic storage fixes",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Finding code filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Fleet-wide storage inventory",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Scan storage posture across scenarios",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario filter",
+              "bind": {
+                "field": "scenarios"
+              }
+            },
+            {
+              "name": "view",
+              "description": "all, isolation, no-backup, engines, or stages",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ScanFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inventory",
+          "description": "Read the latest fleet snapshot",
+          "flags": [
+            {
+              "name": "view",
+              "description": "all, isolation, no-backup, engines, or stages",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "GetInventory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "advisor",
+      "description": "Storage migration intelligence",
+      "commands": [
+        {
+          "name": "migrations",
+          "description": "Analyze migration hygiene",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario filter",
+              "bind": {
+                "field": "scenarios"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisorService",
+            "method": "AnalyzeMigrations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "engines",
+          "description": "Rank engine migration candidates",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario filter",
+              "bind": {
+                "field": "scenarios"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisorService",
+            "method": "AdviseEngines"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "placement",
+      "description": "Verify storage placement without moving bytes",
+      "commands": [
+        {
+          "name": "verify",
+          "description": "Verify declarations for a target platform",
+          "flags": [
+            {
+              "name": "platform",
+              "description": "linux, macos, or windows (defaults to the host)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "declare",
+      "description": "Inspect and generate storage declarations",
+      "commands": [
+        {
+          "name": "inspect",
+          "description": "Compare declared and observed storage",
+          "positionals": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owner id"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "suggest",
+          "description": "Emit a measured storage.entries block",
+          "positionals": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owner id"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "check",
+          "description": "Report declaration coverage",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "scenario, resource, tool, or safeguard"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cleanup",
+      "description": "Preview, plan, apply, and audit cleanup policy",
+      "commands": [
+        {
+          "name": "providers",
+          "description": "List cleanup providers and safety metadata",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ListProviders"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "policy",
+          "description": "Show active cleanup policy",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "set-profile",
+          "description": "Set cleanup policy profile",
+          "flags": [
+            {
+              "name": "profile",
+              "required": true,
+              "description": "Policy profile: conservative, balanced, or aggressive"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "SetPolicyProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "plan",
+          "description": "Create a cleanup preview plan without mutating host state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "CreatePlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply an approved cleanup plan with replay protection",
+          "flags": [
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Cleanup plan id"
+            },
+            {
+              "name": "policy-version",
+              "required": true,
+              "description": "Policy version captured by the plan"
+            },
+            {
+              "name": "approval-mode",
+              "description": "Approval mode supplied for this apply request"
+            },
+            {
+              "name": "approval-token",
+              "description": "Approval token when owner/operator approval is required"
+            },
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe idempotency key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ApplyPlan"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "report-pressure",
+          "description": "Report disk pressure so storage-manager can observe, preview, or reclaim safe-tier space",
+          "flags": [
+            {
+              "name": "partition",
+              "required": true,
+              "description": "Filesystem under pressure, for example /"
+            },
+            {
+              "name": "band",
+              "required": true,
+              "description": "Escalation band: warning (observe), high (apply safe-tier), or critical (apply safe-tier)"
+            },
+            {
+              "name": "used-percent",
+              "required": false,
+              "description": "Usage percentage as df reports it"
+            },
+            {
+              "name": "available-bytes",
+              "required": false,
+              "description": "Bytes still available to an unprivileged writer"
+            },
+            {
+              "name": "source",
+              "required": false,
+              "description": "Reporting scenario, recorded in the audit trail"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ReportPressure"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "audit",
+          "description": "List cleanup audit events",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ListAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "tiers",
+          "description": "List recovery safety tiers and autonomous proof requirements",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": [] },
+          "architecture": { "primitive": "action" }
+        },
+        {
+          "name": "roots",
+          "description": "List declarative governed storage roots and resolved paths",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": [] },
+          "architecture": { "primitive": "action" }
+        },
+        {
+          "name": "run",
+          "description": "Start a server-owned recovery run",
+          "flags": [
+            { "name": "trigger", "required": true, "description": "Trigger: band, floor, rate, or manual" },
+            { "name": "partition", "required": true, "description": "Filesystem under pressure" },
+            { "name": "used-percent", "description": "Current df-style usage percentage" },
+            { "name": "available-bytes", "description": "Current unprivileged available bytes" },
+            { "name": "target-percent", "description": "Requested free-space percentage (default 15)" },
+            { "name": "dry-run", "description": "Preview recovery without deleting" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "StartRecovery" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "wait",
+          "description": "Wait for a server-owned recovery run",
+          "flags": [{ "name": "run-id", "required": true, "description": "Recovery run id" }],
+          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "WaitRecovery" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "operational" }
+        },
+        {
+          "name": "history",
+          "description": "List server-owned recovery runs",
+          "flags": [{ "name": "limit", "description": "Maximum number of runs" }],
+          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "ListRecovery" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        }
+      ]
+    },
+    {
+      "name": "recovery",
+      "description": "Run and inspect server-owned disk recovery",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a server-owned recovery run",
+          "flags": [
+            { "name": "trigger", "required": true, "description": "Trigger: band, floor, rate, or manual" },
+            { "name": "partition", "required": true, "description": "Filesystem under pressure" },
+            { "name": "used-percent", "description": "Current df-style usage percentage" },
+            { "name": "available-bytes", "description": "Current unprivileged available bytes" },
+            { "name": "target-percent", "description": "Requested free-space percentage (default 15)" },
+            { "name": "dry-run", "description": "Preview recovery without deleting" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "StartRecovery" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "wait",
+          "description": "Wait for a server-owned recovery run",
+          "flags": [{ "name": "run-id", "required": true, "description": "Recovery run id" }],
+          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "WaitRecovery" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "operational" }
+        },
+        {
+          "name": "history",
+          "description": "List server-owned recovery runs",
+          "flags": [{ "name": "limit", "description": "Maximum number of runs" }],
+          "binding": { "kind": "connect-rpc", "service": "CleanupService", "method": "ListRecovery" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "chaos",
+          "description": "Write a bounded governed-root workload and exercise rate recovery",
+          "flags": [
+            { "name": "root", "required": true, "description": "Existing governed temporary root under $VROOLI_HOME/tmp/go-work" },
+            { "name": "rate", "required": true, "description": "Write rate, for example 20GiB/h" },
+            { "name": "duration", "description": "Writer duration, default 8m, maximum 10m" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "action" }
+        }
+      ]
+    },
+    {
+      "name": "storage",
+      "description": "Read-only storage census operations",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Run a read-only storage census for the repository root",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "census",
+          "description": "Run a read-only storage census",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "history",
+          "description": "Show persisted census snapshots and growth observations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retention",
+          "description": "Show retention budgets across every owner kind",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "placement",
+          "description": "Show resolved cross-platform storage placement",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "placement-audit",
+          "description": "Show placement migration audit events",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "adoption",
+          "description": "Show declaration adoption coverage and suggestions",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "infra-health",
+          "description": "Show persisted storage infra-health signal",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inventory",
+          "description": "List every storage owner and declaration",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "writers",
+          "description": "Rank persisted governed-root writer rates",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [
+    {
+      "command": "validate prove-isolation",
+      "class": "external_delegation",
+      "reason": "API-free static source proof is intentionally outside Connect-RPC dispatch."
+    },
+    {
+      "command": "validate resource",
+      "class": "passthrough",
+      "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds."
+    },
+    {
+      "command": "validate tool",
+      "class": "passthrough",
+      "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds."
+    },
+    {
+      "command": "validate safeguard",
+      "class": "passthrough",
+      "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds."
+    },
+    {
+      "command": "validate fleet",
+      "class": "passthrough",
+      "reason": "Fleet validation aggregates REST owner reports and is appended outside the Connect-RPC manifest binding path."
+    }
+  ],
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them."
+    }
+  ]
+}

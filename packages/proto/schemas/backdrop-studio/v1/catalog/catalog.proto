@@ -1,0 +1,25 @@
+syntax = "proto3";
+package vrooli.backdrop_studio.v1.catalog;
+
+import "backdrop-studio/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/catalog;catalog_v1";
+
+service CatalogService {
+  rpc ListStyles(ListStylesRequest) returns (ListStylesResponse);
+  rpc CreateStyle(CreateStyleRequest) returns (shared.Style);
+}
+
+message ListStylesRequest {
+  string role = 1;
+  string subject = 2;
+  string treatment = 3;
+  string lineage = 4;
+  string placement = 5;
+}
+message ListStylesResponse {
+  repeated shared.Style styles = 1;
+}
+message CreateStyleRequest {
+  shared.Style style = 1;
+}

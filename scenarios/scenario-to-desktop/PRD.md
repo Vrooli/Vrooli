@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -23,13 +23,19 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
-- [x] OT-P0-002 | Multi-framework scaffolding with Electron primary | Electron fully implemented; Tauri/Neutralino tracked as P2 enhancements
-- [ ] OT-P0-003 | Cross-platform packaging | Template configs exist; full builds require electron-builder in target environments
-- [x] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
-- [x] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
-- [x] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
-- [x] OT-P0-007 | Auto-updater hooks | electron-updater wiring included; release pipeline pending
+- [ ] OT-P0-001 | Generate complete Electron desktop applications | API generates template files successfully with required assets and configs
+- [ ] OT-P0-002 | Electron desktop scaffolding | Electron wrappers are generated with the supported template variants
+- [ ] OT-P0-003 | Linux desktop packaging | A pipeline-produced Linux AppImage has been smoke-tested and installed, launched, used, and cleanly stopped under Xvfb evidence. Windows and macOS are compile-validated only.
+- [ ] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
+- [ ] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
+- [ ] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
+- [ ] OT-P0-007 | Runtime auto-update | Both Linux evidence runs observed electron-updater detect version 1.0.1, download it, execute the replacement AppImage, and quit the prior 1.0.0 process. The signed evidence manifest records the two updater logs and display recordings.
+- [ ] OT-P0-008 | Deployment eligibility | The deployment stage resolves selected scenario/resource host requirements and resource artifacts through the canonical host-requirement policy, records verdicts, reasons, privilege, bundling, and provenance in the target plan, and renders them before packaging.
+- [ ] OT-P0-009 | Release trust boundary | Production accepts only a release-authority-signed manifest; the project-managed native-secure-store authority signs staged bytes, while development-local remains explicitly non-promotable.
+- [ ] OT-P0-010 | Isolated desktop-console evidence | The routed mutating BAS fixture creates a leased deterministic artifact and smoke report, persists only leased state, asserts the routed write count, and is retained in the signed evidence release.
+
+- [ ] OT-P0-011 | Governed native extensions | When a scenario supplies a native extension, the desktop ramp shall validate its versioned contract, preserve vanilla generation, isolate remote content from host privileges, and package declared helpers through governed profiles.
+- [ ] OT-P0-012 | Verified portable native delivery | When a companion package is released for Windows, macOS, or a named Linux environment, the desktop ramp shall verify clean installation, update continuity, interrupted-update recovery, retention-aware uninstall, and the identity of the tested artifact.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows
@@ -49,15 +55,24 @@ Preferred stacks and architectural intent:
 
 - **API**: Go HTTP server with screaming architecture (domain handlers for build, pipeline, records, scenario, system, tools)
 - **UI**: React + Vite SPA with iframe-bridge interop for Vrooli dashboard embedding
-- **Templates**: Electron-first with template variants (basic, advanced, kiosk, multi-window); Tauri/Neutralino deferred to P2
+- **Templates**: Electron with template variants (basic, advanced, kiosk, multi-window)
 - **Build system**: electron-builder for packaging; Wine/Flatpak for cross-platform Windows builds on Linux
 - **Data storage**: Filesystem-based (template files, build artifacts, deployment telemetry); optional postgres/redis for history and caching
 - **Integration**: Secure IPC between Electron main/renderer processes; scenario API communication via bundled runtime or thin-client proxy
 - **Non-goals**: Mobile targets, web-only deployment (those belong in other scenarios)
 
+### Delivery validation ownership
+
+The provider-neutral delivery contract is implemented once in
+`packages/delivery-ramp-go`, including target inventory, immutable validation
+matrices, local/bridge transports, journey evidence, and fail-closed
+dispositions. This scenario is the desktop ramp and supplies only the four
+platform adapters—Prober, Builder, Driver, and Distributor—plus its Electron,
+X11, capture, and public API/CLI/UI adapters.
+
 ## 🤝 Dependencies & Launch Plan
 
-**Required resources**: None mandatory; optional resources include browserless (UI testing), postgres (template/build history), and redis (build cache)
+**Required resources**: None mandatory; optional dependencies include browser-automation-studio (UI testing), postgres (template/build history), and redis (build cache)
 
 **Scenario dependencies**:
 - deployment-manager for bundled builds and tier-2 automation
@@ -67,7 +82,7 @@ Preferred stacks and architectural intent:
 - Cross-platform packaging requires electron-builder plus Wine/macOS CI runners
 - Code signing and notarization require manual certificate setup
 - Electron security vulnerabilities require regular dependency updates
-- Large bundle sizes (~100-200MB) inherent to Electron; Tauri alternative planned for P2
+- Large bundle sizes (~100-200MB) inherent to Electron
 
 **Launch sequencing**:
 1. Start scenario-to-desktop (`make start` or `vrooli scenario start scenario-to-desktop`)

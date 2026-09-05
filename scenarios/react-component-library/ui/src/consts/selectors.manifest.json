@@ -1,42 +1,1349 @@
 {
-  "_metadata": {
-    "description": "UI element selectors for automated testing with browser-automation-studio",
-    "auto_generated": true,
-    "last_updated": "2025-11-22"
-  },
   "selectors": {
-    "header": {
-      "logo": "[data-testid='app-logo']",
-      "search": "input[type='search']",
-      "themeToggle": "button[aria-label='Toggle theme']"
+    "library.componentEditorExampleCard": {
+      "testId": "componentEditorExampleCard",
+      "selector": "[data-testid=\"componentEditorExampleCard\"]"
     },
-    "library": {
-      "componentCard": "[data-testid='component-card']",
-      "newComponentButton": "button:has-text('New Component')",
-      "searchInput": "input[placeholder='Search components...']"
+    "library.previewSurface": {
+      "testId": "previewSurface",
+      "selector": "[data-testid=\"previewSurface\"]"
     },
-    "editor": {
-      "codeEditor": ".monaco-editor",
-      "saveButton": "button:has-text('Save')",
-      "addFrameButton": "button:has-text('Add Frame')",
-      "selectionModeButton": "button:has-text('Select Elements')",
-      "aiAssistantButton": "button:has-text('AI Assistant')"
+    "library.experiencesurface.root": {
+      "testId": "experiencesurface",
+      "selector": "[data-testid=\"experiencesurface\"]"
     },
-    "emulator": {
-      "frame": "[data-testid='emulator-frame']",
-      "iframe": "iframe[title^='Preview:']",
-      "removeButton": "button:has(svg.lucide-x)"
+    "library.assetdetailshell.root": {
+      "testId": "assetdetailshell",
+      "selector": "[data-testid=\"assetdetailshell\"]"
     },
-    "aiChat": {
-      "chatPanel": "[data-testid='ai-chat-panel']",
-      "messageInput": "input[placeholder*='Ask for help']",
-      "sendButton": "button:has(svg.lucide-send)",
-      "messageContainer": "[data-testid='message']"
+    "library.primitives.text.root": {
+      "testId": "primitives.text",
+      "selector": "[data-testid=\"primitives.text\"]"
     },
-    "adoptions": {
-      "adoptionCard": "[data-testid='adoption-card']",
-      "newAdoptionButton": "button:has-text('New Adoption')",
-      "statusBadge": "[data-testid='status-badge']"
+    "library.primitives.text.rclTextSample": {
+      "testId": "primitives.text.rcl-text-sample",
+      "selector": "[data-testid=\"primitives.text.rcl-text-sample\"]"
+    },
+    "library.primitives.icon.root": {
+      "testId": "primitives.icon",
+      "selector": "[data-testid=\"primitives.icon\"]"
+    },
+    "library.primitives.card.root": {
+      "testId": "primitives.card",
+      "selector": "[data-testid=\"primitives.card\"]"
+    },
+    "library.overlays.drawer.root": {
+      "testId": "overlays.drawer",
+      "selector": "[data-testid=\"overlays.drawer\"]"
+    },
+    "library.overlays.dialog.root": {
+      "testId": "overlays.dialog",
+      "selector": "[data-testid=\"overlays.dialog\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.navigation.navigation-tree.root": {
+      "testId": "navigation.navigation-tree",
+      "selector": "[data-testid=\"navigation.navigation-tree\"]"
+    },
+    "library.navigation.nav-link.root": {
+      "testId": "navigation.nav-link",
+      "selector": "[data-testid=\"navigation.nav-link\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.navigation.app-shell.root": {
+      "testId": "navigation.app-shell",
+      "selector": "[data-testid=\"navigation.app-shell\"]"
+    },
+    "library.navigation.app-shell.header": {
+      "testId": "navigation.app-shell.header",
+      "selector": "[data-testid=\"navigation.app-shell.header\"]"
+    },
+    "library.navigation.app-shell.main": {
+      "testId": "navigation.app-shell.main",
+      "selector": "[data-testid=\"navigation.app-shell.main\"]"
+    },
+    "library.navigation.app-shell.navigation": {
+      "testId": "navigation.app-shell.navigation",
+      "selector": "[data-testid=\"navigation.app-shell.navigation\"]"
+    },
+    "library.navigation.app-shell.skip": {
+      "testId": "navigation.app-shell.skip",
+      "selector": "[data-testid=\"navigation.app-shell.skip\"]"
+    },
+    "library.navigation.app-navigation.root": {
+      "testId": "navigation.app-navigation",
+      "selector": "[data-testid=\"navigation.app-navigation\"]"
+    },
+    "library.hooks.use-network-status.root": {
+      "testId": "hooks.use-network-status",
+      "selector": "[data-testid=\"hooks.use-network-status\"]"
+    },
+    "library.hooks.use-escape-key.root": {
+      "testId": "hooks.use-escape-key",
+      "selector": "[data-testid=\"hooks.use-escape-key\"]"
+    },
+    "library.hooks.use-announce.root": {
+      "testId": "hooks.use-announce",
+      "selector": "[data-testid=\"hooks.use-announce\"]"
+    },
+    "library.foundations.visual-recipes.root": {
+      "testId": "foundations.visual-recipes",
+      "selector": "[data-testid=\"foundations.visual-recipes\"]"
+    },
+    "library.foundations.tokens.root": {
+      "testId": "foundations.tokens",
+      "selector": "[data-testid=\"foundations.tokens\"]"
+    },
+    "library.foundations.icon-registry.root": {
+      "testId": "foundations.icon-registry",
+      "selector": "[data-testid=\"foundations.icon-registry\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.forms.input.root": {
+      "testId": "forms.input",
+      "selector": "[data-testid=\"forms.input\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.feedback.async-boundary.root": {
+      "testId": "feedback.async-boundary",
+      "selector": "[data-testid=\"feedback.async-boundary\"]"
+    },
+    "library.data-display.tree-view.root": {
+      "testId": "data-display.tree-view",
+      "selector": "[data-testid=\"data-display.tree-view\"]"
+    },
+    "library.data-display.table.root": {
+      "testId": "data-display.table",
+      "selector": "[data-testid=\"data-display.table\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.data-display.data-table.content": {
+      "testId": "data-display.data-table.content",
+      "selector": "[data-testid=\"data-display.data-table.content\"]"
+    },
+    "library.controls.pressable.root": {
+      "testId": "controls.pressable",
+      "selector": "[data-testid=\"controls.pressable\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.workspaceheader.root": {
+      "testId": "workspaceheader",
+      "selector": "[data-testid=\"workspaceheader\"]"
+    },
+    "library.workspaceheader.workspaceHeader": {
+      "testId": "workspaceheader.workspace-header",
+      "selector": "[data-testid=\"workspaceheader.workspace-header\"]"
+    },
+    "library.inspectorlayout.root": {
+      "testId": "inspectorlayout",
+      "selector": "[data-testid=\"inspectorlayout\"]"
+    },
+    "library.asyncpanel.root": {
+      "testId": "asyncpanel",
+      "selector": "[data-testid=\"asyncpanel\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.voiceinputbutton.voiceFixtureState": {
+      "testId": "voiceinputbutton.voice-fixture-state",
+      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
+    },
+    "library.commandcentershell.root": {
+      "testId": "commandcentershell",
+      "selector": "[data-testid=\"commandcentershell\"]"
+    },
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "app.shell": {
+      "testId": "app-shell",
+      "selector": "[data-testid=\"app-shell\"]"
+    },
+    "app.main": {
+      "testId": "app-main",
+      "selector": "[data-testid=\"app-main\"]"
+    },
+    "launcher.open": {
+      "testId": "launcher-open",
+      "selector": "[data-testid=\"launcher-open\"]"
+    },
+    "launcher.menu": {
+      "testId": "launcher-menu",
+      "selector": "[data-testid=\"launcher-menu\"]"
+    },
+    "launcher.extract": {
+      "testId": "launcher-extract",
+      "selector": "[data-testid=\"launcher-extract\"]"
+    },
+    "launcher.adopt": {
+      "testId": "launcher-adopt",
+      "selector": "[data-testid=\"launcher-adopt\"]"
+    },
+    "launcher.create": {
+      "testId": "launcher-create",
+      "selector": "[data-testid=\"launcher-create\"]"
+    },
+    "assets.hookWorkspace": {
+      "testId": "hook-detail-page",
+      "selector": "[data-testid=\"hook-detail-page\"]"
+    },
+    "assets.hookOverviewTab": {
+      "testId": "hook-detail-overview-tab",
+      "selector": "[data-testid=\"hook-detail-overview-tab\"]"
+    },
+    "assets.hookFilesTab": {
+      "testId": "hook-detail-files-tab",
+      "selector": "[data-testid=\"hook-detail-files-tab\"]"
+    },
+    "assets.componentPreviewTab": {
+      "testId": "component-detail-preview-tab",
+      "selector": "[data-testid=\"component-detail-preview-tab\"]"
+    },
+    "assets.hookSource": {
+      "testId": "hook-workspace-source",
+      "selector": "[data-testid=\"hook-workspace-source\"]"
+    },
+    "assets.hookDetails": {
+      "testId": "hook-workspace-details",
+      "selector": "[data-testid=\"hook-workspace-details\"]"
+    },
+    "assets.hookAdoptions": {
+      "testId": "hook-effective-adoptions",
+      "selector": "[data-testid=\"hook-effective-adoptions\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "preview.bottomNav": {
+      "testId": "bottom-nav",
+      "selector": "[data-testid=\"bottom-nav\"]"
+    },
+    "components.harness.root": {
+      "testId": "component-harness-root",
+      "selector": "[data-testid=\"component-harness-root\"]"
+    },
+    "components.card": {
+      "testId": "components-card",
+      "selector": "[data-testid=\"components-card\"]"
+    },
+    "components.list": {
+      "testId": "components-list",
+      "selector": "[data-testid=\"components-list\"]"
+    },
+    "components.loading": {
+      "testId": "components-loading",
+      "selector": "[data-testid=\"components-loading\"]"
+    },
+    "components.empty": {
+      "testId": "components-empty",
+      "selector": "[data-testid=\"components-empty\"]"
+    },
+    "components.error": {
+      "testId": "components-error",
+      "selector": "[data-testid=\"components-error\"]"
+    },
+    "components.indexButton": {
+      "testId": "components-index-button",
+      "selector": "[data-testid=\"components-index-button\"]"
+    },
+    "components.create.button": {
+      "testId": "components-create-button",
+      "selector": "[data-testid=\"components-create-button\"]"
+    },
+    "components.create.dialog": {
+      "testId": "components-create-dialog",
+      "selector": "[data-testid=\"components-create-dialog\"]"
+    },
+    "components.create.slug": {
+      "testId": "components-create-slug",
+      "selector": "[data-testid=\"components-create-slug\"]"
+    },
+    "components.create.libraryId": {
+      "testId": "components-create-library-id",
+      "selector": "[data-testid=\"components-create-library-id\"]"
+    },
+    "components.create.displayName": {
+      "testId": "components-create-display-name",
+      "selector": "[data-testid=\"components-create-display-name\"]"
+    },
+    "components.create.description": {
+      "testId": "components-create-description",
+      "selector": "[data-testid=\"components-create-description\"]"
+    },
+    "components.create.tags": {
+      "testId": "components-create-tags",
+      "selector": "[data-testid=\"components-create-tags\"]"
+    },
+    "components.create.version": {
+      "testId": "components-create-version",
+      "selector": "[data-testid=\"components-create-version\"]"
+    },
+    "components.create.fileName": {
+      "testId": "components-create-file-name",
+      "selector": "[data-testid=\"components-create-file-name\"]"
+    },
+    "components.create.initialSource": {
+      "testId": "components-create-initial-source",
+      "selector": "[data-testid=\"components-create-initial-source\"]"
+    },
+    "components.create.submit": {
+      "testId": "components-create-submit",
+      "selector": "[data-testid=\"components-create-submit\"]"
+    },
+    "components.create.cancel": {
+      "testId": "components-create-cancel",
+      "selector": "[data-testid=\"components-create-cancel\"]"
+    },
+    "components.create.error": {
+      "testId": "components-create-error",
+      "selector": "[data-testid=\"components-create-error\"]"
+    },
+    "components.ingest.details": {
+      "testId": "components-ingest-details",
+      "selector": "[data-testid=\"components-ingest-details\"]"
+    },
+    "components.ingest.scenario": {
+      "testId": "components-ingest-scenario",
+      "selector": "[data-testid=\"components-ingest-scenario\"]"
+    },
+    "components.ingest.sourceFile": {
+      "testId": "components-ingest-source-file",
+      "selector": "[data-testid=\"components-ingest-source-file\"]"
+    },
+    "components.ingest.slug": {
+      "testId": "components-ingest-slug",
+      "selector": "[data-testid=\"components-ingest-slug\"]"
+    },
+    "components.ingest.tags": {
+      "testId": "components-ingest-tags",
+      "selector": "[data-testid=\"components-ingest-tags\"]"
+    },
+    "components.ingest.acceptLoss": {
+      "testId": "components-ingest-accept-loss",
+      "selector": "[data-testid=\"components-ingest-accept-loss\"]"
+    },
+    "components.ingest.submit": {
+      "testId": "components-ingest-submit",
+      "selector": "[data-testid=\"components-ingest-submit\"]"
+    },
+    "components.ingest.error": {
+      "testId": "components-ingest-error",
+      "selector": "[data-testid=\"components-ingest-error\"]"
+    },
+    "components.ingest.success": {
+      "testId": "components-ingest-success",
+      "selector": "[data-testid=\"components-ingest-success\"]"
+    },
+    "components.searchInput": {
+      "testId": "components-search-input",
+      "selector": "[data-testid=\"components-search-input\"]"
+    },
+    "components.tagInput": {
+      "testId": "components-tag-input",
+      "selector": "[data-testid=\"components-tag-input\"]"
+    },
+    "components.tagsInput": {
+      "testId": "components-tags-input",
+      "selector": "[data-testid=\"components-tags-input\"]"
+    },
+    "components.categoryInput": {
+      "testId": "components-category-input",
+      "selector": "[data-testid=\"components-category-input\"]"
+    },
+    "components.styleInput": {
+      "testId": "components-style-input",
+      "selector": "[data-testid=\"components-style-input\"]"
+    },
+    "components.affinityInput": {
+      "testId": "components-affinity-input",
+      "selector": "[data-testid=\"components-affinity-input\"]"
+    },
+    "components.summary": {
+      "testId": "components-summary",
+      "selector": "[data-testid=\"components-summary\"]"
+    },
+    "components.item": {
+      "testId": "components-item",
+      "selector": "[data-testid=\"components-item\"]"
+    },
+    "components.itemLibraryId": {
+      "testId": "components-item-library-id",
+      "selector": "[data-testid=\"components-item-library-id\"]"
+    },
+    "components.itemDisplayName": {
+      "testId": "components-item-display-name",
+      "selector": "[data-testid=\"components-item-display-name\"]"
+    },
+    "components.itemVersion": {
+      "testId": "components-item-version",
+      "selector": "[data-testid=\"components-item-version\"]"
+    },
+    "components.itemSlot": {
+      "testId": "components-item-slot",
+      "selector": "[data-testid=\"components-item-slot\"]"
+    },
+    "components.itemDesignStyles": {
+      "testId": "components-item-design-styles",
+      "selector": "[data-testid=\"components-item-design-styles\"]"
+    },
+    "components.itemTags": {
+      "testId": "components-item-tags",
+      "selector": "[data-testid=\"components-item-tags\"]"
+    },
+    "components.itemEditButton": {
+      "testId": "components-item-edit-button",
+      "selector": "[data-testid=\"components-item-edit-button\"]"
+    },
+    "components.editor.panel": {
+      "testId": "components-editor-panel",
+      "selector": "[data-testid=\"components-editor-panel\"]"
+    },
+    "components.editor.title": {
+      "testId": "components-editor-title",
+      "selector": "[data-testid=\"components-editor-title\"]"
+    },
+    "components.editor.loading": {
+      "testId": "components-editor-loading",
+      "selector": "[data-testid=\"components-editor-loading\"]"
+    },
+    "components.editor.error": {
+      "testId": "components-editor-error",
+      "selector": "[data-testid=\"components-editor-error\"]"
+    },
+    "components.editor.surface": {
+      "testId": "components-editor-surface",
+      "selector": "[data-testid=\"components-editor-surface\"]"
+    },
+    "components.editor.saveButton": {
+      "testId": "components-editor-save-button",
+      "selector": "[data-testid=\"components-editor-save-button\"]"
+    },
+    "components.editor.closeButton": {
+      "testId": "components-editor-close-button",
+      "selector": "[data-testid=\"components-editor-close-button\"]"
+    },
+    "components.editor.infoButton": {
+      "testId": "components-editor-info-button",
+      "selector": "[data-testid=\"components-editor-info-button\"]"
+    },
+    "components.editor.infoDialog": {
+      "testId": "components-editor-info-dialog",
+      "selector": "[data-testid=\"components-editor-info-dialog\"]"
+    },
+    "components.editor.dirtyBadge": {
+      "testId": "components-editor-dirty-badge",
+      "selector": "[data-testid=\"components-editor-dirty-badge\"]"
+    },
+    "components.editor.shaHash": {
+      "testId": "components-editor-sha-hash",
+      "selector": "[data-testid=\"components-editor-sha-hash\"]"
+    },
+    "components.editor.savedToast": {
+      "testId": "components-editor-saved-toast",
+      "selector": "[data-testid=\"components-editor-saved-toast\"]"
+    },
+    "components.editor.modeSwitch": {
+      "testId": "components-editor-mode-switch",
+      "selector": "[data-testid=\"components-editor-mode-switch\"]"
+    },
+    "components.editor.previewModeButton": {
+      "testId": "components-editor-preview-mode-button",
+      "selector": "[data-testid=\"components-editor-preview-mode-button\"]"
+    },
+    "components.editor.codeModeButton": {
+      "testId": "components-editor-code-mode-button",
+      "selector": "[data-testid=\"components-editor-code-mode-button\"]"
+    },
+    "components.editor.preview": {
+      "testId": "components-editor-preview",
+      "selector": "[data-testid=\"components-editor-preview\"]"
+    },
+    "components.editor.gallery": {
+      "testId": "components-editor-gallery",
+      "selector": "[data-testid=\"components-editor-gallery\"]"
+    },
+    "components.editor.storyPickerItem": {
+      "testId": "components-editor-story-picker-item",
+      "selector": "[data-testid=\"components-editor-story-picker-item\"]"
+    },
+    "components.editor.exampleCard": {
+      "testId": "components-editor-example-card",
+      "selector": "[data-testid=\"components-editor-example-card\"]"
+    },
+    "components.editor.exampleTitle": {
+      "testId": "components-editor-example-title",
+      "selector": "[data-testid=\"components-editor-example-title\"]"
+    },
+    "components.editor.exampleDimensions": {
+      "testId": "components-editor-example-dimensions",
+      "selector": "[data-testid=\"components-editor-example-dimensions\"]"
+    },
+    "components.editor.storyDescription": {
+      "testId": "components-editor-story-description",
+      "selector": "[data-testid=\"components-editor-story-description\"]"
+    },
+    "components.editor.exampleFocus": {
+      "testId": "components-editor-example-focus",
+      "selector": "[data-testid=\"components-editor-example-focus\"]"
+    },
+    "components.editor.exampleCompare": {
+      "testId": "components-editor-example-compare",
+      "selector": "[data-testid=\"components-editor-example-compare\"]"
+    },
+    "components.editor.comparisonToolbar": {
+      "testId": "components-editor-comparison-toolbar",
+      "selector": "[data-testid=\"components-editor-comparison-toolbar\"]"
+    },
+    "components.editor.comparisonClear": {
+      "testId": "components-editor-comparison-clear",
+      "selector": "[data-testid=\"components-editor-comparison-clear\"]"
+    },
+    "components.editor.storySheetAll": {
+      "testId": "components-editor-story-sheet-all",
+      "selector": "[data-testid=\"components-editor-story-sheet-all\"]"
+    },
+    "components.editor.galleryStatus": {
+      "testId": "components-editor-gallery-status",
+      "selector": "[data-testid=\"components-editor-gallery-status\"]"
+    },
+    "components.editor.specimenError": {
+      "testId": "components-editor-specimen-error",
+      "selector": "[data-testid=\"components-editor-specimen-error\"]"
+    },
+    "components.editor.specimenRetry": {
+      "testId": "components-editor-specimen-retry",
+      "selector": "[data-testid=\"components-editor-specimen-retry\"]"
+    },
+    "components.editor.propsPanel": {
+      "testId": "components-editor-props-panel",
+      "selector": "[data-testid=\"components-editor-props-panel\"]"
+    },
+    "components.editor.propsDraft": {
+      "testId": "components-editor-props-draft",
+      "selector": "[data-testid=\"components-editor-props-draft\"]"
+    },
+    "components.editor.propsApply": {
+      "testId": "components-editor-props-apply",
+      "selector": "[data-testid=\"components-editor-props-apply\"]"
+    },
+    "components.editor.propsReset": {
+      "testId": "components-editor-props-reset",
+      "selector": "[data-testid=\"components-editor-props-reset\"]"
+    },
+    "components.editor.propsError": {
+      "testId": "components-editor-props-error",
+      "selector": "[data-testid=\"components-editor-props-error\"]"
+    },
+    "components.editor.previewToolsPanel": {
+      "testId": "components-editor-preview-tools-panel",
+      "selector": "[data-testid=\"components-editor-preview-tools-panel\"]"
+    },
+    "components.editor.previewEventsClear": {
+      "testId": "components-editor-preview-events-clear",
+      "selector": "[data-testid=\"components-editor-preview-events-clear\"]"
+    },
+    "components.editor.previewEventItem": {
+      "testId": "components-editor-preview-event-item",
+      "selector": "[data-testid=\"components-editor-preview-event-item\"]"
+    },
+    "components.editor.previewEventsEmpty": {
+      "testId": "components-editor-preview-events-empty",
+      "selector": "[data-testid=\"components-editor-preview-events-empty\"]"
+    },
+    "components.editor.previewDiagnostics": {
+      "testId": "components-editor-preview-diagnostics",
+      "selector": "[data-testid=\"components-editor-preview-diagnostics\"]"
+    },
+    "components.editor.previewDiagnosticsCopy": {
+      "testId": "components-editor-preview-diagnostics-copy",
+      "selector": "[data-testid=\"components-editor-preview-diagnostics-copy\"]"
+    },
+    "components.editor.previewDiagnosticsCopied": {
+      "testId": "components-editor-preview-diagnostics-copied",
+      "selector": "[data-testid=\"components-editor-preview-diagnostics-copied\"]"
+    },
+    "components.editor.previewToolsToggle": {
+      "testId": "components-editor-preview-tools-toggle",
+      "selector": "[data-testid=\"components-editor-preview-tools-toggle\"]"
+    },
+    "components.editor.previewStage": {
+      "testId": "components-editor-preview-stage",
+      "selector": "[data-testid=\"components-editor-preview-stage\"]"
+    },
+    "components.editor.previewStageFullscreen": {
+      "testId": "components-editor-preview-stage-fullscreen",
+      "selector": "[data-testid=\"components-editor-preview-stage-fullscreen\"]"
+    },
+    "components.editor.previewFrame": {
+      "testId": "components-editor-preview-frame",
+      "selector": "[data-testid=\"components-editor-preview-frame\"]"
+    },
+    "components.editor.previewBadge": {
+      "testId": "components-editor-preview-badge",
+      "selector": "[data-testid=\"components-editor-preview-badge\"]"
+    },
+    "components.editor.previewError": {
+      "testId": "components-editor-preview-error",
+      "selector": "[data-testid=\"components-editor-preview-error\"]"
+    },
+    "components.editor.previewRetryButton": {
+      "testId": "components-editor-preview-retry-button",
+      "selector": "[data-testid=\"components-editor-preview-retry-button\"]"
+    },
+    "components.editor.workspaceAddPane": {
+      "testId": "components-editor-workspace-add-pane",
+      "selector": "[data-testid=\"components-editor-workspace-add-pane\"]"
+    },
+    "components.editor.workspacePane": {
+      "testId": "components-editor-workspace-pane",
+      "selector": "[data-testid=\"components-editor-workspace-pane\"]"
+    },
+    "components.editor.workspacePaneClose": {
+      "testId": "components-editor-workspace-pane-close",
+      "selector": "[data-testid=\"components-editor-workspace-pane-close\"]"
+    },
+    "components.editor.workspacePaneRestore": {
+      "testId": "components-editor-workspace-pane-restore",
+      "selector": "[data-testid=\"components-editor-workspace-pane-restore\"]"
+    },
+    "components.editor.workspacePaneDragHandle": {
+      "testId": "components-editor-workspace-pane-drag-handle",
+      "selector": "[data-testid=\"components-editor-workspace-pane-drag-handle\"]"
+    },
+    "components.editor.workspacePaneDropIndicator": {
+      "testId": "components-editor-workspace-pane-drop-indicator",
+      "selector": "[data-testid=\"components-editor-workspace-pane-drop-indicator\"]"
+    },
+    "components.editor.filesTreeTab": {
+      "testId": "components-editor-files-tree-tab",
+      "selector": "[data-testid=\"components-editor-files-tree-tab\"]"
+    },
+    "components.editor.filesSourceTab": {
+      "testId": "components-editor-files-source-tab",
+      "selector": "[data-testid=\"components-editor-files-source-tab\"]"
+    },
+    "components.editor.filesDiffClose": {
+      "testId": "components-editor-files-diff-close",
+      "selector": "[data-testid=\"components-editor-files-diff-close\"]"
+    },
+    "components.editor.filesRevertButton": {
+      "testId": "components-editor-files-revert-button",
+      "selector": "[data-testid=\"components-editor-files-revert-button\"]"
+    },
+    "components.editor.filesWrapButton": {
+      "testId": "components-editor-files-wrap-button",
+      "selector": "[data-testid=\"components-editor-files-wrap-button\"]"
+    },
+    "components.editor.filesFontDecrease": {
+      "testId": "components-editor-files-font-decrease",
+      "selector": "[data-testid=\"components-editor-files-font-decrease\"]"
+    },
+    "components.editor.filesFontIncrease": {
+      "testId": "components-editor-files-font-increase",
+      "selector": "[data-testid=\"components-editor-files-font-increase\"]"
+    },
+    "components.editor.fileTree": {
+      "testId": "components-editor-file-tree",
+      "selector": "[data-testid=\"components-editor-file-tree\"]"
+    },
+    "components.editor.fileTreeNode": {
+      "testId": "components-editor-file-tree-node",
+      "selector": "[data-testid=\"components-editor-file-tree-node\"]"
+    },
+    "components.editor.fileTabs": {
+      "testId": "components-editor-file-tabs",
+      "selector": "[data-testid=\"components-editor-file-tabs\"]"
+    },
+    "components.editor.templateSelect": {
+      "testId": "components-editor-template-select",
+      "selector": "[data-testid=\"components-editor-template-select\"]"
+    },
+    "components.emulator.root": {
+      "testId": "components-emulator",
+      "selector": "[data-testid=\"components-emulator\"]"
+    },
+    "components.emulator.toolbar": {
+      "testId": "components-emulator-toolbar",
+      "selector": "[data-testid=\"components-emulator-toolbar\"]"
+    },
+    "components.emulator.viewportToggle": {
+      "testId": "components-emulator-viewport-toggle",
+      "selector": "[data-testid=\"components-emulator-viewport-toggle\"]"
+    },
+    "components.emulator.viewportPanel": {
+      "testId": "components-emulator-viewport-panel",
+      "selector": "[data-testid=\"components-emulator-viewport-panel\"]"
+    },
+    "components.emulator.presetOption": {
+      "testId": "components-emulator-preset-option",
+      "selector": "[data-testid=\"components-emulator-preset-option\"]"
+    },
+    "components.emulator.presetSelect": {
+      "testId": "components-emulator-preset-select",
+      "selector": "[data-testid=\"components-emulator-preset-select\"]"
+    },
+    "components.emulator.dimensions": {
+      "testId": "components-emulator-dimensions",
+      "selector": "[data-testid=\"components-emulator-dimensions\"]"
+    },
+    "components.emulator.zoomValue": {
+      "testId": "components-emulator-zoom-value",
+      "selector": "[data-testid=\"components-emulator-zoom-value\"]"
+    },
+    "components.emulator.zoomIn": {
+      "testId": "components-emulator-zoom-in",
+      "selector": "[data-testid=\"components-emulator-zoom-in\"]"
+    },
+    "components.emulator.zoomOut": {
+      "testId": "components-emulator-zoom-out",
+      "selector": "[data-testid=\"components-emulator-zoom-out\"]"
+    },
+    "components.emulator.resetZoom": {
+      "testId": "components-emulator-reset-zoom",
+      "selector": "[data-testid=\"components-emulator-reset-zoom\"]"
+    },
+    "components.emulator.rotate": {
+      "testId": "components-emulator-rotate",
+      "selector": "[data-testid=\"components-emulator-rotate\"]"
+    },
+    "components.emulator.reset": {
+      "testId": "components-emulator-reset",
+      "selector": "[data-testid=\"components-emulator-reset\"]"
+    },
+    "components.emulator.viewport": {
+      "testId": "components-emulator-viewport",
+      "selector": "[data-testid=\"components-emulator-viewport\"]"
+    },
+    "components.emulator.viewportCanvas": {
+      "testId": "components-emulator-viewport-canvas",
+      "selector": "[data-testid=\"components-emulator-viewport-canvas\"]"
+    },
+    "components.emulator.visionFilterSelect": {
+      "testId": "components-emulator-vision-filter",
+      "selector": "[data-testid=\"components-emulator-vision-filter\"]"
+    },
+    "components.emulator.blurSlider": {
+      "testId": "components-emulator-blur-slider",
+      "selector": "[data-testid=\"components-emulator-blur-slider\"]"
+    },
+    "components.emulator.blurValue": {
+      "testId": "components-emulator-blur-value",
+      "selector": "[data-testid=\"components-emulator-blur-value\"]"
+    },
+    "components.emulator.filterDefs": {
+      "testId": "components-emulator-filter-defs",
+      "selector": "[data-testid=\"components-emulator-filter-defs\"]"
+    },
+    "components.emulator.overflowToggle": {
+      "testId": "components-emulator-overflow-toggle",
+      "selector": "[data-testid=\"components-emulator-overflow-toggle\"]"
+    },
+    "components.emulator.overflowPanel": {
+      "testId": "components-emulator-overflow-panel",
+      "selector": "[data-testid=\"components-emulator-overflow-panel\"]"
+    },
+    "components.emulator.viewportFrame": {
+      "testId": "components-emulator-viewport-frame",
+      "selector": "[data-testid=\"components-emulator-viewport-frame\"]"
+    },
+    "components.themeSwitcher.root": {
+      "testId": "components-theme-switcher",
+      "selector": "[data-testid=\"components-theme-switcher\"]"
+    },
+    "components.themeSwitcher.appearanceToggle": {
+      "testId": "components-theme-switcher-appearance-toggle",
+      "selector": "[data-testid=\"components-theme-switcher-appearance-toggle\"]"
+    },
+    "components.themeSwitcher.appearancePanel": {
+      "testId": "components-theme-switcher-appearance-panel",
+      "selector": "[data-testid=\"components-theme-switcher-appearance-panel\"]"
+    },
+    "components.themeSwitcher.mode": {
+      "testId": "components-theme-switcher-mode",
+      "selector": "[data-testid=\"components-theme-switcher-mode\"]"
+    },
+    "components.themeSwitcher.modeSystem": {
+      "testId": "components-theme-switcher-mode-system",
+      "selector": "[data-testid=\"components-theme-switcher-mode-system\"]"
+    },
+    "components.themeSwitcher.modeLight": {
+      "testId": "components-theme-switcher-mode-light",
+      "selector": "[data-testid=\"components-theme-switcher-mode-light\"]"
+    },
+    "components.themeSwitcher.modeDark": {
+      "testId": "components-theme-switcher-mode-dark",
+      "selector": "[data-testid=\"components-theme-switcher-mode-dark\"]"
+    },
+    "components.themeSwitcher.kitSelect": {
+      "testId": "components-theme-switcher-kit-select",
+      "selector": "[data-testid=\"components-theme-switcher-kit-select\"]"
+    },
+    "components.themeSwitcher.select": {
+      "testId": "components-theme-switcher-select",
+      "selector": "[data-testid=\"components-theme-switcher-select\"]"
+    },
+    "components.themeSwitcher.importToggle": {
+      "testId": "components-theme-switcher-import-toggle",
+      "selector": "[data-testid=\"components-theme-switcher-import-toggle\"]"
+    },
+    "components.themeSwitcher.scenarioInput": {
+      "testId": "components-theme-switcher-scenario-input",
+      "selector": "[data-testid=\"components-theme-switcher-scenario-input\"]"
+    },
+    "components.themeSwitcher.scenarioApply": {
+      "testId": "components-theme-switcher-scenario-apply",
+      "selector": "[data-testid=\"components-theme-switcher-scenario-apply\"]"
+    },
+    "components.themeSwitcher.visionFilterSelect": {
+      "testId": "components-theme-switcher-vision-filter",
+      "selector": "[data-testid=\"components-theme-switcher-vision-filter\"]"
+    },
+    "components.themeSwitcher.blurSlider": {
+      "testId": "components-theme-switcher-blur-slider",
+      "selector": "[data-testid=\"components-theme-switcher-blur-slider\"]"
+    },
+    "components.themeSwitcher.status": {
+      "testId": "components-theme-switcher-status",
+      "selector": "[data-testid=\"components-theme-switcher-status\"]"
+    },
+    "components.themeSwitcher.error": {
+      "testId": "components-theme-switcher-error",
+      "selector": "[data-testid=\"components-theme-switcher-error\"]"
+    },
+    "components.inspector.panel": {
+      "testId": "components-inspector-panel",
+      "selector": "[data-testid=\"components-inspector-panel\"]"
+    },
+    "components.inspector.toggleButton": {
+      "testId": "components-inspector-toggle",
+      "selector": "[data-testid=\"components-inspector-toggle\"]"
+    },
+    "components.inspector.statusBadge": {
+      "testId": "components-inspector-status",
+      "selector": "[data-testid=\"components-inspector-status\"]"
+    },
+    "components.inspector.breadcrumb": {
+      "testId": "components-inspector-breadcrumb",
+      "selector": "[data-testid=\"components-inspector-breadcrumb\"]"
+    },
+    "components.inspector.breadcrumbItem": {
+      "testId": "components-inspector-breadcrumb-item",
+      "selector": "[data-testid=\"components-inspector-breadcrumb-item\"]"
+    },
+    "components.inspector.selectedTag": {
+      "testId": "components-inspector-selected-tag",
+      "selector": "[data-testid=\"components-inspector-selected-tag\"]"
+    },
+    "components.inspector.selectedSelector": {
+      "testId": "components-inspector-selected-selector",
+      "selector": "[data-testid=\"components-inspector-selected-selector\"]"
+    },
+    "components.inspector.selectedRect": {
+      "testId": "components-inspector-selected-rect",
+      "selector": "[data-testid=\"components-inspector-selected-rect\"]"
+    },
+    "components.inspector.selectedText": {
+      "testId": "components-inspector-selected-text",
+      "selector": "[data-testid=\"components-inspector-selected-text\"]"
+    },
+    "components.inspector.empty": {
+      "testId": "components-inspector-empty",
+      "selector": "[data-testid=\"components-inspector-empty\"]"
+    },
+    "components.inspector.overlay": {
+      "testId": "components-inspector-overlay",
+      "selector": "[data-testid=\"components-inspector-overlay\"]"
+    },
+    "catalog.browser": {
+      "testId": "catalog-browser",
+      "selector": "[data-testid=\"catalog-browser\"]"
+    },
+    "catalog.componentsTab": {
+      "testId": "catalog-components-tab",
+      "selector": "[data-testid=\"catalog-components-tab\"]"
+    },
+    "catalog.hooksTab": {
+      "testId": "catalog-hooks-tab",
+      "selector": "[data-testid=\"catalog-hooks-tab\"]"
+    },
+    "catalog.search": {
+      "testId": "catalog-search",
+      "selector": "[data-testid=\"catalog-search\"]"
+    },
+    "catalog.presentation": {
+      "testId": "catalog-presentation-toggle",
+      "selector": "[data-testid=\"catalog-presentation-toggle\"]"
+    },
+    "catalog.asset": {
+      "testId": "catalog-asset",
+      "selector": "[data-testid=\"catalog-asset\"]"
+    },
+    "workflows.activeMenu": {
+      "testId": "active-work-menu",
+      "selector": "[data-testid=\"active-work-menu\"]"
+    },
+    "adoptions.card": {
+      "testId": "adoptions-card",
+      "selector": "[data-testid=\"adoptions-card\"]"
+    },
+    "adoptions.list": {
+      "testId": "adoptions-list",
+      "selector": "[data-testid=\"adoptions-list\"]"
+    },
+    "adoptions.loading": {
+      "testId": "adoptions-loading",
+      "selector": "[data-testid=\"adoptions-loading\"]"
+    },
+    "adoptions.error": {
+      "testId": "adoptions-error",
+      "selector": "[data-testid=\"adoptions-error\"]"
+    },
+    "adoptions.empty": {
+      "testId": "adoptions-empty",
+      "selector": "[data-testid=\"adoptions-empty\"]"
+    },
+    "adoptions.summary": {
+      "testId": "adoptions-summary",
+      "selector": "[data-testid=\"adoptions-summary\"]"
+    },
+    "adoptions.refreshButton": {
+      "testId": "adoptions-refresh-button",
+      "selector": "[data-testid=\"adoptions-refresh-button\"]"
+    },
+    "adoptions.scenarioFilter": {
+      "testId": "adoptions-scenario-filter",
+      "selector": "[data-testid=\"adoptions-scenario-filter\"]"
+    },
+    "adoptions.item": {
+      "testId": "adoptions-item",
+      "selector": "[data-testid=\"adoptions-item\"]"
+    },
+    "adoptions.itemId": {
+      "testId": "adoptions-item-id",
+      "selector": "[data-testid=\"adoptions-item-id\"]"
+    },
+    "adoptions.itemScenario": {
+      "testId": "adoptions-item-scenario",
+      "selector": "[data-testid=\"adoptions-item-scenario\"]"
+    },
+    "adoptions.itemPath": {
+      "testId": "adoptions-item-path",
+      "selector": "[data-testid=\"adoptions-item-path\"]"
+    },
+    "adoptions.itemVersion": {
+      "testId": "adoptions-item-version",
+      "selector": "[data-testid=\"adoptions-item-version\"]"
+    },
+    "adoptions.itemLibraryId": {
+      "testId": "adoptions-item-library-id",
+      "selector": "[data-testid=\"adoptions-item-library-id\"]"
+    },
+    "adoptions.itemStatus": {
+      "testId": "adoptions-item-status",
+      "selector": "[data-testid=\"adoptions-item-status\"]"
+    },
+    "adoptions.itemStatusDetail": {
+      "testId": "adoptions-item-status-detail",
+      "selector": "[data-testid=\"adoptions-item-status-detail\"]"
+    },
+    "adoptions.itemRefreshedAt": {
+      "testId": "adoptions-item-refreshed-at",
+      "selector": "[data-testid=\"adoptions-item-refreshed-at\"]"
+    },
+    "adoptions.itemDeleteButton": {
+      "testId": "adoptions-item-delete-button",
+      "selector": "[data-testid=\"adoptions-item-delete-button\"]"
+    },
+    "adoptions.createButton": {
+      "testId": "adoptions-create-button",
+      "selector": "[data-testid=\"adoptions-create-button\"]"
+    },
+    "adoptions.createDialog": {
+      "testId": "adoptions-create-dialog",
+      "selector": "[data-testid=\"adoptions-create-dialog\"]"
+    },
+    "adoptions.createComponentId": {
+      "testId": "adoptions-create-component-id",
+      "selector": "[data-testid=\"adoptions-create-component-id\"]"
+    },
+    "adoptions.createScenario": {
+      "testId": "adoptions-create-scenario",
+      "selector": "[data-testid=\"adoptions-create-scenario\"]"
+    },
+    "adoptions.createAdoptedPath": {
+      "testId": "adoptions-create-adopted-path",
+      "selector": "[data-testid=\"adoptions-create-adopted-path\"]"
+    },
+    "adoptions.createAdoptedVersion": {
+      "testId": "adoptions-create-adopted-version",
+      "selector": "[data-testid=\"adoptions-create-adopted-version\"]"
+    },
+    "adoptions.createCancel": {
+      "testId": "adoptions-create-cancel",
+      "selector": "[data-testid=\"adoptions-create-cancel\"]"
+    },
+    "adoptions.createConfirm": {
+      "testId": "adoptions-create-confirm",
+      "selector": "[data-testid=\"adoptions-create-confirm\"]"
+    },
+    "adoptions.createVerdict": {
+      "testId": "adoptions-create-verdict",
+      "selector": "[data-testid=\"adoptions-create-verdict\"]"
+    },
+    "adoptions.createVerdictKind": {
+      "testId": "adoptions-create-verdict-kind",
+      "selector": "[data-testid=\"adoptions-create-verdict-kind\"]"
+    },
+    "adoptions.createVerdictIssue": {
+      "testId": "adoptions-create-verdict-issue",
+      "selector": "[data-testid=\"adoptions-create-verdict-issue\"]"
+    },
+    "adoptions.createVerdictAck": {
+      "testId": "adoptions-create-verdict-ack",
+      "selector": "[data-testid=\"adoptions-create-verdict-ack\"]"
+    },
+    "adoptions.createStyleVerdict": {
+      "testId": "adoptions-create-style-verdict",
+      "selector": "[data-testid=\"adoptions-create-style-verdict\"]"
+    },
+    "adoptions.createStyleVerdictKind": {
+      "testId": "adoptions-create-style-verdict-kind",
+      "selector": "[data-testid=\"adoptions-create-style-verdict-kind\"]"
+    },
+    "adoptions.createStyleVerdictDetail": {
+      "testId": "adoptions-create-style-verdict-detail",
+      "selector": "[data-testid=\"adoptions-create-style-verdict-detail\"]"
+    },
+    "adoptions.createError": {
+      "testId": "adoptions-create-error",
+      "selector": "[data-testid=\"adoptions-create-error\"]"
+    },
+    "adoptions.createPathSource": {
+      "testId": "adoptions-create-path-source",
+      "selector": "[data-testid=\"adoptions-create-path-source\"]"
+    },
+    "adoptions.createPathWarning": {
+      "testId": "adoptions-create-path-warning",
+      "selector": "[data-testid=\"adoptions-create-path-warning\"]"
+    },
+    "versions.card": {
+      "testId": "versions-card",
+      "selector": "[data-testid=\"versions-card\"]"
+    },
+    "versions.list": {
+      "testId": "versions-list",
+      "selector": "[data-testid=\"versions-list\"]"
+    },
+    "versions.loading": {
+      "testId": "versions-loading",
+      "selector": "[data-testid=\"versions-loading\"]"
+    },
+    "versions.error": {
+      "testId": "versions-error",
+      "selector": "[data-testid=\"versions-error\"]"
+    },
+    "versions.empty": {
+      "testId": "versions-empty",
+      "selector": "[data-testid=\"versions-empty\"]"
+    },
+    "versions.item": {
+      "testId": "versions-item",
+      "selector": "[data-testid=\"versions-item\"]"
+    },
+    "versions.itemId": {
+      "testId": "versions-item-id",
+      "selector": "[data-testid=\"versions-item-id\"]"
+    },
+    "versions.itemVersion": {
+      "testId": "versions-item-version",
+      "selector": "[data-testid=\"versions-item-version\"]"
+    },
+    "versions.itemSha": {
+      "testId": "versions-item-sha",
+      "selector": "[data-testid=\"versions-item-sha\"]"
+    },
+    "versions.itemRecordedAt": {
+      "testId": "versions-item-recorded-at",
+      "selector": "[data-testid=\"versions-item-recorded-at\"]"
+    },
+    "versions.itemChangelog": {
+      "testId": "versions-item-changelog",
+      "selector": "[data-testid=\"versions-item-changelog\"]"
+    },
+    "versions.itemDiffButton": {
+      "testId": "versions-item-diff-button",
+      "selector": "[data-testid=\"versions-item-diff-button\"]"
+    },
+    "versions.table": {
+      "testId": "versions-table",
+      "selector": "[data-testid=\"versions-table\"]"
+    },
+    "versions.presenceBadge": {
+      "testId": "versions-presence-badge",
+      "selector": "[data-testid=\"versions-presence-badge\"]"
+    },
+    "versions.materializeButton": {
+      "testId": "versions-materialize-button",
+      "selector": "[data-testid=\"versions-materialize-button\"]"
+    },
+    "versions.progressionPanel": {
+      "testId": "versions-progression-panel",
+      "selector": "[data-testid=\"versions-progression-panel\"]"
+    },
+    "versions.diff.card": {
+      "testId": "versions-diff-card",
+      "selector": "[data-testid=\"versions-diff-card\"]"
+    },
+    "versions.diff.fromSelect": {
+      "testId": "versions-diff-from",
+      "selector": "[data-testid=\"versions-diff-from\"]"
+    },
+    "versions.diff.toSelect": {
+      "testId": "versions-diff-to",
+      "selector": "[data-testid=\"versions-diff-to\"]"
+    },
+    "versions.diff.runButton": {
+      "testId": "versions-diff-run",
+      "selector": "[data-testid=\"versions-diff-run\"]"
+    },
+    "versions.diff.table": {
+      "testId": "versions-diff-table",
+      "selector": "[data-testid=\"versions-diff-table\"]"
+    },
+    "versions.diff.row": {
+      "testId": "versions-diff-row",
+      "selector": "[data-testid=\"versions-diff-row\"]"
+    },
+    "versions.diff.summary": {
+      "testId": "versions-diff-summary",
+      "selector": "[data-testid=\"versions-diff-summary\"]"
+    },
+    "versions.diff.empty": {
+      "testId": "versions-diff-empty",
+      "selector": "[data-testid=\"versions-diff-empty\"]"
+    },
+    "versions.diff.loading": {
+      "testId": "versions-diff-loading",
+      "selector": "[data-testid=\"versions-diff-loading\"]"
+    },
+    "versions.diff.error": {
+      "testId": "versions-diff-error",
+      "selector": "[data-testid=\"versions-diff-error\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "components.harness.ready": {
+      "description": "Component story harness in its ready state",
+      "selectorPattern": "[data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"]",
+      "params": []
+    },
+    "components.harness.surface": {
+      "description": "Component story harness experience surface",
+      "selectorPattern": "[data-experience-surface=\"component-harness\"]",
+      "params": []
+    },
+    "components.harness.lifecycle": {
+      "description": "Component story harness loading or terminal lifecycle surface",
+      "selectorPattern": "[data-experience-surface=\"component-harness\"][data-experience-state=\"loading\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-harness\"][data-experience-state=\"error\"]",
+      "params": []
+    },
+    "components.editor.storyCard": {
+      "description": "Rendered component story card by canonical story id",
+      "selectorPattern": "[data-testid=\"components-editor-example-card\"][data-story=\"${story}\"]",
+      "params": [
+        {
+          "name": "story",
+          "type": "string"
+        }
+      ]
+    },
+    "components.editor.previewSurface": {
+      "description": "Component editor preview experience surface",
+      "selectorPattern": "[data-experience-surface=\"component-preview\"]",
+      "params": []
+    },
+    "components.editor.previewTerminal": {
+      "description": "Component editor preview terminal experience surface",
+      "selectorPattern": "[data-experience-surface=\"component-preview\"][data-experience-state=\"ready\"], [data-experience-surface=\"component-preview\"][data-experience-state=\"partial\"]",
+      "params": []
+    },
+    "catalog.resultsLifecycle": {
+      "description": "Catalog results loading or terminal experience surface",
+      "selectorPattern": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"loading\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]",
+      "params": []
+    },
+    "catalog.resultsTerminal": {
+      "description": "Catalog results terminal experience surface",
+      "selectorPattern": "[data-experience-surface=\"catalog-results\"][data-experience-state=\"ready\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"empty\"], [data-experience-surface=\"catalog-results\"][data-experience-state=\"error\"]",
+      "params": []
+    },
+    "preview.select": {
+      "description": "Preview harness native select control",
+      "selectorPattern": "select",
+      "params": []
+    },
+    "preview.captureBoundary": {
+      "description": "Generic isolated story capture boundary",
+      "selectorPattern": "[data-preview-sheet]",
+      "params": []
+    },
+    "preview.openDialog": {
+      "description": "Visible preview dialog",
+      "selectorPattern": "[role=dialog]",
+      "params": []
+    },
+    "preview.bottomNavAdvanced": {
+      "description": "Bottom navigation focus advanced marker",
+      "selectorPattern": "body[data-nav-advanced=\"yes\"]",
+      "params": []
+    },
+    "preview.drawerFocusTrapped": {
+      "description": "Drawer focus trap marker",
+      "selectorPattern": "body[data-focus-trapped=\"yes\"]",
+      "params": []
+    },
+    "preview.selectCompatible": {
+      "description": "Select keyboard navigation result marker",
+      "selectorPattern": "body[data-select-value=\"compatible\"]",
+      "params": []
+    },
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": ["en", "ja", "ar"]
+        }
+      ]
     }
   }
 }

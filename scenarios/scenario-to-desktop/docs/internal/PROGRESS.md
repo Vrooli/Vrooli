@@ -1,9 +1,169 @@
 # Progress Log
 
+## 2026-09-04 — Outcome-linked learning
+
+Implemented recommendations 1–3. The usage skill captures advice decisions and
+verified outcomes through `vrooli-memory learning record`; the improvement board
+adds failure recurrence, success effort, and advice-outcome measurements. Contexts,
+unresolved tasks, missing evidence, and test provenance remain distinct. Targets
+stay null until comparable operator baselines exist.
+
+The shared implementation, scope provisioning receipt, capture/recall verification,
+fixture evidence, and known Memory suite limitations are in the
+[Vrooli Memory work record](../../../vrooli-memory/docs/internal/PROGRESS.md). This scenario's five-phase validation passed
+in Test Genie `20260904-213256-6066e7da`. Fresh runtime explanations and fixtures passed for both
+setpoint programs. The skill divergence review resolves missing recall, evidence,
+and baselines conservatively; no release gate or evidence floor was weakened.
+
+## Skill and program setup (2026-09-04)
+
+### Summary
+
+Added the scenario-owned usage/improve declaration, three governed read programs,
+and the `scenario-to-desktop-usage` memory scope. The usage skill replaces stale
+CLI recipes with operation selection and evidence boundaries. The improve skill
+retains the complete desktop behavior contract and routes missing measurements
+instead of claiming that capture counts or successful reads establish maturity.
+This work does not implement the remaining desktop platform adapters.
+
+The usage role is owed because `cli/manifest.json` exists. The improve role is
+owed because deployment-manager and scenario-to-android declare this dependency.
+No independent feature role was extracted: the inventory supplied no pattern
+shared by two agents that requires another skill. Role/rung canon is
+`docs/agent-system/SKILL_AUTHORING.md`; authoring followed `skill-set-authoring`,
+`skill-authoring-tools`, `improve-skill-authoring`, and `program-runtime`.
+
+### Sensor and program inventory
+
+| Surface | Observation on 2026-09-04 | Interpretation |
+|---|---|---|
+| `program-runtime bindings condition --scenario scenario-to-desktop --window-seconds 604800` | 48 bindings; five usage-program reads selected by the board; selected reads dormant in the receipt window | Measured, but insufficient serving evidence; never exercise writes to improve this reading |
+| `agent-manager.friction-digest` | `prog_f8e33772-d69e-4ff2-a380-addda6354473`: 40 recent runs, truncated window, zero attributable desktop episodes | Sampled observation; cannot establish representative zero friction |
+| `measures-health validate scenario scenario-to-desktop` | Passed with seven parameter-tier warnings | Snapshot measures exist; goal-level outcome aggregates below are pending |
+| `business-health matrix show scenario-to-desktop --format summary` | 34 requirements, four modules, 18 operational targets; no unproven status claims | Linkage inventory, not implementation completion |
+| `evals/*.primary.json` | No declared corpus | No invented floor |
+| `performance-baseline.json` | Five cold and five warm historical samples; cohort metadata requires review | Baseline candidate, not a live reading or approved budget |
+| `pipeline-inspect` | Three declared read bindings; one selected pipeline; at most five returned task references from a 100-task sample | Diagnosis only; saturation is explicit |
+| `evidence-inventory` | Two declared read bindings; at most five returned capture references | Historical metadata, not candidate-artifact proof |
+| `setpoint-read` | External binding sensor plus explicit external/pending rows | Six rows match the improve skill; `ok` describes execution only |
+
+The runtime's contract catalog loads at startup. Direct `library run` reads the
+scenario source files; library search needs the refreshed catalog. Registration
+uses the scenario-owned files and `.vrooli/service.json`, with no library-row edits.
+
+### Filed obligations
+
+Reuse these references on the next cycle. Measurement workers use
+`prompt-manager skill read measures-adoption`. Filing is not completion.
+
+| Row or missing operation | Work reference |
+|---|---|
+| desktop-behavior | `chore/scenario-to-desktop-measure-desktop-behavior` |
+| runtime-performance | `chore/scenario-to-desktop-measure-runtime-performance` |
+| pipeline-performance | `chore/scenario-to-desktop-measure-pipeline-performance` |
+| engineering-quality | `chore/scenario-to-desktop-measure-engineering-quality` |
+| Governed target/profile/matrix operations | `fix/scenario-to-desktop-validation-bindings-w1` |
+| Server-owned pipeline wait | `fix/scenario-to-desktop-pipeline-wait-w1` |
+
+Preserve and consult existing emulator/Bridge work before proposing transport
+changes, including `execute/adopt-vrooli-emulator-in-deployment-flows`,
+`execute/vrooli-emulator-remote-node-backend`,
+`execute/macos-real-device-validation-over-bridge`, and
+`execute/windows-real-device-validation-over-bridge`.
+
+External defect: Scenario QA `knw-1788554309150137139` records the governed
+measures-health validation response's unresolved native-report type. The binding
+is declared and callable, but program `prog_04fc107e-22dc-4cf9-9168-a2c90230edd9`
+failed decoding `ScenarioCoverageReport`. Its CLI remains usable. The desktop
+board does not substitute an invented reading for this failed probe.
+
+### Findings: skill validation
+
+| Capability | Primary path | Verification | Failure path |
+|---|---|---|---|
+| Build and inspect | Mode decision, typed pipeline CLI, pipeline-inspect | Exact scenario/pipeline identity and owner stage status | Typed read errors and stage diagnosis |
+| Locate evidence | evidence-inventory, journey CLI, validation UI | Counts, references, and separately verified matrix identity | Unknown/stale/wrong-target evidence retained |
+| Regulate the ramp | setpoint-read and external friction program | Same six rows, explicit validity and baseline gaps | First-read filing and work-ladder routing |
+| Learn across attempts | Declared memory scope and task/work records | Created scope; before/after evidence references | Failed bindings recorded separately from domain outcomes |
+
+Initial Major findings were repaired: the old skill excluded bundled mode while
+prescribing it, advertised unsupported `--wait` and deploy flags, duplicated the
+CLI manual, and lacked rung labels, the learning spine, and matrix ownership.
+
+Divergence probe: attempted two compliant executions for (1) newest versus exact
+pipeline selection, (2) pending-sensor routing versus code execution, and (3)
+close-out with unavailable native targets. The final text selects exact IDs for
+continuation, files/routes missing sensors before implementation, and prohibits
+a full-maturity claim with required unavailable cells. No divergence remained on
+these probed instructions. No remaining Critical or Major authoring finding.
+
+Contract integrity: primary skill flows use human CLI output. JSON is confined
+to explicitly justified evidence linkage and program envelopes. Programs use
+only declared read bindings; no shell, filesystem, media fetch, inference, or
+delegation exists in their execution paths. No non-Vrooli primary command is
+required by the skills. Program/skill references and cited command help were
+checked against the local registry and descriptors.
+
+### Prose Retirement Map
+
+| Instruction / Gate | Disposition (Keep/Collapse/Delete) | Rationale | Prerequisite contract | Risk |
+|---|---|---|---|---|
+| Mode, identity, release, and ownership decisions | Keep | Judgment and authority remain necessary | Canonical desktop evidence contract | Wrong-platform or wrong-artifact claims |
+| Repeated pipeline and capture joins | Collapse | Programs return bounded attributable observations | pipeline-inspect and evidence-inventory contracts | Program success confused with release approval |
+| Copied flags and build/signing recipes | Collapse | Current help owns the command surface | Verified CLI help and typed descriptors | Historical flags drift |
+| Unconditional clean/wait and obsolete deploy examples | Delete | Current behavior and task authority do not support them | pipeline run help; Deployment Manager release workflow | Destructive rebuild or unsupported call |
+| Improvement target definitions | Keep | Missing measurements cannot be inferred | PRD, provider targets, evidence contract | Invented floors or suppressed unavailable cells |
+
+### Recommendations and notes
+
+1. **A (Recommended):** Use the registered skills and three programs; execute the
+   filed measurement/binding work through the owning implementation workflows.
+   Verify each new sensor with attributable before/after evidence. **B:** Retain
+   manual UI/CLI operation while those obligations remain open; preserve the same
+   evidence boundaries and do not claim automated matrix orchestration.
+
+Initial verification: contract JSON schema checks, clean runtime name-resolution
+explanations, all eight declared fixtures in fresh test-provenance sessions, and
+26 isolated behavioral assertions passed. Assertions covered malformed inputs,
+identity mismatch, missing reads, omitted protobuf zeros, sample saturation,
+kernel failure classification, and unavailable setpoint rows. These isolated
+checks do not claim native platform or end-to-end release validation.
+
+Final Test Genie run `20260904-204358-95dedc12` passed all five requested phases:
+programs, skill-set, docs, business, and structure. Programs and skill-set report
+L2 (their ceilings); business and structure report L3. The final contract fixture
+replay also passed all eight fixtures, including the explicit 100-task bound.
+Registry read `prog_a07d1813-ee3f-4ef5-9868-d5f5cf7f354f` confirms both role IDs;
+library search returns all three scenario contracts after lifecycle refresh.
+
+The passing docs phase retains advisory reference debt. Nine marked-path warnings
+refer to existing repository-relative files in the new skills, contrary to the
+marked-reference contract; Scenario QA `knw-1788554700046604331` records this
+validator issue. Other warnings include historical command snippets, derived
+counts, and documentation-contract coverage. No reference qualifier, validator,
+or quality floor was weakened to hide those findings.
+
 ## Changelog
 
 | Date       | Author           | Change % | Description |
 |------------|------------------|----------|-------------|
+| 2026-08-17 | Codex | +0.0% | Reduced the desktop lint surface without changing behavior: removed an unused journey-test field, replaced an unnecessary command wrapper with `exec.CommandContext`, and used the canonical workflow-artifact conversion. Full API tests and vet remain green; only three legacy high-complexity functions remain reported by `golangci-lint`. |
+| 2026-08-17 | Codex | +0.0% | Non-regression cleanup: `ElectronSession.Target()` now uses `proto.Clone` instead of shallow-copying a protobuf message with mutex state. The full desktop API test suite, CLI suite, and `go vet ./...` pass. |
+| 2026-08-09 | Codex | +0.0% | Verified the live profile boundary with required offline profile matrix `run-f537d9079f4687fa4c12d034`: local Linux returned explicit `UNSUPPORTED` for missing offline-network capability and the release gate failed closed. |
+| 2026-08-09 | Codex | +0.0% | Revalidated the existing mutating Electron BAS workflow through the current matrix executor: `run-ca34229709796ab4ef200722` passed required platform and leased-desktop cells 2/2 against fresh `scenario-to-desktop` artifact `sha256:9ab0b776...`. Persisted platform video `416ae74f-d249-468d-8182-0694a81aec2a` and mutating BAS video `660ae988-baa8-4466-9e93-5752f2179afe` were decoded and visually inspected; routed isolation validation passed. |
+| 2026-08-09 | Codex | +0.0% | Completed the two-row certification matrix `run-63a9781eaacc421f49fabd83`: platform desktop smoke and the real Secrets Manager BAS dashboard journey both passed as required cells against the same exact artifact, local Linux target, and profile. Persisted platform video `b0fd9203-9d54-4a09-be75-b3577ef79d5c` and BAS video `90c1d5de-0f9d-4441-a270-5967475d9dbe` were checksum-verified, decoded, and visually inspected. |
+| 2026-08-09 | Codex | +0.0% | Completed the linked BAS + desktop matrix deliverable for Secrets Manager: required local Linux cell `run-d9ca84cdc491292e9def58ab` passed 1/1 against the exact staged AppImage digest, with three checksummed Workflow Health artifacts and playable H.264 capture `36df2d6a-47eb-45df-8c37-63cf941370a3`. Corrected matrix capture evidence to use the persisted MP4 route/media type, resolved the live UI port before CDP attachment, and bound provider artifacts to the source scenario rather than staging. |
+| 2026-08-09 | Codex | +0.0% | Produced fresh canonical Linux Electron evidence for both `scenario-to-desktop` and `secrets-manager`: pipelines `4d992263-9aee-63b1-42a6-56bb4e8d97ab` and `dbcbe219-cf34-3f6a-1506-d08c70a0d3f0` passed protocol smoke and desktop journeys, with persisted H.264 captures `28e189cd-4d3b-4191-93cd-e0bee23fc1b8` and `470e2b2c-eb82-4285-826d-7b63c87afda6`. Fixed generated smoke readiness to use the live validation renderer URL and made port discovery tolerate the working-tree stale-check condition via the existing no-stale-check detector. |
+| 2026-08-09 | Codex | +0.0% | Produced the primary mutating Electron video deliverable from fresh pipeline `9b0aaa42-7067-d9e3-8a6c-8f1c8935056e`: BAS leased-desktop evidence passed 1/1 through authenticated loopback CDP, the visible result reported `leased writes: 3`, and persisted capture `048f1780-3eec-4548-a46b-61468664800d` is a 44.2-second H.264 MP4. Fixed validation renderer URL loading in the generated Electron template and corrected dark-app useful-frame detection. See [Electron video evidence handoff](ELECTRON-VIDEO-EVIDENCE.md). |
+| 2026-08-09 | Codex | +0.0% | Captured and reviewed a real Secrets Manager Electron AppImage video through the live-desktop recorder and BAS dashboard case: 30-second H.264 MP4, 1920x1080, persisted capture `7fef7af1-216b-415d-a17c-e97aee34a95d`, passed Workflow Health run `a7311bcb-4358-4858-beeb-4f3f2b5bf186`, and zero primary-storage requests/writes. Hardened live-desktop recording persistence to decode the final MP4, reject blank video, and persist measured duration/dimensions. See [Electron video evidence handoff](ELECTRON-VIDEO-EVIDENCE.md). |
+| 2026-08-06 | Codex | +0.0% | Revalidated the journey-evidence.v2 contract with native Linux pipeline `e1c278d0-6170-3d28-6688-cb44b2d16006`: generated Hello Desktop AppImage launched under Xvfb/openbox, all eight ordered chapters and 33 timeline events passed, the H.264 MP4 was visually inspected, and the producer manifest passed ordering/redaction/checksum/persistence gates. Provider-specific native release claims remain explicitly environment-gated; requirements validation is L3 clean. |
+| 2026-07-28 | Codex | +0.0% | Completed the scenario-to-desktop maturity and proto-foundation plan. The final source-stable Test Genie run (`20260728-133628-ae16aa50`) passed all 20 phases; completeness is 93/100 (`nearly_ready`), performance reached its L3 ceiling, and measures domain coverage is clean. `make lint`, `make fmt`, live restart health, dependency health, and the fresh baseline comparison all passed. Deferred work is tracked separately for multi-framework generation, LAN/public authentication, and secrets-manager/Vault dependency health; no shared-package defect was found during the proto migration. |
+| 2026-07-23 | Codex | +0.1% | Added a server-side thin-client admission gate that rejects direct Vault listeners and `/v1/` Vault APIs before desktop generation. The operator receives a configuration recovery action to provide the Vrooli scenario proxy URL instead; no resource deployment plan is produced. The full scenario-to-desktop API Go suite passes. |
+| 2026-07-23 | Codex | +0.1% | Added direct operator-flow coverage for desktop wrapper generation: bundled mode now has a tested contract requiring the deployment-manager bundle manifest, while thin-client mode carries only the saved Tier 1 proxy URL. The full UI suite passes 63 files / 1,275 tests; V8 coverage is 51.90% lines/statements. The 85% global floor remains enforced. |
+| 2026-07-23 | Codex | +0.2% | Hardened Tier 2 shared reuse: expired broker grants and expired/missing-expiry supervisor bindings now fall back to the separately verified private service without exposing the stale credential. Added behavior coverage for the signing operator workflow (scenario selection, readiness, enabling, platform configuration, and save). Managed-resource, Vault CLI, desktop runtime-resource, and full desktop API Go suites passed. UI V8 coverage is now 50.75% lines/statements across 62 files and 1,273 tests; the declared 85% floor remains enforced. |
+| 2026-07-23 | Codex | +0.2% | Added behavior-focused UI coverage for the generator’s inventory-loaded form and output-location contract, the Tier 2 three-step generate/build/download operator flow, and in-app documentation navigation (default selection, filtering, path sync, and copy). The UI suite now passes 1,271 tests across 61 files; measured V8 line/statement coverage rose to 49.14%. The declared 85% global floor remains enforced and unresolved. |
+| 2026-07-23 | Codex | +0.2% | Removed obsolete Tier 2 bundle compatibility modules. All remaining consumers now use `BundleSection`, `BundleSectionHandle`, and `BundleResult` directly; the TypeScript compiler now resolves the same `@/*` alias as Vite. This removes the no-op bundled-runtime path and its legacy type indirection. |
+| 2026-07-23 | Codex | +0.3% | Restored the declared unit-test projection: shared API/CLI test utilities with production-import guards, an injectable CLI polling clock, canonical UI render and setup paths, V8 coverage reporting, explicit coverage scope/exclusions, and a production test-helper import ban. Focused API and CLI Go suites passed; UI unit suite passed 1,265 tests. Test Genie now rates framework configuration and test architecture L3. |
 | 2026-01-15 | Ecosystem Manager | +2%     | Signal & Feedback Surface Design - Enhanced runtime observability: (1) Added structured log entries with timestamps and severity levels (INFO/WARN/ERROR/DEBUG) to all pipeline stage operations via new `appendInfo()`, `appendWarn()`, `appendError()` helpers in `stage_helpers.go`; (2) Added `ProgressPercent` (0-100) and `ProgressMessage` fields to pipeline `Status` type for quick status checks by agents and UIs without parsing stage arrays; (3) Updated orchestrator to call `UpdateProgress()` at all state transitions (start, running, stage changes, completion, failure, cancellation); (4) Added UI log parsing utilities in `pipeline-utils.ts` (`parseLogEntry()`, `parseLogs()`, `filterLogsByLevel()`, `getLogLevelStyle()`, `formatLogTimestamp()`, `getLatestSignificantLog()`) for displaying structured logs with proper formatting and severity coloring; (5) Updated TypeScript `PipelineStatus` interface with `progress_percent` and `progress_message` fields. Logs now follow parseable format `[TIMESTAMP] [LEVEL] message` for both human readability and programmatic filtering. All Go tests passing. |
 | 2026-01-15 | Ecosystem Manager | +0%     | Error Semantics Completion - Converted all remaining ad-hoc error handling in UI api.ts to use structured ApiError class. Updated 60+ API functions to use `throwIfNotOk()` helper instead of manual `throw new Error()`. Now all API errors throughout the UI are structured with: (1) error code for programmatic identification; (2) recovery action hint (retry, fix_input, etc.) for both UI display and agent consumption; (3) optional recovery hint text for user guidance. Special 404 handling preserved for state/logs queries where "not found" is an expected non-error condition. Fixed pipeline tests to use domain errors (ErrPipelineNotFound, ErrPipelineNotResumable) instead of plain fmt.Errorf - tests now verify correct HTTP status codes (422 for validation, 404 for not found, 400 for bad requests). Removed obsolete TestWriteJSON/TestWriteError tests since methods moved to shared/http. Error semantics now fully consistent between Go backend and TypeScript frontend. All 19 test packages passing. |
 | 2026-01-15 | Ecosystem Manager | +5%     | Error Semantics & Recovery Path Design - Enhanced structured error handling: (1) Added `RecoveryAction` type to `shared/errors` with 8 recovery categories (retry, retry_with_backoff, fix_input, provide_credentials, wait_for_resource, install_dependency, contact_support, none); (2) Extended `DomainError` struct with `Recovery` and `RecoveryHint` fields; (3) Created `defaultRecoveryMap` mapping all 50+ error codes to appropriate recovery actions; (4) Updated `ErrorResponse` HTTP type to include recovery fields; (5) Created pipeline-specific error constructors with recovery hints (ErrPipelineNotFound, ErrPipelineNotResumable, etc.); (6) Refactored `pipeline/handler.go` to use domain errors via `httputil.WriteError()`; (7) Added `ApiError` class and `throwIfNotOk()` helper to UI `api.ts`; (8) Created `error-utils.ts` with UI error display helpers; (9) Enhanced `pipelineStore.ts` with `PipelineErrorInfo` interface and structured error handling. All error responses now include machine-readable recovery hints for both humans and agents. |
@@ -22,11 +182,19 @@
 
 ## Current State
 
-- **Overall Status**: Production Ready (bundled mode is the recommended default)
-- **Bundled Mode**: Fully operational - creates complete offline desktop applications
-- **Thin Client Mode**: Available for shared-server scenarios
-- **Tests**: 19/19 packages passing (100%)
-- **Completeness Score**: 49/100 (validation penalties for requirement grouping)
+The launch-performance baseline is durable at
+`docs/internal/performance-baseline.json`. It contains ten measured Linux
+Xvfb-compatible Hello Desktop runs on one artifact and host identity: five
+cold-designated and five warm-designated. Warm process-to-splash p95 is 651 ms;
+cold p95 is 1,745 ms because of one first-launch outlier. The 1-second
+process-to-splash budget remains advisory and is not promoted to a release gate
+until another baseline confirms the variance.
+
+- **Overall Status**: Baseline native journey proven; provider-specific release claims remain evidence-gated
+- **Bundled Mode**: Pipeline and supervisor contracts are implemented; offline/resource-native claims require the selected dependency journey
+- **Thin Client Mode**: Supported deployment mode; live Tier 1 route evidence depends on the target server fixture
+- **Tests**: Fresh native pipeline passed; latest scenario Test Genie run passed all 20 phases (2026-07-28)
+- **Completeness Score**: 93/100 (`nearly_ready`, 2026-07-28); this score does not promote environment-gated provider claims
 
 ## Architecture Notes
 

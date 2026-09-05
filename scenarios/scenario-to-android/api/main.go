@@ -1,613 +1,210 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"log/slog"
+	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"sort"
+	"runtime"
 	"strings"
-	"sync"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/vrooli/api-core/health"
+	"scenario-to-android/internal/builds"
+	"scenario-to-android/internal/capabilities"
+	"scenario-to-android/internal/journeys"
+	"scenario-to-android/internal/modules"
+	"scenario-to-android/internal/releases"
+	"scenario-to-android/internal/server"
+	"scenario-to-android/internal/targets"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
+	_ "modernc.org/sqlite"
+
+	buildsh "scenario-to-android/handlers/builds"
+	capsH "scenario-to-android/handlers/capabilities"
+	healthH "scenario-to-android/handlers/health"
+	rampH "scenario-to-android/handlers/releases"
 )
 
-type StatusResponse struct {
-	AndroidSDK  string `json:"android_sdk"`
-	Java        string `json:"java"`
-	Gradle      string `json:"gradle"`
-	Ready       bool   `json:"ready"`
-	BuildSystem string `json:"build_system"`
-}
-
-type MetricsResponse struct {
-	TotalBuilds      int64   `json:"total_builds"`
-	SuccessfulBuilds int64   `json:"successful_builds"`
-	FailedBuilds     int64   `json:"failed_builds"`
-	ActiveBuilds     int64   `json:"active_builds"`
-	SuccessRate      float64 `json:"success_rate"`
-	AverageDuration  float64 `json:"average_duration_seconds"`
-	Uptime           float64 `json:"uptime_seconds"`
-}
-
-type BuildRequest struct {
-	ScenarioName    string            `json:"scenario_name"`
-	ConfigOverrides map[string]string `json:"config_overrides,omitempty"`
-}
-
-type BuildResponse struct {
-	Success  bool              `json:"success"`
-	APKPath  string            `json:"apk_path,omitempty"`
-	BuildID  string            `json:"build_id"`
-	Metadata map[string]string `json:"metadata,omitempty"`
-	Error    string            `json:"error,omitempty"`
-}
-
-type BuildStatusResponse struct {
-	Status   string   `json:"status"`
-	Progress int      `json:"progress"`
-	Logs     []string `json:"logs,omitempty"`
-}
-
-// Build state tracking
-type buildState struct {
-	Status      string
-	Progress    int
-	Logs        []string
-	APKPath     string
-	Metadata    map[string]string
-	CreatedAt   time.Time
-	CompletedAt *time.Time
-}
-
-// Build metrics tracking
-type buildMetrics struct {
-	TotalBuilds      int64
-	SuccessfulBuilds int64
-	FailedBuilds     int64
-	ActiveBuilds     int64
-	AverageDuration  float64
-}
-
-var (
-	builds          = make(map[string]*buildState)
-	buildsMutex     sync.RWMutex
-	metrics         buildMetrics
-	metricsMutex    sync.RWMutex
-	buildDurations  []time.Duration
-	serverStartTime time.Time
-)
-
-const (
-	maxScenarioNameLength = 100
-	maxBuildsInMemory     = 100
-	buildRetentionTime    = 1 * time.Hour
-	maxDurationSamples    = 100
-)
-
-func buildHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(BuildResponse{
-			Success: false,
-			BuildID: "",
-			Error:   "Method not allowed",
-		})
-		return
-	}
-
-	var req BuildRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(BuildResponse{
-			Success: false,
-			BuildID: "",
-			Error:   "Invalid request body: " + err.Error(),
-		})
-		slog.Warn("Invalid build request body",
-			"error", err.Error(),
-			"remote_addr", r.RemoteAddr)
-		return
-	}
-
-	if req.ScenarioName == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(BuildResponse{
-			Success: false,
-			BuildID: "",
-			Error:   "scenario_name is required",
-		})
-		slog.Warn("Build request missing scenario_name",
-			"remote_addr", r.RemoteAddr)
-		return
-	}
-
-	// Validate scenario name length
-	if len(req.ScenarioName) > maxScenarioNameLength {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(BuildResponse{
-			Success: false,
-			BuildID: "",
-			Error:   fmt.Sprintf("scenario_name too long (max %d characters)", maxScenarioNameLength),
-		})
-		slog.Warn("Build request scenario_name too long",
-			"scenario_name_length", len(req.ScenarioName),
-			"max_length", maxScenarioNameLength,
-			"remote_addr", r.RemoteAddr)
-		return
-	}
-
-	// Validate scenario name format (alphanumeric, hyphens, underscores only)
-	for _, char := range req.ScenarioName {
-		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') || char == '-' || char == '_') {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(BuildResponse{
-				Success: false,
-				BuildID: "",
-				Error:   "scenario_name contains invalid characters (only alphanumeric, hyphens, and underscores allowed)",
-			})
-			slog.Warn("Build request scenario_name contains invalid characters",
-				"scenario_name", req.ScenarioName,
-				"remote_addr", r.RemoteAddr)
-			return
-		}
-	}
-
-	// Clean up old builds before adding new one
-	cleanupOldBuilds()
-
-	// Generate build ID
-	buildID := uuid.New().String()
-
-	// Initialize build state
-	buildsMutex.Lock()
-	builds[buildID] = &buildState{
-		Status:    "pending",
-		Progress:  0,
-		Logs:      []string{"Build initiated"},
-		Metadata:  make(map[string]string),
-		CreatedAt: time.Now(),
-	}
-	buildsMutex.Unlock()
-
-	// Update metrics
-	metricsMutex.Lock()
-	metrics.TotalBuilds++
-	metrics.ActiveBuilds++
-	metricsMutex.Unlock()
-
-	slog.Info("Build request accepted",
-		"build_id", buildID,
-		"scenario_name", req.ScenarioName,
-		"has_config_overrides", len(req.ConfigOverrides) > 0)
-
-	// Start build in background
-	go executeBuild(buildID, req)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(BuildResponse{
-		Success: true,
-		BuildID: buildID,
+// scenarioStorageRoots resolves all filesystem storage classes once at
+// startup. File writers must select their class through fileRootPath so a
+// test-mode request uses the lease-owned root instead of the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
 	})
-}
-
-// cleanupOldBuilds removes completed builds older than retention time or enforces max builds limit
-func cleanupOldBuilds() {
-	buildsMutex.Lock()
-	defer buildsMutex.Unlock()
-
-	now := time.Now()
-	var toDelete []string
-
-	// Find builds to delete (completed and older than retention time)
-	for id, state := range builds {
-		if (state.Status == "complete" || state.Status == "failed") &&
-			now.Sub(state.CreatedAt) > buildRetentionTime {
-			toDelete = append(toDelete, id)
-		}
-	}
-
-	// If still too many builds, delete oldest completed builds
-	if len(builds)-len(toDelete) > maxBuildsInMemory {
-		type buildAge struct {
-			id  string
-			age time.Time
-		}
-		var completedBuilds []buildAge
-
-		for id, state := range builds {
-			if (state.Status == "complete" || state.Status == "failed") &&
-				!contains(toDelete, id) {
-				completedBuilds = append(completedBuilds, buildAge{id, state.CreatedAt})
-			}
-		}
-
-		// Sort by age (oldest first) using standard library for better performance
-		sort.Slice(completedBuilds, func(i, j int) bool {
-			return completedBuilds[i].age.Before(completedBuilds[j].age)
-		})
-
-		// Delete oldest until we're under the limit
-		for i := 0; len(builds)-len(toDelete) > maxBuildsInMemory && i < len(completedBuilds); i++ {
-			toDelete = append(toDelete, completedBuilds[i].id)
-		}
-	}
-
-	// Perform deletions
-	for _, id := range toDelete {
-		delete(builds, id)
-	}
-
-	if len(toDelete) > 0 {
-		slog.Info("Cleaned up old builds",
-			"deleted_count", len(toDelete),
-			"remaining_builds", len(builds))
-	}
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
-func buildStatusHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Validate HTTP method
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Method not allowed",
-		})
-		return
-	}
-
-	// Extract build ID from URL path
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 6 || pathParts[5] == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Build ID required",
-		})
-		return
-	}
-	buildID := pathParts[5]
-
-	buildsMutex.RLock()
-	state, exists := builds[buildID]
-	buildsMutex.RUnlock()
-
-	if !exists {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Build not found",
-		})
-		return
-	}
-
-	json.NewEncoder(w).Encode(BuildStatusResponse{
-		Status:   state.Status,
-		Progress: state.Progress,
-		Logs:     state.Logs,
-	})
-}
-
-func executeBuild(buildID string, req BuildRequest) {
-	updateBuildState := func(status string, progress int, logMsg string) {
-		buildsMutex.Lock()
-		defer buildsMutex.Unlock()
-		if state, ok := builds[buildID]; ok {
-			state.Status = status
-			state.Progress = progress
-			if logMsg != "" {
-				state.Logs = append(state.Logs, logMsg)
-			}
-		}
-	}
-
-	slog.Info("Build execution started",
-		"build_id", buildID,
-		"scenario_name", req.ScenarioName)
-
-	updateBuildState("building", 10, "Starting build process...")
-
-	// Get scenario root
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
-
-	// Find the convert script
-	convertScript := filepath.Join(vrooliRoot, "scenarios", "scenario-to-android", "cli", "convert.sh")
-	if _, err := os.Stat(convertScript); os.IsNotExist(err) {
-		slog.Error("Convert script not found",
-			"build_id", buildID,
-			"script_path", convertScript,
-			"error", err)
-		updateBuildState("failed", 0, "Convert script not found: "+convertScript)
-		return
-	}
-
-	slog.Debug("Found conversion script",
-		"build_id", buildID,
-		"script_path", convertScript)
-
-	updateBuildState("building", 20, "Found conversion script")
-
-	// Prepare output directory
-	outputDir := filepath.Join(os.TempDir(), "scenario-to-android-builds", buildID)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		slog.Error("Failed to create output directory",
-			"build_id", buildID,
-			"output_dir", outputDir,
-			"error", err)
-		updateBuildState("failed", 0, "Failed to create output directory: "+err.Error())
-		return
-	}
-
-	slog.Debug("Created output directory",
-		"build_id", buildID,
-		"output_dir", outputDir)
-
-	updateBuildState("building", 30, "Created output directory: "+outputDir)
-
-	// Build command arguments
-	args := []string{
-		convertScript,
-		"--scenario", req.ScenarioName,
-		"--output", outputDir,
-	}
-
-	// Add config overrides if provided
-	if appName, ok := req.ConfigOverrides["app_name"]; ok {
-		args = append(args, "--app-name", appName)
-	}
-	if version, ok := req.ConfigOverrides["version"]; ok {
-		args = append(args, "--version", version)
-	}
-
-	updateBuildState("building", 40, "Executing conversion: "+strings.Join(args, " "))
-
-	// Execute the conversion
-	cmd := exec.Command("bash", args...)
-	cmd.Dir = vrooliRoot
-
-	slog.Info("Executing conversion command",
-		"build_id", buildID,
-		"command", strings.Join(args, " "),
-		"working_dir", vrooliRoot)
-
-	output, err := cmd.CombinedOutput()
-
 	if err != nil {
-		slog.Error("Build failed",
-			"build_id", buildID,
-			"scenario_name", req.ScenarioName,
-			"error", err,
-			"output", string(output))
-		updateBuildState("failed", 0, "Build failed: "+err.Error()+"\n"+string(output))
-
-		// Update metrics for failure
-		metricsMutex.Lock()
-		metrics.ActiveBuilds--
-		metrics.FailedBuilds++
-		metricsMutex.Unlock()
-
-		// Record completion time for failed build
-		now := time.Now()
-		buildsMutex.Lock()
-		if state, ok := builds[buildID]; ok {
-			state.CompletedAt = &now
-		}
-		buildsMutex.Unlock()
-
-		return
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
 	}
-
-	slog.Info("Conversion completed successfully",
-		"build_id", buildID,
-		"scenario_name", req.ScenarioName)
-
-	updateBuildState("building", 80, "Conversion completed")
-
-	// Find the generated APK
-	apkPath := ""
-	err = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".apk") {
-			apkPath = path
-			return filepath.SkipAll
-		}
-		return nil
-	})
-
-	// Record completion time and duration
-	now := time.Now()
-	buildsMutex.Lock()
-	if state, ok := builds[buildID]; ok {
-		state.CompletedAt = &now
-		duration := now.Sub(state.CreatedAt)
-
-		// Update duration tracking
-		buildDurations = append(buildDurations, duration)
-		if len(buildDurations) > maxDurationSamples {
-			buildDurations = buildDurations[1:]
-		}
+	scenarioID, err := storage.ScenarioNamespace("scenario-to-android")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve scenario-to-android storage namespace: %w", err)
 	}
-	buildsMutex.Unlock()
-
-	// Update metrics
-	metricsMutex.Lock()
-	metrics.ActiveBuilds--
-	metrics.SuccessfulBuilds++
-
-	// Calculate average duration
-	if len(buildDurations) > 0 {
-		var total time.Duration
-		for _, d := range buildDurations {
-			total += d
-		}
-		metrics.AverageDuration = total.Seconds() / float64(len(buildDurations))
-	}
-	metricsMutex.Unlock()
-
-	if apkPath == "" {
-		slog.Info("Build completed without APK",
-			"build_id", buildID,
-			"scenario_name", req.ScenarioName,
-			"reason", "Android SDK not configured",
-			"project_dir", outputDir)
-		updateBuildState("complete", 100, "Build completed (no APK generated - requires Android SDK)")
-		buildsMutex.Lock()
-		if state, ok := builds[buildID]; ok {
-			state.APKPath = ""
-			state.Metadata["note"] = "Android SDK not configured - project created but APK not built"
-			state.Metadata["project_dir"] = outputDir
-		}
-		buildsMutex.Unlock()
-	} else {
-		slog.Info("Build completed successfully with APK",
-			"build_id", buildID,
-			"scenario_name", req.ScenarioName,
-			"apk_path", apkPath,
-			"project_dir", outputDir)
-		updateBuildState("complete", 100, "APK generated successfully: "+apkPath)
-		buildsMutex.Lock()
-		if state, ok := builds[buildID]; ok {
-			state.APKPath = apkPath
-			state.Metadata["apk_path"] = apkPath
-			state.Metadata["project_dir"] = outputDir
-		}
-		buildsMutex.Unlock()
-	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-func statusHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Validate HTTP method
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Method not allowed",
-		})
-		return
+func repoRoot() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
 	}
-
-	androidHome := os.Getenv("ANDROID_HOME")
-	javaHome := os.Getenv("JAVA_HOME")
-
-	response := StatusResponse{
-		AndroidSDK:  androidHome,
-		Java:        javaHome,
-		Gradle:      "wrapper",
-		Ready:       androidHome != "",
-		BuildSystem: "gradle",
+	for dir := cwd; ; dir = filepath.Dir(dir) {
+		if st, err := os.Stat(filepath.Join(dir, "VISION.md")); err == nil && !st.IsDir() {
+			return dir
+		}
+		next := filepath.Dir(dir)
+		if next == dir {
+			return ""
+		}
 	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func metricsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Validate HTTP method
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Method not allowed",
-		})
-		return
-	}
-
-	metricsMutex.RLock()
-	currentMetrics := metrics
-	metricsMutex.RUnlock()
-
-	// Calculate success rate
-	successRate := 0.0
-	completedBuilds := currentMetrics.SuccessfulBuilds + currentMetrics.FailedBuilds
-	if completedBuilds > 0 {
-		successRate = float64(currentMetrics.SuccessfulBuilds) / float64(completedBuilds) * 100
-	}
-
-	// Calculate uptime
-	uptime := time.Since(serverStartTime).Seconds()
-
-	response := MetricsResponse{
-		TotalBuilds:      currentMetrics.TotalBuilds,
-		SuccessfulBuilds: currentMetrics.SuccessfulBuilds,
-		FailedBuilds:     currentMetrics.FailedBuilds,
-		ActiveBuilds:     currentMetrics.ActiveBuilds,
-		SuccessRate:      successRate,
-		AverageDuration:  currentMetrics.AverageDuration,
-		Uptime:           uptime,
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-to-android",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-to-android"}) {
+		return
 	}
 
-	// Initialize server start time (after lifecycle check)
-	serverStartTime = time.Now()
-
-	// API_PORT must be set by the lifecycle system
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		slog.Error("API_PORT environment variable is required",
-			"error", "missing required environment variable",
-			"instruction", "use make start or vrooli scenario start scenario-to-android",
-		)
-		os.Exit(1)
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "scenario-to-android",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	http.HandleFunc("/health", health.Handler())
-	http.HandleFunc("/api/health", health.Handler())
-	http.HandleFunc("/api/v1/health", health.Handler())
-	http.HandleFunc("/api/v1/status", statusHandler)
-	http.HandleFunc("/api/v1/android/build", buildHandler)
-	http.HandleFunc("/api/v1/android/status/", buildStatusHandler)
-	http.HandleFunc("/api/v1/metrics", metricsHandler)
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		log.Fatalf("file storage configuration failed: %v", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+	matrixStore, err := validationmatrix.NewFileStore(filepath.Join(primaryFileRoots.DataDir, "validation-matrices"))
+	if err != nil {
+		log.Fatalf("validation matrix storage configuration failed: %v", err)
+	}
+	androidPlan := journeys.AndroidPlan()
+	journeySelection := validationmatrix.JourneySelection{JourneyID: androidPlan.ID, DisplayName: "Android generated-app conformance", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"hello-mobile APK", "device-control lease", "redacted recording", "BAS WebView flow"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}}
+	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest, deviceURL, basURL, deviceTransport string, client *http.Client) (deliveryramp.JourneyResult, error) {
+		if client == nil {
+			client = http.DefaultClient
+		}
+		driver := journeys.Driver{
+			Devices: &journeys.HTTPDeviceClient{BaseURL: deviceURL, Actor: "scenario-to-android", DeviceTransport: deviceTransport, Client: client},
+			BAS:     journeys.HTTPBASClient{BaseURL: basURL, FlowRoot: repoRoot(), HTTP: client},
+			Actor:   "scenario-to-android",
+		}
+		return driver.Execute(ctx, request)
+	}
+	resolveTransport := func(ctx context.Context, deviceURL, targetID string, client *http.Client) string {
+		observed, err := (targets.DeviceControlInventory{Resolve: func(context.Context) (string, error) { return deviceURL, nil }, Client: client}).List(ctx)
+		if err == nil {
+			for _, item := range observed {
+				if item.ID == targetID && strings.TrimSpace(item.ADBTransport) != "" {
+					return item.ADBTransport
+				}
+			}
+		}
+		return "usb"
+	}
+	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
+	if bridgeExecutor := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("android")); bridgeExecutor != nil {
+		executors.Bridge = bridgeExecutor
+	}
+	matrixOptions := []validationmatrix.ServiceOption{
+		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: targets.Prober{Devices: targets.NewDeviceControlInventory()}, Journey: journeySelection}),
+	}
+	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
+		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
+		gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
+		if profileID != "" && gitCommit != "" {
+			matrixOptions = append(matrixOptions, validationmatrix.WithReleaseReporter(
+				validationmatrix.NewDeploymentReporterFromURL(
+					deploymentURL,
+					profileID,
+					gitCommit,
+					nil,
+					validationmatrix.WithDeploymentIdentity("scenario-to-android", "scenario-to-android", "android", runtime.GOOS),
+				),
+			))
+		}
+	}
+	matrixService := validationmatrix.NewService(matrixStore, executors, matrixOptions...)
+	matrixService.RecoverStale()
+	matrixHandler := validationmatrix.NewHandler(matrixService)
+	var signingClient credentialclient.Client
+	if authority, authorityErr := credentialauthority.Default(); authorityErr != nil {
+		log.Printf("Android signing unavailable: credential authority unavailable: %v", authorityErr)
+	} else if client, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{
+		Authority: authority,
+		Descriptors: func() ([]credentialclient.CredentialRef, error) {
+			return credentialclient.DiscoverDescriptors(repoRoot())
+		},
+	}); clientErr != nil {
+		log.Printf("Android signing unavailable: credential client unavailable: %v", clientErr)
+	} else {
+		signingClient = client
+	}
+	builder := builds.Builder{Signing: signingClient}
+	buildSurface := buildsh.Surface{
+		Builder:         builder,
+		SigningIdentity: builds.DefaultSigningIdentity,
+		Generate:        builder.Generate,
+		ProvisionSigning: func(ctx context.Context, identity string) error {
+			if builder.Signing == nil {
+				return fmt.Errorf("secrets-manager credential client is not configured")
+			}
+			provisioner, ok := builder.Signing.(builds.SigningProvisioner)
+			if !ok {
+				return fmt.Errorf("configured credential client cannot provision")
+			}
+			return builds.ProvisionSigningKey(ctx, provisioner, identity, "", builder.Run)
+		},
+	}
 
-	addr := fmt.Sprintf(":%s", port)
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "scenario-to-android-api", "1.0.0"),
+		capsH.Module(capabilities.NewRegistry()),
+		rampH.Module([]*validationmatrix.Handler{matrixHandler}, buildSurface),
+	)
 
-	// Use structured logging for better observability
-	slog.Info("Scenario to Android API server starting",
-		"addr", addr,
-		"port", port)
-	slog.Info("Health endpoint available",
-		"url", fmt.Sprintf("http://localhost:%s/health", port))
-	slog.Info("API status endpoint available",
-		"url", fmt.Sprintf("http://localhost:%s/api/v1/status", port))
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
-	if err := http.ListenAndServe(addr, nil); err != nil {
-		slog.Error("Server failed to start", "error", err)
-		os.Exit(1)
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }

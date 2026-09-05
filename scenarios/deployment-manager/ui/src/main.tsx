@@ -2,8 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import "./design-tokens.css";
 import "./styles.css";
+import { onProfilerRender } from "./lib/profiler";
+
+initSpatialNav();
 
 const queryClient = new QueryClient();
 
@@ -43,14 +48,24 @@ if (
   window.__deploymentManagerBridgeInitialized = true;
 }
 
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((error: unknown) => {
+      console.warn("Service worker registration failed", error);
+    });
+  });
+}
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Root element not found - check index.html has <div id=\"root\"></div>");
 }
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <React.Profiler id="deployment-manager" onRender={onProfilerRender}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </React.Profiler>
   </React.StrictMode>
 );

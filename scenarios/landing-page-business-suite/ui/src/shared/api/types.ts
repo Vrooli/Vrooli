@@ -45,10 +45,12 @@ export interface Variant {
 }
 
 export interface VariantSnapshotMeta {
-  slug: string;
-  name: string;
-  description?: string;
-  axes: VariantAxes;
+	slug: string;
+	name: string;
+	description?: string;
+	weight?: number;
+	status?: 'active' | 'archived';
+	axes: VariantAxes;
   header_config?: LandingHeaderConfig;
   seo_config?: Record<string, unknown>;
 }
@@ -270,6 +272,8 @@ export type SectionType =
 export interface ContentSection {
   id: number;
   variant_id: number;
+  /** Stable identifier within a JSON-backed variant snapshot. */
+  key?: string;
   section_type: SectionType;
   content: Record<string, unknown>;
   order: number;
@@ -280,6 +284,8 @@ export interface ContentSection {
 
 export interface LandingSection {
   id?: number;
+  /** Stable identifier within the selected variant snapshot. */
+  key?: string;
   section_type: string;
   content: Record<string, unknown>;
   order: number;
@@ -354,6 +360,7 @@ export interface LandingBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  support_email?: string | null;
   coming_soon_enabled?: boolean | null;
   coming_soon_message?: string | null;
 }
@@ -383,10 +390,16 @@ export interface LandingConfigResponse {
 
 export interface MetricEvent {
   event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
-  variant_id: number;
+  variant_slug: string;
   session_id: string;
   visitor_id?: string;
   event_data?: Record<string, unknown>;
+  event_id?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  landing_path?: string;
+  referrer?: string;
 }
 
 export interface AnalyticsSummary {
@@ -405,6 +418,7 @@ export interface VariantStats {
   cta_clicks: number;
   conversions: number;
   downloads: number;
+  exposures?: number;
   conversion_rate: number;
   avg_scroll_depth?: number;
   trend?: 'up' | 'down' | 'stable';
@@ -557,7 +571,7 @@ export interface VariantSEOResponse {
   og_title: string;
   og_description: string;
   og_image_url?: string;
-  twitter_card?: 'summary' | 'summary_large_image' | string;
+  twitter_card?: string;
   canonical_url?: string;
   favicon_url?: string;
   apple_touch_icon_url?: string;

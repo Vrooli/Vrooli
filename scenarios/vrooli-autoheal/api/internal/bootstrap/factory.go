@@ -3,12 +3,21 @@
 package bootstrap
 
 import (
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/checks/infra"
-	"vrooli-autoheal/internal/checks/system"
-	"vrooli-autoheal/internal/checks/vrooli"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/userconfig"
+	"context"
+	"log"
+	"time"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/coverage"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	hostchecks "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/host"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/infra"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/resourcegpu"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/system"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
 // CheckFactory defines the interface for creating health checks.
@@ -30,12 +39,24 @@ type CheckFactory interface {
 // DefaultCheckFactory is the production implementation of CheckFactory.
 // It creates real checks using the check packages.
 type DefaultCheckFactory struct {
+	// containStormMode is the operator's contain_storm switch; empty means the default (automatic).
+	containStormMode string
+	// deliveryReader is the notification-hub delivery projection the
+	// coverage-delivery-reach check reads; nil keeps the honest unavailable reader.
+	deliveryReader         coverage.DeliveryReader
 	networkTarget          string
 	dnsDomain              string
+	externalDNSServer      string
 	cloudflaredExternalURL string
 	criticalScenarios      []string
 	nonCriticalScenarios   []string
 	resources              []string
+
+	// diskConfig carries the resolved system-disk configuration so the check
+	// is built from the same values the configuration surface reports. A zero
+	// value means "use the check's own defaults", which are read from
+	// userconfig anyway.
+	diskConfig userconfig.CheckConfig
 }
 
 // NewDefaultCheckFactory creates a factory with standard configuration.
@@ -49,8 +70,9 @@ func NewDefaultCheckFactory() *DefaultCheckFactory {
 // This allows the factory to be configured dynamically from user settings.
 func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *DefaultCheckFactory {
 	return &DefaultCheckFactory{
-		networkTarget:          DefaultNetworkTarget,
-		dnsDomain:              DefaultDNSDomain,
+		networkTarget:          configuredInfrastructureValue(NetworkTargetEnv),
+		dnsDomain:              configuredInfrastructureValue(DNSDomainEnv),
+		externalDNSServer:      configuredInfrastructureValue(ExternalDNSServerEnv),
 		cloudflaredExternalURL: "",
 		criticalScenarios:      monitoring.GetCriticalScenarios(),
 		nonCriticalScenarios:   monitoring.GetNonCriticalScenarios(),
@@ -63,11 +85,17 @@ func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *Defa
 func NewCheckFactoryFromConfigManager(mgr *userconfig.Manager) *DefaultCheckFactory {
 	monitoring := mgr.GetMonitoring()
 	factory := NewCheckFactoryFromMonitoring(monitoring)
+	if cfg := mgr.Get(); cfg != nil {
+		// The storm authority's mode (automatic | propose_only) is operator config.
+		factory.containStormMode = cfg.Global.ContainStorm
+	}
 
 	cloudflaredCfg := mgr.GetCheck("infra-cloudflared")
 	if cloudflaredCfg.Settings.TunnelTestURL != "" {
 		factory.cloudflaredExternalURL = cloudflaredCfg.Settings.TunnelTestURL
 	}
+
+	factory.diskConfig = mgr.GetCheck("system-disk")
 
 	return factory
 }
@@ -124,44 +152,104 @@ func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabili
 	cloudflaredCheck := infra.NewCloudflaredCheck(caps, infra.WithExternalURL(f.cloudflaredExternalURL))
 	return []checks.Check{
 		infra.NewNetworkCheck(f.networkTarget),
-		infra.NewDNSCheck(f.dnsDomain, caps),
+		infra.NewDNSCheck(f.dnsDomain, caps, infra.WithExternalDNSServer(f.externalDNSServer)),
 		infra.NewDockerCheck(caps),
 		cloudflaredCheck,
-		infra.NewRDPCheck(caps),
+		infra.NewRDPCheck(caps, infra.WithRDPDesiredStateProvider(func(ctx context.Context) (infra.RemoteDesktopIntent, error) {
+			return infra.ResolveRemoteDesktopIntent(ctx, caps)
+		})),
 		infra.NewNTPCheck(caps),
 		infra.NewResolvedCheck(caps),
 		infra.NewCertificateCheck(),
 		infra.NewDisplayManagerCheck(caps),
+		infra.NewCredentialRecoveryCheck(),
 	}
+}
+
+// diskCheckOptions translates the resolved system-disk configuration into
+// check options. The interval matters most: the registry schedules from
+// Check.IntervalSeconds(), so a configured interval that never reaches the
+// check is a setting the operator can change with no effect.
+func (f *DefaultCheckFactory) diskCheckOptions() []system.DiskCheckOption {
+	cfg := f.diskConfig
+	var opts []system.DiskCheckOption
+
+	if cfg.IntervalSeconds > 0 {
+		opts = append(opts, system.WithDiskInterval(cfg.IntervalSeconds))
+	}
+	if len(cfg.Thresholds.Partitions) > 0 {
+		opts = append(opts, system.WithPartitions(cfg.Thresholds.Partitions))
+	}
+	if cfg.Thresholds.WarningPercent != nil && cfg.Thresholds.CriticalPercent != nil {
+		opts = append(opts, system.WithDiskThresholds(
+			int(*cfg.Thresholds.WarningPercent),
+			int(*cfg.Thresholds.CriticalPercent),
+		))
+	}
+	return opts
 }
 
 // CreateSystemChecks creates all system checks
 func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
-	return []checks.Check{
-		system.NewDiskCheck(),
+	systemChecks := []checks.Check{
+		system.NewDiskCheck(f.diskCheckOptions()...),
 		system.NewInodeCheck(),
 		system.NewSwapCheck(),
 		system.NewMemoryCheck(), // RAM usage monitoring
 		system.NewZombieCheck(),
 		system.NewPortCheck(),
 		system.NewClaudeCacheCheck(),
-		system.NewGPUCheck(),  // GPU health for AI/ML workloads
-		system.NewLoadCheck(), // System load average monitoring
+		system.NewGPUCheck(),                   // GPU health for AI/ML workloads
+		system.NewLoadCheck(),                  // System load average monitoring
+		system.NewPstoreEvidenceCheck(),        // Kernel crash dumps in /sys/fs/pstore
+		system.NewPanicEvidenceCheck(),         // Kernel panics captured by kdump
+		system.NewStaleServiceBinaryCheck(),    // Supervised services running replaced binaries
+		system.NewBootRecoveryReadinessCheck(), // Would the autoheal boot path work right now (observation-only)
+		system.NewBootHistoryCheck(),           // Unclean shutdown detection
+		system.NewMCERecentCheck(),             // Recent hardware errors via rasdaemon
+		system.NewPMRuntimeHogCheck(),          // Kernel pm_runtime CPU hogs
+		system.NewHostPressureCheck(system.WithReclaimer(system.NewProductionHostPressureReclaimer())), // CPU, memory, swap, process and fork pressure
+		system.NewEmergencyWatchdogReportCheck(system.WithContainStormMode(f.containStormMode)),        // watchdog sink: one incident per sustained finding, titled by the attributed parent
 	}
+	collector := hostinventory.NewCachedIntegrityCollector(hostinventory.NewIntegrityCollector(hostinventory.IntegrityCollectorOptions{}), 30*time.Second)
+	systemChecks = append(systemChecks, hostchecks.NewChecks(collector)...)
+	systemChecks = append(systemChecks, resourcegpu.New())
+	return systemChecks
 }
 
 // CreateVrooliChecks creates all Vrooli-specific checks
 func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []checks.Check {
 	vrooliChecks := []checks.Check{
-		vrooli.NewAPICheck(),
 		vrooli.NewWatchdogCheck(caps), // OS watchdog boot recovery check
-		vrooli.NewStaleLockCheck(),    // Stale port lock detection
-		vrooli.NewOrphanCheck(),       // Orphan process detection
+		vrooli.NewRuntimeSupervisorCheck(),
+		vrooli.NewStaleLockCheck(), // Stale port lock detection
+		vrooli.NewOrphanCheck(),    // Orphan process detection
+		// Repo-root Go module consistency. Without this, a shared-package
+		// import change that strands consumer go.sum files is invisible until
+		// something fails to start -- and by then every restart is destructive.
+		vrooli.NewRepoModulesCheck(),
 	}
 
-	// Resource checks
-	for _, name := range f.resources {
+	// Resource checks. Names that are not resources in this repository are
+	// dropped: a check for a resource that does not exist fails forever and
+	// heals nothing, which is how browserless stayed in the monitored list long
+	// after it was removed from the fleet.
+	monitored, dropped := PruneMissingResources(f.resources)
+	for _, name := range dropped {
+		log.Printf("vrooli-autoheal: %q is in the monitored resource list but is not a resource in this repository; skipping its checks", name)
+	}
+	for _, name := range monitored {
 		vrooliChecks = append(vrooliChecks, vrooli.NewResourceCheck(name))
+	}
+
+	// Accelerator placement checks, for the resources that declare a non-CPU
+	// backend. This is the check that answers "is it on the device it asked
+	// for", which no other check in the fleet asks.
+	// The system-gpu check resolves the same set itself, so it stays
+	// self-contained rather than depending on the order this factory builds
+	// things in.
+	for _, name := range acceleratedResources(monitored) {
+		vrooliChecks = append(vrooliChecks, vrooli.NewModeDriftCheck(name))
 	}
 
 	// Critical scenario checks
@@ -195,3 +283,6 @@ func SetDefaultFactory(f CheckFactory) CheckFactory {
 	defaultFactory = f
 	return prev
 }
+
+// DeliveryReader is the notification-hub delivery projection wired at startup.
+func (f *DefaultCheckFactory) DeliveryReader() coverage.DeliveryReader { return f.deliveryReader }

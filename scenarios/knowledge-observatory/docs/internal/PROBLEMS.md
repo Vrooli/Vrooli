@@ -1,4 +1,48 @@
-# Problems and Solutions Log
+# Problems
+
+Known issues, technical debt, and deferred work for Knowledge Observatory.
+
+## Entries
+
+### 2026-06-08 — Self-registers `knowledge-observatory.docs` with search-hub at boot
+
+**Symptom:** (by design) KO now pushes its docs search provider descriptor to
+search-hub at startup instead of relying on an operator to register it.
+
+**Root cause / change:** Search Self-Tuning System plan Phase 2. `server.go`'s
+`selfRegisterSearch` (launched in a background goroutine alongside the docs
+indexer) reads the `knowledge-observatory.docs` descriptor from the
+`.vrooli/search.json` SSOT and upserts it via `RegistryService.RegisterProvider`
+through the shared `packages/searchregister-go` helper. search-hub is declared an
+**optional** scenario dependency (`.vrooli/service.json` →
+`dependencies.scenarios.search-hub`, `required:false`, `try_start`): if the hub is
+down at boot, registration retries briefly then degrades, and KO serves docs
+search normally. The upsert is idempotent, so re-registering every boot is safe.
+
+**Deferred:** the registration carries only the descriptor today; the
+`tuning`/`tests` blocks and the control token ride in once `registry.proto` gains
+those fields (plan Phase 3). KO's `tuning` (hybrid, symmetric nomic, rerank-off)
+continues to be read directly from `search.json` at boot, preserving the guarded
+recall@5=0.818.
+
+**Refs:** `api/server.go` (`selfRegisterSearch`), `.vrooli/service.json`,
+`packages/searchregister-go/`; Search Self-Tuning System plan §7 Phase 2.
+
+## Architecture Drift
+
+### 2026-05-08: Retired Standalone Screaming Architecture Audit Report
+
+### Problem
+`docs/internal/SCREAMING_ARCHITECTURE_AUDIT.md` duplicated architecture memory that belongs in stable docs. Standalone audit reports are easy to orphan because future agents read `ARCHITECTURE.md`, `SEAMS.md`, and `PROBLEMS.md` first.
+
+### Resolution
+Durable findings from the report were folded into:
+- `docs/concepts/ARCHITECTURE.md` for domain map, shared infrastructure, and maturity.
+- `docs/internal/SEAMS.md` for boundary decisions and alignment notes.
+- this file for the retirement record.
+
+### Follow-up
+Do not create new standalone screaming-architecture reports by default. Record future architecture drift here, and update `ARCHITECTURE.md` / `SEAMS.md` when the model or boundary registry changes.
 
 ## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code
 
@@ -15,14 +59,14 @@ The database-computed `avg_quality` and the API-returned overall score will dive
 Align the schema generated column with the code formula, or vice versa. The code formula (`- redundancy / 3`) is likely correct since high redundancy is undesirable.
 
 [CODE: api/metrics.go]
-[CODE: initialization/postgres/schema.sql]
+[CODE: api/internal/<domain>/schema.sql]
 
 ---
 
 ## 2026-01-26: Schema Re-apply Emits Index/Trigger Errors
 
 ### Problem
-Running `make test` applies `initialization/postgres/schema.sql` and logs errors for indexes and triggers that already exist.
+Running `make test` applies `api/internal/<domain>/schema.sql` and logs errors for indexes and triggers that already exist.
 
 ### Root Cause
 The schema used non-idempotent `CREATE INDEX` and `CREATE TRIGGER` statements without guards.
@@ -60,13 +104,13 @@ cmd := exec.CommandContext(ctx, s.config.ResourceCLI, args...)
 ## 2025-09-28: Missing Ollama Models
 
 ### Problem
-Health check reported missing required models: `llama3.2` and `nomic-embed-text`
+Health check reported a missing generation model and embedding role.
 
 ### Solution
 Installed the models using:
 ```bash
 ollama pull llama3.2
-ollama pull nomic-embed-text
+resource-ollama ensure --role embedding.default
 ```
 
 ### Impact

@@ -1,0 +1,155 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "body",
+        "kind": "enum",
+        "label": "Style",
+        "options": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ],
+        "path": "style"
+      },
+      {
+        "default": "default",
+        "kind": "enum",
+        "label": "Tone",
+        "options": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ],
+        "path": "tone"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "id": "anatomy",
+      "name": "Default anatomy",
+      "role": "anatomy",
+      "args": {
+        "style": "body",
+        "tone": "default"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextAnatomy"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Typography as a system"
+        }
+      ]
+    },
+    {
+      "id": "scale",
+      "name": "Style scale",
+      "role": "axis",
+      "axis": "style",
+      "covers": {
+        "style": [
+          "display",
+          "title",
+          "heading",
+          "body",
+          "label",
+          "caption",
+          "code",
+          "overline"
+        ]
+      },
+      "args": {
+        "style": "body"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextScaleMatrix"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Typography as a system"
+        }
+      ]
+    },
+    {
+      "id": "tone",
+      "name": "Semantic tones",
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": [
+          "default",
+          "muted",
+          "accent",
+          "danger"
+        ]
+      },
+      "args": {
+        "tone": "default"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextToneMatrix"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Typography as a system"
+        }
+      ]
+    },
+    {
+      "id": "boundaries",
+      "name": "Boundary conditions",
+      "role": "boundary",
+      "states": [
+        "empty",
+        "truncate",
+        "overflow",
+        "forced-colors"
+      ],
+      "args": {
+        "style": "body"
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TextBoundaries"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Typography as a system"
+        }
+      ]
+    }
+  ]
+}

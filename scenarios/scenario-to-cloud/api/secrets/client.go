@@ -7,14 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/vrooli/api-core/discovery"
-
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 const (
@@ -44,6 +44,8 @@ type ManagerSecret struct {
 	ID                string                 `json:"id"`
 	ResourceName      string                 `json:"resource_name"`
 	SecretKey         string                 `json:"secret_key"`
+	LogicalID         string                 `json:"logical_id,omitempty"`
+	Field             string                 `json:"field,omitempty"`
 	SecretType        string                 `json:"secret_type"` // env_var, file, password, api_key
 	Required          bool                   `json:"required"`
 	Classification    string                 `json:"classification"` // infrastructure, integration, user_defined
@@ -84,21 +86,15 @@ func NewClient() *Client {
 	}
 }
 
-// resolveBaseURL resolves the secrets-manager URL using discovery.
-// Priority: 1) SECRETS_MANAGER_URL env var, 2) vrooli CLI discovery
+// resolveBaseURL resolves the secrets-manager URL using discovery at call
+// time so peer restarts are reflected without a process restart.
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
-	// Check for explicit environment override
-	if envURL := strings.TrimSpace(os.Getenv("SECRETS_MANAGER_URL")); envURL != "" {
-		return strings.TrimSuffix(envURL, "/"), nil
-	}
-
-	// Use service discovery
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "secrets-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve secrets-manager URL: %w", err)
 	}
 
-	return strings.TrimSuffix(baseURL, "/"), nil
+	return httputil.ValidateServiceBaseURL(baseURL)
 }
 
 // HealthCheck verifies that secrets-manager is reachable and healthy.
@@ -156,13 +152,13 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string, 
 	q.Set("include_optional", "false")
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil) // #nosec G704 -- URL is built from the validated secrets-manager service base and path-escaped scenario input.
 	if err != nil {
 		return nil, fmt.Errorf("create secrets request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req) // #nosec G704 -- request target is the validated secrets-manager service.
 	if err != nil {
 		return nil, fmt.Errorf("secrets-manager request failed: %w", err)
 	}
@@ -223,6 +219,9 @@ func transformSecrets(secrets []ManagerSecret, tier string) []domain.BundleSecre
 				Type: targetType,
 				Name: s.SecretKey,
 			},
+		}
+		if class != "per_install_generated" && strings.TrimSpace(s.LogicalID) != "" && strings.TrimSpace(s.Field) != "" {
+			plan.Descriptor = &domain.DescriptorAddress{LogicalID: strings.TrimSpace(s.LogicalID), Field: strings.TrimSpace(s.Field)}
 		}
 
 		// Add prompt metadata for user_prompt secrets

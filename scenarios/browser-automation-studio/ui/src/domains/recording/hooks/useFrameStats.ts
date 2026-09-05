@@ -42,7 +42,7 @@ interface FrameRecord {
 
 const HISTORY_WINDOW_MS = 5000; // 5 seconds of history
 const CURRENT_WINDOW_MS = 1000; // 1 second for "current" FPS
-const STATE_UPDATE_INTERVAL_MS = 250; // Update React state every 250ms (not every frame!)
+const STATE_UPDATE_INTERVAL_MS = 1000; // Keep UI stats readable without pushing page-wide renders.
 
 /**
  * Hook for tracking frame delivery statistics.

@@ -3,11 +3,17 @@ export {
   FakeWebSocket,
   createFakeSocketPair,
   createMockTerminal,
+  createTerminalStub,
+  createTerminalSessionStub,
   findWriteCall,
   makeSessions,
   createMockSession,
   mockFetchSuccess,
   mockFetchError,
 } from "./mocks";
-export type { MockTerminal } from "./mocks";
-export { createTestQueryClient, renderWithProviders } from "./render";
+export type { MockTerminal, TerminalStub } from "./mocks";
+export { createTestQueryClient } from "@vrooli/api-base/testing";
+export { renderWithProviders } from "./renderWithProviders";
+export { setViewportWidth, setDesktopViewport, setMobileViewport } from "./viewport";
+export { expectNoA11yViolations } from "@vrooli/api-base/testing";
+export { asMockedClient, type MockedConnectClient } from "./mockConnectClient";

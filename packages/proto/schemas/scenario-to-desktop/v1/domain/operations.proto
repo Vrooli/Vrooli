@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+message ScenarioPortRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string port_name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ScenarioPortResponse {
+  string scenario_name = 1;
+  string port_name = 2;
+  string host = 3;
+  int32 port = 4;
+  string url = 5;
+}
+
+service OperationsService {
+  rpc ResolveScenarioPort(ScenarioPortRequest) returns (ScenarioPortResponse);
+  rpc GetProxyHints(ProxyHintsRequest) returns (ProxyHintsResponse);
+  rpc ListDesktopScenarioStatus(google.protobuf.Empty) returns (DesktopScenarioStatusResponse);
+  rpc ProbeEndpoints(ProbeEndpointsRequest) returns (ProbeEndpointsResponse);
+}
+
+message DesktopBuildArtifactStatus {
+  string platform = 1;
+  string file_name = 2;
+  int64 size_bytes = 3;
+  optional string modified_at = 4;
+  optional string absolute_path = 5;
+  optional string relative_path = 6;
+}
+
+message DesktopConnectionStatus {
+  optional string mode = 1;
+  optional string endpoint = 2;
+}
+
+message DesktopScenarioStatus {
+  string name = 1;
+  optional string display_name = 2;
+  optional string service_display_name = 3;
+  optional string service_description = 4;
+  optional string service_icon_path = 5;
+  bool has_desktop = 6;
+  optional string desktop_path = 7;
+  optional string version = 8;
+  repeated string platforms = 9;
+  bool built = 10;
+  optional string dist_path = 11;
+  optional string last_modified = 12;
+  optional int64 package_size = 13;
+  optional DesktopConnectionStatus connection_config = 14;
+  repeated DesktopBuildArtifactStatus build_artifacts = 15;
+  optional string artifacts_source = 16;
+  optional string artifacts_path = 17;
+  optional string artifacts_expected_path = 18;
+  optional string record_id = 19;
+  optional string record_output_path = 20;
+  optional string record_location_mode = 21;
+  optional string record_updated_at = 22;
+}
+
+message DesktopScenarioStats {
+  int32 total = 1;
+  int32 with_desktop = 2;
+  int32 built = 3;
+  int32 web_only = 4;
+}
+
+message DesktopScenarioStatusResponse {
+  repeated DesktopScenarioStatus scenarios = 1;
+  DesktopScenarioStats stats = 2;
+}
+
+message ProxyHintsRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ProxyHint {
+  string url = 1;
+  string source = 2;
+  string confidence = 3;
+  string message = 4;
+}
+
+message ProxyHintsResponse {
+  string scenario_name = 1;
+  repeated ProxyHint hints = 2;
+}
+
+message ProbeEndpointsRequest {
+  optional string proxy_url = 1;
+  optional string server_url = 2;
+  optional string api_url = 3;
+  optional int32 timeout_ms = 4;
+}
+
+message ProbeEndpointResult {
+  string status = 1;
+  optional int32 status_code = 2;
+  optional string message = 3;
+}
+
+message ProbeEndpointsResponse {
+  optional string proxy_url = 1;
+  ProbeEndpointResult server = 2;
+  ProbeEndpointResult api = 3;
+}

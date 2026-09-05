@@ -1,0 +1,3636 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.vrooli_bridge.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.vrooli_bridge.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "artifacts_distribute_artifact",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact",
+      "method": "POST",
+      "summary": "Distribute a non-git artifact to a node (via device-sync-hub)",
+      "description": "Ships a non-git artifact (a built installer, a large fixture) to a node through device-sync-hub's directed delivery — bridge orchestrates, device-sync-hub moves the bytes (bridge stores no blob). Records a durable distribution. An unknown/revoked node is rejected before any delivery. Honours X-Dry-Run. Owner-gated.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_path": "string (required)",
+          "name": "string",
+          "node_id": "string (required)",
+          "source_ref": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "delivery_ref": "string",
+          "distribution_id": "string",
+          "dry_run": "bool",
+          "status": "DeliveryStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing node_id/source_ref/destination_path"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown node"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Node revoked"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "device-sync-hub directed delivery failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Distribute an installer",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"name\":\"app-setup.exe\",\"source_ref\":\"blob://builds/app-setup.exe\",\"destination_path\":\"/opt/app/setup.exe\"}'"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_get_distribution",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetDistribution",
+      "method": "POST",
+      "summary": "Get an artifact distribution by id",
+      "description": "Returns one durable distribution (reference + status + metadata). Owner-gated.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "distribution": "Distribution"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No distribution with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get distribution",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetDistribution -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"dist-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_list_distributions",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/ListDistributions",
+      "method": "POST",
+      "summary": "List artifact distributions",
+      "description": "Returns distributions newest-first, optionally filtered by node. Owner-gated.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "distributions": "array<Distribution>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List distributions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/ListDistributions -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_upload_run_artifact",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/UploadRunArtifact",
+      "method": "POST",
+      "summary": "Upload bounded evidence for a dispatched run",
+      "description": "Node-facing authenticated upload of a bounded produced artifact. The node may upload only evidence for its own run; the bytes are retained for owner retrieval.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "data": "bytes (bounded)",
+          "media_type": "string",
+          "name": "string (required)",
+          "run_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_ref": "string",
+          "size_bytes": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid or oversized artifact"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Node credential required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Node does not own the run"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown run"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_get_run_artifact",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetRunArtifact",
+      "method": "POST",
+      "summary": "Retrieve bounded evidence from a dispatched run",
+      "description": "Owner-gated retrieval of a node-produced artifact. The response is suitable for saving plan evidence without a direct node connection.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (required)",
+          "run_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_ref": "string",
+          "data": "bytes",
+          "media_type": "string",
+          "name": "string",
+          "run_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Produced artifact not found"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Retrieve screenshot evidence",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetRunArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"run_id\":\"run-123\",\"name\":\"screenshot.png\"}'"
+        }
+      ]
+    },
+    {
+      "id": "attached_pair",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/PairAttachedDevice",
+      "method": "POST",
+      "summary": "Pair an attached device through a trusted host",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
+      "id": "attached_list",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/ListAttachedDevices",
+      "method": "POST",
+      "summary": "List attached devices without hiding offline hosts",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
+      "id": "attached_revoke",
+      "path": "/vrooli.vrooli_bridge.v1.attached_devices.AttachedDeviceService/RevokeAttachedDevice",
+      "method": "POST",
+      "summary": "Revoke an attached device",
+      "description": "",
+      "category": "attached-devices"
+    },
+    {
+      "id": "audit_list_records",
+      "path": "/vrooli.vrooli_bridge.v1.audit.AuditService/ListAuditRecords",
+      "method": "POST",
+      "summary": "List audit records",
+      "description": "Returns the append-only accountability trail newest-first — every dispatch and provisioning operation (actor/node/verb/args/outcome) — optionally filtered by node or run. Read-only; records are appended internally by the operations they record. Owner-gated.",
+      "category": "audit",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "node_id": "string",
+          "run_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "records": "array<AuditRecord>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List audit records",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.audit.AuditService/ListAuditRecords -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"limit\":50}'"
+        }
+      ]
+    },
+    {
+      "id": "presence_report_heartbeat",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportHeartbeat",
+      "method": "POST",
+      "summary": "Report a node heartbeat",
+      "description": "Node-facing: records a node's liveness + self-reported readiness in the presence hub and persists last-seen. Returns the protocol compatibility verdict. Called by the node-agent, not an operator.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "heartbeat": "Heartbeat (node_id, sequence, health, sent_at)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "compatibility": "CompatibilityStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing node id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Heartbeat",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportHeartbeat -H 'Content-Type: application/json' -d '{\"heartbeat\":{\"node_id\":\"abc123\",\"health\":{\"toolchain_present\":true}}}'"
+        }
+      ]
+    },
+    {
+      "id": "channel_events",
+      "path": "/api/v1/channel/events",
+      "method": "GET",
+      "summary": "Open the dial-out channel",
+      "description": "Node-facing: the node opens this server-sent-events stream and holds it open; it is online for as long as the stream is held (NAT/firewall-proof — the node always initiates, no inbound port). Phase 1 sends keepalive pings; later phases push JobPush and ProvisionCommand frames down this stream. Authenticated in Phase 1 by the ?node= stub credential (X-Bridge-Node header for non-browser clients); Phase 2 replaces it with per-node Ed25519 mutual auth.",
+      "category": "channel",
+      "response": {
+        "type": "text/event-stream",
+        "properties": {
+          "data": "ServerFrame (vrooli.vrooli_bridge.v1.channel.ServerFrame, protojson per SSE message in later phases)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing node id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dial out",
+          "curl": "curl -N 'http://localhost:${API_PORT}/api/v1/channel/events?node=abc123'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Long-lived SSE stream (text/event-stream) held open by the node-agent's EventSource directly (no Connect client). Server→node push frames are the proto-typed channel.ServerFrame marshaled with protojson.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.vrooli_bridge.v1.channel.ServerFrame",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "channel_session",
+      "path": "/api/v1/channel/session",
+      "method": "GET",
+      "summary": "Open an authenticated interactive session",
+      "description": "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:write node scope, bounded flow-control window, idle timeout and hard lifetime. SSE job delivery remains available separately.",
+      "category": "channel",
+      "response": {
+        "type": "application/octet-stream",
+        "properties": {
+          "frame": "vrooli.vrooli_bridge.v1.session.Frame"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token and re-authentication required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Node lacks vrooli-bridge:write scope"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Bidirectional binary WebSocket; each message carries the proto-encoded v1/session Frame contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "binary",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "transport_only"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "channel_session_kill",
+      "path": "/api/v1/channel/session/{id}",
+      "method": "DELETE",
+      "summary": "Terminate an interactive session",
+      "description": "Owner-gated kill switch. Closes the live transport and records the terminal reason.",
+      "category": "channel",
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner authentication required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-gated operational control that closes the live binary WebSocket session.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "presence_report_delivery_ack",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportDeliveryAck",
+      "method": "POST",
+      "summary": "Report a delivered server frame",
+      "description": "Node-facing: confirms a signed server frame reached the node before the represented operation began.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "ack": "DeliveryAck (frame_id, run_id or op_id, received_at)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing frame id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Frame was not sent to this node"
+        }
+      ]
+    },
+    {
+      "id": "presence_report_credential_receipt",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportCredentialReceipt",
+      "method": "POST",
+      "summary": "Report credential delivery receipt",
+      "description": "Node-facing: records metadata-only acceptance or rejection of a credential push; secret values are never returned or persisted.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "receipt": "CredentialReceipt (grant_id, node_id, generation, accepted, reason)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing grant or node metadata"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        }
+      ]
+    },
+    {
+      "id": "presence_report_relay_response",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportRelayResponse",
+      "method": "POST",
+      "summary": "Receive an authenticated relay response",
+      "description": "Node-facing: carries bounded relay output and its terminal outcome back to the waiting control-plane call.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "response": "RelayResponse (correlation_id, kind, sequence, data, reason, exit_code, total_bytes)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing relay correlation id or invalid response kind"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Correlation does not belong to this node"
+        }
+      ]
+    },
+    {
+      "id": "channel_session_frame",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportSessionFrame",
+      "method": "POST",
+      "summary": "Receive an authenticated node session frame",
+      "description": "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.",
+      "category": "channel"
+    },
+    {
+      "id": "cleanup_prepare",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/PrepareCleanup",
+      "method": "POST",
+      "summary": "Prepare a protected cleanup target",
+      "description": "Resolves the target transport and publishes only its sealing public key; it creates no cleanup operation.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "scope": "string",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "target": "CleanupTarget"
+        }
+      }
+    },
+    {
+      "id": "cleanup_provision_break_glass",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ProvisionBreakGlass",
+      "method": "POST",
+      "summary": "Provision target-bound break-glass material",
+      "description": "Relays an opaque node-sealed passphrase to the paired helper. The operator must supply it; agents cannot select this operation.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "operation_id": "string (required)",
+          "operator_id": "string",
+          "scope": "string",
+          "sealed_passphrase": "bytes (required)",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Target protection could not be provisioned"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_reset_break_glass",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ResetBreakGlass",
+      "method": "POST",
+      "summary": "Retire stale target-bound break-glass material",
+      "description": "Operator-confirmed recovery that removes only managed break-glass material and never grants cleanup authority; fresh protection must be provisioned afterward.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "scope": "string",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Target protection could not be retired"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_start",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/StartCleanup",
+      "method": "POST",
+      "summary": "Start a Bridge-managed cleanup inventory",
+      "description": "Creates one durable cleanup operation per machine and requests read-only inventory through the paired privileged helper.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "scope": "string",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "A cleanup operation is already active for this machine"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The paired node cannot be reached"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_get",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/GetCleanup",
+      "method": "POST",
+      "summary": "Get a cleanup operation and events",
+      "description": "Reads the durable cleanup operation, frozen plan, receipt, and event history.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<CleanupEvent>",
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_plan",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/PlanCleanup",
+      "method": "POST",
+      "summary": "Read a frozen cleanup plan",
+      "description": "Returns the plan after the node has reported its read-only inventory.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_confirm",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ConfirmCleanup",
+      "method": "POST",
+      "summary": "Confirm a frozen cleanup plan",
+      "description": "Requires exact target and plan hash plus opaque node-bound authorization material. This is destructive and operator-confirmed.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "capability": "bytes (required)",
+          "id": "string (required)",
+          "operator_id": "string",
+          "plan_hash": "string (required)",
+          "sealed_passphrase": "bytes (required)",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Confirmation does not match the frozen plan"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_apply",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ApplyCleanup",
+      "method": "POST",
+      "summary": "Resume a confirmed cleanup",
+      "description": "Applies only the previously frozen plan; it never rediscovers artifacts. This is destructive, requires operator confirmation, and is never autonomous-agent eligible.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_verify",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/VerifyCleanup",
+      "method": "POST",
+      "summary": "Verify cleanup result",
+      "description": "Requests a read-only post-apply verification and records the signed result.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_cancel",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/CancelCleanup",
+      "method": "POST",
+      "summary": "Cancel a cleanup operation",
+      "description": "Cancels a non-terminal operation and releases the per-machine cleanup lease.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "reason": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_report_event",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ReportCleanupEvent",
+      "method": "POST",
+      "summary": "Ingest a node cleanup event",
+      "description": "Node-facing mutual-authenticated event ingestion; omitted from the operator CLI.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "event": "CleanupEvent"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "bool"
+        }
+      }
+    },
+    {
+      "id": "credentialgrant_create",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/CreateGrant",
+      "method": "POST",
+      "summary": "Create a credential grant",
+      "description": "Owner-gated metadata-only grant authoring; credential values are never accepted.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_list",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/ListGrants",
+      "method": "POST",
+      "summary": "List credential grants",
+      "description": "Owner-gated grant inventory with generation receipts.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_revoke",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/RevokeGrant",
+      "method": "POST",
+      "summary": "Revoke a credential grant",
+      "description": "Owner-gated grant revocation.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_rotate",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/RotateAddress",
+      "method": "POST",
+      "summary": "Rotate a granted address",
+      "description": "Advances the address generation and fans out sealed values to active grants.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_sync_node",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/SyncNodeGrants",
+      "method": "POST",
+      "summary": "Reconcile node credential grants",
+      "description": "Node-facing authenticated reconciliation; metadata response plus sealed current-value delivery.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "dispatch_dispatch_job",
+      "path": "/vrooli.vrooli_bridge.v1.dispatch.DispatchService/DispatchJob",
+      "method": "POST",
+      "summary": "Dispatch a typed job to a node",
+      "description": "Validates {scenario, verb, args} against the manifest allowlist + the node's granted scopes, then creates a durable run, audits the dispatch, and pushes the typed job to the node. An undeclared/out-of-scope verb is rejected (and audited) before any run is created. Honours X-Dry-Run. Owner-gated.",
+      "category": "dispatch",
+      "request": {
+        "type": "object",
+        "properties": {
+          "args": "array<string>",
+          "node_id": "string (required)",
+          "scenario": "string",
+          "timeout_seconds": "int64",
+          "verb": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "run_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/empty verb"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Verb not allowlisted or out of the node's scopes"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown node"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Node revoked or offline"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Job could not be delivered to the node"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dispatch a scenario test",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.dispatch.DispatchService/DispatchJob -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"scenario\":\"web-search\",\"verb\":\"scenario test\",\"args\":[\"web-search\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_roll_fleet",
+      "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/RollFleet",
+      "method": "POST",
+      "summary": "Roll the fleet (or a subset) to a target revision",
+      "description": "Pins every registered (or named) node to a target git revision: enumerates the eligible nodes, classifies each (online + protocol-compatible + not-revoked → dispatch; otherwise skip with a reason), dispatches a privileged provisioning op to each eligible node, and records a durable rollout with the per-node ledger. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly) and is resolved+preflighted ONCE up front, so the whole fleet pins to a single exact commit and an unpushed target fails the roll before any node is touched. Honours X-Dry-Run. Owner-gated.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_ids": "array<string>",
+          "target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "results": "array<NodeRolloutResult>",
+          "rollout_id": "string",
+          "status": "RolloutStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "An invalid revision (e.g. a relative ref like HEAD~1)"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The resolved commit is not on the clone remote (push it first)"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Roll the fleet to a revision",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.fleet.FleetService/RollFleet -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"target_revision\":\"a1b2c3d\"}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_get_rollout",
+      "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/GetRollout",
+      "method": "POST",
+      "summary": "Get a rollout by id with its per-node ledger",
+      "description": "Returns one durable rollout and its full per-node result ledger. Owner-gated.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<NodeRolloutResult>",
+          "rollout": "Rollout"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No rollout with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get rollout",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.fleet.FleetService/GetRollout -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"rollout-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_list_rollouts",
+      "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/ListRollouts",
+      "method": "POST",
+      "summary": "List rollouts",
+      "description": "Returns rollouts newest-first. Owner-gated.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rollouts": "array<Rollout>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List rollouts",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.fleet.FleetService/ListRollouts -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_run_gate",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/RunGate",
+      "method": "POST",
+      "summary": "Run a cross-OS deployment gate for a scenario",
+      "description": "Fans a scenario's validation out across the target OSes: selects one eligible node per OS (registered + online + protocol-compatible + not-revoked + matching OS), dispatches the validation run to each (delegating to the dispatch + runs domains), and records a durable gate with the per-OS ledger. Aggregates per-OS verdicts into one cross-OS result — any failing OS (including one with no eligible node) fails the gate. Honours X-Dry-Run. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "args": "array<string>",
+          "scenario": "string (required)",
+          "target_oses": "array<string> (required)",
+          "target_revision": "string (required)",
+          "timeout_seconds": "int64",
+          "verb": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "gate_id": "string",
+          "results": "array<OSResult>",
+          "verdict": "GateVerdict"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario / target_revision / target_oses"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run a cross-OS gate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/RunGate -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"scenario\":\"web-search\",\"target_revision\":\"a1b2c3d\",\"target_oses\":[\"linux\",\"darwin\",\"windows\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_get_gate",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/GetGate",
+      "method": "POST",
+      "summary": "Get a gate by id with its per-OS ledger",
+      "description": "Returns one durable gate and its per-OS result ledger, recomputing the live cross-OS verdict from the current state of each OS's validation run. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gate": "Gate",
+          "results": "array<OSResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No gate with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get gate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/GetGate -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"gate-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_wait_gate",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/WaitGate",
+      "method": "POST",
+      "summary": "Block once until a gate is terminal, then return its verdict",
+      "description": "Blocks server-side until every target OS's validation run is terminal (or the timeout elapses), then returns the final aggregate cross-OS verdict + per-OS ledger. timed_out is true when the deadline elapsed with targets still running. No polling — one call, one return. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gate": "Gate",
+          "results": "array<OSResult>",
+          "timed_out": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No gate with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for a gate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/WaitGate -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"gate-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_list_gates",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/ListGates",
+      "method": "POST",
+      "summary": "List gates",
+      "description": "Returns gates newest-first. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gates": "array<Gate>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List gates",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/ListGates -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_login",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Login",
+      "method": "POST",
+      "summary": "Owner sign-in",
+      "description": "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Used by the same-origin Bridge UI and by `vrooli-bridge auth login`; neither client calls scenario-authenticator directly.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "password": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "refresh_token": "string",
+          "token": "string (owner JWT)",
+          "user_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid email or password"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Sign in",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.identity.IdentityService/Login -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_register",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Register",
+      "method": "POST",
+      "summary": "Create owner account (same-origin)",
+      "description": "Creates an owner account in scenario-authenticator and returns the issued owner JWT (the account is signed in immediately, so a fresh owner can register their first node in one flow). Relayed via api-core/discovery; same-origin only.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "password": "string",
+          "username": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "refresh_token": "string",
+          "token": "string (owner JWT)",
+          "user_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Email already registered"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Weak password or malformed email (authenticator message relayed)"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create account",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.identity.IdentityService/Register -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_refresh",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Refresh",
+      "method": "POST",
+      "summary": "Refresh owner session",
+      "description": "Rotates a scenario-authenticator refresh token and relays the replacement owner token pair. The bridge stores nothing server-side.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "refresh_token": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "refresh_token": "string",
+          "token": "string (owner JWT)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Refresh token rejected"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ]
+    },
+    {
+      "id": "identity_enroll_operator_session",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/EnrollOperatorSession",
+      "method": "POST",
+      "summary": "Enroll a locally verifiable operator session",
+      "description": "Owner-authenticated enrollment of a client public key. The private key stays on the client and subsequent short-lived sessions are verified locally by Bridge.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mode": "string",
+          "public_key": "bytes",
+          "requested_scopes": "array"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "enrollment_reference": "string",
+          "operator_id": "string",
+          "scope_ceiling": "array",
+          "session_ttl_seconds": "integer"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "A normal owner session is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Requested scope exceeds the owner ceiling"
+        }
+      ]
+    },
+    {
+      "id": "machines_create",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/CreateMachine",
+      "method": "POST",
+      "summary": "Create a durable machine",
+      "description": "Creates operator-intent identity with validated connection locators. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "desired_profile_id": "string",
+          "desired_profile_version": "string",
+          "locators": "array<ConnectionLocator> (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid or missing locator"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        }
+      ]
+    },
+    {
+      "id": "machines_repair",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RepairMachine",
+      "method": "POST",
+      "summary": "Repair a Machine in place",
+      "description": "Reuses the durable Machine identity and starts a normal Bridge-managed enrollment attempt; it never creates a replacement Machine. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "enrollment_attempt_id": "string",
+          "machine": "Machine",
+          "onboarding_op_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Repair unavailable or ambiguous identity"
+        }
+      ]
+    },
+    {
+      "id": "machines_merge",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/MergeMachines",
+      "method": "POST",
+      "summary": "Merge duplicate machines",
+      "description": "Folds locators and Node lineage into the selected target, archives the source, and writes an audit event. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "from_machine_id": "string (required)",
+          "into_machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "archived_machine_id": "string",
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid source or target"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        }
+      ]
+    },
+    {
+      "id": "machines_get",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachine",
+      "method": "POST",
+      "summary": "Get a machine",
+      "description": "Returns durable intent and node lineage; live Node state is not copied. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        }
+      ]
+    },
+    {
+      "id": "machines_get_configuration",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineConfiguration",
+      "method": "POST",
+      "summary": "Get machine configuration",
+      "description": "Returns desired and applied selection documents with readiness and typed drift. Owner-gated.",
+      "category": "configuration",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied_selection_json": "string",
+          "desired_selection_json": "string",
+          "drift": "array<MachineDrift>",
+          "machine": "Machine"
+        }
+      }
+    },
+    {
+      "id": "machines_list",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ListMachines",
+      "method": "POST",
+      "summary": "List machines",
+      "description": "Lists durable Machine identities and histories. Owner-gated.",
+      "category": "machines",
+      "response": {
+        "type": "object",
+        "properties": {
+          "machines": "array<Machine>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        }
+      ]
+    },
+    {
+      "id": "machines_archive",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ArchiveMachine",
+      "method": "POST",
+      "summary": "Archive a machine",
+      "description": "Applies an optimistic-version lifecycle archive without deleting history. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Version conflict"
+        }
+      ]
+    },
+    {
+      "id": "machines_remove",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RemoveMachine",
+      "method": "POST",
+      "summary": "Remove a machine locally",
+      "description": "Records local removal only; it does not claim external cleanup or erase history. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown machine"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Version conflict"
+        }
+      ]
+    },
+    {
+      "id": "machines_get_trust",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineTrust",
+      "method": "POST",
+      "summary": "Get Machine trust metadata",
+      "description": "Returns public fingerprints and review state only. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "trust": "MachineTrust"
+        }
+      }
+    },
+    {
+      "id": "machines_review_host_key",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ReviewMachineHostKey",
+      "method": "POST",
+      "summary": "Approve a reviewed host key",
+      "description": "Explicitly accepts a replacement SSH server host-key fingerprint after fail-closed detection. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "replacement_host_key_fingerprint": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "trust": "MachineTrust"
+        }
+      }
+    },
+    {
+      "id": "machines_request_ssh_cleanup",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RequestMachineSSHCleanup",
+      "method": "POST",
+      "summary": "Record SSH-access cleanup",
+      "description": "Creates an explicit pending cleanup effect; it does not claim remote success. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleanup": "MachineCleanup"
+        }
+      }
+    },
+    {
+      "id": "machines_update_cleanup",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/UpdateMachineCleanup",
+      "method": "POST",
+      "summary": "Update explicit cleanup result",
+      "description": "Marks cleanup confirmed, not applicable, or acknowledged abandoned. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "detail": "string",
+          "id": "string (required)",
+          "status": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleanup": "MachineCleanup"
+        }
+      }
+    },
+    {
+      "id": "machines_apply_policy",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ApplyMachinePolicy",
+      "method": "POST",
+      "summary": "Apply a versioned Machine policy",
+      "description": "Resolves a built-in profile into immutable evidence and updates desired intent; suggested scopes never grant authorization. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "overrides": "map<string,string>",
+          "profile_id": "string (required)",
+          "profile_version": "string",
+          "reason": "string",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "policy": "EffectivePolicy"
+        }
+      }
+    },
+    {
+      "id": "machines_apply_configuration",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ApplyMachineConfiguration",
+      "method": "POST",
+      "summary": "Apply machine configuration",
+      "description": "Applies the desired configuration document and records the result. Owner-gated.",
+      "category": "configuration",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "profile_id": "string (required)",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "policy": "EffectivePolicy"
+        }
+      }
+    },
+    {
+      "id": "machines_get_drift",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineDrift",
+      "method": "POST",
+      "summary": "Get machine configuration drift",
+      "description": "Returns typed differences between desired and applied machine configuration. Owner-gated.",
+      "category": "configuration",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "drift": "array<MachineDrift>"
+        }
+      }
+    },
+    {
+      "id": "machines_revoke_node",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/RevokeMachineNode",
+      "method": "POST",
+      "summary": "Revoke a Machine's current Node",
+      "description": "Locally revokes durable Node identity, credential, and live channel before any separate SSH cleanup. Owner-gated.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "revoked_node_id": "string"
+        }
+      }
+    },
+    {
+      "id": "onboard_preflight_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/PreflightOnboarding",
+      "method": "POST",
+      "summary": "Classify a durable SSH connection before onboarding",
+      "description": "Resolves the durable Machine and reports first-touch, reconnect, recovery-required, ambiguity, or host-key-review. It never contacts or mutates the remote host and never treats an empty password as trust proof. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "host": "string (required)",
+          "machine_id": "string",
+          "port": "int32",
+          "user": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "decision": "ConnectDecision",
+          "machine_id": "string",
+          "message": "string",
+          "password_required": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or invalid SSH target"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The target requires explicit trust or host-key review"
+        }
+      ]
+    },
+    {
+      "id": "onboard_start_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding",
+      "method": "POST",
+      "summary": "Onboard a raw SSH host into the fleet (one-shot, durable)",
+      "description": "Drives a raw SSH-reachable host from bare OS to a paired, ONLINE, auto-starting fleet agent in one durable, server-owned op (SSH first-touch → push bootstrap script → remote bootstrap → verify online). The owner's SSH password is used once and never persisted; the pairing code is issued server-side and injected over stdin. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly); the resolved commit is preflighted against the clone remote, so an unpushed commit is rejected with push-first guidance. Honours X-Dry-Run. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "capabilities": "array<string>",
+          "checkout_dir": "string",
+          "control_plane_url": "string (required unless BRIDGE_CONTROL_PLANE_URL is set)",
+          "host": "string (required)",
+          "node_name": "string",
+          "port": "int32",
+          "repo_url": "string",
+          "skip_prereqs": "bool",
+          "skip_setup": "bool",
+          "ssh_password": "string",
+          "target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
+          "user": "string",
+          "verify_timeout_seconds": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "op_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing host/control_plane_url, or an invalid revision (e.g. a relative ref like HEAD~1)"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The resolved commit is not on the clone remote (push it first) or the control plane's commit could not be determined"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Op persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Onboard a host",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"host\":\"web-01.example.com\",\"ssh_password\":\"<pw>\",\"node_name\":\"web-01\",\"target_revision\":\"a1b2c3d\",\"control_plane_url\":\"https://cp.example.com\"}'"
+        }
+      ]
+    },
+    {
+      "id": "onboard_get_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/GetOnboarding",
+      "method": "POST",
+      "summary": "Get an onboarding op by id with its step-event history",
+      "description": "Returns one durable onboarding op and its full persisted step-event history (orchestrator phases + every bootstrap step). Re-attaching after a client disconnect is just calling this again. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<OnboardingStepEvent>",
+          "op": "OnboardingOp"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get onboarding op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/GetOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "onboard_protect_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/ProtectOnboarding",
+      "method": "POST",
+      "summary": "Complete target-bound onboarding protection",
+      "description": "Relays an opaque node-sealed break-glass envelope after pairing; the node helper owns the protected material and the owner passphrase never reaches Bridge plaintext.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cleanup_operation_id": "string (required)",
+          "declined": "bool",
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "onboarding_op_id": "string (required)",
+          "scope": "string",
+          "sealed_passphrase": "bytes",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "detail": "string",
+          "op": "OnboardingOp",
+          "protection_operation_id": "string",
+          "protection_status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing onboarding or target identity, or missing sealed authorization when not declined"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The target protection step cannot be completed"
+        }
+      ]
+    },
+    {
+      "id": "onboard_list_onboardings",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/ListOnboardings",
+      "method": "POST",
+      "summary": "List onboarding ops",
+      "description": "Returns onboarding ops newest-first, optionally filtered by host. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "host": "string",
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ops": "array<OnboardingOp>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List onboarding ops",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/ListOnboardings -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "onboard_wait_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/WaitOnboarding",
+      "method": "POST",
+      "summary": "Block-once wait for an onboarding op to finish",
+      "description": "Blocks server-side and returns EXACTLY ONCE when the op reaches a terminal state (no polling). Returns timed_out=true if the wait deadline elapses first. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "op": "OnboardingOp",
+          "timed_out": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 499,
+          "code": "canceled",
+          "description": "Client cancelled the wait"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for onboarding op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/WaitOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\",\"timeout_seconds\":1800}'"
+        }
+      ]
+    },
+    {
+      "id": "onboard_cancel_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/CancelOnboarding",
+      "method": "POST",
+      "summary": "Cancel a running onboarding op",
+      "description": "Requests cancellation of a non-terminal op; the orchestrator aborts the in-flight remote work at the next boundary and drives the op to CANCELLED. Cancelling a terminal op is a no-op. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "op": "OnboardingOp"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Cancel onboarding op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/CancelOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "onboard_remove_failed_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/RemoveFailedOnboarding",
+      "method": "POST",
+      "summary": "Remove a failed onboarding attempt",
+      "description": "Permanently removes a FAILED onboarding operation and its local diagnostic history. It never contacts the target machine and cannot remove a live, cancelled, or successfully paired node. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id or operation is not failed"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Remove failed onboarding",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.onboard.OnboardService/RemoveFailedOnboarding -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_issue_code",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/IssuePairingCode",
+      "method": "POST",
+      "summary": "Issue a pairing code",
+      "description": "Mints a single-use, short-TTL pairing code and returns the control-plane public key to pin. Owner-gated. The plaintext code is returned once.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "scopes": "array<string>",
+          "ttl_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "code": "string (shown once)",
+          "control_plane_public_key": "string (base64 Ed25519)",
+          "expires_at": "Timestamp"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Code generation/persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Issue a code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/IssuePairingCode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"name\":\"mac-mini\",\"scopes\":[\"scenario test*\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_redeem_code",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/RedeemPairingCode",
+      "method": "POST",
+      "summary": "Redeem a pairing code",
+      "description": "Node-facing bootstrap: redeems a still-valid code, registers the node, stores its Ed25519 public key, and returns the node id + control-plane public key to pin. Open (authed by possessing the code).",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arch": "string",
+          "capabilities": "array<string>",
+          "code": "string (required)",
+          "endpoint": "string",
+          "name": "string",
+          "node_public_key": "string (base64 Ed25519, required)",
+          "os": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "control_plane_public_key": "string (base64 Ed25519)",
+          "node_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/invalid code or public key"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Unknown, expired, or already-redeemed code"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Registration/persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Redeem a code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/RedeemPairingCode -H 'Content-Type: application/json' -d '{\"code\":\"...\",\"node_public_key\":\"<base64>\",\"os\":\"linux\",\"arch\":\"amd64\"}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_request",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/RequestPairing",
+      "method": "POST",
+      "summary": "Request pairing (no code)",
+      "description": "Node-facing fallback when there is no pre-shared code: records a pending join request the owner approves. Open.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arch": "string",
+          "capabilities": "array<string>",
+          "endpoint": "string",
+          "name": "string",
+          "node_public_key": "string (base64 Ed25519, required)",
+          "os": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "request_id": "string",
+          "status": "PairingRequestStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid public key"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Request pairing",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/RequestPairing -H 'Content-Type: application/json' -d '{\"node_public_key\":\"<base64>\",\"name\":\"ci-box\"}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_approve",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/ApprovePairing",
+      "method": "POST",
+      "summary": "Approve/reject a pairing request",
+      "description": "Decides a pending join request — approving mints the node and stores its credential. Owner-gated.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "approve": "boolean",
+          "confirmation_words": "array<string> (required when approving)",
+          "request_id": "string (required)",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node_id": "string (set when approved)",
+          "status": "PairingRequestStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown request"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Request already decided"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Registration/persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Approve a request",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ApprovePairing -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"request_id\":\"...\",\"approve\":true,\"scopes\":[\"scenario test*\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_get_request",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/GetPairingRequest",
+      "method": "POST",
+      "summary": "Get pairing request status",
+      "description": "Node-facing polling endpoint for a no-code pairing request. Returns public request facts, confirmation words, and the node identity after owner approval.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "request_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "control_plane_public_key": "string (set when approved)",
+          "request": "PairingRequest"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing request id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown request"
+        }
+      ]
+    },
+    {
+      "id": "pairing_list_requests",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests",
+      "method": "POST",
+      "summary": "List pairing requests",
+      "description": "Returns pending join requests awaiting owner approval (include_decided adds decided ones). Owner-gated.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_decided": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "requests": "array<PairingRequest>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List pending requests",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_register_encryption_key",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/RegisterEncryptionKey",
+      "method": "POST",
+      "summary": "Register a node encryption key",
+      "description": "Stores a node-generated X25519 public key after the existing Ed25519 node-auth proof succeeds. The private key never crosses the control plane.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "encryption_public_key": "string (base64 X25519)",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "algorithm": "string",
+          "node_id": "string",
+          "registered": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid X25519 public key"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Active node Ed25519 proof required"
+        }
+      ]
+    },
+    {
+      "id": "provision_sync_to_revision",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/SyncToRevision",
+      "method": "POST",
+      "summary": "Sync a node to a project revision (privileged)",
+      "description": "Brings a node to a target git revision (`git fetch`@R + idempotent `vrooli setup`) via the node's separate privileged helper, creating a durable, audited provisioning op. Validates and rejects an unknown/revoked/offline node before any op is created. target_revision defaults to the control plane's current commit (pass \"@cp\" to say so explicitly) and is preflighted against the clone remote, so an unpushed commit is rejected with push-first guidance; rollback_revision accepts \"@cp\" too. Honours X-Dry-Run. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_id": "string (required)",
+          "rollback_revision": "string (\"@cp\" accepted)",
+          "target_revision": "string (defaults to the control plane's commit; \"@cp\" = same)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "op_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing node_id, or an invalid revision (e.g. a relative ref like HEAD~1)"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown node"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Node revoked or offline"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The resolved commit is not on the clone remote (push it first)"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Provisioning command could not be delivered"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Sync a node to a revision",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/SyncToRevision -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"target_revision\":\"a1b2c3d\"}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_get_provisioning_op",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetProvisioningOp",
+      "method": "POST",
+      "summary": "Get a provisioning op by id with its event history",
+      "description": "Returns one durable provisioning op and its full persisted event history (logs/status/version/exit). Re-attaching after a client disconnect is just calling this again. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<ProvisionEvent>",
+          "op": "ProvisioningOp"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get provisioning op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetProvisioningOp -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_list_provisioning_ops",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/ListProvisioningOps",
+      "method": "POST",
+      "summary": "List provisioning ops",
+      "description": "Returns provisioning ops newest-first, optionally filtered by node. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ops": "array<ProvisioningOp>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List provisioning ops",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/ListProvisioningOps -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_wait_provisioning_op",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/WaitProvisioningOp",
+      "method": "POST",
+      "summary": "Block-once wait for a provisioning op to finish",
+      "description": "Blocks server-side and returns EXACTLY ONCE when the op reaches a terminal status (no polling). Returns timed_out=true if the wait deadline elapses first. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "op": "ProvisioningOp",
+          "timed_out": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 499,
+          "code": "canceled",
+          "description": "Client cancelled the wait"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for provisioning op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/WaitProvisioningOp -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\",\"timeout_seconds\":1800}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_get_node_version",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetNodeVersion",
+      "method": "POST",
+      "summary": "Get a node's current project revision",
+      "description": "Returns a node's current recorded project revision (the last VERSION a provisioning op reported). has_version=false when the node has never been provisioned. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "has_version": "bool",
+          "version": "NodeVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get node version",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetNodeVersion -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_report_provision_event",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/ReportProvisionEvent",
+      "method": "POST",
+      "summary": "Ingest a provision event from the node-agent (node-facing)",
+      "description": "Node-facing: the node-agent's privileged helper streams ProvisionEvents back here, signed with its per-node Ed25519 credential. A node may only report against its own ops. A VERSION event records the node's current revision; a terminal EXIT flips the op terminal and wakes block-once waiters. Not an operator verb — omitted from the CLI manifest.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "event": "ProvisionEvent"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing op_id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Node mutual-auth signature required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "A node may only report its own ops"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Report provision event (node-agent)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/ReportProvisionEvent -H 'X-Bridge-Node: <node>' -H 'X-Bridge-Timestamp: <ts>' -H 'X-Bridge-Signature: <sig>' -H 'Content-Type: application/json' -d '{\"event\":{\"op_id\":\"op-123\",\"kind\":\"PROVISION_EVENT_KIND_LOG\",\"log_chunk\":\"...\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "queue_list_queue",
+      "path": "/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue",
+      "method": "POST",
+      "summary": "List the live per-node job queue",
+      "description": "Returns the live scheduler view: one NodeQueue per node with any running or queued job (running first, then queued in FIFO order with positions), optionally narrowed to a single node. Read-only; the queue is mutated through dispatch (enqueue) and runs AbortRun (cancel). Owner-gated.",
+      "category": "queue",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "nodes": "array<NodeQueue>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List the queue",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "List one node's queue",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "relay_call",
+      "path": "/vrooli.vrooli_bridge.v1.relay.RelayService/Call",
+      "method": "POST",
+      "summary": "Run an admitted command through a node channel",
+      "description": "Owner-gated: applies the same manifest and node-scope admission as durable dispatch, sends a signed typed relay frame, and returns the bounded node response.",
+      "category": "relay",
+      "request": {
+        "type": "object",
+        "properties": {
+          "args": "array<string>",
+          "command": "string",
+          "max_response_bytes": "uint64",
+          "node_id": "string",
+          "scenario": "string",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "correlation_id": "string",
+          "data": "bytes",
+          "exit_code": "int32",
+          "outcome": "RelayCallOutcome",
+          "reason": "string",
+          "total_bytes": "uint64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid command or relay request"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner authentication required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Command is outside the node's manifest scopes or contains an unsafe token"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Node is revoked, offline, incompatible, or unsupported"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Relay response exceeds the bounded byte limit"
+        }
+      ]
+    },
+    {
+      "id": "registry_register_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RegisterNode",
+      "method": "POST",
+      "summary": "Register a trusted node",
+      "description": "Creates a durable node record (OS/arch/endpoint/capabilities/scopes). Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arch": "string (required)",
+          "capabilities": "array<string>",
+          "endpoint": "string",
+          "name": "string (required)",
+          "os": "string (required)",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing name/os/arch"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register a node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RegisterNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"name\":\"mac-mini\",\"os\":\"darwin\",\"arch\":\"arm64\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_list_nodes",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/ListNodes",
+      "method": "POST",
+      "summary": "List fleet nodes",
+      "description": "Returns every node in the owner's fleet, newest-first, with the live presence overlay applied. Owner-gated.",
+      "category": "registry",
+      "response": {
+        "type": "object",
+        "properties": {
+          "nodes": "array<Node>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List nodes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/ListNodes -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_get_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNode",
+      "method": "POST",
+      "summary": "Get a node by id",
+      "description": "Returns one node by id with the presence overlay applied. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_update_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/UpdateNode",
+      "method": "POST",
+      "summary": "Update a node",
+      "description": "Mutates a node's owner-editable fields (name/endpoint/capabilities/scopes/revision). Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "capabilities": "array<string>",
+          "endpoint": "string",
+          "id": "string (required)",
+          "name": "string (required)",
+          "revision": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id/name"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Update node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/UpdateNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\",\"name\":\"renamed\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_revoke_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode",
+      "method": "POST",
+      "summary": "Revoke a node",
+      "description": "Severs a node atomically — marks the record revoked and (Phase 2) destroys credentials + kills channel/job/provisioning rights. Idempotent. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Revoke node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_remove_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RemoveNode",
+      "method": "POST",
+      "summary": "Remove a revoked node",
+      "description": "Permanently removes a revoked registry record. Active nodes must be revoked first. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed_node_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Node must be revoked first"
+        }
+      ]
+    },
+    {
+      "id": "registry_get_node_readiness",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNodeReadiness",
+      "method": "POST",
+      "summary": "Diagnose node readiness",
+      "description": "Returns independent registry, heartbeat, channel, protocol, and dispatchability facts. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        }
+      ]
+    },
+    {
+      "id": "bridge-readiness",
+      "path": "/api/v1/readiness",
+      "method": "GET",
+      "summary": "Bridge host readiness",
+      "description": "Owner-visible canonical endpoint, fixed port, local API check, and latest durable candidate-admission evidence.",
+      "category": "system",
+      "response": {
+        "type": "BridgeReadinessResult",
+        "properties": {
+          "checks": "object",
+          "endpoint": "string",
+          "firewall": "object",
+          "last_candidate": "object",
+          "local_api": "boolean",
+          "port": "integer",
+          "reachability_mode": "string",
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only readiness inspection; no mutation or generated workflow contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-readiness-endpoint",
+      "path": "/api/v1/readiness/endpoint",
+      "method": "PUT",
+      "summary": "Configure Bridge advertised endpoint",
+      "description": "Owner-only durable endpoint configuration used as the default for future onboarding; explicit onboarding endpoints still win.",
+      "category": "system",
+      "request": {
+        "type": "BridgeEndpointConfig",
+        "properties": {
+          "endpoint": "string",
+          "reachability_mode": "string"
+        }
+      },
+      "response": {
+        "type": "BridgeReadinessResult",
+        "properties": {
+          "endpoint": "string",
+          "reachability_mode": "string",
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only host configuration; this REST operation has a dedicated CLI wrapper.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "bridge-readiness-firewall",
+      "path": "/api/v1/readiness/firewall",
+      "method": "POST",
+      "summary": "Inspect or remediate exact Bridge UFW admission",
+      "description": "Owner-only confirmed action through the setup-managed local privilege broker. Only the candidate source IP and Bridge port 18767 are accepted.",
+      "category": "system",
+      "request": {
+        "type": "BridgeFirewallAction",
+        "properties": {
+          "action": "preview|inspect|verify|allow|revoke",
+          "candidate_ip": "string",
+          "confirm": "boolean"
+        }
+      },
+      "response": {
+        "type": "BridgeFirewallActionResult",
+        "properties": {
+          "changed": "boolean",
+          "evidence": "object",
+          "status": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-only typed host action; the broker rejects arbitrary commands and this wrapper requires explicit confirmation for mutation.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "runs_get_run",
+      "path": "/vrooli.vrooli_bridge.v1.runs.RunsService/GetRun",
+      "method": "POST",
+      "summary": "Get a run by id with its event history",
+      "description": "Returns one durable run and its full persisted event history (logs/status/exit/artifact refs). Re-attaching after a client disconnect is just calling this again. Owner-gated.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<RunEvent>",
+          "run": "Run"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/GetRun -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"run-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_list_runs",
+      "path": "/vrooli.vrooli_bridge.v1.runs.RunsService/ListRuns",
+      "method": "POST",
+      "summary": "List runs",
+      "description": "Returns runs newest-first, optionally filtered by node. Owner-gated.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "runs": "array<Run>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List runs",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/ListRuns -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_wait_run",
+      "path": "/vrooli.vrooli_bridge.v1.runs.RunsService/WaitRun",
+      "method": "POST",
+      "summary": "Block-once wait for a run to finish",
+      "description": "Blocks server-side and returns EXACTLY ONCE when the run reaches a terminal status (no polling). Returns timed_out=true if the wait deadline elapses first. Owner-gated.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "Run",
+          "timed_out": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        },
+        {
+          "status": 499,
+          "code": "canceled",
+          "description": "Client cancelled the wait"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/WaitRun -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"run-123\",\"timeout_seconds\":600}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_abort_run",
+      "path": "/vrooli.vrooli_bridge.v1.runs.RunsService/AbortRun",
+      "method": "POST",
+      "summary": "Abort a run",
+      "description": "Requests cancellation of a non-terminal run and marks it ABORTED. Idempotent on an already-terminal run. Owner-gated.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "reason": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "Run"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Abort run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/AbortRun -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"run-123\",\"reason\":\"superseded\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_stream_run_events",
+      "path": "/vrooli.vrooli_bridge.v1.runs.RunsService/StreamRunEvents",
+      "method": "POST",
+      "summary": "Follow a run's live event stream",
+      "description": "Server-streams the run's persisted event history then tails live events until the run is terminal or the client disconnects. The human follow verb; agents use WaitRun. Owner-gated.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "stream",
+        "properties": {
+          "event": "RunEvent"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No run with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Follow run",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/StreamRunEvents -H 'Authorization: Bearer <token>' -H 'Content-Type: application/connect+json' -d '{\"id\":\"run-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_report_run_event",
+      "path": "/vrooli.vrooli_bridge.v1.runs.RunsService/ReportRunEvent",
+      "method": "POST",
+      "summary": "Ingest a run event from the node-agent (node-facing)",
+      "description": "Node-facing: the node-agent streams RunEvents back here, signed with its per-node Ed25519 credential. A node may only report against its own runs. A terminal EXIT flips the run terminal and wakes block-once waiters. Not an operator verb — omitted from the CLI manifest.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "event": "RunEvent"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing run_id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Node mutual-auth signature required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "A node may only report its own runs"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Report run event (node-agent)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/ReportRunEvent -H 'X-Bridge-Node: <node>' -H 'X-Bridge-Timestamp: <ts>' -H 'X-Bridge-Signature: <sig>' -H 'Content-Type: application/json' -d '{\"event\":{\"run_id\":\"run-123\",\"kind\":\"RUN_EVENT_KIND_LOG\",\"log_chunk\":\"...\"}}'"
+        }
+      ]
+    }
+  ]
+}

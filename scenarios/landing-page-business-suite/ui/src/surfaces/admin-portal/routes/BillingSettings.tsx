@@ -59,7 +59,6 @@ export function BillingSettings() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Billing & Subscription"
           description="Configure Stripe integration, manage pricing plans, and control how your landing page displays subscription options."
           icon={CreditCard}
@@ -111,7 +110,7 @@ export function BillingSettings() {
                   </p>
                 )}
                 {stripeError && <p className="text-sm text-rose-300">{stripeError}</p>}
-                <form onSubmit={handleStripeSave} className="grid gap-4 md:grid-cols-2">
+                <form onSubmit={(event) => { void handleStripeSave(event); }} className="grid gap-4 md:grid-cols-2">
                   <FormField
                     label="Publishable Key"
                     helpText={stripeSettings?.publishable_key_set ? 'Publishable key is saved. Enter a new value to rotate.' : undefined}
@@ -162,7 +161,7 @@ export function BillingSettings() {
                       {savingStripe && <RefreshCw className="h-4 w-4 animate-spin" />}
                       Save Stripe Settings
                     </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={loadStripe} className="gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { void loadStripe(); }} className="gap-2">
                       <RefreshCw className="h-4 w-4" />
                       Refresh
                     </Button>
@@ -181,7 +180,7 @@ export function BillingSettings() {
           onTabChange={setPricingTab}
           showDemoPlaceholders={includeDemoPlaceholders}
           onToggleDemoPlaceholders={toggleDemoPlaceholders}
-          onReload={loadBundles}
+          onReload={() => { void loadBundles(); }}
           loading={loadingBundles}
           error={bundleError}
           onPriceChange={handlePriceChange}
@@ -196,9 +195,9 @@ export function BillingSettings() {
           <Callout
             type="info"
             title="Plans Detected"
-            message={`${totalPlanCount} plan${totalPlanCount !== 1 ? 's' : ''} found from Stripe. Edit plan display settings in the Plans admin page.`}
+            message={`${String(totalPlanCount)} plan${totalPlanCount !== 1 ? 's' : ''} found from Stripe. Edit plan display settings in the Plans admin page.`}
             actions={[
-              { label: 'Manage Plans', onClick: () => navigate('/admin/tiers') }
+              { label: 'Manage Plans', onClick: () => { navigate('/admin/tiers'); } }
             ]}
           />
         )}

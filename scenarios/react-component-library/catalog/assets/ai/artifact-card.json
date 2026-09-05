@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.artifact-card",
+    "name": "ArtifactCard",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "ai",
+    "description": "The generated-output component with type-specific preview, version, status, and actions to edit, open, compare, export, download, and inspect provenance.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.card",
+        "reason": "Framing uses the shared card, which is a genuinely bounded object here."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "media.file-preview",
+        "reason": "Type treatment and placeholder handling are shared."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Timestamps render and update through the shared component."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "ai.diff-approval",
+        "reason": "Artifacts that represent proposed changes need review; finished outputs do not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "recovery-path",
+    "freshness-disclosure",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "stale",
+    "request-error",
+    "permission-denied"
+  ]
+}

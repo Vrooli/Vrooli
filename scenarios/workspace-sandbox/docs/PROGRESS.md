@@ -16,11 +16,11 @@ Track development progress, decisions, and significant changes.
 | 2025-12-17 | Claude Opus 4.5 | Multi-layer validation + lint fixes | Updated 8 requirement modules to use "api" phase for BATS integration tests (changed from e2e to api for proper layer recognition). Fixed 4 staticcheck errors: replaced deprecated filepath.HasPrefix with strings.HasPrefix in overlayfs_test.go, changed nil context to context.TODO() in policy_test.go. Added cli/workspace-sandbox to shell exclude list. All Go tests passing. |
 | 2025-12-17 | Claude Opus 4.5 | Security fixes + auditor passing | Fixed CRITICAL SQL injection pattern (SQL-002) by replacing fmt.Sprintf with safe queryBuilder pattern. Fixed HIGH CORS wildcard (HTTP-002) by implementing origin validation from config. Both auditor scans now pass with 0 violations. |
 | 2025-12-17 | Claude Opus 4.5 | E2E test infrastructure + multi-layer validation | Added 22 BATS e2e tests covering health, sandbox CRUD, diff, and approval endpoints. Created 3 UI workflow tests for BAS playbook execution. Updated 6 requirement modules (01, 05, 06, 07, 09) with e2e test references. Fixed playbook workflow JSON phase field issue. All BATS tests passing. Integration tests passing. |
-| 2025-12-17 | Claude Opus 4.5 | Database schema fix + UI smoke test passing | Fixed missing idempotency_key/version/updated_at columns in PostgreSQL schema. Fixed lighthouse.json schema validation. Added UI test setup with jsdom. Created App.test.tsx with 3 passing tests linked to requirements. Fixed broken RESEARCH.md link. All 41 Go tests passing, 3 UI tests passing, structure validation passing. |
+| 2025-12-17 | Claude Opus 4.5 | Database schema fix + UI smoke test passing | Fixed missing idempotency_key/version/updated_at columns in SQLite schema. Fixed lighthouse.json schema validation. Added UI test setup with jsdom. Created App.test.tsx with 3 passing tests linked to requirements. Fixed broken RESEARCH.md link. All 41 Go tests passing, 3 UI tests passing, structure validation passing. |
 | 2025-12-17 | Claude Opus 4.5 | Test infrastructure migration to test-genie | Updated service.json to use `test-genie execute workspace-sandbox` instead of deprecated `cd test && ./run-tests.sh`. Removed unused test/ directory. Scenarios now use test-genie for all phased testing. |
 | 2025-12-16 | Claude Opus 4.5 | Idempotency & Temporal Flow Hardening | Added idempotency keys for Create, made all state transitions idempotent, added optimistic locking, database-level scope locking, mount verification methods |
 | 2025-12-16 | Claude Opus 4.5 | Intent Clarification & Assumption Hardening | Renamed ConflictType constants for clarity, added state machine ASCII diagram, documented assumptions explicitly in code, added validation guards, created assumption tests as executable documentation |
-| 2025-12-17 | Claude Opus 4.5 | Progress & Signal Surface Design | Created PostgreSQL schema (sandboxes, audit_log, check_scope_overlap), added stats endpoint, implemented structured JSON logging, improved error signals with actionable hints. Backend API now fully functional. |
+| 2025-12-17 | Claude Opus 4.5 | Progress & Signal Surface Design | Created SQLite schema (sandboxes, audit_log, check_scope_overlap), added stats endpoint, implemented structured JSON logging, improved error signals with actionable hints. Backend API now fully functional. |
 | 2025-12-17 | Claude Opus 4.5 | Comprehensive UI implementation | Replaced template UI with full-featured diff viewer, sandbox list, status header, create dialog. Complete UX for sandbox lifecycle management with approve/reject workflow. |
 | 2025-12-17 | Claude Opus 4.5 | Comprehensive handler tests + requirement updates | Added 18 new handler tests covering create/list/get/delete/stop/diff/approve/reject/workspace/driver endpoints, fixed invalid test refs, updated 8 requirement modules with passing test references |
 | 2025-12-17 | Claude Opus 4.5 | Test infrastructure + CLI fixes | Fixed CLI build errors (cliapp API), created test directory with run-tests.sh, added handlers_test.go for health endpoint, updated REQ-P0-010 with passing tests |
@@ -49,7 +49,7 @@ Track development progress, decisions, and significant changes.
 
 ### Open Questions
 - fuse-overlayfs vs privileged overlayfs support
-- PostgreSQL vs SQLite for metadata
+- SQLite vs SQLite for metadata
 - Process tracking via cgroups vs process groups
 - Diff format: standard unified vs Git-style
 
@@ -65,7 +65,7 @@ Track development progress, decisions, and significant changes.
 
 ### Focus: Replay Safety and Temporal Correctness
 
-Following the ecosystem-manager phases for "Idempotency & Replay Safety Hardening" and "Temporal Flow Audit", this session focused on:
+Following the swarm-manager phases for "Idempotency & Replay Safety Hardening" and "Temporal Flow Audit", this session focused on:
 1. Making operations safe under repeated execution
 2. Adding optimistic concurrency control
 3. Preventing race conditions in scope overlap checking
@@ -167,13 +167,13 @@ Added transactional repository support:
 
 This enables atomic operations across multiple database calls.
 
-### Database Schema Changes (initialization/postgres/seed.sql)
+### Database Schema Changes (api/internal/<domain>/schema.sql)
 
 Added new columns:
 ```sql
 idempotency_key TEXT UNIQUE,  -- Client-provided key for request deduplication
-updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),  -- Last modification time
-version BIGINT NOT NULL DEFAULT 1  -- Optimistic locking version counter
+updated_at TEXT NOT NULL,     -- RFC3339Nano UTC string
+version INTEGER NOT NULL DEFAULT 1  -- Optimistic locking version counter
 ```
 
 Added index:
@@ -190,7 +190,7 @@ CREATE INDEX IF NOT EXISTS idx_sandboxes_idempotency_key
 - `api/internal/driver/driver.go` (IsMounted, VerifyMountIntegrity interface)
 - `api/internal/driver/overlayfs.go` (mount verification implementations)
 - `api/internal/sandbox/idempotency_test.go` (new - comprehensive tests)
-- `initialization/postgres/seed.sql` (new columns)
+- `api/internal/<domain>/schema.sql` (new columns)
 
 ### Test Coverage
 
@@ -222,7 +222,7 @@ Without idempotency, these cause duplicate resources, conflicting state, and har
 
 ### Focus: Evolution Resilience and Tunable Levers
 
-Following the ecosystem-manager architectural guidelines for "Change Axis & Evolution Resilience" and "Control Surface & Tunable Levers", this session focused on:
+Following the swarm-manager architectural guidelines for "Change Axis & Evolution Resilience" and "Control Surface & Tunable Levers", this session focused on:
 1. Identifying primary axes of change
 2. Localizing change along clear extension points
 3. Extracting hardcoded values into configurable levers
@@ -317,7 +317,7 @@ All existing tests pass. Changes are backwards-compatible.
 
 ### Focus: Cognitive Load Reduction & Decision Boundary Extraction
 
-Following the ecosystem-manager architectural guidelines, this session focused on making the codebase easier to understand, reason about, and safely modify.
+Following the swarm-manager architectural guidelines, this session focused on making the codebase easier to understand, reason about, and safely modify.
 
 ### Key Changes
 
@@ -574,11 +574,11 @@ This session focused on two key areas from the scenario improvement methodology:
 
 ### Critical Blocker Resolved
 
-The API was returning 500 errors because the PostgreSQL schema did not exist. This was the highest priority blocker preventing end-to-end testing.
+The API was returning 500 errors because the SQLite schema did not exist. This was the highest priority blocker preventing end-to-end testing.
 
-### Database Schema (initialization/postgres/seed.sql)
+### Database Schema (api/internal/<domain>/schema.sql)
 
-Created complete PostgreSQL schema with:
+Created complete SQLite schema with:
 
 #### Tables
 1. **sandboxes** - Core table with all metadata columns:
@@ -589,7 +589,7 @@ Created complete PostgreSQL schema with:
    - Timestamps: created_at, last_used_at, stopped_at, approved_at, deleted_at
    - Driver: driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir
    - Accounting: size_bytes, file_count, active_pids, session_count
-   - Metadata: tags[], metadata (JSONB)
+   - Metadata: tags (JSON-array TEXT), metadata (JSON TEXT)
 
 2. **sandbox_audit_log** - Immutable audit trail:
    - Links to sandbox, event_type, event_time, actor, details
@@ -677,7 +677,7 @@ Enhanced all domain errors with:
    ```
 
 ### Files Changed
-- `initialization/postgres/seed.sql` (complete rewrite)
+- `api/internal/<domain>/schema.sql` (complete rewrite)
 - `api/internal/config/config.go` (added Schema field)
 - `api/main.go` (schema config, structured logging)
 - `api/internal/logging/logging.go` (new)
@@ -710,7 +710,7 @@ All endpoints now working:
 
 ### Focus: Making Intent Explicit and Hardening Hidden Assumptions
 
-Following the ecosystem-manager phases for Intent Clarification and Assumption Mapping & Hardening, this session focused on:
+Following the swarm-manager phases for Intent Clarification and Assumption Mapping & Hardening, this session focused on:
 1. Clarifying naming to communicate intent
 2. Adding documentation that explains the "why"
 3. Discovering and guarding implicit assumptions
@@ -862,7 +862,7 @@ This session resolved critical blocking issues that were preventing the scenario
 **Problem**: The API was returning 500 errors because the repository code expected columns (`idempotency_key`, `version`, `updated_at`) that did not exist in the database schema.
 
 **Solution**:
-- Updated `initialization/postgres/schema.sql` with the missing columns
+- Updated `api/internal/<domain>/schema.sql` with the missing columns
 - Applied the schema migration to the running database
 - Added `get_sandbox_stats()` function for the stats endpoint
 - API now successfully serves all endpoints
@@ -895,7 +895,7 @@ This session resolved critical blocking issues that were preventing the scenario
 **Solution**: Updated to use Wikipedia's unified diff format documentation.
 
 ### Files Changed
-- `initialization/postgres/schema.sql` - Added missing columns and function
+- `api/internal/<domain>/schema.sql` - Added missing columns and function
 - `.vrooli/lighthouse.json` - Added version field, adjusted thresholds
 - `ui/package.json` - Added jsdom dependency
 - `ui/vite.config.ts` - Added setupFiles configuration

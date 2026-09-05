@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/deploy"
-	sharedenv "scenario-to-desktop-api/shared/env"
 	"scenario-to-desktop-api/shared/errors"
+
+	sharedenv "scenario-to-desktop-api/shared/env"
 )
 
 // LPBSClientFactory creates an LPBSClient for the given scenario and token.
@@ -92,6 +93,10 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
 	}
+	if input.ResourceDeploymentPlan != nil && !input.ResourceDeploymentPlan.Promotable {
+		failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "development-local bundle is non-promotable and cannot be deployed or published").WithRecovery(errors.RecoveryFixInput, "Restage the identical artifacts with a production release-manifest signature and rerun using --artifact-trust-mode production."))
+		return result
+	}
 
 	cfg := input.Config.DeployConfig
 	if cfg == nil {
@@ -114,7 +119,7 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	// Get service token
 	serviceToken := sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
 	if serviceToken == "" {
-		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET is not set (checked env and .vrooli/secrets.json)").
+		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET is not injected for this process").
 			WithRecovery(errors.RecoveryProvideCredentials, "Set LPBS_SERVICE_SECRET to enable service-to-service auth via scenario-to-cloud secrets command").
 			WithManualSteps([]string{
 				"Set LPBS_SERVICE_SECRET using scenario-to-cloud secrets set ... --targets scenario,deployment",
@@ -215,6 +220,7 @@ func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSCl
 		appendInfo(result, "Uploading %s artifact: %s", platform, artifactPath)
 		uploadResult, err := client.UploadArtifact(ctx, &deploy.UploadRequest{
 			RemoteProfile:  remoteProfile,
+			ScenarioName:   input.Config.ScenarioName,
 			AppKey:         cfg.AppKey,
 			Platform:       platform,
 			FilePath:       artifactPath,

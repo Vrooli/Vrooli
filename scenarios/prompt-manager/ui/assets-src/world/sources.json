@@ -1,0 +1,37 @@
+{
+  "kits": {
+    "nature-kit": { "name": "Kenney Nature Kit", "author": "Kenney", "license": "CC0 1.0", "url": "https://kenney.nl/assets/nature-kit", "fetched": "2026-09-02" },
+    "furniture-kit": { "name": "Kenney Furniture Kit", "author": "Kenney", "license": "CC0 1.0", "url": "https://kenney.nl/assets/furniture-kit", "fetched": "2026-09-02" }
+  },
+  "props": {
+    "park": {
+      "desk": "furniture-kit/desk.glb",
+      "bench": "furniture-kit/bench.glb",
+      "table_round": "furniture-kit/tableRound.glb",
+      "log_seat": "nature-kit/log.glb",
+      "campfire": "nature-kit/campfire_logs.glb",
+      "lamp_post": "furniture-kit/lampSquareFloor.glb",
+      "sign_board": "nature-kit/sign.glb",
+      "tree_oak": "nature-kit/tree_oak.glb",
+      "tree_pine": "nature-kit/tree_pineRoundA.glb",
+      "tree_default": "nature-kit/tree_default.glb",
+      "rock_small": "nature-kit/rock_smallA.glb",
+      "bush_round": "nature-kit/plant_bushLarge.glb",
+      "flowers": "nature-kit/flower_purpleA.glb",
+      "stump": "nature-kit/stump_round.glb"
+    },
+    "office": {
+      "desk": "furniture-kit/desk.glb",
+      "chair_desk": "furniture-kit/chairDesk.glb",
+      "table_round": "furniture-kit/tableRound.glb",
+      "chair_lounge": "furniture-kit/loungeChair.glb",
+      "coffee_table": "furniture-kit/tableCoffee.glb",
+      "lamp_floor": "furniture-kit/lampRoundFloor.glb",
+      "display_board": "furniture-kit/televisionModern.glb",
+      "plant_small": "furniture-kit/plantSmall1.glb",
+      "bookcase": "furniture-kit/bookcaseOpen.glb",
+      "side_table": "furniture-kit/sideTable.glb",
+      "rug_round": "furniture-kit/rugRound.glb"
+    }
+  }
+}

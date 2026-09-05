@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.kanban-board",
+    "name": "KanbanBoard",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The column-based work board with virtualization, keyboard-accessible dragging, swimlanes, collapse, filters, optimistic movement, and conflict recovery.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.sortable",
+        "reason": "Card movement uses the shared reorder model with keyboard support."
+      },
+      {
+        "asset": "services.drag-drop-store",
+        "reason": "Active drag, targets, and announcements live in the shared store."
+      },
+      {
+        "asset": "primitives.card",
+        "reason": "Board items are genuinely framed objects."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "gesture-alternative",
+    "status-announced",
+    "optimistic-rollback",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

@@ -307,7 +307,9 @@ All 15 commands execute through the `ssh.Runner` seam, enabling complete test co
 
 ## Edge/TLS Management
 
-> [CODE: api/handlers_edge.go, api/dns/, api/tlsinfo/]
+> [CODE: api/handlers_edge.go]
+> [CODE: api/dns/service.go]
+> [CODE: api/tlsinfo/service.go]
 
 The Edge subsystem manages the public-facing layer of a deployment: DNS verification, Caddy control, and TLS certificate lifecycle.
 
@@ -327,28 +329,19 @@ A separate **Expected Secrets** endpoint (`/expected-secrets`) returns the secre
 
 ## Terminal
 
-> [CODE: api/handlers_deployment.go (WebSocket handler)]
+> [CODE: api/handlers_deployment.go]
 
 The Terminal endpoint (`GET /deployments/{id}/terminal`) upgrades to a WebSocket connection, then opens an interactive SSH session to the deployment's VPS. The server proxies stdin/stdout/stderr bidirectionally, enabling a browser-based terminal.
 
 ## Investigation & Tasks
 
-> [CODE: api/investigation/, api/tasks/, api/handlers_tasks.go]
+> [CODE: api/investigation/service.go]
+> [CODE: api/tasks/service.go]
+> [CODE: api/handlers_tasks.go]
 
 The Investigation subsystem integrates with the **agent-manager** scenario to run autonomous debugging sessions against deployments. Legacy investigation endpoints are preserved for backward compatibility, while the new unified **Tasks** API (`/deployments/{id}/tasks`) provides a single interface for both investigate and fix task types.
 
 Tasks support configurable focus (harness/subject), effort levels (logs/inspect/code), and permission scopes (immediate/permanent/prevention).
-
-## Tool Discovery & Execution Protocol
-
-> [CODE: api/toolregistry/, api/toolhandlers/, api/toolexecution/]
-
-The Tool Protocol enables other agents and scenarios to programmatically discover and invoke scenario-to-cloud capabilities:
-
-- **Tool Discovery** (`GET /tools`): Returns all available tools with JSON Schema input specifications, organized by category (deployment, inspection, validation).
-- **Tool Execution** (`POST /tools/execute`): Executes a named tool with arguments. The `toolexecution.ServerExecutor` resolves deployment references and delegates to the appropriate internal service.
-
-Registered tool providers: `DeploymentToolProvider`, `InspectionToolProvider`, `ValidationToolProvider`.
 
 ## SSE Progress Streaming
 

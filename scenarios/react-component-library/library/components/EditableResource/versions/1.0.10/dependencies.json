@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:EditableResource",
+  "version": "1.0.10",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:ConflictResolutionFlow",
+      "major": 1,
+      "observed": "1.0.10",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:Form",
+      "major": 1,
+      "observed": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ResourceDetail",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:UnsavedChangesFlow",
+      "major": 1,
+      "observed": "1.0.9",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "major": 1,
+      "observed": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

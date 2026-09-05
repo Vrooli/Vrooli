@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -206,5 +205,33 @@ describe("DiffViewer minimap", () => {
       expect(screen.getByTestId("save-error")).toHaveTextContent("File changed on disk");
       expect(screen.getByTestId("save-error")).toHaveTextContent("server-hash");
     });
+  });
+});
+
+describe("DiffViewer image preview", () => {
+  it("renders SVG from its source with a decodable MIME type", () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1"/></svg>';
+    renderViewer(
+      buildDiffResponse({ path: "assets/logo.svg", full_content: svg }),
+      "preview",
+      { selectedFile: "assets/logo.svg" }
+    );
+
+    const img = screen.getByAltText("assets/logo.svg") as HTMLImageElement;
+    // `image/svg` (no `+xml`) is what produced the broken-image placeholder.
+    expect(img.src.startsWith("data:image/svg+xml;charset=utf-8,")).toBe(true);
+    expect(img.src).not.toContain("base64");
+    expect(decodeURIComponent(img.src.split(",")[1] ?? "")).toBe(svg);
+  });
+
+  it("renders raster images from base64", () => {
+    renderViewer(
+      buildDiffResponse({ path: "assets/logo.png", full_content: "iVBORw0KGgo=" }),
+      "preview",
+      { selectedFile: "assets/logo.png" }
+    );
+
+    const img = screen.getByAltText("assets/logo.png") as HTMLImageElement;
+    expect(img.src).toBe("data:image/png;base64,iVBORw0KGgo=");
   });
 });
